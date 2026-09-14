@@ -172,6 +172,15 @@ obrazovky, ne na aplikaci.
   si odvodí vlastní typ a resolvuje sám sebe → `StackOverflowError`.
 - **Od Androidu 13 je `POST_NOTIFICATIONS` běhové oprávnění.** Bez něj `notify` tiše nic neudělá,
   takže se kontroluje před každým zobrazením.
+- **Nejdřív vlastní vysvětlení, teprve pak systémový dialog.** Android dá na systémový dialog jen
+  dva pokusy a pak ho zablokuje natrvalo; vlastní obrazovka (`NotificationPermissionPrompt`) žádný
+  pokus nespotřebuje. Ptá se až v přihlášené části — nad přihlášením uživatel netuší, co appka dělá.
+- **Musí existovat cesta zpět.** Po zablokování dialogu jde oprávnění zapnout jen v systému, takže
+  Nastavení mají řádek, který ho otevře (`openSystemSettings`). Stav se čte znovu přes
+  `LifecycleResumeEffect`, jinak by po návratu zůstala viset stará hodnota.
+- **Na vynulování příznaku „už jsme se ptali" nepoužívej `pm clear`** — smaže i TDLib databázi
+  a odhlásí účet. Stačí:
+  `adb shell run-as eu.tintera.plume rm /data/data/eu.tintera.plume/shared_prefs/notification_permission.xml`
 - **TDLib se startuje v `startKoin`, ne v `AuthViewModel`.** Když push probudí mrtvý proces, žádné
   UI se neskládá — poběží jen `Application.onCreate` a `FirebaseMessagingService`. Kdyby
   `setTdlibParameters` viselo na vzniku ViewModelu, zůstal by TDLib ve `WaitTdlibParameters`

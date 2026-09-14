@@ -1,0 +1,37 @@
+package eu.tintera.plume.core.notifications
+
+import androidx.compose.runtime.Composable
+
+/**
+ * Stav oprávnění k zobrazování notifikací.
+ *
+ * Na platformách, kde se o oprávnění nežádá, hlásí [isGranted] `true` — volající se tak nemusí
+ * ptát, na čem běží.
+ */
+expect class NotificationPermission {
+
+    /** Smí aplikace právě teď zobrazovat notifikace? */
+    fun isGranted(): Boolean
+
+    /**
+     * Otevře systémové nastavení notifikací aplikace.
+     *
+     * Android po druhém odmítnutí dialog zablokuje natrvalo. Bez téhle cesty by uživatel neměl
+     * jak se z toho dostat — v aplikaci by mu notifikace nešly zapnout vůbec.
+     */
+    fun openSystemSettings()
+}
+
+/**
+ * Požádá o oprávnění, pokud je to potřeba.
+ *
+ * **Nejdřív vlastní vysvětlení, teprve pak systémový dialog.** Android dá na systémový dialog jen
+ * dva pokusy a pak ho zablokuje navždy; vyvolat ho naslepo hned po startu znamená velkou šanci,
+ * že ho uživatel odklikne a notifikace už nikdy nepůjdou zapnout. Vlastní obrazovka žádný pokus
+ * nespotřebuje.
+ *
+ * Vkládá se až do přihlášené části aplikace — nad přihlašovacím formulářem uživatel ještě netuší,
+ * co aplikace dělá, a ptát se ho tam je předčasné.
+ */
+@Composable
+expect fun NotificationPermissionPrompt()

@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.app.root.presentation.AppTheme
 import eu.tintera.plume.app.shell.AppShell
+import eu.tintera.plume.core.notifications.NotificationPermissionPrompt
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.features.auth.AuthScreen
 import eu.tintera.plume.features.auth.AuthViewModel
@@ -32,7 +33,13 @@ fun App() {
                 targetState = stage is AuthStage.Ready,
                 label = "root",
             ) { signedIn ->
-                if (signedIn) AppShell() else AuthScreen(viewModel = authViewModel)
+                if (signedIn) {
+                    AppShell()
+                    // Až tady, ne nad přihlášením — tam uživatel ještě netuší, co aplikace dělá.
+                    NotificationPermissionPrompt()
+                } else {
+                    AuthScreen(viewModel = authViewModel)
+                }
             }
         }
     }
