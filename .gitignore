@@ -1,0 +1,16 @@
+*.iml
+.gradle
+/.idea
+.DS_Store
+**/build/
+/captures
+.kotlin
+.cxx
+
+# api_id / api_hash z my.telegram.org a cesta k Android SDK. NIKDY do gitu.
+local.properties
+
+# iOS
+*.xcuserstate
+xcuserdata/
+iosApp/Pods/

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Podle Telegram API ToS nesmí název obsahovat „Telegram“ bez předřazeného „Unofficial“
+         a nesmí se použít oficiální logo. „Plume“ je pracovní název, klidně ho přejmenuj. -->
+    <string name="app_name">Plume</string>
+</resources>

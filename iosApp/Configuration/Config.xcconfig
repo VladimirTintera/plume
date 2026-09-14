@@ -1,0 +1,8 @@
+// Doplň si svoje Apple Developer Team ID, jinak Xcode nepodepíše build na zařízení.
+TEAM_ID=
+
+PRODUCT_NAME=Plume
+PRODUCT_BUNDLE_IDENTIFIER=eu.tintera.plume$(TEAM_ID)
+
+CURRENT_PROJECT_VERSION=1
+MARKETING_VERSION=0.1.0
