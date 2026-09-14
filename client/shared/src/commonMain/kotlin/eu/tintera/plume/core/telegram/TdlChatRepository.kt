@@ -7,15 +7,6 @@ import dev.g000sha256.tdl.dto.Chat
 import dev.g000sha256.tdl.dto.ChatList
 import dev.g000sha256.tdl.dto.ChatListMain
 import dev.g000sha256.tdl.dto.ChatPosition
-import dev.g000sha256.tdl.dto.Message
-import dev.g000sha256.tdl.dto.MessageAnimation
-import dev.g000sha256.tdl.dto.MessageAudio
-import dev.g000sha256.tdl.dto.MessageDocument
-import dev.g000sha256.tdl.dto.MessagePhoto
-import dev.g000sha256.tdl.dto.MessageSticker
-import dev.g000sha256.tdl.dto.MessageText
-import dev.g000sha256.tdl.dto.MessageVideo
-import dev.g000sha256.tdl.dto.MessageVoiceNote
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -101,7 +92,7 @@ class TdlChatRepository(
                 edit(update.chatId) { current ->
                     val position = update.positions.mainPosition()
                     current.copy(
-                        lastMessagePreview = update.lastMessage?.preview(),
+                        lastMessagePreview = update.lastMessage?.previewText(),
                         order = position?.order ?: current.order,
                         isPinned = position?.isPinned ?: current.isPinned,
                     )
@@ -268,7 +259,7 @@ private fun Chat.toSummaryOrNull(): ChatSummary? {
         id = id,
         title = title,
         unreadCount = unreadCount,
-        lastMessagePreview = lastMessage?.preview(),
+        lastMessagePreview = lastMessage?.previewText(),
         isPinned = position.isPinned,
         order = position.order,
     )
@@ -278,18 +269,3 @@ private fun ChatList?.isMain(): Boolean = this is ChatListMain
 
 private fun Array<ChatPosition>.mainPosition(): ChatPosition? = firstOrNull { it.list.isMain() }
 
-/**
- * Náhled poslední zprávy v seznamu. Text se bere doslova, u médií se ukáže popisek nebo typ —
- * prázdný řádek u fotky vypadá jako chyba načítání.
- */
-private fun Message.preview(): String = when (val content = this.content) {
-    is MessageText -> content.text.text
-    is MessagePhoto -> content.caption.text.ifBlank { "Fotka" }
-    is MessageVideo -> content.caption.text.ifBlank { "Video" }
-    is MessageAnimation -> content.caption.text.ifBlank { "GIF" }
-    is MessageDocument -> content.caption.text.ifBlank { "Soubor" }
-    is MessageAudio -> content.caption.text.ifBlank { "Audio" }
-    is MessageVoiceNote -> content.caption.text.ifBlank { "Hlasová zpráva" }
-    is MessageSticker -> content.sticker.emoji.ifBlank { "Samolepka" }
-    else -> "Zpráva"
-}

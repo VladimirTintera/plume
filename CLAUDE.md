@@ -7,10 +7,11 @@ nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí
 
 ## Stav
 
-Fáze 1. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar),
-živý seznam chatů. Kostra konverzace a Nastavení.
+Fáze 2. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar),
+živý seznam chatů, textová konverzace (historie, živé zprávy, odesílání, označení přečteného).
 
-Není: obsah konverzace, média, push notifikace, sponsored messages, perzistence nastavení.
+Není: vykreslování médií (zatím jen popisek), reply, reakce, editace, skok na první nepřečtenou,
+push notifikace, sponsored messages, perzistence nastavení.
 
 ## Build
 
@@ -90,6 +91,27 @@ rail a scaffold by jinak rozhodl špatně.
 takže sekce si nedrží vlastní historii. Pro Chaty/Nastavení to nevadí. Až přibude sekce s hlubší
 navigací, patří sem multi-stack (vzor: `MultiStackNavigationState` v mlogu).
 
+## Konverzace
+
+Hranice je [ConversationRepository]; na rozdíl od [ChatRepository] je **bezstavová**. Stránkovací
+stav drží `ConversationViewModel` — je tím testovatelný bez TDLib a přirozeně vázaný na životnost
+obrazovky, ne na aplikaci.
+
+- **Zprávy se drží od nejnovější po nejstarší**, protože je tak vykresluje
+  `LazyColumn(reverseLayout = true)`. `reverseLayout` obrací i význam indexů: index 0 je nejnovější
+  zpráva dole, stránkování do minulosti se tedy spouští na **konci** seznamu.
+- **Řadí se podle id.** Id zpráv je v rámci chatu monotónně rostoucí, takže nahrazuje časové řazení
+  a je stabilní i u zpráv se stejnou sekundou.
+- **Konec historie se pozná jen podle prázdné odpovědi.** TDLib žádný příznak „jsi na začátku" nedává.
+- **Odeslaná zpráva se do seznamu nepřidává ručně.** TDLib ji vrátí přes `newMessages` se skutečným
+  id a časem; ruční přidání by znamenalo duplicitu.
+- **`getChatHistory(onlyLocal = false)`** — s `true` by se po doscrollování na konec lokální cache
+  vrátil prázdný seznam a vypadalo by to jako konec historie.
+- **`viewMessages(forceRead = true)`** — bez toho TDLib označí za přečtené jen to, o čem si myslí,
+  že to uživatel opravdu viděl.
+- **`UpdateDeleteMessages.isPermanent == false`** znamená jen uvolnění z cache, ne smazání pro
+  uživatele — takovou zprávu z obrazovky odstranit nesmíme.
+
 ## Material 3 / vzhled (UI)
 
 Drž se **Material 3 Expressive guidelines a výchozích hodnot komponent**. Nečitelné změti barev
@@ -148,7 +170,12 @@ není „Android bez barev", ale má vlastní konzistentní paletu.
 - **Top-level `val` se inicializují v pořadí deklarace.** `NavSavedStateConfiguration` má proto
   `SerializersModule` vložený inline — odkaz na `private val` deklarovanou níž by byl `null`.
 - **`mapNotNull` neexistuje pro primitivní pole.** `Chats.chatIds` je `LongArray`, je potřeba
-  `.toList()`.
+  `.toList()`. Totéž u `Messages.messages`, kde jsou navíc prvky v Kotlin metadatech nullable
+  (Java signatura je `Message[]`) → `.filterNotNull()`.
+- **ViewModel na detailu MUSÍ mít klíč obsahující id** (`koinViewModel(key = "conversation-$chatId")`).
+  ViewModel se cachuje podle klíče a Koin u cachované instance **ignoruje nové `parameters`** —
+  konstantní klíč tedy znamená, že druhá otevřená konverzace dostane ViewModel té první i se
+  zprávami, a neprojeví se to chybou, jen špatným obsahem.
 - **Release link iOS frameworku trvá desítky minut.** Kotlin/Native pouští LTO nad celou statickou
   TDLib; naměřeno 15+ minut na M-series. Debug link je ~5 minut. Do CI to patří jako samostatný,
   cachovaný krok — ne do smyčky, kterou čeká vývojář.

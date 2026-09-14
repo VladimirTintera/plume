@@ -1,17 +1,21 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.TdlChatRepository
+import eu.tintera.plume.core.telegram.TdlConversationRepository
 import eu.tintera.plume.core.telegram.TdlTelegramSession
 import eu.tintera.plume.core.telegram.TelegramClientHolder
 import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.features.auth.AuthViewModel
 import eu.tintera.plume.features.chats.ChatsViewModel
+import eu.tintera.plume.features.conversation.ConversationViewModel
 import eu.tintera.plume.features.settings.SettingsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.koin.core.module.Module
+import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
@@ -54,7 +58,14 @@ fun appModule() = module {
         )
     }
 
+    // Bezstavová — na rozdíl od seznamu chatů nemusí vznikat dopředu, stránkovací stav
+    // drží ConversationViewModel.
+    single<ConversationRepository> { TdlConversationRepository(holder = get()) }
+
     viewModelOf(::AuthViewModel)
     viewModelOf(::ChatsViewModel)
     viewModelOf(::SettingsViewModel)
+
+    // chatId přichází z navigační routy, ne z grafu → runtime parametr.
+    viewModel { parameters -> ConversationViewModel(chatId = parameters.get(), repository = get()) }
 }

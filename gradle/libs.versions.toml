@@ -12,6 +12,7 @@ agp = "9.2.1"
 kotlin = "2.4.10"
 kotlinx-coroutines = "1.11.0"
 kotlinx-serialization = "1.11.0"
+kotlinx-datetime = "0.8.0"
 
 # Compose — verze převzaté z mlogu (ověřená kombinace). material3 musí být ALPHA kanál, jinak
 # z artefaktu vypadnou všechna API pod @ExperimentalMaterial3ExpressiveApi (MaterialExpressiveTheme,
@@ -70,6 +71,7 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 materialkolor = { module = "com.materialkolor:material-kolor", version.ref = "materialkolor" }
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }

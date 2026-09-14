@@ -39,6 +39,7 @@ import eu.tintera.plume.core.navigation.TopLevelRoute
 import eu.tintera.plume.features.chats.ChatListScreen
 import eu.tintera.plume.features.conversation.ConversationPlaceholder
 import eu.tintera.plume.features.conversation.ConversationScreen
+import org.koin.core.parameter.parametersOf
 import eu.tintera.plume.features.settings.SettingsScreen
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -184,7 +185,14 @@ private fun ShellContent(
 
                 entry<ConversationRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
                     ConversationScreen(
-                        chatId = route.chatId,
+                        // Klíč MUSÍ obsahovat chatId. ViewModel se cachuje podle klíče, takže
+                        // konstantní klíč znamená, že druhá otevřená konverzace dostane ViewModel
+                        // té první — i se zprávami. Koin navíc u cachované instance ignoruje
+                        // nové `parameters`, takže se to neprojeví ani chybou, jen špatným obsahem.
+                        viewModel = koinViewModel(
+                            key = "conversation-${route.chatId}",
+                            parameters = { parametersOf(route.chatId) },
+                        ),
                         onBack = { backStack.removeLastOrNull() },
                     )
                 }

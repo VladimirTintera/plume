@@ -20,6 +20,8 @@ kotlin {
         optIn.add("androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi")
         optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi")
         optIn.add("kotlinx.coroutines.FlowPreview")
+        // kotlinx-datetime 0.8 staví na kotlin.time.Instant.
+        optIn.add("kotlin.time.ExperimentalTime")
     }
 
     // AGP 9: Android target jde přes com.android.kotlin.multiplatform.library, ne com.android.library.
@@ -88,6 +90,7 @@ kotlin {
 
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.datetime)
             implementation(libs.kermit)
 
             // Jediné místo v projektu, kde smí být TDLib na classpath — viz core/telegram.
