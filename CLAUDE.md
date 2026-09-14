@@ -7,12 +7,12 @@ nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí
 
 ## Stav
 
-Fáze 5. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar),
+Fáze 6. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar),
 živý seznam chatů, textová konverzace (historie, živé zprávy, odesílání, označení přečteného),
-avatary a fotky ve zprávách, reakce, odpovědi.
+avatary a fotky ve zprávách, reakce, odpovědi, notifikace na Androidu.
 
 Není: přehrávání videa a zvuku, otevírání dokumentů, editace, skok na první nepřečtenou,
-push notifikace, sponsored messages, perzistence nastavení.
+notifikace na iOS, sponsored messages, perzistence nastavení.
 
 ## Build
 
@@ -152,6 +152,23 @@ obrazovky, ne na aplikaci.
 - **V soukromém chatu nemá citace koho uvést.** `senderName` se vyplňuje jen ve skupinách, takže
   se jako záloha bere název chatu (`ChatInfo.title`).
 
+## Notifikace
+
+- **TDLib vydává `UpdateNotificationGroup` i bez push služby**, kdykoli proces běží a je připojený.
+  Push je jen doprava pro případ, kdy aplikace neběží — zobrazení je v obou případech totéž.
+- **Co se zobrazí, rozhoduje TDLib**, ne klient: ztlumené chaty i `showPreview` řeší on. Proto se
+  v `TdlNotificationRepository` nic nefiltruje.
+- **Id systémové notifikace = TDLib `notificationId`.** TDLib posílá zrušení podle něj
+  (`removedNotificationIds`); s vlastním klíčem by notifikace po přečtení jinde zůstaly viset.
+- **`google-services` plugin se aplikuje podmíněně**, jen když existuje `google-services.json` —
+  jinak by se repozitář po klonu nepřeložil. Bez Firebase appka funguje, jen bez pushe.
+- **Push payload je zašifrovaný.** Rozšifrovat ho umí jedině TDLib přes `processPushNotification`;
+  služba nic nevykresluje, jen předává.
+- **Presenter se startuje v `startKoin`, ne definicí v modulu.** `single { get<NotificationPresenter>()… }`
+  si odvodí vlastní typ a resolvuje sám sebe → `StackOverflowError`.
+- **Od Androidu 13 je `POST_NOTIFICATIONS` běhové oprávnění.** Bez něj `notify` tiše nic neudělá,
+  takže se kontroluje před každým zobrazením.
+
 ## Soubory a média
 
 TDLib **nedává URL**. Soubory drží ve vlastním adresáři a identifikuje je celočíselným `fileId`;
@@ -236,6 +253,8 @@ není „Android bez barev", ale má vlastní konzistentní paletu.
   dopočítá ze šířky a předřazené `heightIn(max = …)` neuplatní — svislý snímek obrazovky pak vyroste
   přes celou bublinu a popisek pod ním se překryje. Správně: `BoxWithConstraints` + explicitní
   `height(...)` s `coerceAtMost`.
+- **`implementation` závislosti z `:client:shared` nejsou tranzitivní.** Co používá vstupní bod
+  (`:client:androidApp`), musí být deklarované i tam — narazilo se na tom u Kermitu.
 - **Chyby ze stavu musí mít kam vyjít.** `ConversationScreen` má `SnackbarHost`; dřív se
   `state.error` vykreslovalo jen u prázdné konverzace, takže neúspěšná reakce nebo odeslání
   zmizely bez jediné stopy.

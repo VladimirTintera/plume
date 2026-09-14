@@ -31,6 +31,8 @@ materialkolor = "4.1.1"
 kermit = "2.1.0"
 coil = "3.5.0"
 buildconfig = "6.0.10"
+googleServices = "4.4.4"
+firebaseBom = "34.4.0"
 
 # TDLib wrapper. Upstream TDLib dělá breaking changes i v patch verzích — proto je celý wrapper
 # schovaný za :client:shared/core/telegram a nikde jinde se jeho typy neobjevují.
@@ -75,6 +77,8 @@ kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.
 materialkolor = { module = "com.materialkolor:material-kolor", version.ref = "materialkolor" }
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 
 tdl-coroutines = { module = "dev.g000sha256:tdl-coroutines", version.ref = "tdl" }
 
@@ -86,3 +90,4 @@ composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "compose" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 buildConfig = { id = "com.github.gmazzo.buildconfig", version.ref = "buildconfig" }
+googleServices = { id = "com.google.gms.google-services", version.ref = "googleServices" }

@@ -3,9 +3,11 @@ package eu.tintera.plume.di
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.FileRepository
+import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.TdlChatRepository
 import eu.tintera.plume.core.telegram.TdlConversationRepository
 import eu.tintera.plume.core.telegram.TdlFileRepository
+import eu.tintera.plume.core.telegram.TdlNotificationRepository
 import eu.tintera.plume.core.telegram.TdlTelegramSession
 import eu.tintera.plume.core.telegram.TelegramClientHolder
 import eu.tintera.plume.core.telegram.TelegramSession
@@ -69,6 +71,8 @@ fun appModule() = module {
     single<FileRepository>(createdAtStart = true) {
         TdlFileRepository(holder = get(), scope = get(named(APP_SCOPE)))
     }
+
+    single<NotificationRepository> { TdlNotificationRepository(holder = get()) }
 
     viewModelOf(::AuthViewModel)
     viewModelOf(::ChatsViewModel)

@@ -1,9 +1,22 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.telegram.NotificationPresenter
 import eu.tintera.plume.core.telegram.TelegramPaths
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
 
 actual fun Module.platformModule() {
     single { TelegramPaths(androidContext()) }
+
+    single {
+        NotificationPresenter(
+            context = androidContext(),
+            // Vlastní scope: notifikace musí sbírat po celou dobu běhu procesu, ne po dobu
+            // života obrazovky.
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        )
+    }
 }

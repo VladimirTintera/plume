@@ -6,7 +6,7 @@ Kotlin Multiplatform, sdílené Compose UI pro Android a iOS.
 > Používá [Telegram API](https://core.telegram.org/) přes [TDLib](https://core.telegram.org/tdlib).
 > Není to oficiální produkt Telegramu a není s ním nijak spojený.
 
-## Stav: fáze 5
+## Stav: fáze 6
 
 **Fáze 0 (de-risking)** ověřila na reálném běhu, že architektura drží:
 
@@ -40,8 +40,10 @@ Nastavení s účtem a odhlášením.
 **Fáze 5** přidala odpovědi — dlouhý stisk nabídne „Odpovědět", citace se ukáže nad vstupním
 polem i v bublině odpovědi.
 
+**Fáze 6** přidala notifikace o nových zprávách (viz níž — část vyžaduje tvoje účty).
+
 **Není hotové:** přehrávání videa a zvuku, otevírání dokumentů, editace, skok na první
-nepřečtenou zprávu, push notifikace, sponsored messages, perzistence nastavení.
+nepřečtenou zprávu, notifikace na iOS, sponsored messages, perzistence nastavení.
 
 ## Rozjetí
 
@@ -63,6 +65,30 @@ nepřečtenou zprávu, push notifikace, sponsored messages, perzistence nastaven
 4. iOS — otevři `iosApp/iosApp.xcodeproj` v Xcode a spusť. Framework se staví automaticky
    (build fáze „Compile Kotlin Framework"). Do `iosApp/Configuration/Config.xcconfig` doplň `TEAM_ID`,
    pokud chceš běžet na zařízení.
+
+## Push notifikace
+
+Aplikace zobrazuje notifikace o nových zprávách **i bez jakéhokoli nastavení** — dokud proces běží
+a je připojený, vydává je TDLib sám. Push je jen doprava pro případ, kdy aplikace neběží, a ten
+se bez tvých účtů zprovoznit nedá.
+
+**Co je hotové v kódu:** registrace tokenu (`registerDevice`), příjem a předání zašifrovaného
+payloadu TDLib (`processPushNotification`), zobrazení výsledku. Tahle cesta **není odzkoušená** —
+bez Firebase projektu ji nejde spustit.
+
+**Co musíš udělat ty:**
+
+1. Založ Firebase projekt a přidej do něj Android aplikaci s balíčkem `eu.tintera.plume`.
+2. Stáhni `google-services.json` a ulož ho do `client/androidApp/`.
+   Bez něj se projekt přeloží normálně, jen bez pushe — build to vypíše.
+3. Na [my.telegram.org](https://my.telegram.org) otevři svoji aplikaci a nahraj **FCM klíč**
+   (service account). Telegram totiž posílá push přes *tvůj* Firebase projekt, ne přes svůj.
+4. Pro iOS: v Apple Developer účtu vytvoř APNs klíč, nahraj ho tamtéž a v Xcode zapni capability
+   *Push Notifications*.
+
+**iOS zatím notifikace nezobrazuje vůbec.** Lokální notifikace z běžící aplikace tam nemají cenu
+(na pozadí systém proces uspí) a skutečná cesta vede přes notification service extension, která
+payload rozšifruje — to je samostatný kus práce.
 
 ## Velikosti
 

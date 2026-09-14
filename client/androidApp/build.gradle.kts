@@ -19,6 +19,14 @@ dependencies {
 
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
+
+    // `implementation` závislosti ze :client:shared nejsou tranzitivní — co používá vstupní bod,
+    // musí být deklarované i tady.
+    implementation(libs.kermit)
+
+    // Knihovna je tu vždycky; bez `google-services.json` se jen neinicializuje a push se nepoužije.
+    implementation(project.dependencies.platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 }
 
 android {
@@ -49,4 +57,18 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+}
+
+// Push notifikace přes FCM.
+//
+// Plugin `google-services` se aplikuje POUZE když existuje `google-services.json`. Bez téhle
+// podmínky by se repozitář po klonu vůbec nepřeložil — plugin chybějící soubor bere jako chybu.
+// Aplikace tedy funguje i bez Firebase, jen bez pushe: notifikace chodí, dokud proces běží.
+//
+// Postup nastavení je v README, sekce „Push notifikace".
+val googleServicesConfig = file("google-services.json")
+if (googleServicesConfig.exists()) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.lifecycle("google-services.json chybí — build bez push notifikací.")
 }
