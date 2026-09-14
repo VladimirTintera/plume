@@ -13,6 +13,10 @@ local.properties
 # Konfigurace Firebase projektu — obsahuje identifikátory tvého projektu.
 google-services.json
 
+# Podpisový klíč. Do gitu NIKDY — z historie se nedá odstranit a klíč nejde odvolat.
+*.jks
+*.keystore
+
 # iOS
 *.xcuserstate
 xcuserdata/

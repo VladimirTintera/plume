@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
@@ -47,9 +49,44 @@ android {
         }
     }
 
+    // Podpisový klíč se čte z local.properties; keystore je gitignorovaný.
+    // Bez něj se release build přeloží, ale zůstane nepodepsaný — a to Android neinstaluje.
+    val releaseStore = localProperty("releaseStoreFile")?.let { rootProject.file(it) }
+
+    signingConfigs {
+        if (releaseStore?.exists() == true) {
+            create("release") {
+                storeFile = releaseStore
+                storePassword = localProperty("releaseStorePassword")
+                keyAlias = localProperty("releaseKeyAlias")
+                keyPassword = localProperty("releaseKeyPassword")
+
+                // v3 umožní později rotovat klíč. Musí být zapnuté OD ZAČÁTKU — rotace se opírá
+                // o podpisovou linii v APK a dodatečně ji doplnit nejde.
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
     buildTypes {
         getByName("release") {
+            // R8 zatím vypnutý: TDLib jde přes JNI a bez ověřených keep rules hrozí, že se
+            // ořízne něco, co se volá jen z nativní strany. Zapnout až s otestovanými pravidly.
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
+        }
+    }
+
+    // Rozdělení podle ABI. Univerzální APK má kvůli TDLib přes 100 MB, protože nese nativní
+    // knihovnu pro všechny čtyři architektury; samostatné arm64 APK je zhruba třetinové.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a")
+            // Univerzální varianta zůstává jako záloha pro případ, že by ABI nesedělo.
+            isUniversalApk = true
         }
     }
 
@@ -66,6 +103,15 @@ android {
 // Aplikace tedy funguje i bez Firebase, jen bez pushe: notifikace chodí, dokud proces běží.
 //
 // Postup nastavení je v README, sekce „Push notifikace".
+fun localProperty(name: String): String? {
+    val file = rootProject.file("local.properties")
+    if (!file.exists()) return null
+    return Properties()
+        .apply { file.inputStream().use { load(it) } }
+        .getProperty(name)
+        ?.takeIf { it.isNotBlank() }
+}
+
 val googleServicesConfig = file("google-services.json")
 if (googleServicesConfig.exists()) {
     apply(plugin = "com.google.gms.google-services")
