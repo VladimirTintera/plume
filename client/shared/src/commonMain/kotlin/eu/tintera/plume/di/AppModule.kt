@@ -32,7 +32,7 @@ expect fun Module.platformModule()
  * na `viewModelScope` — kdyby byl, seznam chatů by se rušil a znovu skládal při každé navigaci
  * a přišli bychom o živé updaty.
  */
-private const val APP_SCOPE = "appScope"
+internal const val APP_SCOPE = "appScope"
 
 fun appModule() = module {
     platformModule()

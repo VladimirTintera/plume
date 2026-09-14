@@ -168,6 +168,16 @@ obrazovky, ne na aplikaci.
   si odvodí vlastní typ a resolvuje sám sebe → `StackOverflowError`.
 - **Od Androidu 13 je `POST_NOTIFICATIONS` běhové oprávnění.** Bez něj `notify` tiše nic neudělá,
   takže se kontroluje před každým zobrazením.
+- **TDLib se startuje v `startKoin`, ne v `AuthViewModel`.** Když push probudí mrtvý proces, žádné
+  UI se neskládá — poběží jen `Application.onCreate` a `FirebaseMessagingService`. Kdyby
+  `setTdlibParameters` viselo na vzniku ViewModelu, zůstal by TDLib ve `WaitTdlibParameters`
+  a `processPushNotification` by nemělo co rozšifrovat: push by dorazil a tiše nic neudělal.
+- **Telegram chce service account JSON (FCM v1)**, ne legacy server key — ověřeno nahráním na
+  my.telegram.org. Dokumentace na core.telegram.org pořád mluví o „application key (GCM)", což je
+  zastaralé; legacy endpoint Google vypnul v červnu 2024.
+- **`adb shell am force-stop` znemožní doručení FCM.** Aplikace se dostane do „stopped state"
+  a zprávy jí systém nedoručí, dokud ji uživatel ručně nespustí. Push se tak testovat nedá —
+  aplikaci je potřeba jen odswipovat z přehledu úloh.
 
 ## Soubory a média
 

@@ -25,9 +25,8 @@ class AuthViewModel(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    init {
-        viewModelScope.launch { session.start() }
-    }
+    // Session startuje `startKoin`, ne tenhle ViewModel — TDLib musí být inicializovaný
+    // i když se žádné UI neskládá (probuzení procesu pushem).
 
     fun onInputChange(value: String) {
         _input.value = value

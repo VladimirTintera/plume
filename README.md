@@ -78,16 +78,20 @@ Stav řetězu na Androidu:
 |---|---|
 | Získání FCM tokenu | ✅ ověřeno |
 | `registerDevice` — Telegram token přijal | ✅ ověřeno |
-| Telegram → FCM → zařízení | ❓ vyžaduje nahrání FCM klíče (viz níž) |
-| `processPushNotification` + zobrazení | ❓ neodzkoušeno, závisí na kroku výš |
+| FCM klíč nahraný na my.telegram.org | ✅ service account JSON (FCM v1) |
+| Telegram → FCM → zařízení → zobrazení | ❓ neodzkoušeno |
 
 **Nastavení Androidu (hotové):** `google-services.json` patří do `client/androidApp/`. Je
 v `.gitignore`, takže po klonu na jiném stroji ho tam musíš dát znovu — bez něj se projekt přeloží
 normálně, jen bez pushe, a build to vypíše.
 
-**Co zbývá:** na [my.telegram.org](https://my.telegram.org) otevři svoji aplikaci a nahraj **FCM klíč**
-z Firebase projektu. Telegram posílá push přes *tvůj* Firebase projekt, ne přes svůj — dokud tam
-klíč není, Telegram nemá čím notifikaci odeslat, i když o zařízení ví.
+**FCM klíč:** Telegram přijímá **service account JSON** (Firebase Console → Project settings →
+Service accounts → Generate new private key). Dokumentace na core.telegram.org pořád mluví
+o „application key (GCM)" — to je zastaralé, legacy endpoint Google vypnul v červnu 2024.
+
+**Jak push otestovat:** aplikaci **odswipuj z přehledu úloh**, nezavírej ji přes Vynutit ukončení.
+Force-stop dostane aplikaci do „stopped state", ve kterém jí systém FCM zprávy nedoručí, dokud ji
+ručně nespustíš — testem přes force-stop by to vypadalo, že push nefunguje.
 
 **Pro iOS:** v Apple Developer účtu vytvoř APNs klíč, nahraj ho tamtéž a v Xcode zapni capability
 *Push Notifications*. Samotné zobrazení notifikací ale na iOS zatím není postavené (viz níž),
