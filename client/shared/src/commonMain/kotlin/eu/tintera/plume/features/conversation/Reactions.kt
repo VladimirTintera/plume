@@ -26,12 +26,22 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import eu.tintera.plume.core.telegram.MessageReaction
+import eu.tintera.plume.core.ui.Avatar
 
 /**
  * Řádek reakcí pod obsahem bubliny.
  *
  * [FlowRow] schválně: u zprávy může být reakcí víc, než se vejde na šířku, a vodorovný scroll
  * uvnitř bubliny by se pral se scrollem konverzace.
+ *
+ * **Avatary vs. počet.** U reakce s pár lidmi je zajímavé, KDO reagoval, a ukážou se jejich
+ * profilovky. Nad stropem se čip sbalí na emoji + číslo, protože:
+ * - u příspěvku se stovkou reakcí nemá výčet tváří smysl a TDLib stejně posílá jen pár posledních,
+ * - řada avatarů je široká a v bublině by se reakce lámaly do mnoha řádků.
+ *
+ * Druhá pojistka je [MAX_REACTIONS_WITH_AVATARS]: když má zpráva hodně různých emoji, sbalí se
+ * všechny čipy, i kdyby jednotlivě byly pod stropem. Jinak by pod krátkou zprávou vznikla
+ * stěna z profilovek.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -42,13 +52,22 @@ fun ReactionRow(
 ) {
     if (reactions.isEmpty()) return
 
+    val showAvatars = reactions.size <= MAX_REACTIONS_WITH_AVATARS
+
     FlowRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         reactions.forEach { reaction ->
-            ReactionChip(reaction = reaction, onClick = { onToggle(reaction.emoji) })
+            ReactionChip(
+                reaction = reaction,
+                // Avatary jen když je jich málo A zároveň je opravdu máme načtené.
+                withAvatars = showAvatars &&
+                    reaction.count <= MAX_AVATARS_PER_REACTION &&
+                    reaction.recentSenders.isNotEmpty(),
+                onClick = { onToggle(reaction.emoji) },
+            )
         }
     }
 }
@@ -63,6 +82,7 @@ fun ReactionRow(
 @Composable
 private fun ReactionChip(
     reaction: MessageReaction,
+    withAvatars: Boolean,
     onClick: () -> Unit,
 ) {
     val chosen = reaction.isChosen
@@ -105,9 +125,37 @@ private fun ReactionChip(
             horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             Text(text = reaction.emoji, fontSize = 15.sp)
-            Text(
-                text = reaction.count.toString(),
-                style = MaterialTheme.typography.labelLarge,
+
+            if (withAvatars) {
+                ReactionSenders(reaction)
+            } else {
+                Text(
+                    text = reaction.count.toString(),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Profilovky těch, kdo reagovali.
+ *
+ * Avatary se **překrývají** (záporný offset), aby řada zabrala co nejmíň místa — čip musí zůstat
+ * srovnatelně široký jako varianta s číslem, jinak by se řádek reakcí lámal jinak podle toho,
+ * kolik lidí zrovna reagovalo.
+ */
+@Composable
+private fun ReactionSenders(reaction: MessageReaction) {
+    // Záporný rozestup dělá překryv; pozdější avatar se kreslí přes dřívější sám tím,
+    // že je v Row později.
+    Row(horizontalArrangement = Arrangement.spacedBy((-6).dp)) {
+        reaction.recentSenders.take(MAX_AVATARS_PER_REACTION).forEach { sender ->
+            Avatar(
+                chatId = sender.id,
+                title = sender.title,
+                avatarFileId = sender.avatarFileId,
+                size = 18.dp,
             )
         }
     }
@@ -155,3 +203,13 @@ fun ReactionPickerSheet(
         }
     }
 }
+
+/**
+ * Kolik profilovek se u jedné reakce ukáže. Nad tím se čip sbalí na počet — a musí to sedět
+ * s `MAX_SENDERS_SHOWN` v `TdlConversationRepository`, který nad stejným stropem odesílatele
+ * vůbec nenačítá.
+ */
+private const val MAX_AVATARS_PER_REACTION = 3
+
+/** Kolik různých emoji u zprávy ještě snese avatary, než se všechny čipy sbalí na počty. */
+private const val MAX_REACTIONS_WITH_AVATARS = 3

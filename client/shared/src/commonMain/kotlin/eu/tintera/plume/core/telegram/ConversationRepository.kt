@@ -101,6 +101,21 @@ data class MessageReaction(
     val count: Int,
     /** `true`, když tuhle reakci dal přihlášený uživatel. */
     val isChosen: Boolean,
+    /**
+     * Několik posledních odesílatelů, jak je dává TDLib (`recentSenderIds`).
+     *
+     * Je jich **nejvýš pár, ne všichni** — u příspěvku se stovkou reakcí Telegram kompletní
+     * seznam v datech zprávy neposílá. Proto se podle délky tohohle seznamu nedá poznat
+     * celkový počet; ten je v [count].
+     */
+    val recentSenders: List<ReactionSender>,
+)
+
+/** Ten, kdo reagoval. Uživatel i kanál — u příspěvků v kanálech reaguje jménem kanálu. */
+data class ReactionSender(
+    val id: Long,
+    val title: String,
+    val avatarFileId: Int?,
 )
 
 /** Kompletní sada reakcí jedné zprávy, jak dorazila updatem. */

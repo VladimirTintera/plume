@@ -224,7 +224,10 @@ private fun List<MessageReaction>.toggled(emoji: String, add: Boolean): List<Mes
     val existing = firstOrNull { it.emoji == emoji }
 
     return when {
-        existing == null && add -> this + MessageReaction(emoji, count = 1, isChosen = true)
+        // Vlastní avatar u nově přidané reakce zatím neznáme — dorazí se serverovým updatem
+        // o chvíli později. Optimisticky se ukáže jen počet, což je lepší než čekat na data.
+        existing == null && add ->
+            this + MessageReaction(emoji, count = 1, isChosen = true, recentSenders = emptyList())
 
         existing == null -> this
 

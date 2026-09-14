@@ -7,6 +7,7 @@ import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.InputMessageText
 import dev.g000sha256.tdl.dto.Message
+import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.MessageInteractionInfo
@@ -35,8 +36,14 @@ class TdlConversationRepository(
 
     private val client: TdlClient = holder.client
 
-    private val senderNames = mutableMapOf<Long, String>()
-    private val namesMutex = Mutex()
+    /**
+     * Keš odesílatelů (jméno + avatar).
+     *
+     * Ve skupině pošle padesát zpráv deset lidí a u reakcí se tytéž osoby opakují napříč emoji;
+     * bez keše by to znamenalo desítky `getUser` volání jen kvůli hlavičkám bublin a avatarům.
+     */
+    private val senders = mutableMapOf<Long, ReactionSender>()
+    private val sendersMutex = Mutex()
 
     override suspend fun history(
         chatId: Long,
@@ -183,11 +190,7 @@ class TdlConversationRepository(
         chatInfo(chatId).map { it.isGroup }.getOrDefault(false)
 
     private suspend fun Message.toChatMessage(isGroup: Boolean): ChatMessage {
-        val senderId = when (val sender = senderId) {
-            is MessageSenderUser -> sender.userId
-            is MessageSenderChat -> sender.chatId
-            else -> 0L
-        }
+        val senderId = senderId.plainId()
 
         return ChatMessage(
             id = id,
@@ -207,40 +210,81 @@ class TdlConversationRepository(
      * Reakce z interaction info. Vlastní (placená) emoji se přeskočí — jsou to samolepky
      * a vykreslení řeší jiná vrstva; zahodit je je lepší než u zprávy neukázat žádnou reakci.
      */
-    private fun MessageInteractionInfo?.toReactions(): List<MessageReaction> =
-        this?.reactions?.reactions
-            ?.filterNotNull()
-            ?.mapNotNull { reaction ->
-                val emoji = (reaction.type as? ReactionTypeEmoji)?.emoji ?: return@mapNotNull null
-                MessageReaction(
-                    emoji = emoji,
-                    count = reaction.totalCount,
-                    isChosen = reaction.isChosen,
-                )
-            }
-            .orEmpty()
+    private suspend fun MessageInteractionInfo?.toReactions(): List<MessageReaction> {
+        val raw = this?.reactions?.reactions?.filterNotNull().orEmpty()
 
-    private suspend fun resolveSenderName(senderId: Long): String? {
+        return raw.mapNotNull { reaction ->
+            val emoji = (reaction.type as? ReactionTypeEmoji)?.emoji ?: return@mapNotNull null
+
+            // Odesílatele řešíme jen tam, kde se reálně vykreslí. U příspěvku se stovkou reakcí
+            // by to byla hromada dotazů na data, která stejně skončí schovaná za počtem.
+            val senders = if (reaction.totalCount <= MAX_SENDERS_SHOWN) {
+                reaction.recentSenderIds
+                    .filterNotNull()
+                    .mapNotNull { resolveSender(it.plainId()) }
+            } else {
+                emptyList()
+            }
+
+            MessageReaction(
+                emoji = emoji,
+                count = reaction.totalCount,
+                isChosen = reaction.isChosen,
+                recentSenders = senders,
+            )
+        }
+    }
+
+    private suspend fun resolveSenderName(senderId: Long): String? = resolveSender(senderId)?.title
+
+    private suspend fun resolveSender(senderId: Long): ReactionSender? {
         if (senderId == 0L) return null
 
-        namesMutex.withLock { senderNames[senderId] }?.let { return it }
+        sendersMutex.withLock { senders[senderId] }?.let { return it }
 
-        val name = when (val user = client.getUser(senderId).toResult().getOrNull()) {
-            null -> {
-                // Odesílatel může být kanál (MessageSenderChat), ne uživatel — getUser pak selže.
-                client.getChat(senderId).toResult().getOrNull()?.title
-            }
+        val user = client.getUser(senderId).toResult().getOrNull()
 
-            else -> listOf(user.firstName, user.lastName)
+        val resolved = if (user != null) {
+            val name = listOf(user.firstName, user.lastName)
                 .filter { it.isNotBlank() }
                 .joinToString(" ")
                 .ifBlank { null }
-        } ?: return null
+                ?: return null
 
-        namesMutex.withLock { senderNames[senderId] = name }
-        return name
+            ReactionSender(
+                id = senderId,
+                title = name,
+                avatarFileId = user.profilePhoto?.small?.id,
+            )
+        } else {
+            // Odesílatel může být kanál (MessageSenderChat), ne uživatel — getUser pak selže.
+            val chat = client.getChat(senderId).toResult().getOrNull() ?: return null
+            ReactionSender(
+                id = senderId,
+                title = chat.title,
+                avatarFileId = chat.photo?.small?.id,
+            )
+        }
+
+        sendersMutex.withLock { senders[senderId] = resolved }
+        return resolved
     }
 }
 
 /** Kolik emoji nabídnout na řádek ve výběru reakcí. */
 private const val REACTION_ROW_SIZE = 8
+
+/**
+ * Do kolika reakcí se ještě vyplatí zjišťovat, kdo je poslal.
+ *
+ * Musí sedět se stropem, který používá UI pro zobrazení avatarů — kdyby byl tenhle nižší,
+ * UI by chtělo avatary, které nikdo nenačetl.
+ */
+private const val MAX_SENDERS_SHOWN = 3
+
+/** `MessageSender` je buď uživatel, nebo chat; pro naše účely stačí číselné id. */
+private fun MessageSender.plainId(): Long = when (this) {
+    is MessageSenderUser -> userId
+    is MessageSenderChat -> chatId
+    else -> 0L
+}

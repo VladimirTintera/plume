@@ -32,6 +32,7 @@ odvozené z id, takže je barva stabilní mezi spuštěními.
 **Fáze 4** přidala reakce — čipy pod bublinami s emoji a počtem, dlouhý stisk otevře výběr
 z nabídky, kterou dává TDLib pro daný chat. Vlastní reakce se odliší tvarem i barvou naráz
 (zaoblení se stáhne z kapsle do měkkého obdélníku) přes `MaterialTheme.motionScheme`.
+U reakcí s pár lidmi se místo čísla ukážou jejich profilovky; nad stropem se čip sbalí na počet.
 
 Hotové obrazovky: přihlášení (telefon → kód → 2FA, plus QR), seznam chatů, konverzace,
 Nastavení s účtem a odhlášením.

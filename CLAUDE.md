@@ -129,6 +129,14 @@ obrazovky, ne na aplikaci.
   `getMessageAvailableReactions` vrátí prázdný seznam. Testovat reakce tam tedy nejde.
 - **`isBig = false`** — `true` je ta celoobrazovková animace; patří k vědomému gestu, ne ke
   každému ťuknutí na čip.
+- **Avatary místo počtu jen pod stropem.** U reakce s pár lidmi je zajímavé, KDO reagoval; nad
+  stropem se čip sbalí na emoji + číslo. Dvě nezávislé podmínky:
+  `MAX_AVATARS_PER_REACTION` (kolik lidí u jedné reakce) a `MAX_REACTIONS_WITH_AVATARS` (kolik
+  různých emoji u zprávy) — jinak by pod krátkou zprávou vznikla stěna z profilovek.
+  **`MAX_SENDERS_SHOWN` v repository musí sedět s tím prvním stropem**, protože nad ním se
+  odesílatelé vůbec nenačítají a UI by chtělo avatary, které nikdo nezjistil.
+- **`recentSenderIds` není úplný seznam.** TDLib posílá jen pár posledních; celkový počet je
+  v `totalCount`. Podle délky seznamu se tedy počet odvodit nedá.
 
 ## Soubory a média
 
