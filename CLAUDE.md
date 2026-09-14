@@ -154,6 +154,10 @@ obrazovky, ne na aplikaci.
 
 ## Notifikace
 
+- **Notifikační API TDLib je ve výchozím stavu VYPNUTÉ.** `notification_group_count_max` je 0,
+  což znamená, že `UpdateNotificationGroup` vůbec nevzniká. Musí se zapnout přes `setOption`
+  (rozsah 1–25) — viz `enableNotifications()`. Bez toho je celá notifikační vrstva mrtvá
+  a **nedá se to poznat**: nepřijde chyba, prostě se nic neděje.
 - **TDLib vydává `UpdateNotificationGroup` i bez push služby**, kdykoli proces běží a je připojený.
   Push je jen doprava pro případ, kdy aplikace neběží — zobrazení je v obou případech totéž.
 - **Co se zobrazí, rozhoduje TDLib**, ne klient: ztlumené chaty i `showPreview` řeší on. Proto se
@@ -175,6 +179,8 @@ obrazovky, ne na aplikaci.
 - **Telegram chce service account JSON (FCM v1)**, ne legacy server key — ověřeno nahráním na
   my.telegram.org. Dokumentace na core.telegram.org pořád mluví o „application key (GCM)", což je
   zastaralé; legacy endpoint Google vypnul v červnu 2024.
+- **Ikona notifikace je zatím systémová** (`android.R.drawable.ic_dialog_email`). Cílově sem
+  patří vlastní monochromatická ikona v `androidApp/res/drawable`.
 - **`adb shell am force-stop` znemožní doručení FCM.** Aplikace se dostane do „stopped state"
   a zprávy jí systém nedoručí, dokud ji uživatel ručně nespustí. Push se tak testovat nedá —
   aplikaci je potřeba jen odswipovat z přehledu úloh.

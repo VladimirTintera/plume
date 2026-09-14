@@ -14,6 +14,7 @@ import dev.g000sha256.tdl.dto.AuthorizationStateWaitPassword
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitPhoneNumber
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitRegistration
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitTdlibParameters
+import dev.g000sha256.tdl.dto.OptionValueInteger
 import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -123,7 +124,37 @@ class TdlTelegramSession(
             .onFailure {
                 logger.e(it) { "setTdlibParameters selhalo." }
                 _authStage.value = AuthStage.Failed(it.message ?: "setTdlibParameters selhalo.")
+                return
             }
+
+        enableNotifications()
+    }
+
+    /**
+     * Zapne notifikační API TDLib.
+     *
+     * **Ve výchozím stavu je vypnuté**: `notification_group_count_max` je 0, což znamená, že TDLib
+     * `UpdateNotificationGroup` vůbec negeneruje. Bez tohohle volání je celá notifikační vrstva
+     * mrtvá a nedá se to nijak poznat — nepřijde žádná chyba, prostě se nic neděje.
+     *
+     * Povolený rozsah obou voleb je 1–25.
+     */
+    private suspend fun enableNotifications() {
+        client.setOption(
+            name = "notification_group_count_max",
+            value = OptionValueInteger(value = NOTIFICATION_GROUP_COUNT_MAX),
+        )
+            .toResult()
+            .onFailure { logger.e(it) { "Nepodařilo se zapnout notifikace." } }
+
+        client.setOption(
+            name = "notification_group_size_max",
+            value = OptionValueInteger(value = NOTIFICATION_GROUP_SIZE_MAX),
+        )
+            .toResult()
+            .onFailure { logger.e(it) { "Nepodařilo se nastavit velikost skupiny notifikací." } }
+
+        logger.d { "Notifikační API zapnuto." }
     }
 
     override suspend fun submitPhoneNumber(phoneNumber: String): Result<Unit> =
@@ -163,4 +194,12 @@ class TdlTelegramSession(
                     username = user.usernames?.editableUsername?.takeIf { it.isNotBlank() },
                 )
             }
+
+    private companion object {
+        /** Kolik chatů naráz může mít aktivní notifikace. Povolený rozsah TDLib je 1–25. */
+        const val NOTIFICATION_GROUP_COUNT_MAX = 5L
+
+        /** Kolik notifikací se drží v jedné skupině (chatu). */
+        const val NOTIFICATION_GROUP_SIZE_MAX = 10L
+    }
 }

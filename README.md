@@ -76,6 +76,7 @@ Stav řetězu na Androidu:
 
 | Krok | Stav |
 |---|---|
+| Zobrazení notifikace (TDLib → systémová lišta) | ✅ ověřeno |
 | Získání FCM tokenu | ✅ ověřeno |
 | `registerDevice` — Telegram token přijal | ✅ ověřeno |
 | FCM klíč nahraný na my.telegram.org | ✅ service account JSON (FCM v1) |
