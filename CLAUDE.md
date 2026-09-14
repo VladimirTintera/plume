@@ -7,11 +7,11 @@ nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí
 
 ## Stav
 
-Fáze 4. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar),
+Fáze 5. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar),
 živý seznam chatů, textová konverzace (historie, živé zprávy, odesílání, označení přečteného),
-avatary a fotky ve zprávách, reakce.
+avatary a fotky ve zprávách, reakce, odpovědi.
 
-Není: přehrávání videa a zvuku, otevírání dokumentů, reply, editace, skok na první nepřečtenou,
+Není: přehrávání videa a zvuku, otevírání dokumentů, editace, skok na první nepřečtenou,
 push notifikace, sponsored messages, perzistence nastavení.
 
 ## Build
@@ -137,6 +137,20 @@ obrazovky, ne na aplikaci.
   odesílatelé vůbec nenačítají a UI by chtělo avatary, které nikdo nezjistil.
 - **`recentSenderIds` není úplný seznam.** TDLib posílá jen pár posledních; celkový počet je
   v `totalCount`. Podle délky seznamu se tedy počet odvodit nedá.
+
+## Odpovědi (reply)
+
+- **`ChatMessage` nese jen `replyToMessageId`, ne celou citovanou zprávu.** V konverzaci se
+  odpovídá skoro vždy na něco, co už je načtené, takže náhled si poskládá `ConversationViewModel`
+  z vlastního seznamu a ušetří jedno volání na každou odpověď. Zbytek (odpověď na starou zprávu
+  hluboko v historii) dotahuje `resolveMissingQuotes()` do `ConversationState.quotes`.
+- **Odpovědi mimo tenhle chat se zahazují** (`MessageReplyToMessage.chatId != chatId`) — náhled
+  se skládá z načtené historie, a ta je vždy jen z jednoho chatu.
+- **`InputMessageReplyToMessage.pollOptionId` je nenullovatelný** — prázdný řetězec, ne `null`.
+- **Rozepsaná odpověď se ruší hned při odeslání**, ne až po potvrzení; jinak by při pomalé síti
+  šlo odeslat druhou zprávu se stejnou citací.
+- **V soukromém chatu nemá citace koho uvést.** `senderName` se vyplňuje jen ve skupinách, takže
+  se jako záloha bere název chatu (`ChatInfo.title`).
 
 ## Soubory a média
 

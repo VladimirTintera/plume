@@ -5,12 +5,14 @@ import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.FormattedText
+import dev.g000sha256.tdl.dto.InputMessageReplyToMessage
 import dev.g000sha256.tdl.dto.InputMessageText
 import dev.g000sha256.tdl.dto.Message
 import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.MessageInteractionInfo
+import dev.g000sha256.tdl.dto.MessageReplyToMessage
 import dev.g000sha256.tdl.dto.MessageSourceChatHistory
 import dev.g000sha256.tdl.dto.ReactionTypeEmoji
 import dev.g000sha256.tdl.dto.TextEntity
@@ -145,12 +147,29 @@ class TdlConversationRepository(
                     .distinct()
             }
 
-    override suspend fun send(chatId: Long, text: String): Result<Unit> =
+    override suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage> {
+        val isGroup = isGroup(chatId)
+        return client.getMessage(chatId = chatId, messageId = messageId)
+            .toResult()
+            .map { it.toChatMessage(isGroup) }
+    }
+
+    override suspend fun send(chatId: Long, text: String, replyToMessageId: Long?): Result<Unit> =
         client.sendMessage(
             chatId = chatId,
             // Vlákna (fóra) fáze 2 neřeší — null znamená hlavní vlákno chatu.
             topicId = null,
-            replyTo = null,
+            replyTo = replyToMessageId?.let { id ->
+                InputMessageReplyToMessage(
+                    messageId = id,
+                    // Citace části textu (označený úryvek) zatím neřešíme — odpovídá se na celou zprávu.
+                    quote = null,
+                    checklistTaskId = 0,
+                    // Prázdný řetězec, ne null — tohle pole je v TDLib nenullovatelné
+                    // a používá se jen u odpovědí na anketu.
+                    pollOptionId = "",
+                )
+            },
             options = null,
             replyMarkup = null,
             inputMessageContent = InputMessageText(
@@ -201,6 +220,11 @@ class TdlConversationRepository(
             text = captionText(),
             media = messageMedia(),
             reactions = interactionInfo.toReactions(),
+            // Odpovědi mimo tenhle chat (citace z jiné konverzace) se zatím nevykreslují —
+            // náhled se skládá z načtené historie, která je vždy jen z jednoho chatu.
+            replyToMessageId = (replyTo as? MessageReplyToMessage)
+                ?.takeIf { it.chatId == chatId }
+                ?.messageId,
             timestamp = date,
             isEdited = editDate > 0,
         )

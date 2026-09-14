@@ -48,7 +48,11 @@ interface ConversationRepository {
     /** Emoji nabízená u téhle zprávy. Liší se chat od chatu — kanály si sadu omezují. */
     suspend fun availableReactions(chatId: Long, messageId: Long): Result<List<String>>
 
-    suspend fun send(chatId: Long, text: String): Result<Unit>
+    /** Jedna konkrétní zpráva. Pro doplnění citace, která není v načtené historii. */
+    suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage>
+
+    /** [replyToMessageId] je `null` u běžné zprávy. */
+    suspend fun send(chatId: Long, text: String, replyToMessageId: Long?): Result<Unit>
 
     /** Označí zprávy za přečtené. Bez tohohle zůstane odznak nepřečtených viset napořád. */
     suspend fun markRead(chatId: Long, messageIds: List<Long>): Result<Unit>
@@ -84,6 +88,14 @@ data class ChatMessage(
     val text: String,
     val media: MessageMedia?,
     val reactions: List<MessageReaction>,
+    /**
+     * Id zprávy, na kterou tahle odpovídá.
+     *
+     * Schválně jen id, ne celá citovaná zpráva: v konverzaci se odpovídá skoro vždy na něco,
+     * co už je načtené, takže náhled si poskládá `ConversationViewModel` z vlastního seznamu
+     * a ušetří jedno volání na každou odpověď.
+     */
+    val replyToMessageId: Long?,
     /** Unixový čas v sekundách, jak ho dává TDLib. */
     val timestamp: Int,
     val isEdited: Boolean,

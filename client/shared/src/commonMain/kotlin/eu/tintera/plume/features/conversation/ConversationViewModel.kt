@@ -74,6 +74,7 @@ class ConversationViewModel(
                                 error = null,
                             )
                         }
+                        resolveMissingQuotes()
                     }
                     .onFailure { failure ->
                         _state.update {
@@ -88,6 +89,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             repository.newMessages(chatId).collect { message ->
                 _state.update { it.copy(messages = merge(it.messages, listOf(message))) }
+                resolveMissingQuotes()
             }
         }
 
@@ -127,11 +129,50 @@ class ConversationViewModel(
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
 
+        val replyTo = _state.value.replyingTo?.id
+        // Rozepsaná odpověď se zruší hned, ne až po potvrzení — jinak by při pomalé síti šlo
+        // odeslat druhou zprávu se stejnou citací.
+        clearReply()
+
         viewModelScope.launch {
             // Odeslaná zpráva se do seznamu nepřidává ručně — TDLib ji vrátí přes `newMessages`
             // včetně skutečného id a času. Ruční přidání by znamenalo duplicitu.
-            repository.send(chatId, trimmed).onFailure { failure ->
+            repository.send(chatId, trimmed, replyTo).onFailure { failure ->
                 _state.update { it.copy(error = failure.message ?: "Zprávu se nepodařilo odeslat.") }
+            }
+        }
+    }
+
+    /** Nastaví zprávu, na kterou se odpovídá. Zobrazí se nad vstupním polem. */
+    fun replyTo(messageId: Long) {
+        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+        _state.update { it.copy(replyingTo = message, reactionPicker = null) }
+    }
+
+    fun clearReply() {
+        _state.update { it.copy(replyingTo = null) }
+    }
+
+    /**
+     * Doplní citované zprávy, které nejsou v načtené historii.
+     *
+     * Odpovídá se skoro vždy na něco nedávného, takže většina citací se najde v už načtených
+     * zprávách zadarmo. Tohle řeší zbytek — typicky odpověď na starou zprávu hluboko v historii.
+     */
+    private fun resolveMissingQuotes() {
+        val loaded = _state.value.messages.associateBy { it.id }
+        val missing = _state.value.messages
+            .mapNotNull { it.replyToMessageId }
+            .filter { it !in loaded && it !in _state.value.quotes }
+            .distinct()
+
+        if (missing.isEmpty()) return
+
+        viewModelScope.launch {
+            missing.forEach { messageId ->
+                repository.message(chatId, messageId).onSuccess { quoted ->
+                    _state.update { it.copy(quotes = it.quotes + (messageId to quoted)) }
+                }
             }
         }
     }
@@ -254,6 +295,13 @@ data class ReactionPicker(
 data class ConversationState(
     val info: ChatInfo? = null,
     val reactionPicker: ReactionPicker? = null,
+    /** Zpráva, na kterou se právě chystá odpověď. Zobrazuje se nad vstupním polem. */
+    val replyingTo: ChatMessage? = null,
+    /**
+     * Citované zprávy, které nejsou v [messages] — doplněné jednotlivě.
+     * Náhled odpovědi se hledá nejdřív v [messages], teprve pak tady.
+     */
+    val quotes: Map<Long, ChatMessage> = emptyMap(),
     /** Od nejnovější po nejstarší. */
     val messages: List<ChatMessage> = emptyList(),
     val loading: Boolean = false,

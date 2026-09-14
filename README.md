@@ -6,7 +6,7 @@ Kotlin Multiplatform, sdílené Compose UI pro Android a iOS.
 > Používá [Telegram API](https://core.telegram.org/) přes [TDLib](https://core.telegram.org/tdlib).
 > Není to oficiální produkt Telegramu a není s ním nijak spojený.
 
-## Stav: fáze 4
+## Stav: fáze 5
 
 **Fáze 0 (de-risking)** ověřila na reálném běhu, že architektura drží:
 
@@ -37,8 +37,11 @@ U reakcí s pár lidmi se místo čísla ukážou jejich profilovky; nad stropem
 Hotové obrazovky: přihlášení (telefon → kód → 2FA, plus QR), seznam chatů, konverzace,
 Nastavení s účtem a odhlášením.
 
-**Není hotové:** přehrávání videa a zvuku, otevírání dokumentů, reply, editace, skok na
-první nepřečtenou zprávu, push notifikace, sponsored messages, perzistence nastavení.
+**Fáze 5** přidala odpovědi — dlouhý stisk nabídne „Odpovědět", citace se ukáže nad vstupním
+polem i v bublině odpovědi.
+
+**Není hotové:** přehrávání videa a zvuku, otevírání dokumentů, editace, skok na první
+nepřečtenou zprávu, push notifikace, sponsored messages, perzistence nastavení.
 
 ## Rozjetí
 

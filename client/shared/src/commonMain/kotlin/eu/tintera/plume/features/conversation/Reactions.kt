@@ -167,15 +167,30 @@ private fun ReactionSenders(reaction: MessageReaction) {
 fun ReactionPickerSheet(
     picker: ReactionPicker,
     onPick: (String) -> Unit,
+    onReply: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState()
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        // Odpověď je akce nad zprávou, ne reakce — proto stojí samostatně nad nabídkou emoji.
+        Surface(
+            onClick = onReply,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        ) {
+            Text(
+                text = "Odpovědět",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            )
+        }
+
         Text(
             text = "Reagovat",
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 20.dp),
         )
 
         FlowRow(

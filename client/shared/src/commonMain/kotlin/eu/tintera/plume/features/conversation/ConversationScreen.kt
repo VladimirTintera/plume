@@ -15,10 +15,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -50,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -58,6 +63,7 @@ import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
+import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.send_24dp
 import kotlinx.coroutines.flow.debounce
 import kotlinx.datetime.TimeZone
@@ -134,13 +140,21 @@ fun ConversationScreen(
                 },
             )
         },
-        bottomBar = { MessageInput(onSend = viewModel::send) },
+        bottomBar = {
+            MessageInput(
+                replyingTo = state.replyingTo,
+                partnerName = state.info?.title,
+                onCancelReply = viewModel::clearReply,
+                onSend = viewModel::send,
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         state.reactionPicker?.let { picker ->
             ReactionPickerSheet(
                 picker = picker,
                 onPick = { emoji -> viewModel.toggleReaction(picker.messageId, emoji) },
+                onReply = { viewModel.replyTo(picker.messageId) },
                 onDismiss = viewModel::hideReactionPicker,
             )
         }
@@ -169,6 +183,12 @@ fun ConversationScreen(
                         val index = state.messages.indexOf(message)
                         MessageBubble(
                             message = message,
+                            quoted = message.replyToMessageId?.let { id ->
+                                state.messages.firstOrNull { it.id == id } ?: state.quotes[id]
+                            },
+                            // V soukromém chatu se jméno odesílatele u zpráv nevyplňuje (dává
+                            // smysl jen ve skupinách), takže citace by neměla koho uvést.
+                            partnerName = state.info?.title,
                             // Seznam jde od nejnovější, takže „předchozí zpráva v čase"
                             // je ta s VYŠŠÍM indexem.
                             previous = state.messages.getOrNull(index + 1),
@@ -204,6 +224,8 @@ fun ConversationScreen(
 @OptIn(ExperimentalFoundationApi::class)
 private fun MessageBubble(
     message: ChatMessage,
+    quoted: ChatMessage?,
+    partnerName: String?,
     previous: ChatMessage?,
     onToggleReaction: (String) -> Unit,
     onRequestReaction: () -> Unit,
@@ -259,6 +281,8 @@ private fun MessageBubble(
                     }
                 }
 
+                quoted?.let { QuotedMessage(it, partnerName = partnerName) }
+
                 message.media?.let { media -> MessageAttachment(media) }
 
                 // Prázdný text u zprávy, která má jen fotku — pak se nekreslí nic.
@@ -287,10 +311,33 @@ private fun MessageBubble(
 }
 
 @Composable
-private fun MessageInput(onSend: (String) -> Unit) {
+private fun MessageInput(
+    replyingTo: ChatMessage?,
+    partnerName: String?,
+    onCancelReply: () -> Unit,
+    onSend: (String) -> Unit,
+) {
     var draft by rememberSaveable { mutableStateOf("") }
 
     Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+      Column {
+        replyingTo?.let { target ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, end = 4.dp, top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                QuotedMessage(target, partnerName = partnerName, modifier = Modifier.weight(1f))
+                IconButton(onClick = onCancelReply) {
+                    Icon(
+                        painterResource(Res.drawable.close_24dp),
+                        contentDescription = "Zrušit odpověď",
+                    )
+                }
+            }
+        }
+
         Row(
             Modifier
                 .fillMaxWidth()
@@ -331,7 +378,65 @@ private fun MessageInput(onSend: (String) -> Unit) {
                 Icon(painterResource(Res.drawable.send_24dp), contentDescription = "Odeslat")
             }
         }
+      }
     }
+}
+
+/**
+ * Citovaná zpráva — v bublině nad obsahem odpovědi i nad vstupním polem.
+ *
+ * Svislý pruh vlevo nese barvu `primary`; je to jediný prvek, který cituje cizí obsah, a musí být
+ * na první pohled odlišitelný od vlastního textu bubliny.
+ */
+@Composable
+private fun QuotedMessage(
+    message: ChatMessage,
+    partnerName: String?,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .padding(bottom = 6.dp)
+            .height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(
+            Modifier
+                .width(3.dp)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(2.dp))
+                .background(MaterialTheme.colorScheme.primary),
+        )
+
+        Column {
+            Text(
+                text = when {
+                    message.isOutgoing -> "Vy"
+                    // Ve skupině nese jméno sama zpráva; v soukromém chatu je odesílatel
+                    // vždycky protějšek, takže se vezme název chatu.
+                    else -> message.senderName ?: partnerName ?: "Odpověď"
+                },
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                // U zprávy bez textu (samotná fotka) by citace byla prázdná.
+                text = message.text.ifBlank { message.media.describe() },
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+private fun MessageMedia?.describe(): String = when (this) {
+    is MessageMedia.Photo -> "Fotka"
+    is MessageMedia.Attachment -> label
+    null -> ""
 }
 
 /** Unixový čas v sekundách → „14:32" v místní zóně. */
