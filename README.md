@@ -82,3 +82,15 @@ Z [Telegram API ToS](https://core.telegram.org/api/terms) — tohle shodí revie
 ## Dokumentace
 
 Architektura, konvence a pasti jsou v [CLAUDE.md](CLAUDE.md).
+
+## Licence
+
+[MIT](LICENSE).
+
+Použité cizí komponenty mají vlastní licence a MIT je nepřebíjí:
+
+- **TDLib** — [Boost Software License 1.0](https://github.com/tdlib/td/blob/master/LICENSE_1_0.txt).
+  Permisivní, bez povinnosti zveřejnit zdrojáky.
+- **Material Symbols** (ikony v `composeResources`) — [Apache License 2.0](https://github.com/google/material-design-icons/blob/master/LICENSE).
+- **Telegram API** se řídí [API Terms of Service](https://core.telegram.org/api/terms) nezávisle
+  na licenci téhle aplikace — viz omezení výš.
