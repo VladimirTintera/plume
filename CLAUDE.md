@@ -7,12 +7,12 @@ nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí
 
 ## Stav
 
-Fáze 3. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar),
+Fáze 4. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar),
 živý seznam chatů, textová konverzace (historie, živé zprávy, odesílání, označení přečteného),
-avatary a fotky ve zprávách.
+avatary a fotky ve zprávách, reakce.
 
-Není: přehrávání videa a zvuku, otevírání dokumentů, reply, reakce, editace, skok na první
-nepřečtenou, push notifikace, sponsored messages, perzistence nastavení.
+Není: přehrávání videa a zvuku, otevírání dokumentů, reply, editace, skok na první nepřečtenou,
+push notifikace, sponsored messages, perzistence nastavení.
 
 ## Build
 
@@ -114,6 +114,22 @@ obrazovky, ne na aplikaci.
 - **`UpdateDeleteMessages.isPermanent == false`** znamená jen uvolnění z cache, ne smazání pro
   uživatele — takovou zprávu z obrazovky odstranit nesmíme.
 
+## Reakce
+
+- **TDLib nezná „přepnutí".** Má `addMessageReaction` a `removeMessageReaction`; jestli reakce
+  už je, si musí pamatovat klient (`MessageReaction.isChosen`).
+- **Stav se mění lokálně hned**, ještě před odpovědí serveru — jinak by mezi ťuknutím a potvrzením
+  byla viditelná prodleva. Při selhání se změna vrátí; autoritativní stav stejně dorazí přes
+  `reactionUpdates` (`UpdateMessageInteractionInfo`).
+- **Reakce, která klesne na nulu, ze seznamu zmizí.** Čip s nulou vypadá jako chyba.
+- **Jen standardní emoji.** Vlastní (placená) emoji jsou samolepky — stahují se jako soubor a mají
+  vlastní animaci, takže patří k médiím. Neznámé typy se přeskočí, aby u zprávy nezmizely
+  i ty ostatní.
+- **Prázdná nabídka není chyba.** V Uložených zprávách Telegram místo reakcí používá tagy a
+  `getMessageAvailableReactions` vrátí prázdný seznam. Testovat reakce tam tedy nejde.
+- **`isBig = false`** — `true` je ta celoobrazovková animace; patří k vědomému gestu, ne ke
+  každému ťuknutí na čip.
+
 ## Soubory a média
 
 TDLib **nedává URL**. Soubory drží ve vlastním adresáři a identifikuje je celočíselným `fileId`;
@@ -198,6 +214,9 @@ není „Android bez barev", ale má vlastní konzistentní paletu.
   dopočítá ze šířky a předřazené `heightIn(max = …)` neuplatní — svislý snímek obrazovky pak vyroste
   přes celou bublinu a popisek pod ním se překryje. Správně: `BoxWithConstraints` + explicitní
   `height(...)` s `coerceAtMost`.
+- **Chyby ze stavu musí mít kam vyjít.** `ConversationScreen` má `SnackbarHost`; dřív se
+  `state.error` vykreslovalo jen u prázdné konverzace, takže neúspěšná reakce nebo odeslání
+  zmizely bez jediné stopy.
 - **Barvy avatarů drž jako dvojice pozadí + popředí.** `onPrimaryContainer` na `tertiaryContainer`
   je kontrastní nesmysl, který M3 negarantuje.
 - **ViewModel na detailu MUSÍ mít klíč obsahující id** (`koinViewModel(key = "conversation-$chatId")`).

@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.height
@@ -28,6 +30,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -69,6 +73,15 @@ fun ConversationScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Chyby se dřív zahazovaly: `state.error` se vykreslovalo jen u prázdné konverzace, takže
+    // neúspěšná reakce nebo odeslání zmizely bez jediné stopy.
+    LaunchedEffect(state.error) {
+        val message = state.error ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        viewModel.dismissError()
+    }
 
     // `reverseLayout` obrací i význam indexů: index 0 je nejnovější zpráva dole, vyšší indexy
     // jsou starší nahoře. Stránkování do minulosti se tedy spouští na KONCI seznamu.
@@ -122,7 +135,16 @@ fun ConversationScreen(
             )
         },
         bottomBar = { MessageInput(onSend = viewModel::send) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
+        state.reactionPicker?.let { picker ->
+            ReactionPickerSheet(
+                picker = picker,
+                onPick = { emoji -> viewModel.toggleReaction(picker.messageId, emoji) },
+                onDismiss = viewModel::hideReactionPicker,
+            )
+        }
+
         Box(Modifier.fillMaxSize().padding(padding)) {
             when {
                 state.messages.isEmpty() && state.loading ->
@@ -150,6 +172,10 @@ fun ConversationScreen(
                             // Seznam jde od nejnovější, takže „předchozí zpráva v čase"
                             // je ta s VYŠŠÍM indexem.
                             previous = state.messages.getOrNull(index + 1),
+                            onToggleReaction = { emoji ->
+                                viewModel.toggleReaction(message.id, emoji)
+                            },
+                            onRequestReaction = { viewModel.showReactionPicker(message.id) },
                             modifier = Modifier.animateItem(),
                         )
                     }
@@ -175,9 +201,12 @@ fun ConversationScreen(
  * kartiček.
  */
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 private fun MessageBubble(
     message: ChatMessage,
     previous: ChatMessage?,
+    onToggleReaction: (String) -> Unit,
+    onRequestReaction: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val continuesGroup = previous != null &&
@@ -213,7 +242,11 @@ private fun MessageBubble(
             color = containerColor,
             contentColor = contentColor,
             shape = shape,
-            modifier = Modifier.widthIn(max = 560.dp),
+            modifier = Modifier
+                .widthIn(max = 560.dp)
+                // Dlouhý stisk je jediné gesto na bublině — krátké ťuknutí si šetříme
+                // na otevírání médií, až přibude.
+                .combinedClickable(onLongClick = onRequestReaction, onClick = {}),
         ) {
             Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
                 if (!continuesGroup) {
@@ -232,6 +265,12 @@ private fun MessageBubble(
                 if (message.text.isNotBlank()) {
                     Text(text = message.text, style = MaterialTheme.typography.bodyLarge)
                 }
+
+                ReactionRow(
+                    reactions = message.reactions,
+                    onToggle = onToggleReaction,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
 
                 Text(
                     text = buildString {

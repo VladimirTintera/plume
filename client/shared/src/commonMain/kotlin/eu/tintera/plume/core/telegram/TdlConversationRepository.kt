@@ -9,7 +9,9 @@ import dev.g000sha256.tdl.dto.InputMessageText
 import dev.g000sha256.tdl.dto.Message
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
+import dev.g000sha256.tdl.dto.MessageInteractionInfo
 import dev.g000sha256.tdl.dto.MessageSourceChatHistory
+import dev.g000sha256.tdl.dto.ReactionTypeEmoji
 import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.flow.Flow
@@ -27,6 +29,7 @@ import kotlinx.coroutines.sync.withLock
 class TdlConversationRepository(
     holder: TelegramClientHolder,
 ) : ConversationRepository {
+
 
     private val logger = Logger.withTag("Conversation")
 
@@ -81,6 +84,59 @@ class TdlConversationRepository(
             }
             .filter { it.isSuccess }
             .map { it.getOrThrow() }
+
+    override fun reactionUpdates(chatId: Long): Flow<MessageReactions> =
+        client.messageInteractionInfoUpdates
+            .filter { it.chatId == chatId }
+            .map { update ->
+                MessageReactions(
+                    messageId = update.messageId,
+                    reactions = update.interactionInfo.toReactions(),
+                )
+            }
+
+    override suspend fun setReaction(
+        chatId: Long,
+        messageId: Long,
+        emoji: String,
+        add: Boolean,
+    ): Result<Unit> {
+        val type = ReactionTypeEmoji(emoji = emoji)
+
+        return if (add) {
+            client.addMessageReaction(
+                chatId = chatId,
+                messageId = messageId,
+                reactionType = type,
+                // `isBig` je ta velká animace přes celou obrazovku. Držíme ji na false —
+                // patří k vědomému gestu, ne ke každému ťuknutí na čip.
+                isBig = false,
+                // Ať se emoji propíše do „naposledy použité" a nabízí se příště nahoře.
+                updateRecentReactions = true,
+            )
+        } else {
+            client.removeMessageReaction(chatId = chatId, messageId = messageId, reactionType = type)
+        }
+            .toResult()
+            .map { }
+    }
+
+    override suspend fun availableReactions(chatId: Long, messageId: Long): Result<List<String>> =
+        client.getMessageAvailableReactions(
+            chatId = chatId,
+            messageId = messageId,
+            // Počet na řádek; TDLib podle toho krátí `topReactions`.
+            rowSize = REACTION_ROW_SIZE,
+        )
+            .toResult()
+            .map { available ->
+                // Pořadí schválně: nejdřív doporučené, pak nedávno použité, pak populární.
+                // Duplicity se odstraní, ale první výskyt si drží pozici.
+                (available.topReactions + available.recentReactions + available.popularReactions)
+                    .filterNotNull()
+                    .mapNotNull { (it.type as? ReactionTypeEmoji)?.emoji }
+                    .distinct()
+            }
 
     override suspend fun send(chatId: Long, text: String): Result<Unit> =
         client.sendMessage(
@@ -141,10 +197,28 @@ class TdlConversationRepository(
             senderId = senderId,
             text = captionText(),
             media = messageMedia(),
+            reactions = interactionInfo.toReactions(),
             timestamp = date,
             isEdited = editDate > 0,
         )
     }
+
+    /**
+     * Reakce z interaction info. Vlastní (placená) emoji se přeskočí — jsou to samolepky
+     * a vykreslení řeší jiná vrstva; zahodit je je lepší než u zprávy neukázat žádnou reakci.
+     */
+    private fun MessageInteractionInfo?.toReactions(): List<MessageReaction> =
+        this?.reactions?.reactions
+            ?.filterNotNull()
+            ?.mapNotNull { reaction ->
+                val emoji = (reaction.type as? ReactionTypeEmoji)?.emoji ?: return@mapNotNull null
+                MessageReaction(
+                    emoji = emoji,
+                    count = reaction.totalCount,
+                    isChosen = reaction.isChosen,
+                )
+            }
+            .orEmpty()
 
     private suspend fun resolveSenderName(senderId: Long): String? {
         if (senderId == 0L) return null
@@ -167,3 +241,6 @@ class TdlConversationRepository(
         return name
     }
 }
+
+/** Kolik emoji nabídnout na řádek ve výběru reakcí. */
+private const val REACTION_ROW_SIZE = 8

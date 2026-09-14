@@ -31,6 +31,23 @@ interface ConversationRepository {
     /** Zprávy, jimž se změnil obsah (editace). */
     fun editedMessages(chatId: Long): Flow<ChatMessage>
 
+    /** Reakce, které se u zprávy změnily. Klíč je `messageId`. */
+    fun reactionUpdates(chatId: Long): Flow<MessageReactions>
+
+    /**
+     * Přidá nebo odebere reakci. TDLib má na to dvě samostatná volání, protože „přepnutí"
+     * na jeho úrovni neexistuje — stav si musí pamatovat klient.
+     */
+    suspend fun setReaction(
+        chatId: Long,
+        messageId: Long,
+        emoji: String,
+        add: Boolean,
+    ): Result<Unit>
+
+    /** Emoji nabízená u téhle zprávy. Liší se chat od chatu — kanály si sadu omezují. */
+    suspend fun availableReactions(chatId: Long, messageId: Long): Result<List<String>>
+
     suspend fun send(chatId: Long, text: String): Result<Unit>
 
     /** Označí zprávy za přečtené. Bez tohohle zůstane odznak nepřečtených viset napořád. */
@@ -66,9 +83,30 @@ data class ChatMessage(
     val senderId: Long,
     val text: String,
     val media: MessageMedia?,
+    val reactions: List<MessageReaction>,
     /** Unixový čas v sekundách, jak ho dává TDLib. */
     val timestamp: Int,
     val isEdited: Boolean,
+)
+
+/**
+ * Reakce u zprávy.
+ *
+ * Zatím jen **standardní emoji**. Telegram umí i vlastní (placená) emoji, ta jsou ale samolepky —
+ * vykreslují se jako stažitelný soubor a mají vlastní animaci, takže patří k médiím, ne sem.
+ * Neznámé typy se prostě přeskočí, aby zbytek reakcí u zprávy nezmizel.
+ */
+data class MessageReaction(
+    val emoji: String,
+    val count: Int,
+    /** `true`, když tuhle reakci dal přihlášený uživatel. */
+    val isChosen: Boolean,
+)
+
+/** Kompletní sada reakcí jedné zprávy, jak dorazila updatem. */
+data class MessageReactions(
+    val messageId: Long,
+    val reactions: List<MessageReaction>,
 )
 
 /** Příloha zprávy. */
