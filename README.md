@@ -72,19 +72,26 @@ Aplikace zobrazuje notifikace o nových zprávách **i bez jakéhokoli nastaven�
 a je připojený, vydává je TDLib sám. Push je jen doprava pro případ, kdy aplikace neběží, a ten
 se bez tvých účtů zprovoznit nedá.
 
-**Co je hotové v kódu:** registrace tokenu (`registerDevice`), příjem a předání zašifrovaného
-payloadu TDLib (`processPushNotification`), zobrazení výsledku. Tahle cesta **není odzkoušená** —
-bez Firebase projektu ji nejde spustit.
+Stav řetězu na Androidu:
 
-**Co musíš udělat ty:**
+| Krok | Stav |
+|---|---|
+| Získání FCM tokenu | ✅ ověřeno |
+| `registerDevice` — Telegram token přijal | ✅ ověřeno |
+| Telegram → FCM → zařízení | ❓ vyžaduje nahrání FCM klíče (viz níž) |
+| `processPushNotification` + zobrazení | ❓ neodzkoušeno, závisí na kroku výš |
 
-1. Založ Firebase projekt a přidej do něj Android aplikaci s balíčkem `eu.tintera.plume`.
-2. Stáhni `google-services.json` a ulož ho do `client/androidApp/`.
-   Bez něj se projekt přeloží normálně, jen bez pushe — build to vypíše.
-3. Na [my.telegram.org](https://my.telegram.org) otevři svoji aplikaci a nahraj **FCM klíč**
-   (service account). Telegram totiž posílá push přes *tvůj* Firebase projekt, ne přes svůj.
-4. Pro iOS: v Apple Developer účtu vytvoř APNs klíč, nahraj ho tamtéž a v Xcode zapni capability
-   *Push Notifications*.
+**Nastavení Androidu (hotové):** `google-services.json` patří do `client/androidApp/`. Je
+v `.gitignore`, takže po klonu na jiném stroji ho tam musíš dát znovu — bez něj se projekt přeloží
+normálně, jen bez pushe, a build to vypíše.
+
+**Co zbývá:** na [my.telegram.org](https://my.telegram.org) otevři svoji aplikaci a nahraj **FCM klíč**
+z Firebase projektu. Telegram posílá push přes *tvůj* Firebase projekt, ne přes svůj — dokud tam
+klíč není, Telegram nemá čím notifikaci odeslat, i když o zařízení ví.
+
+**Pro iOS:** v Apple Developer účtu vytvoř APNs klíč, nahraj ho tamtéž a v Xcode zapni capability
+*Push Notifications*. Samotné zobrazení notifikací ale na iOS zatím není postavené (viz níž),
+takže to zatím nemá co využít.
 
 **iOS zatím notifikace nezobrazuje vůbec.** Lokální notifikace z běžící aplikace tam nemají cenu
 (na pozadí systém proces uspí) a skutečná cesta vede přes notification service extension, která
