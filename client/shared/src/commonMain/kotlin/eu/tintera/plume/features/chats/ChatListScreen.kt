@@ -42,6 +42,7 @@ import eu.tintera.plume.resources.push_pin_filled_24dp
 import org.jetbrains.compose.resources.painterResource
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.ui.Avatar
 
 @Composable
 fun ChatListScreen(
@@ -160,6 +161,12 @@ private fun ChatRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            Avatar(
+                chatId = chat.id,
+                title = chat.title,
+                avatarFileId = chat.avatarFileId,
+            )
+
             Column(Modifier.weight(1f)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

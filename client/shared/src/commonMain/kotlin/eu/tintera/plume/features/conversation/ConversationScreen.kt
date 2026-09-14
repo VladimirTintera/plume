@@ -15,6 +15,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.FilledIconButton
@@ -44,6 +49,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.send_24dp
@@ -90,7 +98,22 @@ fun ConversationScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(state.info?.title ?: "Konverzace") },
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        state.info?.let { info ->
+                            Avatar(
+                                chatId = info.id,
+                                title = info.title,
+                                avatarFileId = info.avatarFileId,
+                                size = 36.dp,
+                            )
+                        }
+                        Text(state.info?.title ?: "Konverzace")
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = "Zpět")
@@ -203,7 +226,12 @@ private fun MessageBubble(
                     }
                 }
 
-                Text(text = message.text, style = MaterialTheme.typography.bodyLarge)
+                message.media?.let { media -> MessageAttachment(media) }
+
+                // Prázdný text u zprávy, která má jen fotku — pak se nekreslí nic.
+                if (message.text.isNotBlank()) {
+                    Text(text = message.text, style = MaterialTheme.typography.bodyLarge)
+                }
 
                 Text(
                     text = buildString {
@@ -297,3 +325,63 @@ fun ConversationPlaceholder(modifier: Modifier = Modifier) {
 
 private const val LOAD_MORE_THRESHOLD = 5
 private const val READ_DEBOUNCE_MS = 400L
+
+/** Strop výšky fotky v bublině. Svislé snímky obrazovky by jinak zabraly celou obrazovku. */
+private val MAX_PHOTO_HEIGHT = 320.dp
+
+/**
+ * Příloha uvnitř bubliny.
+ *
+ * Fotka si drží **poměr stran z metadat zprávy**, ne z načteného obrázku — díky tomu má bublina
+ * správnou výšku od začátku a seznam nepodskočí, až se obrázek dotáhne.
+ */
+@Composable
+private fun MessageAttachment(media: MessageMedia) {
+    val shape = RoundedCornerShape(12.dp)
+
+    when (media) {
+        is MessageMedia.Photo -> {
+            val ratio = if (media.width > 0 && media.height > 0) {
+                media.width.toFloat() / media.height.toFloat()
+            } else {
+                // Neznámé rozměry: čtverec je méně rušivý než nulová výška.
+                1f
+            }
+
+            // Výška se počítá ručně, ne přes `aspectRatio`: ten si ji dopočítá ze šířky a strop
+            // z předřazeného `heightIn` neuplatní, takže svislý snímek obrazovky vyrostl přes
+            // celou bublinu a popisek pod ním se s obrázkem překryl.
+            BoxWithConstraints {
+                val height = (maxWidth / ratio).coerceAtMost(MAX_PHOTO_HEIGHT)
+
+                RemoteImage(
+                    fileId = media.fileId,
+                    thumbnailFileId = media.thumbnailFileId,
+                    contentDescription = "Fotka",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(height)
+                        .clip(shape),
+                )
+            }
+        }
+
+        is MessageMedia.Attachment -> Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            media.thumbnailFileId?.let { thumbnail ->
+                RemoteImage(
+                    fileId = thumbnail,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp).clip(shape),
+                )
+            }
+            Text(
+                text = media.label,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}

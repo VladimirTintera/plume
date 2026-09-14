@@ -92,6 +92,7 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.datetime)
             implementation(libs.kermit)
+            implementation(libs.coil.compose)
 
             // Jediné místo v projektu, kde smí být TDLib na classpath — viz core/telegram.
             implementation(libs.tdl.coroutines)

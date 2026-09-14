@@ -6,7 +6,7 @@ Kotlin Multiplatform, sdílené Compose UI pro Android a iOS.
 > Používá [Telegram API](https://core.telegram.org/) přes [TDLib](https://core.telegram.org/tdlib).
 > Není to oficiální produkt Telegramu a není s ním nijak spojený.
 
-## Stav: fáze 2
+## Stav: fáze 3
 
 **Fáze 0 (de-risking)** ověřila na reálném běhu, že architektura drží:
 
@@ -25,11 +25,15 @@ rozvržení s vybraným chatem zvýrazněným přes `secondaryContainer`.
 **Fáze 2** přidala textovou konverzaci — ověřeno na reálném účtu: načte se historie, bubliny se
 seskupují po odesílateli, nové zprávy naskakují živě a seznam chatů se pod nimi přeskládá.
 
+**Fáze 3** přidala média — avatary v seznamu i v hlavičce konverzace a fotky přímo v bublinách,
+včetně stahování na pozadí a progresivního náhledu. Chaty bez obrázku dostanou iniciály na barvě
+odvozené z id, takže je barva stabilní mezi spuštěními.
+
 Hotové obrazovky: přihlášení (telefon → kód → 2FA, plus QR), seznam chatů, konverzace,
 Nastavení s účtem a odhlášením.
 
-**Není hotové:** vykreslování médií (zatím popisek), reply, reakce, editace, skok na první
-nepřečtenou zprávu, push notifikace, sponsored messages, perzistence nastavení.
+**Není hotové:** přehrávání videa a zvuku, otevírání dokumentů, reply, reakce, editace, skok na
+první nepřečtenou zprávu, push notifikace, sponsored messages, perzistence nastavení.
 
 ## Rozjetí
 

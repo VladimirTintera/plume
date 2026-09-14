@@ -44,4 +44,6 @@ data class ChatSummary(
     val lastMessagePreview: String?,
     val isPinned: Boolean,
     val order: Long,
+    /** `fileId` malé varianty avataru, nebo `null` když chat obrázek nemá. */
+    val avatarFileId: Int?,
 )

@@ -118,6 +118,7 @@ class TdlConversationRepository(
                 ChatInfo(
                     id = chat.id,
                     title = chat.title,
+                    avatarFileId = chat.photo?.small?.id,
                     isGroup = chat.type is ChatTypeBasicGroup || chat.type is ChatTypeSupergroup,
                 )
             }
@@ -138,7 +139,8 @@ class TdlConversationRepository(
             // Jméno má smysl jen ve skupině a jen u cizích zpráv — jinde je to šum.
             senderName = if (isGroup && !isOutgoing) resolveSenderName(senderId) else null,
             senderId = senderId,
-            text = previewText(),
+            text = captionText(),
+            media = messageMedia(),
             timestamp = date,
             isEdited = editDate > 0,
         )

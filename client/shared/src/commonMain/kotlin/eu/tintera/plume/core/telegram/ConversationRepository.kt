@@ -43,6 +43,8 @@ interface ConversationRepository {
 data class ChatInfo(
     val id: Long,
     val title: String,
+    /** `fileId` malé varianty avataru, nebo `null` když chat obrázek nemá. */
+    val avatarFileId: Int?,
     /**
      * U skupin a kanálů se nad zprávami zobrazuje jméno odesílatele; v soukromém chatu by to byl
      * šum, protože odesílatelé jsou právě dva.
@@ -53,8 +55,8 @@ data class ChatInfo(
 /**
  * Zpráva v konverzaci.
  *
- * [text] je pro fázi 2 jediná nesená podoba obsahu — u médií je to popisek nebo název typu
- * (stejný mapper jako v náhledu seznamu chatů). Skutečné vykreslování médií přijde později.
+ * [text] je text zprávy, u médií popisek — může být prázdný, když má zpráva jen obrázek.
+ * [media] je vyplněné jen u zpráv s přílohou.
  */
 data class ChatMessage(
     val id: Long,
@@ -63,7 +65,38 @@ data class ChatMessage(
     val senderName: String?,
     val senderId: Long,
     val text: String,
+    val media: MessageMedia?,
     /** Unixový čas v sekundách, jak ho dává TDLib. */
     val timestamp: Int,
     val isEdited: Boolean,
 )
+
+/** Příloha zprávy. */
+sealed interface MessageMedia {
+
+    /**
+     * Fotka vykreslovaná přímo v bublině.
+     *
+     * [thumbnailFileId] je nejmenší varianta (TDLib jich drží několik) — stáhne se v řádu
+     * milisekund a poslouží jako okamžitý náhled, než dojde [fileId]. [width] a [height]
+     * jsou rozměry zobrazované varianty; drží se kvůli poměru stran, aby bublina neposkočila,
+     * až se obrázek načte.
+     */
+    data class Photo(
+        val fileId: Int,
+        val thumbnailFileId: Int?,
+        val width: Int,
+        val height: Int,
+    ) : MessageMedia
+
+    /**
+     * Ostatní přílohy — video, GIF, dokument, hlasovka.
+     *
+     * Zatím se nepřehrávají ani neotevírají; ukáže se náhledový obrázek (pokud ho zpráva má)
+     * a popisek typu. Vykreslování a přehrávání je samostatná fáze.
+     */
+    data class Attachment(
+        val label: String,
+        val thumbnailFileId: Int?,
+    ) : MessageMedia
+}

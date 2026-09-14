@@ -7,11 +7,12 @@ nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí
 
 ## Stav
 
-Fáze 2. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar),
-živý seznam chatů, textová konverzace (historie, živé zprávy, odesílání, označení přečteného).
+Fáze 3. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar),
+živý seznam chatů, textová konverzace (historie, živé zprávy, odesílání, označení přečteného),
+avatary a fotky ve zprávách.
 
-Není: vykreslování médií (zatím jen popisek), reply, reakce, editace, skok na první nepřečtenou,
-push notifikace, sponsored messages, perzistence nastavení.
+Není: přehrávání videa a zvuku, otevírání dokumentů, reply, reakce, editace, skok na první
+nepřečtenou, push notifikace, sponsored messages, perzistence nastavení.
 
 ## Build
 
@@ -52,14 +53,15 @@ v `:client:shared`, ne v app modulech.
 
 ## Hranice kolem TDLib — nejdůležitější pravidlo projektu
 
-`core/telegram/TelegramSession.kt` je **jediné** rozhraní, přes které zbytek aplikace mluví
-s Telegramem. `core/telegram/TdlTelegramSession.kt` je **jediný soubor, který smí importovat
-`dev.g000sha256.tdl.*`**.
+Balíček `core/telegram` je **jediné místo, kde smí být `import dev.g000sha256.tdl.*`**. Zbytek
+aplikace vidí jen doménová rozhraní: `TelegramSession` (přihlášení), `ChatRepository` (seznam
+chatů), `ConversationRepository` (obsah konverzace), `FileRepository` (soubory a média). Klienta
+sdílí přes `TelegramClientHolder` — TDLib klient je jeden na proces.
 
 Proč to tak striktně:
 
 1. **Upstream TDLib mění API i v patch verzích.** Wrapper to dokumentuje explicitně. Když se to stane,
-   přepíše se jeden soubor.
+   přepíše se jeden balíček a zbytek projektu se nezmění.
 2. **`tdl-coroutines` je komunitní projekt jednoho autora.** Kdyby přestal vycházet, nahradí se vlastním
    `cinterop` nad C API `tdjson` (`td_create_client_id`, `td_send`, `td_receive`, `td_execute`) — zase
    pod stejným rozhraním.
@@ -111,6 +113,26 @@ obrazovky, ne na aplikaci.
   že to uživatel opravdu viděl.
 - **`UpdateDeleteMessages.isPermanent == false`** znamená jen uvolnění z cache, ne smazání pro
   uživatele — takovou zprávu z obrazovky odstranit nesmíme.
+
+## Soubory a média
+
+TDLib **nedává URL**. Soubory drží ve vlastním adresáři a identifikuje je celočíselným `fileId`;
+cesta je známá až po stažení a průběh chodí updaty. Překlad do jednoho reaktivního stavu je
+[FileRepository] / `TdlFileRepository`.
+
+- **Odběr `file(fileId)` sám spustí stahování.** UI nic neinicializuje — `RemoteImage` jen vykreslí,
+  co dostane. Díky tomu nemůže vzniknout obrázek, který se nikdy nezačne stahovat.
+- **Jeden stav na `fileId`.** Když tentýž obrázek visí v seznamu i v konverzaci, sdílí jedno
+  stahování.
+- **`downloadFile(synchronous = false)`** — s `true` by volání čekalo na dokončení a UI by mezitím
+  nemělo co ukázat.
+- **`local.path` je vyplněná i u rozestavěného souboru**, takže hotovost se pozná jen podle
+  `isDownloadingCompleted`.
+- **Coil potřebuje schéma** — `model = "file://$path"`; holá cesta se vyhodnotí jako relativní URI.
+- **Progresivní načtení:** TDLib drží fotku v několika velikostech. Do bubliny jde největší varianta
+  do 1280 px, nejmenší slouží jako okamžitý náhled (`thumbnailFileId`).
+- **`FileRepository` je eager** (`createdAtStart`) ze stejného důvodu jako seznam chatů — v
+  konstruktoru se přihlašuje k `fileUpdates`.
 
 ## Material 3 / vzhled (UI)
 
@@ -172,6 +194,12 @@ není „Android bez barev", ale má vlastní konzistentní paletu.
 - **`mapNotNull` neexistuje pro primitivní pole.** `Chats.chatIds` je `LongArray`, je potřeba
   `.toList()`. Totéž u `Messages.messages`, kde jsou navíc prvky v Kotlin metadatech nullable
   (Java signatura je `Message[]`) → `.filterNotNull()`.
+- **Výšku obrázku nepočítej `aspectRatio`, když ji chceš zastropovat.** `aspectRatio` si výšku
+  dopočítá ze šířky a předřazené `heightIn(max = …)` neuplatní — svislý snímek obrazovky pak vyroste
+  přes celou bublinu a popisek pod ním se překryje. Správně: `BoxWithConstraints` + explicitní
+  `height(...)` s `coerceAtMost`.
+- **Barvy avatarů drž jako dvojice pozadí + popředí.** `onPrimaryContainer` na `tertiaryContainer`
+  je kontrastní nesmysl, který M3 negarantuje.
 - **ViewModel na detailu MUSÍ mít klíč obsahující id** (`koinViewModel(key = "conversation-$chatId")`).
   ViewModel se cachuje podle klíče a Koin u cachované instance **ignoruje nové `parameters`** —
   konstantní klíč tedy znamená, že druhá otevřená konverzace dostane ViewModel té první i se

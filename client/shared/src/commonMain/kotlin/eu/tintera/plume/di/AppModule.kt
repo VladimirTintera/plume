@@ -2,8 +2,10 @@ package eu.tintera.plume.di
 
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.TdlChatRepository
 import eu.tintera.plume.core.telegram.TdlConversationRepository
+import eu.tintera.plume.core.telegram.TdlFileRepository
 import eu.tintera.plume.core.telegram.TdlTelegramSession
 import eu.tintera.plume.core.telegram.TelegramClientHolder
 import eu.tintera.plume.core.telegram.TelegramSession
@@ -61,6 +63,12 @@ fun appModule() = module {
     // Bezstavová — na rozdíl od seznamu chatů nemusí vznikat dopředu, stránkovací stav
     // drží ConversationViewModel.
     single<ConversationRepository> { TdlConversationRepository(holder = get()) }
+
+    // Eagerně: v konstruktoru se přihlašuje k `fileUpdates` a průběh stahování chodí pro všechny
+    // soubory. Při líné konstrukci by se ztratily updaty k souborům, jejichž stahování už běží.
+    single<FileRepository>(createdAtStart = true) {
+        TdlFileRepository(holder = get(), scope = get(named(APP_SCOPE)))
+    }
 
     viewModelOf(::AuthViewModel)
     viewModelOf(::ChatsViewModel)

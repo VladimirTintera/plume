@@ -262,6 +262,7 @@ private fun Chat.toSummaryOrNull(): ChatSummary? {
         lastMessagePreview = lastMessage?.previewText(),
         isPinned = position.isPinned,
         order = position.order,
+        avatarFileId = photo?.small?.id,
     )
 }
 
