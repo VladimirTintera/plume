@@ -124,7 +124,10 @@ private fun ReactionChip(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
-            Text(text = reaction.emoji, fontSize = 15.sp)
+            // Emoji záměrně mimo typografickou škálu: role jako `labelLarge` míří na výšku
+            // písmen, ale u emoji je nosná celá kresba, takže ve stejné velikosti působí menší
+            // než číslo vedle ní.
+            Text(text = reaction.emoji, fontSize = 18.sp)
 
             if (withAvatars) {
                 ReactionSenders(reaction)

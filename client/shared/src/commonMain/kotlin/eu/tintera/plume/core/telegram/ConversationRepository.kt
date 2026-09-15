@@ -241,4 +241,22 @@ sealed interface MessageMedia {
         val label: String,
         val thumbnailFileId: Int?,
     ) : MessageMedia
+
+    /**
+     * Samolepka.
+     *
+     * [fileId] je vyplněné jen u statického `.webp`. Animované samolepky jsou `.tgs` (gzipovaná
+     * Lottie) a `.webm` — ani jedno není obrázek, který by šlo poslat do Coilu, takže z nich
+     * zbývá [thumbnailFileId] (statický náhled) a teprve když není ani ten, [emoji].
+     *
+     * [width] a [height] jsou od odesílatele; drží se kvůli poměru stran, aby se samolepka
+     * nevykreslila jako čtverec.
+     */
+    data class Sticker(
+        val fileId: Int?,
+        val thumbnailFileId: Int?,
+        val width: Int,
+        val height: Int,
+        val emoji: String,
+    ) : MessageMedia
 }

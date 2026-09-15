@@ -50,8 +50,11 @@ vysvětlení před systémovým dialogem a řádku v Nastavení, kterým je lze 
 **Notifikace vedou do konkrétního chatu** — ťuknutí otevře konverzaci, ať aplikace běží, nebo
 se startuje od nuly.
 
+**Emoji a samolepky:** zpráva jen z emoji se kreslí velká a bez bubliny, samolepky se vykreslují
+jako obrázek (animované zatím jako nehybný náhled).
+
 **Není hotové:** přehrávání videa a zvuku, otevírání dokumentů, editace, skok na první
-nepřečtenou zprávu, notifikace na iOS, perzistence nastavení.
+nepřečtenou zprávu, animované samolepky (.tgs/.webm), notifikace na iOS, perzistence nastavení.
 
 ## Rozjetí
 

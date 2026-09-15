@@ -13,6 +13,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -38,6 +39,9 @@ fun RemoteImage(
     thumbnailFileId: Int? = null,
     contentDescription: String? = null,
     contentScale: ContentScale = ContentScale.Crop,
+    // Podložka, než dorazí obrázek. Průhlednou chce obsah s vlastním tvarem — samolepka
+    // v rámečku vypadá jako obrázek, ne jako samolepka.
+    background: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
 ) {
     val state = rememberFileState(fileId)
     val thumbnailState = rememberFileState(thumbnailFileId)
@@ -58,7 +62,7 @@ fun RemoteImage(
         ?: thumbnailFileId?.let { knownPaths[it] }
 
     Box(
-        modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        modifier.background(background),
         contentAlignment = Alignment.Center,
     ) {
         Crossfade(targetState = path, label = "remote-image") { current ->

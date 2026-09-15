@@ -142,6 +142,35 @@ obrazovky, ne na aplikaci.
 - **`UpdateDeleteMessages.isPermanent == false`** znamená jen uvolnění z cache, ne smazání pro
   uživatele — takovou zprávu z obrazovky odstranit nesmíme.
 
+## Emoji a samolepky
+
+- **Zpráva složená jen z emoji se kreslí velká a bez bubliny**, stejně jako samolepka. Bublina
+  kolem nich nemá co ohraničovat: samolepka má vlastní tvar s průhledností a velká emoji jsou
+  obrázek samy o sobě. Barva popředí pak musí patřit PLOŠE, ne bublině, která tam není —
+  `onPrimaryContainer` na průhledném pozadí je nečitelný.
+- **Strop jsou 3 emoji** (`MAX_LARGE_EMOJI`). Nad ním už nejde o gesto, ale o odstavec, a ve
+  velké sazbě by zabral půl obrazovky. Míň emoji = větší: `displayLarge` / `Medium` / `Small`.
+- **Odpověď si bublinu drží**, i když je jen z emoji — citace bez pozadí se ztratí.
+- **Detekce emoji je pragmatický výběr rozsahů, ne unicode tabulka.** Kotlin v commonMain nemá
+  ani `codePointAt`, ani `\p{...}` v regulárních výrazech, takže úplná data by znamenala vlastní
+  tabulku a její údržbu při každé revizi Unicode. Chyba je na obě strany levná: nepoznané emoji
+  se vykreslí normálně velké, symbol omylem považovaný za emoji se ukáže velký.
+- **Počítají se shluky, ne kódové body.** Rodina (👨‍👩‍👧) je pět kódových bodů spojených ZWJ
+  a vlajka dva regionální indikátory — pro uživatele je to jedno emoji. ASCII se za emoji nepovažuje,
+  takže „:-P" zůstává normální zpráva (a klávesnicová emoji `1️⃣` se tím minou).
+- **Samolepky: Coil umí jen `.webp`.** `.tgs` je gzipovaná Lottie animace, `.webm` video — ani
+  jedno není obrázek. U nich se bere statický náhled, který TDLib k samolepce dává, a teprve když
+  není ani ten, emoji. Náhled jen v rastrovém formátu: `ThumbnailFormatTgs` a `Mpeg4` mají tentýž
+  problém, jen o úroveň níž.
+- **`RemoteImage` má parametr `background`.** Výchozí podložka `surfaceContainerHighest` je správně
+  u fotky, ale u samolepky by z průhledného tvaru udělala obrázek v rámečku.
+- **`captionText()` vrací u samolepky prázdno.** Její emoji se dřív vypisovalo jako text zprávy;
+  vedle vykreslené samolepky je to zdvojení. V náhledu seznamu chatů a v citaci ale zůstává —
+  tam není kam kreslit obrázek.
+- **Emoji v čipu reakce je záměrně mimo typografickou škálu** (18 sp natvrdo). Role jako
+  `labelLarge` míří na výšku písmen, ale u emoji je nosná celá kresba, takže ve stejné velikosti
+  působí menší než číslo vedle ní.
+
 ## Reakce
 
 - **TDLib nezná „přepnutí".** Má `addMessageReaction` a `removeMessageReaction`; jestli reakce

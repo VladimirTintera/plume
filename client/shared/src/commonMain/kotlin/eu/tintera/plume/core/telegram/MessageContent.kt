@@ -10,6 +10,11 @@ import dev.g000sha256.tdl.dto.MessageText
 import dev.g000sha256.tdl.dto.MessageVideo
 import dev.g000sha256.tdl.dto.MessageVoiceNote
 import dev.g000sha256.tdl.dto.Photo
+import dev.g000sha256.tdl.dto.Sticker
+import dev.g000sha256.tdl.dto.StickerFormatWebp
+import dev.g000sha256.tdl.dto.ThumbnailFormatJpeg
+import dev.g000sha256.tdl.dto.ThumbnailFormatPng
+import dev.g000sha256.tdl.dto.ThumbnailFormatWebp
 
 /**
  * Textová podoba obsahu zprávy pro **náhled v seznamu chatů**.
@@ -44,7 +49,8 @@ internal fun Message.captionText(): String = when (val content = this.content) {
     is MessageDocument -> content.caption.text
     is MessageAudio -> content.caption.text
     is MessageVoiceNote -> content.caption.text
-    is MessageSticker -> content.sticker.emoji
+    // Samolepka se kreslí, ne popisuje — její emoji by pod obrázkem bylo zdvojení.
+    is MessageSticker -> ""
     else -> previewText()
 }
 
@@ -69,9 +75,35 @@ internal fun Message.messageMedia(): MessageMedia? = when (val content = this.co
 
     is MessageAudio -> MessageMedia.Attachment(label = "Audio", thumbnailFileId = null)
     is MessageVoiceNote -> MessageMedia.Attachment(label = "Hlasová zpráva", thumbnailFileId = null)
-    is MessageSticker -> MessageMedia.Attachment(label = "Samolepka", thumbnailFileId = null)
+    is MessageSticker -> content.sticker.toMedia()
 
     else -> null
+}
+
+/**
+ * Samolepka na to, co se dá vykreslit.
+ *
+ * Coil umí `.webp`; `.tgs` je gzipovaná Lottie animace a `.webm` video — ani jedno se nedá poslat
+ * do obrázkové knihovny. U nich zbývá statický náhled, který TDLib k samolepce dává, takže
+ * z animované samolepky je aspoň nehybný obrázek místo slova „Samolepka".
+ *
+ * Náhled se bere jen v rastrovém formátu: `ThumbnailFormatTgs` a `Mpeg4` mají tentýž problém
+ * jako samotná samolepka, takže by se jen přeneslo o úroveň níž.
+ */
+private fun Sticker.toMedia(): MessageMedia.Sticker {
+    val rasterThumbnail = thumbnail?.takeIf {
+        it.format is ThumbnailFormatWebp ||
+            it.format is ThumbnailFormatJpeg ||
+            it.format is ThumbnailFormatPng
+    }
+
+    return MessageMedia.Sticker(
+        fileId = sticker.id.takeIf { format is StickerFormatWebp },
+        thumbnailFileId = rasterThumbnail?.file?.id,
+        width = width,
+        height = height,
+        emoji = emoji,
+    )
 }
 
 /**

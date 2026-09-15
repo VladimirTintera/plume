@@ -71,6 +71,7 @@ import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.chatAvatarKey
+import eu.tintera.plume.core.ui.emojiClusterCount
 import eu.tintera.plume.core.ui.chatTitleKey
 import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
@@ -420,17 +421,33 @@ private fun MessageBubble(
         previous.isOutgoing == message.isOutgoing &&
         previous.senderId == message.senderId
 
+    /*
+     * Zprávy, které jsou celé jedno gesto — pár emoji nebo samolepka — se kreslí bez bubliny.
+     *
+     * Bublina kolem nich nemá co ohraničovat: samolepka má vlastní tvar s průhledností a velká
+     * emoji jsou obrázek samy o sobě. Podmínkou je, že na zprávě nic dalšího nevisí; u odpovědi
+     * se citace bez pozadí ztratí, takže ta si bublinu drží.
+     */
+    val largeEmoji = when {
+        message.media != null || message.replyToMessageId != null -> 0
+        else -> message.text.emojiClusterCount(MAX_LARGE_EMOJI)
+    }
+    val bare = largeEmoji > 0 ||
+        (message.media is MessageMedia.Sticker && message.replyToMessageId == null)
+
     // Odchozí = primaryContainer, příchozí = surfaceContainerHigh. Vrstvení řeší surface role,
     // ne elevation — viz konvence v CLAUDE.md.
-    val containerColor = if (message.isOutgoing) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerHigh
+    val containerColor = when {
+        bare -> Color.Transparent
+        message.isOutgoing -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
-    val contentColor = if (message.isOutgoing) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurface
+    val contentColor = when {
+        // Bez pozadí se kreslí na plochu obrazovky, takže barva popředí musí patřit k NÍ,
+        // ne k barvě bubliny, která tam není.
+        bare -> MaterialTheme.colorScheme.onSurface
+        message.isOutgoing -> MaterialTheme.colorScheme.onPrimaryContainer
+        else -> MaterialTheme.colorScheme.onSurface
     }
 
     val corner = BUBBLE_CORNER
@@ -480,7 +497,17 @@ private fun MessageBubble(
 
                 // Prázdný text u zprávy, která má jen fotku — pak se nekreslí nic.
                 if (message.text.isNotBlank()) {
-                    Text(text = message.text, style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = message.text,
+                        // Míň emoji = větší. Jedno je gesto, tři už jsou věta, takže se
+                        // velikost s počtem krotí.
+                        style = when (largeEmoji) {
+                            0 -> MaterialTheme.typography.bodyLarge
+                            1 -> MaterialTheme.typography.displayLarge
+                            2 -> MaterialTheme.typography.displayMedium
+                            else -> MaterialTheme.typography.displaySmall
+                        },
+                    )
                 }
 
                 ReactionRow(
@@ -670,6 +697,8 @@ private fun QuotedMessage(
 private fun MessageMedia?.describe(): String = when (this) {
     is MessageMedia.Photo -> "Fotka"
     is MessageMedia.Attachment -> label
+    // V citaci není kam kreslit obrázek, takže samolepka se popíše svým emoji.
+    is MessageMedia.Sticker -> emoji.ifBlank { "Samolepka" }
     null -> ""
 }
 
@@ -718,6 +747,12 @@ private val BUBBLE_TAIL = 4.dp
 
 /** Strop výšky fotky v bublině. Svislé snímky obrazovky by jinak zabraly celou obrazovku. */
 private val MAX_PHOTO_HEIGHT = 320.dp
+
+/** Delší hrana samolepky. Telegram je kreslí zhruba takhle velké. */
+private val STICKER_SIZE = 160.dp
+
+/** Nad tímhle počtem už emoji netvoří gesto, ale odstavec, a kreslí se normálně velké. */
+private const val MAX_LARGE_EMOJI = 3
 
 /**
  * Stav doručení odchozí zprávy.
@@ -812,5 +847,48 @@ private fun MessageAttachment(media: MessageMedia) {
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
+
+        is MessageMedia.Sticker -> StickerImage(media)
     }
+}
+
+/**
+ * Samolepka.
+ *
+ * Kreslí se **bez pozadí i bez zaoblení** — samolepka má vlastní tvar s průhledností a rámeček
+ * kolem ní by z ní udělal obrázek. Když se nedá vykreslit ani ona, ani její náhled, zbývá emoji,
+ * které k ní Telegram vede; velké, ať je poznat, že to je celý obsah zprávy, a ne popisek.
+ */
+@Composable
+private fun StickerImage(sticker: MessageMedia.Sticker) {
+    val fileId = sticker.fileId ?: sticker.thumbnailFileId
+
+    if (fileId == null) {
+        Text(
+            text = sticker.emoji.ifBlank { "Samolepka" },
+            style = MaterialTheme.typography.displayMedium,
+        )
+        return
+    }
+
+    // Poměr stran z metadat zprávy, ne z načteného souboru — jinak by seznam poskočil,
+    // až se obrázek dotáhne. Nulové rozměry samolepka mít nemá, ale dělit se jimi nedá,
+    // takže z ní v tom případě je čtverec.
+    val ratio = if (sticker.width > 0 && sticker.height > 0) {
+        sticker.width.toFloat() / sticker.height.toFloat()
+    } else {
+        1f
+    }
+
+    val width = if (ratio >= 1f) STICKER_SIZE else STICKER_SIZE * ratio
+    val height = if (ratio >= 1f) STICKER_SIZE / ratio else STICKER_SIZE
+
+    RemoteImage(
+        fileId = fileId,
+        contentDescription = sticker.emoji.ifBlank { "Samolepka" },
+        contentScale = ContentScale.Fit,
+        // Samolepka je průhledná; podložka pod ní by z ní udělala obrázek v rámečku.
+        background = Color.Transparent,
+        modifier = Modifier.size(width = width, height = height),
+    )
 }
