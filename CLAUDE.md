@@ -95,6 +95,12 @@ rozvržení je konverzace jen panel vedle seznamu, takže rail zůstává. Past:
 spodního insetu musí být podmíněné stejnou podmínkou jako bar — když se konzumuje i se skrytým
 barem, vstupní pole konverzace zaleze pod systémovou lištu.
 
+**Skrytí baru musí animovat i jeho MÍSTO, ne jen posun.** `slideOutVertically` obsah jenom
+posune — jeho slot v layoutu drží po celou animaci. Vstupní pole konverzace proto viselo nad
+prázdným pruhem a doskočilo dolů až na konci. Řeší to `shrinkVertically` (a `expandVertically`
+na druhou stranu) přidané k posunu: zmenšuje se i to místo, takže obsah roste současně
+s odjezdem baru.
+
 **Avatar a název letí ze seznamu do konverzace.** Klíče `chatAvatarKey` / `chatTitleKey`
 obsahují id chatu, jinak by se při rychlém přepnutí spároval avatar jednoho chatu s druhým.
 Na rozdíl od letu odeslané zprávy se tu viditelnost neřídí ručně — obě strany jsou

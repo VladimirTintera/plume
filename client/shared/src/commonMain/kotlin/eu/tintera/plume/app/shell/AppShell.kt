@@ -20,10 +20,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -157,10 +160,20 @@ fun AppShell(modifier: Modifier = Modifier) {
 
             AnimatedVisibility(
                 visible = showBottomBar,
-                // Bar odjíždí dolů, odkud přišel — skokové zmizení by při otevření konverzace
-                // trhlo celým obsahem.
-                enter = slideInVertically { it } + fadeIn(),
-                exit = slideOutVertically { it } + fadeOut(),
+                /*
+                 * Bar odjíždí dolů, odkud přišel — skokové zmizení by při otevření konverzace
+                 * trhlo celým obsahem.
+                 *
+                 * `shrinkVertically` je tam nutně navíc: samotný `slideOutVertically` obsah jen
+                 * POSUNE, ale jeho místo v layoutu drží po celou animaci. Vstupní pole konverzace
+                 * proto celou dobu viselo nad prázdným pruhem a doskočilo dolů až na konci.
+                 * Se `shrinkVertically` se zmenšuje i to místo, takže obsah roste současně
+                 * s odjezdem baru.
+                 */
+                enter = slideInVertically { it } + expandVertically(expandFrom = Alignment.Top) +
+                    fadeIn(),
+                exit = slideOutVertically { it } + shrinkVertically(shrinkTowards = Alignment.Top) +
+                    fadeOut(),
             ) {
                 ShortNavigationBar {
                     TopLevelDestination.entries.forEach { dest ->
