@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.app.NotificationCompat
@@ -44,8 +45,16 @@ actual class NotificationPresenter(
      */
     private val conversations = mutableMapOf<Int, Conversation>()
 
-    /** Dekódované profilovky podle cesty. Sahá se na ně ze stejné korutiny jako na [conversations]. */
-    private val icons = mutableMapOf<String, IconCompat>()
+    /**
+     * Dekódované profilovky podle cesty.
+     *
+     * Drží se bitmapy, ne hotové ikony: tatáž fotka jde jednou k řádku jako `IconCompat`
+     * a podruhé jako velká ikona notifikace, která bere `Bitmap`. Notifikace se navíc
+     * překresluje při každé nové zprávě, takže číst soubor pokaždé znovu by bylo zbytečné.
+     *
+     * Sahá se na ně ze stejné korutiny jako na [conversations], takže bez zámku.
+     */
+    private val bitmaps = mutableMapOf<String, Bitmap>()
 
     actual fun start(repository: NotificationRepository) {
         createChannel()
@@ -87,6 +96,10 @@ actual class NotificationPresenter(
                     lines = recoverLines(groupId),
                 )
             }
+
+            // Fotka chatu se doplňuje i u už rozepsané konverzace: na začátku nemusela být
+            // stažená a nechat kvůli tomu notifikaci navždy bez ikony by byla škoda.
+            conversation.avatarPath = newest.chatAvatarPath ?: conversation.avatarPath
 
             val added = batch
                 .filter { line -> conversation.lines.none { it.notificationId == line.notificationId } }
@@ -167,6 +180,9 @@ actual class NotificationPresenter(
 
         val built = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_email)
+            // Velká ikona je ten kruh vlevo v notifikaci. Bez ní tam Android dá ikonu
+            // aplikace, takže u všech chatů svítí totéž a nepoznají se od sebe.
+            .setLargeIcon(avatarBitmap(conversation.avatarPath))
             .setStyle(style)
             .setSilent(silent)
             .setAutoCancel(true)
@@ -209,25 +225,23 @@ actual class NotificationPresenter(
         }
     }
 
-    /**
-     * Profilovka jako ikona notifikace.
-     *
-     * `createWithAdaptiveBitmap` kvůli kulatému ořezu — Android profilovky v notifikacích kreslí
-     * v kruhu a čtvercová fotka by z řady vyčnívala. Dekódování se cachuje: notifikace se
-     * překresluje při každé nové zprávě a načítat pokaždé tentýž soubor z disku by bylo zbytečné.
-     *
-     * Chybu polyká schválně — soubor mohl mezitím zmizet a notifikace bez profilovky je pořád
-     * lepší než žádná.
-     */
+    /** Profilovka jako ikona řádku v notifikaci. */
     private fun avatarIcon(path: String?): IconCompat? {
+        // `createWithAdaptiveBitmap` kvůli kulatému ořezu — Android profilovky v notifikacích
+        // kreslí v kruhu a čtvercová fotka by z řady vyčnívala.
+        val bitmap = avatarBitmap(path) ?: return null
+        return IconCompat.createWithAdaptiveBitmap(bitmap)
+    }
+
+    /** Chybu polyká schválně — soubor mohl zmizet a notifikace bez profilovky je lepší než žádná. */
+    private fun avatarBitmap(path: String?): Bitmap? {
         if (path == null) return null
 
-        icons[path]?.let { return it }
+        bitmaps[path]?.let { return it }
 
         val bitmap = runCatching { BitmapFactory.decodeFile(path) }.getOrNull() ?: return null
-        val icon = IconCompat.createWithAdaptiveBitmap(bitmap)
-        icons[path] = icon
-        return icon
+        bitmaps[path] = bitmap
+        return bitmap
     }
 
     /** Rozepsaná notifikace jednoho chatu. */
@@ -235,6 +249,8 @@ actual class NotificationPresenter(
         val chatId: Long,
         val title: String,
         var lines: List<Line>,
+        /** Fotka chatu pro velkou ikonu notifikace. */
+        var avatarPath: String? = null,
     )
 
     /** Jedna zpráva v notifikaci. [notificationId] je `null` u řádku převzatého po restartu. */

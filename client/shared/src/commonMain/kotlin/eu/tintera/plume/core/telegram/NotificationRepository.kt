@@ -68,4 +68,11 @@ data class ChatNotification(
      * soubor musí vyřídit dřív, než se sem hodnota dostane.
      */
     val avatarPath: String?,
+    /**
+     * Profilovka CHATU, pro velkou ikonu notifikace.
+     *
+     * Liší se od [avatarPath] ve skupině: u řádku patří profilovka toho, kdo psal, ale velká
+     * ikona reprezentuje celou konverzaci, takže tam patří fotka skupiny.
+     */
+    val chatAvatarPath: String?,
 )

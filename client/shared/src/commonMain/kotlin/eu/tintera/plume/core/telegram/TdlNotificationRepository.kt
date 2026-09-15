@@ -63,6 +63,7 @@ class TdlNotificationRepository(
                     // je to totéž jako fotka chatu. Fotka chatu je záloha pro kanály a boty,
                     // kde odesílatel vlastní profilovku nemá.
                     avatarPath = downloadedPath(sender?.photo ?: chat?.photo?.small),
+                    chatAvatarPath = downloadedPath(chat?.photo?.small),
                 )
             }
 

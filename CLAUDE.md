@@ -373,6 +373,9 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
 - **Ve skupině patří k řádku profilovka ODESÍLATELE**, ne fotka skupiny; fotka chatu je záloha pro
   kanály a boty, kde odesílatel vlastní profilovku nemá. Jméno i fotka se berou z jednoho dotazu
   na uživatele.
+- **Velká ikona notifikace je fotka CHATU, ne odesílatele.** Je to ten kruh vlevo; bez něj tam
+  Android dá ikonu aplikace, takže u všech chatů svítí totéž a nepoznají se od sebe. U řádku
+  naopak patří profilovka toho, kdo psal — ve skupině to jsou dvě různé fotky.
 - **`IconCompat.createWithAdaptiveBitmap`** kvůli kulatému ořezu — Android profilovky v notifikacích
   kreslí v kruhu a čtvercová fotka by z řady vyčnívala. Dekódované ikony se cachují podle cesty,
   protože se notifikace překresluje při každé nové zprávě.
