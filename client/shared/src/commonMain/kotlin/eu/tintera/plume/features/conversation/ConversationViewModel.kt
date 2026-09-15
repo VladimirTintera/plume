@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -35,6 +36,9 @@ class ConversationViewModel(
 
     /** Serializuje stránkování — bez toho by dva rychlé scrolly načetly tutéž stránku dvakrát. */
     private val loadMutex = Mutex()
+
+    /** Rozlišuje jednotlivé lety textu do bubliny, když uživatel odešle dvě zprávy rychle po sobě. */
+    private var flightCounter = 0L
 
     init {
         viewModelScope.launch {
@@ -159,16 +163,38 @@ class ConversationViewModel(
         // odeslat druhou zprávu se stejnou citací.
         clearReply()
 
+        // Text „vyletí" ze vstupního pole do bubliny. Musí se zapamatovat hned při odeslání,
+        // protože pole se vyprázdní dřív, než dorazí zpráva — a bez toho by nebylo co animovat.
+        val flight = MessageFlight(id = ++flightCounter, text = trimmed, messageId = null)
+        _state.update { it.copy(flight = flight) }
+
         viewModelScope.launch {
             repository.send(chatId, trimmed, replyTo)
                 // TDLib vrací rozepsanou zprávu okamžitě, takže bublina naskočí bez čekání
                 // na server. Skutečné id dorazí potvrzením a zprávu v seznamu nahradí.
                 .onSuccess { pending ->
-                    _state.update { it.copy(messages = merge(it.messages, listOf(pending))) }
+                    _state.update {
+                        it.copy(
+                            messages = merge(it.messages, listOf(pending)),
+                            // Teprve teď ví let, kam míří — bublina si podle id vezme klíč.
+                            flight = it.flight?.takeIf { f -> f.id == flight.id }
+                                ?.copy(messageId = pending.id),
+                        )
+                    }
+
+                    // Let se uklidí až po doběhnutí animace. Kdyby se zrušil dřív, zmizel by
+                    // klíč sdíleného prvku uprostřed přechodu a text by skokem zmizel.
+                    delay(FLIGHT_DURATION_MS)
+                    _state.update { state ->
+                        state.copy(flight = state.flight?.takeIf { it.id != flight.id })
+                    }
                 }
                 .onFailure { failure ->
                     _state.update {
-                        it.copy(error = failure.message ?: "Zprávu se nepodařilo odeslat.")
+                        it.copy(
+                            error = failure.message ?: "Zprávu se nepodařilo odeslat.",
+                            flight = it.flight?.takeIf { f -> f.id != flight.id },
+                        )
                     }
                 }
         }
@@ -317,6 +343,27 @@ private fun List<MessageReaction>.toggled(emoji: String, add: Boolean): List<Mes
     }
 }
 
+/**
+ * Text na cestě ze vstupního pole do bubliny.
+ *
+ * Existuje jen po dobu animace. [messageId] je `null`, dokud TDLib nevrátí rozepsanou zprávu —
+ * do té doby se text kreslí u vstupního pole, pak ho převezme bublina.
+ *
+ * [id] rozlišuje jednotlivé lety: bez něj by dvě rychle po sobě odeslané zprávy sdílely jeden
+ * klíč a animace by se popraly.
+ */
+data class MessageFlight(
+    val id: Long,
+    val text: String,
+    val messageId: Long?,
+) {
+    /** Klíč sdíleného prvku. Musí být na obou stranách stejný, jinak se prvky nespárují. */
+    val sharedKey: String get() = "message-flight-$id"
+}
+
+/** Doba, po kterou se drží klíč sdíleného prvku po přistání v bublině. */
+internal const val FLIGHT_DURATION_MS = 450L
+
 /** Otevřený výběr reakcí nad konkrétní zprávou. */
 data class ReactionPicker(
     val messageId: Long,
@@ -335,6 +382,8 @@ data class ConversationState(
     val quotes: Map<Long, ChatMessage> = emptyMap(),
     /** Protějšek přečetl odchozí zprávy až po tohle id včetně. */
     val lastReadOutboxMessageId: Long = 0L,
+    /** Text právě letící ze vstupního pole do bubliny; `null` když se nic neodesílá. */
+    val flight: MessageFlight? = null,
     /** Od nejnovější po nejstarší. */
     val messages: List<ChatMessage> = emptyList(),
     val loading: Boolean = false,

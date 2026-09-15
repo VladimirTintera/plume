@@ -70,6 +70,7 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
@@ -210,6 +211,8 @@ fun ConversationScreen(
             MessageInput(
                 replyingTo = state.replyingTo,
                 partnerName = state.info?.title,
+
+                flight = state.flight,
                 onCancelReply = viewModel::clearReply,
                 onSend = viewModel::send,
             )
@@ -259,6 +262,8 @@ fun ConversationScreen(
                             // je ta s VYŠŠÍM indexem.
                             previous = state.messages.getOrNull(index + 1),
                             lastReadOutboxMessageId = state.lastReadOutboxMessageId,
+
+                            flight = state.flight,
                             onToggleReaction = { emoji ->
                                 viewModel.toggleReaction(message.id, emoji)
                             },
@@ -355,6 +360,7 @@ private fun MessageBubble(
     quoted: ChatMessage?,
     partnerName: String?,
     lastReadOutboxMessageId: Long,
+    flight: MessageFlight?,
     previous: ChatMessage?,
     onToggleReaction: (String) -> Unit,
     onRequestReaction: () -> Unit,
@@ -377,8 +383,8 @@ private fun MessageBubble(
         MaterialTheme.colorScheme.onSurface
     }
 
-    val corner = 18.dp
-    val tight = 4.dp
+    val corner = BUBBLE_CORNER
+    val tight = BUBBLE_TAIL
     val shape = if (message.isOutgoing) {
         RoundedCornerShape(corner, if (continuesGroup) tight else corner, tight, corner)
     } else {
@@ -395,6 +401,14 @@ private fun MessageBubble(
             shape = shape,
             modifier = Modifier
                 .widthIn(max = 560.dp)
+                // Cílová strana letu ze vstupního pole. Sdílí se CELÁ bublina, ne jen text —
+                // kdyby se sdílel jen text, doletěl by sám a pozadí by pod ním na konci
+                // skokem naskočilo.
+                .then(
+                    flight?.takeIf { it.messageId == message.id }
+                        ?.let { Modifier.sharedFlight(it.sharedKey, visible = true) }
+                        ?: Modifier,
+                )
                 // Dlouhý stisk je jediné gesto na bublině — krátké ťuknutí si šetříme
                 // na otevírání médií, až přibude.
                 .combinedClickable(onLongClick = onRequestReaction, onClick = {}),
@@ -456,6 +470,7 @@ private fun MessageBubble(
 private fun MessageInput(
     replyingTo: ChatMessage?,
     partnerName: String?,
+    flight: MessageFlight?,
     onCancelReply: () -> Unit,
     onSend: (String) -> Unit,
 ) {
@@ -489,10 +504,11 @@ private fun MessageInput(
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            Box(Modifier.weight(1f)) {
             TextField(
                 value = draft,
                 onValueChange = { draft = it },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("Zpráva") },
                 maxLines = 6,
                 shape = RoundedCornerShape(24.dp),
@@ -509,6 +525,32 @@ private fun MessageInput(
                     },
                 ),
             )
+
+            // Startovní strana letu: **už vypadá jako bublina**, ne jen jako text. Sdílí se celý
+            // kontejner, takže po cestě roste i pozadí — kdyby se sdílel jen text, doletěl by
+            // sám a bublina by pod ním na konci skokem naskočila.
+            //
+            // Kreslí se přes vyprázdněné pole, takže odeslání vypadá, jako by se napsaný text
+            // proměnil v bublinu a odletěl.
+            flight?.let { current ->
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    shape = RoundedCornerShape(BUBBLE_CORNER, BUBBLE_CORNER, BUBBLE_TAIL, BUBBLE_CORNER),
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .sharedFlight(current.sharedKey, visible = current.messageId == null),
+                ) {
+                    Text(
+                        text = current.text,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    )
+                }
+            }
+            }
 
             FilledIconButton(
                 onClick = {
@@ -611,6 +653,12 @@ fun ConversationPlaceholder(modifier: Modifier = Modifier) {
 
 private const val LOAD_MORE_THRESHOLD = 5
 private const val READ_DEBOUNCE_MS = 400L
+
+/** Zaoblení bubliny. Sdílí ho i startovní strana letu, aby se tvar po cestě neměnil. */
+private val BUBBLE_CORNER = 18.dp
+
+/** Stažené nároží u navazujících bublin téhož odesílatele. */
+private val BUBBLE_TAIL = 4.dp
 
 /** Strop výšky fotky v bublině. Svislé snímky obrazovky by jinak zabraly celou obrazovku. */
 private val MAX_PHOTO_HEIGHT = 320.dp

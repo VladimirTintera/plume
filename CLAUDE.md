@@ -205,6 +205,18 @@ obrazovky, ne na aplikaci.
   při každém přečtení přemapovat celá historie.
 - **Scroll po odeslání je bezpodmínečný**, u příchozí zprávy jen když je uživatel dole. Jinak by
   ho nová zpráva vytrhla ze čtení historie — místo toho se dole objeví odznak s počtem.
+- **Sdílený prvek při odeslání jde přes `sharedElementWithCallerManagedVisibility`.** Běžné
+  `sharedElement` chce `AnimatedVisibilityScope`, který položka `LazyColumn` ani obsah vstupního
+  pole nemají; tahle varianta bere jen `visible: Boolean`. `SharedTransitionLayout` už obaluje
+  celou aplikaci v `AppTheme` — **další obalení by vyrobilo vnořený scope a klíče by se
+  nespárovaly**.
+- **Sdílí se CELÁ bublina, ne jen text.** Se sdíleným textem doletí text sám a pozadí pod ním
+  na konci skokem naskočí.
+- **Startovní strana letu musí přežít vyprázdnění pole.** Text se zapamatuje do `MessageFlight`
+  hned při odeslání; bez toho by mezi vyprázdněním pole a příletem zprávy nebylo co animovat.
+  Let se ruší až po doběhnutí animace — dřívější zrušení sebere klíč uprostřed přechodu.
+- **Pořadové číslo v klíči letu** rozliší dvě rychle po sobě odeslané zprávy; s jedním klíčem
+  by se dvě animace popraly o tentýž prvek.
 - **„Jsem dole" kontroluje i offset**, ne jen index 0. Bez toho se za dole považuje i stav,
   kdy je poslední bublina z půlky za okrajem.
 
