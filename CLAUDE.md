@@ -146,6 +146,21 @@ Expressive nahrazuje karty per položku. Skupiny jsou tři: připnuté, nepřeč
 - **Mezera mezi skupinami se přidává u první položky skupiny**, ne ve `verticalArrangement` —
   `LazyColumn` o sousedech položky nic neví. Stejný postup jako u rozestupů zpráv v konverzaci.
 
+### Odlehčení: blok je světlejší než pozadí
+
+- **Vrstvení je otočené proti tomu, jak vzniklo.** Původně bylo pozadí `surface` (nejsvětlejší role)
+  a řádky `surfaceContainerHighest` o tři stupně tmavší — z položek byly šedé plochy na světlém
+  a seznam působil těžce. Teď mají řádky `surfaceContainerLowest`, takže je to vztah „světlý panel
+  na tónované stránce". Tím dělá odstup i Google Messages: jeho řádky samy žádnou výplň nemají,
+  nese ho rozdíl panelu a pozadí.
+- **V tmavém režimu se to obrátí a je to správně.** `surfaceContainerLowest` je tam nejtmavší role,
+  takže z panelu bude tmavší plocha na světlejším pozadí. Role drží HIERARCHII, ne konkrétní
+  světlost — proto se nesahá po natvrdo zadané barvě.
+- **Název jde běžným řezem, polotučně jen nepřečtený.** Když je polotučný každý chat, nevyčnívá
+  žádný. Proto `bodyLarge` + `FontWeight.SemiBold` jen podle `hasUnread`, ne `titleMedium` pro vše.
+- **Odznak nepřečtených není chybově červený.** M3 `Badge` je ve výchozím stavu `error`; nepřečtená
+  zpráva ale není chyba a v odlehčeném seznamu byla ta červená jediná sytá barva na obrazovce.
+
 ### Co položka ukazuje
 
 Čas poslední zprávy, ztlumení, dostupnost protějšku a jeho právě probíhající činnost.

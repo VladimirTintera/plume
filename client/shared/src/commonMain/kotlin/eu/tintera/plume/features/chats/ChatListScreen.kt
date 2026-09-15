@@ -21,8 +21,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Badge
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
@@ -227,15 +225,26 @@ private fun ChatRow(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Výběr v list-detail je navigační stav, ne zvýraznění obsahu → `secondaryContainer`,
-    // stejná role, jakou používá vybraná položka v nav railu.
-    val colors = if (selected) {
-        CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        )
+    /*
+     * Blok je SVĚTLEJŠÍ než pozadí, ne tmavší.
+     *
+     * Původně to bylo obráceně — pozadí `surface` (nejsvětlejší role) a řádky `surfaceContainerHighest`
+     * o tři stupně tmavší. Z položek pak byly šedé plochy na světlém a seznam působil těžce.
+     * Takhle je to vztah „světlý panel na tónované stránce", což je i to, čím odstup dělá
+     * Google Messages: jeho řádky samy žádnou výplň nemají.
+     *
+     * Výběr v list-detail je navigační stav, ne zvýraznění obsahu → `secondaryContainer`,
+     * stejná role, jakou používá vybraná položka v nav railu.
+     */
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.secondaryContainer
     } else {
-        CardDefaults.cardColors()
+        MaterialTheme.colorScheme.surfaceContainerLowest
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
     }
 
     /*
@@ -265,23 +274,24 @@ private fun ChatRow(
     // takže se klikání přesouvá na Surface — Card zůstává jen tvarem a barvou.
     Surface(
         shape = shape,
-        color = colors.containerColor,
-        contentColor = colors.contentColor,
+        color = containerColor,
+        contentColor = contentColor,
         modifier = modifier
             .fillMaxWidth()
             .clip(shape)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         Row(
-            Modifier.padding(16.dp).fillMaxWidth(),
+            Modifier.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Box {
                 Avatar(
                     chatId = chat.id,
                     title = chat.title,
                     avatarFileId = chat.avatarFileId,
+                    size = AVATAR_SIZE,
                     modifier = Modifier.sharedNavElement(chatAvatarKey(chat.id)),
                 )
 
@@ -294,7 +304,7 @@ private fun ChatRow(
                             .size(ONLINE_DOT)
                             // Obroučka barvou pozadí položky — bez ní tečka splyne s tmavým
                             // avatarem a je z ní jen skvrna.
-                            .background(colors.containerColor, CircleShape)
+                            .background(containerColor, CircleShape)
                             .padding(2.dp)
                             .background(MaterialTheme.colorScheme.primary, CircleShape),
                     )
@@ -316,7 +326,11 @@ private fun ChatRow(
                     }
                     Text(
                         text = chat.title,
-                        style = MaterialTheme.typography.titleMedium,
+                        // `bodyLarge` místo `titleMedium`: stejná velikost, ale běžný řez.
+                        // Polotučné jméno u KAŽDÉHO chatu znamená, že nevyčnívá žádný —
+                        // tučností se proto odlišuje jen nepřečtený, jako v Google Messages.
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = if (chat.hasUnread) FontWeight.SemiBold else null,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         // Plná váha: název roztlačí zbytek řádku doprava, takže čas sedí
@@ -360,13 +374,21 @@ private fun ChatRow(
                         },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        fontWeight = if (chat.unreadCount > 0) FontWeight.Medium else null,
+                        fontWeight = if (chat.hasUnread) FontWeight.Medium else null,
                     )
                 }
             }
 
             if (chat.unreadCount > 0) {
-                Badge { Text(chat.unreadCount.toString()) }
+                // `Badge` je ve výchozím stavu chybově červený. Nepřečtená zpráva ale není
+                // chyba — v odlehčeném seznamu byla ta červená jediná sytá barva na obrazovce
+                // a přebíjela všechno ostatní.
+                Badge(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ) {
+                    Text(chat.unreadCount.toString())
+                }
             }
         }
     }
@@ -386,6 +408,9 @@ private val GROUP_ITEM_SPACING = 2.dp
 
 /** Mezera mezi skupinami. */
 private val GROUP_SPACING = 14.dp
+
+/** Avatar. Větší než výchozích 48 dp — v odlehčeném řádku nese hlavní váhu on, ne písmo. */
+private val AVATAR_SIZE = 52.dp
 
 /** Průměr zelené tečky i s obroučkou. */
 private val ONLINE_DOT = 14.dp
