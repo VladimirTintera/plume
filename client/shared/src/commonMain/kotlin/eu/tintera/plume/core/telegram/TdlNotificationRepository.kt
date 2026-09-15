@@ -52,6 +52,7 @@ class TdlNotificationRepository(
                     // na zamykací obrazovce. Musíme to respektovat.
                     text = if (type.showPreview) type.message.previewText() else "Nová zpráva",
                     isSilent = notification.isSilent,
+                    timestamp = notification.date,
                 )
             }
 

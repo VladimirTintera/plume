@@ -279,18 +279,22 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
 - **Telegram chce service account JSON (FCM v1)**, ne legacy server key — ověřeno nahráním na
   my.telegram.org. Dokumentace na core.telegram.org pořád mluví o „application key (GCM)", což je
   zastaralé; legacy endpoint Google vypnul v červnu 2024.
-- **Skupina potřebuje hlavičku** (`setGroupSummary`). `setGroup` říká jen „patří k sobě", ne co ta
-  skupina je — bez hlavičky je z toho v liště hromádka bez popisu. Posílá se až PO zprávě, jinak
-  by lišta na okamžik ukázala prázdnou skupinu, a se `GROUP_ALERT_CHILDREN`, jinak by každá zpráva
-  pípla dvakrát.
-- **Id hlavičky je `groupId.inv()`, ne `groupId`.** TDLib vydává `groupId` a `notificationId`
-  z ODDĚLENÝCH čítačů, takže obojí může být třeba 1 — se syrovým `groupId` by si hlavička a některá
-  zpráva sáhly na totéž systémové id. `inv()` překlopí kladná čísla do záporných a je prosté.
-  Ověřeno na skutečné notifikaci: zpráva `id=9`, hlavička `id=-3` (tedy `groupId` 2).
-- **Prázdná hlavička se musí zrušit ručně.** Zbylé děti se počítají z `activeNotifications`
-  MÍNUS právě zrušená id — `cancel` je asynchronní a zrušené notifikace se ve výpisu ještě chvíli
-  objevují, takže bez odečtu by skupina nikdy nevyšla prázdná. Klíč skupiny se čte z hlavičky
-  samotné: `NotificationUpdate.Removed` nese jen `groupId`, ne `chatId`.
+- **Jeden chat = JEDNA notifikace, se zprávami jako řádky v `MessagingStyle`.** `setGroup` udělá
+  z notifikací hromádku, kterou musí uživatel rozbalit — pořád jsou to dvě oznámení, ne jedno.
+  Tudy vede i Android: u chatů je `MessagingStyle` očekávaný vzor.
+- **Id systémové notifikace je `notificationGroupId`, ne `notificationId`.** Ten je od TDLib jeden
+  na chat, takže nová zpráva stávající notifikaci PŘEPÍŠE. `notificationId` se drží u jednotlivých
+  řádků, protože podle nich TDLib ruší (`removedNotificationIds`); bez nich by se po přečtení jedné
+  zprávy musela zahodit celá notifikace.
+- **Po restartu procesu se řádky přebírají z lišty** (`extractMessagingStyleFromNotification`).
+  Není to okrajový případ: push probouzí MRTVÝ proces, takže bez toho by třetí zpráva nahradila
+  notifikaci se dvěma předchozími. Převzaté řádky nemají `notificationId` — TDLib ho do notifikace
+  nepředává — takže se jednotlivě zrušit nedají a odejdou až s celou notifikací.
+- **Skupina se pozná podle jména odesílatele.** TDLib ho vyplňuje jen tam, kde není totožné
+  s chatem. V soukromém chatu se proto název chatu nedává do hlavičky konverzace — byl by to
+  tentýž řetězec jako jméno u každého řádku.
+- **Neznámá skupina při rušení = notifikace z minulého běhu procesu.** Řádky nemáme s čím spárovat,
+  takže jde pryč celá; TDLib stejně ruší po přečtení celý chat naráz.
 - **Proklik do chatu jde přes `ChatOpenRequests`, a je to STAV, ne událost.** V okamžiku ťuknutí
   nemusí být komu doručit: proces mohl být mrtvý a UI se teprve skládá, nebo aplikace visí na
   přihlášení a `AppShell` vůbec neexistuje. Událost by se v obou případech zahodila a notifikace

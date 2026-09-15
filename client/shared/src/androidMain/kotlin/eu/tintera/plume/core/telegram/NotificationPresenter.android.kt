@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.Person
 import androidx.core.content.ContextCompat
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.notifications.NotificationIntents
@@ -16,8 +17,14 @@ import kotlinx.coroutines.launch
 /**
  * Zobrazuje notifikace v Androidu.
  *
- * **Id notifikace se skládá z TDLib `notificationId`**, ne z chatId — TDLib posílá zrušení podle
- * něj (`removedNotificationIds`) a bez shodného klíče by po přečtení jinde notifikace zůstaly viset.
+ * **Jeden chat = jedna notifikace.** Dřív měla každá zpráva vlastní notifikaci, seskupenou přes
+ * `setGroup` a doplněnou hlavičkou skupiny — jenže seskupení znamená hromádku, kterou musí
+ * uživatel rozbalit, ne jedno oznámení. Tři zprávy z jednoho chatu tak byly tři řádky v liště.
+ * Teď se zprávy sbírají do `MessagingStyle` jedné notifikace, jak je na Androidu u chatů zvykem.
+ *
+ * **Id systémové notifikace je TDLib `notificationGroupId`**, protože ten je jeden na chat.
+ * Jednotlivá `notificationId` se drží u řádků — TDLib podle nich ruší (`removedNotificationIds`)
+ * a bez nich by se po přečtení jedné zprávy musela zahodit celá notifikace.
  */
 actual class NotificationPresenter(
     private val context: Context,
@@ -28,6 +35,13 @@ actual class NotificationPresenter(
 
     private val manager = NotificationManagerCompat.from(context)
 
+    /**
+     * Rozepsané notifikace podle `groupId`.
+     *
+     * Čte i zapisuje jen kolektor updatů, tedy jedna korutina — zámek proto není potřeba.
+     */
+    private val conversations = mutableMapOf<Int, Conversation>()
+
     actual fun start(repository: NotificationRepository) {
         createChannel()
         logger.d { "Kanál vytvořen, odebírám notifikace." }
@@ -35,7 +49,7 @@ actual class NotificationPresenter(
         scope.launch {
             repository.updates.collect { update ->
                 when (update) {
-                    is NotificationUpdate.Added -> update.notifications.forEach(::show)
+                    is NotificationUpdate.Added -> add(update.notifications)
                     is NotificationUpdate.Removed -> remove(update)
                 }
             }
@@ -53,7 +67,57 @@ actual class NotificationPresenter(
         manager.createNotificationChannel(channel)
     }
 
-    private fun show(notification: ChatNotification) {
+    private fun add(notifications: List<ChatNotification>) {
+        // Jeden update může nést zprávy z několika chatů; každý z nich se překreslí jednou,
+        // ne jednou za zprávu.
+        notifications.groupBy { it.groupId }.forEach { (groupId, batch) ->
+            val newest = batch.last()
+
+            val conversation = conversations.getOrPut(groupId) {
+                Conversation(
+                    chatId = newest.chatId,
+                    title = newest.chatTitle,
+                    // Po restartu procesu je mapa prázdná, ale notifikace v liště zůstaly.
+                    // Bez převzetí jejich řádků by nová zpráva přepsala předchozí.
+                    lines = recoverLines(groupId),
+                )
+            }
+
+            val added = batch
+                .filter { line -> conversation.lines.none { it.notificationId == line.notificationId } }
+                .map { Line(it.notificationId, it.senderName, it.text, it.timestamp * 1000L) }
+
+            conversation.lines = (conversation.lines + added)
+                .sortedBy { it.timestampMs }
+                .takeLast(MAX_LINES)
+
+            show(groupId, conversation, silent = newest.isSilent)
+        }
+    }
+
+    private fun remove(update: NotificationUpdate.Removed) {
+        val conversation = conversations[update.groupId]
+
+        // Neznámá skupina = notifikace z minulého běhu procesu. Její řádky nemáme s čím
+        // spárovat, takže jde pryč celá; TDLib stejně ruší po přečtení celý chat naráz.
+        if (conversation == null) {
+            manager.cancel(update.groupId)
+            return
+        }
+
+        val removed = update.notificationIds.toSet()
+        conversation.lines = conversation.lines.filterNot { it.notificationId in removed }
+
+        if (conversation.lines.isEmpty()) {
+            conversations.remove(update.groupId)
+            manager.cancel(update.groupId)
+            logger.d { "Skupina ${update.groupId} zůstala prázdná, ruším notifikaci." }
+        } else {
+            show(update.groupId, conversation, silent = true)
+        }
+    }
+
+    private fun show(groupId: Int, conversation: Conversation, silent: Boolean) {
         // Od Androidu 13 je POST_NOTIFICATIONS běhové oprávnění. Bez kontroly by `notify`
         // tiše selhalo a nebylo by poznat proč.
         val granted = ContextCompat.checkSelfPermission(
@@ -66,106 +130,86 @@ actual class NotificationPresenter(
             return
         }
 
-        val title = notification.senderName
-            ?.let { "$it · ${notification.chatTitle}" }
-            ?: notification.chatTitle
+        // Jméno odesílatele vyplňuje TDLib jen tam, kde není totožné s chatem — tedy ve
+        // skupinách. Jeho přítomnost je proto spolehlivější příznak skupiny než cokoli,
+        // co bychom dopočítávali z id chatu.
+        val isGroup = conversation.lines.any { it.sender != null }
 
-        val group = GROUP_PREFIX + notification.chatId
+        val style = NotificationCompat.MessagingStyle(Person.Builder().setName("Já").build())
+            .setGroupConversation(isGroup)
+            // V soukromém chatu je název chatu totéž co jméno odesílatele u každého řádku —
+            // vypsat ho i do hlavičky by ho zdvojilo.
+            .setConversationTitle(conversation.title.takeIf { isGroup })
+
+        conversation.lines.forEach { line ->
+            style.addMessage(
+                line.text,
+                line.timestampMs,
+                Person.Builder().setName(line.sender ?: conversation.title).build(),
+            )
+        }
 
         val built = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_email)
-            .setContentTitle(title)
-            .setContentText(notification.text)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(notification.text))
-            // Seskupení podle chatu — jinak by deset zpráv z jedné skupiny udělalo deset
-            // samostatných notifikací v liště.
-            .setGroup(group)
-            .setSilent(notification.isSilent)
+            .setStyle(style)
+            .setSilent(silent)
             .setAutoCancel(true)
             .setContentIntent(
                 NotificationIntents.openChat(
                     context = context,
-                    notificationId = notification.notificationId,
-                    chatId = notification.chatId,
+                    notificationId = groupId,
+                    chatId = conversation.chatId,
                 ),
             )
             .build()
 
-        logger.d { "Zobrazuji notifikaci ${notification.notificationId} z chatu ${notification.chatId}." }
-        manager.notify(notification.notificationId, built)
-
-        // Až po dítěti: se summary napřed by lišta na okamžik ukázala prázdnou skupinu.
-        showSummary(notification, group)
+        logger.d { "Zobrazuji $groupId: ${conversation.lines.size} zpráv z ${conversation.chatId}." }
+        manager.notify(groupId, built)
     }
 
     /**
-     * Hlavička skupiny.
+     * Řádky notifikace, která v liště zůstala po minulém běhu procesu.
      *
-     * Bez ní Android sbalené notifikace vykreslí jako hromádku bez popisu — `setGroup` sám o sobě
-     * říká jen „patří k sobě", ne co ta skupina je. Posílá se při každé zprávě znovu; se stejným
-     * id se jen přepíše, takže to nic nemnoží.
+     * Push probouzí mrtvý proces, takže tohle není okrajový případ: bez převzetí by třetí zpráva
+     * nahradila notifikaci se dvěma předchozími. Obnovené řádky nemají `notificationId` — TDLib ho
+     * do notifikace nepředává — takže se jednotlivě zrušit nedají a odejdou až s celou notifikací.
      */
-    private fun showSummary(notification: ChatNotification, group: String) {
-        val summary = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_email)
-            .setContentTitle(notification.chatTitle)
-            .setGroup(group)
-            .setGroupSummary(true)
-            // Zvuk dělají děti, ne hlavička — jinak by každá zpráva pípla dvakrát.
-            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
-            .setAutoCancel(true)
-            .setContentIntent(
-                NotificationIntents.openChat(
-                    context = context,
-                    notificationId = summaryId(notification.groupId),
-                    chatId = notification.chatId,
-                ),
+    private fun recoverLines(groupId: Int): List<Line> {
+        val existing = manager.activeNotifications.firstOrNull { it.id == groupId } ?: return emptyList()
+
+        val style = NotificationCompat.MessagingStyle
+            .extractMessagingStyleFromNotification(existing.notification)
+            ?: return emptyList()
+
+        return style.messages.map { message ->
+            Line(
+                notificationId = null,
+                sender = message.person?.name?.toString(),
+                text = message.text?.toString().orEmpty(),
+                timestampMs = message.timestamp,
             )
-            .build()
-
-        manager.notify(summaryId(notification.groupId), summary)
-    }
-
-    private fun remove(update: NotificationUpdate.Removed) {
-        update.notificationIds.forEach { manager.cancel(it) }
-        cancelEmptySummary(update)
-    }
-
-    /**
-     * Hlavička bez dětí je prázdný řádek v liště, který nejde odkliknout na nic rozumného.
-     *
-     * Zbylé děti se počítají z `activeNotifications` MINUS to, co jsme právě zrušili — `cancel`
-     * je asynchronní a čerstvě zrušené notifikace se ve výpisu ještě chvíli objevují.
-     */
-    private fun cancelEmptySummary(update: NotificationUpdate.Removed) {
-        val summaryId = summaryId(update.groupId)
-        val removed = update.notificationIds.toSet()
-
-        val active = manager.activeNotifications.filterNot { it.id in removed }
-        val summary = active.firstOrNull { it.id == summaryId } ?: return
-
-        // Skupinu si čteme z hlavičky samotné: `Removed` nese jen groupId od TDLib, ne chatId,
-        // takže klíč skupiny bychom jinak nesestavili.
-        val group = summary.notification.group ?: return
-        val hasChildren = active.any { it.id != summaryId && it.notification.group == group }
-
-        if (!hasChildren) {
-            logger.d { "Skupina $group zůstala prázdná, ruším hlavičku." }
-            manager.cancel(summaryId)
         }
     }
 
-    /**
-     * Id hlavičky skupiny.
-     *
-     * `inv()` překlopí kladné `groupId` do záporného čísla a je prosté — TDLib vydává `groupId`
-     * i `notificationId` z oddělených čítačů, takže obojí může být třeba 1. Se syrovým `groupId`
-     * by si hlavička a některá zpráva sáhly na totéž systémové id a jedna by druhou přepsala.
-     */
-    private fun summaryId(groupId: Int): Int = groupId.inv()
+    /** Rozepsaná notifikace jednoho chatu. */
+    private class Conversation(
+        val chatId: Long,
+        val title: String,
+        var lines: List<Line>,
+    )
+
+    /** Jedna zpráva v notifikaci. [notificationId] je `null` u řádku převzatého po restartu. */
+    private class Line(
+        val notificationId: Int?,
+        val sender: String?,
+        val text: String,
+        val timestampMs: Long,
+    )
 
     private companion object {
         const val CHANNEL_ID = "messages"
-        const val GROUP_PREFIX = "chat_"
+
+        /** Kolik zpráv se v notifikaci drží. Android jich stejně vykreslí jen posledních pár. */
+        const val MAX_LINES = 10
     }
 }

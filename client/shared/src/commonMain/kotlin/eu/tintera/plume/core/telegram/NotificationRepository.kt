@@ -59,4 +59,6 @@ data class ChatNotification(
     val text: String,
     /** `true` = zobrazit bez zvuku; TDLib to rozhoduje podle nastavení chatu. */
     val isSilent: Boolean,
+    /** Unixový čas v sekundách. Řadí řádky v notifikaci jednoho chatu. */
+    val timestamp: Int,
 )
