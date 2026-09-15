@@ -148,6 +148,16 @@ obrazovky, ne na aplikaci.
   kolem nich nemá co ohraničovat: samolepka má vlastní tvar s průhledností a velká emoji jsou
   obrázek samy o sobě. Barva popředí pak musí patřit PLOŠE, ne bublině, která tam není —
   `onPrimaryContainer` na průhledném pozadí je nečitelný.
+- **Samotné emoji NENÍ textová zpráva.** Telegram ho posílá jako `MessageAnimatedEmoji`
+  s animovanou podobou navíc, takže padalo do větve `else` a v bublině z něj bylo slovo „Zpráva".
+  Bere se z něj `emoji`, obyčejný unicode znak — ten je vždycky k dispozici, je ostrý v každé
+  velikosti a rovnou se na něj chytí vykreslení velkých emoji. Animovaná podoba je `.tgs`, kterou
+  stejně neumíme přehrát, a u prémiových emoji může mít libovolný formát.
+- **Kostka (`MessageDice`) padala do téhož `else`.** Hozená hodnota je součástí animace, takže se
+  dopisuje číslem (`🎲 6`) — jinak by ze zprávy zbyl hod bez výsledku. Nula znamená, že server
+  výsledek ještě neposlal.
+- **Ostatní neznámé typy pořád končí jako „Zpráva"** — video kolečka, ankety, polohy, kontakty
+  a servisní zprávy. Není to zamýšlené, jen zatím neudělané.
 - **Strop jsou 3 emoji** (`MAX_LARGE_EMOJI`). Nad ním už nejde o gesto, ale o odstavec, a ve
   velké sazbě by zabral půl obrazovky. Míň emoji = větší: `displayLarge` / `Medium` / `Small`.
 - **Odpověď si bublinu drží**, i když je jen z emoji — citace bez pozadí se ztratí.

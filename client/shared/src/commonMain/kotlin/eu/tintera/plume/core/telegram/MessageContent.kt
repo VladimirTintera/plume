@@ -1,7 +1,9 @@
 package eu.tintera.plume.core.telegram
 
 import dev.g000sha256.tdl.dto.Message
+import dev.g000sha256.tdl.dto.MessageAnimatedEmoji
 import dev.g000sha256.tdl.dto.MessageAnimation
+import dev.g000sha256.tdl.dto.MessageDice
 import dev.g000sha256.tdl.dto.MessageAudio
 import dev.g000sha256.tdl.dto.MessageDocument
 import dev.g000sha256.tdl.dto.MessagePhoto
@@ -32,6 +34,8 @@ internal fun Message.previewText(): String = when (val content = this.content) {
     is MessageAudio -> content.caption.text.ifBlank { "Audio" }
     is MessageVoiceNote -> content.caption.text.ifBlank { "Hlasová zpráva" }
     is MessageSticker -> content.sticker.emoji.ifBlank { "Samolepka" }
+    is MessageAnimatedEmoji -> content.emoji
+    is MessageDice -> content.diceText()
     else -> "Zpráva"
 }
 
@@ -51,8 +55,33 @@ internal fun Message.captionText(): String = when (val content = this.content) {
     is MessageVoiceNote -> content.caption.text
     // Samolepka se kreslí, ne popisuje — její emoji by pod obrázkem bylo zdvojení.
     is MessageSticker -> ""
+
+    /*
+     * Samotné emoji NENÍ textová zpráva.
+     *
+     * Telegram ho posílá jako `MessageAnimatedEmoji` s animovanou podobou navíc, takže spadlo
+     * do větve `else` a v bublině z něj bylo slovo „Zpráva". `emoji` je obyčejný unicode znak,
+     * ten se vykreslí sám a rovnou se na něj chytí i vykreslení velkých emoji.
+     *
+     * Animovaná podoba (`animatedEmoji.sticker`) je `.tgs`, kterou stejně neumíme přehrát,
+     * a u prémiových emoji může být v libovolném formátu. Unicode znak je proti tomu vždycky
+     * k dispozici a ostrý v každé velikosti.
+     */
+    is MessageAnimatedEmoji -> content.emoji
+
+    is MessageDice -> content.diceText()
+
     else -> previewText()
 }
+
+/**
+ * Kostka (🎲, 🎯, 🎰 …).
+ *
+ * Hozená hodnota je součástí *animace*, kterou neumíme přehrát, takže se dopisuje číslem —
+ * bez něj by ze zprávy zbylo jen „hodil jsem kostkou" bez výsledku. Nula znamená, že server
+ * výsledek ještě neposlal; dorazí updatem.
+ */
+private fun MessageDice.diceText(): String = if (value > 0) "$emoji $value" else emoji
 
 /** Příloha zprávy, nebo `null` u čistě textové. */
 internal fun Message.messageMedia(): MessageMedia? = when (val content = this.content) {
