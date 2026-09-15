@@ -107,6 +107,16 @@ by se přetahovaly dva prvky naráz.
 **Text se sdílí přes `sharedBounds` + `scaleToBounds`, ne přes `sharedElement`.** Název chatu má
 v hlavičce jinou velikost písma; se `sharedElement` by se text na konci letu přeskládal skokem.
 
+**Predictive back dělá `NavDisplay` sám** (přes `androidx.navigationevent`): při tažení zpět se
+konverzace zmenší a odsune a pod ní se odkryje živý seznam. Nic se pro to nezapíná —
+`android:enableOnBackInvokedCallback` systém při targetSdk 35+ ignoruje a je v manifestu jen
+jako výslovné prohlášení.
+
+**Past: obyčejný `BackHandler` predictive back zabije.** Kdo odchytí zpět bez
+`PredictiveBackHandler`/`NavigationBackHandler`, dostane jen hotové gesto bez průběhu, takže
+animace zmizí a nikde se neohlásí chybou. V aplikaci teď žádný `BackHandler` není a nemá
+přibýt — ven z obrazovky se chodí přes `onBack` NavDisplaye.
+
 **Známé zjednodušení fáze 1:** jeden zásobník pro všechny sekce; přepnutí sekce ho srovná na kořen,
 takže sekce si nedrží vlastní historii. Pro Chaty/Nastavení to nevadí. Až přibude sekce s hlubší
 navigací, patří sem multi-stack (vzor: `MultiStackNavigationState` v mlogu).

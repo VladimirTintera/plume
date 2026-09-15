@@ -6,9 +6,13 @@
     <!-- Od Androidu 13 běhové oprávnění; bez něj `notify` tiše nic neudělá. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Predictive back. Při targetSdk 35+ ho systém zapíná sám a tenhle příznak ignoruje;
+         je tu jako výslovné prohlášení a pojistka, kdyby targetSdk někdy klesl. Samotnou
+         animaci uvnitř aplikace dělá NavDisplay přes androidx.navigationevent. -->
     <application
         android:name=".MainApplication"
         android:allowBackup="false"
+        android:enableOnBackInvokedCallback="true"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Plume">
