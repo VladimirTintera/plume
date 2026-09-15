@@ -95,6 +95,18 @@ rozvržení je konverzace jen panel vedle seznamu, takže rail zůstává. Past:
 spodního insetu musí být podmíněné stejnou podmínkou jako bar — když se konzumuje i se skrytým
 barem, vstupní pole konverzace zaleze pod systémovou lištu.
 
+**Avatar a název letí ze seznamu do konverzace.** Klíče `chatAvatarKey` / `chatTitleKey`
+obsahují id chatu, jinak by se při rychlém přepnutí spároval avatar jednoho chatu s druhým.
+Na rozdíl od letu odeslané zprávy se tu viditelnost neřídí ručně — obě strany jsou
+v `AnimatedContent` NavDisplaye, takže stačí `LocalNavAnimatedContentScope`.
+
+**V dvoupanelu se nesdílí nic** (`LocalTwoPane`, poskytuje ho shell). Seznam vedle konverzace
+zůstává vidět, takže by avatar odletěl z položky, která je pořád na obrazovce, a o jeden klíč
+by se přetahovaly dva prvky naráz.
+
+**Text se sdílí přes `sharedBounds` + `scaleToBounds`, ne přes `sharedElement`.** Název chatu má
+v hlavičce jinou velikost písma; se `sharedElement` by se text na konci letu přeskládal skokem.
+
 **Známé zjednodušení fáze 1:** jeden zásobník pro všechny sekce; přepnutí sekce ho srovná na kořen,
 takže sekce si nedrží vlastní historii. Pro Chaty/Nastavení to nevadí. Až přibude sekce s hlubší
 navigací, patří sem multi-stack (vzor: `MultiStackNavigationState` v mlogu).
@@ -259,6 +271,11 @@ cesta je známá až po stažení a průběh chodí updaty. Překlad do jednoho 
 - **Coil potřebuje schéma** — `model = "file://$path"`; holá cesta se vyhodnotí jako relativní URI.
 - **Progresivní načtení:** TDLib drží fotku v několika velikostech. Do bubliny jde největší varianta
   do 1280 px, nejmenší slouží jako okamžitý náhled (`thumbnailFileId`).
+- **`RemoteImage` si pamatuje poslední známou cestu** (`knownPaths`). Odběr souboru startuje vždycky
+  na `Pending` a odpovídá až z korutiny, takže každý nově složený `RemoteImage` proletí aspoň jedním
+  snímkem bez obrázku. U sdíleného prvku ze seznamu do konverzace to bylo vidět: avatar odletěl jako
+  prázdný kruh a obrázek naskočil až na místě. Mapa se čte i zapisuje jen z kompozice, takže
+  nepotřebuje zámek.
 - **`FileRepository` je eager** (`createdAtStart`) ze stejného důvodu jako seznam chatů — v
   konstruktoru se přihlašuje k `fileUpdates`.
 

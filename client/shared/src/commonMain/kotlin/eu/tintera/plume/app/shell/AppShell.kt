@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.WideNavigationRail
 import androidx.compose.material3.WideNavigationRailItem
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -41,6 +42,7 @@ import eu.tintera.plume.core.navigation.NavSavedStateConfiguration
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.SettingsRoute
 import eu.tintera.plume.core.navigation.TopLevelRoute
+import eu.tintera.plume.core.ui.LocalTwoPane
 import eu.tintera.plume.features.chats.ChatListScreen
 import eu.tintera.plume.features.conversation.ConversationPlaceholder
 import eu.tintera.plume.features.conversation.ConversationScreen
@@ -177,55 +179,59 @@ private fun ShellContent(
             else -> base.singlePane()
         }
 
-        NavDisplay(
-            backStack = backStack,
-            onBack = { backStack.removeLastOrNull() },
-            sceneStrategies = listOf(
-                // `shouldHandleSinglePaneLayout = wide`: na široké ploše nechá i jednopanelový stav
-                // řešit scaffold, takže „jen seznam" a „seznam + konverzace" jsou TÁŽ scéna a přechod
-                // mezi nimi je plynulý. Na compactu vrací null → standardní swap obrazovek.
-                rememberListDetailSceneStrategy(
-                    shouldHandleSinglePaneLayout = wide,
-                    directive = directive,
-                ),
-            ),
-            entryProvider = entryProvider {
-                entry<ChatsRoute>(
-                    metadata = ListDetailSceneStrategy.listPane(
-                        detailPlaceholder = { ConversationPlaceholder() },
+        // Dvoupanelový stav se hlásí dolů: obrazovky podle něj poznají, že se nevyměňují,
+        // a sdílený prvek nezaloží — viz LocalTwoPane.
+        CompositionLocalProvider(LocalTwoPane provides wide) {
+            NavDisplay(
+                backStack = backStack,
+                onBack = { backStack.removeLastOrNull() },
+                sceneStrategies = listOf(
+                    // `shouldHandleSinglePaneLayout = wide`: na široké ploše nechá i jednopanelový stav
+                    // řešit scaffold, takže „jen seznam" a „seznam + konverzace" jsou TÁŽ scéna a přechod
+                    // mezi nimi je plynulý. Na compactu vrací null → standardní swap obrazovek.
+                    rememberListDetailSceneStrategy(
+                        shouldHandleSinglePaneLayout = wide,
+                        directive = directive,
                     ),
-                ) {
-                    ChatListScreen(
-                        viewModel = koinViewModel(),
-                        selectedChatId = backStack.filterIsInstance<ConversationRoute>()
-                            .lastOrNull()?.chatId,
-                        onChatClick = { chatId ->
-                            // Otevření jiného chatu nahradí detail, nevrší se zásobník.
-                            backStack.removeAll { it is ConversationRoute }
-                            backStack.add(ConversationRoute(chatId))
-                        },
-                    )
-                }
-
-                entry<ConversationRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
-                    ConversationScreen(
-                        // Klíč MUSÍ obsahovat chatId. ViewModel se cachuje podle klíče, takže
-                        // konstantní klíč znamená, že druhá otevřená konverzace dostane ViewModel
-                        // té první — i se zprávami. Koin navíc u cachované instance ignoruje
-                        // nové `parameters`, takže se to neprojeví ani chybou, jen špatným obsahem.
-                        viewModel = koinViewModel(
-                            key = "conversation-${route.chatId}",
-                            parameters = { parametersOf(route.chatId) },
+                ),
+                entryProvider = entryProvider {
+                    entry<ChatsRoute>(
+                        metadata = ListDetailSceneStrategy.listPane(
+                            detailPlaceholder = { ConversationPlaceholder() },
                         ),
-                        onBack = { backStack.removeLastOrNull() },
-                    )
-                }
+                    ) {
+                        ChatListScreen(
+                            viewModel = koinViewModel(),
+                            selectedChatId = backStack.filterIsInstance<ConversationRoute>()
+                                .lastOrNull()?.chatId,
+                            onChatClick = { chatId ->
+                                // Otevření jiného chatu nahradí detail, nevrší se zásobník.
+                                backStack.removeAll { it is ConversationRoute }
+                                backStack.add(ConversationRoute(chatId))
+                            },
+                        )
+                    }
 
-                entry<SettingsRoute> {
-                    SettingsScreen(viewModel = koinViewModel())
-                }
-            },
-        )
+                    entry<ConversationRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
+                        ConversationScreen(
+                            // Klíč MUSÍ obsahovat chatId. ViewModel se cachuje podle klíče, takže
+                            // konstantní klíč znamená, že druhá otevřená konverzace dostane ViewModel
+                            // té první — i se zprávami. Koin navíc u cachované instance ignoruje
+                            // nové `parameters`, takže se to neprojeví ani chybou, jen špatným obsahem.
+                            viewModel = koinViewModel(
+                                key = "conversation-${route.chatId}",
+                                parameters = { parametersOf(route.chatId) },
+                            ),
+                            onBack = { backStack.removeLastOrNull() },
+                        )
+                    }
+
+                    entry<SettingsRoute> {
+                        SettingsScreen(viewModel = koinViewModel())
+                    }
+                },
+            )
+        }
     }
 }
 

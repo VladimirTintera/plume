@@ -70,6 +70,10 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.chatAvatarKey
+import eu.tintera.plume.core.ui.chatTitleKey
+import eu.tintera.plume.core.ui.sharedNavElement
+import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.resources.Res
@@ -222,9 +226,18 @@ fun ConversationScreen(
                                 title = info.title,
                                 avatarFileId = info.avatarFileId,
                                 size = 36.dp,
+                                modifier = Modifier.sharedNavElement(chatAvatarKey(info.id)),
                             )
                         }
-                        Text(state.info?.title ?: "Konverzace")
+                        Text(
+                            text = state.info?.title ?: "Konverzace",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            // Klíč se dá jen když chat známe; než dorazí `info`, není s čím párovat.
+                            modifier = state.info
+                                ?.let { Modifier.sharedNavText(chatTitleKey(it.id)) }
+                                ?: Modifier,
+                        )
                     }
                 },
                 navigationIcon = {

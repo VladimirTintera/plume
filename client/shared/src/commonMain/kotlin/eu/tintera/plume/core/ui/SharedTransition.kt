@@ -5,7 +5,10 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.ContentScale
+import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.compose.runtime.compositionLocalOf
 
 /**
@@ -47,3 +50,66 @@ private val flightSpec = spring<Rect>(
     dampingRatio = 0.8f,
     stiffness = Spring.StiffnessMediumLow,
 )
+
+/**
+ * Je právě vidět dvoupanelové rozvržení?
+ *
+ * Sdílený prvek má smysl jen tam, kde se obrazovky **vyměňují**. V dvoupanelovém rozvržení zůstává
+ * seznam vedle konverzace, takže obě strany páru existují naráz — avatar by odletěl z položky,
+ * která je pořád vidět, a navíc by se o jeden klíč přetahovaly dva prvky. Shell tenhle příznak
+ * poskytuje, aby o něm obrazovky nemusely nic vědět.
+ */
+val LocalTwoPane = compositionLocalOf { false }
+
+/**
+ * Sdílený prvek napříč obrazovkami `NavDisplay` (položka seznamu → detail).
+ *
+ * Na rozdíl od [sharedFlight] se viditelnost neřídí ručně: obě strany jsou v `AnimatedContent`
+ * NavDisplaye, takže si scope řekne sám, která odchází a která přichází.
+ */
+@Composable
+fun Modifier.sharedNavElement(key: String): Modifier {
+    val shared = LocalSharedTransitionScope.current ?: return this
+    if (LocalTwoPane.current) return this
+
+    return with(shared) {
+        this@sharedNavElement.sharedElement(
+            sharedContentState = rememberSharedContentState(key = key),
+            animatedVisibilityScope = LocalNavAnimatedContentScope.current,
+            boundsTransform = { _, _ -> flightSpec },
+        )
+    }
+}
+
+/**
+ * Totéž pro text.
+ *
+ * Text se sdílí přes `sharedBounds` + `ScaleToBounds`, ne přes `sharedElement`: název chatu má
+ * v seznamu jinou velikost písma než v hlavičce konverzace a prosté sdílení prvku by nechalo text
+ * přeskládat skokem na konci letu. `ScaleToBounds` místo toho celý text plynule zvětší.
+ */
+@Composable
+fun Modifier.sharedNavText(key: String): Modifier {
+    val shared = LocalSharedTransitionScope.current ?: return this
+    if (LocalTwoPane.current) return this
+
+    return with(shared) {
+        this@sharedNavText.sharedBounds(
+            sharedContentState = rememberSharedContentState(key = key),
+            animatedVisibilityScope = LocalNavAnimatedContentScope.current,
+            boundsTransform = { _, _ -> flightSpec },
+            resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(
+                contentScale = ContentScale.FillWidth,
+                alignment = Alignment.CenterStart,
+            ),
+        )
+    }
+}
+
+/*
+ * Klíče páru seznam ↔ konverzace. Obsahují id chatu, jinak by se při rychlém přepnutí mezi chaty
+ * spároval avatar jednoho chatu s avatarem druhého.
+ */
+fun chatAvatarKey(chatId: Long): String = "chat-avatar-$chatId"
+
+fun chatTitleKey(chatId: Long): String = "chat-title-$chatId"

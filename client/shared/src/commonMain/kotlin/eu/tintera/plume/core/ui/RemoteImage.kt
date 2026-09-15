@@ -9,6 +9,7 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,8 +42,20 @@ fun RemoteImage(
     val state = rememberFileState(fileId)
     val thumbnailState = rememberFileState(thumbnailFileId)
 
+    val readyPath = (state as? FileState.Ready)?.path
+    val thumbnailPath = (thumbnailState as? FileState.Ready)?.path
+
+    SideEffect {
+        readyPath?.let { knownPaths[fileId] = it }
+        if (thumbnailFileId != null) thumbnailPath?.let { knownPaths[thumbnailFileId] = it }
+    }
+
     // Dokud není ostrá verze, kreslí se náhled. Jakmile dorazí, Crossfade je prolne.
-    val path = (state as? FileState.Ready)?.path ?: (thumbnailState as? FileState.Ready)?.path
+    // Poslední známá cesta je až poslední záloha — pokryje ten jeden snímek, než odpoví flow.
+    val path = readyPath
+        ?: thumbnailPath
+        ?: knownPaths[fileId]
+        ?: thumbnailFileId?.let { knownPaths[it] }
 
     Box(
         modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest),
@@ -82,3 +95,16 @@ fun rememberFileState(fileId: Int?): FileState {
     val state by flow.collectAsStateWithLifecycle(initialValue = FileState.Pending)
     return state
 }
+
+/**
+ * Poslední známá cesta k souboru.
+ *
+ * [rememberFileState] startuje vždycky na [FileState.Pending] — flow odpovídá až z korutiny, takže
+ * každý nově složený [RemoteImage] proletí aspoň jedním snímkem bez obrázku. U sdíleného prvku ze
+ * seznamu do konverzace je to vidět: avatar odletí jako prázdný kruh a obrázek naskočí až na místě.
+ *
+ * Mapa se čte i zapisuje výhradně z kompozice (hlavní vlákno), takže nepotřebuje zámek. Cesty
+ * v TDLib jednou hotovému souboru nemizí, takže se nic nezneplatňuje; roste to o jeden krátký
+ * řetězec na zobrazený soubor.
+ */
+private val knownPaths = mutableMapOf<Int, String>()

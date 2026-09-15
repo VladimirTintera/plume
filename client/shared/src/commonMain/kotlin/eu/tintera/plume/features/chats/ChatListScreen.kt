@@ -43,6 +43,10 @@ import org.jetbrains.compose.resources.painterResource
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.chatAvatarKey
+import eu.tintera.plume.core.ui.chatTitleKey
+import eu.tintera.plume.core.ui.sharedNavElement
+import eu.tintera.plume.core.ui.sharedNavText
 
 @Composable
 fun ChatListScreen(
@@ -165,6 +169,7 @@ private fun ChatRow(
                 chatId = chat.id,
                 title = chat.title,
                 avatarFileId = chat.avatarFileId,
+                modifier = Modifier.sharedNavElement(chatAvatarKey(chat.id)),
             )
 
             Column(Modifier.weight(1f)) {
@@ -185,6 +190,7 @@ private fun ChatRow(
                         style = MaterialTheme.typography.titleMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.sharedNavText(chatTitleKey(chat.id)),
                     )
                 }
                 chat.lastMessagePreview?.let {
