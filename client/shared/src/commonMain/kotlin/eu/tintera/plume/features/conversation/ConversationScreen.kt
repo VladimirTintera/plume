@@ -287,7 +287,9 @@ fun ConversationScreen(
                     reverseLayout = true,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    // Rozestup UVNITŘ skupiny zpráv od jednoho odesílatele. Mezera mezi skupinami
+                    // se přidává až v bublině — tady na to není informace o sousedech.
+                    verticalArrangement = Arrangement.spacedBy(MESSAGE_SPACING),
                 ) {
                     // Reklama patří pod nejnovější zprávu. Při `reverseLayout` je „dole"
                     // začátek seznamu, takže stojí PŘED zprávami.
@@ -467,7 +469,11 @@ private fun MessageBubble(
     }
 
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            // Zprávy od jednoho odesílatele drží u sebe, nová skupina se oddělí. Tvar bublin
+            // to už rozlišuje staženým nárožím, mezera tomu jen dává prostor.
+            .padding(top = if (continuesGroup) 0.dp else GROUP_SPACING),
         horizontalArrangement = if (message.isOutgoing) Arrangement.End else Arrangement.Start,
     ) {
         Surface(
@@ -746,6 +752,12 @@ private const val SPONSORED_KEY_PREFIX = "sponsored-"
 
 /** Jak dlouho musí být reklama v klidu na obrazovce, než se zhlédnutí nahlásí. */
 private const val SPONSORED_VIEW_DEBOUNCE_MS = 1000L
+
+/** Rozestup mezi zprávami téhož odesílatele. Patří k sobě, tak se drží u sebe. */
+private val MESSAGE_SPACING = 4.dp
+
+/** Mezera navíc tam, kde začíná nová skupina — jiný odesílatel, jiný blok. */
+private val GROUP_SPACING = 8.dp
 
 /** Zaoblení bubliny. Sdílí ho i startovní strana letu, aby se tvar po cestě neměnil. */
 private val BUBBLE_CORNER = 18.dp

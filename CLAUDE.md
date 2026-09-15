@@ -127,6 +127,10 @@ Hranice je [ConversationRepository]; na rozdíl od [ChatRepository] je **bezstav
 stav drží `ConversationViewModel` — je tím testovatelný bez TDLib a přirozeně vázaný na životnost
 obrazovky, ne na aplikaci.
 
+- **Rozestup je dvojí: 4 dp uvnitř skupiny, 12 dp mezi skupinami.** Navazující zprávy téhož
+  odesílatele patří k sobě, takže se drží u sebe — tvar bublin to už rozlišuje staženým nárožím
+  (`continuesGroup`) a mezera tomu jen dává prostor. Mezera mezi skupinami se přidává v bublině,
+  ne v `verticalArrangement`: seznam o sousedech položky nic neví.
 - **Zprávy se drží od nejnovější po nejstarší**, protože je tak vykresluje
   `LazyColumn(reverseLayout = true)`. `reverseLayout` obrací i význam indexů: index 0 je nejnovější
   zpráva dole, stránkování do minulosti se tedy spouští na **konci** seznamu.
