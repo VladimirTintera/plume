@@ -89,6 +89,12 @@ Seznam chatů a konverzace tvoří **list-detail** dvojici přes `rememberListDe
 `directive` se počítá ze šířky **content-oblasti** (`BoxWithConstraints`), ne z okna — vlevo ukusuje
 rail a scaffold by jinak rozhodl špatně.
 
+**Spodní bar se v konverzaci skrývá — jen na compactu.** Na telefonu zabírá konverzace celou
+obrazovku a sekční navigace tam nedává smysl; ven se chodí zpět, ne přepnutím sekce. Na širokém
+rozvržení je konverzace jen panel vedle seznamu, takže rail zůstává. Past: `consumeWindowInsets`
+spodního insetu musí být podmíněné stejnou podmínkou jako bar — když se konzumuje i se skrytým
+barem, vstupní pole konverzace zaleze pod systémovou lištu.
+
 **Známé zjednodušení fáze 1:** jeden zásobník pro všechny sekce; přepnutí sekce ho srovná na kořen,
 takže sekce si nedrží vlastní historii. Pro Chaty/Nastavení to nevadí. Až přibude sekce s hlubší
 navigací, patří sem multi-stack (vzor: `MultiStackNavigationState` v mlogu).

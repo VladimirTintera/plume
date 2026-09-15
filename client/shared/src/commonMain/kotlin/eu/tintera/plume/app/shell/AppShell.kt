@@ -18,7 +18,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import org.jetbrains.compose.resources.painterResource
 import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
 import androidx.compose.material3.adaptive.navigation3.rememberListDetailSceneStrategy
@@ -71,6 +76,16 @@ fun AppShell(modifier: Modifier = Modifier) {
     val currentTopLevel = backStack.firstOrNull() as? TopLevelRoute ?: ChatsRoute
     val compact = isCompact()
 
+    /*
+     * V konverzaci se spodní bar na telefonu skrývá.
+     *
+     * Na compactu zabírá konverzace celou obrazovku, takže sekční navigace nedává smysl — ven
+     * se odtud chodí zpět, ne přepnutím sekce. Na širokém rozvržení je konverzace jen panel
+     * vedle seznamu, tam navigace smysl dává a rail zůstává.
+     */
+    val inDetail = backStack.any { it is ConversationRoute }
+    val showBottomBar = compact && !inDetail
+
     // Obsah drží stabilní instanci přes přepnutí rail↔bar. Bez movableContent by se při změně
     // breakpointu celý podstrom odmountoval a namountoval znovu — ztratil by se scroll, stav
     // a rozjely by se animace.
@@ -104,15 +119,24 @@ fun AppShell(modifier: Modifier = Modifier) {
                 Modifier
                     .weight(1f)
                     .fillMaxSize()
+                    // Inset spodní navigace se konzumuje JEN když se bar opravdu kreslí.
+                    // Kdyby se konzumoval vždycky, vstupní pole konverzace by si na skrytém
+                    // baru myslelo, že inset už někdo vyřešil, a zalezlo by pod systémovou lištu.
                     .then(
-                        if (compact) Modifier.consumeWindowInsets(WindowInsets.navigationBars)
+                        if (showBottomBar) Modifier.consumeWindowInsets(WindowInsets.navigationBars)
                         else Modifier,
                     ),
             ) {
                 content()
             }
 
-            if (compact) {
+            AnimatedVisibility(
+                visible = showBottomBar,
+                // Bar odjíždí dolů, odkud přišel — skokové zmizení by při otevření konverzace
+                // trhlo celým obsahem.
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut(),
+            ) {
                 ShortNavigationBar {
                     TopLevelDestination.entries.forEach { dest ->
                         val selected = currentTopLevel == dest.route
