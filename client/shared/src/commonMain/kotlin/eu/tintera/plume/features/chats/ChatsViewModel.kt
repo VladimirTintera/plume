@@ -4,7 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.telegram.ChatSummary
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class ChatsViewModel(
@@ -17,7 +20,84 @@ class ChatsViewModel(
      */
     val state: StateFlow<ChatListState> = repository.chats
 
+    private val _actions = MutableStateFlow(ChatActionsState())
+
+    /** Stav nabídky akcí nad chatem (dlouhý stisk v seznamu). */
+    val actions: StateFlow<ChatActionsState> = _actions.asStateFlow()
+
     fun loadMore() {
         viewModelScope.launch { repository.loadMore() }
     }
+
+    fun showActions(chat: ChatSummary) {
+        _actions.value = ChatActionsState(target = chat)
+    }
+
+    fun hideActions() {
+        _actions.value = _actions.value.copy(target = null)
+    }
+
+    fun togglePinned(chat: ChatSummary) = run(chat) {
+        repository.setPinned(chat.id, !chat.isPinned)
+    }
+
+    fun toggleMuted(chat: ChatSummary) = run(chat) {
+        repository.setMuted(chat.id, !chat.isMuted)
+    }
+
+    fun toggleUnread(chat: ChatSummary) = run(chat) {
+        repository.setMarkedAsUnread(chat.id, !chat.hasUnread)
+    }
+
+    /** Krok mezi „smazat" a smazáním — nevratnou akci musí uživatel potvrdit. */
+    fun askDelete(chat: ChatSummary) {
+        _actions.value = ChatActionsState(pendingDelete = chat)
+    }
+
+    fun cancelDelete() {
+        _actions.value = _actions.value.copy(pendingDelete = null)
+    }
+
+    fun confirmDelete(chat: ChatSummary) = run(chat) {
+        repository.deleteOrLeave(chat.id)
+    }
+
+    fun dismissError() {
+        _actions.value = _actions.value.copy(error = null)
+    }
+
+    /**
+     * Společný závěr všech akcí: nabídka se zavře hned, chyba se ukáže, změna stavu dorazí
+     * updatem z TDLib.
+     *
+     * Stav se **nepřepisuje lokálně**. U reakcí v konverzaci to smysl dávalo, protože tam je
+     * mezi ťuknutím a potvrzením vidět prodleva; tady se položka jen přeskládá a předběhnout
+     * server by znamenalo riskovat, že se seznam rozejde se skutečností.
+     */
+    private fun run(chat: ChatSummary, action: suspend () -> Result<Unit>) {
+        _actions.value = ChatActionsState()
+
+        viewModelScope.launch {
+            action().onFailure { failure ->
+                _actions.value = ChatActionsState(
+                    error = failure.message ?: "Akci se nepodařilo provést.",
+                )
+            }
+        }
+    }
 }
+
+/**
+ * Nabídka akcí nad jedním chatem.
+ *
+ * [target] je otevřený bottom sheet, [pendingDelete] potvrzovací dialog. Jsou to dva stavy,
+ * ne jeden: mezi zavřením nabídky a potvrzením smazání nesmí zůstat nic otevřené.
+ */
+data class ChatActionsState(
+    val target: ChatSummary? = null,
+    val pendingDelete: ChatSummary? = null,
+    val error: String? = null,
+)
+
+/** Nepřečteno = nepřečtené zprávy NEBO ruční příznak. Obojí se v seznamu chová stejně. */
+val ChatSummary.hasUnread: Boolean get() = unreadCount > 0 || isMarkedAsUnread

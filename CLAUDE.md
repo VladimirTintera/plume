@@ -140,6 +140,31 @@ Expressive nahrazuje karty per položku. Skupiny jsou tři: připnuté, nepřeč
 - **Mezera mezi skupinami se přidává u první položky skupiny**, ne ve `verticalArrangement` —
   `LazyColumn` o sousedech položky nic neví. Stejný postup jako u rozestupů zpráv v konverzaci.
 
+### Akce nad chatem
+
+Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečtené, smazat/opustit.
+
+- **Smazat NENÍ `deleteChat`.** Ten maže obsah VŠEM členům — z položky v seznamu to nikdo nečeká.
+  U soukromého chatu se volá `deleteChatHistory(removeFromChatList = true, revoke = false)`, tedy
+  smazání jen u nás, u skupiny a kanálu `leaveChat`. Jsou to dvě různé věci, takže má každá
+  vlastní popisek i vlastní text potvrzení; jeden společný by lhal.
+- **Nevratná akce má potvrzení a pojmenovává následek**, ne „opravdu?". `ChatActionsState` proto
+  drží `target` (sheet) a `pendingDelete` (dialog) zvlášť — mezi zavřením nabídky a potvrzením
+  nesmí zůstat viset obojí.
+- **Ztlumení se nastavuje celým objektem `ChatNotificationSettings`**, ne jedním polem. Ostatní
+  hodnoty se musí přenést z aktuálního stavu chatu, jinak by se uživateli tiše přepsal třeba
+  vlastní zvuk. `useDefaultMuteFor = false` je nutné: dokud je `true`, jede chat podle globálního
+  nastavení a `muteFor` se ignoruje. Ztlumení „navždy" je `Int.MAX_VALUE` sekund.
+- **Stav se po akci nepřepisuje lokálně.** U reakcí v konverzaci to smysl dávalo (mezi ťuknutím
+  a potvrzením je vidět prodleva), tady se položka jen přeskládá — a předběhnout server by
+  znamenalo riskovat, že se seznam rozejde se skutečností. Potvrzení chodí updaty
+  (`chatNotificationSettingsUpdates`, `chatIsMarkedAsUnreadUpdates`, `chatPositionUpdates`).
+- **Limit připnutých chatů je serverový** (`pinned_chat_count_max`, Premium ho zvedá). Při
+  překročení vrátí TDLib chybu, která MUSÍ jít vidět — jinak to vypadá, že se nic nestalo.
+  Proto má seznam chatů `SnackbarHost`.
+- **`Card(onClick = …)` umí jen krátké ťuknutí.** Dlouhý stisk potřebuje `combinedClickable`,
+  takže se z karty stal `Surface` s vlastním klikáním.
+
 ## Konverzace
 
 Hranice je [ConversationRepository]; na rozdíl od [ChatRepository] je **bezstavová**. Stránkovací

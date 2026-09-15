@@ -9,6 +9,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.Surface
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,6 +26,8 @@ import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -58,9 +64,38 @@ fun ChatListScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val actions by viewModel.actions.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val appBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(appBarState)
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Bez tohohle by neúspěšná akce (typicky překročený limit připnutých chatů) zmizela beze stopy
+    // a vypadalo by to, že se nic nestalo.
+    LaunchedEffect(actions.error) {
+        val message = actions.error ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        viewModel.dismissError()
+    }
+
+    actions.target?.let { chat ->
+        ChatActionsSheet(
+            chat = chat,
+            onTogglePinned = { viewModel.togglePinned(chat) },
+            onToggleMuted = { viewModel.toggleMuted(chat) },
+            onToggleUnread = { viewModel.toggleUnread(chat) },
+            onDelete = { viewModel.askDelete(chat) },
+            onDismiss = viewModel::hideActions,
+        )
+    }
+
+    actions.pendingDelete?.let { chat ->
+        ChatDeleteDialog(
+            chat = chat,
+            onConfirm = { viewModel.confirmDelete(chat) },
+            onDismiss = viewModel::cancelDelete,
+        )
+    }
 
     // Dotažení dalších chatů, jakmile se uživatel blíží ke konci. TDLib pak pošle updaty a seznam
     // se doplní sám — proto se tu nečeká na návratovou hodnotu.
@@ -78,6 +113,7 @@ fun ChatListScreen(
 
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             // Expressive „flexible" top bar — kolabuje při scrollu a mění výšku podle motion schématu.
             LargeFlexibleTopAppBar(
@@ -141,6 +177,7 @@ fun ChatListScreen(
                                 firstInGroup = index == 0,
                                 lastInGroup = index == group.lastIndex,
                                 onClick = { onChatClick(chat.id) },
+                                onLongClick = { viewModel.showActions(chat) },
                                 // Animace přeskládání při změně pořadí — bez toho by chaty
                                 // při nové zprávě skákaly.
                                 modifier = Modifier
@@ -174,12 +211,14 @@ private fun List<ChatSummary>.grouped(): List<List<ChatSummary>> = listOf(
 ).filter { it.isNotEmpty() }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 private fun ChatRow(
     chat: ChatSummary,
     selected: Boolean,
     firstInGroup: Boolean,
     lastInGroup: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // Výběr v list-detail je navigační stav, ne zvýraznění obsahu → `secondaryContainer`,
@@ -209,16 +248,23 @@ private fun ChatRow(
         label = "chat-corner-bottom",
     )
 
-    Card(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(
-            topStart = topCorner,
-            topEnd = topCorner,
-            bottomStart = bottomCorner,
-            bottomEnd = bottomCorner,
-        ),
-        colors = colors,
+    val shape = RoundedCornerShape(
+        topStart = topCorner,
+        topEnd = topCorner,
+        bottomStart = bottomCorner,
+        bottomEnd = bottomCorner,
+    )
+
+    // `Card(onClick = …)` umí jen krátké ťuknutí. Dlouhý stisk potřebuje `combinedClickable`,
+    // takže se klikání přesouvá na Surface — Card zůstává jen tvarem a barvou.
+    Surface(
+        shape = shape,
+        color = colors.containerColor,
+        contentColor = colors.contentColor,
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         Row(
             Modifier.padding(16.dp).fillMaxWidth(),

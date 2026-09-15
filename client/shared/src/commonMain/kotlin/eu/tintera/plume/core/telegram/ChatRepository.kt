@@ -16,6 +16,29 @@ interface ChatRepository {
 
     /** Požádá TDLib o dotažení dalších chatů ze serveru. Výsledek přijde updaty do [chats]. */
     suspend fun loadMore()
+
+    /**
+     * Připne nebo odepne chat.
+     *
+     * Počet připnutých chatů je omezený (`pinned_chat_count_max`) a Premium ho zvedá; při
+     * překročení vrátí TDLib chybu, kterou je potřeba ukázat — jinak to vypadá, že se nic nestalo.
+     */
+    suspend fun setPinned(chatId: Long, pinned: Boolean): Result<Unit>
+
+    /** Ztlumí chat nebo ztlumení zruší. */
+    suspend fun setMuted(chatId: Long, muted: Boolean): Result<Unit>
+
+    /** Ruční příznak nepřečtení. Nezávislý na počtu nepřečtených zpráv. */
+    suspend fun setMarkedAsUnread(chatId: Long, unread: Boolean): Result<Unit>
+
+    /**
+     * Odstraní chat ze seznamu. **Nevratné.**
+     *
+     * U soukromého chatu smaže historii jen u nás (`revoke = false`), u skupiny a kanálu z něj
+     * odejde. `deleteChat` se schválně nepoužívá: ten maže obsah VŠEM členům, což je něco úplně
+     * jiného, než uživatel od položky v seznamu čeká.
+     */
+    suspend fun deleteOrLeave(chatId: Long): Result<Unit>
 }
 
 sealed interface ChatListState {
@@ -46,4 +69,15 @@ data class ChatSummary(
     val order: Long,
     /** `fileId` malé varianty avataru, nebo `null` když chat obrázek nemá. */
     val avatarFileId: Int?,
+    /** Ztlumený chat notifikace nevydává. TDLib to řeší za nás, tohle je jen pro zobrazení. */
+    val isMuted: Boolean,
+    /** Ruční příznak „nepřečteno" — nezávislý na [unreadCount]. */
+    val isMarkedAsUnread: Boolean,
+    /**
+     * Soukromý chat s jedním člověkem.
+     *
+     * Rozhoduje o tom, co znamená odstranění: u soukromého chatu smazání historie, u skupiny
+     * a kanálu odchod. Jsou to dvě různé věci a nabídnout je pod jedním popiskem by lhalo.
+     */
+    val isPrivate: Boolean,
 )

@@ -4,9 +4,13 @@ import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.TdlResult
 import dev.g000sha256.tdl.dto.Chat
+import dev.g000sha256.tdl.toResult
 import dev.g000sha256.tdl.dto.ChatList
 import dev.g000sha256.tdl.dto.ChatListMain
+import dev.g000sha256.tdl.dto.ChatNotificationSettings
 import dev.g000sha256.tdl.dto.ChatPosition
+import dev.g000sha256.tdl.dto.ChatTypePrivate
+import dev.g000sha256.tdl.dto.ChatTypeSecret
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -112,12 +116,94 @@ class TdlChatRepository(
             }
         }
 
+        // Ztlumení a ruční nepřečtení se mění z nabídky akcí, ale potvrzení chodí updatem —
+        // stav se tedy nepřepisuje lokálně, čeká se na TDLib jako u všeho ostatního.
+        scope.launch {
+            client.chatNotificationSettingsUpdates.collect { update ->
+                edit(update.chatId) { it.copy(isMuted = update.notificationSettings.isMuted()) }
+            }
+        }
+
+        scope.launch {
+            client.chatIsMarkedAsUnreadUpdates.collect { update ->
+                edit(update.chatId) { it.copy(isMarkedAsUnread = update.isMarkedAsUnread) }
+            }
+        }
+
         // Odebrání ze složky — chat sice dál existuje, ale v hlavním seznamu nemá co dělat.
         scope.launch {
             client.chatRemovedFromListUpdates.collect { update ->
                 if (update.chatList.isMain()) remove(update.chatId)
             }
         }
+    }
+
+    override suspend fun setPinned(chatId: Long, pinned: Boolean): Result<Unit> =
+        client.toggleChatIsPinned(chatList = ChatListMain(), chatId = chatId, isPinned = pinned)
+            .toResult()
+            .map { }
+
+    /**
+     * Ztlumení se nastavuje **celým objektem nastavení**, ne jedním polem.
+     *
+     * Ostatní hodnoty se proto musí přenést z aktuálního stavu chatu — poslat nový objekt
+     * s výchozími hodnotami by uživateli tiše přepsalo třeba vlastní zvuk nebo náhledy.
+     *
+     * `useDefaultMuteFor = false` je nutné: dokud je `true`, jede chat podle globálního
+     * nastavení a `muteFor` se ignoruje.
+     */
+    override suspend fun setMuted(chatId: Long, muted: Boolean): Result<Unit> {
+        val current = when (val result = client.getChat(chatId)) {
+            is TdlResult.Failure -> return Result.failure(IllegalStateException(result.message))
+            is TdlResult.Success -> result.result.notificationSettings
+        }
+
+        val updated = ChatNotificationSettings(
+            useDefaultMuteFor = false,
+            muteFor = if (muted) MUTE_FOREVER else 0,
+            useDefaultSound = current.useDefaultSound,
+            soundId = current.soundId,
+            useDefaultShowPreview = current.useDefaultShowPreview,
+            showPreview = current.showPreview,
+            useDefaultMuteStories = current.useDefaultMuteStories,
+            muteStories = current.muteStories,
+            useDefaultStorySound = current.useDefaultStorySound,
+            storySoundId = current.storySoundId,
+            useDefaultShowStoryPoster = current.useDefaultShowStoryPoster,
+            showStoryPoster = current.showStoryPoster,
+            useDefaultDisablePinnedMessageNotifications = current.useDefaultDisablePinnedMessageNotifications,
+            disablePinnedMessageNotifications = current.disablePinnedMessageNotifications,
+            useDefaultDisableMentionNotifications = current.useDefaultDisableMentionNotifications,
+            disableMentionNotifications = current.disableMentionNotifications,
+        )
+
+        return client.setChatNotificationSettings(chatId = chatId, notificationSettings = updated)
+            .toResult()
+            .map { }
+    }
+
+    override suspend fun setMarkedAsUnread(chatId: Long, unread: Boolean): Result<Unit> =
+        client.toggleChatIsMarkedAsUnread(chatId = chatId, isMarkedAsUnread = unread)
+            .toResult()
+            .map { }
+
+    override suspend fun deleteOrLeave(chatId: Long): Result<Unit> {
+        val summary = mutex.withLock { known[chatId] }
+            ?: return Result.failure(IllegalStateException("Chat není v seznamu."))
+
+        val result = if (summary.isPrivate) {
+            client.deleteChatHistory(
+                chatId = chatId,
+                // Chat zmizí i ze seznamu, ne jen vyprázdní.
+                removeFromChatList = true,
+                // `true` by smazalo zprávy i protějšku. Z položky v seznamu to nikdo nečeká.
+                revoke = false,
+            )
+        } else {
+            client.leaveChat(chatId = chatId)
+        }
+
+        return result.toResult().map { }
     }
 
     override suspend fun loadMore() {
@@ -244,6 +330,12 @@ class TdlChatRepository(
 
         /** TDLib hlásí „už není co načítat" jako 404. */
         const val NOT_FOUND = 404
+
+        /**
+         * Ztlumení „navždy". TDLib bere sekundy, ne příznak, takže se dává maximum Intu —
+         * Telegram to takhle sám interpretuje jako trvalé ztlumení.
+         */
+        const val MUTE_FOREVER = Int.MAX_VALUE
     }
 }
 
@@ -263,6 +355,9 @@ private fun Chat.toSummaryOrNull(): ChatSummary? {
         isPinned = position.isPinned,
         order = position.order,
         avatarFileId = photo?.small?.id,
+        isMuted = notificationSettings.isMuted(),
+        isMarkedAsUnread = isMarkedAsUnread,
+        isPrivate = type is ChatTypePrivate || type is ChatTypeSecret,
     )
 }
 
@@ -270,3 +365,11 @@ private fun ChatList?.isMain(): Boolean = this is ChatListMain
 
 private fun Array<ChatPosition>.mainPosition(): ChatPosition? = firstOrNull { it.list.isMain() }
 
+
+/**
+ * Ztlumení se pozná z `muteFor`, ne z nějakého příznaku.
+ *
+ * `useDefaultMuteFor` znamená, že chat jede podle globálního nastavení a sám ztlumený není —
+ * číst v tom případě `muteFor` nemá smysl, TDLib tam dává zbytek po předchozím nastavení.
+ */
+private fun ChatNotificationSettings.isMuted(): Boolean = !useDefaultMuteFor && muteFor > 0
