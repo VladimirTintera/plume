@@ -236,6 +236,24 @@ obrazovky, ne na aplikaci.
 - **`UpdateDeleteMessages.isPermanent == false`** znamená jen uvolnění z cache, ne smazání pro
   uživatele — takovou zprávu z obrazovky odstranit nesmíme.
 
+### Vzhled konverzace
+
+- **Odchozí bublina je `primary`, ne `primaryContainer`.** Se dvěma světlými plochami o podobné
+  světlosti nebylo při rychlém průletu očima poznat, kdo co napsal — rozlišovala je jen strana.
+  Sytá `primary` proti světlé `surfaceContainerHigh` dělá rozdíl barvou.
+- **Co je uvnitř bubliny, nesmí mít natvrdo `primary`.** Citace měla proužek i jméno v `primary`
+  a na nové odchozí bublině by byly NEVIDITELNÉ — stejná barva na stejné barvě. Proto
+  `QuotedMessage` bere `accent` parametrem a bublina jí podá svoji `contentColor`. Ze stejného
+  důvodu má vybraná reakce `primaryContainer` místo `primary`.
+- **Startovní strana letu musí mít barvu cílové bubliny.** Jinak zpráva po cestě do konverzace
+  změní barvu.
+- **Vstupní pole NENÍ `bottomBar`.** Jako bottomBar ukusovalo z výšky seznamu, takže přes obrazovku
+  vedl vodorovný předěl, o který se zprávy při scrollu „zasekávaly". Teď plave nad obsahem
+  a seznam se dole odsadí o jeho ZMĚŘENOU výšku — natvrdo zadaná konstanta by se rozešla
+  s realitou, jakmile se pole zalomí na víc řádků nebo se nad ním objeví karta s citací.
+- **Rozepsaná odpověď je samostatná karta nad polem**, ne řádek v pruhu; tak to řeší i Google
+  Messages. Zprávy pod ni při jejím objevení zajedou, místo aby se přeskládaly.
+
 ## Typy zpráv
 
 TDLib má přes sto podtypů `MessageContent`. Vykreslit umíme hrstku; zbytek musí mít aspoň

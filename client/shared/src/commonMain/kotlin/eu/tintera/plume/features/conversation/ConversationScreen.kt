@@ -64,6 +64,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -138,6 +141,9 @@ fun ConversationScreen(
     // Kolik cizích zpráv přišlo, zatímco uživatel četl historii.
     var pendingNewMessages by rememberSaveable { mutableIntStateOf(0) }
     var lastSeenMessageId by rememberSaveable { mutableStateOf<Long?>(null) }
+
+    /** Změřená výška plovoucího vstupního pole; drží odsazení seznamu v souladu s realitou. */
+    var inputHeight by remember { mutableStateOf(0.dp) }
 
     val newestMessageId = state.messages.firstOrNull()?.id
 
@@ -267,16 +273,8 @@ fun ConversationScreen(
                 },
             )
         },
-        bottomBar = {
-            MessageInput(
-                replyingTo = state.replyingTo,
-                partnerName = state.info?.title,
-
-                flight = state.flight,
-                onCancelReply = viewModel::clearReply,
-                onSend = viewModel::send,
-            )
-        },
+        // Vstupní pole NENÍ `bottomBar`: jako bottomBar by ukusovalo z výšky seznamu a zprávy
+        // by před ním končily. Plave nad obsahem, který pod něj zajíždí — viz níž.
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         state.reactionPicker?.let { picker ->
@@ -305,7 +303,15 @@ fun ConversationScreen(
                     state = listState,
                     reverseLayout = true,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    // Dole se odsazuje o výšku vstupního pole, aby nejnovější zpráva v klidovém
+                    // stavu nekončila pod ním. Při scrollu už obsah pod pole zajede — to je
+                    // rozdíl proti `bottomBar`, který místo ukusoval natrvalo.
+                    contentPadding = PaddingValues(
+                        start = 12.dp,
+                        end = 12.dp,
+                        top = 8.dp,
+                        bottom = 8.dp + inputHeight,
+                    ),
                     // Rozestup UVNITŘ skupiny zpráv od jednoho odesílatele. Mezera mezi skupinami
                     // se přidává až v bublině — tady na to není informace o sousedech.
                     verticalArrangement = Arrangement.spacedBy(MESSAGE_SPACING),
@@ -366,7 +372,23 @@ fun ConversationScreen(
             NewMessagesBadge(
                 count = pendingNewMessages,
                 onClick = { scope.launch { listState.animateScrollToItem(0) } },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = inputHeight)
+                    .padding(16.dp),
+            )
+
+            MessageInput(
+                replyingTo = state.replyingTo,
+                partnerName = state.info?.title,
+                flight = state.flight,
+                onCancelReply = viewModel::clearReply,
+                onSend = viewModel::send,
+                // Výška se měří a vrací zpátky do odsazení seznamu. Natvrdo zadaná konstanta
+                // by se rozešla s realitou, jakmile se pole zalomí na víc řádků nebo se nad
+                // ním objeví karta s citací.
+                onHeightChanged = { inputHeight = it },
+                modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
     }
@@ -464,18 +486,26 @@ private fun MessageBubble(
     val bare = largeEmoji > 0 ||
         (message.media is MessageMedia.Sticker && message.replyToMessageId == null)
 
-    // Odchozí = primaryContainer, příchozí = surfaceContainerHigh. Vrstvení řeší surface role,
-    // ne elevation — viz konvence v CLAUDE.md.
+    /*
+     * Odchozí bublina je `primary`, ne `primaryContainer`.
+     *
+     * S `primaryContainer` byly obě strany konverzace světlé plochy s podobnou světlostí a při
+     * rychlém průletu očima nebylo poznat, kdo co napsal — rozlišovala je jen strana. Sytá
+     * `primary` proti světlé `surfaceContainerHigh` dělá ten rozdíl barvou, takže se čte
+     * i bez čtení zarovnání. Stejným způsobem to řeší Google Messages.
+     *
+     * Vrstvení jinak drží surface role, ne elevation — viz konvence v CLAUDE.md.
+     */
     val containerColor = when {
         bare -> Color.Transparent
-        message.isOutgoing -> MaterialTheme.colorScheme.primaryContainer
+        message.isOutgoing -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
     val contentColor = when {
         // Bez pozadí se kreslí na plochu obrazovky, takže barva popředí musí patřit k NÍ,
         // ne k barvě bubliny, která tam není.
         bare -> MaterialTheme.colorScheme.onSurface
-        message.isOutgoing -> MaterialTheme.colorScheme.onPrimaryContainer
+        message.isOutgoing -> MaterialTheme.colorScheme.onPrimary
         else -> MaterialTheme.colorScheme.onSurface
     }
 
@@ -524,7 +554,15 @@ private fun MessageBubble(
                     }
                 }
 
-                quoted?.let { QuotedMessage(it, partnerName = partnerName) }
+                quoted?.let {
+                    QuotedMessage(
+                        message = it,
+                        partnerName = partnerName,
+                        // V odchozí bublině nese akcent barva popředí; `primary` by splynula
+                        // s pozadím bubliny.
+                        accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
+                    )
+                }
 
                 message.media?.let { media -> MessageAttachment(media) }
 
@@ -583,24 +621,44 @@ private fun MessageInput(
     flight: MessageFlight?,
     onCancelReply: () -> Unit,
     onSend: (String) -> Unit,
+    onHeightChanged: (Dp) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var draft by rememberSaveable { mutableStateOf("") }
+    val density = LocalDensity.current
 
-    Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+    // Průhledný kontejner: vstupní pole leží přímo na pozadí konverzace, takže přes obrazovku
+    // nevede vodorovný předěl, o který se zprávy při scrollu „zasekávají". Tvar nese pilulka
+    // samotného pole, ne pruh pod ním — stejně to má Google Messages.
+    Surface(
+        color = Color.Transparent,
+        modifier = modifier.onSizeChanged {
+            onHeightChanged(with(density) { it.height.toDp() })
+        },
+    ) {
       Column {
+        // Rozepsaná odpověď je samostatná karta nad polem, ne řádek v pruhu. Plave nad
+        // konverzací, takže je vidět, že patří k psaní, ne k historii — a když se objeví,
+        // zprávy pod ni jen zajedou.
         replyingTo?.let { target ->
-            Row(
-                Modifier
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 12.dp, end = 4.dp, top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
             ) {
-                QuotedMessage(target, partnerName = partnerName, modifier = Modifier.weight(1f))
-                IconButton(onClick = onCancelReply) {
-                    Icon(
-                        painterResource(Res.drawable.close_24dp),
-                        contentDescription = "Zrušit odpověď",
-                    )
+                Row(
+                    Modifier.padding(start = 12.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    QuotedMessage(target, partnerName = partnerName, modifier = Modifier.weight(1f))
+                    IconButton(onClick = onCancelReply) {
+                        Icon(
+                            painterResource(Res.drawable.close_24dp),
+                            contentDescription = "Zrušit odpověď",
+                        )
+                    }
                 }
             }
         }
@@ -644,8 +702,9 @@ private fun MessageInput(
             // proměnil v bublinu a odletěl.
             flight?.let { current ->
                 Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    // MUSÍ sedět s barvou cílové bubliny, jinak zpráva po cestě změní barvu.
+                    color = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     shape = RoundedCornerShape(BUBBLE_CORNER, BUBBLE_CORNER, BUBBLE_TAIL, BUBBLE_CORNER),
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
@@ -687,6 +746,13 @@ private fun QuotedMessage(
     message: ChatMessage,
     partnerName: String?,
     modifier: Modifier = Modifier,
+    /**
+     * Barva proužku a jména.
+     *
+     * Musí jít předat: uvnitř odchozí bubliny je pozadí `primary`, takže natvrdo zadaná
+     * `primary` by citaci udělala neviditelnou — stejná barva na stejné barvě.
+     */
+    accent: Color = MaterialTheme.colorScheme.primary,
 ) {
     Row(
         modifier
@@ -700,7 +766,7 @@ private fun QuotedMessage(
                 .width(3.dp)
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(2.dp))
-                .background(MaterialTheme.colorScheme.primary),
+                .background(accent),
         )
 
         Column {
@@ -712,7 +778,7 @@ private fun QuotedMessage(
                     else -> message.senderName ?: partnerName ?: "Odpověď"
                 },
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
+                color = accent,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

@@ -98,8 +98,10 @@ private fun ReactionChip(
         label = "reaction-scale",
     )
     val container by animateColorAsState(
+        // `primaryContainer`, ne `primary`: odchozí bublina je nově sama `primary`, takže by
+        // vybraná reakce na vlastní zprávě splynula s pozadím. Světlý čip je čitelný na obojím.
         targetValue = if (chosen) {
-            MaterialTheme.colorScheme.primary
+            MaterialTheme.colorScheme.primaryContainer
         } else {
             MaterialTheme.colorScheme.surfaceContainerHighest
         },
@@ -113,7 +115,7 @@ private fun ReactionChip(
         shape = RoundedCornerShape(corner),
         color = container,
         contentColor = if (chosen) {
-            MaterialTheme.colorScheme.onPrimary
+            MaterialTheme.colorScheme.onPrimaryContainer
         } else {
             MaterialTheme.colorScheme.onSurface
         },
