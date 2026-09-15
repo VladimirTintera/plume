@@ -13,6 +13,9 @@ import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.MessageInteractionInfo
 import dev.g000sha256.tdl.dto.MessageReplyToMessage
+import dev.g000sha256.tdl.dto.MessageSendingState
+import dev.g000sha256.tdl.dto.MessageSendingStateFailed
+import dev.g000sha256.tdl.dto.MessageSendingStatePending
 import dev.g000sha256.tdl.dto.MessageSourceChatHistory
 import dev.g000sha256.tdl.dto.ReactionTypeEmoji
 import dev.g000sha256.tdl.dto.TextEntity
@@ -20,6 +23,7 @@ import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -154,7 +158,31 @@ class TdlConversationRepository(
             .map { it.toChatMessage(isGroup) }
     }
 
-    override suspend fun send(chatId: Long, text: String, replyToMessageId: Long?): Result<Unit> =
+    override fun sentMessageUpdates(chatId: Long): Flow<SentMessageUpdate> = merge(
+        client.messageSendSucceededUpdates
+            .filter { it.message.chatId == chatId }
+            .map { update ->
+                SentMessageUpdate.Succeeded(
+                    oldMessageId = update.oldMessageId,
+                    message = update.message.toChatMessage(isGroup(chatId)),
+                )
+            },
+        client.messageSendFailedUpdates
+            .filter { it.message.chatId == chatId }
+            .map { update ->
+                SentMessageUpdate.Failed(
+                    oldMessageId = update.oldMessageId,
+                    message = update.message.toChatMessage(isGroup(chatId)),
+                )
+            },
+    )
+
+    override fun readOutboxUpdates(chatId: Long): Flow<Long> =
+        client.chatReadOutboxUpdates
+            .filter { it.chatId == chatId }
+            .map { it.lastReadOutboxMessageId }
+
+    override suspend fun send(chatId: Long, text: String, replyToMessageId: Long?): Result<ChatMessage> =
         client.sendMessage(
             chatId = chatId,
             // Vlákna (fóra) fáze 2 neřeší — null znamená hlavní vlákno chatu.
@@ -179,7 +207,8 @@ class TdlConversationRepository(
             ),
         )
             .toResult()
-            .map { }
+            // TDLib vrací zprávu okamžitě, s dočasným id a stavem Pending.
+            .map { it.toChatMessage(isGroup(chatId)) }
 
     override suspend fun markRead(chatId: Long, messageIds: List<Long>): Result<Unit> =
         client.viewMessages(
@@ -201,6 +230,7 @@ class TdlConversationRepository(
                     id = chat.id,
                     title = chat.title,
                     avatarFileId = chat.photo?.small?.id,
+                    lastReadOutboxMessageId = chat.lastReadOutboxMessageId,
                     isGroup = chat.type is ChatTypeBasicGroup || chat.type is ChatTypeSupergroup,
                 )
             }
@@ -220,6 +250,7 @@ class TdlConversationRepository(
             text = captionText(),
             media = messageMedia(),
             reactions = interactionInfo.toReactions(),
+            sendState = if (isOutgoing) sendingState.toSendState() else null,
             // Odpovědi mimo tenhle chat (citace z jiné konverzace) se zatím nevykreslují —
             // náhled se skládá z načtené historie, která je vždy jen z jednoho chatu.
             replyToMessageId = (replyTo as? MessageReplyToMessage)
@@ -311,4 +342,16 @@ private fun MessageSender.plainId(): Long = when (this) {
     is MessageSenderUser -> userId
     is MessageSenderChat -> chatId
     else -> 0L
+}
+
+/**
+ * Převod stavu odeslání.
+ *
+ * `null` znamená, že zpráva je na serveru — TDLib pole vyplňuje jen dokud je rozepsaná
+ * nebo selhala.
+ */
+private fun MessageSendingState?.toSendState(): SendState = when (this) {
+    is MessageSendingStatePending -> SendState.Sending
+    is MessageSendingStateFailed -> SendState.Failed
+    else -> SendState.Sent
 }

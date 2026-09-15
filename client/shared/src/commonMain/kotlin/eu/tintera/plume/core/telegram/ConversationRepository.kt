@@ -51,8 +51,26 @@ interface ConversationRepository {
     /** Jedna konkrétní zpráva. Pro doplnění citace, která není v načtené historii. */
     suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage>
 
-    /** [replyToMessageId] je `null` u běžné zprávy. */
-    suspend fun send(chatId: Long, text: String, replyToMessageId: Long?): Result<Unit>
+    /**
+     * Odešle zprávu a **okamžitě vrátí její rozepsanou podobu**.
+     *
+     * TDLib vrací zprávu hned, s dočasným id a stavem [SendState.Sending]; skutečné id přijde
+     * až potvrzením v [sentMessageUpdates]. Díky tomu se dá bublina zobrazit bez čekání na server.
+     *
+     * [replyToMessageId] je `null` u běžné zprávy.
+     */
+    suspend fun send(chatId: Long, text: String, replyToMessageId: Long?): Result<ChatMessage>
+
+    /**
+     * Potvrzení nebo selhání odeslané zprávy.
+     *
+     * Nese **staré i nové id**: TDLib po potvrzení zprávě id změní, takže ji nestačí aktualizovat,
+     * musí se v seznamu nahradit.
+     */
+    fun sentMessageUpdates(chatId: Long): Flow<SentMessageUpdate>
+
+    /** Posun ukazatele „protějšek přečetl až sem". */
+    fun readOutboxUpdates(chatId: Long): Flow<Long>
 
     /** Označí zprávy za přečtené. Bez tohohle zůstane odznak nepřečtených viset napořád. */
     suspend fun markRead(chatId: Long, messageIds: List<Long>): Result<Unit>
@@ -64,6 +82,13 @@ interface ConversationRepository {
 data class ChatInfo(
     val id: Long,
     val title: String,
+    /**
+     * Id poslední zprávy, kterou si protějšek přečetl.
+     *
+     * Stav „přečteno" **není ve zprávě samotné** — je to posuvný ukazatel na chatu. Všechny
+     * odchozí zprávy s menším nebo rovným id jsou přečtené. Mění se updatem, ne přeposláním zpráv.
+     */
+    val lastReadOutboxMessageId: Long,
     /** `fileId` malé varianty avataru, nebo `null` když chat obrázek nemá. */
     val avatarFileId: Int?,
     /**
@@ -88,6 +113,13 @@ data class ChatMessage(
     val text: String,
     val media: MessageMedia?,
     val reactions: List<MessageReaction>,
+    /**
+     * Stav odeslání. `null` u příchozích zpráv — tam nedává smysl.
+     *
+     * Pozor, nezahrnuje „přečteno": to se odvozuje z [ChatInfo.lastReadOutboxMessageId], protože
+     * se mění nezávisle na zprávě.
+     */
+    val sendState: SendState?,
     /**
      * Id zprávy, na kterou tahle odpovídá.
      *
@@ -135,6 +167,32 @@ data class MessageReactions(
     val messageId: Long,
     val reactions: List<MessageReaction>,
 )
+
+/** Výsledek odeslání zprávy, jak ho oznámí TDLib. */
+sealed interface SentMessageUpdate {
+
+    /** [oldMessageId] je dočasné id, pod kterým zpráva vznikla; [message] má už skutečné. */
+    data class Succeeded(val oldMessageId: Long, val message: ChatMessage) : SentMessageUpdate
+
+    data class Failed(val oldMessageId: Long, val message: ChatMessage) : SentMessageUpdate
+}
+
+/**
+ * Stav odeslání odchozí zprávy.
+ *
+ * Čtvrtý stav — „přečteno" — tu schválně není. Nepatří zprávě, ale chatu
+ * ([ChatInfo.lastReadOutboxMessageId]); kdyby byl tady, musely by se při každém přečtení
+ * přemapovat všechny zprávy v historii.
+ */
+enum class SendState {
+    /** Odesílá se; server ještě nepotvrdil. */
+    Sending,
+
+    /** Doručeno na server. */
+    Sent,
+
+    Failed,
+}
 
 /** Příloha zprávy. */
 sealed interface MessageMedia {

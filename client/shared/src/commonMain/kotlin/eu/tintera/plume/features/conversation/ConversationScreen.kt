@@ -14,6 +14,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -45,13 +51,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,13 +68,20 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
+import eu.tintera.plume.resources.arrow_downward_24dp
+import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.done_all_24dp
+import eu.tintera.plume.resources.error_24dp
+import eu.tintera.plume.resources.schedule_24dp
 import eu.tintera.plume.resources.send_24dp
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.painterResource
@@ -80,6 +96,7 @@ fun ConversationScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     // Chyby se dřív zahazovaly: `state.error` se vykreslovalo jen u prázdné konverzace, takže
     // neúspěšná reakce nebo odeslání zmizely bez jediné stopy.
@@ -100,6 +117,55 @@ fun ConversationScreen(
     }
     LaunchedEffect(listState) {
         snapshotFlow { shouldLoadOlder }.collect { if (it) viewModel.loadOlder() }
+    }
+
+    // „Jsem dole" = vidím nejnovější zprávu. Při `reverseLayout` je to index 0; kontroluje se
+    // i offset, aby se za dole nepovažoval stav, kdy je poslední bublina jen z půlky vidět.
+    val atBottom by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+        }
+    }
+
+    // Kolik cizích zpráv přišlo, zatímco uživatel četl historii.
+    var pendingNewMessages by rememberSaveable { mutableIntStateOf(0) }
+    var lastSeenMessageId by rememberSaveable { mutableStateOf<Long?>(null) }
+
+    val newestMessageId = state.messages.firstOrNull()?.id
+
+    LaunchedEffect(newestMessageId) {
+        val newest = newestMessageId ?: return@LaunchedEffect
+        val previous = lastSeenMessageId
+        lastSeenMessageId = newest
+
+        // První naplnění seznamu není „nová zpráva", jen se zobrazila historie.
+        if (previous == null) return@LaunchedEffect
+        if (newest <= previous) return@LaunchedEffect
+
+        // Id zpráv v chatu rostou, takže „nové" jsou ty nad posledním viděným.
+        val arrived = state.messages.takeWhile { it.id > previous }
+
+        when {
+            // Vlastní odeslaná zpráva: odrolovat vždycky. Bez toho by odeslání z pohledu
+            // uživatele vypadalo, že se nic nestalo — bublina by přistála mimo obrazovku.
+            arrived.any { it.isOutgoing } -> {
+                pendingNewMessages = 0
+                listState.animateScrollToItem(0)
+            }
+
+            atBottom -> {
+                pendingNewMessages = 0
+                listState.animateScrollToItem(0)
+            }
+
+            // Čtu historii: NEscrollovat, vytrhlo by mě to ze čtení. Místo toho odznak dole.
+            else -> pendingNewMessages += arrived.count { !it.isOutgoing }
+        }
+    }
+
+    // Jakmile se uživatel dostane dolů, odznak nemá co hlásit.
+    LaunchedEffect(atBottom) {
+        if (atBottom) pendingNewMessages = 0
     }
 
     // Přečtení se hlásí až když se scrollování uklidní — jinak by při rychlém průletu odešla
@@ -192,6 +258,7 @@ fun ConversationScreen(
                             // Seznam jde od nejnovější, takže „předchozí zpráva v čase"
                             // je ta s VYŠŠÍM indexem.
                             previous = state.messages.getOrNull(index + 1),
+                            lastReadOutboxMessageId = state.lastReadOutboxMessageId,
                             onToggleReaction = { emoji ->
                                 viewModel.toggleReaction(message.id, emoji)
                             },
@@ -209,8 +276,69 @@ fun ConversationScreen(
                     }
                 }
             }
+
+            // Odznak leží NAD seznamem, ne v něm — musí zůstat u spodní hrany i při scrollu.
+            NewMessagesBadge(
+                count = pendingNewMessages,
+                onClick = { scope.launch { listState.animateScrollToItem(0) } },
+                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+            )
         }
     }
+}
+
+/**
+ * Odznak „dole čekají nové zprávy".
+ *
+ * Objeví se jen když uživatel čte historii — dole se totiž nescrolluje automaticky, aby ho nová
+ * zpráva nevytrhla ze čtení. Odznak je pak jediná informace, že něco přišlo.
+ *
+ * Nese počet, ne jen šipku: bez čísla by uživatel nevěděl, jestli se vyplatí skočit dolů.
+ */
+@Composable
+private fun NewMessagesBadge(
+    count: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    AnimatedVisibility(
+        visible = count > 0,
+        // Vjezd zespoda: odznak přiletí odtamtud, kam po ťuknutí odskočí.
+        enter = slideInVertically { it } + fadeIn(),
+        exit = slideOutVertically { it } + fadeOut(),
+        modifier = modifier,
+    ) {
+        Surface(
+            onClick = onClick,
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            shadowElevation = 4.dp,
+        ) {
+            Row(
+                Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    painterResource(Res.drawable.arrow_downward_24dp),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(
+                    text = newMessagesLabel(count),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        }
+    }
+}
+
+/** České skloňování: 1 zpráva, 2–4 zprávy, 5+ zpráv. */
+private fun newMessagesLabel(count: Int): String = when {
+    count == 1 -> "1 nová zpráva"
+    count in 2..4 -> "$count nové zprávy"
+    else -> "$count nových zpráv"
 }
 
 /**
@@ -226,6 +354,7 @@ private fun MessageBubble(
     message: ChatMessage,
     quoted: ChatMessage?,
     partnerName: String?,
+    lastReadOutboxMessageId: Long,
     previous: ChatMessage?,
     onToggleReaction: (String) -> Unit,
     onRequestReaction: () -> Unit,
@@ -296,15 +425,28 @@ private fun MessageBubble(
                     modifier = Modifier.padding(top = 6.dp),
                 )
 
-                Text(
-                    text = buildString {
-                        append(message.timestamp.asTimeOfDay())
-                        if (message.isEdited) append(" · upraveno")
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = contentColor.copy(alpha = 0.7f),
-                    modifier = Modifier.align(Alignment.End),
-                )
+                Row(
+                    Modifier.align(Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = buildString {
+                            append(message.timestamp.asTimeOfDay())
+                            if (message.isEdited) append(" · upraveno")
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = contentColor.copy(alpha = 0.7f),
+                    )
+
+                    message.sendState?.let { sendState ->
+                        DeliveryIcon(
+                            sendState = sendState,
+                            read = message.id <= lastReadOutboxMessageId,
+                            tint = contentColor,
+                        )
+                    }
+                }
             }
         }
     }
@@ -472,6 +614,45 @@ private const val READ_DEBOUNCE_MS = 400L
 
 /** Strop výšky fotky v bublině. Svislé snímky obrazovky by jinak zabraly celou obrazovku. */
 private val MAX_PHOTO_HEIGHT = 320.dp
+
+/**
+ * Stav doručení odchozí zprávy.
+ *
+ * Čtyři stavy ve třech ikonách, jak je zvykem: hodiny (odesílá se), fajfka (na serveru),
+ * dvojitá fajfka (protějšek přečetl), vykřičník (selhalo).
+ *
+ * „Přečteno" nepochází ze zprávy, ale z ukazatele na chatu — proto se sem předává zvlášť.
+ */
+@Composable
+private fun DeliveryIcon(
+    sendState: SendState,
+    read: Boolean,
+    tint: Color,
+) {
+    val (icon, description) = when {
+        sendState == SendState.Sending -> Res.drawable.schedule_24dp to "Odesílá se"
+        sendState == SendState.Failed -> Res.drawable.error_24dp to "Odeslání selhalo"
+        read -> Res.drawable.done_all_24dp to "Přečteno"
+        else -> Res.drawable.check_24dp to "Odesláno"
+    }
+
+    // Selhání je jediný stav, který uživatel musí zaregistrovat — dostane chybovou barvu.
+    val color = if (sendState == SendState.Failed) {
+        MaterialTheme.colorScheme.error
+    } else {
+        tint.copy(alpha = 0.7f)
+    }
+
+    // Crossfade, ať přechod hodiny → fajfka → dvojitá fajfka neproblikne.
+    Crossfade(targetState = icon, label = "delivery") { current ->
+        Icon(
+            painter = painterResource(current),
+            contentDescription = description,
+            tint = color,
+            modifier = Modifier.size(14.dp),
+        )
+    }
+}
 
 /**
  * Příloha uvnitř bubliny.

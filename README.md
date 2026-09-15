@@ -6,7 +6,7 @@ Kotlin Multiplatform, sdílené Compose UI pro Android a iOS.
 > Používá [Telegram API](https://core.telegram.org/) přes [TDLib](https://core.telegram.org/tdlib).
 > Není to oficiální produkt Telegramu a není s ním nijak spojený.
 
-## Stav: fáze 6
+## Stav: fáze 7
 
 **Fáze 0 (de-risking)** ověřila na reálném běhu, že architektura drží:
 
@@ -39,6 +39,10 @@ Nastavení s účtem a odhlášením.
 
 **Fáze 5** přidala odpovědi — dlouhý stisk nabídne „Odpovědět", citace se ukáže nad vstupním
 polem i v bublině odpovědi.
+
+**Fáze 7** doladila odesílání: zpráva se zobrazí okamžitě, se stavem doručení (hodiny → fajfka →
+dvojitá fajfka) a s automatickým odrolováním. Příchozí zprávy scrollují jen když jsi dole, jinak
+se objeví odznak s počtem čekajících.
 
 **Fáze 6** přidala notifikace o nových zprávách (viz níž — část vyžaduje tvoje účty), včetně
 vysvětlení před systémovým dialogem a řádku v Nastavení, kterým je lze kdykoliv zapnout zpět.

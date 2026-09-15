@@ -7,6 +7,7 @@ import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageReaction
+import eu.tintera.plume.core.telegram.SentMessageUpdate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,7 +39,9 @@ class ConversationViewModel(
     init {
         viewModelScope.launch {
             repository.chatInfo(chatId).onSuccess { info ->
-                _state.update { it.copy(info = info) }
+                _state.update {
+                    it.copy(info = info, lastReadOutboxMessageId = info.lastReadOutboxMessageId)
+                }
             }
         }
 
@@ -116,6 +119,28 @@ class ConversationViewModel(
         }
 
         viewModelScope.launch {
+            repository.sentMessageUpdates(chatId).collect { update ->
+                // TDLib po potvrzení zprávě ZMĚNÍ id, takže ji nestačí aktualizovat — původní
+                // se musí ze seznamu odebrat, jinak by tam zůstala dvakrát.
+                val (oldId, message) = when (update) {
+                    is SentMessageUpdate.Succeeded -> update.oldMessageId to update.message
+                    is SentMessageUpdate.Failed -> update.oldMessageId to update.message
+                }
+
+                _state.update { state ->
+                    val without = state.messages.filterNot { it.id == oldId }
+                    state.copy(messages = merge(without, listOf(message)))
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            repository.readOutboxUpdates(chatId).collect { lastReadId ->
+                _state.update { it.copy(lastReadOutboxMessageId = lastReadId) }
+            }
+        }
+
+        viewModelScope.launch {
             repository.deletedMessages(chatId).collect { ids ->
                 val removed = ids.toSet()
                 _state.update { state ->
@@ -135,11 +160,17 @@ class ConversationViewModel(
         clearReply()
 
         viewModelScope.launch {
-            // Odeslaná zpráva se do seznamu nepřidává ručně — TDLib ji vrátí přes `newMessages`
-            // včetně skutečného id a času. Ruční přidání by znamenalo duplicitu.
-            repository.send(chatId, trimmed, replyTo).onFailure { failure ->
-                _state.update { it.copy(error = failure.message ?: "Zprávu se nepodařilo odeslat.") }
-            }
+            repository.send(chatId, trimmed, replyTo)
+                // TDLib vrací rozepsanou zprávu okamžitě, takže bublina naskočí bez čekání
+                // na server. Skutečné id dorazí potvrzením a zprávu v seznamu nahradí.
+                .onSuccess { pending ->
+                    _state.update { it.copy(messages = merge(it.messages, listOf(pending))) }
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(error = failure.message ?: "Zprávu se nepodařilo odeslat.")
+                    }
+                }
         }
     }
 
@@ -302,6 +333,8 @@ data class ConversationState(
      * Náhled odpovědi se hledá nejdřív v [messages], teprve pak tady.
      */
     val quotes: Map<Long, ChatMessage> = emptyMap(),
+    /** Protějšek přečetl odchozí zprávy až po tohle id včetně. */
+    val lastReadOutboxMessageId: Long = 0L,
     /** Od nejnovější po nejstarší. */
     val messages: List<ChatMessage> = emptyList(),
     val loading: Boolean = false,
