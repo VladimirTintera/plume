@@ -11,6 +11,24 @@ import dev.g000sha256.tdl.dto.MessageSticker
 import dev.g000sha256.tdl.dto.MessageText
 import dev.g000sha256.tdl.dto.MessageVideo
 import dev.g000sha256.tdl.dto.MessageVoiceNote
+import dev.g000sha256.tdl.dto.MessageCall
+import dev.g000sha256.tdl.dto.MessageChecklist
+import dev.g000sha256.tdl.dto.MessageContact
+import dev.g000sha256.tdl.dto.MessageContent
+import dev.g000sha256.tdl.dto.MessageExpiredPhoto
+import dev.g000sha256.tdl.dto.MessageExpiredVideo
+import dev.g000sha256.tdl.dto.MessageExpiredVideoNote
+import dev.g000sha256.tdl.dto.MessageExpiredVoiceNote
+import dev.g000sha256.tdl.dto.MessageGame
+import dev.g000sha256.tdl.dto.MessageInvoice
+import dev.g000sha256.tdl.dto.MessageLiveLocation
+import dev.g000sha256.tdl.dto.MessageLocation
+import dev.g000sha256.tdl.dto.MessagePaidMedia
+import dev.g000sha256.tdl.dto.MessagePoll
+import dev.g000sha256.tdl.dto.MessageStory
+import dev.g000sha256.tdl.dto.MessageUnsupported
+import dev.g000sha256.tdl.dto.MessageVenue
+import dev.g000sha256.tdl.dto.MessageVideoNote
 import dev.g000sha256.tdl.dto.Photo
 import dev.g000sha256.tdl.dto.Sticker
 import dev.g000sha256.tdl.dto.StickerFormatWebp
@@ -36,7 +54,41 @@ internal fun Message.previewText(): String = when (val content = this.content) {
     is MessageSticker -> content.sticker.emoji.ifBlank { "Samolepka" }
     is MessageAnimatedEmoji -> content.emoji
     is MessageDice -> content.diceText()
-    else -> "Zpráva"
+    else -> content.describe()
+}
+
+/**
+ * Jednořádkový popis obsahu, který nemá vlastní text.
+ *
+ * Poslední záchrana pro typy, které neumíme vykreslit. Dřív tu bylo pro všechny jedno „Zpráva",
+ * takže se anketa, poloha i systémové oznámení tvářily stejně — a hlavně to vypadalo jako chyba
+ * načítání, ne jako „tohle zatím neumíme".
+ */
+private fun MessageContent.describe(): String = when (this) {
+    is MessageVideoNote -> "Video zpráva"
+    is MessagePoll -> "Anketa: ${poll.question.text}"
+    is MessageChecklist -> "Seznam úkolů: ${list.title.text}"
+    is MessageLocation -> "Poloha"
+    is MessageLiveLocation -> "Živá poloha"
+    is MessageVenue -> "Místo: ${venue.title}"
+    is MessageContact -> "Kontakt: ${contact.firstName} ${contact.lastName}".trim()
+    is MessageGame -> "Hra: ${game.title}"
+    is MessageInvoice -> "Platba: ${productInfo.title}"
+    is MessageStory -> "Story"
+    is MessagePaidMedia -> caption.text.ifBlank { "Placený obsah" }
+    is MessageCall -> if (isVideo) "Videohovor" else "Hovor"
+
+    // Zprávy s časovým omezením, které vypršely. Soubor už na serveru není, takže není co stáhnout.
+    is MessageExpiredPhoto -> "Fotka vypršela"
+    is MessageExpiredVideo -> "Video vypršelo"
+    is MessageExpiredVideoNote -> "Video zpráva vypršela"
+    is MessageExpiredVoiceNote -> "Hlasová zpráva vypršela"
+
+    // Klient je starší než server. Doslovný název typu by uživateli neřekl nic.
+    is MessageUnsupported -> "Tenhle typ zprávy zatím neumíme zobrazit"
+
+    // Systémová oznámení mají vlastní formulace i vykreslení.
+    else -> serviceText() ?: "Tenhle typ zprávy zatím neumíme zobrazit"
 }
 
 /**
@@ -70,6 +122,10 @@ internal fun Message.captionText(): String = when (val content = this.content) {
     is MessageAnimatedEmoji -> content.emoji
 
     is MessageDice -> content.diceText()
+
+    // Typy, které mají v bublině vlastní přílohu s popiskem — text by ho zdvojil.
+    is MessageVideoNote, is MessageGame, is MessageInvoice -> ""
+    is MessagePaidMedia -> content.caption.text
 
     else -> previewText()
 }
@@ -105,6 +161,24 @@ internal fun Message.messageMedia(): MessageMedia? = when (val content = this.co
     is MessageAudio -> MessageMedia.Attachment(label = "Audio", thumbnailFileId = null)
     is MessageVoiceNote -> MessageMedia.Attachment(label = "Hlasová zpráva", thumbnailFileId = null)
     is MessageSticker -> content.sticker.toMedia()
+
+    // Kolečko s videem. Náhled je čtvercový, kulatý ořez by patřil k přehrávání, které neumíme.
+    is MessageVideoNote -> MessageMedia.Attachment(
+        label = "Video zpráva",
+        thumbnailFileId = content.videoNote.thumbnail?.file?.id,
+    )
+
+    is MessageGame -> MessageMedia.Attachment(
+        label = "Hra: ${content.game.title}",
+        thumbnailFileId = content.game.photo.sizes.filterNotNull()
+            .minByOrNull { it.width * it.height }?.photo?.id,
+    )
+
+    is MessageInvoice -> MessageMedia.Attachment(
+        label = "Platba: ${content.productInfo.title}",
+        thumbnailFileId = content.productInfo.photo?.sizes?.filterNotNull()
+            ?.minByOrNull { it.width * it.height }?.photo?.id,
+    )
 
     else -> null
 }

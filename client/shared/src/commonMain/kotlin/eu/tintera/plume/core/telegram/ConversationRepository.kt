@@ -147,6 +147,13 @@ data class ChatMessage(
      * a ušetří jedno volání na každou odpověď.
      */
     val replyToMessageId: Long?,
+    /**
+     * Systémové oznámení o dění v chatu (někdo se připojil, změnil se název, připnutí zprávy).
+     *
+     * Nemá odesílatele, takže se nekreslí do bubliny, ale na střed. Reakce ani stav doručení
+     * u něj nedávají smysl.
+     */
+    val isService: Boolean,
     /** Unixový čas v sekundách, jak ho dává TDLib. */
     val timestamp: Int,
     val isEdited: Boolean,

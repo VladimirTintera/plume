@@ -53,8 +53,12 @@ se startuje od nuly.
 **Emoji a samolepky:** zpráva jen z emoji se kreslí velká a bez bubliny, samolepky se vykreslují
 jako obrázek (animované zatím jako nehybný náhled).
 
+**Ostatní typy zpráv** (ankety, polohy, kontakty, video kolečka, platby) se zatím nevykreslují,
+ale mají popis; systémová oznámení se kreslí na střed jako v běžném klientovi.
+
 **Není hotové:** přehrávání videa a zvuku, otevírání dokumentů, editace, skok na první
-nepřečtenou zprávu, animované samolepky (.tgs/.webm), notifikace na iOS, perzistence nastavení.
+nepřečtenou zprávu, animované samolepky (.tgs/.webm), interakce s anketami a polohami,
+notifikace na iOS, perzistence nastavení.
 
 ## Rozjetí
 

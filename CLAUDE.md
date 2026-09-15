@@ -142,6 +142,28 @@ obrazovky, ne na aplikaci.
 - **`UpdateDeleteMessages.isPermanent == false`** znamená jen uvolnění z cache, ne smazání pro
   uživatele — takovou zprávu z obrazovky odstranit nesmíme.
 
+## Typy zpráv
+
+TDLib má přes sto podtypů `MessageContent`. Vykreslit umíme hrstku; zbytek musí mít aspoň
+pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
+
+- **Nikdy nepoužívej jedno generické „Zpráva".** Tak to bylo a splývaly pod tím anketa, poloha,
+  systémové oznámení i samotné emoji — a hlavně to vypadalo, že se zpráva nenačetla. Poslední
+  záchrana je „Tenhle typ zprávy zatím neumíme zobrazit", což říká pravdu.
+- **Servisní zprávy poznává `serviceText()`, která zároveň dává jejich text.** Jedno místo
+  rozhoduje o textu i o způsobu vykreslení, takže se ty dva nemůžou rozejít. `null` znamená
+  „tohle je běžný obsah".
+- **Servisní zpráva se kreslí na střed, ne do bubliny.** Bublina patří odesílateli a tyhle
+  odesílatele nemají — jsou to oznámení o dění v chatu. Čas se u nich nevypisuje, reakce ani stav
+  doručení k nim nepatří.
+- **V servisních zprávách se nevypisují jména.** TDLib dává jen id uživatelů a jméno by znamenalo
+  dotaz navíc na každou takovou zprávu, často na někoho, kdo v chatu už dávno není. Bezejmenná
+  formulace („Do skupiny přibyli členové") je vždycky pravdivá a nic nestojí.
+- **`MessageUnsupported` znamená, že klient je starší než server.** Doslovný název typu by
+  uživateli neřekl nic, takže dostane stejnou větu jako ostatní neznámé typy.
+- **Když typ dostane přílohu s popiskem, `captionText()` pro něj musí vracet prázdno** — jinak
+  se popisek v bublině objeví dvakrát. Platí pro video kolečko, hru a platbu.
+
 ## Emoji a samolepky
 
 - **Zpráva složená jen z emoji se kreslí velká a bez bubliny**, stejně jako samolepka. Bublina
@@ -156,8 +178,6 @@ obrazovky, ne na aplikaci.
 - **Kostka (`MessageDice`) padala do téhož `else`.** Hozená hodnota je součástí animace, takže se
   dopisuje číslem (`🎲 6`) — jinak by ze zprávy zbyl hod bez výsledku. Nula znamená, že server
   výsledek ještě neposlal.
-- **Ostatní neznámé typy pořád končí jako „Zpráva"** — video kolečka, ankety, polohy, kontakty
-  a servisní zprávy. Není to zamýšlené, jen zatím neudělané.
 - **Strop jsou 3 emoji** (`MAX_LARGE_EMOJI`). Nad ním už nejde o gesto, ale o odstavec, a ve
   velké sazbě by zabral půl obrazovky. Míň emoji = větší: `displayLarge` / `Medium` / `Small`.
 - **Odpověď si bublinu drží**, i když je jen z emoji — citace bez pozadí se ztratí.

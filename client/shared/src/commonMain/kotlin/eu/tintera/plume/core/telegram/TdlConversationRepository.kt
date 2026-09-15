@@ -298,6 +298,7 @@ class TdlConversationRepository(
             replyToMessageId = (replyTo as? MessageReplyToMessage)
                 ?.takeIf { it.chatId == chatId }
                 ?.messageId,
+            isService = content.serviceText() != null,
             timestamp = date,
             isEdited = editDate > 0,
         )

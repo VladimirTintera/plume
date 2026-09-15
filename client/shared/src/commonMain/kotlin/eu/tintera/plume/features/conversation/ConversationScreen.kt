@@ -301,6 +301,14 @@ fun ConversationScreen(
 
                     items(state.messages, key = { it.id }) { message ->
                         val index = state.messages.indexOf(message)
+
+                        // Systémové oznámení nemá odesílatele, takže nemá ani stranu — kreslí se
+                        // na střed a bez bubliny. Reakce, citace ani stav doručení k němu nepatří.
+                        if (message.isService) {
+                            ServiceMessage(message, Modifier.animateItem())
+                            return@items
+                        }
+
                         MessageBubble(
                             message = message,
                             quoted = message.replyToMessageId?.let { id ->
@@ -891,4 +899,31 @@ private fun StickerImage(sticker: MessageMedia.Sticker) {
         background = Color.Transparent,
         modifier = Modifier.size(width = width, height = height),
     )
+}
+
+/**
+ * Systémové oznámení o dění v chatu.
+ *
+ * Na střed, malým písmem a v `surfaceContainer` — má to být poznámka na okraji, ne zpráva.
+ * Čas se nevypisuje: u „někdo se připojil" je minuta k ničemu a řádek by jen zdvojnásobil.
+ */
+@Composable
+private fun ServiceMessage(message: ChatMessage, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Surface(
+            shape = RoundedCornerShape(BUBBLE_CORNER),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ) {
+            Text(
+                text = message.text,
+                style = MaterialTheme.typography.labelMedium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+        }
+    }
 }
