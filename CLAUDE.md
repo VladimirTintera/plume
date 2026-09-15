@@ -9,10 +9,10 @@ nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí
 
 Fáze 6. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar),
 živý seznam chatů, textová konverzace (historie, živé zprávy, odesílání, označení přečteného),
-avatary a fotky ve zprávách, reakce, odpovědi, notifikace na Androidu.
+avatary a fotky ve zprávách, reakce, odpovědi, notifikace na Androidu, sponzorované zprávy.
 
 Není: přehrávání videa a zvuku, otevírání dokumentů, editace, skok na první nepřečtenou,
-notifikace na iOS, sponsored messages, perzistence nastavení.
+notifikace na iOS, perzistence nastavení.
 
 ## Build
 
