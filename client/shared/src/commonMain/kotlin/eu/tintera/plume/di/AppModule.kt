@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.FileRepository
@@ -73,6 +74,9 @@ fun appModule() = module {
     }
 
     single<NotificationRepository> { TdlNotificationRepository(holder = get()) }
+
+    // Most mezi platformním vstupem (ťuknutí na notifikaci) a navigací.
+    single { ChatOpenRequests() }
 
     viewModelOf(::AuthViewModel)
     viewModelOf(::ChatsViewModel)

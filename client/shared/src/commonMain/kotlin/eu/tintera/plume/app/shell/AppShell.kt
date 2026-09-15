@@ -15,6 +15,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.WideNavigationRail
 import androidx.compose.material3.WideNavigationRailItem
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
@@ -37,6 +39,9 @@ import eu.tintera.plume.core.adaptive.contentPaneScaffoldDirective
 import eu.tintera.plume.core.adaptive.isCompact
 import eu.tintera.plume.core.adaptive.singlePane
 import eu.tintera.plume.core.adaptive.twoPane
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.koinInject
+import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.NavSavedStateConfiguration
 import eu.tintera.plume.core.navigation.ConversationRoute
@@ -73,6 +78,24 @@ fun AppShell(modifier: Modifier = Modifier) {
             backStack.clear()
             backStack.add(route)
         }
+    }
+
+    /*
+     * Otevření chatu zvenčí (ťuknutí na notifikaci).
+     *
+     * Zásobník se skládá znovu od kořene, ne jen přidáním konverzace: požadavek může přijít,
+     * když je uživatel v Nastavení, a konverzace otevřená nad nimi by při návratu zpět vrátila
+     * do Nastavení, což s notifikací nemá nic společného.
+     */
+    val chatOpenRequests = koinInject<ChatOpenRequests>()
+    val requestedChatId by chatOpenRequests.chatId.collectAsStateWithLifecycle()
+
+    LaunchedEffect(requestedChatId) {
+        val chatId = requestedChatId ?: return@LaunchedEffect
+        backStack.clear()
+        backStack.add(ChatsRoute)
+        backStack.add(ConversationRoute(chatId))
+        chatOpenRequests.consume(chatId)
     }
 
     val currentTopLevel = backStack.firstOrNull() as? TopLevelRoute ?: ChatsRoute

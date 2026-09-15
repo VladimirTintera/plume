@@ -9,6 +9,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.notifications.NotificationIntents
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -80,6 +81,7 @@ actual class NotificationPresenter(
             .setGroup(GROUP_PREFIX + notification.chatId)
             .setSilent(notification.isSilent)
             .setAutoCancel(true)
+            .setContentIntent(NotificationIntents.openChat(context, notification.notificationId, notification.chatId))
             .build()
 
         logger.d { "Zobrazuji notifikaci ${notification.notificationId} z chatu ${notification.chatId}." }

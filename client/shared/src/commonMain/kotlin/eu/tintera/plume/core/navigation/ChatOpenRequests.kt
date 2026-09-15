@@ -1,0 +1,32 @@
+package eu.tintera.plume.core.navigation
+
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+/**
+ * Požadavek na otevření konkrétního chatu zvenčí — dnes ťuknutí na notifikaci.
+ *
+ * Proč stav a ne událost: v okamžiku ťuknutí nemusí být komu doručit. Proces mohl být mrtvý a
+ * skládá se teprve UI, nebo aplikace visí na přihlášení a [eu.tintera.plume.app.shell.AppShell]
+ * vůbec neexistuje. Událost by se v obou případech zahodila a notifikace by jen otevřela seznam.
+ * Takhle si požadavek počká, než bude mít kdo ho vyřídit.
+ */
+class ChatOpenRequests {
+
+    private val pending = MutableStateFlow<Long?>(null)
+
+    val chatId: StateFlow<Long?> = pending.asStateFlow()
+
+    fun request(chatId: Long) {
+        pending.value = chatId
+    }
+
+    /**
+     * Vyřízeno. Porovnává se s hodnotou, kterou volající opravdu otevřel — mezi vyzvednutím
+     * a vyřízením mohl přijít požadavek na jiný chat a ten by se zahodil nepřečtený.
+     */
+    fun consume(chatId: Long) {
+        pending.compareAndSet(chatId, null)
+    }
+}

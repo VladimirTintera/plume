@@ -47,6 +47,9 @@ se objeví odznak s počtem čekajících.
 **Fáze 6** přidala notifikace o nových zprávách (viz níž — část vyžaduje tvoje účty), včetně
 vysvětlení před systémovým dialogem a řádku v Nastavení, kterým je lze kdykoliv zapnout zpět.
 
+**Notifikace vedou do konkrétního chatu** — ťuknutí otevře konverzaci, ať aplikace běží, nebo
+se startuje od nuly.
+
 **Není hotové:** přehrávání videa a zvuku, otevírání dokumentů, editace, skok na první
 nepřečtenou zprávu, notifikace na iOS, perzistence nastavení.
 

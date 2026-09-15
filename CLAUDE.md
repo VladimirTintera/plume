@@ -216,6 +216,23 @@ obrazovky, ne na aplikaci.
 - **Telegram chce service account JSON (FCM v1)**, ne legacy server key — ověřeno nahráním na
   my.telegram.org. Dokumentace na core.telegram.org pořád mluví o „application key (GCM)", což je
   zastaralé; legacy endpoint Google vypnul v červnu 2024.
+- **Proklik do chatu jde přes `ChatOpenRequests`, a je to STAV, ne událost.** V okamžiku ťuknutí
+  nemusí být komu doručit: proces mohl být mrtvý a UI se teprve skládá, nebo aplikace visí na
+  přihlášení a `AppShell` vůbec neexistuje. Událost by se v obou případech zahodila a notifikace
+  by otevřela jen seznam. Požadavek si proto počká, než ho má kdo vyřídit.
+- **Z launcher intentu se bere JEN komponenta.** Hotový `getLaunchIntentForPackage` nese
+  `ACTION_MAIN` + `CATEGORY_LAUNCHER` a systém ho vyhodnotí jako „spuštění z plochy": běžící úlohu
+  vytáhne dopředu s PŮVODNÍM intentem a `onNewIntent` s chatId nikdy nedorazí.
+- **Request code PendingIntentu musí být jedinečný, a bere se `notificationId`.** PendingIntenty
+  se porovnávají podle request code a `filterEquals` — extras do rovnosti NEVSTUPUJÍ, takže se
+  společným kódem by všechny notifikace otevřely ten chat, který se zaregistroval první.
+  `chatId.hashCode()` by nestačil: Long se do Intu nevejde bez ztráty a kolize dvou chatů by
+  tiše otevřela ten cizí.
+- **`MainActivity` je `singleTop` a v `onNewIntent` volá `setIntent`.** Bez `singleTop` by se
+  activity skládala znovu a ztratila stav obrazovek; bez `setIntent` by `getIntent()` dál vracelo
+  ten intent, kterým se activity zakládala.
+- **Extra se po vyřízení z intentu maže.** Po otočení displeje se `onCreate` spustí znovu nad týmž
+  intentem a chat by se otevřel podruhé, i kdyby se uživatel mezitím proklikal jinam.
 - **Ikona notifikace je zatím systémová** (`android.R.drawable.ic_dialog_email`). Cílově sem
   patří vlastní monochromatická ikona v `androidApp/res/drawable`.
 - **`adb shell am force-stop` znemožní doručení FCM.** Aplikace se dostane do „stopped state"
