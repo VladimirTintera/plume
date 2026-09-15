@@ -7,6 +7,7 @@ import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageReaction
+import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SentMessageUpdate
 import eu.tintera.plume.core.telegram.SponsoredMessage
 import eu.tintera.plume.core.ui.UrlOpener
@@ -178,6 +179,12 @@ class ConversationViewModel(
         viewModelScope.launch {
             repository.readOutboxUpdates(chatId).collect { lastReadId ->
                 _state.update { it.copy(lastReadOutboxMessageId = lastReadId) }
+            }
+        }
+
+        viewModelScope.launch {
+            repository.presenceUpdates(chatId).collect { presence ->
+                _state.update { it.copy(presence = presence) }
             }
         }
 
@@ -409,6 +416,8 @@ data class ReactionPicker(
 
 data class ConversationState(
     val info: ChatInfo? = null,
+    /** Dostupnost protějšku pro podtitul hlavičky. `null` u skupin a kanálů. */
+    val presence: Presence? = null,
     val reactionPicker: ReactionPicker? = null,
     /** Zpráva, na kterou se právě chystá odpověď. Zobrazuje se nad vstupním polem. */
     val replyingTo: ChatMessage? = null,

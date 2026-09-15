@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Surface
@@ -46,11 +48,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.push_pin_filled_24dp
 import org.jetbrains.compose.resources.painterResource
 import eu.tintera.plume.core.telegram.ChatListState
+import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.chatTitleKey
 import eu.tintera.plume.core.ui.sharedNavElement
@@ -271,12 +277,29 @@ private fun ChatRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Avatar(
-                chatId = chat.id,
-                title = chat.title,
-                avatarFileId = chat.avatarFileId,
-                modifier = Modifier.sharedNavElement(chatAvatarKey(chat.id)),
-            )
+            Box {
+                Avatar(
+                    chatId = chat.id,
+                    title = chat.title,
+                    avatarFileId = chat.avatarFileId,
+                    modifier = Modifier.sharedNavElement(chatAvatarKey(chat.id)),
+                )
+
+                // Tečka sedí NA avataru, ne vedle jména: v seznamu se očima jede po levém
+                // sloupci, takže se dostupnost přečte spolu s tím, kdo to je.
+                if (chat.presence is Presence.Online) {
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(ONLINE_DOT)
+                            // Obroučka barvou pozadí položky — bez ní tečka splyne s tmavým
+                            // avatarem a je z ní jen skvrna.
+                            .background(colors.containerColor, CircleShape)
+                            .padding(2.dp)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape),
+                    )
+                }
+            }
 
             Column(Modifier.weight(1f)) {
                 Row(
@@ -296,17 +319,44 @@ private fun ChatRow(
                         style = MaterialTheme.typography.titleMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.sharedNavText(chatTitleKey(chat.id)),
+                        // Plná váha: název roztlačí zbytek řádku doprava, takže čas sedí
+                        // na konci a nelepí se na jméno.
+                        modifier = Modifier.weight(1f).sharedNavText(chatTitleKey(chat.id)),
                     )
+
+                    if (chat.isMuted) {
+                        Icon(
+                            painterResource(Res.drawable.notifications_off_24dp),
+                            contentDescription = "Ztlumeno",
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    // Čas je zarovnaný doprava na konec řádku s názvem, ne pod něj — jinak by
+                    // soupeřil o místo s náhledem zprávy, který bývá dlouhý.
+                    chat.lastMessageTimestamp?.let { timestamp ->
+                        Text(
+                            text = timestamp.asRelativeTime(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                        )
+                    }
                 }
-                chat.lastMessagePreview?.let {
+                // Činnost má přednost před náhledem: „píše…" je novější informace než poslední
+                // odeslaná zpráva a obojí najednou by se do jednoho řádku nevešlo.
+                val subtitle = chat.activity?.label() ?: chat.lastMessagePreview
+
+                subtitle?.let {
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (selected) {
-                            MaterialTheme.colorScheme.onSecondaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                        color = when {
+                            // Činnost se odliší barvou, aby bylo poznat, že to není text zprávy.
+                            chat.activity != null -> MaterialTheme.colorScheme.primary
+                            selected -> MaterialTheme.colorScheme.onSecondaryContainer
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
                         },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -336,3 +386,19 @@ private val GROUP_ITEM_SPACING = 2.dp
 
 /** Mezera mezi skupinami. */
 private val GROUP_SPACING = 14.dp
+
+/** Průměr zelené tečky i s obroučkou. */
+private val ONLINE_DOT = 14.dp
+
+/** Popisek činnosti. Krátký — konkuruje o místo s náhledem zprávy. */
+private fun ChatActivity.label(): String = when (this) {
+    ChatActivity.Typing -> "píše…"
+    ChatActivity.RecordingVoice -> "nahrává hlasovku…"
+    ChatActivity.RecordingVideo -> "natáčí video…"
+    ChatActivity.SendingPhoto -> "posílá fotku…"
+    ChatActivity.SendingVideo -> "posílá video…"
+    ChatActivity.SendingFile -> "posílá soubor…"
+    ChatActivity.ChoosingSticker -> "vybírá samolepku…"
+    ChatActivity.Other -> "něco chystá…"
+}
+

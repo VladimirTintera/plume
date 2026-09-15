@@ -140,6 +140,31 @@ Expressive nahrazuje karty per položku. Skupiny jsou tři: připnuté, nepřeč
 - **Mezera mezi skupinami se přidává u první položky skupiny**, ne ve `verticalArrangement` —
   `LazyColumn` o sousedech položky nic neví. Stejný postup jako u rozestupů zpráv v konverzaci.
 
+### Co položka ukazuje
+
+Čas poslední zprávy, ztlumení, dostupnost protějšku a jeho právě probíhající činnost.
+
+- **Čas se s věkem zjednodušuje** (`asRelativeTime`): dnes hodiny, včera slovem, do týdne zkratka
+  dne, pak datum. V seznamu jde o STÁŘÍ zprávy, ne o pořadí během dne — „14:32" u zprávy z loňska
+  nic neřekne. V konverzaci se naopak vypisují jen hodiny, protože tam jdou zprávy chronologicky
+  za sebou. Tentýž formát používá i „naposledy viděn".
+- **Dostupnost se musí jednou přečíst, ne jen odebírat.** `updateUserStatus` chodí jen na ZMĚNU,
+  takže bez počátečního `getUser` by zelená tečka naskočila až ve chvíli, kdy se protějšek odpojí
+  a zase připojí. V soukromém chatu je `chatId` shodné s `userId`, takže není co dohledávat.
+- **Dostupnost a činnost PŘEŽÍVAJÍ přepsání chatu** (`keepingLiveState`). `Chat` od TDLib je
+  nenese — chodí samostatnými updaty. Bez toho by každý `UpdateNewChat` nebo seed z databáze
+  zhasl zelenou tečku i „píše…", protože obojí by se vrátilo na `null`.
+- **„Píše…" se musí umět zhasnout samo.** TDLib činnost ukončuje samostatným `ChatActionCancel`,
+  jenže kdyby se ten ztratil, zůstalo by „píše…" viset napořád. Každá činnost si proto nese
+  odpočet, který nová zpráva o psaní posouvá — při souvislém psaní nikdy nedoběhne.
+- **Vlastní činnost se zahazuje.** Porovnává se s id přihlášeného účtu, zjištěným jednou při
+  přihlášení; v seznamu by vypadalo divně, že chat hlásí psaní, když píšeme my.
+- **Činnost má přednost před náhledem zprávy** a odlišuje se barvou — je to novější informace
+  a obojí najednou se do řádku nevejde.
+- **Telegram dostupnost záměrně rozmazává.** Kdo si to v soukromí vypne, je vidět jen jako
+  „naposledy nedávno" a přesný čas nedostaneme. Proto je `Presence` několik pojmenovaných stupňů,
+  ne čas — dopočítávat minutu, kterou neznáme, by bylo horší než neurčitost.
+
 ### Akce nad chatem
 
 Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečtené, smazat/opustit.

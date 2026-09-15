@@ -10,7 +10,27 @@ import dev.g000sha256.tdl.dto.ChatListMain
 import dev.g000sha256.tdl.dto.ChatNotificationSettings
 import dev.g000sha256.tdl.dto.ChatPosition
 import dev.g000sha256.tdl.dto.ChatTypePrivate
+import dev.g000sha256.tdl.dto.ChatAction
+import dev.g000sha256.tdl.dto.ChatActionCancel
+import dev.g000sha256.tdl.dto.ChatActionChoosingSticker
+import dev.g000sha256.tdl.dto.ChatActionRecordingVideo
+import dev.g000sha256.tdl.dto.ChatActionRecordingVideoNote
+import dev.g000sha256.tdl.dto.ChatActionRecordingVoiceNote
+import dev.g000sha256.tdl.dto.ChatActionTyping
+import dev.g000sha256.tdl.dto.ChatActionUploadingDocument
+import dev.g000sha256.tdl.dto.ChatActionUploadingPhoto
+import dev.g000sha256.tdl.dto.ChatActionUploadingVideo
+import dev.g000sha256.tdl.dto.ChatActionUploadingVideoNote
+import dev.g000sha256.tdl.dto.ChatActionUploadingVoiceNote
 import dev.g000sha256.tdl.dto.ChatTypeSecret
+import dev.g000sha256.tdl.dto.MessageSenderUser
+import dev.g000sha256.tdl.dto.UserStatus
+import dev.g000sha256.tdl.dto.UserStatusLastWeek
+import dev.g000sha256.tdl.dto.UserStatusOffline
+import dev.g000sha256.tdl.dto.UserStatusOnline
+import dev.g000sha256.tdl.dto.UserStatusRecently
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -52,6 +72,12 @@ class TdlChatRepository(
     private var exhausted = false
     private var started = false
 
+    /** Id přihlášeného účtu; `null`, dokud přihlášení neproběhne. */
+    private var myUserId: Long? = null
+
+    /** Odpočty zhasnutí „píše…", jeden na chat. */
+    private val activityTimers = mutableMapOf<Long, Job>()
+
     init {
         start()
     }
@@ -69,7 +95,13 @@ class TdlChatRepository(
         scope.launch {
             session.authStage.collect { stage ->
                 when (stage) {
-                    AuthStage.Ready -> loadMore()
+                    AuthStage.Ready -> {
+                        // Vlastní id se potřebuje u „píše…", aby se nehlásila naše vlastní
+                        // činnost. Zjišťuje se jednou, ne při každém updatu.
+                        myUserId = session.me().getOrNull()?.id
+                        loadMore()
+                    }
+
                     AuthStage.LoggedOut -> clear()
                     else -> Unit
                 }
@@ -97,6 +129,7 @@ class TdlChatRepository(
                     val position = update.positions.mainPosition()
                     current.copy(
                         lastMessagePreview = update.lastMessage?.previewText(),
+                        lastMessageTimestamp = update.lastMessage?.date,
                         order = position?.order ?: current.order,
                         isPinned = position?.isPinned ?: current.isPinned,
                     )
@@ -130,12 +163,73 @@ class TdlChatRepository(
             }
         }
 
+        /*
+         * Dostupnost protějšku.
+         *
+         * V soukromém chatu je `chatId` shodné s `userId`, takže se update mapuje přímo na
+         * položku seznamu. U skupin se stav uživatelů hlásí taky, ale k ničemu tam není —
+         * `edit` prostě nenajde chat s takovým id a nic se nestane.
+         */
+        scope.launch {
+            client.userStatusUpdates.collect { update ->
+                edit(update.userId) { it.copy(presence = update.status.toPresence()) }
+            }
+        }
+
+        /*
+         * „Píše…" a spol.
+         *
+         * Vlastní činnost se zahazuje — v seznamu by vypadalo divně, že chat hlásí psaní,
+         * když píšeme my. TDLib činnost ukončuje samostatným `ChatActionCancel`, ale spolehnout
+         * se na něj nestačí: kdyby se ztratil, zůstalo by „píše…" viset napořád. Proto se
+         * každá činnost sama zhasne, když ji TDLib do [ACTIVITY_TIMEOUT_MS] nezopakuje.
+         */
+        scope.launch {
+            client.chatActionUpdates.collect { update ->
+                val fromMe = (update.senderId as? MessageSenderUser)?.userId == myUserId
+                val activity = if (fromMe) null else update.action.toActivity()
+
+                edit(update.chatId) { it.copy(activity = activity) }
+
+                if (activity != null) scheduleActivityExpiry(update.chatId, activity)
+            }
+        }
+
         // Odebrání ze složky — chat sice dál existuje, ale v hlavním seznamu nemá co dělat.
         scope.launch {
             client.chatRemovedFromListUpdates.collect { update ->
                 if (update.chatList.isMain()) remove(update.chatId)
             }
         }
+    }
+
+    /**
+     * Zhasnutí činnosti, pokud ji TDLib mezitím nezopakoval.
+     *
+     * Běží vždycky jen jedna úloha na chat: nová zpráva o psaní tu předchozí zruší, takže se
+     * odpočet posouvá a při souvislém psaní nikdy nedoběhne.
+     */
+    private fun scheduleActivityExpiry(chatId: Long, activity: ChatActivity) {
+        activityTimers.remove(chatId)?.cancel()
+
+        activityTimers[chatId] = scope.launch {
+            delay(ACTIVITY_TIMEOUT_MS)
+            edit(chatId) { if (it.activity == activity) it.copy(activity = null) else it }
+        }
+    }
+
+    /**
+     * Doplní počáteční dostupnost protějšku.
+     *
+     * `updateUserStatus` chodí jen na ZMĚNU, takže bez tohohle by zelená tečka naskočila až ve
+     * chvíli, kdy se protějšek odpojí a zase připojí. V soukromém chatu je `chatId` shodné
+     * s `userId`, takže není co dohledávat.
+     */
+    private suspend fun ChatSummary.withPresence(): ChatSummary {
+        if (!isPrivate) return this
+
+        val status = client.getUser(id).toResult().getOrNull()?.status ?: return this
+        return copy(presence = status.toPresence())
     }
 
     override suspend fun setPinned(chatId: Long, pinned: Boolean): Result<Unit> =
@@ -260,7 +354,7 @@ class TdlChatRepository(
         // `Array<T>` a `Iterable`, ne pro primitivní pole.
         val summaries = chatIds.toList().mapNotNull { chatId ->
             when (val chat = client.getChat(chatId)) {
-                is TdlResult.Success -> chat.result.toSummaryOrNull()
+                is TdlResult.Success -> chat.result.toSummaryOrNull()?.withPresence()
                 is TdlResult.Failure -> {
                     logger.w { "getChat($chatId) selhalo: ${chat.code} ${chat.message}" }
                     null
@@ -268,7 +362,7 @@ class TdlChatRepository(
             }
         }
 
-        mutex.withLock { summaries.forEach { known[it.id] = it } }
+        mutex.withLock { summaries.forEach { known[it.id] = it.keepingLiveState(known[it.id]) } }
 
         // I prázdný výsledek je výsledek — bez tohohle by seznam bez chatů zůstal viset na spinneru.
         publish()
@@ -291,9 +385,22 @@ class TdlChatRepository(
     }
 
     private suspend fun put(summary: ChatSummary) {
-        mutex.withLock { known[summary.id] = summary }
+        mutex.withLock { known[summary.id] = summary.keepingLiveState(known[summary.id]) }
         publish()
     }
+
+    /**
+     * Dostupnost a činnost přežijí přepsání chatu.
+     *
+     * `Chat` od TDLib je nenese — chodí samostatnými updaty. Kdyby se položka přepsala rovnou,
+     * každá nová zpráva (`UpdateNewChat` při dotažení další stránky, seed z databáze) by zhasla
+     * zelenou tečku i „píše…", protože obojí by se vrátilo na `null`.
+     */
+    private fun ChatSummary.keepingLiveState(previous: ChatSummary?): ChatSummary =
+        if (previous == null) this else copy(
+            presence = presence ?: previous.presence,
+            activity = activity ?: previous.activity,
+        )
 
     /**
      * Upraví existující záznam. Když chat ještě neznáme, update se **zahodí** — bez `UpdateNewChat`
@@ -336,6 +443,12 @@ class TdlChatRepository(
          * Telegram to takhle sám interpretuje jako trvalé ztlumení.
          */
         const val MUTE_FOREVER = Int.MAX_VALUE
+
+        /**
+         * Po jak dlouhém tichu se „píše…" zhasne samo. TDLib činnost při psaní opakuje
+         * zhruba po pěti sekundách, takže tohle nechytne souvislé psaní, jen ztracený konec.
+         */
+        const val ACTIVITY_TIMEOUT_MS = 8_000L
     }
 }
 
@@ -358,6 +471,11 @@ private fun Chat.toSummaryOrNull(): ChatSummary? {
         isMuted = notificationSettings.isMuted(),
         isMarkedAsUnread = isMarkedAsUnread,
         isPrivate = type is ChatTypePrivate || type is ChatTypeSecret,
+        lastMessageTimestamp = lastMessage?.date,
+        // Dostupnost `Chat` nenese — dorazí updatem. Do té doby je `null`, což UI kreslí
+        // prostě bez tečky.
+        presence = null,
+        activity = null,
     )
 }
 
@@ -373,3 +491,30 @@ private fun Array<ChatPosition>.mainPosition(): ChatPosition? = firstOrNull { it
  * číst v tom případě `muteFor` nemá smysl, TDLib tam dává zbytek po předchozím nastavení.
  */
 private fun ChatNotificationSettings.isMuted(): Boolean = !useDefaultMuteFor && muteFor > 0
+
+/** Stav uživatele na doménovou dostupnost. Neznámé a prázdné stavy se tváří jako „dávno". */
+internal fun UserStatus.toPresence(): Presence = when (this) {
+    is UserStatusOnline -> Presence.Online
+    is UserStatusOffline -> Presence.Offline(wasOnline)
+    is UserStatusRecently -> Presence.Recently
+    is UserStatusLastWeek -> Presence.LastWeek
+    else -> Presence.LastMonth
+}
+
+/**
+ * Činnost v chatu.
+ *
+ * `ChatActionCancel` znamená konec, ne druh činnosti — proto `null`. Nahrávání a odesílání se
+ * rozlišuje, protože „nahrává hlasovku" je pro čekajícího jiná informace než „píše".
+ */
+internal fun ChatAction.toActivity(): ChatActivity? = when (this) {
+    is ChatActionCancel -> null
+    is ChatActionTyping -> ChatActivity.Typing
+    is ChatActionRecordingVoiceNote -> ChatActivity.RecordingVoice
+    is ChatActionRecordingVideo, is ChatActionRecordingVideoNote -> ChatActivity.RecordingVideo
+    is ChatActionUploadingPhoto -> ChatActivity.SendingPhoto
+    is ChatActionUploadingVideo, is ChatActionUploadingVideoNote -> ChatActivity.SendingVideo
+    is ChatActionUploadingDocument, is ChatActionUploadingVoiceNote -> ChatActivity.SendingFile
+    is ChatActionChoosingSticker -> ChatActivity.ChoosingSticker
+    else -> ChatActivity.Other
+}

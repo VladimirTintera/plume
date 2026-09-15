@@ -68,8 +68,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.emojiClusterCount
 import eu.tintera.plume.core.ui.chatTitleKey
@@ -230,15 +232,32 @@ fun ConversationScreen(
                                 modifier = Modifier.sharedNavElement(chatAvatarKey(info.id)),
                             )
                         }
-                        Text(
-                            text = state.info?.title ?: "Konverzace",
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            // Klíč se dá jen když chat známe; než dorazí `info`, není s čím párovat.
-                            modifier = state.info
-                                ?.let { Modifier.sharedNavText(chatTitleKey(it.id)) }
-                                ?: Modifier,
-                        )
+                        Column {
+                            Text(
+                                text = state.info?.title ?: "Konverzace",
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                // Klíč se dá jen když chat známe; než dorazí `info`, není s čím
+                                // párovat.
+                                modifier = state.info
+                                    ?.let { Modifier.sharedNavText(chatTitleKey(it.id)) }
+                                    ?: Modifier,
+                            )
+
+                            // Podtitul jen v soukromém chatu — skupina žádnou dostupnost nemá.
+                            state.presence?.let { presence ->
+                                Text(
+                                    text = presence.describe(),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (presence is Presence.Online) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    maxLines = 1,
+                                )
+                            }
+                        }
                     }
                 },
                 navigationIcon = {
@@ -938,4 +957,19 @@ private fun ServiceMessage(message: ChatMessage, modifier: Modifier = Modifier) 
             )
         }
     }
+}
+
+/**
+ * „Naposledy viděn" do hlavičky.
+ *
+ * Telegram dostupnost **záměrně rozmazává**: kdo si to v soukromí vypne, je vidět jen jako
+ * „naposledy nedávno" a přesný čas nedostaneme. Proto se nikde nedopočítává nic přesnějšího,
+ * než co server dal — vymyslet minutu, kterou neznáme, by bylo horší než neurčitost.
+ */
+private fun Presence.describe(): String = when (this) {
+    Presence.Online -> "online"
+    Presence.Recently -> "naposledy nedávno"
+    Presence.LastWeek -> "naposledy tento týden"
+    Presence.LastMonth -> "naposledy tento měsíc"
+    is Presence.Offline -> "naposledy " + wasOnline.asRelativeTime()
 }

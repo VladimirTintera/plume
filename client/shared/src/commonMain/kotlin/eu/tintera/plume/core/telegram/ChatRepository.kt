@@ -80,4 +80,53 @@ data class ChatSummary(
      * a kanálu odchod. Jsou to dvě různé věci a nabídnout je pod jedním popiskem by lhalo.
      */
     val isPrivate: Boolean,
+    /** Unixový čas poslední zprávy, nebo `null` u prázdného chatu. */
+    val lastMessageTimestamp: Int?,
+    /** Dostupnost protějšku. `null` u skupin a kanálů — ty žádnou nemají. */
+    val presence: Presence?,
+    /**
+     * Co protějšek zrovna dělá. `null`, když nic.
+     *
+     * Je to **pomíjivý stav**, ne vlastnost chatu: TDLib ho posílá opakovaně, dokud činnost trvá,
+     * a ukončuje ho zvlášť. V seznamu nahrazuje náhled poslední zprávy.
+     */
+    val activity: ChatActivity?,
 )
+
+/**
+ * Dostupnost uživatele.
+ *
+ * Telegram ji záměrně rozmazává: kdo si to v soukromí vypne, je vidět jen jako „naposledy nedávno"
+ * a přesný čas nedostaneme. Proto to nejsou hodiny, ale několik pojmenovaných stupňů.
+ */
+sealed interface Presence {
+
+    data object Online : Presence
+
+    /** [wasOnline] je unixový čas posledního připojení. */
+    data class Offline(val wasOnline: Int) : Presence
+
+    /** Uživatel si přesný čas nepřeje zveřejňovat. */
+    data object Recently : Presence
+
+    data object LastWeek : Presence
+
+    data object LastMonth : Presence
+}
+
+/**
+ * Činnost v chatu („píše…").
+ *
+ * Neznámé a exotické druhy spadnou do [Other] — hlásit „něco dělá" je pořád lepší než mlčet,
+ * protože uživatele zajímá hlavně to, že protějšek je u telefonu.
+ */
+enum class ChatActivity {
+    Typing,
+    RecordingVoice,
+    RecordingVideo,
+    SendingPhoto,
+    SendingVideo,
+    SendingFile,
+    ChoosingSticker,
+    Other,
+}

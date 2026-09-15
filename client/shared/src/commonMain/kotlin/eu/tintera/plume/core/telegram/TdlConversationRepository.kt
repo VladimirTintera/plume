@@ -23,6 +23,7 @@ import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.sync.Mutex
@@ -235,6 +236,22 @@ class TdlConversationRepository(
                     isGroup = chat.type is ChatTypeBasicGroup || chat.type is ChatTypeSupergroup,
                 )
             }
+
+    /**
+     * Dostupnost protějšku.
+     *
+     * Nejdřív se jednou přečte aktuální stav, teprve pak se navazují updaty: `updateUserStatus`
+     * chodí jen na ZMĚNU, takže bez toho prvního čtení by hlavička zůstala prázdná, dokud se
+     * protějšek neodpojí. V soukromém chatu je `chatId` shodné s `userId`.
+     */
+    override fun presenceUpdates(chatId: Long): Flow<Presence> = flow {
+        val initial = client.getUser(chatId).toResult().getOrNull()?.status
+        if (initial != null) emit(initial.toPresence())
+
+        client.userStatusUpdates
+            .filter { it.userId == chatId }
+            .collect { emit(it.status.toPresence()) }
+    }
 
     override suspend fun sponsoredMessages(chatId: Long): Result<List<SponsoredMessage>> =
         client.getChatSponsoredMessages(chatId = chatId)

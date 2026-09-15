@@ -72,6 +72,14 @@ interface ConversationRepository {
     /** Posun ukazatele „protějšek přečetl až sem". */
     fun readOutboxUpdates(chatId: Long): Flow<Long>
 
+    /**
+     * Dostupnost protějšku, jak se mění.
+     *
+     * Samostatný flow, ne pole v [ChatInfo]: hlavička se skládá jednou, ale „naposledy viděn"
+     * se mění nezávisle na všem ostatním. U skupin a kanálů nevydá nic.
+     */
+    fun presenceUpdates(chatId: Long): Flow<Presence>
+
     /** Označí zprávy za přečtené. Bez tohohle zůstane odznak nepřečtených viset napořád. */
     suspend fun markRead(chatId: Long, messageIds: List<Long>): Result<Unit>
 
