@@ -48,7 +48,7 @@ se objeví odznak s počtem čekajících.
 vysvětlení před systémovým dialogem a řádku v Nastavení, kterým je lze kdykoliv zapnout zpět.
 
 **Není hotové:** přehrávání videa a zvuku, otevírání dokumentů, editace, skok na první
-nepřečtenou zprávu, notifikace na iOS, sponsored messages, perzistence nastavení.
+nepřečtenou zprávu, notifikace na iOS, perzistence nastavení.
 
 ## Rozjetí
 
@@ -134,7 +134,8 @@ Z [Telegram API ToS](https://core.telegram.org/api/terms) — tohle shodí revie
 
 - Název **nesmí obsahovat „Telegram"** bez předřazeného „Unofficial". Oficiální logo je registrovaná známka.
 - V popisu na storu musí být **prominentně uvedeno**, že appka používá Telegram API.
-- **Sponsored messages v kanálech se musí zobrazovat** a nesmí se do nich zasahovat.
+- **Sponsored messages v kanálech se musí zobrazovat** a nesmí se do nich zasahovat — implementováno
+  včetně hlášení zhlédnutí a kliknutí.
 - Zákaz použití dat k trénování AI/ML.
 - Povinnost open-source **není** — TDLib je pod Boost licencí, ne GPL.
 

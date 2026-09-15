@@ -8,6 +8,8 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.SentMessageUpdate
+import eu.tintera.plume.core.telegram.SponsoredMessage
+import eu.tintera.plume.core.ui.UrlOpener
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +29,7 @@ import kotlinx.coroutines.sync.withLock
 class ConversationViewModel(
     private val chatId: Long,
     private val repository: ConversationRepository,
+    private val urlOpener: UrlOpener,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ConversationState())
@@ -40,6 +43,9 @@ class ConversationViewModel(
     /** Rozlišuje jednotlivé lety textu do bubliny, když uživatel odešle dvě zprávy rychle po sobě. */
     private var flightCounter = 0L
 
+    /** Už nahlášená zhlédnutí reklam — každé se hlásí jen jednou. */
+    private val reportedSponsoredViews = mutableSetOf<Long>()
+
     init {
         viewModelScope.launch {
             repository.chatInfo(chatId).onSuccess { info ->
@@ -49,8 +55,39 @@ class ConversationViewModel(
             }
         }
 
+        viewModelScope.launch {
+            // Mimo kanály vrací TDLib prázdný seznam, takže se nemusí ptát na typ chatu.
+            repository.sponsoredMessages(chatId).onSuccess { sponsored ->
+                _state.update { it.copy(sponsored = sponsored) }
+            }
+        }
+
         loadOlder()
         observeUpdates()
+    }
+
+    /**
+     * Nahlásí zhlédnutí reklamy. Volá obrazovka, teprve až je vidět celá.
+     *
+     * Hlásí se **jen jednou za relaci** — opakované hlášení téhož zhlédnutí při každém scrollu
+     * by nafouklo statistiku inzerenta.
+     */
+    fun reportSponsoredSeen(messageId: Long) {
+        if (!reportedSponsoredViews.add(messageId)) return
+        viewModelScope.launch { repository.reportSponsoredView(chatId, messageId) }
+    }
+
+    /**
+     * Zpracuje kliknutí na reklamu.
+     *
+     * Hlášení odchází **před** otevřením odkazu — jakmile se otevře prohlížeč, aplikace jde do
+     * pozadí a doručení by už nebylo jisté.
+     */
+    fun onSponsoredClick(sponsored: SponsoredMessage) {
+        viewModelScope.launch {
+            repository.reportSponsoredClick(chatId, sponsored.messageId)
+            urlOpener.open(sponsored.url)
+        }
     }
 
     /**
@@ -382,6 +419,8 @@ data class ConversationState(
     val quotes: Map<Long, ChatMessage> = emptyMap(),
     /** Protějšek přečetl odchozí zprávy až po tohle id včetně. */
     val lastReadOutboxMessageId: Long = 0L,
+    /** Reklamy k zobrazení. Podle Telegram ToS se nesmí filtrovat ani skrývat. */
+    val sponsored: List<SponsoredMessage> = emptyList(),
     /** Text právě letící ze vstupního pole do bubliny; `null` když se nic neodesílá. */
     val flight: MessageFlight? = null,
     /** Od nejnovější po nejstarší. */

@@ -169,6 +169,33 @@ fun ConversationScreen(
         if (atBottom) pendingNewMessages = 0
     }
 
+    // Zhlédnutí reklamy se hlásí, teprve až je karta na obrazovce CELÁ. TDLib to vyžaduje
+    // („když je vidět celý text"); hlásit ji při prvním pixelu by znamenalo vykazovat
+    // inzerentovi zhlédnutí, která se nestala. Beru přísnější podmínku — celá karta včetně
+    // tlačítka — protože rozměr samotného textu odsud nezjistím.
+    LaunchedEffect(listState, state.sponsored) {
+        if (state.sponsored.isEmpty()) return@LaunchedEffect
+
+        snapshotFlow {
+            val info = listState.layoutInfo
+            info.visibleItemsInfo
+                .filter { item ->
+                    item.offset >= info.viewportStartOffset &&
+                        item.offset + item.size <= info.viewportEndOffset
+                }
+                .mapNotNull { it.key as? String }
+                .filter { it.startsWith(SPONSORED_KEY_PREFIX) }
+                .toSet()
+        }
+            .debounce(SPONSORED_VIEW_DEBOUNCE_MS)
+            .collect { keys ->
+                keys.forEach { key ->
+                    key.removePrefix(SPONSORED_KEY_PREFIX).toLongOrNull()
+                        ?.let(viewModel::reportSponsoredSeen)
+                }
+            }
+    }
+
     // Přečtení se hlásí až když se scrollování uklidní — jinak by při rychlém průletu odešla
     // jedna žádost na každý snímek.
     LaunchedEffect(listState, state.messages) {
@@ -248,6 +275,16 @@ fun ConversationScreen(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
+                    // Reklama patří pod nejnovější zprávu. Při `reverseLayout` je „dole"
+                    // začátek seznamu, takže stojí PŘED zprávami.
+                    items(state.sponsored, key = { "sponsored-${it.messageId}" }) { sponsored ->
+                        SponsoredCard(
+                            sponsored = sponsored,
+                            onClick = { viewModel.onSponsoredClick(sponsored) },
+                            modifier = Modifier.padding(vertical = 8.dp),
+                        )
+                    }
+
                     items(state.messages, key = { it.id }) { message ->
                         val index = state.messages.indexOf(message)
                         MessageBubble(
@@ -653,6 +690,12 @@ fun ConversationPlaceholder(modifier: Modifier = Modifier) {
 
 private const val LOAD_MORE_THRESHOLD = 5
 private const val READ_DEBOUNCE_MS = 400L
+
+/** Prefix klíče reklamní položky; podle něj se v seznamu pozná pro hlášení zhlédnutí. */
+private const val SPONSORED_KEY_PREFIX = "sponsored-"
+
+/** Jak dlouho musí být reklama v klidu na obrazovce, než se zhlédnutí nahlásí. */
+private const val SPONSORED_VIEW_DEBOUNCE_MS = 1000L
 
 /** Zaoblení bubliny. Sdílí ho i startovní strana letu, aby se tvar po cestě neměnil. */
 private val BUBBLE_CORNER = 18.dp

@@ -17,6 +17,7 @@ import dev.g000sha256.tdl.dto.MessageSendingState
 import dev.g000sha256.tdl.dto.MessageSendingStateFailed
 import dev.g000sha256.tdl.dto.MessageSendingStatePending
 import dev.g000sha256.tdl.dto.MessageSourceChatHistory
+import dev.g000sha256.tdl.dto.MessageText
 import dev.g000sha256.tdl.dto.ReactionTypeEmoji
 import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.toResult
@@ -234,6 +235,47 @@ class TdlConversationRepository(
                     isGroup = chat.type is ChatTypeBasicGroup || chat.type is ChatTypeSupergroup,
                 )
             }
+
+    override suspend fun sponsoredMessages(chatId: Long): Result<List<SponsoredMessage>> =
+        client.getChatSponsoredMessages(chatId = chatId)
+            .toResult()
+            .map { sponsored ->
+                sponsored.messages.filterNotNull().map { message ->
+                    SponsoredMessage(
+                        messageId = message.messageId,
+                        title = message.title,
+                        // Obsah je MessageContent jako u běžné zprávy; reklamy jsou v praxi text.
+                        text = (message.content as? MessageText)?.text?.text.orEmpty(),
+                        buttonText = message.buttonText,
+                        url = message.sponsor.url,
+                        isRecommended = message.isRecommended,
+                        additionalInfo = message.additionalInfo.takeIf { it.isNotBlank() },
+                    )
+                }
+            }
+
+    override suspend fun reportSponsoredView(chatId: Long, messageId: Long): Result<Unit> =
+        // TDLib nemá pro sponzorované zprávy zvláštní funkci — jejich id se předává do
+        // `viewMessages` stejně jako u běžných.
+        client.viewMessages(
+            chatId = chatId,
+            messageIds = longArrayOf(messageId),
+            source = MessageSourceChatHistory(),
+            forceRead = false,
+        )
+            .toResult()
+            .map { }
+
+    override suspend fun reportSponsoredClick(chatId: Long, messageId: Long): Result<Unit> =
+        client.clickChatSponsoredMessage(
+            chatId = chatId,
+            messageId = messageId,
+            // Klikáme na tlačítko, ne na médium, a ne z celoobrazovkového režimu.
+            isMediaClick = false,
+            fromFullscreen = false,
+        )
+            .toResult()
+            .map { }
 
     private suspend fun isGroup(chatId: Long): Boolean =
         chatInfo(chatId).map { it.isGroup }.getOrDefault(false)

@@ -220,6 +220,22 @@ obrazovky, ne na aplikaci.
 - **„Jsem dole" kontroluje i offset**, ne jen index 0. Bez toho se za dole považuje i stav,
   kdy je poslední bublina z půlky za okrajem.
 
+## Sponzorované zprávy
+
+Zobrazení je podle [Telegram API ToS](https://core.telegram.org/api/terms) **povinné** a klient
+do reklam nesmí zasahovat — nesmí je filtrovat, skrývat, ani měnit popisek tlačítka.
+
+- **Zhlédnutí se hlásí přes `viewMessages`**, ne zvláštní funkcí. `viewSponsoredMessage` v TDLib
+  1.8.67 už neexistuje; id sponzorované zprávy se předává do `viewMessages` stejně jako u běžné.
+- **Hlásí se, teprve až je vidět celý text** (bez tlačítka) — tak to TDLib vyžaduje. Bereme
+  přísnější podmínku: celá karta ve viewportu, protože rozměr samotného textu odsud nezjistíme.
+- **Každé zhlédnutí jen jednou za relaci.** Opakované hlášení při každém scrollu by nafouklo
+  statistiku inzerenta.
+- **Kliknutí se hlásí PŘED otevřením odkazu** — jakmile se otevře prohlížeč, aplikace jde do
+  pozadí a doručení už není jisté.
+- **Prázdný seznam je normální stav**, ne chyba: reklamy se servírují jen v dost velkých veřejných
+  kanálech, nikdy uživatelům s Premium, a závisí na dostupné inzerci.
+
 ## Soubory a média
 
 TDLib **nedává URL**. Soubory drží ve vlastním adresáři a identifikuje je celočíselným `fileId`;

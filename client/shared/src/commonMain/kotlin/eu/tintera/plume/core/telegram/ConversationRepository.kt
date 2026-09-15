@@ -76,6 +76,25 @@ interface ConversationRepository {
     suspend fun markRead(chatId: Long, messageIds: List<Long>): Result<Unit>
 
     suspend fun chatInfo(chatId: Long): Result<ChatInfo>
+
+    /**
+     * Sponzorované zprávy pro daný chat. Mimo kanály vrací prázdný seznam.
+     *
+     * Zobrazení je podle Telegram ToS **povinné** — výsledek se nesmí filtrovat ani skrývat.
+     */
+    suspend fun sponsoredMessages(chatId: Long): Result<List<SponsoredMessage>>
+
+    /**
+     * Nahlásí, že uživatel sponzorovanou zprávu viděl.
+     *
+     * Volá se teprve, když je na obrazovce **celý text** reklamy (bez tlačítka) — tak to
+     * vyžaduje TDLib. Hlásit ji při prvním pixelu by znamenalo vykazovat zhlédnutí, která
+     * se nestala.
+     */
+    suspend fun reportSponsoredView(chatId: Long, messageId: Long): Result<Unit>
+
+    /** Nahlásí kliknutí. Musí odejít dřív, než se otevře odkaz. */
+    suspend fun reportSponsoredClick(chatId: Long, messageId: Long): Result<Unit>
 }
 
 /** Hlavička konverzace. */

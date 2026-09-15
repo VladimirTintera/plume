@@ -79,5 +79,7 @@ fun appModule() = module {
     viewModelOf(::SettingsViewModel)
 
     // chatId přichází z navigační routy, ne z grafu → runtime parametr.
-    viewModel { parameters -> ConversationViewModel(chatId = parameters.get(), repository = get()) }
+    viewModel { parameters ->
+        ConversationViewModel(chatId = parameters.get(), repository = get(), urlOpener = get())
+    }
 }
