@@ -121,6 +121,25 @@ přibýt — ven z obrazovky se chodí přes `onBack` NavDisplaye.
 takže sekce si nedrží vlastní historii. Pro Chaty/Nastavení to nevadí. Až přibude sekce s hlubší
 navigací, patří sem multi-stack (vzor: `MultiStackNavigationState` v mlogu).
 
+## Seznam chatů
+
+Položky nejsou samostatné karty, ale **skupiny se společným zaoblením** — vzor, kterým M3
+Expressive nahrazuje karty per položku. Skupiny jsou tři: připnuté, nepřečtené, ostatní.
+
+- **Zaoblení nese krajní položka skupiny**: velké nahoře u první, velké dole u poslední, malé
+  (4 dp) mezi nimi. S rozestupem 2 dp uvnitř skupiny a 14 dp mezi skupinami z toho vznikne blok.
+- **Zaoblení se animuje.** Skupiny se přeskládávají za běhu — přečtený chat přeskočí
+  z nepřečtených mezi ostatní — a tvary jeho sousedů se tím mění. Skoková změna by při
+  současném `animateItem()` působila jako chyba vykreslení.
+- **Prázdné skupiny se zahazují**, jinak by po nich zbyla mezera. Bez připnutých a bez
+  nepřečtených je z celého seznamu zase jeden souvislý blok.
+- **Pořadí uvnitř skupiny zůstává od TDLib.** Je to pořadí, na které je uživatel zvyklý
+  z ostatních klientů; přeskládávat ho by znamenalo rozhodovat za něj.
+- **Důsledek, se kterým se počítá:** přečtení chatu ho přesune ze skupiny nepřečtených dolů mezi
+  ostatní. Při návratu z konverzace tedy chat nezůstane tam, kde na něj uživatel klikl.
+- **Mezera mezi skupinami se přidává u první položky skupiny**, ne ve `verticalArrangement` —
+  `LazyColumn` o sousedech položky nic neví. Stejný postup jako u rozestupů zpráv v konverzaci.
+
 ## Konverzace
 
 Hranice je [ConversationRepository]; na rozdíl od [ChatRepository] je **bezstavová**. Stránkovací

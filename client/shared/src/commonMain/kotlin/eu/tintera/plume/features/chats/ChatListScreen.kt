@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
@@ -123,17 +125,32 @@ fun ChatListScreen(
                         start = 16.dp,
                         end = 16.dp,
                     ),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    // Rozestup UVNITŘ skupiny. Mezera mezi skupinami se přidává u její první
+                    // položky — seznam o sousedech položky nic neví.
+                    verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
                 ) {
-                    items(current.chats, key = { it.id }) { chat ->
-                        ChatRow(
-                            chat = chat,
-                            selected = chat.id == selectedChatId,
-                            onClick = { onChatClick(chat.id) },
-                            // Animace přeskládání při změně pořadí — bez toho by chaty
-                            // při nové zprávě skákaly.
-                            modifier = Modifier.animateItem(),
-                        )
+                    val groups = current.chats.grouped()
+
+                    groups.forEachIndexed { groupIndex, group ->
+                        itemsIndexed(group, key = { _, chat -> chat.id }) { index, chat ->
+                            ChatRow(
+                                chat = chat,
+                                selected = chat.id == selectedChatId,
+                                // Krajní položky skupiny nesou její zaoblení, prostřední
+                                // se drží u sebe.
+                                firstInGroup = index == 0,
+                                lastInGroup = index == group.lastIndex,
+                                onClick = { onChatClick(chat.id) },
+                                // Animace přeskládání při změně pořadí — bez toho by chaty
+                                // při nové zprávě skákaly.
+                                modifier = Modifier
+                                    .animateItem()
+                                    .padding(
+                                        top = if (index == 0 && groupIndex > 0) GROUP_SPACING
+                                        else 0.dp,
+                                    ),
+                            )
+                        }
                     }
                 }
             }
@@ -141,10 +158,27 @@ fun ChatListScreen(
     }
 }
 
+/**
+ * Rozdělení seznamu na skupiny: připnuté, nepřečtené, ostatní.
+ *
+ * Pořadí uvnitř skupiny zůstává takové, jaké dává TDLib — to je pořadí chatů, na které je
+ * uživatel zvyklý z ostatních klientů, a přeskládávat ho by znamenalo rozhodovat za něj.
+ *
+ * Prázdné skupiny vypadnou, aby po nich nezbyla mezera. Když jsou všechny chaty přečtené,
+ * je z toho zase jeden souvislý blok.
+ */
+private fun List<ChatSummary>.grouped(): List<List<ChatSummary>> = listOf(
+    filter { it.isPinned },
+    filter { !it.isPinned && it.unreadCount > 0 },
+    filter { !it.isPinned && it.unreadCount == 0 },
+).filter { it.isNotEmpty() }
+
 @Composable
 private fun ChatRow(
     chat: ChatSummary,
     selected: Boolean,
+    firstInGroup: Boolean,
+    lastInGroup: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -159,7 +193,33 @@ private fun ChatRow(
         CardDefaults.cardColors()
     }
 
-    Card(onClick = onClick, modifier = modifier.fillMaxWidth(), colors = colors) {
+    /*
+     * Zaoblení dělá ze sousedních položek jeden blok: velké nahoře u první, velké dole
+     * u poslední, malé mezi nimi. Animuje se, protože skupiny se přeskládávají za běhu —
+     * přečtený chat přeskočí z nepřečtených mezi ostatní a tvary sousedů se tím mění.
+     */
+    val topCorner by animateDpAsState(
+        targetValue = if (firstInGroup) GROUP_CORNER else INNER_CORNER,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "chat-corner-top",
+    )
+    val bottomCorner by animateDpAsState(
+        targetValue = if (lastInGroup) GROUP_CORNER else INNER_CORNER,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "chat-corner-bottom",
+    )
+
+    Card(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(
+            topStart = topCorner,
+            topEnd = topCorner,
+            bottomStart = bottomCorner,
+            bottomEnd = bottomCorner,
+        ),
+        colors = colors,
+    ) {
         Row(
             Modifier.padding(16.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -218,3 +278,15 @@ private fun ChatRow(
 
 /** Kolik položek před koncem už spustí dotažení další dávky. */
 private const val LOAD_MORE_THRESHOLD = 5
+
+/** Zaoblení na krajích skupiny. */
+private val GROUP_CORNER = 20.dp
+
+/** Zaoblení mezi sousedy uvnitř skupiny — tak akorát, aby byly rozeznatelné, ne oddělené. */
+private val INNER_CORNER = 4.dp
+
+/** Rozestup mezi položkami jedné skupiny. */
+private val GROUP_ITEM_SPACING = 2.dp
+
+/** Mezera mezi skupinami. */
+private val GROUP_SPACING = 14.dp

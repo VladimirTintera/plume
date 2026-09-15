@@ -53,6 +53,9 @@ se startuje od nuly.
 **Emoji a samolepky:** zpráva jen z emoji se kreslí velká a bez bubliny, samolepky se vykreslují
 jako obrázek (animované zatím jako nehybný náhled).
 
+**Seznam chatů je seskupený** do bloků se společným zaoblením (připnuté, nepřečtené, ostatní),
+jak to dělá M3 Expressive místo karet per položku.
+
 **Ostatní typy zpráv** (ankety, polohy, kontakty, video kolečka, platby) se zatím nevykreslují,
 ale mají popis; systémová oznámení se kreslí na střed jako v běžném klientovi.
 
