@@ -5,6 +5,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
+import androidx.core.graphics.drawable.IconCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
@@ -41,6 +43,9 @@ actual class NotificationPresenter(
      * Čte i zapisuje jen kolektor updatů, tedy jedna korutina — zámek proto není potřeba.
      */
     private val conversations = mutableMapOf<Int, Conversation>()
+
+    /** Dekódované profilovky podle cesty. Sahá se na ně ze stejné korutiny jako na [conversations]. */
+    private val icons = mutableMapOf<String, IconCompat>()
 
     actual fun start(repository: NotificationRepository) {
         createChannel()
@@ -85,7 +90,15 @@ actual class NotificationPresenter(
 
             val added = batch
                 .filter { line -> conversation.lines.none { it.notificationId == line.notificationId } }
-                .map { Line(it.notificationId, it.senderName, it.text, it.timestamp * 1000L) }
+                .map {
+                    Line(
+                        notificationId = it.notificationId,
+                        sender = it.senderName,
+                        text = it.text,
+                        timestampMs = it.timestamp * 1000L,
+                        icon = avatarIcon(it.avatarPath),
+                    )
+                }
 
             conversation.lines = (conversation.lines + added)
                 .sortedBy { it.timestampMs }
@@ -145,7 +158,10 @@ actual class NotificationPresenter(
             style.addMessage(
                 line.text,
                 line.timestampMs,
-                Person.Builder().setName(line.sender ?: conversation.title).build(),
+                Person.Builder()
+                    .setName(line.sender ?: conversation.title)
+                    .setIcon(line.icon)
+                    .build(),
             )
         }
 
@@ -187,8 +203,31 @@ actual class NotificationPresenter(
                 sender = message.person?.name?.toString(),
                 text = message.text?.toString().orEmpty(),
                 timestampMs = message.timestamp,
+                // Profilovka se převezme taky — znovu ji z cesty poskládat nejde, tu už nemáme.
+                icon = message.person?.icon,
             )
         }
+    }
+
+    /**
+     * Profilovka jako ikona notifikace.
+     *
+     * `createWithAdaptiveBitmap` kvůli kulatému ořezu — Android profilovky v notifikacích kreslí
+     * v kruhu a čtvercová fotka by z řady vyčnívala. Dekódování se cachuje: notifikace se
+     * překresluje při každé nové zprávě a načítat pokaždé tentýž soubor z disku by bylo zbytečné.
+     *
+     * Chybu polyká schválně — soubor mohl mezitím zmizet a notifikace bez profilovky je pořád
+     * lepší než žádná.
+     */
+    private fun avatarIcon(path: String?): IconCompat? {
+        if (path == null) return null
+
+        icons[path]?.let { return it }
+
+        val bitmap = runCatching { BitmapFactory.decodeFile(path) }.getOrNull() ?: return null
+        val icon = IconCompat.createWithAdaptiveBitmap(bitmap)
+        icons[path] = icon
+        return icon
     }
 
     /** Rozepsaná notifikace jednoho chatu. */
@@ -204,6 +243,7 @@ actual class NotificationPresenter(
         val sender: String?,
         val text: String,
         val timestampMs: Long,
+        val icon: IconCompat?,
     )
 
     private companion object {

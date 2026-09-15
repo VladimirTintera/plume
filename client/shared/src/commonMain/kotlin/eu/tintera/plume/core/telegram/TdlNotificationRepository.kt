@@ -2,6 +2,7 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
+import dev.g000sha256.tdl.dto.File
 import dev.g000sha256.tdl.dto.DeviceToken
 import dev.g000sha256.tdl.dto.DeviceTokenApplePush
 import dev.g000sha256.tdl.dto.DeviceTokenFirebaseCloudMessaging
@@ -34,7 +35,10 @@ class TdlNotificationRepository(
             val added = update.addedNotifications.filterNotNull()
             if (added.isEmpty()) return@collect
 
-            val chatTitle = chatTitle(update.chatId)
+            // Chat se načte JEDNOU — je z něj potřeba název i fotka, a dvě volání kvůli jedné
+            // notifikaci by byla zbytečná.
+            val chat = client.getChat(update.chatId).toResult().getOrNull()
+            val chatTitle = chat?.title.orEmpty()
 
             val notifications = added.mapNotNull { notification ->
                 // Jiné typy (kalendářní pozvánky, hovory) zatím nezobrazujeme — přeskočit je
@@ -42,17 +46,23 @@ class TdlNotificationRepository(
                 val type = notification.type as? NotificationTypeNewMessage
                     ?: return@mapNotNull null
 
+                val sender = resolveSender(type)
+
                 ChatNotification(
                     groupId = update.notificationGroupId,
                     notificationId = notification.id,
                     chatId = update.chatId,
                     chatTitle = chatTitle,
-                    senderName = senderName(type, chatTitle),
+                    senderName = sender?.name?.takeIf { it != chatTitle },
                     // `showPreview = false` znamená, že si uživatel nepřeje vidět obsah
                     // na zamykací obrazovce. Musíme to respektovat.
                     text = if (type.showPreview) type.message.previewText() else "Nová zpráva",
                     isSilent = notification.isSilent,
                     timestamp = notification.date,
+                    // Ve skupině patří k řádku profilovka toho, kdo psal; v soukromém chatu
+                    // je to totéž jako fotka chatu. Fotka chatu je záloha pro kanály a boty,
+                    // kde odesílatel vlastní profilovku nemá.
+                    avatarPath = downloadedPath(sender?.photo ?: chat?.photo?.small),
                 )
             }
 
@@ -85,14 +95,14 @@ class TdlNotificationRepository(
             .map { }
             .onFailure { logger.e(it) { "processPushNotification selhalo." } }
 
-    private suspend fun chatTitle(chatId: Long): String =
-        client.getChat(chatId).toResult().getOrNull()?.title.orEmpty()
-
     /**
-     * Jméno odesílatele. V soukromém chatu je shodné s názvem chatu, takže by se v notifikaci
-     * opakovalo dvakrát — tam se vrací `null`.
+     * Odesílatel zprávy.
+     *
+     * Jméno i profilovka se berou z jednoho dotazu. Volající si pak rozhodne, co s nimi:
+     * jméno se v soukromém chatu zahazuje (opakovalo by název chatu), profilovka ne — tam
+     * naopak je tou správnou ikonou notifikace.
      */
-    private suspend fun senderName(type: NotificationTypeNewMessage, chatTitle: String): String? {
+    private suspend fun resolveSender(type: NotificationTypeNewMessage): Sender? {
         val senderId = when (val sender = type.message.senderId) {
             is MessageSenderUser -> sender.userId
             is MessageSenderChat -> sender.chatId
@@ -104,6 +114,40 @@ class TdlNotificationRepository(
             .filter { it.isNotBlank() }
             .joinToString(" ")
 
-        return name.takeIf { it.isNotBlank() && it != chatTitle }
+        return Sender(name = name.takeIf { it.isNotBlank() }, photo = user.profilePhoto?.small)
+    }
+
+    /**
+     * Cesta k souboru na disku, v případě potřeby ho nejdřív stáhne.
+     *
+     * **Tady se stahuje synchronně**, na rozdíl od obrázků v UI. Notifikace se skládá naráz
+     * a ikonu na ni nejde doplnit dodatečně — bez čekání by prostě nebyla. Profilovka je
+     * pár kilobajtů a většinou už na disku je, protože ji ukazuje seznam chatů.
+     */
+    private suspend fun downloadedPath(file: File?): String? {
+        if (file == null) return null
+        if (file.local.isDownloadingCompleted && file.local.path.isNotEmpty()) return file.local.path
+
+        val downloaded = client.downloadFile(
+            fileId = file.id,
+            priority = AVATAR_PRIORITY,
+            offset = 0,
+            limit = 0,
+            synchronous = true,
+        )
+            .toResult()
+            .getOrNull()
+            ?: return null
+
+        return downloaded.local.path.takeIf {
+            downloaded.local.isDownloadingCompleted && it.isNotEmpty()
+        }
+    }
+
+    private class Sender(val name: String?, val photo: File?)
+
+    private companion object {
+        /** Nejvyšší priorita: notifikace čeká, takže má smysl ji vyřídit dřív než zbytek fronty. */
+        const val AVATAR_PRIORITY = 32
     }
 }

@@ -334,6 +334,17 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
   Není to okrajový případ: push probouzí MRTVÝ proces, takže bez toho by třetí zpráva nahradila
   notifikaci se dvěma předchozími. Převzaté řádky nemají `notificationId` — TDLib ho do notifikace
   nepředává — takže se jednotlivě zrušit nedají a odejdou až s celou notifikací.
+- **Profilovka se do notifikace předává jako CESTA, ne `fileId`.** Notifikace se skládá naráz
+  a ikonu na ni nejde doplnit dodatečně, takže se soubor musí vyřídit dřív, než se hodnota dostane
+  do `ChatNotification`. V repository se proto stahuje `synchronous = true` — vědomě naopak než
+  u obrázků v UI, kde je asynchronní stahování žádoucí, aby bylo co ukázat mezitím. Profilovka má
+  pár kilobajtů a většinou už na disku je, protože ji kreslí seznam chatů.
+- **Ve skupině patří k řádku profilovka ODESÍLATELE**, ne fotka skupiny; fotka chatu je záloha pro
+  kanály a boty, kde odesílatel vlastní profilovku nemá. Jméno i fotka se berou z jednoho dotazu
+  na uživatele.
+- **`IconCompat.createWithAdaptiveBitmap`** kvůli kulatému ořezu — Android profilovky v notifikacích
+  kreslí v kruhu a čtvercová fotka by z řady vyčnívala. Dekódované ikony se cachují podle cesty,
+  protože se notifikace překresluje při každé nové zprávě.
 - **Skupina se pozná podle jména odesílatele.** TDLib ho vyplňuje jen tam, kde není totožné
   s chatem. V soukromém chatu se proto název chatu nedává do hlavičky konverzace — byl by to
   tentýž řetězec jako jméno u každého řádku.

@@ -61,4 +61,11 @@ data class ChatNotification(
     val isSilent: Boolean,
     /** Unixový čas v sekundách. Řadí řádky v notifikaci jednoho chatu. */
     val timestamp: Int,
+    /**
+     * Cesta k profilovce na disku, nebo `null` když ji nemá.
+     *
+     * Cesta, ne `fileId`: notifikace se skládá naráz a nemá kam čekat na stažení, takže se
+     * soubor musí vyřídit dřív, než se sem hodnota dostane.
+     */
+    val avatarPath: String?,
 )
