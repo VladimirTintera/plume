@@ -167,6 +167,12 @@ class StickerPickerViewModel(
 
     fun recordEmoji(emoji: String) = settings.recordRecentEmoji(emoji)
 
+    /** Zvolené odstíny pleti: základ → varianta. */
+    val skinTones: StateFlow<Map<String, String>> = settings.emojiSkinTones
+
+    /** Zapamatuje odstín pro emoji; výchozí podoba (základ) zvolený odstín zruší. */
+    fun setSkinTone(base: String, variant: String) = settings.setEmojiSkinTone(base, variant.takeIf { it != base })
+
     private val setContents = MutableStateFlow<Map<Long, List<StickerItem>>>(emptyMap())
 
     /** Sady, jejichž načítání už běží — aby dvě stránky nenačítaly totéž dvakrát. */

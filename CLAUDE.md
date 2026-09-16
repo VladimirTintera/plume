@@ -149,8 +149,12 @@ aplikace pamatuje o uživateli; data z Telegramu drží TDLib.
   jeden řetězec oddělený mezerou — `stringSetPreferencesKey` by ztratil pořadí; mezera v žádném
   emoji není. Přidání čte i zapisuje uvnitř jednoho `edit`, takže se dvě rychlá ťuknutí
   nepřepíšou, a běží v rozsahu nastavení (`recordRecentEmoji` neblokuje).
+- **Odstíny pleti** (`emojiSkinTones`): základ → zvolená varianta, `základ:varianta` oddělené
+  středníkem. Výchozí podoba se neukládá (záznam se smaže).
 - Testy nad skutečným souborem v dočasném adresáři (`DataStoreAppSettingsTest`), každý test
-  vlastní soubor.
+  vlastní soubor. **Na skutečném čase (`runBlocking` + `Dispatchers.Default`), ne `runTest`**:
+  DataStore pracuje na vlastních vláknech a s virtuálním plánovačem se to občas minulo — test
+  visel do minutového limitu a selhával pokaždé jiný. Každé čekání má `withTimeout` pár vteřin.
 
 ## Navigace
 
@@ -958,6 +962,13 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   emoji ze systémové klávesnice zachytit nejde). **Ve sheetu jsou zmražená** na stav při otevření —
   živý seznam by se po každém ťuknutí přeskládal pod prstem. Bez nedávných se výběr otevře
   rovnou na první skupině. Při čtení se zúží na katalog.
+- **Odstíny pleti se volí podržením** emoji, které je má (trojúhelník v rohu buňky): nabídka nad
+  buňkou s výchozí podobou a pěti odstíny. Volba se **pamatuje po emoji** a mřížka pak kreslí
+  i obyčejným ťuknutím vkládá zvolenou variantu — v kategoriích, hledání i nedávných. Varianty
+  jsou vygenerované z téhož `emoji-test.txt` (`EmojiSkinTones.kt`), jen se stejným odstínem pro
+  všechny osoby: kombinace dvou odstínů by znamenaly 25 variant. Nabídka je `Popup` s vlastním
+  `PopupPositionProvider` (nad buňku, vodorovně uvnitř okna), zpět obsluhuje sám.
+- **`catalogEmoji` pozná i varianty** — nedávná je ukládají, a bez toho by při čtení vypadla.
 - **Výšky obou částí sedí**: náhled textu si ukousne z výšky mřížky, takže přepnutí Emoji /
   Samolepky sheet nenatáhne.
 
