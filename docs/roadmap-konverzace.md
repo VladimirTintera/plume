@@ -38,7 +38,8 @@ přibude s tím, co bude umět:
 - **Přeposlat** — potřebuje výběr cílového chatu, tedy vlastní obrazovku.
 - **Upravit popisek média** (`editMessageCaption`) a **zprávu s ručním formátováním** —
   vstupní pole umí jen holý text, takže úprava se u nich zatím nenabízí.
-- **Připnout** (`canBePinned`) — pruh s připnutou zprávou už existuje, chybí jen akce.
+- **Připnout** (`canBePinned`) — pruh s připnutými zprávami i odepínání už existují, chybí
+  jen připnutí z nabídky.
 - **Vybrat víc zpráv** — hromadné mazání a přeposílání, znamená režim výběru v celé konverzaci.
 - **Informace / odkaz na zprávu** (`canGetLink`, `canGetViewers`, `canGetReadDate`).
 
@@ -92,7 +93,6 @@ Seřazeno podle toho, jak moc to bolí.
   (kotva uprostřed přes záporný `offset` v `getChatHistory`).
 - **Označení části textu.** Kopíruje se jen celá zpráva z nabídky; vybrat úryvek
   (`SelectionContainer`) zatím nejde.
-- **Víc připnutých zpráv.** Pruh ukazuje jen nejnovější; Telegram mezi nimi umí listovat.
 - **Příloha se nedá poslat.** Vstupní pole umí jen text — chybí fotka, soubor, hlasovka, emoji.
 
 ---

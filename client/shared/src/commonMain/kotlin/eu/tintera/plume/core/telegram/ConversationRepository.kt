@@ -66,18 +66,28 @@ interface ConversationRepository {
     suspend fun deleteMessages(chatId: Long, messageIds: List<Long>, revoke: Boolean): Result<Unit>
 
     /**
-     * Nejnovější připnutá zpráva chatu, nebo `null`, když žádná není.
+     * Všechny připnuté zprávy chatu, od nejnovější.
      *
-     * Jen nejnovější: Telegram jich umí připnout víc a listovat mezi nimi, ale jeden pruh
-     * s poslední pokrývá to, kvůli čemu se připíná — „tohle je teď důležité".
+     * Nese i to, jestli je smí uživatel odepnout — právo připínat je v chatu jedno pro všechny
+     * zprávy, takže se zjišťuje jednou, ne dotazem na každou.
      */
-    suspend fun pinnedMessage(chatId: Long): Result<ChatMessage?>
+    suspend fun pinnedMessages(chatId: Long): Result<PinnedMessages>
+
+    /** Odepne zprávu. Potvrzení dorazí přes [pinnedMessageChanges]. */
+    suspend fun unpin(chatId: Long, messageId: Long): Result<Unit>
+
+    /**
+     * Připne zprávu zpátky — pro „Vrátit" po odepnutí.
+     *
+     * Bez upozornění členům: jde o opravu omylu, ne o nové oznámení.
+     */
+    suspend fun pin(chatId: Long, messageId: Long): Result<Unit>
 
     /**
      * Ohlásí, že se v chatu něco připnulo nebo odepnulo.
      *
      * Nenese novou připnutou zprávu, jen signál — odepnutí nejnovější znamená, že nejnovější je
-     * teď jiná, a tu zná jen TDLib. Volající si ji znovu přečte přes [pinnedMessage].
+     * teď jiná, a tu zná jen TDLib. Volající si seznam znovu přečte přes [pinnedMessages].
      */
     fun pinnedMessageChanges(chatId: Long): Flow<Unit>
 
@@ -162,6 +172,14 @@ interface ConversationRepository {
     /** Nahlásí kliknutí. Musí odejít dřív, než se otevře odkaz. */
     suspend fun reportSponsoredClick(chatId: Long, messageId: Long): Result<Unit>
 }
+
+/** Připnuté zprávy chatu. */
+data class PinnedMessages(
+    /** Od nejnovější po nejstarší. Prázdné, když nic připnuté není. */
+    val messages: List<ChatMessage>,
+    /** Smí uživatel zprávy odepínat? Ve skupině to je právo, v soukromém chatu vždycky. */
+    val canUnpin: Boolean,
+)
 
 /** Hlavička konverzace. */
 data class ChatInfo(

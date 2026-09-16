@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -47,6 +48,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.height
@@ -67,16 +69,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -162,6 +168,18 @@ fun ConversationScreen(
         val message = state.error ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(message)
         viewModel.dismissError()
+    }
+
+    LaunchedEffect(state.unpinned) {
+        val unpinned = state.unpinned ?: return@LaunchedEffect
+        // Vynulovat hned, ne až po zavření snackbaru — jinak by se po otočení ukázal znovu.
+        viewModel.consumeUnpinned()
+        val result = snackbarHostState.showSnackbar(
+            message = "Zpráva odepnuta",
+            actionLabel = "Vrátit",
+            duration = SnackbarDuration.Short,
+        )
+        if (result == SnackbarResult.ActionPerformed) viewModel.undoUnpin(unpinned)
     }
 
     // `reverseLayout` obrací i význam indexů: index 0 je nejnovější zpráva dole, vyšší indexy
@@ -650,30 +668,45 @@ fun ConversationScreen(
             }
 
             /*
-             * Připnutá zpráva.
+             * Připnuté zprávy.
              *
-             * Plave nad seznamem jako vstupní pole, ne v hlavičce Scaffoldu: seznam pod ní zajíždí
-             * a odsazuje se o její ZMĚŘENOU výšku. Kdyby byla součástí `topBar`, ukusovala by místo
-             * i ve chvíli, kdy odjíždí, a obsah by pod ní na konci animace poskočil.
+             * Plavou nad seznamem jako vstupní pole, ne v hlavičce Scaffoldu: seznam pod nimi zajíždí
+             * a odsazuje se o jejich ZMĚŘENOU výšku. Kdyby byly součástí `topBar`, ukusovaly by místo
+             * i ve chvíli, kdy odjíždějí, a obsah by pod nimi na konci animace poskočil.
+             *
+             * Rozbalení na všechny je **jen na chvíli**: sbalí se po skoku na zprávu a jakmile se
+             * pohne konverzací. Rozbalený seznam zakrývá zprávy a nechat ho tak by znamenalo, že
+             * ho uživatel musí pokaždé ručně zavírat.
              */
+            var pinnedExpanded by rememberSaveable { mutableStateOf(false) }
+            LaunchedEffect(listState.isScrollInProgress) {
+                if (listState.isScrollInProgress) pinnedExpanded = false
+            }
+
             val density = LocalDensity.current
             AnimatedVisibility(
-                visible = state.pinned != null,
+                visible = state.pinned.isNotEmpty(),
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut(),
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .onSizeChanged { pinnedHeight = with(density) { it.height.toDp() } },
             ) {
-                // Při odjezdu se musí dál kreslit poslední zpráva, ne prázdný pruh.
-                val last = remember { arrayOfNulls<ChatMessage>(1) }
-                state.pinned?.let { last[0] = it }
-                last[0]?.let { pinned ->
-                    PinnedMessageBar(
-                        message = pinned,
-                        onClick = { viewModel.jumpToMessage(pinned.id) },
-                    )
-                }
+                // Při odjezdu se musí dál kreslit poslední zprávy, ne prázdný pruh.
+                val last = remember { arrayOf(emptyList<ChatMessage>()) }
+                if (state.pinned.isNotEmpty()) last[0] = state.pinned
+
+                PinnedMessagesPanel(
+                    messages = last[0],
+                    expanded = pinnedExpanded,
+                    canUnpin = state.canUnpin,
+                    onOpen = { message ->
+                        pinnedExpanded = false
+                        viewModel.jumpToMessage(message.id)
+                    },
+                    onUnpin = viewModel::unpin,
+                    onToggleExpanded = { pinnedExpanded = !pinnedExpanded },
+                )
             }
 
             // Odznak leží NAD seznamem, ne v něm — musí zůstat u spodní hrany i při scrollu.
@@ -1311,41 +1344,94 @@ private fun MessageInput(
 }
 
 /**
- * Pruh s připnutou zprávou pod hlavičkou.
+ * Připnuté zprávy pod hlavičkou.
  *
- * Ťuknutí skočí na zprávu v historii — stejnou cestou jako citace, i se zvýrazněním, takže
- * se dotáhne i zpráva hluboko v minulosti.
+ * Sbalené ukazují nejvýš [PINNED_COLLAPSED] nejnovějších. Víc by z hlavičky udělalo půl obrazovky,
+ * jedna by zase schovala, že připnutých je víc — a hledat ty ostatní by znamenalo projít historii.
+ * Zbytek je za „Zobrazit všechny"; rozbalený seznam se listuje a má strop výšky.
+ *
+ * Každý řádek skočí na svou zprávu (stejnou cestou jako citace) a má vlastní odepnutí, když to
+ * právo dovolí.
  */
 @Composable
-private fun PinnedMessageBar(message: ChatMessage, onClick: () -> Unit) {
+private fun PinnedMessagesPanel(
+    messages: List<ChatMessage>,
+    expanded: Boolean,
+    canUnpin: Boolean,
+    onOpen: (ChatMessage) -> Unit,
+    onUnpin: (ChatMessage) -> Unit,
+    onToggleExpanded: () -> Unit,
+) {
+    val overflow = messages.size > PINNED_COLLAPSED
+
     Surface(
-        onClick = onClick,
         color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.fillMaxWidth(),
+        // Rozbalený seznam leží přes zprávy; stín ho od nich odlepí.
+        shadowElevation = if (expanded && overflow) 3.dp else 0.dp,
+        modifier = Modifier.fillMaxWidth().animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()),
     ) {
-        Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(
-                painterResource(Res.drawable.push_pin_filled_24dp),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
-            )
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = "Připnutá zpráva",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    // Připnutá fotka bez popisku by byla prázdný řádek.
-                    text = message.text.ifBlank { message.media.describe() }.replace('\n', ' '),
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+        Column(Modifier.padding(vertical = 4.dp)) {
+            if (expanded && overflow) {
+                LazyColumn(Modifier.heightIn(max = PINNED_EXPANDED_MAX_HEIGHT)) {
+                    items(messages, key = { it.id }) { message ->
+                        PinnedMessageRow(message, canUnpin, onOpen, onUnpin)
+                    }
+                }
+            } else {
+                messages.take(PINNED_COLLAPSED).forEach { message ->
+                    key(message.id) { PinnedMessageRow(message, canUnpin, onOpen, onUnpin) }
+                }
+            }
+
+            if (overflow) {
+                TextButton(
+                    onClick = onToggleExpanded,
+                    modifier = Modifier.padding(start = 8.dp),
+                ) {
+                    Text(if (expanded) "Sbalit" else "Zobrazit všechny (${messages.size})")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PinnedMessageRow(
+    message: ChatMessage,
+    canUnpin: Boolean,
+    onOpen: (ChatMessage) -> Unit,
+    onUnpin: (ChatMessage) -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = PINNED_ROW_HEIGHT)
+            .clickable { onOpen(message) }
+            // Bez odepnutí je vpravo prázdno; odsazení drží text od kraje stejně jako vlevo.
+            .padding(start = 16.dp, end = if (canUnpin) 4.dp else 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(
+            painterResource(Res.drawable.push_pin_filled_24dp),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp),
+        )
+        Text(
+            // Připnutá fotka bez popisku by byla prázdný řádek.
+            text = message.text.ifBlank { message.media.describe() }.replace('\n', ' '),
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (canUnpin) {
+            IconButton(onClick = { onUnpin(message) }) {
+                Icon(
+                    painterResource(Res.drawable.close_24dp),
+                    contentDescription = "Odepnout",
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }
@@ -1722,6 +1808,15 @@ private class NewestItem {
 }
 
 private const val LOAD_MORE_THRESHOLD = 5
+
+/** Kolik připnutých zpráv je vidět bez rozbalení. */
+private const val PINNED_COLLAPSED = 3
+
+/** Řádek připnuté zprávy. Zároveň minimální dotyková plocha. */
+private val PINNED_ROW_HEIGHT = 44.dp
+
+/** Strop výšky rozbaleného seznamu připnutých; nad ním se listuje. Konverzace musí zůstat vidět. */
+private val PINNED_EXPANDED_MAX_HEIGHT = 320.dp
 
 /** Profilovka odesílatele ve skupině. Menší než v seznamu chatů — doprovází bublinu, nevede ji. */
 private val SENDER_AVATAR_SIZE = 32.dp
