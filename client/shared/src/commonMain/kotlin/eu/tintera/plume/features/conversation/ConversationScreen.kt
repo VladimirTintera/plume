@@ -120,6 +120,7 @@ import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SendState
+import eu.tintera.plume.core.ui.AnimatedSticker
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.label
@@ -2090,16 +2091,17 @@ private fun MessageAttachment(
  * Kreslí se **bez pozadí i bez zaoblení** — samolepka má vlastní tvar s průhledností a rámeček
  * kolem ní by z ní udělal obrázek. Když se nedá vykreslit ani ona, ani její náhled, zbývá emoji,
  * které k ní Telegram vede; velké, ať je poznat, že to je celý obsah zprávy, a ne popisek.
+ *
+ * Animovaná `.tgs` hraje přes [AnimatedSticker] a do té doby (i když se načíst nepodaří) ukazuje
+ * statický náhled. `.webm` zatím zůstává jen náhledem.
  */
 @Composable
 private fun StickerImage(sticker: MessageMedia.Sticker) {
-    val fileId = sticker.fileId ?: sticker.thumbnailFileId
+    val description = sticker.emoji.ifBlank { "Samolepka" }
+    val staticFileId = sticker.fileId ?: sticker.thumbnailFileId
 
-    if (fileId == null) {
-        Text(
-            text = sticker.emoji.ifBlank { "Samolepka" },
-            style = MaterialTheme.typography.displayMedium,
-        )
+    if (staticFileId == null && sticker.animationFileId == null) {
+        Text(text = description, style = MaterialTheme.typography.displayMedium)
         return
     }
 
@@ -2114,15 +2116,37 @@ private fun StickerImage(sticker: MessageMedia.Sticker) {
 
     val width = if (ratio >= 1f) STICKER_SIZE else STICKER_SIZE * ratio
     val height = if (ratio >= 1f) STICKER_SIZE / ratio else STICKER_SIZE
+    val size = Modifier.size(width = width, height = height)
 
-    RemoteImage(
-        fileId = fileId,
-        contentDescription = sticker.emoji.ifBlank { "Samolepka" },
-        contentScale = ContentScale.Fit,
-        // Samolepka je průhledná; podložka pod ní by z ní udělala obrázek v rámečku.
-        background = Color.Transparent,
-        modifier = Modifier.size(width = width, height = height),
-    )
+    val still: @Composable () -> Unit = {
+        if (staticFileId != null) {
+            RemoteImage(
+                fileId = staticFileId,
+                contentDescription = description,
+                contentScale = ContentScale.Fit,
+                // Samolepka je průhledná; podložka pod ní by z ní udělala obrázek v rámečku.
+                background = Color.Transparent,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            // Animace bez náhledu: než se načte, drží místo aspoň emoji.
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(text = description, style = MaterialTheme.typography.displayMedium)
+            }
+        }
+    }
+
+    val animation = sticker.animationFileId
+    if (animation != null) {
+        AnimatedSticker(
+            fileId = animation,
+            contentDescription = description,
+            modifier = size,
+            placeholder = still,
+        )
+    } else {
+        Box(size) { still() }
+    }
 }
 
 /**

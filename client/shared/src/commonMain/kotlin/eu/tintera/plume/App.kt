@@ -13,6 +13,7 @@ import eu.tintera.plume.app.shell.AppShell
 import eu.tintera.plume.core.notifications.NotificationPermissionPrompt
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.ui.forgetKnownImagePaths
+import eu.tintera.plume.core.ui.forgetStickerAnimations
 import eu.tintera.plume.features.auth.AuthScreen
 import eu.tintera.plume.features.auth.AuthViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -33,7 +34,10 @@ fun App() {
 
             // Přihlášená část je pryč z kompozice, takže je chvíle uklidit, co přežívá mimo ni.
             LaunchedEffect(stage is AuthStage.Ready) {
-                if (stage !is AuthStage.Ready) forgetKnownImagePaths()
+                if (stage !is AuthStage.Ready) {
+                    forgetKnownImagePaths()
+                    forgetStickerAnimations()
+                }
             }
 
             AnimatedContent(

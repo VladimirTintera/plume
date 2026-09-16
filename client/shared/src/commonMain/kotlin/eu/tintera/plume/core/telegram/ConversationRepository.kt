@@ -484,15 +484,17 @@ sealed interface MessageMedia {
     /**
      * Samolepka.
      *
-     * [fileId] je vyplněné jen u statického `.webp`. Animované samolepky jsou `.tgs` (gzipovaná
-     * Lottie) a `.webm` — ani jedno není obrázek, který by šlo poslat do Coilu, takže z nich
-     * zbývá [thumbnailFileId] (statický náhled) a teprve když není ani ten, [emoji].
+     * [fileId] je vyplněné jen u statického `.webp`, [animationFileId] jen u `.tgs` (gzipovaná
+     * Lottie), kterou přehrává Compottie. Samolepky `.webm` jsou video s průhledností a přehrát
+     * je zatím neumíme; zbývá u nich [thumbnailFileId] (statický náhled) a teprve když není ani
+     * ten, [emoji]. Náhled slouží i u `.tgs`, než se animace načte.
      *
      * [width] a [height] jsou od odesílatele; drží se kvůli poměru stran, aby se samolepka
      * nevykreslila jako čtverec.
      */
     data class Sticker(
         val fileId: Int?,
+        val animationFileId: Int?,
         val thumbnailFileId: Int?,
         val width: Int,
         val height: Int,

@@ -793,6 +793,21 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
   jedno není obrázek. U nich se bere statický náhled, který TDLib k samolepce dává, a teprve když
   není ani ten, emoji. Náhled jen v rastrovém formátu: `ThumbnailFormatTgs` a `Mpeg4` mají tentýž
   problém, jen o úroveň níž.
+- **`.tgs` přehrává Compottie** (`AnimatedSticker`). Gzip Compottie neumí, takže se soubor
+  rozbalí přes Okio (`gzip()` funguje v commonMain, protože Okio má zlib pro JVM i native) a do
+  Compottie jde až JSON. Do té doby i při chybě se kreslí statický náhled — odpovídá prvnímu
+  snímku, takže přechod na animaci není skok z prázdna.
+- **Compottie je `lite` a zamčená na 2.2.4.** Lite nemá JavaScriptový engine pro výrazy; samolepky
+  Telegramu výrazy nepoužívají (oficiální rlottie je ani neumí). Od 2.3.0 táhne Compose foundation
+  1.12, což by tranzitivně povýšilo Compose mimo ověřenou kombinaci s material3 alphou.
+- **Rozparsované animace mají vlastní cache (50), ne `LocalLottieCache` (10 na celou aplikaci).**
+  V konverzaci se jedna samolepka opakuje a při scrollu by se jinak rozbalovala a parsovala
+  znovu. Klíčem je cesta, ne MD5 obsahu jako u `JsonString` — hash rozbaleného JSONu by stál víc,
+  než cache ušetří. Kvůli cestě jako klíči se cache po odhlášení zahazuje (`forgetStickerAnimations`).
+- **Mimo obrazovku se animace zastavovat nemusí.** Položka `LazyColumn` mimo viewport vypadne
+  z kompozice i s hodinami animace.
+- **`.webm` samolepky zůstávají statické.** Je to VP9 s průhledností: hardwarový dekodér na
+  Androidu alfu zahodí a iOS WebM neumí vůbec, takže by to znamenalo přibalit libvpx.
 - **`RemoteImage` má parametr `background`.** Výchozí podložka `surfaceContainerHighest` je správně
   u fotky, ale u samolepky by z průhledného tvaru udělala obrázek v rámečku.
 - **`captionText()` vrací u samolepky prázdno.** Její emoji se dřív vypisovalo jako text zprávy;
