@@ -2,7 +2,9 @@ package eu.tintera.plume.di
 
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.telegram.EmojiRepository
 import eu.tintera.plume.core.telegram.StickerRepository
+import eu.tintera.plume.core.telegram.TdlEmojiRepository
 import eu.tintera.plume.core.telegram.TdlStickerRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.FileRepository
@@ -82,6 +84,7 @@ fun appModule() = module {
 
     // Bezstavová — seznamy jsou toky nad updaty, drží se jen po dobu otevřeného výběru.
     single<StickerRepository> { TdlStickerRepository(holder = get()) }
+    single<EmojiRepository> { TdlEmojiRepository(holder = get()) }
 
     // Most mezi platformním vstupem (ťuknutí na notifikaci) a navigací.
     single { ChatOpenRequests() }
