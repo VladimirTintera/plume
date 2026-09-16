@@ -1,6 +1,12 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -225,17 +231,27 @@ fun ConversationScreen(
     }
 
     /*
-     * Skok na první nepřečtenou.
+     * Skok na zprávu — první nepřečtenou, nebo citovanou.
      *
      * Zprávu hledáme podle id, ne podle indexu — než efekt doběhne, může seznam narůst o novou
      * zprávu a index by ukazoval jinam.
      */
-    LaunchedEffect(state.scrollToMessageId) {
-        val targetId = state.scrollToMessageId ?: return@LaunchedEffect
-        val index = state.messages.indexOfFirst { it.id == targetId }
+    LaunchedEffect(state.scrollTarget) {
+        val target = state.scrollTarget ?: return@LaunchedEffect
+        val index = state.messages.indexOfFirst { it.id == target.messageId }
         // Před zprávami stojí sponzorované položky, takže index v seznamu není index v LazyColumnu.
-        if (index >= 0) listState.scrollUnderTop(index + state.sponsored.size)
+        if (index >= 0) listState.scrollToAnchor(index + state.sponsored.size, target.anchor)
         viewModel.consumeScrollTarget()
+    }
+
+    /*
+     * Tlačítko „dolů" i bez nových zpráv.
+     *
+     * Kdo odroluje do historie (nebo tam skočí po citaci), neměl jak se vrátit jinak než rolováním.
+     * Ukáže se až o kus výš, ne při prvním pixelu — u spodní hrany by jen blikalo pod prstem.
+     */
+    val farFromBottom by remember {
+        derivedStateOf { listState.firstVisibleItemIndex >= SCROLL_DOWN_THRESHOLD_ITEMS }
     }
 
     val newest = state.messages.firstOrNull()
@@ -527,6 +543,10 @@ fun ConversationScreen(
                                 // V soukromém chatu se jméno odesílatele u zpráv nevyplňuje (dává
                                 // smysl jen ve skupinách), takže citace by neměla koho uvést.
                                 partnerName = state.info?.title,
+                                highlighted = message.id == state.highlightedMessageId,
+                                onQuoteClick = message.replyToMessageId?.let { id ->
+                                    { viewModel.jumpToMessage(id) }
+                                },
                                 // Za předělem začíná nový blok, i když píše tentýž člověk — jinak by
                                 // první bublina pod datem navazovala na zprávu z minulého dne.
                                 previous = older.takeIf { !startsDay },
@@ -581,7 +601,8 @@ fun ConversationScreen(
             }
 
             // Odznak leží NAD seznamem, ne v něm — musí zůstat u spodní hrany i při scrollu.
-            NewMessagesBadge(
+            ScrollToBottomButton(
+                visible = farFromBottom || pendingNewMessages > 0,
                 count = pendingNewMessages,
                 onClick = { scope.launch { listState.animateScrollToItem(0) } },
                 modifier = Modifier
@@ -607,47 +628,66 @@ fun ConversationScreen(
 }
 
 /**
- * Odznak „dole čekají nové zprávy".
+ * Tlačítko „dolů", s počtem nových zpráv, když nějaké čekají.
  *
- * Objeví se jen když uživatel čte historii — dole se totiž nescrolluje automaticky, aby ho nová
- * zpráva nevytrhla ze čtení. Odznak je pak jediná informace, že něco přišlo.
- *
- * Nese počet, ne jen šipku: bez čísla by uživatel nevěděl, jestli se vyplatí skočit dolů.
+ * Objeví se, když je uživatel v historii — dole se totiž nescrolluje automaticky, aby ho nová
+ * zpráva nevytrhla ze čtení. Bez nových zpráv je to jen kulatá šipka; s nimi se roztáhne
+ * o počet, protože bez čísla by uživatel nevěděl, jestli se vyplatí skočit dolů.
  */
 @Composable
-private fun NewMessagesBadge(
+private fun ScrollToBottomButton(
+    visible: Boolean,
     count: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     AnimatedVisibility(
-        visible = count > 0,
-        // Vjezd zespoda: odznak přiletí odtamtud, kam po ťuknutí odskočí.
+        visible = visible,
+        // Vjezd zespoda: tlačítko přiletí odtamtud, kam po ťuknutí odskočí.
         enter = slideInVertically { it } + fadeIn(),
         exit = slideOutVertically { it } + fadeOut(),
         modifier = modifier,
     ) {
         Surface(
             onClick = onClick,
-            shape = RoundedCornerShape(20.dp),
+            shape = CircleShape,
             color = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             shadowElevation = 4.dp,
         ) {
             Row(
-                Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                // Bez počtu je z toho kruh: šířka i výška jsou dané touhle minimální plochou.
+                Modifier
+                    .heightIn(min = SCROLL_DOWN_BUTTON_SIZE)
+                    .widthIn(min = SCROLL_DOWN_BUTTON_SIZE)
+                    .padding(horizontal = 15.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.Center,
             ) {
                 Icon(
                     painterResource(Res.drawable.arrow_downward_24dp),
-                    contentDescription = null,
+                    contentDescription = if (count > 0) null else "Na konec konverzace",
                     modifier = Modifier.size(18.dp),
                 )
-                Text(
-                    text = newMessagesLabel(count),
-                    style = MaterialTheme.typography.labelLarge,
-                )
+
+                // Mezera je v obsahu, ne ve `spacedBy`: skrytý AnimatedVisibility je pořád potomek
+                // a rozestup by kruh bez počtu nafoukl do šišky.
+                AnimatedVisibility(
+                    visible = count > 0,
+                    enter = expandHorizontally() + fadeIn(),
+                    exit = shrinkHorizontally() + fadeOut(),
+                ) {
+                    // Při zmizení se musí dál kreslit poslední nenulový počet, ne „0 zpráv".
+                    // Obyčejné pole, ne stav: zápis do stavu v kompozici by jen vynutil další.
+                    val shown = remember { intArrayOf(count) }
+                    if (count > 0) shown[0] = count
+
+                    Text(
+                        text = newMessagesLabel(shown[0]),
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
             }
         }
     }
@@ -673,6 +713,10 @@ private fun MessageBubble(
     message: ChatMessage,
     quoted: ChatMessage?,
     partnerName: String?,
+    /** Krátce po skoku na citaci — zpráva, na kterou se skočilo. */
+    highlighted: Boolean,
+    /** Ťuknutí na citaci; `null` u zprávy, která nic necituje. */
+    onQuoteClick: (() -> Unit)?,
     lastReadOutboxMessageId: Long,
     /** Let ze vstupního pole, který přistává právě v téhle bublině; jinak `null`. */
     flight: MessageFlight?,
@@ -749,12 +793,39 @@ private fun MessageBubble(
     /** Prah už byl v tomhle tahu překročen; hlídá, aby haptika i odpověď odešly jen jednou. */
     var armed by remember { mutableStateOf(false) }
 
+    /*
+     * Zvýraznění po skoku: pruh přes celou šířku, který se rozsvítí a pomalu vyhasne.
+     *
+     * Přes celou šířku, ne jen bublina — obarvit bublinu by u odchozí `primary` nebylo vidět
+     * a u příchozí by to vypadalo jako změna stavu zprávy. Průhlednost se čte až při kreslení,
+     * takže vyhasínání nic nerekomponuje.
+     */
+    val highlightAlpha by animateFloatAsState(
+        targetValue = if (highlighted) HIGHLIGHT_ALPHA else 0f,
+        animationSpec = if (highlighted) {
+            MaterialTheme.motionScheme.fastEffectsSpec()
+        } else {
+            MaterialTheme.motionScheme.slowEffectsSpec()
+        },
+        label = "highlight",
+    )
+    val highlightColor = MaterialTheme.colorScheme.primary
+
     Row(
         modifier = modifier
             .fillMaxWidth()
             // Zprávy od jednoho odesílatele drží u sebe, nová skupina se oddělí. Tvar bublin
             // to už rozlišuje staženým nárožím, mezera tomu jen dává prostor.
             .padding(top = if (continuesGroup) 0.dp else GROUP_SPACING)
+            .drawBehind {
+                if (highlightAlpha > 0f) {
+                    drawRoundRect(
+                        color = highlightColor,
+                        alpha = highlightAlpha,
+                        cornerRadius = CornerRadius(HIGHLIGHT_CORNER.toPx()),
+                    )
+                }
+            }
             /*
              * Tažení do strany = odpověď.
              *
@@ -832,6 +903,8 @@ private fun MessageBubble(
                     QuotedMessage(
                         message = it,
                         partnerName = partnerName,
+                        onClick = onQuoteClick,
+                        onLongClick = onRequestMenu,
                         // V odchozí bublině nese akcent barva popředí; `primary` by splynula
                         // s pozadím bubliny.
                         accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
@@ -1105,11 +1178,32 @@ private fun QuotedMessage(
      * `primary` by citaci udělala neviditelnou — stejná barva na stejné barvě.
      */
     accent: Color = MaterialTheme.colorScheme.primary,
+    /**
+     * Ťuknutí skočí na citovanou zprávu. `null` nad vstupním polem, kde se na ni skákat nemá
+     * proč — uživatel ji právě vybral.
+     */
+    onClick: (() -> Unit)? = null,
+    /**
+     * Dlouhý stisk se musí zopakovat — potomek s vlastním klikáním ho k bublině nepustí, takže
+     * by nad citací nešla otevřít nabídka. Stejná past jako u fotky.
+     */
+    onLongClick: (() -> Unit)? = null,
 ) {
     Row(
         modifier
             .fillMaxWidth()
             .padding(bottom = 6.dp)
+            .then(
+                if (onClick != null) {
+                    // Ořez kvůli vlnce; citace nemá vlastní pozadí, takže bez něj by se kreslila
+                    // do ostrého obdélníku.
+                    Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                } else {
+                    Modifier
+                },
+            )
             .height(IntrinsicSize.Min),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -1216,20 +1310,29 @@ private fun ReplyHint(progress: () -> Float, modifier: Modifier = Modifier) {
 }
 
 /**
- * Odroluje tak, aby položka seděla u HORNÍ hrany a zbytek se četl směrem dolů.
+ * Odroluje tak, aby položka seděla u horní hrany, nebo na středu.
  *
- * `scrollToItem` v obráceném seznamu posadí položku ke spodní hraně, protože tam je jeho začátek.
+ * `scrollToItem` v obráceném seznamu posadí položku ke SPODNÍ hraně, protože tam je jeho začátek.
  * U skoku na nepřečtené je to přesně naopak, než je potřeba: první nepřečtená má být nahoře
- * a nepřečtené pod ní. Dorovnání se počítá až ze **změřeného** layoutu, protože výška bubliny
- * se zprávu od zprávy liší.
+ * a nepřečtené pod ní. U citace zase patří na střed, aby bylo vidět, na co navazuje. Dorovnání se
+ * počítá až ze **změřeného** layoutu, protože výška bubliny se zprávu od zprávy liší.
+ *
+ * Počítá se s **odsazením obsahu**. Dole je pod ním vstupní pole, takže viditelná plocha začíná
+ * nad ním; dřív se horní hrana brala z celé výšky viewportu a položka zajela o výšku pole pod
+ * horní okraj.
  */
-private suspend fun LazyListState.scrollUnderTop(index: Int) {
+private suspend fun LazyListState.scrollToAnchor(index: Int, anchor: ScrollAnchor) {
     scrollToItem(index)
 
     val info = layoutInfo
     val item = info.visibleItemsInfo.firstOrNull { it.index == index } ?: return
-    // Offset roste od začátku seznamu, tedy v obráceném rozvržení odspodu nahoru.
-    val desired = info.viewportSize.height - item.size
+    // Offset roste od začátku seznamu, tedy v obráceném rozvržení odspodu nahoru. Nula je horní
+    // hrana spodního odsazení, `visibleHeight` spodní hrana horního.
+    val visibleHeight = info.viewportEndOffset - info.afterContentPadding
+    val desired = when (anchor) {
+        ScrollAnchor.Top -> visibleHeight - item.size
+        ScrollAnchor.Center -> (visibleHeight - item.size) / 2
+    }.coerceAtLeast(0)
     scrollBy((item.offset - desired).toFloat())
 }
 
@@ -1261,6 +1364,17 @@ private class NewestItem {
 }
 
 private const val LOAD_MORE_THRESHOLD = 5
+
+/** O kolik položek výš od spodku se objeví tlačítko „dolů". */
+private const val SCROLL_DOWN_THRESHOLD_ITEMS = 3
+
+/** Tlačítko „dolů" bez počtu je kruh téhle velikosti — zároveň minimální dotyková plocha. */
+private val SCROLL_DOWN_BUTTON_SIZE = 48.dp
+
+/** Jak výrazné je zvýraznění zprávy po skoku. Jemné: má ukázat místo, ne překrýt obsah. */
+private const val HIGHLIGHT_ALPHA = 0.14f
+
+private val HIGHLIGHT_CORNER = 12.dp
 private const val READ_DEBOUNCE_MS = 400L
 
 /** Prefix klíče reklamní položky; podle něj se v seznamu pozná pro hlášení zhlédnutí. */

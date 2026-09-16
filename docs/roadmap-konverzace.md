@@ -98,14 +98,11 @@ Seřazeno podle toho, jak moc to bolí.
 - **Profilovka odesílatele ve skupině.** Bubliny nesou jméno, ale žádnou tvář.
 - **Označení textu / kopírování.** Bez [B] a bez `SelectionContainer` se z konverzace nedá
   dostat text ven.
-- **Skok na citovanou zprávu.** Ťuknutí na citaci nikam nevede.
 - **Připnutá zpráva** nemá v hlavičce pruh.
 - **Příloha se nedá poslat.** Vstupní pole umí jen text — chybí fotka, soubor, hlasovka, emoji.
 - **Rozepsaná zpráva se neukládá do TDLib** (`setChatDraftMessage`), takže ji neuvidí seznam
   chatů ani druhé zařízení.
 - **Editace a mazání vlastní zprávy** — obojí čeká na nabídku z [B].
-- **Tlačítko „dolů"** se ukáže jen s počtem nových zpráv; při čtení staré historie není jak
-  skočit zpátky dolů jinak než rolováním.
 
 ---
 
