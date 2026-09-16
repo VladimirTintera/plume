@@ -16,6 +16,12 @@ interface FileRepository {
      * UI tedy jen vykreslí to, co dostane, a nic neinicializuje.
      */
     fun file(fileId: Int): Flow<FileState>
+
+    /**
+     * Průběh nahrávání souboru 0f–1f, nebo `null`, když se nenahrává. Na rozdíl od [file] nic
+     * nespouští — nahrávání začne samo odesláním zprávy.
+     */
+    fun uploadProgress(fileId: Int): Flow<Float?>
 }
 
 sealed interface FileState {

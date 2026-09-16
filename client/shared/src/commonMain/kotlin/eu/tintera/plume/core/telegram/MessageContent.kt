@@ -256,6 +256,7 @@ internal fun Message.messageMedia(): MessageMedia? = when (val content = this.co
     is MessageDocument -> MessageMedia.Attachment(
         label = content.document.fileName.ifBlank { "Soubor" },
         thumbnailFileId = content.document.thumbnail?.file?.id,
+        fileId = content.document.document.id,
     )
 
     is MessageAudio -> MessageMedia.Attachment(label = "Audio", thumbnailFileId = null)

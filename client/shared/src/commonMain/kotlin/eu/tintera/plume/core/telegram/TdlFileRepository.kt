@@ -30,6 +30,7 @@ class TdlFileRepository(
     private val client: TdlClient get() = holder.client
 
     private val states = mutableMapOf<Int, MutableStateFlow<FileState>>()
+    private val uploads = mutableMapOf<Int, MutableStateFlow<Float?>>()
     private val mutex = Mutex()
 
     /** Soubory, na které už request odešel — aby se stahování nespouštělo znovu při každém odběru. */
@@ -47,6 +48,7 @@ class TdlFileRepository(
             holder.replaced.collect {
                 mutex.withLock {
                     states.clear()
+                    uploads.clear()
                     requested.clear()
                 }
             }
@@ -64,6 +66,13 @@ class TdlFileRepository(
         scope.launch { request(fileId) }
         emitAll(stateOf(fileId).asStateFlow())
     }
+
+    override fun uploadProgress(fileId: Int): Flow<Float?> = flow {
+        emitAll(uploadStateOf(fileId).asStateFlow())
+    }
+
+    private suspend fun uploadStateOf(fileId: Int): MutableStateFlow<Float?> =
+        mutex.withLock { uploads.getOrPut(fileId) { MutableStateFlow(null) } }
 
     private suspend fun request(fileId: Int) {
         val alreadyRequested = mutex.withLock { !requested.add(fileId) }
@@ -127,6 +136,22 @@ class TdlFileRepository(
         }
 
         stateOf(file.id).value = state
+
+        // Nahrávání se hlásí stejným updatem. Mapa se plní jen u souborů, které se nahrávají nebo
+        // o které si někdo řekl — ne u každého staženého obrázku.
+        val remote = file.remote
+        val uploading = remote.isUploadingActive && !remote.isUploadingCompleted
+        val tracked = mutex.withLock { uploads[file.id] }
+        if (uploading || tracked != null) {
+            val total = file.size.takeIf { it > 0 } ?: file.expectedSize
+            uploadStateOf(file.id).value = if (uploading && total > 0) {
+                (remote.uploadedSize.toDouble() / total.toDouble()).toFloat().coerceIn(0f, 1f)
+            } else if (uploading) {
+                0f
+            } else {
+                null
+            }
+        }
     }
 
     /** Jeden stav na soubor. Vždy pod zámkem — mapa je sdílená mezi odběry a update vláknem. */

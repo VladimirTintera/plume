@@ -340,6 +340,35 @@ s videi dohromady, dokumenty a audio jen se stejným typem). Konverzace je kresl
 - **Album na hraně načtené historie může být neúplné**; dotažením starší stránky se k němu zbytek
   připojí.
 
+### Posílání fotky a souboru
+
+Sponka ve vstupním poli nabídne Fotka / Soubor; vybraná příloha se rovnou odešle a bublina ukazuje
+průběh nahrávání.
+
+- **TDLib posílá podle CESTY** (`InputFileLocal`). Systémové URI (`content://`, iOS URL z výběru)
+  neotevře, takže platforma vybraný soubor nejdřív zkopíruje do cache aplikace
+  (`rememberAttachmentPicker`, `expect`/`actual`). Každá příloha má vlastní podadresář — dva
+  soubory stejného jména se nepřepíšou a jméno zůstane, protože ho TDLib pošle.
+- **Výběr bez oprávnění**: Android Photo Picker + `OpenDocument`, iOS PHPicker + UIDocumentPicker
+  (`asCopy`). Oba běží mimo aplikaci a vydají jen vybraný soubor.
+- **Fotka se zmenšuje na 2560 px a ukládá jako JPEG.** TDLib přijme fotku nejvýš 10 MB a do
+  10 000 px; z foťáku bývá větší. **Orientace se musí použít, ne zahodit**: přepsaný JPEG EXIF nemá,
+  takže bez otočení pixelů by fotka odešla bokem. Android: `ImageDecoder` (9+) orientaci použije
+  sám, pro starší `ExifInterface`. iOS: kreslení přes `UIGraphicsImageRenderer` ji použije taky
+  a HEIC se tím zároveň převede na JPEG.
+- **Soubor jde beze změny s `disableContentTypeDetection = true`** — uživatel posílal „soubor",
+  TDLib by jinak z videa nebo hudby udělal přehrávatelnou zprávu.
+- **iOS delegáty výběrů se drží silnou referencí** (`remember`). UIKit je drží jen slabě
+  a bez toho by je uklidil garbage collector dřív, než uživatel něco vybere — výběr by tiše nic
+  neudělal. Soubor z UIDocumentPickeru je v dočasném adresáři, který systém po delegátovi maže,
+  proto se hned kopíruje.
+- **Průběh nahrávání** chodí týmiž `fileUpdates` jako stahování (`remote.uploadedSize`),
+  `FileRepository.uploadProgress`. Kreslí se jen u zprávy ve stavu `Sending`: vlnitý kruh
+  (`CircularWavyProgressIndicator`) na tmavém kolečku přes fotku, u souboru místo náhledu. Dokud
+  TDLib nahrávání neohlásí, točí se neurčitě.
+- **Rozepsaný text zůstává a citace se spotřebuje**, stejně jako u samolepky (`sendMedia`).
+- **Při úpravě zprávy sponka není.** Zatím **bez popisku a bez zrušení nahrávání**.
+
 ### Předěly dne
 
 V bublině se vypisují jen hodiny, protože datum má nést předěl nad blokem zpráv. Bez něj se
@@ -1310,6 +1339,12 @@ není „Android bez barev", ale má vlastní konzistentní paletu.
   to kontroluje při startu a bez klíče aplikace na iOS hned spadne na `IllegalStateException`
   (jinak by na 120Hz displejích běžela na 60 snímků). Chyba je vidět jen v konzoli, na simulátoru
   se aplikace prostě zavře.
+- **Systémové frameworky iOS se do Xcode projektu přidávat nemusí.** Kotlin/Native zapíše použité
+  frameworky (PhotosUI, UniformTypeIdentifiers, CoreImage…) do objektových souborů a linker je
+  přidá sám, i u statického frameworku. Ověření: `otool -L` na `Plume.app/Plume.debug.dylib`
+  (v Debug je kód v `.debug.dylib`, ne v hlavní binárce). Sestavení aplikace bez podpisu:
+  `xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -sdk iphonesimulator
+  -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`.
 - **Release link iOS frameworku trvá desítky minut.** Kotlin/Native pouští LTO nad celou statickou
   TDLib; naměřeno 15+ minut na M-series. Debug link je ~5 minut. Do CI to patří jako samostatný,
   cachovaný krok — ne do smyčky, kterou čeká vývojář.

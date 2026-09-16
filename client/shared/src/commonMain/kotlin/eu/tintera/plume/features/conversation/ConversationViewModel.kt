@@ -15,6 +15,7 @@ import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
+import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.SentMessageUpdate
@@ -479,11 +480,34 @@ class ConversationViewModel(
      * Citace se spotřebuje stejně jako u textu.
      */
     fun sendSticker(sticker: StickerItem) {
+        sendMedia("Samolepku se nepodařilo odeslat.") { replyTo ->
+            repository.sendSticker(chatId, sticker, replyTo)
+        }
+    }
+
+    /**
+     * Odešle fotku nebo soubor z výběru.
+     *
+     * Stejně jako samolepka: bez letu ze vstupního pole, rozepsaný text zůstává, citace se spotřebuje.
+     * Bublina se objeví hned s průběhem nahrávání; nahrávání samo běží v TDLib.
+     */
+    fun sendAttachment(attachment: OutgoingAttachment) {
+        sendMedia("Přílohu se nepodařilo odeslat.") { replyTo ->
+            repository.sendAttachment(chatId, attachment, replyTo)
+        }
+    }
+
+    /** Hláška z platformy (výběr souboru selhal) do snackbaru. */
+    fun reportError(message: String) {
+        _state.update { it.copy(error = message) }
+    }
+
+    private fun sendMedia(failureMessage: String, send: suspend (replyTo: Long?) -> Result<ChatMessage>) {
         val replyTo = _state.value.replyingTo?.id
         clearReply()
 
         viewModelScope.launch {
-            repository.sendSticker(chatId, sticker, replyTo)
+            send(replyTo)
                 .onSuccess { pending ->
                     _state.update {
                         it.copy(
@@ -497,7 +521,7 @@ class ConversationViewModel(
                     }
                 }
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.message ?: "Samolepku se nepodařilo odeslat.") }
+                    _state.update { it.copy(error = failure.message ?: failureMessage) }
                 }
         }
     }

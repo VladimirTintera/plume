@@ -10,7 +10,12 @@ import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
 import dev.g000sha256.tdl.dto.FormattedText
+import dev.g000sha256.tdl.dto.InputDocument
 import dev.g000sha256.tdl.dto.InputFileId
+import dev.g000sha256.tdl.dto.InputFileLocal
+import dev.g000sha256.tdl.dto.InputMessageDocument
+import dev.g000sha256.tdl.dto.InputMessagePhoto
+import dev.g000sha256.tdl.dto.InputPhoto
 import dev.g000sha256.tdl.dto.InputMessageSticker
 import dev.g000sha256.tdl.dto.InputSticker
 import dev.g000sha256.tdl.dto.InputMessageReplyToMessage
@@ -374,6 +379,53 @@ class TdlConversationRepository(
         )
             .toResult()
             // TDLib vrací zprávu okamžitě, s dočasným id a stavem Pending.
+            .map { it.toChatMessage(isGroup(chatId)) }
+    }
+
+    override suspend fun sendAttachment(
+        chatId: Long,
+        attachment: OutgoingAttachment,
+        replyToMessageId: Long?,
+    ): Result<ChatMessage> {
+        val file = InputFileLocal(path = attachment.path)
+        val content = when (attachment) {
+            is OutgoingAttachment.Photo -> InputMessagePhoto(
+                photo = InputPhoto(
+                    photo = file,
+                    // Náhled se posílá jen v tajných chatech; jinak ho server vyrobí sám.
+                    thumbnail = null,
+                    video = null,
+                    addedStickerFileIds = intArrayOf(),
+                    width = attachment.width,
+                    height = attachment.height,
+                ),
+                caption = null,
+                showCaptionAboveMedia = false,
+                selfDestructType = null,
+                hasSpoiler = false,
+            )
+
+            is OutgoingAttachment.Document -> InputMessageDocument(
+                document = InputDocument(
+                    document = file,
+                    thumbnail = null,
+                    // Soubor zůstane souborem: bez toho by TDLib z odeslaného videa nebo hudby
+                    // udělal přehrávatelnou zprávu, a uživatel posílal výslovně „soubor".
+                    disableContentTypeDetection = true,
+                ),
+                caption = null,
+            )
+        }
+
+        return client.sendMessage(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyToMessageId?.let(::replyTo),
+            options = null,
+            replyMarkup = null,
+            inputMessageContent = content,
+        )
+            .toResult()
             .map { it.toChatMessage(isGroup(chatId)) }
     }
 
