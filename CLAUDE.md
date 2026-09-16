@@ -92,6 +92,19 @@ nenačte. Před bumpem zkontroluj:
 curl -s https://repo1.maven.org/maven2/dev/g000sha256/tdl-coroutines-iosarm64/<ver>/tdl-coroutines-iosarm64-<ver>.module | grep -A2 kotlin-stdlib
 ```
 
+## Přihlášení QR kódem
+
+- **QR se generuje na platformě** (`encodeQrCode`): Android přes zxing, iOS přes CoreImage
+  (`CIQRCodeGenerator`). Kodér v commonMain není. Platforma vrací jen mřížku modulů,
+  kreslí se společně na `Canvas` — ostré v každé velikosti a nic se neškáluje z bitmapy.
+- **Natvrdo černá na bílé, i v tmavém režimu.** Čtečky počítají s tmavými moduly na světlém
+  podkladu; inverzní kód spousta z nich nepřečte. Stejná výjimka z rolí `colorScheme` jako
+  bílé ovládání v prohlížeči médií.
+- **Modul musí mít celé pixely.** Se zlomkovou velikostí nechá vyhlazování hran mezi sousedními
+  moduly vlasové spáry; zbytek šířky se rozdělí do okrajů.
+- **Odkaz se obnovuje.** TDLib posílá nový `AuthorizationStateWaitOtherDeviceConfirmation`
+  zhruba každou půlminutu; kód se přepočítá přes `remember(content)`.
+
 ## Navigace
 
 Navigation3 (`rememberNavBackStack` + `NavDisplay` + `entryProvider`). Klíče jsou v

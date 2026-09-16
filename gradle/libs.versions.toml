@@ -29,6 +29,7 @@ navigation = "1.1.1"
 koin = "4.2.2"
 materialkolor = "4.1.1"
 kermit = "2.1.0"
+zxing = "3.5.3"
 coil = "3.5.0"
 buildconfig = "6.0.10"
 googleServices = "4.4.4"
@@ -76,6 +77,7 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 materialkolor = { module = "com.materialkolor:material-kolor", version.ref = "materialkolor" }
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }

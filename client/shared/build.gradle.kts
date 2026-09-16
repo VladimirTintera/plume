@@ -101,6 +101,8 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.core.ktx)
+            // QR kód přihlášení. Na iOS ho generuje CoreImage, tam závislost netřeba.
+            implementation(libs.zxing.core)
             // androidContext() v platformModule — Koin na Androidu potřebuje Context pro cestu k DB.
             implementation(libs.koin.android)
         }

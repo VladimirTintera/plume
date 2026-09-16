@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.AuthStage
+import eu.tintera.plume.core.ui.QrCode
 
 @Composable
 fun AuthScreen(
@@ -114,11 +115,10 @@ fun AuthScreen(
                 }
 
                 if (current is AuthStage.WaitQrConfirmation) {
-                    // QR renderer přijde ve fázi 1; pro spike stačí ověřit, že link doteče.
-                    Text(
-                        text = current.link,
-                        style = MaterialTheme.typography.bodySmall,
-                        textAlign = TextAlign.Center,
+                    QrCode(
+                        content = current.link,
+                        contentDescription = "QR kód pro přihlášení",
+                        modifier = Modifier.widthIn(max = 280.dp).fillMaxWidth(),
                     )
                 }
             }
@@ -142,7 +142,7 @@ private fun AuthStage.supportingText(): String? = when (this) {
     AuthStage.WaitPhoneNumber -> "Zadej číslo i s předvolbou, například +420…"
     AuthStage.WaitCode -> "Kód dorazil do jiného Telegram klienta nebo SMS."
     is AuthStage.WaitPassword -> hint?.let { "Nápověda: $it" }
-    is AuthStage.WaitQrConfirmation -> "Otevři Telegram na přihlášeném zařízení a naskenuj tenhle odkaz."
+    is AuthStage.WaitQrConfirmation -> "V Telegramu na přihlášeném zařízení otevři Nastavení → Zařízení → Připojit zařízení a naskenuj kód."
     AuthStage.WaitRegistration -> "Tohle číslo zatím účet nemá. Založ si ho v oficiálním klientovi."
     is AuthStage.Failed -> message
     else -> null
