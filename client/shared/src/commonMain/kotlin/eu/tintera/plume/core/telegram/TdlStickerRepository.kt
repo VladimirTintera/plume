@@ -84,6 +84,40 @@ class TdlStickerRepository(
                     }
             }
 
+    override fun stickerSetDetail(setId: Long): Flow<StickerSetDetail?> =
+        holder.updates { installedStickerSetsUpdates }
+            // Přidání i odebrání sady mění seznam nainstalovaných; jiný update o sadě TDLib nepošle.
+            .filter { it.stickerType is StickerTypeRegular }
+            .map { }
+            .onStart { emit(Unit) }
+            .map {
+                client.getStickerSet(setId = setId)
+                    .toResult()
+                    .map { set ->
+                        StickerSetDetail(
+                            id = set.id,
+                            title = set.title,
+                            isInstalled = set.isInstalled && !set.isArchived,
+                            isOfficial = set.isOfficial,
+                            stickers = set.stickers.toItems(),
+                        )
+                    }
+                    .getOrElse { failure ->
+                        logger.w(failure) { "Sadu $setId se nepodařilo načíst." }
+                        null
+                    }
+            }
+
+    override suspend fun setInstalled(setId: Long, installed: Boolean): Result<Unit> =
+        client.changeStickerSet(
+            setId = setId,
+            isInstalled = installed,
+            // Archivace je třetí stav („odložená" sada); odebrání ji nepotřebuje, přidání ji ruší.
+            isArchived = false,
+        )
+            .toResult()
+            .map { }
+
     override suspend fun setFavorite(stickerFileId: Int, favorite: Boolean): Result<Unit> {
         val file = InputFileId(id = stickerFileId)
         return if (favorite) {

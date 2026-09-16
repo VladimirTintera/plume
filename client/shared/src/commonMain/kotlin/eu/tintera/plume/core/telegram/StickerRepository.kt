@@ -30,6 +30,15 @@ interface StickerRepository {
      */
     suspend fun setFavorite(stickerFileId: Int, favorite: Boolean): Result<Unit>
 
+    /**
+     * Sada i s tím, jestli ji má uživatel nainstalovanou. Živý tok: po přidání nebo odebrání
+     * (i z jiného zařízení) se přečte znovu. `null`, když se sadu nepodařilo načíst.
+     */
+    fun stickerSetDetail(setId: Long): Flow<StickerSetDetail?>
+
+    /** Přidá sadu mezi nainstalované, nebo ji odebere. Potvrzení dorazí přes [stickerSetDetail]. */
+    suspend fun setInstalled(setId: Long, installed: Boolean): Result<Unit>
+
     /** Obsah jedné sady. Načítá se až při otevření její záložky — sad bývá desítky. */
     suspend fun stickerSet(setId: Long): Result<List<StickerItem>>
 
@@ -60,6 +69,16 @@ data class StickerSearchResult(
     val installed: List<StickerItem>,
     /** Z veřejných sad, bez těch, které už jsou v [installed]. */
     val public: List<StickerItem>,
+)
+
+/** Sada otevřená ze samolepky v konverzaci. */
+data class StickerSetDetail(
+    val id: Long,
+    val title: String,
+    val isInstalled: Boolean,
+    /** Oficiální sady (od Telegramu) odebrat nejdou. */
+    val isOfficial: Boolean,
+    val stickers: List<StickerItem>,
 )
 
 /** Sada v záložkách výběru. */

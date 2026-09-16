@@ -109,5 +109,5 @@ jsou to tři řádky.
 
 Základ je hotový (záložky Nedávné, Oblíbené, sady se swipem; hledání; oblíbené; odeslání). Zbývá:
 
-- **Přidání sady ze samolepky v chatu** (`changeStickerSet`) a trendy (`getTrendingStickerSets`).
+- **Trendy** (`getTrendingStickerSets`).
 - **Emoji picker** jako další záložka.

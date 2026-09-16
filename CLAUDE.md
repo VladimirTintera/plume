@@ -877,6 +877,12 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
 - **Samolepka se do oblíbených dává podle souboru** (`stickerFileId`), ne podle id samolepky —
   tak to TDLib chce (`addFavoriteSticker(InputFileId)`). `MessageMedia.Sticker` ho proto nese
   vždycky, bez ohledu na formát. Oblíbených je omezený počet; přidání nad limit vytlačí nejstarší.
+- **Ťuknutí na samolepku v konverzaci otevře její sadu** (`StickerSetSheet`): celá sada, přidat /
+  odebrat (`changeStickerSet`), mřížka se chová jako ve výběru. Klikání na samolepce je **bez vlnky**
+  (průhledný tvar bez bubliny) a opakuje dlouhý stisk kvůli nabídce. Sada se nainstalovanost
+  dozví z `installedStickerSetsUpdates` — jiný update o sadě TDLib nepošle; tlačítko je mezitím
+  neaktivní, aby nešlo zmáčknout dvakrát. Oficiální sady odebrat nejdou. ViewModel sady má klíč
+  s id sady, stejně jako konverzace.
 - **Prémiové samolepky se bez Premium nenabízejí** (`StickerFullTypeRegular.premiumAnimation`).
   Odeslat je nejde a samolepka, po které přijde chyba, je horší než žádná. Na Premium se ptá
   `getMe` při každém čtení — předplatné se mění.

@@ -167,6 +167,8 @@ fun ConversationScreen(
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     var stickerPickerOpen by rememberSaveable { mutableStateOf(false) }
+    /** Sada otevřená ťuknutím na samolepku v konverzaci. */
+    var openStickerSetId by rememberSaveable { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
 
     // Chyby se dřív zahazovaly: `state.error` se vykreslovalo jen u prázdné konverzace, takže
@@ -545,6 +547,17 @@ fun ConversationScreen(
             )
         }
 
+        openStickerSetId?.let { setId ->
+            StickerSetSheet(
+                setId = setId,
+                onPick = { sticker ->
+                    openStickerSetId = null
+                    viewModel.sendSticker(sticker)
+                },
+                onDismiss = { openStickerSetId = null },
+            )
+        }
+
         state.reactionSheet?.let { picker ->
             ReactionPickerSheet(
                 picker = picker,
@@ -705,7 +718,15 @@ fun ConversationScreen(
                                 },
                                 onRequestMenu = { viewModel.showMessageMenu(message.id) },
                                 onReply = { viewModel.replyTo(message.id) },
-                                onOpenMedia = { onOpenMedia(message.id) },
+                                // Ťuknutí na samolepku otevře její sadu; na fotku prohlížeč.
+                                onOpenMedia = {
+                                    val setId = (message.media as? MessageMedia.Sticker)?.setId
+                                    if (setId != null) {
+                                        if (setId != 0L) openStickerSetId = setId
+                                    } else {
+                                        onOpenMedia(message.id)
+                                    }
+                                },
                                 // Nabídka se kreslí uvnitř bubliny, které se týká — jinak by neměla
                                 // k čemu se ukotvit.
                                 menu = state.messageMenu?.takeIf { it.messageId == message.id },
@@ -2133,7 +2154,20 @@ private fun MessageAttachment(
             )
         }
 
-        is MessageMedia.Sticker -> StickerImage(media)
+        is MessageMedia.Sticker -> StickerImage(
+            sticker = media,
+            /*
+             * Ťuknutí otevře sadu. Bez vlnky: samolepka je průhledný tvar bez bubliny a obdélníková
+             * vlnka přes něj by vypadala jako chyba. Dlouhý stisk se musí zopakovat — potomek
+             * s vlastním klikáním ho k bublině nepustí (stejná past jako u fotky).
+             */
+            modifier = Modifier.combinedClickable(
+                interactionSource = null,
+                indication = null,
+                onClick = onOpen,
+                onLongClick = onRequestMenu,
+            ),
+        )
         is MessageMedia.AnimatedEmoji -> AnimatedEmojiImage(media)
     }
 }
@@ -2149,7 +2183,7 @@ private fun MessageAttachment(
  * statický náhled. `.webm` zatím zůstává jen náhledem.
  */
 @Composable
-private fun StickerImage(sticker: MessageMedia.Sticker) {
+private fun StickerImage(sticker: MessageMedia.Sticker, modifier: Modifier = Modifier) {
     val description = sticker.emoji.ifBlank { "Samolepka" }
     val staticFileId = sticker.fileId ?: sticker.thumbnailFileId
 
@@ -2169,7 +2203,7 @@ private fun StickerImage(sticker: MessageMedia.Sticker) {
 
     val width = if (ratio >= 1f) STICKER_SIZE else STICKER_SIZE * ratio
     val height = if (ratio >= 1f) STICKER_SIZE / ratio else STICKER_SIZE
-    val size = Modifier.size(width = width, height = height)
+    val size = modifier.size(width = width, height = height)
 
     val still: @Composable () -> Unit = {
         if (staticFileId != null) {
