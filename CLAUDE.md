@@ -32,6 +32,18 @@ telegramApiHash=<z my.telegram.org>
 
 Bez nich se projekt přeloží, ale přihlášení skončí hláškou `AuthStage.Failed` s vysvětlením.
 
+## Pracovní postup
+
+**Každá změna jde přes samostatnou větev a pull request, nic se necommituje rovnou do `main`.**
+
+- Větev se zakládá z aktuálního `main` a pojmenovává podle obsahu (`fix/…`, `feat/…`,
+  `docs/…`). Jedna větev = jedna ucelená změna.
+- Do `main` se dostane jen sloučením PR. Slučuje uživatel, ne agent — ani automatické sloučení
+  se nezapíná bez výslovného pokynu.
+- Popis PR říká, CO se změnilo a PROČ, a jak to ověřit na zařízení. Když změna na zařízení
+  vyzkoušená není, musí to v popisu stát.
+- Poučení z opravy patří do tohohle souboru ve stejném PR jako oprava samotná.
+
 ## Struktura modulů
 
 ```
@@ -322,6 +334,10 @@ a nad ni nakreslí předěl „Nepřečtené zprávy".
   vedl vodorovný předěl, o který se zprávy při scrollu „zasekávaly". Teď plave nad obsahem
   a seznam se dole odsadí o jeho ZMĚŘENOU výšku — natvrdo zadaná konstanta by se rozešla
   s realitou, jakmile se pole zalomí na víc řádků nebo se nad ním objeví karta s citací.
+- **Scaffold konverzace nedává spodní inset do `padding`** (`contentWindowInsets` jen Top +
+  Horizontal). Spodek si řeší pole samo přes `navigationBarsPadding` + `imePadding`. `padding`
+  ze Scaffoldu se v obsahu jen aplikuje a inset NEKONZUMUJE, takže se výška systémové lišty
+  připočítávala dvakrát a pole viselo zbytečně vysoko — se zavřenou i otevřenou klávesnicí.
 - **Citace a psaní jsou JEDNA karta.** Dva samostatné kusy nad sebou dělaly z odpovědi cizí prvek
   vsunutý mezi konverzaci a vstup; ve společné kartě je vidět, že citace patří k tomu, co se
   právě píše. Pole uvnitř je proto průhledné — kontejner nese karta, ne ono, a dvě zaoblené
