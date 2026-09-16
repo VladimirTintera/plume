@@ -91,7 +91,6 @@ Seřazeno podle toho, jak moc to bolí.
 - **Skok na první nepřečtenou** — hotovo, ale s **limitem pěti stránek historie**. Kdo má
   v chatu stovky nepřečtených, skok nedostane. Dořešit by to znamenalo stránkovat oběma směry
   (kotva uprostřed přes záporný `offset` v `getChatHistory`).
-- **Profilovka odesílatele ve skupině.** Bubliny nesou jméno, ale žádnou tvář.
 - **Označení části textu.** Kopíruje se jen celá zpráva z nabídky; vybrat úryvek
   (`SelectionContainer`) zatím nejde.
 - **Připnutá zpráva** nemá v hlavičce pruh.

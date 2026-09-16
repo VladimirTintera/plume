@@ -415,11 +415,15 @@ class TdlConversationRepository(
         // řetězec, ze kterého vznikly.
         val body = captionBody()
 
+        // Jméno a tvář mají smysl jen ve skupině a jen u cizích zpráv — jinde je to šum. Obojí
+        // z jednoho dotazu (a z cache), ne ze dvou.
+        val sender = if (isGroup && !isOutgoing) resolveSender(senderId) else null
+
         return ChatMessage(
             id = id,
             isOutgoing = isOutgoing,
-            // Jméno má smysl jen ve skupině a jen u cizích zpráv — jinde je to šum.
-            senderName = if (isGroup && !isOutgoing) resolveSenderName(senderId) else null,
+            senderName = sender?.title,
+            senderAvatarFileId = sender?.avatarFileId,
             senderId = senderId,
             text = body.text,
             entities = body.entities,
@@ -465,8 +469,6 @@ class TdlConversationRepository(
             )
         }
     }
-
-    private suspend fun resolveSenderName(senderId: Long): String? = resolveSender(senderId)?.title
 
     private suspend fun resolveSender(senderId: Long): ReactionSender? {
         if (senderId == 0L) return null

@@ -484,6 +484,20 @@ to tu bylo, než vznikly `MessageEntity` a `RichText`.
 - **Při odesílání se entity dohledávají** (`getTextEntities`), jinak odkaz odejde jako mrtvý text —
   server si ho sám neoznačí. Když dohledání selže, zpráva stejně odejde.
 
+### Profilovky ve skupině
+
+Ve skupině má cizí zpráva vlevo tvář odesílatele, aby se odesílatelé nerozlišovali jen jménem.
+
+- **Tvář je u POSLEDNÍ zprávy bloku**, ostatní zprávy bloku mají na jejím místě mezeru
+  (`SenderAvatar.Spacer`). Bez mezery by bubliny téhož člověka skákaly do stran.
+- **Poslední = novější soused je o index NÍŽ** (seznam jde od nejnovější). Blok končí jiným
+  odesílatelem, jinou stranou, jiným dnem nebo servisním oznámením.
+- **Kanál tvář nemá** (odesílatel = chat sám): u každého příspěvku by byla tatáž a nese ji
+  hlavička.
+- **Jméno i tvář jdou z jednoho `resolveSender`** (s cache), ne ze dvou dotazů.
+- **Tvář je mimo posouvaný `Box`** — při tažení na odpověď jede jen bublina.
+- **Zarovnaná ke spodní hraně bubliny.** U dlouhé zprávy by uprostřed nebylo poznat, kam patří.
+
 ### Nabídka nad zprávou
 
 Dlouhý stisk otevře **popup u zprávy**, ne bottom sheet: rychlé reakce v pruhu nad bublinou
