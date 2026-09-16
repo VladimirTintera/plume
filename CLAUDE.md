@@ -797,9 +797,9 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
   rozbalí přes Okio (`gzip()` funguje v commonMain, protože Okio má zlib pro JVM i native) a do
   Compottie jde až JSON. Do té doby i při chybě se kreslí statický náhled — odpovídá prvnímu
   snímku, takže přechod na animaci není skok z prázdna.
-- **Compottie je `lite` a zamčená na 2.2.4.** Lite nemá JavaScriptový engine pro výrazy; samolepky
-  Telegramu výrazy nepoužívají (oficiální rlottie je ani neumí). Od 2.3.0 táhne Compose foundation
-  1.12, což by tranzitivně povýšilo Compose mimo ověřenou kombinaci s material3 alphou.
+- **Compottie je `lite`.** Lite nemá JavaScriptový engine pro výrazy; samolepky Telegramu výrazy
+  nepoužívají (oficiální rlottie je ani neumí). Compottie táhne Compose `foundation` tranzitivně,
+  takže novější verze než náš Compose by ho tiše povýšila — před bumpem zkontrolovat její metadata.
 - **Rozparsované animace mají vlastní cache (50), ne `LocalLottieCache` (10 na celou aplikaci).**
   V konverzaci se jedna samolepka opakuje a při scrollu by se jinak rozbalovala a parsovala
   znovu. Klíčem je cesta, ne MD5 obsahu jako u `JsonString` — hash rozbaleného JSONu by stál víc,
