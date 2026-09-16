@@ -798,6 +798,7 @@ class ConversationViewModel(
                         actions = actions,
                         hasText = message.text.isNotBlank(),
                         canEdit = actions.canEdit && message.isEditableAsPlainText(),
+                        isPinned = _state.value.pinned.any { p -> p.id == messageId },
                     ),
                 )
             }
@@ -829,6 +830,74 @@ class ConversationViewModel(
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         clipboard.copy(message.text)
         closeMenus()
+    }
+
+    /**
+     * Připnutí z nabídky.
+     *
+     * Ve skupině, kanálu i soukromém chatu se nejdřív zeptá — každý z nich má jednu volbu, která
+     * mění, koho se to dotkne (upozornit členy / připnout i protějšku). V Uložených zprávách
+     * žádná taková volba není, takže se připíná rovnou.
+     */
+    fun requestPin(messageId: Long) {
+        val info = _state.value.info
+        if (info == null || info.isSavedMessages) {
+            closeMenus()
+            pin(messageId, notify = false, onlyForSelf = false)
+            return
+        }
+
+        _state.update {
+            it.copy(
+                messageMenu = null,
+                pendingPin = PendingPin(
+                    messageId = messageId,
+                    scope = when {
+                        info.isChannel -> PinScope.Channel
+                        info.isGroup -> PinScope.Group
+                        else -> PinScope.Private
+                    },
+                ),
+            )
+        }
+    }
+
+    fun cancelPin() {
+        _state.update { it.copy(pendingPin = null) }
+    }
+
+    /** [option] je zaškrtávátko dialogu: upozornit členy, nebo v soukromém chatu připnout i protějšku. */
+    fun confirmPin(option: Boolean) {
+        val pending = _state.value.pendingPin ?: return
+        _state.update { it.copy(pendingPin = null) }
+
+        when (pending.scope) {
+            // Připnutí v soukromém chatu nikoho neupozorňuje — oznámení o něm by bylo jen šum
+            // navíc k servisní zprávě, kterou protějšek stejně uvidí.
+            PinScope.Private -> pin(pending.messageId, notify = false, onlyForSelf = !option)
+            PinScope.Group, PinScope.Channel -> pin(pending.messageId, notify = option, onlyForSelf = false)
+        }
+    }
+
+    /**
+     * Pruh připnutých se neaktualizuje ručně: `UpdateMessageIsPinned` spustí nové čtení seznamu,
+     * stejně jako u odepnutí jinde.
+     */
+    private fun pin(messageId: Long, notify: Boolean, onlyForSelf: Boolean) {
+        viewModelScope.launch {
+            repository.pin(chatId, messageId, notify = notify, onlyForSelf = onlyForSelf)
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.message ?: "Zprávu se nepodařilo připnout.") }
+                }
+        }
+    }
+
+    /** Odepnutí z nabídky. Chová se stejně jako křížek v pruhu, včetně „Vrátit". */
+    fun unpinFromMenu(messageId: Long) {
+        val message = _state.value.pinned.firstOrNull { it.id == messageId }
+            ?: _state.value.messages.firstOrNull { it.id == messageId }
+        closeMenus()
+        if (message != null) unpin(message)
     }
 
     /** Otevře potvrzení smazání. Nevratná akce se nedělá na jedno ťuknutí. */
@@ -1080,6 +1149,8 @@ data class MessageMenu(
     val hasText: Boolean,
     /** Server úpravu dovolí A zpráva se dá upravit bez ztráty formátování. */
     val canEdit: Boolean,
+    /** Podle seznamu připnutých — rozhoduje mezi „Připnout" a „Odepnout". */
+    val isPinned: Boolean,
 ) {
     /** Do rychlého řádku se vejde jen pár; zbytek je za „+". */
     val quickEmoji: List<String> get() = emoji.take(MAX_QUICK_REACTIONS)
@@ -1100,6 +1171,24 @@ data class PendingDelete(
     val canDeleteForAll: Boolean,
 )
 
+/** Zpráva čekající na potvrzení připnutí. Zvlášť od [MessageMenu] ze stejného důvodu jako [PendingDelete]. */
+data class PendingPin(
+    val messageId: Long,
+    val scope: PinScope,
+)
+
+/** Komu se připnutí týká — podle toho dialog nabízí jinou volbu. */
+enum class PinScope {
+    /** Volba: připnout i protějšku. */
+    Private,
+
+    /** Volba: upozornit členy. */
+    Group,
+
+    /** Volba: upozornit odběratele. */
+    Channel,
+}
+
 /**
  * Kolik emoji se vejde do rychlého řádku.
  *
@@ -1119,6 +1208,8 @@ data class ConversationState(
     val reactionSheet: ReactionPicker? = null,
     /** Zpráva čekající na potvrzení smazání. */
     val pendingDelete: PendingDelete? = null,
+    /** Zpráva čekající na potvrzení připnutí. */
+    val pendingPin: PendingPin? = null,
     /** Zpráva, na kterou se právě chystá odpověď. Zobrazuje se nad vstupním polem. */
     val replyingTo: ChatMessage? = null,
     /**

@@ -227,6 +227,8 @@ fun ConversationScreen(
             onEdit = viewModel::startEdit,
             onCopy = viewModel::copyMessage,
             onDelete = viewModel::requestDelete,
+            onPin = viewModel::requestPin,
+            onUnpin = viewModel::unpinFromMenu,
             onDismiss = viewModel::closeMenus,
         )
     }
@@ -487,6 +489,15 @@ fun ConversationScreen(
                 picker = picker,
                 onPick = { emoji -> viewModel.toggleReaction(picker.messageId, emoji) },
                 onDismiss = viewModel::closeMenus,
+            )
+        }
+
+        state.pendingPin?.let { pending ->
+            PinMessageDialog(
+                pending = pending,
+                partnerName = state.info?.title,
+                onConfirm = viewModel::confirmPin,
+                onDismiss = viewModel::cancelPin,
             )
         }
 

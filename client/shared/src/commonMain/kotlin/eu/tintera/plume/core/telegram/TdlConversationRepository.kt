@@ -5,6 +5,7 @@ import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.ChatActionCancel
 import dev.g000sha256.tdl.dto.ChatActionTyping
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
+import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
@@ -186,6 +187,7 @@ class TdlConversationRepository(
                     canDeleteForSelf = properties.canBeDeletedOnlyForSelf,
                     canDeleteForAll = properties.canBeDeletedForAllUsers,
                     canEdit = properties.canBeEdited,
+                    canPin = properties.canBePinned,
                 )
             }
 
@@ -249,12 +251,17 @@ class TdlConversationRepository(
     override suspend fun unpin(chatId: Long, messageId: Long): Result<Unit> =
         client.unpinChatMessage(chatId = chatId, messageId = messageId).toResult().map { }
 
-    override suspend fun pin(chatId: Long, messageId: Long): Result<Unit> =
+    override suspend fun pin(
+        chatId: Long,
+        messageId: Long,
+        notify: Boolean,
+        onlyForSelf: Boolean,
+    ): Result<Unit> =
         client.pinChatMessage(
             chatId = chatId,
             messageId = messageId,
-            disableNotification = true,
-            onlyForSelf = false,
+            disableNotification = !notify,
+            onlyForSelf = onlyForSelf,
         ).toResult().map { }
 
     override fun pinnedMessageChanges(chatId: Long): Flow<Unit> =
@@ -410,6 +417,11 @@ class TdlConversationRepository(
                     lastReadInboxMessageId = chat.lastReadInboxMessageId,
                     unreadCount = chat.unreadCount,
                     isGroup = chat.type is ChatTypeBasicGroup || chat.type is ChatTypeSupergroup,
+                    isChannel = (chat.type as? ChatTypeSupergroup)?.isChannel == true,
+                    // Uložené zprávy jsou soukromý chat s vlastním účtem. `getMe` je lokální,
+                    // po přihlášení ho TDLib zná bez dotazu na server.
+                    isSavedMessages = (chat.type as? ChatTypePrivate)?.userId
+                        ?.let { it == client.getMe().toResult().getOrNull()?.id } == true,
                     draftText = chat.draftMessage?.toChatDraft()?.text,
                     draftReplyToMessageId = (chat.draftMessage?.replyTo as? InputMessageReplyToMessage)
                         ?.messageId,

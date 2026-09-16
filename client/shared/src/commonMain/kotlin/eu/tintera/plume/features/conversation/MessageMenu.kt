@@ -66,6 +66,8 @@ import eu.tintera.plume.resources.add_reaction_24dp
 import eu.tintera.plume.resources.content_copy_24dp
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.edit_24dp
+import eu.tintera.plume.resources.keep_off_24dp
+import eu.tintera.plume.resources.push_pin_24dp
 import eu.tintera.plume.resources.reply_24dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -111,6 +113,15 @@ fun MessageMenuOverlay(
         // Bez textu není co kopírovat, i kdyby to server dovolil.
         if (menu.actions.canCopy && menu.hasText) {
             add(MenuItem(Res.drawable.content_copy_24dp, "Kopírovat") { handlers.onCopy(id) })
+        }
+        if (menu.actions.canPin) {
+            add(
+                if (menu.isPinned) {
+                    MenuItem(Res.drawable.keep_off_24dp, "Odepnout") { handlers.onUnpin(id) }
+                } else {
+                    MenuItem(Res.drawable.push_pin_24dp, "Připnout") { handlers.onPin(id) }
+                },
+            )
         }
         if (menu.actions.canDeleteForSelf || menu.actions.canDeleteForAll) {
             add(
@@ -474,6 +485,8 @@ data class MessageMenuHandlers(
     val onEdit: (messageId: Long) -> Unit,
     val onCopy: (messageId: Long) -> Unit,
     val onDelete: (messageId: Long) -> Unit,
+    val onPin: (messageId: Long) -> Unit,
+    val onUnpin: (messageId: Long) -> Unit,
     val onDismiss: () -> Unit,
 )
 
@@ -568,3 +581,55 @@ private val MENU_ITEM_HEIGHT = 48.dp
 private val MENU_PADDING = 8.dp
 private val QUICK_ROW_HEIGHT = 52.dp
 private val QUICK_EMOJI_SIZE = 40.dp
+
+/**
+ * Potvrzení připnutí.
+ *
+ * Nejde o nevratnou akci (odepnout jde kdykoli), ale připnutí má jednu volbu, která mění,
+ * koho se dotkne — a ta se musí dát najevo DŘÍV, než se stane: upozornění členům už nikdo
+ * nevezme zpátky. Výchozí stavy odpovídají Telegramu: upozornit ano, připnout i protějšku ano.
+ */
+@Composable
+fun PinMessageDialog(
+    pending: PendingPin,
+    partnerName: String?,
+    onConfirm: (option: Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var option by rememberSaveable { mutableStateOf(true) }
+
+    val (description, optionLabel) = when (pending.scope) {
+        PinScope.Private ->
+            "Zpráva se připne nahoru v chatu." to (partnerName?.let { "Připnout i u $it" } ?: "Připnout i u protějšku")
+        PinScope.Group ->
+            "Zpráva se připne nahoru pro všechny ve skupině." to "Upozornit členy"
+        PinScope.Channel ->
+            "Zpráva se připne nahoru pro všechny odběratele." to "Upozornit odběratele"
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Připnout zprávu?") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(description)
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { option = !option },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Checkbox(checked = option, onCheckedChange = { option = it })
+                    Text(text = optionLabel, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(option) }) { Text("Připnout") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Zrušit") }
+        },
+    )
+}
