@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.notifications.NotificationPermission
 import eu.tintera.plume.core.settings.SETTINGS_FILE_NAME
 import eu.tintera.plume.core.settings.createSettingsDataStore
@@ -16,6 +17,8 @@ actual fun Module.platformModule() {
     single { NotificationPresenter() }
     single { UrlOpener() }
     single { TextClipboard() }
+    // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.
+    factory { AudioRecorder() }
 
     // Application Support, stejně jako databáze TDLib: data aplikace, ne dokumenty uživatele.
     single { createSettingsDataStore(applicationSupportDirectory() + "/" + SETTINGS_FILE_NAME) }

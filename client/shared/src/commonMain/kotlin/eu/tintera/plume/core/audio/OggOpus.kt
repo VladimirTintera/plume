@@ -84,6 +84,81 @@ fun opusPacketSamples(packet: ByteArray): Int {
     return frameSize * frames
 }
 
+/**
+ * Zabalí Opus pakety do Ogg — formát, ve kterém hlasovku chce Telegram. iOS umí Opus zakódovat,
+ * ale ne do Oggu, takže kontejner se skládá tady.
+ *
+ * Stránky: `OpusHead` (začátek streamu), `OpusTags`, pak zvuk po [PACKETS_PER_PAGE] paketech;
+ * poslední stránka nese příznak konce. Granule je počet vzorků (48 kHz) včetně [preSkip] na konci
+ * stránky — podle ní přehrávače počítají délku. [samplesPerPacket] musí sedět s kodérem.
+ */
+fun oggOpusFile(packets: List<ByteArray>, channels: Int, preSkip: Int, samplesPerPacket: Int): ByteArray {
+    val out = ByteArrayBuilder()
+    val serial = 0x504C554D // „PLUM"
+    var sequence = 0
+
+    fun page(pagePackets: List<ByteArray>, granule: Long, flags: Int) {
+        val lacing = ByteArrayBuilder()
+        pagePackets.forEach { packet ->
+            var remaining = packet.size
+            while (remaining >= 255) {
+                lacing.append(byteArrayOf(255.toByte()), 0, 1)
+                remaining -= 255
+            }
+            lacing.append(byteArrayOf(remaining.toByte()), 0, 1)
+        }
+        val segments = lacing.toByteArray()
+        val header = ByteArray(OGG_HEADER_SIZE)
+        "OggS".encodeToByteArray().copyInto(header)
+        header[5] = flags.toByte()
+        for (i in 0 until 8) header[6 + i] = (granule shr (8 * i)).toByte()
+        for (i in 0 until 4) header[14 + i] = (serial shr (8 * i)).toByte()
+        for (i in 0 until 4) header[18 + i] = (sequence shr (8 * i)).toByte()
+        header[26] = segments.size.toByte()
+        sequence++
+
+        val body = ByteArrayBuilder()
+        pagePackets.forEach { body.append(it, 0, it.size) }
+        val pageBytes = header + segments + body.toByteArray()
+        val crc = oggCrc(pageBytes)
+        for (i in 0 until 4) pageBytes[22 + i] = (crc shr (8 * i)).toByte()
+        out.append(pageBytes, 0, pageBytes.size)
+    }
+
+    val head = "OpusHead".encodeToByteArray() + byteArrayOf(
+        1, channels.toByte(), preSkip.toByte(), (preSkip shr 8).toByte(),
+        0x80.toByte(), 0xBB.toByte(), 0, 0, // původní vzorkování 48 000 Hz
+        0, 0, // zesílení
+        0, // mapování kanálů: mono/stereo
+    )
+    page(listOf(head), granule = 0, flags = 0x02)
+    val vendor = "Plume".encodeToByteArray()
+    val tags = "OpusTags".encodeToByteArray() +
+        byteArrayOf(vendor.size.toByte(), 0, 0, 0) + vendor + byteArrayOf(0, 0, 0, 0)
+    page(listOf(tags), granule = 0, flags = 0)
+
+    var granule = preSkip.toLong()
+    val pages = packets.chunked(PACKETS_PER_PAGE)
+    if (pages.isEmpty()) page(emptyList(), granule, flags = 0x04)
+    pages.forEachIndexed { index, chunk ->
+        granule += chunk.size.toLong() * samplesPerPacket
+        page(chunk, granule, flags = if (index == pages.lastIndex) 0x04 else 0)
+    }
+    return out.toByteArray()
+}
+
+/** CRC Oggu: polynom 0x04C11DB7, bez zrcadlení, počáteční hodnota 0. Pole CRC se počítá jako nuly. */
+internal fun oggCrc(bytes: ByteArray): Int {
+    var crc = 0
+    for (byte in bytes) {
+        crc = crc xor ((byte.toInt() and 0xFF) shl 24)
+        repeat(8) {
+            crc = if (crc and 0x80000000.toInt() != 0) (crc shl 1) xor 0x04C11DB7 else crc shl 1
+        }
+    }
+    return crc
+}
+
 /** WAV (PCM 16 bit, little endian) s hlavičkou; to přehraje každý systémový přehrávač. */
 fun wavFile(pcm16: ByteArray, sampleRate: Int, channels: Int): ByteArray {
     val header = ByteArrayBuilder()
@@ -116,3 +191,6 @@ private class ByteArrayBuilder {
 }
 
 private const val OGG_HEADER_SIZE = 27
+
+/** Kolik paketů na stránku Oggu: pro 20ms pakety zhruba vteřina, a segmentová tabulka (255) nepřeteče. */
+private const val PACKETS_PER_PAGE = 50

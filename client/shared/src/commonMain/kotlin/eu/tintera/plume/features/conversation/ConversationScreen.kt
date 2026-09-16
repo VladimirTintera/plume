@@ -142,7 +142,10 @@ import eu.tintera.plume.core.ui.rememberUploadProgress
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.RichText
 import eu.tintera.plume.core.audio.VoicePlayback
+import eu.tintera.plume.core.audio.VoiceRecording
+import eu.tintera.plume.core.audio.rememberRecordPermission
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.mic_24dp
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.arrow_downward_24dp
 import eu.tintera.plume.resources.check_24dp
@@ -178,6 +181,10 @@ fun ConversationScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     // Čte se až v bublině hlasovky, takže změna pozice nepřekresluje celou obrazovku.
     val voicePlayback by viewModel.voicePlayback.collectAsStateWithLifecycle()
+    // Nahrávání se mění po 50 ms; obrazovka čte jen jestli běží, čas a úrovně až pruh nahrávání.
+    val voiceRecordingState = viewModel.voiceRecording.collectAsStateWithLifecycle()
+    val isRecording by remember { derivedStateOf { voiceRecordingState.value != null } }
+    val recordPermission = rememberRecordPermission()
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     var stickerPickerOpen by rememberSaveable { mutableStateOf(false) }
@@ -562,6 +569,19 @@ fun ConversationScreen(
                 onInputFilled = viewModel::consumeInputFill,
                 onOpenStickers = { stickerPickerOpen = true },
                 onPickMedia = attachmentPicker::pickMedia,
+                isRecording = isRecording,
+                recording = { voiceRecordingState.value },
+                onStartRecording = {
+                    recordPermission.request { granted ->
+                        if (granted) {
+                            viewModel.startRecording()
+                        } else {
+                            viewModel.reportError("Nahrávání hlasovek potřebuje přístup k mikrofonu.")
+                        }
+                    }
+                },
+                onCancelRecording = viewModel::cancelRecording,
+                onSendRecording = viewModel::sendRecording,
                 onPickDocument = attachmentPicker::pickDocument,
                 attachments = state.attachments,
                 onRemoveAttachment = viewModel::removeAttachment,
@@ -1336,6 +1356,12 @@ private fun MessageInput(
     onOpenStickers: () -> Unit,
     onPickMedia: () -> Unit,
     onPickDocument: () -> Unit,
+    isRecording: Boolean,
+    /** Čte se až v pruhu nahrávání — čas a úrovně se mění dvacetkrát za vteřinu. */
+    recording: () -> VoiceRecording?,
+    onStartRecording: () -> Unit,
+    onCancelRecording: () -> Unit,
+    onSendRecording: () -> Unit,
     /** Přílohy čekající na odeslání; text pole je pak jejich popisek. */
     attachments: List<OutgoingAttachment>,
     onRemoveAttachment: (Int) -> Unit,
@@ -1433,7 +1459,10 @@ private fun MessageInput(
                   }
                 }
 
-                Box {
+                // Při nahrávání místo pole pruh s časem; citace nad ním zůstává, hlasovka na ni odpoví.
+                if (isRecording) {
+                    RecordingBar(recording = recording, onCancel = onCancelRecording)
+                } else Box {
             TextField(
                 value = draft,
                 onValueChange = {
@@ -1528,13 +1557,25 @@ private fun MessageInput(
              *
              * Tvar se při stisku mění podle M3 Expressive (`shapes`), kruh → zaoblený čtverec.
              */
+            /*
+             * Prázdné pole bez příloh = mikrofon (jako v Telegramu i WhatsAppu): tlačítko, které by
+             * jinak bylo neaktivní, dostane smysl. Ťuknutí nahrávání spustí, odeslání ho ukončí.
+             * Při úpravě zprávy mikrofon není — hlasovka úprava není.
+             */
+            val showMic = !isRecording && editing == null && draft.text.isBlank() && !withAttachments
             FilledIconButton(
                 onClick = {
-                    onSend(draft.text)
-                    onDraftValueChange(TextFieldValue())
+                    when {
+                        isRecording -> onSendRecording()
+                        showMic -> onStartRecording()
+                        else -> {
+                            onSend(draft.text)
+                            onDraftValueChange(TextFieldValue())
+                        }
+                    }
                 },
                 // Přílohy jdou poslat i bez popisku.
-                enabled = draft.text.isNotBlank() || withAttachments,
+                enabled = isRecording || showMic || draft.text.isNotBlank() || withAttachments,
                 shapes = IconButtonDefaults.shapes(
                     shape = IconButtonDefaults.mediumRoundShape,
                     pressedShape = IconButtonDefaults.mediumPressedShape,
@@ -1543,8 +1584,19 @@ private fun MessageInput(
             ) {
                 // Při úpravě fajfka: nic se neposílá, jen potvrzuje změna.
                 Icon(
-                    painterResource(if (editing != null) Res.drawable.check_24dp else Res.drawable.send_24dp),
-                    contentDescription = if (editing != null) "Uložit úpravu" else "Odeslat",
+                    painterResource(
+                        when {
+                            editing != null -> Res.drawable.check_24dp
+                            showMic -> Res.drawable.mic_24dp
+                            else -> Res.drawable.send_24dp
+                        },
+                    ),
+                    contentDescription = when {
+                        editing != null -> "Uložit úpravu"
+                        showMic -> "Nahrát hlasovou zprávu"
+                        isRecording -> "Odeslat hlasovou zprávu"
+                        else -> "Odeslat"
+                    },
                     modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
                 )
             }

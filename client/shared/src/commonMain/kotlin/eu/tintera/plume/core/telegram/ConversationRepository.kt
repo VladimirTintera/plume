@@ -148,6 +148,18 @@ interface ConversationRepository {
      * hlásí [FileRepository.uploadProgress]. [caption] patří první příloze, jak to dělá Telegram;
      * prázdný popisek se nepošle.
      */
+    /**
+     * Odešle nahranou hlasovku. [waveform] je už zabalený (5 bitů na hodnotu), [path] Ogg/Opus
+     * nebo M4A. Jako ostatní odesílání vrací rozepsanou zprávu hned.
+     */
+    suspend fun sendVoiceNote(
+        chatId: Long,
+        path: String,
+        durationSeconds: Int,
+        waveform: ByteArray,
+        replyToMessageId: Long?,
+    ): Result<ChatMessage>
+
     suspend fun sendAttachments(
         chatId: Long,
         attachments: List<OutgoingAttachment>,

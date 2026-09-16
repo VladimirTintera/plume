@@ -15,7 +15,11 @@ import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
+import eu.tintera.plume.core.audio.AudioRecorder
+import eu.tintera.plume.core.audio.MIN_DURATION_MS
 import eu.tintera.plume.core.audio.VoiceKey
+import eu.tintera.plume.core.audio.VoiceRecorder
+import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.core.telegram.FileRepository
@@ -79,7 +83,13 @@ class ConversationViewModel(
     /** Jen kvůli hlasovkám: soubor se stáhne až při prvním přehrání. */
     private val fileRepository: FileRepository,
     private val voicePlayer: VoicePlayer,
+    audioRecorder: AudioRecorder,
 ) : ViewModel() {
+
+    private val voiceRecorder = VoiceRecorder(audioRecorder, viewModelScope)
+
+    /** Probíhající nahrávání hlasovky; samostatný tok ze stejného důvodu jako [voicePlayback]. */
+    val voiceRecording: StateFlow<VoiceRecording?> = voiceRecorder.state
 
     /**
      * Přehrávání hlasovky. Samostatný tok, ne součást [state]: pozice se mění dvacetkrát za
@@ -809,6 +819,8 @@ class ConversationViewModel(
     override fun onCleared() {
         // Hlasovka z chatu, který se zavřel, nemá kde ukazovat průběh ani jak se zastavit.
         voicePlayer.stop(chatId)
+        // Rozpracovaná nahrávka se při odchodu zahazuje — neposílat nic, co uživatel neodeslal.
+        voiceRecorder.cancel()
 
         val pending = draftSave ?: return
         if (!pending.isActive) return
@@ -1170,6 +1182,43 @@ class ConversationViewModel(
                 repository.openContent(chatId, messageId).onFailure { failure ->
                     logger.w(failure) { "Poslechnutí hlasovky se nepodařilo nahlásit." }
                 }
+            }
+        }
+    }
+
+    /**
+     * Začne nahrávat hlasovku. Oprávnění k mikrofonu řeší obrazovka dřív, než sem dojde.
+     * Hrající hlasovka se zastaví — nahrával by se i její zvuk z reproduktoru.
+     */
+    fun startRecording() {
+        voicePlayer.stop()
+        voiceRecorder.start().onFailure {
+            _state.update { it.copy(error = "Nahrávání se nepodařilo spustit.") }
+        }
+    }
+
+    fun cancelRecording() {
+        voiceRecorder.cancel()
+    }
+
+    /**
+     * Ukončí nahrávání a hlasovku odešle — jako samolepka: bez letu ze vstupního pole, rozepsaný
+     * text zůstává, citace se spotřebuje. Příliš krátká nahrávka se zahodí s vysvětlením.
+     */
+    fun sendRecording() {
+        // Dvojí ťuknutí na odeslání: druhé by našlo nahrávání už ukončené a hlásilo nesmysl.
+        if (voiceRecorder.state.value == null) return
+        viewModelScope.launch {
+            val tooShort = (voiceRecorder.state.value?.elapsedMs ?: 0L) < MIN_DURATION_MS
+            val recorded = voiceRecorder.finish()
+            if (recorded == null) {
+                _state.update {
+                    if (tooShort) it.copy(notice = "Nahrávka je moc krátká.") else it.copy(error = "Nahrávku se nepodařilo dokončit.")
+                }
+                return@launch
+            }
+            sendMedia("Hlasovku se nepodařilo odeslat.") { replyTo ->
+                repository.sendVoiceNote(chatId, recorded.path, recorded.durationSeconds, recorded.waveform, replyTo)
             }
         }
     }

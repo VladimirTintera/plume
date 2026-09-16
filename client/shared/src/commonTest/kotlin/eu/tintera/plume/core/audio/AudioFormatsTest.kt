@@ -48,6 +48,46 @@ class AudioFormatsTest {
     }
 
     @Test
+    fun waveformRoundTrip() {
+        val levels = listOf(0f, 0.5f, 1f, 0.25f)
+        val decoded = decodeWaveform(encodeWaveform(levels))
+        assertEquals(WAVEFORM_VALUES, decoded.size)
+        assertEquals(0, decoded.first())
+        assertEquals(31, decoded.max())
+        assertEquals(31, decoded[50]) // třetí úroveň (1.0) pokrývá hodnoty 50–74
+    }
+
+    @Test
+    fun oggCrcMatchesReferenceVector() {
+        // CRC-32/POSIX „123456789" = 0x765E7680 (s výstupním XOR); Ogg XOR nedělá.
+        assertEquals(0x765E7680.toInt() xor -1, oggCrc("123456789".encodeToByteArray()))
+    }
+
+    @Test
+    fun oggWriterRoundTrip() {
+        val packets = List(120) { index -> ByteArray(index % 300 + 1) { index.toByte() } }
+        val file = oggOpusFile(packets, channels = 1, preSkip = 312, samplesPerPacket = 960)
+
+        val stream = parseOggOpus(file)
+        assertEquals(1, stream.channels)
+        assertEquals(312, stream.preSkip)
+        assertEquals(packets.size, stream.packets.size)
+        packets.zip(stream.packets).forEach { (expected, actual) -> assertContentEquals(expected, actual) }
+
+        // Každá stránka má platné CRC (počítané s vynulovaným polem).
+        var offset = 0
+        while (offset < file.size) {
+            val segments = file[offset + 26].toInt() and 0xFF
+            val length = 27 + segments + (0 until segments).sumOf { file[offset + 27 + it].toInt() and 0xFF }
+            val page = file.copyOfRange(offset, offset + length)
+            val stored = (0 until 4).sumOf { (page[22 + it].toInt() and 0xFF) shl (8 * it) }
+            for (i in 22 until 26) page[i] = 0
+            assertEquals(stored, oggCrc(page))
+            offset += length
+        }
+    }
+
+    @Test
     fun wavHeader() {
         val wav = wavFile(ByteArray(4), sampleRate = 48000, channels = 1)
         assertEquals(48, wav.size)

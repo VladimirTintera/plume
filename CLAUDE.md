@@ -11,7 +11,7 @@ Fáze 6. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell
 živý seznam chatů, textová konverzace (historie, živé zprávy, odesílání, označení přečteného),
 avatary a fotky ve zprávách, reakce, odpovědi, notifikace na Androidu, sponzorované zprávy.
 
-Není: přehrávání videa, nahrávání hlasovek, otevírání dokumentů, notifikace na iOS. Nastavení aplikace
+Není: přehrávání videa, otevírání dokumentů, notifikace na iOS. Nastavení aplikace
 se ukládá (DataStore), zatím ale drží jen poslední část výběru emoji/samolepek. Prohlížeč médií umí zatím jen fotky. Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
 
@@ -840,6 +840,33 @@ a tečka u neposlechnuté.
     `./gradlew :client:shared:iosSimulatorArm64Test`.
   - Kategorie `AVAudioSession` je Playback — hlasovka hraje i s přepínačem ztlumení.
   - Delegát `AVAudioPlayer` se drží silnou referencí, jinak by dohrání nikdo nenahlásil.
+
+### Nahrávání
+
+Prázdné pole bez příloh má místo odeslání **mikrofon**. Ťuknutí spustí nahrávání (karta ukáže
+pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací tlačítko ho ukončí a pošle.
+
+- **Ťuknutím, ne podržením.** Podržení s tažením na zrušení/zamčení je v Compose křehké gesto nad
+  tlačítkem, které se během něj mění; ťuknutí funguje i s čtečkou obrazovky. Kratší než vteřina
+  se zahodí (`MIN_DURATION_MS`) s hláškou.
+- **Formát chce Telegram Ogg/Opus mono**, případně M4A (TDLib ho u hlasovky přijme).
+  - **Android 10+** nahrává Ogg/Opus rovnou (`MediaRecorder`, 48 kHz, 32 kbit/s). **Starší**
+    Opus neumí → M4A/AAC. `stop()` po příliš krátkém nahrávání vyhodí výjimku.
+  - **iOS** `AVAudioRecorder` Opus umí jen do CAF → nahrává se PCM (48 kHz mono), po skončení
+    se zakóduje systémovým Opusem (`encodeOpus`, pakety po 20 ms) a zabalí do Oggu v commonMain
+    (`oggOpusFile`: OpusHead, OpusTags, stránky po 50 paketech s CRC a granule). Celý řetězec
+    kódování → Ogg → čtení → dekódování ověřuje `OpusDecodeTest` na simulátoru, zápis Oggu
+    i CRC (referenční vektor) `AudioFormatsTest`.
+  - iOS relace při nahrávání je PlayAndRecord s `DefaultToSpeaker` — jinak by potom všechno
+    hrálo do sluchátka u ucha. Přehrávání si kategorii přepne zpátky samo.
+- **Waveform se skládá z úrovní během nahrávání** (po 50 ms: Android `maxAmplitude`, iOS
+  `averagePower`), převzorkuje na 100 hodnot 0–31 a zabalí po 5 bitech (`encodeWaveform`).
+- **Oprávnění až při prvním ťuknutí na mikrofon** (`rememberRecordPermission`). Android
+  `RECORD_AUDIO` za běhu, iOS `NSMicrophoneUsageDescription` v Info.plist — bez klíče iOS aplikaci
+  při přístupu k mikrofonu ukončí.
+- **Nahrávač je `factory`, ne `single`** — patří obrazovce. Odchod z chatu nahrávku zahodí,
+  spuštění nahrávání zastaví hrající hlasovku (nahrávala by se z reproduktoru).
+- **Odesílá se jako samolepka** (`sendMedia`): bez letu, rozepsaný text zůstává, citace se použije.
 
 ## Prohlížeč médií
 
