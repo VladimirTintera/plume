@@ -28,7 +28,9 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -1298,10 +1300,13 @@ private val REPLY_ICON_SLOT = 40.dp
 /** Jak malá je šipka na začátku tahu. */
 private const val REPLY_ICON_MIN_SCALE = 0.6f
 
+/** Stav doručení tak, jak se kreslí — čtyři stavy, každý s vlastní ikonou, popisem a barvou. */
+private enum class Delivery { Sending, Sent, Read, Failed }
+
 /**
  * Stav doručení odchozí zprávy.
  *
- * Čtyři stavy ve třech ikonách, jak je zvykem: hodiny (odesílá se), fajfka (na serveru),
+ * Čtyři stavy ve čtyřech ikonách, jak je zvykem: hodiny (odesílá se), fajfka (na serveru),
  * dvojitá fajfka (protějšek přečetl), vykřičník (selhalo).
  *
  * „Přečteno" nepochází ze zprávy, ale z ukazatele na chatu — proto se sem předává zvlášť.
@@ -1312,30 +1317,61 @@ private fun DeliveryIcon(
     read: Boolean,
     tint: Color,
 ) {
-    val (icon, description) = when {
-        sendState == SendState.Sending -> Res.drawable.schedule_24dp to "Odesílá se"
-        sendState == SendState.Failed -> Res.drawable.error_24dp to "Odeslání selhalo"
-        read -> Res.drawable.done_all_24dp to "Přečteno"
-        else -> Res.drawable.check_24dp to "Odesláno"
+    val delivery = when {
+        sendState == SendState.Sending -> Delivery.Sending
+        sendState == SendState.Failed -> Delivery.Failed
+        read -> Delivery.Read
+        else -> Delivery.Sent
     }
 
-    // Selhání je jediný stav, který uživatel musí zaregistrovat — dostane chybovou barvu.
-    val color = if (sendState == SendState.Failed) {
-        MaterialTheme.colorScheme.error
-    } else {
-        tint.copy(alpha = 0.7f)
-    }
+    val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+    val spatial = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
 
-    // Crossfade, ať přechod hodiny → fajfka → dvojitá fajfka neproblikne.
-    Crossfade(targetState = icon, label = "delivery") { current ->
+    /*
+     * Nová ikona naskočí zvětšením, stará jen rychle zmizí. NE `Crossfade`.
+     *
+     * Crossfade prolíná obě ikony současně, takže v půlce přechodu jsou obě zhruba napůl
+     * průhledné přes sebe. Fajfka a dvojitá fajfka se kryjí, a společná část tak na okamžik
+     * zeslábne — to je ten problik. Navíc jel na pevném `tween` mimo `MotionScheme` a barvu
+     * i popis bral zvenku, takže odcházející hodiny při selhání zčervenaly dřív, než zmizely.
+     *
+     * `using null`: ikony mají stejnou velikost, není co animovat, a ořez přechodu by uřízl
+     * pružný přeběh zvětšení.
+     */
+    AnimatedContent(
+        targetState = delivery,
+        transitionSpec = {
+            (fadeIn(effects) + scaleIn(spatial, initialScale = DELIVERY_ICON_INITIAL_SCALE)) togetherWith
+                fadeOut(fastEffects) using null
+        },
+        contentAlignment = Alignment.Center,
+        label = "delivery",
+    ) { current ->
+        val (icon, description) = when (current) {
+            Delivery.Sending -> Res.drawable.schedule_24dp to "Odesílá se"
+            Delivery.Sent -> Res.drawable.check_24dp to "Odesláno"
+            Delivery.Read -> Res.drawable.done_all_24dp to "Přečteno"
+            Delivery.Failed -> Res.drawable.error_24dp to "Odeslání selhalo"
+        }
+
         Icon(
-            painter = painterResource(current),
+            painter = painterResource(icon),
             contentDescription = description,
-            tint = color,
+            // Selhání je jediný stav, který uživatel musí zaregistrovat — dostane chybovou barvu.
+            // Počítá se z `current`, ne z cílového stavu: odcházející ikona si barvu drží.
+            tint = if (current == Delivery.Failed) {
+                MaterialTheme.colorScheme.error
+            } else {
+                tint.copy(alpha = 0.7f)
+            },
             modifier = Modifier.size(14.dp),
         )
     }
 }
+
+/** Jak malá nová ikona doručení naskočí. Dost na to, aby změna šla postřehnout koutkem oka. */
+private const val DELIVERY_ICON_INITIAL_SCALE = 0.5f
 
 /**
  * Příloha uvnitř bubliny.
