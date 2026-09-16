@@ -3,13 +3,29 @@
 Živý dokument. Nové nápady sem, hotové věci ven (a poučení do `CLAUDE.md`).
 Pořadí je doporučení, ne závazek.
 
-## Stav dnes
+## Stav dnes (září 2026)
 
-Konverzace umí: historii se stránkováním, živé zprávy, odesílání s letem bubliny, reakce
-(bottom sheet), odpovědi, fotky a samolepky v bublině, servisní zprávy, sponzorované zprávy,
-stav doručení, dostupnost protějšku v hlavičce.
+Konverzace umí: historii se stránkováním, skok na první nepřečtenou, předěly dne, živé zprávy,
+odesílání s letem bubliny, koncept uložený v TDLib, „píše…" oběma směry, úpravu vlastní zprávy,
+odpovědi (i swipem) se skokem na citaci, reakce, nabídku nad zprávou (odpovědět, upravit,
+kopírovat, připnout/odepnout, smazat, oblíbené samolepky), připnuté zprávy s odepínáním,
+formátování textu a náhledy odkazů, fotky s prohlížečem, samolepky (i animované `.tgs`),
+animovaná emoji, výběr samolepek (sady, hledání, oblíbené, trendy) a emoji (hledání, nedávná,
+odstíny pleti), profilovky ve skupinách, sponzorované zprávy, stav doručení.
 
-Gesta nad zprávou jsou zatím jen dvě: dlouhý stisk (= výběr reakce) a ťuknutí, které nedělá nic.
+Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonTest`,
+`./gradlew :client:shared:testAndroidHostTest`).
+
+## Doporučené pořadí dalších kroků
+
+1. **Posílání příloh** — fotka a soubor z galerie/souborů. Největší díra: vstupní pole umí jen
+   text. Potřebuje výběr souboru přes `expect`/`actual` (Android Photo Picker / SAF, iOS
+   PHPicker), `InputMessagePhoto` / `InputMessageDocument` a průběh nahrávání v bublině.
+2. **Přehrávání videa a hlasovek** — dnes se jen popisují. Platformní přehrávač přes
+   `expect`/`actual` (Media3 / AVPlayer); hlasovky jsou jednodušší a častější, hodí se první.
+3. **Přeposílání zpráv** — položka v nabídce + obrazovka výběru cílového chatu.
+4. **Otevírání dokumentů** — stáhnout a předat systému; výrazně méně práce než přehrávání.
+5. Drobnosti ze sekcí níž (zásobník, nabídka, entity, média, emoji).
 
 ---
 
@@ -91,19 +107,10 @@ Seřazeno podle toho, jak moc to bolí.
   (kotva uprostřed přes záporný `offset` v `getChatHistory`).
 - **Označení části textu.** Kopíruje se jen celá zpráva z nabídky; vybrat úryvek
   (`SelectionContainer`) zatím nejde.
-- **Příloha se nedá poslat.** Vstupní pole umí jen text — chybí fotka, soubor, hlasovka, emoji.
+- **Příloha se nedá poslat.** Vstupní pole umí text, emoji a samolepky — chybí fotka, soubor,
+  hlasovka. Viz „Doporučené pořadí" nahoře.
 
 ---
-
-## Doporučené pořadí
-
-1. ~~**[C] entity a odkazy**~~ — hotovo.
-2. ~~**[B] popup + [A] swipe**~~ — hotovo.
-3. ~~**[D] prohlížeč médií**~~ — hotovo pro fotky.
-
-Do každého kroku se vejde i kus zásobníku: datové předěly a profilovky ve skupině se hodí
-udělat, až budeme stejně v `MessageBubble`; opravy indexů při hlášení přečtení hned, protože
-jsou to tři řádky.
 
 ## Výběr samolepek a emoji
 
