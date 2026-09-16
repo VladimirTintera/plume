@@ -484,7 +484,8 @@ fun ConversationScreen(
         },
         // Vstupní pole NENÍ `bottomBar`: jako bottomBar by ukusovalo z výšky seznamu a zprávy
         // by před ním končily. Plave nad obsahem, který pod něj zajíždí — viz níž.
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        // Snackbar proto taky není ve slotu Scaffoldu: ten ho staví nad `bottomBar`, o poli nic
+        // neví a snackbar by ho překryl. Kreslí se v obsahu nad změřenou výškou pole.
     ) { padding ->
         // Nabídka nad zprávou se kreslí až v bublině — viz `MessageMenuOverlay`.
 
@@ -735,6 +736,13 @@ fun ConversationScreen(
                     .align(Alignment.BottomEnd)
                     .padding(bottom = inputHeight)
                     .padding(16.dp),
+            )
+
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = inputHeight),
             )
 
             MessageInput(
@@ -1085,6 +1093,7 @@ private fun MessageBubble(
                         // barvu popředí — jinak by byl neviditelný. Stejná past jako u citace.
                         linkColor = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
                         onLinkClick = onLinkClick,
+                        onLongClick = onRequestMenu,
                     )
                 }
 

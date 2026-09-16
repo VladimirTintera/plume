@@ -511,6 +511,9 @@ v seznamu chatů („Koncept: …") a na ostatních zařízeních.
   `TextField`, takže se spodním zarovnáním řádku sedí na střed pole bez dopočítávaného odsazení
   a u víceřádkového textu zůstává u posledního řádku. Výchozí small (40 dp) sedělo o 8 dp níž
   než střed pole, large (96 dp) by bylo vyšší než pole samo.
+- **Snackbar konverzace není ve slotu `snackbarHost` Scaffoldu.** Scaffold ho staví nad
+  `bottomBar`, a protože vstupní pole bottomBar není, snackbar ho překrýval. Kreslí se v obsahu
+  nad změřenou výškou pole, stejně jako tlačítko dolů.
 - **Scaffold konverzace nedává spodní inset do `padding`** (`contentWindowInsets` jen Top +
   Horizontal). Spodek si řeší pole samo přes `navigationBarsPadding` + `imePadding`. `padding`
   ze Scaffoldu se v obsahu jen aplikuje a inset NEKONZUMUJE, takže se výška systémové lišty
@@ -550,6 +553,12 @@ to tu bylo, než vznikly `MessageEntity` a `RichText`.
   interní `t.me` odkazy, rozhodne se to na jednom místě a obrazovka se měnit nebude. Vlastní
   `linkInteractionListener` je nutný — bez něj si `LinkAnnotation.Url` otevře odkaz sám přes
   `LocalUriHandler` a nemáme kam sáhnout.
+- **Dlouhý stisk nad odkazem hlídá `RichText` sám** (`onLongClick`). Compose dává každému odkazu
+  vlastní `combinedClickable` bez `onLongClick`: ten dlouhý stisk k bublině nepustí a po puštění
+  ho vyhodnotí jako ťuknutí, takže se místo nabídky otevíral prohlížeč. `RichText` proto
+  v `PointerEventPass.Initial` (bez konzumace) pozoruje stisk nad odkazem, po `longPressTimeout`
+  zavolá nabídku a následné „kliknutí" na odkaz zahodí. Mimo odkazy se nehlídá nic — dlouhý
+  stisk tam dostane bublina a nabídka by se otevřela dvakrát.
 - **Odkaz bez schématu dostane `https://`.** TDLib označí za odkaz i holé `example.com`; Android
   by z toho udělal relativní URI a intent by nikam nevedl.
 - **Zmínky, hashtagy a příkazy botů se schválně nemapují.** Obarvit je umíme, ale kliknutí by
