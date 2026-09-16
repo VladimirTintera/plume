@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -19,8 +20,12 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -40,6 +45,17 @@ fun SettingsScreen(
 ) {
     val account by viewModel.account.collectAsStateWithLifecycle()
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsStateWithLifecycle()
+    var confirmLogOut by rememberSaveable { mutableStateOf(false) }
+
+    if (confirmLogOut) {
+        LogOutDialog(
+            onConfirm = {
+                confirmLogOut = false
+                viewModel.logOut()
+            },
+            onDismiss = { confirmLogOut = false },
+        )
+    }
 
     // Uživatel se sem vrací ze systémového nastavení, kde mohl notifikace přepnout.
     LifecycleResumeEffect(Unit) {
@@ -118,10 +134,9 @@ fun SettingsScreen(
                 )
             }
 
-            // Destruktivní akce dostane error roli. Potvrzovací dialog sem podle konvence patří —
-            // doplní se, až bude v projektu sdílená dialogová komponenta.
+            // Destruktivní akce dostane error roli a potvrzení s konkrétním následkem.
             Button(
-                onClick = viewModel::logOut,
+                onClick = { confirmLogOut = true },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -132,4 +147,33 @@ fun SettingsScreen(
             }
         }
     }
+}
+
+/**
+ * Potvrzení odhlášení. Pojmenovává následek: odhlášení maže lokální data TDLib, takže se po
+ * novém přihlášení všechno stahuje znovu. Účtu samotnému ani ostatním zařízením se nic nestane.
+ */
+@Composable
+private fun LogOutDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Odhlásit se?") },
+        text = {
+            Text(
+                "Zprávy a stažené soubory se z tohohle zařízení smažou. " +
+                    "Účet i chaty na ostatních zařízeních zůstanou beze změny.",
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(text = "Odhlásit", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Zrušit") }
+        },
+    )
 }

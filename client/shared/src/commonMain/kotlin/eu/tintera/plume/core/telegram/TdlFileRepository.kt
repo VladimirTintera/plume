@@ -21,13 +21,13 @@ import kotlinx.coroutines.sync.withLock
  * visí na dvou místech (náhled v seznamu i v konverzaci), sdílí jedno stahování a jeden průběh.
  */
 class TdlFileRepository(
-    holder: TelegramClientHolder,
+    private val holder: TelegramClientHolder,
     private val scope: CoroutineScope,
 ) : FileRepository {
 
     private val logger = Logger.withTag("Files")
 
-    private val client: TdlClient = holder.client
+    private val client: TdlClient get() = holder.client
 
     private val states = mutableMapOf<Int, MutableStateFlow<FileState>>()
     private val mutex = Mutex()
@@ -38,7 +38,18 @@ class TdlFileRepository(
     init {
         // Průběh chodí updaty pro VŠECHNY soubory, ne jen ty, o které jsme požádali.
         scope.launch {
-            client.fileUpdates.collect { update -> publish(update.file) }
+            holder.updates { fileUpdates }.collect { update -> publish(update.file) }
+        }
+
+        // `fileId` platí jen v rámci jedné databáze TDLib. Po odhlášení dostane nový účet čísla
+        // znovu od začátku, takže by stará mapa vydávala cizí soubory pod novými id.
+        scope.launch {
+            holder.replaced.collect {
+                mutex.withLock {
+                    states.clear()
+                    requested.clear()
+                }
+            }
         }
     }
 

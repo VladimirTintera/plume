@@ -42,13 +42,13 @@ import kotlinx.coroutines.sync.withLock
  * padesát `getUser` volání jen kvůli hlavičkám bublin.
  */
 class TdlConversationRepository(
-    holder: TelegramClientHolder,
+    private val holder: TelegramClientHolder,
 ) : ConversationRepository {
 
 
     private val logger = Logger.withTag("Conversation")
 
-    private val client: TdlClient = holder.client
+    private val client: TdlClient get() = holder.client
 
     /**
      * Keš odesílatelů (jméno + avatar).
@@ -58,6 +58,12 @@ class TdlConversationRepository(
      */
     private val senders = mutableMapOf<Long, ReactionSender>()
     private val sendersMutex = Mutex()
+
+    /**
+     * Klient, pro kterého keš [senders] platí. Po odhlášení a přihlášení jiného účtu může mít
+     * tentýž uživatel jiné jméno (kontakty jsou per účet) a profilovky jiná `fileId`.
+     */
+    private var sendersClient: TdlClient? = null
 
     override suspend fun history(
         chatId: Long,
@@ -83,19 +89,19 @@ class TdlConversationRepository(
     }
 
     override fun newMessages(chatId: Long): Flow<ChatMessage> =
-        client.newMessageUpdates
+        holder.updates { newMessageUpdates }
             .filter { it.message.chatId == chatId }
             .map { it.message.toChatMessage(isGroup(chatId)) }
 
     override fun deletedMessages(chatId: Long): Flow<List<Long>> =
-        client.deleteMessagesUpdates
+        holder.updates { deleteMessagesUpdates }
             // `isPermanent == false` znamená jen uvolnění z cache, ne smazání pro uživatele —
             // takovou zprávu z obrazovky odstranit nesmíme.
             .filter { it.chatId == chatId && it.isPermanent }
             .map { it.messageIds.toList() }
 
     override fun editedMessages(chatId: Long): Flow<ChatMessage> =
-        client.messageContentUpdates
+        holder.updates { messageContentUpdates }
             .filter { it.chatId == chatId }
             .map { update ->
                 // Update nese jen nový obsah, ne celou zprávu — zbytek se musí dočíst.
@@ -107,7 +113,7 @@ class TdlConversationRepository(
             .map { it.getOrThrow() }
 
     override fun reactionUpdates(chatId: Long): Flow<MessageReactions> =
-        client.messageInteractionInfoUpdates
+        holder.updates { messageInteractionInfoUpdates }
             .filter { it.chatId == chatId }
             .map { update ->
                 MessageReactions(
@@ -252,7 +258,7 @@ class TdlConversationRepository(
         ).toResult().map { }
 
     override fun pinnedMessageChanges(chatId: Long): Flow<Unit> =
-        client.messageIsPinnedUpdates
+        holder.updates { messageIsPinnedUpdates }
             .filter { it.chatId == chatId }
             .map { }
 
@@ -264,7 +270,7 @@ class TdlConversationRepository(
     }
 
     override fun sentMessageUpdates(chatId: Long): Flow<SentMessageUpdate> = merge(
-        client.messageSendSucceededUpdates
+        holder.updates { messageSendSucceededUpdates }
             .filter { it.message.chatId == chatId }
             .map { update ->
                 SentMessageUpdate.Succeeded(
@@ -272,7 +278,7 @@ class TdlConversationRepository(
                     message = update.message.toChatMessage(isGroup(chatId)),
                 )
             },
-        client.messageSendFailedUpdates
+        holder.updates { messageSendFailedUpdates }
             .filter { it.message.chatId == chatId }
             .map { update ->
                 SentMessageUpdate.Failed(
@@ -283,7 +289,7 @@ class TdlConversationRepository(
     )
 
     override fun readOutboxUpdates(chatId: Long): Flow<Long> =
-        client.chatReadOutboxUpdates
+        holder.updates { chatReadOutboxUpdates }
             .filter { it.chatId == chatId }
             .map { it.lastReadOutboxMessageId }
 
@@ -421,7 +427,7 @@ class TdlConversationRepository(
         val initial = client.getUser(chatId).toResult().getOrNull()?.status
         if (initial != null) emit(initial.toPresence())
 
-        client.userStatusUpdates
+        holder.updates { userStatusUpdates }
             .filter { it.userId == chatId }
             .collect { emit(it.status.toPresence()) }
     }
@@ -535,7 +541,13 @@ class TdlConversationRepository(
     private suspend fun resolveSender(senderId: Long): ReactionSender? {
         if (senderId == 0L) return null
 
-        sendersMutex.withLock { senders[senderId] }?.let { return it }
+        sendersMutex.withLock {
+            if (sendersClient !== client) {
+                senders.clear()
+                sendersClient = client
+            }
+            senders[senderId]
+        }?.let { return it }
 
         val user = client.getUser(senderId).toResult().getOrNull()
 

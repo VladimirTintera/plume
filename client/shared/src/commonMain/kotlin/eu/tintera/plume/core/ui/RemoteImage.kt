@@ -108,7 +108,13 @@ fun rememberFileState(fileId: Int?): FileState {
  * seznamu do konverzace je to vidět: avatar odletí jako prázdný kruh a obrázek naskočí až na místě.
  *
  * Mapa se čte i zapisuje výhradně z kompozice (hlavní vlákno), takže nepotřebuje zámek. Cesty
- * v TDLib jednou hotovému souboru nemizí, takže se nic nezneplatňuje; roste to o jeden krátký
- * řetězec na zobrazený soubor.
+ * v TDLib jednou hotovému souboru nemizí, takže se za běhu nic nezneplatňuje; roste to o jeden
+ * krátký řetězec na zobrazený soubor. Výjimka je odhlášení, viz [forgetKnownImagePaths].
  */
 private val knownPaths = mutableMapOf<Int, String>()
+
+/**
+ * Zahodí známé cesty. `fileId` platí jen v rámci jedné databáze TDLib — po odhlášení a přihlášení
+ * by pod stejným id visel soubor předchozího účtu. Volat z kompozice (kvůli vláknu).
+ */
+fun forgetKnownImagePaths() = knownPaths.clear()

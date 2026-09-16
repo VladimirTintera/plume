@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -11,6 +12,7 @@ import eu.tintera.plume.app.root.presentation.AppTheme
 import eu.tintera.plume.app.shell.AppShell
 import eu.tintera.plume.core.notifications.NotificationPermissionPrompt
 import eu.tintera.plume.core.telegram.AuthStage
+import eu.tintera.plume.core.ui.forgetKnownImagePaths
 import eu.tintera.plume.features.auth.AuthScreen
 import eu.tintera.plume.features.auth.AuthViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -28,6 +30,11 @@ fun App() {
         Surface(Modifier.fillMaxSize()) {
             val authViewModel: AuthViewModel = koinViewModel()
             val stage by authViewModel.stage.collectAsStateWithLifecycle()
+
+            // Přihlášená část je pryč z kompozice, takže je chvíle uklidit, co přežívá mimo ni.
+            LaunchedEffect(stage is AuthStage.Ready) {
+                if (stage !is AuthStage.Ready) forgetKnownImagePaths()
+            }
 
             AnimatedContent(
                 targetState = stage is AuthStage.Ready,

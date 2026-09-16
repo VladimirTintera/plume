@@ -67,6 +67,7 @@ actual class NotificationPresenter(
                 when (update) {
                     is NotificationUpdate.Added -> add(update.notifications)
                     is NotificationUpdate.Removed -> remove(update)
+                    NotificationUpdate.Cleared -> clear()
                 }
             }
         }
@@ -121,6 +122,29 @@ actual class NotificationPresenter(
 
             show(groupId, conversation, silent = newest.isSilent)
         }
+    }
+
+    /**
+     * Úklid po odhlášení: notifikace i zkratky konverzací. Zkratky nesou názvy chatů a fotky
+     * a visí v nabídce ikony aplikace — po odhlášení by tam zůstaly chaty cizího účtu.
+     */
+    private fun clear() {
+        conversations.keys.forEach { manager.cancel(it) }
+        conversations.clear()
+        bitmaps.clear()
+        // Notifikace z minulého běhu procesu v `conversations` nejsou.
+        manager.cancelAll()
+        // Dlouhověké zkratky si systém drží i mimo dynamické, `removeAllDynamicShortcuts` by
+        // je v keši nechal.
+        runCatching {
+            val ids = ShortcutManagerCompat.getShortcuts(
+                context,
+                ShortcutManagerCompat.FLAG_MATCH_DYNAMIC or ShortcutManagerCompat.FLAG_MATCH_CACHED,
+            ).map { it.id }
+            ShortcutManagerCompat.removeLongLivedShortcuts(context, ids)
+        }
+            .onFailure { logger.w(it) { "Zkratky konverzací se nepodařilo odebrat." } }
+        logger.d { "Odhlášení: notifikace a zkratky uklizeny." }
     }
 
     private fun remove(update: NotificationUpdate.Removed) {

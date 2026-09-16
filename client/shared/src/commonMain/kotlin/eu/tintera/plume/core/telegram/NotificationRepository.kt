@@ -47,6 +47,9 @@ sealed interface NotificationUpdate {
      * Bez tohohle by na zamykací obrazovce zůstaly viset i po přečtení na počítači.
      */
     data class Removed(val groupId: Int, val notificationIds: List<Int>) : NotificationUpdate
+
+    /** Účet se odhlásil — pryč musí všechno, co o něm aplikace systému předala. */
+    data object Cleared : NotificationUpdate
 }
 
 data class ChatNotification(

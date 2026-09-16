@@ -105,6 +105,28 @@ curl -s https://repo1.maven.org/maven2/dev/g000sha256/tdl-coroutines-iosarm64/<v
 - **Odkaz se obnovuje.** TDLib posílá nový `AuthorizationStateWaitOtherDeviceConfirmation`
   zhruba každou půlminutu; kód se přepočítá přes `remember(content)`.
 
+## Odhlášení
+
+- **Po odhlášení je TDLib klient MRTVÝ.** `logOut` projde `LoggingOut` → `Closing` → `Closed`
+  a wrapper pak ukončí všechny update flows klienta. Nový účet se na něm přihlásit nedá —
+  musí vzniknout nová instance (`TelegramClientHolder.recreate()`), která začne od
+  `WaitTdlibParameters` a sama dojde k zadání čísla. Dokud to tak nebylo, aplikace po odhlášení
+  zůstala natrvalo stát na nápisu „Odhlášeno".
+- **Klient se proto nikde nesmí zachytit do `val`.** Požadavky jdou přes `holder.client`
+  (getter), odběry přes `holder.updates { … }`, které se na novou instanci přepnou samy
+  (`flatMapLatest`). `client.fooUpdates.collect` na zachyceném klientovi po odhlášení tiše skončí.
+- **Session se k novému klientovi přihlašuje `CoroutineStart.UNDISPATCHED`.** Odběr musí stát
+  dřív než `getAuthorizationState` a nová instance nic nevydá, dokud nedostane první request —
+  takže ztracený první stav by automat zastavil.
+- **„Odhlášeno" není stav, jen přechod** (`AuthStage.LoggingOut` s indikátorem). Odhlášený
+  uživatel je prostě na začátku přihlášení.
+- **`fileId` platí jen v jedné databázi TDLib.** Nový účet čísluje soubory znovu, takže keše
+  podle `fileId` (`TdlFileRepository`, `knownPaths` v `RemoteImage`) se po výměně klienta musí
+  zahodit — jinak by se pod novými id ukázaly obrázky předchozího účtu. Totéž keš odesílatelů.
+- **Úklid mimo aplikaci**: notifikace i zkratky konverzací (`NotificationUpdate.Cleared`). Zkratky
+  jsou dlouhověké, takže `removeAllDynamicShortcuts` nestačí — je potřeba
+  `removeLongLivedShortcuts`, jinak zůstanou chaty odhlášeného účtu v nabídce ikony aplikace.
+
 ## Navigace
 
 Navigation3 (`rememberNavBackStack` + `NavDisplay` + `entryProvider`). Klíče jsou v
