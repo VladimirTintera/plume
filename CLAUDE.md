@@ -720,6 +720,11 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
   vložená zpráva skončila pod spodní hranou a seznam k ní dojel až o snímek později.
 - **Cíl letu nemá fade-in `animateItem`.** Během letu se kreslí v překryvu, kam průhlednost
   položky nedosáhne; po přistání by skočil z plné viditelnosti do rozjetého prolnutí.
+- **Ikona doručení NENÍ `Crossfade`.** Ten prolíná obě ikony naráz, takže v půlce přechodu jsou
+  napůl průhledné přes sebe; fajfka a dvojitá fajfka se kryjí a jejich společná část na okamžik
+  zeslábla. Teď `AnimatedContent`: nová ikona naskočí zvětšením, stará jen rychle zmizí, obojí
+  přes `MotionScheme`. Barva a popis se počítají ze stavu UVNITŘ obsahu — zvenku by odcházející
+  hodiny zčervenaly dřív, než zmizí.
 - **Čipy reakcí jsou v `key(emoji)`.** Server pořadí reakcí přeskládává a bez klíče se stav
   animací (barva, tvar) přenesl na sousední čip.
 - **„Přečteno" není ve zprávě, ale na chatu** (`lastReadOutboxMessageId`): posuvný ukazatel,
