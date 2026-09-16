@@ -26,8 +26,10 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
       nad polem v M3 carouselu, popisek z textu pole).
    4. ~~**Zrušení nahrávání**~~ — hotovo (křížek v průběhu, i u dlaždice alba).
    5. ~~**Videa** ve výběru i v albu~~ — hotovo (bez překódování; přehrávání viz bod 2).
-2. **Přehrávání videa a hlasovek** — dnes se jen popisují. Platformní přehrávač přes
-   `expect`/`actual` (Media3 / AVPlayer); hlasovky jsou jednodušší a častější, hodí se první.
+2. **Přehrávání videa a hlasovek.** ~~Hlasovky~~ — hotovo (přehrávání v bublině, waveform
+   s posunem, poslechnuto). U hlasovek zbývá rychlost přehrávání, automatické pokračování další
+   neposlechnutou, sluchátko u ucha a audio focus / přerušení hovorem, a **nahrávání**.
+   Video se zatím jen popisuje — platformní přehrávač (Media3 / AVPlayer).
 3. **Přeposílání zpráv** — položka v nabídce + obrazovka výběru cílového chatu.
 4. **Otevírání dokumentů** — stáhnout a předat systému; výrazně méně práce než přehrávání.
 5. Drobnosti ze sekcí níž (zásobník, nabídka, entity, média, emoji).
@@ -87,7 +89,7 @@ zavírá, do stran se listuje fotkami chatu. Poučení je v `CLAUDE.md`, sekce �
 
 Co zbývá:
 
-- **Ostatní typy médií.** Video, GIF, hlasovka a dokumenty se pořád jen popisují. Prohlížeč
+- **Ostatní typy médií.** Video, GIF a dokumenty se pořád jen popisují. Prohlížeč
   u nich zatím řekne, že je neumíme otevřít. Přehrávání je samostatná fáze (potřebuje platformní
   přehrávač přes `expect`/`actual`); u dokumentů stačí míň — stáhnout a předat systému.
 - **Uložení a sdílení** fotky ven z aplikace.
@@ -112,8 +114,7 @@ Seřazeno podle toho, jak moc to bolí.
   (kotva uprostřed přes záporný `offset` v `getChatHistory`).
 - **Označení části textu.** Kopíruje se jen celá zpráva z nabídky; vybrat úryvek
   (`SelectionContainer`) zatím nejde.
-- **Příloha se nedá poslat.** Vstupní pole umí text, emoji a samolepky — chybí fotka, soubor,
-  hlasovka. Viz „Doporučené pořadí" nahoře.
+- **Hlasovka se nedá nahrát.** Fotky, videa a soubory už poslat jdou.
 
 ---
 

@@ -15,6 +15,11 @@ import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
+import eu.tintera.plume.core.audio.VoiceKey
+import eu.tintera.plume.core.audio.VoicePlayback
+import eu.tintera.plume.core.audio.VoicePlayer
+import eu.tintera.plume.core.telegram.FileRepository
+import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SendState
@@ -71,7 +76,16 @@ class ConversationViewModel(
     private val appScope: CoroutineScope,
     private val urlOpener: UrlOpener,
     private val clipboard: TextClipboard,
+    /** Jen kvůli hlasovkám: soubor se stáhne až při prvním přehrání. */
+    private val fileRepository: FileRepository,
+    private val voicePlayer: VoicePlayer,
 ) : ViewModel() {
+
+    /**
+     * Přehrávání hlasovky. Samostatný tok, ne součást [state]: pozice se mění dvacetkrát za
+     * vteřinu a přepočítávat kvůli tomu celý stav konverzace by bylo zbytečné.
+     */
+    val voicePlayback: StateFlow<VoicePlayback?> = voicePlayer.state
 
     private val _state = MutableStateFlow(ConversationState())
     val state: StateFlow<ConversationState> = _state.asStateFlow()
@@ -103,6 +117,14 @@ class ConversationViewModel(
     private val reportedSponsoredViews = mutableSetOf<Long>()
 
     init {
+        viewModelScope.launch {
+            voicePlayer.errors.collect { message -> _state.update { it.copy(error = message) } }
+        }
+
+        viewModelScope.launch {
+            repository.contentOpenedUpdates(chatId).collect { messageId -> markListened(messageId) }
+        }
+
         viewModelScope.launch {
             repository.chatInfo(chatId).onSuccess { info ->
                 _state.update {
@@ -785,6 +807,9 @@ class ConversationViewModel(
      * Běží v `appScope`, takže ho zrušení ViewModelu nezastaví.
      */
     override fun onCleared() {
+        // Hlasovka z chatu, který se zavřel, nemá kde ukazovat průběh ani jak se zastavit.
+        voicePlayer.stop(chatId)
+
         val pending = draftSave ?: return
         if (!pending.isActive) return
         pending.cancel()
@@ -1117,6 +1142,54 @@ class ConversationViewModel(
                         it.copy(error = failure.message ?: "Zprávu se nepodařilo smazat.")
                     }
                 }
+        }
+    }
+
+    /**
+     * Pustí nebo pozastaví hlasovku.
+     *
+     * Soubor se stáhne až teď — dopředu by to byla data za každou hlasovku v historii. Příchozí
+     * neposlechnutá se nahlásí jako poslechnutá (`openMessageContent`) a hned se tak i ukáže;
+     * potvrzení ze serveru přijde `contentOpenedUpdates`.
+     */
+    fun toggleVoice(messageId: Long) {
+        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+        val voice = message.media as? MessageMedia.VoiceNote ?: return
+
+        voicePlayer.toggle(VoiceKey(chatId, messageId)) {
+            when (val file = fileRepository.file(voice.fileId).first { it is FileState.Ready || it is FileState.Failed }) {
+                is FileState.Ready -> file.path
+                is FileState.Failed -> error(file.message)
+                else -> error("Nedosažitelné")
+            }
+        }
+
+        if (!message.isOutgoing && !voice.isListened) {
+            markListened(messageId)
+            viewModelScope.launch {
+                repository.openContent(chatId, messageId).onFailure { failure ->
+                    logger.w(failure) { "Poslechnutí hlasovky se nepodařilo nahlásit." }
+                }
+            }
+        }
+    }
+
+    fun seekVoice(messageId: Long, fraction: Float) {
+        voicePlayer.seek(VoiceKey(chatId, messageId), fraction)
+    }
+
+    private fun markListened(messageId: Long) {
+        _state.update { state ->
+            state.copy(
+                messages = state.messages.map { message ->
+                    val voice = message.media as? MessageMedia.VoiceNote
+                    if (message.id == messageId && voice != null && !voice.isListened) {
+                        message.copy(media = voice.copy(isListened = true))
+                    } else {
+                        message
+                    }
+                },
+            )
         }
     }
 

@@ -11,7 +11,7 @@ Fáze 6. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell
 živý seznam chatů, textová konverzace (historie, živé zprávy, odesílání, označení přečteného),
 avatary a fotky ve zprávách, reakce, odpovědi, notifikace na Androidu, sponzorované zprávy.
 
-Není: přehrávání videa a zvuku, otevírání dokumentů, notifikace na iOS. Nastavení aplikace
+Není: přehrávání videa, nahrávání hlasovek, otevírání dokumentů, notifikace na iOS. Nastavení aplikace
 se ukládá (DataStore), zatím ale drží jen poslední část výběru emoji/samolepek. Prohlížeč médií umí zatím jen fotky. Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
 
@@ -808,6 +808,38 @@ vedly dva kroky.
 - **Vlevo od bubliny u obou stran**: tam vzniká mezera, když se táhne doprava.
 - **U kraje obrazovky vyhrává systémové gesto zpět.** Bublina má odsazení 12 dp, takže se
   s ním u příchozích zpráv kousek překrývá. Nedá se s tím nic dělat a stejné to je i v Telegramu.
+
+## Hlasovky
+
+Přehrávají se přímo v bublině: tlačítko, waveform s průběhem (ťuknutí a tažení posouvá), čas
+a tečka u neposlechnuté.
+
+- **Hraje nejvýš jedna, pro celou aplikaci** (`VoicePlayer`, `single` v Koinu). Spuštění jiné
+  tu předchozí zastaví. Zavření chatu hlasovku z něj zastaví (`onCleared`) — neměla by kde
+  ukazovat průběh ani jak ji vypnout.
+- **Soubor se stahuje až při prvním přehrání.** Dopředu by to byla data za každou hlasovku
+  v historii. Klíč je `chatId` + id zprávy — id zprávy je jedinečné jen v chatu.
+- **Pozice je samostatný tok, ne součást `ConversationState`**, a do bubliny jde jako lambda,
+  která se čte až ve `VoiceNoteContent`. Mění se dvacetkrát za vteřinu (`POSITION_TICK_MS`);
+  v kompozici obrazovky by překreslovala celou konverzaci.
+- **Waveform od Telegramu je po 5 bitech** (hodnoty 0–31, od nejnižšího bitu) — `decodeWaveform`,
+  testy v `AudioFormatsTest`. Do bubliny se převzorkuje na 40 sloupců a znormuje podle špičky.
+- **Tažení po waveformu `pointerInput` spotřebuje**, takže se na něm nerozjede swipe na odpověď.
+  Posouvat jde jen vybranou hlasovku; u ostatních waveform gesta nemá.
+- **Poslechnuto = `openMessageContent`.** Ukáže se hned lokálně, potvrzení a poslechnutí našich
+  odchozích protějškem chodí `UpdateMessageContentOpened` (`contentOpenedUpdates`).
+- **Android přehraje Ogg/Opus sám** (`MediaPlayer`, atributy řeč/média).
+- **iOS Ogg NEPŘEHRAJE** — AVFoundation zná Opus jen v CAF. Dekodér Opusu ale systém má: pakety
+  se z Oggu vytáhnou v Kotlinu (`parseOggOpus`, commonMain), `AVAudioConverter` je dekóduje do PCM
+  a uloží se WAV (dočasný adresář, jednou na soubor), který hraje `AVAudioPlayer`.
+  - Opus se dekóduje vždy při 48 kHz; začátek se ořízne o `preSkip` z `OpusHead`.
+  - Konvertor bere pakety po jednom v `AVAudioCompressedBuffer` **s popisem paketu** — velikosti
+    se liší. Formát chce `mFramesPerPacket` předem; bere se z TOC bajtu (`opusPacketSamples`).
+  - Dekodér je ověřený testem na simulátoru (`iosTest/OpusDecodeTest`): sinus zakódovaný
+    systémovým Opusem se musí vrátit neztichlý a ve správné délce. Spouští se
+    `./gradlew :client:shared:iosSimulatorArm64Test`.
+  - Kategorie `AVAudioSession` je Playback — hlasovka hraje i s přepínačem ztlumení.
+  - Delegát `AVAudioPlayer` se drží silnou referencí, jinak by dohrání nikdo nenahlásil.
 
 ## Prohlížeč médií
 

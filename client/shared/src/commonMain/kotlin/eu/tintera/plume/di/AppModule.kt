@@ -30,6 +30,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.viewModel
+import eu.tintera.plume.core.audio.VoicePlayer
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
@@ -93,6 +94,10 @@ fun appModule() = module {
         DataStoreAppSettings(dataStore = get(), scope = get(named(APP_SCOPE)))
     }
 
+    // Jeden přehrávač hlasovek na aplikaci: hraje nejvýš jedna. Na hlavním vlákně, protože
+    // systémové přehrávače se ovládají z něj.
+    single { VoicePlayer(scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)) }
+
     // Most mezi platformním vstupem (ťuknutí na notifikaci) a navigací.
     single { ChatOpenRequests() }
 
@@ -113,6 +118,8 @@ fun appModule() = module {
             appScope = get(named(APP_SCOPE)),
             urlOpener = get(),
             clipboard = get(),
+            fileRepository = get(),
+            voicePlayer = get(),
         )
     }
 

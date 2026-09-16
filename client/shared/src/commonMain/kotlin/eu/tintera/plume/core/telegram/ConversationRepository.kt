@@ -31,6 +31,15 @@ interface ConversationRepository {
     /** Zprávy, jimž se změnil obsah (editace). */
     fun editedMessages(chatId: Long): Flow<ChatMessage>
 
+    /**
+     * Id zpráv, jejichž obsah někdo otevřel — u hlasovky „poslechnuto". Chodí i pro naše
+     * odchozí, když si je pustí protějšek.
+     */
+    fun contentOpenedUpdates(chatId: Long): Flow<Long>
+
+    /** Nahlásí, že uživatel obsah zprávy otevřel (pustil hlasovku). */
+    suspend fun openContent(chatId: Long, messageId: Long): Result<Unit>
+
     /** Reakce, které se u zprávy změnily. Klíč je `messageId`. */
     fun reactionUpdates(chatId: Long): Flow<MessageReactions>
 
@@ -538,7 +547,20 @@ sealed interface MessageMedia {
     ) : MessageMedia
 
     /**
-     * Ostatní přílohy — video, GIF, dokument, hlasovka.
+     * Hlasovka: přehrává se přímo v bublině.
+     *
+     * [waveform] jsou hodnoty 0–31 rozbalené z Telegramu (viz `decodeWaveform`). [isListened]
+     * u příchozí znamená, že jsme ji pustili; u odchozí, že si ji pustil protějšek.
+     */
+    data class VoiceNote(
+        val fileId: Int,
+        val durationSeconds: Int,
+        val waveform: List<Int>,
+        val isListened: Boolean,
+    ) : MessageMedia
+
+    /**
+     * Ostatní přílohy — video, GIF, dokument.
      *
      * Zatím se nepřehrávají ani neotevírají; ukáže se náhledový obrázek (pokud ho zpráva má)
      * a popisek typu. Vykreslování a přehrávání je samostatná fáze.

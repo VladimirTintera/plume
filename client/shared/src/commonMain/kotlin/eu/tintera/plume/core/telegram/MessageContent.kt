@@ -11,6 +11,7 @@ import dev.g000sha256.tdl.dto.MessageSticker
 import dev.g000sha256.tdl.dto.MessageText
 import dev.g000sha256.tdl.dto.MessageVideo
 import dev.g000sha256.tdl.dto.MessageVoiceNote
+import eu.tintera.plume.core.audio.decodeWaveform
 import dev.g000sha256.tdl.dto.MessageCall
 import dev.g000sha256.tdl.dto.MessageChecklist
 import dev.g000sha256.tdl.dto.MessageContact
@@ -262,7 +263,12 @@ internal fun Message.messageMedia(): MessageMedia? = when (val content = this.co
     )
 
     is MessageAudio -> MessageMedia.Attachment(label = "Audio", thumbnailFileId = null)
-    is MessageVoiceNote -> MessageMedia.Attachment(label = "Hlasová zpráva", thumbnailFileId = null)
+    is MessageVoiceNote -> MessageMedia.VoiceNote(
+        fileId = content.voiceNote.voice.id,
+        durationSeconds = content.voiceNote.duration,
+        waveform = decodeWaveform(content.voiceNote.waveform),
+        isListened = content.isListened,
+    )
     is MessageSticker -> content.sticker.toMedia()
 
     // O textu a příloze rozhoduje jedna funkce, `animationFileId` — obě větve se nesmí rozejít.
