@@ -132,6 +132,16 @@ interface ConversationRepository {
     suspend fun sendSticker(chatId: Long, sticker: StickerItem, replyToMessageId: Long?): Result<ChatMessage>
 
     /**
+     * Odešle fotku nebo soubor z disku zařízení. Stejně jako [send] vrací rozepsanou zprávu
+     * okamžitě; nahrávání běží na pozadí a jeho průběh hlásí [FileRepository.uploadProgress].
+     */
+    suspend fun sendAttachment(
+        chatId: Long,
+        attachment: OutgoingAttachment,
+        replyToMessageId: Long?,
+    ): Result<ChatMessage>
+
+    /**
      * Nahradí text odeslané zprávy.
      *
      * Výsledek se do konverzace dostane updatem (`editedMessages`), stejně jako cizí úpravy —
@@ -219,6 +229,25 @@ data class PhotoPosition(
     val number: Int,
     val total: Int,
 )
+
+/**
+ * Příloha k odeslání, už připravená na disku aplikace.
+ *
+ * TDLib posílá soubor podle **cesty** (`InputFileLocal`), takže výběr z galerie nebo souborů ho musí
+ * nejdřív zkopírovat k sobě — systémové URI (`content://`, iOS security-scoped URL) TDLib neotevře.
+ */
+sealed interface OutgoingAttachment {
+    val path: String
+
+    /**
+     * Fotka jako fotka (s náhledem v bublině). [width] a [height] jsou rozměry připraveného souboru;
+     * server je může přepsat, ale bez nich by bublina odesílané zprávy neměla poměr stran.
+     */
+    data class Photo(override val path: String, val width: Int, val height: Int) : OutgoingAttachment
+
+    /** Cokoli jako soubor, beze změny. Název souboru se bere z cesty. */
+    data class Document(override val path: String) : OutgoingAttachment
+}
 
 /** Hlavička konverzace. */
 data class ChatInfo(
@@ -493,6 +522,8 @@ sealed interface MessageMedia {
     data class Attachment(
         val label: String,
         val thumbnailFileId: Int?,
+        /** Soubor samotný, pokud ho známe (dokument) — kvůli průběhu nahrávání odesílané zprávy. */
+        val fileId: Int? = null,
     ) : MessageMedia
 
     /**

@@ -64,6 +64,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -134,6 +137,8 @@ import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.ui.rememberUploadProgress
+import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.RichText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
@@ -147,6 +152,9 @@ import eu.tintera.plume.resources.reply_24dp
 import eu.tintera.plume.resources.push_pin_filled_24dp
 import eu.tintera.plume.resources.schedule_24dp
 import eu.tintera.plume.resources.send_24dp
+import eu.tintera.plume.resources.description_24dp
+import eu.tintera.plume.resources.image_24dp
+import eu.tintera.plume.resources.attach_file_24dp
 import eu.tintera.plume.resources.mood_24dp
 import eu.tintera.plume.resources.sticky_note_2_24dp
 import eu.tintera.plume.core.settings.ExpressionMode
@@ -169,6 +177,12 @@ fun ConversationScreen(
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     var stickerPickerOpen by rememberSaveable { mutableStateOf(false) }
+
+    // Vybraný soubor je už zkopírovaný v cache aplikace, takže se rovnou posílá.
+    val attachmentPicker = rememberAttachmentPicker(
+        onPicked = viewModel::sendAttachment,
+        onError = viewModel::reportError,
+    )
 
     /**
      * Rozepsaný text vstupního pole. Drží se tady, ne v poli: výběr emoji do něj vkládá na pozici
@@ -543,6 +557,8 @@ fun ConversationScreen(
                 inputFill = state.inputFill,
                 onInputFilled = viewModel::consumeInputFill,
                 onOpenStickers = { stickerPickerOpen = true },
+                onPickPhoto = attachmentPicker::pickPhoto,
+                onPickDocument = attachmentPicker::pickDocument,
                 expressionMode = expressionMode,
                 draft = draft,
                 onDraftValueChange = { draft = it },
@@ -1177,6 +1193,7 @@ private fun MessageBubble(
                             messageId = message.id,
                             onOpen = onOpenMedia,
                             onRequestMenu = onRequestMenu,
+                            uploading = message.sendState == SendState.Sending,
                         )
                     }
                 }
@@ -1291,6 +1308,8 @@ private fun MessageInput(
     inputFill: InputFill?,
     onInputFilled: () -> Unit,
     onOpenStickers: () -> Unit,
+    onPickPhoto: () -> Unit,
+    onPickDocument: () -> Unit,
     /** Ikona tlačítka výběru ukazuje, čím se výběr otevře — emoji, nebo samolepkami. */
     expressionMode: ExpressionMode,
     /** Rozepsaný text; drží ho obrazovka, protože do něj vkládá i výběr emoji. */
@@ -1391,6 +1410,12 @@ private fun MessageInput(
                 },
                 modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                 placeholder = { Text("Zpráva") },
+                // Přílohy jen při psaní — k úpravě textové zprávy příloha nepatří.
+                leadingIcon = if (editing == null) {
+                    { AttachButton(onPickPhoto = onPickPhoto, onPickDocument = onPickDocument) }
+                } else {
+                    null
+                },
                 trailingIcon = {
                     IconButton(
                         onClick = {
@@ -1692,6 +1717,45 @@ private fun LinkPreviewCard(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Tlačítko příloh s nabídkou Fotka / Soubor.
+ *
+ * Dvě položky, ne rovnou výběr: Photo Picker ukazuje jen fotky a výběr dokumentu nemá náhledy, takže
+ * jeden systémový výběr pro obojí by byl horší v obou případech. Klávesnice se zavře, než se otevře
+ * systémový výběr — jinak by po návratu vyskočila přes bublinu s nahráváním.
+ */
+@Composable
+private fun AttachButton(onPickPhoto: () -> Unit, onPickDocument: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val keyboard = LocalSoftwareKeyboardController.current
+
+    Box {
+        IconButton(onClick = { open = true }) {
+            Icon(painterResource(Res.drawable.attach_file_24dp), contentDescription = "Přiložit")
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text("Fotka") },
+                leadingIcon = { Icon(painterResource(Res.drawable.image_24dp), contentDescription = null) },
+                onClick = {
+                    open = false
+                    keyboard?.hide()
+                    onPickPhoto()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("Soubor") },
+                leadingIcon = { Icon(painterResource(Res.drawable.description_24dp), contentDescription = null) },
+                onClick = {
+                    open = false
+                    keyboard?.hide()
+                    onPickDocument()
+                },
+            )
         }
     }
 }
@@ -2028,6 +2092,9 @@ private val LINK_PREVIEW_STRIPE = 3.dp
 /** Poměr stran velkého obrázku náhledu bez rozměrů — typický obrázek pro sdílení odkazu. */
 private const val LINK_PREVIEW_FALLBACK_RATIO = 1.91f
 
+/** Kolečko s průběhem nahrávání přes přílohu. */
+private val UPLOAD_INDICATOR_SIZE = 48.dp
+
 /** Spára mezi fotkami alba. */
 private val ALBUM_GAP = 2.dp
 
@@ -2157,6 +2224,8 @@ private fun MessageAttachment(
     messageId: Long,
     onOpen: () -> Unit,
     onRequestMenu: () -> Unit,
+    /** Odesílaná zpráva: přes přílohu se kreslí průběh nahrávání. */
+    uploading: Boolean = false,
 ) {
     val shape = RoundedCornerShape(12.dp)
 
@@ -2194,6 +2263,10 @@ private fun MessageAttachment(
                          */
                         .combinedClickable(onClick = onOpen, onLongClick = onRequestMenu),
                 )
+
+                if (uploading) {
+                    UploadIndicator(fileId = media.fileId, modifier = Modifier.align(Alignment.Center))
+                }
             }
         }
 
@@ -2201,12 +2274,18 @@ private fun MessageAttachment(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            media.thumbnailFileId?.let { thumbnail ->
-                RemoteImage(
-                    fileId = thumbnail,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp).clip(shape),
-                )
+            val uploadingFile = media.fileId?.takeIf { uploading }
+            if (uploadingFile != null) {
+                // Místo náhledu průběh: u odesílaného souboru je to jediná informace, která se mění.
+                UploadIndicator(fileId = uploadingFile)
+            } else {
+                media.thumbnailFileId?.let { thumbnail ->
+                    RemoteImage(
+                        fileId = thumbnail,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp).clip(shape),
+                    )
+                }
             }
             Text(
                 text = media.label,
@@ -2233,6 +2312,36 @@ private fun MessageAttachment(
 }
 
 /**
+ * Průběh nahrávání odesílané přílohy.
+ *
+ * Vlnitý kruh z M3 Expressive na tmavém kolečku — musí být čitelný přes jakoukoli fotku, proto
+ * závoj `scrim` a bílá, stejně jako ovládání v prohlížeči médií. Dokud TDLib nahrávání neohlásí
+ * (připravuje soubor), točí se neurčitě; pak ukazuje skutečný podíl.
+ */
+@Composable
+private fun UploadIndicator(fileId: Int, modifier: Modifier = Modifier) {
+    val progress = rememberUploadProgress(fileId)
+
+    Box(
+        modifier
+            .size(UPLOAD_INDICATOR_SIZE)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (progress == null) {
+            CircularWavyProgressIndicator(color = Color.White, modifier = Modifier.size(36.dp))
+        } else {
+            CircularWavyProgressIndicator(
+                progress = { progress },
+                color = Color.White,
+                modifier = Modifier.size(36.dp),
+            )
+        }
+    }
+}
+
+/**
  * Obsah alba v bublině.
  *
  * Fotky (a videa s náhledem) jako **mřížka** — celé album je vidět najednou, jako v ostatních
@@ -2255,6 +2364,7 @@ private fun AlbumContent(
                         messageId = member.id,
                         onOpen = { onOpen(member.id) },
                         onRequestMenu = onRequestMenu,
+                        uploading = member.sendState == SendState.Sending,
                     )
                 }
             }
