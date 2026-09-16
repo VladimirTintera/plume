@@ -94,6 +94,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.onSizeChanged
@@ -103,6 +104,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SendState
@@ -1003,6 +1005,17 @@ private fun MessageBubble(
                     )
                 }
 
+                message.linkPreview?.let { preview ->
+                    LinkPreviewCard(
+                        preview = preview,
+                        // Stejný důvod jako u citace: v odchozí bublině by `primary` splynula s pozadím.
+                        accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
+                        onOpen = { onLinkClick(preview.url) },
+                        onLongClick = onRequestMenu,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
+
                 ReactionRow(
                     reactions = message.reactions,
                     onToggle = onToggleReaction,
@@ -1259,6 +1272,114 @@ private fun MessageInput(
                     contentDescription = if (editing != null) "Uložit úpravu" else "Odeslat",
                     modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Náhled odkazu pod textem.
+ *
+ * Tvarem vychází z citace — proužek vlevo v barvě akcentu — protože jde o totéž: vložený cizí
+ * obsah, který se musí na první pohled lišit od vlastního textu bubliny. Vlastní pozadí nemá;
+ * druhá plocha v bublině by v odchozí `primary` vypadala jako nálepka.
+ *
+ * Ťuknutí otevře odkaz stejnou cestou jako odkaz v textu (přes ViewModel). Dlouhý stisk se musí
+ * zopakovat, jinak by ho náhled k bublině nepustil — stejná past jako u fotky a citace.
+ */
+@Composable
+@OptIn(ExperimentalFoundationApi::class)
+private fun LinkPreviewCard(
+    preview: LinkPreview,
+    accent: Color,
+    onOpen: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(4.dp))
+            .combinedClickable(onClick = onOpen, onLongClick = onLongClick)
+            .height(IntrinsicSize.Min),
+    ) {
+        Box(
+            Modifier
+                .width(3.dp)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(2.dp))
+                .background(accent),
+        )
+
+        Column(
+            Modifier.weight(1f).padding(start = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    preview.siteName?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = accent,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    preview.title?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    preview.description?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = LINK_PREVIEW_DESCRIPTION_LINES,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+
+                // Malý obrázek vedle textu, jen když odesílatel nechtěl velký.
+                if (!preview.largePhoto) {
+                    preview.photo?.let { photo ->
+                        RemoteImage(
+                            fileId = photo.fileId,
+                            thumbnailFileId = photo.thumbnailFileId,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(LINK_PREVIEW_THUMBNAIL)
+                                .clip(RoundedCornerShape(8.dp)),
+                        )
+                    }
+                }
+            }
+
+            if (preview.largePhoto) {
+                preview.photo?.let { photo ->
+                    // Výška ručně, ne `aspectRatio` — ten by strop z `heightIn` neuplatnil (viz fotka).
+                    BoxWithConstraints(Modifier.padding(top = 4.dp)) {
+                        val ratio = if (photo.width > 0 && photo.height > 0) {
+                            photo.width.toFloat() / photo.height.toFloat()
+                        } else {
+                            LINK_PREVIEW_FALLBACK_RATIO
+                        }
+                        RemoteImage(
+                            fileId = photo.fileId,
+                            thumbnailFileId = photo.thumbnailFileId,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height((maxWidth / ratio).coerceAtMost(MAX_PHOTO_HEIGHT))
+                                .clip(RoundedCornerShape(8.dp)),
+                        )
+                    }
+                }
             }
         }
     }
@@ -1573,6 +1694,15 @@ private val BUBBLE_CORNER = 18.dp
 
 /** Stažené nároží u navazujících bublin téhož odesílatele. */
 private val BUBBLE_TAIL = 4.dp
+
+/** Popis náhledu odkazu. Víc řádků by z bubliny udělalo článek. */
+private const val LINK_PREVIEW_DESCRIPTION_LINES = 3
+
+/** Malý obrázek vedle textu náhledu. */
+private val LINK_PREVIEW_THUMBNAIL = 56.dp
+
+/** Poměr stran velkého obrázku náhledu bez rozměrů — typický obrázek pro sdílení odkazu. */
+private const val LINK_PREVIEW_FALLBACK_RATIO = 1.91f
 
 /** Strop výšky fotky v bublině. Svislé snímky obrazovky by jinak zabraly celou obrazovku. */
 private val MAX_PHOTO_HEIGHT = 320.dp

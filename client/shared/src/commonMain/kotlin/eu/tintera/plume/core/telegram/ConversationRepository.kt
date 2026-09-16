@@ -211,6 +211,8 @@ data class ChatMessage(
      */
     val entities: List<MessageEntity>,
     val media: MessageMedia?,
+    /** Náhled prvního odkazu v textu, jak ho server připravil. `null` u zpráv bez něj. */
+    val linkPreview: LinkPreview?,
     val reactions: List<MessageReaction>,
     /**
      * Stav odeslání. `null` u příchozích zpráv — tam nedává smysl.
@@ -237,6 +239,27 @@ data class ChatMessage(
     /** Unixový čas v sekundách, jak ho dává TDLib. */
     val timestamp: Int,
     val isEdited: Boolean,
+)
+
+/**
+ * Náhled odkazu pod textem zprávy.
+ *
+ * Skládá ho **server**, ne klient — Telegram stránku stáhne sám a klient dostane hotová data.
+ * Nikam se proto nepřipojujeme a nic se nestahuje kromě obrázku, který k náhledu server přiložil.
+ *
+ * Prázdné řetězce se převádějí na `null`, aby UI nemuselo rozlišovat „chybí" a „je prázdné".
+ */
+data class LinkPreview(
+    val url: String,
+    val siteName: String?,
+    val title: String?,
+    val description: String?,
+    val photo: MessageMedia.Photo?,
+    /**
+     * Obrázek přes celou šířku náhledu, ne malý čtverec vedle textu. Rozhoduje odesílatel
+     * (Telegram mu to nabízí při psaní), takže se to jen respektuje.
+     */
+    val largePhoto: Boolean,
 )
 
 /**

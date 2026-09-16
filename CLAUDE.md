@@ -498,6 +498,23 @@ Ve skupině má cizí zpráva vlevo tvář odesílatele, aby se odesílatelé ne
 - **Tvář je mimo posouvaný `Box`** — při tažení na odpověď jede jen bublina.
 - **Zarovnaná ke spodní hraně bubliny.** U dlouhé zprávy by uprostřed nebylo poznat, kam patří.
 
+### Náhled odkazu
+
+Pod textem se zprávou s odkazem se kreslí náhled: web, titulek, popis a obrázek.
+
+- **Náhled skládá server**, ne klient (`MessageText.linkPreview`). Nic se nestahuje kromě
+  obrázku, který k němu server přiložil — žádné připojení k cizí stránce z aplikace.
+- **Obrázek jen z druhů, které nesou fotku**: článek, fotka, obal videa, náhled vloženého
+  přehrávače. Ostatní druhy (samolepka, hlasovka, chat…) mají soubory, které neumíme vykreslit;
+  náhled zůstane textový. **Úplně prázdný náhled se zahodí** — rámeček bez obsahu vypadá jako
+  chyba načítání.
+- **Velký nebo malý obrázek určuje odesílatel** (`showLargeMedia`), jen se to respektuje.
+- **Tvar vychází z citace** (proužek v barvě akcentu, bez vlastního pozadí). Akcent se podává
+  zvenku ze stejného důvodu jako u citace — v odchozí `primary` bublině by `primary` zmizela.
+- **Ťuknutí jde přes `onLinkClick`** jako odkaz v textu; **dlouhý stisk se opakuje**, jinak by
+  náhled nabídku nad zprávou spolkl.
+- **Náhled nad textem (`showAboveText`) se zatím ignoruje** — kreslí se vždycky pod ním.
+
 ### Nabídka nad zprávou
 
 Dlouhý stisk otevře **popup u zprávy**, ne bottom sheet: rychlé reakce v pruhu nad bublinou

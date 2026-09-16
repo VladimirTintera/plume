@@ -428,6 +428,7 @@ class TdlConversationRepository(
             text = body.text,
             entities = body.entities,
             media = messageMedia(),
+            linkPreview = linkPreview(),
             reactions = interactionInfo.toReactions(),
             sendState = if (isOutgoing) sendingState.toSendState() else null,
             // Odpovědi mimo tenhle chat (citace z jiné konverzace) se zatím nevykreslují —

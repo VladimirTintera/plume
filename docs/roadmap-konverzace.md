@@ -56,8 +56,7 @@ Co z toho zůstalo nedodělané:
 - **Citace v textu** (`BlockQuote`, `ExpandableBlockQuote`) se vykreslují jako obyčejný text.
   Svislý pruh vlevo nejde udělat uvnitř jednoho `Text`; znamená to rozpad textu na bloky
   a `Column` místo jedné `Text` — samostatný kus práce.
-- **Náhledy odkazů** (`MessageText.linkPreview`: titulek, popis, obrázek). Tohle byl původní
-  důvod, proč entity udělat dřív.
+- **Náhled odkazu nad textem** (`showAboveText`) — náhled se zatím kreslí vždycky pod ním.
 - **Vlastní emoji** (`TextEntityTypeCustomEmoji`) jsou samolepky uvnitř textu; patří k médiím.
 
 ## D) Otevření média — HOTOVO pro fotky
