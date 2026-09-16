@@ -81,6 +81,12 @@ import eu.tintera.plume.resources.search_24dp
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.transformLatest
+import androidx.compose.foundation.shape.CircleShape
+import eu.tintera.plume.resources.star_filled_24dp
+import androidx.compose.foundation.lazy.grid.LazyGridItemScope
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import org.koin.compose.viewmodel.koinViewModel
 
 /** Záložka výběru samolepek. */
@@ -172,6 +178,15 @@ class StickerPickerViewModel(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), StickerPickerState())
 
+    /**
+     * Přidá samolepku do oblíbených, nebo ji odebere. Stav se lokálně nepřepisuje — potvrzení
+     * dorazí updatem a přepočítá záložku Oblíbené i hvězdičku.
+     */
+    fun toggleFavorite(sticker: StickerItem) {
+        val favorite = state.value.favorites.orEmpty().any { it.sendFileId == sticker.sendFileId }
+        viewModelScope.launch { repository.setFavorite(sticker.sendFileId, !favorite) }
+    }
+
     /** Stránka záložky se ukázala. Nedávné a oblíbené jsou živé toky, načítá se jen sada. */
     fun load(tab: StickerTab) {
         if (tab !is StickerTab.Set) return
@@ -251,6 +266,11 @@ fun StickerPickerSheet(
         // a zpráva se tak objeví až nad zavřeným sheetem.
         scope.launch { sheetState.hide() }.invokeOnCompletion { onPick(sticker) }
     }
+    val favoriteIds = state.favorites.orEmpty().map { it.sendFileId }.toSet()
+    val toggleFavorite: (StickerItem) -> Unit = { sticker ->
+        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+        viewModel.toggleFavorite(sticker)
+    }
     val activate: (StickerItem) -> Unit = { sticker ->
         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
         activeStickerId = sticker.id
@@ -275,9 +295,7 @@ fun StickerPickerSheet(
             Box(Modifier.fillMaxWidth().height(STICKER_TAB_ROW_HEIGHT + STICKER_PICKER_HEIGHT)) {
                 StickerSearchResults(
                     search = search,
-                    activeStickerId = activeStickerId,
-                    onPick = pick,
-                    onActivate = activate,
+                    cells = StickerCells(activeStickerId, favoriteIds, pick, activate, toggleFavorite),
                 )
             }
             return@ModalBottomSheet
@@ -312,9 +330,7 @@ fun StickerPickerSheet(
             StickerPage(
                 tab = tab,
                 stickers = state.stickersOf(tab),
-                activeStickerId = activeStickerId,
-                onPick = pick,
-                onActivate = activate,
+                cells = StickerCells(activeStickerId, favoriteIds, pick, activate, toggleFavorite),
             )
         }
     }
@@ -333,15 +349,35 @@ private fun StickerTab.pageKey(): Any = when (this) {
 private fun StickerPage(
     tab: StickerTab,
     stickers: List<StickerItem>?,
-    activeStickerId: Long?,
-    onPick: (StickerItem) -> Unit,
-    onActivate: (StickerItem) -> Unit,
+    cells: StickerCells,
 ) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        when {
-            stickers == null -> LoadingIndicator()
+        if (stickers == null) {
+            LoadingIndicator()
+            return@Box
+        }
 
-            stickers.isEmpty() -> Text(
+        /*
+         * Mřížka zůstává, i když je prázdná. Kdyby ji prázdný stav nahradil, zmizela by v okamžiku,
+         * kdy z ní odejde poslední samolepka — a ta by nestihla odejít animací (typicky poslední
+         * oblíbená odebraná hvězdičkou). Prázdný text se proto nad ní jen plynule objeví.
+         */
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(STICKER_CELL),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            items(stickers, key = { it.id }) { sticker ->
+                StickerCell(sticker, cells, animateStickerItem())
+            }
+        }
+
+        AnimatedVisibility(
+            visible = stickers.isEmpty(),
+            enter = fadeIn(MaterialTheme.motionScheme.slowEffectsSpec()),
+            exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+        ) {
+            Text(
                 text = when (tab) {
                     StickerTab.Recent -> "Tady se objeví samolepky, které pošleš."
                     StickerTab.Favorites -> "Zatím tu nejsou žádné oblíbené samolepky."
@@ -352,46 +388,83 @@ private fun StickerPage(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(24.dp),
             )
+        }
+    }
+}
 
-            else -> LazyVerticalGrid(
-                columns = GridCells.Adaptive(STICKER_CELL),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                modifier = Modifier.fillMaxSize(),
+/**
+ * Co buňky mřížky potřebují od sheetu. Balík místo pěti parametrů, které by se jinak táhly přes
+ * stránku záložky i výsledky hledání.
+ */
+private class StickerCells(
+    val activeStickerId: Long?,
+    val favoriteFileIds: Set<Int>,
+    val onPick: (StickerItem) -> Unit,
+    val onActivate: (StickerItem) -> Unit,
+    val onToggleFavorite: (StickerItem) -> Unit,
+)
+
+/**
+ * Jedna samolepka v mřížce: ťuknutí pošle, podržení rozhýbe.
+ *
+ * U podržené samolepky se v rohu objeví **hvězdička oblíbených**. Jen u ní: hvězdička u každé
+ * buňky by zaplevelila mřížku a ťuknutí vedle ní by samolepku omylem poslalo. Podržení je
+ * zároveň „prohlížím si tuhle", takže nabídnout k ní akci dává smysl.
+ */
+@Composable
+@OptIn(ExperimentalFoundationApi::class)
+private fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Modifier = Modifier) {
+    val active = sticker.id == cells.activeStickerId
+
+    Box(
+        modifier
+            .size(STICKER_CELL)
+            .clip(RoundedCornerShape(12.dp))
+            // Podbarvení nese potvrzení podržení i u statické samolepky, která se rozhýbat nemá jak.
+            .background(if (active) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent)
+            .combinedClickable(
+                onClick = { cells.onPick(sticker) },
+                // Podržení samolepku neposílá — jen ji rozhýbe. Po puštění `combinedClickable`
+                // klik nevyvolá, takže nic neodejde omylem.
+                onLongClick = { cells.onActivate(sticker) },
+            ),
+    ) {
+        StickerPreview(sticker.preview, playing = active, modifier = Modifier.fillMaxSize().padding(6.dp))
+
+        if (active) {
+            val favorite = sticker.sendFileId in cells.favoriteFileIds
+            Surface(
+                onClick = { cells.onToggleFavorite(sticker) },
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.align(Alignment.TopEnd).padding(2.dp).size(FAVORITE_BUTTON_SIZE),
             ) {
-                items(stickers, key = { it.id }) { sticker ->
-                    StickerCell(sticker, sticker.id == activeStickerId, onPick, onActivate)
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        painterResource(if (favorite) Res.drawable.star_filled_24dp else Res.drawable.star_24dp),
+                        contentDescription = if (favorite) "Odebrat z oblíbených" else "Přidat do oblíbených",
+                        modifier = Modifier.size(16.dp),
+                    )
                 }
             }
         }
     }
 }
 
-/** Jedna samolepka v mřížce: ťuknutí pošle, podržení rozhýbe. */
+/**
+ * Příchod, odchod a přeskupení samolepky v mřížce.
+ *
+ * Odebraná samolepka (typicky z oblíbených) plynule zmizí a ostatní se na její místo dosunou —
+ * bez toho mřížka při každé změně seznamu skočila. Průhlednost jde přes effects spec (bez
+ * přeběhu, ten by u alfy blikl), posun přes spatial (s jemným pružením jako zbytek aplikace).
+ */
 @Composable
-@OptIn(ExperimentalFoundationApi::class)
-private fun StickerCell(
-    sticker: StickerItem,
-    active: Boolean,
-    onPick: (StickerItem) -> Unit,
-    onActivate: (StickerItem) -> Unit,
-) {
-    Box(
-        Modifier
-            .size(STICKER_CELL)
-            .clip(RoundedCornerShape(12.dp))
-            // Podbarvení nese potvrzení podržení i u statické samolepky, která se rozhýbat nemá jak.
-            .background(if (active) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent)
-            .combinedClickable(
-                onClick = { onPick(sticker) },
-                // Podržení samolepku neposílá — jen ji rozhýbe. Po puštění `combinedClickable`
-                // klik nevyvolá, takže nic neodejde omylem.
-                onLongClick = { onActivate(sticker) },
-            )
-            .padding(6.dp),
-    ) {
-        StickerPreview(sticker.preview, playing = active, modifier = Modifier.fillMaxSize())
-    }
-}
+private fun LazyGridItemScope.animateStickerItem(): Modifier = Modifier.animateItem(
+    fadeInSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+    placementSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+    fadeOutSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+)
 
 /**
  * Pole hledání nad záložkami.
@@ -445,9 +518,7 @@ private fun StickerSearchField(
 @Composable
 private fun StickerSearchResults(
     search: StickerSearchState,
-    activeStickerId: Long?,
-    onPick: (StickerItem) -> Unit,
-    onActivate: (StickerItem) -> Unit,
+    cells: StickerCells,
 ) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         when (search) {
@@ -472,8 +543,8 @@ private fun StickerSearchResults(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     modifier = Modifier.fillMaxSize(),
                 ) {
-                    searchSection("Z tvých sad", result.installed, activeStickerId, onPick, onActivate)
-                    searchSection("Další samolepky", result.public, activeStickerId, onPick, onActivate)
+                    searchSection("Z tvých sad", result.installed, cells)
+                    searchSection("Další samolepky", result.public, cells)
                 }
             }
         }
@@ -483,9 +554,7 @@ private fun StickerSearchResults(
 private fun LazyGridScope.searchSection(
     title: String,
     stickers: List<StickerItem>,
-    activeStickerId: Long?,
-    onPick: (StickerItem) -> Unit,
-    onActivate: (StickerItem) -> Unit,
+    cells: StickerCells,
 ) {
     if (stickers.isEmpty()) return
 
@@ -500,7 +569,7 @@ private fun LazyGridScope.searchSection(
     // Klíč nese sekci: tatáž samolepka se ve dvou sekcích neobjeví (veřejné se filtrují), ale
     // klíče nadpisu a samolepky musí být různého tvaru i tak.
     items(stickers, key = { "sticker-${it.id}" }) { sticker ->
-        StickerCell(sticker, sticker.id == activeStickerId, onPick, onActivate)
+        StickerCell(sticker, cells, animateStickerItem())
     }
 }
 
@@ -581,6 +650,12 @@ private fun StickerPreview(
 private fun EmojiFallback(emoji: String) {
     Text(emoji, style = MaterialTheme.typography.headlineMedium)
 }
+
+/**
+ * Hvězdička oblíbených v rohu podržené samolepky. Malá, aby nezakrývala samolepku; ťuká se na ni
+ * vědomě, ne omylem, protože se objeví až po podržení.
+ */
+private val FAVORITE_BUTTON_SIZE = 28.dp
 
 /** Řádek záložek. Při hledání ho výsledky zastoupí, takže jeho výška je pevná. */
 private val STICKER_TAB_ROW_HEIGHT = 48.dp

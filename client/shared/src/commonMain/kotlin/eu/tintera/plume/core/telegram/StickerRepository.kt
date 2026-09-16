@@ -21,6 +21,15 @@ interface StickerRepository {
 
     fun favoriteStickers(): Flow<List<StickerItem>>
 
+    /**
+     * Přidá samolepku do oblíbených, nebo ji z nich odebere. [stickerFileId] je
+     * `MessageMedia.Sticker.stickerFileId` / [StickerItem.sendFileId].
+     *
+     * Oblíbených je omezený počet (serverová volba, Premium ho zvedá); přidání nad limit vytlačí
+     * nejstarší. Potvrzení dorazí přes [favoriteStickers].
+     */
+    suspend fun setFavorite(stickerFileId: Int, favorite: Boolean): Result<Unit>
+
     /** Obsah jedné sady. Načítá se až při otevření její záložky — sad bývá desítky. */
     suspend fun stickerSet(setId: Long): Result<List<StickerItem>>
 
