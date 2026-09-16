@@ -13,6 +13,7 @@ import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.InputDocument
 import dev.g000sha256.tdl.dto.InputFileId
 import dev.g000sha256.tdl.dto.InputFileLocal
+import dev.g000sha256.tdl.dto.InputMessageContent
 import dev.g000sha256.tdl.dto.InputMessageDocument
 import dev.g000sha256.tdl.dto.InputMessagePhoto
 import dev.g000sha256.tdl.dto.InputPhoto
@@ -382,13 +383,48 @@ class TdlConversationRepository(
             .map { it.toChatMessage(isGroup(chatId)) }
     }
 
-    override suspend fun sendAttachment(
+    override suspend fun sendAttachments(
         chatId: Long,
-        attachment: OutgoingAttachment,
+        attachments: List<OutgoingAttachment>,
+        caption: String,
         replyToMessageId: Long?,
-    ): Result<ChatMessage> {
-        val file = InputFileLocal(path = attachment.path)
-        val content = when (attachment) {
+    ): Result<List<ChatMessage>> {
+        require(attachments.isNotEmpty()) { "Není co poslat." }
+        val isGroup = isGroup(chatId)
+        // Entity popisku se dohledávají jako u textu — jinak by odkaz v popisku odešel jako mrtvý text.
+        val formattedCaption = caption.takeIf { it.isNotBlank() }
+            ?.let { FormattedText(text = it, entities = detectEntities(it)) }
+        val contents = attachments.mapIndexed { index, attachment ->
+            attachment.toInputContent(caption = formattedCaption.takeIf { index == 0 })
+        }
+
+        if (contents.size == 1) {
+            return client.sendMessage(
+                chatId = chatId,
+                topicId = null,
+                replyTo = replyToMessageId?.let(::replyTo),
+                options = null,
+                replyMarkup = null,
+                inputMessageContent = contents.single(),
+            )
+                .toResult()
+                .map { listOf(it.toChatMessage(isGroup)) }
+        }
+
+        return client.sendMessageAlbum(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyToMessageId?.let(::replyTo),
+            options = null,
+            inputMessageContents = contents.toTypedArray(),
+        )
+            .toResult()
+            .map { sent -> sent.messages.filterNotNull().map { it.toChatMessage(isGroup) } }
+    }
+
+    private fun OutgoingAttachment.toInputContent(caption: FormattedText?): InputMessageContent {
+        val file = InputFileLocal(path = path)
+        return when (this) {
             is OutgoingAttachment.Photo -> InputMessagePhoto(
                 photo = InputPhoto(
                     photo = file,
@@ -396,10 +432,10 @@ class TdlConversationRepository(
                     thumbnail = null,
                     video = null,
                     addedStickerFileIds = intArrayOf(),
-                    width = attachment.width,
-                    height = attachment.height,
+                    width = width,
+                    height = height,
                 ),
-                caption = null,
+                caption = caption,
                 showCaptionAboveMedia = false,
                 selfDestructType = null,
                 hasSpoiler = false,
@@ -413,20 +449,9 @@ class TdlConversationRepository(
                     // udělal přehrávatelnou zprávu, a uživatel posílal výslovně „soubor".
                     disableContentTypeDetection = true,
                 ),
-                caption = null,
+                caption = caption,
             )
         }
-
-        return client.sendMessage(
-            chatId = chatId,
-            topicId = null,
-            replyTo = replyToMessageId?.let(::replyTo),
-            options = null,
-            replyMarkup = null,
-            inputMessageContent = content,
-        )
-            .toResult()
-            .map { it.toChatMessage(isGroup(chatId)) }
     }
 
     override suspend fun sendSticker(

@@ -132,14 +132,19 @@ interface ConversationRepository {
     suspend fun sendSticker(chatId: Long, sticker: StickerItem, replyToMessageId: Long?): Result<ChatMessage>
 
     /**
-     * Odešle fotku nebo soubor z disku zařízení. Stejně jako [send] vrací rozepsanou zprávu
-     * okamžitě; nahrávání běží na pozadí a jeho průběh hlásí [FileRepository.uploadProgress].
+     * Odešle přílohy z disku zařízení, s popiskem. Jedna příloha jde jako obyčejná zpráva, víc jako
+     * **album** (`sendMessageAlbum`, 2–10) — Telegram víc příloh v jedné zprávě nenese.
+     *
+     * Stejně jako [send] vrací rozepsané zprávy okamžitě; nahrávání běží na pozadí a jeho průběh
+     * hlásí [FileRepository.uploadProgress]. [caption] patří první příloze, jak to dělá Telegram;
+     * prázdný popisek se nepošle.
      */
-    suspend fun sendAttachment(
+    suspend fun sendAttachments(
         chatId: Long,
-        attachment: OutgoingAttachment,
+        attachments: List<OutgoingAttachment>,
+        caption: String,
         replyToMessageId: Long?,
-    ): Result<ChatMessage>
+    ): Result<List<ChatMessage>>
 
     /**
      * Nahradí text odeslané zprávy.

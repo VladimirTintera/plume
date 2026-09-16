@@ -137,6 +137,7 @@ import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.ui.rememberUploadProgress
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.RichText
@@ -178,9 +179,9 @@ fun ConversationScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var stickerPickerOpen by rememberSaveable { mutableStateOf(false) }
 
-    // Vybraný soubor je už zkopírovaný v cache aplikace, takže se rovnou posílá.
+    // Vybrané soubory jsou už zkopírované v cache aplikace; čekají nad polem na popisek a odeslání.
     val attachmentPicker = rememberAttachmentPicker(
-        onPicked = viewModel::sendAttachment,
+        onPicked = viewModel::addAttachments,
         onError = viewModel::reportError,
     )
 
@@ -559,6 +560,8 @@ fun ConversationScreen(
                 onOpenStickers = { stickerPickerOpen = true },
                 onPickPhoto = attachmentPicker::pickPhoto,
                 onPickDocument = attachmentPicker::pickDocument,
+                attachments = state.attachments,
+                onRemoveAttachment = viewModel::removeAttachment,
                 expressionMode = expressionMode,
                 draft = draft,
                 onDraftValueChange = { draft = it },
@@ -1310,6 +1313,9 @@ private fun MessageInput(
     onOpenStickers: () -> Unit,
     onPickPhoto: () -> Unit,
     onPickDocument: () -> Unit,
+    /** Přílohy čekající na odeslání; text pole je pak jejich popisek. */
+    attachments: List<OutgoingAttachment>,
+    onRemoveAttachment: (Int) -> Unit,
     /** Ikona tlačítka výběru ukazuje, čím se výběr otevře — emoji, nebo samolepkami. */
     expressionMode: ExpressionMode,
     /** Rozepsaný text; drží ho obrazovka, protože do něj vkládá i výběr emoji. */
@@ -1333,6 +1339,8 @@ private fun MessageInput(
     // Úprava se spouští z nabídky nad zprávou, takže pole fokus nemá. Bez něj by po „Upravit"
     // nebylo poznat, že se něco stalo, a klávesnici by si musel uživatel vyvolat sám.
     val focusRequester = remember { FocusRequester() }
+    // Úprava zprávy přílohy schová — odeslání by je stejně neposlalo.
+    val withAttachments = attachments.isNotEmpty() && editing == null
     val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(editing?.id) {
         if (editing == null) return@LaunchedEffect
@@ -1380,7 +1388,9 @@ private fun MessageInput(
                 // Úprava má přednost před citací: odpověď se při ní neruší, jen se na chvíli schová.
                 if (editing != null) {
                     EditingHeader(message = editing, onCancel = onCancelEdit)
-                } else replyingTo?.let { target ->
+                } else {
+                  StagedAttachmentsStrip(attachments = attachments, onRemove = onRemoveAttachment)
+                  replyingTo?.let { target ->
                     Row(
                         Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -1397,6 +1407,7 @@ private fun MessageInput(
                             )
                         }
                     }
+                  }
                 }
 
                 Box {
@@ -1409,7 +1420,8 @@ private fun MessageInput(
                     if (changed) onDraftChanged(it.text)
                 },
                 modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-                placeholder = { Text("Zpráva") },
+                // S přílohami je text jejich popisek.
+                placeholder = { Text(if (withAttachments) "Popisek" else "Zpráva") },
                 // Přílohy jen při psaní — k úpravě textové zprávy příloha nepatří.
                 leadingIcon = if (editing == null) {
                     { AttachButton(onPickPhoto = onPickPhoto, onPickDocument = onPickDocument) }
@@ -1498,7 +1510,8 @@ private fun MessageInput(
                     onSend(draft.text)
                     onDraftValueChange(TextFieldValue())
                 },
-                enabled = draft.text.isNotBlank(),
+                // Přílohy jdou poslat i bez popisku.
+                enabled = draft.text.isNotBlank() || withAttachments,
                 shapes = IconButtonDefaults.shapes(
                     shape = IconButtonDefaults.mediumRoundShape,
                     pressedShape = IconButtonDefaults.mediumPressedShape,

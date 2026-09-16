@@ -21,22 +21,23 @@ import androidx.compose.ui.platform.LocalContext
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
 import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
- * Android: Photo Picker (`PickVisualMedia`) na fotky, `OpenDocument` na soubory.
+ * Android: Photo Picker (`PickMultipleVisualMedia`) na fotky, `OpenMultipleDocuments` na soubory.
  *
  * Photo Picker nepotřebuje žádné oprávnění ke čtení médií a na starších Androidech ho dodává
  * aktualizace Google Play služeb, jinak spadne na systémový výběr dokumentů.
  */
 @Composable
 actual fun rememberAttachmentPicker(
-    onPicked: (OutgoingAttachment) -> Unit,
+    onPicked: (List<OutgoingAttachment>) -> Unit,
     onError: (String) -> Unit,
 ): AttachmentPicker {
     val context = LocalContext.current.applicationContext
@@ -44,23 +45,30 @@ actual fun rememberAttachmentPicker(
     val picked by rememberUpdatedState(onPicked)
     val failed by rememberUpdatedState(onError)
 
-    fun prepare(uri: Uri, block: (Context, Uri) -> OutgoingAttachment) {
+    fun prepare(uris: List<Uri>, block: (Context, Uri) -> OutgoingAttachment) {
+        if (uris.isEmpty()) return
         scope.launch {
-            // Kopie a zmenšení fotky jsou práce na disku a procesoru — mimo hlavní vlákno.
-            runCatching { withContext(Dispatchers.IO) { block(context, uri) } }
-                .onSuccess { picked(it) }
-                .onFailure { failure ->
+            // Kopie a zmenšení fotek jsou práce na disku a procesoru — mimo hlavní vlákno, souběžně.
+            // `awaitAll` drží pořadí výběru.
+            val results = uris
+                .map { uri -> async(Dispatchers.IO) { runCatching { block(context, uri) } } }
+                .awaitAll()
+            results.forEach { result ->
+                result.exceptionOrNull()?.let { failure ->
                     Logger.withTag("Attachments").w(failure) { "Přílohu se nepodařilo připravit." }
-                    failed("Soubor se nepodařilo načíst.")
                 }
+            }
+            val prepared = results.mapNotNull { it.getOrNull() }
+            if (prepared.isNotEmpty()) picked(prepared)
+            if (prepared.size < results.size) failed("Některý soubor se nepodařilo načíst.")
         }
     }
 
-    val photoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        uri?.let { prepare(it, ::preparePhoto) }
-    }
-    val documentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let { prepare(it, ::prepareDocument) }
+    val photoLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(maxItems = PICK_LIMIT),
+    ) { uris -> prepare(uris, ::preparePhoto) }
+    val documentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        prepare(uris.take(PICK_LIMIT), ::prepareDocument)
     }
 
     return remember(photoLauncher, documentLauncher) {

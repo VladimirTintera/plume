@@ -11,10 +11,11 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
 import platform.Foundation.NSData
@@ -24,6 +25,7 @@ import platform.Foundation.NSURL
 import platform.Foundation.NSUUID
 import platform.Foundation.writeToFile
 import platform.PhotosUI.PHPickerConfiguration
+import platform.PhotosUI.PHPickerConfigurationSelectionOrdered
 import platform.PhotosUI.PHPickerFilter
 import platform.PhotosUI.PHPickerResult
 import platform.PhotosUI.PHPickerViewController
@@ -53,7 +55,7 @@ import kotlin.math.roundToInt
  */
 @Composable
 actual fun rememberAttachmentPicker(
-    onPicked: (OutgoingAttachment) -> Unit,
+    onPicked: (List<OutgoingAttachment>) -> Unit,
     onError: (String) -> Unit,
 ): AttachmentPicker {
     val scope = rememberCoroutineScope()
@@ -71,42 +73,47 @@ actual fun rememberAttachmentPicker(
 
 private class IosAttachmentPicker(
     private val scope: CoroutineScope,
-    private val onPicked: (OutgoingAttachment) -> Unit,
+    private val onPicked: (List<OutgoingAttachment>) -> Unit,
     private val onError: (String) -> Unit,
 ) : AttachmentPicker {
 
     private val logger = Logger.withTag("Attachments")
 
-    private fun prepare(block: suspend () -> OutgoingAttachment) {
+    /** Připraví položky souběžně; `awaitAll` drží pořadí výběru. */
+    private fun <T> prepare(items: List<T>, block: suspend (T) -> OutgoingAttachment) {
+        if (items.isEmpty()) return
         scope.launch {
-            runCatching { withContext(Dispatchers.IO) { block() } }
-                .onSuccess(onPicked)
-                .onFailure { failure ->
-                    logger.w(failure) { "Přílohu se nepodařilo připravit." }
-                    onError("Soubor se nepodařilo načíst.")
-                }
+            val results = items
+                .map { item -> async(Dispatchers.IO) { runCatching { block(item) } } }
+                .awaitAll()
+            results.forEach { result ->
+                result.exceptionOrNull()?.let { failure -> logger.w(failure) { "Přílohu se nepodařilo připravit." } }
+            }
+            val prepared = results.mapNotNull { it.getOrNull() }
+            if (prepared.isNotEmpty()) onPicked(prepared)
+            if (prepared.size < results.size) onError("Některý soubor se nepodařilo načíst.")
         }
     }
 
     private val photoDelegate = object : NSObject(), PHPickerViewControllerDelegateProtocol {
         override fun picker(picker: PHPickerViewController, didFinishPicking: List<*>) {
             picker.dismissViewControllerAnimated(true, null)
-            val result = didFinishPicking.firstOrNull() as? PHPickerResult ?: return
-            prepare { preparePhoto(result) }
+            prepare(didFinishPicking.filterIsInstance<PHPickerResult>()) { preparePhoto(it) }
         }
     }
 
     private val documentDelegate = object : NSObject(), UIDocumentPickerDelegateProtocol {
         override fun documentPicker(controller: UIDocumentPickerViewController, didPickDocumentsAtURLs: List<*>) {
-            val url = didPickDocumentsAtURLs.firstOrNull() as? NSURL ?: return
-            prepare { prepareDocument(url) }
+            prepare(didPickDocumentsAtURLs.filterIsInstance<NSURL>().take(PICK_LIMIT)) { prepareDocument(it) }
         }
     }
 
     override fun pickPhoto() {
         val configuration = PHPickerConfiguration().apply {
             filter = PHPickerFilter.imagesFilter
-            selectionLimit = 1
+            selectionLimit = PICK_LIMIT.toLong()
+            // Pořadí ťuknutí, ne pořadí v knihovně — album odejde tak, jak ho uživatel skládal.
+            selection = PHPickerConfigurationSelectionOrdered
         }
         val picker = PHPickerViewController(configuration = configuration)
         picker.delegate = photoDelegate
@@ -116,6 +123,7 @@ private class IosAttachmentPicker(
     override fun pickDocument() {
         // `asCopy`: soubor dostaneme jako kopii v prostoru aplikace, bez security-scoped přístupu.
         val picker = UIDocumentPickerViewController(forOpeningContentTypes = listOf(UTTypeItem), asCopy = true)
+        picker.allowsMultipleSelection = true
         picker.delegate = documentDelegate
         present(picker)
     }
