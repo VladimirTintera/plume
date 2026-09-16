@@ -109,5 +109,4 @@ jsou to tři řádky.
 
 Základ je hotový (záložky Nedávné, Oblíbené, sady se swipem; hledání; oblíbené; odeslání). Zbývá:
 
-- **Trendy** (`getTrendingStickerSets`).
 - **Emoji picker** jako další záložka.

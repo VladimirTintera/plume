@@ -883,6 +883,12 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
   dozví z `installedStickerSetsUpdates` — jiný update o sadě TDLib nepošle; tlačítko je mezitím
   neaktivní, aby nešlo zmáčknout dvakrát. Oficiální sady odebrat nejdou. ViewModel sady má klíč
   s id sady, stejně jako konverzace.
+- **Trendy jsou záložka hned za Oblíbenými** — na konci za desítkami sad by je nikdo nenašel.
+  Místo mřížky mají seznam sad s ukázkou a tlačítkem Přidat; ťuknutí na sadu otevře její detail
+  jako **sheet nad výběrem** (samolepka poslaná z detailu zavře oba). Trendy jdou na server, proto
+  mají vlastní tok s `WhileSubscribed` mimo stav výběru a načtou se až při zobrazení stránky.
+  Přepočítávají se i na `installedStickerSetsUpdates` — přidání sady trendy samy nehlásí. Po
+  zobrazení se označí za zhlédnuté (`viewTrendingStickerSets`).
 - **Prémiové samolepky se bez Premium nenabízejí** (`StickerFullTypeRegular.premiumAnimation`).
   Odeslat je nejde a samolepka, po které přijde chyba, je horší než žádná. Na Premium se ptá
   `getMe` při každém čtení — předplatné se mění.

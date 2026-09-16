@@ -87,17 +87,29 @@ import androidx.compose.foundation.lazy.grid.LazyGridItemScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.ui.text.style.TextOverflow
+import eu.tintera.plume.core.telegram.TrendingStickerSet
+import eu.tintera.plume.resources.trending_up_24dp
+import androidx.compose.foundation.lazy.items
 import org.koin.compose.viewmodel.koinViewModel
 
 /** Záložka výběru samolepek. */
 sealed interface StickerTab {
     data object Recent : StickerTab
     data object Favorites : StickerTab
+    /** Populární sady k přidání. Nemá mřížku samolepek, ale seznam sad. */
+    data object Trending : StickerTab
     data class Set(val summary: StickerSetSummary) : StickerTab
 }
 
 data class StickerPickerState(
-    val tabs: List<StickerTab> = listOf(StickerTab.Recent, StickerTab.Favorites),
+    val tabs: List<StickerTab> = FIXED_TABS,
     /** `null`, dokud se nenačetly. */
     val recent: List<StickerItem>? = null,
     val favorites: List<StickerItem>? = null,
@@ -108,9 +120,17 @@ data class StickerPickerState(
     fun stickersOf(tab: StickerTab): List<StickerItem>? = when (tab) {
         StickerTab.Recent -> recent
         StickerTab.Favorites -> favorites
+        // Trendy mají vlastní stránku se seznamem sad, mřížku samolepek nemají.
+        StickerTab.Trending -> null
         is StickerTab.Set -> sets[tab.summary.id]
     }
 }
+
+/**
+ * Záložky, které jsou vždycky, před nainstalovanými sadami. Trendy hned za oblíbenými: na konci
+ * za desítkami sad by je nikdo nenašel.
+ */
+private val FIXED_TABS = listOf(StickerTab.Recent, StickerTab.Favorites, StickerTab.Trending)
 
 /**
  * Stav výběru samolepek.
@@ -171,7 +191,7 @@ class StickerPickerViewModel(
         setContents,
     ) { sets, recent, favorites, contents ->
         StickerPickerState(
-            tabs = listOf(StickerTab.Recent, StickerTab.Favorites) + sets.map { StickerTab.Set(it) },
+            tabs = FIXED_TABS + sets.map { StickerTab.Set(it) },
             recent = recent,
             favorites = favorites,
             sets = contents,
@@ -185,6 +205,22 @@ class StickerPickerViewModel(
     fun toggleFavorite(sticker: StickerItem) {
         val favorite = state.value.favorites.orEmpty().any { it.sendFileId == sticker.sendFileId }
         viewModelScope.launch { repository.setFavorite(sticker.sendFileId, !favorite) }
+    }
+
+    /**
+     * Trendy. Vlastní tok s `WhileSubscribed`, mimo [state]: jdou na server, takže se načtou,
+     * až když si je někdo opravdu otevře — ne při každém otevření výběru.
+     */
+    val trending: StateFlow<List<TrendingStickerSet>?> = repository.trendingSets()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
+
+    fun installSet(setId: Long) {
+        viewModelScope.launch { repository.setInstalled(setId, installed = true) }
+    }
+
+    /** Trendy byly vidět — Telegram je přestane hlásit jako nové. */
+    fun markTrendingViewed(sets: List<TrendingStickerSet>) {
+        viewModelScope.launch { repository.markTrendingViewed(sets.map { it.id }) }
     }
 
     /** Stránka záložky se ukázala. Nedávné a oblíbené jsou živé toky, načítá se jen sada. */
@@ -258,6 +294,9 @@ fun StickerPickerSheet(
      */
     var activeStickerId by rememberSaveable { mutableStateOf<Long?>(null) }
 
+    /** Sada otevřená z trendů. Sheet nad sheetem: výběr pod ní zůstává, zpátky se vrací zavřením. */
+    var openSetId by rememberSaveable { mutableStateOf<Long?>(null) }
+
     // Počet stránek se mění: sady dorazí až po nedávných a oblíbených. Proto lambda, ne číslo.
     val pagerState = rememberPagerState(pageCount = { state.tabs.size })
 
@@ -275,6 +314,8 @@ fun StickerPickerSheet(
         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
         activeStickerId = sticker.id
     }
+
+    TrendingSetSheetHost(setId = openSetId, onClose = { openSetId = null }, pick = pick)
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         StickerSearchField(
@@ -327,6 +368,14 @@ fun StickerPickerSheet(
             val tab = state.tabs.getOrNull(page) ?: return@HorizontalPager
             LaunchedEffect(tab) { viewModel.load(tab) }
 
+            if (tab == StickerTab.Trending) {
+                TrendingPage(
+                    viewModel = viewModel,
+                    onOpenSet = { openSetId = it },
+                )
+                return@HorizontalPager
+            }
+
             StickerPage(
                 tab = tab,
                 stickers = state.stickersOf(tab),
@@ -336,10 +385,32 @@ fun StickerPickerSheet(
     }
 }
 
+/**
+ * Samolepka poslaná z detailu sady otevřeného nad výběrem. Oba sheety se zavřou: detail sám,
+ * výběr přes [pick] — ten ho schová animací a pak samolepku pošle.
+ */
+@Composable
+private fun TrendingSetSheetHost(
+    setId: Long?,
+    onClose: () -> Unit,
+    pick: (StickerItem) -> Unit,
+) {
+    setId ?: return
+    StickerSetSheet(
+        setId = setId,
+        onPick = { sticker ->
+            onClose()
+            pick(sticker)
+        },
+        onDismiss = onClose,
+    )
+}
+
 /** Stabilní klíč stránky záložky. */
 private fun StickerTab.pageKey(): Any = when (this) {
     StickerTab.Recent -> "recent"
     StickerTab.Favorites -> "favorites"
+    StickerTab.Trending -> "trending"
     is StickerTab.Set -> summary.id
 }
 
@@ -381,6 +452,7 @@ private fun StickerPage(
                 text = when (tab) {
                     StickerTab.Recent -> "Tady se objeví samolepky, které pošleš."
                     StickerTab.Favorites -> "Zatím tu nejsou žádné oblíbené samolepky."
+                    StickerTab.Trending -> ""
                     is StickerTab.Set -> "Sada je prázdná, nebo se ji nepodařilo načíst."
                 },
                 style = MaterialTheme.typography.bodyLarge,
@@ -388,6 +460,96 @@ private fun StickerPage(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(24.dp),
             )
+        }
+    }
+}
+
+/**
+ * Trendy: seznam populárních sad, u každé pár samolepek na ukázku a tlačítko Přidat.
+ *
+ * Ťuknutí na sadu otevře její detail (celá sada, posílání, přidání) — řádek ukazuje jen ochutnávku.
+ * Trendy se načítají až tady, při prvním zobrazení stránky, a pak se označí za zhlédnuté.
+ */
+@Composable
+private fun TrendingPage(
+    viewModel: StickerPickerViewModel,
+    onOpenSet: (Long) -> Unit,
+) {
+    val trending by viewModel.trending.collectAsStateWithLifecycle()
+
+    LaunchedEffect(trending) {
+        trending?.takeIf { it.isNotEmpty() }?.let(viewModel::markTrendingViewed)
+    }
+
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        val sets = trending
+        when {
+            sets == null -> LoadingIndicator()
+
+            sets.isEmpty() -> Text(
+                text = "Trendy se nepodařilo načíst.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(24.dp),
+            )
+
+            else -> LazyColumn(
+                contentPadding = PaddingValues(vertical = 8.dp),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                items(sets, key = { it.id }) { set ->
+                    TrendingSetRow(
+                        set = set,
+                        onOpen = { onOpenSet(set.id) },
+                        onInstall = { viewModel.installSet(set.id) },
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrendingSetRow(
+    set: TrendingStickerSet,
+    onOpen: () -> Unit,
+    onInstall: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier
+            .fillMaxWidth()
+            .clickable(onClick = onOpen)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = set.title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            // Přidaná sada ukazuje stav, ne mrtvé tlačítko. Odebírá se v detailu sady.
+            if (set.isInstalled) {
+                Text(
+                    text = "Přidáno",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                FilledTonalButton(onClick = onInstall) { Text("Přidat") }
+            }
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.padding(top = 4.dp),
+        ) {
+            set.covers.take(TRENDING_COVERS).forEach { cover ->
+                StickerPreview(cover, playing = false, modifier = Modifier.size(TRENDING_COVER_SIZE))
+            }
         }
     }
 }
@@ -578,6 +740,7 @@ private fun StickerTabIcon(tab: StickerTab) {
     when (tab) {
         StickerTab.Recent -> Icon(painterResource(Res.drawable.schedule_24dp), contentDescription = "Nedávné")
         StickerTab.Favorites -> Icon(painterResource(Res.drawable.star_24dp), contentDescription = "Oblíbené")
+        StickerTab.Trending -> Icon(painterResource(Res.drawable.trending_up_24dp), contentDescription = "Trendy")
         is StickerTab.Set -> {
             val cover = tab.summary.cover
             if (cover != null) {
@@ -662,6 +825,11 @@ private val STICKER_TAB_ROW_HEIGHT = 48.dp
 
 /** Výška mřížky. Kolem tří řádků — dost na výběr, konverzace nad sheetem zůstává vidět. */
 internal val STICKER_PICKER_HEIGHT = 320.dp
+
+/** Kolik samolepek je v řádku trendu vidět. Pět se vejde na šířku telefonu. */
+private const val TRENDING_COVERS = 5
+
+private val TRENDING_COVER_SIZE = 56.dp
 
 /** Buňka mřížky. Na telefonu pět sloupců, jako v Telegramu. */
 internal val STICKER_CELL = 76.dp
