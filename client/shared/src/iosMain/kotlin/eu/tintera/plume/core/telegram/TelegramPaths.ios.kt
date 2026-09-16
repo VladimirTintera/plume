@@ -16,8 +16,9 @@ actual class TelegramPaths {
     actual val filesDirectory: String = applicationSupportDirectory() + "/tdlib-files"
 }
 
+/** Application Support aplikace. Sdílí ho databáze TDLib i nastavení aplikace. */
 @OptIn(ExperimentalForeignApi::class)
-private fun applicationSupportDirectory(): String {
+internal fun applicationSupportDirectory(): String {
     val url = NSFileManager.defaultManager.URLForDirectory(
         directory = NSApplicationSupportDirectory,
         inDomain = NSUserDomainMask,

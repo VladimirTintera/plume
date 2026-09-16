@@ -2,6 +2,8 @@ package eu.tintera.plume.di
 
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.settings.DataStoreAppSettings
 import eu.tintera.plume.core.telegram.EmojiRepository
 import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.telegram.TdlEmojiRepository
@@ -86,6 +88,11 @@ fun appModule() = module {
     single<StickerRepository> { TdlStickerRepository(holder = get()) }
     single<EmojiRepository> { TdlEmojiRepository(holder = get()) }
 
+    // Eagerně: nastavení se načte při startu, aby ho první obrazovka měla hned (viz AppSettings).
+    single<AppSettings>(createdAtStart = true) {
+        DataStoreAppSettings(dataStore = get(), scope = get(named(APP_SCOPE)))
+    }
+
     // Most mezi platformním vstupem (ťuknutí na notifikaci) a navigací.
     single { ChatOpenRequests() }
 
@@ -102,6 +109,7 @@ fun appModule() = module {
             repository = get(),
             chatRepository = get(),
             stickerRepository = get(),
+            settings = get(),
             appScope = get(named(APP_SCOPE)),
             urlOpener = get(),
             clipboard = get(),

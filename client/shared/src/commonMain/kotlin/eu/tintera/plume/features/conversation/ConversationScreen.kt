@@ -148,6 +148,8 @@ import eu.tintera.plume.resources.push_pin_filled_24dp
 import eu.tintera.plume.resources.schedule_24dp
 import eu.tintera.plume.resources.send_24dp
 import eu.tintera.plume.resources.mood_24dp
+import eu.tintera.plume.resources.sticky_note_2_24dp
+import eu.tintera.plume.core.settings.ExpressionMode
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
@@ -177,8 +179,8 @@ fun ConversationScreen(
      */
     var draft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
 
-    /** Poslední otevřená část výběru; příště se otevře tatáž. */
-    var expressionMode by rememberSaveable { mutableStateOf(ExpressionMode.Emoji) }
+    /** Poslední otevřená část výběru — uložená v nastavení, takže platí i po restartu aplikace. */
+    val expressionMode by viewModel.expressionMode.collectAsStateWithLifecycle()
     /** Sada otevřená ťuknutím na samolepku v konverzaci. */
     var openStickerSetId by rememberSaveable { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
@@ -533,6 +535,7 @@ fun ConversationScreen(
                 inputFill = state.inputFill,
                 onInputFilled = viewModel::consumeInputFill,
                 onOpenStickers = { stickerPickerOpen = true },
+                expressionMode = expressionMode,
                 draft = draft,
                 onDraftValueChange = { draft = it },
             )
@@ -554,7 +557,7 @@ fun ConversationScreen(
         if (stickerPickerOpen) {
             StickerPickerSheet(
                 mode = expressionMode,
-                onModeChange = { expressionMode = it },
+                onModeChange = viewModel::setExpressionMode,
                 draft = draft,
                 // Úprava z výběru emoji je psaní jako každé jiné: ukládá koncept i hlásí „píše…".
                 onDraftEdit = {
@@ -1259,6 +1262,8 @@ private fun MessageInput(
     inputFill: InputFill?,
     onInputFilled: () -> Unit,
     onOpenStickers: () -> Unit,
+    /** Ikona tlačítka výběru ukazuje, čím se výběr otevře — emoji, nebo samolepkami. */
+    expressionMode: ExpressionMode,
     /** Rozepsaný text; drží ho obrazovka, protože do něj vkládá i výběr emoji. */
     draft: TextFieldValue,
     onDraftValueChange: (TextFieldValue) -> Unit,
@@ -1367,10 +1372,17 @@ private fun MessageInput(
                                 onOpenStickers()
                             },
                         ) {
-                            Icon(
-                                painterResource(Res.drawable.mood_24dp),
-                                contentDescription = "Emoji a samolepky",
-                            )
+                            // Ikona slibuje, co se otevře: poslední použitou část výběru.
+                            when (expressionMode) {
+                                ExpressionMode.Emoji -> Icon(
+                                    painterResource(Res.drawable.mood_24dp),
+                                    contentDescription = "Emoji",
+                                )
+                                ExpressionMode.Stickers -> Icon(
+                                    painterResource(Res.drawable.sticky_note_2_24dp),
+                                    contentDescription = "Samolepky",
+                                )
+                            }
                         }
                     }
                 } else {

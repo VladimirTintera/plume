@@ -102,6 +102,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.ui.text.input.TextFieldValue
 import eu.tintera.plume.core.telegram.EmojiRepository
+import eu.tintera.plume.core.settings.ExpressionMode
 import org.koin.compose.viewmodel.koinViewModel
 
 /** Záložka výběru samolepek. */
@@ -287,9 +288,6 @@ sealed interface EmojiSearchState {
     data object Searching : EmojiSearchState
     data class Results(val emojis: List<String>) : EmojiSearchState
 }
-
-/** Část výběru: emoji se vkládají do textu, samolepky se posílají. */
-enum class ExpressionMode { Emoji, Stickers }
 
 sealed interface StickerSearchState {
     /** Nehledá se — výběr ukazuje záložky. */

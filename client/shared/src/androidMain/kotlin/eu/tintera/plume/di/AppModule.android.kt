@@ -1,6 +1,8 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.core.notifications.NotificationPermission
+import eu.tintera.plume.core.settings.SETTINGS_FILE_NAME
+import eu.tintera.plume.core.settings.createSettingsDataStore
 import eu.tintera.plume.core.telegram.NotificationPresenter
 import eu.tintera.plume.core.telegram.TelegramPaths
 import eu.tintera.plume.core.ui.UrlOpener
@@ -16,6 +18,9 @@ actual fun Module.platformModule() {
     single { NotificationPermission(androidContext()) }
     single { UrlOpener(androidContext()) }
     single { TextClipboard(androidContext()) }
+
+    // `filesDir`, ne cache: nastavení se nesmí ztratit, když systém uklízí místo.
+    single { createSettingsDataStore(androidContext().filesDir.resolve(SETTINGS_FILE_NAME).absolutePath) }
 
     single {
         NotificationPresenter(
