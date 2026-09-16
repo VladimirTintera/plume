@@ -327,7 +327,14 @@ fun StickerPickerSheet(
     var searchText by rememberSaveable { mutableStateOf("") }
     // Jazyk zařízení a angličtina jako záloha: klíčová slova samolepek bývají anglicky.
     val languageCodes = remember { listOf(Locale.current.language, "en").distinct() }
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    /*
+     * Rovnou celý, bez napůl rozbaleného stavu. Obsah je vyšší než polovina obrazovky, takže
+     * napůl rozbalený sheet schoval spodek pod okraj — tlačítko skončilo pod navigační lištou.
+     */
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
 

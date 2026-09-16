@@ -852,6 +852,10 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
   se rozběhne bez probliknutí. Podržení nic neposílá; `combinedClickable` po dlouhém stisku klik
   nevyvolá. Aktivní buňka je podbarvená — statická `.webp` se rozhýbat nemá jak a bez podbarvení
   by nebylo poznat, že podržení zabralo.
+- **Sheety výběru a sady nemají napůl rozbalený stav** (`enabledValues = Hidden, Expanded`).
+  Jejich obsah je vyšší než polovina obrazovky a napůl rozbalený sheet schoval spodek pod okraj —
+  tlačítko „Odebrat sadu" skončilo pod navigační lištou. Spodní inset lišty řeší výchozí
+  `BottomSheetDefaults.modalWindowInsets`, na to se sahat nemusí.
 - **Mřížka má pevnou výšku**, jinak by se sheet při přepnutí záložky natahoval a smršťoval.
 - **Hledání má dva zdroje.** `getStickers` prochází nainstalované sady podle emoji i podle
   klíčových slov samolepek; `searchStickers` veřejné sady, ale jen podle emoji. Slovo se proto

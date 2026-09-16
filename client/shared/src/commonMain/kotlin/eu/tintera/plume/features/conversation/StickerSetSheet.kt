@@ -129,7 +129,14 @@ fun StickerSetSheet(
         parameters = { parametersOf(setId) },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    /*
+     * Rovnou celý, bez napůl rozbaleného stavu. Obsah je vyšší než polovina obrazovky, takže
+     * napůl rozbalený sheet schoval spodek pod okraj — tlačítko skončilo pod navigační lištou.
+     */
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
     var activeStickerId by rememberSaveable { mutableStateOf<Long?>(null) }
