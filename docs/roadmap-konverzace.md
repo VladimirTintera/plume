@@ -28,7 +28,8 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    5. ~~**Videa** ve výběru i v albu~~ — hotovo (bez překódování; přehrávání viz bod 2).
 2. **Přehrávání videa a hlasovek.** ~~Hlasovky~~ — hotovo (přehrávání v bublině, waveform
    s posunem, poslechnuto). U hlasovek zbývá rychlost přehrávání, automatické pokračování další
-   neposlechnutou, sluchátko u ucha a audio focus / přerušení hovorem, a **nahrávání**.
+   neposlechnutou, sluchátko u ucha a audio focus / přerušení hovorem. ~~Nahrávání~~ — hotovo
+   (ťuknutím); chybí podržení se zamčením, náhled před odesláním a průběh nahrávání hlasovky.
    Video se zatím jen popisuje — platformní přehrávač (Media3 / AVPlayer).
 3. **Přeposílání zpráv** — položka v nabídce + obrazovka výběru cílového chatu.
 4. **Otevírání dokumentů** — stáhnout a předat systému; výrazně méně práce než přehrávání.
@@ -114,7 +115,6 @@ Seřazeno podle toho, jak moc to bolí.
   (kotva uprostřed přes záporný `offset` v `getChatHistory`).
 - **Označení části textu.** Kopíruje se jen celá zpráva z nabídky; vybrat úryvek
   (`SelectionContainer`) zatím nejde.
-- **Hlasovka se nedá nahrát.** Fotky, videa a soubory už poslat jdou.
 
 ---
 

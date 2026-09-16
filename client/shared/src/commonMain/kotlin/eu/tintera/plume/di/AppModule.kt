@@ -120,6 +120,7 @@ fun appModule() = module {
             clipboard = get(),
             fileRepository = get(),
             voicePlayer = get(),
+            audioRecorder = get(),
         )
     }
 

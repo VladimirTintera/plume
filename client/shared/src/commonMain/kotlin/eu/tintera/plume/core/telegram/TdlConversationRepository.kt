@@ -16,6 +16,8 @@ import dev.g000sha256.tdl.dto.InputFileLocal
 import dev.g000sha256.tdl.dto.InputMessageContent
 import dev.g000sha256.tdl.dto.InputMessageDocument
 import dev.g000sha256.tdl.dto.InputMessageVideo
+import dev.g000sha256.tdl.dto.InputMessageVoiceNote
+import dev.g000sha256.tdl.dto.InputVoiceNote
 import dev.g000sha256.tdl.dto.InputThumbnail
 import dev.g000sha256.tdl.dto.InputVideo
 import dev.g000sha256.tdl.dto.InputMessagePhoto
@@ -393,6 +395,32 @@ class TdlConversationRepository(
             // TDLib vrací zprávu okamžitě, s dočasným id a stavem Pending.
             .map { it.toChatMessage(isGroup(chatId)) }
     }
+
+    override suspend fun sendVoiceNote(
+        chatId: Long,
+        path: String,
+        durationSeconds: Int,
+        waveform: ByteArray,
+        replyToMessageId: Long?,
+    ): Result<ChatMessage> =
+        client.sendMessage(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyToMessageId?.let(::replyTo),
+            options = null,
+            replyMarkup = null,
+            inputMessageContent = InputMessageVoiceNote(
+                voiceNote = InputVoiceNote(
+                    voiceNote = InputFileLocal(path = path),
+                    duration = durationSeconds,
+                    waveform = waveform,
+                ),
+                caption = null,
+                selfDestructType = null,
+            ),
+        )
+            .toResult()
+            .map { it.toChatMessage(isGroup(chatId)) }
 
     override suspend fun sendAttachments(
         chatId: Long,

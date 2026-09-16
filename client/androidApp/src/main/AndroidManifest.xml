@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Od Androidu 13 běhové oprávnění; bez něj `notify` tiše nic neudělá. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Nahrávání hlasovek; ptá se až při prvním ťuknutí na mikrofon. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- Predictive back. Při targetSdk 35+ ho systém zapíná sám a tenhle příznak ignoruje;
          je tu jako výslovné prohlášení a pojistka, kdyby targetSdk někdy klesl. Samotnou

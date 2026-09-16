@@ -30,3 +30,35 @@ fun resampleWaveform(values: List<Int>, bars: Int): List<Float> {
     val peak = resampled.max()
     return if (peak <= 0f) resampled.map { 0f } else resampled.map { it / peak }
 }
+
+/**
+ * Zabalí úrovně hlasitosti z nahrávání (0..1) do formátu Telegramu: [WAVEFORM_VALUES] hodnot
+ * 0–31 po 5 bitech — opak [decodeWaveform]. Úrovně se převzorkují a znormují podle špičky,
+ * aby i tichá nahrávka měla čitelný tvar.
+ */
+fun encodeWaveform(levels: List<Float>): ByteArray {
+    val values = resampleLevels(levels, WAVEFORM_VALUES)
+    val peak = values.maxOrNull()?.takeIf { it > 0f } ?: 1f
+    val packed = ByteArray((WAVEFORM_VALUES * 5 + 7) / 8)
+    values.forEachIndexed { index, level ->
+        val value = (level / peak * 31).toInt().coerceIn(0, 31)
+        val bit = index * 5
+        val byte = bit / 8
+        val shifted = value shl (bit % 8)
+        packed[byte] = (packed[byte].toInt() or (shifted and 0xFF)).toByte()
+        if (shifted > 0xFF) packed[byte + 1] = (packed[byte + 1].toInt() or (shifted shr 8)).toByte()
+    }
+    return packed
+}
+
+private fun resampleLevels(levels: List<Float>, count: Int): List<Float> {
+    if (levels.isEmpty()) return List(count) { 0f }
+    return List(count) { index ->
+        val start = index * levels.size / count
+        val end = maxOf(start + 1, (index + 1) * levels.size / count).coerceAtMost(levels.size)
+        levels.subList(start.coerceAtMost(levels.size - 1), end).max()
+    }
+}
+
+/** Kolik hodnot waveformu posílají oficiální klienti. */
+const val WAVEFORM_VALUES = 100
