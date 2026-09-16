@@ -1047,6 +1047,10 @@ není „Android bez barev", ale má vlastní konzistentní paletu.
   dopočítá ze šířky a předřazené `heightIn(max = …)` neuplatní — svislý snímek obrazovky pak vyroste
   přes celou bublinu a popisek pod ním se překryje. Správně: `BoxWithConstraints` + explicitní
   `height(...)` s `coerceAtMost`.
+- **`height(IntrinsicSize.Min)` nesmí obalit nic se `SubcomposeLayout`** (`BoxWithConstraints`,
+  lazy seznamy). Intrinsické míry neumí a aplikace spadne až při vykreslení — u náhledu odkazu
+  s velkým obrázkem to shodilo každý chat, kde takový náhled byl vidět. Proužek „přes celou výšku"
+  se proto kreslí `drawBehind` za obsahem, ne jako `Box` s `fillMaxHeight`.
 - **`implementation` závislosti z `:client:shared` nejsou tranzitivní.** Co používá vstupní bod
   (`:client:androidApp`), musí být deklarované i tam — narazilo se na tom u Kermitu.
 - **Chyby ze stavu musí mít kam vyjít.** `ConversationScreen` má `SnackbarHost`; dřív se

@@ -2,6 +2,7 @@ package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.animation.shrinkHorizontally
@@ -1457,23 +1458,25 @@ private fun LinkPreviewCard(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    // Proužek se kreslí za obsahem, ne jako `Box` s `fillMaxHeight` v řádku s
+    // `height(IntrinsicSize.Min)`. Velký obrázek níž sedí v `BoxWithConstraints` (SubcomposeLayout)
+    // a ten intrinsické míry neumí — aplikace spadla při zobrazení každého takového náhledu.
+    Column(
         modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(4.dp))
             .combinedClickable(onClick = onOpen, onLongClick = onLongClick)
-            .height(IntrinsicSize.Min),
+            .drawBehind {
+                drawRoundRect(
+                    color = accent,
+                    size = Size(LINK_PREVIEW_STRIPE.toPx(), size.height),
+                    cornerRadius = CornerRadius(2.dp.toPx()),
+                )
+            }
+            .padding(start = LINK_PREVIEW_STRIPE + 8.dp),
     ) {
-        Box(
-            Modifier
-                .width(3.dp)
-                .fillMaxHeight()
-                .clip(RoundedCornerShape(2.dp))
-                .background(accent),
-        )
-
         Column(
-            Modifier.weight(1f).padding(start = 8.dp),
+            Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1870,6 +1873,9 @@ private const val LINK_PREVIEW_DESCRIPTION_LINES = 3
 
 /** Malý obrázek vedle textu náhledu. */
 private val LINK_PREVIEW_THUMBNAIL = 56.dp
+
+/** Šířka proužku vlevo od náhledu odkazu — stejná jako u citace. */
+private val LINK_PREVIEW_STRIPE = 3.dp
 
 /** Poměr stran velkého obrázku náhledu bez rozměrů — typický obrázek pro sdílení odkazu. */
 private const val LINK_PREVIEW_FALLBACK_RATIO = 1.91f
