@@ -690,6 +690,22 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
   id a stavem `Sending`; čekat na server by znamenalo viditelnou prodlevu mezi ťuknutím a bublinou.
 - **TDLib po potvrzení zprávě ZMĚNÍ id.** `UpdateMessageSendSucceeded` nese staré i nové —
   zprávu nestačí aktualizovat, původní se musí ze seznamu odebrat, jinak tam zůstane dvakrát.
+- **Klíč položky v `LazyColumn` proto NENÍ id zprávy**, ale `ConversationState.keyOf()`: u odeslané
+  zprávy zůstává dočasné id (`itemKeys`: nové id → dočasné). S id jako klíčem bylo potvrzení
+  doručení pro seznam odebrání jedné položky a přidání jiné — `animateItem()` jednu nechal
+  odprchnout, druhou naskočit a bublina problikla. Let ze vstupního pole navíc přišel o cíl,
+  protože potvrzení dorazí většinou dřív, než let doběhne. Kdo z viditelných položek čte klíč
+  (hlášení přečtení, plovoucí datum), musí počítat s tím, že to není id.
+- **Rozepsaná zpráva dorazí přes `newMessages` DŘÍV, než `sendMessage` vrátí výsledek.** Let se
+  proto na ni váže už tam (`landingOn`, podle textu a stavu `Sending`). Když se vázal až
+  v `send`, bublina se na snímek vykreslila na místě, pak zmizela do letu a přiletěla znovu.
+- **Nová zpráva dole se ukotví přes `requestScrollToItem(0)` v kompozici**, ne efektem
+  s `animateScrollToItem`. `LazyColumn` drží pozici podle klíče první viditelné položky, takže
+  vložená zpráva skončila pod spodní hranou a seznam k ní dojel až o snímek později.
+- **Cíl letu nemá fade-in `animateItem`.** Během letu se kreslí v překryvu, kam průhlednost
+  položky nedosáhne; po přistání by skočil z plné viditelnosti do rozjetého prolnutí.
+- **Čipy reakcí jsou v `key(emoji)`.** Server pořadí reakcí přeskládává a bez klíče se stav
+  animací (barva, tvar) přenesl na sousední čip.
 - **„Přečteno" není ve zprávě, ale na chatu** (`lastReadOutboxMessageId`): posuvný ukazatel,
   pod který spadají všechny odchozí zprávy s menším id. Kdyby se ukládalo do zpráv, muselo by se
   při každém přečtení přemapovat celá historie.

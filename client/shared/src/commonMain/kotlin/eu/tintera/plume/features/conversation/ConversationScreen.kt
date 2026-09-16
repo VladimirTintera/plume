@@ -20,6 +20,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -191,6 +193,10 @@ fun ConversationScreen(
      */
     val byId = remember(state.messages) { state.messages.associateBy { it.id } }
 
+    // Klíč položky není u odeslaných zpráv jejich id (viz `ConversationState.itemKeys`), takže
+    // co se v seznamu hledá podle klíče, musí mít vlastní mapu.
+    val byKey = remember(state.messages, state.itemKeys) { state.messages.associateBy(state::keyOf) }
+
     /*
      * Datum nejvyšší viditelné zprávy, pro plovoucí štítek při scrollu.
      *
@@ -198,13 +204,13 @@ fun ConversationScreen(
      * ze stejného důvodu jako u hlášení přečtení. Položky bez číselného klíče (reklama, řádek
      * načítání) se přeskočí, protože k nim žádná zpráva není.
      */
-    val topVisibleMessageId by remember {
+    val topVisibleKey by remember {
         derivedStateOf {
             listState.layoutInfo.visibleItemsInfo.lastOrNull { it.key is Long }?.key as? Long
         }
     }
 
-    val visibleDay = topVisibleMessageId?.let { byId[it]?.timestamp?.asDayLabel() }
+    val visibleDay = topVisibleKey?.let { byKey[it]?.timestamp?.asDayLabel() }
 
     // Štítek se drží i po zmizení data, aby při odeznívání nezůstala prázdná pilulka.
     var floatingDay by remember { mutableStateOf("") }
@@ -226,32 +232,51 @@ fun ConversationScreen(
         viewModel.consumeScrollTarget()
     }
 
-    val newestMessageId = state.messages.firstOrNull()?.id
+    val newest = state.messages.firstOrNull()
+
+    /*
+     * Nová zpráva dole: seznam se ukotví u spodní hrany UŽ PŘI JEJÍM VLOŽENÍ.
+     *
+     * `LazyColumn` drží pozici podle klíče první viditelné položky. Nová zpráva na indexu 0 se
+     * tedy vložila POD spodní hranu a teprve efekt o snímek později k ní dojížděl — bublina
+     * nejdřív nebyla vidět, pak k ní seznam poskočil, a let ze vstupního pole mířil na cíl,
+     * který se mu pod rukama posouval. `requestScrollToItem` platí pro nejbližší přeměření,
+     * tedy pro tentýž layout, ve kterém se zpráva objeví; proto se volá v kompozici, ne v efektu.
+     *
+     * Hlídá se klíč, ne id: potvrzení odeslání mění id, ale novou zprávu nepřináší.
+     */
+    val anchor = remember { NewestItem() }
+    if (newest != null) {
+        val key = state.keyOf(newest)
+        if (key != anchor.key) {
+            // První naplnění seznamu není „nová zpráva", jen se zobrazila historie. Smazání
+            // nejnovější zprávy klíč taky změní, ale id přitom klesne.
+            val arrived = anchor.key != null && newest.id > anchor.id
+            // Vlastní zpráva dolů vždycky — jinak by odeslání vypadalo, že se nic nestalo.
+            // Cizí jen když je uživatel dole; při čtení historie by ho to vytrhlo ze čtení.
+            if (arrived && (newest.isOutgoing || atBottom)) listState.requestScrollToItem(0)
+            anchor.key = key
+            anchor.id = newest.id
+        }
+    }
+
+    val newestMessageId = newest?.id
 
     LaunchedEffect(newestMessageId) {
-        val newest = newestMessageId ?: return@LaunchedEffect
+        val newestId = newestMessageId ?: return@LaunchedEffect
         val previous = lastSeenMessageId
-        lastSeenMessageId = newest
+        lastSeenMessageId = newestId
 
         // První naplnění seznamu není „nová zpráva", jen se zobrazila historie.
         if (previous == null) return@LaunchedEffect
-        if (newest <= previous) return@LaunchedEffect
+        if (newestId <= previous) return@LaunchedEffect
 
         // Id zpráv v chatu rostou, takže „nové" jsou ty nad posledním viděným.
         val arrived = state.messages.takeWhile { it.id > previous }
 
+        // Scroll už obstaral `requestScrollToItem` výš; tady se jen počítá odznak.
         when {
-            // Vlastní odeslaná zpráva: odrolovat vždycky. Bez toho by odeslání z pohledu
-            // uživatele vypadalo, že se nic nestalo — bublina by přistála mimo obrazovku.
-            arrived.any { it.isOutgoing } -> {
-                pendingNewMessages = 0
-                listState.animateScrollToItem(0)
-            }
-
-            atBottom -> {
-                pendingNewMessages = 0
-                listState.animateScrollToItem(0)
-            }
+            arrived.any { it.isOutgoing } || atBottom -> pendingNewMessages = 0
 
             // Čtu historii: NEscrollovat, vytrhlo by mě to ze čtení. Místo toho odznak dole.
             else -> pendingNewMessages += arrived.count { !it.isOutgoing }
@@ -428,7 +453,9 @@ fun ConversationScreen(
                         )
                     }
 
-                    itemsIndexed(state.messages, key = { _, message -> message.id }) { index, message ->
+                    // Klíč NENÍ id: odeslané zprávě TDLib po potvrzení id změní a s novým klíčem
+                    // by bublina problikla jako odebraná a znovu přidaná položka.
+                    itemsIndexed(state.messages, key = { _, message -> state.keyOf(message) }) { index, message ->
                         // Seznam jde od nejnovější, takže „předchozí zpráva v čase" je ta
                         // s VYŠŠÍM indexem.
                         val older = state.messages.getOrNull(index + 1)
@@ -453,9 +480,19 @@ fun ConversationScreen(
                             message.id > boundary && older != null && older.id <= boundary
                         } == true
 
+                        val flight = state.flight?.takeIf { it.itemKey == state.keyOf(message) }
+
                         // Předěl patří NAD zprávu, takže do sloupce před ni. `reverseLayout`
                         // obrací pořadí položek, ne obsah jedné položky.
-                        Column(Modifier.animateItem()) {
+                        //
+                        // Cíl letu se nezjevuje prolnutím: během letu se kreslí v překryvu sdílených
+                        // prvků, kam průhlednost položky nedosáhne, a po přistání by pak skočil
+                        // z plné viditelnosti do rozjetého prolnutí.
+                        Column(
+                            Modifier.animateItem(
+                                fadeInSpec = if (flight != null) null else spring(stiffness = Spring.StiffnessMediumLow),
+                            ),
+                        ) {
                             if (startsDay) DayDivider(message.timestamp)
                             if (startsUnread) UnreadDivider()
 
@@ -480,7 +517,7 @@ fun ConversationScreen(
                                 previous = older.takeIf { !startsDay },
                                 lastReadOutboxMessageId = state.lastReadOutboxMessageId,
 
-                                flight = state.flight,
+                                flight = flight,
                                 onToggleReaction = { emoji ->
                                     viewModel.toggleReaction(message.id, emoji)
                                 },
@@ -622,6 +659,7 @@ private fun MessageBubble(
     quoted: ChatMessage?,
     partnerName: String?,
     lastReadOutboxMessageId: Long,
+    /** Let ze vstupního pole, který přistává právě v téhle bublině; jinak `null`. */
     flight: MessageFlight?,
     previous: ChatMessage?,
     onToggleReaction: (String) -> Unit,
@@ -753,8 +791,7 @@ private fun MessageBubble(
                 // kdyby se sdílel jen text, doletěl by sám a pozadí by pod ním na konci
                 // skokem naskočilo.
                 .then(
-                    flight?.takeIf { it.messageId == message.id }
-                        ?.let { Modifier.sharedFlight(it.sharedKey, visible = true) }
+                    flight?.let { Modifier.sharedFlight(it.sharedKey, visible = true) }
                         ?: Modifier,
                 )
                 // Ořez MUSÍ být před klikáním. `Surface` si tvarem ořezává jen svoje pozadí,
@@ -985,7 +1022,7 @@ private fun MessageInput(
                     shape = RoundedCornerShape(BUBBLE_CORNER, BUBBLE_CORNER, BUBBLE_TAIL, BUBBLE_CORNER),
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .sharedFlight(current.sharedKey, visible = current.messageId == null),
+                        .sharedFlight(current.sharedKey, visible = current.itemKey == null),
                 ) {
                     Text(
                         text = current.text,
@@ -1173,6 +1210,17 @@ private fun UnreadDivider(modifier: Modifier = Modifier) {
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         modifier = modifier.padding(vertical = DAY_DIVIDER_SPACING),
     )
+}
+
+/**
+ * Naposledy zpracovaná nejnovější zpráva, pro ukotvení seznamu dole.
+ *
+ * Obyčejná třída, ne `mutableStateOf`: zapisuje se v kompozici a zápis do snapshot stavu by
+ * obrazovku jen znovu rekomponoval, aniž by se tím cokoli změnilo.
+ */
+private class NewestItem {
+    var key: Long? = null
+    var id: Long = 0L
 }
 
 private const val LOAD_MORE_THRESHOLD = 5

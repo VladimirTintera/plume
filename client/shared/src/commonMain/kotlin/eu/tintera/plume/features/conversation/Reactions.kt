@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -60,14 +61,19 @@ fun ReactionRow(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         reactions.forEach { reaction ->
-            ReactionChip(
-                reaction = reaction,
-                // Avatary jen když je jich málo A zároveň je opravdu máme načtené.
-                withAvatars = showAvatars &&
-                    reaction.count <= MAX_AVATARS_PER_REACTION &&
-                    reaction.recentSenders.isNotEmpty(),
-                onClick = { onToggle(reaction.emoji) },
-            )
+            // Klíč podle emoji: server pořadí reakcí mění (optimisticky přidaná jde na konec,
+            // jeho odpověď ji může dát jinam). Bez klíče by se stav animací přenesl na sousední
+            // čip a ten by přeblikl do cizí barvy a tvaru.
+            key(reaction.emoji) {
+                ReactionChip(
+                    reaction = reaction,
+                    // Avatary jen když je jich málo A zároveň je opravdu máme načtené.
+                    withAvatars = showAvatars &&
+                        reaction.count <= MAX_AVATARS_PER_REACTION &&
+                        reaction.recentSenders.isNotEmpty(),
+                    onClick = { onToggle(reaction.emoji) },
+                )
+            }
         }
     }
 }

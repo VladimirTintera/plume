@@ -9,6 +9,7 @@ import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.Presence
+import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.SentMessageUpdate
 import eu.tintera.plume.core.telegram.SponsoredMessage
 import eu.tintera.plume.core.ui.TextClipboard
@@ -194,7 +195,15 @@ class ConversationViewModel(
     private fun observeUpdates() {
         viewModelScope.launch {
             repository.newMessages(chatId).collect { message ->
-                _state.update { it.copy(messages = merge(it.messages, listOf(message))) }
+                _state.update {
+                    it.copy(
+                        messages = merge(it.messages, listOf(message)),
+                        // Rozepsaná zpráva chodí tudy DŘÍV, než `send` vrátí výsledek. Let se proto
+                        // musí navázat už tady, ve stejné změně stavu, ve které bublina vzniká —
+                        // jinak se na snímek vykreslí na místě, zmizí a teprve pak přiletí.
+                        flight = it.flight.landingOn(message),
+                    )
+                }
                 resolveMissingQuotes()
             }
         }
@@ -230,9 +239,18 @@ class ConversationViewModel(
                     is SentMessageUpdate.Failed -> update.oldMessageId to update.message
                 }
 
+                /*
+                 * Klíč položky ale zůstává PŮVODNÍ. Změna klíče znamená pro `LazyColumn` jinou
+                 * položku: stará by odprchla, nová naskočila a z potvrzení doručení by byl problik
+                 * celé bubliny — navíc uprostřed letu ze vstupního pole, jehož cíl by zmizel.
+                 */
                 _state.update { state ->
                     val without = state.messages.filterNot { it.id == oldId }
-                    state.copy(messages = merge(without, listOf(message)))
+                    val key = state.itemKeys[oldId] ?: oldId
+                    state.copy(
+                        messages = merge(without, listOf(message)),
+                        itemKeys = state.itemKeys - oldId + (message.id to key),
+                    )
                 }
             }
         }
@@ -253,7 +271,10 @@ class ConversationViewModel(
             repository.deletedMessages(chatId).collect { ids ->
                 val removed = ids.toSet()
                 _state.update { state ->
-                    state.copy(messages = state.messages.filterNot { it.id in removed })
+                    state.copy(
+                        messages = state.messages.filterNot { it.id in removed },
+                        itemKeys = state.itemKeys - removed,
+                    )
                 }
             }
         }
@@ -270,7 +291,7 @@ class ConversationViewModel(
 
         // Text „vyletí" ze vstupního pole do bubliny. Musí se zapamatovat hned při odeslání,
         // protože pole se vyprázdní dřív, než dorazí zpráva — a bez toho by nebylo co animovat.
-        val flight = MessageFlight(id = ++flightCounter, text = trimmed, messageId = null)
+        val flight = MessageFlight(id = ++flightCounter, text = trimmed, itemKey = null)
         _state.update { it.copy(flight = flight) }
 
         viewModelScope.launch {
@@ -280,10 +301,18 @@ class ConversationViewModel(
                 .onSuccess { pending ->
                     _state.update {
                         it.copy(
-                            messages = merge(it.messages, listOf(pending)),
-                            // Teprve teď ví let, kam míří — bublina si podle id vezme klíč.
-                            flight = it.flight?.takeIf { f -> f.id == flight.id }
-                                ?.copy(messageId = pending.id),
+                            // Mezitím ji už mohlo dorazit i potvrzení. Vrátit do seznamu dočasnou
+                            // verzi by znamenalo mít tam zprávu dvakrát.
+                            messages = if (pending.id in it.itemKeys.values) {
+                                it.messages
+                            } else {
+                                merge(it.messages, listOf(pending))
+                            },
+                            // Většinou už let navázal `newMessages`; tohle je záloha pro opačné
+                            // pořadí. Cizí let (další rychle odeslaná zpráva) se nechává být.
+                            flight = it.flight?.let { f ->
+                                if (f.id == flight.id && f.itemKey == null) f.copy(itemKey = pending.id) else f
+                            },
                         )
                     }
 
@@ -359,9 +388,11 @@ class ConversationViewModel(
     fun markRead(messageIds: List<Long>) {
         if (messageIds.isEmpty()) return
 
+        // Obrazovka posílá klíče položek, ne id — u odeslaných zpráv se liší.
         val visible = messageIds.toSet()
-        val incoming = _state.value.messages
-            .filter { !it.isOutgoing && it.id in visible }
+        val state = _state.value
+        val incoming = state.messages
+            .filter { !it.isOutgoing && state.keyOf(it) in visible }
             .map { it.id }
 
         if (incoming.isEmpty()) return
@@ -561,8 +592,11 @@ private fun List<MessageReaction>.toggled(emoji: String, add: Boolean): List<Mes
 /**
  * Text na cestě ze vstupního pole do bubliny.
  *
- * Existuje jen po dobu animace. [messageId] je `null`, dokud TDLib nevrátí rozepsanou zprávu —
+ * Existuje jen po dobu animace. [itemKey] je `null`, dokud TDLib nevrátí rozepsanou zprávu —
  * do té doby se text kreslí u vstupního pole, pak ho převezme bublina.
+ *
+ * Míří na **klíč položky**, ne na id zprávy. Potvrzení ze serveru často dorazí dřív, než let
+ * doběhne, a zprávě změní id; klíč zůstává (viz [ConversationState.itemKeys]).
  *
  * [id] rozlišuje jednotlivé lety: bez něj by dvě rychle po sobě odeslané zprávy sdílely jeden
  * klíč a animace by se popraly.
@@ -570,10 +604,23 @@ private fun List<MessageReaction>.toggled(emoji: String, add: Boolean): List<Mes
 data class MessageFlight(
     val id: Long,
     val text: String,
-    val messageId: Long?,
+    val itemKey: Long?,
 ) {
     /** Klíč sdíleného prvku. Musí být na obou stranách stejný, jinak se prvky nespárují. */
     val sharedKey: String get() = "message-flight-$id"
+}
+
+/**
+ * Naváže čekající let na právě příchozí zprávu, pokud je to ta odesílaná.
+ *
+ * Pozná se podle textu a stavu `Sending` — id zatím neznáme, `send` ho ještě nevrátil. Zpráva
+ * odeslaná z jiného zařízení v tomhle stavu nepřijde, takže se nespáruje omylem.
+ */
+private fun MessageFlight?.landingOn(message: ChatMessage): MessageFlight? = when {
+    this == null || itemKey != null -> this
+    message.isOutgoing && message.sendState == SendState.Sending && message.text == text ->
+        copy(itemKey = message.id)
+    else -> this
 }
 
 /** Doba, po kterou se drží klíč sdíleného prvku po přistání v bublině. */
@@ -674,7 +721,17 @@ data class ConversationState(
     val flight: MessageFlight? = null,
     /** Od nejnovější po nejstarší. */
     val messages: List<ChatMessage> = emptyList(),
+    /**
+     * Klíč položky v seznamu pro zprávy, kterým TDLib po odeslání změnil id: nové id → dočasné.
+     *
+     * Bez toho by potvrzení doručení znamenalo pro `LazyColumn` odebrání jedné položky a přidání
+     * jiné — bublina by problikla. Ostatní zprávy tu nejsou a klíčem je jim rovnou id.
+     */
+    val itemKeys: Map<Long, Long> = emptyMap(),
     val loading: Boolean = false,
     val reachedStart: Boolean = false,
     val error: String? = null,
-)
+) {
+    /** Stabilní klíč položky zprávy; přežije změnu id po odeslání. */
+    fun keyOf(message: ChatMessage): Long = itemKeys[message.id] ?: message.id
+}
