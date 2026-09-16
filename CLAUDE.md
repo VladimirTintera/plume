@@ -237,6 +237,32 @@ obrazovky, ne na aplikaci.
 - **`UpdateDeleteMessages.isPermanent == false`** znamená jen uvolnění z cache, ne smazání pro
   uživatele — takovou zprávu z obrazovky odstranit nesmíme.
 
+### Předěly dne
+
+V bublině se vypisují jen hodiny, protože datum má nést předěl nad blokem zpráv. Bez něj se
+v delší historii nedalo poznat, kde končí včerejšek.
+
+- **Předěl se kreslí v položce zprávy, ne mezi položkami.** `LazyColumn` o sousedech nic neví,
+  takže se stejně jako u mezer mezi skupinami rozhoduje z dat: předěl patří zprávě, jejíž
+  starší soused (index +1, seznam jde od nejnovější) je z jiného dne.
+- **`reverseLayout` obrací pořadí POLOŽEK, ne obsah jedné položky.** Uvnitř `Column` proto předěl
+  stojí před bublinou a vykreslí se nad ní.
+- **U nejstarší načtené zprávy se předěl ukáže taky.** Jakmile se dotáhne starší stránka, posune
+  se nahoru. Lepší než nechat vršek historie bez data.
+- **Za předělem začíná nový blok**, i když píše tentýž člověk — proto se do bubliny posílá
+  `previous = null`. Jinak by první zpráva pod datem navazovala staženým nárožím na zprávu
+  z minulého dne a přišla by o jméno odesílatele.
+- **Dny se porovnávají přes místní datum, ne přes rozdíl sekund.** Den má 24 hodin jen někdy —
+  na přechodu letního času je kratší nebo delší a půlnoc se posouvá podle časového pásma.
+- **Podrobnost data roste s věkem**, obráceně než u `asRelativeTime`. Předěl je nadpis nad celým
+  blokem, takže musí říct dost: Dnes / Včera / název dne / „23. května" / s rokem u starších let.
+  Měsíc je ve druhém pádu, protože stojí za dnem.
+- **Plovoucí datum při scrollu není `stickyHeader`.** Ten se v obráceném seznamu lepí na jeho
+  začátek, tedy dolů — přesně naopak, než je potřeba. Je to overlay nad seznamem, který se ukáže
+  jen při scrollu a bere datum z nejvyšší viditelné položky (opět podle klíče, ne indexu).
+- **Předěl a systémové oznámení vypadají stejně** (`CenteredNote`). Obojí je poznámka na okraji
+  konverzace, ne zpráva od někoho; dvě různá pojetí téhož by seznam roztříštila.
+
 ### Hlášení přečtení a indexy
 
 - **Z viditelných položek se bere KLÍČ, ne index.** Index do `state.messages` nesedí: před

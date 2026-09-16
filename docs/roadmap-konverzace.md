@@ -88,8 +88,6 @@ Seřazeno podle toho, jak moc to bolí.
 
 **Chybějící základ**
 
-- **Datové předěly.** V konverzaci se u zprávy vypisuje jen čas, takže v delší historii se nedá
-  poznat, kde končí včerejšek. Patří tam lepivá hlavička s datem.
 - **Skok na první nepřečtenou** a předěl „Nepřečtené zprávy" — otevření chatu s padesáti
   nepřečtenými dnes přistane dole a uživatel doroluje zpátky ručně.
 - **„Píše…" v hlavičce konverzace.** `ChatActivity` se v seznamu chatů zobrazuje, v konverzaci

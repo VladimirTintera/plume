@@ -85,7 +85,9 @@ import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asRelativeTime
+import eu.tintera.plume.core.ui.isSameDayAs
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.emojiClusterCount
 import eu.tintera.plume.core.ui.chatTitleKey
@@ -186,6 +188,27 @@ fun ConversationScreen(
      * zpráv se to při scrollu pozná.
      */
     val byId = remember(state.messages) { state.messages.associateBy { it.id } }
+
+    /*
+     * Datum nejvyšší viditelné zprávy, pro plovoucí štítek při scrollu.
+     *
+     * Při `reverseLayout` je nahoře POSLEDNÍ z viditelných položek. Bere se klíč, ne index —
+     * ze stejného důvodu jako u hlášení přečtení. Položky bez číselného klíče (reklama, řádek
+     * načítání) se přeskočí, protože k nim žádná zpráva není.
+     */
+    val topVisibleMessageId by remember {
+        derivedStateOf {
+            listState.layoutInfo.visibleItemsInfo.lastOrNull { it.key is Long }?.key as? Long
+        }
+    }
+
+    val visibleDay = topVisibleMessageId?.let { byId[it]?.timestamp?.asDayLabel() }
+
+    // Štítek se drží i po zmizení data, aby při odeznívání nezůstala prázdná pilulka.
+    var floatingDay by remember { mutableStateOf("") }
+    LaunchedEffect(visibleDay) {
+        if (visibleDay != null) floatingDay = visibleDay
+    }
 
     val newestMessageId = state.messages.firstOrNull()?.id
 
@@ -390,40 +413,60 @@ fun ConversationScreen(
                     }
 
                     itemsIndexed(state.messages, key = { _, message -> message.id }) { index, message ->
-                        // Systémové oznámení nemá odesílatele, takže nemá ani stranu — kreslí se
-                        // na střed a bez bubliny. Reakce, citace ani stav doručení k němu nepatří.
-                        if (message.isService) {
-                            ServiceMessage(message, Modifier.animateItem())
-                            return@itemsIndexed
+                        // Seznam jde od nejnovější, takže „předchozí zpráva v čase" je ta
+                        // s VYŠŠÍM indexem.
+                        val older = state.messages.getOrNull(index + 1)
+
+                        /*
+                         * Začíná touhle zprávou nový den?
+                         *
+                         * `older == null` je nejstarší načtená zpráva. Datum se u ní ukáže taky —
+                         * jakmile se dotáhne starší stránka, předěl se posune nahoru. Lepší než
+                         * nechat vršek historie bez data.
+                         */
+                        val startsDay = older == null ||
+                            !older.timestamp.isSameDayAs(message.timestamp)
+
+                        // Předěl patří NAD zprávu, takže do sloupce před ni. `reverseLayout`
+                        // obrací pořadí položek, ne obsah jedné položky.
+                        Column(Modifier.animateItem()) {
+                            if (startsDay) DayDivider(message.timestamp)
+
+                            // Systémové oznámení nemá odesílatele, takže nemá ani stranu — kreslí
+                            // se na střed a bez bubliny. Reakce, citace ani stav doručení k němu
+                            // nepatří.
+                            if (message.isService) {
+                                ServiceMessage(message)
+                                return@Column
+                            }
+
+                            MessageBubble(
+                                message = message,
+                                quoted = message.replyToMessageId?.let { id ->
+                                    byId[id] ?: state.quotes[id]
+                                },
+                                // V soukromém chatu se jméno odesílatele u zpráv nevyplňuje (dává
+                                // smysl jen ve skupinách), takže citace by neměla koho uvést.
+                                partnerName = state.info?.title,
+                                // Za předělem začíná nový blok, i když píše tentýž člověk — jinak by
+                                // první bublina pod datem navazovala na zprávu z minulého dne.
+                                previous = older.takeIf { !startsDay },
+                                lastReadOutboxMessageId = state.lastReadOutboxMessageId,
+
+                                flight = state.flight,
+                                onToggleReaction = { emoji ->
+                                    viewModel.toggleReaction(message.id, emoji)
+                                },
+                                onRequestMenu = { viewModel.showMessageMenu(message.id) },
+                                onReply = { viewModel.replyTo(message.id) },
+                                onOpenMedia = { onOpenMedia(message.id) },
+                                // Nabídka se kreslí uvnitř bubliny, které se týká — jinak by neměla
+                                // k čemu se ukotvit.
+                                menu = state.messageMenu?.takeIf { it.messageId == message.id },
+                                menuHandlers = menuHandlers,
+                                onLinkClick = viewModel::openLink,
+                            )
                         }
-
-                        MessageBubble(
-                            message = message,
-                            quoted = message.replyToMessageId?.let { id ->
-                                byId[id] ?: state.quotes[id]
-                            },
-                            // V soukromém chatu se jméno odesílatele u zpráv nevyplňuje (dává
-                            // smysl jen ve skupinách), takže citace by neměla koho uvést.
-                            partnerName = state.info?.title,
-                            // Seznam jde od nejnovější, takže „předchozí zpráva v čase"
-                            // je ta s VYŠŠÍM indexem.
-                            previous = state.messages.getOrNull(index + 1),
-                            lastReadOutboxMessageId = state.lastReadOutboxMessageId,
-
-                            flight = state.flight,
-                            onToggleReaction = { emoji ->
-                                viewModel.toggleReaction(message.id, emoji)
-                            },
-                            onRequestMenu = { viewModel.showMessageMenu(message.id) },
-                            onReply = { viewModel.replyTo(message.id) },
-                            onOpenMedia = { onOpenMedia(message.id) },
-                            // Nabídka se kreslí uvnitř bubliny, které se týká — jinak by neměla
-                            // k čemu se ukotvit.
-                            menu = state.messageMenu?.takeIf { it.messageId == message.id },
-                            menuHandlers = menuHandlers,
-                            onLinkClick = viewModel::openLink,
-                            modifier = Modifier.animateItem(),
-                        )
                     }
 
                     if (state.loading) {
@@ -434,6 +477,28 @@ fun ConversationScreen(
                         }
                     }
                 }
+            }
+
+            /*
+             * Plovoucí datum.
+             *
+             * Ukáže se jen při scrollu a zase zmizí. V dlouhé historii je předěl často mimo
+             * obrazovku a bez tohohle by se při hledání starší zprávy nedalo poznat, kde zrovna
+             * jsem. Je to overlay, ne `stickyHeader`: ten se v obráceném seznamu lepí na jeho
+             * začátek, tedy dolů, což je přesně naopak.
+             */
+            AnimatedVisibility(
+                visible = listState.isScrollInProgress && floatingDay.isNotEmpty(),
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.TopCenter),
+            ) {
+                CenteredNote(
+                    text = floatingDay,
+                    // Stín ho odlepí od zpráv, které pod ním projíždějí.
+                    shadowElevation = 3.dp,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
 
             // Odznak leží NAD seznamem, ne v něm — musí zůstat u spodní hrany i při scrollu.
@@ -1064,6 +1129,9 @@ private val MESSAGE_SPACING = 4.dp
 /** Mezera navíc tam, kde začíná nová skupina — jiný odesílatel, jiný blok. */
 private val GROUP_SPACING = 8.dp
 
+/** Vzduch kolem předělu dne. Odděluje bloky, takže potřebuje víc než rozestup mezi zprávami. */
+private val DAY_DIVIDER_SPACING = 6.dp
+
 /**
  * Průsvit pruhu pod vstupním polem.
  *
@@ -1266,11 +1334,43 @@ private fun StickerImage(sticker: MessageMedia.Sticker) {
 /**
  * Systémové oznámení o dění v chatu.
  *
- * Na střed, malým písmem a v `surfaceContainer` — má to být poznámka na okraji, ne zpráva.
- * Čas se nevypisuje: u „někdo se připojil" je minuta k ničemu a řádek by jen zdvojnásobil.
+ * Čas se u něj nevypisuje: u „někdo se připojil" je minuta k ničemu a řádek by jen zdvojnásobil.
  */
 @Composable
 private fun ServiceMessage(message: ChatMessage, modifier: Modifier = Modifier) {
+    CenteredNote(text = message.text, modifier = modifier)
+}
+
+/**
+ * Předěl dne.
+ *
+ * Bez něj se v delší historii nedá poznat, kde končí včerejšek — u zprávy se vypisují jen hodiny,
+ * protože datum má nést právě tohle.
+ *
+ * Vypadá stejně jako systémové oznámení schválně: obojí je poznámka na okraji konverzace, ne
+ * zpráva od někoho. Dvě různá pojetí téhož by seznam jen roztříštila.
+ */
+@Composable
+private fun DayDivider(timestamp: Int, modifier: Modifier = Modifier) {
+    CenteredNote(
+        text = timestamp.asDayLabel(),
+        // Víc místa než u oznámení: předěl odděluje bloky, takže potřebuje kolem sebe vzduch.
+        modifier = modifier.padding(vertical = DAY_DIVIDER_SPACING),
+    )
+}
+
+/**
+ * Poznámka na střed konverzace.
+ *
+ * Malé písmo v `surfaceContainer` — nemá to soupeřit s bublinami, jen říct, co se mezi nimi děje.
+ */
+@Composable
+private fun CenteredNote(
+    text: String,
+    modifier: Modifier = Modifier,
+    /** Nenulová jen u plovoucí varianty, která leží nad zprávami místo mezi nimi. */
+    shadowElevation: Dp = 0.dp,
+) {
     Row(
         modifier = modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.Center,
@@ -1279,9 +1379,10 @@ private fun ServiceMessage(message: ChatMessage, modifier: Modifier = Modifier) 
             shape = RoundedCornerShape(BUBBLE_CORNER),
             color = MaterialTheme.colorScheme.surfaceContainer,
             contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            shadowElevation = shadowElevation,
         ) {
             Text(
-                text = message.text,
+                text = text,
                 style = MaterialTheme.typography.labelMedium,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
