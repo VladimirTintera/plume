@@ -370,6 +370,19 @@ křížek ji odepne.
   O stejnou výšku se posouvá i plovoucí datum.
 - **Při odjezdu se kreslí poslední seznam**, ne prázdný pruh (`AnimatedVisibility` dobíhá
   s obsahem, ale stav je už prázdný).
+- **Připnout / Odepnout je i v nabídce nad zprávou**, podle `canBePinned` z `getMessageProperties`.
+  Která z nich se nabídne, se bere ze seznamu připnutých ve stavu — `ChatMessage` příznak
+  `isPinned` nenese a update o připnutí by ho stejně musel přemapovat v celé historii.
+- **Připnutí má dialog s jednou volbou**, která mění, koho se dotkne: ve skupině a kanálu
+  „upozornit členy/odběratele" (`disableNotification`), v soukromém chatu „uvidí i protějšek"
+  (`onlyForSelf`). Upozornění už nikdo nevezme zpátky, proto se ptá dřív. V Uložených zprávách
+  volba nemá smysl a připíná se rovnou. Soukromý chat připíná bez upozornění — protějšek uvidí
+  servisní zprávu, oznámení navíc by byl šum.
+- **Odepnutí z nabídky jde stejnou cestou jako křížek v pruhu**, včetně „Vrátit".
+- **Past: jednorázová událost ve stavu a `LaunchedEffect` klíčovaný tou událostí.** Když efekt
+  událost hned vynuluje, změní tím vlastní klíč, restartuje se a zruší i to, co právě spustil.
+  Snackbar „Vrátit" se tak neukázal nikdy. Snackbar proto běží v `rememberCoroutineScope`,
+  mimo tělo efektu.
 
 ### Skok na citaci a tlačítko dolů
 

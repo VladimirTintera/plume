@@ -600,7 +600,9 @@ fun PinMessageDialog(
 
     val (description, optionLabel) = when (pending.scope) {
         PinScope.Private ->
-            "Zpráva se připne nahoru v chatu." to (partnerName?.let { "Připnout i u $it" } ?: "Připnout i u protějšku")
+            // Jméno v 1. pádu: skloňovat cizí jména neumíme a „i u Petr Novák" zní rozbitě.
+            "Zpráva se připne nahoru v chatu." to
+                ("Připnutou zprávu uvidí i " + (partnerName ?: "protějšek"))
         PinScope.Group ->
             "Zpráva se připne nahoru pro všechny ve skupině." to "Upozornit členy"
         PinScope.Channel ->

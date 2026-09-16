@@ -170,16 +170,21 @@ fun ConversationScreen(
         viewModel.dismissError()
     }
 
+    // Snackbar běží v `snackbarScope`, ne v těle efektu. Vynulování `unpinned` změní klíč efektu,
+    // ten se restartuje a zrušil by i snackbar, který se právě ukazuje — takže se neukázal nikdy.
+    val snackbarScope = rememberCoroutineScope()
     LaunchedEffect(state.unpinned) {
         val unpinned = state.unpinned ?: return@LaunchedEffect
         // Vynulovat hned, ne až po zavření snackbaru — jinak by se po otočení ukázal znovu.
         viewModel.consumeUnpinned()
-        val result = snackbarHostState.showSnackbar(
-            message = "Zpráva odepnuta",
-            actionLabel = "Vrátit",
-            duration = SnackbarDuration.Short,
-        )
-        if (result == SnackbarResult.ActionPerformed) viewModel.undoUnpin(unpinned)
+        snackbarScope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = "Zpráva odepnuta",
+                actionLabel = "Vrátit",
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) viewModel.undoUnpin(unpinned)
+        }
     }
 
     // `reverseLayout` obrací i význam indexů: index 0 je nejnovější zpráva dole, vyšší indexy
