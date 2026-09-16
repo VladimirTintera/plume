@@ -1,12 +1,22 @@
 package eu.tintera.plume.features.media
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,9 +39,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
@@ -57,7 +67,6 @@ import kotlin.math.max
  */
 @Composable
 fun MediaViewerScreen(
-    messageId: Long,
     viewModel: MediaViewerViewModel,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -91,52 +100,132 @@ fun MediaViewerScreen(
                 modifier = Modifier.align(Alignment.Center).padding(24.dp),
             )
 
-            state.photo != null -> ZoomableImage(
-                photo = state.photo!!,
-                messageId = messageId,
+            state.photos.isNotEmpty() -> PhotoPager(
+                state = state,
                 dismissDrag = dismissDrag,
+                onPageChanged = viewModel::onPageChanged,
                 onDismiss = onBack,
             )
 
             state.loading -> LoadingIndicator(Modifier.align(Alignment.Center))
         }
 
-        IconButton(
-            onClick = onBack,
-            modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(4.dp),
-        ) {
-            Icon(
-                painterResource(Res.drawable.close_24dp),
-                contentDescription = "Zavřít",
-                tint = ON_SCRIM,
-            )
-        }
+        // Bez fotek (chyba, načítání) zůstává aspoň cesta ven.
+        if (state.photos.isEmpty()) CloseButton(onBack, Modifier.align(Alignment.TopStart))
+    }
+}
 
-        if (state.caption.isNotBlank()) {
-            Text(
-                text = state.caption,
-                style = MaterialTheme.typography.bodyMedium,
-                color = ON_SCRIM,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    // Vlastní závoj pod textem: popisek leží na fotce, která pod ním může být
-                    // světlá i tmavá, a bez podkladu by se v ní ztratil.
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = CAPTION_SCRIM_ALPHA))
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
-            )
+/**
+ * Listování fotkami chatu.
+ *
+ * **Starší vlevo, novější vpravo** — jako čas na ose, a stejně jako v konverzaci, kde novější
+ * zprávy přibývají dál. Pager drží stránku podle klíče (id zprávy), takže když se vlevo dotáhnou
+ * starší fotky, uživateli se pod prstem nic nepohne, jen se posune index.
+ */
+@Composable
+private fun BoxScope.PhotoPager(
+    state: MediaViewerState,
+    dismissDrag: Animatable<Float, *>,
+    onPageChanged: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val photos = state.photos
+    val initialIndex = remember { photos.indexOfFirst { it.messageId == state.initialMessageId }.coerceAtLeast(0) }
+    val pagerState = rememberPagerState(initialPage = initialIndex) { photos.size }
+
+    val latestPhotos by rememberUpdatedState(photos)
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }.collect(onPageChanged)
+    }
+
+    HorizontalPager(
+        state = pagerState,
+        key = { photos[it].messageId },
+        // Soused se skládá dopředu, ať při listování naskočí hned i s už staženým náhledem.
+        beyondViewportPageCount = 1,
+        pageSpacing = 16.dp,
+        modifier = Modifier.fillMaxSize(),
+    ) { page ->
+        val item = photos[page]
+        ZoomableImage(
+            photo = item.photo,
+            messageId = item.messageId,
+            isCurrent = page == pagerState.currentPage,
+            dismissDrag = dismissDrag,
+            onDismiss = onDismiss,
+        )
+    }
+
+    val current = latestPhotos.getOrNull(pagerState.currentPage)
+
+    val scrim = MaterialTheme.colorScheme.scrim
+    Row(
+        Modifier
+            .align(Alignment.TopStart)
+            .fillMaxWidth()
+            // Přechod, ne pruh: bílé ovládání by se na světlé fotce (screenshot) ztratilo,
+            // plný pruh by ale fotku nahoře ořízl. Přechod zabere jen tolik, kolik je potřeba.
+            .background(Brush.verticalGradient(listOf(scrim.copy(alpha = TOP_SCRIM_ALPHA), Color.Transparent)))
+            .statusBarsPadding()
+            .padding(bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CloseButton(onDismiss)
+
+        // Počítadlo se odvozuje od pozice otevřené fotky posunem indexu: výřez je souvislý.
+        val position = state.initialPosition
+        if (position != null && current != null) {
+            val initial = photos.indexOfFirst { it.messageId == state.initialMessageId }
+            val number = position.number + (pagerState.currentPage - initial)
+            if (initial >= 0 && number in 1..position.total) {
+                Text(
+                    text = "$number z ${position.total}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = ON_SCRIM,
+                )
+            }
         }
+    }
+
+    if (current != null && current.caption.isNotBlank()) {
+        Text(
+            text = current.caption,
+            style = MaterialTheme.typography.bodyMedium,
+            color = ON_SCRIM,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                // Vlastní závoj pod textem: popisek leží na fotce, která pod ním může být
+                // světlá i tmavá, a bez podkladu by se v ní ztratil.
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = CAPTION_SCRIM_ALPHA))
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+        )
+    }
+}
+
+@Composable
+private fun CloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    IconButton(onClick = onClick, modifier = modifier.padding(4.dp)) {
+        Icon(
+            painterResource(Res.drawable.close_24dp),
+            contentDescription = "Zavřít",
+            tint = ON_SCRIM,
+        )
     }
 }
 
 /**
  * Fotka s přiblížením.
  *
- * Gesta jsou tři a **každé má vlastní `pointerInput`**: transformace (štípnutí a posun),
- * ťuknutí (dvojité přiblížení) a pozorovatel puštění. Poslední jmenovaný nic nekonzumuje —
- * jen čeká, až se zvednou všechny prsty, protože `detectTransformGestures` konec gesta
- * neohlašuje a bez něj by se nebylo kde rozhodnout, jestli se má prohlížeč zavřít.
+ * Gesta jsou dvě a **každé má vlastní `pointerInput`**: tah a štípnutí, a ťuknutí (dvojité
+ * přiblížení).
+ *
+ * Tah se nerozpoznává přes `detectTransformGestures`. Ten konzumuje pohyb v každém směru,
+ * takže by fotka spolkla i vodorovný tah a pager nad ní by nešel posunout. Proto vlastní
+ * rozhodnutí po překročení slopu: nepřiblížená fotka **vodorovný tah pustí pageru**, svislý
+ * si nechá na zavření; přiblížená si nechá všechno (posun po fotce). Listovat se tedy dá jen
+ * s fotkou v základní velikosti — posun po přiblížené fotce by se jinak pral s listováním.
  *
  * Posun i přiblížení se čtou **až v `graphicsLayer`**, takže se při gestu nic nerekomponuje;
  * překresluje se jen vrstva s obrázkem.
@@ -145,6 +234,8 @@ fun MediaViewerScreen(
 private fun ZoomableImage(
     photo: MessageMedia.Photo,
     messageId: Long,
+    /** Stránka, na které pager stojí. Odlistovaná fotka se vrací do základní velikosti. */
+    isCurrent: Boolean,
     dismissDrag: Animatable<Float, *>,
     onDismiss: () -> Unit,
 ) {
@@ -153,6 +244,16 @@ private fun ZoomableImage(
     var scale by remember { mutableFloatStateOf(1f) }
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
+
+    // Sousední stránka zůstává složená; kdyby si přiblížení nechala, vrátil by se uživatel
+    // k fotce v půlce výřezu a nešlo by z ní listovat dál.
+    LaunchedEffect(isCurrent) {
+        if (!isCurrent) {
+            scale = 1f
+            offsetX = 0f
+            offsetY = 0f
+        }
+    }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val viewportWidth = constraints.maxWidth.toFloat()
@@ -211,34 +312,76 @@ private fun ZoomableImage(
                     }
                 }
                 .pointerInput(Unit) {
-                    detectTransformGestures { centroid, pan, zoom, _ ->
-                        val next = (scale * zoom).coerceIn(1f, MAX_SCALE)
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        var gesture = Gesture.Undecided
+                        var travel = Offset.Zero
 
-                        if (next == 1f && scale == 1f) {
-                            // Nepřiblížená fotka: svislý tah zavírá, vodorovný nedělá nic.
-                            scope.launch { dismissDrag.snapTo(dismissDrag.value + pan.y) }
-                            return@detectTransformGestures
+                        do {
+                            val event = awaitPointerEvent()
+                            val fingers = event.changes.count { it.pressed }
+                            val pan = event.calculatePan()
+
+                            if (gesture == Gesture.Undecided) {
+                                travel += pan
+                                val pastSlop = travel.getDistance() > viewConfiguration.touchSlop
+                                gesture = when {
+                                    // Dva prsty jsou štípnutí vždycky, i bez slopu.
+                                    fingers > 1 -> Gesture.Transform
+                                    !pastSlop -> Gesture.Undecided
+                                    scale > 1f -> Gesture.Transform
+                                    abs(travel.y) > abs(travel.x) -> Gesture.Dismiss
+                                    // Vodorovně u nepřiblížené fotky: listování, patří pageru.
+                                    else -> Gesture.Page
+                                }
+                            }
+
+                            when (gesture) {
+                                Gesture.Transform -> {
+                                    val zoom = event.calculateZoom()
+                                    val centroid = event.calculateCentroid(useCurrent = false)
+                                    val next = (scale * zoom).coerceIn(1f, MAX_SCALE)
+
+                                    if (centroid != Offset.Unspecified && !(next == 1f && scale == 1f)) {
+                                        /*
+                                         * Přiblížení kolem prstů, ne kolem středu.
+                                         *
+                                         * Bod pod prsty musí zůstat na místě, jinak fotka při
+                                         * štípnutí ujíždí a uživatel ji pak dohání posunem.
+                                         */
+                                        val relativeX = centroid.x - viewportWidth / 2f
+                                        val relativeY = centroid.y - viewportHeight / 2f
+                                        val factor = next / scale
+
+                                        val clamped = clampOffset(
+                                            x = relativeX - (relativeX - offsetX) * factor + pan.x,
+                                            y = relativeY - (relativeY - offsetY) * factor + pan.y,
+                                            forScale = next,
+                                        )
+
+                                        scale = next
+                                        offsetX = clamped.x
+                                        offsetY = clamped.y
+                                    }
+                                    event.changes.forEach { if (it.positionChanged()) it.consume() }
+                                }
+
+                                Gesture.Dismiss -> {
+                                    scope.launch { dismissDrag.snapTo(dismissDrag.value + pan.y) }
+                                    event.changes.forEach { if (it.positionChanged()) it.consume() }
+                                }
+
+                                Gesture.Undecided, Gesture.Page -> Unit
+                            }
+                        } while (event.changes.any { it.pressed })
+
+                        if (gesture == Gesture.Dismiss) {
+                            if (abs(dismissDrag.value) > size.height * DISMISS_THRESHOLD) {
+                                onDismiss()
+                            } else {
+                                scope.launch { dismissDrag.animateTo(0f) }
+                            }
                         }
-
-                        /*
-                         * Přiblížení kolem prstů, ne kolem středu.
-                         *
-                         * Bod pod prsty musí zůstat na místě, jinak fotka při štípnutí ujíždí
-                         * a uživatel ji pak dohání posunem.
-                         */
-                        val relativeX = centroid.x - viewportWidth / 2f
-                        val relativeY = centroid.y - viewportHeight / 2f
-                        val factor = next / scale
-
-                        val clamped = clampOffset(
-                            x = relativeX - (relativeX - offsetX) * factor + pan.x,
-                            y = relativeY - (relativeY - offsetY) * factor + pan.y,
-                            forScale = next,
-                        )
-
-                        scale = next
-                        offsetX = clamped.x
-                        offsetY = clamped.y
                     }
                 }
                 .pointerInput(Unit) {
@@ -275,31 +418,12 @@ private fun ZoomableImage(
                         },
                     )
                 }
-                .pointerInput(Unit) {
-                    /*
-                     * Pozorovatel konce gesta.
-                     *
-                     * `detectTransformGestures` konec neohlašuje, takže není kde rozhodnout,
-                     * jestli tah stačil na zavření. Tenhle blok **nic nekonzumuje** — čeká na
-                     * `Final` průchodu, tedy až potom, co si událost přebraly ostatní
-                     * detektory — takže jim do ničeho nemluví.
-                     */
-                    awaitEachGesture {
-                        awaitFirstDown(requireUnconsumed = false)
-                        do {
-                            val event = awaitPointerEvent(PointerEventPass.Final)
-                        } while (event.changes.any { it.pressed })
-
-                        if (abs(dismissDrag.value) > size.height * DISMISS_THRESHOLD) {
-                            onDismiss()
-                        } else {
-                            scope.launch { dismissDrag.animateTo(0f) }
-                        }
-                    }
-                },
         )
     }
 }
+
+/** Co právě dělá prst na fotce. Rozhoduje se jednou za gesto, po překročení slopu. */
+private enum class Gesture { Undecided, Transform, Dismiss, Page }
 
 /**
  * Barva ovládání nad fotkou.
@@ -320,6 +444,9 @@ private const val MAX_SCALE = 5f
 
 /** Kam skočí dvojité ťuknutí. */
 private const val DOUBLE_TAP_SCALE = 2.5f
+
+/** Průsvit přechodu pod zavíracím tlačítkem a počítadlem, u horní hrany. */
+private const val TOP_SCRIM_ALPHA = 0.6f
 
 /** Průsvit pruhu pod popiskem. */
 private const val CAPTION_SCRIM_ALPHA = 0.55f

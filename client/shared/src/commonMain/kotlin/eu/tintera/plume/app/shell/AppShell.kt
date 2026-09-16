@@ -274,7 +274,6 @@ private fun ShellContent(
                      */
                     entry<MediaRoute> { route ->
                         MediaViewerScreen(
-                            messageId = route.messageId,
                             // Klíč musí rozlišovat zprávu ze stejného důvodu jako u konverzace:
                             // ViewModel se cachuje podle klíče a Koin u cachované instance
                             // ignoruje nové parametry.

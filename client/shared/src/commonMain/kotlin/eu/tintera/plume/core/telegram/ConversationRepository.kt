@@ -100,6 +100,17 @@ interface ConversationRepository {
      */
     fun pinnedMessageChanges(chatId: Long): Flow<Unit>
 
+    /**
+     * Zprávy s fotkou kolem [messageId] (včetně ní), od nejstarší. Pro listování v prohlížeči.
+     *
+     * [older] a [newer] jsou horní meze — na začátku a konci chatu jich přijde míň. Konec se
+     * pozná podle toho, že daným směrem nepřibyla žádná nová zpráva.
+     */
+    suspend fun photos(chatId: Long, messageId: Long, older: Int, newer: Int): Result<List<ChatMessage>>
+
+    /** Kolikátá fotka v chatu je [messageId] a kolik jich je celkem, nebo `null`, když to server neví. */
+    suspend fun photoPosition(chatId: Long, messageId: Long): Result<PhotoPosition?>
+
     /** Jedna konkrétní zpráva. Pro doplnění citace, která není v načtené historii. */
     suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage>
 
@@ -188,6 +199,18 @@ data class PinnedMessages(
     val messages: List<ChatMessage>,
     /** Smí uživatel zprávy odepínat? Ve skupině to je právo, v soukromém chatu vždycky. */
     val canUnpin: Boolean,
+)
+
+/**
+ * Pořadí fotky v chatu, pro počítadlo „3 z 12".
+ *
+ * Server ho hlásí přibližně (`getChatMessagePosition`), na orientaci to stačí. Obě čísla jdou
+ * z jednoho místa, aby počítadlo neukázalo víc, než kolik je celkem.
+ */
+data class PhotoPosition(
+    /** Od nejstarší, od 1. */
+    val number: Int,
+    val total: Int,
 )
 
 /** Hlavička konverzace. */
