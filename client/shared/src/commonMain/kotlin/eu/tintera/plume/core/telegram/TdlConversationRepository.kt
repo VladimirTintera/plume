@@ -2,7 +2,6 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
-import dev.g000sha256.tdl.TdlResult
 import dev.g000sha256.tdl.dto.ChatActionCancel
 import dev.g000sha256.tdl.dto.ChatActionTyping
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
@@ -24,6 +23,7 @@ import dev.g000sha256.tdl.dto.MessageSendingStatePending
 import dev.g000sha256.tdl.dto.MessageSourceChatHistory
 import dev.g000sha256.tdl.dto.MessageText
 import dev.g000sha256.tdl.dto.ReactionTypeEmoji
+import dev.g000sha256.tdl.dto.SearchMessagesFilterPinned
 import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.toResult
 import kotlin.time.Clock
@@ -196,14 +196,60 @@ class TdlConversationRepository(
             .toResult()
             .map { }
 
-    override suspend fun pinnedMessage(chatId: Long): Result<ChatMessage?> {
-        val result = client.getChatPinnedMessage(chatId)
-        // 404 = v chatu nic připnutého není. Běžný stav, ne chyba.
-        if (result is TdlResult.Failure && result.code == NOT_FOUND) return Result.success(null)
-
+    /**
+     * Připnuté zprávy přes vyhledávání s filtrem, ne `getChatPinnedMessage` — to vrací jen nejnovější.
+     *
+     * Vyhledávání stránkuje po stovce; víc než [MAX_PINNED_PAGES] stránek připnutých zpráv v chatu
+     * nebývá a dál se nečte. Právo odepínat se zjistí z první zprávy (`canBePinned`): v chatu je
+     * jedno pro všechny zprávy, takže dotaz na každou by byl zbytečný.
+     */
+    override suspend fun pinnedMessages(chatId: Long): Result<PinnedMessages> {
         val isGroup = isGroup(chatId)
-        return result.toResult().map { it.toChatMessage(isGroup) }
+        val found = mutableListOf<Message>()
+        var from = 0L
+        var pages = 0
+
+        do {
+            val page = client.searchChatMessages(
+                chatId = chatId,
+                topicId = null,
+                query = "",
+                senderId = null,
+                fromMessageId = from,
+                offset = 0,
+                limit = PINNED_PAGE_SIZE,
+                filter = SearchMessagesFilterPinned(),
+            ).toResult().getOrElse { return Result.failure(it) }
+
+            found += page.messages.filterNotNull()
+            from = page.nextFromMessageId
+            pages++
+            // Nula = dál už nic není.
+        } while (from != 0L && pages < MAX_PINNED_PAGES)
+
+        val canUnpin = found.firstOrNull()
+            ?.let { client.getMessageProperties(chatId = chatId, messageId = it.id).toResult().getOrNull() }
+            ?.canBePinned == true
+
+        return Result.success(
+            PinnedMessages(
+                // Vyhledávání vrací od nejnovější; pro jistotu se to neodvozuje z pořadí stránek.
+                messages = found.distinctBy { it.id }.sortedByDescending { it.id }.map { it.toChatMessage(isGroup) },
+                canUnpin = canUnpin,
+            ),
+        )
     }
+
+    override suspend fun unpin(chatId: Long, messageId: Long): Result<Unit> =
+        client.unpinChatMessage(chatId = chatId, messageId = messageId).toResult().map { }
+
+    override suspend fun pin(chatId: Long, messageId: Long): Result<Unit> =
+        client.pinChatMessage(
+            chatId = chatId,
+            messageId = messageId,
+            disableNotification = true,
+            onlyForSelf = false,
+        ).toResult().map { }
 
     override fun pinnedMessageChanges(chatId: Long): Flow<Unit> =
         client.messageIsPinnedUpdates
@@ -563,5 +609,8 @@ private fun replyTo(messageId: Long) = InputMessageReplyToMessage(
     pollOptionId = "",
 )
 
-/** TDLib hlásí „nic takového neexistuje" jako 404. */
-private const val NOT_FOUND = 404
+/** Připnutých zpráv na jeden dotaz. Víc TDLib nedovolí. */
+private const val PINNED_PAGE_SIZE = 100
+
+/** Strop stránek připnutých zpráv. Pět set připnutých v jednom chatu je víc než dost. */
+private const val MAX_PINNED_PAGES = 5

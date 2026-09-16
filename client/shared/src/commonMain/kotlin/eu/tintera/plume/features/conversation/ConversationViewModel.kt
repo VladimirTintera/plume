@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.delay
@@ -130,23 +131,62 @@ class ConversationViewModel(
     }
 
     /**
-     * Pruh s připnutou zprávou.
+     * Připnuté zprávy.
      *
-     * Na změnu se zpráva **čte znovu**, ne odvozuje z updatu: po odepnutí nejnovější je nejnovější
-     * jiná a tu zná jen TDLib. Odběr stojí před prvním čtením, aby se mezi nimi nic neztratilo.
+     * Na změnu se seznam **čte znovu**, ne odvozuje z updatu: update nese jen jednu zprávu a „odepnout
+     * vše" jich pošle celou dávku. `conflate` z dávky udělá jedno čtení — dokud jedno běží, další
+     * signály se slijí do jednoho. Odběr stojí před prvním čtením, aby se mezi nimi nic neztratilo.
      */
     private fun observePinned() {
         viewModelScope.launch {
             repository.pinnedMessageChanges(chatId)
                 .onStart { emit(Unit) }
+                .conflate()
                 .collect { refreshPinned() }
         }
     }
 
     private suspend fun refreshPinned() {
-        repository.pinnedMessage(chatId)
-            .onSuccess { pinned -> _state.update { it.copy(pinned = pinned) } }
-            .onFailure { failure -> logger.w(failure) { "Připnutou zprávu se nepodařilo načíst." } }
+        repository.pinnedMessages(chatId)
+            .onSuccess { pinned ->
+                _state.update { it.copy(pinned = pinned.messages, canUnpin = pinned.canUnpin) }
+            }
+            .onFailure { failure -> logger.w(failure) { "Připnuté zprávy se nepodařilo načíst." } }
+    }
+
+    /**
+     * Odepne zprávu.
+     *
+     * Z pruhu zmizí **hned**: ťuknutí na křížek, po kterém řádek chvíli visí, působí jako nefunkční.
+     * Potvrzení dorazí updatem a seznam se přečte znovu; při selhání se přečte taky, takže se
+     * zpráva vrátí. Místo potvrzovacího dialogu je „Vrátit" ve snackbaru — odepnutí jde vzít
+     * zpátky, a dialog před vratnou akcí jen zdržuje.
+     */
+    fun unpin(message: ChatMessage) {
+        _state.update { it.copy(pinned = it.pinned.filterNot { m -> m.id == message.id }) }
+
+        viewModelScope.launch {
+            repository.unpin(chatId, message.id)
+                .onSuccess { _state.update { it.copy(unpinned = message) } }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.message ?: "Zprávu se nepodařilo odepnout.") }
+                    refreshPinned()
+                }
+        }
+    }
+
+    /** „Vrátit" ze snackbaru. */
+    fun undoUnpin(message: ChatMessage) {
+        viewModelScope.launch {
+            repository.pin(chatId, message.id).onFailure { failure ->
+                _state.update { it.copy(error = failure.message ?: "Zprávu se nepodařilo znovu připnout.") }
+            }
+        }
+    }
+
+    /** Obrazovka snackbar k odepnutí ukázala. */
+    fun consumeUnpinned() {
+        _state.update { it.copy(unpinned = null) }
     }
 
     /**
@@ -326,7 +366,7 @@ class ConversationViewModel(
                     it.copy(
                         messages = merge(it.messages, listOf(message)),
                         // Upravená připnutá zpráva se musí přepsat i v pruhu, jinak by ukazoval starý text.
-                        pinned = if (it.pinned?.id == message.id) message else it.pinned,
+                        pinned = it.pinned.map { pinned -> if (pinned.id == message.id) message else pinned },
                     )
                 }
             }
@@ -404,7 +444,7 @@ class ConversationViewModel(
                     )
                 }
                 // Smazaná připnutá zpráva: nejnovější připnutá je teď jiná (nebo žádná).
-                if (_state.value.pinned?.id in removed) refreshPinned()
+                if (_state.value.pinned.any { it.id in removed }) refreshPinned()
                 // Upravovaná zpráva zmizela (smazaná jinde) — není co upravovat.
                 if (_state.value.editing?.id in removed) cancelEdit()
             }
@@ -1100,8 +1140,12 @@ data class ConversationState(
      * z úpravy. Obrazovka ho po použití vynuluje ([ConversationViewModel.consumeInputFill]).
      */
     val inputFill: InputFill? = null,
-    /** Nejnovější připnutá zpráva pro pruh pod hlavičkou; `null`, když žádná není. */
-    val pinned: ChatMessage? = null,
+    /** Připnuté zprávy pro pruh pod hlavičkou, od nejnovější. */
+    val pinned: List<ChatMessage> = emptyList(),
+    /** Smí uživatel připnuté zprávy odepínat. */
+    val canUnpin: Boolean = false,
+    /** Právě odepnutá zpráva — obrazovka k ní ukáže snackbar s „Vrátit". */
+    val unpinned: ChatMessage? = null,
     /** Zpráva, jejíž text se právě upravuje ve vstupním poli; `null` při běžném psaní. */
     val editing: ChatMessage? = null,
     /** Zpráva krátce zvýrazněná po skoku na citaci; `null` většinu času. */

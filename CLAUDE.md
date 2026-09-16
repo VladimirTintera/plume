@@ -306,22 +306,35 @@ a nad ni nakreslí předěl „Nepřečtené zprávy".
 - **Předěl nepřečtených je akcentní, ne šedý jako datum.** Je to jediná věc, kterou uživatel po
   otevření chatu opravdu hledá.
 
-### Připnutá zpráva
+### Připnuté zprávy
 
-Pod hlavičkou visí pruh s nejnovější připnutou zprávou; ťuknutí na ni skočí (stejně jako citace,
-i se zvýrazněním a dotažením historie).
+Pod hlavičkou visí připnuté zprávy: nejvýš tři nejnovější, zbytek za „Zobrazit všechny (N)".
+Ťuknutí na řádek skočí na zprávu (stejně jako citace, i se zvýrazněním a dotažením historie),
+křížek ji odepne.
 
-- **Jen nejnovější připnutá** (`getChatPinnedMessage`). Listování mezi více připnutými zatím není.
-- **404 není chyba**, ale „nic připnutého".
-- **Na změnu se zpráva ČTE ZNOVU**, neodvozuje se z updatu. `UpdateMessageIsPinned` říká jen, že
-  se něco změnilo; po odepnutí nejnovější je nejnovější jiná a tu zná jen TDLib. Totéž po smazání
+- **Všechny připnuté přes `searchChatMessages` s `SearchMessagesFilterPinned`**, ne přes
+  `getChatPinnedMessage` — ten vrací jen nejnovější. Stránkuje se po stovce, strop pět stránek.
+  Vyhledávání potřebuje zapnutou databázi zpráv (`useMessageDatabase = true`).
+- **Tři sbalené, ne jedna ani všechny.** Jedna schová, že připnutých je víc; všechny by z hlavičky
+  udělaly půl obrazovky. Rozbalený seznam se listuje a má strop výšky.
+- **Rozbalení je jen na chvíli**: sbalí se po skoku na zprávu a při pohybu konverzací. Leží přes
+  zprávy a zavírat ho pokaždé ručně by otravovalo.
+- **Právo odepínat se zjišťuje jednou** (`canBePinned` první připnuté zprávy). Je v chatu jedno
+  pro všechny zprávy; dotaz na každou by byl zbytečný. Bez práva křížek není.
+- **Odepnutá zpráva z pruhu zmizí hned**, potvrzení dorazí updatem. Při selhání se seznam přečte
+  znovu, takže se zpráva vrátí.
+- **Místo potvrzovacího dialogu „Vrátit" ve snackbaru.** Odepnutí je vratné; dialog před vratnou
+  akcí jen zdržuje. Vrácení připíná bez upozornění členům — je to oprava omylu, ne oznámení.
+  Událost se ve stavu nuluje hned při zobrazení, jinak by se snackbar po otočení ukázal znovu.
+- **Na změnu se seznam ČTE ZNOVU**, neodvozuje se z updatu. `UpdateMessageIsPinned` nese jednu
+  zprávu a „odepnout vše" jich pošle dávku; `conflate` z ní udělá jedno čtení. Totéž po smazání
   připnuté zprávy. Úprava připnuté zprávy se do pruhu propisuje z `editedMessages`.
 - **Odběr stojí PŘED prvním čtením** (`onStart { emit(Unit) }`), aby se změna mezi nimi neztratila.
 - **Pruh plave nad seznamem, není v `topBar`.** Seznam se odsazuje o jeho změřenou výšku, stejně
   jako dole o vstupní pole — jinak by při odjezdu pruhu obsah na konci animace poskočil.
   O stejnou výšku se posouvá i plovoucí datum.
-- **Při odjezdu se kreslí poslední zpráva**, ne prázdný pruh (`AnimatedVisibility` dobíhá
-  s obsahem, ale stav je už `null`).
+- **Při odjezdu se kreslí poslední seznam**, ne prázdný pruh (`AnimatedVisibility` dobíhá
+  s obsahem, ale stav je už prázdný).
 
 ### Skok na citaci a tlačítko dolů
 
