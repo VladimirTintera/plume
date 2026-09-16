@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -578,6 +579,18 @@ fun ConversationScreen(
                                 // Za předělem začíná nový blok, i když píše tentýž člověk — jinak by
                                 // první bublina pod datem navazovala na zprávu z minulého dne.
                                 previous = older.takeIf { !startsDay },
+                                /*
+                                 * Tvář odesílatele se ukazuje u POSLEDNÍ zprávy jeho bloku, jako
+                                 * v Telegramu: blok se čte shora a tvář ho uzavírá. Novější soused
+                                 * je o index NÍŽ. Kanál (odesílatel = chat sám) tvář nemá — nese ji
+                                 * hlavička a u každého příspěvku by byla pořád tatáž.
+                                 */
+                                avatar = when {
+                                    state.info?.isGroup != true || message.isOutgoing -> SenderAvatar.None
+                                    message.senderId == state.info?.id -> SenderAvatar.None
+                                    state.messages.getOrNull(index - 1).continues(message) -> SenderAvatar.Spacer
+                                    else -> SenderAvatar.Shown
+                                },
                                 lastReadOutboxMessageId = state.lastReadOutboxMessageId,
 
                                 flight = flight,
@@ -754,6 +767,7 @@ private fun MessageBubble(
     /** Let ze vstupního pole, který přistává právě v téhle bublině; jinak `null`. */
     flight: MessageFlight?,
     previous: ChatMessage?,
+    avatar: SenderAvatar,
     onToggleReaction: (String) -> Unit,
     onRequestMenu: () -> Unit,
     onReply: () -> Unit,
@@ -894,7 +908,23 @@ private fun MessageBubble(
                 },
             ),
         horizontalArrangement = if (message.isOutgoing) Arrangement.End else Arrangement.Start,
+        // Tvář sedí u spodní hrany bubliny — u dlouhé zprávy by uprostřed nebylo poznat, ke které
+        // části bloku patří.
+        verticalAlignment = Alignment.Bottom,
     ) {
+      // Mimo posouvaný `Box`: při tažení na odpověď jede bublina, tvář zůstává na místě.
+      when (avatar) {
+          SenderAvatar.None -> Unit
+          SenderAvatar.Spacer -> Spacer(Modifier.width(SENDER_AVATAR_SLOT))
+          SenderAvatar.Shown -> Avatar(
+              chatId = message.senderId,
+              title = message.senderName.orEmpty(),
+              avatarFileId = message.senderAvatarFileId,
+              size = SENDER_AVATAR_SIZE,
+              modifier = Modifier.padding(end = SENDER_AVATAR_SLOT - SENDER_AVATAR_SIZE),
+          )
+      }
+
       Box(
           // Posun se čte až ve fázi layoutu (`offset { }`), ne v kompozici. Jinak by se celá
           // bublina i s obsahem přeskládávala na každý snímek tahu.
@@ -1464,6 +1494,27 @@ private fun UnreadDivider(modifier: Modifier = Modifier) {
 }
 
 /**
+ * Tvář odesílatele vedle bubliny ve skupině.
+ *
+ * [Spacer] drží místo u zpráv uprostřed bloku — bez něj by bubliny téhož člověka skákaly
+ * doleva a doprava podle toho, u které zrovna tvář je.
+ */
+private enum class SenderAvatar { None, Spacer, Shown }
+
+/**
+ * Navazuje tahle (novější) zpráva na [older] ve stejném bloku?
+ *
+ * Stejná pravidla jako seskupení bublin: stejná strana, stejný odesílatel, stejný den. Servisní
+ * oznámení blok přeruší — kreslí se na střed a tvář nad ním by visela ve vzduchu.
+ */
+private fun ChatMessage?.continues(older: ChatMessage): Boolean =
+    this != null &&
+        !isService &&
+        isOutgoing == older.isOutgoing &&
+        senderId == older.senderId &&
+        timestamp.isSameDayAs(older.timestamp)
+
+/**
  * Naposledy zpracovaná nejnovější zpráva, pro ukotvení seznamu dole.
  *
  * Obyčejná třída, ne `mutableStateOf`: zapisuje se v kompozici a zápis do snapshot stavu by
@@ -1475,6 +1526,12 @@ private class NewestItem {
 }
 
 private const val LOAD_MORE_THRESHOLD = 5
+
+/** Profilovka odesílatele ve skupině. Menší než v seznamu chatů — doprovází bublinu, nevede ji. */
+private val SENDER_AVATAR_SIZE = 32.dp
+
+/** Místo pro profilovku i s mezerou k bublině; stejné u zpráv s tváří i bez ní. */
+private val SENDER_AVATAR_SLOT = 40.dp
 
 /** O kolik položek výš od spodku se objeví tlačítko „dolů". */
 private const val SCROLL_DOWN_THRESHOLD_ITEMS = 3

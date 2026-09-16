@@ -196,6 +196,11 @@ data class ChatMessage(
     val isOutgoing: Boolean,
     /** `null` u odchozích zpráv a v soukromých chatech, kde jméno nedává smysl zobrazovat. */
     val senderName: String?,
+    /**
+     * Profilovka odesílatele; vyplněná za stejných podmínek jako [senderName]. Bez fotky `null`,
+     * pak se kreslí iniciály.
+     */
+    val senderAvatarFileId: Int?,
     val senderId: Long,
     val text: String,
     /**
