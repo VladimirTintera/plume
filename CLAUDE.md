@@ -864,6 +864,15 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
 - **Výsledky hledání nahradí záložky ve stejně vysoké ploše** (řádek záložek má proto pevnou
   výšku), jinak by sheet při prvním písmenu poskočil. Co se ukazuje, rozhoduje text v poli, ne
   stav hledání — po smazání textu se záložky vrátí hned, bez čekání na debounce.
+- **Oblíbené se přepínají hvězdičkou u PODRŽENÉ samolepky**, ne u každé buňky. Hvězdička všude
+  by zaplevelila mřížku a ťuknutí vedle ní by samolepku omylem poslalo; podržení je zároveň
+  „prohlížím si tuhle". Stav se lokálně nepřepisuje, potvrzení přijde `favoriteStickersUpdates`.
+- **V konverzaci jsou oblíbené v nabídce nad zprávou se samolepkou.** Jestli je samolepka
+  oblíbená, se zjistí při otevření nabídky (souběžně s ostatními příznaky). Výsledek hlásí
+  snackbar (`notice`) — v konverzaci se jinak nic viditelného nezmění.
+- **Samolepka se do oblíbených dává podle souboru** (`stickerFileId`), ne podle id samolepky —
+  tak to TDLib chce (`addFavoriteSticker(InputFileId)`). `MessageMedia.Sticker` ho proto nese
+  vždycky, bez ohledu na formát. Oblíbených je omezený počet; přidání nad limit vytlačí nejstarší.
 - **Prémiové samolepky se bez Premium nenabízejí** (`StickerFullTypeRegular.premiumAnimation`).
   Odeslat je nejde a samolepka, po které přijde chyba, je horší než žádná. Na Premium se ptá
   `getMe` při každém čtení — předplatné se mění.

@@ -18,6 +18,7 @@ import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.SentMessageUpdate
 import eu.tintera.plume.core.telegram.SponsoredMessage
 import eu.tintera.plume.core.telegram.StickerItem
+import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UrlOpener
 import kotlinx.coroutines.CoroutineScope
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.onStart
@@ -56,6 +58,8 @@ class ConversationViewModel(
      * v konverzaci by se s ní dřív nebo později rozešla.
      */
     private val chatRepository: ChatRepository,
+    /** Jen kvůli oblíbeným samolepkám v nabídce nad zprávou. */
+    private val stickerRepository: StickerRepository,
     /**
      * Rozsah aplikace, jen pro ukládání konceptu. `viewModelScope` se při odchodu z chatu zruší
      * dřív, než by poslední úprava stihla odejít — a právě ta je nejdůležitější.
@@ -811,14 +815,25 @@ class ConversationViewModel(
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
 
         viewModelScope.launch {
-            val (emoji, actions) = coroutineScope {
+            val sticker = message.media as? MessageMedia.Sticker
+
+            val (emoji, actions, favorite) = coroutineScope {
                 val emojiTask = async { repository.availableReactions(chatId, messageId) }
                 val actionsTask = async { repository.messageActions(chatId, messageId) }
-                emojiTask.await().getOrDefault(emptyList()) to
+                // Oblíbenost jen u samolepky; seznam oblíbených je krátký a TDLib ho má lokálně.
+                val favoriteTask = async {
+                    sticker?.let { s ->
+                        stickerRepository.favoriteStickers().first().any { it.sendFileId == s.stickerFileId }
+                    }
+                }
+                Triple(
+                    emojiTask.await().getOrDefault(emptyList()),
                     actionsTask.await().getOrElse { failure ->
                         logger.w(failure) { "Příznaky zprávy $messageId se nepodařilo zjistit." }
                         MessageActions.Fallback
-                    }
+                    },
+                    favoriteTask.await(),
+                )
             }
 
             _state.update {
@@ -832,6 +847,7 @@ class ConversationViewModel(
                         hasText = message.copyableText().isNotBlank(),
                         canEdit = actions.canEdit && message.isEditableAsPlainText(),
                         isPinned = _state.value.pinned.any { p -> p.id == messageId },
+                        favoriteSticker = favorite,
                     ),
                 )
             }
@@ -847,6 +863,37 @@ class ConversationViewModel(
                 reactionSheet = ReactionPicker(menu.messageId, menu.emoji),
             )
         }
+    }
+
+    /**
+     * Přidá samolepku ze zprávy do oblíbených, nebo ji z nich odebere.
+     *
+     * V konverzaci se tím nic nezmění, takže výsledek hlásí snackbar — jinak by po zavření nabídky
+     * nebylo poznat, že se něco stalo.
+     */
+    fun toggleFavoriteSticker(messageId: Long) {
+        val menu = _state.value.messageMenu?.takeIf { it.messageId == messageId } ?: return
+        val favorite = menu.favoriteSticker ?: return
+        val sticker = _state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Sticker
+            ?: return
+        closeMenus()
+
+        viewModelScope.launch {
+            stickerRepository.setFavorite(sticker.stickerFileId, !favorite)
+                .onSuccess {
+                    _state.update {
+                        it.copy(notice = if (favorite) "Odebráno z oblíbených" else "Přidáno do oblíbených")
+                    }
+                }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.message ?: "Oblíbené se nepodařilo změnit.") }
+                }
+        }
+    }
+
+    /** Obrazovka oznámení ukázala. */
+    fun consumeNotice() {
+        _state.update { it.copy(notice = null) }
     }
 
     fun closeMenus() {
@@ -1193,6 +1240,11 @@ data class MessageMenu(
     val canEdit: Boolean,
     /** Podle seznamu připnutých — rozhoduje mezi „Připnout" a „Odepnout". */
     val isPinned: Boolean,
+    /**
+     * Je samolepka zprávy v oblíbených? `null`, když zpráva samolepka není — pak se položka
+     * nenabízí vůbec.
+     */
+    val favoriteSticker: Boolean?,
 ) {
     /** Do rychlého řádku se vejde jen pár; zbytek je za „+". */
     val quickEmoji: List<String> get() = emoji.take(MAX_QUICK_REACTIONS)
@@ -1277,6 +1329,8 @@ data class ConversationState(
     val pinned: List<ChatMessage> = emptyList(),
     /** Smí uživatel připnuté zprávy odepínat. */
     val canUnpin: Boolean = false,
+    /** Krátké potvrzení akce, která v konverzaci nic viditelného nezmění (snackbar). */
+    val notice: String? = null,
     /** Právě odepnutá zpráva — obrazovka k ní ukáže snackbar s „Vrátit". */
     val unpinned: ChatMessage? = null,
     /** Zpráva, jejíž text se právě upravuje ve vstupním poli; `null` při běžném psaní. */

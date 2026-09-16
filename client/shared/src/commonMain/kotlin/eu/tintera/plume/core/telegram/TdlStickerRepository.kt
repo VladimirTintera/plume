@@ -2,6 +2,7 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
+import dev.g000sha256.tdl.dto.InputFileId
 import dev.g000sha256.tdl.dto.Sticker
 import dev.g000sha256.tdl.dto.StickerFullTypeRegular
 import dev.g000sha256.tdl.dto.StickerTypeRegular
@@ -82,6 +83,17 @@ class TdlStickerRepository(
                         emptyList()
                     }
             }
+
+    override suspend fun setFavorite(stickerFileId: Int, favorite: Boolean): Result<Unit> {
+        val file = InputFileId(id = stickerFileId)
+        return if (favorite) {
+            client.addFavoriteSticker(sticker = file)
+        } else {
+            client.removeFavoriteSticker(sticker = file)
+        }
+            .toResult()
+            .map { }
+    }
 
     override suspend fun stickerSet(setId: Long): Result<List<StickerItem>> =
         client.getStickerSet(setId = setId)

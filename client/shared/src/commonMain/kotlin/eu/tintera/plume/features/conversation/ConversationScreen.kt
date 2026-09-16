@@ -180,6 +180,14 @@ fun ConversationScreen(
     // Snackbar běží v `snackbarScope`, ne v těle efektu. Vynulování `unpinned` změní klíč efektu,
     // ten se restartuje a zrušil by i snackbar, který se právě ukazuje — takže se neukázal nikdy.
     val snackbarScope = rememberCoroutineScope()
+
+    // Stejná past jako u `unpinned` níž: vynulování mění klíč efektu, takže snackbar běží mimo něj.
+    LaunchedEffect(state.notice) {
+        val notice = state.notice ?: return@LaunchedEffect
+        viewModel.consumeNotice()
+        snackbarScope.launch { snackbarHostState.showSnackbar(notice, duration = SnackbarDuration.Short) }
+    }
+
     LaunchedEffect(state.unpinned) {
         val unpinned = state.unpinned ?: return@LaunchedEffect
         // Vynulovat hned, ne až po zavření snackbaru — jinak by se po otočení ukázal znovu.
@@ -241,6 +249,7 @@ fun ConversationScreen(
             onDelete = viewModel::requestDelete,
             onPin = viewModel::requestPin,
             onUnpin = viewModel::unpinFromMenu,
+            onToggleFavorite = viewModel::toggleFavoriteSticker,
             onDismiss = viewModel::closeMenus,
         )
     }

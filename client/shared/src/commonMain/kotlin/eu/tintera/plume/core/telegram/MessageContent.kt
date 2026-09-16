@@ -315,6 +315,7 @@ internal fun Sticker.toMedia(): MessageMedia.Sticker {
     }
 
     return MessageMedia.Sticker(
+        stickerFileId = sticker.id,
         fileId = sticker.id.takeIf { format is StickerFormatWebp },
         animationFileId = sticker.id.takeIf { format is StickerFormatTgs },
         thumbnailFileId = rasterThumbnail?.file?.id,

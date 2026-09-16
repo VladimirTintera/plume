@@ -69,6 +69,8 @@ import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.keep_off_24dp
 import eu.tintera.plume.resources.push_pin_24dp
 import eu.tintera.plume.resources.reply_24dp
+import eu.tintera.plume.resources.star_filled_24dp
+import eu.tintera.plume.resources.star_24dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
@@ -113,6 +115,15 @@ fun MessageMenuOverlay(
         // Bez textu není co kopírovat, i kdyby to server dovolil.
         if (menu.actions.canCopy && menu.hasText) {
             add(MenuItem(Res.drawable.content_copy_24dp, "Kopírovat") { handlers.onCopy(id) })
+        }
+        menu.favoriteSticker?.let { favorite ->
+            add(
+                if (favorite) {
+                    MenuItem(Res.drawable.star_filled_24dp, "Odebrat z oblíbených") { handlers.onToggleFavorite(id) }
+                } else {
+                    MenuItem(Res.drawable.star_24dp, "Přidat do oblíbených") { handlers.onToggleFavorite(id) }
+                },
+            )
         }
         if (menu.actions.canPin) {
             add(
@@ -487,6 +498,7 @@ data class MessageMenuHandlers(
     val onDelete: (messageId: Long) -> Unit,
     val onPin: (messageId: Long) -> Unit,
     val onUnpin: (messageId: Long) -> Unit,
+    val onToggleFavorite: (messageId: Long) -> Unit,
     val onDismiss: () -> Unit,
 )
 

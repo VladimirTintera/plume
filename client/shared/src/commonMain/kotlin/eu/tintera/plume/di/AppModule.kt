@@ -96,6 +96,7 @@ fun appModule() = module {
             chatId = parameters.get(),
             repository = get(),
             chatRepository = get(),
+            stickerRepository = get(),
             appScope = get(named(APP_SCOPE)),
             urlOpener = get(),
             clipboard = get(),
