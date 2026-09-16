@@ -23,7 +23,35 @@ interface StickerRepository {
 
     /** Obsah jedné sady. Načítá se až při otevření její záložky — sad bývá desítky. */
     suspend fun stickerSet(setId: Long): Result<List<StickerItem>>
+
+    /**
+     * Najde samolepky ve vlastních sadách i ve veřejných.
+     *
+     * Nikdy neselže celé: když nevyjde jeden zdroj (typicky veřejné hledání bez sítě), vrátí se
+     * aspoň ten druhý. Prázdný výsledek znamená „nic nenalezeno".
+     */
+    suspend fun search(query: StickerQuery): StickerSearchResult
 }
+
+/** Co se hledá. Jestli jde o emoji, nebo o slovo, rozhoduje volající. */
+sealed interface StickerQuery {
+
+    /** Emoji oddělená mezerou, jak je napsal uživatel. */
+    data class Emoji(val emojis: String) : StickerQuery
+
+    /**
+     * Slovo. Převádí se na emoji podle jazyka ([languageCodes], IETF tagy), protože samolepky
+     * jsou k emoji přiřazené; ve vlastních sadách se hledá navíc i podle klíčových slov samolepek.
+     */
+    data class Text(val text: String, val languageCodes: List<String>) : StickerQuery
+}
+
+data class StickerSearchResult(
+    /** Z nainstalovaných sad (a nedávných či oblíbených) — ty uživatel zná, jdou první. */
+    val installed: List<StickerItem>,
+    /** Z veřejných sad, bez těch, které už jsou v [installed]. */
+    val public: List<StickerItem>,
+)
 
 /** Sada v záložkách výběru. */
 data class StickerSetSummary(

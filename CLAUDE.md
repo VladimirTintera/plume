@@ -852,6 +852,18 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
   nevyvolá. Aktivní buňka je podbarvená — statická `.webp` se rozhýbat nemá jak a bez podbarvení
   by nebylo poznat, že podržení zabralo.
 - **Mřížka má pevnou výšku**, jinak by se sheet při přepnutí záložky natahoval a smršťoval.
+- **Hledání má dva zdroje.** `getStickers` prochází nainstalované sady podle emoji i podle
+  klíčových slov samolepek; `searchStickers` veřejné sady, ale jen podle emoji. Slovo se proto
+  převádí na emoji přes `getKeywordEmojis` (potřebuje `useFileDatabase = true`) v jazyce zařízení
+  a angličtině — klíčová slova samolepek bývají anglicky. Bez převedených emoji se veřejné hledání
+  vynechá, vrátilo by nahodilé samolepky. Jestli je dotaz emoji, nebo slovo, rozhoduje ViewModel
+  (`emojiClusterCount`), repository to dostane jako `StickerQuery`.
+- **Hledá se po 300 ms pauze v psaní, přes `transformLatest`**: rozepsané hledání se při dalším
+  znaku zahodí, takže pomalá odpověď na „ko" nepřepíše výsledky pro „kočka".
+- **Zdroj, který selže, výsledek nezahodí** — bez sítě se aspoň najde, co je ve vlastních sadách.
+- **Výsledky hledání nahradí záložky ve stejně vysoké ploše** (řádek záložek má proto pevnou
+  výšku), jinak by sheet při prvním písmenu poskočil. Co se ukazuje, rozhoduje text v poli, ne
+  stav hledání — po smazání textu se záložky vrátí hned, bez čekání na debounce.
 - **Prémiové samolepky se bez Premium nenabízejí** (`StickerFullTypeRegular.premiumAnimation`).
   Odeslat je nejde a samolepka, po které přijde chyba, je horší než žádná. Na Premium se ptá
   `getMe` při každém čtení — předplatné se mění.
