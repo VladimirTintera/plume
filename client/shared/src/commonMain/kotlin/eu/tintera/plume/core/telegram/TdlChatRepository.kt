@@ -55,14 +55,14 @@ import kotlinx.coroutines.sync.withLock
  * `order == 0` znamená, že chat v dané složce **není** — musí ze seznamu zmizet.
  */
 class TdlChatRepository(
-    holder: TelegramClientHolder,
+    private val holder: TelegramClientHolder,
     private val session: TelegramSession,
     private val scope: CoroutineScope,
 ) : ChatRepository {
 
     private val logger = Logger.withTag("Chats")
 
-    private val client: TdlClient = holder.client
+    private val client: TdlClient get() = holder.client
 
     /** Zdroj pravdy. Klíč je chatId; pořadí drží [ChatSummary.order], ne pozice v mapě. */
     private val known = mutableMapOf<Long, ChatSummary>()
@@ -104,7 +104,7 @@ class TdlChatRepository(
                         loadMore()
                     }
 
-                    AuthStage.LoggedOut -> clear()
+                    AuthStage.LoggingOut -> clear()
                     else -> Unit
                 }
             }
@@ -114,19 +114,19 @@ class TdlChatRepository(
     private fun collectUpdates() {
         // Nový chat. Pozice může být prázdná (chat je znám, ale v žádné složce) — pak se neukáže.
         scope.launch {
-            client.newChatUpdates.collect { update -> upsert(update.chat) }
+            holder.updates { newChatUpdates }.collect { update -> upsert(update.chat) }
         }
 
         // Změna pozice v konkrétní složce. Tohle je hlavní zdroj přeskládání seznamu.
         scope.launch {
-            client.chatPositionUpdates.collect { update ->
+            holder.updates { chatPositionUpdates }.collect { update ->
                 applyPosition(update.chatId, update.position)
             }
         }
 
         // Nová poslední zpráva. Nese s sebou i nové pozice, takže se aktualizuje obojí najednou.
         scope.launch {
-            client.chatLastMessageUpdates.collect { update ->
+            holder.updates { chatLastMessageUpdates }.collect { update ->
                 edit(update.chatId) { current ->
                     val position = update.positions.mainPosition()
                     current.copy(
@@ -144,7 +144,7 @@ class TdlChatRepository(
          * se v seznamu posune nahoru a jinudy se to nedozvíme.
          */
         scope.launch {
-            client.chatDraftMessageUpdates.collect { update ->
+            holder.updates { chatDraftMessageUpdates }.collect { update ->
                 edit(update.chatId) { current ->
                     val position = update.positions.mainPosition()
                     current.copy(
@@ -157,13 +157,13 @@ class TdlChatRepository(
         }
 
         scope.launch {
-            client.chatReadInboxUpdates.collect { update ->
+            holder.updates { chatReadInboxUpdates }.collect { update ->
                 edit(update.chatId) { it.copy(unreadCount = update.unreadCount) }
             }
         }
 
         scope.launch {
-            client.chatTitleUpdates.collect { update ->
+            holder.updates { chatTitleUpdates }.collect { update ->
                 edit(update.chatId) { it.copy(title = update.title) }
             }
         }
@@ -171,13 +171,13 @@ class TdlChatRepository(
         // Ztlumení a ruční nepřečtení se mění z nabídky akcí, ale potvrzení chodí updatem —
         // stav se tedy nepřepisuje lokálně, čeká se na TDLib jako u všeho ostatního.
         scope.launch {
-            client.chatNotificationSettingsUpdates.collect { update ->
+            holder.updates { chatNotificationSettingsUpdates }.collect { update ->
                 edit(update.chatId) { it.copy(isMuted = update.notificationSettings.isMuted()) }
             }
         }
 
         scope.launch {
-            client.chatIsMarkedAsUnreadUpdates.collect { update ->
+            holder.updates { chatIsMarkedAsUnreadUpdates }.collect { update ->
                 edit(update.chatId) { it.copy(isMarkedAsUnread = update.isMarkedAsUnread) }
             }
         }
@@ -190,7 +190,7 @@ class TdlChatRepository(
          * `edit` prostě nenajde chat s takovým id a nic se nestane.
          */
         scope.launch {
-            client.userStatusUpdates.collect { update ->
+            holder.updates { userStatusUpdates }.collect { update ->
                 edit(update.userId) { it.copy(presence = update.status.toPresence()) }
             }
         }
@@ -204,7 +204,7 @@ class TdlChatRepository(
          * každá činnost sama zhasne, když ji TDLib do [ACTIVITY_TIMEOUT_MS] nezopakuje.
          */
         scope.launch {
-            client.chatActionUpdates.collect { update ->
+            holder.updates { chatActionUpdates }.collect { update ->
                 val fromMe = (update.senderId as? MessageSenderUser)?.userId == myUserId
                 val activity = if (fromMe) null else update.action.toActivity()
 
@@ -214,9 +214,15 @@ class TdlChatRepository(
             }
         }
 
+        // Zavřený klient během odhlašování ještě stihne poslat updaty, které by do seznamu vrátily
+        // chaty odhlášeného účtu. Úklid až po výměně klienta je poslední slovo.
+        scope.launch {
+            holder.replaced.collect { clear() }
+        }
+
         // Odebrání ze složky — chat sice dál existuje, ale v hlavním seznamu nemá co dělat.
         scope.launch {
-            client.chatRemovedFromListUpdates.collect { update ->
+            holder.updates { chatRemovedFromListUpdates }.collect { update ->
                 if (update.chatList.isMain()) remove(update.chatId)
             }
         }
@@ -441,7 +447,12 @@ class TdlChatRepository(
     }
 
     private suspend fun clear() {
-        mutex.withLock { known.clear() }
+        mutex.withLock {
+            known.clear()
+            activityTimers.values.forEach { it.cancel() }
+            activityTimers.clear()
+        }
+        myUserId = null
         exhausted = false
         _chats.value = ChatListState.Loading
     }

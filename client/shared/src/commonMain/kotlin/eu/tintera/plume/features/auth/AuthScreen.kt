@@ -110,7 +110,7 @@ fun AuthScreen(
                     }
                 }
 
-                if (current is AuthStage.Connecting) {
+                if (current is AuthStage.Connecting || current is AuthStage.LoggingOut) {
                     LoadingIndicator()
                 }
 
@@ -134,7 +134,7 @@ private fun AuthStage.headline(): String = when (this) {
     is AuthStage.WaitQrConfirmation -> "Naskenuj kód"
     AuthStage.WaitRegistration -> "Nový účet"
     AuthStage.Ready -> "Hotovo"
-    AuthStage.LoggedOut -> "Odhlášeno"
+    AuthStage.LoggingOut -> "Odhlašuji"
     is AuthStage.Failed -> "Nepovedlo se"
 }
 
@@ -144,6 +144,7 @@ private fun AuthStage.supportingText(): String? = when (this) {
     is AuthStage.WaitPassword -> hint?.let { "Nápověda: $it" }
     is AuthStage.WaitQrConfirmation -> "V Telegramu na přihlášeném zařízení otevři Nastavení → Zařízení → Připojit zařízení a naskenuj kód."
     AuthStage.WaitRegistration -> "Tohle číslo zatím účet nemá. Založ si ho v oficiálním klientovi."
+    AuthStage.LoggingOut -> "Mažu data účtu z tohohle zařízení."
     is AuthStage.Failed -> message
     else -> null
 }

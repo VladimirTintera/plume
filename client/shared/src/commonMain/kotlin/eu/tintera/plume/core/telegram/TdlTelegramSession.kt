@@ -17,6 +17,7 @@ import dev.g000sha256.tdl.dto.AuthorizationStateWaitTdlibParameters
 import dev.g000sha256.tdl.dto.OptionValueInteger
 import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,14 +31,14 @@ import kotlinx.coroutines.launch
  * když se změní upstream API (a mění se i v patch verzích TDLib), mění se jen tenhle balíček.
  */
 class TdlTelegramSession(
-    holder: TelegramClientHolder,
+    private val holder: TelegramClientHolder,
     private val paths: TelegramPaths,
     private val scope: CoroutineScope,
 ) : TelegramSession {
 
     private val logger = Logger.withTag("Telegram")
 
-    private val client: TdlClient = holder.client
+    private val client: TdlClient get() = holder.client
 
     private val _authStage = MutableStateFlow<AuthStage>(AuthStage.Connecting)
     override val authStage: StateFlow<AuthStage> = _authStage.asStateFlow()
@@ -48,16 +49,27 @@ class TdlTelegramSession(
         if (started) return
         started = true
 
-        // Odběr MUSÍ běžet dřív, než odejde první request. TDLib odpoví na `getAuthorizationState`
-        // updatem, ne návratovou hodnotou — kdybychom se přihlásili až po requestu, první stav se
-        // ztratí a přihlašovací automat se nikdy nerozjede.
-        scope.launch {
-            client.authorizationStateUpdates.collect { update ->
+        attach(client)
+    }
+
+    /**
+     * Rozjede přihlašovací automat nad [target].
+     *
+     * Odběr MUSÍ běžet dřív, než odejde první request. TDLib odpoví na `getAuthorizationState`
+     * updatem, ne návratovou hodnotou — kdybychom se přihlásili až po requestu, první stav se
+     * ztratí a přihlašovací automat se nikdy nerozjede. `UNDISPATCHED` to zaručuje: korutina
+     * se až k prvnímu uspání (tedy k registraci odběru) provede hned, ne až ji dispatcher naplánuje.
+     *
+     * Odběr skončí sám: wrapper po `AuthorizationStateClosed` flow uzavře.
+     */
+    private suspend fun attach(target: TdlClient) {
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            target.authorizationStateUpdates.collect { update ->
                 handleAuthorizationState(update.authorizationState)
             }
         }
 
-        client.getAuthorizationState()
+        target.getAuthorizationState()
             .toResult()
             .onFailure { logger.e(it) { "Nepodařilo se přečíst authorization state." } }
     }
@@ -81,8 +93,15 @@ class TdlTelegramSession(
 
             is AuthorizationStateLoggingOut,
             is AuthorizationStateClosing,
-            is AuthorizationStateClosed,
-                -> _authStage.value = AuthStage.LoggedOut
+                -> _authStage.value = AuthStage.LoggingOut
+
+            // Zavřený klient už nic neudělá — ani nepřijme nové přihlášení. Bez nové instance
+            // by aplikace zůstala natrvalo stát na odhlášení. Nový klient začne od
+            // `WaitTdlibParameters`, takže se sám dostane až k zadání čísla.
+            is AuthorizationStateClosed -> {
+                _authStage.value = AuthStage.LoggingOut
+                attach(holder.recreate())
+            }
 
             // Stavy kolem e-mailového ověření a Premium nákupu spike neřeší. Padnout na nich ale
             // nesmíme — uživatel by viděl zamrzlou obrazovku bez vysvětlení.

@@ -13,18 +13,25 @@ import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 
 /** Notifikace nad TDLib. */
 class TdlNotificationRepository(
-    holder: TelegramClientHolder,
+    private val holder: TelegramClientHolder,
 ) : NotificationRepository {
 
     private val logger = Logger.withTag("Notifications")
 
-    private val client: TdlClient = holder.client
+    private val client: TdlClient get() = holder.client
 
-    override val updates: Flow<NotificationUpdate> = flow {
-        client.notificationGroupUpdates.collect { update ->
+    override val updates: Flow<NotificationUpdate> = merge(
+        // Po odhlášení nesmí na liště zůstat zprávy účtu, který už v aplikaci není.
+        holder.replaced.map { NotificationUpdate.Cleared },
+        messageNotifications(),
+    )
+
+    private fun messageNotifications(): Flow<NotificationUpdate> = flow {
+        holder.updates { notificationGroupUpdates }.collect { update ->
             // Jeden update může naráz přidávat i odebírat; pořadí je podstatné, aby po přečtení
             // jinde nezůstala viset stará notifikace, kterou právě nahradila novější.
             val removed = update.removedNotificationIds.toList()

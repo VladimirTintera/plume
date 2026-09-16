@@ -78,7 +78,11 @@ sealed interface AuthStage {
 
     data object Ready : AuthStage
 
-    data object LoggedOut : AuthStage
+    /**
+     * Odhlašování běží: TDLib maže lokální data a zavírá klienta, pak se rozjede nový a skončí
+     * v [WaitPhoneNumber]. Není to cílový stav — „odhlášený" uživatel je prostě na začátku přihlášení.
+     */
+    data object LoggingOut : AuthStage
 
     /**
      * Chyba, ze které se spike sám nedostane — typicky chybějící nebo neplatné `api_id`/`api_hash`.

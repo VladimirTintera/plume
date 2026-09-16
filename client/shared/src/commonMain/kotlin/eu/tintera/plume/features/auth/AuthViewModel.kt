@@ -61,8 +61,4 @@ class AuthViewModel(
             _busy.value = false
         }
     }
-
-    fun logOut() {
-        viewModelScope.launch { session.logOut() }
-    }
 }
