@@ -246,6 +246,8 @@ internal fun Message.messageMedia(): MessageMedia? = when (val content = this.co
     is MessageVideo -> MessageMedia.Attachment(
         label = "Video",
         thumbnailFileId = content.video.thumbnail?.file?.id,
+        // Kvůli průběhu nahrávání odesílaného videa.
+        fileId = content.video.video.id,
     )
 
     is MessageAnimation -> MessageMedia.Attachment(

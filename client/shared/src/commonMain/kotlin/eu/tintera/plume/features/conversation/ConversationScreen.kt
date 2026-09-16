@@ -154,7 +154,7 @@ import eu.tintera.plume.resources.push_pin_filled_24dp
 import eu.tintera.plume.resources.schedule_24dp
 import eu.tintera.plume.resources.send_24dp
 import eu.tintera.plume.resources.description_24dp
-import eu.tintera.plume.resources.image_24dp
+import eu.tintera.plume.resources.perm_media_24dp
 import eu.tintera.plume.resources.attach_file_24dp
 import eu.tintera.plume.resources.mood_24dp
 import eu.tintera.plume.resources.sticky_note_2_24dp
@@ -558,7 +558,7 @@ fun ConversationScreen(
                 inputFill = state.inputFill,
                 onInputFilled = viewModel::consumeInputFill,
                 onOpenStickers = { stickerPickerOpen = true },
-                onPickPhoto = attachmentPicker::pickPhoto,
+                onPickMedia = attachmentPicker::pickMedia,
                 onPickDocument = attachmentPicker::pickDocument,
                 attachments = state.attachments,
                 onRemoveAttachment = viewModel::removeAttachment,
@@ -1316,7 +1316,7 @@ private fun MessageInput(
     inputFill: InputFill?,
     onInputFilled: () -> Unit,
     onOpenStickers: () -> Unit,
-    onPickPhoto: () -> Unit,
+    onPickMedia: () -> Unit,
     onPickDocument: () -> Unit,
     /** Přílohy čekající na odeslání; text pole je pak jejich popisek. */
     attachments: List<OutgoingAttachment>,
@@ -1429,7 +1429,7 @@ private fun MessageInput(
                 placeholder = { Text(if (withAttachments) "Popisek" else "Zpráva") },
                 // Přílohy jen při psaní — k úpravě textové zprávy příloha nepatří.
                 leadingIcon = if (editing == null) {
-                    { AttachButton(onPickPhoto = onPickPhoto, onPickDocument = onPickDocument) }
+                    { AttachButton(onPickMedia = onPickMedia, onPickDocument = onPickDocument) }
                 } else {
                     null
                 },
@@ -1747,7 +1747,7 @@ private fun LinkPreviewCard(
  * systémový výběr — jinak by po návratu vyskočila přes bublinu s nahráváním.
  */
 @Composable
-private fun AttachButton(onPickPhoto: () -> Unit, onPickDocument: () -> Unit) {
+private fun AttachButton(onPickMedia: () -> Unit, onPickDocument: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
 
@@ -1757,12 +1757,12 @@ private fun AttachButton(onPickPhoto: () -> Unit, onPickDocument: () -> Unit) {
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(
-                text = { Text("Fotka") },
-                leadingIcon = { Icon(painterResource(Res.drawable.image_24dp), contentDescription = null) },
+                text = { Text("Fotka nebo video") },
+                leadingIcon = { Icon(painterResource(Res.drawable.perm_media_24dp), contentDescription = null) },
                 onClick = {
                     open = false
                     keyboard?.hide()
-                    onPickPhoto()
+                    onPickMedia()
                 },
             )
             DropdownMenuItem(
@@ -2482,6 +2482,7 @@ private fun AlbumTile(
         }
 
         is MessageMedia.Attachment -> Box(modifier.combinedClickable(onClick = {}, onLongClick = onRequestMenu)) {
+            val uploadingFile = media.fileId?.takeIf { uploading }
             media.thumbnailFileId?.let { thumbnail ->
                 RemoteImage(
                     fileId = thumbnail,
@@ -2500,6 +2501,13 @@ private fun AlbumTile(
                     text = media.label,
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                )
+            }
+            if (uploadingFile != null) {
+                UploadIndicator(
+                    fileId = uploadingFile,
+                    onCancel = onCancelUpload,
+                    modifier = Modifier.align(Alignment.Center),
                 )
             }
         }

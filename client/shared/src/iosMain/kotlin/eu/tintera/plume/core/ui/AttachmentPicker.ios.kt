@@ -7,6 +7,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.OutgoingAttachment
+import eu.tintera.plume.core.telegram.OutgoingThumbnail
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
 import kotlinx.coroutines.CoroutineScope
@@ -16,7 +17,23 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import platform.AVFoundation.AVAssetExportPresetPassthrough
+import platform.AVFoundation.AVAssetExportSession
+import platform.AVFoundation.AVAssetExportSessionStatusCompleted
+import platform.AVFoundation.AVAssetImageGenerator
+import platform.AVFoundation.AVAssetTrack
+import platform.AVFoundation.AVFileTypeMPEG4
+import platform.AVFoundation.AVMediaTypeVideo
+import platform.AVFoundation.AVURLAsset
+import platform.AVFoundation.duration
+import platform.AVFoundation.naturalSize
+import platform.AVFoundation.preferredTransform
+import platform.AVFoundation.tracksWithMediaType
+import platform.CoreGraphics.CGImageRelease
 import platform.CoreGraphics.CGRectMake
+import platform.CoreGraphics.CGSizeApplyAffineTransform
+import platform.CoreMedia.CMTimeGetSeconds
+import platform.CoreMedia.CMTimeMake
 import platform.CoreGraphics.CGSizeMake
 import platform.Foundation.NSData
 import platform.Foundation.NSFileManager
@@ -40,9 +57,11 @@ import platform.UIKit.UIImageJPEGRepresentation
 import platform.UIKit.UIViewController
 import platform.UniformTypeIdentifiers.UTTypeImage
 import platform.UniformTypeIdentifiers.UTTypeItem
+import platform.UniformTypeIdentifiers.UTTypeMovie
 import platform.darwin.NSObject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -98,7 +117,13 @@ private class IosAttachmentPicker(
     private val photoDelegate = object : NSObject(), PHPickerViewControllerDelegateProtocol {
         override fun picker(picker: PHPickerViewController, didFinishPicking: List<*>) {
             picker.dismissViewControllerAnimated(true, null)
-            prepare(didFinishPicking.filterIsInstance<PHPickerResult>()) { preparePhoto(it) }
+            prepare(didFinishPicking.filterIsInstance<PHPickerResult>()) { result ->
+                if (result.itemProvider.hasItemConformingToTypeIdentifier(UTTypeMovie.identifier)) {
+                    prepareVideo(result)
+                } else {
+                    preparePhoto(result)
+                }
+            }
         }
     }
 
@@ -108,9 +133,11 @@ private class IosAttachmentPicker(
         }
     }
 
-    override fun pickPhoto() {
+    override fun pickMedia() {
         val configuration = PHPickerConfiguration().apply {
-            filter = PHPickerFilter.imagesFilter
+            filter = PHPickerFilter.anyFilterMatchingSubfilters(
+                listOf(PHPickerFilter.imagesFilter, PHPickerFilter.videosFilter),
+            )
             selectionLimit = PICK_LIMIT.toLong()
             // Pořadí ťuknutí, ne pořadí v knihovně — album odejde tak, jak ho uživatel skládal.
             selection = PHPickerConfigurationSelectionOrdered
@@ -173,6 +200,102 @@ private suspend fun preparePhoto(result: PHPickerResult): OutgoingAttachment.Pho
     check(jpeg.writeToFile(path, atomically = true)) { "Fotku nejde uložit." }
     return OutgoingAttachment.Photo(path = path, width = width, height = height)
 }
+
+/**
+ * Video z knihovny: zkopíruje se, přebalí do MP4 a přečtou se z něj rozměry, délka a první snímek.
+ *
+ * - **Soubor z `loadFileRepresentation` platí jen uvnitř callbacku** — systém ho hned potom maže,
+ *   takže se kopíruje ještě v něm.
+ * - **Přebalení, ne překódování** (`AVAssetExportPresetPassthrough`): iPhone ukládá `.mov`,
+ *   ostatní klienti počítají s MP4. Stopy se jen přesunou do jiného kontejneru, trvá to zlomek
+ *   délky videa. `shouldOptimizeForNetworkUse` dá index na začátek, takže video jde přehrávat
+ *   během stahování (`streamable`). Když přebalení selže, jde původní soubor bez streamování.
+ * - **Rozměry se berou po `preferredTransform`** — video na výšku je uložené naležato s otočením.
+ */
+@OptIn(ExperimentalForeignApi::class)
+private suspend fun prepareVideo(result: PHPickerResult): OutgoingAttachment.Video {
+    val original = suspendCancellableCoroutine<String> { continuation ->
+        result.itemProvider.loadFileRepresentationForTypeIdentifier(UTTypeMovie.identifier) { url, error ->
+            val copied = url?.let { source ->
+                val path = outgoingPath(source.lastPathComponent?.takeIf { it.isNotBlank() } ?: "video.mov")
+                path.takeIf {
+                    NSFileManager.defaultManager.copyItemAtURL(source, toURL = NSURL.fileURLWithPath(it), error = null)
+                }
+            }
+            if (copied != null) {
+                continuation.resume(copied)
+            } else {
+                continuation.resumeWithException(IllegalStateException(error?.localizedDescription ?: "Video nejde načíst."))
+            }
+        }
+    }
+
+    val exported = exportMp4(original)
+    val path = exported ?: original
+    val asset = AVURLAsset(uRL = NSURL.fileURLWithPath(path), options = null)
+
+    val track = asset.tracksWithMediaType(AVMediaTypeVideo).firstOrNull() as? AVAssetTrack
+    val (width, height) = track?.let {
+        CGSizeApplyAffineTransform(it.naturalSize, it.preferredTransform).useContents {
+            abs(width).roundToInt() to abs(height).roundToInt()
+        }
+    } ?: (0 to 0)
+    val duration = CMTimeGetSeconds(asset.duration).takeIf { !it.isNaN() } ?: 0.0
+
+    return OutgoingAttachment.Video(
+        path = path,
+        width = width,
+        height = height,
+        durationSeconds = duration.roundToInt(),
+        thumbnail = videoThumbnail(asset, directoryOf(path)),
+        streamable = exported != null,
+    )
+}
+
+/** Přebalí video do MP4 bez překódování; `null`, když to nejde (kodek, který MP4 nenese). */
+@OptIn(ExperimentalForeignApi::class)
+private suspend fun exportMp4(source: String): String? {
+    val asset = AVURLAsset(uRL = NSURL.fileURLWithPath(source), options = null)
+    val session = AVAssetExportSession(asset = asset, presetName = AVAssetExportPresetPassthrough)
+    val target = directoryOf(source) + "/" + (source.substringAfterLast('/').substringBeforeLast('.') + ".mp4")
+    if (target == source) return source
+    session.outputURL = NSURL.fileURLWithPath(target)
+    session.outputFileType = AVFileTypeMPEG4
+    session.shouldOptimizeForNetworkUse = true
+
+    val completed = suspendCancellableCoroutine<Boolean> { continuation ->
+        session.exportAsynchronouslyWithCompletionHandler {
+            continuation.resume(session.status == AVAssetExportSessionStatusCompleted)
+        }
+        continuation.invokeOnCancellation { session.cancelExport() }
+    }
+    if (!completed) return null
+    NSFileManager.defaultManager.removeItemAtPath(source, error = null)
+    return target
+}
+
+/** První snímek jako JPEG do [VIDEO_THUMBNAIL_EDGE]; bez náhledu video odejde taky. */
+@OptIn(ExperimentalForeignApi::class)
+private fun videoThumbnail(asset: AVURLAsset, directory: String): OutgoingThumbnail? {
+    val generator = AVAssetImageGenerator(asset = asset).apply {
+        appliesPreferredTrackTransform = true
+        maximumSize = CGSizeMake(VIDEO_THUMBNAIL_EDGE.toDouble(), VIDEO_THUMBNAIL_EDGE.toDouble())
+    }
+    val cgImage = generator.copyCGImageAtTime(CMTimeMake(value = 0, timescale = 1), actualTime = null, error = null)
+        ?: return null
+    try {
+        val image = UIImage.imageWithCGImage(cgImage)
+        val jpeg = UIImageJPEGRepresentation(image, PHOTO_JPEG_QUALITY / 100.0) ?: return null
+        val path = "$directory/thumbnail.jpg"
+        if (!jpeg.writeToFile(path, atomically = true)) return null
+        val (width, height) = image.size.useContents { width.roundToInt() to height.roundToInt() }
+        return OutgoingThumbnail(path = path, width = width, height = height)
+    } finally {
+        CGImageRelease(cgImage)
+    }
+}
+
+private fun directoryOf(path: String): String = path.substringBeforeLast('/')
 
 /**
  * Soubor z výběru je kopie v dočasném adresáři, který systém maže, jakmile delegát doběhne.

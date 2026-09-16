@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.graphics.Matrix
 import android.media.ExifInterface
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.provider.OpenableColumns
@@ -20,6 +21,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.OutgoingAttachment
+import eu.tintera.plume.core.telegram.OutgoingThumbnail
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -30,7 +32,7 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
- * Android: Photo Picker (`PickMultipleVisualMedia`) na fotky, `OpenMultipleDocuments` na soubory.
+ * Android: Photo Picker (`PickMultipleVisualMedia`) na fotky a videa, `OpenMultipleDocuments` na soubory.
  *
  * Photo Picker nepotřebuje žádné oprávnění ke čtení médií a na starších Androidech ho dodává
  * aktualizace Google Play služeb, jinak spadne na systémový výběr dokumentů.
@@ -66,20 +68,87 @@ actual fun rememberAttachmentPicker(
 
     val photoLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(maxItems = PICK_LIMIT),
-    ) { uris -> prepare(uris, ::preparePhoto) }
+    ) { uris -> prepare(uris, ::prepareVisual) }
     val documentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         prepare(uris.take(PICK_LIMIT), ::prepareDocument)
     }
 
     return remember(photoLauncher, documentLauncher) {
         object : AttachmentPicker {
-            override fun pickPhoto() =
-                photoLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            override fun pickMedia() =
+                photoLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
 
             override fun pickDocument() = documentLauncher.launch(arrayOf("*/*"))
         }
     }
 }
+
+/** Photo Picker vrací fotky i videa pomíchané; rozhoduje typ obsahu. */
+private fun prepareVisual(context: Context, uri: Uri): OutgoingAttachment =
+    if (context.contentResolver.getType(uri)?.startsWith("video/") == true) {
+        prepareVideo(context, uri)
+    } else {
+        preparePhoto(context, uri)
+    }
+
+/**
+ * Zkopíruje video beze změny a přečte z něj, co server sám nezjistí: rozměry, délku a první snímek.
+ *
+ * **Rozměry se otáčejí podle metadat.** Video z foťáku na výšku je uložené naležato s příznakem
+ * otočení; bez prohození by bublina měla poměr stran na šířku. Snímek z `getFrameAtTime` už
+ * otočený je.
+ *
+ * Nepřekódovává se (to by znamenalo MediaCodec a minuty práce u delšího videa). `streamable` je
+ * `false`: u MP4 z foťáku bývá index na konci souboru, takže přehrávání během stahování nejde.
+ */
+private fun prepareVideo(context: Context, uri: Uri): OutgoingAttachment.Video {
+    val name = displayName(context, uri) ?: "video.mp4"
+    val target = outgoingFile(context, name)
+    requireNotNull(context.contentResolver.openInputStream(uri)).use { input ->
+        target.outputStream().use { input.copyTo(it) }
+    }
+
+    val retriever = MediaMetadataRetriever()
+    try {
+        retriever.setDataSource(target.absolutePath)
+        fun metadata(key: Int) = retriever.extractMetadata(key)?.toIntOrNull() ?: 0
+        val rawWidth = metadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+        val rawHeight = metadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+        val rotated = metadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION) % 180 != 0
+        val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+
+        val thumbnail = runCatching {
+            val frame = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                ?: return@runCatching null
+            val scale = minOf(1f, VIDEO_THUMBNAIL_EDGE.toFloat() / max(frame.width, frame.height))
+            val scaled = Bitmap.createScaledBitmap(
+                frame,
+                (frame.width * scale).roundToInt().coerceAtLeast(1),
+                (frame.height * scale).roundToInt().coerceAtLeast(1),
+                true,
+            )
+            val file = File(target.parentFile, "thumbnail.jpg")
+            file.outputStream().use { scaled.compress(Bitmap.CompressFormat.JPEG, PHOTO_JPEG_QUALITY, it) }
+            OutgoingThumbnail(path = file.absolutePath, width = scaled.width, height = scaled.height)
+        }.getOrNull()
+
+        return OutgoingAttachment.Video(
+            path = target.absolutePath,
+            width = if (rotated) rawHeight else rawWidth,
+            height = if (rotated) rawWidth else rawHeight,
+            durationSeconds = ((durationMs + 500) / 1000).toInt(),
+            thumbnail = thumbnail,
+            streamable = false,
+        )
+    } finally {
+        retriever.release()
+    }
+}
+
+private fun displayName(context: Context, uri: Uri): String? =
+    context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+        ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+        ?.takeIf { it.isNotBlank() }
 
 /**
  * Zmenší fotku na [PHOTO_MAX_EDGE] a uloží jako JPEG.
@@ -142,10 +211,7 @@ private fun fitInto(width: Int, height: Int): Pair<Int, Int> {
 
 /** Zkopíruje soubor beze změny a se jménem, pod kterým ho uživatel vybral — to jméno TDLib pošle. */
 private fun prepareDocument(context: Context, uri: Uri): OutgoingAttachment.Document {
-    val name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-        ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
-        ?.takeIf { it.isNotBlank() }
-        ?: "soubor"
+    val name = displayName(context, uri) ?: "soubor"
     val target = outgoingFile(context, name)
     requireNotNull(context.contentResolver.openInputStream(uri)).use { input ->
         target.outputStream().use { input.copyTo(it) }

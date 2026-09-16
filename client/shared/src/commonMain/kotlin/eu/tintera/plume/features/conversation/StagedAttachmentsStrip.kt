@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,6 +22,8 @@ import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -29,12 +32,13 @@ import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.description_24dp
+import eu.tintera.plume.resources.play_arrow_24dp
 import org.jetbrains.compose.resources.painterResource
 
 /**
  * Přílohy čekající na odeslání, nahoře v kartě vstupního pole.
  *
- * Fotky jsou v M3 **multi-browse carouselu**: u víc fotek je vidět jedna velká a okraje dalších,
+ * Fotky a videa jsou v M3 **multi-browse carouselu**: u víc fotek je vidět jedna velká a okraje dalších,
  * takže je jasné, že se dá listovat, a karta přitom nezabere půl obrazovky. Soubory náhled nemají,
  * takže jsou to řádky s názvem. Druhy se nemíchají (viz [stageAttachments]), takže je tu vždycky
  * jen jedno z toho.
@@ -49,7 +53,7 @@ fun StagedAttachmentsStrip(
 ) {
     if (attachments.isEmpty()) return
 
-    if (attachments.first() is OutgoingAttachment.Photo) {
+    if (attachments.first() !is OutgoingAttachment.Document) {
         PhotoCarousel(attachments, onRemove, modifier)
     } else {
         Column(modifier.padding(start = 16.dp, end = 4.dp, top = 8.dp)) {
@@ -97,13 +101,28 @@ private fun PhotoCarousel(
     ) { index ->
         val attachment = attachments.getOrNull(index) ?: return@HorizontalMultiBrowseCarousel
         Box(Modifier.fillMaxSize().maskClip(RoundedCornerShape(16.dp))) {
-            AsyncImage(
-                // Coil potřebuje schéma, holá cesta by se vyhodnotila jako relativní URI.
-                model = "file://${attachment.path}",
-                contentDescription = "Fotka ${index + 1} z ${attachments.size}",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
+            // Video Coil neotevře; kreslí se jeho náhled, připravený při výběru.
+            val image = when (attachment) {
+                is OutgoingAttachment.Video -> attachment.thumbnail?.path
+                else -> attachment.path
+            }
+            if (image != null) {
+                AsyncImage(
+                    // Coil potřebuje schéma, holá cesta by se vyhodnotila jako relativní URI.
+                    model = "file://$image",
+                    contentDescription = "Příloha ${index + 1} z ${attachments.size}",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerHighest))
+            }
+            if (attachment is OutgoingAttachment.Video) {
+                VideoBadge(
+                    durationSeconds = attachment.durationSeconds,
+                    modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
+                )
+            }
             FilledTonalIconButton(
                 onClick = { onRemove(index) },
                 modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(32.dp),
@@ -116,6 +135,42 @@ private fun PhotoCarousel(
             }
         }
     }
+}
+
+/**
+ * Štítek videa: ikona přehrávání a délka. Závoj `scrim` a bílá, aby byl čitelný přes jakýkoli
+ * snímek — stejně jako průběh nahrávání v bublině.
+ */
+@Composable
+private fun VideoBadge(durationSeconds: Int, modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f))
+            .padding(start = 2.dp, end = 6.dp, top = 2.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painterResource(Res.drawable.play_arrow_24dp),
+            contentDescription = "Video",
+            tint = Color.White,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(
+            text = formatDuration(durationSeconds),
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.White,
+        )
+    }
+}
+
+/** „0:42", „12:05", „1:02:03". */
+internal fun formatDuration(seconds: Int): String {
+    val total = seconds.coerceAtLeast(0)
+    val hours = total / 3600
+    val minutes = total / 60 % 60
+    val rest = (total % 60).toString().padStart(2, '0')
+    return if (hours > 0) "$hours:${minutes.toString().padStart(2, '0')}:$rest" else "$minutes:$rest"
 }
 
 private val PHOTO_ITEM_WIDTH = 120.dp
