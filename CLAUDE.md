@@ -469,6 +469,10 @@ text, tlačítko je fajfka a potvrzení volá `editMessageText`.
 - **Beze změny se nic neposílá** — server by odpověděl chybou.
 - **Text do pole jde přes `InputFill`**, společně s obnoveným konceptem. Koncept má
   `onlyIfEmpty` (nesmí přepsat, co uživatel mezitím napsal), úprava pole přepisuje vždycky.
+- **Výběr jde otevřít i při úpravě, ale jen s emoji** (`stickersAvailable = false`): přepínač
+  se schová, ikona je vždycky smajlík. Samolepka do textu upravované zprávy nepatří. Uložená
+  volba části výběru se tím nemění. Emoji vložené při úpravě neukládá koncept ani „píše…" —
+  `onDraftChanged` se při úpravě vrací hned.
 - **Po „Upravit" dostane pole fokus a klávesnici.** Nabídka se otevírá dlouhým stiskem na zprávě,
   takže pole fokus nemá a bez toho by nebylo poznat, že se něco stalo.
 

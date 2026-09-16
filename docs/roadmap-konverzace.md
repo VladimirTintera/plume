@@ -112,4 +112,3 @@ sada ze samolepky v chatu; emoji vkládané do textu včetně nedávných. Zbýv
 
 - **Odstíny pleti** (podržení emoji s nabídkou variant) — katalog je teď bez nich.
 - **Emoji novější než Unicode 15.0** — až je budou znát systémová písma podporovaných verzí.
-- **Úprava zprávy s emoji z výběru** — tlačítko výběru se při úpravě schovává.
