@@ -892,7 +892,10 @@ private fun MessageBubble(
         else -> message.text.emojiClusterCount(MAX_LARGE_EMOJI)
     }
     val bare = largeEmoji > 0 ||
-        (message.media is MessageMedia.Sticker && message.replyToMessageId == null)
+        (
+            (message.media is MessageMedia.Sticker || message.media is MessageMedia.AnimatedEmoji) &&
+                message.replyToMessageId == null
+            )
 
     /*
      * Odchozí bublina je `primary`, ne `primaryContainer`.
@@ -1697,6 +1700,7 @@ private fun MessageMedia?.describe(): String = when (this) {
     is MessageMedia.Attachment -> label
     // V citaci není kam kreslit obrázek, takže samolepka se popíše svým emoji.
     is MessageMedia.Sticker -> emoji.ifBlank { "Samolepka" }
+    is MessageMedia.AnimatedEmoji -> emoji
     null -> ""
 }
 
@@ -1910,6 +1914,12 @@ private const val LINK_PREVIEW_FALLBACK_RATIO = 1.91f
 /** Strop výšky fotky v bublině. Svislé snímky obrazovky by jinak zabraly celou obrazovku. */
 private val MAX_PHOTO_HEIGHT = 320.dp
 
+/**
+ * Animované emoji. Menší než samolepka — je to pořád „jedno emoji", ne obrázek — ale větší než
+ * znak v `displayLarge`, protože animace má kolem kresby vlastní vzduch.
+ */
+private val ANIMATED_EMOJI_SIZE = 112.dp
+
 /** Delší hrana samolepky. Telegram je kreslí zhruba takhle velké. */
 private val STICKER_SIZE = 160.dp
 
@@ -2082,6 +2092,7 @@ private fun MessageAttachment(
         }
 
         is MessageMedia.Sticker -> StickerImage(media)
+        is MessageMedia.AnimatedEmoji -> AnimatedEmojiImage(media)
     }
 }
 
@@ -2147,6 +2158,25 @@ private fun StickerImage(sticker: MessageMedia.Sticker) {
     } else {
         Box(size) { still() }
     }
+}
+
+/**
+ * Animované emoji.
+ *
+ * Než se animace načte (a když se načíst nepodaří), stojí na jejím místě tentýž znak velkým písmem,
+ * jak se emoji kreslilo dřív — přechod na animaci je tak výměna obrázku za obrázek, ne naskočení
+ * z prázdna. Velikost místa je pevná, aby se bublina při výměně nepřeskládala.
+ */
+@Composable
+private fun AnimatedEmojiImage(emoji: MessageMedia.AnimatedEmoji) {
+    AnimatedSticker(
+        fileId = emoji.animationFileId,
+        contentDescription = emoji.emoji,
+        modifier = Modifier.size(ANIMATED_EMOJI_SIZE),
+        placeholder = {
+            Text(text = emoji.emoji, style = MaterialTheme.typography.displayLarge)
+        },
+    )
 }
 
 /**

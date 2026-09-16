@@ -492,6 +492,18 @@ sealed interface MessageMedia {
      * [width] a [height] jsou od odesílatele; drží se kvůli poměru stran, aby se samolepka
      * nevykreslila jako čtverec.
      */
+    /**
+     * Samotné emoji s animovanou podobou (`MessageAnimatedEmoji`).
+     *
+     * Jen když je animace `.tgs`, kterou umíme přehrát. Jinak zpráva zůstává textová a kreslí se
+     * velkým unicode znakem. [emoji] je ten znak — slouží jako zástupce, než se animace načte,
+     * a jako text všude, kde animace být nemůže (citace, kopírování, náhled v seznamu).
+     */
+    data class AnimatedEmoji(
+        val animationFileId: Int,
+        val emoji: String,
+    ) : MessageMedia
+
     data class Sticker(
         val fileId: Int?,
         val animationFileId: Int?,

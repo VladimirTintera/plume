@@ -11,6 +11,7 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageEntityType
+import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SendState
@@ -796,7 +797,7 @@ class ConversationViewModel(
                         emoji = emoji,
                         chosenEmoji = message.reactions.filter { r -> r.isChosen }.map { r -> r.emoji }.toSet(),
                         actions = actions,
-                        hasText = message.text.isNotBlank(),
+                        hasText = message.copyableText().isNotBlank(),
                         canEdit = actions.canEdit && message.isEditableAsPlainText(),
                         isPinned = _state.value.pinned.any { p -> p.id == messageId },
                     ),
@@ -828,7 +829,7 @@ class ConversationViewModel(
      */
     fun copyMessage(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        clipboard.copy(message.text)
+        clipboard.copy(message.copyableText())
         closeMenus()
     }
 
@@ -1070,6 +1071,15 @@ private fun ChatMessage.isEditableAsPlainText(): Boolean {
         type.url.endsWith(text.substring(start, end), ignoreCase = true)
     }
 }
+
+/**
+ * Text zprávy pro schránku.
+ *
+ * Animované emoji má prázdný text (kreslí se jako příloha), ale zkopírovat se má pořád jeho znak —
+ * dřív, když bylo textovou zprávou, to šlo.
+ */
+private fun ChatMessage.copyableText(): String =
+    text.ifBlank { (media as? MessageMedia.AnimatedEmoji)?.emoji.orEmpty() }
 
 /**
  * Text, který má obrazovka vložit do vstupního pole.
