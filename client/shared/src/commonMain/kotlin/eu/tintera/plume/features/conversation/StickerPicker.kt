@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
@@ -24,6 +26,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -69,10 +72,19 @@ sealed interface StickerTab {
 
 data class StickerPickerState(
     val tabs: List<StickerTab> = listOf(StickerTab.Recent, StickerTab.Favorites),
-    val selected: StickerTab = StickerTab.Recent,
-    /** Samolepky vybrané záložky; `null`, dokud se obsah sady načítá. */
-    val stickers: List<StickerItem>? = null,
-)
+    /** `null`, dokud se nenačetly. */
+    val recent: List<StickerItem>? = null,
+    val favorites: List<StickerItem>? = null,
+    /** Obsah už otevřených sad podle id. Chybějící sada se teprve načítá. */
+    val sets: Map<Long, List<StickerItem>> = emptyMap(),
+) {
+    /** Samolepky záložky; `null`, dokud se její obsah načítá. */
+    fun stickersOf(tab: StickerTab): List<StickerItem>? = when (tab) {
+        StickerTab.Recent -> recent
+        StickerTab.Favorites -> favorites
+        is StickerTab.Set -> sets[tab.summary.id]
+    }
+}
 
 /**
  * Stav výběru samolepek.
@@ -80,45 +92,45 @@ data class StickerPickerState(
  * Vlastní ViewModel, ne kus `ConversationViewModel`: výběr je pro všechny chaty stejný a konverzace
  * z něj potřebuje jen výsledek — ťuknutou samolepku.
  *
- * Obsah sady se načítá **až při otevření její záložky** a drží se po dobu života ViewModelu.
- * Sad bývá desítky a načíst je všechny kvůli otevření výběru by bylo zbytečné.
+ * Drží obsah **všech** záložek, ne jen vybrané: při swipu mezi záložkami je vidět i sousední stránka.
+ * Obsah sady se ale načítá **až když se její stránka poprvé ukáže** ([load]) a drží se po dobu
+ * života ViewModelu. Sad bývá desítky a načíst je všechny kvůli otevření výběru by bylo zbytečné.
  */
 class StickerPickerViewModel(
     private val repository: StickerRepository,
 ) : ViewModel() {
 
-    private val selected = MutableStateFlow<StickerTab>(StickerTab.Recent)
     private val setContents = MutableStateFlow<Map<Long, List<StickerItem>>>(emptyMap())
+
+    /** Sady, jejichž načítání už běží — aby dvě stránky nenačítaly totéž dvakrát. */
+    private val loading = mutableSetOf<Long>()
 
     val state: StateFlow<StickerPickerState> = combine(
         repository.installedSets(),
         repository.recentStickers(),
         repository.favoriteStickers(),
-        selected,
         setContents,
-    ) { sets, recent, favorites, tab, contents ->
+    ) { sets, recent, favorites, contents ->
         StickerPickerState(
             tabs = listOf(StickerTab.Recent, StickerTab.Favorites) + sets.map { StickerTab.Set(it) },
-            selected = tab,
-            stickers = when (tab) {
-                StickerTab.Recent -> recent
-                StickerTab.Favorites -> favorites
-                is StickerTab.Set -> contents[tab.summary.id]
-            },
+            recent = recent,
+            favorites = favorites,
+            sets = contents,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), StickerPickerState())
 
-    fun select(tab: StickerTab) {
-        selected.value = tab
+    /** Stránka záložky se ukázala. Nedávné a oblíbené jsou živé toky, načítá se jen sada. */
+    fun load(tab: StickerTab) {
         if (tab !is StickerTab.Set) return
 
         val setId = tab.summary.id
-        if (setId in setContents.value) return
+        if (setId in setContents.value || !loading.add(setId)) return
 
         viewModelScope.launch {
             // Neúspěch se ukáže jako prázdná sada — výběr kvůli jedné sadě nezavíráme chybou.
             val stickers = repository.stickerSet(setId).getOrDefault(emptyList())
             setContents.update { it + (setId to stickers) }
+            loading.remove(setId)
         }
     }
 
@@ -133,8 +145,11 @@ class StickerPickerViewModel(
  * Sheet, ne panel místo klávesnice: výměna klávesnice za panel bez poskočení vstupního pole je
  * v Compose nejkřehčí část celé věci, a sheet ji nepotřebuje. Klávesnice se před otevřením zavře.
  *
- * Mřížka má **pevnou výšku**, aby se sheet při přepínání záložek nenatahoval a nesmršťoval podle
- * počtu samolepek. Samolepky v ní **nehrají** (viz [StickerPreview]).
+ * Záložky jsou stránky [HorizontalPager]u: mezi sadami se dá **swipovat do stran**. Řádek záložek
+ * a pager sdílejí jeden stav — swipe přepne záložku, ťuknutí na záložku posune pager.
+ *
+ * Stránky mají **pevnou výšku**, aby se sheet při přepínání nenatahoval a nesmršťoval podle počtu
+ * samolepek. Samolepky v nich **nehrají** (viz [StickerPreview]).
  */
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
@@ -156,79 +171,112 @@ fun StickerPickerSheet(
      */
     var activeStickerId by rememberSaveable { mutableStateOf<Long?>(null) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        val selectedIndex = state.tabs.indexOf(state.selected).coerceAtLeast(0)
+    // Počet stránek se mění: sady dorazí až po nedávných a oblíbených. Proto lambda, ne číslo.
+    val pagerState = rememberPagerState(pageCount = { state.tabs.size })
 
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         PrimaryScrollableTabRow(
-            selectedTabIndex = selectedIndex,
+            // `currentPage` se přepne v půlce swipu, takže indikátor jde s prstem, ne až po dojetí.
+            selectedTabIndex = pagerState.currentPage.coerceIn(0, state.tabs.lastIndex),
             edgePadding = 8.dp,
             containerColor = Color.Transparent,
         ) {
-            state.tabs.forEach { tab ->
+            state.tabs.forEachIndexed { index, tab ->
                 Tab(
-                    selected = tab == state.selected,
-                    onClick = { viewModel.select(tab) },
+                    selected = index == pagerState.currentPage,
+                    onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
                     icon = { StickerTabIcon(tab) },
                 )
             }
         }
 
-        Box(
-            Modifier.fillMaxWidth().height(STICKER_PICKER_HEIGHT),
-            contentAlignment = Alignment.Center,
-        ) {
-            val stickers = state.stickers
-            when {
-                stickers == null -> LoadingIndicator()
+        HorizontalPager(
+            state = pagerState,
+            // Klíč podle záložky, ne indexu: až dorazí sady, stránky nedávných a oblíbených zůstanou
+            // tytéž a nerozsype se jim stav (pozice scrollu).
+            key = { index -> state.tabs.getOrNull(index)?.pageKey() ?: index },
+            modifier = Modifier.fillMaxWidth().height(STICKER_PICKER_HEIGHT),
+        ) { page ->
+            val tab = state.tabs.getOrNull(page) ?: return@HorizontalPager
+            LaunchedEffect(tab) { viewModel.load(tab) }
 
-                stickers.isEmpty() -> Text(
-                    text = when (state.selected) {
-                        StickerTab.Recent -> "Tady se objeví samolepky, které pošleš."
-                        StickerTab.Favorites -> "Zatím tu nejsou žádné oblíbené samolepky."
-                        is StickerTab.Set -> "Sada je prázdná, nebo se ji nepodařilo načíst."
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(24.dp),
-                )
+            StickerPage(
+                tab = tab,
+                stickers = state.stickersOf(tab),
+                activeStickerId = activeStickerId,
+                onPick = { sticker ->
+                    // Nejdřív sheet schovat, pak poslat: zmizení bez animace by vypadalo jako pád,
+                    // a zpráva se tak objeví až nad zavřeným sheetem.
+                    scope.launch { sheetState.hide() }.invokeOnCompletion { onPick(sticker) }
+                },
+                onActivate = { sticker ->
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    activeStickerId = sticker.id
+                },
+            )
+        }
+    }
+}
 
-                else -> LazyVerticalGrid(
-                    columns = GridCells.Adaptive(STICKER_CELL),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    items(stickers, key = { it.id }) { sticker ->
-                        val active = sticker.id == activeStickerId
+/** Stabilní klíč stránky záložky. */
+private fun StickerTab.pageKey(): Any = when (this) {
+    StickerTab.Recent -> "recent"
+    StickerTab.Favorites -> "favorites"
+    is StickerTab.Set -> summary.id
+}
 
-                        Box(
-                            Modifier
-                                .size(STICKER_CELL)
-                                .clip(RoundedCornerShape(12.dp))
-                                // Podbarvení nese potvrzení podržení i u statické samolepky,
-                                // která se rozhýbat nemá jak.
-                                .background(
-                                    if (active) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent,
-                                )
-                                .combinedClickable(
-                                    onClick = {
-                                        // Nejdřív sheet schovat, pak poslat: zmizení bez animace by
-                                        // vypadalo jako pád, a zpráva se tak objeví až nad zavřeným sheetem.
-                                        scope.launch { sheetState.hide() }.invokeOnCompletion {
-                                            onPick(sticker)
-                                        }
-                                    },
-                                    // Podržení samolepku neposílá — jen ji rozhýbe. Po puštění
-                                    // `combinedClickable` klik nevyvolá, takže nic neodejde omylem.
-                                    onLongClick = {
-                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        activeStickerId = sticker.id
-                                    },
-                                )
-                                .padding(6.dp),
-                        ) {
-                            StickerPreview(sticker.preview, playing = active, modifier = Modifier.fillMaxSize())
-                        }
+/** Obsah jedné záložky: načítání, prázdný stav, nebo mřížka. */
+@Composable
+@OptIn(ExperimentalFoundationApi::class)
+private fun StickerPage(
+    tab: StickerTab,
+    stickers: List<StickerItem>?,
+    activeStickerId: Long?,
+    onPick: (StickerItem) -> Unit,
+    onActivate: (StickerItem) -> Unit,
+) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        when {
+            stickers == null -> LoadingIndicator()
+
+            stickers.isEmpty() -> Text(
+                text = when (tab) {
+                    StickerTab.Recent -> "Tady se objeví samolepky, které pošleš."
+                    StickerTab.Favorites -> "Zatím tu nejsou žádné oblíbené samolepky."
+                    is StickerTab.Set -> "Sada je prázdná, nebo se ji nepodařilo načíst."
+                },
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(24.dp),
+            )
+
+            else -> LazyVerticalGrid(
+                columns = GridCells.Adaptive(STICKER_CELL),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                items(stickers, key = { it.id }) { sticker ->
+                    val active = sticker.id == activeStickerId
+
+                    Box(
+                        Modifier
+                            .size(STICKER_CELL)
+                            .clip(RoundedCornerShape(12.dp))
+                            // Podbarvení nese potvrzení podržení i u statické samolepky,
+                            // která se rozhýbat nemá jak.
+                            .background(
+                                if (active) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent,
+                            )
+                            .combinedClickable(
+                                onClick = { onPick(sticker) },
+                                // Podržení samolepku neposílá — jen ji rozhýbe. Po puštění
+                                // `combinedClickable` klik nevyvolá, takže nic neodejde omylem.
+                                onLongClick = { onActivate(sticker) },
+                            )
+                            .padding(6.dp),
+                    ) {
+                        StickerPreview(sticker.preview, playing = active, modifier = Modifier.fillMaxSize())
                     }
                 }
             }
