@@ -107,9 +107,8 @@ jsou to tři řádky.
 
 ## Výběr samolepek
 
-Základ je hotový (záložky Nedávné, Oblíbené, sady; odeslání). Zbývá:
+Základ je hotový (záložky Nedávné, Oblíbené, sady se swipem; hledání; odeslání). Zbývá:
 
-- **Vyhledávání** podle emoji a textu (`searchStickers`, `getKeywordEmojis`).
 - **Oblíbené** — přidat/odebrat dlouhým stiskem ve výběru i na samolepce v konverzaci
   (`addFavoriteSticker`, `removeFavoriteSticker`).
 - **Přidání sady ze samolepky v chatu** (`changeStickerSet`) a trendy (`getTrendingStickerSets`).

@@ -61,6 +61,26 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.intl.Locale
+import eu.tintera.plume.core.telegram.StickerQuery
+import eu.tintera.plume.core.telegram.StickerSearchResult
+import eu.tintera.plume.core.ui.emojiClusterCount
+import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.search_24dp
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.transformLatest
 import org.koin.compose.viewmodel.koinViewModel
 
 /** Záložka výběru samolepek. */
@@ -105,6 +125,39 @@ class StickerPickerViewModel(
     /** Sady, jejichž načítání už běží — aby dvě stránky nenačítaly totéž dvakrát. */
     private val loading = mutableSetOf<Long>()
 
+    private val searchRequest = MutableStateFlow(SearchRequest("", emptyList()))
+
+    /**
+     * Výsledek hledání.
+     *
+     * Hledá se až po krátké pauze v psaní, ne na každý znak — veřejné hledání jde na server.
+     * `transformLatest` rozepsané hledání zahodí, jakmile se text změní, takže pomalá odpověď na
+     * „ko" nepřepíše výsledky pro „kočka".
+     */
+    val search: StateFlow<StickerSearchState> = searchRequest
+        .debounce { if (it.text.isBlank()) 0L else SEARCH_DEBOUNCE_MS }
+        .distinctUntilChanged()
+        .transformLatest { request ->
+            val text = request.text.trim()
+            if (text.isEmpty()) {
+                emit(StickerSearchState.Idle)
+                return@transformLatest
+            }
+            emit(StickerSearchState.Searching)
+            val query = if (text.emojiClusterCount(MAX_SEARCH_EMOJI) > 0) {
+                StickerQuery.Emoji(text)
+            } else {
+                StickerQuery.Text(text, request.languageCodes)
+            }
+            emit(StickerSearchState.Results(repository.search(query)))
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), StickerSearchState.Idle)
+
+    /** Text hledání. Jazyk zařízení určuje, jak se slova převedou na emoji. */
+    fun search(text: String, languageCodes: List<String>) {
+        searchRequest.value = SearchRequest(text, languageCodes)
+    }
+
     val state: StateFlow<StickerPickerState> = combine(
         repository.installedSets(),
         repository.recentStickers(),
@@ -134,9 +187,24 @@ class StickerPickerViewModel(
         }
     }
 
+    private data class SearchRequest(val text: String, val languageCodes: List<String>)
+
     private companion object {
         const val STOP_TIMEOUT_MS = 5_000L
+
+        /** Pauza v psaní, po které se hledá. */
+        const val SEARCH_DEBOUNCE_MS = 300L
+
+        /** Kolik emoji v hledání se ještě bere jako hledání podle emoji. */
+        const val MAX_SEARCH_EMOJI = 10
     }
+}
+
+sealed interface StickerSearchState {
+    /** Nehledá se — výběr ukazuje záložky. */
+    data object Idle : StickerSearchState
+    data object Searching : StickerSearchState
+    data class Results(val result: StickerSearchResult) : StickerSearchState
 }
 
 /**
@@ -159,6 +227,10 @@ fun StickerPickerSheet(
 ) {
     val viewModel: StickerPickerViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val search by viewModel.search.collectAsStateWithLifecycle()
+    var searchText by rememberSaveable { mutableStateOf("") }
+    // Jazyk zařízení a angličtina jako záloha: klíčová slova samolepek bývají anglicky.
+    val languageCodes = remember { listOf(Locale.current.language, "en").distinct() }
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
@@ -174,12 +246,49 @@ fun StickerPickerSheet(
     // Počet stránek se mění: sady dorazí až po nedávných a oblíbených. Proto lambda, ne číslo.
     val pagerState = rememberPagerState(pageCount = { state.tabs.size })
 
+    val pick: (StickerItem) -> Unit = { sticker ->
+        // Nejdřív sheet schovat, pak poslat: zmizení bez animace by vypadalo jako pád,
+        // a zpráva se tak objeví až nad zavřeným sheetem.
+        scope.launch { sheetState.hide() }.invokeOnCompletion { onPick(sticker) }
+    }
+    val activate: (StickerItem) -> Unit = { sticker ->
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        activeStickerId = sticker.id
+    }
+
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        StickerSearchField(
+            text = searchText,
+            onTextChange = {
+                searchText = it
+                viewModel.search(it, languageCodes)
+            },
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
+
+        /*
+         * Hledání nahradí záložky i stránky, ale ve STEJNĚ vysoké ploše — jinak by sheet při
+         * prvním písmenu poskočil. Výsledky se ukazují podle textu v poli, ne podle stavu
+         * hledání: po smazání textu se záložky vrátí hned, bez čekání na debounce.
+         */
+        if (searchText.isNotBlank()) {
+            Box(Modifier.fillMaxWidth().height(STICKER_TAB_ROW_HEIGHT + STICKER_PICKER_HEIGHT)) {
+                StickerSearchResults(
+                    search = search,
+                    activeStickerId = activeStickerId,
+                    onPick = pick,
+                    onActivate = activate,
+                )
+            }
+            return@ModalBottomSheet
+        }
+
         PrimaryScrollableTabRow(
             // `currentPage` se přepne v půlce swipu, takže indikátor jde s prstem, ne až po dojetí.
             selectedTabIndex = pagerState.currentPage.coerceIn(0, state.tabs.lastIndex),
             edgePadding = 8.dp,
             containerColor = Color.Transparent,
+            modifier = Modifier.height(STICKER_TAB_ROW_HEIGHT),
         ) {
             state.tabs.forEachIndexed { index, tab ->
                 Tab(
@@ -204,15 +313,8 @@ fun StickerPickerSheet(
                 tab = tab,
                 stickers = state.stickersOf(tab),
                 activeStickerId = activeStickerId,
-                onPick = { sticker ->
-                    // Nejdřív sheet schovat, pak poslat: zmizení bez animace by vypadalo jako pád,
-                    // a zpráva se tak objeví až nad zavřeným sheetem.
-                    scope.launch { sheetState.hide() }.invokeOnCompletion { onPick(sticker) }
-                },
-                onActivate = { sticker ->
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    activeStickerId = sticker.id
-                },
+                onPick = pick,
+                onActivate = activate,
             )
         }
     }
@@ -257,30 +359,148 @@ private fun StickerPage(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 items(stickers, key = { it.id }) { sticker ->
-                    val active = sticker.id == activeStickerId
-
-                    Box(
-                        Modifier
-                            .size(STICKER_CELL)
-                            .clip(RoundedCornerShape(12.dp))
-                            // Podbarvení nese potvrzení podržení i u statické samolepky,
-                            // která se rozhýbat nemá jak.
-                            .background(
-                                if (active) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent,
-                            )
-                            .combinedClickable(
-                                onClick = { onPick(sticker) },
-                                // Podržení samolepku neposílá — jen ji rozhýbe. Po puštění
-                                // `combinedClickable` klik nevyvolá, takže nic neodejde omylem.
-                                onLongClick = { onActivate(sticker) },
-                            )
-                            .padding(6.dp),
-                    ) {
-                        StickerPreview(sticker.preview, playing = active, modifier = Modifier.fillMaxSize())
-                    }
+                    StickerCell(sticker, sticker.id == activeStickerId, onPick, onActivate)
                 }
             }
         }
+    }
+}
+
+/** Jedna samolepka v mřížce: ťuknutí pošle, podržení rozhýbe. */
+@Composable
+@OptIn(ExperimentalFoundationApi::class)
+private fun StickerCell(
+    sticker: StickerItem,
+    active: Boolean,
+    onPick: (StickerItem) -> Unit,
+    onActivate: (StickerItem) -> Unit,
+) {
+    Box(
+        Modifier
+            .size(STICKER_CELL)
+            .clip(RoundedCornerShape(12.dp))
+            // Podbarvení nese potvrzení podržení i u statické samolepky, která se rozhýbat nemá jak.
+            .background(if (active) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent)
+            .combinedClickable(
+                onClick = { onPick(sticker) },
+                // Podržení samolepku neposílá — jen ji rozhýbe. Po puštění `combinedClickable`
+                // klik nevyvolá, takže nic neodejde omylem.
+                onLongClick = { onActivate(sticker) },
+            )
+            .padding(6.dp),
+    ) {
+        StickerPreview(sticker.preview, playing = active, modifier = Modifier.fillMaxSize())
+    }
+}
+
+/**
+ * Pole hledání nad záložkami.
+ *
+ * Kontejner nese [Surface], pole samo je průhledné — stejně jako vstupní pole konverzace, ať
+ * nevznikají dvě zaoblené plochy v sobě.
+ */
+@Composable
+private fun StickerSearchField(
+    text: String,
+    onTextChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val keyboard = LocalSoftwareKeyboardController.current
+
+    Surface(
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        TextField(
+            value = text,
+            onValueChange = onTextChange,
+            placeholder = { Text("Hledat samolepky") },
+            singleLine = true,
+            leadingIcon = { Icon(painterResource(Res.drawable.search_24dp), contentDescription = null) },
+            trailingIcon = if (text.isNotEmpty()) {
+                {
+                    IconButton(onClick = { onTextChange("") }) {
+                        Icon(painterResource(Res.drawable.close_24dp), contentDescription = "Smazat hledání")
+                    }
+                }
+            } else {
+                null
+            },
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+            ),
+            // Hledá se průběžně; tlačítko na klávesnici jen uklidí klávesnici z výsledků.
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** Výsledky hledání: nejdřív z vlastních sad, pak z veřejných, každé pod svým nadpisem. */
+@Composable
+private fun StickerSearchResults(
+    search: StickerSearchState,
+    activeStickerId: Long?,
+    onPick: (StickerItem) -> Unit,
+    onActivate: (StickerItem) -> Unit,
+) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        when (search) {
+            // Idle při neprázdném textu = debounce ještě neproběhl; vypadá to stejně jako hledání.
+            StickerSearchState.Idle, StickerSearchState.Searching -> LoadingIndicator()
+
+            is StickerSearchState.Results -> {
+                val result = search.result
+                if (result.installed.isEmpty() && result.public.isEmpty()) {
+                    Text(
+                        text = "Žádné samolepky jsme nenašli.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(24.dp),
+                    )
+                    return@Box
+                }
+
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(STICKER_CELL),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    searchSection("Z tvých sad", result.installed, activeStickerId, onPick, onActivate)
+                    searchSection("Další samolepky", result.public, activeStickerId, onPick, onActivate)
+                }
+            }
+        }
+    }
+}
+
+private fun LazyGridScope.searchSection(
+    title: String,
+    stickers: List<StickerItem>,
+    activeStickerId: Long?,
+    onPick: (StickerItem) -> Unit,
+    onActivate: (StickerItem) -> Unit,
+) {
+    if (stickers.isEmpty()) return
+
+    item(key = "header-$title", span = { GridItemSpan(maxLineSpan) }) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp),
+        )
+    }
+    // Klíč nese sekci: tatáž samolepka se ve dvou sekcích neobjeví (veřejné se filtrují), ale
+    // klíče nadpisu a samolepky musí být různého tvaru i tak.
+    items(stickers, key = { "sticker-${it.id}" }) { sticker ->
+        StickerCell(sticker, sticker.id == activeStickerId, onPick, onActivate)
     }
 }
 
@@ -361,6 +581,9 @@ private fun StickerPreview(
 private fun EmojiFallback(emoji: String) {
     Text(emoji, style = MaterialTheme.typography.headlineMedium)
 }
+
+/** Řádek záložek. Při hledání ho výsledky zastoupí, takže jeho výška je pevná. */
+private val STICKER_TAB_ROW_HEIGHT = 48.dp
 
 /** Výška mřížky. Kolem tří řádků — dost na výběr, konverzace nad sheetem zůstává vidět. */
 private val STICKER_PICKER_HEIGHT = 320.dp

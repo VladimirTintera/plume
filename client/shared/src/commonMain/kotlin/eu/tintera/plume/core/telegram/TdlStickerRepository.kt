@@ -18,6 +18,9 @@ import kotlinx.coroutines.flow.onStart
  * ne samolepky samotné. Odběr stojí před prvním čtením (`onStart`), aby se mezi nimi nic neztratilo.
  * Klient se nikde nezachytává — po odhlášení je jiný, viz `TelegramClientHolder`.
  */
+/** Nejvíc samolepek z jednoho hledání. TDLib víc než 100 nevrátí. */
+private const val SEARCH_LIMIT = 100
+
 class TdlStickerRepository(
     private val holder: TelegramClientHolder,
 ) : StickerRepository {
@@ -84,6 +87,78 @@ class TdlStickerRepository(
         client.getStickerSet(setId = setId)
             .toResult()
             .map { it.stickers.toItems() }
+
+    /**
+     * Hledání ve dvou zdrojích.
+     *
+     * - `getStickers` prochází nainstalované sady: podle emoji i podle klíčových slov samolepek.
+     *   U slova se proto ptá dvakrát — jednou slovem, jednou emoji, na které se převedlo.
+     * - `searchStickers` prochází veřejné sady, ale jen podle emoji (slovo je tam jen upřesnění).
+     *
+     * Slovo se na emoji převádí přes `getKeywordEmojis` v jazyce uživatele. Když převod nic nenajde,
+     * veřejné hledání se vynechá — bez emoji by vrátilo nahodilé samolepky.
+     */
+    override suspend fun search(query: StickerQuery): StickerSearchResult {
+        val languages = (query as? StickerQuery.Text)?.languageCodes.orEmpty().toTypedArray()
+
+        val emojis = when (query) {
+            is StickerQuery.Emoji -> query.emojis
+            is StickerQuery.Text -> client.getKeywordEmojis(text = query.text, inputLanguageCodes = languages)
+                .toResult()
+                .map { it.emojis.filterNotNull().distinct().joinToString(" ") }
+                .getOrElse { failure ->
+                    logger.w(failure) { "Emoji ke slovu se nepodařilo dohledat." }
+                    ""
+                }
+        }
+
+        val installedQueries = buildList {
+            if (query is StickerQuery.Text) add(query.text)
+            if (emojis.isNotBlank()) add(emojis)
+        }
+        val installed = installedQueries
+            .flatMap { installedQuery ->
+                client.getStickers(
+                    stickerType = StickerTypeRegular(),
+                    query = installedQuery,
+                    limit = SEARCH_LIMIT,
+                    // Běžné samolepky na chatu nezávisí; na něm záleží jen u vlastních emoji.
+                    chatId = 0L,
+                )
+                    .toResult()
+                    .map { it.stickers.toItems() }
+                    .getOrElse { failure ->
+                        logger.w(failure) { "Hledání ve vlastních sadách selhalo." }
+                        emptyList()
+                    }
+            }
+            .distinctBy { it.id }
+
+        val public = if (emojis.isBlank()) {
+            emptyList()
+        } else {
+            client.searchStickers(
+                stickerType = StickerTypeRegular(),
+                emojis = emojis,
+                query = (query as? StickerQuery.Text)?.text.orEmpty(),
+                inputLanguageCodes = languages,
+                offset = 0,
+                limit = SEARCH_LIMIT,
+            )
+                .toResult()
+                .map { it.stickers.toItems() }
+                .getOrElse { failure ->
+                    logger.w(failure) { "Hledání ve veřejných sadách selhalo." }
+                    emptyList()
+                }
+        }
+
+        val installedIds = installed.map { it.id }.toSet()
+        return StickerSearchResult(
+            installed = installed,
+            public = public.filterNot { it.id in installedIds },
+        )
+    }
 
     /**
      * Převod na položky výběru, bez prémiových samolepek u uživatele bez Premium.
