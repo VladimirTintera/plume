@@ -39,6 +39,9 @@ datastore = "1.2.1"
 compottie = "2.3.1"
 # Gzip pro .tgs. Tutéž verzi táhne Compottie; výslovně kvůli tomu, že ji používáme přímo.
 okio = "3.16.4"
+# Přehrávání videa na Androidu. Jen `exoplayer` + `ui` (AspectRatioFrameLayout): `ui-compose` by táhl
+# androidx Compose novější, než jakou verzi drží Compose Multiplatform.
+media3 = "1.11.1"
 buildconfig = "6.0.10"
 googleServices = "4.4.4"
 firebaseBom = "34.4.0"
@@ -90,6 +93,8 @@ coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" 
 datastore-preferences-core = { module = "androidx.datastore:datastore-preferences-core", version.ref = "datastore" }
 compottie-lite = { module = "io.github.alexzhirkevich:compottie-lite", version.ref = "compottie" }
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
+media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }
+media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 

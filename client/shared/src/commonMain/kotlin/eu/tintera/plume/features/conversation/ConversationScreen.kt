@@ -145,6 +145,7 @@ import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.audio.rememberRecordPermission
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.mic_24dp
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.arrow_downward_24dp
@@ -1971,6 +1972,7 @@ private fun MessageMedia?.describe(): String = when (this) {
     is MessageMedia.Sticker -> emoji.ifBlank { "Samolepka" }
     is MessageMedia.AnimatedEmoji -> emoji
     is MessageMedia.VoiceNote -> "Hlasová zpráva"
+    is MessageMedia.Video -> "Video"
     null -> ""
 }
 
@@ -2403,6 +2405,23 @@ private fun MessageAttachment(
             ),
         )
         is MessageMedia.AnimatedEmoji -> AnimatedEmojiImage(media)
+        is MessageMedia.Video -> BoxWithConstraints {
+            val ratio = media.albumRatio()
+            val height = (maxWidth / ratio).coerceAtMost(MAX_PHOTO_HEIGHT)
+            VideoThumbnail(
+                video = media,
+                messageId = messageId,
+                uploading = uploading,
+                onCancelUpload = onCancelUpload,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(height)
+                    .clip(shape)
+                    // Dlouhý stisk se opakuje — potomek s vlastním klikáním ho k bublině nepustí.
+                    .combinedClickable(onClick = onOpen, onLongClick = onRequestMenu),
+            )
+        }
+
         is MessageMedia.VoiceNote -> VoiceNoteContent(
             voice = media,
             playback = voice.playback,
@@ -2561,6 +2580,14 @@ private fun AlbumTile(
             }
         }
 
+        is MessageMedia.Video -> VideoThumbnail(
+            video = media,
+            messageId = member.id,
+            uploading = uploading,
+            onCancelUpload = onCancelUpload,
+            modifier = modifier.combinedClickable(onClick = onOpen, onLongClick = onRequestMenu),
+        )
+
         is MessageMedia.Attachment -> Box(modifier.combinedClickable(onClick = {}, onLongClick = onRequestMenu)) {
             val uploadingFile = media.fileId?.takeIf { uploading }
             media.thumbnailFileId?.let { thumbnail ->
@@ -2599,6 +2626,7 @@ private fun AlbumTile(
 /** Patří příloha do mřížky? Fotka, nebo video či GIF s náhledem; dokumenty a audio ne. */
 private fun MessageMedia?.isAlbumTile(): Boolean = when (this) {
     is MessageMedia.Photo -> true
+    is MessageMedia.Video -> true
     is MessageMedia.Attachment -> thumbnailFileId != null
     else -> false
 }
@@ -2606,6 +2634,7 @@ private fun MessageMedia?.isAlbumTile(): Boolean = when (this) {
 /** Poměr stran dlaždice samotné na řádku. Video bez rozměrů je 16:9, neznámá fotka čtverec. */
 private fun MessageMedia?.albumRatio(): Float = when (this) {
     is MessageMedia.Photo -> if (width > 0 && height > 0) width.toFloat() / height.toFloat() else 1f
+    is MessageMedia.Video -> if (width > 0 && height > 0) width.toFloat() / height.toFloat() else 16f / 9f
     else -> 16f / 9f
 }
 
@@ -2807,5 +2836,63 @@ private class VoiceHandlers(
 ) {
     companion object {
         val None = VoiceHandlers({ null }, {}, {}, Color.Unspecified, Color.Unspecified)
+    }
+}
+
+/**
+ * Náhled videa v bublině nebo dlaždici alba: obrázek, uprostřed tlačítko přehrávání (u odesílaného
+ * průběh nahrávání se zrušením) a vlevo dole délka. Přehrává se až v prohlížeči — v bublině by
+ * se video pralo se scrollem a swipem na odpověď.
+ *
+ * Náhled nese sdílený prvek `photoKey`, stejně jako fotka: v prohlížeči z něj video vyrůstá.
+ */
+@Composable
+private fun VideoThumbnail(
+    video: MessageMedia.Video,
+    messageId: Long,
+    uploading: Boolean,
+    onCancelUpload: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
+        video.thumbnailFileId?.let { thumbnail ->
+            RemoteImage(
+                fileId = thumbnail,
+                contentDescription = "Video",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().sharedNavElement(photoKey(messageId)),
+            )
+        }
+        if (uploading) {
+            UploadIndicator(fileId = video.fileId, onCancel = onCancelUpload, modifier = Modifier.align(Alignment.Center))
+        } else {
+            Box(
+                Modifier
+                    .align(Alignment.Center)
+                    .size(UPLOAD_INDICATOR_SIZE)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painterResource(Res.drawable.play_arrow_24dp),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+        }
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
+            contentColor = Color.White,
+            modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
+        ) {
+            Text(
+                text = formatDuration(video.durationSeconds),
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            )
+        }
     }
 }

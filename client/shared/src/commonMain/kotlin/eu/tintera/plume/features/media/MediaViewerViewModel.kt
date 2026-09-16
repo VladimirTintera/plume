@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Fotky chatu přes celou obrazovku, s listováním.
+ * Fotky a videa chatu přes celou obrazovku, s listováním.
  *
  * Otevírá se na jedné zprávě ([messageId]) a kolem ní se dotahují další fotky chatu — nejdřív
  * kus na obě strany, pak po stránkách, jak se uživatel blíží k okraji načteného výřezu.
@@ -38,22 +38,22 @@ class MediaViewerViewModel(
     init {
         viewModelScope.launch { loadInitial() }
         viewModelScope.launch {
-            repository.photoPosition(chatId, messageId)
+            repository.visualMediaPosition(chatId, messageId)
                 .onSuccess { position -> _state.update { it.copy(initialPosition = position) } }
         }
     }
 
     private suspend fun loadInitial() {
-        repository.photos(chatId, messageId, older = PAGE_SIZE, newer = PAGE_SIZE)
+        repository.visualMedia(chatId, messageId, older = PAGE_SIZE, newer = PAGE_SIZE)
             .onSuccess { messages ->
-                val photos = messages.mapNotNull { it.toViewerPhoto() }
-                if (photos.none { it.messageId == messageId }) {
+                val items = messages.mapNotNull { it.toViewerItem() }
+                if (items.none { it.messageId == messageId }) {
                     // Otevřená zpráva mezi fotkami není — jiný typ média, nebo ji vyhledávání
                     // ještě nezná. Pak se aspoň zkusí ukázat samotná.
                     loadSingle()
                     return
                 }
-                _state.update { it.copy(photos = photos, loading = false) }
+                _state.update { it.copy(items = items, loading = false) }
             }
             .onFailure { loadSingle() }
     }
@@ -62,10 +62,10 @@ class MediaViewerViewModel(
     private suspend fun loadSingle() {
         repository.message(chatId, messageId)
             .onSuccess { message ->
-                val photo = message.toViewerPhoto()
+                val photo = message.toViewerItem()
                 _state.update {
                     it.copy(
-                        photos = listOfNotNull(photo),
+                        items = listOfNotNull(photo),
                         reachedOldest = true,
                         reachedNewest = true,
                         loading = false,
@@ -84,26 +84,26 @@ class MediaViewerViewModel(
 
     /** Pager se posunul. U okraje načteného výřezu se dotáhne další stránka. */
     fun onPageChanged(index: Int) {
-        val photos = _state.value.photos
-        if (photos.isEmpty()) return
+        val items = _state.value.items
+        if (items.isEmpty()) return
         if (index <= PRELOAD_DISTANCE) loadOlder()
-        if (index >= photos.lastIndex - PRELOAD_DISTANCE) loadNewer()
+        if (index >= items.lastIndex - PRELOAD_DISTANCE) loadNewer()
     }
 
     private fun loadOlder() {
         val current = _state.value
         if (loadingOlder || current.reachedOldest) return
-        val oldest = current.photos.firstOrNull() ?: return
+        val oldest = current.items.firstOrNull() ?: return
         loadingOlder = true
 
         viewModelScope.launch {
-            repository.photos(chatId, oldest.messageId, older = PAGE_SIZE, newer = 0)
+            repository.visualMedia(chatId, oldest.messageId, older = PAGE_SIZE, newer = 0)
                 .onSuccess { messages ->
                     // Výsledek obsahuje i výchozí zprávu, ta se zahodí.
-                    val older = messages.filter { it.id < oldest.messageId }.mapNotNull { it.toViewerPhoto() }
+                    val older = messages.filter { it.id < oldest.messageId }.mapNotNull { it.toViewerItem() }
                     _state.update {
                         it.copy(
-                            photos = older + it.photos,
+                            items = older + it.items,
                             // Konec se pozná jen podle prázdné odpovědi, příznak TDLib nedává.
                             reachedOldest = older.isEmpty(),
                         )
@@ -116,16 +116,16 @@ class MediaViewerViewModel(
     private fun loadNewer() {
         val current = _state.value
         if (loadingNewer || current.reachedNewest) return
-        val newest = current.photos.lastOrNull() ?: return
+        val newest = current.items.lastOrNull() ?: return
         loadingNewer = true
 
         viewModelScope.launch {
-            repository.photos(chatId, newest.messageId, older = 0, newer = PAGE_SIZE)
+            repository.visualMedia(chatId, newest.messageId, older = 0, newer = PAGE_SIZE)
                 .onSuccess { messages ->
-                    val newer = messages.filter { it.id > newest.messageId }.mapNotNull { it.toViewerPhoto() }
+                    val newer = messages.filter { it.id > newest.messageId }.mapNotNull { it.toViewerItem() }
                     _state.update {
                         it.copy(
-                            photos = it.photos + newer,
+                            items = it.items + newer,
                             reachedNewest = newer.isEmpty(),
                         )
                     }
@@ -134,9 +134,9 @@ class MediaViewerViewModel(
         }
     }
 
-    private fun ChatMessage.toViewerPhoto(): ViewerPhoto? {
-        val photo = media as? MessageMedia.Photo ?: return null
-        return ViewerPhoto(messageId = id, photo = photo, caption = text)
+    private fun ChatMessage.toViewerItem(): ViewerItem? {
+        val media = media?.takeIf { it is MessageMedia.Photo || it is MessageMedia.Video } ?: return null
+        return ViewerItem(messageId = id, media = media, caption = text)
     }
 
     private companion object {
@@ -148,9 +148,10 @@ class MediaViewerViewModel(
     }
 }
 
-data class ViewerPhoto(
+data class ViewerItem(
     val messageId: Long,
-    val photo: MessageMedia.Photo,
+    /** [MessageMedia.Photo], nebo [MessageMedia.Video]. */
+    val media: MessageMedia,
     /** Popisek pod fotkou. Prázdný u fotky bez textu. */
     val caption: String,
 )
@@ -159,7 +160,7 @@ data class MediaViewerState(
     /** Zpráva, na které se prohlížeč otevřel. Pager na ní startuje. */
     val initialMessageId: Long,
     /** Načtený výřez fotek chatu, od nejstarší. Pager jde zleva doprava k novějším. */
-    val photos: List<ViewerPhoto> = emptyList(),
+    val items: List<ViewerItem> = emptyList(),
     /**
      * Pořadí otevřené fotky v chatu. Počítadlo u ostatních stránek se od něj odvozuje posunem
      * indexu — výřez je souvislý, takže to sedí.

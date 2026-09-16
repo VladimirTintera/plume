@@ -11,7 +11,7 @@ Fáze 6. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell
 živý seznam chatů, textová konverzace (historie, živé zprávy, odesílání, označení přečteného),
 avatary a fotky ve zprávách, reakce, odpovědi, notifikace na Androidu, sponzorované zprávy.
 
-Není: přehrávání videa, otevírání dokumentů, notifikace na iOS. Nastavení aplikace
+Není: otevírání dokumentů, notifikace na iOS. Nastavení aplikace
 se ukládá (DataStore), zatím ale drží jen poslední část výběru emoji/samolepek. Prohlížeč médií umí zatím jen fotky. Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
 
@@ -870,8 +870,8 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
 
 ## Prohlížeč médií
 
-Ťuknutí na fotku v bublině ji otevře přes celou obrazovku: štípnutí a dvojité ťuknutí přibližují,
-tah dolů zavírá.
+Ťuknutí na fotku nebo video v bublině je otevře přes celou obrazovku: u fotky štípnutí a dvojité
+ťuknutí přibližují, video se přehrává; tah dolů zavírá.
 
 - **Vlastní routa `MediaRoute`, ne overlay v konverzaci.** Ven se tím chodí zpět včetně predictive
   back, přežije to otočení i zabití procesu a nepotřebuje to `BackHandler`, který by predictive
@@ -920,6 +920,31 @@ tah dolů zavírá.
   světlém tématu dala tmavý text na tmavé ploše.
 - **Let z bubliny jede přes sdílený prvek** (`photoKey`), stejně jako avatar a název chatu.
   Na širokém rozvržení se nekoná: `LocalTwoPane` tam sdílení vypíná.
+
+### Video
+
+Video je vlastní typ přílohy (`MessageMedia.Video`: soubor, náhled, rozměry, délka). V bublině
+a v albu je náhled s tlačítkem přehrávání a délkou; přehrává se v prohlížeči, listuje se fotkami
+i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
+
+- **Přehrává se až v prohlížeči, ne v bublině.** Video v seznamu by se pralo se scrollem a swipem
+  na odpověď a každá viditelná bublina by držela dekodér.
+- **Video se stáhne celé, teprve pak hraje** (průběh přes náhled). Rozestavěný soubor z TDLib
+  přehrávač nepřečte, index bývá na konci. Streamování (čtení částí přes `readFilePart` / vlastní
+  zdroj dat přehrávače) je v roadmapě. Stahovat začne až vybraná stránka; soused složený dopředu ne.
+- **Přehrávač je v kompozici** (`rememberVideoPlayer`) a s ní se uvolní. Hraje jen vybraná
+  stránka; stav (pozice, délka, dohráno) se čte po 200 ms, přehrávače ho samy nehlásí.
+  Spuštění videa zastaví hrající hlasovku.
+- **Android: Media3 ExoPlayer do `TextureView`**, ne `PlayerView`. Ten kreslí do `SurfaceView`,
+  samostatného okna, které se s posunem vrstvy nehýbe — video by při tahu na zavření stálo.
+  Jen `media3-exoplayer` + `media3-ui` (kvůli `AspectRatioFrameLayout`): `media3-ui-compose`
+  táhne androidx Compose novější, než drží Compose Multiplatform. Audio focus řeší ExoPlayer.
+- **iOS: `AVPlayer` + `AVPlayerLayer` v UIKit view** (`UIKitView`, `interactionMode = null`, aby
+  dotyky šly do Compose). Vrstva velikost s view nemění sama — nastavuje se v `layoutSubviews`
+  bez implicitní animace. „Dohráno" AVPlayer stavem nehlásí, pozná se podle pozice u konce.
+- **Tah na zavření posouvá video `offset`em, ne `graphicsLayer`** — nativní view (UIKit) dostane
+  jen pozici z layoutu, transformaci vrstvy ne.
+- **Náhled MPEG-4 se zahazuje** (`ThumbnailFormatMpeg4`) — není to obrázek a Coil ho neotevře.
 
 ## Typy zpráv
 

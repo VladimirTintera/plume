@@ -10,6 +10,7 @@ import dev.g000sha256.tdl.dto.MessagePhoto
 import dev.g000sha256.tdl.dto.MessageSticker
 import dev.g000sha256.tdl.dto.MessageText
 import dev.g000sha256.tdl.dto.MessageVideo
+import dev.g000sha256.tdl.dto.ThumbnailFormatMpeg4
 import dev.g000sha256.tdl.dto.MessageVoiceNote
 import eu.tintera.plume.core.audio.decodeWaveform
 import dev.g000sha256.tdl.dto.MessageCall
@@ -244,11 +245,13 @@ private fun MessageDice.diceText(): String = if (value > 0) "$emoji $value" else
 internal fun Message.messageMedia(): MessageMedia? = when (val content = this.content) {
     is MessagePhoto -> content.photo.toMedia()
 
-    is MessageVideo -> MessageMedia.Attachment(
-        label = "Video",
-        thumbnailFileId = content.video.thumbnail?.file?.id,
-        // Kvůli průběhu nahrávání odesílaného videa.
+    is MessageVideo -> MessageMedia.Video(
         fileId = content.video.video.id,
+        // Náhled ve formátu MPEG-4 (animovaný) obrázek není; Coil ho neotevře.
+        thumbnailFileId = content.video.thumbnail?.takeIf { it.format !is ThumbnailFormatMpeg4 }?.file?.id,
+        width = content.video.width,
+        height = content.video.height,
+        durationSeconds = content.video.duration,
     )
 
     is MessageAnimation -> MessageMedia.Attachment(
