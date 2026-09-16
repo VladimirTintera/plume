@@ -627,42 +627,19 @@ private fun MessageInput(
     var draft by rememberSaveable { mutableStateOf("") }
     val density = LocalDensity.current
 
-    // Průhledný kontejner: vstupní pole leží přímo na pozadí konverzace, takže přes obrazovku
-    // nevede vodorovný předěl, o který se zprávy při scrollu „zasekávají". Tvar nese pilulka
-    // samotného pole, ne pruh pod ním — stejně to má Google Messages.
+    /*
+     * Pruh má barvu POZADÍ, jen průsvitnou.
+     *
+     * Zprávy pod něj zajíždějí (pole není `bottomBar`, viz výše) a bez pruhu by se pod kartou
+     * míchaly s textem. Plná barva by zase udělala ostrý předěl přes celou obrazovku. Průsvit
+     * dělá závoj: je vidět, že tam obsah je, ale nepřebíjí psaní.
+     */
     Surface(
-        color = Color.Transparent,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = INPUT_SCRIM_ALPHA),
         modifier = modifier.onSizeChanged {
             onHeightChanged(with(density) { it.height.toDp() })
         },
     ) {
-      Column {
-        // Rozepsaná odpověď je samostatná karta nad polem, ne řádek v pruhu. Plave nad
-        // konverzací, takže je vidět, že patří k psaní, ne k historii — a když se objeví,
-        // zprávy pod ni jen zajedou.
-        replyingTo?.let { target ->
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-            ) {
-                Row(
-                    Modifier.padding(start = 12.dp, end = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    QuotedMessage(target, partnerName = partnerName, modifier = Modifier.weight(1f))
-                    IconButton(onClick = onCancelReply) {
-                        Icon(
-                            painterResource(Res.drawable.close_24dp),
-                            contentDescription = "Zrušit odpověď",
-                        )
-                    }
-                }
-            }
-        }
-
         Row(
             Modifier
                 .fillMaxWidth()
@@ -672,18 +649,55 @@ private fun MessageInput(
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Box(Modifier.weight(1f)) {
+            /*
+             * JEDNA karta na citaci i na psaní.
+             *
+             * Dřív to byly dva samostatné kusy nad sebou a odpověď působila jako cizí prvek,
+             * co se vsunul mezi konverzaci a vstup. Takhle je vidět, že citace patří k tomu,
+             * co se právě píše.
+             *
+             * Pole uvnitř je průhledné — kontejner nese karta, ne ono; dvě zaoblené plochy
+             * v sobě by vypadaly jako chyba.
+             */
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier.weight(1f),
+            ) {
+              Column {
+                replyingTo?.let { target ->
+                    Row(
+                        Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        QuotedMessage(
+                            message = target,
+                            partnerName = partnerName,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(onClick = onCancelReply) {
+                            Icon(
+                                painterResource(Res.drawable.close_24dp),
+                                contentDescription = "Zrušit odpověď",
+                            )
+                        }
+                    }
+                }
+
+                Box {
             TextField(
                 value = draft,
                 onValueChange = { draft = it },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("Zpráva") },
                 maxLines = 6,
-                shape = RoundedCornerShape(24.dp),
                 colors = TextFieldDefaults.colors(
-                    // Podtržení u pole uvnitř vlastního chrome ruší; tvar nese zaoblení.
-                    focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                    unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                    // Kontejner i podtržení nese karta kolem; pole samo nekreslí nic.
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
                 ),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(
@@ -719,6 +733,8 @@ private fun MessageInput(
                     )
                 }
             }
+                }
+              }
             }
 
             FilledIconButton(
@@ -731,7 +747,6 @@ private fun MessageInput(
                 Icon(painterResource(Res.drawable.send_24dp), contentDescription = "Odeslat")
             }
         }
-      }
     }
 }
 
@@ -843,6 +858,14 @@ private val MESSAGE_SPACING = 4.dp
 
 /** Mezera navíc tam, kde začíná nová skupina — jiný odesílatel, jiný blok. */
 private val GROUP_SPACING = 8.dp
+
+/**
+ * Průsvit pruhu pod vstupním polem.
+ *
+ * Dost na to, aby text pod ním nerušil, ale ne plná barva — ta by udělala ostrý předěl přes
+ * celou obrazovku, což je právě to, co se odstraňovalo.
+ */
+private const val INPUT_SCRIM_ALPHA = 0.93f
 
 /** Zaoblení bubliny. Sdílí ho i startovní strana letu, aby se tvar po cestě neměnil. */
 private val BUBBLE_CORNER = 18.dp

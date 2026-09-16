@@ -251,8 +251,14 @@ obrazovky, ne na aplikaci.
   vedl vodorovný předěl, o který se zprávy při scrollu „zasekávaly". Teď plave nad obsahem
   a seznam se dole odsadí o jeho ZMĚŘENOU výšku — natvrdo zadaná konstanta by se rozešla
   s realitou, jakmile se pole zalomí na víc řádků nebo se nad ním objeví karta s citací.
-- **Rozepsaná odpověď je samostatná karta nad polem**, ne řádek v pruhu; tak to řeší i Google
-  Messages. Zprávy pod ni při jejím objevení zajedou, místo aby se přeskládaly.
+- **Citace a psaní jsou JEDNA karta.** Dva samostatné kusy nad sebou dělaly z odpovědi cizí prvek
+  vsunutý mezi konverzaci a vstup; ve společné kartě je vidět, že citace patří k tomu, co se
+  právě píše. Pole uvnitř je proto průhledné — kontejner nese karta, ne ono, a dvě zaoblené
+  plochy v sobě by vypadaly jako chyba.
+- **Pruh pod kartou má barvu POZADÍ, jen průsvitnou.** Zprávy pod něj zajíždějí, takže by se bez
+  něj pod kartou míchaly s textem; plná barva by zase vrátila ostrý předěl přes celou obrazovku,
+  kvůli kterému se `bottomBar` rušil. Průsvit dělá závoj: je vidět, že tam obsah je, ale nepřebíjí
+  psaní.
 
 ## Typy zpráv
 
