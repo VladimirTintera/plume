@@ -306,6 +306,23 @@ a nad ni nakreslí předěl „Nepřečtené zprávy".
 - **Předěl nepřečtených je akcentní, ne šedý jako datum.** Je to jediná věc, kterou uživatel po
   otevření chatu opravdu hledá.
 
+### Připnutá zpráva
+
+Pod hlavičkou visí pruh s nejnovější připnutou zprávou; ťuknutí na ni skočí (stejně jako citace,
+i se zvýrazněním a dotažením historie).
+
+- **Jen nejnovější připnutá** (`getChatPinnedMessage`). Listování mezi více připnutými zatím není.
+- **404 není chyba**, ale „nic připnutého".
+- **Na změnu se zpráva ČTE ZNOVU**, neodvozuje se z updatu. `UpdateMessageIsPinned` říká jen, že
+  se něco změnilo; po odepnutí nejnovější je nejnovější jiná a tu zná jen TDLib. Totéž po smazání
+  připnuté zprávy. Úprava připnuté zprávy se do pruhu propisuje z `editedMessages`.
+- **Odběr stojí PŘED prvním čtením** (`onStart { emit(Unit) }`), aby se změna mezi nimi neztratila.
+- **Pruh plave nad seznamem, není v `topBar`.** Seznam se odsazuje o jeho změřenou výšku, stejně
+  jako dole o vstupní pole — jinak by při odjezdu pruhu obsah na konci animace poskočil.
+  O stejnou výšku se posouvá i plovoucí datum.
+- **Při odjezdu se kreslí poslední zpráva**, ne prázdný pruh (`AnimatedVisibility` dobíhá
+  s obsahem, ale stav je už `null`).
+
 ### Skok na citaci a tlačítko dolů
 
 Ťuknutí na citaci v bublině odroluje na citovanou zprávu a krátce ji zvýrazní. Tlačítko „dolů"

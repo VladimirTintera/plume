@@ -39,6 +39,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -131,6 +133,7 @@ import eu.tintera.plume.resources.done_all_24dp
 import eu.tintera.plume.resources.error_24dp
 import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.reply_24dp
+import eu.tintera.plume.resources.push_pin_filled_24dp
 import eu.tintera.plume.resources.schedule_24dp
 import eu.tintera.plume.resources.send_24dp
 import kotlinx.coroutines.flow.debounce
@@ -188,6 +191,9 @@ fun ConversationScreen(
 
     /** Změřená výška plovoucího vstupního pole; drží odsazení seznamu v souladu s realitou. */
     var inputHeight by remember { mutableStateOf(0.dp) }
+
+    /** Změřená výška pruhu s připnutou zprávou; nula, když žádný není. Totéž jako u pole, jen nahoře. */
+    var pinnedHeight by remember { mutableStateOf(0.dp) }
 
     /*
      * Obsluha nabídky nad zprávou.
@@ -498,7 +504,7 @@ fun ConversationScreen(
                     contentPadding = PaddingValues(
                         start = 12.dp,
                         end = 12.dp,
-                        top = 8.dp,
+                        top = 8.dp + pinnedHeight,
                         bottom = 8.dp + inputHeight,
                     ),
                     // Rozestup UVNITŘ skupiny zpráv od jednoho odesílatele. Mezera mezi skupinami
@@ -639,8 +645,35 @@ fun ConversationScreen(
                     text = floatingDay,
                     // Stín ho odlepí od zpráv, které pod ním projíždějí.
                     shadowElevation = 3.dp,
-                    modifier = Modifier.padding(top = 8.dp),
+                    modifier = Modifier.padding(top = 8.dp + pinnedHeight),
                 )
+            }
+
+            /*
+             * Připnutá zpráva.
+             *
+             * Plave nad seznamem jako vstupní pole, ne v hlavičce Scaffoldu: seznam pod ní zajíždí
+             * a odsazuje se o její ZMĚŘENOU výšku. Kdyby byla součástí `topBar`, ukusovala by místo
+             * i ve chvíli, kdy odjíždí, a obsah by pod ní na konci animace poskočil.
+             */
+            val density = LocalDensity.current
+            AnimatedVisibility(
+                visible = state.pinned != null,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .onSizeChanged { pinnedHeight = with(density) { it.height.toDp() } },
+            ) {
+                // Při odjezdu se musí dál kreslit poslední zpráva, ne prázdný pruh.
+                val last = remember { arrayOfNulls<ChatMessage>(1) }
+                state.pinned?.let { last[0] = it }
+                last[0]?.let { pinned ->
+                    PinnedMessageBar(
+                        message = pinned,
+                        onClick = { viewModel.jumpToMessage(pinned.id) },
+                    )
+                }
             }
 
             // Odznak leží NAD seznamem, ne v něm — musí zůstat u spodní hrany i při scrollu.
@@ -1271,6 +1304,48 @@ private fun MessageInput(
                     painterResource(if (editing != null) Res.drawable.check_24dp else Res.drawable.send_24dp),
                     contentDescription = if (editing != null) "Uložit úpravu" else "Odeslat",
                     modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Pruh s připnutou zprávou pod hlavičkou.
+ *
+ * Ťuknutí skočí na zprávu v historii — stejnou cestou jako citace, i se zvýrazněním, takže
+ * se dotáhne i zpráva hluboko v minulosti.
+ */
+@Composable
+private fun PinnedMessageBar(message: ChatMessage, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                painterResource(Res.drawable.push_pin_filled_24dp),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = "Připnutá zpráva",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    // Připnutá fotka bez popisku by byla prázdný řádek.
+                    text = message.text.ifBlank { message.media.describe() }.replace('\n', ' '),
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
