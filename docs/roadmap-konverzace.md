@@ -110,5 +110,6 @@ jsou to tři řádky.
 Hotové: záložky Nedávné, Oblíbené, Trendy a sady se swipem; hledání samolepek i emoji; oblíbené;
 sada ze samolepky v chatu; emoji vkládané do textu včetně nedávných. Zbývá:
 
-- **Odstíny pleti** (podržení emoji s nabídkou variant) — katalog je teď bez nich.
+- **Dvě různé pleti u emoji s více osobami** (👫 s různým odstínem každé osoby) — nabízí se jen
+  stejný odstín pro všechny.
 - **Emoji novější než Unicode 15.0** — až je budou znát systémová písma podporovaných verzí.

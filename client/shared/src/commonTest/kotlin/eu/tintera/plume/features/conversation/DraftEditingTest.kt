@@ -50,4 +50,27 @@ class DraftEditingTest {
     fun emojiMimoKatalogNeprojde() {
         assertEquals(null, catalogEmoji("x"))
     }
+
+    @Test
+    fun palecMaPetOdstinu() {
+        assertEquals(listOf("👍🏻", "👍🏼", "👍🏽", "👍🏾", "👍🏿"), skinToneVariants("👍"))
+    }
+
+    @Test
+    fun viceOsobJenSeStejnymOdstinem() {
+        assertEquals("🧑🏽\u200D🤝\u200D🧑🏽", skinToneVariants("🧑\u200D🤝\u200D🧑")?.get(2))
+    }
+
+    @Test
+    fun emojiBezOdstinu() {
+        assertEquals(null, skinToneVariants("😀"))
+    }
+
+    @Test
+    fun zakladVariantyAKatalog() {
+        assertEquals("👍", baseEmoji("👍🏽"))
+        assertEquals("😀", baseEmoji("😀"))
+        // Nedávná ukládají varianty; při čtení nesmí vypadnout z katalogu.
+        assertEquals("👍🏽", catalogEmoji("👍🏽"))
+    }
 }
