@@ -346,6 +346,29 @@ vidí, že píšeme my.
 - **Chyba se jen loguje.** V kanálu bez práva psát `sendChatAction` selže; snackbar kvůli
   „píše…" by uživatele jen obtěžoval.
 
+### Úprava zprávy
+
+„Upravit" v nabídce nad zprávou přepne vstupní pole do úpravy: karta místo citace ukazuje původní
+text, tlačítko je fajfka a potvrzení volá `editMessageText`.
+
+- **Nenabízí se u zpráv s ručním formátováním** (`isEditableAsPlainText`). Pole umí jen holý
+  text — tučné, kurzíva, spoiler nebo odkaz s vlastním popiskem by úprava tiše smazala.
+  Automatické odkazy se poznají tak, že jejich text v adrese opravdu stojí; ty se při uložení
+  dohledají znovu (`getTextEntities`, stejně jako při odeslání).
+- **Nenabízí se ani u médií** — popisek fotky je jiné volání (`editMessageCaption`).
+- **Rozepsaný koncept se po dobu úpravy odloží a pak vrátí.** Úprava je vsuvka; kdo si uprostřed
+  psaní všimne překlepu, nechce přijít o rozepsanou zprávu. Při přepnutí z jedné úpravy do druhé
+  se odložený koncept nepřepisuje.
+- **Během úpravy se neukládá koncept ani „píše…"** (`onDraftChanged` se vrátí hned). V poli je
+  text staré zprávy; koncept by přepsal ten odložený.
+- **Z úpravy se odchází hned, ne po odpovědi serveru.** Výsledek dorazí `editedMessages` jako
+  každá jiná úprava. Když selže, úprava se vrátí do pole i s textem.
+- **Beze změny se nic neposílá** — server by odpověděl chybou.
+- **Text do pole jde přes `InputFill`**, společně s obnoveným konceptem. Koncept má
+  `onlyIfEmpty` (nesmí přepsat, co uživatel mezitím napsal), úprava pole přepisuje vždycky.
+- **Po „Upravit" dostane pole fokus a klávesnici.** Nabídka se otevírá dlouhým stiskem na zprávě,
+  takže pole fokus nemá a bez toho by nebylo poznat, že se něco stalo.
+
 ### Koncept (rozepsaná zpráva)
 
 Rozepsaný text se ukládá do TDLib (`setChatDraftMessage`), takže přežije odchod z chatu, je vidět
@@ -358,8 +381,9 @@ v seznamu chatů („Koncept: …") a na ostatních zařízeních.
   úloha je jen odešle.
 - **Odeslání čekající uložení ZAHODÍ.** TDLib koncept při odeslání maže sám (`clearDraft`);
   opožděné uložení by ho vrátilo se starým textem.
-- **Koncept se do pole vrací jen, když je prázdné.** Než ho TDLib vydá, mohl uživatel začít
-  psát. Po vrácení se `restoredDraft` vynuluje — jinak by se po otočení vrátil i smazaný.
+- **Koncept se do pole vrací jen, když je prázdné** (`InputFill.onlyIfEmpty`). Než ho TDLib
+  vydá, mohl uživatel začít psát. Po vložení se `inputFill` vynuluje — jinak by se po otočení
+  vrátil i smazaný.
 - **Pole drží `TextFieldValue`, ne `String`.** U vráceného konceptu je potřeba postavit kurzor
   na konec; `onDraftChanged` se volá jen při změně TEXTU, ne při pohybu kurzoru.
 - **Citace je součást konceptu** a obnoví se s ním (i když není v načtené historii).

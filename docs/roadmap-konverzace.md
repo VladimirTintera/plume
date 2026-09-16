@@ -32,12 +32,12 @@ je pod závojem s dírou na vybrané zprávě. Poučení je v `CLAUDE.md`, sekce
 Kód: `MessageMenu.kt`, `MessageMenu`/`PendingDelete` v `ConversationViewModel.kt`,
 `messageActions`/`deleteMessages` v repository, `core/ui/TextClipboard.kt`.
 
-V nabídce zatím: **Odpovědět, Kopírovat, Smazat**. Mrtvé položky se tam nedávají, takže zbytek
+V nabídce zatím: **Odpovědět, Upravit, Kopírovat, Smazat**. Mrtvé položky se tam nedávají, takže zbytek
 přibude s tím, co bude umět:
 
 - **Přeposlat** — potřebuje výběr cílového chatu, tedy vlastní obrazovku.
-- **Upravit** — `canBeEdited` z `MessageProperties` už máme k dispozici; chybí režim editace
-  ve vstupním poli.
+- **Upravit popisek média** (`editMessageCaption`) a **zprávu s ručním formátováním** —
+  vstupní pole umí jen holý text, takže úprava se u nich zatím nenabízí.
 - **Připnout** (`canBePinned`) — a k tomu pruh s připnutou zprávou v hlavičce.
 - **Vybrat víc zpráv** — hromadné mazání a přeposílání, znamená režim výběru v celé konverzaci.
 - **Informace / odkaz na zprávu** (`canGetLink`, `canGetViewers`, `canGetReadDate`).
@@ -92,11 +92,10 @@ Seřazeno podle toho, jak moc to bolí.
   v chatu stovky nepřečtených, skok nedostane. Dořešit by to znamenalo stránkovat oběma směry
   (kotva uprostřed přes záporný `offset` v `getChatHistory`).
 - **Profilovka odesílatele ve skupině.** Bubliny nesou jméno, ale žádnou tvář.
-- **Označení textu / kopírování.** Bez [B] a bez `SelectionContainer` se z konverzace nedá
-  dostat text ven.
+- **Označení části textu.** Kopíruje se jen celá zpráva z nabídky; vybrat úryvek
+  (`SelectionContainer`) zatím nejde.
 - **Připnutá zpráva** nemá v hlavičce pruh.
 - **Příloha se nedá poslat.** Vstupní pole umí jen text — chybí fotka, soubor, hlasovka, emoji.
-- **Editace a mazání vlastní zprávy** — obojí čeká na nabídku z [B].
 
 ---
 

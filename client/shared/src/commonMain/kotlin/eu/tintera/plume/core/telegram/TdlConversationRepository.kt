@@ -23,6 +23,7 @@ import dev.g000sha256.tdl.dto.MessageSendingStatePending
 import dev.g000sha256.tdl.dto.MessageSourceChatHistory
 import dev.g000sha256.tdl.dto.MessageText
 import dev.g000sha256.tdl.dto.ReactionTypeEmoji
+import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.toResult
 import kotlin.time.Clock
 import kotlinx.coroutines.flow.Flow
@@ -177,6 +178,7 @@ class TdlConversationRepository(
                     canCopy = properties.canBeSaved,
                     canDeleteForSelf = properties.canBeDeletedOnlyForSelf,
                     canDeleteForAll = properties.canBeDeletedForAllUsers,
+                    canEdit = properties.canBeEdited,
                 )
             }
 
@@ -233,13 +235,7 @@ class TdlConversationRepository(
      * nepřijmout zprávu vůbec.
      */
     override suspend fun send(chatId: Long, text: String, replyToMessageId: Long?): Result<ChatMessage> {
-        val entities = client.getTextEntities(text)
-            .toResult()
-            .map { it.entities }
-            .getOrElse { failure ->
-                logger.w(failure) { "Entity v odesílaném textu se nepodařilo dohledat." }
-                emptyArray()
-            }
+        val entities = detectEntities(text)
 
         return client.sendMessage(
             chatId = chatId,
@@ -282,6 +278,36 @@ class TdlConversationRepository(
         )
             .toResult()
             .map { }
+
+    override suspend fun editText(chatId: Long, messageId: Long, text: String): Result<Unit> =
+        client.editMessageText(
+            chatId = chatId,
+            messageId = messageId,
+            replyMarkup = null,
+            inputMessageContent = InputMessageText(
+                text = FormattedText(text = text, entities = detectEntities(text)),
+                linkPreviewOptions = null,
+                // Úprava s konceptem chatu nesouvisí; smazat ho by uživateli vzalo rozepsaný text.
+                clearDraft = false,
+            ),
+        )
+            .toResult()
+            .map { }
+
+    /**
+     * Odkazy, zmínky a spol. v textu, který uživatel napsal.
+     *
+     * Bez toho by odkaz odešel jako mrtvý text: server si ho sám neoznačí. Když dohledání selže,
+     * text odejde bez entit — přijít o odkaz je lepší než neodeslat vůbec.
+     */
+    private suspend fun detectEntities(text: String): Array<TextEntity> =
+        client.getTextEntities(text)
+            .toResult()
+            .map { it.entities.filterNotNull().toTypedArray() }
+            .getOrElse { failure ->
+                logger.w(failure) { "Entity v odesílaném textu se nepodařilo dohledat." }
+                emptyArray()
+            }
 
     override suspend fun saveDraft(chatId: Long, text: String, replyToMessageId: Long?): Result<Unit> =
         client.setChatDraftMessage(

@@ -65,6 +65,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_reaction_24dp
 import eu.tintera.plume.resources.content_copy_24dp
 import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.reply_24dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -103,6 +104,9 @@ fun MessageMenuOverlay(
     val items = buildList {
         if (menu.actions.canReply) {
             add(MenuItem(Res.drawable.reply_24dp, "Odpovědět") { handlers.onReply(id) })
+        }
+        if (menu.canEdit) {
+            add(MenuItem(Res.drawable.edit_24dp, "Upravit") { handlers.onEdit(id) })
         }
         // Bez textu není co kopírovat, i kdyby to server dovolil.
         if (menu.actions.canCopy && menu.hasText) {
@@ -467,6 +471,7 @@ data class MessageMenuHandlers(
     val onPick: (messageId: Long, emoji: String) -> Unit,
     val onMore: () -> Unit,
     val onReply: (messageId: Long) -> Unit,
+    val onEdit: (messageId: Long) -> Unit,
     val onCopy: (messageId: Long) -> Unit,
     val onDelete: (messageId: Long) -> Unit,
     val onDismiss: () -> Unit,
