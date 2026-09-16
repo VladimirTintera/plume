@@ -773,9 +773,18 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
   `onPrimaryContainer` na průhledném pozadí je nečitelný.
 - **Samotné emoji NENÍ textová zpráva.** Telegram ho posílá jako `MessageAnimatedEmoji`
   s animovanou podobou navíc, takže padalo do větve `else` a v bublině z něj bylo slovo „Zpráva".
-  Bere se z něj `emoji`, obyčejný unicode znak — ten je vždycky k dispozici, je ostrý v každé
-  velikosti a rovnou se na něj chytí vykreslení velkých emoji. Animovaná podoba je `.tgs`, kterou
-  stejně neumíme přehrát, a u prémiových emoji může mít libovolný formát.
+- **Animované emoji s `.tgs` je příloha** (`MessageMedia.AnimatedEmoji`), kreslí se stejnou
+  komponentou jako samolepka (`AnimatedSticker`) a bez bubliny. Text je u něj prázdný, jinak by pod
+  animací stál ještě jednou jako znak. O textu i příloze rozhoduje jedna funkce
+  (`MessageAnimatedEmoji.animationFileId`) — dvě nezávislá rozhodnutí by mohla nechat zprávu bez
+  obojího, nebo s obojím.
+- **Bez animace, nebo v jiném formátu, zůstává emoji textem** (`emoji`, obyčejný unicode znak):
+  vykreslí se sám a chytí se na něj vykreslení velkých emoji. Prémiová emoji můžou mít animaci
+  v libovolném formátu.
+- **Než se animace načte, drží místo tentýž znak velkým písmem** v pevném čtverci 112 dp. Přechod
+  je výměna obrázku za obrázek a bublina se při ní nepřeskládá.
+- **Kopírování animovaného emoji kopíruje jeho znak** (`copyableText`) — text je prázdný, ale
+  dřív, jako textová zpráva, to šlo.
 - **Kostka (`MessageDice`) padala do téhož `else`.** Hozená hodnota je součástí animace, takže se
   dopisuje číslem (`🎲 6`) — jinak by ze zprávy zbyl hod bez výsledku. Nula znamená, že server
   výsledek ještě neposlal.

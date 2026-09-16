@@ -137,14 +137,15 @@ internal fun Message.captionBody(): MessageBody = when (val content = this.conte
      * Samotné emoji NENÍ textová zpráva.
      *
      * Telegram ho posílá jako `MessageAnimatedEmoji` s animovanou podobou navíc, takže spadlo
-     * do větve `else` a v bublině z něj bylo slovo „Zpráva". `emoji` je obyčejný unicode znak,
-     * ten se vykreslí sám a rovnou se na něj chytí i vykreslení velkých emoji.
+     * do větve `else` a v bublině z něj bylo slovo „Zpráva".
      *
-     * Animovaná podoba (`animatedEmoji.sticker`) je `.tgs`, kterou stejně neumíme přehrát,
-     * a u prémiových emoji může být v libovolném formátu. Unicode znak je proti tomu vždycky
-     * k dispozici a ostrý v každé velikosti.
+     * Když je animace `.tgs`, kreslí se jako příloha (`MessageMedia.AnimatedEmoji`) a text zůstává
+     * prázdný — jinak by pod animací stál ještě jednou jako znak. Bez animace, nebo v jiném formátu
+     * (prémiová emoji můžou být cokoli), se vrací unicode znak: ten se vykreslí sám a chytí se
+     * na něj vykreslení velkých emoji.
      */
-    is MessageAnimatedEmoji -> MessageBody(content.emoji)
+    is MessageAnimatedEmoji ->
+        if (content.animationFileId() != null) MessageBody.Empty else MessageBody(content.emoji)
 
     is MessageDice -> MessageBody(content.diceText())
 
@@ -261,6 +262,11 @@ internal fun Message.messageMedia(): MessageMedia? = when (val content = this.co
     is MessageVoiceNote -> MessageMedia.Attachment(label = "Hlasová zpráva", thumbnailFileId = null)
     is MessageSticker -> content.sticker.toMedia()
 
+    // O textu a příloze rozhoduje jedna funkce, `animationFileId` — obě větve se nesmí rozejít.
+    is MessageAnimatedEmoji -> content.animationFileId()?.let { fileId ->
+        MessageMedia.AnimatedEmoji(animationFileId = fileId, emoji = content.emoji)
+    }
+
     // Kolečko s videem. Náhled je čtvercový, kulatý ořez by patřil k přehrávání, které neumíme.
     is MessageVideoNote -> MessageMedia.Attachment(
         label = "Video zpráva",
@@ -292,6 +298,15 @@ internal fun Message.messageMedia(): MessageMedia? = when (val content = this.co
  * Náhled se bere jen v rastrovém formátu: `ThumbnailFormatTgs` a `Mpeg4` mají tentýž problém
  * jako samotná samolepka, takže by se jen přeneslo o úroveň níž.
  */
+/**
+ * Animace emoji, pokud je v přehratelném formátu.
+ *
+ * Společné rozhodnutí pro `captionBody()` i `messageMedia()`: kdyby každá větev rozhodovala sama,
+ * mohla by zpráva skončit bez textu i bez přílohy, nebo s obojím.
+ */
+private fun MessageAnimatedEmoji.animationFileId(): Int? =
+    animatedEmoji.sticker?.takeIf { it.format is StickerFormatTgs }?.sticker?.id
+
 private fun Sticker.toMedia(): MessageMedia.Sticker {
     val rasterThumbnail = thumbnail?.takeIf {
         it.format is ThumbnailFormatWebp ||

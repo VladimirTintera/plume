@@ -72,8 +72,6 @@ Co zbývá:
 - **Uložení a sdílení** fotky ven z aplikace.
 - **Samolepky `.webm`** (VP9 s průhledností) jsou pořád jen statický náhled — potřebují
   softwarový dekodér (libvpx), iOS WebM neumí vůbec.
-- **Animovaná emoji** (`MessageAnimatedEmoji.animatedEmoji.sticker`) jsou taky `.tgs`; dnes se
-  kreslí jako velký unicode znak, přehrát by je šlo stejně jako samolepky.
 - **Průběh stahování originálu.** `RemoteImage` ukazuje náhled z bubliny, dokud nedorazí ostrá
   verze, ale u velké fotky na pomalé síti není poznat, že se něco děje.
 - **Let z bubliny na širokém rozvržení.** `LocalTwoPane` tam sdílené prvky vypíná kvůli seznamu
