@@ -50,6 +50,7 @@ import dev.g000sha256.tdl.dto.TextEntityTypeStrikethrough
 import dev.g000sha256.tdl.dto.TextEntityTypeTextUrl
 import dev.g000sha256.tdl.dto.TextEntityTypeUnderline
 import dev.g000sha256.tdl.dto.TextEntityTypeUrl
+import dev.g000sha256.tdl.dto.StickerFormatTgs
 import dev.g000sha256.tdl.dto.StickerFormatWebp
 import dev.g000sha256.tdl.dto.ThumbnailFormatJpeg
 import dev.g000sha256.tdl.dto.ThumbnailFormatPng
@@ -300,6 +301,7 @@ private fun Sticker.toMedia(): MessageMedia.Sticker {
 
     return MessageMedia.Sticker(
         fileId = sticker.id.takeIf { format is StickerFormatWebp },
+        animationFileId = sticker.id.takeIf { format is StickerFormatTgs },
         thumbnailFileId = rasterThumbnail?.file?.id,
         width = width,
         height = height,

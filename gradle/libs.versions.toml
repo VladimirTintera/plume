@@ -31,6 +31,12 @@ materialkolor = "4.1.1"
 kermit = "2.1.0"
 zxing = "3.5.3"
 coil = "3.5.0"
+# Animované samolepky (.tgs = gzipovaná Lottie). Compottie táhne `foundation` tranzitivně
+# a novější verze než náš Compose by ho tiše povýšila mimo ověřenou kombinaci s material3 alphou.
+# Při bumpu zkontroluj `foundation` v jejích metadatech (.module na Maven Central).
+compottie = "2.3.1"
+# Gzip pro .tgs. Tutéž verzi táhne Compottie; výslovně kvůli tomu, že ji používáme přímo.
+okio = "3.16.4"
 buildconfig = "6.0.10"
 googleServices = "4.4.4"
 firebaseBom = "34.4.0"
@@ -79,6 +85,8 @@ materialkolor = { module = "com.materialkolor:material-kolor", version.ref = "ma
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+compottie-lite = { module = "io.github.alexzhirkevich:compottie-lite", version.ref = "compottie" }
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 
