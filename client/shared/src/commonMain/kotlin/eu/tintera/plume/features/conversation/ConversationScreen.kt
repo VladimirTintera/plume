@@ -141,6 +141,7 @@ import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.ui.rememberUploadProgress
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.RichText
+import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.arrow_downward_24dp
@@ -175,6 +176,8 @@ fun ConversationScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // Čte se až v bublině hlasovky, takže změna pozice nepřekresluje celou obrazovku.
+    val voicePlayback by viewModel.voicePlayback.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     var stickerPickerOpen by rememberSaveable { mutableStateOf(false) }
@@ -746,6 +749,9 @@ fun ConversationScreen(
                                 album = row.members.takeIf { row.isAlbum },
                                 onOpenAlbumItem = { messageId -> onOpenMedia(messageId) },
                                 onCancelUpload = viewModel::cancelUpload,
+                                voicePlayback = { voicePlayback?.takeIf { it.key.messageId == message.id } },
+                                onToggleVoice = { viewModel.toggleVoice(message.id) },
+                                onSeekVoice = { fraction -> viewModel.seekVoice(message.id, fraction) },
                                 quoted = message.replyToMessageId?.let { id ->
                                     byId[id] ?: state.quotes[id]
                                 },
@@ -975,6 +981,10 @@ private fun MessageBubble(
     onOpenAlbumItem: (messageId: Long) -> Unit,
     /** Ťuknutí na průběh nahrávání — zruší odesílání té zprávy (u alba jen té položky). */
     onCancelUpload: (messageId: Long) -> Unit,
+    /** Přehrávání hlasovky, pokud hraje právě tahle zpráva; čte se až v bublině (viz [VoiceNoteContent]). */
+    voicePlayback: () -> VoicePlayback?,
+    onToggleVoice: () -> Unit,
+    onSeekVoice: (Float) -> Unit,
     avatar: SenderAvatar,
     onToggleReaction: (String) -> Unit,
     onRequestMenu: () -> Unit,
@@ -1202,6 +1212,14 @@ private fun MessageBubble(
                             onRequestMenu = onRequestMenu,
                             uploading = message.sendState == SendState.Sending,
                             onCancelUpload = { onCancelUpload(message.id) },
+                            voice = VoiceHandlers(
+                                playback = voicePlayback,
+                                onToggle = onToggleVoice,
+                                onSeek = onSeekVoice,
+                                // Jako u citace: v odchozí `primary` bublině nese akcent barva popředí.
+                                accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
+                                onAccent = if (message.isOutgoing) containerColor else MaterialTheme.colorScheme.onPrimary,
+                            ),
                         )
                     }
                 }
@@ -1900,6 +1918,7 @@ private fun MessageMedia?.describe(): String = when (this) {
     // V citaci není kam kreslit obrázek, takže samolepka se popíše svým emoji.
     is MessageMedia.Sticker -> emoji.ifBlank { "Samolepka" }
     is MessageMedia.AnimatedEmoji -> emoji
+    is MessageMedia.VoiceNote -> "Hlasová zpráva"
     null -> ""
 }
 
@@ -2245,6 +2264,7 @@ private fun MessageAttachment(
     /** Odesílaná zpráva: přes přílohu se kreslí průběh nahrávání. */
     uploading: Boolean = false,
     onCancelUpload: () -> Unit = {},
+    voice: VoiceHandlers = VoiceHandlers.None,
 ) {
     val shape = RoundedCornerShape(12.dp)
 
@@ -2331,6 +2351,14 @@ private fun MessageAttachment(
             ),
         )
         is MessageMedia.AnimatedEmoji -> AnimatedEmojiImage(media)
+        is MessageMedia.VoiceNote -> VoiceNoteContent(
+            voice = media,
+            playback = voice.playback,
+            onToggle = voice.onToggle,
+            onSeek = voice.onSeek,
+            accent = voice.accent,
+            onAccent = voice.onAccent,
+        )
     }
 }
 
@@ -2715,4 +2743,17 @@ private fun Presence.describe(): String = when (this) {
     Presence.LastWeek -> "naposledy tento týden"
     Presence.LastMonth -> "naposledy tento měsíc"
     is Presence.Offline -> "naposledy " + wasOnline.asRelativeTime()
+}
+
+/** Co bublina potřebuje k hlasovce; u ostatních příloh se nepoužije. */
+private class VoiceHandlers(
+    val playback: () -> VoicePlayback?,
+    val onToggle: () -> Unit,
+    val onSeek: (Float) -> Unit,
+    val accent: Color,
+    val onAccent: Color,
+) {
+    companion object {
+        val None = VoiceHandlers({ null }, {}, {}, Color.Unspecified, Color.Unspecified)
+    }
 }

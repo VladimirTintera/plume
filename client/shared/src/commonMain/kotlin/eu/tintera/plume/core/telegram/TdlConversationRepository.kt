@@ -114,6 +114,14 @@ class TdlConversationRepository(
             .filter { it.chatId == chatId && it.isPermanent }
             .map { it.messageIds.toList() }
 
+    override fun contentOpenedUpdates(chatId: Long): Flow<Long> =
+        holder.updates { messageContentOpenedUpdates }
+            .filter { it.chatId == chatId }
+            .map { it.messageId }
+
+    override suspend fun openContent(chatId: Long, messageId: Long): Result<Unit> =
+        client.openMessageContent(chatId = chatId, messageId = messageId).toResult().map { }
+
     override fun editedMessages(chatId: Long): Flow<ChatMessage> =
         holder.updates { messageContentUpdates }
             .filter { it.chatId == chatId }
