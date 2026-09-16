@@ -1031,6 +1031,10 @@ cesta je známá až po stažení a průběh chodí updaty. Překlad do jednoho 
 Drž se **Material 3 Expressive guidelines a výchozích hodnot komponent**. Nečitelné změti barev
 a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho dodržování.
 
+- **Verze Compose se berou z mlogu** (stejný Kotlin i AGP, ověřená kombinace): Compose, material3
+  alpha, adaptive a lifecycle se zvedají spolu. Od Compose 1.12 se okno čte přes
+  `currentWindowAdaptiveInfoV2` (zná navíc třídy Large a XL — na `widthClass` to nic nemění, obě
+  leží nad Expanded) a stav modálního sheetu přes `rememberBottomSheetState(SheetValue.Hidden)`.
 - **`material3` musí zůstat na ALPHA kanálu.** Ve stable artefaktu jsou API pod
   `@ExperimentalMaterial3ExpressiveApi` vyříznutá — `MaterialExpressiveTheme`, `MotionScheme`,
   `LoadingIndicator`, `WideNavigationRail`, `ButtonGroup`, `FloatingActionButtonMenu`. Bez alphy

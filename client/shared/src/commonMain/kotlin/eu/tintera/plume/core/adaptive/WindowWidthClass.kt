@@ -1,6 +1,6 @@
 package eu.tintera.plume.core.adaptive
 
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.runtime.Composable
 import androidx.window.core.layout.WindowSizeClass
 
@@ -13,9 +13,15 @@ fun WindowSizeClass.widthClass(): WindowWidthClass = when {
     else -> WindowWidthClass.COMPACT
 }
 
+/**
+ * Šířková třída okna.
+ *
+ * V2 zná navíc třídy Large a XL. Na výsledku to nic nemění: obě leží nad hranicí Expanded
+ * a [widthClass] se ptá jen „aspoň Expanded / aspoň Medium".
+ */
 @Composable
 fun windowWidthClass(): WindowWidthClass =
-    currentWindowAdaptiveInfo().windowSizeClass.widthClass()
+    currentWindowAdaptiveInfoV2().windowSizeClass.widthClass()
 
 @Composable
 fun isCompact(): Boolean = windowWidthClass() == WindowWidthClass.COMPACT
