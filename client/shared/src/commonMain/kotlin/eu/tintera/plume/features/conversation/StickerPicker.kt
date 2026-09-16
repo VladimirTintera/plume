@@ -327,6 +327,11 @@ sealed interface StickerSearchState {
 fun StickerPickerSheet(
     mode: ExpressionMode,
     onModeChange: (ExpressionMode) -> Unit,
+    /**
+     * `false` při úpravě zprávy: výběr ukáže jen emoji a přepínač schová. Uložená volba ([mode])
+     * se tím nemění — po úpravě se výběr otevře zase tam, kde byl naposledy.
+     */
+    stickersAvailable: Boolean,
     /** Rozepsaný text, do kterého emoji vkládá. */
     draft: TextFieldValue,
     onDraftEdit: (TextFieldValue) -> Unit,
@@ -387,7 +392,7 @@ fun StickerPickerSheet(
          * tlačítkem a patří k témuž psaní. Přepínač jsou segmentová tlačítka — dvě rovnocenné
          * volby, ne záložky obsahu (ty má každá část vlastní).
          */
-        SingleChoiceSegmentedButtonRow(
+        if (stickersAvailable) SingleChoiceSegmentedButtonRow(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         ) {
             ExpressionMode.entries.forEachIndexed { index, entry ->
@@ -406,7 +411,7 @@ fun StickerPickerSheet(
             }
         }
 
-        if (mode == ExpressionMode.Emoji) {
+        if (mode == ExpressionMode.Emoji || !stickersAvailable) {
             EmojiPanel(
                 viewModel = viewModel,
                 draft = draft,

@@ -558,6 +558,8 @@ fun ConversationScreen(
             StickerPickerSheet(
                 mode = expressionMode,
                 onModeChange = viewModel::setExpressionMode,
+                // Při úpravě zprávy jen emoji: samolepku do upravované zprávy vložit nejde.
+                stickersAvailable = state.editing == null,
                 draft = draft,
                 // Úprava z výběru emoji je psaní jako každé jiné: ukládá koncept i hlásí „píše…".
                 onDraftEdit = {
@@ -1362,31 +1364,22 @@ private fun MessageInput(
                 },
                 modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                 placeholder = { Text("Zpráva") },
-                // Samolepky jen při psaní — k úpravě textové zprávy samolepka nepatří.
-                trailingIcon = if (editing == null) {
-                    {
-                        IconButton(
-                            onClick = {
-                                // Sheet a klávesnice by se jinak přetahovaly o spodek obrazovky.
-                                keyboard?.hide()
-                                onOpenStickers()
-                            },
-                        ) {
-                            // Ikona slibuje, co se otevře: poslední použitou část výběru.
-                            when (expressionMode) {
-                                ExpressionMode.Emoji -> Icon(
-                                    painterResource(Res.drawable.mood_24dp),
-                                    contentDescription = "Emoji",
-                                )
-                                ExpressionMode.Stickers -> Icon(
-                                    painterResource(Res.drawable.sticky_note_2_24dp),
-                                    contentDescription = "Samolepky",
-                                )
-                            }
+                trailingIcon = {
+                    IconButton(
+                        onClick = {
+                            // Sheet a klávesnice by se jinak přetahovaly o spodek obrazovky.
+                            keyboard?.hide()
+                            onOpenStickers()
+                        },
+                    ) {
+                        // Ikona slibuje, co se otevře: poslední použitou část výběru. Při úpravě
+                        // zprávy jde otevřít jen emoji — samolepka do textu upravované zprávy nepatří.
+                        if (editing != null || expressionMode == ExpressionMode.Emoji) {
+                            Icon(painterResource(Res.drawable.mood_24dp), contentDescription = "Emoji")
+                        } else {
+                            Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = "Samolepky")
                         }
                     }
-                } else {
-                    null
                 },
                 maxLines = 6,
                 colors = TextFieldDefaults.colors(
