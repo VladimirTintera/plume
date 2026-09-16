@@ -145,6 +145,10 @@ aplikace pamatuje o uživateli; data z Telegramu drží TDLib.
   z chatu se musí uložit.
 - **`ExpressionMode`** (Emoji / Samolepky): poslední otevřená část výběru. Podle ní se výběr
   otevře a ikona tlačítka ve vstupním poli ukazuje, co se otevře (smajlík / samolepka).
+- **Nedávná emoji** (`recentEmojis`): nejnovější první, bez duplicit, nejvýš 40. Uložená jako
+  jeden řetězec oddělený mezerou — `stringSetPreferencesKey` by ztratil pořadí; mezera v žádném
+  emoji není. Přidání čte i zapisuje uvnitř jednoho `edit`, takže se dvě rychlá ťuknutí
+  nepřepíšou, a běží v rozsahu nastavení (`recordRecentEmoji` neblokuje).
 - Testy nad skutečným souborem v dočasném adresáři (`DataStoreAppSettingsTest`), každý test
   vlastní soubor.
 
@@ -946,6 +950,10 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
 - **Hledání přes `searchEmojis`** v jazyce zařízení a angličtině, výsledky zúžené na katalog.
   TDLib vrací emoji občas bez U+FE0F; porovnává se bez něj a vkládá se podoba z katalogu, jinak
   by se na části systémů nakreslila jako černobílý textový symbol.
+- **Nedávná emoji jsou první záložka** (ukládá se ťuknutí ve výběru, i ve výsledcích hledání;
+  emoji ze systémové klávesnice zachytit nejde). **Ve sheetu jsou zmražená** na stav při otevření —
+  živý seznam by se po každém ťuknutí přeskládal pod prstem. Bez nedávných se výběr otevře
+  rovnou na první skupině. Při čtení se zúží na katalog.
 - **Výšky obou částí sedí**: náhled textu si ukousne z výšky mřížky, takže přepnutí Emoji /
   Samolepky sheet nenatáhne.
 

@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import okio.Path.Companion.toPath
 
 /**
@@ -25,7 +26,19 @@ interface AppSettings {
     val expressionMode: StateFlow<ExpressionMode>
 
     suspend fun setExpressionMode(mode: ExpressionMode)
+
+    /** Emoji naposledy vybraná ve výběru, od nejnovějšího. Bez duplicit, nejvýš [MAX_RECENT_EMOJIS]. */
+    val recentEmojis: StateFlow<List<String>>
+
+    /**
+     * Zařadí emoji na začátek nedávných (už použité se přesune). Neblokuje — zápis běží v rozsahu
+     * aplikace, aby ho nezrušil odchod z obrazovky hned po ťuknutí.
+     */
+    fun recordRecentEmoji(emoji: String)
 }
+
+/** Kolik nedávných emoji se drží. Zhruba pět řádků mřížky na telefonu. */
+const val MAX_RECENT_EMOJIS = 40
 
 /** Část výběru: emoji se vkládají do textu, samolepky se posílají. */
 enum class ExpressionMode { Emoji, Stickers }
@@ -39,7 +52,7 @@ enum class ExpressionMode { Emoji, Stickers }
  */
 class DataStoreAppSettings(
     private val dataStore: DataStore<Preferences>,
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
 ) : AppSettings {
 
     override val expressionMode: StateFlow<ExpressionMode> = dataStore.data
@@ -53,8 +66,31 @@ class DataStoreAppSettings(
         dataStore.edit { it[EXPRESSION_MODE] = mode.name }
     }
 
+    override val recentEmojis: StateFlow<List<String>> = dataStore.data
+        .map { preferences -> preferences[RECENT_EMOJIS]?.decodeEmojis().orEmpty() }
+        .stateIn(scope, SharingStarted.Eagerly, emptyList())
+
+    override fun recordRecentEmoji(emoji: String) {
+        scope.launch {
+            // Čte a zapisuje se uvnitř `edit`: dvě rychlá ťuknutí za sebou se nepřepíšou navzájem.
+            dataStore.edit { preferences ->
+                val current = preferences[RECENT_EMOJIS]?.decodeEmojis().orEmpty()
+                val updated = (listOf(emoji) + current.filterNot { it == emoji }).take(MAX_RECENT_EMOJIS)
+                preferences[RECENT_EMOJIS] = updated.joinToString(EMOJI_SEPARATOR)
+            }
+        }
+    }
+
+    /*
+     * Seznam jako jeden řetězec oddělený mezerou. `stringSetPreferencesKey` by ztratil pořadí,
+     * a na tom tady záleží. Mezera v žádném emoji není (ani ve složeninách přes ZWJ).
+     */
+    private fun String.decodeEmojis(): List<String> = split(EMOJI_SEPARATOR).filter { it.isNotEmpty() }
+
     private companion object {
         val EXPRESSION_MODE = stringPreferencesKey("expression_mode")
+        val RECENT_EMOJIS = stringPreferencesKey("recent_emojis")
+        const val EMOJI_SEPARATOR = " "
     }
 }
 

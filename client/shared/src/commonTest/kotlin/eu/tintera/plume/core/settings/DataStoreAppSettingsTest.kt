@@ -33,6 +33,33 @@ class DataStoreAppSettingsTest {
     }
 
     @Test
+    fun nedavnaEmojiNejnovejsiPrvniBezDuplicit() = runTest {
+        val settings = DataStoreAppSettings(createSettingsDataStore(tempPath()), backgroundScope)
+
+        listOf("😀", "👍", "😀", "👨‍👩‍👧").forEach { emoji ->
+            settings.recordRecentEmoji(emoji)
+            // Zápis běží v rozsahu nastavení; počká se, až se projeví.
+            settings.recentEmojis.first { it.firstOrNull() == emoji }
+        }
+
+        assertEquals(listOf("👨‍👩‍👧", "😀", "👍"), settings.recentEmojis.value)
+    }
+
+    @Test
+    fun nedavnychJeNejvysStrop() = runTest {
+        val settings = DataStoreAppSettings(createSettingsDataStore(tempPath()), backgroundScope)
+        val emojis = (0..MAX_RECENT_EMOJIS).map { "e$it" }
+
+        emojis.forEach { emoji ->
+            settings.recordRecentEmoji(emoji)
+            settings.recentEmojis.first { it.firstOrNull() == emoji }
+        }
+
+        assertEquals(MAX_RECENT_EMOJIS, settings.recentEmojis.value.size)
+        assertEquals(emojis.last(), settings.recentEmojis.value.first())
+    }
+
+    @Test
     fun neznamaHodnotaSpadneNaVychozi() = runTest {
         val dataStore = createSettingsDataStore(tempPath())
         // Hodnota z budoucí verze aplikace, kterou tahle verze nezná.
