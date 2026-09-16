@@ -406,6 +406,15 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
 - **Ve skupině patří k řádku profilovka ODESÍLATELE**, ne fotka skupiny; fotka chatu je záloha pro
   kanály a boty, kde odesílatel vlastní profilovku nemá. Jméno i fotka se berou z jednoho dotazu
   na uživatele.
+- **Velký kruh v notifikaci bere Android ze ZKRATKY, ne ze `setLargeIcon`.** U `MessagingStyle`
+  se `setLargeIcon` ignoruje: bez `ShortcutInfo` + `setShortcutId` notifikaci nepovažuje za
+  konverzaci a do kruhu dosadí ikonu aplikace. Takhle vznikly dvě ikony naráz — panáček nahoře
+  a profilovka u řádku. Zkratka MUSÍ být dlouhověká (`setLongLived`), jinak ji systém po čase
+  zahodí a kruh se vrátí k ikoně aplikace; její intent musí mít nastavenou akci, jinak
+  `pushDynamicShortcut` vyhodí výjimku. Vedlejší efekt je nabídka po podržení ikony aplikace —
+  to je záměr, přesně tak to dělá Telegram i Messages.
+- **Profilovka u řádku patří jen do skupiny.** V soukromém chatu je to tatáž fotka, kterou nese
+  ikona konverzace, takže by v notifikaci byla dvakrát nad sebou.
 - **Velká ikona notifikace je fotka CHATU, ne odesílatele.** Je to ten kruh vlevo; bez něj tam
   Android dá ikonu aplikace, takže u všech chatů svítí totéž a nepoznají se od sebe. U řádku
   naopak patří profilovka toho, kdo psal — ve skupině to jsou dvě různé fotky.

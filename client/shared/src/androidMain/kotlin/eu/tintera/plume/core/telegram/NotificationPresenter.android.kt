@@ -12,6 +12,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.content.ContextCompat
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.notifications.NotificationIntents
 import kotlinx.coroutines.CoroutineScope
@@ -173,16 +175,23 @@ actual class NotificationPresenter(
                 line.timestampMs,
                 Person.Builder()
                     .setName(line.sender ?: conversation.title)
-                    .setIcon(line.icon)
+                    // Profilovka u řádku jen ve SKUPINĚ. V soukromém chatu je to tatáž fotka,
+                    // kterou nese ikona konverzace — dvě stejné fotky v jedné notifikaci nad
+                    // sebou nic nepřidají, jen zabírají místo.
+                    .setIcon(line.icon.takeIf { isGroup })
                     .build(),
             )
         }
 
         val built = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_email)
-            // Velká ikona je ten kruh vlevo v notifikaci. Bez ní tam Android dá ikonu
-            // aplikace, takže u všech chatů svítí totéž a nepoznají se od sebe.
+            // Velká ikona je záloha. U `MessagingStyle` si ji Android bere ze ZKRATKY (viz
+            // `publishShortcut`) a tuhle ignoruje — uplatní se, jen když se zkratku nepodaří
+            // publikovat.
             .setLargeIcon(avatarBitmap(conversation.avatarPath))
+            // Bez zkratky není notifikace „konverzace": Android pak do velkého kruhu dosadí
+            // ikonu aplikace a notifikace skončí mimo sekci konverzací.
+            .setShortcutId(publishShortcut(conversation))
             .setStyle(style)
             .setSilent(silent)
             .setAutoCancel(true)
@@ -223,6 +232,46 @@ actual class NotificationPresenter(
                 icon = message.person?.icon,
             )
         }
+    }
+
+    /**
+     * Zkratka konverzace. Vrací její id, nebo `null`, když se ji nepodařilo publikovat.
+     *
+     * **Tohle je to, odkud Android bere velký kruh v notifikaci.** `setLargeIcon` u `MessagingStyle`
+     * ignoruje; bez zkratky notifikaci nepovažuje za konverzaci a do kruhu dosadí ikonu aplikace.
+     * Tak vznikly dvě ikony naráz: panáček nahoře a profilovka u řádku.
+     *
+     * Zkratka musí být **dlouhověká** (`setLongLived`) — jinak ji systém po čase zahodí a velký
+     * kruh se u starších notifikací vrátí k ikoně aplikace. Zároveň se objeví v nabídce po
+     * podržení ikony aplikace, což je záměr: přesně takhle to dělá Telegram i Messages.
+     *
+     * `pushDynamicShortcut` sám hlídá systémový strop na počet zkratek a nejstarší odsouvá,
+     * takže se tu nic nepočítá.
+     */
+    private fun publishShortcut(conversation: Conversation): String? {
+        val intent = NotificationIntents.chatIntent(context, conversation.chatId) ?: return null
+        val id = SHORTCUT_PREFIX + conversation.chatId
+
+        val person = Person.Builder()
+            .setName(conversation.title)
+            .setKey(id)
+            .setIcon(avatarIcon(conversation.avatarPath))
+            .build()
+
+        val shortcut = ShortcutInfoCompat.Builder(context, id)
+            .setLongLived(true)
+            .setShortLabel(conversation.title)
+            .setIntent(intent)
+            .setPerson(person)
+            .apply { avatarIcon(conversation.avatarPath)?.let { setIcon(it) } }
+            .build()
+
+        // Chybu polyká schválně: notifikace bez zkratky je pořád lepší než žádná notifikace.
+        val pushed = runCatching { ShortcutManagerCompat.pushDynamicShortcut(context, shortcut) }
+            .onFailure { logger.w(it) { "Zkratku konverzace se nepodařilo publikovat." } }
+            .getOrDefault(false)
+
+        return id.takeIf { pushed }
     }
 
     /** Profilovka jako ikona řádku v notifikaci. */
@@ -267,5 +316,8 @@ actual class NotificationPresenter(
 
         /** Kolik zpráv se v notifikaci drží. Android jich stejně vykreslí jen posledních pár. */
         const val MAX_LINES = 10
+
+        /** Prefix id zkratky konverzace. Musí být stabilní, aby se zkratka přepisovala, ne množila. */
+        const val SHORTCUT_PREFIX = "chat_"
     }
 }

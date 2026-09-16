@@ -16,18 +16,28 @@ object NotificationIntents {
 
     const val EXTRA_CHAT_ID = "eu.tintera.plume.extra.CHAT_ID"
 
-    fun openChat(context: Context, notificationId: Int, chatId: Long): PendingIntent? {
+    /**
+     * Holý intent na otevření chatu.
+     *
+     * Potřebuje ho zkratka konverzace (`ShortcutInfo`), která na rozdíl od notifikace nechce
+     * `PendingIntent`. **Musí mít nastavenou akci** — bez ní `pushDynamicShortcut` vyhodí výjimku.
+     */
+    fun chatIntent(context: Context, chatId: Long): Intent? {
         val component = context.packageManager
             .getLaunchIntentForPackage(context.packageName)
             ?.component
             ?: return null
 
-        val intent = Intent()
+        return Intent(Intent.ACTION_VIEW)
             .setComponent(component)
             .putExtra(EXTRA_CHAT_ID, chatId)
             // SINGLE_TOP + launchMode singleTop v manifestu = běžící aplikace dostane intent do
             // `onNewIntent` místo toho, aby se activity složila znovu a ztratila stav.
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+    }
+
+    fun openChat(context: Context, notificationId: Int, chatId: Long): PendingIntent? {
+        val intent = chatIntent(context, chatId) ?: return null
 
         return PendingIntent.getActivity(
             context,
