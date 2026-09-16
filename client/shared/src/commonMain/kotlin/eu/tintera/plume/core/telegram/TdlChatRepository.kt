@@ -23,6 +23,8 @@ import dev.g000sha256.tdl.dto.ChatActionUploadingVideo
 import dev.g000sha256.tdl.dto.ChatActionUploadingVideoNote
 import dev.g000sha256.tdl.dto.ChatActionUploadingVoiceNote
 import dev.g000sha256.tdl.dto.ChatTypeSecret
+import dev.g000sha256.tdl.dto.DraftMessage
+import dev.g000sha256.tdl.dto.DraftMessageContentText
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.UserStatus
 import dev.g000sha256.tdl.dto.UserStatusLastWeek
@@ -130,6 +132,23 @@ class TdlChatRepository(
                     current.copy(
                         lastMessagePreview = update.lastMessage?.previewText(),
                         lastMessageTimestamp = update.lastMessage?.date,
+                        order = position?.order ?: current.order,
+                        isPinned = position?.isPinned ?: current.isPinned,
+                    )
+                }
+            }
+        }
+
+        /*
+         * Koncept. Stejně jako poslední zpráva nese nové pozice — chat s čerstvým konceptem
+         * se v seznamu posune nahoru a jinudy se to nedozvíme.
+         */
+        scope.launch {
+            client.chatDraftMessageUpdates.collect { update ->
+                edit(update.chatId) { current ->
+                    val position = update.positions.mainPosition()
+                    current.copy(
+                        draft = update.draftMessage?.toChatDraft(),
                         order = position?.order ?: current.order,
                         isPinned = position?.isPinned ?: current.isPinned,
                     )
@@ -476,7 +495,20 @@ private fun Chat.toSummaryOrNull(): ChatSummary? {
         // prostě bez tečky.
         presence = null,
         activity = null,
+        draft = draftMessage?.toChatDraft(),
     )
+}
+
+/**
+ * Koncept jako text, nebo `null`.
+ *
+ * Ukazuje se jen textový koncept. Rozpracovaná hlasovka nebo video kolečko jsou taky koncepty,
+ * ale psát o nich „Koncept:" bez obsahu by nic neřeklo; zbude u nich náhled poslední zprávy.
+ */
+internal fun DraftMessage.toChatDraft(): ChatDraft? {
+    val text = (content as? DraftMessageContentText)?.text?.text
+    if (text.isNullOrBlank()) return null
+    return ChatDraft(text = text, timestamp = date)
 }
 
 private fun ChatList?.isMain(): Boolean = this is ChatListMain

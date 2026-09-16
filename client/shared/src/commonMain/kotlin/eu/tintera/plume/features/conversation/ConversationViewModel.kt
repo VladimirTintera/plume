@@ -17,6 +17,8 @@ import eu.tintera.plume.core.telegram.SentMessageUpdate
 import eu.tintera.plume.core.telegram.SponsoredMessage
 import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UrlOpener
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,6 +51,11 @@ class ConversationViewModel(
      * v konverzaci by se s ní dřív nebo později rozešla.
      */
     private val chatRepository: ChatRepository,
+    /**
+     * Rozsah aplikace, jen pro ukládání konceptu. `viewModelScope` se při odchodu z chatu zruší
+     * dřív, než by poslední úprava stihla odejít — a právě ta je nejdůležitější.
+     */
+    private val appScope: CoroutineScope,
     private val urlOpener: UrlOpener,
     private val clipboard: TextClipboard,
 ) : ViewModel() {
@@ -70,6 +77,12 @@ class ConversationViewModel(
      */
     private var typingSentAt: TimeMark? = null
 
+    /** Poslední text z pole, jak ho hlásí obrazovka. Kvůli ukládání konceptu. */
+    private var draftText = ""
+
+    /** Odložené uložení konceptu; každá další úprava ho posune. */
+    private var draftSave: Job? = null
+
     /** Už nahlášená zhlédnutí reklam — každé se hlásí jen jednou. */
     private val reportedSponsoredViews = mutableSetOf<Long>()
 
@@ -89,8 +102,12 @@ class ConversationViewModel(
                          */
                         unreadBoundaryId = info.lastReadInboxMessageId
                             .takeIf { id -> info.unreadCount > 0 && id != 0L },
+                        // Koncept z minula (nebo z jiného zařízení) se vrátí do pole.
+                        restoredDraft = info.draftText,
                     )
                 }
+                info.draftText?.let { draftText = it }
+                info.draftReplyToMessageId?.let(::restoreDraftReply)
                 loadUntilUnread()
             }
         }
@@ -365,6 +382,12 @@ class ConversationViewModel(
         // Odeslaná zpráva psaní ukončí sama; další úhoz má „píšu" ohlásit hned, ne až za pět vteřin.
         typingSentAt = null
 
+        // Koncept smaže TDLib sám (`clearDraft` při odeslání). Čekající uložení by ho vrátilo zpátky
+        // se starým textem, takže se musí zahodit; obrazovka pole vyprázdní bez `onDraftChanged`.
+        draftSave?.cancel()
+        draftSave = null
+        draftText = ""
+
         val replyTo = _state.value.replyingTo?.id
         // Rozepsaná odpověď se zruší hned, ne až po potvrzení — jinak by při pomalé síti šlo
         // odeslat druhou zprávu se stejnou citací.
@@ -423,6 +446,9 @@ class ConversationViewModel(
      * ukončí: kdo si to rozmyslel, nemá protějšku ještě pět vteřin „psát".
      */
     fun onDraftChanged(text: String) {
+        draftText = text
+        scheduleDraftSave()
+
         if (text.isBlank()) {
             if (typingSentAt == null) return
             typingSentAt = null
@@ -434,6 +460,63 @@ class ConversationViewModel(
         if (last != null && last.elapsedNow() < TYPING_REPEAT) return
         typingSentAt = TimeSource.Monotonic.markNow()
         reportTyping(true)
+    }
+
+    /**
+     * Uloží koncept s odstupem od poslední úpravy.
+     *
+     * Ne na každý úhoz: `setChatDraftMessage` se propisuje na server a do ostatních zařízení.
+     * Hodnoty se berou **teď**, na hlavním vlákně — úloha běží v `appScope` mimo něj.
+     */
+    private fun scheduleDraftSave() {
+        val text = draftText
+        val replyTo = _state.value.replyingTo?.id
+
+        draftSave?.cancel()
+        draftSave = appScope.launch {
+            delay(DRAFT_SAVE_DELAY_MS)
+            saveDraft(text, replyTo)
+        }
+    }
+
+    private suspend fun saveDraft(text: String, replyTo: Long?) {
+        repository.saveDraft(chatId, text, replyTo).onFailure { failure ->
+            logger.w(failure) { "Koncept se nepodařilo uložit." }
+        }
+    }
+
+    /**
+     * Doplní citaci konceptu. Zprávu hledá v načtené historii, jinak si ji vyžádá — koncept
+     * může odpovídat na cokoli.
+     */
+    private fun restoreDraftReply(messageId: Long) {
+        viewModelScope.launch {
+            val message = _state.value.messages.firstOrNull { it.id == messageId }
+                ?: repository.message(chatId, messageId).getOrNull()
+                ?: return@launch
+            // Mezitím mohl uživatel začít odpovídat na něco jiného; to má přednost.
+            _state.update { if (it.replyingTo == null) it.copy(replyingTo = message) else it }
+        }
+    }
+
+    /** Obrazovka koncept vrátila do pole. Bez toho by se po otočení vrátil znovu, i smazaný. */
+    fun consumeRestoredDraft() {
+        _state.update { it.copy(restoredDraft = null) }
+    }
+
+    /**
+     * Odchod z chatu: čekající uložení konceptu odejde hned, ne až po odpočtu.
+     *
+     * Běží v `appScope`, takže ho zrušení ViewModelu nezastaví.
+     */
+    override fun onCleared() {
+        val pending = draftSave ?: return
+        if (!pending.isActive) return
+        pending.cancel()
+
+        val text = draftText
+        val replyTo = _state.value.replyingTo?.id
+        appScope.launch { saveDraft(text, replyTo) }
     }
 
     private fun reportTyping(typing: Boolean) {
@@ -460,10 +543,13 @@ class ConversationViewModel(
     fun replyTo(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         _state.update { it.copy(replyingTo = message, messageMenu = null) }
+        // Citace je součást konceptu — jen když už se něco píše, jinak není co ukládat.
+        if (draftText.isNotBlank()) scheduleDraftSave()
     }
 
     fun clearReply() {
         _state.update { it.copy(replyingTo = null) }
+        if (draftText.isNotBlank()) scheduleDraftSave()
     }
 
     /**
@@ -742,6 +828,14 @@ private fun MessageFlight?.landingOn(message: ChatMessage): MessageFlight? = whe
  */
 private val TYPING_REPEAT = 5.seconds
 
+/**
+ * Odstup ukládání konceptu od poslední úpravy.
+ *
+ * Koncept se propisuje na server a do ostatních zařízení, takže ne na každý úhoz. Při odchodu
+ * z chatu se čekání přeskočí (`onCleared`), takže delší odstup nic neriskuje.
+ */
+private const val DRAFT_SAVE_DELAY_MS = 1500L
+
 /** Doba, po kterou se drží klíč sdíleného prvku po přistání v bublině. */
 internal const val FLIGHT_DURATION_MS = 450L
 
@@ -862,6 +956,11 @@ data class ConversationState(
     val unreadBoundaryId: Long? = null,
     /** Zpráva, na kterou má obrazovka odrolovat. Vynuluje se po provedení. */
     val scrollTarget: ScrollTarget? = null,
+    /**
+     * Koncept z TDLib k vrácení do vstupního pole. Obrazovka ho po použití vynuluje
+     * ([ConversationViewModel.consumeRestoredDraft]).
+     */
+    val restoredDraft: String? = null,
     /** Zpráva krátce zvýrazněná po skoku na citaci; `null` většinu času. */
     val highlightedMessageId: Long? = null,
     /** Reklamy k zobrazení. Podle Telegram ToS se nesmí filtrovat ani skrývat. */

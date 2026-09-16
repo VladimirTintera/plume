@@ -91,6 +91,18 @@ data class ChatSummary(
      * a ukončuje ho zvlášť. V seznamu nahrazuje náhled poslední zprávy.
      */
     val activity: ChatActivity?,
+    /**
+     * Rozepsaná zpráva, nebo `null`. V seznamu nahrazuje náhled poslední zprávy — kdo se k chatu
+     * vrací, hledá hlavně to, co tam nechal nedopsané.
+     */
+    val draft: ChatDraft?,
+)
+
+/** Rozepsaná zpráva chatu, jak ji drží TDLib (a s ním i ostatní zařízení). */
+data class ChatDraft(
+    val text: String,
+    /** Unixový čas uložení konceptu. */
+    val timestamp: Int,
 )
 
 /**

@@ -112,6 +112,14 @@ interface ConversationRepository {
     suspend fun chatInfo(chatId: Long): Result<ChatInfo>
 
     /**
+     * Uloží rozepsanou zprávu do TDLib, odkud ji vidí seznam chatů i ostatní zařízení.
+     *
+     * Prázdný [text] koncept **smaže** — i kdyby zbývala citace. Odpověď bez textu Telegram jako
+     * koncept nedrží a ponechat ji by znamenalo koncept, který v seznamu nic neukazuje.
+     */
+    suspend fun saveDraft(chatId: Long, text: String, replyToMessageId: Long?): Result<Unit>
+
+    /**
      * Sponzorované zprávy pro daný chat. Mimo kanály vrací prázdný seznam.
      *
      * Zobrazení je podle Telegram ToS **povinné** — výsledek se nesmí filtrovat ani skrývat.
@@ -163,6 +171,10 @@ data class ChatInfo(
      * šum, protože odesílatelé jsou právě dva.
      */
     val isGroup: Boolean,
+    /** Rozepsaný text z minula (i z jiného zařízení), nebo `null`. */
+    val draftText: String?,
+    /** Zpráva, na kterou koncept odpovídá, nebo `null`. */
+    val draftReplyToMessageId: Long?,
 )
 
 /**

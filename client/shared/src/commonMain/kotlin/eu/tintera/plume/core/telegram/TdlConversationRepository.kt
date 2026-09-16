@@ -6,6 +6,8 @@ import dev.g000sha256.tdl.dto.ChatActionCancel
 import dev.g000sha256.tdl.dto.ChatActionTyping
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
+import dev.g000sha256.tdl.dto.DraftMessage
+import dev.g000sha256.tdl.dto.DraftMessageContentText
 import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.InputMessageReplyToMessage
 import dev.g000sha256.tdl.dto.InputMessageText
@@ -22,6 +24,7 @@ import dev.g000sha256.tdl.dto.MessageSourceChatHistory
 import dev.g000sha256.tdl.dto.MessageText
 import dev.g000sha256.tdl.dto.ReactionTypeEmoji
 import dev.g000sha256.tdl.toResult
+import kotlin.time.Clock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flow
@@ -242,17 +245,7 @@ class TdlConversationRepository(
             chatId = chatId,
             // Vlákna (fóra) fáze 2 neřeší — null znamená hlavní vlákno chatu.
             topicId = null,
-            replyTo = replyToMessageId?.let { id ->
-                InputMessageReplyToMessage(
-                    messageId = id,
-                    // Citace části textu (označený úryvek) zatím neřešíme — odpovídá se na celou zprávu.
-                    quote = null,
-                    checklistTaskId = 0,
-                    // Prázdný řetězec, ne null — tohle pole je v TDLib nenullovatelné
-                    // a používá se jen u odpovědí na anketu.
-                    pollOptionId = "",
-                )
-            },
+            replyTo = replyToMessageId?.let(::replyTo),
             options = null,
             replyMarkup = null,
             inputMessageContent = InputMessageText(
@@ -290,6 +283,28 @@ class TdlConversationRepository(
             .toResult()
             .map { }
 
+    override suspend fun saveDraft(chatId: Long, text: String, replyToMessageId: Long?): Result<Unit> =
+        client.setChatDraftMessage(
+            chatId = chatId,
+            topicId = null,
+            draftMessage = text.takeIf { it.isNotBlank() }?.let {
+                DraftMessage(
+                    replyTo = replyToMessageId?.let(::replyTo),
+                    date = Clock.System.now().epochSeconds.toInt(),
+                    // Entity se tu nedohledávají: koncept je rozepsaný text, odkazy se označí
+                    // až při odeslání (viz `send`).
+                    content = DraftMessageContentText(
+                        text = FormattedText(text = it, entities = emptyArray()),
+                        linkPreviewOptions = null,
+                    ),
+                    effectId = 0L,
+                    suggestedPostInfo = null,
+                )
+            },
+        )
+            .toResult()
+            .map { }
+
     override suspend fun chatInfo(chatId: Long): Result<ChatInfo> =
         client.getChat(chatId)
             .toResult()
@@ -302,6 +317,9 @@ class TdlConversationRepository(
                     lastReadInboxMessageId = chat.lastReadInboxMessageId,
                     unreadCount = chat.unreadCount,
                     isGroup = chat.type is ChatTypeBasicGroup || chat.type is ChatTypeSupergroup,
+                    draftText = chat.draftMessage?.toChatDraft()?.text,
+                    draftReplyToMessageId = (chat.draftMessage?.replyTo as? InputMessageReplyToMessage)
+                        ?.messageId,
                 )
             }
 
@@ -487,3 +505,16 @@ private fun MessageSendingState?.toSendState(): SendState = when (this) {
     is MessageSendingStateFailed -> SendState.Failed
     else -> SendState.Sent
 }
+
+/**
+ * Odpověď na celou zprávu v tomhle chatu.
+ *
+ * Citace části textu (označený úryvek) zatím neřešíme. `pollOptionId` je prázdný řetězec, ne
+ * `null` — pole je v TDLib nenullovatelné a používá se jen u odpovědí na anketu.
+ */
+private fun replyTo(messageId: Long) = InputMessageReplyToMessage(
+    messageId = messageId,
+    quote = null,
+    checklistTaskId = 0,
+    pollOptionId = "",
+)

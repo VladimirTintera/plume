@@ -43,6 +43,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.resources.Res
@@ -350,7 +354,9 @@ private fun ChatRow(
 
                     // Čas je zarovnaný doprava na konec řádku s názvem, ne pod něj — jinak by
                     // soupeřil o místo s náhledem zprávy, který bývá dlouhý.
-                    chat.lastMessageTimestamp?.let { timestamp ->
+                    // Koncept posouvá chat v seznamu nahoru, takže čas musí jít s ním — jinak by
+                    // u chatu nahoře stálo datum starší než u těch pod ním.
+                    listOfNotNull(chat.lastMessageTimestamp, chat.draft?.timestamp).maxOrNull()?.let { timestamp ->
                         Text(
                             text = timestamp.asRelativeTime(),
                             style = MaterialTheme.typography.labelMedium,
@@ -359,9 +365,24 @@ private fun ChatRow(
                         )
                     }
                 }
-                // Činnost má přednost před náhledem: „píše…" je novější informace než poslední
-                // odeslaná zpráva a obojí najednou by se do jednoho řádku nevešlo.
-                val subtitle = chat.activity?.label() ?: chat.lastMessagePreview
+                /*
+                 * Činnost > koncept > náhled poslední zprávy.
+                 *
+                 * „Píše…" je nejčerstvější informace. Koncept je to, co uživatel v chatu nechal
+                 * rozdělané, a hledá ho spíš než poslední cizí zprávu. Obojí najednou se do
+                 * řádku nevejde.
+                 */
+                val draftLabelColor = MaterialTheme.colorScheme.tertiary
+                val subtitle: AnnotatedString? = chat.activity?.label()?.let(::AnnotatedString)
+                    ?: chat.draft?.let { draft ->
+                        buildAnnotatedString {
+                            // Štítek jinou barvou než „píše…" (primary) — jde o náš text, ne o dění.
+                            withStyle(SpanStyle(color = draftLabelColor)) { append("Koncept: ") }
+                            // Zalomení by v jednořádkovém náhledu useklo text hned na začátku.
+                            append(draft.text.replace('\n', ' '))
+                        }
+                    }
+                    ?: chat.lastMessagePreview?.let(::AnnotatedString)
 
                 subtitle?.let {
                     Text(
