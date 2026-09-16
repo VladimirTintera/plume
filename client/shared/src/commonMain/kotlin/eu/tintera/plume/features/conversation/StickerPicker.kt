@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,11 +25,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -130,6 +137,7 @@ class StickerPickerViewModel(
  * počtu samolepek. Samolepky v ní **nehrají** (viz [StickerPreview]).
  */
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 fun StickerPickerSheet(
     onPick: (StickerItem) -> Unit,
     onDismiss: () -> Unit,
@@ -138,6 +146,15 @@ fun StickerPickerSheet(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
     val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+
+    /*
+     * Samolepka rozhýbaná podržením. Vždy nejvýš JEDNA — hraje, dokud se nepodrží jiná.
+     *
+     * Jedna kvůli výkonu (mřížka je právě proto statická) i kvůli čitelnosti: kdo si prohlíží
+     * sadu, porovnává samolepky po jedné. Přežívá přepnutí záložky; po návratu hraje dál.
+     */
+    var activeStickerId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         val selectedIndex = state.tabs.indexOf(state.selected).coerceAtLeast(0)
@@ -182,20 +199,35 @@ fun StickerPickerSheet(
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     items(stickers, key = { it.id }) { sticker ->
+                        val active = sticker.id == activeStickerId
+
                         Box(
                             Modifier
                                 .size(STICKER_CELL)
                                 .clip(RoundedCornerShape(12.dp))
-                                .clickable {
-                                    // Nejdřív sheet schovat, pak poslat: zmizení bez animace by
-                                    // vypadalo jako pád, a zpráva se tak objeví až nad zavřeným sheetem.
-                                    scope.launch { sheetState.hide() }.invokeOnCompletion {
-                                        onPick(sticker)
-                                    }
-                                }
+                                // Podbarvení nese potvrzení podržení i u statické samolepky,
+                                // která se rozhýbat nemá jak.
+                                .background(
+                                    if (active) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent,
+                                )
+                                .combinedClickable(
+                                    onClick = {
+                                        // Nejdřív sheet schovat, pak poslat: zmizení bez animace by
+                                        // vypadalo jako pád, a zpráva se tak objeví až nad zavřeným sheetem.
+                                        scope.launch { sheetState.hide() }.invokeOnCompletion {
+                                            onPick(sticker)
+                                        }
+                                    },
+                                    // Podržení samolepku neposílá — jen ji rozhýbe. Po puštění
+                                    // `combinedClickable` klik nevyvolá, takže nic neodejde omylem.
+                                    onLongClick = {
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        activeStickerId = sticker.id
+                                    },
+                                )
                                 .padding(6.dp),
                         ) {
-                            StickerPreview(sticker.preview, Modifier.fillMaxSize())
+                            StickerPreview(sticker.preview, playing = active, modifier = Modifier.fillMaxSize())
                         }
                     }
                 }
@@ -212,7 +244,7 @@ private fun StickerTabIcon(tab: StickerTab) {
         is StickerTab.Set -> {
             val cover = tab.summary.cover
             if (cover != null) {
-                StickerPreview(cover, Modifier.size(28.dp))
+                StickerPreview(cover, playing = false, modifier = Modifier.size(28.dp))
             } else {
                 // Sada bez obálky: aspoň první písmeno názvu, ať se záložky dají rozeznat.
                 Text(tab.summary.title.take(1), style = MaterialTheme.typography.titleMedium)
@@ -222,36 +254,58 @@ private fun StickerTabIcon(tab: StickerTab) {
 }
 
 /**
- * Samolepka ve výběru — **nehraje**.
+ * Samolepka ve výběru.
  *
- * Nejlevnější dostupná podoba: rastrový náhled, pak statická `.webp`, a teprve když není ani jedno,
- * první snímek `.tgs` (ten znamená rozbalit a rozparsovat animaci). Hraní necháváme konverzaci;
- * desítky animací v jedné mřížce by stály víc, než kolik přinesou.
+ * Běžně **nehraje** a kreslí se nejlevnější dostupnou podobou: rastrový náhled, pak statická `.webp`,
+ * a teprve když není ani jedno, první snímek `.tgs` (ten znamená rozbalit a rozparsovat animaci).
+ * Desítky animací v jedné mřížce by stály víc, než kolik přinesou.
+ *
+ * [playing] ji rozhýbe — jen podrženou. Do načtení animace drží místo tentýž statický náhled, takže
+ * se samolepka rozběhne na místě, bez probliknutí. Statická `.webp` nemá co přehrát a zůstane stát.
  */
 @Composable
-private fun StickerPreview(sticker: MessageMedia.Sticker, modifier: Modifier = Modifier) {
+private fun StickerPreview(
+    sticker: MessageMedia.Sticker,
+    playing: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val still = sticker.thumbnailFileId ?: sticker.fileId
     val description = sticker.emoji.ifBlank { "Samolepka" }
     val animation = sticker.animationFileId
 
+    val stillImage: @Composable () -> Unit = {
+        if (still != null) {
+            RemoteImage(
+                fileId = still,
+                contentDescription = description,
+                contentScale = ContentScale.Fit,
+                background = Color.Transparent,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { EmojiFallback(sticker.emoji) }
+        }
+    }
+
     when {
-        still != null -> RemoteImage(
-            fileId = still,
+        animation != null && playing -> AnimatedSticker(
+            fileId = animation,
             contentDescription = description,
-            contentScale = ContentScale.Fit,
-            background = Color.Transparent,
+            isPlaying = true,
             modifier = modifier,
+            placeholder = stillImage,
         )
 
-        animation != null -> AnimatedSticker(
+        // Bez náhledu je první snímek animace pořád lepší než emoji.
+        animation != null && still == null -> AnimatedSticker(
             fileId = animation,
             contentDescription = description,
             isPlaying = false,
             modifier = modifier,
-            placeholder = { EmojiFallback(sticker.emoji) },
+            placeholder = stillImage,
         )
 
-        else -> Box(modifier, contentAlignment = Alignment.Center) { EmojiFallback(sticker.emoji) }
+        else -> Box(modifier) { stillImage() }
     }
 }
 
