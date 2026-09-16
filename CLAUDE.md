@@ -836,7 +836,13 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
   zavře, jinak by se se sheetem přetahovaly o spodek obrazovky.
 - **Hranice je `StickerRepository`** (vlastní, ne kus konverzace): seznamy jsou živé toky, které
   se na update **čtou znovu** — updaty nesou jen id sad a souborů. Odběr stojí před prvním čtením.
-- **Obsah sady se načítá až při otevření její záložky.** Sad bývá desítky.
+- **Záložky jsou stránky `HorizontalPager`u** — mezi sadami se swipuje do stran. Řádek záložek
+  a pager sdílejí `PagerState`: swipe přepne záložku (`currentPage` už v půlce tahu), ťuknutí
+  na záložku posune pager. Počet stránek je lambda, protože sady dorazí až po nedávných
+  a oblíbených; klíč stránky je záložka, ne index, aby se stránkám nerozsypal scroll.
+- **ViewModel drží obsah VŠECH záložek**, ne jen vybrané — při swipu je vidět i sousední stránka.
+- **Obsah sady se načítá až když se její stránka poprvé ukáže** (`load` v `LaunchedEffect` stránky;
+  pager skládá jen viditelné). Sad bývá desítky.
 - **V mřížce samolepky NEHRAJÍ** (`AnimatedSticker(isPlaying = false)`). Desítky animací v jedné
   mřížce by stály víc, než přinesou. Bere se nejlevnější podoba: rastrový náhled, statická `.webp`,
   a teprve bez nich první snímek `.tgs`.
