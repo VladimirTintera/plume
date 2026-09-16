@@ -112,6 +112,5 @@ Základ je hotový (záložky Nedávné, Oblíbené, sady; odeslání). Zbývá:
 - **Vyhledávání** podle emoji a textu (`searchStickers`, `getKeywordEmojis`).
 - **Oblíbené** — přidat/odebrat dlouhým stiskem ve výběru i na samolepce v konverzaci
   (`addFavoriteSticker`, `removeFavoriteSticker`).
-- **Náhled po podržení**, kde samolepka hraje — v mřížce je jen první snímek.
 - **Přidání sady ze samolepky v chatu** (`changeStickerSet`) a trendy (`getTrendingStickerSets`).
 - **Emoji picker** jako další záložka.

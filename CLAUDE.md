@@ -840,6 +840,11 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
 - **V mřížce samolepky NEHRAJÍ** (`AnimatedSticker(isPlaying = false)`). Desítky animací v jedné
   mřížce by stály víc, než přinesou. Bere se nejlevnější podoba: rastrový náhled, statická `.webp`,
   a teprve bez nich první snímek `.tgs`.
+- **Podržením se samolepka rozhýbe — vždy nejvýš jedna** (`activeStickerId`). Hraje, dokud se
+  nepodrží jiná, a přežije přepnutí záložky. Do načtení animace drží místo statický náhled, takže
+  se rozběhne bez probliknutí. Podržení nic neposílá; `combinedClickable` po dlouhém stisku klik
+  nevyvolá. Aktivní buňka je podbarvená — statická `.webp` se rozhýbat nemá jak a bez podbarvení
+  by nebylo poznat, že podržení zabralo.
 - **Mřížka má pevnou výšku**, jinak by se sheet při přepnutí záložky natahoval a smršťoval.
 - **Prémiové samolepky se bez Premium nenabízejí** (`StickerFullTypeRegular.premiumAnimation`).
   Odeslat je nejde a samolepka, po které přijde chyba, je horší než žádná. Na Premium se ptá
