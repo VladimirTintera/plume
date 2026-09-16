@@ -52,6 +52,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -1051,14 +1052,36 @@ private fun MessageInput(
               }
             }
 
+            /*
+             * Odeslání je velikost MEDIUM (56 dp), ne výchozí small (40 dp).
+             *
+             * 56 dp je přesně minimální výška jednořádkového `TextField`, takže tlačítko se
+             * spodním zarovnáním řádku sedí na střed pole bez jakéhokoli dopočítávaného odsazení.
+             * Když se pole zalomí na víc řádků nebo nad ním visí citace, zůstane u posledního
+             * řádku — tam, kde se píše. Small tlačítko sedělo u spodní hrany o 8 dp níž než střed.
+             *
+             * Je to hlavní akce obrazovky, takže větší plocha dává smysl i sama o sobě. Large
+             * (96 dp) by už bylo vyšší než pole a přebíjelo by psaní.
+             *
+             * Tvar se při stisku mění podle M3 Expressive (`shapes`), kruh → zaoblený čtverec.
+             */
             FilledIconButton(
                 onClick = {
                     onSend(draft)
                     draft = ""
                 },
                 enabled = draft.isNotBlank(),
+                shapes = IconButtonDefaults.shapes(
+                    shape = IconButtonDefaults.mediumRoundShape,
+                    pressedShape = IconButtonDefaults.mediumPressedShape,
+                ),
+                modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
             ) {
-                Icon(painterResource(Res.drawable.send_24dp), contentDescription = "Odeslat")
+                Icon(
+                    painterResource(Res.drawable.send_24dp),
+                    contentDescription = "Odeslat",
+                    modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
+                )
             }
         }
     }

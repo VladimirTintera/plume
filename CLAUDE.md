@@ -334,6 +334,10 @@ a nad ni nakreslí předěl „Nepřečtené zprávy".
   vedl vodorovný předěl, o který se zprávy při scrollu „zasekávaly". Teď plave nad obsahem
   a seznam se dole odsadí o jeho ZMĚŘENOU výšku — natvrdo zadaná konstanta by se rozešla
   s realitou, jakmile se pole zalomí na víc řádků nebo se nad ním objeví karta s citací.
+- **Odesílací tlačítko je velikost medium (56 dp).** Je to přesně minimální výška jednořádkového
+  `TextField`, takže se spodním zarovnáním řádku sedí na střed pole bez dopočítávaného odsazení
+  a u víceřádkového textu zůstává u posledního řádku. Výchozí small (40 dp) sedělo o 8 dp níž
+  než střed pole, large (96 dp) by bylo vyšší než pole samo.
 - **Scaffold konverzace nedává spodní inset do `padding`** (`contentWindowInsets` jen Top +
   Horizontal). Spodek si řeší pole samo přes `navigationBarsPadding` + `imePadding`. `padding`
   ze Scaffoldu se v obsahu jen aplikuje a inset NEKONZUMUJE, takže se výška systémové lišty
