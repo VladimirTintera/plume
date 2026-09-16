@@ -39,6 +39,11 @@ fun AnimatedSticker(
     fileId: Int,
     contentDescription: String?,
     modifier: Modifier = Modifier,
+    /**
+     * `false` = jen první snímek. Ve výběru je vidět desítky samolepek naráz a nechat je hrát
+     * všechny by znamenalo desítky animací v jednom snímku; hraje se až tam, kde má smysl.
+     */
+    isPlaying: Boolean = true,
     placeholder: @Composable () -> Unit,
 ) {
     val path = (rememberFileState(fileId) as? FileState.Ready)?.path
@@ -56,6 +61,7 @@ fun AnimatedSticker(
             Image(
                 painter = rememberLottiePainter(
                     composition = composition,
+                    isPlaying = isPlaying,
                     iterations = Compottie.IterateForever,
                 ),
                 contentDescription = contentDescription,

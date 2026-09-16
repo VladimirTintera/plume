@@ -10,6 +10,9 @@ import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
 import dev.g000sha256.tdl.dto.FormattedText
+import dev.g000sha256.tdl.dto.InputFileId
+import dev.g000sha256.tdl.dto.InputMessageSticker
+import dev.g000sha256.tdl.dto.InputSticker
 import dev.g000sha256.tdl.dto.InputMessageReplyToMessage
 import dev.g000sha256.tdl.dto.InputMessageText
 import dev.g000sha256.tdl.dto.Message
@@ -372,6 +375,39 @@ class TdlConversationRepository(
             .toResult()
             // TDLib vrací zprávu okamžitě, s dočasným id a stavem Pending.
             .map { it.toChatMessage(isGroup(chatId)) }
+    }
+
+    override suspend fun sendSticker(
+        chatId: Long,
+        sticker: StickerItem,
+        replyToMessageId: Long?,
+    ): Result<ChatMessage> {
+        val file = InputFileId(id = sticker.sendFileId)
+
+        return client.sendMessage(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyToMessageId?.let(::replyTo),
+            options = null,
+            replyMarkup = null,
+            inputMessageContent = InputMessageSticker(
+                sticker = InputSticker(
+                    sticker = file,
+                    // Náhled se nahrává jen u nových samolepek; tahle už na serveru je.
+                    thumbnail = null,
+                    width = sticker.preview.width,
+                    height = sticker.preview.height,
+                ),
+                emoji = sticker.preview.emoji,
+            ),
+        )
+            .toResult()
+            .map { it.toChatMessage(isGroup(chatId)) }
+            .onSuccess {
+                // Nedávné se udržují i samy, ale výslovné přidání posune samolepku nahoru hned.
+                // Neúspěch nevadí — zpráva už odešla.
+                client.addRecentSticker(isAttached = false, sticker = file)
+            }
     }
 
     override suspend fun sendTyping(chatId: Long, typing: Boolean): Result<Unit> =

@@ -2,6 +2,8 @@ package eu.tintera.plume.di
 
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.telegram.StickerRepository
+import eu.tintera.plume.core.telegram.TdlStickerRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.NotificationRepository
@@ -15,6 +17,7 @@ import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.features.auth.AuthViewModel
 import eu.tintera.plume.features.chats.ChatsViewModel
 import eu.tintera.plume.features.conversation.ConversationViewModel
+import eu.tintera.plume.features.conversation.StickerPickerViewModel
 import eu.tintera.plume.features.media.MediaViewerViewModel
 import eu.tintera.plume.features.settings.SettingsViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -76,11 +79,15 @@ fun appModule() = module {
 
     single<NotificationRepository> { TdlNotificationRepository(holder = get()) }
 
+    // Bezstavová — seznamy jsou toky nad updaty, drží se jen po dobu otevřeného výběru.
+    single<StickerRepository> { TdlStickerRepository(holder = get()) }
+
     // Most mezi platformním vstupem (ťuknutí na notifikaci) a navigací.
     single { ChatOpenRequests() }
 
     viewModelOf(::AuthViewModel)
     viewModelOf(::ChatsViewModel)
+    viewModelOf(::StickerPickerViewModel)
     viewModelOf(::SettingsViewModel)
 
     // chatId přichází z navigační routy, ne z grafu → runtime parametr.

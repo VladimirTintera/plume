@@ -147,6 +147,7 @@ import eu.tintera.plume.resources.reply_24dp
 import eu.tintera.plume.resources.push_pin_filled_24dp
 import eu.tintera.plume.resources.schedule_24dp
 import eu.tintera.plume.resources.send_24dp
+import eu.tintera.plume.resources.sticky_note_2_24dp
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
@@ -165,6 +166,7 @@ fun ConversationScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var stickerPickerOpen by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     // Chyby se dřív zahazovaly: `state.error` se vykreslovalo jen u prázdné konverzace, takže
@@ -507,6 +509,7 @@ fun ConversationScreen(
                 onCancelEdit = viewModel::cancelEdit,
                 inputFill = state.inputFill,
                 onInputFilled = viewModel::consumeInputFill,
+                onOpenStickers = { stickerPickerOpen = true },
             )
         },
         // Tlačítko dolů ve FAB slotu: Scaffold ho drží nad polem a snackbar pak nad ním.
@@ -523,6 +526,16 @@ fun ConversationScreen(
 
         // Plný seznam emoji za tlačítkem „+". Zůstává bottom sheetem, protože se v něm listuje —
         // a to popup neumí.
+        if (stickerPickerOpen) {
+            StickerPickerSheet(
+                onPick = { sticker ->
+                    stickerPickerOpen = false
+                    viewModel.sendSticker(sticker)
+                },
+                onDismiss = { stickerPickerOpen = false },
+            )
+        }
+
         state.reactionSheet?.let { picker ->
             ReactionPickerSheet(
                 picker = picker,
@@ -1193,6 +1206,7 @@ private fun MessageInput(
     /** Text, který se má jednou vložit do pole (koncept, úprava). */
     inputFill: InputFill?,
     onInputFilled: () -> Unit,
+    onOpenStickers: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // `TextFieldValue`, ne `String`: u vráceného konceptu je potřeba nastavit i kurzor. S holým
@@ -1291,6 +1305,25 @@ private fun MessageInput(
                 },
                 modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                 placeholder = { Text("Zpráva") },
+                // Samolepky jen při psaní — k úpravě textové zprávy samolepka nepatří.
+                trailingIcon = if (editing == null) {
+                    {
+                        IconButton(
+                            onClick = {
+                                // Sheet a klávesnice by se jinak přetahovaly o spodek obrazovky.
+                                keyboard?.hide()
+                                onOpenStickers()
+                            },
+                        ) {
+                            Icon(
+                                painterResource(Res.drawable.sticky_note_2_24dp),
+                                contentDescription = "Samolepky",
+                            )
+                        }
+                    }
+                } else {
+                    null
+                },
                 maxLines = 6,
                 colors = TextFieldDefaults.colors(
                     // Kontejner i podtržení nese karta kolem; pole samo nekreslí nic.

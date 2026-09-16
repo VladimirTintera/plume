@@ -17,6 +17,7 @@ import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.SentMessageUpdate
 import eu.tintera.plume.core.telegram.SponsoredMessage
+import eu.tintera.plume.core.telegram.StickerItem
 import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UrlOpener
 import kotlinx.coroutines.CoroutineScope
@@ -449,6 +450,37 @@ class ConversationViewModel(
                 // Upravovaná zpráva zmizela (smazaná jinde) — není co upravovat.
                 if (_state.value.editing?.id in removed) cancelEdit()
             }
+        }
+    }
+
+    /**
+     * Odešle samolepku z výběru.
+     *
+     * Bez letu ze vstupního pole — samolepka z pole nevyletěla, přišla ze sheetu, který se právě
+     * zavírá. Rozepsaný text zůstává: samolepka ho nenahrazuje, jen se odeslala mezi tím.
+     * Citace se spotřebuje stejně jako u textu.
+     */
+    fun sendSticker(sticker: StickerItem) {
+        val replyTo = _state.value.replyingTo?.id
+        clearReply()
+
+        viewModelScope.launch {
+            repository.sendSticker(chatId, sticker, replyTo)
+                .onSuccess { pending ->
+                    _state.update {
+                        it.copy(
+                            // Potvrzení mohlo dorazit dřív než výsledek — viz `send`.
+                            messages = if (pending.id in it.itemKeys.values) {
+                                it.messages
+                            } else {
+                                merge(it.messages, listOf(pending))
+                            },
+                        )
+                    }
+                }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.message ?: "Samolepku se nepodařilo odeslat.") }
+                }
         }
     }
 
