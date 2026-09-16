@@ -24,6 +24,7 @@ import dev.g000sha256.tdl.dto.MessageSendingStatePending
 import dev.g000sha256.tdl.dto.MessageSourceChatHistory
 import dev.g000sha256.tdl.dto.MessageText
 import dev.g000sha256.tdl.dto.ReactionTypeEmoji
+import dev.g000sha256.tdl.dto.SearchMessagesFilterPhoto
 import dev.g000sha256.tdl.dto.SearchMessagesFilterPinned
 import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.toResult
@@ -268,6 +269,50 @@ class TdlConversationRepository(
         holder.updates { messageIsPinnedUpdates }
             .filter { it.chatId == chatId }
             .map { }
+
+    /**
+     * Fotky přes vyhledávání s filtrem, ne procházením historie — fotek bývá v chatu zlomek
+     * zpráv a `getChatHistory` by kvůli pár snímkům tahal stovky textů.
+     *
+     * Jedno volání vrátí obě strany: záporný `offset` přidá novější zprávy, `limit` zbytek
+     * starších. Zpráva [messageId] je ve výsledku sama, takže `limit` je o jednu větší.
+     */
+    override suspend fun photos(chatId: Long, messageId: Long, older: Int, newer: Int): Result<List<ChatMessage>> {
+        val isGroup = isGroup(chatId)
+        return client.searchChatMessages(
+            chatId = chatId,
+            topicId = null,
+            query = "",
+            senderId = null,
+            fromMessageId = messageId,
+            offset = -newer,
+            limit = older + newer + 1,
+            filter = SearchMessagesFilterPhoto(),
+        )
+            .toResult()
+            .map { found ->
+                found.messages
+                    .filterNotNull()
+                    .map { it.toChatMessage(isGroup) }
+                    .filter { it.media is MessageMedia.Photo }
+                    .sortedBy { it.id }
+            }
+    }
+
+    /** TDLib počítá od nejnovější; prohlížeč řadí od nejstarší, takže se to obrací. */
+    override suspend fun photoPosition(chatId: Long, messageId: Long): Result<PhotoPosition?> {
+        val filter = SearchMessagesFilterPhoto()
+        val fromNewest = client.getChatMessagePosition(chatId = chatId, filter = filter, messageId = messageId)
+            .toResult()
+            .getOrElse { return Result.failure(it) }
+            .count
+        val total = client.getChatMessageCount(chatId = chatId, filter = filter, returnLocal = false)
+            .toResult()
+            .getOrElse { return Result.failure(it) }
+            .count
+        val number = total - fromNewest + 1
+        return Result.success(PhotoPosition(number, total).takeIf { fromNewest > 0 && number in 1..total })
+    }
 
     override suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage> {
         val isGroup = isGroup(chatId)

@@ -61,7 +61,7 @@ Co z toho zůstalo nedodělané:
 ## D) Otevření média — HOTOVO pro fotky
 
 Ťuknutí na fotku ji otevře přes celou obrazovku; štípnutí a dvojité ťuknutí přibližují, tah dolů
-zavírá. Poučení je v `CLAUDE.md`, sekce „Prohlížeč médií". Kód: `features/media/`,
+zavírá, do stran se listuje fotkami chatu. Poučení je v `CLAUDE.md`, sekce „Prohlížeč médií". Kód: `features/media/`,
 `MediaRoute` v `Routes.kt`, `fullFileId` v `MessageMedia.Photo`.
 
 Co zbývá:
@@ -69,8 +69,6 @@ Co zbývá:
 - **Ostatní typy médií.** Video, GIF, hlasovka a dokumenty se pořád jen popisují. Prohlížeč
   u nich zatím řekne, že je neumíme otevřít. Přehrávání je samostatná fáze (potřebuje platformní
   přehrávač přes `expect`/`actual`); u dokumentů stačí míň — stáhnout a předat systému.
-- **Listování mezi fotkami v chatu** (`searchChatMessages` + `SearchMessagesFilterPhoto`).
-  Teď se otevře jedna a ven se musí zpět.
 - **Uložení a sdílení** fotky ven z aplikace.
 - **Průběh stahování originálu.** `RemoteImage` ukazuje náhled z bubliny, dokud nedorazí ostrá
   verze, ale u velké fotky na pomalé síti není poznat, že se něco děje.

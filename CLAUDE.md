@@ -710,10 +710,27 @@ tah dolů zavírá.
 - **Gesta patří FOTCE, ne bublině.** Kdyby ťuknutí odchytávala bublina, sebralo by ho i odkazům
   v popisku. Dlouhý stisk se na fotce musí zopakovat: potomek s vlastním klikáním ho nepustí
   k rodiči, takže by nad fotkou nešla otevřít nabídka.
-- **Tři samostatné `pointerInput` bloky**: transformace (štípnutí a posun), ťuknutí (dvojité
-  přiblížení) a pozorovatel puštění. Ten poslední je nutný, protože `detectTransformGestures`
-  konec gesta neohlašuje — bez něj není kde rozhodnout, jestli tah stačil na zavření. Čeká na
-  `PointerEventPass.Final` a **nic nekonzumuje**, takže ostatním detektorům do ničeho nemluví.
+- **Listuje se `HorizontalPager`em, starší vlevo, novější vpravo.** Fotky se hledají
+  `searchChatMessages` s `SearchMessagesFilterPhoto`, ne procházením historie — fotek je
+  v chatu zlomek zpráv. Jedno volání vrátí obě strany: záporný `offset` přidá novější.
+  Výchozí zpráva je ve výsledku taky, takže se při dotahování odfiltruje.
+- **Pager drží stránku podle klíče** (id zprávy). Když se vlevo dotáhnou starší fotky, pod
+  prstem se nic nepohne, jen se posune index — proto se stránkuje z `snapshotFlow` nad
+  `currentPage`, které se po dotažení samo ozve znovu.
+- **Počítadlo „N z M" se ptá jednou**, na otevřenou fotku (`getChatMessagePosition` +
+  `getChatMessageCount`; TDLib počítá od nejnovější, tak se to obrací). Ostatní stránky se
+  odvozují posunem indexu, protože načtený výřez je souvislý.
+- **`detectTransformGestures` s pagerem nejde.** Konzumuje pohyb v každém směru, takže by fotka
+  spolkla i vodorovný tah a pager by se nepohnul. Místo něj vlastní detektor, který po slopu
+  rozhodne jednou za gesto: dva prsty nebo přiblížená fotka = štípnutí/posun (konzumuje),
+  svislý tah = zavírání (konzumuje), vodorovný tah nepřiblížené fotky = listování (nekonzumuje,
+  pustí ho pageru). Listovat se tedy dá jen se základní velikostí; posun po přiblížené fotce
+  by se s listováním pral. Konec gesta zná detektor sám, takže odpadl samostatný pozorovatel
+  puštění, který byl nutný kvůli `detectTransformGestures`.
+- **Odlistovaná fotka se vrací do základní velikosti.** Soused zůstává složený
+  (`beyondViewportPageCount`), a s ponechaným přiblížením by se z něj po návratu nedalo listovat.
+- **Nahoře je přechod do tmava, ne pruh.** Bílé ovládání se na světlé fotce (screenshot) ztrácelo;
+  s počítadlem to bylo vidět ještě víc. Plný pruh by fotku nahoře ořízl.
 - **Přiblížení se počítá kolem prstů, ne kolem středu.** Bod pod prsty musí zůstat na místě,
   jinak fotka při štípnutí ujíždí a uživatel ji pak dohání posunem.
 - **Meze posunu se počítají z poměru stran v metadatech**, ne z načteného souboru — jinak by se
