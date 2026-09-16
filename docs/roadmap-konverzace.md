@@ -105,8 +105,13 @@ Do každého kroku se vejde i kus zásobníku: datové předěly a profilovky ve
 udělat, až budeme stejně v `MessageBubble`; opravy indexů při hlášení přečtení hned, protože
 jsou to tři řádky.
 
-## Výběr samolepek
+## Výběr samolepek a emoji
 
-Základ je hotový (záložky Nedávné, Oblíbené, sady se swipem; hledání; oblíbené; odeslání). Zbývá:
+Hotové: záložky Nedávné, Oblíbené, Trendy a sady se swipem; hledání samolepek i emoji; oblíbené;
+sada ze samolepky v chatu; emoji vkládané do textu. Zbývá:
 
-- **Emoji picker** jako další záložka.
+- **Nedávná emoji.** TDLib je pro unicode emoji neukládá a aplikace zatím nemá perzistenci
+  nastavení, kam by se daly dát.
+- **Odstíny pleti** (podržení emoji s nabídkou variant) — katalog je teď bez nich.
+- **Emoji novější než Unicode 15.0** — až je budou znát systémová písma podporovaných verzí.
+- **Úprava zprávy s emoji z výběru** — tlačítko výběru se při úpravě schovává.

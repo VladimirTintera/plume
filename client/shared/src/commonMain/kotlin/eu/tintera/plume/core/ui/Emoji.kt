@@ -57,6 +57,43 @@ fun String.emojiClusterCount(max: Int): Int {
     return count
 }
 
+/**
+ * Začátek posledního znaku před pozicí [end], tak jak ho vidí uživatel — pro mazání pozpátku.
+ *
+ * Smazat jednu jednotku UTF-16 by u emoji nechalo v textu půlku surrogate páru, u rodiny (👨‍👩‍👧)
+ * nebo vlajky (🇨🇿) zbytek složeniny. Proto se odebírá celý shluk: kódový bod i s modifikátory
+ * (odstín pleti, výběr varianty, rámeček klávesy), spojené přes ZWJ, a vlajka jako dvojice
+ * regionálních indikátorů. Stejně pragmatické jako [emojiClusterCount] — u obyčejného textu
+ * jde prostě o jeden znak.
+ */
+fun String.previousClusterStart(end: Int): Int {
+    var index = end.coerceIn(0, length)
+    if (index == 0) return 0
+
+    index = previousCodePointStart(index)
+    // Modifikátory patří k předchozímu kódovému bodu — smaže se i on.
+    while (index > 0 && codePoint(index).isModifier()) {
+        index = previousCodePointStart(index)
+    }
+    // Vlajka: dva regionální indikátory za sebou tvoří jeden znak.
+    if (codePoint(index).isRegionalIndicator() && index > 0) {
+        val before = previousCodePointStart(index)
+        if (codePoint(before).isRegionalIndicator()) index = before
+    }
+    // Spojka ZWJ: předchozí emoji je součást téhož shluku, pokračuje se před ní.
+    while (index > 0 && this[index - 1].code == ZWJ) {
+        index = previousCodePointStart(index - 1)
+        while (index > 0 && codePoint(index).isModifier()) {
+            index = previousCodePointStart(index)
+        }
+    }
+    return index
+}
+
+/** Začátek kódového bodu, který končí těsně před [index]. */
+private fun String.previousCodePointStart(index: Int): Int =
+    if (index >= 2 && this[index - 1].isLowSurrogate() && this[index - 2].isHighSurrogate()) index - 2 else index - 1
+
 /** Kódový bod na pozici — commonMain `codePointAt` nemá, surrogate páry se musí složit ručně. */
 private fun String.codePoint(index: Int): Int {
     val high = this[index]

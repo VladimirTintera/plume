@@ -97,6 +97,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import eu.tintera.plume.core.telegram.TrendingStickerSet
 import eu.tintera.plume.resources.trending_up_24dp
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.ui.text.input.TextFieldValue
+import eu.tintera.plume.core.telegram.EmojiRepository
 import org.koin.compose.viewmodel.koinViewModel
 
 /** Záložka výběru samolepek. */
@@ -144,6 +149,7 @@ private val FIXED_TABS = listOf(StickerTab.Recent, StickerTab.Favorites, Sticker
  */
 class StickerPickerViewModel(
     private val repository: StickerRepository,
+    private val emojiRepository: EmojiRepository,
 ) : ViewModel() {
 
     private val setContents = MutableStateFlow<Map<Long, List<StickerItem>>>(emptyMap())
@@ -178,6 +184,31 @@ class StickerPickerViewModel(
             emit(StickerSearchState.Results(repository.search(query)))
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), StickerSearchState.Idle)
+
+    private val emojiRequest = MutableStateFlow(SearchRequest("", emptyList()))
+
+    /**
+     * Hledání emoji podle slov. Stejný debounce a `transformLatest` jako u samolepek. Výsledky se
+     * zúží na emoji z katalogu — TDLib zná i novější, které by systémové písmo neumělo nakreslit.
+     */
+    val emojiSearch: StateFlow<EmojiSearchState> = emojiRequest
+        .debounce { if (it.text.isBlank()) 0L else SEARCH_DEBOUNCE_MS }
+        .distinctUntilChanged()
+        .transformLatest { request ->
+            val text = request.text.trim()
+            if (text.isEmpty()) {
+                emit(EmojiSearchState.Idle)
+                return@transformLatest
+            }
+            emit(EmojiSearchState.Searching)
+            val found = emojiRepository.searchEmojis(text, request.languageCodes).mapNotNull(::catalogEmoji)
+            emit(EmojiSearchState.Results(found.distinct()))
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), EmojiSearchState.Idle)
+
+    fun searchEmoji(text: String, languageCodes: List<String>) {
+        emojiRequest.value = SearchRequest(text, languageCodes)
+    }
 
     /** Text hledání. Jazyk zařízení určuje, jak se slova převedou na emoji. */
     fun search(text: String, languageCodes: List<String>) {
@@ -251,6 +282,15 @@ class StickerPickerViewModel(
     }
 }
 
+sealed interface EmojiSearchState {
+    data object Idle : EmojiSearchState
+    data object Searching : EmojiSearchState
+    data class Results(val emojis: List<String>) : EmojiSearchState
+}
+
+/** Část výběru: emoji se vkládají do textu, samolepky se posílají. */
+enum class ExpressionMode { Emoji, Stickers }
+
 sealed interface StickerSearchState {
     /** Nehledá se — výběr ukazuje záložky. */
     data object Idle : StickerSearchState
@@ -273,6 +313,11 @@ sealed interface StickerSearchState {
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
 fun StickerPickerSheet(
+    mode: ExpressionMode,
+    onModeChange: (ExpressionMode) -> Unit,
+    /** Rozepsaný text, do kterého emoji vkládá. */
+    draft: TextFieldValue,
+    onDraftEdit: (TextFieldValue) -> Unit,
     onPick: (StickerItem) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -318,8 +363,43 @@ fun StickerPickerSheet(
     TrendingSetSheetHost(setId = openSetId, onClose = { openSetId = null }, pick = pick)
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        /*
+         * Emoji a samolepky jsou dvě části JEDNOHO sheetu, ne dva sheety: obojí se otevírá týmž
+         * tlačítkem a patří k témuž psaní. Přepínač jsou segmentová tlačítka — dvě rovnocenné
+         * volby, ne záložky obsahu (ty má každá část vlastní).
+         */
+        SingleChoiceSegmentedButtonRow(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        ) {
+            ExpressionMode.entries.forEachIndexed { index, entry ->
+                SegmentedButton(
+                    selected = mode == entry,
+                    onClick = { onModeChange(entry) },
+                    shape = SegmentedButtonDefaults.itemShape(index, ExpressionMode.entries.size),
+                ) {
+                    Text(
+                        when (entry) {
+                            ExpressionMode.Emoji -> "Emoji"
+                            ExpressionMode.Stickers -> "Samolepky"
+                        },
+                    )
+                }
+            }
+        }
+
+        if (mode == ExpressionMode.Emoji) {
+            EmojiPanel(
+                viewModel = viewModel,
+                draft = draft,
+                onDraftEdit = onDraftEdit,
+                languageCodes = languageCodes,
+            )
+            return@ModalBottomSheet
+        }
+
         StickerSearchField(
             text = searchText,
+            placeholder = "Hledat samolepky",
             onTextChange = {
                 searchText = it
                 viewModel.search(it, languageCodes)
@@ -635,8 +715,9 @@ internal fun LazyGridItemScope.animateStickerItem(): Modifier = Modifier.animate
  * nevznikají dvě zaoblené plochy v sobě.
  */
 @Composable
-private fun StickerSearchField(
+internal fun StickerSearchField(
     text: String,
+    placeholder: String,
     onTextChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -650,7 +731,7 @@ private fun StickerSearchField(
         TextField(
             value = text,
             onValueChange = onTextChange,
-            placeholder = { Text("Hledat samolepky") },
+            placeholder = { Text(placeholder) },
             singleLine = true,
             leadingIcon = { Icon(painterResource(Res.drawable.search_24dp), contentDescription = null) },
             trailingIcon = if (text.isNotEmpty()) {
@@ -821,7 +902,7 @@ private fun EmojiFallback(emoji: String) {
 private val FAVORITE_BUTTON_SIZE = 28.dp
 
 /** Řádek záložek. Při hledání ho výsledky zastoupí, takže jeho výška je pevná. */
-private val STICKER_TAB_ROW_HEIGHT = 48.dp
+internal val STICKER_TAB_ROW_HEIGHT = 48.dp
 
 /** Výška mřížky. Kolem tří řádků — dost na výběr, konverzace nad sheetem zůstává vidět. */
 internal val STICKER_PICKER_HEIGHT = 320.dp

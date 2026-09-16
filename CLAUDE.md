@@ -20,6 +20,7 @@ perzistence nastavení. Prohlížeč médií umí zatím jen fotky. Rozpracovan�
 ```bash
 ./gradlew :client:androidApp:assembleDebug          # Android APK
 ./gradlew :client:shared:linkDebugFrameworkIosSimulatorArm64   # ověření iOS linku
+./gradlew :client:shared:testAndroidHostTest       # testy commonTest na JVM (sekundy, bez emulátoru)
 open iosApp/iosApp.xcodeproj                         # iOS se staví z Xcode
 ```
 
@@ -898,6 +899,31 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
 - **Samolepka nezakládá let ze vstupního pole** a nemaže rozepsaný text — z pole nevyletěla.
 - **Ikony Material Symbols ze SVG mají souřadnice y v -960..0.** Ve vector drawable se to řeší
   `group` s `translateY="960"`, cesta zůstává, jak je.
+
+## Výběr emoji
+
+Týž sheet jako samolepky, přepínaný segmentovými tlačítky Emoji / Samolepky (a tlačítko ve vstupním
+poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na pozici kurzoru.
+
+- **Katalog je vygenerovaný z Unicode `emoji-test.txt`** (`EmojiCatalog.kt`, neupravovat ručně).
+  TDLib žádný katalog nemá, jen slovník klíčových slov. Jen fully-qualified emoji **do verze 15.0**
+  — novější by na starších systémech, jejichž písmo je nezná, byly prázdné čtverečky — a bez
+  variant odstínu pleti. Emoji skupiny jsou jeden řetězec oddělený mezerou, ne `listOf` s tisíci
+  literály: inicializace by na JVM narážela na limit velikosti metody.
+- **Rozepsaný text drží obrazovka, ne vstupní pole** (`draft: TextFieldValue`). Pole je pod sheetem
+  a výběr do textu vkládá i z něj maže. Úprava z výběru volá `onDraftChanged` jako psaní —
+  ukládá koncept i hlásí „píše…".
+- **Sheet se po vložení nezavírá** — emoji se píšou po několika. Nahoře je proto náhled textu
+  (`StartEllipsis`, protože vkládá se na konec) s vlastním mazáním.
+- **Mazání bere celý znak, jak ho vidí uživatel** (`previousClusterStart`): surrogate páry,
+  modifikátory (odstín, výběr varianty, rámeček klávesy, tagy vlajek regionů), ZWJ složeniny
+  a vlajky jako dvojice indikátorů. Smazat jednu jednotku UTF-16 by nechalo v textu půlku emoji.
+  Pokryté testy v `commonTest`.
+- **Hledání přes `searchEmojis`** v jazyce zařízení a angličtině, výsledky zúžené na katalog.
+  TDLib vrací emoji občas bez U+FE0F; porovnává se bez něj a vkládá se podoba z katalogu, jinak
+  by se na části systémů nakreslila jako černobílý textový symbol.
+- **Výšky obou částí sedí**: náhled textu si ukousne z výšky mřížky, takže přepnutí Emoji /
+  Samolepky sheet nenatáhne.
 
 ## Reakce
 

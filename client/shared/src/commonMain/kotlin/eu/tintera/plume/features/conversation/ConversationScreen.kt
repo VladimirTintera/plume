@@ -147,7 +147,7 @@ import eu.tintera.plume.resources.reply_24dp
 import eu.tintera.plume.resources.push_pin_filled_24dp
 import eu.tintera.plume.resources.schedule_24dp
 import eu.tintera.plume.resources.send_24dp
-import eu.tintera.plume.resources.sticky_note_2_24dp
+import eu.tintera.plume.resources.mood_24dp
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
@@ -167,6 +167,18 @@ fun ConversationScreen(
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     var stickerPickerOpen by rememberSaveable { mutableStateOf(false) }
+
+    /**
+     * Rozepsaný text vstupního pole. Drží se tady, ne v poli: výběr emoji do něj vkládá na pozici
+     * kurzoru a maže z něj, zatímco pole samo je pod sheetem.
+     *
+     * `TextFieldValue`, ne `String`: u vráceného konceptu i u vloženého emoji je potřeba nastavit
+     * kurzor. S holým řetězcem by zůstal na začátku textu.
+     */
+    var draft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
+
+    /** Poslední otevřená část výběru; příště se otevře tatáž. */
+    var expressionMode by rememberSaveable { mutableStateOf(ExpressionMode.Emoji) }
     /** Sada otevřená ťuknutím na samolepku v konverzaci. */
     var openStickerSetId by rememberSaveable { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
@@ -521,6 +533,8 @@ fun ConversationScreen(
                 inputFill = state.inputFill,
                 onInputFilled = viewModel::consumeInputFill,
                 onOpenStickers = { stickerPickerOpen = true },
+                draft = draft,
+                onDraftValueChange = { draft = it },
             )
         },
         // Tlačítko dolů ve FAB slotu: Scaffold ho drží nad polem a snackbar pak nad ním.
@@ -539,6 +553,14 @@ fun ConversationScreen(
         // a to popup neumí.
         if (stickerPickerOpen) {
             StickerPickerSheet(
+                mode = expressionMode,
+                onModeChange = { expressionMode = it },
+                draft = draft,
+                // Úprava z výběru emoji je psaní jako každé jiné: ukládá koncept i hlásí „píše…".
+                onDraftEdit = {
+                    draft = it
+                    viewModel.onDraftChanged(it.text)
+                },
                 onPick = { sticker ->
                     stickerPickerOpen = false
                     viewModel.sendSticker(sticker)
@@ -1237,11 +1259,11 @@ private fun MessageInput(
     inputFill: InputFill?,
     onInputFilled: () -> Unit,
     onOpenStickers: () -> Unit,
+    /** Rozepsaný text; drží ho obrazovka, protože do něj vkládá i výběr emoji. */
+    draft: TextFieldValue,
+    onDraftValueChange: (TextFieldValue) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // `TextFieldValue`, ne `String`: u vráceného konceptu je potřeba nastavit i kurzor. S holým
-    // řetězcem by zůstal na začátku textu a psaní by pokračovalo před koncem věty.
-    var draft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
 
     /*
      * Vložení textu zvenku. Koncept z minula jde JEN do prázdného pole — než ho TDLib vydá, mohl
@@ -1250,7 +1272,7 @@ private fun MessageInput(
     LaunchedEffect(inputFill) {
         val fill = inputFill ?: return@LaunchedEffect
         if (!fill.onlyIfEmpty || draft.text.isEmpty()) {
-            draft = TextFieldValue(fill.text, selection = TextRange(fill.text.length))
+            onDraftValueChange(TextFieldValue(fill.text, selection = TextRange(fill.text.length)))
         }
         onInputFilled()
     }
@@ -1329,7 +1351,7 @@ private fun MessageInput(
                 value = draft,
                 onValueChange = {
                     val changed = it.text != draft.text
-                    draft = it
+                    onDraftValueChange(it)
                     // Pohyb kurzoru nebo výběr taky volá `onValueChange`; psaní to není.
                     if (changed) onDraftChanged(it.text)
                 },
@@ -1346,8 +1368,8 @@ private fun MessageInput(
                             },
                         ) {
                             Icon(
-                                painterResource(Res.drawable.sticky_note_2_24dp),
-                                contentDescription = "Samolepky",
+                                painterResource(Res.drawable.mood_24dp),
+                                contentDescription = "Emoji a samolepky",
                             )
                         }
                     }
@@ -1367,7 +1389,7 @@ private fun MessageInput(
                 keyboardActions = KeyboardActions(
                     onSend = {
                         onSend(draft.text)
-                        draft = TextFieldValue()
+                        onDraftValueChange(TextFieldValue())
                     },
                 ),
             )
@@ -1417,7 +1439,7 @@ private fun MessageInput(
             FilledIconButton(
                 onClick = {
                     onSend(draft.text)
-                    draft = TextFieldValue()
+                    onDraftValueChange(TextFieldValue())
                 },
                 enabled = draft.text.isNotBlank(),
                 shapes = IconButtonDefaults.shapes(
