@@ -1120,6 +1120,21 @@ class ConversationViewModel(
         }
     }
 
+    /**
+     * Zruší odesílání přílohy.
+     *
+     * Rozepsanou zprávu stačí smazat: TDLib tím zastaví i nahrávání. Ze seznamu zmizí updatem
+     * o smazání jako každá jiná. Hláška jen při selhání — mezitím mohla zpráva doběhnout.
+     */
+    fun cancelUpload(messageId: Long) {
+        viewModelScope.launch {
+            repository.deleteMessages(chatId, listOf(messageId), revoke = true)
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.message ?: "Odesílání se nepodařilo zrušit.") }
+                }
+        }
+    }
+
     private fun applyReactions(messageId: Long, reactions: List<MessageReaction>) {
         _state.update { state ->
             state.copy(

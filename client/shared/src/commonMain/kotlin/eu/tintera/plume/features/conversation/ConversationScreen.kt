@@ -745,6 +745,7 @@ fun ConversationScreen(
                                 // Album: zprávy od nejstarší, kreslí je mřížka místo jedné přílohy.
                                 album = row.members.takeIf { row.isAlbum },
                                 onOpenAlbumItem = { messageId -> onOpenMedia(messageId) },
+                                onCancelUpload = viewModel::cancelUpload,
                                 quoted = message.replyToMessageId?.let { id ->
                                     byId[id] ?: state.quotes[id]
                                 },
@@ -972,6 +973,8 @@ private fun MessageBubble(
     album: List<ChatMessage>?,
     /** Ťuknutí na fotku v albu — otevře tu konkrétní zprávu. */
     onOpenAlbumItem: (messageId: Long) -> Unit,
+    /** Ťuknutí na průběh nahrávání — zruší odesílání té zprávy (u alba jen té položky). */
+    onCancelUpload: (messageId: Long) -> Unit,
     avatar: SenderAvatar,
     onToggleReaction: (String) -> Unit,
     onRequestMenu: () -> Unit,
@@ -1188,6 +1191,7 @@ private fun MessageBubble(
                         members = album,
                         onOpen = onOpenAlbumItem,
                         onRequestMenu = onRequestMenu,
+                        onCancelUpload = onCancelUpload,
                     )
                 } else {
                     message.media?.let { media ->
@@ -1197,6 +1201,7 @@ private fun MessageBubble(
                             onOpen = onOpenMedia,
                             onRequestMenu = onRequestMenu,
                             uploading = message.sendState == SendState.Sending,
+                            onCancelUpload = { onCancelUpload(message.id) },
                         )
                     }
                 }
@@ -2239,6 +2244,7 @@ private fun MessageAttachment(
     onRequestMenu: () -> Unit,
     /** Odesílaná zpráva: přes přílohu se kreslí průběh nahrávání. */
     uploading: Boolean = false,
+    onCancelUpload: () -> Unit = {},
 ) {
     val shape = RoundedCornerShape(12.dp)
 
@@ -2278,7 +2284,11 @@ private fun MessageAttachment(
                 )
 
                 if (uploading) {
-                    UploadIndicator(fileId = media.fileId, modifier = Modifier.align(Alignment.Center))
+                    UploadIndicator(
+                        fileId = media.fileId,
+                        onCancel = onCancelUpload,
+                        modifier = Modifier.align(Alignment.Center),
+                    )
                 }
             }
         }
@@ -2290,7 +2300,7 @@ private fun MessageAttachment(
             val uploadingFile = media.fileId?.takeIf { uploading }
             if (uploadingFile != null) {
                 // Místo náhledu průběh: u odesílaného souboru je to jediná informace, která se mění.
-                UploadIndicator(fileId = uploadingFile)
+                UploadIndicator(fileId = uploadingFile, onCancel = onCancelUpload)
             } else {
                 media.thumbnailFileId?.let { thumbnail ->
                     RemoteImage(
@@ -2325,23 +2335,33 @@ private fun MessageAttachment(
 }
 
 /**
- * Průběh nahrávání odesílané přílohy.
+ * Průběh nahrávání odesílané přílohy, s křížkem, který odesílání zruší.
  *
  * Vlnitý kruh z M3 Expressive na tmavém kolečku — musí být čitelný přes jakoukoli fotku, proto
  * závoj `scrim` a bílá, stejně jako ovládání v prohlížeči médií. Dokud TDLib nahrávání neohlásí
  * (připravuje soubor), točí se neurčitě; pak ukazuje skutečný podíl.
+ *
+ * Křížek uprostřed kruhu je zvyk z Telegramu i jiných klientů: celé kolečko je tlačítko. Klikání
+ * je `clickable`, ne `combinedClickable` — dlouhý stisk nad průběhem nabídku otevírat nemusí.
  */
 @Composable
-private fun UploadIndicator(fileId: Int, modifier: Modifier = Modifier) {
+private fun UploadIndicator(fileId: Int, onCancel: () -> Unit, modifier: Modifier = Modifier) {
     val progress = rememberUploadProgress(fileId)
 
     Box(
         modifier
             .size(UPLOAD_INDICATOR_SIZE)
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f))
+            .clickable(onClickLabel = "Zrušit odesílání", onClick = onCancel),
         contentAlignment = Alignment.Center,
     ) {
+        Icon(
+            painterResource(Res.drawable.close_24dp),
+            contentDescription = "Zrušit odesílání",
+            tint = Color.White,
+            modifier = Modifier.size(20.dp),
+        )
         if (progress == null) {
             CircularWavyProgressIndicator(color = Color.White, modifier = Modifier.size(36.dp))
         } else {
@@ -2366,6 +2386,7 @@ private fun AlbumContent(
     members: List<ChatMessage>,
     onOpen: (messageId: Long) -> Unit,
     onRequestMenu: () -> Unit,
+    onCancelUpload: (messageId: Long) -> Unit,
 ) {
     val visual = members.all { it.media.isAlbumTile() }
     if (!visual) {
@@ -2378,6 +2399,7 @@ private fun AlbumContent(
                         onOpen = { onOpen(member.id) },
                         onRequestMenu = onRequestMenu,
                         uploading = member.sendState == SendState.Sending,
+                        onCancelUpload = { onCancelUpload(member.id) },
                     )
                 }
             }
@@ -2411,6 +2433,7 @@ private fun AlbumContent(
                             member = member,
                             onOpen = { onOpen(member.id) },
                             onRequestMenu = onRequestMenu,
+                            onCancelUpload = { onCancelUpload(member.id) },
                             modifier = Modifier.weight(1f).height(height),
                         )
                     }
@@ -2430,19 +2453,33 @@ private fun AlbumTile(
     member: ChatMessage,
     onOpen: () -> Unit,
     onRequestMenu: () -> Unit,
+    onCancelUpload: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val uploading = member.sendState == SendState.Sending
+
     when (val media = member.media) {
-        is MessageMedia.Photo -> RemoteImage(
-            fileId = media.fileId,
-            thumbnailFileId = media.thumbnailFileId,
-            contentDescription = "Fotka",
-            contentScale = ContentScale.Crop,
-            modifier = modifier
-                .sharedNavElement(photoKey(member.id))
-                // Dlouhý stisk se opakuje — potomek s vlastním klikáním ho k bublině nepustí.
-                .combinedClickable(onClick = onOpen, onLongClick = onRequestMenu),
-        )
+        is MessageMedia.Photo -> Box(modifier) {
+            RemoteImage(
+                fileId = media.fileId,
+                thumbnailFileId = media.thumbnailFileId,
+                contentDescription = "Fotka",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .sharedNavElement(photoKey(member.id))
+                    // Dlouhý stisk se opakuje — potomek s vlastním klikáním ho k bublině nepustí.
+                    .combinedClickable(onClick = onOpen, onLongClick = onRequestMenu),
+            )
+            // Každá dlaždice nahrává sama za sebe, takže má i vlastní zrušení.
+            if (uploading) {
+                UploadIndicator(
+                    fileId = media.fileId,
+                    onCancel = onCancelUpload,
+                    modifier = Modifier.align(Alignment.Center),
+                )
+            }
+        }
 
         is MessageMedia.Attachment -> Box(modifier.combinedClickable(onClick = {}, onLongClick = onRequestMenu)) {
             media.thumbnailFileId?.let { thumbnail ->
