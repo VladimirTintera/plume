@@ -83,6 +83,10 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.transformLatest
 import androidx.compose.foundation.shape.CircleShape
 import eu.tintera.plume.resources.star_filled_24dp
+import androidx.compose.foundation.lazy.grid.LazyGridItemScope
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import org.koin.compose.viewmodel.koinViewModel
 
 /** Záložka výběru samolepek. */
@@ -348,10 +352,32 @@ private fun StickerPage(
     cells: StickerCells,
 ) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        when {
-            stickers == null -> LoadingIndicator()
+        if (stickers == null) {
+            LoadingIndicator()
+            return@Box
+        }
 
-            stickers.isEmpty() -> Text(
+        /*
+         * Mřížka zůstává, i když je prázdná. Kdyby ji prázdný stav nahradil, zmizela by v okamžiku,
+         * kdy z ní odejde poslední samolepka — a ta by nestihla odejít animací (typicky poslední
+         * oblíbená odebraná hvězdičkou). Prázdný text se proto nad ní jen plynule objeví.
+         */
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(STICKER_CELL),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            items(stickers, key = { it.id }) { sticker ->
+                StickerCell(sticker, cells, animateStickerItem())
+            }
+        }
+
+        AnimatedVisibility(
+            visible = stickers.isEmpty(),
+            enter = fadeIn(MaterialTheme.motionScheme.slowEffectsSpec()),
+            exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+        ) {
+            Text(
                 text = when (tab) {
                     StickerTab.Recent -> "Tady se objeví samolepky, které pošleš."
                     StickerTab.Favorites -> "Zatím tu nejsou žádné oblíbené samolepky."
@@ -362,14 +388,6 @@ private fun StickerPage(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(24.dp),
             )
-
-            else -> LazyVerticalGrid(
-                columns = GridCells.Adaptive(STICKER_CELL),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                items(stickers, key = { it.id }) { sticker -> StickerCell(sticker, cells) }
-            }
         }
     }
 }
@@ -395,11 +413,11 @@ private class StickerCells(
  */
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
-private fun StickerCell(sticker: StickerItem, cells: StickerCells) {
+private fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Modifier = Modifier) {
     val active = sticker.id == cells.activeStickerId
 
     Box(
-        Modifier
+        modifier
             .size(STICKER_CELL)
             .clip(RoundedCornerShape(12.dp))
             // Podbarvení nese potvrzení podržení i u statické samolepky, která se rozhýbat nemá jak.
@@ -433,6 +451,20 @@ private fun StickerCell(sticker: StickerItem, cells: StickerCells) {
         }
     }
 }
+
+/**
+ * Příchod, odchod a přeskupení samolepky v mřížce.
+ *
+ * Odebraná samolepka (typicky z oblíbených) plynule zmizí a ostatní se na její místo dosunou —
+ * bez toho mřížka při každé změně seznamu skočila. Průhlednost jde přes effects spec (bez
+ * přeběhu, ten by u alfy blikl), posun přes spatial (s jemným pružením jako zbytek aplikace).
+ */
+@Composable
+private fun LazyGridItemScope.animateStickerItem(): Modifier = Modifier.animateItem(
+    fadeInSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+    placementSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+    fadeOutSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+)
 
 /**
  * Pole hledání nad záložkami.
@@ -536,7 +568,9 @@ private fun LazyGridScope.searchSection(
     }
     // Klíč nese sekci: tatáž samolepka se ve dvou sekcích neobjeví (veřejné se filtrují), ale
     // klíče nadpisu a samolepky musí být různého tvaru i tak.
-    items(stickers, key = { "sticker-${it.id}" }) { sticker -> StickerCell(sticker, cells) }
+    items(stickers, key = { "sticker-${it.id}" }) { sticker ->
+        StickerCell(sticker, cells, animateStickerItem())
+    }
 }
 
 @Composable

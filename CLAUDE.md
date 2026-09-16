@@ -867,6 +867,10 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
 - **Oblíbené se přepínají hvězdičkou u PODRŽENÉ samolepky**, ne u každé buňky. Hvězdička všude
   by zaplevelila mřížku a ťuknutí vedle ní by samolepku omylem poslalo; podržení je zároveň
   „prohlížím si tuhle". Stav se lokálně nepřepisuje, potvrzení přijde `favoriteStickersUpdates`.
+- **Buňky mřížky mají `animateItem`** — odebraná samolepka plynule zmizí a ostatní se dosunou.
+  Průhlednost přes effects spec, posun přes spatial. **Mřížka zůstává i prázdná** a prázdný text
+  se nad ní jen objeví: kdyby ji prázdný stav nahradil, zmizela by i s poslední samolepkou dřív,
+  než ta stihne odejít animací.
 - **V konverzaci jsou oblíbené v nabídce nad zprávou se samolepkou.** Jestli je samolepka
   oblíbená, se zjistí při otevření nabídky (souběžně s ostatními příznaky). Výsledek hlásí
   snackbar (`notice`) — v konverzaci se jinak nic viditelného nezmění.
