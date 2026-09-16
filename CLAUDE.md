@@ -826,6 +826,31 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
   `labelLarge` míří na výšku písmen, ale u emoji je nosná celá kresba, takže ve stejné velikosti
   působí menší než číslo vedle ní.
 
+## Výběr samolepek
+
+Tlačítko se samolepkou ve vstupním poli otevře bottom sheet: záložky Nedávné, Oblíbené
+a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako odpověď).
+
+- **Bottom sheet, ne panel místo klávesnice.** Výměna klávesnice za panel tak, aby vstupní pole
+  neposkočilo, je v Compose nejkřehčí část — sheet ji nepotřebuje. Klávesnice se před otevřením
+  zavře, jinak by se se sheetem přetahovaly o spodek obrazovky.
+- **Hranice je `StickerRepository`** (vlastní, ne kus konverzace): seznamy jsou živé toky, které
+  se na update **čtou znovu** — updaty nesou jen id sad a souborů. Odběr stojí před prvním čtením.
+- **Obsah sady se načítá až při otevření její záložky.** Sad bývá desítky.
+- **V mřížce samolepky NEHRAJÍ** (`AnimatedSticker(isPlaying = false)`). Desítky animací v jedné
+  mřížce by stály víc, než přinesou. Bere se nejlevnější podoba: rastrový náhled, statická `.webp`,
+  a teprve bez nich první snímek `.tgs`.
+- **Mřížka má pevnou výšku**, jinak by se sheet při přepnutí záložky natahoval a smršťoval.
+- **Prémiové samolepky se bez Premium nenabízejí** (`StickerFullTypeRegular.premiumAnimation`).
+  Odeslat je nejde a samolepka, po které přijde chyba, je horší než žádná. Na Premium se ptá
+  `getMe` při každém čtení — předplatné se mění.
+- **Posílá se soubor samolepky** (`InputFileId`), ne náhled; náhled se nenahrává, samolepka už
+  na serveru je. Po odeslání se výslovně přidá mezi nedávné, aby byla hned nahoře.
+- **Sheet se nejdřív schová, teprve pak se pošle.** Zmizení bez animace vypadá jako pád.
+- **Samolepka nezakládá let ze vstupního pole** a nemaže rozepsaný text — z pole nevyletěla.
+- **Ikony Material Symbols ze SVG mají souřadnice y v -960..0.** Ve vector drawable se to řeší
+  `group` s `translateY="960"`, cesta zůstává, jak je.
+
 ## Reakce
 
 - **TDLib nezná „přepnutí".** Má `addMessageReaction` a `removeMessageReaction`; jestli reakce

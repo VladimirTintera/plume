@@ -125,6 +125,13 @@ interface ConversationRepository {
     suspend fun send(chatId: Long, text: String, replyToMessageId: Long?): Result<ChatMessage>
 
     /**
+     * Odešle samolepku. Stejně jako [send] vrací rozepsanou zprávu okamžitě.
+     *
+     * Samolepka se zároveň zařadí mezi nedávné, aby byla ve výběru příště nahoře.
+     */
+    suspend fun sendSticker(chatId: Long, sticker: StickerItem, replyToMessageId: Long?): Result<ChatMessage>
+
+    /**
      * Nahradí text odeslané zprávy.
      *
      * Výsledek se do konverzace dostane updatem (`editedMessages`), stejně jako cizí úpravy —

@@ -104,3 +104,14 @@ Seřazeno podle toho, jak moc to bolí.
 Do každého kroku se vejde i kus zásobníku: datové předěly a profilovky ve skupině se hodí
 udělat, až budeme stejně v `MessageBubble`; opravy indexů při hlášení přečtení hned, protože
 jsou to tři řádky.
+
+## Výběr samolepek
+
+Základ je hotový (záložky Nedávné, Oblíbené, sady; odeslání). Zbývá:
+
+- **Vyhledávání** podle emoji a textu (`searchStickers`, `getKeywordEmojis`).
+- **Oblíbené** — přidat/odebrat dlouhým stiskem ve výběru i na samolepce v konverzaci
+  (`addFavoriteSticker`, `removeFavoriteSticker`).
+- **Náhled po podržení**, kde samolepka hraje — v mřížce je jen první snímek.
+- **Přidání sady ze samolepky v chatu** (`changeStickerSet`) a trendy (`getTrendingStickerSets`).
+- **Emoji picker** jako další záložka.

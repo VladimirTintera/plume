@@ -307,7 +307,7 @@ internal fun Message.messageMedia(): MessageMedia? = when (val content = this.co
 private fun MessageAnimatedEmoji.animationFileId(): Int? =
     animatedEmoji.sticker?.takeIf { it.format is StickerFormatTgs }?.sticker?.id
 
-private fun Sticker.toMedia(): MessageMedia.Sticker {
+internal fun Sticker.toMedia(): MessageMedia.Sticker {
     val rasterThumbnail = thumbnail?.takeIf {
         it.format is ThumbnailFormatWebp ||
             it.format is ThumbnailFormatJpeg ||
