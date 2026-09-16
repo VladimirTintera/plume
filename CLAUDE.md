@@ -382,9 +382,13 @@ album. Bublina ukazuje průběh nahrávání.
 - **Průběh nahrávání** chodí týmiž `fileUpdates` jako stahování (`remote.uploadedSize`),
   `FileRepository.uploadProgress`. Kreslí se jen u zprávy ve stavu `Sending`: vlnitý kruh
   (`CircularWavyProgressIndicator`) na tmavém kolečku přes fotku, u souboru místo náhledu. Dokud
-  TDLib nahrávání neohlásí, točí se neurčitě.
+  TDLib nahrávání neohlásí, točí se neurčitě. Průběh je i na každé dlaždici alba — dlaždice
+  nahrávají každá sama za sebe.
+- **Zrušení = smazání rozepsané zprávy** (`deleteMessages`, křížek uprostřed kolečka průběhu).
+  TDLib tím zastaví i nahrávání a pošle `UpdateDeleteMessages`, takže zpráva zmizí jako každá
+  smazaná. U alba se ruší jen ťuknutá položka, zbytek odejde.
 - **Citace se spotřebuje** jako u textové zprávy; let ze vstupního pole se nekoná.
-- **Při úpravě zprávy sponka není.** Zatím **bez zrušení nahrávání** a bez videa v albu.
+- **Při úpravě zprávy sponka není.** Zatím bez videa v albu.
 
 ### Předěly dne
 
