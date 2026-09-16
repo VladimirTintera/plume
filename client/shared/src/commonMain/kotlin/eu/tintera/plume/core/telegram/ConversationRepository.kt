@@ -514,6 +514,8 @@ sealed interface MessageMedia {
     data class Sticker(
         /** Soubor samolepky v jakémkoli formátu. Podle něj se samolepka posílá i dává do oblíbených. */
         val stickerFileId: Int,
+        /** Sada, do které samolepka patří; `0`, když do žádné nepatří. */
+        val setId: Long,
         val fileId: Int?,
         val animationFileId: Int?,
         val thumbnailFileId: Int?,

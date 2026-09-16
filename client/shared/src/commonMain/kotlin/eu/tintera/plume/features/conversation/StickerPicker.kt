@@ -396,7 +396,7 @@ private fun StickerPage(
  * Co buňky mřížky potřebují od sheetu. Balík místo pěti parametrů, které by se jinak táhly přes
  * stránku záložky i výsledky hledání.
  */
-private class StickerCells(
+internal class StickerCells(
     val activeStickerId: Long?,
     val favoriteFileIds: Set<Int>,
     val onPick: (StickerItem) -> Unit,
@@ -413,7 +413,7 @@ private class StickerCells(
  */
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
-private fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Modifier = Modifier) {
+internal fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Modifier = Modifier) {
     val active = sticker.id == cells.activeStickerId
 
     Box(
@@ -460,7 +460,7 @@ private fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Mod
  * přeběhu, ten by u alfy blikl), posun přes spatial (s jemným pružením jako zbytek aplikace).
  */
 @Composable
-private fun LazyGridItemScope.animateStickerItem(): Modifier = Modifier.animateItem(
+internal fun LazyGridItemScope.animateStickerItem(): Modifier = Modifier.animateItem(
     fadeInSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
     placementSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
     fadeOutSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
@@ -661,7 +661,7 @@ private val FAVORITE_BUTTON_SIZE = 28.dp
 private val STICKER_TAB_ROW_HEIGHT = 48.dp
 
 /** Výška mřížky. Kolem tří řádků — dost na výběr, konverzace nad sheetem zůstává vidět. */
-private val STICKER_PICKER_HEIGHT = 320.dp
+internal val STICKER_PICKER_HEIGHT = 320.dp
 
 /** Buňka mřížky. Na telefonu pět sloupců, jako v Telegramu. */
-private val STICKER_CELL = 76.dp
+internal val STICKER_CELL = 76.dp
