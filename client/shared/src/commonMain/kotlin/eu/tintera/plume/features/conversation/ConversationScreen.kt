@@ -11,6 +11,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -108,6 +110,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -213,10 +216,10 @@ fun ConversationScreen(
     var pendingNewMessages by rememberSaveable { mutableIntStateOf(0) }
     var lastSeenMessageId by rememberSaveable { mutableStateOf<Long?>(null) }
 
-    /** Změřená výška plovoucího vstupního pole; drží odsazení seznamu v souladu s realitou. */
-    var inputHeight by remember { mutableStateOf(0.dp) }
-
-    /** Změřená výška pruhu s připnutou zprávou; nula, když žádný není. Totéž jako u pole, jen nahoře. */
+    /**
+     * Změřená výška pruhu s připnutou zprávou; nula, když žádný není. Pruh plave nad seznamem
+     * (není v `topBar`), takže jeho výšku Scaffold nezná a měří se ručně.
+     */
     var pinnedHeight by remember { mutableStateOf(0.dp) }
 
     /*
@@ -482,8 +485,37 @@ fun ConversationScreen(
                 },
             )
         },
-        // Vstupní pole NENÍ `bottomBar`: jako bottomBar by ukusovalo z výšky seznamu a zprávy
-        // by před ním končily. Plave nad obsahem, který pod něj zajíždí — viz níž.
+        /*
+         * Vstupní pole JE `bottomBar`. Scaffold ho změří (i s citací, úpravou, víc řádky
+         * a klávesnicí) a podle toho sám postaví snackbar a tlačítko dolů nad něj.
+         *
+         * Obsah Scaffoldu je přesto přes celou plochu: spodní padding se nedává na kontejner,
+         * ale do `contentPadding` seznamu. Zprávy tak pod pole zajíždějí a v klidu nad ním
+         * končí. Kdyby šel padding na kontejner, seznam by před polem natvrdo skončil a přes
+         * obrazovku by vedl předěl, o který se zprávy při scrollu „zasekávají".
+         */
+        bottomBar = {
+            MessageInput(
+                replyingTo = state.replyingTo,
+                partnerName = state.info?.title,
+                flight = state.flight,
+                onCancelReply = viewModel::clearReply,
+                onSend = viewModel::send,
+                onDraftChanged = viewModel::onDraftChanged,
+                editing = state.editing,
+                onCancelEdit = viewModel::cancelEdit,
+                inputFill = state.inputFill,
+                onInputFilled = viewModel::consumeInputFill,
+            )
+        },
+        // Tlačítko dolů ve FAB slotu: Scaffold ho drží nad polem a snackbar pak nad ním.
+        floatingActionButton = {
+            ScrollToBottomButton(
+                visible = farFromBottom || pendingNewMessages > 0,
+                count = pendingNewMessages,
+                onClick = { scope.launch { listState.animateScrollToItem(0) } },
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         // Nabídka nad zprávou se kreslí až v bublině — viz `MessageMenuOverlay`.
@@ -516,7 +548,16 @@ fun ConversationScreen(
             )
         }
 
-        Box(Modifier.fillMaxSize().padding(padding)) {
+        val layoutDirection = LocalLayoutDirection.current
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(
+                    top = padding.calculateTopPadding(),
+                    start = padding.calculateStartPadding(layoutDirection),
+                    end = padding.calculateEndPadding(layoutDirection),
+                ),
+        ) {
             when {
                 state.messages.isEmpty() && state.loading ->
                     LoadingIndicator(Modifier.align(Alignment.Center))
@@ -533,14 +574,13 @@ fun ConversationScreen(
                     state = listState,
                     reverseLayout = true,
                     modifier = Modifier.fillMaxSize(),
-                    // Dole se odsazuje o výšku vstupního pole, aby nejnovější zpráva v klidovém
-                    // stavu nekončila pod ním. Při scrollu už obsah pod pole zajede — to je
-                    // rozdíl proti `bottomBar`, který místo ukusoval natrvalo.
+                    // Dole se odsazuje o výšku `bottomBar` (vstupního pole), aby nejnovější
+                    // zpráva v klidu nekončila pod ním. Při scrollu obsah pod pole zajede.
                     contentPadding = PaddingValues(
                         start = 12.dp,
                         end = 12.dp,
                         top = 8.dp + pinnedHeight,
-                        bottom = 8.dp + inputHeight,
+                        bottom = 8.dp + padding.calculateBottomPadding(),
                     ),
                     // Rozestup UVNITŘ skupiny zpráv od jednoho odesílatele. Mezera mezi skupinami
                     // se přidává až v bublině — tady na to není informace o sousedech.
@@ -726,34 +766,6 @@ fun ConversationScreen(
                 )
             }
 
-            // Odznak leží NAD seznamem, ne v něm — musí zůstat u spodní hrany i při scrollu.
-            ScrollToBottomButton(
-                visible = farFromBottom || pendingNewMessages > 0,
-                count = pendingNewMessages,
-                onClick = { scope.launch { listState.animateScrollToItem(0) } },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(bottom = inputHeight)
-                    .padding(16.dp),
-            )
-
-            MessageInput(
-                replyingTo = state.replyingTo,
-                partnerName = state.info?.title,
-                flight = state.flight,
-                onCancelReply = viewModel::clearReply,
-                onSend = viewModel::send,
-                onDraftChanged = viewModel::onDraftChanged,
-                editing = state.editing,
-                onCancelEdit = viewModel::cancelEdit,
-                inputFill = state.inputFill,
-                onInputFilled = viewModel::consumeInputFill,
-                // Výška se měří a vrací zpátky do odsazení seznamu. Natvrdo zadaná konstanta
-                // by se rozešla s realitou, jakmile se pole zalomí na víc řádků nebo se nad
-                // ním objeví karta s citací.
-                onHeightChanged = { inputHeight = it },
-                modifier = Modifier.align(Alignment.BottomCenter),
-            )
         }
     }
 }
@@ -1085,6 +1097,7 @@ private fun MessageBubble(
                         // barvu popředí — jinak by byl neviditelný. Stejná past jako u citace.
                         linkColor = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
                         onLinkClick = onLinkClick,
+                        onLongClick = onRequestMenu,
                     )
                 }
 
@@ -1176,7 +1189,6 @@ private fun MessageInput(
     /** Text, který se má jednou vložit do pole (koncept, úprava). */
     inputFill: InputFill?,
     onInputFilled: () -> Unit,
-    onHeightChanged: (Dp) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // `TextFieldValue`, ne `String`: u vráceného konceptu je potřeba nastavit i kurzor. S holým
@@ -1204,20 +1216,18 @@ private fun MessageInput(
         focusRequester.requestFocus()
         keyboard?.show()
     }
-    val density = LocalDensity.current
 
     /*
      * Pruh má barvu POZADÍ, jen průsvitnou.
      *
-     * Zprávy pod něj zajíždějí (pole není `bottomBar`, viz výše) a bez pruhu by se pod kartou
+     * Zprávy pod něj zajíždějí (padding `bottomBar` jde do `contentPadding` seznamu, viz výše)
+     * a bez pruhu by se pod kartou
      * míchaly s textem. Plná barva by zase udělala ostrý předěl přes celou obrazovku. Průsvit
      * dělá závoj: je vidět, že tam obsah je, ale nepřebíjí psaní.
      */
     Surface(
         color = MaterialTheme.colorScheme.surface.copy(alpha = INPUT_SCRIM_ALPHA),
-        modifier = modifier.onSizeChanged {
-            onHeightChanged(with(density) { it.height.toDp() })
-        },
+        modifier = modifier,
     ) {
         Row(
             Modifier

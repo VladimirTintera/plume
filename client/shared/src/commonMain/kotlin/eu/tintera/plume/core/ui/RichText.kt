@@ -1,5 +1,12 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -50,6 +57,14 @@ fun RichText(
      */
     linkColor: Color = MaterialTheme.colorScheme.primary,
     onLinkClick: (String) -> Unit = {},
+    /**
+     * Dlouhý stisk NAD ODKAZEM. Mimo odkazy ho dostane rodič (bublina) sám.
+     *
+     * Odkaz je uvnitř `Text` samostatný `combinedClickable` bez `onLongClick`, a ten dlouhý stisk
+     * k rodiči nepustí — po puštění ho navíc vyhodnotí jako obyčejné ťuknutí. Nad odkazem se
+     * tak místo nabídky otevíral prohlížeč. Proto se dlouhý stisk nad odkazem hlídá tady.
+     */
+    onLongClick: (() -> Unit)? = null,
 ) {
     /*
      * Spoilery se odkrývají po zprávě, ne po jednotlivých úsecích.
@@ -65,6 +80,16 @@ fun RichText(
     // Obsluha kliknutí se drží stranou od klíčů: je to lambda, která se při každé rekompozici
     // vyrábí znovu, takže by `remember` níž nikdy neplatil a text by se skládal pořád dokola.
     val linkHandler by rememberUpdatedState(onLinkClick)
+    val longClickHandler by rememberUpdatedState(onLongClick)
+
+    var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+
+    /*
+     * Dlouhý stisk už proběhl, takže se puštění prstu nesmí brát jako ťuknutí na odkaz.
+     * Obyčejné pole místo stavu: čte se v obsluze kliknutí, ne v kompozici.
+     */
+    val suppressLinkClick = remember { booleanArrayOf(false) }
+    val haptics = LocalHapticFeedback.current
 
     val annotated = remember(text, entities, linkColor, contentColor, spoilersRevealed) {
         buildMessageText(
@@ -73,12 +98,53 @@ fun RichText(
             linkColor = linkColor,
             overlayColor = contentColor,
             spoilersRevealed = spoilersRevealed,
-            onLinkClick = { linkHandler(it) },
+            onLinkClick = {
+                if (suppressLinkClick[0]) suppressLinkClick[0] = false else linkHandler(it)
+            },
             onSpoilerClick = { spoilersRevealed = true },
         )
     }
 
-    Text(text = annotated, style = style, modifier = modifier)
+    Text(
+        text = annotated,
+        style = style,
+        onTextLayout = { layout = it },
+        modifier = modifier.then(
+            if (onLongClick == null) {
+                Modifier
+            } else {
+                Modifier.pointerInput(annotated) {
+                    awaitEachGesture {
+                        // `Initial` a nic se nekonzumuje: odkaz i bublina dostanou událost
+                        // beze změny, tady se jen pozoruje.
+                        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        suppressLinkClick[0] = false
+
+                        val offset = layout?.getOffsetForPosition(down.position) ?: return@awaitEachGesture
+                        // Mimo odkaz si dlouhý stisk obslouží bublina; hlídat ho i tady by
+                        // nabídku otevřelo dvakrát.
+                        if (annotated.getLinkAnnotations(offset, offset + 1).isEmpty()) return@awaitEachGesture
+
+                        // `null` = vypršel čas a prst je pořád dole na místě.
+                        val released = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                            while (true) {
+                                val change = awaitPointerEvent(PointerEventPass.Initial)
+                                    .changes.firstOrNull { it.id == down.id } ?: break
+                                if (!change.pressed) break
+                                if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) break
+                            }
+                        }
+
+                        if (released == null) {
+                            suppressLinkClick[0] = true
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            longClickHandler?.invoke()
+                        }
+                    }
+                }
+            },
+        ),
+    )
 }
 
 /**

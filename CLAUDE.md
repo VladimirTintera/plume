@@ -365,8 +365,8 @@ křížek ji odepne.
   zprávu a „odepnout vše" jich pošle dávku; `conflate` z ní udělá jedno čtení. Totéž po smazání
   připnuté zprávy. Úprava připnuté zprávy se do pruhu propisuje z `editedMessages`.
 - **Odběr stojí PŘED prvním čtením** (`onStart { emit(Unit) }`), aby se změna mezi nimi neztratila.
-- **Pruh plave nad seznamem, není v `topBar`.** Seznam se odsazuje o jeho změřenou výšku, stejně
-  jako dole o vstupní pole — jinak by při odjezdu pruhu obsah na konci animace poskočil.
+- **Pruh plave nad seznamem, není v `topBar`.** Seznam se odsazuje o jeho změřenou výšku (dole
+  o padding `bottomBar`) — jinak by při odjezdu pruhu obsah na konci animace poskočil.
   O stejnou výšku se posouvá i plovoucí datum.
 - **Při odjezdu se kreslí poslední seznam**, ne prázdný pruh (`AnimatedVisibility` dobíhá
   s obsahem, ale stav je už prázdný).
@@ -503,18 +503,25 @@ v seznamu chatů („Koncept: …") a na ostatních zařízeních.
   důvodu má vybraná reakce `primaryContainer` místo `primary`.
 - **Startovní strana letu musí mít barvu cílové bubliny.** Jinak zpráva po cestě do konverzace
   změní barvu.
-- **Vstupní pole NENÍ `bottomBar`.** Jako bottomBar ukusovalo z výšky seznamu, takže přes obrazovku
-  vedl vodorovný předěl, o který se zprávy při scrollu „zasekávaly". Teď plave nad obsahem
-  a seznam se dole odsadí o jeho ZMĚŘENOU výšku — natvrdo zadaná konstanta by se rozešla
-  s realitou, jakmile se pole zalomí na víc řádků nebo se nad ním objeví karta s citací.
+- **Vstupní pole JE `bottomBar`, ale spodní padding jde do `contentPadding` seznamu, ne na
+  kontejner.** Obsah Scaffoldu je přes celou plochu a Scaffold padding jen spočítá. Dřív se dával
+  modifikátorem na kontejner, seznam tím před polem natvrdo skončil a přes obrazovku vedl
+  předěl, o který se zprávy při scrollu „zasekávaly" — proto pole na čas z `bottomBar` odešlo
+  a měřilo se ručně. Jako `bottomBar` ho ale měří Scaffold (i s citací, úpravou, víc řádky
+  a klávesnicí) a podle něj sám staví snackbar a tlačítko dolů (FAB slot). Ruční měření na
+  třech místech tím odpadlo a snackbar přestal pole překrývat.
 - **Odesílací tlačítko je velikost medium (56 dp).** Je to přesně minimální výška jednořádkového
   `TextField`, takže se spodním zarovnáním řádku sedí na střed pole bez dopočítávaného odsazení
   a u víceřádkového textu zůstává u posledního řádku. Výchozí small (40 dp) sedělo o 8 dp níž
   než střed pole, large (96 dp) by bylo vyšší než pole samo.
+- **`consumeWindowInsets` v obsahu snackbar ani FAB neposune.** Ty nejsou potomky obsahu —
+  rozmisťuje je Scaffold nad FAB / `bottomBar` / spodní inset `contentWindowInsets`. Co má stát
+  nad nimi, musí být ve slotu, jinak o sobě nevědí.
 - **Scaffold konverzace nedává spodní inset do `padding`** (`contentWindowInsets` jen Top +
-  Horizontal). Spodek si řeší pole samo přes `navigationBarsPadding` + `imePadding`. `padding`
-  ze Scaffoldu se v obsahu jen aplikuje a inset NEKONZUMUJE, takže se výška systémové lišty
-  připočítávala dvakrát a pole viselo zbytečně vysoko — se zavřenou i otevřenou klávesnicí.
+  Horizontal). Spodek si řeší pole samo přes `navigationBarsPadding` + `imePadding`, takže
+  spodní padding je přesně výška `bottomBar`. `padding` ze Scaffoldu se v obsahu jen aplikuje
+  a inset NEKONZUMUJE — se spodním insetem v `contentWindowInsets` se výška systémové lišty
+  připočítávala dvakrát a pole viselo zbytečně vysoko, se zavřenou i otevřenou klávesnicí.
 - **Citace a psaní jsou JEDNA karta.** Dva samostatné kusy nad sebou dělaly z odpovědi cizí prvek
   vsunutý mezi konverzaci a vstup; ve společné kartě je vidět, že citace patří k tomu, co se
   právě píše. Pole uvnitř je proto průhledné — kontejner nese karta, ne ono, a dvě zaoblené
@@ -550,6 +557,12 @@ to tu bylo, než vznikly `MessageEntity` a `RichText`.
   interní `t.me` odkazy, rozhodne se to na jednom místě a obrazovka se měnit nebude. Vlastní
   `linkInteractionListener` je nutný — bez něj si `LinkAnnotation.Url` otevře odkaz sám přes
   `LocalUriHandler` a nemáme kam sáhnout.
+- **Dlouhý stisk nad odkazem hlídá `RichText` sám** (`onLongClick`). Compose dává každému odkazu
+  vlastní `combinedClickable` bez `onLongClick`: ten dlouhý stisk k bublině nepustí a po puštění
+  ho vyhodnotí jako ťuknutí, takže se místo nabídky otevíral prohlížeč. `RichText` proto
+  v `PointerEventPass.Initial` (bez konzumace) pozoruje stisk nad odkazem, po `longPressTimeout`
+  zavolá nabídku a následné „kliknutí" na odkaz zahodí. Mimo odkazy se nehlídá nic — dlouhý
+  stisk tam dostane bublina a nabídka by se otevřela dvakrát.
 - **Odkaz bez schématu dostane `https://`.** TDLib označí za odkaz i holé `example.com`; Android
   by z toho udělal relativní URI a intent by nikam nevedl.
 - **Zmínky, hashtagy a příkazy botů se schválně nemapují.** Obarvit je umíme, ale kliknutí by
