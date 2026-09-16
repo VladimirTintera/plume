@@ -102,6 +102,7 @@ import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.asDayLabel
+import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.isSameDayAs
 import eu.tintera.plume.core.ui.chatAvatarKey
@@ -396,12 +397,32 @@ fun ConversationScreen(
                                     ?: Modifier,
                             )
 
-                            // Podtitul jen v soukromém chatu — skupina žádnou dostupnost nemá.
-                            state.presence?.let { presence ->
+                            /*
+                             * Podtitul: činnost, jinak dostupnost.
+                             *
+                             * „Píše…" má přednost — je to novější a pro čekajícího zajímavější
+                             * informace, a obojí se na řádek nevejde. Skupina dostupnost nemá,
+                             * takže tam se podtitul objeví jen při činnosti; výšku hlavičky proto
+                             * animuje `AnimatedContent`, jinak by název poskočil.
+                             */
+                            val subtitle = state.activity?.let { HeaderSubtitle(it.label(), accent = true) }
+                                ?: state.presence?.let {
+                                    HeaderSubtitle(it.describe(), accent = it is Presence.Online)
+                                }
+                            val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+                            val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+
+                            AnimatedContent(
+                                targetState = subtitle,
+                                transitionSpec = { fadeIn(effects) togetherWith fadeOut(fastEffects) },
+                                contentAlignment = Alignment.CenterStart,
+                                label = "header-subtitle",
+                            ) { current ->
+                                current ?: return@AnimatedContent
                                 Text(
-                                    text = presence.describe(),
+                                    text = current.text,
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = if (presence is Presence.Online) {
+                                    color = if (current.accent) {
                                         MaterialTheme.colorScheme.primary
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant
@@ -617,6 +638,7 @@ fun ConversationScreen(
                 flight = state.flight,
                 onCancelReply = viewModel::clearReply,
                 onSend = viewModel::send,
+                onDraftChanged = viewModel::onDraftChanged,
                 // Výška se měří a vrací zpátky do odsazení seznamu. Natvrdo zadaná konstanta
                 // by se rozešla s realitou, jakmile se pole zalomí na víc řádků nebo se nad
                 // ním objeví karta s citací.
@@ -1009,6 +1031,8 @@ private fun MessageInput(
     flight: MessageFlight?,
     onCancelReply: () -> Unit,
     onSend: (String) -> Unit,
+    /** Jen ruční úpravy textu — vyprázdnění po odeslání se nehlásí, o to se stará `onSend`. */
+    onDraftChanged: (String) -> Unit,
     onHeightChanged: (Dp) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1075,7 +1099,10 @@ private fun MessageInput(
                 Box {
             TextField(
                 value = draft,
-                onValueChange = { draft = it },
+                onValueChange = {
+                    draft = it
+                    onDraftChanged(it)
+                },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("Zpráva") },
                 maxLines = 6,
@@ -1686,6 +1713,9 @@ private fun CenteredNote(
         }
     }
 }
+
+/** Řádek pod názvem chatu. [accent] = živá informace (online, píše…), jinak tlumeně. */
+private data class HeaderSubtitle(val text: String, val accent: Boolean)
 
 /**
  * „Naposledy viděn" do hlavičky.

@@ -91,10 +91,6 @@ Seřazeno podle toho, jak moc to bolí.
 - **Skok na první nepřečtenou** — hotovo, ale s **limitem pěti stránek historie**. Kdo má
   v chatu stovky nepřečtených, skok nedostane. Dořešit by to znamenalo stránkovat oběma směry
   (kotva uprostřed přes záporný `offset` v `getChatHistory`).
-- **„Píše…" v hlavičce konverzace.** `ChatActivity` se v seznamu chatů zobrazuje, v konverzaci
-  ne, i když je to přesně místo, kde na odpověď někdo čeká. (Repository konverzace ho zatím
-  nemá — vede přes `ChatRepository`.)
-- **Vlastní `sendChatAction` při psaní.** Protějšek o nás nevidí, že píšeme.
 - **Profilovka odesílatele ve skupině.** Bubliny nesou jméno, ale žádnou tvář.
 - **Označení textu / kopírování.** Bez [B] a bez `SelectionContainer` se z konverzace nedá
   dostat text ven.

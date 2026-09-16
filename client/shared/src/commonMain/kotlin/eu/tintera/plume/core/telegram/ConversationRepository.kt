@@ -97,6 +97,15 @@ interface ConversationRepository {
      */
     fun presenceUpdates(chatId: Long): Flow<Presence>
 
+    /**
+     * Ohlásí protějšku, že píšeme, nebo že jsme přestali.
+     *
+     * Server činnost sám zhasne zhruba po šesti vteřinách, takže při souvislém psaní se musí
+     * opakovat — o to se stará volající. Selhání se jen zaloguje: kvůli „píše…" nemá smysl
+     * uživatele obtěžovat chybou.
+     */
+    suspend fun sendTyping(chatId: Long, typing: Boolean): Result<Unit>
+
     /** Označí zprávy za přečtené. Bez tohohle zůstane odznak nepřečtených viset napořád. */
     suspend fun markRead(chatId: Long, messageIds: List<Long>): Result<Unit>
 

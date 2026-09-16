@@ -2,6 +2,8 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
+import dev.g000sha256.tdl.dto.ChatActionCancel
+import dev.g000sha256.tdl.dto.ChatActionTyping
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.FormattedText
@@ -263,6 +265,18 @@ class TdlConversationRepository(
             // TDLib vrací zprávu okamžitě, s dočasným id a stavem Pending.
             .map { it.toChatMessage(isGroup(chatId)) }
     }
+
+    override suspend fun sendTyping(chatId: Long, typing: Boolean): Result<Unit> =
+        client.sendChatAction(
+            chatId = chatId,
+            // Vlákna (fóra) zatím neřešíme, stejně jako u odesílání.
+            topicId = null,
+            // Prázdný řetězec = obyčejný účet, ne firemní připojení. Parametr je nenullovatelný.
+            businessConnectionId = "",
+            action = if (typing) ChatActionTyping() else ChatActionCancel(),
+        )
+            .toResult()
+            .map { }
 
     override suspend fun markRead(chatId: Long, messageIds: List<Long>): Result<Unit> =
         client.viewMessages(

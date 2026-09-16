@@ -327,6 +327,25 @@ se ukáže i bez nových zpráv, jakmile je uživatel o kus výš.
 - **Ukáže se až o pár položek výš** (`SCROLL_DOWN_THRESHOLD_ITEMS`), ne při prvním pixelu —
   u spodní hrany by blikalo pod prstem.
 
+### „Píše…" v konverzaci
+
+Hlavička ukazuje činnost protějšku (ve skupině kohokoli) místo dostupnosti a protějšek naopak
+vidí, že píšeme my.
+
+- **Činnost se bere ze `ChatRepository`, ne z vlastního odběru.** Seznam chatů ji už sleduje
+  i s odpočtem zhasnutí a odfiltrováním vlastní činnosti; druhá kopie téže logiky by se s ní
+  rozešla. Důsledek: chat, který v hlavním seznamu není (archiv), „píše…" v hlavičce neukáže.
+- **Činnost má v podtitulu přednost před dostupností** a výšku hlavičky animuje
+  `AnimatedContent` — skupina podtitul jinak nemá a název by při „píše…" poskočil.
+- **Vlastní „píšu" se opakuje nejvýš jednou za 5 s** (`TYPING_REPEAT`). Server činnost zhasíná
+  asi po šesti vteřinách; posílat ji na každý úhoz by byl dotaz na znak.
+- **Vymazání textu psaní výslovně ukončí** (`ChatActionCancel`), odeslání ne — to ukončí server
+  sám. Po odeslání se jen zapomene čas posledního ohlášení, aby další zpráva ohlásila psaní hned.
+- **Hlásí se jen ruční úpravy textu.** Vyprázdnění pole po odeslání jde mimo `onValueChange`,
+  takže by se o něm `onDraftChanged` stejně nedozvěděl.
+- **Chyba se jen loguje.** V kanálu bez práva psát `sendChatAction` selže; snackbar kvůli
+  „píše…" by uživatele jen obtěžoval.
+
 ### Hlášení přečtení a indexy
 
 - **Z viditelných položek se bere KLÍČ, ne index.** Index do `state.messages` nesedí: před
