@@ -1036,6 +1036,10 @@ není „Android bez barev", ale má vlastní konzistentní paletu.
   ViewModel se cachuje podle klíče a Koin u cachované instance **ignoruje nové `parameters`** —
   konstantní klíč tedy znamená, že druhá otevřená konverzace dostane ViewModel té první i se
   zprávami, a neprojeví se to chybou, jen špatným obsahem.
+- **`Info.plist` musí mít `CADisableMinimumFrameDurationOnPhone = true`.** Compose Multiplatform
+  to kontroluje při startu a bez klíče aplikace na iOS hned spadne na `IllegalStateException`
+  (jinak by na 120Hz displejích běžela na 60 snímků). Chyba je vidět jen v konzoli, na simulátoru
+  se aplikace prostě zavře.
 - **Release link iOS frameworku trvá desítky minut.** Kotlin/Native pouští LTO nad celou statickou
   TDLib; naměřeno 15+ minut na M-series. Debug link je ~5 minut. Do CI to patří jako samostatný,
   cachovaný krok — ne do smyčky, kterou čeká vývojář.
