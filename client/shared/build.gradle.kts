@@ -93,6 +93,10 @@ kotlin {
             implementation(libs.kotlinx.datetime)
             implementation(libs.kermit)
             implementation(libs.coil.compose)
+            // Lite = bez JavaScriptového enginu pro výrazy. Samolepky Telegramu výrazy nepoužívají
+            // (oficiální rlottie je ani neumí), takže by to byla jen váha navíc.
+            implementation(libs.compottie.lite)
+            implementation(libs.okio)
 
             // Jediné místo v projektu, kde smí být TDLib na classpath — viz core/telegram.
             implementation(libs.tdl.coroutines)

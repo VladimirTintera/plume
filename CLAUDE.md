@@ -793,6 +793,21 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
   jedno není obrázek. U nich se bere statický náhled, který TDLib k samolepce dává, a teprve když
   není ani ten, emoji. Náhled jen v rastrovém formátu: `ThumbnailFormatTgs` a `Mpeg4` mají tentýž
   problém, jen o úroveň níž.
+- **`.tgs` přehrává Compottie** (`AnimatedSticker`). Gzip Compottie neumí, takže se soubor
+  rozbalí přes Okio (`gzip()` funguje v commonMain, protože Okio má zlib pro JVM i native) a do
+  Compottie jde až JSON. Do té doby i při chybě se kreslí statický náhled — odpovídá prvnímu
+  snímku, takže přechod na animaci není skok z prázdna.
+- **Compottie je `lite`.** Lite nemá JavaScriptový engine pro výrazy; samolepky Telegramu výrazy
+  nepoužívají (oficiální rlottie je ani neumí). Compottie táhne Compose `foundation` tranzitivně,
+  takže novější verze než náš Compose by ho tiše povýšila — před bumpem zkontrolovat její metadata.
+- **Rozparsované animace mají vlastní cache (50), ne `LocalLottieCache` (10 na celou aplikaci).**
+  V konverzaci se jedna samolepka opakuje a při scrollu by se jinak rozbalovala a parsovala
+  znovu. Klíčem je cesta, ne MD5 obsahu jako u `JsonString` — hash rozbaleného JSONu by stál víc,
+  než cache ušetří. Kvůli cestě jako klíči se cache po odhlášení zahazuje (`forgetStickerAnimations`).
+- **Mimo obrazovku se animace zastavovat nemusí.** Položka `LazyColumn` mimo viewport vypadne
+  z kompozice i s hodinami animace.
+- **`.webm` samolepky zůstávají statické.** Je to VP9 s průhledností: hardwarový dekodér na
+  Androidu alfu zahodí a iOS WebM neumí vůbec, takže by to znamenalo přibalit libvpx.
 - **`RemoteImage` má parametr `background`.** Výchozí podložka `surfaceContainerHighest` je správně
   u fotky, ale u samolepky by z průhledného tvaru udělala obrázek v rámečku.
 - **`captionText()` vrací u samolepky prázdno.** Její emoji se dřív vypisovalo jako text zprávy;
@@ -1031,6 +1046,10 @@ cesta je známá až po stažení a průběh chodí updaty. Překlad do jednoho 
 Drž se **Material 3 Expressive guidelines a výchozích hodnot komponent**. Nečitelné změti barev
 a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho dodržování.
 
+- **Verze Compose se berou z mlogu** (stejný Kotlin i AGP, ověřená kombinace): Compose, material3
+  alpha, adaptive a lifecycle se zvedají spolu. Od Compose 1.12 se okno čte přes
+  `currentWindowAdaptiveInfoV2` (zná navíc třídy Large a XL — na `widthClass` to nic nemění, obě
+  leží nad Expanded) a stav modálního sheetu přes `rememberBottomSheetState(SheetValue.Hidden)`.
 - **`material3` musí zůstat na ALPHA kanálu.** Ve stable artefaktu jsou API pod
   `@ExperimentalMaterial3ExpressiveApi` vyříznutá — `MaterialExpressiveTheme`, `MotionScheme`,
   `LoadingIndicator`, `WideNavigationRail`, `ButtonGroup`, `FloatingActionButtonMenu`. Bez alphy
