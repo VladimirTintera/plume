@@ -15,6 +15,9 @@ import dev.g000sha256.tdl.dto.InputFileId
 import dev.g000sha256.tdl.dto.InputFileLocal
 import dev.g000sha256.tdl.dto.InputMessageContent
 import dev.g000sha256.tdl.dto.InputMessageDocument
+import dev.g000sha256.tdl.dto.InputMessageVideo
+import dev.g000sha256.tdl.dto.InputThumbnail
+import dev.g000sha256.tdl.dto.InputVideo
 import dev.g000sha256.tdl.dto.InputMessagePhoto
 import dev.g000sha256.tdl.dto.InputPhoto
 import dev.g000sha256.tdl.dto.InputMessageSticker
@@ -434,6 +437,26 @@ class TdlConversationRepository(
                     addedStickerFileIds = intArrayOf(),
                     width = width,
                     height = height,
+                ),
+                caption = caption,
+                showCaptionAboveMedia = false,
+                selfDestructType = null,
+                hasSpoiler = false,
+            )
+
+            is OutgoingAttachment.Video -> InputMessageVideo(
+                video = InputVideo(
+                    video = file,
+                    thumbnail = thumbnail?.let {
+                        InputThumbnail(thumbnail = InputFileLocal(path = it.path), width = it.width, height = it.height)
+                    },
+                    cover = null,
+                    startTimestamp = 0,
+                    addedStickerFileIds = intArrayOf(),
+                    duration = durationSeconds,
+                    width = width,
+                    height = height,
+                    supportsStreaming = streamable,
                 ),
                 caption = caption,
                 showCaptionAboveMedia = false,

@@ -4,7 +4,10 @@ import androidx.compose.runtime.Composable
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 
 /**
- * Výběr fotek nebo souborů k odeslání — víc najednou, nejvýš [PICK_LIMIT].
+ * Výběr fotek, videí nebo souborů k odeslání — víc najednou, nejvýš [PICK_LIMIT].
+ *
+ * Video se nepřekódovává, jen se zkopíruje (iOS ho přebalí do MP4 bez překódování) a přečtou
+ * se z něj rozměry, délka a první snímek jako náhled ([VIDEO_THUMBNAIL_EDGE]).
  *
  * Platforma vybere soubor systémovým výběrem (Android Photo Picker / výběr dokumentu, iOS PHPicker /
  * UIDocumentPicker) a **zkopíruje ho do cache aplikace** — TDLib posílá podle cesty a systémové URI
@@ -13,7 +16,8 @@ import eu.tintera.plume.core.telegram.OutgoingAttachment
  * uživatel vybral.
  */
 interface AttachmentPicker {
-    fun pickPhoto()
+    /** Fotky a videa. */
+    fun pickMedia()
     fun pickDocument()
 }
 
@@ -38,6 +42,9 @@ const val PHOTO_MAX_EDGE = 2560
 
 /** Kvalita JPEG odesílané fotky. Pod ní jsou vidět artefakty, nad ní roste velikost bez přínosu. */
 const val PHOTO_JPEG_QUALITY = 87
+
+/** Delší strana náhledu videa. TDLib přijme náhled nejvýš 320 × 320. */
+const val VIDEO_THUMBNAIL_EDGE = 320
 
 /** Kolik souborů jde vybrat najednou — strop alba v Telegramu. */
 const val PICK_LIMIT = 10

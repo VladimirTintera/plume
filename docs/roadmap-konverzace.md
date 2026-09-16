@@ -25,7 +25,7 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    3. ~~**Posílání více příloh jako album s popiskem**~~ — hotovo (`sendMessageAlbum`, přílohy
       nad polem v M3 carouselu, popisek z textu pole).
    4. ~~**Zrušení nahrávání**~~ — hotovo (křížek v průběhu, i u dlaždice alba).
-   5. **Videa** ve výběru i v albu.
+   5. ~~**Videa** ve výběru i v albu~~ — hotovo (bez překódování; přehrávání viz bod 2).
 2. **Přehrávání videa a hlasovek** — dnes se jen popisují. Platformní přehrávač přes
    `expect`/`actual` (Media3 / AVPlayer); hlasovky jsou jednodušší a častější, hodí se první.
 3. **Přeposílání zpráv** — položka v nabídce + obrazovka výběru cílového chatu.

@@ -250,9 +250,28 @@ sealed interface OutgoingAttachment {
      */
     data class Photo(override val path: String, val width: Int, val height: Int) : OutgoingAttachment
 
+    /**
+     * Video jako video (přehrávatelná zpráva, v albu s fotkami). [durationSeconds], [width]
+     * a [height] čte platforma ze souboru — server video nerozebírá a bez nich by zpráva neměla
+     * délku ani poměr stran. [thumbnail] je první snímek jako JPEG do 320 px; ukazuje se nad
+     * vstupním polem a odejde jako náhled. [streamable] jen u souboru, který má index na začátku
+     * (iOS ho tak ukládá); u jiného by přehrávání během stahování nefungovalo.
+     */
+    data class Video(
+        override val path: String,
+        val width: Int,
+        val height: Int,
+        val durationSeconds: Int,
+        val thumbnail: OutgoingThumbnail?,
+        val streamable: Boolean,
+    ) : OutgoingAttachment
+
     /** Cokoli jako soubor, beze změny. Název souboru se bere z cesty. */
     data class Document(override val path: String) : OutgoingAttachment
 }
+
+/** Náhled přílohy připravený na disku (JPEG). */
+data class OutgoingThumbnail(val path: String, val width: Int, val height: Int)
 
 /** Hlavička konverzace. */
 data class ChatInfo(

@@ -342,7 +342,7 @@ s videi dohromady, dokumenty a audio jen se stejným typem). Konverzace je kresl
 
 ### Posílání příloh a alb
 
-Sponka ve vstupním poli nabídne Fotka / Soubor (výběr víc najednou, nejvýš 10). Vybrané přílohy
+Sponka ve vstupním poli nabídne Fotka nebo video / Soubor (výběr víc najednou, nejvýš 10). Vybrané přílohy
 čekají v kartě nad polem, text pole je jejich popisek; odeslání pošle jednu jako zprávu, víc jako
 album. Bublina ukazuje průběh nahrávání.
 
@@ -352,7 +352,7 @@ album. Bublina ukazuje průběh nahrávání.
   Při úpravě zprávy se schovají a odeslání úpravy je nepošle.
 - **Album = `sendMessageAlbum`** (2–10), jedna příloha jde přes `sendMessage`. **Popisek patří první
   položce** — tak ho Telegram u alba ukazuje. Entity popisku se dohledávají jako u textu.
-- **Fotky a soubory se nemíchají** (TDLib skládá dokumenty do alba jen s dokumenty). Výběr jiného
+- **Fotky s videi a soubory se nemíchají** (TDLib skládá dokumenty do alba jen s dokumenty). Výběr jiného
   druhu připravené přílohy **nahradí**, stejný druh se přidá; nad strop se ořízne a ohlásí
   (`stageAttachments`, testy v `StagedAttachmentsTest`).
 - **Připravuje se souběžně, pořadí drží `awaitAll`.** Selhání jednoho souboru ostatní nezahodí.
@@ -388,7 +388,16 @@ album. Bublina ukazuje průběh nahrávání.
   TDLib tím zastaví i nahrávání a pošle `UpdateDeleteMessages`, takže zpráva zmizí jako každá
   smazaná. U alba se ruší jen ťuknutá položka, zbytek odejde.
 - **Citace se spotřebuje** jako u textové zprávy; let ze vstupního pole se nekoná.
-- **Při úpravě zprávy sponka není.** Zatím bez videa v albu.
+- **Při úpravě zprávy sponka není.**
+- **Video se nepřekódovává.** Server video nerozebírá, takže rozměry, délku a náhled (první
+  snímek, JPEG do 320 px — víc TDLib nepřijme) čte platforma: Android `MediaMetadataRetriever`,
+  iOS `AVURLAsset` + `AVAssetImageGenerator`. **Rozměry po otočení** — video na výšku je uložené
+  naležato s příznakem; bez prohození by bublina měla poměr stran na šířku. Náhled je zároveň to,
+  co se kreslí v carouselu nad polem (Coil video neotevře).
+- **iOS video přebaluje do MP4** (`AVAssetExportPresetPassthrough`, bez překódování) s indexem na
+  začátku (`shouldOptimizeForNetworkUse`) a posílá `supportsStreaming = true`. Android kopíruje
+  soubor z foťáku, kde index bývá na konci, takže `supportsStreaming = false`. Soubor
+  z `loadFileRepresentation` platí jen uvnitř callbacku — kopíruje se hned v něm.
 
 ### Předěly dne
 

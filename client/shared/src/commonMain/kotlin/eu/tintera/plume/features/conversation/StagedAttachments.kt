@@ -14,7 +14,7 @@ internal data class StagedAttachments(
 /**
  * Přidá nově vybrané přílohy k těm, které čekají nad vstupním polem.
  *
- * Pravidla alba: **fotky a soubory se nemíchají** (Telegram skládá do alba dokumenty jen s dokumenty).
+ * Pravidla alba: **fotky s videi a soubory se nemíchají** (Telegram skládá do alba dokumenty jen s dokumenty).
  * Výběr jiného druhu proto připravené přílohy **nahradí** — uživatel si právě vybral něco jiného.
  * Stejný druh se přidá na konec, nejvýš do [MAX_ATTACHMENTS]; co se nevejde, zahodí se a ohlásí.
  */
@@ -24,10 +24,10 @@ internal fun stageAttachments(
 ): StagedAttachments {
     if (picked.isEmpty()) return StagedAttachments(current, overflow = false)
 
-    val sameKind = current.isNotEmpty() && current.first().isPhoto == picked.first().isPhoto
+    val sameKind = current.isNotEmpty() && current.first().isVisual == picked.first().isVisual
     // Výběr sám může obsahovat obojí jen teoreticky (výběry jsou oddělené); bere se druh první.
-    val kind = picked.first().isPhoto
-    val combined = (if (sameKind) current else emptyList()) + picked.filter { it.isPhoto == kind }
+    val kind = picked.first().isVisual
+    val combined = (if (sameKind) current else emptyList()) + picked.filter { it.isVisual == kind }
 
     return StagedAttachments(
         attachments = combined.take(MAX_ATTACHMENTS),
@@ -35,4 +35,5 @@ internal fun stageAttachments(
     )
 }
 
-private val OutgoingAttachment.isPhoto: Boolean get() = this is OutgoingAttachment.Photo
+/** Fotky a videa jdou do jednoho alba spolu; soubory jen se soubory. */
+private val OutgoingAttachment.isVisual: Boolean get() = this !is OutgoingAttachment.Document
