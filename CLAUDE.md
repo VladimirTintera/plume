@@ -298,10 +298,34 @@ a nad ni nakreslí předěl „Nepřečtené zprávy".
 - **`scrollToItem` v obráceném seznamu posadí položku ke SPODNÍ hraně**, protože tam je jeho
   začátek. U skoku na nepřečtené je to naopak, než je potřeba, takže se ještě dorovnává o výšku
   viewportu — a ta se **měří**, protože výška bubliny se zprávu od zprávy liší.
+- **Viditelná plocha začíná NAD spodním odsazením seznamu** (`scrollToAnchor`). Dole je pod ním
+  vstupní pole; dokud se horní hrana brala z celé výšky viewportu, zajela první nepřečtená
+  o výšku pole pod horní okraj obrazovky.
 - **Index v `LazyColumn` není index v `state.messages`.** Před zprávami stojí sponzorované
   položky, takže se k němu musí přičíst jejich počet. Stejná past jako u hlášení přečtení.
 - **Předěl nepřečtených je akcentní, ne šedý jako datum.** Je to jediná věc, kterou uživatel po
   otevření chatu opravdu hledá.
+
+### Skok na citaci a tlačítko dolů
+
+Ťuknutí na citaci v bublině odroluje na citovanou zprávu a krátce ji zvýrazní. Tlačítko „dolů"
+se ukáže i bez nových zpráv, jakmile je uživatel o kus výš.
+
+- **Sdílí dotahování historie se skokem na nepřečtené** (`loadUntil`), jen s vyšším stropem.
+  Tady jde o výslovné ťuknutí, na jehož výsledek se čeká, ne o pohodlí při otevření chatu.
+- **Nenalezená zpráva má dvě různé hlášky.** Je-li načtená celá historie, zpráva byla smazaná;
+  jinak je jen moc hluboko. Jedna společná by v jednom z případů lhala.
+- **Citace míří na STŘED obrazovky, nepřečtené k horní hraně** (`ScrollAnchor`). U citace je
+  potřeba vidět, na co zpráva navazuje; u nepřečtených se čte od první dolů.
+- **Zvýraznění je nutné.** Po skoku doprostřed historie by jinak nebylo poznat, na kterou
+  z bublin citace mířila. Je to pruh přes celou šířku, ne obarvení bubliny — odchozí `primary`
+  by změnu nesla špatně a u příchozí by to vypadalo jako změna stavu zprávy.
+- **Citace si opakuje dlouhý stisk.** Má vlastní klikání, takže by stisk k bublině nepustila
+  a nad citací by nešla otevřít nabídka — stejná past jako u fotky.
+- **Tlačítko dolů je kruh, s počtem pilulka.** Mezera před počtem je v obsahu, ne ve `spacedBy`:
+  skrytý `AnimatedVisibility` je pořád potomek a rozestup by kruh nafoukl.
+- **Ukáže se až o pár položek výš** (`SCROLL_DOWN_THRESHOLD_ITEMS`), ne při prvním pixelu —
+  u spodní hrany by blikalo pod prstem.
 
 ### Hlášení přečtení a indexy
 

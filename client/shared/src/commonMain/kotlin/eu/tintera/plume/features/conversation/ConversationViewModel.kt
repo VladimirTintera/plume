@@ -169,27 +169,76 @@ class ConversationViewModel(
     private suspend fun loadUntilUnread() {
         val boundary = _state.value.unreadBoundaryId ?: return
 
+        // Hranice je načtená, jakmile máme aspoň jednu zprávu z přečtené části. Bez ní se předěl
+        // stejně nevykreslí, takže skok nemá kam mířit.
+        if (!loadUntil(MAX_UNREAD_PAGES) { messages -> messages.any { it.id <= boundary } }) return
+
+        // Seznam jde od nejnovější, takže první nepřečtená je ta POSLEDNÍ nad hranicí.
+        val firstUnread = _state.value.messages.lastOrNull { it.id > boundary } ?: return
+        _state.update { it.copy(scrollTarget = ScrollTarget(firstUnread.id, ScrollAnchor.Top)) }
+    }
+
+    /**
+     * Dotahuje starší stránky, dokud načtené zprávy nesplní [loaded], nejvýš však [maxPages].
+     *
+     * Vrací, jestli podmínka nakonec platí. Konec historie ukončí dotahování taky — dál už
+     * není co načíst.
+     */
+    private suspend fun loadUntil(maxPages: Int, loaded: (List<ChatMessage>) -> Boolean): Boolean {
         var pages = 0
-        while (pages < MAX_UNREAD_PAGES) {
+        while (pages < maxPages) {
             val state = _state.value
-            // Hranice je načtená, jakmile máme aspoň jednu zprávu z přečtené části.
-            if (state.reachedStart || state.messages.any { it.id <= boundary }) break
+            if (state.reachedStart || loaded(state.messages)) break
             loadOlderPage()
             pages++
         }
+        return loaded(_state.value.messages)
+    }
 
-        val loaded = _state.value.messages
-        // Bez hranice v načteném seznamu se předěl stejně nevykreslí, takže skok nemá kam mířit.
-        if (loaded.none { it.id <= boundary }) return
+    /**
+     * Skočí na citovanou zprávu a krátce ji zvýrazní.
+     *
+     * Citace míří často na zprávu, která už je načtená — pak je skok okamžitý. Jinak se historie
+     * dotahuje, stejně jako u skoku na nepřečtené, a stejně tak se stropem: odpověď na zprávu
+     * stará tisíce zpráv nestojí za to, aby se kvůli ní načítala půlka chatu.
+     *
+     * Zvýraznění je nutné. Po skoku uprostřed historie by jinak nebylo poznat, na kterou
+     * z bublin na obrazovce citace mířila.
+     */
+    fun jumpToMessage(messageId: Long) {
+        viewModelScope.launch {
+            if (!loadUntil(MAX_JUMP_PAGES) { messages -> messages.any { it.id == messageId } }) {
+                _state.update {
+                    it.copy(
+                        error = if (it.reachedStart) {
+                            // Celá historie je načtená a zpráva v ní není — byla smazaná.
+                            "Citovaná zpráva už není k dispozici."
+                        } else {
+                            "Citovaná zpráva je příliš hluboko v historii."
+                        },
+                    )
+                }
+                return@launch
+            }
 
-        // Seznam jde od nejnovější, takže první nepřečtená je ta POSLEDNÍ nad hranicí.
-        val firstUnread = loaded.lastOrNull { it.id > boundary } ?: return
-        _state.update { it.copy(scrollToMessageId = firstUnread.id) }
+            _state.update {
+                it.copy(
+                    scrollTarget = ScrollTarget(messageId, ScrollAnchor.Center),
+                    highlightedMessageId = messageId,
+                )
+            }
+
+            delay(HIGHLIGHT_DURATION_MS)
+            // Mezitím mohl uživatel skočit jinam; cizí zvýraznění se nemaže.
+            _state.update {
+                if (it.highlightedMessageId == messageId) it.copy(highlightedMessageId = null) else it
+            }
+        }
     }
 
     /** Obrazovka hlásí, že skok proběhl. Bez toho by se opakoval při každé rekompozici. */
     fun consumeScrollTarget() {
-        _state.update { it.copy(scrollToMessageId = null) }
+        _state.update { it.copy(scrollTarget = null) }
     }
 
     private fun observeUpdates() {
@@ -635,6 +684,32 @@ internal const val FLIGHT_DURATION_MS = 450L
  */
 private const val MAX_UNREAD_PAGES = 5
 
+/**
+ * Kolik stránek historie se dotáhne kvůli skoku na citovanou zprávu.
+ *
+ * Víc než u nepřečtených: tam jde o pohodlí při otevření chatu, tady o výslovné ťuknutí, na jehož
+ * výsledek uživatel čeká. Tři sta zpráv zpátky je pořád otázka chvilky z lokální databáze.
+ */
+private const val MAX_JUMP_PAGES = 10
+
+/** Jak dlouho zůstane zpráva po skoku zvýrazněná. */
+private const val HIGHLIGHT_DURATION_MS = 1500L
+
+/** Kam na obrazovce má zpráva po skoku dosednout. */
+enum class ScrollAnchor {
+    /** K horní hraně — čte se od ní dolů. Skok na první nepřečtenou. */
+    Top,
+
+    /** Na střed — kolem je vidět, na co zpráva navazuje. Skok na citaci. */
+    Center,
+}
+
+/** Požadavek na odrolování ke zprávě. Obrazovka ho po provedení vynuluje. */
+data class ScrollTarget(
+    val messageId: Long,
+    val anchor: ScrollAnchor,
+)
+
 /** Otevřený plný seznam reakcí (bottom sheet za tlačítkem „+"). */
 data class ReactionPicker(
     val messageId: Long,
@@ -713,8 +788,10 @@ data class ConversationState(
      * „Nepřečtené zprávy". `null`, když chat nepřečtené neměl.
      */
     val unreadBoundaryId: Long? = null,
-    /** Id zprávy, na kterou má obrazovka odrolovat. Vynuluje se po provedení. */
-    val scrollToMessageId: Long? = null,
+    /** Zpráva, na kterou má obrazovka odrolovat. Vynuluje se po provedení. */
+    val scrollTarget: ScrollTarget? = null,
+    /** Zpráva krátce zvýrazněná po skoku na citaci; `null` většinu času. */
+    val highlightedMessageId: Long? = null,
     /** Reklamy k zobrazení. Podle Telegram ToS se nesmí filtrovat ani skrývat. */
     val sponsored: List<SponsoredMessage> = emptyList(),
     /** Text právě letící ze vstupního pole do bubliny; `null` když se nic neodesílá. */
