@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 
 /**
- * Výběr fotky nebo souboru k odeslání.
+ * Výběr fotek nebo souborů k odeslání — víc najednou, nejvýš [PICK_LIMIT].
  *
  * Platforma vybere soubor systémovým výběrem (Android Photo Picker / výběr dokumentu, iOS PHPicker /
  * UIDocumentPicker) a **zkopíruje ho do cache aplikace** — TDLib posílá podle cesty a systémové URI
@@ -18,12 +18,13 @@ interface AttachmentPicker {
 }
 
 /**
- * [onPicked] dostane přílohu připravenou k odeslání, [onError] hlášku, když se soubor nepodařilo
- * připravit. Zrušení výběru nevolá nic.
+ * [onPicked] dostane přílohy připravené k odeslání **v pořadí výběru** (připravují se souběžně),
+ * [onError] hlášku, když se některý soubor nepodařilo připravit — ostatní se přesto předají.
+ * Zrušení výběru nevolá nic.
  */
 @Composable
 expect fun rememberAttachmentPicker(
-    onPicked: (OutgoingAttachment) -> Unit,
+    onPicked: (List<OutgoingAttachment>) -> Unit,
     onError: (String) -> Unit,
 ): AttachmentPicker
 
@@ -37,6 +38,9 @@ const val PHOTO_MAX_EDGE = 2560
 
 /** Kvalita JPEG odesílané fotky. Pod ní jsou vidět artefakty, nad ní roste velikost bez přínosu. */
 const val PHOTO_JPEG_QUALITY = 87
+
+/** Kolik souborů jde vybrat najednou — strop alba v Telegramu. */
+const val PICK_LIMIT = 10
 
 /** Podadresář cache pro připravené přílohy. */
 const val OUTGOING_DIRECTORY = "outgoing"

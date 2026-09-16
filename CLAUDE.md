@@ -340,10 +340,27 @@ s videi dohromady, dokumenty a audio jen se stejným typem). Konverzace je kresl
 - **Album na hraně načtené historie může být neúplné**; dotažením starší stránky se k němu zbytek
   připojí.
 
-### Posílání fotky a souboru
+### Posílání příloh a alb
 
-Sponka ve vstupním poli nabídne Fotka / Soubor; vybraná příloha se rovnou odešle a bublina ukazuje
-průběh nahrávání.
+Sponka ve vstupním poli nabídne Fotka / Soubor (výběr víc najednou, nejvýš 10). Vybrané přílohy
+čekají v kartě nad polem, text pole je jejich popisek; odeslání pošle jednu jako zprávu, víc jako
+album. Bublina ukazuje průběh nahrávání.
+
+- **Přílohy se neposílají hned po výběru**, ale čekají ve stavu (`ConversationState.attachments`).
+  Jinak by k nim nešlo napsat popisek ani některou odebrat. Fotky jsou v M3
+  `HorizontalMultiBrowseCarousel` s křížkem, soubory řádky s názvem (`StagedAttachmentsStrip`).
+  Při úpravě zprávy se schovají a odeslání úpravy je nepošle.
+- **Album = `sendMessageAlbum`** (2–10), jedna příloha jde přes `sendMessage`. **Popisek patří první
+  položce** — tak ho Telegram u alba ukazuje. Entity popisku se dohledávají jako u textu.
+- **Fotky a soubory se nemíchají** (TDLib skládá dokumenty do alba jen s dokumenty). Výběr jiného
+  druhu připravené přílohy **nahradí**, stejný druh se přidá; nad strop se ořízne a ohlásí
+  (`stageAttachments`, testy v `StagedAttachmentsTest`).
+- **Připravuje se souběžně, pořadí drží `awaitAll`.** Selhání jednoho souboru ostatní nezahodí.
+  iOS PHPicker má `selection = Ordered`, aby album odešlo v pořadí ťuknutí.
+- **TDLib u příloh koncept sám NEMAŽE** (`clearDraft` je jen u textu), takže se po odeslání maže
+  výslovně — jinak by se popisek vrátil jako koncept. Při selhání se přílohy vrátí nad pole.
+- **`rememberCarouselState { size }` počet přečte znovu při každé kompozici**, takže odebrání
+  a přidání fotky carousel nerozbije.
 
 - **TDLib posílá podle CESTY** (`InputFileLocal`). Systémové URI (`content://`, iOS URL z výběru)
   neotevře, takže platforma vybraný soubor nejdřív zkopíruje do cache aplikace
@@ -366,8 +383,8 @@ průběh nahrávání.
   `FileRepository.uploadProgress`. Kreslí se jen u zprávy ve stavu `Sending`: vlnitý kruh
   (`CircularWavyProgressIndicator`) na tmavém kolečku přes fotku, u souboru místo náhledu. Dokud
   TDLib nahrávání neohlásí, točí se neurčitě.
-- **Rozepsaný text zůstává a citace se spotřebuje**, stejně jako u samolepky (`sendMedia`).
-- **Při úpravě zprávy sponka není.** Zatím **bez popisku a bez zrušení nahrávání**.
+- **Citace se spotřebuje** jako u textové zprávy; let ze vstupního pole se nekoná.
+- **Při úpravě zprávy sponka není.** Zatím **bez zrušení nahrávání** a bez videa v albu.
 
 ### Předěly dne
 

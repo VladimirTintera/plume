@@ -486,14 +486,62 @@ class ConversationViewModel(
     }
 
     /**
-     * Odešle fotku nebo soubor z výběru.
-     *
-     * Stejně jako samolepka: bez letu ze vstupního pole, rozepsaný text zůstává, citace se spotřebuje.
-     * Bublina se objeví hned s průběhem nahrávání; nahrávání samo běží v TDLib.
+     * Přílohy z výběru se **neposílají hned**, ale čekají nad vstupním polem: uživatel k nim napíše
+     * popisek, některou odebere nebo přidá další, a teprve odeslání je pošle (jednu jako zprávu,
+     * víc jako album). Pravidla skládání viz [stageAttachments].
      */
-    fun sendAttachment(attachment: OutgoingAttachment) {
-        sendMedia("Přílohu se nepodařilo odeslat.") { replyTo ->
-            repository.sendAttachment(chatId, attachment, replyTo)
+    fun addAttachments(picked: List<OutgoingAttachment>) {
+        val staged = stageAttachments(_state.value.attachments, picked)
+        _state.update {
+            it.copy(
+                attachments = staged.attachments,
+                notice = if (staged.overflow) "Najednou jde poslat nejvýš $MAX_ATTACHMENTS příloh." else it.notice,
+            )
+        }
+    }
+
+    fun removeAttachment(index: Int) {
+        _state.update { state ->
+            state.copy(attachments = state.attachments.filterIndexed { i, _ -> i != index })
+        }
+    }
+
+    /**
+     * Odešle připravené přílohy s popiskem.
+     *
+     * Jako odeslání textu: koncept se zahodí, citace se spotřebuje, „píšu" se zapomene. Na rozdíl od
+     * textové zprávy TDLib u příloh koncept sám nesmaže, takže se maže výslovně. Bez letu ze vstupního
+     * pole — přílohy z pole nevyletěly. Když odeslání selže, přílohy se vrátí nad pole, ať se nemusí
+     * vybírat znovu.
+     */
+    private fun sendAttachments(caption: String, attachments: List<OutgoingAttachment>) {
+        typingSentAt = null
+        draftSave?.cancel()
+        draftSave = null
+        draftText = ""
+
+        val replyTo = _state.value.replyingTo?.id
+        clearReply()
+        _state.update { it.copy(attachments = emptyList()) }
+
+        viewModelScope.launch {
+            repository.sendAttachments(chatId, attachments, caption, replyTo)
+                .onSuccess { pending ->
+                    _state.update { state ->
+                        // Potvrzení mohlo dorazit dřív než výsledek — viz `send`.
+                        val fresh = pending.filterNot { it.id in state.itemKeys.values }
+                        state.copy(messages = merge(state.messages, fresh))
+                    }
+                    repository.saveDraft(chatId, "", null)
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(
+                            error = failure.message ?: "Přílohy se nepodařilo odeslat.",
+                            attachments = it.attachments.ifEmpty { attachments },
+                        )
+                    }
+                }
         }
     }
 
@@ -528,6 +576,14 @@ class ConversationViewModel(
 
     fun send(text: String) {
         val trimmed = text.trim()
+
+        // S přílohami je text popisek a smí být prázdný. Úprava zprávy přílohy nemá.
+        val attachments = _state.value.attachments
+        if (attachments.isNotEmpty() && _state.value.editing == null) {
+            sendAttachments(trimmed, attachments)
+            return
+        }
+
         if (trimmed.isEmpty()) return
 
         _state.value.editing?.let { target ->
@@ -1375,6 +1431,8 @@ data class ConversationState(
     val pinned: List<ChatMessage> = emptyList(),
     /** Smí uživatel připnuté zprávy odepínat. */
     val canUnpin: Boolean = false,
+    /** Přílohy vybrané k odeslání, čekající nad vstupním polem na popisek a odeslání. */
+    val attachments: List<OutgoingAttachment> = emptyList(),
     /** Krátké potvrzení akce, která v konverzaci nic viditelného nezmění (snackbar). */
     val notice: String? = null,
     /** Právě odepnutá zpráva — obrazovka k ní ukáže snackbar s „Vrátit". */
