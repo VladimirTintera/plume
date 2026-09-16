@@ -110,8 +110,8 @@ jsou to tři řádky.
 Hotové: záložky Nedávné, Oblíbené, Trendy a sady se swipem; hledání samolepek i emoji; oblíbené;
 sada ze samolepky v chatu; emoji vkládané do textu. Zbývá:
 
-- **Nedávná emoji.** TDLib je pro unicode emoji neukládá a aplikace zatím nemá perzistenci
-  nastavení, kam by se daly dát.
+- **Nedávná emoji.** TDLib je pro unicode emoji neukládá; patří do `AppSettings` (DataStore)
+  vedle `ExpressionMode`.
 - **Odstíny pleti** (podržení emoji s nabídkou variant) — katalog je teď bez nich.
 - **Emoji novější než Unicode 15.0** — až je budou znát systémová písma podporovaných verzí.
 - **Úprava zprávy s emoji z výběru** — tlačítko výběru se při úpravě schovává.

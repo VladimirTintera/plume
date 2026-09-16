@@ -3,6 +3,8 @@ package eu.tintera.plume.features.conversation
 import co.touchlab.kermit.Logger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ChatListState
@@ -60,6 +62,7 @@ class ConversationViewModel(
     private val chatRepository: ChatRepository,
     /** Jen kvůli oblíbeným samolepkám v nabídce nad zprávou. */
     private val stickerRepository: StickerRepository,
+    private val settings: AppSettings,
     /**
      * Rozsah aplikace, jen pro ukládání konceptu. `viewModelScope` se při odchodu z chatu zruší
      * dřív, než by poslední úprava stihla odejít — a právě ta je nejdůležitější.
@@ -455,6 +458,17 @@ class ConversationViewModel(
                 if (_state.value.editing?.id in removed) cancelEdit()
             }
         }
+    }
+
+    /** Poslední otevřená část výběru emoji/samolepek; řídí ikonu ve vstupním poli. */
+    val expressionMode: StateFlow<ExpressionMode> = settings.expressionMode
+
+    /**
+     * Uloží, která část výběru byla otevřená. Zápis běží v `appScope`: přepnutí těsně před odchodem
+     * z chatu se musí uložit, i když se `viewModelScope` mezitím zruší.
+     */
+    fun setExpressionMode(mode: ExpressionMode) {
+        appScope.launch { settings.setExpressionMode(mode) }
     }
 
     /**

@@ -97,6 +97,7 @@ kotlin {
             // (oficiální rlottie je ani neumí), takže by to byla jen váha navíc.
             implementation(libs.compottie.lite)
             implementation(libs.okio)
+            implementation(libs.datastore.preferences.core)
 
             // Jediné místo v projektu, kde smí být TDLib na classpath — viz core/telegram.
             implementation(libs.tdl.coroutines)

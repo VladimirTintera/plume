@@ -31,6 +31,8 @@ materialkolor = "4.1.1"
 kermit = "2.1.0"
 zxing = "3.5.3"
 coil = "3.5.0"
+# Nastavení aplikace. Preferences-core je multiplatformní (Android i iOS) a nepotřebuje Context.
+datastore = "1.2.1"
 # Animované samolepky (.tgs = gzipovaná Lottie). Compottie táhne `foundation` tranzitivně
 # a novější verze než náš Compose by ho tiše povýšila mimo ověřenou kombinaci s material3 alphou.
 # Při bumpu zkontroluj `foundation` v jejích metadatech (.module na Maven Central).
@@ -85,6 +87,7 @@ materialkolor = { module = "com.materialkolor:material-kolor", version.ref = "ma
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+datastore-preferences-core = { module = "androidx.datastore:datastore-preferences-core", version.ref = "datastore" }
 compottie-lite = { module = "io.github.alexzhirkevich:compottie-lite", version.ref = "compottie" }
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }

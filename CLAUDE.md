@@ -11,8 +11,8 @@ Fáze 6. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell
 živý seznam chatů, textová konverzace (historie, živé zprávy, odesílání, označení přečteného),
 avatary a fotky ve zprávách, reakce, odpovědi, notifikace na Androidu, sponzorované zprávy.
 
-Není: přehrávání videa a zvuku, otevírání dokumentů, editace, notifikace na iOS,
-perzistence nastavení. Prohlížeč médií umí zatím jen fotky. Rozpracovaný detail chatu má vlastní seznam:
+Není: přehrávání videa a zvuku, otevírání dokumentů, notifikace na iOS. Nastavení aplikace
+se ukládá (DataStore), zatím ale drží jen poslední část výběru emoji/samolepek. Prohlížeč médií umí zatím jen fotky. Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
 
 ## Build
@@ -127,6 +127,26 @@ curl -s https://repo1.maven.org/maven2/dev/g000sha256/tdl-coroutines-iosarm64/<v
 - **Úklid mimo aplikaci**: notifikace i zkratky konverzací (`NotificationUpdate.Cleared`). Zkratky
   jsou dlouhověké, takže `removeAllDynamicShortcuts` nestačí — je potřeba
   `removeLongLivedShortcuts`, jinak zůstanou chaty odhlášeného účtu v nabídce ikony aplikace.
+
+## Nastavení aplikace
+
+`AppSettings` (`core/settings`) nad **DataStore Preferences** — multiplatformní, soubor
+`app_settings.preferences_pb` v `filesDir` (Android) / Application Support (iOS). Jen to, co si
+aplikace pamatuje o uživateli; data z Telegramu drží TDLib.
+
+- **Hodnoty jsou `StateFlow` načtené eagerně při startu** (`createdAtStart` + `SharingStarted.Eagerly`
+  v `appScope`). Obrazovka je má v prvním snímku — ikona ve vstupním poli jinak problikla
+  z výchozí hodnoty na uloženou.
+- **DataStore nad jedním souborem smí existovat jen jednou za proces** — proto `single` v Koinu.
+  Přípona `.preferences_pb` je povinná.
+- **Výčty se ukládají názvem, ne pořadím.** Nová hodnota uprostřed by jinak tiše změnila význam
+  uložených dat; neznámý název (z novější verze aplikace) spadne na výchozí.
+- **Zápis z obrazovky jde přes `appScope`**, ne `viewModelScope` — přepnutí těsně před odchodem
+  z chatu se musí uložit.
+- **`ExpressionMode`** (Emoji / Samolepky): poslední otevřená část výběru. Podle ní se výběr
+  otevře a ikona tlačítka ve vstupním poli ukazuje, co se otevře (smajlík / samolepka).
+- Testy nad skutečným souborem v dočasném adresáři (`DataStoreAppSettingsTest`), každý test
+  vlastní soubor.
 
 ## Navigace
 
