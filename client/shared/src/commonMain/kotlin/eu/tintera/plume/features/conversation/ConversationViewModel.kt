@@ -3,7 +3,10 @@ package eu.tintera.plume.features.conversation
 import co.touchlab.kermit.Logger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatInfo
+import eu.tintera.plume.core.telegram.ChatListState
+import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageActions
@@ -19,11 +22,16 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /**
  * Stav a stránkování jedné konverzace.
@@ -35,6 +43,12 @@ import kotlinx.coroutines.sync.withLock
 class ConversationViewModel(
     private val chatId: Long,
     private val repository: ConversationRepository,
+    /**
+     * Jen kvůli „píše…". Činnost v chatu už sleduje seznam chatů — i s odpočtem, který ji zhasne,
+     * kdyby se ztratilo ukončení, a s odfiltrováním vlastní činnosti. Druhá kopie téže logiky
+     * v konverzaci by se s ní dřív nebo později rozešla.
+     */
+    private val chatRepository: ChatRepository,
     private val urlOpener: UrlOpener,
     private val clipboard: TextClipboard,
 ) : ViewModel() {
@@ -49,6 +63,12 @@ class ConversationViewModel(
 
     /** Rozlišuje jednotlivé lety textu do bubliny, když uživatel odešle dvě zprávy rychle po sobě. */
     private var flightCounter = 0L
+
+    /**
+     * Kdy naposledy odešlo „píšu". `null`, když protějšek o psaní neví (nic neodešlo, nebo se
+     * mezitím zrušilo či odeslalo).
+     */
+    private var typingSentAt: TimeMark? = null
 
     /** Už nahlášená zhlédnutí reklam — každé se hlásí jen jednou. */
     private val reportedSponsoredViews = mutableSetOf<Long>()
@@ -311,6 +331,15 @@ class ConversationViewModel(
         }
 
         viewModelScope.launch {
+            chatRepository.chats
+                .map { list ->
+                    (list as? ChatListState.Ready)?.chats?.firstOrNull { it.id == chatId }?.activity
+                }
+                .distinctUntilChanged()
+                .collect { activity -> _state.update { it.copy(activity = activity) } }
+        }
+
+        viewModelScope.launch {
             repository.presenceUpdates(chatId).collect { presence ->
                 _state.update { it.copy(presence = presence) }
             }
@@ -332,6 +361,9 @@ class ConversationViewModel(
     fun send(text: String) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
+
+        // Odeslaná zpráva psaní ukončí sama; další úhoz má „píšu" ohlásit hned, ne až za pět vteřin.
+        typingSentAt = null
 
         val replyTo = _state.value.replyingTo?.id
         // Rozepsaná odpověď se zruší hned, ne až po potvrzení — jinak by při pomalé síti šlo
@@ -380,6 +412,36 @@ class ConversationViewModel(
                         )
                     }
                 }
+        }
+    }
+
+    /**
+     * Obrazovka hlásí změnu rozepsaného textu; podle ní se protějšku ohlašuje „píše…".
+     *
+     * Server činnost zhasne sám asi po šesti vteřinách, takže se při psaní **opakuje** — ale
+     * nejvýš jednou za [TYPING_REPEAT], ne na každý úhoz. Vymazání celého textu psaní výslovně
+     * ukončí: kdo si to rozmyslel, nemá protějšku ještě pět vteřin „psát".
+     */
+    fun onDraftChanged(text: String) {
+        if (text.isBlank()) {
+            if (typingSentAt == null) return
+            typingSentAt = null
+            reportTyping(false)
+            return
+        }
+
+        val last = typingSentAt
+        if (last != null && last.elapsedNow() < TYPING_REPEAT) return
+        typingSentAt = TimeSource.Monotonic.markNow()
+        reportTyping(true)
+    }
+
+    private fun reportTyping(typing: Boolean) {
+        viewModelScope.launch {
+            repository.sendTyping(chatId, typing).onFailure { failure ->
+                // Třeba kanál, kam uživatel psát nesmí. Chyba kvůli „píše…" by jen obtěžovala.
+                logger.d(failure) { "Činnost v chatu se nepodařilo ohlásit." }
+            }
         }
     }
 
@@ -672,6 +734,14 @@ private fun MessageFlight?.landingOn(message: ChatMessage): MessageFlight? = whe
     else -> this
 }
 
+/**
+ * Jak často se při psaní opakuje „píšu".
+ *
+ * Telegram činnost zhasíná zhruba po šesti vteřinách; pět nechává rezervu na zpoždění sítě,
+ * aby „píše…" u protějšku při souvislém psaní neproblikávalo.
+ */
+private val TYPING_REPEAT = 5.seconds
+
 /** Doba, po kterou se drží klíč sdíleného prvku po přistání v bublině. */
 internal const val FLIGHT_DURATION_MS = 450L
 
@@ -768,6 +838,8 @@ data class ConversationState(
     val info: ChatInfo? = null,
     /** Dostupnost protějšku pro podtitul hlavičky. `null` u skupin a kanálů. */
     val presence: Presence? = null,
+    /** Co protějšek (ve skupině kdokoli) právě dělá. Má v hlavičce přednost před dostupností. */
+    val activity: ChatActivity? = null,
     /** Otevřená nabídka nad zprávou (rychlé reakce + akce). */
     val messageMenu: MessageMenu? = null,
     /** Plný seznam reakcí za tlačítkem „+". */

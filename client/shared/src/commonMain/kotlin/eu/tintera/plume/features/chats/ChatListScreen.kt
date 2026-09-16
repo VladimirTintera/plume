@@ -54,6 +54,7 @@ import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.chatTitleKey
@@ -414,16 +415,4 @@ private val AVATAR_SIZE = 52.dp
 
 /** Průměr zelené tečky i s obroučkou. */
 private val ONLINE_DOT = 14.dp
-
-/** Popisek činnosti. Krátký — konkuruje o místo s náhledem zprávy. */
-private fun ChatActivity.label(): String = when (this) {
-    ChatActivity.Typing -> "píše…"
-    ChatActivity.RecordingVoice -> "nahrává hlasovku…"
-    ChatActivity.RecordingVideo -> "natáčí video…"
-    ChatActivity.SendingPhoto -> "posílá fotku…"
-    ChatActivity.SendingVideo -> "posílá video…"
-    ChatActivity.SendingFile -> "posílá soubor…"
-    ChatActivity.ChoosingSticker -> "vybírá samolepku…"
-    ChatActivity.Other -> "něco chystá…"
-}
 

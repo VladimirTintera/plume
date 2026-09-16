@@ -88,6 +88,7 @@ fun appModule() = module {
         ConversationViewModel(
             chatId = parameters.get(),
             repository = get(),
+            chatRepository = get(),
             urlOpener = get(),
             clipboard = get(),
         )
