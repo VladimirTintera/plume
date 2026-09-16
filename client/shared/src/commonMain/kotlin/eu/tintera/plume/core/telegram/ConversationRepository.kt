@@ -110,15 +110,15 @@ interface ConversationRepository {
     fun pinnedMessageChanges(chatId: Long): Flow<Unit>
 
     /**
-     * Zprávy s fotkou kolem [messageId] (včetně ní), od nejstarší. Pro listování v prohlížeči.
+     * Zprávy s fotkou nebo videem kolem [messageId] (včetně ní), od nejstarší. Pro listování v prohlížeči.
      *
      * [older] a [newer] jsou horní meze — na začátku a konci chatu jich přijde míň. Konec se
      * pozná podle toho, že daným směrem nepřibyla žádná nová zpráva.
      */
-    suspend fun photos(chatId: Long, messageId: Long, older: Int, newer: Int): Result<List<ChatMessage>>
+    suspend fun visualMedia(chatId: Long, messageId: Long, older: Int, newer: Int): Result<List<ChatMessage>>
 
     /** Kolikátá fotka v chatu je [messageId] a kolik jich je celkem, nebo `null`, když to server neví. */
-    suspend fun photoPosition(chatId: Long, messageId: Long): Result<PhotoPosition?>
+    suspend fun visualMediaPosition(chatId: Long, messageId: Long): Result<PhotoPosition?>
 
     /** Jedna konkrétní zpráva. Pro doplnění citace, která není v načtené historii. */
     suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage>
@@ -556,6 +556,20 @@ sealed interface MessageMedia {
         val fullFileId: Int,
         val width: Int,
         val height: Int,
+    ) : MessageMedia
+
+    /**
+     * Video: v bublině náhled s délkou, přehrává se v prohlížeči médií.
+     *
+     * [fileId] je samotné video (stahuje se až v prohlížeči; u odesílaného nese průběh nahrávání),
+     * [thumbnailFileId] náhledový obrázek. Rozměry kvůli poměru stran bubliny.
+     */
+    data class Video(
+        val fileId: Int,
+        val thumbnailFileId: Int?,
+        val width: Int,
+        val height: Int,
+        val durationSeconds: Int,
     ) : MessageMedia
 
     /**

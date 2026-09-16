@@ -30,7 +30,9 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    s posunem, poslechnuto). U hlasovek zbývá rychlost přehrávání, automatické pokračování další
    neposlechnutou, sluchátko u ucha a audio focus / přerušení hovorem. ~~Nahrávání~~ — hotovo
    (ťuknutím); chybí podržení se zamčením, náhled před odesláním a průběh nahrávání hlasovky.
-   Video se zatím jen popisuje — platformní přehrávač (Media3 / AVPlayer).
+   ~~Video~~ — hotovo v prohlížeči (Media3 / AVPlayer). Zbývá **streamování** (dnes se stahuje
+   celé), rychlost, ztlumení, obraz v obraze a GIFy (`MessageAnimation`, přehrávat bez zvuku
+   přímo v bublině).
 3. **Přeposílání zpráv** — položka v nabídce + obrazovka výběru cílového chatu.
 4. **Otevírání dokumentů** — stáhnout a předat systému; výrazně méně práce než přehrávání.
 5. Drobnosti ze sekcí níž (zásobník, nabídka, entity, média, emoji).
@@ -90,7 +92,7 @@ zavírá, do stran se listuje fotkami chatu. Poučení je v `CLAUDE.md`, sekce �
 
 Co zbývá:
 
-- **Ostatní typy médií.** Video, GIF a dokumenty se pořád jen popisují. Prohlížeč
+- **Ostatní typy médií.** GIF a dokumenty se pořád jen popisují. Prohlížeč
   u nich zatím řekne, že je neumíme otevřít. Přehrávání je samostatná fáze (potřebuje platformní
   přehrávač přes `expect`/`actual`); u dokumentů stačí míň — stáhnout a předat systému.
 - **Uložení a sdílení** fotky ven z aplikace.

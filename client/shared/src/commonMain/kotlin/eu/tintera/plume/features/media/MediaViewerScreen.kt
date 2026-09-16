@@ -100,7 +100,7 @@ fun MediaViewerScreen(
                 modifier = Modifier.align(Alignment.Center).padding(24.dp),
             )
 
-            state.photos.isNotEmpty() -> PhotoPager(
+            state.items.isNotEmpty() -> MediaPager(
                 state = state,
                 dismissDrag = dismissDrag,
                 onPageChanged = viewModel::onPageChanged,
@@ -111,7 +111,7 @@ fun MediaViewerScreen(
         }
 
         // Bez fotek (chyba, načítání) zůstává aspoň cesta ven.
-        if (state.photos.isEmpty()) CloseButton(onBack, Modifier.align(Alignment.TopStart))
+        if (state.items.isEmpty()) CloseButton(onBack, Modifier.align(Alignment.TopStart))
     }
 }
 
@@ -123,13 +123,13 @@ fun MediaViewerScreen(
  * starší fotky, uživateli se pod prstem nic nepohne, jen se posune index.
  */
 @Composable
-private fun BoxScope.PhotoPager(
+private fun BoxScope.MediaPager(
     state: MediaViewerState,
     dismissDrag: Animatable<Float, *>,
     onPageChanged: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val photos = state.photos
+    val photos = state.items
     val initialIndex = remember { photos.indexOfFirst { it.messageId == state.initialMessageId }.coerceAtLeast(0) }
     val pagerState = rememberPagerState(initialPage = initialIndex) { photos.size }
 
@@ -147,13 +147,26 @@ private fun BoxScope.PhotoPager(
         modifier = Modifier.fillMaxSize(),
     ) { page ->
         val item = photos[page]
-        ZoomableImage(
-            photo = item.photo,
-            messageId = item.messageId,
-            isCurrent = page == pagerState.currentPage,
-            dismissDrag = dismissDrag,
-            onDismiss = onDismiss,
-        )
+        when (val media = item.media) {
+            is MessageMedia.Video -> VideoPage(
+                video = media,
+                messageId = item.messageId,
+                caption = item.caption,
+                isCurrent = page == pagerState.currentPage,
+                dismissDrag = dismissDrag,
+                onDismiss = onDismiss,
+            )
+
+            is MessageMedia.Photo -> ZoomableImage(
+                photo = media,
+                messageId = item.messageId,
+                isCurrent = page == pagerState.currentPage,
+                dismissDrag = dismissDrag,
+                onDismiss = onDismiss,
+            )
+
+            else -> Unit
+        }
     }
 
     val current = latestPhotos.getOrNull(pagerState.currentPage)
@@ -187,7 +200,8 @@ private fun BoxScope.PhotoPager(
         }
     }
 
-    if (current != null && current.caption.isNotBlank()) {
+    // Video si popisek kreslí samo, pod ovládáním.
+    if (current != null && current.media is MessageMedia.Photo && current.caption.isNotBlank()) {
         Text(
             text = current.caption,
             style = MaterialTheme.typography.bodyMedium,
