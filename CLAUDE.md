@@ -356,6 +356,11 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
 - **Past: nesmí viset v OBSAHU bubliny.** Uvnitř `Column` s odsazením by ukotvením byla plocha
   zmenšená o to odsazení a díra v závoji by byla o kus menší než bublina. Proto je kolem
   `Surface` ještě `Box` a popup je v něm.
+- **Závoj musí přes celou obrazovku, tedy `clippingEnabled = false`.** Systém jinak okno popupu
+  vsadí dovnitř obsahu okna a u stavové i navigační lišty zbude světlý pruh — vypadá to jako
+  nedotažené vsazení, protože to jím doslova je. S vypnutým ořezem ale popup o vsazeních nic neví,
+  takže se **čtou v hlavním okně** (tedy v bublině, kde je nabídka deklarovaná) a předají se dovnitř
+  jako okraje, do kterých se nabídka nesmí umístit. Závoj jde pod lišty, obsah ne.
 - **Počátek popupu se MĚŘÍ, nepočítá.** Popup je na Androidu vlastní okno a systém ho posadí pod
   stavový řádek bez ohledu na požadovanou pozici; o kolik, ví jenom platforma. Bez toho seděla
   díra o výšku stavového řádku vedle. Měří se `positionOnScreen()` kořene popupu a anchor se o to

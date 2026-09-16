@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -173,10 +175,27 @@ fun MessageMenuOverlay(
         }
     }
 
+    /*
+     * Systémové vsazení se čte TADY, ne uvnitř popupu.
+     *
+     * Tenhle kód běží v hlavním okně, kde jsou vsazení známá; popup je vlastní okno a s vypnutým
+     * ořezem (viz níž) o nich nic neví. Závoj má jít pod lišty, ale nabídka se pod ně schovat
+     * nesmí, takže z nich vzniknou okraje, do kterých se nesmí umístit.
+     */
+    val insets = WindowInsets.systemBars
+    val density = LocalDensity.current
+    val topInset = with(density) { insets.getTop(density).toDp() }
+    val bottomInset = with(density) { insets.getBottom(density).toDp() }
+
     Popup(
         popupPositionProvider = positionProvider,
         onDismissRequest = handlers.onDismiss,
-        properties = PopupProperties(focusable = true),
+        /*
+         * `clippingEnabled = false` pustí okno popupu **za hranice obsahu okna**, tedy pod stavovou
+         * a navigační lištu. Bez toho systém popup vsadí dovnitř a závoj skončí ostrým pruhem
+         * u obou lišt — vypadá to jako nedotažené vsazení, protože to jím doslova je.
+         */
+        properties = PopupProperties(focusable = true, clippingEnabled = false),
     ) {
         BoxWithConstraints(
             Modifier
@@ -203,7 +222,6 @@ fun MessageMenuOverlay(
         ) {
             val bubble = local ?: return@BoxWithConstraints
 
-            val density = LocalDensity.current
             val anchorTop = with(density) { bubble.top.toDp() }
             val anchorBottom = with(density) { bubble.bottom.toDp() }
             val anchorLeft = with(density) { bubble.left.toDp() }
@@ -215,6 +233,8 @@ fun MessageMenuOverlay(
                 quickRowHeight = if (showQuickRow) QUICK_ROW_HEIGHT else 0.dp,
                 menuHeight = menuHeight,
                 screenHeight = maxHeight,
+                topMargin = topInset + SCREEN_MARGIN,
+                bottomMargin = bottomInset + SCREEN_MARGIN,
             )
 
             if (showQuickRow) {
@@ -492,28 +512,35 @@ private fun placeMenu(
     quickRowHeight: Dp,
     menuHeight: Dp,
     screenHeight: Dp,
+    /** Kam nahoře nesmí — stavová lišta plus odstup od kraje. */
+    topMargin: Dp,
+    /** Totéž dole, kvůli navigační liště. */
+    bottomMargin: Dp,
 ): MenuLayout {
     val gap = MENU_GAP
     var quickY = anchorTop - gap - quickRowHeight
     var menuY = anchorBottom + gap
 
     // Nevejde se nad zprávu: oba kusy jdou pod ni.
-    if (quickY < SCREEN_MARGIN) {
+    if (quickY < topMargin) {
         quickY = anchorBottom + gap
         menuY = quickY + quickRowHeight + gap
     }
 
     // Nevejde se pod zprávu: nabídka jde nad ni, reakce ještě nad nabídku.
-    if (menuY + menuHeight > screenHeight - SCREEN_MARGIN) {
+    if (menuY + menuHeight > screenHeight - bottomMargin) {
         menuY = anchorTop - gap - menuHeight
         if (quickY + quickRowHeight > menuY) {
             quickY = menuY - gap - quickRowHeight
         }
     }
 
+    fun Dp.clampTo(height: Dp): Dp =
+        coerceIn(topMargin, (screenHeight - bottomMargin - height).coerceAtLeast(topMargin))
+
     return MenuLayout(
-        quickY = quickY.coerceIn(SCREEN_MARGIN, (screenHeight - SCREEN_MARGIN - quickRowHeight).coerceAtLeast(SCREEN_MARGIN)),
-        menuY = menuY.coerceIn(SCREEN_MARGIN, (screenHeight - SCREEN_MARGIN - menuHeight).coerceAtLeast(SCREEN_MARGIN)),
+        quickY = quickY.clampTo(quickRowHeight),
+        menuY = menuY.clampTo(menuHeight),
     )
 }
 
