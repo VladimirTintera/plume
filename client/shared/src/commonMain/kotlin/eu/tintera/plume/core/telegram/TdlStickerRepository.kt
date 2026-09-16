@@ -10,6 +10,7 @@ import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 
 /**
@@ -19,6 +20,12 @@ import kotlinx.coroutines.flow.onStart
  * ne samolepky samotné. Odběr stojí před prvním čtením (`onStart`), aby se mezi nimi nic neztratilo.
  * Klient se nikde nezachytává — po odhlášení je jiný, viz `TelegramClientHolder`.
  */
+/**
+ * Kolik trendů se načte. Bez stránkování: první várka pokryje to, co si kdo v trendech prohlíží,
+ * a TDLib stejně vrací méně, než o kolik se řekne.
+ */
+private const val TRENDING_LIMIT = 50
+
 /** Nejvíc samolepek z jednoho hledání. TDLib víc než 100 nevrátí. */
 private const val SEARCH_LIMIT = 100
 
@@ -107,6 +114,37 @@ class TdlStickerRepository(
                         null
                     }
             }
+
+    override fun trendingSets(): Flow<List<TrendingStickerSet>> =
+        merge(
+            holder.updates { trendingStickerSetsUpdates }.filter { it.stickerType is StickerTypeRegular }.map { },
+            // Přidání sady z trendů mění jen seznam nainstalovaných; trendy samy update nepošlou.
+            holder.updates { installedStickerSetsUpdates }.filter { it.stickerType is StickerTypeRegular }.map { },
+        )
+            .onStart { emit(Unit) }
+            .map {
+                client.getTrendingStickerSets(stickerType = StickerTypeRegular(), offset = 0, limit = TRENDING_LIMIT)
+                    .toResult()
+                    .map { trending ->
+                        trending.sets.filterNotNull().map { set ->
+                            TrendingStickerSet(
+                                id = set.id,
+                                title = set.title,
+                                isInstalled = set.isInstalled && !set.isArchived,
+                                covers = set.covers.filterNotNull().map { it.toMedia() },
+                            )
+                        }
+                    }
+                    .getOrElse { failure ->
+                        logger.w(failure) { "Trendy se nepodařilo načíst." }
+                        emptyList()
+                    }
+            }
+
+    override suspend fun markTrendingViewed(setIds: List<Long>) {
+        if (setIds.isEmpty()) return
+        client.viewTrendingStickerSets(stickerSetIds = setIds.toLongArray())
+    }
 
     override suspend fun setInstalled(setId: Long, installed: Boolean): Result<Unit> =
         client.changeStickerSet(

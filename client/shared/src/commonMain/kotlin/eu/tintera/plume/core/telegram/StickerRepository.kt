@@ -36,6 +36,15 @@ interface StickerRepository {
      */
     fun stickerSetDetail(setId: Long): Flow<StickerSetDetail?>
 
+    /**
+     * Populární sady, které Telegram právě doporučuje. Živý tok: přepočítá se, když se trendy
+     * změní, i když si uživatel některou sadu přidá (kvůli [TrendingStickerSet.isInstalled]).
+     */
+    fun trendingSets(): Flow<List<TrendingStickerSet>>
+
+    /** Označí trendy za zhlédnuté, aby je Telegram přestal hlásit jako nové. */
+    suspend fun markTrendingViewed(setIds: List<Long>)
+
     /** Přidá sadu mezi nainstalované, nebo ji odebere. Potvrzení dorazí přes [stickerSetDetail]. */
     suspend fun setInstalled(setId: Long, installed: Boolean): Result<Unit>
 
@@ -79,6 +88,15 @@ data class StickerSetDetail(
     /** Oficiální sady (od Telegramu) odebrat nejdou. */
     val isOfficial: Boolean,
     val stickers: List<StickerItem>,
+)
+
+/** Sada v trendech. */
+data class TrendingStickerSet(
+    val id: Long,
+    val title: String,
+    val isInstalled: Boolean,
+    /** Pár samolepek na ukázku. Celou sadu ukáže až detail sady. */
+    val covers: List<MessageMedia.Sticker>,
 )
 
 /** Sada v záložkách výběru. */
