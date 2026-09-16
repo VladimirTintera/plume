@@ -18,9 +18,14 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
 
 ## Doporučené pořadí dalších kroků
 
-1. **Posílání příloh** — fotka a soubor z galerie/souborů. Největší díra: vstupní pole umí jen
-   text. Potřebuje výběr souboru přes `expect`/`actual` (Android Photo Picker / SAF, iOS
-   PHPicker), `InputMessagePhoto` / `InputMessageDocument` a průběh nahrávání v bublině.
+1. **Přílohy.** Telegram víc příloh v jedné zprávě nenese — album je skupina samostatných zpráv
+   se stejným `mediaAlbumId` (viz `CLAUDE.md`, „Alba"). Po krocích:
+   1. ~~**Zobrazení přijatých alb**~~ — hotovo, mřížka v jedné bublině.
+   2. **Posílání jedné fotky nebo souboru** — výběr přes `expect`/`actual` (Android Photo Picker /
+      SAF, iOS PHPicker), `InputMessagePhoto` / `InputMessageDocument`, průběh nahrávání v bublině.
+   3. **Posílání více fotek jako album** — `sendMessageAlbum` (2–10, pravidla skládání typů).
+      Vybrané fotky nad vstupním polem v **M3 `HorizontalMultiBrowseCarousel`** s možností
+      některou odebrat — tady carousel sedí (v bublině alba ne, tam se pral se swipem na odpověď).
 2. **Přehrávání videa a hlasovek** — dnes se jen popisují. Platformní přehrávač přes
    `expect`/`actual` (Media3 / AVPlayer); hlasovky jsou jednodušší a častější, hodí se první.
 3. **Přeposílání zpráv** — položka v nabídce + obrazovka výběru cílového chatu.

@@ -319,6 +319,13 @@ data class ChatMessage(
     /** Unixový čas v sekundách, jak ho dává TDLib. */
     val timestamp: Int,
     val isEdited: Boolean,
+    /**
+     * Album, do kterého zpráva patří; `0`, když do žádného.
+     *
+     * Telegram víc příloh v jedné zprávě nenese — album jsou samostatné zprávy (každá s vlastním id,
+     * popiskem i reakcemi) spojené tímhle id. Do jedné bubliny je skládá až konverzace.
+     */
+    val mediaAlbumId: Long = 0L,
 )
 
 /**

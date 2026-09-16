@@ -313,6 +313,33 @@ obrazovky, ne na aplikaci.
 - **`UpdateDeleteMessages.isPermanent == false`** znamená jen uvolnění z cache, ne smazání pro
   uživatele — takovou zprávu z obrazovky odstranit nesmíme.
 
+### Alba
+
+Telegram **víc příloh v jedné zprávě nenese.** Album jsou samostatné zprávy (každá s vlastním id,
+popiskem, reakcemi) spojené `mediaAlbumId`, odeslané naráz přes `sendMessageAlbum` (2–10; fotky
+s videi dohromady, dokumenty a audio jen se stejným typem). Konverzace je kreslí jako jednu bublinu.
+
+- **Položky seznamu jsou ŘÁDKY, ne zprávy** (`groupAlbums` → `MessageRow`). Sousední zprávy téhož
+  alba tvoří jeden řádek. Na řádcích stojí sousedé (předěly dne, seskupení bublin, profilovky)
+  i index v `LazyColumn` — skok na zprávu proto hledá řádek, který ji obsahuje.
+- **Klíč alba je klíč jeho NEJSTARŠÍ zprávy.** Novější fotky dorážejí za ní a klíč se nezmění.
+- **Popisek, reakce, odpověď a nabídka patří zprávě s popiskem** (`primary`), bez popisku
+  nejstarší. Čas bubliny je čas nejnovější fotky a stav doručení „nejhorší" z alba — album je
+  odeslané, až když jsou odeslané všechny jeho zprávy.
+- **Přečtení a mazání se týkají celého alba.** Z viditelné položky přijde jen klíč nejstarší
+  zprávy; bez rozšíření na celé album by zbylé fotky zůstaly napořád v počtu nepřečtených
+  a „Smazat" by smazalo jednu fotku z bubliny.
+- **Mřížka, ne carousel.** Album má být vidět celé a vodorovný tah carouselu by se pral se
+  swipem na odpověď. Řádky po 1–3 podle pravidel (`albumRowSizes`), ne mozaika podle poměrů stran —
+  vypadá vyrovnaně bez ohledu na obsah. Samotná fotka na řádku podle poměru stran se stropem,
+  víc fotek čtverce. Zaoblení nese celá mřížka, dlaždice mají jen spáry.
+- **Album dokumentů nebo audia je seznam pod sebou** — do mřížky patří jen fotky a videa s náhledem.
+- **Ťuknutí na dlaždici otevře tu konkrétní fotku** (se sdíleným prvkem); prohlížeč pak listuje
+  fotkami chatu, album v tom nijak zvlášť neřeší.
+- **Popisek alba z pár emoji není velké emoji** — bublina alba si pozadí drží vždycky.
+- **Album na hraně načtené historie může být neúplné**; dotažením starší stránky se k němu zbytek
+  připojí.
+
 ### Předěly dne
 
 V bublině se vypisují jen hodiny, protože datum má nést předěl nad blokem zpráv. Bez něj se

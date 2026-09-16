@@ -599,6 +599,7 @@ class TdlConversationRepository(
             isService = content.serviceText() != null,
             timestamp = date,
             isEdited = editDate > 0,
+            mediaAlbumId = mediaAlbumId,
         )
     }
 

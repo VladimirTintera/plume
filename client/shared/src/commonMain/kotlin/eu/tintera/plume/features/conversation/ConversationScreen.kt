@@ -279,6 +279,13 @@ fun ConversationScreen(
      */
     val byId = remember(state.messages) { state.messages.associateBy { it.id } }
 
+    /*
+     * Položky seznamu: samostatné zprávy a celá alba. Album jsou v Telegramu samostatné zprávy,
+     * v konverzaci ale jedna bublina — a na položkách, ne na zprávách, stojí sousedé (předěly dne,
+     * seskupení bublin, profilovky) i index v `LazyColumn`.
+     */
+    val rows = remember(state.messages) { groupAlbums(state.messages) }
+
     // Klíč položky není u odeslaných zpráv jejich id (viz `ConversationState.itemKeys`), takže
     // co se v seznamu hledá podle klíče, musí mít vlastní mapu.
     val byKey = remember(state.messages, state.itemKeys) { state.messages.associateBy(state::keyOf) }
@@ -312,7 +319,8 @@ fun ConversationScreen(
      */
     LaunchedEffect(state.scrollTarget) {
         val target = state.scrollTarget ?: return@LaunchedEffect
-        val index = state.messages.indexOfFirst { it.id == target.messageId }
+        // Hledá se ŘÁDEK, ne zpráva: fotka z alba je v seznamu součástí jedné položky.
+        val index = rows.indexOfFirst { it.contains(target.messageId) }
         // Před zprávami stojí sponzorované položky, takže index v seznamu není index v LazyColumnu.
         if (index >= 0) listState.scrollToAnchor(index + state.sponsored.size, target.anchor)
         viewModel.consumeScrollTarget()
@@ -660,11 +668,14 @@ fun ConversationScreen(
                     }
 
                     // Klíč NENÍ id: odeslané zprávě TDLib po potvrzení id změní a s novým klíčem
-                    // by bublina problikla jako odebraná a znovu přidaná položka.
-                    itemsIndexed(state.messages, key = { _, message -> state.keyOf(message) }) { index, message ->
+                    // by bublina problikla jako odebraná a znovu přidaná položka. U alba je to klíč
+                    // jeho NEJSTARŠÍ zprávy — novější fotky alba dorážejí za ní a klíč nezmění.
+                    itemsIndexed(rows, key = { _, row -> state.keyOf(row.oldest) }) { index, row ->
+                        val message = row.display
                         // Seznam jde od nejnovější, takže „předchozí zpráva v čase" je ta
                         // s VYŠŠÍM indexem.
-                        val older = state.messages.getOrNull(index + 1)
+                        val olderRow = rows.getOrNull(index + 1)
+                        val older = olderRow?.display
 
                         /*
                          * Začíná touhle zprávou nový den?
@@ -674,7 +685,7 @@ fun ConversationScreen(
                          * nechat vršek historie bez data.
                          */
                         val startsDay = older == null ||
-                            !older.timestamp.isSameDayAs(message.timestamp)
+                            !older.timestamp.isSameDayAs(row.oldest.timestamp)
 
                         /*
                          * Je tohle první nepřečtená zpráva?
@@ -683,10 +694,10 @@ fun ConversationScreen(
                          * neposouvá, jak se zprávy postupně označují za přečtené.
                          */
                         val startsUnread = state.unreadBoundaryId?.let { boundary ->
-                            message.id > boundary && older != null && older.id <= boundary
+                            row.oldest.id > boundary && olderRow != null && olderRow.newest.id <= boundary
                         } == true
 
-                        val flight = state.flight?.takeIf { it.itemKey == state.keyOf(message) }
+                        val flight = state.flight?.takeIf { it.itemKey == state.keyOf(row.oldest) }
 
                         // Předěl patří NAD zprávu, takže do sloupce před ni. `reverseLayout`
                         // obrací pořadí položek, ne obsah jedné položky.
@@ -712,13 +723,16 @@ fun ConversationScreen(
 
                             MessageBubble(
                                 message = message,
+                                // Album: zprávy od nejstarší, kreslí je mřížka místo jedné přílohy.
+                                album = row.members.takeIf { row.isAlbum },
+                                onOpenAlbumItem = { messageId -> onOpenMedia(messageId) },
                                 quoted = message.replyToMessageId?.let { id ->
                                     byId[id] ?: state.quotes[id]
                                 },
                                 // V soukromém chatu se jméno odesílatele u zpráv nevyplňuje (dává
                                 // smysl jen ve skupinách), takže citace by neměla koho uvést.
                                 partnerName = state.info?.title,
-                                highlighted = message.id == state.highlightedMessageId,
+                                highlighted = state.highlightedMessageId?.let(row::contains) == true,
                                 onQuoteClick = message.replyToMessageId?.let { id ->
                                     { viewModel.jumpToMessage(id) }
                                 },
@@ -734,7 +748,7 @@ fun ConversationScreen(
                                 avatar = when {
                                     state.info?.isGroup != true || message.isOutgoing -> SenderAvatar.None
                                     message.senderId == state.info?.id -> SenderAvatar.None
-                                    state.messages.getOrNull(index - 1).continues(message) -> SenderAvatar.Spacer
+                                    rows.getOrNull(index - 1)?.display.continues(message) -> SenderAvatar.Spacer
                                     else -> SenderAvatar.Shown
                                 },
                                 lastReadOutboxMessageId = state.lastReadOutboxMessageId,
@@ -935,6 +949,10 @@ private fun MessageBubble(
     /** Let ze vstupního pole, který přistává právě v téhle bublině; jinak `null`. */
     flight: MessageFlight?,
     previous: ChatMessage?,
+    /** Zprávy alba od nejstarší; `null` u samostatné zprávy. */
+    album: List<ChatMessage>?,
+    /** Ťuknutí na fotku v albu — otevře tu konkrétní zprávu. */
+    onOpenAlbumItem: (messageId: Long) -> Unit,
     avatar: SenderAvatar,
     onToggleReaction: (String) -> Unit,
     onRequestMenu: () -> Unit,
@@ -958,7 +976,8 @@ private fun MessageBubble(
      * se citace bez pozadí ztratí, takže ta si bublinu drží.
      */
     val largeEmoji = when {
-        message.media != null || message.replyToMessageId != null -> 0
+        // Popisek alba z pár emoji je pořád popisek pod fotkami, ne velké emoji bez bubliny.
+        album != null || message.media != null || message.replyToMessageId != null -> 0
         else -> message.text.emojiClusterCount(MAX_LARGE_EMOJI)
     }
     val bare = largeEmoji > 0 ||
@@ -1145,13 +1164,21 @@ private fun MessageBubble(
                     )
                 }
 
-                message.media?.let { media ->
-                    MessageAttachment(
-                        media = media,
-                        messageId = message.id,
-                        onOpen = onOpenMedia,
+                if (album != null) {
+                    AlbumContent(
+                        members = album,
+                        onOpen = onOpenAlbumItem,
                         onRequestMenu = onRequestMenu,
                     )
+                } else {
+                    message.media?.let { media ->
+                        MessageAttachment(
+                            media = media,
+                            messageId = message.id,
+                            onOpen = onOpenMedia,
+                            onRequestMenu = onRequestMenu,
+                        )
+                    }
                 }
 
                 // Prázdný text u zprávy, která má jen fotku — pak se nekreslí nic.
@@ -2001,6 +2028,12 @@ private val LINK_PREVIEW_STRIPE = 3.dp
 /** Poměr stran velkého obrázku náhledu bez rozměrů — typický obrázek pro sdílení odkazu. */
 private const val LINK_PREVIEW_FALLBACK_RATIO = 1.91f
 
+/** Spára mezi fotkami alba. */
+private val ALBUM_GAP = 2.dp
+
+/** Strop výšky řádku alba s víc fotkami — dvě čtvercové fotky na širokém displeji by byly obří. */
+private val ALBUM_TILE_MAX_HEIGHT = 200.dp
+
 /** Strop výšky fotky v bublině. Svislé snímky obrazovky by jinak zabraly celou obrazovku. */
 private val MAX_PHOTO_HEIGHT = 320.dp
 
@@ -2196,6 +2229,160 @@ private fun MessageAttachment(
             ),
         )
         is MessageMedia.AnimatedEmoji -> AnimatedEmojiImage(media)
+    }
+}
+
+/**
+ * Obsah alba v bublině.
+ *
+ * Fotky (a videa s náhledem) jako **mřížka** — celé album je vidět najednou, jako v ostatních
+ * klientech. Carousel by část alba schoval a jeho vodorovný tah by se pral se swipem na odpověď.
+ * Album dokumentů nebo audia (ta se nemíchají s fotkami) je seznam příloh pod sebou.
+ */
+@Composable
+private fun AlbumContent(
+    members: List<ChatMessage>,
+    onOpen: (messageId: Long) -> Unit,
+    onRequestMenu: () -> Unit,
+) {
+    val visual = members.all { it.media.isAlbumTile() }
+    if (!visual) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            members.forEach { member ->
+                member.media?.let { media ->
+                    MessageAttachment(
+                        media = media,
+                        messageId = member.id,
+                        onOpen = { onOpen(member.id) },
+                        onRequestMenu = onRequestMenu,
+                    )
+                }
+            }
+        }
+        return
+    }
+
+    Column(
+        // Zaoblení nese celá mřížka, ne jednotlivé dlaždice: uvnitř jsou jen tenké spáry.
+        Modifier.clip(RoundedCornerShape(12.dp)),
+        verticalArrangement = Arrangement.spacedBy(ALBUM_GAP),
+    ) {
+        var start = 0
+        albumRowSizes(members.size).forEach { size ->
+            val rowMembers = members.subList(start, start + size)
+            start += size
+
+            BoxWithConstraints {
+                // Jedna fotka na řádek podle svého poměru stran (se stropem), víc fotek čtverce —
+                // řádek se tak nikdy nerozjede do nekonečné výšky u svislých snímků.
+                val single = rowMembers.singleOrNull()
+                val height = if (single != null) {
+                    (maxWidth / single.media.albumRatio()).coerceAtMost(MAX_PHOTO_HEIGHT)
+                } else {
+                    ((maxWidth - ALBUM_GAP * (size - 1)) / size).coerceAtMost(ALBUM_TILE_MAX_HEIGHT)
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(ALBUM_GAP)) {
+                    rowMembers.forEach { member ->
+                        AlbumTile(
+                            member = member,
+                            onOpen = { onOpen(member.id) },
+                            onRequestMenu = onRequestMenu,
+                            modifier = Modifier.weight(1f).height(height),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Dlaždice alba. Fotka jde do prohlížeče se sdíleným prvkem, stejně jako samostatná fotka; video
+ * zatím jen ukazuje náhled a popisek, přehrávat neumíme.
+ */
+@Composable
+@OptIn(ExperimentalFoundationApi::class)
+private fun AlbumTile(
+    member: ChatMessage,
+    onOpen: () -> Unit,
+    onRequestMenu: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    when (val media = member.media) {
+        is MessageMedia.Photo -> RemoteImage(
+            fileId = media.fileId,
+            thumbnailFileId = media.thumbnailFileId,
+            contentDescription = "Fotka",
+            contentScale = ContentScale.Crop,
+            modifier = modifier
+                .sharedNavElement(photoKey(member.id))
+                // Dlouhý stisk se opakuje — potomek s vlastním klikáním ho k bublině nepustí.
+                .combinedClickable(onClick = onOpen, onLongClick = onRequestMenu),
+        )
+
+        is MessageMedia.Attachment -> Box(modifier.combinedClickable(onClick = {}, onLongClick = onRequestMenu)) {
+            media.thumbnailFileId?.let { thumbnail ->
+                RemoteImage(
+                    fileId = thumbnail,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
+                contentColor = Color.White,
+                modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
+            ) {
+                Text(
+                    text = media.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                )
+            }
+        }
+
+        else -> Box(modifier)
+    }
+}
+
+/** Patří příloha do mřížky? Fotka, nebo video či GIF s náhledem; dokumenty a audio ne. */
+private fun MessageMedia?.isAlbumTile(): Boolean = when (this) {
+    is MessageMedia.Photo -> true
+    is MessageMedia.Attachment -> thumbnailFileId != null
+    else -> false
+}
+
+/** Poměr stran dlaždice samotné na řádku. Video bez rozměrů je 16:9, neznámá fotka čtverec. */
+private fun MessageMedia?.albumRatio(): Float = when (this) {
+    is MessageMedia.Photo -> if (width > 0 && height > 0) width.toFloat() / height.toFloat() else 1f
+    else -> 16f / 9f
+}
+
+/**
+ * Kolik fotek jde do kterého řádku mřížky, shora dolů.
+ *
+ * Pravidla místo výpočtu mozaiky podle poměrů stran: řádky po 2–3 vypadají vyrovnaně bez ohledu na
+ * to, co je na fotkách, a jedna velká fotka nahoře jen u lichých malých alb, kde by jinak jedna
+ * zbyla sama dole. Telegram dovolí nejvýš 10 zpráv v albu.
+ */
+internal fun albumRowSizes(count: Int): List<Int> = when (count) {
+    0 -> emptyList()
+    1 -> listOf(1)
+    2 -> listOf(2)
+    3 -> listOf(1, 2)
+    4 -> listOf(2, 2)
+    5 -> listOf(2, 3)
+    6 -> listOf(3, 3)
+    7 -> listOf(2, 2, 3)
+    8 -> listOf(2, 3, 3)
+    9 -> listOf(3, 3, 3)
+    else -> {
+        // Nad deset (ze serveru nepřijde, ale nerozbije se to): řádky po třech, zbytek do prvního.
+        val rest = count % 3
+        (if (rest == 0) emptyList() else listOf(rest)) + List(count / 3) { 3 }
     }
 }
 

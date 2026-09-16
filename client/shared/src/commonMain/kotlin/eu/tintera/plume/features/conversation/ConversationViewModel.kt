@@ -783,8 +783,12 @@ class ConversationViewModel(
         // Obrazovka posílá klíče položek, ne id — u odeslaných zpráv se liší.
         val visible = messageIds.toSet()
         val state = _state.value
+        val shown = state.messages.filter { state.keyOf(it) in visible }
+        // Album je jedna položka s klíčem nejstarší zprávy; za přečtené se hlásí celé, jinak by
+        // ostatní fotky alba zůstaly v počtu nepřečtených napořád.
+        val albums = shown.map { it.mediaAlbumId }.filter { it != 0L }.toSet()
         val incoming = state.messages
-            .filter { !it.isOutgoing && state.keyOf(it) in visible }
+            .filter { !it.isOutgoing && (state.keyOf(it) in visible || it.mediaAlbumId in albums) }
             .map { it.id }
 
         if (incoming.isEmpty()) return
@@ -1002,6 +1006,8 @@ class ConversationViewModel(
                 messageMenu = null,
                 pendingDelete = PendingDelete(
                     messageId = messageId,
+                    // Nabídka nad albem maže celé album — v bublině je to jedna věc.
+                    messageIds = it.albumMemberIds(messageId),
                     canDeleteForAll = menu.actions.canDeleteForAll,
                     canDeleteForSelf = menu.actions.canDeleteForSelf,
                 ),
@@ -1025,7 +1031,7 @@ class ConversationViewModel(
         _state.update { it.copy(pendingDelete = null) }
 
         viewModelScope.launch {
-            repository.deleteMessages(chatId, listOf(pending.messageId), revoke)
+            repository.deleteMessages(chatId, pending.messageIds, revoke)
                 .onFailure { failure ->
                     _state.update {
                         it.copy(error = failure.message ?: "Zprávu se nepodařilo smazat.")
@@ -1275,6 +1281,8 @@ data class MessageMenu(
  */
 data class PendingDelete(
     val messageId: Long,
+    /** Co se opravdu smaže: zpráva sama, u alba všechny jeho načtené zprávy. */
+    val messageIds: List<Long> = listOf(messageId),
     val canDeleteForSelf: Boolean,
     val canDeleteForAll: Boolean,
 )
@@ -1368,6 +1376,13 @@ data class ConversationState(
     val reachedStart: Boolean = false,
     val error: String? = null,
 ) {
+    /** Id všech načtených zpráv alba, do kterého zpráva patří; u samostatné zprávy jen ona. */
+    fun albumMemberIds(messageId: Long): List<Long> {
+        val album = messages.firstOrNull { it.id == messageId }?.mediaAlbumId ?: return listOf(messageId)
+        if (album == 0L) return listOf(messageId)
+        return messages.filter { it.mediaAlbumId == album }.map { it.id }
+    }
+
     /** Stabilní klíč položky zprávy; přežije změnu id po odeslání. */
     fun keyOf(message: ChatMessage): Long = itemKeys[message.id] ?: message.id
 }
