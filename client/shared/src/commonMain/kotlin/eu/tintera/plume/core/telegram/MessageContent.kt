@@ -30,6 +30,11 @@ import dev.g000sha256.tdl.dto.MessageUnsupported
 import dev.g000sha256.tdl.dto.MessageVenue
 import dev.g000sha256.tdl.dto.MessageVideoNote
 import dev.g000sha256.tdl.dto.Photo
+import dev.g000sha256.tdl.dto.LinkPreviewTypeEmbeddedAnimationPlayer
+import dev.g000sha256.tdl.dto.LinkPreviewTypeEmbeddedVideoPlayer
+import dev.g000sha256.tdl.dto.LinkPreviewTypeVideo
+import dev.g000sha256.tdl.dto.LinkPreviewTypePhoto
+import dev.g000sha256.tdl.dto.LinkPreviewTypeArticle
 import dev.g000sha256.tdl.dto.Sticker
 import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.TextEntity
@@ -300,6 +305,40 @@ private fun Sticker.toMedia(): MessageMedia.Sticker {
         height = height,
         emoji = emoji,
     )
+}
+
+/**
+ * Náhled odkazu, nebo `null`.
+ *
+ * Obrázek se bere jen z druhů, které nějaký nesou jako fotku: článek, fotka, obal videa, náhled
+ * vloženého přehrávače. Ostatní (samolepka, hlasovka, chat, dárek…) mají jiné soubory, které
+ * neumíme vykreslit; náhled u nich zůstane textový. Zcela prázdný náhled se zahodí — rámeček
+ * bez obsahu by vypadal jako chyba načítání.
+ */
+internal fun Message.linkPreview(): LinkPreview? {
+    val preview = (content as? MessageText)?.linkPreview ?: return null
+
+    val photo = when (val type = preview.type) {
+        is LinkPreviewTypeArticle -> type.photo
+        is LinkPreviewTypePhoto -> type.photo
+        is LinkPreviewTypeVideo -> type.cover
+        is LinkPreviewTypeEmbeddedVideoPlayer -> type.thumbnail
+        is LinkPreviewTypeEmbeddedAnimationPlayer -> type.thumbnail
+        else -> null
+    }?.toMedia()
+
+    val result = LinkPreview(
+        url = preview.url,
+        siteName = preview.siteName.ifBlank { null },
+        title = preview.title.ifBlank { null },
+        description = preview.description.text.ifBlank { null },
+        photo = photo,
+        largePhoto = preview.showLargeMedia,
+    )
+    if (result.siteName == null && result.title == null && result.description == null && photo == null) {
+        return null
+    }
+    return result
 }
 
 /**
