@@ -56,8 +56,21 @@ class ConversationViewModel(
         viewModelScope.launch {
             repository.chatInfo(chatId).onSuccess { info ->
                 _state.update {
-                    it.copy(info = info, lastReadOutboxMessageId = info.lastReadOutboxMessageId)
+                    it.copy(
+                        info = info,
+                        lastReadOutboxMessageId = info.lastReadOutboxMessageId,
+                        /*
+                         * Hranice nepřečtených se zachytí JEDNOU při otevření a už se nemění.
+                         *
+                         * Kdyby se posouvala podle toho, co se právě označilo za přečtené, předěl
+                         * by uživateli utíkal pod rukama — a to je jediné místo, podle kterého
+                         * pozná, kde přestal.
+                         */
+                        unreadBoundaryId = info.lastReadInboxMessageId
+                            .takeIf { id -> info.unreadCount > 0 && id != 0L },
+                    )
                 }
+                loadUntilUnread()
             }
         }
 
@@ -103,36 +116,79 @@ class ConversationViewModel(
      * nedává. Proto [ConversationState.reachedStart].
      */
     fun loadOlder() {
-        val current = _state.value
-        if (current.loading || current.reachedStart) return
+        viewModelScope.launch { loadOlderPage() }
+    }
 
-        viewModelScope.launch {
-            loadMutex.withLock {
-                if (_state.value.loading || _state.value.reachedStart) return@withLock
-                _state.update { it.copy(loading = true) }
+    /**
+     * Načte jednu stránku do minulosti.
+     *
+     * Na zámek se **čeká**, nepřeskakuje se. Kdyby se volání při probíhajícím načítání rovnou
+     * vzdalo, dotažení kvůli skoku na nepřečtené by se minulo s prvním načtením při otevření
+     * chatu a spotřebovalo by všechny pokusy naprázdno.
+     */
+    private suspend fun loadOlderPage() {
+        loadMutex.withLock {
+            if (_state.value.loading || _state.value.reachedStart) return@withLock
+            _state.update { it.copy(loading = true) }
 
-                // Nula znamená „od nejnovější"; jinak navazujeme pod nejstarší už načtenou zprávou.
-                val from = _state.value.messages.lastOrNull()?.id ?: 0L
+            // Nula znamená „od nejnovější"; jinak navazujeme pod nejstarší už načtenou zprávou.
+            val from = _state.value.messages.lastOrNull()?.id ?: 0L
 
-                repository.history(chatId = chatId, fromMessageId = from)
-                    .onSuccess { page ->
-                        _state.update { state ->
-                            state.copy(
-                                messages = merge(state.messages, page),
-                                loading = false,
-                                reachedStart = page.isEmpty(),
-                                error = null,
-                            )
-                        }
-                        resolveMissingQuotes()
+            repository.history(chatId = chatId, fromMessageId = from)
+                .onSuccess { page ->
+                    _state.update { state ->
+                        state.copy(
+                            messages = merge(state.messages, page),
+                            loading = false,
+                            reachedStart = page.isEmpty(),
+                            error = null,
+                        )
                     }
-                    .onFailure { failure ->
-                        _state.update {
-                            it.copy(loading = false, error = failure.message ?: "Historii se nepodařilo načíst.")
-                        }
+                    resolveMissingQuotes()
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(loading = false, error = failure.message ?: "Historii se nepodařilo načíst.")
                     }
-            }
+                }
         }
+    }
+
+    /**
+     * Dotáhne historii tak daleko, aby v ní byla hranice nepřečtených, a pak na ni skočí.
+     *
+     * Načítá se **od nejnovější dozadu**, ne od hranice dopředu. TDLib by uměl i to (záporný
+     * `offset` v `getChatHistory`), ale stránkování by pak muselo umět oba směry: kotva uprostřed
+     * znamená, že se dá dojít i na konec toho, co je načtené, směrem k novějším. Za tu složitost
+     * to nestojí — pár stránek zpátky je z lokální databáze rychlých.
+     *
+     * Proto je tu [MAX_UNREAD_PAGES]. Kdo má v chatu stovky nepřečtených, skok nedostane
+     * a chová se to jako dosud; načítat kvůli tomu půlku historie by bylo horší než nepomoct.
+     */
+    private suspend fun loadUntilUnread() {
+        val boundary = _state.value.unreadBoundaryId ?: return
+
+        var pages = 0
+        while (pages < MAX_UNREAD_PAGES) {
+            val state = _state.value
+            // Hranice je načtená, jakmile máme aspoň jednu zprávu z přečtené části.
+            if (state.reachedStart || state.messages.any { it.id <= boundary }) break
+            loadOlderPage()
+            pages++
+        }
+
+        val loaded = _state.value.messages
+        // Bez hranice v načteném seznamu se předěl stejně nevykreslí, takže skok nemá kam mířit.
+        if (loaded.none { it.id <= boundary }) return
+
+        // Seznam jde od nejnovější, takže první nepřečtená je ta POSLEDNÍ nad hranicí.
+        val firstUnread = loaded.lastOrNull { it.id > boundary } ?: return
+        _state.update { it.copy(scrollToMessageId = firstUnread.id) }
+    }
+
+    /** Obrazovka hlásí, že skok proběhl. Bez toho by se opakoval při každé rekompozici. */
+    fun consumeScrollTarget() {
+        _state.update { it.copy(scrollToMessageId = null) }
     }
 
     private fun observeUpdates() {
@@ -523,6 +579,15 @@ data class MessageFlight(
 /** Doba, po kterou se drží klíč sdíleného prvku po přistání v bublině. */
 internal const val FLIGHT_DURATION_MS = 450L
 
+/**
+ * Kolik stránek historie se kvůli skoku na nepřečtené dotáhne navíc.
+ *
+ * Při třiceti zprávách na stránku to pokryje sto padesát nepřečtených, což je víc, než kolik
+ * jich v běžném chatu bývá. Nad tím se skok vzdá — čekat na deset dotazů při otevření chatu
+ * je horší než doscrollovat ručně.
+ */
+private const val MAX_UNREAD_PAGES = 5
+
 /** Otevřený plný seznam reakcí (bottom sheet za tlačítkem „+"). */
 data class ReactionPicker(
     val messageId: Long,
@@ -596,6 +661,13 @@ data class ConversationState(
     val quotes: Map<Long, ChatMessage> = emptyMap(),
     /** Protějšek přečetl odchozí zprávy až po tohle id včetně. */
     val lastReadOutboxMessageId: Long = 0L,
+    /**
+     * Poslední zpráva, kterou uživatel při otevření chatu měl přečtenou. Nad ní se kreslí předěl
+     * „Nepřečtené zprávy". `null`, když chat nepřečtené neměl.
+     */
+    val unreadBoundaryId: Long? = null,
+    /** Id zprávy, na kterou má obrazovka odrolovat. Vynuluje se po provedení. */
+    val scrollToMessageId: Long? = null,
     /** Reklamy k zobrazení. Podle Telegram ToS se nesmí filtrovat ani skrývat. */
     val sponsored: List<SponsoredMessage> = emptyList(),
     /** Text právě letící ze vstupního pole do bubliny; `null` když se nic neodesílá. */

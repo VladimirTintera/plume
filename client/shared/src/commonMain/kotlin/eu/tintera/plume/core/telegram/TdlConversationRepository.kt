@@ -285,6 +285,8 @@ class TdlConversationRepository(
                     title = chat.title,
                     avatarFileId = chat.photo?.small?.id,
                     lastReadOutboxMessageId = chat.lastReadOutboxMessageId,
+                    lastReadInboxMessageId = chat.lastReadInboxMessageId,
+                    unreadCount = chat.unreadCount,
                     isGroup = chat.type is ChatTypeBasicGroup || chat.type is ChatTypeSupergroup,
                 )
             }

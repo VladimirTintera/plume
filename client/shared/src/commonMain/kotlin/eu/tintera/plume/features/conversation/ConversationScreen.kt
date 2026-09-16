@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -208,6 +210,20 @@ fun ConversationScreen(
     var floatingDay by remember { mutableStateOf("") }
     LaunchedEffect(visibleDay) {
         if (visibleDay != null) floatingDay = visibleDay
+    }
+
+    /*
+     * Skok na první nepřečtenou.
+     *
+     * Zprávu hledáme podle id, ne podle indexu — než efekt doběhne, může seznam narůst o novou
+     * zprávu a index by ukazoval jinam.
+     */
+    LaunchedEffect(state.scrollToMessageId) {
+        val targetId = state.scrollToMessageId ?: return@LaunchedEffect
+        val index = state.messages.indexOfFirst { it.id == targetId }
+        // Před zprávami stojí sponzorované položky, takže index v seznamu není index v LazyColumnu.
+        if (index >= 0) listState.scrollUnderTop(index + state.sponsored.size)
+        viewModel.consumeScrollTarget()
     }
 
     val newestMessageId = state.messages.firstOrNull()?.id
@@ -427,10 +443,21 @@ fun ConversationScreen(
                         val startsDay = older == null ||
                             !older.timestamp.isSameDayAs(message.timestamp)
 
+                        /*
+                         * Je tohle první nepřečtená zpráva?
+                         *
+                         * Hranici drží ViewModel z okamžiku otevření chatu, takže se předěl
+                         * neposouvá, jak se zprávy postupně označují za přečtené.
+                         */
+                        val startsUnread = state.unreadBoundaryId?.let { boundary ->
+                            message.id > boundary && older != null && older.id <= boundary
+                        } == true
+
                         // Předěl patří NAD zprávu, takže do sloupce před ni. `reverseLayout`
                         // obrací pořadí položek, ne obsah jedné položky.
                         Column(Modifier.animateItem()) {
                             if (startsDay) DayDivider(message.timestamp)
+                            if (startsUnread) UnreadDivider()
 
                             // Systémové oznámení nemá odesílatele, takže nemá ani stranu — kreslí
                             // se na střed a bez bubliny. Reakce, citace ani stav doručení k němu
@@ -1114,6 +1141,40 @@ private fun ReplyHint(progress: () -> Float, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * Odroluje tak, aby položka seděla u HORNÍ hrany a zbytek se četl směrem dolů.
+ *
+ * `scrollToItem` v obráceném seznamu posadí položku ke spodní hraně, protože tam je jeho začátek.
+ * U skoku na nepřečtené je to přesně naopak, než je potřeba: první nepřečtená má být nahoře
+ * a nepřečtené pod ní. Dorovnání se počítá až ze **změřeného** layoutu, protože výška bubliny
+ * se zprávu od zprávy liší.
+ */
+private suspend fun LazyListState.scrollUnderTop(index: Int) {
+    scrollToItem(index)
+
+    val info = layoutInfo
+    val item = info.visibleItemsInfo.firstOrNull { it.index == index } ?: return
+    // Offset roste od začátku seznamu, tedy v obráceném rozvržení odspodu nahoru.
+    val desired = info.viewportSize.height - item.size
+    scrollBy((item.offset - desired).toFloat())
+}
+
+/**
+ * Předěl „Nepřečtené zprávy".
+ *
+ * Akcentní barva, ne šedá jako u data: je to jediná věc na obrazovce, kterou uživatel po otevření
+ * chatu opravdu hledá.
+ */
+@Composable
+private fun UnreadDivider(modifier: Modifier = Modifier) {
+    CenteredNote(
+        text = "Nepřečtené zprávy",
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        modifier = modifier.padding(vertical = DAY_DIVIDER_SPACING),
+    )
+}
+
 private const val LOAD_MORE_THRESHOLD = 5
 private const val READ_DEBOUNCE_MS = 400L
 
@@ -1370,6 +1431,8 @@ private fun CenteredNote(
     modifier: Modifier = Modifier,
     /** Nenulová jen u plovoucí varianty, která leží nad zprávami místo mezi nimi. */
     shadowElevation: Dp = 0.dp,
+    color: Color = MaterialTheme.colorScheme.surfaceContainer,
+    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
     Row(
         modifier = modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -1377,8 +1440,8 @@ private fun CenteredNote(
     ) {
         Surface(
             shape = RoundedCornerShape(BUBBLE_CORNER),
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = color,
+            contentColor = contentColor,
             shadowElevation = shadowElevation,
         ) {
             Text(

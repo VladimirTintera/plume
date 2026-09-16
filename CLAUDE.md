@@ -11,8 +11,8 @@ Fáze 6. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell
 živý seznam chatů, textová konverzace (historie, živé zprávy, odesílání, označení přečteného),
 avatary a fotky ve zprávách, reakce, odpovědi, notifikace na Androidu, sponzorované zprávy.
 
-Není: přehrávání videa a zvuku, otevírání dokumentů, editace, skok na první nepřečtenou,
-notifikace na iOS, perzistence nastavení. Prohlížeč médií umí zatím jen fotky. Rozpracovaný detail chatu má vlastní seznam:
+Není: přehrávání videa a zvuku, otevírání dokumentů, editace, notifikace na iOS,
+perzistence nastavení. Prohlížeč médií umí zatím jen fotky. Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
 
 ## Build
@@ -262,6 +262,34 @@ v delší historii nedalo poznat, kde končí včerejšek.
   jen při scrollu a bere datum z nejvyšší viditelné položky (opět podle klíče, ne indexu).
 - **Předěl a systémové oznámení vypadají stejně** (`CenteredNote`). Obojí je poznámka na okraji
   konverzace, ne zpráva od někoho; dvě různá pojetí téhož by seznam roztříštila.
+
+### Skok na první nepřečtenou
+
+Otevření chatu s nepřečtenými dotáhne historii až k hranici, skočí na první nepřečtenou zprávu
+a nad ni nakreslí předěl „Nepřečtené zprávy".
+
+- **Hranice se zachytí JEDNOU při otevření** (`lastReadInboxMessageId` z `getChat`) a už se nemění.
+  Kdyby se posouvala podle toho, co se právě označilo za přečtené, předěl by uživateli utíkal pod
+  rukama — a je to jediné místo, podle kterého pozná, kde přestal.
+- **`unreadCount` je potřeba vedle ukazatele.** Z `lastReadInboxMessageId` samotného se nepřečtené
+  odvodit nedají: v chatu, kde poslední zprávu napsal uživatel, je ukazatel starší než ta zpráva,
+  a přesto není co číst.
+- **Načítá se od nejnovější dozadu, ne od hranice dopředu.** TDLib by uměl i to (záporný `offset`
+  v `getChatHistory`), ale kotva uprostřed znamená, že stránkování musí umět **oba směry** — dá se
+  dojít na konec načteného i směrem k novějším. Za tu složitost to nestojí; pár stránek zpět je
+  z lokální databáze rychlých.
+- **Proto je tam strop na počet stránek.** Kdo má stovky nepřečtených, skok nedostane a chová se
+  to jako dřív. Načítat kvůli tomu půlku historie by bylo horší než nepomoct.
+- **Na zámek stránkování se čeká, nepřeskakuje se.** Dotažení kvůli skoku běží souběžně s prvním
+  načtením při otevření chatu; kdyby se volání při probíhajícím načítání vzdalo, spotřebovalo by
+  všechny pokusy naprázdno a skok by se nekonal.
+- **`scrollToItem` v obráceném seznamu posadí položku ke SPODNÍ hraně**, protože tam je jeho
+  začátek. U skoku na nepřečtené je to naopak, než je potřeba, takže se ještě dorovnává o výšku
+  viewportu — a ta se **měří**, protože výška bubliny se zprávu od zprávy liší.
+- **Index v `LazyColumn` není index v `state.messages`.** Před zprávami stojí sponzorované
+  položky, takže se k němu musí přičíst jejich počet. Stejná past jako u hlášení přečtení.
+- **Předěl nepřečtených je akcentní, ne šedý jako datum.** Je to jediná věc, kterou uživatel po
+  otevření chatu opravdu hledá.
 
 ### Hlášení přečtení a indexy
 

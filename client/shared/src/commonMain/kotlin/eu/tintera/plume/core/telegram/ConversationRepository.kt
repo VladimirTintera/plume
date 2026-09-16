@@ -133,6 +133,20 @@ data class ChatInfo(
      * odchozí zprávy s menším nebo rovným id jsou přečtené. Mění se updatem, ne přeposláním zpráv.
      */
     val lastReadOutboxMessageId: Long,
+    /**
+     * Id poslední zprávy, kterou si přečetl uživatel.
+     *
+     * Protipól [lastReadOutboxMessageId]: ten mluví o protějšku, tenhle o nás. Všechno s vyšším
+     * id je nepřečtené — právě nad tím se v konverzaci kreslí předěl.
+     */
+    val lastReadInboxMessageId: Long,
+    /**
+     * Kolik zpráv je nepřečtených.
+     *
+     * Bez něj se to z [lastReadInboxMessageId] nedá spolehlivě odvodit: v chatu, kde jsme poslední
+     * zprávu napsali my, je ukazatel starší než ta zpráva, a přesto není co číst.
+     */
+    val unreadCount: Int,
     /** `fileId` malé varianty avataru, nebo `null` když chat obrázek nemá. */
     val avatarFileId: Int?,
     /**
