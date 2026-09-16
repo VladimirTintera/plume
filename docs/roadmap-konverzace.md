@@ -32,14 +32,12 @@ je pod závojem s dírou na vybrané zprávě. Poučení je v `CLAUDE.md`, sekce
 Kód: `MessageMenu.kt`, `MessageMenu`/`PendingDelete` v `ConversationViewModel.kt`,
 `messageActions`/`deleteMessages` v repository, `core/ui/TextClipboard.kt`.
 
-V nabídce zatím: **Odpovědět, Upravit, Kopírovat, Smazat**. Mrtvé položky se tam nedávají, takže zbytek
+V nabídce zatím: **Odpovědět, Upravit, Kopírovat, Připnout/Odepnout, Smazat**. Mrtvé položky se tam nedávají, takže zbytek
 přibude s tím, co bude umět:
 
 - **Přeposlat** — potřebuje výběr cílového chatu, tedy vlastní obrazovku.
 - **Upravit popisek média** (`editMessageCaption`) a **zprávu s ručním formátováním** —
   vstupní pole umí jen holý text, takže úprava se u nich zatím nenabízí.
-- **Připnout** (`canBePinned`) — pruh s připnutými zprávami i odepínání už existují, chybí
-  jen připnutí z nabídky.
 - **Vybrat víc zpráv** — hromadné mazání a přeposílání, znamená režim výběru v celé konverzaci.
 - **Informace / odkaz na zprávu** (`canGetLink`, `canGetViewers`, `canGetReadDate`).
 

@@ -77,11 +77,20 @@ interface ConversationRepository {
     suspend fun unpin(chatId: Long, messageId: Long): Result<Unit>
 
     /**
-     * Připne zprávu zpátky — pro „Vrátit" po odepnutí.
+     * Připne zprávu. Potvrzení dorazí přes [pinnedMessageChanges].
      *
-     * Bez upozornění členům: jde o opravu omylu, ne o nové oznámení.
+     * [notify] upozorní členy skupiny nebo odběratele kanálu. [onlyForSelf] dává smysl jen
+     * v soukromém chatu — jinde server připíná vždycky všem.
+     *
+     * Výchozí hodnoty (tiše, pro všechny) jsou pro „Vrátit" po odepnutí: to je oprava omylu,
+     * ne nové oznámení.
      */
-    suspend fun pin(chatId: Long, messageId: Long): Result<Unit>
+    suspend fun pin(
+        chatId: Long,
+        messageId: Long,
+        notify: Boolean = false,
+        onlyForSelf: Boolean = false,
+    ): Result<Unit>
 
     /**
      * Ohlásí, že se v chatu něco připnulo nebo odepnulo.
@@ -213,6 +222,13 @@ data class ChatInfo(
      * šum, protože odesílatelé jsou právě dva.
      */
     val isGroup: Boolean,
+    /** Kanál. Počítá se i do [isGroup]; tady jde o rozlišení „členové" vs. „odběratelé". */
+    val isChannel: Boolean,
+    /**
+     * Uložené zprávy (chat sám se sebou). Připnutí tu nemá koho upozorňovat ani s kým se dělit,
+     * takže se na nic neptá.
+     */
+    val isSavedMessages: Boolean,
     /** Rozepsaný text z minula (i z jiného zařízení), nebo `null`. */
     val draftText: String?,
     /** Zpráva, na kterou koncept odpovídá, nebo `null`. */
@@ -339,6 +355,11 @@ data class MessageActions(
     val canDeleteForAll: Boolean,
     /** Úprava textu. Server ji povolí jen u vlastních zpráv a jen po omezenou dobu od odeslání. */
     val canEdit: Boolean,
+    /**
+     * Připnutí i odepnutí (`canBePinned`). Ve skupině a kanálu je to právo, v soukromém chatu
+     * ho má každý.
+     */
+    val canPin: Boolean,
 ) {
     companion object {
         /**
@@ -355,6 +376,8 @@ data class MessageActions(
             canDeleteForAll = false,
             // Úprava po lhůtě skončí chybou; bez příznaků se nenabízí, stejně jako mazání.
             canEdit = false,
+            // Ve skupině bez práv by skončilo chybou; nevíme, tak se nenabízí.
+            canPin = false,
         )
     }
 }
