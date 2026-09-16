@@ -113,3 +113,10 @@ fun Modifier.sharedNavText(key: String): Modifier {
 fun chatAvatarKey(chatId: Long): String = "chat-avatar-$chatId"
 
 fun chatTitleKey(chatId: Long): String = "chat-title-$chatId"
+
+/**
+ * Klíč páru bublina ↔ prohlížeč fotky.
+ *
+ * Id zprávy stačí — fotka je ve zprávě nejvýš jedna a v rámci chatu jsou id jedinečná.
+ */
+fun photoKey(messageId: Long): String = "photo-$messageId"

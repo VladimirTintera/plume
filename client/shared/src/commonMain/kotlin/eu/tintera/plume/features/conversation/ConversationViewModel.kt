@@ -6,11 +6,15 @@ import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SentMessageUpdate
 import eu.tintera.plume.core.telegram.SponsoredMessage
+import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UrlOpener
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +35,7 @@ class ConversationViewModel(
     private val chatId: Long,
     private val repository: ConversationRepository,
     private val urlOpener: UrlOpener,
+    private val clipboard: TextClipboard,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ConversationState())
@@ -244,10 +249,21 @@ class ConversationViewModel(
         }
     }
 
+    /**
+     * Otevře odkaz ze zprávy.
+     *
+     * Vede přes ViewModel, ne rovnou z bubliny do `UrlOpener`: až budeme rozlišovat interní
+     * `t.me` odkazy (pozvánka do skupiny, odkaz na zprávu), rozhodne se to tady a obrazovka
+     * se měnit nebude.
+     */
+    fun openLink(url: String) {
+        urlOpener.open(url)
+    }
+
     /** Nastaví zprávu, na kterou se odpovídá. Zobrazí se nad vstupním polem. */
     fun replyTo(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        _state.update { it.copy(replyingTo = message, reactionPicker = null) }
+        _state.update { it.copy(replyingTo = message, messageMenu = null) }
     }
 
     fun clearReply() {
@@ -278,10 +294,22 @@ class ConversationViewModel(
         }
     }
 
-    /** Označí viditelné zprávy za přečtené. Volá obrazovka podle toho, co je reálně na displeji. */
+    /**
+     * Označí viditelné zprávy za přečtené. Volá obrazovka podle toho, co je reálně na displeji.
+     *
+     * Vlastní zprávy se odfiltrují **tady**, ne v obrazovce: ta zná jen id viditelných položek
+     * a dohledávat si k nim zprávy by znamenalo držet je kvůli tomu v kompozici.
+     */
     fun markRead(messageIds: List<Long>) {
         if (messageIds.isEmpty()) return
-        viewModelScope.launch { repository.markRead(chatId, messageIds) }
+
+        val visible = messageIds.toSet()
+        val incoming = _state.value.messages
+            .filter { !it.isOutgoing && it.id in visible }
+            .map { it.id }
+
+        if (incoming.isEmpty()) return
+        viewModelScope.launch { repository.markRead(chatId, incoming) }
     }
 
     /**
@@ -305,26 +333,113 @@ class ConversationViewModel(
                 _state.update { it.copy(error = failure.message ?: "Reakci se nepodařilo uložit.") }
             }
         }
-        hideReactionPicker()
+        closeMenus()
     }
 
-    /** Načte nabídku emoji pro danou zprávu a otevře výběr. */
-    fun showReactionPicker(messageId: Long) {
+    /**
+     * Otevře nabídku nad zprávou.
+     *
+     * Emoji a příznaky akcí se načítají **současně** — jsou to dva nezávislé dotazy a nabídka
+     * čeká na oba, takže sériově by se čekání zdvojnásobilo.
+     *
+     * Prázdná nabídka emoji **není chyba**: v Uložených zprávách Telegram místo reakcí používá
+     * tagy a `getMessageAvailableReactions` vrátí prázdný seznam. Dřív se kvůli tomu nabídka
+     * neotevřela vůbec a nešlo ani odpovědět.
+     */
+    fun showMessageMenu(messageId: Long) {
+        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+
         viewModelScope.launch {
-            val emoji = repository.availableReactions(chatId, messageId).getOrDefault(emptyList())
-            if (emoji.isEmpty()) {
-                // Typicky Uložené zprávy: tam Telegram místo reakcí používá tagy a
-                // `getMessageAvailableReactions` vrátí prázdný seznam.
-                logger.d { "Chat $chatId nenabízí žádné reakce." }
-                _state.update { it.copy(error = "V tomhle chatu nejdou reakce použít.") }
-                return@launch
+            val (emoji, actions) = coroutineScope {
+                val emojiTask = async { repository.availableReactions(chatId, messageId) }
+                val actionsTask = async { repository.messageActions(chatId, messageId) }
+                emojiTask.await().getOrDefault(emptyList()) to
+                    actionsTask.await().getOrElse { failure ->
+                        logger.w(failure) { "Příznaky zprávy $messageId se nepodařilo zjistit." }
+                        MessageActions.Fallback
+                    }
             }
-            _state.update { it.copy(reactionPicker = ReactionPicker(messageId, emoji)) }
+
+            _state.update {
+                it.copy(
+                    messageMenu = MessageMenu(
+                        messageId = messageId,
+                        isOutgoing = message.isOutgoing,
+                        emoji = emoji,
+                        chosenEmoji = message.reactions.filter { r -> r.isChosen }.map { r -> r.emoji }.toSet(),
+                        actions = actions,
+                        hasText = message.text.isNotBlank(),
+                    ),
+                )
+            }
         }
     }
 
-    fun hideReactionPicker() {
-        _state.update { it.copy(reactionPicker = null) }
+    /** Přepne z nabídky na plný seznam emoji. Ten se listuje, takže zůstává bottom sheetem. */
+    fun showAllReactions() {
+        val menu = _state.value.messageMenu ?: return
+        _state.update {
+            it.copy(
+                messageMenu = null,
+                reactionSheet = ReactionPicker(menu.messageId, menu.emoji),
+            )
+        }
+    }
+
+    fun closeMenus() {
+        _state.update { it.copy(messageMenu = null, reactionSheet = null) }
+    }
+
+    /**
+     * Zkopíruje text zprávy do schránky.
+     *
+     * Kopíruje se text, jak ho vidí uživatel — bez entit. Formátování má smysl v Telegramu,
+     * ale do cizí aplikace se stejně přenese jen holý řetězec.
+     */
+    fun copyMessage(messageId: Long) {
+        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+        clipboard.copy(message.text)
+        closeMenus()
+    }
+
+    /** Otevře potvrzení smazání. Nevratná akce se nedělá na jedno ťuknutí. */
+    fun requestDelete(messageId: Long) {
+        val menu = _state.value.messageMenu ?: return
+        _state.update {
+            it.copy(
+                messageMenu = null,
+                pendingDelete = PendingDelete(
+                    messageId = messageId,
+                    canDeleteForAll = menu.actions.canDeleteForAll,
+                    canDeleteForSelf = menu.actions.canDeleteForSelf,
+                ),
+            )
+        }
+    }
+
+    fun cancelDelete() {
+        _state.update { it.copy(pendingDelete = null) }
+    }
+
+    /**
+     * Smaže zprávu.
+     *
+     * Ze seznamu se **neodstraňuje ručně** — TDLib pošle `UpdateDeleteMessages` a ten se už
+     * zpracovává. Předběhnout server by znamenalo riskovat, že zpráva zmizí z obrazovky
+     * a na serveru zůstane.
+     */
+    fun confirmDelete(revoke: Boolean) {
+        val pending = _state.value.pendingDelete ?: return
+        _state.update { it.copy(pendingDelete = null) }
+
+        viewModelScope.launch {
+            repository.deleteMessages(chatId, listOf(pending.messageId), revoke)
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(error = failure.message ?: "Zprávu se nepodařilo smazat.")
+                    }
+                }
+        }
     }
 
     private fun applyReactions(messageId: Long, reactions: List<MessageReaction>) {
@@ -408,17 +523,70 @@ data class MessageFlight(
 /** Doba, po kterou se drží klíč sdíleného prvku po přistání v bublině. */
 internal const val FLIGHT_DURATION_MS = 450L
 
-/** Otevřený výběr reakcí nad konkrétní zprávou. */
+/** Otevřený plný seznam reakcí (bottom sheet za tlačítkem „+"). */
 data class ReactionPicker(
     val messageId: Long,
     val emoji: List<String>,
 )
 
+/**
+ * Otevřená nabídka nad zprávou.
+ *
+ * Jsou v ní dvě různé věci: **rychlé reakce** (pár emoji na jedno ťuknutí) a **akce** nad zprávou.
+ * Proto se kreslí jako dva samostatné kusy, ne jako jeden seznam — reagovat a odpovědět nejsou
+ * varianty téhož.
+ *
+ * Nese jen data, **žádné souřadnice**. Kde přesně bublina na obrazovce leží, ví layout, ne
+ * ViewModel; ten by se tím navázal na rozvržení, které se mění s velikostí okna.
+ */
+data class MessageMenu(
+    val messageId: Long,
+    /** Podle strany bubliny se nabídka zarovná, aby vyrůstala od zprávy, ne od kraje obrazovky. */
+    val isOutgoing: Boolean,
+    /** Nabídnutá emoji. Prázdné je běžný stav (Uložené zprávy), ne chyba. */
+    val emoji: List<String>,
+    /** Emoji, která uživatel u téhle zprávy už dal — v rychlém řádku se zvýrazní. */
+    val chosenEmoji: Set<String>,
+    val actions: MessageActions,
+    /** Bez textu není co kopírovat, i kdyby to server dovolil. */
+    val hasText: Boolean,
+) {
+    /** Do rychlého řádku se vejde jen pár; zbytek je za „+". */
+    val quickEmoji: List<String> get() = emoji.take(MAX_QUICK_REACTIONS)
+
+    /** „+" má smysl jen tehdy, když za ním něco navíc je. */
+    val hasMoreEmoji: Boolean get() = emoji.size > MAX_QUICK_REACTIONS
+}
+
+/**
+ * Zpráva čekající na potvrzení smazání.
+ *
+ * Drží se **zvlášť od [MessageMenu]**: mezi zavřením nabídky a potvrzením nesmí zůstat viset
+ * obojí. Stejný důvod jako u `target`/`pendingDelete` v akcích nad chatem.
+ */
+data class PendingDelete(
+    val messageId: Long,
+    val canDeleteForSelf: Boolean,
+    val canDeleteForAll: Boolean,
+)
+
+/**
+ * Kolik emoji se vejde do rychlého řádku.
+ *
+ * Šest jako v Google Messages — na jeden řádek se vejdou i na úzkém telefonu vedle tlačítka „+".
+ */
+private const val MAX_QUICK_REACTIONS = 6
+
 data class ConversationState(
     val info: ChatInfo? = null,
     /** Dostupnost protějšku pro podtitul hlavičky. `null` u skupin a kanálů. */
     val presence: Presence? = null,
-    val reactionPicker: ReactionPicker? = null,
+    /** Otevřená nabídka nad zprávou (rychlé reakce + akce). */
+    val messageMenu: MessageMenu? = null,
+    /** Plný seznam reakcí za tlačítkem „+". */
+    val reactionSheet: ReactionPicker? = null,
+    /** Zpráva čekající na potvrzení smazání. */
+    val pendingDelete: PendingDelete? = null,
     /** Zpráva, na kterou se právě chystá odpověď. Zobrazuje se nad vstupním polem. */
     val replyingTo: ChatMessage? = null,
     /**

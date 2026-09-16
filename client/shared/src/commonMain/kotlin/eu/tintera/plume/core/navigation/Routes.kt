@@ -29,6 +29,18 @@ data object SettingsRoute : TopLevelRoute
 data class ConversationRoute(val chatId: Long) : Route
 
 /**
+ * Prohlížeč média přes celou obrazovku.
+ *
+ * Vlastní routa, ne overlay uvnitř konverzace: takhle se ven chodí zpět (včetně predictive back),
+ * přežije to otočení displeje i zabití procesu a nemusí se řešit vlastní `BackHandler`, který
+ * by predictive back stejně zabil.
+ *
+ * Nese jen id, ne obsah — média se dotahují z repository podle zprávy.
+ */
+@Serializable
+data class MediaRoute(val chatId: Long, val messageId: Long) : Route
+
+/**
  * Konfigurace pro ukládání navigačního zásobníku.
  *
  * **Každá nová routa se MUSÍ zaregistrovat níže.** `NavKey` je otevřená polymorfní hierarchie
@@ -49,6 +61,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ChatsRoute::class, ChatsRoute.serializer())
             subclass(SettingsRoute::class, SettingsRoute.serializer())
             subclass(ConversationRoute::class, ConversationRoute.serializer())
+            subclass(MediaRoute::class, MediaRoute.serializer())
         }
     }
 }

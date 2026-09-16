@@ -9,12 +9,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -61,12 +68,16 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -78,10 +89,12 @@ import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.emojiClusterCount
 import eu.tintera.plume.core.ui.chatTitleKey
+import eu.tintera.plume.core.ui.photoKey
 import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.ui.RichText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.arrow_downward_24dp
@@ -89,6 +102,7 @@ import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.done_all_24dp
 import eu.tintera.plume.resources.error_24dp
+import eu.tintera.plume.resources.reply_24dp
 import eu.tintera.plume.resources.schedule_24dp
 import eu.tintera.plume.resources.send_24dp
 import kotlinx.coroutines.flow.debounce
@@ -96,12 +110,14 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.painterResource
+import kotlin.math.roundToInt
 import kotlin.time.Instant
 
 @Composable
 fun ConversationScreen(
     viewModel: ConversationViewModel,
     onBack: () -> Unit,
+    onOpenMedia: (messageId: Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -144,6 +160,32 @@ fun ConversationScreen(
 
     /** Změřená výška plovoucího vstupního pole; drží odsazení seznamu v souladu s realitou. */
     var inputHeight by remember { mutableStateOf(0.dp) }
+
+    /*
+     * Obsluha nabídky nad zprávou.
+     *
+     * Balík místo šesti parametrů: nabídka se deklaruje UVNITŘ bubliny (jinak by neměla k čemu
+     * se ukotvit), takže by je jinak bublina všechny nesla ve své signatuře.
+     */
+    val menuHandlers = remember(viewModel) {
+        MessageMenuHandlers(
+            onPick = viewModel::toggleReaction,
+            onMore = viewModel::showAllReactions,
+            onReply = viewModel::replyTo,
+            onCopy = viewModel::copyMessage,
+            onDelete = viewModel::requestDelete,
+            onDismiss = viewModel::closeMenus,
+        )
+    }
+
+    /*
+     * Zprávy podle id, pro dohledání citované.
+     *
+     * Skládá se jednou na změnu seznamu, ne v každé bublině. Předtím se citace hledala
+     * průchodem celého seznamu, takže vykreslení historie stálo kvadraticky — u tisícovky
+     * zpráv se to při scrollu pozná.
+     */
+    val byId = remember(state.messages) { state.messages.associateBy { it.id } }
 
     val newestMessageId = state.messages.firstOrNull()?.id
 
@@ -209,15 +251,24 @@ fun ConversationScreen(
             }
     }
 
-    // Přečtení se hlásí až když se scrollování uklidní — jinak by při rychlém průletu odešla
-    // jedna žádost na každý snímek.
-    LaunchedEffect(listState, state.messages) {
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo.map { it.index } }
+    /*
+     * Hlášení přečtení.
+     *
+     * Bere se **klíč položky, ne její index**. Index do `state.messages` nesedí: před zprávami
+     * stojí sponzorované položky, takže v kanálu s reklamou byl výběr posunutý o jejich počet
+     * a hlásily se za přečtené zprávy, které uživatel neviděl. Klíč zpráv je rovnou jejich id,
+     * takže se nemá co rozejít, ani až seznam další položku přibere.
+     *
+     * Odpočet čeká, až se scrollování uklidní — jinak by při rychlém průletu odešla jedna žádost
+     * na každý snímek. Efekt proto **nesmí záviset na `state.messages`**: s ním se restartoval
+     * při každé nové zprávě a odpočet začínal znovu od nuly.
+     */
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.layoutInfo.visibleItemsInfo.mapNotNull { it.key as? Long }
+        }
             .debounce(READ_DEBOUNCE_MS)
-            .collect { indices ->
-                val visible = indices.mapNotNull { state.messages.getOrNull(it) }
-                viewModel.markRead(visible.filterNot { it.isOutgoing }.map { it.id })
-            }
+            .collect(viewModel::markRead)
     }
 
     Scaffold(
@@ -277,12 +328,24 @@ fun ConversationScreen(
         // by před ním končily. Plave nad obsahem, který pod něj zajíždí — viz níž.
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        state.reactionPicker?.let { picker ->
+        // Nabídka nad zprávou se kreslí až v bublině — viz `MessageMenuOverlay`.
+
+        // Plný seznam emoji za tlačítkem „+". Zůstává bottom sheetem, protože se v něm listuje —
+        // a to popup neumí.
+        state.reactionSheet?.let { picker ->
             ReactionPickerSheet(
                 picker = picker,
                 onPick = { emoji -> viewModel.toggleReaction(picker.messageId, emoji) },
-                onReply = { viewModel.replyTo(picker.messageId) },
-                onDismiss = viewModel::hideReactionPicker,
+                onDismiss = viewModel::closeMenus,
+            )
+        }
+
+        state.pendingDelete?.let { pending ->
+            MessageDeleteDialog(
+                pending = pending,
+                partnerName = state.info?.title,
+                onConfirm = viewModel::confirmDelete,
+                onDismiss = viewModel::cancelDelete,
             )
         }
 
@@ -326,20 +389,18 @@ fun ConversationScreen(
                         )
                     }
 
-                    items(state.messages, key = { it.id }) { message ->
-                        val index = state.messages.indexOf(message)
-
+                    itemsIndexed(state.messages, key = { _, message -> message.id }) { index, message ->
                         // Systémové oznámení nemá odesílatele, takže nemá ani stranu — kreslí se
                         // na střed a bez bubliny. Reakce, citace ani stav doručení k němu nepatří.
                         if (message.isService) {
                             ServiceMessage(message, Modifier.animateItem())
-                            return@items
+                            return@itemsIndexed
                         }
 
                         MessageBubble(
                             message = message,
                             quoted = message.replyToMessageId?.let { id ->
-                                state.messages.firstOrNull { it.id == id } ?: state.quotes[id]
+                                byId[id] ?: state.quotes[id]
                             },
                             // V soukromém chatu se jméno odesílatele u zpráv nevyplňuje (dává
                             // smysl jen ve skupinách), takže citace by neměla koho uvést.
@@ -353,7 +414,14 @@ fun ConversationScreen(
                             onToggleReaction = { emoji ->
                                 viewModel.toggleReaction(message.id, emoji)
                             },
-                            onRequestReaction = { viewModel.showReactionPicker(message.id) },
+                            onRequestMenu = { viewModel.showMessageMenu(message.id) },
+                            onReply = { viewModel.replyTo(message.id) },
+                            onOpenMedia = { onOpenMedia(message.id) },
+                            // Nabídka se kreslí uvnitř bubliny, které se týká — jinak by neměla
+                            // k čemu se ukotvit.
+                            menu = state.messageMenu?.takeIf { it.messageId == message.id },
+                            menuHandlers = menuHandlers,
+                            onLinkClick = viewModel::openLink,
                             modifier = Modifier.animateItem(),
                         )
                     }
@@ -465,7 +533,13 @@ private fun MessageBubble(
     flight: MessageFlight?,
     previous: ChatMessage?,
     onToggleReaction: (String) -> Unit,
-    onRequestReaction: () -> Unit,
+    onRequestMenu: () -> Unit,
+    onReply: () -> Unit,
+    onOpenMedia: () -> Unit,
+    /** Vyplněné jen u zprávy, nad kterou je nabídka otevřená. */
+    menu: MessageMenu?,
+    menuHandlers: MessageMenuHandlers,
+    onLinkClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val continuesGroup = previous != null &&
@@ -517,14 +591,66 @@ private fun MessageBubble(
         RoundedCornerShape(if (continuesGroup) tight else corner, corner, corner, tight)
     }
 
+    val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    val density = LocalDensity.current
+
+    val drag = remember { Animatable(0f) }
+    val threshold = with(density) { REPLY_THRESHOLD.toPx() }
+    val maxDrag = with(density) { REPLY_MAX_DRAG.toPx() }
+    // Spec se musí vzít v kompozici — `onDragStopped` je obyčejná suspend funkce, ne composable.
+    val returnSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+
+    /** Prah už byl v tomhle tahu překročen; hlídá, aby haptika i odpověď odešly jen jednou. */
+    var armed by remember { mutableStateOf(false) }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
             // Zprávy od jednoho odesílatele drží u sebe, nová skupina se oddělí. Tvar bublin
             // to už rozlišuje staženým nárožím, mezera tomu jen dává prostor.
-            .padding(top = if (continuesGroup) 0.dp else GROUP_SPACING),
+            .padding(top = if (continuesGroup) 0.dp else GROUP_SPACING)
+            /*
+             * Tažení do strany = odpověď.
+             *
+             * `draggable` s vodorovnou orientací, ne `detectHorizontalDragGestures`: ten konzumuje
+             * hned od prvního pixelu a rozbil by svislý scroll seznamu. Takhle o směru rozhodne
+             * až první pohyb za slop a seznam si svislé tahy nechá.
+             *
+             * Táhne se **doprava u obou stran konverzace**. Zrcadlit směr podle odesílatele by
+             * znamenalo, že uživatel musí před každým gestem přemýšlet, čí zpráva to je.
+             */
+            .draggable(
+                orientation = Orientation.Horizontal,
+                state = rememberDraggableState { delta ->
+                    scope.launch {
+                        // Za prahem klade tah odpor — jinak by šla bublina odtáhnout přes půl
+                        // obrazovky a nebylo by poznat, že se dál nic nestane.
+                        val resistance = if (drag.value < threshold) 1f else DRAG_RESISTANCE
+                        val next = (drag.value + delta * resistance).coerceIn(0f, maxDrag)
+                        drag.snapTo(next)
+
+                        if (!armed && next >= threshold) {
+                            armed = true
+                            haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                        }
+                    }
+                },
+                onDragStopped = {
+                    // Odpověď odchází při PUŠTĚNÍ, ne při překročení prahu. Kdo si to rozmyslí,
+                    // vrátí prst zpátky a nic se nestane.
+                    if (armed && drag.value >= threshold) onReply()
+                    armed = false
+                    drag.animateTo(0f, returnSpec)
+                },
+            ),
         horizontalArrangement = if (message.isOutgoing) Arrangement.End else Arrangement.Start,
     ) {
+      Box(
+          // Posun se čte až ve fázi layoutu (`offset { }`), ne v kompozici. Jinak by se celá
+          // bublina i s obsahem přeskládávala na každý snímek tahu.
+          Modifier.offset { IntOffset(drag.value.roundToInt(), 0) },
+      ) {
         Surface(
             color = containerColor,
             contentColor = contentColor,
@@ -539,9 +665,13 @@ private fun MessageBubble(
                         ?.let { Modifier.sharedFlight(it.sharedKey, visible = true) }
                         ?: Modifier,
                 )
+                // Ořez MUSÍ být před klikáním. `Surface` si tvarem ořezává jen svoje pozadí,
+                // a to až za modifikátory, které dostane zvenku — vlnka dlouhého stisku by se
+                // tedy kreslila do obdélníku a přetekla přes zaoblená nároží.
+                .clip(shape)
                 // Dlouhý stisk je jediné gesto na bublině — krátké ťuknutí si šetříme
                 // na otevírání médií, až přibude.
-                .combinedClickable(onLongClick = onRequestReaction, onClick = {}),
+                .combinedClickable(onLongClick = onRequestMenu, onClick = {}),
         ) {
             Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
                 if (!continuesGroup) {
@@ -564,12 +694,20 @@ private fun MessageBubble(
                     )
                 }
 
-                message.media?.let { media -> MessageAttachment(media) }
+                message.media?.let { media ->
+                    MessageAttachment(
+                        media = media,
+                        messageId = message.id,
+                        onOpen = onOpenMedia,
+                        onRequestMenu = onRequestMenu,
+                    )
+                }
 
                 // Prázdný text u zprávy, která má jen fotku — pak se nekreslí nic.
                 if (message.text.isNotBlank()) {
-                    Text(
+                    RichText(
                         text = message.text,
+                        entities = message.entities,
                         // Míň emoji = větší. Jedno je gesto, tři už jsou věta, takže se
                         // velikost s počtem krotí.
                         style = when (largeEmoji) {
@@ -578,6 +716,10 @@ private fun MessageBubble(
                             2 -> MaterialTheme.typography.displayMedium
                             else -> MaterialTheme.typography.displaySmall
                         },
+                        // V odchozí bublině je pozadí samo `primary`, takže odkaz musí vzít
+                        // barvu popředí — jinak by byl neviditelný. Stejná past jako u citace.
+                        linkColor = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
+                        onLinkClick = onLinkClick,
                     )
                 }
 
@@ -611,6 +753,35 @@ private fun MessageBubble(
                 }
             }
         }
+
+        /*
+         * Nabídka visí v kompozici POD bublinou, i když se kreslí přes celou obrazovku.
+         *
+         * Popup si díky tomu vezme rozměry bubliny sám — `calculatePosition` dostane
+         * `anchorBounds` toho prvku, pod kterým je deklarovaný — a nikam se nemusí předávat
+         * souřadnice. V layoutu je to prvek nulové velikosti, takže se bublina nezvětší.
+         *
+         * Past: nesmí viset uvnitř OBSAHU bubliny. Tam by ukotvením byl vnitřní `Column`, tedy
+         * plocha zmenšená o jeho odsazení, a díra v závoji by byla o kus menší než bublina.
+         * Proto ten `Box` kolem — obepíná `Surface` přesně.
+         */
+        /*
+         * Šipka odpovědi.
+         *
+         * Sedí hned vedle bubliny a jede s ní, takže je jasné, čeho se gesto týká. Je uvnitř
+         * `Box`u kolem bubliny a posazená `offset`em mimo něj — do layoutu tím nezasahuje,
+         * takže nic neodsouvá a neovlivňuje šířku zprávy.
+         */
+        ReplyHint(
+            progress = { (drag.value / threshold).coerceIn(0f, 1f) },
+            // Vlevo od bubliny u OBOU stran konverzace: tam vzniká mezera, když se táhne doprava.
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .offset(x = -REPLY_ICON_SLOT),
+        )
+
+        menu?.let { MessageMenuOverlay(menu = it, bubbleShape = shape, handlers = menuHandlers) }
+      }
     }
 }
 
@@ -844,6 +1015,40 @@ fun ConversationPlaceholder(modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * Šipka, která se odkrývá při tažení zprávy.
+ *
+ * [progress] je **funkce, ne hodnota**. Čte se až ve vykreslovací fázi (`graphicsLayer`), takže
+ * se při tahu nic nerekomponuje — jinak by každý snímek gesta znamenal přeskládání bubliny.
+ */
+@Composable
+private fun ReplyHint(progress: () -> Float, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .size(REPLY_ICON_SIZE)
+            .graphicsLayer {
+                val current = progress()
+                alpha = current
+                // Roste s tahem, takže je poznat, jak daleko k prahu zbývá.
+                val scale = REPLY_ICON_MIN_SCALE + (1f - REPLY_ICON_MIN_SCALE) * current
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painterResource(Res.drawable.reply_24dp),
+            // Popis by se předčítal u každé zprávy v seznamu; gesto samo o sobě není prvek,
+            // se kterým by čtečka obrazovky pracovala.
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
 private const val LOAD_MORE_THRESHOLD = 5
 private const val READ_DEBOUNCE_MS = 400L
 
@@ -881,6 +1086,28 @@ private val STICKER_SIZE = 160.dp
 
 /** Nad tímhle počtem už emoji netvoří gesto, ale odstavec, a kreslí se normálně velké. */
 private const val MAX_LARGE_EMOJI = 3
+
+/**
+ * Jak daleko se musí zpráva odtáhnout, aby se z gesta stala odpověď.
+ *
+ * Dost na to, aby to nešlo udělat omylem při scrollu, ale ne tolik, aby se palec musel
+ * překládat.
+ */
+private val REPLY_THRESHOLD = 56.dp
+
+/** Kam až se dá zpráva odtáhnout. Za prahem už jen kus navíc, aby gesto mělo doraz. */
+private val REPLY_MAX_DRAG = 76.dp
+
+/** Jak moc se tah za prahem brzdí. */
+private const val DRAG_RESISTANCE = 0.3f
+
+private val REPLY_ICON_SIZE = 32.dp
+
+/** O kolik vlevo od bubliny šipka sedí — velikost ikony a mezera. */
+private val REPLY_ICON_SLOT = 40.dp
+
+/** Jak malá je šipka na začátku tahu. */
+private const val REPLY_ICON_MIN_SCALE = 0.6f
 
 /**
  * Stav doručení odchozí zprávy.
@@ -928,7 +1155,13 @@ private fun DeliveryIcon(
  * správnou výšku od začátku a seznam nepodskočí, až se obrázek dotáhne.
  */
 @Composable
-private fun MessageAttachment(media: MessageMedia) {
+@OptIn(ExperimentalFoundationApi::class)
+private fun MessageAttachment(
+    media: MessageMedia,
+    messageId: Long,
+    onOpen: () -> Unit,
+    onRequestMenu: () -> Unit,
+) {
     val shape = RoundedCornerShape(12.dp)
 
     when (media) {
@@ -954,7 +1187,16 @@ private fun MessageAttachment(media: MessageMedia) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(height)
-                        .clip(shape),
+                        .clip(shape)
+                        .sharedNavElement(photoKey(messageId))
+                        /*
+                         * Gesta patří FOTCE, ne celé bublině.
+                         *
+                         * Kdyby ťuknutí odchytávala bublina, sebralo by ho i odkazům v popisku.
+                         * Dlouhý stisk se musí zopakovat tady: potomek s vlastním klikáním ho
+                         * nepustí k rodiči, takže by nad fotkou nešla otevřít nabídka.
+                         */
+                        .combinedClickable(onClick = onOpen, onLongClick = onRequestMenu),
                 )
             }
         }

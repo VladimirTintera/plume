@@ -15,6 +15,7 @@ import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.features.auth.AuthViewModel
 import eu.tintera.plume.features.chats.ChatsViewModel
 import eu.tintera.plume.features.conversation.ConversationViewModel
+import eu.tintera.plume.features.media.MediaViewerViewModel
 import eu.tintera.plume.features.settings.SettingsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -84,6 +85,20 @@ fun appModule() = module {
 
     // chatId přichází z navigační routy, ne z grafu → runtime parametr.
     viewModel { parameters ->
-        ConversationViewModel(chatId = parameters.get(), repository = get(), urlOpener = get())
+        ConversationViewModel(
+            chatId = parameters.get(),
+            repository = get(),
+            urlOpener = get(),
+            clipboard = get(),
+        )
+    }
+
+    // Dva parametry z routy. `get()` bez indexu je bere podle pořadí, ve kterém přišly.
+    viewModel { parameters ->
+        MediaViewerViewModel(
+            chatId = parameters.get(),
+            messageId = parameters.get(),
+            repository = get(),
+        )
     }
 }

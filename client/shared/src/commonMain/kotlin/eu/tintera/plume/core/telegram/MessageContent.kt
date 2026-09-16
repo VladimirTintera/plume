@@ -31,6 +31,20 @@ import dev.g000sha256.tdl.dto.MessageVenue
 import dev.g000sha256.tdl.dto.MessageVideoNote
 import dev.g000sha256.tdl.dto.Photo
 import dev.g000sha256.tdl.dto.Sticker
+import dev.g000sha256.tdl.dto.FormattedText
+import dev.g000sha256.tdl.dto.TextEntity
+import dev.g000sha256.tdl.dto.TextEntityTypeBold
+import dev.g000sha256.tdl.dto.TextEntityTypeCode
+import dev.g000sha256.tdl.dto.TextEntityTypeEmailAddress
+import dev.g000sha256.tdl.dto.TextEntityTypeItalic
+import dev.g000sha256.tdl.dto.TextEntityTypePhoneNumber
+import dev.g000sha256.tdl.dto.TextEntityTypePre
+import dev.g000sha256.tdl.dto.TextEntityTypePreCode
+import dev.g000sha256.tdl.dto.TextEntityTypeSpoiler
+import dev.g000sha256.tdl.dto.TextEntityTypeStrikethrough
+import dev.g000sha256.tdl.dto.TextEntityTypeTextUrl
+import dev.g000sha256.tdl.dto.TextEntityTypeUnderline
+import dev.g000sha256.tdl.dto.TextEntityTypeUrl
 import dev.g000sha256.tdl.dto.StickerFormatWebp
 import dev.g000sha256.tdl.dto.ThumbnailFormatJpeg
 import dev.g000sha256.tdl.dto.ThumbnailFormatPng
@@ -92,21 +106,26 @@ private fun MessageContent.describe(): String = when (this) {
 }
 
 /**
- * Popisek zprávy pro **konverzaci**.
+ * Text zprávy pro **konverzaci**, i s formátováním.
  *
- * Na rozdíl od [previewText] vrací prázdný řetězec, když zpráva žádný text nemá — v bublině je
+ * Na rozdíl od [previewText] vrací prázdno, když zpráva žádný vlastní text nemá — v bublině je
  * vidět samotná fotka a dopisovat pod ni slovo „Fotka" by byl šum. Typ přílohy nese [messageMedia].
+ *
+ * Text a entity vrací **jedna funkce**, ne dvě. Entity jsou rozsahy do konkrétního řetězce;
+ * kdyby se každá půlka rozhodovala zvlášť, stačilo by přidat větev do jedné z nich a rozsahy
+ * by ukazovaly do jiného textu, než který se vykreslí. Stejný důvod, proč o servisních zprávách
+ * rozhoduje jediná `serviceText()`.
  */
-internal fun Message.captionText(): String = when (val content = this.content) {
-    is MessageText -> content.text.text
-    is MessagePhoto -> content.caption.text
-    is MessageVideo -> content.caption.text
-    is MessageAnimation -> content.caption.text
-    is MessageDocument -> content.caption.text
-    is MessageAudio -> content.caption.text
-    is MessageVoiceNote -> content.caption.text
+internal fun Message.captionBody(): MessageBody = when (val content = this.content) {
+    is MessageText -> content.text.toBody()
+    is MessagePhoto -> content.caption.toBody()
+    is MessageVideo -> content.caption.toBody()
+    is MessageAnimation -> content.caption.toBody()
+    is MessageDocument -> content.caption.toBody()
+    is MessageAudio -> content.caption.toBody()
+    is MessageVoiceNote -> content.caption.toBody()
     // Samolepka se kreslí, ne popisuje — její emoji by pod obrázkem bylo zdvojení.
-    is MessageSticker -> ""
+    is MessageSticker -> MessageBody.Empty
 
     /*
      * Samotné emoji NENÍ textová zpráva.
@@ -119,16 +138,90 @@ internal fun Message.captionText(): String = when (val content = this.content) {
      * a u prémiových emoji může být v libovolném formátu. Unicode znak je proti tomu vždycky
      * k dispozici a ostrý v každé velikosti.
      */
-    is MessageAnimatedEmoji -> content.emoji
+    is MessageAnimatedEmoji -> MessageBody(content.emoji)
 
-    is MessageDice -> content.diceText()
+    is MessageDice -> MessageBody(content.diceText())
 
     // Typy, které mají v bublině vlastní přílohu s popiskem — text by ho zdvojil.
-    is MessageVideoNote, is MessageGame, is MessageInvoice -> ""
-    is MessagePaidMedia -> content.caption.text
+    is MessageVideoNote, is MessageGame, is MessageInvoice -> MessageBody.Empty
+    is MessagePaidMedia -> content.caption.toBody()
 
-    else -> previewText()
+    /*
+     * Zbytek nemá vlastní text, jen náš popis — a ten žádné entity nenese.
+     *
+     * Připojit k němu entity z původní zprávy by znamenalo rozsahy posunuté do jiného řetězce:
+     * v lepším případě nesmyslně obarvené slovo, v horším pád na indexu mimo text.
+     */
+    else -> MessageBody(previewText())
 }
+
+/**
+ * Text zprávy i s rozsahy formátování.
+ *
+ * Drží se pohromadě proto, aby se ty dvě věci nemohly rozejít — entity bez svého textu jsou
+ * jen dvojice čísel a špatně spárované ukazují jinam, než by měly.
+ */
+internal data class MessageBody(
+    val text: String,
+    val entities: List<MessageEntity> = emptyList(),
+) {
+    companion object {
+        val Empty = MessageBody(text = "")
+    }
+}
+
+private fun FormattedText.toBody(): MessageBody =
+    MessageBody(text = text, entities = entities.mapNotNull { it.toEntity(text) })
+
+/**
+ * Převod jedné entity z TDLib.
+ *
+ * `null` znamená „tenhle typ zatím nevykreslujeme" — text po něm zůstane obyčejný. Přeskakují se
+ * hlavně zmínky, hashtagy a příkazy botů: obarvit je umíme, ale kliknutí by nemělo kam vést,
+ * protože zmínka se hledá uvnitř aplikace, ne v prohlížeči. Viz [MessageEntityType].
+ */
+private fun TextEntity.toEntity(text: String): MessageEntity? {
+    val mapped = when (val type = this.type) {
+        // Adresa je přímo v textu. Bez schématu by ji `UrlOpener` nevzal.
+        is TextEntityTypeUrl -> MessageEntityType.Link(text.range(this).withScheme())
+        // Text je popisek, adresa přišla zvlášť — a ta už schéma má vždycky.
+        is TextEntityTypeTextUrl -> MessageEntityType.Link(type.url)
+        is TextEntityTypeEmailAddress -> MessageEntityType.Link("mailto:${text.range(this)}")
+        is TextEntityTypePhoneNumber -> MessageEntityType.Link("tel:${text.range(this)}")
+
+        is TextEntityTypeBold -> MessageEntityType.Bold
+        is TextEntityTypeItalic -> MessageEntityType.Italic
+        is TextEntityTypeUnderline -> MessageEntityType.Underline
+        is TextEntityTypeStrikethrough -> MessageEntityType.Strikethrough
+        // Inline kód i celý blok skončí stejně; liší se jen tím, že blok stojí na vlastních řádcích.
+        is TextEntityTypeCode, is TextEntityTypePre, is TextEntityTypePreCode -> MessageEntityType.Code
+        is TextEntityTypeSpoiler -> MessageEntityType.Spoiler
+
+        else -> null
+    }
+
+    return mapped?.let { MessageEntity(offset = offset, length = length, type = it) }
+}
+
+/**
+ * Úsek textu, na který entita ukazuje.
+ *
+ * Rozsahy se ořezávají do délky textu. Server posílá platné hodnoty, ale `substring` mimo rozsah
+ * je pád aplikace kvůli jedné zprávě — a to je cena, kterou za důvěru platit nechceme.
+ */
+private fun String.range(entity: TextEntity): String {
+    val start = entity.offset.coerceIn(0, length)
+    val end = (entity.offset + entity.length).coerceIn(start, length)
+    return substring(start, end)
+}
+
+/**
+ * Doplní schéma odkazu psanému bez něj.
+ *
+ * TDLib označí za odkaz i holé `example.com`; `UrlOpener` by z toho na Androidu udělal relativní
+ * URI bez schématu a intent by nikam nevedl.
+ */
+private fun String.withScheme(): String = if (contains("://")) this else "https://$this"
 
 /**
  * Kostka (🎲, 🎯, 🎰 …).
@@ -227,11 +320,15 @@ private fun Photo.toMedia(): MessageMedia.Photo? {
         ?: return null
 
     val thumbnail = available.minByOrNull { it.width * it.height }
+    // Do prohlížeče patří to nejlepší, co server má — ten strop nad [MAX_DISPLAY_EDGE] platí
+    // jen pro bublinu.
+    val full = available.maxByOrNull { it.width * it.height } ?: display
 
     return MessageMedia.Photo(
         fileId = display.photo.id,
         // Když je náhled tentýž soubor jako zobrazovaný, nemá smysl ho stahovat dvakrát.
         thumbnailFileId = thumbnail?.photo?.id?.takeIf { it != display.photo.id },
+        fullFileId = full.photo.id,
         width = display.width,
         height = display.height,
     )

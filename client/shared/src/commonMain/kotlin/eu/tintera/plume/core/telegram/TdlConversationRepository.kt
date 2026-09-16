@@ -19,7 +19,6 @@ import dev.g000sha256.tdl.dto.MessageSendingStatePending
 import dev.g000sha256.tdl.dto.MessageSourceChatHistory
 import dev.g000sha256.tdl.dto.MessageText
 import dev.g000sha256.tdl.dto.ReactionTypeEmoji
-import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
@@ -153,6 +152,42 @@ class TdlConversationRepository(
                     .distinct()
             }
 
+    /**
+     * Příznaky, co se s konkrétní zprávou smí.
+     *
+     * `MessageProperties` je samostatný dotaz — TDLib je do `Message` nedává, protože se mění
+     * v čase (editovat jde jen chvíli po odeslání). Proto se ptáme až při otevření nabídky.
+     *
+     * Ze čtyřiceti příznaků se bere jen to, co nabídka opravdu umí; zbytek (přeposlání, editace,
+     * připnutí, statistiky) přibude s položkami, které je použijí.
+     */
+    override suspend fun messageActions(chatId: Long, messageId: Long): Result<MessageActions> =
+        client.getMessageProperties(chatId = chatId, messageId = messageId)
+            .toResult()
+            .map { properties ->
+                MessageActions(
+                    canReply = properties.canBeReplied,
+                    // `canBeSaved` je ochrana obsahu v kanálu — když je false, nesmí se z něj
+                    // nic vynášet, tedy ani text do schránky.
+                    canCopy = properties.canBeSaved,
+                    canDeleteForSelf = properties.canBeDeletedOnlyForSelf,
+                    canDeleteForAll = properties.canBeDeletedForAllUsers,
+                )
+            }
+
+    override suspend fun deleteMessages(
+        chatId: Long,
+        messageIds: List<Long>,
+        revoke: Boolean,
+    ): Result<Unit> =
+        client.deleteMessages(
+            chatId = chatId,
+            messageIds = messageIds.toLongArray(),
+            revoke = revoke,
+        )
+            .toResult()
+            .map { }
+
     override suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage> {
         val isGroup = isGroup(chatId)
         return client.getMessage(chatId = chatId, messageId = messageId)
@@ -184,8 +219,24 @@ class TdlConversationRepository(
             .filter { it.chatId == chatId }
             .map { it.lastReadOutboxMessageId }
 
-    override suspend fun send(chatId: Long, text: String, replyToMessageId: Long?): Result<ChatMessage> =
-        client.sendMessage(
+    /**
+     * Odešle zprávu.
+     *
+     * Entity se **dohledávají před odesláním** (`getTextEntities`). Bez toho by odkaz odešel jako
+     * mrtvý text: server si ho sám neoznačí a příjemce by dostal řetězec, na který se nedá
+     * kliknout. Když dohledání selže, zpráva stejně odejde — přijít o odkaz je lepší než
+     * nepřijmout zprávu vůbec.
+     */
+    override suspend fun send(chatId: Long, text: String, replyToMessageId: Long?): Result<ChatMessage> {
+        val entities = client.getTextEntities(text)
+            .toResult()
+            .map { it.entities }
+            .getOrElse { failure ->
+                logger.w(failure) { "Entity v odesílaném textu se nepodařilo dohledat." }
+                emptyArray()
+            }
+
+        return client.sendMessage(
             chatId = chatId,
             // Vlákna (fóra) fáze 2 neřeší — null znamená hlavní vlákno chatu.
             topicId = null,
@@ -203,7 +254,7 @@ class TdlConversationRepository(
             options = null,
             replyMarkup = null,
             inputMessageContent = InputMessageText(
-                text = FormattedText(text = text, entities = emptyArray<TextEntity>()),
+                text = FormattedText(text = text, entities = entities),
                 linkPreviewOptions = null,
                 clearDraft = true,
             ),
@@ -211,6 +262,7 @@ class TdlConversationRepository(
             .toResult()
             // TDLib vrací zprávu okamžitě, s dočasným id a stavem Pending.
             .map { it.toChatMessage(isGroup(chatId)) }
+    }
 
     override suspend fun markRead(chatId: Long, messageIds: List<Long>): Result<Unit> =
         client.viewMessages(
@@ -299,6 +351,9 @@ class TdlConversationRepository(
 
     private suspend fun Message.toChatMessage(isGroup: Boolean): ChatMessage {
         val senderId = senderId.plainId()
+        // Text a jeho entity musí pocházet z jednoho rozhodnutí — rozsahy platí jen pro ten
+        // řetězec, ze kterého vznikly.
+        val body = captionBody()
 
         return ChatMessage(
             id = id,
@@ -306,7 +361,8 @@ class TdlConversationRepository(
             // Jméno má smysl jen ve skupině a jen u cizích zpráv — jinde je to šum.
             senderName = if (isGroup && !isOutgoing) resolveSenderName(senderId) else null,
             senderId = senderId,
-            text = captionText(),
+            text = body.text,
+            entities = body.entities,
             media = messageMedia(),
             reactions = interactionInfo.toReactions(),
             sendState = if (isOutgoing) sendingState.toSendState() else null,

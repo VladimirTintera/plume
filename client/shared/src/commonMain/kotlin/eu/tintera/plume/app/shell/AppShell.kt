@@ -48,12 +48,14 @@ import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.NavSavedStateConfiguration
 import eu.tintera.plume.core.navigation.ConversationRoute
+import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.navigation.SettingsRoute
 import eu.tintera.plume.core.navigation.TopLevelRoute
 import eu.tintera.plume.core.ui.LocalTwoPane
 import eu.tintera.plume.features.chats.ChatListScreen
 import eu.tintera.plume.features.conversation.ConversationPlaceholder
 import eu.tintera.plume.features.conversation.ConversationScreen
+import eu.tintera.plume.features.media.MediaViewerScreen
 import org.koin.core.parameter.parametersOf
 import eu.tintera.plume.features.settings.SettingsScreen
 import org.koin.compose.viewmodel.koinViewModel
@@ -111,7 +113,7 @@ fun AppShell(modifier: Modifier = Modifier) {
      * se odtud chodí zpět, ne přepnutím sekce. Na širokém rozvržení je konverzace jen panel
      * vedle seznamu, tam navigace smysl dává a rail zůstává.
      */
-    val inDetail = backStack.any { it is ConversationRoute }
+    val inDetail = backStack.any { it is ConversationRoute || it is MediaRoute }
     val showBottomBar = compact && !inDetail
 
     // Obsah drží stabilní instanci přes přepnutí rail↔bar. Bez movableContent by se při změně
@@ -257,6 +259,28 @@ private fun ShellContent(
                             viewModel = koinViewModel(
                                 key = "conversation-${route.chatId}",
                                 parameters = { parametersOf(route.chatId) },
+                            ),
+                            onBack = { backStack.removeLastOrNull() },
+                            onOpenMedia = { messageId ->
+                                backStack.add(MediaRoute(route.chatId, messageId))
+                            },
+                        )
+                    }
+
+                    /*
+                     * Prohlížeč nemá metadata list-detail scény, takže ho scéna nepřevezme
+                     * a `NavDisplay` ho vykreslí přes celou plochu — i na širokém rozvržení,
+                     * kde by panel vedle seznamu chatů neměl co dělat.
+                     */
+                    entry<MediaRoute> { route ->
+                        MediaViewerScreen(
+                            messageId = route.messageId,
+                            // Klíč musí rozlišovat zprávu ze stejného důvodu jako u konverzace:
+                            // ViewModel se cachuje podle klíče a Koin u cachované instance
+                            // ignoruje nové parametry.
+                            viewModel = koinViewModel(
+                                key = "media-${route.chatId}-${route.messageId}",
+                                parameters = { parametersOf(route.chatId, route.messageId) },
                             ),
                             onBack = { backStack.removeLastOrNull() },
                         )

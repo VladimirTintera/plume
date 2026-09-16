@@ -12,7 +12,8 @@ Fáze 6. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell
 avatary a fotky ve zprávách, reakce, odpovědi, notifikace na Androidu, sponzorované zprávy.
 
 Není: přehrávání videa a zvuku, otevírání dokumentů, editace, skok na první nepřečtenou,
-notifikace na iOS, perzistence nastavení.
+notifikace na iOS, perzistence nastavení. Prohlížeč médií umí zatím jen fotky. Rozpracovaný detail chatu má vlastní seznam:
+[docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
 
 ## Build
 
@@ -236,6 +237,22 @@ obrazovky, ne na aplikaci.
 - **`UpdateDeleteMessages.isPermanent == false`** znamená jen uvolnění z cache, ne smazání pro
   uživatele — takovou zprávu z obrazovky odstranit nesmíme.
 
+### Hlášení přečtení a indexy
+
+- **Z viditelných položek se bere KLÍČ, ne index.** Index do `state.messages` nesedí: před
+  zprávami stojí sponzorované položky, takže v kanálu s reklamou byl výběr posunutý o jejich
+  počet a za přečtené se hlásily zprávy, které uživatel neviděl. Klíč zpráv je rovnou jejich id.
+  Platí to i do budoucna — jakmile do seznamu přibude cokoli dalšího (datové předěly, předěl
+  nepřečtených), indexy se rozejdou znovu, klíče ne.
+- **Efekt s odpočtem nesmí záviset na `state.messages`.** `LaunchedEffect(listState, state.messages)`
+  se restartoval při každé nové zprávě a 400ms odpočet začínal od nuly, takže se v živém chatu
+  nemusel dopočítat vůbec.
+- **Vlastní zprávy filtruje ViewModel, ne obrazovka.** Ta zná jen id viditelných položek;
+  dohledávat si k nim zprávy by znamenalo držet je kvůli tomu v kompozici.
+- **V `LazyColumn` se nehledá průchodem seznamu.** `indexOf(message)` uvnitř `items` a hledání
+  citované zprávy přes `firstOrNull` znamenaly kvadratické chování při scrollu dlouhou historií.
+  Index dává `itemsIndexed`, citace se hledá v mapě složené jednou na změnu seznamu.
+
 ### Vzhled konverzace
 
 - **Odchozí bublina je `primary`, ne `primaryContainer`.** Se dvěma světlými plochami o podobné
@@ -259,6 +276,159 @@ obrazovky, ne na aplikaci.
   něj pod kartou míchaly s textem; plná barva by zase vrátila ostrý předěl přes celou obrazovku,
   kvůli kterému se `bottomBar` rušil. Průsvit dělá závoj: je vidět, že tam obsah je, ale nepřebíjí
   psaní.
+
+### Formátování textu (entity)
+
+Telegram **markup neposílá**. Text zprávy je holý řetězec a formát je seznam rozsahů nad ním
+(`FormattedText.entities`). Kdo je zahodí, dostane neklikatelný odkaz a plochý text — přesně tak
+to tu bylo, než vznikly `MessageEntity` a `RichText`.
+
+- **Offsety jsou v UTF-16 jednotkách**, tedy přesně v tom, čím indexuje Kotlin `String`. Žádný
+  přepočet. Nesmí se ale míchat s počítáním shluků emoji (`emojiClusterCount`), které jde
+  po grafémech.
+- **Text a entity vrací jedna funkce** (`captionBody()`), ne dvě. Rozsahy platí jen pro ten
+  řetězec, ze kterého vznikly; dvě nezávislá `when` by se rozešla první přidanou větví a entity
+  by ukazovaly do jiného textu, než který se vykreslí. Stejný důvod jako u `serviceText()`.
+- **Popisům, které si vyrábíme sami, se entity nepřipojují.** U typů bez vlastního textu vrací
+  `captionBody()` jen náš popis („Anketa: …") a prázdné entity — rozsahy z původní zprávy by
+  v něm ukazovaly jinam, v lepším případě obarvily nesmysl, v horším spadly na indexu.
+- **Rozsahy se před použitím ořezávají do délky textu.** Server posílá platné hodnoty, ale
+  `addStyle` mimo rozsah je pád aplikace kvůli jedné zprávě.
+- **Vnoření se řeší samo.** Text se do `AnnotatedString` připojí jednou a každá entita jen přidá
+  svůj styl na svůj úsek — tučné uvnitř odkazu jsou prostě dva styly přes sebe, žádný strom.
+- **Barva odkazu se musí dát předat.** V odchozí bublině je pozadí samo `primary`, takže natvrdo
+  zadaná `primary` by odkaz zneviditelnila — tatáž past jako u `QuotedMessage.accent`. Bublina
+  podává svoji `contentColor`, podtržení nese odlišení i tam, kde barva splývá.
+- **Kliknutí jde přes ViewModel, ne rovnou z bubliny do `UrlOpener`.** Až budeme rozlišovat
+  interní `t.me` odkazy, rozhodne se to na jednom místě a obrazovka se měnit nebude. Vlastní
+  `linkInteractionListener` je nutný — bez něj si `LinkAnnotation.Url` otevře odkaz sám přes
+  `LocalUriHandler` a nemáme kam sáhnout.
+- **Odkaz bez schématu dostane `https://`.** TDLib označí za odkaz i holé `example.com`; Android
+  by z toho udělal relativní URI a intent by nikam nevedl.
+- **Zmínky, hashtagy a příkazy botů se schválně nemapují.** Obarvit je umíme, ale kliknutí by
+  nemělo kam vést — zmínka se hledá uvnitř aplikace (`searchPublicChat`), ne v prohlížeči.
+  Modrý text, po kterém se nic nestane, je horší než text černý.
+- **Spoiler musí být opravdu nečitelný**: průhledný text na plné ploše, ne jen jiná barva.
+  Odkrývá se ťuknutím přes `LinkAnnotation.Clickable` — `Modifier.clickable` by platilo pro celou
+  zprávu, ne pro skrytý úsek. Odkrývá se celá zpráva naráz; dohledávat spoilery po kouskách
+  je otrava.
+- **Při odesílání se entity dohledávají** (`getTextEntities`), jinak odkaz odejde jako mrtvý text —
+  server si ho sám neoznačí. Když dohledání selže, zpráva stejně odejde.
+
+### Nabídka nad zprávou
+
+Dlouhý stisk otevře **popup u zprávy**, ne bottom sheet: rychlé reakce v pruhu nad bublinou
+a nabídka akcí pod ní, zbytek obrazovky pod závojem. Sheet dole utrhl pozornost od zprávy,
+které se týkal, a unesl jen pár položek — akcí bude postupně deset.
+
+- **Popup, ne vlastní overlay v obsahu obrazovky.** `Popup` s `focusable = true` si tlačítko zpět
+  obslouží sám přes `onDismissRequest`. Vlastní overlay by potřeboval `BackHandler`, a ten
+  v téhle aplikaci zabíjí predictive back.
+- **Deklaruje se UVNITŘ bubliny.** `calculatePosition` dostane `anchorBounds` toho prvku, pod
+  kterým popup v kompozici visí, takže se nikam nemusí předávat souřadnice a nemají se jak
+  rozejít. Před tím se sem plumboval `positionOnScreen()` z bubliny přes celou obrazovku.
+- **Past: nesmí viset v OBSAHU bubliny.** Uvnitř `Column` s odsazením by ukotvením byla plocha
+  zmenšená o to odsazení a díra v závoji by byla o kus menší než bublina. Proto je kolem
+  `Surface` ještě `Box` a popup je v něm.
+- **Počátek popupu se MĚŘÍ, nepočítá.** Popup je na Androidu vlastní okno a systém ho posadí pod
+  stavový řádek bez ohledu na požadovanou pozici; o kolik, ví jenom platforma. Bez toho seděla
+  díra o výšku stavového řádku vedle. Měří se `positionOnScreen()` kořene popupu a anchor se o to
+  posune.
+- **Závoj má díru přesně na bublině** (`BlendMode.Clear`). Vybraná zpráva je kontext, ke kterému se
+  nabídka vztahuje — ztmavit i ji by znamenalo ptát se na něco, co není vidět. Vykrojení nutně
+  potřebuje `CompositingStrategy.Offscreen`: `Clear` maže z vrstvy a bez vlastní vrstvy by
+  vymazalo i všechno pod popupem.
+- **Tvar díry se bere ze samotné bubliny** (`Shape.createOutline` + `drawOutline`), nekreslí se
+  podle konstanty. Navazující zpráva má jedno nároží stažené na 4 dp a jednotné zaoblení by u ní
+  z díry vyčnívalo; konstanta by se navíc musela ručně držet v souladu s `BUBBLE_CORNER`.
+- **Past: `Modifier.clip(shape)` musí být PŘED `combinedClickable`.** `Surface` si tvarem ořezává
+  jen svoje pozadí, a to až za modifikátory, které dostane zvenku — vlnka dlouhého stisku se tedy
+  kreslila do obdélníku a přetékala přes zaoblená nároží bubliny.
+- **Výšky obou kusů jsou konstanty, ne měření.** Kreslíme si je sami, takže je známe předem —
+  ušetří se tím snímek, ve kterém by nabídka poskočila na správné místo.
+- **Nabídka se zarovnává k hraně BUBLINY, pruh reakcí ke kraji obrazovky.** Nabídka má pevnou
+  šířku, takže může vyrůstat od zprávy; pruh se šesti emoji je tak široký, že by se k bublině
+  stejně nevešel.
+- **Příznaky „co se smí" se načítají až při otevření nabídky.** TDLib je ve zprávě neposílá,
+  jsou za samostatným `getMessageProperties` — načítat je dopředu by znamenalo dotaz na každou
+  zprávu v historii kvůli nabídce, kterou uživatel skoro nikdy neotevře. Načítají se **současně**
+  s nabídkou emoji, ne sériově.
+- **Co server nedovolí, se nenabízí.** Položka, která skončí chybou, je horší než položka, která
+  tam není. Když se příznaky nepodaří zjistit, nabídne se odpověď a kopírování (neškodné),
+  mazání ne.
+- **Kopírování se řídí `canBeSaved`.** Kanál si může obsah chránit; pak se z něj nesmí vynášet
+  ani text do schránky.
+- **Schránka je vlastní `expect`/`actual`, ne Compose API.** `LocalClipboardManager` je zastaralý
+  a jeho náhrada pracuje s `ClipEntry`, což je `expect class` bez společné továrny na text —
+  v commonMain se prostě nedá vyrobit.
+- **Prázdná nabídka emoji není chyba.** V Uložených zprávách Telegram místo reakcí používá tagy;
+  dřív se kvůli tomu nabídka neotevřela vůbec a nešlo ani odpovědět. Teď se jen nevykreslí pruh.
+- **Plný seznam emoji zůstal bottom sheetem.** Za „+" jich bývá přes třicet, takže se v tom
+  listuje — a to popup neumí.
+- **Smazaná zpráva se ze seznamu neodstraňuje ručně.** TDLib pošle `UpdateDeleteMessages` a ten se
+  už zpracovává; předběhnout server by znamenalo riskovat, že zpráva zmizí z obrazovky a na
+  serveru zůstane.
+
+### Odpověď swipem
+
+Tažení zprávy doprava otevře odpověď. Je to nejčastější akce nad zprávou a přes nabídku by na ni
+vedly dva kroky.
+
+- **`draggable` s vodorovnou orientací, ne `detectHorizontalDragGestures`.** Ten konzumuje od
+  prvního pixelu a rozbil by svislý scroll seznamu. S `draggable` rozhodne o směru až první pohyb
+  za slop, takže si `LazyColumn` svislé tahy nechá.
+- **Táhne se doprava u OBOU stran konverzace.** Zrcadlit směr podle odesílatele by znamenalo,
+  že uživatel musí před každým gestem přemýšlet, čí zpráva to je. Odchozí bublina se přitom kusem
+  vysune za pravý okraj — tak to dělá Telegram i WhatsApp.
+- **Odpověď odchází při PUŠTĚNÍ, ne při překročení prahu.** Kdo si to rozmyslí, vrátí prst zpátky
+  a nic se nestane. Příznak `armed` hlídá, aby haptika i odpověď odešly jen jednou za tah.
+- **Za prahem klade tah odpor** (30 %). Bez toho by šla bublina odtáhnout přes půl obrazovky
+  a nebylo by poznat, že se dál už nic nestane.
+- **Posun i průhlednost šipky se čtou až v layoutu a při kreslení** (`offset { }`,
+  `graphicsLayer`), ne v kompozici. Jinak by každý snímek gesta znamenal přeskládání bubliny
+  i s obsahem.
+- **Šipka je uvnitř `Box`u kolem bubliny, posazená `offset`em mimo něj.** Do layoutu tím
+  nezasahuje, takže nic neodsouvá a neovlivňuje šířku zprávy — a jede s bublinou, takže je
+  jasné, čeho se gesto týká.
+- **Vlevo od bubliny u obou stran**: tam vzniká mezera, když se táhne doprava.
+- **U kraje obrazovky vyhrává systémové gesto zpět.** Bublina má odsazení 12 dp, takže se
+  s ním u příchozích zpráv kousek překrývá. Nedá se s tím nic dělat a stejné to je i v Telegramu.
+
+## Prohlížeč médií
+
+Ťuknutí na fotku v bublině ji otevře přes celou obrazovku: štípnutí a dvojité ťuknutí přibližují,
+tah dolů zavírá.
+
+- **Vlastní routa `MediaRoute`, ne overlay v konverzaci.** Ven se tím chodí zpět včetně predictive
+  back, přežije to otočení i zabití procesu a nepotřebuje to `BackHandler`, který by predictive
+  back zabil. **Nezapomenout ji zaregistrovat v `NavSavedStateConfiguration`** — bez toho to spadne
+  až za běhu.
+- **Routa nese jen id**, ne obsah. Zprávu si prohlížeč načte znovu (`ConversationRepository.message`);
+  celá zpráva i s reakcemi a citací do serializovaného zásobníku nepatří a dotaz navíc je vedle
+  stahování fotky zanedbatelný.
+- **Do prohlížeče jde jiná varianta souboru než do bubliny.** `MessageMedia.Photo.fullFileId` je
+  největší, co server má; `fileId` (do 1280 px) slouží jako okamžitý náhled, protože ho konverzace
+  už stáhla. V bublině by originál znamenal desítky megabajtů kvůli obrázku širokému pár set bodů.
+- **Prohlížeč nemá metadata list-detail scény**, takže ho scéna nepřevezme a `NavDisplay` ho
+  vykreslí přes celou plochu i na širokém rozvržení.
+- **Gesta patří FOTCE, ne bublině.** Kdyby ťuknutí odchytávala bublina, sebralo by ho i odkazům
+  v popisku. Dlouhý stisk se na fotce musí zopakovat: potomek s vlastním klikáním ho nepustí
+  k rodiči, takže by nad fotkou nešla otevřít nabídka.
+- **Tři samostatné `pointerInput` bloky**: transformace (štípnutí a posun), ťuknutí (dvojité
+  přiblížení) a pozorovatel puštění. Ten poslední je nutný, protože `detectTransformGestures`
+  konec gesta neohlašuje — bez něj není kde rozhodnout, jestli tah stačil na zavření. Čeká na
+  `PointerEventPass.Final` a **nic nekonzumuje**, takže ostatním detektorům do ničeho nemluví.
+- **Přiblížení se počítá kolem prstů, ne kolem středu.** Bod pod prsty musí zůstat na místě,
+  jinak fotka při štípnutí ujíždí a uživatel ji pak dohání posunem.
+- **Meze posunu se počítají z poměru stran v metadatech**, ne z načteného souboru — jinak by se
+  měnily ve chvíli, kdy dorazí ostrá verze.
+- **Posun i přiblížení se čtou až v `graphicsLayer`**, takže gesto nic nerekomponuje; překresluje
+  se jen vrstva s obrázkem. Totéž u zavíracího tahu (`drawBehind`).
+- **Pozadí je tmavé v obou režimech** (role `scrim`). Světlá plocha kolem snímku mění jeho
+  vnímanou expozici. Barva ovládání nad ním je proto natvrdo bílá — role z `colorScheme` by ve
+  světlém tématu dala tmavý text na tmavé ploše.
+- **Let z bubliny jede přes sdílený prvek** (`photoKey`), stejně jako avatar a název chatu.
+  Na širokém rozvržení se nekoná: `LocalTwoPane` tam sdílení vypíná.
 
 ## Typy zpráv
 
@@ -605,5 +775,8 @@ není „Android bez barev", ale má vlastní konzistentní paletu.
 
 - `databaseEncryptionKey` je prázdný. Před ostrým nasazením tam patří klíč z Android Keystore /
   iOS Keychain.
-- Sponsored messages v kanálech jsou podle ToS povinné a zatím se nezobrazují.
 - Push notifikace (TDLib `registerDevice` + iOS notification service extension).
+- **Detail chatu má vlastní rozpracovaný seznam: [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).**
+  Jsou tam čtyři velké kusy (entity a odkazy v textu, popup nad zprávou místo bottom sheetu,
+  odpověď swipem, prohlížeč médií) i zásobník menších nálezů. Je to živý dokument — co se udělá,
+  odtud zmizí a poučení z toho patří sem.

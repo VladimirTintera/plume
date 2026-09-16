@@ -4,6 +4,7 @@ import eu.tintera.plume.core.notifications.NotificationPermission
 import eu.tintera.plume.core.telegram.NotificationPresenter
 import eu.tintera.plume.core.telegram.TelegramPaths
 import eu.tintera.plume.core.ui.UrlOpener
+import eu.tintera.plume.core.ui.TextClipboard
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -14,6 +15,7 @@ actual fun Module.platformModule() {
     single { TelegramPaths(androidContext()) }
     single { NotificationPermission(androidContext()) }
     single { UrlOpener(androidContext()) }
+    single { TextClipboard(androidContext()) }
 
     single {
         NotificationPresenter(

@@ -48,6 +48,23 @@ interface ConversationRepository {
     /** Emoji nabízená u téhle zprávy. Liší se chat od chatu — kanály si sadu omezují. */
     suspend fun availableReactions(chatId: Long, messageId: Long): Result<List<String>>
 
+    /**
+     * Co se dá s konkrétní zprávou udělat.
+     *
+     * Ptá se **až při otevření nabídky**, ne při načtení historie. TDLib tyhle příznaky ve zprávě
+     * neposílá — jsou za samostatným `getMessageProperties`, takže načítat je dopředu by znamenalo
+     * jeden dotaz na každou zprávu v historii kvůli nabídce, kterou uživatel skoro nikdy neotevře.
+     */
+    suspend fun messageActions(chatId: Long, messageId: Long): Result<MessageActions>
+
+    /**
+     * Smaže zprávy.
+     *
+     * [revoke] rozhoduje, jestli zmizí i protějšku. Není to volba klienta — co je povolené, říká
+     * [MessageActions]; ve skupinách a kanálech je `revoke` vždycky `true`.
+     */
+    suspend fun deleteMessages(chatId: Long, messageIds: List<Long>, revoke: Boolean): Result<Unit>
+
     /** Jedna konkrétní zpráva. Pro doplnění citace, která není v načtené historii. */
     suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage>
 
@@ -138,6 +155,13 @@ data class ChatMessage(
     val senderName: String?,
     val senderId: Long,
     val text: String,
+    /**
+     * Rozsahy formátování v [text] — odkazy, tučné, kód.
+     *
+     * Telegram markup neposílá; text je holý řetězec a tohle jsou rozsahy nad ním. Bez nich
+     * je z odkazu neklikatelný text. Prázdný seznam je běžný stav, ne chyba.
+     */
+    val entities: List<MessageEntity>,
     val media: MessageMedia?,
     val reactions: List<MessageReaction>,
     /**
@@ -188,6 +212,43 @@ data class MessageReaction(
      */
     val recentSenders: List<ReactionSender>,
 )
+
+/**
+ * Co všechno jde s jednou zprávou udělat.
+ *
+ * Rozhoduje o tom server, ne klient: smazat cizí zprávu jde jen s právy, editovat jen chvíli po
+ * odeslání a v kanálu s chráněným obsahem se nesmí ani kopírovat text. Nabídka nad zprávou podle
+ * toho **skrývá položky**, místo aby je nabídla a pak ohlásila chybu.
+ */
+data class MessageActions(
+    val canReply: Boolean,
+    /**
+     * Zkopírování textu do schránky.
+     *
+     * Vychází z `canBeSaved`: kanál si může obsah chránit a pak se z něj nesmí nic vynášet.
+     * Samotná přítomnost textu je věc navíc, kterou si řeší nabídka.
+     */
+    val canCopy: Boolean,
+    val canDeleteForSelf: Boolean,
+    /** Smazat i protějšku. U skupin a kanálů je to jediná možnost, jak mazat. */
+    val canDeleteForAll: Boolean,
+) {
+    companion object {
+        /**
+         * Co se nabídne, když se příznaky nepodaří zjistit.
+         *
+         * Odpověď a kopírování jsou neškodné — nejhorší, co se stane, je chybová hláška.
+         * Mazání se nenabídne: nabídnout nevratnou akci, o které nevíme, jestli je povolená,
+         * je horší než ji nenabídnout vůbec.
+         */
+        val Fallback = MessageActions(
+            canReply = true,
+            canCopy = true,
+            canDeleteForSelf = false,
+            canDeleteForAll = false,
+        )
+    }
+}
 
 /** Ten, kdo reagoval. Uživatel i kanál — u příspěvků v kanálech reaguje jménem kanálu. */
 data class ReactionSender(
@@ -242,6 +303,14 @@ sealed interface MessageMedia {
     data class Photo(
         val fileId: Int,
         val thumbnailFileId: Int?,
+        /**
+         * Největší varianta, kterou server nabízí. Patří do prohlížeče, ne do bubliny.
+         *
+         * V bublině by to byly desítky megabajtů kvůli obrázku širokému pár set bodů; stahuje se
+         * proto až při otevření. Když je fotka malá, je to tentýž soubor jako [fileId] — pak
+         * se nestahuje nic navíc.
+         */
+        val fullFileId: Int,
         val width: Int,
         val height: Int,
     ) : MessageMedia
