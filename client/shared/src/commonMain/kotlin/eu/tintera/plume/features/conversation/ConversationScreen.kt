@@ -88,6 +88,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.onSizeChanged
@@ -639,6 +641,8 @@ fun ConversationScreen(
                 onCancelReply = viewModel::clearReply,
                 onSend = viewModel::send,
                 onDraftChanged = viewModel::onDraftChanged,
+                restoredDraft = state.restoredDraft,
+                onDraftRestored = viewModel::consumeRestoredDraft,
                 // Výška se měří a vrací zpátky do odsazení seznamu. Natvrdo zadaná konstanta
                 // by se rozešla s realitou, jakmile se pole zalomí na víc řádků nebo se nad
                 // ním objeví karta s citací.
@@ -1033,10 +1037,25 @@ private fun MessageInput(
     onSend: (String) -> Unit,
     /** Jen ruční úpravy textu — vyprázdnění po odeslání se nehlásí, o to se stará `onSend`. */
     onDraftChanged: (String) -> Unit,
+    /** Koncept z TDLib, který se má jednou vrátit do pole. */
+    restoredDraft: String?,
+    onDraftRestored: () -> Unit,
     onHeightChanged: (Dp) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var draft by rememberSaveable { mutableStateOf("") }
+    // `TextFieldValue`, ne `String`: u vráceného konceptu je potřeba nastavit i kurzor. S holým
+    // řetězcem by zůstal na začátku textu a psaní by pokračovalo před koncem věty.
+    var draft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
+
+    /*
+     * Koncept z minula se vrací JEN do prázdného pole. Než ho TDLib vydá, mohl uživatel začít
+     * psát, a přepsat mu to by bylo horší než o koncept přijít — ten ostatně pořád leží v TDLib.
+     */
+    LaunchedEffect(restoredDraft) {
+        val restored = restoredDraft ?: return@LaunchedEffect
+        if (draft.text.isEmpty()) draft = TextFieldValue(restored, selection = TextRange(restored.length))
+        onDraftRestored()
+    }
     val density = LocalDensity.current
 
     /*
@@ -1100,8 +1119,10 @@ private fun MessageInput(
             TextField(
                 value = draft,
                 onValueChange = {
+                    val changed = it.text != draft.text
                     draft = it
-                    onDraftChanged(it)
+                    // Pohyb kurzoru nebo výběr taky volá `onValueChange`; psaní to není.
+                    if (changed) onDraftChanged(it.text)
                 },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("Zpráva") },
@@ -1117,8 +1138,8 @@ private fun MessageInput(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(
                     onSend = {
-                        onSend(draft)
-                        draft = ""
+                        onSend(draft.text)
+                        draft = TextFieldValue()
                     },
                 ),
             )
@@ -1167,10 +1188,10 @@ private fun MessageInput(
              */
             FilledIconButton(
                 onClick = {
-                    onSend(draft)
-                    draft = ""
+                    onSend(draft.text)
+                    draft = TextFieldValue()
                 },
-                enabled = draft.isNotBlank(),
+                enabled = draft.text.isNotBlank(),
                 shapes = IconButtonDefaults.shapes(
                     shape = IconButtonDefaults.mediumRoundShape,
                     pressedShape = IconButtonDefaults.mediumPressedShape,

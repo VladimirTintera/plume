@@ -346,6 +346,34 @@ vidí, že píšeme my.
 - **Chyba se jen loguje.** V kanálu bez práva psát `sendChatAction` selže; snackbar kvůli
   „píše…" by uživatele jen obtěžoval.
 
+### Koncept (rozepsaná zpráva)
+
+Rozepsaný text se ukládá do TDLib (`setChatDraftMessage`), takže přežije odchod z chatu, je vidět
+v seznamu chatů („Koncept: …") a na ostatních zařízeních.
+
+- **Ukládá se s odstupem 1,5 s od poslední úpravy**, ne na každý úhoz — koncept se propisuje na
+  server. Při odchodu z chatu se čekání přeskočí v `onCleared`.
+- **Ukládání běží v `appScope`, ne ve `viewModelScope`.** Ten se při odchodu z chatu zruší dřív,
+  než by poslední úprava stihla odejít. Hodnoty se proto berou při plánování na hlavním vlákně,
+  úloha je jen odešle.
+- **Odeslání čekající uložení ZAHODÍ.** TDLib koncept při odeslání maže sám (`clearDraft`);
+  opožděné uložení by ho vrátilo se starým textem.
+- **Koncept se do pole vrací jen, když je prázdné.** Než ho TDLib vydá, mohl uživatel začít
+  psát. Po vrácení se `restoredDraft` vynuluje — jinak by se po otočení vrátil i smazaný.
+- **Pole drží `TextFieldValue`, ne `String`.** U vráceného konceptu je potřeba postavit kurzor
+  na konec; `onDraftChanged` se volá jen při změně TEXTU, ne při pohybu kurzoru.
+- **Citace je součást konceptu** a obnoví se s ním (i když není v načtené historii).
+- **Prázdný text koncept maže, i s citací.** Odpověď bez textu by byl koncept, který v seznamu
+  nic neukáže.
+- **Seznam chatů musí z `UpdateChatDraftMessage` brát i POZICE.** Chat s čerstvým konceptem se
+  posune nahoru a jinudy se to nedozvíme. Čas u položky je proto novější z konceptu a poslední
+  zprávy — jinak by u chatu nahoře stálo starší datum než pod ním.
+- **Koncept v otevřeném chatu se z updatů NEČTE.** TDLib upozorňuje, že
+  `UpdateChatDraftMessage` může pro právě otevřený chat přijít se starým obsahem; přepsat jím
+  pole by uživateli smazalo, co právě napsal.
+- **Ukazuje se jen textový koncept.** Rozpracovaná hlasovka je taky koncept, ale „Koncept:" bez
+  obsahu by nic neřekl.
+
 ### Hlášení přečtení a indexy
 
 - **Z viditelných položek se bere KLÍČ, ne index.** Index do `state.messages` nesedí: před

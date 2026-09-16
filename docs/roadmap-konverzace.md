@@ -96,8 +96,6 @@ Seřazeno podle toho, jak moc to bolí.
   dostat text ven.
 - **Připnutá zpráva** nemá v hlavičce pruh.
 - **Příloha se nedá poslat.** Vstupní pole umí jen text — chybí fotka, soubor, hlasovka, emoji.
-- **Rozepsaná zpráva se neukládá do TDLib** (`setChatDraftMessage`), takže ji neuvidí seznam
-  chatů ani druhé zařízení.
 - **Editace a mazání vlastní zprávy** — obojí čeká na nabídku z [B].
 
 ---
