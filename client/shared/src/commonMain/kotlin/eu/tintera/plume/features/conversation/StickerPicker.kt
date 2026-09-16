@@ -103,6 +103,8 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.ui.text.input.TextFieldValue
 import eu.tintera.plume.core.telegram.EmojiRepository
 import eu.tintera.plume.core.settings.ExpressionMode
+import eu.tintera.plume.core.settings.AppSettings
+import kotlinx.coroutines.flow.map
 import org.koin.compose.viewmodel.koinViewModel
 
 /** Záložka výběru samolepek. */
@@ -151,7 +153,19 @@ private val FIXED_TABS = listOf(StickerTab.Recent, StickerTab.Favorites, Sticker
 class StickerPickerViewModel(
     private val repository: StickerRepository,
     private val emojiRepository: EmojiRepository,
+    private val settings: AppSettings,
 ) : ViewModel() {
+
+    /** Nedávno vybraná emoji, jen ta z katalogu (uložené mohlo zůstat z jiné verze aplikace). */
+    val recentEmojis: StateFlow<List<String>> = settings.recentEmojis
+        .map { list -> list.mapNotNull(::catalogEmoji) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            settings.recentEmojis.value.mapNotNull(::catalogEmoji),
+        )
+
+    fun recordEmoji(emoji: String) = settings.recordRecentEmoji(emoji)
 
     private val setContents = MutableStateFlow<Map<Long, List<StickerItem>>>(emptyMap())
 

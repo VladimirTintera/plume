@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -43,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.ui.previousClusterStart
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.backspace_24dp
+import eu.tintera.plume.resources.schedule_24dp
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 
@@ -65,7 +67,17 @@ internal fun EmojiPanel(
 ) {
     val search by viewModel.emojiSearch.collectAsStateWithLifecycle()
     var searchText by rememberSaveable { mutableStateOf("") }
-    val insert: (String) -> Unit = { emoji -> onDraftEdit(draft.inserting(emoji)) }
+    val insert: (String) -> Unit = { emoji ->
+        onDraftEdit(draft.inserting(emoji))
+        viewModel.recordEmoji(emoji)
+    }
+
+    /*
+     * Nedávná emoji ZMRAŽENÁ na stav při otevření výběru. Každé ťuknutí emoji přesune na začátek;
+     * kdyby se seznam měnil živě, mřížka by se přeskládala pod prstem a druhé ťuknutí by trefilo
+     * jiné emoji. Nové pořadí se ukáže při dalším otevření — stejně to dělá Telegram.
+     */
+    val recent = remember { viewModel.recentEmojis.value }
 
     DraftPreview(
         draft = draft,
@@ -108,7 +120,11 @@ internal fun EmojiPanel(
     }
 
     val scope = rememberCoroutineScope()
-    val pagerState = rememberPagerState(pageCount = { EMOJI_GROUPS.size })
+    // První stránka jsou nedávná; bez nich se otevře rovnou na první skupině, ne na prázdné stránce.
+    val pagerState = rememberPagerState(
+        initialPage = if (recent.isEmpty()) 1 else 0,
+        pageCount = { EMOJI_GROUPS.size + 1 },
+    )
 
     PrimaryScrollableTabRow(
         selectedTabIndex = pagerState.currentPage,
@@ -116,7 +132,18 @@ internal fun EmojiPanel(
         containerColor = Color.Transparent,
         modifier = Modifier.height(STICKER_TAB_ROW_HEIGHT),
     ) {
-        EMOJI_GROUPS.forEachIndexed { index, group ->
+        Tab(
+            selected = pagerState.currentPage == 0,
+            onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
+        ) {
+            Icon(
+                painterResource(Res.drawable.schedule_24dp),
+                contentDescription = "Nedávné",
+                modifier = Modifier.padding(vertical = 10.dp),
+            )
+        }
+        EMOJI_GROUPS.forEachIndexed { groupIndex, group ->
+            val index = groupIndex + 1
             Tab(
                 selected = index == pagerState.currentPage,
                 onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
@@ -131,7 +158,21 @@ internal fun EmojiPanel(
         state = pagerState,
         modifier = Modifier.fillMaxWidth().height(EMOJI_GRID_HEIGHT),
     ) { page ->
-        EmojiGrid(EMOJI_GROUPS[page].emojis, onPick = insert)
+        if (page > 0) {
+            EmojiGrid(EMOJI_GROUPS[page - 1].emojis, onPick = insert)
+        } else if (recent.isNotEmpty()) {
+            EmojiGrid(recent, onPick = insert)
+        } else {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = "Tady se objeví emoji, která vybereš.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(24.dp),
+                )
+            }
+        }
     }
 }
 
