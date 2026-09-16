@@ -65,6 +65,22 @@ interface ConversationRepository {
      */
     suspend fun deleteMessages(chatId: Long, messageIds: List<Long>, revoke: Boolean): Result<Unit>
 
+    /**
+     * Nejnovější připnutá zpráva chatu, nebo `null`, když žádná není.
+     *
+     * Jen nejnovější: Telegram jich umí připnout víc a listovat mezi nimi, ale jeden pruh
+     * s poslední pokrývá to, kvůli čemu se připíná — „tohle je teď důležité".
+     */
+    suspend fun pinnedMessage(chatId: Long): Result<ChatMessage?>
+
+    /**
+     * Ohlásí, že se v chatu něco připnulo nebo odepnulo.
+     *
+     * Nenese novou připnutou zprávu, jen signál — odepnutí nejnovější znamená, že nejnovější je
+     * teď jiná, a tu zná jen TDLib. Volající si ji znovu přečte přes [pinnedMessage].
+     */
+    fun pinnedMessageChanges(chatId: Long): Flow<Unit>
+
     /** Jedna konkrétní zpráva. Pro doplnění citace, která není v načtené historii. */
     suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage>
 

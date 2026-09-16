@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -125,6 +126,27 @@ class ConversationViewModel(
 
         loadOlder()
         observeUpdates()
+        observePinned()
+    }
+
+    /**
+     * Pruh s připnutou zprávou.
+     *
+     * Na změnu se zpráva **čte znovu**, ne odvozuje z updatu: po odepnutí nejnovější je nejnovější
+     * jiná a tu zná jen TDLib. Odběr stojí před prvním čtením, aby se mezi nimi nic neztratilo.
+     */
+    private fun observePinned() {
+        viewModelScope.launch {
+            repository.pinnedMessageChanges(chatId)
+                .onStart { emit(Unit) }
+                .collect { refreshPinned() }
+        }
+    }
+
+    private suspend fun refreshPinned() {
+        repository.pinnedMessage(chatId)
+            .onSuccess { pinned -> _state.update { it.copy(pinned = pinned) } }
+            .onFailure { failure -> logger.w(failure) { "Připnutou zprávu se nepodařilo načíst." } }
     }
 
     /**
@@ -300,7 +322,13 @@ class ConversationViewModel(
 
         viewModelScope.launch {
             repository.editedMessages(chatId).collect { message ->
-                _state.update { it.copy(messages = merge(it.messages, listOf(message))) }
+                _state.update {
+                    it.copy(
+                        messages = merge(it.messages, listOf(message)),
+                        // Upravená připnutá zpráva se musí přepsat i v pruhu, jinak by ukazoval starý text.
+                        pinned = if (it.pinned?.id == message.id) message else it.pinned,
+                    )
+                }
             }
         }
 
@@ -375,6 +403,8 @@ class ConversationViewModel(
                         itemKeys = state.itemKeys - removed,
                     )
                 }
+                // Smazaná připnutá zpráva: nejnovější připnutá je teď jiná (nebo žádná).
+                if (_state.value.pinned?.id in removed) refreshPinned()
                 // Upravovaná zpráva zmizela (smazaná jinde) — není co upravovat.
                 if (_state.value.editing?.id in removed) cancelEdit()
             }
@@ -1070,6 +1100,8 @@ data class ConversationState(
      * z úpravy. Obrazovka ho po použití vynuluje ([ConversationViewModel.consumeInputFill]).
      */
     val inputFill: InputFill? = null,
+    /** Nejnovější připnutá zpráva pro pruh pod hlavičkou; `null`, když žádná není. */
+    val pinned: ChatMessage? = null,
     /** Zpráva, jejíž text se právě upravuje ve vstupním poli; `null` při běžném psaní. */
     val editing: ChatMessage? = null,
     /** Zpráva krátce zvýrazněná po skoku na citaci; `null` většinu času. */

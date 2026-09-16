@@ -2,6 +2,7 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
+import dev.g000sha256.tdl.TdlResult
 import dev.g000sha256.tdl.dto.ChatActionCancel
 import dev.g000sha256.tdl.dto.ChatActionTyping
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
@@ -193,6 +194,20 @@ class TdlConversationRepository(
             revoke = revoke,
         )
             .toResult()
+            .map { }
+
+    override suspend fun pinnedMessage(chatId: Long): Result<ChatMessage?> {
+        val result = client.getChatPinnedMessage(chatId)
+        // 404 = v chatu nic připnutého není. Běžný stav, ne chyba.
+        if (result is TdlResult.Failure && result.code == NOT_FOUND) return Result.success(null)
+
+        val isGroup = isGroup(chatId)
+        return result.toResult().map { it.toChatMessage(isGroup) }
+    }
+
+    override fun pinnedMessageChanges(chatId: Long): Flow<Unit> =
+        client.messageIsPinnedUpdates
+            .filter { it.chatId == chatId }
             .map { }
 
     override suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage> {
@@ -547,3 +562,6 @@ private fun replyTo(messageId: Long) = InputMessageReplyToMessage(
     checklistTaskId = 0,
     pollOptionId = "",
 )
+
+/** TDLib hlásí „nic takového neexistuje" jako 404. */
+private const val NOT_FOUND = 404
