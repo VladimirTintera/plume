@@ -79,6 +79,14 @@ interface ConversationRepository {
     suspend fun send(chatId: Long, text: String, replyToMessageId: Long?): Result<ChatMessage>
 
     /**
+     * Nahradí text odeslané zprávy.
+     *
+     * Výsledek se do konverzace dostane updatem (`editedMessages`), stejně jako cizí úpravy —
+     * návratová hodnota se proto nevrací. Entity se dohledávají jako při odeslání.
+     */
+    suspend fun editText(chatId: Long, messageId: Long, text: String): Result<Unit>
+
+    /**
      * Potvrzení nebo selhání odeslané zprávy.
      *
      * Nese **staré i nové id**: TDLib po potvrzení zprávě id změní, takže ji nestačí aktualizovat,
@@ -188,6 +196,11 @@ data class ChatMessage(
     val isOutgoing: Boolean,
     /** `null` u odchozích zpráv a v soukromých chatech, kde jméno nedává smysl zobrazovat. */
     val senderName: String?,
+    /**
+     * Profilovka odesílatele; vyplněná za stejných podmínek jako [senderName]. Bez fotky `null`,
+     * pak se kreslí iniciály.
+     */
+    val senderAvatarFileId: Int?,
     val senderId: Long,
     val text: String,
     /**
@@ -267,6 +280,8 @@ data class MessageActions(
     val canDeleteForSelf: Boolean,
     /** Smazat i protějšku. U skupin a kanálů je to jediná možnost, jak mazat. */
     val canDeleteForAll: Boolean,
+    /** Úprava textu. Server ji povolí jen u vlastních zpráv a jen po omezenou dobu od odeslání. */
+    val canEdit: Boolean,
 ) {
     companion object {
         /**
@@ -281,6 +296,8 @@ data class MessageActions(
             canCopy = true,
             canDeleteForSelf = false,
             canDeleteForAll = false,
+            // Úprava po lhůtě skončí chybou; bez příznaků se nenabízí, stejně jako mazání.
+            canEdit = false,
         )
     }
 }

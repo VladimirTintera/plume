@@ -10,6 +10,7 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageActions
+import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SendState
@@ -80,6 +81,9 @@ class ConversationViewModel(
     /** Poslední text z pole, jak ho hlásí obrazovka. Kvůli ukládání konceptu. */
     private var draftText = ""
 
+    /** Koncept odložený po dobu úpravy zprávy; po ní se vrátí do pole. */
+    private var draftBeforeEdit = ""
+
     /** Odložené uložení konceptu; každá další úprava ho posune. */
     private var draftSave: Job? = null
 
@@ -103,7 +107,7 @@ class ConversationViewModel(
                         unreadBoundaryId = info.lastReadInboxMessageId
                             .takeIf { id -> info.unreadCount > 0 && id != 0L },
                         // Koncept z minula (nebo z jiného zařízení) se vrátí do pole.
-                        restoredDraft = info.draftText,
+                        inputFill = info.draftText?.let { text -> InputFill(text, onlyIfEmpty = true) },
                     )
                 }
                 info.draftText?.let { draftText = it }
@@ -371,6 +375,8 @@ class ConversationViewModel(
                         itemKeys = state.itemKeys - removed,
                     )
                 }
+                // Upravovaná zpráva zmizela (smazaná jinde) — není co upravovat.
+                if (_state.value.editing?.id in removed) cancelEdit()
             }
         }
     }
@@ -378,6 +384,11 @@ class ConversationViewModel(
     fun send(text: String) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
+
+        _state.value.editing?.let { target ->
+            sendEdit(target, trimmed)
+            return
+        }
 
         // Odeslaná zpráva psaní ukončí sama; další úhoz má „píšu" ohlásit hned, ne až za pět vteřin.
         typingSentAt = null
@@ -446,6 +457,10 @@ class ConversationViewModel(
      * ukončí: kdo si to rozmyslel, nemá protějšku ještě pět vteřin „psát".
      */
     fun onDraftChanged(text: String) {
+        // Při úpravě v poli není koncept, ale text staré zprávy. Uložit ho jako koncept by přepsalo
+        // ten odložený, a ohlašovat „píše…" kvůli opravě překlepu by protějšek mátlo.
+        if (_state.value.editing != null) return
+
         draftText = text
         scheduleDraftSave()
 
@@ -499,9 +514,68 @@ class ConversationViewModel(
         }
     }
 
-    /** Obrazovka koncept vrátila do pole. Bez toho by se po otočení vrátil znovu, i smazaný. */
-    fun consumeRestoredDraft() {
-        _state.update { it.copy(restoredDraft = null) }
+    /** Obrazovka text do pole vložila. Bez toho by se po otočení vložil znovu, i smazaný. */
+    fun consumeInputFill() {
+        _state.update { it.copy(inputFill = null) }
+    }
+
+    /**
+     * Přepne vstupní pole do úpravy zprávy.
+     *
+     * Rozepsaný text se **odloží a po skončení úpravy vrátí**. Úprava je vsuvka — kdo si
+     * uprostřed psaní všimne překlepu v minulé zprávě, nechce kvůli tomu přijít o rozepsanou.
+     */
+    fun startEdit(messageId: Long) {
+        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+        // Přepnutí z jedné úpravy do druhé nesmí přepsat odložený koncept textem první úpravy.
+        if (_state.value.editing == null) draftBeforeEdit = draftText
+
+        _state.update {
+            it.copy(
+                editing = message,
+                messageMenu = null,
+                inputFill = InputFill(message.text, onlyIfEmpty = false),
+            )
+        }
+    }
+
+    /** Zruší úpravu a vrátí do pole odložený koncept. */
+    fun cancelEdit() {
+        if (_state.value.editing == null) return
+        leaveEdit()
+    }
+
+    private fun leaveEdit() {
+        draftText = draftBeforeEdit
+        _state.update {
+            it.copy(editing = null, inputFill = InputFill(draftBeforeEdit, onlyIfEmpty = false))
+        }
+    }
+
+    /**
+     * Odešle úpravu.
+     *
+     * Z úprav se odchází **hned**, ne až po odpovědi serveru — výsledek dorazí updatem jako každá
+     * jiná úprava a čekat na něj s rozepsaným polem by působilo zaseknutě. Když úprava selže,
+     * vrátí se do pole i s textem, jinak by o něj uživatel přišel.
+     */
+    private fun sendEdit(target: ChatMessage, text: String) {
+        leaveEdit()
+        // Beze změny není co posílat; server by vrátil chybu „zpráva se nezměnila".
+        if (text == target.text.trim()) return
+
+        viewModelScope.launch {
+            repository.editText(chatId, target.id, text).onFailure { failure ->
+                if (_state.value.editing == null) draftBeforeEdit = draftText
+                _state.update {
+                    it.copy(
+                        error = failure.message ?: "Zprávu se nepodařilo upravit.",
+                        editing = target,
+                        inputFill = InputFill(text, onlyIfEmpty = false),
+                    )
+                }
+            }
+        }
     }
 
     /**
@@ -653,6 +727,7 @@ class ConversationViewModel(
                         chosenEmoji = message.reactions.filter { r -> r.isChosen }.map { r -> r.emoji }.toSet(),
                         actions = actions,
                         hasText = message.text.isNotBlank(),
+                        canEdit = actions.canEdit && message.isEditableAsPlainText(),
                     ),
                 )
             }
@@ -836,6 +911,38 @@ private val TYPING_REPEAT = 5.seconds
  */
 private const val DRAFT_SAVE_DELAY_MS = 1500L
 
+/**
+ * Dá se zpráva upravit ve vstupním poli, aniž by přišla o formátování?
+ *
+ * Pole umí jen holý text. Odkazy, zmínky a spol. se při odeslání úpravy dohledají znovu, ale
+ * **ruční formátování** (tučné, kurzíva, spoiler, odkaz s vlastním popiskem) by úprava tiše smazala.
+ * Takovou zprávu radši upravit nenabídneme — položka, která rozbije obsah, je horší než žádná.
+ *
+ * Odkaz se pozná jako automatický, když jeho text v adrese opravdu stojí (`example.com` →
+ * `https://example.com`). U odkazu s popiskem („klikni sem") to neplatí.
+ */
+private fun ChatMessage.isEditableAsPlainText(): Boolean {
+    if (media != null || isService || text.isBlank()) return false
+
+    return entities.all { entity ->
+        val type = entity.type as? MessageEntityType.Link ?: return@all false
+        val start = entity.offset.coerceIn(0, text.length)
+        val end = (entity.offset + entity.length).coerceIn(start, text.length)
+        type.url.endsWith(text.substring(start, end), ignoreCase = true)
+    }
+}
+
+/**
+ * Text, který má obrazovka vložit do vstupního pole.
+ *
+ * [onlyIfEmpty] u konceptu z TDLib: než dorazí, mohl uživatel začít psát a přepsat mu to by bylo
+ * horší než o koncept přijít. Úprava zprávy a návrat z ní pole naopak přepisují vždycky.
+ */
+data class InputFill(
+    val text: String,
+    val onlyIfEmpty: Boolean,
+)
+
 /** Doba, po kterou se drží klíč sdíleného prvku po přistání v bublině. */
 internal const val FLIGHT_DURATION_MS = 450L
 
@@ -901,6 +1008,8 @@ data class MessageMenu(
     val actions: MessageActions,
     /** Bez textu není co kopírovat, i kdyby to server dovolil. */
     val hasText: Boolean,
+    /** Server úpravu dovolí A zpráva se dá upravit bez ztráty formátování. */
+    val canEdit: Boolean,
 ) {
     /** Do rychlého řádku se vejde jen pár; zbytek je za „+". */
     val quickEmoji: List<String> get() = emoji.take(MAX_QUICK_REACTIONS)
@@ -957,10 +1066,12 @@ data class ConversationState(
     /** Zpráva, na kterou má obrazovka odrolovat. Vynuluje se po provedení. */
     val scrollTarget: ScrollTarget? = null,
     /**
-     * Koncept z TDLib k vrácení do vstupního pole. Obrazovka ho po použití vynuluje
-     * ([ConversationViewModel.consumeRestoredDraft]).
+     * Text k vložení do vstupního pole — koncept z TDLib, text upravované zprávy nebo návrat
+     * z úpravy. Obrazovka ho po použití vynuluje ([ConversationViewModel.consumeInputFill]).
      */
-    val restoredDraft: String? = null,
+    val inputFill: InputFill? = null,
+    /** Zpráva, jejíž text se právě upravuje ve vstupním poli; `null` při běžném psaní. */
+    val editing: ChatMessage? = null,
     /** Zpráva krátce zvýrazněná po skoku na citaci; `null` většinu času. */
     val highlightedMessageId: Long? = null,
     /** Reklamy k zobrazení. Podle Telegram ToS se nesmí filtrovat ani skrývat. */

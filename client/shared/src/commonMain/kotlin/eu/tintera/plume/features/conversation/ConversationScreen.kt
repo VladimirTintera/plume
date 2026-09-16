@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -83,6 +84,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -123,6 +127,7 @@ import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.done_all_24dp
 import eu.tintera.plume.resources.error_24dp
+import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.reply_24dp
 import eu.tintera.plume.resources.schedule_24dp
 import eu.tintera.plume.resources.send_24dp
@@ -193,6 +198,7 @@ fun ConversationScreen(
             onPick = viewModel::toggleReaction,
             onMore = viewModel::showAllReactions,
             onReply = viewModel::replyTo,
+            onEdit = viewModel::startEdit,
             onCopy = viewModel::copyMessage,
             onDelete = viewModel::requestDelete,
             onDismiss = viewModel::closeMenus,
@@ -573,6 +579,18 @@ fun ConversationScreen(
                                 // Za předělem začíná nový blok, i když píše tentýž člověk — jinak by
                                 // první bublina pod datem navazovala na zprávu z minulého dne.
                                 previous = older.takeIf { !startsDay },
+                                /*
+                                 * Tvář odesílatele se ukazuje u POSLEDNÍ zprávy jeho bloku, jako
+                                 * v Telegramu: blok se čte shora a tvář ho uzavírá. Novější soused
+                                 * je o index NÍŽ. Kanál (odesílatel = chat sám) tvář nemá — nese ji
+                                 * hlavička a u každého příspěvku by byla pořád tatáž.
+                                 */
+                                avatar = when {
+                                    state.info?.isGroup != true || message.isOutgoing -> SenderAvatar.None
+                                    message.senderId == state.info?.id -> SenderAvatar.None
+                                    state.messages.getOrNull(index - 1).continues(message) -> SenderAvatar.Spacer
+                                    else -> SenderAvatar.Shown
+                                },
                                 lastReadOutboxMessageId = state.lastReadOutboxMessageId,
 
                                 flight = flight,
@@ -641,8 +659,10 @@ fun ConversationScreen(
                 onCancelReply = viewModel::clearReply,
                 onSend = viewModel::send,
                 onDraftChanged = viewModel::onDraftChanged,
-                restoredDraft = state.restoredDraft,
-                onDraftRestored = viewModel::consumeRestoredDraft,
+                editing = state.editing,
+                onCancelEdit = viewModel::cancelEdit,
+                inputFill = state.inputFill,
+                onInputFilled = viewModel::consumeInputFill,
                 // Výška se měří a vrací zpátky do odsazení seznamu. Natvrdo zadaná konstanta
                 // by se rozešla s realitou, jakmile se pole zalomí na víc řádků nebo se nad
                 // ním objeví karta s citací.
@@ -747,6 +767,7 @@ private fun MessageBubble(
     /** Let ze vstupního pole, který přistává právě v téhle bublině; jinak `null`. */
     flight: MessageFlight?,
     previous: ChatMessage?,
+    avatar: SenderAvatar,
     onToggleReaction: (String) -> Unit,
     onRequestMenu: () -> Unit,
     onReply: () -> Unit,
@@ -887,7 +908,23 @@ private fun MessageBubble(
                 },
             ),
         horizontalArrangement = if (message.isOutgoing) Arrangement.End else Arrangement.Start,
+        // Tvář sedí u spodní hrany bubliny — u dlouhé zprávy by uprostřed nebylo poznat, ke které
+        // části bloku patří.
+        verticalAlignment = Alignment.Bottom,
     ) {
+      // Mimo posouvaný `Box`: při tažení na odpověď jede bublina, tvář zůstává na místě.
+      when (avatar) {
+          SenderAvatar.None -> Unit
+          SenderAvatar.Spacer -> Spacer(Modifier.width(SENDER_AVATAR_SLOT))
+          SenderAvatar.Shown -> Avatar(
+              chatId = message.senderId,
+              title = message.senderName.orEmpty(),
+              avatarFileId = message.senderAvatarFileId,
+              size = SENDER_AVATAR_SIZE,
+              modifier = Modifier.padding(end = SENDER_AVATAR_SLOT - SENDER_AVATAR_SIZE),
+          )
+      }
+
       Box(
           // Posun se čte až ve fázi layoutu (`offset { }`), ne v kompozici. Jinak by se celá
           // bublina i s obsahem přeskládávala na každý snímek tahu.
@@ -1037,9 +1074,12 @@ private fun MessageInput(
     onSend: (String) -> Unit,
     /** Jen ruční úpravy textu — vyprázdnění po odeslání se nehlásí, o to se stará `onSend`. */
     onDraftChanged: (String) -> Unit,
-    /** Koncept z TDLib, který se má jednou vrátit do pole. */
-    restoredDraft: String?,
-    onDraftRestored: () -> Unit,
+    /** Upravovaná zpráva; karta pak místo citace ukazuje, co se upravuje. */
+    editing: ChatMessage?,
+    onCancelEdit: () -> Unit,
+    /** Text, který se má jednou vložit do pole (koncept, úprava). */
+    inputFill: InputFill?,
+    onInputFilled: () -> Unit,
     onHeightChanged: (Dp) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1048,13 +1088,25 @@ private fun MessageInput(
     var draft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
 
     /*
-     * Koncept z minula se vrací JEN do prázdného pole. Než ho TDLib vydá, mohl uživatel začít
-     * psát, a přepsat mu to by bylo horší než o koncept přijít — ten ostatně pořád leží v TDLib.
+     * Vložení textu zvenku. Koncept z minula jde JEN do prázdného pole — než ho TDLib vydá, mohl
+     * uživatel začít psát. Úprava zprávy pole přepisuje vždycky. Kurzor na konec, ať se píše dál.
      */
-    LaunchedEffect(restoredDraft) {
-        val restored = restoredDraft ?: return@LaunchedEffect
-        if (draft.text.isEmpty()) draft = TextFieldValue(restored, selection = TextRange(restored.length))
-        onDraftRestored()
+    LaunchedEffect(inputFill) {
+        val fill = inputFill ?: return@LaunchedEffect
+        if (!fill.onlyIfEmpty || draft.text.isEmpty()) {
+            draft = TextFieldValue(fill.text, selection = TextRange(fill.text.length))
+        }
+        onInputFilled()
+    }
+
+    // Úprava se spouští z nabídky nad zprávou, takže pole fokus nemá. Bez něj by po „Upravit"
+    // nebylo poznat, že se něco stalo, a klávesnici by si musel uživatel vyvolat sám.
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(editing?.id) {
+        if (editing == null) return@LaunchedEffect
+        focusRequester.requestFocus()
+        keyboard?.show()
     }
     val density = LocalDensity.current
 
@@ -1096,7 +1148,10 @@ private fun MessageInput(
                 modifier = Modifier.weight(1f),
             ) {
               Column {
-                replyingTo?.let { target ->
+                // Úprava má přednost před citací: odpověď se při ní neruší, jen se na chvíli schová.
+                if (editing != null) {
+                    EditingHeader(message = editing, onCancel = onCancelEdit)
+                } else replyingTo?.let { target ->
                     Row(
                         Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -1124,7 +1179,7 @@ private fun MessageInput(
                     // Pohyb kurzoru nebo výběr taky volá `onValueChange`; psaní to není.
                     if (changed) onDraftChanged(it.text)
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                 placeholder = { Text("Zpráva") },
                 maxLines = 6,
                 colors = TextFieldDefaults.colors(
@@ -1198,12 +1253,50 @@ private fun MessageInput(
                 ),
                 modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
             ) {
+                // Při úpravě fajfka: nic se neposílá, jen potvrzuje změna.
                 Icon(
-                    painterResource(Res.drawable.send_24dp),
-                    contentDescription = "Odeslat",
+                    painterResource(if (editing != null) Res.drawable.check_24dp else Res.drawable.send_24dp),
+                    contentDescription = if (editing != null) "Uložit úpravu" else "Odeslat",
                     modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
                 )
             }
+        }
+    }
+}
+
+/**
+ * Hlavička karty při úpravě zprávy.
+ *
+ * Vypadá jako citace (proužek, popisek, původní text), protože plní stejnou roli: říká, k čemu
+ * se vztahuje to, co se píše. Původní text zůstává vidět, i když ho uživatel v poli přepíše.
+ */
+@Composable
+private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit) {
+    Row(
+        Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painterResource(Res.drawable.edit_24dp),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(end = 8.dp).size(18.dp),
+        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = "Úprava zprávy",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                text = message.text,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        IconButton(onClick = onCancel) {
+            Icon(painterResource(Res.drawable.close_24dp), contentDescription = "Zrušit úpravu")
         }
     }
 }
@@ -1401,6 +1494,27 @@ private fun UnreadDivider(modifier: Modifier = Modifier) {
 }
 
 /**
+ * Tvář odesílatele vedle bubliny ve skupině.
+ *
+ * [Spacer] drží místo u zpráv uprostřed bloku — bez něj by bubliny téhož člověka skákaly
+ * doleva a doprava podle toho, u které zrovna tvář je.
+ */
+private enum class SenderAvatar { None, Spacer, Shown }
+
+/**
+ * Navazuje tahle (novější) zpráva na [older] ve stejném bloku?
+ *
+ * Stejná pravidla jako seskupení bublin: stejná strana, stejný odesílatel, stejný den. Servisní
+ * oznámení blok přeruší — kreslí se na střed a tvář nad ním by visela ve vzduchu.
+ */
+private fun ChatMessage?.continues(older: ChatMessage): Boolean =
+    this != null &&
+        !isService &&
+        isOutgoing == older.isOutgoing &&
+        senderId == older.senderId &&
+        timestamp.isSameDayAs(older.timestamp)
+
+/**
  * Naposledy zpracovaná nejnovější zpráva, pro ukotvení seznamu dole.
  *
  * Obyčejná třída, ne `mutableStateOf`: zapisuje se v kompozici a zápis do snapshot stavu by
@@ -1412,6 +1526,12 @@ private class NewestItem {
 }
 
 private const val LOAD_MORE_THRESHOLD = 5
+
+/** Profilovka odesílatele ve skupině. Menší než v seznamu chatů — doprovází bublinu, nevede ji. */
+private val SENDER_AVATAR_SIZE = 32.dp
+
+/** Místo pro profilovku i s mezerou k bublině; stejné u zpráv s tváří i bez ní. */
+private val SENDER_AVATAR_SLOT = 40.dp
 
 /** O kolik položek výš od spodku se objeví tlačítko „dolů". */
 private const val SCROLL_DOWN_THRESHOLD_ITEMS = 3
