@@ -55,10 +55,12 @@
         <!-- Stažené soubory z chatu, které otevírá jiná aplikace (FileOpener). Oprávnění se
              uděluje jen na konkrétní URI a jen na to jedno otevření. -->
         <provider
-            android:name="androidx.core.content.FileProvider"
+            android:name=".DocumentFileProvider"
             android:authorities="${applicationId}.documents"
             android:exported="false"
             android:grantUriPermissions="true">
+            <!-- Cesty musí být i tady, ne jen v konstruktoru: `getUriForFile` si strategii
+                 skládá z meta-dat, takže bez nich spadne na „Missing FILE_PROVIDER_PATHS". -->
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/documents" />

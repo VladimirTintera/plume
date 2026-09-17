@@ -80,6 +80,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -161,6 +162,9 @@ class ConversationViewModel(
 
     /** Odložené uložení konceptu; každá další úprava ho posune. */
     private var draftSave: Job? = null
+
+    /** Běžící otevírání souborů podle `fileId`; druhé ťuknutí to čekání zruší. */
+    private val documentJobs = mutableMapOf<Int, Job>()
 
     /** Už nahlášená zhlédnutí reklam — každé se hlásí jen jednou. */
     private val reportedSponsoredViews = mutableSetOf<Long>()
@@ -1230,28 +1234,53 @@ class ConversationViewModel(
      */
     fun openDocument(messageId: Long) {
         val document = _state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Document ?: return
-        if (document.fileId in _state.value.documentDownloads) return
+
+        // Druhé ťuknutí během čekání ho zruší. Bez toho by se z rozbitého stahování (mrtvé spojení,
+        // odpověď, která nedorazí) nedalo dostat ven — kolečko by se točilo napořád.
+        documentJobs.remove(document.fileId)?.let { running ->
+            running.cancel()
+            _state.update { it.copy(documentDownloads = it.documentDownloads - document.fileId) }
+            return
+        }
+
         _state.update { it.copy(documentDownloads = it.documentDownloads + (document.fileId to 0f)) }
 
-        viewModelScope.launch {
-            val file = fileRepository.file(document.fileId)
-                .onEach { state ->
-                    if (state is FileState.Downloading) {
-                        _state.update { it.copy(documentDownloads = it.documentDownloads + (document.fileId to state.progress)) }
+        documentJobs[document.fileId] = viewModelScope.launch {
+            try {
+                logger.d { "Otevírám soubor ${document.fileId} (${document.fileName})" }
+                // Ťuknutí je výslovný pokyn: stahování se spustí znovu, i kdyby předchozí zůstalo viset.
+                fileRepository.retryDownload(document.fileId)
+
+                val states = fileRepository.file(document.fileId)
+                    .onEach { state ->
+                        if (state is FileState.Downloading) {
+                            _state.update { it.copy(documentDownloads = it.documentDownloads + (document.fileId to state.progress)) }
+                        }
                     }
+
+                /*
+                 * Na ROZBĚH stahování se čeká jen chvíli, na dokončení pak jak dlouho je potřeba.
+                 * Když TDLib neodpoví (mrtvé spojení), zůstal by stav `Pending` napořád; jakmile
+                 * ale stahování běží, průběh je vidět a velký soubor smí trvat.
+                 */
+                val started = withTimeoutOrNull(DOWNLOAD_START_TIMEOUT) { states.first { it !is FileState.Pending } }
+                val file = started?.let { first ->
+                    if (first is FileState.Ready || first is FileState.Failed) first else states.first { it is FileState.Ready || it is FileState.Failed }
                 }
-                .first { it is FileState.Ready || it is FileState.Failed }
+                logger.d { "Soubor ${document.fileId} skončil jako $file" }
 
-            _state.update { it.copy(documentDownloads = it.documentDownloads - document.fileId) }
+                when (file) {
+                    is FileState.Ready ->
+                        if (!fileOpener.open(file.path, document.mimeType)) {
+                            _state.update { it.copy(notice = UiText(Res.string.document_open_failed)) }
+                        }
 
-            when (file) {
-                is FileState.Ready ->
-                    if (!fileOpener.open(file.path, document.mimeType)) {
-                        _state.update { it.copy(notice = UiText(Res.string.document_open_failed)) }
-                    }
-
-                is FileState.Failed -> _state.update { it.copy(error = UiText(Res.string.document_download_failed)) }
-                else -> Unit
+                    else -> _state.update { it.copy(error = UiText(Res.string.document_download_failed)) }
+                }
+            } finally {
+                // I při zrušení (odchod z chatu, druhé ťuknutí) musí průběh ze stavu zmizet.
+                documentJobs.remove(document.fileId)
+                _state.update { it.copy(documentDownloads = it.documentDownloads - document.fileId) }
             }
         }
     }
@@ -1709,3 +1738,6 @@ data class ConversationState(
     /** Stabilní klíč položky zprávy; přežije změnu id po odeslání. */
     fun keyOf(message: ChatMessage): Long = itemKeys[message.id] ?: message.id
 }
+
+/** Jak dlouho se čeká, než se stahování souboru vůbec rozběhne. */
+private val DOWNLOAD_START_TIMEOUT = 30.seconds

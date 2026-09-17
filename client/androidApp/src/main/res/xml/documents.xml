@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Adresář, do kterého TDLib ukládá stažené soubory (viz TelegramPaths). Provider sám nic
-     nevydává: oprávnění se uděluje jen na konkrétní URI a jen na jedno otevření. -->
+<!-- Soubory, které smí otevřít jiná aplikace: stažené soubory TDLib a čerstvě odeslané přílohy,
+     u kterých TDLib drží ještě naši kopii v cache. Provider sám nic nevydává — oprávnění se
+     uděluje jen na konkrétní URI. -->
 <paths>
     <files-path
         name="tdlib_files"
         path="tdlib-files/" />
+    <cache-path
+        name="outgoing"
+        path="outgoing/" />
 </paths>

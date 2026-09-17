@@ -1025,9 +1025,30 @@ stáhne a předá systému.
   Desetinné místo jen pod deset jednotek — „137,2 MB" je šum.
 - **Android: `ACTION_VIEW` přes `FileProvider`.** Od Androidu 7 je `file://` URI mimo aplikaci
   zakázané (`FileUriExposedException`). Provider `${applicationId}.documents` vydává adresář
-  `tdlib-files`, ale **oprávnění se uděluje jen na konkrétní URI a jen na jedno otevření**
-  (`FLAG_GRANT_READ_URI_PERMISSION`). `FLAG_ACTIVITY_NEW_TASK` je nutný, protože se otevírá
-  mimo naši úlohu.
+  `tdlib-files` (a `cache/outgoing` u čerstvě odeslaných příloh), ale **oprávnění se uděluje jen
+  na konkrétní URI** (`FLAG_GRANT_READ_URI_PERMISSION`). `FLAG_ACTIVITY_NEW_TASK` je nutný,
+  protože se otevírá mimo naši úlohu.
+- **Provider MUSÍ být vlastní třída** (`DocumentFileProvider : FileProvider()`), ne druhá
+  deklarace `androidx.core.content.FileProvider` v manifestu. Providery se v procesu drží podle
+  JMÉNA TŘÍDY, takže dvě deklarace téže třídy sdílejí jednu instanci — a ta zná jen tu autoritu,
+  se kterou vznikla. Vedle provideru na obrázky do notifikací tedy požadavek na `…documents`
+  spadl ještě uvnitř naší aplikace na `SecurityException: The authority … does not match the one
+  of the contentProvider: ….notificationimages` a volající (Fotky) z toho ukázal jen „media not
+  found". Každá další autorita proto potřebuje vlastní podtřídu.
+- **`FILE_PROVIDER_PATHS` patří do manifestu i u vlastní třídy.** `getUriForFile` si strategii
+  skládá z meta-dat, ne z konstruktoru — bez nich spadne na „Missing FILE_PROVIDER_PATHS
+  meta-data".
+- **Příznak v intentu některým příjemcům NESTAČÍ.** `FLAG_GRANT_READ_URI_PERMISSION` platí pro
+  spuštěnou aktivitu, jenže aplikace jako Fotky soubor otevírají z jiné své části, která na grant
+  z intentu nedosáhne — v logu je „Permission Denial: opening provider … that is not exported"
+  a uživatel vidí „media not found". Proto se oprávnění ještě výslovně udělí každému, kdo intent
+  zvládne (`queryIntentActivities` + `grantUriPermission`) — tatáž past jako u čteček notifikací
+  u obrázku ve zprávě. Předchozí grant se při dalším otevření odebírá, aby nezůstal viset
+  napořád.
+- **Ťuknutí musí umět stahování spustit ZNOVU** (`FileRepository.retryDownload`). `file()` si
+  pamatuje, na co už request odešel, aby ho scroll nespouštěl při každém odběru; kdyby ale
+  předchozí stahování skončilo v půli (spadlé spojení, TDLib soubor uvolnil), zůstal by ten stav
+  viset a další ťuknutí by nedělalo nic. Výslovný pokyn uživatele tu paměť obchází.
 - **iOS: `UIDocumentInteractionController`** (náhled, a z něj i sdílení). Kontroler i delegát se
   musí držet silnou referencí, dokud je náhled na obrazovce — stejná past jako u výběru příloh.
   Bez náhledu pro daný typ se ukáže nabídka „Otevřít v…".
@@ -1837,10 +1858,17 @@ není „Android bez barev", ale má vlastní konzistentní paletu.
 
 ## Co ještě není vyřešené
 
-- `databaseEncryptionKey` je prázdný. Před ostrým nasazením tam patří klíč z Android Keystore /
-  iOS Keychain.
-- Push notifikace (TDLib `registerDevice` + iOS notification service extension).
-- **Detail chatu má vlastní rozpracovaný seznam: [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).**
-  Jsou tam čtyři velké kusy (entity a odkazy v textu, popup nad zprávou místo bottom sheetu,
-  odpověď swipem, prohlížeč médií) i zásobník menších nálezů. Je to živý dokument — co se udělá,
-  odtud zmizí a poučení z toho patří sem.
+**Seznam se vede ve dvou živých dokumentech, ne tady.** Tenhle soubor se čte při každé session,
+takže by v něm rostoucí seznam úkolů jen ubíral místo poučením.
+
+- **[docs/roadmap.md](docs/roadmap.md)** — přes celou aplikaci: co chybí před vydáním, čím je
+  iOS pozadu, které obrazovky a sekce nejsou (archiv, hledání, profil, nová konverzace), a taky
+  co právě leží rozpracované v pracovním adresáři.
+- **[docs/roadmap-konverzace.md](docs/roadmap-konverzace.md)** — podrobný seznam pro detail chatu
+  i zásobník menších nálezů z čtení kódu.
+
+Obojí je živý dokument: co se udělá, odtud zmizí a poučení z toho patří sem. Jedna věc zůstává
+i tady, protože je to bezpečnostní dluh, ne položka seznamu:
+
+- **`databaseEncryptionKey` je prázdný.** Před ostrým nasazením tam patří klíč z Android
+  Keystore / iOS Keychain; do té doby leží databáze TDLib na disku odšifrovaná.
