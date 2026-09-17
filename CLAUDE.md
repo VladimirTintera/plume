@@ -11,7 +11,7 @@ Fáze 6. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell
 živý seznam chatů, textová konverzace (historie, živé zprávy, odesílání, označení přečteného),
 avatary a fotky ve zprávách, reakce, odpovědi, notifikace na Androidu, sponzorované zprávy.
 
-Není: otevírání dokumentů, notifikace na iOS. Nastavení aplikace
+Není: otevírání dokumentů, notifikace na iOS ani hlášení pádů z iOS. Nastavení aplikace
 se ukládá (DataStore), zatím ale drží jen poslední část výběru emoji/samolepek. Prohlížeč médií umí zatím jen fotky. Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
 
@@ -85,6 +85,16 @@ API, které aplikace z drtivé většiny nevolá.
   composeResources; zapínat ho spolu s minifikací by znamenalo nevědět, co z toho pád způsobilo.
 - **Chybějící keep pravidlo se při buildu nepozná, projeví se AŽ ZA BĚHU.** Release build se
   proto musí proklikat, ne jen přeložit.
+- **`::class.simpleName` v release buildu nic neříká.** R8 třídy přejmenovává, takže z
+  `AuthorizationStateReady` zbylo „du" — jednou v logu a podruhé rovnou v textu, který na
+  přihlašovací obrazovce četl uživatel. Kde má název typu skončit v logu nebo před uživatelem,
+  musí to být ručně psaný řetězec (`stateName()` v `TdlTelegramSession`); `when` nad sealed
+  hierarchií bez `else` navíc zařídí, že nový stav v novější TDLib rozbije překlad, místo aby
+  se tiše vypsalo „neznámý". `-keepnames` na balíček TDLib by fungoval taky, ale propašoval by
+  jméno wrapper balíčku do `proguard-rules.pro` — přesně to, co se při bumpu tiše rozejde.
+- **Název třídy stejně nepatří do textu pro uživatele**, ani bez R8. „Tahle fáze přihlášení není
+  podporovaná: AuthorizationStateWaitEmailAddress" mu neřekne, co má dělat; pojmenovat fázi
+  vlastní větou je práce navíc jen zdánlivě — je to jediná verze, která má pro čtenáře smysl.
 - **Test se dá udělat bez ztráty přihlášení: release APK se přepodepíše DEBUG klíčem**
   (`apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --ks-key-alias
   androiddebugkey`) a nainstaluje přes `adb install -r`. Minifikace je vlastnost buildu,
@@ -94,6 +104,55 @@ API, které aplikace z drtivé většiny nevolá.
   spustit znovu). Klíče navigace jsou `@Serializable` a polymorfní serializace přes
   kotlinx.serialization je to, co R8 láme nejčastěji — pokud se aplikace vrátí do konverzace
   a ne na seznam chatů, je tahle část v pořádku.
+## Hlášení pádů (Crashlytics)
+
+Android release build posílá pády, zachycené chyby a kontext do Firebase Crashlytics. Aplikace
+ho ale **nikde nevolá přímo**: píše se do Kermitu (`Logger.withTag(…)`) a přemostění dělá
+`CrashlyticsLogWriter` v `core/logging`. Dvě paralelní cesty k hlášení by se dřív nebo později
+rozešly — část chyb by v konzoli chyběla a nebylo by poznat které.
+
+- **`core/logging` je hranice**, stejně jako `core/telegram` kolem TDLib: `com.google.firebase.*`
+  smí být importované jen tam, zbytek vidí rozhraní `CrashReporter`.
+- **Hranice závažnosti jsou dvě, ne jedna.** Od `Info` výš se log přikládá k pádu jako kontext
+  (`d`/`v` ne — Crashlytics si ke hlášení drží nejvýš 64 kB logu a starší řádky zahazuje). Samostatný problém
+  v konzoli zakládá až `e` **s výjimkou**. Důvod: `logger.w` je v projektu hlášení OČEKÁVANÉHO
+  selhání (nenačtená sada samolepek, neuložený koncept) a je jich přes dvacet — problémy z nich
+  by seznam zaplevelily tak, že by v něm skutečné chyby zanikly.
+- **Chybová hláška bez výjimky zůstane jen kontextem.** `recordException` staví problém kolem
+  stack trace; bez výjimky by v konzoli byl záznam, u kterého není poznat, odkud je.
+- **Řádek zalogovaný v téže milisekundě jako zachycená chyba se k ní ještě nemusí připojit.**
+  Crashlytics zapisuje kontextové řádky na jiném vlákně, než sestavuje událost (v logu je pak
+  „No log data to include with this event"). U pádu a u čehokoli staršího než pár milisekund je
+  to bez významu — jen se na tom nedá stavět ověřovací test.
+- **Writery se nastavují PŘED sestavením grafu** (`configureLogging()` na prvním řádku
+  `startKoin`). Eager singletony — seznam chatů, `FileRepository`, nastavení, start TDLib —
+  vznikají ještě uvnitř `startKoin` a právě jejich logy jsou u pádů při startu to nejzajímavější.
+- **Systémový log zůstává i v release.** Release APK se ověřuje na zařízení (viz níž) a `adb
+  logcat` je při tom jediné, co je vidět hned.
+- **Sběr se zapíná manifestem, ne za běhu.** `firebase_crashlytics_collection_enabled` je
+  placeholder podle build typu (release `true`, jinak `false`); Crashlytics si ho čte při
+  inicializaci procesu, tedy dřív, než se dá spustit jakýkoli náš kód. Pády z vývoje do konzole
+  nepatří — zanikla by v nich hlášení od testerů.
+- **Bez `google-services.json` se nesmí nic rozbít.** Plugin se neaplikuje (stejná podmínka jako
+  u pushe) a `createCrashReporter()` vrátí `NoopCrashReporter`. Ptá se přes
+  `FirebaseApp.getInstance()`, protože `FirebaseCrashlytics.getInstance()` by bez inicializované
+  Firebase vyhodilo `IllegalStateException` — a `getApps(context)` by kvůli `Context` znamenalo
+  vyrábět hlásiče až z grafu závislostí, tedy pozdě.
+- **Gradle plugin `crashlytics` musí být aplikovaný ZA `google-services`** — čte si jeho
+  konfiguraci. Sám nic neodesílá; do buildu přidá build id a nahrání R8 mapping souboru.
+  **S minifikovaným buildem je mapping soubor to jediné, co dělá stack trace čitelným**, a
+  `-keepattributes SourceFile,LineNumberTable` v `proguard-rules.pro` je jeho druhá půlka:
+  bez nich se čísla řádků do APK vůbec nedostanou a nemá je co doplnit zpátky.
+- **Hlášení odchází až PŘI PŘÍŠTÍM STARTU aplikace**, ne v okamžiku pádu. Kdo po pádu aplikaci
+  znovu nespustí, v konzoli nic nenajde a vypadá to jako nefunkční integrace.
+- **Ověřit to jde jen skutečným pádem release buildu.** V debug buildu je sběr vypnutý, takže
+  „projde to bez chyby" nic neznamená. Postup je stejný jako u R8: release APK se přepodepíše
+  debug klíčem a nainstaluje přes `adb install -r`, takže se nepřijde o přihlášení.
+- **iOS hlásič pádů zatím nemá** (`NoopCrashReporter`). Firebase v Xcode projektu není — stejně
+  jako u notifikací. Až přibude, implementace musí přijít ze Swiftu: `FirebaseCrashlytics` je
+  ObjC knihovna, kterou Kotlin/Native nevidí, a Kotlin výjimka nese jen adresy stack trace
+  (`getStackTraceAddresses()`), ne symboly. Vzor je `IosCrashlyticsLogger` v projektu
+  com.profilog.telemetry.android.
 
 ## Pracovní postup
 

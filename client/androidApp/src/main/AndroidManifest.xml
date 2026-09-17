@@ -32,6 +32,13 @@
             </intent-filter>
         </activity>
 
+        <!-- Hlášení pádů. Hodnota je placeholder z build typu (release true, jinak false) —
+             za běhu se přepínat nedá, Crashlytics si příznak čte při inicializaci procesu.
+             Bez google-services.json se Firebase neinicializuje a příznak nikdo nečte. -->
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="${crashlyticsCollectionEnabled}" />
+
         <!-- Bez google-services.json se služba nikdy nespustí, protože Firebase se
              neinicializuje; deklarace tedy nevadí ani v buildu bez pushe. -->
         <service

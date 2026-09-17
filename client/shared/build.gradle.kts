@@ -106,6 +106,10 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.core.ktx)
+            // Hlásič pádů. Jediné místo v projektu, kde smí být Crashlytics na classpath —
+            // viz core/logging. Bez `google-services.json` se knihovna jen neinicializuje.
+            implementation(project.dependencies.platform(libs.firebase.bom))
+            implementation(libs.firebase.crashlytics)
             // QR kód přihlášení. Na iOS ho generuje CoreImage, tam závislost netřeba.
             implementation(libs.zxing.core)
             implementation(libs.media3.exoplayer)

@@ -8,4 +8,5 @@ plugins {
     alias(libs.plugins.serialization) apply false
     alias(libs.plugins.buildConfig) apply false
     alias(libs.plugins.googleServices) apply false
+    alias(libs.plugins.crashlytics) apply false
 }

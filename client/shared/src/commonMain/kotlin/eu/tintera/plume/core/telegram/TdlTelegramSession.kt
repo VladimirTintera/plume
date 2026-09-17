@@ -9,9 +9,12 @@ import dev.g000sha256.tdl.dto.AuthorizationStateClosing
 import dev.g000sha256.tdl.dto.AuthorizationStateLoggingOut
 import dev.g000sha256.tdl.dto.AuthorizationStateReady
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitCode
+import dev.g000sha256.tdl.dto.AuthorizationStateWaitEmailAddress
+import dev.g000sha256.tdl.dto.AuthorizationStateWaitEmailCode
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitOtherDeviceConfirmation
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitPassword
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitPhoneNumber
+import dev.g000sha256.tdl.dto.AuthorizationStateWaitPremiumPurchase
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitRegistration
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitTdlibParameters
 import dev.g000sha256.tdl.dto.OptionValueInteger
@@ -75,7 +78,7 @@ class TdlTelegramSession(
     }
 
     private suspend fun handleAuthorizationState(state: AuthorizationState) {
-        logger.d { "AuthorizationState -> ${state::class.simpleName}" }
+        logger.d { "AuthorizationState -> ${state.stateName()}" }
 
         when (state) {
             is AuthorizationStateWaitTdlibParameters -> sendTdlibParameters()
@@ -104,10 +107,44 @@ class TdlTelegramSession(
             }
 
             // Stavy kolem e-mailového ověření a Premium nákupu spike neřeší. Padnout na nich ale
-            // nesmíme — uživatel by viděl zamrzlou obrazovku bez vysvětlení.
-            else -> _authStage.value =
-                AuthStage.Failed("Tahle fáze přihlášení zatím není podporovaná: ${state::class.simpleName}")
+            // nesmíme — uživatel by viděl zamrzlou obrazovku bez vysvětlení. Text pojmenovává
+            // KONKRÉTNÍ fázi: dřív se do hlášky vkládal název třídy, což uživateli neřeklo nic
+            // (a po zapnutí R8 to byl rovnou obfuskovaný nesmysl — „… není podporovaná: mu").
+            is AuthorizationStateWaitEmailAddress,
+            is AuthorizationStateWaitEmailCode,
+                -> _authStage.value = AuthStage.Failed(
+                "Tenhle účet chce ověření e-mailem a to zatím neumíme. Zkus číslo nebo QR kód.",
+            )
+
+            is AuthorizationStateWaitPremiumPurchase -> _authStage.value = AuthStage.Failed(
+                "Přihlášení k tomuhle účtu vyžaduje nákup Telegram Premium; ten tenhle klient neumí.",
+            )
         }
+    }
+
+    /**
+     * Název stavu do logu. **Ručně psaný, ne `state::class.simpleName`** — R8 třídy přejmenovává,
+     * takže v release buildu z `AuthorizationStateReady` zbylo „du" a log (a s ním i kontext
+     * přiložený k hlášení pádu) přestal cokoli říkat. Literál přejmenovat nejde.
+     *
+     * `when` je schválně bez `else`: `AuthorizationState` je sealed, takže nový stav v novější
+     * TDLib rozbije překlad a někdo ho tu musí pojmenovat. To je lepší než tiché „neznámý stav"
+     * právě ve chvíli, kdy se přihlášení zaseklo na něčem novém.
+     */
+    private fun AuthorizationState.stateName(): String = when (this) {
+        is AuthorizationStateWaitTdlibParameters -> "WaitTdlibParameters"
+        is AuthorizationStateWaitPhoneNumber -> "WaitPhoneNumber"
+        is AuthorizationStateWaitEmailAddress -> "WaitEmailAddress"
+        is AuthorizationStateWaitEmailCode -> "WaitEmailCode"
+        is AuthorizationStateWaitCode -> "WaitCode"
+        is AuthorizationStateWaitOtherDeviceConfirmation -> "WaitOtherDeviceConfirmation"
+        is AuthorizationStateWaitRegistration -> "WaitRegistration"
+        is AuthorizationStateWaitPassword -> "WaitPassword"
+        is AuthorizationStateWaitPremiumPurchase -> "WaitPremiumPurchase"
+        is AuthorizationStateReady -> "Ready"
+        is AuthorizationStateLoggingOut -> "LoggingOut"
+        is AuthorizationStateClosing -> "Closing"
+        is AuthorizationStateClosed -> "Closed"
     }
 
     private suspend fun sendTdlibParameters() {

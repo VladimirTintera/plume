@@ -56,6 +56,14 @@ android {
         // `versionName` nemění.
         versionCode = (configValue("androidVersionCode", "ANDROID_VERSION_CODE") ?: "12").toInt()
         versionName = configValue("androidVersionName", "ANDROID_VERSION_NAME") ?: "0.2.0"
+
+        // Sběr hlášení pádů. Výchozí hodnota je pro VŠECHNY build typy vypnuto, zapíná ho jen
+        // release níž — pády při vývoji (a pády z běžícího debuggeru) do konzole nepatří, jinak
+        // by v ní skutečná hlášení od testerů zanikla.
+        //
+        // Přepíná se manifestem, ne za běhu: Crashlytics ten příznak čte při inicializaci
+        // procesu, tedy dřív, než se v aplikaci dá cokoli spustit.
+        manifestPlaceholders["crashlyticsCollectionEnabled"] = "false"
     }
 
     packaging {
@@ -103,6 +111,8 @@ android {
                 "proguard-rules.pro",
             )
             signingConfig = signingConfigs.findByName("release")
+
+            manifestPlaceholders["crashlyticsCollectionEnabled"] = "true"
         }
     }
 
@@ -155,8 +165,17 @@ fun localProperty(name: String): String? {
 val googleServicesConfig = file("google-services.json")
 if (googleServicesConfig.exists()) {
     apply(plugin = "com.google.gms.google-services")
+
+    // Crashlytics jede na tomtéž `google-services.json` jako push — bere si z něj id aplikace,
+    // pod kterým se hlášení v konzoli spárují. Plugin se aplikuje AŽ ZA `google-services`,
+    // protože si jeho konfiguraci čte.
+    //
+    // Sám o sobě nic neodesílá; k buildu přidá dvě věci, které se bez něj nedají doplnit
+    // zpětně: build id zapečené do APK a nahrání R8 mapping souboru. Bez mapping souboru je
+    // stack trace z release buildu jen seznam jednopísmenných tříd.
+    apply(plugin = "com.google.firebase.crashlytics")
 } else {
-    logger.lifecycle("google-services.json chybí — build bez push notifikací.")
+    logger.lifecycle("google-services.json chybí — build bez push notifikací a bez hlášení pádů.")
 }
 
 /**

@@ -122,6 +122,29 @@ takže to zatím nemá co využít.
 (na pozadí systém proces uspí) a skutečná cesta vede přes notification service extension, která
 payload rozšifruje — to je samostatný kus práce.
 
+## Hlášení pádů
+
+Release build hlásí pády do **Firebase Crashlytics** — do téhož Firebase projektu, ze kterého je
+`google-services.json` pro push, takže není co nastavovat navíc. Hlášení se objeví ve Firebase
+Console → Crashlytics (první může chvíli trvat, konzole projekt při něm dokončí onboarding).
+
+Kromě samotných pádů tam chodí:
+
+- **zachycené chyby** — všechno, co aplikace zaloguje jako `error` i s výjimkou, se založí jako
+  samostatný problém, aniž by aplikace spadla;
+- **kontext k pádu** — poslední řádky logu (`info` a výš, nejvýš 64 kB), takže je vidět, co se
+  dělo těsně předtím. Obsah zpráv se do logu nepíše.
+
+Co je dobré vědět:
+
+- **Sběr je zapnutý jen v release buildu.** V debug buildu je vypnutý natvrdo (manifest), aby
+  se konzole nezaplnila pády z vývoje.
+- **Hlášení odejde až při příštím spuštění aplikace**, ne v okamžiku pádu. Po pádu je tedy potřeba
+  aplikaci ještě jednou spustit, jinak se v konzoli nic neukáže.
+- **Bez `google-services.json` aplikace funguje dál**, jen bez hlášení pádů — stejně jako bez pushe.
+- **iOS zatím pády nehlásí.** Firebase v Xcode projektu není; kód je připravený tak, že stačí
+  doplnit implementaci ze Swiftu.
+
 ## Release do Google Play
 
 Vydává se **pushnutím tagu** `android-<versionName>-<versionCode>` (např. `android-0.2.1-13`).
