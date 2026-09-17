@@ -53,7 +53,12 @@ actual class FileOpener(private val context: Context) {
 
         return try {
             context.startActivity(intent)
-            granted?.let { previous -> context.revokeUriPermission(previous, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            // Předchozí grant se ruší, JEN když šlo o jiný soubor. Odebrat ho u téhož URI by
+            // znamenalo vzít si zpátky oprávnění, které jsme právě vydali — druhé otevření téhož
+            // souboru pak skončilo na „media not found".
+            granted?.takeIf { it != uri }?.let { previous ->
+                context.revokeUriPermission(previous, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
             granted = uri
             true
         } catch (failure: ActivityNotFoundException) {

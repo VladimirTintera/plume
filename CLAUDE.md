@@ -1044,7 +1044,8 @@ stáhne a předá systému.
   a uživatel vidí „media not found". Proto se oprávnění ještě výslovně udělí každému, kdo intent
   zvládne (`queryIntentActivities` + `grantUriPermission`) — tatáž past jako u čteček notifikací
   u obrázku ve zprávě. Předchozí grant se při dalším otevření odebírá, aby nezůstal viset
-  napořád.
+  napořád — **ale jen když jde o jiné URI**. Odebrání u téhož souboru si vezme zpátky oprávnění,
+  které jsme právě vydali, takže **první otevření prošlo a každé další hlásilo „media not found"**.
 - **Ťuknutí musí umět stahování spustit ZNOVU** (`FileRepository.retryDownload`). `file()` si
   pamatuje, na co už request odešel, aby ho scroll nespouštěl při každém odběru; kdyby ale
   předchozí stahování skončilo v půli (spadlé spojení, TDLib soubor uvolnil), zůstal by ten stav
