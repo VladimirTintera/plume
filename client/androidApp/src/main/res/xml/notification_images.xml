@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Jediný adresář, který FileProvider vydává: zmenšené kopie fotek pro notifikace.
+     Název musí sedět s IMAGES_DIRECTORY v NotificationPresenter. Soubory TDLib ven nejdou. -->
+<paths>
+    <cache-path
+        name="notification_images"
+        path="notification_images/" />
+</paths>

@@ -66,6 +66,11 @@ sealed interface NotificationUpdate {
 data class ChatNotification(
     val groupId: Int,
     val notificationId: Int,
+    /**
+     * Id zprávy, ke které notifikace patří. Jediné, co mají společné dočasná notifikace z pushe
+     * a skutečná, která ji nahradí — id notifikace i text se liší (push u fotky předřazuje 🖼).
+     */
+    val messageId: Long,
     val chatId: Long,
     val chatTitle: String,
     /** `null` v soukromém chatu, kde je odesílatel totožný s chatem. */
@@ -89,4 +94,14 @@ data class ChatNotification(
      * ikona reprezentuje celou konverzaci, takže tam patří fotka skupiny.
      */
     val chatAvatarPath: String?,
+    /**
+     * Cesta k fotce ze zprávy, kterou notifikace ukáže u řádku. `null` u zprávy bez fotky, při
+     * vypnutém náhledu, u spoileru a mizejících fotek — a když se nestihla stáhnout.
+     */
+    val imagePath: String? = null,
+    /**
+     * Popisek fotky, když nějaký má. Android u řádku s obrázkem text nezobrazí, takže popisek
+     * jde do notifikace jako řádek navíc; [text] zůstává kvůli tickeru a čtečkám notifikací.
+     */
+    val imageCaption: String? = null,
 )

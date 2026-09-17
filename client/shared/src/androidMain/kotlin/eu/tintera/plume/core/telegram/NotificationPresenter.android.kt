@@ -4,14 +4,17 @@ import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
@@ -70,7 +73,8 @@ actual class NotificationPresenter(
      * Řádky, které TDLib nedávno odebral — kvůli rozpoznání NÁHRADY.
      *
      * Z pushe vydá TDLib dočasnou notifikaci a jakmile dostane skutečnou zprávu, dočasnou odebere
-     * a přidá novou se stejným textem. Pro systém je to nová zpráva, takže bez tohohle telefon
+     * a přidá novou k téže zprávě. Pozná se podle id zprávy, ne podle textu — push u fotky
+     * předřazuje popisku 🖼, takže se texty neshodují. Pro systém je to nová zpráva, takže bez tohohle telefon
      * upozornil dvakrát (ověřeno v `notification_alert` event logu). Sahá se sem ze stejné
      * korutiny jako na [conversations].
      */
@@ -134,10 +138,13 @@ actual class NotificationPresenter(
                 .map {
                     Line(
                         notificationId = it.notificationId,
+                        messageId = it.messageId,
                         sender = it.senderName,
                         text = it.text,
                         timestampMs = it.timestamp * 1000L,
                         icon = avatarIcon(it.avatarPath),
+                        image = it.imagePath?.let(::notificationImage),
+                        imageCaption = it.imageCaption,
                     )
                 }
 
@@ -146,16 +153,17 @@ actual class NotificationPresenter(
                 .takeLast(MAX_LINES)
 
             // Potichu, když nic nového nepřibylo, nebo přibylo jen to, co TDLib právě nahradil.
-            val onlyReplacements = added.all { line -> consumeRemoved(groupId, line.text) }
+            val onlyReplacements = added.all { line -> consumeRemoved(groupId, line.messageId) }
             show(groupId, conversation, silent = newest.isSilent || onlyReplacements)
         }
     }
 
-    /** Najde a spotřebuje nedávno odebraný řádek se stejným textem. */
-    private fun consumeRemoved(groupId: Int, text: String): Boolean {
+    /** Najde a spotřebuje nedávno odebraný řádek téže zprávy. */
+    private fun consumeRemoved(groupId: Int, messageId: Long?): Boolean {
+        if (messageId == null) return false
         val now = SystemClock.elapsedRealtime()
         recentlyRemoved.removeAll { now - it.removedAtMs > REPLACEMENT_WINDOW_MS }
-        val match = recentlyRemoved.firstOrNull { it.groupId == groupId && it.text == text } ?: return false
+        val match = recentlyRemoved.firstOrNull { it.groupId == groupId && it.messageId == messageId } ?: return false
         recentlyRemoved.remove(match)
         return true
     }
@@ -168,6 +176,8 @@ actual class NotificationPresenter(
         conversations.keys.forEach { manager.cancel(it) }
         conversations.clear()
         bitmaps.clear()
+        // Fotky z notifikací odhlášeného účtu nemají v cache co dělat.
+        imagesDirectory.deleteRecursively()
         recentlyRemoved.clear()
         // Notifikace z minulého běhu procesu v `conversations` nejsou.
         manager.cancelAll()
@@ -198,7 +208,9 @@ actual class NotificationPresenter(
         val now = SystemClock.elapsedRealtime()
         conversation.lines
             .filter { it.notificationId in removed }
-            .forEach { recentlyRemoved += RemovedLine(update.groupId, it.text, now) }
+            .forEach { line ->
+                line.messageId?.let { recentlyRemoved += RemovedLine(update.groupId, it, now) }
+            }
         conversation.lines = conversation.lines.filterNot { it.notificationId in removed }
 
         if (conversation.lines.isEmpty()) {
@@ -248,7 +260,7 @@ actual class NotificationPresenter(
             .setConversationTitle(conversation.title.takeIf { isGroup })
 
         conversation.lines.forEach { line ->
-            style.addMessage(
+            val message = NotificationCompat.MessagingStyle.Message(
                 line.text,
                 line.timestampMs,
                 Person.Builder()
@@ -259,6 +271,14 @@ actual class NotificationPresenter(
                     .setIcon(line.icon.takeIf { isGroup })
                     .build(),
             )
+            // Fotka se ukáže přímo v řádku; text zůstává jako popisek a záloha pro čtenáře
+            // notifikací, kteří obrázky nekreslí.
+            line.image?.let { message.setData(IMAGE_MIME_TYPE, it) }
+            style.addMessage(message)
+            // Popisek jako řádek POD obrázkem, jako v bublině. Bez obrázku ho nese text řádku.
+            if (line.image != null && line.imageCaption != null) {
+                style.addMessage(line.imageCaption, line.timestampMs, message.person)
+            }
         }
 
         val built = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -293,6 +313,58 @@ actual class NotificationPresenter(
     }
 
     /**
+     * Fotka ze zprávy pro notifikaci jako `content://` URI.
+     *
+     * **Notifikaci kreslí jiný proces** (System UI), a ten do souborů aplikace nesmí — cesta
+     * k souboru TDLib by mu nebyla k ničemu. Obrázek se proto vydává přes [FileProvider];
+     * oprávnění ke čtení přidělí System UI sám `NotificationManager`, protože URI patří
+     * aplikaci, která notifikaci posílá. Čtečkám notifikací (hodinky) se přiděluje ručně.
+     *
+     * **Vydává se zmenšená kopie v cache, ne soubor TDLib.** Provider tak nemusí zpřístupnit
+     * celý adresář TDLib, kopie nezmizí, když TDLib uklidí soubory, a System UI nedekóduje víc
+     * pixelů, než do notifikace vejde. Když se kopie nepovede, notifikace zůstane bez fotky.
+     */
+    private fun notificationImage(path: String): Uri? = runCatching {
+        imagesDirectory.mkdirs()
+        pruneImages()
+
+        val target = java.io.File(imagesDirectory, "${path.hashCode().toUInt()}.jpg")
+        if (!target.exists()) {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(path, bounds)
+            var sample = 1
+            while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= MAX_IMAGE_EDGE) sample *= 2
+
+            val bitmap = BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
+                ?: return null
+            target.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, IMAGE_QUALITY, it) }
+            bitmap.recycle()
+        }
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}$IMAGE_AUTHORITY_SUFFIX", target)
+        // System UI oprávnění dostane automaticky, aplikace přeposílající notifikace ne —
+        // hodinky (Wear) pak hlásily SecurityException a obrázek vynechaly. Obsah notifikace
+        // tyhle aplikace čtou i tak, fotka navíc nic dalšího neprozradí.
+        NotificationManagerCompat.getEnabledListenerPackages(context).forEach { listener ->
+            context.grantUriPermission(listener, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        uri
+    }
+        .onFailure { logger.w(it) { "Fotku do notifikace se nepodařilo připravit." } }
+        .getOrNull()
+
+    /**
+     * Zahodí kopie starší než [IMAGE_MAX_AGE_MS]. Notifikace tak dlouho na liště nevisí, a kdyby
+     * přece, přijde jen o obrázek — text zůstane.
+     */
+    private fun pruneImages() {
+        val threshold = System.currentTimeMillis() - IMAGE_MAX_AGE_MS
+        imagesDirectory.listFiles()?.filter { it.lastModified() < threshold }?.forEach { it.delete() }
+    }
+
+    /** Musí sedět s `notification_images.xml` v manifestu aplikace. */
+    private val imagesDirectory: java.io.File get() = java.io.File(context.cacheDir, IMAGES_DIRECTORY)
+
+    /**
      * Řádky notifikace, která v liště zůstala po minulém běhu procesu.
      *
      * Push probouzí mrtvý proces, takže tohle není okrajový případ: bez převzetí by třetí zpráva
@@ -314,6 +386,7 @@ actual class NotificationPresenter(
                 timestampMs = message.timestamp,
                 // Profilovka se převezme taky — znovu ji z cesty poskládat nejde, tu už nemáme.
                 icon = message.person?.icon,
+                image = message.dataUri?.takeIf { message.dataMimeType?.startsWith("image/") == true },
             )
         }
     }
@@ -389,19 +462,39 @@ actual class NotificationPresenter(
     /** Jedna zpráva v notifikaci. [notificationId] je `null` u řádku převzatého po restartu. */
     private class Line(
         val notificationId: Int?,
+        /** `null` u řádku převzatého po restartu, stejně jako [notificationId]. */
+        val messageId: Long? = null,
         val sender: String?,
         val text: String,
         val timestampMs: Long,
         val icon: IconCompat?,
+        /** Fotka ze zprávy jako `content://` URI z [FileProvider]. */
+        val image: Uri? = null,
+        val imageCaption: String? = null,
     )
 
-    private class RemovedLine(val groupId: Int, val text: String, val removedAtMs: Long)
+    private class RemovedLine(val groupId: Int, val messageId: Long, val removedAtMs: Long)
 
     private companion object {
         const val CHANNEL_ID = "messages"
 
         /** Kolik zpráv se v notifikaci drží. Android jich stejně vykreslí jen posledních pár. */
         const val MAX_LINES = 10
+
+        /** Podadresář cache s fotkami pro notifikace. Sdílí ho `res/xml/notification_images.xml`. */
+        const val IMAGES_DIRECTORY = "notification_images"
+
+        /** Přípona autority [FileProvider]u za `packageName`; stejná jako v manifestu. */
+        const val IMAGE_AUTHORITY_SUFFIX = ".notificationimages"
+
+        const val IMAGE_MIME_TYPE = "image/jpeg"
+
+        /** Delší hrana kopie. Notifikace obrázek ukáže nejvýš přes šířku lišty. */
+        const val MAX_IMAGE_EDGE = 1024
+
+        const val IMAGE_QUALITY = 85
+
+        const val IMAGE_MAX_AGE_MS = 7L * 24 * 60 * 60 * 1000
 
         /** Jak dlouho po odebrání se nový řádek se stejným textem považuje za náhradu. */
         const val REPLACEMENT_WINDOW_MS = 60_000L
