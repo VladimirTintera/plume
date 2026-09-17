@@ -371,6 +371,10 @@ který uvidí uživatel.
 - **`verifyTranslations` visí na `check`.** Chybějící klíč by se jinak poznal až na obrazovce:
   Compose spadne zpátky na výchozí jazyk, takže uprostřed české aplikace vyskočí anglická věta
   a nic to nenahlásí.
+- **`verifyNoHardcodedText` hlídá, že se text nevrátí do kódu.** Má dvě pravidla, protože
+  s jedním to dvakrát propadlo: slot v UI (`Text(`, `text =`, `contentDescription = …`) nesmí
+  dostat literál vůbec a český text nesmí být nikde mimo komentáře, logy a vnitřní kontroly.
+  Hledat jen podle diakritiky nestačí — „Odebrat soubor" ani „Video" tak nenajdeš.
 - **Ověřuje se přepnutím jazyka aplikace**, ne celého systému:
   `adb shell cmd locale set-app-locales eu.tintera.plume --locales cs-CZ` (prázdná hodnota vrátí
   systémový). Restart aplikace stačí, emulátor rebootovat netřeba.

@@ -41,6 +41,8 @@ import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.telegram.StickerSetDetail
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.stickers_add_set
+import eu.tintera.plume.resources.stickers_count
+import eu.tintera.plume.resources.stickers_remove_set
 import eu.tintera.plume.resources.stickers_set_load_failed
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -49,6 +51,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -226,7 +229,7 @@ fun StickerSetSheet(
                             onClick = viewModel::toggleInstalled,
                             enabled = !current.changing,
                             modifier = Modifier.fillMaxWidth(),
-                        ) { Text("Odebrat sadu") }
+                        ) { Text(stringResource(Res.string.stickers_remove_set)) }
                     }
                 }
             }
@@ -234,9 +237,7 @@ fun StickerSetSheet(
     }
 }
 
-/** České skloňování: 1 samolepka, 2–4 samolepky, 5+ samolepek. */
-private fun stickerCount(count: Int): String = when {
-    count == 1 -> "1 samolepka"
-    count in 2..4 -> "$count samolepky"
-    else -> "$count samolepek"
-}
+/** Skloňování řeší `plurals` v prostředcích — čeština má tři tvary, angličtina dva. */
+@Composable
+private fun stickerCount(count: Int): String =
+    pluralStringResource(Res.plurals.stickers_count, count, count)

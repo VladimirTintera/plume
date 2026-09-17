@@ -295,6 +295,22 @@
     <string name="notification_channel_description">Nové zprávy z Telegramu</string>
     <string name="notification_self_name">Já</string>
     <string name="clipboard_label">Zpráva</string>
+    <string name="conversation_fallback_title">Konverzace</string>
+    <string name="conversation_scroll_to_end">Na konec konverzace</string>
+    <string name="conversation_edited_suffix"> · upraveno</string>
+    <string name="conversation_open_emoji">Emoji</string>
+    <string name="conversation_open_stickers">Samolepky</string>
+    <string name="conversation_attach_media">Fotka nebo video</string>
+    <string name="conversation_attach_file">Soubor</string>
+    <string name="conversation_pick_chat">Vyber chat vlevo.</string>
+    <string name="conversation_react">Reagovat</string>
+    <string name="attachment_remove_file">Odebrat soubor</string>
+    <string name="attachment_remove_photo">Odebrat fotku</string>
+    <string name="emoji_search">Hledat emoji</string>
+    <string name="emoji_delete">Smazat</string>
+    <string name="stickers_search">Hledat samolepky</string>
+    <string name="stickers_tab_emoji">Emoji</string>
+    <string name="stickers_tab_stickers">Samolepky</string>
     <plurals name="conversation_new_messages">
         <item quantity="one">%1$d nová zpráva</item>
         <item quantity="few">%1$d nové zprávy</item>
@@ -304,5 +320,10 @@
         <item quantity="one">Zobrazit všechny (%1$d)</item>
         <item quantity="few">Zobrazit všechny (%1$d)</item>
         <item quantity="other">Zobrazit všechny (%1$d)</item>
+    </plurals>
+    <plurals name="stickers_count">
+        <item quantity="one">%1$d samolepka</item>
+        <item quantity="few">%1$d samolepky</item>
+        <item quantity="other">%1$d samolepek</item>
     </plurals>
 </resources>

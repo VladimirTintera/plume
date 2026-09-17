@@ -295,6 +295,22 @@
     <string name="notification_channel_description">New messages from Telegram</string>
     <string name="notification_self_name">Me</string>
     <string name="clipboard_label">Message</string>
+    <string name="conversation_fallback_title">Conversation</string>
+    <string name="conversation_scroll_to_end">To the end of the conversation</string>
+    <string name="conversation_edited_suffix"> · edited</string>
+    <string name="conversation_open_emoji">Emoji</string>
+    <string name="conversation_open_stickers">Stickers</string>
+    <string name="conversation_attach_media">Photo or video</string>
+    <string name="conversation_attach_file">File</string>
+    <string name="conversation_pick_chat">Pick a chat on the left.</string>
+    <string name="conversation_react">React</string>
+    <string name="attachment_remove_file">Remove the file</string>
+    <string name="attachment_remove_photo">Remove the photo</string>
+    <string name="emoji_search">Search emoji</string>
+    <string name="emoji_delete">Delete</string>
+    <string name="stickers_search">Search stickers</string>
+    <string name="stickers_tab_emoji">Emoji</string>
+    <string name="stickers_tab_stickers">Stickers</string>
     <plurals name="conversation_new_messages">
         <item quantity="one">%1$d new message</item>
         <item quantity="other">%1$d new messages</item>
@@ -302,5 +318,9 @@
     <plurals name="conversation_show_all_pinned">
         <item quantity="one">Show all (%1$d)</item>
         <item quantity="other">Show all (%1$d)</item>
+    </plurals>
+    <plurals name="stickers_count">
+        <item quantity="one">%1$d sticker</item>
+        <item quantity="other">%1$d stickers</item>
     </plurals>
 </resources>

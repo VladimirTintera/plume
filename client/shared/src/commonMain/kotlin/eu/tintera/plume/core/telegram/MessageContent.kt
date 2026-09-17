@@ -289,17 +289,17 @@ internal suspend fun Message.messageMedia(): MessageMedia? = when (val content =
     )
 
     is MessageAnimation -> MessageMedia.Attachment(
-        label = "GIF",
+        label = getString(Res.string.content_gif),
         thumbnailFileId = content.animation.thumbnail?.file?.id,
     )
 
     is MessageDocument -> MessageMedia.Attachment(
-        label = content.document.fileName.ifBlank { "Soubor" },
+        label = content.document.fileName.ifBlankGet { getString(Res.string.content_file) },
         thumbnailFileId = content.document.thumbnail?.file?.id,
         fileId = content.document.document.id,
     )
 
-    is MessageAudio -> MessageMedia.Attachment(label = "Audio", thumbnailFileId = null)
+    is MessageAudio -> MessageMedia.Attachment(label = getString(Res.string.content_audio), thumbnailFileId = null)
     is MessageVoiceNote -> MessageMedia.VoiceNote(
         fileId = content.voiceNote.voice.id,
         durationSeconds = content.voiceNote.duration,
@@ -320,13 +320,13 @@ internal suspend fun Message.messageMedia(): MessageMedia? = when (val content =
     )
 
     is MessageGame -> MessageMedia.Attachment(
-        label = "Hra: ${content.game.title}",
+        label = getString(Res.string.content_game, content.game.title),
         thumbnailFileId = content.game.photo.sizes.filterNotNull()
             .minByOrNull { it.width * it.height }?.photo?.id,
     )
 
     is MessageInvoice -> MessageMedia.Attachment(
-        label = "Platba: ${content.productInfo.title}",
+        label = getString(Res.string.content_invoice, content.productInfo.title),
         thumbnailFileId = content.productInfo.photo?.sizes?.filterNotNull()
             ?.minByOrNull { it.width * it.height }?.photo?.id,
     )

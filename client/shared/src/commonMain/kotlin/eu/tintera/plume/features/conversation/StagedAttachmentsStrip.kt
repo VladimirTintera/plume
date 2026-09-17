@@ -30,9 +30,12 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.attachment_remove_file
+import eu.tintera.plume.resources.attachment_remove_photo
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.conversation_attachment_position
 import eu.tintera.plume.resources.description_24dp
+import eu.tintera.plume.resources.media_video
 import eu.tintera.plume.resources.play_arrow_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -74,7 +77,7 @@ fun StagedAttachmentsStrip(
                         modifier = Modifier.weight(1f).padding(start = 12.dp),
                     )
                     IconButton(onClick = { onRemove(index) }) {
-                        Icon(painterResource(Res.drawable.close_24dp), contentDescription = "Odebrat soubor")
+                        Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.attachment_remove_file))
                     }
                 }
             }
@@ -131,7 +134,7 @@ private fun PhotoCarousel(
             ) {
                 Icon(
                     painterResource(Res.drawable.close_24dp),
-                    contentDescription = "Odebrat fotku",
+                    contentDescription = stringResource(Res.string.attachment_remove_photo),
                     modifier = Modifier.size(18.dp),
                 )
             }
@@ -154,7 +157,7 @@ private fun VideoBadge(durationSeconds: Int, modifier: Modifier = Modifier) {
     ) {
         Icon(
             painterResource(Res.drawable.play_arrow_24dp),
-            contentDescription = "Video",
+            contentDescription = stringResource(Res.string.media_video),
             tint = Color.White,
             modifier = Modifier.size(16.dp),
         )
