@@ -136,12 +136,21 @@ tag pushne a release spustí. `versionCode` se zvyšuje vždy — Play si pamatu
 
 ### Co je potřeba nastavit jednou
 
-**1. Service account pro Play Console.** V [Google Cloud](https://console.cloud.google.com/)
-založ projekt, povol v něm **Google Play Android Developer API**, vytvoř service account
-a stáhni jeho **JSON klíč**. Pak v Play Console → *Users and permissions* → *Invite new users*
-pozvi e‑mail toho service accountu a dej mu u aplikace Plume práva **Release → Release apps to
-testing tracks** (plus *View app information*). Propojení účtů se dělá v Play Console →
-*Setup* → *API access*.
+**1. Service account pro Play Console.** Patří do **vlastního GCP projektu** (např. `mobile-ci`),
+ne do Firebase projektu aplikace — do toho potřebuje přístup každý, kdo ladí push notifikace,
+a takový člověk by tím zároveň mohl vystavit klíč s právem publikovat do Play. Vlastní projekt
+se navíc dá použít i pro další aplikace a přežije případné smazání Firebase projektu.
+
+Postup: v [Google Cloud](https://console.cloud.google.com/) založ projekt (*název* `mobile-ci`,
+ID musí být globálně unikátní, takže klidně vygenerované), povol v něm **Google Play Android
+Developer API**, vytvoř service account a stáhni jeho **JSON klíč**. Pak v Play Console →
+*Users and permissions* → *Invite new users* pozvi e‑mail toho service accountu a dej mu
+u aplikace Plume práva **Release → Release apps to testing tracks** (plus *View app information*).
+
+Oprávnění k publikování tedy **nejde přes GCP IAM**, ale přes Play Console; GCP projekt jen
+hostuje identitu a má povolené API. Propojení se nastavuje v Play Console → *Setup* → *API access*
+— pozor, **linkuje se jeden Cloud projekt na celý developer účet**. Když už tam nějaký připojený
+je, je čistší service account založit v něm než link přepisovat.
 
 **2. Secrets v repozitáři** (Settings → Secrets and variables → Actions):
 
