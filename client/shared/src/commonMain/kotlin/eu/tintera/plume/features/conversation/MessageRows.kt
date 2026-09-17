@@ -50,6 +50,24 @@ internal class MessageRow(val messages: List<ChatMessage>) {
 }
 
 /**
+ * Položka, u které se hlásí „přečteno" — nebo `null`, když se nehlásí u žádné.
+ *
+ * Stačí to říct u **nejnovější zprávy chatu**, a jen když je moje: přečtením té poslední jsou
+ * přečtené i všechny před ní, takže dvojitá fajfka u celé historie byla řada stejných odznaků
+ * bez informace. A **když po mojí zprávě napsal protějšek, je přečtení dokázané samo** —
+ * odznak už nemá co dodat. Proto se hledá nejnovější zpráva, ne nejnovější odchozí: vyjde-li
+ * příchozí, nehlásí přečteno nikdo.
+ *
+ * Servisní oznámení se přeskakují. „X se přidal do skupiny" nedokazuje, že si někdo něco přečetl,
+ * takže by odznak schovalo neprávem.
+ *
+ * [rows] jde jako seznam konverzace, tedy **od nejnovější**.
+ */
+internal fun readBadgeRow(rows: List<MessageRow>): MessageRow? =
+    rows.firstOrNull { !it.display.isService }
+        ?.takeIf { it.display.isOutgoing }
+
+/**
  * Spojí sousední zprávy téhož alba do jedné položky.
  *
  * Jen **sousední**: album se odesílá naráz a jeho zprávy mají po sobě jdoucí id, takže mezi ně nic

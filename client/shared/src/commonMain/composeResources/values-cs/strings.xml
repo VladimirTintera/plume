@@ -309,7 +309,7 @@
     <string name="clipboard_label">Zpráva</string>
     <string name="conversation_fallback_title">Konverzace</string>
     <string name="conversation_scroll_to_end">Na konec konverzace</string>
-    <string name="conversation_edited_suffix"> · upraveno</string>
+    <string name="conversation_edited">upraveno</string>
     <string name="conversation_open_emoji">Emoji</string>
     <string name="conversation_open_stickers">Samolepky</string>
     <string name="conversation_attach_media">Fotka nebo video</string>
