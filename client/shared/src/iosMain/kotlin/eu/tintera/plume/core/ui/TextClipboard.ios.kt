@@ -4,7 +4,7 @@ import platform.UIKit.UIPasteboard
 
 actual class TextClipboard {
 
-    actual fun copy(text: String) {
+    actual suspend fun copy(text: String) {
         UIPasteboard.generalPasteboard.string = text
     }
 }

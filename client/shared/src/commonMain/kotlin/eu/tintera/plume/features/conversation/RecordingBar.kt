@@ -24,15 +24,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_discard_recording
 import eu.tintera.plume.resources.delete_24dp
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Pruh nahrávání ve vstupní kartě místo textového pole: zahodit, blikající tečka, čas a živé
@@ -64,7 +66,7 @@ fun RecordingBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onCancel) {
-            Icon(painterResource(Res.drawable.delete_24dp), contentDescription = "Zahodit nahrávku")
+            Icon(painterResource(Res.drawable.delete_24dp), contentDescription = stringResource(Res.string.conversation_discard_recording))
         }
         Box(
             Modifier

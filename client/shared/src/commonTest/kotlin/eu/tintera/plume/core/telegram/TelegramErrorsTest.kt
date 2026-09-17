@@ -1,26 +1,33 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.chats_action_failed
+import eu.tintera.plume.resources.error_flood_wait_minutes
+import eu.tintera.plume.resources.error_flood_wait_seconds
+import eu.tintera.plume.resources.error_phone_code_invalid
+import eu.tintera.plume.resources.error_pin_limit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class TelegramErrorsTest {
 
-    private val fallback = "Akci se nepodařilo provést."
+    private val fallback = Res.string.chats_action_failed
 
     @Test
     fun `neznama hlaska od TDLib se uzivateli neukaze`() {
-        assertEquals(fallback, IllegalStateException("CHANNEL_PRIVATE").userMessage(fallback))
+        assertEquals(UiText(fallback), IllegalStateException("CHANNEL_PRIVATE").userMessage(fallback))
     }
 
     @Test
     fun `vyjimka bez hlasky spadne na zalozni vetu`() {
-        assertEquals(fallback, IllegalStateException().userMessage(fallback))
+        assertEquals(UiText(fallback), IllegalStateException().userMessage(fallback))
     }
 
     @Test
     fun `konstanta od serveru dostane vlastni vetu`() {
         assertEquals(
-            "Kód nesedí.",
+            UiText(Res.string.error_phone_code_invalid),
             IllegalStateException("PHONE_CODE_INVALID").userMessage(fallback),
         )
     }
@@ -28,7 +35,7 @@ class TelegramErrorsTest {
     @Test
     fun `veta od TDLib dostane vlastni vetu`() {
         assertEquals(
-            "Víc chatů připnout nejde. Vyšší limit má Telegram Premium.",
+            UiText(Res.string.error_pin_limit),
             IllegalStateException("The maximum number of pinned chats exceeded").userMessage(fallback),
         )
     }
@@ -42,9 +49,9 @@ class TelegramErrorsTest {
     }
 
     @Test
-    fun `flood wait nese cas cekani`() {
+    fun `flood wait nese cas cekani jako argument`() {
         assertEquals(
-            "Moc rychle po sobě. Zkus to za 23 s.",
+            UiText(Res.string.error_flood_wait_seconds, 23),
             IllegalStateException("FLOOD_WAIT_23").userMessage(fallback),
         )
     }
@@ -52,7 +59,7 @@ class TelegramErrorsTest {
     @Test
     fun `flood wait z omezovace TDLib se cte taky`() {
         assertEquals(
-            "Moc rychle po sobě. Zkus to za 5 s.",
+            UiText(Res.string.error_flood_wait_seconds, 5),
             IllegalStateException("Too Many Requests: retry after 5").userMessage(fallback),
         )
     }
@@ -60,13 +67,13 @@ class TelegramErrorsTest {
     @Test
     fun `dlouhe cekani se rika v minutach a zaokrouhluje nahoru`() {
         assertEquals(
-            "Moc rychle po sobě. Zkus to za 4 min.",
+            UiText(Res.string.error_flood_wait_minutes, 4),
             IllegalStateException("FLOOD_WAIT_181").userMessage(fallback),
         )
     }
 
     @Test
     fun `flood wait bez cisla nesmi spadnout`() {
-        assertEquals(fallback, IllegalStateException("FLOOD_WAIT_").userMessage(fallback))
+        assertEquals(UiText(fallback), IllegalStateException("FLOOD_WAIT_").userMessage(fallback))
     }
 }

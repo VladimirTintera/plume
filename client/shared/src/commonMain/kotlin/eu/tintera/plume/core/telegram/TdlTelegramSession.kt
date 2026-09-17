@@ -25,6 +25,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.auth_error_email_unsupported
+import eu.tintera.plume.resources.auth_error_premium_required
+import eu.tintera.plume.resources.auth_error_start_failed
+import eu.tintera.plume.resources.auth_error_missing_api_credentials
 
 /**
  * Implementace [TelegramSession] nad `dev.g000sha256:tdl-coroutines`.
@@ -112,13 +118,9 @@ class TdlTelegramSession(
             // (a po zapnutí R8 to byl rovnou obfuskovaný nesmysl — „… není podporovaná: mu").
             is AuthorizationStateWaitEmailAddress,
             is AuthorizationStateWaitEmailCode,
-                -> _authStage.value = AuthStage.Failed(
-                "Tenhle účet chce ověření e-mailem a to zatím neumíme. Zkus číslo nebo QR kód.",
-            )
+                -> _authStage.value = AuthStage.Failed(UiText(Res.string.auth_error_email_unsupported))
 
-            is AuthorizationStateWaitPremiumPurchase -> _authStage.value = AuthStage.Failed(
-                "Přihlášení k tomuhle účtu vyžaduje nákup Telegram Premium; ten tenhle klient neumí.",
-            )
+            is AuthorizationStateWaitPremiumPurchase -> _authStage.value = AuthStage.Failed(UiText(Res.string.auth_error_premium_required))
         }
     }
 
@@ -149,10 +151,7 @@ class TdlTelegramSession(
 
     private suspend fun sendTdlibParameters() {
         if (BuildConfiguration.TELEGRAM_API_ID == 0 || BuildConfiguration.TELEGRAM_API_HASH.isBlank()) {
-            _authStage.value = AuthStage.Failed(
-                "Chybí api_id/api_hash. Vygeneruj si je na my.telegram.org a vlož do local.properties " +
-                    "jako telegramApiId a telegramApiHash.",
-            )
+            _authStage.value = AuthStage.Failed(UiText(Res.string.auth_error_missing_api_credentials))
             return
         }
 
@@ -179,7 +178,7 @@ class TdlTelegramSession(
             .toResult()
             .onFailure {
                 logger.e(it) { "setTdlibParameters selhalo." }
-                _authStage.value = AuthStage.Failed(it.userMessage("Nepodařilo se spustit spojení s Telegramem."))
+                _authStage.value = AuthStage.Failed(it.userMessage(Res.string.auth_error_start_failed))
                 return
             }
 

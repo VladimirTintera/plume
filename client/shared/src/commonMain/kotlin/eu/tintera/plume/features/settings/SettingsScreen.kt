@@ -1,21 +1,22 @@
 package eu.tintera.plume.features.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -27,16 +28,25 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LifecycleResumeEffect
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.notifications_24dp
 import eu.tintera.plume.resources.open_in_new_24dp
+import eu.tintera.plume.resources.settings_notifications
+import eu.tintera.plume.resources.settings_notifications_off
+import eu.tintera.plume.resources.settings_notifications_on
+import eu.tintera.plume.resources.settings_sign_out
+import eu.tintera.plume.resources.settings_sign_out_body
+import eu.tintera.plume.resources.settings_sign_out_confirm
+import eu.tintera.plume.resources.settings_sign_out_title
+import eu.tintera.plume.resources.settings_title
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun SettingsScreen(
@@ -65,7 +75,7 @@ fun SettingsScreen(
 
     Scaffold(
         modifier = modifier,
-        topBar = { LargeFlexibleTopAppBar(title = { Text("Nastavení") }) },
+        topBar = { LargeFlexibleTopAppBar(title = { Text(stringResource(Res.string.settings_title)) }) },
     ) { padding ->
         Column(
             Modifier
@@ -112,14 +122,16 @@ fun SettingsScreen(
                             contentDescription = null,
                         )
                     },
-                    headlineContent = { Text("Notifikace") },
+                    headlineContent = { Text(stringResource(Res.string.settings_notifications)) },
                     supportingContent = {
                         Text(
-                            if (notificationsEnabled) {
-                                "Zapnuté"
-                            } else {
-                                "Vypnuté — o nových zprávách se dozvíš až v aplikaci"
-                            },
+                            stringResource(
+                                if (notificationsEnabled) {
+                                    Res.string.settings_notifications_on
+                                } else {
+                                    Res.string.settings_notifications_off
+                                },
+                            ),
                         )
                     },
                     trailingContent = {
@@ -143,7 +155,7 @@ fun SettingsScreen(
                     contentColor = MaterialTheme.colorScheme.onErrorContainer,
                 ),
             ) {
-                Text("Odhlásit se")
+                Text(stringResource(Res.string.settings_sign_out))
             }
         }
     }
@@ -160,20 +172,19 @@ private fun LogOutDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Odhlásit se?") },
+        title = { Text(stringResource(Res.string.settings_sign_out_title)) },
         text = {
             Text(
-                "Zprávy a stažené soubory se z tohohle zařízení smažou. " +
-                    "Účet i chaty na ostatních zařízeních zůstanou beze změny.",
+                stringResource(Res.string.settings_sign_out_body),
             )
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text(text = "Odhlásit", color = MaterialTheme.colorScheme.error)
+                Text(text = stringResource(Res.string.settings_sign_out_confirm), color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Zrušit") }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
 }

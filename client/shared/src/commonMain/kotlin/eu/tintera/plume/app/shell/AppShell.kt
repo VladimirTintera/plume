@@ -59,6 +59,7 @@ import eu.tintera.plume.features.media.MediaViewerScreen
 import org.koin.core.parameter.parametersOf
 import eu.tintera.plume.features.settings.SettingsScreen
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Kořenový shell přihlášené aplikace: sekční navigace + list-detail pro chaty.
@@ -137,7 +138,7 @@ fun AppShell(modifier: Modifier = Modifier) {
                         selected = selected,
                         onClick = { selectTopLevel(dest.route) },
                         icon = { DestinationIcon(dest, selected) },
-                        label = { Text(dest.label) },
+                        label = { Text(stringResource(dest.label)) },
                         railExpanded = false,
                     )
                 }
@@ -184,7 +185,7 @@ fun AppShell(modifier: Modifier = Modifier) {
                             selected = selected,
                             onClick = { selectTopLevel(dest.route) },
                             icon = { DestinationIcon(dest, selected) },
-                            label = { Text(dest.label) },
+                            label = { Text(stringResource(dest.label)) },
                         )
                     }
                 }

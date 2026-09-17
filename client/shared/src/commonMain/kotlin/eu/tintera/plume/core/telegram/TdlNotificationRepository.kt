@@ -2,18 +2,21 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
-import dev.g000sha256.tdl.dto.File
 import dev.g000sha256.tdl.dto.DeviceToken
 import dev.g000sha256.tdl.dto.DeviceTokenApplePush
 import dev.g000sha256.tdl.dto.DeviceTokenFirebaseCloudMessaging
+import dev.g000sha256.tdl.dto.File
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.NotificationTypeNewMessage
 import dev.g000sha256.tdl.toResult
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.notification_new_message
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import org.jetbrains.compose.resources.getString
 
 /** Notifikace nad TDLib. */
 class TdlNotificationRepository(
@@ -63,7 +66,7 @@ class TdlNotificationRepository(
                     senderName = sender?.name?.takeIf { it != chatTitle },
                     // `showPreview = false` znamená, že si uživatel nepřeje vidět obsah
                     // na zamykací obrazovce. Musíme to respektovat.
-                    text = if (type.showPreview) type.message.previewText() else "Nová zpráva",
+                    text = if (type.showPreview) type.message.previewText() else getString(Res.string.notification_new_message),
                     isSilent = notification.isSilent,
                     timestamp = notification.date,
                     // Ve skupině patří k řádku profilovka toho, kdo psal; v soukromém chatu

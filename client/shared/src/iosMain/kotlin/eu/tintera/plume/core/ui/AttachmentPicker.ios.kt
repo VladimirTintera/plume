@@ -8,13 +8,20 @@ import androidx.compose.runtime.rememberUpdatedState
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.OutgoingThumbnail
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.attachment_prepare_failed
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.roundToInt
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import platform.AVFoundation.AVAssetExportPresetPassthrough
@@ -32,9 +39,9 @@ import platform.AVFoundation.tracksWithMediaType
 import platform.CoreGraphics.CGImageRelease
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeApplyAffineTransform
+import platform.CoreGraphics.CGSizeMake
 import platform.CoreMedia.CMTimeGetSeconds
 import platform.CoreMedia.CMTimeMake
-import platform.CoreGraphics.CGSizeMake
 import platform.Foundation.NSData
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSTemporaryDirectory
@@ -59,11 +66,6 @@ import platform.UniformTypeIdentifiers.UTTypeImage
 import platform.UniformTypeIdentifiers.UTTypeItem
 import platform.UniformTypeIdentifiers.UTTypeMovie
 import platform.darwin.NSObject
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.roundToInt
 
 /**
  * iOS: PHPicker na fotky, UIDocumentPicker na soubory. Ani jeden nepotřebuje oprávnění ke knihovně
@@ -75,7 +77,7 @@ import kotlin.math.roundToInt
 @Composable
 actual fun rememberAttachmentPicker(
     onPicked: (List<OutgoingAttachment>) -> Unit,
-    onError: (String) -> Unit,
+    onError: (UiText) -> Unit,
 ): AttachmentPicker {
     val scope = rememberCoroutineScope()
     val picked by rememberUpdatedState(onPicked)
@@ -93,7 +95,7 @@ actual fun rememberAttachmentPicker(
 private class IosAttachmentPicker(
     private val scope: CoroutineScope,
     private val onPicked: (List<OutgoingAttachment>) -> Unit,
-    private val onError: (String) -> Unit,
+    private val onError: (UiText) -> Unit,
 ) : AttachmentPicker {
 
     private val logger = Logger.withTag("Attachments")
@@ -110,7 +112,7 @@ private class IosAttachmentPicker(
             }
             val prepared = results.mapNotNull { it.getOrNull() }
             if (prepared.isNotEmpty()) onPicked(prepared)
-            if (prepared.size < results.size) onError("Některý soubor se nepodařilo načíst.")
+            if (prepared.size < results.size) onError(UiText(Res.string.attachment_prepare_failed))
         }
     }
 

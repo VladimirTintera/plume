@@ -8,7 +8,10 @@ import eu.tintera.plume.resources.forum_24dp
 import eu.tintera.plume.resources.forum_filled_24dp
 import eu.tintera.plume.resources.settings_24dp
 import eu.tintera.plume.resources.settings_filled_24dp
+import eu.tintera.plume.resources.nav_chats
+import eu.tintera.plume.resources.nav_settings
 import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
 
 /**
  * Sekce v railu / spodním baru.
@@ -23,10 +26,10 @@ import org.jetbrains.compose.resources.DrawableResource
  */
 enum class TopLevelDestination(
     val route: TopLevelRoute,
-    val label: String,
+    val label: StringResource,
     val icon: DrawableResource,
     val selectedIcon: DrawableResource,
 ) {
-    CHATS(ChatsRoute, "Chaty", Res.drawable.forum_24dp, Res.drawable.forum_filled_24dp),
-    SETTINGS(SettingsRoute, "Nastavení", Res.drawable.settings_24dp, Res.drawable.settings_filled_24dp),
+    CHATS(ChatsRoute, Res.string.nav_chats, Res.drawable.forum_24dp, Res.drawable.forum_filled_24dp),
+    SETTINGS(SettingsRoute, Res.string.nav_settings, Res.drawable.settings_24dp, Res.drawable.settings_filled_24dp),
 }

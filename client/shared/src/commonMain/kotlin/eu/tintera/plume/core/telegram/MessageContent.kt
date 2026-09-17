@@ -1,22 +1,21 @@
 package eu.tintera.plume.core.telegram
 
+import dev.g000sha256.tdl.dto.FormattedText
+import dev.g000sha256.tdl.dto.LinkPreviewTypeArticle
+import dev.g000sha256.tdl.dto.LinkPreviewTypeEmbeddedAnimationPlayer
+import dev.g000sha256.tdl.dto.LinkPreviewTypeEmbeddedVideoPlayer
+import dev.g000sha256.tdl.dto.LinkPreviewTypePhoto
+import dev.g000sha256.tdl.dto.LinkPreviewTypeVideo
 import dev.g000sha256.tdl.dto.Message
 import dev.g000sha256.tdl.dto.MessageAnimatedEmoji
 import dev.g000sha256.tdl.dto.MessageAnimation
-import dev.g000sha256.tdl.dto.MessageDice
 import dev.g000sha256.tdl.dto.MessageAudio
-import dev.g000sha256.tdl.dto.MessageDocument
-import dev.g000sha256.tdl.dto.MessagePhoto
-import dev.g000sha256.tdl.dto.MessageSticker
-import dev.g000sha256.tdl.dto.MessageText
-import dev.g000sha256.tdl.dto.MessageVideo
-import dev.g000sha256.tdl.dto.ThumbnailFormatMpeg4
-import dev.g000sha256.tdl.dto.MessageVoiceNote
-import eu.tintera.plume.core.audio.decodeWaveform
 import dev.g000sha256.tdl.dto.MessageCall
 import dev.g000sha256.tdl.dto.MessageChecklist
 import dev.g000sha256.tdl.dto.MessageContact
 import dev.g000sha256.tdl.dto.MessageContent
+import dev.g000sha256.tdl.dto.MessageDice
+import dev.g000sha256.tdl.dto.MessageDocument
 import dev.g000sha256.tdl.dto.MessageExpiredPhoto
 import dev.g000sha256.tdl.dto.MessageExpiredVideo
 import dev.g000sha256.tdl.dto.MessageExpiredVideoNote
@@ -26,19 +25,20 @@ import dev.g000sha256.tdl.dto.MessageInvoice
 import dev.g000sha256.tdl.dto.MessageLiveLocation
 import dev.g000sha256.tdl.dto.MessageLocation
 import dev.g000sha256.tdl.dto.MessagePaidMedia
+import dev.g000sha256.tdl.dto.MessagePhoto
 import dev.g000sha256.tdl.dto.MessagePoll
+import dev.g000sha256.tdl.dto.MessageSticker
 import dev.g000sha256.tdl.dto.MessageStory
+import dev.g000sha256.tdl.dto.MessageText
 import dev.g000sha256.tdl.dto.MessageUnsupported
 import dev.g000sha256.tdl.dto.MessageVenue
+import dev.g000sha256.tdl.dto.MessageVideo
 import dev.g000sha256.tdl.dto.MessageVideoNote
+import dev.g000sha256.tdl.dto.MessageVoiceNote
 import dev.g000sha256.tdl.dto.Photo
-import dev.g000sha256.tdl.dto.LinkPreviewTypeEmbeddedAnimationPlayer
-import dev.g000sha256.tdl.dto.LinkPreviewTypeEmbeddedVideoPlayer
-import dev.g000sha256.tdl.dto.LinkPreviewTypeVideo
-import dev.g000sha256.tdl.dto.LinkPreviewTypePhoto
-import dev.g000sha256.tdl.dto.LinkPreviewTypeArticle
 import dev.g000sha256.tdl.dto.Sticker
-import dev.g000sha256.tdl.dto.FormattedText
+import dev.g000sha256.tdl.dto.StickerFormatTgs
+import dev.g000sha256.tdl.dto.StickerFormatWebp
 import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.dto.TextEntityTypeBold
 import dev.g000sha256.tdl.dto.TextEntityTypeCode
@@ -52,11 +52,38 @@ import dev.g000sha256.tdl.dto.TextEntityTypeStrikethrough
 import dev.g000sha256.tdl.dto.TextEntityTypeTextUrl
 import dev.g000sha256.tdl.dto.TextEntityTypeUnderline
 import dev.g000sha256.tdl.dto.TextEntityTypeUrl
-import dev.g000sha256.tdl.dto.StickerFormatTgs
-import dev.g000sha256.tdl.dto.StickerFormatWebp
 import dev.g000sha256.tdl.dto.ThumbnailFormatJpeg
+import dev.g000sha256.tdl.dto.ThumbnailFormatMpeg4
 import dev.g000sha256.tdl.dto.ThumbnailFormatPng
 import dev.g000sha256.tdl.dto.ThumbnailFormatWebp
+import eu.tintera.plume.core.audio.decodeWaveform
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.content_audio
+import eu.tintera.plume.resources.content_call
+import eu.tintera.plume.resources.content_checklist
+import eu.tintera.plume.resources.content_contact
+import eu.tintera.plume.resources.content_expired_photo
+import eu.tintera.plume.resources.content_expired_video
+import eu.tintera.plume.resources.content_expired_video_note
+import eu.tintera.plume.resources.content_expired_voice_note
+import eu.tintera.plume.resources.content_file
+import eu.tintera.plume.resources.content_game
+import eu.tintera.plume.resources.content_gif
+import eu.tintera.plume.resources.content_invoice
+import eu.tintera.plume.resources.content_live_location
+import eu.tintera.plume.resources.content_location
+import eu.tintera.plume.resources.content_paid
+import eu.tintera.plume.resources.content_poll
+import eu.tintera.plume.resources.content_story
+import eu.tintera.plume.resources.content_unsupported
+import eu.tintera.plume.resources.content_venue
+import eu.tintera.plume.resources.content_video_call
+import eu.tintera.plume.resources.content_video_note
+import eu.tintera.plume.resources.conversation_voice_message
+import eu.tintera.plume.resources.media_photo
+import eu.tintera.plume.resources.media_sticker
+import eu.tintera.plume.resources.media_video
+import org.jetbrains.compose.resources.getString
 
 /**
  * Textová podoba obsahu zprávy pro **náhled v seznamu chatů**.
@@ -65,15 +92,15 @@ import dev.g000sha256.tdl.dto.ThumbnailFormatWebp
  * u médií se použije popisek, a když ho zpráva nemá, název typu — prázdný řádek u fotky vypadá
  * jako chyba načítání.
  */
-internal fun Message.previewText(): String = when (val content = this.content) {
+internal suspend fun Message.previewText(): String = when (val content = this.content) {
     is MessageText -> content.text.text
-    is MessagePhoto -> content.caption.text.ifBlank { "Fotka" }
-    is MessageVideo -> content.caption.text.ifBlank { "Video" }
-    is MessageAnimation -> content.caption.text.ifBlank { "GIF" }
-    is MessageDocument -> content.caption.text.ifBlank { "Soubor" }
-    is MessageAudio -> content.caption.text.ifBlank { "Audio" }
-    is MessageVoiceNote -> content.caption.text.ifBlank { "Hlasová zpráva" }
-    is MessageSticker -> content.sticker.emoji.ifBlank { "Samolepka" }
+    is MessagePhoto -> content.caption.text.ifBlankGet { getString(Res.string.media_photo) }
+    is MessageVideo -> content.caption.text.ifBlankGet { getString(Res.string.media_video) }
+    is MessageAnimation -> content.caption.text.ifBlankGet { getString(Res.string.content_gif) }
+    is MessageDocument -> content.caption.text.ifBlankGet { getString(Res.string.content_file) }
+    is MessageAudio -> content.caption.text.ifBlankGet { getString(Res.string.content_audio) }
+    is MessageVoiceNote -> content.caption.text.ifBlankGet { getString(Res.string.conversation_voice_message) }
+    is MessageSticker -> content.sticker.emoji.ifBlankGet { getString(Res.string.media_sticker) }
     is MessageAnimatedEmoji -> content.emoji
     is MessageDice -> content.diceText()
     else -> content.describe()
@@ -86,32 +113,39 @@ internal fun Message.previewText(): String = when (val content = this.content) {
  * takže se anketa, poloha i systémové oznámení tvářily stejně — a hlavně to vypadalo jako chyba
  * načítání, ne jako „tohle zatím neumíme".
  */
-private fun MessageContent.describe(): String = when (this) {
-    is MessageVideoNote -> "Video zpráva"
-    is MessagePoll -> "Anketa: ${poll.question.text}"
-    is MessageChecklist -> "Seznam úkolů: ${list.title.text}"
-    is MessageLocation -> "Poloha"
-    is MessageLiveLocation -> "Živá poloha"
-    is MessageVenue -> "Místo: ${venue.title}"
-    is MessageContact -> "Kontakt: ${contact.firstName} ${contact.lastName}".trim()
-    is MessageGame -> "Hra: ${game.title}"
-    is MessageInvoice -> "Platba: ${productInfo.title}"
-    is MessageStory -> "Story"
-    is MessagePaidMedia -> caption.text.ifBlank { "Placený obsah" }
-    is MessageCall -> if (isVideo) "Videohovor" else "Hovor"
+private suspend fun MessageContent.describe(): String = when (this) {
+    is MessageVideoNote -> getString(Res.string.content_video_note)
+    is MessagePoll -> getString(Res.string.content_poll, poll.question.text)
+    is MessageChecklist -> getString(Res.string.content_checklist, list.title.text)
+    is MessageLocation -> getString(Res.string.content_location)
+    is MessageLiveLocation -> getString(Res.string.content_live_location)
+    is MessageVenue -> getString(Res.string.content_venue, venue.title)
+    is MessageContact -> getString(Res.string.content_contact, "${contact.firstName} ${contact.lastName}".trim())
+    is MessageGame -> getString(Res.string.content_game, game.title)
+    is MessageInvoice -> getString(Res.string.content_invoice, productInfo.title)
+    is MessageStory -> getString(Res.string.content_story)
+    is MessagePaidMedia -> caption.text.ifBlankGet { getString(Res.string.content_paid) }
+    is MessageCall -> getString(if (isVideo) Res.string.content_video_call else Res.string.content_call)
 
     // Zprávy s časovým omezením, které vypršely. Soubor už na serveru není, takže není co stáhnout.
-    is MessageExpiredPhoto -> "Fotka vypršela"
-    is MessageExpiredVideo -> "Video vypršelo"
-    is MessageExpiredVideoNote -> "Video zpráva vypršela"
-    is MessageExpiredVoiceNote -> "Hlasová zpráva vypršela"
+    is MessageExpiredPhoto -> getString(Res.string.content_expired_photo)
+    is MessageExpiredVideo -> getString(Res.string.content_expired_video)
+    is MessageExpiredVideoNote -> getString(Res.string.content_expired_video_note)
+    is MessageExpiredVoiceNote -> getString(Res.string.content_expired_voice_note)
 
     // Klient je starší než server. Doslovný název typu by uživateli neřekl nic.
-    is MessageUnsupported -> "Tenhle typ zprávy zatím neumíme zobrazit"
+    is MessageUnsupported -> getString(Res.string.content_unsupported)
 
     // Systémová oznámení mají vlastní formulace i vykreslení.
-    else -> serviceText() ?: "Tenhle typ zprávy zatím neumíme zobrazit"
+    else -> serviceText() ?: getString(Res.string.content_unsupported)
 }
+
+/**
+ * Jako `ifBlank`, ale s pozastavitelnou náhradou — text typu se čte z prostředků, a to je
+ * `suspend`.
+ */
+private suspend inline fun String.ifBlankGet(fallback: () -> String): String =
+    if (isBlank()) fallback() else this
 
 /**
  * Text zprávy pro **konverzaci**, i s formátováním.
@@ -124,7 +158,7 @@ private fun MessageContent.describe(): String = when (this) {
  * by ukazovaly do jiného textu, než který se vykreslí. Stejný důvod, proč o servisních zprávách
  * rozhoduje jediná `serviceText()`.
  */
-internal fun Message.captionBody(): MessageBody = when (val content = this.content) {
+internal suspend fun Message.captionBody(): MessageBody = when (val content = this.content) {
     is MessageText -> content.text.toBody()
     is MessagePhoto -> content.caption.toBody()
     is MessageVideo -> content.caption.toBody()
@@ -242,7 +276,7 @@ private fun String.withScheme(): String = if (contains("://")) this else "https:
 private fun MessageDice.diceText(): String = if (value > 0) "$emoji $value" else emoji
 
 /** Příloha zprávy, nebo `null` u čistě textové. */
-internal fun Message.messageMedia(): MessageMedia? = when (val content = this.content) {
+internal suspend fun Message.messageMedia(): MessageMedia? = when (val content = this.content) {
     is MessagePhoto -> content.photo.toMedia()
 
     is MessageVideo -> MessageMedia.Video(
@@ -281,7 +315,7 @@ internal fun Message.messageMedia(): MessageMedia? = when (val content = this.co
 
     // Kolečko s videem. Náhled je čtvercový, kulatý ořez by patřil k přehrávání, které neumíme.
     is MessageVideoNote -> MessageMedia.Attachment(
-        label = "Video zpráva",
+        label = getString(Res.string.content_video_note),
         thumbnailFileId = content.videoNote.thumbnail?.file?.id,
     )
 

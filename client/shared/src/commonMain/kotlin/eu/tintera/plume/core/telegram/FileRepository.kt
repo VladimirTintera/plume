@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.telegram
 
 import kotlinx.coroutines.flow.Flow
+import eu.tintera.plume.core.ui.UiText
 
 /**
  * Stahování souborů (fotky, videa, avatary) z TDLib.
@@ -35,5 +36,5 @@ sealed interface FileState {
     /** [path] je absolutní cesta do adresáře TDLib. */
     data class Ready(val path: String) : FileState
 
-    data class Failed(val message: String) : FileState
+    data class Failed(val message: UiText) : FileState
 }

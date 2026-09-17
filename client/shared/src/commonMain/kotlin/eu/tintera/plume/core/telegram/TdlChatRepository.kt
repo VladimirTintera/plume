@@ -40,6 +40,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.chats_load_failed
 
 /**
  * Živý seznam chatů nad TDLib.
@@ -127,10 +130,13 @@ class TdlChatRepository(
         // Nová poslední zpráva. Nese s sebou i nové pozice, takže se aktualizuje obojí najednou.
         scope.launch {
             holder.updates { chatLastMessageUpdates }.collect { update ->
+                // Náhled se čte z prostředků (`suspend`), takže se připraví před `edit` —
+                // ten bere obyčejnou funkci, protože běží pod zámkem nad stavem seznamu.
+                val preview = update.lastMessage?.previewText()
                 edit(update.chatId) { current ->
                     val position = update.positions.mainPosition()
                     current.copy(
-                        lastMessagePreview = update.lastMessage?.previewText(),
+                        lastMessagePreview = preview,
                         lastMessageTimestamp = update.lastMessage?.date,
                         order = position?.order ?: current.order,
                         isPinned = position?.isPinned ?: current.isPinned,
@@ -340,7 +346,7 @@ class TdlChatRepository(
                     // Když už nějaké chaty máme, chybu nedeklarujeme jako prázdný stav —
                     // uživatel by přišel o seznam kvůli selhání dotažení dalších.
                     if (known.isEmpty()) {
-                        _chats.value = ChatListState.Failed("Seznam chatů se nepodařilo načíst.")
+                        _chats.value = ChatListState.Failed(UiText(Res.string.chats_load_failed))
                         return
                     }
                 }
@@ -486,7 +492,7 @@ class TdlChatRepository(
  * Převod na doménový model. Vrací `null`, když chat v hlavní složce není (`order == 0`) — takový
  * do seznamu nepatří.
  */
-private fun Chat.toSummaryOrNull(): ChatSummary? {
+private suspend fun Chat.toSummaryOrNull(): ChatSummary? {
     val position = positions.mainPosition() ?: return null
     if (position.order == 0L) return null
 

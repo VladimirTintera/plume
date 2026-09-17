@@ -1,13 +1,49 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.runtime.Composable
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.date_day_month
+import eu.tintera.plume.resources.date_day_month_year
+import eu.tintera.plume.resources.date_short
+import eu.tintera.plume.resources.date_today
+import eu.tintera.plume.resources.date_yesterday
+import eu.tintera.plume.resources.date_yesterday_short
+import eu.tintera.plume.resources.day_long_1
+import eu.tintera.plume.resources.day_long_2
+import eu.tintera.plume.resources.day_long_3
+import eu.tintera.plume.resources.day_long_4
+import eu.tintera.plume.resources.day_long_5
+import eu.tintera.plume.resources.day_long_6
+import eu.tintera.plume.resources.day_long_7
+import eu.tintera.plume.resources.day_short_1
+import eu.tintera.plume.resources.day_short_2
+import eu.tintera.plume.resources.day_short_3
+import eu.tintera.plume.resources.day_short_4
+import eu.tintera.plume.resources.day_short_5
+import eu.tintera.plume.resources.day_short_6
+import eu.tintera.plume.resources.day_short_7
+import eu.tintera.plume.resources.month_1
+import eu.tintera.plume.resources.month_10
+import eu.tintera.plume.resources.month_11
+import eu.tintera.plume.resources.month_12
+import eu.tintera.plume.resources.month_2
+import eu.tintera.plume.resources.month_3
+import eu.tintera.plume.resources.month_4
+import eu.tintera.plume.resources.month_5
+import eu.tintera.plume.resources.month_6
+import eu.tintera.plume.resources.month_7
+import eu.tintera.plume.resources.month_8
+import eu.tintera.plume.resources.month_9
+import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Month
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Clock
-import kotlin.time.Instant
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Čas událostí starších než „dnes".
@@ -19,6 +55,7 @@ import kotlin.time.Instant
  * V konverzaci se naopak vypisují jen hodiny — tam je datum v hlavičce dne a zprávy jdou
  * chronologicky za sebou.
  */
+@Composable
 fun Int.asRelativeTime(): String {
     val zone = TimeZone.currentSystemDefault()
     val moment = Instant.fromEpochSeconds(toLong()).toLocalDateTime(zone)
@@ -29,22 +66,22 @@ fun Int.asRelativeTime(): String {
     return when {
         // Záporná hodnota znamená čas v budoucnosti — u posunutých hodin na zařízení se to stane.
         days <= 0 -> "${moment.hour.pad()}:${moment.minute.pad()}"
-        days == 1 -> "včera"
-        days < 7 -> moment.date.dayOfWeek.shortCzech()
-        else -> "${moment.date.day}. ${moment.date.month.number}."
+        days == 1 -> stringResource(Res.string.date_yesterday_short)
+        days < 7 -> stringResource(moment.date.dayOfWeek.shortName())
+        else -> stringResource(Res.string.date_short, moment.date.day, moment.date.month.number)
     }
 }
 
 private fun Int.pad(): String = toString().padStart(2, '0')
 
-private fun DayOfWeek.shortCzech(): String = when (this) {
-    DayOfWeek.MONDAY -> "po"
-    DayOfWeek.TUESDAY -> "út"
-    DayOfWeek.WEDNESDAY -> "st"
-    DayOfWeek.THURSDAY -> "čt"
-    DayOfWeek.FRIDAY -> "pá"
-    DayOfWeek.SATURDAY -> "so"
-    else -> "ne"
+private fun DayOfWeek.shortName(): StringResource = when (this) {
+    DayOfWeek.MONDAY -> Res.string.day_short_1
+    DayOfWeek.TUESDAY -> Res.string.day_short_2
+    DayOfWeek.WEDNESDAY -> Res.string.day_short_3
+    DayOfWeek.THURSDAY -> Res.string.day_short_4
+    DayOfWeek.FRIDAY -> Res.string.day_short_5
+    DayOfWeek.SATURDAY -> Res.string.day_short_6
+    else -> Res.string.day_short_7
 }
 
 /**
@@ -56,6 +93,7 @@ private fun DayOfWeek.shortCzech(): String = when (this) {
  *
  * Rok se dopisuje jen tehdy, když nesedí s letoškem — u letošních dat je to šum.
  */
+@Composable
 fun Int.asDayLabel(): String {
     val zone = TimeZone.currentSystemDefault()
     val date = Instant.fromEpochSeconds(toLong()).toLocalDateTime(zone).date
@@ -65,11 +103,17 @@ fun Int.asDayLabel(): String {
 
     return when {
         // Záporná hodnota znamená čas v budoucnosti — u posunutých hodin na zařízení se to stane.
-        days <= 0 -> "Dnes"
-        days == 1 -> "Včera"
-        days < 7 -> date.dayOfWeek.longCzech()
-        date.year == today.year -> "${date.day}. ${date.month.czechGenitive()}"
-        else -> "${date.day}. ${date.month.czechGenitive()} ${date.year}"
+        days <= 0 -> stringResource(Res.string.date_today)
+        days == 1 -> stringResource(Res.string.date_yesterday)
+        days < 7 -> stringResource(date.dayOfWeek.longName())
+        date.year == today.year ->
+            stringResource(Res.string.date_day_month, date.day, stringResource(date.month.name()))
+        else -> stringResource(
+            Res.string.date_day_month_year,
+            date.day,
+            stringResource(date.month.name()),
+            date.year,
+        )
     }
 }
 
@@ -86,28 +130,32 @@ private fun Int.localDate(): LocalDate = Instant.fromEpochSeconds(toLong())
     .date
 
 /** Dlouhý název dne. V předělu je na zkratku dost místa a celé slovo se čte líp. */
-private fun DayOfWeek.longCzech(): String = when (this) {
-    DayOfWeek.MONDAY -> "Pondělí"
-    DayOfWeek.TUESDAY -> "Úterý"
-    DayOfWeek.WEDNESDAY -> "Středa"
-    DayOfWeek.THURSDAY -> "Čtvrtek"
-    DayOfWeek.FRIDAY -> "Pátek"
-    DayOfWeek.SATURDAY -> "Sobota"
-    else -> "Neděle"
+private fun DayOfWeek.longName(): StringResource = when (this) {
+    DayOfWeek.MONDAY -> Res.string.day_long_1
+    DayOfWeek.TUESDAY -> Res.string.day_long_2
+    DayOfWeek.WEDNESDAY -> Res.string.day_long_3
+    DayOfWeek.THURSDAY -> Res.string.day_long_4
+    DayOfWeek.FRIDAY -> Res.string.day_long_5
+    DayOfWeek.SATURDAY -> Res.string.day_long_6
+    else -> Res.string.day_long_7
 }
 
-/** Druhý pád, protože měsíc stojí za dnem: „5. února", ne „5. únor". */
-private fun Month.czechGenitive(): String = when (this) {
-    Month.JANUARY -> "ledna"
-    Month.FEBRUARY -> "února"
-    Month.MARCH -> "března"
-    Month.APRIL -> "dubna"
-    Month.MAY -> "května"
-    Month.JUNE -> "června"
-    Month.JULY -> "července"
-    Month.AUGUST -> "srpna"
-    Month.SEPTEMBER -> "září"
-    Month.OCTOBER -> "října"
-    Month.NOVEMBER -> "listopadu"
-    else -> "prosince"
+/**
+ * Název měsíce. Tvar si řeší každý jazyk sám: čeština ho má ve 2. pádu, protože stojí za dnem
+ * („5. února", ne „5. únor"), angličtina v základním. Proto je i samotné pořadí dne a měsíce
+ * formátovací řetězec (`date_day_month`), ne slepenec tady v kódu.
+ */
+private fun Month.name(): StringResource = when (this) {
+    Month.JANUARY -> Res.string.month_1
+    Month.FEBRUARY -> Res.string.month_2
+    Month.MARCH -> Res.string.month_3
+    Month.APRIL -> Res.string.month_4
+    Month.MAY -> Res.string.month_5
+    Month.JUNE -> Res.string.month_6
+    Month.JULY -> Res.string.month_7
+    Month.AUGUST -> Res.string.month_8
+    Month.SEPTEMBER -> Res.string.month_9
+    Month.OCTOBER -> Res.string.month_10
+    Month.NOVEMBER -> Res.string.month_11
+    else -> Res.string.month_12
 }

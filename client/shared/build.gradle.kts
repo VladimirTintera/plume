@@ -134,6 +134,44 @@ compose.resources {
     generateResClass = always
 }
 
+/**
+ * Hlídá, že se jazykové mutace nerozejdou.
+ *
+ * Výchozí je angličtina (`values/`), čeština je mutace (`values-cs/`). Chybějící klíč se jinak
+ * pozná až na obrazovce — Compose spadne zpátky na výchozí jazyk, takže uprostřed české
+ * aplikace vyskočí anglická věta a nic to nenahlásí.
+ */
+val verifyTranslations = tasks.register("verifyTranslations") {
+    group = "verification"
+    description = "Ověří, že values/ a values-cs/ mají stejné klíče."
+
+    val defaults = layout.projectDirectory.file("src/commonMain/composeResources/values/strings.xml")
+    val czech = layout.projectDirectory.file("src/commonMain/composeResources/values-cs/strings.xml")
+    inputs.file(defaults)
+    inputs.file(czech)
+
+    doLast {
+        val pattern = Regex("<(?:string|plurals) name=\"([^\"]+)\"")
+        fun keysOf(file: File): Set<String> =
+            pattern.findAll(file.readText()).map { it.groupValues[1] }.toSet()
+
+        val inDefault = keysOf(defaults.asFile)
+        val inCzech = keysOf(czech.asFile)
+        val missingCzech = (inDefault - inCzech).sorted()
+        val missingDefault = (inCzech - inDefault).sorted()
+
+        check(missingCzech.isEmpty() && missingDefault.isEmpty()) {
+            buildString {
+                appendLine("Jazykové mutace se rozešly.")
+                if (missingCzech.isNotEmpty()) appendLine("Chybí ve values-cs: " + missingCzech.joinToString())
+                if (missingDefault.isNotEmpty()) appendLine("Chybí ve values (výchozí): " + missingDefault.joinToString())
+            }
+        }
+    }
+}
+
+tasks.named("check") { dependsOn(verifyTranslations) }
+
 // api_id/api_hash z my.telegram.org. Čtou se z local.properties (gitignorovaný), aby se pár
 // nikdy nedostal do repozitáře. Bez nich se projekt přeloží, ale přihlášení skončí chybou
 // od serveru — hlásí se to srozumitelně místo pádu (viz sendTdlibParameters v TdlTelegramSession).

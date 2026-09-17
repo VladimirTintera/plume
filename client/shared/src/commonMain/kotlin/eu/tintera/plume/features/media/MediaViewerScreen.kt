@@ -1,40 +1,39 @@
 package eu.tintera.plume.features.media
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.foundation.gestures.calculateCentroid
-import androidx.compose.foundation.gestures.calculatePan
-import androidx.compose.foundation.gestures.calculateZoom
-import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -43,6 +42,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -50,13 +50,18 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.photoKey
+import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.close_24dp
-import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.painterResource
+import eu.tintera.plume.resources.common_close
+import eu.tintera.plume.resources.media_photo
+import eu.tintera.plume.resources.media_position
 import kotlin.math.abs
 import kotlin.math.max
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Fotka přes celou obrazovku.
@@ -94,7 +99,7 @@ fun MediaViewerScreen(
     ) {
         when {
             state.error != null -> Text(
-                text = state.error.orEmpty(),
+                text = requireNotNull(state.error).resolve(),
                 color = ON_SCRIM,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.align(Alignment.Center).padding(24.dp),
@@ -192,7 +197,7 @@ private fun BoxScope.MediaPager(
             val number = position.number + (pagerState.currentPage - initial)
             if (initial >= 0 && number in 1..position.total) {
                 Text(
-                    text = "$number z ${position.total}",
+                    text = stringResource(Res.string.media_position, number, position.total),
                     style = MaterialTheme.typography.titleMedium,
                     color = ON_SCRIM,
                 )
@@ -223,7 +228,7 @@ private fun CloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     IconButton(onClick = onClick, modifier = modifier.padding(4.dp)) {
         Icon(
             painterResource(Res.drawable.close_24dp),
-            contentDescription = "Zavřít",
+            contentDescription = stringResource(Res.string.common_close),
             tint = ON_SCRIM,
         )
     }
@@ -307,7 +312,7 @@ private fun ZoomableImage(
             // Ta je skoro vždycky už na disku, protože ji kreslila konverzace.
             fileId = photo.fullFileId,
             thumbnailFileId = photo.fileId,
-            contentDescription = "Fotka",
+            contentDescription = stringResource(Res.string.media_photo),
             contentScale = ContentScale.Fit,
             background = Color.Transparent,
             modifier = Modifier

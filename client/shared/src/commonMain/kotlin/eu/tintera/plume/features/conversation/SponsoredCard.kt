@@ -15,6 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.SponsoredMessage
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.sponsored_open
+import eu.tintera.plume.resources.sponsored_recommended
+import eu.tintera.plume.resources.sponsored_sponsored
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Sponzorovaná zpráva v kanálu.
@@ -45,7 +50,7 @@ fun SponsoredCard(
         ) {
             Text(
                 // Telegram odlišuje placené od doporučených; uživatel má vědět, co vidí.
-                text = if (sponsored.isRecommended) "Doporučeno" else "Sponzorováno",
+                text = stringResource(if (sponsored.isRecommended) Res.string.sponsored_recommended else Res.string.sponsored_sponsored),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -76,7 +81,7 @@ fun SponsoredCard(
                 modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
             ) {
                 // Popisek dodává Telegram — vlastní text by byl zásah do reklamy.
-                Text(sponsored.buttonText.ifBlank { "Otevřít" })
+                Text(sponsored.buttonText.ifBlank { stringResource(Res.string.sponsored_open) })
             }
         }
     }

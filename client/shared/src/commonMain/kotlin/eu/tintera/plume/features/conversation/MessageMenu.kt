@@ -9,13 +9,13 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -46,7 +47,6 @@ import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionOnScreen
 import androidx.compose.ui.platform.LocalDensity
@@ -63,16 +63,41 @@ import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_reaction_24dp
+import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.content_copy_24dp
 import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.delete_message_choice
+import eu.tintera.plume.resources.delete_message_for_all
+import eu.tintera.plume.resources.delete_message_for_partner
+import eu.tintera.plume.resources.delete_message_for_partner_named
+import eu.tintera.plume.resources.delete_message_for_self
+import eu.tintera.plume.resources.delete_message_title
 import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.keep_off_24dp
+import eu.tintera.plume.resources.menu_copy
+import eu.tintera.plume.resources.menu_delete
+import eu.tintera.plume.resources.menu_edit
+import eu.tintera.plume.resources.menu_favorite_add
+import eu.tintera.plume.resources.menu_favorite_remove
+import eu.tintera.plume.resources.menu_more_reactions
+import eu.tintera.plume.resources.menu_pin
+import eu.tintera.plume.resources.menu_reply
+import eu.tintera.plume.resources.menu_unpin
+import eu.tintera.plume.resources.pin_message_title
+import eu.tintera.plume.resources.pin_option_notify_channel
+import eu.tintera.plume.resources.pin_option_notify_group
+import eu.tintera.plume.resources.pin_option_private
+import eu.tintera.plume.resources.pin_option_private_named
+import eu.tintera.plume.resources.pin_scope_channel
+import eu.tintera.plume.resources.pin_scope_group
+import eu.tintera.plume.resources.pin_scope_private
 import eu.tintera.plume.resources.push_pin_24dp
 import eu.tintera.plume.resources.reply_24dp
-import eu.tintera.plume.resources.star_filled_24dp
 import eu.tintera.plume.resources.star_24dp
+import eu.tintera.plume.resources.star_filled_24dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Nabídka nad dlouze stisknutou zprávou.
@@ -107,36 +132,36 @@ fun MessageMenuOverlay(
     val id = menu.messageId
     val items = buildList {
         if (menu.actions.canReply) {
-            add(MenuItem(Res.drawable.reply_24dp, "Odpovědět") { handlers.onReply(id) })
+            add(MenuItem(Res.drawable.reply_24dp, stringResource(Res.string.menu_reply)) { handlers.onReply(id) })
         }
         if (menu.canEdit) {
-            add(MenuItem(Res.drawable.edit_24dp, "Upravit") { handlers.onEdit(id) })
+            add(MenuItem(Res.drawable.edit_24dp, stringResource(Res.string.menu_edit)) { handlers.onEdit(id) })
         }
         // Bez textu není co kopírovat, i kdyby to server dovolil.
         if (menu.actions.canCopy && menu.hasText) {
-            add(MenuItem(Res.drawable.content_copy_24dp, "Kopírovat") { handlers.onCopy(id) })
+            add(MenuItem(Res.drawable.content_copy_24dp, stringResource(Res.string.menu_copy)) { handlers.onCopy(id) })
         }
         menu.favoriteSticker?.let { favorite ->
             add(
                 if (favorite) {
-                    MenuItem(Res.drawable.star_filled_24dp, "Odebrat z oblíbených") { handlers.onToggleFavorite(id) }
+                    MenuItem(Res.drawable.star_filled_24dp, stringResource(Res.string.menu_favorite_remove)) { handlers.onToggleFavorite(id) }
                 } else {
-                    MenuItem(Res.drawable.star_24dp, "Přidat do oblíbených") { handlers.onToggleFavorite(id) }
+                    MenuItem(Res.drawable.star_24dp, stringResource(Res.string.menu_favorite_add)) { handlers.onToggleFavorite(id) }
                 },
             )
         }
         if (menu.actions.canPin) {
             add(
                 if (menu.isPinned) {
-                    MenuItem(Res.drawable.keep_off_24dp, "Odepnout") { handlers.onUnpin(id) }
+                    MenuItem(Res.drawable.keep_off_24dp, stringResource(Res.string.menu_unpin)) { handlers.onUnpin(id) }
                 } else {
-                    MenuItem(Res.drawable.push_pin_24dp, "Připnout") { handlers.onPin(id) }
+                    MenuItem(Res.drawable.push_pin_24dp, stringResource(Res.string.menu_pin)) { handlers.onPin(id) }
                 },
             )
         }
         if (menu.actions.canDeleteForSelf || menu.actions.canDeleteForAll) {
             add(
-                MenuItem(Res.drawable.delete_24dp, "Smazat", destructive = true) {
+                MenuItem(Res.drawable.delete_24dp, stringResource(Res.string.menu_delete), destructive = true) {
                     handlers.onDelete(id)
                 },
             )
@@ -357,7 +382,7 @@ private fun QuickReactions(
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
                             painterResource(Res.drawable.add_reaction_24dp),
-                            contentDescription = "Další reakce",
+                            contentDescription = stringResource(Res.string.menu_more_reactions),
                             modifier = Modifier.size(22.dp),
                         )
                     }
@@ -436,16 +461,17 @@ fun MessageDeleteDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Smazat zprávu?") },
+        title = { Text(stringResource(Res.string.delete_message_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    when {
-                        choice -> "Zpráva se smaže u tebe. Protějšku zůstane, dokud nezaškrtneš " +
-                            "smazání u obou."
-                        pending.canDeleteForAll -> "Zpráva zmizí všem v chatu. Vrátit to nejde."
-                        else -> "Zpráva se smaže jen u tebe. Ostatním zůstane."
-                    },
+                    stringResource(
+                        when {
+                            choice -> Res.string.delete_message_choice
+                            pending.canDeleteForAll -> Res.string.delete_message_for_all
+                            else -> Res.string.delete_message_for_self
+                        },
+                    ),
                 )
 
                 if (choice) {
@@ -458,7 +484,8 @@ fun MessageDeleteDialog(
                     ) {
                         Checkbox(checked = forEveryone, onCheckedChange = { forEveryone = it })
                         Text(
-                            text = partnerName?.let { "Smazat i u $it" } ?: "Smazat i u protějšku",
+                            text = partnerName?.let { stringResource(Res.string.delete_message_for_partner_named, it) }
+                                ?: stringResource(Res.string.delete_message_for_partner),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
@@ -467,11 +494,11 @@ fun MessageDeleteDialog(
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(revoke) }) {
-                Text(text = "Smazat", color = MaterialTheme.colorScheme.error)
+                Text(text = stringResource(Res.string.menu_delete), color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Zrušit") }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
 }
@@ -613,17 +640,19 @@ fun PinMessageDialog(
     val (description, optionLabel) = when (pending.scope) {
         PinScope.Private ->
             // Jméno v 1. pádu: skloňovat cizí jména neumíme a „i u Petr Novák" zní rozbitě.
-            "Zpráva se připne nahoru v chatu." to
-                ("Připnutou zprávu uvidí i " + (partnerName ?: "protějšek"))
+            stringResource(Res.string.pin_scope_private) to (
+                partnerName?.let { stringResource(Res.string.pin_option_private_named, it) }
+                    ?: stringResource(Res.string.pin_option_private)
+                )
         PinScope.Group ->
-            "Zpráva se připne nahoru pro všechny ve skupině." to "Upozornit členy"
+            stringResource(Res.string.pin_scope_group) to stringResource(Res.string.pin_option_notify_group)
         PinScope.Channel ->
-            "Zpráva se připne nahoru pro všechny odběratele." to "Upozornit odběratele"
+            stringResource(Res.string.pin_scope_channel) to stringResource(Res.string.pin_option_notify_channel)
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Připnout zprávu?") },
+        title = { Text(stringResource(Res.string.pin_message_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(description)
@@ -640,10 +669,10 @@ fun PinMessageDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(option) }) { Text("Připnout") }
+            TextButton(onClick = { onConfirm(option) }) { Text(stringResource(Res.string.menu_pin)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Zrušit") }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
 }

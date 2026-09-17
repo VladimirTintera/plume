@@ -29,7 +29,7 @@ interface AttachmentPicker {
 @Composable
 expect fun rememberAttachmentPicker(
     onPicked: (List<OutgoingAttachment>) -> Unit,
-    onError: (String) -> Unit,
+    onError: (UiText) -> Unit,
 ): AttachmentPicker
 
 /**

@@ -27,6 +27,32 @@ import dev.g000sha256.tdl.dto.MessageSupergroupChatCreate
 import dev.g000sha256.tdl.dto.MessageVideoChatEnded
 import dev.g000sha256.tdl.dto.MessageVideoChatScheduled
 import dev.g000sha256.tdl.dto.MessageVideoChatStarted
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.service_auto_delete_off
+import eu.tintera.plume.resources.service_auto_delete_on
+import eu.tintera.plume.resources.service_background_changed
+import eu.tintera.plume.resources.service_channel_created
+import eu.tintera.plume.resources.service_contact_joined
+import eu.tintera.plume.resources.service_game_score
+import eu.tintera.plume.resources.service_group_created
+import eu.tintera.plume.resources.service_group_upgraded
+import eu.tintera.plume.resources.service_join_approved
+import eu.tintera.plume.resources.service_joined_by_link
+import eu.tintera.plume.resources.service_member_left
+import eu.tintera.plume.resources.service_members_added
+import eu.tintera.plume.resources.service_message_pinned
+import eu.tintera.plume.resources.service_nearby
+import eu.tintera.plume.resources.service_photo_changed
+import eu.tintera.plume.resources.service_photo_removed
+import eu.tintera.plume.resources.service_screenshot
+import eu.tintera.plume.resources.service_theme_changed
+import eu.tintera.plume.resources.service_title_changed
+import eu.tintera.plume.resources.service_topic_created
+import eu.tintera.plume.resources.service_topic_edited
+import eu.tintera.plume.resources.service_video_chat_ended
+import eu.tintera.plume.resources.service_video_chat_scheduled
+import eu.tintera.plume.resources.service_video_chat_started
+import org.jetbrains.compose.resources.getString
 
 /**
  * Text servisní zprávy, nebo `null` když o servisní zprávu nejde.
@@ -42,43 +68,43 @@ import dev.g000sha256.tdl.dto.MessageVideoChatStarted
  * `null` pro obyčejný obsah je zároveň odpověď na otázku „je tohle servisní zpráva?" — jedno
  * místo rozhoduje o textu i o způsobu vykreslení, takže se ty dva nemůžou rozejít.
  */
-internal fun MessageContent.serviceText(): String? = when (this) {
-    is MessageChatAddMembers -> "Do skupiny přibyli členové"
-    is MessageChatJoinByLink -> "Někdo se připojil přes odkaz"
-    is MessageChatJoinByRequest -> "Žádost o vstup byla schválena"
-    is MessageChatDeleteMember -> "Ze skupiny někdo odešel"
+internal suspend fun MessageContent.serviceText(): String? = when (this) {
+    is MessageChatAddMembers -> getString(Res.string.service_members_added)
+    is MessageChatJoinByLink -> getString(Res.string.service_joined_by_link)
+    is MessageChatJoinByRequest -> getString(Res.string.service_join_approved)
+    is MessageChatDeleteMember -> getString(Res.string.service_member_left)
 
-    is MessageChatChangeTitle -> "Název změněn na „$title\""
-    is MessageChatChangePhoto -> "Změněna fotka skupiny"
-    is MessageChatDeletePhoto -> "Fotka skupiny odebrána"
-    is MessageChatSetTheme -> "Změněn motiv chatu"
-    is MessageChatSetBackground -> "Změněno pozadí chatu"
+    is MessageChatChangeTitle -> getString(Res.string.service_title_changed, title)
+    is MessageChatChangePhoto -> getString(Res.string.service_photo_changed)
+    is MessageChatDeletePhoto -> getString(Res.string.service_photo_removed)
+    is MessageChatSetTheme -> getString(Res.string.service_theme_changed)
+    is MessageChatSetBackground -> getString(Res.string.service_background_changed)
 
     is MessageChatSetMessageAutoDeleteTime -> when (messageAutoDeleteTime) {
-        0 -> "Automatické mazání zpráv vypnuto"
-        else -> "Zprávy se budou samy mazat"
+        0 -> getString(Res.string.service_auto_delete_off)
+        else -> getString(Res.string.service_auto_delete_on)
     }
 
-    is MessageBasicGroupChatCreate -> "Skupina „$title\" vytvořena"
-    is MessageSupergroupChatCreate -> "Kanál „$title\" vytvořen"
+    is MessageBasicGroupChatCreate -> getString(Res.string.service_group_created, title)
+    is MessageSupergroupChatCreate -> getString(Res.string.service_channel_created, title)
     // Převod na supergrupu se uživateli jeví jako jedna a tatáž skupina, takže nemá cenu
     // vysvětlovat, co se změnilo pod kapotou.
-    is MessageChatUpgradeTo -> "Skupina byla převedena"
-    is MessageChatUpgradeFrom -> "Skupina byla převedena"
+    is MessageChatUpgradeTo -> getString(Res.string.service_group_upgraded)
+    is MessageChatUpgradeFrom -> getString(Res.string.service_group_upgraded)
 
-    is MessagePinMessage -> "Připnuta zpráva"
-    is MessageScreenshotTaken -> "Pořízen snímek obrazovky"
-    is MessageContactRegistered -> "Kontakt se připojil k Telegramu"
-    is MessageProximityAlertTriggered -> "Někdo je poblíž"
+    is MessagePinMessage -> getString(Res.string.service_message_pinned)
+    is MessageScreenshotTaken -> getString(Res.string.service_screenshot)
+    is MessageContactRegistered -> getString(Res.string.service_contact_joined)
+    is MessageProximityAlertTriggered -> getString(Res.string.service_nearby)
 
-    is MessageVideoChatStarted -> "Videohovor začal"
-    is MessageVideoChatEnded -> "Videohovor skončil"
-    is MessageVideoChatScheduled -> "Videohovor naplánován"
+    is MessageVideoChatStarted -> getString(Res.string.service_video_chat_started)
+    is MessageVideoChatEnded -> getString(Res.string.service_video_chat_ended)
+    is MessageVideoChatScheduled -> getString(Res.string.service_video_chat_scheduled)
 
-    is MessageForumTopicCreated -> "Téma „$name\" vytvořeno"
-    is MessageForumTopicEdited -> "Téma upraveno"
+    is MessageForumTopicCreated -> getString(Res.string.service_topic_created, name)
+    is MessageForumTopicEdited -> getString(Res.string.service_topic_edited)
 
-    is MessageGameScore -> "Nové skóre ve hře"
+    is MessageGameScore -> getString(Res.string.service_game_score)
 
     // Tenhle typ nese hotový text od serveru; překládat ho není co.
     is MessageCustomServiceAction -> text

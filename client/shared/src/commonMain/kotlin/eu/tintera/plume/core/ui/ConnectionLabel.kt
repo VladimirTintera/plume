@@ -1,6 +1,12 @@
 package eu.tintera.plume.core.ui
 
 import eu.tintera.plume.core.telegram.ConnectionState
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.connection_connecting
+import eu.tintera.plume.resources.connection_connecting_to_proxy
+import eu.tintera.plume.resources.connection_updating
+import eu.tintera.plume.resources.connection_waiting_for_network
+import org.jetbrains.compose.resources.StringResource
 
 /**
  * Popisek stavu spojení, nebo `null`, když je všechno v pořádku.
@@ -11,10 +17,10 @@ import eu.tintera.plume.core.telegram.ConnectionState
  *
  * Sdílí ho seznam chatů i hlavička konverzace, aby tentýž stav nezněl na každém místě jinak.
  */
-fun ConnectionState.label(): String? = when (this) {
-    ConnectionState.WaitingForNetwork -> "Čekání na síť…"
-    ConnectionState.Connecting -> "Připojování…"
-    ConnectionState.ConnectingToProxy -> "Připojování k proxy…"
-    ConnectionState.Updating -> "Aktualizace…"
+fun ConnectionState.label(): StringResource? = when (this) {
+    ConnectionState.WaitingForNetwork -> Res.string.connection_waiting_for_network
+    ConnectionState.Connecting -> Res.string.connection_connecting
+    ConnectionState.ConnectingToProxy -> Res.string.connection_connecting_to_proxy
+    ConnectionState.Updating -> Res.string.connection_updating
     ConnectionState.Ready -> null
 }

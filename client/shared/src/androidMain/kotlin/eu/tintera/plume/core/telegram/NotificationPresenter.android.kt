@@ -7,17 +7,22 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import androidx.core.graphics.drawable.IconCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.content.ContextCompat
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.drawable.IconCompat
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.notifications.NotificationIntents
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.notification_channel_description
+import eu.tintera.plume.resources.notification_channel_name
+import eu.tintera.plume.resources.notification_self_name
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
 
 /**
  * Zobrazuje notifikace v Androidu.
@@ -59,10 +64,11 @@ actual class NotificationPresenter(
     private val bitmaps = mutableMapOf<String, Bitmap>()
 
     actual fun start(repository: NotificationRepository) {
-        createChannel()
-        logger.d { "Kanál vytvořen, odebírám notifikace." }
-
         scope.launch {
+            // Kanál i jméno „Já" se čtou z prostředků (`suspend`), takže se zakládá až tady.
+            createChannel()
+            logger.d { "Kanál vytvořen, odebírám notifikace." }
+
             repository.updates.collect { update ->
                 when (update) {
                     is NotificationUpdate.Added -> add(update.notifications)
@@ -73,18 +79,18 @@ actual class NotificationPresenter(
         }
     }
 
-    private fun createChannel() {
+    private suspend fun createChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Zprávy",
+            getString(Res.string.notification_channel_name),
             NotificationManager.IMPORTANCE_HIGH,
         ).apply {
-            description = "Nové zprávy z Telegramu"
+            description = getString(Res.string.notification_channel_description)
         }
         manager.createNotificationChannel(channel)
     }
 
-    private fun add(notifications: List<ChatNotification>) {
+    private suspend fun add(notifications: List<ChatNotification>) {
         // Jeden update může nést zprávy z několika chatů; každý z nich se překreslí jednou,
         // ne jednou za zprávu.
         notifications.groupBy { it.groupId }.forEach { (groupId, batch) ->
@@ -147,7 +153,7 @@ actual class NotificationPresenter(
         logger.d { "Odhlášení: notifikace a zkratky uklizeny." }
     }
 
-    private fun remove(update: NotificationUpdate.Removed) {
+    private suspend fun remove(update: NotificationUpdate.Removed) {
         val conversation = conversations[update.groupId]
 
         // Neznámá skupina = notifikace z minulého běhu procesu. Její řádky nemáme s čím
@@ -169,7 +175,7 @@ actual class NotificationPresenter(
         }
     }
 
-    private fun show(groupId: Int, conversation: Conversation, silent: Boolean) {
+    private suspend fun show(groupId: Int, conversation: Conversation, silent: Boolean) {
         // Od Androidu 13 je POST_NOTIFICATIONS běhové oprávnění. Bez kontroly by `notify`
         // tiše selhalo a nebylo by poznat proč.
         val granted = ContextCompat.checkSelfPermission(
@@ -187,7 +193,7 @@ actual class NotificationPresenter(
         // co bychom dopočítávali z id chatu.
         val isGroup = conversation.lines.any { it.sender != null }
 
-        val style = NotificationCompat.MessagingStyle(Person.Builder().setName("Já").build())
+        val style = NotificationCompat.MessagingStyle(Person.Builder().setName(getString(Res.string.notification_self_name)).build())
             .setGroupConversation(isGroup)
             // V soukromém chatu je název chatu totéž co jméno odesílatele u každého řádku —
             // vypsat ho i do hlavičky by ho zdvojilo.
