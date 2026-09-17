@@ -211,6 +211,7 @@ TDLib je velká nativní knihovna a je to vidět:
 | | Velikost |
 |---|---|
 | Debug APK (všechny 4 ABI) | ~100 MB |
+| Release APK arm64 (R8) | **26 MB** |
 | `libtdjsonjava.so` na jedno ABI | 15–25 MB |
 | iOS debug framework | ~383 MB (nestripovaný) |
 | iOS release framework (arm64) | 242 MB → **199 MB** po stripnutí symbolů → **~58 MB** zabalený |
@@ -218,7 +219,8 @@ TDLib je velká nativní knihovna a je to vidět:
 Čísla vypadají hrozivě, ale to, co reálně stahuje uživatel, je poslední sloupec:
 
 - **Android:** AAB s ABI splity — uživatel stáhne jen svoje ABI, tedy ~21 MB nativního kódu místo 84 MB.
-  Nic se pro to nemusí konfigurovat, Play to dělá sám z App Bundle.
+  Nic se pro to nemusí konfigurovat, Play to dělá sám z App Bundle. K tomu R8, který dex zmenšil
+  z 43,8 MB na 7,2 MB — TDLib generuje tisíce tříd API, které klient nevolá.
 - **iOS:** `.ipa` je zip a Xcode při archivaci symboly stripuje. Naměřeno ~58 MB zabaleno; App Store
   aplikuje ještě vlastní kompresi a thinning, takže reálná velikost ke stažení bude kolem toho nebo níž.
 

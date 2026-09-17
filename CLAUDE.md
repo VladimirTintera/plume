@@ -69,6 +69,32 @@ v [README](README.md#release-do-google-play). Sem patří jen to, co se z workfl
 - **Balíček SDK platformy se jmenuje `platforms;android-37.0`** — u minor verzí je nula součástí
   id. Musí odpovídat `android-compileSdk` v `libs.versions.toml`.
 
+## R8
+
+Release build je minifikovaný. Dex spadl ze **43,8 MB na 7,2 MB** — TDLib generuje tisíce tříd
+API, které aplikace z drtivé většiny nevolá.
+
+- **Wrapper si keep pravidla nese sám.** `tdl-coroutines` má v AAR `proguard.txt`, který drží
+  JNI hranici (`org.drinkless.tdlib.JsonClient`, jeho `native <methods>` a callback na logy);
+  AGP ho aplikuje automaticky. **Nekopírovat je do `proguard-rules.pro`** — při bumpu wrapperu
+  by se opsaná kopie tiše rozešla s tím, co knihovna opravdu potřebuje.
+- **Do `proguard-rules.pro` patří jen to, co se ověřeně rozbilo na zařízení.** Preventivní
+  `-keep` vypne zkracování tam, kde nemusí, a zakonzervuje chybu, která se mezitím opravila
+  jinde. Zatím tam kromě atributů pro čitelné stack trace není nic.
+- **`isShrinkResources` zapnuté NENÍ.** Je to samostatný krok, který umí uklidit
+  composeResources; zapínat ho spolu s minifikací by znamenalo nevědět, co z toho pád způsobilo.
+- **Chybějící keep pravidlo se při buildu nepozná, projeví se AŽ ZA BĚHU.** Release build se
+  proto musí proklikat, ne jen přeložit.
+- **Test se dá udělat bez ztráty přihlášení: release APK se přepodepíše DEBUG klíčem**
+  (`apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --ks-key-alias
+  androiddebugkey`) a nainstaluje přes `adb install -r`. Minifikace je vlastnost buildu,
+  s podpisem nesouvisí; jinak by odinstalace smazala TDLib databázi a testovat by se muselo
+  od přihlašování.
+- **Nejcennější kontrola je obnova po zabití procesu** (`adb shell am kill` z pozadí, pak
+  spustit znovu). Klíče navigace jsou `@Serializable` a polymorfní serializace přes
+  kotlinx.serialization je to, co R8 láme nejčastěji — pokud se aplikace vrátí do konverzace
+  a ne na seznam chatů, je tahle část v pořádku.
+
 ## Pracovní postup
 
 **Každá změna jde přes samostatnou větev a pull request, nic se necommituje rovnou do `main`.**
