@@ -1024,7 +1024,7 @@ po odeslání se otevře cílový chat, takže je vidět, že zpráva dorazila.
 - **Výběr je obrazovka, ne sheet.** Seznam chatů je dlouhý a listuje se v něm; sheet by navíc
   při hledání zápasil s klávesnicí.
 - **Hledá se zatím jen v načteném seznamu chatů** (živý `ChatRepository`, ten samý, co kreslí
-  hlavní obrazavku). Server by uměl `searchChats`, ale přeposílá se skoro vždy do chatu nahoře.
+  hlavní obrazovku). Server by uměl `searchChats`, ale přeposílá se skoro vždy do chatu nahoře.
 - **Během odesílání se seznam nedá ťuknout podruhé** — dvě ťuknutí by poslala zprávu dvakrát.
 - **Posílá se jako přeposlání, ne kopie** (`sendCopy = false`), takže v cíli zůstane „Přeposláno
   od …". Kopie bez odesílatele je v Telegramu samostatná volba a zatím ji nenabízíme.
