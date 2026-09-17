@@ -1,0 +1,104 @@
+# Vytvoření release tagu (a tím spuštění releasu) z GitHub UI:
+# Actions → "Release — bump & tag" → Run workflow → vybrat typ bumpu.
+#
+# Najde poslední tag daného targetu (android-X.Y.Z-B), inkrementuje příslušnou část verze
+# (versionCode se zvyšuje vždy), tag pushne a explicitně spustí release workflow. (Tagy
+# pushnuté přes GITHUB_TOKEN samy push trigger nespustí — ochrana GitHubu proti rekurzivním
+# workflow.)
+#
+# Zatím je tu jen Android; iOS přibude jako další target se svým prefixem.
+#
+# První tag je potřeba vytvořit ručně podle aktuálně publikované verze. Když AAB nahraješ do
+# Play ručně, zaznamenej to suffixem -manual (release tím nespustíš):
+#   git tag android-0.2.0-12-manual && git push origin android-0.2.0-12-manual
+
+name: Release — bump & tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target'
+        required: true
+        type: choice
+        default: android
+        options:
+          - android
+      bump:
+        description: 'Version bump (ignoruje se, pokud je vyplněna Version)'
+        required: true
+        type: choice
+        default: patch
+        options:
+          - build
+          - patch
+          - minor
+          - major
+      version:
+        description: 'Version — explicitní verze X.Y.Z místo bumpu; versionCode se i tak inkrementuje automaticky'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Validate inputs
+        run: |
+          if [ -n "${{ inputs.version }}" ] && [[ ! "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Verze '${{ inputs.version }}' neodpovídá formátu X.Y.Z (např. 0.3.0)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # potřebujeme kompletní seznam tagů
+
+      - name: Bump version, push tag and trigger release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PREFIX="${{ inputs.target }}"
+          BUMP="${{ inputs.bump }}"
+          VERSION_OVERRIDE="${{ inputs.version }}"
+
+          LAST=$(git tag -l "${PREFIX}-*" --sort=-v:refname | head -1)
+          if [ -z "$LAST" ]; then
+            echo "::error::Nenalezen žádný tag '${PREFIX}-*'. První tag vytvoř ručně podle aktuálně publikované verze, např. ${PREFIX}-0.2.0-12"
+            exit 1
+          fi
+          # suffix -manual = release provedený ručně mimo GitHub (zaznamenává verzi, nespouští release)
+          if [[ ! "$LAST" =~ ^${PREFIX}-([0-9]+)\.([0-9]+)\.([0-9]+)-([0-9]+)(-manual)?$ ]]; then
+            echo "::error::Poslední tag '${LAST}' neodpovídá formátu ${PREFIX}-X.Y.Z-B[-manual]"
+            exit 1
+          fi
+          MAJOR=${BASH_REMATCH[1]} MINOR=${BASH_REMATCH[2]} PATCH=${BASH_REMATCH[3]} BUILD=${BASH_REMATCH[4]}
+
+          if [ -n "$VERSION_OVERRIDE" ]; then
+            VERSION="$VERSION_OVERRIDE"
+          else
+            case "$BUMP" in
+              major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+              minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+              patch) PATCH=$((PATCH+1)) ;;
+              build) ;;
+            esac
+            VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          fi
+          # versionCode roste vždy – Play si pamatuje každé nahrané číslo a stejné podruhé nevezme
+          BUILD=$((BUILD+1))
+          TAG="${PREFIX}-${VERSION}-${BUILD}"
+
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "Vytvořen tag **${TAG}** (předchozí: ${LAST})" >> "$GITHUB_STEP_SUMMARY"
+
+          gh workflow run "${PREFIX}-release.yml" --ref "$TAG"
+          echo "Spuštěn release workflow pro **${TAG}**" >> "$GITHUB_STEP_SUMMARY"

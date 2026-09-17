@@ -1,0 +1,210 @@
+# Android release — spouští se pushnutím tagu ve formátu:
+#   android-<versionName>-<versionCode>        např. android-0.2.1-13
+#
+# Prefix `android-` je tu schválně: Plume je multiplatformní a tagy pro iOS přibydou vedle těchhle.
+#
+# Co workflow udělá:
+#   1. z tagu vytáhne verzi (žádný verzovací commit není potřeba — build ji bere přes -P),
+#   2. postaví podepsaný AAB,
+#   3. nahraje ho do Google Play na **internal** track,
+#   4. založí GitHub Release s changelogem od předchozího android tagu a AAB v příloze.
+#
+# Potřebné secrets (Settings → Secrets and variables → Actions):
+#   ANDROID_KEYSTORE_BASE64     – upload keystore (`base64 -i plume-release.jks | tr -d '\n'`)
+#   ANDROID_KEYSTORE_PASSWORD   – heslo ke keystore
+#   ANDROID_KEY_ALIAS           – alias klíče
+#   ANDROID_KEY_PASSWORD        – heslo ke klíči
+#   TELEGRAM_API_ID             – api_id z my.telegram.org; bez něj se zapeče 0 a přihlášení selže
+#   TELEGRAM_API_HASH           – api_hash z my.telegram.org
+#   PLAY_SERVICE_ACCOUNT_JSON   – JSON klíč service accountu s právem nahrávat do Play Console
+#   GOOGLE_SERVICES_JSON        – (volitelné) obsah google-services.json; bez něj release nemá push
+
+name: Android Release
+
+permissions:
+  contents: write   # zakládání GitHub Release
+
+on:
+  push:
+    tags:
+      - 'android-*'
+      # release provedený ručně mimo GitHub: tag se suffixem -manual jen zaznamená verzi
+      # pro bump logiku, workflow nespustí (např. android-0.2.0-12-manual)
+      - '!android-*-manual'
+  # spouští create-release-tag.yml přes `gh workflow run --ref <tag>`
+  # (tagy pushnuté přes GITHUB_TOKEN push trigger samy nevyvolají)
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Parse tag
+        id: tag
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [[ ! "$TAG" =~ ^android-([0-9]+\.[0-9]+\.[0-9]+)-([0-9]+)$ ]]; then
+            echo "::error::Tag '$TAG' neodpovídá formátu android-<versionName>-<versionCode>, např. android-0.2.1-13"
+            exit 1
+          fi
+          VERSION_NAME="${BASH_REMATCH[1]}"
+          VERSION_CODE="${BASH_REMATCH[2]}"
+          {
+            echo "versionName=$VERSION_NAME"
+            echo "versionCode=$VERSION_CODE"
+            echo "aab=plume-${VERSION_NAME}-${VERSION_CODE}.aab"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # celá historie + tagy kvůli changelogu od předchozí verze
+
+      # Verze musí odpovídat `jvmToolchain(17)` v modulech — s jinou by ji Gradle přes foojay
+      # resolver stahoval znovu při každém běhu.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Runner image nemusí mít čerstvé SDK platformy a AGP si je samo nedotáhne (auto-download
+      # potřebuje odsouhlasené licence). Instalujeme explicitně.
+      # POZOR: musí odpovídat android-compileSdk v gradle/libs.versions.toml. Balíček pro
+      # compileSdk 37 se jmenuje "platforms;android-37.0" — u minor verzí je nula součástí id.
+      - name: Install Android SDK platform
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-37.0'
+
+      # Privátní repo → hostovaný runner má 2 CPU / 7 GB RAM. Projektové gradle.properties počítá
+      # s vývojářským strojem (Gradle 4 GB + Kotlin daemon 8 GB), což se sem nevejde. Uživatelský
+      # ~/.gradle/gradle.properties má přednost před projektovým.
+      - name: Limit Gradle memory for CI
+        run: |
+          mkdir -p ~/.gradle
+          {
+            echo 'org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8 -XX:+UseParallelGC'
+            echo 'kotlin.daemon.jvmargs=-Xmx2g'
+            echo 'org.gradle.workers.max=1'
+          } >> ~/.gradle/gradle.properties
+
+      # local.properties se na CI nevytváří — api_id/api_hash jdou do buildu přes ENV
+      # (viz configValue v client/shared/build.gradle.kts). Tady se jen ověří, že secrets jsou
+      # nastavené: jinak by se do AAB zapekla nula a appka by se v Play nepřihlásila.
+      - name: Check Telegram API credentials
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: |
+          if [ -z "$TELEGRAM_API_ID" ] || [ -z "$TELEGRAM_API_HASH" ]; then
+            echo "::error::Chybí secrets TELEGRAM_API_ID / TELEGRAM_API_HASH — build by se přeložil, ale přihlášení by skončilo chybou od serveru."
+            exit 1
+          fi
+
+      # Bez souboru se plugin google-services neaplikuje a release nemá push notifikace
+      # (viz client/androidApp/build.gradle.kts). Chybějící secret build neshodí, jen varuje.
+      - name: Write google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "::warning::Chybí secret GOOGLE_SERVICES_JSON — release bude bez push notifikací."
+            exit 0
+          fi
+          printf '%s' "$GOOGLE_SERVICES_JSON" > client/androidApp/google-services.json
+
+      - name: Decode upload keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::error::Chybí secret ANDROID_KEYSTORE_BASE64."
+            exit 1
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+
+      # Monitor zdrojů běží UVNITŘ tohohle kroku, ne jako samostatný krok: když runner umře na
+      # paměť, žádný další krok se nespustí — ani ten s `if: always()`. Odsud jde výstup do logu
+      # průběžně, takže poslední řádek [mon] je stav těsně před pádem.
+      #
+      # Podpisové klíče i api_id jdou do buildu přes ENV; `verifyReleaseConfiguration`
+      # v client/androidApp/build.gradle.kts shodí build, kdyby něco z toho chybělo.
+      - name: Build release bundle
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/upload.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: |
+          bash -c 'while true; do
+            echo "[mon] $(date +%T) mem: $(free -m | awk "/Mem:/{print \$3\"/\"\$2\" MB\"}") | disk: $(df -h / | awk "NR==2{print \$4\" free\"}")"
+            sleep 30
+          done' &
+          MONITOR_PID=$!
+          trap 'kill $MONITOR_PID 2>/dev/null || true' EXIT
+
+          ./gradlew :client:androidApp:bundleRelease \
+            -PandroidVersionName=${{ steps.tag.outputs.versionName }} \
+            -PandroidVersionCode=${{ steps.tag.outputs.versionCode }}
+
+          mv client/androidApp/build/outputs/bundle/release/androidApp-release.aab \
+             "${{ steps.tag.outputs.aab }}"
+
+      # Doběhne jen když runner přežil; při smrti VM se sem nedostane ani `if: always()`.
+      - name: Resource diagnostics
+        if: always()
+        run: |
+          echo "=== Aktuální stav ==="
+          free -h
+          df -h /
+          echo "=== OOM killer (dmesg) ==="
+          sudo dmesg | grep -iE "oom|killed process" | tail -20 || echo "(žádné OOM záznamy)"
+
+      # POZOR: úplně první AAB musí do Play Console nahrát člověk ručně — dokud appka nemá žádný
+      # release, androidpublisher API upload odmítne. Tenhle krok je až pro další verze.
+      - name: Upload to Google Play (internal track)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: eu.tintera.plume
+          releaseFiles: ${{ steps.tag.outputs.aab }}
+          track: internal
+
+      - name: Upload AAB as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aab-${{ steps.tag.outputs.versionName }}-${{ steps.tag.outputs.versionCode }}
+          path: '*.aab'
+          if-no-files-found: ignore
+
+      - name: Generate changelog
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          PREV=$(git tag -l 'android-*' --sort=-v:refname | grep -vx "$TAG" | head -1)
+          {
+            echo "**Android** ${{ steps.tag.outputs.versionName }} (${{ steps.tag.outputs.versionCode }}) → Play internal track"
+            echo
+            bash .github/scripts/release-notes.sh "$PREV" "$TAG" "targetu"
+          } > release-notes.md
+          echo "Changelog od: ${PREV:-<žádný předchozí tag>}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            # re-run: release už existuje, jen aktualizujeme přílohy
+            gh release upload "$TAG" "${{ steps.tag.outputs.aab }}" --clobber
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --notes-file release-notes.md \
+              "${{ steps.tag.outputs.aab }}"
+          fi

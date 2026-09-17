@@ -33,6 +33,42 @@ telegramApiHash=<z my.telegram.org>
 
 Bez nich se projekt přeloží, ale přihlášení skončí hláškou `AuthStage.Failed` s vysvětlením.
 
+## Release do Play
+
+Vydává se pushnutím tagu `android-<versionName>-<versionCode>`; postup a seznam secrets je
+v [README](README.md#release-do-google-play). Sem patří jen to, co se z workflow nepozná.
+
+- **Verze NENÍ v commitu, je v tagu.** `versionCode`/`versionName` se do buildu dostanou přes
+  `-PandroidVersionCode` / `-PandroidVersionName`; hodnoty v `build.gradle.kts` jsou jen záloha
+  pro lokální build. Verzovací commit by znamenal, že tag a kód mohou tvrdit každý něco jiného.
+- **`versionCode` je jednosměrný.** Play si pamatuje každé nahrané číslo, i z internal tracku,
+  a stejné podruhé nevezme. Bump workflow ho proto zvedá při KAŽDÉM releasu, i když se
+  `versionName` nemění.
+- **Konfigurace mimo git se čte `configValue`: property → ENV → `local.properties`.** Na CI
+  žádné `local.properties` není a vyrábět ho tam by znamenalo psát secrets do souboru v pracovním
+  adresáři. ENV se čte přes `providers`, ne `System.getenv` — jinak by hodnota nevstoupila do
+  otisku konfigurační keše (`org.gradle.configuration-cache=true`) a build by po výměně secretu
+  použil starý.
+- **`releaseKeystoreFile` musí být deklarovaný PŘED blokem `android { }`.** Top-level `val`
+  se v `.kts` inicializují v pořadí deklarace — stejná past jako u `NavSavedStateConfiguration`.
+- **Keystore na CI je absolutní cesta, lokálně relativní.** `ANDROID_KEYSTORE_PATH` míří do
+  `RUNNER_TEMP`, `releaseStoreFile` do kořene projektu; proto se `isAbsolute` rozlišuje.
+- **`verifyReleaseConfiguration` visí na `bundleRelease`/`assembleRelease`.** Chybějící podpis
+  nebo prázdné `api_id` se jinak poznají až u testera: nepodepsaný AAB Play odmítne a build
+  s `TELEGRAM_API_ID = 0` se přeloží, jen se v něm nejde přihlásit.
+- **První AAB musí do Play nahrát člověk.** Dokud aplikace nemá žádný release, androidpublisher
+  API upload odmítne — krok `upload-google-play` je až pro další verze.
+- **Ručně vydaná verze se značí tagem se suffixem `-manual`.** Release workflow ho ignoruje
+  (`'!android-*-manual'`), ale bump logika z něj počítá další verzi.
+- **Tag pushnutý přes `GITHUB_TOKEN` push trigger nespustí.** Ochrana proti rekurzivním workflow,
+  proto bump workflow release volá ještě výslovně přes `gh workflow run --ref <tag>`.
+- **Monitor paměti běží uvnitř build kroku, ne vedle něj.** Když runner umře na paměť, nespustí
+  se ani krok s `if: always()`; poslední řádek `[mon]` v logu je pak jediná stopa.
+- **Java na CI musí odpovídat `jvmToolchain(17)`.** S jinou verzí by ji foojay resolver stahoval
+  při každém běhu znovu.
+- **Balíček SDK platformy se jmenuje `platforms;android-37.0`** — u minor verzí je nula součástí
+  id. Musí odpovídat `android-compileSdk` v `libs.versions.toml`.
+
 ## Pracovní postup
 
 **Každá změna jde přes samostatnou větev a pull request, nic se necommituje rovnou do `main`.**
