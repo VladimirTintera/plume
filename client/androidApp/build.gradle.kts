@@ -87,9 +87,21 @@ android {
 
     buildTypes {
         getByName("release") {
-            // R8 zatím vypnutý: TDLib jde přes JNI a bez ověřených keep rules hrozí, že se
-            // ořízne něco, co se volá jen z nativní strany. Zapnout až s otestovanými pravidly.
-            isMinifyEnabled = false
+            // R8 — zkracování a obfuskace. Keep pravidla si knihovny nesou samy; `tdl-coroutines`
+            // dodává v AAR `proguard.txt`, který drží JNI hranici (`org.drinkless.tdlib.JsonClient`).
+            // Co ne, je v proguard-rules.pro.
+            //
+            // Pozor: chybějící keep pravidlo se neprojeví při buildu, ale AŽ ZA BĚHU. Po zásahu
+            // do závislostí nebo reflexe je potřeba release build reálně proklikat.
+            //
+            // `isShrinkResources` schválně zapnuté NENÍ — zkracování prostředků je samostatný
+            // krok, který umí uklidit composeResources, a zapínat obojí naráz by znamenalo
+            // nevědět, co z toho případný pád způsobilo.
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             signingConfig = signingConfigs.findByName("release")
         }
     }
