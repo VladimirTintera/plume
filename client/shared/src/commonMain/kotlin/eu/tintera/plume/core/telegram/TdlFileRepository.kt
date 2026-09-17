@@ -78,14 +78,25 @@ class TdlFileRepository(
     private suspend fun uploadStateOf(fileId: Int): MutableStateFlow<Float?> =
         mutex.withLock { uploads.getOrPut(fileId) { MutableStateFlow(null) } }
 
+    override suspend fun retryDownload(fileId: Int) {
+        mutex.withLock { requested.remove(fileId) }
+        request(fileId)
+    }
+
     private suspend fun request(fileId: Int) {
         val alreadyRequested = mutex.withLock { !requested.add(fileId) }
         if (alreadyRequested) return
 
+        logger.d { "Žádám o soubor $fileId" }
         // Aktuální stav — soubor už může být na disku z dřívějška, pak se nestahuje nic.
         client.getFile(fileId)
             .toResult()
             .onSuccess { current ->
+                logger.d {
+                    "getFile($fileId): staženo=${current.local.isDownloadingCompleted} " +
+                        "stahuje=${current.local.isDownloadingActive} lzeStáhnout=${current.local.canBeDownloaded} " +
+                        "cesta='${current.local.path}' ${current.local.downloadedSize}/${current.expectedSize}"
+                }
                 publish(current)
                 if (current.local.isDownloadingCompleted) return@onSuccess
 

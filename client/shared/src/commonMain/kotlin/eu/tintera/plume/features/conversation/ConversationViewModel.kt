@@ -15,6 +15,7 @@ import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ChatListState
+import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionRepository
@@ -37,6 +38,8 @@ import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.UrlOpener
+import eu.tintera.plume.resources.document_download_failed
+import eu.tintera.plume.resources.document_open_failed
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_attachments_limit
 import eu.tintera.plume.resources.conversation_attachments_send_failed
@@ -73,9 +76,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -110,6 +115,7 @@ class ConversationViewModel(
     /** Jen kvůli hlasovkám: soubor se stáhne až při prvním přehrání. */
     private val fileRepository: FileRepository,
     private val voicePlayer: VoicePlayer,
+    private val fileOpener: FileOpener,
     audioRecorder: AudioRecorder,
     connection: ConnectionRepository,
 ) : ViewModel() {
@@ -156,6 +162,9 @@ class ConversationViewModel(
 
     /** Odložené uložení konceptu; každá další úprava ho posune. */
     private var draftSave: Job? = null
+
+    /** Běžící otevírání souborů podle `fileId`; druhé ťuknutí to čekání zruší. */
+    private val documentJobs = mutableMapOf<Int, Job>()
 
     /** Už nahlášená zhlédnutí reklam — každé se hlásí jen jednou. */
     private val reportedSponsoredViews = mutableSetOf<Long>()
@@ -1217,6 +1226,66 @@ class ConversationViewModel(
     }
 
     /**
+     * Stáhne soubor a předá ho systému.
+     *
+     * Stahuje se až na ťuknutí — soubory v chatu bývají velké a stahovat je dopředu by znamenalo
+     * data za všechno, co kdo poslal. Průběh se drží ve stavu podle `fileId`, takže ho ukáže
+     * i bublina alba, a druhé ťuknutí během stahování nic nespustí znovu.
+     */
+    fun openDocument(messageId: Long) {
+        val document = _state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Document ?: return
+
+        // Druhé ťuknutí během čekání ho zruší. Bez toho by se z rozbitého stahování (mrtvé spojení,
+        // odpověď, která nedorazí) nedalo dostat ven — kolečko by se točilo napořád.
+        documentJobs.remove(document.fileId)?.let { running ->
+            running.cancel()
+            _state.update { it.copy(documentDownloads = it.documentDownloads - document.fileId) }
+            return
+        }
+
+        _state.update { it.copy(documentDownloads = it.documentDownloads + (document.fileId to 0f)) }
+
+        documentJobs[document.fileId] = viewModelScope.launch {
+            try {
+                logger.d { "Otevírám soubor ${document.fileId} (${document.fileName})" }
+                // Ťuknutí je výslovný pokyn: stahování se spustí znovu, i kdyby předchozí zůstalo viset.
+                fileRepository.retryDownload(document.fileId)
+
+                val states = fileRepository.file(document.fileId)
+                    .onEach { state ->
+                        if (state is FileState.Downloading) {
+                            _state.update { it.copy(documentDownloads = it.documentDownloads + (document.fileId to state.progress)) }
+                        }
+                    }
+
+                /*
+                 * Na ROZBĚH stahování se čeká jen chvíli, na dokončení pak jak dlouho je potřeba.
+                 * Když TDLib neodpoví (mrtvé spojení), zůstal by stav `Pending` napořád; jakmile
+                 * ale stahování běží, průběh je vidět a velký soubor smí trvat.
+                 */
+                val started = withTimeoutOrNull(DOWNLOAD_START_TIMEOUT) { states.first { it !is FileState.Pending } }
+                val file = started?.let { first ->
+                    if (first is FileState.Ready || first is FileState.Failed) first else states.first { it is FileState.Ready || it is FileState.Failed }
+                }
+                logger.d { "Soubor ${document.fileId} skončil jako $file" }
+
+                when (file) {
+                    is FileState.Ready ->
+                        if (!fileOpener.open(file.path, document.mimeType)) {
+                            _state.update { it.copy(notice = UiText(Res.string.document_open_failed)) }
+                        }
+
+                    else -> _state.update { it.copy(error = UiText(Res.string.document_download_failed)) }
+                }
+            } finally {
+                // I při zrušení (odchod z chatu, druhé ťuknutí) musí průběh ze stavu zmizet.
+                documentJobs.remove(document.fileId)
+                _state.update { it.copy(documentDownloads = it.documentDownloads - document.fileId) }
+            }
+        }
+    }
+
+    /**
      * Pustí nebo pozastaví hlasovku.
      *
      * Soubor se stáhne až teď — dopředu by to byla data za každou hlasovku v historii. Příchozí
@@ -1628,6 +1697,8 @@ data class ConversationState(
     val pinned: List<ChatMessage> = emptyList(),
     /** Smí uživatel připnuté zprávy odepínat. */
     val canUnpin: Boolean = false,
+    /** Průběh stahování souborů, které uživatel právě otevírá (podle `fileId`). */
+    val documentDownloads: Map<Int, Float> = emptyMap(),
     /** Zprávy, které uživatel chce přeposlat; obrazovka na to otevře výběr cílového chatu. */
     val forwardRequest: List<Long>? = null,
     /** Přílohy vybrané k odeslání, čekající nad vstupním polem na popisek a odeslání. */
@@ -1667,3 +1738,6 @@ data class ConversationState(
     /** Stabilní klíč položky zprávy; přežije změnu id po odeslání. */
     fun keyOf(message: ChatMessage): Long = itemKeys[message.id] ?: message.id
 }
+
+/** Jak dlouho se čeká, než se stahování souboru vůbec rozběhne. */
+private val DOWNLOAD_START_TIMEOUT = 30.seconds

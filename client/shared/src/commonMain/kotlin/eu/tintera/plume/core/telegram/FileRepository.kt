@@ -23,6 +23,15 @@ interface FileRepository {
      * nespouští — nahrávání začne samo odesláním zprávy.
      */
     fun uploadProgress(fileId: Int): Flow<Float?>
+
+    /**
+     * Vyžádá stažení znovu, i když se o soubor už jednou žádalo.
+     *
+     * [file] si pamatuje, na co už request odešel, aby stahování nespouštěl každý odběr při
+     * scrollu. Kdyby ale stahování skončilo v půli (spadlé spojení, TDLib soubor uvolnil),
+     * zůstal by stav viset a další ťuknutí by nic neudělalo — tohle je ta cesta ven.
+     */
+    suspend fun retryDownload(fileId: Int)
 }
 
 sealed interface FileState {

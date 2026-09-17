@@ -178,6 +178,13 @@
     <string name="forward_search">Hledat chat</string>
     <string name="forward_empty">Hledání neodpovídá žádný chat.</string>
     <string name="forward_failed">Zprávu se nepodařilo přeposlat.</string>
+    <string name="file_size_b">%1$s B</string>
+    <string name="file_size_kb">%1$s kB</string>
+    <string name="file_size_mb">%1$s MB</string>
+    <string name="file_size_gb">%1$s GB</string>
+    <string name="document_open">Otevřít soubor</string>
+    <string name="document_open_failed">Tenhle soubor nemá čím otevřít.</string>
+    <string name="document_download_failed">Soubor se nepodařilo stáhnout.</string>
     <string name="menu_more_reactions">Další reakce</string>
     <string name="delete_message_title">Smazat zprávu?</string>
     <string name="delete_message_choice">Zpráva se smaže u tebe. Protějšku zůstane, dokud nezaškrtneš smazání u obou.</string>

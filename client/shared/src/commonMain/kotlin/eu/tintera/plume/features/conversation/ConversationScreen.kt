@@ -123,6 +123,8 @@ import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.audio.rememberRecordPermission
 import eu.tintera.plume.core.settings.ExpressionMode
+import eu.tintera.plume.core.files.FileSizeUnit
+import eu.tintera.plume.core.files.formatFileSize
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -148,6 +150,11 @@ import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
+import eu.tintera.plume.resources.document_open
+import eu.tintera.plume.resources.file_size_b
+import eu.tintera.plume.resources.file_size_gb
+import eu.tintera.plume.resources.file_size_kb
+import eu.tintera.plume.resources.file_size_mb
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.arrow_downward_24dp
@@ -218,6 +225,7 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -844,6 +852,8 @@ fun ConversationScreen(
                                 album = row.members.takeIf { row.isAlbum },
                                 onOpenAlbumItem = { messageId -> onOpenMedia(messageId) },
                                 onCancelUpload = viewModel::cancelUpload,
+                                documentProgress = { fileId -> state.documentDownloads[fileId] },
+                                onOpenDocument = viewModel::openDocument,
                                 voicePlayback = { voicePlayback?.takeIf { it.key.messageId == message.id } },
                                 onToggleVoice = { viewModel.toggleVoice(message.id) },
                                 onSeekVoice = { fraction -> viewModel.seekVoice(message.id, fraction) },
@@ -1074,6 +1084,9 @@ private fun MessageBubble(
     onOpenAlbumItem: (messageId: Long) -> Unit,
     /** Ťuknutí na průběh nahrávání — zruší odesílání té zprávy (u alba jen té položky). */
     onCancelUpload: (messageId: Long) -> Unit,
+    /** Průběh stahování souboru z bubliny; `null`, když se soubor zrovna nestahuje. */
+    documentProgress: (fileId: Int) -> Float?,
+    onOpenDocument: (messageId: Long) -> Unit,
     /** Přehrávání hlasovky, pokud hraje právě tahle zpráva; čte se až v bublině (viz [VoiceNoteContent]). */
     voicePlayback: () -> VoicePlayback?,
     onToggleVoice: () -> Unit,
@@ -1295,6 +1308,9 @@ private fun MessageBubble(
                         onOpen = onOpenAlbumItem,
                         onRequestMenu = onRequestMenu,
                         onCancelUpload = onCancelUpload,
+                        documentProgress = documentProgress,
+                        onOpenDocument = onOpenDocument,
+                        accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
                     )
                 } else {
                     message.media?.let { media ->
@@ -1305,6 +1321,9 @@ private fun MessageBubble(
                             onRequestMenu = onRequestMenu,
                             uploading = message.sendState == SendState.Sending,
                             onCancelUpload = { onCancelUpload(message.id) },
+                            documentProgress = documentProgress,
+                            onOpenDocument = { onOpenDocument(message.id) },
+                            accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
                             voice = VoiceHandlers(
                                 playback = voicePlayback,
                                 onToggle = onToggleVoice,
@@ -2062,6 +2081,7 @@ private fun MessageMedia?.describe(): String = when (this) {
     is MessageMedia.AnimatedEmoji -> emoji
     is MessageMedia.VoiceNote -> stringResource(Res.string.conversation_voice_message)
     is MessageMedia.Video -> stringResource(Res.string.media_video)
+    is MessageMedia.Document -> fileName
     null -> ""
 }
 
@@ -2408,6 +2428,11 @@ private fun MessageAttachment(
     uploading: Boolean = false,
     onCancelUpload: () -> Unit = {},
     voice: VoiceHandlers = VoiceHandlers.None,
+    /** Průběh stahování souboru, který uživatel otevírá; `null`, když se nestahuje. */
+    documentProgress: (fileId: Int) -> Float? = { null },
+    onOpenDocument: () -> Unit = {},
+    /** Barva popředí bubliny — v odchozí `primary` bublině nesmí být `primary`. */
+    accent: Color = Color.Unspecified,
 ) {
     val shape = RoundedCornerShape(12.dp)
 
@@ -2511,6 +2536,16 @@ private fun MessageAttachment(
             )
         }
 
+        is MessageMedia.Document -> DocumentContent(
+            document = media,
+            progress = documentProgress(media.fileId),
+            uploading = uploading,
+            onCancelUpload = onCancelUpload,
+            onOpen = onOpenDocument,
+            onRequestMenu = onRequestMenu,
+            accent = accent,
+        )
+
         is MessageMedia.VoiceNote -> VoiceNoteContent(
             voice = media,
             playback = voice.playback,
@@ -2575,6 +2610,9 @@ private fun AlbumContent(
     onOpen: (messageId: Long) -> Unit,
     onRequestMenu: () -> Unit,
     onCancelUpload: (messageId: Long) -> Unit,
+    documentProgress: (fileId: Int) -> Float?,
+    onOpenDocument: (messageId: Long) -> Unit,
+    accent: Color,
 ) {
     val visual = members.all { it.media.isAlbumTile() }
     if (!visual) {
@@ -2588,6 +2626,9 @@ private fun AlbumContent(
                         onRequestMenu = onRequestMenu,
                         uploading = member.sendState == SendState.Sending,
                         onCancelUpload = { onCancelUpload(member.id) },
+                        documentProgress = documentProgress,
+                        onOpenDocument = { onOpenDocument(member.id) },
+                        accent = accent,
                     )
                 }
             }
@@ -2985,4 +3026,95 @@ private fun VideoThumbnail(
             )
         }
     }
+}
+
+/**
+ * Soubor v bublině: ikona (nebo náhled), název a velikost. Ťuknutí ho stáhne a otevře systémem.
+ *
+ * Během stahování je nad ikonou vlnitý kruh s průběhem — u velkého souboru je to jediná
+ * informace, která se mění, a bez ní by ťuknutí vypadalo, že nic neudělalo. Odesílaný soubor
+ * ukazuje průběh nahrávání a otevřít se nedá; ještě není kde.
+ *
+ * Ťuknutí i dlouhý stisk má řádek vlastní, takže nad souborem jde otevřít nabídka — stejná past
+ * jako u fotky.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun DocumentContent(
+    document: MessageMedia.Document,
+    progress: Float?,
+    uploading: Boolean,
+    onCancelUpload: () -> Unit,
+    onOpen: () -> Unit,
+    onRequestMenu: () -> Unit,
+    accent: Color,
+) {
+    val size = remember(document.sizeBytes) { formatFileSize(document.sizeBytes) }
+
+    Row(
+        Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .combinedClickable(
+                enabled = !uploading,
+                onClick = onOpen,
+                onLongClick = onRequestMenu,
+                onClickLabel = stringResource(Res.string.document_open),
+            )
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            if (uploading) {
+                UploadIndicator(fileId = document.fileId, onCancel = onCancelUpload)
+            } else {
+                Box(
+                    Modifier
+                        .size(UPLOAD_INDICATOR_SIZE)
+                        .clip(CircleShape)
+                        .background(accent.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.description_24dp),
+                        contentDescription = null,
+                        tint = accent,
+                    )
+                }
+                if (progress != null) {
+                    // Dokud TDLib nehlásí podíl, točí se neurčitě — stejně jako u nahrávání.
+                    if (progress <= 0f) {
+                        CircularWavyProgressIndicator(color = accent, modifier = Modifier.size(UPLOAD_INDICATOR_SIZE))
+                    } else {
+                        CircularWavyProgressIndicator(
+                            progress = { progress },
+                            color = accent,
+                            modifier = Modifier.size(UPLOAD_INDICATOR_SIZE),
+                        )
+                    }
+                }
+            }
+        }
+
+        Column {
+            Text(
+                text = document.fileName,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.MiddleEllipsis,
+            )
+            Text(
+                text = stringResource(size.unit.label(), size.value),
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+    }
+}
+
+/** Jednotku velikosti pojmenuje až UI — v jiném jazyce se může lišit i pořadí čísla a zkratky. */
+private fun FileSizeUnit.label(): StringResource = when (this) {
+    FileSizeUnit.Bytes -> Res.string.file_size_b
+    FileSizeUnit.Kilobytes -> Res.string.file_size_kb
+    FileSizeUnit.Megabytes -> Res.string.file_size_mb
+    FileSizeUnit.Gigabytes -> Res.string.file_size_gb
 }

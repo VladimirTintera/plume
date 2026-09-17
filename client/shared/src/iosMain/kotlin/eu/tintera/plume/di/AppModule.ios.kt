@@ -1,6 +1,7 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.core.audio.AudioRecorder
+import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.connectivity.NetworkMonitor
 import eu.tintera.plume.core.notifications.NotificationPermission
@@ -18,6 +19,7 @@ actual fun Module.platformModule() {
     single { NotificationPermission() }
     single { NotificationPresenter() }
     single { UrlOpener() }
+    single { FileOpener() }
     single { NetworkMonitor() }
     single { AppForeground() }
     single { TextClipboard() }

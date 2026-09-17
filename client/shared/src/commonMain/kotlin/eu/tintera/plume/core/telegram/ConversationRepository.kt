@@ -585,6 +585,21 @@ sealed interface MessageMedia {
     ) : MessageMedia
 
     /**
+     * Soubor: v bublině název a velikost, ťuknutí ho stáhne a otevře systémem.
+     *
+     * [mimeType] posílá odesílatel, takže se na něj nedá spoléhat — systém si typ často odvodí
+     * sám z přípony. [sizeBytes] je velikost na serveru (`expectedSize`), aby šla ukázat dřív,
+     * než se soubor stáhne.
+     */
+    data class Document(
+        val fileId: Int,
+        val fileName: String,
+        val mimeType: String,
+        val sizeBytes: Long,
+        val thumbnailFileId: Int?,
+    ) : MessageMedia
+
+    /**
      * Hlasovka: přehrává se přímo v bublině.
      *
      * [waveform] jsou hodnoty 0–31 rozbalené z Telegramu (viz `decodeWaveform`). [isListened]
