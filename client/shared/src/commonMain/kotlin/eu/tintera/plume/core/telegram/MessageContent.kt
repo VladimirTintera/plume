@@ -341,10 +341,13 @@ internal suspend fun Message.messageMedia(): MessageMedia? = when (val content =
         thumbnailFileId = content.animation.thumbnail?.file?.id,
     )
 
-    is MessageDocument -> MessageMedia.Attachment(
-        label = content.document.fileName.ifBlankGet { getString(Res.string.content_file) },
-        thumbnailFileId = content.document.thumbnail?.file?.id,
+    is MessageDocument -> MessageMedia.Document(
         fileId = content.document.document.id,
+        fileName = content.document.fileName.ifBlankGet { getString(Res.string.content_file) },
+        mimeType = content.document.mimeType,
+        // `expectedSize` je známá i před stažením; `size` je nula, dokud soubor nedorazí.
+        sizeBytes = content.document.document.expectedSize,
+        thumbnailFileId = content.document.thumbnail?.file?.id,
     )
 
     is MessageAudio -> MessageMedia.Attachment(label = getString(Res.string.content_audio), thumbnailFileId = null)

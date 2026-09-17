@@ -52,6 +52,18 @@
                 android:resource="@xml/notification_images" />
         </provider>
 
+        <!-- Stažené soubory z chatu, které otevírá jiná aplikace (FileOpener). Oprávnění se
+             uděluje jen na konkrétní URI a jen na to jedno otevření. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.documents"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/documents" />
+        </provider>
+
         <!-- Bez google-services.json se služba nikdy nespustí, protože Firebase se
              neinicializuje; deklarace tedy nevadí ani v buildu bez pushe. -->
         <service

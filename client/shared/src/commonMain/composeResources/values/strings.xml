@@ -178,6 +178,13 @@
     <string name="forward_search">Search chats</string>
     <string name="forward_empty">No chat matches the search.</string>
     <string name="forward_failed">The message could not be forwarded.</string>
+    <string name="file_size_b">%1$s B</string>
+    <string name="file_size_kb">%1$s kB</string>
+    <string name="file_size_mb">%1$s MB</string>
+    <string name="file_size_gb">%1$s GB</string>
+    <string name="document_open">Open the file</string>
+    <string name="document_open_failed">There is no app that can open this file.</string>
+    <string name="document_download_failed">The file could not be downloaded.</string>
     <string name="menu_more_reactions">More reactions</string>
     <string name="delete_message_title">Delete the message?</string>
     <string name="delete_message_choice">The message will be deleted for you. The other side keeps it unless you tick deleting for both.</string>

@@ -15,6 +15,7 @@ import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ChatListState
+import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionRepository
@@ -37,6 +38,8 @@ import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.UrlOpener
+import eu.tintera.plume.resources.document_download_failed
+import eu.tintera.plume.resources.document_open_failed
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_attachments_limit
 import eu.tintera.plume.resources.conversation_attachments_send_failed
@@ -73,6 +76,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
@@ -110,6 +114,7 @@ class ConversationViewModel(
     /** Jen kvůli hlasovkám: soubor se stáhne až při prvním přehrání. */
     private val fileRepository: FileRepository,
     private val voicePlayer: VoicePlayer,
+    private val fileOpener: FileOpener,
     audioRecorder: AudioRecorder,
     connection: ConnectionRepository,
 ) : ViewModel() {
@@ -1217,6 +1222,41 @@ class ConversationViewModel(
     }
 
     /**
+     * Stáhne soubor a předá ho systému.
+     *
+     * Stahuje se až na ťuknutí — soubory v chatu bývají velké a stahovat je dopředu by znamenalo
+     * data za všechno, co kdo poslal. Průběh se drží ve stavu podle `fileId`, takže ho ukáže
+     * i bublina alba, a druhé ťuknutí během stahování nic nespustí znovu.
+     */
+    fun openDocument(messageId: Long) {
+        val document = _state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Document ?: return
+        if (document.fileId in _state.value.documentDownloads) return
+        _state.update { it.copy(documentDownloads = it.documentDownloads + (document.fileId to 0f)) }
+
+        viewModelScope.launch {
+            val file = fileRepository.file(document.fileId)
+                .onEach { state ->
+                    if (state is FileState.Downloading) {
+                        _state.update { it.copy(documentDownloads = it.documentDownloads + (document.fileId to state.progress)) }
+                    }
+                }
+                .first { it is FileState.Ready || it is FileState.Failed }
+
+            _state.update { it.copy(documentDownloads = it.documentDownloads - document.fileId) }
+
+            when (file) {
+                is FileState.Ready ->
+                    if (!fileOpener.open(file.path, document.mimeType)) {
+                        _state.update { it.copy(notice = UiText(Res.string.document_open_failed)) }
+                    }
+
+                is FileState.Failed -> _state.update { it.copy(error = UiText(Res.string.document_download_failed)) }
+                else -> Unit
+            }
+        }
+    }
+
+    /**
      * Pustí nebo pozastaví hlasovku.
      *
      * Soubor se stáhne až teď — dopředu by to byla data za každou hlasovku v historii. Příchozí
@@ -1628,6 +1668,8 @@ data class ConversationState(
     val pinned: List<ChatMessage> = emptyList(),
     /** Smí uživatel připnuté zprávy odepínat. */
     val canUnpin: Boolean = false,
+    /** Průběh stahování souborů, které uživatel právě otevírá (podle `fileId`). */
+    val documentDownloads: Map<Int, Float> = emptyMap(),
     /** Zprávy, které uživatel chce přeposlat; obrazovka na to otevře výběr cílového chatu. */
     val forwardRequest: List<Long>? = null,
     /** Přílohy vybrané k odeslání, čekající nad vstupním polem na popisek a odeslání. */

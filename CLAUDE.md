@@ -12,7 +12,7 @@ Fáze 6. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell
 avatary a fotky ve zprávách, reakce, odpovědi, notifikace na Androidu, sponzorované zprávy,
 stav spojení a jeho obnova po návratu z pozadí.
 
-Není: otevírání dokumentů, notifikace na iOS ani hlášení pádů z iOS. Nastavení aplikace
+Není: notifikace na iOS ani hlášení pádů z iOS. Nastavení aplikace
 se ukládá (DataStore), zatím ale drží jen poslední část výběru emoji/samolepek. Prohlížeč médií umí zatím jen fotky. Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
 
@@ -1010,6 +1010,30 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
 - **Smazaná zpráva se ze seznamu neodstraňuje ručně.** TDLib pošle `UpdateDeleteMessages` a ten se
   už zpracovává; předběhnout server by znamenalo riskovat, že zpráva zmizí z obrazovky a na
   serveru zůstane.
+
+### Soubory v chatu
+
+Zpráva se souborem (`MessageMedia.Document`) má v bublině ikonu, název a velikost; ťuknutí soubor
+stáhne a předá systému.
+
+- **Stahuje se až na ťuknutí.** Soubory bývají velké a odběr `FileRepository.file()` sám spouští
+  stahování — držet ho kvůli zobrazení by znamenalo stáhnout všechno, co kdo poslal.
+- **Průběh je ve stavu podle `fileId`**, ne podle zprávy: tentýž soubor může být v chatu víckrát
+  a bublina alba kreslí víc řádků. Druhé ťuknutí během stahování nic nespustí znovu.
+- **Velikost se formátuje bez jednotky** (`formatFileSize`, testy v `FileSizeTest`); jednotku
+  pojmenuje až UI z prostředků, protože pořadí čísla a zkratky se může lišit podle jazyka.
+  Desetinné místo jen pod deset jednotek — „137,2 MB" je šum.
+- **Android: `ACTION_VIEW` přes `FileProvider`.** Od Androidu 7 je `file://` URI mimo aplikaci
+  zakázané (`FileUriExposedException`). Provider `${applicationId}.documents` vydává adresář
+  `tdlib-files`, ale **oprávnění se uděluje jen na konkrétní URI a jen na jedno otevření**
+  (`FLAG_GRANT_READ_URI_PERMISSION`). `FLAG_ACTIVITY_NEW_TASK` je nutný, protože se otevírá
+  mimo naši úlohu.
+- **iOS: `UIDocumentInteractionController`** (náhled, a z něj i sdílení). Kontroler i delegát se
+  musí držet silnou referencí, dokud je náhled na obrazovce — stejná past jako u výběru příloh.
+  Bez náhledu pro daný typ se ukáže nabídka „Otevřít v…".
+- **Když soubor nemá čím otevřít, musí to jít vidět.** `FileOpener.open` vrací `false`
+  a konverzace na to má snackbar; jinak by ťuknutí vypadalo, že nic neudělalo.
+- **Odesílaný soubor se otevřít nedá** — ukazuje průběh nahrávání a ještě není kde.
 
 ### Přeposílání
 

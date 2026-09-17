@@ -35,7 +35,8 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    přímo v bublině).
 3. ~~**Přeposílání zpráv**~~ — hotovo (položka v nabídce, výběr chatu, album celé). Zbývá
    hledání na serveru (`searchChats`), víc cílů najednou, výběr víc zpráv a kopie bez odesílatele.
-4. **Otevírání dokumentů** — stáhnout a předat systému; výrazně méně práce než přehrávání.
+4. ~~**Otevírání dokumentů**~~ — hotovo (stažení s průběhem, `ACTION_VIEW` / `UIDocumentInteractionController`).
+   Zbývá zrušení stahování, uložení do Souborů/Downloads a otevření audia (zatím se jen popisuje).
 5. Drobnosti ze sekcí níž (zásobník, nabídka, entity, média, emoji).
 
 ---
