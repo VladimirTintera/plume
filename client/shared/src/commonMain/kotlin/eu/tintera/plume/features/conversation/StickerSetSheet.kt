@@ -39,6 +39,9 @@ import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.telegram.StickerItem
 import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.telegram.StickerSetDetail
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.stickers_add_set
+import eu.tintera.plume.resources.stickers_set_load_failed
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -46,6 +49,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -153,7 +157,7 @@ fun StickerSetSheet(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = "Sadu se nepodařilo načíst.",
+                    text = stringResource(Res.string.stickers_set_load_failed),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -216,7 +220,7 @@ fun StickerSetSheet(
                             onClick = viewModel::toggleInstalled,
                             enabled = !current.changing,
                             modifier = Modifier.fillMaxWidth(),
-                        ) { Text("Přidat sadu") }
+                        ) { Text(stringResource(Res.string.stickers_add_set)) }
 
                         !detail.isOfficial -> FilledTonalButton(
                             onClick = viewModel::toggleInstalled,

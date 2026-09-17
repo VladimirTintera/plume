@@ -16,8 +16,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.notification_permission_body
+import eu.tintera.plume.resources.notification_permission_enable
+import eu.tintera.plume.resources.notification_permission_later
+import eu.tintera.plume.resources.notification_permission_title
 import eu.tintera.plume.resources.notifications_24dp
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
 @Composable
@@ -46,11 +51,10 @@ actual fun NotificationPermissionPrompt() {
             showRationale = false
         },
         icon = { Icon(painterResource(Res.drawable.notifications_24dp), contentDescription = null) },
-        title = { Text("Vědět o nových zprávách") },
+        title = { Text(stringResource(Res.string.notification_permission_title)) },
         text = {
             Text(
-                "Bez notifikací se o nové zprávě dozvíš, až aplikaci otevřeš. " +
-                    "Zapnout nebo vypnout je můžeš kdykoliv v Nastavení.",
+                stringResource(Res.string.notification_permission_body),
             )
         },
         confirmButton = {
@@ -62,7 +66,7 @@ actual fun NotificationPermissionPrompt() {
                     launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 },
             ) {
-                Text("Zapnout")
+                Text(stringResource(Res.string.notification_permission_enable))
             }
         },
         dismissButton = {
@@ -72,7 +76,7 @@ actual fun NotificationPermissionPrompt() {
                     showRationale = false
                 },
             ) {
-                Text("Teď ne")
+                Text(stringResource(Res.string.notification_permission_later))
             }
         },
     )

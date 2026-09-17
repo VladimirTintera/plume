@@ -13,6 +13,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.media_unsupported
+import eu.tintera.plume.resources.media_photo_load_failed
 
 /**
  * Fotky a videa chatu přes celou obrazovku, s listováním.
@@ -75,14 +79,14 @@ class MediaViewerViewModel(
                         loading = false,
                         // Jiný typ média zatím neumíme; prázdný stav by vypadal jako chyba
                         // načítání, tak se to řekne rovnou.
-                        error = if (photo == null) "Tenhle typ přílohy zatím neumíme otevřít." else null,
+                        error = if (photo == null) UiText(Res.string.media_unsupported) else null,
                     )
                 }
             }
             .onFailure { failure ->
                 logger.w(failure) { "Médium $messageId se nepodařilo načíst." }
                 _state.update {
-                    it.copy(loading = false, error = failure.userMessage("Fotku se nepodařilo načíst."))
+                    it.copy(loading = false, error = failure.userMessage(Res.string.media_photo_load_failed))
                 }
             }
     }
@@ -174,5 +178,5 @@ data class MediaViewerState(
     val reachedOldest: Boolean = false,
     val reachedNewest: Boolean = false,
     val loading: Boolean = true,
-    val error: String? = null,
+    val error: UiText? = null,
 )

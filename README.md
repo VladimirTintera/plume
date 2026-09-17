@@ -122,6 +122,23 @@ takže to zatím nemá co využít.
 (na pozadí systém proces uspí) a skutečná cesta vede přes notification service extension, která
 payload rozšifruje — to je samostatný kus práce.
 
+## Jazyky
+
+Aplikace je **anglicky s českou mutací**. Texty jsou v `client/shared/src/commonMain/composeResources`:
+`values/strings.xml` je výchozí (anglický), `values-cs/strings.xml` česká verze. Jazyk se bere
+ze systému; přepnout jen aplikaci jde na Androidu 13+ v systémovém nastavení aplikace.
+
+Nový text musí přibýt **do obou souborů** — `./gradlew :client:shared:verifyTranslations` (běží
+i jako součást `check`) shodí build, když se rozejdou.
+
+Vyzkoušet druhý jazyk bez přepínání celého telefonu:
+
+```bash
+adb shell cmd locale set-app-locales eu.tintera.plume --locales cs-CZ
+```
+
+Prázdná hodnota (`--locales ""`) vrátí systémový jazyk.
+
 ## Hlášení pádů
 
 Release build hlásí pády do **Firebase Crashlytics** — do téhož Firebase projektu, ze kterého je

@@ -1,32 +1,31 @@
 package eu.tintera.plume.features.conversation
 
-import co.touchlab.kermit.Logger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.audio.AudioRecorder
+import eu.tintera.plume.core.audio.MIN_DURATION_MS
+import eu.tintera.plume.core.audio.VoiceKey
+import eu.tintera.plume.core.audio.VoicePlayback
+import eu.tintera.plume.core.audio.VoicePlayer
+import eu.tintera.plume.core.audio.VoiceRecorder
+import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ChatListState
-import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.ConnectionState
 import eu.tintera.plume.core.telegram.ConversationRepository
-import eu.tintera.plume.core.telegram.userMessage
+import eu.tintera.plume.core.telegram.FileRepository
+import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
-import eu.tintera.plume.core.audio.AudioRecorder
-import eu.tintera.plume.core.audio.MIN_DURATION_MS
-import eu.tintera.plume.core.audio.VoiceKey
-import eu.tintera.plume.core.audio.VoiceRecorder
-import eu.tintera.plume.core.audio.VoiceRecording
-import eu.tintera.plume.core.audio.VoicePlayback
-import eu.tintera.plume.core.audio.VoicePlayer
-import eu.tintera.plume.core.telegram.FileRepository
-import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SendState
@@ -34,28 +33,53 @@ import eu.tintera.plume.core.telegram.SentMessageUpdate
 import eu.tintera.plume.core.telegram.SponsoredMessage
 import eu.tintera.plume.core.telegram.StickerItem
 import eu.tintera.plume.core.telegram.StickerRepository
+import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.TextClipboard
+import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.UrlOpener
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_attachments_limit
+import eu.tintera.plume.resources.conversation_attachments_send_failed
+import eu.tintera.plume.resources.conversation_cancel_send_failed
+import eu.tintera.plume.resources.conversation_delete_failed
+import eu.tintera.plume.resources.conversation_edit_failed
+import eu.tintera.plume.resources.conversation_favorite_added
+import eu.tintera.plume.resources.conversation_favorite_failed
+import eu.tintera.plume.resources.conversation_favorite_removed
+import eu.tintera.plume.resources.conversation_history_failed
+import eu.tintera.plume.resources.conversation_pin_failed
+import eu.tintera.plume.resources.conversation_quote_deleted
+import eu.tintera.plume.resources.conversation_quote_too_deep
+import eu.tintera.plume.resources.conversation_reaction_failed
+import eu.tintera.plume.resources.conversation_recording_finish_failed
+import eu.tintera.plume.resources.conversation_recording_start_failed
+import eu.tintera.plume.resources.conversation_recording_too_short
+import eu.tintera.plume.resources.conversation_repin_failed
+import eu.tintera.plume.resources.conversation_send_failed
+import eu.tintera.plume.resources.conversation_sticker_send_failed
+import eu.tintera.plume.resources.conversation_unpin_failed
+import eu.tintera.plume.resources.conversation_voice_send_failed
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlin.time.Duration.Companion.seconds
-import kotlin.time.TimeMark
-import kotlin.time.TimeSource
+import org.jetbrains.compose.resources.StringResource
 
 /**
  * Stav a stránkování jedné konverzace.
@@ -221,7 +245,7 @@ class ConversationViewModel(
             repository.unpin(chatId, message.id)
                 .onSuccess { _state.update { it.copy(unpinned = message) } }
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported("Zprávu se nepodařilo odepnout.")) }
+                    _state.update { it.copy(error = failure.reported(Res.string.conversation_unpin_failed)) }
                     refreshPinned()
                 }
         }
@@ -231,7 +255,7 @@ class ConversationViewModel(
     fun undoUnpin(message: ChatMessage) {
         viewModelScope.launch {
             repository.pin(chatId, message.id).onFailure { failure ->
-                _state.update { it.copy(error = failure.reported("Zprávu se nepodařilo znovu připnout.")) }
+                _state.update { it.copy(error = failure.reported(Res.string.conversation_repin_failed)) }
             }
         }
     }
@@ -304,7 +328,7 @@ class ConversationViewModel(
                 }
                 .onFailure { failure ->
                     _state.update {
-                        it.copy(loading = false, error = failure.reported("Historii se nepodařilo načíst."))
+                        it.copy(loading = false, error = failure.reported(Res.string.conversation_history_failed))
                     }
                 }
         }
@@ -367,9 +391,9 @@ class ConversationViewModel(
                     it.copy(
                         error = if (it.reachedStart) {
                             // Celá historie je načtená a zpráva v ní není — byla smazaná.
-                            "Citovaná zpráva už není k dispozici."
+                            UiText(Res.string.conversation_quote_deleted)
                         } else {
-                            "Citovaná zpráva je příliš hluboko v historii."
+                            UiText(Res.string.conversation_quote_too_deep)
                         },
                     )
                 }
@@ -522,7 +546,7 @@ class ConversationViewModel(
      * Citace se spotřebuje stejně jako u textu.
      */
     fun sendSticker(sticker: StickerItem) {
-        sendMedia("Samolepku se nepodařilo odeslat.") { replyTo ->
+        sendMedia(Res.string.conversation_sticker_send_failed) { replyTo ->
             repository.sendSticker(chatId, sticker, replyTo)
         }
     }
@@ -537,7 +561,7 @@ class ConversationViewModel(
         _state.update {
             it.copy(
                 attachments = staged.attachments,
-                notice = if (staged.overflow) "Najednou jde poslat nejvýš $MAX_ATTACHMENTS příloh." else it.notice,
+                notice = if (staged.overflow) UiText(Res.string.conversation_attachments_limit, MAX_ATTACHMENTS) else it.notice,
             )
         }
     }
@@ -579,7 +603,7 @@ class ConversationViewModel(
                 .onFailure { failure ->
                     _state.update {
                         it.copy(
-                            error = failure.reported("Přílohy se nepodařilo odeslat."),
+                            error = failure.reported(Res.string.conversation_attachments_send_failed),
                             attachments = it.attachments.ifEmpty { attachments },
                         )
                     }
@@ -595,17 +619,17 @@ class ConversationViewModel(
      * `MESSAGE_EDIT_TIME_EXPIRED`, viz [userMessage]. `w` je tu správná závažnost: server řekl
      * ne, což je očekávané selhání, ne chyba, kolem které by se měl v konzoli zakládat problém.
      */
-    private fun Throwable.reported(message: String): String {
-        logger.w(this) { message }
+    private fun Throwable.reported(message: StringResource): UiText {
+        logger.w(this) { message.key }
         return userMessage(message)
     }
 
     /** Hláška z platformy (výběr souboru selhal) do snackbaru. */
-    fun reportError(message: String) {
+    fun reportError(message: UiText) {
         _state.update { it.copy(error = message) }
     }
 
-    private fun sendMedia(failureMessage: String, send: suspend (replyTo: Long?) -> Result<ChatMessage>) {
+    private fun sendMedia(failureMessage: StringResource, send: suspend (replyTo: Long?) -> Result<ChatMessage>) {
         val replyTo = _state.value.replyingTo?.id
         clearReply()
 
@@ -697,7 +721,7 @@ class ConversationViewModel(
                 .onFailure { failure ->
                     _state.update {
                         it.copy(
-                            error = failure.reported("Zprávu se nepodařilo odeslat."),
+                            error = failure.reported(Res.string.conversation_send_failed),
                             flight = it.flight?.takeIf { f -> f.id != flight.id },
                         )
                     }
@@ -825,7 +849,7 @@ class ConversationViewModel(
                 if (_state.value.editing == null) draftBeforeEdit = draftText
                 _state.update {
                     it.copy(
-                        error = failure.reported("Zprávu se nepodařilo upravit."),
+                        error = failure.reported(Res.string.conversation_edit_failed),
                         editing = target,
                         inputFill = InputFill(text, onlyIfEmpty = false),
                     )
@@ -953,7 +977,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             repository.setReaction(chatId, messageId, emoji, add).onFailure { failure ->
                 applyReactions(messageId, before)
-                _state.update { it.copy(error = failure.reported("Reakci se nepodařilo uložit.")) }
+                _state.update { it.copy(error = failure.reported(Res.string.conversation_reaction_failed)) }
             }
         }
         closeMenus()
@@ -1040,11 +1064,11 @@ class ConversationViewModel(
             stickerRepository.setFavorite(sticker.stickerFileId, !favorite)
                 .onSuccess {
                     _state.update {
-                        it.copy(notice = if (favorite) "Odebráno z oblíbených" else "Přidáno do oblíbených")
+                        it.copy(notice = UiText(if (favorite) Res.string.conversation_favorite_removed else Res.string.conversation_favorite_added))
                     }
                 }
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported("Oblíbené se nepodařilo změnit.")) }
+                    _state.update { it.copy(error = failure.reported(Res.string.conversation_favorite_failed)) }
                 }
         }
     }
@@ -1066,7 +1090,7 @@ class ConversationViewModel(
      */
     fun copyMessage(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        clipboard.copy(message.copyableText())
+        viewModelScope.launch { clipboard.copy(message.copyableText()) }
         closeMenus()
     }
 
@@ -1125,7 +1149,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             repository.pin(chatId, messageId, notify = notify, onlyForSelf = onlyForSelf)
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported("Zprávu se nepodařilo připnout.")) }
+                    _state.update { it.copy(error = failure.reported(Res.string.conversation_pin_failed)) }
                 }
         }
     }
@@ -1174,7 +1198,7 @@ class ConversationViewModel(
             repository.deleteMessages(chatId, pending.messageIds, revoke)
                 .onFailure { failure ->
                     _state.update {
-                        it.copy(error = failure.reported("Zprávu se nepodařilo smazat."))
+                        it.copy(error = failure.reported(Res.string.conversation_delete_failed))
                     }
                 }
         }
@@ -1216,7 +1240,7 @@ class ConversationViewModel(
     fun startRecording() {
         voicePlayer.stop()
         voiceRecorder.start().onFailure {
-            _state.update { it.copy(error = "Nahrávání se nepodařilo spustit.") }
+            _state.update { it.copy(error = UiText(Res.string.conversation_recording_start_failed)) }
         }
     }
 
@@ -1236,11 +1260,12 @@ class ConversationViewModel(
             val recorded = voiceRecorder.finish()
             if (recorded == null) {
                 _state.update {
-                    if (tooShort) it.copy(notice = "Nahrávka je moc krátká.") else it.copy(error = "Nahrávku se nepodařilo dokončit.")
+                    if (tooShort) it.copy(notice = UiText(Res.string.conversation_recording_too_short))
+                    else it.copy(error = UiText(Res.string.conversation_recording_finish_failed))
                 }
                 return@launch
             }
-            sendMedia("Hlasovku se nepodařilo odeslat.") { replyTo ->
+            sendMedia(Res.string.conversation_voice_send_failed) { replyTo ->
                 repository.sendVoiceNote(chatId, recorded.path, recorded.durationSeconds, recorded.waveform, replyTo)
             }
         }
@@ -1275,7 +1300,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             repository.deleteMessages(chatId, listOf(messageId), revoke = true)
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported("Odesílání se nepodařilo zrušit.")) }
+                    _state.update { it.copy(error = failure.reported(Res.string.conversation_cancel_send_failed)) }
                 }
         }
     }
@@ -1594,7 +1619,7 @@ data class ConversationState(
     /** Přílohy vybrané k odeslání, čekající nad vstupním polem na popisek a odeslání. */
     val attachments: List<OutgoingAttachment> = emptyList(),
     /** Krátké potvrzení akce, která v konverzaci nic viditelného nezmění (snackbar). */
-    val notice: String? = null,
+    val notice: UiText? = null,
     /** Právě odepnutá zpráva — obrazovka k ní ukáže snackbar s „Vrátit". */
     val unpinned: ChatMessage? = null,
     /** Zpráva, jejíž text se právě upravuje ve vstupním poli; `null` při běžném psaní. */
@@ -1616,7 +1641,7 @@ data class ConversationState(
     val itemKeys: Map<Long, Long> = emptyMap(),
     val loading: Boolean = false,
     val reachedStart: Boolean = false,
-    val error: String? = null,
+    val error: UiText? = null,
 ) {
     /** Id všech načtených zpráv alba, do kterého zpráva patří; u samostatné zprávy jen ona. */
     fun albumMemberIds(messageId: Long): List<Long> {

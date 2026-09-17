@@ -1,9 +1,9 @@
 package eu.tintera.plume.features.media
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -41,10 +41,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.core.telegram.FileRepository
@@ -57,15 +57,20 @@ import eu.tintera.plume.core.video.VideoSurface
 import eu.tintera.plume.core.video.rememberVideoPlayer
 import eu.tintera.plume.features.conversation.formatDuration
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.media_pause
+import eu.tintera.plume.resources.media_play
+import eu.tintera.plume.resources.media_replay
+import eu.tintera.plume.resources.media_video_download_failed
 import eu.tintera.plume.resources.pause_24dp
 import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.replay_24dp
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import kotlin.math.abs
-import kotlin.math.roundToInt
 
 /**
  * Stránka prohlížeče s videem.
@@ -231,7 +236,7 @@ internal fun VideoPage(
             }
 
             is FileState.Failed -> Text(
-                text = "Video se nepodařilo stáhnout.",
+                text = stringResource(Res.string.media_video_download_failed),
                 color = Color.White,
                 modifier = Modifier.align(Alignment.Center).padding(24.dp),
             )
@@ -265,9 +270,9 @@ internal fun VideoPage(
                         },
                     ),
                     contentDescription = when {
-                        ended -> "Přehrát znovu"
-                        playing -> "Pozastavit"
-                        else -> "Přehrát"
+                        ended -> stringResource(Res.string.media_replay)
+                        playing -> stringResource(Res.string.media_pause)
+                        else -> stringResource(Res.string.media_play)
                     },
                     modifier = Modifier.size(IconButtonDefaults.largeIconSize),
                 )

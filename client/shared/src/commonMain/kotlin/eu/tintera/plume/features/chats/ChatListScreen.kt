@@ -1,5 +1,13 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,21 +17,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.ui.draw.clip
-import androidx.compose.material3.Surface
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
@@ -32,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -44,30 +43,40 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.notifications_off_24dp
-import eu.tintera.plume.resources.push_pin_filled_24dp
-import org.jetbrains.compose.resources.painterResource
-import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatActivity
+import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.ui.Avatar
-import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.chatTitleKey
+import eu.tintera.plume.core.ui.label
+import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.chats_draft_prefix
+import eu.tintera.plume.resources.chats_empty
+import eu.tintera.plume.resources.chats_muted
+import eu.tintera.plume.resources.chats_section_pinned
+import eu.tintera.plume.resources.common_try_again
+import eu.tintera.plume.resources.nav_chats
+import eu.tintera.plume.resources.notifications_off_24dp
+import eu.tintera.plume.resources.push_pin_filled_24dp
+import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun ChatListScreen(
@@ -88,7 +97,7 @@ fun ChatListScreen(
     // a vypadalo by to, že se nic nestalo.
     LaunchedEffect(actions.error) {
         val message = actions.error ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(message)
+        snackbarHostState.showSnackbar(getString(message.resource, *message.args.toTypedArray()))
         viewModel.dismissError()
     }
 
@@ -141,11 +150,11 @@ fun ChatListScreen(
                     val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
 
                     AnimatedContent(
-                        targetState = connection.label() ?: "Chaty",
+                        targetState = connection.label() ?: Res.string.nav_chats,
                         transitionSpec = { fadeIn(effects) togetherWith fadeOut(fastEffects) },
                         contentAlignment = Alignment.CenterStart,
                         label = "chats-title",
-                    ) { title -> Text(title) }
+                    ) { title -> Text(stringResource(title)) }
                 },
                 scrollBehavior = scrollBehavior,
             )
@@ -164,8 +173,8 @@ fun ChatListScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(current.message, style = MaterialTheme.typography.bodyLarge)
-                    TextButton(onClick = viewModel::loadMore) { Text("Zkusit znovu") }
+                    Text(current.message.resolve(), style = MaterialTheme.typography.bodyLarge)
+                    TextButton(onClick = viewModel::loadMore) { Text(stringResource(Res.string.common_try_again)) }
                 }
             }
 
@@ -175,7 +184,7 @@ fun ChatListScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        "Zatím tu nic není.",
+                        stringResource(Res.string.chats_empty),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -344,7 +353,7 @@ private fun ChatRow(
                     if (chat.isPinned) {
                         Icon(
                             painterResource(Res.drawable.push_pin_filled_24dp),
-                            contentDescription = "Připnuto",
+                            contentDescription = stringResource(Res.string.chats_section_pinned),
                             modifier = Modifier.size(14.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -366,7 +375,7 @@ private fun ChatRow(
                     if (chat.isMuted) {
                         Icon(
                             painterResource(Res.drawable.notifications_off_24dp),
-                            contentDescription = "Ztlumeno",
+                            contentDescription = stringResource(Res.string.chats_muted),
                             modifier = Modifier.size(14.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -393,11 +402,11 @@ private fun ChatRow(
                  * řádku nevejde.
                  */
                 val draftLabelColor = MaterialTheme.colorScheme.tertiary
-                val subtitle: AnnotatedString? = chat.activity?.label()?.let(::AnnotatedString)
+                val subtitle: AnnotatedString? = chat.activity?.label()?.let { AnnotatedString(stringResource(it)) }
                     ?: chat.draft?.let { draft ->
                         buildAnnotatedString {
                             // Štítek jinou barvou než „píše…" (primary) — jde o náš text, ne o dění.
-                            withStyle(SpanStyle(color = draftLabelColor)) { append("Koncept: ") }
+                            withStyle(SpanStyle(color = draftLabelColor)) { append(stringResource(Res.string.chats_draft_prefix)) }
                             // Zalomení by v jednořádkovém náhledu useklo text hned na začátku.
                             append(draft.text.replace('\n', ' '))
                         }

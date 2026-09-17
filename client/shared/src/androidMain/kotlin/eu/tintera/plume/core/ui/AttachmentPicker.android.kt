@@ -22,14 +22,17 @@ import androidx.compose.ui.platform.LocalContext
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.OutgoingThumbnail
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.launch
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.attachment_prepare_failed
 import java.io.File
 import java.util.UUID
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.launch
 
 /**
  * Android: Photo Picker (`PickMultipleVisualMedia`) na fotky a videa, `OpenMultipleDocuments` na soubory.
@@ -40,7 +43,7 @@ import kotlin.math.roundToInt
 @Composable
 actual fun rememberAttachmentPicker(
     onPicked: (List<OutgoingAttachment>) -> Unit,
-    onError: (String) -> Unit,
+    onError: (UiText) -> Unit,
 ): AttachmentPicker {
     val context = LocalContext.current.applicationContext
     val scope = rememberCoroutineScope()
@@ -62,7 +65,7 @@ actual fun rememberAttachmentPicker(
             }
             val prepared = results.mapNotNull { it.getOrNull() }
             if (prepared.isNotEmpty()) picked(prepared)
-            if (prepared.size < results.size) failed("Některý soubor se nepodařilo načíst.")
+            if (prepared.size < results.size) failed(UiText(Res.string.attachment_prepare_failed))
         }
     }
 

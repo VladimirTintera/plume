@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.telegram
 
 import kotlinx.coroutines.flow.StateFlow
+import eu.tintera.plume.core.ui.UiText
 
 /**
  * Hranice mezi aplikací a TDLib.
@@ -88,5 +89,5 @@ sealed interface AuthStage {
      * Chyba, ze které se spike sám nedostane — typicky chybějící nebo neplatné `api_id`/`api_hash`.
      * Nese text, protože nejčastější příčina je konfigurační a uživatel ji musí vidět.
      */
-    data class Failed(val message: String) : AuthStage
+    data class Failed(val message: UiText) : AuthStage
 }

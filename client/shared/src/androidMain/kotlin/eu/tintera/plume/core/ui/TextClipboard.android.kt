@@ -4,13 +4,16 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.core.content.getSystemService
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.clipboard_label
+import org.jetbrains.compose.resources.getString
 
 actual class TextClipboard(private val context: Context) {
 
-    actual fun copy(text: String) {
+    actual suspend fun copy(text: String) {
         val manager = context.getSystemService<ClipboardManager>() ?: return
         // Popisek vidí uživatel v nabídce schránky na starších Androidech; od 13 ho systém
         // ukazuje v potvrzovacím okně nad klávesnicí.
-        manager.setPrimaryClip(ClipData.newPlainText("Zpráva", text))
+        manager.setPrimaryClip(ClipData.newPlainText(getString(Res.string.clipboard_label), text))
     }
 }

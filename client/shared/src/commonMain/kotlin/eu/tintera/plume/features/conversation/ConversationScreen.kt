@@ -1,72 +1,67 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.size
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -74,14 +69,14 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -91,87 +86,132 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.core.audio.VoicePlayback
+import eu.tintera.plume.core.audio.VoiceRecording
+import eu.tintera.plume.core.audio.rememberRecordPermission
+import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.ui.AnimatedSticker
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.ui.RichText
+import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.asDayLabel
-import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.core.ui.asRelativeTime
-import eu.tintera.plume.core.ui.isSameDayAs
 import eu.tintera.plume.core.ui.chatAvatarKey
-import eu.tintera.plume.core.ui.emojiClusterCount
 import eu.tintera.plume.core.ui.chatTitleKey
+import eu.tintera.plume.core.ui.emojiClusterCount
+import eu.tintera.plume.core.ui.isSameDayAs
+import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.core.ui.photoKey
+import eu.tintera.plume.core.ui.rememberAttachmentPicker
+import eu.tintera.plume.core.ui.rememberUploadProgress
+import eu.tintera.plume.core.ui.resolve
+import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
-import eu.tintera.plume.core.ui.sharedFlight
-import eu.tintera.plume.core.ui.RemoteImage
-import eu.tintera.plume.core.telegram.OutgoingAttachment
-import eu.tintera.plume.core.ui.rememberUploadProgress
-import eu.tintera.plume.core.ui.rememberAttachmentPicker
-import eu.tintera.plume.core.ui.RichText
-import eu.tintera.plume.core.audio.VoicePlayback
-import eu.tintera.plume.core.audio.VoiceRecording
-import eu.tintera.plume.core.audio.rememberRecordPermission
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.play_arrow_24dp
-import eu.tintera.plume.resources.mic_24dp
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.arrow_downward_24dp
+import eu.tintera.plume.resources.attach_file_24dp
 import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.common_back
+import eu.tintera.plume.resources.conversation_attach
+import eu.tintera.plume.resources.conversation_cancel_edit
+import eu.tintera.plume.resources.conversation_cancel_reply
+import eu.tintera.plume.resources.conversation_cancel_sending
+import eu.tintera.plume.resources.conversation_collapse
+import eu.tintera.plume.resources.conversation_delivery_failed
+import eu.tintera.plume.resources.conversation_delivery_read
+import eu.tintera.plume.resources.conversation_delivery_sending
+import eu.tintera.plume.resources.conversation_delivery_sent
+import eu.tintera.plume.resources.conversation_editing
+import eu.tintera.plume.resources.conversation_empty
+import eu.tintera.plume.resources.conversation_input_caption
+import eu.tintera.plume.resources.conversation_input_message
+import eu.tintera.plume.resources.conversation_microphone_permission
+import eu.tintera.plume.resources.conversation_new_messages
+import eu.tintera.plume.resources.conversation_record_voice
+import eu.tintera.plume.resources.conversation_reply
+import eu.tintera.plume.resources.conversation_save_edit
+import eu.tintera.plume.resources.conversation_send
+import eu.tintera.plume.resources.conversation_send_voice
+import eu.tintera.plume.resources.conversation_show_all_pinned
+import eu.tintera.plume.resources.conversation_undo
+import eu.tintera.plume.resources.conversation_unpinned
+import eu.tintera.plume.resources.conversation_unread_divider
+import eu.tintera.plume.resources.conversation_voice_message
+import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.done_all_24dp
-import eu.tintera.plume.resources.error_24dp
 import eu.tintera.plume.resources.edit_24dp
-import eu.tintera.plume.resources.reply_24dp
+import eu.tintera.plume.resources.error_24dp
+import eu.tintera.plume.resources.media_photo
+import eu.tintera.plume.resources.media_sticker
+import eu.tintera.plume.resources.media_video
+import eu.tintera.plume.resources.mic_24dp
+import eu.tintera.plume.resources.mood_24dp
+import eu.tintera.plume.resources.perm_media_24dp
+import eu.tintera.plume.resources.play_arrow_24dp
+import eu.tintera.plume.resources.presence_last_month
+import eu.tintera.plume.resources.presence_last_week
+import eu.tintera.plume.resources.presence_offline
+import eu.tintera.plume.resources.presence_online
+import eu.tintera.plume.resources.presence_recently
 import eu.tintera.plume.resources.push_pin_filled_24dp
+import eu.tintera.plume.resources.reply_24dp
 import eu.tintera.plume.resources.schedule_24dp
 import eu.tintera.plume.resources.send_24dp
-import eu.tintera.plume.resources.description_24dp
-import eu.tintera.plume.resources.perm_media_24dp
-import eu.tintera.plume.resources.attach_file_24dp
-import eu.tintera.plume.resources.mood_24dp
+import eu.tintera.plume.resources.sender_you
 import eu.tintera.plume.resources.sticky_note_2_24dp
-import eu.tintera.plume.core.settings.ExpressionMode
+import kotlin.math.roundToInt
+import kotlin.time.Instant
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
-import kotlin.math.roundToInt
-import kotlin.time.Instant
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun ConversationScreen(
@@ -191,6 +231,11 @@ fun ConversationScreen(
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     var stickerPickerOpen by rememberSaveable { mutableStateOf(false) }
+
+    // Snackbar o odepnutí se skládá v efektu, kde `stringResource` volat nejde — text se proto
+    // přečte tady v kompozici.
+    val unpinnedMessage = stringResource(Res.string.conversation_unpinned)
+    val undoLabel = stringResource(Res.string.conversation_undo)
 
     // Vybrané soubory jsou už zkopírované v cache aplikace; čekají nad polem na popisek a odeslání.
     val attachmentPicker = rememberAttachmentPicker(
@@ -217,7 +262,7 @@ fun ConversationScreen(
     // neúspěšná reakce nebo odeslání zmizely bez jediné stopy.
     LaunchedEffect(state.error) {
         val message = state.error ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(message)
+        snackbarHostState.showSnackbar(getString(message.resource, *message.args.toTypedArray()))
         viewModel.dismissError()
     }
 
@@ -229,7 +274,8 @@ fun ConversationScreen(
     LaunchedEffect(state.notice) {
         val notice = state.notice ?: return@LaunchedEffect
         viewModel.consumeNotice()
-        snackbarScope.launch { snackbarHostState.showSnackbar(notice, duration = SnackbarDuration.Short) }
+        val text = getString(notice.resource, *notice.args.toTypedArray())
+        snackbarScope.launch { snackbarHostState.showSnackbar(text, duration = SnackbarDuration.Short) }
     }
 
     LaunchedEffect(state.unpinned) {
@@ -238,8 +284,8 @@ fun ConversationScreen(
         viewModel.consumeUnpinned()
         snackbarScope.launch {
             val result = snackbarHostState.showSnackbar(
-                message = "Zpráva odepnuta",
-                actionLabel = "Vrátit",
+                message = unpinnedMessage,
+                actionLabel = undoLabel,
                 duration = SnackbarDuration.Short,
             )
             if (result == SnackbarResult.ActionPerformed) viewModel.undoUnpin(unpinned)
@@ -519,8 +565,8 @@ fun ConversationScreen(
                              * činnosti; výšku hlavičky proto animuje `AnimatedContent`, jinak by
                              * název poskočil.
                              */
-                            val subtitle = connection.label()?.let { HeaderSubtitle(it, accent = false) }
-                                ?: state.activity?.let { HeaderSubtitle(it.label(), accent = true) }
+                            val subtitle = connection.label()?.let { HeaderSubtitle(stringResource(it), accent = false) }
+                                ?: state.activity?.let { HeaderSubtitle(stringResource(it.label()), accent = true) }
                                 ?: state.presence?.let {
                                     HeaderSubtitle(it.describe(), accent = it is Presence.Online)
                                 }
@@ -550,7 +596,7 @@ fun ConversationScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = "Zpět")
+                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                     }
                 },
             )
@@ -585,7 +631,7 @@ fun ConversationScreen(
                         if (granted) {
                             viewModel.startRecording()
                         } else {
-                            viewModel.reportError("Nahrávání hlasovek potřebuje přístup k mikrofonu.")
+                            viewModel.reportError(UiText(Res.string.conversation_microphone_permission))
                         }
                     }
                 },
@@ -685,7 +731,7 @@ fun ConversationScreen(
                     LoadingIndicator(Modifier.align(Alignment.Center))
 
                 state.messages.isEmpty() -> Text(
-                    text = state.error ?: "Zatím tu nejsou žádné zprávy.",
+                    text = state.error?.resolve() ?: stringResource(Res.string.conversation_empty),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -976,12 +1022,10 @@ private fun ScrollToBottomButton(
     }
 }
 
-/** České skloňování: 1 zpráva, 2–4 zprávy, 5+ zpráv. */
-private fun newMessagesLabel(count: Int): String = when {
-    count == 1 -> "1 nová zpráva"
-    count in 2..4 -> "$count nové zprávy"
-    else -> "$count nových zpráv"
-}
+/** Skloňování řeší `plurals` v prostředcích — čeština má tři tvary, angličtina dva. */
+@Composable
+private fun newMessagesLabel(count: Int): String =
+    pluralStringResource(Res.plurals.conversation_new_messages, count, count)
 
 /**
  * Bublina jedné zprávy.
@@ -1461,7 +1505,7 @@ private fun MessageInput(
                         IconButton(onClick = onCancelReply) {
                             Icon(
                                 painterResource(Res.drawable.close_24dp),
-                                contentDescription = "Zrušit odpověď",
+                                contentDescription = stringResource(Res.string.conversation_cancel_reply),
                             )
                         }
                     }
@@ -1482,7 +1526,7 @@ private fun MessageInput(
                 },
                 modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                 // S přílohami je text jejich popisek.
-                placeholder = { Text(if (withAttachments) "Popisek" else "Zpráva") },
+                placeholder = { Text(stringResource(if (withAttachments) Res.string.conversation_input_caption else Res.string.conversation_input_message)) },
                 // Přílohy jen při psaní — k úpravě textové zprávy příloha nepatří.
                 leadingIcon = if (editing == null) {
                     { AttachButton(onPickMedia = onPickMedia, onPickDocument = onPickDocument) }
@@ -1605,12 +1649,14 @@ private fun MessageInput(
                             else -> Res.drawable.send_24dp
                         },
                     ),
-                    contentDescription = when {
-                        editing != null -> "Uložit úpravu"
-                        showMic -> "Nahrát hlasovou zprávu"
-                        isRecording -> "Odeslat hlasovou zprávu"
-                        else -> "Odeslat"
-                    },
+                    contentDescription = stringResource(
+                        when {
+                            editing != null -> Res.string.conversation_save_edit
+                            showMic -> Res.string.conversation_record_voice
+                            isRecording -> Res.string.conversation_send_voice
+                            else -> Res.string.conversation_send
+                        },
+                    ),
                     modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
                 )
             }
@@ -1663,7 +1709,13 @@ private fun PinnedMessagesPanel(
                     onClick = onToggleExpanded,
                     modifier = Modifier.padding(start = 8.dp),
                 ) {
-                    Text(if (expanded) "Sbalit" else "Zobrazit všechny (${messages.size})")
+                    Text(
+                        if (expanded) {
+                            stringResource(Res.string.conversation_collapse)
+                        } else {
+                            pluralStringResource(Res.plurals.conversation_show_all_pinned, messages.size, messages.size)
+                        },
+                    )
                 }
             }
         }
@@ -1837,7 +1889,7 @@ private fun AttachButton(onPickMedia: () -> Unit, onPickDocument: () -> Unit) {
 
     Box {
         IconButton(onClick = { open = true }) {
-            Icon(painterResource(Res.drawable.attach_file_24dp), contentDescription = "Přiložit")
+            Icon(painterResource(Res.drawable.attach_file_24dp), contentDescription = stringResource(Res.string.conversation_attach))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(
@@ -1882,7 +1934,7 @@ private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit) {
         )
         Column(Modifier.weight(1f)) {
             Text(
-                text = "Úprava zprávy",
+                text = stringResource(Res.string.conversation_editing),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -1894,7 +1946,7 @@ private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit) {
             )
         }
         IconButton(onClick = onCancel) {
-            Icon(painterResource(Res.drawable.close_24dp), contentDescription = "Zrušit úpravu")
+            Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.conversation_cancel_edit))
         }
     }
 }
@@ -1957,10 +2009,10 @@ private fun QuotedMessage(
         Column {
             Text(
                 text = when {
-                    message.isOutgoing -> "Vy"
+                    message.isOutgoing -> stringResource(Res.string.sender_you)
                     // Ve skupině nese jméno sama zpráva; v soukromém chatu je odesílatel
                     // vždycky protějšek, takže se vezme název chatu.
-                    else -> message.senderName ?: partnerName ?: "Odpověď"
+                    else -> message.senderName ?: partnerName ?: stringResource(Res.string.conversation_reply)
                 },
                 style = MaterialTheme.typography.labelLarge,
                 color = accent,
@@ -1978,14 +2030,15 @@ private fun QuotedMessage(
     }
 }
 
+@Composable
 private fun MessageMedia?.describe(): String = when (this) {
-    is MessageMedia.Photo -> "Fotka"
+    is MessageMedia.Photo -> stringResource(Res.string.media_photo)
     is MessageMedia.Attachment -> label
     // V citaci není kam kreslit obrázek, takže samolepka se popíše svým emoji.
-    is MessageMedia.Sticker -> emoji.ifBlank { "Samolepka" }
+    is MessageMedia.Sticker -> emoji.ifBlank { stringResource(Res.string.media_sticker) }
     is MessageMedia.AnimatedEmoji -> emoji
-    is MessageMedia.VoiceNote -> "Hlasová zpráva"
-    is MessageMedia.Video -> "Video"
+    is MessageMedia.VoiceNote -> stringResource(Res.string.conversation_voice_message)
+    is MessageMedia.Video -> stringResource(Res.string.media_video)
     null -> ""
 }
 
@@ -2087,7 +2140,7 @@ private suspend fun LazyListState.scrollToAnchor(index: Int, anchor: ScrollAncho
 @Composable
 private fun UnreadDivider(modifier: Modifier = Modifier) {
     CenteredNote(
-        text = "Nepřečtené zprávy",
+        text = stringResource(Res.string.conversation_unread_divider),
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         modifier = modifier.padding(vertical = DAY_DIVIDER_SPACING),
@@ -2291,15 +2344,15 @@ private fun DeliveryIcon(
         label = "delivery",
     ) { current ->
         val (icon, description) = when (current) {
-            Delivery.Sending -> Res.drawable.schedule_24dp to "Odesílá se"
-            Delivery.Sent -> Res.drawable.check_24dp to "Odesláno"
-            Delivery.Read -> Res.drawable.done_all_24dp to "Přečteno"
-            Delivery.Failed -> Res.drawable.error_24dp to "Odeslání selhalo"
+            Delivery.Sending -> Res.drawable.schedule_24dp to Res.string.conversation_delivery_sending
+            Delivery.Sent -> Res.drawable.check_24dp to Res.string.conversation_delivery_sent
+            Delivery.Read -> Res.drawable.done_all_24dp to Res.string.conversation_delivery_read
+            Delivery.Failed -> Res.drawable.error_24dp to Res.string.conversation_delivery_failed
         }
 
         Icon(
             painter = painterResource(icon),
-            contentDescription = description,
+            contentDescription = stringResource(description),
             // Selhání je jediný stav, který uživatel musí zaregistrovat — dostane chybovou barvu.
             // Počítá se z `current`, ne z cílového stavu: odcházející ikona si barvu drží.
             tint = if (current == Delivery.Failed) {
@@ -2465,12 +2518,12 @@ private fun UploadIndicator(fileId: Int, onCancel: () -> Unit, modifier: Modifie
             .size(UPLOAD_INDICATOR_SIZE)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f))
-            .clickable(onClickLabel = "Zrušit odesílání", onClick = onCancel),
+            .clickable(onClickLabel = stringResource(Res.string.conversation_cancel_sending), onClick = onCancel),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             painterResource(Res.drawable.close_24dp),
-            contentDescription = "Zrušit odesílání",
+            contentDescription = stringResource(Res.string.conversation_cancel_sending),
             tint = Color.White,
             modifier = Modifier.size(20.dp),
         )
@@ -2831,12 +2884,13 @@ private data class HeaderSubtitle(val text: String, val accent: Boolean)
  * „naposledy nedávno" a přesný čas nedostaneme. Proto se nikde nedopočítává nic přesnějšího,
  * než co server dal — vymyslet minutu, kterou neznáme, by bylo horší než neurčitost.
  */
+@Composable
 private fun Presence.describe(): String = when (this) {
-    Presence.Online -> "online"
-    Presence.Recently -> "naposledy nedávno"
-    Presence.LastWeek -> "naposledy tento týden"
-    Presence.LastMonth -> "naposledy tento měsíc"
-    is Presence.Offline -> "naposledy " + wasOnline.asRelativeTime()
+    Presence.Online -> stringResource(Res.string.presence_online)
+    Presence.Recently -> stringResource(Res.string.presence_recently)
+    Presence.LastWeek -> stringResource(Res.string.presence_last_week)
+    Presence.LastMonth -> stringResource(Res.string.presence_last_month)
+    is Presence.Offline -> stringResource(Res.string.presence_offline, wasOnline.asRelativeTime())
 }
 
 /** Co bublina potřebuje k hlasovce; u ostatních příloh se nepoužije. */

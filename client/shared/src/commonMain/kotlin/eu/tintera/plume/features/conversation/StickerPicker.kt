@@ -1,110 +1,126 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridItemScope
+import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.PrimaryScrollableTabRow
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.settings.ExpressionMode
+import eu.tintera.plume.core.telegram.EmojiRepository
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.StickerItem
+import eu.tintera.plume.core.telegram.StickerQuery
 import eu.tintera.plume.core.telegram.StickerRepository
+import eu.tintera.plume.core.telegram.StickerSearchResult
 import eu.tintera.plume.core.telegram.StickerSetSummary
+import eu.tintera.plume.core.telegram.TrendingStickerSet
 import eu.tintera.plume.core.ui.AnimatedSticker
 import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.ui.emojiClusterCount
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.menu_favorite_add
+import eu.tintera.plume.resources.menu_favorite_remove
 import eu.tintera.plume.resources.schedule_24dp
+import eu.tintera.plume.resources.search_24dp
 import eu.tintera.plume.resources.star_24dp
+import eu.tintera.plume.resources.star_filled_24dp
+import eu.tintera.plume.resources.stickers_add
+import eu.tintera.plume.resources.stickers_added
+import eu.tintera.plume.resources.stickers_clear_search
+import eu.tintera.plume.resources.stickers_favorites_empty
+import eu.tintera.plume.resources.stickers_none_found
+import eu.tintera.plume.resources.stickers_recent_empty
+import eu.tintera.plume.resources.stickers_section_installed
+import eu.tintera.plume.resources.stickers_section_public
+import eu.tintera.plume.resources.stickers_set_empty
+import eu.tintera.plume.resources.stickers_tab_favorites
+import eu.tintera.plume.resources.stickers_tab_recent
+import eu.tintera.plume.resources.stickers_tab_trending
+import eu.tintera.plume.resources.stickers_trending_failed
+import eu.tintera.plume.resources.trending_up_24dp
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyGridScope
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.intl.Locale
-import eu.tintera.plume.core.telegram.StickerQuery
-import eu.tintera.plume.core.telegram.StickerSearchResult
-import eu.tintera.plume.core.ui.emojiClusterCount
-import eu.tintera.plume.resources.close_24dp
-import eu.tintera.plume.resources.search_24dp
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.transformLatest
-import androidx.compose.foundation.shape.CircleShape
-import eu.tintera.plume.resources.star_filled_24dp
-import androidx.compose.foundation.lazy.grid.LazyGridItemScope
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.ui.text.style.TextOverflow
-import eu.tintera.plume.core.telegram.TrendingStickerSet
-import eu.tintera.plume.resources.trending_up_24dp
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.ui.text.input.TextFieldValue
-import eu.tintera.plume.core.telegram.EmojiRepository
-import eu.tintera.plume.core.settings.ExpressionMode
-import eu.tintera.plume.core.settings.AppSettings
-import kotlinx.coroutines.flow.map
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 /** Záložka výběru samolepek. */
@@ -560,10 +576,10 @@ private fun StickerPage(
         ) {
             Text(
                 text = when (tab) {
-                    StickerTab.Recent -> "Tady se objeví samolepky, které pošleš."
-                    StickerTab.Favorites -> "Zatím tu nejsou žádné oblíbené samolepky."
+                    StickerTab.Recent -> stringResource(Res.string.stickers_recent_empty)
+                    StickerTab.Favorites -> stringResource(Res.string.stickers_favorites_empty)
                     StickerTab.Trending -> ""
-                    is StickerTab.Set -> "Sada je prázdná, nebo se ji nepodařilo načíst."
+                    is StickerTab.Set -> stringResource(Res.string.stickers_set_empty)
                 },
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -597,7 +613,7 @@ private fun TrendingPage(
             sets == null -> LoadingIndicator()
 
             sets.isEmpty() -> Text(
-                text = "Trendy se nepodařilo načíst.",
+                text = stringResource(Res.string.stickers_trending_failed),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -645,12 +661,12 @@ private fun TrendingSetRow(
             // Přidaná sada ukazuje stav, ne mrtvé tlačítko. Odebírá se v detailu sady.
             if (set.isInstalled) {
                 Text(
-                    text = "Přidáno",
+                    text = stringResource(Res.string.stickers_added),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
-                FilledTonalButton(onClick = onInstall) { Text("Přidat") }
+                FilledTonalButton(onClick = onInstall) { Text(stringResource(Res.string.stickers_add)) }
             }
         }
         Row(
@@ -715,7 +731,7 @@ internal fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Mo
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         painterResource(if (favorite) Res.drawable.star_filled_24dp else Res.drawable.star_24dp),
-                        contentDescription = if (favorite) "Odebrat z oblíbených" else "Přidat do oblíbených",
+                        contentDescription = stringResource(if (favorite) Res.string.menu_favorite_remove else Res.string.menu_favorite_add),
                         modifier = Modifier.size(16.dp),
                     )
                 }
@@ -767,7 +783,7 @@ internal fun StickerSearchField(
             trailingIcon = if (text.isNotEmpty()) {
                 {
                     IconButton(onClick = { onTextChange("") }) {
-                        Icon(painterResource(Res.drawable.close_24dp), contentDescription = "Smazat hledání")
+                        Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.stickers_clear_search))
                     }
                 }
             } else {
@@ -800,9 +816,13 @@ private fun StickerSearchResults(
 
             is StickerSearchState.Results -> {
                 val result = search.result
+                // Nadpisy sekcí se čtou tady: `searchSection` je rozšíření `LazyGridScope`,
+                // ne composable funkce.
+                val installedTitle = stringResource(Res.string.stickers_section_installed)
+                val publicTitle = stringResource(Res.string.stickers_section_public)
                 if (result.installed.isEmpty() && result.public.isEmpty()) {
                     Text(
-                        text = "Žádné samolepky jsme nenašli.",
+                        text = stringResource(Res.string.stickers_none_found),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -816,8 +836,8 @@ private fun StickerSearchResults(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     modifier = Modifier.fillMaxSize(),
                 ) {
-                    searchSection("Z tvých sad", result.installed, cells)
-                    searchSection("Další samolepky", result.public, cells)
+                    searchSection(installedTitle, result.installed, cells)
+                    searchSection(publicTitle, result.public, cells)
                 }
             }
         }
@@ -849,9 +869,9 @@ private fun LazyGridScope.searchSection(
 @Composable
 private fun StickerTabIcon(tab: StickerTab) {
     when (tab) {
-        StickerTab.Recent -> Icon(painterResource(Res.drawable.schedule_24dp), contentDescription = "Nedávné")
-        StickerTab.Favorites -> Icon(painterResource(Res.drawable.star_24dp), contentDescription = "Oblíbené")
-        StickerTab.Trending -> Icon(painterResource(Res.drawable.trending_up_24dp), contentDescription = "Trendy")
+        StickerTab.Recent -> Icon(painterResource(Res.drawable.schedule_24dp), contentDescription = stringResource(Res.string.stickers_tab_recent))
+        StickerTab.Favorites -> Icon(painterResource(Res.drawable.star_24dp), contentDescription = stringResource(Res.string.stickers_tab_favorites))
+        StickerTab.Trending -> Icon(painterResource(Res.drawable.trending_up_24dp), contentDescription = stringResource(Res.string.stickers_tab_trending))
         is StickerTab.Set -> {
             val cover = tab.summary.cover
             if (cover != null) {

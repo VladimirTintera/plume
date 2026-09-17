@@ -1,22 +1,9 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.window.PopupProperties
-import androidx.compose.ui.window.PopupPositionProvider
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.IntRect
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -30,6 +17,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,20 +37,39 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.ui.previousClusterStart
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.backspace_24dp
+import eu.tintera.plume.resources.conversation_input_message
+import eu.tintera.plume.resources.emoji_none_found
+import eu.tintera.plume.resources.emoji_recent
+import eu.tintera.plume.resources.emoji_recent_empty
 import eu.tintera.plume.resources.schedule_24dp
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 
 /**
  * Výběr emoji — část sheetu výběru vedle samolepek.
@@ -135,7 +142,7 @@ internal fun EmojiPanel(
                 is EmojiSearchState.Results ->
                     if (current.emojis.isEmpty()) {
                         Text(
-                            text = "Žádné emoji jsme nenašli.",
+                            text = stringResource(Res.string.emoji_none_found),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
@@ -168,7 +175,7 @@ internal fun EmojiPanel(
         ) {
             Icon(
                 painterResource(Res.drawable.schedule_24dp),
-                contentDescription = "Nedávné",
+                contentDescription = stringResource(Res.string.emoji_recent),
                 modifier = Modifier.padding(vertical = 10.dp),
             )
         }
@@ -179,7 +186,15 @@ internal fun EmojiPanel(
                 onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
             ) {
                 // Emoji jako ikona záložky: obrázková ikona pro „Jídlo" by řekla míň než 🍔.
-                Text(group.icon, fontSize = 20.sp, modifier = Modifier.padding(vertical = 8.dp))
+                // Čtečce obrazovky ale samotné emoji nestačí, takže popisek nese název skupiny.
+                val title = stringResource(group.title)
+                Text(
+                    group.icon,
+                    fontSize = 20.sp,
+                    modifier = Modifier
+                        .padding(vertical = 8.dp)
+                        .semantics { contentDescription = title },
+                )
             }
         }
     }
@@ -195,7 +210,7 @@ internal fun EmojiPanel(
         } else {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "Tady se objeví emoji, která vybereš.",
+                    text = stringResource(Res.string.emoji_recent_empty),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -225,7 +240,7 @@ private fun DraftPreview(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = draft.text.ifEmpty { "Zpráva" },
+                text = draft.text.ifEmpty { stringResource(Res.string.conversation_input_message) },
                 color = if (draft.text.isEmpty()) {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 } else {

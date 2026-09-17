@@ -347,6 +347,34 @@ aplikace pamatuje o uživateli; data z Telegramu drží TDLib.
   DataStore pracuje na vlastních vláknech a s virtuálním plánovačem se to občas minulo — test
   visel do minutového limitu a selhával pokaždé jiný. Každé čekání má `withTimeout` pár vteřin.
 
+## Jazyky
+
+**Výchozí jazyk je angličtina** (`composeResources/values/strings.xml`), čeština je mutace
+(`values-cs/`). Texty se čtou přes `stringResource(Res.string.…)`; v kódu nesmí zůstat literál,
+který uvidí uživatel.
+
+- **Zpětné lomítko před apostrofem se v Compose Multiplatform NEROZBALÍ.** Android resources
+  `\'` vyžadují, tady by se uživateli ukázalo „you\'ll". Ověřeno na zařízení — do XML patří
+  apostrof tak, jak je; escapují se jen XML entity (`&`, `<`).
+- **`stringResource` je `@Composable`, `StringResource` ale ne.** Proto ViewModel i doménový
+  stav nosí `UiText` (odkaz do prostředků + argumenty) a překládá se až v UI. Text poskládaný
+  ve ViewModelu by po změně jazyka zůstal v tom starém.
+- **Mimo kompozici se čte `getString(…)`, což je `suspend`.** Tudy jdou popisy typů zpráv
+  (`previewText`, `serviceText`), notifikace a schránka — kvůli tomu je řada mapovacích funkcí
+  v `core/telegram` `suspend`. Náhled poslední zprávy se proto skládá **před** `edit` nad stavem
+  seznamu chatů, ne uvnitř.
+- **Čeština má tři tvary množného čísla** (1 / 2–4 / 5+), angličtina dva. Kde se počítá, patří
+  `plurals`, ne `when` nad číslem — viz „N nových zpráv".
+- **Datum není jen překlad slov.** Pořadí dne a měsíce se liší, čeština chce měsíc ve 2. pádu
+  („5. února"), angličtina v základním. Proto je i pořadí formátovací řetězec (`date_day_month`),
+  ne slepenec v kódu.
+- **`verifyTranslations` visí na `check`.** Chybějící klíč by se jinak poznal až na obrazovce:
+  Compose spadne zpátky na výchozí jazyk, takže uprostřed české aplikace vyskočí anglická věta
+  a nic to nenahlásí.
+- **Ověřuje se přepnutím jazyka aplikace**, ne celého systému:
+  `adb shell cmd locale set-app-locales eu.tintera.plume --locales cs-CZ` (prázdná hodnota vrátí
+  systémový). Restart aplikace stačí, emulátor rebootovat netřeba.
+
 ## Navigace
 
 Navigation3 (`rememberNavBackStack` + `NavDisplay` + `entryProvider`). Klíče jsou v

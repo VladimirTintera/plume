@@ -31,9 +31,11 @@ import coil3.compose.AsyncImage
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.conversation_attachment_position
 import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.play_arrow_24dp
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Přílohy čekající na odeslání, nahoře v kartě vstupního pole.
@@ -110,7 +112,7 @@ private fun PhotoCarousel(
                 AsyncImage(
                     // Coil potřebuje schéma, holá cesta by se vyhodnotila jako relativní URI.
                     model = "file://$image",
-                    contentDescription = "Příloha ${index + 1} z ${attachments.size}",
+                    contentDescription = stringResource(Res.string.conversation_attachment_position, index + 1, attachments.size),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                 )

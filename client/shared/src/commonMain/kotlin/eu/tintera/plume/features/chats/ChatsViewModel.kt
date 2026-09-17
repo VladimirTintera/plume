@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.chats_action_failed
 
 class ChatsViewModel(
     private val repository: ChatRepository,
@@ -95,7 +98,7 @@ class ChatsViewModel(
                 // Surová hláška od TDLib patří do logu, ne do snackbaru — viz userMessage().
                 logger.w(failure) { "Akce nad chatem ${chat.id} selhala." }
                 _actions.value = ChatActionsState(
-                    error = failure.userMessage("Akci se nepodařilo provést."),
+                    error = failure.userMessage(Res.string.chats_action_failed),
                 )
             }
         }
@@ -111,7 +114,7 @@ class ChatsViewModel(
 data class ChatActionsState(
     val target: ChatSummary? = null,
     val pendingDelete: ChatSummary? = null,
-    val error: String? = null,
+    val error: UiText? = null,
 )
 
 /** Nepřečteno = nepřečtené zprávy NEBO ruční příznak. Obojí se v seznamu chová stejně. */

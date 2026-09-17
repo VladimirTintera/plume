@@ -10,6 +10,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.auth_error_generic
+import eu.tintera.plume.resources.auth_error_qr
 
 class AuthViewModel(
     private val session: TelegramSession,
@@ -26,8 +30,8 @@ class AuthViewModel(
     private val _busy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = _busy.asStateFlow()
 
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
+    private val _error = MutableStateFlow<UiText?>(null)
+    val error: StateFlow<UiText?> = _error.asStateFlow()
 
     // Session startuje `startKoin`, ne tenhle ViewModel — TDLib musí být inicializovaný
     // i když se žádné UI neskládá (probuzení procesu pushem).
@@ -56,7 +60,7 @@ class AuthViewModel(
                 .onSuccess { _input.value = "" }
                 .onFailure { failure ->
                     logger.w(failure) { "Přihlašovací krok selhal." }
-                    _error.value = failure.userMessage("Něco se nepovedlo. Zkus to znovu.")
+                    _error.value = failure.userMessage(Res.string.auth_error_generic)
                 }
         }
     }
@@ -66,7 +70,7 @@ class AuthViewModel(
             _busy.value = true
             session.startQrLogin().onFailure { failure ->
                 logger.w(failure) { "QR přihlášení se nepodařilo spustit." }
-                _error.value = failure.userMessage("QR kód se nepodařilo získat.")
+                _error.value = failure.userMessage(Res.string.auth_error_qr)
             }
             _busy.value = false
         }

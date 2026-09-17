@@ -14,6 +14,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.voice_playback_failed
 
 /**
  * Přehrávání samotného souboru — platformní část.
@@ -65,8 +68,8 @@ class VoicePlayer(private val scope: CoroutineScope) {
     private val _state = MutableStateFlow<VoicePlayback?>(null)
     val state: StateFlow<VoicePlayback?> = _state.asStateFlow()
 
-    private val _errors = MutableSharedFlow<String>(extraBufferCapacity = 1)
-    val errors: SharedFlow<String> = _errors.asSharedFlow()
+    private val _errors = MutableSharedFlow<UiText>(extraBufferCapacity = 1)
+    val errors: SharedFlow<UiText> = _errors.asSharedFlow()
 
     private var engine: AudioEngine? = null
     private var loadJob: Job? = null
@@ -109,7 +112,7 @@ class VoicePlayer(private val scope: CoroutineScope) {
             } catch (failure: Throwable) {
                 logger.w(failure) { "Hlasovku se nepodařilo přehrát." }
                 _state.value = null
-                _errors.tryEmit("Hlasovku se nepodařilo přehrát.")
+                _errors.tryEmit(UiText(Res.string.voice_playback_failed))
             }
         }
     }

@@ -27,6 +27,32 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.ui.QrCode
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.ui.resolve
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.auth_continue
+import eu.tintera.plume.resources.auth_headline_code
+import eu.tintera.plume.resources.auth_headline_connecting
+import eu.tintera.plume.resources.auth_headline_failed
+import eu.tintera.plume.resources.auth_headline_logging_out
+import eu.tintera.plume.resources.auth_headline_password
+import eu.tintera.plume.resources.auth_headline_phone
+import eu.tintera.plume.resources.auth_headline_qr
+import eu.tintera.plume.resources.auth_headline_ready
+import eu.tintera.plume.resources.auth_headline_registration
+import eu.tintera.plume.resources.auth_input_code
+import eu.tintera.plume.resources.auth_input_password
+import eu.tintera.plume.resources.auth_input_phone
+import eu.tintera.plume.resources.auth_qr_content_description
+import eu.tintera.plume.resources.auth_sign_in_with_qr
+import eu.tintera.plume.resources.auth_support_code
+import eu.tintera.plume.resources.auth_support_logging_out
+import eu.tintera.plume.resources.auth_support_password_hint
+import eu.tintera.plume.resources.auth_support_phone
+import eu.tintera.plume.resources.auth_support_qr
+import eu.tintera.plume.resources.auth_support_registration
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun AuthScreen(
@@ -54,14 +80,14 @@ fun AuthScreen(
                 modifier = Modifier.widthIn(max = 420.dp),
             ) {
                 Text(
-                    text = current.headline(),
+                    text = stringResource(current.headline()),
                     style = MaterialTheme.typography.displaySmall,
                     textAlign = TextAlign.Center,
                 )
 
                 current.supportingText()?.let {
                     Text(
-                        text = it,
+                        text = it.resolve(),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -72,10 +98,10 @@ fun AuthScreen(
                     OutlinedTextField(
                         value = input,
                         onValueChange = viewModel::onInputChange,
-                        label = { Text(current.inputLabel()) },
+                        label = { Text(stringResource(current.inputLabel())) },
                         singleLine = true,
                         isError = error != null,
-                        supportingText = error?.let { { Text(it) } },
+                        supportingText = error?.let { { Text(it.resolve()) } },
                         visualTransformation = if (current is AuthStage.WaitPassword) {
                             PasswordVisualTransformation()
                         } else {
@@ -100,12 +126,12 @@ fun AuthScreen(
                     ) {
                         // M3 Expressive LoadingIndicator místo popisku — na rozdíl od
                         // CircularProgressIndicator je to tvarově morfující indikátor z expressive sady.
-                        if (busy) LoadingIndicator() else Text("Pokračovat")
+                        if (busy) LoadingIndicator() else Text(stringResource(Res.string.auth_continue))
                     }
 
                     if (current == AuthStage.WaitPhoneNumber) {
                         TextButton(onClick = viewModel::startQrLogin, enabled = !busy) {
-                            Text("Přihlásit se QR kódem")
+                            Text(stringResource(Res.string.auth_sign_in_with_qr))
                         }
                     }
                 }
@@ -117,7 +143,7 @@ fun AuthScreen(
                 if (current is AuthStage.WaitQrConfirmation) {
                     QrCode(
                         content = current.link,
-                        contentDescription = "QR kód pro přihlášení",
+                        contentDescription = stringResource(Res.string.auth_qr_content_description),
                         modifier = Modifier.widthIn(max = 280.dp).fillMaxWidth(),
                     )
                 }
@@ -126,25 +152,25 @@ fun AuthScreen(
     }
 }
 
-private fun AuthStage.headline(): String = when (this) {
-    AuthStage.Connecting -> "Připojuji se"
-    AuthStage.WaitPhoneNumber -> "Tvoje číslo"
-    AuthStage.WaitCode -> "Ověřovací kód"
-    is AuthStage.WaitPassword -> "Dvoufázové ověření"
-    is AuthStage.WaitQrConfirmation -> "Naskenuj kód"
-    AuthStage.WaitRegistration -> "Nový účet"
-    AuthStage.Ready -> "Hotovo"
-    AuthStage.LoggingOut -> "Odhlašuji"
-    is AuthStage.Failed -> "Nepovedlo se"
+private fun AuthStage.headline(): StringResource = when (this) {
+    AuthStage.Connecting -> Res.string.auth_headline_connecting
+    AuthStage.WaitPhoneNumber -> Res.string.auth_headline_phone
+    AuthStage.WaitCode -> Res.string.auth_headline_code
+    is AuthStage.WaitPassword -> Res.string.auth_headline_password
+    is AuthStage.WaitQrConfirmation -> Res.string.auth_headline_qr
+    AuthStage.WaitRegistration -> Res.string.auth_headline_registration
+    AuthStage.Ready -> Res.string.auth_headline_ready
+    AuthStage.LoggingOut -> Res.string.auth_headline_logging_out
+    is AuthStage.Failed -> Res.string.auth_headline_failed
 }
 
-private fun AuthStage.supportingText(): String? = when (this) {
-    AuthStage.WaitPhoneNumber -> "Zadej číslo i s předvolbou, například +420…"
-    AuthStage.WaitCode -> "Kód dorazil do jiného Telegram klienta nebo SMS."
-    is AuthStage.WaitPassword -> hint?.let { "Nápověda: $it" }
-    is AuthStage.WaitQrConfirmation -> "V Telegramu na přihlášeném zařízení otevři Nastavení → Zařízení → Připojit zařízení a naskenuj kód."
-    AuthStage.WaitRegistration -> "Tohle číslo zatím účet nemá. Založ si ho v oficiálním klientovi."
-    AuthStage.LoggingOut -> "Mažu data účtu z tohohle zařízení."
+private fun AuthStage.supportingText(): UiText? = when (this) {
+    AuthStage.WaitPhoneNumber -> UiText(Res.string.auth_support_phone)
+    AuthStage.WaitCode -> UiText(Res.string.auth_support_code)
+    is AuthStage.WaitPassword -> hint?.let { UiText(Res.string.auth_support_password_hint, it) }
+    is AuthStage.WaitQrConfirmation -> UiText(Res.string.auth_support_qr)
+    AuthStage.WaitRegistration -> UiText(Res.string.auth_support_registration)
+    AuthStage.LoggingOut -> UiText(Res.string.auth_support_logging_out)
     is AuthStage.Failed -> message
     else -> null
 }
@@ -152,8 +178,8 @@ private fun AuthStage.supportingText(): String? = when (this) {
 private fun AuthStage.acceptsInput(): Boolean =
     this == AuthStage.WaitPhoneNumber || this == AuthStage.WaitCode || this is AuthStage.WaitPassword
 
-private fun AuthStage.inputLabel(): String = when (this) {
-    AuthStage.WaitPhoneNumber -> "Telefonní číslo"
-    AuthStage.WaitCode -> "Kód"
-    else -> "Heslo"
+private fun AuthStage.inputLabel(): StringResource = when (this) {
+    AuthStage.WaitPhoneNumber -> Res.string.auth_input_phone
+    AuthStage.WaitCode -> Res.string.auth_input_code
+    else -> Res.string.auth_input_password
 }

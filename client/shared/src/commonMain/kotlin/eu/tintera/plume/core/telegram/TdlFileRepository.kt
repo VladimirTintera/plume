@@ -13,6 +13,10 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.file_download_failed
+import eu.tintera.plume.resources.file_unavailable
 
 /**
  * Stahování souborů nad TDLib.
@@ -86,7 +90,7 @@ class TdlFileRepository(
                 if (current.local.isDownloadingCompleted) return@onSuccess
 
                 if (!current.local.canBeDownloaded) {
-                    stateOf(fileId).value = FileState.Failed("Soubor nelze stáhnout.")
+                    stateOf(fileId).value = FileState.Failed(UiText(Res.string.file_download_failed))
                     return@onSuccess
                 }
 
@@ -105,12 +109,12 @@ class TdlFileRepository(
                     .onFailure { failure ->
                         logger.w { "downloadFile($fileId) selhalo: ${failure.message}" }
                         stateOf(fileId).value =
-                            FileState.Failed(failure.userMessage("Soubor se nepodařilo stáhnout."))
+                            FileState.Failed(failure.userMessage(Res.string.file_download_failed))
                     }
             }
             .onFailure { failure ->
                 logger.w { "getFile($fileId) selhalo: ${failure.message}" }
-                stateOf(fileId).value = FileState.Failed(failure.userMessage("Soubor není dostupný."))
+                stateOf(fileId).value = FileState.Failed(failure.userMessage(Res.string.file_unavailable))
             }
     }
 

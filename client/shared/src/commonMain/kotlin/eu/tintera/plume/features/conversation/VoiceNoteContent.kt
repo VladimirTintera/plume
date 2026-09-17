@@ -38,9 +38,13 @@ import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.resampleWaveform
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_play_voice
+import eu.tintera.plume.resources.conversation_voice_progress
+import eu.tintera.plume.resources.media_pause
 import eu.tintera.plume.resources.pause_24dp
 import eu.tintera.plume.resources.play_arrow_24dp
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Hlasovka v bublině: tlačítko, waveform s průběhem a čas.
@@ -80,13 +84,15 @@ fun VoiceNoteContent(
         ) {
             when {
                 current?.loading == true -> CircularWavyProgressIndicator(color = onAccent, modifier = Modifier.size(28.dp))
-                current?.playing == true -> Icon(painterResource(Res.drawable.pause_24dp), contentDescription = "Pozastavit")
-                else -> Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = "Přehrát hlasovou zprávu")
+                current?.playing == true -> Icon(painterResource(Res.drawable.pause_24dp), contentDescription = stringResource(Res.string.media_pause))
+                else -> Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = stringResource(Res.string.conversation_play_voice))
             }
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             val active = current != null && !current.loading
+            // `semantics` není composable blok, takže se popisek musí přečíst tady.
+            val progressLabel = stringResource(Res.string.conversation_voice_progress)
             // Během tažení se ukazuje místo, kam prst míří, ne kde přehrávač zrovna je.
             var dragFraction by remember { mutableStateOf<Float?>(null) }
             val progress = dragFraction ?: current?.progress ?: 0f
@@ -99,7 +105,7 @@ fun VoiceNoteContent(
                 modifier = Modifier
                     .width(VOICE_WAVEFORM_WIDTH)
                     .height(VOICE_WAVEFORM_HEIGHT)
-                    .semantics { contentDescription = "Průběh hlasové zprávy" }
+                    .semantics { contentDescription = progressLabel }
                     .pointerInput(active) {
                         if (!active) return@pointerInput
                         detectTapGestures { offset -> onSeek(offset.x / size.width) }

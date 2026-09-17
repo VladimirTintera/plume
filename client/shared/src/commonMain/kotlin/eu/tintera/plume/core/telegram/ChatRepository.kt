@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.telegram
 
 import kotlinx.coroutines.flow.StateFlow
+import eu.tintera.plume.core.ui.UiText
 
 /**
  * Seznam chatů hlavní složky, živě aktualizovaný.
@@ -51,7 +52,7 @@ sealed interface ChatListState {
         val canLoadMore: Boolean,
     ) : ChatListState
 
-    data class Failed(val message: String) : ChatListState
+    data class Failed(val message: UiText) : ChatListState
 }
 
 /**

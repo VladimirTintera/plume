@@ -8,5 +8,6 @@ package eu.tintera.plume.core.ui
  * v commonMain se prostě nedá vyrobit. Tak je to stejně jako `UrlOpener` platformní třída v DI.
  */
 expect class TextClipboard {
-    fun copy(text: String)
+    /** `suspend`, protože popisek schránky se čte z prostředků. */
+    suspend fun copy(text: String)
 }
