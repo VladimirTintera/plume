@@ -1423,6 +1423,16 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   jinak by se repozitář po klonu nepřeložil. Bez Firebase appka funguje, jen bez pushe.
 - **Push payload je zašifrovaný.** Rozšifrovat ho umí jedině TDLib přes `processPushNotification`;
   služba nic nevykresluje, jen předává.
+- **`processPushNotification` chce CELOU datovou část pushe jako JSON**, ne jen pole `p`, a k ní
+  `google.sent_time` (a `google.notification.sound`, je-li). S holým `p` TDLib každý push odmítl
+  chybou „Failed to parse payload as JSON object" — push tím nefungoval NIKDY, ani u zabité
+  aplikace, a v logu to byla jediná stopa.
+- **Push se testuje botem, ne druhým účtem.** @BotFather → `/newbot`, botovi poslat `/start`,
+  pak `curl https://api.telegram.org/bot<token>/sendMessage -d chat_id=… -d text=…`
+  (`chat_id` z `getUpdates`). Zpráva od bota přijde pushem jako od kohokoli jiného. Debug build
+  potřebuje lokální `google-services.json`, jinak se Firebase neinicializuje.
+- **Doručení pushe trvá různě, klidně 30 s.** Server Telegramu push odkládá, když je účet
+  nedávno online — to není chyba aplikace.
 - **Proces v pozadí systém ZMRAZÍ, i když ho nikdo nekillnul.** Aplikace odsunutá za jinou
   (oom adj 900, cache) je do ~10 s `isFrozen=true` (`adb shell dumpsys activity processes
   eu.tintera.plume | grep isFrozen`). Zmrazený proces nemá spojení, takže z pozadí chodí
@@ -1433,6 +1443,16 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   notifikace (`UpdateHavePendingNotifications`) a presenter zpracoval všechno, co repository
   vydala — počítá se to přes `transform { emit(); … }` za `merge`, kde se `emit` vrací až po
   zpracování odběratelem.
+- **Klid musí vydržet souvisle 2 s, první okamžik bez práce nestačí.** Z pushe TDLib vydá
+  dočasnou notifikaci hned, o pár set ms později se připojí, dočasnou zruší a skutečnou si
+  odloží. Služba skončila přesně v té mezeře a na liště nezůstalo nic.
+- **TDLib notifikace ODKLÁDÁ, i o 30 s.** `notification_default_delay_ms` = 1,5 s, a když byl
+  účet do `online_cloud_timeout_ms` (5 min) online na jakémkoli zařízení (i v Plume),
+  `notification_cloud_delay_ms` = 30 s — přečtení jinde notifikaci zruší. Hodnoty posílá server
+  (přečteno `getOption`). Do okna služby pushe se to nevejde, proto se na odloženou notifikaci
+  čeká v expedited úloze (`NotificationDeliveryWorker`, WorkManager, strop 60 s); dokud běží,
+  proces zmrazený není. Expedited jen od Androidu 12 — starší WorkManager by pro ni chtěl
+  foreground službu s vlastní notifikací.
 - **Z pushe TDLib vydává `NotificationTypeNewPushMessage`, ne `NewMessage`.** Obsah je
   rozšifrovaný přímo z pushe, protože zprávu samotnou TDLib bez spojení nemá. Dokud se
   zobrazoval jen `NewMessage`, push se zpracoval a notifikace se tiše zahodila — to byl hlavní

@@ -11,6 +11,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
+import org.json.JSONObject
 import org.koin.core.context.GlobalContext
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
@@ -46,13 +47,12 @@ class PlumeMessagingService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        // Telegram posílá payload v datové části pod klíčem `p`. Notifikační část nepoužívá,
-        // protože obsah musí projít dešifrováním.
-        val payload = message.data[PAYLOAD_KEY]
-        if (payload == null) {
+        // Zašifrovaný obsah je v datové části pod klíčem `p`; bez něj to není push od Telegramu.
+        if (message.data[PAYLOAD_KEY] == null) {
             logger.w { "Push bez payloadu — ignoruji." }
             return
         }
+        val payload = message.toTdlibPayload()
 
         val repository = repository ?: run {
             logger.w { "Push dorazil dřív, než se nastartoval Koin — ignoruji." }
@@ -76,9 +76,26 @@ class PlumeMessagingService : FirebaseMessagingService() {
             if (delivered) {
                 logger.d { "Push vyřízen za ${started.elapsedNow().inWholeMilliseconds} ms." }
             } else {
-                logger.w { "Push se nestihl vyřídit do $DELIVERY_TIMEOUT." }
+                // Typicky odložená notifikace (až 30 s, když byl účet nedávno online jinde) —
+                // na tu se čeká v úloze, ve které systém proces nezmrazí.
+                logger.i { "Push se nestihl vyřídit do $DELIVERY_TIMEOUT, dočkám se v úloze." }
+                NotificationDeliveryWorker.enqueue(applicationContext)
             }
         }
+    }
+
+    /**
+     * Payload pro `processPushNotification`: **CELÁ datová část jako JSON**, ne jen pole `p`,
+     * a k ní `google.sent_time` a `google.notification.sound`, jak chce dokumentace TDLib.
+     * Dokud se předávalo jen `p`, TDLib každý push odmítl („Failed to parse payload as JSON
+     * object") a push nefungoval nikdy — ani u zabité aplikace.
+     */
+    private fun RemoteMessage.toTdlibPayload(): String {
+        val json = JSONObject()
+        data.forEach { (key, value) -> json.put(key, value) }
+        json.put("google.sent_time", sentTime)
+        notification?.sound?.let { json.put("google.notification.sound", it) }
+        return json.toString()
     }
 
     private fun registerToken(token: String) {

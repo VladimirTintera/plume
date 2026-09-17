@@ -29,11 +29,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.transform
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.compose.resources.getString
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /** Notifikace nad TDLib. */
@@ -62,7 +62,10 @@ class TdlNotificationRepository(
 
     init {
         holder.updates { havePendingNotificationsUpdates }
-            .onEach { tdlibPending.value = it.haveDelayedNotifications || it.haveUnreceivedNotifications }
+            .onEach {
+                logger.d { "Nevydané notifikace: odložené=${it.haveDelayedNotifications}, nepřijaté=${it.haveUnreceivedNotifications}" }
+                tdlibPending.value = it.haveDelayedNotifications || it.haveUnreceivedNotifications
+            }
             .launchIn(scope)
     }
 
@@ -184,15 +187,22 @@ class TdlNotificationRepository(
 
     override suspend fun awaitDelivered(timeout: Duration): Boolean =
         withTimeoutOrNull(timeout) {
-            while (true) {
-                combine(tdlibPending, inFlight) { pending, running -> !pending && running == 0 }
-                    .first { it }
-                // Stav TDLib a samotné notifikace chodí dvěma různými toky, takže „nic nečeká"
-                // může dorazit o chvilku dřív než update, který ho způsobil. Klid se proto
-                // ověří ještě jednou po krátké pauze.
-                delay(SETTLE)
-                if (!tdlibPending.value && inFlight.value == 0) break
-            }
+            /*
+             * Klid musí vydržet SOUVISLE [QUIET]; každá změna odpočet restartuje.
+             *
+             * Nestačí první okamžik, kdy nic nečeká. Z pushe vydá TDLib dočasnou notifikaci
+             * hned, jenže o pár set milisekund později se připojí, dostane skutečnou zprávu,
+             * dočasnou notifikaci zruší a novou si odloží. Ověřeno na zařízení: služba skončila
+             * v mezeře mezi tím, proces zamrzl a na liště nezůstalo nic.
+             */
+            combine(tdlibPending, inFlight) { pending, running -> !pending && running == 0 }
+                .transformLatest { idle ->
+                    if (idle) {
+                        delay(QUIET)
+                        emit(Unit)
+                    }
+                }
+                .first()
             true
         } ?: false
 
@@ -285,7 +295,7 @@ class TdlNotificationRepository(
         /** Jak dlouho notifikace počká na profilovku, kterou TDLib nemá na disku. */
         val AVATAR_TIMEOUT = 2.seconds
 
-        /** Pauza, po které se klid v notifikacích ověřuje podruhé. */
-        val SETTLE = 300.milliseconds
+        /** Jak dlouho musí být v notifikacích klid, než se push považuje za vyřízený. */
+        val QUIET = 2.seconds
     }
 }
