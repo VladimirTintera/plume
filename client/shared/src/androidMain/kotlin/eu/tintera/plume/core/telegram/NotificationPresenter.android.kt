@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
@@ -62,6 +63,16 @@ actual class NotificationPresenter(
      * Sahá se na ně ze stejné korutiny jako na [conversations], takže bez zámku.
      */
     private val bitmaps = mutableMapOf<String, Bitmap>()
+
+    /**
+     * Řádky, které TDLib nedávno odebral — kvůli rozpoznání NÁHRADY.
+     *
+     * Z pushe vydá TDLib dočasnou notifikaci a jakmile dostane skutečnou zprávu, dočasnou odebere
+     * a přidá novou se stejným textem. Pro systém je to nová zpráva, takže bez tohohle telefon
+     * upozornil dvakrát (ověřeno v `notification_alert` event logu). Sahá se sem ze stejné
+     * korutiny jako na [conversations].
+     */
+    private val recentlyRemoved = mutableListOf<RemovedLine>()
 
     actual fun start(repository: NotificationRepository) {
         scope.launch {
@@ -126,8 +137,19 @@ actual class NotificationPresenter(
                 .sortedBy { it.timestampMs }
                 .takeLast(MAX_LINES)
 
-            show(groupId, conversation, silent = newest.isSilent)
+            // Potichu, když nic nového nepřibylo, nebo přibylo jen to, co TDLib právě nahradil.
+            val onlyReplacements = added.all { line -> consumeRemoved(groupId, line.text) }
+            show(groupId, conversation, silent = newest.isSilent || onlyReplacements)
         }
+    }
+
+    /** Najde a spotřebuje nedávno odebraný řádek se stejným textem. */
+    private fun consumeRemoved(groupId: Int, text: String): Boolean {
+        val now = SystemClock.elapsedRealtime()
+        recentlyRemoved.removeAll { now - it.removedAtMs > REPLACEMENT_WINDOW_MS }
+        val match = recentlyRemoved.firstOrNull { it.groupId == groupId && it.text == text } ?: return false
+        recentlyRemoved.remove(match)
+        return true
     }
 
     /**
@@ -138,6 +160,7 @@ actual class NotificationPresenter(
         conversations.keys.forEach { manager.cancel(it) }
         conversations.clear()
         bitmaps.clear()
+        recentlyRemoved.clear()
         // Notifikace z minulého běhu procesu v `conversations` nejsou.
         manager.cancelAll()
         // Dlouhověké zkratky si systém drží i mimo dynamické, `removeAllDynamicShortcuts` by
@@ -164,6 +187,10 @@ actual class NotificationPresenter(
         }
 
         val removed = update.notificationIds.toSet()
+        val now = SystemClock.elapsedRealtime()
+        conversation.lines
+            .filter { it.notificationId in removed }
+            .forEach { recentlyRemoved += RemovedLine(update.groupId, it.text, now) }
         conversation.lines = conversation.lines.filterNot { it.notificationId in removed }
 
         if (conversation.lines.isEmpty()) {
@@ -347,11 +374,16 @@ actual class NotificationPresenter(
         val icon: IconCompat?,
     )
 
+    private class RemovedLine(val groupId: Int, val text: String, val removedAtMs: Long)
+
     private companion object {
         const val CHANNEL_ID = "messages"
 
         /** Kolik zpráv se v notifikaci drží. Android jich stejně vykreslí jen posledních pár. */
         const val MAX_LINES = 10
+
+        /** Jak dlouho po odebrání se nový řádek se stejným textem považuje za náhradu. */
+        const val REPLACEMENT_WINDOW_MS = 60_000L
 
         /** Prefix id zkratky konverzace. Musí být stabilní, aby se zkratka přepisovala, ne množila. */
         const val SHORTCUT_PREFIX = "chat_"
