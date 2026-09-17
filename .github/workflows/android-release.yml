@@ -7,7 +7,12 @@
 #   1. z tagu vytáhne verzi (žádný verzovací commit není potřeba — build ji bere přes -P),
 #   2. postaví podepsaný AAB,
 #   3. nahraje ho do Google Play na **internal** track,
-#   4. založí GitHub Release s changelogem od předchozího android tagu a AAB v příloze.
+#   4. založí GitHub Release s changelogem od předchozího android tagu.
+#
+# AAB se NIKAM nepřikládá — ani jako artefakt běhu, ani jako příloha releasu. Bundl má přes
+# 50 MB a artefakty se počítají do kvóty Actions (na free účtu 500 MB, tedy deset releasů).
+# Kopii drží Play a **build je z tagu reprodukovatelný** — verze se bere z něj, ne z commitu,
+# takže `bundleRelease` nad tímtéž tagem vyrobí tutéž verzi.
 #
 # Potřebné secrets (Settings → Secrets and variables → Actions):
 #   ANDROID_KEYSTORE_BASE64     – upload keystore (`base64 -i plume-release.jks | tr -d '\n'`)
@@ -177,14 +182,6 @@ jobs:
           # takže jediný track se píše stejně jako dřív.
           tracks: internal
 
-      - name: Upload AAB as artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: aab-${{ steps.tag.outputs.versionName }}-${{ steps.tag.outputs.versionCode }}
-          path: '*.aab'
-          if-no-files-found: ignore
-
       - name: Generate changelog
         run: |
           TAG="${GITHUB_REF_NAME}"
@@ -202,11 +199,10 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           if gh release view "$TAG" > /dev/null 2>&1; then
-            # re-run: release už existuje, jen aktualizujeme přílohy
-            gh release upload "$TAG" "${{ steps.tag.outputs.aab }}" --clobber
+            # re-run: release už existuje, jen přepíšeme poznámky
+            gh release edit "$TAG" --notes-file release-notes.md
           else
             gh release create "$TAG" \
               --title "$TAG" \
-              --notes-file release-notes.md \
-              "${{ steps.tag.outputs.aab }}"
+              --notes-file release-notes.md
           fi
