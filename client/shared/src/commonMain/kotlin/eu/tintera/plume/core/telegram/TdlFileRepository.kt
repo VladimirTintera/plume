@@ -105,12 +105,12 @@ class TdlFileRepository(
                     .onFailure { failure ->
                         logger.w { "downloadFile($fileId) selhalo: ${failure.message}" }
                         stateOf(fileId).value =
-                            FileState.Failed(failure.message ?: "Stažení selhalo.")
+                            FileState.Failed(failure.userMessage("Soubor se nepodařilo stáhnout."))
                     }
             }
             .onFailure { failure ->
                 logger.w { "getFile($fileId) selhalo: ${failure.message}" }
-                stateOf(fileId).value = FileState.Failed(failure.message ?: "Soubor není dostupný.")
+                stateOf(fileId).value = FileState.Failed(failure.userMessage("Soubor není dostupný."))
             }
     }
 

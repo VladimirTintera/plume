@@ -340,7 +340,7 @@ class TdlChatRepository(
                     // Když už nějaké chaty máme, chybu nedeklarujeme jako prázdný stav —
                     // uživatel by přišel o seznam kvůli selhání dotažení dalších.
                     if (known.isEmpty()) {
-                        _chats.value = ChatListState.Failed(result.message)
+                        _chats.value = ChatListState.Failed("Seznam chatů se nepodařilo načíst.")
                         return
                     }
                 }
