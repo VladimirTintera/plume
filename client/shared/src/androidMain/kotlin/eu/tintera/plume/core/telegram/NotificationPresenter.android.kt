@@ -22,6 +22,8 @@ import eu.tintera.plume.resources.notification_channel_description
 import eu.tintera.plume.resources.notification_channel_name
 import eu.tintera.plume.resources.notification_self_name
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 
@@ -49,7 +51,7 @@ actual class NotificationPresenter(
     /**
      * Rozepsané notifikace podle `groupId`.
      *
-     * Čte i zapisuje jen kolektor updatů, tedy jedna korutina — zámek proto není potřeba.
+     * Čte i zapisuje se jen na [dispatcher] — zámek proto není potřeba.
      */
     private val conversations = mutableMapOf<Int, Conversation>()
 
@@ -74,8 +76,14 @@ actual class NotificationPresenter(
      */
     private val recentlyRemoved = mutableListOf<RemovedLine>()
 
+    /**
+     * Všechno, co sahá na stav presenteru, běží na jednom vlákně naráz — kolektor updatů
+     * i odložené rušení prázdných notifikací.
+     */
+    private val dispatcher = Dispatchers.Default.limitedParallelism(1)
+
     actual fun start(repository: NotificationRepository) {
-        scope.launch {
+        scope.launch(dispatcher) {
             // Kanál i jméno „Já" se čtou z prostředků (`suspend`), takže se zakládá až tady.
             createChannel()
             logger.d { "Kanál vytvořen, odebírám notifikace." }
@@ -194,9 +202,22 @@ actual class NotificationPresenter(
         conversation.lines = conversation.lines.filterNot { it.notificationId in removed }
 
         if (conversation.lines.isEmpty()) {
-            conversations.remove(update.groupId)
-            manager.cancel(update.groupId)
-            logger.d { "Skupina ${update.groupId} zůstala prázdná, ruším notifikaci." }
+            /*
+             * Prázdná notifikace se ruší AŽ PO CHVILCE. TDLib dočasnou notifikaci z pushe
+             * nahrazuje odebráním a hned přidáním skutečné — naměřeno 5 ms od sebe. Okamžité
+             * zrušení smazalo notifikaci dřív, než systém stihl upozornit, a náhrada je tichá:
+             * telefon pak nezavibroval vůbec. Když náhrada dorazí, jen stávající notifikaci
+             * přepíše a původní upozornění zůstane. Stejný dispatcher jako kolektor, takže
+             * se úloha s ním o stav nepřetahuje.
+             */
+            scope.launch(dispatcher) {
+                delay(EMPTY_CANCEL_DELAY_MS)
+                if (conversations[update.groupId] === conversation && conversation.lines.isEmpty()) {
+                    conversations.remove(update.groupId)
+                    manager.cancel(update.groupId)
+                    logger.d { "Skupina ${update.groupId} zůstala prázdná, ruším notifikaci." }
+                }
+            }
         } else {
             show(update.groupId, conversation, silent = true)
         }
@@ -384,6 +405,9 @@ actual class NotificationPresenter(
 
         /** Jak dlouho po odebrání se nový řádek se stejným textem považuje za náhradu. */
         const val REPLACEMENT_WINDOW_MS = 60_000L
+
+        /** Jak dlouho prázdná notifikace čeká na náhradu, než se zruší. */
+        const val EMPTY_CANCEL_DELAY_MS = 1_000L
 
         /** Prefix id zkratky konverzace. Musí být stabilní, aby se zkratka přepisovala, ne množila. */
         const val SHORTCUT_PREFIX = "chat_"

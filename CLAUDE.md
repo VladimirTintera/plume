@@ -1452,7 +1452,9 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   (přečteno `getOption`). Do okna služby pushe se to nevejde, proto se na odloženou notifikaci
   čeká v expedited úloze (`NotificationDeliveryWorker`, WorkManager, strop 60 s); dokud běží,
   proces zmrazený není. Expedited jen od Androidu 12 — starší WorkManager by pro ni chtěl
-  foreground službu s vlastní notifikací.
+  foreground službu s vlastní notifikací. **Vyvolat se to dá** otevřením oficiálního Telegramu
+  na chvíli (účet je online jinde), pak zmrazit Plume a poslat zprávu botem; když je naopak
+  nedávno online Plume, odkládá už server a push dorazí až po ~30 s.
 - **Z pushe TDLib vydává `NotificationTypeNewPushMessage`, ne `NewMessage`.** Obsah je
   rozšifrovaný přímo z pushe, protože zprávu samotnou TDLib bez spojení nemá. Dokud se
   zobrazoval jen `NewMessage`, push se zpracoval a notifikace se tiše zahodila — to byl hlavní
@@ -1460,7 +1462,10 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
 - **Náhrada dočasné notifikace skutečnou se zobrazuje POTICHU.** TDLib dočasnou odebere a přidá
   novou se stejným textem; pro systém je to nová zpráva a telefon upozornil dvakrát. Presenter
   si proto pamatuje nedávno odebrané řádky (minutu) a přidání, které jen vrací tentýž text, je
-  tiché. Upozornění se počítají v event logu, jde to i s vypnutým zvukem:
+  tiché. **Prázdná notifikace se proto ruší až po 1 s**: odebrání a přidání náhrady chodí
+  ~5 ms po sobě a okamžité zrušení smazalo notifikaci dřív, než systém stihl upozornit — s tichou
+  náhradou pak telefon neupozornil vůbec. Takhle náhrada stávající notifikaci jen přepíše.
+  Upozornění se počítají v event logu, jde to i s vypnutým zvukem:
   `adb logcat -b events | grep notification_alert` (druhé číslo = vibrace, třetí = zvuk).
 - **Profilovka v notifikaci má strop 2 s.** Stahování z pozadí čeká na spojení; notifikace bez
   fotky je lepší než notifikace, která nestihne okno pushe.
