@@ -173,6 +173,11 @@
     <string name="menu_pin">Připnout</string>
     <string name="menu_unpin">Odepnout</string>
     <string name="menu_delete">Smazat</string>
+    <string name="menu_forward">Přeposlat</string>
+    <string name="forward_title">Přeposlat do</string>
+    <string name="forward_search">Hledat chat</string>
+    <string name="forward_empty">Hledání neodpovídá žádný chat.</string>
+    <string name="forward_failed">Zprávu se nepodařilo přeposlat.</string>
     <string name="menu_more_reactions">Další reakce</string>
     <string name="delete_message_title">Smazat zprávu?</string>
     <string name="delete_message_choice">Zpráva se smaže u tebe. Protějšku zůstane, dokud nezaškrtneš smazání u obou.</string>

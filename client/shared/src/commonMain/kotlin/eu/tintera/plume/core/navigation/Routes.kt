@@ -41,6 +41,14 @@ data class ConversationRoute(val chatId: Long) : Route
 data class MediaRoute(val chatId: Long, val messageId: Long) : Route
 
 /**
+ * Výběr chatu, do kterého se přeposílá.
+ *
+ * Nese id zpráv, ne jejich obsah — přeposílá se na serveru podle id a album jich má víc.
+ */
+@Serializable
+data class ForwardRoute(val fromChatId: Long, val messageIds: List<Long>) : Route
+
+/**
  * Konfigurace pro ukládání navigačního zásobníku.
  *
  * **Každá nová routa se MUSÍ zaregistrovat níže.** `NavKey` je otevřená polymorfní hierarchie
@@ -62,6 +70,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(SettingsRoute::class, SettingsRoute.serializer())
             subclass(ConversationRoute::class, ConversationRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
+            subclass(ForwardRoute::class, ForwardRoute.serializer())
         }
     }
 }

@@ -227,6 +227,7 @@ fun ConversationScreen(
     viewModel: ConversationViewModel,
     onBack: () -> Unit,
     onOpenMedia: (messageId: Long) -> Unit,
+    onForward: (messageIds: List<Long>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -237,6 +238,15 @@ fun ConversationScreen(
     val voiceRecordingState = viewModel.voiceRecording.collectAsStateWithLifecycle()
     val isRecording by remember { derivedStateOf { voiceRecordingState.value != null } }
     val recordPermission = rememberRecordPermission()
+
+    // Výběr cílového chatu je vlastní obrazovka, takže požadavek z nabídky se předá navigaci.
+    val forwardRequest = state.forwardRequest
+    LaunchedEffect(forwardRequest) {
+        if (forwardRequest != null) {
+            onForward(forwardRequest)
+            viewModel.consumeForwardRequest()
+        }
+    }
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     var stickerPickerOpen by rememberSaveable { mutableStateOf(false) }
@@ -346,6 +356,7 @@ fun ConversationScreen(
             onEdit = viewModel::startEdit,
             onCopy = viewModel::copyMessage,
             onDelete = viewModel::requestDelete,
+            onForward = viewModel::requestForward,
             onPin = viewModel::requestPin,
             onUnpin = viewModel::unpinFromMenu,
             onToggleFavorite = viewModel::toggleFavoriteSticker,

@@ -211,6 +211,7 @@ class TdlConversationRepository(
                     canDeleteForAll = properties.canBeDeletedForAllUsers,
                     canEdit = properties.canBeEdited,
                     canPin = properties.canBePinned,
+                    canForward = properties.canBeForwarded,
                 )
             }
 
@@ -270,6 +271,21 @@ class TdlConversationRepository(
             ),
         )
     }
+
+    override suspend fun forward(fromChatId: Long, messageIds: List<Long>, toChatId: Long): Result<Unit> =
+        client.forwardMessages(
+            chatId = toChatId,
+            topicId = null,
+            fromChatId = fromChatId,
+            messageIds = messageIds.sorted().toLongArray(),
+            options = null,
+            // Přeposlání, ne kopie: v cíli zůstane „Přeposláno od …". Kopie bez odesílatele je
+            // v Telegramu samostatná volba a zatím ji nenabízíme.
+            sendCopy = false,
+            removeCaption = false,
+        )
+            .toResult()
+            .map { }
 
     override suspend fun unpin(chatId: Long, messageId: Long): Result<Unit> =
         client.unpinChatMessage(chatId = chatId, messageId = messageId).toResult().map { }

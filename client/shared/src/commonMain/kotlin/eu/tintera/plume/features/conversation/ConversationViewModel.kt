@@ -1179,6 +1179,18 @@ class ConversationViewModel(
         }
     }
 
+    /**
+     * „Přeposlat" z nabídky. Obrazovka si o cíl řekne sama (otevře výběr chatu), takže se tu jen
+     * zapamatuje, co se přeposílá — u alba celé album, jako u mazání.
+     */
+    fun requestForward(messageId: Long) {
+        _state.update { it.copy(messageMenu = null, forwardRequest = it.albumMemberIds(messageId)) }
+    }
+
+    fun consumeForwardRequest() {
+        _state.update { it.copy(forwardRequest = null) }
+    }
+
     fun cancelDelete() {
         _state.update { it.copy(pendingDelete = null) }
     }
@@ -1616,6 +1628,8 @@ data class ConversationState(
     val pinned: List<ChatMessage> = emptyList(),
     /** Smí uživatel připnuté zprávy odepínat. */
     val canUnpin: Boolean = false,
+    /** Zprávy, které uživatel chce přeposlat; obrazovka na to otevře výběr cílového chatu. */
+    val forwardRequest: List<Long>? = null,
     /** Přílohy vybrané k odeslání, čekající nad vstupním polem na popisek a odeslání. */
     val attachments: List<OutgoingAttachment> = emptyList(),
     /** Krátké potvrzení akce, která v konverzaci nic viditelného nezmění (snackbar). */

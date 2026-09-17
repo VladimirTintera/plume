@@ -67,6 +67,14 @@ interface ConversationRepository {
     suspend fun messageActions(chatId: Long, messageId: Long): Result<MessageActions>
 
     /**
+     * Přepošle zprávy do jiného chatu.
+     *
+     * [messageIds] musí být **vzestupně** — tak to TDLib vyžaduje; album se přeposílá celé, takže
+     * v cíli zůstane albem. Přeposlané zprávy dorazí do cílového chatu updaty jako každé jiné.
+     */
+    suspend fun forward(fromChatId: Long, messageIds: List<Long>, toChatId: Long): Result<Unit>
+
+    /**
      * Smaže zprávy.
      *
      * [revoke] rozhoduje, jestli zmizí i protějšku. Není to volba klienta — co je povolené, říká
@@ -471,6 +479,8 @@ data class MessageActions(
      * ho má každý.
      */
     val canPin: Boolean,
+    /** Přeposlání jinam. Kanál s chráněným obsahem ho zakazuje, stejně jako kopírování. */
+    val canForward: Boolean,
 ) {
     companion object {
         /**
@@ -489,6 +499,8 @@ data class MessageActions(
             canEdit = false,
             // Ve skupině bez práv by skončilo chybou; nevíme, tak se nenabízí.
             canPin = false,
+            // Přeposlání chráněného obsahu server odmítne; bez příznaků se nenabízí.
+            canForward = false,
         )
     }
 }

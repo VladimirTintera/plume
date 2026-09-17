@@ -1011,6 +1011,26 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   už zpracovává; předběhnout server by znamenalo riskovat, že zpráva zmizí z obrazovky a na
   serveru zůstane.
 
+### Přeposílání
+
+„Přeposlat" v nabídce nad zprávou otevře výběr cílového chatu (`ForwardRoute`, vlastní obrazovka);
+po odeslání se otevře cílový chat, takže je vidět, že zpráva dorazila.
+
+- **Nabízí se podle `canBeForwarded`** z `getMessageProperties`, jako ostatní položky nabídky.
+  Kanál s chráněným obsahem přeposílání zakazuje a nabídnout akci, která skončí chybou, je horší
+  než ji nenabídnout.
+- **Album se přeposílá celé** (`albumMemberIds`, stejně jako mazání) — v bublině je to jedna věc
+  a v cíli má albem zůstat. **Id musí být vzestupně**, jinak TDLib volání odmítne.
+- **Výběr je obrazovka, ne sheet.** Seznam chatů je dlouhý a listuje se v něm; sheet by navíc
+  při hledání zápasil s klávesnicí.
+- **Hledá se zatím jen v načteném seznamu chatů** (živý `ChatRepository`, ten samý, co kreslí
+  hlavní obrazovku). Server by uměl `searchChats`, ale přeposílá se skoro vždy do chatu nahoře.
+- **Během odesílání se seznam nedá ťuknout podruhé** — dvě ťuknutí by poslala zprávu dvakrát.
+- **Posílá se jako přeposlání, ne kopie** (`sendCopy = false`), takže v cíli zůstane „Přeposláno
+  od …". Kopie bez odesílatele je v Telegramu samostatná volba a zatím ji nenabízíme.
+- **Cílový chat se do zásobníku přidá jen, když na něm zásobník už nestojí** — přeposlání do
+  téhož chatu by jinak otevřelo druhou kopii konverzace.
+
 ### Odpověď swipem
 
 Tažení zprávy doprava otevře odpověď. Je to nejčastější akce nad zprávou a přes nabídku by na ni

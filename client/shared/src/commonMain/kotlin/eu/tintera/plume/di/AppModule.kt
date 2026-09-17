@@ -34,6 +34,7 @@ import kotlinx.coroutines.SupervisorJob
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.viewModel
 import eu.tintera.plume.core.audio.VoicePlayer
+import eu.tintera.plume.features.forward.ForwardViewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
@@ -145,6 +146,16 @@ fun appModule() = module {
             voicePlayer = get(),
             audioRecorder = get(),
             connection = get(),
+        )
+    }
+
+    // Zprávy k přeposlání jdou z routy, takže runtime parametry — stejně jako chatId konverzace.
+    viewModel { parameters ->
+        ForwardViewModel(
+            fromChatId = parameters.get(),
+            messageIds = parameters.get(),
+            repository = get(),
+            chatRepository = get(),
         )
     }
 
