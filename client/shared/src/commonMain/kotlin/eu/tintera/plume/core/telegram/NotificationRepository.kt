@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.telegram
 
 import kotlinx.coroutines.flow.Flow
+import kotlin.time.Duration
 
 /**
  * Notifikace o nových zprávách.
@@ -26,6 +27,16 @@ interface NotificationRepository {
 
     /** Předá TDLib zašifrovaný obsah pushe; ten ho rozšifruje a vydá [NotificationUpdate]. */
     suspend fun processPush(payload: String): Result<Unit>
+
+    /**
+     * Počká, až TDLib nemá žádné nevydané notifikace a všechny vydané jsou zpracované odběratelem
+     * [updates]. Vrací `false`, když to do [timeout] nestihne.
+     *
+     * Na tohle musí čekat příjem pushe. Proces v pozadí systém zmrazí, jakmile služba pushe
+     * skončí — a notifikace, kterou TDLib ještě neposlal nebo presenter ještě neposkládal, se
+     * pak zobrazí až při dalším probuzení, tedy často vůbec.
+     */
+    suspend fun awaitDelivered(timeout: Duration): Boolean
 }
 
 /** Platformní push token. */

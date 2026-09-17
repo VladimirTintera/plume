@@ -36,6 +36,23 @@ import dev.g000sha256.tdl.dto.MessageVideo
 import dev.g000sha256.tdl.dto.MessageVideoNote
 import dev.g000sha256.tdl.dto.MessageVoiceNote
 import dev.g000sha256.tdl.dto.Photo
+import dev.g000sha256.tdl.dto.PushMessageContent
+import dev.g000sha256.tdl.dto.PushMessageContentAnimation
+import dev.g000sha256.tdl.dto.PushMessageContentAudio
+import dev.g000sha256.tdl.dto.PushMessageContentChecklist
+import dev.g000sha256.tdl.dto.PushMessageContentContact
+import dev.g000sha256.tdl.dto.PushMessageContentDocument
+import dev.g000sha256.tdl.dto.PushMessageContentGame
+import dev.g000sha256.tdl.dto.PushMessageContentLocation
+import dev.g000sha256.tdl.dto.PushMessageContentPaidMedia
+import dev.g000sha256.tdl.dto.PushMessageContentPhoto
+import dev.g000sha256.tdl.dto.PushMessageContentPoll
+import dev.g000sha256.tdl.dto.PushMessageContentSticker
+import dev.g000sha256.tdl.dto.PushMessageContentStory
+import dev.g000sha256.tdl.dto.PushMessageContentText
+import dev.g000sha256.tdl.dto.PushMessageContentVideo
+import dev.g000sha256.tdl.dto.PushMessageContentVideoNote
+import dev.g000sha256.tdl.dto.PushMessageContentVoiceNote
 import dev.g000sha256.tdl.dto.Sticker
 import dev.g000sha256.tdl.dto.StickerFormatTgs
 import dev.g000sha256.tdl.dto.StickerFormatWebp
@@ -83,6 +100,7 @@ import eu.tintera.plume.resources.conversation_voice_message
 import eu.tintera.plume.resources.media_photo
 import eu.tintera.plume.resources.media_sticker
 import eu.tintera.plume.resources.media_video
+import eu.tintera.plume.resources.notification_new_message
 import org.jetbrains.compose.resources.getString
 
 /**
@@ -104,6 +122,35 @@ internal suspend fun Message.previewText(): String = when (val content = this.co
     is MessageAnimatedEmoji -> content.emoji
     is MessageDice -> content.diceText()
     else -> content.describe()
+}
+
+/**
+ * Text notifikace z obsahu **rozšifrovaného z pushe** (`NotificationTypeNewPushMessage`).
+ *
+ * Push nese vlastní, chudší podobu obsahu než zpráva — TDLib ji vydá, když samotnou zprávu ještě
+ * nemá. Slova jsou stejná jako v [previewText], ať notifikace nevypadá jinak podle toho, kudy
+ * přišla. Co push nepopisuje nijak užitečně (servisní události, dárky, alba), dostane obecné
+ * „Nová zpráva" — pravdivé a bez doslovného názvu typu.
+ */
+internal suspend fun PushMessageContent.previewText(): String = when (this) {
+    is PushMessageContentText -> text
+    is PushMessageContentPhoto -> caption.ifBlankGet { getString(Res.string.media_photo) }
+    is PushMessageContentVideo -> caption.ifBlankGet { getString(Res.string.media_video) }
+    is PushMessageContentAnimation -> caption.ifBlankGet { getString(Res.string.content_gif) }
+    is PushMessageContentDocument -> getString(Res.string.content_file)
+    is PushMessageContentAudio -> getString(Res.string.content_audio)
+    is PushMessageContentVoiceNote -> getString(Res.string.conversation_voice_message)
+    is PushMessageContentVideoNote -> getString(Res.string.content_video_note)
+    is PushMessageContentSticker -> emoji.ifBlankGet { getString(Res.string.media_sticker) }
+    is PushMessageContentPoll -> getString(Res.string.content_poll, question)
+    is PushMessageContentChecklist -> getString(Res.string.content_checklist, title)
+    is PushMessageContentLocation ->
+        getString(if (isLive) Res.string.content_live_location else Res.string.content_location)
+    is PushMessageContentContact -> getString(Res.string.content_contact, name)
+    is PushMessageContentGame -> getString(Res.string.content_game, title)
+    is PushMessageContentStory -> getString(Res.string.content_story)
+    is PushMessageContentPaidMedia -> getString(Res.string.content_paid)
+    else -> getString(Res.string.notification_new_message)
 }
 
 /**

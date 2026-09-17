@@ -86,7 +86,11 @@ fun appModule() = module {
         TdlFileRepository(holder = get(), scope = get(named(APP_SCOPE)))
     }
 
-    single<NotificationRepository> { TdlNotificationRepository(holder = get()) }
+    // Eagerně: v konstruktoru se odebírá `havePendingNotificationsUpdates`, který chodí jen na
+    // změnu. Presenter si ho sice vyžádá ze `startKoin` taky, ale na tom pořadí nemá co viset.
+    single<NotificationRepository>(createdAtStart = true) {
+        TdlNotificationRepository(holder = get(), scope = get(named(APP_SCOPE)))
+    }
 
     // Eagerně ze stejného důvodu jako FileRepository: v konstruktoru se přihlašuje k odběru
     // `connectionStateUpdates`. Kdyby vznikla až s první obrazovkou, prošvihla by přesně ty

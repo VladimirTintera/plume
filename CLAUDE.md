@@ -1423,6 +1423,27 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   jinak by se repozitář po klonu nepřeložil. Bez Firebase appka funguje, jen bez pushe.
 - **Push payload je zašifrovaný.** Rozšifrovat ho umí jedině TDLib přes `processPushNotification`;
   služba nic nevykresluje, jen předává.
+- **Proces v pozadí systém ZMRAZÍ, i když ho nikdo nekillnul.** Aplikace odsunutá za jinou
+  (oom adj 900, cache) je do ~10 s `isFrozen=true` (`adb shell dumpsys activity processes
+  eu.tintera.plume | grep isFrozen`). Zmrazený proces nemá spojení, takže z pozadí chodí
+  notifikace JEN pushem — cesta „TDLib je vydá sám, když běží" tam neplatí.
+- **`onMessageReceived` proto blokuje, dokud notifikace není na liště** (`awaitDelivered`, strop
+  8 s). Služba drží proces rozmrazený jen po dobu té metody; dokud se zpracování jen spustilo
+  v korutině, proces zamrzl uprostřed skládání notifikace. „Hotovo" = TDLib nehlásí nevydané
+  notifikace (`UpdateHavePendingNotifications`) a presenter zpracoval všechno, co repository
+  vydala — počítá se to přes `transform { emit(); … }` za `merge`, kde se `emit` vrací až po
+  zpracování odběratelem.
+- **Z pushe TDLib vydává `NotificationTypeNewPushMessage`, ne `NewMessage`.** Obsah je
+  rozšifrovaný přímo z pushe, protože zprávu samotnou TDLib bez spojení nemá. Dokud se
+  zobrazoval jen `NewMessage`, push se zpracoval a notifikace se tiše zahodila — to byl hlavní
+  důvod, proč z pozadí „prakticky nechodily". Text skládá `PushMessageContent.previewText()`.
+- **Profilovka v notifikaci má strop 2 s.** Stahování z pozadí čeká na spojení; notifikace bez
+  fotky je lepší než notifikace, která nestihne okno pushe.
+- **Snížená priorita pushe se loguje** (`priority != originalPriority`). FCM ji snižuje aplikacím,
+  které po vysoké prioritě neukazují notifikaci; v dozu pak push čeká na údržbové okno.
+- **Obecná záchranná notifikace („Nová zpráva") při neúspěchu NENÍ dobrý nápad.** Telegram
+  pushem posílá i to, co se zobrazit nemá (přečtení jinde, smazání zprávy) a obsah je zašifrovaný,
+  takže klient bez TDLib nepozná, který push je který.
 - **Presenter se startuje v `startKoin`, ne definicí v modulu.** `single { get<NotificationPresenter>()… }`
   si odvodí vlastní typ a resolvuje sám sebe → `StackOverflowError`.
 - **Od Androidu 13 je `POST_NOTIFICATIONS` běhové oprávnění.** Bez něj `notify` tiše nic neudělá,

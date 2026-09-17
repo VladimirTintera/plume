@@ -6,80 +6,195 @@ import dev.g000sha256.tdl.dto.DeviceToken
 import dev.g000sha256.tdl.dto.DeviceTokenApplePush
 import dev.g000sha256.tdl.dto.DeviceTokenFirebaseCloudMessaging
 import dev.g000sha256.tdl.dto.File
+import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
+import dev.g000sha256.tdl.dto.Notification
 import dev.g000sha256.tdl.dto.NotificationTypeNewMessage
+import dev.g000sha256.tdl.dto.NotificationTypeNewPushMessage
+import dev.g000sha256.tdl.dto.UpdateNotificationGroup
 import dev.g000sha256.tdl.toResult
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notification_new_message
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.transform
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.compose.resources.getString
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /** Notifikace nad TDLib. */
 class TdlNotificationRepository(
     private val holder: TelegramClientHolder,
+    scope: CoroutineScope,
 ) : NotificationRepository {
 
     private val logger = Logger.withTag("Notifications")
 
     private val client: TdlClient get() = holder.client
 
+    /**
+     * Má TDLib notifikace, které ještě nevydal (odložené, nebo čekající na zprávu ze serveru)?
+     *
+     * Odebírá se od vzniku repository: update chodí jen na ZMĚNU, takže kdo by se přihlásil až
+     * s příchodem pushe, aktuální hodnotu by se nedozvěděl.
+     */
+    private val tdlibPending = MutableStateFlow(false)
+
+    /**
+     * Kolik notifikačních updatů je rozpracovaných: přijaté od TDLib a ještě nevyřízené
+     * presenterem. Viz [awaitDelivered].
+     */
+    private val inFlight = MutableStateFlow(0)
+
+    init {
+        holder.updates { havePendingNotificationsUpdates }
+            .onEach { tdlibPending.value = it.haveDelayedNotifications || it.haveUnreceivedNotifications }
+            .launchIn(scope)
+    }
+
     override val updates: Flow<NotificationUpdate> = merge(
         // Po odhlášení nesmí na liště zůstat zprávy účtu, který už v aplikaci není.
         holder.replaced.map { NotificationUpdate.Cleared },
         messageNotifications(),
     )
+        // `emit` v `transform` se vrátí až ve chvíli, kdy odběratel (presenter) update zpracoval —
+        // mezi nimi už žádný buffer není. Teprve tady je notifikace opravdu na liště.
+        .transform { update ->
+            emit(update)
+            if (update !is NotificationUpdate.Cleared) inFlight.update { it - 1 }
+        }
 
     private fun messageNotifications(): Flow<NotificationUpdate> = flow {
         holder.updates { notificationGroupUpdates }.collect { update ->
-            // Jeden update může naráz přidávat i odebírat; pořadí je podstatné, aby po přečtení
-            // jinde nezůstala viset stará notifikace, kterou právě nahradila novější.
-            val removed = update.removedNotificationIds.toList()
-            if (removed.isNotEmpty()) {
-                emit(NotificationUpdate.Removed(update.notificationGroupId, removed))
+            // Rozpracovaný je update od příchodu: skládání notifikace čte chat, odesílatele
+            // a profilovku, a to trvá.
+            inFlight.update { it + 1 }
+            try {
+                groupUpdate(update)
+            } finally {
+                inFlight.update { it - 1 }
             }
+        }
+    }
 
-            val added = update.addedNotifications.filterNotNull()
-            if (added.isEmpty()) return@collect
+    /** Každý vydaný update se počítá do [inFlight]; odečte se až po zpracování presenterem. */
+    private suspend fun FlowCollector<NotificationUpdate>.emitTracked(
+        update: NotificationUpdate,
+    ) {
+        inFlight.update { it + 1 }
+        emit(update)
+    }
 
-            // Chat se načte JEDNOU — je z něj potřeba název i fotka, a dvě volání kvůli jedné
-            // notifikaci by byla zbytečná.
-            val chat = client.getChat(update.chatId).toResult().getOrNull()
-            val chatTitle = chat?.title.orEmpty()
+    private suspend fun FlowCollector<NotificationUpdate>.groupUpdate(
+        update: UpdateNotificationGroup,
+    ) {
+        // Jeden update může naráz přidávat i odebírat; pořadí je podstatné, aby po přečtení
+        // jinde nezůstala viset stará notifikace, kterou právě nahradila novější.
+        val removed = update.removedNotificationIds.toList()
+        if (removed.isNotEmpty()) {
+            emitTracked(NotificationUpdate.Removed(update.notificationGroupId, removed))
+        }
 
-            val notifications = added.mapNotNull { notification ->
-                // Jiné typy (kalendářní pozvánky, hovory) zatím nezobrazujeme — přeskočit je
-                // je lepší než ukázat notifikaci bez obsahu.
-                val type = notification.type as? NotificationTypeNewMessage
-                    ?: return@mapNotNull null
+        val added = update.addedNotifications.filterNotNull()
+        if (added.isEmpty()) return
 
-                val sender = resolveSender(type)
+        // Chat se načte JEDNOU — je z něj potřeba název i fotka, a dvě volání kvůli jedné
+        // notifikaci by byla zbytečná.
+        val chat = client.getChat(update.chatId).toResult().getOrNull()
+        // Chat, který lokální databáze nezná (první zpráva od nového kontaktu, spojení mrtvé),
+        // se pojmenuje podle odesílatele z pushe — notifikace bez jména by nikomu nic neřekla.
+        val chatTitle = chat?.title
+            ?: added.firstNotNullOfOrNull { (it.type as? NotificationTypeNewPushMessage)?.senderName }
+            ?: ""
 
-                ChatNotification(
-                    groupId = update.notificationGroupId,
-                    notificationId = notification.id,
-                    chatId = update.chatId,
-                    chatTitle = chatTitle,
-                    senderName = sender?.name?.takeIf { it != chatTitle },
+        val notifications = added.mapNotNull { notification ->
+            val content = notification.content() ?: return@mapNotNull null
+
+            ChatNotification(
+                groupId = update.notificationGroupId,
+                notificationId = notification.id,
+                chatId = update.chatId,
+                chatTitle = chatTitle,
+                senderName = content.senderName?.takeIf { it != chatTitle },
+                text = content.text,
+                isSilent = notification.isSilent,
+                timestamp = notification.date,
+                // Ve skupině patří k řádku profilovka toho, kdo psal; v soukromém chatu
+                // je to totéž jako fotka chatu. Fotka chatu je záloha pro kanály a boty,
+                // kde odesílatel vlastní profilovku nemá.
+                avatarPath = downloadedPath(content.senderPhoto ?: chat?.photo?.small),
+                chatAvatarPath = downloadedPath(chat?.photo?.small),
+            )
+        }
+
+        if (notifications.isNotEmpty()) emitTracked(NotificationUpdate.Added(notifications))
+    }
+
+    /**
+     * Odesílatel a text notifikace, nebo `null` u typu, který nezobrazujeme.
+     *
+     * **Dva typy, ne jeden.** `NotificationTypeNewMessage` vzniká, když TDLib zprávu má.
+     * Z pushe, ke kterému zprávu ještě nemá — a to je v pozadí skoro vždycky, protože zmrazený
+     * proces spojení nedrží — vydá `NotificationTypeNewPushMessage` s obsahem rozšifrovaným
+     * přímo z pushe. Dokud se zobrazoval jen první typ, push dorazil, TDLib ho zpracoval
+     * a notifikace se zahodila: z pozadí prakticky nechodily.
+     */
+    private suspend fun Notification.content(): NotificationContent? =
+        when (val type = type) {
+            is NotificationTypeNewMessage -> {
+                val sender = resolveSender(type.message.senderId)
+                NotificationContent(
+                    senderName = sender?.name,
+                    senderPhoto = sender?.photo,
                     // `showPreview = false` znamená, že si uživatel nepřeje vidět obsah
                     // na zamykací obrazovce. Musíme to respektovat.
                     text = if (type.showPreview) type.message.previewText() else getString(Res.string.notification_new_message),
-                    isSilent = notification.isSilent,
-                    timestamp = notification.date,
-                    // Ve skupině patří k řádku profilovka toho, kdo psal; v soukromém chatu
-                    // je to totéž jako fotka chatu. Fotka chatu je záloha pro kanály a boty,
-                    // kde odesílatel vlastní profilovku nemá.
-                    avatarPath = downloadedPath(sender?.photo ?: chat?.photo?.small),
-                    chatAvatarPath = downloadedPath(chat?.photo?.small),
                 )
             }
 
-            if (notifications.isNotEmpty()) emit(NotificationUpdate.Added(notifications))
+            is NotificationTypeNewPushMessage -> {
+                // Jméno přišlo v pushi; dotaz na uživatele jde jen do lokální databáze, takže
+                // funguje i bez spojení — a když uživatele nezná, zůstane jméno z pushe.
+                val sender = resolveSender(type.senderId)
+                NotificationContent(
+                    senderName = type.senderName.ifBlank { null } ?: sender?.name,
+                    senderPhoto = sender?.photo,
+                    text = type.content.previewText(),
+                )
+            }
+
+            // Hovory a tajné chaty zatím nezobrazujeme — přeskočit je je lepší než ukázat
+            // notifikaci bez obsahu.
+            else -> null
         }
-    }
+
+    override suspend fun awaitDelivered(timeout: Duration): Boolean =
+        withTimeoutOrNull(timeout) {
+            while (true) {
+                combine(tdlibPending, inFlight) { pending, running -> !pending && running == 0 }
+                    .first { it }
+                // Stav TDLib a samotné notifikace chodí dvěma různými toky, takže „nic nečeká"
+                // může dorazit o chvilku dřív než update, který ho způsobil. Klid se proto
+                // ověří ještě jednou po krátké pauze.
+                delay(SETTLE)
+                if (!tdlibPending.value && inFlight.value == 0) break
+            }
+            true
+        } ?: false
 
     override suspend fun registerDevice(token: PushToken): Result<Unit> {
         val deviceToken: DeviceToken = when (token) {
@@ -113,14 +228,14 @@ class TdlNotificationRepository(
      * jméno se v soukromém chatu zahazuje (opakovalo by název chatu), profilovka ne — tam
      * naopak je tou správnou ikonou notifikace.
      */
-    private suspend fun resolveSender(type: NotificationTypeNewMessage): Sender? {
-        val senderId = when (val sender = type.message.senderId) {
+    private suspend fun resolveSender(senderId: MessageSender): Sender? {
+        val userId = when (val sender = senderId) {
             is MessageSenderUser -> sender.userId
             is MessageSenderChat -> sender.chatId
             else -> return null
         }
 
-        val user = client.getUser(senderId).toResult().getOrNull() ?: return null
+        val user = client.getUser(userId).toResult().getOrNull() ?: return null
         val name = listOf(user.firstName, user.lastName)
             .filter { it.isNotBlank() }
             .joinToString(" ")
@@ -139,15 +254,19 @@ class TdlNotificationRepository(
         if (file == null) return null
         if (file.local.isDownloadingCompleted && file.local.path.isNotEmpty()) return file.local.path
 
-        val downloaded = client.downloadFile(
-            fileId = file.id,
-            priority = AVATAR_PRIORITY,
-            offset = 0,
-            limit = 0,
-            synchronous = true,
-        )
-            .toResult()
-            .getOrNull()
+        // Se stropem: z pozadí na stažení může čekat, dokud se TDLib nepřipojí, a notifikace
+        // bez profilovky je pořád lepší než notifikace, která nestihne okno pushe.
+        val downloaded = withTimeoutOrNull(AVATAR_TIMEOUT) {
+            client.downloadFile(
+                fileId = file.id,
+                priority = AVATAR_PRIORITY,
+                offset = 0,
+                limit = 0,
+                synchronous = true,
+            )
+                .toResult()
+                .getOrNull()
+        }
             ?: return null
 
         return downloaded.local.path.takeIf {
@@ -157,8 +276,16 @@ class TdlNotificationRepository(
 
     private class Sender(val name: String?, val photo: File?)
 
+    private class NotificationContent(val senderName: String?, val senderPhoto: File?, val text: String)
+
     private companion object {
         /** Nejvyšší priorita: notifikace čeká, takže má smysl ji vyřídit dřív než zbytek fronty. */
         const val AVATAR_PRIORITY = 32
+
+        /** Jak dlouho notifikace počká na profilovku, kterou TDLib nemá na disku. */
+        val AVATAR_TIMEOUT = 2.seconds
+
+        /** Pauza, po které se klid v notifikacích ověřuje podruhé. */
+        val SETTLE = 300.milliseconds
     }
 }

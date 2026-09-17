@@ -9,7 +9,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.context.GlobalContext
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 /**
  * Příjem push notifikací z FCM.
@@ -18,6 +22,13 @@ import org.koin.core.context.GlobalContext
  * jedině TDLib. Služba tedy nic nevykresluje; předá payload TDLib a ten vydá
  * `UpdateNotificationGroup`, který zobrazí `NotificationPresenter`. Tím je zobrazení notifikace
  * stejné bez ohledu na to, jestli přišla pushem, nebo z běžícího spojení.
+ *
+ * **[onMessageReceived] musí blokovat, dokud notifikace není na liště.** Proces v pozadí
+ * (neukončený, jen odsunutý) je v cache a systém ho zmrazí zhruba deset vteřin poté, co přestane
+ * běžet cokoli, co ho drží naživu — a služba pushe ho drží jen po dobu téhle metody. Dokud se
+ * zpracování jen spustilo v korutině a metoda se hned vrátila, proces zamrzl uprostřed skládání
+ * notifikace a ta se ukázala až při příštím probuzení, pokud vůbec. Metoda běží na vlákně
+ * Firebase, ne na hlavním, takže `runBlocking` tu nic nezasekne.
  */
 class PlumeMessagingService : FirebaseMessagingService() {
 
@@ -48,7 +59,26 @@ class PlumeMessagingService : FirebaseMessagingService() {
             return
         }
 
-        scope.launch { repository.processPush(payload) }
+        // Telegram posílá s vysokou prioritou. Když aplikace po takových pushích opakovaně
+        // neukáže notifikaci, FCM jí prioritu sníží a v dozu pak zprávy čekají na údržbové okno.
+        if (message.priority != message.originalPriority) {
+            logger.w { "Push dorazil se sníženou prioritou (${message.originalPriority} → ${message.priority})." }
+        }
+
+        val started = TimeSource.Monotonic.markNow()
+        runBlocking {
+            // Strop platí pro CELÉ zpracování: při studeném startu čeká už `processPush`,
+            // než TDLib dostane parametry a otevře databázi.
+            val processed = withTimeoutOrNull(DELIVERY_TIMEOUT) { repository.processPush(payload) }
+            if (processed?.isFailure == true) return@runBlocking
+            val remaining = DELIVERY_TIMEOUT - started.elapsedNow()
+            val delivered = processed != null && repository.awaitDelivered(remaining)
+            if (delivered) {
+                logger.d { "Push vyřízen za ${started.elapsedNow().inWholeMilliseconds} ms." }
+            } else {
+                logger.w { "Push se nestihl vyřídit do $DELIVERY_TIMEOUT." }
+            }
+        }
     }
 
     private fun registerToken(token: String) {
@@ -58,5 +88,11 @@ class PlumeMessagingService : FirebaseMessagingService() {
 
     private companion object {
         const val PAYLOAD_KEY = "p"
+
+        /**
+         * Jak dlouho se na notifikaci čeká. FCM dává zpracování pushe jen omezené okno; nad
+         * ním aplikaci nic nezaručuje a opakované přetahování může vést ke snížení priority.
+         */
+        val DELIVERY_TIMEOUT = 8.seconds
     }
 }
