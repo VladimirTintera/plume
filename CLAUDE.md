@@ -57,6 +57,10 @@ v [README](README.md#release-do-google-play). Sem patří jen to, co se z workfl
 - **`verifyReleaseConfiguration` visí na `bundleRelease`/`assembleRelease`.** Chybějící podpis
   nebo prázdné `api_id` se jinak poznají až u testera: nepodepsaný AAB Play odmítne a build
   s `TELEGRAM_API_ID = 0` se přeloží, jen se v něm nejde přihlásit.
+- **AAB se nikam nepřikládá.** Ani jako artefakt běhu, ani jako příloha releasu. Bundl má přes
+  50 MB a artefakty se počítají do kvóty Actions (free účet 500 MB = deset releasů); přílohy
+  releasu se do ní sice nepočítají, ale kopie navíc stejně k ničemu není. Play si bundl drží
+  a **build je z tagu reprodukovatelný**, protože verze je v tagu, ne v commitu.
 - **První AAB musí do Play nahrát člověk.** Dokud aplikace nemá žádný release, androidpublisher
   API upload odmítne — krok `upload-google-play` je až pro další verze.
 - **Ručně vydaná verze se značí tagem se suffixem `-manual`.** Release workflow ho ignoruje
