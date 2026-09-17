@@ -223,6 +223,12 @@ actual class NotificationPresenter(
             // ikonu aplikace a notifikace skončí mimo sekci konverzací.
             .setShortcutId(publishShortcut(conversation))
             .setStyle(style)
+            // Podle kategorie se řídí výjimka „zprávy" v režimu Nerušit; čtou ji i aplikace,
+            // které notifikace třídí (hodinky, LED).
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            // Systém si titulek a text doplní z `MessagingStyle`, ticker ne — a starší čtenáři
+            // notifikací berou text právě odsud.
+            .setTicker(conversation.lines.lastOrNull()?.let { "${it.sender ?: conversation.title}: ${it.text}" })
             .setSilent(silent)
             .setAutoCancel(true)
             .setContentIntent(

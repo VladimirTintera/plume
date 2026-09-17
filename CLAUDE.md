@@ -1499,6 +1499,11 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   ten intent, kterým se activity zakládala.
 - **Extra se po vyřízení z intentu maže.** Po otočení displeje se `onCreate` spustí znovu nad týmž
   intentem a chat by se otevřel podruhé, i kdyby se uživatel mezitím proklikal jinam.
+- **`MessagingStyle` sám nestačí, notifikace potřebuje i kategorii a ticker.** Bez
+  `CATEGORY_MESSAGE` na ni nedosáhne výjimka „zprávy" v režimu Nerušit a aplikace, které
+  notifikace třídí (Light Flow, hodinky), ji nemusí poznat jako zprávu. Titulek a text si systém
+  z `MessagingStyle` doplní sám, ticker ne — a starší čtenáři notifikací berou text odsud.
+  Porovnání s oficiálním klientem: `adb shell dumpsys notification --noredact`.
 - **Ikona notifikace je zatím systémová** (`android.R.drawable.ic_dialog_email`). Cílově sem
   patří vlastní monochromatická ikona v `androidApp/res/drawable`.
 - **`adb shell am force-stop` znemožní doručení FCM.** Aplikace se dostane do „stopped state"
