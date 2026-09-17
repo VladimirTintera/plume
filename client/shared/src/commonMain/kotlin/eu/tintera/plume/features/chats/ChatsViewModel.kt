@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.telegram.ConnectionRepository
+import eu.tintera.plume.core.telegram.ConnectionState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,6 +14,7 @@ import kotlinx.coroutines.launch
 
 class ChatsViewModel(
     private val repository: ChatRepository,
+    connection: ConnectionRepository,
 ) : ViewModel() {
 
     /**
@@ -19,6 +22,12 @@ class ChatsViewModel(
      * jestli obrazovka existuje. ViewModel tu nic nekešuje, jen přeposílá a spouští dotažení.
      */
     val state: StateFlow<ChatListState> = repository.chats
+
+    /**
+     * Stav spojení. Ve stavu seznamu schválně není — se seznamem chatů nijak nesouvisí a v
+     * hlavičce se ukazuje i tehdy, když se seznam teprve načítá nebo skončil chybou.
+     */
+    val connection: StateFlow<ConnectionState> = connection.state
 
     private val _actions = MutableStateFlow(ChatActionsState())
 

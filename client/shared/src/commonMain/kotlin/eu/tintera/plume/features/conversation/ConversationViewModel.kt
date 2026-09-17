@@ -10,6 +10,8 @@ import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.ConnectionRepository
+import eu.tintera.plume.core.telegram.ConnectionState
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageEntityType
@@ -84,7 +86,14 @@ class ConversationViewModel(
     private val fileRepository: FileRepository,
     private val voicePlayer: VoicePlayer,
     audioRecorder: AudioRecorder,
+    connection: ConnectionRepository,
 ) : ViewModel() {
+
+    /**
+     * Stav spojení. Samostatný tok, ne součást [ConversationState]: netýká se chatu, mění se
+     * nezávisle na něm a do stavu, který se přepisuje s každou zprávou, nepatří.
+     */
+    val connection: StateFlow<ConnectionState> = connection.state
 
     private val voiceRecorder = VoiceRecorder(audioRecorder, viewModelScope)
 

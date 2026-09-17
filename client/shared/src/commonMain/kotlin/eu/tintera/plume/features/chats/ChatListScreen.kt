@@ -16,6 +16,10 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -74,6 +78,7 @@ fun ChatListScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val actions by viewModel.actions.collectAsStateWithLifecycle()
+    val connection by viewModel.connection.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val appBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(appBarState)
@@ -126,7 +131,22 @@ fun ChatListScreen(
         topBar = {
             // Expressive „flexible" top bar — kolabuje při scrollu a mění výšku podle motion schématu.
             LargeFlexibleTopAppBar(
-                title = { Text("Chaty") },
+                title = {
+                    /*
+                     * Stav spojení NAHRAZUJE název sekce, nemá vlastní pruh ani odznak. Kdo se
+                     * dívá na prázdný seznam, hledá vysvětlení v hlavičce — a „Chaty" žádné
+                     * nedává. Stejně to řeší oficiální klient.
+                     */
+                    val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+                    val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+
+                    AnimatedContent(
+                        targetState = connection.label() ?: "Chaty",
+                        transitionSpec = { fadeIn(effects) togetherWith fadeOut(fastEffects) },
+                        contentAlignment = Alignment.CenterStart,
+                        label = "chats-title",
+                    ) { title -> Text(title) }
+                },
                 scrollBehavior = scrollBehavior,
             )
         },

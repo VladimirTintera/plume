@@ -9,7 +9,8 @@ nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí
 
 Fáze 6. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar),
 živý seznam chatů, textová konverzace (historie, živé zprávy, odesílání, označení přečteného),
-avatary a fotky ve zprávách, reakce, odpovědi, notifikace na Androidu, sponzorované zprávy.
+avatary a fotky ve zprávách, reakce, odpovědi, notifikace na Androidu, sponzorované zprávy,
+stav spojení a jeho obnova po návratu z pozadí.
 
 Není: otevírání dokumentů, notifikace na iOS ani hlášení pádů z iOS. Nastavení aplikace
 se ukládá (DataStore), zatím ale drží jen poslední část výběru emoji/samolepek. Prohlížeč médií umí zatím jen fotky. Rozpracovaný detail chatu má vlastní seznam:
@@ -248,6 +249,53 @@ curl -s https://repo1.maven.org/maven2/dev/g000sha256/tdl-coroutines-iosarm64/<v
 - **Úklid mimo aplikaci**: notifikace i zkratky konverzací (`NotificationUpdate.Cleared`). Zkratky
   jsou dlouhověké, takže `removeAllDynamicShortcuts` nestačí — je potřeba
   `removeLongLivedShortcuts`, jinak zůstanou chaty odhlášeného účtu v nabídce ikony aplikace.
+
+## Stav spojení a obnova po pozadí
+
+Spojení s Telegramem je **něco jiného než přihlášení**. `AuthStage` říká, jestli máme účet;
+`ConnectionState` (`ConnectionRepository`, doslova TDLib `UpdateConnectionState`), jestli má kudy
+chodit. Dokud se nesledovalo, vypadala nepřipojená aplikace úplně normálně — jen nic nechodilo.
+
+- **Aplikace se po delší době v pozadí nepřipojila, dokud se nekillnula.** Systém v dozu (a při
+  přepnutí sítě) zabije sokety, jenže TDLib je zevnitř dál považuje za živé; mrtvolu pozná až na
+  vlastním odpočtu, který v dozu neběžel. Killnutí pomáhalo proto, že nový klient otevírá čerstvé
+  sokety.
+- **Lék je `setNetworkType`.** Dokumentace: *„Calling this method forces all network connections to
+  reopen … so it must be called whenever the network is changed, even if the network type remains
+  the same."* Volá se tedy **při každé změně sítě i při každém návratu do popředí** — právě to
+  druhé je ten případ z dozu, kdy se síť nezměnila a spojení přesto nestojí.
+- **Hlásí to `ConnectionController`, startovaný ze `startKoin`**, ne z UI: síť se mění i tehdy,
+  když se žádná obrazovka neskládá.
+- **Šum ze sítě se musí odfiltrovat, skutečná výměna ne.** Android posílá `onCapabilitiesChanged`
+  i několikrát za minutu (kvalita signálu, ověření připojení) a vynucovat kvůli tomu znovuotevření
+  všech spojení je horší než nedělat nic. Naopak přelezení mezi dvěma Wi-Fi je změna, kterou
+  porovnání samotného typu nezachytí — proto `NetworkStatus` nese kromě typu i pořadové číslo,
+  které se zvedá jen v `onAvailable` / `onLost`.
+- **Otočení displeje NENÍ odchod do pozadí.** `onStop` staré instance a `onStart` nové by jinak
+  vypadaly jako návrat z pozadí a zbytečně shodily všechna spojení; pozná se to podle
+  `isChangingConfigurations`.
+- **Popředí se nebere z kompozice.** `LocalLifecycleOwner` by fungoval, ale žil by jen po dobu,
+  kdy se skládá UI — stejný důvod, proč se ze `startKoin` startuje i `NotificationPresenter`.
+  Android to čte z `registerActivityLifecycleCallbacks`, ne z `ProcessLifecycleOwner`: ten je
+  v androidx větvi lifecycle, zatímco projekt jede na multiplatformní
+  `org.jetbrains.androidx.lifecycle`, a míchat dvě verze téže knihovny kvůli jednomu příznaku
+  nestojí za to. iOS bere oznámení `UIApplication`; `applicationState` se čte přes
+  `dispatch_async` na hlavní frontě, protože odběr běží na `Dispatchers.Default`.
+- **Volba `online` se musí nastavit, jinak nás server nikdy nevidí online.** Není to jen zelená
+  tečka pro ostatní — dokud je aplikace na obrazovce, chodí s ní updaty rychleji.
+- **`ConnectionState` se smí použít jen jako popisek pro člověka**, říká to dokumentace u něj.
+  Nic se z něj proto neodvozuje, jen se vypisuje.
+- **Stav NAHRAZUJE název sekce v seznamu chatů a podtitul v konverzaci**, nemá vlastní pruh ani
+  odznak. Kdo se dívá na prázdný seznam, hledá vysvětlení v hlavičce a „Chaty" žádné nedává.
+  Stejně to řeší oficiální klient.
+- **`Ready` se nehlásí.** V tom stavu aplikace stráví skoro celou dobu; „připojeno" je šum, zatímco
+  „nepřipojeno" je jediná informace, která uživateli vysvětlí, proč mu nic nechodí. Proto
+  `ConnectionState.label()` vrací u `Ready` `null`.
+- **V hlavičce konverzace má stav spojení přednost před „píše…" i dostupností.** Dokud spojení
+  nestojí, jsou obě jen staré hodnoty, které nemá co obnovit.
+- **Ověřuje se to bez dozu** — chování je stejné: odejít z aplikace a vrátit se (v logu musí být
+  „Návrat do popředí, obnovuji spojení"), zapnout a vypnout letový režim (`adb shell cmd
+  connectivity airplane-mode enable`), otočit displej (v logu nesmí být NIC).
 
 ## Nastavení aplikace
 
