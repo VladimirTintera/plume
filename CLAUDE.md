@@ -85,6 +85,16 @@ API, které aplikace z drtivé většiny nevolá.
   composeResources; zapínat ho spolu s minifikací by znamenalo nevědět, co z toho pád způsobilo.
 - **Chybějící keep pravidlo se při buildu nepozná, projeví se AŽ ZA BĚHU.** Release build se
   proto musí proklikat, ne jen přeložit.
+- **`::class.simpleName` v release buildu nic neříká.** R8 třídy přejmenovává, takže z
+  `AuthorizationStateReady` zbylo „du" — jednou v logu a podruhé rovnou v textu, který na
+  přihlašovací obrazovce četl uživatel. Kde má název typu skončit v logu nebo před uživatelem,
+  musí to být ručně psaný řetězec (`stateName()` v `TdlTelegramSession`); `when` nad sealed
+  hierarchií bez `else` navíc zařídí, že nový stav v novější TDLib rozbije překlad, místo aby
+  se tiše vypsalo „neznámý". `-keepnames` na balíček TDLib by fungoval taky, ale propašoval by
+  jméno wrapper balíčku do `proguard-rules.pro` — přesně to, co se při bumpu tiše rozejde.
+- **Název třídy stejně nepatří do textu pro uživatele**, ani bez R8. „Tahle fáze přihlášení není
+  podporovaná: AuthorizationStateWaitEmailAddress" mu neřekne, co má dělat; pojmenovat fázi
+  vlastní větou je práce navíc jen zdánlivě — je to jediná verze, která má pro čtenáře smysl.
 - **Test se dá udělat bez ztráty přihlášení: release APK se přepodepíše DEBUG klíčem**
   (`apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --ks-key-alias
   androiddebugkey`) a nainstaluje přes `adb install -r`. Minifikace je vlastnost buildu,
