@@ -133,12 +133,26 @@ compose.resources {
 // api_id/api_hash z my.telegram.org. Čtou se z local.properties (gitignorovaný), aby se pár
 // nikdy nedostal do repozitáře. Bez nich se projekt přeloží, ale přihlášení skončí chybou
 // od serveru — hlásí se to srozumitelně místo pádu (viz sendTdlibParameters v TdlTelegramSession).
+//
+// Na CI žádné local.properties není, takže se pár bere z ENV (`TELEGRAM_API_ID` / `TELEGRAM_API_HASH`).
 buildConfig {
     packageName = "eu.tintera.plume"
     className = "BuildConfiguration"
-    buildConfigField("Int", "TELEGRAM_API_ID", localProperty("telegramApiId")?.toIntOrNull() ?: 0)
-    buildConfigField("String", "TELEGRAM_API_HASH", "\"${localProperty("telegramApiHash") ?: ""}\"")
+    buildConfigField("Int", "TELEGRAM_API_ID", configValue("telegramApiId", "TELEGRAM_API_ID")?.toIntOrNull() ?: 0)
+    buildConfigField("String", "TELEGRAM_API_HASH", "\"${configValue("telegramApiHash", "TELEGRAM_API_HASH") ?: ""}\"")
 }
+
+/**
+ * Hodnota konfigurace mimo git. Priorita: gradle property (`-Pklic=…`) > ENV (CI) > `local.properties`.
+ *
+ * ENV se čte přes [providers], ne přes `System.getenv` — jinak by se jeho hodnota nedostala do
+ * otisku konfigurační keše a build s configuration-cache by po změně secretu použil starou.
+ */
+fun configValue(gradleKey: String, envKey: String): String? =
+    (providers.gradleProperty(gradleKey).orNull
+        ?: providers.environmentVariable(envKey).orNull
+        ?: localProperty(gradleKey))
+        ?.takeIf { it.isNotBlank() }
 
 fun localProperty(name: String): String? {
     val file = rootProject.file("local.properties")

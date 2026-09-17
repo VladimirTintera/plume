@@ -31,6 +31,15 @@ dependencies {
     implementation(libs.firebase.messaging)
 }
 
+// Cesta ke keystore. Na CI je to absolutní cesta do RUNNER_TEMP, lokálně relativní cesta
+// od kořene projektu (`releaseStoreFile=plume-release.jks` v local.properties).
+//
+// Top-level `val` se v .kts inicializují v pořadí deklarace, takže tohle musí stát PŘED
+// blokem `android { }`, který hodnotu čte — deklarace níž by byla `null`.
+val releaseKeystoreFile: File? =
+    configValue("releaseStoreFile", "ANDROID_KEYSTORE_PATH")
+        ?.let { path -> File(path).takeIf { it.isAbsolute } ?: rootProject.file(path) }
+
 android {
     namespace = "eu.tintera.plume"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -39,8 +48,14 @@ android {
         applicationId = "eu.tintera.plume"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 12
-        versionName = "0.2.0"
+        // Release z CI je nastavuje z git tagu (`-PandroidVersionCode` / `-PandroidVersionName`),
+        // viz .github/workflows/android-release.yml. Hodnoty tady jsou jen záloha pro lokální build.
+        //
+        // `versionCode` je JEDNOSMĚRNÝ: Play si pamatuje každé nahrané číslo (i z internal tracku)
+        // a stejné podruhé nevezme. Proto ho bump workflow zvedá při KAŽDÉM releasu, i když se
+        // `versionName` nemění.
+        versionCode = (configValue("androidVersionCode", "ANDROID_VERSION_CODE") ?: "12").toInt()
+        versionName = configValue("androidVersionName", "ANDROID_VERSION_NAME") ?: "0.2.0"
     }
 
     packaging {
@@ -49,17 +64,18 @@ android {
         }
     }
 
-    // Podpisový klíč se čte z local.properties; keystore je gitignorovaný.
-    // Bez něj se release build přeloží, ale zůstane nepodepsaný — a to Android neinstaluje.
-    val releaseStore = localProperty("releaseStoreFile")?.let { rootProject.file(it) }
+    // Podpisový klíč se čte z local.properties, na CI z ENV; keystore je gitignorovaný.
+    // Bez něj se release build přeloží, ale zůstane nepodepsaný — a to Android neinstaluje
+    // a Play nevezme. `verifyReleaseConfiguration` níž takový build shodí dřív, než doběhne.
+    val releaseStore = releaseKeystoreFile
 
     signingConfigs {
         if (releaseStore?.exists() == true) {
             create("release") {
                 storeFile = releaseStore
-                storePassword = localProperty("releaseStorePassword")
-                keyAlias = localProperty("releaseKeyAlias")
-                keyPassword = localProperty("releaseKeyPassword")
+                storePassword = configValue("releaseStorePassword", "ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = configValue("releaseKeyAlias", "ANDROID_KEY_ALIAS")
+                keyPassword = configValue("releaseKeyPassword", "ANDROID_KEY_PASSWORD")
 
                 // v3 umožní později rotovat klíč. Musí být zapnuté OD ZAČÁTKU — rotace se opírá
                 // o podpisovou linii v APK a dodatečně ji doplnit nejde.
@@ -96,13 +112,18 @@ android {
     }
 }
 
-// Push notifikace přes FCM.
-//
-// Plugin `google-services` se aplikuje POUZE když existuje `google-services.json`. Bez téhle
-// podmínky by se repozitář po klonu vůbec nepřeložil — plugin chybějící soubor bere jako chybu.
-// Aplikace tedy funguje i bez Firebase, jen bez pushe: notifikace chodí, dokud proces běží.
-//
-// Postup nastavení je v README, sekce „Push notifikace".
+/**
+ * Hodnota konfigurace mimo git. Priorita: gradle property (`-Pklic=…`) > ENV (CI) > `local.properties`.
+ *
+ * ENV se čte přes [providers], ne přes `System.getenv` — jinak by jeho hodnota nevstoupila do
+ * otisku konfigurační keše a build by po změně secretu použil tu starou.
+ */
+fun configValue(gradleKey: String, envKey: String): String? =
+    (providers.gradleProperty(gradleKey).orNull
+        ?: providers.environmentVariable(envKey).orNull
+        ?: localProperty(gradleKey))
+        ?.takeIf { it.isNotBlank() }
+
 fun localProperty(name: String): String? {
     val file = rootProject.file("local.properties")
     if (!file.exists()) return null
@@ -112,9 +133,58 @@ fun localProperty(name: String): String? {
         ?.takeIf { it.isNotBlank() }
 }
 
+// Push notifikace přes FCM.
+//
+// Plugin `google-services` se aplikuje POUZE když existuje `google-services.json`. Bez téhle
+// podmínky by se repozitář po klonu vůbec nepřeložil — plugin chybějící soubor bere jako chybu.
+// Aplikace tedy funguje i bez Firebase, jen bez pushe: notifikace chodí, dokud proces běží.
+//
+// Postup nastavení je v README, sekce „Push notifikace".
 val googleServicesConfig = file("google-services.json")
 if (googleServicesConfig.exists()) {
     apply(plugin = "com.google.gms.google-services")
 } else {
     logger.lifecycle("google-services.json chybí — build bez push notifikací.")
+}
+
+/**
+ * Pojistka pro release build. Chybějící podpis nebo prázdné api_id se jinak poznají až u testera —
+ * nepodepsaný AAB Play odmítne a build bez `TELEGRAM_API_ID` se sice přeloží, ale přihlášení
+ * v něm skončí chybou od serveru.
+ */
+val verifyReleaseConfiguration = tasks.register("verifyReleaseConfiguration") {
+    group = "verification"
+    description = "Ověří, že release build má podpisový klíč a api_id/api_hash."
+    val keystore = releaseKeystoreFile
+    val apiId = configValue("telegramApiId", "TELEGRAM_API_ID")?.toIntOrNull() ?: 0
+    val apiHash = configValue("telegramApiHash", "TELEGRAM_API_HASH").orEmpty()
+    val passwords = listOf(
+        "releaseStorePassword" to configValue("releaseStorePassword", "ANDROID_KEYSTORE_PASSWORD"),
+        "releaseKeyAlias" to configValue("releaseKeyAlias", "ANDROID_KEY_ALIAS"),
+        "releaseKeyPassword" to configValue("releaseKeyPassword", "ANDROID_KEY_PASSWORD"),
+    )
+    doLast {
+        val store = keystore
+        check(store != null) {
+            "Chybí podpisový klíč pro release. Doplň do local.properties `releaseStoreFile` " +
+                "(nebo na CI ENV ANDROID_KEYSTORE_PATH)."
+        }
+        check(store.exists()) {
+            "Keystore '${store.absolutePath}' neexistuje."
+        }
+        val missing = passwords.filter { it.second == null }.map { it.first }
+        check(missing.isEmpty()) {
+            "Ke keystore chybí: ${missing.joinToString()}. Na CI jsou to secrets " +
+                "ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD."
+        }
+        check(apiId != 0 && apiHash.isNotBlank()) {
+            "Chybí telegramApiId/telegramApiHash z my.telegram.org. Bez nich se release build " +
+                "přeloží, ale přihlášení skončí chybou od serveru. Na CI jsou to secrets " +
+                "TELEGRAM_API_ID / TELEGRAM_API_HASH."
+        }
+    }
+}
+
+tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.configureEach {
+    dependsOn(verifyReleaseConfiguration)
 }

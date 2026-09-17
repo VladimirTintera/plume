@@ -122,6 +122,88 @@ takže to zatím nemá co využít.
 (na pozadí systém proces uspí) a skutečná cesta vede přes notification service extension, která
 payload rozšifruje — to je samostatný kus práce.
 
+## Release do Google Play
+
+Vydává se **pushnutím tagu** `android-<versionName>-<versionCode>` (např. `android-0.2.1-13`).
+Workflow [`android-release.yml`](.github/workflows/android-release.yml) z něj vytáhne verzi,
+postaví podepsaný AAB, nahraje ho na **internal track** a založí GitHub Release s changelogem.
+Žádný verzovací commit není potřeba — verze se do buildu dostane přes `-P`.
+
+Běžné vydání se spouští z GitHubu: **Actions → „Release — bump & tag" → Run workflow**, vybrat
+typ bumpu (`build` / `patch` / `minor` / `major`). Workflow dopočítá verzi z posledního tagu,
+tag pushne a release spustí. `versionCode` se zvyšuje vždy — Play si pamatuje každé nahrané
+číslo a stejné podruhé nevezme.
+
+### Co je potřeba nastavit jednou
+
+**1. Service account pro Play Console.** Patří do **vlastního GCP projektu** (např. `mobile-ci`),
+ne do Firebase projektu aplikace — do toho potřebuje přístup každý, kdo ladí push notifikace,
+a takový člověk by tím zároveň mohl vystavit klíč s právem publikovat do Play. Vlastní projekt
+se navíc dá použít i pro další aplikace a přežije případné smazání Firebase projektu.
+
+Postup: v [Google Cloud](https://console.cloud.google.com/) založ projekt (*název* `mobile-ci`,
+ID musí být globálně unikátní, takže klidně vygenerované), povol v něm **Google Play Android
+Developer API**, vytvoř service account a stáhni jeho **JSON klíč**. Pak v Play Console →
+*Users and permissions* → *Invite new users* pozvi e‑mail toho service accountu a dej mu
+u aplikace Plume práva **Release → Release apps to testing tracks** (plus *View app information*).
+
+Oprávnění k publikování tedy **nejde přes GCP IAM**, ale přes Play Console; GCP projekt jen
+hostuje identitu a má povolené API. Propojení se nastavuje v Play Console → *Setup* → *API access*
+— pozor, **linkuje se jeden Cloud projekt na celý developer účet**. Když už tam nějaký připojený
+je, je čistší service account založit v něm než link přepisovat.
+
+**2. Secrets v repozitáři** (Settings → Secrets and variables → Actions):
+
+| Secret | Odkud |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | `base64 -i plume-release.jks \| tr -d '\n' \| pbcopy` |
+| `ANDROID_KEYSTORE_PASSWORD` | `releaseStorePassword` z `local.properties` |
+| `ANDROID_KEY_ALIAS` | `releaseKeyAlias` (`plume`) |
+| `ANDROID_KEY_PASSWORD` | `releaseKeyPassword` |
+| `TELEGRAM_API_ID` | `telegramApiId` z my.telegram.org |
+| `TELEGRAM_API_HASH` | `telegramApiHash` z my.telegram.org |
+| `PLAY_SERVICE_ACCOUNT_JSON` | celý obsah JSON klíče service accountu |
+| `GOOGLE_SERVICES_JSON` | celý obsah `client/androidApp/google-services.json` (volitelné) |
+
+Bez `GOOGLE_SERVICES_JSON` se release postaví, jen bez push notifikací — workflow to ohlásí
+varováním. Bez `TELEGRAM_API_ID` build **spadne**: zapekla by se nula a appka by se nepřihlásila.
+
+**3. První AAB nahrát ručně.** Dokud aplikace nemá v Play žádný release, androidpublisher API
+upload odmítne — první bundle tedy musí do Play Console projít přes web. Postav ho lokálně:
+
+```bash
+./gradlew :client:androidApp:bundleRelease -PandroidVersionName=0.2.0 -PandroidVersionCode=12
+```
+
+Výsledek je v `client/androidApp/build/outputs/bundle/release/androidApp-release.aab`.
+Při nahrání nech zapnuté **Play App Signing** — `plume-release.jks` se tím stane *upload* klíčem
+a Play si drží vlastní podpisový. Ten keystore proto **nesmí být ztracen**: bez něj už nejde
+nahrát další verze (dá se resetovat přes podporu, ale je to otrava).
+
+**4. Zaznamenat výchozí tag**, aby bump workflow věděl, odkud počítat. Ručně nahraný release
+se značí suffixem `-manual`, který release workflow *nespustí*:
+
+```bash
+git tag android-0.2.0-12-manual && git push origin android-0.2.0-12-manual
+```
+
+Od téhle chvíle už stačí spouštět „Release — bump & tag".
+
+### Lokální release build
+
+Podpisové hodnoty a api_id se berou v pořadí **gradle property → ENV → `local.properties`**,
+takže lokálně stačí mít v `local.properties`:
+
+```
+releaseStoreFile=plume-release.jks
+releaseStorePassword=...
+releaseKeyAlias=plume
+releaseKeyPassword=...
+```
+
+`verifyReleaseConfiguration` běží před každým `assembleRelease`/`bundleRelease` a shodí build,
+když něco z toho chybí — nepodepsaný AAB by Play stejně nevzal.
+
 ## Velikosti
 
 TDLib je velká nativní knihovna a je to vidět:
