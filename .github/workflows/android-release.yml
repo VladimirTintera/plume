@@ -22,8 +22,6 @@
 #   TELEGRAM_API_ID             – api_id z my.telegram.org; bez něj se zapeče 0 a přihlášení selže
 #   TELEGRAM_API_HASH           – api_hash z my.telegram.org
 #   PLAY_SERVICE_ACCOUNT_JSON   – JSON klíč service accountu s právem nahrávat do Play Console
-#   GOOGLE_SERVICES_JSON        – (volitelné) obsah google-services.json; bez něj release nemá push
-
 name: Android Release
 
 permissions:
@@ -108,18 +106,6 @@ jobs:
             echo "::error::Chybí secrets TELEGRAM_API_ID / TELEGRAM_API_HASH — build by se přeložil, ale přihlášení by skončilo chybou od serveru."
             exit 1
           fi
-
-      # Bez souboru se plugin google-services neaplikuje a release nemá push notifikace
-      # (viz client/androidApp/build.gradle.kts). Chybějící secret build neshodí, jen varuje.
-      - name: Write google-services.json
-        env:
-          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-        run: |
-          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
-            echo "::warning::Chybí secret GOOGLE_SERVICES_JSON — release bude bez push notifikací."
-            exit 0
-          fi
-          printf '%s' "$GOOGLE_SERVICES_JSON" > client/androidApp/google-services.json
 
       - name: Decode upload keystore
         env:
