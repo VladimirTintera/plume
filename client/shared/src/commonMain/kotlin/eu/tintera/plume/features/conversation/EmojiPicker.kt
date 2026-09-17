@@ -43,6 +43,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
@@ -61,15 +63,15 @@ import eu.tintera.plume.core.ui.previousClusterStart
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.backspace_24dp
 import eu.tintera.plume.resources.conversation_input_message
+import eu.tintera.plume.resources.emoji_delete
 import eu.tintera.plume.resources.emoji_none_found
 import eu.tintera.plume.resources.emoji_recent
 import eu.tintera.plume.resources.emoji_recent_empty
+import eu.tintera.plume.resources.emoji_search
 import eu.tintera.plume.resources.schedule_24dp
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 
 /**
  * Výběr emoji — část sheetu výběru vedle samolepek.
@@ -124,7 +126,7 @@ internal fun EmojiPanel(
 
     StickerSearchField(
         text = searchText,
-        placeholder = "Hledat emoji",
+        placeholder = stringResource(Res.string.emoji_search),
         onTextChange = {
             searchText = it
             viewModel.searchEmoji(it, languageCodes)
@@ -252,7 +254,7 @@ private fun DraftPreview(
                 modifier = Modifier.weight(1f).padding(start = 16.dp),
             )
             IconButton(onClick = onBackspace, enabled = draft.text.isNotEmpty()) {
-                Icon(painterResource(Res.drawable.backspace_24dp), contentDescription = "Smazat")
+                Icon(painterResource(Res.drawable.backspace_24dp), contentDescription = stringResource(Res.string.emoji_delete))
             }
         }
     }

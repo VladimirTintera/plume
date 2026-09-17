@@ -172,6 +172,70 @@ val verifyTranslations = tasks.register("verifyTranslations") {
 
 tasks.named("check") { dependsOn(verifyTranslations) }
 
+/**
+ * Hlídá, že se do UI nevrátí natvrdo psaný text.
+ *
+ * Propadlo to dvakrát: první kontrola hledala jen texty s diakritikou, takže „Odebrat soubor"
+ * ani „Video" nenašla. Proto pravidla dvě — slot v UI nesmí dostat literál vůbec, a český text
+ * nesmí být nikde v kódu mimo komentáře, logy a vnitřní kontroly (`require`/`check`), protože
+ * jazykem zdrojáku je od téhle chvíle angličtina v prostředcích.
+ */
+val verifyNoHardcodedText = tasks.register("verifyNoHardcodedText") {
+    group = "verification"
+    description = "Ověří, že texty pro uživatele jsou v prostředcích, ne v kódu."
+
+    val sources = listOf(
+        layout.projectDirectory.dir("src/commonMain/kotlin"),
+        layout.projectDirectory.dir("src/androidMain/kotlin"),
+        layout.projectDirectory.dir("src/iosMain/kotlin"),
+    )
+    sources.forEach { inputs.dir(it) }
+
+    // Konfigurační keš neunese odkaz na skriptový objekt uvnitř `doLast` — proto se cesty
+    // vytáhnou jako obyčejné `File` už tady. Stejná past jako u `releaseKeystoreFile`.
+    val roots = sources.map { it.asFile }
+    val projectDir = layout.projectDirectory.asFile
+
+    doLast {
+        // Sloty, do kterých se kreslí text pro uživatele. `label =` tady schválně není:
+        // stejný název nese i popisek animace (`AnimatedContent(label = "delivery")`).
+        val uiSlot = Regex("""(?:\bText\(|\btext = |contentDescription = |placeholder = |onClickLabel = |headlineContent|supportingContent)\s*\{?\s*(?:Text\()?"""")
+        val czech = Regex("""\"[^\"]*[áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][^\"]*\"""")
+        // Řádky, kde text pro uživatele není: logy a vnitřní kontroly.
+        val internal = Regex("""logger\.[dewiv]\b|Logger\.withTag|\brequire|\bcheck|\berror\(|Exception\(""")
+
+        val offenders = mutableListOf<String>()
+        roots.flatMap { it.walkTopDown().filter { f -> f.extension == "kt" } }.forEach { file ->
+            val lines = file.readLines()
+            var inBlockComment = false
+            lines.forEachIndexed { index, raw ->
+                val line = raw.trim()
+                if (line.startsWith("/*")) inBlockComment = true
+                if (inBlockComment) {
+                    if (line.contains("*/")) inBlockComment = false
+                    return@forEachIndexed
+                }
+                if (line.startsWith("//") || line.startsWith("*")) return@forEachIndexed
+
+                val context = lines.subList(maxOf(0, index - 3), index + 1).joinToString("\n")
+                if (internal.containsMatchIn(context)) return@forEachIndexed
+
+                // Prázdný literál žádný text nenese (`MessageBody(text = "")`).
+                val meaningful = line.replace("\"\"", "")
+                if (uiSlot.containsMatchIn(meaningful) || czech.containsMatchIn(meaningful)) {
+                    offenders += "${file.relativeTo(projectDir)}:${index + 1}: $line"
+                }
+            }
+        }
+
+        check(offenders.isEmpty()) {
+            "Text pro uživatele patří do composeResources, ne do kódu:\n" + offenders.joinToString("\n")
+        }
+    }
+}
+
+tasks.named("check") { dependsOn(verifyNoHardcodedText) }
+
 // api_id/api_hash z my.telegram.org. Čtou se z local.properties (gitignorovaný), aby se pár
 // nikdy nedostal do repozitáře. Bez nich se projekt přeloží, ale přihlášení skončí chybou
 // od serveru — hlásí se to srozumitelně místo pádu (viz sendTdlibParameters v TdlTelegramSession).

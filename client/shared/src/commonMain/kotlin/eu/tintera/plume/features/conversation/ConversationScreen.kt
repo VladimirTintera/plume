@@ -156,6 +156,8 @@ import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.conversation_attach
+import eu.tintera.plume.resources.conversation_attach_file
+import eu.tintera.plume.resources.conversation_attach_media
 import eu.tintera.plume.resources.conversation_cancel_edit
 import eu.tintera.plume.resources.conversation_cancel_reply
 import eu.tintera.plume.resources.conversation_cancel_sending
@@ -164,15 +166,21 @@ import eu.tintera.plume.resources.conversation_delivery_failed
 import eu.tintera.plume.resources.conversation_delivery_read
 import eu.tintera.plume.resources.conversation_delivery_sending
 import eu.tintera.plume.resources.conversation_delivery_sent
+import eu.tintera.plume.resources.conversation_edited_suffix
 import eu.tintera.plume.resources.conversation_editing
 import eu.tintera.plume.resources.conversation_empty
+import eu.tintera.plume.resources.conversation_fallback_title
 import eu.tintera.plume.resources.conversation_input_caption
 import eu.tintera.plume.resources.conversation_input_message
 import eu.tintera.plume.resources.conversation_microphone_permission
 import eu.tintera.plume.resources.conversation_new_messages
+import eu.tintera.plume.resources.conversation_open_emoji
+import eu.tintera.plume.resources.conversation_open_stickers
+import eu.tintera.plume.resources.conversation_pick_chat
 import eu.tintera.plume.resources.conversation_record_voice
 import eu.tintera.plume.resources.conversation_reply
 import eu.tintera.plume.resources.conversation_save_edit
+import eu.tintera.plume.resources.conversation_scroll_to_end
 import eu.tintera.plume.resources.conversation_send
 import eu.tintera.plume.resources.conversation_send_voice
 import eu.tintera.plume.resources.conversation_show_all_pinned
@@ -187,6 +195,7 @@ import eu.tintera.plume.resources.error_24dp
 import eu.tintera.plume.resources.media_photo
 import eu.tintera.plume.resources.media_sticker
 import eu.tintera.plume.resources.media_video
+import eu.tintera.plume.resources.menu_unpin
 import eu.tintera.plume.resources.mic_24dp
 import eu.tintera.plume.resources.mood_24dp
 import eu.tintera.plume.resources.perm_media_24dp
@@ -542,7 +551,7 @@ fun ConversationScreen(
                         }
                         Column {
                             Text(
-                                text = state.info?.title ?: "Konverzace",
+                                text = state.info?.title ?: stringResource(Res.string.conversation_fallback_title),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 // Klíč se dá jen když chat známe; než dorazí `info`, není s čím
@@ -995,7 +1004,7 @@ private fun ScrollToBottomButton(
             ) {
                 Icon(
                     painterResource(Res.drawable.arrow_downward_24dp),
-                    contentDescription = if (count > 0) null else "Na konec konverzace",
+                    contentDescription = if (count > 0) null else stringResource(Res.string.conversation_scroll_to_end),
                     modifier = Modifier.size(18.dp),
                 )
 
@@ -1335,6 +1344,9 @@ private fun MessageBubble(
                     modifier = Modifier.padding(top = 6.dp),
                 )
 
+                // `buildString` není composable blok, takže se přípona přečte tady.
+                val editedSuffix = stringResource(Res.string.conversation_edited_suffix)
+
                 Row(
                     Modifier.align(Alignment.End),
                     verticalAlignment = Alignment.CenterVertically,
@@ -1343,7 +1355,7 @@ private fun MessageBubble(
                     Text(
                         text = buildString {
                             append(message.timestamp.asTimeOfDay())
-                            if (message.isEdited) append(" · upraveno")
+                            if (message.isEdited) append(editedSuffix)
                         },
                         style = MaterialTheme.typography.labelSmall,
                         color = contentColor.copy(alpha = 0.7f),
@@ -1544,9 +1556,9 @@ private fun MessageInput(
                         // Ikona slibuje, co se otevře: poslední použitou část výběru. Při úpravě
                         // zprávy jde otevřít jen emoji — samolepka do textu upravované zprávy nepatří.
                         if (editing != null || expressionMode == ExpressionMode.Emoji) {
-                            Icon(painterResource(Res.drawable.mood_24dp), contentDescription = "Emoji")
+                            Icon(painterResource(Res.drawable.mood_24dp), contentDescription = stringResource(Res.string.conversation_open_emoji))
                         } else {
-                            Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = "Samolepky")
+                            Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = stringResource(Res.string.conversation_open_stickers))
                         }
                     }
                 },
@@ -1757,7 +1769,7 @@ private fun PinnedMessageRow(
             IconButton(onClick = { onUnpin(message) }) {
                 Icon(
                     painterResource(Res.drawable.close_24dp),
-                    contentDescription = "Odepnout",
+                    contentDescription = stringResource(Res.string.menu_unpin),
                     modifier = Modifier.size(18.dp),
                 )
             }
@@ -1893,7 +1905,7 @@ private fun AttachButton(onPickMedia: () -> Unit, onPickDocument: () -> Unit) {
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(
-                text = { Text("Fotka nebo video") },
+                text = { Text(stringResource(Res.string.conversation_attach_media)) },
                 leadingIcon = { Icon(painterResource(Res.drawable.perm_media_24dp), contentDescription = null) },
                 onClick = {
                     open = false
@@ -1902,7 +1914,7 @@ private fun AttachButton(onPickMedia: () -> Unit, onPickDocument: () -> Unit) {
                 },
             )
             DropdownMenuItem(
-                text = { Text("Soubor") },
+                text = { Text(stringResource(Res.string.conversation_attach_file)) },
                 leadingIcon = { Icon(painterResource(Res.drawable.description_24dp), contentDescription = null) },
                 onClick = {
                     open = false
@@ -2061,7 +2073,7 @@ fun ConversationPlaceholder(modifier: Modifier = Modifier) {
     ) {
         Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
             Text(
-                "Vyber chat vlevo.",
+                stringResource(Res.string.conversation_pick_chat),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -2406,7 +2418,7 @@ private fun MessageAttachment(
                 RemoteImage(
                     fileId = media.fileId,
                     thumbnailFileId = media.thumbnailFileId,
-                    contentDescription = "Fotka",
+                    contentDescription = stringResource(Res.string.media_photo),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2628,7 +2640,7 @@ private fun AlbumTile(
             RemoteImage(
                 fileId = media.fileId,
                 thumbnailFileId = media.thumbnailFileId,
-                contentDescription = "Fotka",
+                contentDescription = stringResource(Res.string.media_photo),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
@@ -2741,7 +2753,7 @@ internal fun albumRowSizes(count: Int): List<Int> = when (count) {
  */
 @Composable
 private fun StickerImage(sticker: MessageMedia.Sticker, modifier: Modifier = Modifier) {
-    val description = sticker.emoji.ifBlank { "Samolepka" }
+    val description = sticker.emoji.ifBlank { stringResource(Res.string.media_sticker) }
     val staticFileId = sticker.fileId ?: sticker.thumbnailFileId
 
     if (staticFileId == null && sticker.animationFileId == null) {
@@ -2925,7 +2937,7 @@ private fun VideoThumbnail(
         video.thumbnailFileId?.let { thumbnail ->
             RemoteImage(
                 fileId = thumbnail,
-                contentDescription = "Video",
+                contentDescription = stringResource(Res.string.media_video),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize().sharedNavElement(photoKey(messageId)),
             )

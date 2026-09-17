@@ -88,6 +88,7 @@ import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.emojiClusterCount
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.media_sticker
 import eu.tintera.plume.resources.menu_favorite_add
 import eu.tintera.plume.resources.menu_favorite_remove
 import eu.tintera.plume.resources.schedule_24dp
@@ -100,11 +101,14 @@ import eu.tintera.plume.resources.stickers_clear_search
 import eu.tintera.plume.resources.stickers_favorites_empty
 import eu.tintera.plume.resources.stickers_none_found
 import eu.tintera.plume.resources.stickers_recent_empty
+import eu.tintera.plume.resources.stickers_search
 import eu.tintera.plume.resources.stickers_section_installed
 import eu.tintera.plume.resources.stickers_section_public
 import eu.tintera.plume.resources.stickers_set_empty
+import eu.tintera.plume.resources.stickers_tab_emoji
 import eu.tintera.plume.resources.stickers_tab_favorites
 import eu.tintera.plume.resources.stickers_tab_recent
+import eu.tintera.plume.resources.stickers_tab_stickers
 import eu.tintera.plume.resources.stickers_tab_trending
 import eu.tintera.plume.resources.stickers_trending_failed
 import eu.tintera.plume.resources.trending_up_24dp
@@ -425,8 +429,8 @@ fun StickerPickerSheet(
                 ) {
                     Text(
                         when (entry) {
-                            ExpressionMode.Emoji -> "Emoji"
-                            ExpressionMode.Stickers -> "Samolepky"
+                            ExpressionMode.Emoji -> stringResource(Res.string.stickers_tab_emoji)
+                            ExpressionMode.Stickers -> stringResource(Res.string.stickers_tab_stickers)
                         },
                     )
                 }
@@ -445,7 +449,7 @@ fun StickerPickerSheet(
 
         StickerSearchField(
             text = searchText,
-            placeholder = "Hledat samolepky",
+            placeholder = stringResource(Res.string.stickers_search),
             onTextChange = {
                 searchText = it
                 viewModel.search(it, languageCodes)
@@ -901,7 +905,7 @@ private fun StickerPreview(
     modifier: Modifier = Modifier,
 ) {
     val still = sticker.thumbnailFileId ?: sticker.fileId
-    val description = sticker.emoji.ifBlank { "Samolepka" }
+    val description = sticker.emoji.ifBlank { stringResource(Res.string.media_sticker) }
     val animation = sticker.animationFileId
 
     val stillImage: @Composable () -> Unit = {
