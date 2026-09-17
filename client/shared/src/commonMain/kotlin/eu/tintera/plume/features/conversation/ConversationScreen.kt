@@ -182,6 +182,7 @@ fun ConversationScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     // Čte se až v bublině hlasovky, takže změna pozice nepřekresluje celou obrazovku.
     val voicePlayback by viewModel.voicePlayback.collectAsStateWithLifecycle()
+    val connection by viewModel.connection.collectAsStateWithLifecycle()
     // Nahrávání se mění po 50 ms; obrazovka čte jen jestli běží, čas a úrovně až pruh nahrávání.
     val voiceRecordingState = viewModel.voiceRecording.collectAsStateWithLifecycle()
     val isRecording by remember { derivedStateOf { voiceRecordingState.value != null } }
@@ -505,14 +506,20 @@ fun ConversationScreen(
                             )
 
                             /*
-                             * Podtitul: činnost, jinak dostupnost.
+                             * Podtitul: stav spojení, jinak činnost, jinak dostupnost.
                              *
-                             * „Píše…" má přednost — je to novější a pro čekajícího zajímavější
-                             * informace, a obojí se na řádek nevejde. Skupina dostupnost nemá,
-                             * takže tam se podtitul objeví jen při činnosti; výšku hlavičky proto
-                             * animuje `AnimatedContent`, jinak by název poskočil.
+                             * Nepřipojený klient je nade vším: dokud spojení nestojí, je „píše…"
+                             * i „naposledy viděn" jen stará hodnota, kterou nemá co obnovit —
+                             * ukázat ji místo vysvětlení, proč nic nechodí, by bylo zavádějící.
+                             * Mezi zbylými dvěma má přednost „píše…": je to novější a pro
+                             * čekajícího zajímavější informace, a obojí se na řádek nevejde.
+                             *
+                             * Skupina dostupnost nemá, takže tam se podtitul objeví jen při
+                             * činnosti; výšku hlavičky proto animuje `AnimatedContent`, jinak by
+                             * název poskočil.
                              */
-                            val subtitle = state.activity?.let { HeaderSubtitle(it.label(), accent = true) }
+                            val subtitle = connection.label()?.let { HeaderSubtitle(it, accent = false) }
+                                ?: state.activity?.let { HeaderSubtitle(it.label(), accent = true) }
                                 ?: state.presence?.let {
                                     HeaderSubtitle(it.describe(), accent = it is Presence.Online)
                                 }

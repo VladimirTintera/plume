@@ -2,6 +2,9 @@ package eu.tintera.plume.di
 
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.telegram.ConnectionController
+import eu.tintera.plume.core.telegram.ConnectionRepository
+import eu.tintera.plume.core.telegram.TdlConnectionRepository
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.DataStoreAppSettings
 import eu.tintera.plume.core.telegram.EmojiRepository
@@ -85,6 +88,22 @@ fun appModule() = module {
 
     single<NotificationRepository> { TdlNotificationRepository(holder = get()) }
 
+    // Eagerně ze stejného důvodu jako FileRepository: v konstruktoru se přihlašuje k odběru
+    // `connectionStateUpdates`. Kdyby vznikla až s první obrazovkou, prošvihla by přesně ty
+    // změny stavu, které se dějí při startu.
+    single<ConnectionRepository>(createdAtStart = true) {
+        TdlConnectionRepository(holder = get(), scope = get(named(APP_SCOPE)))
+    }
+
+    single {
+        ConnectionController(
+            connection = get(),
+            network = get(),
+            foreground = get(),
+            scope = get(named(APP_SCOPE)),
+        )
+    }
+
     // Bezstavová — seznamy jsou toky nad updaty, drží se jen po dobu otevřeného výběru.
     single<StickerRepository> { TdlStickerRepository(holder = get()) }
     single<EmojiRepository> { TdlEmojiRepository(holder = get()) }
@@ -121,6 +140,7 @@ fun appModule() = module {
             fileRepository = get(),
             voicePlayer = get(),
             audioRecorder = get(),
+            connection = get(),
         )
     }
 

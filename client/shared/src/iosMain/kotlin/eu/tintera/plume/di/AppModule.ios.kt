@@ -1,6 +1,8 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.core.audio.AudioRecorder
+import eu.tintera.plume.core.connectivity.AppForeground
+import eu.tintera.plume.core.connectivity.NetworkMonitor
 import eu.tintera.plume.core.notifications.NotificationPermission
 import eu.tintera.plume.core.settings.SETTINGS_FILE_NAME
 import eu.tintera.plume.core.settings.createSettingsDataStore
@@ -16,6 +18,8 @@ actual fun Module.platformModule() {
     single { NotificationPermission() }
     single { NotificationPresenter() }
     single { UrlOpener() }
+    single { NetworkMonitor() }
+    single { AppForeground() }
     single { TextClipboard() }
     // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.
     factory { AudioRecorder() }

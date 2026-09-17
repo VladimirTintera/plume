@@ -1,6 +1,7 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.core.logging.configureLogging
+import eu.tintera.plume.core.telegram.ConnectionController
 import eu.tintera.plume.core.telegram.NotificationPresenter
 import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.TelegramSession
@@ -35,5 +36,10 @@ fun startKoin(configure: KoinApplication.() -> Unit = {}): KoinApplication {
         appScope.launch { koin.get<TelegramSession>().start() }
 
         koin.get<NotificationPresenter>().start(koin.get<NotificationRepository>())
+
+        // Hlášení sítě a popředí. Taky musí běžet od startu procesu, ne od první obrazovky:
+        // síť se mění i tehdy, když se žádné UI neskládá, a návrat do popředí je jediná chvíle,
+        // kdy se dá poznat spojení, které systém mezitím zabil.
+        koin.get<ConnectionController>().start()
     }
 }
