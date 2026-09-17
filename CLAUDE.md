@@ -838,6 +838,62 @@ v seznamu chatů („Koncept: …") a na ostatních zařízeních.
   citované zprávy přes `firstOrNull` znamenaly kvadratické chování při scrollu dlouhou historií.
   Index dává `itemsIndexed`, citace se hledá v mapě složené jednou na změnu seznamu.
 
+### Tvar bubliny a seskupení
+
+- **Stažené nároží (`BUBBLE_TIGHT`, 4 dp) drží skupinu pohromadě, takže se MUSÍ ptát na OBA
+  sousedy.** Dřív bylo spodní nároží na straně odesílatele stažené VŽDY, bez ohledu na souseda:
+  tím vznikla dvojice „spodek předchozí + vršek navazující" bez toho, aby bublina musela cokoli
+  vědět o novějším sousedovi. Cena za tu zkratku byla, že zaoblení chybělo i tam, kde blok
+  SKONČIL — poslední odchozí bublina měla ostré pravé dolní nároží (u příchozích zrcadlově levé)
+  a blok světlých bublin končil bez rohového oblouku.
+- **Novější soused je o index NÍŽ** (seznam jde od nejnovější), a ta informace už na místě volání
+  byla — počítá se z ní profilovka („poslední zpráva bloku"). Bublina proto bere dva příznaky,
+  `continuesAbove` a `continuesBelow`, a stahuje jen nároží na straně odesílatele; na druhé straně
+  jde bublina k okraji obrazovky a stažené nároží by tam nemělo co navazovat.
+- **Startovní strana letu musí mít tvar CÍLOVÉ bubliny.** Odesílaná zpráva je vždycky nejnovější,
+  takže pod ní nic nenavazuje a všechna nároží jsou zaoblená — proto tam po téhle změně je
+  `RoundedCornerShape(BUBBLE_CORNER)`. Dokud bylo spodní nároží stažené vždy, mělo ho i pole;
+  s novým pravidlem by zpráva po cestě měnila tvar.
+
+### Čas a stav doručení
+
+Čas v bublině NENÍ a stav doručení je POD ní, ne v ní. V bublině zabíral řádek u každé jediné
+zprávy, a přitom ani jedno z toho většinou nic neříkalo.
+
+- **Datum nesou předěly dne a plovoucí datum při scrollu**, ne bublina. Tím jim stoupá cena —
+  jsou to teď jediné místo, kde se čas v konverzaci dá přečíst. (Odkrývání časů tahem doleva,
+  jak to dělá Google Messages, zatím není; koliduje to s odpovědí swipem, viz roadmapa.)
+- **„Upraveno" zůstalo.** Že se zpráva změnila, se odjinud nedozvíme; čas ano.
+- **Odznak je mimo bublinu, takže barva patří PLOŠE** (`onSurfaceVariant`), ne bublině. Dokud byl
+  uvnitř, bral `contentColor`; pod bublinou by `onPrimary` na tónovaném pozadí nebyl vidět —
+  tatáž past jako u `QuotedMessage.accent` a u zpráv bez bubliny.
+- **`Box` kolem bubliny musí obepínat SAMOTNÝ `Surface`.** Nabídka nad zprávou si z něj bere
+  `anchorBounds` a vykrajuje podle nich díru do závoje; kdyby v něm byl i odznak, byla by díra
+  o ten kus vyšší. Odznak proto stojí ve sloupci ZA ním, a posun tahem se přesunul na ten sloupec,
+  aby odznak jel s bublinou.
+- **„Přečteno" hlásí nejvýš JEDNA zpráva v chatu** (`readBadgeRow`): nejnovější, a jen když je
+  moje. Přečtením té poslední jsou přečtené i všechny před ní, takže dvojitá fajfka u celé
+  historie byla řada stejných odznaků bez informace.
+- **Odpověď protějšku přečtení dokazuje SAMA.** Když po mojí zprávě někdo napsal, musel ji
+  přečíst a odznak nemá co dodat — proto se hledá nejnovější zpráva, ne nejnovější odchozí.
+  Vyjde-li příchozí, nehlásí přečteno nikdo. (Nejdřív to bylo „nejnovější odchozí" a odznak
+  zůstal svítit u zprávy, na kterou už protějšek odpověděl.)
+- **Servisní oznámení se přeskakují.** „X se přidal do skupiny" nedokazuje, že si někdo něco
+  přečetl, takže by odznak schovalo neprávem.
+- **`Sending` a `Sent` zůstávají u každé zprávy** — ty ještě něco říkají.
+- **`Failed` se ukazuje VŽDY.** Je to jediný stav, který uživatel musí zaregistrovat; schovat ho
+  kvůli úspoře místa není úspora, ale skrytá chyba.
+- **Pravidlo je vytažené z composable do `readBadgeRow`** (`MessageRows.kt`) a pokryté testy
+  (`MessageRowsTest`). Uvnitř `@Composable` by se netestovalo, a je to přesně ten druh podmínky,
+  u které se hraniční případ (odpověď protějšku, servisní zpráva, album) pozná až na zařízení.
+- **Hledá se jednou na změnu seznamu** (`readBadgeKey` v `remember`), ne v bublině. Průchod
+  seznamem uvnitř `items` je to kvadratické chování, na které projekt narazil u citací.
+- **Odznak se váže na NEJSTARŠÍ zprávu položky**, protože tím je klíč položky (u alba je to jeho
+  nejstarší zpráva, viz `ConversationState.keyOf`).
+- **Odznak mizí i se svým MÍSTEM** (`shrinkVertically`, ne jen `fadeOut`) a při odjezdu kreslí
+  POSLEDNÍ známý stav — v okamžiku skrytí je hodnota už `null` a `AnimatedVisibility` by dobíhala
+  s prázdným obsahem. Obě pasti jsou v projektu už zdokumentované (spodní bar, pruh připnutých).
+
 ### Vzhled konverzace
 
 - **Odchozí bublina je `primary`, ne `primaryContainer`.** Se dvěma světlými plochami o podobné

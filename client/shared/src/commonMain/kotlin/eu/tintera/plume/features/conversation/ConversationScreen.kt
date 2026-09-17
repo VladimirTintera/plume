@@ -173,7 +173,7 @@ import eu.tintera.plume.resources.conversation_delivery_failed
 import eu.tintera.plume.resources.conversation_delivery_read
 import eu.tintera.plume.resources.conversation_delivery_sending
 import eu.tintera.plume.resources.conversation_delivery_sent
-import eu.tintera.plume.resources.conversation_edited_suffix
+import eu.tintera.plume.resources.conversation_edited
 import eu.tintera.plume.resources.conversation_editing
 import eu.tintera.plume.resources.conversation_empty
 import eu.tintera.plume.resources.conversation_fallback_title
@@ -219,11 +219,8 @@ import eu.tintera.plume.resources.send_24dp
 import eu.tintera.plume.resources.sender_you
 import eu.tintera.plume.resources.sticky_note_2_24dp
 import kotlin.math.roundToInt
-import kotlin.time.Instant
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
@@ -391,6 +388,16 @@ fun ConversationScreen(
     // Klíč položky není u odeslaných zpráv jejich id (viz `ConversationState.itemKeys`), takže
     // co se v seznamu hledá podle klíče, musí mít vlastní mapu.
     val byKey = remember(state.messages, state.itemKeys) { state.messages.associateBy(state::keyOf) }
+
+    /*
+     * Jediná zpráva, která hlásí „přečteno" (pravidlo i důvody: [readBadgeRow]).
+     *
+     * Skládá se jednou na změnu seznamu, ne v každé bublině — hledání průchodem uvnitř `items`
+     * je to kvadratické chování, na které už projekt narazil u citací.
+     */
+    val readBadgeKey = remember(rows, state.itemKeys) {
+        readBadgeRow(rows)?.let { state.keyOf(it.oldest) }
+    }
 
     /*
      * Datum nejvyšší viditelné zprávy, pro plovoucí štítek při scrollu.
@@ -813,6 +820,20 @@ fun ConversationScreen(
                             !older.timestamp.isSameDayAs(row.oldest.timestamp)
 
                         /*
+                         * Seskupení bublin se musí ptát na OBA sousedy.
+                         *
+                         * Stažené nároží drží skupinu pohromadě, takže patří jen mezi bubliny,
+                         * které na sebe opravdu navazují — a to znamená vědět i o tom novějším.
+                         * Ten je v obráceném seznamu o index NÍŽ.
+                         *
+                         * Za předělem dne začíná nový blok, i když píše tentýž člověk; proto se
+                         * starší soused nad předělem nepočítá.
+                         */
+                        val olderInGroup = older.takeIf { !startsDay }
+                        val continuesAbove = olderInGroup != null && message.continues(olderInGroup)
+                        val continuesBelow = rows.getOrNull(index - 1)?.display.continues(message)
+
+                        /*
                          * Je tohle první nepřečtená zpráva?
                          *
                          * Hranici drží ViewModel z okamžiku otevření chatu, takže se předěl
@@ -867,23 +888,23 @@ fun ConversationScreen(
                                 onQuoteClick = message.replyToMessageId?.let { id ->
                                     { viewModel.jumpToMessage(id) }
                                 },
-                                // Za předělem začíná nový blok, i když píše tentýž člověk — jinak by
-                                // první bublina pod datem navazovala na zprávu z minulého dne.
-                                previous = older.takeIf { !startsDay },
+                                continuesAbove = continuesAbove,
+                                continuesBelow = continuesBelow,
                                 /*
                                  * Tvář odesílatele se ukazuje u POSLEDNÍ zprávy jeho bloku, jako
-                                 * v Telegramu: blok se čte shora a tvář ho uzavírá. Novější soused
-                                 * je o index NÍŽ. Kanál (odesílatel = chat sám) tvář nemá — nese ji
-                                 * hlavička a u každého příspěvku by byla pořád tatáž.
+                                 * v Telegramu: blok se čte shora a tvář ho uzavírá. Kanál
+                                 * (odesílatel = chat sám) tvář nemá — nese ji hlavička a u každého
+                                 * příspěvku by byla pořád tatáž.
                                  */
                                 avatar = when {
                                     state.info?.isGroup != true || message.isOutgoing -> SenderAvatar.None
                                     message.senderId == state.info?.id -> SenderAvatar.None
-                                    rows.getOrNull(index - 1)?.display.continues(message) -> SenderAvatar.Spacer
+                                    continuesBelow -> SenderAvatar.Spacer
                                     else -> SenderAvatar.Shown
                                 },
                                 lastReadOutboxMessageId = state.lastReadOutboxMessageId,
-
+                                // „Přečteno" se hlásí nejvýš u jedné zprávy, viz `readBadgeKey`.
+                                showsRead = state.keyOf(row.oldest) == readBadgeKey,
                                 flight = flight,
                                 onToggleReaction = { emoji ->
                                     viewModel.toggleReaction(message.id, emoji)
@@ -1075,9 +1096,14 @@ private fun MessageBubble(
     /** Ťuknutí na citaci; `null` u zprávy, která nic necituje. */
     onQuoteClick: (() -> Unit)?,
     lastReadOutboxMessageId: Long,
+    /** Smí tahle zpráva hlásit „přečteno"? Viz `readBadgeKey` — platí nejvýš pro jednu v chatu. */
+    showsRead: Boolean,
     /** Let ze vstupního pole, který přistává právě v téhle bublině; jinak `null`. */
     flight: MessageFlight?,
-    previous: ChatMessage?,
+    /** Navazuje tahle bublina na STARŠÍHO souseda (tedy na zprávu nad ní)? */
+    continuesAbove: Boolean,
+    /** Navazuje na tuhle bublinu NOVĚJŠÍ soused (zpráva pod ní)? */
+    continuesBelow: Boolean,
     /** Zprávy alba od nejstarší; `null` u samostatné zprávy. */
     album: List<ChatMessage>?,
     /** Ťuknutí na fotku v albu — otevře tu konkrétní zprávu. */
@@ -1102,10 +1128,6 @@ private fun MessageBubble(
     onLinkClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val continuesGroup = previous != null &&
-        previous.isOutgoing == message.isOutgoing &&
-        previous.senderId == message.senderId
-
     /*
      * Zprávy, které jsou celé jedno gesto — pár emoji nebo samolepka — se kreslí bez bubliny.
      *
@@ -1147,12 +1169,55 @@ private fun MessageBubble(
         else -> MaterialTheme.colorScheme.onSurface
     }
 
+    /*
+     * Stažené nároží drží skupinu pohromadě, takže je jen TAM, KDE NA SEBE BUBLINY NAVAZUJÍ.
+     *
+     * Dřív bylo spodní nároží na straně odesílatele stažené VŽDY, bez ohledu na souseda. Díky tomu
+     * vznikla dvojice „spodek předchozí + vršek navazující" bez toho, aby bublina musela cokoli
+     * vědět o novějším sousedovi — jenže tím pádem chybělo zaoblení i tam, kde blok SKONČIL:
+     * poslední bublina odchozí skupiny měla ostré pravé dolní nároží (u příchozích zrcadlově levé).
+     *
+     * Obě strany se proto teď ptají stejně. Stahuje se jen nároží na straně odesílatele — na té
+     * druhé jde bublina k okraji obrazovky a stažené nároží by tam nemělo co navazovat.
+     */
     val corner = BUBBLE_CORNER
-    val tight = BUBBLE_TAIL
+    val tight = BUBBLE_TIGHT
+    val topInner = if (continuesAbove) tight else corner
+    val bottomInner = if (continuesBelow) tight else corner
     val shape = if (message.isOutgoing) {
-        RoundedCornerShape(corner, if (continuesGroup) tight else corner, tight, corner)
+        RoundedCornerShape(
+            topStart = corner,
+            topEnd = topInner,
+            bottomEnd = bottomInner,
+            bottomStart = corner,
+        )
     } else {
-        RoundedCornerShape(if (continuesGroup) tight else corner, corner, corner, tight)
+        RoundedCornerShape(
+            topStart = topInner,
+            topEnd = corner,
+            bottomEnd = corner,
+            bottomStart = bottomInner,
+        )
+    }
+
+    /*
+     * Co se ze stavu doručení vůbec ukáže. `null` znamená, že odznak nebude.
+     *
+     * „Přečteno" hlásí nejvýš JEDNA zpráva v chatu (viz `readBadgeKey`): přečtením nejnovější
+     * jsou přečtené i všechny před ní, a odpověď protějšku dokazuje přečtení sama. Dvojitá fajfka
+     * u celé historie byla řada stejných odznaků, ze kterých se nic nedozvěděl. `Sending` a `Sent`
+     * zůstávají u každé zprávy — ty ještě něco říkají („odesílá se", „doručeno, ale nepřečteno").
+     *
+     * `Failed` zůstává VŽDY. Je to jediný stav, který uživatel musí zaregistrovat, a schovat ho
+     * kvůli úspoře místa by nebyla úspora, ale skrytá chyba.
+     */
+    val delivery = message.sendState?.let { sendState ->
+        when {
+            sendState == SendState.Failed -> Delivery.Failed
+            sendState == SendState.Sending -> Delivery.Sending
+            message.id <= lastReadOutboxMessageId -> Delivery.Read.takeIf { showsRead }
+            else -> Delivery.Sent
+        }
     }
 
     val scope = rememberCoroutineScope()
@@ -1191,7 +1256,7 @@ private fun MessageBubble(
             .fillMaxWidth()
             // Zprávy od jednoho odesílatele drží u sebe, nová skupina se oddělí. Tvar bublin
             // to už rozlišuje staženým nárožím, mezera tomu jen dává prostor.
-            .padding(top = if (continuesGroup) 0.dp else GROUP_SPACING)
+            .padding(top = if (continuesAbove) 0.dp else GROUP_SPACING)
             .drawBehind {
                 if (highlightAlpha > 0f) {
                     drawRoundRect(
@@ -1253,182 +1318,186 @@ private fun MessageBubble(
           )
       }
 
-      Box(
+      Column(
           // Posun se čte až ve fázi layoutu (`offset { }`), ne v kompozici. Jinak by se celá
           // bublina i s obsahem přeskládávala na každý snímek tahu.
           Modifier.offset { IntOffset(drag.value.roundToInt(), 0) },
       ) {
-        Surface(
-            color = containerColor,
-            contentColor = contentColor,
-            shape = shape,
-            modifier = Modifier
-                .widthIn(max = 560.dp)
-                // Cílová strana letu ze vstupního pole. Sdílí se CELÁ bublina, ne jen text —
-                // kdyby se sdílel jen text, doletěl by sám a pozadí by pod ním na konci
-                // skokem naskočilo.
-                .then(
-                    flight?.let { Modifier.sharedFlight(it.sharedKey, visible = true) }
-                        ?: Modifier,
-                )
-                // Ořez MUSÍ být před klikáním. `Surface` si tvarem ořezává jen svoje pozadí,
-                // a to až za modifikátory, které dostane zvenku — vlnka dlouhého stisku by se
-                // tedy kreslila do obdélníku a přetekla přes zaoblená nároží.
-                .clip(shape)
-                // Dlouhý stisk je jediné gesto na bublině — krátké ťuknutí si šetříme
-                // na otevírání médií, až přibude.
-                .combinedClickable(onLongClick = onRequestMenu, onClick = {}),
-        ) {
-            Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
-                if (!continuesGroup) {
-                    message.senderName?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
+        /*
+         * `Box` musí obepínat SAMOTNOU bublinu, ne bublinu s odznakem.
+         *
+         * Nabídka nad zprávou si z něj bere `anchorBounds` a vykrajuje podle nich díru do závoje;
+         * kdyby v něm byl i odznak doručení, byla by díra o ten kus vyšší a vedle bubliny.
+         * Odznak proto stojí až za ním, ve sloupci.
+         */
+        Box {
+          Surface(
+              color = containerColor,
+              contentColor = contentColor,
+              shape = shape,
+              modifier = Modifier
+                  .widthIn(max = 560.dp)
+                  // Cílová strana letu ze vstupního pole. Sdílí se CELÁ bublina, ne jen text —
+                  // kdyby se sdílel jen text, doletěl by sám a pozadí by pod ním na konci
+                  // skokem naskočilo.
+                  .then(
+                      flight?.let { Modifier.sharedFlight(it.sharedKey, visible = true) }
+                          ?: Modifier,
+                  )
+                  // Ořez MUSÍ být před klikáním. `Surface` si tvarem ořezává jen svoje pozadí,
+                  // a to až za modifikátory, které dostane zvenku — vlnka dlouhého stisku by se
+                  // tedy kreslila do obdélníku a přetekla přes zaoblená nároží.
+                  .clip(shape)
+                  // Dlouhý stisk je jediné gesto na bublině — krátké ťuknutí si šetříme
+                  // na otevírání médií, až přibude.
+                  .combinedClickable(onLongClick = onRequestMenu, onClick = {}),
+          ) {
+              Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+                  if (!continuesAbove) {
+                      message.senderName?.let {
+                          Text(
+                              text = it,
+                              style = MaterialTheme.typography.labelLarge,
+                              color = MaterialTheme.colorScheme.primary,
+                          )
+                      }
+                  }
 
-                quoted?.let {
-                    QuotedMessage(
-                        message = it,
-                        partnerName = partnerName,
-                        onClick = onQuoteClick,
-                        onLongClick = onRequestMenu,
-                        // V odchozí bublině nese akcent barva popředí; `primary` by splynula
-                        // s pozadím bubliny.
-                        accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
-                    )
-                }
+                  quoted?.let {
+                      QuotedMessage(
+                          message = it,
+                          partnerName = partnerName,
+                          onClick = onQuoteClick,
+                          onLongClick = onRequestMenu,
+                          // V odchozí bublině nese akcent barva popředí; `primary` by splynula
+                          // s pozadím bubliny.
+                          accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
+                      )
+                  }
 
-                if (album != null) {
-                    AlbumContent(
-                        members = album,
-                        onOpen = onOpenAlbumItem,
-                        onRequestMenu = onRequestMenu,
-                        onCancelUpload = onCancelUpload,
-                        documentProgress = documentProgress,
-                        onOpenDocument = onOpenDocument,
-                        accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
-                    )
-                } else {
-                    message.media?.let { media ->
-                        MessageAttachment(
-                            media = media,
-                            messageId = message.id,
-                            onOpen = onOpenMedia,
-                            onRequestMenu = onRequestMenu,
-                            uploading = message.sendState == SendState.Sending,
-                            onCancelUpload = { onCancelUpload(message.id) },
-                            documentProgress = documentProgress,
-                            onOpenDocument = { onOpenDocument(message.id) },
-                            accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
-                            voice = VoiceHandlers(
-                                playback = voicePlayback,
-                                onToggle = onToggleVoice,
-                                onSeek = onSeekVoice,
-                                // Jako u citace: v odchozí `primary` bublině nese akcent barva popředí.
-                                accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
-                                onAccent = if (message.isOutgoing) containerColor else MaterialTheme.colorScheme.onPrimary,
-                            ),
-                        )
-                    }
-                }
+                  if (album != null) {
+                      AlbumContent(
+                          members = album,
+                          onOpen = onOpenAlbumItem,
+                          onRequestMenu = onRequestMenu,
+                          onCancelUpload = onCancelUpload,
+                          documentProgress = documentProgress,
+                          onOpenDocument = onOpenDocument,
+                          accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
+                      )
+                  } else {
+                      message.media?.let { media ->
+                          MessageAttachment(
+                              media = media,
+                              messageId = message.id,
+                              onOpen = onOpenMedia,
+                              onRequestMenu = onRequestMenu,
+                              uploading = message.sendState == SendState.Sending,
+                              onCancelUpload = { onCancelUpload(message.id) },
+                              documentProgress = documentProgress,
+                              onOpenDocument = { onOpenDocument(message.id) },
+                              accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
+                              voice = VoiceHandlers(
+                                  playback = voicePlayback,
+                                  onToggle = onToggleVoice,
+                                  onSeek = onSeekVoice,
+                                  // Jako u citace: v odchozí `primary` bublině nese akcent barva popředí.
+                                  accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
+                                  onAccent = if (message.isOutgoing) containerColor else MaterialTheme.colorScheme.onPrimary,
+                              ),
+                          )
+                      }
+                  }
 
-                // Prázdný text u zprávy, která má jen fotku — pak se nekreslí nic.
-                if (message.text.isNotBlank()) {
-                    RichText(
-                        text = message.text,
-                        entities = message.entities,
-                        // Míň emoji = větší. Jedno je gesto, tři už jsou věta, takže se
-                        // velikost s počtem krotí.
-                        style = when (largeEmoji) {
-                            0 -> MaterialTheme.typography.bodyLarge
-                            1 -> MaterialTheme.typography.displayLarge
-                            2 -> MaterialTheme.typography.displayMedium
-                            else -> MaterialTheme.typography.displaySmall
-                        },
-                        // V odchozí bublině je pozadí samo `primary`, takže odkaz musí vzít
-                        // barvu popředí — jinak by byl neviditelný. Stejná past jako u citace.
-                        linkColor = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
-                        onLinkClick = onLinkClick,
-                        onLongClick = onRequestMenu,
-                    )
-                }
+                  // Prázdný text u zprávy, která má jen fotku — pak se nekreslí nic.
+                  if (message.text.isNotBlank()) {
+                      RichText(
+                          text = message.text,
+                          entities = message.entities,
+                          // Míň emoji = větší. Jedno je gesto, tři už jsou věta, takže se
+                          // velikost s počtem krotí.
+                          style = when (largeEmoji) {
+                              0 -> MaterialTheme.typography.bodyLarge
+                              1 -> MaterialTheme.typography.displayLarge
+                              2 -> MaterialTheme.typography.displayMedium
+                              else -> MaterialTheme.typography.displaySmall
+                          },
+                          // V odchozí bublině je pozadí samo `primary`, takže odkaz musí vzít
+                          // barvu popředí — jinak by byl neviditelný. Stejná past jako u citace.
+                          linkColor = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
+                          onLinkClick = onLinkClick,
+                          onLongClick = onRequestMenu,
+                      )
+                  }
 
-                message.linkPreview?.let { preview ->
-                    LinkPreviewCard(
-                        preview = preview,
-                        // Stejný důvod jako u citace: v odchozí bublině by `primary` splynula s pozadím.
-                        accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
-                        onOpen = { onLinkClick(preview.url) },
-                        onLongClick = onRequestMenu,
-                        modifier = Modifier.padding(top = 6.dp),
-                    )
-                }
+                  message.linkPreview?.let { preview ->
+                      LinkPreviewCard(
+                          preview = preview,
+                          // Stejný důvod jako u citace: v odchozí bublině by `primary` splynula s pozadím.
+                          accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
+                          onOpen = { onLinkClick(preview.url) },
+                          onLongClick = onRequestMenu,
+                          modifier = Modifier.padding(top = 6.dp),
+                      )
+                  }
 
-                ReactionRow(
-                    reactions = message.reactions,
-                    onToggle = onToggleReaction,
-                    modifier = Modifier.padding(top = 6.dp),
-                )
+                  ReactionRow(
+                      reactions = message.reactions,
+                      onToggle = onToggleReaction,
+                      modifier = Modifier.padding(top = 6.dp),
+                  )
 
-                // `buildString` není composable blok, takže se přípona přečte tady.
-                val editedSuffix = stringResource(Res.string.conversation_edited_suffix)
+                  /*
+                   * Čas v bublině není. Zabíral řádek u KAŽDÉ zprávy, a přitom se datum čte
+                   * z předělu dne nad blokem a z plovoucího data při scrollu. Stav doručení
+                   * se přesunul pod bublinu, viz `DeliveryBadge`.
+                   *
+                   * „Upraveno" zůstává: že se zpráva změnila, se jinde nedozvíme.
+                   */
+                  if (message.isEdited) {
+                      Text(
+                          text = stringResource(Res.string.conversation_edited),
+                          style = MaterialTheme.typography.labelSmall,
+                          color = contentColor.copy(alpha = 0.7f),
+                          modifier = Modifier.align(Alignment.End),
+                      )
+                  }
+              }
+          }
 
-                Row(
-                    Modifier.align(Alignment.End),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(
-                        text = buildString {
-                            append(message.timestamp.asTimeOfDay())
-                            if (message.isEdited) append(editedSuffix)
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = contentColor.copy(alpha = 0.7f),
-                    )
+          /*
+           * Nabídka visí v kompozici POD bublinou, i když se kreslí přes celou obrazovku.
+           *
+           * Popup si díky tomu vezme rozměry bubliny sám — `calculatePosition` dostane
+           * `anchorBounds` toho prvku, pod kterým je deklarovaný — a nikam se nemusí předávat
+           * souřadnice. V layoutu je to prvek nulové velikosti, takže se bublina nezvětší.
+           *
+           * Past: nesmí viset uvnitř OBSAHU bubliny. Tam by ukotvením byl vnitřní `Column`, tedy
+           * plocha zmenšená o jeho odsazení, a díra v závoji by byla o kus menší než bublina.
+           * Proto ten `Box` kolem — obepíná `Surface` přesně.
+           */
+          /*
+           * Šipka odpovědi.
+           *
+           * Sedí hned vedle bubliny a jede s ní, takže je jasné, čeho se gesto týká. Je uvnitř
+           * `Box`u kolem bubliny a posazená `offset`em mimo něj — do layoutu tím nezasahuje,
+           * takže nic neodsouvá a neovlivňuje šířku zprávy.
+           */
+          ReplyHint(
+              progress = { (drag.value / threshold).coerceIn(0f, 1f) },
+              // Vlevo od bubliny u OBOU stran konverzace: tam vzniká mezera, když se táhne doprava.
+              modifier = Modifier
+                  .align(Alignment.CenterStart)
+                  .offset(x = -REPLY_ICON_SLOT),
+          )
 
-                    message.sendState?.let { sendState ->
-                        DeliveryIcon(
-                            sendState = sendState,
-                            read = message.id <= lastReadOutboxMessageId,
-                            tint = contentColor,
-                        )
-                    }
-                }
-            }
+          menu?.let { MessageMenuOverlay(menu = it, bubbleShape = shape, handlers = menuHandlers) }
         }
 
-        /*
-         * Nabídka visí v kompozici POD bublinou, i když se kreslí přes celou obrazovku.
-         *
-         * Popup si díky tomu vezme rozměry bubliny sám — `calculatePosition` dostane
-         * `anchorBounds` toho prvku, pod kterým je deklarovaný — a nikam se nemusí předávat
-         * souřadnice. V layoutu je to prvek nulové velikosti, takže se bublina nezvětší.
-         *
-         * Past: nesmí viset uvnitř OBSAHU bubliny. Tam by ukotvením byl vnitřní `Column`, tedy
-         * plocha zmenšená o jeho odsazení, a díra v závoji by byla o kus menší než bublina.
-         * Proto ten `Box` kolem — obepíná `Surface` přesně.
-         */
-        /*
-         * Šipka odpovědi.
-         *
-         * Sedí hned vedle bubliny a jede s ní, takže je jasné, čeho se gesto týká. Je uvnitř
-         * `Box`u kolem bubliny a posazená `offset`em mimo něj — do layoutu tím nezasahuje,
-         * takže nic neodsouvá a neovlivňuje šířku zprávy.
-         */
-        ReplyHint(
-            progress = { (drag.value / threshold).coerceIn(0f, 1f) },
-            // Vlevo od bubliny u OBOU stran konverzace: tam vzniká mezera, když se táhne doprava.
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .offset(x = -REPLY_ICON_SLOT),
+        DeliveryBadge(
+            delivery = delivery,
+            modifier = Modifier.align(Alignment.End),
         )
-
-        menu?.let { MessageMenuOverlay(menu = it, bubbleShape = shape, handlers = menuHandlers) }
       }
     }
 }
@@ -1626,7 +1695,10 @@ private fun MessageInput(
                     // MUSÍ sedět s barvou cílové bubliny, jinak zpráva po cestě změní barvu.
                     color = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
-                    shape = RoundedCornerShape(BUBBLE_CORNER, BUBBLE_CORNER, BUBBLE_TAIL, BUBBLE_CORNER),
+                    // Odesílaná zpráva je vždycky nejnovější, takže pod ní nic nenavazuje
+                    // a všechna nároží jsou zaoblená. Dřív tu bylo spodní stažené, protože takové
+                    // bylo i v bublině; se seskupením podle obou sousedů to platit přestalo.
+                    shape = RoundedCornerShape(BUBBLE_CORNER),
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
                         .sharedFlight(current.sharedKey, visible = current.itemKey == null),
@@ -2085,13 +2157,6 @@ private fun MessageMedia?.describe(): String = when (this) {
     null -> ""
 }
 
-/** Unixový čas v sekundách → „14:32" v místní zóně. */
-private fun Int.asTimeOfDay(): String {
-    val local = Instant.fromEpochSeconds(this.toLong())
-        .toLocalDateTime(TimeZone.currentSystemDefault())
-    return "${local.hour.toString().padStart(2, '0')}:${local.minute.toString().padStart(2, '0')}"
-}
-
 /**
  * Co se ukáže v detail panelu, když je dost místa na dva panely, ale žádný chat není vybraný.
  * Bez tohohle by tam zela prázdná plocha, což vypadá jako chyba vykreslení.
@@ -2277,8 +2342,8 @@ private const val INPUT_SCRIM_ALPHA = 0.93f
 /** Zaoblení bubliny. Sdílí ho i startovní strana letu, aby se tvar po cestě neměnil. */
 private val BUBBLE_CORNER = 18.dp
 
-/** Stažené nároží u navazujících bublin téhož odesílatele. */
-private val BUBBLE_TAIL = 4.dp
+/** Stažené nároží MEZI navazujícími bublinami téhož odesílatele. */
+private val BUBBLE_TIGHT = 4.dp
 
 /** Popis náhledu odkazu. Víc řádků by z bubliny udělalo článek. */
 private const val LINK_PREVIEW_DESCRIPTION_LINES = 3
@@ -2342,26 +2407,52 @@ private const val REPLY_ICON_MIN_SCALE = 0.6f
 private enum class Delivery { Sending, Sent, Read, Failed }
 
 /**
- * Stav doručení odchozí zprávy.
+ * Odznak se stavem doručení POD bublinou.
  *
  * Čtyři stavy ve čtyřech ikonách, jak je zvykem: hodiny (odesílá se), fajfka (na serveru),
- * dvojitá fajfka (protějšek přečetl), vykřičník (selhalo).
+ * dvojitá fajfka (protějšek přečetl), vykřičník (selhalo). Který z nich se vůbec ukáže,
+ * rozhoduje bublina — `null` znamená, že tahle zpráva odznak nemá.
  *
- * „Přečteno" nepochází ze zprávy, ale z ukazatele na chatu — proto se sem předává zvlášť.
+ * **Je mimo bublinu, takže barva patří PLOŠE, ne bublině.** Dokud byl uvnitř, bral
+ * `contentColor` bubliny; pod ní by `onPrimary` na tónovaném pozadí nebyl vidět. Stejná past
+ * jako u `QuotedMessage.accent` a u zpráv bez bubliny.
  */
 @Composable
-private fun DeliveryIcon(
-    sendState: SendState,
-    read: Boolean,
-    tint: Color,
+private fun DeliveryBadge(
+    delivery: Delivery?,
+    modifier: Modifier = Modifier,
 ) {
-    val delivery = when {
-        sendState == SendState.Sending -> Delivery.Sending
-        sendState == SendState.Failed -> Delivery.Failed
-        read -> Delivery.Read
-        else -> Delivery.Sent
-    }
+    /*
+     * Při odjezdu se musí kreslit POSLEDNÍ známý stav.
+     *
+     * V okamžiku skrytí je `delivery` už `null` (protějšek přečetl a fajfka u starší zprávy
+     * odchází), takže by `AnimatedVisibility` dobíhala s prázdným obsahem. Stejně to řeší pruh
+     * připnutých zpráv.
+     */
+    var lastShown by remember { mutableStateOf(delivery) }
+    if (delivery != null && delivery != lastShown) lastShown = delivery
 
+    /*
+     * Mizí i MÍSTO odznaku, ne jen jeho krytí.
+     *
+     * Se samotným `fadeOut` drží slot v layoutu celou animaci a bublina by pak doskočila
+     * nahoru až na konci — tatáž past jako u skrývání spodního baru.
+     */
+    AnimatedVisibility(
+        visible = delivery != null,
+        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+            expandVertically(MaterialTheme.motionScheme.fastSpatialSpec()),
+        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) +
+            shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()),
+        modifier = modifier.padding(top = DELIVERY_BADGE_GAP, end = DELIVERY_BADGE_INSET),
+    ) {
+        lastShown?.let { DeliveryIcon(it) }
+    }
+}
+
+/** Samotná ikona. Oddělená od [DeliveryBadge], aby se animace příjezdu a výměny nepraly. */
+@Composable
+private fun DeliveryIcon(delivery: Delivery) {
     val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
     val spatial = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
@@ -2401,15 +2492,24 @@ private fun DeliveryIcon(
             tint = if (current == Delivery.Failed) {
                 MaterialTheme.colorScheme.error
             } else {
-                tint.copy(alpha = 0.7f)
+                MaterialTheme.colorScheme.onSurfaceVariant
             },
-            modifier = Modifier.size(14.dp),
+            modifier = Modifier.size(DELIVERY_ICON_SIZE),
         )
     }
 }
 
 /** Jak malá nová ikona doručení naskočí. Dost na to, aby změna šla postřehnout koutkem oka. */
 private const val DELIVERY_ICON_INITIAL_SCALE = 0.5f
+
+/** Ikona odznaku. Menší než text, aby vedle bubliny nekřičela. */
+private val DELIVERY_ICON_SIZE = 14.dp
+
+/** Mezera mezi bublinou a odznakem pod ní. */
+private val DELIVERY_BADGE_GAP = 2.dp
+
+/** Odsazení odznaku od hrany bubliny, aby neseděl přesně na jejím okraji. */
+private val DELIVERY_BADGE_INSET = 4.dp
 
 /**
  * Příloha uvnitř bubliny.

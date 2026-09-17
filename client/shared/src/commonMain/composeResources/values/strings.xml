@@ -309,7 +309,7 @@
     <string name="clipboard_label">Message</string>
     <string name="conversation_fallback_title">Conversation</string>
     <string name="conversation_scroll_to_end">To the end of the conversation</string>
-    <string name="conversation_edited_suffix"> · edited</string>
+    <string name="conversation_edited">edited</string>
     <string name="conversation_open_emoji">Emoji</string>
     <string name="conversation_open_stickers">Stickers</string>
     <string name="conversation_attach_media">Photo or video</string>

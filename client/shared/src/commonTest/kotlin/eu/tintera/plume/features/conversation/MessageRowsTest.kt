@@ -4,6 +4,7 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.SendState
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** Skládání alb do položek konverzace. Zprávy jdou jako v konverzaci: od nejnovější. */
@@ -15,9 +16,11 @@ class MessageRowsTest {
         text: String = "",
         timestamp: Int = id.toInt(),
         sendState: SendState? = null,
+        isOutgoing: Boolean = sendState != null,
+        isService: Boolean = false,
     ) = ChatMessage(
         id = id,
-        isOutgoing = sendState != null,
+        isOutgoing = isOutgoing,
         senderName = null,
         senderAvatarFileId = null,
         senderId = 1L,
@@ -28,7 +31,7 @@ class MessageRowsTest {
         reactions = emptyList(),
         sendState = sendState,
         replyToMessageId = null,
-        isService = false,
+        isService = isService,
         timestamp = timestamp,
         isEdited = false,
         mediaAlbumId = album,
@@ -91,5 +94,54 @@ class MessageRowsTest {
         assertEquals(listOf(1, 2), albumRowSizes(3))
         assertEquals(listOf(2, 2, 3), albumRowSizes(7))
         (1..10).forEach { count -> assertEquals(count, albumRowSizes(count).sum()) }
+    }
+
+    // --- Kde se hlásí „přečteno" (readBadgeRow) ---
+
+    private fun outgoing(id: Long) = message(id, sendState = SendState.Sent)
+    private fun incoming(id: Long) = message(id, isOutgoing = false)
+
+    @Test
+    fun prectenoHlasiNejnovejsiMojeZprava() {
+        val rows = groupAlbums(listOf(outgoing(3), outgoing(2), incoming(1)))
+        assertEquals(3L, readBadgeRow(rows)?.display?.id)
+    }
+
+    @Test
+    fun odpovedProtejskuOdznakSchova() {
+        // Protějšek napsal PO mojí zprávě, takže ji musel přečíst — odznak nemá co dodat.
+        val rows = groupAlbums(listOf(incoming(3), outgoing(2), outgoing(1)))
+        assertNull(readBadgeRow(rows))
+    }
+
+    @Test
+    fun servisniOznameniOdznakNeschova() {
+        // „X se přidal do skupiny" nedokazuje, že si někdo něco přečetl.
+        val rows = groupAlbums(listOf(message(3, isService = true), outgoing(2), incoming(1)))
+        assertEquals(2L, readBadgeRow(rows)?.display?.id)
+    }
+
+    @Test
+    fun bezOdchozichZpravNehlasiNikdo() {
+        val rows = groupAlbums(listOf(incoming(2), incoming(1)))
+        assertNull(readBadgeRow(rows))
+    }
+
+    @Test
+    fun prazdnaKonverzaceNespadne() {
+        assertNull(readBadgeRow(emptyList()))
+    }
+
+    @Test
+    fun odznakNeseCeleAlbumPresJehoNejstarsiZpravu() {
+        // Klíč položky je klíč nejstarší zprávy alba, takže se odznak musí vázat na ni.
+        val rows = groupAlbums(
+            listOf(
+                message(3, album = 5, sendState = SendState.Sent),
+                message(2, album = 5, sendState = SendState.Sent),
+                incoming(1),
+            ),
+        )
+        assertEquals(2L, readBadgeRow(rows)?.oldest?.id)
     }
 }
