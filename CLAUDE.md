@@ -1409,6 +1409,36 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
 
 ## Notifikace
 
+### Jak s notifikacemi zachází TDLib
+
+Notifikace **nespravuje server, ale TDLib v telefonu**. Server posílá zprávy a pushe; co se
+ukáže, kdy a kdy zase zmizí, rozhoduje knihovna lokálně a aplikace jen kreslí `UpdateNotificationGroup`.
+Notifikace je proto živý objekt, který se může vyměnit, odložit nebo stáhnout — kdo ho vykreslí
+doslova, dostane problikávání, dvojí upozornění i notifikace, které zmizí.
+
+- **Tatáž zpráva přijde dvakrát, dvěma cestami.** Nejdřív push (FCM probudí proces, obsah je
+  zašifrovaný výtah zprávy), pak — jakmile se TDLib připojí — plnohodnotná zpráva spojením.
+  Rozestup bývá desítky až stovky ms. Když spojení ještě žije, přijde jen ta druhá.
+- **Z pushe vznikne DOČASNÁ notifikace** (`NotificationTypeNewPushMessage`), protože zprávu
+  samotnou TDLib ještě nemá. Jakmile ji má, dočasnou **odebere a přidá novou** (jiné id, typ
+  `NewMessage`), navázanou na zprávu, u které jde sledovat přečtení a smazání. Dva updaty ~5 ms
+  po sobě; pro systém by to byla nová zpráva.
+- **Notifikace se ODKLÁDÁ, místo aby se ukázala a pak stahovala.** Obvykle o 1,5 s
+  (`notification_default_delay_ms`): kdo zrovna píše na počítači, přečte si zprávu tam a telefon
+  ani nepípne. Když byl účet do 5 min (`online_cloud_timeout_ms`) online na jiném zařízení,
+  o 30 s (`notification_cloud_delay_ms`). Hodnoty posílá server. Stav čekání hlásí
+  `UpdateHavePendingNotifications`.
+- **Stáhnutí existuje taky** — přečtení na jiném zařízení pošle `removedNotificationIds`.
+- **Server má vlastní odklad.** Když byl účet nedávno aktivní, push odešle až po ~30 s.
+- **Oficiální Android klient TDLib nepoužívá** (vlastní síťová vrstva), notifikaci ukáže rovnou
+  z pushe. Srovnávat s ním časování jde, mechanismus ne.
+
+Z toho plyne všechno níž: celý JSON do `processPushNotification`, zobrazování
+`NewPushMessage`, čekání na klid ve službě pushe, worker pro 30s odklad, tichá náhrada
+a odložené rušení prázdné notifikace.
+
+### Poučení
+
 - **Notifikační API TDLib je ve výchozím stavu VYPNUTÉ.** `notification_group_count_max` je 0,
   což znamená, že `UpdateNotificationGroup` vůbec nevzniká. Musí se zapnout přes `setOption`
   (rozsah 1–25) — viz `enableNotifications()`. Bez toho je celá notifikační vrstva mrtvá
@@ -1417,10 +1447,11 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   Push je jen doprava pro případ, kdy aplikace neběží — zobrazení je v obou případech totéž.
 - **Co se zobrazí, rozhoduje TDLib**, ne klient: ztlumené chaty i `showPreview` řeší on. Proto se
   v `TdlNotificationRepository` nic nefiltruje.
-- **Id systémové notifikace = TDLib `notificationId`.** TDLib posílá zrušení podle něj
-  (`removedNotificationIds`); s vlastním klíčem by notifikace po přečtení jinde zůstaly viset.
-- **`google-services` plugin se aplikuje podmíněně**, jen když existuje `google-services.json` —
-  jinak by se repozitář po klonu nepřeložil. Bez Firebase appka funguje, jen bez pushe.
+- **`google-services.json` je v repozitáři.** Nejsou v něm tajemství: API klíč Firebase je
+  identifikátor projektu, ne heslo, a push bez klíče na my.telegram.org stejně nikdo nepošle.
+  Soubor v gitu znamená, že push funguje hned po klonu i v debug buildu a CI ho nemusí skládat
+  ze secretu. `google-services` plugin se přesto aplikuje podmíněně — bez souboru se projekt
+  přeloží, jen bez pushe a hlášení pádů.
 - **Push payload je zašifrovaný.** Rozšifrovat ho umí jedině TDLib přes `processPushNotification`;
   služba nic nevykresluje, jen předává.
 - **`processPushNotification` chce CELOU datovou část pushe jako JSON**, ne jen pole `p`, a k ní
@@ -1429,8 +1460,8 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   aplikace, a v logu to byla jediná stopa.
 - **Push se testuje botem, ne druhým účtem.** @BotFather → `/newbot`, botovi poslat `/start`,
   pak `curl https://api.telegram.org/bot<token>/sendMessage -d chat_id=… -d text=…`
-  (`chat_id` z `getUpdates`). Zpráva od bota přijde pushem jako od kohokoli jiného. Debug build
-  potřebuje lokální `google-services.json`, jinak se Firebase neinicializuje.
+  (`chat_id` z `getUpdates`). Zpráva od bota přijde pushem jako od kohokoli jiného. Token patří
+  do `local.properties` (`testBotToken`), ne do repozitáře.
 - **Doručení pushe trvá různě, klidně 30 s.** Server Telegramu push odkládá, když je účet
   nedávno online — to není chyba aplikace.
 - **Proces v pozadí systém ZMRAZÍ, i když ho nikdo nekillnul.** Aplikace odsunutá za jinou

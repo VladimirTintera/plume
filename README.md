@@ -100,11 +100,11 @@ Stav řetězu na Androidu:
 | Získání FCM tokenu | ✅ ověřeno |
 | `registerDevice` — Telegram token přijal | ✅ ověřeno |
 | FCM klíč nahraný na my.telegram.org | ✅ service account JSON (FCM v1) |
-| Telegram → FCM → zařízení → zobrazení | ❓ neodzkoušeno |
+| Telegram → FCM → zařízení → zobrazení | ✅ ověřeno na zařízení (i ze zmrazeného procesu) |
 
-**Nastavení Androidu (hotové):** `google-services.json` patří do `client/androidApp/`. Je
-v `.gitignore`, takže po klonu na jiném stroji ho tam musíš dát znovu — bez něj se projekt přeloží
-normálně, jen bez pushe, a build to vypíše.
+**Nastavení Androidu (hotové):** `google-services.json` je v repozitáři v `client/androidApp/`,
+takže push funguje hned po klonu, i v debug buildu. Tajemství v něm nejsou — API klíč Firebase je
+identifikátor projektu. Bez souboru by se projekt přeložil normálně, jen bez pushe.
 
 **FCM klíč:** Telegram přijímá **service account JSON** (Firebase Console → Project settings →
 Service accounts → Generate new private key). Dokumentace na core.telegram.org pořád mluví
@@ -203,10 +203,8 @@ je, je čistší service account založit v něm než link přepisovat.
 | `TELEGRAM_API_ID` | `telegramApiId` z my.telegram.org |
 | `TELEGRAM_API_HASH` | `telegramApiHash` z my.telegram.org |
 | `PLAY_SERVICE_ACCOUNT_JSON` | celý obsah JSON klíče service accountu |
-| `GOOGLE_SERVICES_JSON` | celý obsah `client/androidApp/google-services.json` (volitelné) |
 
-Bez `GOOGLE_SERVICES_JSON` se release postaví, jen bez push notifikací — workflow to ohlásí
-varováním. Bez `TELEGRAM_API_ID` build **spadne**: zapekla by se nula a appka by se nepřihlásila.
+`google-services.json` secret nepotřebuje, je v repozitáři. Bez `TELEGRAM_API_ID` build **spadne**: zapekla by se nula a appka by se nepřihlásila.
 
 **3. První AAB nahrát ručně.** Dokud aplikace nemá v Play žádný release, androidpublisher API
 upload odmítne — první bundle tedy musí do Play Console projít přes web. Postav ho lokálně:
