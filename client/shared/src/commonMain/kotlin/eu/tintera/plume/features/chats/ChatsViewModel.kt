@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import co.touchlab.kermit.Logger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.telegram.ChatListState
@@ -7,6 +8,7 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.ConnectionState
+import eu.tintera.plume.core.telegram.userMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,6 +18,8 @@ class ChatsViewModel(
     private val repository: ChatRepository,
     connection: ConnectionRepository,
 ) : ViewModel() {
+
+    private val logger = Logger.withTag("Chats")
 
     /**
      * Stav se bere přímo z repository — ta je singleton a drží živý seznam nezávisle na tom,
@@ -88,8 +92,10 @@ class ChatsViewModel(
 
         viewModelScope.launch {
             action().onFailure { failure ->
+                // Surová hláška od TDLib patří do logu, ne do snackbaru — viz userMessage().
+                logger.w(failure) { "Akce nad chatem ${chat.id} selhala." }
                 _actions.value = ChatActionsState(
-                    error = failure.message ?: "Akci se nepodařilo provést.",
+                    error = failure.userMessage("Akci se nepodařilo provést."),
                 )
             }
         }

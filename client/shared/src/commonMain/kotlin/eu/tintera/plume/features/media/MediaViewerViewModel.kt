@@ -1,11 +1,13 @@
 package eu.tintera.plume.features.media
 
+import co.touchlab.kermit.Logger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.PhotoPosition
+import eu.tintera.plume.core.telegram.userMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +29,8 @@ class MediaViewerViewModel(
     private val messageId: Long,
     private val repository: ConversationRepository,
 ) : ViewModel() {
+
+    private val logger = Logger.withTag("MediaViewer")
 
     private val _state = MutableStateFlow(MediaViewerState(initialMessageId = messageId))
     val state: StateFlow<MediaViewerState> = _state.asStateFlow()
@@ -76,8 +80,9 @@ class MediaViewerViewModel(
                 }
             }
             .onFailure { failure ->
+                logger.w(failure) { "Médium $messageId se nepodařilo načíst." }
                 _state.update {
-                    it.copy(loading = false, error = failure.message ?: "Fotku se nepodařilo načíst.")
+                    it.copy(loading = false, error = failure.userMessage("Fotku se nepodařilo načíst."))
                 }
             }
     }

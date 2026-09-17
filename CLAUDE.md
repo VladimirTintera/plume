@@ -206,6 +206,28 @@ Proč to tak striktně:
 **Volej generované metody pojmenovanými argumenty.** Upstream do nich přidává a přejmenovává parametry;
 poziční volání by se tiše rozsypalo. Platí hlavně pro `setTdlibParameters` (14 parametrů).
 
+### Chybové hlášky pro uživatele
+
+**Text z TDLib se uživateli nevypisuje, nikdy.** Překládá ho `userMessage(fallback)`
+v `core/telegram`; surová hláška jde do logu (`logger.w` s výjimkou), a tím i do kontextu
+hlášení pádů.
+
+- **Chyby chodí ve dvou podobách a ani jedna není věta pro člověka.** Konstanta od serveru
+  (`PHONE_CODE_INVALID`), nebo anglická věta od samotné TDLib („Have no write access to the
+  chat", „Invalid chat identifier specified"). Které volání vyrobí kterou, se dopředu neuhádne —
+  **znění se dá ověřit v knihovně**: `strings libtdjsonjava.so | grep …` najde ty, které si TDLib
+  píše sama. Co tam není, přichází ze serveru.
+- **`failure.message ?: "Česká věta"` je PAST, ne pojistka.** Takhle to bylo na dvaceti místech
+  a ta česká věta byla mrtvý kód: výjimka z TDLib má `message` vždycky vyplněné, takže elvis
+  nikdy nesepnul a uživatel viděl vždycky tu anglickou hlášku. Pořadí je proto obrácené —
+  základ je věta od nás a hláška z TDLib se použije jen tam, kde z ní umíme vyrobit něco
+  konkrétnějšího.
+- **Tabulka překladů roste podle logu, ne podle fantazie.** Pár hlášek stojí za vlastní větu
+  (limit připnutých chatů, vypršelý kód), zbytek spadne na text volajícího. Až se v logu objeví
+  něco, co uživatele mate, přibude řádek.
+- **Text od TDLib je i prosakování hranice.** Kdyby šel na obrazovku, měnila by novější verze
+  TDLib text v UI — tedy přesně to, čemu má balíček `core/telegram` bránit.
+
 ### Bump TDLib wrapperu
 
 Verze Kotlinu v projektu **musí být ≥ verze, ze které je wrapper publikovaný** — jinak se jeho iOS klib

@@ -1,9 +1,11 @@
 package eu.tintera.plume.features.auth
 
+import co.touchlab.kermit.Logger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.TelegramSession
+import eu.tintera.plume.core.telegram.userMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,6 +14,8 @@ import kotlinx.coroutines.launch
 class AuthViewModel(
     private val session: TelegramSession,
 ) : ViewModel() {
+
+    private val logger = Logger.withTag("Auth")
 
     val stage: StateFlow<AuthStage> = session.authStage
 
@@ -50,14 +54,20 @@ class AuthViewModel(
 
             result
                 .onSuccess { _input.value = "" }
-                .onFailure { _error.value = it.message ?: "Něco se nepovedlo." }
+                .onFailure { failure ->
+                    logger.w(failure) { "Přihlašovací krok selhal." }
+                    _error.value = failure.userMessage("Něco se nepovedlo. Zkus to znovu.")
+                }
         }
     }
 
     fun startQrLogin() {
         viewModelScope.launch {
             _busy.value = true
-            session.startQrLogin().onFailure { _error.value = it.message }
+            session.startQrLogin().onFailure { failure ->
+                logger.w(failure) { "QR přihlášení se nepodařilo spustit." }
+                _error.value = failure.userMessage("QR kód se nepodařilo získat.")
+            }
             _busy.value = false
         }
     }

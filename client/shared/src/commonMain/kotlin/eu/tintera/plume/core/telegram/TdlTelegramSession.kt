@@ -179,7 +179,7 @@ class TdlTelegramSession(
             .toResult()
             .onFailure {
                 logger.e(it) { "setTdlibParameters selhalo." }
-                _authStage.value = AuthStage.Failed(it.message ?: "setTdlibParameters selhalo.")
+                _authStage.value = AuthStage.Failed(it.userMessage("Nepodařilo se spustit spojení s Telegramem."))
                 return
             }
 

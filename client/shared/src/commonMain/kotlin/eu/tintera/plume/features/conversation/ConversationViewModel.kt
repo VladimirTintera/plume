@@ -13,6 +13,7 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.ConnectionState
 import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -220,7 +221,7 @@ class ConversationViewModel(
             repository.unpin(chatId, message.id)
                 .onSuccess { _state.update { it.copy(unpinned = message) } }
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.message ?: "Zprávu se nepodařilo odepnout.") }
+                    _state.update { it.copy(error = failure.reported("Zprávu se nepodařilo odepnout.")) }
                     refreshPinned()
                 }
         }
@@ -230,7 +231,7 @@ class ConversationViewModel(
     fun undoUnpin(message: ChatMessage) {
         viewModelScope.launch {
             repository.pin(chatId, message.id).onFailure { failure ->
-                _state.update { it.copy(error = failure.message ?: "Zprávu se nepodařilo znovu připnout.") }
+                _state.update { it.copy(error = failure.reported("Zprávu se nepodařilo znovu připnout.")) }
             }
         }
     }
@@ -303,7 +304,7 @@ class ConversationViewModel(
                 }
                 .onFailure { failure ->
                     _state.update {
-                        it.copy(loading = false, error = failure.message ?: "Historii se nepodařilo načíst.")
+                        it.copy(loading = false, error = failure.reported("Historii se nepodařilo načíst."))
                     }
                 }
         }
@@ -578,12 +579,25 @@ class ConversationViewModel(
                 .onFailure { failure ->
                     _state.update {
                         it.copy(
-                            error = failure.message ?: "Přílohy se nepodařilo odeslat.",
+                            error = failure.reported("Přílohy se nepodařilo odeslat."),
                             attachments = it.attachments.ifEmpty { attachments },
                         )
                     }
                 }
         }
+    }
+
+    /**
+     * Text chyby do stavu obrazovky. Zaloguje surovou příčinu (a tím ji pošle i do kontextu
+     * hlášení pádů) a vrátí větu pro uživatele.
+     *
+     * Hláška od TDLib se na obrazovku nedostane — je to anglická konstanta jako
+     * `MESSAGE_EDIT_TIME_EXPIRED`, viz [userMessage]. `w` je tu správná závažnost: server řekl
+     * ne, což je očekávané selhání, ne chyba, kolem které by se měl v konzoli zakládat problém.
+     */
+    private fun Throwable.reported(message: String): String {
+        logger.w(this) { message }
+        return userMessage(message)
     }
 
     /** Hláška z platformy (výběr souboru selhal) do snackbaru. */
@@ -610,7 +624,7 @@ class ConversationViewModel(
                     }
                 }
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.message ?: failureMessage) }
+                    _state.update { it.copy(error = failure.reported(failureMessage)) }
                 }
         }
     }
@@ -683,7 +697,7 @@ class ConversationViewModel(
                 .onFailure { failure ->
                     _state.update {
                         it.copy(
-                            error = failure.message ?: "Zprávu se nepodařilo odeslat.",
+                            error = failure.reported("Zprávu se nepodařilo odeslat."),
                             flight = it.flight?.takeIf { f -> f.id != flight.id },
                         )
                     }
@@ -811,7 +825,7 @@ class ConversationViewModel(
                 if (_state.value.editing == null) draftBeforeEdit = draftText
                 _state.update {
                     it.copy(
-                        error = failure.message ?: "Zprávu se nepodařilo upravit.",
+                        error = failure.reported("Zprávu se nepodařilo upravit."),
                         editing = target,
                         inputFill = InputFill(text, onlyIfEmpty = false),
                     )
@@ -939,7 +953,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             repository.setReaction(chatId, messageId, emoji, add).onFailure { failure ->
                 applyReactions(messageId, before)
-                _state.update { it.copy(error = failure.message ?: "Reakci se nepodařilo uložit.") }
+                _state.update { it.copy(error = failure.reported("Reakci se nepodařilo uložit.")) }
             }
         }
         closeMenus()
@@ -1030,7 +1044,7 @@ class ConversationViewModel(
                     }
                 }
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.message ?: "Oblíbené se nepodařilo změnit.") }
+                    _state.update { it.copy(error = failure.reported("Oblíbené se nepodařilo změnit.")) }
                 }
         }
     }
@@ -1111,7 +1125,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             repository.pin(chatId, messageId, notify = notify, onlyForSelf = onlyForSelf)
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.message ?: "Zprávu se nepodařilo připnout.") }
+                    _state.update { it.copy(error = failure.reported("Zprávu se nepodařilo připnout.")) }
                 }
         }
     }
@@ -1160,7 +1174,7 @@ class ConversationViewModel(
             repository.deleteMessages(chatId, pending.messageIds, revoke)
                 .onFailure { failure ->
                     _state.update {
-                        it.copy(error = failure.message ?: "Zprávu se nepodařilo smazat.")
+                        it.copy(error = failure.reported("Zprávu se nepodařilo smazat."))
                     }
                 }
         }
@@ -1261,7 +1275,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             repository.deleteMessages(chatId, listOf(messageId), revoke = true)
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.message ?: "Odesílání se nepodařilo zrušit.") }
+                    _state.update { it.copy(error = failure.reported("Odesílání se nepodařilo zrušit.")) }
                 }
         }
     }
