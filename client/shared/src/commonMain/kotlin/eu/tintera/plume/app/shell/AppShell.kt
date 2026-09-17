@@ -48,6 +48,7 @@ import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.NavSavedStateConfiguration
 import eu.tintera.plume.core.navigation.ConversationRoute
+import eu.tintera.plume.core.navigation.ForwardRoute
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.navigation.SettingsRoute
 import eu.tintera.plume.core.navigation.TopLevelRoute
@@ -55,6 +56,7 @@ import eu.tintera.plume.core.ui.LocalTwoPane
 import eu.tintera.plume.features.chats.ChatListScreen
 import eu.tintera.plume.features.conversation.ConversationPlaceholder
 import eu.tintera.plume.features.conversation.ConversationScreen
+import eu.tintera.plume.features.forward.ForwardScreen
 import eu.tintera.plume.features.media.MediaViewerScreen
 import org.koin.core.parameter.parametersOf
 import eu.tintera.plume.features.settings.SettingsScreen
@@ -265,6 +267,9 @@ private fun ShellContent(
                             onOpenMedia = { messageId ->
                                 backStack.add(MediaRoute(route.chatId, messageId))
                             },
+                            onForward = { messageIds ->
+                                backStack.add(ForwardRoute(route.chatId, messageIds))
+                            },
                         )
                     }
 
@@ -283,6 +288,27 @@ private fun ShellContent(
                                 parameters = { parametersOf(route.chatId, route.messageId) },
                             ),
                             onBack = { backStack.removeLastOrNull() },
+                        )
+                    }
+
+                    /*
+                     * Výběr cílového chatu. Po přeposlání se výběr ze zásobníku zahodí a otevře
+                     * se cílový chat — uživatel tak skončí tam, kam zprávu poslal, a zpět ho
+                     * vrátí do původní konverzace.
+                     */
+                    entry<ForwardRoute> { route ->
+                        ForwardScreen(
+                            viewModel = koinViewModel(
+                                key = "forward-${route.fromChatId}-${route.messageIds.joinToString("-")}",
+                                parameters = { parametersOf(route.fromChatId, route.messageIds) },
+                            ),
+                            onBack = { backStack.removeLastOrNull() },
+                            onForwarded = { chatId ->
+                                backStack.removeLastOrNull()
+                                if (backStack.lastOrNull() != ConversationRoute(chatId)) {
+                                    backStack.add(ConversationRoute(chatId))
+                                }
+                            },
                         )
                     }
 

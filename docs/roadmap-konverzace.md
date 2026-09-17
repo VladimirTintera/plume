@@ -33,7 +33,8 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    ~~Video~~ — hotovo v prohlížeči (Media3 / AVPlayer). Zbývá **streamování** (dnes se stahuje
    celé), rychlost, ztlumení, obraz v obraze a GIFy (`MessageAnimation`, přehrávat bez zvuku
    přímo v bublině).
-3. **Přeposílání zpráv** — položka v nabídce + obrazovka výběru cílového chatu.
+3. ~~**Přeposílání zpráv**~~ — hotovo (položka v nabídce, výběr chatu, album celé). Zbývá
+   hledání na serveru (`searchChats`), víc cílů najednou, výběr víc zpráv a kopie bez odesílatele.
 4. **Otevírání dokumentů** — stáhnout a předat systému; výrazně méně práce než přehrávání.
 5. Drobnosti ze sekcí níž (zásobník, nabídka, entity, média, emoji).
 

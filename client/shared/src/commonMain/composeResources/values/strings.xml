@@ -173,6 +173,11 @@
     <string name="menu_pin">Pin</string>
     <string name="menu_unpin">Unpin</string>
     <string name="menu_delete">Delete</string>
+    <string name="menu_forward">Forward</string>
+    <string name="forward_title">Forward to</string>
+    <string name="forward_search">Search chats</string>
+    <string name="forward_empty">No chat matches the search.</string>
+    <string name="forward_failed">The message could not be forwarded.</string>
     <string name="menu_more_reactions">More reactions</string>
     <string name="delete_message_title">Delete the message?</string>
     <string name="delete_message_choice">The message will be deleted for you. The other side keeps it unless you tick deleting for both.</string>

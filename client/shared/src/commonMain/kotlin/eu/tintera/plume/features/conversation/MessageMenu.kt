@@ -77,7 +77,9 @@ import eu.tintera.plume.resources.keep_off_24dp
 import eu.tintera.plume.resources.menu_copy
 import eu.tintera.plume.resources.menu_delete
 import eu.tintera.plume.resources.menu_edit
+import eu.tintera.plume.resources.forward_24dp
 import eu.tintera.plume.resources.menu_favorite_add
+import eu.tintera.plume.resources.menu_forward
 import eu.tintera.plume.resources.menu_favorite_remove
 import eu.tintera.plume.resources.menu_more_reactions
 import eu.tintera.plume.resources.menu_pin
@@ -150,6 +152,10 @@ fun MessageMenuOverlay(
                 },
             )
         }
+        if (menu.actions.canForward) {
+            add(MenuItem(Res.drawable.forward_24dp, stringResource(Res.string.menu_forward)) { handlers.onForward(id) })
+        }
+
         if (menu.actions.canPin) {
             add(
                 if (menu.isPinned) {
@@ -523,6 +529,7 @@ data class MessageMenuHandlers(
     val onEdit: (messageId: Long) -> Unit,
     val onCopy: (messageId: Long) -> Unit,
     val onDelete: (messageId: Long) -> Unit,
+    val onForward: (messageId: Long) -> Unit,
     val onPin: (messageId: Long) -> Unit,
     val onUnpin: (messageId: Long) -> Unit,
     val onToggleFavorite: (messageId: Long) -> Unit,
