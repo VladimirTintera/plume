@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
@@ -21,6 +22,8 @@ import eu.tintera.plume.resources.notification_channel_description
 import eu.tintera.plume.resources.notification_channel_name
 import eu.tintera.plume.resources.notification_self_name
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 
@@ -48,7 +51,7 @@ actual class NotificationPresenter(
     /**
      * Rozepsané notifikace podle `groupId`.
      *
-     * Čte i zapisuje jen kolektor updatů, tedy jedna korutina — zámek proto není potřeba.
+     * Čte i zapisuje se jen na [dispatcher] — zámek proto není potřeba.
      */
     private val conversations = mutableMapOf<Int, Conversation>()
 
@@ -63,8 +66,24 @@ actual class NotificationPresenter(
      */
     private val bitmaps = mutableMapOf<String, Bitmap>()
 
+    /**
+     * Řádky, které TDLib nedávno odebral — kvůli rozpoznání NÁHRADY.
+     *
+     * Z pushe vydá TDLib dočasnou notifikaci a jakmile dostane skutečnou zprávu, dočasnou odebere
+     * a přidá novou se stejným textem. Pro systém je to nová zpráva, takže bez tohohle telefon
+     * upozornil dvakrát (ověřeno v `notification_alert` event logu). Sahá se sem ze stejné
+     * korutiny jako na [conversations].
+     */
+    private val recentlyRemoved = mutableListOf<RemovedLine>()
+
+    /**
+     * Všechno, co sahá na stav presenteru, běží na jednom vlákně naráz — kolektor updatů
+     * i odložené rušení prázdných notifikací.
+     */
+    private val dispatcher = Dispatchers.Default.limitedParallelism(1)
+
     actual fun start(repository: NotificationRepository) {
-        scope.launch {
+        scope.launch(dispatcher) {
             // Kanál i jméno „Já" se čtou z prostředků (`suspend`), takže se zakládá až tady.
             createChannel()
             logger.d { "Kanál vytvořen, odebírám notifikace." }
@@ -126,8 +145,19 @@ actual class NotificationPresenter(
                 .sortedBy { it.timestampMs }
                 .takeLast(MAX_LINES)
 
-            show(groupId, conversation, silent = newest.isSilent)
+            // Potichu, když nic nového nepřibylo, nebo přibylo jen to, co TDLib právě nahradil.
+            val onlyReplacements = added.all { line -> consumeRemoved(groupId, line.text) }
+            show(groupId, conversation, silent = newest.isSilent || onlyReplacements)
         }
+    }
+
+    /** Najde a spotřebuje nedávno odebraný řádek se stejným textem. */
+    private fun consumeRemoved(groupId: Int, text: String): Boolean {
+        val now = SystemClock.elapsedRealtime()
+        recentlyRemoved.removeAll { now - it.removedAtMs > REPLACEMENT_WINDOW_MS }
+        val match = recentlyRemoved.firstOrNull { it.groupId == groupId && it.text == text } ?: return false
+        recentlyRemoved.remove(match)
+        return true
     }
 
     /**
@@ -138,6 +168,7 @@ actual class NotificationPresenter(
         conversations.keys.forEach { manager.cancel(it) }
         conversations.clear()
         bitmaps.clear()
+        recentlyRemoved.clear()
         // Notifikace z minulého běhu procesu v `conversations` nejsou.
         manager.cancelAll()
         // Dlouhověké zkratky si systém drží i mimo dynamické, `removeAllDynamicShortcuts` by
@@ -164,12 +195,29 @@ actual class NotificationPresenter(
         }
 
         val removed = update.notificationIds.toSet()
+        val now = SystemClock.elapsedRealtime()
+        conversation.lines
+            .filter { it.notificationId in removed }
+            .forEach { recentlyRemoved += RemovedLine(update.groupId, it.text, now) }
         conversation.lines = conversation.lines.filterNot { it.notificationId in removed }
 
         if (conversation.lines.isEmpty()) {
-            conversations.remove(update.groupId)
-            manager.cancel(update.groupId)
-            logger.d { "Skupina ${update.groupId} zůstala prázdná, ruším notifikaci." }
+            /*
+             * Prázdná notifikace se ruší AŽ PO CHVILCE. TDLib dočasnou notifikaci z pushe
+             * nahrazuje odebráním a hned přidáním skutečné — naměřeno 5 ms od sebe. Okamžité
+             * zrušení smazalo notifikaci dřív, než systém stihl upozornit, a náhrada je tichá:
+             * telefon pak nezavibroval vůbec. Když náhrada dorazí, jen stávající notifikaci
+             * přepíše a původní upozornění zůstane. Stejný dispatcher jako kolektor, takže
+             * se úloha s ním o stav nepřetahuje.
+             */
+            scope.launch(dispatcher) {
+                delay(EMPTY_CANCEL_DELAY_MS)
+                if (conversations[update.groupId] === conversation && conversation.lines.isEmpty()) {
+                    conversations.remove(update.groupId)
+                    manager.cancel(update.groupId)
+                    logger.d { "Skupina ${update.groupId} zůstala prázdná, ruším notifikaci." }
+                }
+            }
         } else {
             show(update.groupId, conversation, silent = true)
         }
@@ -347,11 +395,19 @@ actual class NotificationPresenter(
         val icon: IconCompat?,
     )
 
+    private class RemovedLine(val groupId: Int, val text: String, val removedAtMs: Long)
+
     private companion object {
         const val CHANNEL_ID = "messages"
 
         /** Kolik zpráv se v notifikaci drží. Android jich stejně vykreslí jen posledních pár. */
         const val MAX_LINES = 10
+
+        /** Jak dlouho po odebrání se nový řádek se stejným textem považuje za náhradu. */
+        const val REPLACEMENT_WINDOW_MS = 60_000L
+
+        /** Jak dlouho prázdná notifikace čeká na náhradu, než se zruší. */
+        const val EMPTY_CANCEL_DELAY_MS = 1_000L
 
         /** Prefix id zkratky konverzace. Musí být stabilní, aby se zkratka přepisovala, ne množila. */
         const val SHORTCUT_PREFIX = "chat_"

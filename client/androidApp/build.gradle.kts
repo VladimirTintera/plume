@@ -29,6 +29,7 @@ dependencies {
     // Knihovna je tu vždycky; bez `google-services.json` se jen neinicializuje a push se nepoužije.
     implementation(project.dependencies.platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+    implementation(libs.androidx.work.runtime)
 }
 
 // Cesta ke keystore. Na CI je to absolutní cesta do RUNNER_TEMP, lokálně relativní cesta

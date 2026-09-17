@@ -45,6 +45,8 @@ media3 = "1.11.1"
 buildconfig = "6.0.10"
 googleServices = "4.4.4"
 firebaseBom = "34.4.0"
+# Dočekání na odloženou notifikaci po pushi (expedited úloha); proces v ní systém nezmrazí.
+work = "2.11.2"
 # Gradle plugin Crashlytics — nahrává R8 mapping soubor a vkládá do APK build id, podle kterého
 # konzole hlášení spáruje. Verze pluginu je na firebaseBom NEZÁVISLÁ (jiný release cyklus).
 crashlytics = "3.0.8"
@@ -101,6 +103,7 @@ media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
+androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "work" }
 
 tdl-coroutines = { module = "dev.g000sha256:tdl-coroutines", version.ref = "tdl" }
 
