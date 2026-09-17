@@ -1491,13 +1491,27 @@ a odložené rušení prázdné notifikace.
   zobrazoval jen `NewMessage`, push se zpracoval a notifikace se tiše zahodila — to byl hlavní
   důvod, proč z pozadí „prakticky nechodily". Text skládá `PushMessageContent.previewText()`.
 - **Náhrada dočasné notifikace skutečnou se zobrazuje POTICHU.** TDLib dočasnou odebere a přidá
-  novou se stejným textem; pro systém je to nová zpráva a telefon upozornil dvakrát. Presenter
-  si proto pamatuje nedávno odebrané řádky (minutu) a přidání, které jen vrací tentýž text, je
-  tiché. **Prázdná notifikace se proto ruší až po 1 s**: odebrání a přidání náhrady chodí
+  novou k téže zprávě; pro systém je to nová zpráva a telefon upozornil dvakrát. Presenter
+  si proto pamatuje nedávno odebrané řádky (minutu) a přidání téže zprávy je tiché. **Porovnává
+  se id zprávy, ne text** — push u fotky předřazuje popisku `🖼`, takže texty dočasné
+  a skutečné notifikace nesedí a náhrada se nepoznala. **Prázdná notifikace se proto ruší až po 1 s**: odebrání a přidání náhrady chodí
   ~5 ms po sobě a okamžité zrušení smazalo notifikaci dřív, než systém stihl upozornit — s tichou
   náhradou pak telefon neupozornil vůbec. Takhle náhrada stávající notifikaci jen přepíše.
   Upozornění se počítají v event logu, jde to i s vypnutým zvukem:
   `adb logcat -b events | grep notification_alert` (druhé číslo = vibrace, třetí = zvuk).
+- **Fotka ze zprávy se v notifikaci ukazuje** (`MessagingStyle.Message.setData`), varianta do
+  800 px, stahuje se se stropem 3 s. Ne při vypnutém náhledu, u spoileru, tajné ani mizející
+  fotky. Z pushe se většinou stáhnout nestihne (bez spojení) — obrázek pak přinese skutečná
+  notifikace, která dočasnou potichu nahradí.
+- **Notifikaci kreslí jiný proces, cesta k souboru mu nestačí.** Obrázek jde přes `FileProvider`
+  (`${applicationId}.notificationimages`, `res/xml/notification_images.xml`) jako zmenšená kopie
+  v `cache/notification_images`, ne soubor TDLib — provider tak nevydává adresář TDLib a kopie
+  nezmizí s úklidem TDLib. System UI dostane čtení automaticky od `NotificationManager`;
+  **čtečky notifikací ne** — Wear companion hlásil `Permission Denial` a hodinky obrázek
+  vynechaly, proto `grantUriPermission` všem `getEnabledListenerPackages`.
+- **Popisek fotky je samostatný řádek pod obrázkem.** U řádku s obrázkem Android text nezobrazí,
+  takže bez toho se popisek z notifikace ztratil. Sbalená notifikace pak ukazuje popisek
+  a obrázek jako náhled vpravo.
 - **Profilovka v notifikaci má strop 2 s.** Stahování z pozadí čeká na spojení; notifikace bez
   fotky je lepší než notifikace, která nestihne okno pushe.
 - **Snížená priorita pushe se loguje** (`priority != originalPriority`). FCM ji snižuje aplikacím,

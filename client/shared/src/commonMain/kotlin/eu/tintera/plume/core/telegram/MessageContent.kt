@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.telegram
 
+import dev.g000sha256.tdl.dto.File
 import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.LinkPreviewTypeArticle
 import dev.g000sha256.tdl.dto.LinkPreviewTypeEmbeddedAnimationPlayer
@@ -487,3 +488,20 @@ private fun Photo.toMedia(): MessageMedia.Photo? {
 
 /** Delší hrana zobrazované varianty fotky. Nad tím už jde o zbytečná data. */
 private const val MAX_DISPLAY_EDGE = 1280
+
+/**
+ * Varianta fotky pro notifikaci: největší do [MAX_NOTIFICATION_EDGE], jinak nejmenší.
+ *
+ * Menší než do bubliny. Notifikace ji ukáže v pruhu široký pár set bodů a stahuje se v okně
+ * pushe, kde rozhoduje každý kilobajt.
+ */
+internal fun Photo.notificationImage(): File? {
+    val available = sizes.filterNotNull().ifEmpty { return null }
+    val size = available
+        .filter { maxOf(it.width, it.height) <= MAX_NOTIFICATION_EDGE }
+        .maxByOrNull { it.width * it.height }
+        ?: available.minByOrNull { it.width * it.height }
+    return size?.photo
+}
+
+private const val MAX_NOTIFICATION_EDGE = 800

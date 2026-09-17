@@ -6,12 +6,14 @@ import dev.g000sha256.tdl.dto.DeviceToken
 import dev.g000sha256.tdl.dto.DeviceTokenApplePush
 import dev.g000sha256.tdl.dto.DeviceTokenFirebaseCloudMessaging
 import dev.g000sha256.tdl.dto.File
+import dev.g000sha256.tdl.dto.MessagePhoto
 import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.Notification
 import dev.g000sha256.tdl.dto.NotificationTypeNewMessage
 import dev.g000sha256.tdl.dto.NotificationTypeNewPushMessage
+import dev.g000sha256.tdl.dto.PushMessageContentPhoto
 import dev.g000sha256.tdl.dto.UpdateNotificationGroup
 import dev.g000sha256.tdl.toResult
 import eu.tintera.plume.resources.Res
@@ -130,6 +132,7 @@ class TdlNotificationRepository(
             ChatNotification(
                 groupId = update.notificationGroupId,
                 notificationId = notification.id,
+                messageId = content.messageId,
                 chatId = update.chatId,
                 chatTitle = chatTitle,
                 senderName = content.senderName?.takeIf { it != chatTitle },
@@ -141,6 +144,8 @@ class TdlNotificationRepository(
                 // kde odesílatel vlastní profilovku nemá.
                 avatarPath = downloadedPath(content.senderPhoto ?: chat?.photo?.small),
                 chatAvatarPath = downloadedPath(chat?.photo?.small),
+                imagePath = downloadedPath(content.image, IMAGE_TIMEOUT),
+                imageCaption = content.imageCaption,
             )
         }
 
@@ -160,12 +165,20 @@ class TdlNotificationRepository(
         when (val type = type) {
             is NotificationTypeNewMessage -> {
                 val sender = resolveSender(type.message.senderId)
+                val message = type.message
+                // Fotka pod spoilerem nebo mizející se do notifikace nedává: obojí má být
+                // vidět až na výslovné ťuknutí, ne na zamykací obrazovce.
+                val shownPhoto = (message.content as? MessagePhoto)
+                    ?.takeIf { type.showPreview && !it.hasSpoiler && !it.isSecret && message.selfDestructType == null }
                 NotificationContent(
+                    messageId = message.id,
                     senderName = sender?.name,
                     senderPhoto = sender?.photo,
                     // `showPreview = false` znamená, že si uživatel nepřeje vidět obsah
-                    // na zamykací obrazovce. Musíme to respektovat.
-                    text = if (type.showPreview) type.message.previewText() else getString(Res.string.notification_new_message),
+                    // na zamykací obrazovce. Musíme to respektovat — i u obrázku.
+                    text = if (type.showPreview) message.previewText() else getString(Res.string.notification_new_message),
+                    image = shownPhoto?.photo?.notificationImage(),
+                    imageCaption = shownPhoto?.caption?.text?.takeIf { it.isNotBlank() },
                 )
             }
 
@@ -173,10 +186,16 @@ class TdlNotificationRepository(
                 // Jméno přišlo v pushi; dotaz na uživatele jde jen do lokální databáze, takže
                 // funguje i bez spojení — a když uživatele nezná, zůstane jméno z pushe.
                 val sender = resolveSender(type.senderId)
+                val pushPhoto = (type.content as? PushMessageContentPhoto)?.takeIf { !it.isSecret }
                 NotificationContent(
+                    messageId = type.messageId,
                     senderName = type.senderName.ifBlank { null } ?: sender?.name,
                     senderPhoto = sender?.photo,
                     text = type.content.previewText(),
+                    // Push nese i popis fotky se soubory; stáhnout ji ale jde až po připojení.
+                    // Nestihne-li to, obrázek doplní skutečná notifikace, která dočasnou nahradí.
+                    image = pushPhoto?.photo?.notificationImage(),
+                    imageCaption = pushPhoto?.caption?.takeIf { it.isNotBlank() },
                 )
             }
 
@@ -260,13 +279,13 @@ class TdlNotificationRepository(
      * a ikonu na ni nejde doplnit dodatečně — bez čekání by prostě nebyla. Profilovka je
      * pár kilobajtů a většinou už na disku je, protože ji ukazuje seznam chatů.
      */
-    private suspend fun downloadedPath(file: File?): String? {
+    private suspend fun downloadedPath(file: File?, timeout: Duration = AVATAR_TIMEOUT): String? {
         if (file == null) return null
         if (file.local.isDownloadingCompleted && file.local.path.isNotEmpty()) return file.local.path
 
         // Se stropem: z pozadí na stažení může čekat, dokud se TDLib nepřipojí, a notifikace
-        // bez profilovky je pořád lepší než notifikace, která nestihne okno pushe.
-        val downloaded = withTimeoutOrNull(AVATAR_TIMEOUT) {
+        // bez obrázku je pořád lepší než notifikace, která nestihne okno pushe.
+        val downloaded = withTimeoutOrNull(timeout) {
             client.downloadFile(
                 fileId = file.id,
                 priority = AVATAR_PRIORITY,
@@ -286,7 +305,15 @@ class TdlNotificationRepository(
 
     private class Sender(val name: String?, val photo: File?)
 
-    private class NotificationContent(val senderName: String?, val senderPhoto: File?, val text: String)
+    private class NotificationContent(
+        val messageId: Long,
+        val senderName: String?,
+        val senderPhoto: File?,
+        val text: String,
+        /** Fotka ze zprávy, nebo `null`, když žádná není nebo se ukázat nesmí. */
+        val image: File? = null,
+        val imageCaption: String? = null,
+    )
 
     private companion object {
         /** Nejvyšší priorita: notifikace čeká, takže má smysl ji vyřídit dřív než zbytek fronty. */
@@ -294,6 +321,12 @@ class TdlNotificationRepository(
 
         /** Jak dlouho notifikace počká na profilovku, kterou TDLib nemá na disku. */
         val AVATAR_TIMEOUT = 2.seconds
+
+        /**
+         * Jak dlouho notifikace počká na fotku ze zprávy. Víc než u profilovky: fotka má desítky
+         * kilobajtů a skoro nikdy na disku není — ale pořád se to musí vejít do okna pushe.
+         */
+        val IMAGE_TIMEOUT = 3.seconds
 
         /** Jak dlouho musí být v notifikacích klid, než se push považuje za vyřízený. */
         val QUIET = 2.seconds

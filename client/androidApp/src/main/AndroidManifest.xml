@@ -39,6 +39,19 @@
             android:name="firebase_crashlytics_collection_enabled"
             android:value="${crashlyticsCollectionEnabled}" />
 
+        <!-- Fotky ze zpráv v notifikacích. Notifikaci kreslí System UI v jiném procesu a do
+             souborů aplikace nesmí; oprávnění ke čtení mu přidělí NotificationManager. Autorita
+             musí sedět s IMAGE_AUTHORITY_SUFFIX v NotificationPresenter. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.notificationimages"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/notification_images" />
+        </provider>
+
         <!-- Bez google-services.json se služba nikdy nespustí, protože Firebase se
              neinicializuje; deklarace tedy nevadí ani v buildu bez pushe. -->
         <service
