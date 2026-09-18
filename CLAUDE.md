@@ -1230,10 +1230,16 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   a uložení úpravy kruh; změna se animuje morfem mezi nimi a ikona se vymění zvětšením. Stejně
   M3 Expressive používá tvar u přepínacích tlačítek. Tlačítko se mění samo od sebe (začne se psát,
   pole se vyprázdní) a skoková výměna ikony se dala přehlédnout; tvar se pozná i koutkem oka.
-  Stisk mění jen kruh (na zaoblený čtverec) — mezi obecnými tvary `IconButton` neanimuje. Tvar (`SendButtonMorphShape`) je nový objekt pro každou hodnotu průběhu — Compose
+  Stisk mění jen kruh (na zaoblený čtverec) — mezi obecnými tvary `IconButton` neanimuje. Tvar (`MorphShape`) je nový objekt pro každou hodnotu průběhu — Compose
   si obrys drží podle instance, takže tvar čtoucí průběh sám by se nepřekreslil.
+- **Morf má vlastní, pomalejší pružinu** (`morphSpring`, tuhost 70 místo ~380 u
+  `defaultSpatialSpec`). S výchozí doběhl na skutečném telefonu za zlomek vteřiny a nebyl vidět —
+  na emulátoru v debugu ano, ten je pomalejší, takže **rychlost animací se posuzuje na zařízení**.
+  Toutéž pružinou jede výměna ikony a barva má `slowEffectsSpec`, aby nic nedoběhlo dřív než tvar.
+- **Klidová sušenka je vlastní, ne `Cookie9Sided`**: šest vlnek s vnitřním poloměrem 0,7 místo
+  devíti s 0,8. S mělkými vlnkami se tvar od kruhu skoro nelišil.
 - **Tvary M3 Expressive mají v aplikaci pevné významy** (`ShapeMorphs` v `core/ui/MorphShape.kt`):
-  sušenka = klid / připraveno (mikrofon, pozastavená hlasovka i video), kruh = probíhající akce
+  šestistranná sušenka = klid / připraveno (mikrofon, pozastavená hlasovka i video), kruh = probíhající akce
   (odeslat, hraje), SoftBurst = živý signál (tlačítko při nahrávání dýchá, tečka v pruhu už
   nebliká — dva blikající prvky vedle sebe byly šum), dvanáctistranná sušenka = podbarvení
   podržené samolepky — i vlnka stisku je ořezaná do téže sušenky (klikání má vlastní vrstvu,
