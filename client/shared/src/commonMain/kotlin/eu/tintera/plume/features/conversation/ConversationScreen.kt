@@ -178,6 +178,7 @@ import eu.tintera.plume.resources.presence_recently
 import eu.tintera.plume.resources.push_pin_filled_24dp
 import eu.tintera.plume.resources.send_24dp
 import eu.tintera.plume.resources.sticky_note_2_24dp
+import kotlin.time.Clock
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
@@ -1486,6 +1487,13 @@ private class ScreenItemScope(
 
     override fun isInMenu(key: Long): Boolean = menuKey.value == key
 
+    /** Kdy se konverzace otevřela; starší zprávy jsou historie, ne příchod. */
+    private val openedAt = Clock.System.now().epochSeconds
+    private val arrived = HashSet<Long>()
+
+    override fun claimArrival(key: Long, timestamp: Int): Boolean =
+        timestamp >= openedAt - ARRIVAL_TOLERANCE_SECONDS && arrived.add(key)
+
     /** Navigace a sheet nad obrazovkou jsou věc obrazovky; všechno ostatní jde do ViewModelu. */
     override fun onAction(messageId: Long, action: MessageAction) = when (action) {
         MessageAction.OpenMedia -> onOpenMedia(messageId)
@@ -1557,3 +1565,6 @@ private fun Presence.describe(): String = when (this) {
     Presence.LastMonth -> stringResource(Res.string.presence_last_month)
     is Presence.Offline -> stringResource(Res.string.presence_offline, wasOnline.asRelativeTime())
 }
+
+/** Hodiny serveru a telefonu se můžou o chvilku lišit; o tolik starší zpráva je ještě příchod. */
+private const val ARRIVAL_TOLERANCE_SECONDS = 5

@@ -7,6 +7,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.ui.senderColor
 
 /**
  * Zpráva v bublině: text, soubor, hlasovka, popsaná příloha — a cokoli, co by jinak šlo na
@@ -25,6 +26,12 @@ internal data class BubbleMessageItem(
     val partnerName: String?,
 ) : MessageItem {
 
+    /**
+     * Text nechává protější stranu volnou: dlouhé zprávy obou stran šly přes celou šířku
+     * a strany se daly rozlišit jen barvou. Google Zprávy i Telegram drží podobný okraj.
+     */
+    override val maxWidthFraction: Float get() = TEXT_MAX_WIDTH_FRACTION
+
     override fun containsMessage(messageId: Long): Boolean =
         frame.message.id == messageId || album?.any { it.id == messageId } == true
 
@@ -39,7 +46,13 @@ internal data class BubbleMessageItem(
                     partnerName = partnerName,
                     onClick = message.replyToMessageId?.let { id -> { act(MessageAction.JumpTo(id)) } },
                     onLongClick = ::requestMenu,
-                    accent = accent,
+                    // Citace někoho ze skupiny nese jeho barvu, jako jméno nad jeho zprávou. Jen
+                    // v příchozí bublině — v odchozí `primary` by barva nemusela mít kontrast.
+                    accent = if (!message.isOutgoing && !it.isOutgoing && it.senderName != null) {
+                        senderColor(it.senderId)
+                    } else {
+                        accent
+                    },
                 )
             }
 
@@ -66,3 +79,6 @@ internal data class BubbleMessageItem(
         }
     }
 }
+
+/** Nejvyšší šířka textové bubliny jako podíl řádku. */
+private const val TEXT_MAX_WIDTH_FRACTION = 0.82f

@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -24,11 +25,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -124,7 +130,21 @@ private fun ReactionChip(
      * Řádek reakcí se posouvá do strany a posouvatelný kontejner si obsah ořezává na svoje
      * hranice — odznak zavěšený mimo kolečko by se tím uřízl.
      */
-    Box(Modifier.scale(scale)) {
+    /*
+     * Změna počtu čip krátce POVYSKOČÍ — někdo právě zareagoval. Jen při změně, ne při prvním
+     * složení (při scrollu by pulzovalo všechno, co najede na obrazovku).
+     */
+    val pulse = remember { Animatable(1f) }
+    var shownCount by remember { mutableIntStateOf(reaction.count) }
+    val pulseSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    LaunchedEffect(reaction.count) {
+        if (reaction.count == shownCount) return@LaunchedEffect
+        shownCount = reaction.count
+        pulse.animateTo(REACTION_PULSE_SCALE, pulseSpec)
+        pulse.animateTo(1f, pulseSpec)
+    }
+
+    Box(Modifier.graphicsLayer { scaleX = scale * pulse.value; scaleY = scale * pulse.value }) {
         Surface(
             shape = CircleShape,
             color = container,
@@ -247,3 +267,6 @@ fun ReactionDetailsSheet(
 
 /** Strop výšky seznamu v detailu reakcí. */
 private val REACTION_DETAILS_MAX_HEIGHT = 420.dp
+
+/** Na kolik čip povyskočí, když se změní počet. */
+private const val REACTION_PULSE_SCALE = 1.25f
