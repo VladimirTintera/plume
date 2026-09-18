@@ -57,6 +57,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
@@ -132,6 +133,12 @@ internal interface MessageItem : ConversationItem {
 
     override fun containsMessage(messageId: Long): Boolean = frame.message.id == messageId
 
+    /**
+     * Nejvyšší šířka zprávy jako podíl řádku. Text v bublině nechává protější stranu volnou
+     * (viz [BubbleMessageItem]); obrázek a karty si šířku určují samy.
+     */
+    val maxWidthFraction: Float get() = 1f
+
     @Composable
     fun MessageBodyScope.Body()
 
@@ -144,7 +151,7 @@ internal interface MessageItem : ConversationItem {
             fadeInSpec = if (frame.flight != null) null else spring(stiffness = Spring.StiffnessMediumLow),
         )
         RevealingTime(frame.message.timestamp, scope.timeReveal, modifier) {
-            MessageFrame(frame, scope) { Body() }
+            MessageFrame(frame, scope, maxWidthFraction) { Body() }
         }
     }
 }
@@ -284,6 +291,7 @@ internal fun rememberMessageBodyScope(
 private fun MessageFrame(
     frame: MessageFrameData,
     scope: ConversationItemScope,
+    maxWidthFraction: Float,
     body: @Composable MessageBodyScope.() -> Unit,
 ) {
     val message = frame.message
@@ -437,6 +445,7 @@ private fun MessageFrame(
             MessageBox(
                 frame = frame,
                 bodyScope = bodyScope,
+                maxWidthFraction = maxWidthFraction,
                 body = body,
                 modifier = Modifier
                     .onGloballyPositioned { boxCoordinates[0] = it }
@@ -507,6 +516,8 @@ internal fun MessageBox(
     afterClip: Modifier = Modifier,
     /** Ťuknutí na čip reakce; `null` = čip se ťuknout nedá (kanál, kopie v nabídce). */
     onReactionClick: (() -> Unit)?,
+    /** Podíl šířky, kterou zpráva dostane; kopie v nabídce má šířku napevno, tam je 1. */
+    maxWidthFraction: Float = 1f,
     extra: @Composable BoxScope.() -> Unit = {},
 ) {
     val message = frame.message
@@ -519,6 +530,7 @@ internal fun MessageBox(
                  * Bez reakcí si nebere nic.
                  */
                 .padding(bottom = if (message.reactions.isEmpty()) 0.dp else REACTION_OVERHANG)
+                .maxWidthFraction(maxWidthFraction)
                 .widthIn(max = 560.dp)
                 .then(beforeClip)
                 .clip(bodyScope.shape)
@@ -767,3 +779,17 @@ private val REPLY_ICON_SLOT = 40.dp
 
 /** Jak malá je šipka na začátku tahu. */
 private const val REPLY_ICON_MIN_SCALE = 0.6f
+
+/** Omezí šířku obsahu na [fraction] nabídnuté šířky (na rozdíl od `fillMaxWidth` jen shora). */
+private fun Modifier.maxWidthFraction(fraction: Float): Modifier =
+    if (fraction >= 1f) {
+        this
+    } else {
+        layout { measurable, constraints ->
+            val max = if (constraints.hasBoundedWidth) (constraints.maxWidth * fraction).toInt() else constraints.maxWidth
+            val placeable = measurable.measure(
+                constraints.copy(maxWidth = max, minWidth = constraints.minWidth.coerceAtMost(max)),
+            )
+            layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+        }
+    }
