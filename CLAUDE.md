@@ -1560,6 +1560,17 @@ stáhne a předá systému.
   Bez náhledu pro daný typ se ukáže nabídka „Otevřít v…".
 - **Když soubor nemá čím otevřít, musí to jít vidět.** `FileOpener.open` vrací `false`
   a konverzace na to má snackbar; jinak by ťuknutí vypadalo, že nic neudělalo.
+- **Obrázek a video poslané jako soubor mají v řádku náhled** místo ikony (`DocumentThumbnail`),
+  video navíc symbol přehrání; bez náhledu aspoň ikonu podle druhu (`documentKind`, testy
+  `DocumentKindTest`). Druh rozhoduje **přípona před `mimeType`** — ten posílá odesílatel
+  a bývá `application/octet-stream` — a obojí se porovnává se seznamem formátů, ne s prefixem
+  `image/`: TIFF, RAW ani PSD neotevřeme a ikona fotky by slibovala něco, co ťuknutí nesplní.
+- **Náhled dokumentu vyrábí server, ale ne vždy** (ověřeno botem, `sendDocument`): JPEG i MP4
+  ho dostanou, i s vypnutou detekcí typu, HEIC ne. Průběh stahování jde přes náhled bíle na
+  závoji — akcent bubliny by na fotce zanikl.
+- **MP4 bez zvuku poslané jako soubor se z Telegramu vrátí jako GIF** (`MessageAnimation`), ne
+  jako dokument. Kdo chce testovat video-soubor, musí poslat soubor se zvukem, nebo
+  `disable_content_type_detection=true` (`screenrecord` z emulátoru zvuk nemá).
 - **Odesílaný soubor se otevřít nedá** — ukazuje průběh nahrávání a ještě není kde.
 
 ### Přeposílání

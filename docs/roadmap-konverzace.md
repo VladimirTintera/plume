@@ -218,31 +218,23 @@ Co zbývá:
 - **Ostatní typy médií.** GIF a dokumenty se pořád jen popisují. Prohlížeč
   u nich zatím řekne, že je neumíme otevřít. Přehrávání je samostatná fáze (potřebuje platformní
   přehrávač přes `expect`/`actual`); u dokumentů stačí míň — stáhnout a předat systému.
-- **Obrázky a videa poslané jako soubor.** Dnes jsou řádek s ikonou, názvem a velikostí
-  a ťuknutí je předá systému. `MessageMedia.Document.thumbnailFileId` se přitom mapuje, ale
-  `DocumentContent` ho nekreslí vůbec. Postup po krocích:
-  1. **Náhled místo ikony v řádku souboru** (48 dp, zaoblení 12 dp jako dnes). Stojí to jen
-     nakreslení toho, co už máme; obsah zůstane řádkem souboru.
-  2. **Rozpoznat obrázek a video.** `mimeType` posílá odesílatel, takže se k němu přidá
-     přípona z `fileName`. Rozhoduje, co umíme OTEVŘÍT, ne co tvrdí typ: JPEG, PNG, WebP,
-     HEIC (Android 9+, iOS), GIF staticky; video MP4/MOV (a WebM/MKV jen Android, AVPlayer
-     je neumí). RAW, TIFF, SVG, PSD zůstanou souborem. Pravidlo jako čistá funkce s testy.
-  3. **Ťuknutí otevře prohlížeč médií**, ne systém. Prohlížeč dnes listuje přes
-     `SearchMessagesFilterPhotoAndVideo`, kam dokumenty nepatří. Nejjednodušší je režim bez
-     listování pro jednu zprávu; míchat dokumenty do listování by znamenalo druhý dotaz
-     (`SearchMessagesFilterDocument`) a filtrování podle typu. „Otevřít v…" do systému zůstane
-     v liště prohlížeče.
-  4. **Velký náhled v bublině** jako u fotky (`photoFrame`), pod ním řádek s názvem
-     a velikostí. Soubor se posílá kvůli kvalitě, takže název a velikost patří k obsahu.
-     **Rozměry TDLib u dokumentu nedává**, poměr stran se bere z náhledu (`Thumbnail.width`
-     / `height`). Náhled má do 320 px, ve velké bublině bude rozmazaný; originál bývá desítky
-     MB (nezmenšená fotka z foťáku). Stahovat ho automaticky jen pod nějakým stropem, jinak až
-     na ťuknutí, s průběhem přes náhled jako u videa.
-  - **Ověřit na zařízení, kdy náhled existuje.** U obrázku ho nejspíš generuje server,
-    u videa ho musí poslat odesílatel. My ho u `OutgoingAttachment.Document` neposíláme,
-    přestože u videa první snímek už umíme vyrobit — `InputMessageDocument(thumbnail = …)`.
-  - Album dokumentů je dnes seznam pod sebou; s náhledy by stálo za úvahu, jestli obrázky
-    v něm nekreslit mřížkou.
+- **Obrázky a videa poslané jako soubor.** ~~Náhled místo ikony v řádku souboru~~ a
+  ~~rozpoznání obrázku a videa~~ — hotovo (`documentKind`, `DocumentThumbnail`). Zbývá:
+  - **Ťuknutí otevře prohlížeč médií**, ne systém. Prohlížeč dnes listuje přes
+    `SearchMessagesFilterPhotoAndVideo`, kam dokumenty nepatří. Nejjednodušší je režim bez
+    listování pro jednu zprávu; míchat dokumenty do listování by znamenalo druhý dotaz
+    (`SearchMessagesFilterDocument`) a filtrování podle typu. „Otevřít v…" do systému zůstane
+    v liště prohlížeče. Tady už záleží na tom, co platforma opravdu otevře: HEIC umí Android 9+
+    (ImageDecoder), Coil na iOS jede přes Skiu a HEIC nejspíš ne; WebM/MKV přehraje jen
+    ExoPlayer, AVPlayer ne. `documentKind` je dnes platformně neutrální — pro kreslení ikony
+    to stačí, pro otevření ne.
+  - **Velký náhled v bublině** jako u fotky (`photoFrame`), pod ním řádek s názvem
+    a velikostí. **Rozměry TDLib u dokumentu nedává**, poměr stran se bere z náhledu
+    (`Thumbnail.width` / `height`). Náhled má do 320 px, ve velké bublině bude rozmazaný;
+    originál bývá desítky MB. Stahovat ho automaticky jen pod nějakým stropem, jinak až na
+    ťuknutí, s průběhem přes náhled jako u videa.
+  - **HEIC náhled nemá**, takže je v řádku jen ikona obrázku. Vlastní náhled by znamenal
+    stáhnout celý soubor (fotka z iPhonu má jednotky MB) — až s velkým náhledem výš.
 - **Uložení a sdílení** fotky ven z aplikace — v horní liště prohlížeče na to je místo (Google
   Zprávy tam mají stažení). Potřebuje platformní kód: Android `MediaStore`, iOS `PHPhotoLibrary`
   s `NSPhotoLibraryAddUsageDescription`.
