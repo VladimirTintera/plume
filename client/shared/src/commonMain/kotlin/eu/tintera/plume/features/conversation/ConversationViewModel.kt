@@ -433,13 +433,12 @@ class ConversationViewModel(
         viewModelScope.launch {
             repository.newMessages(chatId).collect { message ->
                 _state.update {
-                    it.copy(
-                        messages = merge(it.messages, listOf(message)),
-                        // Rozepsaná zpráva chodí tudy DŘÍV, než `send` vrátí výsledek. Let se proto
-                        // musí navázat už tady, ve stejné změně stavu, ve které bublina vzniká —
-                        // jinak se na snímek vykreslí na místě, zmizí a teprve pak přiletí.
-                        flight = it.flight.landingOn(message),
-                    )
+                    // Rozepsaná zpráva chodí tudy DŘÍV, než `send` vrátí výsledek. Let se proto
+                    // musí navázat už tady, ve stejné změně stavu, ve které bublina vzniká —
+                    // jinak se na snímek vykreslí na místě, zmizí a teprve pak přiletí. Let se
+                    // váže i na zprávu, kterou `withMessage` zahodí: klíč položky je pořád její
+                    // dočasné id.
+                    it.withMessage(message).copy(flight = it.flight.landingOn(message))
                 }
                 resolveMissingQuotes()
             }
@@ -482,19 +481,7 @@ class ConversationViewModel(
                     is SentMessageUpdate.Failed -> update.oldMessageId to update.message
                 }
 
-                /*
-                 * Klíč položky ale zůstává PŮVODNÍ. Změna klíče znamená pro `LazyColumn` jinou
-                 * položku: stará by odprchla, nová naskočila a z potvrzení doručení by byl problik
-                 * celé bubliny — navíc uprostřed letu ze vstupního pole, jehož cíl by zmizel.
-                 */
-                _state.update { state ->
-                    val without = state.messages.filterNot { it.id == oldId }
-                    val key = state.itemKeys[oldId] ?: oldId
-                    state.copy(
-                        messages = merge(without, listOf(message)),
-                        itemKeys = state.itemKeys - oldId + (message.id to key),
-                    )
-                }
+                _state.update { state -> state.withSentMessage(oldId, message) }
             }
         }
 
@@ -645,16 +632,8 @@ class ConversationViewModel(
         viewModelScope.launch {
             send(replyTo)
                 .onSuccess { pending ->
-                    _state.update {
-                        it.copy(
-                            // Potvrzení mohlo dorazit dřív než výsledek — viz `send`.
-                            messages = if (pending.id in it.itemKeys.values) {
-                                it.messages
-                            } else {
-                                merge(it.messages, listOf(pending))
-                            },
-                        )
-                    }
+                    // Potvrzení mohlo dorazit dřív než výsledek; `withMessage` to ošetří.
+                    _state.update { it.withMessage(pending) }
                 }
                 .onFailure { failure ->
                     _state.update { it.copy(error = failure.reported(failureMessage)) }
@@ -704,14 +683,9 @@ class ConversationViewModel(
                 // na server. Skutečné id dorazí potvrzením a zprávu v seznamu nahradí.
                 .onSuccess { pending ->
                     _state.update {
-                        it.copy(
-                            // Mezitím ji už mohlo dorazit i potvrzení. Vrátit do seznamu dočasnou
-                            // verzi by znamenalo mít tam zprávu dvakrát.
-                            messages = if (pending.id in it.itemKeys.values) {
-                                it.messages
-                            } else {
-                                merge(it.messages, listOf(pending))
-                            },
+                        // Mezitím ji už mohlo dorazit i potvrzení — pak se dočasná verze do
+                        // seznamu vracet nesmí (`withMessage`).
+                        it.withMessage(pending).copy(
                             // Většinou už let navázal `newMessages`; tohle je záloha pro opačné
                             // pořadí. Cizí let (další rychle odeslaná zpráva) se nechává být.
                             flight = it.flight?.let { f ->
@@ -1737,6 +1711,34 @@ data class ConversationState(
 
     /** Stabilní klíč položky zprávy; přežije změnu id po odeslání. */
     fun keyOf(message: ChatMessage): Long = itemKeys[message.id] ?: message.id
+
+    /**
+     * Zpráva, která dorazila updatem nebo se vrátila z odeslání.
+     *
+     * **Rozepsanou zprávu, kterou už nahradilo potvrzení odeslání, ZAHODÍ.** Potvrzení totiž
+     * nemusí dorazit až po ní: `newMessages` a `sentMessageUpdates` jsou dva samostatné odběry
+     * a jejich pořadí není ničím zaručené. Když se prohodí, vrátila by se do seznamu dočasná
+     * verze zprávy, která už v něm je pod novým id — a protože si podle [itemKeys] obě drží
+     * TENTÝŽ klíč, `LazyColumn` na to spadl („Key … was already used").
+     *
+     * Ověřuje se to proti HODNOTÁM [itemKeys], tedy dočasným id potvrzených zpráv. Klíče jsou
+     * nová id a těch se dotaz netýká.
+     */
+    fun withMessage(message: ChatMessage): ConversationState =
+        if (message.id in itemKeys.values) this else copy(messages = merge(messages, listOf(message)))
+
+    /**
+     * Potvrzení (nebo selhání) odeslání. TDLib zprávě ZMĚNÍ id, takže ji nestačí aktualizovat —
+     * původní se musí ze seznamu odebrat, jinak by tam byla dvakrát.
+     *
+     * Klíč položky ale zůstává PŮVODNÍ. Změna klíče znamená pro `LazyColumn` jinou položku: stará
+     * by odprchla, nová naskočila a z potvrzení doručení by byl problik celé bubliny — navíc
+     * uprostřed letu ze vstupního pole, jehož cíl by zmizel.
+     */
+    fun withSentMessage(oldId: Long, message: ChatMessage): ConversationState = copy(
+        messages = merge(messages.filterNot { it.id == oldId }, listOf(message)),
+        itemKeys = itemKeys - oldId + (message.id to (itemKeys[oldId] ?: oldId)),
+    )
 }
 
 /** Jak dlouho se čeká, než se stahování souboru vůbec rozběhne. */
