@@ -167,6 +167,12 @@ rozešly — část chyb by v konzoli chyběla a nebylo by poznat které.
 
 - Větev se zakládá z aktuálního `main` a pojmenovává podle obsahu (`fix/…`, `feat/…`,
   `docs/…`). Jedna větev = jedna ucelená změna.
+- **Průběžné dolaďování jedné oblasti je JEDEN PR s více commity**, ne řada PR postavených
+  na sobě. Když uživatel ladí tutéž věc v několika kolech (vzhled nabídky nad zprávou, jeden
+  blok konverzace…), každé kolo je commit v téže větvi a popis PR se průběžně doplňuje.
+  Řada navazujících PR (#80–#87 u nabídky) se musela slučovat v přesném pořadí a každý
+  čekal na přepnutí cíle na `main` — práce navíc bez užitku, protože se stejně slučovaly
+  všechny najednou. Nová větev a nový PR až pro jinou oblast.
 - Do `main` se dostane jen sloučením PR. Slučuje uživatel, ne agent — ani automatické sloučení
   se nezapíná bez výslovného pokynu.
 - Popis PR říká, CO se změnilo a PROČ, a jak to ověřit na zařízení. Když změna na zařízení
