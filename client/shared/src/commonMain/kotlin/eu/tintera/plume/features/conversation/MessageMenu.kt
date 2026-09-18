@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +19,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -199,6 +203,30 @@ internal fun MessageMenuOverlay(
     }
 
     val showQuickRow = menu.quickEmoji.isNotEmpty()
+
+    /*
+     * Rozbalený výběr reakcí zůstává v TOMTÉŽ popupu, ne v bottom sheetu.
+     *
+     * Sheet se otevíral z obrazovky, tedy v jiném okně a v jiném místě kompozice, a v tu chvíli
+     * se popup rušil. Zmizela tím nabídka i vybraná zpráva — reagovalo se naslepo — a ťuknutí
+     * na emoji ve sheetu se nedoručilo. Tady je výběr jen další podoba pruhu reakcí: kreslí ho
+     * totéž okno, které ukazovalo ten sbalený, a ťuknutí jde touž cestou jako u rychlé reakce,
+     * takže není druhá cesta, která by mohla selhat sama za sebe.
+     *
+     * Že se v tom listuje, popupu nevadí — `LazyVerticalGrid` v něm scrolluje jako kdekoli jinde.
+     * Sheet tu byl kvůli domněnce, že to popup neumí.
+     */
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
+    /** Zpět a ťuknutí mimo: rozbalený výběr se nejdřív sbalí na nabídku, teprve pak se zavírá. */
+    val dismiss: () -> Unit = {
+        if (expanded) {
+            expanded = false
+        } else {
+            handlers.onDismiss()
+        }
+    }
+
     // Výšky se počítají, ne měří — kreslíme si nabídku sami, takže je známe předem a ušetří
     // se snímek, ve kterém by nabídka poskočila na správné místo. Hlavička s časem se
     // proto musí připočíst.
@@ -273,7 +301,7 @@ internal fun MessageMenuOverlay(
 
     Popup(
         popupPositionProvider = positionProvider,
-        onDismissRequest = handlers.onDismiss,
+        onDismissRequest = dismiss,
         /*
          * `clippingEnabled = false` pustí okno popupu **za hranice obsahu okna**, tedy pod stavovou
          * a navigační lištu. Bez toho systém popup vsadí dovnitř a závoj skončí ostrým pruhem
@@ -290,7 +318,7 @@ internal fun MessageMenuOverlay(
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = handlers.onDismiss,
+                    onClick = dismiss,
                 )
                 // Vlastní vrstva je pro vykrojení závoje POVINNÁ: `BlendMode.Clear` maže z vrstvy,
                 // a bez ní by vymazalo i všechno, co je pod popupem.
@@ -311,6 +339,38 @@ internal fun MessageMenuOverlay(
             val anchorLeft = with(density) { bubble.left.toDp() }
             val anchorRight = with(density) { bubble.right.toDp() }
 
+            /*
+             * Rozbalený výběr nechává na obrazovce jen sebe a vybranou zprávu.
+             *
+             * Nabídka akcí je druhý krok, ve kterém uživatel zrovna není, a mřížka přes třicet
+             * emoji vedle ní na telefon nevejde. Zpráva zůstat MUSÍ — je to jediné, co říká,
+             * čemu se reakce dá; kvůli jejímu zmizení sem tahle změna přišla.
+             */
+            if (expanded) {
+                val panel = placeReactionPanel(
+                    anchorTop = anchorTop,
+                    anchorBottom = anchorBottom,
+                    screenHeight = maxHeight,
+                    topMargin = topInset + SCREEN_MARGIN,
+                    bottomMargin = bottomInset + SCREEN_MARGIN,
+                )
+
+                ReactionPanel(
+                    emoji = menu.emoji,
+                    chosen = menu.chosenEmoji,
+                    onPick = { emoji -> handlers.onPick(id, emoji) },
+                    height = panel.height,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .offset(y = panel.y)
+                        .padding(horizontal = SCREEN_MARGIN)
+                        .scale(scale)
+                        .alpha(alpha),
+                )
+
+                return@BoxWithConstraints
+            }
+
             val layout = placeMenu(
                 anchorTop = anchorTop,
                 anchorBottom = anchorBottom,
@@ -325,7 +385,7 @@ internal fun MessageMenuOverlay(
                 QuickReactions(
                     menu = menu,
                     onPick = { emoji -> handlers.onPick(id, emoji) },
-                    onMore = handlers.onMore,
+                    onMore = { expanded = true },
                     modifier = Modifier
                         // Pruh je široký, takže se zarovnává ke KRAJI obrazovky podle strany
                         // bubliny — na zprávu samotnou by se stejně nevešel.
@@ -417,6 +477,69 @@ private fun QuickReactions(
                             painterResource(Res.drawable.add_reaction_24dp),
                             contentDescription = stringResource(Res.string.menu_more_reactions),
                             modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Rozbalený výběr reakcí: mřížka se VŠEMI nabídnutými emoji.
+ *
+ * Je to tentýž pruh, jen vyšší — proto stejná plocha, stejná velikost emoji i stejné zvýraznění
+ * už použité reakce. Ťuknutí jde touž cestou jako u rychlé reakce ([MessageMenuHandlers.onPick]),
+ * takže tu není druhá obsluha, která by se s ní mohla rozejít.
+ *
+ * Mřížka se **posouvá svisle**; nabídnutých emoji bývá přes třicet a na jednu obrazovku se
+ * nevejdou. Popupu to nevadí — scrolluje v něm cokoli, stejně jako v běžném obsahu.
+ *
+ * Výšku určuje volající: počítá se z místa, které kolem bubliny zbylo (viz [placeReactionPanel]),
+ * protože zpráva musí zůstat vidět.
+ */
+@Composable
+private fun ReactionPanel(
+    emoji: List<String>,
+    chosen: Set<String>,
+    onPick: (String) -> Unit,
+    height: Dp,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(REACTION_PANEL_CORNER),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shadowElevation = 3.dp,
+        modifier = modifier.fillMaxWidth().height(height),
+    ) {
+        LazyVerticalGrid(
+            // Adaptivně, ne pevný počet sloupců: pruh je přes celou šířku okna a to se mezi
+            // telefonem a širokým rozvržením liší.
+            columns = GridCells.Adaptive(QUICK_EMOJI_SIZE + REACTION_PANEL_PADDING),
+            contentPadding = PaddingValues(REACTION_PANEL_PADDING),
+        ) {
+            // Emoji jako klíč: `availableReactions` je vrací bez duplicit, takže se dvě buňky
+            // o tentýž klíč nepoperou.
+            items(emoji, key = { it }) { item ->
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Surface(
+                        onClick = { onPick(item) },
+                        shape = RoundedCornerShape(50),
+                        // Už použitá reakce se zvýrazní, aby bylo poznat, že ťuknutí ji zase sundá.
+                        color = if (item in chosen) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            Color.Transparent
+                        },
+                        modifier = Modifier.size(QUICK_EMOJI_SIZE),
+                    ) {
+                        Text(
+                            text = item,
+                            // Mimo typografickou škálu schválně: u emoji je nosná celá kresba,
+                            // ne výška písmen, takže ve velikosti role působí menší.
+                            fontSize = 24.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(top = 7.dp),
                         )
                     }
                 }
@@ -593,7 +716,6 @@ private data class MenuItem(
  */
 data class MessageMenuHandlers(
     val onPick: (messageId: Long, emoji: String) -> Unit,
-    val onMore: () -> Unit,
     val onReply: (messageId: Long) -> Unit,
     val onEdit: (messageId: Long) -> Unit,
     val onCopy: (messageId: Long) -> Unit,
@@ -678,6 +800,47 @@ private fun placeMenu(
     )
 }
 
+/** Kam přijde rozbalený výběr reakcí a jak bude vysoký. */
+internal data class ReactionPanelLayout(val y: Dp, val height: Dp)
+
+/**
+ * Kam přijde rozbalený výběr reakcí.
+ *
+ * Panel jde na tu stranu bubliny, kde je VÍC místa, a jeho výška se tomu místu přizpůsobí —
+ * zpráva musí zůstat vidět, protože bez ní není poznat, čemu se reakce dá. Mřížka se posouvá,
+ * takže nižší panel nic neschová, jen se v něm listuje dřív.
+ *
+ * Strop výšky existuje i tam, kde by se vešlo víc: panel přes celou obrazovku by z výběru udělal
+ * samostatnou obrazovku a vybraná zpráva by v něm zanikla. Podlaha naopak drží použitelnost
+ * u zprávy, která zabere skoro celý displej — tam se panel s bublinou kousek překryje, což je
+ * pořád lepší než mřížka o jednom řádku.
+ */
+internal fun placeReactionPanel(
+    anchorTop: Dp,
+    anchorBottom: Dp,
+    screenHeight: Dp,
+    /** Kam nahoře nesmí — stavová lišta plus odstup od kraje. */
+    topMargin: Dp,
+    /** Totéž dole, kvůli navigační liště. */
+    bottomMargin: Dp,
+): ReactionPanelLayout {
+    val above = anchorTop - MENU_GAP - topMargin
+    val below = (screenHeight - bottomMargin) - (anchorBottom + MENU_GAP)
+    val usable = (screenHeight - topMargin - bottomMargin).coerceAtLeast(0.dp)
+
+    val height = maxOf(above, below)
+        .coerceIn(REACTION_PANEL_MIN_HEIGHT, REACTION_PANEL_MAX_HEIGHT)
+        // Na malém okně může být i podlaha víc, než kolik je mezi lištami místa.
+        .coerceAtMost(usable)
+
+    val y = if (above >= below) anchorTop - MENU_GAP - height else anchorBottom + MENU_GAP
+
+    return ReactionPanelLayout(
+        y = y.coerceIn(topMargin, (screenHeight - bottomMargin - height).coerceAtLeast(topMargin)),
+        height = height,
+    )
+}
+
 /** Vodorovné umístění nabídky: k té hraně bubliny, u které zpráva stojí. */
 private fun menuX(anchorLeft: Dp, anchorRight: Dp, isOutgoing: Boolean, screenWidth: Dp): Dp {
     val raw = if (isOutgoing) anchorRight - MENU_WIDTH else anchorLeft
@@ -700,6 +863,12 @@ private val MENU_HEADER_HEIGHT = 32.dp
 private val MENU_PADDING = 8.dp
 private val QUICK_ROW_HEIGHT = 52.dp
 private val QUICK_EMOJI_SIZE = 40.dp
+
+/** Rozbalený výběr: podlaha, strop, zaoblení a odsazení mřížky. */
+internal val REACTION_PANEL_MIN_HEIGHT = 120.dp
+internal val REACTION_PANEL_MAX_HEIGHT = 280.dp
+private val REACTION_PANEL_CORNER = 24.dp
+private val REACTION_PANEL_PADDING = 8.dp
 
 /**
  * Potvrzení připnutí.

@@ -330,7 +330,6 @@
     <string name="conversation_attach_media">Photo or video</string>
     <string name="conversation_attach_file">File</string>
     <string name="conversation_pick_chat">Pick a chat on the left.</string>
-    <string name="conversation_react">React</string>
     <string name="reactions_title">Reactions</string>
     <string name="reactions_you">You</string>
     <string name="attachment_remove_file">Remove the file</string>

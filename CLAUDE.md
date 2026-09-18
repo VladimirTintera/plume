@@ -1168,8 +1168,19 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   v commonMain se prostě nedá vyrobit.
 - **Prázdná nabídka emoji není chyba.** V Uložených zprávách Telegram místo reakcí používá tagy;
   dřív se kvůli tomu nabídka neotevřela vůbec a nešlo ani odpovědět. Teď se jen nevykreslí pruh.
-- **Plný seznam emoji zůstal bottom sheetem.** Za „+" jich bývá přes třicet, takže se v tom
-  listuje — a to popup neumí.
+- **Plný seznam emoji se rozbaluje V POPUPU, ne v bottom sheetu.** Za „+" se pruh rychlých
+  reakcí promění v mřížku se vším, co chat nabízí (`ReactionPanel`), a nabídka akcí se na tu
+  dobu schová. Sheet, který tu byl předtím, žil v jiném okně a v jiném místě kompozice, takže
+  se s ním musel rušit popup: zmizela vybraná zpráva i nabídka — reagovalo se naslepo — a
+  **ťuknutí na emoji ve sheetu se nedoručilo**. Že se v mřížce listuje, popupu nevadí;
+  `LazyVerticalGrid` v něm scrolluje jako kdekoli jinde, sheet tam byl kvůli domněnce, že to
+  popup neumí. Zpět a ťuknutí mimo **nejdřív sbalí výběr** a teprve podruhé zavřou nabídku.
+- **Výška panelu se počítá z místa kolem bubliny** (`placeReactionPanel`, testy
+  `ReactionPanelTest`). Panel jde na tu stranu zprávy, kde je víc místa, a zmenší se, aby zpráva
+  zůstala vidět — bez ní není poznat, čemu se reakce dá. Strop existuje i tam, kde by se vešlo
+  víc: panel přes celou obrazovku by byl zase jen sheet pod jiným jménem. Je to čistá funkce
+  mimo composable, jako `photoFrame` — samý hraniční případ (zpráva u horní hrany, u spodní,
+  přes celý displej).
 - **Smazaná zpráva se ze seznamu neodstraňuje ručně.** TDLib pošle `UpdateDeleteMessages` a ten se
   už zpracovává; předběhnout server by znamenalo riskovat, že zpráva zmizí z obrazovky a na
   serveru zůstane.
@@ -1181,7 +1192,8 @@ upravená, kdy ji protějšek přečetl, kdo ji zhlédl a odkaz na ni (`MessageI
 `messageInfo` v `core/telegram`).
 
 - **Sheet, ne popup ani řádky v nabídce.** Údajů je proměnlivý počet a zhlédnutí je celý seznam
-  lidí, takže se v tom musí dát listovat — totéž, proč je sheetem plný výběr emoji.
+  lidí, takže se v tom musí dát listovat — a na rozdíl od výběru reakcí to není krok, po kterém
+  má zůstat vidět vybraná zpráva.
 - **Jako jediná položka nabídky se nabízí VŽDY.** Nestojí na právu od serveru: čas odeslání má
   konverzace sama, takže sheet má co ukázat i u zprávy, u které server odkaz, zhlédnutí ani čas
   přečtení nevydá.
