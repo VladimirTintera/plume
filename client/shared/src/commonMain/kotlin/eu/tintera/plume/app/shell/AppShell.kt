@@ -35,7 +35,11 @@ import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
 import androidx.compose.material3.adaptive.navigation3.rememberListDetailSceneStrategy
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.NavEntryDecorator
+import androidx.navigation3.runtime.rememberDecoratedNavEntries
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import eu.tintera.plume.core.adaptive.TWO_PANE_MIN_WIDTH
 import eu.tintera.plume.core.adaptive.contentPaneScaffoldDirective
@@ -46,7 +50,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.koinInject
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.navigation.ChatsRoute
-import eu.tintera.plume.core.navigation.NavSavedStateConfiguration
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForwardRoute
 import eu.tintera.plume.core.navigation.MediaRoute
@@ -76,20 +79,23 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 fun AppShell(modifier: Modifier = Modifier) {
-    // Dvě věci najednou: overload bez konfigurace existuje jen na Androidu (v commonMain se musí
-    // předat explicitně), a konfigurace MUSÍ mít zaregistrované podtypy NavKey — viz
-    // NavSavedStateConfiguration. S DEFAULT to spadne při první kompozici.
-    val backStack = rememberNavBackStack(NavSavedStateConfiguration, ChatsRoute)
+    val navigation = rememberAppNavigation()
 
-    val selectTopLevel: (TopLevelRoute) -> Unit = { route ->
-        // Zjednodušení fáze 1: jeden zásobník pro všechny sekce, přepnutí ho srovná na kořen.
-        // Sekce si tím nedrží vlastní historii. Pro Chaty/Nastavení to nevadí; až přibude sekce
-        // s hlubší navigací, patří sem multi-stack (vzor: MultiStackNavigationState v mlogu).
-        if (backStack.lastOrNull() != route || backStack.size > 1) {
-            backStack.clear()
-            backStack.add(route)
-        }
-    }
+    /*
+     * Stav položek navigace žije TADY, nad `NavDisplay`: uložený stav obrazovek i jejich
+     * ViewModely. Položky, které zrovna nejsou vidět (konverzace otevřená v Chatech, zatímco je
+     * uživatel v Nastavení), tak o nic nepřijdou; zruší se až při skutečném odebrání ze
+     * zásobníku nebo s celým shellem (odhlášení).
+     *
+     * Rodičem úložiště ViewModelů je `ViewModelStoreOwner` Activity: Nav3 pod ním drží úložiště
+     * pro každou položku, otočení displeje přežije a při opuštění kompozice je vyčistí. Bez
+     * tohoto dekorátoru žily ViewModely obrazovek v úložišti Activity napořád a `onCleared` se
+     * při odchodu z konverzace nevolal.
+     */
+    val entryDecorators = listOf<NavEntryDecorator<NavKey>>(
+        rememberSaveableStateHolderNavEntryDecorator(),
+        rememberViewModelStoreNavEntryDecorator(),
+    )
 
     /*
      * Otevření chatu zvenčí (ťuknutí na notifikaci).
@@ -103,13 +109,11 @@ fun AppShell(modifier: Modifier = Modifier) {
 
     LaunchedEffect(requestedChatId) {
         val chatId = requestedChatId ?: return@LaunchedEffect
-        backStack.clear()
-        backStack.add(ChatsRoute)
-        backStack.add(ConversationRoute(chatId))
+        navigation.openChat(chatId)
         chatOpenRequests.consume(chatId)
     }
 
-    val currentTopLevel = backStack.firstOrNull() as? TopLevelRoute ?: ChatsRoute
+    val currentTopLevel = navigation.section
     val compact = isCompact()
 
     /*
@@ -119,7 +123,7 @@ fun AppShell(modifier: Modifier = Modifier) {
      * se odtud chodí zpět, ne přepnutím sekce. Na širokém rozvržení je konverzace jen panel
      * vedle seznamu, tam navigace smysl dává a rail zůstává.
      */
-    val inDetail = backStack.any { it is ConversationRoute || it is MediaRoute }
+    val inDetail = navigation.currentStack.any { it is ConversationRoute || it is MediaRoute }
     val showBottomBar = compact && !inDetail
 
     // Obsah drží stabilní instanci přes přepnutí rail↔bar. Bez movableContent by se při změně
@@ -128,7 +132,8 @@ fun AppShell(modifier: Modifier = Modifier) {
     val content = remember {
         movableContentOf {
             ShellContent(
-                backStack = backStack,
+                navigation = navigation,
+                entryDecorators = entryDecorators,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -141,7 +146,7 @@ fun AppShell(modifier: Modifier = Modifier) {
                     val selected = currentTopLevel == dest.route
                     WideNavigationRailItem(
                         selected = selected,
-                        onClick = { selectTopLevel(dest.route) },
+                        onClick = { navigation.selectSection(dest.route) },
                         icon = { DestinationIcon(dest, selected) },
                         label = { Text(stringResource(dest.label)) },
                         railExpanded = false,
@@ -188,7 +193,7 @@ fun AppShell(modifier: Modifier = Modifier) {
                         val selected = currentTopLevel == dest.route
                         ShortNavigationBarItem(
                             selected = selected,
-                            onClick = { selectTopLevel(dest.route) },
+                            onClick = { navigation.selectSection(dest.route) },
                             icon = { DestinationIcon(dest, selected) },
                             label = { Text(stringResource(dest.label)) },
                         )
@@ -207,14 +212,46 @@ fun AppShell(modifier: Modifier = Modifier) {
  */
 @Composable
 private fun ShellContent(
-    backStack: MutableList<NavKey>,
+    navigation: AppNavigation,
+    entryDecorators: List<NavEntryDecorator<NavKey>>,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier) {
         val base = contentPaneScaffoldDirective(maxWidth, maxHeight)
-        // Detail má konverzace i otevřená sekce nastavení — obojí je pravý panel téže scény.
-        val hasDetail = backStack.any { it is ConversationRoute || it is SettingsSectionRoute }
         val wide = maxWidth >= TWO_PANE_MIN_WIDTH
+
+        val chatsStack = navigation.stack(ChatsRoute)
+        val settingsStack = navigation.stack(SettingsRoute)
+
+        /*
+         * V dvoupanelu je v Nastavení vždycky otevřená nějaká sekce.
+         *
+         * Placeholder („vyber sekci") by tu byl k ničemu: prázdný panel vedle dvou řádků vypadá
+         * jako nedodělek. A bez sekce by directive dvoupanel nezapnul a seznam sekcí by se
+         * roztáhl přes celou šířku.
+         *
+         * Sekce se do zásobníku ZAPISUJE ([AppNavigation.ensureSettingsSection]) — zpět musí
+         * odebírat položky, které v zásobníku opravdu jsou. Efekt stojí tady, v shellu, a ptá se
+         * na vybranou sekci: dřív byl v obrazovce seznamu sekcí a když ta ještě dobíhala
+         * odchodovou animací, přidal sekci nastavení do zásobníku, který už patřil Chatům.
+         * Velikost zásobníku je v klíči kvůli ťuknutí na už vybrané Nastavení (návrat na kořen).
+         *
+         * Než efekt doběhne, sekce se pro kreslení jen dopočítá — jinak by na jeden snímek
+         * problikl seznam sekcí přes celou šířku.
+         */
+        LaunchedEffect(wide, navigation.section, settingsStack.size) {
+            if (wide && navigation.section == SettingsRoute) navigation.ensureSettingsSection()
+        }
+        val settingsDisplayed: List<NavKey> =
+            if (wide && settingsStack.lastOrNull() == SettingsRoute) {
+                settingsStack + SettingsSectionRoute(SettingsSection.entries.first())
+            } else {
+                settingsStack
+            }
+
+        val currentDisplayed = if (navigation.section == SettingsRoute) settingsDisplayed else navigation.currentStack
+        // Detail má konverzace i otevřená sekce nastavení — obojí je pravý panel téže scény.
+        val hasDetail = currentDisplayed.any { it is ConversationRoute || it is SettingsSectionRoute }
 
         val directive = when {
             // Bez otevřené konverzace nemá smysl rezervovat druhý panel s placeholderem —
@@ -227,9 +264,25 @@ private fun ShellContent(
         // Dvoupanelový stav se hlásí dolů: obrazovky podle něj poznají, že se nevyměňují,
         // a sdílený prvek nezaloží — viz LocalTwoPane.
         CompositionLocalProvider(LocalTwoPane provides wide) {
+            val entryProvider = shellEntryProvider(
+                chatsStack = chatsStack,
+                settingsStack = settingsStack,
+                selectedSettingsSection = settingsDisplayed.filterIsInstance<SettingsSectionRoute>()
+                    .lastOrNull()?.section,
+                wide = wide,
+            )
+            /*
+             * Položky se dekorují pro KAŽDOU sekci, i tu, která není vidět. Zásobník, který se
+             * zrovna nedekoruje, by pro Nav3 vypadal jako odebraný a jeho ViewModely by se zrušily.
+             */
+            val entriesBySection = mapOf<TopLevelRoute, List<NavEntry<NavKey>>>(
+                ChatsRoute to rememberDecoratedNavEntries(chatsStack, entryDecorators, entryProvider),
+                SettingsRoute to rememberDecoratedNavEntries(settingsDisplayed, entryDecorators, entryProvider),
+            )
+
             NavDisplay(
-                backStack = backStack,
-                onBack = { backStack.removeLastOrNull() },
+                entries = navigation.visibleSections.flatMap { entriesBySection.getValue(it) },
+                onBack = navigation::goBack,
                 sceneStrategies = listOf(
                     // `shouldHandleSinglePaneLayout = wide`: na široké ploše nechá i jednopanelový stav
                     // řešit scaffold, takže „jen seznam" a „seznam + konverzace" jsou TÁŽ scéna a přechod
@@ -239,135 +292,120 @@ private fun ShellContent(
                         directive = directive,
                     ),
                 ),
-                entryProvider = entryProvider {
-                    entry<ChatsRoute>(
-                        metadata = ListDetailSceneStrategy.listPane(
-                            detailPlaceholder = { ConversationPlaceholder() },
-                        ),
-                    ) {
-                        ChatListScreen(
-                            viewModel = koinViewModel(),
-                            selectedChatId = backStack.filterIsInstance<ConversationRoute>()
-                                .lastOrNull()?.chatId,
-                            onChatClick = { chatId ->
-                                // Otevření jiného chatu nahradí detail, nevrší se zásobník.
-                                backStack.removeAll { it is ConversationRoute }
-                                backStack.add(ConversationRoute(chatId))
-                            },
-                        )
-                    }
-
-                    entry<ConversationRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
-                        ConversationScreen(
-                            // Klíč MUSÍ obsahovat chatId. ViewModel se cachuje podle klíče, takže
-                            // konstantní klíč znamená, že druhá otevřená konverzace dostane ViewModel
-                            // té první — i se zprávami. Koin navíc u cachované instance ignoruje
-                            // nové `parameters`, takže se to neprojeví ani chybou, jen špatným obsahem.
-                            viewModel = koinViewModel(
-                                key = "conversation-${route.chatId}",
-                                parameters = { parametersOf(route.chatId) },
-                            ),
-                            onBack = { backStack.removeLastOrNull() },
-                            onOpenMedia = { messageId ->
-                                backStack.add(MediaRoute(route.chatId, messageId))
-                            },
-                            onForward = { messageIds ->
-                                backStack.add(ForwardRoute(route.chatId, messageIds))
-                            },
-                        )
-                    }
-
-                    /*
-                     * Prohlížeč nemá metadata list-detail scény, takže ho scéna nepřevezme
-                     * a `NavDisplay` ho vykreslí přes celou plochu — i na širokém rozvržení,
-                     * kde by panel vedle seznamu chatů neměl co dělat.
-                     */
-                    entry<MediaRoute> { route ->
-                        MediaViewerScreen(
-                            // Klíč musí rozlišovat zprávu ze stejného důvodu jako u konverzace:
-                            // ViewModel se cachuje podle klíče a Koin u cachované instance
-                            // ignoruje nové parametry.
-                            viewModel = koinViewModel(
-                                key = "media-${route.chatId}-${route.messageId}",
-                                parameters = { parametersOf(route.chatId, route.messageId) },
-                            ),
-                            onBack = { backStack.removeLastOrNull() },
-                        )
-                    }
-
-                    /*
-                     * Výběr cílového chatu. Po přeposlání se výběr ze zásobníku zahodí a otevře
-                     * se cílový chat — uživatel tak skončí tam, kam zprávu poslal, a zpět ho
-                     * vrátí do původní konverzace.
-                     */
-                    entry<ForwardRoute> { route ->
-                        ForwardScreen(
-                            viewModel = koinViewModel(
-                                key = "forward-${route.fromChatId}-${route.messageIds.joinToString("-")}",
-                                parameters = { parametersOf(route.fromChatId, route.messageIds) },
-                            ),
-                            onBack = { backStack.removeLastOrNull() },
-                            onForwarded = { chatId ->
-                                backStack.removeLastOrNull()
-                                if (backStack.lastOrNull() != ConversationRoute(chatId)) {
-                                    backStack.add(ConversationRoute(chatId))
-                                }
-                            },
-                        )
-                    }
-
-                    entry<SettingsRoute>(metadata = ListDetailSceneStrategy.listPane(SETTINGS_SCENE)) {
-                        val selectedSection = backStack.filterIsInstance<SettingsSectionRoute>()
-                            .lastOrNull()?.section
-
-                        /*
-                         * V dvoupanelu je vždycky otevřená nějaká sekce.
-                         *
-                         * Placeholder („vyber sekci") by tu byl k ničemu: prázdný panel vedle dvou
-                         * řádků vypadá jako nedodělek. A bez tohohle by byl seznam sekcí roztažený
-                         * přes celou šířku, protože directive dvoupanel bez detailu nezapíná.
-                         *
-                         * Klíč efektu musí obsahovat i vybranou sekci: po zpět zůstane v zásobníku
-                         * samotné `SettingsRoute` a `wide` se přitom nezmění, takže s klíčem na
-                         * samotné šířce by se efekt už nespustil.
-                         *
-                         * Sekce se přidává, jen když je seznam sekcí NAVRCHU zásobníku. Po přepnutí
-                         * na Chaty obrazovka ještě dobíhá odchodovou animací, vybraná sekce zmizí
-                         * se zbytkem zásobníku a efekt by přidal sekci nastavení nad seznam chatů
-                         * (rail hlásil Chaty, na ploše bylo „Obecné").
-                         */
-                        LaunchedEffect(wide, selectedSection) {
-                            if (wide && selectedSection == null && backStack.lastOrNull() == SettingsRoute) {
-                                backStack.add(SettingsSectionRoute(SettingsSection.entries.first()))
-                            }
-                        }
-
-                        SettingsScreen(
-                            selectedSection = selectedSection,
-                            // Otevření jiné sekce ji NAHRADÍ, nevrší se zásobník — stejně jako
-                            // u konverzací.
-                            onSectionClick = { section ->
-                                backStack.removeAll { it is SettingsSectionRoute }
-                                backStack.add(SettingsSectionRoute(section))
-                            },
-                        )
-                    }
-
-                    entry<SettingsSectionRoute>(
-                        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
-                    ) { route ->
-                        // V dvoupanelu je seznam sekcí pořád vidět vedle, takže šipka zpět nemá
-                        // kam vést; na telefonu je sekce samostatná obrazovka a zpět se z ní chodí.
-                        val popSection: () -> Unit = { backStack.removeLastOrNull() }
-
-                        SettingsSectionScreen(
-                            section = route.section,
-                            onBack = if (wide) null else popSection,
-                        )
-                    }
-                },
             )
         }
+    }
+}
+
+/**
+ * Obrazovky obou sekcí. Každá navigace píše do zásobníku SVÉ sekce ([chatsStack],
+ * [settingsStack]), ne do toho vybraného — obrazovka může být zrovna na odchodu.
+ */
+private fun shellEntryProvider(
+    chatsStack: MutableList<NavKey>,
+    settingsStack: MutableList<NavKey>,
+    selectedSettingsSection: SettingsSection?,
+    wide: Boolean,
+): (NavKey) -> NavEntry<NavKey> = entryProvider {
+    entry<ChatsRoute>(
+        metadata = ListDetailSceneStrategy.listPane(
+            detailPlaceholder = { ConversationPlaceholder() },
+        ),
+    ) {
+        ChatListScreen(
+            viewModel = koinViewModel(),
+            selectedChatId = chatsStack.filterIsInstance<ConversationRoute>()
+                .lastOrNull()?.chatId,
+            onChatClick = { chatId ->
+                // Otevření jiného chatu nahradí detail, nevrší se zásobník.
+                chatsStack.removeAll { it is ConversationRoute }
+                chatsStack.add(ConversationRoute(chatId))
+            },
+        )
+    }
+
+    entry<ConversationRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
+        ConversationScreen(
+            // Klíč MUSÍ obsahovat chatId. ViewModel se cachuje podle klíče, takže
+            // konstantní klíč znamená, že druhá otevřená konverzace dostane ViewModel
+            // té první — i se zprávami. Koin navíc u cachované instance ignoruje
+            // nové `parameters`, takže se to neprojeví ani chybou, jen špatným obsahem.
+            viewModel = koinViewModel(
+                key = "conversation-${route.chatId}",
+                parameters = { parametersOf(route.chatId) },
+            ),
+            onBack = { chatsStack.removeLastOrNull() },
+            onOpenMedia = { messageId ->
+                chatsStack.add(MediaRoute(route.chatId, messageId))
+            },
+            onForward = { messageIds ->
+                chatsStack.add(ForwardRoute(route.chatId, messageIds))
+            },
+        )
+    }
+
+    /*
+     * Prohlížeč nemá metadata list-detail scény, takže ho scéna nepřevezme
+     * a `NavDisplay` ho vykreslí přes celou plochu — i na širokém rozvržení,
+     * kde by panel vedle seznamu chatů neměl co dělat.
+     */
+    entry<MediaRoute> { route ->
+        MediaViewerScreen(
+            // Klíč musí rozlišovat zprávu ze stejného důvodu jako u konverzace:
+            // ViewModel se cachuje podle klíče a Koin u cachované instance
+            // ignoruje nové parametry.
+            viewModel = koinViewModel(
+                key = "media-${route.chatId}-${route.messageId}",
+                parameters = { parametersOf(route.chatId, route.messageId) },
+            ),
+            onBack = { chatsStack.removeLastOrNull() },
+        )
+    }
+
+    /*
+     * Výběr cílového chatu. Po přeposlání se výběr ze zásobníku zahodí a otevře
+     * se cílový chat — uživatel tak skončí tam, kam zprávu poslal, a zpět ho
+     * vrátí do původní konverzace.
+     */
+    entry<ForwardRoute> { route ->
+        ForwardScreen(
+            viewModel = koinViewModel(
+                key = "forward-${route.fromChatId}-${route.messageIds.joinToString("-")}",
+                parameters = { parametersOf(route.fromChatId, route.messageIds) },
+            ),
+            onBack = { chatsStack.removeLastOrNull() },
+            onForwarded = { chatId ->
+                chatsStack.removeLastOrNull()
+                if (chatsStack.lastOrNull() != ConversationRoute(chatId)) {
+                    chatsStack.add(ConversationRoute(chatId))
+                }
+            },
+        )
+    }
+
+    entry<SettingsRoute>(metadata = ListDetailSceneStrategy.listPane(SETTINGS_SCENE)) {
+        SettingsScreen(
+            selectedSection = selectedSettingsSection,
+            // Otevření jiné sekce ji NAHRADÍ, nevrší se zásobník — stejně jako
+            // u konverzací.
+            onSectionClick = { section ->
+                settingsStack.removeAll { it is SettingsSectionRoute }
+                settingsStack.add(SettingsSectionRoute(section))
+            },
+        )
+    }
+
+    entry<SettingsSectionRoute>(
+        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+    ) { route ->
+        // V dvoupanelu je seznam sekcí pořád vidět vedle, takže šipka zpět nemá
+        // kam vést; na telefonu je sekce samostatná obrazovka a zpět se z ní chodí.
+        val popSection: () -> Unit = { settingsStack.removeLastOrNull() }
+
+        SettingsSectionScreen(
+            section = route.section,
+            onBack = if (wide) null else popSection,
+        )
     }
 }
 

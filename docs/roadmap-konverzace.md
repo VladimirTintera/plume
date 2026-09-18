@@ -231,6 +231,11 @@ Co zbývá:
 
 Seřazeno podle toho, jak moc to bolí.
 
+- **Po návratu do konverzace vyjede klávesnice**, aniž by uživatel ťukl do pole — z prohlížeče
+  fotek i (na širokém displeji) po přepnutí z Nastavení zpět do Chatů. Je to i na `main` před
+  zásobníky sekcí, takže nejde o navigaci. Náš kód si fokus žádá jen při úpravě zprávy;
+  podezřelé je obnovení fokusu Compose při návratu obrazovky do kompozice.
+
 **Chyby** — opraveno, poučení v `CLAUDE.md` („Hlášení přečtení a indexy" a „Odesílání
 a scrollování" u duplicitního klíče po potvrzení odeslání).
 
