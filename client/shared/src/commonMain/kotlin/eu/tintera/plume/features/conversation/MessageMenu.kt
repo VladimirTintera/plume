@@ -51,11 +51,16 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
@@ -119,7 +124,7 @@ import org.jetbrains.compose.resources.stringResource
  * jen jako snímek, a plný výběr reakcí musel být vlastní napodobenina sheetu.
  *
  * Zpráva, která zasahuje pod hlavičku nebo pod okraj obrazovky, **vyjede do pohledu**
- * ([liftIntoView]) — celá, s místem na pruh reakcí nad sebou, ale ne přes hlavičku chatu:
+ * ([placeMenuMessage]) — celá, s místem na pruh reakcí nad sebou, ale ne přes hlavičku chatu:
  * musí zůstat vidět, s kým je chat otevřený.
  *
  * **Zpět obsluhuje [NavigationBackHandler]**, ne `BackHandler` — ten by v téhle aplikaci zabil
@@ -214,16 +219,31 @@ internal fun MessageMenuLayer(
         }
         val showQuickRow = shown.menu.quickEmoji.isNotEmpty()
 
-        // Kam zpráva DOJEDE. Z toho se odvozuje i rozvržení nabídky, takže se o umístění pruhu
-        // reakcí rozhodne jednou a nic během animace nepřeskakuje.
-        val top = anchorTop + liftIntoView(
+        // Položky, které se opravdu ukážou: kandidáti od bloku, které dovolil server. Z nich, ne
+        // z kandidátů, se počítá i výška nabídky — dokud se brali kandidáti, visela nabídka nad
+        // zprávou o položku (48 dp) výš za každého kandidáta, kterého server nedovolil.
+        val menuItems = shown.menu.items.mapNotNull { action ->
+            action.presentation(shown.menu)?.let { look ->
+                MenuItem(look.icon, stringResource(look.label), look.destructive) {
+                    itemScope.onAction(shown.menu.messageId, action)
+                }
+            }
+        }
+        val menuHeight = MENU_PADDING * 2 + MENU_HEADER_HEIGHT + MENU_ITEM_HEIGHT * menuItems.size
+
+        // Kam zpráva DOJEDE a jak velká bude. Z toho se odvozuje i rozvržení nabídky, takže se
+        // o umístění pruhu reakcí rozhodne jednou a nic během animace nepřeskakuje.
+        val placement = placeMenuMessage(
             anchorTop = anchorTop,
             anchorHeight = anchorHeight,
             screenHeight = maxHeight,
             topMargin = topLimit,
             bottomMargin = bottomMargin,
             quickRowSpace = if (showQuickRow) QUICK_ROW_HEIGHT + MENU_GAP else 0.dp,
+            menuSpace = menuHeight + MENU_GAP,
         )
+        val top = placement.top
+        val cropped = placement.isCropped(anchorHeight)
 
         /*
          * Let zprávy: kopie vyjede z místa zprávy na cílové místo a při zavření se vrátí; teprve
@@ -235,14 +255,22 @@ internal fun MessageMenuLayer(
          * stejném okně jako seznam, takže sdílený prvek by tu stejně dělal jen tohle posunutí.
          */
         val liftPx = with(density) { (top - anchorTop).toPx() }
-        val lift = remember(shown.menu.messageId) { Animatable(0f) }
+        // Průběh letu 0 (místo v seznamu) → 1 (místo v nabídce). Z něj se odvozuje posun,
+        // zmenšení i ořez, takže vysoká zpráva se zmenšuje a ořezává plynule, ne skokem.
+        val progress = remember(shown.menu.messageId) { Animatable(0f) }
         val liftSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
-        LaunchedEffect(open, liftPx) {
-            lift.animateTo(if (open) liftPx else 0f, liftSpec)
+        LaunchedEffect(open) {
+            progress.animateTo(if (open) 1f else 0f, liftSpec)
             if (!open) lingering = null
         }
+        val lift = { progress.value * liftPx }
+        val scale = { 1f + (placement.scale - 1f) * progress.value }
+        val visibleHeightPx = with(density) {
+            { anchorRect.height + (placement.visibleHeight.toPx() - anchorRect.height) * progress.value }
+        }
         // O kolik je zpráva ještě od cíle; pruh reakcí a nabídka jedou s ní.
-        val travel = { lift.value - liftPx }
+        val travel = { lift() - liftPx }
+        val fadePx = with(density) { TALL_MESSAGE_FADE.toPx() }
         val anchorLeftPx = anchorRect.left.roundToInt()
         val anchorTopPx = anchorRect.top
 
@@ -255,43 +283,71 @@ internal fun MessageMenuLayer(
                 .fillMaxSize()
                 .drawWithContent { clipRect(top = clipTop, bottom = clipBottom) { this@drawWithContent.drawContent() } },
         ) {
-            with(shown.item) {
-                MenuCopy(
-                    scope = itemScope,
-                    // Stejná šířka jako v seznamu: obsah se zalomí stejně a návrat skončí bez skoku.
-                    // Posun se čte až v layoutu, takže let nic nerekomponuje.
-                    modifier = Modifier
-                        .offset { IntOffset(anchorLeftPx, (anchorTopPx + lift.value).roundToInt()) }
-                        .width(anchorWidth),
-                )
+            /*
+             * Rámeček kopie: výška je VIDITELNÁ část (u oříznuté zprávy menší než zpráva), obsah
+             * uvnitř je zpráva v plné výšce, zmenšená ke své straně a nahoře zarovnaná — ukazuje
+             * se začátek. U oříznuté zprávy obsah dole vybledne, ať je poznat, že pokračuje.
+             */
+            Box(
+                Modifier
+                    .offset { IntOffset(anchorLeftPx, (anchorTopPx + lift()).roundToInt()) }
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        val height = visibleHeightPx().roundToInt().coerceAtMost(placeable.height)
+                        layout(placeable.width, height) { placeable.place(0, 0) }
+                    }
+                    .graphicsLayer {
+                        clip = true
+                        if (cropped) compositingStrategy = CompositingStrategy.Offscreen
+                    }
+                    .drawWithContent {
+                        drawContent()
+                        if (cropped) {
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    0f to Color.Transparent,
+                                    1f to Color.Black.copy(alpha = progress.value),
+                                    startY = size.height - fadePx,
+                                    endY = size.height,
+                                ),
+                                blendMode = BlendMode.DstOut,
+                            )
+                        }
+                    },
+            ) {
+                with(shown.item) {
+                    MenuCopy(
+                        scope = itemScope,
+                        // Stejná šířka jako v seznamu: obsah se zalomí stejně a návrat skončí bez
+                        // skoku. Posun i zmenšení se čtou až v layoutu a při kreslení.
+                        modifier = Modifier
+                            .width(anchorWidth)
+                            .wrapContentHeight(align = Alignment.Top, unbounded = true)
+                            .graphicsLayer {
+                                val current = scale()
+                                scaleX = current
+                                scaleY = current
+                                transformOrigin = TransformOrigin(if (shown.menu.isOutgoing) 1f else 0f, 0f)
+                            },
+                    )
+                }
             }
         }
         // Kopie nemá gesta (odkaz ani fotka se z nabídky neotevírají); ťuknutí na ni zavírá.
         if (open) {
             Box(
                 Modifier
-                    .offset { IntOffset(anchorLeftPx, (anchorTopPx + lift.value).roundToInt()) }
-                    .size(anchorWidth, anchorHeight)
+                    .offset { IntOffset(anchorLeftPx, (anchorTopPx + lift()).roundToInt()) }
+                    .size(anchorWidth, placement.visibleHeight)
                     .pointerInput(Unit) { detectTapGestures { close() } },
             )
         }
 
-        // Položky, které se opravdu ukážou: kandidáti od bloku, které dovolil server. Z nich, ne
-        // z kandidátů, se počítá i výška nabídky — dokud se brali kandidáti, visela nabídka nad
-        // zprávou o položku (48 dp) výš za každého kandidáta, kterého server nedovolil.
-        val menuItems = shown.menu.items.mapNotNull { action ->
-            action.presentation(shown.menu)?.let { look ->
-                MenuItem(look.icon, stringResource(look.label), look.destructive) {
-                    itemScope.onAction(shown.menu.messageId, action)
-                }
-            }
-        }
-
         val layout = placeMenu(
             anchorTop = top,
-            anchorBottom = top + anchorHeight,
+            anchorBottom = top + placement.visibleHeight,
             quickRowHeight = if (showQuickRow) QUICK_ROW_HEIGHT else 0.dp,
-            menuHeight = MENU_PADDING * 2 + MENU_HEADER_HEIGHT + MENU_ITEM_HEIGHT * menuItems.size,
+            menuHeight = menuHeight,
             screenHeight = maxHeight,
             topMargin = topLimit,
             bottomMargin = bottomMargin,
@@ -673,28 +729,52 @@ private data class MenuItem(
     val onClick: () -> Unit,
 )
 
+/** Kam a jak velká se zpráva v nabídce nakreslí. [visibleHeight] je už po zmenšení. */
+internal data class MenuMessagePlacement(val top: Dp, val scale: Float, val visibleHeight: Dp) {
+    /** Zmenšená zpráva se nevešla ani tak a je dole oříznutá. */
+    fun isCropped(anchorHeight: Dp): Boolean = anchorHeight * scale > visibleHeight + 0.5.dp
+}
+
 /**
- * O kolik posunout zprávu, aby byla při otevřené nabídce celá vidět a nad ní se vešel pruh reakcí.
+ * Kam se zpráva při otevřené nabídce posune a jak se zmenší. Nad ní pruh reakcí, **pod ní vždycky
+ * nabídka** — jako v Google Zprávách.
  *
- * Zpráva, která se vejde, se jen dosune mezi okraje; zpráva vyšší než obrazovka se srovná
- * horní hranou pod pruh reakcí — začátek zprávy je to, co uživatel potřebuje poznat. Kladná
- * hodnota posouvá dolů.
+ * 1. Zpráva, která se s pruhem i nabídkou vejde, se jen dosune do pohledu (a nehne se, když už
+ *    v něm je).
+ * 2. Vyšší se **zmenší**, ale nejvýš na [MIN_MESSAGE_SCALE] — menší text už nejde přečíst.
+ * 3. Když se nevejde ani zmenšená, **ořízne se** a ukáže se její začátek: podle něj uživatel
+ *    pozná, o kterou zprávu jde. Celý obsah v nabídce nepotřebuje, ten má v seznamu.
+ *
+ * Kladný rozdíl `top - anchorTop` posouvá dolů.
  */
-internal fun liftIntoView(
+internal fun placeMenuMessage(
     anchorTop: Dp,
     anchorHeight: Dp,
     screenHeight: Dp,
-    /** Stavová lišta plus odstup od kraje. */
+    /** Spodek hlavičky chatu plus mezera. */
     topMargin: Dp,
-    /** Navigační lišta plus odstup od kraje. */
+    /** Vstupní pole (nebo navigační lišta) plus mezera. */
     bottomMargin: Dp,
     /** Místo nad zprávou na pruh reakcí i s mezerou; nula, když pruh není. */
     quickRowSpace: Dp,
-): Dp {
+    /** Místo pod zprávou na nabídku i s mezerou. */
+    menuSpace: Dp,
+): MenuMessagePlacement {
     val minTop = topMargin + quickRowSpace
-    val maxTop = screenHeight - bottomMargin - anchorHeight
-    val target = if (maxTop < minTop) minTop else anchorTop.coerceIn(minTop, maxTop)
-    return target - anchorTop
+    val available = (screenHeight - bottomMargin - menuSpace - minTop).coerceAtLeast(0.dp)
+    if (anchorHeight <= available) {
+        return MenuMessagePlacement(
+            top = anchorTop.coerceIn(minTop, minTop + available - anchorHeight),
+            scale = 1f,
+            visibleHeight = anchorHeight,
+        )
+    }
+    val scale = (available / anchorHeight).coerceAtLeast(MIN_MESSAGE_SCALE)
+    return MenuMessagePlacement(
+        top = minTop,
+        scale = scale,
+        visibleHeight = minOf(anchorHeight * scale, available),
+    )
 }
 
 /** Svislé umístění obou kusů. */
@@ -792,6 +872,15 @@ private fun menuX(anchorLeft: Dp, anchorRight: Dp, isOutgoing: Boolean, screenWi
 private val scrimColor = Color.Black.copy(alpha = 0.45f)
 
 private val MENU_GAP = 8.dp
+
+/**
+ * Nejmenší zmenšení vysoké zprávy v nabídce. Menší text už nejde přečíst — radši se zpráva
+ * ořízne a ukáže se jen její začátek.
+ */
+internal const val MIN_MESSAGE_SCALE = 0.6f
+
+/** Výška vyblednutí dole u oříznuté zprávy. */
+private val TALL_MESSAGE_FADE = 48.dp
 private val SCREEN_MARGIN = 12.dp
 private val MENU_WIDTH = 220.dp
 private val MENU_ITEM_HEIGHT = 48.dp
