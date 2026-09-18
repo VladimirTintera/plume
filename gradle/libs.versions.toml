@@ -39,6 +39,10 @@ datastore = "1.2.1"
 compottie = "2.3.1"
 # Gzip pro .tgs. Tutéž verzi táhne Compottie; výslovně kvůli tomu, že ji používáme přímo.
 okio = "3.16.4"
+# Rozostřené pozadí pod plovoucími vrstvami (závoj nabídky nad zprávou). Compose sám umí rozostřit
+# jen vlastní obsah (`Modifier.blur`), ne to, co leží POD vrstvou. 2.x chce Kotlin 2.4.20 — při
+# bumpu zkontroluj `kotlin-stdlib` a `compose.ui` v jejích metadatech (.module na Maven Central).
+haze = "1.7.3"
 # Přehrávání videa na Androidu. Jen `exoplayer` + `ui` (AspectRatioFrameLayout): `ui-compose` by táhl
 # androidx Compose novější, než jakou verzi drží Compose Multiplatform.
 media3 = "1.11.1"
@@ -56,6 +60,7 @@ crashlytics = "3.0.8"
 tdl = "15.0.0"
 
 [libraries]
+haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 # --- Compose ---
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose" }
