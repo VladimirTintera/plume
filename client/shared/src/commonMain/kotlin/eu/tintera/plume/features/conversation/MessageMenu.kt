@@ -334,19 +334,11 @@ internal fun MessageMenuLayer(
         }
 
         /*
-         * Rozbalený výběr nechává na obrazovce pruh reakcí a zprávu, nabídku akcí ne — tak to
-         * dělají i Google Zprávy: pruh ukazuje, čeho se výběr týká a co je už použité.
-         *
-         * Nabídka při tom ODEJDE a vrátí se animací, stejnou, jakou naběhne při otevření. Dokud
-         * se jen vyřazovala z kompozice, zmizela při vyjetí sheetu natvrdo a po jeho zasunutí
-         * bleskově naskočila.
+         * Nabídka akcí zůstává vidět i s rozbaleným výběrem reakcí — sheet ji jen překryje a klikat
+         * se na ni nedá, protože sheet je modální. Dřív se schovávala a po zasunutí sheetu
+         * bleskově naskočila; zmizet nemá proč, je to pořád táž otevřená nabídka.
          */
-        val menuShown by animateFloatAsState(
-            targetValue = if (expanded) 0f else 1f,
-            animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-            label = "menu-shown",
-        )
-        if (menuShown > 0f) {
+        run {
             Box(
                 Modifier
                     .offset {
@@ -361,10 +353,9 @@ internal fun MessageMenuLayer(
                         )
                     }
                     .graphicsLayer {
-                        val visible = appear * menuShown
-                        alpha = visible.coerceIn(0f, 1f)
-                        scaleX = 0.9f + 0.1f * visible
-                        scaleY = 0.9f + 0.1f * visible
+                        alpha = appear
+                        scaleX = 0.9f + 0.1f * appear
+                        scaleY = 0.9f + 0.1f * appear
                     },
             ) {
                 ActionMenu(

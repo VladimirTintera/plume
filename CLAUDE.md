@@ -1260,9 +1260,9 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   nad sheetem musí zůstat vidět. Bez napůl rozbaleného stavu a s mřížkou pevné výšky, jako výběr
   samolepek. Ve starém sheetu nešlo ťuknout na emoji (podezřelý byl `FlowRow` bez scrollování
   a napůl rozbalený stav); tady ťuknutí funguje, ověřeno na zařízení.
-- **Nabídka akcí před sheetem ODEJDE animací, ne vyřazením z kompozice.** `if (!expanded)` ji
-  schovalo natvrdo a po zasunutí sheetu nechalo bleskově naskočit. Teď ji drží v kompozici,
-  dokud nezmizí, a průhlednost i měřítko jde přes tutéž animaci jako náběh při otevření.
+- **Nabídka akcí před sheetem NEMIZÍ.** Sheet ji jen překryje a klikat se na ni nedá, protože je
+  modální; je to pořád táž otevřená nabídka. Dřív se schovávala (`if (!expanded)`), zmizela
+  natvrdo a po zasunutí sheetu bleskově naskočila.
 - **Spodní mez je horní hrana vstupního pole, ne navigační lišta** (`contentBottom`, obrazovka ho
   měří na `bottomBar`). Pole leží přes seznam, takže zpráva vysunutá jen nad navigační lištu
   skončila pod polem. Kopie zprávy se ořezává mezi hlavičkou a polem, aby přes ně nepřeletěla.
@@ -1303,8 +1303,8 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   správně, včetně zkopírování odkazu. Plný výběr reakcí je proti tomu **podnabídka tlačítka „+"**
   v pruhu rychlých reakcí, takže patří DOVNITŘ plovoucí nabídky. Sheet nad ní z podnabídky dělal
   něco, co ukončí nabídku, ke které pořád patří.
-- **Nad sheetem zůstává pruh rychlých reakcí a vybraná zpráva, nabídka akcí ne.** Tak to dělá
-  i Google Messages: z pruhu je pořád vidět, čeho se výběr týká a co je už použité. Pruh zůstane
+- **Nad sheetem zůstává pruh rychlých reakcí i vybraná zpráva** (nabídka akcí pod sheetem viz výš).
+  Z pruhu je pořád vidět, čeho se výběr týká a co je už použité. Pruh zůstane
   u zprávy, dokud se nad sheet vejde, jinak se posadí těsně nad něj — a posun se animuje, aby to
   nevypadalo jako přeskládání. Rozvržení počítá `reactionSheetLayout` (testy `ReactionSheetTest`),
   čistá funkce mimo composable jako `photoFrame`: samý hraniční případ (zpráva dole, nahoře,
