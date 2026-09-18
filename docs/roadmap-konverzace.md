@@ -37,21 +37,22 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    hledání na serveru (`searchChats`), víc cílů najednou, výběr víc zpráv a kopie bez odesílatele.
 4. ~~**Otevírání dokumentů**~~ — hotovo (stažení s průběhem, `ACTION_VIEW` / `UIDocumentInteractionController`).
    Zbývá zrušení stahování, uložení do Souborů/Downloads a otevření audia (zatím se jen popisuje).
-5. ~~**Odlehčení vzhledu**~~ — hotovo celé: zaoblení na konci bloku bublin, čas se stavem
-   doručení z bubliny ven, výška fotek, fotky a videa na plochu, náhled odkazu na plochu
-   i odkrývání časů tahem. Poučení v `CLAUDE.md` („Tvar bubliny a seskupení", „Čas a stav
+5. **Odlehčení vzhledu.** Hotové: ~~zaoblení na konci bloku bublin~~, ~~čas se stavem doručení
+   z bubliny ven~~, ~~výška fotek~~, ~~fotky a videa na plochu~~, ~~náhled odkazu na plochu~~
+   a ~~odkrývání časů tahem~~. Poučení v `CLAUDE.md` („Tvar bubliny a seskupení", „Čas a stav
    doručení", „Médium bez bubliny", „Rámeček fotky v bublině", „Náhled odkazu bez bubliny",
-   „Odkrývání časů tahem").
+   „Odkrývání časů tahem"). Zbývají **reakce z bubliny ven** a **odznak přečtení na ťuknutí** —
+   body 5 a 6 ve vlastní sekci níž.
 6. Drobnosti ze sekcí níž (zásobník, nabídka, entity, média, emoji).
 
 ---
 
 ## Odlehčení vzhledu: co nepatří do bubliny
 
-Inspirace je Google Messages. Tři samostatné kusy, dají se dělat nezávisle.
+Inspirace je Google Messages. Samostatné kusy, dají se dělat nezávisle.
 
-Hotové je z tohohle seznamu **všechno**; zbytky jednotlivých bodů jsou u nich. Poučení ze všeho
-je v `CLAUDE.md`.
+Body 1–4 jsou hotové, zbytky jednotlivých bodů jsou u nich a poučení v `CLAUDE.md`. Otevřené
+zůstávají **5 a 6**.
 
 ### 1. ~~Fotky a videa na plochu, mimo bublinu~~ — HOTOVO
 
@@ -118,6 +119,51 @@ Co z toho zůstalo:
   u sekce B).
 - **Čas se neukazuje u samotného alba ani u sponzorované karty.** Album nese čas své nejnovější
   zprávy jako každá jiná položka; reklama žádný nemá, takže jen jede s plochou.
+
+### 5. Reakce z bubliny ven
+
+`ReactionRow` je dnes uvnitř bubliny, tedy poslední kus obsahu, který tam nepatří: čipy mají
+vlastní pozadí a bublina je nemá co ohraničovat. Mají jít **pod bublinu**, ke stavu doručení.
+
+- **Že to na ploše funguje, je už vidět.** U holého média (fotka, video, náhled odkazu) čipy na
+  ploše stojí a čtou se dobře — viz kanál s jedenácti reakcemi. Po přesunu bude cesta pro všechny
+  zprávy jedna, ne dvě.
+- **Zarovnat ke straně odesílatele**, stejně jako odznak doručení a holé médium.
+- **Široký řádek reakcí dnes roztahuje bublinu.** Venku poroste vedle ní — tak to dělá Telegram
+  i Google Messages a je to důvod, proč tenhle bod vůbec dává smysl.
+- **Rozhodnout: co s dírou v závoji nabídky.** `Box` kolem `Surface` je ukotvení popupu a vykrajuje
+  se podle něj; reakce mimo něj by při otevřené nabídce zůstaly ztmavené. Buď jsou součástí zprávy
+  (díra se rozšíří, ale tvar přestane být jedno zaoblené nároží), nebo zůstanou pod závojem
+  (nabídka se ptá na zprávu, ne na reakce). Druhá varianta je levnější a nejspíš správná.
+- **Past: posun při swipu na odpověď** se počítá na sloupci kolem toho `Box`u, ne na bublině samotné
+  — proto s ním dnes jede i odznak doručení. Reakce patří do téhož sloupce, jinak by při tahu
+  zůstaly stát.
+- **Mizet musí i s místem** (`shrinkVertically`, ne jen `fadeOut`) a při odjezdu kreslit poslední
+  známý stav — tatáž past jako u odznaku doručení a pruhu připnutých.
+
+### 6. Ťuknutí na vlastní zprávu ukáže odznak přečtení
+
+„Přečteno" dnes hlásí nejvýš **jedna** zpráva v chatu (`readBadgeRow`): nejnovější, a jen když je
+moje — u starších odznak nic nedodává a odpověď protějšku přečtení dokazuje sama. Někdy ale člověk
+chce ubezpečení právě u té jedné konkrétní zprávy. Ťuknutí na vlastní zprávu proto odznak ukáže,
+druhé ťuknutí ho zase schová.
+
+- **Data jsou k dispozici, server se ptát nemusí.** `lastReadOutboxMessageId` je posuvný ukazatel
+  na chatu, takže stav libovolné odchozí zprávy se z něj odvodí porovnáním id.
+- **Pravidlo zůstává na jednom místě.** `readBadgeRow` je čistá funkce s testy; vyžádaný odznak
+  patří do ní jako další vstup (id zprávy, u které si o něj uživatel řekl), ne jako přebití
+  výsledku v bublině. Jinak budou o témže rozhodovat dvě místa.
+- **Jedno id, ne množina** — ťuknutí na jinou zprávu odznak přepne tam a předchozí schová. Stav
+  patří do `ConversationState`, aby přežil rekompozici; odchod z chatu ho zahodí.
+- **Past: krátké ťuknutí na bublinu je dnes prázdné** (`onClick = {}`) a potomci s vlastním
+  klikáním ho k ní nepustí — odkazy v textu, citace, fotka, náhled odkazu i samolepka si ťuknutí
+  berou samy. U zprávy, která je celá fotka, tedy nebude kam ťuknout; buď se s tím počítá, nebo
+  musí gesto přibýt i těm potomkům (a to je přesně ten druh úpravy, po které přestane fungovat
+  otevírání médií).
+- **Čtečka obrazovky se ťuknutím nikam nedostane**, stejně jako tahem u časů. Patří to proto taky
+  do „Informace o zprávě" (sekce B), kde má vedle času být i `canGetReadDate`.
+- **Animace už hotová je**: odznak umí naskočit i zmizet i se svým místem a při odjezdu kreslí
+  poslední známý stav (viz `CLAUDE.md`, „Čas a stav doručení").
 
 ---
 
