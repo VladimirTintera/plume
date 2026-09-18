@@ -968,6 +968,20 @@ class ConversationViewModel(
     }
 
     /**
+     * Ťuknutí na vlastní zprávu: ukáže u ní odznak přečtení, druhé ťuknutí ho schová.
+     *
+     * Nic se nikam neposílá — stav přečtení je v `lastReadOutboxMessageId`, posuvném ukazateli
+     * na chatu, takže se odvodí porovnáním id. Cizí a servisní zprávy odznak nemají, takže se
+     * u nich ťuknutí zahodí.
+     */
+    fun toggleReadReceipt(messageId: Long) {
+        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+        if (!message.isOutgoing || message.isService) return
+
+        _state.update { it.copy(readReceiptFor = messageId.takeIf { id -> id != it.readReceiptFor }) }
+    }
+
+    /**
      * Ťuknutí na čip reakce: otevře detail a dotáhne, kdo reagoval.
      *
      * Reakci to **nepřepíná**. Přidat i odebrat jde z nabídky nad zprávou, kde je vybraná reakce
@@ -1728,6 +1742,13 @@ data class ConversationState(
     val canUnpin: Boolean = false,
     /** Otevřený detail reakcí; `null`, když je zavřený. */
     val reactionDetails: ReactionDetails? = null,
+    /**
+     * Zpráva, u které si uživatel ťuknutím vyžádal odznak přečtení; `null`, když žádná.
+     *
+     * Jedno id, ne množina: ťuknutí na jinou zprávu odznak přepne tam. Odchod z chatu ho zahodí
+     * i s celým stavem — je to zobrazení na chvíli, ne nastavení.
+     */
+    val readReceiptFor: Long? = null,
     /** Průběh stahování souborů, které uživatel právě otevírá (podle `fileId`). */
     val documentDownloads: Map<Int, Float> = emptyMap(),
     /** Zprávy, které uživatel chce přeposlat; obrazovka na to otevře výběr cílového chatu. */

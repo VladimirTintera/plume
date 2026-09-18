@@ -413,13 +413,13 @@ fun ConversationScreen(
     val byKey = remember(state.messages, state.itemKeys) { state.messages.associateBy(state::keyOf) }
 
     /*
-     * Jediná zpráva, která hlásí „přečteno" (pravidlo i důvody: [readBadgeRow]).
+     * Zprávy, které hlásí „přečteno" (pravidlo i důvody: [readBadgeRows]).
      *
      * Skládá se jednou na změnu seznamu, ne v každé bublině — hledání průchodem uvnitř `items`
      * je to kvadratické chování, na které už projekt narazil u citací.
      */
-    val readBadgeKey = remember(rows, state.itemKeys) {
-        readBadgeRow(rows)?.let { state.keyOf(it.oldest) }
+    val readBadgeKeys = remember(rows, state.itemKeys, state.readReceiptFor) {
+        readBadgeRows(rows, state.readReceiptFor).map { state.keyOf(it.oldest) }.toSet()
     }
 
     /*
@@ -961,8 +961,10 @@ fun ConversationScreen(
                                     else -> SenderAvatar.Shown
                                 },
                                 lastReadOutboxMessageId = state.lastReadOutboxMessageId,
-                                // „Přečteno" se hlásí nejvýš u jedné zprávy, viz `readBadgeKey`.
-                                showsRead = state.keyOf(row.oldest) == readBadgeKey,
+                                // „Přečteno" hlásí nejnovější zpráva a ta, u které si o odznak
+                                // uživatel řekl ťuknutím — viz `readBadgeKeys`.
+                                showsRead = state.keyOf(row.oldest) in readBadgeKeys,
+                                onToggleReadReceipt = { viewModel.toggleReadReceipt(message.id) },
                                 flight = flight,
                                 onOpenReactions = viewModel::showReactionDetails
                                     .takeIf { state.info?.isChannel != true },
@@ -1155,8 +1157,10 @@ private fun MessageBubble(
     /** Ťuknutí na citaci; `null` u zprávy, která nic necituje. */
     onQuoteClick: (() -> Unit)?,
     lastReadOutboxMessageId: Long,
-    /** Smí tahle zpráva hlásit „přečteno"? Viz `readBadgeKey` — platí nejvýš pro jednu v chatu. */
+    /** Smí tahle zpráva hlásit „přečteno"? Viz `readBadgeKeys`. */
     showsRead: Boolean,
+    /** Ťuknutí na vlastní zprávu: vyžádá si odznak přečtení, druhé ho zase schová. */
+    onToggleReadReceipt: () -> Unit,
     /** Let ze vstupního pole, který přistává právě v téhle bublině; jinak `null`. */
     flight: MessageFlight?,
     /** Navazuje tahle bublina na STARŠÍHO souseda (tedy na zprávu nad ní)? */
@@ -1314,14 +1318,22 @@ private fun MessageBubble(
      * `Failed` zůstává VŽDY. Je to jediný stav, který uživatel musí zaregistrovat, a schovat ho
      * kvůli úspoře místa by nebyla úspora, ale skrytá chyba.
      */
-    val delivery = message.sendState?.let { sendState ->
+    val deliveryState = message.sendState?.let { sendState ->
         when {
             sendState == SendState.Failed -> Delivery.Failed
             sendState == SendState.Sending -> Delivery.Sending
-            message.id <= lastReadOutboxMessageId -> Delivery.Read.takeIf { showsRead }
+            message.id <= lastReadOutboxMessageId -> Delivery.Read
             else -> Delivery.Sent
         }
     }
+
+    /*
+     * Co ukáže ODZNAK je něco jiného než jak to doopravdy je.
+     *
+     * „Přečteno" se pod bublinou hlásí jen u vybraných zpráv, ale nabídka nad zprávou ho musí
+     * vypsat vždycky — je to jediná cesta, kterou se k němu dostane čtečka obrazovky.
+     */
+    val delivery = deliveryState?.takeIf { it != Delivery.Read || showsRead }
 
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
@@ -1482,9 +1494,21 @@ private fun MessageBubble(
                   // a to až za modifikátory, které dostane zvenku — vlnka dlouhého stisku by se
                   // tedy kreslila do obdélníku a přetekla přes zaoblená nároží.
                   .clip(shape)
-                  // Dlouhý stisk je jediné gesto na bublině — krátké ťuknutí si šetříme
-                  // na otevírání médií, až přibude.
-                  .combinedClickable(onLongClick = onRequestMenu, onClick = {}),
+                  /*
+                   * Ťuknutí na VLASTNÍ zprávu si vyžádá odznak přečtení, druhé ho schová.
+                   *
+                   * Je to ubezpečení na vyžádání: odznak se automaticky ukazuje jen u nejnovější
+                   * zprávy, takže u starší se jinak nedá zjistit, jestli ji protějšek přečetl.
+                   *
+                   * Potomci s vlastním klikáním (odkaz v textu, citace, fotka, náhled odkazu,
+                   * samolepka) si ťuknutí berou sami, takže u zprávy složené z fotky není kam
+                   * ťuknout. Přidávat jim ho by znamenalo brát ťuknutí těm akcím — u fotky
+                   * otevření prohlížeče —, a to je horší než chybějící zkratka.
+                   */
+                  .combinedClickable(
+                      onLongClick = onRequestMenu,
+                      onClick = { if (message.isOutgoing && !message.isService) onToggleReadReceipt() },
+                  ),
           ) {
               Column(
                   // Holé médium jde až k hraně: odsazení bubliny by kolem snímku nechalo rám,
@@ -1741,7 +1765,15 @@ private fun MessageBubble(
                   .offset(x = -REPLY_ICON_SLOT),
           )
 
-          menu?.let { MessageMenuOverlay(menu = it, bubbleShape = shape, handlers = menuHandlers) }
+          menu?.let {
+              MessageMenuOverlay(
+                  menu = it,
+                  bubbleShape = shape,
+                  handlers = menuHandlers,
+                  // Do nabídky jde SKUTEČNÝ stav, ne to, co zrovna ukazuje odznak.
+                  delivery = deliveryState,
+              )
+          }
         }
 
         DeliveryBadge(
@@ -2823,7 +2855,8 @@ private val REPLY_ICON_SLOT = 40.dp
 private const val REPLY_ICON_MIN_SCALE = 0.6f
 
 /** Stav doručení tak, jak se kreslí — čtyři stavy, každý s vlastní ikonou, popisem a barvou. */
-private enum class Delivery { Sending, Sent, Read, Failed }
+/** Stav doručení odchozí zprávy, jak ho ukazuje odznak pod bublinou a hlavička nabídky. */
+internal enum class Delivery { Sending, Sent, Read, Failed }
 
 /**
  * Odznak se stavem doručení POD bublinou.

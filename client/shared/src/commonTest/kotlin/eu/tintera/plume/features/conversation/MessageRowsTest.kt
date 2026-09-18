@@ -110,32 +110,32 @@ class MessageRowsTest {
     @Test
     fun prectenoHlasiNejnovejsiMojeZprava() {
         val rows = groupAlbums(listOf(outgoing(3), outgoing(2), incoming(1)))
-        assertEquals(3L, readBadgeRow(rows)?.display?.id)
+        assertEquals(3L, readBadgeRows(rows).firstOrNull()?.display?.id)
     }
 
     @Test
     fun odpovedProtejskuOdznakSchova() {
         // Protějšek napsal PO mojí zprávě, takže ji musel přečíst — odznak nemá co dodat.
         val rows = groupAlbums(listOf(incoming(3), outgoing(2), outgoing(1)))
-        assertNull(readBadgeRow(rows))
+        assertNull(readBadgeRows(rows).firstOrNull())
     }
 
     @Test
     fun servisniOznameniOdznakNeschova() {
         // „X se přidal do skupiny" nedokazuje, že si někdo něco přečetl.
         val rows = groupAlbums(listOf(message(3, isService = true), outgoing(2), incoming(1)))
-        assertEquals(2L, readBadgeRow(rows)?.display?.id)
+        assertEquals(2L, readBadgeRows(rows).firstOrNull()?.display?.id)
     }
 
     @Test
     fun bezOdchozichZpravNehlasiNikdo() {
         val rows = groupAlbums(listOf(incoming(2), incoming(1)))
-        assertNull(readBadgeRow(rows))
+        assertNull(readBadgeRows(rows).firstOrNull())
     }
 
     @Test
     fun prazdnaKonverzaceNespadne() {
-        assertNull(readBadgeRow(emptyList()))
+        assertNull(readBadgeRows(emptyList()).firstOrNull())
     }
 
     @Test
@@ -148,7 +148,7 @@ class MessageRowsTest {
                 incoming(1),
             ),
         )
-        assertEquals(2L, readBadgeRow(rows)?.oldest?.id)
+        assertEquals(2L, readBadgeRows(rows).firstOrNull()?.oldest?.id)
     }
 
     // --- Médium bez bubliny ---------------------------------------------------------------
@@ -278,5 +278,54 @@ class MessageRowsTest {
         assertFalse(showsBareLinkPreview(withMedia))
         // A příloha sama taky ne — náhled je to, co bublinu drží.
         assertFalse(showsBareMedia(withMedia, album = null))
+    }
+
+    @Test
+    fun vyzadanyOdznakSeUkazeIUStarsiZpravy() {
+        val rows = groupAlbums(
+            listOf(
+                message(id = 5, sendState = SendState.Sent),
+                message(id = 3, sendState = SendState.Sent),
+                message(id = 2, sendState = SendState.Sent),
+            ),
+        )
+
+        val badges = readBadgeRows(rows, revealedMessageId = 2L).map { it.display.id }
+
+        // Automatický odznak u nejnovější zprávy zůstává, vyžádaný přibude.
+        assertEquals(listOf(5L, 2L), badges)
+    }
+
+    @Test
+    fun vyzadanyOdznakUNejnovejsiSeNezdvoji() {
+        val rows = groupAlbums(listOf(message(id = 5, sendState = SendState.Sent)))
+
+        assertEquals(listOf(5L), readBadgeRows(rows, revealedMessageId = 5L).map { it.display.id })
+    }
+
+    @Test
+    fun vyzadanyOdznakUCiziZpravyNeplati() {
+        val rows = groupAlbums(
+            listOf(
+                message(id = 5, sendState = SendState.Sent),
+                message(id = 2, isOutgoing = false),
+            ),
+        )
+
+        assertEquals(listOf(5L), readBadgeRows(rows, revealedMessageId = 2L).map { it.display.id })
+    }
+
+    @Test
+    fun vyzadanyOdznakUAlbaPlatiProCeleAlbum() {
+        val rows = groupAlbums(
+            listOf(
+                message(id = 9, isOutgoing = false),
+                message(id = 4, album = 7L, sendState = SendState.Sent),
+                message(id = 3, album = 7L, sendState = SendState.Sent),
+            ),
+        )
+
+        // Ťuknutí na kteroukoli fotku alba hlásí odznak u celé položky.
+        assertEquals(listOf(3L), readBadgeRows(rows, revealedMessageId = 4L).map { it.oldest.id })
     }
 }
