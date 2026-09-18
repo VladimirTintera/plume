@@ -1259,6 +1259,13 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   seznam, ale **snímek** zprávy: rám ji při otevřené nabídce nahrává do `GraphicsLayer`
   (celou, i část, kterou seznam ořízl) a pořídí z ní `toImageBitmap()`; nabídka ho kreslí nad
   závojem na posunutém místě. Po zavření se tak nic nepřeskládá a scroll zůstane, kde byl.
+- **Horní mez je spodek hlavičky chatu, ne stavová lišta** (`contentTop` ze
+  `ConversationItemScope`, obrazovka ho měří na seznamu). Vysunutá zpráva ani pruh reakcí nesmí
+  hlavičku překrýt — ztratilo by se povědomí, s kým je chat otevřený. Google Zprávy to dělají stejně.
+- **Rozvržení nabídky se počítá z CÍLOVÉ polohy zprávy, ne z té, kde právě je.** Dokud se
+  počítalo z aktuální polohy, pruh reakcí se v prvních snímcích (než je snímek zprávy hotový)
+  nevešel nad zprávu, šel pod ni a pak přeskočil nahoru. Teď se o umístění rozhodne jednou
+  a pruh i nabídka dojedou se zprávou (`travel`).
 - **Původní místo zůstává PRÁZDNÉ**, jak to dělají Google Zprávy: s pořízeným snímkem rám
   obsah nekreslí, jen drží jeho místo. Jinak by pod závojem byla tatáž zpráva podruhé, ztmavená
   a jinde. Díra do závoje (níž) zbyla jen na snímek, než se snímek pořídí.
