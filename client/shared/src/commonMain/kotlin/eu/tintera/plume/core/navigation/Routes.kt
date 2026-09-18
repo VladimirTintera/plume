@@ -24,6 +24,23 @@ data object ChatsRoute : TopLevelRoute
 @Serializable
 data object SettingsRoute : TopLevelRoute
 
+/**
+ * Sekce nastavení. Je v navigaci, ne ve feature balíčku, protože ji nese [SettingsSectionRoute] —
+ * a co je v routě, musí umět serializace.
+ *
+ * Ukládá se **názvem** (kotlinx.serialization tak výčty serializuje), takže přidání hodnoty
+ * doprostřed nezmění význam uloženého zásobníku.
+ */
+@Serializable
+enum class SettingsSection { General, Appearance }
+
+/**
+ * Jedna sekce nastavení. V list-detail rozvržení je to detail panel vedle seznamu sekcí,
+ * na telefonu samostatná obrazovka, ze které se chodí zpět.
+ */
+@Serializable
+data class SettingsSectionRoute(val section: SettingsSection) : Route
+
 /** Konverzace. V list-detail rozvržení je to detail panel vedle seznamu. */
 @Serializable
 data class ConversationRoute(val chatId: Long) : Route
@@ -68,6 +85,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
         polymorphic(NavKey::class) {
             subclass(ChatsRoute::class, ChatsRoute.serializer())
             subclass(SettingsRoute::class, SettingsRoute.serializer())
+            subclass(SettingsSectionRoute::class, SettingsSectionRoute.serializer())
             subclass(ConversationRoute::class, ConversationRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())

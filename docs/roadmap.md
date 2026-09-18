@@ -61,11 +61,14 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
 
 ## Nastavení
 
-`SettingsScreen` má dnes kartu účtu (jméno, telefon, uživatelské jméno), stav oprávnění
-k notifikacím s odkazem do systému a odhlášení. `AppSettings` (DataStore) drží jen poslední část
-výběru emoji/samolepek, nedávná emoji a odstíny pleti — tedy nic, co by si uživatel vědomě
-nastavil.
+Nastavení je list-detail: vlevo sekce (Obecné, Vzhled), vpravo jejich obsah. Obecné drží kartu
+účtu (jméno, telefon, uživatelské jméno), stav oprávnění k notifikacím s odkazem do systému
+a odhlášení; Vzhled motiv aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
 
 - **Úprava vlastního profilu** — fotka, jméno, uživatelské jméno, bio.
-- **Vlastní volby aplikace.** Zatím žádná není; první kandidáti jsou chování notifikací
-  a vzhled (téma se dnes řídí jen systémem).
+- **Chování notifikací** je další na řadě: dnes se řídí výhradně tím, co rozhodne TDLib, a
+  aplikace k tomu nemá jedinou volbu.
+- **Sekce Obecné nemá skupiny.** Vzhled je má (`SettingsGroup`), Obecné zatím ne — až v něm budou
+  víc než tři položky, patří do skupin taky.
+- **Řádky sekcí nemají ikony.** Dva řádky se poznají i tak, s další sekcí to začne být znát;
+  chybí k tomu Material Symbols v `composeResources`.

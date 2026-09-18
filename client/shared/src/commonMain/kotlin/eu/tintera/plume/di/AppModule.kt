@@ -27,6 +27,7 @@ import eu.tintera.plume.features.conversation.ConversationViewModel
 import eu.tintera.plume.features.conversation.StickerPickerViewModel
 import eu.tintera.plume.features.conversation.StickerSetViewModel
 import eu.tintera.plume.features.media.MediaViewerViewModel
+import eu.tintera.plume.features.settings.AppearanceViewModel
 import eu.tintera.plume.features.settings.SettingsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -130,6 +131,7 @@ fun appModule() = module {
     viewModelOf(::StickerPickerViewModel)
     viewModel { parameters -> StickerSetViewModel(setId = parameters.get(), repository = get()) }
     viewModelOf(::SettingsViewModel)
+    viewModelOf(::AppearanceViewModel)
 
     // chatId přichází z navigační routy, ne z grafu → runtime parametr.
     viewModel { parameters ->

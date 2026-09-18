@@ -3,6 +3,7 @@ package eu.tintera.plume.features.chats
 import co.touchlab.kermit.Logger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
@@ -20,6 +21,7 @@ import eu.tintera.plume.resources.chats_action_failed
 class ChatsViewModel(
     private val repository: ChatRepository,
     connection: ConnectionRepository,
+    settings: AppSettings,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -35,6 +37,12 @@ class ChatsViewModel(
      * hlavičce se ukazuje i tehdy, když se seznam teprve načítá nebo skončil chybou.
      */
     val connection: StateFlow<ConnectionState> = connection.state
+
+    /**
+     * Mají nepřečtené chaty vlastní blok? Bere se z nastavení, které je načtené od startu —
+     * seznam ho tedy má v prvním snímku a neproblikne z výchozí hodnoty na uloženou.
+     */
+    val separateUnreadChats: StateFlow<Boolean> = settings.separateUnreadChats
 
     private val _actions = MutableStateFlow(ChatActionsState())
 

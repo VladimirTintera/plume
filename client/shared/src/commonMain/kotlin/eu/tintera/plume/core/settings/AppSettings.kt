@@ -3,6 +3,7 @@ package eu.tintera.plume.core.settings
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.CoroutineScope
@@ -45,6 +46,29 @@ interface AppSettings {
 
     /** Uloží odstín pro [base]; `null` vrátí emoji k výchozí podobě. Neblokuje, jako [recordRecentEmoji]. */
     fun setEmojiSkinTone(base: String, variant: String?)
+
+    /**
+     * Zvolený motiv, nebo `null`, dokud si uživatel nevybral.
+     *
+     * Výchozí motiv se schválně NEUKLÁDÁ jako konkrétní hodnota: liší se podle platformy
+     * (Android → Material You, jinde systémový) a zapsaná hodnota by ten rozdíl zakonzervovala
+     * i na zařízení, kde neplatí. Kdo kreslí, spadne na `defaultThemeMode()`.
+     */
+    val themeMode: StateFlow<ThemeMode?>
+
+    /** Uloží motiv; `null` vrátí volbu na výchozí podle platformy. Neblokuje, jako [recordRecentEmoji]. */
+    fun setThemeMode(mode: ThemeMode?)
+
+    /**
+     * Mají nepřečtené chaty v seznamu vlastní blok?
+     *
+     * Výchozí je `false` — nepřečtený chat zůstane tam, kde ho uživatel zná z pořadí od TDLib.
+     * Vyčlenění je užitečné, jen když je chatů hodně; jinak seznam jen rozbíjí.
+     */
+    val separateUnreadChats: StateFlow<Boolean>
+
+    /** Zapne/vypne vlastní blok nepřečtených. Neblokuje, jako [recordRecentEmoji]. */
+    fun setSeparateUnreadChats(separate: Boolean)
 }
 
 /** Kolik nedávných emoji se drží. Zhruba pět řádků mřížky na telefonu. */
@@ -107,6 +131,28 @@ class DataStoreAppSettings(
         }
     }
 
+    override val themeMode: StateFlow<ThemeMode?> = dataStore.data
+        .map { preferences -> ThemeMode.entries.firstOrNull { it.name == preferences[THEME_MODE] } }
+        .stateIn(scope, SharingStarted.Eagerly, null)
+
+    override fun setThemeMode(mode: ThemeMode?) {
+        scope.launch {
+            dataStore.edit { preferences ->
+                if (mode == null) preferences.remove(THEME_MODE) else preferences[THEME_MODE] = mode.name
+            }
+        }
+    }
+
+    override val separateUnreadChats: StateFlow<Boolean> = dataStore.data
+        .map { preferences -> preferences[SEPARATE_UNREAD_CHATS] ?: false }
+        .stateIn(scope, SharingStarted.Eagerly, false)
+
+    override fun setSeparateUnreadChats(separate: Boolean) {
+        scope.launch {
+            dataStore.edit { preferences -> preferences[SEPARATE_UNREAD_CHATS] = separate }
+        }
+    }
+
     /** `základ:varianta` oddělené středníkem. Ani dvojtečka, ani středník v žádném emoji nejsou. */
     private fun String.decodeTones(): Map<String, String> =
         split(TONE_ENTRY_SEPARATOR)
@@ -126,6 +172,8 @@ class DataStoreAppSettings(
         val EXPRESSION_MODE = stringPreferencesKey("expression_mode")
         val RECENT_EMOJIS = stringPreferencesKey("recent_emojis")
         val EMOJI_SKIN_TONES = stringPreferencesKey("emoji_skin_tones")
+        val THEME_MODE = stringPreferencesKey("theme_mode")
+        val SEPARATE_UNREAD_CHATS = booleanPreferencesKey("separate_unread_chats")
         const val EMOJI_SEPARATOR = " "
         const val TONE_ENTRY_SEPARATOR = ";"
         const val TONE_PAIR_SEPARATOR = ":"

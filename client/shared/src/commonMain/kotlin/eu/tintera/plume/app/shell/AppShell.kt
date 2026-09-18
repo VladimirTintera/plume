@@ -51,6 +51,8 @@ import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForwardRoute
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.navigation.SettingsRoute
+import eu.tintera.plume.core.navigation.SettingsSection
+import eu.tintera.plume.core.navigation.SettingsSectionRoute
 import eu.tintera.plume.core.navigation.TopLevelRoute
 import eu.tintera.plume.core.ui.LocalTwoPane
 import eu.tintera.plume.features.chats.ChatListScreen
@@ -60,6 +62,7 @@ import eu.tintera.plume.features.forward.ForwardScreen
 import eu.tintera.plume.features.media.MediaViewerScreen
 import org.koin.core.parameter.parametersOf
 import eu.tintera.plume.features.settings.SettingsScreen
+import eu.tintera.plume.features.settings.SettingsSectionScreen
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 
@@ -209,7 +212,8 @@ private fun ShellContent(
 ) {
     BoxWithConstraints(modifier) {
         val base = contentPaneScaffoldDirective(maxWidth, maxHeight)
-        val hasDetail = backStack.any { it is ConversationRoute }
+        // Detail má konverzace i otevřená sekce nastavení — obojí je pravý panel téže scény.
+        val hasDetail = backStack.any { it is ConversationRoute || it is SettingsSectionRoute }
         val wide = maxWidth >= TWO_PANE_MIN_WIDTH
 
         val directive = when {
@@ -312,14 +316,64 @@ private fun ShellContent(
                         )
                     }
 
-                    entry<SettingsRoute> {
-                        SettingsScreen(viewModel = koinViewModel())
+                    entry<SettingsRoute>(metadata = ListDetailSceneStrategy.listPane(SETTINGS_SCENE)) {
+                        val selectedSection = backStack.filterIsInstance<SettingsSectionRoute>()
+                            .lastOrNull()?.section
+
+                        /*
+                         * V dvoupanelu je vždycky otevřená nějaká sekce.
+                         *
+                         * Placeholder („vyber sekci") by tu byl k ničemu: prázdný panel vedle dvou
+                         * řádků vypadá jako nedodělek. A bez tohohle by byl seznam sekcí roztažený
+                         * přes celou šířku, protože directive dvoupanel bez detailu nezapíná.
+                         *
+                         * Klíč efektu musí obsahovat i vybranou sekci: po zpět zůstane v zásobníku
+                         * samotné `SettingsRoute` a `wide` se přitom nezmění, takže s klíčem na
+                         * samotné šířce by se efekt už nespustil.
+                         */
+                        LaunchedEffect(wide, selectedSection) {
+                            if (wide && selectedSection == null) {
+                                backStack.add(SettingsSectionRoute(SettingsSection.entries.first()))
+                            }
+                        }
+
+                        SettingsScreen(
+                            selectedSection = selectedSection,
+                            // Otevření jiné sekce ji NAHRADÍ, nevrší se zásobník — stejně jako
+                            // u konverzací.
+                            onSectionClick = { section ->
+                                backStack.removeAll { it is SettingsSectionRoute }
+                                backStack.add(SettingsSectionRoute(section))
+                            },
+                        )
+                    }
+
+                    entry<SettingsSectionRoute>(
+                        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+                    ) { route ->
+                        // V dvoupanelu je seznam sekcí pořád vidět vedle, takže šipka zpět nemá
+                        // kam vést; na telefonu je sekce samostatná obrazovka a zpět se z ní chodí.
+                        val popSection: () -> Unit = { backStack.removeLastOrNull() }
+
+                        SettingsSectionScreen(
+                            section = route.section,
+                            onBack = if (wide) null else popSection,
+                        )
                     }
                 },
             )
         }
     }
 }
+
+/**
+ * Klíč scény list-detail pro nastavení.
+ *
+ * Chaty i nastavení jsou dvě různé list-detail dvojice v jednom `NavDisplay`. Bez vlastního klíče
+ * by obě skládaly scénu se stejnou identitou (výchozí `Unit`) a přepnutí sekce by pro NavDisplay
+ * nebyla výměna scény, ale změna obsahu té stávající.
+ */
+private const val SETTINGS_SCENE = "settings"
 
 /** Vyplněná varianta při výběru — M3 konvence. Crossfade, ať přepnutí neproblikne. */
 @Composable
