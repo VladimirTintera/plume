@@ -670,13 +670,17 @@ Messages.
 
 - **Popisek na plochu NEPATŘÍ.** Text bez pozadí se na ploše konverzace ztratí, takže dostane
   vlastní kontejner v barvě bubliny pod snímkem. „Bez bubliny" platí pro obrázek, ne pro text u něj.
-- **Snímek a popisek jsou SKUPINA**, ne dva nezávislé kusy: nároží mezi nimi se stahuje na
-  `BUBBLE_TIGHT` a spára je 2 dp, stejný jazyk jako u bloků v seznamu chatů a u dlaždic alba.
-- **Zarovnat se musí ke straně odesílatele.** Uvnitř bubliny měly snímek i text společnou šířku;
-  bez ní je každý jinak široký a odchozí fotka zůstala u LEVÉHO okraje bloku, jakmile byl popisek
-  širší než ona. Proto `horizontalAlignment` podle `isOutgoing` — ale jen u holého média, v bublině
-  se text čte zleva bez ohledu na odesílatele.
-- **Zaoblení snímku přebírá tvar bubliny** (`mediaShape`), aby navazoval na sousedy v bloku.
+- **Snímek s popiskem je JEDNA KARTA**, jako v Google Zprávách a jako náhled odkazu: tvar bubliny
+  nese celá karta (`clip(shape)`), uvnitř nejsou spáry ani vlastní zaoblení a **popisek má přesně
+  šířku snímku** (`MediaWithCaption`). Dřív to byla skupina dvou kusů se spárou 2 dp a staženými
+  nárožími a popisek byl široký jako jeho text — u krátkého čouhalo zaoblené nároží a vypadal jako
+  další, useknutá zpráva, u dlouhého se roztáhl vedle zúžené fotky.
+- **Šířku popisku dává vlastní `Layout`, ne `IntrinsicSize`.** Snímek je v `BoxWithConstraints`
+  a ten intrinsické míry neumí (viz „Gotchas"); layout změří snímek a popisku dá jeho šířku napevno.
+- **Karta se zarovnává ke straně odesílatele** (`horizontalAlignment` podle `isOutgoing`) — užší
+  než řádek je skoro vždycky, protože fotka se zužuje.
+- **Snímek bez popisku přebírá tvar bubliny** (`mediaShape`), aby navazoval na sousedy v bloku;
+  s popiskem je rovný a ořezává karta.
   Náhled souboru v řádku si drží svých 12 dp — velké zaoblení bubliny by z 48dp čtverečku udělalo
   kolečko.
 - **Citace si bublinu vynutí.** Bez pozadí se ztratí, tentýž důvod, proč si ji drží i zpráva
@@ -734,9 +738,8 @@ jako `výška × poměr`.
   `@Composable` by se netestovalo a přitom je to samý hraniční případ: neznámé rozměry (nula, NaN),
   panorama, úzká bublina.
 - **Počítá se ručně v `BoxWithConstraints`**, ne přes `aspectRatio` — viz „Gotchas".
-- **Šířku bubliny určuje ten širší z dvojice fotka / popisek.** U zúžené fotky s dlouhým popiskem
-  („Screenshot (18. 9. 2026 5:23:34)") tak vpravo od fotky zbude prázdné místo. Je to otevřený bod
-  roadmapy — popisek se má zalomit na šířku fotky.
+- **Popisek se zalomí na šířku fotky** (viz „Médium bez bubliny"), takže zúžená fotka s dlouhým
+  popiskem („Screenshot (18. 9. 2026 5:23:34)") nenechá vedle sebe prázdné místo.
 - **Album ve čtvercích zůstává.** Mřížka je vědomé rozhodnutí (viz „Alba"), takže pravidlo platí
   jen pro samostatnou fotku a video; řádek alba s jednou fotkou se ořezává dál.
 
