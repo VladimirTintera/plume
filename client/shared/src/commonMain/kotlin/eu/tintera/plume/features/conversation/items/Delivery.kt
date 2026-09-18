@@ -19,9 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
-import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.conversation_delivery_failed

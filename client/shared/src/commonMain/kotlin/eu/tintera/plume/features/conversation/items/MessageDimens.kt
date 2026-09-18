@@ -16,12 +16,6 @@ internal val BUBBLE_TIGHT = 4.dp
  */
 internal val TIME_COLUMN_WIDTH = 56.dp
 
-/**
- * Spára mezi holým médiem a popiskem pod ním. Úzká jako spáry v albu a mezi položkami seznamu
- * chatů: obojí je jedna skupina, ne dva samostatné kusy.
- */
-internal val MEDIA_CAPTION_GAP = 2.dp
-
 /** Nad tímhle počtem už emoji netvoří gesto, ale odstavec, a kreslí se normálně velké. */
 internal const val MAX_LARGE_EMOJI = 3
 

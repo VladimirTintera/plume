@@ -682,23 +682,29 @@ Messages.
   Kontejner popisku je potřebuje, a odkaz v popisku odchozí zprávy musí vzít barvu popředí —
   `primary` na `primary` by byla neviditelná, tatáž past jako u citace.
 
-### Náhled odkazu bez bubliny
+### Náhled odkazu s velkým obrázkem
 
-Náhled s **velkým obrázkem** se kreslí jako skupina na ploše: text zprávy v kontejneru, pod ním
-snímek a pod ním doplňkový text (web, titulek, popis) ve vlastním kontejneru (`showsBareLinkPreview`
-v `MessageRows.kt`, blok `LinkPreviewMessageItem`, kreslení `BareLinkPreview` v `items/LinkPreviews.kt`). Je to tentýž jazyk jako u fotky
-s popiskem — obrázek je obrázek, text potřebuje pozadí.
+Náhled s **velkým obrázkem** je **jedna souvislá karta**: text zprávy, pod ním obrázek přes celou
+šířku a pod ním popis webu (web, titulek, popis). Pravidlo `showsBareLinkPreview` v `MessageRows.kt`,
+blok i kreslení v `items/LinkPreviewMessageItem.kt`.
 
+- **Bez spár.** Dřív to byly tři kusy se spárami a staženými nárožími, stejný jazyk jako fotka
+  s popiskem — a vypadalo to jako tři zprávy. Sdílený odkaz je ale jedna věc: tvar bubliny nese
+  celá karta (`clip(shape)` na sloupci), části uvnitř jsou rovné.
+- **Text zprávy má barvu bubliny, popis webu `tertiaryContainer`.** Text je zpráva sama a odchozí
+  zprávy se od příchozích poznají barvou (`primary`); v jiné roli by se strany lišily jen
+  zarovnáním — past, kvůli které odchozí bublina přestala být `primaryContainer`. Popis je cizí
+  vložený obsah, takže se od textu musí lišit; terciární role je v M3 na doplňkové prvky
+  a nesplyne s žádnou z barev bublin. Název webu je `tertiary` na `tertiaryContainer`.
+- **Karta jde k hraně řádku, bez vnitřního odsazení.** Dřív byla uvnitř průhledné „bubliny"
+  s odsazením 14 dp a od ostatních zpráv ustupovala.
 - **Šířku určuje obrázek.** Text i popis se na ni natáhnou (`Modifier.width(frame.width)` na
-  sloupci), takže blok nemá roztřepený okraj. Obrázek náhledu je skoro vždy na šířku (`og:image`),
-  takže je to zároveň celá šířka bubliny.
-- **Malý náhled zůstal kartou v bublině.** O velikosti rozhoduje odesílatel (`showLargeMedia`)
-  a čtvereček 48 dp vedle textu je řádek, ne snímek — na ploše by se rozpadl na dva kusy.
-- **Tvary odvozuje `BareLinkPreview` sama, na jednom místě s `hasInfo`.** Dvě nezávislá
-  rozhodnutí by se rozešla a z bloku by čouhalo nároží, které nemá na co navazovat.
+  sloupci), takže karta nemá roztřepený okraj.
+- **Malý náhled zůstal kartou v bublině** (`LinkPreviewCard` v `BubbleMessageItem`). O velikosti
+  rozhoduje odesílatel (`showLargeMedia`) a čtvereček 48 dp vedle textu je řádek, ne snímek.
 - **Barvu z obrázku NEVYTAHUJEME.** Google Messages dává pod snímek pruh v jeho barvě, ale TDLib
   u náhledu žádnou barvu neposílá a kvantizace z bitmapy by znamenala keš na `fileId` a počítání
-  mimo hlavní vlákno. Kontejnery proto berou barvu bubliny, tak jako popisek u fotky.
+  mimo hlavní vlákno.
 - **Citace a příloha si bublinu vynutí** — jako u holého média. Náhled u zprávy s fotkou je
   stejně jen doplněk k příloze, ne hlavní obsah.
 
@@ -1217,7 +1223,7 @@ Pod textem se zprávou s odkazem se kreslí náhled: web, titulek, popis a obrá
 - **Ťuknutí jde přes `onLinkClick`** jako odkaz v textu; **dlouhý stisk se opakuje**, jinak by
   náhled nabídku nad zprávou spolkl.
 - **Náhled nad textem (`showAboveText`) se zatím ignoruje** — kreslí se vždycky pod ním.
-- **S velkým obrázkem jde náhled z bubliny ven** — viz „Náhled odkazu bez bubliny".
+- **S velkým obrázkem jde náhled z bubliny ven** — viz „Náhled odkazu s velkým obrázkem".
 
 ### Nabídka nad zprávou
 
