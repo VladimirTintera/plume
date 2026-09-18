@@ -64,6 +64,14 @@ v systému nastaví „Prioritní", „Tichá" nebo vlastní zvuk jen pro ten ch
 sám odvodí podkanál z rodičovského kanálu (`setConversationId`). Stojí za ověření, že to s
 dnešním kanálem opravdu funguje, a odkázat na to z Nastavení.
 
+## Vazba na Nastavení
+
+Kanály a sekce Notifikace v Nastavení (viz roadmapa) jsou dvě půlky jedné obrazovky. Rozsah
+TDLib a kanál si odpovídají jedna k jedné: u každého rozsahu jsou volby, které drží TDLib
+(zapnutí, náhled, zmínky, připnuté), a pod nimi odkaz „Zvuk a vibrace" rovnou do jeho kanálu
+(`Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS` s `EXTRA_CHANNEL_ID`). Proto dává smysl dělat
+obojí najednou, nebo kanály dřív.
+
 ## Migrace
 
 Starý kanál `messages` se po přechodu smaže (`deleteNotificationChannel`). Jinak zůstane
