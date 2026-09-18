@@ -228,10 +228,11 @@ private fun ReactionChip(
 private val REACTION_CHIP_SIZE = 30.dp
 
 /** Kolik místa si čip nechá nahoře a vpravo na odznak s počtem. */
-private val REACTION_BADGE_ROOM = 7.dp
+internal val REACTION_BADGE_ROOM = 7.dp
 
 /** Výška řádku reakcí: čip i s místem na odznak počtu. Podle ní si zpráva nechá místo pod sebou. */
 internal val REACTION_ROW_HEIGHT = REACTION_CHIP_SIZE + REACTION_BADGE_ROOM
+
 
 /**
  * Detail reakcí: kdo a čím reagoval.

@@ -77,6 +77,7 @@ import eu.tintera.plume.core.ui.senderColor
 import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.features.conversation.MessageFlight
 import eu.tintera.plume.features.conversation.MessageMenu
+import eu.tintera.plume.features.conversation.REACTION_BADGE_ROOM
 import eu.tintera.plume.features.conversation.REACTION_ROW_HEIGHT
 import eu.tintera.plume.features.conversation.ReactionRow
 import eu.tintera.plume.resources.Res
@@ -551,8 +552,8 @@ internal fun MessageBox(
     /*
      * Místo na čip reakce POD zprávou, a animované.
      *
-     * Bublina má s reakcí i bez ní STEJNOU velikost — čip se jejího spodního okraje jen dotkne
-     * ([REACTION_ON_BUBBLE]) a zbytek visí pod ní. Místo pod zprávou se otevře pružinou, takže
+     * Bublina má s reakcí i bez ní STEJNOU velikost — čip leží jako odznak přes její spodní
+     * nároží ([REACTION_ON_BUBBLE]), dolní půlkou visí pod ní. Místo pod zprávou se otevře pružinou, takže
      * zpráva při první reakci plynule popojede, místo aby poskočila. Dřív si obsah bubliny dělal
      * místo uvnitř a zpráva se o čip skokem zvětšila.
      *
@@ -786,10 +787,14 @@ private val SENDER_AVATAR_SLOT = 40.dp
 
 
 /**
- * Kolik z čipu reakce leží NA bublině. Méně než spodní odsazení obsahu (8 dp), takže čip
- * nezakryje poslední řádek, a přitom je vidět, ke které zprávě patří.
+ * Kolik z kolečka čipu leží NA bublině. Čip je odznak zprávy, takže přes nároží zasahovat musí —
+ * ale jen o spodní odsazení obsahu (8 dp), ne středem: jinak by zakryl začátek posledního řádku.
+ * Google Zprávy reakce taky nepřilepují středem.
  */
-private val REACTION_ON_BUBBLE = 6.dp
+private val REACTION_CHIP_ON_BUBBLE = 8.dp
+
+/** Kolik z řádku reakcí leží na bublině: kousek kolečka a nad ním místo na odznak počtu. */
+private val REACTION_ON_BUBBLE = REACTION_BADGE_ROOM + REACTION_CHIP_ON_BUBBLE
 
 /** Místo pod bublinou: celý čip i s místem na odznak počtu, bez části, která leží na bublině. */
 private val REACTION_OVERHANG = REACTION_ROW_HEIGHT - REACTION_ON_BUBBLE

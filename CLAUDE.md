@@ -1888,10 +1888,12 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
 - **Místo pro odznak si vyhradí obálka čipu, odznak z kolečka NEČOUHÁ.** Řádek reakcí se posouvá
   do strany a posouvatelný kontejner si obsah ořezává na svoje hranice — zavěšený odznak by se
   uřízl.
-- **Bublina má s reakcí i bez ní STEJNOU velikost.** Čip se jejího spodního okraje jen dotkne
-  (`REACTION_ON_BUBBLE`, 6 dp — míň než spodní odsazení obsahu, takže nezakryje poslední řádek)
-  a zbytek visí pod ní. Dřív si obsah bubliny dělal místo uvnitř (`REACTION_STRIP_SPACE`)
-  a zpráva se při první reakci skokem zvětšila.
+- **Bublina má s reakcí i bez ní STEJNOU velikost.** Čip je její odznak: leží přes spodní nároží
+  a na bublinu zasahuje kolečkem o 8 dp (`REACTION_CHIP_ON_BUBBLE`) — přesně o spodní odsazení
+  obsahu, takže nezakryje poslední řádek. Středem na okraji (zkoušeno) zakrýval začátek
+  posledního řádku; úplně pod zprávou (zkoušeno) přestal působit jako její odznak. Obsah si pro
+  něj místo NEDĚLÁ — dřív si ho dělal uvnitř (`REACTION_STRIP_SPACE`) a zpráva se při první
+  reakci skokem zvětšila.
 - **Místo pod zprávou se otevře animovaně** (`REACTION_OVERHANG` přes spatial spec), takže zpráva
   plynule popojede. Místo je uvnitř `MessageBox`, který kreslí i nabídka nad zprávou — čip patří
   ke zprávě a do nabídky jede s ní.
