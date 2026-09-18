@@ -72,6 +72,7 @@ import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.RichText
+import eu.tintera.plume.core.ui.senderColor
 import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.features.conversation.MessageFlight
 import eu.tintera.plume.features.conversation.MessageMenu
@@ -600,7 +601,10 @@ internal fun MessageBodyScope.Bubble(content: @Composable ColumnScope.() -> Unit
     }
 }
 
-/** Jméno odesílatele — jen u první zprávy bloku a jen tam, kde ho TDLib vyplní (skupiny). */
+/**
+ * Jméno odesílatele — jen u první zprávy bloku a jen tam, kde ho TDLib vyplní (skupiny). Ve stálé
+ * barvě odesílatele ([senderColor]), aby se dal poznat i bez čtení jména.
+ */
 @Composable
 internal fun MessageBodyScope.SenderName(modifier: Modifier = Modifier) {
     if (continuesAbove) return
@@ -608,7 +612,7 @@ internal fun MessageBodyScope.SenderName(modifier: Modifier = Modifier) {
         Text(
             text = it,
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
+            color = senderColor(message.senderId),
             modifier = modifier,
         )
     }

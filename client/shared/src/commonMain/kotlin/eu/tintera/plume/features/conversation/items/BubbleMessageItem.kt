@@ -7,6 +7,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.ui.senderColor
 
 /**
  * Zpráva v bublině: text, soubor, hlasovka, popsaná příloha — a cokoli, co by jinak šlo na
@@ -45,7 +46,13 @@ internal data class BubbleMessageItem(
                     partnerName = partnerName,
                     onClick = message.replyToMessageId?.let { id -> { act(MessageAction.JumpTo(id)) } },
                     onLongClick = ::requestMenu,
-                    accent = accent,
+                    // Citace někoho ze skupiny nese jeho barvu, jako jméno nad jeho zprávou. Jen
+                    // v příchozí bublině — v odchozí `primary` by barva nemusela mít kontrast.
+                    accent = if (!message.isOutgoing && !it.isOutgoing && it.senderName != null) {
+                        senderColor(it.senderId)
+                    } else {
+                        accent
+                    },
                 )
             }
 
