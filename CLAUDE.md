@@ -1253,6 +1253,12 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   nabídka vztahuje — ztmavit i ji by znamenalo ptát se na něco, co není vidět. Vykrojení nutně
   potřebuje `CompositingStrategy.Offscreen`: `Clear` maže z vrstvy a bez vlastní vrstvy by
   vymazalo i všechno pod popupem.
+- **Díra i umístění se řídí VIDITELNOU částí zprávy**, ne jejím obdélníkem. `anchorBounds` popupu
+  je celá zpráva, i když z ní seznam ukazuje jen kus — u vysoké zprávy (náhled odkazu, fotka)
+  zasahující pod hlavičku pak díra prořízla hlavičku i stavovou lištu a pruh reakcí, který stojí
+  nad zprávou, odjel mimo obrazovku. Rám proto při otevřené nabídce měří `boundsInWindow()`
+  (ořezané seznamem) a nabídka díru ořízne na ně a podle nich se umístí. Tvar se kreslí podle
+  celé bubliny, takže u uříznutého okraje zůstane rovná hrana.
 - **Tvar díry se bere ze samotné bubliny** (`Shape.createOutline` + `drawOutline`), nekreslí se
   podle konstanty. Navazující zpráva má jedno nároží stažené na 4 dp a jednotné zaoblení by u ní
   z díry vyčnívalo; konstanta by se navíc musela ručně držet v souladu s `BUBBLE_CORNER`.

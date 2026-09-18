@@ -63,6 +63,7 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -148,6 +149,12 @@ internal fun MessageMenuOverlay(
     onAction: (MessageAction) -> Unit,
     /** Stav doručení vlastní zprávy; `null` u cizí. Vypíše se v hlavičce vedle času. */
     delivery: Delivery?,
+    /**
+     * Viditelná část zprávy v souřadnicích okna — zpráva oříznutá seznamem. U vysoké zprávy,
+     * která zasahuje pod hlavičku nebo nad okraj obrazovky, je menší než obdélník zprávy.
+     * `null`, dokud není změřená; pak se bere celá zpráva.
+     */
+    visibleBounds: Rect?,
 ) {
     // Položky jsou kandidáti od bloku, kteří prošli právy od serveru — každá akce sama ví, jestli
     // se smí nabídnout a jak vypadá (viz `MessageMenuAction.presentation`).
@@ -227,8 +234,8 @@ internal fun MessageMenuOverlay(
         }
     }
 
-    /** Bublina přepočtená do soustavy popupu. */
-    val local = popupOrigin?.let { origin ->
+    /** Celá bublina přepočtená do soustavy popupu. Podle ní se kreslí TVAR díry. */
+    val whole = popupOrigin?.let { origin ->
         anchor?.let { bounds ->
             Rect(
                 left = bounds.left - origin.x,
@@ -237,6 +244,23 @@ internal fun MessageMenuOverlay(
                 bottom = bounds.bottom - origin.y,
             )
         }
+    }
+
+    /*
+     * Viditelná část bubliny v soustavě popupu. Podle ní se díra OŘÍZNE a podle ní se umístí
+     * nabídka i pruh reakcí.
+     *
+     * Dokud se bral celý obdélník zprávy, prořízla díra u vysoké zprávy, která zasahovala pod
+     * hlavičku, i hlavičku a stavovou lištu — zůstaly neztmavené, jako by patřily ke zprávě.
+     * A pruh reakcí, který stojí nad zprávou, odjel nad okraj obrazovky.
+     */
+    val local = whole?.let { bounds ->
+        val origin = popupOrigin ?: return@let bounds
+        visibleBounds
+            ?.translate(-origin.x, -origin.y)
+            ?.intersect(bounds)
+            ?.takeIf { !it.isEmpty }
+            ?: bounds
     }
 
     /*
@@ -276,9 +300,10 @@ internal fun MessageMenuOverlay(
                 // a bez ní by vymazalo i všechno, co je pod popupem.
                 .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                 .drawBehind {
-                    val hole = local ?: return@drawBehind
+                    val hole = whole ?: return@drawBehind
                     drawScrimWithHole(
                         anchor = hole,
+                        visible = local ?: hole,
                         shape = bubbleShape,
                         color = scrimColor.copy(alpha = scrimColor.alpha * alpha),
                     )
@@ -745,12 +770,16 @@ private data class MenuItem(
  * Nutná je [CompositingStrategy.Offscreen]: `Clear` maže z vrstvy, a bez vlastní vrstvy by
  * vymazalo i všechno pod popupem.
  */
-private fun DrawScope.drawScrimWithHole(anchor: Rect, shape: Shape, color: Color) {
+private fun DrawScope.drawScrimWithHole(anchor: Rect, visible: Rect, shape: Shape, color: Color) {
     drawRect(color)
 
+    // Tvar podle celé bubliny, ořez podle její viditelné části: u zprávy uříznuté hlavičkou je
+    // na té straně rovná hrana, jako u zprávy samotné.
     val outline = shape.createOutline(anchor.size, layoutDirection, this)
-    translate(left = anchor.left, top = anchor.top) {
-        drawOutline(outline, color = Color.Transparent, blendMode = BlendMode.Clear)
+    clipRect(visible.left, visible.top, visible.right, visible.bottom) {
+        translate(left = anchor.left, top = anchor.top) {
+            drawOutline(outline, color = Color.Transparent, blendMode = BlendMode.Clear)
+        }
     }
 }
 
