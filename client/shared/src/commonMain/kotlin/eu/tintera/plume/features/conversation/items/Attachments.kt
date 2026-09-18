@@ -36,6 +36,7 @@ import eu.tintera.plume.core.files.DocumentKind
 import eu.tintera.plume.core.files.FileSizeUnit
 import eu.tintera.plume.core.files.documentKind
 import eu.tintera.plume.core.files.formatFileSize
+import eu.tintera.plume.core.files.opensInViewer
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.AnimatedSticker
 import eu.tintera.plume.core.ui.RemoteImage
@@ -195,7 +196,8 @@ internal fun MessageAttachment(
             progress = documentProgress(media.fileId),
             uploading = uploading,
             onCancelUpload = onCancelUpload,
-            onOpen = onOpenDocument,
+            // Obrázek a video, které prohlížeč umí, se otevřou v něm; ostatní dostane systém.
+            onOpen = if (opensInViewer(media.fileName, media.mimeType)) onOpen else onOpenDocument,
             onRequestMenu = onRequestMenu,
             accent = accent,
         )

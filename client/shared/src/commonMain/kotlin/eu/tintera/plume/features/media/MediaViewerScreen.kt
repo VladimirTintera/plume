@@ -737,7 +737,8 @@ private fun ZoomableImage(
             thumbnailFileId = photo.fileId,
             contentDescription = stringResource(Res.string.media_photo),
             // Karta má poměr stran fotky, takže `Crop` nic neukrojí — jen zakryje zaokrouhlení.
-            contentScale = ContentScale.Crop,
+            // Soubor bez náhledu rozměry nemá a karta je čtverec; tam by `Crop` ukrojil kraje.
+            contentScale = if (photo.width > 0 && photo.height > 0) ContentScale.Crop else ContentScale.Fit,
             background = Color.Transparent,
             modifier = Modifier
                 .fillMaxSize()

@@ -70,6 +70,7 @@ import dev.g000sha256.tdl.dto.TextEntityTypeStrikethrough
 import dev.g000sha256.tdl.dto.TextEntityTypeTextUrl
 import dev.g000sha256.tdl.dto.TextEntityTypeUnderline
 import dev.g000sha256.tdl.dto.TextEntityTypeUrl
+import dev.g000sha256.tdl.dto.Thumbnail
 import dev.g000sha256.tdl.dto.ThumbnailFormatJpeg
 import dev.g000sha256.tdl.dto.ThumbnailFormatMpeg4
 import dev.g000sha256.tdl.dto.ThumbnailFormatPng
@@ -323,6 +324,9 @@ private fun String.withScheme(): String = if (contains("://")) this else "https:
  */
 private fun MessageDice.diceText(): String = if (value > 0) "$emoji $value" else emoji
 
+/** Náhled, který jde nakreslit jako obrázek — animovaný MPEG-4 Coil neotevře. */
+private fun Thumbnail?.picture(): Thumbnail? = this?.takeIf { it.format !is ThumbnailFormatMpeg4 }
+
 /** Příloha zprávy, nebo `null` u čistě textové. */
 internal suspend fun Message.messageMedia(): MessageMedia? = when (val content = this.content) {
     is MessagePhoto -> content.photo.toMedia()
@@ -347,7 +351,9 @@ internal suspend fun Message.messageMedia(): MessageMedia? = when (val content =
         mimeType = content.document.mimeType,
         // `expectedSize` je známá i před stažením; `size` je nula, dokud soubor nedorazí.
         sizeBytes = content.document.document.expectedSize,
-        thumbnailFileId = content.document.thumbnail?.file?.id,
+        thumbnailFileId = content.document.thumbnail.picture()?.file?.id,
+        thumbnailWidth = content.document.thumbnail.picture()?.width ?: 0,
+        thumbnailHeight = content.document.thumbnail.picture()?.height ?: 0,
     )
 
     is MessageAudio -> MessageMedia.Attachment(label = getString(Res.string.content_audio), thumbnailFileId = null)

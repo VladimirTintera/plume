@@ -219,15 +219,11 @@ Co zbývá:
   u nich zatím řekne, že je neumíme otevřít. Přehrávání je samostatná fáze (potřebuje platformní
   přehrávač přes `expect`/`actual`); u dokumentů stačí míň — stáhnout a předat systému.
 - **Obrázky a videa poslané jako soubor.** ~~Náhled místo ikony v řádku souboru~~ a
-  ~~rozpoznání obrázku a videa~~ — hotovo (`documentKind`, `DocumentThumbnail`). Zbývá:
-  - **Ťuknutí otevře prohlížeč médií**, ne systém. Prohlížeč dnes listuje přes
-    `SearchMessagesFilterPhotoAndVideo`, kam dokumenty nepatří. Nejjednodušší je režim bez
-    listování pro jednu zprávu; míchat dokumenty do listování by znamenalo druhý dotaz
-    (`SearchMessagesFilterDocument`) a filtrování podle typu. „Otevřít v…" do systému zůstane
-    v liště prohlížeče. Tady už záleží na tom, co platforma opravdu otevře: HEIC umí Android 9+
-    (ImageDecoder), Coil na iOS jede přes Skiu a HEIC nejspíš ne; WebM/MKV přehraje jen
-    ExoPlayer, AVPlayer ne. `documentKind` je dnes platformně neutrální — pro kreslení ikony
-    to stačí, pro otevření ne.
+  ~~rozpoznání obrázku a videa~~ a ~~otevření v prohlížeči médií~~ — hotovo (`documentKind`,
+  `DocumentThumbnail`, `opensInViewer`, `asViewerMedia`). Zbývá:
+  - **Ověřit na iOS**, že HEIC, WebM a MKV opravdu jdou systému a ostatní do prohlížeče.
+    Seznam nepodporovaných formátů (`viewerUnsupportedFormats`) je zatím z dokumentace, ne
+    z pokusu.
   - **Velký náhled v bublině** jako u fotky (`photoFrame`), pod ním řádek s názvem
     a velikostí. **Rozměry TDLib u dokumentu nedává**, poměr stran se bere z náhledu
     (`Thumbnail.width` / `height`). Náhled má do 320 px, ve velké bublině bude rozmazaný;

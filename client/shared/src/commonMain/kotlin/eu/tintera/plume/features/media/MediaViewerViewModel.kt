@@ -3,6 +3,9 @@ package eu.tintera.plume.features.media
 import co.touchlab.kermit.Logger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import eu.tintera.plume.core.files.DocumentKind
+import eu.tintera.plume.core.files.documentKind
+import eu.tintera.plume.core.files.opensInViewer
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageActions
@@ -55,6 +58,13 @@ class MediaViewerViewModel(
     private var loadingOlder = false
     private var loadingNewer = false
 
+    /**
+     * Otevřený je soubor (obrázek nebo video poslané jako dokument). Listuje se jen fotkami
+     * a videi, mezi které nepatří, takže se ukazuje sám a bez pořadí „N z M" — TDLib by ho
+     * počítala mezi fotkami.
+     */
+    private var single = false
+
     /** Zprávy, u kterých se podrobnosti (reakce, práva) už načítají nebo načetly. */
     private val detailsRequested = mutableSetOf<Long>()
 
@@ -62,7 +72,7 @@ class MediaViewerViewModel(
         viewModelScope.launch { loadInitial() }
         viewModelScope.launch {
             repository.visualMediaPosition(chatId, messageId)
-                .onSuccess { position -> _state.update { it.copy(initialPosition = position) } }
+                .onSuccess { position -> if (!single) _state.update { it.copy(initialPosition = position) } }
         }
         viewModelScope.launch {
             // Název chatu je titulek u příchozích fotek v soukromém chatu, kde TDLib jméno
@@ -113,8 +123,11 @@ class MediaViewerViewModel(
         repository.message(chatId, messageId)
             .onSuccess { message ->
                 val photo = message.toViewerItem()
+                val document = message.media is MessageMedia.Document
+                if (document) single = true
                 _state.update {
                     it.copy(
+                        initialPosition = if (document) null else it.initialPosition,
                         items = listOfNotNull(photo),
                         reachedOldest = true,
                         reachedNewest = true,
@@ -277,7 +290,11 @@ class MediaViewerViewModel(
     }
 
     private fun ChatMessage.toViewerItem(): ViewerItem? {
-        val media = media?.takeIf { it is MessageMedia.Photo || it is MessageMedia.Video } ?: return null
+        val media = when (val media = media) {
+            is MessageMedia.Photo, is MessageMedia.Video -> media
+            is MessageMedia.Document -> media.asViewerMedia() ?: return null
+            else -> return null
+        }
         return ViewerItem(
             messageId = id,
             media = media,
@@ -298,9 +315,38 @@ class MediaViewerViewModel(
     }
 }
 
+/**
+ * Obrázek nebo video poslané jako soubor, převedené na stránku prohlížeče.
+ *
+ * Ostrá verze je soubor sám; náhled od serveru poslouží jako okamžitý obrázek, než se dotáhne
+ * (u fotky je to role `fileId`). Rozměry jsou z náhledu — jiné TDLib u dokumentu nedává — a bez
+ * náhledu zůstanou nulové; karta pak dostane obrázek vepsaný, ne oříznutý.
+ */
+internal fun MessageMedia.Document.asViewerMedia(): MessageMedia? {
+    if (!opensInViewer(fileName, mimeType)) return null
+    return when (documentKind(fileName, mimeType)) {
+        DocumentKind.Image -> MessageMedia.Photo(
+            fileId = thumbnailFileId ?: fileId,
+            thumbnailFileId = null,
+            fullFileId = fileId,
+            width = thumbnailWidth,
+            height = thumbnailHeight,
+        )
+        DocumentKind.Video -> MessageMedia.Video(
+            fileId = fileId,
+            thumbnailFileId = thumbnailFileId,
+            width = thumbnailWidth,
+            height = thumbnailHeight,
+            // Délku dokument nenese; přehrávač ji zjistí sám, jakmile video otevře.
+            durationSeconds = 0,
+        )
+        DocumentKind.Other -> null
+    }
+}
+
 data class ViewerItem(
     val messageId: Long,
-    /** [MessageMedia.Photo], nebo [MessageMedia.Video]. */
+    /** [MessageMedia.Photo], nebo [MessageMedia.Video] — i soubor se na jedno z nich převede. */
     val media: MessageMedia,
     /** Popisek pod fotkou. Prázdný u fotky bez textu. */
     val caption: String,

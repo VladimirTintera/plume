@@ -1565,6 +1565,16 @@ stáhne a předá systému.
   `DocumentKindTest`). Druh rozhoduje **přípona před `mimeType`** — ten posílá odesílatel
   a bývá `application/octet-stream` — a obojí se porovnává se seznamem formátů, ne s prefixem
   `image/`: TIFF, RAW ani PSD neotevřeme a ikona fotky by slibovala něco, co ťuknutí nesplní.
+- **Obrázek a video poslané jako soubor se otevírají v prohlížeči médií**, jen když je platforma
+  opravdu umí (`opensInViewer`, platformní `viewerUnsupportedFormats`): HEIC dekóduje až
+  Android 9 a Skia v iOS ne, WebM a MKV přehraje ExoPlayer, AVPlayer ne. Co prohlížeč neumí, jde
+  systému jako každý jiný soubor — ťuknutí, které skončí prázdnou stránkou, je horší.
+- **V prohlížeči je soubor sám, bez listování a bez „N z M".** Listuje se přes
+  `SearchMessagesFilterPhotoAndVideo`, kam dokument nepatří, takže načtení výřezu zprávu
+  nenajde a prohlížeč spadne do stávající zálohy pro jednu zprávu. Pozice od TDLib by se
+  počítala mezi fotkami, proto se u souboru zahazuje (`single`). Stránku staví `asViewerMedia`:
+  soubor je ostrá verze, náhled okamžitý obrázek, rozměry z náhledu. Bez náhledu jsou
+  nulové, karta je čtverec a obrázek se do ní vepíše (`Fit`), neořízne.
 - **Náhled dokumentu vyrábí server, ale ne vždy** (ověřeno botem, `sendDocument`): JPEG i MP4
   ho dostanou, i s vypnutou detekcí typu, HEIC ne. Průběh stahování jde přes náhled bíle na
   závoji — akcent bubliny by na fotce zanikl.

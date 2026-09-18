@@ -38,4 +38,21 @@ class DocumentKindTest {
         assertEquals(DocumentKind.Other, documentKind("smlouva.pdf", "application/pdf"))
         assertEquals(DocumentKind.Other, documentKind(".gitignore", "text/plain"))
     }
+
+    @Test
+    fun formatKeepsVariantsTogether() {
+        assertEquals(DocumentFormat.Jpeg, documentFormat("a.jpeg", ""))
+        assertEquals(DocumentFormat.Heic, documentFormat("a.HEIF", ""))
+        assertEquals(DocumentFormat.QuickTime, documentFormat("klip", "video/quicktime"))
+        assertEquals(null, documentFormat("smlouva.pdf", "application/pdf"))
+    }
+
+    @Test
+    fun onlyImagesAndVideosOpenInViewer() {
+        assertEquals(false, opensInViewer("smlouva.pdf", "application/pdf"))
+        assertEquals(false, opensInViewer("scan.tiff", "image/tiff"))
+        // JPEG a MP4 otevře prohlížeč na každé platformě.
+        assertEquals(true, opensInViewer("fotka.jpg", ""))
+        assertEquals(true, opensInViewer("klip.mp4", ""))
+    }
 }
