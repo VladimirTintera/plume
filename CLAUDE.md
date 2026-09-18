@@ -1705,10 +1705,15 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
 - **Posun i přiblížení se čtou až v `graphicsLayer`**, takže gesto nic nerekomponuje; překresluje
   se jen vrstva s obrázkem. Totéž u zavíracího tahu.
 - **Vzhled je po vzoru Google Zpráv.** Pozadí je **rozostřený aktuální snímek** pod tmavým
-  nádechem (Haze nad malým náhledem, při listování se prolne), snímek je **karta se zaoblením**
+  nádechem (Haze nad malým náhledem), snímek je **karta se zaoblením**
   a sousední stránky u okrajů vykukují (`contentPadding` pageru, 24 dp soused, 8 dp mezera —
   se 14 dp souseda nebylo moc poznat, že vedle další fotky jsou). **Popisek sousední stránky
-  mizí** podle posunu pageru (`captionAlpha`), jinak u okraje trčel useknutý kus textu. Nahoře kdo a kdy fotku poslal
+  mizí** podle posunu pageru (`captionAlpha`), jinak u okraje trčel useknutý kus textu.
+- **Pozadí jezdí s pagerem**, neprolíná se. Kreslí se pozadí aktuální stránky i sousedů vedle
+  sebe, posunutá o `currentPageOffsetFraction` (čteno až v `graphicsLayer`). Dokud se pozadí
+  jen prolnulo podle `currentPage`, měnilo se skokem až po přeskočení na další stránku, zatímco
+  karta jela pod prstem. Šev mezi dvěma pozadími změkčí rozostření samo — Haze rozmazává
+  složený obraz, ne každý snímek zvlášť. Nahoře kdo a kdy fotku poslal
   a akce, dole reakce; ťuknutí lišty schová. Dřív byl snímek přes celou obrazovku na holé černé
   a ovládání leželo přes fotku s přechodem do tmava.
 - **Lišty leží NAD kartou, ne přes ni.** Stránka jde přes celou výšku (přiblížená fotka má kam

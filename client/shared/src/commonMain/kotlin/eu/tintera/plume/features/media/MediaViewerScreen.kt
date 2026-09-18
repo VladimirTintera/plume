@@ -1,7 +1,6 @@
 package eu.tintera.plume.features.media
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.fadeIn
@@ -43,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -227,7 +227,7 @@ private fun ViewerContent(
     val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() } + BOTTOM_BAR_HEIGHT
 
     Box(Modifier.fillMaxSize()) {
-        AmbientBackground(current, Modifier.fillMaxSize().then(fadeWithDismiss))
+        AmbientBackground(items, pagerState, Modifier.fillMaxSize().then(fadeWithDismiss))
 
         HorizontalPager(
             state = pagerState,
@@ -314,15 +314,19 @@ private fun ViewerContent(
 }
 
 /**
- * Rozostřený snímek přes celou obrazovku.
+ * Rozostřené snímky přes celou obrazovku, které **jezdí s pagerem**.
+ *
+ * Kreslí se pozadí aktuální stránky i obou sousedů vedle sebe a posouvají se o tentýž zlomek
+ * stránky jako karty (`currentPageOffsetFraction`, čtený až při kreslení). Pozadí se tak mění
+ * spolu s tahem, ne skokem až po přeskočení na další stránku. Šev mezi dvěma pozadími změkčí
+ * samo rozostření — Haze rozmazává složený obraz, ne každý snímek zvlášť.
  *
  * Bere se **malý náhled**, ne ostrá verze: pod rozostřením detail nic nepřidá a náhled je na
- * disku skoro vždycky, protože ho kreslila konverzace. Při listování se pozadí prolne.
- * Rozostřuje Haze jako závoj pod nabídkou nad zprávou — ten má i náhradu pro Android 11 a starší,
- * kde se kreslí jen tmavý závoj.
+ * disku skoro vždycky, protože ho kreslila konverzace. Rozostřuje Haze jako závoj pod nabídkou
+ * nad zprávou — ten má i náhradu pro Android 11 a starší, kde se kreslí jen tmavý závoj.
  */
 @Composable
-private fun AmbientBackground(item: ViewerItem?, modifier: Modifier = Modifier) {
+private fun AmbientBackground(items: List<ViewerItem>, pagerState: PagerState, modifier: Modifier = Modifier) {
     val hazeState = rememberHazeState()
     val scrim = MaterialTheme.colorScheme.scrim
     val style = remember(scrim) {
@@ -333,26 +337,30 @@ private fun AmbientBackground(item: ViewerItem?, modifier: Modifier = Modifier) 
             fallbackColorEffect(HazeColorEffect.tint(scrim.copy(alpha = AMBIENT_FALLBACK_ALPHA)))
         }
     }
-    val fileId = when (val media = item?.media) {
-        is MessageMedia.Photo -> media.thumbnailFileId ?: media.fileId
-        is MessageMedia.Video -> media.thumbnailFileId
-        else -> null
-    }
+    val current = pagerState.currentPage
 
     Box(modifier.background(scrim)) {
-        Crossfade(
-            targetState = fileId,
-            animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
-            modifier = Modifier.fillMaxSize().hazeSource(hazeState),
-        ) { id ->
-            if (id != null) {
-                RemoteImage(
-                    fileId = id,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    background = Color.Transparent,
-                    modifier = Modifier.fillMaxSize(),
-                )
+        Box(Modifier.fillMaxSize().hazeSource(hazeState)) {
+            for (page in (current - 1)..(current + 1)) {
+                val item = items.getOrNull(page) ?: continue
+                val fileId = when (val media = item.media) {
+                    is MessageMedia.Photo -> media.thumbnailFileId ?: media.fileId
+                    is MessageMedia.Video -> media.thumbnailFileId
+                    else -> null
+                } ?: continue
+                key(item.messageId) {
+                    RemoteImage(
+                        fileId = fileId,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        background = Color.Transparent,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                translationX = (page - pagerState.currentPage - pagerState.currentPageOffsetFraction) * size.width
+                            },
+                    )
+                }
             }
         }
         Box(Modifier.fillMaxSize().hazeBlur(input = HazeInput.Sources(hazeState), style = style))
