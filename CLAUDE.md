@@ -584,6 +584,26 @@ Messages.
   Kontejner popisku je potřebuje, a odkaz v popisku odchozí zprávy musí vzít barvu popředí —
   `primary` na `primary` by byla neviditelná, tatáž past jako u citace.
 
+### Náhled odkazu bez bubliny
+
+Náhled s **velkým obrázkem** se kreslí jako skupina na ploše: text zprávy v kontejneru, pod ním
+snímek a pod ním doplňkový text (web, titulek, popis) ve vlastním kontejneru (`showsBareLinkPreview`
+v `MessageRows.kt`, `BareLinkPreview` v `ConversationScreen.kt`). Je to tentýž jazyk jako u fotky
+s popiskem — obrázek je obrázek, text potřebuje pozadí.
+
+- **Šířku určuje obrázek.** Text i popis se na ni natáhnou (`Modifier.width(frame.width)` na
+  sloupci), takže blok nemá roztřepený okraj. Obrázek náhledu je skoro vždy na šířku (`og:image`),
+  takže je to zároveň celá šířka bubliny.
+- **Malý náhled zůstal kartou v bublině.** O velikosti rozhoduje odesílatel (`showLargeMedia`)
+  a čtvereček 48 dp vedle textu je řádek, ne snímek — na ploše by se rozpadl na dva kusy.
+- **Tvary odvozuje `BareLinkPreview` sama, na jednom místě s `hasInfo`.** Dvě nezávislá
+  rozhodnutí by se rozešla a z bloku by čouhalo nároží, které nemá na co navazovat.
+- **Barvu z obrázku NEVYTAHUJEME.** Google Messages dává pod snímek pruh v jeho barvě, ale TDLib
+  u náhledu žádnou barvu neposílá a kvantizace z bitmapy by znamenala keš na `fileId` a počítání
+  mimo hlavní vlákno. Kontejnery proto berou barvu bubliny, tak jako popisek u fotky.
+- **Citace a příloha si bublinu vynutí** — jako u holého média. Náhled u zprávy s fotkou je
+  stejně jen doplněk k příloze, ne hlavní obsah.
+
 ### Rámeček fotky v bublině
 
 Fotka a video se **zužují, neořezávají** (`photoFrame` v `MediaFrame.kt`, testy `MediaFrameTest`):
@@ -1076,6 +1096,7 @@ Pod textem se zprávou s odkazem se kreslí náhled: web, titulek, popis a obrá
 - **Ťuknutí jde přes `onLinkClick`** jako odkaz v textu; **dlouhý stisk se opakuje**, jinak by
   náhled nabídku nad zprávou spolkl.
 - **Náhled nad textem (`showAboveText`) se zatím ignoruje** — kreslí se vždycky pod ním.
+- **S velkým obrázkem jde náhled z bubliny ven** — viz „Náhled odkazu bez bubliny".
 
 ### Nabídka nad zprávou
 

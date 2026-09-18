@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
 import kotlin.test.Test
@@ -22,6 +23,7 @@ class MessageRowsTest {
         isService: Boolean = false,
         media: MessageMedia? = null,
         replyToMessageId: Long? = null,
+        linkPreview: LinkPreview? = null,
     ) = ChatMessage(
         id = id,
         isOutgoing = isOutgoing,
@@ -31,7 +33,7 @@ class MessageRowsTest {
         text = text,
         entities = emptyList(),
         media = media,
-        linkPreview = null,
+        linkPreview = linkPreview,
         reactions = emptyList(),
         sendState = sendState,
         replyToMessageId = replyToMessageId,
@@ -222,5 +224,59 @@ class MessageRowsTest {
         val members = listOf(message(id = 1, media = photo()), message(id = 2, media = document()))
 
         assertFalse(showsBareMedia(members.first(), album = members))
+    }
+
+    // --- Náhled odkazu na ploše ------------------------------------------------------------
+
+    private fun preview(
+        photo: MessageMedia.Photo? = photo(),
+        largePhoto: Boolean = true,
+    ) = LinkPreview(
+        url = "https://example.com",
+        siteName = "Example",
+        title = "Titulek",
+        description = null,
+        photo = photo,
+        largePhoto = largePhoto,
+    )
+
+    @Test
+    fun nahledSVelkymObrazkemJdeNaPlochu() {
+        assertTrue(showsBareLinkPreview(message(id = 1, text = "odkaz", linkPreview = preview())))
+    }
+
+    @Test
+    fun maleObrazkySiKartuDrzi() {
+        val small = message(id = 1, text = "odkaz", linkPreview = preview(largePhoto = false))
+
+        assertFalse(showsBareLinkPreview(small))
+    }
+
+    @Test
+    fun nahledBezObrazkuSiKartuDrzi() {
+        val textOnly = message(id = 1, text = "odkaz", linkPreview = preview(photo = null))
+
+        assertFalse(showsBareLinkPreview(textOnly))
+    }
+
+    @Test
+    fun nahledSCitaciSiBublinuDrzi() {
+        val reply = message(id = 1, text = "odkaz", linkPreview = preview(), replyToMessageId = 7L)
+
+        assertFalse(showsBareLinkPreview(reply))
+    }
+
+    @Test
+    fun zpravaBezNahleduNeniNahled() {
+        assertFalse(showsBareLinkPreview(message(id = 1, text = "jen text")))
+    }
+
+    @Test
+    fun nahledUZpravySPrilohouZustavaVBubline() {
+        val withMedia = message(id = 1, text = "odkaz", media = photo(), linkPreview = preview())
+
+        assertFalse(showsBareLinkPreview(withMedia))
+        // A příloha sama taky ne — náhled je to, co bublinu drží.
+        assertFalse(showsBareMedia(withMedia, album = null))
     }
 }

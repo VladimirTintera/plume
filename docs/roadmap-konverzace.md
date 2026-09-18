@@ -37,10 +37,11 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    hledání na serveru (`searchChats`), víc cílů najednou, výběr víc zpráv a kopie bez odesílatele.
 4. ~~**Otevírání dokumentů**~~ — hotovo (stažení s průběhem, `ACTION_VIEW` / `UIDocumentInteractionController`).
    Zbývá zrušení stahování, uložení do Souborů/Downloads a otevření audia (zatím se jen popisuje).
-5. **Odlehčení vzhledu.** ~~Zaoblení na konci bloku bublin~~, ~~čas se stavem doručení
-   z bubliny ven~~ a ~~výška fotek~~ — hotovo, poučení v `CLAUDE.md` („Tvar bubliny a seskupení",
-   „Čas a stav doručení", „Rámeček fotky v bublině"). Zbývají fotky a náhledy odkazů na plochu
-   a odkrývání časů tahem; vlastní sekce níž.
+5. **Odlehčení vzhledu.** Hotové je všechno kromě odkrývání časů tahem: ~~zaoblení na konci
+   bloku bublin~~, ~~čas se stavem doručení z bubliny ven~~, ~~výška fotek~~, ~~fotky a videa na
+   plochu~~ a ~~náhled odkazu na plochu~~. Poučení v `CLAUDE.md` („Tvar bubliny a seskupení",
+   „Čas a stav doručení", „Médium bez bubliny", „Rámeček fotky v bublině", „Náhled odkazu bez
+   bubliny"). Zbývá bod 4 níž.
 6. Drobnosti ze sekcí níž (zásobník, nabídka, entity, média, emoji).
 
 ---
@@ -49,8 +50,9 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
 
 Inspirace je Google Messages. Tři samostatné kusy, dají se dělat nezávisle.
 
-Hotové z tohohle seznamu: tvar bubliny na konci bloku, čas se stavem doručení a výška fotek.
-Poučení ze všeho je v `CLAUDE.md`.
+Hotové z tohohle seznamu: tvar bubliny na konci bloku, čas se stavem doručení, výška fotek,
+médium na ploše i náhled odkazu. Zbývá poslední bod, odkrývání časů. Poučení ze všeho je
+v `CLAUDE.md`.
 
 ### 1. ~~Fotky a videa na plochu, mimo bublinu~~ — HOTOVO
 
@@ -86,24 +88,22 @@ Co z toho zůstalo:
   bodu. Řádek alba s jednou fotkou se ale ořezává pořád.
 - **Náhled odkazu se ořezává dál.** Řeší ho bod 3, který ten obrázek stejně přestěhuje na plochu.
 
-### 3. Náhled odkazu: obrázek na plochu
+### 3. ~~Náhled odkazu: obrázek na plochu~~ — HOTOVO
 
-Dnes je náhled uvnitř bubliny, s proužkem akcentu vlevo (`LINK_PREVIEW_STRIPE = 3.dp`), pod
-textem, a obrázek se stropem `MAX_PHOTO_HEIGHT`. Obrázek má jít na plochu jako fotka, doplňkový
-text (web, titulek) pod něj do vlastního kontejneru.
+Náhled s velkým obrázkem je skupina na ploše: text zprávy, snímek a pod ním web s titulkem
+a popisem ve vlastním kontejneru (`showsBareLinkPreview`, `BareLinkPreview`). Šířku určuje
+obrázek, takže blok nemá roztřepený okraj. Poučení v `CLAUDE.md`, „Náhled odkazu bez bubliny".
 
-- **Barvu vytaženou z obrázku NEDĚLÁME.** Rozhodnuto — za tu podobu to nestojí. Kontejner tedy
-  vezme roli z `colorScheme` (kandidát `surfaceContainerHighest`), která drží kontrast v obou
-  režimech sama a nic nestojí.
-- Poznámka, aby se to znovu nerozebíralo: **TDLib u náhledu žádnou barvu neposílá** (`LinkPreview`
-  nese `url`, `displayUrl`, `siteName`, `title`, `description`, `author`, `type` a příznaky
-  zobrazení), takže by se musela kvantizovat z obrázku. Šlo by to bez nové závislosti —
-  `materialkolor` je v `commonMain` a má `ImageBitmap.themeColor()` — ale znamenalo by to keš na
-  `fileId` a počítání mimo hlavní vlákno, jinak by to při scrollu drhlo. V Google Messages ta
-  barva navíc nevypadá jako z fotky (pod černou plotýnkou zelená Alzy), takže by se předloze
-  stejně netrefilo.
-- **Do doplňkového textu patří `siteName`**, případně `displayUrl` — ten dnes doménový typ
-  `LinkPreview` nenese a musel by se přidat v `core/telegram`.
+Co z toho zůstalo:
+
+- **Malý náhled je pořád karta s proužkem uvnitř bubliny.** Čtvereček 48 dp vedle textu je řádek,
+  ne snímek; na ploše by se rozpadl na dva kusy. Že je malý, rozhoduje odesílatel.
+- **Barva z obrázku se nedělá** a dělat nebude — kontejnery berou barvu bubliny. Důvody zůstávají
+  platné: TDLib barvu neposílá, kvantizace by chtěla keš a vlákno navíc, a předloze by se stejně
+  netrefila.
+- **`displayUrl` doménový `LinkPreview` pořád nenese.** Do doplňkového textu se dnes bere
+  `siteName`; bez něj (a bez titulku i popisu) se kontejner nekreslí vůbec.
+- **Náhled nad textem (`showAboveText`) se dál ignoruje.**
 
 ### 4. Odkrývání časů tahem doleva
 
@@ -206,6 +206,23 @@ Co zbývá:
 Seřazeno podle toho, jak moc to bolí.
 
 **Chyby** — opraveno, poučení v `CLAUDE.md` („Hlášení přečtení a indexy").
+
+**Pozorovaný pád: duplicitní klíč položky při odesílání**
+
+`java.lang.IllegalArgumentException: Key "382754357249" was already used` z `LazyColumn`
+konverzace, jednou, 18. 9. 2026 při odeslání zprávy s odkazem do Uložených zpráv.
+
+- **Klíč je DOČASNÉ id.** Skutečná id zpráv jsou násobky 2²⁰; tohle číslo jím není, takže šlo
+  o zprávu ve stavu odesílání. Sedí to na jediný stav, ve kterém se klíč může opakovat: v seznamu
+  je zároveň rozepsaná zpráva s dočasným id *T* a potvrzená s novým id *N*, kterou
+  `itemKeys[N] = T` mapuje na tentýž klíč (viz `CLAUDE.md`, „Odesílání a scrollování").
+- **Nereprodukovalo se.** Dvakrát táž akce (jednou na téže větvi, jednou na `main`) proběhla bez
+  pádu. Není tedy potvrzené, že jde o starší chybu — jen to, že se netýká vykreslování: klíče se
+  počítají nad stavem, ne v bublině.
+- Kde hledat: `SentMessageUpdate.Succeeded` v `ConversationViewModel` (odebrání zprávy s *T*)
+  a obě místa, která po odeslání přidávají vrácenou zprávu zpět
+  (`pending.id in it.itemKeys.values`). Pojistka „klíč, který už v seznamu je, se nepoužije
+  podruhé" by pád vyměnila za nejvýš přeblikanou bublinu.
 
 **Chybějící základ**
 
