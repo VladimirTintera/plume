@@ -737,14 +737,24 @@ internal fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Mo
                     )
                 }
             }
-            .clip(RoundedCornerShape(12.dp))
-            .combinedClickable(
-                onClick = { cells.onPick(sticker) },
-                // Podržení samolepku neposílá — jen ji rozhýbe. Po puštění `combinedClickable`
-                // klik nevyvolá, takže nic neodejde omylem.
-                onLongClick = { cells.onActivate(sticker) },
-            ),
     ) {
+        /*
+         * Klikání (a s ním vlnka stisku) je ve vlastní vrstvě ořezané do téže sušenky, do jaké se
+         * rozvine podbarvení. Dřív byl ořez zaoblený čtverec na celé buňce a pod sušenkou pak
+         * vykukovala čtvercová vlnka. Samolepka sama ořezaná není — přišla by o rohy.
+         */
+        Box(
+            Modifier
+                .matchParentSize()
+                .clip(STICKER_TOUCH_SHAPE)
+                .combinedClickable(
+                    onClick = { cells.onPick(sticker) },
+                    // Podržení samolepku neposílá — jen ji rozhýbe. Po puštění `combinedClickable`
+                    // klik nevyvolá, takže nic neodejde omylem.
+                    onLongClick = { cells.onActivate(sticker) },
+                ),
+        )
+
         StickerPreview(sticker.preview, playing = active, modifier = Modifier.fillMaxSize().padding(6.dp))
 
         if (active) {
@@ -767,6 +777,9 @@ internal fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Mo
         }
     }
 }
+
+/** Tvar vlnky stisku: sušenka, do které se podbarvení rozvine (plný průběh i s pootočením). */
+private val STICKER_TOUCH_SHAPE = MorphShape(ShapeMorphs.Highlight, 1f, rotation = HIGHLIGHT_ROTATION)
 
 /** Z jak malého kruhu se podbarvení podržené samolepky rozvine. */
 private const val HIGHLIGHT_START_SCALE = 0.5f

@@ -1228,7 +1228,8 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   sušenka = klid / připraveno (mikrofon, pozastavená hlasovka i video), kruh = probíhající akce
   (odeslat, hraje), SoftBurst = živý signál (tlačítko při nahrávání dýchá, tečka v pruhu už
   nebliká — dva blikající prvky vedle sebe byly šum), dvanáctistranná sušenka = podbarvení
-  podržené samolepky. Kde se stav nemění (avatary, položky seznamu, reakce), se tvary
+  podržené samolepky — i vlnka stisku je ořezaná do téže sušenky (klikání má vlastní vrstvu,
+  samolepka sama ořezaná není, přišla by o rohy). Kde se stav nemění (avatary, položky seznamu, reakce), se tvary
   nepoužívají: kdyby se hýbalo všechno, přestalo by to cokoli znamenat.
 - **Barva odesílacího tlačítka říká, jak silná akce to je**: mikrofon tonální
   (`secondaryContainer`), odeslání i uložení úpravy plná `primary`. Prolíná se spolu s morfem.
