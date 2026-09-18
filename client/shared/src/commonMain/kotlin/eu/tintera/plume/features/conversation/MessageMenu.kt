@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -51,6 +52,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionOnScreen
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -61,6 +63,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
+import eu.tintera.plume.core.ui.asDayLabel
+import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_reaction_24dp
 import eu.tintera.plume.resources.common_cancel
@@ -73,17 +77,18 @@ import eu.tintera.plume.resources.delete_message_for_partner_named
 import eu.tintera.plume.resources.delete_message_for_self
 import eu.tintera.plume.resources.delete_message_title
 import eu.tintera.plume.resources.edit_24dp
+import eu.tintera.plume.resources.forward_24dp
 import eu.tintera.plume.resources.keep_off_24dp
 import eu.tintera.plume.resources.menu_copy
 import eu.tintera.plume.resources.menu_delete
 import eu.tintera.plume.resources.menu_edit
-import eu.tintera.plume.resources.forward_24dp
 import eu.tintera.plume.resources.menu_favorite_add
-import eu.tintera.plume.resources.menu_forward
 import eu.tintera.plume.resources.menu_favorite_remove
+import eu.tintera.plume.resources.menu_forward
 import eu.tintera.plume.resources.menu_more_reactions
 import eu.tintera.plume.resources.menu_pin
 import eu.tintera.plume.resources.menu_reply
+import eu.tintera.plume.resources.menu_sent_at
 import eu.tintera.plume.resources.menu_unpin
 import eu.tintera.plume.resources.pin_message_title
 import eu.tintera.plume.resources.pin_option_notify_channel
@@ -175,7 +180,10 @@ fun MessageMenuOverlay(
     }
 
     val showQuickRow = menu.quickEmoji.isNotEmpty()
-    val menuHeight = MENU_PADDING * 2 + MENU_ITEM_HEIGHT * items.size
+    // Výšky se počítají, ne měří — kreslíme si nabídku sami, takže je známe předem a ušetří
+    // se snímek, ve kterém by nabídka poskočila na správné místo. Hlavička s časem se
+    // proto musí připočíst.
+    val menuHeight = MENU_PADDING * 2 + MENU_HEADER_HEIGHT + MENU_ITEM_HEIGHT * items.size
 
     // Náběh se spouští až po prvním složení, jinak by animace neměla z čeho vyjet.
     var shown by remember { mutableStateOf(false) }
@@ -327,7 +335,7 @@ fun MessageMenuOverlay(
                     .scale(scale)
                     .alpha(alpha),
             ) {
-                ActionMenu(items)
+                ActionMenu(items, menu.timestamp)
             }
         }
     }
@@ -400,7 +408,7 @@ private fun QuickReactions(
 
 /** Nabídka akcí. Položky přibývají, jak je postupně umíme — mrtvé se sem nedávají. */
 @Composable
-private fun ActionMenu(items: List<MenuItem>) {
+private fun ActionMenu(items: List<MenuItem>, timestamp: Int) {
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -408,6 +416,25 @@ private fun ActionMenu(items: List<MenuItem>) {
         modifier = Modifier.width(MENU_WIDTH),
     ) {
         Column(Modifier.padding(vertical = MENU_PADDING)) {
+            /*
+             * Kdy zpráva přišla.
+             *
+             * V bublině čas není a tahem doleva se k němu čtečka obrazovky nedostane, takže
+             * tohle je jediná cesta, která funguje pro každého. Není to položka nabídky —
+             * nedá se na ni ťuknout a nic nedělá.
+             */
+            Text(
+                text = stringResource(Res.string.menu_sent_at, timestamp.asDayLabel(), timestamp.asTimeOfDay()),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .height(MENU_HEADER_HEIGHT)
+                    .padding(horizontal = 20.dp)
+                    .wrapContentHeight(),
+            )
+
             items.forEach { item ->
                 Row(
                     Modifier
@@ -624,6 +651,9 @@ private val MENU_GAP = 8.dp
 private val SCREEN_MARGIN = 12.dp
 private val MENU_WIDTH = 220.dp
 private val MENU_ITEM_HEIGHT = 48.dp
+
+/** Řádek s časem odeslání nad položkami. Nižší než položka — nedá se na něj ťuknout. */
+private val MENU_HEADER_HEIGHT = 32.dp
 private val MENU_PADDING = 8.dp
 private val QUICK_ROW_HEIGHT = 52.dp
 private val QUICK_EMOJI_SIZE = 40.dp
