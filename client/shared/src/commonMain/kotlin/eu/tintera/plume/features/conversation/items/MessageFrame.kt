@@ -2,6 +2,7 @@ package eu.tintera.plume.features.conversation.items
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -35,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -46,12 +48,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -150,7 +151,7 @@ internal interface MessageItem : ConversationItem {
         // rozjetého prolnutí.
         val modifier = Modifier.animateItem(
             fadeInSpec = if (frame.flight != null) null else spring(stiffness = Spring.StiffnessMediumLow),
-        )
+        ).arrival(frame, scope)
         RevealingTime(frame.message.timestamp, scope.timeReveal, modifier) {
             MessageFrame(frame, scope, maxWidthFraction) { Body() }
         }
@@ -246,8 +247,24 @@ internal fun rememberMessageBodyScope(
      * Obě strany se proto teď ptají stejně. Stahuje se jen nároží na straně odesílatele — na té
      * druhé jde bublina k okraji obrazovky a stažené nároží by tam nemělo co navazovat.
      */
-    val topInner = if (frame.continuesAbove) BUBBLE_TIGHT else BUBBLE_CORNER
-    val bottomInner = if (frame.continuesBelow) BUBBLE_TIGHT else BUBBLE_CORNER
+    /*
+     * Nároží se ANIMUJÍ. Když přijde další zpráva a tahle se stane navazující, stáhne se jí
+     * spodní nároží — skokem to vypadalo jako chyba vykreslení. Stejně to dělá seznam chatů
+     * u skupin (`animateDpAsState` přes spatial spec).
+     */
+    val topInnerAnimated by animateDpAsState(
+        targetValue = if (frame.continuesAbove) BUBBLE_TIGHT else BUBBLE_CORNER,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "bubble-corner-top",
+    )
+    val bottomInnerAnimated by animateDpAsState(
+        targetValue = if (frame.continuesBelow) BUBBLE_TIGHT else BUBBLE_CORNER,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "bubble-corner-bottom",
+    )
+    // Pružina přestřelí; zaoblení pod nulou by `RoundedCornerShape` odmítlo.
+    val topInner = topInnerAnimated.coerceAtLeast(0.dp)
+    val bottomInner = bottomInnerAnimated.coerceAtLeast(0.dp)
     val shape = if (message.isOutgoing) {
         RoundedCornerShape(
             topStart = BUBBLE_CORNER,
@@ -324,22 +341,32 @@ private fun MessageFrame(
     val currentMessageId by rememberUpdatedState(message.id)
 
     /*
-     * Zvýraznění po skoku: pruh přes celou šířku, který se rozsvítí a pomalu vyhasne.
+     * Zvýraznění po skoku: zpráva dvakrát krátce PULZNE měřítkem.
      *
-     * Přes celou šířku, ne jen bublina — obarvit bublinu by u odchozí `primary` nebylo vidět
-     * a u příchozí by to vypadalo jako změna stavu zprávy. Průhlednost se čte až při kreslení,
-     * takže vyhasínání nic nerekomponuje.
+     * Dřív to byl pruh přes celou šířku, který se rozsvítil a vyhasl. Pulz je výraznější, patří
+     * jen té zprávě (u alba celé bublině) a nemění barvy — obarvit bublinu by u odchozí `primary`
+     * nebylo vidět. Měřítko se čte až při kreslení, takže pulz nic nerekomponuje.
      */
-    val highlightAlpha by animateFloatAsState(
-        targetValue = if (frame.highlighted) HIGHLIGHT_ALPHA else 0f,
-        animationSpec = if (frame.highlighted) {
-            MaterialTheme.motionScheme.fastEffectsSpec()
-        } else {
-            MaterialTheme.motionScheme.slowEffectsSpec()
-        },
-        label = "highlight",
+    val pulse = remember { Animatable(1f) }
+    val pulseSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    LaunchedEffect(frame.highlighted) {
+        if (!frame.highlighted) return@LaunchedEffect
+        repeat(HIGHLIGHT_PULSES) {
+            pulse.animateTo(HIGHLIGHT_SCALE, pulseSpec)
+            pulse.animateTo(1f, pulseSpec)
+        }
+    }
+
+    /*
+     * Odesílaná zpráva je průhlednější a po potvrzení se „usadí". Odznak s hodinami je malý
+     * a snadno se přehlédne; tohle je vidět hned. Klíč položky se potvrzením nemění, takže
+     * přechod plynule dobíhá na téže bublině.
+     */
+    val sendingAlpha by animateFloatAsState(
+        targetValue = if (frame.delivery == Delivery.Sending) SENDING_ALPHA else 1f,
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+        label = "sending-alpha",
     )
-    val highlightColor = MaterialTheme.colorScheme.primary
 
     Row(
         modifier = Modifier
@@ -347,15 +374,6 @@ private fun MessageFrame(
             // Zprávy od jednoho odesílatele drží u sebe, nová skupina se oddělí. Tvar bublin
             // to už rozlišuje staženým nárožím, mezera tomu jen dává prostor.
             .padding(top = if (frame.continuesAbove) 0.dp else GROUP_SPACING)
-            .drawBehind {
-                if (highlightAlpha > 0f) {
-                    drawRoundRect(
-                        color = highlightColor,
-                        alpha = highlightAlpha,
-                        cornerRadius = CornerRadius(HIGHLIGHT_CORNER.toPx()),
-                    )
-                }
-            }
             /*
              * Tažení do strany = odpověď.
              *
@@ -452,7 +470,12 @@ private fun MessageFrame(
                     .onGloballyPositioned { boxCoordinates[0] = it }
                     // Průhledná, ne vyřazená z layoutu: místo zůstane prázdné a kopie v nabídce se
                     // na něj po zavření vrátí. Čte se až při kreslení, takže nic nerekomponuje.
-                    .graphicsLayer { alpha = if (scope.isInMenu(frame.key)) 0f else 1f },
+                    .graphicsLayer {
+                        alpha = if (scope.isInMenu(frame.key)) 0f else sendingAlpha
+                        scaleX = pulse.value
+                        scaleY = pulse.value
+                        transformOrigin = TransformOrigin(if (message.isOutgoing) 1f else 0f, 0.5f)
+                    },
                 // Cílová strana letu ze vstupního pole. Sdílí se CELÁ zpráva, ne jen text —
                 // kdyby se sdílel jen text, doletěl by sám a pozadí by pod ním na konci
                 // skokem naskočilo.
@@ -748,10 +771,6 @@ private val SENDER_AVATAR_SIZE = 32.dp
 /** Místo pro profilovku i s mezerou k bublině; stejné u zpráv s tváří i bez ní. */
 private val SENDER_AVATAR_SLOT = 40.dp
 
-/** Jak výrazné je zvýraznění zprávy po skoku. Jemné: má ukázat místo, ne překrýt obsah. */
-private const val HIGHLIGHT_ALPHA = 0.14f
-
-private val HIGHLIGHT_CORNER = 12.dp
 
 /** Kolik z čipu reakce visí POD bublinou. Zhruba jeho půlka, jako v Google Messages. */
 private val REACTION_OVERHANG = 16.dp
@@ -797,3 +816,37 @@ private fun Modifier.maxWidthFraction(fraction: Float): Modifier =
             layout(placeable.width, placeable.height) { placeable.place(0, 0) }
         }
     }
+
+/**
+ * Pružný příchod nové zprávy: naskočí z menšího měřítka od strany odesílatele, s jemným
+ * přeskokem (spatial spec). Jen u zpráv, které přišly, když byla konverzace otevřená, a jen
+ * jednou — položka se při scrollu skládá znovu a pružit by nemělo co.
+ *
+ * Zpráva s letem ze vstupního pole má vlastní animaci, ta se nepřebíjí.
+ */
+@Composable
+private fun Modifier.arrival(frame: MessageFrameData, scope: ConversationItemScope): Modifier {
+    val start = remember(frame.key) {
+        if (frame.flight == null && scope.claimArrival(frame.key, frame.message.timestamp)) ARRIVAL_SCALE else 1f
+    }
+    if (start == 1f) return this
+    val scale = remember(frame.key) { Animatable(start) }
+    val spec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    LaunchedEffect(frame.key) { scale.animateTo(1f, spec) }
+    val outgoing = frame.message.isOutgoing
+    return graphicsLayer {
+        scaleX = scale.value
+        scaleY = scale.value
+        transformOrigin = TransformOrigin(if (outgoing) 1f else 0f, 1f)
+    }
+}
+
+/** Z jakého měřítka nová zpráva naskočí. */
+private const val ARRIVAL_SCALE = 0.85f
+
+/** Pulz zvýraznění po skoku: kolikrát a na jaké měřítko. */
+private const val HIGHLIGHT_PULSES = 2
+private const val HIGHLIGHT_SCALE = 1.06f
+
+/** Průhlednost odesílané zprávy, než ji server potvrdí. */
+private const val SENDING_ALPHA = 0.65f

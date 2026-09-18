@@ -78,6 +78,12 @@ internal interface ConversationItemScope {
      */
     fun isInMenu(key: Long): Boolean
 
+    /**
+     * Má zpráva s tímhle klíčem pružně naskočit? Jen jednou a jen když přišla (podle [timestamp])
+     * až po otevření konverzace — ne při každém složení položky při scrollu.
+     */
+    fun claimArrival(key: Long, timestamp: Int): Boolean
+
     /** Jediná cesta akcí ze zprávy ven (viz [MessageAction]). */
     fun onAction(messageId: Long, action: MessageAction)
 

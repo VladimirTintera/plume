@@ -1128,6 +1128,27 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
 
 ### Vzhled konverzace
 
+- **Textová bublina má strop 82 % řádku** (`MessageItem.maxWidthFraction`, jen `BubbleMessageItem`).
+  Dlouhé zprávy obou stran šly přes celou šířku a strany se poznaly jen barvou. Obrázky a karty
+  si šířku určují samy; kopie zprávy v nabídce má šířku napevno.
+- **Odesílatel ve skupině má stálou barvu** (`senderColor` v `core/ui`, testy `SenderColorTest`):
+  jméno nad zprávou a proužek citace. Osm odstínů rovnoměrně po kruhu od odstínu `primary`,
+  HCT tón 40 / 80 podle režimu — kontrast i soulad s Material You, žádná barva natvrdo.
+  V odchozí `primary` bublině si citace akcent bubliny nechává.
+- **Citace je tónovaný kontejner** (akcent s průhledností 0,14 a proužek), ne holý proužek
+  s textem. Plocha je z akcentu, ne z role — v odchozí bublině je akcentem barva popředí.
+- **Nároží bublin se animují** (spatial spec), jako skupiny v seznamu chatů. Pružina přestřelí,
+  takže se ořezávají na nulu — záporné zaoblení `RoundedCornerShape` odmítne.
+- **Nová zpráva pružně naskočí** z měřítka 0,85 od strany odesílatele (`arrival`). Jen jednou
+  a jen když přišla po otevření konverzace (`claimArrival` s tolerancí pár sekund na hodiny
+  serveru) — položka se při scrollu skládá znovu a pružit nemá co. Let ze vstupního pole se
+  nepřebíjí. **Čip reakce při změně počtu povyskočí**, ne při prvním složení.
+- **Odesílaná zpráva je průhlednější** (0,65) a po potvrzení se usadí. Klíč položky se potvrzením
+  nemění, takže přechod dobíhá na téže bublině.
+- **Zvýraznění po skoku je dvojí pulz měřítkem**, ne pruh přes celou šířku. Ověřovat se to dá
+  jen měřením: běžný `screencap` pulz mine. Série `screencap /sdcard/x.raw` v jednom `adb shell`
+  a porovnání okraje bubliny v řádku pixelů ho zachytí.
+
 - **Odchozí bublina je `primary`, ne `primaryContainer`.** Se dvěma světlými plochami o podobné
   světlosti nebylo při rychlém průletu očima poznat, kdo co napsal — rozlišovala je jen strana.
   Sytá `primary` proti světlé `surfaceContainerHigh` dělá rozdíl barvou.
