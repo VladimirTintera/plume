@@ -116,3 +116,24 @@ internal fun showsBareMedia(message: ChatMessage, album: List<ChatMessage>?): Bo
     val media = album?.map { it.media } ?: listOf(message.media)
     return media.isNotEmpty() && media.all { it is MessageMedia.Photo || it is MessageMedia.Video }
 }
+
+/**
+ * Kreslí se náhled odkazu jako skupina na ploše — text zprávy, obrázek a popis pod ním — místo
+ * karty s proužkem uvnitř bubliny?
+ *
+ * Obrázek náhledu je obrázek jako každý jiný, takže patří na plochu ze stejného důvodu jako fotka
+ * (viz [showsBareMedia]). Doplňkový text (web, titulek, popis) na plochu nepatří a dostane vlastní
+ * kontejner pod snímkem.
+ *
+ * Platí to jen pro **velký obrázek**: o tom, jestli je velký, rozhoduje odesílatel
+ * (`LinkPreview.largePhoto`) a malý čtvereček vedle textu je pořád řádek v kartě, ne snímek.
+ * Náhled u zprávy s přílohou nebo citací zůstává v bublině, jako celá ta zpráva.
+ */
+internal fun showsBareLinkPreview(message: ChatMessage): Boolean {
+    val preview = message.linkPreview ?: return false
+    return preview.largePhoto &&
+        preview.photo != null &&
+        message.media == null &&
+        message.replyToMessageId == null
+}
+

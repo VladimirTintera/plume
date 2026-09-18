@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -1147,8 +1148,11 @@ private fun MessageBubble(
      * Popisek pod nimi ale vlastní kontejner dostane: text na holé ploše by se ztratil.
      */
     val bareMedia = showsBareMedia(message, album)
+    // Náhled odkazu s velkým obrázkem jde ven z bubliny ze stejného důvodu jako fotka.
+    val bareLinkPreview = showsBareLinkPreview(message)
     val bare = largeEmoji > 0 ||
         bareMedia ||
+        bareLinkPreview ||
         (
             (message.media is MessageMedia.Sticker || message.media is MessageMedia.AnimatedEmoji) &&
                 message.replyToMessageId == null
@@ -1396,7 +1400,7 @@ private fun MessageBubble(
                    * Uvnitř bubliny se zarovnává na začátek: tam je šířka společná a text se čte
                    * zleva bez ohledu na to, kdo ho napsal.
                    */
-                  horizontalAlignment = if (bareMedia && message.isOutgoing) {
+                  horizontalAlignment = if ((bareMedia || bareLinkPreview) && message.isOutgoing) {
                       Alignment.End
                   } else {
                       Alignment.Start
@@ -1532,6 +1536,28 @@ private fun MessageBubble(
                               }
                           }
                       }
+                  } else if (bareLinkPreview && message.linkPreview != null) {
+                      val preview = message.linkPreview
+                      val previewAccent = if (message.isOutgoing) {
+                          onBubbleColor
+                      } else {
+                          MaterialTheme.colorScheme.primary
+                      }
+                      BareLinkPreview(
+                          preview = preview,
+                          containerColor = bubbleColor,
+                          contentColor = onBubbleColor,
+                          accent = previewAccent,
+                          bubbleShape = shape,
+                          // Ťuknutí jde stejnou cestou jako odkaz v textu, tedy přes ViewModel.
+                          onOpen = { onLinkClick(preview.url) },
+                          onLongClick = onRequestMenu,
+                      ) {
+                          if (message.text.isNotBlank()) messageText(previewAccent)
+                          if (message.isEdited) {
+                              editedLabel(Modifier.align(Alignment.End), onBubbleColor)
+                          }
+                      }
                   } else {
                       if (message.text.isNotBlank()) {
                           // V odchozí bublině je pozadí samo `primary`, takže odkaz musí vzít
@@ -1559,7 +1585,8 @@ private fun MessageBubble(
                       modifier = Modifier.padding(top = 6.dp),
                   )
 
-                  if (message.isEdited && !bareMedia) {
+                  // U holé skupiny je „upraveno" uvnitř jejího textového kontejneru.
+                  if (message.isEdited && !bareMedia && !bareLinkPreview) {
                       editedLabel(Modifier.align(Alignment.End), contentColor)
                   }
               }
@@ -1989,6 +2016,122 @@ private fun PinnedMessageRow(
  * Ťuknutí otevře odkaz stejnou cestou jako odkaz v textu (přes ViewModel). Dlouhý stisk se musí
  * zopakovat, jinak by ho náhled k bublině nepustil — stejná past jako u fotky a citace.
  */
+/**
+ * Náhled odkazu jako skupina na ploše: text zprávy, obrázek a popis pod ním.
+ *
+ * Tvar i spáry jsou tytéž jako u holého média s popiskem (viz „Médium bez bubliny" v `CLAUDE.md`) —
+ * je to jedna skupina, ne tři samostatné kusy. **Šířku určuje obrázek**: text i popis se na ni
+ * natáhnou, takže blok nemá roztřepený okraj. Obrázek náhledu je v drtivé většině na šířku
+ * (`og:image`), takže je to zároveň celá šířka bubliny.
+ *
+ * Barvu z obrázku **nevytahujeme** — Google Messages sice pod snímek dává pruh v jeho barvě, ale
+ * TDLib u náhledu žádnou barvu neposílá a kvantizovat ji z bitmapy by znamenalo keš a počítání
+ * mimo hlavní vlákno. Kontejnery tedy berou barvu bubliny, tak jako popisek u fotky.
+ */
+@Composable
+@OptIn(ExperimentalFoundationApi::class)
+private fun BareLinkPreview(
+    preview: LinkPreview,
+    containerColor: Color,
+    contentColor: Color,
+    /** Barva pro název webu a odkazy — v odchozí bublině nesmí být `primary`. */
+    accent: Color,
+    /** Tvar bubliny; nároží uvnitř skupiny se z něj stahují. */
+    bubbleShape: RoundedCornerShape,
+    onOpen: () -> Unit,
+    onLongClick: () -> Unit,
+    text: @Composable ColumnScope.() -> Unit,
+) {
+    val photo = preview.photo ?: return
+    val hasInfo = preview.siteName != null || preview.title != null || preview.description != null
+
+    // Tvary se odvozují TADY, na jednom místě s `hasInfo`. Dvě nezávislá rozhodnutí by se rozešla
+    // a z bloku by čouhalo nároží, které nemá na co navazovat.
+    val tight = CornerSize(BUBBLE_TIGHT)
+    val textShape = bubbleShape.copy(bottomStart = tight, bottomEnd = tight)
+    val imageShape = if (hasInfo) {
+        RoundedCornerShape(BUBBLE_TIGHT)
+    } else {
+        bubbleShape.copy(topStart = tight, topEnd = tight)
+    }
+    val infoShape = bubbleShape.copy(topStart = tight, topEnd = tight)
+
+    BoxWithConstraints {
+        val frame = photoFrame(maxWidth, photo.width.toFloat() / photo.height.toFloat())
+
+        Column(
+            Modifier.width(frame.width),
+            verticalArrangement = Arrangement.spacedBy(MEDIA_CAPTION_GAP),
+        ) {
+            Surface(
+                color = containerColor,
+                contentColor = contentColor,
+                shape = textShape,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), content = text)
+            }
+
+            RemoteImage(
+                fileId = photo.fileId,
+                thumbnailFileId = photo.thumbnailFileId,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(frame)
+                    .clip(imageShape)
+                    // Ťuknutí otevře odkaz; dlouhý stisk se opakuje, jinak by ho náhled spolkl
+                    // a nad zprávou by nešla otevřít nabídka.
+                    .combinedClickable(onClick = onOpen, onLongClick = onLongClick),
+            )
+
+            if (hasInfo) {
+                Surface(
+                    color = containerColor,
+                    contentColor = contentColor,
+                    shape = infoShape,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(infoShape)
+                        .combinedClickable(onClick = onOpen, onLongClick = onLongClick),
+                ) {
+                    Column(
+                        Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        preview.siteName?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = accent,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        preview.title?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        preview.description?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = LINK_PREVIEW_DESCRIPTION_LINES,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
 private fun LinkPreviewCard(
