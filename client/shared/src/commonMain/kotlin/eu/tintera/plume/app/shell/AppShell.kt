@@ -1,5 +1,6 @@
 package eu.tintera.plume.app.shell
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -141,7 +142,14 @@ fun AppShell(modifier: Modifier = Modifier) {
 
     Row(modifier.fillMaxSize()) {
         if (!compact) {
-            WideNavigationRail(windowInsets = WindowInsets()) {
+            /*
+             * Insety jsou výchozí (stavová a navigační lišta, výřez na straně). Dřív tu byly
+             * nulové a první položka se lepila pod stavovou lištu.
+             *
+             * Položky jsou na STŘEDU: M3 u tabletů doporučuje střed, protože se na něj líp
+             * dosáhne palcem. Nahoru patří jen menu a FAB, a ty rail nemá.
+             */
+            WideNavigationRail(arrangement = Arrangement.Center) {
                 TopLevelDestination.entries.forEach { dest ->
                     val selected = currentTopLevel == dest.route
                     WideNavigationRailItem(

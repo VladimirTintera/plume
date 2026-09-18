@@ -468,6 +468,10 @@ Seznam chatů a konverzace tvoří **list-detail** dvojici přes `rememberListDe
 `directive` se počítá ze šířky **content-oblasti** (`BoxWithConstraints`), ne z okna — vlevo ukusuje
 rail a scaffold by jinak rozhodl špatně.
 
+**Rail má výchozí insety a položky na středu.** Nulové insety (`WindowInsets()`) ho lepily pod
+stavovou lištu. Střed doporučuje M3 pro tablety (líp se na něj dosáhne); nahoru patří jen menu
+a FAB, které rail nemá. Až přibudou, půjdou do `header`, který je nahoře vždy.
+
 **Spodní bar se v konverzaci skrývá — jen na compactu.** Na telefonu zabírá konverzace celou
 obrazovku a sekční navigace tam nedává smysl; ven se chodí zpět, ne přepnutím sekce. Na širokém
 rozvržení je konverzace jen panel vedle seznamu, takže rail zůstává. Past: `consumeWindowInsets`
