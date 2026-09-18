@@ -1714,6 +1714,12 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
 - **Pager drží stránku podle klíče** (id zprávy). Když se vlevo dotáhnou starší fotky, pod
   prstem se nic nepohne, jen se posune index — proto se stránkuje z `snapshotFlow` nad
   `currentPage`, které se po dotažení samo ozve znovu.
+- **Počet stránek a klíč pageru čtou TÝŽ stav** (`rememberUpdatedState(items)`), ne seznam
+  zachycený v lambdě. `rememberPagerState { … }` zapíše počet do stavu hned v rekompozici,
+  kdežto pager v `BoxWithConstraints` dostane nový `key` až v subkompozici při layoutu. Mezi
+  tím Compose přepočítá klíče stránek (`NearestRangeKeyIndexMap`) s novým počtem nad starým
+  seznamem — po dotažení fotek to v release padalo na „Index 22 out of bounds for length 22".
+  Platí pro každý pager / lazy seznam uvnitř `SubcomposeLayout`, jehož počet je mimo něj.
 - **Počítadlo „N z M" se ptá jednou**, na otevřenou fotku (`getChatMessagePosition` +
   `getChatMessageCount`; TDLib počítá od nejnovější, tak se to obrací). Ostatní stránky se
   odvozují posunem indexu, protože načtený výřez je souvislý.
