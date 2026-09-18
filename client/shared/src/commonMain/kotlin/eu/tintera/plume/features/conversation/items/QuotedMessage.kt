@@ -2,16 +2,10 @@ package eu.tintera.plume.features.conversation.items
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -63,8 +57,9 @@ internal fun QuotedMessage(
     onLongClick: (() -> Unit)? = null,
 ) {
     /*
-     * Citace je TÓNOVANÝ KONTEJNER: zaoblená plocha v odstínu akcentu s proužkem u kraje. Dřív
-     * to byl jen proužek s textem, který v bublině splýval s odpovědí pod ním. Plocha se bere
+     * Citace je TÓNOVANÝ KONTEJNER: zaoblená plocha v odstínu akcentu. Dřív to byl jen proužek
+     * s textem, který v bublině splýval s odpovědí pod ním; plocha citaci vyčlení sama, takže
+     * proužek navíc nic nepřidával. Plocha se bere
      * z akcentu s nízkou průhledností, ne z pevné role — v odchozí `primary` bublině je akcentem
      * barva popředí, takže kontejner zůstane tónem téže bubliny.
      */
@@ -82,17 +77,8 @@ internal fun QuotedMessage(
                     Modifier
                 },
             )
-            .height(IntrinsicSize.Min),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Box(
-            Modifier
-                .width(4.dp)
-                .fillMaxHeight()
-                .background(accent),
-        )
-
-        Column(Modifier.padding(top = 6.dp, bottom = 6.dp, end = 10.dp)) {
+        Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
             Text(
                 text = when {
                     message.isOutgoing -> stringResource(Res.string.sender_you)

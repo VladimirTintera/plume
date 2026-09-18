@@ -1135,8 +1135,8 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   jméno nad zprávou a proužek citace. Osm odstínů rovnoměrně po kruhu od odstínu `primary`,
   HCT tón 40 / 80 podle režimu — kontrast i soulad s Material You, žádná barva natvrdo.
   V odchozí `primary` bublině si citace akcent bubliny nechává.
-- **Citace je tónovaný kontejner** (akcent s průhledností 0,14 a proužek), ne holý proužek
-  s textem. Plocha je z akcentu, ne z role — v odchozí bublině je akcentem barva popředí.
+- **Citace je tónovaný kontejner** (akcent s průhledností 0,14), bez proužku — plocha ji vyčlení
+  sama. Dřív to byl holý proužek s textem. Plocha je z akcentu, ne z role — v odchozí bublině je akcentem barva popředí.
 - **Nároží bublin se animují** (spatial spec), jako skupiny v seznamu chatů. Pružina přestřelí,
   takže se ořezávají na nulu — záporné zaoblení `RoundedCornerShape` odmítne.
 - **Nová zpráva pružně naskočí** z měřítka 0,85 od strany odesílatele (`arrival`). Jen jednou
