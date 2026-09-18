@@ -351,7 +351,21 @@ aplikace pamatuje o uživateli; data z Telegramu drží TDLib.
 - Testy nad skutečným souborem v dočasném adresáři (`DataStoreAppSettingsTest`), každý test
   vlastní soubor. **Na skutečném čase (`runBlocking` + `Dispatchers.Default`), ne `runTest`**:
   DataStore pracuje na vlastních vláknech a s virtuálním plánovačem se to občas minulo — test
-  visel do minutového limitu a selhával pokaždé jiný. Každé čekání má `withTimeout` pár vteřin.
+  visel do minutového limitu a selhával pokaždé jiný. Každé čekání má proto vlastní limit.
+- **`first()` nad `StateFlow` NEČEKÁ na načtení — vrátí počáteční hodnotu.** Test „neznámá
+  hodnota spadne na výchozí" tím neověřoval vůbec nic: výsledek vyšel správně i tehdy, když
+  v úložišti ležela platná jiná hodnota (ověřeno pokusem, ne úvahou — test s „Stickers" v souboru
+  dál tvrdil „Emoji" a prošel). Uložená hodnota se dá testovat jen jako **přechod z výchozí na
+  jinou**: napřed platná hodnota a počkat na ni, teprve pak ta, která se má přeložit.
+- **Limit čekání není měřítko rychlosti, ale pojistka proti zaseknutí** — patří mu tedy velkorysá
+  hodnota (15 s). Jediné pozorované selhání přišlo z plného `check` na stroji, kde se současně
+  točil emulátor, simulátor iOS a link Kotlin/Native; na nečinném ani uměle zatíženém stroji se
+  nereprodukovalo ani po dvacítce běhů. Přiškrcený limit z takového testu dělá generátor
+  falešných poplachů.
+- **Čekání musí při vypršení říct, NA CO se čekalo a co bylo naposledy vidět.** Holé
+  „Timed out waiting for 5000 ms" neumožnilo selhání ani dodatečně vysvětlit. Ze stejného důvodu
+  se čeká na CELÝ očekávaný seznam nedávných emoji, ne jen na jeho první položku: jinak se
+  neprojevený zápis pozná až o krok dál závěrečným `assertEquals`, kde už není poznat, který.
 
 ## Jazyky
 
