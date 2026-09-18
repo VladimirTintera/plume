@@ -63,9 +63,32 @@ Nastavení je list-detail: vlevo sekce (Obecné, Vzhled), vpravo jejich obsah. O
 a odhlášení; Vzhled motiv aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
 
 - **Úprava vlastního profilu** — fotka, jméno, uživatelské jméno, bio.
-- **Chování notifikací** je další na řadě: dnes se řídí výhradně tím, co rozhodne TDLib, a
-  aplikace k tomu nemá jedinou volbu.
+- **Sekce Notifikace** — viz [Notifikace](#notifikace) níž.
 - **Sekce Obecné nemá skupiny.** Vzhled je má (`SettingsGroup`), Obecné zatím ne — až v něm budou
   víc než tři položky, patří do skupin taky.
 - **Řádky sekcí nemají ikony.** Dva řádky se poznají i tak, s další sekcí to začne být znát;
   chybí k tomu Material Symbols v `composeResources`.
+
+## Notifikace
+
+- **Kanály podle druhu chatu.** Dnes je jediný kanál `messages`, takže v systému nejde ztišit
+  skupiny a nechat zvonit soukromé zprávy. Návrh: Soukromé zprávy / Skupiny / Kanály podle
+  rozsahu TDLib a samostatný kanál Zmínky (`NotificationGroupType.Mentions`). TDLib o kanálech
+  neví nic, jen dává data k rozdělení. Kanál je po vytvoření neměnný, proto se zvuk z Telegramu
+  zatím nesynchronizuje a nechává se systému. Rozbor: [notifikacni-kanaly.md](notifikacni-kanaly.md).
+- **Sekce Notifikace v Nastavení.** Dnes o notifikacích rozhoduje jen TDLib a aplikace k tomu
+  nemá jedinou volbu. Všechno níž jde přes TDLib a synchronizuje se přes server na ostatní
+  zařízení. Obrazovka se skládá po rozsazích (soukromé / skupiny / kanály), každý s vlastními
+  volbami a pod nimi odkaz „Zvuk a vibrace" do SVÉHO systémového kanálu
+  (`Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS`). Proto patří dohromady s kanály výš.
+  - zapnutí rozsahu (`muteFor`) a náhled textu (`showPreview`), `setScopeNotificationSettings`,
+  - notifikace o připnutých zprávách (`disablePinnedMessageNotifications`) a o zmínkách
+    (`disableMentionNotifications`); zmínky projdou i ztlumeným chatem,
+  - stories (`muteStories`, `showStoryPoster`), až budou stories,
+  - **výjimky**: chaty s vlastním nastavením (`getChatNotificationSettingsExceptions`) — jediné
+    místo, kde je vidět, co kde je ztlumené,
+  - „kontakt se připojil k Telegramu" (volba `disable_contact_registered_notifications`),
+  - oprávnění k notifikacím s odkazem do systému se sem přestěhuje z Obecných.
+
+  Zvuky a vibrace vlastní volbou NEBUDOU: na Androidu je vlastní kanál a aplikace je po jeho
+  vytvoření stejně přepsat nemůže (viz rozbor kanálů).
