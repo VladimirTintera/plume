@@ -1168,14 +1168,18 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   v commonMain se prostě nedá vyrobit.
 - **Prázdná nabídka emoji není chyba.** V Uložených zprávách Telegram místo reakcí používá tagy;
   dřív se kvůli tomu nabídka neotevřela vůbec a nešlo ani odpovědět. Teď se jen nevykreslí pruh.
-- **Z nabídky se NESMÍ otevírat `ModalBottomSheet`.** Vyjede, ale **ťuknutí do něj nikam
-  nedojde** — ověřeno na zařízení u výběru reakcí i u „Informace", chová se to stejně. Je to
-  okno navíc, otevřené v okamžiku, kdy se okno popupu ruší; přesný mechanismus zatím vysvětlený
-  není, ale příznak je spolehlivý. Co se má otevřít z nabídky, patří do **obsahu téhož popupu**.
-  (Zbylý `MessageInfoSheet` tímhle trpí — viz roadmapa konverzace.)
-- **Plný seznam emoji je proto sheet UVNITŘ popupu** (`ReactionSheet`): celá šířka u spodní
-  hrany, zaoblený vršek, úchyt, tažením dolů se zavírá — vypadá jako bottom sheet, ale kreslí
-  ho totéž okno, které ukazuje sbalený pruh, a ťuknutí jde touž cestou jako u rychlé reakce.
+- **Modální sheet otevřený z nabídky je PODEZŘELÝ, ne usvědčený.** Původní `ReactionPickerSheet`
+  se otevíral z obrazovky, nabídka se přitom rušila — a ťuknutí na emoji v něm neudělalo nic.
+  **Proč, se nezjistilo.** Nabízí se, že je to okno navíc otevřené ve chvíli, kdy se okno popupu
+  ruší, ale ověřené to není a samotný sheet měl vlastní vady (nešel scrollovat, otevíral se
+  napůl rozbalený). `MessageInfoSheet` se otevírá stejnou cestou a **jestli v něm ťuknutí na
+  odkaz funguje, ověřené není** — to je u něj první věc ke kontrole. Než se to vysvětlí, je
+  každý další `ModalBottomSheet` z nabídky riziko.
+- **Plný seznam emoji je sheet UVNITŘ popupu** (`ReactionSheet`): celá šířka u spodní hrany,
+  zaoblený vršek, úchyt, tažením dolů se zavírá — vypadá jako bottom sheet, ale kreslí ho totéž
+  okno, které ukazuje sbalený pruh, a ťuknutí jde touž cestou jako u rychlé reakce. Důvody jsou
+  dva a první z nich platí bez ohledu na tu nevysvětlenou vadu: vybraná zpráva i pruh reakcí mají
+  zůstat vidět (viz níž), a navíc se tím obchází okno, u kterého nevíme, co se v něm dělo.
   Že se v mřížce listuje, popupu nevadí; `LazyVerticalGrid` v něm scrolluje jako kdekoli jinde.
   Zpět a ťuknutí mimo **nejdřív sbalí výběr** a teprve podruhé zavřou nabídku.
 - **Sheet musí ťuknutí spolknout** (`detectTapGestures { }`). Kořen popupu má přes celou plochu
@@ -1197,10 +1201,10 @@ Položka „Informace" v nabídce nad zprávou otevře bottom sheet: kdy zpráva
 upravená, kdy ji protějšek přečetl, kdo ji zhlédl a odkaz na ni (`MessageInfoSheet`,
 `messageInfo` v `core/telegram`).
 
-- **ROZBITÉ: ťuknutí ve sheetu nefunguje.** Otevírá se z nabídky nad zprávou, a to je přesně
-  ten případ popsaný výš — modální sheet z popupu ťuknutí nedostane, takže odkaz nejde
-  zkopírovat. Opravit to znamená totéž co u reakcí: přestěhovat obsah do popupu. Je to
-  v roadmapě konverzace.
+- **NEOVĚŘENÉ: jestli v něm ťuknutí na odkaz funguje.** Otevírá se z nabídky nad zprávou stejně
+  jako kdysi výběr reakcí, a v tom ťuknutí nefungovalo (příčina nezjištěná, viz „Nabídka nad
+  zprávou"). Zkontrolovat se to dá jednou věcí: ťuknout na odkaz a podívat se, jestli se
+  opravdu zkopíroval.
 - **Sheet, ne popup ani řádky v nabídce.** Údajů je proměnlivý počet a zhlédnutí je celý seznam
   lidí, takže se v tom musí dát listovat — a na rozdíl od výběru reakcí to není krok, po kterém
   má zůstat vidět vybraná zpráva.
