@@ -58,6 +58,7 @@ class MessageActionTest {
         canEdit = true,
         canPin = true,
         canForward = true,
+        canSave = true,
     )
 
     private fun menu(

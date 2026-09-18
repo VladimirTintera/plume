@@ -219,6 +219,7 @@ class TdlConversationRepository(
                     canEdit = properties.canBeEdited,
                     canPin = properties.canBePinned,
                     canForward = properties.canBeForwarded,
+                    canSave = properties.canBeSaved,
                 )
             }
 

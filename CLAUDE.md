@@ -1813,6 +1813,20 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   systémových lišt musí být světlé** (`DarkSystemBars`, při odchodu vrátí předchozí stav).
   Kde rozostření není (Android 11 a starší), kreslí Haze skoro neprůhledný závoj
   (`AMBIENT_FALLBACK_ALPHA`) — ostrá fotka za kartou by rušila.
+- **Uložení do galerie je v horní liště prohlížeče** (`MediaSaver`, `expect`/`actual`). Ukládá
+  se KOPIE ostré verze (`fullFileId`, u souboru soubor sám) — soubor TDLib je v soukromém
+  adresáři a s odhlášením zmizí. Android od verze 10 přes `MediaStore` do `Pictures/Plume`
+  a `Movies/Plume` bez oprávnění, položka je během zápisu `IS_PENDING`; do verze 9 veřejný
+  adresář s `WRITE_EXTERNAL_STORAGE` (`maxSdkVersion="28"`) a ohlášení skeneru médií. iOS
+  `PHAssetChangeRequest` s oprávněním jen k přidávání (`NSPhotoLibraryAddUsageDescription`).
+  Nabízí se podle `canBeSaved` (`MessageActions.canSave`), stejná ochrana obsahu jako
+  u kopírování.
+- **Fotka a video se ukládají pod jménem podle času zprávy** (`savedFileName`,
+  `Plume_20260918_233025.jpg`). TDLib je drží jako `5868681087951770588_121.jpg`, což v galerii
+  nic neřekne. Soubor si nechává jméno, které mu dal odesílatel.
+- **Ověřuje se dotazem na `MediaStore`**, ne pohledem do galerie: `adb shell "content query
+  --uri content://media/external/images/media --projection _display_name:_size --where
+  \"relative_path LIKE 'Pictures/Plume%'\""`. Velikost prozradí, jestli se uložila ostrá verze.
 - **Reakce, přeposlání a smazání jsou přímo v prohlížeči.** Nabízené reakce a práva
   (`messageActions`) se načítají **pro stránku, na které uživatel stojí**, jednou za zprávu —
   stejný důvod jako u nabídky v konverzaci. Dokud nedorazí, akce se nekreslí. Smaže se jen

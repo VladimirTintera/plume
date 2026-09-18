@@ -76,6 +76,7 @@ import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import eu.tintera.plume.core.files.rememberSavePermission
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.DarkSystemBars
 import eu.tintera.plume.core.ui.RemoteImage
@@ -92,10 +93,12 @@ import eu.tintera.plume.resources.add_reaction_24dp
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.common_close
 import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.download_24dp
 import eu.tintera.plume.resources.forward_24dp
 import eu.tintera.plume.resources.media_photo
 import eu.tintera.plume.resources.media_position
 import eu.tintera.plume.resources.menu_delete
+import eu.tintera.plume.resources.media_save
 import eu.tintera.plume.resources.menu_forward
 import eu.tintera.plume.resources.menu_more_reactions
 import eu.tintera.plume.resources.sender_you
@@ -148,6 +151,8 @@ fun MediaViewerScreen(
 
     LaunchedEffect(state.closed) { if (state.closed) onBack() }
 
+    val savePermission = rememberSavePermission()
+
     Box(modifier.fillMaxSize()) {
         if (state.items.isNotEmpty()) {
             ViewerContent(
@@ -157,6 +162,11 @@ fun MediaViewerScreen(
                 onReact = viewModel::toggleReaction,
                 onDelete = viewModel::requestDelete,
                 onForward = onForward,
+                onSave = { messageId ->
+                    savePermission.request { granted ->
+                        if (granted) viewModel.save(messageId) else viewModel.onSaveDenied()
+                    }
+                },
                 onDismiss = onBack,
             )
         } else {
@@ -207,6 +217,7 @@ private fun ViewerContent(
     onReact: (messageId: Long, emoji: String) -> Unit,
     onDelete: (messageId: Long) -> Unit,
     onForward: (messageId: Long) -> Unit,
+    onSave: (messageId: Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val items = state.items
@@ -316,6 +327,7 @@ private fun ViewerContent(
                     onClose = onDismiss,
                     onDelete = { onDelete(current.messageId) },
                     onForward = { onForward(current.messageId) },
+                    onSave = { onSave(current.messageId) },
                 )
             }
         }
@@ -408,6 +420,7 @@ private fun TopBar(
     onClose: () -> Unit,
     onDelete: () -> Unit,
     onForward: () -> Unit,
+    onSave: () -> Unit,
 ) {
     val actions = state.actions[item.messageId]
 
@@ -452,6 +465,14 @@ private fun TopBar(
             )
         }
 
+        if (actions?.canSave == true) {
+            if (item.messageId in state.saving) {
+                // Na místě tlačítka, aby lišta neposkočila; stahování originálu může trvat.
+                LoadingIndicator(color = ON_SCRIM, modifier = Modifier.size(48.dp))
+            } else {
+                ChromeIcon(Res.drawable.download_24dp, stringResource(Res.string.media_save), onSave)
+            }
+        }
         if (actions?.canForward == true) {
             ChromeIcon(Res.drawable.forward_24dp, stringResource(Res.string.menu_forward), onForward)
         }

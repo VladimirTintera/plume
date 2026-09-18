@@ -168,6 +168,8 @@ fun appModule() = module {
             chatId = parameters.get(),
             messageId = parameters.get(),
             repository = get(),
+            files = get(),
+            saver = get(),
         )
     }
 }

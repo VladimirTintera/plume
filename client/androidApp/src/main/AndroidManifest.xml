@@ -7,6 +7,10 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Nahrávání hlasovek; ptá se až při prvním ťuknutí na mikrofon. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Uložení fotky a videa do galerie. Od Androidu 10 zapisuje MediaStore bez oprávnění. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
 
     <!-- Predictive back. Při targetSdk 35+ ho systém zapíná sám a tenhle příznak ignoruje;
          je tu jako výslovné prohlášení a pojistka, kdyby targetSdk někdy klesl. Samotnou

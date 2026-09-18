@@ -4,10 +4,14 @@ import co.touchlab.kermit.Logger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.files.DocumentKind
+import eu.tintera.plume.core.files.MediaSaver
+import eu.tintera.plume.core.files.savedFileName
 import eu.tintera.plume.core.files.documentKind
 import eu.tintera.plume.core.files.opensInViewer
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.FileRepository
+import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
@@ -20,11 +24,16 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_delete_failed
 import eu.tintera.plume.resources.conversation_reaction_failed
 import eu.tintera.plume.resources.media_photo_load_failed
+import eu.tintera.plume.resources.media_save_denied
+import eu.tintera.plume.resources.media_save_failed
+import eu.tintera.plume.resources.media_saved
 import eu.tintera.plume.resources.media_unsupported
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.datetime.TimeZone
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
@@ -47,6 +56,8 @@ class MediaViewerViewModel(
     private val chatId: Long,
     private val messageId: Long,
     private val repository: ConversationRepository,
+    private val files: FileRepository,
+    private val saver: MediaSaver,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("MediaViewer")
@@ -228,6 +239,46 @@ class MediaViewerViewModel(
         }
     }
 
+    /**
+     * Uloží snímek nebo video, na kterém uživatel stojí, do galerie.
+     *
+     * Ukládá se **ostrá verze** (u fotky `fullFileId`, u souboru soubor sám), ne zmenšenina
+     * z bubliny; když ještě není stažená, počká se na ni. Tlačítko po dobu ukládání točí, takže
+     * druhé ťuknutí nic nespustí. Běží ve `viewModelScope`: zavření prohlížeče ukládání zruší,
+     * dřív než uživatel uvidí, jestli se povedlo.
+     */
+    fun save(messageId: Long) {
+        val item = _state.value.items.firstOrNull { it.messageId == messageId } ?: return
+        if (messageId in _state.value.saving) return
+        val (fileId, isVideo) = when (val media = item.media) {
+            is MessageMedia.Photo -> media.fullFileId to false
+            is MessageMedia.Video -> media.fileId to true
+            else -> return
+        }
+        _state.update { it.copy(saving = it.saving + messageId) }
+
+        viewModelScope.launch {
+            val file = files.file(fileId).first { it is FileState.Ready || it is FileState.Failed }
+            val saved = file is FileState.Ready && saver.save(
+                path = file.path,
+                fileName = savedFileName(item.fileName, file.path, item.timestamp, TimeZone.currentSystemDefault()),
+                isVideo = isVideo,
+            )
+            if (file is FileState.Failed) logger.w { "Soubor $fileId se kvůli uložení nepodařilo stáhnout." }
+            _state.update {
+                it.copy(
+                    saving = it.saving - messageId,
+                    notice = UiText(if (saved) Res.string.media_saved else Res.string.media_save_failed),
+                )
+            }
+        }
+    }
+
+    /** Systém zápis do galerie nepovolil. Bez hlášky by ťuknutí vypadalo, že nic neudělalo. */
+    fun onSaveDenied() {
+        _state.update { it.copy(notice = UiText(Res.string.media_save_denied)) }
+    }
+
     fun dismissNotice() {
         _state.update { it.copy(notice = null) }
     }
@@ -303,6 +354,7 @@ class MediaViewerViewModel(
             senderName = senderName,
             timestamp = timestamp,
             reactions = reactions,
+            fileName = (this.media as? MessageMedia.Document)?.fileName,
         )
     }
 
@@ -355,6 +407,8 @@ data class ViewerItem(
     val senderName: String?,
     val timestamp: Int,
     val reactions: List<MessageReaction> = emptyList(),
+    /** Původní jméno souboru, když je stránka soubor; fotka a video ho nemají. */
+    val fileName: String? = null,
 )
 
 data class MediaViewerState(
@@ -373,7 +427,9 @@ data class MediaViewerState(
     /** Co se se zprávou smí, podle id. Chybí, dokud se nenačte — akce se do té doby nenabízejí. */
     val actions: Map<Long, MessageActions> = emptyMap(),
     val pendingDelete: PendingDelete? = null,
-    /** Jednorázová hláška do snackbaru (nepovedená reakce, mazání). */
+    /** Zprávy, jejichž médium se právě ukládá do galerie. */
+    val saving: Set<Long> = emptySet(),
+    /** Jednorázová hláška do snackbaru (nepovedená reakce, mazání, uložení). */
     val notice: UiText? = null,
     /** Zmizela poslední fotka (smazaná odsud nebo odjinud) — prohlížeč se zavře. */
     val closed: Boolean = false,

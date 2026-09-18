@@ -20,6 +20,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Mikrofon je potřeba k nahrávání hlasových zpráv.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Fotky a videa z chatů se ukládají do knihovny fotek.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>LSRequiresIPhoneOS</key>
