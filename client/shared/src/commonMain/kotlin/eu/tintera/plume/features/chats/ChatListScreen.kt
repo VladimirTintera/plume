@@ -273,12 +273,13 @@ private fun ChatRow(
      * přečtený chat přeskočí z nepřečtených mezi ostatní a tvary sousedů se tím mění.
      */
     val topCorner by animateDpAsState(
-        targetValue = if (firstInGroup) GROUP_CORNER else INNER_CORNER,
+        // Vybraná položka se z bloku vyčlení: zaoblená celá, jako skupina sama (M3 Expressive).
+        targetValue = if (firstInGroup || selected) GROUP_CORNER else INNER_CORNER,
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "chat-corner-top",
     )
     val bottomCorner by animateDpAsState(
-        targetValue = if (lastInGroup) GROUP_CORNER else INNER_CORNER,
+        targetValue = if (lastInGroup || selected) GROUP_CORNER else INNER_CORNER,
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "chat-corner-bottom",
     )
