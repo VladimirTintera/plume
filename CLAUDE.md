@@ -7,13 +7,15 @@ nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí
 
 ## Stav
 
-Fáze 6. Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar),
-živý seznam chatů, textová konverzace (historie, živé zprávy, odesílání, označení přečteného),
-avatary a fotky ve zprávách, reakce, odpovědi, notifikace na Androidu, sponzorované zprávy,
-stav spojení a jeho obnova po návratu z pozadí.
+Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar), živý seznam chatů,
+konverzace (historie, živé zprávy, odesílání, přílohy a alba, hlasovky, samolepky a emoji, úprava,
+přeposílání, připnuté zprávy), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
+a hlášení pádů na Androidu, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
-Není: notifikace na iOS ani hlášení pádů z iOS. Nastavení aplikace
-se ukládá (DataStore), zatím ale drží jen poslední část výběru emoji/samolepek. Prohlížeč médií umí zatím jen fotky. Rozpracovaný detail chatu má vlastní seznam:
+Není: notifikace na iOS ani hlášení pádů z iOS; obrazovky archivu, hledání, profilu chatu a nové
+konverzace. Nastavení aplikace se ukládá (DataStore), zatím ale drží jen poslední část výběru
+emoji/samolepek, nedávná emoji a odstíny pleti — tedy nic, co by si uživatel vědomě nastavil.
+Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
 
 ## Build
@@ -1923,6 +1925,12 @@ takže by v něm rostoucí seznam úkolů jen ubíral místo poučením.
   co právě leží rozpracované v pracovním adresáři.
 - **[docs/roadmap-konverzace.md](docs/roadmap-konverzace.md)** — podrobný seznam pro detail chatu
   i zásobník menších nálezů z čtení kódu.
+
+**A ani ve třetím.** README mělo vlastní odstavec „Není hotové" a přestal se aktualizovat: tvrdil,
+že chybí přehrávání videa a zvuku, otevírání dokumentů, úprava zprávy, skok na první nepřečtenou
+a perzistence nastavení — všechno dávno hotové. Seznam úkolů vedený na dvou místech se udržuje
+na jednom a to druhé tiše lže. README proto říká, co aplikace umí, a na roadmapy odkazuje;
+číslování fází z něj zmizelo ze stejného důvodu (README hlásilo fázi 7, CLAUDE.md fázi 6).
 
 Obojí je živý dokument: co se udělá, odtud zmizí a poučení z toho patří sem. Jedna věc zůstává
 i tady, protože je to bezpečnostní dluh, ne položka seznamu:
