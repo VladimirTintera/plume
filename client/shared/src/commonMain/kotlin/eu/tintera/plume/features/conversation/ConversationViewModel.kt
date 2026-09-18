@@ -1123,17 +1123,6 @@ class ConversationViewModel(
         }
     }
 
-    /** Přepne z nabídky na plný seznam emoji. Ten se listuje, takže zůstává bottom sheetem. */
-    fun showAllReactions() {
-        val menu = _state.value.messageMenu ?: return
-        _state.update {
-            it.copy(
-                messageMenu = null,
-                reactionSheet = ReactionPicker(menu.messageId, menu.emoji),
-            )
-        }
-    }
-
     /**
      * Přidá samolepku ze zprávy do oblíbených, nebo ji z nich odebere.
      *
@@ -1166,7 +1155,7 @@ class ConversationViewModel(
     }
 
     fun closeMenus() {
-        _state.update { it.copy(messageMenu = null, reactionSheet = null) }
+        _state.update { it.copy(messageMenu = null) }
     }
 
     /**
@@ -1653,12 +1642,6 @@ data class ScrollTarget(
     val anchor: ScrollAnchor,
 )
 
-/** Otevřený plný seznam reakcí (bottom sheet za tlačítkem „+"). */
-data class ReactionPicker(
-    val messageId: Long,
-    val emoji: List<String>,
-)
-
 /**
  * Otevřené informace o zprávě.
  *
@@ -1774,8 +1757,6 @@ data class ConversationState(
     val activity: ChatActivity? = null,
     /** Otevřená nabídka nad zprávou (rychlé reakce + akce). */
     val messageMenu: MessageMenu? = null,
-    /** Plný seznam reakcí za tlačítkem „+". */
-    val reactionSheet: ReactionPicker? = null,
     /** Zpráva čekající na potvrzení smazání. */
     val pendingDelete: PendingDelete? = null,
     /** Zpráva čekající na potvrzení připnutí. */

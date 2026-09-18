@@ -164,7 +164,9 @@ Co zůstalo otevřené:
 ## B) Popup nad zprávou místo bottom sheetu — HOTOVO
 
 Dlouhý stisk otevře pruh rychlých reakcí nad bublinou a nabídku akcí pod ní, zbytek obrazovky
-je pod závojem s dírou na vybrané zprávě. Poučení je v `CLAUDE.md`, sekce „Nabídka nad zprávou".
+je pod závojem s dírou na vybrané zprávě. „+" v pruhu rozbalí mřížku se všemi nabídnutými emoji —
+**v témže popupu**, ne v bottom sheetu, aby vybraná zpráva zůstala vidět. Poučení je
+v `CLAUDE.md`, sekce „Nabídka nad zprávou".
 Kód: `MessageMenu.kt`, `MessageMenu`/`PendingDelete` v `ConversationViewModel.kt`,
 `messageActions`/`deleteMessages` v repository, `core/ui/TextClipboard.kt`.
 

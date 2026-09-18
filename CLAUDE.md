@@ -1217,8 +1217,30 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   v commonMain se prostě nedá vyrobit.
 - **Prázdná nabídka emoji není chyba.** V Uložených zprávách Telegram místo reakcí používá tagy;
   dřív se kvůli tomu nabídka neotevřela vůbec a nešlo ani odpovědět. Teď se jen nevykreslí pruh.
-- **Plný seznam emoji zůstal bottom sheetem.** Za „+" jich bývá přes třicet, takže se v tom
-  listuje — a to popup neumí.
+- **Rozhoduje HIERARCHIE, ne to, kolik se toho má vejít.** Položka nabídky je jednorázová akce:
+  nabídku ukončí a co si otevře, je samostatná věc — „Informace" je modální sheet a funguje
+  správně, včetně zkopírování odkazu. Plný výběr reakcí je proti tomu **podnabídka tlačítka „+"**
+  v pruhu rychlých reakcí, takže patří DOVNITŘ plovoucí nabídky. Sheet nad ní z podnabídky dělal
+  něco, co ukončí nabídku, ke které pořád patří.
+- **Plný seznam emoji je proto sheet UVNITŘ popupu** (`ReactionSheet`): celá šířka u spodní
+  hrany, zaoblený vršek, úchyt, tažením dolů se zavírá — vypadá jako bottom sheet, ale kreslí
+  ho totéž okno, které ukazuje sbalený pruh, a ťuknutí jde touž cestou jako u rychlé reakce.
+  Že se v mřížce listuje, popupu nevadí; `LazyVerticalGrid` v něm scrolluje jako kdekoli jinde.
+  Zpět a ťuknutí mimo **nejdřív sbalí výběr** a teprve podruhé zavřou nabídku.
+- **Ve starém `ReactionPickerSheet` nešlo ťuknout na emoji** a příčina se nezjistila. Podezřelé
+  jsou jeho dvě vlastní vady, ne to, že byl otevřený z nabídky (to „Informace" dělá taky a je
+  v pořádku): `FlowRow` bez scrollování s obsahem vyšším než obrazovka a chybějící
+  `enabledValues = Hidden, Expanded`, takže vyjel napůl rozbalený. Kdyby se někdy měl vracet
+  sheet, začni tímhle.
+- **Sheet musí ťuknutí spolknout** (`detectTapGestures { }`). Kořen popupu má přes celou plochu
+  `clickable`, který zavírá nabídku — bez toho by ho ťuknutí vedle buňky mřížky sestřelilo.
+- **Nad sheetem zůstává pruh rychlých reakcí a vybraná zpráva, nabídka akcí ne.** Tak to dělá
+  i Google Messages: z pruhu je pořád vidět, čeho se výběr týká a co je už použité. Pruh zůstane
+  u zprávy, dokud se nad sheet vejde, jinak se posadí těsně nad něj — a posun se animuje, aby to
+  nevypadalo jako přeskládání. Rozvržení počítá `reactionSheetLayout` (testy `ReactionSheetTest`),
+  čistá funkce mimo composable jako `photoFrame`: samý hraniční případ (zpráva dole, nahoře,
+  nízké i vysoké okno). Počítá se i se sbaleným sheetem — při odjezdu `expanded` už neplatí
+  a výška by mu pod rukama skočila na podlahu.
 - **Smazaná zpráva se ze seznamu neodstraňuje ručně.** TDLib pošle `UpdateDeleteMessages` a ten se
   už zpracovává; předběhnout server by znamenalo riskovat, že zpráva zmizí z obrazovky a na
   serveru zůstane.
@@ -1230,7 +1252,9 @@ upravená, kdy ji protějšek přečetl, kdo ji zhlédl a odkaz na ni (`MessageI
 `messageInfo` v `core/telegram`).
 
 - **Sheet, ne popup ani řádky v nabídce.** Údajů je proměnlivý počet a zhlédnutí je celý seznam
-  lidí, takže se v tom musí dát listovat — totéž, proč je sheetem plný výběr emoji.
+  lidí, takže se v tom musí dát listovat. **Je to jednorázová akce, ne podnabídka** — proto
+  nabídku ukončí a otevře samostatný sheet, na rozdíl od výběru reakcí, který zůstává uvnitř
+  popupu (viz „Nabídka nad zprávou").
 - **Jako jediná položka nabídky se nabízí VŽDY.** Nestojí na právu od serveru: čas odeslání má
   konverzace sama, takže sheet má co ukázat i u zprávy, u které server odkaz, zhlédnutí ani čas
   přečtení nevydá.

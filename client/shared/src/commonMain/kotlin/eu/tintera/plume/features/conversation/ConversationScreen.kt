@@ -379,7 +379,6 @@ fun ConversationScreen(
     val menuHandlers = remember(viewModel) {
         MessageMenuHandlers(
             onPick = viewModel::toggleReaction,
-            onMore = viewModel::showAllReactions,
             onReply = viewModel::replyTo,
             onEdit = viewModel::startEdit,
             onCopy = viewModel::copyMessage,
@@ -716,8 +715,6 @@ fun ConversationScreen(
     ) { padding ->
         // Nabídka nad zprávou se kreslí až v bublině — viz `MessageMenuOverlay`.
 
-        // Plný seznam emoji za tlačítkem „+". Zůstává bottom sheetem, protože se v něm listuje —
-        // a to popup neumí.
         if (stickerPickerOpen) {
             StickerPickerSheet(
                 mode = expressionMode,
@@ -746,14 +743,6 @@ fun ConversationScreen(
                     viewModel.sendSticker(sticker)
                 },
                 onDismiss = { openStickerSetId = null },
-            )
-        }
-
-        state.reactionSheet?.let { picker ->
-            ReactionPickerSheet(
-                picker = picker,
-                onPick = { emoji -> viewModel.toggleReaction(picker.messageId, emoji) },
-                onDismiss = viewModel::closeMenus,
             )
         }
 

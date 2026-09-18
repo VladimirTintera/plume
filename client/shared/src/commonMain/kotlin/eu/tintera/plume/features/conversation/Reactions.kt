@@ -1,14 +1,11 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -18,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -33,14 +29,12 @@ import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.conversation_react
 import eu.tintera.plume.resources.reactions_title
 import eu.tintera.plume.resources.reactions_you
 import org.jetbrains.compose.resources.stringResource
@@ -177,60 +171,6 @@ private val REACTION_CHIP_SIZE = 30.dp
 
 /** Kolik místa si čip nechá nahoře a vpravo na odznak s počtem. */
 private val REACTION_BADGE_ROOM = 7.dp
-
-/**
- * Plný seznam reakcí.
- *
- * Otevírá se z tlačítka „+" v nabídce nad zprávou — ta unese jen pár emoji na jedno ťuknutí,
- * zbytek je tady. Bottom sheet zůstal schválně: nabídnutých emoji bývá přes třicet, takže se
- * v tom listuje, a to popup neumí.
- *
- * Akce nad zprávou (odpovědět, kopírovat, smazat) sem **nepatří** — mají vlastní nabídku
- * u zprávy, viz [MessageMenuOverlay].
- */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
-@Composable
-fun ReactionPickerSheet(
-    picker: ReactionPicker,
-    onPick: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    // Modální sheet začíná skrytý a rozjede se sám. Náhrada za `rememberModalBottomSheetState`,
-    // které je od Compose 1.12 zastaralé.
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
-
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Text(
-            text = stringResource(Res.string.conversation_react),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 4.dp),
-        )
-
-        FlowRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            picker.emoji.forEach { emoji ->
-                Surface(
-                    onClick = { onPick(emoji) },
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier.size(52.dp),
-                ) {
-                    Text(
-                        text = emoji,
-                        fontSize = 26.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(top = 10.dp).fillMaxWidth(),
-                    )
-                }
-            }
-        }
-    }
-}
 
 /**
  * Detail reakcí: kdo a čím reagoval.
