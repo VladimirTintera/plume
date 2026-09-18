@@ -317,6 +317,8 @@
     <string name="conversation_attach_file">Soubor</string>
     <string name="conversation_pick_chat">Vyber chat vlevo.</string>
     <string name="conversation_react">Reagovat</string>
+    <string name="reactions_title">Reakce</string>
+    <string name="reactions_you">Vy</string>
     <string name="attachment_remove_file">Odebrat soubor</string>
     <string name="attachment_remove_photo">Odebrat fotku</string>
     <string name="emoji_search">Hledat emoji</string>

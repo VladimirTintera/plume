@@ -27,6 +27,7 @@ import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
+import eu.tintera.plume.core.telegram.ReactionDetail
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SendState
@@ -967,6 +968,41 @@ class ConversationViewModel(
     }
 
     /**
+     * Ťuknutí na čip reakce: otevře detail a dotáhne, kdo reagoval.
+     *
+     * Reakci to **nepřepíná**. Přidat i odebrat jde z nabídky nad zprávou, kde je vybraná reakce
+     * zvýrazněná a ťuknutí na ni ji sundá — jinak by se ťuknutí na čip pralo o význam
+     * s otevřením detailu.
+     */
+    fun showReactionDetails(messageId: Long) {
+        _state.update { it.copy(reactionDetails = ReactionDetails(messageId = messageId)) }
+
+        viewModelScope.launch {
+            repository.reactionDetails(chatId, messageId)
+                .onSuccess { details ->
+                    _state.update { state ->
+                        // Mezitím mohl uživatel sheet zavřít nebo otevřít u jiné zprávy.
+                        val open = state.reactionDetails?.takeIf { it.messageId == messageId }
+                            ?: return@update state
+                        state.copy(reactionDetails = open.copy(loading = false, items = details))
+                    }
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(
+                            reactionDetails = null,
+                            error = failure.reported(Res.string.conversation_reaction_failed),
+                        )
+                    }
+                }
+        }
+    }
+
+    fun dismissReactionDetails() {
+        _state.update { it.copy(reactionDetails = null) }
+    }
+
+    /**
      * Otevře nabídku nad zprávou.
      *
      * Emoji a příznaky akcí se načítají **současně** — jsou to dva nezávislé dotazy a nabídka
@@ -1403,7 +1439,7 @@ private fun List<MessageReaction>.toggled(emoji: String, add: Boolean): List<Mes
         // Vlastní avatar u nově přidané reakce zatím neznáme — dorazí se serverovým updatem
         // o chvíli později. Optimisticky se ukáže jen počet, což je lepší než čekat na data.
         existing == null && add ->
-            this + MessageReaction(emoji, count = 1, isChosen = true, recentSenders = emptyList())
+            this + MessageReaction(emoji, count = 1, isChosen = true)
 
         existing == null -> this
 
@@ -1557,6 +1593,19 @@ data class ReactionPicker(
 )
 
 /**
+ * Otevřený detail reakcí: kdo a čím reagoval.
+ *
+ * Načítá se až při otevření — čip u zprávy nese jen emoji a počet, takže jména a profilovky
+ * nikdo jiný nepotřebuje. [loading] drží sheet otevřený s indikátorem, místo aby vyskočil
+ * prázdný a obsah do něj naskákal.
+ */
+data class ReactionDetails(
+    val messageId: Long,
+    val loading: Boolean = true,
+    val items: List<ReactionDetail> = emptyList(),
+)
+
+/**
  * Otevřená nabídka nad zprávou.
  *
  * Jsou v ní dvě různé věci: **rychlé reakce** (pár emoji na jedno ťuknutí) a **akce** nad zprávou.
@@ -1677,6 +1726,8 @@ data class ConversationState(
     val pinned: List<ChatMessage> = emptyList(),
     /** Smí uživatel připnuté zprávy odepínat. */
     val canUnpin: Boolean = false,
+    /** Otevřený detail reakcí; `null`, když je zavřený. */
+    val reactionDetails: ReactionDetails? = null,
     /** Průběh stahování souborů, které uživatel právě otevírá (podle `fileId`). */
     val documentDownloads: Map<Int, Float> = emptyMap(),
     /** Zprávy, které uživatel chce přeposlat; obrazovka na to otevře výběr cílového chatu. */

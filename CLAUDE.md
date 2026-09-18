@@ -1626,14 +1626,37 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   `getMessageAvailableReactions` vrátí prázdný seznam. Testovat reakce tam tedy nejde.
 - **`isBig = false`** — `true` je ta celoobrazovková animace; patří k vědomému gestu, ne ke
   každému ťuknutí na čip.
-- **Avatary místo počtu jen pod stropem.** U reakce s pár lidmi je zajímavé, KDO reagoval; nad
-  stropem se čip sbalí na emoji + číslo. Dvě nezávislé podmínky:
-  `MAX_AVATARS_PER_REACTION` (kolik lidí u jedné reakce) a `MAX_REACTIONS_WITH_AVATARS` (kolik
-  různých emoji u zprávy) — jinak by pod krátkou zprávou vznikla stěna z profilovek.
-  **`MAX_SENDERS_SHOWN` v repository musí sedět s tím prvním stropem**, protože nad ním se
-  odesílatelé vůbec nenačítají a UI by chtělo avatary, které nikdo nezjistil.
-- **`recentSenderIds` není úplný seznam.** TDLib posílá jen pár posledních; celkový počet je
-  v `totalCount`. Podle délky seznamu se tedy počet odvodit nedá.
+- **Avatary v čipech NEJSOU.** Byly, a byla to slepá ulička: čip s profilovkami je široký, takže
+  se jich vedle sebe vešlo pár, a stejně ukazoval jen několik posledních (`recentSenderIds` není
+  úplný seznam — celkový počet je v `totalCount`). Čip proto nese jen emoji a počet, a KDO
+  reagoval, říká detail. Odpadly s tím i stropy `MAX_AVATARS_PER_REACTION`,
+  `MAX_REACTIONS_WITH_AVATARS` a `MAX_SENDERS_SHOWN` a dotazy na odesílatele u každé zprávy
+  s reakcemi.
+- **Čip je kolečko, počet je odznak přes jeho roh** — ne kapsle s číslem vedle emoji. Čip leží
+  PŘES nároží bubliny, takže musí být co nejmenší; kulatý tvar na to sedí líp a číslo vedle emoji
+  by ho roztáhlo. **Počet se vypisuje až od dvou**: „1" je šum, že tam někdo je, říká samotný čip.
+- **Místo pro odznak si vyhradí obálka čipu, odznak z kolečka NEČOUHÁ.** Řádek reakcí se posouvá
+  do strany a posouvatelný kontejner si obsah ořezává na svoje hranice — zavěšený odznak by se
+  uřízl.
+- **Čipy leží PŘES dolní nároží bubliny** na straně odesílatele: dolní půlka visí ven, horní na
+  bublině. Obsah bubliny si proto nechá dole místo jen na tu horní půlku (`REACTION_STRIP_SPACE`),
+  celá výška čipu by pod textem nechala díru. Totéž platí pro kontejner popisku u holého média
+  a pro popis náhledu odkazu: čip sedí na tom, co je ve zprávě poslední.
+- **Přesah pod bublinou je uvnitř `Box`u, který ukotvuje nabídku** (`REACTION_OVERHANG` jako
+  odsazení bubliny, ne mezera mimo). Díky tomu zůstane čip celý v díře vykrojené do závoje —
+  při dlouhém stisku se nesmí ztmavit, patří ke zprávě.
+- **Jedou s bublinou i při tahu na odpověď**, protože posun sedí na sloupci kolem toho `Box`u.
+- **Jeden řádek, který se posouvá do strany**, ne lámání do víc řádků: čipy leží na bublině
+  a druhý řádek by ji přerostl. U příspěvku s deseti různými emoji je to jediné, co se vejde.
+- **Ťuknutí na čip otevírá DETAIL, nepřepíná reakci.** Přidat i odebrat jde z nabídky nad zprávou,
+  kde je vybraná reakce zvýrazněná a ťuknutí na ni ji sundá. Dvě věci na jedno ťuknutí nejdou
+  a detail je to, co se jinde nedozvíme.
+- **V kanálu detail není** — `getMessageAddedReactions` tam vrátí `BROADCAST_FORBIDDEN`. Čip se
+  proto v kanálu nedá ťuknout a nemá ani vlnku: čip, po kterém přijde chyba, je horší než čip,
+  který nic nedělá. Rozhoduje o tom `ChatInfo.isChannel`, ne odpověď serveru — ta by přišla až po
+  ťuknutí.
+- **Detail je jedna stránka** (`REACTION_DETAIL_LIMIT`, 50 řádků). U příspěvku s tisíci reakcemi
+  ho nikdo neprojde a stránkování by znamenalo držet offset ve stavu sheetu.
 
 ## Odpovědi (reply)
 
