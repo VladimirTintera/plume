@@ -1168,20 +1168,21 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   v commonMain se prostě nedá vyrobit.
 - **Prázdná nabídka emoji není chyba.** V Uložených zprávách Telegram místo reakcí používá tagy;
   dřív se kvůli tomu nabídka neotevřela vůbec a nešlo ani odpovědět. Teď se jen nevykreslí pruh.
-- **Modální sheet otevřený z nabídky je PODEZŘELÝ, ne usvědčený.** Původní `ReactionPickerSheet`
-  se otevíral z obrazovky, nabídka se přitom rušila — a ťuknutí na emoji v něm neudělalo nic.
-  **Proč, se nezjistilo.** Nabízí se, že je to okno navíc otevřené ve chvíli, kdy se okno popupu
-  ruší, ale ověřené to není a samotný sheet měl vlastní vady (nešel scrollovat, otevíral se
-  napůl rozbalený). `MessageInfoSheet` se otevírá stejnou cestou a **jestli v něm ťuknutí na
-  odkaz funguje, ověřené není** — to je u něj první věc ke kontrole. Než se to vysvětlí, je
-  každý další `ModalBottomSheet` z nabídky riziko.
-- **Plný seznam emoji je sheet UVNITŘ popupu** (`ReactionSheet`): celá šířka u spodní hrany,
-  zaoblený vršek, úchyt, tažením dolů se zavírá — vypadá jako bottom sheet, ale kreslí ho totéž
-  okno, které ukazuje sbalený pruh, a ťuknutí jde touž cestou jako u rychlé reakce. Důvody jsou
-  dva a první z nich platí bez ohledu na tu nevysvětlenou vadu: vybraná zpráva i pruh reakcí mají
-  zůstat vidět (viz níž), a navíc se tím obchází okno, u kterého nevíme, co se v něm dělo.
+- **Rozhoduje HIERARCHIE, ne to, kolik se toho má vejít.** Položka nabídky je jednorázová akce:
+  nabídku ukončí a co si otevře, je samostatná věc — „Informace" je modální sheet a funguje
+  správně, včetně zkopírování odkazu. Plný výběr reakcí je proti tomu **podnabídka tlačítka „+"**
+  v pruhu rychlých reakcí, takže patří DOVNITŘ plovoucí nabídky. Sheet nad ní z podnabídky dělal
+  něco, co ukončí nabídku, ke které pořád patří.
+- **Plný seznam emoji je proto sheet UVNITŘ popupu** (`ReactionSheet`): celá šířka u spodní
+  hrany, zaoblený vršek, úchyt, tažením dolů se zavírá — vypadá jako bottom sheet, ale kreslí
+  ho totéž okno, které ukazuje sbalený pruh, a ťuknutí jde touž cestou jako u rychlé reakce.
   Že se v mřížce listuje, popupu nevadí; `LazyVerticalGrid` v něm scrolluje jako kdekoli jinde.
   Zpět a ťuknutí mimo **nejdřív sbalí výběr** a teprve podruhé zavřou nabídku.
+- **Ve starém `ReactionPickerSheet` nešlo ťuknout na emoji** a příčina se nezjistila. Podezřelé
+  jsou jeho dvě vlastní vady, ne to, že byl otevřený z nabídky (to „Informace" dělá taky a je
+  v pořádku): `FlowRow` bez scrollování s obsahem vyšším než obrazovka a chybějící
+  `enabledValues = Hidden, Expanded`, takže vyjel napůl rozbalený. Kdyby se někdy měl vracet
+  sheet, začni tímhle.
 - **Sheet musí ťuknutí spolknout** (`detectTapGestures { }`). Kořen popupu má přes celou plochu
   `clickable`, který zavírá nabídku — bez toho by ho ťuknutí vedle buňky mřížky sestřelilo.
 - **Nad sheetem zůstává pruh rychlých reakcí a vybraná zpráva, nabídka akcí ne.** Tak to dělá
@@ -1201,13 +1202,10 @@ Položka „Informace" v nabídce nad zprávou otevře bottom sheet: kdy zpráva
 upravená, kdy ji protějšek přečetl, kdo ji zhlédl a odkaz na ni (`MessageInfoSheet`,
 `messageInfo` v `core/telegram`).
 
-- **NEOVĚŘENÉ: jestli v něm ťuknutí na odkaz funguje.** Otevírá se z nabídky nad zprávou stejně
-  jako kdysi výběr reakcí, a v tom ťuknutí nefungovalo (příčina nezjištěná, viz „Nabídka nad
-  zprávou"). Zkontrolovat se to dá jednou věcí: ťuknout na odkaz a podívat se, jestli se
-  opravdu zkopíroval.
 - **Sheet, ne popup ani řádky v nabídce.** Údajů je proměnlivý počet a zhlédnutí je celý seznam
-  lidí, takže se v tom musí dát listovat — a na rozdíl od výběru reakcí to není krok, po kterém
-  má zůstat vidět vybraná zpráva.
+  lidí, takže se v tom musí dát listovat. **Je to jednorázová akce, ne podnabídka** — proto
+  nabídku ukončí a otevře samostatný sheet, na rozdíl od výběru reakcí, který zůstává uvnitř
+  popupu (viz „Nabídka nad zprávou").
 - **Jako jediná položka nabídky se nabízí VŽDY.** Nestojí na právu od serveru: čas odeslání má
   konverzace sama, takže sheet má co ukázat i u zprávy, u které server odkaz, zhlédnutí ani čas
   přečtení nevydá.

@@ -222,11 +222,9 @@ internal fun MessageMenuOverlay(
     /*
      * Rozbalený výběr reakcí je sheet UVNITŘ tohohle popupu, ne `ModalBottomSheet`.
      *
-     * Modální sheet otevřený z nabídky je mrtvý: vyjede, ale ťuknutí do něj nikam nedojde
-     * (ověřeno na zařízení, stejně u výběru reakcí i u „Informace"). Je to okno navíc, otevřené
-     * ve chvíli, kdy se okno popupu ruší — a dokud se to nevysvětlí, nesmí z nabídky žádný další
-     * `ModalBottomSheet` vést. Tady je výběr obyčejný obsah popupu: kreslí ho totéž okno, které
-     * ukazuje sbalený pruh, a ťuknutí jde touž cestou jako u rychlé reakce.
+     * Je to PODNABÍDKA tlačítka „+" v pruhu rychlých reakcí, ne položka nabídky. Položka je
+     * jednorázová akce a smí nabídku ukončit — tak to dělá „Informace" a je to správně.
+     * Podnabídka nabídku ukončit nesmí, protože k ní pořád patří, takže patří do jejího obsahu.
      *
      * Že se v tom listuje, popupu nevadí — `LazyVerticalGrid` v něm scrolluje jako kdekoli jinde.
      */
@@ -514,11 +512,10 @@ private fun QuickReactions(
 /**
  * Rozbalený výběr reakcí: sheet u spodní hrany s mřížkou VŠECH nabídnutých emoji.
  *
- * **Není to `ModalBottomSheet`.** Modální sheet otevřený z nabídky nedostane ťuknutí (viz
- * `MessageMenuOverlay`), takže je tohle obyčejný obsah popupu, jen sheet připomíná: celá šířka
- * u spodní hrany, zaoblený vršek, úchyt a tažením dolů se zavírá. Ťuknutí jde touž cestou jako
- * u rychlé reakce ([MessageMenuHandlers.onPick]) — není tu druhá obsluha, která by se s ní
- * mohla rozejít.
+ * **Není to `ModalBottomSheet`.** Je to podnabídka tlačítka „+", takže patří do obsahu popupu
+ * (viz [MessageMenuOverlay]) — sheet jen připomíná: celá šířka u spodní hrany, zaoblený vršek,
+ * úchyt a tažením dolů se zavírá. Ťuknutí jde touž cestou jako u rychlé reakce
+ * ([MessageMenuHandlers.onPick]) — není tu druhá obsluha, která by se s ní mohla rozejít.
  *
  * Mřížka se posouvá svisle; nabídnutých emoji bývá přes třicet. Až přibudou vlastní (placené)
  * emoji, přibude sem řádek záložek a hledání — proto sheet, a ne pruh navíc.
