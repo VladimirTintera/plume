@@ -85,9 +85,8 @@ v `MediaFrameTest`). Svislý snímek obrazovky je tím vidět celý. Poučení v
 Co z toho zůstalo:
 
 - ~~**Popisek táhne bublinu širší, než je fotka.**~~ Vyřešil to bod 1: popisek má vlastní
-  kontejner, takže kolem zúžené fotky žádná prázdná plocha nezbývá. Zůstalo jen to, že široký
-  popisek může být širší než snímek nad ním — jako dva kusy jedné skupiny to ale vypadá správně,
-  stejně jako v Google Messages.
+  kontejner, takže kolem zúžené fotky žádná prázdná plocha nezbývá. A od té doby, co je snímek
+  s popiskem jedna karta, se popisek zalamuje na šířku snímku.
 - **Album zůstává ve čtvercích.** Je to vědomé rozhodnutí (`CLAUDE.md`, „Alba" — mřížka, ne
   mozaika podle poměrů stran), takže jeho změna je změna toho rozhodnutí, ne pokračování tohohle
   bodu. Řádek alba s jednou fotkou se ale ořezává pořád.

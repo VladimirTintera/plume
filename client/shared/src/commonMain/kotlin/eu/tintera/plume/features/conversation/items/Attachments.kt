@@ -88,6 +88,8 @@ internal fun MessageAttachment(
      * navázal na sousedy i na popisek pod sebou. `null` znamená obrázek uvnitř bubliny.
      */
     mediaShape: Shape? = null,
+    /** Fotka a video se nezúží pod tenhle podíl šířky; u fotky s popiskem ji má popisek dost. */
+    minWidthFraction: Float = 0f,
 ) {
     val shape = RoundedCornerShape(12.dp)
     // Náhled souboru zůstává malý čtvereček bez ohledu na tvar bubliny — velké zaoblení bubliny
@@ -98,14 +100,14 @@ internal fun MessageAttachment(
         is MessageMedia.Photo -> {
             // Rámeček i jeho pravidla jsou v `photoFrame` (s testy): fotka se zužuje, neořezává.
             BoxWithConstraints {
-                val frame = photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat())
+                val frame = photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), minWidthFraction)
 
                 RemoteImage(
                     fileId = media.fileId,
                     thumbnailFileId = media.thumbnailFileId,
                     contentDescription = stringResource(Res.string.media_photo),
-                    // `Crop` dořeší jen podlahu šířky u extrémně vysoké fotky; jinak rámeček
-                    // poměr stran respektuje a ořezávat není co.
+                    // `Crop` dořeší podlahu šířky (extrémně vysoká fotka, fotka s popiskem):
+                    // poměr stran zůstává a vidět je prostředek. Jinak není co ořezávat.
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(frame)
@@ -171,7 +173,7 @@ internal fun MessageAttachment(
         is MessageMedia.AnimatedEmoji -> AnimatedEmojiImage(media)
         is MessageMedia.Video -> BoxWithConstraints {
             // Stejný rámeček jako fotka: video na výšku se zúží, místo aby přišlo o kraje.
-            val frame = photoFrame(maxWidth, media.albumRatio())
+            val frame = photoFrame(maxWidth, media.albumRatio(), minWidthFraction)
             VideoThumbnail(
                 video = media,
                 messageId = messageId,

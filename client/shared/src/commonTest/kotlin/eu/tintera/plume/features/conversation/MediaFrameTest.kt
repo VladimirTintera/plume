@@ -81,4 +81,27 @@ class MediaFrameTest {
         assertDp(MAX_PHOTO_HEIGHT.value, frame.height)
         assertDp(MAX_PHOTO_HEIGHT.value, frame.width)
     }
+
+    @Test
+    fun vysokaFotkaSPopiskemSeRozsiriAOrizne() {
+        val available = 400.dp
+        val frame = photoFrame(available, 1080f / 2400f, CAPTIONED_MIN_WIDTH_FRACTION)
+        // Aspoň 75 % šířky, výška na stropu — prostředek fotky, poměr stran zachovaný ořezem.
+        assertEquals(300.dp, frame.width)
+        assertEquals(MAX_PHOTO_HEIGHT, frame.height)
+    }
+
+    @Test
+    fun sirokaFotkaSPopiskemSeNemeni() {
+        val available = 400.dp
+        assertEquals(photoFrame(available, 16f / 9f), photoFrame(available, 16f / 9f, CAPTIONED_MIN_WIDTH_FRACTION))
+    }
+
+    @Test
+    fun panoramaSPopiskemSeNenataheDoVysky() {
+        // Široká fotka, která by se sama zúžila jen kvůli úzké bublině: výška z šířky, ne ze stropu.
+        val frame = photoFrame(200.dp, 4f, CAPTIONED_MIN_WIDTH_FRACTION)
+        assertEquals(200.dp, frame.width)
+        assertEquals(50.dp, frame.height)
+    }
 }
