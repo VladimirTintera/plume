@@ -1521,7 +1521,7 @@ private fun merge(current: List<ChatMessage>, incoming: List<ChatMessage>): List
  * Spočítá, jak budou reakce vypadat po přepnutí. Reakce, která klesne na nulu, ze seznamu zmizí —
  * čip s nulou by vypadal jako chyba.
  */
-private fun List<MessageReaction>.toggled(emoji: String, add: Boolean): List<MessageReaction> {
+internal fun List<MessageReaction>.toggled(emoji: String, add: Boolean): List<MessageReaction> {
     val existing = firstOrNull { it.emoji == emoji }
 
     return when {

@@ -566,7 +566,7 @@ private fun QuickReactions(
  * podezřelý byl `FlowRow` bez scrollování a napůl rozbalený stav, obojí tady odpadá.
  */
 @Composable
-private fun ReactionPickerSheet(
+internal fun ReactionPickerSheet(
     emoji: List<String>,
     chosen: Set<String>,
     gridHeight: Dp,

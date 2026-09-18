@@ -367,6 +367,9 @@ private fun shellEntryProvider(
                 parameters = { parametersOf(route.chatId, route.messageId) },
             ),
             onBack = { chatsStack.removeLastOrNull() },
+            onForward = { messageId ->
+                chatsStack.add(ForwardRoute(route.chatId, listOf(messageId)))
+            },
         )
     }
 
