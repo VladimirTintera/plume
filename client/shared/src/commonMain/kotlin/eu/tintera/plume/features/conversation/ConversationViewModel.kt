@@ -10,12 +10,12 @@ import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.core.audio.VoiceRecorder
 import eu.tintera.plume.core.audio.VoiceRecording
+import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ChatListState
-import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionRepository
@@ -25,11 +25,12 @@ import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageEntityType
+import eu.tintera.plume.core.telegram.MessageInfo
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
-import eu.tintera.plume.core.telegram.ReactionDetail
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Presence
+import eu.tintera.plume.core.telegram.ReactionDetail
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.SentMessageUpdate
 import eu.tintera.plume.core.telegram.SponsoredMessage
@@ -39,8 +40,6 @@ import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.UrlOpener
-import eu.tintera.plume.resources.document_download_failed
-import eu.tintera.plume.resources.document_open_failed
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_attachments_limit
 import eu.tintera.plume.resources.conversation_attachments_send_failed
@@ -63,6 +62,10 @@ import eu.tintera.plume.resources.conversation_send_failed
 import eu.tintera.plume.resources.conversation_sticker_send_failed
 import eu.tintera.plume.resources.conversation_unpin_failed
 import eu.tintera.plume.resources.conversation_voice_send_failed
+import eu.tintera.plume.resources.document_download_failed
+import eu.tintera.plume.resources.document_open_failed
+import eu.tintera.plume.resources.message_info_failed
+import eu.tintera.plume.resources.message_info_link_copied
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
@@ -77,14 +80,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.compose.resources.StringResource
 
 /**
@@ -968,6 +971,56 @@ class ConversationViewModel(
     }
 
     /**
+     * Informace o zprávě z nabídky: kdy odešla, kdy ji kdo přečetl, kdo ji zhlédl a odkaz na ni.
+     *
+     * Načítá se až tady. Skoro žádná zpráva nemá všechna tři práva (`canGetReadDate`,
+     * `canGetViewers`, `canGetLink`), takže ptát se dopředu by znamenalo tři dotazy na každou
+     * zprávu v historii kvůli sheetu, který se otevře jednou za čas.
+     */
+    fun showMessageInfo(messageId: Long) {
+        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+        _state.update { it.copy(messageMenu = null, messageInfo = MessageInfoSheet(message = message)) }
+
+        viewModelScope.launch {
+            repository.messageInfo(chatId, messageId)
+                .onSuccess { info ->
+                    _state.update { state ->
+                        // Mezitím mohl uživatel sheet zavřít nebo otevřít u jiné zprávy.
+                        val open = state.messageInfo?.takeIf { it.message.id == messageId }
+                            ?: return@update state
+                        state.copy(messageInfo = open.copy(info = info))
+                    }
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(
+                            messageInfo = null,
+                            error = failure.reported(Res.string.message_info_failed),
+                        )
+                    }
+                }
+        }
+    }
+
+    fun dismissMessageInfo() {
+        _state.update { it.copy(messageInfo = null) }
+    }
+
+    /**
+     * Odkaz na zprávu do schránky.
+     *
+     * Sheet se přitom zavře. Jednak je tím skopírování hotová věc — kdo si o odkaz řekl, ten ho
+     * má —, jednak by snackbar s potvrzením zůstal schovaný POD sheetem a nebylo by poznat,
+     * že se něco stalo. (Android 13+ ukazuje vlastní náhled schránky, iOS a starší Androidy ne.)
+     */
+    fun copyMessageLink(link: String) {
+        viewModelScope.launch {
+            clipboard.copy(link)
+            _state.update { it.copy(messageInfo = null, notice = UiText(Res.string.message_info_link_copied)) }
+        }
+    }
+
+    /**
      * Ťuknutí na vlastní zprávu: ukáže u ní odznak přečtení, druhé ťuknutí ho schová.
      *
      * Nic se nikam neposílá — stav přečtení je v `lastReadOutboxMessageId`, posuvném ukazateli
@@ -1607,6 +1660,18 @@ data class ReactionPicker(
 )
 
 /**
+ * Otevřené informace o zprávě.
+ *
+ * [info] je `null`, dokud se načítají — sheet se otevře hned s indikátorem, místo aby vyskočil
+ * prázdný a obsah do něj naskákal. Kus dat je v [message], protože ho konverzace už má: text,
+ * odesílatel i stav doručení se kvůli sheetu nemusí ptát serveru znovu.
+ */
+data class MessageInfoSheet(
+    val message: ChatMessage,
+    val info: MessageInfo? = null,
+)
+
+/**
  * Otevřený detail reakcí: kdo a čím reagoval.
  *
  * Načítá se až při otevření — čip u zprávy nese jen emoji a počet, takže jména a profilovky
@@ -1742,6 +1807,8 @@ data class ConversationState(
     val canUnpin: Boolean = false,
     /** Otevřený detail reakcí; `null`, když je zavřený. */
     val reactionDetails: ReactionDetails? = null,
+    /** Otevřené informace o zprávě; `null`, když je sheet zavřený. */
+    val messageInfo: MessageInfoSheet? = null,
     /**
      * Zpráva, u které si uživatel ťuknutím vyžádal odznak přečtení; `null`, když žádná.
      *

@@ -15,23 +15,28 @@ import dev.g000sha256.tdl.dto.InputFileId
 import dev.g000sha256.tdl.dto.InputFileLocal
 import dev.g000sha256.tdl.dto.InputMessageContent
 import dev.g000sha256.tdl.dto.InputMessageDocument
+import dev.g000sha256.tdl.dto.InputMessagePhoto
+import dev.g000sha256.tdl.dto.InputMessageReplyToMessage
+import dev.g000sha256.tdl.dto.InputMessageSticker
+import dev.g000sha256.tdl.dto.InputMessageText
 import dev.g000sha256.tdl.dto.InputMessageVideo
 import dev.g000sha256.tdl.dto.InputMessageVoiceNote
-import dev.g000sha256.tdl.dto.InputVoiceNote
+import dev.g000sha256.tdl.dto.InputPhoto
+import dev.g000sha256.tdl.dto.InputSticker
 import dev.g000sha256.tdl.dto.InputThumbnail
 import dev.g000sha256.tdl.dto.InputVideo
-import dev.g000sha256.tdl.dto.InputMessagePhoto
-import dev.g000sha256.tdl.dto.InputPhoto
-import dev.g000sha256.tdl.dto.InputMessageSticker
-import dev.g000sha256.tdl.dto.InputSticker
-import dev.g000sha256.tdl.dto.InputMessageReplyToMessage
-import dev.g000sha256.tdl.dto.InputMessageText
+import dev.g000sha256.tdl.dto.InputVoiceNote
 import dev.g000sha256.tdl.dto.Message
+import dev.g000sha256.tdl.dto.MessageInteractionInfo
+import dev.g000sha256.tdl.dto.MessageReadDateMyPrivacyRestricted
+import dev.g000sha256.tdl.dto.MessageReadDateRead
+import dev.g000sha256.tdl.dto.MessageReadDateTooOld
+import dev.g000sha256.tdl.dto.MessageReadDateUnread
+import dev.g000sha256.tdl.dto.MessageReadDateUserPrivacyRestricted
+import dev.g000sha256.tdl.dto.MessageReplyToMessage
 import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
-import dev.g000sha256.tdl.dto.MessageInteractionInfo
-import dev.g000sha256.tdl.dto.MessageReplyToMessage
 import dev.g000sha256.tdl.dto.MessageSendingState
 import dev.g000sha256.tdl.dto.MessageSendingStateFailed
 import dev.g000sha256.tdl.dto.MessageSendingStatePending
@@ -43,6 +48,8 @@ import dev.g000sha256.tdl.dto.SearchMessagesFilterPinned
 import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.toResult
 import kotlin.time.Clock
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flow
@@ -72,7 +79,7 @@ class TdlConversationRepository(
      * Ve skupině pošle padesát zpráv deset lidí a u reakcí se tytéž osoby opakují napříč emoji;
      * bez keše by to znamenalo desítky `getUser` volání jen kvůli hlavičkám bublin a avatarům.
      */
-    private val senders = mutableMapOf<Long, ReactionSender>()
+    private val senders = mutableMapOf<Long, SenderInfo>()
     private val sendersMutex = Mutex()
 
     /**
@@ -775,6 +782,88 @@ class TdlConversationRepository(
         }
     }
 
+    override suspend fun messageInfo(chatId: Long, messageId: Long): Result<MessageInfo> = coroutineScope {
+        // Zpráva kvůli časům a příznaky kvůli právům — dva nezávislé dotazy, takže současně.
+        val messageAsync = async { client.getMessage(chatId = chatId, messageId = messageId).toResult() }
+        val propertiesAsync = async {
+            client.getMessageProperties(chatId = chatId, messageId = messageId).toResult().getOrNull()
+        }
+
+        val message = messageAsync.await().getOrElse { return@coroutineScope Result.failure(it) }
+        val properties = propertiesAsync.await()
+
+        /*
+         * Tři doplňky, každý za vlastním právem, a zase současně.
+         *
+         * Selhání jednoho ostatní nezahodí — server řekne ne u kdečeho (chráněný obsah, staré
+         * zprávy) a prázdný řádek je lepší než prázdný sheet.
+         */
+        val linkAsync = async {
+            if (properties?.canGetLink != true) {
+                null
+            } else {
+                client
+                    .getMessageLink(
+                        chatId = chatId,
+                        messageId = messageId,
+                        mediaTimestamp = 0,
+                        checklistTaskId = 0,
+                        pollOptionId = "",
+                        forAlbum = false,
+                        inMessageThread = false,
+                    )
+                    .toResult()
+                    .getOrNull()
+                    ?.link
+            }
+        }
+        val viewersAsync = async {
+            if (properties?.canGetViewers != true) {
+                emptyList()
+            } else {
+                client
+                    .getMessageViewers(chatId = chatId, messageId = messageId)
+                    .toResult()
+                    .getOrNull()
+                    ?.viewers
+                    ?.mapNotNull { viewer ->
+                        val sender = resolveSender(viewer.userId) ?: return@mapNotNull null
+                        MessageViewer(sender = sender, viewedAt = viewer.viewDate)
+                    }
+                    .orEmpty()
+            }
+        }
+        val readAsync = async {
+            if (properties?.canGetReadDate != true) {
+                MessageReadState.Unavailable
+            } else {
+                client
+                    .getMessageReadDate(chatId = chatId, messageId = messageId)
+                    .toResult()
+                    .map { date ->
+                        when (date) {
+                            is MessageReadDateRead -> MessageReadState.Read(date.readDate)
+                            is MessageReadDateUnread -> MessageReadState.Unread
+                            is MessageReadDateTooOld -> MessageReadState.TooOld
+                            is MessageReadDateUserPrivacyRestricted -> MessageReadState.HiddenByOther
+                            is MessageReadDateMyPrivacyRestricted -> MessageReadState.HiddenByMe
+                        }
+                    }
+                    .getOrElse { MessageReadState.Unavailable }
+            }
+        }
+
+        Result.success(
+            MessageInfo(
+                sentAt = message.date,
+                editedAt = message.editDate.takeIf { it > 0 },
+                readState = readAsync.await(),
+                viewers = viewersAsync.await(),
+                link = linkAsync.await(),
+            ),
+        )
+    }
+
     override suspend fun reactionDetails(chatId: Long, messageId: Long): Result<List<ReactionDetail>> {
         val added = client
             .getMessageAddedReactions(
@@ -799,7 +888,7 @@ class TdlConversationRepository(
         return Result.success(details)
     }
 
-    private suspend fun resolveSender(senderId: Long): ReactionSender? {
+    private suspend fun resolveSender(senderId: Long): SenderInfo? {
         if (senderId == 0L) return null
 
         sendersMutex.withLock {
@@ -819,7 +908,7 @@ class TdlConversationRepository(
                 .ifBlank { null }
                 ?: return null
 
-            ReactionSender(
+            SenderInfo(
                 id = senderId,
                 title = name,
                 avatarFileId = user.profilePhoto?.small?.id,
@@ -827,7 +916,7 @@ class TdlConversationRepository(
         } else {
             // Odesílatel může být kanál (MessageSenderChat), ne uživatel — getUser pak selže.
             val chat = client.getChat(senderId).toResult().getOrNull() ?: return null
-            ReactionSender(
+            SenderInfo(
                 id = senderId,
                 title = chat.title,
                 avatarFileId = chat.photo?.small?.id,

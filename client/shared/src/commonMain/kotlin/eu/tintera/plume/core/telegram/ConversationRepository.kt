@@ -67,6 +67,15 @@ interface ConversationRepository {
     suspend fun reactionDetails(chatId: Long, messageId: Long): Result<List<ReactionDetail>>
 
     /**
+     * Podrobnosti o zprávě pro sheet „Informace" — viz [MessageInfo].
+     *
+     * Dílčí dotazy (odkaz, zhlédnutí, čas přečtení) se ptají **současně** a selhání kteréhokoli
+     * z nich sheet nezahodí: chybějící údaj se prostě nevypíše. Celé volání selže jen tehdy,
+     * když se nepodaří načíst ani samotnou zprávu.
+     */
+    suspend fun messageInfo(chatId: Long, messageId: Long): Result<MessageInfo>
+
+    /**
      * Co se dá s konkrétní zprávou udělat.
      *
      * Ptá se **až při otevření nabídky**, ne při načtení historie. TDLib tyhle příznaky ve zprávě
@@ -515,17 +524,62 @@ data class MessageActions(
  * hromada dotazů na data, která nikdo neuvidí.
  */
 data class ReactionDetail(
-    val sender: ReactionSender,
+    val sender: SenderInfo,
     val emoji: String,
     /** `true` u vlastní reakce; v seznamu se místo jména vypíše „Vy". */
     val isOwn: Boolean,
 )
 
-data class ReactionSender(
+data class SenderInfo(
     val id: Long,
     val title: String,
     val avatarFileId: Int?,
 )
+
+/**
+ * Podrobnosti o zprávě pro sheet „Informace o zprávě".
+ *
+ * Skládá se z toho, co server o zprávě vydá **na vyžádání** — kdy ji protějšek přečetl, kdo ji
+ * zhlédl a odkaz na ni. Každá z těch tří věcí má vlastní právo (`canGetReadDate`, `canGetViewers`,
+ * `canGetLink`) a většina zpráv nemá ani jedno, takže se nic z toho nenačítá dopředu.
+ */
+data class MessageInfo(
+    /** Kdy zpráva odešla. */
+    val sentAt: Int,
+    /** Kdy byla naposledy upravená; `null`, když upravená nebyla. */
+    val editedAt: Int?,
+    val readState: MessageReadState,
+    /** Kdo zprávu zhlédl, od nejnovějšího. Prázdné, když to server nevydá. */
+    val viewers: List<MessageViewer>,
+    /** Odkaz na zprávu; `null`, když ho chat nemá (soukromé chaty a neveřejné skupiny). */
+    val link: String?,
+)
+
+/** Kdo a kdy zprávu zhlédl. */
+data class MessageViewer(
+    val sender: SenderInfo,
+    val viewedAt: Int,
+)
+
+/**
+ * Kdy protějšek zprávu přečetl.
+ *
+ * Telegram to **záměrně nevydá vždycky**: čas čtení se schová podle nastavení soukromí (obou
+ * stran) a u starých zpráv ho server nedrží. Každý ten případ je jiná věta pro uživatele, takže
+ * je to pojmenovaný stav, ne `Int?`.
+ */
+sealed interface MessageReadState {
+    data class Read(val date: Int) : MessageReadState
+    data object Unread : MessageReadState
+    /** Server už čas nedrží — u starších zpráv běžné. */
+    data object TooOld : MessageReadState
+    /** Protějšek má časy čtení skryté. */
+    data object HiddenByOther : MessageReadState
+    /** Skryté vlastní časy čtení znamenají, že je nevidím ani já. */
+    data object HiddenByMe : MessageReadState
+    /** Chat čas čtení nenabízí (skupina, kanál, vlastní zpráva bez práva). */
+    data object Unavailable : MessageReadState
+}
 
 /** Kolik řádků detailu reakcí se načte. Víc než obrazovku a půl nikdo nepročítá. */
 const val REACTION_DETAIL_LIMIT = 50

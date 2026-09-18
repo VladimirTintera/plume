@@ -1174,6 +1174,36 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   už zpracovává; předběhnout server by znamenalo riskovat, že zpráva zmizí z obrazovky a na
   serveru zůstane.
 
+### Informace o zprávě
+
+Položka „Informace" v nabídce nad zprávou otevře bottom sheet: kdy zpráva odešla, kdy byla
+upravená, kdy ji protějšek přečetl, kdo ji zhlédl a odkaz na ni (`MessageInfoSheet`,
+`messageInfo` v `core/telegram`).
+
+- **Sheet, ne popup ani řádky v nabídce.** Údajů je proměnlivý počet a zhlédnutí je celý seznam
+  lidí, takže se v tom musí dát listovat — totéž, proč je sheetem plný výběr emoji.
+- **Jako jediná položka nabídky se nabízí VŽDY.** Nestojí na právu od serveru: čas odeslání má
+  konverzace sama, takže sheet má co ukázat i u zprávy, u které server odkaz, zhlédnutí ani čas
+  přečtení nevydá.
+- **Tři doplňky, tři práva, jeden dotaz naráz.** `canGetReadDate`, `canGetViewers` a `canGetLink`
+  se čtou z `getMessageProperties` a příslušná volání jdou **současně** se zprávou samotnou.
+  Selhání jednoho ostatní nezahodí — server řekne ne u kdečeho a prázdný řádek je lepší než
+  prázdný sheet.
+- **Načítá se až při otevření.** Skoro žádná zpráva nemá všechna tři práva; ptát se dopředu by
+  znamenalo tři dotazy na každou zprávu v historii kvůli sheetu, který se otevře jednou za čas.
+- **Čas přečtení má PĚT podob, ne „čas nebo nic"** (`MessageReadState`): přečteno, nepřečteno,
+  server už čas nedrží, protějšek má časy skryté, a „skrýváš je sám, takže je nevidíš ani ty".
+  Každá je vlastní věta — „—" by uživateli neřeklo, jestli zprávu nikdo nepřečetl, nebo jestli je
+  čas jen skrytý. Poslední dvě se od sebe liší tím, kdo to může změnit.
+- **Ťuknutí na odkaz ho zkopíruje a sheet zavře.** Snackbar s potvrzením by pod modálním sheetem
+  zůstal schovaný a nebylo by poznat, že se něco stalo; Android 13+ sice ukazuje vlastní náhled
+  schránky, iOS a starší Androidy ne. Otevírat odkaz na zprávu, u které uživatel právě stojí,
+  nedává smysl.
+- **`getMessageLink` má sedm parametrů** (`mediaTimestamp`, `checklistTaskId`, `pollOptionId`,
+  `forAlbum`, `inMessageThread`) — pojmenované argumenty, jako u všeho generovaného.
+- **Typ odesílatele se jmenuje `SenderInfo`, ne `ReactionSender`.** Používají ho i zhlédnutí
+  a název podle reakcí by u nich lhal.
+
 ### Soubory v chatu
 
 Zpráva se souborem (`MessageMedia.Document`) má v bublině ikonu, název a velikost; ťuknutí soubor
