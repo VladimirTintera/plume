@@ -104,12 +104,13 @@ private fun SectionRow(
     // Zaoblení nese krajní položka bloku. Animuje se ze stejného důvodu jako u seznamu chatů —
     // sekcí bude přibývat a blok se přeskládá.
     val topCorner by animateDpAsState(
-        targetValue = if (firstInGroup) GROUP_CORNER else INNER_CORNER,
+        // Vybraná položka se z bloku vyčlení: zaoblená celá, jako skupina sama (M3 Expressive).
+        targetValue = if (firstInGroup || selected) GROUP_CORNER else INNER_CORNER,
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "settings-corner-top",
     )
     val bottomCorner by animateDpAsState(
-        targetValue = if (lastInGroup) GROUP_CORNER else INNER_CORNER,
+        targetValue = if (lastInGroup || selected) GROUP_CORNER else INNER_CORNER,
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "settings-corner-bottom",
     )

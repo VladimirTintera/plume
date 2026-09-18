@@ -553,6 +553,8 @@ když si o to uživatel řekne v Nastavení (`separateUnreadChats`, **výchozí 
 
 - **Zaoblení nese krajní položka skupiny**: velké nahoře u první, velké dole u poslední, malé
   (4 dp) mezi nimi. S rozestupem 2 dp uvnitř skupiny a 14 dp mezi skupinami z toho vznikne blok.
+- **Vybraná položka je zaoblená celá**, jako skupina sama (dvoupanel, v seznamu chatů i sekcí
+  nastavení). Vyčlení se tím z bloku — tvarem, nejen barvou. Sousedé si svá malá nároží nechávají.
 - **Zaoblení se animuje.** Skupiny se přeskládávají za běhu — přečtený chat přeskočí
   z nepřečtených mezi ostatní — a tvary jeho sousedů se tím mění. Skoková změna by při
   současném `animateItem()` působila jako chyba vykreslení.
