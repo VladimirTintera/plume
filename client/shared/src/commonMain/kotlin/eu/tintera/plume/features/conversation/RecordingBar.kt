@@ -1,10 +1,5 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -27,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.resources.Res
@@ -37,12 +31,14 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Pruh nahrávání ve vstupní kartě místo textového pole: zahodit, blikající tečka, čas a živé
+ * Pruh nahrávání ve vstupní kartě místo textového pole: zahodit, tečka, čas a živé
  * úrovně hlasitosti. Odesílá se tlačítkem vedle karty, stejným místem jako text.
  *
  * - **Stejná výška jako jednořádkové pole** (56 dp) — karta při přepnutí neposkočí.
  * - **[recording] je lambda** a čte se až tady: čas a úrovně se mění po 50 ms.
  * - Tečka je v barvě `error`: nahrávání je stav, který se nemá přehlédnout (mikrofon je otevřený).
+ *   Nebliká — živost nese tlačítko odeslání, které při nahrávání dýchá (morf kruh ↔ SoftBurst);
+ *   dva blikající prvky vedle sebe by byly šum.
  * - Čas má číslice stejné šíře (`tnum`), aby text při každé vteřině necukal.
  */
 @Composable
@@ -51,13 +47,6 @@ fun RecordingBar(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Průhlednost se čte až při kreslení — blikání tak nepřekresluje celý pruh.
-    val blink = rememberInfiniteTransition(label = "recording-dot").animateFloat(
-        initialValue = 1f,
-        targetValue = 0.25f,
-        animationSpec = infiniteRepeatable(tween(durationMillis = 600), RepeatMode.Reverse),
-        label = "recording-dot-alpha",
-    )
     val current = recording()
     val barColor = MaterialTheme.colorScheme.primary
 
@@ -71,7 +60,6 @@ fun RecordingBar(
         Box(
             Modifier
                 .size(10.dp)
-                .graphicsLayer { alpha = blink.value }
                 .background(MaterialTheme.colorScheme.error, CircleShape),
         )
         Spacer(Modifier.width(8.dp))

@@ -1224,6 +1224,13 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   pole se vyprázdní) a skoková výměna ikony se dala přehlédnout; tvar se pozná i koutkem oka.
   Stisk mění jen kruh (na zaoblený čtverec) — mezi obecnými tvary `IconButton` neanimuje. Tvar (`SendButtonMorphShape`) je nový objekt pro každou hodnotu průběhu — Compose
   si obrys drží podle instance, takže tvar čtoucí průběh sám by se nepřekreslil.
+- **Tvary M3 Expressive mají v aplikaci pevné významy** (`ShapeMorphs` v `core/ui/MorphShape.kt`):
+  sušenka = klid / připraveno (mikrofon, pozastavená hlasovka i video), kruh = probíhající akce
+  (odeslat, hraje), SoftBurst = živý signál (tlačítko při nahrávání dýchá, tečka v pruhu už
+  nebliká — dva blikající prvky vedle sebe byly šum), dvanáctistranná sušenka = podbarvení
+  podržené samolepky — i vlnka stisku je ořezaná do téže sušenky (klikání má vlastní vrstvu,
+  samolepka sama ořezaná není, přišla by o rohy). Kde se stav nemění (avatary, položky seznamu, reakce), se tvary
+  nepoužívají: kdyby se hýbalo všechno, přestalo by to cokoli znamenat.
 - **Barva odesílacího tlačítka říká, jak silná akce to je**: mikrofon tonální
   (`secondaryContainer`), odeslání i uložení úpravy plná `primary`. Prolíná se spolu s morfem.
   Tři různé barvy pro tři ikony by z tlačítka udělaly semafor.
