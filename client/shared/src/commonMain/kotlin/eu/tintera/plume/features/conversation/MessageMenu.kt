@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -25,7 +26,9 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -44,6 +47,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -63,6 +67,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -138,8 +143,8 @@ internal fun MessageMenuLayer(
     menu: MessageMenu?,
     /** Blok zprávy, nad kterou je nabídka otevřená. */
     item: MessageItem?,
-    /** Kde zpráva v okně byla při dlouhém stisku — odtud vyjede. */
-    anchor: Rect?,
+    /** Kde zpráva v okně právě je — odtud vyjede a sem se vrátí. Čte se každý snímek. */
+    anchor: () -> Rect?,
     /** Spodek hlavičky chatu v souřadnicích okna. Výš nabídka nesmí. */
     contentTop: Float?,
     /**
@@ -154,7 +159,33 @@ internal fun MessageMenuLayer(
     onShownChange: (Long?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val live = if (menu != null && item != null && anchor != null) ShownMenu(menu, item, anchor) else null
+    /*
+     * Otevření nabídky schová klávesnici. S ní by se na menším telefonu mezi hlavičku a vstupní
+     * pole nevešla ani samotná nabídka (a zpráva by vyšla s nulovou výškou) — stejně to dělají
+     * Telegram i Google Zprávy. Fokus pole zůstává, rozepsaný text i kurzor se nemění.
+     */
+    val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(menu?.messageId) { if (menu != null) keyboard?.hide() }
+
+    /*
+     * Poloha zprávy se čte každý snímek, dokud je nabídka vidět: když zmizí klávesnice, seznam se
+     * posune a zpráva s ním. Nabídka tak vyjede i dosedne tam, kde zpráva doopravdy je.
+     */
+    // Klíč `messageId`: další nabídka nesmí ani na snímek použít polohu předchozí zprávy.
+    var anchorRect by remember(menu?.messageId) { mutableStateOf(anchor()) }
+    LaunchedEffect(menu?.messageId, anchor) {
+        while (true) {
+            anchor()?.let { if (it != anchorRect) anchorRect = it }
+            withFrameNanos { }
+        }
+    }
+    val currentAnchor = anchorRect
+
+    val live = if (menu != null && item != null && currentAnchor != null) {
+        ShownMenu(menu, item, currentAnchor)
+    } else {
+        null
+    }
     val open = live != null
 
     /*
@@ -238,14 +269,17 @@ internal fun MessageMenuLayer(
 
         // Kam zpráva DOJEDE a jak velká bude. Z toho se odvozuje i rozvržení nabídky, takže se
         // o umístění pruhu reakcí rozhodne jednou a nic během animace nepřeskakuje.
+        // Nabídka smí až k navigační liště — vstupní pole je pod závojem a neruší. Zpráva ale musí
+        // zůstat nad polem, jinak by vypadala, že je pod ním.
+        val menuBottomMargin = with(density) { navigationBottom.toDp() } + SCREEN_MARGIN
         val placement = placeMenuMessage(
             anchorTop = anchorTop,
             anchorHeight = anchorHeight,
             screenHeight = maxHeight,
             topMargin = topLimit,
-            bottomMargin = bottomMargin,
+            bottomMargin = maxOf(bottomMargin, menuBottomMargin),
             quickRowSpace = if (showQuickRow) QUICK_ROW_HEIGHT + MENU_GAP else 0.dp,
-            menuSpace = menuHeight + MENU_GAP,
+            menuSpace = (menuHeight + MENU_GAP - (bottomMargin - menuBottomMargin)).coerceAtLeast(0.dp),
         )
         val top = placement.top
         val cropped = placement.isCropped(anchorHeight)
@@ -298,7 +332,9 @@ internal fun MessageMenuLayer(
                     .offset { IntOffset(anchorLeftPx, (anchorTopPx + lift()).roundToInt()) }
                     .layout { measurable, constraints ->
                         val placeable = measurable.measure(constraints)
-                        val height = visibleHeightPx().roundToInt().coerceAtMost(placeable.height)
+                        // Pružina přestřelí a v těsném okně by výška vyšla záporná — Compose pak
+                        // spadne (`Size(… x -2) is out of range`).
+                        val height = visibleHeightPx().roundToInt().coerceIn(0, placeable.height)
                         layout(placeable.width, height) { placeable.place(0, 0) }
                     }
                     .graphicsLayer {
@@ -343,19 +379,23 @@ internal fun MessageMenuLayer(
             Box(
                 Modifier
                     .offset { IntOffset(anchorLeftPx, (anchorTopPx + lift()).roundToInt()) }
-                    .size(anchorWidth, placement.visibleHeight)
+                    .size(anchorWidth, placement.visibleHeight.coerceAtLeast(0.dp))
                     .pointerInput(Unit) { detectTapGestures { close() } },
             )
         }
 
+        // V těsném okně dostane nabídka strop výšky a posouvá se (viz `placeMenuMessage`).
+        val menuMaxHeight = (maxHeight - menuBottomMargin - (top + placement.visibleHeight + MENU_GAP))
+            .coerceAtLeast(MENU_MIN_HEIGHT)
+        val shownMenuHeight = minOf(menuHeight, menuMaxHeight)
         val layout = placeMenu(
             anchorTop = top,
             anchorBottom = top + placement.visibleHeight,
             quickRowHeight = if (showQuickRow) QUICK_ROW_HEIGHT else 0.dp,
-            menuHeight = menuHeight,
+            menuHeight = shownMenuHeight,
             screenHeight = maxHeight,
             topMargin = topLimit,
-            bottomMargin = bottomMargin,
+            bottomMargin = menuBottomMargin,
         )
         val sheet = reactionSheetLayout(anchorTop = top, screenHeight = maxHeight, topMargin = topLimit)
 
@@ -420,6 +460,7 @@ internal fun MessageMenuLayer(
                     },
             ) {
                 ActionMenu(
+                    maxHeight = shownMenuHeight,
                     items = menuItems,
                     timestamp = shown.menu.timestamp,
                     // Do nabídky jde SKUTEČNÝ stav, ne to, co zrovna ukazuje odznak.
@@ -576,14 +617,14 @@ private fun ReactionPickerSheet(
 
 /** Nabídka akcí. Položky přibývají, jak je postupně umíme — mrtvé se sem nedávají. */
 @Composable
-private fun ActionMenu(items: List<MenuItem>, timestamp: Int, delivery: Delivery?) {
+private fun ActionMenu(items: List<MenuItem>, timestamp: Int, delivery: Delivery?, maxHeight: Dp) {
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shadowElevation = 3.dp,
-        modifier = Modifier.width(MENU_WIDTH),
+        modifier = Modifier.width(MENU_WIDTH).heightIn(max = maxHeight),
     ) {
-        Column(Modifier.padding(vertical = MENU_PADDING)) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = MENU_PADDING)) {
             /*
              * Kdy zpráva přišla.
              *
@@ -764,9 +805,15 @@ internal fun placeMenuMessage(
     quickRowSpace: Dp,
     /** Místo pod zprávou na nabídku i s mezerou. */
     menuSpace: Dp,
+    /**
+     * Kolik ze zprávy musí zůstat vidět i v těsném okně (malý telefon, na šířku). Nabídka pak
+     * dostane strop výšky a posouvá se — zmizet nesmí zpráva, na kterou se nabídka ptá.
+     */
+    minVisible: Dp = MIN_MESSAGE_VISIBLE,
 ): MenuMessagePlacement {
     val minTop = topMargin + quickRowSpace
-    val available = (screenHeight - bottomMargin - menuSpace - minTop).coerceAtLeast(0.dp)
+    val floor = minOf(anchorHeight, minVisible)
+    val available = (screenHeight - bottomMargin - menuSpace - minTop).coerceAtLeast(floor)
     if (anchorHeight <= available) {
         return MenuMessagePlacement(
             top = anchorTop.coerceIn(minTop, minTop + available - anchorHeight),
@@ -902,6 +949,12 @@ private val MENU_GAP = 8.dp
  * ořízne a ukáže se jen její začátek.
  */
 internal const val MIN_MESSAGE_SCALE = 0.6f
+
+/** Kolik ze zprávy zůstane v nabídce vidět, i když se nic dalšího nevejde. */
+internal val MIN_MESSAGE_VISIBLE = 72.dp
+
+/** Nabídka se nezmenší pod tři položky; pod tím by posouvání nemělo smysl. */
+private val MENU_MIN_HEIGHT = 160.dp
 
 /** Výška vyblednutí dole u oříznuté zprávy. */
 private val TALL_MESSAGE_FADE = 48.dp

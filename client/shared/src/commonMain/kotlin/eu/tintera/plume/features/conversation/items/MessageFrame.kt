@@ -197,7 +197,7 @@ internal class MessageBodyScope(
      * citace, fotka) ho k rámu nepustí, takže ho musí zopakovat sami — proto je tu, ne v rámu.
      */
     fun requestMenu() {
-        anchorBounds()?.let(items::onMenuAnchor)
+        items.onMenuAnchor(anchorBounds)
         act(MessageAction.ShowMenu(frame.menuActions))
     }
 }

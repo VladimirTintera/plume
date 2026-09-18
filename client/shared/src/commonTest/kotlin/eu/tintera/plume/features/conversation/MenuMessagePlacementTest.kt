@@ -70,8 +70,16 @@ class MenuMessagePlacementTest {
     }
 
     @Test
-    fun nizkeOknoNeskonciZapornouVyskou() {
+    fun vTesnemOknuZustaneZpravaVidet() {
+        // Nabídka se nevejde vůbec (malý telefon, dřív i s klávesnicí): zpráva přesto zůstane
+        // vidět aspoň začátkem — nikdy nulová ani záporná výška, na které aplikace padala.
         val result = place(top = 0, height = 300, menu = 900)
-        assertEquals(0.dp, result.visibleHeight)
+        assertEquals(MIN_MESSAGE_VISIBLE, result.visibleHeight)
+        assertTrue(result.visibleHeight > 0.dp)
+    }
+
+    @Test
+    fun kratkaZpravaVTesnemOknuZustaneCela() {
+        assertEquals(40.dp, place(top = 0, height = 40, menu = 900).visibleHeight)
     }
 }

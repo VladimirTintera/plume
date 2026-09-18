@@ -69,8 +69,12 @@ internal interface ConversationItemScope {
      */
     fun contentTop(): Float?
 
-    /** Zpráva hlásí při dlouhém stisku, kde v okně je — nabídka z toho místa vyjede. */
-    fun onMenuAnchor(bounds: Rect)
+    /**
+     * Zpráva hlásí při dlouhém stisku, jak zjistit, kde v okně je — nabídka z toho místa vyjede.
+     * Funkce, ne hodnota: po otevření nabídky se schová klávesnice, seznam se posune a nabídka
+     * musí sledovat, kde zpráva je TEĎ.
+     */
+    fun onMenuAnchor(bounds: () -> Rect?)
 
     /**
      * Je zpráva s tímhle klíčem právě v nabídce (otevřené, nebo se z ní vrací)? Pak ji kreslí

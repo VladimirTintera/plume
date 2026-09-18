@@ -1326,6 +1326,17 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
 - **Spodní mez je horní hrana vstupního pole, ne navigační lišta** (`contentBottom`, obrazovka ho
   měří na `bottomBar`). Pole leží přes seznam, takže zpráva vysunutá jen nad navigační lištu
   skončila pod polem. Kopie zprávy se ořezává mezi hlavičkou a polem, aby přes ně nepřeletěla.
+- **Otevření nabídky schová klávesnici** (`LocalSoftwareKeyboardController.hide()`, fokus pole zůstává).
+  S klávesnicí se na menším telefonu mezi hlavičku a pole nevešla ani samotná nabídka — a zpráva
+  vyšla se zápornou výškou: `Size(804 x -2) is out of range`, pád aplikace. Tak to dělají i Telegram
+  a Google Zprávy. **Na velkém emulátoru se to nereprodukuje**, místa je dost; ověřuje se na
+  zmenšeném displeji (`adb shell wm size 1080x1700`, pak `wm size reset`).
+- **Poloha zprávy je FUNKCE čtená každý snímek** (`onMenuAnchor(() -> Rect?)`), ne hodnota
+  z okamžiku stisku. Když zmizí klávesnice, seznam se posune — nabídka musí vyjet i dosednout
+  tam, kde zpráva je teď.
+- **V těsném okně zůstane zpráva vidět** aspoň `MIN_MESSAGE_VISIBLE` (72 dp) a nabídka dostane
+  strop výšky a posouvá se. Nabídka smí sahat až k navigační liště (vstupní pole je pod
+  závojem), zpráva jen nad pole. Výšky se ve vrstvě navíc ořezávají na nulu — pružina přestřelí.
 - **Horní mez je spodek hlavičky chatu, ne stavová lišta** (`contentTop` ze
   `ConversationItemScope`, obrazovka ho měří na seznamu). Vysunutá zpráva ani pruh reakcí nesmí
   hlavičku překrýt — ztratilo by se povědomí, s kým je chat otevřený. Google Zprávy to dělají stejně.
