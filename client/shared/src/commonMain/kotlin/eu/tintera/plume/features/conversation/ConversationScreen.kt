@@ -1185,8 +1185,8 @@ private fun MessageInput(
              * Je to hlavní akce obrazovky, takže větší plocha dává smysl i sama o sobě. Large
              * (96 dp) by už bylo vyšší než pole a přebíjelo by psaní.
              *
-             * Tvar se při stisku mění podle M3 Expressive (`shapes`), kruh → zaoblený čtverec;
-             * při změně funkce projde „sušenkou" (`SendButtonMorphShape`).
+             * Tvar nese stav: mikrofon je „sušenka", odeslání kruh (`SendButtonMorphShape`);
+             * kruh se při stisku mění podle M3 Expressive na zaoblený čtverec.
              */
             /*
              * Prázdné pole bez příloh = mikrofon (jako v Telegramu i WhatsAppu): tlačítko, které by
@@ -1201,22 +1201,18 @@ private fun MessageInput(
             }
 
             /*
-             * Změna funkce tlačítka se animuje: tvar přeletí z kruhu přes „sušenku" zpátky do kruhu
-             * a ikona se v půlce vymění. Tlačítko se mění samo od sebe (začne se psát, pole se
-             * vyprázdní) a skoková výměna ikony se dala přehlédnout — a ťuknout pak na mikrofon
-             * místo odeslání.
+             * Tvar nese stav: mikrofon (klidový stav prázdného pole) je „sušenka" z M3 Expressive,
+             * odeslání a uložení úpravy kruh. Změna se animuje morfem mezi nimi a ikona se vymění
+             * zvětšením. Tlačítko se mění samo od sebe (začne se psát, pole se vyprázdní) a skoková
+             * výměna ikony se dala přehlédnout — a ťuknout pak na mikrofon místo odeslání.
+             * Stav se tak pozná i bez ikony a barvy, třeba koutkem oka nebo na slunci.
              */
-            val morph = remember { Animatable(0f) }
-            var shownKind by remember { mutableStateOf(kind) }
-            val morphIn = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
-            val morphOut = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+            val morph = remember { Animatable(if (kind == SendButtonKind.Mic) 1f else 0f) }
+            val morphSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
             LaunchedEffect(kind) {
-                if (kind == shownKind) return@LaunchedEffect
-                shownKind = kind
-                morph.animateTo(1f, morphIn)
-                morph.animateTo(0f, morphOut)
+                morph.animateTo(if (kind == SendButtonKind.Mic) 1f else 0f, morphSpec)
             }
-            // Pružina přestřelí pod nulu; záporný průběh by kruh zdeformoval.
+            // Pružina přestřelí za oba konce; mimo 0..1 by se tvar zdeformoval.
             val morphProgress = morph.value.coerceIn(0f, 1f)
 
             /*
@@ -1262,7 +1258,9 @@ private fun MessageInput(
                     containerColor = containerColor,
                     contentColor = contentColor,
                 ),
-                // Mimo přechod zůstává stisk podle M3 Expressive (kruh → zaoblený čtverec).
+                // Kruh (odeslání) se při stisku mění podle M3 Expressive na zaoblený čtverec.
+                // Sušenka a tvary během přechodu stisk nemění: mezi obecnými tvary IconButton
+                // neanimuje a skok by vypadal jako chyba.
                 shapes = if (morphProgress > 0f) {
                     val shape = SendButtonMorphShape(morphProgress)
                     IconButtonShapes(shape = shape, pressedShape = shape)

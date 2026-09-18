@@ -1218,12 +1218,12 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   a měřilo se ručně. Jako `bottomBar` ho ale měří Scaffold (i s citací, úpravou, víc řádky
   a klávesnicí) a podle něj sám staví snackbar a tlačítko dolů (FAB slot). Ruční měření na
   třech místech tím odpadlo a snackbar přestal pole překrývat.
-- **Změna funkce odesílacího tlačítka se animuje** (mikrofon ↔ odeslat ↔ fajfka): tvar přeletí
-  z kruhu přes „sušenku" z `MaterialShapes` zpátky do kruhu a ikona se vymění zvětšením.
-  Tlačítko se mění samo od sebe (začne se psát, pole se vyprázdní) a skoková výměna ikony se dala
-  přehlédnout. Tvar (`SendButtonMorphShape`) je nový objekt pro každou hodnotu průběhu — Compose
-  si obrys drží podle instance, takže tvar čtoucí průběh sám by se nepřekreslil. Mimo přechod
-  zůstává stisk podle M3 Expressive.
+- **Tvar odesílacího tlačítka nese stav**: mikrofon je „sušenka" z `MaterialShapes`, odeslání
+  a uložení úpravy kruh; změna se animuje morfem mezi nimi a ikona se vymění zvětšením. Stejně
+  M3 Expressive používá tvar u přepínacích tlačítek. Tlačítko se mění samo od sebe (začne se psát,
+  pole se vyprázdní) a skoková výměna ikony se dala přehlédnout; tvar se pozná i koutkem oka.
+  Stisk mění jen kruh (na zaoblený čtverec) — mezi obecnými tvary `IconButton` neanimuje. Tvar (`SendButtonMorphShape`) je nový objekt pro každou hodnotu průběhu — Compose
+  si obrys drží podle instance, takže tvar čtoucí průběh sám by se nepřekreslil.
 - **Barva odesílacího tlačítka říká, jak silná akce to je**: mikrofon tonální
   (`secondaryContainer`), odeslání i uložení úpravy plná `primary`. Prolíná se spolu s morfem.
   Tři různé barvy pro tři ikony by z tlačítka udělaly semafor.

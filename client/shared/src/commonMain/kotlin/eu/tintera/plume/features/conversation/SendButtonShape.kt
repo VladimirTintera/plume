@@ -13,10 +13,11 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.graphics.shapes.Morph
 
 /**
- * Přechod tlačítka odeslání mezi kruhem a „sušenkou" z M3 Expressive ([MaterialShapes.Cookie9Sided]).
+ * Tvar tlačítka u vstupního pole: kruh pro odeslání, „sušenka" z M3 Expressive
+ * ([MaterialShapes.Cookie9Sided]) pro mikrofon, a morf mezi nimi při změně.
  *
- * Když se ikona vymění (mikrofon ↔ odeslat ↔ fajfka), tlačítko projde tímhle tvarem tam a zpátky
- * a přitom se trochu pootočí — změna funkce je vidět i koutkem oka. [progress] 0 je kruh, 1 sušenka.
+ * Tvar tu nese stav, jako u přepínacích tlačítek M3 Expressive. Při přechodu se sušenka trochu
+ * pootočí, takže změna je vidět i koutkem oka. [progress] 0 je kruh, 1 sušenka.
  *
  * Tvar je nový objekt pro každou hodnotu průběhu: Compose si obrys drží podle instance a velikosti,
  * takže tvar, který by průběh četl sám, by se nepřekreslil.
