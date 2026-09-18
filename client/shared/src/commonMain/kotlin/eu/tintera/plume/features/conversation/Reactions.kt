@@ -1,8 +1,16 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -29,12 +37,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,10 +73,44 @@ fun ReactionRow(
     onOpenDetails: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    if (reactions.isEmpty()) return
+    /*
+     * Čipy NABĚHNOU a odejdou zvětšením. Při odebrání poslední reakce se musí dál kreslit ta
+     * poslední, jinak by `AnimatedVisibility` dobíhala s prázdným řádkem (stejná past jako
+     * u odznaku doručení).
+     */
+    var shown by remember { mutableStateOf(reactions) }
+    if (reactions.isNotEmpty()) shown = reactions
+    val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+
+    AnimatedVisibility(
+        visible = reactions.isNotEmpty(),
+        modifier = modifier,
+        enter = scaleIn(
+            spring(dampingRatio = CHIP_POP_DAMPING, stiffness = Spring.StiffnessMedium),
+            initialScale = 0f,
+        ) + fadeIn(effects),
+        exit = scaleOut(spatial, targetScale = 0.4f) + fadeOut(effects),
+        label = "reaction-row",
+    ) {
+        ReactionChips(shown, onOpenDetails)
+    }
+}
+
+@Composable
+private fun ReactionChips(reactions: List<MessageReaction>, onOpenDetails: (() -> Unit)?) {
+    /*
+     * Nový čip v už viditelném řádku naskočí sám; čipy, které tu byly při prvním složení
+     * (zpráva přijela při scrollu), se nezvětšují.
+     */
+    val initial = remember { reactions.map { it.emoji }.toSet() }
 
     Row(
-        modifier = modifier.horizontalScroll(rememberScrollState()),
+        modifier = Modifier
+            .horizontalScroll(rememberScrollState())
+            // Posouvatelný řádek ořezává obsah na svoje hranice — bez místa kolem by uřízl stín
+            // čipů zprava i zespodu.
+            .padding(REACTION_SHADOW_ROOM),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         reactions.forEach { reaction ->
@@ -73,7 +118,13 @@ fun ReactionRow(
             // jeho odpověď ji může dát jinam). Bez klíče by se stav animací přenesl na sousední
             // čip a ten by přeblikl do cizí barvy a tvaru.
             key(reaction.emoji) {
-                ReactionChip(reaction = reaction, onClick = onOpenDetails)
+                // Z nuly s pružným přeskokem: čip „vyskočí" z nároží zprávy.
+                val appear = remember { Animatable(if (reaction.emoji in initial) 1f else 0f) }
+                val spec = spring<Float>(dampingRatio = CHIP_POP_DAMPING, stiffness = Spring.StiffnessMedium)
+                LaunchedEffect(Unit) { appear.animateTo(1f, spec) }
+                Box(Modifier.graphicsLayer { scaleX = appear.value; scaleY = appear.value }) {
+                    ReactionChip(reaction = reaction, onClick = onOpenDetails)
+                }
             }
         }
     }
@@ -149,8 +200,12 @@ private fun ReactionChip(
             shape = CircleShape,
             color = container,
             contentColor = content,
-            // Čip leží NA bublině; bez stínu by na tmavším pozadí splynul s jejím okrajem.
-            shadowElevation = 2.dp,
+            /*
+             * Lem v barvě pozadí konverzace, ne stín: čip vypadá, jako by byl z bubliny
+             * vykrojený, a od ní i od pozadí se odliší v obou režimech. Tak to dělají Google
+             * Zprávy; stín navíc v posouvatelném řádku ořezával.
+             */
+            border = BorderStroke(REACTION_RING, MaterialTheme.colorScheme.surface),
             modifier = Modifier
                 .padding(top = REACTION_BADGE_ROOM, end = REACTION_BADGE_ROOM)
                 .size(REACTION_CHIP_SIZE),
@@ -163,7 +218,9 @@ private fun ReactionChip(
             ) {
                 // Emoji záměrně mimo typografickou škálu: role jako `labelLarge` míří na výšku
                 // písmen, ale u emoji je nosná celá kresba, takže ve stejné velikosti působí menší.
-                Text(text = reaction.emoji, fontSize = 17.sp)
+                // Výška řádku = velikost písma, zarovnaná na střed a oříznutá: jinak nese text nad
+                // kresbou rezervu řádku a emoji sedí v kolečku o kus níž.
+                Text(text = reaction.emoji, style = CENTERED_EMOJI)
             }
         }
 
@@ -172,7 +229,7 @@ private fun ReactionChip(
                 shape = CircleShape,
                 color = container,
                 contentColor = content,
-                shadowElevation = 2.dp,
+                border = BorderStroke(REACTION_RING, MaterialTheme.colorScheme.surface),
                 modifier = Modifier.align(Alignment.TopEnd),
             ) {
                 Text(
@@ -190,7 +247,40 @@ private fun ReactionChip(
 private val REACTION_CHIP_SIZE = 30.dp
 
 /** Kolik místa si čip nechá nahoře a vpravo na odznak s počtem. */
-private val REACTION_BADGE_ROOM = 7.dp
+internal val REACTION_BADGE_ROOM = 7.dp
+
+/**
+ * Tlumení pružiny náběhu čipu. Víc přeskoku než běžný spatial spec (0,6–0,78): náběh reakce je
+ * drobná radostná událost, jak ji M3 Expressive pojmenovává, ne přesun obsahu.
+ */
+private const val CHIP_POP_DAMPING = 0.45f
+
+/** Lem čipu v barvě pozadí — odděluje ho od bubliny, na které leží. */
+private val REACTION_RING = 2.dp
+
+/** Emoji v čipu: výška řádku rovná písmu, na střed, bez rezervy nad kresbou. */
+private val CENTERED_EMOJI = TextStyle(
+    // Menší než kolečko o dost, aby kolem kresby zůstal vzduch.
+    fontSize = 14.sp,
+    lineHeight = 14.sp,
+    lineHeightStyle = LineHeightStyle(
+        alignment = LineHeightStyle.Alignment.Center,
+        trim = LineHeightStyle.Trim.Both,
+    ),
+)
+
+/**
+ * Místo kolem čipů uvnitř posouvatelného řádku, který obsah ořezává. Stín už čipy nemají, ale
+ * zvětšení při náběhu a pulzu by se bez rezervy na okraji uřízlo stejně.
+ */
+internal val REACTION_SHADOW_ROOM = 3.dp
+
+/**
+ * Výška řádku reakcí: čip, místo na odznak počtu a na stín. Podle ní si zpráva nechá místo pod
+ * sebou. Musí být deklarovaná ZA svými sčítanci — top-level `val` se inicializují v pořadí.
+ */
+internal val REACTION_ROW_HEIGHT = REACTION_CHIP_SIZE + REACTION_BADGE_ROOM + REACTION_SHADOW_ROOM * 2
+
 
 /**
  * Detail reakcí: kdo a čím reagoval.

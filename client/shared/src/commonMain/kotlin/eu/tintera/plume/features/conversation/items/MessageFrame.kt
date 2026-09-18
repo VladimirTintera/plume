@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.RichText
@@ -77,6 +78,9 @@ import eu.tintera.plume.core.ui.senderColor
 import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.features.conversation.MessageFlight
 import eu.tintera.plume.features.conversation.MessageMenu
+import eu.tintera.plume.features.conversation.REACTION_BADGE_ROOM
+import eu.tintera.plume.features.conversation.REACTION_ROW_HEIGHT
+import eu.tintera.plume.features.conversation.REACTION_SHADOW_ROOM
 import eu.tintera.plume.features.conversation.ReactionRow
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_edited
@@ -281,7 +285,9 @@ internal fun rememberMessageBodyScope(
         )
     }
 
-    val contentBottom = if (message.reactions.isEmpty()) 8.dp else REACTION_STRIP_SPACE
+    // Obsah si pro čip reakce místo NEDĚLÁ: bublina má s reakcí i bez ní stejnou velikost
+    // (viz `MessageBox`).
+    val contentBottom = 8.dp
 
     return remember(scope, frame, shape, bubbleColor, onBubbleColor, accent, contentBottom) {
         MessageBodyScope(
@@ -465,6 +471,9 @@ private fun MessageFrame(
                 frame = frame,
                 bodyScope = bodyScope,
                 maxWidthFraction = maxWidthFraction,
+                // Dokud zprávu kreslí nabídka, drží se reakce z doby před jejím otevřením —
+                // nová reakce pak naskočí, až se zpráva vrátí na místo, a je ji vidět.
+                reactions = heldReactions(frame.message.reactions, hold = scope.isInMenu(frame.key)),
                 body = body,
                 modifier = Modifier
                     .onGloballyPositioned { boxCoordinates[0] = it }
@@ -542,18 +551,30 @@ internal fun MessageBox(
     onReactionClick: (() -> Unit)?,
     /** Podíl šířky, kterou zpráva dostane; kopie v nabídce má šířku napevno, tam je 1. */
     maxWidthFraction: Float = 1f,
+    /** Reakce, které se mají kreslit — viz [heldReactions]. */
+    reactions: List<MessageReaction> = frame.message.reactions,
     extra: @Composable BoxScope.() -> Unit = {},
 ) {
     val message = frame.message
+    /*
+     * Místo na čip reakce POD zprávou, a animované.
+     *
+     * Bublina má s reakcí i bez ní STEJNOU velikost — čip leží jako odznak přes její spodní
+     * nároží ([REACTION_ON_BUBBLE]), dolní půlkou visí pod ní. Místo pod zprávou se otevře pružinou, takže
+     * zpráva při první reakci plynule popojede, místo aby poskočila. Dřív si obsah bubliny dělal
+     * místo uvnitř a zpráva se o čip skokem zvětšila.
+     *
+     * Čip patří ke zprávě, takže místo je uvnitř toho, co kreslí i nabídka nad zprávou.
+     */
+    val overhang by animateDpAsState(
+        targetValue = if (reactions.isEmpty()) 0.dp else REACTION_OVERHANG,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "reaction-overhang",
+    )
     Box(modifier) {
         Box(
             Modifier
-                /*
-                 * Místo na přesah čipu reakce POD zprávou. Čip patří ke zprávě, takže musí být
-                 * uvnitř toho, co se sdílí s nabídkou — jinak by při otevření zůstal v seznamu.
-                 * Bez reakcí si nebere nic.
-                 */
-                .padding(bottom = if (message.reactions.isEmpty()) 0.dp else REACTION_OVERHANG)
+                .padding(bottom = overhang.coerceAtLeast(0.dp))
                 .maxWidthFraction(maxWidthFraction)
                 .widthIn(max = 560.dp)
                 .then(beforeClip)
@@ -570,11 +591,19 @@ internal fun MessageBox(
         // Čipy reakcí LEŽÍ NA zprávě, u dolního nároží na straně odesílatele, a jedou s ní i při
         // tahu na odpověď — posun sedí na sloupci kolem.
         ReactionRow(
-            reactions = message.reactions,
+            reactions = reactions,
             onOpenDetails = onReactionClick,
             modifier = Modifier
                 .align(if (message.isOutgoing) Alignment.BottomEnd else Alignment.BottomStart)
-                .padding(horizontal = REACTION_INSET),
+                // Kolečko lícuje s hranou bubliny, jako v Google Zprávách: řádek má kolem sebe
+                // místo na stín a vpravo od kolečka ještě místo na odznak počtu, o to se vysune.
+                .offset(
+                    x = if (message.isOutgoing) {
+                        REACTION_SHADOW_ROOM + REACTION_BADGE_ROOM
+                    } else {
+                        -REACTION_SHADOW_ROOM
+                    },
+                ),
         )
 
         extra()
@@ -594,7 +623,25 @@ internal fun MessageItem.MenuCopy(scope: ConversationItemScope, modifier: Modifi
         body = { Body() },
         modifier = modifier,
         onReactionClick = null,
+        // Kopie ukazuje reakce z okamžiku otevření: výběr reakce nabídku hned zavře a kopie letí
+        // zpátky — nová reakce patří až zprávě v seznamu, kde ji je vidět naskočit.
+        reactions = heldReactions(frame.message.reactions, hold = true),
     )
+}
+
+/**
+ * Reakce, které se mají kreslit: dokud [hold] platí, drží se ty, co byly vidět naposledy.
+ *
+ * Reakce se přidává v nabídce nad zprávou a ta se tím zavře. Kdyby se změna projevila hned,
+ * doběhla by animace náběhu čipu na zprávě, která je v tu chvíli skrytá (kreslí ji nabídka),
+ * a uživatel by čip viděl už jen hotový. Takhle naskočí, až se zpráva vrátí na své místo —
+ * stejně to dělají Google Zprávy.
+ */
+@Composable
+private fun heldReactions(current: List<MessageReaction>, hold: Boolean): List<MessageReaction> {
+    var held by remember { mutableStateOf(current) }
+    if (!hold) held = current
+    return held
 }
 
 /**
@@ -772,14 +819,19 @@ private val SENDER_AVATAR_SIZE = 32.dp
 private val SENDER_AVATAR_SLOT = 40.dp
 
 
-/** Kolik z čipu reakce visí POD bublinou. Zhruba jeho půlka, jako v Google Messages. */
-private val REACTION_OVERHANG = 16.dp
+/**
+ * Kolik z kolečka čipu leží NA bublině. Čip je odznak zprávy, takže přes nároží zasahovat musí —
+ * ale jen o spodní odsazení obsahu (8 dp), ne středem: jinak by zakryl začátek posledního řádku.
+ * Google Zprávy reakce taky nepřilepují středem.
+ */
+private val REACTION_CHIP_ON_BUBBLE = 8.dp
 
-/** Kolik místa si obsah bubliny nechá dole pod poslední řádkou, aby ho čip nezakryl. */
-private val REACTION_STRIP_SPACE = 20.dp
+/** Kolik z řádku reakcí leží na bublině: kousek kolečka a nad ním místo na odznak počtu. */
+private val REACTION_ON_BUBBLE = REACTION_SHADOW_ROOM + REACTION_BADGE_ROOM + REACTION_CHIP_ON_BUBBLE
 
-/** Odsazení čipů od svislého okraje bubliny. */
-private val REACTION_INSET = 10.dp
+/** Místo pod bublinou: celý čip i s místem na odznak počtu, bez části, která leží na bublině. */
+private val REACTION_OVERHANG = REACTION_ROW_HEIGHT - REACTION_ON_BUBBLE
+
 
 /**
  * Jak daleko se musí zpráva odtáhnout, aby se z gesta stala odpověď.

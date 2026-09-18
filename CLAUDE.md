@@ -1899,13 +1899,34 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
 - **Místo pro odznak si vyhradí obálka čipu, odznak z kolečka NEČOUHÁ.** Řádek reakcí se posouvá
   do strany a posouvatelný kontejner si obsah ořezává na svoje hranice — zavěšený odznak by se
   uřízl.
-- **Čipy leží PŘES dolní nároží bubliny** na straně odesílatele: dolní půlka visí ven, horní na
-  bublině. Obsah bubliny si proto nechá dole místo jen na tu horní půlku (`REACTION_STRIP_SPACE`),
-  celá výška čipu by pod textem nechala díru. Totéž platí pro kontejner popisku u holého média
-  a pro popis náhledu odkazu: čip sedí na tom, co je ve zprávě poslední.
-- **Přesah pod bublinou je uvnitř `Box`u, který ukotvuje nabídku** (`REACTION_OVERHANG` jako
-  odsazení bubliny, ne mezera mimo). Díky tomu zůstane čip celý v díře vykrojené do závoje —
-  při dlouhém stisku se nesmí ztmavit, patří ke zprávě.
+- **Bublina má s reakcí i bez ní STEJNOU velikost.** Čip je její odznak: leží přes spodní nároží
+  a na bublinu zasahuje kolečkem o 8 dp (`REACTION_CHIP_ON_BUBBLE`) — přesně o spodní odsazení
+  obsahu, takže nezakryje poslední řádek. Středem na okraji (zkoušeno) zakrýval začátek
+  posledního řádku; úplně pod zprávou (zkoušeno) přestal působit jako její odznak. Obsah si pro
+  něj místo NEDĚLÁ — dřív si ho dělal uvnitř (`REACTION_STRIP_SPACE`) a zpráva se při první
+  reakci skokem zvětšila.
+- **Kolečko lícuje s hranou bubliny**, jako v Google Zprávách — ne 10 dp uvnitř. Řádek se vysune
+  o místo na odznak počtu (vpravo od kolečka) a o místo na stín, takže samotné kolečko končí
+  přesně na okraji.
+- **Čip nemá stín, ale lem v barvě pozadí** (`REACTION_RING`, `surface`), jako v Google Zprávách:
+  vypadá z bubliny vykrojený a od bubliny i pozadí se odliší v obou režimech. Stín navíc
+  `horizontalScroll` řádku ořezával zprava i zespodu. Rezerva kolem čipů v řádku
+  (`REACTION_SHADOW_ROOM`) zůstala kvůli zvětšení při náběhu a pulzu.
+- **Emoji v čipu má výšku řádku rovnou písmu, na střed a oříznutou** (`LineHeightStyle` s `Trim.Both`).
+  Holý `Text` nese nad kresbou rezervu řádku a emoji sedělo v kolečku viditelně níž.
+- **Barva čipu:** vlastní reakce `primaryContainer`, cizí `surfaceContainerLowest`.
+- **Místo pod zprávou se otevře animovaně** (`REACTION_OVERHANG` přes spatial spec), takže zpráva
+  plynule popojede. Místo je uvnitř `MessageBox`, který kreslí i nabídka nad zprávou — čip patří
+  ke zprávě a do nabídky jede s ní.
+- **Čipy naběhnou z nuly s pružným přeskokem** (tlumení 0,45 — víc než běžný spatial spec; náběh
+  reakce je drobná radostná událost, ne přesun obsahu). Při odebrání poslední reakce se dál
+  kreslí ta poslední, jinak by odchod dobíhal s prázdným řádkem. Čipy, které tu byly při prvním
+  složení, se nezvětšují — jinak by pulzoval scroll.
+- **Dokud zprávu kreslí nabídka, drží se její reakce z doby před otevřením** (`heldReactions`,
+  v seznamu i v kopii). Reakce se přidává v nabídce a ta se tím zavře; bez podržení by náběh čipu
+  doběhl na skryté zprávě a uživatel by viděl čip už hotový. Takhle naskočí, až zpráva dosedne
+  zpátky na místo — jako v Google Zprávách. Ověřeno sérií surových snímků: prvních sedm snímků
+  (návrat zprávy) bez čipu, pak přeskok a ustálení.
 - **Jedou s bublinou i při tahu na odpověď**, protože posun sedí na sloupci kolem toho `Box`u.
 - **Jeden řádek, který se posouvá do strany**, ne lámání do víc řádků: čipy leží na bublině
   a druhý řádek by ji přerostl. U příspěvku s deseti různými emoji je to jediné, co se vejde.
