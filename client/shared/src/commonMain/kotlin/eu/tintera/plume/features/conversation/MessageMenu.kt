@@ -45,6 +45,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -60,6 +61,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -68,6 +70,7 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionOnScreen
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
@@ -155,6 +158,12 @@ internal fun MessageMenuOverlay(
      * `null`, dokud není změřená; pak se bere celá zpráva.
      */
     visibleBounds: Rect?,
+    /**
+     * Snímek zprávy (celé, i té části, kterou seznam ořízl). Nabídka ho kreslí posunutý tak, aby
+     * byla zpráva celá vidět (viz [liftIntoView]). `null`, dokud není pořízený — pak se místo
+     * snímku vykrojí díra do závoje na místě zprávy.
+     */
+    snapshot: ImageBitmap?,
 ) {
     // Položky jsou kandidáti od bloku, kteří prošli právy od serveru — každá akce sama ví, jestli
     // se smí nabídnout a jak vypadá (viz `MessageMenuAction.presentation`).
@@ -275,6 +284,33 @@ internal fun MessageMenuOverlay(
     val topInset = with(density) { insets.getTop(density).toDp() }
     val bottomInset = with(density) { insets.getBottom(density).toDp() }
 
+    /*
+     * Posun zprávy do pohledu, jako v Google Zprávách: vysoká zpráva, která zasahuje pod hlavičku
+     * nebo pod okraj obrazovky, se při otevření nabídky vysune celá, s místem na pruh reakcí nad
+     * sebou. Zpráva, která je vidět celá, se nehne.
+     */
+    var popupHeight by remember { mutableIntStateOf(0) }
+    val quickRowSpace = if (showQuickRow) QUICK_ROW_HEIGHT + MENU_GAP else 0.dp
+    val liftTarget = whole
+        ?.takeIf { snapshot != null && popupHeight > 0 }
+        ?.let { bounds ->
+            with(density) {
+                liftIntoView(
+                    anchorTop = bounds.top.toDp(),
+                    anchorHeight = bounds.height.toDp(),
+                    screenHeight = popupHeight.toDp(),
+                    topMargin = topInset + SCREEN_MARGIN,
+                    bottomMargin = bottomInset + SCREEN_MARGIN,
+                    quickRowSpace = quickRowSpace,
+                ).toPx()
+            }
+        } ?: 0f
+    val lift by animateFloatAsState(
+        targetValue = liftTarget,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "menu-lift",
+    )
+
     Popup(
         popupPositionProvider = positionProvider,
         onDismissRequest = dismiss,
@@ -299,17 +335,25 @@ internal fun MessageMenuOverlay(
                 // Vlastní vrstva je pro vykrojení závoje POVINNÁ: `BlendMode.Clear` maže z vrstvy,
                 // a bez ní by vymazalo i všechno, co je pod popupem.
                 .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                .onSizeChanged { popupHeight = it.height }
                 .drawBehind {
-                    val hole = whole ?: return@drawBehind
-                    drawScrimWithHole(
-                        anchor = hole,
-                        visible = local ?: hole,
-                        shape = bubbleShape,
-                        color = scrimColor.copy(alpha = scrimColor.alpha * alpha),
-                    )
+                    val bounds = whole ?: return@drawBehind
+                    val scrim = scrimColor.copy(alpha = scrimColor.alpha * alpha)
+                    val copy = snapshot
+                    if (copy != null) {
+                        // Zpráva nad závojem je SNÍMEK, posunutý do pohledu. Originál zůstává
+                        // v seznamu pod závojem — seznam se neposouvá, takže se po zavření nabídky
+                        // nic nepřeskládá.
+                        drawRect(scrim)
+                        drawImage(copy, topLeft = Offset(bounds.left, bounds.top + lift))
+                    } else {
+                        drawScrimWithHole(anchor = bounds, visible = local ?: bounds, shape = bubbleShape, color = scrim)
+                    }
                 },
         ) {
-            val bubble = local ?: return@BoxWithConstraints
+            // Se snímkem se nabídka řídí POSUNUTOU zprávou (a jede s ní), bez něj viditelnou částí.
+            val bubble = (if (snapshot != null) whole?.translate(0f, lift) else local)
+                ?: return@BoxWithConstraints
 
             val anchorTop = with(density) { bubble.top.toDp() }
             val anchorBottom = with(density) { bubble.bottom.toDp() }
@@ -781,6 +825,30 @@ private fun DrawScope.drawScrimWithHole(anchor: Rect, visible: Rect, shape: Shap
             drawOutline(outline, color = Color.Transparent, blendMode = BlendMode.Clear)
         }
     }
+}
+
+/**
+ * O kolik posunout zprávu, aby byla při otevřené nabídce celá vidět a nad ní se vešel pruh reakcí.
+ *
+ * Zpráva, která se vejde, se jen dosune mezi okraje; zpráva vyšší než obrazovka se srovná
+ * horní hranou pod pruh reakcí — začátek zprávy je to, co uživatel potřebuje poznat. Kladná
+ * hodnota posouvá dolů.
+ */
+internal fun liftIntoView(
+    anchorTop: Dp,
+    anchorHeight: Dp,
+    screenHeight: Dp,
+    /** Stavová lišta plus odstup od kraje. */
+    topMargin: Dp,
+    /** Navigační lišta plus odstup od kraje. */
+    bottomMargin: Dp,
+    /** Místo nad zprávou na pruh reakcí i s mezerou; nula, když pruh není. */
+    quickRowSpace: Dp,
+): Dp {
+    val minTop = topMargin + quickRowSpace
+    val maxTop = screenHeight - bottomMargin - anchorHeight
+    val target = if (maxTop < minTop) minTop else anchorTop.coerceIn(minTop, maxTop)
+    return target - anchorTop
 }
 
 /** Svislé umístění obou kusů. */
