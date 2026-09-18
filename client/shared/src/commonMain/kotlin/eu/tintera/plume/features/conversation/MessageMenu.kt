@@ -333,9 +333,12 @@ internal fun MessageMenuLayer(
             )
         }
 
-        // Rozbalený výběr nechává na obrazovce pruh reakcí a zprávu, nabídku akcí ne — tak to
-        // dělají i Google Zprávy: pruh ukazuje, čeho se výběr týká a co je už použité.
-        if (!expanded) {
+        /*
+         * Nabídka akcí zůstává vidět i s rozbaleným výběrem reakcí — sheet ji jen překryje a klikat
+         * se na ni nedá, protože sheet je modální. Dřív se schovávala a po zasunutí sheetu
+         * bleskově naskočila; zmizet nemá proč, je to pořád táž otevřená nabídka.
+         */
+        run {
             Box(
                 Modifier
                     .offset {
