@@ -165,6 +165,7 @@
     <string name="emoji_recent">Nedávné</string>
     <string name="emoji_recent_empty">Tady se objeví emoji, která vybereš.</string>
     <string name="notification_new_message">Nová zpráva</string>
+    <string name="menu_sent_at">%1$s, %2$s</string>
     <string name="menu_reply">Odpovědět</string>
     <string name="menu_edit">Upravit</string>
     <string name="menu_copy">Kopírovat</string>

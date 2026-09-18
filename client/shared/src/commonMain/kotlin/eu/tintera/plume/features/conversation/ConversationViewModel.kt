@@ -1005,6 +1005,7 @@ class ConversationViewModel(
                 it.copy(
                     messageMenu = MessageMenu(
                         messageId = messageId,
+                        timestamp = message.timestamp,
                         isOutgoing = message.isOutgoing,
                         emoji = emoji,
                         chosenEmoji = message.reactions.filter { r -> r.isChosen }.map { r -> r.emoji }.toSet(),
@@ -1567,6 +1568,11 @@ data class ReactionPicker(
  */
 data class MessageMenu(
     val messageId: Long,
+    /**
+     * Kdy zpráva přišla. Čas se jinak dá přečíst jen tahem doleva a to je gesto, ke kterému se
+     * čtečka obrazovky nedostane — v nabídce proto stojí jako první řádek.
+     */
+    val timestamp: Int,
     /** Podle strany bubliny se nabídka zarovná, aby vyrůstala od zprávy, ne od kraje obrazovky. */
     val isOutgoing: Boolean,
     /** Nabídnutá emoji. Prázdné je běžný stav (Uložené zprávy), ne chyba. */

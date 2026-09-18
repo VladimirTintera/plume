@@ -72,6 +72,19 @@ fun Int.asRelativeTime(): String {
     }
 }
 
+/**
+ * Hodiny a minuty samotné.
+ *
+ * V konverzaci je datum v předělu dne a zprávy jdou chronologicky za sebou, takže u jednotlivé
+ * zprávy nese informaci jen čas. Vypisuje se při odkrývání časů tahem a v nabídce nad zprávou.
+ *
+ * Není `@Composable` — nepotřebuje prostředky a ve 24hodinovém zápisu se pořadí mezi jazyky nemění.
+ */
+fun Int.asTimeOfDay(zone: TimeZone = TimeZone.currentSystemDefault()): String {
+    val moment = Instant.fromEpochSeconds(toLong()).toLocalDateTime(zone)
+    return "${moment.hour.pad()}:${moment.minute.pad()}"
+}
+
 private fun Int.pad(): String = toString().padStart(2, '0')
 
 private fun DayOfWeek.shortName(): StringResource = when (this) {

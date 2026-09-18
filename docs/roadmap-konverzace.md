@@ -37,11 +37,11 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    hledání na serveru (`searchChats`), víc cílů najednou, výběr víc zpráv a kopie bez odesílatele.
 4. ~~**Otevírání dokumentů**~~ — hotovo (stažení s průběhem, `ACTION_VIEW` / `UIDocumentInteractionController`).
    Zbývá zrušení stahování, uložení do Souborů/Downloads a otevření audia (zatím se jen popisuje).
-5. **Odlehčení vzhledu.** Hotové je všechno kromě odkrývání časů tahem: ~~zaoblení na konci
-   bloku bublin~~, ~~čas se stavem doručení z bubliny ven~~, ~~výška fotek~~, ~~fotky a videa na
-   plochu~~ a ~~náhled odkazu na plochu~~. Poučení v `CLAUDE.md` („Tvar bubliny a seskupení",
-   „Čas a stav doručení", „Médium bez bubliny", „Rámeček fotky v bublině", „Náhled odkazu bez
-   bubliny"). Zbývá bod 4 níž.
+5. ~~**Odlehčení vzhledu**~~ — hotovo celé: zaoblení na konci bloku bublin, čas se stavem
+   doručení z bubliny ven, výška fotek, fotky a videa na plochu, náhled odkazu na plochu
+   i odkrývání časů tahem. Poučení v `CLAUDE.md` („Tvar bubliny a seskupení", „Čas a stav
+   doručení", „Médium bez bubliny", „Rámeček fotky v bublině", „Náhled odkazu bez bubliny",
+   „Odkrývání časů tahem").
 6. Drobnosti ze sekcí níž (zásobník, nabídka, entity, média, emoji).
 
 ---
@@ -50,9 +50,8 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
 
 Inspirace je Google Messages. Tři samostatné kusy, dají se dělat nezávisle.
 
-Hotové z tohohle seznamu: tvar bubliny na konci bloku, čas se stavem doručení, výška fotek,
-médium na ploše i náhled odkazu. Zbývá poslední bod, odkrývání časů. Poučení ze všeho je
-v `CLAUDE.md`.
+Hotové je z tohohle seznamu **všechno**; zbytky jednotlivých bodů jsou u nich. Poučení ze všeho
+je v `CLAUDE.md`.
 
 ### 1. ~~Fotky a videa na plochu, mimo bublinu~~ — HOTOVO
 
@@ -105,34 +104,20 @@ Co z toho zůstalo:
   `siteName`; bez něj (a bez titulku i popisu) se kontejner nekreslí vůbec.
 - **Náhled nad textem (`showAboveText`) se dál ignoruje.**
 
-### 4. Odkrývání časů tahem doleva
+### 4. ~~Odkrývání časů tahem doleva~~ — HOTOVO
 
-Čas z bubliny **už zmizel** (viz `CLAUDE.md`, „Čas a stav doručení"), takže se v konverzaci dá
-přečíst jen z předělu dne a z plovoucího data při scrollu. Zbývá ho zpřístupnit na vyžádání.
+Tah doleva posune celou plochu a vpravo odkryje čas u každé zprávy; po puštění se vrátí. Odpověď
+swipem kvůli tomu jede na vlastním detektoru, který rozhodne jednou za gesto: doprava spotřebuje,
+doleva pustí gesto seznamu. Čas je i v nabídce nad zprávou, prvním řádkem — čtečka obrazovky se
+tahem nikam nedostane. Poučení v `CLAUDE.md`, „Odkrývání časů tahem".
 
-Google Messages **posouvá celou plochu doleva** a odkryje vpravo časovou osu; po puštění se
-zase schová. Tady je ta část, která si žádá rozhodnutí:
+Co z toho zůstalo:
 
-- **Je to gesto nad SEZNAMEM, ne nad položkou.** V Messages jedou všechny řádky společně;
-  u nás je vodorovný `draggable` na každé bublině zvlášť (odpověď swipem).
-- **Kolize je skutečná.** Bublina má `draggable(Orientation.Horizontal)` s
-  `coerceIn(0f, maxDrag)`, takže tah doleva se nikam neprojeví — ale `draggable` si gesto po
-  slopu vezme celé a **rodiči už ho nepustí**. Tah doleva se tedy dnes tiše zahazuje a
-  seznamová varianta by se k němu nedostala.
-- **Dvě cesty, ani jedna zdarma:**
-  1. **Po řádcích** — povolit bublině i negativní posun a odkrývat čas u té jedné zprávy.
-     Malá změna, ale není to, co dělá Messages, a u jedné bubliny to vypadá spíš jako druhá
-     polovina swipu na odpověď.
-  2. **Nad seznamem** — bublina nesmí tah doleva spolknout. `draggable` to neumí vyjádřit
-     (po slopu je směrově agnostický), takže by to chtělo **vlastní detektor, který po slopu
-     rozhodne jednou za gesto** — přesně ten vzor, který už v projektu je v prohlížeči médií
-     (`CLAUDE.md`: „`detectTransformGestures` s pagerem nejde… vlastní detektor"). Doprava =
-     odpověď (konzumuje), doleva = nekonzumuje a nechá to seznamu.
-- **Formátovač času `asTimeOfDay()` je s odstraněním času smazaný** — byl to mrtvý kód. S tímhle
-  bodem se musí vrátit (je to pět řádek nad `kotlinx.datetime`).
-- **Čas musí zůstat dostupný i bez gesta.** Čtečka obrazovky se tahem nikam nedostane, takže
-  patří do nabídky nad zprávou — váže se to na „Informace o zprávě", která je v seznamu
+- **„Informace o zprávě" pořád není.** V nabídce je dnes jen čas; odkaz na zprávu, kdo ji viděl
+  a kdy si ji přečetl (`canGetLink`, `canGetViewers`, `canGetReadDate`) je pořád v seznamu
   u sekce B).
+- **Čas se neukazuje u samotného alba ani u sponzorované karty.** Album nese čas své nejnovější
+  zprávy jako každá jiná položka; reklama žádný nemá, takže jen jede s plochou.
 
 ---
 

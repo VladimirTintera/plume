@@ -22,7 +22,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
@@ -105,6 +110,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -125,9 +132,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.audio.rememberRecordPermission
-import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.files.FileSizeUnit
 import eu.tintera.plume.core.files.formatFileSize
+import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -141,6 +148,7 @@ import eu.tintera.plume.core.ui.RichText
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asRelativeTime
+import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.chatTitleKey
 import eu.tintera.plume.core.ui.emojiClusterCount
@@ -153,11 +161,6 @@ import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
-import eu.tintera.plume.resources.document_open
-import eu.tintera.plume.resources.file_size_b
-import eu.tintera.plume.resources.file_size_gb
-import eu.tintera.plume.resources.file_size_kb
-import eu.tintera.plume.resources.file_size_mb
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.arrow_downward_24dp
@@ -199,9 +202,14 @@ import eu.tintera.plume.resources.conversation_unpinned
 import eu.tintera.plume.resources.conversation_unread_divider
 import eu.tintera.plume.resources.conversation_voice_message
 import eu.tintera.plume.resources.description_24dp
+import eu.tintera.plume.resources.document_open
 import eu.tintera.plume.resources.done_all_24dp
 import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.error_24dp
+import eu.tintera.plume.resources.file_size_b
+import eu.tintera.plume.resources.file_size_gb
+import eu.tintera.plume.resources.file_size_kb
+import eu.tintera.plume.resources.file_size_mb
 import eu.tintera.plume.resources.media_photo
 import eu.tintera.plume.resources.media_sticker
 import eu.tintera.plume.resources.media_video
@@ -224,8 +232,8 @@ import eu.tintera.plume.resources.sticky_note_2_24dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -284,6 +292,18 @@ fun ConversationScreen(
     /** Sada otevřená ťuknutím na samolepku v konverzaci. */
     var openStickerSetId by rememberSaveable { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
+
+    /*
+     * Odkrývání časů tahem doleva.
+     *
+     * Posouvá se CELÁ plocha zpráv, ne jedna bublina: čas u jedné zprávy sám o sobě neřekne,
+     * kdy přišly ty okolo, a u jediné bubliny by to navíc vypadalo jako druhá polovina swipu
+     * na odpověď. Stav je proto tady, ne v položce, a čte se až při kreslení vrstvy — jinak by
+     * každý snímek gesta překreslil celou konverzaci.
+     */
+    val timeReveal = remember { Animatable(0f) }
+    val revealMax = with(LocalDensity.current) { TIME_COLUMN_WIDTH.toPx() }
+    val revealSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
 
     // Chyby se dřív zahazovaly: `state.error` se vykreslovalo jen u prázdné konverzace, takže
     // neúspěšná reakce nebo odeslání zmizely bez jediné stopy.
@@ -776,7 +796,33 @@ fun ConversationScreen(
                     modifier = Modifier.align(Alignment.Center).padding(24.dp),
                 )
 
-                else -> LazyColumn(
+                /*
+                 * Gesto patří SEZNAMU, ne položce.
+                 *
+                 * Bublina si bere jen tah doprava (odpověď) a doleva nic nespotřebuje, takže
+                 * gesto propadne sem. Svislý scroll je bezpečný: seznam je potomek, dostane
+                 * události dřív a jeho spotřebování tenhle detektor zruší.
+                 */
+                else -> Box(
+                    Modifier
+                        .fillMaxSize()
+                        .pointerInput(revealMax) {
+                            detectHorizontalDragGestures(
+                                onDragEnd = { scope.launch { timeReveal.animateTo(0f, revealSpec) } },
+                                onDragCancel = { scope.launch { timeReveal.animateTo(0f, revealSpec) } },
+                            ) { change, delta ->
+                                change.consume()
+                                scope.launch {
+                                    // Jen doleva a jen po šířku sloupce s časy; dál už není co
+                                    // odkrývat a gumové tahání by jen mátlo.
+                                    timeReveal.snapTo((timeReveal.value - delta).coerceIn(0f, revealMax))
+                                }
+                            }
+                        },
+                ) {
+                  // Posun se předává jako lambda: položka ho čte až při kreslení.
+                  val reveal = { timeReveal.value }
+                  LazyColumn(
                     state = listState,
                     reverseLayout = true,
                     modifier = Modifier.fillMaxSize(),
@@ -798,7 +844,11 @@ fun ConversationScreen(
                         SponsoredCard(
                             sponsored = sponsored,
                             onClick = { viewModel.onSponsoredClick(sponsored) },
-                            modifier = Modifier.padding(vertical = 8.dp),
+                            // Jede s celou plochou, jen bez času — reklama žádný nemá. Kdyby
+                            // stála, vypadalo by to, že se odkrývání zaseklo.
+                            modifier = Modifier
+                                .graphicsLayer { translationX = -reveal() }
+                                .padding(vertical = 8.dp),
                         )
                     }
 
@@ -866,10 +916,11 @@ fun ConversationScreen(
                             // se na střed a bez bubliny. Reakce, citace ani stav doručení k němu
                             // nepatří.
                             if (message.isService) {
-                                ServiceMessage(message)
+                                RevealingTime(message.timestamp, reveal) { ServiceMessage(message) }
                                 return@Column
                             }
 
+                            RevealingTime(message.timestamp, reveal) {
                             MessageBubble(
                                 message = message,
                                 // Album: zprávy od nejstarší, kreslí je mřížka místo jedné přílohy.
@@ -929,6 +980,7 @@ fun ConversationScreen(
                                 menuHandlers = menuHandlers,
                                 onLinkClick = viewModel::openLink,
                             )
+                            }
                         }
                     }
 
@@ -939,6 +991,7 @@ fun ConversationScreen(
                             }
                         }
                     }
+                }
                 }
             }
 
@@ -1301,37 +1354,60 @@ private fun MessageBubble(
             /*
              * Tažení do strany = odpověď.
              *
-             * `draggable` s vodorovnou orientací, ne `detectHorizontalDragGestures`: ten konzumuje
-             * hned od prvního pixelu a rozbil by svislý scroll seznamu. Takhle o směru rozhodne
-             * až první pohyb za slop a seznam si svislé tahy nechá.
+             * Vlastní detektor, ne `draggable` ani `detectHorizontalDragGestures`. Ten druhý
+             * konzumuje hned od prvního pixelu a rozbil by svislý scroll seznamu; `draggable`
+             * je po slopu **směrově agnostický** a vezme si i tah DOLEVA, který patří odkrývání
+             * časů nad seznamem. Tenhle detektor rozhodne jednou za gesto: doprava spotřebuje
+             * (odpověď), doleva nespotřebuje nic a nechá gesto propadnout rodiči.
+             *
+             * Nespotřebovaný pohyb `awaitHorizontalTouchSlopOrCancellation` nezahodí — počítá
+             * slop dál, takže si ho může vzít seznam. Stejný vzor jako vlastní detektor
+             * v prohlížeči médií.
              *
              * Táhne se **doprava u obou stran konverzace**. Zrcadlit směr podle odesílatele by
              * znamenalo, že uživatel musí před každým gestem přemýšlet, čí zpráva to je.
              */
-            .draggable(
-                orientation = Orientation.Horizontal,
-                state = rememberDraggableState { delta ->
-                    scope.launch {
-                        // Za prahem klade tah odpor — jinak by šla bublina odtáhnout přes půl
-                        // obrazovky a nebylo by poznat, že se dál nic nestane.
-                        val resistance = if (drag.value < threshold) 1f else DRAG_RESISTANCE
-                        val next = (drag.value + delta * resistance).coerceIn(0f, maxDrag)
-                        drag.snapTo(next)
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
 
-                        if (!armed && next >= threshold) {
-                            armed = true
-                            haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                    var startOffset = 0f
+                    val claimed = awaitHorizontalTouchSlopOrCancellation(down.id) { change, overSlop ->
+                        if (overSlop > 0f) {
+                            change.consume()
+                            startOffset = overSlop
+                        }
+                    } ?: return@awaitEachGesture
+
+                    scope.launch { drag.snapTo(startOffset.coerceIn(0f, maxDrag)) }
+
+                    val finished = horizontalDrag(claimed.id) { change ->
+                        val delta = change.positionChange().x
+                        change.consume()
+                        scope.launch {
+                            // Za prahem klade tah odpor — jinak by šla bublina odtáhnout přes půl
+                            // obrazovky a nebylo by poznat, že se dál nic nestane.
+                            val resistance = if (drag.value < threshold) 1f else DRAG_RESISTANCE
+                            val next = (drag.value + delta * resistance).coerceIn(0f, maxDrag)
+                            drag.snapTo(next)
+
+                            if (!armed && next >= threshold) {
+                                armed = true
+                                haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                            }
                         }
                     }
-                },
-                onDragStopped = {
-                    // Odpověď odchází při PUŠTĚNÍ, ne při překročení prahu. Kdo si to rozmyslí,
-                    // vrátí prst zpátky a nic se nestane.
-                    if (armed && drag.value >= threshold) onReply()
-                    armed = false
-                    drag.animateTo(0f, returnSpec)
-                },
-            ),
+
+                    scope.launch {
+                        // Odpověď odchází při PUŠTĚNÍ, ne při překročení prahu. Kdo si to rozmyslí,
+                        // vrátí prst zpátky a nic se nestane. Zrušené gesto (přerušení systémem)
+                        // bublinu jen vrátí.
+                        if (finished && armed && drag.value >= threshold) onReply()
+                        armed = false
+                        drag.animateTo(0f, returnSpec)
+                    }
+                }
+            },
         horizontalArrangement = if (message.isOutgoing) Arrangement.End else Arrangement.Start,
         // Tvář sedí u spodní hrany bubliny — u dlouhé zprávy by uprostřed nebylo poznat, ke které
         // části bloku patří.
@@ -2028,6 +2104,40 @@ private fun PinnedMessageRow(
  * TDLib u náhledu žádnou barvu neposílá a kvantizovat ji z bitmapy by znamenalo keš a počítání
  * mimo hlavní vlákno. Kontejnery tedy berou barvu bubliny, tak jako popisek u fotky.
  */
+/**
+ * Položka konverzace s časem, který se odkryje tahem doleva.
+ *
+ * Obsah se posouvá vlevo a v uvolněném pruhu vpravo se ukáže čas zprávy. Předěly dne se
+ * neposouvají — jsou to nadpisy nad blokem, ne zprávy, a čas u nich nedává smysl.
+ *
+ * [reveal] je lambda, ne hodnota: posun se čte až při kreslení vrstvy, takže gesto překresluje
+ * jen vrstvu s bublinou a nepřeskládává celou konverzaci.
+ */
+@Composable
+private fun RevealingTime(
+    timestamp: Int,
+    reveal: () -> Float,
+    content: @Composable () -> Unit,
+) {
+    Box(Modifier.fillMaxWidth()) {
+        Box(Modifier.graphicsLayer { translationX = -reveal() }) { content() }
+
+        Text(
+            text = timestamp.asTimeOfDay(),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .width(TIME_COLUMN_WIDTH)
+                // Čas čeká za pravým okrajem a přijíždí s posunem. Seznam ořezává na svoje
+                // hranice, takže dokud se netáhne, není ho vidět.
+                .graphicsLayer { translationX = TIME_COLUMN_WIDTH.toPx() - reveal() },
+        )
+    }
+}
+
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
 private fun BareLinkPreview(
@@ -2605,6 +2715,11 @@ private val UPLOAD_INDICATOR_SIZE = 48.dp
 
 /** Spára mezi fotkami alba. */
 private val ALBUM_GAP = 2.dp
+
+/**
+ * Šířka sloupce s časy, který se odkrývá tahem doleva. Vejde se do něj „00:00" s rezervou.
+ */
+private val TIME_COLUMN_WIDTH = 56.dp
 
 /**
  * Spára mezi holým médiem a popiskem pod ním. Úzká jako spáry v albu a mezi položkami seznamu

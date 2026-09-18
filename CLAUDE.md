@@ -949,9 +949,8 @@ v seznamu chatů („Koncept: …") a na ostatních zařízeních.
 Čas v bublině NENÍ a stav doručení je POD ní, ne v ní. V bublině zabíral řádek u každé jediné
 zprávy, a přitom ani jedno z toho většinou nic neříkalo.
 
-- **Datum nesou předěly dne a plovoucí datum při scrollu**, ne bublina. Tím jim stoupá cena —
-  jsou to teď jediné místo, kde se čas v konverzaci dá přečíst. (Odkrývání časů tahem doleva,
-  jak to dělá Google Messages, zatím není; koliduje to s odpovědí swipem, viz roadmapa.)
+- **Datum nesou předěly dne a plovoucí datum při scrollu**, ne bublina. Čas jednotlivé zprávy
+  se odkrývá tahem doleva (viz „Odkrývání časů tahem") a je i v nabídce nad zprávou.
 - **„Upraveno" zůstalo.** Že se zpráva změnila, se odjinud nedozvíme; čas ano.
 - **Odznak je mimo bublinu, takže barva patří PLOŠE** (`onSurfaceVariant`), ne bublině. Dokud byl
   uvnitř, bral `contentColor`; pod bublinou by `onPrimary` na tónovaném pozadí nebyl vidět —
@@ -1222,6 +1221,37 @@ po odeslání se otevře cílový chat, takže je vidět, že zpráva dorazila.
   od …". Kopie bez odesílatele je v Telegramu samostatná volba a zatím ji nenabízíme.
 - **Cílový chat se do zásobníku přidá jen, když na něm zásobník už nestojí** — přeposlání do
   téhož chatu by jinak otevřelo druhou kopii konverzace.
+
+### Odkrývání časů tahem
+
+Tah doleva posune celou plochu zpráv a vpravo odkryje čas u každé z nich; po puštění se plocha
+vrátí. V bublině čas není (viz „Čas a stav doručení"), takže tohle je vedle předělu dne a plovoucího
+data jediné místo, kde se dá přečíst.
+
+- **Je to gesto nad SEZNAMEM, ne nad položkou.** Čas u jedné zprávy neřekne, kdy přišly ty okolo,
+  a u jediné bubliny by to vypadalo jako druhá polovina swipu na odpověď. Jede proto všechno
+  najednou, včetně sponzorované karty — ta jen nemá co ukázat.
+- **Bublina si proto nesmí vzít každý vodorovný tah.** `draggable` je po slopu směrově agnostický:
+  vezme si i tah doleva, nikam ho nepromítne (posun je `coerceIn(0f, maxDrag)`) a rodiči už ho
+  nepustí. Tah doleva se tím tiše zahazoval. Odpověď swipem proto jede na **vlastním detektoru**,
+  který rozhodne jednou za gesto: doprava spotřebuje, doleva nespotřebuje nic.
+- **Nespotřebovaný pohyb se neztratí.** `awaitHorizontalTouchSlopOrCancellation` po nespotřebování
+  počítá slop dál, takže gesto propadne k detektoru nad seznamem. Jakmile si ho vezme on, další
+  událost přijde jako spotřebovaná a detektor bubliny sám skončí.
+- **Svislý scroll je v bezpečí**, i když `detectHorizontalDragGestures` konzumuje. Seznam je
+  potomek, dostane událost dřív, a jeho spotřebování detektor rodiče zruší.
+- **Posun se čte až při kreslení** (`graphicsLayer { translationX = -reveal() }`, lambda, ne
+  hodnota). Jinak by každý snímek gesta přeskládal celou konverzaci.
+- **Čas čeká za pravým okrajem** a přijíždí s posunem; seznam ořezává na svoje hranice, takže
+  dokud se netáhne, není ho vidět. Sloupec má pevnou šířku a posun se o ni zastropuje — gumové
+  tahání dál by jen mátlo.
+- **Předěly dne se neposouvají.** Jsou to nadpisy nad blokem, ne zprávy, a čas u nich nedává smysl.
+- **Čtečka obrazovky se tahem nikam nedostane**, takže čas je i v nabídce nad zprávou, prvním
+  řádkem (den a hodina). Není to položka nabídky, nedá se na ni ťuknout. **Výška nabídky se
+  počítá, ne měří**, takže se hlavička musí připočíst — jinak by nabídka seděla vedle.
+- **`asTimeOfDay()` není `@Composable`** — hodiny a minuty žádné prostředky nepotřebují a ve
+  24hodinovém zápisu se pořadí mezi jazyky nemění. Den vedle nich už prostředky potřebuje
+  (`asDayLabel`), a proto je v nabídce, ne u zprávy.
 
 ### Odpověď swipem
 
