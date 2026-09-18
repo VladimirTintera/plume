@@ -243,6 +243,7 @@ private fun ViewerContent(
             val isCurrent = page == pagerState.currentPage
             // Karta leží mezi lištami; stránka sama jde přes celou výšku, aby přiblížená fotka
             // měla kam růst.
+            val captionAlpha = { 1f - abs(pagerState.getOffsetDistanceInPages(page)).coerceIn(0f, 1f) }
             val pageModifier = Modifier.fillMaxSize().padding(top = topInset + PAGE_VERTICAL_GAP, bottom = bottomInset + PAGE_VERTICAL_GAP)
             when (val media = item.media) {
                 is MessageMedia.Video -> VideoPage(
@@ -254,6 +255,7 @@ private fun ViewerContent(
                     onDismiss = onDismiss,
                     onTap = { chromeVisible = !chromeVisible },
                     modifier = pageModifier,
+                    captionAlpha = captionAlpha,
                 )
 
                 is MessageMedia.Photo -> ZoomableImage(
@@ -265,6 +267,7 @@ private fun ViewerContent(
                     onDismiss = onDismiss,
                     onTap = { chromeVisible = !chromeVisible },
                     modifier = pageModifier,
+                    captionAlpha = captionAlpha,
                 )
 
                 else -> Unit
@@ -539,6 +542,7 @@ private fun ZoomableImage(
     onDismiss: () -> Unit,
     onTap: () -> Unit,
     modifier: Modifier = Modifier,
+    captionAlpha: () -> Float = { 1f },
 ) {
     val scope = rememberCoroutineScope()
     val shape = MaterialTheme.shapes.large
@@ -561,6 +565,7 @@ private fun ZoomableImage(
     MediaPageLayout(
         aspectRatio = aspectRatioOf(photo.width, photo.height),
         caption = caption,
+        captionAlpha = captionAlpha,
         modifier = modifier
             .pointerInput(Unit) {
                 /** Meze posunu: přiblížená fotka nesmí odjet tak, aby kraj stránky zůstal prázdný. */
@@ -737,9 +742,12 @@ private const val MAX_SCALE = 5f
 /** Kam skočí dvojité ťuknutí. */
 private const val DOUBLE_TAP_SCALE = 2.5f
 
-/** Od kraje obrazovky ke kartě; sousední stránka vykukuje o [PAGE_INSET] − [PAGE_GAP]. */
-private val PAGE_INSET = 28.dp
-private val PAGE_GAP = 14.dp
+/**
+ * Od kraje obrazovky ke kartě; sousední stránka vykukuje o [PAGE_INSET] − [PAGE_GAP] (24 dp).
+ * Dost na to, aby bylo vidět, že vedle jsou další fotky; mezera mezi kartami jen oddělí.
+ */
+private val PAGE_INSET = 32.dp
+private val PAGE_GAP = 8.dp
 
 /** Vzduch mezi kartou a lištami. */
 private val PAGE_VERTICAL_GAP = 8.dp

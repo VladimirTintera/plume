@@ -6,6 +6,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -28,6 +29,11 @@ internal fun MediaPageLayout(
     aspectRatio: Float,
     caption: String,
     modifier: Modifier = Modifier,
+    /**
+     * Průhlednost popisku, čtená až při kreslení. Sousední stránka vykukuje u okraje i s kusem
+     * popisku; ten tam jen ruší, takže mizí, jak stránka odjíždí ze středu.
+     */
+    captionAlpha: () -> Float = { 1f },
     card: @Composable () -> Unit,
 ) {
     Layout(
@@ -41,7 +47,9 @@ internal fun MediaPageLayout(
                         color = Color.White,
                         maxLines = CAPTION_MAX_LINES,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 4.dp),
+                        modifier = Modifier
+                            .graphicsLayer { alpha = captionAlpha() }
+                            .padding(horizontal = 4.dp),
                     )
                 }
             },

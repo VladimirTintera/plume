@@ -1706,7 +1706,9 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   se jen vrstva s obrázkem. Totéž u zavíracího tahu.
 - **Vzhled je po vzoru Google Zpráv.** Pozadí je **rozostřený aktuální snímek** pod tmavým
   nádechem (Haze nad malým náhledem, při listování se prolne), snímek je **karta se zaoblením**
-  a sousední stránky u okrajů vykukují (`contentPadding` pageru). Nahoře kdo a kdy fotku poslal
+  a sousední stránky u okrajů vykukují (`contentPadding` pageru, 24 dp soused, 8 dp mezera —
+  se 14 dp souseda nebylo moc poznat, že vedle další fotky jsou). **Popisek sousední stránky
+  mizí** podle posunu pageru (`captionAlpha`), jinak u okraje trčel useknutý kus textu. Nahoře kdo a kdy fotku poslal
   a akce, dole reakce; ťuknutí lišty schová. Dřív byl snímek přes celou obrazovku na holé černé
   a ovládání leželo přes fotku s přechodem do tmava.
 - **Lišty leží NAD kartou, ne přes ni.** Stránka jde přes celou výšku (přiblížená fotka má kam
