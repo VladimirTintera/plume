@@ -218,6 +218,19 @@ Co zbývá:
 - **Ostatní typy médií.** GIF a dokumenty se pořád jen popisují. Prohlížeč
   u nich zatím řekne, že je neumíme otevřít. Přehrávání je samostatná fáze (potřebuje platformní
   přehrávač přes `expect`/`actual`); u dokumentů stačí míň — stáhnout a předat systému.
+- **Obrázky a videa poslané jako soubor.** ~~Náhled místo ikony v řádku souboru~~ a
+  ~~rozpoznání obrázku a videa~~ a ~~otevření v prohlížeči médií~~ — hotovo (`documentKind`,
+  `DocumentThumbnail`, `opensInViewer`, `asViewerMedia`). Zbývá:
+  - **Ověřit na iOS**, že HEIC, WebM a MKV opravdu jdou systému a ostatní do prohlížeče.
+    Seznam nepodporovaných formátů (`viewerUnsupportedFormats`) je zatím z dokumentace, ne
+    z pokusu.
+  - **Velký náhled v bublině** jako u fotky (`photoFrame`), pod ním řádek s názvem
+    a velikostí. **Rozměry TDLib u dokumentu nedává**, poměr stran se bere z náhledu
+    (`Thumbnail.width` / `height`). Náhled má do 320 px, ve velké bublině bude rozmazaný;
+    originál bývá desítky MB. Stahovat ho automaticky jen pod nějakým stropem, jinak až na
+    ťuknutí, s průběhem přes náhled jako u videa.
+  - **HEIC náhled nemá**, takže je v řádku jen ikona obrázku. Vlastní náhled by znamenal
+    stáhnout celý soubor (fotka z iPhonu má jednotky MB) — až s velkým náhledem výš.
 - **Uložení a sdílení** fotky ven z aplikace — v horní liště prohlížeče na to je místo (Google
   Zprávy tam mají stažení). Potřebuje platformní kód: Android `MediaStore`, iOS `PHPhotoLibrary`
   s `NSPhotoLibraryAddUsageDescription`.

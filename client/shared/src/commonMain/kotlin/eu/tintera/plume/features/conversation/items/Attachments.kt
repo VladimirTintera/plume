@@ -32,8 +32,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.audio.VoicePlayback
+import eu.tintera.plume.core.files.DocumentKind
 import eu.tintera.plume.core.files.FileSizeUnit
+import eu.tintera.plume.core.files.documentKind
 import eu.tintera.plume.core.files.formatFileSize
+import eu.tintera.plume.core.files.opensInViewer
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.AnimatedSticker
 import eu.tintera.plume.core.ui.RemoteImage
@@ -48,6 +51,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.conversation_cancel_sending
 import eu.tintera.plume.resources.description_24dp
+import eu.tintera.plume.resources.image_24dp
 import eu.tintera.plume.resources.document_open
 import eu.tintera.plume.resources.file_size_b
 import eu.tintera.plume.resources.file_size_gb
@@ -192,7 +196,8 @@ internal fun MessageAttachment(
             progress = documentProgress(media.fileId),
             uploading = uploading,
             onCancelUpload = onCancelUpload,
-            onOpen = onOpenDocument,
+            // Obrázek a video, které prohlížeč umí, se otevřou v něm; ostatní dostane systém.
+            onOpen = if (opensInViewer(media.fileName, media.mimeType)) onOpen else onOpenDocument,
             onRequestMenu = onRequestMenu,
             accent = accent,
         )
@@ -424,6 +429,9 @@ private fun DocumentContent(
     accent: Color,
 ) {
     val size = remember(document.sizeBytes) { formatFileSize(document.sizeBytes) }
+    val kind = remember(document.fileName, document.mimeType) {
+        documentKind(document.fileName, document.mimeType)
+    }
 
     Row(
         Modifier
@@ -439,34 +447,14 @@ private fun DocumentContent(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Box(contentAlignment = Alignment.Center) {
-            if (uploading) {
-                UploadIndicator(fileId = document.fileId, onCancel = onCancelUpload)
-            } else {
-                Box(
-                    Modifier
-                        .size(UPLOAD_INDICATOR_SIZE)
-                        .clip(CircleShape)
-                        .background(accent.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painterResource(Res.drawable.description_24dp),
-                        contentDescription = null,
-                        tint = accent,
-                    )
-                }
-                if (progress != null) {
-                    // Dokud TDLib nehlásí podíl, točí se neurčitě — stejně jako u nahrávání.
-                    if (progress <= 0f) {
-                        CircularWavyProgressIndicator(color = accent, modifier = Modifier.size(UPLOAD_INDICATOR_SIZE))
-                    } else {
-                        CircularWavyProgressIndicator(
-                            progress = { progress },
-                            color = accent,
-                            modifier = Modifier.size(UPLOAD_INDICATOR_SIZE),
-                        )
-                    }
-                }
+            when {
+                uploading -> UploadIndicator(fileId = document.fileId, onCancel = onCancelUpload)
+                document.thumbnailFileId != null -> DocumentThumbnail(
+                    thumbnailFileId = document.thumbnailFileId,
+                    kind = kind,
+                    progress = progress,
+                )
+                else -> DocumentIcon(kind = kind, progress = progress, accent = accent)
             }
         }
 
@@ -484,6 +472,89 @@ private fun DocumentContent(
         }
     }
 }
+
+/**
+ * Náhled souboru místo ikony: čtvereček s malým zaoblením, u videa se symbolem přehrání.
+ *
+ * Náhled posílá server (u obrázku) nebo odesílatel, takže bývá jen u obrázků a videí — tedy
+ * přesně tam, kde ikona obecného souboru o obsahu nic neřekne. Průběh stahování jde přes
+ * náhled stejně jako u nahrávání: bílá na závoji, protože akcent bubliny by na fotce zanikl.
+ */
+@Composable
+private fun DocumentThumbnail(thumbnailFileId: Int, kind: DocumentKind, progress: Float?) {
+    Box(
+        Modifier.size(UPLOAD_INDICATOR_SIZE).clip(RoundedCornerShape(DOCUMENT_THUMBNAIL_CORNER)),
+        contentAlignment = Alignment.Center,
+    ) {
+        RemoteImage(
+            fileId = thumbnailFileId,
+            contentDescription = null,
+            modifier = Modifier.matchParentSize(),
+        )
+        when {
+            progress != null -> {
+                Box(Modifier.matchParentSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)))
+                DownloadProgress(progress = progress, color = Color.White)
+            }
+            kind == DocumentKind.Video -> Box(
+                Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painterResource(Res.drawable.play_arrow_24dp),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+    }
+}
+
+/** Ikona souboru bez náhledu — podle druhu, ať je aspoň poznat, že jde o fotku nebo video. */
+@Composable
+private fun DocumentIcon(kind: DocumentKind, progress: Float?, accent: Color) {
+    Box(
+        Modifier
+            .size(UPLOAD_INDICATOR_SIZE)
+            .clip(CircleShape)
+            .background(accent.copy(alpha = 0.15f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painterResource(
+                when (kind) {
+                    DocumentKind.Image -> Res.drawable.image_24dp
+                    DocumentKind.Video -> Res.drawable.play_arrow_24dp
+                    DocumentKind.Other -> Res.drawable.description_24dp
+                },
+            ),
+            contentDescription = null,
+            tint = accent,
+        )
+    }
+    if (progress != null) DownloadProgress(progress = progress, color = accent)
+}
+
+/** Dokud TDLib nehlásí podíl, točí se neurčitě — stejně jako u nahrávání. */
+@Composable
+private fun DownloadProgress(progress: Float, color: Color) {
+    if (progress <= 0f) {
+        CircularWavyProgressIndicator(color = color, modifier = Modifier.size(UPLOAD_INDICATOR_SIZE))
+    } else {
+        CircularWavyProgressIndicator(
+            progress = { progress },
+            color = color,
+            modifier = Modifier.size(UPLOAD_INDICATOR_SIZE),
+        )
+    }
+}
+
+/** Náhled souboru je řádek, ne snímek — zaoblení bubliny by z něj udělalo kolečko. */
+private val DOCUMENT_THUMBNAIL_CORNER = 12.dp
 
 /** Jednotku velikosti pojmenuje až UI — v jiném jazyce se může lišit i pořadí čísla a zkratky. */
 internal fun FileSizeUnit.label(): StringResource = when (this) {

@@ -669,6 +669,12 @@ sealed interface MessageMedia {
         val mimeType: String,
         val sizeBytes: Long,
         val thumbnailFileId: Int?,
+        /**
+         * Rozměry náhledu, nula bez něj. TDLib u dokumentu rozměry souboru nedává; poměr stran
+         * náhledu je jediný, který známe, a prohlížeč podle něj staví kartu.
+         */
+        val thumbnailWidth: Int = 0,
+        val thumbnailHeight: Int = 0,
     ) : MessageMedia
 
     /**
