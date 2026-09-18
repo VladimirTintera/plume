@@ -96,6 +96,7 @@ internal fun VideoPage(
     onTap: () -> Unit,
     modifier: Modifier = Modifier,
     captionAlpha: () -> Float = { 1f },
+    cardBias: () -> Float = { 0f },
 ) {
     val scope = rememberCoroutineScope()
     val repository = koinInject<FileRepository>()
@@ -165,6 +166,7 @@ internal fun VideoPage(
         aspectRatio = aspectRatioOf(video.width, video.height),
         caption = caption,
         captionAlpha = captionAlpha,
+        cardBias = cardBias,
         modifier = modifier
             .pointerInput(Unit) {
                 // Jen svislý tah (zavírání); vodorovný se nekonzumuje a patří pageru.

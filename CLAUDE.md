@@ -1709,6 +1709,13 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   a sousední stránky u okrajů vykukují (`contentPadding` pageru, 24 dp soused, 8 dp mezera —
   se 14 dp souseda nebylo moc poznat, že vedle další fotky jsou). **Popisek sousední stránky
   mizí** podle posunu pageru (`captionAlpha`), jinak u okraje trčel useknutý kus textu.
+- **`HorizontalPager` šířku stránky podle obsahu NEŘEŠÍ.** Stránky mají jednu šířku a karta se
+  v ní centruje, takže fotka na výšku na širokém displeji (rozložený Fold) ležela uprostřed široké
+  stránky a sousední karty byly celé za okrajem. Proto dvě věci: stránka má strop
+  (`MAX_PAGE_WIDTH`, zbytek jde do `contentPadding`) a **sousední karta se přisouvá k okraji
+  bližšímu aktuální stránce** (`cardBias` = −`getOffsetDistanceInPages`, čteno až při umístění
+  v `MediaPageLayout`). Plynule s tahem — karta, která dojede doprostřed, stojí na středu.
+  Šířka se bere z `BoxWithConstraints`, ne z okna: vedle prohlížeče může ležet rail.
 - **Pozadí jezdí s pagerem**, neprolíná se. Kreslí se pozadí aktuální stránky i sousedů vedle
   sebe, posunutá o `currentPageOffsetFraction` (čteno až v `graphicsLayer`). Dokud se pozadí
   jen prolnulo podle `currentPage`, měnilo se skokem až po přeskočení na další stránku, zatímco

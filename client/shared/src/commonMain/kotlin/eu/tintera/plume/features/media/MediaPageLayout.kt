@@ -34,6 +34,11 @@ internal fun MediaPageLayout(
      * popisku; ten tam jen ruší, takže mizí, jak stránka odjíždí ze středu.
      */
     captionAlpha: () -> Float = { 1f },
+    /**
+     * Kam se karta ve stránce srovná: −1 k levému okraji, 0 na střed, 1 k pravému. Čte se až při
+     * umístění, takže posun pageru nic nerekomponuje.
+     */
+    cardBias: () -> Float = { 0f },
     card: @Composable () -> Unit,
 ) {
     Layout(
@@ -67,9 +72,10 @@ internal fun MediaPageLayout(
 
         val top = ((height - size.height - gap - captionHeight) / 2).coerceAtLeast(0)
         layout(width, height) {
-            card.place((width - size.width) / 2, top)
+            val left = ((width - size.width) / 2f * (1f + cardBias().coerceIn(-1f, 1f))).roundToInt()
+            card.place(left, top)
             // Popisek začíná u levé hrany karty, ať u úzké fotky nevisí u okraje obrazovky.
-            caption?.place(((width - size.width) / 2).coerceAtMost(width - caption.width), top + size.height + gap)
+            caption?.place(left.coerceAtMost(width - caption.width), top + size.height + gap)
         }
     }
 }

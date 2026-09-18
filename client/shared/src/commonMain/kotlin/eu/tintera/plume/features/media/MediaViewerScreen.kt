@@ -14,6 +14,7 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -226,14 +227,17 @@ private fun ViewerContent(
     val topInset = with(density) { WindowInsets.statusBars.getTop(this).toDp() } + TOP_BAR_HEIGHT
     val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() } + BOTTOM_BAR_HEIGHT
 
-    Box(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
         AmbientBackground(items, pagerState, Modifier.fillMaxSize().then(fadeWithDismiss))
+
+        // Na širokém displeji má stránka strop, jinak by sousedé leželi daleko za okrajem.
+        val pageInset = max(PAGE_INSET.value, ((maxWidth - MAX_PAGE_WIDTH) / 2).value).dp
 
         HorizontalPager(
             state = pagerState,
             key = { items[it].messageId },
             // Sousední stránky vykukují u okrajů.
-            contentPadding = PaddingValues(horizontal = PAGE_INSET),
+            contentPadding = PaddingValues(horizontal = pageInset),
             pageSpacing = PAGE_GAP,
             // Soused se skládá dopředu, ať při listování naskočí hned i s už staženým náhledem.
             beyondViewportPageCount = 1,
@@ -244,6 +248,12 @@ private fun ViewerContent(
             // Karta leží mezi lištami; stránka sama jde přes celou výšku, aby přiblížená fotka
             // měla kam růst.
             val captionAlpha = { 1f - abs(pagerState.getOffsetDistanceInPages(page)).coerceIn(0f, 1f) }
+            /*
+             * Karta užší než stránka (fotka na výšku, široký displej) by vycentrovaná ležela daleko
+             * od okraje a soused by nebyl vidět vůbec. Sousední karta se proto přisouvá k okraji
+             * blíž aktuální stránce — plynule s tahem, takže uprostřed obrazovky stojí vždy na středu.
+             */
+            val cardBias = { (-pagerState.getOffsetDistanceInPages(page)).coerceIn(-1f, 1f) }
             val pageModifier = Modifier.fillMaxSize().padding(top = topInset + PAGE_VERTICAL_GAP, bottom = bottomInset + PAGE_VERTICAL_GAP)
             when (val media = item.media) {
                 is MessageMedia.Video -> VideoPage(
@@ -256,6 +266,7 @@ private fun ViewerContent(
                     onTap = { chromeVisible = !chromeVisible },
                     modifier = pageModifier,
                     captionAlpha = captionAlpha,
+                    cardBias = cardBias,
                 )
 
                 is MessageMedia.Photo -> ZoomableImage(
@@ -268,6 +279,7 @@ private fun ViewerContent(
                     onTap = { chromeVisible = !chromeVisible },
                     modifier = pageModifier,
                     captionAlpha = captionAlpha,
+                    cardBias = cardBias,
                 )
 
                 else -> Unit
@@ -551,6 +563,7 @@ private fun ZoomableImage(
     onTap: () -> Unit,
     modifier: Modifier = Modifier,
     captionAlpha: () -> Float = { 1f },
+    cardBias: () -> Float = { 0f },
 ) {
     val scope = rememberCoroutineScope()
     val shape = MaterialTheme.shapes.large
@@ -574,6 +587,7 @@ private fun ZoomableImage(
         aspectRatio = aspectRatioOf(photo.width, photo.height),
         caption = caption,
         captionAlpha = captionAlpha,
+        cardBias = cardBias,
         modifier = modifier
             .pointerInput(Unit) {
                 /** Meze posunu: přiblížená fotka nesmí odjet tak, aby kraj stránky zůstal prázdný. */
@@ -756,6 +770,9 @@ private const val DOUBLE_TAP_SCALE = 2.5f
  */
 private val PAGE_INSET = 32.dp
 private val PAGE_GAP = 8.dp
+
+/** Nejširší stránka. Širší displej (rozložený Fold, tablet) dostane po stranách víc souseda. */
+private val MAX_PAGE_WIDTH = 720.dp
 
 /** Vzduch mezi kartou a lištami. */
 private val PAGE_VERTICAL_GAP = 8.dp
