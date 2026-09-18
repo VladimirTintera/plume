@@ -7,6 +7,7 @@ import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import eu.tintera.plume.app.root.presentation.theme.AppMotion
+import eu.tintera.plume.app.root.presentation.theme.appTypography
 import eu.tintera.plume.core.settings.ThemeMode
 import eu.tintera.plume.core.ui.LocalSharedTransitionScope
 
@@ -52,6 +53,7 @@ fun AppTheme(
     MaterialExpressiveTheme(
         colorScheme = colorScheme,
         motionScheme = AppMotion,
+        typography = appTypography(),
     ) {
         SharedTransitionLayout {
             CompositionLocalProvider(

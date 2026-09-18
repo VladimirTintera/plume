@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import kotlin.math.absoluteValue
 
@@ -59,7 +60,10 @@ fun Avatar(
                 // v seznamu i v hlavičce konverzace.
                 fontSize = (size.value * 0.38f).sp,
                 textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.titleMedium,
+                // Iniciály jsou značka, ne text ke čtení — nesou je výrazné písmo nadpisů.
+                // Výška řádku ze škály (32 sp) by byla vyšší než malý avatar; přirozená výška
+                // písma se škáluje s `fontSize`.
+                style = MaterialTheme.typography.headlineSmall.copy(lineHeight = TextUnit.Unspecified),
             )
         }
     }

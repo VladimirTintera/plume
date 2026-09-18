@@ -56,6 +56,7 @@ import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.photoKey
 import eu.tintera.plume.core.ui.sharedNavElement
+import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.core.video.VideoSurface
 import eu.tintera.plume.core.video.rememberVideoPlayer
 import eu.tintera.plume.features.conversation.formatDuration
@@ -320,7 +321,7 @@ internal fun VideoPage(
                         ?: if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
                     Text(
                         text = formatDuration(((fraction * durationMs) / 1000).toInt()),
-                        style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                        style = MaterialTheme.typography.labelMedium.tabularNumbers(),
                         color = Color.White,
                     )
                     Slider(
@@ -343,7 +344,7 @@ internal fun VideoPage(
                     )
                     Text(
                         text = formatDuration((durationMs / 1000).toInt()),
-                        style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                        style = MaterialTheme.typography.labelMedium.tabularNumbers(),
                         color = Color.White,
                     )
                 }

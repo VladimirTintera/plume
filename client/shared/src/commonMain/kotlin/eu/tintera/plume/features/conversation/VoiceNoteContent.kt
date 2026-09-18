@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.resampleWaveform
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_play_voice
 import eu.tintera.plume.resources.conversation_voice_progress
@@ -141,7 +142,7 @@ fun VoiceNoteContent(
                 }
                 Text(
                     text = formatDuration(seconds),
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelMedium.tabularNumbers(),
                 )
                 if (!voice.isListened) {
                     Box(Modifier.size(6.dp).background(accent, CircleShape))
