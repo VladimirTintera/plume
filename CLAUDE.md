@@ -1168,19 +1168,25 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   v commonMain se prostě nedá vyrobit.
 - **Prázdná nabídka emoji není chyba.** V Uložených zprávách Telegram místo reakcí používá tagy;
   dřív se kvůli tomu nabídka neotevřela vůbec a nešlo ani odpovědět. Teď se jen nevykreslí pruh.
-- **Plný seznam emoji se rozbaluje V POPUPU, ne v bottom sheetu.** Za „+" se pruh rychlých
-  reakcí promění v mřížku se vším, co chat nabízí (`ReactionPanel`), a nabídka akcí se na tu
-  dobu schová. Sheet, který tu byl předtím, žil v jiném okně a v jiném místě kompozice, takže
-  se s ním musel rušit popup: zmizela vybraná zpráva i nabídka — reagovalo se naslepo — a
-  **ťuknutí na emoji ve sheetu se nedoručilo**. Že se v mřížce listuje, popupu nevadí;
-  `LazyVerticalGrid` v něm scrolluje jako kdekoli jinde, sheet tam byl kvůli domněnce, že to
-  popup neumí. Zpět a ťuknutí mimo **nejdřív sbalí výběr** a teprve podruhé zavřou nabídku.
-- **Výška panelu se počítá z místa kolem bubliny** (`placeReactionPanel`, testy
-  `ReactionPanelTest`). Panel jde na tu stranu zprávy, kde je víc místa, a zmenší se, aby zpráva
-  zůstala vidět — bez ní není poznat, čemu se reakce dá. Strop existuje i tam, kde by se vešlo
-  víc: panel přes celou obrazovku by byl zase jen sheet pod jiným jménem. Je to čistá funkce
-  mimo composable, jako `photoFrame` — samý hraniční případ (zpráva u horní hrany, u spodní,
-  přes celý displej).
+- **Z nabídky se NESMÍ otevírat `ModalBottomSheet`.** Vyjede, ale **ťuknutí do něj nikam
+  nedojde** — ověřeno na zařízení u výběru reakcí i u „Informace", chová se to stejně. Je to
+  okno navíc, otevřené v okamžiku, kdy se okno popupu ruší; přesný mechanismus zatím vysvětlený
+  není, ale příznak je spolehlivý. Co se má otevřít z nabídky, patří do **obsahu téhož popupu**.
+  (Zbylý `MessageInfoSheet` tímhle trpí — viz roadmapa konverzace.)
+- **Plný seznam emoji je proto sheet UVNITŘ popupu** (`ReactionSheet`): celá šířka u spodní
+  hrany, zaoblený vršek, úchyt, tažením dolů se zavírá — vypadá jako bottom sheet, ale kreslí
+  ho totéž okno, které ukazuje sbalený pruh, a ťuknutí jde touž cestou jako u rychlé reakce.
+  Že se v mřížce listuje, popupu nevadí; `LazyVerticalGrid` v něm scrolluje jako kdekoli jinde.
+  Zpět a ťuknutí mimo **nejdřív sbalí výběr** a teprve podruhé zavřou nabídku.
+- **Sheet musí ťuknutí spolknout** (`detectTapGestures { }`). Kořen popupu má přes celou plochu
+  `clickable`, který zavírá nabídku — bez toho by ho ťuknutí vedle buňky mřížky sestřelilo.
+- **Nad sheetem zůstává pruh rychlých reakcí a vybraná zpráva, nabídka akcí ne.** Tak to dělá
+  i Google Messages: z pruhu je pořád vidět, čeho se výběr týká a co je už použité. Pruh zůstane
+  u zprávy, dokud se nad sheet vejde, jinak se posadí těsně nad něj — a posun se animuje, aby to
+  nevypadalo jako přeskládání. Rozvržení počítá `reactionSheetLayout` (testy `ReactionSheetTest`),
+  čistá funkce mimo composable jako `photoFrame`: samý hraniční případ (zpráva dole, nahoře,
+  nízké i vysoké okno). Počítá se i se sbaleným sheetem — při odjezdu `expanded` už neplatí
+  a výška by mu pod rukama skočila na podlahu.
 - **Smazaná zpráva se ze seznamu neodstraňuje ručně.** TDLib pošle `UpdateDeleteMessages` a ten se
   už zpracovává; předběhnout server by znamenalo riskovat, že zpráva zmizí z obrazovky a na
   serveru zůstane.
@@ -1191,6 +1197,10 @@ Položka „Informace" v nabídce nad zprávou otevře bottom sheet: kdy zpráva
 upravená, kdy ji protějšek přečetl, kdo ji zhlédl a odkaz na ni (`MessageInfoSheet`,
 `messageInfo` v `core/telegram`).
 
+- **ROZBITÉ: ťuknutí ve sheetu nefunguje.** Otevírá se z nabídky nad zprávou, a to je přesně
+  ten případ popsaný výš — modální sheet z popupu ťuknutí nedostane, takže odkaz nejde
+  zkopírovat. Opravit to znamená totéž co u reakcí: přestěhovat obsah do popupu. Je to
+  v roadmapě konverzace.
 - **Sheet, ne popup ani řádky v nabídce.** Údajů je proměnlivý počet a zhlédnutí je celý seznam
   lidí, takže se v tom musí dát listovat — a na rozdíl od výběru reakcí to není krok, po kterém
   má zůstat vidět vybraná zpráva.

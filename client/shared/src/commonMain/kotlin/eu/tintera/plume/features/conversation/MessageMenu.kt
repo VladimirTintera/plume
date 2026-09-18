@@ -1,7 +1,19 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +47,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,6 +65,7 @@ import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionOnScreen
 import androidx.compose.ui.platform.LocalDensity
@@ -113,6 +127,7 @@ import eu.tintera.plume.resources.push_pin_24dp
 import eu.tintera.plume.resources.reply_24dp
 import eu.tintera.plume.resources.star_24dp
 import eu.tintera.plume.resources.star_filled_24dp
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -205,16 +220,15 @@ internal fun MessageMenuOverlay(
     val showQuickRow = menu.quickEmoji.isNotEmpty()
 
     /*
-     * Rozbalený výběr reakcí zůstává v TOMTÉŽ popupu, ne v bottom sheetu.
+     * Rozbalený výběr reakcí je sheet UVNITŘ tohohle popupu, ne `ModalBottomSheet`.
      *
-     * Sheet se otevíral z obrazovky, tedy v jiném okně a v jiném místě kompozice, a v tu chvíli
-     * se popup rušil. Zmizela tím nabídka i vybraná zpráva — reagovalo se naslepo — a ťuknutí
-     * na emoji ve sheetu se nedoručilo. Tady je výběr jen další podoba pruhu reakcí: kreslí ho
-     * totéž okno, které ukazovalo ten sbalený, a ťuknutí jde touž cestou jako u rychlé reakce,
-     * takže není druhá cesta, která by mohla selhat sama za sebe.
+     * Modální sheet otevřený z nabídky je mrtvý: vyjede, ale ťuknutí do něj nikam nedojde
+     * (ověřeno na zařízení, stejně u výběru reakcí i u „Informace"). Je to okno navíc, otevřené
+     * ve chvíli, kdy se okno popupu ruší — a dokud se to nevysvětlí, nesmí z nabídky žádný další
+     * `ModalBottomSheet` vést. Tady je výběr obyčejný obsah popupu: kreslí ho totéž okno, které
+     * ukazuje sbalený pruh, a ťuknutí jde touž cestou jako u rychlé reakce.
      *
      * Že se v tom listuje, popupu nevadí — `LazyVerticalGrid` v něm scrolluje jako kdekoli jinde.
-     * Sheet tu byl kvůli domněnce, že to popup neumí.
      */
     var expanded by rememberSaveable { mutableStateOf(false) }
 
@@ -339,38 +353,6 @@ internal fun MessageMenuOverlay(
             val anchorLeft = with(density) { bubble.left.toDp() }
             val anchorRight = with(density) { bubble.right.toDp() }
 
-            /*
-             * Rozbalený výběr nechává na obrazovce jen sebe a vybranou zprávu.
-             *
-             * Nabídka akcí je druhý krok, ve kterém uživatel zrovna není, a mřížka přes třicet
-             * emoji vedle ní na telefon nevejde. Zpráva zůstat MUSÍ — je to jediné, co říká,
-             * čemu se reakce dá; kvůli jejímu zmizení sem tahle změna přišla.
-             */
-            if (expanded) {
-                val panel = placeReactionPanel(
-                    anchorTop = anchorTop,
-                    anchorBottom = anchorBottom,
-                    screenHeight = maxHeight,
-                    topMargin = topInset + SCREEN_MARGIN,
-                    bottomMargin = bottomInset + SCREEN_MARGIN,
-                )
-
-                ReactionPanel(
-                    emoji = menu.emoji,
-                    chosen = menu.chosenEmoji,
-                    onPick = { emoji -> handlers.onPick(id, emoji) },
-                    height = panel.height,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .offset(y = panel.y)
-                        .padding(horizontal = SCREEN_MARGIN)
-                        .scale(scale)
-                        .alpha(alpha),
-                )
-
-                return@BoxWithConstraints
-            }
-
             val layout = placeMenu(
                 anchorTop = anchorTop,
                 anchorBottom = anchorBottom,
@@ -381,7 +363,30 @@ internal fun MessageMenuOverlay(
                 bottomMargin = bottomInset + SCREEN_MARGIN,
             )
 
+            /*
+             * Rozbalený výběr nechává na obrazovce pruh reakcí a vybranou zprávu, nabídku akcí ne.
+             *
+             * Tak to dělá i Google Messages: pruh zůstane nad sheetem, takže je pořád vidět, čeho
+             * se výběr týká a která reakce je už použitá. Nabídka akcí je druhý krok, ve kterém
+             * uživatel zrovna není, a vedle mřížky by se na telefon nevešla.
+             *
+             * Rozvržení se počítá i sbalené: při odjezdu sheetu `expanded` už neplatí a výška by
+             * mu pod rukama skočila na podlahu.
+             */
+            val sheet = reactionSheetLayout(
+                anchorTop = anchorTop,
+                screenHeight = maxHeight,
+                topMargin = topInset + SCREEN_MARGIN,
+            )
+
             if (showQuickRow) {
+                // Pruh se nad vyjetý sheet posouvá plynule — skok by vypadal jako přeskládání.
+                val quickY by animateDpAsState(
+                    targetValue = if (expanded) sheet.quickY else layout.quickY,
+                    animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                    label = "quick-row-y",
+                )
+
                 QuickReactions(
                     menu = menu,
                     onPick = { emoji -> handlers.onPick(id, emoji) },
@@ -390,31 +395,52 @@ internal fun MessageMenuOverlay(
                         // Pruh je široký, takže se zarovnává ke KRAJI obrazovky podle strany
                         // bubliny — na zprávu samotnou by se stejně nevešel.
                         .align(if (menu.isOutgoing) Alignment.TopEnd else Alignment.TopStart)
-                        .offset(y = layout.quickY)
+                        .offset(y = quickY)
                         .padding(horizontal = SCREEN_MARGIN)
                         .scale(scale)
                         .alpha(alpha),
                 )
             }
 
-            Box(
-                Modifier
-                    .align(Alignment.TopStart)
-                    .offset(
-                        // Nabídka má pevnou šířku, takže se dá zarovnat k hraně BUBLINY —
-                        // vyrůstá od zprávy, ne od kraje obrazovky.
-                        x = menuX(
-                            anchorLeft = anchorLeft,
-                            anchorRight = anchorRight,
-                            isOutgoing = menu.isOutgoing,
-                            screenWidth = maxWidth,
-                        ),
-                        y = layout.menuY,
-                    )
-                    .scale(scale)
-                    .alpha(alpha),
+            if (!expanded) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .offset(
+                            // Nabídka má pevnou šířku, takže se dá zarovnat k hraně BUBLINY —
+                            // vyrůstá od zprávy, ne od kraje obrazovky.
+                            x = menuX(
+                                anchorLeft = anchorLeft,
+                                anchorRight = anchorRight,
+                                isOutgoing = menu.isOutgoing,
+                                screenWidth = maxWidth,
+                            ),
+                            y = layout.menuY,
+                        )
+                        .scale(scale)
+                        .alpha(alpha),
+                ) {
+                    ActionMenu(items, menu.timestamp, delivery)
+                }
+            }
+
+            AnimatedVisibility(
+                visible = expanded,
+                modifier = Modifier.align(Alignment.BottomCenter),
+                // Vyjíždí zdola jako sheet. Posun stačí: leží v překryvu, takže nemá layout,
+                // kterému by se měnilo místo — past se `slideOutVertically` je jinde (spodní bar).
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut(),
+                label = "reaction-sheet",
             ) {
-                ActionMenu(items, menu.timestamp, delivery)
+                ReactionSheet(
+                    emoji = menu.emoji,
+                    chosen = menu.chosenEmoji,
+                    onPick = { emoji -> handlers.onPick(id, emoji) },
+                    onCollapse = { expanded = false },
+                    height = sheet.height,
+                    bottomInset = bottomInset,
+                )
             }
         }
     }
@@ -486,61 +512,121 @@ private fun QuickReactions(
 }
 
 /**
- * Rozbalený výběr reakcí: mřížka se VŠEMI nabídnutými emoji.
+ * Rozbalený výběr reakcí: sheet u spodní hrany s mřížkou VŠECH nabídnutých emoji.
  *
- * Je to tentýž pruh, jen vyšší — proto stejná plocha, stejná velikost emoji i stejné zvýraznění
- * už použité reakce. Ťuknutí jde touž cestou jako u rychlé reakce ([MessageMenuHandlers.onPick]),
- * takže tu není druhá obsluha, která by se s ní mohla rozejít.
+ * **Není to `ModalBottomSheet`.** Modální sheet otevřený z nabídky nedostane ťuknutí (viz
+ * `MessageMenuOverlay`), takže je tohle obyčejný obsah popupu, jen sheet připomíná: celá šířka
+ * u spodní hrany, zaoblený vršek, úchyt a tažením dolů se zavírá. Ťuknutí jde touž cestou jako
+ * u rychlé reakce ([MessageMenuHandlers.onPick]) — není tu druhá obsluha, která by se s ní
+ * mohla rozejít.
  *
- * Mřížka se **posouvá svisle**; nabídnutých emoji bývá přes třicet a na jednu obrazovku se
- * nevejdou. Popupu to nevadí — scrolluje v něm cokoli, stejně jako v běžném obsahu.
- *
- * Výšku určuje volající: počítá se z místa, které kolem bubliny zbylo (viz [placeReactionPanel]),
- * protože zpráva musí zůstat vidět.
+ * Mřížka se posouvá svisle; nabídnutých emoji bývá přes třicet. Až přibudou vlastní (placené)
+ * emoji, přibude sem řádek záložek a hledání — proto sheet, a ne pruh navíc.
  */
 @Composable
-private fun ReactionPanel(
+private fun ReactionSheet(
     emoji: List<String>,
     chosen: Set<String>,
     onPick: (String) -> Unit,
+    onCollapse: () -> Unit,
     height: Dp,
-    modifier: Modifier = Modifier,
+    /** Výška navigační lišty. Popup kreslí i pod ni (`clippingEnabled = false`), sheet tedy jde
+     *  až k hraně displeje a lišta se odsadí až obsahu mřížky. */
+    bottomInset: Dp,
 ) {
+    val scope = rememberCoroutineScope()
+    val dragY = remember { Animatable(0f) }
+    val settle = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    val dismissPx = with(LocalDensity.current) { REACTION_SHEET_DISMISS.toPx() }
+
     Surface(
-        shape = RoundedCornerShape(REACTION_PANEL_CORNER),
+        shape = RoundedCornerShape(topStart = REACTION_SHEET_CORNER, topEnd = REACTION_SHEET_CORNER),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shadowElevation = 3.dp,
-        modifier = modifier.fillMaxWidth().height(height),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(height)
+            .graphicsLayer { translationY = dragY.value }
+            // Sheet musí ťuknutí SPOLKNOUT. Bez toho propadne na závoj pod ním a ten výběr
+            // zavře — ťuknutí vedle buňky by mřížku sestřelilo.
+            .pointerInput(Unit) { detectTapGestures { } },
     ) {
-        LazyVerticalGrid(
-            // Adaptivně, ne pevný počet sloupců: pruh je přes celou šířku okna a to se mezi
-            // telefonem a širokým rozvržením liší.
-            columns = GridCells.Adaptive(QUICK_EMOJI_SIZE + REACTION_PANEL_PADDING),
-            contentPadding = PaddingValues(REACTION_PANEL_PADDING),
-        ) {
-            // Emoji jako klíč: `availableReactions` je vrací bez duplicit, takže se dvě buňky
-            // o tentýž klíč nepoperou.
-            items(emoji, key = { it }) { item ->
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Surface(
-                        onClick = { onPick(item) },
-                        shape = RoundedCornerShape(50),
-                        // Už použitá reakce se zvýrazní, aby bylo poznat, že ťuknutí ji zase sundá.
-                        color = if (item in chosen) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            Color.Transparent
+        Column {
+            /*
+             * Úchyt, a zároveň jediné místo, které bere tažení.
+             *
+             * Na celém sheetu by se tah pral se svislým posunem mřížky; nahoře je jasné, že se
+             * táhne se sheetem. Zavírá se při PUŠTĚNÍ za prahem, stejně jako odpověď swipem —
+             * kdo si to rozmyslí, vrátí prst zpátky.
+             */
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(DRAG_HANDLE_ROW_HEIGHT)
+                    .draggable(
+                        orientation = Orientation.Vertical,
+                        state = rememberDraggableState { delta ->
+                            scope.launch { dragY.snapTo((dragY.value + delta).coerceAtLeast(0f)) }
                         },
-                        modifier = Modifier.size(QUICK_EMOJI_SIZE),
-                    ) {
-                        Text(
-                            text = item,
-                            // Mimo typografickou škálu schválně: u emoji je nosná celá kresba,
-                            // ne výška písmen, takže ve velikosti role působí menší.
-                            fontSize = 24.sp,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth().padding(top = 7.dp),
-                        )
+                        onDragStopped = {
+                            // Po zavření se posun nevrací na nulu: sheet odjíždí z místa, kam ho
+                            // prst dotáhl, a obsah se stejně zahodí, až animace doběhne.
+                            if (dragY.value > dismissPx) {
+                                onCollapse()
+                            } else {
+                                dragY.animateTo(0f, settle)
+                            }
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    Modifier
+                        .size(width = DRAG_HANDLE_WIDTH, height = DRAG_HANDLE_HEIGHT)
+                        .background(
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                            RoundedCornerShape(50),
+                        ),
+                )
+            }
+
+            LazyVerticalGrid(
+                // Adaptivně, ne pevný počet sloupců: sheet je přes celou šířku okna a to se mezi
+                // telefonem a širokým rozvržením liší.
+                columns = GridCells.Adaptive(QUICK_EMOJI_SIZE + REACTION_SHEET_PADDING),
+                // Zbytek sheetu pod úchytem, ať se mřížka nesmršťuje podle počtu emoji.
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(
+                    start = REACTION_SHEET_PADDING,
+                    end = REACTION_SHEET_PADDING,
+                    top = REACTION_SHEET_PADDING,
+                    bottom = REACTION_SHEET_PADDING + bottomInset,
+                ),
+            ) {
+                // Emoji jako klíč: `availableReactions` je vrací bez duplicit, takže se dvě buňky
+                // o tentýž klíč nepoperou.
+                items(emoji, key = { it }) { item ->
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Surface(
+                            onClick = { onPick(item) },
+                            shape = RoundedCornerShape(50),
+                            // Už použitá reakce se zvýrazní, aby bylo poznat, že ťuknutí ji sundá.
+                            color = if (item in chosen) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                Color.Transparent
+                            },
+                            modifier = Modifier.size(QUICK_EMOJI_SIZE),
+                        ) {
+                            Text(
+                                text = item,
+                                // Mimo typografickou škálu schválně: u emoji je nosná celá kresba,
+                                // ne výška písmen, takže ve velikosti role působí menší.
+                                fontSize = 24.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth().padding(top = 7.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -800,44 +886,36 @@ private fun placeMenu(
     )
 }
 
-/** Kam přijde rozbalený výběr reakcí a jak bude vysoký. */
-internal data class ReactionPanelLayout(val y: Dp, val height: Dp)
+/** Výška vyjetého výběru reakcí a kam se nad něj uklidí pruh rychlých reakcí. */
+internal data class ReactionSheetLayout(val height: Dp, val quickY: Dp)
 
 /**
- * Kam přijde rozbalený výběr reakcí.
+ * Jak vysoký bude vyjetý výběr reakcí a kam se nad něj posune pruh rychlých reakcí.
  *
- * Panel jde na tu stranu bubliny, kde je VÍC místa, a jeho výška se tomu místu přizpůsobí —
- * zpráva musí zůstat vidět, protože bez ní není poznat, čemu se reakce dá. Mřížka se posouvá,
- * takže nižší panel nic neschová, jen se v něm listuje dřív.
+ * Sheet sedí u spodní hrany a bere podíl výšky okna — ne tolik, aby z výběru byla samostatná
+ * obrazovka, a ne tak málo, aby v mřížce byl jeden řádek. Mřížka se posouvá, takže nižší sheet
+ * nic neschová, jen se v něm listuje dřív.
  *
- * Strop výšky existuje i tam, kde by se vešlo víc: panel přes celou obrazovku by z výběru udělal
- * samostatnou obrazovku a vybraná zpráva by v něm zanikla. Podlaha naopak drží použitelnost
- * u zprávy, která zabere skoro celý displej — tam se panel s bublinou kousek překryje, což je
- * pořád lepší než mřížka o jednom řádku.
+ * Pruh reakcí zůstává u zprávy, dokud se nad sheet vejde; jinak se posadí těsně nad něj. Musí
+ * zůstat vidět — je to jediné místo, kde je poznat, čeho se výběr týká a co je už použité.
  */
-internal fun placeReactionPanel(
+internal fun reactionSheetLayout(
     anchorTop: Dp,
-    anchorBottom: Dp,
     screenHeight: Dp,
     /** Kam nahoře nesmí — stavová lišta plus odstup od kraje. */
     topMargin: Dp,
-    /** Totéž dole, kvůli navigační liště. */
-    bottomMargin: Dp,
-): ReactionPanelLayout {
-    val above = anchorTop - MENU_GAP - topMargin
-    val below = (screenHeight - bottomMargin) - (anchorBottom + MENU_GAP)
-    val usable = (screenHeight - topMargin - bottomMargin).coerceAtLeast(0.dp)
+): ReactionSheetLayout {
+    val height = (screenHeight * REACTION_SHEET_FRACTION)
+        .coerceIn(REACTION_SHEET_MIN_HEIGHT, REACTION_SHEET_MAX_HEIGHT)
+        // Na nízkém okně se ustoupí, aby nad sheetem zbylo aspoň na pruh reakcí.
+        .coerceAtMost((screenHeight - topMargin - MENU_GAP - QUICK_ROW_HEIGHT).coerceAtLeast(0.dp))
 
-    val height = maxOf(above, below)
-        .coerceIn(REACTION_PANEL_MIN_HEIGHT, REACTION_PANEL_MAX_HEIGHT)
-        // Na malém okně může být i podlaha víc, než kolik je mezi lištami místa.
-        .coerceAtMost(usable)
+    val sheetTop = screenHeight - height
+    val highest = (sheetTop - MENU_GAP - QUICK_ROW_HEIGHT).coerceAtLeast(topMargin)
 
-    val y = if (above >= below) anchorTop - MENU_GAP - height else anchorBottom + MENU_GAP
-
-    return ReactionPanelLayout(
-        y = y.coerceIn(topMargin, (screenHeight - bottomMargin - height).coerceAtLeast(topMargin)),
+    return ReactionSheetLayout(
         height = height,
+        quickY = (anchorTop - MENU_GAP - QUICK_ROW_HEIGHT).coerceIn(topMargin, highest),
     )
 }
 
@@ -864,11 +942,20 @@ private val MENU_PADDING = 8.dp
 private val QUICK_ROW_HEIGHT = 52.dp
 private val QUICK_EMOJI_SIZE = 40.dp
 
-/** Rozbalený výběr: podlaha, strop, zaoblení a odsazení mřížky. */
-internal val REACTION_PANEL_MIN_HEIGHT = 120.dp
-internal val REACTION_PANEL_MAX_HEIGHT = 280.dp
-private val REACTION_PANEL_CORNER = 24.dp
-private val REACTION_PANEL_PADDING = 8.dp
+/** Rozbalený výběr: podíl výšky okna, podlaha a strop. */
+private const val REACTION_SHEET_FRACTION = 0.45f
+internal val REACTION_SHEET_MIN_HEIGHT = 220.dp
+internal val REACTION_SHEET_MAX_HEIGHT = 400.dp
+private val REACTION_SHEET_CORNER = 28.dp
+private val REACTION_SHEET_PADDING = 8.dp
+
+/** Úchyt nahoře: proužek a pruh, ve kterém se dá za sheet táhnout. */
+private val DRAG_HANDLE_WIDTH = 32.dp
+private val DRAG_HANDLE_HEIGHT = 4.dp
+private val DRAG_HANDLE_ROW_HEIGHT = 22.dp
+
+/** Za tuhle vzdálenost stažený sheet se při puštění zavře. */
+private val REACTION_SHEET_DISMISS = 80.dp
 
 /**
  * Potvrzení připnutí.

@@ -180,6 +180,10 @@ přibude s tím, co bude umět:
 - ~~**Informace / odkaz na zprávu**~~ — hotovo: sheet s časem odeslání a úpravy, časem přečtení,
   seznamem zhlédnutí a odkazem ke zkopírování. Poučení v `CLAUDE.md`, „Informace o zprávě".
   Zbývá jen `getMessageStatistics` u příspěvků v kanálech — jiná data a vlastní obrazovka.
+- **Sheet „Informace" je ale ROZBITÝ**, a je to tentýž nález jako u výběru reakcí: modální sheet
+  otevřený z popupu nabídky nedostane ťuknutí (ověřeno na zařízení). Odkaz se tedy nedá
+  zkopírovat. Oprava je stejná — obsah patří do popupu, ne do `ModalBottomSheet`. Než se to
+  udělá, nesmí z nabídky přibýt další sheet.
 
 ## C) Entity v textu (odkazy) — HOTOVO
 
