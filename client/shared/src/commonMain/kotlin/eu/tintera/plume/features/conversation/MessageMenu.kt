@@ -77,10 +77,11 @@ import androidx.compose.ui.unit.sp
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
+import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.blur.HazeBlurStyle
+import dev.chrisbanes.haze.blur.HazeColorEffect
+import dev.chrisbanes.haze.blur.hazeBlur
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.features.conversation.items.ConversationItemScope
@@ -229,11 +230,14 @@ internal fun MessageMenuLayer(
             .onGloballyPositioned { origin = it.positionInWindow() },
     ) {
         // Závoj. Ťuknutí mimo nabídku ji zavírá; při zavírání už nic nechytá.
+        // Průhlednost jde přes `graphicsLayer`, ne do stylu: styl je v Haze 2 neměnný, takže by se
+        // musel skládat znovu v každém snímku animace a s ním i celá obrazovka.
         val scrimStyle = scrimStyle()
         Box(
             Modifier
                 .fillMaxSize()
-                .hazeEffect(hazeState, scrimStyle) { alpha = scrimAlpha }
+                .graphicsLayer { alpha = scrimAlpha }
+                .hazeBlur(input = HazeInput.Sources(hazeState), style = scrimStyle)
                 .then(if (open) Modifier.pointerInput(Unit) { detectTapGestures { close() } } else Modifier),
         )
 
@@ -925,16 +929,16 @@ private fun menuX(anchorLeft: Dp, anchorRight: Dp, isOutgoing: Boolean, screenWi
  * bylo to jediné, co zprávu od pozadí oddělovalo — rozostření odsouvá do pozadí samo.
  */
 @Composable
-private fun scrimStyle(): HazeStyle {
+private fun scrimStyle(): HazeBlurStyle {
     val scrim = MaterialTheme.colorScheme.scrim
     return remember(scrim) {
-        HazeStyle(
-            tint = HazeTint(scrim.copy(alpha = SCRIM_TINT_ALPHA)),
-            blurRadius = SCRIM_BLUR_RADIUS,
-            noiseFactor = 0f,
+        HazeBlurStyle {
+            colorEffects(listOf(HazeColorEffect.tint(scrim.copy(alpha = SCRIM_TINT_ALPHA))))
+            blurRadius(SCRIM_BLUR_RADIUS)
+            noiseFactor(0f)
             // Kde rozostření není (Android 11 a starší), zůstává dřívější závoj.
-            fallbackTint = HazeTint(scrim.copy(alpha = SCRIM_FALLBACK_ALPHA)),
-        )
+            fallbackColorEffect(HazeColorEffect.tint(scrim.copy(alpha = SCRIM_FALLBACK_ALPHA)))
+        }
     }
 }
 

@@ -9,7 +9,7 @@ agp = "9.2.1"
 # publikovaný z Kotlinu 2.4.10 a jeho iOS klib se starším kompilátorem nenačte. Při bumpu TDLib
 # wrapperu vždycky zkontroluj Kotlin verzi v jeho Gradle metadatech:
 #   curl -s https://repo1.maven.org/maven2/dev/g000sha256/tdl-coroutines-iosarm64/<ver>/tdl-coroutines-iosarm64-<ver>.module | grep -A2 kotlin-stdlib
-kotlin = "2.4.10"
+kotlin = "2.4.20"
 kotlinx-coroutines = "1.11.0"
 kotlinx-serialization = "1.11.0"
 kotlinx-datetime = "0.8.0"
@@ -40,9 +40,10 @@ compottie = "2.3.1"
 # Gzip pro .tgs. Tutéž verzi táhne Compottie; výslovně kvůli tomu, že ji používáme přímo.
 okio = "3.16.4"
 # Rozostřené pozadí pod plovoucími vrstvami (závoj nabídky nad zprávou). Compose sám umí rozostřit
-# jen vlastní obsah (`Modifier.blur`), ne to, co leží POD vrstvou. 2.x chce Kotlin 2.4.20 — při
-# bumpu zkontroluj `kotlin-stdlib` a `compose.ui` v jejích metadatech (.module na Maven Central).
-haze = "1.7.3"
+# jen vlastní obsah (`Modifier.blur`), ne to, co leží POD vrstvou. Kotlin projektu musí být ≥ tomu,
+# ze kterého je Haze publikovaná — při bumpu zkontroluj `kotlin-stdlib` a `compose.ui` v jejích
+# metadatech (.module na Maven Central). `haze` a `haze-blur` musí mít vždy stejnou verzi.
+haze = "2.0.0-rc02"
 # Přehrávání videa na Androidu. Jen `exoplayer` + `ui` (AspectRatioFrameLayout): `ui-compose` by táhl
 # androidx Compose novější, než jakou verzi drží Compose Multiplatform.
 media3 = "1.11.1"
@@ -61,6 +62,7 @@ tdl = "15.0.0"
 
 [libraries]
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
+haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "haze" }
 # --- Compose ---
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose" }

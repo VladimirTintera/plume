@@ -1313,13 +1313,19 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   hlavička, a ta má zůstat rozpoznatelná (viz horní mez nabídky). Rozostření odsouvá do pozadí
   samo, takže ztmavení kleslo ze 45 % na 20 %. **Kde rozostření není (Android 11 a starší),
   kreslí Haze `fallbackTint`**, a ten je nastavený na dřívější závoj — o nic se nepřijde.
-- **Závoj se objevuje průhledností (`alpha` Haze), poloměr se neanimuje.** Změna poloměru
-  znamená nový `RenderEffect` v každém snímku; prolnutí ostrého a rozostřeného obrazu
-  vypadá skoro stejně a nic nestojí.
-- **Haze je 1.x, ne 2.0.** Dvojka chce Kotlin 2.4.20 (projekt má 2.4.10), 1.7.3 přesně
-  Compose 1.12 — před bumpem zkontrolovat `kotlin-stdlib` a `compose.ui` v `.module` na Maven
-  Central, stejná podmínka jako u TDLib wrapperu. Neimportuje se `haze-materials`: styl je
-  pár řádků (`scrimStyle`) a modul by táhl material3 v jiné verzi.
+- **Závoj se objevuje průhledností, poloměr se neanimuje.** Změna poloměru znamená nový
+  `RenderEffect` v každém snímku; prolnutí ostrého a rozostřeného obrazu vypadá skoro stejně
+  a nic nestojí. **Průhlednost jde přes `graphicsLayer`, ne přes `alpha(…)` ve stylu:** styl je
+  v Haze 2 neměnný, takže by se v každém snímku animace musel skládat znovu — a čtení animované
+  hodnoty v kompozici by rekomponovalo celou vrstvu nabídky.
+- **Haze 2 (`haze` + `haze-blur`, vždy stejná verze), vstup `HazeInput.Sources`.** Dokumentace
+  doporučuje `Backdrop`, ale ten bez experimentálního příznaku stejně spadne na `Sources`
+  a s ním by se na Androidu 17 QPR2 tiše přepnul na nativní cestu, podle autora zatím dražší.
+  Dvojka nezaznamenává zdroj, dokud ho žádný efekt nečte — `hazeSource` na Scaffoldu tedy se
+  zavřenou nabídkou nic nestojí (v 1.x se konverzace kreslila do vrstvy pořád).
+  **Kotlin projektu musí být ≥ tomu, ze kterého je Haze publikovaná** (2.0 → 2.4.20) — stejná
+  podmínka jako u TDLib wrapperu. Neimportuje se `haze-blur-materials`: styl je pár řádků
+  (`scrimStyle`) a modul by táhl material3 v jiné verzi.
 - **Nabídka akcí před sheetem NEMIZÍ.** Sheet ji jen překryje a klikat se na ni nedá, protože je
   modální; je to pořád táž otevřená nabídka. Dřív se schovávala (`if (!expanded)`), zmizela
   natvrdo a po zasunutí sheetu bleskově naskočila.

@@ -97,6 +97,7 @@ kotlin {
             // (oficiální rlottie je ani neumí), takže by to byla jen váha navíc.
             implementation(libs.compottie.lite)
             implementation(libs.haze)
+            implementation(libs.haze.blur)
             implementation(libs.okio)
             implementation(libs.datastore.preferences.core)
 
