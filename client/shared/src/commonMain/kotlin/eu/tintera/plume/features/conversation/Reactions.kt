@@ -3,15 +3,23 @@ package eu.tintera.plume.features.conversation
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
@@ -25,65 +33,59 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_react
+import eu.tintera.plume.resources.reactions_title
+import eu.tintera.plume.resources.reactions_you
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Řádek reakcí pod obsahem bubliny.
+ * Řádek reakcí u zprávy.
  *
- * [FlowRow] schválně: u zprávy může být reakcí víc, než se vejde na šířku, a vodorovný scroll
- * uvnitř bubliny by se pral se scrollem konverzace.
+ * **Jeden řádek, který se posouvá do strany**, ne lámání do víc řádků: čipy jsou zapuštěné do
+ * bubliny a druhý řádek by ji přerostl. Svislý scroll konverzace to neruší — vodorovný posun
+ * konzumuje jen vodorovné tahy, a ty by jinak patřily odkrývání časů.
  *
- * **Avatary vs. počet.** U reakce s pár lidmi je zajímavé, KDO reagoval, a ukážou se jejich
- * profilovky. Nad stropem se čip sbalí na emoji + číslo, protože:
- * - u příspěvku se stovkou reakcí nemá výčet tváří smysl a TDLib stejně posílá jen pár posledních,
- * - řada avatarů je široká a v bublině by se reakce lámaly do mnoha řádků.
- *
- * Druhá pojistka je [MAX_REACTIONS_WITH_AVATARS]: když má zpráva hodně různých emoji, sbalí se
- * všechny čipy, i kdyby jednotlivě byly pod stropem. Jinak by pod krátkou zprávou vznikla
- * stěna z profilovek.
+ * **Ťuknutí otevírá detail, nepřepíná reakci.** Kdo reagoval, se odjinud nedozvíme (čip nese jen
+ * emoji a počet), a přidat nebo odebrat jde z nabídky nad zprávou, kde je i výběr emoji.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ReactionRow(
     reactions: List<MessageReaction>,
-    onToggle: (String) -> Unit,
+    /** `null` tam, kde detail není k dispozici — pak čip nereaguje na ťuknutí a nemá ani vlnku. */
+    onOpenDetails: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     if (reactions.isEmpty()) return
 
-    val showAvatars = reactions.size <= MAX_REACTIONS_WITH_AVATARS
-
-    FlowRow(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+    Row(
+        modifier = modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         reactions.forEach { reaction ->
             // Klíč podle emoji: server pořadí reakcí mění (optimisticky přidaná jde na konec,
             // jeho odpověď ji může dát jinam). Bez klíče by se stav animací přenesl na sousední
             // čip a ten by přeblikl do cizí barvy a tvaru.
             key(reaction.emoji) {
-                ReactionChip(
-                    reaction = reaction,
-                    // Avatary jen když je jich málo A zároveň je opravdu máme načtené.
-                    withAvatars = showAvatars &&
-                        reaction.count <= MAX_AVATARS_PER_REACTION &&
-                        reaction.recentSenders.isNotEmpty(),
-                    onClick = { onToggle(reaction.emoji) },
-                )
+                ReactionChip(reaction = reaction, onClick = onOpenDetails)
             }
         }
     }
 }
 
 /**
- * Jeden čip reakce.
+ * Jeden čip reakce: emoji a počet, nic víc.
+ *
+ * Profilovky těch, kdo reagovali, tu byly a jsou pryč — čip s nimi byl široký, takže se jich
+ * vedle sebe vešlo pár, a stejně ukazovaly jen několik posledních. Kdo reagoval, teď říká detail.
+ *
+ * **Počet se vypisuje až od dvou.** U jediné reakce je číslo „1" šum; že tam někdo je, říká
+ * samotný čip.
  *
  * Vlastní reakce se odliší **tvarem i barvou naráz**: zaoblení se stáhne z kapsle do měkkého
  * obdélníku a čip lehce povyroste. Obojí jede přes `MaterialTheme.motionScheme`, takže to má
@@ -92,8 +94,7 @@ fun ReactionRow(
 @Composable
 private fun ReactionChip(
     reaction: MessageReaction,
-    withAvatars: Boolean,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
 ) {
     val chosen = reaction.isChosen
 
@@ -108,8 +109,8 @@ private fun ReactionChip(
         label = "reaction-scale",
     )
     val container by animateColorAsState(
-        // `primaryContainer`, ne `primary`: odchozí bublina je nově sama `primary`, takže by
-        // vybraná reakce na vlastní zprávě splynula s pozadím. Světlý čip je čitelný na obojím.
+        // `primaryContainer`, ne `primary`: odchozí bublina je sama `primary`, takže by vybraná
+        // reakce na vlastní zprávě splynula s pozadím. Světlý čip je čitelný na obojím.
         targetValue = if (chosen) {
             MaterialTheme.colorScheme.primaryContainer
         } else {
@@ -121,7 +122,6 @@ private fun ReactionChip(
     )
 
     Surface(
-        onClick = onClick,
         shape = RoundedCornerShape(corner),
         color = container,
         contentColor = if (chosen) {
@@ -129,49 +129,30 @@ private fun ReactionChip(
         } else {
             MaterialTheme.colorScheme.onSurface
         },
+        // Stín, protože čip leží NA bublině; bez něj by u tmavšího pozadí splynul s jejím okrajem.
+        shadowElevation = 1.dp,
         modifier = Modifier.scale(scale),
     ) {
         Row(
-            Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            // Klikání je až uvnitř `Surface`, takže ho tvar ořízne — jinak by vlnka přetekla
+            // přes zaoblená nároží čipu.
+            Modifier
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             // Emoji záměrně mimo typografickou škálu: role jako `labelLarge` míří na výšku
             // písmen, ale u emoji je nosná celá kresba, takže ve stejné velikosti působí menší
             // než číslo vedle ní.
-            Text(text = reaction.emoji, fontSize = 18.sp)
+            Text(text = reaction.emoji, fontSize = 16.sp)
 
-            if (withAvatars) {
-                ReactionSenders(reaction)
-            } else {
+            if (reaction.count > 1) {
                 Text(
                     text = reaction.count.toString(),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelMedium,
                 )
             }
-        }
-    }
-}
-
-/**
- * Profilovky těch, kdo reagovali.
- *
- * Avatary se **překrývají** (záporný offset), aby řada zabrala co nejmíň místa — čip musí zůstat
- * srovnatelně široký jako varianta s číslem, jinak by se řádek reakcí lámal jinak podle toho,
- * kolik lidí zrovna reagovalo.
- */
-@Composable
-private fun ReactionSenders(reaction: MessageReaction) {
-    // Záporný rozestup dělá překryv; pozdější avatar se kreslí přes dřívější sám tím,
-    // že je v Row později.
-    Row(horizontalArrangement = Arrangement.spacedBy((-6).dp)) {
-        reaction.recentSenders.take(MAX_AVATARS_PER_REACTION).forEach { sender ->
-            Avatar(
-                chatId = sender.id,
-                title = sender.title,
-                avatarFileId = sender.avatarFileId,
-                size = 18.dp,
-            )
         }
     }
 }
@@ -231,11 +212,77 @@ fun ReactionPickerSheet(
 }
 
 /**
- * Kolik profilovek se u jedné reakce ukáže. Nad tím se čip sbalí na počet — a musí to sedět
- * s `MAX_SENDERS_SHOWN` v `TdlConversationRepository`, který nad stejným stropem odesílatele
- * vůbec nenačítá.
+ * Detail reakcí: kdo a čím reagoval.
+ *
+ * Otevírá se **ťuknutím na čip reakce** — jinde se to nedozvíme, protože čip nese jen emoji
+ * a počet. Přidat nebo odebrat reakci tudy nejde; to má nabídku nad zprávou, kde je i výběr emoji.
+ *
+ * Seznam je jedna stránka od serveru (viz `REACTION_DETAIL_LIMIT`). U příspěvku s tisíci reakcemi
+ * ho nikdo neprojde a stránkování by znamenalo držet offset ve stavu sheetu.
  */
-private const val MAX_AVATARS_PER_REACTION = 3
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReactionDetailsSheet(
+    details: ReactionDetails,
+    onDismiss: () -> Unit,
+) {
+    // Modální sheet začíná skrytý a rozjede se sám. Náhrada za `rememberModalBottomSheetState`,
+    // které je od Compose 1.12 zastaralé.
+    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
 
-/** Kolik různých emoji u zprávy ještě snese avatary, než se všechny čipy sbalí na počty. */
-private const val MAX_REACTIONS_WITH_AVATARS = 3
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Text(
+            text = stringResource(Res.string.reactions_title),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 4.dp),
+        )
+
+        if (details.loading) {
+            Box(
+                Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                LoadingIndicator()
+            }
+            return@ModalBottomSheet
+        }
+
+        LazyColumn(
+            // Strop výšky: u příspěvku s padesáti reakcemi by sheet jinak zabral celou obrazovku.
+            Modifier.heightIn(max = REACTION_DETAILS_MAX_HEIGHT).padding(vertical = 8.dp),
+        ) {
+            items(details.items, key = { "${it.sender.id}-${it.emoji}" }) { detail ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Avatar(
+                        chatId = detail.sender.id,
+                        title = detail.sender.title,
+                        avatarFileId = detail.sender.avatarFileId,
+                        size = 36.dp,
+                    )
+                    Text(
+                        // U vlastní reakce jméno nic nepřidá — „Vy" je kratší a čte se rychleji.
+                        text = if (detail.isOwn) {
+                            stringResource(Res.string.reactions_you)
+                        } else {
+                            detail.sender.title
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(text = detail.emoji, fontSize = 20.sp)
+                }
+            }
+        }
+    }
+}
+
+/** Strop výšky seznamu v detailu reakcí. */
+private val REACTION_DETAILS_MAX_HEIGHT = 420.dp

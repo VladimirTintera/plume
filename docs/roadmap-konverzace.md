@@ -41,8 +41,8 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    z bubliny ven~~, ~~výška fotek~~, ~~fotky a videa na plochu~~, ~~náhled odkazu na plochu~~
    a ~~odkrývání časů tahem~~. Poučení v `CLAUDE.md` („Tvar bubliny a seskupení", „Čas a stav
    doručení", „Médium bez bubliny", „Rámeček fotky v bublině", „Náhled odkazu bez bubliny",
-   „Odkrývání časů tahem"). Zbývají **reakce z bubliny ven** a **odznak přečtení na ťuknutí** —
-   body 5 a 6 ve vlastní sekci níž.
+   „Odkrývání časů tahem", „Reakce") a ~~reakce z bubliny ven~~. Zbývá **odznak přečtení na
+   ťuknutí** — bod 6 ve vlastní sekci níž.
 6. Drobnosti ze sekcí níž (zásobník, nabídka, entity, média, emoji).
 
 ---
@@ -51,8 +51,8 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
 
 Inspirace je Google Messages. Samostatné kusy, dají se dělat nezávisle.
 
-Body 1–4 jsou hotové, zbytky jednotlivých bodů jsou u nich a poučení v `CLAUDE.md`. Otevřené
-zůstávají **5 a 6**.
+Body 1–5 jsou hotové, zbytky jednotlivých bodů jsou u nich a poučení v `CLAUDE.md`. Otevřený
+zůstává **bod 6**.
 
 ### 1. ~~Fotky a videa na plochu, mimo bublinu~~ — HOTOVO
 
@@ -120,26 +120,22 @@ Co z toho zůstalo:
 - **Čas se neukazuje u samotného alba ani u sponzorované karty.** Album nese čas své nejnovější
   zprávy jako každá jiná položka; reklama žádný nemá, takže jen jede s plochou.
 
-### 5. Reakce z bubliny ven
+### 5. ~~Reakce z bubliny ven~~ — HOTOVO
 
-`ReactionRow` je dnes uvnitř bubliny, tedy poslední kus obsahu, který tam nepatří: čipy mají
-vlastní pozadí a bublina je nemá co ohraničovat. Mají jít **pod bublinu**, ke stavu doručení.
+Čipy nesou jen emoji a počet (od dvou výš), leží NA bublině u dolního nároží na straně odesílatele
+a bublina si na ně dole nechá místo. Jeden řádek, který se posouvá do strany. Ťuknutí otevře
+**detail „kdo reagoval"** (`ReactionDetailsSheet` nad `getMessageAddedReactions`); přidat a odebrat
+jde jen z nabídky nad zprávou. Poučení v `CLAUDE.md`, „Reakce".
 
-- **Že to na ploše funguje, je už vidět.** U holého média (fotka, video, náhled odkazu) čipy na
-  ploše stojí a čtou se dobře — viz kanál s jedenácti reakcemi. Po přesunu bude cesta pro všechny
-  zprávy jedna, ne dvě.
-- **Zarovnat ke straně odesílatele**, stejně jako odznak doručení a holé médium.
-- **Široký řádek reakcí dnes roztahuje bublinu.** Venku poroste vedle ní — tak to dělá Telegram
-  i Google Messages a je to důvod, proč tenhle bod vůbec dává smysl.
-- **Rozhodnout: co s dírou v závoji nabídky.** `Box` kolem `Surface` je ukotvení popupu a vykrajuje
-  se podle něj; reakce mimo něj by při otevřené nabídce zůstaly ztmavené. Buď jsou součástí zprávy
-  (díra se rozšíří, ale tvar přestane být jedno zaoblené nároží), nebo zůstanou pod závojem
-  (nabídka se ptá na zprávu, ne na reakce). Druhá varianta je levnější a nejspíš správná.
-- **Past: posun při swipu na odpověď** se počítá na sloupci kolem toho `Box`u, ne na bublině samotné
-  — proto s ním dnes jede i odznak doručení. Reakce patří do téhož sloupce, jinak by při tahu
-  zůstaly stát.
-- **Mizet musí i s místem** (`shrinkVertically`, ne jen `fadeOut`) a při odjezdu kreslit poslední
-  známý stav — tatáž past jako u odznaku doručení a pruhu připnutých.
+Co z toho zůstalo:
+
+- **V kanálu detail není** (`BROADCAST_FORBIDDEN`), takže tam čip nereaguje na ťuknutí. Kdyby
+  přibyla práva admina, dá se to pustit podle nich — dnes se rozhoduje jen podle
+  `ChatInfo.isChannel`.
+- **Detail je jedna stránka po padesáti řádcích.** Stránkování by znamenalo držet offset ve stavu
+  sheetu; u příspěvku s tisíci reakcemi to stejně nikdo neprojde.
+- **Detail nejde filtrovat podle emoji.** Telegram to umí (`reactionType`), sheet ale ukazuje
+  všechny reakce pohromadě — jako v Google Messages.
 
 ### 6. Ťuknutí na vlastní zprávu ukáže odznak přečtení
 

@@ -765,23 +765,38 @@ class TdlConversationRepository(
         return raw.mapNotNull { reaction ->
             val emoji = (reaction.type as? ReactionTypeEmoji)?.emoji ?: return@mapNotNull null
 
-            // Odesílatele řešíme jen tam, kde se reálně vykreslí. U příspěvku se stovkou reakcí
-            // by to byla hromada dotazů na data, která stejně skončí schovaná za počtem.
-            val senders = if (reaction.totalCount <= MAX_SENDERS_SHOWN) {
-                reaction.recentSenderIds
-                    .filterNotNull()
-                    .mapNotNull { resolveSender(it.plainId()) }
-            } else {
-                emptyList()
-            }
-
+            // Odesílatelé se tady neřeší vůbec: čip nese jen emoji a počet. Kdo reagoval, se
+            // dozví až sheet s detailem (`reactionDetails`), a ten se ptá na vyžádání.
             MessageReaction(
                 emoji = emoji,
                 count = reaction.totalCount,
                 isChosen = reaction.isChosen,
-                recentSenders = senders,
             )
         }
+    }
+
+    override suspend fun reactionDetails(chatId: Long, messageId: Long): Result<List<ReactionDetail>> {
+        val added = client
+            .getMessageAddedReactions(
+                chatId = chatId,
+                messageId = messageId,
+                // Bez filtru na typ: sheet ukazuje všechny reakce zprávy pohromadě, jak je
+                // Telegram vrací — od nejnovější.
+                reactionType = null,
+                offset = "",
+                limit = REACTION_DETAIL_LIMIT,
+            )
+            .toResult()
+            .getOrElse { return Result.failure(it) }
+
+        val details = added.reactions.mapNotNull { reaction ->
+            val emoji = (reaction.type as? ReactionTypeEmoji)?.emoji ?: return@mapNotNull null
+            val sender = resolveSender(reaction.senderId.plainId()) ?: return@mapNotNull null
+
+            ReactionDetail(sender = sender, emoji = emoji, isOwn = reaction.isOutgoing)
+        }
+
+        return Result.success(details)
     }
 
     private suspend fun resolveSender(senderId: Long): ReactionSender? {
@@ -833,7 +848,6 @@ private const val REACTION_ROW_SIZE = 8
  * Musí sedět se stropem, který používá UI pro zobrazení avatarů — kdyby byl tenhle nižší,
  * UI by chtělo avatary, které nikdo nenačetl.
  */
-private const val MAX_SENDERS_SHOWN = 3
 
 /** `MessageSender` je buď uživatel, nebo chat; pro naše účely stačí číselné id. */
 private fun MessageSender.plainId(): Long = when (this) {

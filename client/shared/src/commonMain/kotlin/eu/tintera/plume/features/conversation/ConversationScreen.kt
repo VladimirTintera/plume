@@ -756,6 +756,10 @@ fun ConversationScreen(
             )
         }
 
+        state.reactionDetails?.let { details ->
+            ReactionDetailsSheet(details = details, onDismiss = viewModel::dismissReactionDetails)
+        }
+
         state.pendingPin?.let { pending ->
             PinMessageDialog(
                 pending = pending,
@@ -960,9 +964,8 @@ fun ConversationScreen(
                                 // „Přečteno" se hlásí nejvýš u jedné zprávy, viz `readBadgeKey`.
                                 showsRead = state.keyOf(row.oldest) == readBadgeKey,
                                 flight = flight,
-                                onToggleReaction = { emoji ->
-                                    viewModel.toggleReaction(message.id, emoji)
-                                },
+                                onOpenReactions = viewModel::showReactionDetails
+                                    .takeIf { state.info?.isChannel != true },
                                 onRequestMenu = { viewModel.showMessageMenu(message.id) },
                                 onReply = { viewModel.replyTo(message.id) },
                                 // Ťuknutí na samolepku otevře její sadu; na fotku prohlížeč.
@@ -1174,7 +1177,12 @@ private fun MessageBubble(
     onToggleVoice: () -> Unit,
     onSeekVoice: (Float) -> Unit,
     avatar: SenderAvatar,
-    onToggleReaction: (String) -> Unit,
+    /**
+     * Ťuknutí na čip reakce — otevře detail, nepřepíná. `null` v kanálu: seznam reagujících tam
+     * Telegram nevydá (`BROADCAST_FORBIDDEN`), a čip, po kterém přijde chyba, je horší než čip,
+     * který nic nedělá.
+     */
+    onOpenReactions: ((messageId: Long) -> Unit)?,
     onRequestMenu: () -> Unit,
     onReply: () -> Unit,
     onOpenMedia: () -> Unit,
@@ -1277,6 +1285,15 @@ private fun MessageBubble(
      * a spára je úzká, stejně jako u bloků v seznamu chatů. Bez toho by to byly dvě oddělené
      * plochy a nebylo by poznat, že popisek patří k tomu snímku nad ním.
      */
+    /*
+     * Kolik místa si obsah nechá dole.
+     *
+     * Čipy reakcí leží NA bublině, takže musí mít kam — jinak podlezou poslední řádek textu.
+     * Platí to i pro kontejner popisku u holého média a pro popis náhledu odkazu: čipy sedí na
+     * tom, co je ve zprávě poslední.
+     */
+    val contentBottom = if (message.reactions.isEmpty()) 8.dp else REACTION_STRIP_SPACE
+
     val hasCaption = bareMedia && (message.text.isNotBlank() || message.isEdited)
     val mediaShape = if (hasCaption) {
         shape.copy(bottomStart = CornerSize(tight), bottomEnd = CornerSize(tight))
@@ -1463,10 +1480,14 @@ private fun MessageBubble(
               Column(
                   // Holé médium jde až k hraně: odsazení bubliny by kolem snímku nechalo rám,
                   // který tam po zrušení bubliny nemá co dělat.
+                  //
+                  // Se čipy reakcí se dole přidá místo, které zaberou — leží NA bublině a bez
+                  // toho by podlézaly poslední řádek textu. U holého média není co odsazovat,
+                  // tam čipy leží na snímku jako v Google Messages.
                   modifier = if (bareMedia) {
                       Modifier
                   } else {
-                      Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                      Modifier.padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = contentBottom)
                   },
                   /*
                    * Bez bubliny drží snímek a popisek u sebe jen zarovnáním, a každý je jinak
@@ -1594,7 +1615,14 @@ private fun MessageBubble(
                               // Úzká spára, ne mezera: popisek patří ke snímku nad sebou.
                               modifier = Modifier.padding(top = MEDIA_CAPTION_GAP),
                           ) {
-                              Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+                              Column(
+                                  Modifier.padding(
+                                      start = 14.dp,
+                                      end = 14.dp,
+                                      top = 8.dp,
+                                      bottom = contentBottom,
+                                  ),
+                              ) {
                                   if (message.text.isNotBlank()) {
                                       // V odchozím kontejneru je pozadí `primary`, takže odkaz
                                       // musí vzít barvu popředí — jinak by byl neviditelný.
@@ -1625,6 +1653,7 @@ private fun MessageBubble(
                           contentColor = onBubbleColor,
                           accent = previewAccent,
                           bubbleShape = shape,
+                          contentBottom = contentBottom,
                           // Ťuknutí jde stejnou cestou jako odkaz v textu, tedy přes ViewModel.
                           onOpen = { onLinkClick(preview.url) },
                           onLongClick = onRequestMenu,
@@ -1655,12 +1684,6 @@ private fun MessageBubble(
                       }
                   }
 
-                  ReactionRow(
-                      reactions = message.reactions,
-                      onToggle = onToggleReaction,
-                      modifier = Modifier.padding(top = 6.dp),
-                  )
-
                   // U holé skupiny je „upraveno" uvnitř jejího textového kontejneru.
                   if (message.isEdited && !bareMedia && !bareLinkPreview) {
                       editedLabel(Modifier.align(Alignment.End), contentColor)
@@ -1686,6 +1709,21 @@ private fun MessageBubble(
            * `Box`u kolem bubliny a posazená `offset`em mimo něj — do layoutu tím nezasahuje,
            * takže nic neodsouvá a neovlivňuje šířku zprávy.
            */
+          /*
+           * Čipy reakcí LEŽÍ NA bublině, u dolního nároží na straně odesílatele.
+           *
+           * Jsou uvnitř `Box`u, který ukotvuje nabídku, takže zůstávají i uvnitř díry v závoji —
+           * při dlouhém stisku se nesmí ztmavit, patří ke zprávě. A jedou s ní i při tahu na
+           * odpověď, protože posun sedí na sloupci kolem tohohle `Box`u.
+           */
+          ReactionRow(
+              reactions = message.reactions,
+              onOpenDetails = onOpenReactions?.let { open -> { open(message.id) } },
+              modifier = Modifier
+                  .align(if (message.isOutgoing) Alignment.BottomEnd else Alignment.BottomStart)
+                  .padding(horizontal = REACTION_INSET, vertical = REACTION_INSET),
+          )
+
           ReplyHint(
               progress = { (drag.value / threshold).coerceIn(0f, 1f) },
               // Vlevo od bubliny u OBOU stran konverzace: tam vzniká mezera, když se táhne doprava.
@@ -2148,6 +2186,8 @@ private fun BareLinkPreview(
     accent: Color,
     /** Tvar bubliny; nároží uvnitř skupiny se z něj stahují. */
     bubbleShape: RoundedCornerShape,
+    /** Kolik místa si popis nechá dole na čipy reakcí — ty na něm leží. */
+    contentBottom: Dp,
     onOpen: () -> Unit,
     onLongClick: () -> Unit,
     text: @Composable ColumnScope.() -> Unit,
@@ -2206,7 +2246,7 @@ private fun BareLinkPreview(
                         .combinedClickable(onClick = onOpen, onLongClick = onLongClick),
                 ) {
                     Column(
-                        Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        Modifier.padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = contentBottom),
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         preview.siteName?.let {
@@ -2715,6 +2755,14 @@ private val UPLOAD_INDICATOR_SIZE = 48.dp
 
 /** Spára mezi fotkami alba. */
 private val ALBUM_GAP = 2.dp
+
+/**
+ * Kolik místa si bublina nechá dole na čipy reakcí. Vejde se do něj čip i spára pod ním.
+ */
+private val REACTION_STRIP_SPACE = 34.dp
+
+/** Odsazení čipů od nároží bubliny, aby na ní ležely, ne aby z ní čouhaly. */
+private val REACTION_INSET = 4.dp
 
 /**
  * Šířka sloupce s časy, který se odkrývá tahem doleva. Vejde se do něj „00:00" s rezervou.

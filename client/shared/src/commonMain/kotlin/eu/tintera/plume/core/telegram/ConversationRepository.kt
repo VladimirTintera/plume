@@ -58,6 +58,15 @@ interface ConversationRepository {
     suspend fun availableReactions(chatId: Long, messageId: Long): Result<List<String>>
 
     /**
+     * Kdo na zprávu reagoval a čím, od nejnovější reakce.
+     *
+     * Vrací **jednu stránku** (nejvýš [REACTION_DETAIL_LIMIT] řádků). U příspěvku s tisíci
+     * reakcemi seznam nikdo neprojde a stránkovat ho by znamenalo držet offset ve stavu sheetu;
+     * až to bude potřeba, přibude sem parametr.
+     */
+    suspend fun reactionDetails(chatId: Long, messageId: Long): Result<List<ReactionDetail>>
+
+    /**
      * Co se dá s konkrétní zprávou udělat.
      *
      * Ptá se **až při otevření nabídky**, ne při načtení historie. TDLib tyhle příznaky ve zprávě
@@ -443,14 +452,6 @@ data class MessageReaction(
     val count: Int,
     /** `true`, když tuhle reakci dal přihlášený uživatel. */
     val isChosen: Boolean,
-    /**
-     * Několik posledních odesílatelů, jak je dává TDLib (`recentSenderIds`).
-     *
-     * Je jich **nejvýš pár, ne všichni** — u příspěvku se stovkou reakcí Telegram kompletní
-     * seznam v datech zprávy neposílá. Proto se podle délky tohohle seznamu nedá poznat
-     * celkový počet; ten je v [count].
-     */
-    val recentSenders: List<ReactionSender>,
 )
 
 /**
@@ -506,11 +507,28 @@ data class MessageActions(
 }
 
 /** Ten, kdo reagoval. Uživatel i kanál — u příspěvků v kanálech reaguje jménem kanálu. */
+/**
+ * Jeden řádek detailu reakcí: kdo a čím reagoval.
+ *
+ * Čipy u zprávy nesou jen emoji a počet, takže tohle je jediné místo, kde se dá zjistit KDO
+ * reagoval. Načítá se až při otevření sheetu — u příspěvku se stovkou reakcí by to jinak byla
+ * hromada dotazů na data, která nikdo neuvidí.
+ */
+data class ReactionDetail(
+    val sender: ReactionSender,
+    val emoji: String,
+    /** `true` u vlastní reakce; v seznamu se místo jména vypíše „Vy". */
+    val isOwn: Boolean,
+)
+
 data class ReactionSender(
     val id: Long,
     val title: String,
     val avatarFileId: Int?,
 )
+
+/** Kolik řádků detailu reakcí se načte. Víc než obrazovku a půl nikdo nepročítá. */
+const val REACTION_DETAIL_LIMIT = 50
 
 /** Kompletní sada reakcí jedné zprávy, jak dorazila updatem. */
 data class MessageReactions(

@@ -1626,14 +1626,31 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   `getMessageAvailableReactions` vrátí prázdný seznam. Testovat reakce tam tedy nejde.
 - **`isBig = false`** — `true` je ta celoobrazovková animace; patří k vědomému gestu, ne ke
   každému ťuknutí na čip.
-- **Avatary místo počtu jen pod stropem.** U reakce s pár lidmi je zajímavé, KDO reagoval; nad
-  stropem se čip sbalí na emoji + číslo. Dvě nezávislé podmínky:
-  `MAX_AVATARS_PER_REACTION` (kolik lidí u jedné reakce) a `MAX_REACTIONS_WITH_AVATARS` (kolik
-  různých emoji u zprávy) — jinak by pod krátkou zprávou vznikla stěna z profilovek.
-  **`MAX_SENDERS_SHOWN` v repository musí sedět s tím prvním stropem**, protože nad ním se
-  odesílatelé vůbec nenačítají a UI by chtělo avatary, které nikdo nezjistil.
-- **`recentSenderIds` není úplný seznam.** TDLib posílá jen pár posledních; celkový počet je
-  v `totalCount`. Podle délky seznamu se tedy počet odvodit nedá.
+- **Avatary v čipech NEJSOU.** Byly, a byla to slepá ulička: čip s profilovkami je široký, takže
+  se jich vedle sebe vešlo pár, a stejně ukazoval jen několik posledních (`recentSenderIds` není
+  úplný seznam — celkový počet je v `totalCount`). Čip proto nese jen emoji a počet, a KDO
+  reagoval, říká detail. Odpadly s tím i stropy `MAX_AVATARS_PER_REACTION`,
+  `MAX_REACTIONS_WITH_AVATARS` a `MAX_SENDERS_SHOWN` a dotazy na odesílatele u každé zprávy
+  s reakcemi.
+- **Počet se vypisuje až od dvou.** „1" je šum; že tam někdo je, říká samotný čip.
+- **Čipy LEŽÍ NA bublině**, u dolního nároží na straně odesílatele, a bublina si na ně dole
+  nechá místo (`REACTION_STRIP_SPACE`) — jinak by podlezly poslední řádek textu. Totéž platí pro
+  kontejner popisku u holého média a pro popis náhledu odkazu: čipy sedí na tom, co je ve zprávě
+  poslední. U fotky bez popisku leží rovnou na snímku, jako v Google Messages.
+- **Jsou uvnitř `Box`u, který ukotvuje nabídku**, takže zůstávají i uvnitř díry v závoji — při
+  dlouhém stisku se nesmí ztmavit, patří ke zprávě. A jedou s ní i při tahu na odpověď, protože
+  posun sedí na sloupci kolem toho `Box`u.
+- **Jeden řádek, který se posouvá do strany**, ne lámání do víc řádků: čipy leží na bublině
+  a druhý řádek by ji přerostl. U příspěvku s deseti různými emoji je to jediné, co se vejde.
+- **Ťuknutí na čip otevírá DETAIL, nepřepíná reakci.** Přidat i odebrat jde z nabídky nad zprávou,
+  kde je vybraná reakce zvýrazněná a ťuknutí na ni ji sundá. Dvě věci na jedno ťuknutí nejdou
+  a detail je to, co se jinde nedozvíme.
+- **V kanálu detail není** — `getMessageAddedReactions` tam vrátí `BROADCAST_FORBIDDEN`. Čip se
+  proto v kanálu nedá ťuknout a nemá ani vlnku: čip, po kterém přijde chyba, je horší než čip,
+  který nic nedělá. Rozhoduje o tom `ChatInfo.isChannel`, ne odpověď serveru — ta by přišla až po
+  ťuknutí.
+- **Detail je jedna stránka** (`REACTION_DETAIL_LIMIT`, 50 řádků). U příspěvku s tisíci reakcemi
+  ho nikdo neprojde a stránkování by znamenalo držet offset ve stavu sheetu.
 
 ## Odpovědi (reply)
 
