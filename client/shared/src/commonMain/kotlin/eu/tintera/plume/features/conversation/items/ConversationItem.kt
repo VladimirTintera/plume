@@ -11,6 +11,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.audio.VoicePlayback
@@ -67,6 +68,15 @@ internal interface ConversationItemScope {
      * nesmí, aby hlavička zůstala vidět. `null`, dokud není změřená.
      */
     fun contentTop(): Float?
+
+    /** Zpráva hlásí při dlouhém stisku, kde v okně je — nabídka z toho místa vyjede. */
+    fun onMenuAnchor(bounds: Rect)
+
+    /**
+     * Je zpráva s tímhle klíčem právě v nabídce (otevřené, nebo se z ní vrací)? Pak ji kreslí
+     * nabídka a v seznamu po ní zůstane prázdné místo. Čte se až při kreslení.
+     */
+    fun isInMenu(key: Long): Boolean
 
     /** Jediná cesta akcí ze zprávy ven (viz [MessageAction]). */
     fun onAction(messageId: Long, action: MessageAction)
