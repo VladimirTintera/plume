@@ -2057,13 +2057,19 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
 - **Kolečko lícuje s hranou bubliny**, jako v Google Zprávách — ne 10 dp uvnitř. Řádek se vysune
   o místo na odznak počtu (vpravo od kolečka) a o místo na stín, takže samotné kolečko končí
   přesně na okraji.
-- **Čip nemá stín, ale lem v barvě pozadí** (`REACTION_RING`, `surface`), jako v Google Zprávách:
-  vypadá z bubliny vykrojený a od bubliny i pozadí se odliší v obou režimech. Stín navíc
-  `horizontalScroll` řádku ořezával zprava i zespodu. Rezerva kolem čipů v řádku
-  (`REACTION_SHADOW_ROOM`) zůstala kvůli zvětšení při náběhu a pulzu.
+- **Čip má lem v barvě pozadí A drobný stín** (`REACTION_RING` v `surface`, `REACTION_ELEVATION`
+  1 dp). Lem odděluje čip od bubliny, jako by z ní byl vykrojený (Google Zprávy). Jenže pozadí
+  konverzace je `background`, v M3 totéž co `surface`, takže mimo bublinu lem zmizí a bílý čip
+  na skoro bílé ploše splýval — hlavně ve sloupci pod dlouhými příspěvky v kanálu. Stín s
+  elevací 1 dp se vejde do rezervy řádku (`REACTION_SHADOW_ROOM`, 3 dp), kterou jinak ořezává
+  `horizontalScroll`; vyšší elevace by se tam uřízla, a právě proto dřív stín nebyl vůbec.
 - **Emoji v čipu má výšku řádku rovnou písmu, na střed a oříznutou** (`LineHeightStyle` s `Trim.Both`).
   Holý `Text` nese nad kresbou rezervu řádku a emoji sedělo v kolečku viditelně níž.
-- **Barva čipu:** vlastní reakce `primaryContainer`, cizí `surfaceContainerLowest`.
+- **Výplň čipu je neutrální i u vlastní reakce** (`surfaceContainerLowest`). Dřív měla vlastní
+  `primaryContainer` a emoji od Telegramu — kreslená se stíny a přechody, žádné ploché symboly —
+  na tónované ploše splývala: žlutý palec na světle modré nebyl skoro k poznání. Vlastní reakci
+  nese **kroužek v `primary` UVNITŘ lemu v barvě pozadí** (na odchozí `primary` bublině ho od
+  ní lem odděluje) a plný `primary` odznak počtu.
 - **Místo pod zprávou se otevře animovaně** (`REACTION_OVERHANG` přes spatial spec), takže zpráva
   plynule popojede. Místo je uvnitř `MessageBox`, který kreslí i nabídka nad zprávou — čip patří
   ke zprávě a do nabídky jede s ní.
