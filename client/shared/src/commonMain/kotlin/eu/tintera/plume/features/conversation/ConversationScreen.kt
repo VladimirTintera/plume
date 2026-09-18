@@ -80,8 +80,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -1010,17 +1008,9 @@ private fun MessageInput(
         onInputFilled()
     }
 
-    // Úprava se spouští z nabídky nad zprávou, takže pole fokus nemá. Bez něj by po „Upravit"
-    // nebylo poznat, že se něco stalo, a klávesnici by si musel uživatel vyvolat sám.
-    val focusRequester = remember { FocusRequester() }
     // Úprava zprávy přílohy schová — odeslání by je stejně neposlalo.
     val withAttachments = attachments.isNotEmpty() && editing == null
     val keyboard = LocalSoftwareKeyboardController.current
-    LaunchedEffect(editing?.id) {
-        if (editing == null) return@LaunchedEffect
-        focusRequester.requestFocus()
-        keyboard?.show()
-    }
 
     /*
      * Pruh má barvu POZADÍ, jen průsvitnou.
@@ -1096,7 +1086,7 @@ private fun MessageInput(
                     // Pohyb kurzoru nebo výběr taky volá `onValueChange`; psaní to není.
                     if (changed) onDraftChanged(it.text)
                 },
-                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                modifier = Modifier.fillMaxWidth(),
                 // S přílohami je text jejich popisek.
                 placeholder = { Text(stringResource(if (withAttachments) Res.string.conversation_input_caption else Res.string.conversation_input_message)) },
                 // Přílohy jen při psaní — k úpravě textové zprávy příloha nepatří.

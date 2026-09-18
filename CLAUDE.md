@@ -485,6 +485,14 @@ obsahují id chatu, jinak by se při rychlém přepnutí spároval avatar jednoh
 Na rozdíl od letu odeslané zprávy se tu viditelnost neřídí ručně — obě strany jsou
 v `AnimatedContent` NavDisplaye, takže stačí `LocalNavAnimatedContentScope`.
 
+**Scaffold list-detail si sám bere fokus — vypnuto** (`shouldAutoFocusCurrentDestination = false`
+v `PaneDirective.kt`). `ThreePaneScaffold` při každé změně aktuálního panelu zavolá na panel
+`requestFocus()`; fokus propadl na první fokusovatelný prvek konverzace, tedy vstupní pole,
+a na rozloženém Foldu vyjela klávesnice při každém otevření chatu i po návratu do něj.
+Na compactu (a na zaklapnutém Foldu) se to nedělo, protože jeden panel scaffold nekreslí —
+proto to dlouho vypadalo jako chyba konverzace. Výchozí hodnota je `true` a nastavuje ji
+i konstruktor `PaneScaffoldDirective` BEZ toho parametru, takže se musí předat výslovně.
+
 **V dvoupanelu se nesdílí nic** (`LocalTwoPane`, poskytuje ho shell). Seznam vedle konverzace
 zůstává vidět, takže by avatar odletěl z položky, která je pořád na obrazovce, a o jeden klíč
 by se přetahovaly dva prvky naráz.
@@ -1041,8 +1049,9 @@ text, tlačítko je fajfka a potvrzení volá `editMessageText`.
   se schová, ikona je vždycky smajlík. Samolepka do textu upravované zprávy nepatří. Uložená
   volba části výběru se tím nemění. Emoji vložené při úpravě neukládá koncept ani „píše…" —
   `onDraftChanged` se při úpravě vrací hned.
-- **Po „Upravit" dostane pole fokus a klávesnici.** Nabídka se otevírá dlouhým stiskem na zprávě,
-  takže pole fokus nemá a bez toho by nebylo poznat, že se něco stalo.
+- **Po „Upravit" se pole samo nefokusuje.** Že se něco stalo, ukazuje karta s původním textem
+  a fajfka místo odeslání; klávesnici si uživatel vyvolá ťuknutím do pole. Dřív si pole fokus
+  a klávesnici vyžádalo samo (uživatel si to nepřál).
 
 ### Koncept (rozepsaná zpráva)
 

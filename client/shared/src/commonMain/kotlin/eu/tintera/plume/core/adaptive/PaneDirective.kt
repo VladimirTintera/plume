@@ -61,5 +61,11 @@ private fun PaneScaffoldDirective.withHorizontalPartitions(n: Int): PaneScaffold
         maxVerticalPartitions = maxVerticalPartitions,
         verticalPartitionSpacerSize = verticalPartitionSpacerSize,
         defaultPanePreferredWidth = defaultPanePreferredWidth,
+        defaultPanePreferredHeight = defaultPanePreferredHeight,
         excludedBounds = excludedBounds,
+        // Scaffold jinak při každé změně aktuálního panelu (otevření konverzace vedle seznamu)
+        // zavolá na panel `requestFocus()`. Fokus propadne na první fokusovatelný prvek, tedy
+        // vstupní pole konverzace, a vyjede klávesnice, aniž by uživatel do pole ťukl. Na
+        // compactu se to nedělo, protože jeden panel scaffold nekreslí.
+        shouldAutoFocusCurrentDestination = false,
     )
