@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.reactions_title
 import eu.tintera.plume.resources.reactions_you
@@ -234,7 +235,7 @@ private fun ReactionChip(
             ) {
                 Text(
                     text = reaction.count.toString(),
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelSmall.tabularNumbers(),
                     maxLines = 1,
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                 )

@@ -24,6 +24,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.audio.VoiceRecording
+import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_discard_recording
 import eu.tintera.plume.resources.delete_24dp
@@ -65,7 +66,7 @@ fun RecordingBar(
         Spacer(Modifier.width(8.dp))
         Text(
             text = formatDuration(((current?.elapsedMs ?: 0L) / 1000).toInt()),
-            style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+            style = MaterialTheme.typography.bodyLarge.tabularNumbers(),
         )
         Spacer(Modifier.width(12.dp))
 

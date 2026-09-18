@@ -26,6 +26,7 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -65,6 +66,7 @@ import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
+import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_draft_prefix
 import eu.tintera.plume.resources.chats_empty
@@ -375,7 +377,9 @@ private fun ChatRow(
                     listOfNotNull(chat.lastMessageTimestamp, chat.draft?.timestamp).maxOrNull()?.let { timestamp ->
                         Text(
                             text = timestamp.asRelativeTime(),
-                            style = MaterialTheme.typography.labelMedium,
+                            // Časy stojí pod sebou u pravého okraje — stejně široké číslice
+                            // je drží v zákrytu.
+                            style = MaterialTheme.typography.labelMedium.tabularNumbers(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                         )
@@ -404,15 +408,17 @@ private fun ChatRow(
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodyMedium,
+                        // Nepřečtený náhled se odliší barvou, ne řezem: s polotučným názvem nad
+                        // ním by byly na jednom řádku dvě úrovně tučnosti a blok by ztěžkl.
                         color = when {
                             // Činnost se odliší barvou, aby bylo poznat, že to není text zprávy.
                             chat.activity != null -> MaterialTheme.colorScheme.primary
                             selected -> MaterialTheme.colorScheme.onSecondaryContainer
+                            chat.hasUnread -> MaterialTheme.colorScheme.onSurface
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                         },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        fontWeight = if (chat.hasUnread) FontWeight.Medium else null,
                     )
                 }
             }
@@ -425,7 +431,7 @@ private fun ChatRow(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ) {
-                    Text(chat.unreadCount.toString())
+                    Text(chat.unreadCount.toString(), style = LocalTextStyle.current.tabularNumbers())
                 }
             }
         }

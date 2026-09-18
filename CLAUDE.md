@@ -2423,6 +2423,39 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
 - **Obsah shellu jde přes `movableContentOf`.** Při přepnutí breakpointu rail↔bar se podstrom
   PŘESUNE, ne přerenderuje — jinak by se odmountoval a ztratil scroll i stav.
 
+### Typografie
+
+Dvě rodiny (`theme/Typography.kt`): **Figtree** na všechno čtené, **Bricolage Grotesque** jen na
+role `display*` a `headline*` — velké nadpisy obrazovek, přihlášení, iniciály v avataru. Obě
+OFL z Google Fonts, licence v `docs/licenses/`.
+
+- **Písmo se volí rolí škály, ne v obrazovce.** Žádné `fontFamily` v `features/`; kdo chce
+  výrazné písmo, sáhne po `headline*`. Výměna dvojice je tím jen `Typography.kt` a `font/`.
+- **`titleLarge` zůstává v primární rodině**, přestože zní jako nadpis. Nese název chatu
+  v hlavičce konverzace, kam letí ze seznamu (`sharedBounds`) — změna písma by uprostřed letu
+  skočila. Z téhož důvodu je sbalený nadpis `LargeFlexibleTopAppBar` (`titleLarge`) ve Figtree
+  a rozbalený (`displaySmall`) v Bricolage; bar mezi nimi prolíná, takže to nevadí.
+- **Statické řezy vyrobené z variabilních fontů**, ne variabilní soubory v aplikaci:
+  `fonttools varLib.instancer <VF>.ttf wght=600 wdth=100 opsz=96 --static --update-name-table`.
+  Jednodušší a na iOS jistější; osy se volí jednou, při výrobě.
+- **Bricolage musí mít velkou optickou velikost a aspoň SemiBold.** S `opsz=48` a řezem Medium
+  z ní byl obyčejný grotesk a nadpis nebyl od zbytku k rozeznání. Charakter (zúžení, zářezy
+  v ohybech) je vidět až ve velkém a tučném.
+- **Proložení výchozí M3 škály je laděné na Roboto** (`bodyLarge` +0,5 sp) a s jiným písmem je
+  řídké. Po výměně rodiny se musí přeladit: text skoro nula, velké nadpisy lehce do minusu (Bricolage s `opsz=96` je těsná sama).
+- **Text zpráv je 16/22**, ne 16/24 — bublin je hodně a hustší sazba je znát.
+- **Tabulkové číslice (`tabularNumbers()`, `core/ui`)** všude, kde se číslo mění na místě nebo
+  stojí ve sloupci: časy v seznamu chatů, počty nepřečtených a reakcí, čas hlasovky a videa,
+  sloupec časů odkrývaný tahem, „N z M" v prohlížeči. Obě písma `tnum` mají.
+- **Nepřečtený náhled v seznamu se odlišuje barvou (`onSurface`), ne řezem.** Pod polotučným
+  názvem by byly na jednom řádku dvě tučnosti.
+- **Zvýrazněné varianty (`*Emphasized`) jsou tatáž rodina o stupeň tučnější**, ne druhé písmo —
+  zvýraznění uvnitř běžného obsahu nesmí vypadat jako cizí prvek.
+- **Emoji ve vlastním písmu nejsou**, berou se ze systémového fontu (na Androidu i iOS funguje
+  fallback sám). Kostka „🎲 6" má proto číslo v Bricolage — velká emoji jsou `display*`.
+- **Iniciály v avataru mají `lineHeight = Unspecified`.** Výška řádku `headlineSmall` (32 sp) by
+  byla vyšší než malý avatar; přirozená výška se škáluje s `fontSize`.
+
 ### Material You a jeho náhrada
 
 `colorScheme(isDark, dynamic)` je `expect`. Android 12+ vrací systémové dynamic color; `nonDynamicThemeMain`

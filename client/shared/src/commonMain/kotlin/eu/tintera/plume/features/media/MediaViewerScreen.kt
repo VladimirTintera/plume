@@ -84,6 +84,7 @@ import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.photoKey
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.sharedNavElement
+import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.features.conversation.MessageDeleteDialog
 import eu.tintera.plume.features.conversation.ReactionPickerSheet
 import eu.tintera.plume.resources.Res
@@ -444,7 +445,7 @@ private fun TopBar(
             Text(
                 text = listOfNotNull("${item.timestamp.asDayLabel()} ${item.timestamp.asTimeOfDay()}", counter)
                     .joinToString(" · "),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium.tabularNumbers(),
                 color = ON_SCRIM.copy(alpha = SECONDARY_ALPHA),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

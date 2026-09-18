@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
+import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_unread_divider
 import eu.tintera.plume.resources.date_with_time
@@ -47,7 +48,8 @@ internal fun RevealingTime(
 
         Text(
             text = timestamp.asTimeOfDay(),
-            style = MaterialTheme.typography.labelSmall,
+            // Časy stojí ve sloupci pod sebou; proporční číslice by je rozházely.
+            style = MaterialTheme.typography.labelSmall.tabularNumbers(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             maxLines = 1,
