@@ -556,6 +556,34 @@ obrazovky, ne na aplikaci.
 - **`UpdateDeleteMessages.isPermanent == false`** znamená jen uvolnění z cache, ne smazání pro
   uživatele — takovou zprávu z obrazovky odstranit nesmíme.
 
+### Médium bez bubliny
+
+Fotka, video a album se kreslí přímo na plochu konverzace, bez bubliny (`showsBareMedia`
+v `MessageRows.kt`, testy v `MessageRowsTest`). Bublina kolem snímku nemá co ohraničovat — je to
+obrázek sám o sobě — a jen přidávala rám, ze kterého konverzace ztěžkla. Stejně to dělá Google
+Messages.
+
+- **Popisek na plochu NEPATŘÍ.** Text bez pozadí se na ploše konverzace ztratí, takže dostane
+  vlastní kontejner v barvě bubliny pod snímkem. „Bez bubliny" platí pro obrázek, ne pro text u něj.
+- **Snímek a popisek jsou SKUPINA**, ne dva nezávislé kusy: nároží mezi nimi se stahuje na
+  `BUBBLE_TIGHT` a spára je 2 dp, stejný jazyk jako u bloků v seznamu chatů a u dlaždic alba.
+- **Zarovnat se musí ke straně odesílatele.** Uvnitř bubliny měly snímek i text společnou šířku;
+  bez ní je každý jinak široký a odchozí fotka zůstala u LEVÉHO okraje bloku, jakmile byl popisek
+  širší než ona. Proto `horizontalAlignment` podle `isOutgoing` — ale jen u holého média, v bublině
+  se text čte zleva bez ohledu na odesílatele.
+- **Zaoblení snímku přebírá tvar bubliny** (`mediaShape`), aby navazoval na sousedy v bloku.
+  Náhled souboru v řádku si drží svých 12 dp — velké zaoblení bubliny by z 48dp čtverečku udělalo
+  kolečko.
+- **Citace si bublinu vynutí.** Bez pozadí se ztratí, tentýž důvod, proč si ji drží i zpráva
+  z pár emoji. Náhled odkazu taky: stojí na proužku akcentu uvnitř bubliny.
+- **Soubor, hlasovka ani samolepkový popis na plochu nejdou.** Jsou to řádky s textem a ikonou,
+  ne obrázek — pozadí je to jediné, co je drží pohromadě.
+- **Reakce a odznak doručení plochu snesou.** Čipy reakcí mají vlastní pozadí a odznak je pod
+  bublinou už od dřívějška; pod holým snímkem tedy nebylo co řešit.
+- **Barvy bubliny se počítají i tehdy, když bublina není** (`bubbleColor` / `onBubbleColor`).
+  Kontejner popisku je potřebuje, a odkaz v popisku odchozí zprávy musí vzít barvu popředí —
+  `primary` na `primary` by byla neviditelná, tatáž past jako u citace.
+
 ### Rámeček fotky v bublině
 
 Fotka a video se **zužují, neořezávají** (`photoFrame` v `MediaFrame.kt`, testy `MediaFrameTest`):
