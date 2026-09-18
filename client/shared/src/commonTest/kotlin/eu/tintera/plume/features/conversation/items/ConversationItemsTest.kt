@@ -76,6 +76,7 @@ class ConversationItemsTest {
             is MessageItem -> "m${it.frame.message.id}"
             is ServiceMessageItem -> "s${it.message.id}"
             is DayDividerItem -> "day"
+            is TimeDividerItem -> "time"
             UnreadDividerItem -> "unread"
             is SponsoredItem -> "ad"
             LoadingOlderItem -> "loading"
@@ -88,6 +89,42 @@ class ConversationItemsTest {
         // Předěl je NAD zprávou, takže v obráceném seznamu ZA ní.
         val result = items(message(3, timestamp = NEXT_DAY), message(2), message(1))
         assertEquals(listOf("m3", "day", "m2", "m1", "day"), result.kinds())
+    }
+
+    @Test
+    fun poHodinovePauzeStojiNadZpravouCas() {
+        val result = items(message(3, timestamp = DAY + HOUR + 60), message(2, timestamp = DAY + 60), message(1))
+        assertEquals(listOf("m3", "time", "m2", "m1", "day"), result.kinds())
+    }
+
+    @Test
+    fun kratsiPauzaCasNepridava() {
+        val result = items(message(3, timestamp = DAY + HOUR - 1), message(1))
+        assertEquals(listOf("m3", "m1", "day"), result.kinds())
+    }
+
+    @Test
+    fun naPrelomuDneNeseCasPredelDneNeDvaPredely() {
+        val result = items(message(2, timestamp = NEXT_DAY), message(1))
+        assertEquals(listOf("m2", "day", "m1", "day"), result.kinds())
+    }
+
+    @Test
+    fun casovyPredelUkoncujeBlok() {
+        // Tentýž odesílatel, ale po pauze: nová skupina, nároží nenavazují.
+        val result = items(message(2, timestamp = DAY + HOUR + 1), message(1)).frames()
+        assertEquals(false, result[0].continuesAbove)
+        assertEquals(false, result[1].continuesBelow)
+    }
+
+    @Test
+    fun casovyPredelStojiNadPredelemNeprectenych() {
+        val result = items(
+            message(2, timestamp = DAY + HOUR + 1),
+            message(1),
+            state = ConversationState(unreadBoundaryId = 1L),
+        )
+        assertEquals(listOf("m2", "unread", "time", "m1", "day"), result.kinds())
     }
 
     @Test
@@ -288,6 +325,7 @@ class ConversationItemsTest {
         /** Poledne jednoho dne v UTC — daleko od půlnoci v každém rozumném časovém pásmu. */
         const val DAY = 86_400 * 20_000 + 43_200
         const val NEXT_DAY = DAY + 86_400
+        const val HOUR = 3_600
         const val CHAT_ID = 1000L
     }
 }

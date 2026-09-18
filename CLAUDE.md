@@ -913,6 +913,13 @@ v delší historii nedalo poznat, kde končí včerejšek.
 - **Plovoucí datum při scrollu není `stickyHeader`.** Ten se v obráceném seznamu lepí na jeho
   začátek, tedy dolů — přesně naopak, než je potřeba. Je to overlay nad seznamem, který se ukáže
   jen při scrollu a bere datum z nejvyšší viditelné položky (opět podle klíče, ne indexu).
+- **Předěl dne nese i čas první zprávy dne** („Včera · 21:00"), jako v Google Zprávách.
+- **Časový předěl po pauze aspoň hodinu** (`TimeDividerItem`, `TIME_DIVIDER_GAP_SECONDS`, testy
+  v `ConversationItemsTest`). V bublině čas není, takže bez něj se dal zjistit jen tahem doleva
+  nebo v nabídce. Souvislý rozhovor čas nepřerušuje, nová dávka zpráv po pauze ho dostane. Na
+  přelomu dne ho nese předěl dne — dva předěly nad sebou nevzniknou. Stojí nad předělem
+  nepřečtených a **ukončuje blok bublin** stejně jako předěl dne (`continues` hlídá i pauzu,
+  jinak by se nároží přes předěl stahovala). Klíč je odvozený od klíče zprávy pod ním.
 - **Předěl a systémové oznámení vypadají stejně** (`CenteredNote`). Obojí je poznámka na okraji
   konverzace, ne zpráva od někoho; dvě různá pojetí téhož by seznam roztříštila.
 
@@ -1128,7 +1135,8 @@ v seznamu chatů („Koncept: …") a na ostatních zařízeních.
 Čas v bublině NENÍ a stav doručení je POD ní, ne v ní. V bublině zabíral řádek u každé jediné
 zprávy, a přitom ani jedno z toho většinou nic neříkalo.
 
-- **Datum nesou předěly dne a plovoucí datum při scrollu**, ne bublina. Čas jednotlivé zprávy
+- **Datum nesou předěly dne a plovoucí datum při scrollu**, ne bublina; čas po pauze časové
+  předěly (viz „Předěly dne"). Čas jednotlivé zprávy
   se odkrývá tahem doleva (viz „Odkrývání časů tahem") a je i v nabídce nad zprávou.
 - **„Upraveno" zůstalo.** Že se zpráva změnila, se odjinud nedozvíme; čas ano.
 - **Odznak je mimo bublinu, takže barva patří PLOŠE** (`onSurfaceVariant`), ne bublině. Dokud byl

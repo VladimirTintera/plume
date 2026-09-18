@@ -60,6 +60,13 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
         val startsDay = older == null || !older.timestamp.isSameDayAs(row.oldest.timestamp)
 
         /*
+         * Po pauze aspoň hodinu dostane zpráva nad sebe čas (v bublině není). Na přelomu dne ho
+         * nese předěl dne, takže dva předěly nad sebou nevzniknou.
+         */
+        val startsTimeGap = !startsDay && olderRow != null &&
+            row.oldest.timestamp - olderRow.newest.timestamp >= TIME_DIVIDER_GAP_SECONDS
+
+        /*
          * Hranici nepřečtených drží ViewModel z okamžiku otevření chatu, takže se předěl
          * neposouvá, jak se zprávy postupně označují za přečtené.
          */
@@ -70,8 +77,8 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
         items += if (message.isService) {
             ServiceMessageItem(key = key, message = message)
         } else {
-            // Za předělem dne začíná nový blok, i když píše tentýž člověk.
-            val olderInGroup = older.takeIf { !startsDay }
+            // Za předělem dne i časovým předělem začíná nový blok, i když píše tentýž člověk.
+            val olderInGroup = older.takeIf { !startsDay && !startsTimeGap }
             val continuesBelow = rows.getOrNull(index - 1)?.display.continues(message)
             val delivery = message.delivery(state.lastReadOutboxMessageId)
 
@@ -115,6 +122,8 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
         }
 
         if (startsUnread) items += UnreadDividerItem
+        // Předěl stojí NAD zprávou, v obráceném seznamu tedy ZA ní (a nad předělem nepřečtených).
+        if (startsTimeGap) items += TimeDividerItem(timestamp = row.oldest.timestamp, key = "time-$key")
         if (startsDay) {
             val dayKey = DayDividerItem.keyFor(row.oldest.timestamp)
                 .let { if (usedDayKeys.add(it)) it else "$it-$key" }
@@ -195,8 +204,8 @@ internal fun ChatMessage.delivery(lastReadOutboxMessageId: Long): Delivery? = se
 /**
  * Navazuje tahle (novější) zpráva na [older] ve stejném bloku?
  *
- * Stejná strana, stejný odesílatel, stejný den. Servisní oznámení blok přeruší — kreslí se na
- * střed a tvář nad ním by visela ve vzduchu. Přerušuje ho **z obou stran**: dřív se hlídala jen
+ * Stejná strana, stejný odesílatel, stejný den a bez pauzy na časový předěl. Servisní oznámení
+ * blok přeruší — kreslí se na střed a tvář nad ním by visela ve vzduchu. Přerušuje ho **z obou stran**: dřív se hlídala jen
  * novější zpráva, takže bublina pod oznámením měla stažené nároží, jako by na něj navazovala.
  */
 private fun ChatMessage?.continues(older: ChatMessage): Boolean =
@@ -205,7 +214,9 @@ private fun ChatMessage?.continues(older: ChatMessage): Boolean =
         !older.isService &&
         isOutgoing == older.isOutgoing &&
         senderId == older.senderId &&
-        timestamp.isSameDayAs(older.timestamp)
+        timestamp.isSameDayAs(older.timestamp) &&
+        // Mezi nimi by stál časový předěl, a ten blok ukončuje stejně jako předěl dne.
+        timestamp - older.timestamp < TIME_DIVIDER_GAP_SECONDS
 
 /**
  * Tvář odesílatele vedle bubliny ve skupině.

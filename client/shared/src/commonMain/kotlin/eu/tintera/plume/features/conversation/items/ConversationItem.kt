@@ -114,6 +114,23 @@ internal data class DayDividerItem(val timestamp: Int, override val key: String)
     }
 }
 
+/**
+ * Časový předěl uvnitř dne — nad zprávou po pauze aspoň [TIME_DIVIDER_GAP_SECONDS].
+ * Patří zprávě pod sebou, proto má klíč odvozený od jejího klíče.
+ */
+internal data class TimeDividerItem(val timestamp: Int, override val key: String) : ConversationItem {
+    @Composable
+    override fun LazyItemScope.Content(scope: ConversationItemScope) {
+        TimeDivider(timestamp, Modifier.animateItem())
+    }
+}
+
+/**
+ * Jak dlouhá pauza mezi dvěma zprávami téhož dne vyžaduje časový předěl. Hodina: souvislý
+ * rozhovor zůstane bez přerušení, nová dávka zpráv (ráno, odpoledne, večer) dostane svůj čas.
+ */
+internal const val TIME_DIVIDER_GAP_SECONDS = 60 * 60
+
 /** Předěl „Nepřečtené zprávy". V seznamu je nejvýš jeden. */
 internal data object UnreadDividerItem : ConversationItem {
     override val key: Any = "unread"
