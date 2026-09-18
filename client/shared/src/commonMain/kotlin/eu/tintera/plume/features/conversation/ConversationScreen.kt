@@ -2366,9 +2366,6 @@ private val ALBUM_GAP = 2.dp
 /** Strop výšky řádku alba s víc fotkami — dvě čtvercové fotky na širokém displeji by byly obří. */
 private val ALBUM_TILE_MAX_HEIGHT = 200.dp
 
-/** Strop výšky fotky v bublině. Svislé snímky obrazovky by jinak zabraly celou obrazovku. */
-private val MAX_PHOTO_HEIGHT = 320.dp
-
 /**
  * Animované emoji. Menší než samolepka — je to pořád „jedno emoji", ne obrázek — ale větší než
  * znak v `displayLarge`, protože animace má kolem kresby vlastní vzduch.
@@ -2538,27 +2535,19 @@ private fun MessageAttachment(
 
     when (media) {
         is MessageMedia.Photo -> {
-            val ratio = if (media.width > 0 && media.height > 0) {
-                media.width.toFloat() / media.height.toFloat()
-            } else {
-                // Neznámé rozměry: čtverec je méně rušivý než nulová výška.
-                1f
-            }
-
-            // Výška se počítá ručně, ne přes `aspectRatio`: ten si ji dopočítá ze šířky a strop
-            // z předřazeného `heightIn` neuplatní, takže svislý snímek obrazovky vyrostl přes
-            // celou bublinu a popisek pod ním se s obrázkem překryl.
+            // Rámeček i jeho pravidla jsou v `photoFrame` (s testy): fotka se zužuje, neořezává.
             BoxWithConstraints {
-                val height = (maxWidth / ratio).coerceAtMost(MAX_PHOTO_HEIGHT)
+                val frame = photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat())
 
                 RemoteImage(
                     fileId = media.fileId,
                     thumbnailFileId = media.thumbnailFileId,
                     contentDescription = stringResource(Res.string.media_photo),
+                    // `Crop` dořeší jen podlahu šířky u extrémně vysoké fotky; jinak rámeček
+                    // poměr stran respektuje a ořezávat není co.
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(height)
+                        .size(frame)
                         .clip(shape)
                         .sharedNavElement(photoKey(messageId))
                         /*
@@ -2620,16 +2609,15 @@ private fun MessageAttachment(
         )
         is MessageMedia.AnimatedEmoji -> AnimatedEmojiImage(media)
         is MessageMedia.Video -> BoxWithConstraints {
-            val ratio = media.albumRatio()
-            val height = (maxWidth / ratio).coerceAtMost(MAX_PHOTO_HEIGHT)
+            // Stejný rámeček jako fotka: video na výšku se zúží, místo aby přišlo o kraje.
+            val frame = photoFrame(maxWidth, media.albumRatio())
             VideoThumbnail(
                 video = media,
                 messageId = messageId,
                 uploading = uploading,
                 onCancelUpload = onCancelUpload,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(height)
+                    .size(frame)
                     .clip(shape)
                     // Dlouhý stisk se opakuje — potomek s vlastním klikáním ho k bublině nepustí.
                     .combinedClickable(onClick = onOpen, onLongClick = onRequestMenu),
