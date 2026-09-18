@@ -21,7 +21,8 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
 0. **Přestavba seznamu zpráv na bloky**, které se samy vykreslí — cíl a postup
    v [architektura-konverzace.md](architektura-konverzace.md). ~~Krok 1: builder a bloky seznamu~~
    a ~~krok 2: rozpad `MessageBubble` na bloky podle obsahu~~ a ~~krok 3: akce jako data
-   (`MessageAction`)~~ — hotovo. Zbývá náhled odkazu udělat pořádně. Nové druhy zpráv a rozvržení stavět až na tom.
+   (`MessageAction`)~~ a ~~krok 4: náhled odkazu jako souvislá karta~~ — hotovo. Nové druhy
+   zpráv a rozvržení stavět na tom: nový blok + větev v `messageItem()`.
 1. **Přílohy.** Telegram víc příloh v jedné zprávě nenese — album je skupina samostatných zpráv
    se stejným `mediaAlbumId` (viz `CLAUDE.md`, „Alba"). Po krocích:
    1. ~~**Zobrazení přijatých alb**~~ — hotovo, mřížka v jedné bublině.
@@ -44,7 +45,7 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
 5. **Odlehčení vzhledu.** Hotové: ~~zaoblení na konci bloku bublin~~, ~~čas se stavem doručení
    z bubliny ven~~, ~~výška fotek~~, ~~fotky a videa na plochu~~, ~~náhled odkazu na plochu~~
    a ~~odkrývání časů tahem~~. Poučení v `CLAUDE.md` („Tvar bubliny a seskupení", „Čas a stav
-   doručení", „Médium bez bubliny", „Rámeček fotky v bublině", „Náhled odkazu bez bubliny",
+   doručení", „Médium bez bubliny", „Rámeček fotky v bublině", „Náhled odkazu s velkým obrázkem",
    „Odkrývání časů tahem", „Reakce"), ~~reakce z bubliny ven~~ i ~~odznak přečtení na ťuknutí~~.
    Sekce je tím hotová celá.
 6. Drobnosti ze sekcí níž (zásobník, nabídka, entity, média, emoji).
@@ -96,7 +97,7 @@ Co z toho zůstalo:
 
 Náhled s velkým obrázkem je skupina na ploše: text zprávy, snímek a pod ním web s titulkem
 a popisem ve vlastním kontejneru (`showsBareLinkPreview`, `BareLinkPreview`). Šířku určuje
-obrázek, takže blok nemá roztřepený okraj. Poučení v `CLAUDE.md`, „Náhled odkazu bez bubliny".
+obrázek, takže blok nemá roztřepený okraj. Poučení v `CLAUDE.md`, „Náhled odkazu s velkým obrázkem".
 
 Co z toho zůstalo:
 

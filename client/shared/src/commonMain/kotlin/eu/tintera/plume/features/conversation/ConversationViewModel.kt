@@ -1,7 +1,5 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.foundation.layout.size
-import androidx.compose.runtime.key
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
@@ -26,7 +24,6 @@ import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageActions
-import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageInfo
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction

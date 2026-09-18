@@ -76,3 +76,9 @@ internal data class MediaMessageItem(
         }
     }
 }
+
+/**
+ * Spára mezi holým médiem a popiskem pod ním. Úzká jako spáry v albu a mezi položkami seznamu
+ * chatů: obojí je jedna skupina, ne dva samostatné kusy.
+ */
+private val MEDIA_CAPTION_GAP = 2.dp

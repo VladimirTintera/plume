@@ -1,13 +1,9 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 
 /**
  * Jedna položka seznamu konverzace: samostatná zpráva, nebo celé album.

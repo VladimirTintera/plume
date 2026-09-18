@@ -85,8 +85,10 @@ přes `remember(vstupy)` — testovatelná stejně, jen synchronní se stavem.
    server dovolil a jak vypadá (`presentation`). Do ViewModelu vede jediný `onAction`;
    navigaci a sheet sady samolepek vyřizuje obrazovka. `MessageMenuHandlers` a patnáct metod
    scope zmizely, metody akcí ve ViewModelu jsou `private`.
-4. **Náhled odkazu pořádně.** Blok `LinkPreviewMessageItem` už existuje (zatím kreslí totéž co
-   dřív), takže se dá předělat, aniž by se sáhlo na ostatní zprávy.
+4. **Náhled odkazu pořádně.** — HOTOVO. Jedna souvislá karta bez spár, text v barvě bubliny,
+   popis webu `tertiaryContainer`, bez vnitřního odsazení. Změna se týkala jen souboru bloku
+   (a úklidu `BareLinkPreview`, který nikdo jiný nepoužíval) — přesně to, kvůli čemu přestavba
+   vznikla.
 
 Později, mimo tuhle přestavbu: rozdělit `ConversationState` na data a přechodný stav UI
 a ViewModel na menší části (připnuté, koncept, hlasovky, přílohy).
