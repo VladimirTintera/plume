@@ -1675,7 +1675,12 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   největší, co server má; `fileId` (do 1280 px) slouží jako okamžitý náhled, protože ho konverzace
   už stáhla. V bublině by originál znamenal desítky megabajtů kvůli obrázku širokému pár set bodů.
 - **Prohlížeč nemá metadata list-detail scény**, takže ho scéna nepřevezme a `NavDisplay` ho
-  vykreslí přes celou plochu i na širokém rozvržení.
+  vykreslí přes celou plochu i na širokém rozvržení. **Rail se v něm schová** (`showRail`
+  v `AppShell`, i s místem přes `shrinkHorizontally`): není to panel vedle seznamu, ze kterého
+  se přepíná sekce, a rail by jen ukusoval šířku fotce a sousedním stránkám.
+- **Ořez pozadí je nutný** (`clipToBounds` v `AmbientBackground`). Pozadí sousedů leží posunuté
+  mimo plochu prohlížeče; bez ořezu prosvítalo vlevo přes rail nerozostřené — rozostření pokrývá
+  jen plochu prohlížeče.
 - **Gesta patří FOTCE, ne bublině.** Kdyby ťuknutí odchytávala bublina, sebralo by ho i odkazům
   v popisku. Dlouhý stisk se na fotce musí zopakovat: potomek s vlastním klikáním ho nepustí
   k rodiči, takže by nad fotkou nešla otevřít nabídka.
@@ -1712,7 +1717,7 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
 - **`HorizontalPager` šířku stránky podle obsahu NEŘEŠÍ.** Stránky mají jednu šířku a karta se
   v ní centruje, takže fotka na výšku na širokém displeji (rozložený Fold) ležela uprostřed široké
   stránky a sousední karty byly celé za okrajem. Proto dvě věci: stránka má strop
-  (`MAX_PAGE_WIDTH`, zbytek jde do `contentPadding`) a **sousední karta se přisouvá k okraji
+  (`MAX_PAGE_WIDTH` 640 dp, zbytek jde do `contentPadding`, mezera mezi kartami je tam 24 dp místo 8) a **sousední karta se přisouvá k okraji
   bližšímu aktuální stránce** (`cardBias` = −`getOffsetDistanceInPages`, čteno až při umístění
   v `MediaPageLayout`). Plynule s tahem — karta, která dojede doprostřed, stojí na středu.
   Šířka se bere z `BoxWithConstraints`, ne z okna: vedle prohlížeče může ležet rail.

@@ -24,6 +24,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -127,6 +131,13 @@ fun AppShell(modifier: Modifier = Modifier) {
     val inDetail = navigation.currentStack.any { it is ConversationRoute || it is MediaRoute }
     val showBottomBar = compact && !inDetail
 
+    /*
+     * Prohlížeč médií je přes celou obrazovku i na širokém rozvržení — rail vedle něj by jen
+     * ukusoval místo fotce a sousedním stránkám. Na rozdíl od konverzace to není panel vedle
+     * seznamu, ze kterého se přepíná sekce; ven se jde zpět.
+     */
+    val showRail = !compact && navigation.currentStack.lastOrNull() !is MediaRoute
+
     // Obsah drží stabilní instanci přes přepnutí rail↔bar. Bez movableContent by se při změně
     // breakpointu celý podstrom odmountoval a namountoval znovu — ztratil by se scroll, stav
     // a rozjely by se animace.
@@ -141,7 +152,12 @@ fun AppShell(modifier: Modifier = Modifier) {
     }
 
     Row(modifier.fillMaxSize()) {
-        if (!compact) {
+        AnimatedVisibility(
+            visible = showRail,
+            // Jako u spodního baru: mizí i MÍSTO, ne jen rail, jinak by obsah doskočil až na konci.
+            enter = slideInHorizontally { -it } + expandHorizontally(expandFrom = Alignment.Start) + fadeIn(),
+            exit = slideOutHorizontally { -it } + shrinkHorizontally(shrinkTowards = Alignment.Start) + fadeOut(),
+        ) {
             /*
              * Insety jsou výchozí (stavová a navigační lišta, výřez na straně). Dřív tu byly
              * nulové a první položka se lepila pod stavovou lištu.

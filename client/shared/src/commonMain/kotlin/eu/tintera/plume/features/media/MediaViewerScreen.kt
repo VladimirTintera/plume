@@ -52,6 +52,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -232,13 +233,15 @@ private fun ViewerContent(
 
         // Na širokém displeji má stránka strop, jinak by sousedé leželi daleko za okrajem.
         val pageInset = max(PAGE_INSET.value, ((maxWidth - MAX_PAGE_WIDTH) / 2).value).dp
+        // Na širokém displeji je kolem karty místa dost a těsná mezera by z ní dělala stěnu.
+        val pageGap = if (pageInset > PAGE_INSET) WIDE_PAGE_GAP else PAGE_GAP
 
         HorizontalPager(
             state = pagerState,
             key = { items[it].messageId },
             // Sousední stránky vykukují u okrajů.
             contentPadding = PaddingValues(horizontal = pageInset),
-            pageSpacing = PAGE_GAP,
+            pageSpacing = pageGap,
             // Soused se skládá dopředu, ať při listování naskočí hned i s už staženým náhledem.
             beyondViewportPageCount = 1,
             modifier = Modifier.fillMaxSize(),
@@ -351,7 +354,9 @@ private fun AmbientBackground(items: List<ViewerItem>, pagerState: PagerState, m
     }
     val current = pagerState.currentPage
 
-    Box(modifier.background(scrim)) {
+    // Ořez je nutný: pozadí sousedů leží posunuté mimo plochu a na širokém rozvržení by vlevo
+    // přes rail prosvítalo nerozostřené (rozostření pokrývá jen plochu prohlížeče).
+    Box(modifier.clipToBounds().background(scrim)) {
         Box(Modifier.fillMaxSize().hazeSource(hazeState)) {
             for (page in (current - 1)..(current + 1)) {
                 val item = items.getOrNull(page) ?: continue
@@ -772,7 +777,10 @@ private val PAGE_INSET = 32.dp
 private val PAGE_GAP = 8.dp
 
 /** Nejširší stránka. Širší displej (rozložený Fold, tablet) dostane po stranách víc souseda. */
-private val MAX_PAGE_WIDTH = 720.dp
+private val MAX_PAGE_WIDTH = 640.dp
+
+/** Mezera mezi kartami, když je stránka zastropovaná a místa je dost. */
+private val WIDE_PAGE_GAP = 24.dp
 
 /** Vzduch mezi kartou a lištami. */
 private val PAGE_VERTICAL_GAP = 8.dp
