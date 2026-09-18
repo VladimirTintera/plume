@@ -134,6 +134,11 @@ internal fun MessageMenuLayer(
     anchor: Rect?,
     /** Spodek hlavičky chatu v souřadnicích okna. Výš nabídka nesmí. */
     contentTop: Float?,
+    /**
+     * Horní hrana vstupního pole v souřadnicích okna. Níž vysunutá zpráva ani nabídka nesmí —
+     * pole leží nad seznamem a zpráva by skončila pod ním. `null` = jen navigační lišta.
+     */
+    contentBottom: Float?,
     itemScope: ConversationItemScope,
     /** Hlásí klíč zprávy, kterou nabídka právě kreslí (i při návratu); `null`, když žádnou. */
     onShownChange: (Long?) -> Unit,
@@ -202,7 +207,11 @@ internal fun MessageMenuLayer(
             val header = contentTop?.let { (it - origin.y).toDp() + MENU_GAP } ?: 0.dp
             maxOf((statusTop - origin.y).coerceAtLeast(0f).toDp() + SCREEN_MARGIN, header)
         }
-        val bottomMargin = with(density) { navigationBottom.toDp() } + SCREEN_MARGIN
+        // Dole končí nabídka nad vstupním polem, ne nad navigační lištou (viz `contentBottom`).
+        val bottomMargin = with(density) {
+            val input = contentBottom?.let { (maxHeight.toPx() - (it - origin.y)).toDp() + MENU_GAP } ?: 0.dp
+            maxOf(navigationBottom.toDp() + SCREEN_MARGIN, input)
+        }
         val showQuickRow = shown.menu.quickEmoji.isNotEmpty()
 
         // Kam zpráva DOJEDE. Z toho se odvozuje i rozvržení nabídky, takže se o umístění pruhu
@@ -237,13 +246,14 @@ internal fun MessageMenuLayer(
         val anchorLeftPx = anchorRect.left.roundToInt()
         val anchorTopPx = anchorRect.top
 
-        // Plocha pod hlavičkou chatu: zpráva, která začíná pod hlavičkou, z ní vyjede, ale
-        // nepřeletí přes ni.
+        // Plocha mezi hlavičkou chatu a vstupním polem: zpráva, která začíná pod některým z nich,
+        // z ní vyjede, ale nepřeletí přes něj.
         val clipTop = with(density) { (topLimit - MENU_GAP).toPx() }
+        val clipBottom = with(density) { (maxHeight - bottomMargin + MENU_GAP).toPx() }
         Box(
             Modifier
                 .fillMaxSize()
-                .drawWithContent { clipRect(top = clipTop) { this@drawWithContent.drawContent() } },
+                .drawWithContent { clipRect(top = clipTop, bottom = clipBottom) { this@drawWithContent.drawContent() } },
         ) {
             with(shown.item) {
                 MenuCopy(

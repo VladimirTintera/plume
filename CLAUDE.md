@@ -1260,6 +1260,9 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   nad sheetem musí zůstat vidět. Bez napůl rozbaleného stavu a s mřížkou pevné výšky, jako výběr
   samolepek. Ve starém sheetu nešlo ťuknout na emoji (podezřelý byl `FlowRow` bez scrollování
   a napůl rozbalený stav); tady ťuknutí funguje, ověřeno na zařízení.
+- **Spodní mez je horní hrana vstupního pole, ne navigační lišta** (`contentBottom`, obrazovka ho
+  měří na `bottomBar`). Pole leží přes seznam, takže zpráva vysunutá jen nad navigační lištu
+  skončila pod polem. Kopie zprávy se ořezává mezi hlavičkou a polem, aby přes ně nepřeletěla.
 - **Horní mez je spodek hlavičky chatu, ne stavová lišta** (`contentTop` ze
   `ConversationItemScope`, obrazovka ho měří na seznamu). Vysunutá zpráva ani pruh reakcí nesmí
   hlavičku překrýt — ztratilo by se povědomí, s kým je chat otevřený. Google Zprávy to dělají stejně.
