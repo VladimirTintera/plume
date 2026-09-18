@@ -611,6 +611,17 @@ a postup přestavby: [docs/architektura-konverzace.md](docs/architektura-konverz
   `onSurface`: barva popředí musí patřit ploše, ne bublině, která tam není.
 - **Nový druh zprávy = nová třída + jedna větev v `messageItem()`.** Nic dalšího se nemění; kdyby
   bylo potřeba sáhnout do rámu nebo do jiného bloku, je to znamení, že to do rámu nepatří.
+- **Akce jsou data** (`MessageAction`), a vede z bloků jediná cesta: `ConversationItemScope.onAction`
+  → `ConversationViewModel.onAction`. Navigaci (`OpenMedia`) a sheet sady (`OpenStickerSet`)
+  zachytí obrazovka dřív; ViewModel o navigaci neví. `messageId` jde vedle akce, ne v ní — u alba
+  se ťuká na konkrétní fotku.
+- **Nabídku skládají dvě strany a každá ví něco jiného.** Blok (builder, `menuActions()`) ví, co
+  zpráva JE: holý text jde upravit, bez textu není co kopírovat, samolepka jde do oblíbených,
+  připnutá se odepíná. Server ví, co se SMÍ — a to se načítá až při otevření. Položka
+  (`MessageMenuAction.presentation`) sama řekne, jestli ji server dovolil a jak vypadá; nabídka
+  jen projde seznam. Nová položka = nový objekt + místo v `menuActions()`.
+- **Kandidáti se počítají ze SKUTEČNÉ zprávy, ne z `MessageRow.display`.** U alba má `display`
+  přílohu vynulovanou (nese ji mřížka), takže by popisek alba vypadal jako upravitelný text.
 - **Detektor gesta čte id zprávy přes `rememberUpdatedState`.** Vzniká jednou za život položky,
   ale odeslaná zpráva po potvrzení změní id (klíč položky ne); odpověď swipem by jinak mířila
   na dočasné id, které už neexistuje.

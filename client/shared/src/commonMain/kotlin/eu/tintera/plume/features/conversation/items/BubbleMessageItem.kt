@@ -37,7 +37,7 @@ internal data class BubbleMessageItem(
                 QuotedMessage(
                     message = it,
                     partnerName = partnerName,
-                    onClick = message.replyToMessageId?.let { id -> { items.jumpToMessage(id) } },
+                    onClick = message.replyToMessageId?.let { id -> { act(MessageAction.JumpTo(id)) } },
                     onLongClick = ::requestMenu,
                     accent = accent,
                 )
@@ -56,7 +56,7 @@ internal data class BubbleMessageItem(
                     preview = preview,
                     accent = accent,
                     // Ťuknutí jde stejnou cestou jako odkaz v textu, tedy přes ViewModel.
-                    onOpen = { items.openLink(preview.url) },
+                    onOpen = { act(MessageAction.OpenLink(preview.url)) },
                     onLongClick = ::requestMenu,
                     modifier = Modifier.padding(top = 6.dp),
                 )

@@ -79,8 +79,12 @@ přes `remember(vstupy)` — testovatelná stejně, jen synchronní se stavem.
    předěly, doručení) se přestěhovaly z obrazovky do `features/conversation/items/`.
    Obrazovka spadla z 3 671 na ~1 540 řádků. `showsBareMedia` / `showsBareLinkPreview` zůstaly
    v `MessageRows.kt` kvůli svým testům; volá je jen builder.
-3. **`MessageAction` a `onAction`.** Nabídka se kreslí ze seznamu akcí, `MessageMenuHandlers`
-   a jednotlivé lambdy scope odpadnou.
+3. **`MessageAction` a `onAction`.** — HOTOVO. Akce jsou data (`MessageAction`), položky nabídky
+   podmnožina `MessageMenuAction`. Blok nese kandidáty do nabídky (`menuActions()` v builderu,
+   podle toho, co zpráva JE) a akci na ťuknutí; každá položka nabídky sama řekne, jestli ji
+   server dovolil a jak vypadá (`presentation`). Do ViewModelu vede jediný `onAction`;
+   navigaci a sheet sady samolepek vyřizuje obrazovka. `MessageMenuHandlers` a patnáct metod
+   scope zmizely, metody akcí ve ViewModelu jsou `private`.
 4. **Náhled odkazu pořádně.** Blok `LinkPreviewMessageItem` už existuje (zatím kreslí totéž co
    dřív), takže se dá předělat, aniž by se sáhlo na ostatní zprávy.
 

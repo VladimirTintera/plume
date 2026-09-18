@@ -110,6 +110,10 @@ internal data class MessageFrameData(
     val flight: MessageFlight?,
     /** Vyplněné jen u zprávy, nad kterou je nabídka otevřená. */
     val menu: MessageMenu?,
+    /** Kandidáti do nabídky; co z nich server dovolí, se zjistí až při otevření. */
+    val menuActions: List<MessageMenuAction>,
+    /** Co udělá ťuknutí na zprávu samotnou (ne na odkaz, fotku…); `null` = nic. */
+    val onTap: MessageAction?,
 )
 
 /**
@@ -152,8 +156,7 @@ internal interface MessageItem : ConversationItem {
 @Stable
 internal class MessageBodyScope(
     val items: ConversationItemScope,
-    val message: ChatMessage,
-    val continuesAbove: Boolean,
+    val frame: MessageFrameData,
     /** Tvar bubliny se staženými nárožími podle sousedů; bloky bez bubliny z něj odvozují svůj. */
     val shape: RoundedCornerShape,
     val bubbleColor: Color,
@@ -170,7 +173,17 @@ internal class MessageBodyScope(
      */
     val contentBottom: Dp,
 ) {
-    fun requestMenu() = items.showMenu(message.id)
+    val message: ChatMessage get() = frame.message
+    val continuesAbove: Boolean get() = frame.continuesAbove
+
+    /** Akce nad touhle zprávou, nebo nad [messageId] — u alba nad konkrétní fotkou. */
+    fun act(action: MessageAction, messageId: Long = message.id) = items.onAction(messageId, action)
+
+    /**
+     * Dlouhý stisk: nabídka s kandidáty, které nabízí blok. Potomci s vlastním klikáním (odkaz,
+     * citace, fotka) ho k rámu nepustí, takže ho musí zopakovat sami — proto je tu, ne v rámu.
+     */
+    fun requestMenu() = act(MessageAction.ShowMenu(frame.menuActions))
 }
 
 /**
@@ -242,11 +255,10 @@ private fun MessageFrame(
 
     val contentBottom = if (message.reactions.isEmpty()) 8.dp else REACTION_STRIP_SPACE
 
-    val bodyScope = remember(scope, message, frame.continuesAbove, shape, bubbleColor, onBubbleColor, accent, contentBottom) {
+    val bodyScope = remember(scope, frame, shape, bubbleColor, onBubbleColor, accent, contentBottom) {
         MessageBodyScope(
             items = scope,
-            message = message,
-            continuesAbove = frame.continuesAbove,
+            frame = frame,
             shape = shape,
             bubbleColor = bubbleColor,
             onBubbleColor = onBubbleColor,
@@ -356,7 +368,7 @@ private fun MessageFrame(
                         // Odpověď odchází při PUŠTĚNÍ, ne při překročení prahu. Kdo si to rozmyslí,
                         // vrátí prst zpátky a nic se nestane. Zrušené gesto (přerušení systémem)
                         // bublinu jen vrátí.
-                        if (finished && armed && drag.value >= threshold) scope.replyTo(currentMessageId)
+                        if (finished && armed && drag.value >= threshold) scope.onAction(currentMessageId, MessageAction.SwipeReply)
                         armed = false
                         drag.animateTo(0f, returnSpec)
                     }
@@ -428,9 +440,7 @@ private fun MessageFrame(
                          */
                         .combinedClickable(
                             onLongClick = bodyScope::requestMenu,
-                            onClick = {
-                                if (message.isOutgoing && !message.isService) scope.toggleReadReceipt(message.id)
-                            },
+                            onClick = { frame.onTap?.let(bodyScope::act) },
                         ),
                 ) {
                     // Bez bubliny se kreslí na plochu konverzace, takže výchozí barva popředí
@@ -450,7 +460,7 @@ private fun MessageFrame(
                 ReactionRow(
                     reactions = message.reactions,
                     onOpenDetails = if (frame.reactionsOpenable) {
-                        { scope.showReactionDetails(message.id) }
+                        { bodyScope.act(MessageAction.ShowReactions) }
                     } else {
                         null
                     },
@@ -484,7 +494,7 @@ private fun MessageFrame(
                     MessageMenuOverlay(
                         menu = it,
                         bubbleShape = shape,
-                        handlers = scope.menuHandlers,
+                        onAction = bodyScope::act,
                         // Do nabídky jde SKUTEČNÝ stav, ne to, co zrovna ukazuje odznak.
                         delivery = frame.delivery,
                     )
@@ -551,7 +561,7 @@ internal fun MessageBodyScope.MessageText(
         entities = message.entities,
         style = style,
         linkColor = linkColor,
-        onLinkClick = items::openLink,
+        onLinkClick = { act(MessageAction.OpenLink(it)) },
         onLongClick = ::requestMenu,
     )
 }
@@ -589,15 +599,15 @@ internal fun MessageBodyScope.Attachment(
         onOpen = { openMedia(media) },
         onRequestMenu = ::requestMenu,
         uploading = message.sendState == SendState.Sending,
-        onCancelUpload = { items.cancelUpload(id) },
+        onCancelUpload = { act(MessageAction.CancelUpload) },
         documentProgress = items::documentProgress,
-        onOpenDocument = { items.openDocument(id) },
+        onOpenDocument = { act(MessageAction.OpenDocument) },
         accent = accent,
         mediaShape = mediaShape,
         voice = VoiceHandlers(
             playback = { items.voicePlayback(id) },
-            onToggle = { items.toggleVoice(id) },
-            onSeek = { fraction -> items.seekVoice(id, fraction) },
+            onToggle = { act(MessageAction.ToggleVoice) },
+            onSeek = { fraction -> act(MessageAction.SeekVoice(fraction)) },
             accent = accent,
             onAccent = if (message.isOutgoing) bubbleColor else MaterialTheme.colorScheme.onPrimary,
         ),
@@ -609,11 +619,12 @@ internal fun MessageBodyScope.Attachment(
 internal fun MessageBodyScope.Album(members: List<ChatMessage>, accent: Color, shape: Shape? = null) {
     AlbumContent(
         members = members,
-        onOpen = items::openMedia,
+        // Ťuknutí míří na KONKRÉTNÍ zprávu alba, ne na blok.
+        onOpen = { id -> act(MessageAction.OpenMedia, id) },
         onRequestMenu = ::requestMenu,
-        onCancelUpload = items::cancelUpload,
+        onCancelUpload = { id -> act(MessageAction.CancelUpload, id) },
         documentProgress = items::documentProgress,
-        onOpenDocument = items::openDocument,
+        onOpenDocument = { id -> act(MessageAction.OpenDocument, id) },
         accent = accent,
         shape = shape,
     )
@@ -622,8 +633,8 @@ internal fun MessageBodyScope.Album(members: List<ChatMessage>, accent: Color, s
 /** Ťuknutí na samolepku otevře její sadu, na fotku a video prohlížeč. */
 private fun MessageBodyScope.openMedia(media: MessageMedia) {
     when (media) {
-        is MessageMedia.Sticker -> if (media.setId != 0L) items.openStickerSet(media.setId)
-        else -> items.openMedia(message.id)
+        is MessageMedia.Sticker -> if (media.setId != 0L) act(MessageAction.OpenStickerSet(media.setId))
+        else -> act(MessageAction.OpenMedia)
     }
 }
 

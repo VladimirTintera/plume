@@ -9,7 +9,9 @@ import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.ui.emojiClusterCount
 import eu.tintera.plume.core.ui.isSameDayAs
 import eu.tintera.plume.features.conversation.ConversationState
+import eu.tintera.plume.features.conversation.copyableText
 import eu.tintera.plume.features.conversation.groupAlbums
+import eu.tintera.plume.features.conversation.isEditableAsPlainText
 import eu.tintera.plume.features.conversation.readBadgeRows
 import eu.tintera.plume.features.conversation.showsBareLinkPreview
 import eu.tintera.plume.features.conversation.showsBareMedia
@@ -94,6 +96,12 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
                 reactionsOpenable = info?.isChannel != true,
                 flight = state.flight?.takeIf { it.itemKey == key },
                 menu = state.messageMenu?.takeIf { it.messageId == message.id },
+                menuActions = menuActions(row.primary, isPinned = state.pinned.any { row.contains(it.id) }),
+                /*
+                 * Ťuknutí na VLASTNÍ zprávu si vyžádá odznak přečtení, druhé ho schová. Je to
+                 * ubezpečení na vyžádání: automaticky se odznak ukazuje jen u nejnovější zprávy.
+                 */
+                onTap = MessageAction.ToggleReadReceipt.takeIf { message.isOutgoing },
             )
 
             messageItem(
@@ -148,6 +156,25 @@ private fun messageItem(
             message.replyToMessageId == null -> StickerMessageItem(frame, media)
         else -> BubbleMessageItem(frame, album = album, quoted = quoted, partnerName = partnerName)
     }
+}
+
+/**
+ * Kandidáti do nabídky nad zprávou, v pořadí, v jakém se v ní ukážou (viz [MessageMenuAction]).
+ *
+ * Tady se rozhoduje jen podle toho, co zpráva JE; co server dovolí, se zjistí až při otevření
+ * nabídky. [message] je skutečná zpráva, ne `MessageRow.display`: u alba je to ta s popiskem
+ * i s přílohou, takže úprava popisku alba se nenabídne (je to jiné volání než úprava textu).
+ */
+internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageMenuAction> = buildList {
+    add(MessageMenuAction.Reply)
+    if (message.isEditableAsPlainText()) add(MessageMenuAction.Edit)
+    // Bez textu není co kopírovat, i kdyby to server dovolil.
+    if (message.copyableText().isNotBlank()) add(MessageMenuAction.Copy)
+    if (message.media is MessageMedia.Sticker) add(MessageMenuAction.ToggleFavoriteSticker)
+    add(MessageMenuAction.Forward)
+    add(MessageMenuAction.Info)
+    add(if (isPinned) MessageMenuAction.Unpin else MessageMenuAction.Pin)
+    add(MessageMenuAction.Delete)
 }
 
 /**
