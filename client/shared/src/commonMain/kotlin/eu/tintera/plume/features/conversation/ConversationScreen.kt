@@ -97,6 +97,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.State
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -141,6 +143,7 @@ import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SendState
+import eu.tintera.plume.core.telegram.SponsoredMessage
 import eu.tintera.plume.core.ui.AnimatedSticker
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.RemoteImage
@@ -246,9 +249,10 @@ fun ConversationScreen(
     onForward: (messageIds: List<Long>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val stateHolder = viewModel.state.collectAsStateWithLifecycle()
+    val state by stateHolder
     // Čte se až v bublině hlasovky, takže změna pozice nepřekresluje celou obrazovku.
-    val voicePlayback by viewModel.voicePlayback.collectAsStateWithLifecycle()
+    val voicePlayback = viewModel.voicePlayback.collectAsStateWithLifecycle()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     // Nahrávání se mění po 50 ms; obrazovka čte jen jestli běží, čas a úrovně až pruh nahrávání.
     val voiceRecordingState = viewModel.voiceRecording.collectAsStateWithLifecycle()
@@ -392,35 +396,45 @@ fun ConversationScreen(
         )
     }
 
-    /*
-     * Zprávy podle id, pro dohledání citované.
-     *
-     * Skládá se jednou na změnu seznamu, ne v každé bublině. Předtím se citace hledala
-     * průchodem celého seznamu, takže vykreslení historie stálo kvadraticky — u tisícovky
-     * zpráv se to při scrollu pozná.
-     */
-    val byId = remember(state.messages) { state.messages.associateBy { it.id } }
+    val currentOnOpenMedia by rememberUpdatedState(onOpenMedia)
+    val itemScope = remember(viewModel, menuHandlers) {
+        ScreenItemScope(
+            viewModel = viewModel,
+            state = stateHolder,
+            voicePlayback = voicePlayback,
+            timeReveal = { timeReveal.value },
+            menuHandlers = menuHandlers,
+            onOpenMedia = { currentOnOpenMedia(it) },
+            onOpenStickerSet = { openStickerSetId = it },
+        )
+    }
 
     /*
-     * Položky seznamu: samostatné zprávy a celá alba. Album jsou v Telegramu samostatné zprávy,
-     * v konverzaci ale jedna bublina — a na položkách, ne na zprávách, stojí sousedé (předěly dne,
-     * seskupení bublin, profilovky) i index v `LazyColumn`.
+     * Bloky seznamu (viz [ConversationItem]). Všechno, co vyžaduje znát sousedy — předěly,
+     * seskupení bublin, profilovky, odznak přečtení, citace — spočítá builder jednou na změnu
+     * vstupů, ne každá položka zvlášť.
+     *
+     * Klíče jsou jen ta pole stavu, ze kterých builder čte. Celý `state` by seznam přestavoval
+     * i při každém kroku průběhu stahování.
      */
-    val rows = remember(state.messages) { groupAlbums(state.messages) }
+    val items = remember(
+        state.messages,
+        state.itemKeys,
+        state.sponsored,
+        state.loading,
+        state.info,
+        state.unreadBoundaryId,
+        state.readReceiptFor,
+        state.lastReadOutboxMessageId,
+        state.quotes,
+        state.highlightedMessageId,
+        state.flight,
+        state.messageMenu,
+    ) { conversationItems(state) }
 
     // Klíč položky není u odeslaných zpráv jejich id (viz `ConversationState.itemKeys`), takže
     // co se v seznamu hledá podle klíče, musí mít vlastní mapu.
     val byKey = remember(state.messages, state.itemKeys) { state.messages.associateBy(state::keyOf) }
-
-    /*
-     * Zprávy, které hlásí „přečteno" (pravidlo i důvody: [readBadgeRows]).
-     *
-     * Skládá se jednou na změnu seznamu, ne v každé bublině — hledání průchodem uvnitř `items`
-     * je to kvadratické chování, na které už projekt narazil u citací.
-     */
-    val readBadgeKeys = remember(rows, state.itemKeys, state.readReceiptFor) {
-        readBadgeRows(rows, state.readReceiptFor).map { state.keyOf(it.oldest) }.toSet()
-    }
 
     /*
      * Datum nejvyšší viditelné zprávy, pro plovoucí štítek při scrollu.
@@ -451,10 +465,14 @@ fun ConversationScreen(
      */
     LaunchedEffect(state.scrollTarget) {
         val target = state.scrollTarget ?: return@LaunchedEffect
-        // Hledá se ŘÁDEK, ne zpráva: fotka z alba je v seznamu součástí jedné položky.
-        val index = rows.indexOfFirst { it.contains(target.messageId) }
-        // Před zprávami stojí sponzorované položky, takže index v seznamu není index v LazyColumnu.
-        if (index >= 0) listState.scrollToAnchor(index + state.sponsored.size, target.anchor)
+        // Hledá se BLOK, ne zpráva: fotka z alba je v seznamu součástí jedné položky.
+        var index = items.indexOfFirst { it.containsMessage(target.messageId) }
+        // Nahoru se posazuje i předěl nad zprávou — u první nepřečtené je to právě to, co má
+        // uživatel vidět. Předěl je v obráceném seznamu ZA zprávou.
+        if (index >= 0 && target.anchor == ScrollAnchor.Top) {
+            while (items.getOrNull(index + 1).let { it is UnreadDividerItem || it is DayDividerItem }) index++
+        }
+        if (index >= 0) listState.scrollToAnchor(index, target.anchor)
         viewModel.consumeScrollTarget()
     }
 
@@ -822,8 +840,6 @@ fun ConversationScreen(
                             }
                         },
                 ) {
-                  // Posun se předává jako lambda: položka ho čte až při kreslení.
-                  val reveal = { timeReveal.value }
                   LazyColumn(
                     state = listState,
                     reverseLayout = true,
@@ -840,159 +856,8 @@ fun ConversationScreen(
                     // se přidává až v bublině — tady na to není informace o sousedech.
                     verticalArrangement = Arrangement.spacedBy(MESSAGE_SPACING),
                 ) {
-                    // Reklama patří pod nejnovější zprávu. Při `reverseLayout` je „dole"
-                    // začátek seznamu, takže stojí PŘED zprávami.
-                    items(state.sponsored, key = { "sponsored-${it.messageId}" }) { sponsored ->
-                        SponsoredCard(
-                            sponsored = sponsored,
-                            onClick = { viewModel.onSponsoredClick(sponsored) },
-                            // Jede s celou plochou, jen bez času — reklama žádný nemá. Kdyby
-                            // stála, vypadalo by to, že se odkrývání zaseklo.
-                            modifier = Modifier
-                                .graphicsLayer { translationX = -reveal() }
-                                .padding(vertical = 8.dp),
-                        )
-                    }
-
-                    // Klíč NENÍ id: odeslané zprávě TDLib po potvrzení id změní a s novým klíčem
-                    // by bublina problikla jako odebraná a znovu přidaná položka. U alba je to klíč
-                    // jeho NEJSTARŠÍ zprávy — novější fotky alba dorážejí za ní a klíč nezmění.
-                    itemsIndexed(rows, key = { _, row -> state.keyOf(row.oldest) }) { index, row ->
-                        val message = row.display
-                        // Seznam jde od nejnovější, takže „předchozí zpráva v čase" je ta
-                        // s VYŠŠÍM indexem.
-                        val olderRow = rows.getOrNull(index + 1)
-                        val older = olderRow?.display
-
-                        /*
-                         * Začíná touhle zprávou nový den?
-                         *
-                         * `older == null` je nejstarší načtená zpráva. Datum se u ní ukáže taky —
-                         * jakmile se dotáhne starší stránka, předěl se posune nahoru. Lepší než
-                         * nechat vršek historie bez data.
-                         */
-                        val startsDay = older == null ||
-                            !older.timestamp.isSameDayAs(row.oldest.timestamp)
-
-                        /*
-                         * Seskupení bublin se musí ptát na OBA sousedy.
-                         *
-                         * Stažené nároží drží skupinu pohromadě, takže patří jen mezi bubliny,
-                         * které na sebe opravdu navazují — a to znamená vědět i o tom novějším.
-                         * Ten je v obráceném seznamu o index NÍŽ.
-                         *
-                         * Za předělem dne začíná nový blok, i když píše tentýž člověk; proto se
-                         * starší soused nad předělem nepočítá.
-                         */
-                        val olderInGroup = older.takeIf { !startsDay }
-                        val continuesAbove = olderInGroup != null && message.continues(olderInGroup)
-                        val continuesBelow = rows.getOrNull(index - 1)?.display.continues(message)
-
-                        /*
-                         * Je tohle první nepřečtená zpráva?
-                         *
-                         * Hranici drží ViewModel z okamžiku otevření chatu, takže se předěl
-                         * neposouvá, jak se zprávy postupně označují za přečtené.
-                         */
-                        val startsUnread = state.unreadBoundaryId?.let { boundary ->
-                            row.oldest.id > boundary && olderRow != null && olderRow.newest.id <= boundary
-                        } == true
-
-                        val flight = state.flight?.takeIf { it.itemKey == state.keyOf(row.oldest) }
-
-                        // Předěl patří NAD zprávu, takže do sloupce před ni. `reverseLayout`
-                        // obrací pořadí položek, ne obsah jedné položky.
-                        //
-                        // Cíl letu se nezjevuje prolnutím: během letu se kreslí v překryvu sdílených
-                        // prvků, kam průhlednost položky nedosáhne, a po přistání by pak skočil
-                        // z plné viditelnosti do rozjetého prolnutí.
-                        Column(
-                            Modifier.animateItem(
-                                fadeInSpec = if (flight != null) null else spring(stiffness = Spring.StiffnessMediumLow),
-                            ),
-                        ) {
-                            if (startsDay) DayDivider(message.timestamp)
-                            if (startsUnread) UnreadDivider()
-
-                            // Systémové oznámení nemá odesílatele, takže nemá ani stranu — kreslí
-                            // se na střed a bez bubliny. Reakce, citace ani stav doručení k němu
-                            // nepatří.
-                            if (message.isService) {
-                                RevealingTime(message.timestamp, reveal) { ServiceMessage(message) }
-                                return@Column
-                            }
-
-                            RevealingTime(message.timestamp, reveal) {
-                            MessageBubble(
-                                message = message,
-                                // Album: zprávy od nejstarší, kreslí je mřížka místo jedné přílohy.
-                                album = row.members.takeIf { row.isAlbum },
-                                onOpenAlbumItem = { messageId -> onOpenMedia(messageId) },
-                                onCancelUpload = viewModel::cancelUpload,
-                                documentProgress = { fileId -> state.documentDownloads[fileId] },
-                                onOpenDocument = viewModel::openDocument,
-                                voicePlayback = { voicePlayback?.takeIf { it.key.messageId == message.id } },
-                                onToggleVoice = { viewModel.toggleVoice(message.id) },
-                                onSeekVoice = { fraction -> viewModel.seekVoice(message.id, fraction) },
-                                quoted = message.replyToMessageId?.let { id ->
-                                    byId[id] ?: state.quotes[id]
-                                },
-                                // V soukromém chatu se jméno odesílatele u zpráv nevyplňuje (dává
-                                // smysl jen ve skupinách), takže citace by neměla koho uvést.
-                                partnerName = state.info?.title,
-                                highlighted = state.highlightedMessageId?.let(row::contains) == true,
-                                onQuoteClick = message.replyToMessageId?.let { id ->
-                                    { viewModel.jumpToMessage(id) }
-                                },
-                                continuesAbove = continuesAbove,
-                                continuesBelow = continuesBelow,
-                                /*
-                                 * Tvář odesílatele se ukazuje u POSLEDNÍ zprávy jeho bloku, jako
-                                 * v Telegramu: blok se čte shora a tvář ho uzavírá. Kanál
-                                 * (odesílatel = chat sám) tvář nemá — nese ji hlavička a u každého
-                                 * příspěvku by byla pořád tatáž.
-                                 */
-                                avatar = when {
-                                    state.info?.isGroup != true || message.isOutgoing -> SenderAvatar.None
-                                    message.senderId == state.info?.id -> SenderAvatar.None
-                                    continuesBelow -> SenderAvatar.Spacer
-                                    else -> SenderAvatar.Shown
-                                },
-                                lastReadOutboxMessageId = state.lastReadOutboxMessageId,
-                                // „Přečteno" hlásí nejnovější zpráva a ta, u které si o odznak
-                                // uživatel řekl ťuknutím — viz `readBadgeKeys`.
-                                showsRead = state.keyOf(row.oldest) in readBadgeKeys,
-                                onToggleReadReceipt = { viewModel.toggleReadReceipt(message.id) },
-                                flight = flight,
-                                onOpenReactions = viewModel::showReactionDetails
-                                    .takeIf { state.info?.isChannel != true },
-                                onRequestMenu = { viewModel.showMessageMenu(message.id) },
-                                onReply = { viewModel.replyTo(message.id) },
-                                // Ťuknutí na samolepku otevře její sadu; na fotku prohlížeč.
-                                onOpenMedia = {
-                                    val setId = (message.media as? MessageMedia.Sticker)?.setId
-                                    if (setId != null) {
-                                        if (setId != 0L) openStickerSetId = setId
-                                    } else {
-                                        onOpenMedia(message.id)
-                                    }
-                                },
-                                // Nabídka se kreslí uvnitř bubliny, které se týká — jinak by neměla
-                                // k čemu se ukotvit.
-                                menu = state.messageMenu?.takeIf { it.messageId == message.id },
-                                menuHandlers = menuHandlers,
-                                onLinkClick = viewModel::openLink,
-                            )
-                            }
-                        }
-                    }
-
-                    if (state.loading) {
-                        item(key = "loading") {
-                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                LoadingIndicator()
-                            }
-                        }
+                    items(items, key = { it.key }, contentType = { it.contentType }) { item ->
+                        with(item) { Content(itemScope) }
                     }
                 }
                 }
@@ -1146,7 +1011,7 @@ private fun newMessagesLabel(count: Int): String =
  */
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
-private fun MessageBubble(
+internal fun MessageBubble(
     message: ChatMessage,
     quoted: ChatMessage?,
     partnerName: String?,
@@ -2191,12 +2056,13 @@ private fun PinnedMessageRow(
  * jen vrstvu s bublinou a nepřeskládává celou konverzaci.
  */
 @Composable
-private fun RevealingTime(
+internal fun RevealingTime(
     timestamp: Int,
     reveal: () -> Float,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    Box(Modifier.fillMaxWidth()) {
+    Box(modifier.fillMaxWidth()) {
         Box(Modifier.graphicsLayer { translationX = -reveal() }) { content() }
 
         Text(
@@ -2678,35 +2544,49 @@ private suspend fun LazyListState.scrollToAnchor(index: Int, anchor: ScrollAncho
  * chatu opravdu hledá.
  */
 @Composable
-private fun UnreadDivider(modifier: Modifier = Modifier) {
+internal fun UnreadDivider(modifier: Modifier = Modifier) {
     CenteredNote(
         text = stringResource(Res.string.conversation_unread_divider),
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        modifier = modifier.padding(vertical = DAY_DIVIDER_SPACING),
+        modifier = modifier.padding(top = DAY_DIVIDER_SPACING, bottom = DIVIDER_BOTTOM_SPACING),
     )
 }
 
 /**
- * Tvář odesílatele vedle bubliny ve skupině.
+ * [ConversationItemScope] nad ViewModelem obrazovky.
  *
- * [Spacer] drží místo u zpráv uprostřed bloku — bez něj by bubliny téhož člověka skákaly
- * doleva a doprava podle toho, u které zrovna tvář je.
+ * Stav se čte přes [State] až uvnitř volání, takže se k jeho změnám přihlásí jen to UI, které
+ * hodnotu opravdu kreslí (průběh stahování, pozice hlasovky), ne celá položka.
  */
-private enum class SenderAvatar { None, Spacer, Shown }
+private class ScreenItemScope(
+    private val viewModel: ConversationViewModel,
+    private val state: State<ConversationState>,
+    private val voicePlayback: State<VoicePlayback?>,
+    override val timeReveal: () -> Float,
+    override val menuHandlers: MessageMenuHandlers,
+    private val onOpenMedia: (messageId: Long) -> Unit,
+    private val onOpenStickerSet: (setId: Long) -> Unit,
+) : ConversationItemScope {
+    override fun voicePlayback(messageId: Long): VoicePlayback? =
+        voicePlayback.value?.takeIf { it.key.messageId == messageId }
 
-/**
- * Navazuje tahle (novější) zpráva na [older] ve stejném bloku?
- *
- * Stejná pravidla jako seskupení bublin: stejná strana, stejný odesílatel, stejný den. Servisní
- * oznámení blok přeruší — kreslí se na střed a tvář nad ním by visela ve vzduchu.
- */
-private fun ChatMessage?.continues(older: ChatMessage): Boolean =
-    this != null &&
-        !isService &&
-        isOutgoing == older.isOutgoing &&
-        senderId == older.senderId &&
-        timestamp.isSameDayAs(older.timestamp)
+    override fun documentProgress(fileId: Int): Float? = state.value.documentDownloads[fileId]
+
+    override fun openMedia(messageId: Long) = onOpenMedia(messageId)
+    override fun openStickerSet(setId: Long) = onOpenStickerSet(setId)
+    override fun openDocument(messageId: Long) = viewModel.openDocument(messageId)
+    override fun cancelUpload(messageId: Long) = viewModel.cancelUpload(messageId)
+    override fun toggleVoice(messageId: Long) = viewModel.toggleVoice(messageId)
+    override fun seekVoice(messageId: Long, fraction: Float) = viewModel.seekVoice(messageId, fraction)
+    override fun jumpToMessage(messageId: Long) = viewModel.jumpToMessage(messageId)
+    override fun toggleReadReceipt(messageId: Long) = viewModel.toggleReadReceipt(messageId)
+    override fun showReactionDetails(messageId: Long) = viewModel.showReactionDetails(messageId)
+    override fun showMenu(messageId: Long) = viewModel.showMessageMenu(messageId)
+    override fun replyTo(messageId: Long) = viewModel.replyTo(messageId)
+    override fun openLink(url: String) = viewModel.openLink(url)
+    override fun openSponsored(sponsored: SponsoredMessage) = viewModel.onSponsoredClick(sponsored)
+}
 
 /**
  * Naposledy zpracovaná nejnovější zpráva, pro ukotvení seznamu dole.
@@ -2749,7 +2629,6 @@ private val HIGHLIGHT_CORNER = 12.dp
 private const val READ_DEBOUNCE_MS = 400L
 
 /** Prefix klíče reklamní položky; podle něj se v seznamu pozná pro hlášení zhlédnutí. */
-private const val SPONSORED_KEY_PREFIX = "sponsored-"
 
 /** Jak dlouho musí být reklama v klidu na obrazovce, než se zhlédnutí nahlásí. */
 private const val SPONSORED_VIEW_DEBOUNCE_MS = 1000L
@@ -2762,6 +2641,13 @@ private val GROUP_SPACING = 8.dp
 
 /** Vzduch kolem předělu dne. Odděluje bloky, takže potřebuje víc než rozestup mezi zprávami. */
 private val DAY_DIVIDER_SPACING = 6.dp
+
+/**
+ * Spodní vzduch předělu. Předěl je samostatná položka seznamu, takže mezi ním a zprávou pod ním
+ * leží ještě [MESSAGE_SPACING] z `verticalArrangement` — o ten se tady ubírá, aby zpráva seděla
+ * pod předělem stejně těsně, jako když byl předěl kreslený uvnitř její položky.
+ */
+private val DIVIDER_BOTTOM_SPACING = DAY_DIVIDER_SPACING - MESSAGE_SPACING
 
 /**
  * Průsvit pruhu pod vstupním polem.
@@ -3433,7 +3319,7 @@ private fun AnimatedEmojiImage(emoji: MessageMedia.AnimatedEmoji) {
  * Čas se u něj nevypisuje: u „někdo se připojil" je minuta k ničemu a řádek by jen zdvojnásobil.
  */
 @Composable
-private fun ServiceMessage(message: ChatMessage, modifier: Modifier = Modifier) {
+internal fun ServiceMessage(message: ChatMessage, modifier: Modifier = Modifier) {
     CenteredNote(text = message.text, modifier = modifier)
 }
 
@@ -3447,11 +3333,11 @@ private fun ServiceMessage(message: ChatMessage, modifier: Modifier = Modifier) 
  * zpráva od někoho. Dvě různá pojetí téhož by seznam jen roztříštila.
  */
 @Composable
-private fun DayDivider(timestamp: Int, modifier: Modifier = Modifier) {
+internal fun DayDivider(timestamp: Int, modifier: Modifier = Modifier) {
     CenteredNote(
         text = timestamp.asDayLabel(),
         // Víc místa než u oznámení: předěl odděluje bloky, takže potřebuje kolem sebe vzduch.
-        modifier = modifier.padding(vertical = DAY_DIVIDER_SPACING),
+        modifier = modifier.padding(top = DAY_DIVIDER_SPACING, bottom = DIVIDER_BOTTOM_SPACING),
     )
 }
 

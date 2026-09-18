@@ -18,6 +18,10 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
 
 ## Doporučené pořadí dalších kroků
 
+0. **Přestavba seznamu zpráv na bloky**, které se samy vykreslí — cíl a postup
+   v [architektura-konverzace.md](architektura-konverzace.md). ~~Krok 1: builder a bloky seznamu~~
+   — hotovo. Zbývá rozpad `MessageBubble` na bloky podle obsahu, akce jako data (`MessageAction`)
+   a náhled odkazu jako vlastní blok. Nové druhy zpráv a rozvržení stavět až na tom.
 1. **Přílohy.** Telegram víc příloh v jedné zprávě nenese — album je skupina samostatných zpráv
    se stejným `mediaAlbumId` (viz `CLAUDE.md`, „Alba"). Po krocích:
    1. ~~**Zobrazení přijatých alb**~~ — hotovo, mřížka v jedné bublině.

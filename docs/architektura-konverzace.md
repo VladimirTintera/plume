@@ -1,0 +1,82 @@
+# Konverzace — architektura seznamu zpráv
+
+Cílový stav a postup přestavby. Rozpracované kroky jsou v [roadmap-konverzace.md](roadmap-konverzace.md);
+hotová poučení patří do `CLAUDE.md`.
+
+## Proč
+
+Dřív se o tom, co se v konverzaci nakreslí, rozhodovalo na třech místech zároveň:
+
+- v `itemsIndexed` obrazovky (sousedé, předěly, avatar, odznak přečtení, citace, let) — uvnitř
+  kompozice, takže netestovatelně,
+- v čistých funkcích `MessageRows.kt` (`showsBareMedia`, `showsBareLinkPreview`),
+- v `MessageBubble` s 27 parametry, která sama řešila velká emoji, samolepky bez bubliny, tvar,
+  barvy, popisek pod médiem, tři větve textu a náhledu, gesto odpovědi, reakce, doručení
+  i ukotvení nabídky.
+
+Každé nové rozvržení (třeba náhled odkazu) tak znamenalo další příznak `bareX` propsaný do tvaru,
+odsazení, zarovnání, popisku i reakcí v jedné funkci.
+
+## Cílový stav
+
+```
+ChatMessage (repozitář, core/telegram)
+   │  čistá funkce conversationItems(...) – testovaná bez Compose
+   ▼
+List<ConversationItem>        ← klíč, contentType, vlastní data, vlastní akce
+   │
+   ▼
+LazyColumn: item.Content(scope, modifier)     ← žádný `when`
+```
+
+### Blok nese odpovědnost sám
+
+`ConversationItem` je UI model (ne doménová data): nese svoje data a **sám se vykreslí**.
+Každý druh bloku má vlastní soubor s daty i UI pohromadě.
+
+```kotlin
+@Immutable
+interface ConversationItem {
+    val key: Any
+    val contentType: Any get() = this::class
+    @Composable fun Content(scope: ConversationItemScope, modifier: Modifier)
+}
+```
+
+- **Jediný `when` je v builderu** — rozhodnutí, JAKÝ blok ze zprávy vznikne. To je rozhodnutí
+  nad daty, patří na jedno místo a testuje se ověřením typu a dat bloku.
+- **Předěly, sponzorovaná karta a načítání jsou samostatné bloky.** Builder sousedy zná, takže
+  předěl už nemusí být kreslený uvnitř zprávy.
+- **Zprávy sdílejí rám, obsah si kreslí samy.** `MessageItem : ConversationItem` implementuje
+  `Content` jednou přes `MessageFrame` (avatar, tah na odpověď, zvýraznění, reakce přes nároží,
+  odznak doručení, kotva nabídky) a nechá blok nakreslit `Body`. Jestli má zpráva bublinu, není
+  příznak: `Body` buď použije sdílený kus `Bubble { }`, nebo ne.
+- **Lambdy v datech bloku nejsou.** Rozbily by `equals` a s ním přeskakování položek. Obsluhu
+  a rychle se měnící hodnoty (pozice hlasovky, průběh stahování, odkrývání časů) dostane blok
+  přes `ConversationItemScope`.
+- **Akce jsou data.** Blok nese `actions` (`onTap` + kandidáty do nabídky jako `MessageAction`);
+  serverová práva (`getMessageProperties`) se dál načítají až při otevření nabídky a nabídka
+  ukáže průnik. Do ViewModelu vede jediný vstup `onAction(key, action)`.
+
+### Proč se builder volá v kompozici, ne ve ViewModelu
+
+Nová zpráva dole se ukotvuje přes `requestScrollToItem(0)` **v téže kompozici**, ve které se
+objeví (viz `CLAUDE.md`, „Odesílání a scrollování"). Tok položek odvozený ve ViewModelu by šel
+o dispatch za `state` a ukotvení by mířilo na starý seznam. Builder je proto čistá funkce volaná
+přes `remember(vstupy)` — testovatelná stejně, jen synchronní se stavem.
+
+## Postup
+
+1. **Builder a bloky seznamu.** — HOTOVO. `conversationItems()` + `ConversationItemsTest`;
+   předěly dne a nepřečtených, servisní oznámení, sponzorovaná karta a načítání jsou vlastní
+   bloky. Zprávy jsou zatím jeden `BubbleMessageItem`, který obaluje dosavadní `MessageBubble`
+   s hotovými daty (sousedé, avatar, odznak, citace spočítané builderem).
+2. **Rozpad `MessageBubble`.** `MessageFrame` + jeden `MessageItem` na druh obsahu (text, velká
+   emoji, samolepka, médium s popiskem, album, soubor, hlasovka). Soubory do
+   `features/conversation/items/`. `showsBareMedia` / `showsBareLinkPreview` zmizí do builderu.
+3. **`MessageAction` a `onAction`.** Nabídka se kreslí ze seznamu akcí, `MessageMenuHandlers`
+   a jednotlivé lambdy scope odpadnou.
+4. **Náhled odkazu jako vlastní blok** (`LinkPreviewMessageItem`).
+
+Později, mimo tuhle přestavbu: rozdělit `ConversationState` na data a přechodný stav UI
+a ViewModel na menší části (připnuté, koncept, hlasovky, přílohy).
