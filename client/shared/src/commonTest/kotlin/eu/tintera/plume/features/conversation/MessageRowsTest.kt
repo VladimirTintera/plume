@@ -4,6 +4,7 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
+import eu.tintera.plume.features.conversation.items.albumRowSizes
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

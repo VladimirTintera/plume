@@ -1,7 +1,18 @@
-package eu.tintera.plume.features.conversation
+package eu.tintera.plume.features.conversation.items
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.key
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.SendState
+import eu.tintera.plume.core.ui.emojiClusterCount
 import eu.tintera.plume.core.ui.isSameDayAs
+import eu.tintera.plume.features.conversation.ConversationState
+import eu.tintera.plume.features.conversation.groupAlbums
+import eu.tintera.plume.features.conversation.readBadgeRows
+import eu.tintera.plume.features.conversation.showsBareLinkPreview
+import eu.tintera.plume.features.conversation.showsBareMedia
 
 /**
  * Z obsahu konverzace poskládá bloky seznamu (viz [ConversationItem]).
@@ -59,18 +70,13 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
         } else {
             // Za předělem dne začíná nový blok, i když píše tentýž člověk.
             val olderInGroup = older.takeIf { !startsDay }
-            val continuesAbove = olderInGroup != null && message.continues(olderInGroup)
             val continuesBelow = rows.getOrNull(index - 1)?.display.continues(message)
+            val delivery = message.delivery(state.lastReadOutboxMessageId)
 
-            BubbleMessageItem(
+            val frame = MessageFrameData(
                 key = key,
                 message = message,
-                album = row.members.takeIf { row.isAlbum },
-                quoted = message.replyToMessageId?.let { id -> byId[id] ?: state.quotes[id] },
-                // V soukromém chatu se jméno odesílatele u zpráv nevyplňuje, takže citace by
-                // neměla koho uvést.
-                partnerName = info?.title,
-                continuesAbove = continuesAbove,
+                continuesAbove = olderInGroup != null && message.continues(olderInGroup),
                 continuesBelow = continuesBelow,
                 /*
                  * Tvář odesílatele u POSLEDNÍ zprávy jeho bloku: blok se čte shora a tvář ho
@@ -82,12 +88,21 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
                     continuesBelow -> SenderAvatar.Spacer
                     else -> SenderAvatar.Shown
                 },
-                lastReadOutboxMessageId = state.lastReadOutboxMessageId,
-                showsRead = key in readBadgeKeys,
+                delivery = delivery,
+                badge = delivery?.takeIf { it != Delivery.Read || key in readBadgeKeys },
                 highlighted = state.highlightedMessageId?.let(row::contains) == true,
                 reactionsOpenable = info?.isChannel != true,
                 flight = state.flight?.takeIf { it.itemKey == key },
                 menu = state.messageMenu?.takeIf { it.messageId == message.id },
+            )
+
+            messageItem(
+                frame = frame,
+                album = row.members.takeIf { row.isAlbum },
+                quoted = message.replyToMessageId?.let { id -> byId[id] ?: state.quotes[id] },
+                // V soukromém chatu se jméno odesílatele u zpráv nevyplňuje, takže citace by
+                // neměla koho uvést.
+                partnerName = info?.title,
             )
         }
 
@@ -104,13 +119,60 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
 }
 
 /**
+ * Jaký blok ze zprávy vznikne — JEDINÉ místo, kde se o tom rozhoduje.
+ *
+ * Bez bubliny se kreslí to, co je obrázek samo o sobě: pár emoji, samolepka, fotka a video,
+ * náhled odkazu s velkým obrázkem. Podmínkou je vždycky, že na zprávě nevisí nic, co pozadí
+ * potřebuje — citace se bez něj ztratí, takže si bublinu vynutí.
+ */
+private fun messageItem(
+    frame: MessageFrameData,
+    album: List<ChatMessage>?,
+    quoted: ChatMessage?,
+    partnerName: String?,
+): MessageItem {
+    val message = frame.message
+    val media = message.media
+    // Popisek alba z pár emoji je pořád popisek pod fotkami, ne velké emoji bez bubliny.
+    val emojiCount = if (album != null || media != null || message.replyToMessageId != null) {
+        0
+    } else {
+        message.text.emojiClusterCount(MAX_LARGE_EMOJI)
+    }
+    val preview = message.linkPreview
+    return when {
+        emojiCount > 0 -> LargeEmojiMessageItem(frame, emojiCount)
+        showsBareMedia(message, album) -> MediaMessageItem(frame, album)
+        preview != null && showsBareLinkPreview(message) -> LinkPreviewMessageItem(frame, preview)
+        (media is MessageMedia.Sticker || media is MessageMedia.AnimatedEmoji) &&
+            message.replyToMessageId == null -> StickerMessageItem(frame, media)
+        else -> BubbleMessageItem(frame, album = album, quoted = quoted, partnerName = partnerName)
+    }
+}
+
+/**
+ * Skutečný stav doručení odchozí zprávy; `null` u příchozí.
+ *
+ * „Přečteno" není ve zprávě, ale na chatu (`lastReadOutboxMessageId`): posuvný ukazatel, pod
+ * který spadají všechny odchozí zprávy s menším id.
+ */
+internal fun ChatMessage.delivery(lastReadOutboxMessageId: Long): Delivery? = sendState?.let { sendState ->
+    when {
+        sendState == SendState.Failed -> Delivery.Failed
+        sendState == SendState.Sending -> Delivery.Sending
+        id <= lastReadOutboxMessageId -> Delivery.Read
+        else -> Delivery.Sent
+    }
+}
+
+/**
  * Navazuje tahle (novější) zpráva na [older] ve stejném bloku?
  *
  * Stejná strana, stejný odesílatel, stejný den. Servisní oznámení blok přeruší — kreslí se na
  * střed a tvář nad ním by visela ve vzduchu. Přerušuje ho **z obou stran**: dřív se hlídala jen
  * novější zpráva, takže bublina pod oznámením měla stažené nároží, jako by na něj navazovala.
  */
-internal fun ChatMessage?.continues(older: ChatMessage): Boolean =
+private fun ChatMessage?.continues(older: ChatMessage): Boolean =
     this != null &&
         !isService &&
         !older.isService &&

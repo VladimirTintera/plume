@@ -26,7 +26,7 @@ ChatMessage (repozitář, core/telegram)
 List<ConversationItem>        ← klíč, contentType, vlastní data, vlastní akce
    │
    ▼
-LazyColumn: item.Content(scope, modifier)     ← žádný `when`
+LazyColumn: with(item) { Content(scope) }     ← žádný `when`
 ```
 
 ### Blok nese odpovědnost sám
@@ -39,7 +39,9 @@ Každý druh bloku má vlastní soubor s daty i UI pohromadě.
 interface ConversationItem {
     val key: Any
     val contentType: Any get() = this::class
-    @Composable fun Content(scope: ConversationItemScope, modifier: Modifier)
+    fun containsMessage(messageId: Long): Boolean = false
+    // Nad LazyItemScope, aby si blok sám zvolil `animateItem`.
+    @Composable fun LazyItemScope.Content(scope: ConversationItemScope)
 }
 ```
 
@@ -71,12 +73,16 @@ přes `remember(vstupy)` — testovatelná stejně, jen synchronní se stavem.
    předěly dne a nepřečtených, servisní oznámení, sponzorovaná karta a načítání jsou vlastní
    bloky. Zprávy jsou zatím jeden `BubbleMessageItem`, který obaluje dosavadní `MessageBubble`
    s hotovými daty (sousedé, avatar, odznak, citace spočítané builderem).
-2. **Rozpad `MessageBubble`.** `MessageFrame` + jeden `MessageItem` na druh obsahu (text, velká
-   emoji, samolepka, médium s popiskem, album, soubor, hlasovka). Soubory do
-   `features/conversation/items/`. `showsBareMedia` / `showsBareLinkPreview` zmizí do builderu.
+2. **Rozpad `MessageBubble`.** — HOTOVO. `MessageFrame` + bloky `BubbleMessageItem`,
+   `LargeEmojiMessageItem`, `StickerMessageItem`, `MediaMessageItem`, `LinkPreviewMessageItem`;
+   o druhu rozhoduje `messageItem()` v builderu. Sdílené kusy (přílohy, album, náhledy, citace,
+   předěly, doručení) se přestěhovaly z obrazovky do `features/conversation/items/`.
+   Obrazovka spadla z 3 671 na ~1 540 řádků. `showsBareMedia` / `showsBareLinkPreview` zůstaly
+   v `MessageRows.kt` kvůli svým testům; volá je jen builder.
 3. **`MessageAction` a `onAction`.** Nabídka se kreslí ze seznamu akcí, `MessageMenuHandlers`
    a jednotlivé lambdy scope odpadnou.
-4. **Náhled odkazu jako vlastní blok** (`LinkPreviewMessageItem`).
+4. **Náhled odkazu pořádně.** Blok `LinkPreviewMessageItem` už existuje (zatím kreslí totéž co
+   dřív), takže se dá předělat, aniž by se sáhlo na ostatní zprávy.
 
 Později, mimo tuhle přestavbu: rozdělit `ConversationState` na data a přechodný stav UI
 a ViewModel na menší části (připnuté, koncept, hlasovky, přílohy).
