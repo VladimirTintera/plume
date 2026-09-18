@@ -6,64 +6,32 @@ Kotlin Multiplatform, sdílené Compose UI pro Android a iOS.
 > Používá [Telegram API](https://core.telegram.org/) přes [TDLib](https://core.telegram.org/tdlib).
 > Není to oficiální produkt Telegramu a není s ním nijak spojený.
 
-## Stav: fáze 7
+## Stav
 
-**Fáze 0 (de-risking)** ověřila na reálném běhu, že architektura drží:
+Vývoj je nejdál na Androidu; iOS je pozadu o notifikace a hlášení pádů. Hotové obrazovky:
+přihlášení (telefon → kód → 2FA, plus QR), seznam chatů, konverzace, prohlížeč médií, výběr chatu
+pro přeposlání a Nastavení s účtem a odhlášením.
 
-| Co | Výsledek |
-|---|---|
-| TDLib se slinkuje do iOS frameworku | ✅ symboly `_td_create_client_id`, `_td_send`, `_td_receive`, `_td_execute` |
-| TDLib naběhne na Androidu | ✅ `libtdjsonjava.so … ok` |
-| Přihlášení projde proti serverům Telegramu | ✅ automat dojde do `WaitPhoneNumber` |
-| Material 3 Expressive ze sdíleného kódu | ✅ `MaterialExpressiveTheme` + vlastní `MotionScheme` |
-| Material You na Androidu / paleta ze seedu na iOS | ✅ |
+**Konverzace** umí historii se stránkováním, skok na první nepřečtenou, předěly dne, živé zprávy,
+odesílání s letem bubliny, koncept uložený v TDLib, „píše…" oběma směry, úpravu vlastní zprávy,
+odpovědi (i tahem doprava), reakce, připnuté zprávy, přeposílání, formátování textu a náhledy
+odkazů. Přílohou může být fotka, video i soubor, jednotlivě nebo jako album, s průběhem nahrávání
+a možností ho zrušit; fotky a videa se otevírají v prohlížeči médií, dokument se předá systému.
+Hlasovky se nahrávají i přehrávají přímo v bublině. Samolepky a emoji mají vlastní výběr (sady,
+hledání, oblíbené, trendy, nedávná emoji, odstíny pleti), animované `.tgs` se přehrávají.
 
-**Fáze 1** přidala Navigation3, adaptivní shell a živý seznam chatů — ověřeno na reálném účtu:
-seznam se naplní z TDLib, na šířce naskočí `WideNavigationRail` a dvoupanelové list-detail
-rozvržení s vybraným chatem zvýrazněným přes `secondaryContainer`.
-
-**Fáze 2** přidala textovou konverzaci — ověřeno na reálném účtu: načte se historie, bubliny se
-seskupují po odesílateli, nové zprávy naskakují živě a seznam chatů se pod nimi přeskládá.
-
-**Fáze 3** přidala média — avatary v seznamu i v hlavičce konverzace a fotky přímo v bublinách,
-včetně stahování na pozadí a progresivního náhledu. Chaty bez obrázku dostanou iniciály na barvě
-odvozené z id, takže je barva stabilní mezi spuštěními.
-
-**Fáze 4** přidala reakce — čipy pod bublinami s emoji a počtem, dlouhý stisk otevře výběr
-z nabídky, kterou dává TDLib pro daný chat. Vlastní reakce se odliší tvarem i barvou naráz
-(zaoblení se stáhne z kapsle do měkkého obdélníku) přes `MaterialTheme.motionScheme`.
-U reakcí s pár lidmi se místo čísla ukážou jejich profilovky; nad stropem se čip sbalí na počet.
-
-Hotové obrazovky: přihlášení (telefon → kód → 2FA, plus QR), seznam chatů, konverzace,
-Nastavení s účtem a odhlášením.
-
-**Fáze 5** přidala odpovědi — dlouhý stisk nabídne „Odpovědět", citace se ukáže nad vstupním
-polem i v bublině odpovědi.
-
-**Fáze 7** doladila odesílání: zpráva se zobrazí okamžitě, se stavem doručení (hodiny → fajfka →
-dvojitá fajfka) a s automatickým odrolováním. Příchozí zprávy scrollují jen když jsi dole, jinak
-se objeví odznak s počtem čekajících.
-
-**Fáze 6** přidala notifikace o nových zprávách (viz níž — část vyžaduje tvoje účty), včetně
-vysvětlení před systémovým dialogem a řádku v Nastavení, kterým je lze kdykoliv zapnout zpět.
-
-**Notifikace vedou do konkrétního chatu** — ťuknutí otevře konverzaci, ať aplikace běží, nebo
-se startuje od nuly.
-
-**Emoji a samolepky:** zpráva jen z emoji se kreslí velká a bez bubliny, samolepky se vykreslují
-jako obrázek (animované zatím jako nehybný náhled).
-
-**Seznam chatů je seskupený** do bloků se společným zaoblením (připnuté, nepřečtené, ostatní),
+**Seznam chatů** je seskupený do bloků se společným zaoblením (připnuté, nepřečtené, ostatní),
 jak to dělá M3 Expressive místo karet per položku. U položky je čas poslední zprávy, ztlumení,
-zelená tečka u online protějšku a živé „píše…"; v hlavičce konverzace „naposledy viděn".
-Dlouhý stisk nabídne akce: připnout, ztlumit, označit jako nepřečtené, smazat nebo opustit.
+zelená tečka u online protějšku a živé „píše…"; dlouhý stisk nabídne připnout, ztlumit, označit
+jako nepřečtené, smazat nebo opustit. Když spojení nestojí, řekne to hlavička místo názvu sekce.
 
-**Ostatní typy zpráv** (ankety, polohy, kontakty, video kolečka, platby) se zatím nevykreslují,
-ale mají popis; systémová oznámení se kreslí na střed jako v běžném klientovi.
+**Notifikace** na Androidu vedou do konkrétního chatu, ať aplikace běží, nebo se startuje od nuly
+(nastavení účtů viz níž). Release build je minifikovaný a hlásí pády do Crashlytics.
 
-**Není hotové:** přehrávání videa a zvuku, otevírání dokumentů, editace, skok na první
-nepřečtenou zprávu, animované samolepky (.tgs/.webm), interakce s anketami a polohami,
-notifikace na iOS, perzistence nastavení.
+**Co ještě není:** archiv, hledání, profil chatu a nová konverzace nemají obrazovku; `.webm`
+samolepky zůstávají statické a ankety, polohy nebo video kolečka se zatím jen popisují textem.
+Úplný seznam se vede v roadmapách, ne tady: [docs/roadmap.md](docs/roadmap.md) přes celou
+aplikaci, [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md) pro detail chatu.
 
 ## Rozjetí
 
@@ -279,6 +247,10 @@ Z [Telegram API ToS](https://core.telegram.org/api/terms) — tohle shodí revie
 ## Dokumentace
 
 Architektura, konvence a pasti jsou v [CLAUDE.md](CLAUDE.md).
+
+Co zbývá udělat, se vede ve dvou živých dokumentech — v README ani v CLAUDE.md ten seznam
+není, aby se nerozešly: [docs/roadmap.md](docs/roadmap.md) přes celou aplikaci,
+[docs/roadmap-konverzace.md](docs/roadmap-konverzace.md) pro detail chatu.
 
 ## Licence
 
