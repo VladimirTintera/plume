@@ -20,7 +20,7 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
 
 0. **Přestavba seznamu zpráv na bloky**, které se samy vykreslí — cíl a postup
    v [architektura-konverzace.md](architektura-konverzace.md). ~~Krok 1: builder a bloky seznamu~~
-   — hotovo. Zbývá rozpad `MessageBubble` na bloky podle obsahu, akce jako data (`MessageAction`)
+   a ~~krok 2: rozpad `MessageBubble` na bloky podle obsahu~~ — hotovo. Zbývá akce jako data (`MessageAction`)
    a náhled odkazu jako vlastní blok. Nové druhy zpráv a rozvržení stavět až na tom.
 1. **Přílohy.** Telegram víc příloh v jedné zprávě nenese — album je skupina samostatných zpráv
    se stejným `mediaAlbumId` (viz `CLAUDE.md`, „Alba"). Po krocích:
@@ -156,7 +156,7 @@ Co z toho zůstalo:
 ## A) Odpověď swipem — HOTOVO
 
 Tažení zprávy doprava otevře odpověď; vlevo od bubliny se přitom odkrývá šipka. Poučení je
-v `CLAUDE.md`, sekce „Odpověď swipem". Kód je v `MessageBubble` v `ConversationScreen.kt`.
+v `CLAUDE.md`, sekce „Odpověď swipem". Kód je v `MessageFrame` (`items/MessageFrame.kt`).
 
 Co zůstalo otevřené:
 

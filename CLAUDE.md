@@ -601,6 +601,19 @@ a postup přestavby: [docs/architektura-konverzace.md](docs/architektura-konverz
   `ConversationItemScope`, a to jako funkce čtené až v UI, které je kreslí.
 - **`Content` je nad `LazyItemScope`**, takže si blok sám volí `animateItem` — cíl letu odeslané
   zprávy se nesmí zjevovat prolnutím, sponzorovaná karta se neanimuje vůbec.
+- **Zprávy sdílejí rám, obsah si kreslí samy.** `MessageItem` implementuje `Content` jednou
+  přes `MessageFrame` (tvář, tah na odpověď, zvýraznění, reakce, doručení, kotva nabídky)
+  a blok dodá jen `Body`. Druhy: `BubbleMessageItem`, `LargeEmojiMessageItem`,
+  `StickerMessageItem`, `MediaMessageItem`, `LinkPreviewMessageItem` (`features/conversation/items/`).
+- **Bublina není příznak rámu, ale sdílený kus** (`MessageBodyScope.Bubble`). Rám kreslí jen
+  průhlednou plochu s ořezem a klikáním ve tvaru bubliny — ten potřebuje i nabídka pro díru
+  v závoji —, pozadí přidá `Body`, když ho chce. Bez bubliny rám obsahu výslovně podá
+  `onSurface`: barva popředí musí patřit ploše, ne bublině, která tam není.
+- **Nový druh zprávy = nová třída + jedna větev v `messageItem()`.** Nic dalšího se nemění; kdyby
+  bylo potřeba sáhnout do rámu nebo do jiného bloku, je to znamení, že to do rámu nepatří.
+- **Detektor gesta čte id zprávy přes `rememberUpdatedState`.** Vzniká jednou za život položky,
+  ale odeslaná zpráva po potvrzení změní id (klíč položky ne); odpověď swipem by jinak mířila
+  na dočasné id, které už neexistuje.
 - **Servisní oznámení přerušuje blok z OBOU stran** (`continues`). Dřív se hlídala jen novější
   zpráva, takže bublina pod oznámením měla stažené nároží, jako by na něj navazovala. Našel to
   až test nad builderem — v kompozici to nikdo neověřoval.
@@ -662,7 +675,7 @@ Messages.
 
 Náhled s **velkým obrázkem** se kreslí jako skupina na ploše: text zprávy v kontejneru, pod ním
 snímek a pod ním doplňkový text (web, titulek, popis) ve vlastním kontejneru (`showsBareLinkPreview`
-v `MessageRows.kt`, `BareLinkPreview` v `ConversationScreen.kt`). Je to tentýž jazyk jako u fotky
+v `MessageRows.kt`, blok `LinkPreviewMessageItem`, kreslení `BareLinkPreview` v `items/LinkPreviews.kt`). Je to tentýž jazyk jako u fotky
 s popiskem — obrázek je obrázek, text potřebuje pozadí.
 
 - **Šířku určuje obrázek.** Text i popis se na ni natáhnou (`Modifier.width(frame.width)` na
