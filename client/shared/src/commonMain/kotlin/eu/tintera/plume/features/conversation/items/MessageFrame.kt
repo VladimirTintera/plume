@@ -548,6 +548,7 @@ private fun MessageFrame(
                         delivery = frame.delivery,
                         visibleBounds = visibleBounds,
                         snapshot = snapshot,
+                        contentTop = scope.contentTop(),
                     )
                 }
             }

@@ -164,6 +164,12 @@ internal fun MessageMenuOverlay(
      * snímku vykrojí díra do závoje na místě zprávy.
      */
     snapshot: ImageBitmap?,
+    /**
+     * Horní hrana obsahu obrazovky v souřadnicích okna, tedy spodek hlavičky chatu. Výš nabídka
+     * ani vysunutá zpráva nesmí: hlavička musí zůstat vidět, jinak se ztratí povědomí, s kým
+     * je chat otevřený. Tak to dělají i Google Zprávy. `null` = jen stavová lišta.
+     */
+    contentTop: Float?,
 ) {
     // Položky jsou kandidáti od bloku, kteří prošli právy od serveru — každá akce sama ví, jestli
     // se smí nabídnout a jak vypadá (viz `MessageMenuAction.presentation`).
@@ -291,22 +297,37 @@ internal fun MessageMenuOverlay(
      */
     var popupHeight by remember { mutableIntStateOf(0) }
     val quickRowSpace = if (showQuickRow) QUICK_ROW_HEIGHT + MENU_GAP else 0.dp
+
+    // Nahoře končí nabídka pod hlavičkou chatu, ne pod stavovou lištou (viz `contentTop`).
+    val topLimit = with(density) {
+        val header = popupOrigin?.let { origin -> contentTop?.let { (it - origin.y).toDp() + MENU_GAP } }
+        maxOf(topInset + SCREEN_MARGIN, header ?: 0.dp)
+    }
+
+    /*
+     * Kam zpráva DOJEDE. Počítá se hned, ne až se snímkem — rozvržení nabídky se z ní odvozuje
+     * od prvního snímku, takže se o umístění pruhu reakcí rozhodne jednou. Dokud se počítalo
+     * z výchozí polohy a posun přišel až se snímkem, pruh se napřed nevešel nad zprávu, šel
+     * pod ni a o snímek později přeskočil nahoru.
+     */
     val liftTarget = whole
-        ?.takeIf { snapshot != null && popupHeight > 0 }
+        ?.takeIf { popupHeight > 0 }
         ?.let { bounds ->
             with(density) {
                 liftIntoView(
                     anchorTop = bounds.top.toDp(),
                     anchorHeight = bounds.height.toDp(),
                     screenHeight = popupHeight.toDp(),
-                    topMargin = topInset + SCREEN_MARGIN,
+                    topMargin = topLimit,
                     bottomMargin = bottomInset + SCREEN_MARGIN,
                     quickRowSpace = quickRowSpace,
                 ).toPx()
             }
         } ?: 0f
+
+    // Jede se až se snímkem: bez něj je zpráva jen díra v závoji a ta se posunout nedá.
     val lift by animateFloatAsState(
-        targetValue = liftTarget,
+        targetValue = if (snapshot != null) liftTarget else 0f,
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "menu-lift",
     )
@@ -351,9 +372,10 @@ internal fun MessageMenuOverlay(
                     }
                 },
         ) {
-            // Se snímkem se nabídka řídí POSUNUTOU zprávou (a jede s ní), bez něj viditelnou částí.
-            val bubble = (if (snapshot != null) whole?.translate(0f, lift) else local)
-                ?: return@BoxWithConstraints
+            // Rozvržení podle CÍLOVÉ polohy zprávy; pruh i nabídka k ní dojedou spolu se zprávou
+            // (`travel`), takže se jejich umístění během animace nemění.
+            val bubble = whole?.translate(0f, liftTarget) ?: return@BoxWithConstraints
+            val travel = with(density) { (lift - liftTarget).toDp() }
 
             val anchorTop = with(density) { bubble.top.toDp() }
             val anchorBottom = with(density) { bubble.bottom.toDp() }
@@ -366,7 +388,7 @@ internal fun MessageMenuOverlay(
                 quickRowHeight = if (showQuickRow) QUICK_ROW_HEIGHT else 0.dp,
                 menuHeight = menuHeight,
                 screenHeight = maxHeight,
-                topMargin = topInset + SCREEN_MARGIN,
+                topMargin = topLimit,
                 bottomMargin = bottomInset + SCREEN_MARGIN,
             )
 
@@ -383,7 +405,7 @@ internal fun MessageMenuOverlay(
             val sheet = reactionSheetLayout(
                 anchorTop = anchorTop,
                 screenHeight = maxHeight,
-                topMargin = topInset + SCREEN_MARGIN,
+                topMargin = topLimit,
             )
 
             if (showQuickRow) {
@@ -402,7 +424,7 @@ internal fun MessageMenuOverlay(
                         // Pruh je široký, takže se zarovnává ke KRAJI obrazovky podle strany
                         // bubliny — na zprávu samotnou by se stejně nevešel.
                         .align(if (menu.isOutgoing) Alignment.TopEnd else Alignment.TopStart)
-                        .offset(y = quickY)
+                        .offset(y = quickY + travel)
                         .padding(horizontal = SCREEN_MARGIN)
                         .scale(scale)
                         .alpha(alpha),
@@ -422,7 +444,7 @@ internal fun MessageMenuOverlay(
                                 isOutgoing = menu.isOutgoing,
                                 screenWidth = maxWidth,
                             ),
-                            y = layout.menuY,
+                            y = layout.menuY + travel,
                         )
                         .scale(scale)
                         .alpha(alpha),

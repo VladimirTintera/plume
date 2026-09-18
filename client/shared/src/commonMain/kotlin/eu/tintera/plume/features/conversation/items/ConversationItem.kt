@@ -62,6 +62,12 @@ internal interface ConversationItemScope {
     fun voicePlayback(messageId: Long): VoicePlayback?
     fun documentProgress(fileId: Int): Float?
 
+    /**
+     * Horní hrana seznamu v souřadnicích okna — spodek hlavičky chatu. Nabídka nad zprávou nad ni
+     * nesmí, aby hlavička zůstala vidět. `null`, dokud není změřená.
+     */
+    fun contentTop(): Float?
+
     /** Jediná cesta akcí ze zprávy ven (viz [MessageAction]). */
     fun onAction(messageId: Long, action: MessageAction)
 

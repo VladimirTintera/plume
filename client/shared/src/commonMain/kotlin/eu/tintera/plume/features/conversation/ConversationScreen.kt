@@ -84,6 +84,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -314,12 +316,16 @@ fun ConversationScreen(
      */
     var pinnedHeight by remember { mutableStateOf(0.dp) }
 
+    /** Horní hrana seznamu (spodek hlavičky) v okně; nabídka nad zprávou nad ni nesmí. */
+    val contentTop = remember { mutableStateOf<Float?>(null) }
+
     val currentOnOpenMedia by rememberUpdatedState(onOpenMedia)
     val itemScope = remember(viewModel) {
         ScreenItemScope(
             viewModel = viewModel,
             state = stateHolder,
             voicePlayback = voicePlayback,
+            contentTop = contentTop,
             timeReveal = { timeReveal.value },
             onOpenMedia = { currentOnOpenMedia(it) },
             onOpenStickerSet = { openStickerSetId = it },
@@ -719,7 +725,8 @@ fun ConversationScreen(
                     top = padding.calculateTopPadding(),
                     start = padding.calculateStartPadding(layoutDirection),
                     end = padding.calculateEndPadding(layoutDirection),
-                ),
+                )
+                .onGloballyPositioned { contentTop.value = it.boundsInWindow().top },
         ) {
             when {
                 state.messages.isEmpty() && state.loading ->
@@ -1430,6 +1437,7 @@ private class ScreenItemScope(
     private val viewModel: ConversationViewModel,
     private val state: State<ConversationState>,
     private val voicePlayback: State<VoicePlayback?>,
+    private val contentTop: State<Float?>,
     override val timeReveal: () -> Float,
     private val onOpenMedia: (messageId: Long) -> Unit,
     private val onOpenStickerSet: (setId: Long) -> Unit,
@@ -1438,6 +1446,8 @@ private class ScreenItemScope(
         voicePlayback.value?.takeIf { it.key.messageId == messageId }
 
     override fun documentProgress(fileId: Int): Float? = state.value.documentDownloads[fileId]
+
+    override fun contentTop(): Float? = contentTop.value
 
     /** Navigace a sheet nad obrazovkou jsou věc obrazovky; všechno ostatní jde do ViewModelu. */
     override fun onAction(messageId: Long, action: MessageAction) = when (action) {
