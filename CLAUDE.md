@@ -1007,6 +1007,8 @@ se ukáže i bez nových zpráv, jakmile je uživatel o kus výš.
   by změnu nesla špatně a u příchozí by to vypadalo jako změna stavu zprávy.
 - **Citace si opakuje dlouhý stisk.** Má vlastní klikání, takže by stisk k bublině nepustila
   a nad citací by nešla otevřít nabídka — stejná past jako u fotky.
+- **Tlačítko dolů je uprostřed** (`FabPosition.Center`). Vpravo viselo přímo nad tlačítkem
+  odeslání a mikrofonu a ťuknutí o kousek vedle spustilo místo skoku dolů nahrávání.
 - **Tlačítko dolů je kruh, s počtem pilulka.** Mezera před počtem je v obsahu, ne ve `spacedBy`:
   skrytý `AnimatedVisibility` je pořád potomek a rozestup by kruh nafoukl.
 - **Ukáže se až o pár položek výš** (`SCROLL_DOWN_THRESHOLD_ITEMS`), ne při prvním pixelu —
@@ -1216,6 +1218,12 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   a měřilo se ručně. Jako `bottomBar` ho ale měří Scaffold (i s citací, úpravou, víc řádky
   a klávesnicí) a podle něj sám staví snackbar a tlačítko dolů (FAB slot). Ruční měření na
   třech místech tím odpadlo a snackbar přestal pole překrývat.
+- **Změna funkce odesílacího tlačítka se animuje** (mikrofon ↔ odeslat ↔ fajfka): tvar přeletí
+  z kruhu přes „sušenku" z `MaterialShapes` zpátky do kruhu a ikona se vymění zvětšením.
+  Tlačítko se mění samo od sebe (začne se psát, pole se vyprázdní) a skoková výměna ikony se dala
+  přehlédnout. Tvar (`SendButtonMorphShape`) je nový objekt pro každou hodnotu průběhu — Compose
+  si obrys drží podle instance, takže tvar čtoucí průběh sám by se nepřekreslil. Mimo přechod
+  zůstává stisk podle M3 Expressive.
 - **Odesílací tlačítko je velikost medium (56 dp).** Je to přesně minimální výška jednořádkového
   `TextField`, takže se spodním zarovnáním řádku sedí na střed pole bez dopočítávaného odsazení
   a u víceřádkového textu zůstává u posledního řádku. Výchozí small (40 dp) sedělo o 8 dp níž
