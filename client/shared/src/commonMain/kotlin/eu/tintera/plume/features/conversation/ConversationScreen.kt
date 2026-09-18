@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
@@ -46,6 +47,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.material3.IconButtonShapes
+import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -666,6 +671,9 @@ fun ConversationScreen(
             }
         },
         // Tlačítko dolů ve FAB slotu: Scaffold ho drží nad polem a snackbar pak nad ním.
+        // Uprostřed, ne vpravo: vpravo by viselo přímo nad tlačítkem odeslání a mikrofonu
+        // a ťuknutí o kousek vedle by místo skoku dolů spustilo nahrávání.
+        floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
             ScrollToBottomButton(
                 visible = farFromBottom || pendingNewMessages > 0,
@@ -1177,7 +1185,8 @@ private fun MessageInput(
              * Je to hlavní akce obrazovky, takže větší plocha dává smysl i sama o sobě. Large
              * (96 dp) by už bylo vyšší než pole a přebíjelo by psaní.
              *
-             * Tvar se při stisku mění podle M3 Expressive (`shapes`), kruh → zaoblený čtverec.
+             * Tvar nese stav: mikrofon je „sušenka", odeslání kruh (`SendButtonMorphShape`);
+             * kruh se při stisku mění podle M3 Expressive na zaoblený čtverec.
              */
             /*
              * Prázdné pole bez příloh = mikrofon (jako v Telegramu i WhatsAppu): tlačítko, které by
@@ -1185,6 +1194,53 @@ private fun MessageInput(
              * Při úpravě zprávy mikrofon není — hlasovka úprava není.
              */
             val showMic = !isRecording && editing == null && draft.text.isBlank() && !withAttachments
+            val kind = when {
+                editing != null -> SendButtonKind.Save
+                showMic -> SendButtonKind.Mic
+                else -> SendButtonKind.Send
+            }
+
+            /*
+             * Tvar nese stav: mikrofon (klidový stav prázdného pole) je „sušenka" z M3 Expressive,
+             * odeslání a uložení úpravy kruh. Změna se animuje morfem mezi nimi a ikona se vymění
+             * zvětšením. Tlačítko se mění samo od sebe (začne se psát, pole se vyprázdní) a skoková
+             * výměna ikony se dala přehlédnout — a ťuknout pak na mikrofon místo odeslání.
+             * Stav se tak pozná i bez ikony a barvy, třeba koutkem oka nebo na slunci.
+             */
+            val morph = remember { Animatable(if (kind == SendButtonKind.Mic) 1f else 0f) }
+            val morphSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+            LaunchedEffect(kind) {
+                morph.animateTo(if (kind == SendButtonKind.Mic) 1f else 0f, morphSpec)
+            }
+            // Pružina přestřelí za oba konce; mimo 0..1 by se tvar zdeformoval.
+            val morphProgress = morph.value.coerceIn(0f, 1f)
+
+            /*
+             * Barva říká, jak silná akce to je. Mikrofon je klidový stav prázdného pole, takže
+             * tonální; odeslání i uložení úpravy jsou hlavní akce obrazovky, takže plná `primary`
+             * (jako odchozí bublina). Tlačítko tak „ožije", jakmile je co poslat. Víc barev by
+             * z něj udělalo semafor — barva by přestala znamenat důležitost.
+             */
+            val colorSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Color>()
+            val containerColor by animateColorAsState(
+                targetValue = if (kind == SendButtonKind.Mic) {
+                    MaterialTheme.colorScheme.secondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+                animationSpec = colorSpec,
+                label = "send-button-container",
+            )
+            val contentColor by animateColorAsState(
+                targetValue = if (kind == SendButtonKind.Mic) {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onPrimary
+                },
+                animationSpec = colorSpec,
+                label = "send-button-content",
+            )
+
             FilledIconButton(
                 onClick = {
                     when {
@@ -1198,35 +1254,61 @@ private fun MessageInput(
                 },
                 // Přílohy jdou poslat i bez popisku.
                 enabled = isRecording || showMic || draft.text.isNotBlank() || withAttachments,
-                shapes = IconButtonDefaults.shapes(
-                    shape = IconButtonDefaults.mediumRoundShape,
-                    pressedShape = IconButtonDefaults.mediumPressedShape,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = containerColor,
+                    contentColor = contentColor,
                 ),
+                // Kruh (odeslání) se při stisku mění podle M3 Expressive na zaoblený čtverec.
+                // Sušenka a tvary během přechodu stisk nemění: mezi obecnými tvary IconButton
+                // neanimuje a skok by vypadal jako chyba.
+                shapes = if (morphProgress > 0f) {
+                    val shape = SendButtonMorphShape(morphProgress)
+                    IconButtonShapes(shape = shape, pressedShape = shape)
+                } else {
+                    IconButtonDefaults.shapes(
+                        shape = IconButtonDefaults.mediumRoundShape,
+                        pressedShape = IconButtonDefaults.mediumPressedShape,
+                    )
+                },
                 modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
             ) {
-                // Při úpravě fajfka: nic se neposílá, jen potvrzuje změna.
-                Icon(
-                    painterResource(
-                        when {
-                            editing != null -> Res.drawable.check_24dp
-                            showMic -> Res.drawable.mic_24dp
-                            else -> Res.drawable.send_24dp
-                        },
-                    ),
-                    contentDescription = stringResource(
-                        when {
-                            editing != null -> Res.string.conversation_save_edit
-                            showMic -> Res.string.conversation_record_voice
-                            isRecording -> Res.string.conversation_send_voice
-                            else -> Res.string.conversation_send
-                        },
-                    ),
-                    modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
-                )
+                val iconScale = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+                val iconFade = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+                AnimatedContent(
+                    targetState = kind,
+                    transitionSpec = {
+                        (scaleIn(iconScale, initialScale = 0.4f) + fadeIn(iconFade))
+                            .togetherWith(scaleOut(iconScale, targetScale = 0.4f) + fadeOut(iconFade))
+                    },
+                    label = "send-button-icon",
+                ) { shown ->
+                    // Při úpravě fajfka: nic se neposílá, jen potvrzuje změna.
+                    Icon(
+                        painterResource(
+                            when (shown) {
+                                SendButtonKind.Save -> Res.drawable.check_24dp
+                                SendButtonKind.Mic -> Res.drawable.mic_24dp
+                                SendButtonKind.Send -> Res.drawable.send_24dp
+                            },
+                        ),
+                        contentDescription = stringResource(
+                            when {
+                                shown == SendButtonKind.Save -> Res.string.conversation_save_edit
+                                shown == SendButtonKind.Mic -> Res.string.conversation_record_voice
+                                isRecording -> Res.string.conversation_send_voice
+                                else -> Res.string.conversation_send
+                            },
+                        ),
+                        modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
+                    )
+                }
             }
         }
     }
 }
+
+/** Co tlačítko u vstupního pole právě dělá. Změna mezi nimi se animuje. */
+private enum class SendButtonKind { Mic, Send, Save }
 
 /**
  * Připnuté zprávy pod hlavičkou.
