@@ -74,7 +74,7 @@ internal interface ConversationItemScope {
      * Funkce, ne hodnota: po otevření nabídky se schová klávesnice, seznam se posune a nabídka
      * musí sledovat, kde zpráva je TEĎ.
      */
-    fun onMenuAnchor(bounds: () -> Rect?)
+    fun onMenuAnchor(anchor: MenuAnchor)
 
     /**
      * Je zpráva s tímhle klíčem právě v nabídce (otevřené, nebo se z ní vrací)? Pak ji kreslí
@@ -176,3 +176,14 @@ internal data object LoadingOlderItem : ConversationItem {
 }
 
 internal const val SPONSORED_KEY_PREFIX = "sponsored-"
+
+/**
+ * Odkud nabídka nad zprávou vyjede a jak zprávu v kopii složit.
+ *
+ * - [bounds]: kde zpráva v okně je. Funkce, ne hodnota — nabídka ji čte každý snímek (viz
+ *   [ConversationItemScope.onMenuAnchor]).
+ * - [maxWidth]: nejvyšší šířka (px), kterou zpráva dostala v seznamu. Kopie v nabídce se musí
+ *   složit se STEJNÝM omezením: obsah, který se řídí dostupnou šířkou (fotka s popiskem má
+ *   podlahu 75 %), by jinak vyšel jinak — v nabídce užší a po návratu by skokem dorostl.
+ */
+class MenuAnchor(val bounds: () -> Rect?, val maxWidth: () -> Int?)

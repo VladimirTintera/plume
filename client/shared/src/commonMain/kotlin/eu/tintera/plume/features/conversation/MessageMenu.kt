@@ -87,6 +87,7 @@ import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.features.conversation.items.ConversationItemScope
 import eu.tintera.plume.features.conversation.items.Delivery
 import eu.tintera.plume.features.conversation.items.MenuCopy
+import eu.tintera.plume.features.conversation.items.MenuAnchor
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageItem
 import eu.tintera.plume.resources.Res
@@ -145,7 +146,7 @@ internal fun MessageMenuLayer(
     /** Blok zprávy, nad kterou je nabídka otevřená. */
     item: MessageItem?,
     /** Kde zpráva v okně právě je — odtud vyjede a sem se vrátí. Čte se každý snímek. */
-    anchor: () -> Rect?,
+    anchor: MenuAnchor,
     /** Spodek hlavičky chatu v souřadnicích okna. Výš nabídka nesmí. */
     contentTop: Float?,
     /**
@@ -173,10 +174,12 @@ internal fun MessageMenuLayer(
      * posune a zpráva s ním. Nabídka tak vyjede i dosedne tam, kde zpráva doopravdy je.
      */
     // Klíč `messageId`: další nabídka nesmí ani na snímek použít polohu předchozí zprávy.
-    var anchorRect by remember(menu?.messageId) { mutableStateOf(anchor()) }
+    var anchorRect by remember(menu?.messageId) { mutableStateOf(anchor.bounds()) }
+    // Šířka, se kterou se zpráva skládala v seznamu; kopie se složí stejně (viz `MenuAnchor`).
+    val copyMaxWidth = remember(menu?.messageId) { anchor.maxWidth() }
     LaunchedEffect(menu?.messageId, anchor) {
         while (true) {
-            anchor()?.let { if (it != anchorRect) anchorRect = it }
+            anchor.bounds()?.let { if (it != anchorRect) anchorRect = it }
             withFrameNanos { }
         }
     }
@@ -366,7 +369,21 @@ internal fun MessageMenuLayer(
                         // Stejná šířka jako v seznamu: obsah se zalomí stejně a návrat skončí bez
                         // skoku. Posun i zmenšení se čtou až v layoutu a při kreslení.
                         modifier = Modifier
-                            .width(anchorWidth)
+                            .layout { measurable, constraints ->
+                                /*
+                                 * Stejné omezení šířky jako v seznamu, ne šířka zprávy napevno.
+                                 * S šířkou zprávy jako stropem vyšlo všechno, co se řídí dostupnou
+                                 * šířkou, jinak — fotka s popiskem (podlaha 75 %) se v nabídce
+                                 * zúžila a po návratu skokem dorostla.
+                                 */
+                                val width = anchorRect.width.roundToInt()
+                                val placeable = measurable.measure(
+                                    constraints.copy(minWidth = 0, maxWidth = copyMaxWidth ?: width),
+                                )
+                                layout(width, placeable.height) {
+                                    placeable.place(if (shown.menu.isOutgoing) width - placeable.width else 0, 0)
+                                }
+                            }
                             .wrapContentHeight(align = Alignment.Top, unbounded = true)
                             .graphicsLayer {
                                 val current = scale()
@@ -834,7 +851,7 @@ internal fun placeMenuMessage(
 }
 
 /** Svislé umístění obou kusů. */
-private data class MenuLayout(val quickY: Dp, val menuY: Dp)
+internal data class MenuLayout(val quickY: Dp, val menuY: Dp)
 
 /**
  * Kam přijde pruh reakcí a kam nabídka.
@@ -844,7 +861,7 @@ private data class MenuLayout(val quickY: Dp, val menuY: Dp)
  * z měření, ale z konstant: obojí si kreslíme sami, takže je známe předem a ušetří se tím
  * snímek, ve kterém by nabídka poskočila na správné místo.
  */
-private fun placeMenu(
+internal fun placeMenu(
     anchorTop: Dp,
     anchorBottom: Dp,
     quickRowHeight: Dp,
@@ -859,8 +876,10 @@ private fun placeMenu(
     var quickY = anchorTop - gap - quickRowHeight
     var menuY = anchorBottom + gap
 
-    // Nevejde se nad zprávu: oba kusy jdou pod ni.
-    if (quickY < topMargin) {
+    // Nevejde se nad zprávu: oba kusy jdou pod ni. Jen když pruh reakcí vůbec je — bez něj
+    // (chat bez reakcí) tahle větev nabídku posunula o mezeru níž, nabídka se pod vysokou zprávu
+    // přestala vejít, odskočila nad ni a ořízla se k horní mezi, tedy PŘES zprávu.
+    if (quickRowHeight > 0.dp && quickY < topMargin) {
         quickY = anchorBottom + gap
         menuY = quickY + quickRowHeight + gap
     }
