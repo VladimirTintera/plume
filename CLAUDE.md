@@ -1303,6 +1303,23 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   nad sheetem musí zůstat vidět. Bez napůl rozbaleného stavu a s mřížkou pevné výšky, jako výběr
   samolepek. Ve starém sheetu nešlo ťuknout na emoji (podezřelý byl `FlowRow` bez scrollování
   a napůl rozbalený stav); tady ťuknutí funguje, ověřeno na zařízení.
+- **Závoj rozostřuje, neztmavuje** (Haze, `hazeSource` na Scaffoldu konverzace, `hazeEffect`
+  na závoji). Compose sám umí rozostřit jen VLASTNÍ obsah (`Modifier.blur`, i s přechodem od
+  1.13); rozostřit to, co leží POD vrstvou, umí Android až od 17 QPR2
+  (`RenderNode.setBackdropRenderEffect`). Haze obsah pod vrstvou zaznamená do vlastní grafické
+  vrstvy a vykreslí rozostřený, na Androidu 12+ i na iOS. **Jde to jen proto, že je nabídka
+  ve stejném okně** — z `Popup` (vlastní okno) by Haze na Scaffold nedosáhl.
+- **Poloměr 12 dp, ne výchozích 20–24.** Při 24 dp je z konverzace kaše a nepozná se ani
+  hlavička, a ta má zůstat rozpoznatelná (viz horní mez nabídky). Rozostření odsouvá do pozadí
+  samo, takže ztmavení kleslo ze 45 % na 20 %. **Kde rozostření není (Android 11 a starší),
+  kreslí Haze `fallbackTint`**, a ten je nastavený na dřívější závoj — o nic se nepřijde.
+- **Závoj se objevuje průhledností (`alpha` Haze), poloměr se neanimuje.** Změna poloměru
+  znamená nový `RenderEffect` v každém snímku; prolnutí ostrého a rozostřeného obrazu
+  vypadá skoro stejně a nic nestojí.
+- **Haze je 1.x, ne 2.0.** Dvojka chce Kotlin 2.4.20 (projekt má 2.4.10), 1.7.3 přesně
+  Compose 1.12 — před bumpem zkontrolovat `kotlin-stdlib` a `compose.ui` v `.module` na Maven
+  Central, stejná podmínka jako u TDLib wrapperu. Neimportuje se `haze-materials`: styl je
+  pár řádků (`scrimStyle`) a modul by táhl material3 v jiné verzi.
 - **Nabídka akcí před sheetem NEMIZÍ.** Sheet ji jen překryje a klikat se na ni nedá, protože je
   modální; je to pořád táž otevřená nabídka. Dřív se schovávala (`if (!expanded)`), zmizela
   natvrdo a po zasunutí sheetu bleskově naskočila.

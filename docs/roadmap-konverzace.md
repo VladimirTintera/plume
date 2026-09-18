@@ -185,6 +185,11 @@ přibude s tím, co bude umět:
   seznamem zhlédnutí a odkazem ke zkopírování. Poučení v `CLAUDE.md`, „Informace o zprávě".
   Zbývá jen `getMessageStatistics` u příspěvků v kanálech — jiná data a vlastní obrazovka.
 
+**Rozostřený závoj** (Haze) je zatím jen pod nabídkou nad zprávou. Kandidáti na totéž:
+průsvitný pruh pod vstupním polem, pruh připnutých zpráv a plovoucí datum — plochy, pod které
+zajíždí obsah. Otevřené: respektovat systémové „omezit rozostření" (Android 16 QPR; jak se
+aplikaci hlásí, zatím nevíme) a změřit plynulost na slabším zařízení s Androidem 12.
+
 ## C) Entity v textu (odkazy) — HOTOVO
 
 Odkazy, tučné, kurzíva, podtržení, přeškrtnutí, kód a spoiler se vykreslují a odkaz se dá

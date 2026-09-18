@@ -99,6 +99,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.audio.rememberRecordPermission
@@ -527,9 +529,11 @@ fun ConversationScreen(
     }
 
     // Nabídka nad zprávou je vrstva NAD Scaffoldem (viz `MessageMenuLayer`), proto obal.
+    // Scaffold je zároveň to, co její závoj rozostří (`hazeSource`).
+    val hazeState = rememberHazeState()
     Box(modifier) {
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().hazeSource(hazeState),
         /*
          * Spodní inset si řeší vstupní pole samo (`navigationBarsPadding` + `imePadding`).
          *
@@ -882,6 +886,7 @@ fun ConversationScreen(
         contentTop = contentTop.value,
         contentBottom = contentBottom.value,
         itemScope = itemScope,
+        hazeState = hazeState,
         onShownChange = { menuKey.value = it },
     )
     }

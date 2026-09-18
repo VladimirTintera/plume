@@ -3,7 +3,6 @@ package eu.tintera.plume.features.conversation
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -73,6 +72,10 @@ import androidx.compose.ui.unit.sp
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.features.conversation.items.ConversationItemScope
@@ -145,6 +148,8 @@ internal fun MessageMenuLayer(
      */
     contentBottom: Float?,
     itemScope: ConversationItemScope,
+    /** Obsah pod vrstvou (Scaffold konverzace), který závoj rozostří. */
+    hazeState: HazeState,
     /** Hlásí klíč zprávy, kterou nabídka právě kreslí (i při návratu); `null`, když žádnou. */
     onShownChange: (Long?) -> Unit,
     modifier: Modifier = Modifier,
@@ -193,11 +198,11 @@ internal fun MessageMenuLayer(
             .onGloballyPositioned { origin = it.positionInWindow() },
     ) {
         // Závoj. Ťuknutí mimo nabídku ji zavírá; při zavírání už nic nechytá.
+        val scrimStyle = scrimStyle()
         Box(
             Modifier
                 .fillMaxSize()
-                .graphicsLayer { alpha = scrimAlpha }
-                .background(scrimColor)
+                .hazeEffect(hazeState, scrimStyle) { alpha = scrimAlpha }
                 .then(if (open) Modifier.pointerInput(Unit) { detectTapGestures { close() } } else Modifier),
         )
 
@@ -868,8 +873,27 @@ private fun menuX(anchorLeft: Dp, anchorRight: Dp, isOutgoing: Boolean, screenWi
     )
 }
 
-/** Jak moc ztmavne zbytek obrazovky. Dost na odsunutí do pozadí, ne na zakrytí. */
-private val scrimColor = Color.Black.copy(alpha = 0.45f)
+/**
+ * Závoj: konverzace pod nabídkou se rozostří a lehce ztmavne. Ztmavení je slabší než dřív, kdy
+ * bylo to jediné, co zprávu od pozadí oddělovalo — rozostření odsouvá do pozadí samo.
+ */
+@Composable
+private fun scrimStyle(): HazeStyle {
+    val scrim = MaterialTheme.colorScheme.scrim
+    return remember(scrim) {
+        HazeStyle(
+            tint = HazeTint(scrim.copy(alpha = SCRIM_TINT_ALPHA)),
+            blurRadius = SCRIM_BLUR_RADIUS,
+            noiseFactor = 0f,
+            // Kde rozostření není (Android 11 a starší), zůstává dřívější závoj.
+            fallbackTint = HazeTint(scrim.copy(alpha = SCRIM_FALLBACK_ALPHA)),
+        )
+    }
+}
+
+private val SCRIM_BLUR_RADIUS = 12.dp
+private const val SCRIM_TINT_ALPHA = 0.2f
+private const val SCRIM_FALLBACK_ALPHA = 0.45f
 
 private val MENU_GAP = 8.dp
 
