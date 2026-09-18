@@ -15,6 +15,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
+import eu.tintera.plume.core.ui.MorphShape
+import eu.tintera.plume.core.ui.ShapeMorphs
+import eu.tintera.plume.core.ui.animateMorph
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -77,9 +80,13 @@ fun VoiceNoteContent(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        // Tvar nese stav jako tlačítko odeslání: připraveno / pozastaveno = sušenka, hraje (nebo se
+        // stahuje) = kruh. Mění se morfem, takže je start i zastavení vidět i koutkem oka.
+        val rest = animateMorph(current?.playing != true && current?.loading != true, "voice-button-shape")
         FilledIconButton(
             onClick = onToggle,
             colors = IconButtonDefaults.filledIconButtonColors(containerColor = accent, contentColor = onAccent),
+            shape = MorphShape(ShapeMorphs.Rest, rest, rotation = ShapeMorphs.REST_ROTATION),
             modifier = Modifier.size(VOICE_BUTTON_SIZE),
         ) {
             when {

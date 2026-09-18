@@ -58,6 +58,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.draw.drawBehind
+import eu.tintera.plume.core.ui.animateMorph
+import eu.tintera.plume.core.ui.ShapeMorphs
+import eu.tintera.plume.core.ui.MorphShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -707,13 +713,31 @@ internal class StickerCells(
 @OptIn(ExperimentalFoundationApi::class)
 internal fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Modifier = Modifier) {
     val active = sticker.id == cells.activeStickerId
+    val highlight = animateMorph(active, "sticker-highlight")
+    val highlightColor = MaterialTheme.colorScheme.surfaceContainerHighest
 
     Box(
         modifier
             .size(STICKER_CELL)
+            /*
+             * Podbarvení nese potvrzení podržení i u statické samolepky, která se rozhýbat nemá
+             * jak. Rozvine se z malého kruhu do dvanáctistranné „sušenky" (`ShapeMorphs.Highlight`)
+             * a zase se do něj stáhne — hravé „tuhle si prohlížíš", u samolepek hravost sedí.
+             * Kreslí se až při kreslení, takže průběh nic nerekomponuje.
+             */
+            .drawBehind {
+                val progress = highlight.coerceIn(0f, 1f)
+                if (progress <= 0f) return@drawBehind
+                val grow = HIGHLIGHT_START_SCALE + (1f - HIGHLIGHT_START_SCALE) * progress
+                scale(grow) {
+                    drawOutline(
+                        MorphShape(ShapeMorphs.Highlight, progress, rotation = HIGHLIGHT_ROTATION)
+                            .createOutline(size, layoutDirection, this),
+                        highlightColor.copy(alpha = progress),
+                    )
+                }
+            }
             .clip(RoundedCornerShape(12.dp))
-            // Podbarvení nese potvrzení podržení i u statické samolepky, která se rozhýbat nemá jak.
-            .background(if (active) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent)
             .combinedClickable(
                 onClick = { cells.onPick(sticker) },
                 // Podržení samolepku neposílá — jen ji rozhýbe. Po puštění `combinedClickable`
@@ -743,6 +767,12 @@ internal fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Mo
         }
     }
 }
+
+/** Z jak malého kruhu se podbarvení podržené samolepky rozvine. */
+private const val HIGHLIGHT_START_SCALE = 0.5f
+
+/** Pootočení podbarvení při plném tvaru. */
+private const val HIGHLIGHT_ROTATION = 45f
 
 /**
  * Příchod, odchod a přeskupení samolepky v mřížce.

@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
+import eu.tintera.plume.core.ui.MorphShape
+import eu.tintera.plume.core.ui.ShapeMorphs
+import eu.tintera.plume.core.ui.animateMorph
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -261,6 +264,8 @@ internal fun VideoPage(
                 exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 modifier = Modifier.align(Alignment.Center),
             ) {
+                // Jako u hlasovky: pozastaveno / dohráno = sušenka, hraje = kruh.
+                val rest = animateMorph(!playing, "video-button-shape")
                 FilledIconButton(
                     onClick = {
                         if (playing) player.pause() else player.play()
@@ -270,6 +275,7 @@ internal fun VideoPage(
                         containerColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f),
                         contentColor = Color.White,
                     ),
+                    shape = MorphShape(ShapeMorphs.Rest, rest, rotation = ShapeMorphs.REST_ROTATION),
                     modifier = Modifier.size(IconButtonDefaults.largeContainerSize()),
                 ) {
                     Icon(

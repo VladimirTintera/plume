@@ -47,6 +47,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import eu.tintera.plume.core.ui.animateMorph
+import eu.tintera.plume.core.ui.ShapeMorphs
+import eu.tintera.plume.core.ui.MorphShape
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.material3.IconButtonShapes
@@ -1185,7 +1193,7 @@ private fun MessageInput(
              * Je to hlavní akce obrazovky, takže větší plocha dává smysl i sama o sobě. Large
              * (96 dp) by už bylo vyšší než pole a přebíjelo by psaní.
              *
-             * Tvar nese stav: mikrofon je „sušenka", odeslání kruh (`SendButtonMorphShape`);
+             * Tvar nese stav: mikrofon je „sušenka", odeslání kruh (`MorphShape`, `ShapeMorphs.Rest`);
              * kruh se při stisku mění podle M3 Expressive na zaoblený čtverec.
              */
             /*
@@ -1207,13 +1215,24 @@ private fun MessageInput(
              * výměna ikony se dala přehlédnout — a ťuknout pak na mikrofon místo odeslání.
              * Stav se tak pozná i bez ikony a barvy, třeba koutkem oka nebo na slunci.
              */
-            val morph = remember { Animatable(if (kind == SendButtonKind.Mic) 1f else 0f) }
-            val morphSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
-            LaunchedEffect(kind) {
-                morph.animateTo(if (kind == SendButtonKind.Mic) 1f else 0f, morphSpec)
-            }
             // Pružina přestřelí za oba konce; mimo 0..1 by se tvar zdeformoval.
-            val morphProgress = morph.value.coerceIn(0f, 1f)
+            val morphProgress = animateMorph(kind == SendButtonKind.Mic, "send-button-shape").coerceIn(0f, 1f)
+
+            /*
+             * Při nahrávání tlačítko DÝCHÁ: pomalý morf kruh ↔ SoftBurst. Tečka v pruhu nahrávání
+             * už nebliká — dva blikající prvky vedle sebe by byly šum — a živost nese tlačítko,
+             * kterým se nahrávání i odesílá.
+             */
+            val breathing = if (isRecording) {
+                rememberInfiniteTransition(label = "recording-breath").animateFloat(
+                    initialValue = 0f,
+                    targetValue = 1f,
+                    animationSpec = infiniteRepeatable(tween(RECORDING_BREATH_MS), RepeatMode.Reverse),
+                    label = "recording-breath-progress",
+                ).value
+            } else {
+                0f
+            }
 
             /*
              * Barva říká, jak silná akce to je. Mikrofon je klidový stav prázdného pole, takže
@@ -1261,8 +1280,11 @@ private fun MessageInput(
                 // Kruh (odeslání) se při stisku mění podle M3 Expressive na zaoblený čtverec.
                 // Sušenka a tvary během přechodu stisk nemění: mezi obecnými tvary IconButton
                 // neanimuje a skok by vypadal jako chyba.
-                shapes = if (morphProgress > 0f) {
-                    val shape = SendButtonMorphShape(morphProgress)
+                shapes = if (breathing > 0f) {
+                    val shape = MorphShape(ShapeMorphs.Live, breathing, rotation = RECORDING_BREATH_ROTATION)
+                    IconButtonShapes(shape = shape, pressedShape = shape)
+                } else if (morphProgress > 0f) {
+                    val shape = MorphShape(ShapeMorphs.Rest, morphProgress, rotation = ShapeMorphs.REST_ROTATION)
                     IconButtonShapes(shape = shape, pressedShape = shape)
                 } else {
                     IconButtonDefaults.shapes(
@@ -1306,6 +1328,12 @@ private fun MessageInput(
         }
     }
 }
+
+/** Půlperioda dýchání tlačítka při nahrávání. */
+private const val RECORDING_BREATH_MS = 900
+
+/** O kolik se tlačítko při nádechu pootočí. */
+private const val RECORDING_BREATH_ROTATION = 30f
 
 /** Co tlačítko u vstupního pole právě dělá. Změna mezi nimi se animuje. */
 private enum class SendButtonKind { Mic, Send, Save }
