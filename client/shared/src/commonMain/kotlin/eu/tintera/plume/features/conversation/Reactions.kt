@@ -1,8 +1,13 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +34,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -62,10 +68,37 @@ fun ReactionRow(
     onOpenDetails: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    if (reactions.isEmpty()) return
+    /*
+     * Čipy NABĚHNOU a odejdou zvětšením. Při odebrání poslední reakce se musí dál kreslit ta
+     * poslední, jinak by `AnimatedVisibility` dobíhala s prázdným řádkem (stejná past jako
+     * u odznaku doručení).
+     */
+    var shown by remember { mutableStateOf(reactions) }
+    if (reactions.isNotEmpty()) shown = reactions
+    val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+
+    AnimatedVisibility(
+        visible = reactions.isNotEmpty(),
+        modifier = modifier,
+        enter = scaleIn(spatial, initialScale = 0.4f) + fadeIn(effects),
+        exit = scaleOut(spatial, targetScale = 0.4f) + fadeOut(effects),
+        label = "reaction-row",
+    ) {
+        ReactionChips(shown, onOpenDetails)
+    }
+}
+
+@Composable
+private fun ReactionChips(reactions: List<MessageReaction>, onOpenDetails: (() -> Unit)?) {
+    /*
+     * Nový čip v už viditelném řádku naskočí sám; čipy, které tu byly při prvním složení
+     * (zpráva přijela při scrollu), se nezvětšují.
+     */
+    val initial = remember { reactions.map { it.emoji }.toSet() }
 
     Row(
-        modifier = modifier.horizontalScroll(rememberScrollState()),
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         reactions.forEach { reaction ->
@@ -73,7 +106,12 @@ fun ReactionRow(
             // jeho odpověď ji může dát jinam). Bez klíče by se stav animací přenesl na sousední
             // čip a ten by přeblikl do cizí barvy a tvaru.
             key(reaction.emoji) {
-                ReactionChip(reaction = reaction, onClick = onOpenDetails)
+                val appear = remember { Animatable(if (reaction.emoji in initial) 1f else 0.4f) }
+                val spec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+                LaunchedEffect(Unit) { appear.animateTo(1f, spec) }
+                Box(Modifier.graphicsLayer { scaleX = appear.value; scaleY = appear.value }) {
+                    ReactionChip(reaction = reaction, onClick = onOpenDetails)
+                }
             }
         }
     }
@@ -191,6 +229,9 @@ private val REACTION_CHIP_SIZE = 30.dp
 
 /** Kolik místa si čip nechá nahoře a vpravo na odznak s počtem. */
 private val REACTION_BADGE_ROOM = 7.dp
+
+/** Výška řádku reakcí: čip i s místem na odznak počtu. Podle ní si zpráva nechá místo pod sebou. */
+internal val REACTION_ROW_HEIGHT = REACTION_CHIP_SIZE + REACTION_BADGE_ROOM
 
 /**
  * Detail reakcí: kdo a čím reagoval.

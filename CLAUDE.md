@@ -1888,13 +1888,16 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
 - **Místo pro odznak si vyhradí obálka čipu, odznak z kolečka NEČOUHÁ.** Řádek reakcí se posouvá
   do strany a posouvatelný kontejner si obsah ořezává na svoje hranice — zavěšený odznak by se
   uřízl.
-- **Čipy leží PŘES dolní nároží bubliny** na straně odesílatele: dolní půlka visí ven, horní na
-  bublině. Obsah bubliny si proto nechá dole místo jen na tu horní půlku (`REACTION_STRIP_SPACE`),
-  celá výška čipu by pod textem nechala díru. Totéž platí pro kontejner popisku u holého média
-  a pro popis náhledu odkazu: čip sedí na tom, co je ve zprávě poslední.
-- **Přesah pod bublinou je uvnitř `Box`u, který ukotvuje nabídku** (`REACTION_OVERHANG` jako
-  odsazení bubliny, ne mezera mimo). Díky tomu zůstane čip celý v díře vykrojené do závoje —
-  při dlouhém stisku se nesmí ztmavit, patří ke zprávě.
+- **Bublina má s reakcí i bez ní STEJNOU velikost.** Čip se jejího spodního okraje jen dotkne
+  (`REACTION_ON_BUBBLE`, 6 dp — míň než spodní odsazení obsahu, takže nezakryje poslední řádek)
+  a zbytek visí pod ní. Dřív si obsah bubliny dělal místo uvnitř (`REACTION_STRIP_SPACE`)
+  a zpráva se při první reakci skokem zvětšila.
+- **Místo pod zprávou se otevře animovaně** (`REACTION_OVERHANG` přes spatial spec), takže zpráva
+  plynule popojede. Místo je uvnitř `MessageBox`, který kreslí i nabídka nad zprávou — čip patří
+  ke zprávě a do nabídky jede s ní.
+- **Čipy naběhnou zvětšením** (`AnimatedVisibility` řádku a vlastní náběh nového čipu). Při
+  odebrání poslední reakce se dál kreslí ta poslední, jinak by odchod dobíhal s prázdným řádkem.
+  Čipy, které tu byly při prvním složení, se nezvětšují — jinak by pulzoval scroll.
 - **Jedou s bublinou i při tahu na odpověď**, protože posun sedí na sloupci kolem toho `Box`u.
 - **Jeden řádek, který se posouvá do strany**, ne lámání do víc řádků: čipy leží na bublině
   a druhý řádek by ji přerostl. U příspěvku s deseti různými emoji je to jediné, co se vejde.

@@ -77,6 +77,7 @@ import eu.tintera.plume.core.ui.senderColor
 import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.features.conversation.MessageFlight
 import eu.tintera.plume.features.conversation.MessageMenu
+import eu.tintera.plume.features.conversation.REACTION_ROW_HEIGHT
 import eu.tintera.plume.features.conversation.ReactionRow
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_edited
@@ -281,7 +282,9 @@ internal fun rememberMessageBodyScope(
         )
     }
 
-    val contentBottom = if (message.reactions.isEmpty()) 8.dp else REACTION_STRIP_SPACE
+    // Obsah si pro čip reakce místo NEDĚLÁ: bublina má s reakcí i bez ní stejnou velikost
+    // (viz `MessageBox`).
+    val contentBottom = 8.dp
 
     return remember(scope, frame, shape, bubbleColor, onBubbleColor, accent, contentBottom) {
         MessageBodyScope(
@@ -545,15 +548,25 @@ internal fun MessageBox(
     extra: @Composable BoxScope.() -> Unit = {},
 ) {
     val message = frame.message
+    /*
+     * Místo na čip reakce POD zprávou, a animované.
+     *
+     * Bublina má s reakcí i bez ní STEJNOU velikost — čip se jejího spodního okraje jen dotkne
+     * ([REACTION_ON_BUBBLE]) a zbytek visí pod ní. Místo pod zprávou se otevře pružinou, takže
+     * zpráva při první reakci plynule popojede, místo aby poskočila. Dřív si obsah bubliny dělal
+     * místo uvnitř a zpráva se o čip skokem zvětšila.
+     *
+     * Čip patří ke zprávě, takže místo je uvnitř toho, co kreslí i nabídka nad zprávou.
+     */
+    val overhang by animateDpAsState(
+        targetValue = if (message.reactions.isEmpty()) 0.dp else REACTION_OVERHANG,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "reaction-overhang",
+    )
     Box(modifier) {
         Box(
             Modifier
-                /*
-                 * Místo na přesah čipu reakce POD zprávou. Čip patří ke zprávě, takže musí být
-                 * uvnitř toho, co se sdílí s nabídkou — jinak by při otevření zůstal v seznamu.
-                 * Bez reakcí si nebere nic.
-                 */
-                .padding(bottom = if (message.reactions.isEmpty()) 0.dp else REACTION_OVERHANG)
+                .padding(bottom = overhang.coerceAtLeast(0.dp))
                 .maxWidthFraction(maxWidthFraction)
                 .widthIn(max = 560.dp)
                 .then(beforeClip)
@@ -772,11 +785,14 @@ private val SENDER_AVATAR_SIZE = 32.dp
 private val SENDER_AVATAR_SLOT = 40.dp
 
 
-/** Kolik z čipu reakce visí POD bublinou. Zhruba jeho půlka, jako v Google Messages. */
-private val REACTION_OVERHANG = 16.dp
+/**
+ * Kolik z čipu reakce leží NA bublině. Méně než spodní odsazení obsahu (8 dp), takže čip
+ * nezakryje poslední řádek, a přitom je vidět, ke které zprávě patří.
+ */
+private val REACTION_ON_BUBBLE = 6.dp
 
-/** Kolik místa si obsah bubliny nechá dole pod poslední řádkou, aby ho čip nezakryl. */
-private val REACTION_STRIP_SPACE = 20.dp
+/** Místo pod bublinou: celý čip i s místem na odznak počtu, bez části, která leží na bublině. */
+private val REACTION_OVERHANG = REACTION_ROW_HEIGHT - REACTION_ON_BUBBLE
 
 /** Odsazení čipů od svislého okraje bubliny. */
 private val REACTION_INSET = 10.dp
