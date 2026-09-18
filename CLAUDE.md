@@ -1253,8 +1253,15 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
 - **Odkud zpráva vyjíždí, hlásí zpráva sama při dlouhém stisku** (`onMenuAnchor`, souřadnice v okně).
   Rám drží `LayoutCoordinates` v obyčejném poli, ne ve stavu — zápis stavu při každém layoutu
   by položku rekomponoval.
-- **Zpráva se do pohledu VYSUNE** (`liftIntoView`, testy `LiftIntoViewTest`): vysoká zpráva
-  zasahující pod hlavičku nebo pod okraj obrazovky vyjede celá, s místem na pruh reakcí nad sebou.
+- **Zpráva se do pohledu VYSUNE, nabídka je VŽDY POD NÍ** (`placeMenuMessage`, testy
+  `MenuMessagePlacementTest`). Zpráva zasahující pod hlavičku nebo pod pole vyjede tak, aby nad
+  ní byl pruh reakcí a pod ní nabídka. **Vysoká zpráva se zmenší** (nejvýš na `MIN_MESSAGE_SCALE`
+  0,6, menší text nejde číst), a **když se nevejde ani tak, ořízne se** a dole vybledne — vidět je
+  začátek, podle kterého se pozná; celý obsah je v seznamu. Dokud se vysoká zpráva jen vysunula,
+  nabídka se nevešla pod ni ani nad ni a skončila PŘES její začátek i přes pruh reakcí.
+- **Let, zmenšení i ořez jdou z jednoho průběhu 0 → 1** (`progress`), takže se zpráva zmenšuje
+  a ořezává plynule a zpátky zase dorůstá. Zmenšuje se k té straně, u které stojí, a nahoře
+  zarovnaná; ořez je rámeček s výškou viditelné části, uvnitř zpráva v plné výšce.
 - **Plný výběr reakcí je STANDARDNÍ `ModalBottomSheet`** (`ReactionPickerSheet`) bez vlastního
   závoje (`scrimColor = Transparent`) — ztmavení už dělá nabídka pod ním a pruh reakcí i zpráva
   nad sheetem musí zůstat vidět. Bez napůl rozbaleného stavu a s mřížkou pevné výšky, jako výběr
