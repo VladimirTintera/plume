@@ -324,6 +324,9 @@ fun ConversationScreen(
     /** Klíč zprávy, kterou právě kreslí nabídka; v seznamu po ní zůstane prázdné místo. */
     val menuKey = remember { mutableStateOf<Long?>(null) }
 
+    /** Horní hrana vstupního pole v okně; nabídka nad zprávou pod ni nesmí. */
+    val contentBottom = remember { mutableStateOf<Float?>(null) }
+
     /** Horní hrana seznamu (spodek hlavičky) v okně; nabídka nad zprávou nad ni nesmí. */
     val contentTop = remember { mutableStateOf<Float?>(null) }
 
@@ -622,6 +625,8 @@ fun ConversationScreen(
          * obrazovku by vedl předěl, o který se zprávy při scrollu „zasekávají".
          */
         bottomBar = {
+            // Horní hrana pole je spodní mez pro nabídku nad zprávou (viz `contentBottom`).
+            Box(Modifier.onGloballyPositioned { contentBottom.value = it.boundsInWindow().top }) {
             MessageInput(
                 replyingTo = state.replyingTo,
                 partnerName = state.info?.title,
@@ -655,6 +660,7 @@ fun ConversationScreen(
                 draft = draft,
                 onDraftValueChange = { draft = it },
             )
+            }
         },
         // Tlačítko dolů ve FAB slotu: Scaffold ho drží nad polem a snackbar pak nad ním.
         floatingActionButton = {
@@ -873,6 +879,7 @@ fun ConversationScreen(
         },
         anchor = menuAnchor,
         contentTop = contentTop.value,
+        contentBottom = contentBottom.value,
         itemScope = itemScope,
         onShownChange = { menuKey.value = it },
     )
