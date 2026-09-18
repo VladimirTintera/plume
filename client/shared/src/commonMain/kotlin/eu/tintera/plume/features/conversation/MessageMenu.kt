@@ -276,11 +276,22 @@ internal fun MessageMenuLayer(
             )
         }
 
+        // Položky, které se opravdu ukážou: kandidáti od bloku, které dovolil server. Z nich, ne
+        // z kandidátů, se počítá i výška nabídky — dokud se brali kandidáti, visela nabídka nad
+        // zprávou o položku (48 dp) výš za každého kandidáta, kterého server nedovolil.
+        val menuItems = shown.menu.items.mapNotNull { action ->
+            action.presentation(shown.menu)?.let { look ->
+                MenuItem(look.icon, stringResource(look.label), look.destructive) {
+                    itemScope.onAction(shown.menu.messageId, action)
+                }
+            }
+        }
+
         val layout = placeMenu(
             anchorTop = top,
             anchorBottom = top + anchorHeight,
             quickRowHeight = if (showQuickRow) QUICK_ROW_HEIGHT else 0.dp,
-            menuHeight = MENU_PADDING * 2 + MENU_HEADER_HEIGHT + MENU_ITEM_HEIGHT * shown.menu.items.size,
+            menuHeight = MENU_PADDING * 2 + MENU_HEADER_HEIGHT + MENU_ITEM_HEIGHT * menuItems.size,
             screenHeight = maxHeight,
             topMargin = topLimit,
             bottomMargin = bottomMargin,
@@ -345,11 +356,7 @@ internal fun MessageMenuLayer(
                     },
             ) {
                 ActionMenu(
-                    items = shown.menu.items.mapNotNull { action ->
-                        action.presentation(shown.menu)?.let { look ->
-                            MenuItem(look.icon, stringResource(look.label), look.destructive) { onAction(action) }
-                        }
-                    },
+                    items = menuItems,
                     timestamp = shown.menu.timestamp,
                     // Do nabídky jde SKUTEČNÝ stav, ne to, co zrovna ukazuje odznak.
                     delivery = shown.item.frame.delivery,

@@ -1275,6 +1275,9 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   kreslila do obdélníku a přetékala přes zaoblená nároží bubliny.
 - **Výšky obou kusů jsou konstanty, ne měření.** Kreslíme si je sami, takže je známe předem —
   ušetří se tím snímek, ve kterém by nabídka poskočila na správné místo.
+- **Výška nabídky se počítá z UKÁZANÝCH položek, ne z kandidátů.** Blok nabízí kandidáty a server
+  z nich část zakáže; s počtem kandidátů visela nabídka nad zprávou o 48 dp výš za každého
+  zakázaného. Položky se proto sestaví jednou a z nich se počítá výška i kreslí nabídka.
 - **Nabídka se zarovnává k hraně BUBLINY, pruh reakcí ke kraji obrazovky.** Nabídka má pevnou
   šířku, takže může vyrůstat od zprávy; pruh se šesti emoji je tak široký, že by se k bublině
   stejně nevešel.
