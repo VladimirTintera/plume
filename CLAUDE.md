@@ -1041,8 +1041,9 @@ text, tlačítko je fajfka a potvrzení volá `editMessageText`.
   se schová, ikona je vždycky smajlík. Samolepka do textu upravované zprávy nepatří. Uložená
   volba části výběru se tím nemění. Emoji vložené při úpravě neukládá koncept ani „píše…" —
   `onDraftChanged` se při úpravě vrací hned.
-- **Po „Upravit" dostane pole fokus a klávesnici.** Nabídka se otevírá dlouhým stiskem na zprávě,
-  takže pole fokus nemá a bez toho by nebylo poznat, že se něco stalo.
+- **Po „Upravit" se pole samo nefokusuje.** Že se něco stalo, ukazuje karta s původním textem
+  a fajfka místo odeslání; klávesnici si uživatel vyvolá ťuknutím do pole. Dřív si pole fokus
+  a klávesnici vyžádalo samo (uživatel si to nepřál).
 
 ### Koncept (rozepsaná zpráva)
 
