@@ -48,12 +48,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
@@ -401,7 +404,16 @@ private fun MessageFrame(
              * závoje; kdyby v něm byl i odznak doručení, byla by díra o ten kus vyšší a vedle
              * bubliny. Odznak proto stojí až za ním, ve sloupci.
              */
-            Box {
+            // Viditelná část zprávy pro nabídku (viz `MessageMenuOverlay`). Měří se jen, když je
+            // nabídka otevřená — jinak by každá položka při scrollu zapisovala stav.
+            var visibleBounds by remember { mutableStateOf<Rect?>(null) }
+            Box(
+                if (frame.menu != null) {
+                    Modifier.onGloballyPositioned { visibleBounds = it.boundsInWindow() }
+                } else {
+                    Modifier
+                },
+            ) {
                 Box(
                     Modifier
                         /*
@@ -494,6 +506,7 @@ private fun MessageFrame(
                         onAction = bodyScope::act,
                         // Do nabídky jde SKUTEČNÝ stav, ne to, co zrovna ukazuje odznak.
                         delivery = frame.delivery,
+                        visibleBounds = visibleBounds,
                     )
                 }
             }
