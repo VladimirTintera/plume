@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -43,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.LineHeightStyle
@@ -159,19 +161,25 @@ private fun ReactionChip(
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "reaction-scale",
     )
-    val container by animateColorAsState(
-        // `primaryContainer`, ne `primary`: odchozí bublina je sama `primary`, takže by vybraná
-        // reakce na vlastní zprávě splynula s pozadím. Světlý čip je čitelný na obojím.
-        targetValue = if (chosen) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerLowest
-        },
+    /*
+     * Výplň je NEUTRÁLNÍ i u vlastní reakce. Emoji od Telegramu jsou kreslená se stíny a přechody
+     * a na tónované ploše (`primaryContainer`) splývala — žlutý palec na světle modré nebyl skoro
+     * k poznání. Nejčitelnější je na nejsvětlejší (v tmavém režimu nejtmavší) roli.
+     * Vlastní reakci proto nese kroužek a odznak počtu, ne podbarvení.
+     */
+    val container = MaterialTheme.colorScheme.surfaceContainerLowest
+    val selection by animateColorAsState(
+        targetValue = if (chosen) MaterialTheme.colorScheme.primary else Color.Transparent,
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
-        label = "reaction-container",
+        label = "reaction-selection",
     )
-    val content = if (chosen) {
-        MaterialTheme.colorScheme.onPrimaryContainer
+    val badgeContainer by animateColorAsState(
+        targetValue = if (chosen) MaterialTheme.colorScheme.primary else container,
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+        label = "reaction-badge-container",
+    )
+    val badgeContent = if (chosen) {
+        MaterialTheme.colorScheme.onPrimary
     } else {
         MaterialTheme.colorScheme.onSurface
     }
@@ -200,7 +208,7 @@ private fun ReactionChip(
         Surface(
             shape = CircleShape,
             color = container,
-            contentColor = content,
+            contentColor = MaterialTheme.colorScheme.onSurface,
             /*
              * Lem v barvě pozadí konverzace, ne stín: čip vypadá, jako by byl z bubliny
              * vykrojený, a od ní i od pozadí se odliší v obou režimech. Tak to dělají Google
@@ -214,7 +222,12 @@ private fun ReactionChip(
             Box(
                 // Klikání je až uvnitř `Surface`, takže ho tvar ořízne — jinak by vlnka přetekla
                 // přes kulaté nároží čipu.
-                Modifier.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+                Modifier
+                    .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                    // Kroužek vlastní reakce UVNITŘ lemu v barvě pozadí: na odchozí `primary`
+                    // bublině by jinak splynul s ní, takhle ho od ní lem odděluje.
+                    .padding(REACTION_RING)
+                    .border(REACTION_SELECTED_RING, selection, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 // Emoji záměrně mimo typografickou škálu: role jako `labelLarge` míří na výšku
@@ -228,8 +241,8 @@ private fun ReactionChip(
         if (reaction.count > 1) {
             Surface(
                 shape = CircleShape,
-                color = container,
-                contentColor = content,
+                color = badgeContainer,
+                contentColor = badgeContent,
                 border = BorderStroke(REACTION_RING, MaterialTheme.colorScheme.surface),
                 modifier = Modifier.align(Alignment.TopEnd),
             ) {
@@ -258,6 +271,9 @@ private const val CHIP_POP_DAMPING = 0.45f
 
 /** Lem čipu v barvě pozadí — odděluje ho od bubliny, na které leží. */
 private val REACTION_RING = 2.dp
+
+/** Kroužek, kterým se odliší vlastní reakce. */
+private val REACTION_SELECTED_RING = 1.5.dp
 
 /** Emoji v čipu: výška řádku rovná písmu, na střed, bez rezervy nad kresbou. */
 private val CENTERED_EMOJI = TextStyle(
