@@ -23,6 +23,7 @@ import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_unread_divider
+import eu.tintera.plume.resources.date_with_time
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -100,7 +101,7 @@ internal fun DayDivider(timestamp: Int, modifier: Modifier = Modifier) {
     CenteredNote(
         // S časem první zprávy dne, jako v Google Zprávách („Včera · 21:00"). V bublině čas není,
         // takže tohle je vedle časových předělů jediné místo, kde je vidět bez tahu doleva.
-        text = "${timestamp.asDayLabel()} · ${timestamp.asTimeOfDay()}",
+        text = stringResource(Res.string.date_with_time, timestamp.asDayLabel(), timestamp.asTimeOfDay()),
         // Víc místa než u oznámení: předěl odděluje bloky, takže potřebuje kolem sebe vzduch.
         modifier = modifier.padding(top = DAY_DIVIDER_SPACING, bottom = DIVIDER_BOTTOM_SPACING),
     )
