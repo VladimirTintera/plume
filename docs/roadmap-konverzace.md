@@ -114,9 +114,6 @@ tahem nikam nedostane. Poučení v `CLAUDE.md`, „Odkrývání časů tahem".
 
 Co z toho zůstalo:
 
-- **„Informace o zprávě" pořád není.** V nabídce je dnes jen čas; odkaz na zprávu, kdo ji viděl
-  a kdy si ji přečetl (`canGetLink`, `canGetViewers`, `canGetReadDate`) je pořád v seznamu
-  u sekce B).
 - **Čas se neukazuje u samotného alba ani u sponzorované karty.** Album nese čas své nejnovější
   zprávy jako každá jiná položka; reklama žádný nemá, takže jen jede s plochou.
 
@@ -148,10 +145,7 @@ Co z toho zůstalo:
 
 - **U zprávy složené z fotky není kam ťuknout.** Potomci s vlastním klikáním (fotka, odkaz,
   citace, náhled odkazu, samolepka) si ťuknutí berou sami; přidat jim ho by znamenalo vzít ťuknutí
-  těm akcím. Kdyby to vadilo, cesta je stav doručení v „Informace o zprávě", ne další gesto.
-- **„Informace o zprávě" pořád není.** V nabídce je dnes čas a stav doručení; odkaz na zprávu,
-  kdo ji viděl a kdy si ji přečetl (`canGetLink`, `canGetViewers`, `canGetReadDate`) čeká
-  v sekci B).
+  těm akcím. Komu to vadí, má stav doručení i čas přečtení v „Informace" v nabídce nad zprávou.
 
 ---
 
@@ -181,7 +175,9 @@ přibude s tím, co bude umět:
 - **Upravit popisek média** (`editMessageCaption`) a **zprávu s ručním formátováním** —
   vstupní pole umí jen holý text, takže úprava se u nich zatím nenabízí.
 - **Vybrat víc zpráv** — hromadné mazání a přeposílání, znamená režim výběru v celé konverzaci.
-- **Informace / odkaz na zprávu** (`canGetLink`, `canGetViewers`, `canGetReadDate`).
+- ~~**Informace / odkaz na zprávu**~~ — hotovo: sheet s časem odeslání a úpravy, časem přečtení,
+  seznamem zhlédnutí a odkazem ke zkopírování. Poučení v `CLAUDE.md`, „Informace o zprávě".
+  Zbývá jen `getMessageStatistics` u příspěvků v kanálech — jiná data a vlastní obrazovka.
 
 ## C) Entity v textu (odkazy) — HOTOVO
 

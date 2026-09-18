@@ -388,6 +388,7 @@ fun ConversationScreen(
             onPin = viewModel::requestPin,
             onUnpin = viewModel::unpinFromMenu,
             onToggleFavorite = viewModel::toggleFavoriteSticker,
+            onInfo = viewModel::showMessageInfo,
             onDismiss = viewModel::closeMenus,
         )
     }
@@ -753,6 +754,14 @@ fun ConversationScreen(
                 picker = picker,
                 onPick = { emoji -> viewModel.toggleReaction(picker.messageId, emoji) },
                 onDismiss = viewModel::closeMenus,
+            )
+        }
+
+        state.messageInfo?.let { sheet ->
+            MessageInfoSheet(
+                sheet = sheet,
+                onCopyLink = viewModel::copyMessageLink,
+                onDismiss = viewModel::dismissMessageInfo,
             )
         }
 

@@ -82,6 +82,7 @@ import eu.tintera.plume.resources.delete_message_for_self
 import eu.tintera.plume.resources.delete_message_title
 import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.forward_24dp
+import eu.tintera.plume.resources.info_24dp
 import eu.tintera.plume.resources.keep_off_24dp
 import eu.tintera.plume.resources.menu_copy
 import eu.tintera.plume.resources.menu_delete
@@ -89,6 +90,7 @@ import eu.tintera.plume.resources.menu_edit
 import eu.tintera.plume.resources.menu_favorite_add
 import eu.tintera.plume.resources.menu_favorite_remove
 import eu.tintera.plume.resources.menu_forward
+import eu.tintera.plume.resources.menu_info
 import eu.tintera.plume.resources.menu_more_reactions
 import eu.tintera.plume.resources.menu_pin
 import eu.tintera.plume.resources.menu_reply
@@ -166,6 +168,16 @@ internal fun MessageMenuOverlay(
         }
         if (menu.actions.canForward) {
             add(MenuItem(Res.drawable.forward_24dp, stringResource(Res.string.menu_forward)) { handlers.onForward(id) })
+        }
+        /*
+         * „Informace" se nabízí VŽDY.
+         *
+         * Na rozdíl od ostatních položek nestojí na právu od serveru: čas odeslání a úpravy má
+         * konverzace sama, takže sheet má co ukázat i u zprávy, u které server odkaz, zhlédnutí
+         * ani čas přečtení nevydá.
+         */
+        add(MenuItem(Res.drawable.info_24dp, stringResource(Res.string.menu_info)) { handlers.onInfo(id) })
+        run {
         }
 
         if (menu.actions.canPin) {
@@ -590,6 +602,7 @@ data class MessageMenuHandlers(
     val onPin: (messageId: Long) -> Unit,
     val onUnpin: (messageId: Long) -> Unit,
     val onToggleFavorite: (messageId: Long) -> Unit,
+    val onInfo: (messageId: Long) -> Unit,
     val onDismiss: () -> Unit,
 )
 
