@@ -14,7 +14,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -765,18 +764,17 @@ fun ConversationScreen(
                  * Gesto patří SEZNAMU, ne položce.
                  *
                  * Bublina si bere jen tah doprava (odpověď) a doleva nic nespotřebuje, takže
-                 * gesto propadne sem. Svislý scroll je bezpečný: seznam je potomek, dostane
-                 * události dřív a jeho spotřebování tenhle detektor zruší.
+                 * gesto propadne sem. Svislý scroll má přednost: seznam je potomek, dostane
+                 * události dřív a jeho spotřebování tenhle detektor zruší — a detektor se
+                 * rozhoduje až po delším a výrazně vodorovném pohybu (`timeRevealDecision`).
                  */
                 else -> Box(
                     Modifier
                         .fillMaxSize()
                         .pointerInput(revealMax) {
-                            detectHorizontalDragGestures(
-                                onDragEnd = { scope.launch { timeReveal.animateTo(0f, revealSpec) } },
-                                onDragCancel = { scope.launch { timeReveal.animateTo(0f, revealSpec) } },
-                            ) { change, delta ->
-                                change.consume()
+                            detectTimeReveal(
+                                onEnd = { scope.launch { timeReveal.animateTo(0f, revealSpec) } },
+                            ) { delta ->
                                 scope.launch {
                                     // Jen doleva a jen po šířku sloupce s časy; dál už není co
                                     // odkrývat a gumové tahání by jen mátlo.
