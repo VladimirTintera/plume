@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
@@ -1218,6 +1219,32 @@ private fun MessageInput(
             // Pružina přestřelí pod nulu; záporný průběh by kruh zdeformoval.
             val morphProgress = morph.value.coerceIn(0f, 1f)
 
+            /*
+             * Barva říká, jak silná akce to je. Mikrofon je klidový stav prázdného pole, takže
+             * tonální; odeslání i uložení úpravy jsou hlavní akce obrazovky, takže plná `primary`
+             * (jako odchozí bublina). Tlačítko tak „ožije", jakmile je co poslat. Víc barev by
+             * z něj udělalo semafor — barva by přestala znamenat důležitost.
+             */
+            val colorSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Color>()
+            val containerColor by animateColorAsState(
+                targetValue = if (kind == SendButtonKind.Mic) {
+                    MaterialTheme.colorScheme.secondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+                animationSpec = colorSpec,
+                label = "send-button-container",
+            )
+            val contentColor by animateColorAsState(
+                targetValue = if (kind == SendButtonKind.Mic) {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onPrimary
+                },
+                animationSpec = colorSpec,
+                label = "send-button-content",
+            )
+
             FilledIconButton(
                 onClick = {
                     when {
@@ -1231,6 +1258,10 @@ private fun MessageInput(
                 },
                 // Přílohy jdou poslat i bez popisku.
                 enabled = isRecording || showMic || draft.text.isNotBlank() || withAttachments,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = containerColor,
+                    contentColor = contentColor,
+                ),
                 // Mimo přechod zůstává stisk podle M3 Expressive (kruh → zaoblený čtverec).
                 shapes = if (morphProgress > 0f) {
                     val shape = SendButtonMorphShape(morphProgress)

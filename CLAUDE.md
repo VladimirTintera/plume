@@ -1224,6 +1224,9 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   přehlédnout. Tvar (`SendButtonMorphShape`) je nový objekt pro každou hodnotu průběhu — Compose
   si obrys drží podle instance, takže tvar čtoucí průběh sám by se nepřekreslil. Mimo přechod
   zůstává stisk podle M3 Expressive.
+- **Barva odesílacího tlačítka říká, jak silná akce to je**: mikrofon tonální
+  (`secondaryContainer`), odeslání i uložení úpravy plná `primary`. Prolíná se spolu s morfem.
+  Tři různé barvy pro tři ikony by z tlačítka udělaly semafor.
 - **Odesílací tlačítko je velikost medium (56 dp).** Je to přesně minimální výška jednořádkového
   `TextField`, takže se spodním zarovnáním řádku sedí na střed pole bez dopočítávaného odsazení
   a u víceřádkového textu zůstává u posledního řádku. Výchozí small (40 dp) sedělo o 8 dp níž
