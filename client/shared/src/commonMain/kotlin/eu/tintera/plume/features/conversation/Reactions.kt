@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -41,6 +42,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -191,8 +194,12 @@ private fun ReactionChip(
             shape = CircleShape,
             color = container,
             contentColor = content,
-            // Čip leží NA bublině; bez stínu by na tmavším pozadí splynul s jejím okrajem.
-            shadowElevation = 2.dp,
+            /*
+             * Lem v barvě pozadí konverzace, ne stín: čip vypadá, jako by byl z bubliny
+             * vykrojený, a od ní i od pozadí se odliší v obou režimech. Tak to dělají Google
+             * Zprávy; stín navíc v posouvatelném řádku ořezával.
+             */
+            border = BorderStroke(REACTION_RING, MaterialTheme.colorScheme.surface),
             modifier = Modifier
                 .padding(top = REACTION_BADGE_ROOM, end = REACTION_BADGE_ROOM)
                 .size(REACTION_CHIP_SIZE),
@@ -205,7 +212,9 @@ private fun ReactionChip(
             ) {
                 // Emoji záměrně mimo typografickou škálu: role jako `labelLarge` míří na výšku
                 // písmen, ale u emoji je nosná celá kresba, takže ve stejné velikosti působí menší.
-                Text(text = reaction.emoji, fontSize = 17.sp)
+                // Výška řádku = velikost písma, zarovnaná na střed a oříznutá: jinak nese text nad
+                // kresbou rezervu řádku a emoji sedí v kolečku o kus níž.
+                Text(text = reaction.emoji, style = CENTERED_EMOJI)
             }
         }
 
@@ -214,7 +223,7 @@ private fun ReactionChip(
                 shape = CircleShape,
                 color = container,
                 contentColor = content,
-                shadowElevation = 2.dp,
+                border = BorderStroke(REACTION_RING, MaterialTheme.colorScheme.surface),
                 modifier = Modifier.align(Alignment.TopEnd),
             ) {
                 Text(
@@ -234,7 +243,23 @@ private val REACTION_CHIP_SIZE = 30.dp
 /** Kolik místa si čip nechá nahoře a vpravo na odznak s počtem. */
 internal val REACTION_BADGE_ROOM = 7.dp
 
-/** Místo na stín čipů uvnitř posouvatelného řádku, který obsah ořezává. */
+/** Lem čipu v barvě pozadí — odděluje ho od bubliny, na které leží. */
+private val REACTION_RING = 2.dp
+
+/** Emoji v čipu: výška řádku rovná písmu, na střed, bez rezervy nad kresbou. */
+private val CENTERED_EMOJI = TextStyle(
+    fontSize = 17.sp,
+    lineHeight = 17.sp,
+    lineHeightStyle = LineHeightStyle(
+        alignment = LineHeightStyle.Alignment.Center,
+        trim = LineHeightStyle.Trim.Both,
+    ),
+)
+
+/**
+ * Místo kolem čipů uvnitř posouvatelného řádku, který obsah ořezává. Stín už čipy nemají, ale
+ * zvětšení při náběhu a pulzu by se bez rezervy na okraji uřízlo stejně.
+ */
 internal val REACTION_SHADOW_ROOM = 3.dp
 
 /**

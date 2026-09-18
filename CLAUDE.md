@@ -1897,8 +1897,13 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
 - **Kolečko lícuje s hranou bubliny**, jako v Google Zprávách — ne 10 dp uvnitř. Řádek se vysune
   o místo na odznak počtu (vpravo od kolečka) a o místo na stín, takže samotné kolečko končí
   přesně na okraji.
-- **Posouvatelný řádek reakcí potřebuje uvnitř místo na stín** (`REACTION_SHADOW_ROOM`).
-  `horizontalScroll` ořezává obsah na svoje hranice a stín čipu uřízl zprava i zespodu.
+- **Čip nemá stín, ale lem v barvě pozadí** (`REACTION_RING`, `surface`), jako v Google Zprávách:
+  vypadá z bubliny vykrojený a od bubliny i pozadí se odliší v obou režimech. Stín navíc
+  `horizontalScroll` řádku ořezával zprava i zespodu. Rezerva kolem čipů v řádku
+  (`REACTION_SHADOW_ROOM`) zůstala kvůli zvětšení při náběhu a pulzu.
+- **Emoji v čipu má výšku řádku rovnou písmu, na střed a oříznutou** (`LineHeightStyle` s `Trim.Both`).
+  Holý `Text` nese nad kresbou rezervu řádku a emoji sedělo v kolečku viditelně níž.
+- **Barva čipu:** vlastní reakce `primaryContainer`, cizí `surfaceContainerLowest`.
 - **Místo pod zprávou se otevře animovaně** (`REACTION_OVERHANG` přes spatial spec), takže zpráva
   plynule popojede. Místo je uvnitř `MessageBox`, který kreslí i nabídka nad zprávou — čip patří
   ke zprávě a do nabídky jede s ní.
