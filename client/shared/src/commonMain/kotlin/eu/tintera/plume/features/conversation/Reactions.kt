@@ -215,6 +215,7 @@ private fun ReactionChip(
              * Zprávy; stín navíc v posouvatelném řádku ořezával.
              */
             border = BorderStroke(REACTION_RING, MaterialTheme.colorScheme.surface),
+            shadowElevation = REACTION_ELEVATION,
             modifier = Modifier
                 .padding(top = REACTION_BADGE_ROOM, end = REACTION_BADGE_ROOM)
                 .size(REACTION_CHIP_SIZE),
@@ -244,6 +245,7 @@ private fun ReactionChip(
                 color = badgeContainer,
                 contentColor = badgeContent,
                 border = BorderStroke(REACTION_RING, MaterialTheme.colorScheme.surface),
+                shadowElevation = REACTION_ELEVATION,
                 modifier = Modifier.align(Alignment.TopEnd),
             ) {
                 Text(
@@ -271,6 +273,13 @@ private const val CHIP_POP_DAMPING = 0.45f
 
 /** Lem čipu v barvě pozadí — odděluje ho od bubliny, na které leží. */
 private val REACTION_RING = 2.dp
+
+/**
+ * Drobný stín čipu. Lem v barvě `surface` odděluje čip od bubliny, ale mimo ni leží na pozadí
+ * konverzace (`background` = `surface`) a zmizí — bílý čip na skoro bílé ploše splýval.
+ * Stín se musí vejít do [REACTION_SHADOW_ROOM], jinak ho posouvatelný řádek uřízne.
+ */
+private val REACTION_ELEVATION = 1.dp
 
 /** Kroužek, kterým se odliší vlastní reakce. */
 private val REACTION_SELECTED_RING = 1.5.dp
