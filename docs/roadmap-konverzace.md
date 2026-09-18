@@ -205,24 +205,8 @@ Co zbývá:
 
 Seřazeno podle toho, jak moc to bolí.
 
-**Chyby** — opraveno, poučení v `CLAUDE.md` („Hlášení přečtení a indexy").
-
-**Pozorovaný pád: duplicitní klíč položky při odesílání**
-
-`java.lang.IllegalArgumentException: Key "382754357249" was already used` z `LazyColumn`
-konverzace, jednou, 18. 9. 2026 při odeslání zprávy s odkazem do Uložených zpráv.
-
-- **Klíč je DOČASNÉ id.** Skutečná id zpráv jsou násobky 2²⁰; tohle číslo jím není, takže šlo
-  o zprávu ve stavu odesílání. Sedí to na jediný stav, ve kterém se klíč může opakovat: v seznamu
-  je zároveň rozepsaná zpráva s dočasným id *T* a potvrzená s novým id *N*, kterou
-  `itemKeys[N] = T` mapuje na tentýž klíč (viz `CLAUDE.md`, „Odesílání a scrollování").
-- **Nereprodukovalo se.** Dvakrát táž akce (jednou na téže větvi, jednou na `main`) proběhla bez
-  pádu. Není tedy potvrzené, že jde o starší chybu — jen to, že se netýká vykreslování: klíče se
-  počítají nad stavem, ne v bublině.
-- Kde hledat: `SentMessageUpdate.Succeeded` v `ConversationViewModel` (odebrání zprávy s *T*)
-  a obě místa, která po odeslání přidávají vrácenou zprávu zpět
-  (`pending.id in it.itemKeys.values`). Pojistka „klíč, který už v seznamu je, se nepoužije
-  podruhé" by pád vyměnila za nejvýš přeblikanou bublinu.
+**Chyby** — opraveno, poučení v `CLAUDE.md` („Hlášení přečtení a indexy" a „Odesílání
+a scrollování" u duplicitního klíče po potvrzení odeslání).
 
 **Chybějící základ**
 

@@ -1830,6 +1830,17 @@ a odložené rušení prázdné notifikace.
   odprchnout, druhou naskočit a bublina problikla. Let ze vstupního pole navíc přišel o cíl,
   protože potvrzení dorazí většinou dřív, než let doběhne. Kdo z viditelných položek čte klíč
   (hlášení přečtení, plovoucí datum), musí počítat s tím, že to není id.
+- **Pořadí mezi `newMessages` a `sentMessageUpdates` NENÍ ZARUČENÉ.** Jsou to dva samostatné
+  odběry ve dvou korutinách, takže potvrzení odeslání může předběhnout doručení té rozepsané
+  zprávy, ke které patří. Vrátit ji pak do seznamu znamená mít tam zprávu dvakrát — a protože
+  si podle `itemKeys` obě drží TENTÝŽ klíč, `LazyColumn` na to spadne
+  („Key … was already used"). Proto obě změny stavu dělá `ConversationState`
+  (`withMessage` / `withSentMessage`) a zprávu, kterou už potvrzení nahradilo, `withMessage`
+  zahodí. Kontroluje se to proti HODNOTÁM `itemKeys`, tedy dočasným id.
+- **Pád z toho byl vzácný a nereprodukovatelný** — poprvé se objevil po stovkách odeslaných zpráv
+  a při dvou dalších pokusech o totéž nepřišel. Sedí na něj proto **test nad stavem**, ne klikání:
+  `ConversationStateTest` prožene obě pořadí a hlídá, že klíče položek zůstanou jedinečné.
+  Bez opravy test selže přesně tím, čím spadla aplikace: `[382754357249, 382754357249]`.
 - **Rozepsaná zpráva dorazí přes `newMessages` DŘÍV, než `sendMessage` vrátí výsledek.** Let se
   proto na ni váže už tam (`landingOn`, podle textu a stavu `Sending`). Když se vázal až
   v `send`, bublina se na snímek vykreslila na místě, pak zmizela do letu a přiletěla znovu.
