@@ -82,6 +82,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
@@ -124,6 +125,7 @@ import eu.tintera.plume.features.conversation.items.ConversationItemScope
 import eu.tintera.plume.features.conversation.items.DayDividerItem
 import eu.tintera.plume.features.conversation.items.MESSAGE_SPACING
 import eu.tintera.plume.features.conversation.items.MessageAction
+import eu.tintera.plume.features.conversation.items.MessageItem
 import eu.tintera.plume.features.conversation.items.QuotedMessage
 import eu.tintera.plume.features.conversation.items.SPONSORED_KEY_PREFIX
 import eu.tintera.plume.features.conversation.items.TIME_COLUMN_WIDTH
@@ -316,6 +318,12 @@ fun ConversationScreen(
      */
     var pinnedHeight by remember { mutableStateOf(0.dp) }
 
+    /** Kde byla zpráva, nad kterou se otevírá nabídka — hlásí ji zpráva při dlouhém stisku. */
+    var menuAnchor by remember { mutableStateOf<Rect?>(null) }
+
+    /** Klíč zprávy, kterou právě kreslí nabídka; v seznamu po ní zůstane prázdné místo. */
+    val menuKey = remember { mutableStateOf<Long?>(null) }
+
     /** Horní hrana seznamu (spodek hlavičky) v okně; nabídka nad zprávou nad ni nesmí. */
     val contentTop = remember { mutableStateOf<Float?>(null) }
 
@@ -326,6 +334,8 @@ fun ConversationScreen(
             state = stateHolder,
             voicePlayback = voicePlayback,
             contentTop = contentTop,
+            onMenuAnchor = { menuAnchor = it },
+            menuKey = menuKey,
             timeReveal = { timeReveal.value },
             onOpenMedia = { currentOnOpenMedia(it) },
             onOpenStickerSet = { openStickerSetId = it },
@@ -512,8 +522,10 @@ fun ConversationScreen(
             .collect(viewModel::markRead)
     }
 
+    // Nabídka nad zprávou je vrstva NAD Scaffoldem (viz `MessageMenuLayer`), proto obal.
+    Box(modifier) {
     Scaffold(
-        modifier = modifier,
+        modifier = Modifier.fillMaxSize(),
         /*
          * Spodní inset si řeší vstupní pole samo (`navigationBarsPadding` + `imePadding`).
          *
@@ -852,6 +864,18 @@ fun ConversationScreen(
             }
 
         }
+    }
+
+    MessageMenuLayer(
+        menu = state.messageMenu,
+        item = state.messageMenu?.let { menu ->
+            items.firstOrNull { it is MessageItem && it.frame.message.id == menu.messageId } as? MessageItem
+        },
+        anchor = menuAnchor,
+        contentTop = contentTop.value,
+        itemScope = itemScope,
+        onShownChange = { menuKey.value = it },
+    )
     }
 }
 
@@ -1438,6 +1462,8 @@ private class ScreenItemScope(
     private val state: State<ConversationState>,
     private val voicePlayback: State<VoicePlayback?>,
     private val contentTop: State<Float?>,
+    private val onMenuAnchor: (Rect) -> Unit,
+    private val menuKey: State<Long?>,
     override val timeReveal: () -> Float,
     private val onOpenMedia: (messageId: Long) -> Unit,
     private val onOpenStickerSet: (setId: Long) -> Unit,
@@ -1448,6 +1474,10 @@ private class ScreenItemScope(
     override fun documentProgress(fileId: Int): Float? = state.value.documentDownloads[fileId]
 
     override fun contentTop(): Float? = contentTop.value
+
+    override fun onMenuAnchor(bounds: Rect) = onMenuAnchor.invoke(bounds)
+
+    override fun isInMenu(key: Long): Boolean = menuKey.value == key
 
     /** Navigace a sheet nad obrazovkou jsou věc obrazovky; všechno ostatní jde do ViewModelu. */
     override fun onAction(messageId: Long, action: MessageAction) = when (action) {

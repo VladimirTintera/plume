@@ -484,7 +484,8 @@ jako výslovné prohlášení.
 **Past: obyčejný `BackHandler` predictive back zabije.** Kdo odchytí zpět bez
 `PredictiveBackHandler`/`NavigationBackHandler`, dostane jen hotové gesto bez průběhu, takže
 animace zmizí a nikde se neohlásí chybou. V aplikaci teď žádný `BackHandler` není a nemá
-přibýt — ven z obrazovky se chodí přes `onBack` NavDisplaye.
+přibýt — ven z obrazovky se chodí přes `onBack` NavDisplaye. Kde je potřeba zpět zachytit uvnitř
+obrazovky (nabídka nad zprávou), je to `NavigationBackHandler` z `androidx.navigationevent`.
 
 **Známé zjednodušení fáze 1:** jeden zásobník pro všechny sekce; přepnutí sekce ho srovná na kořen,
 takže sekce si nedrží vlastní historii. Pro Chaty/Nastavení to nevadí. Až přibude sekce s hlubší
@@ -1227,38 +1228,38 @@ Pod textem se zprávou s odkazem se kreslí náhled: web, titulek, popis a obrá
 
 ### Nabídka nad zprávou
 
-Dlouhý stisk otevře **popup u zprávy**, ne bottom sheet: rychlé reakce v pruhu nad bublinou
+Dlouhý stisk otevře **nabídku u zprávy**, ne bottom sheet: rychlé reakce v pruhu nad bublinou
 a nabídka akcí pod ní, zbytek obrazovky pod závojem. Sheet dole utrhl pozornost od zprávy,
 které se týkal, a unesl jen pár položek — akcí bude postupně deset.
 
-- **Popup, ne vlastní overlay v obsahu obrazovky.** `Popup` s `focusable = true` si tlačítko zpět
-  obslouží sám přes `onDismissRequest`. Vlastní overlay by potřeboval `BackHandler`, a ten
-  v téhle aplikaci zabíjí predictive back.
-- **Deklaruje se UVNITŘ bubliny.** `calculatePosition` dostane `anchorBounds` toho prvku, pod
-  kterým popup v kompozici visí, takže se nikam nemusí předávat souřadnice a nemají se jak
-  rozejít. Před tím se sem plumboval `positionOnScreen()` z bubliny přes celou obrazovku.
-- **Past: nesmí viset v OBSAHU bubliny.** Uvnitř `Column` s odsazením by ukotvením byla plocha
-  zmenšená o to odsazení a díra v závoji by byla o kus menší než bublina. Proto je kolem
-  `Surface` ještě `Box` a popup je v něm.
-- **Závoj musí přes celou obrazovku, tedy `clippingEnabled = false`.** Systém jinak okno popupu
-  vsadí dovnitř obsahu okna a u stavové i navigační lišty zbude světlý pruh — vypadá to jako
-  nedotažené vsazení, protože to jím doslova je. S vypnutým ořezem ale popup o vsazeních nic neví,
-  takže se **čtou v hlavním okně** (tedy v bublině, kde je nabídka deklarovaná) a předají se dovnitř
-  jako okraje, do kterých se nabídka nesmí umístit. Závoj jde pod lišty, obsah ne.
-- **Počátek popupu se MĚŘÍ, nepočítá.** Popup je na Androidu vlastní okno a systém ho posadí pod
-  stavový řádek bez ohledu na požadovanou pozici; o kolik, ví jenom platforma. Bez toho seděla
-  díra o výšku stavového řádku vedle. Měří se `positionOnScreen()` kořene popupu a anchor se o to
-  posune.
-- **Závoj má díru přesně na bublině** (`BlendMode.Clear`). Vybraná zpráva je kontext, ke kterému se
-  nabídka vztahuje — ztmavit i ji by znamenalo ptát se na něco, co není vidět. Vykrojení nutně
-  potřebuje `CompositingStrategy.Offscreen`: `Clear` maže z vrstvy a bez vlastní vrstvy by
-  vymazalo i všechno pod popupem.
-- **Zpráva se do pohledu VYSUNE, jako v Google Zprávách** (`liftIntoView`, testy
-  `LiftIntoViewTest`). Vysoká zpráva zasahující pod hlavičku nebo pod okraj obrazovky se při
-  otevření nabídky posune tak, aby byla celá vidět a nad ní se vešel pruh reakcí. Neposouvá se
-  seznam, ale **snímek** zprávy: rám ji při otevřené nabídce nahrává do `GraphicsLayer`
-  (celou, i část, kterou seznam ořízl) a pořídí z ní `toImageBitmap()`; nabídka ho kreslí nad
-  závojem na posunutém místě. Po zavření se tak nic nepřeskládá a scroll zůstane, kde byl.
+- **Vrstva v okně obrazovky, ne `Popup`** (`MessageMenuLayer`, nad Scaffoldem konverzace).
+  `Popup` je na Androidu vlastní okno: kopii zprávy do něj šlo dostat jen jako snímek (samolepka
+  stála, zpátky se skákalo), závoj potřeboval díru přes `BlendMode.Clear`, počátek okna se musel
+  měřit a plný výběr reakcí byl vlastní napodobenina sheetu. Ve stejném okně nic z toho není třeba.
+- **Zpět obsluhuje `NavigationBackHandler`** (`androidx.navigationevent`), ne `BackHandler` —
+  ten by zabil predictive back. Při rozbaleném výběru reakcí je vypnutý, zpět si vezme sheet.
+- **Zpráva se v nabídce složí znovu, živá** (`MenuCopy`: tentýž `MessageBox` a `MessageBodyScope`
+  jako v seznamu, stejná šířka, bez gest). V seznamu se zprůhlední (`isInMenu`) a drží místo —
+  po ní zůstane prázdno, jako v Google Zprávách.
+- **Let tam i zpátky je ruční posun kopie (`Animatable`), NE sdílený prvek.** Sdílený prvek se během
+  přechodu kreslí v překryvu nad celou aplikací, mimo ořezy rodičů, takže zpráva začínající pod
+  hlavičkou chatu přeletěla PŘES hlavičku. `clipInOverlayDuringTransition` se volal, ale na
+  výsledku nebylo nic vidět, a `renderInOverlayDuringTransition = false` kreslil stejně. Kopie je
+  ve stejném okně jako seznam, takže sdílený prvek by tu dělal jen tentýž posun — ručně ho jde
+  oříznout pod hlavičkou (`clipRect` na ploše kopie).
+- **Vrstva po zavření ještě chvíli žije** (`lingering`): kopie letí zpátky na místo zprávy a teprve
+  po doběhnutí vrstva zmizí a zpráva v seznamu se znovu ukáže. Zmizet hned, neměla by kopie
+  odkud letět.
+- **Odkud zpráva vyjíždí, hlásí zpráva sama při dlouhém stisku** (`onMenuAnchor`, souřadnice v okně).
+  Rám drží `LayoutCoordinates` v obyčejném poli, ne ve stavu — zápis stavu při každém layoutu
+  by položku rekomponoval.
+- **Zpráva se do pohledu VYSUNE** (`liftIntoView`, testy `LiftIntoViewTest`): vysoká zpráva
+  zasahující pod hlavičku nebo pod okraj obrazovky vyjede celá, s místem na pruh reakcí nad sebou.
+- **Plný výběr reakcí je STANDARDNÍ `ModalBottomSheet`** (`ReactionPickerSheet`) bez vlastního
+  závoje (`scrimColor = Transparent`) — ztmavení už dělá nabídka pod ním a pruh reakcí i zpráva
+  nad sheetem musí zůstat vidět. Bez napůl rozbaleného stavu a s mřížkou pevné výšky, jako výběr
+  samolepek. Ve starém sheetu nešlo ťuknout na emoji (podezřelý byl `FlowRow` bez scrollování
+  a napůl rozbalený stav); tady ťuknutí funguje, ověřeno na zařízení.
 - **Horní mez je spodek hlavičky chatu, ne stavová lišta** (`contentTop` ze
   `ConversationItemScope`, obrazovka ho měří na seznamu). Vysunutá zpráva ani pruh reakcí nesmí
   hlavičku překrýt — ztratilo by se povědomí, s kým je chat otevřený. Google Zprávy to dělají stejně.
@@ -1266,21 +1267,6 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   počítalo z aktuální polohy, pruh reakcí se v prvních snímcích (než je snímek zprávy hotový)
   nevešel nad zprávu, šel pod ni a pak přeskočil nahoru. Teď se o umístění rozhodne jednou
   a pruh i nabídka dojedou se zprávou (`travel`).
-- **Původní místo zůstává PRÁZDNÉ**, jak to dělají Google Zprávy: s pořízeným snímkem rám
-  obsah nekreslí, jen drží jeho místo. Jinak by pod závojem byla tatáž zpráva podruhé, ztmavená
-  a jinde. Díra do závoje (níž) zbyla jen na snímek, než se snímek pořídí.
-- **Snímek je bitmapa, ne sdílená vrstva.** Popup je na Androidu vlastní okno a kreslit do něj
-  `GraphicsLayer` z hlavního okna by znamenalo sdílet `RenderNode` napříč okny; bitmapa je
-  jistota. Cena: animovaná samolepka v nabídce stojí.
-- **Díra i umístění se řídí VIDITELNOU částí zprávy**, ne jejím obdélníkem. `anchorBounds` popupu
-  je celá zpráva, i když z ní seznam ukazuje jen kus — u vysoké zprávy (náhled odkazu, fotka)
-  zasahující pod hlavičku pak díra prořízla hlavičku i stavovou lištu a pruh reakcí, který stojí
-  nad zprávou, odjel mimo obrazovku. Rám proto při otevřené nabídce měří `boundsInWindow()`
-  (ořezané seznamem) a nabídka díru ořízne na ně a podle nich se umístí. Tvar se kreslí podle
-  celé bubliny, takže u uříznutého okraje zůstane rovná hrana.
-- **Tvar díry se bere ze samotné bubliny** (`Shape.createOutline` + `drawOutline`), nekreslí se
-  podle konstanty. Navazující zpráva má jedno nároží stažené na 4 dp a jednotné zaoblení by u ní
-  z díry vyčnívalo; konstanta by se navíc musela ručně držet v souladu s `BUBBLE_CORNER`.
 - **Past: `Modifier.clip(shape)` musí být PŘED `combinedClickable`.** `Surface` si tvarem ořezává
   jen svoje pozadí, a to až za modifikátory, které dostane zvenku — vlnka dlouhého stisku se tedy
   kreslila do obdélníku a přetékala přes zaoblená nároží bubliny.
@@ -1308,18 +1294,6 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   správně, včetně zkopírování odkazu. Plný výběr reakcí je proti tomu **podnabídka tlačítka „+"**
   v pruhu rychlých reakcí, takže patří DOVNITŘ plovoucí nabídky. Sheet nad ní z podnabídky dělal
   něco, co ukončí nabídku, ke které pořád patří.
-- **Plný seznam emoji je proto sheet UVNITŘ popupu** (`ReactionSheet`): celá šířka u spodní
-  hrany, zaoblený vršek, úchyt, tažením dolů se zavírá — vypadá jako bottom sheet, ale kreslí
-  ho totéž okno, které ukazuje sbalený pruh, a ťuknutí jde touž cestou jako u rychlé reakce.
-  Že se v mřížce listuje, popupu nevadí; `LazyVerticalGrid` v něm scrolluje jako kdekoli jinde.
-  Zpět a ťuknutí mimo **nejdřív sbalí výběr** a teprve podruhé zavřou nabídku.
-- **Ve starém `ReactionPickerSheet` nešlo ťuknout na emoji** a příčina se nezjistila. Podezřelé
-  jsou jeho dvě vlastní vady, ne to, že byl otevřený z nabídky (to „Informace" dělá taky a je
-  v pořádku): `FlowRow` bez scrollování s obsahem vyšším než obrazovka a chybějící
-  `enabledValues = Hidden, Expanded`, takže vyjel napůl rozbalený. Kdyby se někdy měl vracet
-  sheet, začni tímhle.
-- **Sheet musí ťuknutí spolknout** (`detectTapGestures { }`). Kořen popupu má přes celou plochu
-  `clickable`, který zavírá nabídku — bez toho by ho ťuknutí vedle buňky mřížky sestřelilo.
 - **Nad sheetem zůstává pruh rychlých reakcí a vybraná zpráva, nabídka akcí ne.** Tak to dělá
   i Google Messages: z pruhu je pořád vidět, čeho se výběr týká a co je už použité. Pruh zůstane
   u zprávy, dokud se nad sheet vejde, jinak se posadí těsně nad něj — a posun se animuje, aby to

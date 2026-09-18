@@ -13,6 +13,7 @@ import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellati
 import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -34,7 +35,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -43,33 +43,29 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.layer.drawLayer
-import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
-import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
@@ -78,7 +74,6 @@ import eu.tintera.plume.core.ui.RichText
 import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.features.conversation.MessageFlight
 import eu.tintera.plume.features.conversation.MessageMenu
-import eu.tintera.plume.features.conversation.MessageMenuOverlay
 import eu.tintera.plume.features.conversation.ReactionRow
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_edited
@@ -179,6 +174,8 @@ internal class MessageBodyScope(
      * zprávě poslední: bublinu, popisek pod holou fotkou i popis náhledu odkazu.
      */
     val contentBottom: Dp,
+    /** Kde zpráva v okně právě je; nabídka z toho místa vyjede. `null` u kopie v nabídce. */
+    private val anchorBounds: () -> Rect?,
 ) {
     val message: ChatMessage get() = frame.message
     val continuesAbove: Boolean get() = frame.continuesAbove
@@ -190,23 +187,22 @@ internal class MessageBodyScope(
      * Dlouhý stisk: nabídka s kandidáty, které nabízí blok. Potomci s vlastním klikáním (odkaz,
      * citace, fotka) ho k rámu nepustí, takže ho musí zopakovat sami — proto je tu, ne v rámu.
      */
-    fun requestMenu() = act(MessageAction.ShowMenu(frame.menuActions))
+    fun requestMenu() {
+        anchorBounds()?.let(items::onMenuAnchor)
+        act(MessageAction.ShowMenu(frame.menuActions))
+    }
 }
 
 /**
- * Rám zprávy.
- *
- * Zprávy téhož odesílatele v řadě se **seskupují**: jméno se ukáže jen u první a nároží u sebe
- * navazujících bublin se zaoblí míň. Bez toho vypadá delší monolog jako dvacet nesouvisejících
- * kartiček.
+ * Tvar, barvy a obsluha pro obsah zprávy — v seznamu i v kopii, kterou kreslí nabídka.
+ * Obě místa tak kreslí zprávu stejně, jinak by let sdíleného prvku skončil skokem.
  */
 @Composable
-@OptIn(ExperimentalFoundationApi::class)
-private fun MessageFrame(
+internal fun rememberMessageBodyScope(
     frame: MessageFrameData,
     scope: ConversationItemScope,
-    body: @Composable MessageBodyScope.() -> Unit,
-) {
+    anchorBounds: () -> Rect?,
+): MessageBodyScope {
     val message = frame.message
 
     /*
@@ -262,7 +258,7 @@ private fun MessageFrame(
 
     val contentBottom = if (message.reactions.isEmpty()) 8.dp else REACTION_STRIP_SPACE
 
-    val bodyScope = remember(scope, frame, shape, bubbleColor, onBubbleColor, accent, contentBottom) {
+    return remember(scope, frame, shape, bubbleColor, onBubbleColor, accent, contentBottom) {
         MessageBodyScope(
             items = scope,
             frame = frame,
@@ -271,7 +267,34 @@ private fun MessageFrame(
             onBubbleColor = onBubbleColor,
             accent = accent,
             contentBottom = contentBottom,
+            anchorBounds = anchorBounds,
         )
+    }
+}
+
+/**
+ * Rám zprávy.
+ *
+ * Zprávy téhož odesílatele v řadě se **seskupují**: jméno se ukáže jen u první a nároží u sebe
+ * navazujících bublin se zaoblí míň. Bez toho vypadá delší monolog jako dvacet nesouvisejících
+ * kartiček.
+ */
+@Composable
+@OptIn(ExperimentalFoundationApi::class)
+private fun MessageFrame(
+    frame: MessageFrameData,
+    scope: ConversationItemScope,
+    body: @Composable MessageBodyScope.() -> Unit,
+) {
+    val message = frame.message
+
+    /*
+     * Kde zpráva v okně je — pro nabídku, která z toho místa vyjede. Drží se souřadnice, ne stav:
+     * čtou se jen při dlouhém stisku, a zápis stavu při každém layoutu by položku rekomponoval.
+     */
+    val boxCoordinates = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    val bodyScope = rememberMessageBodyScope(frame, scope) {
+        boxCoordinates[0]?.takeIf { it.isAttached }?.let { Rect(it.positionInWindow(), it.size.toSize()) }
     }
 
     val coroutineScope = rememberCoroutineScope()
@@ -405,119 +428,46 @@ private fun MessageFrame(
             Modifier.offset { IntOffset(drag.value.roundToInt(), 0) },
         ) {
             /*
-             * `Box` musí obepínat SAMOTNOU zprávu, ne zprávu s odznakem.
+             * Zpráva sama. Když je nad ní otevřená nabídka, SKRYJE se, ale drží místo — nabídka ji
+             * kreslí u sebe (viz `MessageMenuLayer`), vysune ji do pohledu a při zavření vrátí.
+             * Stejně to dělají Google Zprávy: místo zprávy zůstane prázdné.
              *
-             * Nabídka nad zprávou si z něj bere `anchorBounds` a vykrajuje podle nich díru do
-             * závoje; kdyby v něm byl i odznak doručení, byla by díra o ten kus vyšší a vedle
-             * bubliny. Odznak proto stojí až za ním, ve sloupci.
+             * Odznak doručení do ní nepatří: stojí až za ní, ve sloupci.
              */
-            // Viditelná část zprávy pro nabídku (viz `MessageMenuOverlay`). Měří se jen, když je
-            // nabídka otevřená — jinak by každá položka při scrollu zapisovala stav.
-            var visibleBounds by remember { mutableStateOf<Rect?>(null) }
-
-            /*
-             * Snímek zprávy pro nabídku, která ji posune do pohledu (viz `liftIntoView`).
-             *
-             * Nahrává se do vrstvy jen při otevřené nabídce a pořídí se z ní jednou, jakmile je
-             * nahraná. Vrstva kreslí CELÝ obsah, i část, kterou seznam ořízl — proto jde vysunout
-             * i zpráva, která začíná nad okrajem obrazovky.
-             */
-            val snapshotLayer = rememberGraphicsLayer()
-            var snapshot by remember { mutableStateOf<ImageBitmap?>(null) }
-            val menuOpen = frame.menu != null
-            LaunchedEffect(menuOpen) {
-                snapshot = null
-                if (!menuOpen) return@LaunchedEffect
-                // Nahrání proběhne až při kreslení, tedy nejdřív v příštím snímku.
-                repeat(SNAPSHOT_FRAMES) {
-                    withFrameNanos { }
-                    if (snapshotLayer.size != IntSize.Zero) {
-                        snapshot = snapshotLayer.toImageBitmap()
-                        return@LaunchedEffect
-                    }
-                }
-            }
-
-            Box(
-                if (menuOpen) {
-                    Modifier
-                        .onGloballyPositioned { visibleBounds = it.boundsInWindow() }
-                        .drawWithContent {
-                            // S pořízeným snímkem zůstane místo zprávy PRÁZDNÉ, jako v Google
-                            // Zprávách: zpráva „odjela" do nabídky a pod závojem by jinak byla
-                            // podruhé, ztmavená a jinde.
-                            if (snapshot != null) return@drawWithContent
-                            snapshotLayer.record { this@drawWithContent.drawContent() }
-                            drawLayer(snapshotLayer)
-                        }
+            MessageBox(
+                frame = frame,
+                bodyScope = bodyScope,
+                body = body,
+                modifier = Modifier
+                    .onGloballyPositioned { boxCoordinates[0] = it }
+                    // Průhledná, ne vyřazená z layoutu: místo zůstane prázdné a kopie v nabídce se
+                    // na něj po zavření vrátí. Čte se až při kreslení, takže nic nerekomponuje.
+                    .graphicsLayer { alpha = if (scope.isInMenu(frame.key)) 0f else 1f },
+                // Cílová strana letu ze vstupního pole. Sdílí se CELÁ zpráva, ne jen text —
+                // kdyby se sdílel jen text, doletěl by sám a pozadí by pod ním na konci
+                // skokem naskočilo.
+                beforeClip = frame.flight?.let { Modifier.sharedFlight(it.sharedKey, visible = true) } ?: Modifier,
+                /*
+                 * Ťuknutí na VLASTNÍ zprávu si vyžádá odznak přečtení, druhé ho schová.
+                 *
+                 * Je to ubezpečení na vyžádání: odznak se automaticky ukazuje jen u nejnovější
+                 * zprávy, takže u starší se jinak nedá zjistit, jestli ji protějšek přečetl.
+                 *
+                 * Potomci s vlastním klikáním (odkaz v textu, citace, fotka, náhled odkazu,
+                 * samolepka) si ťuknutí berou sami, takže u zprávy složené z fotky není kam
+                 * ťuknout. Přidávat jim ho by znamenalo brát ťuknutí těm akcím — u fotky
+                 * otevření prohlížeče —, a to je horší než chybějící zkratka.
+                 */
+                afterClip = Modifier.combinedClickable(
+                    onLongClick = bodyScope::requestMenu,
+                    onClick = { frame.onTap?.let(bodyScope::act) },
+                ),
+                onReactionClick = if (frame.reactionsOpenable) {
+                    { bodyScope.act(MessageAction.ShowReactions) }
                 } else {
-                    Modifier
+                    null
                 },
             ) {
-                Box(
-                    Modifier
-                        /*
-                         * Místo na přesah čipu reakce POD zprávou.
-                         *
-                         * Je uvnitř `Box`u, který ukotvuje nabídku, takže přesah zůstane v díře
-                         * vykrojené do závoje — čip se při dlouhém stisku nesmí ztmavit, patří
-                         * ke zprávě. Bez reakcí si nebere nic.
-                         */
-                        .padding(bottom = if (message.reactions.isEmpty()) 0.dp else REACTION_OVERHANG)
-                        .widthIn(max = 560.dp)
-                        // Cílová strana letu ze vstupního pole. Sdílí se CELÁ zpráva, ne jen text —
-                        // kdyby se sdílel jen text, doletěl by sám a pozadí by pod ním na konci
-                        // skokem naskočilo.
-                        .then(
-                            frame.flight?.let { Modifier.sharedFlight(it.sharedKey, visible = true) }
-                                ?: Modifier,
-                        )
-                        // Ořez MUSÍ být před klikáním, jinak by se vlnka dlouhého stisku kreslila
-                        // do obdélníku a přetekla přes zaoblená nároží.
-                        .clip(shape)
-                        /*
-                         * Ťuknutí na VLASTNÍ zprávu si vyžádá odznak přečtení, druhé ho schová.
-                         *
-                         * Je to ubezpečení na vyžádání: odznak se automaticky ukazuje jen
-                         * u nejnovější zprávy, takže u starší se jinak nedá zjistit, jestli ji
-                         * protějšek přečetl.
-                         *
-                         * Potomci s vlastním klikáním (odkaz v textu, citace, fotka, náhled odkazu,
-                         * samolepka) si ťuknutí berou sami, takže u zprávy složené z fotky není kam
-                         * ťuknout. Přidávat jim ho by znamenalo brát ťuknutí těm akcím — u fotky
-                         * otevření prohlížeče —, a to je horší než chybějící zkratka.
-                         */
-                        .combinedClickable(
-                            onLongClick = bodyScope::requestMenu,
-                            onClick = { frame.onTap?.let(bodyScope::act) },
-                        ),
-                ) {
-                    // Bez bubliny se kreslí na plochu konverzace, takže výchozí barva popředí
-                    // patří k NÍ. Bublina (`Bubble`) si ji přepíše svou.
-                    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
-                        bodyScope.body()
-                    }
-                }
-
-                /*
-                 * Čipy reakcí LEŽÍ NA zprávě, u dolního nároží na straně odesílatele.
-                 *
-                 * Jsou uvnitř `Box`u, který ukotvuje nabídku, takže zůstávají i uvnitř díry
-                 * v závoji — při dlouhém stisku se nesmí ztmavit, patří ke zprávě. A jedou s ní
-                 * i při tahu na odpověď, protože posun sedí na sloupci kolem tohohle `Box`u.
-                 */
-                ReactionRow(
-                    reactions = message.reactions,
-                    onOpenDetails = if (frame.reactionsOpenable) {
-                        { bodyScope.act(MessageAction.ShowReactions) }
-                    } else {
-                        null
-                    },
-                    modifier = Modifier
-                        .align(if (message.isOutgoing) Alignment.BottomEnd else Alignment.BottomStart)
-                        .padding(horizontal = REACTION_INSET),
-                )
-
                 /*
                  * Šipka odpovědi. Sedí hned vedle zprávy a jede s ní, takže je jasné, čeho se gesto
                  * týká. Posazená `offset`em mimo `Box` do layoutu nezasahuje.
@@ -530,27 +480,6 @@ private fun MessageFrame(
                         .align(Alignment.CenterStart)
                         .offset(x = -REPLY_ICON_SLOT),
                 )
-
-                /*
-                 * Nabídka visí v kompozici POD zprávou, i když se kreslí přes celou obrazovku.
-                 *
-                 * Popup si díky tomu vezme rozměry zprávy sám — `calculatePosition` dostane
-                 * `anchorBounds` toho prvku, pod kterým je deklarovaný. Past: nesmí viset uvnitř
-                 * OBSAHU bubliny, tam by ukotvením byla plocha zmenšená o odsazení a díra v závoji
-                 * by byla menší než bublina. Proto ten vnější `Box`.
-                 */
-                frame.menu?.let {
-                    MessageMenuOverlay(
-                        menu = it,
-                        bubbleShape = shape,
-                        onAction = bodyScope::act,
-                        // Do nabídky jde SKUTEČNÝ stav, ne to, co zrovna ukazuje odznak.
-                        delivery = frame.delivery,
-                        visibleBounds = visibleBounds,
-                        snapshot = snapshot,
-                        contentTop = scope.contentTop(),
-                    )
-                }
             }
 
             DeliveryBadge(
@@ -559,6 +488,77 @@ private fun MessageFrame(
             )
         }
     }
+}
+
+/**
+ * Zpráva bez rámu řádku: obsah bloku ve tvaru bubliny a čipy reakcí přes její dolní nároží.
+ * Kreslí ji seznam i nabídka nad zprávou (viz [MenuCopy]), a proto je to samostatný kus.
+ *
+ * [beforeClip] a [afterClip] jsou modifikátory před ořezem tvarem a za ním. Ořez MUSÍ být před
+ * klikáním, jinak by se vlnka dlouhého stisku kreslila do obdélníku a přetekla přes nároží.
+ */
+@Composable
+internal fun MessageBox(
+    frame: MessageFrameData,
+    bodyScope: MessageBodyScope,
+    body: @Composable MessageBodyScope.() -> Unit,
+    modifier: Modifier = Modifier,
+    beforeClip: Modifier = Modifier,
+    afterClip: Modifier = Modifier,
+    /** Ťuknutí na čip reakce; `null` = čip se ťuknout nedá (kanál, kopie v nabídce). */
+    onReactionClick: (() -> Unit)?,
+    extra: @Composable BoxScope.() -> Unit = {},
+) {
+    val message = frame.message
+    Box(modifier) {
+        Box(
+            Modifier
+                /*
+                 * Místo na přesah čipu reakce POD zprávou. Čip patří ke zprávě, takže musí být
+                 * uvnitř toho, co se sdílí s nabídkou — jinak by při otevření zůstal v seznamu.
+                 * Bez reakcí si nebere nic.
+                 */
+                .padding(bottom = if (message.reactions.isEmpty()) 0.dp else REACTION_OVERHANG)
+                .widthIn(max = 560.dp)
+                .then(beforeClip)
+                .clip(bodyScope.shape)
+                .then(afterClip),
+        ) {
+            // Bez bubliny se kreslí na plochu konverzace, takže výchozí barva popředí patří
+            // k NÍ. Bublina (`Bubble`) si ji přepíše svou.
+            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+                bodyScope.body()
+            }
+        }
+
+        // Čipy reakcí LEŽÍ NA zprávě, u dolního nároží na straně odesílatele, a jedou s ní i při
+        // tahu na odpověď — posun sedí na sloupci kolem.
+        ReactionRow(
+            reactions = message.reactions,
+            onOpenDetails = onReactionClick,
+            modifier = Modifier
+                .align(if (message.isOutgoing) Alignment.BottomEnd else Alignment.BottomStart)
+                .padding(horizontal = REACTION_INSET),
+        )
+
+        extra()
+    }
+}
+
+/**
+ * Zpráva, jak ji kreslí nabídka nad zprávou: tentýž obsah i tvar jako v seznamu — živý, takže
+ * i samolepka hraje dál —, ale bez gest; nabídka nad ní rozhoduje sama.
+ */
+@Composable
+internal fun MessageItem.MenuCopy(scope: ConversationItemScope, modifier: Modifier = Modifier) {
+    val bodyScope = rememberMessageBodyScope(frame, scope) { null }
+    MessageBox(
+        frame = frame,
+        bodyScope = bodyScope,
+        body = { Body() },
+        modifier = modifier,
+        onReactionClick = null,
+    )
 }
 
 /**
@@ -765,6 +765,3 @@ private val REPLY_ICON_SLOT = 40.dp
 
 /** Jak malá je šipka na začátku tahu. */
 private const val REPLY_ICON_MIN_SCALE = 0.6f
-
-/** Kolik snímků se nejvýš čeká, než se vrstva se zprávou nahraje. Pak nabídka zůstane u díry. */
-private const val SNAPSHOT_FRAMES = 3
