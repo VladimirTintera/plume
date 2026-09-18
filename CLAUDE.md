@@ -1260,6 +1260,9 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   nad sheetem musí zůstat vidět. Bez napůl rozbaleného stavu a s mřížkou pevné výšky, jako výběr
   samolepek. Ve starém sheetu nešlo ťuknout na emoji (podezřelý byl `FlowRow` bez scrollování
   a napůl rozbalený stav); tady ťuknutí funguje, ověřeno na zařízení.
+- **Nabídka akcí před sheetem ODEJDE animací, ne vyřazením z kompozice.** `if (!expanded)` ji
+  schovalo natvrdo a po zasunutí sheetu nechalo bleskově naskočit. Teď ji drží v kompozici,
+  dokud nezmizí, a průhlednost i měřítko jde přes tutéž animaci jako náběh při otevření.
 - **Spodní mez je horní hrana vstupního pole, ne navigační lišta** (`contentBottom`, obrazovka ho
   měří na `bottomBar`). Pole leží přes seznam, takže zpráva vysunutá jen nad navigační lištu
   skončila pod polem. Kopie zprávy se ořezává mezi hlavičkou a polem, aby přes ně nepřeletěla.
