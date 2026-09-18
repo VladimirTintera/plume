@@ -231,14 +231,6 @@ Co zbývá:
 
 Seřazeno podle toho, jak moc to bolí.
 
-- **Na Foldu vyjede klávesnice, aniž by uživatel ťukl do pole** — při otevření chatu, po
-  návratu z prohlížeče fotek i po přepnutí z Nastavení zpět do Chatů. Na telefonu (emulátor
-  Pixel 10 Pro XL) se to nestane ani jednou, na Foldu (Pixel 10 Pro Fold) skoro pokaždé, i při
-  čistě dotykovém ovládání. Náš kód si fokus nežádá nikde (poslední `requestFocus` u úpravy
-  zprávy je pryč), takže pole dostává fokus od Compose nebo systému. Oba emulátory mají
-  `hw.keyboard=yes`, Fold navíc `hw.keyboard.lid`. Než se to začne opravovat, ověřit na
-  skutečném Foldu; podezřelé je dvoupanelové rozvržení a výchozí fokus okna.
-
 **Chyby** — opraveno, poučení v `CLAUDE.md` („Hlášení přečtení a indexy" a „Odesílání
 a scrollování" u duplicitního klíče po potvrzení odeslání).
 
