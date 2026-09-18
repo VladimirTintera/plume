@@ -17,7 +17,6 @@ import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.SponsoredMessage
 import eu.tintera.plume.core.ui.localDate
-import eu.tintera.plume.features.conversation.MessageMenuHandlers
 import eu.tintera.plume.features.conversation.SponsoredCard
 
 /**
@@ -49,8 +48,8 @@ internal interface ConversationItem {
 }
 
 /**
- * Co blok potřebuje od obrazovky: obsluhu a hodnoty, které se mění rychleji, než by se vyplatilo
- * přestavovat seznam bloků.
+ * Co blok potřebuje od obrazovky: cestu pro akce a hodnoty, které se mění rychleji, než by se
+ * vyplatilo přestavovat seznam bloků.
  *
  * Hodnoty jsou funkce, ne vlastnosti: čtou se až v tom kusu UI, který je kreslí, takže změna
  * pozice hlasovky překreslí jen ji, ne celou položku.
@@ -59,23 +58,14 @@ internal interface ConversationItem {
 internal interface ConversationItemScope {
     /** Posun odkrývání časů tahem doleva; čte se až při kreslení vrstvy. */
     val timeReveal: () -> Float
-    val menuHandlers: MessageMenuHandlers
 
     fun voicePlayback(messageId: Long): VoicePlayback?
     fun documentProgress(fileId: Int): Float?
 
-    fun openMedia(messageId: Long)
-    fun openStickerSet(setId: Long)
-    fun openDocument(messageId: Long)
-    fun cancelUpload(messageId: Long)
-    fun toggleVoice(messageId: Long)
-    fun seekVoice(messageId: Long, fraction: Float)
-    fun jumpToMessage(messageId: Long)
-    fun toggleReadReceipt(messageId: Long)
-    fun showReactionDetails(messageId: Long)
-    fun showMenu(messageId: Long)
-    fun replyTo(messageId: Long)
-    fun openLink(url: String)
+    /** Jediná cesta akcí ze zprávy ven (viz [MessageAction]). */
+    fun onAction(messageId: Long, action: MessageAction)
+
+    /** Sponzorovaná zpráva není zpráva chatu, takže nemá ani [MessageAction]. */
     fun openSponsored(sponsored: SponsoredMessage)
 }
 

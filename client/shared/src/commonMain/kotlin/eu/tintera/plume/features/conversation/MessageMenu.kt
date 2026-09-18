@@ -88,40 +88,27 @@ import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.features.conversation.items.Delivery
+import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.delivery
 import eu.tintera.plume.features.conversation.items.label
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_reaction_24dp
 import eu.tintera.plume.resources.common_cancel
-import eu.tintera.plume.resources.content_copy_24dp
 import eu.tintera.plume.resources.conversation_delivery_failed
 import eu.tintera.plume.resources.conversation_delivery_read
 import eu.tintera.plume.resources.conversation_delivery_sending
 import eu.tintera.plume.resources.conversation_delivery_sent
-import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.delete_message_choice
 import eu.tintera.plume.resources.delete_message_for_all
 import eu.tintera.plume.resources.delete_message_for_partner
 import eu.tintera.plume.resources.delete_message_for_partner_named
 import eu.tintera.plume.resources.delete_message_for_self
 import eu.tintera.plume.resources.delete_message_title
-import eu.tintera.plume.resources.edit_24dp
-import eu.tintera.plume.resources.forward_24dp
-import eu.tintera.plume.resources.info_24dp
-import eu.tintera.plume.resources.keep_off_24dp
-import eu.tintera.plume.resources.menu_copy
 import eu.tintera.plume.resources.menu_delete
-import eu.tintera.plume.resources.menu_edit
-import eu.tintera.plume.resources.menu_favorite_add
-import eu.tintera.plume.resources.menu_favorite_remove
-import eu.tintera.plume.resources.menu_forward
-import eu.tintera.plume.resources.menu_info
 import eu.tintera.plume.resources.menu_more_reactions
 import eu.tintera.plume.resources.menu_pin
-import eu.tintera.plume.resources.menu_reply
 import eu.tintera.plume.resources.menu_sent_at
 import eu.tintera.plume.resources.menu_sent_at_delivery
-import eu.tintera.plume.resources.menu_unpin
 import eu.tintera.plume.resources.pin_message_title
 import eu.tintera.plume.resources.pin_option_notify_channel
 import eu.tintera.plume.resources.pin_option_notify_group
@@ -130,10 +117,6 @@ import eu.tintera.plume.resources.pin_option_private_named
 import eu.tintera.plume.resources.pin_scope_channel
 import eu.tintera.plume.resources.pin_scope_group
 import eu.tintera.plume.resources.pin_scope_private
-import eu.tintera.plume.resources.push_pin_24dp
-import eu.tintera.plume.resources.reply_24dp
-import eu.tintera.plume.resources.star_24dp
-import eu.tintera.plume.resources.star_filled_24dp
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -167,60 +150,16 @@ internal fun MessageMenuOverlay(
     menu: MessageMenu,
     /** Tvar bubliny. Díra v závoji ho kopíruje, včetně staženého nároží u navazující zprávy. */
     bubbleShape: Shape,
-    handlers: MessageMenuHandlers,
+    /** Akce nad zprávou, nad kterou nabídka visí — položky, reakce i zavření. */
+    onAction: (MessageAction) -> Unit,
     /** Stav doručení vlastní zprávy; `null` u cizí. Vypíše se v hlavičce vedle času. */
     delivery: Delivery?,
 ) {
-    val id = menu.messageId
-    val items = buildList {
-        if (menu.actions.canReply) {
-            add(MenuItem(Res.drawable.reply_24dp, stringResource(Res.string.menu_reply)) { handlers.onReply(id) })
-        }
-        if (menu.canEdit) {
-            add(MenuItem(Res.drawable.edit_24dp, stringResource(Res.string.menu_edit)) { handlers.onEdit(id) })
-        }
-        // Bez textu není co kopírovat, i kdyby to server dovolil.
-        if (menu.actions.canCopy && menu.hasText) {
-            add(MenuItem(Res.drawable.content_copy_24dp, stringResource(Res.string.menu_copy)) { handlers.onCopy(id) })
-        }
-        menu.favoriteSticker?.let { favorite ->
-            add(
-                if (favorite) {
-                    MenuItem(Res.drawable.star_filled_24dp, stringResource(Res.string.menu_favorite_remove)) { handlers.onToggleFavorite(id) }
-                } else {
-                    MenuItem(Res.drawable.star_24dp, stringResource(Res.string.menu_favorite_add)) { handlers.onToggleFavorite(id) }
-                },
-            )
-        }
-        if (menu.actions.canForward) {
-            add(MenuItem(Res.drawable.forward_24dp, stringResource(Res.string.menu_forward)) { handlers.onForward(id) })
-        }
-        /*
-         * „Informace" se nabízí VŽDY.
-         *
-         * Na rozdíl od ostatních položek nestojí na právu od serveru: čas odeslání a úpravy má
-         * konverzace sama, takže sheet má co ukázat i u zprávy, u které server odkaz, zhlédnutí
-         * ani čas přečtení nevydá.
-         */
-        add(MenuItem(Res.drawable.info_24dp, stringResource(Res.string.menu_info)) { handlers.onInfo(id) })
-        run {
-        }
-
-        if (menu.actions.canPin) {
-            add(
-                if (menu.isPinned) {
-                    MenuItem(Res.drawable.keep_off_24dp, stringResource(Res.string.menu_unpin)) { handlers.onUnpin(id) }
-                } else {
-                    MenuItem(Res.drawable.push_pin_24dp, stringResource(Res.string.menu_pin)) { handlers.onPin(id) }
-                },
-            )
-        }
-        if (menu.actions.canDeleteForSelf || menu.actions.canDeleteForAll) {
-            add(
-                MenuItem(Res.drawable.delete_24dp, stringResource(Res.string.menu_delete), destructive = true) {
-                    handlers.onDelete(id)
-                },
-            )
+    // Položky jsou kandidáti od bloku, kteří prošli právy od serveru — každá akce sama ví, jestli
+    // se smí nabídnout a jak vypadá (viz `MessageMenuAction.presentation`).
+    val items = menu.items.mapNotNull { action ->
+        action.presentation(menu)?.let { look ->
+            MenuItem(look.icon, stringResource(look.label), look.destructive) { onAction(action) }
         }
     }
 
@@ -242,7 +181,7 @@ internal fun MessageMenuOverlay(
         if (expanded) {
             expanded = false
         } else {
-            handlers.onDismiss()
+            onAction(MessageAction.CloseMenu)
         }
     }
 
@@ -394,7 +333,7 @@ internal fun MessageMenuOverlay(
 
                 QuickReactions(
                     menu = menu,
-                    onPick = { emoji -> handlers.onPick(id, emoji) },
+                    onPick = { emoji -> onAction(MessageAction.React(emoji)) },
                     onMore = { expanded = true },
                     modifier = Modifier
                         // Pruh je široký, takže se zarovnává ke KRAJI obrazovky podle strany
@@ -441,7 +380,7 @@ internal fun MessageMenuOverlay(
                 ReactionSheet(
                     emoji = menu.emoji,
                     chosen = menu.chosenEmoji,
-                    onPick = { emoji -> handlers.onPick(id, emoji) },
+                    onPick = { emoji -> onAction(MessageAction.React(emoji)) },
                     onCollapse = { expanded = false },
                     height = sheet.height,
                     bottomInset = bottomInset,
@@ -522,7 +461,7 @@ private fun QuickReactions(
  * **Není to `ModalBottomSheet`.** Je to podnabídka tlačítka „+", takže patří do obsahu popupu
  * (viz [MessageMenuOverlay]) — sheet jen připomíná: celá šířka u spodní hrany, zaoblený vršek,
  * úchyt a tažením dolů se zavírá. Ťuknutí jde touž cestou jako u rychlé reakce
- * ([MessageMenuHandlers.onPick]) — není tu druhá obsluha, která by se s ní mohla rozejít.
+ * ([MessageAction.React]) — není tu druhá obsluha, která by se s ní mohla rozejít.
  *
  * Mřížka se posouvá svisle; nabídnutých emoji bývá přes třicet. Až přibudou vlastní (placené)
  * emoji, přibude sem řádek záložek a hledání — proto sheet, a ne pruh navíc.
@@ -796,26 +735,6 @@ private data class MenuItem(
     val label: String,
     val destructive: Boolean = false,
     val onClick: () -> Unit,
-)
-
-/**
- * Obsluha nabídky, pohromadě.
- *
- * Nabídka se deklaruje uvnitř bubliny, takže by ji bublina jinak musela nést jako šest
- * samostatných parametrů, které sama k ničemu nepoužije.
- */
-data class MessageMenuHandlers(
-    val onPick: (messageId: Long, emoji: String) -> Unit,
-    val onReply: (messageId: Long) -> Unit,
-    val onEdit: (messageId: Long) -> Unit,
-    val onCopy: (messageId: Long) -> Unit,
-    val onDelete: (messageId: Long) -> Unit,
-    val onForward: (messageId: Long) -> Unit,
-    val onPin: (messageId: Long) -> Unit,
-    val onUnpin: (messageId: Long) -> Unit,
-    val onToggleFavorite: (messageId: Long) -> Unit,
-    val onInfo: (messageId: Long) -> Unit,
-    val onDismiss: () -> Unit,
 )
 
 /**

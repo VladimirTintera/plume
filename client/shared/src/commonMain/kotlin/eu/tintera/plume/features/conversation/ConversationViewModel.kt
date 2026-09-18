@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.key
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
@@ -40,6 +42,8 @@ import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.UrlOpener
+import eu.tintera.plume.features.conversation.items.MessageAction
+import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_attachments_limit
 import eu.tintera.plume.resources.conversation_attachments_send_failed
@@ -792,7 +796,7 @@ class ConversationViewModel(
      * Rozepsaný text se **odloží a po skončení úpravy vrátí**. Úprava je vsuvka — kdo si
      * uprostřed psaní všimne překlepu v minulé zprávě, nechce kvůli tomu přijít o rozepsanou.
      */
-    fun startEdit(messageId: Long) {
+    private fun startEdit(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         // Přepnutí z jedné úpravy do druhé nesmí přepsat odložený koncept textem první úpravy.
         if (_state.value.editing == null) draftBeforeEdit = draftText
@@ -881,12 +885,12 @@ class ConversationViewModel(
      * `t.me` odkazy (pozvánka do skupiny, odkaz na zprávu), rozhodne se to tady a obrazovka
      * se měnit nebude.
      */
-    fun openLink(url: String) {
+    private fun openLink(url: String) {
         urlOpener.open(url)
     }
 
     /** Nastaví zprávu, na kterou se odpovídá. Zobrazí se nad vstupním polem. */
-    fun replyTo(messageId: Long) {
+    private fun replyTo(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         _state.update { it.copy(replyingTo = message, messageMenu = null) }
         // Citace je součást konceptu — jen když už se něco píše, jinak není co ukládat.
@@ -953,7 +957,7 @@ class ConversationViewModel(
      * a odpovědí byla viditelná prodleva a gesto by působilo rozbitě. Když volání selže, změna se
      * vrátí zpět. Server pak stejně pošle autoritativní stav přes `reactionUpdates`.
      */
-    fun toggleReaction(messageId: Long, emoji: String) {
+    private fun toggleReaction(messageId: Long, emoji: String) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         val existing = message.reactions.firstOrNull { it.emoji == emoji }
         val add = existing?.isChosen != true
@@ -977,7 +981,7 @@ class ConversationViewModel(
      * `canGetViewers`, `canGetLink`), takže ptát se dopředu by znamenalo tři dotazy na každou
      * zprávu v historii kvůli sheetu, který se otevře jednou za čas.
      */
-    fun showMessageInfo(messageId: Long) {
+    private fun showMessageInfo(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         _state.update { it.copy(messageMenu = null, messageInfo = MessageInfoSheet(message = message)) }
 
@@ -1027,7 +1031,7 @@ class ConversationViewModel(
      * na chatu, takže se odvodí porovnáním id. Cizí a servisní zprávy odznak nemají, takže se
      * u nich ťuknutí zahodí.
      */
-    fun toggleReadReceipt(messageId: Long) {
+    private fun toggleReadReceipt(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         if (!message.isOutgoing || message.isService) return
 
@@ -1041,7 +1045,7 @@ class ConversationViewModel(
      * zvýrazněná a ťuknutí na ni ji sundá — jinak by se ťuknutí na čip pralo o význam
      * s otevřením detailu.
      */
-    fun showReactionDetails(messageId: Long) {
+    private fun showReactionDetails(messageId: Long) {
         _state.update { it.copy(reactionDetails = ReactionDetails(messageId = messageId)) }
 
         viewModelScope.launch {
@@ -1079,7 +1083,41 @@ class ConversationViewModel(
      * tagy a `getMessageAvailableReactions` vrátí prázdný seznam. Dřív se kvůli tomu nabídka
      * neotevřela vůbec a nešlo ani odpovědět.
      */
-    fun showMessageMenu(messageId: Long) {
+    /**
+     * Jediný vstup akcí nad zprávou — z bloků seznamu i z nabídky (viz [MessageAction]).
+     *
+     * Navigaci ([MessageAction.OpenMedia]) a sheet sady samolepek ([MessageAction.OpenStickerSet])
+     * vyřizuje obrazovka dřív, než sem akce dojde; tady by neměly co dělat.
+     */
+    fun onAction(messageId: Long, action: MessageAction) {
+        when (action) {
+            is MessageAction.ShowMenu -> showMessageMenu(messageId, action.items)
+            MessageAction.CloseMenu -> closeMenus()
+            is MessageAction.React -> toggleReaction(messageId, action.emoji)
+            MessageAction.ShowReactions -> showReactionDetails(messageId)
+            MessageAction.ToggleReadReceipt -> toggleReadReceipt(messageId)
+            MessageAction.SwipeReply, MessageMenuAction.Reply -> replyTo(messageId)
+            is MessageAction.JumpTo -> jumpToMessage(action.messageId)
+            is MessageAction.OpenLink -> openLink(action.url)
+            MessageAction.OpenDocument -> openDocument(messageId)
+            MessageAction.CancelUpload -> cancelUpload(messageId)
+            MessageAction.ToggleVoice -> toggleVoice(messageId)
+            is MessageAction.SeekVoice -> seekVoice(messageId, action.fraction)
+            MessageMenuAction.Edit -> startEdit(messageId)
+            MessageMenuAction.Copy -> copyMessage(messageId)
+            MessageMenuAction.ToggleFavoriteSticker -> toggleFavoriteSticker(messageId)
+            MessageMenuAction.Forward -> requestForward(messageId)
+            MessageMenuAction.Info -> showMessageInfo(messageId)
+            MessageMenuAction.Pin -> requestPin(messageId)
+            MessageMenuAction.Unpin -> unpinFromMenu(messageId)
+            MessageMenuAction.Delete -> requestDelete(messageId)
+            MessageAction.OpenMedia, is MessageAction.OpenStickerSet ->
+                logger.w { "Akce $action patří obrazovce, do ViewModelu nemá chodit." }
+        }
+    }
+
+    /** Nabídka s kandidáty, které nabídl blok; co z nich server dovolí, se zjistí tady. */
+    private fun showMessageMenu(messageId: Long, items: List<MessageMenuAction>) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
 
         viewModelScope.launch {
@@ -1113,9 +1151,7 @@ class ConversationViewModel(
                         emoji = emoji,
                         chosenEmoji = message.reactions.filter { r -> r.isChosen }.map { r -> r.emoji }.toSet(),
                         actions = actions,
-                        hasText = message.copyableText().isNotBlank(),
-                        canEdit = actions.canEdit && message.isEditableAsPlainText(),
-                        isPinned = _state.value.pinned.any { p -> p.id == messageId },
+                        items = items,
                         favoriteSticker = favorite,
                     ),
                 )
@@ -1129,7 +1165,7 @@ class ConversationViewModel(
      * V konverzaci se tím nic nezmění, takže výsledek hlásí snackbar — jinak by po zavření nabídky
      * nebylo poznat, že se něco stalo.
      */
-    fun toggleFavoriteSticker(messageId: Long) {
+    private fun toggleFavoriteSticker(messageId: Long) {
         val menu = _state.value.messageMenu?.takeIf { it.messageId == messageId } ?: return
         val favorite = menu.favoriteSticker ?: return
         val sticker = _state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Sticker
@@ -1154,7 +1190,7 @@ class ConversationViewModel(
         _state.update { it.copy(notice = null) }
     }
 
-    fun closeMenus() {
+    private fun closeMenus() {
         _state.update { it.copy(messageMenu = null) }
     }
 
@@ -1164,7 +1200,7 @@ class ConversationViewModel(
      * Kopíruje se text, jak ho vidí uživatel — bez entit. Formátování má smysl v Telegramu,
      * ale do cizí aplikace se stejně přenese jen holý řetězec.
      */
-    fun copyMessage(messageId: Long) {
+    private fun copyMessage(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         viewModelScope.launch { clipboard.copy(message.copyableText()) }
         closeMenus()
@@ -1177,7 +1213,7 @@ class ConversationViewModel(
      * mění, koho se to dotkne (upozornit členy / připnout i protějšku). V Uložených zprávách
      * žádná taková volba není, takže se připíná rovnou.
      */
-    fun requestPin(messageId: Long) {
+    private fun requestPin(messageId: Long) {
         val info = _state.value.info
         if (info == null || info.isSavedMessages) {
             closeMenus()
@@ -1231,7 +1267,7 @@ class ConversationViewModel(
     }
 
     /** Odepnutí z nabídky. Chová se stejně jako křížek v pruhu, včetně „Vrátit". */
-    fun unpinFromMenu(messageId: Long) {
+    private fun unpinFromMenu(messageId: Long) {
         val message = _state.value.pinned.firstOrNull { it.id == messageId }
             ?: _state.value.messages.firstOrNull { it.id == messageId }
         closeMenus()
@@ -1239,7 +1275,7 @@ class ConversationViewModel(
     }
 
     /** Otevře potvrzení smazání. Nevratná akce se nedělá na jedno ťuknutí. */
-    fun requestDelete(messageId: Long) {
+    private fun requestDelete(messageId: Long) {
         val menu = _state.value.messageMenu ?: return
         _state.update {
             it.copy(
@@ -1259,7 +1295,7 @@ class ConversationViewModel(
      * „Přeposlat" z nabídky. Obrazovka si o cíl řekne sama (otevře výběr chatu), takže se tu jen
      * zapamatuje, co se přeposílá — u alba celé album, jako u mazání.
      */
-    fun requestForward(messageId: Long) {
+    private fun requestForward(messageId: Long) {
         _state.update { it.copy(messageMenu = null, forwardRequest = it.albumMemberIds(messageId)) }
     }
 
@@ -1299,7 +1335,7 @@ class ConversationViewModel(
      * data za všechno, co kdo poslal. Průběh se drží ve stavu podle `fileId`, takže ho ukáže
      * i bublina alba, a druhé ťuknutí během stahování nic nespustí znovu.
      */
-    fun openDocument(messageId: Long) {
+    private fun openDocument(messageId: Long) {
         val document = _state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Document ?: return
 
         // Druhé ťuknutí během čekání ho zruší. Bez toho by se z rozbitého stahování (mrtvé spojení,
@@ -1359,7 +1395,7 @@ class ConversationViewModel(
      * neposlechnutá se nahlásí jako poslechnutá (`openMessageContent`) a hned se tak i ukáže;
      * potvrzení ze serveru přijde `contentOpenedUpdates`.
      */
-    fun toggleVoice(messageId: Long) {
+    private fun toggleVoice(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         val voice = message.media as? MessageMedia.VoiceNote ?: return
 
@@ -1419,7 +1455,7 @@ class ConversationViewModel(
         }
     }
 
-    fun seekVoice(messageId: Long, fraction: Float) {
+    private fun seekVoice(messageId: Long, fraction: Float) {
         voicePlayer.seek(VoiceKey(chatId, messageId), fraction)
     }
 
@@ -1444,7 +1480,7 @@ class ConversationViewModel(
      * Rozepsanou zprávu stačí smazat: TDLib tím zastaví i nahrávání. Ze seznamu zmizí updatem
      * o smazání jako každá jiná. Hláška jen při selhání — mezitím mohla zpráva doběhnout.
      */
-    fun cancelUpload(messageId: Long) {
+    private fun cancelUpload(messageId: Long) {
         viewModelScope.launch {
             repository.deleteMessages(chatId, listOf(messageId), revoke = true)
                 .onFailure { failure ->
@@ -1564,36 +1600,6 @@ private val TYPING_REPEAT = 5.seconds
 private const val DRAFT_SAVE_DELAY_MS = 1500L
 
 /**
- * Dá se zpráva upravit ve vstupním poli, aniž by přišla o formátování?
- *
- * Pole umí jen holý text. Odkazy, zmínky a spol. se při odeslání úpravy dohledají znovu, ale
- * **ruční formátování** (tučné, kurzíva, spoiler, odkaz s vlastním popiskem) by úprava tiše smazala.
- * Takovou zprávu radši upravit nenabídneme — položka, která rozbije obsah, je horší než žádná.
- *
- * Odkaz se pozná jako automatický, když jeho text v adrese opravdu stojí (`example.com` →
- * `https://example.com`). U odkazu s popiskem („klikni sem") to neplatí.
- */
-private fun ChatMessage.isEditableAsPlainText(): Boolean {
-    if (media != null || isService || text.isBlank()) return false
-
-    return entities.all { entity ->
-        val type = entity.type as? MessageEntityType.Link ?: return@all false
-        val start = entity.offset.coerceIn(0, text.length)
-        val end = (entity.offset + entity.length).coerceIn(start, text.length)
-        type.url.endsWith(text.substring(start, end), ignoreCase = true)
-    }
-}
-
-/**
- * Text zprávy pro schránku.
- *
- * Animované emoji má prázdný text (kreslí se jako příloha), ale zkopírovat se má pořád jeho znak —
- * dřív, když bylo textovou zprávou, to šlo.
- */
-private fun ChatMessage.copyableText(): String =
-    text.ifBlank { (media as? MessageMedia.AnimatedEmoji)?.emoji.orEmpty() }
-
-/**
  * Text, který má obrazovka vložit do vstupního pole.
  *
  * [onlyIfEmpty] u konceptu z TDLib: než dorazí, mohl uživatel začít psát a přepsat mu to by bylo
@@ -1690,13 +1696,13 @@ data class MessageMenu(
     val emoji: List<String>,
     /** Emoji, která uživatel u téhle zprávy už dal — v rychlém řádku se zvýrazní. */
     val chosenEmoji: Set<String>,
+    /** Co server dovolí; načítá se až při otevření nabídky. */
     val actions: MessageActions,
-    /** Bez textu není co kopírovat, i kdyby to server dovolil. */
-    val hasText: Boolean,
-    /** Server úpravu dovolí A zpráva se dá upravit bez ztráty formátování. */
-    val canEdit: Boolean,
-    /** Podle seznamu připnutých — rozhoduje mezi „Připnout" a „Odepnout". */
-    val isPinned: Boolean,
+    /**
+     * Kandidáti do nabídky od bloku — ten ví, co zpráva JE (holý text, samolepka, připnutá…).
+     * Nabídka z nich ukáže ty, které server dovolí ([MessageMenuAction.presentation]).
+     */
+    val items: List<MessageMenuAction>,
     /**
      * Je samolepka zprávy v oblíbených? `null`, když zpráva samolepka není — pak se položka
      * nenabízí vůbec.

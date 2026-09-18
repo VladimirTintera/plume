@@ -123,6 +123,7 @@ import eu.tintera.plume.features.conversation.items.CenteredNote
 import eu.tintera.plume.features.conversation.items.ConversationItemScope
 import eu.tintera.plume.features.conversation.items.DayDividerItem
 import eu.tintera.plume.features.conversation.items.MESSAGE_SPACING
+import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.QuotedMessage
 import eu.tintera.plume.features.conversation.items.SPONSORED_KEY_PREFIX
 import eu.tintera.plume.features.conversation.items.TIME_COLUMN_WIDTH
@@ -315,36 +316,13 @@ fun ConversationScreen(
      */
     var pinnedHeight by remember { mutableStateOf(0.dp) }
 
-    /*
-     * Obsluha nabídky nad zprávou.
-     *
-     * Balík místo šesti parametrů: nabídka se deklaruje UVNITŘ bubliny (jinak by neměla k čemu
-     * se ukotvit), takže by je jinak bublina všechny nesla ve své signatuře.
-     */
-    val menuHandlers = remember(viewModel) {
-        MessageMenuHandlers(
-            onPick = viewModel::toggleReaction,
-            onReply = viewModel::replyTo,
-            onEdit = viewModel::startEdit,
-            onCopy = viewModel::copyMessage,
-            onDelete = viewModel::requestDelete,
-            onForward = viewModel::requestForward,
-            onPin = viewModel::requestPin,
-            onUnpin = viewModel::unpinFromMenu,
-            onToggleFavorite = viewModel::toggleFavoriteSticker,
-            onInfo = viewModel::showMessageInfo,
-            onDismiss = viewModel::closeMenus,
-        )
-    }
-
     val currentOnOpenMedia by rememberUpdatedState(onOpenMedia)
-    val itemScope = remember(viewModel, menuHandlers) {
+    val itemScope = remember(viewModel) {
         ScreenItemScope(
             viewModel = viewModel,
             state = stateHolder,
             voicePlayback = voicePlayback,
             timeReveal = { timeReveal.value },
-            menuHandlers = menuHandlers,
             onOpenMedia = { currentOnOpenMedia(it) },
             onOpenStickerSet = { openStickerSetId = it },
         )
@@ -1455,7 +1433,6 @@ private class ScreenItemScope(
     private val state: State<ConversationState>,
     private val voicePlayback: State<VoicePlayback?>,
     override val timeReveal: () -> Float,
-    override val menuHandlers: MessageMenuHandlers,
     private val onOpenMedia: (messageId: Long) -> Unit,
     private val onOpenStickerSet: (setId: Long) -> Unit,
 ) : ConversationItemScope {
@@ -1464,18 +1441,13 @@ private class ScreenItemScope(
 
     override fun documentProgress(fileId: Int): Float? = state.value.documentDownloads[fileId]
 
-    override fun openMedia(messageId: Long) = onOpenMedia(messageId)
-    override fun openStickerSet(setId: Long) = onOpenStickerSet(setId)
-    override fun openDocument(messageId: Long) = viewModel.openDocument(messageId)
-    override fun cancelUpload(messageId: Long) = viewModel.cancelUpload(messageId)
-    override fun toggleVoice(messageId: Long) = viewModel.toggleVoice(messageId)
-    override fun seekVoice(messageId: Long, fraction: Float) = viewModel.seekVoice(messageId, fraction)
-    override fun jumpToMessage(messageId: Long) = viewModel.jumpToMessage(messageId)
-    override fun toggleReadReceipt(messageId: Long) = viewModel.toggleReadReceipt(messageId)
-    override fun showReactionDetails(messageId: Long) = viewModel.showReactionDetails(messageId)
-    override fun showMenu(messageId: Long) = viewModel.showMessageMenu(messageId)
-    override fun replyTo(messageId: Long) = viewModel.replyTo(messageId)
-    override fun openLink(url: String) = viewModel.openLink(url)
+    /** Navigace a sheet nad obrazovkou jsou věc obrazovky; všechno ostatní jde do ViewModelu. */
+    override fun onAction(messageId: Long, action: MessageAction) = when (action) {
+        MessageAction.OpenMedia -> onOpenMedia(messageId)
+        is MessageAction.OpenStickerSet -> onOpenStickerSet(action.setId)
+        else -> viewModel.onAction(messageId, action)
+    }
+
     override fun openSponsored(sponsored: SponsoredMessage) = viewModel.onSponsoredClick(sponsored)
 }
 

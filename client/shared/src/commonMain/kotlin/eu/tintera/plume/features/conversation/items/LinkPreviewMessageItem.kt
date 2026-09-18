@@ -34,7 +34,7 @@ internal data class LinkPreviewMessageItem(
                 bubbleShape = shape,
                 contentBottom = contentBottom,
                 // Ťuknutí jde stejnou cestou jako odkaz v textu, tedy přes ViewModel.
-                onOpen = { items.openLink(preview.url) },
+                onOpen = { act(MessageAction.OpenLink(preview.url)) },
                 onLongClick = ::requestMenu,
             ) {
                 if (message.text.isNotBlank()) MessageText(linkColor = accent)

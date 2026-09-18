@@ -1,8 +1,13 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 /**
  * Jedna položka seznamu konverzace: samostatná zpráva, nebo celé album.
@@ -152,3 +157,32 @@ internal fun showsBareLinkPreview(message: ChatMessage): Boolean {
         message.replyToMessageId == null
 }
 
+/**
+ * Dá se zpráva upravit ve vstupním poli, aniž by přišla o formátování?
+ *
+ * Pole umí jen holý text. Odkazy, zmínky a spol. se při odeslání úpravy dohledají znovu, ale
+ * **ruční formátování** (tučné, kurzíva, spoiler, odkaz s vlastním popiskem) by úprava tiše smazala.
+ * Takovou zprávu radši upravit nenabídneme — položka, která rozbije obsah, je horší než žádná.
+ *
+ * Odkaz se pozná jako automatický, když jeho text v adrese opravdu stojí (`example.com` →
+ * `https://example.com`). U odkazu s popiskem („klikni sem") to neplatí.
+ */
+internal fun ChatMessage.isEditableAsPlainText(): Boolean {
+    if (media != null || isService || text.isBlank()) return false
+
+    return entities.all { entity ->
+        val type = entity.type as? MessageEntityType.Link ?: return@all false
+        val start = entity.offset.coerceIn(0, text.length)
+        val end = (entity.offset + entity.length).coerceIn(start, text.length)
+        type.url.endsWith(text.substring(start, end), ignoreCase = true)
+    }
+}
+
+/**
+ * Text zprávy pro schránku.
+ *
+ * Animované emoji má prázdný text (kreslí se jako příloha), ale zkopírovat se má pořád jeho znak —
+ * dřív, když bylo textovou zprávou, to šlo.
+ */
+internal fun ChatMessage.copyableText(): String =
+    text.ifBlank { (media as? MessageMedia.AnimatedEmoji)?.emoji.orEmpty() }
