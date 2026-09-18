@@ -330,9 +330,14 @@ private fun ShellContent(
                          * Klíč efektu musí obsahovat i vybranou sekci: po zpět zůstane v zásobníku
                          * samotné `SettingsRoute` a `wide` se přitom nezmění, takže s klíčem na
                          * samotné šířce by se efekt už nespustil.
+                         *
+                         * Sekce se přidává, jen když je seznam sekcí NAVRCHU zásobníku. Po přepnutí
+                         * na Chaty obrazovka ještě dobíhá odchodovou animací, vybraná sekce zmizí
+                         * se zbytkem zásobníku a efekt by přidal sekci nastavení nad seznam chatů
+                         * (rail hlásil Chaty, na ploše bylo „Obecné").
                          */
                         LaunchedEffect(wide, selectedSection) {
-                            if (wide && selectedSection == null) {
+                            if (wide && selectedSection == null && backStack.lastOrNull() == SettingsRoute) {
                                 backStack.add(SettingsSectionRoute(SettingsSection.entries.first()))
                             }
                         }

@@ -401,6 +401,12 @@ se z telefonu nedalo chodit zpět bez `BackHandler`, který v téhle aplikaci za
   sekcí by se roztáhl přes celou šířku. Dosazuje ji efekt, jehož **klíč musí obsahovat i vybranou
   sekci** — po zpět zůstane v zásobníku samotná `SettingsRoute` a šířka se přitom nezmění, takže
   s klíčem na samotné šířce by se efekt už nespustil.
+- **Efekt smí sekci přidat, jen když je `SettingsRoute` NAVRCHU zásobníku.** Obrazovka po
+  přepnutí sekce aplikace ještě dobíhá odchodovou animací a její efekty dál běží. Po rychlém
+  Nastavení → Chaty srovnal `selectTopLevel` zásobník na `[ChatsRoute]`, vybraná sekce tím
+  zmizela, efekt se kvůli změně klíče spustil znovu a přidal `SettingsSectionRoute` nad chaty —
+  rail hlásil Chaty, na ploše bylo „Obecné". **Obecně: efekt, který zapisuje do zásobníku, se
+  musí ptát zásobníku, ne jen stavu vlastní obrazovky** — ta může být už na odchodu.
 - **Šipka zpět je v sekci jen na compactu.** V dvoupanelu je seznam sekcí pořád vidět vedle
   a sekce se NAHRAZUJE, nevrší se zásobník — stejně jako konverzace.
 - **Spodní bar se v sekci nastavení NESKRÝVÁ**, na rozdíl od konverzace. Sekce je mělká obrazovka
