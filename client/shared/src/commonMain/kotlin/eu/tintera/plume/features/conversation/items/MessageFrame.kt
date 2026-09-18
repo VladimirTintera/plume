@@ -643,6 +643,7 @@ internal fun MessageBodyScope.Attachment(
     media: MessageMedia,
     accent: Color,
     mediaShape: Shape? = null,
+    minWidthFraction: Float = 0f,
 ) {
     val id = message.id
     MessageAttachment(
@@ -656,6 +657,7 @@ internal fun MessageBodyScope.Attachment(
         onOpenDocument = { act(MessageAction.OpenDocument) },
         accent = accent,
         mediaShape = mediaShape,
+        minWidthFraction = minWidthFraction,
         voice = VoiceHandlers(
             playback = { items.voicePlayback(id) },
             onToggle = { act(MessageAction.ToggleVoice) },

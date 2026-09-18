@@ -740,6 +740,12 @@ jako `výška × poměr`.
 - **Počítá se ručně v `BoxWithConstraints`**, ne přes `aspectRatio` — viz „Gotchas".
 - **Popisek se zalomí na šířku fotky** (viz „Médium bez bubliny"), takže zúžená fotka s dlouhým
   popiskem („Screenshot (18. 9. 2026 5:23:34)") nenechá vedle sebe prázdné místo.
+- **Fotka s popiskem má podlahu šířky 75 %** (`CAPTIONED_MIN_WIDTH_FRACTION`, parametr
+  `minWidthFraction` u `photoFrame`). Popisek má šířku fotky, a vysoký snímek zúžený na pár set
+  bodů lámal text po dvou třech slovech — delší popis byl nečitelný. S popiskem se proto fotka
+  rozšíří, výška zůstane na stropu a obrázek se **ořízne na střed** (`Crop`, poměr stran bez
+  deformace), jako v Telegramu. Bez popisku se dál jen zužuje a je vidět celá. Totéž platí pro
+  obrázek náhledu odkazu: text zprávy i popis webu mají jeho šířku.
 - **Album ve čtvercích zůstává.** Mřížka je vědomé rozhodnutí (viz „Alba"), takže pravidlo platí
   jen pro samostatnou fotku a video; řádek alba s jednou fotkou se ořezává dál.
 
