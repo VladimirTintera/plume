@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -42,16 +43,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -62,6 +68,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -407,9 +414,42 @@ private fun MessageFrame(
             // Viditelná část zprávy pro nabídku (viz `MessageMenuOverlay`). Měří se jen, když je
             // nabídka otevřená — jinak by každá položka při scrollu zapisovala stav.
             var visibleBounds by remember { mutableStateOf<Rect?>(null) }
+
+            /*
+             * Snímek zprávy pro nabídku, která ji posune do pohledu (viz `liftIntoView`).
+             *
+             * Nahrává se do vrstvy jen při otevřené nabídce a pořídí se z ní jednou, jakmile je
+             * nahraná. Vrstva kreslí CELÝ obsah, i část, kterou seznam ořízl — proto jde vysunout
+             * i zpráva, která začíná nad okrajem obrazovky.
+             */
+            val snapshotLayer = rememberGraphicsLayer()
+            var snapshot by remember { mutableStateOf<ImageBitmap?>(null) }
+            val menuOpen = frame.menu != null
+            LaunchedEffect(menuOpen) {
+                snapshot = null
+                if (!menuOpen) return@LaunchedEffect
+                // Nahrání proběhne až při kreslení, tedy nejdřív v příštím snímku.
+                repeat(SNAPSHOT_FRAMES) {
+                    withFrameNanos { }
+                    if (snapshotLayer.size != IntSize.Zero) {
+                        snapshot = snapshotLayer.toImageBitmap()
+                        return@LaunchedEffect
+                    }
+                }
+            }
+
             Box(
-                if (frame.menu != null) {
-                    Modifier.onGloballyPositioned { visibleBounds = it.boundsInWindow() }
+                if (menuOpen) {
+                    Modifier
+                        .onGloballyPositioned { visibleBounds = it.boundsInWindow() }
+                        .drawWithContent {
+                            // S pořízeným snímkem zůstane místo zprávy PRÁZDNÉ, jako v Google
+                            // Zprávách: zpráva „odjela" do nabídky a pod závojem by jinak byla
+                            // podruhé, ztmavená a jinde.
+                            if (snapshot != null) return@drawWithContent
+                            snapshotLayer.record { this@drawWithContent.drawContent() }
+                            drawLayer(snapshotLayer)
+                        }
                 } else {
                     Modifier
                 },
@@ -507,6 +547,7 @@ private fun MessageFrame(
                         // Do nabídky jde SKUTEČNÝ stav, ne to, co zrovna ukazuje odznak.
                         delivery = frame.delivery,
                         visibleBounds = visibleBounds,
+                        snapshot = snapshot,
                     )
                 }
             }
@@ -723,3 +764,6 @@ private val REPLY_ICON_SLOT = 40.dp
 
 /** Jak malá je šipka na začátku tahu. */
 private const val REPLY_ICON_MIN_SCALE = 0.6f
+
+/** Kolik snímků se nejvýš čeká, než se vrstva se zprávou nahraje. Pak nabídka zůstane u díry. */
+private const val SNAPSHOT_FRAMES = 3

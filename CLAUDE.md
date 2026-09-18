@@ -1253,6 +1253,18 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   nabídka vztahuje — ztmavit i ji by znamenalo ptát se na něco, co není vidět. Vykrojení nutně
   potřebuje `CompositingStrategy.Offscreen`: `Clear` maže z vrstvy a bez vlastní vrstvy by
   vymazalo i všechno pod popupem.
+- **Zpráva se do pohledu VYSUNE, jako v Google Zprávách** (`liftIntoView`, testy
+  `LiftIntoViewTest`). Vysoká zpráva zasahující pod hlavičku nebo pod okraj obrazovky se při
+  otevření nabídky posune tak, aby byla celá vidět a nad ní se vešel pruh reakcí. Neposouvá se
+  seznam, ale **snímek** zprávy: rám ji při otevřené nabídce nahrává do `GraphicsLayer`
+  (celou, i část, kterou seznam ořízl) a pořídí z ní `toImageBitmap()`; nabídka ho kreslí nad
+  závojem na posunutém místě. Po zavření se tak nic nepřeskládá a scroll zůstane, kde byl.
+- **Původní místo zůstává PRÁZDNÉ**, jak to dělají Google Zprávy: s pořízeným snímkem rám
+  obsah nekreslí, jen drží jeho místo. Jinak by pod závojem byla tatáž zpráva podruhé, ztmavená
+  a jinde. Díra do závoje (níž) zbyla jen na snímek, než se snímek pořídí.
+- **Snímek je bitmapa, ne sdílená vrstva.** Popup je na Androidu vlastní okno a kreslit do něj
+  `GraphicsLayer` z hlavního okna by znamenalo sdílet `RenderNode` napříč okny; bitmapa je
+  jistota. Cena: animovaná samolepka v nabídce stojí.
 - **Díra i umístění se řídí VIDITELNOU částí zprávy**, ne jejím obdélníkem. `anchorBounds` popupu
   je celá zpráva, i když z ní seznam ukazuje jen kus — u vysoké zprávy (náhled odkazu, fotka)
   zasahující pod hlavičku pak díra prořízla hlavičku i stavovou lištu a pruh reakcí, který stojí
