@@ -82,4 +82,45 @@ class MenuMessagePlacementTest {
     fun kratkaZpravaVTesnemOknuZustaneCela() {
         assertEquals(40.dp, place(top = 0, height = 40, menu = 900).visibleHeight)
     }
+
+    @Test
+    fun bezPruhuReakciJeNabidkaPodZmensenouZpravou() {
+        // Chat bez reakcí: pruh nad zprávou není, vysoká zpráva se zmenší až k horní mezi
+        // a nabídka se vejde přesně pod ni. Dřív se „pruh nevejde nad zprávu" vyhodnotilo i bez
+        // pruhu, nabídka se posunula o mezeru níž, nevešla se, odskočila nad zprávu a ořízla
+        // se k horní mezi — přes zprávu. Stalo se to na rozloženém Foldu.
+        val screen = 841.7.dp
+        val topMargin = 111.3.dp
+        val bottomMargin = 33.9.dp
+        val menuHeight = 349.1.dp
+        var height = 400f
+        while (height < 1100f) {
+            val placement = placeMenuMessage(
+                anchorTop = 300.dp,
+                anchorHeight = height.dp,
+                screenHeight = screen,
+                topMargin = topMargin,
+                bottomMargin = bottomMargin,
+                quickRowSpace = 0.dp,
+                menuSpace = menuHeight + MENU_GAP_FOR_TEST,
+            )
+            val layout = placeMenu(
+                anchorTop = placement.top,
+                anchorBottom = placement.top + placement.visibleHeight,
+                quickRowHeight = 0.dp,
+                menuHeight = menuHeight,
+                screenHeight = screen,
+                topMargin = topMargin,
+                bottomMargin = bottomMargin,
+            )
+            assertTrue(
+                layout.menuY >= placement.top + placement.visibleHeight,
+                "Zpráva $height dp: nabídka ${layout.menuY} leží přes zprávu končící na ${placement.top + placement.visibleHeight}",
+            )
+            height += 0.37f
+        }
+    }
 }
+
+/** Mezera mezi zprávou a nabídkou, jak ji počítá vrstva nabídky (`MENU_GAP`). */
+private val MENU_GAP_FOR_TEST = 8.dp

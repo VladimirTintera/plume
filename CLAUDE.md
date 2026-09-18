@@ -1324,7 +1324,12 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
 - **Zpět obsluhuje `NavigationBackHandler`** (`androidx.navigationevent`), ne `BackHandler` —
   ten by zabil predictive back. Při rozbaleném výběru reakcí je vypnutý, zpět si vezme sheet.
 - **Zpráva se v nabídce složí znovu, živá** (`MenuCopy`: tentýž `MessageBox` a `MessageBodyScope`
-  jako v seznamu, stejná šířka, bez gest). V seznamu se zprůhlední (`isInMenu`) a drží místo —
+  jako v seznamu, stejná šířka, bez gest).
+- **Kopie dostává stejné OMEZENÍ šířky jako zpráva v seznamu, ne šířku zprávy napevno**
+  (`MenuAnchor.maxWidth`, zapisuje ho rám v `layout`, a stejný `maxWidthFraction`). S šířkou
+  zprávy jako stropem vyšlo jinak všechno, co se řídí dostupnou šířkou: fotka s popiskem má
+  podlahu 75 % dostupné šířky, v kopii to bylo 75 % ze samotné karty — vysoký snímek se
+  v nabídce zúžil a po návratu skokem dorostl, až se ukázala zpráva v seznamu. V seznamu se zprůhlední (`isInMenu`) a drží místo —
   po ní zůstane prázdno, jako v Google Zprávách.
 - **Let tam i zpátky je ruční posun kopie (`Animatable`), NE sdílený prvek.** Sdílený prvek se během
   přechodu kreslí v překryvu nad celou aplikací, mimo ořezy rodičů, takže zpráva začínající pod
@@ -1402,6 +1407,11 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
 - **Past: `Modifier.clip(shape)` musí být PŘED `combinedClickable`.** `Surface` si tvarem ořezává
   jen svoje pozadí, a to až za modifikátory, které dostane zvenku — vlnka dlouhého stisku se tedy
   kreslila do obdélníku a přetékala přes zaoblená nároží bubliny.
+- **Bez pruhu reakcí se pruh nepřesouvá** (`placeMenu`). Podmínka „pruh se nevejde nad zprávu“
+  platila i s nulovou výškou pruhu, když zpráva stála u horní meze — tedy u každé vysoké zprávy
+  zmenšené k horní mezi v chatu bez reakcí. Nabídka se tím posunula o mezeru níž, pod zprávu se
+  nevešla, odskočila nad ni a ořízla se k horní mezi: přes zprávu. Test
+  `bezPruhuReakciJeNabidkaPodZmensenouZpravou` prochází zprávy výšku po výšce.
 - **Výšky obou kusů jsou konstanty, ne měření.** Kreslíme si je sami, takže je známe předem —
   ušetří se tím snímek, ve kterém by nabídka poskočila na správné místo.
 - **Výška nabídky se počítá z UKÁZANÝCH položek, ne z kandidátů.** Blok nabízí kandidáty a server

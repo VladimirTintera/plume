@@ -123,6 +123,7 @@ import eu.tintera.plume.features.conversation.items.CenteredNote
 import eu.tintera.plume.features.conversation.items.ConversationItemScope
 import eu.tintera.plume.features.conversation.items.DayDividerItem
 import eu.tintera.plume.features.conversation.items.MESSAGE_SPACING
+import eu.tintera.plume.features.conversation.items.MenuAnchor
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageItem
 import eu.tintera.plume.features.conversation.items.QuotedMessage
@@ -319,7 +320,7 @@ fun ConversationScreen(
     var pinnedHeight by remember { mutableStateOf(0.dp) }
 
     /** Kde byla zpráva, nad kterou se otevírá nabídka — hlásí ji zpráva při dlouhém stisku. */
-    var menuAnchor by remember { mutableStateOf<() -> Rect?>({ null }) }
+    var menuAnchor by remember { mutableStateOf(MenuAnchor(bounds = { null }, maxWidth = { null })) }
 
     /** Klíč zprávy, kterou právě kreslí nabídka; v seznamu po ní zůstane prázdné místo. */
     val menuKey = remember { mutableStateOf<Long?>(null) }
@@ -1463,7 +1464,7 @@ private class ScreenItemScope(
     private val state: State<ConversationState>,
     private val voicePlayback: State<VoicePlayback?>,
     private val contentTop: State<Float?>,
-    private val onMenuAnchor: (() -> Rect?) -> Unit,
+    private val onMenuAnchor: (MenuAnchor) -> Unit,
     private val menuKey: State<Long?>,
     override val timeReveal: () -> Float,
     private val onOpenMedia: (messageId: Long) -> Unit,
@@ -1476,7 +1477,7 @@ private class ScreenItemScope(
 
     override fun contentTop(): Float? = contentTop.value
 
-    override fun onMenuAnchor(bounds: () -> Rect?) = onMenuAnchor.invoke(bounds)
+    override fun onMenuAnchor(anchor: MenuAnchor) = onMenuAnchor.invoke(anchor)
 
     override fun isInMenu(key: Long): Boolean = menuKey.value == key
 

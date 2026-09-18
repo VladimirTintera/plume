@@ -187,8 +187,8 @@ internal class MessageBodyScope(
      * zprávě poslední: bublinu, popisek pod holou fotkou i popis náhledu odkazu.
      */
     val contentBottom: Dp,
-    /** Kde zpráva v okně právě je; nabídka z toho místa vyjede. `null` u kopie v nabídce. */
-    private val anchorBounds: () -> Rect?,
+    /** Kde zpráva v okně právě je; nabídka z toho místa vyjede. U kopie v nabídce prázdná. */
+    private val anchor: MenuAnchor,
 ) {
     val message: ChatMessage get() = frame.message
     val continuesAbove: Boolean get() = frame.continuesAbove
@@ -201,7 +201,7 @@ internal class MessageBodyScope(
      * citace, fotka) ho k rámu nepustí, takže ho musí zopakovat sami — proto je tu, ne v rámu.
      */
     fun requestMenu() {
-        items.onMenuAnchor(anchorBounds)
+        items.onMenuAnchor(anchor)
         act(MessageAction.ShowMenu(frame.menuActions))
     }
 }
@@ -214,7 +214,7 @@ internal class MessageBodyScope(
 internal fun rememberMessageBodyScope(
     frame: MessageFrameData,
     scope: ConversationItemScope,
-    anchorBounds: () -> Rect?,
+    anchor: MenuAnchor,
 ): MessageBodyScope {
     val message = frame.message
 
@@ -298,7 +298,7 @@ internal fun rememberMessageBodyScope(
             onBubbleColor = onBubbleColor,
             accent = accent,
             contentBottom = contentBottom,
-            anchorBounds = anchorBounds,
+            anchor = anchor,
         )
     }
 }
@@ -325,9 +325,15 @@ private fun MessageFrame(
      * čtou se jen při dlouhém stisku, a zápis stavu při každém layoutu by položku rekomponoval.
      */
     val boxCoordinates = remember { arrayOfNulls<LayoutCoordinates>(1) }
-    val bodyScope = rememberMessageBodyScope(frame, scope) {
-        boxCoordinates[0]?.takeIf { it.isAttached }?.let { Rect(it.positionInWindow(), it.size.toSize()) }
+    // Nejvyšší šířka, kterou zpráva v seznamu dostala — kopie v nabídce se složí se stejnou.
+    val boxMaxWidth = remember { IntArray(1) { -1 } }
+    val anchor = remember {
+        MenuAnchor(
+            bounds = { boxCoordinates[0]?.takeIf { it.isAttached }?.let { Rect(it.positionInWindow(), it.size.toSize()) } },
+            maxWidth = { boxMaxWidth[0].takeIf { it >= 0 } },
+        )
     }
+    val bodyScope = rememberMessageBodyScope(frame, scope, anchor)
 
     val coroutineScope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
@@ -476,6 +482,11 @@ private fun MessageFrame(
                 reactions = heldReactions(frame.message.reactions, hold = scope.isInMenu(frame.key)),
                 body = body,
                 modifier = Modifier
+                    .layout { measurable, constraints ->
+                        boxMaxWidth[0] = constraints.maxWidth
+                        val placeable = measurable.measure(constraints)
+                        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                    }
                     .onGloballyPositioned { boxCoordinates[0] = it }
                     // Průhledná, ne vyřazená z layoutu: místo zůstane prázdné a kopie v nabídce se
                     // na něj po zavření vrátí. Čte se až při kreslení, takže nic nerekomponuje.
@@ -616,18 +627,24 @@ internal fun MessageBox(
  */
 @Composable
 internal fun MessageItem.MenuCopy(scope: ConversationItemScope, modifier: Modifier = Modifier) {
-    val bodyScope = rememberMessageBodyScope(frame, scope) { null }
+    val bodyScope = rememberMessageBodyScope(frame, scope, NoMenuAnchor)
     MessageBox(
         frame = frame,
         bodyScope = bodyScope,
         body = { Body() },
         modifier = modifier,
+        // Kopie dostává stejné omezení šířky jako zpráva v seznamu (`MenuAnchor.maxWidth`),
+        // takže i podíl šířky musí být stejný — jinak by se text zalomil jinak.
+        maxWidthFraction = maxWidthFraction,
         onReactionClick = null,
         // Kopie ukazuje reakce z okamžiku otevření: výběr reakce nabídku hned zavře a kopie letí
         // zpátky — nová reakce patří až zprávě v seznamu, kde ji je vidět naskočit.
         reactions = heldReactions(frame.message.reactions, hold = true),
     )
 }
+
+/** Kopie v nabídce nabídku znovu neotevírá, takže nemá odkud vyjet. */
+private val NoMenuAnchor = MenuAnchor(bounds = { null }, maxWidth = { null })
 
 /**
  * Reakce, které se mají kreslit: dokud [hold] platí, drží se ty, co byly vidět naposledy.
