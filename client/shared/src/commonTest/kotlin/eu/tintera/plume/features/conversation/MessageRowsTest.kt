@@ -1,9 +1,11 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -18,6 +20,8 @@ class MessageRowsTest {
         sendState: SendState? = null,
         isOutgoing: Boolean = sendState != null,
         isService: Boolean = false,
+        media: MessageMedia? = null,
+        replyToMessageId: Long? = null,
     ) = ChatMessage(
         id = id,
         isOutgoing = isOutgoing,
@@ -26,11 +30,11 @@ class MessageRowsTest {
         senderId = 1L,
         text = text,
         entities = emptyList(),
-        media = null,
+        media = media,
         linkPreview = null,
         reactions = emptyList(),
         sendState = sendState,
-        replyToMessageId = null,
+        replyToMessageId = replyToMessageId,
         isService = isService,
         timestamp = timestamp,
         isEdited = false,
@@ -143,5 +147,80 @@ class MessageRowsTest {
             ),
         )
         assertEquals(2L, readBadgeRow(rows)?.oldest?.id)
+    }
+
+    // --- Médium bez bubliny ---------------------------------------------------------------
+
+    private fun photo() = MessageMedia.Photo(
+        fileId = 1,
+        thumbnailFileId = null,
+        fullFileId = 2,
+        width = 1080,
+        height = 1920,
+    )
+
+    private fun video() = MessageMedia.Video(
+        fileId = 1,
+        thumbnailFileId = null,
+        width = 1920,
+        height = 1080,
+        durationSeconds = 5,
+    )
+
+    private fun document() = MessageMedia.Document(
+        fileId = 1,
+        fileName = "smlouva.pdf",
+        mimeType = "application/pdf",
+        sizeBytes = 1024,
+        thumbnailFileId = null,
+    )
+
+    @Test
+    fun fotkaAVideoJdouNaPlochu() {
+        assertTrue(showsBareMedia(message(id = 1, media = photo()), album = null))
+        assertTrue(showsBareMedia(message(id = 1, media = video()), album = null))
+    }
+
+    @Test
+    fun popisekNaTomNicNemeni() {
+        assertTrue(showsBareMedia(message(id = 1, text = "houby", media = photo()), album = null))
+    }
+
+    @Test
+    fun souborAHlasovkaSiBublinuDrzi() {
+        assertFalse(showsBareMedia(message(id = 1, media = document()), album = null))
+    }
+
+    @Test
+    fun textovaZpravaSiBublinuDrzi() {
+        assertFalse(showsBareMedia(message(id = 1, text = "ahoj"), album = null))
+    }
+
+    @Test
+    fun citaceSiBublinuVynuti() {
+        val withQuote = message(id = 1, media = photo(), replyToMessageId = 7L)
+
+        assertFalse(showsBareMedia(withQuote, album = null))
+    }
+
+    @Test
+    fun albumFotekJdeNaPlochu() {
+        val members = listOf(message(id = 1, media = photo()), message(id = 2, media = video()))
+
+        assertTrue(showsBareMedia(members.first(), album = members))
+    }
+
+    @Test
+    fun albumDokumentuSiBublinuDrzi() {
+        val members = listOf(message(id = 1, media = document()), message(id = 2, media = document()))
+
+        assertFalse(showsBareMedia(members.first(), album = members))
+    }
+
+    @Test
+    fun albumSJednimDokumentemSiBublinuDrzi() {
+        val members = listOf(message(id = 1, media = photo()), message(id = 2, media = document()))
+
+        assertFalse(showsBareMedia(members.first(), album = members))
     }
 }

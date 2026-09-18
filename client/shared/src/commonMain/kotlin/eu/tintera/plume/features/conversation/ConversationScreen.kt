@@ -55,6 +55,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -100,6 +101,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -1140,7 +1142,13 @@ private fun MessageBubble(
         album != null || message.media != null || message.replyToMessageId != null -> 0
         else -> message.text.emojiClusterCount(MAX_LARGE_EMOJI)
     }
+    /*
+     * Fotka, video a album se kreslí přímo na plochu, bez bubliny — viz `showsBareMedia`.
+     * Popisek pod nimi ale vlastní kontejner dostane: text na holé ploše by se ztratil.
+     */
+    val bareMedia = showsBareMedia(message, album)
     val bare = largeEmoji > 0 ||
+        bareMedia ||
         (
             (message.media is MessageMedia.Sticker || message.media is MessageMedia.AnimatedEmoji) &&
                 message.replyToMessageId == null
@@ -1156,17 +1164,24 @@ private fun MessageBubble(
      *
      * Vrstvení jinak drží surface role, ne elevation — viz konvence v CLAUDE.md.
      */
-    val containerColor = when {
-        bare -> Color.Transparent
-        message.isOutgoing -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.surfaceContainerHigh
+    // Barvy bubliny se počítají i u holého média — popisek pod ním je dostane pro svůj kontejner.
+    val bubbleColor = if (message.isOutgoing) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHigh
     }
+    val onBubbleColor = if (message.isOutgoing) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    val containerColor = if (bare) Color.Transparent else bubbleColor
     val contentColor = when {
         // Bez pozadí se kreslí na plochu obrazovky, takže barva popředí musí patřit k NÍ,
         // ne k barvě bubliny, která tam není.
         bare -> MaterialTheme.colorScheme.onSurface
-        message.isOutgoing -> MaterialTheme.colorScheme.onPrimary
-        else -> MaterialTheme.colorScheme.onSurface
+        else -> onBubbleColor
     }
 
     /*
@@ -1199,6 +1214,19 @@ private fun MessageBubble(
             bottomStart = bottomInner,
         )
     }
+
+    /*
+     * Médium a popisek pod ním jsou SKUPINA, ne dva nezávislé kusy: nároží mezi nimi se stahuje
+     * a spára je úzká, stejně jako u bloků v seznamu chatů. Bez toho by to byly dvě oddělené
+     * plochy a nebylo by poznat, že popisek patří k tomu snímku nad ním.
+     */
+    val hasCaption = bareMedia && (message.text.isNotBlank() || message.isEdited)
+    val mediaShape = if (hasCaption) {
+        shape.copy(bottomStart = CornerSize(tight), bottomEnd = CornerSize(tight))
+    } else {
+        shape
+    }
+    val captionShape = shape.copy(topStart = CornerSize(tight), topEnd = CornerSize(tight))
 
     /*
      * Co se ze stavu doručení vůbec ukáže. `null` znamená, že odznak nebude.
@@ -1352,13 +1380,36 @@ private fun MessageBubble(
                   // na otevírání médií, až přibude.
                   .combinedClickable(onLongClick = onRequestMenu, onClick = {}),
           ) {
-              Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+              Column(
+                  // Holé médium jde až k hraně: odsazení bubliny by kolem snímku nechalo rám,
+                  // který tam po zrušení bubliny nemá co dělat.
+                  modifier = if (bareMedia) {
+                      Modifier
+                  } else {
+                      Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                  },
+                  /*
+                   * Bez bubliny drží snímek a popisek u sebe jen zarovnáním, a každý je jinak
+                   * široký. Musí se proto srovnat ke STRANĚ ODESÍLATELE — jinak zůstane odchozí
+                   * fotka u levého okraje bloku, jakmile je popisek širší než ona.
+                   *
+                   * Uvnitř bubliny se zarovnává na začátek: tam je šířka společná a text se čte
+                   * zleva bez ohledu na to, kdo ho napsal.
+                   */
+                  horizontalAlignment = if (bareMedia && message.isOutgoing) {
+                      Alignment.End
+                  } else {
+                      Alignment.Start
+                  },
+              ) {
                   if (!continuesAbove) {
                       message.senderName?.let {
                           Text(
                               text = it,
                               style = MaterialTheme.typography.labelLarge,
                               color = MaterialTheme.colorScheme.primary,
+                              // Nad holým snímkem si jméno musí odsazení přinést samo.
+                              modifier = if (bareMedia) Modifier.padding(bottom = 2.dp) else Modifier,
                           )
                       }
                   }
@@ -1384,6 +1435,8 @@ private fun MessageBubble(
                           documentProgress = documentProgress,
                           onOpenDocument = onOpenDocument,
                           accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
+                          // Bez bubliny nese zaoblení mřížka sama a musí navázat na popisek pod ní.
+                          shape = if (bareMedia) mediaShape else null,
                       )
                   } else {
                       message.media?.let { media ->
@@ -1397,6 +1450,7 @@ private fun MessageBubble(
                               documentProgress = documentProgress,
                               onOpenDocument = { onOpenDocument(message.id) },
                               accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
+                              mediaShape = if (bareMedia) mediaShape else null,
                               voice = VoiceHandlers(
                                   playback = voicePlayback,
                                   onToggle = onToggleVoice,
@@ -1409,8 +1463,15 @@ private fun MessageBubble(
                       }
                   }
 
-                  // Prázdný text u zprávy, která má jen fotku — pak se nekreslí nic.
-                  if (message.text.isNotBlank()) {
+                  /*
+                   * Text zprávy. U holého média je to popisek pod snímkem, takže dostane vlastní
+                   * kontejner v barvě bubliny — na ploše konverzace by se ztratil. Jinak je to
+                   * obsah bubliny a kreslí se rovnou.
+                   *
+                   * Prázdný text u zprávy, která má jen fotku, neznamená nic — pak se nekreslí ani
+                   * kontejner.
+                   */
+                  val messageText: @Composable (Color) -> Unit = { linkColor ->
                       RichText(
                           text = message.text,
                           entities = message.entities,
@@ -1422,30 +1483,11 @@ private fun MessageBubble(
                               2 -> MaterialTheme.typography.displayMedium
                               else -> MaterialTheme.typography.displaySmall
                           },
-                          // V odchozí bublině je pozadí samo `primary`, takže odkaz musí vzít
-                          // barvu popředí — jinak by byl neviditelný. Stejná past jako u citace.
-                          linkColor = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
+                          linkColor = linkColor,
                           onLinkClick = onLinkClick,
                           onLongClick = onRequestMenu,
                       )
                   }
-
-                  message.linkPreview?.let { preview ->
-                      LinkPreviewCard(
-                          preview = preview,
-                          // Stejný důvod jako u citace: v odchozí bublině by `primary` splynula s pozadím.
-                          accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
-                          onOpen = { onLinkClick(preview.url) },
-                          onLongClick = onRequestMenu,
-                          modifier = Modifier.padding(top = 6.dp),
-                      )
-                  }
-
-                  ReactionRow(
-                      reactions = message.reactions,
-                      onToggle = onToggleReaction,
-                      modifier = Modifier.padding(top = 6.dp),
-                  )
 
                   /*
                    * Čas v bublině není. Zabíral řádek u KAŽDÉ zprávy, a přitom se datum čte
@@ -1454,13 +1496,71 @@ private fun MessageBubble(
                    *
                    * „Upraveno" zůstává: že se zpráva změnila, se jinde nedozvíme.
                    */
-                  if (message.isEdited) {
+                  val editedLabel: @Composable (Modifier, Color) -> Unit = { editedModifier, color ->
                       Text(
                           text = stringResource(Res.string.conversation_edited),
                           style = MaterialTheme.typography.labelSmall,
-                          color = contentColor.copy(alpha = 0.7f),
-                          modifier = Modifier.align(Alignment.End),
+                          color = color.copy(alpha = 0.7f),
+                          modifier = editedModifier,
                       )
+                  }
+
+                  if (bareMedia) {
+                      if (hasCaption) {
+                          Surface(
+                              color = bubbleColor,
+                              contentColor = onBubbleColor,
+                              shape = captionShape,
+                              // Úzká spára, ne mezera: popisek patří ke snímku nad sebou.
+                              modifier = Modifier.padding(top = MEDIA_CAPTION_GAP),
+                          ) {
+                              Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+                                  if (message.text.isNotBlank()) {
+                                      // V odchozím kontejneru je pozadí `primary`, takže odkaz
+                                      // musí vzít barvu popředí — jinak by byl neviditelný.
+                                      messageText(
+                                          if (message.isOutgoing) {
+                                              onBubbleColor
+                                          } else {
+                                              MaterialTheme.colorScheme.primary
+                                          },
+                                      )
+                                  }
+                                  if (message.isEdited) {
+                                      editedLabel(Modifier.align(Alignment.End), onBubbleColor)
+                                  }
+                              }
+                          }
+                      }
+                  } else {
+                      if (message.text.isNotBlank()) {
+                          // V odchozí bublině je pozadí samo `primary`, takže odkaz musí vzít
+                          // barvu popředí — jinak by byl neviditelný. Stejná past jako u citace.
+                          messageText(
+                              if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
+                          )
+                      }
+
+                      message.linkPreview?.let { preview ->
+                          LinkPreviewCard(
+                              preview = preview,
+                              // Stejný důvod jako u citace: v odchozí bublině by `primary` splynula s pozadím.
+                              accent = if (message.isOutgoing) contentColor else MaterialTheme.colorScheme.primary,
+                              onOpen = { onLinkClick(preview.url) },
+                              onLongClick = onRequestMenu,
+                              modifier = Modifier.padding(top = 6.dp),
+                          )
+                      }
+                  }
+
+                  ReactionRow(
+                      reactions = message.reactions,
+                      onToggle = onToggleReaction,
+                      modifier = Modifier.padding(top = 6.dp),
+                  )
+
+                  if (message.isEdited && !bareMedia) {
+                      editedLabel(Modifier.align(Alignment.End), contentColor)
                   }
               }
           }
@@ -2363,6 +2463,12 @@ private val UPLOAD_INDICATOR_SIZE = 48.dp
 /** Spára mezi fotkami alba. */
 private val ALBUM_GAP = 2.dp
 
+/**
+ * Spára mezi holým médiem a popiskem pod ním. Úzká jako spáry v albu a mezi položkami seznamu
+ * chatů: obojí je jedna skupina, ne dva samostatné kusy.
+ */
+private val MEDIA_CAPTION_GAP = 2.dp
+
 /** Strop výšky řádku alba s víc fotkami — dvě čtvercové fotky na širokém displeji by byly obří. */
 private val ALBUM_TILE_MAX_HEIGHT = 200.dp
 
@@ -2530,8 +2636,16 @@ private fun MessageAttachment(
     onOpenDocument: () -> Unit = {},
     /** Barva popředí bubliny — v odchozí `primary` bublině nesmí být `primary`. */
     accent: Color = Color.Unspecified,
+    /**
+     * Tvar fotky a videa, když se kreslí bez bubliny — přebírá zaoblení bubliny, aby snímek
+     * navázal na sousedy i na popisek pod sebou. `null` znamená obrázek uvnitř bubliny.
+     */
+    mediaShape: Shape? = null,
 ) {
     val shape = RoundedCornerShape(12.dp)
+    // Náhled souboru zůstává malý čtvereček bez ohledu na tvar bubliny — velké zaoblení bubliny
+    // by z 48dp náhledu udělalo kolečko.
+    val pictureShape = mediaShape ?: shape
 
     when (media) {
         is MessageMedia.Photo -> {
@@ -2548,7 +2662,7 @@ private fun MessageAttachment(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(frame)
-                        .clip(shape)
+                        .clip(pictureShape)
                         .sharedNavElement(photoKey(messageId))
                         /*
                          * Gesta patří FOTCE, ne celé bublině.
@@ -2618,7 +2732,7 @@ private fun MessageAttachment(
                 onCancelUpload = onCancelUpload,
                 modifier = Modifier
                     .size(frame)
-                    .clip(shape)
+                    .clip(pictureShape)
                     // Dlouhý stisk se opakuje — potomek s vlastním klikáním ho k bublině nepustí.
                     .combinedClickable(onClick = onOpen, onLongClick = onRequestMenu),
             )
@@ -2701,6 +2815,8 @@ private fun AlbumContent(
     documentProgress: (fileId: Int) -> Float?,
     onOpenDocument: (messageId: Long) -> Unit,
     accent: Color,
+    /** Tvar mřížky, když se album kreslí bez bubliny; `null` znamená album uvnitř bubliny. */
+    shape: Shape? = null,
 ) {
     val visual = members.all { it.media.isAlbumTile() }
     if (!visual) {
@@ -2726,7 +2842,7 @@ private fun AlbumContent(
 
     Column(
         // Zaoblení nese celá mřížka, ne jednotlivé dlaždice: uvnitř jsou jen tenké spáry.
-        Modifier.clip(RoundedCornerShape(12.dp)),
+        Modifier.clip(shape ?: RoundedCornerShape(12.dp)),
         verticalArrangement = Arrangement.spacedBy(ALBUM_GAP),
     ) {
         var start = 0

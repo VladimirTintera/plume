@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
 
 /**
@@ -94,4 +95,24 @@ internal fun groupAlbums(messages: List<ChatMessage>): List<MessageRow> {
     }
     flush()
     return rows
+}
+
+/**
+ * Kreslí se příloha zprávy přímo na plochu konverzace, bez bubliny?
+ *
+ * Fotka a video jsou obrázek samy o sobě — bublina kolem nich nemá co ohraničovat a jen přidává
+ * rám, ze kterého konverzace ztěžkne. Stejně to dělá Google Messages. Popisek pod snímkem bublinu
+ * naopak dostane vlastní: text na holé ploše by se ztratil.
+ *
+ * Podmínkou je, že na zprávě nevisí nic, co pozadí potřebuje:
+ * - **citace** se bez pozadí ztratí (tentýž důvod, proč si bublinu drží i zpráva z pár emoji),
+ * - **náhled odkazu** stojí na proužku akcentu uvnitř bubliny.
+ *
+ * Ostatní přílohy bublinu potřebují dál: soubor, hlasovka i samolepkový popis jsou řádky s textem
+ * a ikonou, ne obrázek. [album] nese zprávy alba, u samostatné zprávy `null`.
+ */
+internal fun showsBareMedia(message: ChatMessage, album: List<ChatMessage>?): Boolean {
+    if (message.replyToMessageId != null || message.linkPreview != null) return false
+    val media = album?.map { it.media } ?: listOf(message.media)
+    return media.isNotEmpty() && media.all { it is MessageMedia.Photo || it is MessageMedia.Video }
 }

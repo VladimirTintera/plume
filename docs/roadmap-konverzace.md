@@ -52,22 +52,21 @@ Inspirace je Google Messages. Tři samostatné kusy, dají se dělat nezávisle.
 Hotové z tohohle seznamu: tvar bubliny na konci bloku, čas se stavem doručení a výška fotek.
 Poučení ze všeho je v `CLAUDE.md`.
 
-### 1. Fotky a videa na plochu, mimo bublinu
+### 1. ~~Fotky a videa na plochu, mimo bublinu~~ — HOTOVO
 
-Mechanismus na to **už v projektu je** a nemusí se vymýšlet: `bare` v `MessageBubble` (dnes pro
-velká emoji, samolepku a animované emoji) přepne kontejner na `Color.Transparent` a barvu popředí
-na `onSurface`, protože ta pak patří ploše, ne bublině, která tam není. Rozšířit se to má na
-fotku, video a album.
+Fotka, video i album se kreslí přímo na plochu konverzace (`showsBareMedia` v `MessageRows.kt`,
+testy v `MessageRowsTest`); popisek pod nimi dostal vlastní kontejner v barvě bubliny a se snímkem
+tvoří skupinu se staženým nárožím. Poučení v `CLAUDE.md`, „Médium bez bubliny".
 
-Co je na tom skutečná práce, není ta průhlednost, ale to, co v bublině viselo s fotkou:
+Co z toho zůstalo:
 
-- **Čas a stav doručení.** Dnes jsou uvnitř bubliny. Nad fotkou nebudou čitelné bez vlastního
-  podkladu (Google Messages je dává mimo snímek). Čas už v bublině není vůbec a odznak doručení
-  je pod ní, takže nad fotkou nezbylo nic — tahle část je tím vyřešená.
-- **Popisek.** V Google Messages je pod fotkou ve vlastním kontejneru, ne na ploše — na
-  screenshotu s houbami je to vidět. Takže „bez bubliny" platí pro snímek, ne pro popisek u něj.
-- **Citace a reakce.** Citace bez pozadí se ztratí, stejný důvod, proč si ji dnes drží bublinu
-  i zpráva z pár emoji. Fotka s odpovědí tedy pravděpodobně bublinu potřebuje dál.
+- **Obrázek v náhledu odkazu je pořád v bublině.** Řeší ho bod 3, kde se navíc mění celý tvar
+  náhledu — sjednocovat to dřív by znamenalo dělat tu práci dvakrát.
+- **Fotka s citací si bublinu drží** a nejspíš to tak zůstane: citace bez pozadí se ztratí.
+  Kdyby se to mělo změnit, potřebuje citace vlastní kontejner nad snímkem, ne průhledné pozadí.
+- **Přeposlaná zpráva se zatím nepozná.** Google Messages dává vedle takového snímku šipku
+  (druhá předloha). Zdroj přeposlání (`forwardInfo`) doménový `ChatMessage` nenese vůbec, takže
+  je to samostatný kus práce — ne důsledek téhle změny.
 
 ### 2. ~~Fotky mají respektovat výšku~~ — HOTOVO
 
@@ -78,10 +77,10 @@ v `MediaFrameTest`). Svislý snímek obrazovky je tím vidět celý. Poučení v
 
 Co z toho zůstalo:
 
-- **Popisek táhne bublinu širší, než je fotka.** Šířka bubliny je maximum z fotky a textu, takže
-  u dlouhého popisku (typicky `Screenshot (18. 9. 2026 5:23:34)`) zůstane vpravo od zúžené fotky
-  prázdné místo. Telegram to řeší tím, že popisek zalomí na šířku fotky. Váže se to na bod 1
-  níž — tam se popisek stejně stěhuje do vlastního kontejneru pod snímek.
+- ~~**Popisek táhne bublinu širší, než je fotka.**~~ Vyřešil to bod 1: popisek má vlastní
+  kontejner, takže kolem zúžené fotky žádná prázdná plocha nezbývá. Zůstalo jen to, že široký
+  popisek může být širší než snímek nad ním — jako dva kusy jedné skupiny to ale vypadá správně,
+  stejně jako v Google Messages.
 - **Album zůstává ve čtvercích.** Je to vědomé rozhodnutí (`CLAUDE.md`, „Alba" — mřížka, ne
   mozaika podle poměrů stran), takže jeho změna je změna toho rozhodnutí, ne pokračování tohohle
   bodu. Řádek alba s jednou fotkou se ale ořezává pořád.
