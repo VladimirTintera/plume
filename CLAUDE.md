@@ -1550,8 +1550,14 @@ data jediné místo, kde se dá přečíst.
 - **Nespotřebovaný pohyb se neztratí.** `awaitHorizontalTouchSlopOrCancellation` po nespotřebování
   počítá slop dál, takže gesto propadne k detektoru nad seznamem. Jakmile si ho vezme on, další
   událost přijde jako spotřebovaná a detektor bubliny sám skončí.
-- **Svislý scroll je v bezpečí**, i když `detectHorizontalDragGestures` konzumuje. Seznam je
-  potomek, dostane událost dřív, a jeho spotřebování detektor rodiče zruší.
+- **Svislý scroll má přednost a detektor se rozhoduje pomalu** (`detectTimeReveal`, pravidlo
+  `timeRevealDecision`, testy `TimeRevealGestureTest`). Seznam je potomek, dostane událost dřív
+  a jeho spotřebování detektor rodiče zruší — jenže s `detectHorizontalDragGestures` stačilo, aby
+  prst ujel doleva o jeden touch slop dřív než nahoru, a palec levé ruky jde na začátku tahu
+  obloukem doleva: na telefonu se místo scrollu vysouvaly časy. Teď si tah odkrývání vezme až po
+  **dvojnásobku touch slopu** (svislý scroll má práh kratší, takže šikmý tah si seznam vezme dřív)
+  a jen když jde **aspoň 2× víc do strany než svisle** a doleva. Na emulátoru se to ověřuje
+  `input swipe` se screencapem uprostřed tahu (`input swipe … 1500 & sleep 1; screencap`).
 - **Posun se čte až při kreslení** (`graphicsLayer { translationX = -reveal() }`, lambda, ne
   hodnota). Jinak by každý snímek gesta přeskládal celou konverzaci.
 - **Čas čeká za pravým okrajem** a přijíždí s posunem; seznam ořezává na svoje hranice, takže
