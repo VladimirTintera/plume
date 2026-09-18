@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.RichText
@@ -470,6 +471,9 @@ private fun MessageFrame(
                 frame = frame,
                 bodyScope = bodyScope,
                 maxWidthFraction = maxWidthFraction,
+                // Dokud zprávu kreslí nabídka, drží se reakce z doby před jejím otevřením —
+                // nová reakce pak naskočí, až se zpráva vrátí na místo, a je ji vidět.
+                reactions = heldReactions(frame.message.reactions, hold = scope.isInMenu(frame.key)),
                 body = body,
                 modifier = Modifier
                     .onGloballyPositioned { boxCoordinates[0] = it }
@@ -547,6 +551,8 @@ internal fun MessageBox(
     onReactionClick: (() -> Unit)?,
     /** Podíl šířky, kterou zpráva dostane; kopie v nabídce má šířku napevno, tam je 1. */
     maxWidthFraction: Float = 1f,
+    /** Reakce, které se mají kreslit — viz [heldReactions]. */
+    reactions: List<MessageReaction> = frame.message.reactions,
     extra: @Composable BoxScope.() -> Unit = {},
 ) {
     val message = frame.message
@@ -561,7 +567,7 @@ internal fun MessageBox(
      * Čip patří ke zprávě, takže místo je uvnitř toho, co kreslí i nabídka nad zprávou.
      */
     val overhang by animateDpAsState(
-        targetValue = if (message.reactions.isEmpty()) 0.dp else REACTION_OVERHANG,
+        targetValue = if (reactions.isEmpty()) 0.dp else REACTION_OVERHANG,
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "reaction-overhang",
     )
@@ -585,7 +591,7 @@ internal fun MessageBox(
         // Čipy reakcí LEŽÍ NA zprávě, u dolního nároží na straně odesílatele, a jedou s ní i při
         // tahu na odpověď — posun sedí na sloupci kolem.
         ReactionRow(
-            reactions = message.reactions,
+            reactions = reactions,
             onOpenDetails = onReactionClick,
             modifier = Modifier
                 .align(if (message.isOutgoing) Alignment.BottomEnd else Alignment.BottomStart)
@@ -617,7 +623,25 @@ internal fun MessageItem.MenuCopy(scope: ConversationItemScope, modifier: Modifi
         body = { Body() },
         modifier = modifier,
         onReactionClick = null,
+        // Kopie ukazuje reakce z okamžiku otevření: výběr reakce nabídku hned zavře a kopie letí
+        // zpátky — nová reakce patří až zprávě v seznamu, kde ji je vidět naskočit.
+        reactions = heldReactions(frame.message.reactions, hold = true),
     )
+}
+
+/**
+ * Reakce, které se mají kreslit: dokud [hold] platí, drží se ty, co byly vidět naposledy.
+ *
+ * Reakce se přidává v nabídce nad zprávou a ta se tím zavře. Kdyby se změna projevila hned,
+ * doběhla by animace náběhu čipu na zprávě, která je v tu chvíli skrytá (kreslí ji nabídka),
+ * a uživatel by čip viděl už jen hotový. Takhle naskočí, až se zpráva vrátí na své místo —
+ * stejně to dělají Google Zprávy.
+ */
+@Composable
+private fun heldReactions(current: List<MessageReaction>, hold: Boolean): List<MessageReaction> {
+    var held by remember { mutableStateOf(current) }
+    if (!hold) held = current
+    return held
 }
 
 /**

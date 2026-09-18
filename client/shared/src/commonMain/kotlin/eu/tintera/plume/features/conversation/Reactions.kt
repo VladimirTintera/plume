@@ -3,7 +3,9 @@ package eu.tintera.plume.features.conversation
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -84,7 +86,10 @@ fun ReactionRow(
     AnimatedVisibility(
         visible = reactions.isNotEmpty(),
         modifier = modifier,
-        enter = scaleIn(spatial, initialScale = 0.4f) + fadeIn(effects),
+        enter = scaleIn(
+            spring(dampingRatio = CHIP_POP_DAMPING, stiffness = Spring.StiffnessMedium),
+            initialScale = 0f,
+        ) + fadeIn(effects),
         exit = scaleOut(spatial, targetScale = 0.4f) + fadeOut(effects),
         label = "reaction-row",
     ) {
@@ -113,8 +118,9 @@ private fun ReactionChips(reactions: List<MessageReaction>, onOpenDetails: (() -
             // jeho odpověď ji může dát jinam). Bez klíče by se stav animací přenesl na sousední
             // čip a ten by přeblikl do cizí barvy a tvaru.
             key(reaction.emoji) {
-                val appear = remember { Animatable(if (reaction.emoji in initial) 1f else 0.4f) }
-                val spec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+                // Z nuly s pružným přeskokem: čip „vyskočí" z nároží zprávy.
+                val appear = remember { Animatable(if (reaction.emoji in initial) 1f else 0f) }
+                val spec = spring<Float>(dampingRatio = CHIP_POP_DAMPING, stiffness = Spring.StiffnessMedium)
                 LaunchedEffect(Unit) { appear.animateTo(1f, spec) }
                 Box(Modifier.graphicsLayer { scaleX = appear.value; scaleY = appear.value }) {
                     ReactionChip(reaction = reaction, onClick = onOpenDetails)
@@ -242,6 +248,12 @@ private val REACTION_CHIP_SIZE = 30.dp
 
 /** Kolik místa si čip nechá nahoře a vpravo na odznak s počtem. */
 internal val REACTION_BADGE_ROOM = 7.dp
+
+/**
+ * Tlumení pružiny náběhu čipu. Víc přeskoku než běžný spatial spec (0,6–0,78): náběh reakce je
+ * drobná radostná událost, jak ji M3 Expressive pojmenovává, ne přesun obsahu.
+ */
+private const val CHIP_POP_DAMPING = 0.45f
 
 /** Lem čipu v barvě pozadí — odděluje ho od bubliny, na které leží. */
 private val REACTION_RING = 2.dp
