@@ -69,6 +69,10 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_reaction_24dp
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.content_copy_24dp
+import eu.tintera.plume.resources.conversation_delivery_failed
+import eu.tintera.plume.resources.conversation_delivery_read
+import eu.tintera.plume.resources.conversation_delivery_sending
+import eu.tintera.plume.resources.conversation_delivery_sent
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.delete_message_choice
 import eu.tintera.plume.resources.delete_message_for_all
@@ -89,6 +93,7 @@ import eu.tintera.plume.resources.menu_more_reactions
 import eu.tintera.plume.resources.menu_pin
 import eu.tintera.plume.resources.menu_reply
 import eu.tintera.plume.resources.menu_sent_at
+import eu.tintera.plume.resources.menu_sent_at_delivery
 import eu.tintera.plume.resources.menu_unpin
 import eu.tintera.plume.resources.pin_message_title
 import eu.tintera.plume.resources.pin_option_notify_channel
@@ -130,11 +135,13 @@ import org.jetbrains.compose.resources.stringResource
  * jenom platforma — proto `popupOrigin`.
  */
 @Composable
-fun MessageMenuOverlay(
+internal fun MessageMenuOverlay(
     menu: MessageMenu,
     /** Tvar bubliny. Díra v závoji ho kopíruje, včetně staženého nároží u navazující zprávy. */
     bubbleShape: Shape,
     handlers: MessageMenuHandlers,
+    /** Stav doručení vlastní zprávy; `null` u cizí. Vypíše se v hlavičce vedle času. */
+    delivery: Delivery?,
 ) {
     val id = menu.messageId
     val items = buildList {
@@ -335,7 +342,7 @@ fun MessageMenuOverlay(
                     .scale(scale)
                     .alpha(alpha),
             ) {
-                ActionMenu(items, menu.timestamp)
+                ActionMenu(items, menu.timestamp, delivery)
             }
         }
     }
@@ -408,7 +415,7 @@ private fun QuickReactions(
 
 /** Nabídka akcí. Položky přibývají, jak je postupně umíme — mrtvé se sem nedávají. */
 @Composable
-private fun ActionMenu(items: List<MenuItem>, timestamp: Int) {
+private fun ActionMenu(items: List<MenuItem>, timestamp: Int, delivery: Delivery?) {
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -423,8 +430,31 @@ private fun ActionMenu(items: List<MenuItem>, timestamp: Int) {
              * tohle je jediná cesta, která funguje pro každého. Není to položka nabídky —
              * nedá se na ni ťuknout a nic nedělá.
              */
+            /*
+             * Kdy zpráva přišla a jak dopadla.
+             *
+             * Odznak doručení je pod bublinou jen u některých zpráv (viz `readBadgeRows`)
+             * a odkrýt ho ťuknutím čtečka obrazovky neumí — tady ho tedy má vždycky.
+             */
+            val deliveryLabel = when (delivery) {
+                Delivery.Sending -> stringResource(Res.string.conversation_delivery_sending)
+                Delivery.Sent -> stringResource(Res.string.conversation_delivery_sent)
+                Delivery.Read -> stringResource(Res.string.conversation_delivery_read)
+                Delivery.Failed -> stringResource(Res.string.conversation_delivery_failed)
+                null -> null
+            }
+
             Text(
-                text = stringResource(Res.string.menu_sent_at, timestamp.asDayLabel(), timestamp.asTimeOfDay()),
+                text = if (deliveryLabel == null) {
+                    stringResource(Res.string.menu_sent_at, timestamp.asDayLabel(), timestamp.asTimeOfDay())
+                } else {
+                    stringResource(
+                        Res.string.menu_sent_at_delivery,
+                        timestamp.asDayLabel(),
+                        timestamp.asTimeOfDay(),
+                        deliveryLabel,
+                    )
+                },
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

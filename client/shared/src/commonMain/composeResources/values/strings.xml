@@ -166,6 +166,7 @@
     <string name="emoji_recent_empty">Emoji you pick will show up here.</string>
     <string name="notification_new_message">New message</string>
     <string name="menu_sent_at">%1$s, %2$s</string>
+    <string name="menu_sent_at_delivery">%1$s, %2$s · %3$s</string>
     <string name="menu_reply">Reply</string>
     <string name="menu_edit">Edit</string>
     <string name="menu_copy">Copy</string>

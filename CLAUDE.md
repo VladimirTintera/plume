@@ -959,8 +959,8 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   `anchorBounds` a vykrajuje podle nich díru do závoje; kdyby v něm byl i odznak, byla by díra
   o ten kus vyšší. Odznak proto stojí ve sloupci ZA ním, a posun tahem se přesunul na ten sloupec,
   aby odznak jel s bublinou.
-- **„Přečteno" hlásí nejvýš JEDNA zpráva v chatu** (`readBadgeRow`): nejnovější, a jen když je
-  moje. Přečtením té poslední jsou přečtené i všechny před ní, takže dvojitá fajfka u celé
+- **„Přečteno" hlásí automaticky nejvýš JEDNA zpráva v chatu** (`readBadgeRows`): nejnovější,
+  a jen když je moje. Přečtením té poslední jsou přečtené i všechny před ní, takže dvojitá fajfka u celé
   historie byla řada stejných odznaků bez informace.
 - **Odpověď protějšku přečtení dokazuje SAMA.** Když po mojí zprávě někdo napsal, musel ji
   přečíst a odznak nemá co dodat — proto se hledá nejnovější zpráva, ne nejnovější odchozí.
@@ -971,7 +971,25 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
 - **`Sending` a `Sent` zůstávají u každé zprávy** — ty ještě něco říkají.
 - **`Failed` se ukazuje VŽDY.** Je to jediný stav, který uživatel musí zaregistrovat; schovat ho
   kvůli úspoře místa není úspora, ale skrytá chyba.
-- **Pravidlo je vytažené z composable do `readBadgeRow`** (`MessageRows.kt`) a pokryté testy
+- **Ťuknutí na vlastní zprávu si odznak vyžádá**, druhé ho schová (`readReceiptFor`
+  v `ConversationState`, `toggleReadReceipt`). Je to ubezpečení u jedné konkrétní zprávy —
+  u starších se jinak nedá zjistit, jestli je protějšek přečetl.
+- **Vyžádaný odznak automatický NERUŠÍ.** `readBadgeRows` vrací obojí: nejnovější zprávu podle
+  pravidla výš a tu vyžádanou. Rozhoduje se to na jednom místě, ne druhou podmínkou v bublině —
+  ty dvě by se časem rozešly.
+- **Server se na nic neptá.** `lastReadOutboxMessageId` je posuvný ukazatel na chatu, takže stav
+  libovolné odchozí zprávy je porovnání id; ťuknutí mění jen to, co se kreslí.
+- **Jedno id, ne množina.** Ťuknutí na jinou zprávu odznak přepne tam. Odchod z chatu ho zahodí
+  i se stavem — je to zobrazení na chvíli, ne nastavení.
+- **Ťuknutí dostane jen bublina, ne její potomci.** Odkaz v textu, citace, fotka, náhled odkazu
+  i samolepka mají vlastní klikání a k bublině ho nepustí, takže u zprávy složené z fotky není
+  kam ťuknout. Přidat gesto i jim by znamenalo vzít ťuknutí těm akcím — u fotky otevření
+  prohlížeče — a to je horší než chybějící zkratka.
+- **V nabídce nad zprávou je SKUTEČNÝ stav, ne to, co ukazuje odznak.** Odznak „přečteno" je pod
+  bublinou jen u vybraných zpráv; nabídka ho vypisuje vždycky (vedle času), protože ťuknutím se
+  k němu čtečka obrazovky nedostane. Proto se počítá zvlášť `deliveryState` (pravda) a `delivery`
+  (co kreslí odznak) — první verze to měla společné a v nabídce pak stav u starší zprávy chyběl.
+- **Pravidlo je vytažené z composable do `readBadgeRows`** (`MessageRows.kt`) a pokryté testy
   (`MessageRowsTest`). Uvnitř `@Composable` by se netestovalo, a je to přesně ten druh podmínky,
   u které se hraniční případ (odpověď protějšku, servisní zpráva, album) pozná až na zařízení.
 - **Hledá se jednou na změnu seznamu** (`readBadgeKey` v `remember`), ne v bublině. Průchod

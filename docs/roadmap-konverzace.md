@@ -41,8 +41,8 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    z bubliny ven~~, ~~výška fotek~~, ~~fotky a videa na plochu~~, ~~náhled odkazu na plochu~~
    a ~~odkrývání časů tahem~~. Poučení v `CLAUDE.md` („Tvar bubliny a seskupení", „Čas a stav
    doručení", „Médium bez bubliny", „Rámeček fotky v bublině", „Náhled odkazu bez bubliny",
-   „Odkrývání časů tahem", „Reakce") a ~~reakce z bubliny ven~~. Zbývá **odznak přečtení na
-   ťuknutí** — bod 6 ve vlastní sekci níž.
+   „Odkrývání časů tahem", „Reakce"), ~~reakce z bubliny ven~~ i ~~odznak přečtení na ťuknutí~~.
+   Sekce je tím hotová celá.
 6. Drobnosti ze sekcí níž (zásobník, nabídka, entity, média, emoji).
 
 ---
@@ -51,8 +51,8 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
 
 Inspirace je Google Messages. Samostatné kusy, dají se dělat nezávisle.
 
-Body 1–5 jsou hotové, zbytky jednotlivých bodů jsou u nich a poučení v `CLAUDE.md`. Otevřený
-zůstává **bod 6**.
+Hotové je z tohohle seznamu **všechno**; zbytky jednotlivých bodů jsou u nich a poučení
+v `CLAUDE.md`.
 
 ### 1. ~~Fotky a videa na plochu, mimo bublinu~~ — HOTOVO
 
@@ -138,29 +138,20 @@ Co z toho zůstalo:
 - **Detail nejde filtrovat podle emoji.** Telegram to umí (`reactionType`), sheet ale ukazuje
   všechny reakce pohromadě — jako v Google Messages.
 
-### 6. Ťuknutí na vlastní zprávu ukáže odznak přečtení
+### 6. ~~Ťuknutí na vlastní zprávu ukáže odznak přečtení~~ — HOTOVO
 
-„Přečteno" dnes hlásí nejvýš **jedna** zpráva v chatu (`readBadgeRow`): nejnovější, a jen když je
-moje — u starších odznak nic nedodává a odpověď protějšku přečtení dokazuje sama. Někdy ale člověk
-chce ubezpečení právě u té jedné konkrétní zprávy. Ťuknutí na vlastní zprávu proto odznak ukáže,
-druhé ťuknutí ho zase schová.
+Ťuknutí na vlastní zprávu ukáže odznak přečtení i u starší zprávy, druhé ho schová. Automatický
+odznak u nejnovější zprávy zůstává — `readBadgeRows` vrací obojí. Poučení v `CLAUDE.md`,
+„Čas a stav doručení".
 
-- **Data jsou k dispozici, server se ptát nemusí.** `lastReadOutboxMessageId` je posuvný ukazatel
-  na chatu, takže stav libovolné odchozí zprávy se z něj odvodí porovnáním id.
-- **Pravidlo zůstává na jednom místě.** `readBadgeRow` je čistá funkce s testy; vyžádaný odznak
-  patří do ní jako další vstup (id zprávy, u které si o něj uživatel řekl), ne jako přebití
-  výsledku v bublině. Jinak budou o témže rozhodovat dvě místa.
-- **Jedno id, ne množina** — ťuknutí na jinou zprávu odznak přepne tam a předchozí schová. Stav
-  patří do `ConversationState`, aby přežil rekompozici; odchod z chatu ho zahodí.
-- **Past: krátké ťuknutí na bublinu je dnes prázdné** (`onClick = {}`) a potomci s vlastním
-  klikáním ho k ní nepustí — odkazy v textu, citace, fotka, náhled odkazu i samolepka si ťuknutí
-  berou samy. U zprávy, která je celá fotka, tedy nebude kam ťuknout; buď se s tím počítá, nebo
-  musí gesto přibýt i těm potomkům (a to je přesně ten druh úpravy, po které přestane fungovat
-  otevírání médií).
-- **Čtečka obrazovky se ťuknutím nikam nedostane**, stejně jako tahem u časů. Patří to proto taky
-  do „Informace o zprávě" (sekce B), kde má vedle času být i `canGetReadDate`.
-- **Animace už hotová je**: odznak umí naskočit i zmizet i se svým místem a při odjezdu kreslí
-  poslední známý stav (viz `CLAUDE.md`, „Čas a stav doručení").
+Co z toho zůstalo:
+
+- **U zprávy složené z fotky není kam ťuknout.** Potomci s vlastním klikáním (fotka, odkaz,
+  citace, náhled odkazu, samolepka) si ťuknutí berou sami; přidat jim ho by znamenalo vzít ťuknutí
+  těm akcím. Kdyby to vadilo, cesta je stav doručení v „Informace o zprávě", ne další gesto.
+- **„Informace o zprávě" pořád není.** V nabídce je dnes čas a stav doručení; odkaz na zprávu,
+  kdo ji viděl a kdy si ji přečetl (`canGetLink`, `canGetViewers`, `canGetReadDate`) čeká
+  v sekci B).
 
 ---
 

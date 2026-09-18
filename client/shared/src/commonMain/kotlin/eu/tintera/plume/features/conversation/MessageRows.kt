@@ -51,22 +51,37 @@ internal class MessageRow(val messages: List<ChatMessage>) {
 }
 
 /**
- * Položka, u které se hlásí „přečteno" — nebo `null`, když se nehlásí u žádné.
+ * Položky, u kterých se hlásí „přečteno".
  *
- * Stačí to říct u **nejnovější zprávy chatu**, a jen když je moje: přečtením té poslední jsou
+ * Automaticky stačí **nejnovější zpráva chatu**, a jen když je moje: přečtením té poslední jsou
  * přečtené i všechny před ní, takže dvojitá fajfka u celé historie byla řada stejných odznaků
  * bez informace. A **když po mojí zprávě napsal protějšek, je přečtení dokázané samo** —
  * odznak už nemá co dodat. Proto se hledá nejnovější zpráva, ne nejnovější odchozí: vyjde-li
  * příchozí, nehlásí přečteno nikdo.
+ *
+ * [revealedMessageId] je zpráva, u které si odznak **vyžádal uživatel** ťuknutím. Je to výjimka
+ * z pravidla výš, ne jeho přepsání: kdo chce ubezpečení u jedné konkrétní zprávy, dostane ho,
+ * a automatický odznak u nejnovější zprávy zůstává. Rozhoduje se to tady, na jednom místě —
+ * v bublině by to byla druhá podmínka o témže a ty dvě by se časem rozešly.
  *
  * Servisní oznámení se přeskakují. „X se přidal do skupiny" nedokazuje, že si někdo něco přečetl,
  * takže by odznak schovalo neprávem.
  *
  * [rows] jde jako seznam konverzace, tedy **od nejnovější**.
  */
-internal fun readBadgeRow(rows: List<MessageRow>): MessageRow? =
-    rows.firstOrNull { !it.display.isService }
-        ?.takeIf { it.display.isOutgoing }
+internal fun readBadgeRows(rows: List<MessageRow>, revealedMessageId: Long? = null): List<MessageRow> {
+    val automatic = rows.firstOrNull { !it.display.isService }?.takeIf { it.display.isOutgoing }
+
+    val revealed = revealedMessageId
+        ?.let { id -> rows.firstOrNull { it.contains(id) } }
+        ?.takeIf { it.display.isOutgoing && !it.display.isService }
+
+    return if (revealed == null || revealed === automatic) {
+        listOfNotNull(automatic)
+    } else {
+        listOfNotNull(automatic, revealed)
+    }
+}
 
 /**
  * Spojí sousední zprávy téhož alba do jedné položky.
