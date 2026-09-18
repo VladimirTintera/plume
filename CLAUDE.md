@@ -1894,6 +1894,11 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   posledního řádku; úplně pod zprávou (zkoušeno) přestal působit jako její odznak. Obsah si pro
   něj místo NEDĚLÁ — dřív si ho dělal uvnitř (`REACTION_STRIP_SPACE`) a zpráva se při první
   reakci skokem zvětšila.
+- **Kolečko lícuje s hranou bubliny**, jako v Google Zprávách — ne 10 dp uvnitř. Řádek se vysune
+  o místo na odznak počtu (vpravo od kolečka) a o místo na stín, takže samotné kolečko končí
+  přesně na okraji.
+- **Posouvatelný řádek reakcí potřebuje uvnitř místo na stín** (`REACTION_SHADOW_ROOM`).
+  `horizontalScroll` ořezává obsah na svoje hranice a stín čipu uřízl zprava i zespodu.
 - **Místo pod zprávou se otevře animovaně** (`REACTION_OVERHANG` přes spatial spec), takže zpráva
   plynule popojede. Místo je uvnitř `MessageBox`, který kreslí i nabídka nad zprávou — čip patří
   ke zprávě a do nabídky jede s ní.

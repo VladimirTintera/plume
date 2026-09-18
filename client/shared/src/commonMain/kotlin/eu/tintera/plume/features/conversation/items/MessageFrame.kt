@@ -79,6 +79,7 @@ import eu.tintera.plume.features.conversation.MessageFlight
 import eu.tintera.plume.features.conversation.MessageMenu
 import eu.tintera.plume.features.conversation.REACTION_BADGE_ROOM
 import eu.tintera.plume.features.conversation.REACTION_ROW_HEIGHT
+import eu.tintera.plume.features.conversation.REACTION_SHADOW_ROOM
 import eu.tintera.plume.features.conversation.ReactionRow
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_edited
@@ -588,7 +589,15 @@ internal fun MessageBox(
             onOpenDetails = onReactionClick,
             modifier = Modifier
                 .align(if (message.isOutgoing) Alignment.BottomEnd else Alignment.BottomStart)
-                .padding(horizontal = REACTION_INSET),
+                // Kolečko lícuje s hranou bubliny, jako v Google Zprávách: řádek má kolem sebe
+                // místo na stín a vpravo od kolečka ještě místo na odznak počtu, o to se vysune.
+                .offset(
+                    x = if (message.isOutgoing) {
+                        REACTION_SHADOW_ROOM + REACTION_BADGE_ROOM
+                    } else {
+                        -REACTION_SHADOW_ROOM
+                    },
+                ),
         )
 
         extra()
@@ -794,13 +803,11 @@ private val SENDER_AVATAR_SLOT = 40.dp
 private val REACTION_CHIP_ON_BUBBLE = 8.dp
 
 /** Kolik z řádku reakcí leží na bublině: kousek kolečka a nad ním místo na odznak počtu. */
-private val REACTION_ON_BUBBLE = REACTION_BADGE_ROOM + REACTION_CHIP_ON_BUBBLE
+private val REACTION_ON_BUBBLE = REACTION_SHADOW_ROOM + REACTION_BADGE_ROOM + REACTION_CHIP_ON_BUBBLE
 
 /** Místo pod bublinou: celý čip i s místem na odznak počtu, bez části, která leží na bublině. */
 private val REACTION_OVERHANG = REACTION_ROW_HEIGHT - REACTION_ON_BUBBLE
 
-/** Odsazení čipů od svislého okraje bubliny. */
-private val REACTION_INSET = 10.dp
 
 /**
  * Jak daleko se musí zpráva odtáhnout, aby se z gesta stala odpověď.

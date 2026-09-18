@@ -98,7 +98,11 @@ private fun ReactionChips(reactions: List<MessageReaction>, onOpenDetails: (() -
     val initial = remember { reactions.map { it.emoji }.toSet() }
 
     Row(
-        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        modifier = Modifier
+            .horizontalScroll(rememberScrollState())
+            // Posouvatelný řádek ořezává obsah na svoje hranice — bez místa kolem by uřízl stín
+            // čipů zprava i zespodu.
+            .padding(REACTION_SHADOW_ROOM),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         reactions.forEach { reaction ->
@@ -230,8 +234,14 @@ private val REACTION_CHIP_SIZE = 30.dp
 /** Kolik místa si čip nechá nahoře a vpravo na odznak s počtem. */
 internal val REACTION_BADGE_ROOM = 7.dp
 
-/** Výška řádku reakcí: čip i s místem na odznak počtu. Podle ní si zpráva nechá místo pod sebou. */
-internal val REACTION_ROW_HEIGHT = REACTION_CHIP_SIZE + REACTION_BADGE_ROOM
+/** Místo na stín čipů uvnitř posouvatelného řádku, který obsah ořezává. */
+internal val REACTION_SHADOW_ROOM = 3.dp
+
+/**
+ * Výška řádku reakcí: čip, místo na odznak počtu a na stín. Podle ní si zpráva nechá místo pod
+ * sebou. Musí být deklarovaná ZA svými sčítanci — top-level `val` se inicializují v pořadí.
+ */
+internal val REACTION_ROW_HEIGHT = REACTION_CHIP_SIZE + REACTION_BADGE_ROOM + REACTION_SHADOW_ROOM * 2
 
 
 /**
