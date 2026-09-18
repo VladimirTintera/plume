@@ -55,9 +55,6 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
   (`searchPublicChat`). Váže na sebe víc věcí: hledání v přeposílání jde dnes jen po načteném
   seznamu chatů a zmínky s hashtagy se v textu schválně nemapují, protože kliknutí nemá kam vést.
 - **Nová konverzace a kontakty.** Napsat se dá jen tomu, s kým už chat existuje.
-- **Multi-stack navigace.** Dnes je jeden zásobník pro všechny sekce a přepnutí sekce ho srovná
-  na kořen. Pro Chaty/Nastavení to nevadí; jakmile přibude sekce s hlubší navigací, patří sem
-  multi-stack (vzor: `MultiStackNavigationState` v mlogu).
 
 ## Nastavení
 

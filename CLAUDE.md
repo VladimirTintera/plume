@@ -398,9 +398,19 @@ se z telefonu nedalo chodit zpět bez `BackHandler`, který v téhle aplikaci za
   `NavDisplay`, takže bez `SETTINGS_SCENE` by pro NavDisplay měly tutéž identitu.
 - **V dvoupanelu je vždycky otevřená nějaká sekce.** Placeholder („vyber sekci") by vedle dvou
   řádků vypadal jako nedodělek, a bez otevřené sekce by directive dvoupanel nezapnul a seznam
-  sekcí by se roztáhl přes celou šířku. Dosazuje ji efekt, jehož **klíč musí obsahovat i vybranou
-  sekci** — po zpět zůstane v zásobníku samotná `SettingsRoute` a šířka se přitom nezmění, takže
-  s klíčem na samotné šířce by se efekt už nespustil.
+  sekcí by se roztáhl přes celou šířku.
+- **Výchozí sekce musí být V ZÁSOBNÍKU, ne jen dopočítaná** (`AppNavigation.ensureSettingsSection`).
+  Zpět ze dvoupanelové scény odebírá seznam i sekci naráz a `NavDisplay` kvůli tomu volá
+  `onBack` dvakrát (viz „Navigace"). S jen dopočítanou sekcí první volání odešlo do Chatů
+  a druhé tam zavřelo otevřenou konverzaci. Dopočítává se jen na jeden snímek, než efekt
+  sekci zapíše — jinak by seznam sekcí problikl přes celou šířku.
+- **Efekt, který sekci zapisuje, stojí v shellu, ne v obrazovce seznamu sekcí.** Obrazovka po
+  přepnutí sekce aplikace ještě dobíhá odchodovou animací a její efekty dál běží. Dokud byl
+  efekt v ní, po rychlém Nastavení → Chaty přidal `SettingsSectionRoute` do zásobníku, který
+  už patřil Chatům — rail hlásil Chaty, na ploše bylo „Obecné". Shell se ptá na vybranou
+  sekci aplikace; klíčem je i velikost zásobníku Nastavení kvůli ťuknutí na už vybrané
+  Nastavení (návrat na kořen). **Obecně: efekt, který zapisuje do zásobníku, nepatří do
+  obrazovky, která může být zrovna na odchodu.**
 - **Šipka zpět je v sekci jen na compactu.** V dvoupanelu je seznam sekcí pořád vidět vedle
   a sekce se NAHRAZUJE, nevrší se zásobník — stejně jako konverzace.
 - **Spodní bar se v sekci nastavení NESKRÝVÁ**, na rozdíl od konverzace. Sekce je mělká obrazovka
@@ -493,9 +503,35 @@ animace zmizí a nikde se neohlásí chybou. V aplikaci teď žádný `BackHandl
 přibýt — ven z obrazovky se chodí přes `onBack` NavDisplaye. Kde je potřeba zpět zachytit uvnitř
 obrazovky (nabídka nad zprávou), je to `NavigationBackHandler` z `androidx.navigationevent`.
 
-**Známé zjednodušení fáze 1:** jeden zásobník pro všechny sekce; přepnutí sekce ho srovná na kořen,
-takže sekce si nedrží vlastní historii. Pro Chaty/Nastavení to nevadí. Až přibude sekce s hlubší
-navigací, patří sem multi-stack (vzor: `MultiStackNavigationState` v mlogu).
+### Zásobník pro každou sekci
+
+Každá sekce aplikace (Chaty, Nastavení) má **vlastní zásobník** a všechny drží jeden stav,
+`AppNavigation`, vytvořený nahoře v `AppShell` a podávaný dolů. Přepnutí sekce nic nemaže, jen
+vybere jiný zásobník — návrat do Chatů vrátí otevřenou konverzaci, do Nastavení otevřenou sekci.
+Dřív byl zásobník jeden pro celou aplikaci a přepnutí ho srovnalo na kořen.
+
+- **`NavDisplay` je jeden a kreslí zásobník Chatů a nad ním zásobník vybrané sekce**
+  („concatenated back stack" z Nav3). Zpět z kořene Nastavení je tím obyčejný pop do Chatů
+  i s predictive back, bez vlastního handleru. Ťuknutí na už vybranou sekci ji vrátí na kořen.
+- **Položky se dekorují pro KAŽDOU sekci, i tu, která není vidět** (`rememberDecoratedNavEntries`
+  pro oba zásobníky pokaždé). Zásobník, který by se zrovna nedekoroval, by pro Nav3 vypadal jako
+  odebraný a jeho ViewModely by se zrušily.
+- **Dekorátor ViewModelů je nutný** (`rememberViewModelStoreNavEntryDecorator`, v `AppShell` nad
+  `NavDisplay`). Bez něj `NavDisplay` dává jen `SaveableStateHolder` a `koinViewModel()` v obrazovce
+  bral úložiště Activity — **ViewModel každé otevřené konverzace žil až do konce Activity
+  a `onCleared` se při odchodu z chatu nevolal**, přestože na něm visí dopsání konceptu,
+  zastavení hlasovky a zahození nahrávky. Teď se ViewModel zruší s odebráním položky ze zásobníku,
+  při přepnutí sekce ne (ověřeno logem v `onCleared`). Rodičem je owner Activity: Nav3 pod ním
+  drží úložiště pro každou položku, rotaci přežije a s odchodem shellu (odhlášení) je vyčistí.
+  Vlastní `ViewModelStoreOwner` jako v mlogu proto není potřeba.
+- **Past: `NavDisplay` volá `onBack` jednou ZA KAŽDOU odebíranou položku**
+  (`repeat(entries.size - scene.previousEntries.size) { onBack() }`). U dvoupanelové scény
+  (seznam + detail) tedy dvakrát. Každé volání musí odpovídat právě jedné položce toho, co se
+  kreslí — cokoli jen dopočítaného pro kreslení tu počty rozhodí.
+- **Obrazovka píše do zásobníku SVÉ sekce** (`chatsStack`, `settingsStack` v `shellEntryProvider`),
+  ne do toho vybraného.
+- Vybraná sekce přežije zabití procesu (`rememberSaveable` podle názvu `TopLevelDestination`),
+  zásobníky taky (`rememberNavBackStack`).
 
 ## Seznam chatů
 
@@ -2341,7 +2377,9 @@ není „Android bez barev", ale má vlastní konzistentní paletu.
 - **ViewModel na detailu MUSÍ mít klíč obsahující id** (`koinViewModel(key = "conversation-$chatId")`).
   ViewModel se cachuje podle klíče a Koin u cachované instance **ignoruje nové `parameters`** —
   konstantní klíč tedy znamená, že druhá otevřená konverzace dostane ViewModel té první i se
-  zprávami, a neprojeví se to chybou, jen špatným obsahem.
+  zprávami, a neprojeví se to chybou, jen špatným obsahem. Od dekorátoru ViewModelů (viz
+  „Zásobník pro každou sekci") má každá položka vlastní úložiště a klíč je jen pojistka — ale
+  obrazovka mimo `NavDisplay` by ji zase potřebovala.
 - **`Info.plist` musí mít `CADisableMinimumFrameDurationOnPhone = true`.** Compose Multiplatform
   to kontroluje při startu a bez klíče aplikace na iOS hned spadne na `IllegalStateException`
   (jinak by na 120Hz displejích běžela na 60 snímků). Chyba je vidět jen v konzoli, na simulátoru
