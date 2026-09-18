@@ -48,6 +48,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -208,8 +209,16 @@ private fun ViewerContent(
     onDismiss: () -> Unit,
 ) {
     val items = state.items
+    /*
+     * Počet stránek i klíč stránky MUSÍ číst tentýž stav, ne seznam zachycený v lambdě. Počet
+     * se do `PagerState` zapíše už při rekompozici téhle funkce, jenže pager leží
+     * v `BoxWithConstraints` a jeho `key` se obnoví až v subkompozici při layoutu. Po dotažení
+     * dalších fotek tak pager mezitím přepočítal klíče s novým počtem nad starým seznamem
+     * a spadl na `IndexOutOfBoundsException`.
+     */
+    val latestItems by rememberUpdatedState(items)
     val initialIndex = remember { items.indexOfFirst { it.messageId == state.initialMessageId }.coerceAtLeast(0) }
-    val pagerState = rememberPagerState(initialPage = initialIndex) { items.size }
+    val pagerState = rememberPagerState(initialPage = initialIndex) { latestItems.size }
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect(onPageChanged)
@@ -238,7 +247,7 @@ private fun ViewerContent(
 
         HorizontalPager(
             state = pagerState,
-            key = { items[it].messageId },
+            key = { latestItems[it].messageId },
             // Sousední stránky vykukují u okrajů.
             contentPadding = PaddingValues(horizontal = pageInset),
             pageSpacing = pageGap,
@@ -246,7 +255,7 @@ private fun ViewerContent(
             beyondViewportPageCount = 1,
             modifier = Modifier.fillMaxSize(),
         ) { page ->
-            val item = items[page]
+            val item = latestItems[page]
             val isCurrent = page == pagerState.currentPage
             // Karta leží mezi lištami; stránka sama jde přes celou výšku, aby přiblížená fotka
             // měla kam růst.
