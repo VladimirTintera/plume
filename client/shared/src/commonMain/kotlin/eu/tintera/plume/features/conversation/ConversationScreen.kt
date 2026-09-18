@@ -53,6 +53,7 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import eu.tintera.plume.core.ui.animateMorph
+import eu.tintera.plume.core.ui.morphSpring
 import eu.tintera.plume.core.ui.ShapeMorphs
 import eu.tintera.plume.core.ui.MorphShape
 import androidx.compose.animation.scaleOut
@@ -1240,7 +1241,7 @@ private fun MessageInput(
              * (jako odchozí bublina). Tlačítko tak „ožije", jakmile je co poslat. Víc barev by
              * z něj udělalo semafor — barva by přestala znamenat důležitost.
              */
-            val colorSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Color>()
+            val colorSpec = MaterialTheme.motionScheme.slowEffectsSpec<Color>()
             val containerColor by animateColorAsState(
                 targetValue = if (kind == SendButtonKind.Mic) {
                     MaterialTheme.colorScheme.secondaryContainer
@@ -1294,7 +1295,9 @@ private fun MessageInput(
                 },
                 modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
             ) {
-                val iconScale = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+                // Ikona jede stejnou pružinou jako tvar — rychlejší by se vyměnila dřív, než je
+                // morf vůbec vidět.
+                val iconScale = morphSpring<Float>()
                 val iconFade = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
                 AnimatedContent(
                     targetState = kind,
