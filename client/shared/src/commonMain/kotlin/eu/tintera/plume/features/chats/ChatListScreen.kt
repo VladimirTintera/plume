@@ -88,6 +88,7 @@ fun ChatListScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val actions by viewModel.actions.collectAsStateWithLifecycle()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
+    val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val appBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(appBarState)
@@ -203,7 +204,7 @@ fun ChatListScreen(
                     // položky — seznam o sousedech položky nic neví.
                     verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
                 ) {
-                    val groups = current.chats.grouped()
+                    val groups = chatGroups(current.chats, separateUnread)
 
                     groups.forEachIndexed { groupIndex, group ->
                         itemsIndexed(group, key = { _, chat -> chat.id }) { index, chat ->
@@ -232,21 +233,6 @@ fun ChatListScreen(
         }
     }
 }
-
-/**
- * Rozdělení seznamu na skupiny: připnuté, nepřečtené, ostatní.
- *
- * Pořadí uvnitř skupiny zůstává takové, jaké dává TDLib — to je pořadí chatů, na které je
- * uživatel zvyklý z ostatních klientů, a přeskládávat ho by znamenalo rozhodovat za něj.
- *
- * Prázdné skupiny vypadnou, aby po nich nezbyla mezera. Když jsou všechny chaty přečtené,
- * je z toho zase jeden souvislý blok.
- */
-private fun List<ChatSummary>.grouped(): List<List<ChatSummary>> = listOf(
-    filter { it.isPinned },
-    filter { !it.isPinned && it.unreadCount > 0 },
-    filter { !it.isPinned && it.unreadCount == 0 },
-).filter { it.isNotEmpty() }
 
 @Composable
 @OptIn(ExperimentalFoundationApi::class)

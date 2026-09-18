@@ -7,6 +7,7 @@ import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import eu.tintera.plume.app.root.presentation.theme.AppMotion
+import eu.tintera.plume.core.settings.ThemeMode
 import eu.tintera.plume.core.ui.LocalSharedTransitionScope
 
 /** Podpora Material You dynamic color (Android 12+). Řídí default motivu i nabídku volby v Nastavení. */
@@ -18,8 +19,6 @@ expect fun SystemBarsAppearance(isDark: Boolean)
 
 @Composable
 expect fun colorScheme(isDark: Boolean, dynamic: Boolean): ColorScheme
-
-enum class ThemeMode { SYSTEM, LIGHT, DARK, DYNAMIC }
 
 /** Výchozí motiv, když uživatel nic nenastavil: Android → Dynamic (zachová Material You), jinde System. */
 fun defaultThemeMode(): ThemeMode = if (supportsDynamicColor) ThemeMode.DYNAMIC else ThemeMode.SYSTEM

@@ -124,6 +124,75 @@ class DataStoreAppSettingsTest {
     }
 
     @Test
+    fun vycleneniNeprectenychJeVychoziVypnute() = settingsTest { settings, _ ->
+        assertEquals(false, settings.separateUnreadChats.value)
+    }
+
+    @Test
+    fun vycleneniNeprectenychSeUloziAVrati() = settingsTest { settings, _ ->
+        settings.setSeparateUnreadChats(true)
+        assertEquals(
+            true,
+            settings.separateUnreadChats.awaitValue("zapnuté vyčlenění") { it },
+        )
+
+        settings.setSeparateUnreadChats(false)
+        assertEquals(
+            false,
+            settings.separateUnreadChats.awaitValue("vypnuté vyčlenění") { !it },
+        )
+    }
+
+    /** `null` znamená „uživatel si nevybral" — výchozí motiv se podle platformy dopočítá až v UI. */
+    @Test
+    fun motivJeVychoziNevybrany() = settingsTest { settings, _ ->
+        assertEquals(null, settings.themeMode.value)
+    }
+
+    @Test
+    fun motivSeUloziAZrusi() = settingsTest { settings, _ ->
+        settings.setThemeMode(ThemeMode.DARK)
+        assertEquals(
+            ThemeMode.DARK,
+            settings.themeMode.awaitValue("uložený tmavý motiv") { it == ThemeMode.DARK },
+        )
+
+        settings.setThemeMode(null)
+        assertEquals(
+            null,
+            settings.themeMode.awaitValue("motiv zpátky na výchozí") { it == null },
+        )
+    }
+
+    /**
+     * Neznámý název motivu (hodnota z novější verze aplikace) se chová jako nevybraný.
+     *
+     * Testuje se PŘECHODEM z platné hodnoty, ne čtením na začátku: `first()` nad `StateFlow`
+     * vrátí počáteční hodnotu (`null`) dřív, než se ze souboru cokoli načte, takže by test
+     * prošel i tehdy, kdyby se neznámá hodnota do stavu propsala.
+     */
+    @Test
+    fun neznamyMotivSpadneNaNevybrany() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val dataStore = createSettingsDataStore(tempPath())
+            val settings = DataStoreAppSettings(dataStore, scope)
+
+            settings.setThemeMode(ThemeMode.LIGHT)
+            settings.themeMode.awaitValue("uložený světlý motiv") { it == ThemeMode.LIGHT }
+
+            withTimeout(WAIT_MS) { dataStore.edit { it[stringPreferencesKey("theme_mode")] = "SEPIA" } }
+
+            assertEquals(
+                null,
+                settings.themeMode.awaitValue("pád na nevybraný motiv") { it == null },
+            )
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
     fun neznamaHodnotaSpadneNaVychozi() = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {

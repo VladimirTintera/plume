@@ -13,8 +13,8 @@ přeposílání, připnuté zprávy), prohlížeč médií s fotkami i videem, r
 a hlášení pádů na Androidu, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
 Není: notifikace na iOS ani hlášení pádů z iOS; obrazovky archivu, hledání, profilu chatu a nové
-konverzace. Nastavení aplikace se ukládá (DataStore), zatím ale drží jen poslední část výběru
-emoji/samolepek, nedávná emoji a odstíny pleti — tedy nic, co by si uživatel vědomě nastavil.
+konverzace. Nastavení je list-detail se sekcemi Obecné a Vzhled; vědomě nastavitelné je zatím
+téma aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
 Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
 
@@ -340,6 +340,20 @@ aplikace pamatuje o uživateli; data z Telegramu drží TDLib.
   uložených dat; neznámý název (z novější verze aplikace) spadne na výchozí.
 - **Zápis z obrazovky jde přes `appScope`**, ne `viewModelScope` — přepnutí těsně před odchodem
   z chatu se musí uložit.
+- **Volby uživatele se od paměti aplikace neliší technikou, jen významem.** `ExpressionMode`,
+  nedávná emoji a odstíny pleti si aplikace pamatuje sama; motiv a vyčlenění nepřečtených
+  uživatel vědomě nastavuje. Obojí leží ve stejném DataStore — **Proto DataStore by tu byl
+  krok zpátky**: znamenal by generování schématu (v KMP vlastní serializer nad kotlinx) kvůli
+  hrstce skalárů, migraci při každém přidání pole a konec toho, že se neznámý klíč prostě
+  ignoruje. Typovou bezpečnost nese rozhraní `AppSettings`, ne úložiště pod ním.
+- **Motiv se ukládá jako `ThemeMode?`, kde `null` znamená „uživatel si nevybral".** Výchozí motiv
+  se liší podle platformy (Android → Material You, jinde systémový), takže zapsaná konkrétní
+  hodnota by ten rozdíl zakonzervovala. `defaultThemeMode()` rozhoduje až při kreslení a v
+  Nastavení se jako vybraná ukáže ta možnost, podle které se aplikace opravdu kreslí — prázdný
+  výběr by vypadal jako chyba.
+- **`ThemeMode` bydlí v `core/settings`, ne u tématu.** Je to uložená hodnota a `core` nesmí
+  importovat `app`; co z něj plyne pro vykreslení (`resolveIsDark`, `defaultThemeMode`), zůstalo
+  v `app/root/presentation` — závisí to na platformě a na systémovém tmavém režimu.
 - **`ExpressionMode`** (Emoji / Samolepky): poslední otevřená část výběru. Podle ní se výběr
   otevře a ikona tlačítka ve vstupním poli ukazuje, co se otevře (smajlík / samolepka).
 - **Nedávná emoji** (`recentEmojis`): nejnovější první, bez duplicit, nejvýš 40. Uložená jako
@@ -366,6 +380,35 @@ aplikace pamatuje o uživateli; data z Telegramu drží TDLib.
   „Timed out waiting for 5000 ms" neumožnilo selhání ani dodatečně vysvětlit. Ze stejného důvodu
   se čeká na CELÝ očekávaný seznam nedávných emoji, ne jen na jeho první položku: jinak se
   neprojevený zápis pozná až o krok dál závěrečným `assertEquals`, kde už není poznat, který.
+
+### Obrazovka nastavení
+
+Nastavení je **list-detail jako chaty**: vlevo sekce (`SettingsScreen`), vpravo obsah té vybrané
+(`SettingsSectionScreen`). Sekce jsou routy (`SettingsSectionRoute`), ne stav obrazovky — jinak by
+se z telefonu nedalo chodit zpět bez `BackHandler`, který v téhle aplikaci zabíjí predictive back.
+
+- **Vlastní `sceneKey` je povinný.** `ListDetailSceneStrategy` staví scénu s klíčem podle metadat
+  a výchozí je `Unit` pro všechny. Chaty i nastavení jsou dvě list-detail dvojice v jednom
+  `NavDisplay`, takže bez `SETTINGS_SCENE` by pro NavDisplay měly tutéž identitu.
+- **V dvoupanelu je vždycky otevřená nějaká sekce.** Placeholder („vyber sekci") by vedle dvou
+  řádků vypadal jako nedodělek, a bez otevřené sekce by directive dvoupanel nezapnul a seznam
+  sekcí by se roztáhl přes celou šířku. Dosazuje ji efekt, jehož **klíč musí obsahovat i vybranou
+  sekci** — po zpět zůstane v zásobníku samotná `SettingsRoute` a šířka se přitom nezmění, takže
+  s klíčem na samotné šířce by se efekt už nespustil.
+- **Šipka zpět je v sekci jen na compactu.** V dvoupanelu je seznam sekcí pořád vidět vedle
+  a sekce se NAHRAZUJE, nevrší se zásobník — stejně jako konverzace.
+- **Spodní bar se v sekci nastavení NESKRÝVÁ**, na rozdíl od konverzace. Sekce je mělká obrazovka
+  v téže sekci aplikace; ťuknutí na „Nastavení" v baru z ní vede zpátky na seznam sekcí.
+- **Seznam sekcí nemá ViewModel.** Obsah (účet, notifikace, motiv) patří sekcím; kdyby si účet
+  načítal i seznam, ptali bychom se na něj v dvoupanelu dvakrát. Ze stejného důvodu se ViewModel
+  sekce vyrábí až uvnitř `when` nad sekcí — složí se jen jedna větev.
+- **Nadpis skupiny a její karta jsou jeden kus** (`SettingsGroup`). Jako dva sousedi ve sloupci
+  sekce by nadpis visel stejně daleko od svojí karty jako od té předchozí.
+- **Řádek nese klikání celý, ovládací prvek má `onClick = null`.** Do přepínače ani kolečka se
+  nemá trefovat a čtečka obrazovky má číst jednu položku, ne dvě; semantiku dodá
+  `selectable(role = RadioButton)` / `toggleable(role = Switch)`.
+- **Pozor na názvy barev `ListItemDefaults.colors`**: `contentColor` (ne `headlineColor`)
+  a `supportingContentColor` (ne `supportingColor`). Hádaný název se pozná až překladem.
 
 ## Jazyky
 
@@ -450,7 +493,8 @@ navigací, patří sem multi-stack (vzor: `MultiStackNavigationState` v mlogu).
 ## Seznam chatů
 
 Položky nejsou samostatné karty, ale **skupiny se společným zaoblením** — vzor, kterým M3
-Expressive nahrazuje karty per položku. Skupiny jsou tři: připnuté, nepřečtené, ostatní.
+Expressive nahrazuje karty per položku. Připnuté mají vlastní skupinu vždycky, nepřečtené jen
+když si o to uživatel řekne v Nastavení (`separateUnreadChats`, **výchozí je vypnuto**).
 
 - **Zaoblení nese krajní položka skupiny**: velké nahoře u první, velké dole u poslední, malé
   (4 dp) mezi nimi. S rozestupem 2 dp uvnitř skupiny a 14 dp mezi skupinami z toho vznikne blok.
@@ -462,7 +506,12 @@ Expressive nahrazuje karty per položku. Skupiny jsou tři: připnuté, nepřeč
 - **Pořadí uvnitř skupiny zůstává od TDLib.** Je to pořadí, na které je uživatel zvyklý
   z ostatních klientů; přeskládávat ho by znamenalo rozhodovat za něj.
 - **Důsledek, se kterým se počítá:** přečtení chatu ho přesune ze skupiny nepřečtených dolů mezi
-  ostatní. Při návratu z konverzace tedy chat nezůstane tam, kde na něj uživatel klikl.
+  ostatní. Při návratu z konverzace tedy chat nezůstane tam, kde na něj uživatel klikl. Právě
+  tohle je důvod, proč je vyčlenění volitelné a **výchozí vypnuté**: platí se za něj tím, že
+  seznam pod prstem uskočí, a vyplatí se to až u hodně chatů.
+- **Pravidlo je čistá funkce `chatGroups`** (`ChatGroups.kt`, testy `ChatGroupsTest`), ne
+  `private fun` v obrazovce. Hraniční kombinace (samé připnuté, žádné nepřečtené, prázdný
+  seznam) se uvnitř `@Composable` neověří a v seznamu se projeví mezerou po prázdné skupině.
 - **Mezera mezi skupinami se přidává u první položky skupiny**, ne ve `verticalArrangement` —
   `LazyColumn` o sousedech položky nic neví. Stejný postup jako u rozestupů zpráv v konverzaci.
 
