@@ -62,17 +62,22 @@ internal fun QuotedMessage(
      */
     onLongClick: (() -> Unit)? = null,
 ) {
+    /*
+     * Citace je TÓNOVANÝ KONTEJNER: zaoblená plocha v odstínu akcentu s proužkem u kraje. Dřív
+     * to byl jen proužek s textem, který v bublině splýval s odpovědí pod ním. Plocha se bere
+     * z akcentu s nízkou průhledností, ne z pevné role — v odchozí `primary` bublině je akcentem
+     * barva popředí, takže kontejner zůstane tónem téže bubliny.
+     */
+    val quoteShape = RoundedCornerShape(QUOTE_CORNER)
     Row(
         modifier
             .fillMaxWidth()
             .padding(bottom = 6.dp)
+            .clip(quoteShape)
+            .background(accent.copy(alpha = QUOTE_CONTAINER_ALPHA))
             .then(
                 if (onClick != null) {
-                    // Ořez kvůli vlnce; citace nemá vlastní pozadí, takže bez něj by se kreslila
-                    // do ostrého obdélníku.
-                    Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                    Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
                 } else {
                     Modifier
                 },
@@ -82,13 +87,12 @@ internal fun QuotedMessage(
     ) {
         Box(
             Modifier
-                .width(3.dp)
+                .width(4.dp)
                 .fillMaxHeight()
-                .clip(RoundedCornerShape(2.dp))
                 .background(accent),
         )
 
-        Column {
+        Column(Modifier.padding(top = 6.dp, bottom = 6.dp, end = 10.dp)) {
             Text(
                 text = when {
                     message.isOutgoing -> stringResource(Res.string.sender_you)
@@ -124,3 +128,9 @@ internal fun MessageMedia?.describe(): String = when (this) {
     is MessageMedia.Document -> fileName
     null -> ""
 }
+
+/** Zaoblení kontejneru citace. Menší než bublina — je v ní vnořený. */
+private val QUOTE_CORNER = 8.dp
+
+/** Jak moc je kontejner citace tónovaný akcentem. Dost na odlišení, ne na soupeření s textem. */
+private const val QUOTE_CONTAINER_ALPHA = 0.14f
