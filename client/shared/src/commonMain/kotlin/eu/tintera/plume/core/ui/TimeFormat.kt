@@ -138,7 +138,7 @@ fun Int.asDayLabel(): String {
  */
 fun Int.isSameDayAs(other: Int): Boolean = localDate() == other.localDate()
 
-private fun Int.localDate(): LocalDate = Instant.fromEpochSeconds(toLong())
+internal fun Int.localDate(): LocalDate = Instant.fromEpochSeconds(toLong())
     .toLocalDateTime(TimeZone.currentSystemDefault())
     .date
 

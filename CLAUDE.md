@@ -582,6 +582,31 @@ Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečte
 
 ## Konverzace
 
+### Bloky seznamu
+
+Seznam zpráv se skládá z **bloků** (`ConversationItem`), které nesou svoje data a **samy se
+vykreslí** — `LazyColumn` jen volá `Content`, žádný `when` nad druhy. O tom, JAKÝ blok vznikne,
+rozhoduje jediná čistá funkce `conversationItems()` (testy `ConversationItemsTest`). Cílový stav
+a postup přestavby: [docs/architektura-konverzace.md](docs/architektura-konverzace.md).
+
+- **Všechno, co potřebuje znát sousedy, počítá builder**, ne položka v kompozici: předěly,
+  seskupení bublin, profilovky, odznak přečtení, citace. Uvnitř `itemsIndexed` se to netestovalo.
+- **Builder se volá v kompozici (`remember`), ne ve ViewModelu.** Ukotvení nové zprávy
+  (`requestScrollToItem(0)`) musí vidět nový seznam v téže kompozici; tok z ViewModelu by šel
+  o dispatch pozadu.
+- **Klíče `remember` jsou jen pole stavu, ze kterých builder čte.** S celým `state` by se seznam
+  přestavoval i při každém kroku průběhu stahování.
+- **Lambdy v datech bloku nejsou** — rozbily by `equals` a tím přeskakování nezměněných položek.
+  Obsluhu a rychle se měnící hodnoty (pozice hlasovky, průběh stahování, odkrývání časů) dává
+  `ConversationItemScope`, a to jako funkce čtené až v UI, které je kreslí.
+- **`Content` je nad `LazyItemScope`**, takže si blok sám volí `animateItem` — cíl letu odeslané
+  zprávy se nesmí zjevovat prolnutím, sponzorovaná karta se neanimuje vůbec.
+- **Servisní oznámení přerušuje blok z OBOU stran** (`continues`). Dřív se hlídala jen novější
+  zpráva, takže bublina pod oznámením měla stažené nároží, jako by na něj navazovala. Našel to
+  až test nad builderem — v kompozici to nikdo neověřoval.
+
+### Obsah konverzace
+
 Hranice je [ConversationRepository]; na rozdíl od [ChatRepository] je **bezstavová**. Stránkovací
 stav drží `ConversationViewModel` — je tím testovatelný bez TDLib a přirozeně vázaný na životnost
 obrazovky, ne na aplikaci.
@@ -769,11 +794,16 @@ album. Bublina ukazuje průběh nahrávání.
 V bublině se vypisují jen hodiny, protože datum má nést předěl nad blokem zpráv. Bez něj se
 v delší historii nedalo poznat, kde končí včerejšek.
 
-- **Předěl se kreslí v položce zprávy, ne mezi položkami.** `LazyColumn` o sousedech nic neví,
-  takže se stejně jako u mezer mezi skupinami rozhoduje z dat: předěl patří zprávě, jejíž
-  starší soused (index +1, seznam jde od nejnovější) je z jiného dne.
-- **`reverseLayout` obrací pořadí POLOŽEK, ne obsah jedné položky.** Uvnitř `Column` proto předěl
-  stojí před bublinou a vykreslí se nad ní.
+- **Předěl je samostatný blok seznamu** (`DayDividerItem`), vyrobený builderem, který sousedy
+  zná (viz „Bloky seznamu"). Patří zprávě, jejíž starší soused je z jiného dne.
+- **Předěl stojí NAD zprávou, a proto v obráceném seznamu ZA ní** (vyšší index).
+- **Klíč předělu je datum**, ne zpráva. Když se dotáhne starší stránka, přestěhuje se předěl nad
+  starší zprávu téhož dne jako tatáž položka. Opakovaný den (posunuté hodiny odesílatele)
+  dostane do klíče i klíč zprávy — dva stejné klíče `LazyColumn` shodí.
+- **Mezi předělem a zprávou pod ním leží i `verticalArrangement`**, takže předěl má dole o ten
+  rozestup méně vzduchu (`DIVIDER_BOTTOM_SPACING`) — jinak by zpráva visela dál od svého data.
+- **Skok na nepřečtenou posazuje nahoru i předěly nad ní**, ne samotnou zprávu. Dokud byl předěl
+  součástí položky, šel nahoru s ní; jako samostatný blok by zůstal těsně nad horní hranou.
 - **U nejstarší načtené zprávy se předěl ukáže taky.** Jakmile se dotáhne starší stránka, posune
   se nahoru. Lepší než nechat vršek historie bez data.
 - **Za předělem začíná nový blok**, i když píše tentýž člověk — proto se do bubliny posílá
@@ -817,7 +847,8 @@ a nad ni nakreslí předěl „Nepřečtené zprávy".
   vstupní pole; dokud se horní hrana brala z celé výšky viewportu, zajela první nepřečtená
   o výšku pole pod horní okraj obrazovky.
 - **Index v `LazyColumn` není index v `state.messages`.** Před zprávami stojí sponzorované
-  položky, takže se k němu musí přičíst jejich počet. Stejná past jako u hlášení přečtení.
+  bloky a mezi nimi předěly. Blok se proto hledá v seznamu bloků (`containsMessage`), ne
+  v seznamu zpráv.
 - **Předěl nepřečtených je akcentní, ne šedý jako datum.** Je to jediná věc, kterou uživatel po
   otevření chatu opravdu hledá.
 
