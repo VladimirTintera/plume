@@ -248,8 +248,9 @@ private val REACTION_RING = 2.dp
 
 /** Emoji v čipu: výška řádku rovná písmu, na střed, bez rezervy nad kresbou. */
 private val CENTERED_EMOJI = TextStyle(
-    fontSize = 17.sp,
-    lineHeight = 17.sp,
+    // Menší než kolečko o dost, aby kolem kresby zůstal vzduch.
+    fontSize = 14.sp,
+    lineHeight = 14.sp,
     lineHeightStyle = LineHeightStyle(
         alignment = LineHeightStyle.Alignment.Center,
         trim = LineHeightStyle.Trim.Both,
