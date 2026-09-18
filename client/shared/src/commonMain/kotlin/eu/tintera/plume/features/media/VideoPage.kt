@@ -10,11 +10,9 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -40,6 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
@@ -81,7 +81,8 @@ import org.koin.compose.koinInject
  * - **Hraje jen vybraná stránka**; odlistování pozastaví, návrat pokračuje.
  * - **Ovládání se schová po [CONTROLS_HIDE_MS]** během přehrávání, ťuknutí ho vrátí.
  * - **Tah dolů/nahoru zavírá** jako u fotky; vodorovný tah nechává pageru.
- * - Popisek se kreslí tady pod ovládáním, ne v pageru — jinak by se s ním překrývaly.
+ * - **Karta jako u fotky** ([MediaPageLayout]): video se zaoblením, posuvník na jejím spodku,
+ *   popisek pod ní.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -92,6 +93,10 @@ internal fun VideoPage(
     isCurrent: Boolean,
     dismissDrag: Animatable<Float, *>,
     onDismiss: () -> Unit,
+    onTap: () -> Unit,
+    modifier: Modifier = Modifier,
+    captionAlpha: () -> Float = { 1f },
+    cardBias: () -> Float = { 0f },
 ) {
     val scope = rememberCoroutineScope()
     val repository = koinInject<FileRepository>()
@@ -155,9 +160,14 @@ internal fun VideoPage(
     // Po dohrání se ovládání vrátí, ať je vidět tlačítko na opakování.
     LaunchedEffect(ended) { if (ended) controlsVisible = true }
 
-    Box(
-        Modifier
-            .fillMaxSize()
+    val shape = MaterialTheme.shapes.large
+
+    MediaPageLayout(
+        aspectRatio = aspectRatioOf(video.width, video.height),
+        caption = caption,
+        captionAlpha = captionAlpha,
+        cardBias = cardBias,
+        modifier = modifier
             .pointerInput(Unit) {
                 // Jen svislý tah (zavírání); vodorovný se nekonzumuje a patří pageru.
                 awaitEachGesture {
@@ -190,24 +200,26 @@ internal fun VideoPage(
                 }
             }
             .pointerInput(Unit) {
-                detectTapGestures(onTap = { controlsVisible = !controlsVisible })
-            },
+                // Ťuknutí schová ovládání videa i lišty prohlížeče — jedno gesto, jeden význam.
+                detectTapGestures(onTap = {
+                    controlsVisible = !controlsVisible
+                    onTap()
+                })
+            }
+            /*
+             * Posun přes `offset`, ne `graphicsLayer`: nativní view s videem (UIKit na iOS)
+             * transformace vrstvy nedostane, jen pozici z layoutu. Čte se ve fázi umístění, takže
+             * nic nerekomponuje.
+             */
+            .offset { IntOffset(0, dismissDrag.value.roundToInt()) },
     ) {
-        /*
-         * Posun přes `offset`, ne `graphicsLayer`: nativní view s videem (UIKit na iOS) transformace
-         * vrstvy nedostane, jen pozici z layoutu. Čte se ve fázi umístění, takže nic nerekomponuje.
-         */
-        Box(
-            Modifier
-                .fillMaxSize()
-                .offset { IntOffset(0, dismissDrag.value.roundToInt()) },
-        ) {
+        Box(Modifier.fillMaxSize().clip(shape)) {
             // Náhled drží místo, dokud se video nestáhne; se sdíleným prvkem z bubliny.
             video.thumbnailFileId?.let { thumbnail ->
                 RemoteImage(
                     fileId = thumbnail,
                     contentDescription = null,
-                    contentScale = ContentScale.Fit,
+                    contentScale = ContentScale.Crop,
                     background = Color.Transparent,
                     modifier = Modifier.fillMaxSize().sharedNavElement(photoKey(messageId)),
                 )
@@ -215,80 +227,86 @@ internal fun VideoPage(
             if (loaded) {
                 VideoSurface(player, Modifier.fillMaxSize())
             }
-        }
 
-        when (val state = file) {
-            is FileState.Downloading, FileState.Pending -> if (started) {
-                val progress = (state as? FileState.Downloading)?.progress
-                Box(
-                    Modifier
-                        .align(Alignment.Center)
-                        .size(72.dp)
-                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f), CircleCornerShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (progress == null || progress <= 0f) {
-                        CircularWavyProgressIndicator(color = Color.White, modifier = Modifier.size(48.dp))
-                    } else {
-                        CircularWavyProgressIndicator(progress = { progress }, color = Color.White, modifier = Modifier.size(48.dp))
+            when (val state = file) {
+                is FileState.Downloading, FileState.Pending -> if (started) {
+                    val progress = (state as? FileState.Downloading)?.progress
+                    Box(
+                        Modifier
+                            .align(Alignment.Center)
+                            .size(72.dp)
+                            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f), CircleCornerShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (progress == null || progress <= 0f) {
+                            CircularWavyProgressIndicator(color = Color.White, modifier = Modifier.size(48.dp))
+                        } else {
+                            CircularWavyProgressIndicator(progress = { progress }, color = Color.White, modifier = Modifier.size(48.dp))
+                        }
                     }
+                }
+
+                is FileState.Failed -> Text(
+                    text = stringResource(Res.string.media_video_download_failed),
+                    color = Color.White,
+                    modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                )
+
+                is FileState.Ready -> Unit
+            }
+
+            AnimatedVisibility(
+                visible = loaded && controlsVisible,
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                modifier = Modifier.align(Alignment.Center),
+            ) {
+                FilledIconButton(
+                    onClick = {
+                        if (playing) player.pause() else player.play()
+                        playing = !playing
+                    },
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f),
+                        contentColor = Color.White,
+                    ),
+                    modifier = Modifier.size(IconButtonDefaults.largeContainerSize()),
+                ) {
+                    Icon(
+                        painterResource(
+                            when {
+                                ended -> Res.drawable.replay_24dp
+                                playing -> Res.drawable.pause_24dp
+                                else -> Res.drawable.play_arrow_24dp
+                            },
+                        ),
+                        contentDescription = when {
+                            ended -> stringResource(Res.string.media_replay)
+                            playing -> stringResource(Res.string.media_pause)
+                            else -> stringResource(Res.string.media_play)
+                        },
+                        modifier = Modifier.size(IconButtonDefaults.largeIconSize),
+                    )
                 }
             }
 
-            is FileState.Failed -> Text(
-                text = stringResource(Res.string.media_video_download_failed),
-                color = Color.White,
-                modifier = Modifier.align(Alignment.Center).padding(24.dp),
-            )
-
-            is FileState.Ready -> Unit
-        }
-
-        AnimatedVisibility(
-            visible = loaded && controlsVisible,
-            enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
-            exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
-            modifier = Modifier.align(Alignment.Center),
-        ) {
-            FilledIconButton(
-                onClick = {
-                    if (playing) player.pause() else player.play()
-                    playing = !playing
-                },
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f),
-                    contentColor = Color.White,
-                ),
-                modifier = Modifier.size(IconButtonDefaults.largeContainerSize()),
+            // Posuvník leží na spodku karty s přechodem do tmava — na světlém záběru by bílý
+            // posuvník jinak zmizel.
+            AnimatedVisibility(
+                visible = loaded && controlsVisible,
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                modifier = Modifier.align(Alignment.BottomCenter),
             ) {
-                Icon(
-                    painterResource(
-                        when {
-                            ended -> Res.drawable.replay_24dp
-                            playing -> Res.drawable.pause_24dp
-                            else -> Res.drawable.play_arrow_24dp
-                        },
-                    ),
-                    contentDescription = when {
-                        ended -> stringResource(Res.string.media_replay)
-                        playing -> stringResource(Res.string.media_pause)
-                        else -> stringResource(Res.string.media_play)
-                    },
-                    modifier = Modifier.size(IconButtonDefaults.largeIconSize),
-                )
-            }
-        }
-
-        Column(
-            Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.scrim.copy(alpha = if (controlsVisible || caption.isNotBlank()) 0.55f else 0f))
-                .navigationBarsPadding(),
-        ) {
-            AnimatedVisibility(visible = loaded && controlsVisible) {
                 Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f)),
+                            ),
+                        )
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -324,14 +342,6 @@ internal fun VideoPage(
                     )
                 }
             }
-            if (caption.isNotBlank()) {
-                Text(
-                    text = caption,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
-                )
-            }
         }
     }
 }
@@ -340,6 +350,3 @@ private val CircleCornerShape = androidx.compose.foundation.shape.CircleShape
 
 private const val POSITION_TICK_MS = 200L
 private const val CONTROLS_HIDE_MS = 3000L
-
-/** Jako u fotky: jak daleko musí tah zajít, aby se prohlížeč zavřel. */
-private const val DISMISS_THRESHOLD = 0.18f

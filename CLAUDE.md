@@ -1675,7 +1675,12 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   největší, co server má; `fileId` (do 1280 px) slouží jako okamžitý náhled, protože ho konverzace
   už stáhla. V bublině by originál znamenal desítky megabajtů kvůli obrázku širokému pár set bodů.
 - **Prohlížeč nemá metadata list-detail scény**, takže ho scéna nepřevezme a `NavDisplay` ho
-  vykreslí přes celou plochu i na širokém rozvržení.
+  vykreslí přes celou plochu i na širokém rozvržení. **Rail se v něm schová** (`showRail`
+  v `AppShell`, i s místem přes `shrinkHorizontally`): není to panel vedle seznamu, ze kterého
+  se přepíná sekce, a rail by jen ukusoval šířku fotce a sousedním stránkám.
+- **Ořez pozadí je nutný** (`clipToBounds` v `AmbientBackground`). Pozadí sousedů leží posunuté
+  mimo plochu prohlížeče; bez ořezu prosvítalo vlevo přes rail nerozostřené — rozostření pokrývá
+  jen plochu prohlížeče.
 - **Gesta patří FOTCE, ne bublině.** Kdyby ťuknutí odchytávala bublina, sebralo by ho i odkazům
   v popisku. Dlouhý stisk se na fotce musí zopakovat: potomek s vlastním klikáním ho nepustí
   k rodiči, takže by nad fotkou nešla otevřít nabídka.
@@ -1698,17 +1703,50 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   puštění, který byl nutný kvůli `detectTransformGestures`.
 - **Odlistovaná fotka se vrací do základní velikosti.** Soused zůstává složený
   (`beyondViewportPageCount`), a s ponechaným přiblížením by se z něj po návratu nedalo listovat.
-- **Nahoře je přechod do tmava, ne pruh.** Bílé ovládání se na světlé fotce (screenshot) ztrácelo;
-  s počítadlem to bylo vidět ještě víc. Plný pruh by fotku nahoře ořízl.
 - **Přiblížení se počítá kolem prstů, ne kolem středu.** Bod pod prsty musí zůstat na místě,
   jinak fotka při štípnutí ujíždí a uživatel ji pak dohání posunem.
 - **Meze posunu se počítají z poměru stran v metadatech**, ne z načteného souboru — jinak by se
   měnily ve chvíli, kdy dorazí ostrá verze.
 - **Posun i přiblížení se čtou až v `graphicsLayer`**, takže gesto nic nerekomponuje; překresluje
-  se jen vrstva s obrázkem. Totéž u zavíracího tahu (`drawBehind`).
-- **Pozadí je tmavé v obou režimech** (role `scrim`). Světlá plocha kolem snímku mění jeho
-  vnímanou expozici. Barva ovládání nad ním je proto natvrdo bílá — role z `colorScheme` by ve
-  světlém tématu dala tmavý text na tmavé ploše.
+  se jen vrstva s obrázkem. Totéž u zavíracího tahu.
+- **Vzhled je po vzoru Google Zpráv.** Pozadí je **rozostřený aktuální snímek** pod tmavým
+  nádechem (Haze nad malým náhledem), snímek je **karta se zaoblením**
+  a sousední stránky u okrajů vykukují (`contentPadding` pageru, 24 dp soused, 8 dp mezera —
+  se 14 dp souseda nebylo moc poznat, že vedle další fotky jsou). **Popisek sousední stránky
+  mizí** podle posunu pageru (`captionAlpha`), jinak u okraje trčel useknutý kus textu.
+- **`HorizontalPager` šířku stránky podle obsahu NEŘEŠÍ.** Stránky mají jednu šířku a karta se
+  v ní centruje, takže fotka na výšku na širokém displeji (rozložený Fold) ležela uprostřed široké
+  stránky a sousední karty byly celé za okrajem. Proto dvě věci: stránka má strop
+  (`MAX_PAGE_WIDTH` 640 dp, zbytek jde do `contentPadding`, mezera mezi kartami je tam 24 dp místo 8) a **sousední karta se přisouvá k okraji
+  bližšímu aktuální stránce** (`cardBias` = −`getOffsetDistanceInPages`, čteno až při umístění
+  v `MediaPageLayout`). Plynule s tahem — karta, která dojede doprostřed, stojí na středu.
+  Šířka se bere z `BoxWithConstraints`, ne z okna: vedle prohlížeče může ležet rail.
+- **Pozadí jezdí s pagerem**, neprolíná se. Kreslí se pozadí aktuální stránky i sousedů vedle
+  sebe, posunutá o `currentPageOffsetFraction` (čteno až v `graphicsLayer`). Dokud se pozadí
+  jen prolnulo podle `currentPage`, měnilo se skokem až po přeskočení na další stránku, zatímco
+  karta jela pod prstem. Šev mezi dvěma pozadími změkčí rozostření samo — Haze rozmazává
+  složený obraz, ne každý snímek zvlášť. Nahoře kdo a kdy fotku poslal
+  a akce, dole reakce; ťuknutí lišty schová. Dřív byl snímek přes celou obrazovku na holé černé
+  a ovládání leželo přes fotku s přechodem do tmava.
+- **Lišty leží NAD kartou, ne přes ni.** Stránka jde přes celou výšku (přiblížená fotka má kam
+  růst), ale karta se vepisuje do místa mezi lištami. Rozvržení stránky je vlastní `Layout`
+  (`MediaPageLayout`): nejdřív se změří popisek, snímek se vepíše do zbytku (`fitInto`, testy
+  `MediaPageLayoutTest`). S popiskem jako samostatnou lištou by fotka poskočila při listování
+  mezi stránkou s popiskem a bez.
+- **Gesta sedí na stránce, přiblížení na kartě.** Štípnout jde i vedle úzké fotky; střed
+  přiblížení je střed KARTY (zapamatovaný v `onPlaced` do obyčejného pole, ne do stavu), protože
+  karta s popiskem pod sebou nestojí uprostřed stránky. Zaoblení nese `graphicsLayer` karty
+  (`clip` + `shape`), takže se s přiblížením zvětšuje spolu s fotkou.
+- **Podklad je tmavý v obou motivech**, i s rozostřením. Barva ovládání je proto natvrdo bílá —
+  role z `colorScheme` by ve světlém tématu dala tmavý text na tmavé ploše — a **ikony
+  systémových lišt musí být světlé** (`DarkSystemBars`, při odchodu vrátí předchozí stav).
+  Kde rozostření není (Android 11 a starší), kreslí Haze skoro neprůhledný závoj
+  (`AMBIENT_FALLBACK_ALPHA`) — ostrá fotka za kartou by rušila.
+- **Reakce, přeposlání a smazání jsou přímo v prohlížeči.** Nabízené reakce a práva
+  (`messageActions`) se načítají **pro stránku, na které uživatel stojí**, jednou za zprávu —
+  stejný důvod jako u nabídky v konverzaci. Dokud nedorazí, akce se nekreslí. Smaže se jen
+  zobrazená fotka, i z alba; ze seznamu ji odebere až `deletedMessages` a po poslední fotce se
+  prohlížeč zavře.
 - **Let z bubliny jede přes sdílený prvek** (`photoKey`), stejně jako avatar a název chatu.
   Na širokém rozvržení se nekoná: `LocalTwoPane` tam sdílení vypíná.
 

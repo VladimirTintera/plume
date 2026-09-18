@@ -218,7 +218,14 @@ Co zbývá:
 - **Ostatní typy médií.** GIF a dokumenty se pořád jen popisují. Prohlížeč
   u nich zatím řekne, že je neumíme otevřít. Přehrávání je samostatná fáze (potřebuje platformní
   přehrávač přes `expect`/`actual`); u dokumentů stačí míň — stáhnout a předat systému.
-- **Uložení a sdílení** fotky ven z aplikace.
+- **Uložení a sdílení** fotky ven z aplikace — v horní liště prohlížeče na to je místo (Google
+  Zprávy tam mají stažení). Potřebuje platformní kód: Android `MediaStore`, iOS `PHPhotoLibrary`
+  s `NSPhotoLibraryAddUsageDescription`.
+- **Odpověď z prohlížeče.** Google Zprávy mají vlevo v dolní liště tlačítko odpovědi. U nás by
+  muselo vrátit do konverzace s připravenou citací — konverzace je v zásobníku pod prohlížečem,
+  takže je potřeba cesta, jak jí požadavek předat (jako `ChatOpenRequests`).
+- **Přiblížení dvojitým ťuknutím a štípnutím po přestavbě na karty** je ověřené jen
+  čtením kódu; `adb input` dvojité ťuknutí nestihne a štípnutí neumí.
 - **Samolepky `.webm`** (VP9 s průhledností) jsou pořád jen statický náhled — potřebují
   softwarový dekodér (libvpx), iOS WebM neumí vůbec.
 - **Průběh stahování originálu.** `RemoteImage` ukazuje náhled z bubliny, dokud nedorazí ostrá
