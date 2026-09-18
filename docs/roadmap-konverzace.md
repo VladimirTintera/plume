@@ -122,8 +122,9 @@ Co z toho zůstalo:
 
 ### 5. ~~Reakce z bubliny ven~~ — HOTOVO
 
-Čipy nesou jen emoji a počet (od dvou výš), leží NA bublině u dolního nároží na straně odesílatele
-a bublina si na ně dole nechá místo. Jeden řádek, který se posouvá do strany. Ťuknutí otevře
+Čip je kolečko s emoji a počtem jako odznakem v rohu (od dvou výš) a leží PŘES dolní nároží
+bubliny na straně odesílatele — dolní půlka visí ven, jako v Google Messages. Jeden řádek,
+který se posouvá do strany. Ťuknutí otevře
 **detail „kdo reagoval"** (`ReactionDetailsSheet` nad `getMessageAddedReactions`); přidat a odebrat
 jde jen z nabídky nad zprávou. Poučení v `CLAUDE.md`, „Reakce".
 

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LoadingIndicator
@@ -79,7 +80,11 @@ fun ReactionRow(
 }
 
 /**
- * Jeden čip reakce: emoji a počet, nic víc.
+ * Jeden čip reakce: kolečko s emoji a počtem jako malým odznakem v rohu.
+ *
+ * Kolečko, ne kapsle s číslem vedle emoji: čip leží PŘES nároží bubliny, takže musí být co
+ * nejmenší a kulatý tvar na to sedí líp než pilulka. Počet je proto odznak přes pravý horní roh,
+ * ne další prvek v řádku — tak to dělá Google Messages.
  *
  * Profilovky těch, kdo reagovali, tu byly a jsou pryč — čip s nimi byl široký, takže se jich
  * vedle sebe vešlo pár, a stejně ukazovaly jen několik posledních. Kdo reagoval, teď říká detail.
@@ -87,9 +92,8 @@ fun ReactionRow(
  * **Počet se vypisuje až od dvou.** U jediné reakce je číslo „1" šum; že tam někdo je, říká
  * samotný čip.
  *
- * Vlastní reakce se odliší **tvarem i barvou naráz**: zaoblení se stáhne z kapsle do měkkého
- * obdélníku a čip lehce povyroste. Obojí jede přes `MaterialTheme.motionScheme`, takže to má
- * ten samý pružný charakter jako zbytek aplikace — barva bez bounce, tvar a velikost s ním.
+ * Vlastní reakce se odliší barvou a lehkým zvětšením. Barva jede bez bounce — overshoot u barvy
+ * se ořízne a působí jako bliknutí, ne jako pružnost.
  */
 @Composable
 private fun ReactionChip(
@@ -98,11 +102,6 @@ private fun ReactionChip(
 ) {
     val chosen = reaction.isChosen
 
-    val corner by animateDpAsState(
-        targetValue = if (chosen) 10.dp else 20.dp,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "reaction-corner",
-    )
     val scale by animateFloatAsState(
         targetValue = if (chosen) 1.06f else 1f,
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
@@ -114,48 +113,70 @@ private fun ReactionChip(
         targetValue = if (chosen) {
             MaterialTheme.colorScheme.primaryContainer
         } else {
-            MaterialTheme.colorScheme.surfaceContainerHighest
+            MaterialTheme.colorScheme.surfaceContainerLowest
         },
-        // Barvy bez bounce — overshoot u barvy se ořízne a působí jako bliknutí, ne jako pružnost.
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "reaction-container",
     )
+    val content = if (chosen) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
 
-    Surface(
-        shape = RoundedCornerShape(corner),
-        color = container,
-        contentColor = if (chosen) {
-            MaterialTheme.colorScheme.onPrimaryContainer
-        } else {
-            MaterialTheme.colorScheme.onSurface
-        },
-        // Stín, protože čip leží NA bublině; bez něj by u tmavšího pozadí splynul s jejím okrajem.
-        shadowElevation = 1.dp,
-        modifier = Modifier.scale(scale),
-    ) {
-        Row(
-            // Klikání je až uvnitř `Surface`, takže ho tvar ořízne — jinak by vlnka přetekla
-            // přes zaoblená nároží čipu.
-            Modifier
-                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+    /*
+     * Místo pro odznak si vyhradí obálka, odznak z čipu NEČOUHÁ.
+     *
+     * Řádek reakcí se posouvá do strany a posouvatelný kontejner si obsah ořezává na svoje
+     * hranice — odznak zavěšený mimo kolečko by se tím uřízl.
+     */
+    Box(Modifier.scale(scale)) {
+        Surface(
+            shape = CircleShape,
+            color = container,
+            contentColor = content,
+            // Čip leží NA bublině; bez stínu by na tmavším pozadí splynul s jejím okrajem.
+            shadowElevation = 2.dp,
+            modifier = Modifier
+                .padding(top = REACTION_BADGE_ROOM, end = REACTION_BADGE_ROOM)
+                .size(REACTION_CHIP_SIZE),
         ) {
-            // Emoji záměrně mimo typografickou škálu: role jako `labelLarge` míří na výšku
-            // písmen, ale u emoji je nosná celá kresba, takže ve stejné velikosti působí menší
-            // než číslo vedle ní.
-            Text(text = reaction.emoji, fontSize = 16.sp)
+            Box(
+                // Klikání je až uvnitř `Surface`, takže ho tvar ořízne — jinak by vlnka přetekla
+                // přes kulaté nároží čipu.
+                Modifier.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+                contentAlignment = Alignment.Center,
+            ) {
+                // Emoji záměrně mimo typografickou škálu: role jako `labelLarge` míří na výšku
+                // písmen, ale u emoji je nosná celá kresba, takže ve stejné velikosti působí menší.
+                Text(text = reaction.emoji, fontSize = 17.sp)
+            }
+        }
 
-            if (reaction.count > 1) {
+        if (reaction.count > 1) {
+            Surface(
+                shape = CircleShape,
+                color = container,
+                contentColor = content,
+                shadowElevation = 2.dp,
+                modifier = Modifier.align(Alignment.TopEnd),
+            ) {
                 Text(
                     text = reaction.count.toString(),
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                 )
             }
         }
     }
 }
+
+/** Průměr kolečka s emoji. */
+private val REACTION_CHIP_SIZE = 30.dp
+
+/** Kolik místa si čip nechá nahoře a vpravo na odznak s počtem. */
+private val REACTION_BADGE_ROOM = 7.dp
 
 /**
  * Plný seznam reakcí.

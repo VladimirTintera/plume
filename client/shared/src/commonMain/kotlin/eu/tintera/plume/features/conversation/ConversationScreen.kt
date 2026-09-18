@@ -1288,9 +1288,10 @@ private fun MessageBubble(
     /*
      * Kolik místa si obsah nechá dole.
      *
-     * Čipy reakcí leží NA bublině, takže musí mít kam — jinak podlezou poslední řádek textu.
-     * Platí to i pro kontejner popisku u holého média a pro popis náhledu odkazu: čipy sedí na
-     * tom, co je ve zprávě poslední.
+     * Čip reakce leží PŘES dolní nároží bubliny — dolní půlka mu visí ven, horní na bublině.
+     * Zakrytá je tedy jen ta horní půlka a jen tolik místa si obsah rezervuje; celá výška čipu
+     * by pod textem nechala zbytečnou díru. Platí to i pro kontejner popisku u holého média
+     * a pro popis náhledu odkazu: čip sedí na tom, co je ve zprávě poslední.
      */
     val contentBottom = if (message.reactions.isEmpty()) 8.dp else REACTION_STRIP_SPACE
 
@@ -1461,6 +1462,14 @@ private fun MessageBubble(
               contentColor = contentColor,
               shape = shape,
               modifier = Modifier
+                  /*
+                   * Místo na přesah čipu reakce POD bublinou.
+                   *
+                   * Je uvnitř `Box`u, který ukotvuje nabídku, takže přesah zůstane v díře
+                   * vykrojené do závoje — čip se při dlouhém stisku nesmí ztmavit, patří
+                   * ke zprávě. Bez reakcí si nebere nic.
+                   */
+                  .padding(bottom = if (message.reactions.isEmpty()) 0.dp else REACTION_OVERHANG)
                   .widthIn(max = 560.dp)
                   // Cílová strana letu ze vstupního pole. Sdílí se CELÁ bublina, ne jen text —
                   // kdyby se sdílel jen text, doletěl by sám a pozadí by pod ním na konci
@@ -1721,7 +1730,7 @@ private fun MessageBubble(
               onOpenDetails = onOpenReactions?.let { open -> { open(message.id) } },
               modifier = Modifier
                   .align(if (message.isOutgoing) Alignment.BottomEnd else Alignment.BottomStart)
-                  .padding(horizontal = REACTION_INSET, vertical = REACTION_INSET),
+                  .padding(horizontal = REACTION_INSET),
           )
 
           ReplyHint(
@@ -2756,13 +2765,14 @@ private val UPLOAD_INDICATOR_SIZE = 48.dp
 /** Spára mezi fotkami alba. */
 private val ALBUM_GAP = 2.dp
 
-/**
- * Kolik místa si bublina nechá dole na čipy reakcí. Vejde se do něj čip i spára pod ním.
- */
-private val REACTION_STRIP_SPACE = 34.dp
+/** Kolik z čipu reakce visí POD bublinou. Zhruba jeho půlka, jako v Google Messages. */
+private val REACTION_OVERHANG = 16.dp
 
-/** Odsazení čipů od nároží bubliny, aby na ní ležely, ne aby z ní čouhaly. */
-private val REACTION_INSET = 4.dp
+/** Kolik místa si obsah bubliny nechá dole pod poslední řádkou, aby ho čip nezakryl. */
+private val REACTION_STRIP_SPACE = 20.dp
+
+/** Odsazení čipů od svislého okraje bubliny. */
+private val REACTION_INSET = 10.dp
 
 /**
  * Šířka sloupce s časy, který se odkrývá tahem doleva. Vejde se do něj „00:00" s rezervou.

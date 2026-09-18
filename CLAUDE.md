@@ -1632,14 +1632,20 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   reagoval, říká detail. Odpadly s tím i stropy `MAX_AVATARS_PER_REACTION`,
   `MAX_REACTIONS_WITH_AVATARS` a `MAX_SENDERS_SHOWN` a dotazy na odesílatele u každé zprávy
   s reakcemi.
-- **Počet se vypisuje až od dvou.** „1" je šum; že tam někdo je, říká samotný čip.
-- **Čipy LEŽÍ NA bublině**, u dolního nároží na straně odesílatele, a bublina si na ně dole
-  nechá místo (`REACTION_STRIP_SPACE`) — jinak by podlezly poslední řádek textu. Totéž platí pro
-  kontejner popisku u holého média a pro popis náhledu odkazu: čipy sedí na tom, co je ve zprávě
-  poslední. U fotky bez popisku leží rovnou na snímku, jako v Google Messages.
-- **Jsou uvnitř `Box`u, který ukotvuje nabídku**, takže zůstávají i uvnitř díry v závoji — při
-  dlouhém stisku se nesmí ztmavit, patří ke zprávě. A jedou s ní i při tahu na odpověď, protože
-  posun sedí na sloupci kolem toho `Box`u.
+- **Čip je kolečko, počet je odznak přes jeho roh** — ne kapsle s číslem vedle emoji. Čip leží
+  PŘES nároží bubliny, takže musí být co nejmenší; kulatý tvar na to sedí líp a číslo vedle emoji
+  by ho roztáhlo. **Počet se vypisuje až od dvou**: „1" je šum, že tam někdo je, říká samotný čip.
+- **Místo pro odznak si vyhradí obálka čipu, odznak z kolečka NEČOUHÁ.** Řádek reakcí se posouvá
+  do strany a posouvatelný kontejner si obsah ořezává na svoje hranice — zavěšený odznak by se
+  uřízl.
+- **Čipy leží PŘES dolní nároží bubliny** na straně odesílatele: dolní půlka visí ven, horní na
+  bublině. Obsah bubliny si proto nechá dole místo jen na tu horní půlku (`REACTION_STRIP_SPACE`),
+  celá výška čipu by pod textem nechala díru. Totéž platí pro kontejner popisku u holého média
+  a pro popis náhledu odkazu: čip sedí na tom, co je ve zprávě poslední.
+- **Přesah pod bublinou je uvnitř `Box`u, který ukotvuje nabídku** (`REACTION_OVERHANG` jako
+  odsazení bubliny, ne mezera mimo). Díky tomu zůstane čip celý v díře vykrojené do závoje —
+  při dlouhém stisku se nesmí ztmavit, patří ke zprávě.
+- **Jedou s bublinou i při tahu na odpověď**, protože posun sedí na sloupci kolem toho `Box`u.
 - **Jeden řádek, který se posouvá do strany**, ne lámání do víc řádků: čipy leží na bublině
   a druhý řádek by ji přerostl. U příspěvku s deseti různými emoji je to jediné, co se vejde.
 - **Ťuknutí na čip otevírá DETAIL, nepřepíná reakci.** Přidat i odebrat jde z nabídky nad zprávou,
