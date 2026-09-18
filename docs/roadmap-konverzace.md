@@ -37,10 +37,10 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    hledání na serveru (`searchChats`), víc cílů najednou, výběr víc zpráv a kopie bez odesílatele.
 4. ~~**Otevírání dokumentů**~~ — hotovo (stažení s průběhem, `ACTION_VIEW` / `UIDocumentInteractionController`).
    Zbývá zrušení stahování, uložení do Souborů/Downloads a otevření audia (zatím se jen popisuje).
-5. **Odlehčení vzhledu.** ~~Zaoblení na konci bloku bublin~~ a ~~čas se stavem doručení
-   z bubliny ven~~ — hotovo, poučení v `CLAUDE.md` („Tvar bubliny a seskupení", „Čas a stav
-   doručení"). Zbývají fotky a náhledy odkazů na plochu, výška fotek a odkrývání časů tahem;
-   vlastní sekce níž.
+5. **Odlehčení vzhledu.** ~~Zaoblení na konci bloku bublin~~, ~~čas se stavem doručení
+   z bubliny ven~~ a ~~výška fotek~~ — hotovo, poučení v `CLAUDE.md` („Tvar bubliny a seskupení",
+   „Čas a stav doručení", „Rámeček fotky v bublině"). Zbývají fotky a náhledy odkazů na plochu
+   a odkrývání časů tahem; vlastní sekce níž.
 6. Drobnosti ze sekcí níž (zásobník, nabídka, entity, média, emoji).
 
 ---
@@ -49,8 +49,8 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
 
 Inspirace je Google Messages. Tři samostatné kusy, dají se dělat nezávisle.
 
-Hotové z tohohle seznamu: tvar bubliny na konci bloku a čas se stavem doručení.
-Poučení z obojího je v `CLAUDE.md`.
+Hotové z tohohle seznamu: tvar bubliny na konci bloku, čas se stavem doručení a výška fotek.
+Poučení ze všeho je v `CLAUDE.md`.
 
 ### 1. Fotky a videa na plochu, mimo bublinu
 
@@ -69,33 +69,23 @@ Co je na tom skutečná práce, není ta průhlednost, ale to, co v bublině vis
 - **Citace a reakce.** Citace bez pozadí se ztratí, stejný důvod, proč si ji dnes drží bublinu
   i zpráva z pár emoji. Fotka s odpovědí tedy pravděpodobně bublinu potřebuje dál.
 
-### 2. Fotky mají respektovat výšku
+### 2. ~~Fotky mají respektovat výšku~~ — HOTOVO
 
-Tady je potřeba rozlišit dva případy, protože se chovají jinak:
+Fotka i video v bublině se **zužují, neořezávají**: výška se spočítá z poměru stran, zastropuje
+se, a když se strop uplatní, dopočítá se šířka zpátky (`photoFrame` v `MediaFrame.kt`, testy
+v `MediaFrameTest`). Svislý snímek obrazovky je tím vidět celý. Poučení v `CLAUDE.md`,
+„Rámeček fotky v bublině".
 
-- **Jedna fotka bublinu na čtverec neláme.** Počítá se
-  `height = (maxWidth / ratio).coerceAtMost(MAX_PHOTO_HEIGHT)` s `MAX_PHOTO_HEIGHT = 320.dp`
-  a `ContentScale.Crop`. Poměr stran se tedy respektuje, **dokud se nenarazí na strop** — svislý
-  snímek se o něj ořízne. Druhá polovina problému je `fillMaxWidth()`: úzká fotka se roztáhne
-  na celou šířku bubliny a ořízne se i do stran.
-- **Album do čtverců láme.** Dlaždice jsou
-  `((maxWidth - ALBUM_GAP * (size - 1)) / size).coerceAtMost(ALBUM_TILE_MAX_HEIGHT)`
-  s `ALBUM_TILE_MAX_HEIGHT = 200.dp`, tedy čtverce. Je to vědomé rozhodnutí (viz `CLAUDE.md`,
-  „Alba" — mřížka, ne mozaika podle poměrů stran), takže jeho změna je změna toho rozhodnutí,
-  ne oprava chyby.
-- **Past, která tu už jednou byla:** `aspectRatio` se použít nedá, strop z `heightIn` neuplatní.
-  Proto se výška počítá ručně v `BoxWithConstraints` — viz `CLAUDE.md`, „Gotchas". Cokoli se
-  tady bude měnit, musí zůstat u ručního počítání.
-- **Potvrzený případ:** snímek obrazovky telefonu (vysoký, poměr kolem 1:2). V bublině z něj
-  není vidět nic než **prostřední pruh** — zbytek `Crop` odřízne nahoře i dole, takže ze
-  screenshotu nejde přečíst ani co na něm je.
-- **Ořez je to, co se má odstranit, ne strop.** Zvednutí stropu samo nepomůže: vysoká fotka
-  s `fillMaxWidth()` bude pořád vyšší než rozumná bublina. Cesta je nechat fotku **zúžit**:
-  z poměru stran spočítat výšku, zastropovat ji, a když se strop uplatní, dopočítat šířku zpátky
-  jako `height * ratio` místo `fillMaxWidth()`. Fotka pak zabírá méně šířky, ale je vidět celá —
-  přesně jak to dělá Telegram i Google Messages.
-- Zůstat se musí u ručního počítání v `BoxWithConstraints`; s rámečkem, který už poměr stran
-  respektuje, přestane být `ContentScale` podstatný.
+Co z toho zůstalo:
+
+- **Popisek táhne bublinu širší, než je fotka.** Šířka bubliny je maximum z fotky a textu, takže
+  u dlouhého popisku (typicky `Screenshot (18. 9. 2026 5:23:34)`) zůstane vpravo od zúžené fotky
+  prázdné místo. Telegram to řeší tím, že popisek zalomí na šířku fotky. Váže se to na bod 1
+  níž — tam se popisek stejně stěhuje do vlastního kontejneru pod snímek.
+- **Album zůstává ve čtvercích.** Je to vědomé rozhodnutí (`CLAUDE.md`, „Alba" — mřížka, ne
+  mozaika podle poměrů stran), takže jeho změna je změna toho rozhodnutí, ne pokračování tohohle
+  bodu. Řádek alba s jednou fotkou se ale ořezává pořád.
+- **Náhled odkazu se ořezává dál.** Řeší ho bod 3, který ten obrázek stejně přestěhuje na plochu.
 
 ### 3. Náhled odkazu: obrázek na plochu
 

@@ -542,6 +542,31 @@ obrazovky, ne na aplikaci.
 - **`UpdateDeleteMessages.isPermanent == false`** znamená jen uvolnění z cache, ne smazání pro
   uživatele — takovou zprávu z obrazovky odstranit nesmíme.
 
+### Rámeček fotky v bublině
+
+Fotka a video se **zužují, neořezávají** (`photoFrame` v `MediaFrame.kt`, testy `MediaFrameTest`):
+z poměru stran se spočítá výška, zastropuje se, a když se strop uplatní, dopočítá se šířka zpátky
+jako `výška × poměr`.
+
+- **Ořez byl ta chyba, ne strop.** Předtím se výška jen usekla stropem a šířka zůstala na
+  `fillMaxWidth()`, takže `ContentScale.Crop` ze svislého snímku obrazovky (poměr kolem 1:2) nechal
+  jen **prostřední pruh** — nešlo z něj přečíst ani co na něm je. Zvednutí stropu samo nepomůže:
+  vysoká fotka přes celou šířku bubliny bude vždycky vyšší než rozumná bublina. Fotka proto zabírá
+  méně šířky a je vidět celá, jako v Telegramu i Google Messages.
+- **Podlaha šířky existuje** (`MIN_PHOTO_WIDTH`). U extrémně vysokého snímku by dopočítaná šířka
+  vyšla na pár desítek dp a z fotky by byl nečitelný proužek; pod podlahou se poměr stran obětuje
+  a `Crop` fotku ořízne do stran. Proto `ContentScale.Crop` zůstává, i když rámeček poměr stran
+  jinak respektuje.
+- **Pravidlo je čistá funkce mimo composable**, jako `readBadgeRow` nebo `formatFileSize`. Uvnitř
+  `@Composable` by se netestovalo a přitom je to samý hraniční případ: neznámé rozměry (nula, NaN),
+  panorama, úzká bublina.
+- **Počítá se ručně v `BoxWithConstraints`**, ne přes `aspectRatio` — viz „Gotchas".
+- **Šířku bubliny určuje ten širší z dvojice fotka / popisek.** U zúžené fotky s dlouhým popiskem
+  („Screenshot (18. 9. 2026 5:23:34)") tak vpravo od fotky zbude prázdné místo. Je to otevřený bod
+  roadmapy — popisek se má zalomit na šířku fotky.
+- **Album ve čtvercích zůstává.** Mřížka je vědomé rozhodnutí (viz „Alba"), takže pravidlo platí
+  jen pro samostatnou fotku a video; řádek alba s jednou fotkou se ořezává dál.
+
 ### Alba
 
 Telegram **víc příloh v jedné zprávě nenese.** Album jsou samostatné zprávy (každá s vlastním id,
@@ -1885,7 +1910,8 @@ není „Android bez barev", ale má vlastní konzistentní paletu.
 - **Výšku obrázku nepočítej `aspectRatio`, když ji chceš zastropovat.** `aspectRatio` si výšku
   dopočítá ze šířky a předřazené `heightIn(max = …)` neuplatní — svislý snímek obrazovky pak vyroste
   přes celou bublinu a popisek pod ním se překryje. Správně: `BoxWithConstraints` + explicitní
-  `height(...)` s `coerceAtMost`.
+  velikost s `coerceAtMost` (`photoFrame`, viz „Rámeček fotky v bublině"). A **se stropem výšky
+  musí jít dolů i šířka** — jinak strop výšku jen usekne a `Crop` z fotky ukrojí kraje.
 - **`height(IntrinsicSize.Min)` nesmí obalit nic se `SubcomposeLayout`** (`BoxWithConstraints`,
   lazy seznamy). Intrinsické míry neumí a aplikace spadne až při vykreslení — u náhledu odkazu
   s velkým obrázkem to shodilo každý chat, kde takový náhled byl vidět. Proužek „přes celou výšku"
