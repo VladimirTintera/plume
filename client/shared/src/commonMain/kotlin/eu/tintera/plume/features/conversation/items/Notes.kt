@@ -23,6 +23,7 @@ import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_unread_divider
+import eu.tintera.plume.resources.date_with_time
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -98,8 +99,26 @@ internal fun ServiceMessage(message: ChatMessage, modifier: Modifier = Modifier)
 @Composable
 internal fun DayDivider(timestamp: Int, modifier: Modifier = Modifier) {
     CenteredNote(
-        text = timestamp.asDayLabel(),
+        // S časem první zprávy dne, jako v Google Zprávách („Včera · 21:00"). V bublině čas není,
+        // takže tohle je vedle časových předělů jediné místo, kde je vidět bez tahu doleva.
+        text = stringResource(Res.string.date_with_time, timestamp.asDayLabel(), timestamp.asTimeOfDay()),
         // Víc místa než u oznámení: předěl odděluje bloky, takže potřebuje kolem sebe vzduch.
+        modifier = modifier.padding(top = DAY_DIVIDER_SPACING, bottom = DIVIDER_BOTTOM_SPACING),
+    )
+}
+
+/**
+ * Časový předěl uvnitř dne: nad zprávou, od které uplynula od předchozí aspoň
+ * [TIME_DIVIDER_GAP_SECONDS] (viz `conversationItems`).
+ *
+ * V bublině čas není, takže bez tohohle se čas dal zjistit jen tahem doleva nebo v nabídce.
+ * Google Zprávy to řeší stejně: souvislý rozhovor čas nepřerušuje, nová dávka zpráv po pauze
+ * ho dostane. Vypadá jako předěl dne, jen nese samotné hodiny.
+ */
+@Composable
+internal fun TimeDivider(timestamp: Int, modifier: Modifier = Modifier) {
+    CenteredNote(
+        text = timestamp.asTimeOfDay(),
         modifier = modifier.padding(top = DAY_DIVIDER_SPACING, bottom = DIVIDER_BOTTOM_SPACING),
     )
 }
