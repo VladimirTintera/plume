@@ -113,6 +113,27 @@ a odhlášení; Vzhled motiv aplikace a vyčlenění nepřečtených chatů do v
 
 - **Úprava vlastního profilu** — fotka, jméno, uživatelské jméno, bio.
 - **Sekce Notifikace** — viz [Notifikace](#notifikace) níž.
+- **Sekce Zařízení** (aktivní relace). TDLib i wrapper umí všechno, co je potřeba:
+  - **seznam**: `getActiveSessions` → `Sessions` (+ `inactiveSessionTtlDays`); `Session` nese
+    `isCurrent`, `deviceType` (ikona: Android, iPhone, Mac, Chrome…), aplikaci a verzi,
+    `isOfficialApplication`, model, systém, `logInDate`, `lastActiveDate`, IP a polohu.
+    Aktuální zařízení nahoře zvlášť, ostatní podle poslední aktivity;
+  - **odhlášení**: `terminateSession(id)` a „Odhlásit ostatní" (`terminateAllOtherSessions`),
+    obojí s potvrzením. Z čerstvě přihlášeného zařízení (asi 24 h) server odmítne s
+    `FRESH_RESET_AUTHORISATION_FORBIDDEN` — přeložit v `userMessage` na vlastní větu, jinak
+    tlačítko vypadá rozbitě;
+  - **automatické odhlášení nečinných** (`setInactiveSessionTtl`) a přepínače hovorů / tajných
+    chatů u zařízení (`toggleSessionCanAcceptCalls`, `…SecretChats`);
+  - **„Byl jsi to ty?"** — nové přihlášení chodí jako `UpdateUnconfirmedSession`; karta
+    s Potvrdit (`confirmSession`) / Odhlásit (`terminateSession`);
+  - **weby přihlášené přes Telegram**: `getConnectedWebsites`, `disconnectWebsite`,
+    `disconnectAllWebsites`;
+  - **přihlásit jiné zařízení QR kódem** (Desktop, web): naskenovaný `tg://login?token=…` jde do
+    `confirmQrCodeAuthentication(link)`. Samo volání je triviální, práce je čtečka v aplikaci —
+    kamera + dekodér (Android CameraX s ML Kitem nebo zxing, který už máme na generování;
+    iOS `AVCaptureMetadataOutput`) a oprávnění ke kameře (iOS `NSCameraUsageDescription`).
+    Odkaz rozpozná i `getInternalLinkType` (`InternalLinkTypeQrCodeAuthentication`), takže
+    by šel zachytit i z ťuknutí na odkaz.
 - **Sekce Obecné nemá skupiny.** Vzhled je má (`SettingsGroup`), Obecné zatím ne — až v něm budou
   víc než tři položky, patří do skupin taky.
 - **Řádky sekcí nemají ikony.** Dva řádky se poznají i tak, s další sekcí to začne být znát;
