@@ -627,6 +627,8 @@ internal fun MessageBox(
         label = "emphasis-wave",
     )
     val wavePhase = rememberWavePhase(running = frame.emphasized)
+    // Hlasovka je zvlněná i v klidu (viz [VOICE_WAVE_PROGRESS]); zvýraznění ji prohloubí.
+    val restWave = if (message.media is MessageMedia.VoiceNote) VOICE_WAVE_PROGRESS else 0f
     Box(modifier) {
         Box(
             Modifier
@@ -635,7 +637,7 @@ internal fun MessageBox(
                 .widthIn(max = 560.dp)
                 .then(beforeClip)
                 .graphicsLayer {
-                    shape = WavyShape(bodyScope.shape, progress = wave.value, phase = wavePhase.value)
+                    shape = WavyShape(bodyScope.shape, progress = maxOf(restWave, wave.value), phase = wavePhase.value)
                     clip = true
                 }
                 .then(afterClip),

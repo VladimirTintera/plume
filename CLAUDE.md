@@ -1721,6 +1721,14 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   V řádku se spodním zarovnáním drží u posledního řádku jako odesílací tlačítko; odsazení 4 dp je
   (56 − 48) / 2, tedy střed jednořádkového pole. Barvu mají `primary` — výchozí
   `onSurfaceVariant` byla na `surfaceContainerHigh` karty zašedlá a nečitelná.
+- **Pole je `BasicTextField` s `TextFieldDefaults.DecorationBox`, ne `TextField`.** `TextField`
+  má vnitřní odsazení 16 dp napevno a vedle sponky (glyf má v 48dp tlačítku svých 12 dp) začínal
+  text skoro 30 dp od ikony. Dekorace bere `contentPadding`: 4 dp u ikony, 16 dp u holé hrany
+  karty (úprava zprávy, kde sponka není).
+- **Vlnka znamená hlas.** Při nahrávání se karta pole rozvlní (`WavyShape`, stojí, neobíhá —
+  živost nese dýchající tlačítko) a přebarví na `primaryContainer`; hlasovka v konverzaci je
+  zvlněná i v klidu, mělčeji (`VOICE_WAVE_PROGRESS`). Zvýraznění po skoku ji z klidové vlnky
+  prohloubí a rozeběhne, takže se obojí nesplete.
 - **Nabídka příloh není `DropdownMenu`** (`AttachButton`). M3 menu drží od okraje okna povinný
   odstup 48 dp (`MenuVerticalMargin`, zahrnuto i do volby „spodkem ke kotvě"), a tlačítko
   u spodku obrazovky v tom pásu leží — menu se proto posadilo k oknu, zhruba 45 dp nad tlačítko.
