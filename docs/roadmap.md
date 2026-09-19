@@ -58,9 +58,7 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
 - **Sdílení ze systému do aplikace.** ~~Android~~ — hotovo (text, odkaz, jeden i víc
   souborů; výběr chatu, obsah čeká nad vstupním polem). Poučení v `CLAUDE.md`, „Sdílení do
   aplikace". Zbývá:
-  - **Direct Share**: nedávné chaty přímo v systémové nabídce. Dlouhověké zkratky konverzací už
-    zakládají notifikace; chybí jim kategorie a `share-target` v `shortcuts.xml` a vyřízení
-    `EXTRA_SHORTCUT_ID` v `ShareIntake` (rovnou `choose(chatId)` bez výběru).
+  - ~~**Direct Share**~~ — hotovo. Na iOS obdoba přes `INSendMessageIntent` až se Share Extension.
   - **iOS: Share Extension** je samostatný proces s vlastním sandboxem. TDLib v něm běžet
     nemůže vedle aplikace nad toutéž databází. Soubor se tedy uloží do sdíleného kontejneru
     App Group a aplikace si ho vyzvedne (`ShareRequests` na to je připravené). Je to vlastní

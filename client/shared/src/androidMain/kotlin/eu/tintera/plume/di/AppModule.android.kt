@@ -4,7 +4,9 @@ import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSaver
 import eu.tintera.plume.core.files.MediaSharer
+import eu.tintera.plume.core.share.AndroidShareTargetPublisher
 import eu.tintera.plume.core.share.ShareIntake
+import eu.tintera.plume.core.share.ShareTargetPublisher
 import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.connectivity.NetworkMonitor
 import eu.tintera.plume.core.notifications.NotificationPermission
@@ -28,7 +30,10 @@ actual fun Module.platformModule() {
     single { FileOpener(androidContext()) }
     single { MediaSaver(androidContext()) }
     single { MediaSharer(androidContext()) }
-    single { ShareIntake(androidContext(), requests = get(), scope = get(named(APP_SCOPE))) }
+    single {
+        ShareIntake(androidContext(), requests = get(), chatOpenRequests = get(), scope = get(named(APP_SCOPE)))
+    }
+    single<ShareTargetPublisher> { AndroidShareTargetPublisher(androidContext()) }
     single { NetworkMonitor(androidContext()) }
     single { AppForeground(androidContext()) }
     single { TextClipboard(androidContext()) }

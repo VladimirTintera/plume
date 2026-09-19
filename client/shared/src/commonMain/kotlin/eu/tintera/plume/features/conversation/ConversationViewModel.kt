@@ -15,6 +15,7 @@ import eu.tintera.plume.core.files.MediaSharer
 import eu.tintera.plume.core.files.SaveAsLauncher
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.SharedContent
+import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatActivity
@@ -133,6 +134,11 @@ class ConversationViewModel(
     private val sharer: MediaSharer,
     /** Obsah sdílený ze systému, pro který uživatel vybral tenhle chat. */
     private val shareRequests: ShareRequests,
+    /**
+     * Každé odeslání chat nahlásí jako použitý — z toho si Android skládá chaty v nabídce
+     * „Sdílet" (Direct Share).
+     */
+    private val shareTargets: ShareTargets,
     audioRecorder: AudioRecorder,
     connection: ConnectionRepository,
 ) : ViewModel() {
@@ -641,6 +647,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             repository.sendAttachments(chatId, attachments, caption, replyTo)
                 .onSuccess { pending ->
+                    shareTargets.reportUsed(chatId)
                     _state.update { state ->
                         // Potvrzení mohlo dorazit dřív než výsledek — viz `send`.
                         val fresh = pending.filterNot { it.id in state.itemKeys.values }
@@ -684,6 +691,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             send(replyTo)
                 .onSuccess { pending ->
+                    shareTargets.reportUsed(chatId)
                     // Potvrzení mohlo dorazit dřív než výsledek; `withMessage` to ošetří.
                     _state.update { it.withMessage(pending) }
                 }
@@ -734,6 +742,7 @@ class ConversationViewModel(
                 // TDLib vrací rozepsanou zprávu okamžitě, takže bublina naskočí bez čekání
                 // na server. Skutečné id dorazí potvrzením a zprávu v seznamu nahradí.
                 .onSuccess { pending ->
+                    shareTargets.reportUsed(chatId)
                     _state.update {
                         // Mezitím ji už mohlo dorazit i potvrzení — pak se dočasná verze do
                         // seznamu vracet nesmí (`withMessage`).

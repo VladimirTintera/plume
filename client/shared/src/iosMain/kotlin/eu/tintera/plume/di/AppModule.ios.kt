@@ -4,6 +4,8 @@ import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSaver
 import eu.tintera.plume.core.files.MediaSharer
+import eu.tintera.plume.core.share.IosShareTargetPublisher
+import eu.tintera.plume.core.share.ShareTargetPublisher
 import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.connectivity.NetworkMonitor
 import eu.tintera.plume.core.notifications.NotificationPermission
@@ -24,6 +26,7 @@ actual fun Module.platformModule() {
     single { FileOpener() }
     single { MediaSaver() }
     single { MediaSharer() }
+    single<ShareTargetPublisher> { IosShareTargetPublisher() }
     single { NetworkMonitor() }
     single { AppForeground() }
     single { TextClipboard() }

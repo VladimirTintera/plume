@@ -47,6 +47,11 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="*/*" />
             </intent-filter>
+
+            <!-- Direct Share: chaty přímo v nabídce „Sdílet" (res/xml/shortcuts.xml). -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
         <!-- Hlášení pádů. Hodnota je placeholder z build typu (release true, jinak false) —

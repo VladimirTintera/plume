@@ -2417,6 +2417,21 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   nezahazuje obsah s vybraným chatem — i po výběru výběr odchází (nahradí ho konverzace).
 - **Otevřený výběr se při dalším sdílení NEvyměňuje** (`openShare`). Odebrat a vrátit by ho
   zlikvidovalo a jeho `onDispose` by zahodil právě to nové sdílení.
+- **Direct Share (chaty přímo v nabídce „Sdílet") stojí na zkratkách konverzací**, týchž, které
+  zakládají notifikace (`conversationShortcut`). Podmínky jsou tři a chybějící se neprojeví
+  chybou, jen se nic neukáže: kategorie `SHARE_CATEGORY` u zkratky, `share-target` se stejnou
+  kategorií v `res/xml/shortcuts.xml` a `meta-data android.app.shortcuts` na `MainActivity`.
+- **Pořadí chatů si skládá systém** z toho, jak často a nedávno aplikace zkratku publikuje
+  (`pushDynamicShortcut` se počítá jako použití). Proto se hlásí KAŽDÉ odeslání i přeposlání
+  (`ShareTargets.reportUsed`, v rozsahu aplikace, název a profilovku si dohledá samo).
+  Zkratky z dřívějška kategorii nemají a do nabídky se dostanou až při příští notifikaci nebo
+  odeslání — ověřuje se `dumpsys shortcut` (`categories={…SHARE_TARGET}`).
+- **Sdílení přes zkratku nese `EXTRA_SHORTCUT_ID`** a výběr přeskočí: `ShareIntake` rovnou
+  `choose(chatId)` a otevře chat přes `ChatOpenRequests`.
+- **Chat bez fotky má ve zkratce iniciálu** (`initialIcon`), jinak ukazoval systém prázdné
+  kolečko — ve sdílení i ve velkém kruhu notifikace. Barvy ze systémové palety Material You
+  (`system_accent1_100/900`): zkratka se kreslí mimo aplikaci, téma aplikace tam není. Paleta je
+  od Androidu 12, na starším zůstane ikona prázdná.
 - **Seznam s hledáním je společný s přeposíláním** (`ChatPicker`). Obojí je „vyber, kam s tím".
 - **Ověřování přes `am start` pozor na uvozovky**: `adb shell am start … --es … "dvě slova"`
   rozdělí text na dva argumenty a z druhého slova udělá balíček. Celý příkaz patří do jedněch

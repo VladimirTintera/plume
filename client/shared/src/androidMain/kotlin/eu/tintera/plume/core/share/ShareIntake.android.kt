@@ -4,7 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.core.content.IntentCompat
+import androidx.core.content.pm.ShortcutManagerCompat
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.ui.PICK_LIMIT
 import eu.tintera.plume.core.ui.prepareDocument
 import eu.tintera.plume.core.ui.prepareVisual
@@ -28,6 +30,8 @@ import kotlinx.coroutines.launch
 class ShareIntake(
     private val context: Context,
     private val requests: ShareRequests,
+    /** Sdílení přes zkratku chatu (Direct Share) výběr přeskočí a otevře rovnou ten chat. */
+    private val chatOpenRequests: ChatOpenRequests,
     private val scope: CoroutineScope,
 ) {
 
@@ -43,6 +47,17 @@ class ShareIntake(
 
         val limited = uris.take(PICK_LIMIT)
         val id = requests.start(text = text, hasFiles = limited.isNotEmpty())
+
+        /*
+         * Direct Share: uživatel ťukl rovnou na chat v nabídce „Sdílet". Chat je tím vybraný,
+         * výběr se neukáže (shell ho otevírá jen pro sdílení bez chatu) a otevře se konverzace,
+         * která si obsah vyzvedne, až budou soubory připravené.
+         */
+        chatIdFromShortcut(intent.getStringExtra(ShortcutManagerCompat.EXTRA_SHORTCUT_ID))?.let { chatId ->
+            requests.choose(chatId)
+            chatOpenRequests.request(chatId)
+        }
+
         if (limited.isEmpty()) return true
 
         val visual = limited.all { isVisual(context.contentResolver.getType(it)) }

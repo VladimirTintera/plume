@@ -2,6 +2,7 @@ package eu.tintera.plume.di
 
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.share.ShareRequests
+import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionController
 import eu.tintera.plume.core.telegram.ConnectionRepository
@@ -128,6 +129,9 @@ fun appModule() = module {
     // Most mezi platformním vstupem (ťuknutí na notifikaci) a navigací.
     single { ChatOpenRequests() }
     single { ShareRequests() }
+    single {
+        ShareTargets(repository = get(), files = get(), publisher = get(), scope = get(named(APP_SCOPE)))
+    }
 
     viewModelOf(::AuthViewModel)
     viewModelOf(::ChatsViewModel)
@@ -153,6 +157,7 @@ fun appModule() = module {
             fileOpener = get(),
             sharer = get(),
             shareRequests = get(),
+            shareTargets = get(),
             connection = get(),
         )
     }
@@ -166,6 +171,7 @@ fun appModule() = module {
             messageIds = parameters.get(),
             repository = get(),
             chatRepository = get(),
+            shareTargets = get(),
         )
     }
 
