@@ -3,6 +3,7 @@ package eu.tintera.plume.di
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.ShareTargets
+import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionController
 import eu.tintera.plume.core.telegram.ConnectionRepository
@@ -135,7 +136,16 @@ fun appModule() = module {
     }
 
     viewModelOf(::AuthViewModel)
-    viewModelOf(::ChatsViewModel)
+    // Složka je parametr: hlavní seznam i archiv jsou tentýž ViewModel. Bez parametru hlavní.
+    viewModel { parameters ->
+        ChatsViewModel(
+            folder = parameters.getOrNull<ChatFolder>() ?: ChatFolder.Main,
+            repository = get(),
+            connection = get(),
+            settings = get(),
+            appUpdates = get(),
+        )
+    }
     viewModelOf(::StickerPickerViewModel)
     viewModel { parameters -> StickerSetViewModel(setId = parameters.get(), repository = get()) }
     viewModelOf(::SettingsViewModel)

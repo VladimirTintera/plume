@@ -114,7 +114,7 @@ class IosShareSnapshot(
     fun start() {
         scope.launch {
             combine(
-                chats.chats.filterIsInstance<ChatListState.Ready>(),
+                chats.chats().filterIsInstance<ChatListState.Ready>(),
                 recent,
                 chats.savedMessagesChatId,
             ) { list, used, saved -> Triple(list.chats, used, saved) }

@@ -41,7 +41,7 @@ class ShareViewModel(
     private val query = MutableStateFlow("")
 
     val state: StateFlow<ShareState> = combine(
-        chatRepository.chats,
+        chatRepository.chats(),
         query,
         requests.incoming,
         chatRepository.savedMessagesChatId,

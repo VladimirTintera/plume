@@ -1,10 +1,11 @@
 package eu.tintera.plume.core.telegram
 
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import eu.tintera.plume.core.ui.UiText
 
 /**
- * Seznam chatů hlavní složky, živě aktualizovaný.
+ * Seznamy chatů (hlavní a archiv), živě aktualizované.
  *
  * Doménová hranice — implementace nad TDLib je [TdlChatRepository]. Seznam není stránkovaný
  * v klasickém smyslu „načti stránku a vrať ji": TDLib drží lokální databázi a **posílá změny
@@ -13,7 +14,17 @@ import eu.tintera.plume.core.ui.UiText
  */
 interface ChatRepository {
 
-    val chats: StateFlow<ChatListState>
+    /**
+     * Chaty jedné složky. Archiv se začne načítat až prvním [loadMore] — do té doby je
+     * [ChatListState.Loading]; hlavní seznam se načítá sám po přihlášení.
+     */
+    fun chats(folder: ChatFolder = ChatFolder.Main): StateFlow<ChatListState>
+
+    /**
+     * Co se v chatu zrovna děje („píše…"), bez ohledu na to, ve které složce chat je — i v chatu,
+     * který není v žádné (otevřený z notifikace, z odkazu). `null`, když nic.
+     */
+    fun activity(chatId: Long): Flow<ChatActivity?>
 
     /**
      * Id chatu Uložené zprávy; `null`, dokud není přihlášeno.
@@ -32,15 +43,23 @@ interface ChatRepository {
     suspend fun openSavedMessages(): Result<Long>
 
     /** Požádá TDLib o dotažení dalších chatů ze serveru. Výsledek přijde updaty do [chats]. */
-    suspend fun loadMore()
+    suspend fun loadMore(folder: ChatFolder = ChatFolder.Main)
 
     /**
-     * Připne nebo odepne chat.
+     * Připne nebo odepne chat ve složce, ve které je. Připnutí je vlastnost pozice ve složce,
+     * ne chatu: archiv má vlastní připnuté.
      *
-     * Počet připnutých chatů je omezený (`pinned_chat_count_max`) a Premium ho zvedá; při
-     * překročení vrátí TDLib chybu, kterou je potřeba ukázat — jinak to vypadá, že se nic nestalo.
+     * Počet připnutých chatů je omezený (`pinned_chat_count_max`, v archivu
+     * `pinned_archived_chat_count_max`) a Premium ho zvedá; při překročení vrátí TDLib chybu,
+     * kterou je potřeba ukázat — jinak to vypadá, že se nic nestalo.
      */
-    suspend fun setPinned(chatId: Long, pinned: Boolean): Result<Unit>
+    suspend fun setPinned(chatId: Long, folder: ChatFolder, pinned: Boolean): Result<Unit>
+
+    /**
+     * Přesune chat do archivu nebo z něj zpátky do hlavního seznamu. Vratné, takže bez potvrzení.
+     * Uložené zprávy archivovat nejdou (TDLib to odmítne), nabídka je proto u nich nemá.
+     */
+    suspend fun setArchived(chatId: Long, archived: Boolean): Result<Unit>
 
     /** Ztlumí chat nebo ztlumení zruší. */
     suspend fun setMuted(chatId: Long, muted: Boolean): Result<Unit>
@@ -72,10 +91,18 @@ sealed interface ChatListState {
 }
 
 /**
+ * Složka seznamu chatů. Vlastní složky (`ChatListFolder`) zatím nejsou.
+ *
+ * Chat je v nejvýš jedné z nich — archivace ho z hlavního seznamu přesune, nezkopíruje.
+ */
+enum class ChatFolder { Main, Archive }
+
+/**
  * Položka seznamu chatů.
  *
  * [order] je pořadové číslo z TDLib (`ChatPosition.order`) — ne index. Je to int64, do kterého
  * Telegram kóduje i připnutí, takže se podle něj řadí sestupně a nic dalšího se nedopočítává.
+ * [order] i [isPinned] platí pro [folder], ve které chat právě je.
  */
 data class ChatSummary(
     val id: Long,
@@ -84,6 +111,8 @@ data class ChatSummary(
     val lastMessagePreview: String?,
     val isPinned: Boolean,
     val order: Long,
+    /** Složka, ze které položka pochází — podle ní se nabízí archivace, nebo vrácení z archivu. */
+    val folder: ChatFolder = ChatFolder.Main,
     /** `fileId` malé varianty avataru, nebo `null` když chat obrázek nemá. */
     val avatarFileId: Int?,
     /** Ztlumený chat notifikace nevydává. TDLib to řeší za nás, tohle je jen pro zobrazení. */

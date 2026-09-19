@@ -41,6 +41,13 @@ enum class SettingsSection { General, Appearance }
 @Serializable
 data class SettingsSectionRoute(val section: SettingsSection) : Route
 
+/**
+ * Archivované chaty. V list-detail rozvržení je to LIST panel téže scény jako [ChatsRoute]:
+ * hlavní seznam vlevo nahradí a otevřená konverzace vpravo zůstane.
+ */
+@Serializable
+data object ArchiveRoute : Route
+
 /** Konverzace. V list-detail rozvržení je to detail panel vedle seznamu. */
 @Serializable
 data class ConversationRoute(val chatId: Long) : Route
@@ -95,6 +102,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ChatsRoute::class, ChatsRoute.serializer())
             subclass(SettingsRoute::class, SettingsRoute.serializer())
             subclass(SettingsSectionRoute::class, SettingsSectionRoute.serializer())
+            subclass(ArchiveRoute::class, ArchiveRoute.serializer())
             subclass(ConversationRoute::class, ConversationRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())

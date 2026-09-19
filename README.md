@@ -23,12 +23,12 @@ hledání, oblíbené, trendy, nedávná emoji, odstíny pleti), animované `.tg
 **Seznam chatů** je seskupený do bloků se společným zaoblením (připnuté, nepřečtené, ostatní),
 jak to dělá M3 Expressive místo karet per položku. U položky je čas poslední zprávy, ztlumení,
 zelená tečka u online protějšku a živé „píše…"; dlouhý stisk nabídne připnout, ztlumit, označit
-jako nepřečtené, smazat nebo opustit. Když spojení nestojí, řekne to hlavička místo názvu sekce.
+jako nepřečtené, archivovat, smazat nebo opustit. Archiv je samostatný seznam v menu ⋮. Když spojení nestojí, řekne to hlavička místo názvu sekce.
 
 **Notifikace** na Androidu vedou do konkrétního chatu, ať aplikace běží, nebo se startuje od nuly
 (nastavení účtů viz níž). Release build je minifikovaný a hlásí pády do Crashlytics.
 
-**Co ještě není:** archiv, hledání, profil chatu a nová konverzace nemají obrazovku; `.webm`
+**Co ještě není:** hledání, profil chatu a nová konverzace nemají obrazovku; `.webm`
 samolepky zůstávají statické a ankety, polohy nebo video kolečka se zatím jen popisují textem.
 Úplný seznam se vede v roadmapách, ne tady: [docs/roadmap.md](docs/roadmap.md) přes celou
 aplikaci, [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md) pro detail chatu.

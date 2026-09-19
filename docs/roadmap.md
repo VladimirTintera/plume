@@ -44,11 +44,16 @@ Android je napřed; tohle je, čím se to dorovnává.
 ## Obrazovky a sekce, které nejsou
 
 Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `SettingsRoute`,
-`ConversationRoute`, `MediaRoute`, `ForwardRoute`.
+`ArchiveRoute`, `ConversationRoute`, `MediaRoute`, `ForwardRoute`, `ShareRoute`.
 
-- **Archiv.** Archivovaný chat ze seznamu jen zmizí (`ChatPosition.order == 0`) a není kudy se
-  k němu dostat. Vedlejší důsledek, který už je vidět: chat mimo hlavní seznam neukáže v hlavičce
-  „píše…", protože se činnost bere ze `ChatRepository`.
+- ~~**Archiv**~~ — hotovo (seznam v menu ⋮, archivace a vrácení z nabídky chatu s „Vrátit").
+  Poučení v `CLAUDE.md`, „Archiv". Zbývá:
+  - **Nastavení archivu** (`ArchiveChatListSettings`): automatická archivace chatů od
+    neznámých a to, jestli ztlumené chaty s novou zprávou zůstávají v archivu.
+  - **Počet nepřečtených u vstupu do archivu** (`UpdateUnreadChatCount` pro `ChatListArchive`).
+  - **Archivovat tahem** po položce seznamu; dnes jen z nabídky po dlouhém stisku.
+  - **Přeposílání a sdílení nabízí jen hlavní seznam**; archivovaný chat v nich nenajdeš,
+    dokud nebude serverové hledání.
 - **Detail chatu / profil.** Není kam ťuknout na hlavičku konverzace — chybí společná média,
   členové skupiny, popis, ztlumení a hledání v chatu na jednom místě.
 - **Hledání.** Pilulka v hlavičce seznamu chatů hledá zatím jen v načteném seznamu podle názvu.
