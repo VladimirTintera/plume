@@ -10,9 +10,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.share.SharedContent
 import eu.tintera.plume.core.share.ShareRequests
-import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.features.chats.ChatSearch
+import eu.tintera.plume.features.chats.pickerChats
 import eu.tintera.plume.features.forward.ChatPicker
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.share_files
@@ -40,17 +41,19 @@ class ShareViewModel(
 
     private val query = MutableStateFlow("")
 
+    /** Hledání ve všech chatech, i v archivu — stejně jako u přeposílání. */
+    private val search = ChatSearch(chatRepository, viewModelScope)
+
     val state: StateFlow<ShareState> = combine(
-        chatRepository.chats(),
+        combine(chatRepository.chats(), query, search.state) { list, text, found -> pickerChats(text, list, found) },
         query,
         requests.incoming,
         chatRepository.savedMessagesChatId,
-    ) { chatList, text, content, saved ->
+    ) { picker, text, content, saved ->
         ShareState(
             query = text,
-            loading = chatList is ChatListState.Loading,
-            chats = (chatList as? ChatListState.Ready)?.chats.orEmpty()
-                .filter { it.title.contains(text.trim(), ignoreCase = true) },
+            loading = picker.loading,
+            chats = picker.chats,
             content = content,
             savedMessagesChatId = saved,
         )
@@ -58,6 +61,7 @@ class ShareViewModel(
 
     fun onQueryChange(text: String) {
         query.value = text
+        search.setQuery(text)
     }
 
     fun choose(chatId: Long) = requests.choose(chatId)

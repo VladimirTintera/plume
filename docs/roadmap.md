@@ -52,16 +52,21 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
     neznámých a to, jestli ztlumené chaty s novou zprávou zůstávají v archivu.
   - **Počet nepřečtených u vstupu do archivu** (`UpdateUnreadChatCount` pro `ChatListArchive`).
   - **Archivovat tahem** po položce seznamu; dnes jen z nabídky po dlouhém stisku.
-  - **Přeposílání a sdílení nabízí jen hlavní seznam**; archivovaný chat v nich nenajdeš,
-    dokud nebude serverové hledání.
 - **Detail chatu / profil.** Není kam ťuknout na hlavičku konverzace — chybí společná média,
   členové skupiny, popis, ztlumení a hledání v chatu na jednom místě.
-- **Hledání.** Pilulka v hlavičce seznamu chatů hledá zatím jen v načteném seznamu podle názvu.
-  Chybí serverové hledání chatů (`searchChats`), zpráv (`searchMessages`, `searchChatMessages`)
-  i veřejných (`searchPublicChat`); výsledky patří do rozbaleného `ExpandedFullScreenSearchBar`.
+- **Hledání.** ~~Chaty ve všech složkách (lokálně i na serveru), historie hledání a nejčastější
+  lidé, totéž ve výběru pro přeposílání a sdílení~~ — hotovo (`ChatSearch`, poučení
+  v `CLAUDE.md`, „Hledání chatů"). Zbývá, po krocích:
+  1. **Globální hledání a zprávy** v rozbaleném hledání: sekce Globálně (`searchPublicChats`)
+     a Zprávy (`searchMessages`, stránkování přes `offset`); ťuknutí na zprávu otevře chat se
+     skokem na ni (`loadUntil` a zvýraznění jako u citace).
+  2. **Klikatelné zmínky a hashtagy v textu**: `@jmeno` přes `searchPublicChat`, `#tag` otevře
+     hledání. Dnes se v textu schválně nemapují, protože kliknutí nemá kam vést.
+  3. **Hledání v konverzaci** (lupa v hlavičce, šipky mezi výsledky) přes `searchChatMessages`.
+  4. **Filtry obsahu** (média, soubory, odkazy), hlavně pro profil chatu.
+
   Na rozloženém Foldu by místo celoobrazovkového hledání sedělo `ExpandedDockedSearchBar`.
-  Nastavení má pořád `LargeFlexibleTopAppBar` se stejnou vadou po sbalení jako měly Chaty. Váže na sebe víc věcí: hledání v přeposílání jde dnes jen po načteném
-  seznamu chatů a zmínky s hashtagy se v textu schválně nemapují, protože kliknutí nemá kam vést.
+  Nastavení má pořád `LargeFlexibleTopAppBar` se stejnou vadou po sbalení jako měly Chaty.
 - **Nová konverzace a kontakty.** Napsat se dá jen tomu, s kým už chat existuje.
 - **Sdílení ze systému do aplikace.** ~~Android~~ — hotovo (text, odkaz, jeden i víc
   souborů; výběr chatu, obsah čeká nad vstupním polem). Poučení v `CLAUDE.md`, „Sdílení do

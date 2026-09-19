@@ -688,8 +688,35 @@ v chatech", vedle ní menu ⋮. Po ťuknutí se rozbalí `ExpandedFullScreenSear
 - **Stav spojení je tonální pilulka na konci hledání** (`ConnectionPill`), ne nadpis. Skoro
   celou dobu není vidět nic; „Chaty" v nadpisu jen opakovalo navigaci. V rozbaleném hledání se
   neukazuje.
-- **Hledá se v načteném seznamu**, jako při přeposílání; Uložené zprávy podle přeloženého názvu.
-  Serverové hledání (`searchChats`, zprávy) je v roadmapě.
+- **Hledá se ve všech známých chatech**, ne v načteném seznamu — viz „Hledání chatů" níž.
+
+### Hledání chatů
+
+`ChatSearch` (`features/chats`) — sdílí ho hlavička seznamu chatů, přeposílání i sdílení.
+
+- **`searchChats`, ne filtr nad seznamem.** Filtr nad `chats()` nenašel archiv ani chaty mimo
+  složky (kontakty bez konverzace, opuštěné skupiny, které TDLib zná). Nejdřív lokálně
+  (`searchChats`, hned), pak server (`searchChatsOnServer`), serverové výsledky se připojí ZA
+  lokální (`mergeChatResults`) — co uživatel už vidí, se pod prstem nepřeskládá.
+- **`transformLatest` s krátkou pauzou (150 ms).** Rozepsaný dotaz se dalším znakem zahodí,
+  takže pomalá odpověď serveru na „ja" nepřepíše výsledky pro „jana".
+- **Výsledky se ukazují jen k dotazu, na který TDLib odpovídal** (`ChatSearchState.query`).
+  V rozbaleném hledání se mezitím točí indikátor; ve výběru pro přeposílání zůstávají předchozí
+  výsledky, jinak by výběr při každém znaku problikl načítáním (`pickerChats`, testy
+  `ChatSearchTest`).
+- **Pod prázdným dotazem jsou návrhy**: nejčastější lidé (`getTopChats(TopChatCategoryUsers)`)
+  a historie hledání. Historii vede TDLib — `searchChats("")` ji vrací, ťuknutí na výsledek ji
+  zapisuje (`addRecentlyFoundChat`), „Vymazat" ji smaže. `searchRecentlyFoundChats` prázdný
+  dotaz nebere. Návrhy se načítají, jen když je hledání rozbalené (`setSuggestionsWanted`).
+- **`getTopChats` vrací chybu, když si to uživatel v Telegramu vypnul** — to je prázdný řádek,
+  ne selhání.
+- **Uložené zprávy TDLib najde pod jménem účtu**, takže se z výsledků vyřazují a hledají podle
+  přeloženého názvu. V historii a mezi nejčastějšími je kreslí `chatTitle` / `isSavedMessages`.
+- **Archivovaný výsledek má podtitul „V archivu".** V hlavním seznamu není vidět, a bez podtitulu
+  by chat vypadal, že se odněkud vynořil. Složku doplní repository podle pozice
+  (`summariesFor`); chat, který repository nezná, si dočte (`getChat`) a uloží.
+- **Selhání hledání se nehlásí.** Prázdný výsledek je u hledání normální stav a lokální výsledky
+  zůstanou, i když server neodpoví.
 - **Dotaz se maže při KAŽDÉM sbalení** (efekt nad `expanded`), ne v obsluze šipky. Gesto zpět
   zavírá dialog hledání samo a obsluhu šipky obchází.
 - **Ověřování snímky: `sips -c` ořezává ze STŘEDU**, `--cropOffset` ignoruje. Výřez „horní
@@ -1820,8 +1847,8 @@ po odeslání se otevře cílový chat, takže je vidět, že zpráva dorazila.
   a v cíli má albem zůstat. **Id musí být vzestupně**, jinak TDLib volání odmítne.
 - **Výběr je obrazovka, ne sheet.** Seznam chatů je dlouhý a listuje se v něm; sheet by navíc
   při hledání zápasil s klávesnicí.
-- **Hledá se zatím jen v načteném seznamu chatů** (živý `ChatRepository`, ten samý, co kreslí
-  hlavní obrazovku). Server by uměl `searchChats`, ale přeposílá se skoro vždy do chatu nahoře.
+- **Bez dotazu je ve výběru živý hlavní seznam, s dotazem výsledky `ChatSearch`** — ze všech
+  chatů, i archivovaných (`pickerChats`, viz „Hledání chatů").
 - **Během odesílání se seznam nedá ťuknout podruhé** — dvě ťuknutí by poslala zprávu dvakrát.
 - **Posílá se jako přeposlání, ne kopie** (`sendCopy = false`), takže v cíli zůstane „Přeposláno
   od …". Kopie bez odesílatele je v Telegramu samostatná volba a zatím ji nenabízíme.

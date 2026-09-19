@@ -66,6 +66,9 @@ class ChatsViewModel(
      */
     val separateUnreadChats: StateFlow<Boolean> = settings.separateUnreadChats
 
+    /** Hledání v hlavičce seznamu. Archiv hledání nemá, u něj se stav nikdy nečte a nic neběží. */
+    val search = ChatSearch(repository, viewModelScope)
+
     /** Id Uložených zpráv — v seznamu nejsou, pokud nejsou připnuté (viz `chatGroups`). */
     val savedMessagesChatId: StateFlow<Long?> = repository.savedMessagesChatId
 

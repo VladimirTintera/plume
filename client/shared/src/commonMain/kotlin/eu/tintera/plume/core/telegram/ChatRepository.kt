@@ -42,6 +42,30 @@ interface ChatRepository {
      */
     suspend fun openSavedMessages(): Result<Long>
 
+    /**
+     * Chaty podle názvu a uživatelského jména, ze VŠECH známých — i archivované a chaty mimo
+     * složky, na rozdíl od filtru nad [chats]. Bez [onServer] se hledá jen v lokální databázi
+     * (okamžitě), s ním se ptá serveru, který zná i chaty, jež lokálně ještě nejsou.
+     *
+     * Pořadí dává TDLib (jako v hlavním seznamu). Uložené zprávy se najdou pod jménem účtu, ne
+     * pod svým názvem — volající je proto hledá podle přeloženého názvu sám.
+     */
+    suspend fun searchChats(query: String, onServer: Boolean = false): Result<List<ChatSummary>>
+
+    /** Naposledy nalezené chaty (nejvýš 50), nejnovější první. Historii vede TDLib. */
+    suspend fun recentlyFoundChats(): Result<List<ChatSummary>>
+
+    /** Zapíše chat do historie hledání — volá se po ťuknutí na výsledek. */
+    suspend fun addRecentlyFound(chatId: Long): Result<Unit>
+
+    suspend fun clearRecentlyFound(): Result<Unit>
+
+    /**
+     * Lidé, se kterými si uživatel píše nejčastěji. Prázdný seznam, když si to uživatel
+     * v Telegramu vypnul (TDLib pak vrátí chybu, kterou tu nepovažujeme za selhání).
+     */
+    suspend fun topChats(): Result<List<ChatSummary>>
+
     /** Požádá TDLib o dotažení dalších chatů ze serveru. Výsledek přijde updaty do [chats]. */
     suspend fun loadMore(folder: ChatFolder = ChatFolder.Main)
 

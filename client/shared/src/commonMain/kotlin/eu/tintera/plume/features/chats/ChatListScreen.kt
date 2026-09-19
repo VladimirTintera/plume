@@ -114,7 +114,7 @@ fun ChatListScreen(
     onOpenArchive: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val search by viewModel.search.state.collectAsStateWithLifecycle()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
     val updateCard by viewModel.updateCard.collectAsStateWithLifecycle()
@@ -138,10 +138,16 @@ fun ChatListScreen(
         topBar = {
             ChatSearchBar(
                 connection = connection.label(),
-                chats = (state as? ChatListState.Ready)?.chats.orEmpty(),
+                search = search,
                 savedMessagesChatId = savedMessagesChatId,
                 scrollBehavior = scrollBehavior,
-                onChatClick = onChatClick,
+                onQueryChange = viewModel.search::setQuery,
+                onExpandedChange = viewModel.search::setSuggestionsWanted,
+                onChatClick = { chatId ->
+                    viewModel.search.recordFound(chatId)
+                    onChatClick(chatId)
+                },
+                onClearRecent = viewModel.search::clearRecent,
                 actions = {
                     /*
                      * Menu, ne samostatné ikony vedle hledání. Uložené zprávy v seznamu nejsou

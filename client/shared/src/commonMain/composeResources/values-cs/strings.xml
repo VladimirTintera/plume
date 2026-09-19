@@ -41,6 +41,10 @@
     <string name="chats_search">Hledat v chatech</string>
     <string name="chats_search_clear">Vymazat hledání</string>
     <string name="chats_search_empty">Žádný chat neodpovídá</string>
+    <string name="chats_search_people">Lidé</string>
+    <string name="chats_search_recent">Nedávno hledané</string>
+    <string name="chats_search_clear_recent">Vymazat</string>
+    <string name="chats_search_archived">V archivu</string>
     <string name="chats_section_pinned">Připnuto</string>
     <string name="chats_muted">Ztlumeno</string>
     <string name="chats_draft_prefix">Koncept: </string>

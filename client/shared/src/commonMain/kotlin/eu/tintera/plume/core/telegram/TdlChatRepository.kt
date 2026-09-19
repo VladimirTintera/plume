@@ -27,6 +27,7 @@ import dev.g000sha256.tdl.dto.ChatTypeSecret
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
 import dev.g000sha256.tdl.dto.MessageSenderUser
+import dev.g000sha256.tdl.dto.TopChatCategoryUsers
 import dev.g000sha256.tdl.dto.UserStatus
 import dev.g000sha256.tdl.dto.UserStatusLastWeek
 import dev.g000sha256.tdl.dto.UserStatusOffline
@@ -378,6 +379,65 @@ class TdlChatRepository(
         return result.toResult().map { }
     }
 
+    override suspend fun searchChats(query: String, onServer: Boolean): Result<List<ChatSummary>> {
+        val result = if (onServer) {
+            client.searchChatsOnServer(query = query, limit = SEARCH_LIMIT)
+        } else {
+            client.searchChats(query = query, limit = SEARCH_LIMIT)
+        }
+        return result.toResult().map { summariesFor(it.chatIds) }
+    }
+
+    // `searchChats` s prázdným dotazem vrací právě historii hledání — `searchRecentlyFoundChats`
+    // prázdný dotaz nebere.
+    override suspend fun recentlyFoundChats(): Result<List<ChatSummary>> =
+        client.searchChats(query = "", limit = SEARCH_LIMIT).toResult().map { summariesFor(it.chatIds) }
+
+    override suspend fun addRecentlyFound(chatId: Long): Result<Unit> =
+        client.addRecentlyFoundChat(chatId = chatId).toResult().map { }
+
+    override suspend fun clearRecentlyFound(): Result<Unit> =
+        client.clearRecentlyFoundChats().toResult().map { }
+
+    override suspend fun topChats(): Result<List<ChatSummary>> =
+        when (val result = client.getTopChats(category = TopChatCategoryUsers(), limit = TOP_CHATS_LIMIT)) {
+            is TdlResult.Success -> Result.success(summariesFor(result.result.chatIds))
+            // Uživatel si „nejčastější" v Telegramu vypnul — není co ukázat, chyba to není.
+            is TdlResult.Failure -> {
+                logger.d { "getTopChats: ${result.code} ${result.message}" }
+                Result.success(emptyList())
+            }
+        }
+
+    /**
+     * Položky pro chaty podle id, v pořadí id. Skoro vždy je repository zná (drží všechny,
+     * které TDLib ohlásil); chybějící se dočtou a uloží. Složka se doplní podle pozice, aby
+     * výsledek hledání věděl, že je chat v archivu.
+     */
+    private suspend fun summariesFor(ids: LongArray): List<ChatSummary> = ids.toList().mapNotNull { id ->
+        val cached = mutex.withLock { known[id]?.let { it to positions[id] } }
+        if (cached != null) {
+            val (chat, folders) = cached
+            return@mapNotNull chat.inFolderOf(folders)
+        }
+        when (val chat = client.getChat(id)) {
+            is TdlResult.Success -> {
+                upsert(chat.result)
+                chat.result.toSummary().inFolderOf(chat.result.positions.toFolderPositions())
+            }
+            is TdlResult.Failure -> {
+                logger.w { "getChat($id) selhalo: ${chat.code} ${chat.message}" }
+                null
+            }
+        }
+    }
+
+    private fun ChatSummary.inFolderOf(folders: Map<ChatFolder, FolderPosition>?): ChatSummary {
+        val folder = folders?.keys?.firstOrNull() ?: return this
+        val position = folders.getValue(folder)
+        return copy(folder = folder, order = position.order, isPinned = position.isPinned)
+    }
+
     override suspend fun loadMore(folder: ChatFolder) {
         if (folder in exhausted) return
 
@@ -567,6 +627,12 @@ class TdlChatRepository(
 
     private companion object {
         const val PAGE_SIZE = 30
+
+        /** Výsledků hledání chatů. Víc se na obrazovku stejně nevejde a nikdo je neprojde. */
+        const val SEARCH_LIMIT = 50
+
+        /** Řádek nejčastějších lidí nad historií hledání. */
+        const val TOP_CHATS_LIMIT = 10
 
         /** TDLib hlásí „už není co načítat" jako 404. */
         const val NOT_FOUND = 404
