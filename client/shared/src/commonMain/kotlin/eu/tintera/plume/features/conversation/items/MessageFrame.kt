@@ -41,6 +41,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -289,14 +290,19 @@ internal fun rememberMessageBodyScope(
      * spodní nároží — skokem to vypadalo jako chyba vykreslení. Stejně to dělá seznam chatů
      * u skupin (`animateDpAsState` přes spatial spec).
      */
+    /*
+     * Zvýrazněná zpráva se z bloku vyčlení i tvarem: stažená nároží se zakulatí. Totéž hrající
+     * hlasovka — rozvlní se (viz `MessageBox`), a vlnky vedené přes stažené nároží by v něm
+     * dělaly špičku.
+     */
+    val detached = frame.emphasized || rememberVoicePlaying(message, scope)
     val topInnerAnimated by animateDpAsState(
-        // Zvýrazněná zpráva se z bloku vyčlení i tvarem: stažená nároží se zakulatí.
-        targetValue = if (frame.continuesAbove && !frame.emphasized) BUBBLE_TIGHT else BUBBLE_CORNER,
+        targetValue = if (frame.continuesAbove && !detached) BUBBLE_TIGHT else BUBBLE_CORNER,
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "bubble-corner-top",
     )
     val bottomInnerAnimated by animateDpAsState(
-        targetValue = if (frame.continuesBelow && !frame.emphasized) BUBBLE_TIGHT else BUBBLE_CORNER,
+        targetValue = if (frame.continuesBelow && !detached) BUBBLE_TIGHT else BUBBLE_CORNER,
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "bubble-corner-bottom",
     )
@@ -620,13 +626,18 @@ internal fun MessageBox(
      * Zvýraznění: okraj zprávy se rozvlní a vlnky pomalu obíhají (viz `WavyShape`). Zvlňuje se
      * sám ořez zprávy, žádný obrys navíc. Průběh i fáze se čtou až ve vrstvě, takže obíhání
      * nerekomponuje.
+     *
+     * Stejně se rozvlní hrající hlasovka: vlnka v aplikaci znamená „teď zní hlas" (i karta
+     * vstupního pole při nahrávání). V klidu je hlasovka hladká — stálá vlna nic neoznamovala
+     * a vypadala jako rozbitý okraj.
      */
+    val waving = frame.emphasized || rememberVoicePlaying(message, bodyScope.items)
     val wave = animateFloatAsState(
-        targetValue = if (frame.emphasized) 1f else 0f,
+        targetValue = if (waving) 1f else 0f,
         animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
         label = "emphasis-wave",
     )
-    val wavePhase = rememberWavePhase(running = frame.emphasized)
+    val wavePhase = rememberWavePhase(running = waving)
     Box(modifier) {
         Box(
             Modifier
@@ -667,6 +678,19 @@ internal fun MessageBox(
 
         extra()
     }
+}
+
+/**
+ * Hraje právě tahle hlasovka? Přes `derivedStateOf`: pozice přehrávání se mění dvacetkrát za
+ * vteřinu a položka se má překreslit jen při spuštění a zastavení.
+ */
+@Composable
+private fun rememberVoicePlaying(message: ChatMessage, scope: ConversationItemScope): Boolean {
+    if (message.media !is MessageMedia.VoiceNote) return false
+    val playing by remember(scope, message.id) {
+        derivedStateOf { scope.voicePlayback(message.id)?.playing == true }
+    }
+    return playing
 }
 
 /**

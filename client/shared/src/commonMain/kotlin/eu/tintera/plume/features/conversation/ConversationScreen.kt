@@ -15,6 +15,14 @@ import androidx.compose.foundation.layout.imePadding
 import eu.tintera.plume.core.ui.chatTitle
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.input.VisualTransformation
+import eu.tintera.plume.features.conversation.items.WavyShape
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
@@ -88,7 +96,6 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -1289,9 +1296,33 @@ private fun MessageInput(
              * Pole uvnitř je průhledné — kontejner nese karta, ne ono; dvě zaoblené plochy
              * v sobě by vypadaly jako chyba.
              */
+            /*
+             * Při nahrávání se karta ROZVLNÍ a přebarví. Pruh nahrávání vypadá jinak než pole,
+             * ale na místě zůstává — bez změny karty se dal přehlédnout otevřený mikrofon.
+             * Vlnka je v aplikaci „hlas": stejně (jen mělčeji a bez pohybu) jsou zvlněné
+             * hlasovky v konverzaci. Stojí, neobíhá — živost nese dýchající tlačítko vedle.
+             */
+            val recordingWave by animateFloatAsState(
+                targetValue = if (isRecording) 1f else 0f,
+                animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
+                label = "composer-recording-wave",
+            )
+            val cardColor by animateColorAsState(
+                targetValue = if (isRecording) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                },
+                animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
+                label = "composer-recording-color",
+            )
             Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = if (recordingWave > 0f) {
+                    WavyShape(ComposerShape, progress = recordingWave, phase = 0f)
+                } else {
+                    ComposerShape
+                },
+                color = cardColor,
                 modifier = Modifier.weight(1f),
             ) {
               Column {
@@ -1341,7 +1372,22 @@ private fun MessageInput(
                 )
             }
             Box(Modifier.weight(1f)) {
-            TextField(
+            /*
+             * `BasicTextField` s dekorací, ne `TextField`: ten má vnitřní odsazení 16 dp napevno
+             * a vedle sponky (48dp tlačítko, glyf má kolem sebe dalších 12 dp) z toho byla
+             * mezera skoro 30 dp, než začal text. U ikony stačí 4 dp — glyf má svůj vzduch.
+             * Bez sponky (úprava zprávy) zůstává výchozích 16 dp od hrany karty.
+             */
+            val fieldInteraction = remember { MutableInteractionSource() }
+            val fieldColors = TextFieldDefaults.colors(
+                // Kontejner i podtržení nese karta kolem; pole samo nekreslí nic.
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                disabledContainerColor = Color.Transparent,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+            )
+            BasicTextField(
                 value = draft,
                 onValueChange = {
                     val changed = it.text != draft.text
@@ -1349,18 +1395,13 @@ private fun MessageInput(
                     // Pohyb kurzoru nebo výběr taky volá `onValueChange`; psaní to není.
                     if (changed) onDraftChanged(it.text)
                 },
-                modifier = Modifier.fillMaxWidth(),
-                // S přílohami je text jejich popisek.
-                placeholder = { Text(stringResource(if (withAttachments) Res.string.conversation_input_caption else Res.string.conversation_input_message)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = TextFieldDefaults.MinHeight),
+                textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 maxLines = 6,
-                colors = TextFieldDefaults.colors(
-                    // Kontejner i podtržení nese karta kolem; pole samo nekreslí nic.
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    disabledContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                ),
+                interactionSource = fieldInteraction,
                 keyboardOptions = KeyboardOptions(
                     // Zpráva jsou věty, ne jedno slovo: klávesnice má po tečce nabídnout velké
                     // písmeno sama. Výchozí `None` nutí uživatele přepínat shift ručně.
@@ -1373,6 +1414,24 @@ private fun MessageInput(
                         onDraftValueChange(TextFieldValue())
                     },
                 ),
+                decorationBox = { innerTextField ->
+                    TextFieldDefaults.DecorationBox(
+                        value = draft.text,
+                        innerTextField = innerTextField,
+                        enabled = true,
+                        singleLine = false,
+                        visualTransformation = VisualTransformation.None,
+                        interactionSource = fieldInteraction,
+                        // S přílohami je text jejich popisek.
+                        placeholder = { Text(stringResource(if (withAttachments) Res.string.conversation_input_caption else Res.string.conversation_input_message)) },
+                        colors = fieldColors,
+                        contentPadding = TextFieldDefaults.contentPaddingWithoutLabel(
+                            start = if (editing == null) FIELD_ICON_GAP else FIELD_EDGE_PADDING,
+                            end = FIELD_ICON_GAP,
+                        ),
+                        container = {},
+                    )
+                },
             )
 
             // Startovní strana letu: **už vypadá jako bublina**, ne jen jako text. Sdílí se celý
@@ -1573,6 +1632,15 @@ private fun MessageInput(
         }
     }
 }
+
+/** Tvar karty vstupního pole; při nahrávání se z něj rozvlní [WavyShape]. */
+private val ComposerShape = RoundedCornerShape(24.dp)
+
+/** Odsazení textu od ikony vedle pole — glyf má v 48dp tlačítku kolem sebe svých 12 dp. */
+private val FIELD_ICON_GAP = 4.dp
+
+/** Odsazení textu od hrany karty, kde ikona není (úprava zprávy); výchozí u `TextField`. */
+private val FIELD_EDGE_PADDING = 16.dp
 
 /** Půlperioda dýchání tlačítka při nahrávání. */
 private const val RECORDING_BREATH_MS = 900

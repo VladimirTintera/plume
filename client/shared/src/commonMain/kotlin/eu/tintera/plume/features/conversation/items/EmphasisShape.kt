@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlin.math.PI
@@ -37,6 +38,8 @@ internal class WavyShape(
     private val base: Shape,
     private val progress: Float,
     private val phase: Float,
+    private val depth: Dp = WAVE_DEPTH,
+    private val wavelength: Dp = WAVE_LENGTH,
 ) : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
         val outline = base.createOutline(size, layoutDirection, density)
@@ -48,7 +51,7 @@ internal class WavyShape(
             is Outline.Generic -> return outline
         }
         return with(density) {
-            Outline.Generic(wavyOutline(rect, WAVE_DEPTH.toPx() * p, WAVE_LENGTH.toPx(), phase))
+            Outline.Generic(wavyOutline(rect, depth.toPx() * p, wavelength.toPx(), phase))
         }
     }
 }
@@ -114,9 +117,18 @@ internal fun wavyOutline(base: RoundRect, depth: Float, wavelength: Float, phase
 }
 
 /** Jak hluboko se okraj zvlní. Obsah bubliny má odsazení 8–14 dp, takže do textu vlnky nesáhnou. */
-private val WAVE_DEPTH = 3.dp
-private val WAVE_LENGTH = 20.dp
+internal val WAVE_DEPTH = 3.dp
+internal val WAVE_LENGTH = 20.dp
 private const val SAMPLES_PER_WAVE = 12
+
+/**
+ * Klidové zvlnění hlasovky: podíl [WAVE_DEPTH], o který je okraj zvlněný i bez zvýraznění.
+ *
+ * Vlnka znamená v aplikaci „hlas" — zvlní se i karta vstupního pole při nahrávání. U hlasovky
+ * stojí (neobíhá) a je mělčí než zvýraznění, aby se s ním nepletla: zvýrazněná hlasovka se
+ * z klidové vlnky prohloubí a rozeběhne.
+ */
+internal const val VOICE_WAVE_PROGRESS = 0.7f
 
 /** Jedna délka vlny za tuhle dobu: obíhá to pomalu, aby to vedle čtené zprávy nerušilo. */
 private const val WAVE_PERIOD_MS = 2400
