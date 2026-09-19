@@ -25,3 +25,12 @@ fun windowWidthClass(): WindowWidthClass =
 
 @Composable
 fun isCompact(): Boolean = windowWidthClass() == WindowWidthClass.COMPACT
+
+/**
+ * Nízké okno — v praxi telefon naležato (výška pod hranicí Medium). Místa na výšku je málo
+ * a vedle obsahu stojí rail, takže rail je bez popisků a seznam vedle něj bez zbytečného okraje.
+ */
+@Composable
+fun isShortWindow(): Boolean =
+    !currentWindowAdaptiveInfoV2().windowSizeClass
+        .isHeightAtLeastBreakpoint(WindowSizeClass.HEIGHT_DP_MEDIUM_LOWER_BOUND)

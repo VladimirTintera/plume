@@ -524,6 +524,8 @@ Bez popisku nese název sekce `contentDescription` ikony. **Je to klasický `Nav
 (80 dp), ne `WideNavigationRail`:** zúžený wide rail má pevných 96 dp bez ohledu na popisky
 a položku bez popisku měří na šířku indikátoru a klade na x = 0 — ikony visely u levého okraje
 a vpravo zbyl prázdný pruh. Popisky tedy šířku neovlivňovaly, jen výšku.
+Seznam chatů vedle něj má naležato levý okraj 8 dp místo 16 (`isShortWindow`): rail má kolem
+ikon vlastní vzduch a 8 dp je vnitřní okraj vyhledávací pilulky, takže karty s ní lícují.
 
 **Boční insety NEVĚDÍ, kde prvek leží.** Compose dá `safeDrawing`/`displayCutout` každému, kdo si
 o ně řekne, i když stojí daleko od kamery. Telefon naležato proto měl v konverzaci (panel VPRAVO)

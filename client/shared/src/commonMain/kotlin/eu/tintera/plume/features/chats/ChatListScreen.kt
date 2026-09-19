@@ -59,6 +59,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import eu.tintera.plume.core.adaptive.isCompact
+import eu.tintera.plume.core.adaptive.isShortWindow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -321,6 +323,13 @@ internal fun ChatListContent(
             .collect { if (it) viewModel.loadMore() }
     }
 
+    /*
+     * Vedle railu na telefonu naležato je okraj vlevo užší. Rail má kolem ikon vlastní vzduch,
+     * takže plných 16 dp jen ukusovalo šířku, které je naležato málo. 8 dp je vnitřní okraj
+     * vyhledávací pilulky nad seznamem — karty s ní lícují.
+     */
+    val startPadding = if (!isCompact() && isShortWindow()) 8.dp else 16.dp
+
     when (val current = state) {
         ChatListState.Loading -> Box(
             Modifier.fillMaxSize().padding(padding),
@@ -351,7 +360,7 @@ internal fun ChatListContent(
                     top = padding.calculateTopPadding() + 8.dp - TOP_ANCHOR_HEIGHT -
                         GROUP_ITEM_SPACING,
                     bottom = padding.calculateBottomPadding() + 8.dp,
-                    start = 16.dp,
+                    start = startPadding,
                     end = 16.dp,
                 ),
                 // Rozestup UVNITŘ skupiny. Mezera mezi skupinami se přidává u její první

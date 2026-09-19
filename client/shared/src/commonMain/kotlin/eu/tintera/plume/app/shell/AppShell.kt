@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
-import androidx.window.core.layout.WindowSizeClass
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
@@ -60,6 +58,7 @@ import androidx.navigation3.ui.NavDisplay
 import eu.tintera.plume.core.adaptive.TWO_PANE_MIN_WIDTH
 import eu.tintera.plume.core.adaptive.contentPaneScaffoldDirective
 import eu.tintera.plume.core.adaptive.isCompact
+import eu.tintera.plume.core.adaptive.isShortWindow
 import eu.tintera.plume.core.adaptive.singlePane
 import eu.tintera.plume.core.adaptive.twoPane
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -174,8 +173,7 @@ fun AppShell(modifier: Modifier = Modifier) {
      * Na nízkém okně (telefon naležato) má rail jen ikony. Popisky pod nimi zabíraly výšku, která
      * tam chybí, a rail roztahovaly do šířky — a dvě sekce se poznají podle ikony i bez nich.
      */
-    val railLabels = currentWindowAdaptiveInfoV2().windowSizeClass
-        .isHeightAtLeastBreakpoint(WindowSizeClass.HEIGHT_DP_MEDIUM_LOWER_BOUND)
+    val railLabels = !isShortWindow()
 
     // Obsah drží stabilní instanci přes přepnutí rail↔bar. Bez movableContent by se při změně
     // breakpointu celý podstrom odmountoval a namountoval znovu — ztratil by se scroll, stav
