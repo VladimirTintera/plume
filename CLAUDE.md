@@ -12,8 +12,8 @@ konverzace (historie, živé zprávy, odesílání, přílohy a alba, hlasovky, 
 přeposílání, připnuté zprávy), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
-Není: notifikace na iOS ani hlášení pádů z iOS; obrazovky hledání, profilu chatu a nové
-konverzace. Nastavení je list-detail se sekcemi Obecné a Vzhled; vědomě nastavitelné je zatím
+Není: notifikace na iOS ani hlášení pádů z iOS; obrazovky profilu chatu a nové konverzace.
+Hledání umí chaty, veřejné chaty a zprávy napříč chaty, ne zatím uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné a Vzhled; vědomě nastavitelné je zatím
 téma aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
 Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
@@ -724,8 +724,83 @@ v chatech", vedle ní menu ⋮. Po ťuknutí se rozbalí `ExpandedFullScreenSear
 - **Stav spojení je tonální pilulka na konci hledání** (`ConnectionPill`), ne nadpis. Skoro
   celou dobu není vidět nic; „Chaty" v nadpisu jen opakovalo navigaci. V rozbaleném hledání se
   neukazuje.
-- **Hledá se v načteném seznamu**, jako při přeposílání; Uložené zprávy podle přeloženého názvu.
-  Serverové hledání (`searchChats`, zprávy) je v roadmapě.
+- **Hledá se ve všech známých chatech**, ne v načteném seznamu — viz „Hledání chatů" níž.
+
+### Hledání chatů
+
+`ChatSearch` (`features/chats`) — sdílí ho hlavička seznamu chatů, přeposílání i sdílení.
+
+- **`searchChats`, ne filtr nad seznamem.** Filtr nad `chats()` nenašel archiv ani chaty mimo
+  složky (kontakty bez konverzace, opuštěné skupiny, které TDLib zná). Nejdřív lokálně
+  (`searchChats`, hned), pak server (`searchChatsOnServer`), serverové výsledky se připojí ZA
+  lokální (`mergeChatResults`) — co uživatel už vidí, se pod prstem nepřeskládá.
+- **`transformLatest` s krátkou pauzou (150 ms).** Rozepsaný dotaz se dalším znakem zahodí,
+  takže pomalá odpověď serveru na „ja" nepřepíše výsledky pro „jana".
+- **Výsledky se ukazují jen k dotazu, na který TDLib odpovídal** (`ChatSearchState.query`).
+  V rozbaleném hledání se mezitím točí indikátor; ve výběru pro přeposílání zůstávají předchozí
+  výsledky, jinak by výběr při každém znaku problikl načítáním (`pickerChats`, testy
+  `ChatSearchTest`).
+- **Pod prázdným dotazem jsou návrhy**: nejčastější lidé (`getTopChats(TopChatCategoryUsers)`)
+  a historie hledání. Historii vede TDLib — `searchChats("")` ji vrací, ťuknutí na výsledek ji
+  zapisuje (`addRecentlyFoundChat`), „Vymazat" ji smaže. `searchRecentlyFoundChats` prázdný
+  dotaz nebere. Návrhy se načítají, jen když je hledání rozbalené (`setSuggestionsWanted`).
+- **`getTopChats` vrací chybu, když si to uživatel v Telegramu vypnul** — to je prázdný řádek,
+  ne selhání.
+- **Uložené zprávy TDLib najde pod jménem účtu**, takže se z výsledků vyřazují a hledají podle
+  přeloženého názvu. V historii a mezi nejčastějšími je kreslí `chatTitle` / `isSavedMessages`.
+- **Archivovaný výsledek má podtitul „V archivu".** V hlavním seznamu není vidět, a bez podtitulu
+  by chat vypadal, že se odněkud vynořil. Složku doplní repository podle pozice
+  (`summariesFor`); chat, který repository nezná, si dočte (`getChat`) a uloží.
+- **Po výběru z hledání dojede seznam na vybraný chat** (`scrollToChat` v `ChatListContent`),
+  jinak by na široké ploše vybraný chat vlevo nebyl vidět. Index se počítá ze skupin (kotva
+  + hlavička + chaty) — `LazyListState` klíč položky mimo obrazovku na index nepřevede. Chat,
+  který je celý vidět, se nehýbe. Požadavek je `rememberSaveable`: na telefonu konverzace
+  seznam překryje a posun proběhne, až se na seznam uživatel vrátí.
+- **V hlavním hledání jsou pod chaty ještě sekce Globálně a Zprávy** (`ChatSearch(everywhere =
+  true)`; přeposílání a sdílení hledají jen chaty). Globálně je `searchPublicChats` bez chatů,
+  které jsou už mezi výsledky (`globalOnly` — server vynechává jen chaty ze seznamu, ne všechny
+  známé). Zprávy jsou `searchMessages(chatList = null)` přes hlavní seznam i archiv, stránkované
+  `nextOffset` (prázdný = konec), duplicity na hranici stránek zahazuje `mergeFoundMessages`.
+- **Chaty a Globálně jsou sbalené na čtyři řádky** se „Zobrazit vše" — u krátkého dotazu jich
+  jsou desítky a zprávy by skončily daleko dole.
+- **Nadpis sekce chatů je vždycky, když jsou chaty.** Dokud se ukazoval až s dalšími sekcemi,
+  vložil se nad už vykreslené chaty a `LazyColumn`, který drží pozici podle první viditelné
+  položky, ho odsunul nad horní hranu — nebyl vidět nikdy. Totéž čeká každou položku vkládanou
+  nad obsah, na který se uživatel už dívá.
+- **TDLib hledá bez ohledu na diakritiku, zvýraznění musí taky** (`highlightRanges`
+  s `foldDiacritics`, znak za znak, takže pozice sedí na původní text). „obslehl" najde
+  „Obšlehl"; se zvýrazněním jen přes `ignoreCase` by nalezená zpráva neměla zvýrazněné nic.
+  Tabulka diakritiky je v escape sekvencích — `verifyNoHardcodedText` hlídá diakritiku
+  v literálech a oslabovat ho kvůli datům nestojí za to.
+- **Ukázka zprávy začíná kousek před nalezeným slovem** (`snippetAround`, „…" na začátku).
+  Ve dvou řádcích by slovo z konce dlouhé zprávy bylo za výpustkou a řádek by nevysvětlil,
+  proč se našel. Slovo jen v adrese skrytého odkazu vidět nebude — text ji nenese.
+- **Ťuknutí na zprávu otevře chat se skokem na ni**: `ConversationRoute(chatId, messageId)`,
+  ViewModel dostane `initialMessageId` a místo skoku na nepřečtené zavolá `jumpToMessage`
+  (dotažení historie a zvýraznění jako u citace, strop `MAX_SEARCH_JUMP_PAGES`). Druhý parametr
+  Koinu se čte INDEXEM (`parameters.values.getOrNull(1)`): bývá `null` a podle typu by se spletl
+  s `chatId`. **Konverzace na vrcholu zásobníku se porovnává podle `chatId`**
+  (`isOpenConversation`), ne rovností routy — s `messageId` by přeposlání otevřelo tentýž chat
+  podruhé.
+- **Historie se dotahuje jen od nejnovější dozadu**, takže zpráva starší než strop stránek se
+  otevře s hláškou „moc daleko" (`conversation_message_too_deep`). Skok kamkoli chce obousměrné
+  stránkování (kotva uprostřed) — v roadmapě.
+- **Globální výsledek otevře chat, ve kterém uživatel není**: `ChatInfo.canJoin` (supergroup
+  se stavem `ChatMemberStatusLeft`, `getSupergroup` je lokální) nahradí vstupní pole tlačítkem
+  „Přidat se" (`joinChat`). Psát do cizí skupiny nejde a nabízet pole by znamenalo chybu po
+  odeslání.
+- **Spodní inset si berou seznamy výsledků, ne `ExpandedFullScreenSearchBar`.** Jeho výchozí
+  `windowInsets` je `safeDrawing` a spodek dává obsahu jako padding, takže výsledky končily
+  useknuté nad navigační lištou na holé ploše. Hledání dostane jen `Top + Horizontal`, seznamy
+  spodek (lišta i klávesnice) v `contentPadding` (`resultsPadding`) — obsah jede pod lištu
+  a poslední položka se nad ni doroluje. Tentýž vzor jako u seznamu chatů a konverzace.
+- **Prázdný výsledek je `IntroEmptyState`** („Nic nenalezeno", ikona `search_off`), stejný
+  jako placeholder detailu a prázdný archiv. Plochu nekreslí (`containerColor = Transparent`,
+  hledání má vlastní barvu) a spodek má nad klávesnicí (`resultsPadding`), jinak by se
+  centroval pod ni. **Jednou ukázaný vydrží i během hledání dalšího znaku** (`emptyShown`) —
+  kdyby ho mezitím vystřídal indikátor, pouštěla by se úvodní animace při každém znaku.
+- **Selhání hledání se nehlásí.** Prázdný výsledek je u hledání normální stav a lokální výsledky
+  zůstanou, i když server neodpoví.
 - **Dotaz se maže při KAŽDÉM sbalení** (efekt nad `expanded`), ne v obsluze šipky. Gesto zpět
   zavírá dialog hledání samo a obsluhu šipky obchází.
 - **Ověřování snímky: `sips -c` ořezává ze STŘEDU**, `--cropOffset` ignoruje. Výřez „horní
@@ -1856,8 +1931,8 @@ po odeslání se otevře cílový chat, takže je vidět, že zpráva dorazila.
   a v cíli má albem zůstat. **Id musí být vzestupně**, jinak TDLib volání odmítne.
 - **Výběr je obrazovka, ne sheet.** Seznam chatů je dlouhý a listuje se v něm; sheet by navíc
   při hledání zápasil s klávesnicí.
-- **Hledá se zatím jen v načteném seznamu chatů** (živý `ChatRepository`, ten samý, co kreslí
-  hlavní obrazovku). Server by uměl `searchChats`, ale přeposílá se skoro vždy do chatu nahoře.
+- **Bez dotazu je ve výběru živý hlavní seznam, s dotazem výsledky `ChatSearch`** — ze všech
+  chatů, i archivovaných (`pickerChats`, viz „Hledání chatů").
 - **Během odesílání se seznam nedá ťuknout podruhé** — dvě ťuknutí by poslala zprávu dvakrát.
 - **Posílá se jako přeposlání, ne kopie** (`sendCopy = false`), takže v cíli zůstane „Přeposláno
   od …". Kopie bez odesílatele je v Telegramu samostatná volba a zatím ji nenabízíme.

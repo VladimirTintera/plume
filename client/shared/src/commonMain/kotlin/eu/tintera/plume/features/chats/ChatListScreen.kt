@@ -56,6 +56,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -111,10 +112,12 @@ fun ChatListScreen(
     viewModel: ChatsViewModel,
     selectedChatId: Long?,
     onChatClick: (Long) -> Unit,
+    /** Nalezená zpráva: otevřít její chat a skočit na ni. */
+    onMessageClick: (chatId: Long, messageId: Long) -> Unit,
     onOpenArchive: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val search by viewModel.search.state.collectAsStateWithLifecycle()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
     val updateCard by viewModel.updateCard.collectAsStateWithLifecycle()
@@ -124,6 +127,12 @@ fun ChatListScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     ChatActionsHost(viewModel, snackbarHostState)
+
+    /*
+     * Chat vybraný v hledání, na který má seznam dojet. Ukládá se (`rememberSaveable`): na
+     * telefonu konverzace seznam překryje a ten se posune, až se na něj uživatel vrátí.
+     */
+    var scrollToChat by rememberSaveable { mutableStateOf<Long?>(null) }
 
     // Obchod se ptá při otevření seznamu i při návratu do popředí — tak se po restartu připomene
     // i stažená, ale nenainstalovaná aktualizace.
@@ -138,10 +147,22 @@ fun ChatListScreen(
         topBar = {
             ChatSearchBar(
                 connection = connection.label(),
-                chats = (state as? ChatListState.Ready)?.chats.orEmpty(),
+                search = search,
                 savedMessagesChatId = savedMessagesChatId,
                 scrollBehavior = scrollBehavior,
-                onChatClick = onChatClick,
+                onQueryChange = viewModel.search::setQuery,
+                onExpandedChange = viewModel.search::setSuggestionsWanted,
+                onChatClick = { chatId ->
+                    viewModel.search.recordFound(chatId)
+                    scrollToChat = chatId
+                    onChatClick(chatId)
+                },
+                onMessageClick = { chatId, messageId ->
+                    scrollToChat = chatId
+                    onMessageClick(chatId, messageId)
+                },
+                onLoadMoreMessages = viewModel.search::loadMoreMessages,
+                onClearRecent = viewModel.search::clearRecent,
                 actions = {
                     /*
                      * Menu, ne samostatné ikony vedle hledání. Uložené zprávy v seznamu nejsou
@@ -182,6 +203,10 @@ fun ChatListScreen(
                 selectedChatId = selectedChatId,
                 onChatClick = onChatClick,
                 padding = padding,
+                scrollToChat = scrollToChat,
+                onScrolledToChat = { scrollToChat = null },
+                // Karta s aktualizací je jediná položka hlavičky.
+                headerItemCount = if (updateCard != null) 1 else 0,
                 empty = {
                     Text(
                         stringResource(Res.string.chats_empty),
@@ -293,7 +318,10 @@ internal fun ChatActionsHost(viewModel: ChatsViewModel, snackbarHostState: Snack
 /**
  * Seznam chatů jedné složky ve skupinách, s dotahováním dalších a stavem načítání a chyby.
  * [empty] se kreslí místo prázdného seznamu (v ploše bez odsazení Scaffoldu), [header] jsou
- * položky nad chaty (karta s aktualizací).
+ * položky nad chaty (karta s aktualizací) a [headerItemCount] jejich počet.
+ *
+ * [scrollToChat]: seznam dojede na tenhle chat (vybraný v hledání), pokud v něm je a není celý
+ * vidět, a ohlásí to [onScrolledToChat].
  */
 @Composable
 internal fun ChatListContent(
@@ -302,6 +330,9 @@ internal fun ChatListContent(
     onChatClick: (Long) -> Unit,
     padding: PaddingValues,
     empty: @Composable BoxScope.() -> Unit,
+    scrollToChat: Long? = null,
+    onScrolledToChat: () -> Unit = {},
+    headerItemCount: Int = 0,
     header: LazyListScope.() -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -329,6 +360,31 @@ internal fun ChatListContent(
      * vyhledávací pilulky nad seznamem — karty s ní lícují.
      */
     val startPadding = if (!isCompact() && isShortWindow()) 8.dp else 16.dp
+
+    val groups = (state as? ChatListState.Ready)?.chats?.let { chats ->
+        remember(chats, separateUnread, savedMessagesChatId) { chatGroups(chats, separateUnread, savedMessagesChatId) }
+    }.orEmpty()
+
+    /*
+     * Dojetí na chat vybraný v hledání. Index se počítá ze skupin, protože `LazyListState` klíč
+     * položky mimo obrazovku na index nepřevede: kotva, hlavička, pak chaty skupinu po skupině.
+     * Chat, který je celý vidět, se nehýbe — skok by jen zbytečně odsunul to, na co uživatel
+     * kouká. Chat v seznamu není (archiv, mimo složky): požadavek se jen zahodí.
+     */
+    LaunchedEffect(scrollToChat, groups) {
+        val chatId = scrollToChat ?: return@LaunchedEffect
+        if (groups.isEmpty()) return@LaunchedEffect
+        val position = groups.flatten().indexOfFirst { it.id == chatId }
+        if (position >= 0) {
+            val info = listState.layoutInfo
+            val fullyVisible = info.visibleItemsInfo.any {
+                it.key == chatId && it.offset >= info.viewportStartOffset + info.beforeContentPadding &&
+                    it.offset + it.size <= info.viewportEndOffset - info.afterContentPadding
+            }
+            if (!fullyVisible) listState.animateScrollToItem(1 + headerItemCount + position)
+        }
+        onScrolledToChat()
+    }
 
     when (val current = state) {
         ChatListState.Loading -> Box(
@@ -367,8 +423,6 @@ internal fun ChatListContent(
                 // položky — seznam o sousedech položky nic neví.
                 verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
             ) {
-                val groups = chatGroups(current.chats, separateUnread, savedMessagesChatId)
-
                 /*
                  * Kotva nahoře. `LazyColumn` drží pozici podle klíče první viditelné
                  * položky; bez kotvy je to první chat, a když nad něj vyskočí jiný (nová

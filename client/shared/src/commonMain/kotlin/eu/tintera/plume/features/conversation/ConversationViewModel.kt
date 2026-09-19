@@ -56,6 +56,9 @@ import eu.tintera.plume.resources.conversation_favorite_failed
 import eu.tintera.plume.resources.conversation_favorite_removed
 import eu.tintera.plume.resources.conversation_history_failed
 import eu.tintera.plume.resources.conversation_pin_failed
+import eu.tintera.plume.resources.conversation_join_failed
+import eu.tintera.plume.resources.conversation_message_deleted
+import eu.tintera.plume.resources.conversation_message_too_deep
 import eu.tintera.plume.resources.conversation_quote_deleted
 import eu.tintera.plume.resources.conversation_quote_too_deep
 import eu.tintera.plume.resources.conversation_reaction_failed
@@ -108,6 +111,8 @@ import org.jetbrains.compose.resources.StringResource
  */
 class ConversationViewModel(
     private val chatId: Long,
+    /** Zpráva, na kterou se po otevření skočí místo na první nepřečtenou (nalezená v hledání). */
+    private val initialMessageId: Long?,
     private val repository: ConversationRepository,
     /**
      * Jen kvůli „píše…". Činnost v chatu už sleduje repository chatů — i s odpočtem, který ji zhasne,
@@ -226,7 +231,12 @@ class ConversationViewModel(
                 }
                 info.draftText?.let { draftText = it }
                 info.draftReplyToMessageId?.let(::restoreDraftReply)
-                loadUntilUnread()
+                // Nalezená zpráva má přednost před nepřečtenými — kvůli ní chat otevřel.
+                if (initialMessageId != null) {
+                    jumpToMessage(initialMessageId, fromSearch = true)
+                } else {
+                    loadUntilUnread()
+                }
             }
             draftRestored.complete(Unit)
         }
@@ -430,16 +440,18 @@ class ConversationViewModel(
      * Zvýraznění je nutné. Po skoku uprostřed historie by jinak nebylo poznat, na kterou
      * z bublin na obrazovce citace mířila.
      */
-    fun jumpToMessage(messageId: Long) {
+    fun jumpToMessage(messageId: Long, fromSearch: Boolean = false) {
         viewModelScope.launch {
-            if (!loadUntil(MAX_JUMP_PAGES) { messages -> messages.any { it.id == messageId } }) {
+            val maxPages = if (fromSearch) MAX_SEARCH_JUMP_PAGES else MAX_JUMP_PAGES
+            if (!loadUntil(maxPages) { messages -> messages.any { it.id == messageId } }) {
                 _state.update {
                     it.copy(
-                        error = if (it.reachedStart) {
+                        error = when {
                             // Celá historie je načtená a zpráva v ní není — byla smazaná.
-                            UiText(Res.string.conversation_quote_deleted)
-                        } else {
-                            UiText(Res.string.conversation_quote_too_deep)
+                            it.reachedStart && fromSearch -> UiText(Res.string.conversation_message_deleted)
+                            it.reachedStart -> UiText(Res.string.conversation_quote_deleted)
+                            fromSearch -> UiText(Res.string.conversation_message_too_deep)
+                            else -> UiText(Res.string.conversation_quote_too_deep)
                         },
                     )
                 }
@@ -671,6 +683,24 @@ class ConversationViewModel(
     private fun Throwable.reported(message: StringResource): UiText {
         logger.w(this) { message.key }
         return userMessage(message)
+    }
+
+    /**
+     * Přidat se ke skupině nebo kanálu z globálního hledání. Po úspěchu se místo tlačítka
+     * vrátí vstupní pole (v kanálu ho server stejně nepustí, ale to platí pro každý kanál).
+     */
+    fun join() {
+        if (_state.value.joining) return
+        _state.update { it.copy(joining = true) }
+        viewModelScope.launch {
+            repository.joinChat(chatId)
+                .onSuccess { _state.update { it.copy(info = it.info?.copy(canJoin = false)) } }
+                .onFailure { failure ->
+                    val message = failure.reported(Res.string.conversation_join_failed)
+                    _state.update { it.copy(error = message) }
+                }
+            _state.update { it.copy(joining = false) }
+        }
     }
 
     /** Hláška z platformy (výběr souboru selhal) do snackbaru. */
@@ -1723,6 +1753,13 @@ private const val MAX_UNREAD_PAGES = 5
  */
 private const val MAX_JUMP_PAGES = 10
 
+/**
+ * Totéž pro zprávu nalezenou v hledání. Víc, protože hledání najde i staré zprávy, a strop
+ * pořád je: historie se dotahuje jen od nejnovější dozadu (viz [loadUntilUnread]), takže skok
+ * na zprávu z loňska by znamenal načíst všechno mezi. Obousměrné stránkování je v roadmapě.
+ */
+private const val MAX_SEARCH_JUMP_PAGES = 30
+
 /** Jak dlouho zůstane zpráva po skoku zvýrazněná. */
 private const val HIGHLIGHT_DURATION_MS = 1500L
 
@@ -1910,6 +1947,8 @@ data class ConversationState(
     val editing: ChatMessage? = null,
     /** Zpráva krátce zvýrazněná po skoku na citaci; `null` většinu času. */
     val highlightedMessageId: Long? = null,
+    /** Běží přidání ke skupině / kanálu ([ConversationViewModel.join]). */
+    val joining: Boolean = false,
     /** Reklamy k zobrazení. Podle Telegram ToS se nesmí filtrovat ani skrývat. */
     val sponsored: List<SponsoredMessage> = emptyList(),
     /** Text právě letící ze vstupního pole do bubliny; `null` když se nic neodesílá. */

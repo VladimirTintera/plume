@@ -3,11 +3,12 @@ package eu.tintera.plume.features.forward
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.share.ShareTargets
-import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.features.chats.ChatSearch
+import eu.tintera.plume.features.chats.pickerChats
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.forward_failed
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,9 +24,8 @@ import kotlinx.coroutines.launch
 /**
  * Výběr chatu, do kterého se zpráva přepošle.
  *
- * Seznam se **nenačítá znovu** — bere se živý seznam z [ChatRepository], ten samý, který kreslí
- * hlavní obrazovka. Hledání je proto zatím jen filtr nad načteným seznamem: server by uměl víc
- * (`searchChats`), ale chaty, do kterých se přeposílá, bývají ty nahoře.
+ * Bez dotazu je to živý hlavní seznam z [ChatRepository], ten samý, který kreslí hlavní
+ * obrazovka. S dotazem výsledky [ChatSearch] — ze všech chatů, i archivovaných.
  */
 class ForwardViewModel(
     private val fromChatId: Long,
@@ -41,21 +41,22 @@ class ForwardViewModel(
     private val _sending = MutableStateFlow(false)
     private val _error = MutableStateFlow<UiText?>(null)
 
+    /** Hledání ve všech chatech, i v archivu — v načteném hlavním seznamu by archiv chyběl. */
+    private val search = ChatSearch(chatRepository, viewModelScope)
+
     val state: StateFlow<ForwardState> = combine(
-        chatRepository.chats(),
+        combine(chatRepository.chats(), query, search.state) { list, text, found -> pickerChats(text, list, found) },
         query,
         _sending,
         _error,
         chatRepository.savedMessagesChatId,
-    ) { chatList, text, sending, error, saved ->
-        val chats = (chatList as? ChatListState.Ready)?.chats.orEmpty()
+    ) { picker, text, sending, error, saved ->
         ForwardState(
             query = text,
-            // Prázdný seznam při načítání není „nic nenalezeno" — seznam ještě nedorazil.
-            loading = chatList is ChatListState.Loading,
+            loading = picker.loading,
             // Chat, ze kterého se přeposílá, ve výběru zůstává: přeposlat sám sobě jde a v Telegramu
             // to není výjimka.
-            chats = chats.filter { it.title.contains(text.trim(), ignoreCase = true) },
+            chats = picker.chats,
             sending = sending,
             error = error,
             savedMessagesChatId = saved,
@@ -64,6 +65,7 @@ class ForwardViewModel(
 
     fun onQueryChange(text: String) {
         query.value = text
+        search.setQuery(text)
     }
 
     /**

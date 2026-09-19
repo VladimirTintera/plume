@@ -7,6 +7,7 @@ import dev.g000sha256.tdl.dto.ChatActionTyping
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
+import dev.g000sha256.tdl.dto.ChatMemberStatusLeft
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
 import dev.g000sha256.tdl.dto.FormattedText
@@ -664,6 +665,11 @@ class TdlConversationRepository(
                     isSavedMessages = (chat.type as? ChatTypePrivate)?.userId
                         ?.let { it == client.getMe().toResult().getOrNull()?.id } == true,
                     draftText = chat.draftMessage?.toChatDraft()?.text,
+                    canJoin = (chat.type as? ChatTypeSupergroup)?.let { type ->
+                        // `getSupergroup` je lokální — TDLib supergroup zná, když zná chat.
+                        client.getSupergroup(supergroupId = type.supergroupId).toResult().getOrNull()
+                            ?.status is ChatMemberStatusLeft
+                    } == true,
                     draftReplyToMessageId = (chat.draftMessage?.replyTo as? InputMessageReplyToMessage)
                         ?.messageId,
                 )
@@ -684,6 +690,9 @@ class TdlConversationRepository(
             .filter { it.userId == chatId }
             .collect { emit(it.status.toPresence()) }
     }
+
+    override suspend fun joinChat(chatId: Long): Result<Unit> =
+        client.joinChat(chatId = chatId).toResult().map { }
 
     override suspend fun sponsoredMessages(chatId: Long): Result<List<SponsoredMessage>> =
         client.getChatSponsoredMessages(chatId = chatId)
