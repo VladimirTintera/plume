@@ -977,17 +977,32 @@ a nad ni nakreslí předěl „Nepřečtené zprávy".
 
 ### Připnuté zprávy
 
-Pod hlavičkou visí připnuté zprávy: nejvýš tři nejnovější, zbytek za „Zobrazit všechny (N)".
-Ťuknutí na řádek skočí na zprávu (stejně jako citace, i se zvýrazněním a dotažením historie),
-křížek ji odepne.
+Pod hlavičkou visí **jeden řádek s jednou připnutou zprávou** (`PinnedMessagesBar`), ať je jich
+kolik chce. Na začátku nejnovější; ťuknutí na ni skočí (stejně jako citace, i se zvýrazněním
+a dotažením historie) a pruh posune o jednu starší, za nejstarší zase nejnovější. Všechny jsou
+za ikonou seznamu v sheetu (`PinnedMessagesSheet`), s odepínáním.
 
 - **Všechny připnuté přes `searchChatMessages` s `SearchMessagesFilterPinned`**, ne přes
   `getChatPinnedMessage` — ten vrací jen nejnovější. Stránkuje se po stovce, strop pět stránek.
   Vyhledávání potřebuje zapnutou databázi zpráv (`useMessageDatabase = true`).
-- **Tři sbalené, ne jedna ani všechny.** Jedna schová, že připnutých je víc; všechny by z hlavičky
-  udělaly půl obrazovky. Rozbalený seznam se listuje a má strop výšky.
-- **Rozbalení je jen na chvíli**: sbalí se po skoku na zprávu a při pohybu konverzací. Leží přes
-  zprávy a zavírat ho pokaždé ručně by otravovalo.
+- **Jedna, ne tři.** Kanály připnuté příspěvky neodepínají, jen přidávají další, takže tři
+  řádky (dřívější podoba) visely nad konverzací jako trvalý blok, a s rozbalením „všech" to byla
+  půl obrazovky. Že jich je víc, říká svislý ukazatel vlevo (dílek na zprávu, u víc než čtyř
+  okno kolem aktuální) a titulek „Připnutá zpráva č. N" — tak to dělá i oficiální klient.
+- **„Poslední připnutá" = nejnovější ZPRÁVA, ne poslední připnutí.** Čas připnutí Telegram
+  neposílá vůbec; pořadí je podle id zprávy a `getChatPinnedMessage` vrací taky tu s nejvyšším
+  id. U kanálu, který připíná čerstvé příspěvky, je to totéž; připne-li někdo starou zprávu,
+  zařadí se podle svého stáří.
+- **Ukázaná zpráva se drží podle id, ne indexu** (`pinnedIndex`, `nextPinnedId`, testy
+  `PinnedMessagesBarTest`). Nová připnutá by jinak posunula index a pruh by přeskočil na jinou.
+  Odepnutá ukázaná spadne na nejnovější.
+- **Křížek v pruhu je jen u jediné připnuté.** U víc zpráv je vpravo seznam a odepíná se v něm —
+  křížek vedle jedné z mnoha svádí k domněnce, že zavře celý pruh.
+- **Sheet se po odepnutí nezavírá** (odepíná se často víc zpráv po sobě), po ťuknutí na řádek
+  ano — napřed se schová, pak se skáče.
+- **Pruh je plovoucí karta** s okrajem, zaoblením a drobným stínem, ne plocha přes celou šířku:
+  zprávy pod ní zajíždějí a karta se od nich odlepí sama. Fotka, video a soubor s náhledem mají
+  v řádku čtvereček (nejmenší varianta, ostrou kvůli 36 dp nestahovat).
 - **Právo odepínat se zjišťuje jednou** (`canBePinned` první připnuté zprávy). Je v chatu jedno
   pro všechny zprávy; dotaz na každou by byl zbytečný. Bez práva křížek není.
 - **Odepnutá zpráva z pruhu zmizí hned**, potvrzení dorazí updatem. Při selhání se seznam přečte
@@ -1002,7 +1017,7 @@ křížek ji odepne.
 - **Pruh plave nad seznamem, není v `topBar`.** Seznam se odsazuje o jeho změřenou výšku (dole
   o padding `bottomBar`) — jinak by při odjezdu pruhu obsah na konci animace poskočil.
   O stejnou výšku se posouvá i plovoucí datum.
-- **Při odjezdu se kreslí poslední seznam**, ne prázdný pruh (`AnimatedVisibility` dobíhá
+- **Při odjezdu se kreslí poslední zpráva**, ne prázdný pruh (`AnimatedVisibility` dobíhá
   s obsahem, ale stav je už prázdný).
 - **Připnout / Odepnout je i v nabídce nad zprávou**, podle `canBePinned` z `getMessageProperties`.
   Která z nich se nabídne, se bere ze seznamu připnutých ve stavu — `ChatMessage` příznak
