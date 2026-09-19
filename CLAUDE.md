@@ -73,6 +73,21 @@ v [README](README.md#release-do-google-play). Sem patří jen to, co se z workfl
   se ani krok s `if: always()`; poslední řádek `[mon]` v logu je pak jediná stopa.
 - **Java na CI musí odpovídat `jvmToolchain(17)`.** S jinou verzí by ji foojay resolver stahoval
   při každém běhu znovu.
+- **Záznam v obchodě je v `play/`, nahrává ho ruční workflow Play Listing**
+  (`.github/scripts/play_listing.py`), ne release. Záznam je jeden pro všechny tracky a mění se
+  jinak často než verze. Výchozí je `dry_run`: edit se jen ověří a zahodí.
+- **Nahrání obrázků do editu projde i bez práva ke správě obchodu, 403 přijde až
+  na `edits:validate`.** Service account umí vydávat buildy, a přesto záznam měnit nesmí —
+  potřebuje navíc oprávnění ke správě prezentace v obchodě. Chyba se tedy neukáže v prvním
+  kroku, ale až na konci.
+- **Snímky obrazovky: nejvýš 2:1.** Emulátor dělá 1344 × 2992 (2,23:1) a Play ho odmítne;
+  snímky se rozšiřují na 1496 px protažením krajního sloupce (pozadí je po stranách
+  jednobarevné), ne ořezem, který by ukrojil hlavičku nebo pole.
+- **Na snímcích nesmí být skuteční lidé.** Seznam chatů testovacího účtu ukazuje jména, fotky
+  a zprávy kontaktů (i přihlašovací kód); snímky se proto dělají v chatu s testovacím botem,
+  kterému zprávy posílá Bot API. Česky se z `adb input text` psát nedá — odchozí text jde do
+  pole přes sdílení (`SEND` s `EXTRA_SHORTCUT_ID chat_<id bota>`). Pozor: `chat_id` v Bot API
+  u soukromého chatu je id UŽIVATELE, takže `chat_<chat_id>` otevře Uložené zprávy, ne bota.
 - **Balíček SDK platformy se jmenuje `platforms;android-37.0`** — u minor verzí je nula součástí
   id. Musí odpovídat `android-compileSdk` v `libs.versions.toml`.
 
