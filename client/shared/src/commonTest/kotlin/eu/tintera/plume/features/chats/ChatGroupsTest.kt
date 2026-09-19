@@ -13,6 +13,20 @@ import kotlin.test.assertEquals
  */
 class ChatGroupsTest {
 
+    /** Uložené zprávy jsou v menu horní lišty; v seznamu jen připnuté. */
+    @Test
+    fun ulozeneZpravyJenPripnute() {
+        val saved = 9L
+        assertEquals(
+            listOf(listOf(2L, 3L)),
+            chatGroups(listOf(chat(2), chat(saved), chat(3)), separateUnread = false, savedMessagesChatId = saved).ids(),
+        )
+        assertEquals(
+            listOf(listOf(saved), listOf(2L)),
+            chatGroups(listOf(chat(saved, pinned = true), chat(2)), separateUnread = false, savedMessagesChatId = saved).ids(),
+        )
+    }
+
     @Test
     fun bezVycleneniJsouPripnuteAOstatni() {
         val chats = listOf(chat(1, pinned = true), chat(2, unread = 3), chat(3))

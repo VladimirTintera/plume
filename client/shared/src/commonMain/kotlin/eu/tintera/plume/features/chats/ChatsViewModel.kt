@@ -44,10 +44,25 @@ class ChatsViewModel(
      */
     val separateUnreadChats: StateFlow<Boolean> = settings.separateUnreadChats
 
+    /** Id Uložených zpráv — v seznamu nejsou, pokud nejsou připnuté (viz `chatGroups`). */
+    val savedMessagesChatId: StateFlow<Long?> = repository.savedMessagesChatId
+
     private val _actions = MutableStateFlow(ChatActionsState())
 
     /** Stav nabídky akcí nad chatem (dlouhý stisk v seznamu). */
     val actions: StateFlow<ChatActionsState> = _actions.asStateFlow()
+
+    /** Uložené zprávy z menu horní lišty. Chat se v TDLib případně nejdřív založí. */
+    fun openSavedMessages(onOpened: (chatId: Long) -> Unit) {
+        viewModelScope.launch {
+            repository.openSavedMessages()
+                .onSuccess(onOpened)
+                .onFailure { failure ->
+                    logger.w(failure) { "Uložené zprávy se nepodařilo otevřít." }
+                    _actions.value = ChatActionsState(error = failure.userMessage(Res.string.chats_action_failed))
+                }
+        }
+    }
 
     fun loadMore() {
         viewModelScope.launch { repository.loadMore() }

@@ -3,6 +3,7 @@ package eu.tintera.plume.core.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -16,6 +17,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.bookmark_filled_24dp
+import org.jetbrains.compose.resources.painterResource
 import kotlin.math.absoluteValue
 
 /**
@@ -32,8 +36,31 @@ fun Avatar(
     avatarFileId: Int?,
     modifier: Modifier = Modifier,
     size: Dp = 48.dp,
+    /**
+     * Uložené zprávy: záložka místo fotky a jména vlastního účtu, jako ve všech klientech.
+     * Výslovně od volajícího — viz [LocalSavedMessagesChatId].
+     */
+    isSavedMessages: Boolean = false,
 ) {
     val shape = CircleShape
+
+    if (isSavedMessages) {
+        Surface(
+            modifier = modifier.size(size),
+            shape = shape,
+            color = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    painterResource(Res.drawable.bookmark_filled_24dp),
+                    contentDescription = null,
+                    modifier = Modifier.size(size * 0.5f),
+                )
+            }
+        }
+        return
+    }
 
     if (avatarFileId != null) {
         RemoteImage(

@@ -19,6 +19,7 @@ import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.notifications.NotificationIntents
+import eu.tintera.plume.core.share.bookmarkIcon
 import eu.tintera.plume.core.share.conversationShortcut
 import eu.tintera.plume.core.share.pushConversationShortcut
 import eu.tintera.plume.resources.Res
@@ -124,6 +125,7 @@ actual class NotificationPresenter(
                 Conversation(
                     chatId = newest.chatId,
                     title = newest.chatTitle,
+                    isSavedMessages = newest.isSavedMessages,
                     // Po restartu procesu je mapa prázdná, ale notifikace v liště zůstaly.
                     // Bez převzetí jejich řádků by nová zpráva přepsala předchozí.
                     lines = recoverLines(groupId),
@@ -412,7 +414,7 @@ actual class NotificationPresenter(
             context = context,
             chatId = conversation.chatId,
             title = conversation.title,
-            photo = avatarIcon(conversation.avatarPath),
+            photo = if (conversation.isSavedMessages) bookmarkIcon(context) else avatarIcon(conversation.avatarPath),
         ) ?: return null
         return shortcut.id.takeIf { pushConversationShortcut(context, shortcut) }
     }
@@ -443,6 +445,8 @@ actual class NotificationPresenter(
         var lines: List<Line>,
         /** Fotka chatu pro velkou ikonu notifikace. */
         var avatarPath: String? = null,
+        /** Uložené zprávy: zkratka se záložkou, jako ve sdílení (`AndroidShareTargetPublisher`). */
+        val isSavedMessages: Boolean = false,
     )
 
     /** Jedna zpráva v notifikaci. [notificationId] je `null` u řádku převzatého po restartu. */

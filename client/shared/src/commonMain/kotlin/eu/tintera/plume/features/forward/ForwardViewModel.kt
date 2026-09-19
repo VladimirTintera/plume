@@ -46,7 +46,8 @@ class ForwardViewModel(
         query,
         _sending,
         _error,
-    ) { chatList, text, sending, error ->
+        chatRepository.savedMessagesChatId,
+    ) { chatList, text, sending, error, saved ->
         val chats = (chatList as? ChatListState.Ready)?.chats.orEmpty()
         ForwardState(
             query = text,
@@ -57,6 +58,7 @@ class ForwardViewModel(
             chats = chats.filter { it.title.contains(text.trim(), ignoreCase = true) },
             sending = sending,
             error = error,
+            savedMessagesChatId = saved,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ForwardState())
 
@@ -96,4 +98,5 @@ data class ForwardState(
     val chats: List<ChatSummary> = emptyList(),
     val sending: Boolean = false,
     val error: UiText? = null,
+    val savedMessagesChatId: Long? = null,
 )

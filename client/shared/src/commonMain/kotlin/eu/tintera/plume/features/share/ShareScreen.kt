@@ -44,13 +44,15 @@ class ShareViewModel(
         chatRepository.chats,
         query,
         requests.incoming,
-    ) { chatList, text, content ->
+        chatRepository.savedMessagesChatId,
+    ) { chatList, text, content, saved ->
         ShareState(
             query = text,
             loading = chatList is ChatListState.Loading,
             chats = (chatList as? ChatListState.Ready)?.chats.orEmpty()
                 .filter { it.title.contains(text.trim(), ignoreCase = true) },
             content = content,
+            savedMessagesChatId = saved,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ShareState(content = requests.incoming.value))
 
@@ -68,6 +70,7 @@ data class ShareState(
     val loading: Boolean = true,
     val chats: List<ChatSummary> = emptyList(),
     val content: SharedContent? = null,
+    val savedMessagesChatId: Long? = null,
 )
 
 @Composable
@@ -112,6 +115,7 @@ fun ShareScreen(
         },
         onBack = onBack,
         subtitle = subtitle,
+        savedMessagesChatId = state.savedMessagesChatId,
         modifier = modifier,
     )
 }

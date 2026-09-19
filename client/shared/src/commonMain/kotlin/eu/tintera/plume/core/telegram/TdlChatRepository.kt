@@ -77,8 +77,11 @@ class TdlChatRepository(
     private var exhausted = false
     private var started = false
 
-    /** Id přihlášeného účtu; `null`, dokud přihlášení neproběhne. */
-    private var myUserId: Long? = null
+    /** Id přihlášeného účtu; `null`, dokud přihlášení neproběhne. Je to i id Uložených zpráv. */
+    private val me = MutableStateFlow<Long?>(null)
+    private val myUserId: Long? get() = me.value
+
+    override val savedMessagesChatId: StateFlow<Long?> = me.asStateFlow()
 
     /** Odpočty zhasnutí „píše…", jeden na chat. */
     private val activityTimers = mutableMapOf<Long, Job>()
@@ -103,7 +106,11 @@ class TdlChatRepository(
                     AuthStage.Ready -> {
                         // Vlastní id se potřebuje u „píše…", aby se nehlásila naše vlastní
                         // činnost. Zjišťuje se jednou, ne při každém updatu.
-                        myUserId = session.me().getOrNull()?.id
+                        me.value = session.me().getOrNull()?.id
+                        // Uložené zprávy musí TDLib znát, jinak je nejde otevřít ani do nich
+                        // přeposlat či sdílet — u účtu, který si nic neuložil, v databázi
+                        // nejsou. `createPrivateChat` je lokální a nic neposílá.
+                        me.value?.let { openSavedMessages() }
                         loadMore()
                     }
 
@@ -312,6 +319,12 @@ class TdlChatRepository(
             .toResult()
             .map { }
 
+    override suspend fun openSavedMessages(): Result<Long> {
+        val userId = me.value ?: session.me().getOrNull()?.id
+            ?: return Result.failure(IllegalStateException("Účet není přihlášený."))
+        return holder.client.createPrivateChat(userId = userId, force = false).toResult().map { it.id }
+    }
+
     override suspend fun deleteOrLeave(chatId: Long): Result<Unit> {
         val summary = mutex.withLock { known[chatId] }
             ?: return Result.failure(IllegalStateException("Chat není v seznamu."))
@@ -458,7 +471,7 @@ class TdlChatRepository(
             activityTimers.values.forEach { it.cancel() }
             activityTimers.clear()
         }
-        myUserId = null
+        me.value = null
         exhausted = false
         _chats.value = ChatListState.Loading
     }

@@ -36,6 +36,8 @@
     <string name="auth_error_missing_api_credentials">Chybí api_id/api_hash. Vygeneruj si je na my.telegram.org a vlož do local.properties jako telegramApiId a telegramApiHash.</string>
     <string name="auth_error_start_failed">Nepodařilo se spustit spojení s Telegramem.</string>
     <string name="chats_empty">Zatím tu nic není.</string>
+    <string name="saved_messages">Uložené zprávy</string>
+    <string name="chats_menu">Další možnosti</string>
     <string name="chats_section_pinned">Připnuto</string>
     <string name="chats_muted">Ztlumeno</string>
     <string name="chats_draft_prefix">Koncept: </string>

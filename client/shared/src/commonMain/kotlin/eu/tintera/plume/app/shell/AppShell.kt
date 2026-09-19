@@ -1,5 +1,7 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.core.ui.LocalSavedMessagesChatId
+import eu.tintera.plume.core.telegram.ChatRepository
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -304,7 +306,10 @@ private fun ShellContent(
 
         // Dvoupanelový stav se hlásí dolů: obrazovky podle něj poznají, že se nevyměňují,
         // a sdílený prvek nezaloží — viz LocalTwoPane.
-        CompositionLocalProvider(LocalTwoPane provides wide) {
+        // Id Uložených zpráv pro všechno, co kreslí chat (název, záložka místo fotky).
+        val savedMessagesChatId by koinInject<ChatRepository>().savedMessagesChatId.collectAsStateWithLifecycle()
+
+        CompositionLocalProvider(LocalTwoPane provides wide, LocalSavedMessagesChatId provides savedMessagesChatId) {
             val entryProvider = shellEntryProvider(
                 chatsStack = chatsStack,
                 settingsStack = settingsStack,

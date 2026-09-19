@@ -16,12 +16,21 @@ import eu.tintera.plume.core.telegram.ChatSummary
  * Prázdné skupiny vypadnou, aby po nich nezbyla mezera. Bez připnutých a bez vyčleněných
  * nepřečtených je z celého seznamu zase jeden souvislý blok.
  *
+ * **Uložené zprávy ([savedMessagesChatId]) v seznamu nejsou, pokud nejsou připnuté.** Otevírají
+ * se z menu v horní liště, jako v oficiálních klientech; připnutí je ale výslovné přání a schovat
+ * připnutý chat by působilo jako chyba.
+ *
  * Je to čistá funkce mimo composable, aby šla otestovat — uvnitř `@Composable` by se neověřila
  * ani jedna z hraničních kombinací (samé připnuté, samé nepřečtené, prázdný seznam).
  */
-fun chatGroups(chats: List<ChatSummary>, separateUnread: Boolean): List<List<ChatSummary>> {
-    val pinned = chats.filter { it.isPinned }
-    val rest = chats.filter { !it.isPinned }
+fun chatGroups(
+    chats: List<ChatSummary>,
+    separateUnread: Boolean,
+    savedMessagesChatId: Long? = null,
+): List<List<ChatSummary>> {
+    val visible = chats.filter { it.id != savedMessagesChatId || it.isPinned }
+    val pinned = visible.filter { it.isPinned }
+    val rest = visible.filter { !it.isPinned }
 
     val groups = if (separateUnread) {
         listOf(pinned, rest.filter { it.unreadCount > 0 }, rest.filter { it.unreadCount == 0 })

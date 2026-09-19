@@ -16,6 +16,8 @@ struct ShareSnapshotChat: Decodable, Identifiable, Hashable {
     let title: String
     /// Jméno souboru v `share/avatars`, nebo `nil`, když profilovka není stažená.
     let avatar: String?
+    /// Uložené zprávy: záložka místo profilovky. Název už je přeložený z aplikace.
+    let saved: Bool?
 }
 
 struct ShareManifest: Encodable {

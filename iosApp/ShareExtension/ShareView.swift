@@ -111,7 +111,15 @@ private struct ChatRow: View {
 
     @ViewBuilder
     private var avatar: some View {
-        if let name = chat.avatar,
+        if chat.saved == true {
+            // Uložené zprávy jako v aplikaci: záložka na plné barvě.
+            ZStack {
+                Circle().fill(Color.accentColor)
+                Image(systemName: "bookmark.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+        } else if let name = chat.avatar,
            let url = ShareStore.avatarURL(name),
            let image = UIImage(contentsOfFile: url.path) {
             Image(uiImage: image).resizable().scaledToFill()

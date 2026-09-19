@@ -129,8 +129,9 @@ fun appModule() = module {
     // Most mezi platformním vstupem (ťuknutí na notifikaci) a navigací.
     single { ChatOpenRequests() }
     single { ShareRequests() }
-    single {
-        ShareTargets(repository = get(), files = get(), publisher = get(), scope = get(named(APP_SCOPE)))
+    // Eager: po přihlášení zaregistruje Uložené zprávy jako cíl sdílení (viz init).
+    single(createdAtStart = true) {
+        ShareTargets(repository = get(), chats = get(), files = get(), publisher = get(), scope = get(named(APP_SCOPE)))
     }
 
     viewModelOf(::AuthViewModel)

@@ -15,6 +15,22 @@ interface ChatRepository {
 
     val chats: StateFlow<ChatListState>
 
+    /**
+     * Id chatu Uložené zprávy; `null`, dokud není přihlášeno.
+     *
+     * Uložené zprávy jsou v Telegramu obyčejný soukromý chat s vlastním účtem, a id soukromého
+     * chatu je id uživatele — takže je to id přihlášeného účtu. Kreslí se ale jinak (vlastní
+     * název a ikona, ne jméno a fotka uživatele) a v seznamu chatů nejsou, pokud nejsou připnuté;
+     * otevírají se z menu v horní liště.
+     */
+    val savedMessagesChatId: StateFlow<Long?>
+
+    /**
+     * Připraví chat Uložené zprávy k otevření a vrátí jeho id. TDLib ho zná, až když ho
+     * vytvoří `createPrivateChat` — u účtu, který si nic neuložil, v databázi být nemusí.
+     */
+    suspend fun openSavedMessages(): Result<Long>
+
     /** Požádá TDLib o dotažení dalších chatů ze serveru. Výsledek přijde updaty do [chats]. */
     suspend fun loadMore()
 
