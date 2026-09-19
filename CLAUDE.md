@@ -723,7 +723,8 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
   `ulozeneZpravyJenPripnute`). Vstup je menu ⋮ v horní liště (vedle archivu). Připnutí
   je výslovné přání uživatele, takže připnuté zůstávají — schovat je by působilo jako chyba.
 - **Ve výběrech (přeposlání, sdílení, iOS rozšíření, Direct Share) jsou vždy první**, i když
-  v seznamu chatů nejsou. „Pošlu si to" je nejčastější cíl. Hledání je najde podle přeloženého
+  v seznamu chatů nejsou. V `ChatPicker` jako samostatná karta v `primaryContainer` nad
+  seznamem, ne jeho první řádek — v řadě chatů by nejčastější cíl splynul s ostatními. „Pošlu si to" je nejčastější cíl. Hledání je najde podle přeloženého
   názvu.
 - **Chat se zakládá hned po přihlášení** (`createPrivateChat`, lokální). U účtu, který si nic
   neuložil, ho TDLib v databázi nemá a nešlo by ho otevřít ani do něj přeposlat.

@@ -1,6 +1,5 @@
 package eu.tintera.plume.features.forward
 
-import eu.tintera.plume.resources.saved_messages
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,11 +12,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
@@ -27,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -37,11 +39,12 @@ import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.close_24dp
-import eu.tintera.plume.resources.common_close
 import eu.tintera.plume.resources.common_back
+import eu.tintera.plume.resources.common_close
 import eu.tintera.plume.resources.forward_empty
 import eu.tintera.plume.resources.forward_search
 import eu.tintera.plume.resources.forward_title
+import eu.tintera.plume.resources.saved_messages
 import eu.tintera.plume.resources.search_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -180,14 +183,30 @@ fun ChatPicker(
 
             LazyColumn(Modifier.fillMaxSize()) {
                 if (showSaved && savedMessagesChatId != null) {
+                    /*
+                     * Uložené zprávy jsou samostatná karta nad seznamem, ne jeho první řádek.
+                     * „Pošlu si to" (poznámky, odkazy na později) je nejčastější cíl a v řadě
+                     * chatů by splynul s ostatními. Tonální `primaryContainer` ji odliší barvou,
+                     * kolem jen mezera — stejný jazyk jako karta aktualizace v seznamu chatů.
+                     */
                     item(key = savedMessagesChatId) {
-                        ListItem(
-                            headlineContent = { Text(savedTitle) },
-                            leadingContent = {
-                                Avatar(chatId = savedMessagesChatId, title = savedTitle, avatarFileId = null, size = 40.dp, isSavedMessages = true)
-                            },
-                            modifier = Modifier.clickable(enabled = enabled) { onPick(savedMessagesChatId) },
-                        )
+                        Surface(
+                            onClick = { onPick(savedMessagesChatId) },
+                            enabled = enabled,
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        ) {
+                            ListItem(
+                                headlineContent = { Text(savedTitle, style = MaterialTheme.typography.titleMedium) },
+                                leadingContent = {
+                                    Avatar(chatId = savedMessagesChatId, title = savedTitle, avatarFileId = null, size = 40.dp, isSavedMessages = true)
+                                },
+                                // Barvu nese karta; průhledný řádek ji nepřekryje.
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            )
+                        }
                     }
                 }
                 items(others, key = { it.id }) { chat ->
