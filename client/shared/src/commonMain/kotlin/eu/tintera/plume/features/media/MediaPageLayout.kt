@@ -10,6 +10,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
@@ -18,9 +21,13 @@ import kotlin.math.roundToInt
  * Stránka prohlížeče: **karta se snímkem a pod ní popisek**, obojí svisle na středu.
  *
  * Vlastní `Layout`, protože karta se musí vejít do místa, které popisek nechá — nejdřív se změří
- * popisek, pak se snímek vepíše do zbytku ([fitInto]). S kartou přes celou výšku by dlouhý
+ * popisek, pak se snímek vepíše do zbytku ([pageCardFrame]). S kartou přes celou výšku by dlouhý
  * popisek zajel přes fotku, a s popiskem jako samostatnou lištou by fotka poskočila při
  * listování mezi stránkou s popiskem a bez něj.
+ *
+ * Místo pro lišty ([reservedTop], [reservedBottom]) i pro popisek se s [immersion] plynule
+ * vrací kartě — v režimu celé obrazovky se snímek vepisuje do celé stránky. Čte se až při
+ * měření, takže přechod nerekomponuje.
  *
  * [card] dostane přesnou velikost vepsaného snímku; tvar a obsah si kreslí sám.
  */
@@ -29,6 +36,11 @@ internal fun MediaPageLayout(
     aspectRatio: Float,
     caption: String,
     modifier: Modifier = Modifier,
+    /** Místo nahoře a dole, které v galerii patří lištám. */
+    reservedTop: Dp = 0.dp,
+    reservedBottom: Dp = 0.dp,
+    /** 0 = galerie, 1 = celá obrazovka. Čte se při měření a kreslení. */
+    immersion: () -> Float = { 0f },
     /**
      * Průhlednost popisku, čtená až při kreslení. Sousední stránka vykukuje u okraje i s kusem
      * popisku; ten tam jen ruší, takže mizí, jak stránka odjíždí ze středu.
@@ -53,7 +65,7 @@ internal fun MediaPageLayout(
                         maxLines = CAPTION_MAX_LINES,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier
-                            .graphicsLayer { alpha = captionAlpha() }
+                            .graphicsLayer { alpha = captionAlpha() * (1f - immersion()) }
                             .padding(horizontal = 4.dp),
                     )
                 }
@@ -64,20 +76,46 @@ internal fun MediaPageLayout(
         val width = constraints.maxWidth
         val height = constraints.maxHeight
         val caption = captionMeasurables.firstOrNull()?.measure(Constraints(maxWidth = width))
-        val gap = if (caption != null) CAPTION_GAP.roundToPx() else 0
-        val captionHeight = caption?.height ?: 0
+        val gallery = 1f - immersion()
 
-        val size = fitInto(width, (height - captionHeight - gap).coerceAtLeast(0), aspectRatio)
-        val card = cardMeasurables.first().measure(Constraints.fixed(size.width, size.height))
+        val frame = pageCardFrame(
+            pageSize = IntSize(width, height),
+            reservedTop = (reservedTop.roundToPx() * gallery).roundToInt(),
+            reservedBottom = (reservedBottom.roundToPx() * gallery).roundToInt(),
+            captionHeight = ((caption?.height ?: 0) * gallery).roundToInt(),
+            captionGap = if (caption != null) (CAPTION_GAP.roundToPx() * gallery).roundToInt() else 0,
+            aspectRatio = aspectRatio,
+        )
+        val card = cardMeasurables.first().measure(Constraints.fixed(frame.width, frame.height))
 
-        val top = ((height - size.height - gap - captionHeight) / 2).coerceAtLeast(0)
         layout(width, height) {
-            val left = ((width - size.width) / 2f * (1f + cardBias().coerceIn(-1f, 1f))).roundToInt()
-            card.place(left, top)
+            val left = ((width - frame.width) / 2f * (1f + cardBias().coerceIn(-1f, 1f))).roundToInt()
+            card.place(left, frame.top)
             // Popisek začíná u levé hrany karty, ať u úzké fotky nevisí u okraje obrazovky.
-            caption?.place(left.coerceAtMost(width - caption.width), top + size.height + gap)
+            caption?.place(
+                IntOffset(left.coerceAtMost(width - caption.width), frame.bottom + (CAPTION_GAP.roundToPx() * gallery).roundToInt()),
+            )
         }
     }
+}
+
+/**
+ * Kde ve stránce leží karta: vepsaná do místa mezi lištami a nad popiskem, svisle na středu
+ * toho místa. Vodorovně je vycentrovaná; posun do strany (`cardBias`) přidává až umístění.
+ */
+internal fun pageCardFrame(
+    pageSize: IntSize,
+    reservedTop: Int,
+    reservedBottom: Int,
+    captionHeight: Int,
+    captionGap: Int,
+    aspectRatio: Float,
+): IntRect {
+    val available = (pageSize.height - reservedTop - reservedBottom).coerceAtLeast(0)
+    val size = fitInto(pageSize.width, (available - captionHeight - captionGap).coerceAtLeast(0), aspectRatio)
+    val top = reservedTop + ((available - size.height - captionGap - captionHeight) / 2).coerceAtLeast(0)
+    val left = (pageSize.width - size.width) / 2
+    return IntRect(IntOffset(left, top), size)
 }
 
 /**

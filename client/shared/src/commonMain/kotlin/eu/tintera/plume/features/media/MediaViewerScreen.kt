@@ -3,6 +3,7 @@ package eu.tintera.plume.features.media
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -32,6 +33,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -50,6 +52,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -58,6 +61,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -70,6 +74,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.HazeInput
@@ -127,7 +132,9 @@ import org.jetbrains.compose.resources.stringResource
  * - **Snímek je karta se zaoblením** a sousední stránky u okrajů vykukují — je vidět, že se dá
  *   listovat, ještě než se to uživatel zkusí.
  * - **Lišty jsou nad kartou, ne přes ni**: nahoře kdo a kdy fotku poslal a akce, dole reakce.
- *   Ťuknutí na snímek je schová i ukáže.
+ *
+ * Tohle je **galerie**. Ťuknutí, dvojité ťuknutí nebo štípnutí na snímku přepne prohlížeč
+ * na **celou obrazovku** (viz [ViewerContent]); další ťuknutí vrátí galerii.
  */
 @Composable
 fun MediaViewerScreen(
@@ -260,7 +267,25 @@ private fun ViewerContent(
     }
 
     val current = items.getOrNull(pagerState.currentPage)
-    var chromeVisible by remember { mutableStateOf(true) }
+
+    /*
+     * Galerie, nebo celá obrazovka. Na celé obrazovce je pozadí černé, lišty a popisek zmizí
+     * a každá stránka má celou šířku, bez vykukujících sousedů. Přepíná se gestem nad snímkem:
+     * ťuknutí oběma směry, dvojité ťuknutí a štípnutí jen dovnitř — přiblížená fotka i fotka
+     * vrácená na základní velikost zůstávají na celé obrazovce.
+     *
+     * Režim patří celému prohlížeči, ne stránce: listuje se v něm dál.
+     */
+    var immersive by rememberSaveable { mutableStateOf(false) }
+    val immersionState = animateFloatAsState(
+        targetValue = if (immersive) 1f else 0f,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "media-immersion",
+    )
+    // Pružina přestřelí; záporné odsazení nebo zaoblení by layout odmítl.
+    val immersion = { immersionState.value.coerceIn(0f, 1f) }
+    val enterImmersive = { immersive = true }
+    val toggleImmersive = { immersive = !immersive }
 
     // Obsah pod prohlížečem prosvítá, jak se fotka odtahuje pryč — je tím vidět, že gesto něco
     // dělá, ještě než se pustí. Pozadí i lišty mizí spolu.
@@ -273,12 +298,19 @@ private fun ViewerContent(
     val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() } + BOTTOM_BAR_HEIGHT
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        AmbientBackground(items, pagerState, Modifier.fillMaxSize().then(fadeWithDismiss))
+        AmbientBackground(items, pagerState, immersion, Modifier.fillMaxSize().then(fadeWithDismiss))
 
         // Na širokém displeji má stránka strop, jinak by sousedé leželi daleko za okrajem.
-        val pageInset = max(PAGE_INSET.value, ((maxWidth - MAX_PAGE_WIDTH) / 2).value).dp
+        val galleryInset = max(PAGE_INSET.value, ((maxWidth - MAX_PAGE_WIDTH) / 2).value).dp
         // Na širokém displeji je kolem karty místa dost a těsná mezera by z ní dělala stěnu.
-        val pageGap = if (pageInset > PAGE_INSET) WIDE_PAGE_GAP else PAGE_GAP
+        val galleryGap = if (galleryInset > PAGE_INSET) WIDE_PAGE_GAP else PAGE_GAP
+        /*
+         * Na celé obrazovce má stránka celou šířku. Pager bere odsazení jen jako hodnotu, takže
+         * se tady čte v kompozici — přechod mezi režimy tím rekomponuje, ale jen po dobu animace.
+         */
+        val progress = immersion()
+        val pageInset = lerp(galleryInset, 0.dp, progress)
+        val pageGap = lerp(galleryGap, IMMERSIVE_PAGE_GAP, progress)
 
         HorizontalPager(
             state = pagerState,
@@ -300,17 +332,25 @@ private fun ViewerContent(
              * od okraje a soused by nebyl vidět vůbec. Sousední karta se proto přisouvá k okraji
              * blíž aktuální stránce — plynule s tahem, takže uprostřed obrazovky stojí vždy na středu.
              */
-            val cardBias = { (-pagerState.getOffsetDistanceInPages(page)).coerceIn(-1f, 1f) }
-            val pageModifier = Modifier.fillMaxSize().padding(top = topInset + PAGE_VERTICAL_GAP, bottom = bottomInset + PAGE_VERTICAL_GAP)
+            // Na celé obrazovce se nepřisouvá: sousedé vidět nemají.
+            val cardBias = { (-pagerState.getOffsetDistanceInPages(page)).coerceIn(-1f, 1f) * (1f - immersion()) }
+            val pageModifier = Modifier.fillMaxSize()
+            val reservedTop = topInset + PAGE_VERTICAL_GAP
+            val reservedBottom = bottomInset + PAGE_VERTICAL_GAP
             when (val media = item.media) {
                 is MessageMedia.Video -> VideoPage(
                     video = media,
                     messageId = item.messageId,
                     caption = item.caption,
                     isCurrent = isCurrent,
+                    immersive = immersive,
+                    immersion = immersion,
+                    reservedTop = reservedTop,
+                    reservedBottom = reservedBottom,
                     dismissDrag = dismissDrag,
                     onDismiss = onDismiss,
-                    onTap = { chromeVisible = !chromeVisible },
+                    onTap = toggleImmersive,
+                    onEngage = enterImmersive,
                     modifier = pageModifier,
                     captionAlpha = captionAlpha,
                     cardBias = cardBias,
@@ -321,9 +361,14 @@ private fun ViewerContent(
                     messageId = item.messageId,
                     caption = item.caption,
                     isCurrent = isCurrent,
+                    immersive = immersive,
+                    immersion = immersion,
+                    reservedTop = reservedTop,
+                    reservedBottom = reservedBottom,
                     dismissDrag = dismissDrag,
                     onDismiss = onDismiss,
-                    onTap = { chromeVisible = !chromeVisible },
+                    onTap = toggleImmersive,
+                    onEngage = enterImmersive,
                     modifier = pageModifier,
                     captionAlpha = captionAlpha,
                     cardBias = cardBias,
@@ -333,11 +378,13 @@ private fun ViewerContent(
             }
         }
 
+        SystemBarShades(immersion, fadeWithDismiss)
+
         val chromeEnter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec())
         val chromeExit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec())
 
         AnimatedVisibility(
-            visible = chromeVisible && current != null,
+            visible = !immersive && current != null,
             enter = chromeEnter,
             exit = chromeExit,
             modifier = Modifier.align(Alignment.TopStart).then(fadeWithDismiss),
@@ -359,7 +406,7 @@ private fun ViewerContent(
 
         val emoji = current?.let { state.availableReactions[it.messageId] }.orEmpty()
         AnimatedVisibility(
-            visible = chromeVisible && current != null && emoji.isNotEmpty(),
+            visible = !immersive && current != null && emoji.isNotEmpty(),
             enter = chromeEnter,
             exit = chromeExit,
             modifier = Modifier.align(Alignment.BottomCenter).then(fadeWithDismiss),
@@ -388,7 +435,13 @@ private fun ViewerContent(
  * nad zprávou — ten má i náhradu pro Android 11 a starší, kde se kreslí jen tmavý závoj.
  */
 @Composable
-private fun AmbientBackground(items: List<ViewerItem>, pagerState: PagerState, modifier: Modifier = Modifier) {
+private fun AmbientBackground(
+    items: List<ViewerItem>,
+    pagerState: PagerState,
+    /** Na celé obrazovce rozostřené pozadí mizí do černé. */
+    immersion: () -> Float,
+    modifier: Modifier = Modifier,
+) {
     val hazeState = rememberHazeState()
     val scrim = MaterialTheme.colorScheme.scrim
     val style = remember(scrim) {
@@ -403,8 +456,10 @@ private fun AmbientBackground(items: List<ViewerItem>, pagerState: PagerState, m
 
     // Ořez je nutný: pozadí sousedů leží posunuté mimo plochu a na širokém rozvržení by vlevo
     // přes rail prosvítalo nerozostřené (rozostření pokrývá jen plochu prohlížeče).
-    Box(modifier.clipToBounds().background(scrim)) {
-        Box(Modifier.fillMaxSize().hazeSource(hazeState)) {
+    Box(modifier.clipToBounds().background(Color.Black)) {
+        // Zmizelé pozadí se nekreslí vůbec — rozostření by jinak běželo pod černou dál.
+        if (immersion() >= 1f) return@Box
+        Box(Modifier.fillMaxSize().hazeSource(hazeState).graphicsLayer { alpha = 1f - immersion() }) {
             for (page in (current - 1)..(current + 1)) {
                 val item = items.getOrNull(page) ?: continue
                 val fileId = when (val media = item.media) {
@@ -427,8 +482,46 @@ private fun AmbientBackground(items: List<ViewerItem>, pagerState: PagerState, m
                 }
             }
         }
-        Box(Modifier.fillMaxSize().hazeBlur(input = HazeInput.Sources(hazeState), style = style))
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = 1f - immersion() }
+                .hazeBlur(input = HazeInput.Sources(hazeState), style = style),
+        )
     }
+}
+
+/**
+ * Ztmavení pod systémovými lištami na celé obrazovce.
+ *
+ * Lišty zůstávají (čas, notifikace), jen přes přiblížený nebo vysoký snímek by světlé ikony
+ * na světlém záběru nebyly vidět. Přechod do průhledna, ne pruh — plná plocha by ukrojila
+ * kus fotky.
+ */
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.SystemBarShades(immersion: () -> Float, fade: Modifier) {
+    val density = LocalDensity.current
+    val top = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
+    val bottom = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
+    val shade = Color.Black.copy(alpha = BAR_SHADE_ALPHA)
+    Box(
+        Modifier
+            .align(Alignment.TopCenter)
+            .fillMaxWidth()
+            .height(top + BAR_SHADE_EXTRA)
+            .then(fade)
+            .graphicsLayer { alpha = immersion() }
+            .background(Brush.verticalGradient(listOf(shade, Color.Transparent))),
+    )
+    Box(
+        Modifier
+            .align(Alignment.BottomCenter)
+            .fillMaxWidth()
+            .height(bottom + BAR_SHADE_EXTRA)
+            .then(fade)
+            .graphicsLayer { alpha = immersion() }
+            .background(Brush.verticalGradient(listOf(Color.Transparent, shade))),
+    )
 }
 
 /**
@@ -654,8 +747,10 @@ private class CardGeometry {
 /**
  * Fotka s přiblížením.
  *
- * Gesta jsou dvě a **každé má vlastní `pointerInput`**: tah a štípnutí, a ťuknutí (skrytí lišt,
- * dvojité přiblížení). Obě sedí na celé stránce, ne na kartě — štípnout jde i vedle úzké fotky.
+ * Gesta jsou dvě a **každé má vlastní `pointerInput`**: tah a štípnutí, a ťuknutí (přepnutí
+ * galerie a celé obrazovky, dvojité přiblížení). Obě sedí na celé stránce, ne na kartě —
+ * štípnout jde i vedle úzké fotky. Štípnutí a dvojité ťuknutí přepnou na celou obrazovku
+ * ([onEngage]); přiblížení v galerii nedává smysl, fotka by rostla přes lišty.
  *
  * Tah se nerozpoznává přes `detectTransformGestures`. Ten konzumuje pohyb v každém směru,
  * takže by fotka spolkla i vodorovný tah a pager nad ní by nešel posunout. Proto vlastní
@@ -673,16 +768,24 @@ private fun ZoomableImage(
     caption: String,
     /** Stránka, na které pager stojí. Odlistovaná fotka se vrací do základní velikosti. */
     isCurrent: Boolean,
+    /** Celá obrazovka; návrat do galerie vrací přiblížení na základní velikost. */
+    immersive: Boolean,
+    immersion: () -> Float,
+    reservedTop: Dp,
+    reservedBottom: Dp,
     dismissDrag: Animatable<Float, *>,
     onDismiss: () -> Unit,
     onTap: () -> Unit,
+    /** Přiblížení gestem — přepne na celou obrazovku. */
+    onEngage: () -> Unit,
     modifier: Modifier = Modifier,
     captionAlpha: () -> Float = { 1f },
     cardBias: () -> Float = { 0f },
 ) {
     val scope = rememberCoroutineScope()
-    val shape = MaterialTheme.shapes.large
     val card = remember { CardGeometry() }
+    val currentEngage by rememberUpdatedState(onEngage)
+    val currentTap by rememberUpdatedState(onTap)
 
     var scale by remember { mutableFloatStateOf(1f) }
     var offsetX by remember { mutableFloatStateOf(0f) }
@@ -698,9 +801,26 @@ private fun ZoomableImage(
         }
     }
 
+    // Galerie přiblížení nezná: fotka dosedne zpátky spolu s tím, jak se karta zmenšuje.
+    LaunchedEffect(immersive) {
+        if (!immersive && scale != 1f) {
+            val fromScale = scale
+            val fromX = offsetX
+            val fromY = offsetY
+            animate(0f, 1f) { progress, _ ->
+                scale = fromScale + (1f - fromScale) * progress
+                offsetX = fromX * (1f - progress)
+                offsetY = fromY * (1f - progress)
+            }
+        }
+    }
+
     MediaPageLayout(
         aspectRatio = aspectRatioOf(photo.width, photo.height),
         caption = caption,
+        reservedTop = reservedTop,
+        reservedBottom = reservedBottom,
+        immersion = immersion,
         captionAlpha = captionAlpha,
         cardBias = cardBias,
         modifier = modifier
@@ -738,6 +858,9 @@ private fun ZoomableImage(
 
                         when (gesture) {
                             Gesture.Transform -> {
+                                // Štípnutí v galerii přepne na celou obrazovku; posun přiblížené
+                                // fotky se tam dá dělat jen na ní, takže se nic nemění.
+                                if (fingers > 1) currentEngage()
                                 val zoom = event.calculateZoom()
                                 val centroid = event.calculateCentroid(useCurrent = false)
                                 val next = (scale * zoom).coerceIn(1f, MAX_SCALE)
@@ -786,8 +909,9 @@ private fun ZoomableImage(
             }
             .pointerInput(Unit) {
                 detectTapGestures(
-                    onTap = { onTap() },
+                    onTap = { currentTap() },
                     onDoubleTap = { tap ->
+                        currentEngage()
                         val target = if (scale > 1f) 1f else DOUBLE_TAP_SCALE
                         val relativeX = tap.x - card.bounds.center.x
                         val relativeY = tap.y - card.bounds.center.y
@@ -850,8 +974,9 @@ private fun ZoomableImage(
                     translationX = offsetX
                     translationY = offsetY
                     // Zaoblení nese vrstva, takže se s přiblížením zvětšuje spolu s fotkou.
+                    // Na celé obrazovce mizí: fotka jde od kraje ke kraji.
                     clip = true
-                    this.shape = shape
+                    this.shape = RoundedCornerShape(CARD_CORNER * (1f - immersion()))
                 },
         )
     }
@@ -892,6 +1017,16 @@ private val MAX_PAGE_WIDTH = 640.dp
 
 /** Mezera mezi kartami, když je stránka zastropovaná a místa je dost. */
 private val WIDE_PAGE_GAP = 24.dp
+
+/** Na celé obrazovce mezi fotkami při listování — jen černý pruh, aby na sebe nenalepily. */
+private val IMMERSIVE_PAGE_GAP = 16.dp
+
+/** Zaoblení karty v galerii (`shapes.large`); na celé obrazovce jde k nule. */
+internal val CARD_CORNER = 16.dp
+
+/** Ztmavení pod systémovými lištami na celé obrazovce; přechod sahá kus pod lištu. */
+private const val BAR_SHADE_ALPHA = 0.45f
+private val BAR_SHADE_EXTRA = 24.dp
 
 /** Vzduch mezi kartou a lištami. */
 private val PAGE_VERTICAL_GAP = 8.dp
