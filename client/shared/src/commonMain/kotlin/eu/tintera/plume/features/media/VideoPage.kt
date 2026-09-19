@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
@@ -37,6 +38,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.audio.VoicePlayer
@@ -79,11 +82,18 @@ import org.koin.compose.koinInject
 /**
  * Stránka prohlížeče s videem.
  *
+ * - **V galerii je video jen náhled s tlačítkem přehrání.** Hraje se až na celé obrazovce:
+ *   ťuknutí (kamkoli na stránku, nebo na tlačítko) přepne na celou obrazovku a tam se teprve
+ *   začne stahovat a přehrávat. Galerie je přehled k listování; video, které se rozehraje samo
+ *   pod prstem, do ní nepatří. Návrat do galerie video pozastaví a ukáže zase náhled.
  * - **Video se stahuje celé, teprve pak hraje.** TDLib soubor stahuje po částech a přehrávač by
  *   z rozestavěného souboru (index často na konci) nepřečetl nic. Do té doby náhled a průběh.
- *   Stahování začne, až je stránka vybraná — soused složený dopředu stahovat nemá.
+ *   Stahování začne, až je stránka vybraná na celé obrazovce — soused složený dopředu
+ *   stahovat nemá.
  * - **Hraje jen vybraná stránka**; odlistování pozastaví, návrat pokračuje.
- * - **Ovládání se schová po [CONTROLS_HIDE_MS]** během přehrávání, ťuknutí ho vrátí.
+ * - **Ovládání se schová po [CONTROLS_HIDE_MS]** během přehrávání. Ťuknutí na celé obrazovce
+ *   ho napřed vrátí, a teprve ťuknutí s ovládáním na očích vede zpátky do galerie. Jinak by
+ *   se k posuvníku u hrajícího videa nedalo dostat.
  * - **Tah dolů/nahoru zavírá** jako u fotky; vodorovný tah nechává pageru.
  * - **Karta jako u fotky** ([MediaPageLayout]): video se zaoblením, posuvník na jejím spodku,
  *   popisek pod ní.
@@ -95,9 +105,16 @@ internal fun VideoPage(
     messageId: Long,
     caption: String,
     isCurrent: Boolean,
+    immersive: Boolean,
+    immersion: () -> Float,
+    reservedTop: Dp,
+    reservedBottom: Dp,
     dismissDrag: Animatable<Float, *>,
     onDismiss: () -> Unit,
+    /** Přepne galerii a celou obrazovku. */
     onTap: () -> Unit,
+    /** Přepne na celou obrazovku (tlačítko přehrání v galerii). */
+    onEngage: () -> Unit,
     modifier: Modifier = Modifier,
     captionAlpha: () -> Float = { 1f },
     cardBias: () -> Float = { 0f },
@@ -106,9 +123,14 @@ internal fun VideoPage(
     val repository = koinInject<FileRepository>()
     val voicePlayer = koinInject<VoicePlayer>()
 
-    // Jednou vybraná stránka stahuje dál, i když se odlistuje — rozstahované video se nezahazuje.
+    // Hraje (a stahuje se) jen vybraná stránka na celé obrazovce.
+    val active = isCurrent && immersive
+    val currentTap by rememberUpdatedState(onTap)
+    val currentImmersive by rememberUpdatedState(immersive)
+
+    // Jednou spuštěné video stahuje dál, i když se odlistuje — rozstahované se nezahazuje.
     var started by remember { mutableStateOf(false) }
-    LaunchedEffect(isCurrent) { if (isCurrent) started = true }
+    LaunchedEffect(active) { if (active) started = true }
     val file by produceState<FileState>(FileState.Pending, video.fileId, started) {
         if (started) repository.file(video.fileId).collect { value = it }
     }
@@ -131,9 +153,9 @@ internal fun VideoPage(
         }
     }
 
-    LaunchedEffect(loaded, isCurrent) {
+    LaunchedEffect(loaded, active) {
         if (!loaded) return@LaunchedEffect
-        if (isCurrent) {
+        if (active) {
             // Hrající hlasovka by se s videem prala o reproduktor.
             voicePlayer.stop()
             player.play()
@@ -143,8 +165,8 @@ internal fun VideoPage(
     }
 
     // Přehrávač stav nehlásí; čte se po kouskách, jen dokud je stránka vybraná.
-    LaunchedEffect(loaded, isCurrent) {
-        if (!loaded || !isCurrent) return@LaunchedEffect
+    LaunchedEffect(loaded, active) {
+        if (!loaded || !active) return@LaunchedEffect
         while (true) {
             positionMs = player.positionMs
             player.durationMs.takeIf { it > 0 }?.let { durationMs = it }
@@ -163,12 +185,15 @@ internal fun VideoPage(
 
     // Po dohrání se ovládání vrátí, ať je vidět tlačítko na opakování.
     LaunchedEffect(ended) { if (ended) controlsVisible = true }
-
-    val shape = MaterialTheme.shapes.large
+    // Na celou obrazovku se přichází s ovládáním na očích; během přehrávání se samo schová.
+    LaunchedEffect(immersive) { if (immersive) controlsVisible = true }
 
     MediaPageLayout(
         aspectRatio = aspectRatioOf(video.width, video.height),
         caption = caption,
+        reservedTop = reservedTop,
+        reservedBottom = reservedBottom,
+        immersion = immersion,
         captionAlpha = captionAlpha,
         cardBias = cardBias,
         modifier = modifier
@@ -204,10 +229,8 @@ internal fun VideoPage(
                 }
             }
             .pointerInput(Unit) {
-                // Ťuknutí schová ovládání videa i lišty prohlížeče — jedno gesto, jeden význam.
                 detectTapGestures(onTap = {
-                    controlsVisible = !controlsVisible
-                    onTap()
+                    if (currentImmersive && !controlsVisible) controlsVisible = true else currentTap()
                 })
             }
             /*
@@ -217,7 +240,9 @@ internal fun VideoPage(
              */
             .offset { IntOffset(0, dismissDrag.value.roundToInt()) },
     ) {
-        Box(Modifier.fillMaxSize().clip(shape)) {
+        // Zaoblení se ořezává v layoutu, ne ve vrstvě: nativní view s videem (UIKit) ořez
+        // vrstvy nedostane. Na celé obrazovce je nulové, takže přechod se kreslí jen nad náhledem.
+        Box(Modifier.fillMaxSize().clip(RoundedCornerShape(CARD_CORNER * (1f - immersion())))) {
             // Náhled drží místo, dokud se video nestáhne; se sdíleným prvkem z bubliny.
             video.thumbnailFileId?.let { thumbnail ->
                 RemoteImage(
@@ -228,11 +253,13 @@ internal fun VideoPage(
                     modifier = Modifier.fillMaxSize().sharedNavElement(photoKey(messageId)),
                 )
             }
-            if (loaded) {
+            // V galerii jen náhled; povrch se složí až na celé obrazovce.
+            if (loaded && immersive) {
                 VideoSurface(player, Modifier.fillMaxSize())
             }
 
-            when (val state = file) {
+            // Průběh i chyba patří celé obrazovce; v galerii je na jejich místě tlačítko přehrání.
+            if (immersive) when (val state = file) {
                 is FileState.Downloading, FileState.Pending -> if (started) {
                     val progress = (state as? FileState.Downloading)?.progress
                     Box(
@@ -259,8 +286,33 @@ internal fun VideoPage(
                 is FileState.Ready -> Unit
             }
 
+            // Tlačítko přehrání v galerii: jen přepne na celou obrazovku, video se spustí tam.
             AnimatedVisibility(
-                visible = loaded && controlsVisible,
+                visible = !immersive,
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                modifier = Modifier.align(Alignment.Center),
+            ) {
+                FilledIconButton(
+                    onClick = onEngage,
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f),
+                        contentColor = Color.White,
+                    ),
+                    // Klid / připraveno = sušenka, jako pozastavené video na celé obrazovce.
+                    shape = MorphShape(ShapeMorphs.Rest, 1f, rotation = ShapeMorphs.REST_ROTATION),
+                    modifier = Modifier.size(IconButtonDefaults.largeContainerSize()),
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.play_arrow_24dp),
+                        contentDescription = stringResource(Res.string.media_play),
+                        modifier = Modifier.size(IconButtonDefaults.largeIconSize),
+                    )
+                }
+            }
+
+            AnimatedVisibility(
+                visible = immersive && loaded && controlsVisible,
                 enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 modifier = Modifier.align(Alignment.Center),
@@ -300,7 +352,7 @@ internal fun VideoPage(
             // Posuvník leží na spodku karty s přechodem do tmava — na světlém záběru by bílý
             // posuvník jinak zmizel.
             AnimatedVisibility(
-                visible = loaded && controlsVisible,
+                visible = immersive && loaded && controlsVisible,
                 enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 modifier = Modifier.align(Alignment.BottomCenter),
