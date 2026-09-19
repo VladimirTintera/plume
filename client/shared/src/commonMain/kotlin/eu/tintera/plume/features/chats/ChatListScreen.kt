@@ -17,6 +17,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -98,7 +99,6 @@ import eu.tintera.plume.resources.common_try_again
 import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.push_pin_filled_24dp
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -179,7 +179,15 @@ fun ChatListScreen(
                 selectedChatId = selectedChatId,
                 onChatClick = onChatClick,
                 padding = padding,
-                emptyText = Res.string.chats_empty,
+                empty = {
+                    Text(
+                        stringResource(Res.string.chats_empty),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                    )
+                },
             ) {
                 // Nad chaty, jako vlastní blok se stejnou mezerou jako mezi skupinami.
                 updateCard?.let { update ->
@@ -269,8 +277,9 @@ internal fun ChatActionsHost(viewModel: ChatsViewModel, snackbarHostState: Snack
 }
 
 /**
- * Seznam chatů jedné složky ve skupinách, s dotahováním dalších a stavem načítání, chyby
- * a prázdného seznamu. [header] jsou položky nad chaty (karta s aktualizací).
+ * Seznam chatů jedné složky ve skupinách, s dotahováním dalších a stavem načítání a chyby.
+ * [empty] se kreslí místo prázdného seznamu (v ploše bez odsazení Scaffoldu), [header] jsou
+ * položky nad chaty (karta s aktualizací).
  */
 @Composable
 internal fun ChatListContent(
@@ -278,7 +287,7 @@ internal fun ChatListContent(
     selectedChatId: Long?,
     onChatClick: (Long) -> Unit,
     padding: PaddingValues,
-    emptyText: StringResource,
+    empty: @Composable BoxScope.() -> Unit,
     header: LazyListScope.() -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -319,17 +328,7 @@ internal fun ChatListContent(
         }
 
         is ChatListState.Ready -> if (current.chats.isEmpty()) {
-            Box(
-                Modifier.fillMaxSize().padding(padding).padding(24.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    stringResource(emptyText),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-            }
+            Box(Modifier.fillMaxSize().padding(padding), content = empty)
         } else {
             LazyColumn(
                 state = listState,

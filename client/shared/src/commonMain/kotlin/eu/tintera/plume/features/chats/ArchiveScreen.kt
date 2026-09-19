@@ -10,10 +10,13 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.archive_filled_24dp
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.chats_archive
 import eu.tintera.plume.resources.chats_archive_empty
+import eu.tintera.plume.resources.chats_archive_empty_title
 import eu.tintera.plume.resources.common_back
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -61,7 +64,15 @@ fun ArchiveScreen(
             selectedChatId = selectedChatId,
             onChatClick = onChatClick,
             padding = padding,
-            emptyText = Res.string.chats_archive_empty,
+            // Stejný prázdný stav jako placeholder detailu vedle — na široké ploše stojí oba
+            // vedle sebe a dva různé vzhledy pro „tady nic není" by se přely.
+            empty = {
+                IntroEmptyState(
+                    icon = Res.drawable.archive_filled_24dp,
+                    title = stringResource(Res.string.chats_archive_empty_title),
+                    text = stringResource(Res.string.chats_archive_empty),
+                )
+            },
         )
     }
 }

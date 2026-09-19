@@ -765,6 +765,10 @@ snackbar s „Vrátit".
   a otevřená konverzace vpravo zůstane; zpět vrátí hlavní seznam. Chat otevřený z archivu jde
   do zásobníku ZA archiv, takže zpět z něj vede do archivu. Šipku zpět má archiv i v dvoupanelu —
   na rozdíl od sekce nastavení je to seznam, ne detail.
+- **Prázdný archiv má tentýž animovaný prázdný stav jako placeholder detailu**
+  (`IntroEmptyState` v `core/ui`, vytažený z `ConversationPlaceholder`). Na široké ploše stojí
+  oba vedle sebe a dva různé vzhledy pro „tady nic není" by se přely. Prázdný stav si
+  `ChatListContent` bere jako slot (`empty`), hlavní seznam má dál holý text.
 - **Hlavička je obyčejný `TopAppBar` bez scroll behavior**, takže nemění barvu — tónovaný pruh
   přes celou šířku byl důvod, proč hlavní seznam opustil `LargeFlexibleTopAppBar`.
 
