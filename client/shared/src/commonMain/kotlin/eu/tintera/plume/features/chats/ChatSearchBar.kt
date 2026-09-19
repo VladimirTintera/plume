@@ -62,6 +62,7 @@ import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.AppBarWithSearch
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.ExpandedFullScreenSearchBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -364,8 +365,10 @@ private fun SearchResults(
                 modifier = Modifier.padding(bottom = resultsPadding().calculateBottomPadding()),
             )
         } else {
+            // Expressive indikátor jako při načítání seznamu chatů — kroužek by tu byl jediný
+            // prvek starého jazyka.
             Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.TopCenter) {
-                CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                LoadingIndicator()
             }
         }
         return
@@ -461,8 +464,8 @@ private fun SearchResults(
         }
         if (current && search.messagesLoading && (messages.isNotEmpty() || chatCount > 0)) {
             item(key = "messages-loading") {
-                Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                Box(Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
+                    LoadingIndicator()
                 }
             }
         }
