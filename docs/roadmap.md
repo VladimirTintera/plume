@@ -24,9 +24,6 @@ Teď je prázdné.
   Dokud je prázdný, leží databáze TDLib na disku odšifrovaná.
 - **Vlastní ikona notifikace.** Zatím se používá systémová `android.R.drawable.ic_dialog_email`;
   cílově monochromatická ikona v `androidApp/res/drawable`.
-- **Aplikace nemá ikonu.** Manifest nemá `android:icon`, takže launcher kreslí výchozí ikonu
-  Androidu (na iOS stejně, viz níž). Návrh pírka pro obchod je v `play/graphics/icon/icon.png`
-  (generovaný skriptem, zatím jen návrh); adaptivní ikona pro launcher z něj ještě není.
 - **Záznam v Play dokončit mimo API.** Texty a grafika (cs, en) jsou nahrané, workflow Play
   Listing je nahrává z `play/`. Ručně v Play Console zbývá kategorie, zásady ochrany soukromí (URL),
   hodnocení obsahu (IARC), cílová skupina, bezpečnost dat a prohlášení o reklamách.
@@ -93,8 +90,7 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
   - ~~**Direct Share**~~ — hotovo. Na iOS jsou naposledy použité chaty nahoře v listu rozšíření;
     řádek kontaktů v systémové nabídce (darování `INSendMessageIntent`) zatím není.
   - ~~**iOS: Share Extension**~~ — hotovo (výběr chatu v rozšíření, App Group). Zbývá
-    ověřit na zařízení (App Group v Developer účtu) a ikona aplikace, bez které má Plume
-    v nabídce sdílení zástupnou ikonu.
+    ověřit na zařízení (App Group v Developer účtu).
   - **Sdílení jako kontext místo samostatného výběru** (nápad k rozmyšlení, nahradil by
     `ShareScreen`). Po sdílení se neotevře zvláštní výběr, ale **normální aplikace se seznamem
     chatů** — s plnohodnotným hledáním, archivem a vším ostatním. Nahoře visí **čip „Sdílíte:

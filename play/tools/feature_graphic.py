@@ -8,7 +8,7 @@ F=R+"/client/shared/src/commonMain/composeResources/font/"
 texts={"cs-CZ":"Neoficiální klient pro Telegram","en-US":"An unofficial Telegram client"}
 for loc,tag in texts.items():
     W,H=2048,1000
-    im=gradient(W,H,(92,64,190),(44,30,118))
+    im=gradient(W,H)
     fm=feather_mask(1000,0,0,1.0)
     im.paste(Image.new("RGB",(1000,1000),(255,243,232)),(40,20),fm)
     d=ImageDraw.Draw(im)

@@ -88,6 +88,12 @@ v [README](README.md#release-do-google-play). Sem patří jen to, co se z workfl
   kterému zprávy posílá Bot API. Česky se z `adb input text` psát nedá — odchozí text jde do
   pole přes sdílení (`SEND` s `EXTRA_SHORTCUT_ID chat_<id bota>`). Pozor: `chat_id` v Bot API
   u soukromého chatu je id UŽIVATELE, takže `chat_<chat_id>` otevře Uložené zprávy, ne bota.
+- **Ikona aplikace (pírko) se generuje, nekreslí se ručně** (`play/tools/icon.py`). Jedna
+  geometrie v shapely → PNG pro Play, 1024px PNG pro iOS a vektor popředí adaptivní ikony
+  Androidu (`ic_launcher_foreground.xml`, i jako `monochrome` pro tématické ikony). Tři ručně
+  udržované kopie by se rozešly. Pozadí je gradient v `ic_launcher_background.xml` — jeho barvy
+  musí sedět s `TOP`/`BOTTOM` ve skriptu. Pírko sahá do 31 dp od středu, bezpečná zóna
+  adaptivní ikony je 33 dp; víc a launcher s kulatou maskou ho ořízne.
 - **Balíček SDK platformy se jmenuje `platforms;android-37.0`** — u minor verzí je nula součástí
   id. Musí odpovídat `android-compileSdk` v `libs.versions.toml`.
 
