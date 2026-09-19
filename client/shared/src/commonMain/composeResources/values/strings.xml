@@ -358,6 +358,7 @@
     <string name="conversation_open_stickers">Stickers</string>
     <string name="conversation_attach_media">Photo or video</string>
     <string name="conversation_attach_file">File</string>
+    <string name="conversation_placeholder_title">No chat open</string>
     <string name="conversation_pick_chat">Pick a chat on the left.</string>
     <string name="reactions_title">Reactions</string>
     <string name="reactions_you">You</string>

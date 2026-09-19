@@ -536,6 +536,24 @@ obsahují id chatu, jinak by se při rychlém přepnutí spároval avatar jednoh
 Na rozdíl od letu odeslané zprávy se tu viditelnost neřídí ručně — obě strany jsou
 v `AnimatedContent` NavDisplaye, takže stačí `LocalNavAnimatedContentScope`.
 
+**Na široké ploše jsou dva panely vždycky**, i bez otevřeného chatu — vpravo je pak
+`ConversationPlaceholder`. Dřív dostal seznam bez konverzace celou šířku (`singlePane`), takže
+placeholder, i když byl v metadatech `listPane`, se nikdy nekreslil, řádky chatů se natáhly přes
+celý rozložený Fold a hlavička s pevnou maximální šířkou v tom visela.
+
+- **Zpět v Chatech musí být `PopUntilContentChange`.** Výchozí `PopUntilScaffoldValueChange`
+  přeskakuje položky, které nemění rozložení panelů; „seznam + placeholder" a „seznam + chat"
+  jsou oba dvoupanel, takže zpět z konverzace odešel rovnou z aplikace. V Nastavení zůstává
+  výchozí — sekce je v dvoupanelu otevřená vždycky (`ensureSettingsSection`), a kdyby zpět
+  odebral jen ji, efekt by ji hned vrátil a z Nastavení by nešlo odejít.
+- **Placeholder má úvodní animaci** (`ShapeMorphs.Intro`): tvar naroste, protočí se a projde
+  kruh → čtyřlístek → pětiúhelník → zaoblená hvězda, pak naskočí ikona a text. Běží při každém
+  zobrazení, i po zavření chatu, a pak stojí. Průběh tvaru jde po úsecích jednou dráhou
+  (`tween` s emphasized decelerate), otočení a zvětšení jsou pružiny — hvězda dokmitne, i když
+  tvar už stojí. Tvar se čte až v `drawBehind`, animace nic nerekomponuje.
+- **Hvězda má cípy zaoblené víc než žlábky** (`rounding` 0,24, `innerRounding` 0,1). Se stejným
+  zaoblením obou vyšla kytička.
+
 **Scaffold list-detail si sám bere fokus — vypnuto** (`shouldAutoFocusCurrentDestination = false`
 v `PaneDirective.kt`). `ThreePaneScaffold` při každé změně aktuálního panelu zavolá na panel
 `requestFocus()`; fokus propadl na první fokusovatelný prvek konverzace, tedy vstupní pole,
@@ -1334,7 +1352,8 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   (odeslat, hraje), SoftBurst = živý signál (tlačítko při nahrávání dýchá, tečka v pruhu už
   nebliká — dva blikající prvky vedle sebe byly šum), dvanáctistranná sušenka = podbarvení
   podržené samolepky — i vlnka stisku je ořezaná do téže sušenky (klikání má vlastní vrstvu,
-  samolepka sama ořezaná není, přišla by o rohy). Kde se stav nemění (avatary, položky seznamu, reakce), se tvary
+  samolepka sama ořezaná není, přišla by o rohy), sled tvarů končící zaoblenou hvězdou =
+  uvítání prázdného stavu (placeholder detailu, jednou a pak stojí). Kde se stav nemění (avatary, položky seznamu, reakce), se tvary
   nepoužívají: kdyby se hýbalo všechno, přestalo by to cokoli znamenat.
 - **Barva odesílacího tlačítka říká, jak silná akce to je**: mikrofon tonální
   (`secondaryContainer`), odeslání i uložení úpravy plná `primary`. Prolíná se spolu s morfem.

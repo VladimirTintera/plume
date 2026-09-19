@@ -28,6 +28,8 @@ import androidx.graphics.shapes.star
  *   přehrávání), kruh probíhající akce (odeslat, hraje).
  * - [ShapeMorphs.Live] kruh ↔ SoftBurst: živý signál, tlačítko při nahrávání dýchá.
  * - [ShapeMorphs.Highlight] kruh ↔ dvanáctistranná sušenka: podbarvení podržené samolepky.
+ * - [ShapeMorphs.Intro] kruh → čtyřlístek → pětiúhelník → zaoblená hvězda: uvítání prázdného
+ *   stavu (detail bez otevřeného chatu). Jednou při zobrazení, pak tvar stojí.
  *
  * Tam, kde se stav nemění (avatary, položky seznamu, reakce), se tvary nepoužívají — kdyby se
  * hýbalo všechno, přestalo by to cokoli znamenat.
@@ -75,6 +77,30 @@ object ShapeMorphs {
     )
     val Live = Morph(MaterialShapes.Circle, MaterialShapes.SoftBurst)
     val Highlight = Morph(MaterialShapes.Circle, MaterialShapes.Cookie12Sided)
+
+    /**
+     * Zaoblená pěticípá hvězda, na které se zastaví [Intro]. Cípy jsou zaoblené víc než žlábky
+     * mezi nimi — se stejným zaoblením obou vyšla spíš kytička. Vnitřní poloměr 0,58, aby se
+     * dovnitř vešla ikona.
+     */
+    val Star: RoundedPolygon =
+        RoundedPolygon.star(
+            numVerticesPerRadius = 5,
+            innerRadius = 0.58f,
+            rounding = CornerRounding(0.24f),
+            innerRounding = CornerRounding(0.1f),
+        ).normalized()
+
+    /**
+     * Úvodní sled tvarů prázdného stavu, po úsecích: průběh 0..[Intro].size, úsek `i` je morf
+     * mezi `i`-tým a dalším tvarem. Končí na [Star]. Pětiúhelník je předposlední schválně —
+     * do pěticípé hvězdy přejde bez přeskupování vrcholů.
+     */
+    val Intro: List<Morph> = listOf(
+        Morph(MaterialShapes.Circle, MaterialShapes.Clover4Leaf),
+        Morph(MaterialShapes.Clover4Leaf, MaterialShapes.Pentagon),
+        Morph(MaterialShapes.Pentagon, Star),
+    )
 
     /** Pootočení sušenky, když se z kruhu stává (a zpátky). */
     const val REST_ROTATION = 60f

@@ -358,6 +358,7 @@
     <string name="conversation_open_stickers">Samolepky</string>
     <string name="conversation_attach_media">Fotka nebo video</string>
     <string name="conversation_attach_file">Soubor</string>
+    <string name="conversation_placeholder_title">Žádný chat není otevřený</string>
     <string name="conversation_pick_chat">Vyber chat vlevo.</string>
     <string name="reactions_title">Reakce</string>
     <string name="reactions_you">Vy</string>
