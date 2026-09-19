@@ -116,6 +116,7 @@
     <string name="error_flood_wait_seconds">Too quick. Try again in %1$d s.</string>
     <string name="error_flood_wait_minutes">Too quick. Try again in %1$d min.</string>
     <string name="error_pin_limit">You can't pin any more chats. Telegram Premium raises the limit.</string>
+    <string name="error_invite_invalid">This invite link is invalid or has expired.</string>
     <string name="error_message_cannot_be_pinned">This message can't be pinned.</string>
     <string name="error_message_cannot_be_edited">It's too late to edit this message.</string>
     <string name="error_message_cannot_be_deleted">This message can't be deleted.</string>
@@ -145,6 +146,9 @@
     <string name="conversation_search_failed">Couldn't search this chat.</string>
     <string name="conversation_join">Join</string>
     <string name="conversation_join_failed">Couldn't join.</string>
+    <string name="conversation_link_failed">Couldn't open this link.</string>
+    <string name="invite_request">Request to join</string>
+    <string name="invite_request_sent">Request sent. An admin will review it.</string>
     <string name="conversation_mention_not_found">Couldn't find that chat.</string>
     <string name="conversation_sticker_send_failed">Couldn't send the sticker.</string>
     <string name="conversation_attachments_limit">You can send at most %1$d attachments at once.</string>
@@ -401,6 +405,14 @@
     <string name="stickers_search">Search stickers</string>
     <string name="stickers_tab_emoji">Emoji</string>
     <string name="stickers_tab_stickers">Stickers</string>
+    <plurals name="invite_members">
+        <item quantity="one">%1$d member</item>
+        <item quantity="other">%1$d members</item>
+    </plurals>
+    <plurals name="invite_subscribers">
+        <item quantity="one">%1$d subscriber</item>
+        <item quantity="other">%1$d subscribers</item>
+    </plurals>
     <plurals name="share_files">
         <item quantity="one">%1$d file</item>
         <item quantity="other">%1$d files</item>

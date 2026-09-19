@@ -42,6 +42,16 @@ interface ChatRepository {
      */
     suspend fun openSavedMessages(): Result<Long>
 
+    /**
+     * Co znamená odkaz ze zprávy. `null` = odkaz není interní, nebo je to druh, který aplikace
+     * zatím neumí ukázat — ten patří do prohlížeče. Selhání = odkaz je interní, ale jeho cíl
+     * se nenašel (neexistující jméno, neplatná pozvánka).
+     */
+    suspend fun resolveLink(url: String): Result<InternalLink?>
+
+    /** Přidá se do chatu přes pozvánku ([InternalLink.Invite]). */
+    suspend fun joinByInvite(link: String): Result<InviteJoinResult>
+
     /** Chat veřejného uživatele, skupiny nebo kanálu podle uživatelského jména (bez `@`). */
     suspend fun chatByUsername(username: String): Result<Long>
 

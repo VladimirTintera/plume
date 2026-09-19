@@ -65,8 +65,9 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
      - **Kanál po „Přidat se" pořád nabízí vstupní pole**, stejně jako každý kanál — práva
        psát konverzace zatím neřeší vůbec.
   2. ~~**Klikatelné zmínky a hashtagy v textu**~~ — hotovo (`@jméno` otevře chat, `#tag`
-     hledání zpráv). Zbývá **interní `t.me` odkazy** (pozvánka, odkaz na zprávu, `t.me/jméno`)
-     otevírat v aplikaci místo prohlížeče a **veřejné příspěvky s tagem**
+     hledání zpráv). Odkazy na Telegram (chat, zpráva, pozvánka, sada samolepek) se otevírají
+     v aplikaci (`CLAUDE.md`, „Odkazy na Telegram"); zbývající druhy (boti se `start`,
+     proxy, sdílené složky, přihlašovací kódy…) jdou dál do prohlížeče. Zbývá **veřejné příspěvky s tagem**
      (`searchPublicMessagesByTag`) jako další sekce u hashtagového dotazu.
   3. ~~**Hledání v konverzaci**~~ — hotovo (lupa v hlavičce, šipky mezi výsledky, viz
      `CLAUDE.md`, „Hledání v konverzaci"). Hledané slovo je v bublinách zvýrazněné.

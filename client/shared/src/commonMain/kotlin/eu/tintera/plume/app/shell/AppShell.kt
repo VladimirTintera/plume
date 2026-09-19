@@ -519,9 +519,10 @@ private fun shellEntryProvider(
             onForward = { messageIds ->
                 chatsStack.add(ForwardRoute(route.chatId, messageIds))
             },
-            // Zmínka otevře chat NAD touhle konverzací (ne místo ní), takže zpět vede sem.
-            onOpenChat = { chatId ->
-                if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(chatId))
+            // Zmínka i odkaz otevře chat NAD touhle konverzací (ne místo ní), takže zpět vede sem.
+            // Odkaz na zprávu nese její id a konverzace na ni po otevření skočí.
+            onOpenChat = { chatId, messageId ->
+                if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(chatId, messageId))
             },
             onSearch = { query -> navigation.openSearch(query, keepConversation = twoPane) },
         )

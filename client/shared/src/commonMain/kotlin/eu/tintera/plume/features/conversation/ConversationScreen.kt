@@ -218,7 +218,8 @@ fun ConversationScreen(
     onOpenMedia: (messageId: Long) -> Unit,
     onForward: (messageIds: List<Long>) -> Unit,
     /** Zmínka v textu: otevřít chat nad touhle konverzací. */
-    onOpenChat: (chatId: Long) -> Unit,
+    /** Otevřít chat nad konverzací (zmínka, odkaz); s [messageId] se skočí na zprávu. */
+    onOpenChat: (chatId: Long, messageId: Long?) -> Unit,
     /** Hashtag v textu: hledání zpráv s tagem v seznamu chatů. */
     onSearch: (query: String) -> Unit,
     modifier: Modifier = Modifier,
@@ -390,12 +391,12 @@ fun ConversationScreen(
     val currentOnSearch by rememberUpdatedState(onSearch)
     val currentOnOpenChat by rememberUpdatedState(onOpenChat)
 
-    // Chat ze zmínky: ViewModel ho najde, navigace je věc obrazovky. Událost se nuluje hned,
-    // jinak by se po otočení otevřel znovu.
+    // Chat ze zmínky nebo odkazu: ViewModel ho najde, navigace je věc obrazovky. Událost se
+    // nuluje hned, jinak by se po otočení otevřel znovu.
     LaunchedEffect(state.openChat) {
         val target = state.openChat ?: return@LaunchedEffect
         viewModel.consumeOpenChat()
-        currentOnOpenChat(target)
+        currentOnOpenChat(target.chatId, target.messageId)
     }
     val saveAs = rememberSaveAs()
     val currentSaveAs by rememberUpdatedState(saveAs)
@@ -886,6 +887,17 @@ fun ConversationScreen(
                 },
                 onDismiss = { stickerPickerOpen = false },
             )
+        }
+
+        // Sada z odkazu `t.me/addstickers/…` otevře týž sheet jako ťuknutí na samolepku.
+        LaunchedEffect(state.openStickerSet) {
+            val setId = state.openStickerSet ?: return@LaunchedEffect
+            viewModel.consumeOpenStickerSet()
+            openStickerSetId = setId
+        }
+
+        state.invite?.let { invite ->
+            InviteSheet(invite = invite, onJoin = viewModel::joinInvite, onDismiss = viewModel::dismissInvite)
         }
 
         openStickerSetId?.let { setId ->

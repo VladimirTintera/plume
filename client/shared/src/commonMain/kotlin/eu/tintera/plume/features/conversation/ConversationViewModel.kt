@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.invite_request_sent
+import eu.tintera.plume.resources.conversation_link_failed
+import eu.tintera.plume.core.telegram.InvitePreview
+import eu.tintera.plume.core.telegram.InviteJoinResult
+import eu.tintera.plume.core.telegram.InternalLink
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
@@ -1111,14 +1116,68 @@ class ConversationViewModel(
     }
 
     /**
-     * Otevře odkaz ze zprávy.
+     * Otevře odkaz ze zprávy. Odkaz na Telegram otevře aplikace sama ([InternalLink]), ostatní
+     * jde do prohlížeče.
      *
-     * Vede přes ViewModel, ne rovnou z bubliny do `UrlOpener`: až budeme rozlišovat interní
-     * `t.me` odkazy (pozvánka do skupiny, odkaz na zprávu), rozhodne se to tady a obrazovka
-     * se měnit nebude.
+     * - chat (`t.me/jméno`) se otevře nad touhle konverzací, jako zmínka;
+     * - odkaz na zprávu v TOMHLE chatu na ni skočí na místě (dojetím nebo přejezdem, se
+     *   zvýrazněním), v jiném chatu ho otevře se skokem na zprávu;
+     * - pozvánka ukáže náhled chatu ([ConversationState.invite]) — přidává se až na potvrzení;
+     * - sada samolepek otevře svůj sheet.
+     *
+     * Rozpoznání je lokální volání TDLib, takže běžný webový odkaz jde do prohlížeče bez prodlevy.
      */
     private fun openLink(url: String) {
-        urlOpener.open(url)
+        viewModelScope.launch {
+            chatRepository.resolveLink(url)
+                .onSuccess { link ->
+                    when (link) {
+                        null -> urlOpener.open(url)
+                        is InternalLink.Chat ->
+                            if (link.chatId != chatId) _state.update { it.copy(openChat = ChatTarget(link.chatId)) }
+                        is InternalLink.Message -> when {
+                            link.chatId == chatId -> link.messageId?.let { jumpToMessage(it, fromSearch = true) }
+                            else -> _state.update { it.copy(openChat = ChatTarget(link.chatId, link.messageId)) }
+                        }
+                        is InternalLink.Invite -> _state.update { it.copy(invite = InviteSheetState(link.link, link.preview)) }
+                        is InternalLink.StickerSet -> _state.update { it.copy(openStickerSet = link.setId) }
+                    }
+                }
+                .onFailure { failure ->
+                    val message = failure.reported(Res.string.conversation_link_failed)
+                    _state.update { it.copy(error = message) }
+                }
+        }
+    }
+
+    /** Přidat se přes pozvánku z náhledu. Po přidání se chat otevře. */
+    fun joinInvite() {
+        val invite = _state.value.invite?.takeUnless { it.joining } ?: return
+        _state.update { it.copy(invite = invite.copy(joining = true)) }
+        viewModelScope.launch {
+            chatRepository.joinByInvite(invite.link)
+                .onSuccess { result ->
+                    _state.update {
+                        when (result) {
+                            is InviteJoinResult.Joined -> it.copy(invite = null, openChat = ChatTarget(result.chatId))
+                            InviteJoinResult.Requested -> it.copy(invite = null, notice = UiText(Res.string.invite_request_sent))
+                        }
+                    }
+                }
+                .onFailure { failure ->
+                    val message = failure.reported(Res.string.conversation_join_failed)
+                    _state.update { it.copy(invite = it.invite?.copy(joining = false), error = message) }
+                }
+        }
+    }
+
+    fun dismissInvite() {
+        _state.update { it.copy(invite = null) }
+    }
+
+    /** Obrazovka sheet sady otevřela. */
+    fun consumeOpenStickerSet() {
+        _state.update { it.copy(openStickerSet = null) }
     }
 
     /**
@@ -1128,7 +1187,7 @@ class ConversationViewModel(
     private fun openMentioned(resolve: suspend () -> Result<Long>) {
         viewModelScope.launch {
             resolve()
-                .onSuccess { target -> if (target != chatId) _state.update { it.copy(openChat = target) } }
+                .onSuccess { target -> if (target != chatId) _state.update { it.copy(openChat = ChatTarget(target)) } }
                 .onFailure { failure ->
                     val message = failure.reported(Res.string.conversation_mention_not_found)
                     _state.update { it.copy(error = message) }
@@ -1960,6 +2019,12 @@ data class ScrollTarget(
     val older: Boolean? = null,
 )
 
+/** Chat k otevření nad konverzací; s [messageId] se v něm skočí na zprávu. */
+data class ChatTarget(val chatId: Long, val messageId: Long? = null)
+
+/** Otevřený náhled pozvánky; [joining] = přidávání běží a tlačítko je neaktivní. */
+data class InviteSheetState(val link: String, val preview: InvitePreview, val joining: Boolean = false)
+
 /** Skok na zprávu, která se teprve načítá; obrazovka mezitím odjíždí směrem k ní. */
 data class PendingJump(val messageId: Long, val older: Boolean)
 
@@ -2136,8 +2201,12 @@ data class ConversationState(
     val pendingJump: PendingJump? = null,
     /** Hledání v chatu; `null` = zavřené (hlavička ukazuje chat, dole je vstupní pole). */
     val search: InChatSearch? = null,
-    /** Jednorázová událost: otevřít chat ze zmínky v textu. */
-    val openChat: Long? = null,
+    /** Jednorázová událost: otevřít chat ze zmínky nebo odkazu, případně se skokem na zprávu. */
+    val openChat: ChatTarget? = null,
+    /** Náhled chatu z pozvánky; `null` = zavřený. */
+    val invite: InviteSheetState? = null,
+    /** Jednorázová událost: otevřít sheet sady samolepek z odkazu `t.me/addstickers/…`. */
+    val openStickerSet: Long? = null,
     /** Běží přidání ke skupině / kanálu ([ConversationViewModel.join]). */
     val joining: Boolean = false,
     /** Reklamy k zobrazení. Podle Telegram ToS se nesmí filtrovat ani skrývat. */

@@ -116,6 +116,7 @@
     <string name="error_flood_wait_seconds">Moc rychle po sobě. Zkus to za %1$d s.</string>
     <string name="error_flood_wait_minutes">Moc rychle po sobě. Zkus to za %1$d min.</string>
     <string name="error_pin_limit">Víc chatů připnout nejde. Vyšší limit má Telegram Premium.</string>
+    <string name="error_invite_invalid">Pozvánka je neplatná nebo už vypršela.</string>
     <string name="error_message_cannot_be_pinned">Tuhle zprávu připnout nejde.</string>
     <string name="error_message_cannot_be_edited">Tuhle zprávu už upravit nejde.</string>
     <string name="error_message_cannot_be_deleted">Tuhle zprávu smazat nejde.</string>
@@ -145,6 +146,9 @@
     <string name="conversation_search_failed">V chatu se nepodařilo hledat.</string>
     <string name="conversation_join">Přidat se</string>
     <string name="conversation_join_failed">Přidat se nepodařilo.</string>
+    <string name="conversation_link_failed">Odkaz se nepodařilo otevřít.</string>
+    <string name="invite_request">Požádat o přijetí</string>
+    <string name="invite_request_sent">Žádost odeslána, schválí ji správce.</string>
     <string name="conversation_mention_not_found">Tenhle chat se nepodařilo najít.</string>
     <string name="conversation_sticker_send_failed">Samolepku se nepodařilo odeslat.</string>
     <string name="conversation_attachments_limit">Najednou jde poslat nejvýš %1$d příloh.</string>
@@ -401,6 +405,16 @@
     <string name="stickers_search">Hledat samolepky</string>
     <string name="stickers_tab_emoji">Emoji</string>
     <string name="stickers_tab_stickers">Samolepky</string>
+    <plurals name="invite_members">
+        <item quantity="one">%1$d člen</item>
+        <item quantity="few">%1$d členové</item>
+        <item quantity="other">%1$d členů</item>
+    </plurals>
+    <plurals name="invite_subscribers">
+        <item quantity="one">%1$d odběratel</item>
+        <item quantity="few">%1$d odběratelé</item>
+        <item quantity="other">%1$d odběratelů</item>
+    </plurals>
     <plurals name="share_files">
         <item quantity="one">%1$d soubor</item>
         <item quantity="few">%1$d soubory</item>

@@ -1,5 +1,14 @@
 package eu.tintera.plume.core.telegram
 
+import dev.g000sha256.tdl.dto.ChatJoinResultGuardBotApprovalRequired
+import dev.g000sha256.tdl.dto.ChatJoinResultDeclined
+import dev.g000sha256.tdl.dto.ChatJoinResultRequestSent
+import dev.g000sha256.tdl.dto.ChatJoinResultSuccess
+import dev.g000sha256.tdl.dto.InviteLinkChatTypeChannel
+import dev.g000sha256.tdl.dto.InternalLinkTypeStickerSet
+import dev.g000sha256.tdl.dto.InternalLinkTypeChatInvite
+import dev.g000sha256.tdl.dto.InternalLinkTypeMessage
+import dev.g000sha256.tdl.dto.InternalLinkTypePublicChat
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.TdlResult
@@ -353,6 +362,65 @@ class TdlChatRepository(
         client.toggleChatIsMarkedAsUnread(chatId = chatId, isMarkedAsUnread = unread)
             .toResult()
             .map { }
+
+    override suspend fun resolveLink(url: String): Result<InternalLink?> {
+        // Neinterní odkaz TDLib hlásí chybou — to není selhání, jen adresa pro prohlížeč.
+        val type = client.getInternalLinkType(link = url).toResult().getOrNull()
+            ?: return Result.success(null)
+        return when (type) {
+            is InternalLinkTypePublicChat ->
+                client.searchPublicChat(username = type.chatUsername).toResult().map { InternalLink.Chat(it.id) }
+
+            is InternalLinkTypeMessage ->
+                client.getMessageLinkInfo(url = type.url).toResult().mapCatching { info ->
+                    // Nula = chat není k dispozici vůbec (soukromý, uživatel v něm není).
+                    check(info.chatId != 0L) { "Chat z odkazu na zprávu není dostupný." }
+                    InternalLink.Message(info.chatId, info.message?.id)
+                }
+
+            is InternalLinkTypeChatInvite ->
+                client.checkChatInviteLink(inviteLink = type.inviteLink).toResult().map { info ->
+                    // Nenulové id = chat je dostupný už teď (uživatel v něm je, nebo je veřejný
+                    // a nabídne „Přidat se" sám). Náhled pozvánky je jen pro chat za ní.
+                    if (info.chatId != 0L) {
+                        InternalLink.Chat(info.chatId)
+                    } else {
+                        InternalLink.Invite(
+                            link = type.inviteLink,
+                            preview = InvitePreview(
+                                title = info.title,
+                                description = info.description,
+                                memberCount = info.memberCount,
+                                isChannel = info.type is InviteLinkChatTypeChannel,
+                                avatarFileId = info.photo?.small?.id,
+                                createsJoinRequest = info.createsJoinRequest,
+                            ),
+                        )
+                    }
+                }
+
+            is InternalLinkTypeStickerSet ->
+                client.searchStickerSet(name = type.stickerSetName, ignoreCache = false).toResult()
+                    .map { InternalLink.StickerSet(it.id) }
+
+            // Ostatní druhy (boti, platby, nastavení, přihlášení…) zatím neumíme; prohlížeč je
+            // aspoň otevře v oficiálním klientovi, když ho uživatel má.
+            else -> Result.success(null)
+        }
+    }
+
+    override suspend fun joinByInvite(link: String): Result<InviteJoinResult> =
+        client.joinChatByInviteLink(inviteLink = link).toResult().mapCatching { result ->
+            when (result) {
+                is ChatJoinResultSuccess -> InviteJoinResult.Joined(result.chatId)
+                // Pozvánka se schválením: žádost odešla a čeká na správce.
+                is ChatJoinResultRequestSent -> InviteJoinResult.Requested
+                // Odmítnutí a schvalování botem („guard bot") neumíme dokončit — hlásí se jako
+                // nepovedené přidání.
+                is ChatJoinResultDeclined -> error("Přidání do chatu bylo odmítnuto.")
+                is ChatJoinResultGuardBotApprovalRequired -> error("Přidání vyžaduje schválení botem.")
+            }
+        }
 
     override suspend fun chatByUsername(username: String): Result<Long> =
         client.searchPublicChat(username = username).toResult().map { it.id }
