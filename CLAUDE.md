@@ -2628,6 +2628,12 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   Systémové gesto zpět jde přes `NavDisplay`, ne přes obrazovku; se zahazováním jen na šipce
   zůstalo po gestu sdílení viset a výběr by se po obnově aktivity otevřel znovu. `abandon()`
   nezahazuje obsah s vybraným chatem — i po výběru výběr odchází (nahradí ho konverzace).
+- **Výběr má ✕, ne šipku zpět, a ✕ i gesto zpět vrací do aplikace, ze které se sdílelo**
+  (`rememberReturnToCaller` → `moveTaskToBack`, `closeShare` v `AppShell`). Šipka slibovala
+  návrat do Plume, kde by sdílený obsah zmizel bez stopy — bez volby chatu nemá kam jít.
+  `singleTask` drží Plume ve vlastní úloze, takže pod ní je právě aplikace, ze které se sdílelo.
+  Výběr se napřed odebere ze zásobníku, aby příští otevření Plume nezačínalo ve výběru.
+  Bar ani rail k výběru nepatří (`inDetail`, `showRail`) — je to vsuvka odjinud, ne sekce.
 - **Otevřený výběr se při dalším sdílení NEvyměňuje** (`openShare`). Odebrat a vrátit by ho
   zlikvidovalo a jeho `onDispose` by zahodil právě to nové sdílení.
 - **Direct Share (chaty přímo v nabídce „Sdílet") stojí na zkratkách konverzací**, týchž, které

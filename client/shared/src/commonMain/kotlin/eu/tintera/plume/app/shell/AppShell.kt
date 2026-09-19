@@ -70,6 +70,7 @@ import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForwardRoute
 import eu.tintera.plume.core.navigation.ShareRoute
 import eu.tintera.plume.core.share.ShareRequests
+import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.navigation.SettingsRoute
 import eu.tintera.plume.core.navigation.SettingsSection
@@ -159,7 +160,8 @@ fun AppShell(modifier: Modifier = Modifier) {
      * se odtud chodí zpět, ne přepnutím sekce. Na širokém rozvržení je konverzace jen panel
      * vedle seznamu, tam navigace smysl dává a rail zůstává.
      */
-    val inDetail = navigation.currentStack.any { it is ConversationRoute || it is MediaRoute }
+    // Výběr chatu pro sdílení je vsuvka odjinud, ne sekce aplikace — bar ani rail k ní nepatří.
+    val inDetail = navigation.currentStack.any { it is ConversationRoute || it is MediaRoute || it is ShareRoute }
     val showBottomBar = compact && !inDetail
 
     /*
@@ -167,7 +169,7 @@ fun AppShell(modifier: Modifier = Modifier) {
      * ukusoval místo fotce a sousedním stránkám. Na rozdíl od konverzace to není panel vedle
      * seznamu, ze kterého se přepíná sekce; ven se jde zpět.
      */
-    val showRail = !compact && navigation.currentStack.lastOrNull() !is MediaRoute
+    val showRail = !compact && navigation.currentStack.lastOrNull().let { it !is MediaRoute && it !is ShareRoute }
 
     /*
      * Na nízkém okně (telefon naležato) má rail jen ikony. Popisky pod nimi zabíraly výšku, která
@@ -380,6 +382,17 @@ private fun ShellContent(
         val savedMessagesChatId by chatRepository.savedMessagesChatId.collectAsStateWithLifecycle()
 
         CompositionLocalProvider(LocalTwoPane provides wide, LocalSavedMessagesChatId provides savedMessagesChatId) {
+            /*
+             * Zavření výběru pro sdílení vrací do aplikace, ze které se sdílelo, ne do Plume.
+             * Návrat do seznamu chatů by vypadal, že se sdílený obsah ztratil — a ztratil by se,
+             * protože bez volby chatu nemá kam jít. Výběr se napřed odebere, aby příští
+             * otevření Plume začalo tam, kde bylo před sdílením.
+             */
+            val returnToCaller = rememberReturnToCaller()
+            val closeShare = {
+                chatsStack.remove(ShareRoute)
+                returnToCaller()
+            }
             val entryProvider = shellEntryProvider(
                 chatsStack = chatsStack,
                 settingsStack = settingsStack,
@@ -387,6 +400,7 @@ private fun ShellContent(
                     .lastOrNull()?.section,
                 wide = wide,
                 twoPane = twoPane,
+                closeShare = closeShare,
             )
             /*
              * Položky se dekorují pro KAŽDOU sekci, i tu, která není vidět. Zásobník, který se
@@ -399,7 +413,8 @@ private fun ShellContent(
 
             NavDisplay(
                 entries = navigation.visibleSections.flatMap { entriesBySection.getValue(it) },
-                onBack = navigation::goBack,
+                // Zpět z výběru pro sdílení je totéž co ✕ — vrátit uživatele, odkud sdílel.
+                onBack = { if (chatsStack.lastOrNull() == ShareRoute) closeShare() else navigation.goBack() },
                 sceneStrategies = listOf(
                     // `shouldHandleSinglePaneLayout = wide`: na široké ploše nechá i jednopanelový stav
                     // řešit scaffold, takže „jen seznam" a „seznam + konverzace" jsou TÁŽ scéna a přechod
@@ -437,6 +452,7 @@ private fun shellEntryProvider(
     selectedSettingsSection: SettingsSection?,
     wide: Boolean,
     twoPane: Boolean,
+    closeShare: () -> Unit,
 ): (NavKey) -> NavEntry<NavKey> = entryProvider {
 
     entry<ChatsRoute>(
@@ -545,12 +561,12 @@ private fun shellEntryProvider(
 
     /*
      * Výběr chatu pro obsah sdílený ze systému. Po výběru ho nahradí vybraný chat a obsah čeká
-     * nad vstupním polem; zpět (nebo šipka) sdílení zahodí.
+     * nad vstupním polem; ✕ i zpět sdílení zahodí a vrátí uživatele do aplikace, ze které sdílel.
      */
     entry<ShareRoute> {
         ShareScreen(
             viewModel = koinViewModel(),
-            onBack = { chatsStack.remove(ShareRoute) },
+            onClose = closeShare,
             // Vybraný chat výběr NAHRADÍ — zpět z něj vede na seznam, ne do výběru.
             onChosen = { chatId ->
                 chatsStack.remove(ShareRoute)

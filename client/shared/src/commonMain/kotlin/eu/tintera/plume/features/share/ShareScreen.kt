@@ -76,8 +76,11 @@ data class ShareState(
 @Composable
 fun ShareScreen(
     viewModel: ShareViewModel,
-    /** Zavřít výběr; sdílení se zahodí, až výběr zmizí (viz `DisposableEffect` níž). */
-    onBack: () -> Unit,
+    /**
+     * ✕: sdílení se zahodí (až výběr zmizí, viz `DisposableEffect` níž) a uživatel se vrátí do
+     * aplikace, ze které sdílel. Šipka zpět by slibovala návrat do Plume, kde by obsah zmizel.
+     */
+    onClose: () -> Unit,
     onChosen: (chatId: Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -85,7 +88,7 @@ fun ShareScreen(
     val content = state.content
 
     // Obsah zmizel (po zabití procesu se routa obnoví, obsah ne) — výběr nemá co nabízet.
-    LaunchedEffect(content == null) { if (content == null) onBack() }
+    LaunchedEffect(content == null) { if (content == null) onClose() }
 
     /*
      * Sdílení se zahodí, když výběr odejde BEZ volby chatu — ať už šipkou, systémovým gestem zpět
@@ -113,7 +116,8 @@ fun ShareScreen(
             viewModel.choose(chatId)
             onChosen(chatId)
         },
-        onBack = onBack,
+        onBack = onClose,
+        closeIcon = true,
         subtitle = subtitle,
         savedMessagesChatId = state.savedMessagesChatId,
         modifier = modifier,

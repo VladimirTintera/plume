@@ -36,6 +36,8 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
+import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.common_close
 import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.forward_empty
 import eu.tintera.plume.resources.forward_search
@@ -99,6 +101,8 @@ fun ChatPicker(
     onPick: (chatId: Long) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    /** ✕ místo šipky: zavření celé akce, ne návrat o krok (sdílení ze systému). */
+    closeIcon: Boolean = false,
     subtitle: String? = null,
     savedMessagesChatId: Long? = null,
     error: UiText? = null,
@@ -121,7 +125,11 @@ fun ChatPicker(
                 title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        if (closeIcon) {
+                            Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+                        } else {
+                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        }
                     }
                 },
             )
