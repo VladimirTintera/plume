@@ -1365,8 +1365,21 @@ Lupa v hlavičce chatu přepne hlavičku na pole a místo vstupního pole ukáž
 - **Zpět zavírá hledání** (`NavigationBackHandler` povolený jen s otevřeným hledáním), teprve
   další zpět odchází z chatu. Konverzace zůstane na posledním výsledku.
 - **Ukázaný výsledek zůstává zvýrazněný** (barva a obíhající vlnitý okraj, viz „Vzhled
-  konverzace") — po jednorázovém pulzu by se v konverzaci ztratil. Hledané slovo samo se
-  v bublině zatím nezvýrazňuje.
+  konverzace") — po jednorázovém pulzu by se v konverzaci ztratil.
+- **Hledané slovo je v textu zvýrazněné u KAŽDÉ zprávy**, ne jen u ukázaného výsledku
+  (`MessageText` → `RichText(highlights)`). Je vidět, proč se zpráva našla. Zvýrazňuje se dotaz,
+  ke kterému patří výsledky (`resultsQuery`), ne rozepsaný text.
+- **Dotaz jde do bublin přes `derivedStateOf`** (`ConversationItemScope.searchHighlight`). Čte
+  se v kompozici textu; s celým stavem by každá změna konverzace překreslila text všech bublin.
+- **Zvýraznění je obrácená bublina**: podklad v barvě textu, písmo v barvě bubliny. Funguje na
+  odchozí, příchozí i zvýrazněné bublině bez jediné pevné barvy.
+- **Podklad je zaoblená pilulka kreslená za textem** (`drawHighlightPills` z `TextLayoutResult`,
+  po řádcích), ne `SpanStyle.background` — ten zaoblit nejde a hranaté obdélníky v zaoblených
+  a zvlněných bublinách působily jako cizí prvek.
+- **Slovo v zakrytém spoileru se nezvýrazní** (`visibleHighlights`, testy
+  `SearchHighlightTest`) — zvýraznění by ho prozradilo.
+- **`highlightRanges` / `foldDiacritics` jsou v `core/ui`** (`SearchHighlight.kt`), sdílí je
+  hledání napříč chaty i konverzace. Obojí hledá bez ohledu na diakritiku jako TDLib.
 
 ### Okno v historii
 

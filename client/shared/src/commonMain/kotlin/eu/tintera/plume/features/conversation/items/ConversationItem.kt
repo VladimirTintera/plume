@@ -94,6 +94,13 @@ internal interface ConversationItemScope {
     /** Sponzorovaná zpráva není zpráva chatu, takže nemá ani [MessageAction]. */
     fun openSponsored(sponsored: SponsoredMessage)
 
+    /**
+     * Co se hledá v chatu (dotaz, ke kterému patří výsledky); `null` mimo hledání. Bubliny ho
+     * v textu zvýrazní. Čte se v kompozici textu, takže ho obrazovka podává přes `derivedStateOf`
+     * — jinak by každá změna stavu konverzace překreslila text všech bublin.
+     */
+    fun searchHighlight(): String? = null
+
     /** Svislý posun položky při příjezdu po přeskoku (viz `JumpTransition`); čte se až při kreslení. */
     fun gatherShift(key: Any): Float = 0f
 

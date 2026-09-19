@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.highlightRanges
 import eu.tintera.plume.core.telegram.MessageEntityType
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -752,13 +753,25 @@ internal fun MessageBodyScope.SenderName(modifier: Modifier = Modifier) {
     }
 }
 
-/** Text zprávy s formátováním a odkazy. [linkColor] podle pozadí — viz [MessageBodyScope.accent]. */
+/**
+ * Text zprávy s formátováním a odkazy. [linkColor] podle pozadí — viz [MessageBodyScope.accent].
+ *
+ * Při hledání v chatu je v textu zvýrazněné hledané slovo, u každé zprávy, ne jen u ukázaného
+ * výsledku: je vidět, proč se zpráva našla, i u sousedů. Zvýraznění je OBRÁCENÁ bublina —
+ * podklad v barvě textu, písmo v barvě bubliny. Funguje tak na každé z nich (odchozí, příchozí,
+ * zvýrazněná, popisek pod fotkou), bez jediné pevné barvy.
+ */
 @Composable
 internal fun MessageBodyScope.MessageText(
     linkColor: Color,
     style: TextStyle = MaterialTheme.typography.bodyLarge,
 ) {
+    val query = items.searchHighlight()
+    val highlights = remember(message.text, query) { query?.let { highlightRanges(message.text, it) }.orEmpty() }
     RichText(
+        highlights = highlights,
+        highlightColor = bubbleColor,
+        highlightBackground = onBubbleColor,
         text = message.text,
         entities = message.entities,
         style = style,

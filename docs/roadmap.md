@@ -69,8 +69,8 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
      otevírat v aplikaci místo prohlížeče a **veřejné příspěvky s tagem**
      (`searchPublicMessagesByTag`) jako další sekce u hashtagového dotazu.
   3. ~~**Hledání v konverzaci**~~ — hotovo (lupa v hlavičce, šipky mezi výsledky, viz
-     `CLAUDE.md`, „Hledání v konverzaci"). Zbývá **zvýraznit hledané slovo v bublině**
-     (stejně jako v hledání zpráv, `highlightRanges`) a hledání **podle odesílatele**
+     `CLAUDE.md`, „Hledání v konverzaci"). Hledané slovo je v bublinách zvýrazněné.
+     Zbývá hledání **podle odesílatele**
      (`senderId` ve `searchChatMessages`) ve skupinách.
   4. **Filtry obsahu** (média, soubory, odkazy), hlavně pro profil chatu.
 

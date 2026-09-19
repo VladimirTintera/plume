@@ -225,6 +225,11 @@ fun ConversationScreen(
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
     val state by stateHolder
+    // Hledané slovo pro bubliny. Odvozené, aby text bublin překreslila jen změna dotazu, ne každá
+    // změna stavu konverzace. Dotaz, ke kterému patří výsledky, ne rozepsaný.
+    val searchHighlight = remember {
+        derivedStateOf { stateHolder.value.search?.resultsQuery?.takeIf { it.isNotBlank() } }
+    }
     // Čte se až v bublině hlasovky, takže změna pozice nepřekresluje celou obrazovku.
     val voicePlayback = viewModel.voicePlayback.collectAsStateWithLifecycle()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
@@ -409,6 +414,7 @@ fun ConversationScreen(
             // Výběr umístění je aktivita systému, takže ho má obrazovka; ViewModel jen stáhne.
             onSaveFileAs = { messageId -> currentSaveAs?.let { viewModel.saveDocumentAs(messageId, it) } },
             jumpTransition = jumpTransition,
+            searchHighlight = searchHighlight,
         )
     }
 
@@ -1722,7 +1728,10 @@ private class ScreenItemScope(
     private val onSearch: (query: String) -> Unit,
     private val onSaveFileAs: (messageId: Long) -> Unit,
     private val jumpTransition: JumpTransition,
+    private val searchHighlight: State<String?>,
 ) : ConversationItemScope {
+    override fun searchHighlight(): String? = searchHighlight.value
+
     override fun gatherShift(key: Any): Float = jumpTransition.shiftOf(key)
 
     override fun gatherAlpha(key: Any): Float = jumpTransition.alphaOf(key)
