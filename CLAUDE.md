@@ -94,6 +94,13 @@ v [README](README.md#release-do-google-play). Sem patří jen to, co se z workfl
   udržované kopie by se rozešly. Pozadí je gradient v `ic_launcher_background.xml` — jeho barvy
   musí sedět s `TOP`/`BOTTOM` ve skriptu. Pírko sahá do 31 dp od středu, bezpečná zóna
   adaptivní ikony je 33 dp; víc a launcher s kulatou maskou ho ořízne.
+- **Pírko je baculaté, ne dlouhé a úzké.** První verze byla štíhlá šikmá čárka: do kruhu se
+  vepisuje podle NEJDELŠÍHO rozměru, takže úzký tvar zabral zlomek plochy a v notifikaci ve
+  stavové liště nebyl skoro vidět. Širší vlajka a kratší stopka zabírají zhruba dvojnásobek.
+- **Ikona notifikace se vepisuje podle obdélníku kolem tvaru, ne do kruhu** (`fitted(box =
+  True)`, 22 dp z 24). Nic ji neořezává, takže kruh kolem těžiště jen plýtval rohy — šikmé
+  pírko je vůči těžišti posunuté a vlevo nahoře zbývalo prázdno. Velikost se porovnává
+  s ostatními ikonami ve stavové liště, ne od oka v náhledu.
 - **Balíček SDK platformy se jmenuje `platforms;android-37.0`** — u minor verzí je nula součástí
   id. Musí odpovídat `android-compileSdk` v `libs.versions.toml`.
 

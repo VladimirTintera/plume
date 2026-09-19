@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[2]
 TOP = (92, 64, 190)      # #5C40BE
 BOTTOM = (44, 30, 118)   # #2C1E76
 INK = (255, 243, 232)    # #FFF3E8
+RASTER_REACH = 0.42      # PNG pro obchod: pírko do 42 % strany od středu (maska obchodu zaobluje rohy)
 
 
 def bez(p0, p1, p2, p3, n=240):
@@ -29,17 +30,50 @@ def bez(p0, p1, p2, p3, n=240):
                   + t ** 3 * p3[i] for i in range(2)) for t in (k / n for k in range(n + 1))]
 
 
-def feather(shaft_width=0.007):
-    tip, base = (0.78, 0.15), (0.34, 0.68)
-    vane = Polygon(bez(base, (0.16, 0.50), (0.46, 0.20), tip) + bez(tip, (0.80, 0.40), (0.58, 0.60), base))
-    notches = [Polygon(t) for t in (
-        [(0.62, 0.535), (0.745, 0.50), (0.60, 0.50)],
-        [(0.735, 0.36), (0.80, 0.335), (0.70, 0.345)],
-    )]
-    shaft = LineString(bez(base, (0.45, 0.52), (0.60, 0.34), (0.72, 0.22), 60)).buffer(shaft_width, quad_segs=32)
-    stem = LineString(bez((0.345, 0.67), (0.30, 0.74), (0.25, 0.80), (0.19, 0.85), 60)).buffer(0.015, quad_segs=32)
+def notch(edge, t, depth, width):
+    """Klínový zářez do okraje vlajky: z bodu obrysu šikmo dovnitř, směrem ke stopce."""
+    i = int(t * (len(edge) - 1))
+    (x0, y0), (x1, y1) = edge[i - 2], edge[i + 2]
+    tx, ty = x1 - x0, y1 - y0
+    length = (tx * tx + ty * ty) ** 0.5
+    tx, ty = tx / length, ty / length
+    nx, ny = ty, -tx                       # normála ven z vlajky (obrys jde po směru hodin)
+    px, py = edge[i]
+    return Polygon([
+        (px + nx * 0.03 - tx * width, py + ny * 0.03 - ty * width),
+        (px + nx * 0.03 + tx * width, py + ny * 0.03 + ty * width),
+        (px - nx * depth + tx * depth * 0.9, py - ny * depth + ty * depth * 0.9),
+    ])
+
+
+def feather(shaft_width=0.009):
+    tip, base = (0.78, 0.14), (0.30, 0.68)
+    left = bez(base, (0.06, 0.48), (0.46, 0.14), tip)
+    right = bez(tip, (0.92, 0.34), (0.70, 0.74), base)
+    vane = Polygon(left + right)
+    notches = [notch(right, 0.32, 0.08, 0.012), notch(right, 0.60, 0.075, 0.012), notch(left, 0.45, 0.07, 0.012)]
+    shaft = LineString(bez(base, (0.44, 0.52), (0.58, 0.36), (0.71, 0.22), 60)).buffer(shaft_width, quad_segs=32)
+    stem = LineString(bez((0.31, 0.67), (0.28, 0.71), (0.24, 0.75), (0.20, 0.78), 60)).buffer(0.022, quad_segs=32)
     shape = unary_union([vane.difference(unary_union(notches + [shaft])), stem])
     return shape.simplify(0.0002)
+
+
+def fitted(shape, reach, box=False):
+    """Posune a zvětší tvar do středu jednotkového čtverce.
+
+    Bez `box` do kruhu: těžiště ve středu, nejvzdálenější bod v `reach` — pro ikony, které
+    maska ořízne do kruhu. S `box` do čtverce o straně 2 × `reach` podle obdélníku kolem
+    tvaru — pro ikonu notifikace, kterou nic neořezává a každý bod plochy se počítá.
+    """
+    if box:
+        x0, y0, x1, y1 = shape.bounds
+        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+        k = 2 * reach / max(x1 - x0, y1 - y0)
+    else:
+        cx, cy = shape.centroid.x, shape.centroid.y
+        far = max(((x - cx) ** 2 + (y - cy) ** 2) ** 0.5 for p in polygons(shape) for x, y in p.exterior.coords)
+        k = reach / far
+    return lambda c: [(0.5 + (x - cx) * k, 0.5 + (y - cy) * k) for x, y in c]
 
 
 def polygons(shape):
@@ -58,8 +92,10 @@ def feather_mask(s, ox=0, oy=0, scale=1.0):
     """Maska pírka ve čtverci `s` px (i pro feature graphic)."""
     m = Image.new("L", (s, s), 0)
     d = ImageDraw.Draw(m)
-    P = lambda c: [(ox + x * s * scale, oy + y * s * scale) for x, y in c]
-    for poly in polygons(feather()):
+    shape = feather()
+    fit = fitted(shape, RASTER_REACH)
+    P = lambda c: [(ox + x * s * scale, oy + y * s * scale) for x, y in fit(c)]
+    for poly in polygons(shape):
         d.polygon(P(poly.exterior.coords), fill=255)
         for hole in poly.interiors:
             d.polygon(P(hole.coords), fill=0)
@@ -73,18 +109,16 @@ def raster(size):
     return im.resize((size, size), Image.LANCZOS)
 
 
-def vector(size=108, reach_dp=31, color="#FFF3E8", shaft_width=0.007):
+def vector(size=108, reach_dp=31, color="#FFF3E8", shaft_width=0.009, box=False):
     """Pírko jako vector drawable `size` dp, celé do `reach_dp` od středu.
 
-    Adaptivní ikona: 108 dp, bezpečný kruh r = 33 dp. Notifikace: 24 dp, obsah v 20 dp
-    a silnější osten — ten původní by v téhle velikosti splynul s vlajkou.
+    Adaptivní ikona: 108 dp, bezpečný kruh r = 33 dp. Notifikace: 24 dp, obsah ve čtverci
+    22 dp podle obrysu (`box`) a silnější osten — ten původní by v téhle velikosti splynul
+    s vlajkou.
     """
     shape = feather(shaft_width)
-    cx, cy = shape.centroid.x, shape.centroid.y
-    reach = max(((x - cx) ** 2 + (y - cy) ** 2) ** 0.5 for p in polygons(shape) for x, y in p.exterior.coords)
-    k = reach_dp / reach
-    c0 = size / 2
-    fmt = lambda c: "M" + " L".join(f"{c0 + (x - cx) * k:.2f},{c0 + (y - cy) * k:.2f}" for x, y in c) + " Z"
+    fit = fitted(shape, reach_dp / size, box)
+    fmt = lambda c: "M" + " L".join(f"{x * size:.2f},{y * size:.2f}" for x, y in fit(c)) + " Z"
     data = " ".join(fmt(r.coords) for p in polygons(shape) for r in [p.exterior, *p.interiors])
     return f"""<?xml version="1.0" encoding="utf-8"?>
 <!-- Vygenerováno z play/tools/icon.py, ručně neupravovat. -->
@@ -107,4 +141,4 @@ if __name__ == "__main__":
     (ROOT / "client/androidApp/src/main/res/drawable/ic_launcher_foreground.xml").write_text(vector(), encoding="utf-8")
     notification = ROOT / "client/shared/src/androidMain/res/drawable/ic_notification.xml"
     notification.parent.mkdir(parents=True, exist_ok=True)
-    notification.write_text(vector(24, 10, "#FFFFFFFF", 0.016), encoding="utf-8")
+    notification.write_text(vector(24, 11, "#FFFFFFFF", 0.02, box=True), encoding="utf-8")
