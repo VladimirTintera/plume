@@ -571,6 +571,12 @@ když si o to uživatel řekne v Nastavení (`separateUnreadChats`, **výchozí 
   seznam) se uvnitř `@Composable` neověří a v seznamu se projeví mezerou po prázdné skupině.
 - **Mezera mezi skupinami se přidává u první položky skupiny**, ne ve `verticalArrangement` —
   `LazyColumn` o sousedech položky nic neví. Stejný postup jako u rozestupů zpráv v konverzaci.
+- **Nad prvním chatem je neviditelná kotva** (`TOP_ANCHOR_KEY`, 1 dp). `LazyColumn` drží pozici
+  podle klíče první viditelné položky: bez kotvy to byl první chat, a když nad něj vyskočil jiný
+  (nová zpráva), seznam šel za tím původním a nový chat skončil nad horní hranou — ve vršku
+  seznamu trčel jen useknutý kus karty. Kotva je první viditelná položka, takže seznam u vršku
+  u vršku zůstane. **Nulovou výšku mít nesmí**, to by ji seznam za viditelnou nepovažoval; její
+  výška i rozestup za ní se odečítají z horního odsazení, aby první chat neposkočil.
 
 ### Odlehčení: blok je světlejší než pozadí
 

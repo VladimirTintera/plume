@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -197,7 +199,10 @@ fun ChatListScreen(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
-                        top = padding.calculateTopPadding() + 8.dp,
+                        // Kotva i rozestup za ní jdou z horního odsazení, první chat tak
+                        // zůstane tam, kde byl bez ní.
+                        top = padding.calculateTopPadding() + 8.dp - TOP_ANCHOR_HEIGHT -
+                            GROUP_ITEM_SPACING,
                         bottom = padding.calculateBottomPadding() + 8.dp,
                         start = 16.dp,
                         end = 16.dp,
@@ -207,6 +212,18 @@ fun ChatListScreen(
                     verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
                 ) {
                     val groups = chatGroups(current.chats, separateUnread)
+
+                    /*
+                     * Kotva nahoře. `LazyColumn` drží pozici podle klíče první viditelné
+                     * položky; bez kotvy je to první chat, a když nad něj vyskočí jiný (nová
+                     * zpráva, připnutí), seznam jde za tím původním a nový skončí nad horní
+                     * hranou. S kotvou je první viditelná položka ona, takže seznam u vršku
+                     * zůstane u vršku. Výška nesmí být nulová — položku bez výšky seznam
+                     * za viditelnou nepovažuje.
+                     */
+                    item(key = TOP_ANCHOR_KEY, contentType = TOP_ANCHOR_KEY) {
+                        Spacer(Modifier.fillMaxWidth().height(TOP_ANCHOR_HEIGHT))
+                    }
 
                     groups.forEachIndexed { groupIndex, group ->
                         itemsIndexed(group, key = { _, chat -> chat.id }) { index, chat ->
@@ -452,6 +469,12 @@ private val GROUP_ITEM_SPACING = 2.dp
 
 /** Mezera mezi skupinami. */
 private val GROUP_SPACING = 14.dp
+
+/** Klíč neviditelné kotvy nad prvním chatem. */
+private const val TOP_ANCHOR_KEY = "top-anchor"
+
+/** Výška kotvy — nejmenší, se kterou ji seznam ještě počítá za viditelnou. */
+private val TOP_ANCHOR_HEIGHT = 1.dp
 
 /** Avatar. Větší než výchozích 48 dp — v odlehčeném řádku nese hlavní váhu on, ne písmo. */
 private val AVATAR_SIZE = 52.dp
