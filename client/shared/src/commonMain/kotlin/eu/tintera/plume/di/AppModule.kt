@@ -3,6 +3,9 @@ package eu.tintera.plume.di
 import eu.tintera.plume.features.profile.ChatProfileViewModel
 import eu.tintera.plume.core.telegram.TdlProfileRepository
 import eu.tintera.plume.core.telegram.ProfileRepository
+import eu.tintera.plume.core.telegram.DeviceRepository
+import eu.tintera.plume.core.telegram.TdlDeviceRepository
+import eu.tintera.plume.features.devices.DevicesViewModel
 import eu.tintera.plume.features.conversation.ConversationSearchRequests
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.share.ShareRequests
@@ -135,6 +138,10 @@ fun appModule() = module {
     single { ChatOpenRequests() }
     single { ConversationSearchRequests() }
     single<ProfileRepository> { TdlProfileRepository(holder = get()) }
+    // Eager: nepotvrzené přihlášení TDLib ohlásí hned po startu (viz TdlDeviceRepository).
+    single<DeviceRepository>(createdAtStart = true) {
+        TdlDeviceRepository(holder = get(), scope = get(named(APP_SCOPE)))
+    }
     single { ShareRequests() }
     // Eager: po přihlášení zaregistruje Uložené zprávy jako cíl sdílení (viz init).
     single(createdAtStart = true) {
@@ -150,12 +157,14 @@ fun appModule() = module {
             connection = get(),
             settings = get(),
             appUpdates = get(),
+            devices = get(),
         )
     }
     viewModelOf(::StickerPickerViewModel)
     viewModel { parameters -> StickerSetViewModel(setId = parameters.get(), repository = get()) }
     viewModelOf(::SettingsViewModel)
     viewModelOf(::AppearanceViewModel)
+    viewModelOf(::DevicesViewModel)
 
     // chatId přichází z navigační routy, ne z grafu → runtime parametr. Druhý parametr je zpráva,
     // na kterou se po otevření skočí; bývá `null`, a podle typu by se spletl s chatId — proto index.

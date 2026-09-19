@@ -117,6 +117,8 @@ kotlin {
             implementation(libs.media3.exoplayer)
             implementation(libs.media3.ui)
             implementation(libs.play.app.update)
+            // Čtečka QR kódů pro přihlášení jiného zařízení — viz core/ui/QrScanner.
+            implementation(libs.play.code.scanner)
             // androidContext() v platformModule — Koin na Androidu potřebuje Context pro cestu k DB.
             implementation(libs.koin.android)
         }

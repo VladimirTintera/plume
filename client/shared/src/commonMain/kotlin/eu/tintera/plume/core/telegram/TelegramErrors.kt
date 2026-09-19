@@ -6,6 +6,8 @@ import eu.tintera.plume.resources.error_admin_required
 import eu.tintera.plume.resources.error_flood_wait_minutes
 import eu.tintera.plume.resources.error_invite_invalid
 import eu.tintera.plume.resources.error_flood_wait_seconds
+import eu.tintera.plume.resources.error_fresh_session
+import eu.tintera.plume.resources.error_qr_login_expired
 import eu.tintera.plume.resources.error_message_cannot_be_deleted
 import eu.tintera.plume.resources.error_message_cannot_be_deleted_for_everyone
 import eu.tintera.plume.resources.error_message_cannot_be_edited
@@ -76,6 +78,12 @@ fun Throwable.userMessage(fallback: StringResource): UiText {
         "PASSWORD_HASH_INVALID" -> Res.string.error_password_invalid
         // Pozvánka do chatu (`checkChatInviteLink`): neplatný odkaz hlásí server jako vypršelý.
         "INVITE_HASH_EXPIRED", "INVITE_HASH_INVALID" -> Res.string.error_invite_invalid
+        // Zařízení přihlášené teprve nedávno (asi 24 h) nesmí odhlašovat ostatní — ochrana
+        // proti tomu, kdo účet právě ukradl. Bez vlastní věty by tlačítko vypadalo rozbitě.
+        "FRESH_RESET_AUTHORISATION_FORBIDDEN" -> Res.string.error_fresh_session
+        // QR kód k přihlášení jiného zařízení platí jen pár desítek vteřin a jen jednou.
+        "AUTH_TOKEN_EXPIRED", "AUTH_TOKEN_INVALID", "AUTH_TOKEN_ALREADY_ACCEPTED" ->
+            Res.string.error_qr_login_expired
 
         else -> fallback
     }

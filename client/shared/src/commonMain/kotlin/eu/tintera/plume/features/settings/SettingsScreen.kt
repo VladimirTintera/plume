@@ -25,6 +25,8 @@ import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.settings_section_appearance
 import eu.tintera.plume.resources.settings_section_appearance_summary
+import eu.tintera.plume.resources.settings_section_devices
+import eu.tintera.plume.resources.settings_section_devices_summary
 import eu.tintera.plume.resources.settings_section_general
 import eu.tintera.plume.resources.settings_section_general_summary
 import eu.tintera.plume.resources.settings_title
@@ -141,6 +143,7 @@ internal val SettingsSection.title: StringResource
     get() = when (this) {
         SettingsSection.General -> Res.string.settings_section_general
         SettingsSection.Appearance -> Res.string.settings_section_appearance
+        SettingsSection.Devices -> Res.string.settings_section_devices
     }
 
 /** Co v sekci je. Bez toho by ze seznamu dvou slov nebylo poznat, kde co hledat. */
@@ -148,6 +151,7 @@ private val SettingsSection.summary: StringResource
     get() = when (this) {
         SettingsSection.General -> Res.string.settings_section_general_summary
         SettingsSection.Appearance -> Res.string.settings_section_appearance_summary
+        SettingsSection.Devices -> Res.string.settings_section_devices_summary
     }
 
 private val GROUP_CORNER = 20.dp

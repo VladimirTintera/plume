@@ -58,6 +58,9 @@ crashlytics = "3.0.8"
 # Play In-App Updates (karta s aktualizací v seznamu chatů). Jen základní artefakt, ne `-ktx`:
 # stačí Task API a ktx by táhl coroutines-play-services kvůli dvěma voláním.
 playAppUpdate = "2.1.0"
+# Čtečka QR kódů (přihlášení jiného zařízení). Google code scanner: skenovací obrazovku dodá
+# Play služby, aplikace nepotřebuje oprávnění ke kameře ani vlastní CameraX + ML Kit.
+playCodeScanner = "16.1.0"
 
 # TDLib wrapper. Upstream TDLib dělá breaking changes i v patch verzích — proto je celý wrapper
 # schovaný za :client:shared/core/telegram a nikde jinde se jeho typy neobjevují.
@@ -114,6 +117,7 @@ firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "fir
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
 play-app-update = { module = "com.google.android.play:app-update", version.ref = "playAppUpdate" }
+play-code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version.ref = "playCodeScanner" }
 androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "work" }
 
 tdl-coroutines = { module = "dev.g000sha256:tdl-coroutines", version.ref = "tdl" }

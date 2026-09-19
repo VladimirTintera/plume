@@ -393,6 +393,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Kamera je potřeba ke skenování QR kódu, kterým se přihlásí jiné zařízení.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Mikrofon je potřeba k nahrávání hlasových zpráv.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Fotky a videa z chatů se ukládají do knihovny fotek.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -423,6 +424,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Kamera je potřeba ke skenování QR kódu, kterým se přihlásí jiné zařízení.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Mikrofon je potřeba k nahrávání hlasových zpráv.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Fotky a videa z chatů se ukládají do knihovny fotek.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
