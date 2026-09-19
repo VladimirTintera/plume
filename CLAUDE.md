@@ -715,6 +715,11 @@ v chatech", vedle ní menu ⋮. Po ťuknutí se rozbalí `ExpandedFullScreenSear
 - **Archivovaný výsledek má podtitul „V archivu".** V hlavním seznamu není vidět, a bez podtitulu
   by chat vypadal, že se odněkud vynořil. Složku doplní repository podle pozice
   (`summariesFor`); chat, který repository nezná, si dočte (`getChat`) a uloží.
+- **Po výběru z hledání dojede seznam na vybraný chat** (`scrollToChat` v `ChatListContent`),
+  jinak by na široké ploše vybraný chat vlevo nebyl vidět. Index se počítá ze skupin (kotva
+  + hlavička + chaty) — `LazyListState` klíč položky mimo obrazovku na index nepřevede. Chat,
+  který je celý vidět, se nehýbe. Požadavek je `rememberSaveable`: na telefonu konverzace
+  seznam překryje a posun proběhne, až se na seznam uživatel vrátí.
 - **Selhání hledání se nehlásí.** Prázdný výsledek je u hledání normální stav a lokální výsledky
   zůstanou, i když server neodpoví.
 - **Dotaz se maže při KAŽDÉM sbalení** (efekt nad `expanded`), ne v obsluze šipky. Gesto zpět
