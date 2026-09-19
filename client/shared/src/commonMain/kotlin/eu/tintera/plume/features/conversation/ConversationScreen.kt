@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.ui.draw.clip
+import eu.tintera.plume.resources.profile_open
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.animation.core.AnimationSpec
@@ -230,6 +232,8 @@ fun ConversationScreen(
     onOpenChat: (chatId: Long, messageId: Long?) -> Unit,
     /** Hashtag v textu: hledání zpráv s tagem v seznamu chatů. */
     onSearch: (query: String) -> Unit,
+    /** Ťuknutí na hlavičku: profil chatu. */
+    onOpenProfile: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
@@ -714,9 +718,19 @@ fun ConversationScreen(
             }
             TopAppBar(
                 title = {
+                    // Hlavička vede do profilu chatu — tak to znají uživatelé ze všech klientů.
+                    // Uložené zprávy profil nemají (je to vlastní účet, nic k ukázání).
+                    val profileLabel = stringResource(Res.string.profile_open)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(
+                                enabled = state.info?.isSavedMessages == false,
+                                onClickLabel = profileLabel,
+                                onClick = onOpenProfile,
+                            ),
                     ) {
                         state.info?.let { info ->
                             Avatar(
@@ -1932,7 +1946,7 @@ private data class HeaderSubtitle(val text: String, val accent: Boolean)
  * než co server dal — vymyslet minutu, kterou neznáme, by bylo horší než neurčitost.
  */
 @Composable
-private fun Presence.describe(): String = when (this) {
+internal fun Presence.describe(): String = when (this) {
     Presence.Online -> stringResource(Res.string.presence_online)
     Presence.Recently -> stringResource(Res.string.presence_recently)
     Presence.LastWeek -> stringResource(Res.string.presence_last_week)

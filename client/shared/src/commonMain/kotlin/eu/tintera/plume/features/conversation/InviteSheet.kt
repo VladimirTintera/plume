@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_join
 import eu.tintera.plume.resources.invite_members
@@ -70,7 +71,7 @@ fun InviteSheet(
                 text = pluralStringResource(
                     if (preview.isChannel) Res.plurals.invite_subscribers else Res.plurals.invite_members,
                     preview.memberCount,
-                    preview.memberCount,
+                    preview.memberCount.grouped(),
                 ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

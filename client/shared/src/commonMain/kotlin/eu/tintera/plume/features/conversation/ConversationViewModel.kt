@@ -150,6 +150,8 @@ class ConversationViewModel(
     private val shareTargets: ShareTargets,
     audioRecorder: AudioRecorder,
     connection: ConnectionRepository,
+    /** „Otevři hledání" z profilu chatu (tlačítko Hledat). */
+    private val searchRequests: ConversationSearchRequests,
 ) : ViewModel() {
 
     /**
@@ -210,6 +212,16 @@ class ConversationViewModel(
     init {
         viewModelScope.launch {
             voicePlayer.errors.collect { message -> _state.update { it.copy(error = message) } }
+        }
+
+        // Hledat z profilu: profil se zavře a hledání se otevře tady, v konverzaci.
+        viewModelScope.launch {
+            searchRequests.chatId.collect { requested ->
+                if (requested == chatId) {
+                    searchRequests.consume(chatId)
+                    openSearch()
+                }
+            }
         }
 
         viewModelScope.launch {

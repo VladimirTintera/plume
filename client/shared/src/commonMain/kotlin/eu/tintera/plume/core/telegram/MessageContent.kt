@@ -265,7 +265,7 @@ internal data class MessageBody(
     }
 }
 
-private fun FormattedText.toBody(): MessageBody =
+internal fun FormattedText.toBody(): MessageBody =
     MessageBody(text = text, entities = entities.mapNotNull { it.toEntity(text) })
 
 /**

@@ -12,7 +12,7 @@ konverzace (historie, živé zprávy, odesílání, přílohy a alba, hlasovky, 
 přeposílání, připnuté zprávy), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
-Není: notifikace na iOS ani hlášení pádů z iOS; obrazovky profilu chatu a nové konverzace.
+Není: notifikace na iOS ani hlášení pádů z iOS; obrazovka nové konverzace; sdílená média v profilu chatu.
 Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné a Vzhled; vědomě nastavitelné je zatím
 téma aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
 Rozpracovaný detail chatu má vlastní seznam:
@@ -2196,6 +2196,37 @@ vedly dva kroky.
 - **Vlevo od bubliny u obou stran**: tam vzniká mezera, když se táhne doprava.
 - **U kraje obrazovky vyhrává systémové gesto zpět.** Bublina má odsazení 12 dp, takže se
   s ním u příchozích zpráv kousek překrývá. Nedá se s tím nic dělat a stejné to je i v Telegramu.
+
+## Profil chatu
+
+Ťuknutí na hlavičku konverzace otevře profil (`ChatProfileRoute`, `features/profile`): velká fotka
+a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a Hledat, údaje
+(uživatelské jméno, telefon, bio nebo popis) a u skupiny členové s rolí.
+
+- **`ProfileRepository` v `core/telegram`** nad `getUserFullInfo` / `getBasicGroupFullInfo` /
+  `getSupergroupFullInfo` a `searchChatMembers`. Data se čtou při otevření; živé je jen ztlumení
+  (`ChatRepository.muted`, stejný vzor jako `activity`) a dostupnost (`presenceUpdates`).
+- **Profil je detailový panel** (`detailPane()`): na telefonu překryje konverzaci, na širokém
+  rozvržení ji v pravém panelu nahradí a zpět vede do ní. Spodní bar se skrývá jako u konverzace
+  (`inDetail`). Routa je v `NavSavedStateConfiguration`.
+- **Avatar a název přiletí z hlavičky konverzace** — tytéž sdílené klíče jako ze seznamu chatů.
+- **Údaje a členové jsou `SettingsGroup`** z Nastavení: pro „seznam vlastností" má aplikace jeden
+  vzhled. Akce jsou tónované dlaždice s ikonou nad popiskem; popisek říká, co se stane
+  (Ztlumit / Zapnout zvuk), ne stav.
+- **Hledat zavře profil a otevře hledání v konverzaci** přes `ConversationSearchRequests` — STAV,
+  ne událost (jako `ChatOpenRequests`): konverzace pod profilem si požadavek vyzvedne, až ho
+  odebírá. Hledání patří konverzaci, profil by ho jen zdvojil.
+- **Popis skupiny chodí jako holý text** — odkazy a zmínky v něm dohledá `getTextEntities`
+  (lokálně), aby byly klikatelné jako v bio (to je `FormattedText` rovnou). Bot bio nemá, bere se
+  `botInfo.shortDescription`.
+- **Členové jen tam, kde je server vydá** (`canListMembers`: malá skupina vždy, supergroup podle
+  `canGetMembers`, kanál ne). Vlastník a správci napřed, nejvýš `MAX_PROFILE_MEMBERS`; smazané
+  účty (bez jména) a kdo odešel se vynechají. Ťuknutí na člena otevře soukromý chat.
+- **Uložené zprávy profil nemají** — hlavička v nich není klikatelná.
+- **Počty se oddělují po tisících úzkou nezlomitelnou mezerou** (`Int.grouped()` v `core/ui`) —
+  „10704668 odběratelů" se nedalo přečíst. Commonmain `NumberFormat` nemá; mezera je čitelná
+  v češtině i angličtině. Plurály proto berou číslo jako `%1$s`.
+- **Sdílená média (Média / Soubory / Odkazy) zatím nejsou** — další krok, viz roadmapa.
 
 ## Hlasovky
 

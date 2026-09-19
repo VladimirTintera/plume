@@ -144,6 +144,22 @@
     <string name="conversation_search_clear">Vymazat</string>
     <string name="conversation_search_close">Zavřít hledání</string>
     <string name="conversation_search_failed">V chatu se nepodařilo hledat.</string>
+    <string name="profile_open">Otevřít profil</string>
+    <string name="profile_mute">Ztlumit</string>
+    <string name="profile_unmute">Zapnout zvuk</string>
+    <string name="profile_search">Hledat</string>
+    <string name="profile_info">Informace</string>
+    <string name="profile_username">Uživatelské jméno</string>
+    <string name="profile_username_value">@%1$s</string>
+    <string name="profile_phone">Telefon</string>
+    <string name="profile_bio">O sobě</string>
+    <string name="profile_description">Popis</string>
+    <string name="profile_members">Členové</string>
+    <string name="profile_role_owner">Vlastník</string>
+    <string name="profile_role_admin">Správce</string>
+    <string name="profile_bot">Bot</string>
+    <string name="profile_failed">Profil se nepodařilo načíst.</string>
+    <string name="profile_mute_failed">Upozornění se nepodařilo změnit.</string>
     <string name="conversation_search_by_member">Hledat podle člena</string>
     <string name="conversation_search_members">Hledat členy</string>
     <string name="conversation_search_members_none">Nikdo nenalezen</string>
@@ -410,14 +426,14 @@
     <string name="stickers_tab_emoji">Emoji</string>
     <string name="stickers_tab_stickers">Samolepky</string>
     <plurals name="invite_members">
-        <item quantity="one">%1$d člen</item>
-        <item quantity="few">%1$d členové</item>
-        <item quantity="other">%1$d členů</item>
+        <item quantity="one">%1$s člen</item>
+        <item quantity="few">%1$s členové</item>
+        <item quantity="other">%1$s členů</item>
     </plurals>
     <plurals name="invite_subscribers">
-        <item quantity="one">%1$d odběratel</item>
-        <item quantity="few">%1$d odběratelé</item>
-        <item quantity="other">%1$d odběratelů</item>
+        <item quantity="one">%1$s odběratel</item>
+        <item quantity="few">%1$s odběratelé</item>
+        <item quantity="other">%1$s odběratelů</item>
     </plurals>
     <plurals name="share_files">
         <item quantity="one">%1$d soubor</item>

@@ -144,6 +144,22 @@
     <string name="conversation_search_clear">Clear</string>
     <string name="conversation_search_close">Close search</string>
     <string name="conversation_search_failed">Couldn't search this chat.</string>
+    <string name="profile_open">Open profile</string>
+    <string name="profile_mute">Mute</string>
+    <string name="profile_unmute">Unmute</string>
+    <string name="profile_search">Search</string>
+    <string name="profile_info">Info</string>
+    <string name="profile_username">Username</string>
+    <string name="profile_username_value">@%1$s</string>
+    <string name="profile_phone">Phone</string>
+    <string name="profile_bio">Bio</string>
+    <string name="profile_description">Description</string>
+    <string name="profile_members">Members</string>
+    <string name="profile_role_owner">Owner</string>
+    <string name="profile_role_admin">Admin</string>
+    <string name="profile_bot">Bot</string>
+    <string name="profile_failed">Couldn't load the profile.</string>
+    <string name="profile_mute_failed">Couldn't change notifications.</string>
     <string name="conversation_search_by_member">Search by member</string>
     <string name="conversation_search_members">Search members</string>
     <string name="conversation_search_members_none">No members found</string>
@@ -410,12 +426,12 @@
     <string name="stickers_tab_emoji">Emoji</string>
     <string name="stickers_tab_stickers">Stickers</string>
     <plurals name="invite_members">
-        <item quantity="one">%1$d member</item>
-        <item quantity="other">%1$d members</item>
+        <item quantity="one">%1$s member</item>
+        <item quantity="other">%1$s members</item>
     </plurals>
     <plurals name="invite_subscribers">
-        <item quantity="one">%1$d subscriber</item>
-        <item quantity="other">%1$d subscribers</item>
+        <item quantity="one">%1$s subscriber</item>
+        <item quantity="other">%1$s subscribers</item>
     </plurals>
     <plurals name="share_files">
         <item quantity="one">%1$d file</item>
