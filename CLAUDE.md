@@ -519,6 +519,23 @@ rail a scaffold by jinak rozhodl špatně.
 stavovou lištu. Střed doporučuje M3 pro tablety (líp se na něj dosáhne); nahoru patří jen menu
 a FAB, které rail nemá. Až přibudou, půjdou do `header`, který je nahoře vždy.
 
+**Na nízkém okně (telefon naležato) má rail jen ikony** — výška pod `HEIGHT_DP_MEDIUM_LOWER_BOUND`.
+Popisky tam braly výšku, která chybí, a rail roztahovaly. Bez popisku nese název sekce
+`contentDescription` ikony.
+
+**Boční insety NEVĚDÍ, kde prvek leží.** Compose dá `safeDrawing`/`displayCutout` každému, kdo si
+o ně řekne, i když stojí daleko od kamery. Telefon naležato proto měl v konverzaci (panel VPRAVO)
+mezeru o šířku výřezu vlevo — v hlavičce a seznamu zpráv, ne ve vstupním poli, které si boky
+nebralo vůbec. Pravidlo: kdo inset vyřešil, ten ho **zkonzumuje** (`consumeWindowInsets`).
+Shell konzumuje levý inset za rail, seznam v dvoupanelu pravý (`listPaneInsets`) — ten patří
+panelu vpravo. Vstupní pole bere `safeDrawing` bokem i spodkem, jinak by odeslání zajelo pod
+výřez nebo boční třítlačítkovou lištu. Ověřuje se v OBOU rotacích naležato
+(`adb shell cmd window user-rotation lock 1` / `3`, pak `free`) — výřez je pokaždé na jiné straně.
+
+**`LazyColumn` ořezává jen ve směru scrollu.** Vodorovně kreslí i mimo své hranice, takže sloupec
+časů schovaný „za pravým okrajem" (odkrývání tahem) byl schovaný jen dokud seznam končil
+u okraje obrazovky. S insetem vpravo prosvítal; proto `clipToBounds` na ploše seznamu.
+
 **Spodní bar se v konverzaci skrývá — jen na compactu.** Na telefonu zabírá konverzace celou
 obrazovku a sekční navigace tam nedává smysl; ven se chodí zpět, ne přepnutím sekce. Na širokém
 rozvržení je konverzace jen panel vedle seznamu, takže rail zůstává. Past: `consumeWindowInsets`
@@ -655,8 +672,9 @@ v chatech", vedle ní menu ⋮. Po ťuknutí se rozbalí `ExpandedFullScreenSear
   a nemá mezistav, jen je, nebo není.
 - **Při scrollu dolů bar odjede** (`enterAlwaysSearchBarScrollBehavior`), nahoru se vrátí.
   Odjetý bar odkryje stavovou lištu, pod kterou by chaty jezdily bez pozadí — proto seznam
-  kreslí pod lištou pás v barvě stránky (`windowInsetsTopHeight(statusBars)`), nad obsahem,
-  ale pod `topBar`.
+  kreslí pod lištou závoj v barvě stránky (`windowInsetsTopHeight(statusBars)`), nad obsahem,
+  ale pod `topBar`. **Závoj je přechod do průhledna, ne plná barva:** s plným pásem končily
+  chaty o výšku lišty pod okrajem ostrou hranou, jako useknuté.
 - **Výpadek spojení bar přivolá zpátky** (`scrollOffset` animovaný na 0). Jinak by odjetý bar
   schoval jediné vysvětlení, proč nic nechodí.
 - **Sbalený stav barvu nemění** (`scrolledAppBarContainerColor = surface`). Tónovaný pruh přes
