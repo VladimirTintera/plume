@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.animation.core.AnimationSpec
 import eu.tintera.plume.resources.conversation_search
@@ -1286,13 +1287,14 @@ private fun MessageInput(
                 } else {
                   StagedAttachmentsStrip(attachments = attachments, onRemove = onRemoveAttachment)
                   replyingTo?.let { target ->
-                    Row(
-                        Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
+                    // Citace je horní pruh karty, barevně oddělený — stejně jako na kartě zprávy,
+                    // ne subkartička v kartě.
+                    ComposerHeader {
                         QuotedMessage(
                             message = target,
                             partnerName = partnerName,
+                            accent = MaterialTheme.colorScheme.tertiary,
+                            contained = false,
                             modifier = Modifier.weight(1f),
                         )
                         IconButton(onClick = onCancelReply) {
@@ -1578,39 +1580,55 @@ private fun inputIconColor() = MaterialTheme.colorScheme.primary
 private enum class SendButtonKind { Mic, Send, Save }
 
 /**
+ * Horní pruh karty nad vstupním polem (citace, úprava): tónovaná plocha přes celou šířku karty,
+ * stejně jako citace na kartě zprávy. Zaoblení nahoře nese karta, pruh je rovný.
+ */
+@Composable
+private fun ComposerHeader(content: @Composable RowScope.() -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            Modifier.padding(end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            content = content,
+        )
+    }
+}
+
+/**
  * Hlavička karty při úpravě zprávy.
  *
- * Vypadá jako citace (proužek, popisek, původní text), protože plní stejnou roli: říká, k čemu
+ * Vypadá jako citace (ikona, popisek, původní text), protože plní stejnou roli: říká, k čemu
  * se vztahuje to, co se píše. Původní text zůstává vidět, i když ho uživatel v poli přepíše.
  */
 @Composable
-private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit) {
-    Row(
-        Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            painterResource(Res.drawable.edit_24dp),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(end = 8.dp).size(18.dp),
-        )
-        Column(Modifier.weight(1f)) {
+private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit) = ComposerHeader {
+    Column(Modifier.weight(1f).padding(start = 14.dp, top = 8.dp, bottom = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                painterResource(Res.drawable.edit_24dp),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.padding(end = 4.dp).size(16.dp),
+            )
             Text(
                 text = stringResource(Res.string.conversation_editing),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                text = message.text,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.tertiary,
             )
         }
-        IconButton(onClick = onCancel) {
-            Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.conversation_cancel_edit))
-        }
+        Text(
+            text = message.text,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+    IconButton(onClick = onCancel) {
+        Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.conversation_cancel_edit))
     }
 }
 

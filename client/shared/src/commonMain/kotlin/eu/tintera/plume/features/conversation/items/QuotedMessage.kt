@@ -1,5 +1,11 @@
 package eu.tintera.plume.features.conversation.items
 
+import org.jetbrains.compose.resources.painterResource
+import eu.tintera.plume.resources.format_quote_24dp
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
@@ -55,7 +61,24 @@ internal fun QuotedMessage(
      * by nad citací nešla otevřít nabídka. Stejná past jako u fotky.
      */
     onLongClick: (() -> Unit)? = null,
+    /**
+     * `false` = citace je horní částí karty zprávy (viz `QuotedBubble`): bez vlastní plochy
+     * a zaoblení, s odsazením bubliny a v přirozené šířce — plochu i šířku řeší karta.
+     */
+    contained: Boolean = true,
 ) {
+    val clickable = if (onClick != null) {
+        Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+    } else {
+        Modifier
+    }
+    if (!contained) {
+        Column(modifier.then(clickable).padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 8.dp)) {
+            QuoteLines(message, partnerName, accent)
+        }
+        return
+    }
+
     /*
      * Citace je TÓNOVANÝ KONTEJNER: zaoblená plocha v odstínu akcentu. Dřív to byl jen proužek
      * s textem, který v bublině splýval s odpovědí pod ním; plocha citaci vyčlení sama, takže
@@ -70,37 +93,69 @@ internal fun QuotedMessage(
             .padding(bottom = 6.dp)
             .clip(quoteShape)
             .background(accent.copy(alpha = QUOTE_CONTAINER_ALPHA))
-            .then(
-                if (onClick != null) {
-                    Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
-                } else {
-                    Modifier
-                },
-            )
+            .then(clickable)
     ) {
         Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
-            Text(
-                text = when {
-                    message.isOutgoing -> stringResource(Res.string.sender_you)
-                    // Ve skupině nese jméno sama zpráva; v soukromém chatu je odesílatel
-                    // vždycky protějšek, takže se vezme název chatu.
-                    else -> message.senderName ?: partnerName ?: stringResource(Res.string.conversation_reply)
-                },
-                style = MaterialTheme.typography.labelLarge,
-                color = accent,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                // U zprávy bez textu (samotná fotka) by citace byla prázdná.
-                text = message.text.ifBlank { message.media.describe() },
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            QuoteLines(message, partnerName, accent)
         }
     }
 }
+
+/**
+ * Kdo a co: ikona citace a jméno v barvě [accent], pod nimi nejvýš dva řádky textu (nebo popis
+ * přílohy). Ikona stojí VŽDY před jménem — na kartě zprávy i nad vstupním polem, na obou
+ * stranách konverzace; stejně jako tužka u úpravy zprávy říká, k čemu se to vztahuje.
+ */
+@Composable
+private fun QuoteLines(message: ChatMessage, partnerName: String?, accent: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            painterResource(Res.drawable.format_quote_24dp),
+            contentDescription = null,
+            tint = accent,
+            modifier = Modifier.padding(end = 4.dp).size(QUOTE_ICON_SIZE),
+        )
+        Text(
+            text = when {
+                message.isOutgoing -> stringResource(Res.string.sender_you)
+                // Ve skupině nese jméno sama zpráva; v soukromém chatu je odesílatel
+                // vždycky protějšek, takže se vezme název chatu.
+                else -> message.senderName ?: partnerName ?: stringResource(Res.string.conversation_reply)
+            },
+            style = MaterialTheme.typography.labelLarge,
+            color = accent,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+    Text(
+        // U zprávy bez textu (samotná fotka) by citace byla prázdná.
+        text = message.text.ifBlank { message.media.describe() },
+        style = MaterialTheme.typography.bodySmall,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+/**
+ * Plocha vloženého obsahu v kartě zprávy — citace nahoře, popis webu u náhledu odkazu dole.
+ * `tertiaryContainer` na obou stranách: je to cizí obsah, takže se od textu zprávy musí lišit,
+ * a terciární role nesplyne s žádnou z barev bublin.
+ *
+ * Zvýrazněná příchozí zpráva (skok, hledání) ale sama přejde do `tertiaryContainer` — plocha pak
+ * ztmavne o kus k `tertiary`, jinak by obě části karty splynuly.
+ */
+@Composable
+internal fun MessageBodyScope.insetContainerColor(): Color {
+    val colors = MaterialTheme.colorScheme
+    return if (frame.emphasized && !message.isOutgoing) {
+        lerp(colors.tertiaryContainer, colors.tertiary, EMPHASIZED_INSET_SHIFT)
+    } else {
+        colors.tertiaryContainer
+    }
+}
+
+private const val EMPHASIZED_INSET_SHIFT = 0.22f
 
 @Composable
 internal fun MessageMedia?.describe(): String = when (this) {
@@ -115,8 +170,11 @@ internal fun MessageMedia?.describe(): String = when (this) {
     null -> ""
 }
 
+/** Ikona citace před jménem — o kus menší než písmo jména, aby jméno zůstalo hlavní. */
+private val QUOTE_ICON_SIZE = 16.dp
+
 /** Zaoblení kontejneru citace. Menší než bublina — je v ní vnořený. */
-private val QUOTE_CORNER = 8.dp
+internal val QUOTE_CORNER = 8.dp
 
 /** Jak moc je kontejner citace tónovaný akcentem. Dost na odlišení, ne na soupeření s textem. */
-private const val QUOTE_CONTAINER_ALPHA = 0.14f
+internal const val QUOTE_CONTAINER_ALPHA = 0.14f

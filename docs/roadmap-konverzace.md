@@ -45,7 +45,7 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
 5. **Odlehčení vzhledu.** Hotové: ~~zaoblení na konci bloku bublin~~, ~~čas se stavem doručení
    z bubliny ven~~, ~~výška fotek~~, ~~fotky a videa na plochu~~, ~~náhled odkazu na plochu~~
    a ~~odkrývání časů tahem~~. Poučení v `CLAUDE.md` („Tvar bubliny a seskupení", „Čas a stav
-   doručení", „Médium bez bubliny", „Rámeček fotky v bublině", „Náhled odkazu s velkým obrázkem",
+   doručení", „Médium bez bubliny", „Rámeček fotky v bublině", „Náhled odkazu jako karta",
    „Odkrývání časů tahem", „Reakce"), ~~reakce z bubliny ven~~ i ~~odznak přečtení na ťuknutí~~.
    Sekce je tím hotová celá.
 6. Drobnosti ze sekcí níž (zásobník, nabídka, entity, média, emoji).
@@ -95,13 +95,14 @@ Co z toho zůstalo:
 ### 3. ~~Náhled odkazu: obrázek na plochu~~ — HOTOVO
 
 Náhled s velkým obrázkem je skupina na ploše: text zprávy, snímek a pod ním web s titulkem
-a popisem ve vlastním kontejneru (`showsBareLinkPreview`, `BareLinkPreview`). Šířku určuje
-obrázek, takže blok nemá roztřepený okraj. Poučení v `CLAUDE.md`, „Náhled odkazu s velkým obrázkem".
+a popisem ve vlastním kontejneru. Šířku určuje obrázek, takže blok nemá roztřepený okraj.
+Poučení v `CLAUDE.md`, „Náhled odkazu jako karta".
 
 Co z toho zůstalo:
 
-- **Malý náhled je pořád karta s proužkem uvnitř bubliny.** Čtvereček 48 dp vedle textu je řádek,
-  ne snímek; na ploše by se rozpadl na dva kusy. Že je malý, rozhoduje odesílatel.
+- ~~**Malý náhled je pořád karta s proužkem uvnitř bubliny.**~~ — hotovo: každý náhled u zprávy
+  bez přílohy a citace je karta ze dvou částí (`showsLinkPreviewCard`), malý obrázek je čtvereček
+  v popisu. V bublině (citace, příloha) je náhled tónovaný kontejner jako citace.
 - **Barva z obrázku se nedělá** a dělat nebude — kontejnery berou barvu bubliny. Důvody zůstávají
   platné: TDLib barvu neposílá, kvantizace by chtěla keš a vlákno navíc, a předloze by se stejně
   netrefila.

@@ -1030,7 +1030,7 @@ Messages.
   Náhled souboru v řádku si drží svých 12 dp — velké zaoblení bubliny by z 48dp čtverečku udělalo
   kolečko.
 - **Citace si bublinu vynutí.** Bez pozadí se ztratí, tentýž důvod, proč si ji drží i zpráva
-  z pár emoji. Náhled odkazu taky: stojí na proužku akcentu uvnitř bubliny.
+  z pár emoji. Náhled odkazu má vlastní kartu (viz „Náhled odkazu jako karta").
 - **Soubor, hlasovka ani samolepkový popis na plochu nejdou.** Jsou to řádky s textem a ikonou,
   ne obrázek — pozadí je to jediné, co je drží pohromadě.
 - **Reakce a odznak doručení plochu snesou.** Čipy reakcí mají vlastní pozadí a odznak je pod
@@ -1039,11 +1039,26 @@ Messages.
   Kontejner popisku je potřebuje, a odkaz v popisku odchozí zprávy musí vzít barvu popředí —
   `primary` na `primary` by byla neviditelná, tatáž past jako u citace.
 
-### Náhled odkazu s velkým obrázkem
+### Náhled odkazu jako karta
 
-Náhled s **velkým obrázkem** je **jedna souvislá karta**: text zprávy, pod ním obrázek přes celou
-šířku a pod ním popis webu (web, titulek, popis). Pravidlo `showsBareLinkPreview` v `MessageRows.kt`,
-blok i kreslení v `items/LinkPreviewMessageItem.kt`.
+Náhled odkazu u zprávy bez přílohy a citace je **jedna karta ze dvou částí**: nahoře text zprávy
+v barvě bubliny, dole popis webu (web, titulek, popis) v tónované ploše. S **velkým obrázkem**
+stojí obrázek mezi nimi přes celou šířku, **malý** je čtvereček vpravo v popisu. Pravidlo
+`showsLinkPreviewCard` (a `LinkPreview.showsLargePhoto`) v `MessageRows.kt`, blok i kreslení
+v `items/LinkPreviewMessageItem.kt`.
+
+- **Dvě plochy, ne proužek.** Malý náhled byl dřív uvnitř bubliny oddělený proužkem akcentu
+  vlevo (převzatým z citace) — jazyk M2. Odlišná plocha dělá totéž bez čáry navíc a karta
+  vypadá stejně s velkým obrázkem i bez něj.
+- **Bez velkého obrázku je karta široká podle obsahu**, nejvýš jako textová bublina
+  (`TEXT_MAX_WIDTH_FRACTION`), a obě části mají stejnou šířku (`IntrinsicSize.Max`). Smí to jen
+  proto, že v kompaktní kartě nic se `SubcomposeLayout` není — velký obrázek (`BoxWithConstraints`)
+  má vlastní větev se šířkou z `photoFrame`.
+- **Zvýrazněná příchozí zpráva přejde do `tertiaryContainer`** — stejné barvy jako popis. Popis
+  (i citace nad odpovědí) proto ztmavne o kus k `tertiary` (`insetContainerColor`), jinak by
+  obě části splynuly.
+- **U zprávy s citací nebo přílohou zůstává náhled v bublině** (`LinkPreviewCard`), a to jako
+  tónovaný kontejner stejný jako citace (`QUOTE_CONTAINER_ALPHA`, `QUOTE_CORNER`), ne proužek.
 
 - **Bez spár.** Dřív to byly tři kusy se spárami a staženými nárožími, stejný jazyk jako fotka
   s popiskem — a vypadalo to jako tři zprávy. Sdílený odkaz je ale jedna věc: tvar bubliny nese
@@ -1057,8 +1072,6 @@ blok i kreslení v `items/LinkPreviewMessageItem.kt`.
   s odsazením 14 dp a od ostatních zpráv ustupovala.
 - **Šířku určuje obrázek.** Text i popis se na ni natáhnou (`Modifier.width(frame.width)` na
   sloupci), takže karta nemá roztřepený okraj.
-- **Malý náhled zůstal kartou v bublině** (`LinkPreviewCard` v `BubbleMessageItem`). O velikosti
-  rozhoduje odesílatel (`showLargeMedia`) a čtvereček 48 dp vedle textu je řádek, ne snímek.
 - **Barvu z obrázku NEVYTAHUJEME.** Google Messages dává pod snímek pruh v jeho barvě, ale TDLib
   u náhledu žádnou barvu neposílá a kvantizace z bitmapy by znamenala keš na `fileId` a počítání
   mimo hlavní vlákno.
@@ -1594,11 +1607,19 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   Dlouhé zprávy obou stran šly přes celou šířku a strany se poznaly jen barvou. Obrázky a karty
   si šířku určují samy; kopie zprávy v nabídce má šířku napevno.
 - **Odesílatel ve skupině má stálou barvu** (`senderColor` v `core/ui`, testy `SenderColorTest`):
-  jméno nad zprávou a proužek citace. Osm odstínů rovnoměrně po kruhu od odstínu `primary`,
+  jméno nad zprávou a jméno v citaci. Osm odstínů rovnoměrně po kruhu od odstínu `primary`,
   HCT tón 40 / 80 podle režimu — kontrast i soulad s Material You, žádná barva natvrdo.
-  V odchozí `primary` bublině si citace akcent bubliny nechává.
-- **Citace je tónovaný kontejner** (akcent s průhledností 0,14), bez proužku — plocha ji vyčlení
-  sama. Dřív to byl holý proužek s textem. Plocha je z akcentu, ne z role — v odchozí bublině je akcentem barva popředí.
+- **Odpověď je karta ze dvou částí, jako náhled odkazu**: nahoře citace v tónované ploše
+  (`insetContainerColor`, `tertiaryContainer`), pod ní odpověď v barvě bubliny
+  (`QuotedBubble` v `BubbleMessageItem.kt`). Dřív byla citace subkartička uvnitř bubliny —
+  zaoblená plocha v ploše, dvě vnořené karty. Jméno citovaného nese ve skupině jeho barvu,
+  jinak `tertiary`.
+- **Ikona citace (`format_quote`) stojí VŽDY před jménem** — na kartě zprávy i nad vstupním
+  polem, na obou stranách konverzace. Stejně jako tužka u úpravy: říká, k čemu se obsah
+  vztahuje. Na „opačné" straně by se u odchozí a příchozí zprávy stěhovala.
+- **Karta odpovědi je vlastní `Layout`, ne `IntrinsicSize`**: pod citací může být fotka
+  nebo album v `BoxWithConstraints`. Citace se změří v přirozené šířce, obsah dostane aspoň
+  tu šířku jako minimum a plochy kreslí karta sama za obsahem (`drawBehind`).
 - **Nároží bublin se animují** (spatial spec), jako skupiny v seznamu chatů. Pružina přestřelí,
   takže se ořezávají na nulu — záporné zaoblení `RoundedCornerShape` odmítne.
 - **Nová zpráva pružně naskočí** z měřítka 0,85 od strany odesílatele (`arrival`). Jen jednou
@@ -1692,7 +1713,8 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   byl přesně `výška okna − 48 dp`, ne horní hrana kotvy.
 - **Citace a psaní jsou JEDNA karta.** Dva samostatné kusy nad sebou dělaly z odpovědi cizí prvek
   vsunutý mezi konverzaci a vstup; ve společné kartě je vidět, že citace patří k tomu, co se
-  právě píše. Pole uvnitř je proto průhledné — kontejner nese karta, ne ono, a dvě zaoblené
+  právě píše. Citace (i hlavička úpravy) je **horní pruh karty v `tertiaryContainer`**
+  (`ComposerHeader`), stejně jako citace na kartě zprávy — ne subkartička v kartě. Pole uvnitř je proto průhledné — kontejner nese karta, ne ono, a dvě zaoblené
   plochy v sobě by vypadaly jako chyba.
 - **Pruh pod kartou má barvu POZADÍ, jen průsvitnou.** Zprávy pod něj zajíždějí, takže by se bez
   něj pod kartou míchaly s textem; plná barva by zase vrátila ostrý předěl přes celou obrazovku,
@@ -1809,12 +1831,13 @@ Pod textem se zprávou s odkazem se kreslí náhled: web, titulek, popis a obrá
   náhled zůstane textový. **Úplně prázdný náhled se zahodí** — rámeček bez obsahu vypadá jako
   chyba načítání.
 - **Velký nebo malý obrázek určuje odesílatel** (`showLargeMedia`), jen se to respektuje.
-- **Tvar vychází z citace** (proužek v barvě akcentu, bez vlastního pozadí). Akcent se podává
-  zvenku ze stejného důvodu jako u citace — v odchozí `primary` bublině by `primary` zmizela.
+- **Vzhled: karta ze dvou částí** (viz „Náhled odkazu jako karta"), v bublině tónovaný
+  kontejner jako citace. Akcent se podává zvenku ze stejného důvodu jako u citace — v odchozí
+  `primary` bublině by `primary` zmizela.
 - **Ťuknutí jde přes `onLinkClick`** jako odkaz v textu; **dlouhý stisk se opakuje**, jinak by
   náhled nabídku nad zprávou spolkl.
 - **Náhled nad textem (`showAboveText`) se zatím ignoruje** — kreslí se vždycky pod ním.
-- **S velkým obrázkem jde náhled z bubliny ven** — viz „Náhled odkazu s velkým obrázkem".
+- **Náhled jde z bubliny ven do vlastní karty** — viz „Náhled odkazu jako karta".
 
 ### Nabídka nad zprávou
 
