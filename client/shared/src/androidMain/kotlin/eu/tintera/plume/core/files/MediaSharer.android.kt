@@ -120,3 +120,5 @@ actual fun rememberSaveAs(): SaveAsLauncher? {
         }
     }
 }
+
+actual val saveAsSupported: Boolean = true

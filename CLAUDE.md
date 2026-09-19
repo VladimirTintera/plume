@@ -1581,6 +1581,15 @@ stáhne a předá systému.
 - **MP4 bez zvuku poslané jako soubor se z Telegramu vrátí jako GIF** (`MessageAnimation`), ne
   jako dokument. Kdo chce testovat video-soubor, musí poslat soubor se zvukem, nebo
   `disable_content_type_detection=true` (`screenrecord` z emulátoru zvuk nemá).
+- **Sdílet a Uložit jako… má soubor v nabídce nad zprávou** (`MessageMenuAction.ShareFile`
+  a `SaveFileAs`, kandidáti jen u `MessageMedia.Document`, podle `canBeSaved`). Soubor, který
+  obrázkem ani videem není, se do prohlížeče nedostane, takže ven jde odsud. Stahování je
+  společné s otevřením (`withDocument`): stejný průběh v řádku, stejné hlášky. „Uložit jako…"
+  potřebuje výběr umístění, takže ji z bloku zachytí obrazovka (`ScreenItemScope`) a ViewModelu
+  předá `SaveAsLauncher`; na iOS se nenabízí (`saveAsSupported`).
+- **Položka, jejíž práce trvá, musí nabídku zavřít SAMA** (`closeMenus()`). Nabídka se po
+  ťuknutí sama nezavírá — to dělá každá akce ve ViewModelu. Bez toho zůstala otevřená přes
+  celé stahování a hláška o výsledku zapadla pod závojem.
 - **Odesílaný soubor se otevřít nedá** — ukazuje průběh nahrávání a ještě není kde.
 
 ### Přeposílání

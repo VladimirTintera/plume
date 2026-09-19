@@ -148,6 +148,7 @@ fun appModule() = module {
             voicePlayer = get(),
             audioRecorder = get(),
             fileOpener = get(),
+            sharer = get(),
             connection = get(),
         )
     }

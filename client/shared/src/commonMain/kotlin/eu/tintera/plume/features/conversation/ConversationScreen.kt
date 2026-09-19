@@ -52,6 +52,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import eu.tintera.plume.core.files.rememberSaveAs
 import eu.tintera.plume.core.ui.animateMorph
 import eu.tintera.plume.core.ui.morphSpring
 import eu.tintera.plume.core.ui.ShapeMorphs
@@ -139,6 +140,7 @@ import eu.tintera.plume.features.conversation.items.DayDividerItem
 import eu.tintera.plume.features.conversation.items.MESSAGE_SPACING
 import eu.tintera.plume.features.conversation.items.MenuAnchor
 import eu.tintera.plume.features.conversation.items.MessageAction
+import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.features.conversation.items.MessageItem
 import eu.tintera.plume.features.conversation.items.QuotedMessage
 import eu.tintera.plume.features.conversation.items.SPONSORED_KEY_PREFIX
@@ -346,6 +348,8 @@ fun ConversationScreen(
     val contentTop = remember { mutableStateOf<Float?>(null) }
 
     val currentOnOpenMedia by rememberUpdatedState(onOpenMedia)
+    val saveAs = rememberSaveAs()
+    val currentSaveAs by rememberUpdatedState(saveAs)
     val itemScope = remember(viewModel) {
         ScreenItemScope(
             viewModel = viewModel,
@@ -357,6 +361,8 @@ fun ConversationScreen(
             timeReveal = { timeReveal.value },
             onOpenMedia = { currentOnOpenMedia(it) },
             onOpenStickerSet = { openStickerSetId = it },
+            // Výběr umístění je aktivita systému, takže ho má obrazovka; ViewModel jen stáhne.
+            onSaveFileAs = { messageId -> currentSaveAs?.let { viewModel.saveDocumentAs(messageId, it) } },
         )
     }
 
@@ -1582,6 +1588,7 @@ private class ScreenItemScope(
     override val timeReveal: () -> Float,
     private val onOpenMedia: (messageId: Long) -> Unit,
     private val onOpenStickerSet: (setId: Long) -> Unit,
+    private val onSaveFileAs: (messageId: Long) -> Unit,
 ) : ConversationItemScope {
     override fun voicePlayback(messageId: Long): VoicePlayback? =
         voicePlayback.value?.takeIf { it.key.messageId == messageId }
@@ -1601,10 +1608,14 @@ private class ScreenItemScope(
     override fun claimArrival(key: Long, timestamp: Int): Boolean =
         timestamp >= openedAt - ARRIVAL_TOLERANCE_SECONDS && arrived.add(key)
 
-    /** Navigace a sheet nad obrazovkou jsou věc obrazovky; všechno ostatní jde do ViewModelu. */
+    /**
+     * Navigace, sheet nad obrazovkou a systémový výběr umístění jsou věc obrazovky; všechno
+     * ostatní jde do ViewModelu.
+     */
     override fun onAction(messageId: Long, action: MessageAction) = when (action) {
         MessageAction.OpenMedia -> onOpenMedia(messageId)
         is MessageAction.OpenStickerSet -> onOpenStickerSet(action.setId)
+        MessageMenuAction.SaveFileAs -> onSaveFileAs(messageId)
         else -> viewModel.onAction(messageId, action)
     }
 

@@ -4,6 +4,7 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageEntity
 import eu.tintera.plume.core.telegram.MessageEntityType
+import eu.tintera.plume.core.files.saveAsSupported
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.features.conversation.MessageMenu
 import kotlin.test.Test
@@ -124,6 +125,34 @@ class MessageActionTest {
     fun samolepkaJdeDoOblibenych() {
         assertTrue(MessageMenuAction.ToggleFavoriteSticker in menuActions(message(text = "", media = sticker), isPinned = false))
         assertFalse(MessageMenuAction.ToggleFavoriteSticker in menuActions(message(), isPinned = false))
+    }
+
+    @Test
+    fun souborJdeSdiletAUlozit() {
+        val document = MessageMedia.Document(
+            fileId = 7,
+            fileName = "smlouva.pdf",
+            mimeType = "application/pdf",
+            sizeBytes = 1024,
+            thumbnailFileId = null,
+        )
+        val items = menuActions(message(text = "", media = document), isPinned = false)
+        assertTrue(MessageMenuAction.ShareFile in items)
+        // „Uložit jako…" jen tam, kde ho platforma má; na iOS ho nahrazuje sdílení.
+        assertEquals(saveAsSupported, MessageMenuAction.SaveFileAs in items)
+        // Ven jdou za přeposláním, před informacemi.
+        assertEquals(items.indexOf(MessageMenuAction.Forward) + 1, items.indexOf(MessageMenuAction.ShareFile))
+
+        assertFalse(MessageMenuAction.ShareFile in menuActions(message(), isPinned = false))
+        assertFalse(MessageMenuAction.ShareFile in menuActions(message(text = "", media = photo), isPinned = false))
+    }
+
+    @Test
+    fun chranenySouborVenNesmi() {
+        val protected = all.copy(canSave = false)
+        val items = listOf(MessageMenuAction.ShareFile, MessageMenuAction.SaveFileAs)
+        assertTrue(items.none { it.presentation(menu(items, actions = protected)) != null })
+        assertTrue(items.all { it.presentation(menu(items)) != null })
     }
 
     @Test

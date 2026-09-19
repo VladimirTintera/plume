@@ -11,6 +11,8 @@ import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.core.audio.VoiceRecorder
 import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.files.FileOpener
+import eu.tintera.plume.core.files.MediaSharer
+import eu.tintera.plume.core.files.SaveAsLauncher
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatActivity
@@ -65,6 +67,9 @@ import eu.tintera.plume.resources.conversation_unpin_failed
 import eu.tintera.plume.resources.conversation_voice_send_failed
 import eu.tintera.plume.resources.document_download_failed
 import eu.tintera.plume.resources.document_open_failed
+import eu.tintera.plume.resources.media_save_failed
+import eu.tintera.plume.resources.media_saved_as
+import eu.tintera.plume.resources.media_share_failed
 import eu.tintera.plume.resources.message_info_failed
 import eu.tintera.plume.resources.message_info_link_copied
 import kotlin.time.Duration.Companion.seconds
@@ -121,6 +126,7 @@ class ConversationViewModel(
     private val fileRepository: FileRepository,
     private val voicePlayer: VoicePlayer,
     private val fileOpener: FileOpener,
+    private val sharer: MediaSharer,
     audioRecorder: AudioRecorder,
     connection: ConnectionRepository,
 ) : ViewModel() {
@@ -1108,7 +1114,8 @@ class ConversationViewModel(
             MessageMenuAction.Pin -> requestPin(messageId)
             MessageMenuAction.Unpin -> unpinFromMenu(messageId)
             MessageMenuAction.Delete -> requestDelete(messageId)
-            MessageAction.OpenMedia, is MessageAction.OpenStickerSet ->
+            MessageMenuAction.ShareFile -> shareDocument(messageId)
+            MessageAction.OpenMedia, is MessageAction.OpenStickerSet, MessageMenuAction.SaveFileAs ->
                 logger.w { "Akce $action patří obrazovce, do ViewModelu nemá chodit." }
         }
     }
@@ -1325,14 +1332,63 @@ class ConversationViewModel(
         }
     }
 
+    /** Stáhne soubor a předá ho systému. */
+    private fun openDocument(messageId: Long) = withDocument(messageId) { path, document ->
+        if (!fileOpener.open(path, document.mimeType)) {
+            _state.update { it.copy(notice = UiText(Res.string.document_open_failed)) }
+        }
+    }
+
     /**
-     * Stáhne soubor a předá ho systému.
+     * Stáhne soubor a otevře systémový dialog sdílení.
      *
-     * Stahuje se až na ťuknutí — soubory v chatu bývají velké a stahovat je dopředu by znamenalo
-     * data za všechno, co kdo poslal. Průběh se drží ve stavu podle `fileId`, takže ho ukáže
-     * i bublina alba, a druhé ťuknutí během stahování nic nespustí znovu.
+     * Položka nabídky nabídku zavírá sama: stahování může chvíli trvat a jeho průběh je vidět
+     * v řádku souboru, ne v nabídce — a hláška o výsledku by pod závojem zapadla.
      */
-    private fun openDocument(messageId: Long) {
+    private fun shareDocument(messageId: Long) {
+        closeMenus()
+        shareDownloaded(messageId)
+    }
+
+    private fun shareDownloaded(messageId: Long) = withDocument(messageId) { path, document ->
+        if (!sharer.share(path, document.fileName)) {
+            _state.update { it.copy(notice = UiText(Res.string.media_share_failed)) }
+        }
+    }
+
+    /**
+     * Stáhne soubor a nabídne systémový výběr umístění („Uložit jako…").
+     *
+     * Výběr je aktivita systému, takže [launcher] dodá obrazovka; ViewModel ho jen zavolá, až je
+     * soubor na disku. Zavřený výběr (`null`) není chyba a hlášku nedostane.
+     */
+    fun saveDocumentAs(messageId: Long, launcher: SaveAsLauncher) {
+        closeMenus()
+        saveDownloadedAs(messageId, launcher)
+    }
+
+    private fun saveDownloadedAs(messageId: Long, launcher: SaveAsLauncher) = withDocument(messageId) { path, document ->
+        launcher.launch(path, document.fileName) { saved ->
+            when (saved) {
+                true -> _state.update { it.copy(notice = UiText(Res.string.media_saved_as)) }
+                false -> _state.update { it.copy(notice = UiText(Res.string.media_save_failed)) }
+                null -> Unit
+            }
+        }
+    }
+
+    /**
+     * Stáhne soubor zprávy a pak s ním udělá [use] — otevření, sdílení i „Uložit jako…" jdou
+     * touž cestou, takže mají stejný průběh v řádku souboru i stejné hlášky při selhání.
+     *
+     * Stahuje se až na pokyn — soubory v chatu bývají velké a stahovat je dopředu by znamenalo
+     * data za všechno, co kdo poslal. Průběh se drží ve stavu podle `fileId`, takže ho ukáže
+     * i bublina alba.
+     */
+    private fun withDocument(
+        messageId: Long,
+        use: suspend (path: String, document: MessageMedia.Document) -> Unit,
+    ) {
         val document = _state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Document ?: return
 
         // Druhé ťuknutí během čekání ho zruší. Bez toho by se z rozbitého stahování (mrtvé spojení,
@@ -1370,11 +1426,7 @@ class ConversationViewModel(
                 logger.d { "Soubor ${document.fileId} skončil jako $file" }
 
                 when (file) {
-                    is FileState.Ready ->
-                        if (!fileOpener.open(file.path, document.mimeType)) {
-                            _state.update { it.copy(notice = UiText(Res.string.document_open_failed)) }
-                        }
-
+                    is FileState.Ready -> use(file.path, document)
                     else -> _state.update { it.copy(error = UiText(Res.string.document_download_failed)) }
                 }
             } finally {

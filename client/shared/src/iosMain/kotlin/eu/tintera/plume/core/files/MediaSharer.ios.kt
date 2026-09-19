@@ -66,3 +66,5 @@ actual class MediaSharer {
 
 @Composable
 actual fun rememberSaveAs(): SaveAsLauncher? = null
+
+actual val saveAsSupported: Boolean = false
