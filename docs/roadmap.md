@@ -51,8 +51,11 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
   „píše…", protože se činnost bere ze `ChatRepository`.
 - **Detail chatu / profil.** Není kam ťuknout na hlavičku konverzace — chybí společná média,
   členové skupiny, popis, ztlumení a hledání v chatu na jednom místě.
-- **Hledání.** Ani chatů (`searchChats`), ani zpráv v chatu (`searchChatMessages`), ani veřejných
-  (`searchPublicChat`). Váže na sebe víc věcí: hledání v přeposílání jde dnes jen po načteném
+- **Hledání.** Pilulka v hlavičce seznamu chatů hledá zatím jen v načteném seznamu podle názvu.
+  Chybí serverové hledání chatů (`searchChats`), zpráv (`searchMessages`, `searchChatMessages`)
+  i veřejných (`searchPublicChat`); výsledky patří do rozbaleného `ExpandedFullScreenSearchBar`.
+  Na rozloženém Foldu by místo celoobrazovkového hledání sedělo `ExpandedDockedSearchBar`.
+  Nastavení má pořád `LargeFlexibleTopAppBar` se stejnou vadou po sbalení jako měly Chaty. Váže na sebe víc věcí: hledání v přeposílání jde dnes jen po načteném
   seznamu chatů a zmínky s hashtagy se v textu schválně nemapují, protože kliknutí nemá kam vést.
 - **Nová konverzace a kontakty.** Napsat se dá jen tomu, s kým už chat existuje.
 - **Sdílení ze systému do aplikace.** ~~Android~~ — hotovo (text, odkaz, jeden i víc

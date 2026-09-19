@@ -352,9 +352,9 @@ chodit. Dokud se nesledovalo, vypadala nepřipojená aplikace úplně normálně
   tečka pro ostatní — dokud je aplikace na obrazovce, chodí s ní updaty rychleji.
 - **`ConnectionState` se smí použít jen jako popisek pro člověka**, říká to dokumentace u něj.
   Nic se z něj proto neodvozuje, jen se vypisuje.
-- **Stav NAHRAZUJE název sekce v seznamu chatů a podtitul v konverzaci**, nemá vlastní pruh ani
-  odznak. Kdo se dívá na prázdný seznam, hledá vysvětlení v hlavičce a „Chaty" žádné nedává.
-  Stejně to řeší oficiální klient.
+- **Stav je v hlavičce, ne ve vlastním pruhu**: v seznamu chatů pilulka uvnitř vyhledávací
+  pilulky (viz „Hlavička: vyhledávací pilulka"), v konverzaci nahrazuje podtitul. Kdo se dívá
+  na prázdný seznam, hledá vysvětlení nahoře. Stejně to řeší oficiální klient.
 - **`Ready` se nehlásí.** V tom stavu aplikace stráví skoro celou dobu; „připojeno" je šum, zatímco
   „nepřipojeno" je jediná informace, která uživateli vysvětlí, proč mu nic nechodí. Proto
   `ConnectionState.label()` vrací u `Ready` `null`.
@@ -624,6 +624,30 @@ když si o to uživatel řekne v Nastavení (`separateUnreadChats`, **výchozí 
   seznamu trčel jen useknutý kus karty. Kotva je první viditelná položka, takže seznam u vršku
   u vršku zůstane. **Nulovou výšku mít nesmí**, to by ji seznam za viditelnou nepovažoval; její
   výška i rozestup za ní se odečítají z horního odsazení, aby první chat neposkočil.
+
+### Hlavička: vyhledávací pilulka
+
+Seznam chatů nemá nadpis, ale `AppBarWithSearch` (`ChatSearchBar.kt`): pilulka „Hledat
+v chatech", vedle ní menu ⋮. Po ťuknutí se rozbalí `ExpandedFullScreenSearchBar` s výsledky.
+
+- **Nahradila `LargeFlexibleTopAppBar`, protože ten byl hezký jen rozbalený.** Sbalený přešel na
+  `scrolledContainerColor` (`surfaceContainer`), tedy pruh přes celou šířku v roli, která jinde
+  v seznamu není. Na rozloženém Foldu navíc stál vedle 64dp hlavičky konverzace bar jiné výšky
+  i barvy. Pilulka je zaoblený blok jako skupiny chatů a bar je vysoký přesně 64 dp.
+- **Bar je připnutý, bez scroll behavior.** S `enterAlways` odjel a chaty zalézaly pod stavovou
+  lištu bez pozadí, a hlavně by s ním odjel i stav spojení.
+- **Plochu baru dává `Modifier.background(surface)`.** `appBarContainerColor` bez scroll behavior
+  v material3 1.5.0-alpha22 nenakreslí nic a chaty pod barem prosvítaly — viditelné až po
+  odscrollování, ne na prvním snímku.
+- **Stav spojení je tonální pilulka na konci hledání** (`ConnectionPill`), ne nadpis. Skoro
+  celou dobu není vidět nic; „Chaty" v nadpisu jen opakovalo navigaci. V rozbaleném hledání se
+  neukazuje.
+- **Hledá se v načteném seznamu**, jako při přeposílání; Uložené zprávy podle přeloženého názvu.
+  Serverové hledání (`searchChats`, zprávy) je v roadmapě.
+- **Dotaz se maže při KAŽDÉM sbalení** (efekt nad `expanded`), ne v obsluze šipky. Gesto zpět
+  zavírá dialog hledání samo a obsluhu šipky obchází.
+- **Ověřování snímky: `sips -c` ořezává ze STŘEDU**, `--cropOffset` ignoruje. Výřez „horní
+  části" byl ve skutečnosti prostředek obrazovky a vypadalo to, že bar chybí.
 
 ### Odlehčení: blok je světlejší než pozadí
 

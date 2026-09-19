@@ -38,6 +38,9 @@
     <string name="chats_empty">Zatím tu nic není.</string>
     <string name="saved_messages">Uložené zprávy</string>
     <string name="chats_menu">Další možnosti</string>
+    <string name="chats_search">Hledat v chatech</string>
+    <string name="chats_search_clear">Vymazat hledání</string>
+    <string name="chats_search_empty">Žádný chat neodpovídá</string>
     <string name="chats_section_pinned">Připnuto</string>
     <string name="chats_muted">Ztlumeno</string>
     <string name="chats_draft_prefix">Koncept: </string>

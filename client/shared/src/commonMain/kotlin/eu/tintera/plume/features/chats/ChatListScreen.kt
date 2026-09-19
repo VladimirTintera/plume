@@ -11,11 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -37,7 +33,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -47,8 +42,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -58,7 +51,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -88,7 +80,6 @@ import eu.tintera.plume.resources.chats_empty
 import eu.tintera.plume.resources.chats_muted
 import eu.tintera.plume.resources.chats_section_pinned
 import eu.tintera.plume.resources.common_try_again
-import eu.tintera.plume.resources.nav_chats
 import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.push_pin_filled_24dp
 import org.jetbrains.compose.resources.getString
@@ -110,8 +101,6 @@ fun ChatListScreen(
     val updateCard by viewModel.updateCard.collectAsStateWithLifecycle()
     val startUpdate = rememberStartUpdate(viewModel.appUpdates)
     val listState = rememberLazyListState()
-    val appBarState = rememberTopAppBarState()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(appBarState)
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Bez tohohle by neúspěšná akce (typicky překročený limit připnutých chatů) zmizela beze stopy
@@ -163,31 +152,18 @@ fun ChatListScreen(
     }
 
     Scaffold(
-        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            // Expressive „flexible" top bar — kolabuje při scrollu a mění výšku podle motion schématu.
-            LargeFlexibleTopAppBar(
-                title = {
-                    /*
-                     * Stav spojení NAHRAZUJE název sekce, nemá vlastní pruh ani odznak. Kdo se
-                     * dívá na prázdný seznam, hledá vysvětlení v hlavičce — a „Chaty" žádné
-                     * nedává. Stejně to řeší oficiální klient.
-                     */
-                    val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-                    val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-
-                    AnimatedContent(
-                        targetState = connection.label() ?: Res.string.nav_chats,
-                        transitionSpec = { fadeIn(effects) togetherWith fadeOut(fastEffects) },
-                        contentAlignment = Alignment.CenterStart,
-                        label = "chats-title",
-                    ) { title -> Text(stringResource(title)) }
-                },
+            ChatSearchBar(
+                connection = connection.label(),
+                chats = (state as? ChatListState.Ready)?.chats.orEmpty(),
+                savedMessagesChatId = savedMessagesChatId,
+                onChatClick = onChatClick,
                 actions = {
                     /*
                      * Menu, ne samostatná ikona: přibude do něj Archiv a dvě položky v menu jsou
-                     * čistší než dvě ikony vedle nadpisu. Uložené zprávy v seznamu nejsou (jen
+                     * čistší než dvě ikony vedle hledání. Uložené zprávy v seznamu nejsou (jen
                      * připnuté), tohle je jejich vstup — jako v oficiálních klientech.
                      */
                     var menuOpen by remember { mutableStateOf(false) }
@@ -207,7 +183,6 @@ fun ChatListScreen(
                         }
                     }
                 },
-                scrollBehavior = scrollBehavior,
             )
         },
     ) { padding ->
