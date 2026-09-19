@@ -289,12 +289,13 @@ internal fun rememberMessageBodyScope(
      * u skupin (`animateDpAsState` přes spatial spec).
      */
     val topInnerAnimated by animateDpAsState(
-        targetValue = if (frame.continuesAbove) BUBBLE_TIGHT else BUBBLE_CORNER,
+        // Zvýrazněná zpráva se z bloku vyčlení i tvarem: stažená nároží se zakulatí.
+        targetValue = if (frame.continuesAbove && !frame.emphasized) BUBBLE_TIGHT else BUBBLE_CORNER,
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "bubble-corner-top",
     )
     val bottomInnerAnimated by animateDpAsState(
-        targetValue = if (frame.continuesBelow) BUBBLE_TIGHT else BUBBLE_CORNER,
+        targetValue = if (frame.continuesBelow && !frame.emphasized) BUBBLE_TIGHT else BUBBLE_CORNER,
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "bubble-corner-bottom",
     )
@@ -615,27 +616,27 @@ internal fun MessageBox(
         label = "reaction-overhang",
     )
     /*
-     * Zvýraznění: vlnitý obrys kolem zprávy, který pomalu obíhá (viz `emphasisRing`). Rozvlní se
-     * z hladké čáry a zase uhladí; průběh i fáze se čtou až při kreslení.
+     * Zvýraznění: okraj zprávy se rozvlní a vlnky pomalu obíhají (viz `WavyShape`). Zvlňuje se
+     * sám ořez zprávy, žádný obrys navíc. Průběh i fáze se čtou až ve vrstvě, takže obíhání
+     * nerekomponuje.
      */
-    val ring = animateFloatAsState(
+    val wave = animateFloatAsState(
         targetValue = if (frame.emphasized) 1f else 0f,
         animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
-        label = "emphasis-ring",
+        label = "emphasis-wave",
     )
-    val ringPhase = rememberRingPhase(running = frame.emphasized)
-    val ringColor = MaterialTheme.colorScheme.tertiary
+    val wavePhase = rememberWavePhase(running = frame.emphasized)
     Box(modifier) {
         Box(
             Modifier
-                // Místo pro obrys nahoře i dole roste s ním (viz `RING_ROOM`).
-                .padding(vertical = RING_ROOM * ring.value.coerceIn(0f, 1f))
                 .padding(bottom = overhang.coerceAtLeast(0.dp))
                 .maxWidthFraction(maxWidthFraction)
                 .widthIn(max = 560.dp)
-                .emphasisRing(bodyScope.shape, ringColor, progress = { ring.value }, phase = { ringPhase.value })
                 .then(beforeClip)
-                .clip(bodyScope.shape)
+                .graphicsLayer {
+                    shape = WavyShape(bodyScope.shape, progress = wave.value, phase = wavePhase.value)
+                    clip = true
+                }
                 .then(afterClip),
         ) {
             // Bez bubliny se kreslí na plochu konverzace, takže výchozí barva popředí patří
