@@ -135,6 +135,14 @@
     <string name="conversation_history_failed">Historii se nepodařilo načíst.</string>
     <string name="conversation_quote_deleted">Citovaná zpráva už není k dispozici.</string>
     <string name="conversation_message_deleted">Tahle zpráva už není k dispozici.</string>
+    <string name="conversation_search">Hledat v chatu</string>
+    <string name="conversation_search_position">%1$d z %2$d</string>
+    <string name="conversation_search_none">Nic nenalezeno</string>
+    <string name="conversation_search_older">Starší výsledek</string>
+    <string name="conversation_search_newer">Novější výsledek</string>
+    <string name="conversation_search_clear">Vymazat</string>
+    <string name="conversation_search_close">Zavřít hledání</string>
+    <string name="conversation_search_failed">V chatu se nepodařilo hledat.</string>
     <string name="conversation_join">Přidat se</string>
     <string name="conversation_join_failed">Přidat se nepodařilo.</string>
     <string name="conversation_mention_not_found">Tenhle chat se nepodařilo najít.</string>

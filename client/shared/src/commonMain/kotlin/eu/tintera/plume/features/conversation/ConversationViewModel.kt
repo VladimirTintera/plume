@@ -58,6 +58,7 @@ import eu.tintera.plume.resources.conversation_history_failed
 import eu.tintera.plume.resources.conversation_pin_failed
 import eu.tintera.plume.resources.conversation_join_failed
 import eu.tintera.plume.resources.conversation_mention_not_found
+import eu.tintera.plume.resources.conversation_search_failed
 import eu.tintera.plume.resources.conversation_message_deleted
 import eu.tintera.plume.resources.conversation_quote_deleted
 import eu.tintera.plume.resources.conversation_reaction_failed
@@ -384,6 +385,84 @@ class ConversationViewModel(
         }
     }
 
+    /** Běžící hledání v chatu (dotaz s pauzou, dotažení stránky); nový dotaz ho ruší. */
+    private var searchJob: Job? = null
+
+    /** Lupa v hlavičce: hledání v chatu. */
+    fun openSearch() {
+        if (_state.value.search == null) _state.update { it.copy(search = InChatSearch()) }
+    }
+
+    fun closeSearch() {
+        searchJob?.cancel()
+        _state.update { it.copy(search = null) }
+    }
+
+    /**
+     * Dotaz v hledání. Hledá se po krátké pauze v psaní a rovnou se skočí na nejnovější
+     * výsledek — kdo hledá, chce vidět, kde to je, ne seznam.
+     */
+    fun onSearchQuery(text: String) {
+        _state.update { state -> state.search?.let { state.copy(search = it.copy(query = text)) } ?: state }
+        searchJob?.cancel()
+        val query = text.trim()
+        if (query.isEmpty()) {
+            _state.update { state -> state.search?.let { state.copy(search = InChatSearch(query = text)) } ?: state }
+            return
+        }
+        searchJob = viewModelScope.launch {
+            delay(SEARCH_DEBOUNCE_MS)
+            _state.update { state -> state.search?.let { state.copy(search = it.copy(loading = true)) } ?: state }
+            repository.searchInChat(chatId, query)
+                .onSuccess { page ->
+                    _state.update { state ->
+                        state.search?.let { state.copy(search = it.withFirstPage(query, page)) } ?: state
+                    }
+                    _state.value.search?.current?.let { jumpToMessage(it, fromSearch = true) }
+                }
+                .onFailure { failure ->
+                    val message = failure.reported(Res.string.conversation_search_failed)
+                    _state.update { state ->
+                        state.copy(error = message, search = state.search?.copy(loading = false))
+                    }
+                }
+        }
+    }
+
+    /** Šipka nahoru: starší výsledek. Na konci načtených se dotáhne další stránka. */
+    fun searchOlder() {
+        val search = _state.value.search ?: return
+        search.older()?.let { moved ->
+            _state.update { it.copy(search = moved) }
+            moved.current?.let { jumpToMessage(it, fromSearch = true) }
+            return
+        }
+        val from = search.nextFromMessageId ?: return
+        if (search.loading) return
+        searchJob = viewModelScope.launch {
+            _state.update { state -> state.search?.let { state.copy(search = it.copy(loading = true)) } ?: state }
+            repository.searchInChat(chatId, search.resultsQuery, fromMessageId = from)
+                .onSuccess { page ->
+                    _state.update { state ->
+                        val loaded = state.search?.withNextPage(search.resultsQuery, page)
+                        state.copy(search = loaded?.older() ?: loaded)
+                    }
+                    _state.value.search?.current?.takeIf { it != search.current }?.let { jumpToMessage(it, fromSearch = true) }
+                }
+                .onFailure { failure ->
+                    val message = failure.reported(Res.string.conversation_search_failed)
+                    _state.update { state -> state.copy(error = message, search = state.search?.copy(loading = false)) }
+                }
+        }
+    }
+
+    /** Šipka dolů: novější výsledek. */
+    fun searchNewer() {
+        val moved = _state.value.search?.newer() ?: return
+        _state.update { it.copy(search = moved) }
+        moved.current?.let { jumpToMessage(it, fromSearch = true) }
+    }
+
     /**
      * Stránka směrem k PŘÍTOMNOSTI — jen když je načtené okno v historii ([ConversationState.reachedEnd]
      * neplatí). Obrazovka ji chce, když se uživatel blíží ke spodní hraně seznamu.
@@ -508,9 +587,17 @@ class ConversationViewModel(
      */
     fun jumpToMessage(messageId: Long, fromSearch: Boolean = false) {
         viewModelScope.launch {
-            val loaded = _state.value.messages.any { it.id == messageId } ||
-                loadAround(messageId, requireTarget = true)
+            // Dojíždí se jen ke zprávě, která už v seznamu byla. Po výměně okna (`loadAround`) je
+            // seznam nový a začíná u spodní hrany okna — tam se dotahují novější zprávy a indexy by
+            // se dojíždění posouvaly pod rukama.
+            val alreadyLoaded = _state.value.messages.any { it.id == messageId }
+            // Nenačtená zpráva: obrazovka hned začne odjíždět (viz `JumpTransition`), načítání
+            // mezitím běží. Id rostou s časem, takže starší = menší id než nejstarší načtená.
+            val older = !alreadyLoaded && _state.value.messages.lastOrNull()?.let { messageId < it.id } != false
+            if (!alreadyLoaded) _state.update { it.copy(pendingJump = PendingJump(messageId, older)) }
+            val loaded = alreadyLoaded || loadAround(messageId, requireTarget = true)
             if (!loaded) {
+                _state.update { it.copy(pendingJump = null) }
                 // Okno kolem ní zprávu neobsahuje — byla smazaná (nebo nešla načíst, to ohlásilo
                 // `loadAround` samo).
                 _state.update {
@@ -523,7 +610,12 @@ class ConversationViewModel(
 
             _state.update {
                 it.copy(
-                    scrollTarget = ScrollTarget(messageId, ScrollAnchor.Center),
+                    scrollTarget = ScrollTarget(
+                        messageId,
+                        ScrollAnchor.Center,
+                        animate = alreadyLoaded,
+                        older = older.takeUnless { alreadyLoaded },
+                    ),
                     highlightedMessageId = messageId,
                 )
             }
@@ -538,7 +630,7 @@ class ConversationViewModel(
 
     /** Obrazovka hlásí, že skok proběhl. Bez toho by se opakoval při každé rekompozici. */
     fun consumeScrollTarget() {
-        _state.update { it.copy(scrollTarget = null) }
+        _state.update { it.copy(scrollTarget = null, pendingJump = null) }
     }
 
     private fun observeUpdates() {
@@ -1837,8 +1929,11 @@ private const val MAX_UNREAD_PAGES = 5
  */
 private const val PAGE_SIZE = 30
 
+/** Pauza v psaní, po které se v chatu hledá. Každý dotaz jde na server. */
+private const val SEARCH_DEBOUNCE_MS = 300L
+
 /** Jak dlouho zůstane zpráva po skoku zvýrazněná. */
-private const val HIGHLIGHT_DURATION_MS = 1500L
+private const val HIGHLIGHT_DURATION_MS = 2500L
 
 /** Kam na obrazovce má zpráva po skoku dosednout. */
 enum class ScrollAnchor {
@@ -1856,7 +1951,17 @@ enum class ScrollAnchor {
 data class ScrollTarget(
     val messageId: Long,
     val anchor: ScrollAnchor,
+    /** Dojet k ní, ne skočit — jen když zpráva v seznamu už byla (viz `jumpToMessage`). */
+    val animate: Boolean = false,
+    /**
+     * Je starší než to, co bylo v seznamu? Vyplněné jen u zprávy, která načtená nebyla — u načtené
+     * to obrazovka pozná sama z pozice v seznamu.
+     */
+    val older: Boolean? = null,
 )
+
+/** Skok na zprávu, která se teprve načítá; obrazovka mezitím odjíždí směrem k ní. */
+data class PendingJump(val messageId: Long, val older: Boolean)
 
 /**
  * Otevřené informace o zprávě.
@@ -2027,6 +2132,10 @@ data class ConversationState(
     val editing: ChatMessage? = null,
     /** Zpráva krátce zvýrazněná po skoku na citaci; `null` většinu času. */
     val highlightedMessageId: Long? = null,
+    /** Skok na nenačtenou zprávu, která se právě načítá (viz [PendingJump]). */
+    val pendingJump: PendingJump? = null,
+    /** Hledání v chatu; `null` = zavřené (hlavička ukazuje chat, dole je vstupní pole). */
+    val search: InChatSearch? = null,
     /** Jednorázová událost: otevřít chat ze zmínky v textu. */
     val openChat: Long? = null,
     /** Běží přidání ke skupině / kanálu ([ConversationViewModel.join]). */

@@ -68,7 +68,10 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
      hledání zpráv). Zbývá **interní `t.me` odkazy** (pozvánka, odkaz na zprávu, `t.me/jméno`)
      otevírat v aplikaci místo prohlížeče a **veřejné příspěvky s tagem**
      (`searchPublicMessagesByTag`) jako další sekce u hashtagového dotazu.
-  3. **Hledání v konverzaci** (lupa v hlavičce, šipky mezi výsledky) přes `searchChatMessages`.
+  3. ~~**Hledání v konverzaci**~~ — hotovo (lupa v hlavičce, šipky mezi výsledky, viz
+     `CLAUDE.md`, „Hledání v konverzaci"). Zbývá **zvýraznit hledané slovo v bublině**
+     (stejně jako v hledání zpráv, `highlightRanges`) a hledání **podle odesílatele**
+     (`senderId` ve `searchChatMessages`) ve skupinách.
   4. **Filtry obsahu** (média, soubory, odkazy), hlavně pro profil chatu.
 
   Na rozloženém Foldu by místo celoobrazovkového hledání sedělo `ExpandedDockedSearchBar`.

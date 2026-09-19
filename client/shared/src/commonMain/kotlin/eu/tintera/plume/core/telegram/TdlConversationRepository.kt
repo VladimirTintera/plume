@@ -247,6 +247,27 @@ class TdlConversationRepository(
      * nebývá a dál se nečte. Právo odepínat se zjistí z první zprávy (`canBePinned`): v chatu je
      * jedno pro všechny zprávy, takže dotaz na každou by byl zbytečný.
      */
+    override suspend fun searchInChat(chatId: Long, query: String, fromMessageId: Long): Result<ChatSearchPage> =
+        client.searchChatMessages(
+            chatId = chatId,
+            topicId = null,
+            query = query,
+            senderId = null,
+            fromMessageId = fromMessageId,
+            offset = 0,
+            limit = IN_CHAT_SEARCH_PAGE,
+            filter = null,
+        )
+            .toResult()
+            .map { found ->
+                ChatSearchPage(
+                    messageIds = found.messages.filterNotNull().map { it.id },
+                    // -1 = server odhad nemá.
+                    total = found.totalCount.takeIf { it >= 0 },
+                    nextFromMessageId = found.nextFromMessageId.takeIf { it != 0L },
+                )
+            }
+
     override suspend fun pinnedMessages(chatId: Long): Result<PinnedMessages> {
         val isGroup = isGroup(chatId)
         val found = mutableListOf<Message>()
@@ -985,6 +1006,9 @@ private fun replyTo(messageId: Long) = InputMessageReplyToMessage(
 
 /** Připnutých zpráv na jeden dotaz. Víc TDLib nedovolí. */
 private const val PINNED_PAGE_SIZE = 100
+
+/** Výsledků hledání v chatu na stránku; další se dotahují, až k nim uživatel došipkuje. */
+private const val IN_CHAT_SEARCH_PAGE = 50
 
 /** Strop stránek připnutých zpráv. Pět set připnutých v jednom chatu je víc než dost. */
 private const val MAX_PINNED_PAGES = 5

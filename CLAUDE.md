@@ -13,7 +13,7 @@ přeposílání, připnuté zprávy), prohlížeč médií s fotkami i videem, r
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
 Není: notifikace na iOS ani hlášení pádů z iOS; obrazovky profilu chatu a nové konverzace.
-Hledání umí chaty, veřejné chaty a zprávy napříč chaty, ne zatím uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné a Vzhled; vědomě nastavitelné je zatím
+Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné a Vzhled; vědomě nastavitelné je zatím
 téma aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
 Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
@@ -1314,8 +1314,59 @@ se ukáže i bez nových zpráv, jakmile je uživatel o kus výš.
 
 - **Načtená zpráva = okamžitý skok, jinak okno kolem ní** (`loadAround`, viz „Okno v historii").
   Skočit jde libovolně hluboko — citace na zprávu starou roky i výsledek hledání.
+- **Na citaci a mezi výsledky hledání se DOJÍŽDÍ** (`animateToAnchor`, `slowSpatialSpec`),
+  skok na první nepřečtenou a návrat dolů zůstávají okamžité. Okamžitý skok neukázal, kterým
+  směrem a jak daleko zpráva je. Položka mimo obrazovku nemá změřenou polohu: dojede se na odhad
+  z průměrné výšky viditelných položek a pak se doladí podle skutečného layoutu.
+- **Ke vzdálené nebo nenačtené zprávě se PŘEJEDE** (`JumpTransition`): seznam odjede směrem
+  k ní a zprůhlední, neviditelně se přesune (u nenačtené mezitím doběhne `loadAround`), nalezená
+  zpráva se objeví rovnou na místě a zvýrazněná a sousedé k ní sjedou shora i zdola (vzdálenější
+  z dál). Rolovat přes desítky zpráv (`MAX_ANIMATED_JUMP_ITEMS`, 40) by trvalo a skládalo by
+  všechno mezi; do nenačtené historie dojet nejde vůbec.
+- **Odjezd začíná HNED, ne až po načtení** (`ConversationState.pendingJump`). `jumpToMessage`
+  ho ohlásí před `loadAround`, takže čekání na TDLib schová odjezd. Když se zpráva nenajde,
+  `pendingJump` zmizí bez `scrollTarget` a seznam se vrátí (`restore`). Druhé volání `leave`
+  nad rozjetým odjezdem jen pokračuje ze současné hodnoty — `Animatable` předchozí animaci přeruší.
+- **Směr zná u nenačtené zprávy jen ViewModel** (`ScrollTarget.older`: menší id než nejstarší
+  načtená). Po výměně okna je nový seznam dole a pozice by vždycky tvrdila „starší".
+- **Sjíždění sousedů je modifikátor na kořeni KAŽDÉHO bloku** (`Modifier.gathered`, za
+  `animateItem`). Obalit položku v `LazyColumn` dalším `Box`em nejde: `animateItem` musí být na
+  kořeni položky, jinak jeho animace přestanou fungovat.
+- **Dojíždí se jen ke zprávě, která v seznamu UŽ BYLA** (`ScrollTarget.animate`, rozhoduje
+  `jumpToMessage`). Po výměně okna začíná nový seznam u spodní hrany okna, a tam se hned
+  dotahují novější zprávy — ty se vkládají na začátek a posunou všechny indexy. Dojíždění
+  z tohohle místa skončilo u úplně jiné zprávy a nalezená nebyla vidět.
+- **Cíl se po dojetí hledá znovu podle id, ne podle indexu ze začátku jízdy** (`currentIndex`
+  nad `rememberUpdatedState(items)`). Během jízdy se můžou dotáhnout stránky; `items`
+  zachycené při spuštění efektu jsou v tu chvíli staré.
 - **Zpráva, kterou okno neobsahuje, byla smazaná** — hláška „už není k dispozici" (u citace
   i u výsledku hledání vlastní věta). „Moc hluboko" už nenastane.
+
+### Hledání v konverzaci
+
+Lupa v hlavičce chatu přepne hlavičku na pole a místo vstupního pole ukáže řádek „N z M" se
+šipkami (`InChatSearchTopBar`, `InChatSearchNavigator`). Stav je `ConversationState.search`
+(`InChatSearch`, čistá data a přechody, testy `InChatSearchTest`); `null` = zavřené.
+
+- **`searchChatMessages`, stránkované `nextFromMessageId`** (po 50). Další stránka se dotahuje,
+  až k ní uživatel došipkuje — u „google" má dlouhý chat přes 1 600 výsledků.
+- **Každý výsledek je skok přes `jumpToMessage`**, tedy i okno v historii (viz „Okno
+  v historii"). Výsledek starý roky se tím otevře stejně rychle jako včerejší.
+- **Šipka nahoru = starší**, protože tak výsledky leží v konverzaci nad sebou; pozice 1 je
+  nejnovější. Tak to dělá i oficiální klient.
+- **Počet je odhad serveru, ale nikdy menší než načtené** (`count`). Server u hledání vrací
+  `totalCount` přibližně; `-1` = neví.
+- **Dotaz s pauzou 300 ms a rušením předchozího** (`searchJob`). Stránka pro starý dotaz se
+  zahodí (`withNextPage` porovná `resultsQuery`).
+- **„Nic nenalezeno" jen k dotazu, na který server odpověděl** (`nothingFound` porovnává
+  `resultsQuery` s oříznutým `query`) — během psaní dalšího znaku by jinak problikávalo.
+- **Text drží pole samo** (`rememberSaveable`), ne stav ViewModelu: hodnota vrácená přes
+  `StateFlow` o dispatch později by poskakovala kurzorem.
+- **Zpět zavírá hledání** (`NavigationBackHandler` povolený jen s otevřeným hledáním), teprve
+  další zpět odchází z chatu. Konverzace zůstane na posledním výsledku.
+- **Ukázaný výsledek zůstává zvýrazněný** (barva a obíhající vlnitý okraj, viz „Vzhled
+  konverzace") — po jednorázovém pulzu by se v konverzaci ztratil. Hledané slovo samo se
+  v bublině zatím nezvýrazňuje.
 
 ### Okno v historii
 
@@ -1546,6 +1597,22 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
 - **Zvýraznění po skoku je dvojí pulz měřítkem**, ne pruh přes celou šířku. Ověřovat se to dá
   jen měřením: běžný `screencap` pulz mine. Série `screencap /sdcard/x.raw` v jednom `adb shell`
   a porovnání okraje bubliny v řádku pixelů ho zachytí.
+- **Zvýrazněná zpráva navíc změní barvu a její okraj se rozvlní, vlnky pomalu obíhají**
+  (`MessageFrameData.emphasized`, `WavyShape` v `items/EmphasisShape.kt`). Stavy jsou dva
+  a vypadají stejně, liší se délkou: jednorázově po skoku (`highlighted`, 2,5 s) a trvale jako
+  ukázaný výsledek hledání (`searchFocused`, dokud se nepřejde jinam nebo hledání nezavře).
+- **Barva je terciární role** (odchozí `tertiary`, příchozí `tertiaryContainer`). Bubliny jinak
+  terciární roli nepoužívají, takže se nesplete s žádnou stranou, a rozdíl sytá / světlá mezi
+  stranami zůstane. Prolíná se (`slowEffectsSpec`), akcent citace jde s ní.
+- **Zvlňuje se sama zpráva, žádný obrys navíc.** Obrys kolem (první pokus) působil jako cizí
+  rám a ležel přes fajfky doručení. Vlní se ořez celé zprávy v `MessageBox`, a to jen DOVNITŘ:
+  vrcholy vlnek leží na původním okraji, takže pozadí bubliny, fotka i samolepka (každá ořezaná
+  vlastním zaobleným tvarem) se do vlnek ořežou a nic nepřečnívá. Obsah má odsazení 8–14 dp,
+  vlnky 3 dp do textu nesáhnou.
+- **Tvar jde přes `graphicsLayer { shape; clip }`, ne `Modifier.clip`.** Fáze se mění každý
+  snímek a `WavyShape` je pokaždé nový objekt; ve vrstvě to přepočítá jen obrys, v `clip` by to
+  rekomponovalo zprávu. Vlnek je po obvodu celý počet, jinak by na spoji byl zub.
+- **Stažená nároží se při zvýraznění zakulatí** — zpráva se z bloku vyčlení i tvarem.
 
 - **Odchozí bublina je `primary`, ne `primaryContainer`.** Se dvěma světlými plochami o podobné
   světlosti nebylo při rychlém průletu očima poznat, kdo co napsal — rozlišovala je jen strana.

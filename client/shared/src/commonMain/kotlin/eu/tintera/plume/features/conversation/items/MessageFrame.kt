@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
 import eu.tintera.plume.core.telegram.MessageEntityType
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -112,8 +113,10 @@ internal data class MessageFrameData(
     val delivery: Delivery?,
     /** Co ukazuje odznak pod zprávou; „přečteno" jen u vybraných zpráv (viz [readBadgeRows]). */
     val badge: Delivery?,
-    /** Krátce po skoku na citaci — zpráva, na kterou se skočilo. */
+    /** Krátce po skoku (citace, výsledek hledání) — zpráva, na kterou se skočilo. */
     val highlighted: Boolean,
+    /** Ukázaný výsledek hledání v chatu — zvýrazněný, dokud se nepřejde jinam nebo hledání nezavře. */
+    val searchFocused: Boolean = false,
     /** V kanálu detail reakcí není (`BROADCAST_FORBIDDEN`), čip se proto nedá ťuknout. */
     val reactionsOpenable: Boolean,
     /** Let ze vstupního pole, který přistává právě v téhle zprávě; jinak `null`. */
@@ -124,7 +127,13 @@ internal data class MessageFrameData(
     val menuActions: List<MessageMenuAction>,
     /** Co udělá ťuknutí na zprávu samotnou (ne na odkaz, fotku…); `null` = nic. */
     val onTap: MessageAction?,
-)
+) {
+    /**
+     * Zpráva je zvýrazněná: jednorázově po skoku ([highlighted]), nebo trvale jako ukázaný
+     * výsledek hledání ([searchFocused]). Vypadá to stejně — liší se jen tím, jak dlouho to trvá.
+     */
+    val emphasized: Boolean get() = highlighted || searchFocused
+}
 
 /**
  * Blok se zprávou. Rám (tvář, tah na odpověď, zvýraznění, reakce, doručení, kotva nabídky) je
@@ -156,7 +165,7 @@ internal interface MessageItem : ConversationItem {
         // rozjetého prolnutí.
         val modifier = Modifier.animateItem(
             fadeInSpec = if (frame.flight != null) null else spring(stiffness = Spring.StiffnessMediumLow),
-        ).arrival(frame, scope)
+        ).arrival(frame, scope).gathered(frame.key, scope)
         RevealingTime(frame.message.timestamp, scope.timeReveal, modifier) {
             MessageFrame(frame, scope, maxWidthFraction) { Body() }
         }
@@ -229,17 +238,39 @@ internal fun rememberMessageBodyScope(
      *
      * Vrstvení jinak drží surface role, ne elevation — viz konvence v CLAUDE.md.
      */
-    val bubbleColor = if (message.isOutgoing) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerHigh
+    /*
+     * Zvýrazněná zpráva (skok, výsledek hledání) přejde do TERCIÁRNÍ role — jediné, kterou
+     * konverzace jinak nepoužívá pro bubliny, takže se nesplete s žádnou stranou. Odchozí
+     * sytá `tertiary`, příchozí světlá `tertiaryContainer`: rozdíl mezi stranami zůstane.
+     * Barva se prolíná, ne přepíná.
+     */
+    val colors = MaterialTheme.colorScheme
+    val emphasisSpec = MaterialTheme.motionScheme.slowEffectsSpec<Color>()
+    val bubbleColor by animateColorAsState(
+        targetValue = when {
+            message.isOutgoing && frame.emphasized -> colors.tertiary
+            message.isOutgoing -> colors.primary
+            frame.emphasized -> colors.tertiaryContainer
+            else -> colors.surfaceContainerHigh
+        },
+        animationSpec = emphasisSpec,
+        label = "bubble-color",
+    )
+    val onBubbleColor by animateColorAsState(
+        targetValue = when {
+            message.isOutgoing && frame.emphasized -> colors.onTertiary
+            message.isOutgoing -> colors.onPrimary
+            frame.emphasized -> colors.onTertiaryContainer
+            else -> colors.onSurface
+        },
+        animationSpec = emphasisSpec,
+        label = "bubble-content-color",
+    )
+    val accent = when {
+        message.isOutgoing -> onBubbleColor
+        frame.emphasized -> colors.tertiary
+        else -> colors.primary
     }
-    val onBubbleColor = if (message.isOutgoing) {
-        MaterialTheme.colorScheme.onPrimary
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
-    val accent = if (message.isOutgoing) onBubbleColor else MaterialTheme.colorScheme.primary
 
     /*
      * Stažené nároží drží skupinu pohromadě, takže je jen TAM, KDE NA SEBE BUBLINY NAVAZUJÍ.
@@ -258,12 +289,13 @@ internal fun rememberMessageBodyScope(
      * u skupin (`animateDpAsState` přes spatial spec).
      */
     val topInnerAnimated by animateDpAsState(
-        targetValue = if (frame.continuesAbove) BUBBLE_TIGHT else BUBBLE_CORNER,
+        // Zvýrazněná zpráva se z bloku vyčlení i tvarem: stažená nároží se zakulatí.
+        targetValue = if (frame.continuesAbove && !frame.emphasized) BUBBLE_TIGHT else BUBBLE_CORNER,
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "bubble-corner-top",
     )
     val bottomInnerAnimated by animateDpAsState(
-        targetValue = if (frame.continuesBelow) BUBBLE_TIGHT else BUBBLE_CORNER,
+        targetValue = if (frame.continuesBelow && !frame.emphasized) BUBBLE_TIGHT else BUBBLE_CORNER,
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "bubble-corner-bottom",
     )
@@ -583,6 +615,17 @@ internal fun MessageBox(
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "reaction-overhang",
     )
+    /*
+     * Zvýraznění: okraj zprávy se rozvlní a vlnky pomalu obíhají (viz `WavyShape`). Zvlňuje se
+     * sám ořez zprávy, žádný obrys navíc. Průběh i fáze se čtou až ve vrstvě, takže obíhání
+     * nerekomponuje.
+     */
+    val wave = animateFloatAsState(
+        targetValue = if (frame.emphasized) 1f else 0f,
+        animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
+        label = "emphasis-wave",
+    )
+    val wavePhase = rememberWavePhase(running = frame.emphasized)
     Box(modifier) {
         Box(
             Modifier
@@ -590,7 +633,10 @@ internal fun MessageBox(
                 .maxWidthFraction(maxWidthFraction)
                 .widthIn(max = 560.dp)
                 .then(beforeClip)
-                .clip(bodyScope.shape)
+                .graphicsLayer {
+                    shape = WavyShape(bodyScope.shape, progress = wave.value, phase = wavePhase.value)
+                    clip = true
+                }
                 .then(afterClip),
         ) {
             // Bez bubliny se kreslí na plochu konverzace, takže výchozí barva popředí patří

@@ -93,6 +93,21 @@ internal interface ConversationItemScope {
 
     /** Sponzorovaná zpráva není zpráva chatu, takže nemá ani [MessageAction]. */
     fun openSponsored(sponsored: SponsoredMessage)
+
+    /** Svislý posun položky při příjezdu po přeskoku (viz `JumpTransition`); čte se až při kreslení. */
+    fun gatherShift(key: Any): Float = 0f
+
+    /** Průhlednost položky při příjezdu po přeskoku; čte se až při kreslení. */
+    fun gatherAlpha(key: Any): Float = 1f
+}
+
+/**
+ * Položka při příjezdu po přeskoku sjíždí ke zprávě, na kterou se skočilo (viz `JumpTransition`).
+ * Patří na KOŘEN každého bloku, za `animateItem`; čte se až ve vrstvě, takže nic nerekomponuje.
+ */
+internal fun Modifier.gathered(key: Any, scope: ConversationItemScope): Modifier = graphicsLayer {
+    translationY = scope.gatherShift(key)
+    alpha = scope.gatherAlpha(key)
 }
 
 /**
@@ -106,7 +121,7 @@ internal interface ConversationItemScope {
 internal data class DayDividerItem(val timestamp: Int, override val key: String) : ConversationItem {
     @Composable
     override fun LazyItemScope.Content(scope: ConversationItemScope) {
-        DayDivider(timestamp, Modifier.animateItem())
+        DayDivider(timestamp, Modifier.animateItem().gathered(key, scope))
     }
 
     companion object {
@@ -121,7 +136,7 @@ internal data class DayDividerItem(val timestamp: Int, override val key: String)
 internal data class TimeDividerItem(val timestamp: Int, override val key: String) : ConversationItem {
     @Composable
     override fun LazyItemScope.Content(scope: ConversationItemScope) {
-        TimeDivider(timestamp, Modifier.animateItem())
+        TimeDivider(timestamp, Modifier.animateItem().gathered(key, scope))
     }
 }
 
@@ -137,7 +152,7 @@ internal data object UnreadDividerItem : ConversationItem {
 
     @Composable
     override fun LazyItemScope.Content(scope: ConversationItemScope) {
-        UnreadDivider(Modifier.animateItem())
+        UnreadDivider(Modifier.animateItem().gathered(key, scope))
     }
 }
 
@@ -153,7 +168,7 @@ internal data class ServiceMessageItem(
 
     @Composable
     override fun LazyItemScope.Content(scope: ConversationItemScope) {
-        RevealingTime(message.timestamp, scope.timeReveal, Modifier.animateItem()) {
+        RevealingTime(message.timestamp, scope.timeReveal, Modifier.animateItem().gathered(key, scope)) {
             ServiceMessage(message)
         }
     }
@@ -174,6 +189,7 @@ internal data class SponsoredItem(val sponsored: SponsoredMessage) : Conversatio
             sponsored = sponsored,
             onClick = { scope.openSponsored(sponsored) },
             modifier = Modifier
+                .gathered(key, scope)
                 .graphicsLayer { translationX = -scope.timeReveal() }
                 .padding(vertical = 8.dp),
         )
@@ -186,7 +202,7 @@ internal data object LoadingOlderItem : ConversationItem {
 
     @Composable
     override fun LazyItemScope.Content(scope: ConversationItemScope) {
-        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.gathered(key, scope).fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
             LoadingIndicator()
         }
     }
