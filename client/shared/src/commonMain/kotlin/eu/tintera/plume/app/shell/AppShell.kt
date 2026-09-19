@@ -1,5 +1,8 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.features.conversation.ConversationSearchRequests
+import eu.tintera.plume.features.profile.ChatProfileScreen
+import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.ui.LocalSavedMessagesChatId
 import eu.tintera.plume.core.telegram.ChatRepository
 import androidx.compose.foundation.layout.Arrangement
@@ -161,7 +164,9 @@ fun AppShell(modifier: Modifier = Modifier) {
      * vedle seznamu, tam navigace smysl dává a rail zůstává.
      */
     // Výběr chatu pro sdílení je vsuvka odjinud, ne sekce aplikace — bar ani rail k ní nepatří.
-    val inDetail = navigation.currentStack.any { it is ConversationRoute || it is MediaRoute || it is ShareRoute }
+    val inDetail = navigation.currentStack.any {
+        it is ConversationRoute || it is ChatProfileRoute || it is MediaRoute || it is ShareRoute
+    }
     val showBottomBar = compact && !inDetail
 
     /*
@@ -526,6 +531,24 @@ private fun shellEntryProvider(
                 if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(chatId, messageId))
             },
             onSearch = { query -> navigation.openSearch(query, keepConversation = twoPane) },
+            onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
+        )
+    }
+
+    // Profil je detail jako konverzace: na širokém rozvržení ji v pravém panelu nahradí.
+    entry<ChatProfileRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
+        val searchRequests = koinInject<ConversationSearchRequests>()
+        ChatProfileScreen(
+            viewModel = koinViewModel(key = "profile-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+            // Hledat patří konverzaci: profil se zavře a konverzace pod ním otevře hledání.
+            onSearch = {
+                searchRequests.request(route.chatId)
+                chatsStack.pop(route)
+            },
+            onOpenChat = { chatId ->
+                if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(chatId))
+            },
         )
     }
 

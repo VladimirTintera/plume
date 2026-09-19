@@ -1,5 +1,9 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.features.profile.ChatProfileViewModel
+import eu.tintera.plume.core.telegram.TdlProfileRepository
+import eu.tintera.plume.core.telegram.ProfileRepository
+import eu.tintera.plume.features.conversation.ConversationSearchRequests
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.ShareTargets
@@ -129,6 +133,8 @@ fun appModule() = module {
 
     // Most mezi platformním vstupem (ťuknutí na notifikaci) a navigací.
     single { ChatOpenRequests() }
+    single { ConversationSearchRequests() }
+    single<ProfileRepository> { TdlProfileRepository(holder = get()) }
     single { ShareRequests() }
     // Eager: po přihlášení zaregistruje Uložené zprávy jako cíl sdílení (viz init).
     single(createdAtStart = true) {
@@ -172,6 +178,17 @@ fun appModule() = module {
             shareRequests = get(),
             shareTargets = get(),
             connection = get(),
+            searchRequests = get(),
+        )
+    }
+
+    viewModel { parameters ->
+        ChatProfileViewModel(
+            chatId = parameters.get(),
+            profiles = get(),
+            chats = get(),
+            conversations = get(),
+            urlOpener = get(),
         )
     }
 

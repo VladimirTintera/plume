@@ -52,8 +52,12 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
     neznámých a to, jestli ztlumené chaty s novou zprávou zůstávají v archivu.
   - **Počet nepřečtených u vstupu do archivu** (`UpdateUnreadChatCount` pro `ChatListArchive`).
   - **Archivovat tahem** po položce seznamu; dnes jen z nabídky po dlouhém stisku.
-- **Detail chatu / profil.** Není kam ťuknout na hlavičku konverzace — chybí společná média,
-  členové skupiny, popis, ztlumení a hledání v chatu na jednom místě.
+- ~~**Detail chatu / profil.**~~ — hotovo (ťuknutí na hlavičku: fotka, jméno, ztlumení, hledání,
+  údaje, členové skupiny; `CLAUDE.md`, „Profil chatu"). Zbývá:
+  - **Sdílená média** — záložky Média / Soubory / Odkazy (`searchChatMessages` s filtry).
+  - **Akce navíc**: opustit / smazat chat, zablokovat uživatele, sdílet kontakt, upravit skupinu
+    (správce), pozvánka do skupiny.
+  - **Seznam členů velké skupiny** se stránkováním a hledáním; dnes prvních 200.
 - **Hledání.** ~~Chaty ve všech složkách (lokálně i na serveru), historie hledání a nejčastější
   lidé, totéž ve výběru pro přeposílání a sdílení~~ — hotovo (`ChatSearch`, poučení
   v `CLAUDE.md`, „Hledání chatů"). Zbývá, po krocích:

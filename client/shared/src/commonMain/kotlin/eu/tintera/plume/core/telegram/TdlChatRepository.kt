@@ -328,6 +328,9 @@ class TdlChatRepository(
      * `useDefaultMuteFor = false` je nutné: dokud je `true`, jede chat podle globálního
      * nastavení a `muteFor` se ignoruje.
      */
+    override fun muted(chatId: Long): Flow<Boolean?> =
+        all.map { it[chatId]?.isMuted }.distinctUntilChanged()
+
     override suspend fun setMuted(chatId: Long, muted: Boolean): Result<Unit> {
         val current = when (val result = client.getChat(chatId)) {
             is TdlResult.Failure -> return Result.failure(IllegalStateException(result.message))

@@ -58,6 +58,13 @@ data object ArchiveRoute : Route
 data class ConversationRoute(val chatId: Long, val messageId: Long? = null) : Route
 
 /**
+ * Profil chatu (ťuknutí na hlavičku konverzace). Detailový panel: na telefonu překryje konverzaci,
+ * na širokém rozvržení ji v pravém panelu nahradí a zpět vede do ní.
+ */
+@Serializable
+data class ChatProfileRoute(val chatId: Long) : Route
+
+/**
  * Prohlížeč média přes celou obrazovku.
  *
  * Vlastní routa, ne overlay uvnitř konverzace: takhle se ven chodí zpět (včetně predictive back),
@@ -109,6 +116,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(SettingsSectionRoute::class, SettingsSectionRoute.serializer())
             subclass(ArchiveRoute::class, ArchiveRoute.serializer())
             subclass(ConversationRoute::class, ConversationRoute.serializer())
+            subclass(ChatProfileRoute::class, ChatProfileRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
             subclass(ShareRoute::class, ShareRoute.serializer())

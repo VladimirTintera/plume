@@ -118,6 +118,9 @@ interface ChatRepository {
     suspend fun setArchived(chatId: Long, archived: Boolean): Result<Unit>
 
     /** Ztlumí chat nebo ztlumení zruší. */
+    /** Je chat ztlumený? Živě, pro profil chatu; `null`, dokud chat repository nezná. */
+    fun muted(chatId: Long): Flow<Boolean?>
+
     suspend fun setMuted(chatId: Long, muted: Boolean): Result<Unit>
 
     /** Ruční příznak nepřečtení. Nezávislý na počtu nepřečtených zpráv. */
