@@ -6,7 +6,7 @@
 # Co workflow udělá:
 #   1. z tagu vytáhne verzi (žádný verzovací commit není potřeba — build ji bere přes -P),
 #   2. postaví podepsaný AAB,
-#   3. z `release-notes/` složí poznámky pro uživatele (do Play zatím jen cs) a s nimi nahraje AAB do Google
+#   3. z `release-notes/` složí poznámky pro uživatele (do Play jazyky z PLAY_LANGS) a s nimi nahraje AAB do Google
 #      Play na **internal** track,
 #   4. založí GitHub Release s poznámkami a changelogem od předchozího android tagu.
 #
@@ -179,7 +179,7 @@ jobs:
           # `tracks` (množné číslo) nahradilo deprecated `track`; hodnota se dělí čárkou,
           # takže jediný track se píše stejně jako dřív.
           tracks: internal
-          # whatsnew-<locale> pro jazyky z PLAY_LANGS v release_notes.py (zatím jen cs-CZ);
+          # whatsnew-<locale> pro jazyky z PLAY_LANGS v release_notes.py (cs-CZ, en-US);
           # každý musí být v záznamu aplikace v Play Console
           whatsNewDirectory: whatsnew
 

@@ -35,9 +35,8 @@ LOCALES = {
 }
 
 # Jazyky, které jdou do Play. Poznámka pro jazyk, který nemá aplikace v záznamu v obchodě,
-# by mohla shodit celý upload — a záznam zatím vyplněný není, platí jen výchozí čeština.
-# Angličtina se píše dál (GitHub Release), do Play půjde, až bude záznam mít en-US.
-PLAY_LANGS = ("cs",)
+# by mohla shodit celý upload — nový jazyk sem patří až po nahrání záznamu v něm (`play/listing/`).
+PLAY_LANGS = ("cs", "en")
 
 
 def parse(text, name):

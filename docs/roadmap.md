@@ -27,11 +27,9 @@ Teď je prázdné.
 - **Aplikace nemá ikonu.** Manifest nemá `android:icon`, takže launcher kreslí výchozí ikonu
   Androidu (na iOS stejně, viz níž). Návrh pírka pro obchod je v `play/graphics/icon/icon.png`
   (generovaný skriptem, zatím jen návrh); adaptivní ikona pro launcher z něj ještě není.
-- **Záznam v Play dokončit mimo API.** Texty a grafiku nahrává workflow Play Listing, ale
-  service account na to potřebuje v Play Console oprávnění „Správa prezentace v obchodě"
-  (bez něj `edits:validate` vrací 403). Ručně zbývá kategorie, zásady ochrany soukromí (URL),
-  hodnocení obsahu (IARC), cílová skupina, bezpečnost dat a prohlášení o reklamách. Po prvním
-  úspěšném nahrání en-US přidat `"en"` do `PLAY_LANGS` v `release_notes.py`.
+- **Záznam v Play dokončit mimo API.** Texty a grafika (cs, en) jsou nahrané, workflow Play
+  Listing je nahrává z `play/`. Ručně v Play Console zbývá kategorie, zásady ochrany soukromí (URL),
+  hodnocení obsahu (IARC), cílová skupina, bezpečnost dat a prohlášení o reklamách.
 - **Seznam chatů na snímcích obrazovky chybí.** Na účtu jsou skutečné osoby; snímek seznamu
   chce demo účet se smyšlenými chaty.
 - **`isShrinkResources` není zapnuté.** Je to samostatný krok od minifikace a umí uklidit
