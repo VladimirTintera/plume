@@ -388,4 +388,12 @@
         <item quantity="few">%1$d samolepky</item>
         <item quantity="other">%1$d samolepek</item>
     </plurals>
+    <string name="update_available_title">Je k dispozici nová verze</string>
+    <string name="update_available_text">Stáhne se na pozadí, můžeš dál psát.</string>
+    <string name="update_action_update">Aktualizovat</string>
+    <string name="update_action_later">Teď ne</string>
+    <string name="update_downloading_title">Stahuje se aktualizace…</string>
+    <string name="update_downloaded_title">Aktualizace je připravená</string>
+    <string name="update_downloaded_text">Instalace se dokončí restartem aplikace.</string>
+    <string name="update_action_restart">Restartovat</string>
 </resources>

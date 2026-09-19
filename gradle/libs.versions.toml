@@ -55,6 +55,9 @@ work = "2.11.2"
 # Gradle plugin Crashlytics — nahrává R8 mapping soubor a vkládá do APK build id, podle kterého
 # konzole hlášení spáruje. Verze pluginu je na firebaseBom NEZÁVISLÁ (jiný release cyklus).
 crashlytics = "3.0.8"
+# Play In-App Updates (karta s aktualizací v seznamu chatů). Jen základní artefakt, ne `-ktx`:
+# stačí Task API a ktx by táhl coroutines-play-services kvůli dvěma voláním.
+playAppUpdate = "2.1.0"
 
 # TDLib wrapper. Upstream TDLib dělá breaking changes i v patch verzích — proto je celý wrapper
 # schovaný za :client:shared/core/telegram a nikde jinde se jeho typy neobjevují.
@@ -110,6 +113,7 @@ media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
+play-app-update = { module = "com.google.android.play:app-update", version.ref = "playAppUpdate" }
 androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "work" }
 
 tdl-coroutines = { module = "dev.g000sha256:tdl-coroutines", version.ref = "tdl" }

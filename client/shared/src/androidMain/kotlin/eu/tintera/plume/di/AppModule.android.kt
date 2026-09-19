@@ -14,6 +14,7 @@ import eu.tintera.plume.core.settings.SETTINGS_FILE_NAME
 import eu.tintera.plume.core.settings.createSettingsDataStore
 import eu.tintera.plume.core.telegram.NotificationPresenter
 import eu.tintera.plume.core.telegram.TelegramPaths
+import eu.tintera.plume.core.update.AppUpdates
 import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.core.ui.TextClipboard
 import kotlinx.coroutines.CoroutineScope
@@ -36,6 +37,7 @@ actual fun Module.platformModule() {
     single<ShareTargetPublisher> { AndroidShareTargetPublisher(androidContext()) }
     single { NetworkMonitor(androidContext()) }
     single { AppForeground(androidContext()) }
+    single { AppUpdates(androidContext()) }
     single { TextClipboard(androidContext()) }
     // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.
     factory { AudioRecorder(androidContext()) }

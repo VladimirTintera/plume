@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
@@ -71,6 +72,15 @@ interface AppSettings {
 
     /** Zapne/vypne vlastní blok nepřečtených. Neblokuje, jako [recordRecentEmoji]. */
     fun setSeparateUnreadChats(separate: Boolean)
+
+    /**
+     * `versionCode` aktualizace, jejíž kartu uživatel v seznamu chatů zavřel. Tatáž verze se
+     * znovu nenabízí, další vydaná ano — `versionCode` se zvedá při každém releasu.
+     */
+    val dismissedUpdateVersionCode: StateFlow<Int?>
+
+    /** Zapamatuje zavřenou kartu aktualizace. Neblokuje, jako [recordRecentEmoji]. */
+    fun dismissUpdate(versionCode: Int)
 }
 
 /** Kolik nedávných emoji se drží. Zhruba pět řádků mřížky na telefonu. */
@@ -182,6 +192,16 @@ class DataStoreAppSettings(
         }
     }
 
+    override val dismissedUpdateVersionCode: StateFlow<Int?> = value(null) { preferences ->
+        preferences[DISMISSED_UPDATE_VERSION_CODE]
+    }
+
+    override fun dismissUpdate(versionCode: Int) {
+        scope.launch {
+            edit { preferences -> preferences[DISMISSED_UPDATE_VERSION_CODE] = versionCode }
+        }
+    }
+
     /** `základ:varianta` oddělené středníkem. Ani dvojtečka, ani středník v žádném emoji nejsou. */
     private fun String.decodeTones(): Map<String, String> =
         split(TONE_ENTRY_SEPARATOR)
@@ -203,6 +223,7 @@ class DataStoreAppSettings(
         val EMOJI_SKIN_TONES = stringPreferencesKey("emoji_skin_tones")
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val SEPARATE_UNREAD_CHATS = booleanPreferencesKey("separate_unread_chats")
+        val DISMISSED_UPDATE_VERSION_CODE = intPreferencesKey("dismissed_update_version_code")
         const val EMOJI_SEPARATOR = " "
         const val TONE_ENTRY_SEPARATOR = ";"
         const val TONE_PAIR_SEPARATOR = ":"

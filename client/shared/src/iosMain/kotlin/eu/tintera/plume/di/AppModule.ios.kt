@@ -16,6 +16,7 @@ import eu.tintera.plume.core.settings.createSettingsDataStore
 import eu.tintera.plume.core.telegram.applicationSupportDirectory
 import eu.tintera.plume.core.telegram.NotificationPresenter
 import eu.tintera.plume.core.telegram.TelegramPaths
+import eu.tintera.plume.core.update.AppUpdates
 import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.core.ui.TextClipboard
 import org.koin.core.module.Module
@@ -40,6 +41,7 @@ actual fun Module.platformModule() {
     }
     single { NetworkMonitor() }
     single { AppForeground() }
+    single { AppUpdates() }
     single { TextClipboard() }
     // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.
     factory { AudioRecorder() }

@@ -143,6 +143,18 @@ class DataStoreAppSettingsTest {
         )
     }
 
+    @Test
+    fun zavrenaAktualizaceSePamatujePodleVerze() = settingsTest { settings, _ ->
+        assertEquals(null, settings.dismissedUpdateVersionCode.value)
+
+        settings.dismissUpdate(41)
+        assertEquals(41, settings.dismissedUpdateVersionCode.awaitValue("zavřená verze 41") { it == 41 })
+
+        // Další vydaná verze přepíše tu předchozí — pamatuje se jen poslední zavřená.
+        settings.dismissUpdate(42)
+        assertEquals(42, settings.dismissedUpdateVersionCode.awaitValue("zavřená verze 42") { it == 42 })
+    }
+
     /** `null` znamená „uživatel si nevybral" — výchozí motiv se podle platformy dopočítá až v UI. */
     @Test
     fun motivJeVychoziNevybrany() = settingsTest { settings, _ ->

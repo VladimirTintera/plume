@@ -10,7 +10,7 @@ nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí
 Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar), živý seznam chatů,
 konverzace (historie, živé zprávy, odesílání, přílohy a alba, hlasovky, samolepky a emoji, úprava,
 přeposílání, připnuté zprávy), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
-a hlášení pádů na Androidu, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
+a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
 Není: notifikace na iOS ani hlášení pádů z iOS; obrazovky archivu, hledání, profilu chatu a nové
 konverzace. Nastavení je list-detail se sekcemi Obecné a Vzhled; vědomě nastavitelné je zatím
@@ -160,6 +160,39 @@ rozešly — část chyb by v konzoli chyběla a nebylo by poznat které.
   ObjC knihovna, kterou Kotlin/Native nevidí, a Kotlin výjimka nese jen adresy stack trace
   (`getStackTraceAddresses()`), ne symboly. Vzor je `IosCrashlyticsLogger` v projektu
   com.profilog.telemetry.android.
+
+## Aktualizace z obchodu
+
+Android nabízí novou verzi z Play kartou nahoře v seznamu chatů (`UpdateCard`) přes Play
+In-App Updates v režimu **flexible**: stahuje se na pozadí, pak „Restartovat" (`completeUpdate`).
+
+- **`core/update` je hranice**, stejně jako `core/telegram` a `core/logging`:
+  `com.google.android.play.*` smí být jen v `AppUpdates.android.kt`. Zbytek vidí `AppUpdateState`.
+- **`AppUpdates` je `expect class`, ne rozhraní** — jako `AppForeground`. Spuštění aktualizace
+  potřebuje activity (dialog obchodu), a singleton v grafu závislostí ji nemá; proto je start
+  composable `rememberStartUpdate` a platformní člen `start(launcher)`, na který se ze společného
+  kódu nedosáhne.
+- **Dialog se spouští přes `ActivityResultLauncher`** (`startUpdateFlowForResult` s launcherem),
+  ne přes activity. Výsledek se nečte: průběh hlásí `InstallStateUpdatedListener`, zrušený
+  dialog nechá stav na „k dispozici".
+- **Ptá se při každém resume seznamu chatů** (`LifecycleResumeEffect`). Dotaz jde do aplikace
+  obchodu v telefonu, ne na server, a právě tak se po restartu připomene stažená, ale
+  nenainstalovaná aktualizace (`installStatus == DOWNLOADED`) — jinak by visela napořád.
+- **Immediate režim ne.** Celoobrazovková aktualizace by přerušila rozepsanou zprávu.
+- **Zavřít jde jen nabídku, a pamatuje se podle `versionCode`** (`AppSettings.dismissedUpdateVersionCode`).
+  Stahování a staženou aktualizaci si uživatel vyžádal sám, ty se ukazují vždycky. Pravidlo je
+  čistá funkce `updateCard` (testy `UpdateCardTest`).
+- **Mimo Play to nefunguje a není to chyba.** Debug build i `adb install` dostanou od obchodu
+  chybu (na emulátoru `-6 ERROR_INSTALL_NOT_ALLOWED`) nebo „není k dispozici"; loguje se jako
+  `i`, ne `w`, a karta se neukáže. Celá cesta se ověřuje přes internal app sharing.
+- **Vzhled karty se ověřuje podstrčeným stavem**: v `addOnFailureListener` dočasně nastavit
+  `AppUpdateState.Available(999)`, nainstalovat debug a vrátit. Jiná cesta, jak kartu v debugu
+  vidět, není.
+- **Artefakt je `app-update`, ne `app-update-ktx`.** Task API stačí a ktx by táhl
+  `kotlinx-coroutines-play-services` kvůli dvěma voláním.
+- **Karta je další blok seznamu**: zaoblení `GROUP_CORNER`, mezera pod ní jako mezi skupinami,
+  `primaryContainer` (od světlých řádků ji odliší, sytou barvu nese jen tlačítko). Jedna karta
+  pro všechny tři stavy s `animateContentSize` — výměna celé položky by vypadala jako nová.
 
 ## Pracovní postup
 
