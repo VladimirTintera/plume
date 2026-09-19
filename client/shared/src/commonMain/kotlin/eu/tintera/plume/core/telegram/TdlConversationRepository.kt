@@ -247,12 +247,17 @@ class TdlConversationRepository(
      * nebývá a dál se nečte. Právo odepínat se zjistí z první zprávy (`canBePinned`): v chatu je
      * jedno pro všechny zprávy, takže dotaz na každou by byl zbytečný.
      */
-    override suspend fun searchInChat(chatId: Long, query: String, fromMessageId: Long): Result<ChatSearchPage> =
+    override suspend fun searchInChat(
+        chatId: Long,
+        query: String,
+        fromMessageId: Long,
+        senderUserId: Long?,
+    ): Result<ChatSearchPage> =
         client.searchChatMessages(
             chatId = chatId,
             topicId = null,
             query = query,
-            senderId = null,
+            senderId = senderUserId?.let { MessageSenderUser(userId = it) },
             fromMessageId = fromMessageId,
             offset = 0,
             limit = IN_CHAT_SEARCH_PAGE,
@@ -922,6 +927,16 @@ class TdlConversationRepository(
         return Result.success(details)
     }
 
+    override suspend fun searchMembers(chatId: Long, query: String): Result<List<SenderInfo>> =
+        client.searchChatMembers(chatId = chatId, query = query, limit = MEMBER_SEARCH_LIMIT, filter = null)
+            .toResult()
+            .map { found ->
+                found.members.filterNotNull()
+                    .mapNotNull { (it.memberId as? MessageSenderUser)?.userId }
+                    .distinct()
+                    .mapNotNull { resolveSender(it) }
+            }
+
     private suspend fun resolveSender(senderId: Long): SenderInfo? {
         if (senderId == 0L) return null
 
@@ -1009,6 +1024,9 @@ private const val PINNED_PAGE_SIZE = 100
 
 /** Výsledků hledání v chatu na stránku; další se dotahují, až k nim uživatel došipkuje. */
 private const val IN_CHAT_SEARCH_PAGE = 50
+
+/** Kolik členů vrátí jedno hledání pro filtr podle odesílatele; víc se na obrazovku nevejde. */
+private const val MEMBER_SEARCH_LIMIT = 50
 
 /** Strop stránek připnutých zpráv. Pět set připnutých v jednom chatu je víc než dost. */
 private const val MAX_PINNED_PAGES = 5

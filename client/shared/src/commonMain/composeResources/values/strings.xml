@@ -144,6 +144,10 @@
     <string name="conversation_search_clear">Clear</string>
     <string name="conversation_search_close">Close search</string>
     <string name="conversation_search_failed">Couldn't search this chat.</string>
+    <string name="conversation_search_by_member">Search by member</string>
+    <string name="conversation_search_members">Search members</string>
+    <string name="conversation_search_members_none">No members found</string>
+    <string name="conversation_search_sender_remove">Remove member filter</string>
     <string name="conversation_join">Join</string>
     <string name="conversation_join_failed">Couldn't join.</string>
     <string name="conversation_link_failed">Couldn't open this link.</string>
