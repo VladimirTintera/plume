@@ -59,9 +59,7 @@ import eu.tintera.plume.resources.conversation_pin_failed
 import eu.tintera.plume.resources.conversation_join_failed
 import eu.tintera.plume.resources.conversation_mention_not_found
 import eu.tintera.plume.resources.conversation_message_deleted
-import eu.tintera.plume.resources.conversation_message_too_deep
 import eu.tintera.plume.resources.conversation_quote_deleted
-import eu.tintera.plume.resources.conversation_quote_too_deep
 import eu.tintera.plume.resources.conversation_reaction_failed
 import eu.tintera.plume.resources.conversation_recording_finish_failed
 import eu.tintera.plume.resources.conversation_recording_start_failed
@@ -374,12 +372,7 @@ class ConversationViewModel(
             repository.history(chatId = chatId, fromMessageId = from)
                 .onSuccess { page ->
                     _state.update { state ->
-                        state.copy(
-                            messages = merge(state.messages, page),
-                            loading = false,
-                            reachedStart = page.isEmpty(),
-                            error = null,
-                        )
+                        state.withOlderPage(oldestId = from, page = page).copy(loading = false, error = null)
                     }
                     resolveMissingQuotes()
                 }
@@ -392,6 +385,74 @@ class ConversationViewModel(
     }
 
     /**
+     * Stránka směrem k PŘÍTOMNOSTI — jen když je načtené okno v historii ([ConversationState.reachedEnd]
+     * neplatí). Obrazovka ji chce, když se uživatel blíží ke spodní hraně seznamu.
+     */
+    fun loadNewer() {
+        viewModelScope.launch {
+            loadMutex.withLock {
+                val state = _state.value
+                if (state.loading || state.reachedEnd) return@withLock
+                val newestId = state.messages.firstOrNull()?.id ?: return@withLock
+                _state.update { it.copy(loading = true) }
+
+                // `fromMessageId` je ve výsledku taky, proto o jednu víc; `withNewerPage` ji odfiltruje.
+                repository.history(chatId = chatId, fromMessageId = newestId, limit = PAGE_SIZE + 1, offset = -PAGE_SIZE)
+                    .onSuccess { page ->
+                        _state.update { it.withNewerPage(newestId, page).copy(loading = false, error = null) }
+                        resolveMissingQuotes()
+                    }
+                    .onFailure { failure ->
+                        _state.update {
+                            it.copy(loading = false, error = failure.reported(Res.string.conversation_history_failed))
+                        }
+                    }
+            }
+        }
+    }
+
+    /**
+     * Okno kolem zprávy: půl stránky starších, půl novějších. Nahradí načtený seznam, takže se
+     * dá skočit libovolně hluboko — historie se nedotahuje od nejnovější až k cíli.
+     *
+     * S [requireTarget] se okno použije jen, když v něm zpráva je (smazaná zpráva by jinak
+     * zahodila, co uživatel četl, a nikam by neskočila). Vrací, jestli se okno použilo.
+     */
+    private suspend fun loadAround(messageId: Long, requireTarget: Boolean): Boolean = loadMutex.withLock {
+        _state.update { it.copy(loading = true) }
+        repository.history(chatId = chatId, fromMessageId = messageId, limit = PAGE_SIZE, offset = -PAGE_SIZE / 2)
+            .fold(
+                onSuccess = { page ->
+                    val usable = page.isNotEmpty() && (!requireTarget || page.any { it.id == messageId })
+                    _state.update { if (usable) it.withWindow(page).copy(loading = false, error = null) else it.copy(loading = false) }
+                    if (usable) resolveMissingQuotes()
+                    usable
+                },
+                onFailure = { failure ->
+                    _state.update {
+                        it.copy(loading = false, error = failure.reported(Res.string.conversation_history_failed))
+                    }
+                    false
+                },
+            )
+    }
+
+    /**
+     * Z okna v historii zpátky k nejnovějším zprávám (tlačítko „dolů"). Seznam začne znovu od
+     * nejnovější — dostránkovat se k ní by znamenalo načíst všechno mezi.
+     */
+    fun jumpToLatest() {
+        viewModelScope.launch {
+            loadMutex.withLock {
+                _state.update { it.copy(messages = emptyList(), reachedStart = false, reachedEnd = true, window = it.window + 1) }
+            }
+            loadOlderPage()
+            val newest = _state.value.messages.firstOrNull() ?: return@launch
+            _state.update { it.copy(scrollTarget = ScrollTarget(newest.id, ScrollAnchor.Bottom)) }
+        }
+    }
+
+    /**
      * Dotáhne historii tak daleko, aby v ní byla hranice nepřečtených, a pak na ni skočí.
      *
      * Načítá se **od nejnovější dozadu**, ne od hranice dopředu. TDLib by uměl i to (záporný
@@ -399,15 +460,19 @@ class ConversationViewModel(
      * znamená, že se dá dojít i na konec toho, co je načtené, směrem k novějším. Za tu složitost
      * to nestojí — pár stránek zpátky je z lokální databáze rychlých.
      *
-     * Proto je tu [MAX_UNREAD_PAGES]. Kdo má v chatu stovky nepřečtených, skok nedostane
-     * a chová se to jako dosud; načítat kvůli tomu půlku historie by bylo horší než nepomoct.
+     * Proto je tu [MAX_UNREAD_PAGES]: pár stránek od nejnovější pokryje obvyklý případ a seznam
+     * zůstane souvislý až k přítomnosti. Kdo má nepřečtených stovky, dostane okno kolem hranice
+     * ([loadAround]) a k novějším se dostránkuje.
      */
     private suspend fun loadUntilUnread() {
         val boundary = _state.value.unreadBoundaryId ?: return
 
         // Hranice je načtená, jakmile máme aspoň jednu zprávu z přečtené části. Bez ní se předěl
         // stejně nevykreslí, takže skok nemá kam mířit.
-        if (!loadUntil(MAX_UNREAD_PAGES) { messages -> messages.any { it.id <= boundary } }) return
+        val loaded = loadUntil(MAX_UNREAD_PAGES) { messages -> messages.any { it.id <= boundary } } ||
+            // Hranice je poslední přečtená zpráva a mohla být smazaná — okno je dobré i bez ní.
+            loadAround(boundary, requireTarget = false)
+        if (!loaded) return
 
         // Seznam jde od nejnovější, takže první nepřečtená je ta POSLEDNÍ nad hranicí.
         val firstUnread = _state.value.messages.lastOrNull { it.id > boundary } ?: return
@@ -434,26 +499,23 @@ class ConversationViewModel(
     /**
      * Skočí na citovanou zprávu a krátce ji zvýrazní.
      *
-     * Citace míří často na zprávu, která už je načtená — pak je skok okamžitý. Jinak se historie
-     * dotahuje, stejně jako u skoku na nepřečtené, a stejně tak se stropem: odpověď na zprávu
-     * stará tisíce zpráv nestojí za to, aby se kvůli ní načítala půlka chatu.
+     * Citace míří často na zprávu, která už je načtená — pak je skok okamžitý. Jinak se načte
+     * okno kolem ní ([loadAround]), takže skočit jde libovolně hluboko, i na zprávu z hledání
+     * starou roky.
      *
      * Zvýraznění je nutné. Po skoku uprostřed historie by jinak nebylo poznat, na kterou
      * z bublin na obrazovce citace mířila.
      */
     fun jumpToMessage(messageId: Long, fromSearch: Boolean = false) {
         viewModelScope.launch {
-            val maxPages = if (fromSearch) MAX_SEARCH_JUMP_PAGES else MAX_JUMP_PAGES
-            if (!loadUntil(maxPages) { messages -> messages.any { it.id == messageId } }) {
+            val loaded = _state.value.messages.any { it.id == messageId } ||
+                loadAround(messageId, requireTarget = true)
+            if (!loaded) {
+                // Okno kolem ní zprávu neobsahuje — byla smazaná (nebo nešla načíst, to ohlásilo
+                // `loadAround` samo).
                 _state.update {
-                    it.copy(
-                        error = when {
-                            // Celá historie je načtená a zpráva v ní není — byla smazaná.
-                            it.reachedStart && fromSearch -> UiText(Res.string.conversation_message_deleted)
-                            it.reachedStart -> UiText(Res.string.conversation_quote_deleted)
-                            fromSearch -> UiText(Res.string.conversation_message_too_deep)
-                            else -> UiText(Res.string.conversation_quote_too_deep)
-                        },
+                    if (it.error != null) it else it.copy(
+                        error = UiText(if (fromSearch) Res.string.conversation_message_deleted else Res.string.conversation_quote_deleted),
                     )
                 }
                 return@launch
@@ -1770,19 +1832,10 @@ internal const val FLIGHT_DURATION_MS = 450L
 private const val MAX_UNREAD_PAGES = 5
 
 /**
- * Kolik stránek historie se dotáhne kvůli skoku na citovanou zprávu.
- *
- * Víc než u nepřečtených: tam jde o pohodlí při otevření chatu, tady o výslovné ťuknutí, na jehož
- * výsledek uživatel čeká. Tři sta zpráv zpátky je pořád otázka chvilky z lokální databáze.
+ * Zpráv na stránku historie — i pro okno kolem zprávy ([ConversationViewModel.jumpToMessage])
+ * a stránku k novějším. Stejná jako výchozí `limit` v `ConversationRepository.history`.
  */
-private const val MAX_JUMP_PAGES = 10
-
-/**
- * Totéž pro zprávu nalezenou v hledání. Víc, protože hledání najde i staré zprávy, a strop
- * pořád je: historie se dotahuje jen od nejnovější dozadu (viz [loadUntilUnread]), takže skok
- * na zprávu z loňska by znamenal načíst všechno mezi. Obousměrné stránkování je v roadmapě.
- */
-private const val MAX_SEARCH_JUMP_PAGES = 30
+private const val PAGE_SIZE = 30
 
 /** Jak dlouho zůstane zpráva po skoku zvýrazněná. */
 private const val HIGHLIGHT_DURATION_MS = 1500L
@@ -1794,6 +1847,9 @@ enum class ScrollAnchor {
 
     /** Na střed — kolem je vidět, na co zpráva navazuje. Skok na citaci. */
     Center,
+
+    /** Úplně dolů (index 0). Návrat z okna v historii k nejnovějším zprávám. */
+    Bottom,
 }
 
 /** Požadavek na odrolování ke zprávě. Obrazovka ho po provedení vynuluje. */
@@ -1990,6 +2046,18 @@ data class ConversationState(
     val itemKeys: Map<Long, Long> = emptyMap(),
     val loading: Boolean = false,
     val reachedStart: Boolean = false,
+    /**
+     * Načtené okno sahá až k NEJNOVĚJŠÍ zprávě chatu. Po skoku na starou zprávu (hledání,
+     * citace) je v [messages] jen okno kolem ní a nejnovější zprávy chybí — dokud se k nim
+     * nedostránkuje, nové zprávy se do seznamu nepřidávají, jinak by v něm vznikla díra.
+     */
+    val reachedEnd: Boolean = true,
+    /**
+     * Pořadové číslo načteného okna. Zvedá se, kdykoli se [messages] VYMĚNÍ celé (skok do
+     * historie, návrat k přítomnosti), ne při stránkování. Obrazovka podle něj zakládá nový stav
+     * seznamu — viz `listState` v `ConversationScreen`.
+     */
+    val window: Int = 0,
     val error: UiText? = null,
 ) {
     /** Id všech načtených zpráv alba, do kterého zpráva patří; u samostatné zprávy jen ona. */
@@ -2014,8 +2082,48 @@ data class ConversationState(
      * Ověřuje se to proti HODNOTÁM [itemKeys], tedy dočasným id potvrzených zpráv. Klíče jsou
      * nová id a těch se dotaz netýká.
      */
-    fun withMessage(message: ChatMessage): ConversationState =
-        if (message.id in itemKeys.values) this else copy(messages = merge(messages, listOf(message)))
+    fun withMessage(message: ChatMessage): ConversationState = when {
+        message.id in itemKeys.values -> this
+        reachedEnd -> copy(messages = merge(messages, listOf(message)))
+        /*
+         * Okno je v minulosti (viz [reachedEnd]). Cizí nová zpráva by za oknem udělala díru,
+         * takže se jen zahodí — dorazí se stránkováním k novějším. Vlastní ODESÍLANÁ zpráva ale
+         * znamená, že uživatel chce být dole: seznam začne znovu od ní, starší se dotáhnou
+         * obvyklým stránkováním a obrazovka odroluje dolů.
+         */
+        message.isOutgoing && message.sendState == SendState.Sending -> copy(
+            messages = listOf(message),
+            reachedStart = false,
+            reachedEnd = true,
+            window = window + 1,
+            scrollTarget = ScrollTarget(message.id, ScrollAnchor.Bottom),
+        )
+        else -> this
+    }
+
+    /**
+     * Okno kolem zprávy (skok do historie). Nahradí, co bylo načtené — mezi starým a novým
+     * oknem by jinak zůstala díra. O obou koncích se neví nic, zjistí se stránkováním.
+     */
+    fun withWindow(page: List<ChatMessage>): ConversationState =
+        copy(messages = merge(emptyList(), page), reachedStart = false, reachedEnd = false, window = window + 1)
+
+    /**
+     * Stránka novějších zpráv nad [newestId]. Jen když okno mezitím nikdo nevyměnil (skok jinam,
+     * odeslání zprávy) — jinak by se do nového seznamu vmíchala stránka ze starého. Stránka bez
+     * novějších zpráv znamená, že okno došlo k přítomnosti.
+     */
+    fun withNewerPage(newestId: Long, page: List<ChatMessage>): ConversationState {
+        if (reachedEnd || messages.firstOrNull()?.id != newestId) return this
+        val newer = page.filter { it.id > newestId }
+        return copy(messages = merge(messages, newer), reachedEnd = newer.isEmpty())
+    }
+
+    /** Stránka starších zpráv pod [oldestId]; stejná pojistka jako [withNewerPage]. */
+    fun withOlderPage(oldestId: Long, page: List<ChatMessage>): ConversationState {
+        if ((messages.lastOrNull()?.id ?: 0L) != oldestId) return this
+        return copy(messages = merge(messages, page), reachedStart = page.isEmpty())
+    }
 
     /**
      * Potvrzení (nebo selhání) odeslání. TDLib zprávě ZMĚNÍ id, takže ji nestačí aktualizovat —

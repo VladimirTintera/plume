@@ -109,4 +109,65 @@ class ConversationStateTest {
         assertEquals("upraveno", state.messages.single().text)
         assertEquals(listOf(tempId), state.keys())
     }
+
+    /*
+     * Okno v historii (skok na starou zprávu). Id jsou tu malá čísla — na řazení a porovnání
+     * záleží jen pořadí.
+     */
+    private fun at(id: Long, outgoing: Boolean = false, sendState: SendState? = SendState.Sent) =
+        message(id, sendState ?: SendState.Sent).copy(isOutgoing = outgoing, sendState = sendState)
+
+    private val window = ConversationState().withWindow(listOf(at(10), at(12), at(11)))
+
+    @Test
+    fun oknoNahradiSeznamAKonceNezna() {
+        val state = ConversationState().withMessage(at(99)).withWindow(listOf(at(10), at(12), at(11)))
+
+        assertEquals(listOf(12L, 11L, 10L), state.messages.map { it.id })
+        assertEquals(false, state.reachedStart)
+        assertEquals(false, state.reachedEnd)
+    }
+
+    /** Cizí nová zpráva by za oknem udělala díru — zahodí se, dorazí se stránkováním. */
+    @Test
+    fun ciziNovaZpravaSeDoOknaNepridava() {
+        assertEquals(listOf(12L, 11L, 10L), window.withMessage(at(99)).messages.map { it.id })
+    }
+
+    /** Vlastní odesílaná zpráva: seznam začne od ní a obrazovka sjede dolů. */
+    @Test
+    fun odeslaniZOknaVratiSeznamKPritomnosti() {
+        val state = window.withMessage(at(99, outgoing = true, sendState = SendState.Sending))
+
+        assertEquals(listOf(99L), state.messages.map { it.id })
+        assertTrue(state.reachedEnd)
+        assertEquals(ScrollTarget(99L, ScrollAnchor.Bottom), state.scrollTarget)
+    }
+
+    @Test
+    fun strankaKNovejsimSePripojiAKonecSePoznaPodlePrazdne() {
+        // TDLib vrací i výchozí zprávu (12) — ta se nezdvojí.
+        val next = window.withNewerPage(newestId = 12, page = listOf(at(12), at(13), at(14)))
+        assertEquals(listOf(14L, 13L, 12L, 11L, 10L), next.messages.map { it.id })
+        assertEquals(false, next.reachedEnd)
+
+        val end = next.withNewerPage(newestId = 14, page = listOf(at(14)))
+        assertTrue(end.reachedEnd)
+    }
+
+    /** Stránka ze starého okna se do nového nevmíchá (mezitím skok jinam nebo odeslání). */
+    @Test
+    fun opozdenaStrankaSeZahodi() {
+        val moved = window.withWindow(listOf(at(50), at(51)))
+
+        assertEquals(moved, moved.withNewerPage(newestId = 12, page = listOf(at(13))))
+        assertEquals(moved, moved.withOlderPage(oldestId = 10, page = listOf(at(9))))
+    }
+
+    @Test
+    fun strankaKeStarsimNavazePodOknem() {
+        val state = window.withOlderPage(oldestId = 10, page = listOf(at(9), at(8)))
+        assertEquals(listOf(12L, 11L, 10L, 9L, 8L), state.messages.map { it.id })
+        assertTrue(window.withOlderPage(oldestId = 10, page = emptyList()).reachedStart)
+    }
 }

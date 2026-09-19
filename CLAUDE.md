@@ -777,14 +777,11 @@ v chatech", vedle ní menu ⋮. Po ťuknutí se rozbalí `ExpandedFullScreenSear
   proč se našel. Slovo jen v adrese skrytého odkazu vidět nebude — text ji nenese.
 - **Ťuknutí na zprávu otevře chat se skokem na ni**: `ConversationRoute(chatId, messageId)`,
   ViewModel dostane `initialMessageId` a místo skoku na nepřečtené zavolá `jumpToMessage`
-  (dotažení historie a zvýraznění jako u citace, strop `MAX_SEARCH_JUMP_PAGES`). Druhý parametr
+  (okno kolem zprávy a zvýraznění jako u citace, viz „Okno v historii"). Druhý parametr
   Koinu se čte INDEXEM (`parameters.values.getOrNull(1)`): bývá `null` a podle typu by se spletl
   s `chatId`. **Konverzace na vrcholu zásobníku se porovnává podle `chatId`**
   (`isOpenConversation`), ne rovností routy — s `messageId` by přeposlání otevřelo tentýž chat
   podruhé.
-- **Historie se dotahuje jen od nejnovější dozadu**, takže zpráva starší než strop stránek se
-  otevře s hláškou „moc daleko" (`conversation_message_too_deep`). Skok kamkoli chce obousměrné
-  stránkování (kotva uprostřed) — v roadmapě.
 - **Globální výsledek otevře chat, ve kterém uživatel není**: `ChatInfo.canJoin` (supergroup
   se stavem `ChatMemberStatusLeft`, `getSupergroup` je lokální) nahradí vstupní pole tlačítkem
   „Přidat se" (`joinChat`). Psát do cizí skupiny nejde a nabízet pole by znamenalo chybu po
@@ -1233,12 +1230,10 @@ a nad ni nakreslí předěl „Nepřečtené zprávy".
 - **`unreadCount` je potřeba vedle ukazatele.** Z `lastReadInboxMessageId` samotného se nepřečtené
   odvodit nedají: v chatu, kde poslední zprávu napsal uživatel, je ukazatel starší než ta zpráva,
   a přesto není co číst.
-- **Načítá se od nejnovější dozadu, ne od hranice dopředu.** TDLib by uměl i to (záporný `offset`
-  v `getChatHistory`), ale kotva uprostřed znamená, že stránkování musí umět **oba směry** — dá se
-  dojít na konec načteného i směrem k novějším. Za tu složitost to nestojí; pár stránek zpět je
-  z lokální databáze rychlých.
-- **Proto je tam strop na počet stránek.** Kdo má stovky nepřečtených, skok nedostane a chová se
-  to jako dřív. Načítat kvůli tomu půlku historie by bylo horší než nepomoct.
+- **Nejdřív pár stránek od nejnovější dozadu** (`MAX_UNREAD_PAGES`). Obvyklý případ tím pokryje
+  a seznam zůstane souvislý až k přítomnosti. **Kdo má nepřečtených stovky, dostane okno kolem
+  hranice** (`loadAround(requireTarget = false)`, viz „Okno v historii") — hranice je poslední
+  přečtená zpráva a mohla být smazaná, takže okno se bere i bez ní.
 - **Na zámek stránkování se čeká, nepřeskakuje se.** Dotažení kvůli skoku běží souběžně s prvním
   načtením při otevření chatu; kdyby se volání při probíhajícím načítání vzdalo, spotřebovalo by
   všechny pokusy naprázdno a skok by se nekonal.
@@ -1317,10 +1312,38 @@ za ikonou seznamu v sheetu (`PinnedMessagesSheet`), s odepínáním.
 Ťuknutí na citaci v bublině odroluje na citovanou zprávu a krátce ji zvýrazní. Tlačítko „dolů"
 se ukáže i bez nových zpráv, jakmile je uživatel o kus výš.
 
-- **Sdílí dotahování historie se skokem na nepřečtené** (`loadUntil`), jen s vyšším stropem.
-  Tady jde o výslovné ťuknutí, na jehož výsledek se čeká, ne o pohodlí při otevření chatu.
-- **Nenalezená zpráva má dvě různé hlášky.** Je-li načtená celá historie, zpráva byla smazaná;
-  jinak je jen moc hluboko. Jedna společná by v jednom z případů lhala.
+- **Načtená zpráva = okamžitý skok, jinak okno kolem ní** (`loadAround`, viz „Okno v historii").
+  Skočit jde libovolně hluboko — citace na zprávu starou roky i výsledek hledání.
+- **Zpráva, kterou okno neobsahuje, byla smazaná** — hláška „už není k dispozici" (u citace
+  i u výsledku hledání vlastní věta). „Moc hluboko" už nenastane.
+
+### Okno v historii
+
+Skok na zprávu mimo načtené (hledání, citace, stovky nepřečtených) NENAČÍTÁ historii od
+nejnovější až k ní. Načte **okno kolem ní** (`getChatHistory` se záporným `offset`: půl stránky
+novějších, půl starších) a tím **nahradí** celý seznam. Ke starším se stránkuje jako vždy, k novějším
+u spodní hrany (`loadNewer`, `offset = -PAGE_SIZE`), dokud stránka nepřinese nic nového.
+
+- **`ConversationState.reachedEnd`** = okno sahá k nejnovější zprávě. Dokud ne, **cizí nové zprávy
+  se zahazují** (`withMessage`) — za oknem by udělaly díru — a dorazí se stránkováním. Vlastní
+  ODESÍLANÁ zpráva seznam srovná na ni (`reachedEnd = true`, `ScrollAnchor.Bottom`), starší
+  se dotáhnou obvyklým stránkováním; poslat z historie tedy znamená skočit dolů.
+- **Tlačítko „dolů" je v okně vidět vždy** a vede přes `jumpToLatest` (seznam znovu od nejnovější),
+  ne rolováním — nejnovější zprávy v okně nejsou.
+- **Stránka se použije, jen když okno mezitím nikdo nevyměnil** (`withNewerPage` / `withOlderPage`
+  kontrolují krajní id). Pomalá stránka ze starého okna by se jinak vmíchala do nového.
+- **Dotažená stránka k přítomnosti není „nová zpráva"** (`NewestItem.live`): posune nejnovější
+  klíč, ale nesmí ukotvit seznam dole (`requestScrollToItem(0)` by přeskočil všechno mezi) ani
+  připsat odznak nových zpráv.
+- **Stav seznamu patří jednomu oknu** (`ConversationState.window`, `rememberSaveable(window)` nad
+  `LazyListState`). Při výměně celého seznamu odešly všechny položky naráz a `animateItem` je
+  nechal doznít na místě: předěl „Dnes" visel přes zprávy z roku 2021 a jezdil se scrollem.
+  **Past: `remember { derivedStateOf { listState… } }` BEZ klíče** si pak pamatuje původní stav
+  seznamu — plovoucí datum hlásilo „Dnes" nad rokem 2021. Všechno, co z `listState` odvozuje,
+  má `listState` v klíči.
+- **Reklama se v okně nekreslí.** Stojí pod nejnovější zprávou a ta v okně není.
+- **TDLib smí vrátit míň, než se chtělo**, takže konec se pozná jen podle toho, že stránka
+  nepřinesla nic nového — stejně jako konec historie.
 - **Citace míří na STŘED obrazovky, nepřečtené k horní hraně** (`ScrollAnchor`). U citace je
   potřeba vidět, na co zpráva navazuje; u nepřečtených se čte od první dolů.
 - **Zvýraznění je nutné.** Po skoku doprostřed historie by jinak nebylo poznat, na kterou

@@ -15,12 +15,16 @@ import kotlinx.coroutines.flow.Flow
 interface ConversationRepository {
 
     /**
-     * Načte [limit] zpráv **starších** než [fromMessageId].
+     * Načte [limit] zpráv **starších** než [fromMessageId] (i ji samu, když existuje).
      *
      * `fromMessageId = 0` znamená „od nejnovější". Prázdný výsledek znamená konec historie —
      * TDLib nevrací žádný explicitní příznak, pozná se to jen podle toho, že nic nepřišlo.
+     *
+     * Záporný [offset] přidá tolik zpráv NOVĚJŠÍCH než [fromMessageId] — okno kolem zprávy
+     * a stránka směrem k přítomnosti ([limit] pak musí být aspoň `-offset`). TDLib smí vrátit
+     * méně, než se chtělo, takže konec se i tady pozná jen podle toho, že nic nového nepřišlo.
      */
-    suspend fun history(chatId: Long, fromMessageId: Long, limit: Int = 30): Result<List<ChatMessage>>
+    suspend fun history(chatId: Long, fromMessageId: Long, limit: Int = 30, offset: Int = 0): Result<List<ChatMessage>>
 
     /** Nové zprávy v tomhle chatu, jak přicházejí. */
     fun newMessages(chatId: Long): Flow<ChatMessage>

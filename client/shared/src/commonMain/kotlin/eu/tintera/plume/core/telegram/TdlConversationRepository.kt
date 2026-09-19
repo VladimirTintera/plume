@@ -93,14 +93,17 @@ class TdlConversationRepository(
         chatId: Long,
         fromMessageId: Long,
         limit: Int,
+        offset: Int,
     ): Result<List<ChatMessage>> {
         val isGroup = isGroup(chatId)
 
         return client.getChatHistory(
             chatId = chatId,
             fromMessageId = fromMessageId,
-            // Kladný offset by vracel i zprávy NOVĚJŠÍ než fromMessageId. Nula = čistě do minulosti.
-            offset = 0,
+            // Nula = od `fromMessageId` čistě do minulosti. Záporný offset přidá tolik zpráv
+            // NOVĚJŠÍCH (okno kolem zprávy, stránka směrem k přítomnosti); `limit` pak musí být
+            // aspoň `-offset`.
+            offset = offset,
             limit = limit,
             // `false` = smí sáhnout na server. S `true` by se po doscrollování na konec lokální
             // cache vrátil prázdný seznam a vypadalo by to jako konec historie.

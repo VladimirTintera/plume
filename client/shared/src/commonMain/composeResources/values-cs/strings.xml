@@ -134,9 +134,7 @@
     <string name="conversation_repin_failed">Zprávu se nepodařilo znovu připnout.</string>
     <string name="conversation_history_failed">Historii se nepodařilo načíst.</string>
     <string name="conversation_quote_deleted">Citovaná zpráva už není k dispozici.</string>
-    <string name="conversation_quote_too_deep">Citovaná zpráva je příliš hluboko v historii.</string>
     <string name="conversation_message_deleted">Tahle zpráva už není k dispozici.</string>
-    <string name="conversation_message_too_deep">Zpráva je v historii moc daleko, skočit na ni zatím nejde.</string>
     <string name="conversation_join">Přidat se</string>
     <string name="conversation_join_failed">Přidat se nepodařilo.</string>
     <string name="conversation_mention_not_found">Tenhle chat se nepodařilo najít.</string>
