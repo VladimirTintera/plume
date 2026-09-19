@@ -38,6 +38,9 @@
     <string name="chats_empty">Nothing here yet.</string>
     <string name="saved_messages">Saved Messages</string>
     <string name="chats_menu">More options</string>
+    <string name="chats_search">Search chats</string>
+    <string name="chats_search_clear">Clear search</string>
+    <string name="chats_search_empty">No matching chats</string>
     <string name="chats_section_pinned">Pinned</string>
     <string name="chats_muted">Muted</string>
     <string name="chats_draft_prefix">Draft: </string>
