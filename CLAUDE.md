@@ -1826,8 +1826,22 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   jen prolnulo podle `currentPage`, měnilo se skokem až po přeskočení na další stránku, zatímco
   karta jela pod prstem. Šev mezi dvěma pozadími změkčí rozostření samo — Haze rozmazává
   složený obraz, ne každý snímek zvlášť. Nahoře kdo a kdy fotku poslal
-  a akce, dole reakce; ťuknutí lišty schová. Dřív byl snímek přes celou obrazovku na holé černé
+  a akce, dole reakce. Dřív byl snímek přes celou obrazovku na holé černé
   a ovládání leželo přes fotku s přechodem do tmava.
+- **Dva režimy: galerie a celá obrazovka.** Galerie je to výš (rozostřené pozadí, karty,
+  sousedé u okrajů, lišty). Ťuknutí, dvojité ťuknutí nebo štípnutí na snímku přepne na celou
+  obrazovku: černé pozadí, bez lišt a popisku, snímek bez zaoblení a stránka přes celou šířku
+  (mezi fotkami při listování jen černá mezera). Zpátky vede jen ťuknutí — přiblížení vrácené
+  na základní velikost zůstává na celé obrazovce a návrat do galerie přiblížení srovná.
+  Zpět (gesto i tlačítko) prohlížeč zavírá z obou režimů, stejně jako tah dolů.
+- **Režim je jeden průběh 0 → 1** (`immersion`), ze kterého jde všechno: odsazení a mezera
+  pageru, místo pro lišty a popisek (`pageCardFrame`, testy `MediaPageLayoutTest`), zaoblení,
+  průhlednost pozadí. Pružina přestřelí, takže se ořezává do 0..1 — záporné odsazení nebo
+  zaoblení layout odmítne. Místo pro lišty se čte až při měření stránky, odsazení pageru
+  v kompozici (bere jen hodnotu), takže přechod rekomponuje, ale jen po dobu animace.
+- **Systémové lišty na celé obrazovce zůstávají** (čas, notifikace), jen se pod nimi
+  ztmaví přechodem do průhledna. Přes vysoký nebo přiblížený snímek by jinak světlé ikony
+  nebyly vidět.
 - **Lišty leží NAD kartou, ne přes ni.** Stránka jde přes celou výšku (přiblížená fotka má kam
   růst), ale karta se vepisuje do místa mezi lištami. Rozvržení stránky je vlastní `Layout`
   (`MediaPageLayout`): nejdřív se změří popisek, snímek se vepíše do zbytku (`fitInto`, testy
@@ -1886,8 +1900,12 @@ Video je vlastní typ přílohy (`MessageMedia.Video`: soubor, náhled, rozměry
 a v albu je náhled s tlačítkem přehrávání a délkou; přehrává se v prohlížeči, listuje se fotkami
 i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
 
-- **Přehrává se až v prohlížeči, ne v bublině.** Video v seznamu by se pralo se scrollem a swipem
-  na odpověď a každá viditelná bublina by držela dekodér.
+- **Přehrává se až v prohlížeči na celé obrazovce, ne v bublině ani v galerii.** Video v seznamu
+  by se pralo se scrollem a swipem na odpověď a každá viditelná bublina by držela dekodér.
+  V galerii je náhled s tlačítkem přehrání; ťuknutí přepne na celou obrazovku a teprve tam se
+  video stahuje a hraje. Návrat do galerie ho pozastaví.
+- **Ťuknutí na celé obrazovce u videa napřed ukáže schované ovládání**, teprve ťuknutí
+  s ovládáním na očích vede do galerie. Jinak by se u hrajícího videa k posuvníku nedalo dostat.
 - **Video se stáhne celé, teprve pak hraje** (průběh přes náhled). Rozestavěný soubor z TDLib
   přehrávač nepřečte, index bývá na konci. Streamování (čtení částí přes `readFilePart` / vlastní
   zdroj dat přehrávače) je v roadmapě. Stahovat začne až vybraná stránka; soused složený dopředu ne.
