@@ -1107,7 +1107,23 @@ private fun MessageInput(
                 // Při nahrávání místo pole pruh s časem; citace nad ním zůstává, hlasovka na ni odpoví.
                 if (isRecording) {
                     RecordingBar(recording = recording, onCancel = onCancelRecording)
-                } else Box {
+                } else Row(verticalAlignment = Alignment.Bottom) {
+            /*
+             * Ikony stojí VEDLE pole, ne v jeho `leadingIcon` / `trailingIcon`. `TextField`
+             * sloty centruje na výšku pole, takže s víceřádkovou zprávou ikony ujížděly doprostřed;
+             * tady se drží dole u posledního řádku, stejně jako odesílací tlačítko vedle karty.
+             * Odsazení 4 dp je (56 − 48) / 2: tlačítko pak sedí na střed jednořádkového pole.
+             */
+            // Přílohy jen při psaní — k úpravě textové zprávy příloha nepatří.
+            if (editing == null) {
+                AttachButton(
+                    onPickMedia = onPickMedia,
+                    onPickDocument = onPickDocument,
+                    contentColor = inputIconColor(),
+                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                )
+            }
+            Box(Modifier.weight(1f)) {
             TextField(
                 value = draft,
                 onValueChange = {
@@ -1119,29 +1135,6 @@ private fun MessageInput(
                 modifier = Modifier.fillMaxWidth(),
                 // S přílohami je text jejich popisek.
                 placeholder = { Text(stringResource(if (withAttachments) Res.string.conversation_input_caption else Res.string.conversation_input_message)) },
-                // Přílohy jen při psaní — k úpravě textové zprávy příloha nepatří.
-                leadingIcon = if (editing == null) {
-                    { AttachButton(onPickMedia = onPickMedia, onPickDocument = onPickDocument) }
-                } else {
-                    null
-                },
-                trailingIcon = {
-                    IconButton(
-                        onClick = {
-                            // Sheet a klávesnice by se jinak přetahovaly o spodek obrazovky.
-                            keyboard?.hide()
-                            onOpenStickers()
-                        },
-                    ) {
-                        // Ikona slibuje, co se otevře: poslední použitou část výběru. Při úpravě
-                        // zprávy jde otevřít jen emoji — samolepka do textu upravované zprávy nepatří.
-                        if (editing != null || expressionMode == ExpressionMode.Emoji) {
-                            Icon(painterResource(Res.drawable.mood_24dp), contentDescription = stringResource(Res.string.conversation_open_emoji))
-                        } else {
-                            Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = stringResource(Res.string.conversation_open_stickers))
-                        }
-                    }
-                },
                 maxLines = 6,
                 colors = TextFieldDefaults.colors(
                     // Kontejner i podtržení nese karta kolem; pole samo nekreslí nic.
@@ -1191,6 +1184,24 @@ private fun MessageInput(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                     )
+                }
+            }
+            }
+            IconButton(
+                onClick = {
+                    // Sheet a klávesnice by se jinak přetahovaly o spodek obrazovky.
+                    keyboard?.hide()
+                    onOpenStickers()
+                },
+                colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
+                modifier = Modifier.padding(end = 4.dp, bottom = 4.dp),
+            ) {
+                // Ikona slibuje, co se otevře: poslední použitou část výběru. Při úpravě
+                // zprávy jde otevřít jen emoji — samolepka do textu upravované zprávy nepatří.
+                if (editing != null || expressionMode == ExpressionMode.Emoji) {
+                    Icon(painterResource(Res.drawable.mood_24dp), contentDescription = stringResource(Res.string.conversation_open_emoji))
+                } else {
+                    Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = stringResource(Res.string.conversation_open_stickers))
                 }
             }
                 }
@@ -1352,47 +1363,18 @@ private const val RECORDING_BREATH_MS = 900
 /** O kolik se tlačítko při nádechu pootočí. */
 private const val RECORDING_BREATH_ROTATION = 30f
 
-/** Co tlačítko u vstupního pole právě dělá. Změna mezi nimi se animuje. */
-private enum class SendButtonKind { Mic, Send, Save }
-
 /**
- * Tlačítko příloh s nabídkou Fotka / Soubor.
+ * Barva ikon v kartě vstupního pole (přílohy, emoji/samolepky).
  *
- * Dvě položky, ne rovnou výběr: Photo Picker ukazuje jen fotky a výběr dokumentu nemá náhledy, takže
- * jeden systémový výběr pro obojí by byl horší v obou případech. Klávesnice se zavře, než se otevře
- * systémový výběr — jinak by po návratu vyskočila přes bublinu s nahráváním.
+ * Výchozí `onSurfaceVariant` byla na `surfaceContainerHigh` karty zašedlá a špatně čitelná.
+ * `primary` je to, čím M3 odlišuje ovládání od textu (placeholder zůstává šedý), a na kartě
+ * má kontrast v obou režimech — role drží hierarchii, ne pevnou světlost.
  */
 @Composable
-private fun AttachButton(onPickMedia: () -> Unit, onPickDocument: () -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    val keyboard = LocalSoftwareKeyboardController.current
+private fun inputIconColor() = MaterialTheme.colorScheme.primary
 
-    Box {
-        IconButton(onClick = { open = true }) {
-            Icon(painterResource(Res.drawable.attach_file_24dp), contentDescription = stringResource(Res.string.conversation_attach))
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(Res.string.conversation_attach_media)) },
-                leadingIcon = { Icon(painterResource(Res.drawable.perm_media_24dp), contentDescription = null) },
-                onClick = {
-                    open = false
-                    keyboard?.hide()
-                    onPickMedia()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(Res.string.conversation_attach_file)) },
-                leadingIcon = { Icon(painterResource(Res.drawable.description_24dp), contentDescription = null) },
-                onClick = {
-                    open = false
-                    keyboard?.hide()
-                    onPickDocument()
-                },
-            )
-        }
-    }
-}
+/** Co tlačítko u vstupního pole právě dělá. Změna mezi nimi se animuje. */
+private enum class SendButtonKind { Mic, Send, Save }
 
 /**
  * Hlavička karty při úpravě zprávy.
