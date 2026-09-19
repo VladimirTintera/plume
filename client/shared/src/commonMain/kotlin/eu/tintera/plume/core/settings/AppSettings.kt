@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.settings
 
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -9,6 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -83,31 +85,58 @@ enum class ExpressionMode { Emoji, Stickers }
  * Hodnoty se ukládají jako **název** výčtu, ne pořadí — přidání nové hodnoty doprostřed by
  * jinak tiše změnilo význam uložených dat. Neznámý název (hodnota z novější verze aplikace
  * po návratu ke starší) spadne na výchozí.
+ *
+ * **`dataStore.data` se odebírá JEDNOU a každý zápis počká, až ten odběr načte soubor**
+ * ([preferences], [edit]). Obchází se tím chyba DataStore 1.2.x: nový odběr `data` čte úvodní
+ * stav bez zámku, a když zrovna běží zápis, dostane STARÁ data s už zvýšenou verzí (zápis zvedá
+ * verzi před zápisem souboru). Nová data se pak v odběru zahodí jako „už viděná"
+ * (`dropWhile { version <= startState.version }`) a hodnota zůstane stará až do dalšího zápisu.
+ * Opraveno v DataStore 1.3.0 (čtení bez zámku bere verzi z keše); do té doby se zápis do okna
+ * úvodního čtení nesmí trefit — a s pěti odběry spuštěnými při vzniku a zápisem hned po něm se
+ * pod zátěží trefoval.
  */
 class DataStoreAppSettings(
     private val dataStore: DataStore<Preferences>,
     private val scope: CoroutineScope,
 ) : AppSettings {
 
-    override val expressionMode: StateFlow<ExpressionMode> = dataStore.data
-        .map { preferences ->
-            ExpressionMode.entries.firstOrNull { it.name == preferences[EXPRESSION_MODE] } ?: ExpressionMode.Emoji
-        }
-        // Eagerly: čte se hned při startu aplikace, ne až při první obrazovce, která se zeptá.
-        .stateIn(scope, SharingStarted.Eagerly, ExpressionMode.Emoji)
+    /**
+     * Jediný odběr souboru; `null`, dokud se nenačte. Všechny hodnoty se z něj odvozují v paměti.
+     *
+     * Eagerly: čte se hned při startu aplikace, ne až při první obrazovce, která se zeptá.
+     */
+    private val preferences: StateFlow<Preferences?> = dataStore.data
+        .stateIn(scope, SharingStarted.Eagerly, null)
 
-    override suspend fun setExpressionMode(mode: ExpressionMode) {
-        dataStore.edit { it[EXPRESSION_MODE] = mode.name }
+    private fun <T> value(default: T, read: (Preferences) -> T): StateFlow<T> = preferences
+        .map { it?.let(read) ?: default }
+        .stateIn(scope, SharingStarted.Eagerly, default)
+
+    /**
+     * Zápis, až je soubor načtený (viz dokumentace třídy). Po prvním načtení odběr sleduje keš
+     * DataStore, a ta změnu nepropásne.
+     */
+    private suspend fun edit(transform: (MutablePreferences) -> Unit) {
+        preferences.first { it != null }
+        dataStore.edit(transform)
     }
 
-    override val recentEmojis: StateFlow<List<String>> = dataStore.data
-        .map { preferences -> preferences[RECENT_EMOJIS]?.decodeEmojis().orEmpty() }
-        .stateIn(scope, SharingStarted.Eagerly, emptyList())
+    override val expressionMode: StateFlow<ExpressionMode> = value(ExpressionMode.Emoji) { preferences ->
+        ExpressionMode.entries.firstOrNull { it.name == preferences[EXPRESSION_MODE] } ?: ExpressionMode.Emoji
+    }
+
+    override suspend fun setExpressionMode(mode: ExpressionMode) {
+        edit { it[EXPRESSION_MODE] = mode.name }
+    }
+
+    override val recentEmojis: StateFlow<List<String>> = value(emptyList()) { preferences ->
+        preferences[RECENT_EMOJIS]?.decodeEmojis().orEmpty()
+    }
 
     override fun recordRecentEmoji(emoji: String) {
         scope.launch {
             // Čte a zapisuje se uvnitř `edit`: dvě rychlá ťuknutí za sebou se nepřepíšou navzájem.
-            dataStore.edit { preferences ->
+            edit { preferences ->
                 val current = preferences[RECENT_EMOJIS]?.decodeEmojis().orEmpty()
                 val updated = (listOf(emoji) + current.filterNot { it == emoji }).take(MAX_RECENT_EMOJIS)
                 preferences[RECENT_EMOJIS] = updated.joinToString(EMOJI_SEPARATOR)
@@ -115,13 +144,13 @@ class DataStoreAppSettings(
         }
     }
 
-    override val emojiSkinTones: StateFlow<Map<String, String>> = dataStore.data
-        .map { preferences -> preferences[EMOJI_SKIN_TONES]?.decodeTones().orEmpty() }
-        .stateIn(scope, SharingStarted.Eagerly, emptyMap())
+    override val emojiSkinTones: StateFlow<Map<String, String>> = value(emptyMap()) { preferences ->
+        preferences[EMOJI_SKIN_TONES]?.decodeTones().orEmpty()
+    }
 
     override fun setEmojiSkinTone(base: String, variant: String?) {
         scope.launch {
-            dataStore.edit { preferences ->
+            edit { preferences ->
                 val current = preferences[EMOJI_SKIN_TONES]?.decodeTones().orEmpty()
                 val updated = if (variant == null || variant == base) current - base else current + (base to variant)
                 preferences[EMOJI_SKIN_TONES] = updated.entries.joinToString(TONE_ENTRY_SEPARATOR) { (k, v) ->
@@ -131,25 +160,25 @@ class DataStoreAppSettings(
         }
     }
 
-    override val themeMode: StateFlow<ThemeMode?> = dataStore.data
-        .map { preferences -> ThemeMode.entries.firstOrNull { it.name == preferences[THEME_MODE] } }
-        .stateIn(scope, SharingStarted.Eagerly, null)
+    override val themeMode: StateFlow<ThemeMode?> = value(null) { preferences ->
+        ThemeMode.entries.firstOrNull { it.name == preferences[THEME_MODE] }
+    }
 
     override fun setThemeMode(mode: ThemeMode?) {
         scope.launch {
-            dataStore.edit { preferences ->
+            edit { preferences ->
                 if (mode == null) preferences.remove(THEME_MODE) else preferences[THEME_MODE] = mode.name
             }
         }
     }
 
-    override val separateUnreadChats: StateFlow<Boolean> = dataStore.data
-        .map { preferences -> preferences[SEPARATE_UNREAD_CHATS] ?: false }
-        .stateIn(scope, SharingStarted.Eagerly, false)
+    override val separateUnreadChats: StateFlow<Boolean> = value(false) { preferences ->
+        preferences[SEPARATE_UNREAD_CHATS] ?: false
+    }
 
     override fun setSeparateUnreadChats(separate: Boolean) {
         scope.launch {
-            dataStore.edit { preferences -> preferences[SEPARATE_UNREAD_CHATS] = separate }
+            edit { preferences -> preferences[SEPARATE_UNREAD_CHATS] = separate }
         }
     }
 

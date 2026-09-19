@@ -378,10 +378,24 @@ aplikace pamatuje o uživateli; data z Telegramu drží TDLib.
   dál tvrdil „Emoji" a prošel). Uložená hodnota se dá testovat jen jako **přechod z výchozí na
   jinou**: napřed platná hodnota a počkat na ni, teprve pak ta, která se má přeložit.
 - **Limit čekání není měřítko rychlosti, ale pojistka proti zaseknutí** — patří mu tedy velkorysá
-  hodnota (15 s). Jediné pozorované selhání přišlo z plného `check` na stroji, kde se současně
-  točil emulátor, simulátor iOS a link Kotlin/Native; na nečinném ani uměle zatíženém stroji se
-  nereprodukovalo ani po dvacítce běhů. Přiškrcený limit z takového testu dělá generátor
-  falešných poplachů.
+  hodnota (15 s). Přiškrcený limit z testu dělá generátor falešných poplachů.
+- **Občasné selhání pod zátěží NEBYLA pomalost, ale ztracený zápis — chyba DataStore 1.2.x.**
+  Nový odběr `data` čte úvodní stav bez zámku; když zrovna běží zápis, dostane STARÁ data
+  s už zvýšenou verzí (zápis zvedá verzi PŘED zápisem souboru, aby pád mezi nimi neskryl změnu).
+  Nová data pak odběr zahodí jako „už viděná" (`dropWhile { version <= startState.version }`)
+  a hodnota zůstane stará až do dalšího zápisu. Selhávalo to jen pod zátěží (dva emulátory,
+  link Kotlin/Native) a u testů, které zapisují „odpal a zapomeň" hned po vzniku nastavení —
+  ne náhodně, ale pokaždé u toho, jehož zápis se trefil do okna. Opraveno v DataStore 1.3.0
+  (čtení bez zámku bere verzi z keše), stabilní zatím není.
+- **Proto `DataStoreAppSettings` odebírá `data` JEDNOU a každý zápis čeká na jeho načtení**
+  (`preferences`, `edit`). Po prvním načtení odběr sleduje keš DataStore, kde souboj není; hodnoty
+  se z jednoho odběru odvozují v paměti. Až bude DataStore 1.3 stabilní, obchvat jde pryč —
+  ale jeden odběr místo pěti má smysl i tak.
+- **Ověřilo se to měřením, ne úvahou.** Zápis doběhl za desítky milisekund a `StateFlow` ho
+  neviděl ani za 20 s; teprve DALŠÍ zápis starou hodnotu přepsal. Reprodukce: všechna jádra
+  vytížit (`yes > /dev/null &` dvakrát na jádro) a pustit scénář stokrát v jednom běhu — původní
+  kód se zasekl v 25 kolech z 2 000, obchvat v 0 z 6 000. Hlídá to `zapisHnedPoVznikuSeProjevi`
+  (300 kol, 0,2 s); bez zátěže chybu nepozná, pod ní s původním kódem selhal třikrát ze tří.
 - **Čekání musí při vypršení říct, NA CO se čekalo a co bylo naposledy vidět.** Holé
   „Timed out waiting for 5000 ms" neumožnilo selhání ani dodatečně vysvětlit. Ze stejného důvodu
   se čeká na CELÝ očekávaný seznam nedávných emoji, ne jen na jeho první položku: jinak se
