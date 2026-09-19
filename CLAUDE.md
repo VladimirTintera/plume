@@ -758,6 +758,11 @@ v chatech", vedle ní menu ⋮. Po ťuknutí se rozbalí `ExpandedFullScreenSear
   useknuté nad navigační lištou na holé ploše. Hledání dostane jen `Top + Horizontal`, seznamy
   spodek (lišta i klávesnice) v `contentPadding` (`resultsPadding`) — obsah jede pod lištu
   a poslední položka se nad ni doroluje. Tentýž vzor jako u seznamu chatů a konverzace.
+- **Prázdný výsledek je `IntroEmptyState`** („Nic nenalezeno", ikona `search_off`), stejný
+  jako placeholder detailu a prázdný archiv. Plochu nekreslí (`containerColor = Transparent`,
+  hledání má vlastní barvu) a spodek má nad klávesnicí (`resultsPadding`), jinak by se
+  centroval pod ni. **Jednou ukázaný vydrží i během hledání dalšího znaku** (`emptyShown`) —
+  kdyby ho mezitím vystřídal indikátor, pouštěla by se úvodní animace při každém znaku.
 - **Selhání hledání se nehlásí.** Prázdný výsledek je u hledání normální stav a lokální výsledky
   zůstanou, i když server neodpoví.
 - **Dotaz se maže při KAŽDÉM sbalení** (efekt nad `expanded`), ne v obsluze šipky. Gesto zpět

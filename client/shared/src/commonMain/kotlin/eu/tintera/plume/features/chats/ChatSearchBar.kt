@@ -1,6 +1,10 @@
 package eu.tintera.plume.features.chats
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.runtime.SideEffect
+import eu.tintera.plume.core.ui.IntroEmptyState
+import eu.tintera.plume.resources.chats_search_empty_hint
+import eu.tintera.plume.resources.search_off_24dp
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -340,16 +344,28 @@ private fun SearchResults(
     val messages = if (current) search.messages else emptyList()
     val settled = current && search.settled
 
-    if (chats.isEmpty() && global.isEmpty() && messages.isEmpty() && !showSaved) {
-        Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.TopCenter) {
-            if (!settled) {
+    /*
+     * Jednou ukázaný prázdný stav vydrží i během hledání dalšího znaku. Kdyby ho mezitím
+     * vystřídal indikátor, úvodní animace prázdného stavu by se pouštěla při každém znaku.
+     */
+    var emptyShown by remember { mutableStateOf(false) }
+    val nothing = chats.isEmpty() && global.isEmpty() && messages.isEmpty() && !showSaved
+    SideEffect { emptyShown = nothing && (settled || emptyShown) }
+
+    if (nothing) {
+        if (settled || emptyShown) {
+            // Stejný prázdný stav jako placeholder detailu a prázdný archiv. Spodek je nad
+            // klávesnicí a lištou (viz `resultsPadding`), jinak by se centroval pod klávesnici.
+            IntroEmptyState(
+                icon = Res.drawable.search_off_24dp,
+                title = stringResource(Res.string.chats_search_empty),
+                text = stringResource(Res.string.chats_search_empty_hint),
+                containerColor = Color.Transparent,
+                modifier = Modifier.padding(bottom = resultsPadding().calculateBottomPadding()),
+            )
+        } else {
+            Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.TopCenter) {
                 CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-            } else {
-                Text(
-                    stringResource(Res.string.chats_search_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
         return

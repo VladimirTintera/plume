@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
@@ -46,6 +47,8 @@ fun IntroEmptyState(
     title: String,
     text: String,
     modifier: Modifier = Modifier,
+    /** Plocha pod stavem. Výchozí `surface` sedí na konverzaci a seznam; hledání má vlastní. */
+    containerColor: Color = MaterialTheme.colorScheme.surface,
 ) {
     val morphs = ShapeMorphs.Intro
     val progress = remember { Animatable(0f) }
@@ -72,7 +75,7 @@ fun IntroEmptyState(
 
     val shapeColor = MaterialTheme.colorScheme.primaryContainer
 
-    Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+    Surface(modifier = modifier.fillMaxSize(), color = containerColor) {
         Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,

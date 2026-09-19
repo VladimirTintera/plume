@@ -41,6 +41,7 @@
     <string name="chats_search">Search chats</string>
     <string name="chats_search_clear">Clear search</string>
     <string name="chats_search_empty">Nothing found</string>
+    <string name="chats_search_empty_hint">Try a different word or name.</string>
     <string name="chats_search_people">People</string>
     <string name="chats_search_recent">Recent</string>
     <string name="chats_search_clear_recent">Clear</string>
