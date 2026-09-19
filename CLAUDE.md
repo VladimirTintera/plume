@@ -211,6 +211,42 @@ In-App Updates v režimu **flexible**: stahuje se na pozadí, pak „Restartovat
 - Popis PR říká, CO se změnilo a PROČ, a jak to ověřit na zařízení. Když změna na zařízení
   vyzkoušená není, musí to v popisu stát.
 - Poučení z opravy patří do tohohle souboru ve stejném PR jako oprava samotná.
+- **Každý PR přidá poznámku k vydání** `release-notes/<větev>.md` (`/` → `-`), jinak neprojde
+  check „Release notes". Viz „Poznámky k vydání" níž.
+
+## Poznámky k vydání
+
+Text „Co je nového" v Google Play se skládá z poznámek, které nese každý PR:
+
+```
+type: feat
+cs: Hledání v seznamu chatů
+en: Search in the chat list
+```
+
+`type` je `feat`, `fix`, nebo `internal` (dokumentace, CI, refaktoring — pak bez `cs`/`en`).
+Formát, ořez i skládání jsou v `.github/scripts/release_notes.py`.
+
+- **Píše se pro uživatele, ne pro vývojáře.** „Hledání v seznamu chatů", ne „ChatSearchBar přes
+  AppBarWithSearch". Co uživatel nepozná, je `internal` — i tak se soubor přidává, jinak by
+  nešlo odlišit „nic pro uživatele" od „zapomenuto".
+- **Nejvýš 100 znaků na jazyk.** Play bere 500 znaků na jazyk za celý release, takže se vejde
+  pět poznámek. Co se nevejde, nahradí řádek „…a další drobné úpravy"; novinky jdou před
+  opravami. Upload kvůli délce nikdy neselže.
+- **Soubor v repu, ne sekce v popisu PR.** Release čte poznámky přidané mezi předchozím
+  a aktuálním tagem PŘÍMO Z TAGU (`git show <tag>:…`), takže jsou z tagu reprodukovatelné
+  stejně jako verze a nepotřebují GitHub API. Oprava textu po sloučení = další commit, který
+  soubor upraví; do vydání se dostane, pokud je před tagem.
+- **Soubory se po vydání nemažou.** Rozsah určuje `git log --diff-filter=A PREV..TAG`, mazání
+  by znamenalo commit z release workflow — a verze ani nic jiného se z releasu necommituje.
+- **Více kol téhož PR = úprava téhož souboru**, ne další soubor.
+- **Do Play jde zatím jen čeština** (`PLAY_LANGS`). Jazyk poznámky musí být v záznamu aplikace
+  v obchodě, jinak hrozí, že API odmítne celý upload — a záznam vyplněný není, platí jen výchozí
+  čeština z doby založení aplikace. Pro interní testování ho vyplňovat netřeba. Angličtina se
+  přesto píše a kontroluje: jde do GitHub Release, a až záznam dostane `en-US`, stačí ji přidat
+  do `PLAY_LANGS` a texty budou za celou dobu hotové. Úplně nový jazyk = řádek v `LOCALES`
+  a klíč v každé poznámce.
+- GitHub Release dostane celý seznam v obou jazycích (bez ořezu) nad technickým changelogem.
 
 ## Struktura modulů
 
