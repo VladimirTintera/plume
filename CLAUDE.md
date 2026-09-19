@@ -1613,7 +1613,10 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   (`insetContainerColor`, `tertiaryContainer`), pod ní odpověď v barvě bubliny
   (`QuotedBubble` v `BubbleMessageItem.kt`). Dřív byla citace subkartička uvnitř bubliny —
   zaoblená plocha v ploše, dvě vnořené karty. Jméno citovaného nese ve skupině jeho barvu,
-  jinak `tertiary`. Citace nad vstupním polem zůstává tónovaným kontejnerem (`contained`).
+  jinak `tertiary`.
+- **Ikona citace (`format_quote`) stojí VŽDY před jménem** — na kartě zprávy i nad vstupním
+  polem, na obou stranách konverzace. Stejně jako tužka u úpravy: říká, k čemu se obsah
+  vztahuje. Na „opačné" straně by se u odchozí a příchozí zprávy stěhovala.
 - **Karta odpovědi je vlastní `Layout`, ne `IntrinsicSize`**: pod citací může být fotka
   nebo album v `BoxWithConstraints`. Citace se změří v přirozené šířce, obsah dostane aspoň
   tu šířku jako minimum a plochy kreslí karta sama za obsahem (`drawBehind`).
@@ -1710,7 +1713,8 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   byl přesně `výška okna − 48 dp`, ne horní hrana kotvy.
 - **Citace a psaní jsou JEDNA karta.** Dva samostatné kusy nad sebou dělaly z odpovědi cizí prvek
   vsunutý mezi konverzaci a vstup; ve společné kartě je vidět, že citace patří k tomu, co se
-  právě píše. Pole uvnitř je proto průhledné — kontejner nese karta, ne ono, a dvě zaoblené
+  právě píše. Citace (i hlavička úpravy) je **horní pruh karty v `tertiaryContainer`**
+  (`ComposerHeader`), stejně jako citace na kartě zprávy — ne subkartička v kartě. Pole uvnitř je proto průhledné — kontejner nese karta, ne ono, a dvě zaoblené
   plochy v sobě by vypadaly jako chyba.
 - **Pruh pod kartou má barvu POZADÍ, jen průsvitnou.** Zprávy pod něj zajíždějí, takže by se bez
   něj pod kartou míchaly s textem; plná barva by zase vrátila ostrý předěl přes celou obrazovku,

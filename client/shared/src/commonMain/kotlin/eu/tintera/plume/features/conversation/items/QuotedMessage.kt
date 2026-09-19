@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.conversation.items
 
+import org.jetbrains.compose.resources.painterResource
+import eu.tintera.plume.resources.format_quote_24dp
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -96,28 +101,40 @@ internal fun QuotedMessage(
     }
 }
 
-/** Kdo a co: jméno v barvě [accent], pod ním nejvýš dva řádky textu (nebo popis přílohy). */
+/**
+ * Kdo a co: ikona citace a jméno v barvě [accent], pod nimi nejvýš dva řádky textu (nebo popis
+ * přílohy). Ikona stojí VŽDY před jménem — na kartě zprávy i nad vstupním polem, na obou
+ * stranách konverzace; stejně jako tužka u úpravy zprávy říká, k čemu se to vztahuje.
+ */
 @Composable
 private fun QuoteLines(message: ChatMessage, partnerName: String?, accent: Color) {
-            Text(
-                text = when {
-                    message.isOutgoing -> stringResource(Res.string.sender_you)
-                    // Ve skupině nese jméno sama zpráva; v soukromém chatu je odesílatel
-                    // vždycky protějšek, takže se vezme název chatu.
-                    else -> message.senderName ?: partnerName ?: stringResource(Res.string.conversation_reply)
-                },
-                style = MaterialTheme.typography.labelLarge,
-                color = accent,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                // U zprávy bez textu (samotná fotka) by citace byla prázdná.
-                text = message.text.ifBlank { message.media.describe() },
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            painterResource(Res.drawable.format_quote_24dp),
+            contentDescription = null,
+            tint = accent,
+            modifier = Modifier.padding(end = 4.dp).size(QUOTE_ICON_SIZE),
+        )
+        Text(
+            text = when {
+                message.isOutgoing -> stringResource(Res.string.sender_you)
+                // Ve skupině nese jméno sama zpráva; v soukromém chatu je odesílatel
+                // vždycky protějšek, takže se vezme název chatu.
+                else -> message.senderName ?: partnerName ?: stringResource(Res.string.conversation_reply)
+            },
+            style = MaterialTheme.typography.labelLarge,
+            color = accent,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+    Text(
+        // U zprávy bez textu (samotná fotka) by citace byla prázdná.
+        text = message.text.ifBlank { message.media.describe() },
+        style = MaterialTheme.typography.bodySmall,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 /**
@@ -152,6 +169,9 @@ internal fun MessageMedia?.describe(): String = when (this) {
     is MessageMedia.Document -> fileName
     null -> ""
 }
+
+/** Ikona citace před jménem — o kus menší než písmo jména, aby jméno zůstalo hlavní. */
+private val QUOTE_ICON_SIZE = 16.dp
 
 /** Zaoblení kontejneru citace. Menší než bublina — je v ní vnořený. */
 internal val QUOTE_CORNER = 8.dp
