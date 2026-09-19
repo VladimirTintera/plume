@@ -426,6 +426,7 @@ fun ConversationScreen(
         state.lastReadOutboxMessageId,
         state.quotes,
         state.highlightedMessageId,
+        state.search?.current,
         state.flight,
         state.messageMenu,
     ) { conversationItems(state) }

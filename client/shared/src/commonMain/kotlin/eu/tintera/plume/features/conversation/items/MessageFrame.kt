@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
 import eu.tintera.plume.core.telegram.MessageEntityType
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -112,8 +113,10 @@ internal data class MessageFrameData(
     val delivery: Delivery?,
     /** Co ukazuje odznak pod zprávou; „přečteno" jen u vybraných zpráv (viz [readBadgeRows]). */
     val badge: Delivery?,
-    /** Krátce po skoku na citaci — zpráva, na kterou se skočilo. */
+    /** Krátce po skoku (citace, výsledek hledání) — zpráva, na kterou se skočilo. */
     val highlighted: Boolean,
+    /** Ukázaný výsledek hledání v chatu — zvýrazněný, dokud se nepřejde jinam nebo hledání nezavře. */
+    val searchFocused: Boolean = false,
     /** V kanálu detail reakcí není (`BROADCAST_FORBIDDEN`), čip se proto nedá ťuknout. */
     val reactionsOpenable: Boolean,
     /** Let ze vstupního pole, který přistává právě v téhle zprávě; jinak `null`. */
@@ -124,7 +127,13 @@ internal data class MessageFrameData(
     val menuActions: List<MessageMenuAction>,
     /** Co udělá ťuknutí na zprávu samotnou (ne na odkaz, fotku…); `null` = nic. */
     val onTap: MessageAction?,
-)
+) {
+    /**
+     * Zpráva je zvýrazněná: jednorázově po skoku ([highlighted]), nebo trvale jako ukázaný
+     * výsledek hledání ([searchFocused]). Vypadá to stejně — liší se jen tím, jak dlouho to trvá.
+     */
+    val emphasized: Boolean get() = highlighted || searchFocused
+}
 
 /**
  * Blok se zprávou. Rám (tvář, tah na odpověď, zvýraznění, reakce, doručení, kotva nabídky) je
@@ -229,17 +238,39 @@ internal fun rememberMessageBodyScope(
      *
      * Vrstvení jinak drží surface role, ne elevation — viz konvence v CLAUDE.md.
      */
-    val bubbleColor = if (message.isOutgoing) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerHigh
+    /*
+     * Zvýrazněná zpráva (skok, výsledek hledání) přejde do TERCIÁRNÍ role — jediné, kterou
+     * konverzace jinak nepoužívá pro bubliny, takže se nesplete s žádnou stranou. Odchozí
+     * sytá `tertiary`, příchozí světlá `tertiaryContainer`: rozdíl mezi stranami zůstane.
+     * Barva se prolíná, ne přepíná.
+     */
+    val colors = MaterialTheme.colorScheme
+    val emphasisSpec = MaterialTheme.motionScheme.slowEffectsSpec<Color>()
+    val bubbleColor by animateColorAsState(
+        targetValue = when {
+            message.isOutgoing && frame.emphasized -> colors.tertiary
+            message.isOutgoing -> colors.primary
+            frame.emphasized -> colors.tertiaryContainer
+            else -> colors.surfaceContainerHigh
+        },
+        animationSpec = emphasisSpec,
+        label = "bubble-color",
+    )
+    val onBubbleColor by animateColorAsState(
+        targetValue = when {
+            message.isOutgoing && frame.emphasized -> colors.onTertiary
+            message.isOutgoing -> colors.onPrimary
+            frame.emphasized -> colors.onTertiaryContainer
+            else -> colors.onSurface
+        },
+        animationSpec = emphasisSpec,
+        label = "bubble-content-color",
+    )
+    val accent = when {
+        message.isOutgoing -> onBubbleColor
+        frame.emphasized -> colors.tertiary
+        else -> colors.primary
     }
-    val onBubbleColor = if (message.isOutgoing) {
-        MaterialTheme.colorScheme.onPrimary
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
-    val accent = if (message.isOutgoing) onBubbleColor else MaterialTheme.colorScheme.primary
 
     /*
      * Stažené nároží drží skupinu pohromadě, takže je jen TAM, KDE NA SEBE BUBLINY NAVAZUJÍ.
@@ -583,12 +614,26 @@ internal fun MessageBox(
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "reaction-overhang",
     )
+    /*
+     * Zvýraznění: vlnitý obrys kolem zprávy, který pomalu obíhá (viz `emphasisRing`). Rozvlní se
+     * z hladké čáry a zase uhladí; průběh i fáze se čtou až při kreslení.
+     */
+    val ring = animateFloatAsState(
+        targetValue = if (frame.emphasized) 1f else 0f,
+        animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
+        label = "emphasis-ring",
+    )
+    val ringPhase = rememberRingPhase(running = frame.emphasized)
+    val ringColor = MaterialTheme.colorScheme.tertiary
     Box(modifier) {
         Box(
             Modifier
+                // Místo pro obrys nahoře i dole roste s ním (viz `RING_ROOM`).
+                .padding(vertical = RING_ROOM * ring.value.coerceIn(0f, 1f))
                 .padding(bottom = overhang.coerceAtLeast(0.dp))
                 .maxWidthFraction(maxWidthFraction)
                 .widthIn(max = 560.dp)
+                .emphasisRing(bodyScope.shape, ringColor, progress = { ring.value }, phase = { ringPhase.value })
                 .then(beforeClip)
                 .clip(bodyScope.shape)
                 .then(afterClip),

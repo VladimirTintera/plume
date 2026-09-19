@@ -1339,8 +1339,9 @@ Lupa v hlavičce chatu přepne hlavičku na pole a místo vstupního pole ukáž
   `StateFlow` o dispatch později by poskakovala kurzorem.
 - **Zpět zavírá hledání** (`NavigationBackHandler` povolený jen s otevřeným hledáním), teprve
   další zpět odchází z chatu. Konverzace zůstane na posledním výsledku.
-- **Hledané slovo se v bublině zatím nezvýrazňuje**, ukázaná zpráva jen pulzne jako po skoku
-  na citaci.
+- **Ukázaný výsledek zůstává zvýrazněný** (barva a obíhající vlnitý obrys, viz „Vzhled
+  konverzace") — po jednorázovém pulzu by se v konverzaci ztratil. Hledané slovo samo se
+  v bublině zatím nezvýrazňuje.
 
 ### Okno v historii
 
@@ -1571,6 +1572,19 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
 - **Zvýraznění po skoku je dvojí pulz měřítkem**, ne pruh přes celou šířku. Ověřovat se to dá
   jen měřením: běžný `screencap` pulz mine. Série `screencap /sdcard/x.raw` v jednom `adb shell`
   a porovnání okraje bubliny v řádku pixelů ho zachytí.
+- **Zvýrazněná zpráva navíc změní barvu a dostane vlnitý obrys, který pomalu obíhá**
+  (`MessageFrameData.emphasized`, `emphasisRing` v `items/EmphasisRing.kt`). Stavy jsou dva
+  a vypadají stejně, liší se délkou: jednorázově po skoku (`highlighted`, 2,5 s) a trvale jako
+  ukázaný výsledek hledání (`searchFocused`, dokud se nepřejde jinam nebo hledání nezavře).
+- **Barva je terciární role** (odchozí `tertiary`, příchozí `tertiaryContainer`). Bubliny jinak
+  terciární roli nepoužívají, takže se nesplete s žádnou stranou, a rozdíl sytá / světlá mezi
+  stranami zůstane. Prolíná se (`slowEffectsSpec`), akcent citace jde s ní.
+- **Obrys je KOLEM zprávy, ne zvlněná bublina.** Zvlnit bublinu by znamenalo ořezávat podle vlnek
+  obsah a měnit tvar, se kterým počítá nabídka nad zprávou; obrys vedle funguje stejně u bubliny,
+  holé fotky i samolepky. Vlnek je po obvodu celý počet (jinak by na spoji byl zub), fáze
+  i průběh se čtou až při kreslení, takže obíhání nerekomponuje.
+- **Zvýrazněná zpráva si udělá místo nahoře i dole** (`RING_ROOM`, roste s obrysem). Zprávy
+  v bloku jsou 4 dp od sebe a obrys ležel přes fajfku doručení pod ní i přes souseda nad ní.
 
 - **Odchozí bublina je `primary`, ne `primaryContainer`.** Se dvěma světlými plochami o podobné
   světlosti nebylo při rychlém průletu očima poznat, kdo co napsal — rozlišovala je jen strana.

@@ -1920,7 +1920,7 @@ private const val PAGE_SIZE = 30
 private const val SEARCH_DEBOUNCE_MS = 300L
 
 /** Jak dlouho zůstane zpráva po skoku zvýrazněná. */
-private const val HIGHLIGHT_DURATION_MS = 1500L
+private const val HIGHLIGHT_DURATION_MS = 2500L
 
 /** Kam na obrazovce má zpráva po skoku dosednout. */
 enum class ScrollAnchor {

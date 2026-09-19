@@ -103,6 +103,7 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
                 delivery = delivery,
                 badge = delivery?.takeIf { it != Delivery.Read || key in readBadgeKeys },
                 highlighted = state.highlightedMessageId?.let(row::contains) == true,
+                searchFocused = state.search?.current?.let(row::contains) == true,
                 reactionsOpenable = info?.isChannel != true,
                 flight = state.flight?.takeIf { it.itemKey == key },
                 menu = state.messageMenu?.takeIf { it.messageId == message.id },
