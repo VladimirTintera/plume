@@ -10,6 +10,8 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.ConnectionState
+import eu.tintera.plume.core.telegram.DeviceRepository
+import eu.tintera.plume.core.telegram.UnconfirmedDevice
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.update.AppUpdateState
 import eu.tintera.plume.core.update.AppUpdates
@@ -38,6 +40,7 @@ class ChatsViewModel(
     private val settings: AppSettings,
     /** Obrazovka ho potřebuje ke spuštění aktualizace (`rememberStartUpdate`). */
     val appUpdates: AppUpdates,
+    private val devices: DeviceRepository,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -87,6 +90,25 @@ class ChatsViewModel(
     fun dismissUpdate(versionCode: Int) = settings.dismissUpdate(versionCode)
 
     fun completeUpdate() = appUpdates.complete()
+
+    /**
+     * Nové přihlášení, které uživatel ještě neuznal — karta „Byli jste to vy?" nahoře v seznamu,
+     * jako v oficiálním klientu. V Nastavení by ji nikdo nehledal.
+     */
+    val unconfirmedLogin: StateFlow<UnconfirmedDevice?> = devices.unconfirmed
+
+    fun confirmLogin(sessionId: Long) = resolveLogin { devices.confirm(sessionId) }
+
+    fun terminateLogin(sessionId: Long) = resolveLogin { devices.terminate(sessionId) }
+
+    private fun resolveLogin(action: suspend () -> Result<Unit>) {
+        viewModelScope.launch {
+            action().onFailure { failure ->
+                logger.w(failure) { "Nepotvrzené přihlášení se nepodařilo vyřídit" }
+                _actions.update { it.copy(error = failure.userMessage(Res.string.chats_action_failed)) }
+            }
+        }
+    }
 
     private val _actions = MutableStateFlow(ChatActionsState())
 

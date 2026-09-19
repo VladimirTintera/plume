@@ -13,7 +13,7 @@ přeposílání, připnuté zprávy), prohlížeč médií s fotkami i videem, r
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
 Není: notifikace na iOS ani hlášení pádů z iOS; obrazovka nové konverzace; sdílená média v profilu chatu.
-Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné a Vzhled; vědomě nastavitelné je zatím
+Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné, Vzhled a Zařízení; vědomě nastavitelné je zatím
 téma aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
 Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
@@ -160,6 +160,36 @@ rozešly — část chyb by v konzoli chyběla a nebylo by poznat které.
   ObjC knihovna, kterou Kotlin/Native nevidí, a Kotlin výjimka nese jen adresy stack trace
   (`getStackTraceAddresses()`), ne symboly. Vzor je `IosCrashlyticsLogger` v projektu
   com.profilog.telemetry.android.
+
+## Zařízení (aktivní relace)
+
+Sekce Nastavení „Zařízení" (`features/devices`): kde je účet přihlášený, odhlášení jednoho nebo
+všech ostatních, weby přihlášené přes Telegram, automatické odhlášení nečinných a přihlášení
+jiného zařízení QR kódem. Hranice je `DeviceRepository` v `core/telegram`.
+
+- **Seznam se po každé akci ČTE ZNOVU**, nic se nepřepisuje lokálně. Co odhlášení udělalo
+  s ostatními relacemi (a jestli server vůbec poslechl), ví jen server.
+- **„Byli jste to vy?" je karta nahoře v seznamu chatů** (`UnconfirmedLoginCard`), ne jen
+  v Nastavení — tam by ji nikdo nehledal. Přichází `UpdateUnconfirmedSession` hned po startu,
+  proto je repository eager (`createdAtStart`). Připojený bot (`SessionTypeConnectedBot`) se
+  nezobrazuje — `confirmSession` bere jen id relace zařízení.
+- **Čerstvě přihlášené zařízení (asi 24 h) nesmí odhlašovat ostatní** —
+  `FRESH_RESET_AUTHORISATION_FORBIDDEN`, v `userMessage` má vlastní větu. Na emulátoru, který se
+  přihlásil právě teď, to tlačítko skončí touhle hláškou; chyba to není.
+- **Půl roku je 183 dní, ne 180** (`INACTIVE_TTL_OPTIONS`). Tak ho server posílá u účtu, který
+  volbu nikdy neměnil; se 180 se ve výběru nic neoznačilo a řádek hlásil „183 dní".
+- **Odhlášení TOHOTO zařízení je v Obecných, ne v detailu zařízení** — maže lokální data TDLib
+  a je to jiný následek než odhlášení cizího zařízení.
+- **Čtečka QR kódů je platformní** (`rememberQrScanner`). Android: **Google code scanner**
+  (`play-services-code-scanner`) — skenovací obrazovku kreslí Play služby, aplikace nepotřebuje
+  oprávnění ke kameře ani CameraX s ML Kitem; bez Play služeb se nespustí. iOS: AVFoundation
+  (`AVCaptureMetadataOutput`) ve vlastním dialogu — VisionKit `DataScannerViewController` je jen
+  pro Swift. `startRunning` blokuje, proto mimo hlavní vlákno; delegát se drží silnou referencí.
+  Simulátor kameru nemá, skončí hláškou „čtečku se nepodařilo spustit".
+- **Na server jde jen `tg://login?token=…`** (`isLoginLink`). Čtečka přečte jakýkoli QR kód
+  a server by na cizí obsah odpověděl chybou, ze které uživatel nic nepozná.
+- **Odkaz `tg://login` se z ťuknutí NEOTEVÍRÁ**, jen ze čtečky. Přihlašovací odkaz poslaný ve
+  zprávě je typický podvod („naskenuj/otevři tohle"); oficiální klienti ho taky jen skenují.
 
 ## Aktualizace z obchodu
 

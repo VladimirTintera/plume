@@ -75,6 +75,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.features.devices.UnconfirmedLoginCard
 import eu.tintera.plume.core.update.rememberStartUpdate
 import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatListState
@@ -124,6 +125,7 @@ fun ChatListScreen(
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
     val updateCard by viewModel.updateCard.collectAsStateWithLifecycle()
+    val unconfirmedLogin by viewModel.unconfirmedLogin.collectAsStateWithLifecycle()
     val startUpdate = rememberStartUpdate(viewModel.appUpdates)
     // Hledání při scrollu dolů odjede a při scrollu nahoru se vrátí.
     val scrollBehavior = SearchBarDefaults.enterAlwaysSearchBarScrollBehavior()
@@ -210,8 +212,8 @@ fun ChatListScreen(
                 padding = padding,
                 scrollToChat = scrollToChat,
                 onScrolledToChat = { scrollToChat = null },
-                // Karta s aktualizací je jediná položka hlavičky.
-                headerItemCount = if (updateCard != null) 1 else 0,
+                // Položky hlavičky: nové přihlášení a karta s aktualizací.
+                headerItemCount = listOfNotNull(unconfirmedLogin, updateCard).size,
                 empty = {
                     Text(
                         stringResource(Res.string.chats_empty),
@@ -222,7 +224,19 @@ fun ChatListScreen(
                     )
                 },
             ) {
-                // Nad chaty, jako vlastní blok se stejnou mezerou jako mezi skupinami.
+                // Nad chaty, jako vlastní bloky se stejnou mezerou jako mezi skupinami. Přihlášení
+                // napřed: týká se bezpečnosti účtu, aktualizace počká.
+                unconfirmedLogin?.let { login ->
+                    item(key = UNCONFIRMED_LOGIN_KEY, contentType = UNCONFIRMED_LOGIN_KEY) {
+                        UnconfirmedLoginCard(
+                            device = login,
+                            enabled = true,
+                            onConfirm = { viewModel.confirmLogin(login.sessionId) },
+                            onTerminate = { viewModel.terminateLogin(login.sessionId) },
+                            modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
+                        )
+                    }
+                }
                 updateCard?.let { update ->
                     item(key = UPDATE_CARD_KEY, contentType = UPDATE_CARD_KEY) {
                         UpdateCard(
@@ -692,6 +706,7 @@ private const val TOP_ANCHOR_KEY = "top-anchor"
 
 /** Klíč karty s aktualizací. */
 private const val UPDATE_CARD_KEY = "update-card"
+private const val UNCONFIRMED_LOGIN_KEY = "unconfirmed-login"
 
 /** Výška kotvy — nejmenší, se kterou ji seznam ještě počítá za viditelnou. */
 private val TOP_ANCHOR_HEIGHT = 1.dp

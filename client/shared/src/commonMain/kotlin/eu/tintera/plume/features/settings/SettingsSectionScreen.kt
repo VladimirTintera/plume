@@ -14,11 +14,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.navigation.SettingsSection
+import eu.tintera.plume.features.devices.DevicesSettings
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.common_back
@@ -40,8 +44,11 @@ fun SettingsSectionScreen(
     onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
+    // Hlášky sekcí (odhlášené zařízení, výsledek QR přihlášení); zatím je má jen Zařízení.
+    val snackbarHostState = remember { SnackbarHostState() }
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             LargeFlexibleTopAppBar(
                 title = { Text(stringResource(section.title)) },
@@ -71,6 +78,7 @@ fun SettingsSectionScreen(
             when (section) {
                 SettingsSection.General -> GeneralSettings(viewModel = koinViewModel())
                 SettingsSection.Appearance -> AppearanceSettings(viewModel = koinViewModel())
+                SettingsSection.Devices -> DevicesSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
             }
         }
     }
