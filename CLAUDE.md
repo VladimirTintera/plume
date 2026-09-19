@@ -2450,7 +2450,45 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   kolečko — ve sdílení i ve velkém kruhu notifikace. Barvy ze systémové palety Material You
   (`system_accent1_100/900`): zkratka se kreslí mimo aplikaci, téma aplikace tam není. Paleta je
   od Androidu 12, na starším zůstane ikona prázdná.
-- **Seznam s hledáním je společný s přeposíláním** (`ChatPicker`). Obojí je „vyber, kam s tím".
+- **Seznam s hledáním je společný s přeposíláním** (`ChatPicker`).
+
+### iOS: rozšíření sdílení
+
+Na iOS je sdílení **rozšíření** (`iosApp/ShareExtension`, SwiftUI): list „Sdílet do" s chaty
+přímo v nabídce sdílení, jako Telegram nebo WhatsApp. Po výběru chatu rozšíření otevře Plume
+a obsah čeká nad vstupním polem, stejně jako na Androidu.
+
+- **Rozšíření je samostatný proces s vlastním limitem paměti; TDLib v něm neběží** a databázi
+  aplikace nevidí. Obě strany si předávají soubory přes kontejner App Group
+  (`group.eu.tintera.plume$(TEAM_ID)`, klíč `PlumeAppGroup` v Info.plist obou): aplikace píše
+  snímek chatů (`share/targets.json` + profilovky, `IosShareSnapshot`), rozšíření píše sdílení
+  (`share/inbox/<čas>-<uuid>/`, `manifest.json` POSLEDNÍ). Formát drží `ShareTargets.ios.kt`
+  a `ShareModels.swift` — **změna jedné strany musí jít i do druhé**.
+- **Snímek chatů se po odhlášení maže** (`holder.replaced`), i s nevyzvednutým inboxem —
+  rozšíření by jinak nabízelo chaty předchozího účtu. Nahoře jsou naposledy použité
+  (`ShareTargets.reportUsed`, obdoba Direct Share).
+- **Aplikace si inbox projde při každé aktivaci** (`IosShareInbox` nad `AppForeground`), ne
+  jen při otevření přes URL: kdyby otevření z rozšíření selhalo, sdílení počká na nejbližší
+  spuštění. Soubory se přesunou do `outgoing` a připraví stejně jako výběr příloh
+  (`preparePhotoData`, `prepareVideoAt`, `prepareDocument`); složka inboxu se hned maže,
+  kontejner App Group systém neuklízí.
+- **Otevřít aplikaci z rozšíření sdílení oficiálně nejde.** `UIApplication.shared` ani `open`
+  v rozšíření nejsou a **Xcode 27 u rozšíření vynucuje `APPLICATION_EXTENSION_API_ONLY = YES`**
+  (s `NO` build selže). `openURL:options:completionHandler:` se proto volá přes Objective-C
+  runtime na instanci `UIApplication` z řetězce responderů (`method(for:)` +
+  `@convention(c)`). Na iOS 26 v simulátoru funguje; URL schéma aplikace je `eu.tintera.plume`.
+- **Rozšíření fotky nezmenšuje** — limit paměti rozšíření je malý a zmenšení umí aplikace.
+- **Simulátor bere entitlementy ze sekce `__TEXT,__entitlements` binárky**, ne z podpisu
+  (ad-hoc, `codesign -d --entitlements` ukáže prázdný slovník). Ověření:
+  `otool -s __TEXT __entitlements <binárka>`. S `CODE_SIGNING_ALLOWED=NO` tam nejsou a kontejner
+  App Group neexistuje — pro zkoušení sdílení se staví s výchozím podepisováním. Kontejner:
+  `xcrun simctl get_app_container <zařízení> eu.tintera.plume groups`.
+- **Na zařízení musí App Group existovat v Apple Developer účtu.** Automatické podepisování
+  ho s vyplněným `TEAM_ID` založí samo; bez týmu se build na zařízení nepodepíše.
+- **Target rozšíření se do projektu přidával gemem `xcodeproj`** (`LANG=en_US.UTF-8`, jinak
+  spadne na diakritice v pbxproj). Projekt je ve formátu Xcode 16 se synchronizovanými
+  složkami; gem ho načte i uloží bez ztrát. Entitlementy aplikace jsou v `Configuration/`,
+  ne v synchronizované složce `iosApp/` — odtud by je Xcode kopíroval jako resource. Obojí je „vyber, kam s tím".
 - **Ověřování přes `am start` pozor na uvozovky**: `adb shell am start … --es … "dvě slova"`
   rozdělí text na dva argumenty a z druhého slova udělá balíček. Celý příkaz patří do jedněch
   uvozovek: `adb shell "am start … --es android.intent.extra.TEXT 'dvě slova' …"`. A hned po

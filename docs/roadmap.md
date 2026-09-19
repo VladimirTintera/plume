@@ -58,11 +58,11 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
 - **Sdílení ze systému do aplikace.** ~~Android~~ — hotovo (text, odkaz, jeden i víc
   souborů; výběr chatu, obsah čeká nad vstupním polem). Poučení v `CLAUDE.md`, „Sdílení do
   aplikace". Zbývá:
-  - ~~**Direct Share**~~ — hotovo. Na iOS obdoba přes `INSendMessageIntent` až se Share Extension.
-  - **iOS: Share Extension** je samostatný proces s vlastním sandboxem. TDLib v něm běžet
-    nemůže vedle aplikace nad toutéž databází. Soubor se tedy uloží do sdíleného kontejneru
-    App Group a aplikace si ho vyzvedne (`ShareRequests` na to je připravené). Je to vlastní
-    target v Xcode projektu a víc práce než Android.
+  - ~~**Direct Share**~~ — hotovo. Na iOS jsou naposledy použité chaty nahoře v listu rozšíření;
+    řádek kontaktů v systémové nabídce (darování `INSendMessageIntent`) zatím není.
+  - ~~**iOS: Share Extension**~~ — hotovo (výběr chatu v rozšíření, App Group). Zbývá
+    ověřit na zařízení (App Group v Developer účtu) a ikona aplikace, bez které má Plume
+    v nabídce sdílení zástupnou ikonu.
 
 ## Nastavení
 

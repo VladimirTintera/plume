@@ -4,6 +4,8 @@ import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSaver
 import eu.tintera.plume.core.files.MediaSharer
+import eu.tintera.plume.core.share.IosShareInbox
+import eu.tintera.plume.core.share.IosShareSnapshot
 import eu.tintera.plume.core.share.IosShareTargetPublisher
 import eu.tintera.plume.core.share.ShareTargetPublisher
 import eu.tintera.plume.core.connectivity.AppForeground
@@ -17,6 +19,7 @@ import eu.tintera.plume.core.telegram.TelegramPaths
 import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.core.ui.TextClipboard
 import org.koin.core.module.Module
+import org.koin.core.qualifier.named
 
 actual fun Module.platformModule() {
     single { TelegramPaths() }
@@ -26,7 +29,15 @@ actual fun Module.platformModule() {
     single { FileOpener() }
     single { MediaSaver() }
     single { MediaSharer() }
-    single<ShareTargetPublisher> { IosShareTargetPublisher() }
+    // Sdílení přes rozšíření: snímek chatů pro výběr v něm a vyzvednutí toho, co v něm uživatel sdílel.
+    single(createdAtStart = true) {
+        IosShareSnapshot(chats = get(), files = get(), holder = get(), scope = get(named(APP_SCOPE))).also { it.start() }
+    }
+    single<ShareTargetPublisher> { IosShareTargetPublisher(get()) }
+    single(createdAtStart = true) {
+        IosShareInbox(requests = get(), chatOpenRequests = get(), scope = get(named(APP_SCOPE)))
+            .also { it.start(get<AppForeground>().isForeground) }
+    }
     single { NetworkMonitor() }
     single { AppForeground() }
     single { TextClipboard() }
