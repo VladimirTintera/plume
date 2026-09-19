@@ -1,3 +1,3 @@
 type: feat
-cs: Vlastní ikona aplikace
-en: A proper app icon
+cs: Vlastní ikona aplikace i notifikací
+en: A proper icon for the app and its notifications

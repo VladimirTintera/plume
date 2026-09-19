@@ -22,8 +22,6 @@ Teď je prázdné.
 
 - **`databaseEncryptionKey` je prázdný.** Patří tam klíč z Android Keystore / iOS Keychain.
   Dokud je prázdný, leží databáze TDLib na disku odšifrovaná.
-- **Vlastní ikona notifikace.** Zatím se používá systémová `android.R.drawable.ic_dialog_email`;
-  cílově monochromatická ikona v `androidApp/res/drawable`.
 - **Záznam v Play dokončit mimo API.** Texty a grafika (cs, en) jsou nahrané, workflow Play
   Listing je nahrává z `play/`. Ručně v Play Console zbývá kategorie, zásady ochrany soukromí (URL),
   hodnocení obsahu (IARC), cílová skupina, bezpečnost dat a prohlášení o reklamách.

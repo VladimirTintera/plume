@@ -2993,8 +2993,14 @@ a odložené rušení prázdné notifikace.
   notifikace třídí (Light Flow, hodinky), ji nemusí poznat jako zprávu. Titulek a text si systém
   z `MessagingStyle` doplní sám, ticker ne — a starší čtenáři notifikací berou text odsud.
   Porovnání s oficiálním klientem: `adb shell dumpsys notification --noredact`.
-- **Ikona notifikace je zatím systémová** (`android.R.drawable.ic_dialog_email`). Cílově sem
-  patří vlastní monochromatická ikona v `androidApp/res/drawable`.
+- **Ikona notifikace je pírko** (`ic_notification`), vygenerované `play/tools/icon.py` jako
+  ikona aplikace. Leží v `:client:shared` (`androidMain/res`, třída `eu.tintera.plume.client.R`),
+  ne v `androidApp` — kód notifikací je v knihovně a na prostředky aplikace nedosáhne. Osten
+  je silnější než u ikony aplikace: při 24 dp by původní šířka s vlajkou splynula.
+- **Odznak v rohu avataru konverzační notifikace je IKONA APLIKACE, ne malá ikona**, a System
+  UI si ji drží v paměti. Po změně ikony tam zůstala ta stará i po přeinstalování a se změněným
+  `versionCode`; `am force-stop com.android.systemui` System UI nerestartuje (ověřit `ps`).
+  Pomohl až restart emulátoru.
 - **`adb shell am force-stop` znemožní doručení FCM.** Aplikace se dostane do „stopped state"
   a zprávy jí systém nedoručí, dokud ji uživatel ručně nespustí. Push se tak testovat nedá —
   aplikaci je potřeba jen odswipovat z přehledu úloh.
