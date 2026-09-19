@@ -116,7 +116,7 @@ internal fun MessageMedia?.describe(): String = when (this) {
 }
 
 /** Zaoblení kontejneru citace. Menší než bublina — je v ní vnořený. */
-private val QUOTE_CORNER = 8.dp
+internal val QUOTE_CORNER = 8.dp
 
 /** Jak moc je kontejner citace tónovaný akcentem. Dost na odlišení, ne na soupeření s textem. */
-private const val QUOTE_CONTAINER_ALPHA = 0.14f
+internal const val QUOTE_CONTAINER_ALPHA = 0.14f

@@ -307,9 +307,10 @@ class ConversationItemsTest {
     }
 
     @Test
-    fun velkyNahledOdkazuJeNaPlose() {
+    fun nahledOdkazuJeVzdyckyKarta() {
+        // Velký i malý obrázek: karta ze dvou částí, ne proužek v bublině.
         assertIs<LinkPreviewMessageItem>(single(message(1, text = "https://example.com", linkPreview = preview())))
-        assertIs<BubbleMessageItem>(single(message(1, text = "https://example.com", linkPreview = preview(large = false))))
+        assertIs<LinkPreviewMessageItem>(single(message(1, text = "https://example.com", linkPreview = preview(large = false))))
     }
 
     @Test

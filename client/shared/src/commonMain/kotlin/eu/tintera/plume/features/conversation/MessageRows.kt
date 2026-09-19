@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -122,7 +123,7 @@ internal fun groupAlbums(messages: List<ChatMessage>): List<MessageRow> {
  *
  * Podmínkou je, že na zprávě nevisí nic, co pozadí potřebuje:
  * - **citace** se bez pozadí ztratí (tentýž důvod, proč si bublinu drží i zpráva z pár emoji),
- * - **náhled odkazu** stojí na proužku akcentu uvnitř bubliny.
+ * - **náhled odkazu** má vlastní kartu (viz [showsLinkPreviewCard]).
  *
  * Ostatní přílohy bublinu potřebují dál: soubor, hlasovka i samolepkový popis jsou řádky s textem
  * a ikonou, ne obrázek. [album] nese zprávy alba, u samostatné zprávy `null`.
@@ -134,24 +135,24 @@ internal fun showsBareMedia(message: ChatMessage, album: List<ChatMessage>?): Bo
 }
 
 /**
- * Kreslí se náhled odkazu jako skupina na ploše — text zprávy, obrázek a popis pod ním — místo
- * karty s proužkem uvnitř bubliny?
+ * Kreslí se náhled odkazu jako **karta ze dvou částí** — nahoře text zprávy v barvě bubliny,
+ * dole popis webu v tónované ploše — místo kousku uvnitř bubliny?
  *
- * Obrázek náhledu je obrázek jako každý jiný, takže patří na plochu ze stejného důvodu jako fotka
- * (viz [showsBareMedia]). Doplňkový text (web, titulek, popis) na plochu nepatří a dostane vlastní
- * kontejner pod snímkem.
+ * Platí pro každý náhled, který má co ukázat (obrázek, nebo aspoň web, titulek či popis), u zprávy
+ * bez přílohy a bez citace. S velkým obrázkem stojí obrázek mezi textem a popisem
+ * ([LinkPreview.showsLargePhoto]), malý obrázek je čtvereček v popisu.
  *
- * Platí to jen pro **velký obrázek**: o tom, jestli je velký, rozhoduje odesílatel
- * (`LinkPreview.largePhoto`) a malý čtvereček vedle textu je pořád řádek v kartě, ne snímek.
- * Náhled u zprávy s přílohou nebo citací zůstává v bublině, jako celá ta zpráva.
+ * Náhled u zprávy s přílohou nebo citací zůstává v bublině, jako celá ta zpráva: karta by se
+ * s přílohou i s citací přela o to, co je hlavní obsah.
  */
-internal fun showsBareLinkPreview(message: ChatMessage): Boolean {
+internal fun showsLinkPreviewCard(message: ChatMessage): Boolean {
     val preview = message.linkPreview ?: return false
-    return preview.largePhoto &&
-        preview.photo != null &&
-        message.media == null &&
-        message.replyToMessageId == null
+    val hasContent = preview.photo != null || preview.siteName != null || preview.title != null || preview.description != null
+    return hasContent && message.media == null && message.replyToMessageId == null
 }
+
+/** Velký obrázek přes celou šířku karty; o velikosti rozhoduje odesílatel (`largePhoto`). */
+internal val LinkPreview.showsLargePhoto: Boolean get() = largePhoto && photo != null
 
 /**
  * Dá se zpráva upravit ve vstupním poli, aniž by přišla o formátování?

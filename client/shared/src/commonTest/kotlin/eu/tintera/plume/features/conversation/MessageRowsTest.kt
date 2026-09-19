@@ -227,7 +227,7 @@ class MessageRowsTest {
         assertFalse(showsBareMedia(members.first(), album = members))
     }
 
-    // --- Náhled odkazu na ploše ------------------------------------------------------------
+    // --- Karta náhledu odkazu ------------------------------------------------------------
 
     private fun preview(
         photo: MessageMedia.Photo? = photo(),
@@ -242,41 +242,53 @@ class MessageRowsTest {
     )
 
     @Test
-    fun nahledSVelkymObrazkemJdeNaPlochu() {
-        assertTrue(showsBareLinkPreview(message(id = 1, text = "odkaz", linkPreview = preview())))
+    fun nahledSVelkymObrazkemJeKarta() {
+        val message = message(id = 1, text = "odkaz", linkPreview = preview())
+
+        assertTrue(showsLinkPreviewCard(message))
+        assertTrue(message.linkPreview!!.showsLargePhoto)
     }
 
     @Test
-    fun maleObrazkySiKartuDrzi() {
+    fun malyObrazekJeTakyKartaJenBezVelkehoObrazku() {
         val small = message(id = 1, text = "odkaz", linkPreview = preview(largePhoto = false))
 
-        assertFalse(showsBareLinkPreview(small))
+        assertTrue(showsLinkPreviewCard(small))
+        assertFalse(small.linkPreview!!.showsLargePhoto)
     }
 
     @Test
-    fun nahledBezObrazkuSiKartuDrzi() {
+    fun nahledBezObrazkuJeKarta() {
         val textOnly = message(id = 1, text = "odkaz", linkPreview = preview(photo = null))
 
-        assertFalse(showsBareLinkPreview(textOnly))
+        assertTrue(showsLinkPreviewCard(textOnly))
+        assertFalse(textOnly.linkPreview!!.showsLargePhoto)
+    }
+
+    @Test
+    fun prazdnyNahledKartaNeni() {
+        val empty = LinkPreview(url = "https://example.com", siteName = null, title = null, description = null, photo = null, largePhoto = false)
+
+        assertFalse(showsLinkPreviewCard(message(id = 1, text = "odkaz", linkPreview = empty)))
     }
 
     @Test
     fun nahledSCitaciSiBublinuDrzi() {
         val reply = message(id = 1, text = "odkaz", linkPreview = preview(), replyToMessageId = 7L)
 
-        assertFalse(showsBareLinkPreview(reply))
+        assertFalse(showsLinkPreviewCard(reply))
     }
 
     @Test
     fun zpravaBezNahleduNeniNahled() {
-        assertFalse(showsBareLinkPreview(message(id = 1, text = "jen text")))
+        assertFalse(showsLinkPreviewCard(message(id = 1, text = "jen text")))
     }
 
     @Test
     fun nahledUZpravySPrilohouZustavaVBubline() {
         val withMedia = message(id = 1, text = "odkaz", media = photo(), linkPreview = preview())
 
-        assertFalse(showsBareLinkPreview(withMedia))
+        assertFalse(showsLinkPreviewCard(withMedia))
         // A příloha sama taky ne — náhled je to, co bublinu drží.
         assertFalse(showsBareMedia(withMedia, album = null))
     }

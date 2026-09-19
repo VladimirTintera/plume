@@ -9,7 +9,7 @@ Dřív se o tom, co se v konverzaci nakreslí, rozhodovalo na třech místech z�
 
 - v `itemsIndexed` obrazovky (sousedé, předěly, avatar, odznak přečtení, citace, let) — uvnitř
   kompozice, takže netestovatelně,
-- v čistých funkcích `MessageRows.kt` (`showsBareMedia`, `showsBareLinkPreview`),
+- v čistých funkcích `MessageRows.kt` (`showsBareMedia`, `showsLinkPreviewCard`),
 - v `MessageBubble` s 27 parametry, která sama řešila velká emoji, samolepky bez bubliny, tvar,
   barvy, popisek pod médiem, tři větve textu a náhledu, gesto odpovědi, reakce, doručení
   i ukotvení nabídky.
@@ -77,7 +77,7 @@ přes `remember(vstupy)` — testovatelná stejně, jen synchronní se stavem.
    `LargeEmojiMessageItem`, `StickerMessageItem`, `MediaMessageItem`, `LinkPreviewMessageItem`;
    o druhu rozhoduje `messageItem()` v builderu. Sdílené kusy (přílohy, album, náhledy, citace,
    předěly, doručení) se přestěhovaly z obrazovky do `features/conversation/items/`.
-   Obrazovka spadla z 3 671 na ~1 540 řádků. `showsBareMedia` / `showsBareLinkPreview` zůstaly
+   Obrazovka spadla z 3 671 na ~1 540 řádků. `showsBareMedia` / `showsLinkPreviewCard` zůstaly
    v `MessageRows.kt` kvůli svým testům; volá je jen builder.
 3. **`MessageAction` a `onAction`.** — HOTOVO. Akce jsou data (`MessageAction`), položky nabídky
    podmnožina `MessageMenuAction`. Blok nese kandidáty do nabídky (`menuActions()` v builderu,

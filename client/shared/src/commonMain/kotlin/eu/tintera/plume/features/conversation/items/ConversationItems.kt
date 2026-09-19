@@ -14,7 +14,7 @@ import eu.tintera.plume.features.conversation.copyableText
 import eu.tintera.plume.features.conversation.groupAlbums
 import eu.tintera.plume.features.conversation.isEditableAsPlainText
 import eu.tintera.plume.features.conversation.readBadgeRows
-import eu.tintera.plume.features.conversation.showsBareLinkPreview
+import eu.tintera.plume.features.conversation.showsLinkPreviewCard
 import eu.tintera.plume.features.conversation.showsBareMedia
 
 /**
@@ -164,7 +164,7 @@ private fun messageItem(
     return when {
         emojiCount > 0 -> LargeEmojiMessageItem(frame, emojiCount)
         showsBareMedia(message, album) -> MediaMessageItem(frame, album)
-        preview != null && showsBareLinkPreview(message) -> LinkPreviewMessageItem(frame, preview)
+        preview != null && showsLinkPreviewCard(message) -> LinkPreviewMessageItem(frame, preview)
         (media is MessageMedia.Sticker || media is MessageMedia.AnimatedEmoji) &&
             message.replyToMessageId == null -> StickerMessageItem(frame, media)
         else -> BubbleMessageItem(frame, album = album, quoted = quoted, partnerName = partnerName)

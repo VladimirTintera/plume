@@ -81,4 +81,4 @@ internal data class BubbleMessageItem(
 }
 
 /** Nejvyšší šířka textové bubliny jako podíl řádku. */
-private const val TEXT_MAX_WIDTH_FRACTION = 0.82f
+internal const val TEXT_MAX_WIDTH_FRACTION = 0.82f
