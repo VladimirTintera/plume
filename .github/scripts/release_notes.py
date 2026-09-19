@@ -15,7 +15,7 @@ Release bere soubory PŘIDANÉ mezi předchozím a aktuálním tagem a čte je z
 poznámky z tagu reprodukovatelné stejně jako verze.
 
     release_notes.py check <soubor>...                   – ověří formát a délku (PR check)
-    release_notes.py play <prev-tag|""> <tag> <adresář>  – whatsnew-<locale> pro Google Play
+    release_notes.py play <prev-tag|""> <tag> <adresář>  – whatsnew-<locale> pro Google Play (PLAY_LANGS)
     release_notes.py markdown <prev-tag|""> <tag>        – sekce do popisu GitHub Release
 """
 
@@ -33,6 +33,11 @@ LOCALES = {
     "cs": ("cs-CZ", "• …a další drobné úpravy", "Drobné opravy a vylepšení."),
     "en": ("en-US", "• …and more improvements", "Minor fixes and improvements."),
 }
+
+# Jazyky, které jdou do Play. Poznámka pro jazyk, který nemá aplikace v záznamu v obchodě,
+# by mohla shodit celý upload — a záznam zatím vyplněný není, platí jen výchozí čeština.
+# Angličtina se píše dál (GitHub Release), do Play půjde, až bude záznam mít en-US.
+PLAY_LANGS = ("cs",)
 
 
 def parse(text, name):
@@ -122,7 +127,8 @@ def main(argv):
         notes = notes_between(argv[2], argv[3])
         out = Path(argv[4])
         out.mkdir(parents=True, exist_ok=True)
-        for lang, (locale, _, _) in LOCALES.items():
+        for lang in PLAY_LANGS:
+            locale = LOCALES[lang][0]
             text = play_text(notes, lang)
             (out / f"whatsnew-{locale}").write_text(text, encoding="utf-8")
             print(f"--- whatsnew-{locale} ({len(text)}/{PLAY_LIMIT}) ---\n{text}")

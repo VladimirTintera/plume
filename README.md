@@ -134,8 +134,8 @@ Co je dobré vědět:
 
 Vydává se **pushnutím tagu** `android-<versionName>-<versionCode>` (např. `android-0.2.1-13`).
 Workflow [`android-release.yml`](.github/workflows/android-release.yml) z něj vytáhne verzi,
-postaví podepsaný AAB, nahraje ho na **internal track** i s textem „Co je nového" (cs + en,
-z poznámek v [`release-notes/`](release-notes), které přidává každý PR) a založí GitHub Release
+postaví podepsaný AAB, nahraje ho na **internal track** i s textem „Co je nového" (zatím jen
+česky, z poznámek v [`release-notes/`](release-notes), které přidává každý PR) a založí GitHub Release
 s poznámkami a changelogem.
 Žádný verzovací commit není potřeba — verze se do buildu dostane přes `-P`.
 

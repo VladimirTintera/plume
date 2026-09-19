@@ -240,8 +240,12 @@ Formát, ořez i skládání jsou v `.github/scripts/release_notes.py`.
 - **Soubory se po vydání nemažou.** Rozsah určuje `git log --diff-filter=A PREV..TAG`, mazání
   by znamenalo commit z release workflow — a verze ani nic jiného se z releasu necommituje.
 - **Více kol téhož PR = úprava téhož souboru**, ne další soubor.
-- **Oba jazyky (`cs-CZ`, `en-US`) musí být v záznamu aplikace v Play Console**, jinak API
-  poznámky odmítne. Přidání dalšího jazyka = řádek v `LOCALES` a klíč v každé poznámce.
+- **Do Play jde zatím jen čeština** (`PLAY_LANGS`). Jazyk poznámky musí být v záznamu aplikace
+  v obchodě, jinak hrozí, že API odmítne celý upload — a záznam vyplněný není, platí jen výchozí
+  čeština z doby založení aplikace. Pro interní testování ho vyplňovat netřeba. Angličtina se
+  přesto píše a kontroluje: jde do GitHub Release, a až záznam dostane `en-US`, stačí ji přidat
+  do `PLAY_LANGS` a texty budou za celou dobu hotové. Úplně nový jazyk = řádek v `LOCALES`
+  a klíč v každé poznámce.
 - GitHub Release dostane celý seznam v obou jazycích (bez ořezu) nad technickým changelogem.
 
 ## Struktura modulů
