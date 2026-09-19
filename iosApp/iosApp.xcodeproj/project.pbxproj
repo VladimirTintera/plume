@@ -6,11 +6,8 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
-		354A6D4760D2C527E58B9E86 /* plume.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = plume.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		354A6D4760D2C527E58B9E86 /* Plume.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Plume.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -53,7 +50,7 @@
 		07744108E9EC85FD0C5149E2 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				354A6D4760D2C527E58B9E86 /* plume.app */,
+				354A6D4760D2C527E58B9E86 /* Plume.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -88,7 +85,7 @@
 			);
 			name = iosApp;
 			productName = iosApp;
-			productReference = 354A6D4760D2C527E58B9E86 /* plume.app */;
+			productReference = 354A6D4760D2C527E58B9E86 /* Plume.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -246,9 +243,10 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Mikrofon je potřeba k nahrávání hlasových zpráv.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Fotky a videa z chatů se ukládají do knihovny fotek.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -274,9 +272,10 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Mikrofon je potřeba k nahrávání hlasových zpráv.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Fotky a videa z chatů se ukládají do knihovny fotek.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -369,8 +368,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-
 	};
 	rootObject = 9E9B7B9873CC2777922B74FE /* Project object */;
 }

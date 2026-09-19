@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.key
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.files.saveAsSupported
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.ui.emojiClusterCount
@@ -181,6 +182,11 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageM
     if (message.copyableText().isNotBlank()) add(MessageMenuAction.Copy)
     if (message.media is MessageMedia.Sticker) add(MessageMenuAction.ToggleFavoriteSticker)
     add(MessageMenuAction.Forward)
+    // Soubor, který není obrázek ani video, se do prohlížeče nedostane; ven jde odsud.
+    if (message.media is MessageMedia.Document) {
+        add(MessageMenuAction.ShareFile)
+        if (saveAsSupported) add(MessageMenuAction.SaveFileAs)
+    }
     add(MessageMenuAction.Info)
     add(if (isPinned) MessageMenuAction.Unpin else MessageMenuAction.Pin)
     add(MessageMenuAction.Delete)

@@ -31,3 +31,6 @@ interface SaveAsLauncher {
 
 @Composable
 expect fun rememberSaveAs(): SaveAsLauncher?
+
+/** Jestli má platforma „Uložit jako…" — podle toho se položka vůbec nabídne (viz [rememberSaveAs]). */
+expect val saveAsSupported: Boolean

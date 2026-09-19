@@ -2,9 +2,14 @@ package eu.tintera.plume.features.conversation.items
 
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.features.conversation.MessageMenu
+import eu.tintera.plume.core.files.saveAsSupported
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.content_copy_24dp
 import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.description_24dp
+import eu.tintera.plume.resources.media_save_as
+import eu.tintera.plume.resources.media_share
+import eu.tintera.plume.resources.share_24dp
 import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.forward_24dp
 import eu.tintera.plume.resources.info_24dp
@@ -136,6 +141,24 @@ sealed interface MessageMenuAction : MessageAction {
     data object Unpin : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
             MenuPresentation(Res.drawable.keep_off_24dp, Res.string.menu_unpin).takeIf { menu.actions.canPin }
+    }
+
+    /**
+     * Kandidát jen u souboru. Do prohlížeče médií se soubor, který obrázkem ani videem není,
+     * nedostane, takže sdílení a ukládání ven patří sem. Chráněný obsah (`canBeSaved`) ven nesmí.
+     */
+    data object ShareFile : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.share_24dp, Res.string.media_share).takeIf { menu.actions.canSave }
+    }
+
+    /**
+     * Kandidát jen u souboru a jen tam, kde „Uložit jako…" platforma má ([saveAsSupported]);
+     * na iOS ho nahrazuje dialog sdílení. Výběr umístění spouští obrazovka, ne ViewModel.
+     */
+    data object SaveFileAs : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.description_24dp, Res.string.media_save_as).takeIf { menu.actions.canSave }
     }
 
     /** Pro sebe, nebo pro všechny — rozhodne se až v potvrzovacím dialogu. */

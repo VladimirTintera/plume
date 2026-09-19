@@ -236,9 +236,8 @@ Co zbývá:
   - **Ověřit na iOS** (`PHPhotoLibrary` s dotazem na oprávnění, `UIActivityViewController`
     i jako popover na iPadu) a na Androidu 9 a starším (`WRITE_EXTERNAL_STORAGE`, veřejný
     adresář); vyzkoušené je jen Android 16.
-  - **Sdílet a Uložit jako… u souborů v konverzaci.** Soubor, který obrázkem ani videem není
-    (PDF, archiv), se do prohlížeče nedostane, takže tyhle akce patří do nabídky nad zprávou.
-    `MediaSharer` i `rememberSaveAs` jsou na to připravené; na iOS stačí Sdílet.
+  - ~~**Sdílet a Uložit jako… u souborů v konverzaci**~~ — hotovo (položky nabídky nad
+    zprávou `ShareFile` a `SaveFileAs`). Ověřit na iOS, kde je jen Sdílet.
 - **Odpověď z prohlížeče.** Google Zprávy mají vlevo v dolní liště tlačítko odpovědi. U nás by
   muselo vrátit do konverzace s připravenou citací — konverzace je v zásobníku pod prohlížečem,
   takže je potřeba cesta, jak jí požadavek předat (jako `ChatOpenRequests`).
