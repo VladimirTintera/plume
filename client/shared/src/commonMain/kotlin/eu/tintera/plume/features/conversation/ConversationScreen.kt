@@ -113,6 +113,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -247,6 +248,8 @@ fun ConversationScreen(
      * se scrollem. Nový stav seznamu s novým oknem nemá co animovat pryč.
      */
     val listState = rememberSaveable(state.window, saver = LazyListState.Saver) { LazyListState() }
+    // Přechod na zprávu, ke které se nedá dojet (daleko, nebo nenačtená) — viz `JumpTransition`.
+    val jumpTransition = remember { JumpTransition() }
     val snackbarHostState = remember { SnackbarHostState() }
     var stickerPickerOpen by rememberSaveable { mutableStateOf(false) }
 
@@ -405,6 +408,7 @@ fun ConversationScreen(
             onSearch = { currentOnSearch(it) },
             // Výběr umístění je aktivita systému, takže ho má obrazovka; ViewModel jen stáhne.
             onSaveFileAs = { messageId -> currentSaveAs?.let { viewModel.saveDocumentAs(messageId, it) } },
+            jumpTransition = jumpTransition,
         )
     }
 
@@ -465,8 +469,34 @@ fun ConversationScreen(
      * zprávu a index by ukazoval jinam.
      */
     val jumpSpec = MaterialTheme.motionScheme.slowSpatialSpec<Float>()
+    val leaveMoveSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    val leaveFadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+    val gatherSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    val restoreSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    val leaveDistance = with(LocalDensity.current) { JUMP_LEAVE_DISTANCE.toPx() }
+    val gatherDistance = with(LocalDensity.current) { JUMP_GATHER_DISTANCE.toPx() }
     // Seznam se během dojíždění mění (dotahují se stránky), takže se cíl hledá v AKTUÁLNÍM seznamu.
     val currentItems by rememberUpdatedState(items)
+    val indexByKey = remember(items) { items.withIndex().associate { (index, item) -> item.key to index } }
+    jumpTransition.indexOf = { indexByKey[it] ?: -1 }
+
+    /*
+     * Skok na nenačtenou zprávu: seznam začne odjíždět HNED, načítání okna kolem zprávy běží
+     * mezitím. Když se zpráva nenajde, seznam se vrátí.
+     */
+    LaunchedEffect(state.pendingJump) {
+        val pending = state.pendingJump
+        when {
+            state.scrollTarget != null -> Unit
+            pending != null -> jumpTransition.leave(
+                distance = if (pending.older) leaveDistance else -leaveDistance,
+                moveSpec = leaveMoveSpec,
+                fadeSpec = leaveFadeSpec,
+            )
+            else -> jumpTransition.restore(restoreSpec)
+        }
+    }
+
     LaunchedEffect(state.scrollTarget) {
         val target = state.scrollTarget ?: return@LaunchedEffect
         // Hledá se BLOK, ne zpráva: fotka z alba je v seznamu součástí jedné položky.
@@ -476,15 +506,35 @@ fun ConversationScreen(
         if (index >= 0 && target.anchor == ScrollAnchor.Top) {
             while (items.getOrNull(index + 1).let { it is UnreadDividerItem || it is DayDividerItem }) index++
         }
-        // Na citaci a mezi výsledky hledání se DOJÍŽDÍ (viz `animateToAnchor`); první
-        // nepřečtená při otevření chatu, návrat dolů a skok do nového okna skočí hned.
-        if (index >= 0) {
-            if (target.animate) {
-                listState.animateToAnchor(index, target.anchor, jumpSpec) {
-                    currentItems.indexOfFirst { it.containsMessage(target.messageId) }
-                }
-            } else {
+        /*
+         * Na citaci a mezi výsledky hledání se DOJÍŽDÍ (`animateToAnchor`), ke vzdálené nebo
+         * nenačtené zprávě se PŘEJEDE (`JumpTransition`). První nepřečtená při otevření chatu
+         * a návrat dolů skočí hned.
+         */
+        val findCurrent = { currentItems.indexOfFirst { it.containsMessage(target.messageId) } }
+        when {
+            index < 0 -> jumpTransition.reset()
+            target.anchor != ScrollAnchor.Center -> {
+                jumpTransition.reset()
                 listState.scrollToAnchor(index, target.anchor)
+            }
+            target.animate && listState.itemsAwayFrom(index) <= MAX_ANIMATED_JUMP_ITEMS -> {
+                jumpTransition.reset()
+                listState.animateToAnchor(index, target.anchor, jumpSpec, findCurrent)
+            }
+            else -> {
+                // Starší zprávy jsou nahoře, obsah tedy odjíždí dolů.
+                val older = target.older ?: (index > listState.firstVisibleItemIndex)
+                jumpTransition.leave(
+                    distance = if (older) leaveDistance else -leaveDistance,
+                    moveSpec = leaveMoveSpec,
+                    fadeSpec = leaveFadeSpec,
+                )
+                val now = findCurrent().takeIf { it >= 0 } ?: index
+                listState.scrollToAnchor(now, target.anchor)
+                currentItems.getOrNull(now)?.let {
+                    jumpTransition.arrive(it.key, now, gatherDistance, gatherSpec)
+                }
             }
         }
         viewModel.consumeScrollTarget()
@@ -929,7 +979,11 @@ fun ConversationScreen(
                   LazyColumn(
                     state = listState,
                     reverseLayout = true,
-                    modifier = Modifier.fillMaxSize(),
+                    // Odjezd při přechodu na vzdálenou zprávu; čte se až ve vrstvě.
+                    modifier = Modifier.fillMaxSize().graphicsLayer {
+                        alpha = jumpTransition.listAlpha
+                        translationY = jumpTransition.listShift
+                    },
                     // Dole se odsazuje o výšku `bottomBar` (vstupního pole), aby nejnovější
                     // zpráva v klidu nekončila pod ním. Při scrollu obsah pod pole zajede.
                     contentPadding = PaddingValues(
@@ -1583,6 +1637,23 @@ private suspend fun LazyListState.scrollToAnchor(index: Int, anchor: ScrollAncho
  * ([MAX_ANIMATED_JUMP_ITEMS]) se nedojíždí: rolování přes desítky zpráv by trvalo a nic by
  * neukázalo, a navíc by skládalo všechno mezi.
  */
+/** O kolik položek je [index] mimo viditelnou část seznamu; 0 = je vidět. */
+private fun LazyListState.itemsAwayFrom(index: Int): Int {
+    val visible = layoutInfo.visibleItemsInfo
+    if (visible.isEmpty()) return Int.MAX_VALUE
+    return when {
+        index < visible.first().index -> visible.first().index - index
+        index > visible.last().index -> index - visible.last().index
+        else -> 0
+    }
+}
+
+/** Jak daleko seznam při přechodu odjede, než zmizí. */
+private val JUMP_LEAVE_DISTANCE = 96.dp
+
+/** Z jaké vzdálenosti k nalezené zprávě sjedou sousedé (nejbližší; vzdálenější z dál). */
+private val JUMP_GATHER_DISTANCE = 56.dp
+
 private suspend fun LazyListState.animateToAnchor(
     index: Int,
     anchor: ScrollAnchor,
@@ -1650,7 +1721,12 @@ private class ScreenItemScope(
     private val onOpenStickerSet: (setId: Long) -> Unit,
     private val onSearch: (query: String) -> Unit,
     private val onSaveFileAs: (messageId: Long) -> Unit,
+    private val jumpTransition: JumpTransition,
 ) : ConversationItemScope {
+    override fun gatherShift(key: Any): Float = jumpTransition.shiftOf(key)
+
+    override fun gatherAlpha(key: Any): Float = jumpTransition.alphaOf(key)
+
     override fun voicePlayback(messageId: Long): VoicePlayback? =
         voicePlayback.value?.takeIf { it.key.messageId == messageId }
 

@@ -165,7 +165,7 @@ internal interface MessageItem : ConversationItem {
         // rozjetého prolnutí.
         val modifier = Modifier.animateItem(
             fadeInSpec = if (frame.flight != null) null else spring(stiffness = Spring.StiffnessMediumLow),
-        ).arrival(frame, scope)
+        ).arrival(frame, scope).gathered(frame.key, scope)
         RevealingTime(frame.message.timestamp, scope.timeReveal, modifier) {
             MessageFrame(frame, scope, maxWidthFraction) { Body() }
         }

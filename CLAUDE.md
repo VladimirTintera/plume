@@ -1317,9 +1317,21 @@ se ukáže i bez nových zpráv, jakmile je uživatel o kus výš.
 - **Na citaci a mezi výsledky hledání se DOJÍŽDÍ** (`animateToAnchor`, `slowSpatialSpec`),
   skok na první nepřečtenou a návrat dolů zůstávají okamžité. Okamžitý skok neukázal, kterým
   směrem a jak daleko zpráva je. Položka mimo obrazovku nemá změřenou polohu: dojede se na odhad
-  z průměrné výšky viditelných položek a pak se doladí podle skutečného layoutu. Dál než
-  `MAX_ANIMATED_JUMP_ITEMS` (40 položek) a po výměně okna se skáče — rolování přes desítky
-  zpráv by trvalo a skládalo by všechno mezi.
+  z průměrné výšky viditelných položek a pak se doladí podle skutečného layoutu.
+- **Ke vzdálené nebo nenačtené zprávě se PŘEJEDE** (`JumpTransition`): seznam odjede směrem
+  k ní a zprůhlední, neviditelně se přesune (u nenačtené mezitím doběhne `loadAround`), nalezená
+  zpráva se objeví rovnou na místě a zvýrazněná a sousedé k ní sjedou shora i zdola (vzdálenější
+  z dál). Rolovat přes desítky zpráv (`MAX_ANIMATED_JUMP_ITEMS`, 40) by trvalo a skládalo by
+  všechno mezi; do nenačtené historie dojet nejde vůbec.
+- **Odjezd začíná HNED, ne až po načtení** (`ConversationState.pendingJump`). `jumpToMessage`
+  ho ohlásí před `loadAround`, takže čekání na TDLib schová odjezd. Když se zpráva nenajde,
+  `pendingJump` zmizí bez `scrollTarget` a seznam se vrátí (`restore`). Druhé volání `leave`
+  nad rozjetým odjezdem jen pokračuje ze současné hodnoty — `Animatable` předchozí animaci přeruší.
+- **Směr zná u nenačtené zprávy jen ViewModel** (`ScrollTarget.older`: menší id než nejstarší
+  načtená). Po výměně okna je nový seznam dole a pozice by vždycky tvrdila „starší".
+- **Sjíždění sousedů je modifikátor na kořeni KAŽDÉHO bloku** (`Modifier.gathered`, za
+  `animateItem`). Obalit položku v `LazyColumn` dalším `Box`em nejde: `animateItem` musí být na
+  kořeni položky, jinak jeho animace přestanou fungovat.
 - **Dojíždí se jen ke zprávě, která v seznamu UŽ BYLA** (`ScrollTarget.animate`, rozhoduje
   `jumpToMessage`). Po výměně okna začíná nový seznam u spodní hrany okna, a tam se hned
   dotahují novější zprávy — ty se vkládají na začátek a posunou všechny indexy. Dojíždění
