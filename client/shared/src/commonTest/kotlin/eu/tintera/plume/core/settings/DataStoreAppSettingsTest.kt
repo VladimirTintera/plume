@@ -221,14 +221,41 @@ class DataStoreAppSettingsTest {
         }
     }
 
+    /**
+     * Zápis hned po vzniku nastavení se musí projevit — i když se trefí do úvodního čtení souboru.
+     *
+     * Hlídá obchvat chyby DataStore 1.2.x (viz [DataStoreAppSettings]): odběr `data` spuštěný
+     * souběžně se zápisem dostal stará data s novou verzí a zápis pak zahodil. Selhávalo to
+     * náhodně a jen pod zátěží (dva emulátory, link Kotlin/Native), pokaždé u testu, který zapisuje
+     * „odpal a zapomeň" hned po vzniku. Jedno kolo okno mine skoro vždycky, proto kol stovky:
+     * s původním kódem a všemi jádry vytíženými (`yes > /dev/null` dvakrát na jádro) se zaseklo
+     * 25 z 2 000, s obchvatem 0 z 6 000. Bez zátěže tenhle test chybu nepozná — je to pojistka,
+     * ne důkaz.
+     */
+    @Test
+    fun zapisHnedPoVznikuSeProjevi() = runBlocking {
+        repeat(ROUNDS) { round ->
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+            try {
+                val settings = DataStoreAppSettings(createSettingsDataStore(tempPath()), scope)
+                settings.setSeparateUnreadChats(true)
+                settings.separateUnreadChats.awaitValue("zápis v kole $round") { it }
+            } finally {
+                scope.cancel()
+            }
+        }
+    }
+
     private companion object {
+        /** Kol v [zapisHnedPoVznikuSeProjevi]. Kolo trvá milisekundy, dokud se nic nezasekne. */
+        const val ROUNDS = 300
+
         /**
          * Limit jednoho čekání.
          *
          * Není to měřítko rychlosti, jen pojistka proti zaseknutí — proto raději velkoryse.
-         * Jediné pozorované selhání přišlo z plného `check` na stroji, kde se současně točil
-         * emulátor, simulátor iOS a link Kotlin/Native; zápis do souboru se tam na pět vteřin
-         * vejít nemusí a z „flaky" testu není užitek žádný.
+         * Selhání pod zátěží, která se dřív přičítala pomalému stroji, byla ztracená data
+         * (chyba DataStore, viz [zapisHnedPoVznikuSeProjevi]); delší limit by na ně nepomohl.
          */
         const val WAIT_MS = 15_000L
     }
