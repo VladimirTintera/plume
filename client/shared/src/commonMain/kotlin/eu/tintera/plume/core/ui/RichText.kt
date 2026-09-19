@@ -1,5 +1,12 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -70,6 +77,15 @@ fun RichText(
      * tak místo nabídky otevíral prohlížeč. Proto se dlouhý stisk nad odkazem hlídá tady.
      */
     onLongClick: (() -> Unit)? = null,
+    /**
+     * Úseky, které se mají zvýraznit (hledané slovo, viz [highlightRanges]). Úsek uvnitř
+     * zakrytého spoileru se nezvýrazní — zvýraznění by skryté slovo prozradilo.
+     */
+    highlights: List<IntRange> = emptyList(),
+    /** Barva písma zvýrazněného úseku. */
+    highlightColor: Color = Color.Unspecified,
+    /** Podklad zvýrazněného úseku — zaoblená pilulka za textem, po řádcích. */
+    highlightBackground: Color = Color.Unspecified,
 ) {
     /*
      * Spoilery se odkrývají po zprávě, ne po jednotlivých úsecích.
@@ -97,10 +113,15 @@ fun RichText(
     val suppressLinkClick = remember { booleanArrayOf(false) }
     val haptics = LocalHapticFeedback.current
 
-    val annotated = remember(text, entities, linkColor, contentColor, spoilersRevealed) {
+    val visible = remember(text, entities, highlights, spoilersRevealed) {
+        visibleHighlights(text, entities, highlights, spoilersRevealed)
+    }
+    val annotated = remember(text, entities, linkColor, contentColor, spoilersRevealed, visible, highlightColor) {
         buildMessageText(
             text = text,
             entities = entities,
+            highlights = visible,
+            highlightColor = highlightColor,
             linkColor = linkColor,
             overlayColor = contentColor,
             spoilersRevealed = spoilersRevealed,
@@ -118,7 +139,11 @@ fun RichText(
         text = annotated,
         style = style,
         onTextLayout = { layout = it },
-        modifier = modifier.then(
+        modifier = modifier.drawBehind {
+            if (visible.isNotEmpty() && highlightBackground.isSpecified) {
+                layout?.let { drawHighlightPills(it, visible, highlightBackground) }
+            }
+        }.then(
             if (onLongClick == null) {
                 Modifier
             } else {
@@ -165,6 +190,8 @@ fun RichText(
 private fun buildMessageText(
     text: String,
     entities: List<MessageEntity>,
+    highlights: List<IntRange>,
+    highlightColor: Color,
     linkColor: Color,
     overlayColor: Color,
     spoilersRevealed: Boolean,
@@ -268,6 +295,71 @@ private fun buildMessageText(
                     end = end,
                 )
             }
+        }
+    }
+
+    // Až ZA entitami, aby barva zvýraznění přebila styl pod ní (kód, odkaz). Podklad kreslí
+    // `drawHighlightPills` — podklad ve `SpanStyle` zaoblit nejde.
+    if (highlightColor.isSpecified) highlights.forEach { addStyle(SpanStyle(color = highlightColor), it.first, it.last + 1) }
+}
+
+/**
+ * Podklad zvýrazněných úseků: zaoblená pilulka za každým řádkem úseku. Hranaté obdélníky
+ * `SpanStyle.background` v zaoblených (a u zvýrazněné zprávy zvlněných) bublinách působily
+ * jako cizí prvek. Pilulka jde kousek do stran, aby písmo nedoléhalo k okraji.
+ */
+private fun DrawScope.drawHighlightPills(layout: TextLayoutResult, ranges: List<IntRange>, color: Color) {
+    val padding = HIGHLIGHT_PADDING.toPx()
+    val inset = HIGHLIGHT_LINE_INSET.toPx()
+    val radius = CornerRadius(HIGHLIGHT_RADIUS.toPx())
+    ranges.forEach { range ->
+        val last = range.last.coerceAtMost(layout.layoutInput.text.length - 1)
+        if (last < range.first) return@forEach
+        for (line in layout.getLineForOffset(range.first)..layout.getLineForOffset(last)) {
+            val start = maxOf(range.first, layout.getLineStart(line))
+            val end = minOf(last, layout.getLineEnd(line, visibleEnd = true) - 1)
+            if (end < start) continue
+            val left = minOf(layout.getBoundingBox(start).left, layout.getBoundingBox(end).left)
+            val right = maxOf(layout.getBoundingBox(start).right, layout.getBoundingBox(end).right)
+            val top = layout.getLineTop(line) + inset
+            val bottom = layout.getLineBottom(line) - inset
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(left - padding, top),
+                size = Size(right - left + 2 * padding, bottom - top),
+                cornerRadius = radius,
+            )
+        }
+    }
+}
+
+private val HIGHLIGHT_PADDING = 3.dp
+private val HIGHLIGHT_LINE_INSET = 1.dp
+private val HIGHLIGHT_RADIUS = 6.dp
+
+/**
+ * Úseky ke zvýraznění oříznuté do textu, bez těch, které zasahují do ZAKRYTÉHO spoileru —
+ * zvýraznění by skryté slovo prozradilo. Po odkrytí spoilerů se zvýrazní i ony.
+ */
+internal fun visibleHighlights(
+    text: String,
+    entities: List<MessageEntity>,
+    highlights: List<IntRange>,
+    spoilersRevealed: Boolean,
+): List<IntRange> {
+    if (highlights.isEmpty()) return emptyList()
+    val hidden = if (spoilersRevealed) {
+        emptyList()
+    } else {
+        entities.filter { it.type == MessageEntityType.Spoiler }.map { it.offset until it.offset + it.length }
+    }
+    return highlights.mapNotNull { range ->
+        val start = range.first.coerceIn(0, text.length)
+        val end = (range.last + 1).coerceIn(start, text.length)
+        when {
+            start == end -> null
+            hidden.any { start <= it.last && it.first < end } -> null
+            else -> start until end
         }
     }
 }
