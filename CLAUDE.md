@@ -1721,8 +1721,8 @@ to tu bylo, než vznikly `MessageEntity` a `RichText`.
 - **Barva odkazu se musí dát předat.** V odchozí bublině je pozadí samo `primary`, takže natvrdo
   zadaná `primary` by odkaz zneviditelnila — tatáž past jako u `QuotedMessage.accent`. Bublina
   podává svoji `contentColor`, podtržení nese odlišení i tam, kde barva splývá.
-- **Kliknutí jde přes ViewModel, ne rovnou z bubliny do `UrlOpener`.** Až budeme rozlišovat
-  interní `t.me` odkazy, rozhodne se to na jednom místě a obrazovka se měnit nebude. Vlastní
+- **Kliknutí jde přes ViewModel, ne rovnou z bubliny do `UrlOpener`.** Odkazy na Telegram
+  se tam rozlišují na jednom místě (viz „Odkazy na Telegram"). Vlastní
   `linkInteractionListener` je nutný — bez něj si `LinkAnnotation.Url` otevře odkaz sám přes
   `LocalUriHandler` a nemáme kam sáhnout.
 - **Dlouhý stisk nad odkazem hlídá `RichText` sám** (`onLongClick`). Compose dává každému odkazu
@@ -1759,6 +1759,30 @@ to tu bylo, než vznikly `MessageEntity` a `RichText`.
   je otrava.
 - **Při odesílání se entity dohledávají** (`getTextEntities`), jinak odkaz odejde jako mrtvý text —
   server si ho sám neoznačí. Když dohledání selže, zpráva stejně odejde.
+
+### Odkazy na Telegram
+
+Odkaz ze zprávy (text, náhled odkazu) jde přes `ConversationViewModel.openLink` →
+`ChatRepository.resolveLink`. Co odkaz znamená, rozhoduje TDLib (`getInternalLinkType`) — zná
+všechny podoby (`t.me`, `telegram.me`, `tg://`) a my jen vybíráme, co umíme ukázat
+(`InternalLink`). Ostatní jde do prohlížeče.
+
+- **Rozpoznání je lokální volání**, takže běžný webový odkaz jde do prohlížeče bez prodlevy.
+  Neinterní odkaz TDLib hlásí CHYBOU — to je `null` (prohlížeč), ne selhání.
+- **Chat (`t.me/jméno`) se otevře nad konverzací** jako zmínka; zpět vede do konverzace.
+- **Odkaz na zprávu** (`getMessageLinkInfo`) v tomhle chatu skočí na zprávu na místě
+  (`jumpToMessage`, s dojetím / přejezdem), v jiném chatu otevře `ConversationRoute(chatId,
+  messageId)`. Zprávu, kterou server nevydal (`message == null`), nahradí otevření chatu.
+- **Pozvánka nikoho nepřidá sama** — ukáže náhled (`InviteSheet`: fotka, název, počet členů /
+  odběratelů, popis) a přidává se až tlačítkem. `checkChatInviteLink` s nenulovým `chatId`
+  znamená, že chat je dostupný už teď — otevře se rovnou.
+- **`joinChatByInviteLink` vrací `ChatJoinResult`, ne chat** (novější TDLib): úspěch, odeslaná
+  žádost (pozvánka se schválením → snackbar „Žádost odeslána"), odmítnutí, schválení botem.
+  `when` je bez `else`, takže nový druh v novější TDLib rozbije překlad, ne tiše přidávání.
+- **Neplatná pozvánka chodí jako `INVITE_HASH_EXPIRED`** (i u vymyšleného odkazu) — má vlastní
+  větu v `userMessage`.
+- **Sada samolepek** (`t.me/addstickers/…`, `searchStickerSet`) otevře tentýž sheet jako ťuknutí
+  na samolepku.
 
 ### Profilovky ve skupině
 

@@ -4,6 +4,7 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.error_admin_required
 import eu.tintera.plume.resources.error_flood_wait_minutes
+import eu.tintera.plume.resources.error_invite_invalid
 import eu.tintera.plume.resources.error_flood_wait_seconds
 import eu.tintera.plume.resources.error_message_cannot_be_deleted
 import eu.tintera.plume.resources.error_message_cannot_be_deleted_for_everyone
@@ -73,6 +74,8 @@ fun Throwable.userMessage(fallback: StringResource): UiText {
         "PHONE_CODE_INVALID" -> Res.string.error_phone_code_invalid
         "PHONE_CODE_EXPIRED" -> Res.string.error_phone_code_expired
         "PASSWORD_HASH_INVALID" -> Res.string.error_password_invalid
+        // Pozvánka do chatu (`checkChatInviteLink`): neplatný odkaz hlásí server jako vypršelý.
+        "INVITE_HASH_EXPIRED", "INVITE_HASH_INVALID" -> Res.string.error_invite_invalid
 
         else -> fallback
     }
