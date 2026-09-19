@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -29,6 +30,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.SearchBarScrollBehavior
 import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -69,9 +71,9 @@ import org.jetbrains.compose.resources.stringResource
  * zaoblený blok jako skupiny chatů, bar kolem ní má barvu stránky i po odscrollování a je
  * vysoký přesně jako hlavička konverzace.
  *
- * **Bar je připnutý, při scrollu neodjíždí.** S `enterAlways` zalézaly chaty pod stavovou lištu,
- * kde nemají pozadí, a hlavně by s barem odjel i stav spojení — jediné vysvětlení, proč nic
- * nechodí. Připnutý bar zároveň nemá žádný mezistav, takže nemá co vypadat jinak.
+ * **Při scrollu dolů bar odjede ([scrollBehavior], `enterAlways`), ale stav spojení ho přivolá
+ * zpátky.** Odjetý bar by jinak schoval jediné vysvětlení, proč nic nechodí. Pás pod stavovou
+ * lištou kreslí seznam chatů.
  *
  * **Stav spojení je pilulka UVNITŘ hledání** ([connection]), ne nadpis. Skoro celou dobu je
  * `null` a pak není vidět nic; nadpis „Chaty" by jen opakoval, co říká navigace.
@@ -84,12 +86,14 @@ internal fun ChatSearchBar(
     connection: StringResource?,
     chats: List<ChatSummary>,
     savedMessagesChatId: Long?,
+    scrollBehavior: SearchBarScrollBehavior,
     onChatClick: (Long) -> Unit,
     actions: @Composable RowScope.() -> Unit,
 ) {
     val searchBarState = rememberSearchBarState()
     val textFieldState = rememberTextFieldState()
     val scope = rememberCoroutineScope()
+    val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
     val expanded = searchBarState.currentValue == SearchBarValue.Expanded
 
     fun collapse() {
@@ -98,9 +102,20 @@ internal fun ChatSearchBar(
         }
     }
 
-    // Bez scroll behavior bar barvu nemění — plocha kolem pilulky je stránka, odstup od obsahu
-    // nese pilulka sama.
-    val colors = SearchBarDefaults.appBarWithSearchColors()
+    // Bar má barvu stránky i nad odscrollovaným seznamem — tónovaný pruh přes celou šířku byl
+    // to, co vadilo na sbaleném velkém baru. Odstup od obsahu nese pilulka.
+    val colors = SearchBarDefaults.appBarWithSearchColors(
+        scrolledAppBarContainerColor = MaterialTheme.colorScheme.surface,
+    )
+
+    // Výpadek spojení bar vrátí, i když je odjetý.
+    LaunchedEffect(connection != null) {
+        if (connection != null && scrollBehavior.scrollOffset != 0f) {
+            animate(scrollBehavior.scrollOffset, 0f, animationSpec = spatial) { value, _ ->
+                scrollBehavior.scrollOffset = value
+            }
+        }
+    }
 
     val inputField = @Composable {
         SearchBarDefaults.InputField(
@@ -151,9 +166,10 @@ internal fun ChatSearchBar(
         state = searchBarState,
         inputField = inputField,
         colors = colors,
-        // Barva stránky i pod stavovou lištou. Bar ji má mít sám (`appBarContainerColor`), ale
-        // bez scroll behavior ji v téhle alphě nenakreslí a chaty pod ním prosvítaly.
+        // Barva stránky výslovně. Bar ji má mít sám (`appBarContainerColor`), ale bez scroll
+        // behavior ji v téhle alphě nenakreslil a chaty pod ním prosvítaly.
         modifier = Modifier.background(MaterialTheme.colorScheme.surface),
+        scrollBehavior = scrollBehavior,
         actions = actions,
     )
 

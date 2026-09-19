@@ -633,12 +633,18 @@ v chatech", vedle ní menu ⋮. Po ťuknutí se rozbalí `ExpandedFullScreenSear
 - **Nahradila `LargeFlexibleTopAppBar`, protože ten byl hezký jen rozbalený.** Sbalený přešel na
   `scrolledContainerColor` (`surfaceContainer`), tedy pruh přes celou šířku v roli, která jinde
   v seznamu není. Na rozloženém Foldu navíc stál vedle 64dp hlavičky konverzace bar jiné výšky
-  i barvy. Pilulka je zaoblený blok jako skupiny chatů a bar je vysoký přesně 64 dp.
-- **Bar je připnutý, bez scroll behavior.** S `enterAlways` odjel a chaty zalézaly pod stavovou
-  lištu bez pozadí, a hlavně by s ním odjel i stav spojení.
-- **Plochu baru dává `Modifier.background(surface)`.** `appBarContainerColor` bez scroll behavior
-  v material3 1.5.0-alpha22 nenakreslí nic a chaty pod barem prosvítaly — viditelné až po
-  odscrollování, ne na prvním snímku.
+  i barvy. Pilulka je zaoblený blok jako skupiny chatů a bar je vysoký přesně 64 dp —
+  a nemá mezistav, jen je, nebo není.
+- **Při scrollu dolů bar odjede** (`enterAlwaysSearchBarScrollBehavior`), nahoru se vrátí.
+  Odjetý bar odkryje stavovou lištu, pod kterou by chaty jezdily bez pozadí — proto seznam
+  kreslí pod lištou pás v barvě stránky (`windowInsetsTopHeight(statusBars)`), nad obsahem,
+  ale pod `topBar`.
+- **Výpadek spojení bar přivolá zpátky** (`scrollOffset` animovaný na 0). Jinak by odjetý bar
+  schoval jediné vysvětlení, proč nic nechodí.
+- **Sbalený stav barvu nemění** (`scrolledAppBarContainerColor = surface`). Tónovaný pruh přes
+  celou šířku byl přesně to, co vadilo na velkém baru.
+- **Plochu baru dává i `Modifier.background(surface)`.** `appBarContainerColor` bez scroll
+  behavior v material3 1.5.0-alpha22 nenakreslil nic a chaty pod barem prosvítaly.
 - **Stav spojení je tonální pilulka na konci hledání** (`ConnectionPill`), ne nadpis. Skoro
   celou dobu není vidět nic; „Chaty" v nadpisu jen opakovalo navigaci. V rozbaleném hledání se
   neukazuje.

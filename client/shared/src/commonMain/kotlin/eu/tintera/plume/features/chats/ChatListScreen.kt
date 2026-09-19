@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,6 +40,7 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -51,6 +55,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -101,6 +106,8 @@ fun ChatListScreen(
     val updateCard by viewModel.updateCard.collectAsStateWithLifecycle()
     val startUpdate = rememberStartUpdate(viewModel.appUpdates)
     val listState = rememberLazyListState()
+    // Hledání při scrollu dolů odjede a při scrollu nahoru se vrátí.
+    val scrollBehavior = SearchBarDefaults.enterAlwaysSearchBarScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Bez tohohle by neúspěšná akce (typicky překročený limit připnutých chatů) zmizela beze stopy
@@ -152,13 +159,14 @@ fun ChatListScreen(
     }
 
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             ChatSearchBar(
                 connection = connection.label(),
                 chats = (state as? ChatListState.Ready)?.chats.orEmpty(),
                 savedMessagesChatId = savedMessagesChatId,
+                scrollBehavior = scrollBehavior,
                 onChatClick = onChatClick,
                 actions = {
                     /*
@@ -186,103 +194,117 @@ fun ChatListScreen(
             )
         },
     ) { padding ->
-        when (val current = state) {
-            ChatListState.Loading -> Box(
-                Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                LoadingIndicator()
-            }
-
-            is ChatListState.Failed -> Box(
-                Modifier.fillMaxSize().padding(padding).padding(24.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(current.message.resolve(), style = MaterialTheme.typography.bodyLarge)
-                    TextButton(onClick = viewModel::loadMore) { Text(stringResource(Res.string.common_try_again)) }
-                }
-            }
-
-            is ChatListState.Ready -> if (current.chats.isEmpty()) {
-                Box(
+        Box(Modifier.fillMaxSize()) {
+            when (val current = state) {
+                ChatListState.Loading -> Box(
                     Modifier.fillMaxSize().padding(padding),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        stringResource(Res.string.chats_empty),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    LoadingIndicator()
                 }
-            } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        // Kotva i rozestup za ní jdou z horního odsazení, první chat tak
-                        // zůstane tam, kde byl bez ní.
-                        top = padding.calculateTopPadding() + 8.dp - TOP_ANCHOR_HEIGHT -
-                            GROUP_ITEM_SPACING,
-                        bottom = padding.calculateBottomPadding() + 8.dp,
-                        start = 16.dp,
-                        end = 16.dp,
-                    ),
-                    // Rozestup UVNITŘ skupiny. Mezera mezi skupinami se přidává u její první
-                    // položky — seznam o sousedech položky nic neví.
-                    verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+
+                is ChatListState.Failed -> Box(
+                    Modifier.fillMaxSize().padding(padding).padding(24.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    val groups = chatGroups(current.chats, separateUnread, savedMessagesChatId)
-
-                    /*
-                     * Kotva nahoře. `LazyColumn` drží pozici podle klíče první viditelné
-                     * položky; bez kotvy je to první chat, a když nad něj vyskočí jiný (nová
-                     * zpráva, připnutí), seznam jde za tím původním a nový skončí nad horní
-                     * hranou. S kotvou je první viditelná položka ona, takže seznam u vršku
-                     * zůstane u vršku. Výška nesmí být nulová — položku bez výšky seznam
-                     * za viditelnou nepovažuje.
-                     */
-                    item(key = TOP_ANCHOR_KEY, contentType = TOP_ANCHOR_KEY) {
-                        Spacer(Modifier.fillMaxWidth().height(TOP_ANCHOR_HEIGHT))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(current.message.resolve(), style = MaterialTheme.typography.bodyLarge)
+                        TextButton(onClick = viewModel::loadMore) { Text(stringResource(Res.string.common_try_again)) }
                     }
+                }
 
-                    // Nad chaty, jako vlastní blok se stejnou mezerou jako mezi skupinami.
-                    updateCard?.let { update ->
-                        item(key = UPDATE_CARD_KEY, contentType = UPDATE_CARD_KEY) {
-                            UpdateCard(
-                                state = update,
-                                onUpdate = startUpdate,
-                                onDismiss = viewModel::dismissUpdate,
-                                onRestart = viewModel::completeUpdate,
-                                modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
-                            )
+                is ChatListState.Ready -> if (current.chats.isEmpty()) {
+                    Box(
+                        Modifier.fillMaxSize().padding(padding),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            stringResource(Res.string.chats_empty),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            // Kotva i rozestup za ní jdou z horního odsazení, první chat tak
+                            // zůstane tam, kde byl bez ní.
+                            top = padding.calculateTopPadding() + 8.dp - TOP_ANCHOR_HEIGHT -
+                                GROUP_ITEM_SPACING,
+                            bottom = padding.calculateBottomPadding() + 8.dp,
+                            start = 16.dp,
+                            end = 16.dp,
+                        ),
+                        // Rozestup UVNITŘ skupiny. Mezera mezi skupinami se přidává u její první
+                        // položky — seznam o sousedech položky nic neví.
+                        verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+                    ) {
+                        val groups = chatGroups(current.chats, separateUnread, savedMessagesChatId)
+
+                        /*
+                         * Kotva nahoře. `LazyColumn` drží pozici podle klíče první viditelné
+                         * položky; bez kotvy je to první chat, a když nad něj vyskočí jiný (nová
+                         * zpráva, připnutí), seznam jde za tím původním a nový skončí nad horní
+                         * hranou. S kotvou je první viditelná položka ona, takže seznam u vršku
+                         * zůstane u vršku. Výška nesmí být nulová — položku bez výšky seznam
+                         * za viditelnou nepovažuje.
+                         */
+                        item(key = TOP_ANCHOR_KEY, contentType = TOP_ANCHOR_KEY) {
+                            Spacer(Modifier.fillMaxWidth().height(TOP_ANCHOR_HEIGHT))
                         }
-                    }
 
-                    groups.forEachIndexed { groupIndex, group ->
-                        itemsIndexed(group, key = { _, chat -> chat.id }) { index, chat ->
-                            ChatRow(
-                                chat = chat,
-                                selected = chat.id == selectedChatId,
-                                // Krajní položky skupiny nesou její zaoblení, prostřední
-                                // se drží u sebe.
-                                firstInGroup = index == 0,
-                                lastInGroup = index == group.lastIndex,
-                                onClick = { onChatClick(chat.id) },
-                                onLongClick = { viewModel.showActions(chat) },
-                                // Animace přeskládání při změně pořadí — bez toho by chaty
-                                // při nové zprávě skákaly.
-                                modifier = Modifier
-                                    .animateItem()
-                                    .padding(
-                                        top = if (index == 0 && groupIndex > 0) GROUP_SPACING
-                                        else 0.dp,
-                                    ),
-                            )
+                        // Nad chaty, jako vlastní blok se stejnou mezerou jako mezi skupinami.
+                        updateCard?.let { update ->
+                            item(key = UPDATE_CARD_KEY, contentType = UPDATE_CARD_KEY) {
+                                UpdateCard(
+                                    state = update,
+                                    onUpdate = startUpdate,
+                                    onDismiss = viewModel::dismissUpdate,
+                                    onRestart = viewModel::completeUpdate,
+                                    modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
+                                )
+                            }
+                        }
+
+                        groups.forEachIndexed { groupIndex, group ->
+                            itemsIndexed(group, key = { _, chat -> chat.id }) { index, chat ->
+                                ChatRow(
+                                    chat = chat,
+                                    selected = chat.id == selectedChatId,
+                                    // Krajní položky skupiny nesou její zaoblení, prostřední
+                                    // se drží u sebe.
+                                    firstInGroup = index == 0,
+                                    lastInGroup = index == group.lastIndex,
+                                    onClick = { onChatClick(chat.id) },
+                                    onLongClick = { viewModel.showActions(chat) },
+                                    // Animace přeskládání při změně pořadí — bez toho by chaty
+                                    // při nové zprávě skákaly.
+                                    modifier = Modifier
+                                        .animateItem()
+                                        .padding(
+                                            top = if (index == 0 && groupIndex > 0) GROUP_SPACING
+                                            else 0.dp,
+                                        ),
+                                )
+                            }
                         }
                     }
                 }
             }
+
+            /*
+             * Pás v barvě stránky pod stavovou lištou. Odjetý bar ji odkryje a chaty by pod ní
+             * jezdily bez pozadí, přes hodiny a ikony. Leží nad seznamem, ale pod barem — Scaffold
+             * kreslí `topBar` přes obsah.
+             */
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .windowInsetsTopHeight(WindowInsets.statusBars)
+                    .background(MaterialTheme.colorScheme.surface),
+            )
         }
     }
 }
