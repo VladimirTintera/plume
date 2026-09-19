@@ -206,6 +206,10 @@ jiného zařízení QR kódem. Hranice je `DeviceRepository` v `core/telegram`.
   přihlásil právě teď, to tlačítko skončí touhle hláškou; chyba to není.
 - **Půl roku je 183 dní, ne 180** (`INACTIVE_TTL_OPTIONS`). Tak ho server posílá u účtu, který
   volbu nikdy neměnil; se 180 se ve výběru nic neoznačilo a řádek hlásil „183 dní".
+- **Odhlášení cizího zařízení je hned pod hlavičkou detailu a sheet se otevírá celý**
+  (`enabledValues = Hidden, Expanded`). Dokud bylo tlačítko pod údaji a přepínači, napůl
+  rozbalený sheet ho schoval pod okraj a vypadalo to, že jednotlivé zařízení odhlásit nejde —
+  jen všechna naráz.
 - **Odhlášení TOHOTO zařízení je v Obecných, ne v detailu zařízení** — maže lokální data TDLib
   a je to jiný následek než odhlášení cizího zařízení.
 - **Čtečka QR kódů je platformní** (`rememberQrScanner`). Android: **Google code scanner**
