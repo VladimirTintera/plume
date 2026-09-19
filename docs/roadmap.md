@@ -24,8 +24,14 @@ Teď je prázdné.
   Dokud je prázdný, leží databáze TDLib na disku odšifrovaná.
 - **Vlastní ikona notifikace.** Zatím se používá systémová `android.R.drawable.ic_dialog_email`;
   cílově monochromatická ikona v `androidApp/res/drawable`.
-- **První AAB musí do Play nahrát člověk.** Dokud aplikace nemá žádný release, androidpublisher
-  API upload odmítne a krok `upload-google-play` v release workflow se nepoužije.
+- **Aplikace nemá ikonu.** Manifest nemá `android:icon`, takže launcher kreslí výchozí ikonu
+  Androidu (na iOS stejně, viz níž). Návrh pírka pro obchod je v `play/graphics/icon/icon.png`
+  (generovaný skriptem, zatím jen návrh); adaptivní ikona pro launcher z něj ještě není.
+- **Záznam v Play dokončit mimo API.** Texty a grafika (cs, en) jsou nahrané, workflow Play
+  Listing je nahrává z `play/`. Ručně v Play Console zbývá kategorie, zásady ochrany soukromí (URL),
+  hodnocení obsahu (IARC), cílová skupina, bezpečnost dat a prohlášení o reklamách.
+- **Seznam chatů na snímcích obrazovky chybí.** Na účtu jsou skutečné osoby; snímek seznamu
+  chce demo účet se smyšlenými chaty.
 - **`isShrinkResources` není zapnuté.** Je to samostatný krok od minifikace a umí uklidit
   composeResources; zapínat se má zvlášť, aby bylo poznat, co případný pád způsobilo.
 

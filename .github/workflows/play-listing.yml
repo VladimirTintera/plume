@@ -1,0 +1,43 @@
+# Záznam aplikace v Google Play (texty, ikona, feature graphic, snímky obrazovky) z adresáře
+# `play/`. Spouští se ručně: Actions → Play Listing → Run workflow.
+#
+# Záznam se NEVÁŽE na release. Mění se jinak často než verze a Play ho má jen v jedné podobě
+# pro všechny tracky, takže by ho každý release nahrával znovu beze změny.
+#
+# `dry_run` edit jen ověří a zahodí — Play při tom zkontroluje i rozměry obrázků a jazyky.
+#
+# Secret: PLAY_SERVICE_ACCOUNT_JSON (tentýž jako u releasu).
+name: Play Listing
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Jen ověřit, nic neměnit'
+        type: boolean
+        default: true
+
+jobs:
+  listing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install google-auth requests
+
+      - name: Upload listing
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          KEY="$RUNNER_TEMP/play.json"
+          printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" > "$KEY"
+          python3 .github/scripts/play_listing.py "$KEY" ${{ inputs.dry_run && '--dry-run' || '' }}
+          rm -f "$KEY"

@@ -1,0 +1,31 @@
+Plume je neoficiální klient pro Telegram. Stejné chaty, stejný účet, jen v podobě, jakou Android zná z vlastních aplikací: Material 3 Expressive, barvy podle tapety (Material You), plynulé animace a rozvržení, které se přizpůsobí telefonu, tabletu i rozloženému skládacímu displeji.
+
+CHATY
+• Seznam chatů seskupený do přehledných bloků: připnuté, volitelně nepřečtené, ostatní
+• Archiv, připnutí, ztlumení, označení jako nepřečtené
+• U chatu je vidět, kdo je online a kdo právě píše
+• Hledání v chatech, ve veřejných chatech i ve zprávách napříč všemi konverzacemi
+
+KONVERZACE
+• Odpovědi (i tahem zprávy doprava), reakce, úprava, přeposlání a připnuté zprávy
+• Fotky, videa a soubory, jednotlivě i jako album
+• Hlasové zprávy se nahrávají a přehrávají přímo v konverzaci
+• Samolepky (i animované) a emoji s vlastním výběrem, oblíbenými a trendy
+• Rozepsaná zpráva se uloží jako koncept a počká na vás i na ostatních zařízeních
+• Skok na první nepřečtenou zprávu a hledání uvnitř konverzace
+• Formátovaný text, klikatelné odkazy, zmínky a hashtagy, náhledy odkazů
+
+MÉDIA
+• Prohlížeč fotek a videí s přiblížením a listováním
+• Uložení do galerie, sdílení do jiných aplikací
+
+A DÁL
+• Notifikace, které vedou rovnou do konverzace
+• Sdílení do Plume z jiných aplikací, včetně chatů přímo v nabídce Sdílet
+• Přehled přihlášených zařízení, odhlášení zařízení a přihlášení počítače QR kódem
+• Přihlášení telefonním číslem i QR kódem, včetně dvoufázového ověření
+• Světlý, tmavý i systémový motiv
+
+Plume je ve vývoji a některé věci zatím chybí: například tajné chaty, hovory nebo zakládání nových skupin.
+
+Plume používá Telegram API a knihovnu TDLib. Není to oficiální aplikace Telegramu a s Telegramem není nijak spojená. Váš účet i zprávy zůstávají na serverech Telegramu, Plume je jen jiná aplikace pro přístup k nim.

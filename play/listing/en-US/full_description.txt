@@ -1,0 +1,31 @@
+Plume is an unofficial Telegram client. Same chats, same account, in the form Android users know from Google's own apps: Material 3 Expressive, colors from your wallpaper (Material You), smooth motion and a layout that adapts to phones, tablets and unfolded foldables.
+
+CHATS
+• A chat list grouped into clear blocks: pinned, optionally unread, everything else
+• Archive, pin, mute, mark as unread
+• See who is online and who is typing right in the list
+• Search chats, public chats and messages across all conversations
+
+CONVERSATIONS
+• Replies (also by swiping a message), reactions, editing, forwarding and pinned messages
+• Photos, videos and files, one at a time or as an album
+• Record and play voice messages right in the conversation
+• Stickers (animated too) and emoji with their own picker, favorites and trending sets
+• Unsent text is saved as a draft and waits for you on your other devices too
+• Jump to the first unread message and search inside a conversation
+• Formatted text, clickable links, mentions and hashtags, link previews
+
+MEDIA
+• Photo and video viewer with zoom and swiping
+• Save to gallery, share to other apps
+
+AND MORE
+• Notifications that open the right conversation
+• Share into Plume from other apps, with your chats right in the Share menu
+• Active devices overview, signing out devices and logging in on desktop with a QR code
+• Sign in with your phone number or a QR code, including two-step verification
+• Light, dark and system theme
+
+Plume is in development and some things are still missing, for example secret chats, calls or creating new groups.
+
+Plume uses the Telegram API and the TDLib library. It is not an official Telegram app and is not affiliated with Telegram in any way. Your account and messages stay on Telegram's servers; Plume is just another app to access them.
