@@ -32,6 +32,8 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
@@ -76,6 +78,8 @@ import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import eu.tintera.plume.core.files.rememberSaveAs
+import eu.tintera.plume.core.files.rememberSavePermission
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.DarkSystemBars
 import eu.tintera.plume.core.ui.RemoteImage
@@ -92,10 +96,18 @@ import eu.tintera.plume.resources.add_reaction_24dp
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.common_close
 import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.description_24dp
+import eu.tintera.plume.resources.download_24dp
 import eu.tintera.plume.resources.forward_24dp
 import eu.tintera.plume.resources.media_photo
 import eu.tintera.plume.resources.media_position
 import eu.tintera.plume.resources.menu_delete
+import eu.tintera.plume.resources.media_more
+import eu.tintera.plume.resources.media_save
+import eu.tintera.plume.resources.media_save_as
+import eu.tintera.plume.resources.media_share
+import eu.tintera.plume.resources.more_vert_24dp
+import eu.tintera.plume.resources.share_24dp
 import eu.tintera.plume.resources.menu_forward
 import eu.tintera.plume.resources.menu_more_reactions
 import eu.tintera.plume.resources.sender_you
@@ -148,6 +160,9 @@ fun MediaViewerScreen(
 
     LaunchedEffect(state.closed) { if (state.closed) onBack() }
 
+    val savePermission = rememberSavePermission()
+    val saveAs = rememberSaveAs()
+
     Box(modifier.fillMaxSize()) {
         if (state.items.isNotEmpty()) {
             ViewerContent(
@@ -157,6 +172,22 @@ fun MediaViewerScreen(
                 onReact = viewModel::toggleReaction,
                 onDelete = viewModel::requestDelete,
                 onForward = onForward,
+                onSave = { messageId ->
+                    savePermission.request { granted ->
+                        if (granted) viewModel.save(messageId) else viewModel.onSaveDenied()
+                    }
+                },
+                onShare = viewModel::share,
+                // Výběr umístění je aktivita systému, takže ho spouští obrazovka; ViewModel
+                // jen dodá stažený soubor. Na iOS „Uložit jako…" není — umí to sdílení.
+                onSaveAs = saveAs?.let { launcher ->
+                    { messageId: Long ->
+                        scope.launch {
+                            val file = viewModel.prepareSaveAs(messageId) ?: return@launch
+                            launcher.launch(file.path, file.fileName) { saved -> viewModel.onSavedAs(messageId, saved) }
+                        }
+                    }
+                },
                 onDismiss = onBack,
             )
         } else {
@@ -207,6 +238,9 @@ private fun ViewerContent(
     onReact: (messageId: Long, emoji: String) -> Unit,
     onDelete: (messageId: Long) -> Unit,
     onForward: (messageId: Long) -> Unit,
+    onSave: (messageId: Long) -> Unit,
+    onShare: (messageId: Long) -> Unit,
+    onSaveAs: ((messageId: Long) -> Unit)?,
     onDismiss: () -> Unit,
 ) {
     val items = state.items
@@ -316,6 +350,9 @@ private fun ViewerContent(
                     onClose = onDismiss,
                     onDelete = { onDelete(current.messageId) },
                     onForward = { onForward(current.messageId) },
+                    onSave = { onSave(current.messageId) },
+                    onShare = { onShare(current.messageId) },
+                    onSaveAs = onSaveAs?.let { saveAs -> { saveAs(current.messageId) } },
                 )
             }
         }
@@ -408,6 +445,9 @@ private fun TopBar(
     onClose: () -> Unit,
     onDelete: () -> Unit,
     onForward: () -> Unit,
+    onSave: () -> Unit,
+    onShare: () -> Unit,
+    onSaveAs: (() -> Unit)?,
 ) {
     val actions = state.actions[item.messageId]
 
@@ -452,13 +492,73 @@ private fun TopBar(
             )
         }
 
-        if (actions?.canForward == true) {
-            ChromeIcon(Res.drawable.forward_24dp, stringResource(Res.string.menu_forward), onForward)
+        /*
+         * Venku jsou jen dvě nejčastější akce, zbytek je v nabídce ⋮. Se Sdílením by byly ikony
+         * čtyři a na užším telefonu by se nevešel titulek. Smazat do nabídky patří tak jako tak:
+         * nevratná akce nemá stát hned vedle častých. Přeposlat je sdílení do Telegramu, takže
+         * vedle Sdílet by byly dvě podobné ikony.
+         *
+         * Co se právě dělá, točí na místě svého tlačítka, aby lišta neposkočila — stahování
+         * originálu může trvat. U „Uložit jako…" z nabídky točí ⋮.
+         */
+        val busy = state.busy[item.messageId]
+        val canSave = actions?.canSave == true
+        if (canSave) {
+            BusyOr(busy == MediaTask.Share) {
+                ChromeIcon(Res.drawable.share_24dp, stringResource(Res.string.media_share), onShare)
+            }
+            BusyOr(busy == MediaTask.Gallery) {
+                ChromeIcon(Res.drawable.download_24dp, stringResource(Res.string.media_save), onSave)
+            }
         }
-        if (actions != null && (actions.canDeleteForSelf || actions.canDeleteForAll)) {
-            ChromeIcon(Res.drawable.delete_24dp, stringResource(Res.string.menu_delete), onDelete)
+
+        val canForward = actions?.canForward == true
+        val canDelete = actions != null && (actions.canDeleteForSelf || actions.canDeleteForAll)
+        val saveAs = onSaveAs?.takeIf { canSave }
+        if (canForward || canDelete || saveAs != null) {
+            var menuOpen by remember { mutableStateOf(false) }
+            BusyOr(busy == MediaTask.SaveAs) {
+                Box {
+                    ChromeIcon(Res.drawable.more_vert_24dp, stringResource(Res.string.media_more)) { menuOpen = true }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        if (canForward) {
+                            MenuItem(Res.drawable.forward_24dp, stringResource(Res.string.menu_forward)) {
+                                menuOpen = false
+                                onForward()
+                            }
+                        }
+                        if (saveAs != null) {
+                            MenuItem(Res.drawable.description_24dp, stringResource(Res.string.media_save_as)) {
+                                menuOpen = false
+                                saveAs()
+                            }
+                        }
+                        if (canDelete) {
+                            MenuItem(Res.drawable.delete_24dp, stringResource(Res.string.menu_delete)) {
+                                menuOpen = false
+                                onDelete()
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
+}
+
+/** Indikátor na místě tlačítka, dokud jeho akce běží. */
+@Composable
+private fun BusyOr(busy: Boolean, content: @Composable () -> Unit) {
+    if (busy) LoadingIndicator(color = ON_SCRIM, modifier = Modifier.size(48.dp)) else content()
+}
+
+@Composable
+private fun MenuItem(icon: org.jetbrains.compose.resources.DrawableResource, text: String, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(text) },
+        onClick = onClick,
+        leadingIcon = { Icon(painterResource(icon), contentDescription = null) },
+    )
 }
 
 /**

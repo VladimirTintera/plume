@@ -4,10 +4,15 @@ import co.touchlab.kermit.Logger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.files.DocumentKind
+import eu.tintera.plume.core.files.MediaSaver
+import eu.tintera.plume.core.files.MediaSharer
+import eu.tintera.plume.core.files.savedFileName
 import eu.tintera.plume.core.files.documentKind
 import eu.tintera.plume.core.files.opensInViewer
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.FileRepository
+import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
@@ -20,11 +25,18 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_delete_failed
 import eu.tintera.plume.resources.conversation_reaction_failed
 import eu.tintera.plume.resources.media_photo_load_failed
+import eu.tintera.plume.resources.media_save_denied
+import eu.tintera.plume.resources.media_save_failed
+import eu.tintera.plume.resources.media_saved_as
+import eu.tintera.plume.resources.media_share_failed
+import eu.tintera.plume.resources.media_saved
 import eu.tintera.plume.resources.media_unsupported
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.datetime.TimeZone
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
@@ -47,6 +59,9 @@ class MediaViewerViewModel(
     private val chatId: Long,
     private val messageId: Long,
     private val repository: ConversationRepository,
+    private val files: FileRepository,
+    private val saver: MediaSaver,
+    private val sharer: MediaSharer,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("MediaViewer")
@@ -228,6 +243,92 @@ class MediaViewerViewModel(
         }
     }
 
+    /**
+     * Uloží snímek nebo video, na kterém uživatel stojí, do galerie.
+     *
+     * Běží ve `viewModelScope`: zavření prohlížeče ukládání zruší, dřív než uživatel uvidí,
+     * jestli se povedlo.
+     */
+    fun save(messageId: Long) {
+        viewModelScope.launch {
+            val file = prepare(messageId, MediaTask.Gallery) ?: return@launch
+            val saved = saver.save(file.path, file.fileName, file.isVideo)
+            finish(messageId, if (saved) Res.string.media_saved else Res.string.media_save_failed)
+        }
+    }
+
+    /** Systémový dialog sdílení. Hláška jen při selhání — úspěch je vidět na dialogu samém. */
+    fun share(messageId: Long) {
+        viewModelScope.launch {
+            val file = prepare(messageId, MediaTask.Share) ?: return@launch
+            val shared = sharer.share(file.path, file.fileName)
+            finish(messageId, if (shared) null else Res.string.media_share_failed)
+        }
+    }
+
+    /**
+     * Soubor pro „Uložit jako…". Výběr umístění je aktivita systému, takže ho spouští obrazovka;
+     * odsud jen dostane stažený soubor a jméno. Výsledek hlásí zpátky [onSavedAs].
+     */
+    suspend fun prepareSaveAs(messageId: Long): PreparedMedia? = prepare(messageId, MediaTask.SaveAs)
+
+    /** `null` = uživatel výběr umístění zavřel; to není chyba a hláška by jen rušila. */
+    fun onSavedAs(messageId: Long, saved: Boolean?) {
+        finish(
+            messageId,
+            when (saved) {
+                true -> Res.string.media_saved_as
+                false -> Res.string.media_save_failed
+                null -> null
+            },
+        )
+    }
+
+    /**
+     * Stažená ostrá verze média, na kterém uživatel stojí, se jménem pro galerii a sdílení.
+     *
+     * U fotky `fullFileId`, u souboru soubor sám — ne zmenšenina z bubliny. Když ještě není
+     * stažená, počká se na ni; tlačítko akce po tu dobu točí ([MediaViewerState.busy]), takže
+     * druhé ťuknutí nic nespustí. `null`, když se soubor stáhnout nepodařilo (hláška už je ve
+     * stavu) nebo když s tou zprávou už něco běží.
+     */
+    private suspend fun prepare(messageId: Long, task: MediaTask): PreparedMedia? {
+        val item = _state.value.items.firstOrNull { it.messageId == messageId } ?: return null
+        if (messageId in _state.value.busy) return null
+        val (fileId, isVideo) = when (val media = item.media) {
+            is MessageMedia.Photo -> media.fullFileId to false
+            is MessageMedia.Video -> media.fileId to true
+            else -> return null
+        }
+        _state.update { it.copy(busy = it.busy + (messageId to task)) }
+
+        val file = files.file(fileId).first { it is FileState.Ready || it is FileState.Failed }
+        if (file !is FileState.Ready) {
+            logger.w { "Soubor $fileId se nepodařilo stáhnout." }
+            finish(messageId, Res.string.media_save_failed)
+            return null
+        }
+        return PreparedMedia(
+            path = file.path,
+            fileName = savedFileName(item.fileName, file.path, item.timestamp, TimeZone.currentSystemDefault()),
+            isVideo = isVideo,
+        )
+    }
+
+    private fun finish(messageId: Long, notice: StringResource?) {
+        _state.update {
+            it.copy(
+                busy = it.busy - messageId,
+                notice = notice?.let { resource -> UiText(resource) } ?: it.notice,
+            )
+        }
+    }
+
+    /** Systém zápis do galerie nepovolil. Bez hlášky by ťuknutí vypadalo, že nic neudělalo. */
+    fun onSaveDenied() {
+        _state.update { it.copy(notice = UiText(Res.string.media_save_denied)) }
+    }
+
     fun dismissNotice() {
         _state.update { it.copy(notice = null) }
     }
@@ -303,6 +404,7 @@ class MediaViewerViewModel(
             senderName = senderName,
             timestamp = timestamp,
             reactions = reactions,
+            fileName = (this.media as? MessageMedia.Document)?.fileName,
         )
     }
 
@@ -344,6 +446,12 @@ internal fun MessageMedia.Document.asViewerMedia(): MessageMedia? {
     }
 }
 
+/** Co s médiem právě běží; podle toho se točí to tlačítko, na které uživatel ťukl. */
+enum class MediaTask { Gallery, Share, SaveAs }
+
+/** Stažený soubor připravený k uložení nebo sdílení, se jménem, pod kterým se má objevit. */
+data class PreparedMedia(val path: String, val fileName: String, val isVideo: Boolean)
+
 data class ViewerItem(
     val messageId: Long,
     /** [MessageMedia.Photo], nebo [MessageMedia.Video] — i soubor se na jedno z nich převede. */
@@ -355,6 +463,8 @@ data class ViewerItem(
     val senderName: String?,
     val timestamp: Int,
     val reactions: List<MessageReaction> = emptyList(),
+    /** Původní jméno souboru, když je stránka soubor; fotka a video ho nemají. */
+    val fileName: String? = null,
 )
 
 data class MediaViewerState(
@@ -373,7 +483,9 @@ data class MediaViewerState(
     /** Co se se zprávou smí, podle id. Chybí, dokud se nenačte — akce se do té doby nenabízejí. */
     val actions: Map<Long, MessageActions> = emptyMap(),
     val pendingDelete: PendingDelete? = null,
-    /** Jednorázová hláška do snackbaru (nepovedená reakce, mazání). */
+    /** Zprávy, se kterými právě běží uložení nebo sdílení, a co to je — točí se místo tlačítka. */
+    val busy: Map<Long, MediaTask> = emptyMap(),
+    /** Jednorázová hláška do snackbaru (nepovedená reakce, mazání, uložení). */
     val notice: UiText? = null,
     /** Zmizela poslední fotka (smazaná odsud nebo odjinud) — prohlížeč se zavře. */
     val closed: Boolean = false,

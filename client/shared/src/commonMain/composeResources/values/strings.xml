@@ -76,6 +76,15 @@
     <string name="media_photo">Photo</string>
     <string name="media_position">%1$d of %2$d</string>
     <string name="media_unsupported">We can't open this kind of attachment yet.</string>
+    <string name="media_save">Save to gallery</string>
+    <string name="media_saved">Saved to gallery</string>
+    <string name="media_save_failed">Couldn't save to gallery</string>
+    <string name="media_save_denied">Plume isn't allowed to save to the gallery</string>
+    <string name="media_share">Share</string>
+    <string name="media_more">More options</string>
+    <string name="media_save_as">Save as…</string>
+    <string name="media_saved_as">Saved</string>
+    <string name="media_share_failed">Couldn't share</string>
     <string name="media_photo_load_failed">Couldn't load the photo.</string>
     <string name="media_video_download_failed">Couldn't download the video.</string>
     <string name="media_play">Play</string>

@@ -491,6 +491,8 @@ data class MessageActions(
     val canPin: Boolean,
     /** Přeposlání jinam. Kanál s chráněným obsahem ho zakazuje, stejně jako kopírování. */
     val canForward: Boolean,
+    /** Uložení média do telefonu. Tatáž ochrana obsahu (`canBeSaved`) jako u kopírování. */
+    val canSave: Boolean,
 ) {
     companion object {
         /**
@@ -511,6 +513,7 @@ data class MessageActions(
             canPin = false,
             // Přeposlání chráněného obsahu server odmítne; bez příznaků se nenabízí.
             canForward = false,
+            canSave = false,
         )
     }
 }
