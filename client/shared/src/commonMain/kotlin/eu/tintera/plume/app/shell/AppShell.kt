@@ -70,6 +70,7 @@ import eu.tintera.plume.core.navigation.SettingsSectionRoute
 import eu.tintera.plume.core.navigation.TopLevelRoute
 import eu.tintera.plume.core.ui.LocalTwoPane
 import eu.tintera.plume.core.telegram.ChatFolder
+import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.features.chats.ArchiveScreen
 import eu.tintera.plume.features.chats.ChatListScreen
 import eu.tintera.plume.features.conversation.ConversationPlaceholder
@@ -302,12 +303,31 @@ private fun ShellContent(
          * natáhly přes celý rozložený Fold. Otevření chatu tak navíc nemění rozvržení, jen obsah
          * pravého panelu.
          */
-        val directive = if (wide) base.twoPane() else base.singlePane()
+        /*
+         * Výjimka: seznam, ze kterého není co vybrat. Prázdný archiv (nebo prázdný hlavní
+         * seznam) vedle placeholderu „vyber chat vlevo" by byly dva prázdné stavy vedle sebe
+         * a ten pravý by radil něco, co udělat nejde. Scéna proto přejde na jeden panel
+         * a prázdný stav seznamu dostane celou plochu. Počítá se jen se seznamem, který je
+         * vidět (poslední list panel), a jen bez otevřené konverzace. Načítání prázdné není —
+         * jinak by se rozvržení přepínalo tam a zpátky, než seznam dorazí.
+         */
+        val chatRepository = koinInject<ChatRepository>()
+        val shownFolder = if (chatsStack.lastOrNull { it == ChatsRoute || it == ArchiveRoute } == ArchiveRoute) {
+            ChatFolder.Archive
+        } else {
+            ChatFolder.Main
+        }
+        val shownList by remember(shownFolder) { chatRepository.chats(shownFolder) }.collectAsStateWithLifecycle()
+        val nothingToPick = navigation.section == ChatsRoute &&
+            chatsStack.none { it is ConversationRoute } &&
+            (shownList as? ChatListState.Ready)?.chats?.isEmpty() == true
+
+        val directive = if (wide && !nothingToPick) base.twoPane() else base.singlePane()
 
         // Dvoupanelový stav se hlásí dolů: obrazovky podle něj poznají, že se nevyměňují,
         // a sdílený prvek nezaloží — viz LocalTwoPane.
         // Id Uložených zpráv pro všechno, co kreslí chat (název, záložka místo fotky).
-        val savedMessagesChatId by koinInject<ChatRepository>().savedMessagesChatId.collectAsStateWithLifecycle()
+        val savedMessagesChatId by chatRepository.savedMessagesChatId.collectAsStateWithLifecycle()
 
         CompositionLocalProvider(LocalTwoPane provides wide, LocalSavedMessagesChatId provides savedMessagesChatId) {
             val entryProvider = shellEntryProvider(

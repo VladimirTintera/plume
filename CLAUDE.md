@@ -536,7 +536,7 @@ obsahují id chatu, jinak by se při rychlém přepnutí spároval avatar jednoh
 Na rozdíl od letu odeslané zprávy se tu viditelnost neřídí ručně — obě strany jsou
 v `AnimatedContent` NavDisplaye, takže stačí `LocalNavAnimatedContentScope`.
 
-**Na široké ploše jsou dva panely vždycky**, i bez otevřeného chatu — vpravo je pak
+**Na široké ploše jsou dva panely vždycky** (kromě prázdného seznamu, viz „Archiv"), i bez otevřeného chatu — vpravo je pak
 `ConversationPlaceholder`. Dřív dostal seznam bez konverzace celou šířku (`singlePane`), takže
 placeholder, i když byl v metadatech `listPane`, se nikdy nekreslil, řádky chatů se natáhly přes
 celý rozložený Fold a hlavička s pevnou maximální šířkou v tom visela.
@@ -769,6 +769,11 @@ snackbar s „Vrátit".
   (`IntroEmptyState` v `core/ui`, vytažený z `ConversationPlaceholder`). Na široké ploše stojí
   oba vedle sebe a dva různé vzhledy pro „tady nic není" by se přely. Prázdný stav si
   `ChatListContent` bere jako slot (`empty`), hlavní seznam má dál holý text.
+- **Prázdný seznam na široké ploše dostane celou šířku** (`nothingToPick` v `ShellContent`):
+  bez otevřené konverzace a s prázdným zobrazeným seznamem (archiv i hlavní) přejde scéna na
+  jeden panel. Placeholder „vyber chat vlevo" by vedle prázdného stavu radil něco, co udělat
+  nejde. Rozhoduje se až nad `Ready` — `Loading` za prázdný nepočítat, jinak se rozvržení
+  přepne tam a zpátky, než seznam dorazí. Výjimka z pravidla „dva panely vždycky" (viz „Navigace").
 - **Hlavička je obyčejný `TopAppBar` bez scroll behavior**, takže nemění barvu — tónovaný pruh
   přes celou šířku byl důvod, proč hlavní seznam opustil `LargeFlexibleTopAppBar`.
 
