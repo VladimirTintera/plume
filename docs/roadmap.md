@@ -71,6 +71,25 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
   - ~~**iOS: Share Extension**~~ — hotovo (výběr chatu v rozšíření, App Group). Zbývá
     ověřit na zařízení (App Group v Developer účtu) a ikona aplikace, bez které má Plume
     v nabídce sdílení zástupnou ikonu.
+  - **Sdílení jako kontext místo samostatného výběru** (nápad k rozmyšlení, nahradil by
+    `ShareScreen`). Po sdílení se neotevře zvláštní výběr, ale **normální aplikace se seznamem
+    chatů** — s plnohodnotným hledáním, archivem a vším ostatním. Nahoře visí **čip „Sdílíte:
+    fotka.jpg"** (s náhledem a ✕), který se s uživatelem nese po aplikaci. V otevřené konverzaci
+    jde obsah jedním ťuknutím na čip **ukotvit nad vstupní pole** a poslat jako každou přílohu.
+    - **Přináší druhý případ užití:** kdo sdílení nedokončí hned (vrátí se do Plume, přepne
+      jinam), o obsah nepřijde — čip zůstane, dokud ho nepošle nebo ✕ nezahodí.
+    - **Oprávnění k souboru tomu nebrání.** `ShareIntake` soubory kopíruje do cache hned při
+      přijetí (oprávnění k `content://` je dočasné); kopie vydrží, jak dlouho je potřeba. Na iOS
+      jsou soubory v inboxu App Group a přesunou se do `outgoing` stejně.
+    - **Stav už existuje:** `ShareRequests` drží obsah do vyzvednutí (`SharedContent`); chybí
+      jen `targetChatId` nahradit volbou v konverzaci a čip v shellu (nad seznamem i konverzací,
+      na compactu i v dvoupanelu).
+    - **Rozmyslet:** co ✕ na čipu vs. zpět (dnes zpět vrací do původní aplikace — s čipem by
+      zpět mohl zůstat normální navigací, protože obsah se neztratí); jak dlouho kopii držet
+      (po restartu procesu? `ShareRequests` je jen v paměti — trvalejší by chtělo soubor
+      s manifestem jako na iOS); co s Direct Share (tam je chat vybraný předem, čip nepotřebuje);
+      a iOS rozšíření, které dnes chat vybírá samo — mohlo by jen předat obsah a výběr nechat
+      aplikaci, pak by na obou platformách fungovalo sdílení stejně.
 
 ## Nastavení
 

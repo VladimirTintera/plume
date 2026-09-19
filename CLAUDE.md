@@ -723,7 +723,8 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
   `ulozeneZpravyJenPripnute`). Vstup je menu ⋮ v horní liště (vedle archivu). Připnutí
   je výslovné přání uživatele, takže připnuté zůstávají — schovat je by působilo jako chyba.
 - **Ve výběrech (přeposlání, sdílení, iOS rozšíření, Direct Share) jsou vždy první**, i když
-  v seznamu chatů nejsou. „Pošlu si to" je nejčastější cíl. Hledání je najde podle přeloženého
+  v seznamu chatů nejsou. V `ChatPicker` jako samostatná karta v `primaryContainer` nad
+  seznamem, ne jeho první řádek — v řadě chatů by nejčastější cíl splynul s ostatními. „Pošlu si to" je nejčastější cíl. Hledání je najde podle přeloženého
   názvu.
 - **Chat se zakládá hned po přihlášení** (`createPrivateChat`, lokální). U účtu, který si nic
   neuložil, ho TDLib v databázi nemá a nešlo by ho otevřít ani do něj přeposlat.
@@ -2628,6 +2629,12 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   Systémové gesto zpět jde přes `NavDisplay`, ne přes obrazovku; se zahazováním jen na šipce
   zůstalo po gestu sdílení viset a výběr by se po obnově aktivity otevřel znovu. `abandon()`
   nezahazuje obsah s vybraným chatem — i po výběru výběr odchází (nahradí ho konverzace).
+- **Výběr má ✕, ne šipku zpět, a ✕ i gesto zpět vrací do aplikace, ze které se sdílelo**
+  (`rememberReturnToCaller` → `moveTaskToBack`, `closeShare` v `AppShell`). Šipka slibovala
+  návrat do Plume, kde by sdílený obsah zmizel bez stopy — bez volby chatu nemá kam jít.
+  `singleTask` drží Plume ve vlastní úloze, takže pod ní je právě aplikace, ze které se sdílelo.
+  Výběr se napřed odebere ze zásobníku, aby příští otevření Plume nezačínalo ve výběru.
+  Bar ani rail k výběru nepatří (`inDetail`, `showRail`) — je to vsuvka odjinud, ne sekce.
 - **Otevřený výběr se při dalším sdílení NEvyměňuje** (`openShare`). Odebrat a vrátit by ho
   zlikvidovalo a jeho `onDispose` by zahodil právě to nové sdílení.
 - **Direct Share (chaty přímo v nabídce „Sdílet") stojí na zkratkách konverzací**, týchž, které
