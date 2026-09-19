@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.Typeface
 import android.os.Build
 import androidx.core.app.Person
@@ -73,6 +74,34 @@ private fun initialIcon(context: Context, title: String): IconCompat? {
     return IconCompat.createWithAdaptiveBitmap(bitmap)
 }
 
+/**
+ * Záložka Uložených zpráv jako ikona zkratky — jako `Avatar(isSavedMessages = true)` v aplikaci:
+ * plná `primary` s ikonou v `onPrimary`, tady ze systémové palety (viz [initialIcon]).
+ */
+internal fun bookmarkIcon(context: Context): IconCompat? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
+    val size = (ADAPTIVE_ICON_DP * context.resources.displayMetrics.density).toInt()
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    canvas.drawColor(context.getColor(android.R.color.system_accent1_600))
+    // Tvar záložky z Material Symbols (bookmark, filled) ve viewportu 960, zmenšený na 36 %
+    // ikony — viditelný střed adaptivní ikony je dvě třetiny.
+    val unit = size * 0.36f / 960f
+    val left = (size - 560 * unit) / 2f
+    val top = (size - 720 * unit) / 2f
+    val path = Path().apply {
+        moveTo(left, top + 720 * unit)
+        lineTo(left, top)
+        lineTo(left + 560 * unit, top)
+        lineTo(left + 560 * unit, top + 720 * unit)
+        lineTo(left + 280 * unit, top + 600 * unit)
+        close()
+    }
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = context.getColor(android.R.color.system_accent1_0) }
+    canvas.drawPath(path, paint)
+    return IconCompat.createWithAdaptiveBitmap(bitmap)
+}
+
 private const val ADAPTIVE_ICON_DP = 108
 private const val INITIAL_TEXT_FRACTION = 0.3f
 
@@ -98,7 +127,11 @@ private const val SHORTCUT_PREFIX = "chat_"
 
 /** Android: chat jako zkratka konverzace s kategorií ke sdílení. */
 class AndroidShareTargetPublisher(private val context: Context) : ShareTargetPublisher {
-    override fun publish(chatId: Long, title: String, avatarPath: String?) {
+    override fun publish(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean) {
+        if (isSavedMessages) {
+            conversationShortcut(context, chatId, title, bookmarkIcon(context))?.let { pushConversationShortcut(context, it) }
+            return
+        }
         // Kulatý ořez jako u notifikací — Android zkratky kreslí v kruhu.
         val icon = avatarPath
             ?.let { runCatching { BitmapFactory.decodeFile(it) }.getOrNull() }

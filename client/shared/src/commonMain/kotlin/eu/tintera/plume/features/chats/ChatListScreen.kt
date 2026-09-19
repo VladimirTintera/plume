@@ -1,5 +1,16 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.resources.saved_messages
+import eu.tintera.plume.resources.more_vert_24dp
+import eu.tintera.plume.resources.chats_menu
+import eu.tintera.plume.resources.bookmark_filled_24dp
+import eu.tintera.plume.core.ui.isSavedMessages
+import eu.tintera.plume.core.ui.chatTitle
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
@@ -93,6 +104,7 @@ fun ChatListScreen(
     val actions by viewModel.actions.collectAsStateWithLifecycle()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
+    val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val appBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(appBarState)
@@ -161,6 +173,29 @@ fun ChatListScreen(
                         label = "chats-title",
                     ) { title -> Text(stringResource(title)) }
                 },
+                actions = {
+                    /*
+                     * Menu, ne samostatná ikona: přibude do něj Archiv a dvě položky v menu jsou
+                     * čistší než dvě ikony vedle nadpisu. Uložené zprávy v seznamu nejsou (jen
+                     * připnuté), tohle je jejich vstup — jako v oficiálních klientech.
+                     */
+                    var menuOpen by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(painterResource(Res.drawable.more_vert_24dp), contentDescription = stringResource(Res.string.chats_menu))
+                        }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(Res.string.saved_messages)) },
+                                leadingIcon = { Icon(painterResource(Res.drawable.bookmark_filled_24dp), contentDescription = null) },
+                                onClick = {
+                                    menuOpen = false
+                                    viewModel.openSavedMessages(onChatClick)
+                                },
+                            )
+                        }
+                    }
+                },
                 scrollBehavior = scrollBehavior,
             )
         },
@@ -211,7 +246,7 @@ fun ChatListScreen(
                     // položky — seznam o sousedech položky nic neví.
                     verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
                 ) {
-                    val groups = chatGroups(current.chats, separateUnread)
+                    val groups = chatGroups(current.chats, separateUnread, savedMessagesChatId)
 
                     /*
                      * Kotva nahoře. `LazyColumn` drží pozici podle klíče první viditelné
@@ -332,6 +367,7 @@ private fun ChatRow(
                     title = chat.title,
                     avatarFileId = chat.avatarFileId,
                     size = AVATAR_SIZE,
+                    isSavedMessages = isSavedMessages(chat.id),
                     modifier = Modifier.sharedNavElement(chatAvatarKey(chat.id)),
                 )
 
@@ -365,7 +401,7 @@ private fun ChatRow(
                         )
                     }
                     Text(
-                        text = chat.title,
+                        text = chatTitle(chat.id, chat.title),
                         // `bodyLarge` místo `titleMedium`: stejná velikost, ale běžný řez.
                         // Polotučné jméno u KAŽDÉHO chatu znamená, že nevyčnívá žádný —
                         // tučností se proto odlišuje jen nepřečtený, jako v Google Messages.

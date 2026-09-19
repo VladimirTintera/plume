@@ -1,5 +1,8 @@
 package eu.tintera.plume.core.share
 
+import org.jetbrains.compose.resources.getString
+import eu.tintera.plume.resources.saved_messages
+import eu.tintera.plume.resources.Res
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.telegram.ChatListState
@@ -74,7 +77,7 @@ private const val APP_GROUP_KEY = "PlumeAppGroup"
 internal data class ShareSnapshot(val chats: List<ShareSnapshotChat>, val recent: List<Long> = emptyList())
 
 @Serializable
-internal data class ShareSnapshotChat(val id: Long, val title: String, val avatar: String? = null)
+internal data class ShareSnapshotChat(val id: Long, val title: String, val avatar: String? = null, val saved: Boolean = false)
 
 @Serializable
 internal data class ShareManifest(val chatId: Long, val text: String? = null, val items: List<ShareManifestItem> = emptyList())
@@ -110,9 +113,13 @@ class IosShareSnapshot(
 
     fun start() {
         scope.launch {
-            combine(chats.chats.filterIsInstance<ChatListState.Ready>(), recent) { list, used -> list.chats to used }
+            combine(
+                chats.chats.filterIsInstance<ChatListState.Ready>(),
+                recent,
+                chats.savedMessagesChatId,
+            ) { list, used, saved -> Triple(list.chats, used, saved) }
                 .debounce(WRITE_DEBOUNCE_MS)
-                .collect { (list, used) -> writing.withLock { write(list, used) } }
+                .collect { (list, used, saved) -> writing.withLock { write(list, used, saved) } }
         }
         scope.launch {
             holder.replaced.collect {
@@ -122,16 +129,27 @@ class IosShareSnapshot(
         }
     }
 
-    private suspend fun write(list: List<eu.tintera.plume.core.telegram.ChatSummary>, used: List<Long>) = withContext(Dispatchers.IO) {
+    private suspend fun write(
+        list: List<eu.tintera.plume.core.telegram.ChatSummary>,
+        used: List<Long>,
+        savedMessagesChatId: Long?,
+    ) = withContext(Dispatchers.IO) {
         val directory = shareDirectory() ?: return@withContext
         val avatars = "$directory/avatars"
         val manager = NSFileManager.defaultManager
         manager.createDirectoryAtPath(avatars, withIntermediateDirectories = true, attributes = null, error = null)
 
         val byId = list.associateBy { it.id }
-        val ordered = (used.mapNotNull { byId[it] } + list.filterNot { it.id in used }).take(MAX_CHATS)
+        val ordered = (used.mapNotNull { byId[it] } + list.filterNot { it.id in used })
+            .filterNot { it.id == savedMessagesChatId }
+            .take(MAX_CHATS)
 
-        val entries = ordered.map { chat ->
+        // Uložené zprávy vždy první a pod vlastním názvem, i když v seznamu chatů nejsou.
+        val saved = savedMessagesChatId?.let {
+            ShareSnapshotChat(id = it, title = getString(Res.string.saved_messages), saved = true)
+        }
+
+        val entries = listOfNotNull(saved) + ordered.map { chat ->
             val avatar = chat.avatarFileId?.let { fileId ->
                 val name = "${chat.id}-$fileId.jpg"
                 val target = "$avatars/$name"
@@ -180,7 +198,8 @@ class IosShareSnapshot(
 
 /** iOS: použitý chat jde ve snímku pro rozšíření nahoru (obdoba Direct Share). */
 class IosShareTargetPublisher(private val snapshot: IosShareSnapshot) : ShareTargetPublisher {
-    override fun publish(chatId: Long, title: String, avatarPath: String?) = snapshot.markUsed(chatId)
+    override fun publish(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean) =
+        snapshot.markUsed(chatId)
 }
 
 /**

@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.resources.saved_messages
+import dev.g000sha256.tdl.dto.ChatTypePrivate
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.DeviceToken
@@ -120,9 +122,13 @@ class TdlNotificationRepository(
         // Chat se načte JEDNOU — je z něj potřeba název i fotka, a dvě volání kvůli jedné
         // notifikaci by byla zbytečná.
         val chat = client.getChat(update.chatId).toResult().getOrNull()
+        // Uložené zprávy (připomínka naplánovaná v nich) nesou jméno vlastního účtu; notifikace
+        // i zkratka konverzace je mají ukázat pod vlastním názvem a se záložkou, jako aplikace.
+        val isSavedMessages = (chat?.type as? ChatTypePrivate)?.userId
+            ?.let { it == client.getMe().toResult().getOrNull()?.id } == true
         // Chat, který lokální databáze nezná (první zpráva od nového kontaktu, spojení mrtvé),
         // se pojmenuje podle odesílatele z pushe — notifikace bez jména by nikomu nic neřekla.
-        val chatTitle = chat?.title
+        val chatTitle = (if (isSavedMessages) getString(Res.string.saved_messages) else chat?.title)
             ?: added.firstNotNullOfOrNull { (it.type as? NotificationTypeNewPushMessage)?.senderName }
             ?: ""
 
@@ -143,7 +149,8 @@ class TdlNotificationRepository(
                 // je to totéž jako fotka chatu. Fotka chatu je záloha pro kanály a boty,
                 // kde odesílatel vlastní profilovku nemá.
                 avatarPath = downloadedPath(content.senderPhoto ?: chat?.photo?.small),
-                chatAvatarPath = downloadedPath(chat?.photo?.small),
+                chatAvatarPath = if (isSavedMessages) null else downloadedPath(chat?.photo?.small),
+                isSavedMessages = isSavedMessages,
                 imagePath = downloadedPath(content.image, IMAGE_TIMEOUT),
                 imageCaption = content.imageCaption,
             )

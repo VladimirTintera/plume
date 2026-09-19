@@ -607,6 +607,29 @@ když si o to uživatel řekne v Nastavení (`separateUnreadChats`, **výchozí 
 - **Odznak nepřečtených není chybově červený.** M3 `Badge` je ve výchozím stavu `error`; nepřečtená
   zpráva ale není chyba a v odlehčeném seznamu byla ta červená jediná sytá barva na obrazovce.
 
+### Uložené zprávy
+
+Uložené zprávy jsou v Telegramu **obyčejný soukromý chat s vlastním účtem** — id chatu je id
+uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
+
+- **Vlastní název a záložka místo jména a fotky účtu** (`chatTitle`, `Avatar(isSavedMessages =
+  true)`). Rozpoznává se podle `ChatRepository.savedMessagesChatId`, do UI jde přes
+  `LocalSavedMessagesChatId` (poskytuje shell). **`Avatar` si to NEzjišťuje sám** — kreslí
+  i odesílatele (reakce, zhlédnutí, profilovky ve skupině) a tam má být vlastní tvář.
+- **V seznamu chatů nejsou, pokud nejsou připnuté** (`chatGroups`, test
+  `ulozeneZpravyJenPripnute`). Vstup je menu ⋮ v horní liště (přibude do něj Archiv). Připnutí
+  je výslovné přání uživatele, takže připnuté zůstávají — schovat je by působilo jako chyba.
+- **Ve výběrech (přeposlání, sdílení, iOS rozšíření, Direct Share) jsou vždy první**, i když
+  v seznamu chatů nejsou. „Pošlu si to" je nejčastější cíl. Hledání je najde podle přeloženého
+  názvu.
+- **Chat se zakládá hned po přihlášení** (`createPrivateChat`, lokální). U účtu, který si nic
+  neuložil, ho TDLib v databázi nemá a nešlo by ho otevřít ani do něj přeposlat.
+- **V hlavičce není „online"** — vlastní dostupnost v Uložených zprávách nic neříká.
+- **Zkratka konverzace a notifikace** (připomínka v Uložených zprávách) mají název
+  „Uložené zprávy" a záložku (`bookmarkIcon`), ne jméno a fotku účtu.
+- **Témata Uložených zpráv (`SavedMessagesTopic`, dělení podle původního chatu) a štítky zatím
+  nejsou.** Konverzace ukazuje všechny uložené zprávy dohromady, jako dřív.
+
 ### Co položka ukazuje
 
 Čas poslední zprávy, ztlumení, dostupnost protějšku a jeho právě probíhající činnost.

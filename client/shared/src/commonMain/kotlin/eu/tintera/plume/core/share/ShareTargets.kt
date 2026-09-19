@@ -1,5 +1,11 @@
 package eu.tintera.plume.core.share
 
+import org.jetbrains.compose.resources.getString
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.distinctUntilChanged
+import eu.tintera.plume.resources.saved_messages
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.core.telegram.ChatRepository
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.FileRepository
@@ -18,6 +24,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  */
 class ShareTargets(
     private val repository: ConversationRepository,
+    private val chats: ChatRepository,
     private val files: FileRepository,
     private val publisher: ShareTargetPublisher,
     private val scope: CoroutineScope,
@@ -25,12 +32,26 @@ class ShareTargets(
 
     private val logger = Logger.withTag("Share")
 
+    init {
+        // Uložené zprávy mají být mezi cíli sdílení hned po přihlášení, i když se do nich ještě
+        // nic neposlalo — „pošlu si to" je nejčastější sdílení.
+        scope.launch {
+            chats.savedMessagesChatId.filterNotNull().distinctUntilChanged().collect { reportUsed(it) }
+        }
+    }
+
     /**
      * Do chatu se právě něco poslalo. Běží v rozsahu aplikace — hlásí se i po odchodu z chatu
      * hned po odeslání. Název a profilovka se dohledají tady, ať se to nemusí nosit od volajícího.
      */
     fun reportUsed(chatId: Long) {
         scope.launch {
+            // Uložené zprávy nesou v TDLib jméno a fotku vlastního účtu; ve sdílení mají mít
+            // vlastní název a záložku, jako všude v aplikaci.
+            if (chatId == chats.savedMessagesChatId.value) {
+                publisher.publish(chatId, getString(Res.string.saved_messages), avatarPath = null, isSavedMessages = true)
+                return@launch
+            }
             val info = repository.chatInfo(chatId).getOrElse { failure ->
                 logger.w(failure) { "Chat $chatId se kvůli zkratce ke sdílení nepodařilo načíst." }
                 return@launch
@@ -42,7 +63,7 @@ class ShareTargets(
                     (files.file(fileId).first { it is FileState.Ready || it is FileState.Failed } as? FileState.Ready)?.path
                 }
             }
-            publisher.publish(chatId, info.title, avatarPath)
+            publisher.publish(chatId, info.title, avatarPath, isSavedMessages = false)
         }
     }
 
@@ -53,5 +74,5 @@ class ShareTargets(
 
 /** Platformní publikace chatu jako cíle sdílení. */
 interface ShareTargetPublisher {
-    fun publish(chatId: Long, title: String, avatarPath: String?)
+    fun publish(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean)
 }

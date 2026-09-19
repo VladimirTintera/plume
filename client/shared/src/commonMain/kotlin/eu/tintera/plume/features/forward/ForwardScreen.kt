@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.forward
 
+import eu.tintera.plume.resources.saved_messages
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -68,6 +69,7 @@ fun ForwardScreen(
         // Dokud odesílání běží, další ťuknutí by poslalo zprávu dvakrát.
         enabled = !state.sending,
         onPick = { chatId -> viewModel.forward(chatId, onForwarded) },
+        savedMessagesChatId = state.savedMessagesChatId,
         onBack = onBack,
         error = state.error,
         onErrorShown = viewModel::consumeError,
@@ -80,6 +82,10 @@ fun ForwardScreen(
  * do aplikace ze systému — obojí je „vyber, kam s tím".
  *
  * [subtitle] je pod hledáním: co se sdílí, nebo že se to ještě připravuje.
+ *
+ * **Uložené zprávy ([savedMessagesChatId]) jsou vždy první**, i když v seznamu chatů nejsou
+ * (nepřipnuté tam nejsou) — „pošlu si to" je nejčastější cíl. Hledání je najde podle
+ * přeloženého názvu, ne podle jména účtu, které nese TDLib.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,6 +100,7 @@ fun ChatPicker(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    savedMessagesChatId: Long? = null,
     error: UiText? = null,
     onErrorShown: () -> Unit = {},
 ) {
@@ -147,7 +154,11 @@ fun ChatPicker(
                 return@Column
             }
 
-            if (chats.isEmpty()) {
+            val savedTitle = stringResource(Res.string.saved_messages)
+            val showSaved = savedMessagesChatId != null && savedTitle.contains(query.trim(), ignoreCase = true)
+            val others = chats.filter { it.id != savedMessagesChatId }
+
+            if (others.isEmpty() && !showSaved) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
                         text = stringResource(Res.string.forward_empty),
@@ -160,7 +171,18 @@ fun ChatPicker(
             }
 
             LazyColumn(Modifier.fillMaxSize()) {
-                items(chats, key = { it.id }) { chat ->
+                if (showSaved && savedMessagesChatId != null) {
+                    item(key = savedMessagesChatId) {
+                        ListItem(
+                            headlineContent = { Text(savedTitle) },
+                            leadingContent = {
+                                Avatar(chatId = savedMessagesChatId, title = savedTitle, avatarFileId = null, size = 40.dp, isSavedMessages = true)
+                            },
+                            modifier = Modifier.clickable(enabled = enabled) { onPick(savedMessagesChatId) },
+                        )
+                    }
+                }
+                items(others, key = { it.id }) { chat ->
                     ListItem(
                         headlineContent = { Text(chat.title) },
                         leadingContent = {

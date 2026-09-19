@@ -94,6 +94,8 @@ data class ChatNotification(
      * ikona reprezentuje celou konverzaci, takže tam patří fotka skupiny.
      */
     val chatAvatarPath: String?,
+    /** Uložené zprávy: zkratka konverzace se záložkou místo fotky vlastního účtu. */
+    val isSavedMessages: Boolean = false,
     /**
      * Cesta k fotce ze zprávy, kterou notifikace ukáže u řádku. `null` u zprávy bez fotky, při
      * vypnutém náhledu, u spoileru a mizejících fotek — a když se nestihla stáhnout.

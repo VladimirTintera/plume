@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.chatTitle
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedVisibility
@@ -570,12 +571,14 @@ fun ConversationScreen(
                                 title = info.title,
                                 avatarFileId = info.avatarFileId,
                                 size = 36.dp,
+                                isSavedMessages = info.isSavedMessages,
                                 modifier = Modifier.sharedNavElement(chatAvatarKey(info.id)),
                             )
                         }
                         Column {
                             Text(
-                                text = state.info?.title ?: stringResource(Res.string.conversation_fallback_title),
+                                text = state.info?.let { chatTitle(it.id, it.title) }
+                                    ?: stringResource(Res.string.conversation_fallback_title),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 // Klíč se dá jen když chat známe; než dorazí `info`, není s čím
@@ -600,7 +603,9 @@ fun ConversationScreen(
                              */
                             val subtitle = connection.label()?.let { HeaderSubtitle(stringResource(it), accent = false) }
                                 ?: state.activity?.let { HeaderSubtitle(stringResource(it.label()), accent = true) }
-                                ?: state.presence?.let {
+                                // Vlastní dostupnost v Uložených zprávách nic neříká — byl bys
+                                // pořád „online", protože se na ně právě díváš.
+                                ?: state.presence?.takeUnless { state.info?.isSavedMessages == true }?.let {
                                     HeaderSubtitle(it.describe(), accent = it is Presence.Online)
                                 }
                             val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()

@@ -36,6 +36,8 @@
     <string name="auth_error_missing_api_credentials">api_id/api_hash is missing. Generate them at my.telegram.org and put them into local.properties as telegramApiId and telegramApiHash.</string>
     <string name="auth_error_start_failed">Couldn't start the connection to Telegram.</string>
     <string name="chats_empty">Nothing here yet.</string>
+    <string name="saved_messages">Saved Messages</string>
+    <string name="chats_menu">More options</string>
     <string name="chats_section_pinned">Pinned</string>
     <string name="chats_muted">Muted</string>
     <string name="chats_draft_prefix">Draft: </string>

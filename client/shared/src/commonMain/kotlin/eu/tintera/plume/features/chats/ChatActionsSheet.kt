@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.chatTitle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -66,7 +67,7 @@ fun ChatActionsSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Text(
-            text = chat.title,
+            text = chatTitle(chat.id, chat.title),
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
         )
@@ -160,7 +161,7 @@ fun ChatDeleteDialog(
             Text(
                 stringResource(
                     if (chat.isPrivate) Res.string.chats_delete_body else Res.string.chats_leave_body,
-                    chat.title,
+                    chatTitle(chat.id, chat.title),
                 ),
             )
         },
