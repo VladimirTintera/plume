@@ -53,14 +53,24 @@ interface AppSettings {
     /**
      * Zvolený motiv, nebo `null`, dokud si uživatel nevybral.
      *
-     * Výchozí motiv se schválně NEUKLÁDÁ jako konkrétní hodnota: liší se podle platformy
-     * (Android → Material You, jinde systémový) a zapsaná hodnota by ten rozdíl zakonzervovala
-     * i na zařízení, kde neplatí. Kdo kreslí, spadne na `defaultThemeMode()`.
+     * Kdo kreslí, spadne na [ThemeMode.SYSTEM].
      */
     val themeMode: StateFlow<ThemeMode?>
 
     /** Uloží motiv; `null` vrátí volbu na výchozí podle platformy. Neblokuje, jako [recordRecentEmoji]. */
     fun setThemeMode(mode: ThemeMode?)
+
+    /**
+     * Barvy z tapety (Material You), nebo `null`, dokud si uživatel nevybral.
+     *
+     * Výchozí hodnota se schválně NEUKLÁDÁ: liší se podle platformy (Android 12+ zapnuto, jinde
+     * nejsou) a zapsaná hodnota by ten rozdíl zakonzervovala i na zařízení, kde neplatí. Kdo
+     * kreslí, spadne na `supportsDynamicColor`.
+     */
+    val dynamicColor: StateFlow<Boolean?>
+
+    /** Zapne/vypne barvy z tapety. Neblokuje, jako [recordRecentEmoji]. */
+    fun setDynamicColor(enabled: Boolean)
 
     /**
      * Mají nepřečtené chaty v seznamu vlastní blok?
@@ -182,6 +192,16 @@ class DataStoreAppSettings(
         }
     }
 
+    override val dynamicColor: StateFlow<Boolean?> = value(null) { preferences ->
+        preferences[DYNAMIC_COLOR]
+    }
+
+    override fun setDynamicColor(enabled: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[DYNAMIC_COLOR] = enabled }
+        }
+    }
+
     override val separateUnreadChats: StateFlow<Boolean> = value(false) { preferences ->
         preferences[SEPARATE_UNREAD_CHATS] ?: false
     }
@@ -222,6 +242,7 @@ class DataStoreAppSettings(
         val RECENT_EMOJIS = stringPreferencesKey("recent_emojis")
         val EMOJI_SKIN_TONES = stringPreferencesKey("emoji_skin_tones")
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val SEPARATE_UNREAD_CHATS = booleanPreferencesKey("separate_unread_chats")
         val DISMISSED_UPDATE_VERSION_CODE = intPreferencesKey("dismissed_update_version_code")
         const val EMOJI_SEPARATOR = " "

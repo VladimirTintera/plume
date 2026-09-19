@@ -14,7 +14,7 @@ a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zpr�
 
 Není: notifikace na iOS ani hlášení pádů z iOS; obrazovka nové konverzace; sdílená média v profilu chatu.
 Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné, Vzhled a Zařízení; vědomě nastavitelné je zatím
-téma aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
+téma aplikace (motiv a barvy z tapety) a vyčlenění nepřečtených chatů do vlastního bloku.
 Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
 
@@ -479,13 +479,18 @@ aplikace pamatuje o uživateli; data z Telegramu drží TDLib.
   krok zpátky**: znamenal by generování schématu (v KMP vlastní serializer nad kotlinx) kvůli
   hrstce skalárů, migraci při každém přidání pole a konec toho, že se neznámý klíč prostě
   ignoruje. Typovou bezpečnost nese rozhraní `AppSettings`, ne úložiště pod ním.
-- **Motiv se ukládá jako `ThemeMode?`, kde `null` znamená „uživatel si nevybral".** Výchozí motiv
-  se liší podle platformy (Android → Material You, jinde systémový), takže zapsaná konkrétní
-  hodnota by ten rozdíl zakonzervovala. `defaultThemeMode()` rozhoduje až při kreslení a v
-  Nastavení se jako vybraná ukáže ta možnost, podle které se aplikace opravdu kreslí — prázdný
-  výběr by vypadal jako chyba.
+- **Motiv (`ThemeMode?`: podle systému / světlý / tmavý) a barvy z tapety (`dynamicColor:
+  Boolean?`) jsou DVĚ volby, ne jeden výčet.** Material You byl dřív čtvrtou hodnotou
+  `ThemeMode.DYNAMIC`, takže s ním nešel vynutit světlý ani tmavý režim. Teď je to přepínač pod
+  koly a kombinuje se s kterýmkoli motivem; nabízí se jen tam, kde je (`supportsDynamicColor`).
+  Uložené `DYNAMIC` ze starší verze se čte jako neznámá hodnota, tedy nevybraný motiv (podle
+  systému) — a barvy z tapety zůstanou, protože nevybrané znamená výchozí.
+- **`null` u obou znamená „uživatel si nevybral".** Výchozí barvy z tapety se liší podle
+  platformy (Android 12+ zapnuto, jinde nejsou), takže zapsaná konkrétní hodnota by ten rozdíl
+  zakonzervovala. Rozhoduje se až při kreslení a v Nastavení se jako vybraná ukáže ta možnost,
+  podle které se aplikace opravdu kreslí — prázdný výběr by vypadal jako chyba.
 - **`ThemeMode` bydlí v `core/settings`, ne u tématu.** Je to uložená hodnota a `core` nesmí
-  importovat `app`; co z něj plyne pro vykreslení (`resolveIsDark`, `defaultThemeMode`), zůstalo
+  importovat `app`; co z něj plyne pro vykreslení (`resolveIsDark`, `supportsDynamicColor`), zůstalo
   v `app/root/presentation` — závisí to na platformě a na systémovém tmavém režimu.
 - **`ExpressionMode`** (Emoji / Samolepky): poslední otevřená část výběru. Podle ní se výběr
   otevře a ikona tlačítka ve vstupním poli ukazuje, co se otevře (smajlík / samolepka).
