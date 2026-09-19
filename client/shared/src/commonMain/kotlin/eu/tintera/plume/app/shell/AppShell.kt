@@ -7,11 +7,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.Text
@@ -52,6 +58,7 @@ import androidx.navigation3.ui.NavDisplay
 import eu.tintera.plume.core.adaptive.TWO_PANE_MIN_WIDTH
 import eu.tintera.plume.core.adaptive.contentPaneScaffoldDirective
 import eu.tintera.plume.core.adaptive.isCompact
+import eu.tintera.plume.core.adaptive.isShortWindow
 import eu.tintera.plume.core.adaptive.singlePane
 import eu.tintera.plume.core.adaptive.twoPane
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -162,6 +169,12 @@ fun AppShell(modifier: Modifier = Modifier) {
      */
     val showRail = !compact && navigation.currentStack.lastOrNull() !is MediaRoute
 
+    /*
+     * Na nízkém okně (telefon naležato) má rail jen ikony. Popisky pod nimi zabíraly výšku, která
+     * tam chybí, a rail roztahovaly do šířky — a dvě sekce se poznají podle ikony i bez nich.
+     */
+    val railLabels = !isShortWindow()
+
     // Obsah drží stabilní instanci přes přepnutí rail↔bar. Bez movableContent by se při změně
     // breakpointu celý podstrom odmountoval a namountoval znovu — ztratil by se scroll, stav
     // a rozjely by se animace.
@@ -189,16 +202,41 @@ fun AppShell(modifier: Modifier = Modifier) {
              * Položky jsou na STŘEDU: M3 u tabletů doporučuje střed, protože se na něj líp
              * dosáhne palcem. Nahoru patří jen menu a FAB, a ty rail nemá.
              */
-            WideNavigationRail(arrangement = Arrangement.Center) {
-                TopLevelDestination.entries.forEach { dest ->
-                    val selected = currentTopLevel == dest.route
-                    WideNavigationRailItem(
-                        selected = selected,
-                        onClick = { navigation.selectSection(dest.route) },
-                        icon = { DestinationIcon(dest, selected) },
-                        label = { Text(stringResource(dest.label)) },
-                        railExpanded = false,
-                    )
+            if (railLabels) {
+                WideNavigationRail(arrangement = Arrangement.Center) {
+                    TopLevelDestination.entries.forEach { dest ->
+                        val selected = currentTopLevel == dest.route
+                        WideNavigationRailItem(
+                            selected = selected,
+                            onClick = { navigation.selectSection(dest.route) },
+                            icon = { DestinationIcon(dest, selected) },
+                            label = { Text(stringResource(dest.label)) },
+                            railExpanded = false,
+                        )
+                    }
+                }
+            } else {
+                /*
+                 * Na nízkém okně klasický `NavigationRail`, ne wide. Zúžený wide rail má pevnou
+                 * šířku 96 dp a položku BEZ popisku staví k levému okraji (měří ji na šířku
+                 * indikátoru a klade na x = 0) — ikony visely mimo střed a vpravo od nich zbyl
+                 * prázdný pruh. `NavigationRail` má 80 dp a ikony na středu.
+                 */
+                NavigationRail {
+                    Spacer(Modifier.weight(1f))
+                    TopLevelDestination.entries.forEach { dest ->
+                        val selected = currentTopLevel == dest.route
+                        NavigationRailItem(
+                            selected = selected,
+                            onClick = { navigation.selectSection(dest.route) },
+                            // Bez popisku nese název sekce ikona, jinak by ho čtečka obrazovky
+                            // neměla.
+                            icon = {
+                                DestinationIcon(dest, selected, contentDescription = stringResource(dest.label))
+                            },
+                        )
+                    }
+                    Spacer(Modifier.weight(1f))
                 }
             }
         }
@@ -208,6 +246,17 @@ fun AppShell(modifier: Modifier = Modifier) {
                 Modifier
                     .weight(1f)
                     .fillMaxSize()
+                    /*
+                     * Levý inset (výřez kamery, boční navigační lišta) vyřešil rail, obsah vedle
+                     * něj ho už nemá. Insety v Compose nevědí, kde prvek leží: bez konzumace si
+                     * je vzala každá obrazovka znovu, takže telefon naležato měl v hlavičce
+                     * konverzace i v seznamu zpráv mezeru o šířce výřezu — přestože panel stojí
+                     * u pravého okraje, daleko od kamery.
+                     */
+                    .then(
+                        if (showRail) Modifier.consumeWindowInsets(WindowInsets.safeDrawing.only(WindowInsetsSides.Start))
+                        else Modifier,
+                    )
                     // Inset spodní navigace se konzumuje JEN když se bar opravdu kreslí.
                     // Kdyby se konzumoval vždycky, vstupní pole konverzace by si na skrytém
                     // baru myslelo, že inset už někdo vyřešil, a zalezlo by pod systémovou lištu.
@@ -322,7 +371,8 @@ private fun ShellContent(
             chatsStack.none { it is ConversationRoute } &&
             (shownList as? ChatListState.Ready)?.chats?.isEmpty() == true
 
-        val directive = if (wide && !nothingToPick) base.twoPane() else base.singlePane()
+        val twoPane = wide && !nothingToPick
+        val directive = if (twoPane) base.twoPane() else base.singlePane()
 
         // Dvoupanelový stav se hlásí dolů: obrazovky podle něj poznají, že se nevyměňují,
         // a sdílený prvek nezaloží — viz LocalTwoPane.
@@ -336,6 +386,7 @@ private fun ShellContent(
                 selectedSettingsSection = settingsDisplayed.filterIsInstance<SettingsSectionRoute>()
                     .lastOrNull()?.section,
                 wide = wide,
+                twoPane = twoPane,
             )
             /*
              * Položky se dekorují pro KAŽDOU sekci, i tu, která není vidět. Zásobník, který se
@@ -385,7 +436,9 @@ private fun shellEntryProvider(
     settingsStack: MutableList<NavKey>,
     selectedSettingsSection: SettingsSection?,
     wide: Boolean,
+    twoPane: Boolean,
 ): (NavKey) -> NavEntry<NavKey> = entryProvider {
+
     entry<ChatsRoute>(
         metadata = ListDetailSceneStrategy.listPane(
             detailPlaceholder = { ConversationPlaceholder() },
@@ -399,6 +452,7 @@ private fun shellEntryProvider(
             onOpenArchive = {
                 if (chatsStack.lastOrNull() != ArchiveRoute) chatsStack.add(ArchiveRoute)
             },
+            modifier = Modifier.listPaneInsets(twoPane),
         )
     }
 
@@ -423,6 +477,7 @@ private fun shellEntryProvider(
                 .lastOrNull()?.chatId,
             onChatClick = { chatId -> chatsStack.openConversation(chatId) },
             onBack = { chatsStack.remove(ArchiveRoute) },
+            modifier = Modifier.listPaneInsets(twoPane),
         )
     }
 
@@ -513,6 +568,7 @@ private fun shellEntryProvider(
                 settingsStack.removeAll { it is SettingsSectionRoute }
                 settingsStack.add(SettingsSectionRoute(section))
             },
+            modifier = Modifier.listPaneInsets(twoPane),
         )
     }
 
@@ -540,6 +596,15 @@ private fun MutableList<NavKey>.openConversation(chatId: Long) {
 }
 
 /**
+ * Seznam vlevo v dvoupanelu nestojí u pravého okraje, takže tamní inset (výřez kamery,
+ * navigační lišta naležato) mu nepatří — patří panelu vpravo. Bez konzumace se o něj zúžila
+ * vyhledávací pilulka nad seznamem a přestala lícovat s chaty pod ní.
+ */
+@Composable
+private fun Modifier.listPaneInsets(twoPane: Boolean): Modifier =
+    if (twoPane) consumeWindowInsets(WindowInsets.safeDrawing.only(WindowInsetsSides.End)) else this
+
+/**
  * Klíč scény list-detail pro nastavení.
  *
  * Chaty i nastavení jsou dvě různé list-detail dvojice v jednom `NavDisplay`. Bez vlastního klíče
@@ -550,13 +615,17 @@ private const val SETTINGS_SCENE = "settings"
 
 /** Vyplněná varianta při výběru — M3 konvence. Crossfade, ať přepnutí neproblikne. */
 @Composable
-private fun DestinationIcon(destination: TopLevelDestination, selected: Boolean) {
+private fun DestinationIcon(
+    destination: TopLevelDestination,
+    selected: Boolean,
+    contentDescription: String? = null,
+) {
     Crossfade(selected, label = "nav-icon") { isSelected ->
         Icon(
             painter = painterResource(
                 if (isSelected) destination.selectedIcon else destination.icon,
             ),
-            contentDescription = null,
+            contentDescription = contentDescription,
         )
     }
 }

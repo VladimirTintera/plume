@@ -59,6 +59,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import eu.tintera.plume.core.adaptive.isCompact
+import eu.tintera.plume.core.adaptive.isShortWindow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.AnnotatedString
@@ -204,15 +207,26 @@ fun ChatListScreen(
             }
 
             /*
-             * Pás v barvě stránky pod stavovou lištou. Odjetý bar ji odkryje a chaty by pod ní
-             * jezdily bez pozadí, přes hodiny a ikony. Leží nad seznamem, ale pod barem — Scaffold
-             * kreslí `topBar` přes obsah.
+             * Závoj pod stavovou lištou. Odjetý bar ji odkryje a chaty by pod ní jezdily bez
+             * pozadí, přes hodiny a ikony. Leží nad seznamem, ale pod barem — Scaffold kreslí
+             * `topBar` přes obsah.
+             *
+             * Přechod do průhledna, ne plná barva: s plným pásem končily chaty o výšku lišty
+             * pod horním okrajem ostrou hranou, jako useknuté. Takhle jedou až nahoru a jen
+             * se pod lištou vytrácejí; u horního okraje, kde jsou ikony, je závoj skoro plný.
              */
+            val surface = MaterialTheme.colorScheme.surface
             Box(
                 Modifier
                     .fillMaxWidth()
                     .windowInsetsTopHeight(WindowInsets.statusBars)
-                    .background(MaterialTheme.colorScheme.surface),
+                    .background(
+                        Brush.verticalGradient(
+                            0f to surface,
+                            0.6f to surface.copy(alpha = 0.85f),
+                            1f to surface.copy(alpha = 0f),
+                        ),
+                    ),
             )
         }
     }
@@ -309,6 +323,13 @@ internal fun ChatListContent(
             .collect { if (it) viewModel.loadMore() }
     }
 
+    /*
+     * Vedle railu na telefonu naležato je okraj vlevo užší. Rail má kolem ikon vlastní vzduch,
+     * takže plných 16 dp jen ukusovalo šířku, které je naležato málo. 8 dp je vnitřní okraj
+     * vyhledávací pilulky nad seznamem — karty s ní lícují.
+     */
+    val startPadding = if (!isCompact() && isShortWindow()) 8.dp else 16.dp
+
     when (val current = state) {
         ChatListState.Loading -> Box(
             Modifier.fillMaxSize().padding(padding),
@@ -339,7 +360,7 @@ internal fun ChatListContent(
                     top = padding.calculateTopPadding() + 8.dp - TOP_ANCHOR_HEIGHT -
                         GROUP_ITEM_SPACING,
                     bottom = padding.calculateBottomPadding() + 8.dp,
-                    start = 16.dp,
+                    start = startPadding,
                     end = 16.dp,
                 ),
                 // Rozestup UVNITŘ skupiny. Mezera mezi skupinami se přidává u její první

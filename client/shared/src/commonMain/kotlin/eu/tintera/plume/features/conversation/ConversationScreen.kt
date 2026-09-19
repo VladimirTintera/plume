@@ -29,8 +29,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -95,6 +96,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -549,7 +551,7 @@ fun ConversationScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize().hazeSource(hazeState),
         /*
-         * Spodní inset si řeší vstupní pole samo (`navigationBarsPadding` + `imePadding`).
+         * Spodní inset si řeší vstupní pole samo (`windowInsetsPadding` se `safeDrawing`).
          *
          * Kdyby ho dal i Scaffold do `padding`, započítal by se dvakrát a pole by viselo o výšku
          * systémové lišty výš — `padding` se v obsahu jen aplikuje, inset se tím nekonzumuje.
@@ -795,6 +797,13 @@ fun ConversationScreen(
                 else -> Box(
                     Modifier
                         .fillMaxSize()
+                        /*
+                         * `LazyColumn` ořezává jen ve směru scrollu, tedy svisle. Sloupec časů
+                         * čekající za pravým okrajem byl schovaný jen proto, že seznam končil
+                         * u okraje obrazovky; s bočním insetem (výřez vpravo) prosvítal. Ořez
+                         * drží i odtaženou bublinu v jejím panelu.
+                         */
+                        .clipToBounds()
                         .pointerInput(revealMax) {
                             detectTimeReveal(
                                 onEnd = { scope.launch { timeReveal.animateTo(0f, revealSpec) } },
@@ -1061,8 +1070,14 @@ private fun MessageInput(
         Row(
             Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
-                .imePadding()
+                /*
+                 * Spodek (lišta, klávesnice) i boky. Naležato leží na boku výřez kamery nebo
+                 * navigační lišta se třemi tlačítky a tlačítko odeslání by jinak zajelo pod ně.
+                 * Levý inset vedle railu už zkonzumoval shell.
+                 */
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+                )
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
