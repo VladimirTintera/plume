@@ -45,7 +45,9 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
     val items = ArrayList<ConversationItem>(state.sponsored.size + rows.size + rows.size / 4 + 2)
     val usedDayKeys = HashSet<String>()
 
-    state.sponsored.mapTo(items, ::SponsoredItem)
+    // Reklama stojí pod nejnovější zprávou. Okno v historii nejnovější zprávy nemá, takže by
+    // se karta vykreslila uprostřed minulosti; ukáže se, až se okno dostránkuje k přítomnosti.
+    if (state.reachedEnd) state.sponsored.mapTo(items, ::SponsoredItem)
 
     rows.forEachIndexed { index, row ->
         val message = row.display

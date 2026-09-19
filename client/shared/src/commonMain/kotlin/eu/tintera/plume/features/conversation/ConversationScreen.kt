@@ -45,7 +45,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -234,7 +233,13 @@ fun ConversationScreen(
             viewModel.consumeForwardRequest()
         }
     }
-    val listState = rememberLazyListState()
+    /*
+     * Stav seznamu patří jednomu OKNU zpráv (`window`). Když se seznam vymění celý (skok do
+     * historie, návrat k přítomnosti), odejdou všechny položky naráz a `animateItem` je nechá
+     * doznít na místě — mizející předěl „Dnes" pak visel přes zprávy z roku 2021 a jezdil
+     * se scrollem. Nový stav seznamu s novým oknem nemá co animovat pryč.
+     */
+    val listState = rememberSaveable(state.window, saver = LazyListState.Saver) { LazyListState() }
     val snackbarHostState = remember { SnackbarHostState() }
     var stickerPickerOpen by rememberSaveable { mutableStateOf(false) }
 
@@ -312,7 +317,7 @@ fun ConversationScreen(
 
     // `reverseLayout` obrací i význam indexů: index 0 je nejnovější zpráva dole, vyšší indexy
     // jsou starší nahoře. Stránkování do minulosti se tedy spouští na KONCI seznamu.
-    val shouldLoadOlder by remember {
+    val shouldLoadOlder by remember(listState) {
         derivedStateOf {
             val info = listState.layoutInfo
             val last = info.visibleItemsInfo.lastOrNull()?.index ?: return@derivedStateOf false
@@ -323,9 +328,22 @@ fun ConversationScreen(
         snapshotFlow { shouldLoadOlder }.collect { if (it) viewModel.loadOlder() }
     }
 
+    /*
+     * Okno v historii (po skoku na starou zprávu) se dotahuje i k PŘÍTOMNOSTI — na začátku
+     * seznamu, tedy u spodní hrany. Jestli je okno v historii, ví ViewModel (`reachedEnd`);
+     * obrazovka jen hlásí, že je uživatel blízko.
+     */
+    val shouldLoadNewer by remember(listState) {
+        derivedStateOf { listState.firstVisibleItemIndex < LOAD_MORE_THRESHOLD }
+    }
+    LaunchedEffect(listState, state.reachedEnd) {
+        if (state.reachedEnd) return@LaunchedEffect
+        snapshotFlow { shouldLoadNewer }.collect { if (it) viewModel.loadNewer() }
+    }
+
     // „Jsem dole" = vidím nejnovější zprávu. Při `reverseLayout` je to index 0; kontroluje se
     // i offset, aby se za dole nepovažoval stav, kdy je poslední bublina jen z půlky vidět.
-    val atBottom by remember {
+    val atBottom by remember(listState) {
         derivedStateOf {
             listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
         }
@@ -395,6 +413,7 @@ fun ConversationScreen(
         state.messages,
         state.itemKeys,
         state.sponsored,
+        state.reachedEnd,
         state.loading,
         state.info,
         state.unreadBoundaryId,
@@ -417,7 +436,7 @@ fun ConversationScreen(
      * ze stejného důvodu jako u hlášení přečtení. Položky bez číselného klíče (reklama, řádek
      * načítání) se přeskočí, protože k nim žádná zpráva není.
      */
-    val topVisibleKey by remember {
+    val topVisibleKey by remember(listState) {
         derivedStateOf {
             listState.layoutInfo.visibleItemsInfo.lastOrNull { it.key is Long }?.key as? Long
         }
@@ -456,7 +475,7 @@ fun ConversationScreen(
      * Kdo odroluje do historie (nebo tam skočí po citaci), neměl jak se vrátit jinak než rolováním.
      * Ukáže se až o kus výš, ne při prvním pixelu — u spodní hrany by jen blikalo pod prstem.
      */
-    val farFromBottom by remember {
+    val farFromBottom by remember(listState) {
         derivedStateOf { listState.firstVisibleItemIndex >= SCROLL_DOWN_THRESHOLD_ITEMS }
     }
 
@@ -479,13 +498,17 @@ fun ConversationScreen(
         if (key != anchor.key) {
             // První naplnění seznamu není „nová zpráva", jen se zobrazila historie. Smazání
             // nejnovější zprávy klíč taky změní, ale id přitom klesne.
-            val arrived = anchor.key != null && newest.id > anchor.id
+            // Dotažená stránka k přítomnosti (okno v historii) taky posune nejnovější klíč, ale
+            // nic nepřišlo — `live` je, jestli předchozí stav končil u přítomnosti.
+            val arrived = anchor.key != null && newest.id > anchor.id && anchor.live
+            anchor.lastWasArrival = arrived
             // Vlastní zpráva dolů vždycky — jinak by odeslání vypadalo, že se nic nestalo.
             // Cizí jen když je uživatel dole; při čtení historie by ho to vytrhlo ze čtení.
             if (arrived && (newest.isOutgoing || atBottom)) listState.requestScrollToItem(0)
             anchor.key = key
             anchor.id = newest.id
         }
+        anchor.live = state.reachedEnd
     }
 
     val newestMessageId = newest?.id
@@ -498,6 +521,9 @@ fun ConversationScreen(
         // První naplnění seznamu není „nová zpráva", jen se zobrazila historie.
         if (previous == null) return@LaunchedEffect
         if (newestId <= previous) return@LaunchedEffect
+
+        // Stránka dotažená k přítomnosti není „nové zprávy" — odznak by lhal.
+        if (!anchor.lastWasArrival) return@LaunchedEffect
 
         // Id zpráv v chatu rostou, takže „nové" jsou ty nad posledním viděným.
         val arrived = state.messages.takeWhile { it.id > previous }
@@ -716,9 +742,16 @@ fun ConversationScreen(
         floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
             ScrollToBottomButton(
-                visible = farFromBottom || pendingNewMessages > 0,
+                // V okně v historii vede dolů i od spodní hrany — nejnovější zprávy nejsou načtené.
+                visible = farFromBottom || pendingNewMessages > 0 || !state.reachedEnd,
                 count = pendingNewMessages,
-                onClick = { scope.launch { listState.animateScrollToItem(0) } },
+                onClick = {
+                    if (state.reachedEnd) {
+                        scope.launch { listState.animateScrollToItem(0) }
+                    } else {
+                        viewModel.jumpToLatest()
+                    }
+                },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -1468,6 +1501,10 @@ private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit) {
  * horní okraj.
  */
 private suspend fun LazyListState.scrollToAnchor(index: Int, anchor: ScrollAnchor) {
+    if (anchor == ScrollAnchor.Bottom) {
+        scrollToItem(0)
+        return
+    }
     scrollToItem(index)
 
     val info = layoutInfo
@@ -1478,6 +1515,7 @@ private suspend fun LazyListState.scrollToAnchor(index: Int, anchor: ScrollAncho
     val desired = when (anchor) {
         ScrollAnchor.Top -> visibleHeight - item.size
         ScrollAnchor.Center -> (visibleHeight - item.size) / 2
+        ScrollAnchor.Bottom -> 0
     }.coerceAtLeast(0)
     scrollBy((item.offset - desired).toFloat())
 }
@@ -1543,6 +1581,12 @@ private class ScreenItemScope(
 private class NewestItem {
     var key: Long? = null
     var id: Long = 0L
+
+    /** Předchozí stav končil u přítomnosti — jen pak je novější nejnovější zpráva příchozí. */
+    var live: Boolean = true
+
+    /** Poslední změna nejnovější zprávy byla příchod, ne dotažená stránka. Čte ho odznak dole. */
+    var lastWasArrival: Boolean = false
 }
 
 private const val LOAD_MORE_THRESHOLD = 5

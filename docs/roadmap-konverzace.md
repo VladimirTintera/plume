@@ -260,9 +260,6 @@ a scrollování" u duplicitního klíče po potvrzení odeslání).
 
 **Chybějící základ**
 
-- **Skok na první nepřečtenou** — hotovo, ale s **limitem pěti stránek historie**. Kdo má
-  v chatu stovky nepřečtených, skok nedostane. Dořešit by to znamenalo stránkovat oběma směry
-  (kotva uprostřed přes záporný `offset` v `getChatHistory`).
 - **Pruh připnutých podle scrollu.** Dnes ukazuje nejnovější a ťuknutí posouvá ke starší.
   Oficiální klient navíc při scrollu historií ukazuje tu připnutou, která je nejblíž NAD
   viditelnou částí — pruh pak slouží i jako orientace. Stačilo by id nejvyšší viditelné zprávy

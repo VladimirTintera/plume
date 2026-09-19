@@ -134,9 +134,7 @@
     <string name="conversation_repin_failed">Couldn't pin the message back.</string>
     <string name="conversation_history_failed">Couldn't load the history.</string>
     <string name="conversation_quote_deleted">The quoted message is no longer available.</string>
-    <string name="conversation_quote_too_deep">The quoted message is too deep in the history.</string>
     <string name="conversation_message_deleted">That message is no longer available.</string>
-    <string name="conversation_message_too_deep">That message is too far back in the history to jump to yet.</string>
     <string name="conversation_join">Join</string>
     <string name="conversation_join_failed">Couldn't join.</string>
     <string name="conversation_mention_not_found">Couldn't find that chat.</string>

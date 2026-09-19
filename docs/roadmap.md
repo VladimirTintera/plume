@@ -59,9 +59,6 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
   v `CLAUDE.md`, „Hledání chatů"). Zbývá, po krocích:
   1. ~~**Globální hledání a zprávy**~~ — hotovo (sekce Globálně a Zprávy, skok na nalezenou
      zprávu, „Přidat se" u veřejného chatu). Zbývá:
-     - **Obousměrné stránkování konverzace**, aby šlo skočit na libovolně starou zprávu. Dnes
-       se historie dotahuje jen od nejnovější a zpráva za stropem (`MAX_SEARCH_JUMP_PAGES`)
-       skončí hláškou.
      - **Filtry hledání zpráv** (jen soukromé / skupiny / kanály, rozsah dat) — `searchMessages`
        je umí (`chatTypeFilter`, `minDate`, `maxDate`).
      - **Jméno odesílatele u nalezené zprávy ve skupině**; dnes je vidět jen chat.
