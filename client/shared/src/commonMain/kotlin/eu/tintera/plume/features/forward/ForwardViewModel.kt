@@ -2,6 +2,7 @@ package eu.tintera.plume.features.forward
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
@@ -31,6 +32,8 @@ class ForwardViewModel(
     private val messageIds: List<Long>,
     private val repository: ConversationRepository,
     chatRepository: ChatRepository,
+    /** Přeposlání je taky „sem posílám" — cíl se nahlásí jako použitý (Direct Share). */
+    private val shareTargets: ShareTargets,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
@@ -71,7 +74,10 @@ class ForwardViewModel(
 
         viewModelScope.launch {
             repository.forward(fromChatId, messageIds, toChatId)
-                .onSuccess { onDone(toChatId) }
+                .onSuccess {
+                    shareTargets.reportUsed(toChatId)
+                    onDone(toChatId)
+                }
                 .onFailure { failure ->
                     _error.update { UiText(Res.string.forward_failed) }
                     _sending.value = false

@@ -66,6 +66,15 @@ data class MediaRoute(val chatId: Long, val messageId: Long) : Route
 data class ForwardRoute(val fromChatId: Long, val messageIds: List<Long>) : Route
 
 /**
+ * Výběr chatu pro obsah sdílený do aplikace ze systému.
+ *
+ * Nenese nic — sdílený obsah (soubory v cache) je v `ShareRequests`, ne v zásobníku. Po zabití
+ * procesu se routa obnoví, ale obsah ne; obrazovka pak sama odejde.
+ */
+@Serializable
+data object ShareRoute : Route
+
+/**
  * Konfigurace pro ukládání navigačního zásobníku.
  *
  * **Každá nová routa se MUSÍ zaregistrovat níže.** `NavKey` je otevřená polymorfní hierarchie
@@ -89,6 +98,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ConversationRoute::class, ConversationRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
+            subclass(ShareRoute::class, ShareRoute.serializer())
         }
     }
 }

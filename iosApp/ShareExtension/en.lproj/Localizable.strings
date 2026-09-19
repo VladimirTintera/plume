@@ -1,0 +1,6 @@
+"share.title" = "Share to";
+"share.cancel" = "Cancel";
+"share.search" = "Search chats";
+"share.failed" = "Couldn't prepare the shared content";
+"share.empty.title" = "No chats yet";
+"share.empty.message" = "Open Plume and sign in — your chats will then show up here.";

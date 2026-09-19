@@ -31,8 +31,8 @@ object NotificationIntents {
         return Intent(Intent.ACTION_VIEW)
             .setComponent(component)
             .putExtra(EXTRA_CHAT_ID, chatId)
-            // SINGLE_TOP + launchMode singleTop v manifestu = běžící aplikace dostane intent do
-            // `onNewIntent` místo toho, aby se activity složila znovu a ztratila stav.
+            // Běžící aplikace dostane intent do `onNewIntent` (launchMode singleTask v manifestu)
+            // místo toho, aby se activity složila znovu a ztratila stav.
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 

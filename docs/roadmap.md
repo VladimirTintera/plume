@@ -55,25 +55,14 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
   (`searchPublicChat`). Váže na sebe víc věcí: hledání v přeposílání jde dnes jen po načteném
   seznamu chatů a zmínky s hashtagy se v textu schválně nemapují, protože kliknutí nemá kam vést.
 - **Nová konverzace a kontakty.** Napsat se dá jen tomu, s kým už chat existuje.
-- **Sdílení ze systému do aplikace.** Plume v systémové nabídce „Sdílet" chybí, takže fotku
-  z galerie nebo odkaz z prohlížeče do něj poslat nejde. Většina dílů už existuje:
-  - **Android: `intent-filter` pro `ACTION_SEND` a `ACTION_SEND_MULTIPLE`** (text, `image/*`,
-    `video/*`, `*/*`). Přijdou `content://` URI s DOČASNÝM oprávněním, které platí jen pro
-    přijímající aktivitu. Soubory se proto musí zkopírovat do cache hned, stejně jako u výběru
-    příloh (`rememberAttachmentPicker`). Zabití procesu mezi příjmem a výběrem chatu by jinak
-    oprávnění sebralo.
-  - **Výběr cílového chatu = obrazovka přeposílání** (`ForwardRoute`), jen s jiným obsahem.
-    Po výběru se otevře konverzace se soubory připravenými nad polem (`stageAttachments`,
-    strop 10, fotky a soubory se nemíchají) a sdílený text jde do pole. Neposílat hned: k fotce
-    se píše popisek a uživatel má vidět, co odejde.
-  - **Požadavek je STAV, ne událost**, jako `ChatOpenRequests` u prokliku z notifikace. Sdílet
-    se dá i do neběžící nebo nepřihlášené aplikace a požadavek musí počkat, až je komu ho předat.
-  - **Direct Share**: nedávné chaty přímo v systémové nabídce. Dlouhověké zkratky konverzací už
-    zakládají notifikace; stačí jim přidat kategorii a `share-target` v `shortcuts.xml`.
-  - **iOS: Share Extension** je samostatný proces s vlastním sandboxem. TDLib v něm běžet
-    nemůže vedle aplikace nad toutéž databází. Soubor se tedy uloží do sdíleného kontejneru
-    App Group a aplikace si ho vyzvedne. Je to vlastní target v Xcode projektu a víc práce
-    než Android.
+- **Sdílení ze systému do aplikace.** ~~Android~~ — hotovo (text, odkaz, jeden i víc
+  souborů; výběr chatu, obsah čeká nad vstupním polem). Poučení v `CLAUDE.md`, „Sdílení do
+  aplikace". Zbývá:
+  - ~~**Direct Share**~~ — hotovo. Na iOS jsou naposledy použité chaty nahoře v listu rozšíření;
+    řádek kontaktů v systémové nabídce (darování `INSendMessageIntent`) zatím není.
+  - ~~**iOS: Share Extension**~~ — hotovo (výběr chatu v rozšíření, App Group). Zbývá
+    ověřit na zařízení (App Group v Developer účtu) a ikona aplikace, bez které má Plume
+    v nabídce sdílení zástupnou ikonu.
 
 ## Nastavení
 

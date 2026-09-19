@@ -4,6 +4,9 @@ import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSaver
 import eu.tintera.plume.core.files.MediaSharer
+import eu.tintera.plume.core.share.AndroidShareTargetPublisher
+import eu.tintera.plume.core.share.ShareIntake
+import eu.tintera.plume.core.share.ShareTargetPublisher
 import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.connectivity.NetworkMonitor
 import eu.tintera.plume.core.notifications.NotificationPermission
@@ -18,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
+import org.koin.core.qualifier.named
 
 actual fun Module.platformModule() {
     single { TelegramPaths(androidContext()) }
@@ -26,6 +30,10 @@ actual fun Module.platformModule() {
     single { FileOpener(androidContext()) }
     single { MediaSaver(androidContext()) }
     single { MediaSharer(androidContext()) }
+    single {
+        ShareIntake(androidContext(), requests = get(), chatOpenRequests = get(), scope = get(named(APP_SCOPE)))
+    }
+    single<ShareTargetPublisher> { AndroidShareTargetPublisher(androidContext()) }
     single { NetworkMonitor(androidContext()) }
     single { AppForeground(androidContext()) }
     single { TextClipboard(androidContext()) }

@@ -87,7 +87,7 @@ actual fun rememberAttachmentPicker(
 }
 
 /** Photo Picker vrací fotky i videa pomíchané; rozhoduje typ obsahu. */
-private fun prepareVisual(context: Context, uri: Uri): OutgoingAttachment =
+internal fun prepareVisual(context: Context, uri: Uri): OutgoingAttachment =
     if (context.contentResolver.getType(uri)?.startsWith("video/") == true) {
         prepareVideo(context, uri)
     } else {
@@ -213,7 +213,7 @@ private fun fitInto(width: Int, height: Int): Pair<Int, Int> {
 }
 
 /** Zkopíruje soubor beze změny a se jménem, pod kterým ho uživatel vybral — to jméno TDLib pošle. */
-private fun prepareDocument(context: Context, uri: Uri): OutgoingAttachment.Document {
+internal fun prepareDocument(context: Context, uri: Uri): OutgoingAttachment.Document {
     val name = displayName(context, uri) ?: "soubor"
     val target = outgoingFile(context, name)
     requireNotNull(context.contentResolver.openInputStream(uri)).use { input ->

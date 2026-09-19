@@ -1,6 +1,8 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.core.navigation.ChatOpenRequests
+import eu.tintera.plume.core.share.ShareRequests
+import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionController
 import eu.tintera.plume.core.telegram.ConnectionRepository
@@ -27,6 +29,7 @@ import eu.tintera.plume.features.conversation.ConversationViewModel
 import eu.tintera.plume.features.conversation.StickerPickerViewModel
 import eu.tintera.plume.features.conversation.StickerSetViewModel
 import eu.tintera.plume.features.media.MediaViewerViewModel
+import eu.tintera.plume.features.share.ShareViewModel
 import eu.tintera.plume.features.settings.AppearanceViewModel
 import eu.tintera.plume.features.settings.SettingsViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -125,6 +128,10 @@ fun appModule() = module {
 
     // Most mezi platformním vstupem (ťuknutí na notifikaci) a navigací.
     single { ChatOpenRequests() }
+    single { ShareRequests() }
+    single {
+        ShareTargets(repository = get(), files = get(), publisher = get(), scope = get(named(APP_SCOPE)))
+    }
 
     viewModelOf(::AuthViewModel)
     viewModelOf(::ChatsViewModel)
@@ -149,9 +156,13 @@ fun appModule() = module {
             audioRecorder = get(),
             fileOpener = get(),
             sharer = get(),
+            shareRequests = get(),
+            shareTargets = get(),
             connection = get(),
         )
     }
+
+    viewModel { ShareViewModel(requests = get(), chatRepository = get()) }
 
     // Zprávy k přeposlání jdou z routy, takže runtime parametry — stejně jako chatId konverzace.
     viewModel { parameters ->
@@ -160,6 +171,7 @@ fun appModule() = module {
             messageIds = parameters.get(),
             repository = get(),
             chatRepository = get(),
+            shareTargets = get(),
         )
     }
 

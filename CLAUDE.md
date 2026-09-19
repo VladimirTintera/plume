@@ -2417,9 +2417,10 @@ a odložené rušení prázdné notifikace.
   společným kódem by všechny notifikace otevřely ten chat, který se zaregistroval první.
   `chatId.hashCode()` by nestačil: Long se do Intu nevejde bez ztráty a kolize dvou chatů by
   tiše otevřela ten cizí.
-- **`MainActivity` je `singleTop` a v `onNewIntent` volá `setIntent`.** Bez `singleTop` by se
+- **`MainActivity` je `singleTask` a v `onNewIntent` volá `setIntent`.** Bez toho by se
   activity skládala znovu a ztratila stav obrazovek; bez `setIntent` by `getIntent()` dál vracelo
-  ten intent, kterým se activity zakládala.
+  ten intent, kterým se activity zakládala. (Dřív `singleTop` — ten ale nestačí na sdílení, viz
+  „Sdílení do aplikace".)
 - **Extra se po vyřízení z intentu maže.** Po otočení displeje se `onCreate` spustí znovu nad týmž
   intentem a chat by se otevřel podruhé, i kdyby se uživatel mezitím proklikal jinam.
 - **`MessagingStyle` sám nestačí, notifikace potřebuje i kategorii a ticker.** Bez
@@ -2432,6 +2433,94 @@ a odložené rušení prázdné notifikace.
 - **`adb shell am force-stop` znemožní doručení FCM.** Aplikace se dostane do „stopped state"
   a zprávy jí systém nedoručí, dokud ji uživatel ručně nespustí. Push se tak testovat nedá —
   aplikaci je potřeba jen odswipovat z přehledu úloh.
+
+## Sdílení do aplikace
+
+Plume je v systémové nabídce „Sdílet" (Android): text, odkaz, jeden i víc souborů. Otevře se
+výběr chatu (`ShareRoute`), po výběru chat a obsah čeká nad vstupním polem — nic se neposílá
+samo, k souborům se píše popisek a uživatel vidí, co odejde.
+
+- **`MainActivity` je `singleTask`, ne `singleTop`.** Výběr z nabídky „Sdílet" spouští activity
+  v úloze VOLAJÍCÍ aplikace; se `singleTop` tak vznikla druhá instance Plume v úloze Fotek
+  — dvě okna Plume v přehledu, každé s vlastní navigací. `singleTask` doručí sdílení do
+  existující úlohy přes `onNewIntent` a zpět z kořene vrátí uživatele do aplikace, ze které
+  sdílel. Ověřeno `dumpsys activity activities`: jedna úloha Plume před sdílením i po něm.
+- **Soubory se kopírují HNED** (`ShareIntake`, stejná příprava jako výběr příloh — fotka se
+  zmenší, z videa se přečte náhled). Oprávnění k `content://` URI je dočasné; až uživatel vybere
+  chat, nemuselo by platit. Kopíruje se v `appScope`, ne v rozsahu aktivity.
+- **Požadavek je STAV** (`ShareRequests`), jako `ChatOpenRequests`: sdílet jde i do aplikace,
+  která neběží nebo visí na přihlášení. Výběr chatu se ukáže hned, soubory dobíhají
+  (`attachments == null` = „Připravuji soubory…") a konverzace si obsah vyzvedne, až je hotový.
+- **Fotky a videa jdou jako média, jen když jsou médii všechny.** Telegram fotky se soubory do
+  alba nesloží; smíšené sdílení (fotka + PDF) odejde celé jako soubory, ať se nic neztratí.
+- **Sdílený text rozepsaný koncept DOPLNÍ, nepřepíše**, a vkládá se až po obnovení konceptu
+  z TDLib (`draftRestored`) — koncept jde jen do prázdného pole, takže sdílení před ním by ho
+  vytlačilo.
+- **Odchod výběru bez volby chatu sdílení zahodí**, a to v `onDispose` obrazovky, ne na šipce.
+  Systémové gesto zpět jde přes `NavDisplay`, ne přes obrazovku; se zahazováním jen na šipce
+  zůstalo po gestu sdílení viset a výběr by se po obnově aktivity otevřel znovu. `abandon()`
+  nezahazuje obsah s vybraným chatem — i po výběru výběr odchází (nahradí ho konverzace).
+- **Otevřený výběr se při dalším sdílení NEvyměňuje** (`openShare`). Odebrat a vrátit by ho
+  zlikvidovalo a jeho `onDispose` by zahodil právě to nové sdílení.
+- **Direct Share (chaty přímo v nabídce „Sdílet") stojí na zkratkách konverzací**, týchž, které
+  zakládají notifikace (`conversationShortcut`). Podmínky jsou tři a chybějící se neprojeví
+  chybou, jen se nic neukáže: kategorie `SHARE_CATEGORY` u zkratky, `share-target` se stejnou
+  kategorií v `res/xml/shortcuts.xml` a `meta-data android.app.shortcuts` na `MainActivity`.
+- **Pořadí chatů si skládá systém** z toho, jak často a nedávno aplikace zkratku publikuje
+  (`pushDynamicShortcut` se počítá jako použití). Proto se hlásí KAŽDÉ odeslání i přeposlání
+  (`ShareTargets.reportUsed`, v rozsahu aplikace, název a profilovku si dohledá samo).
+  Zkratky z dřívějška kategorii nemají a do nabídky se dostanou až při příští notifikaci nebo
+  odeslání — ověřuje se `dumpsys shortcut` (`categories={…SHARE_TARGET}`).
+- **Sdílení přes zkratku nese `EXTRA_SHORTCUT_ID`** a výběr přeskočí: `ShareIntake` rovnou
+  `choose(chatId)` a otevře chat přes `ChatOpenRequests`.
+- **Chat bez fotky má ve zkratce iniciálu** (`initialIcon`), jinak ukazoval systém prázdné
+  kolečko — ve sdílení i ve velkém kruhu notifikace. Barvy ze systémové palety Material You
+  (`system_accent1_100/900`): zkratka se kreslí mimo aplikaci, téma aplikace tam není. Paleta je
+  od Androidu 12, na starším zůstane ikona prázdná.
+- **Seznam s hledáním je společný s přeposíláním** (`ChatPicker`).
+
+### iOS: rozšíření sdílení
+
+Na iOS je sdílení **rozšíření** (`iosApp/ShareExtension`, SwiftUI): list „Sdílet do" s chaty
+přímo v nabídce sdílení, jako Telegram nebo WhatsApp. Po výběru chatu rozšíření otevře Plume
+a obsah čeká nad vstupním polem, stejně jako na Androidu.
+
+- **Rozšíření je samostatný proces s vlastním limitem paměti; TDLib v něm neběží** a databázi
+  aplikace nevidí. Obě strany si předávají soubory přes kontejner App Group
+  (`group.eu.tintera.plume$(TEAM_ID)`, klíč `PlumeAppGroup` v Info.plist obou): aplikace píše
+  snímek chatů (`share/targets.json` + profilovky, `IosShareSnapshot`), rozšíření píše sdílení
+  (`share/inbox/<čas>-<uuid>/`, `manifest.json` POSLEDNÍ). Formát drží `ShareTargets.ios.kt`
+  a `ShareModels.swift` — **změna jedné strany musí jít i do druhé**.
+- **Snímek chatů se po odhlášení maže** (`holder.replaced`), i s nevyzvednutým inboxem —
+  rozšíření by jinak nabízelo chaty předchozího účtu. Nahoře jsou naposledy použité
+  (`ShareTargets.reportUsed`, obdoba Direct Share).
+- **Aplikace si inbox projde při každé aktivaci** (`IosShareInbox` nad `AppForeground`), ne
+  jen při otevření přes URL: kdyby otevření z rozšíření selhalo, sdílení počká na nejbližší
+  spuštění. Soubory se přesunou do `outgoing` a připraví stejně jako výběr příloh
+  (`preparePhotoData`, `prepareVideoAt`, `prepareDocument`); složka inboxu se hned maže,
+  kontejner App Group systém neuklízí.
+- **Otevřít aplikaci z rozšíření sdílení oficiálně nejde.** `UIApplication.shared` ani `open`
+  v rozšíření nejsou a **Xcode 27 u rozšíření vynucuje `APPLICATION_EXTENSION_API_ONLY = YES`**
+  (s `NO` build selže). `openURL:options:completionHandler:` se proto volá přes Objective-C
+  runtime na instanci `UIApplication` z řetězce responderů (`method(for:)` +
+  `@convention(c)`). Na iOS 26 v simulátoru funguje; URL schéma aplikace je `eu.tintera.plume`.
+- **Rozšíření fotky nezmenšuje** — limit paměti rozšíření je malý a zmenšení umí aplikace.
+- **Simulátor bere entitlementy ze sekce `__TEXT,__entitlements` binárky**, ne z podpisu
+  (ad-hoc, `codesign -d --entitlements` ukáže prázdný slovník). Ověření:
+  `otool -s __TEXT __entitlements <binárka>`. S `CODE_SIGNING_ALLOWED=NO` tam nejsou a kontejner
+  App Group neexistuje — pro zkoušení sdílení se staví s výchozím podepisováním. Kontejner:
+  `xcrun simctl get_app_container <zařízení> eu.tintera.plume groups`.
+- **Na zařízení musí App Group existovat v Apple Developer účtu.** Automatické podepisování
+  ho s vyplněným `TEAM_ID` založí samo; bez týmu se build na zařízení nepodepíše.
+- **Target rozšíření se do projektu přidával gemem `xcodeproj`** (`LANG=en_US.UTF-8`, jinak
+  spadne na diakritice v pbxproj). Projekt je ve formátu Xcode 16 se synchronizovanými
+  složkami; gem ho načte i uloží bez ztrát. Entitlementy aplikace jsou v `Configuration/`,
+  ne v synchronizované složce `iosApp/` — odtud by je Xcode kopíroval jako resource. Obojí je „vyber, kam s tím".
+- **Ověřování přes `am start` pozor na uvozovky**: `adb shell am start … --es … "dvě slova"`
+  rozdělí text na dva argumenty a z druhého slova udělá balíček. Celý příkaz patří do jedněch
+  uvozovek: `adb shell "am start … --es android.intent.extra.TEXT 'dvě slova' …"`. A hned po
+  `adb install` sdílení někdy spolkne systémové znovuspuštění aplikace (`PackageUpdateActivity`)
+  — zkoušet až s běžící aplikací.
 
 ## Odesílání a scrollování
 

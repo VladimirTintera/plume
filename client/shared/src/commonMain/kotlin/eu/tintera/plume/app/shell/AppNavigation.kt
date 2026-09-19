@@ -17,6 +17,7 @@ import eu.tintera.plume.core.navigation.NavSavedStateConfiguration
 import eu.tintera.plume.core.navigation.SettingsRoute
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.navigation.SettingsSectionRoute
+import eu.tintera.plume.core.navigation.ShareRoute
 import eu.tintera.plume.core.navigation.TopLevelRoute
 
 /**
@@ -80,6 +81,19 @@ class AppNavigation internal constructor(
         selected.value = ChatsRoute
         popToRoot(ChatsRoute)
         stack(ChatsRoute).add(ConversationRoute(chatId))
+    }
+
+    /**
+     * Sdílení ze systému: výběr chatu nad srovnaným zásobníkem Chatů, stejně jako [openChat].
+     * Vybraný chat pak výběr nahradí a zpět z něj vede na seznam.
+     */
+    fun openShare() {
+        selected.value = ChatsRoute
+        // Výběr už otevřený zůstává a nový obsah se do něj jen propíše. Odebrat a vrátit by ho
+        // zlikvidovalo — a odchod výběru sdílení zahazuje, takže by zahodil právě to nové.
+        if (stack(ChatsRoute).lastOrNull() == ShareRoute) return
+        popToRoot(ChatsRoute)
+        stack(ChatsRoute).add(ShareRoute)
     }
 
     /**

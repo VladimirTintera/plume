@@ -15,11 +15,12 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.notifications.NotificationIntents
+import eu.tintera.plume.core.share.conversationShortcut
+import eu.tintera.plume.core.share.pushConversationShortcut
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notification_channel_description
 import eu.tintera.plume.resources.notification_channel_name
@@ -406,29 +407,14 @@ actual class NotificationPresenter(
      * takže se tu nic nepočítá.
      */
     private fun publishShortcut(conversation: Conversation): String? {
-        val intent = NotificationIntents.chatIntent(context, conversation.chatId) ?: return null
-        val id = SHORTCUT_PREFIX + conversation.chatId
-
-        val person = Person.Builder()
-            .setName(conversation.title)
-            .setKey(id)
-            .setIcon(avatarIcon(conversation.avatarPath))
-            .build()
-
-        val shortcut = ShortcutInfoCompat.Builder(context, id)
-            .setLongLived(true)
-            .setShortLabel(conversation.title)
-            .setIntent(intent)
-            .setPerson(person)
-            .apply { avatarIcon(conversation.avatarPath)?.let { setIcon(it) } }
-            .build()
-
-        // Chybu polyká schválně: notifikace bez zkratky je pořád lepší než žádná notifikace.
-        val pushed = runCatching { ShortcutManagerCompat.pushDynamicShortcut(context, shortcut) }
-            .onFailure { logger.w(it) { "Zkratku konverzace se nepodařilo publikovat." } }
-            .getOrDefault(false)
-
-        return id.takeIf { pushed }
+        // Tatáž zkratka slouží i sdílení (Direct Share), viz `conversationShortcut`.
+        val shortcut = conversationShortcut(
+            context = context,
+            chatId = conversation.chatId,
+            title = conversation.title,
+            photo = avatarIcon(conversation.avatarPath),
+        ) ?: return null
+        return shortcut.id.takeIf { pushConversationShortcut(context, shortcut) }
     }
 
     /** Profilovka jako ikona řádku v notifikaci. */
@@ -503,6 +489,5 @@ actual class NotificationPresenter(
         const val EMPTY_CANCEL_DELAY_MS = 1_000L
 
         /** Prefix id zkratky konverzace. Musí být stabilní, aby se zkratka přepisovala, ne množila. */
-        const val SHORTCUT_PREFIX = "chat_"
     }
 }

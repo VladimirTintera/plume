@@ -183,6 +183,15 @@ private suspend fun preparePhoto(result: PHPickerResult): OutgoingAttachment.Pho
         }
     }
 
+    return preparePhotoData(data)
+}
+
+/**
+ * Fotka z dat obrázku — z výběru i ze sdílení (rozšíření předá soubor, viz `IosShareInbox`).
+ * Zmenší se a uloží jako JPEG, viz [preparePhoto].
+ */
+@OptIn(ExperimentalForeignApi::class)
+internal fun preparePhotoData(data: NSData): OutgoingAttachment.Photo {
     val image = UIImage.imageWithData(data) ?: error("Obrázek nejde dekódovat.")
     // `size` je v bodech a už po započtení orientace; skutečné pixely jsou body × scale.
     val (sourceWidth, sourceHeight) = image.size.useContents { width * image.scale to height * image.scale }
@@ -232,6 +241,15 @@ private suspend fun prepareVideo(result: PHPickerResult): OutgoingAttachment.Vid
         }
     }
 
+    return prepareVideoAt(original)
+}
+
+/**
+ * Video, které už leží u nás ([original], v `outgoing`): přebalí se do MP4 a přečtou se z něj
+ * rozměry, délka a první snímek. Z výběru i ze sdílení.
+ */
+@OptIn(ExperimentalForeignApi::class)
+internal suspend fun prepareVideoAt(original: String): OutgoingAttachment.Video {
     val exported = exportMp4(original)
     val path = exported ?: original
     val asset = AVURLAsset(uRL = NSURL.fileURLWithPath(path), options = null)
@@ -304,7 +322,7 @@ private fun directoryOf(path: String): String = path.substringBeforeLast('/')
  * Proto se přesune k nám, se stejným jménem — to jméno TDLib pošle.
  */
 @OptIn(ExperimentalForeignApi::class)
-private fun prepareDocument(url: NSURL): OutgoingAttachment.Document {
+internal fun prepareDocument(url: NSURL): OutgoingAttachment.Document {
     val name = url.lastPathComponent?.takeIf { it.isNotBlank() } ?: "soubor"
     val path = outgoingPath(name)
     val copied = NSFileManager.defaultManager.copyItemAtURL(url, toURL = NSURL.fileURLWithPath(path), error = null)
@@ -314,7 +332,7 @@ private fun prepareDocument(url: NSURL): OutgoingAttachment.Document {
 
 /** Cesta v dočasném adresáři aplikace, každá příloha ve vlastním podadresáři (jména se nepřepíšou). */
 @OptIn(ExperimentalForeignApi::class)
-private fun outgoingPath(name: String): String {
+internal fun outgoingPath(name: String): String {
     val directory = NSTemporaryDirectory() + OUTGOING_DIRECTORY + "/" + NSUUID().UUIDString
     NSFileManager.defaultManager.createDirectoryAtPath(
         directory,
