@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.animation.core.AnimationSpec
 import eu.tintera.plume.resources.conversation_search
 import eu.tintera.plume.resources.search_24dp
 import androidx.navigationevent.compose.rememberNavigationEventState
@@ -462,6 +464,7 @@ fun ConversationScreen(
      * Zprávu hledáme podle id, ne podle indexu — než efekt doběhne, může seznam narůst o novou
      * zprávu a index by ukazoval jinam.
      */
+    val jumpSpec = MaterialTheme.motionScheme.slowSpatialSpec<Float>()
     LaunchedEffect(state.scrollTarget) {
         val target = state.scrollTarget ?: return@LaunchedEffect
         // Hledá se BLOK, ne zpráva: fotka z alba je v seznamu součástí jedné položky.
@@ -471,7 +474,15 @@ fun ConversationScreen(
         if (index >= 0 && target.anchor == ScrollAnchor.Top) {
             while (items.getOrNull(index + 1).let { it is UnreadDividerItem || it is DayDividerItem }) index++
         }
-        if (index >= 0) listState.scrollToAnchor(index, target.anchor)
+        // Na citaci a mezi výsledky hledání se DOJÍŽDÍ (viz `animateToAnchor`); první
+        // nepřečtená při otevření chatu a návrat dolů skočí hned.
+        if (index >= 0) {
+            if (target.anchor == ScrollAnchor.Center) {
+                listState.animateToAnchor(index, target.anchor, jumpSpec)
+            } else {
+                listState.scrollToAnchor(index, target.anchor)
+            }
+        }
         viewModel.consumeScrollTarget()
     }
 
@@ -1558,6 +1569,57 @@ private suspend fun LazyListState.scrollToAnchor(index: Int, anchor: ScrollAncho
     }.coerceAtLeast(0)
     scrollBy((item.offset - desired).toFloat())
 }
+
+/**
+ * Jako [scrollToAnchor], ale seznam k položce DOJEDE — u skoku na citaci a mezi výsledky
+ * hledání je jinak vidět jen okamžité přeskočení a ztratí se, kterým směrem a jak daleko zpráva je.
+ *
+ * Položka mimo obrazovku nemá změřenou polohu, takže se napřed dojede na odhad z průměrné výšky
+ * viditelných položek a teprve pak se poloha doladí podle skutečného layoutu. Daleko
+ * ([MAX_ANIMATED_JUMP_ITEMS]) se nedojíždí: rolování přes desítky zpráv by trvalo a nic by
+ * neukázalo, a navíc by skládalo všechno mezi.
+ */
+private suspend fun LazyListState.animateToAnchor(index: Int, anchor: ScrollAnchor, spec: AnimationSpec<Float>) {
+    val info = layoutInfo
+    val visible = info.visibleItemsInfo
+    if (visible.isEmpty()) return scrollToAnchor(index, anchor)
+    val first = visible.first()
+    val last = visible.last()
+    val distance = when {
+        index < first.index -> first.index - index
+        index > last.index -> index - last.index
+        else -> 0
+    }
+    if (distance > MAX_ANIMATED_JUMP_ITEMS) return scrollToAnchor(index, anchor)
+
+    val visibleHeight = info.viewportEndOffset - info.afterContentPadding
+    fun desired(size: Int) = when (anchor) {
+        ScrollAnchor.Top -> visibleHeight - size
+        ScrollAnchor.Center -> (visibleHeight - size) / 2
+        ScrollAnchor.Bottom -> 0
+    }.coerceAtLeast(0)
+
+    val item = visible.firstOrNull { it.index == index }
+    if (item == null) {
+        // Odhad polohy: průměrná položka krát počet položek k cíli. Offset roste od spodní hrany
+        // nahoru (obrácený seznam), vyšší index je výš.
+        val average = visible.sumOf { it.size } / visible.size
+        val estimatedOffset = if (index > last.index) {
+            last.offset + last.size + (distance - 1) * average
+        } else {
+            first.offset - distance * average
+        }
+        animateScrollBy((estimatedOffset - desired(average)).toFloat(), spec)
+    }
+    // Doladění podle skutečného layoutu; odhad se mohl minout, nebo cíl vůbec není vidět.
+    val landed = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+        ?: return scrollToAnchor(index, anchor)
+    val correction = (landed.offset - desired(landed.size)).toFloat()
+    if (correction != 0f) animateScrollBy(correction, spec)
+}
+
+/** Nejvýš o tolik položek se na citaci / výsledek hledání dojíždí; dál se skočí. */
+private const val MAX_ANIMATED_JUMP_ITEMS = 40
 
 /**
  * [ConversationItemScope] nad ViewModelem obrazovky.

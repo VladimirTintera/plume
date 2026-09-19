@@ -1314,6 +1314,12 @@ se ukáže i bez nových zpráv, jakmile je uživatel o kus výš.
 
 - **Načtená zpráva = okamžitý skok, jinak okno kolem ní** (`loadAround`, viz „Okno v historii").
   Skočit jde libovolně hluboko — citace na zprávu starou roky i výsledek hledání.
+- **Na citaci a mezi výsledky hledání se DOJÍŽDÍ** (`animateToAnchor`, `slowSpatialSpec`),
+  skok na první nepřečtenou a návrat dolů zůstávají okamžité. Okamžitý skok neukázal, kterým
+  směrem a jak daleko zpráva je. Položka mimo obrazovku nemá změřenou polohu: dojede se na odhad
+  z průměrné výšky viditelných položek a pak se doladí podle skutečného layoutu. Dál než
+  `MAX_ANIMATED_JUMP_ITEMS` (40 položek) a po výměně okna se skáče — rolování přes desítky
+  zpráv by trvalo a skládalo by všechno mezi.
 - **Zpráva, kterou okno neobsahuje, byla smazaná** — hláška „už není k dispozici" (u citace
   i u výsledku hledání vlastní věta). „Moc hluboko" už nenastane.
 
