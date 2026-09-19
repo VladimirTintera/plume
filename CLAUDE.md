@@ -1055,7 +1055,8 @@ v `items/LinkPreviewMessageItem.kt`.
   proto, že v kompaktní kartě nic se `SubcomposeLayout` není — velký obrázek (`BoxWithConstraints`)
   má vlastní větev se šířkou z `photoFrame`.
 - **Zvýrazněná příchozí zpráva přejde do `tertiaryContainer`** — stejné barvy jako popis. Popis
-  proto ztmavne o kus k `tertiary` (`EMPHASIZED_INFO_SHIFT`), jinak by obě části splynuly.
+  (i citace nad odpovědí) proto ztmavne o kus k `tertiary` (`insetContainerColor`), jinak by
+  obě části splynuly.
 - **U zprávy s citací nebo přílohou zůstává náhled v bublině** (`LinkPreviewCard`), a to jako
   tónovaný kontejner stejný jako citace (`QUOTE_CONTAINER_ALPHA`, `QUOTE_CORNER`), ne proužek.
 
@@ -1606,11 +1607,16 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   Dlouhé zprávy obou stran šly přes celou šířku a strany se poznaly jen barvou. Obrázky a karty
   si šířku určují samy; kopie zprávy v nabídce má šířku napevno.
 - **Odesílatel ve skupině má stálou barvu** (`senderColor` v `core/ui`, testy `SenderColorTest`):
-  jméno nad zprávou a proužek citace. Osm odstínů rovnoměrně po kruhu od odstínu `primary`,
+  jméno nad zprávou a jméno v citaci. Osm odstínů rovnoměrně po kruhu od odstínu `primary`,
   HCT tón 40 / 80 podle režimu — kontrast i soulad s Material You, žádná barva natvrdo.
-  V odchozí `primary` bublině si citace akcent bubliny nechává.
-- **Citace je tónovaný kontejner** (akcent s průhledností 0,14), bez proužku — plocha ji vyčlení
-  sama. Dřív to byl holý proužek s textem. Plocha je z akcentu, ne z role — v odchozí bublině je akcentem barva popředí.
+- **Odpověď je karta ze dvou částí, jako náhled odkazu**: nahoře citace v tónované ploše
+  (`insetContainerColor`, `tertiaryContainer`), pod ní odpověď v barvě bubliny
+  (`QuotedBubble` v `BubbleMessageItem.kt`). Dřív byla citace subkartička uvnitř bubliny —
+  zaoblená plocha v ploše, dvě vnořené karty. Jméno citovaného nese ve skupině jeho barvu,
+  jinak `tertiary`. Citace nad vstupním polem zůstává tónovaným kontejnerem (`contained`).
+- **Karta odpovědi je vlastní `Layout`, ne `IntrinsicSize`**: pod citací může být fotka
+  nebo album v `BoxWithConstraints`. Citace se změří v přirozené šířce, obsah dostane aspoň
+  tu šířku jako minimum a plochy kreslí karta sama za obsahem (`drawBehind`).
 - **Nároží bublin se animují** (spatial spec), jako skupiny v seznamu chatů. Pružina přestřelí,
   takže se ořezávají na nulu — záporné zaoblení `RoundedCornerShape` odmítne.
 - **Nová zpráva pružně naskočí** z měřítka 0,85 od strany odesílatele (`arrival`). Jen jednou

@@ -2,7 +2,6 @@ package eu.tintera.plume.features.conversation.items
 
 import eu.tintera.plume.features.conversation.showsLargePhoto
 import eu.tintera.plume.core.telegram.MessageMedia
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -46,8 +45,7 @@ import eu.tintera.plume.features.conversation.photoFrame
  *   právě barvou (`primary`) — v jiné roli by se strany rozlišovaly jen zarovnáním.
  * - **Popis webu je `tertiaryContainer`**, na obou stranách. Je to cizí vložený obsah, takže se
  *   od textu zprávy musí lišit; terciární role je v M3 na doplňkové prvky a nesplyne s žádnou
- *   z barev bublin. Výjimka je zvýrazněná příchozí zpráva: ta sama přejde do `tertiaryContainer`,
- *   takže popis ztmavne o kus k `tertiary`, jinak by obě části splynuly.
+ *   z barev bublin; zvýrazněná příchozí zpráva viz [insetContainerColor].
  * - **Šířka.** S velkým obrázkem ji určuje obrázek ([photoFrame]); bez něj obsah, nejvýš jako
  *   textová bublina, a obě části mají stejnou šířku (`IntrinsicSize.Max` — uvnitř není nic se
  *   `SubcomposeLayout`, viz „Gotchas").
@@ -120,13 +118,8 @@ internal data class LinkPreviewMessageItem(
         val hasInfo = preview.siteName != null || preview.title != null || preview.description != null
         if (!hasInfo && thumbnail == null) return
         val colors = MaterialTheme.colorScheme
-        val background = if (frame.emphasized && !message.isOutgoing) {
-            lerp(colors.tertiaryContainer, colors.tertiary, EMPHASIZED_INFO_SHIFT)
-        } else {
-            colors.tertiaryContainer
-        }
         Surface(
-            color = background,
+            color = insetContainerColor(),
             contentColor = colors.onTertiaryContainer,
             modifier = Modifier.fillMaxWidth().then(openLink()),
         ) {
@@ -158,9 +151,6 @@ internal data class LinkPreviewMessageItem(
         onLongClick = ::requestMenu,
     )
 }
-
-/** O kolik popis zvýrazněné příchozí zprávy ztmavne k `tertiary`, aby nesplynul s textem nad ním. */
-private const val EMPHASIZED_INFO_SHIFT = 0.22f
 
 /**
  * Web, titulek a popis. Název webu nese akcent té plochy, na které leží (`tertiary` na

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
@@ -55,7 +56,24 @@ internal fun QuotedMessage(
      * by nad citací nešla otevřít nabídka. Stejná past jako u fotky.
      */
     onLongClick: (() -> Unit)? = null,
+    /**
+     * `false` = citace je horní částí karty zprávy (viz `QuotedBubble`): bez vlastní plochy
+     * a zaoblení, s odsazením bubliny a v přirozené šířce — plochu i šířku řeší karta.
+     */
+    contained: Boolean = true,
 ) {
+    val clickable = if (onClick != null) {
+        Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+    } else {
+        Modifier
+    }
+    if (!contained) {
+        Column(modifier.then(clickable).padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 8.dp)) {
+            QuoteLines(message, partnerName, accent)
+        }
+        return
+    }
+
     /*
      * Citace je TÓNOVANÝ KONTEJNER: zaoblená plocha v odstínu akcentu. Dřív to byl jen proužek
      * s textem, který v bublině splýval s odpovědí pod ním; plocha citaci vyčlení sama, takže
@@ -70,15 +88,17 @@ internal fun QuotedMessage(
             .padding(bottom = 6.dp)
             .clip(quoteShape)
             .background(accent.copy(alpha = QUOTE_CONTAINER_ALPHA))
-            .then(
-                if (onClick != null) {
-                    Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
-                } else {
-                    Modifier
-                },
-            )
+            .then(clickable)
     ) {
         Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+            QuoteLines(message, partnerName, accent)
+        }
+    }
+}
+
+/** Kdo a co: jméno v barvě [accent], pod ním nejvýš dva řádky textu (nebo popis přílohy). */
+@Composable
+private fun QuoteLines(message: ChatMessage, partnerName: String?, accent: Color) {
             Text(
                 text = when {
                     message.isOutgoing -> stringResource(Res.string.sender_you)
@@ -98,9 +118,27 @@ internal fun QuotedMessage(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-        }
+}
+
+/**
+ * Plocha vloženého obsahu v kartě zprávy — citace nahoře, popis webu u náhledu odkazu dole.
+ * `tertiaryContainer` na obou stranách: je to cizí obsah, takže se od textu zprávy musí lišit,
+ * a terciární role nesplyne s žádnou z barev bublin.
+ *
+ * Zvýrazněná příchozí zpráva (skok, hledání) ale sama přejde do `tertiaryContainer` — plocha pak
+ * ztmavne o kus k `tertiary`, jinak by obě části karty splynuly.
+ */
+@Composable
+internal fun MessageBodyScope.insetContainerColor(): Color {
+    val colors = MaterialTheme.colorScheme
+    return if (frame.emphasized && !message.isOutgoing) {
+        lerp(colors.tertiaryContainer, colors.tertiary, EMPHASIZED_INSET_SHIFT)
+    } else {
+        colors.tertiaryContainer
     }
 }
+
+private const val EMPHASIZED_INSET_SHIFT = 0.22f
 
 @Composable
 internal fun MessageMedia?.describe(): String = when (this) {
