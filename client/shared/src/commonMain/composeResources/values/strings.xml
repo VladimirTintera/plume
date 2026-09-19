@@ -142,6 +142,9 @@
     <string name="activity_choosing_sticker">choosing a sticker…</string>
     <string name="activity_other">up to something…</string>
     <string name="conversation_empty">No messages here yet.</string>
+    <string name="conversation_pinned_message">Pinned message</string>
+    <string name="conversation_pinned_message_numbered">Pinned message #%1$d</string>
+    <string name="conversation_all_pinned">All pinned messages</string>
     <string name="conversation_unpinned">Message unpinned</string>
     <string name="conversation_undo">Undo</string>
     <string name="conversation_cancel_reply">Cancel the reply</string>
@@ -151,7 +154,6 @@
     <string name="conversation_record_voice">Record a voice message</string>
     <string name="conversation_send_voice">Send the voice message</string>
     <string name="conversation_send">Send</string>
-    <string name="conversation_collapse">Collapse</string>
     <string name="conversation_attach">Attach</string>
     <string name="conversation_editing">Editing a message</string>
     <string name="conversation_cancel_edit">Cancel the edit</string>
@@ -365,9 +367,9 @@
         <item quantity="one">%1$d new message</item>
         <item quantity="other">%1$d new messages</item>
     </plurals>
-    <plurals name="conversation_show_all_pinned">
-        <item quantity="one">Show all (%1$d)</item>
-        <item quantity="other">Show all (%1$d)</item>
+    <plurals name="conversation_pinned_count">
+        <item quantity="one">%1$d pinned message</item>
+        <item quantity="other">%1$d pinned messages</item>
     </plurals>
     <plurals name="stickers_count">
         <item quantity="one">%1$d sticker</item>

@@ -142,6 +142,9 @@
     <string name="activity_choosing_sticker">vybírá samolepku…</string>
     <string name="activity_other">něco chystá…</string>
     <string name="conversation_empty">Zatím tu nejsou žádné zprávy.</string>
+    <string name="conversation_pinned_message">Připnutá zpráva</string>
+    <string name="conversation_pinned_message_numbered">Připnutá zpráva č. %1$d</string>
+    <string name="conversation_all_pinned">Všechny připnuté zprávy</string>
     <string name="conversation_unpinned">Zpráva odepnuta</string>
     <string name="conversation_undo">Vrátit</string>
     <string name="conversation_cancel_reply">Zrušit odpověď</string>
@@ -151,7 +154,6 @@
     <string name="conversation_record_voice">Nahrát hlasovou zprávu</string>
     <string name="conversation_send_voice">Odeslat hlasovou zprávu</string>
     <string name="conversation_send">Odeslat</string>
-    <string name="conversation_collapse">Sbalit</string>
     <string name="conversation_attach">Přiložit</string>
     <string name="conversation_editing">Úprava zprávy</string>
     <string name="conversation_cancel_edit">Zrušit úpravu</string>
@@ -366,10 +368,10 @@
         <item quantity="few">%1$d nové zprávy</item>
         <item quantity="other">%1$d nových zpráv</item>
     </plurals>
-    <plurals name="conversation_show_all_pinned">
-        <item quantity="one">Zobrazit všechny (%1$d)</item>
-        <item quantity="few">Zobrazit všechny (%1$d)</item>
-        <item quantity="other">Zobrazit všechny (%1$d)</item>
+    <plurals name="conversation_pinned_count">
+        <item quantity="one">%1$d připnutá zpráva</item>
+        <item quantity="few">%1$d připnuté zprávy</item>
+        <item quantity="other">%1$d připnutých zpráv</item>
     </plurals>
     <plurals name="stickers_count">
         <item quantity="one">%1$d samolepka</item>
