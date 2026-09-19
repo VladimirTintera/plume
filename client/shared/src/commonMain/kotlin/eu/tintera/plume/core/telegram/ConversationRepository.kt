@@ -247,6 +247,12 @@ interface ConversationRepository {
     suspend fun saveDraft(chatId: Long, text: String, replyToMessageId: Long?): Result<Unit>
 
     /**
+     * Zprávy s [query] v tomhle chatu, od nejnovější. Další stránka od [fromMessageId]
+     * z předchozí ([ChatSearchPage.nextFromMessageId]); nula je první stránka.
+     */
+    suspend fun searchInChat(chatId: Long, query: String, fromMessageId: Long = 0): Result<ChatSearchPage>
+
+    /**
      * Sponzorované zprávy pro daný chat. Mimo kanály vrací prázdný seznam.
      *
      * Zobrazení je podle Telegram ToS **povinné** — výsledek se nesmí filtrovat ani skrývat.
@@ -326,6 +332,16 @@ sealed interface OutgoingAttachment {
 
 /** Náhled přílohy připravený na disku (JPEG). */
 data class OutgoingThumbnail(val path: String, val width: Int, val height: Int)
+
+/**
+ * Stránka výsledků hledání v chatu. Stačí id — zprávu samotnou načte skok na ni.
+ * [total] je odhad serveru (`null`, když ho neví), [nextFromMessageId] `null` = další nejsou.
+ */
+data class ChatSearchPage(
+    val messageIds: List<Long>,
+    val total: Int?,
+    val nextFromMessageId: Long?,
+)
 
 /** Hlavička konverzace. */
 data class ChatInfo(

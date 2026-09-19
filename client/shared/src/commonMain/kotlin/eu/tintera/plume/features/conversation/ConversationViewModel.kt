@@ -58,6 +58,7 @@ import eu.tintera.plume.resources.conversation_history_failed
 import eu.tintera.plume.resources.conversation_pin_failed
 import eu.tintera.plume.resources.conversation_join_failed
 import eu.tintera.plume.resources.conversation_mention_not_found
+import eu.tintera.plume.resources.conversation_search_failed
 import eu.tintera.plume.resources.conversation_message_deleted
 import eu.tintera.plume.resources.conversation_quote_deleted
 import eu.tintera.plume.resources.conversation_reaction_failed
@@ -382,6 +383,84 @@ class ConversationViewModel(
                     }
                 }
         }
+    }
+
+    /** Běžící hledání v chatu (dotaz s pauzou, dotažení stránky); nový dotaz ho ruší. */
+    private var searchJob: Job? = null
+
+    /** Lupa v hlavičce: hledání v chatu. */
+    fun openSearch() {
+        if (_state.value.search == null) _state.update { it.copy(search = InChatSearch()) }
+    }
+
+    fun closeSearch() {
+        searchJob?.cancel()
+        _state.update { it.copy(search = null) }
+    }
+
+    /**
+     * Dotaz v hledání. Hledá se po krátké pauze v psaní a rovnou se skočí na nejnovější
+     * výsledek — kdo hledá, chce vidět, kde to je, ne seznam.
+     */
+    fun onSearchQuery(text: String) {
+        _state.update { state -> state.search?.let { state.copy(search = it.copy(query = text)) } ?: state }
+        searchJob?.cancel()
+        val query = text.trim()
+        if (query.isEmpty()) {
+            _state.update { state -> state.search?.let { state.copy(search = InChatSearch(query = text)) } ?: state }
+            return
+        }
+        searchJob = viewModelScope.launch {
+            delay(SEARCH_DEBOUNCE_MS)
+            _state.update { state -> state.search?.let { state.copy(search = it.copy(loading = true)) } ?: state }
+            repository.searchInChat(chatId, query)
+                .onSuccess { page ->
+                    _state.update { state ->
+                        state.search?.let { state.copy(search = it.withFirstPage(query, page)) } ?: state
+                    }
+                    _state.value.search?.current?.let { jumpToMessage(it, fromSearch = true) }
+                }
+                .onFailure { failure ->
+                    val message = failure.reported(Res.string.conversation_search_failed)
+                    _state.update { state ->
+                        state.copy(error = message, search = state.search?.copy(loading = false))
+                    }
+                }
+        }
+    }
+
+    /** Šipka nahoru: starší výsledek. Na konci načtených se dotáhne další stránka. */
+    fun searchOlder() {
+        val search = _state.value.search ?: return
+        search.older()?.let { moved ->
+            _state.update { it.copy(search = moved) }
+            moved.current?.let { jumpToMessage(it, fromSearch = true) }
+            return
+        }
+        val from = search.nextFromMessageId ?: return
+        if (search.loading) return
+        searchJob = viewModelScope.launch {
+            _state.update { state -> state.search?.let { state.copy(search = it.copy(loading = true)) } ?: state }
+            repository.searchInChat(chatId, search.resultsQuery, fromMessageId = from)
+                .onSuccess { page ->
+                    _state.update { state ->
+                        val loaded = state.search?.withNextPage(search.resultsQuery, page)
+                        state.copy(search = loaded?.older() ?: loaded)
+                    }
+                    _state.value.search?.current?.takeIf { it != search.current }?.let { jumpToMessage(it, fromSearch = true) }
+                }
+                .onFailure { failure ->
+                    val message = failure.reported(Res.string.conversation_search_failed)
+                    _state.update { state -> state.copy(error = message, search = state.search?.copy(loading = false)) }
+                }
+        }
+    }
+
+    /** Šipka dolů: novější výsledek. */
+    fun searchNewer() {
+        val moved = _state.value.search?.newer() ?: return
+        _state.update { it.copy(search = moved) }
+        moved.current?.let { jumpToMessage(it, fromSearch = true) }
     }
 
     /**
@@ -1837,6 +1916,9 @@ private const val MAX_UNREAD_PAGES = 5
  */
 private const val PAGE_SIZE = 30
 
+/** Pauza v psaní, po které se v chatu hledá. Každý dotaz jde na server. */
+private const val SEARCH_DEBOUNCE_MS = 300L
+
 /** Jak dlouho zůstane zpráva po skoku zvýrazněná. */
 private const val HIGHLIGHT_DURATION_MS = 1500L
 
@@ -2027,6 +2109,8 @@ data class ConversationState(
     val editing: ChatMessage? = null,
     /** Zpráva krátce zvýrazněná po skoku na citaci; `null` většinu času. */
     val highlightedMessageId: Long? = null,
+    /** Hledání v chatu; `null` = zavřené (hlavička ukazuje chat, dole je vstupní pole). */
+    val search: InChatSearch? = null,
     /** Jednorázová událost: otevřít chat ze zmínky v textu. */
     val openChat: Long? = null,
     /** Běží přidání ke skupině / kanálu ([ConversationViewModel.join]). */

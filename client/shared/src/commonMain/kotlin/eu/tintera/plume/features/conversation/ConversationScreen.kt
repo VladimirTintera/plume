@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.conversation_search
+import eu.tintera.plume.resources.search_24dp
+import androidx.navigationevent.compose.rememberNavigationEventState
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.NavigationEventInfo
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.Button
 import eu.tintera.plume.resources.conversation_join
@@ -593,6 +598,14 @@ fun ConversationScreen(
     // Scaffold je zároveň to, co její závoj rozostří (`hazeSource`).
     val hazeState = rememberHazeState()
     Box(modifier) {
+    // Zpět hledání zavře, z chatu se odchází až dalším. `NavigationBackHandler`, ne
+    // `BackHandler` — ten by zabil predictive back.
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = state.search != null,
+        onBackCompleted = viewModel::closeSearch,
+    )
+
     Scaffold(
         modifier = Modifier.fillMaxSize().hazeSource(hazeState),
         /*
@@ -604,7 +617,15 @@ fun ConversationScreen(
          */
         contentWindowInsets = ScaffoldDefaults.contentWindowInsets
             .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
-        topBar = {
+        topBar = topBar@{
+            state.search?.let { search ->
+                InChatSearchTopBar(
+                    initialQuery = search.query,
+                    onQueryChange = viewModel::onSearchQuery,
+                    onClose = viewModel::closeSearch,
+                )
+                return@topBar
+            }
             TopAppBar(
                 title = {
                     Row(
@@ -683,6 +704,14 @@ fun ConversationScreen(
                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                     }
                 },
+                actions = {
+                    IconButton(onClick = viewModel::openSearch) {
+                        Icon(
+                            painterResource(Res.drawable.search_24dp),
+                            contentDescription = stringResource(Res.string.conversation_search),
+                        )
+                    }
+                },
             )
         },
         /*
@@ -697,6 +726,15 @@ fun ConversationScreen(
         bottomBar = {
             // Horní hrana pole je spodní mez pro nabídku nad zprávou (viz `contentBottom`).
             Box(Modifier.onGloballyPositioned { contentBottom.value = it.boundsInWindow().top }) {
+            // Při hledání patří spodek šipkám mezi výsledky; rozepsaný text zůstává v konceptu.
+            state.search?.let { search ->
+                InChatSearchNavigator(
+                    search = search,
+                    onOlder = viewModel::searchOlder,
+                    onNewer = viewModel::searchNewer,
+                )
+                return@Box
+            }
             if (state.info?.canJoin == true) {
                 JoinBar(joining = state.joining, onJoin = viewModel::join)
                 return@Box

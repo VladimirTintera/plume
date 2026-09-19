@@ -13,7 +13,7 @@ přeposílání, připnuté zprávy), prohlížeč médií s fotkami i videem, r
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
 Není: notifikace na iOS ani hlášení pádů z iOS; obrazovky profilu chatu a nové konverzace.
-Hledání umí chaty, veřejné chaty a zprávy napříč chaty, ne zatím uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné a Vzhled; vědomě nastavitelné je zatím
+Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné a Vzhled; vědomě nastavitelné je zatím
 téma aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
 Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
@@ -1316,6 +1316,31 @@ se ukáže i bez nových zpráv, jakmile je uživatel o kus výš.
   Skočit jde libovolně hluboko — citace na zprávu starou roky i výsledek hledání.
 - **Zpráva, kterou okno neobsahuje, byla smazaná** — hláška „už není k dispozici" (u citace
   i u výsledku hledání vlastní věta). „Moc hluboko" už nenastane.
+
+### Hledání v konverzaci
+
+Lupa v hlavičce chatu přepne hlavičku na pole a místo vstupního pole ukáže řádek „N z M" se
+šipkami (`InChatSearchTopBar`, `InChatSearchNavigator`). Stav je `ConversationState.search`
+(`InChatSearch`, čistá data a přechody, testy `InChatSearchTest`); `null` = zavřené.
+
+- **`searchChatMessages`, stránkované `nextFromMessageId`** (po 50). Další stránka se dotahuje,
+  až k ní uživatel došipkuje — u „google" má dlouhý chat přes 1 600 výsledků.
+- **Každý výsledek je skok přes `jumpToMessage`**, tedy i okno v historii (viz „Okno
+  v historii"). Výsledek starý roky se tím otevře stejně rychle jako včerejší.
+- **Šipka nahoru = starší**, protože tak výsledky leží v konverzaci nad sebou; pozice 1 je
+  nejnovější. Tak to dělá i oficiální klient.
+- **Počet je odhad serveru, ale nikdy menší než načtené** (`count`). Server u hledání vrací
+  `totalCount` přibližně; `-1` = neví.
+- **Dotaz s pauzou 300 ms a rušením předchozího** (`searchJob`). Stránka pro starý dotaz se
+  zahodí (`withNextPage` porovná `resultsQuery`).
+- **„Nic nenalezeno" jen k dotazu, na který server odpověděl** (`nothingFound` porovnává
+  `resultsQuery` s oříznutým `query`) — během psaní dalšího znaku by jinak problikávalo.
+- **Text drží pole samo** (`rememberSaveable`), ne stav ViewModelu: hodnota vrácená přes
+  `StateFlow` o dispatch později by poskakovala kurzorem.
+- **Zpět zavírá hledání** (`NavigationBackHandler` povolený jen s otevřeným hledáním), teprve
+  další zpět odchází z chatu. Konverzace zůstane na posledním výsledku.
+- **Hledané slovo se v bublině zatím nezvýrazňuje**, ukázaná zpráva jen pulzne jako po skoku
+  na citaci.
 
 ### Okno v historii
 

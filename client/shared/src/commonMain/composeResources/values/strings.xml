@@ -135,6 +135,14 @@
     <string name="conversation_history_failed">Couldn't load the history.</string>
     <string name="conversation_quote_deleted">The quoted message is no longer available.</string>
     <string name="conversation_message_deleted">That message is no longer available.</string>
+    <string name="conversation_search">Search in chat</string>
+    <string name="conversation_search_position">%1$d of %2$d</string>
+    <string name="conversation_search_none">No results</string>
+    <string name="conversation_search_older">Older result</string>
+    <string name="conversation_search_newer">Newer result</string>
+    <string name="conversation_search_clear">Clear</string>
+    <string name="conversation_search_close">Close search</string>
+    <string name="conversation_search_failed">Couldn't search this chat.</string>
     <string name="conversation_join">Join</string>
     <string name="conversation_join_failed">Couldn't join.</string>
     <string name="conversation_mention_not_found">Couldn't find that chat.</string>
