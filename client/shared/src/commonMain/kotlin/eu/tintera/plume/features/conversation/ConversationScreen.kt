@@ -171,7 +171,6 @@ import eu.tintera.plume.resources.conversation_microphone_permission
 import eu.tintera.plume.resources.conversation_new_messages
 import eu.tintera.plume.resources.conversation_open_emoji
 import eu.tintera.plume.resources.conversation_open_stickers
-import eu.tintera.plume.resources.conversation_pick_chat
 import eu.tintera.plume.resources.conversation_record_voice
 import eu.tintera.plume.resources.conversation_save_edit
 import eu.tintera.plume.resources.conversation_scroll_to_end
@@ -1414,27 +1413,6 @@ private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit) {
         }
         IconButton(onClick = onCancel) {
             Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.conversation_cancel_edit))
-        }
-    }
-}
-
-/**
- * Co se ukáže v detail panelu, když je dost místa na dva panely, ale žádný chat není vybraný.
- * Bez tohohle by tam zela prázdná plocha, což vypadá jako chyba vykreslení.
- */
-@Composable
-fun ConversationPlaceholder(modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-    ) {
-        Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-            Text(
-                stringResource(Res.string.conversation_pick_chat),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
         }
     }
 }

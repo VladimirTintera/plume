@@ -38,6 +38,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import org.jetbrains.compose.resources.painterResource
+import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
 import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
 import androidx.compose.material3.adaptive.navigation3.rememberListDetailSceneStrategy
 import androidx.navigation3.runtime.NavKey
@@ -270,8 +271,7 @@ private fun ShellContent(
          * V dvoupanelu je v Nastavení vždycky otevřená nějaká sekce.
          *
          * Placeholder („vyber sekci") by tu byl k ničemu: prázdný panel vedle dvou řádků vypadá
-         * jako nedodělek. A bez sekce by directive dvoupanel nezapnul a seznam sekcí by se
-         * roztáhl přes celou šířku.
+         * jako nedodělek.
          *
          * Sekce se do zásobníku ZAPISUJE ([AppNavigation.ensureSettingsSection]) — zpět musí
          * odebírat položky, které v zásobníku opravdu jsou. Efekt stojí tady, v shellu, a ptá se
@@ -292,17 +292,14 @@ private fun ShellContent(
                 settingsStack
             }
 
-        val currentDisplayed = if (navigation.section == SettingsRoute) settingsDisplayed else navigation.currentStack
-        // Detail má konverzace i otevřená sekce nastavení — obojí je pravý panel téže scény.
-        val hasDetail = currentDisplayed.any { it is ConversationRoute || it is SettingsSectionRoute }
-
-        val directive = when {
-            // Bez otevřené konverzace nemá smysl rezervovat druhý panel s placeholderem —
-            // seznam dostane celou šířku.
-            !hasDetail -> base.singlePane()
-            wide -> base.twoPane()
-            else -> base.singlePane()
-        }
+        /*
+         * Na široké ploše jsou dva panely VŽDYCKY, i bez otevřeného chatu — vpravo je pak
+         * placeholder (`ConversationPlaceholder`). Dřív dostal seznam bez konverzace celou
+         * šířku: vyhledávací pilulka s pevnou maximální šířkou v něm visela a řádky chatů se
+         * natáhly přes celý rozložený Fold. Otevření chatu tak navíc nemění rozvržení, jen obsah
+         * pravého panelu.
+         */
+        val directive = if (wide) base.twoPane() else base.singlePane()
 
         // Dvoupanelový stav se hlásí dolů: obrazovky podle něj poznají, že se nevyměňují,
         // a sdílený prvek nezaloží — viz LocalTwoPane.
@@ -335,6 +332,19 @@ private fun ShellContent(
                     // mezi nimi je plynulý. Na compactu vrací null → standardní swap obrazovek.
                     rememberListDetailSceneStrategy(
                         shouldHandleSinglePaneLayout = wide,
+                        /*
+                         * Zpět v Chatech zavře konverzaci a vrátí placeholder. Výchozí
+                         * `PopUntilScaffoldValueChange` přeskakuje položky, které nemění
+                         * rozložení panelů — a „seznam + placeholder" i „seznam + chat" jsou
+                         * oba dvoupanel, takže zpět z konverzace odešel rovnou z aplikace.
+                         * V Nastavení je výchozí chování správné: sekce je v dvoupanelu
+                         * otevřená vždycky, takže zpět vede ze Nastavení pryč, do Chatů.
+                         */
+                        backNavigationBehavior = if (navigation.section == ChatsRoute) {
+                            BackNavigationBehavior.PopUntilContentChange
+                        } else {
+                            BackNavigationBehavior.PopUntilScaffoldValueChange
+                        },
                         directive = directive,
                     ),
                 ),
