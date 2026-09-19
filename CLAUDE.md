@@ -664,6 +664,13 @@ Dřív byl zásobník jeden pro celou aplikaci a přepnutí ho srovnalo na koře
   kreslí — cokoli jen dopočítaného pro kreslení tu počty rozhodí.
 - **Obrazovka píše do zásobníku SVÉ sekce** (`chatsStack`, `settingsStack` v `shellEntryProvider`),
   ne do toho vybraného.
+- **Šipka zpět obrazovky odebírá SVOU položku, ne poslední** (`pop(route)` v `AppNavigation.kt`),
+  a kořen nikdy. Dřív to byl `removeLastOrNull()` a aplikace padala na „NavDisplay entries cannot
+  be empty": obrazovka po odebrání ještě dobíhá odchodovou animací a její tlačítka reagují dál,
+  takže druhé ťuknutí na šipku odebralo seznam chatů pod ní. Spolehlivě se to vyvolá
+  klávesnicí — Tab dá fokus šipce v hlavičce a mezera ji „ťukne" (`adb shell "input keyevent 61;
+  input keyevent 62 62"`); stejně tak `adb shell input text` s mezerou, když pole nemá fokus.
+  Pojistka patří tam, kde se odebírá: obrazovka, která v zásobníku už není, nesmí odebrat nic.
 - Vybraná sekce přežije zabití procesu (`rememberSaveable` podle názvu `TopLevelDestination`),
   zásobníky taky (`rememberNavBackStack`).
 

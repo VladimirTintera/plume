@@ -512,7 +512,8 @@ private fun shellEntryProvider(
                 key = "conversation-${route.chatId}-${route.messageId}",
                 parameters = { parametersOf(route.chatId, route.messageId) },
             ),
-            onBack = { chatsStack.removeLastOrNull() },
+            // Odebírá SVOU položku, ne poslední — viz `pop`.
+            onBack = { chatsStack.pop(route) },
             onOpenMedia = { messageId ->
                 chatsStack.add(MediaRoute(route.chatId, messageId))
             },
@@ -542,7 +543,7 @@ private fun shellEntryProvider(
                 key = "media-${route.chatId}-${route.messageId}",
                 parameters = { parametersOf(route.chatId, route.messageId) },
             ),
-            onBack = { chatsStack.removeLastOrNull() },
+            onBack = { chatsStack.pop(route) },
             onForward = { messageId ->
                 chatsStack.add(ForwardRoute(route.chatId, listOf(messageId)))
             },
@@ -560,10 +561,10 @@ private fun shellEntryProvider(
                 key = "forward-${route.fromChatId}-${route.messageIds.joinToString("-")}",
                 parameters = { parametersOf(route.fromChatId, route.messageIds) },
             ),
-            onBack = { chatsStack.removeLastOrNull() },
+            onBack = { chatsStack.pop(route) },
             onForwarded = { chatId ->
-                chatsStack.removeLastOrNull()
-                if (!chatsStack.isOpenConversation(chatId)) {
+                // Výběr už v zásobníku není (odchází) — cíl otevřel předchozí volání.
+                if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
                     chatsStack.add(ConversationRoute(chatId))
                 }
             },
@@ -604,7 +605,7 @@ private fun shellEntryProvider(
     ) { route ->
         // V dvoupanelu je seznam sekcí pořád vidět vedle, takže šipka zpět nemá
         // kam vést; na telefonu je sekce samostatná obrazovka a zpět se z ní chodí.
-        val popSection: () -> Unit = { settingsStack.removeLastOrNull() }
+        val popSection: () -> Unit = { settingsStack.pop(route) }
 
         SettingsSectionScreen(
             section = route.section,
