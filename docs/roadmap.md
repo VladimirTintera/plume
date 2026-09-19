@@ -79,30 +79,16 @@ a odhlášení; Vzhled motiv aplikace a vyčlenění nepřečtených chatů do v
 
 ## Aktualizace z obchodu
 
-- **Aplikace sama pozná novou verzi a nabídne ji.** Kontroluje se při otevření seznamu chatů
-  (a při návratu do popředí, ne častěji) a výsledek je **informativní karta nahoře v seznamu
-  chatů**, ne dialog ani snackbar: nic neblokuje, dá se zavřít a vypadá jako součást seznamu
-  (stejné zaoblení a odstup jako skupiny chatů, vlastní skupina nad připnutými).
-  - **Android: Play In-App Updates** (`com.google.android.play:app-update-ktx`), režim
-    **flexible** — stahuje se na pozadí a aplikace se dá dál používat. Karta má dva stavy:
-    „Je k dispozici nová verze" → *Aktualizovat* (spustí stahování, průběh v kartě) a „Aktualizace
-    je stažená" → *Restartovat* (`completeUpdate`). Stažená a nedokončená aktualizace se musí
-    připomenout i po restartu aplikace (`installStatus == DOWNLOADED`), jinak visí napořád.
-    Immediate (celoobrazovkový) režim ne — přerušit rozepsanou zprávu kvůli aktualizaci je horší
-    než o ni přijít.
-  - **Hranice jako u TDLib a Firebase**: rozhraní `AppUpdates` (stav jako `StateFlow`)
-    v `core/`, `com.google.android.play.*` importované jen v androidMain implementaci, jinde
-    no-op. Seznam chatů vidí jen stav, ne Play API.
-  - **Zavřená karta se pamatuje podle `versionCode`** (`AppSettings`) — tatáž verze se znovu
-    nevnucuje, další vydaná ano. `versionCode` se zvedá při každém releasu (viz CLAUDE.md), takže
-    to sedí i na interní track.
-  - **Funguje jen u instalace z Play.** Debug build ani APK přes `adb install` aktualizaci
-    nenajdou (API vrací chybu / `UPDATE_NOT_AVAILABLE`) — to není chyba, karta se neukáže.
-    Ověřuje se přes **internal app sharing** (dvě verze s různým `versionCode`) a logika karty
-    testem nad `FakeAppUpdateManager`.
-  - **iOS** žádné API na aktualizace nemá. Až bude v App Store, dá se verze zjistit dotazem na
-    `itunes.apple.com/lookup?bundleId=…` a karta otevře stránku aplikace v App Store; do té doby
-    no-op implementace.
+Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení v `CLAUDE.md`,
+„Aktualizace z obchodu"). Zbývá:
+
+- **Ověřit celou cestu přes Play.** Debug build aktualizaci nenajde, takže stahování, průběh
+  v kartě a restart zatím nikdo neviděl. Postup: internal app sharing, nainstalovat verzi
+  s nižším `versionCode`, pak nahrát vyšší a otevřít seznam chatů. Vzhled karty ověřený je
+  (podstrčeným stavem na emulátoru).
+- **iOS.** API na aktualizace nemá. Až bude aplikace v App Store, dá se verze zjistit dotazem na
+  `itunes.apple.com/lookup?bundleId=…` a karta otevře stránku aplikace v App Store. Dnes
+  `AppUpdates` na iOS vrací napořád `None`.
 
 ## Notifikace
 

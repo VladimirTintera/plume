@@ -66,7 +66,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.core.update.rememberStartUpdate
 import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatSummary
@@ -105,6 +107,8 @@ fun ChatListScreen(
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
+    val updateCard by viewModel.updateCard.collectAsStateWithLifecycle()
+    val startUpdate = rememberStartUpdate(viewModel.appUpdates)
     val listState = rememberLazyListState()
     val appBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(appBarState)
@@ -135,6 +139,13 @@ fun ChatListScreen(
             onConfirm = { viewModel.confirmDelete(chat) },
             onDismiss = viewModel::cancelDelete,
         )
+    }
+
+    // Obchod se ptá při otevření seznamu i při návratu do popředí — tak se po restartu připomene
+    // i stažená, ale nenainstalovaná aktualizace.
+    LifecycleResumeEffect(Unit) {
+        viewModel.checkForUpdate()
+        onPauseOrDispose { }
     }
 
     // Dotažení dalších chatů, jakmile se uživatel blíží ke konci. TDLib pak pošle updaty a seznam
@@ -258,6 +269,19 @@ fun ChatListScreen(
                      */
                     item(key = TOP_ANCHOR_KEY, contentType = TOP_ANCHOR_KEY) {
                         Spacer(Modifier.fillMaxWidth().height(TOP_ANCHOR_HEIGHT))
+                    }
+
+                    // Nad chaty, jako vlastní blok se stejnou mezerou jako mezi skupinami.
+                    updateCard?.let { update ->
+                        item(key = UPDATE_CARD_KEY, contentType = UPDATE_CARD_KEY) {
+                            UpdateCard(
+                                state = update,
+                                onUpdate = startUpdate,
+                                onDismiss = viewModel::dismissUpdate,
+                                onRestart = viewModel::completeUpdate,
+                                modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
+                            )
+                        }
                     }
 
                     groups.forEachIndexed { groupIndex, group ->
@@ -494,8 +518,8 @@ private fun ChatRow(
 /** Kolik položek před koncem už spustí dotažení další dávky. */
 private const val LOAD_MORE_THRESHOLD = 5
 
-/** Zaoblení na krajích skupiny. */
-private val GROUP_CORNER = 20.dp
+/** Zaoblení na krajích skupiny. Nese ho i karta s aktualizací — je v seznamu další blok. */
+internal val GROUP_CORNER = 20.dp
 
 /** Zaoblení mezi sousedy uvnitř skupiny — tak akorát, aby byly rozeznatelné, ne oddělené. */
 private val INNER_CORNER = 4.dp
@@ -508,6 +532,9 @@ private val GROUP_SPACING = 14.dp
 
 /** Klíč neviditelné kotvy nad prvním chatem. */
 private const val TOP_ANCHOR_KEY = "top-anchor"
+
+/** Klíč karty s aktualizací. */
+private const val UPDATE_CARD_KEY = "update-card"
 
 /** Výška kotvy — nejmenší, se kterou ji seznam ještě počítá za viditelnou. */
 private val TOP_ANCHOR_HEIGHT = 1.dp

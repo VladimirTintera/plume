@@ -10,7 +10,13 @@ import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.ConnectionState
 import eu.tintera.plume.core.telegram.userMessage
+import eu.tintera.plume.core.update.AppUpdateState
+import eu.tintera.plume.core.update.AppUpdates
+import eu.tintera.plume.core.update.updateCard
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -21,7 +27,9 @@ import eu.tintera.plume.resources.chats_action_failed
 class ChatsViewModel(
     private val repository: ChatRepository,
     connection: ConnectionRepository,
-    settings: AppSettings,
+    private val settings: AppSettings,
+    /** Obrazovka ho potřebuje ke spuštění aktualizace (`rememberStartUpdate`). */
+    val appUpdates: AppUpdates,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -46,6 +54,22 @@ class ChatsViewModel(
 
     /** Id Uložených zpráv — v seznamu nejsou, pokud nejsou připnuté (viz `chatGroups`). */
     val savedMessagesChatId: StateFlow<Long?> = repository.savedMessagesChatId
+
+    /** Karta s aktualizací nahoře v seznamu, `null` = žádná. Pravidlo je v [updateCard]. */
+    val updateCard: StateFlow<AppUpdateState?> =
+        combine(appUpdates.state, settings.dismissedUpdateVersionCode, ::updateCard)
+            .stateIn(
+                viewModelScope,
+                SharingStarted.Eagerly,
+                updateCard(appUpdates.state.value, settings.dismissedUpdateVersionCode.value),
+            )
+
+    /** Při každém návratu na seznam — viz [AppUpdates.check]. */
+    fun checkForUpdate() = appUpdates.check()
+
+    fun dismissUpdate(versionCode: Int) = settings.dismissUpdate(versionCode)
+
+    fun completeUpdate() = appUpdates.complete()
 
     private val _actions = MutableStateFlow(ChatActionsState())
 

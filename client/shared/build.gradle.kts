@@ -116,6 +116,7 @@ kotlin {
             implementation(libs.zxing.core)
             implementation(libs.media3.exoplayer)
             implementation(libs.media3.ui)
+            implementation(libs.play.app.update)
             // androidContext() v platformModule — Koin na Androidu potřebuje Context pro cestu k DB.
             implementation(libs.koin.android)
         }
