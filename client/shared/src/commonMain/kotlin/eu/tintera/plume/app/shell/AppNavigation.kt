@@ -5,7 +5,9 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.navigation3.runtime.NavBackStack
@@ -94,6 +96,34 @@ class AppNavigation internal constructor(
         if (stack(ChatsRoute).lastOrNull() == ShareRoute) return
         popToRoot(ChatsRoute)
         stack(ChatsRoute).add(ShareRoute)
+    }
+
+    /**
+     * Dotaz, se kterým se má otevřít hledání v seznamu chatů (hashtag ťuknutý v konverzaci).
+     * Stav, ne událost: seznam chatů v tu chvíli nemusí být složený (na telefonu ho konverzace
+     * překrývá) a vyzvedne si ho, až se složí — viz [consumeSearchRequest].
+     */
+    var searchRequest: String? by mutableStateOf(null)
+        private set
+
+    /**
+     * Hledání v seznamu chatů s dotazem. Seznam musí být vidět: na telefonu se zásobník Chatů
+     * srovná na kořen, v dvoupanelu zůstane otevřená konverzace ([keepConversation]) — hledání
+     * je vlevo vedle ní. Archiv jde pryč v obou případech, hledání má jen hlavní seznam.
+     */
+    fun openSearch(query: String, keepConversation: Boolean) {
+        selected.value = ChatsRoute
+        val stack = stack(ChatsRoute)
+        if (keepConversation) {
+            stack.retainAll { it is ChatsRoute || it is ConversationRoute }
+        } else {
+            popToRoot(ChatsRoute)
+        }
+        searchRequest = query
+    }
+
+    fun consumeSearchRequest() {
+        searchRequest = null
     }
 
     /**

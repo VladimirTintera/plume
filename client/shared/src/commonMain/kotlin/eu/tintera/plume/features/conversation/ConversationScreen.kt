@@ -210,6 +210,10 @@ fun ConversationScreen(
     onBack: () -> Unit,
     onOpenMedia: (messageId: Long) -> Unit,
     onForward: (messageIds: List<Long>) -> Unit,
+    /** Zmínka v textu: otevřít chat nad touhle konverzací. */
+    onOpenChat: (chatId: Long) -> Unit,
+    /** Hashtag v textu: hledání zpráv s tagem v seznamu chatů. */
+    onSearch: (query: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
@@ -350,6 +354,16 @@ fun ConversationScreen(
     val contentTop = remember { mutableStateOf<Float?>(null) }
 
     val currentOnOpenMedia by rememberUpdatedState(onOpenMedia)
+    val currentOnSearch by rememberUpdatedState(onSearch)
+    val currentOnOpenChat by rememberUpdatedState(onOpenChat)
+
+    // Chat ze zmínky: ViewModel ho najde, navigace je věc obrazovky. Událost se nuluje hned,
+    // jinak by se po otočení otevřel znovu.
+    LaunchedEffect(state.openChat) {
+        val target = state.openChat ?: return@LaunchedEffect
+        viewModel.consumeOpenChat()
+        currentOnOpenChat(target)
+    }
     val saveAs = rememberSaveAs()
     val currentSaveAs by rememberUpdatedState(saveAs)
     val itemScope = remember(viewModel) {
@@ -363,6 +377,7 @@ fun ConversationScreen(
             timeReveal = { timeReveal.value },
             onOpenMedia = { currentOnOpenMedia(it) },
             onOpenStickerSet = { openStickerSetId = it },
+            onSearch = { currentOnSearch(it) },
             // Výběr umístění je aktivita systému, takže ho má obrazovka; ViewModel jen stáhne.
             onSaveFileAs = { messageId -> currentSaveAs?.let { viewModel.saveDocumentAs(messageId, it) } },
         )
@@ -1483,6 +1498,7 @@ private class ScreenItemScope(
     override val timeReveal: () -> Float,
     private val onOpenMedia: (messageId: Long) -> Unit,
     private val onOpenStickerSet: (setId: Long) -> Unit,
+    private val onSearch: (query: String) -> Unit,
     private val onSaveFileAs: (messageId: Long) -> Unit,
 ) : ConversationItemScope {
     override fun voicePlayback(messageId: Long): VoicePlayback? =
@@ -1510,6 +1526,7 @@ private class ScreenItemScope(
     override fun onAction(messageId: Long, action: MessageAction) = when (action) {
         MessageAction.OpenMedia -> onOpenMedia(messageId)
         is MessageAction.OpenStickerSet -> onOpenStickerSet(action.setId)
+        is MessageAction.SearchHashtag -> onSearch(action.tag)
         MessageMenuAction.SaveFileAs -> onSaveFileAs(messageId)
         else -> viewModel.onAction(messageId, action)
     }

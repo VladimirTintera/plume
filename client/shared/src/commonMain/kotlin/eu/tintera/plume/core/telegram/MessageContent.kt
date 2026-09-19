@@ -61,7 +61,10 @@ import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.dto.TextEntityTypeBold
 import dev.g000sha256.tdl.dto.TextEntityTypeCode
 import dev.g000sha256.tdl.dto.TextEntityTypeEmailAddress
+import dev.g000sha256.tdl.dto.TextEntityTypeHashtag
 import dev.g000sha256.tdl.dto.TextEntityTypeItalic
+import dev.g000sha256.tdl.dto.TextEntityTypeMention
+import dev.g000sha256.tdl.dto.TextEntityTypeMentionName
 import dev.g000sha256.tdl.dto.TextEntityTypePhoneNumber
 import dev.g000sha256.tdl.dto.TextEntityTypePre
 import dev.g000sha256.tdl.dto.TextEntityTypePreCode
@@ -269,8 +272,8 @@ private fun FormattedText.toBody(): MessageBody =
  * Převod jedné entity z TDLib.
  *
  * `null` znamená „tenhle typ zatím nevykreslujeme" — text po něm zůstane obyčejný. Přeskakují se
- * hlavně zmínky, hashtagy a příkazy botů: obarvit je umíme, ale kliknutí by nemělo kam vést,
- * protože zmínka se hledá uvnitř aplikace, ne v prohlížeči. Viz [MessageEntityType].
+ * příkazy botů a cashtagy: obarvit je umíme, ale kliknutí by nemělo kam vést.
+ * Viz [MessageEntityType].
  */
 private fun TextEntity.toEntity(text: String): MessageEntity? {
     val mapped = when (val type = this.type) {
@@ -280,6 +283,9 @@ private fun TextEntity.toEntity(text: String): MessageEntity? {
         is TextEntityTypeTextUrl -> MessageEntityType.Link(type.url)
         is TextEntityTypeEmailAddress -> MessageEntityType.Link("mailto:${text.range(this)}")
         is TextEntityTypePhoneNumber -> MessageEntityType.Link("tel:${text.range(this)}")
+        is TextEntityTypeMention -> MessageEntityType.Mention(text.range(this).removePrefix("@"))
+        is TextEntityTypeMentionName -> MessageEntityType.MentionUser(type.userId)
+        is TextEntityTypeHashtag -> MessageEntityType.Hashtag(text.range(this))
 
         is TextEntityTypeBold -> MessageEntityType.Bold
         is TextEntityTypeItalic -> MessageEntityType.Italic

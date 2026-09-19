@@ -60,6 +60,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.AppBarWithSearch
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LoadingIndicator
@@ -135,6 +136,9 @@ internal fun ChatSearchBar(
     onMessageClick: (chatId: Long, messageId: Long) -> Unit,
     onLoadMoreMessages: () -> Unit,
     onClearRecent: () -> Unit,
+    /** Dotaz zvenku (hashtag z konverzace): hledání se s ním rozbalí. */
+    request: String?,
+    onRequestHandled: () -> Unit,
     actions: @Composable RowScope.() -> Unit,
 ) {
     val searchBarState = rememberSearchBarState()
@@ -209,6 +213,19 @@ internal fun ChatSearchBar(
         if (!expanded) textFieldState.clearText()
         // Návrhy (nejčastější, historie) se načítají jen při otevřeném hledání.
         onExpandedChange(expanded)
+    }
+
+    /*
+     * Dotaz zvenku. Napřed rozbalit, pak vepsat text: efekt nad `expanded` při sbalení text
+     * maže, a kdyby text přišel dřív, smazal by ho ještě přechod ze sbaleného stavu.
+     * Požadavek se nuluje AŽ NAKONEC — vynulování mění klíč efektu, a hned na začátku by
+     * efekt zrušilo i s rozbalováním (tatáž past jako „Vrátit" u odepnuté zprávy).
+     */
+    LaunchedEffect(request) {
+        val query = request ?: return@LaunchedEffect
+        searchBarState.animateToExpanded()
+        textFieldState.setTextAndPlaceCursorAtEnd(query)
+        onRequestHandled()
     }
 
     val onQueryChangeLatest by rememberUpdatedState(onQueryChange)

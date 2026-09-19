@@ -104,6 +104,16 @@ class ChatSearchTest {
         assertEquals("durov je tu", snippetAround("durov je tu", "durov"))
     }
 
+    /** Hashtag je jedno slovo s mřížkou; samotná mřížka ani věta hashtagem nejsou. */
+    @Test
+    fun hashtagovyDotaz() {
+        assertTrue(isHashtagQuery("#plume"))
+        assertTrue(isHashtagQuery(" #plume "))
+        assertFalse(isHashtagQuery("#"))
+        assertFalse(isHashtagQuery("plume"))
+        assertFalse(isHashtagQuery("#plume a dál"))
+    }
+
     /** Další stránka zpráv nesmí zopakovat zprávu z hranice předchozí; stejné id v jiném chatu je jiná zpráva. */
     @Test
     fun strankyZpravBezDuplicit() {

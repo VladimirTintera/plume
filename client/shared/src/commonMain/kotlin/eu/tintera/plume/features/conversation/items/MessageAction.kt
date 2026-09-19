@@ -64,6 +64,15 @@ sealed interface MessageAction {
     data class JumpTo(val messageId: Long) : MessageAction
     data class OpenLink(val url: String) : MessageAction
 
+    /** `@jméno` v textu: najít veřejný chat a otevřít ho nad konverzací. */
+    data class OpenMention(val username: String) : MessageAction
+
+    /** Zmínka uživatele bez veřejného jména: soukromý chat s ním. */
+    data class OpenUser(val userId: Long) : MessageAction
+
+    /** `#tag` v textu: hledání zpráv s tagem. Navigace — vyřizuje ji obrazovka, ne ViewModel. */
+    data class SearchHashtag(val tag: String) : MessageAction
+
     /** Fotka nebo video v prohlížeči. Navigace — vyřizuje ji obrazovka, ne ViewModel. */
     data object OpenMedia : MessageAction
 

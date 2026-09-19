@@ -114,6 +114,9 @@ fun ChatListScreen(
     onChatClick: (Long) -> Unit,
     /** Nalezená zpráva: otevřít její chat a skočit na ni. */
     onMessageClick: (chatId: Long, messageId: Long) -> Unit,
+    /** Dotaz, se kterým otevřít hledání (hashtag z konverzace); po otevření [onSearchRequestHandled]. */
+    searchRequest: String?,
+    onSearchRequestHandled: () -> Unit,
     onOpenArchive: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -163,6 +166,8 @@ fun ChatListScreen(
                 },
                 onLoadMoreMessages = viewModel.search::loadMoreMessages,
                 onClearRecent = viewModel.search::clearRecent,
+                request = searchRequest,
+                onRequestHandled = onSearchRequestHandled,
                 actions = {
                     /*
                      * Menu, ne samostatné ikony vedle hledání. Uložené zprávy v seznamu nejsou

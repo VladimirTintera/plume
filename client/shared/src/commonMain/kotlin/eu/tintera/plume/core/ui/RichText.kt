@@ -58,6 +58,11 @@ fun RichText(
     linkColor: Color = MaterialTheme.colorScheme.primary,
     onLinkClick: (String) -> Unit = {},
     /**
+     * Ťuknutí na zmínku nebo hashtag ([MessageEntityType.Mention], [MessageEntityType.MentionUser],
+     * [MessageEntityType.Hashtag]). Vedou dovnitř aplikace, ne na adresu, takže jdou zvlášť.
+     */
+    onEntityClick: (MessageEntityType) -> Unit = {},
+    /**
      * Dlouhý stisk NAD ODKAZEM. Mimo odkazy ho dostane rodič (bublina) sám.
      *
      * Odkaz je uvnitř `Text` samostatný `combinedClickable` bez `onLongClick`, a ten dlouhý stisk
@@ -80,6 +85,7 @@ fun RichText(
     // Obsluha kliknutí se drží stranou od klíčů: je to lambda, která se při každé rekompozici
     // vyrábí znovu, takže by `remember` níž nikdy neplatil a text by se skládal pořád dokola.
     val linkHandler by rememberUpdatedState(onLinkClick)
+    val entityHandler by rememberUpdatedState(onEntityClick)
     val longClickHandler by rememberUpdatedState(onLongClick)
 
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
@@ -100,6 +106,9 @@ fun RichText(
             spoilersRevealed = spoilersRevealed,
             onLinkClick = {
                 if (suppressLinkClick[0]) suppressLinkClick[0] = false else linkHandler(it)
+            },
+            onEntityClick = {
+                if (suppressLinkClick[0]) suppressLinkClick[0] = false else entityHandler(it)
             },
             onSpoilerClick = { spoilersRevealed = true },
         )
@@ -160,6 +169,7 @@ private fun buildMessageText(
     overlayColor: Color,
     spoilersRevealed: Boolean,
     onLinkClick: (String) -> Unit,
+    onEntityClick: (MessageEntityType) -> Unit,
     onSpoilerClick: () -> Unit,
 ): AnnotatedString = buildAnnotatedString {
     append(text)
@@ -182,6 +192,27 @@ private fun buildMessageText(
                     // Vlastní posluchač schválně: bez něj by odkaz otevíral `LocalUriHandler`
                     // a my bychom neměli kam vložit obsluhu interních `t.me` odkazů.
                     linkInteractionListener = { onLinkClick(type.url) },
+                ),
+                start = start,
+                end = end,
+            )
+
+            /*
+             * Zmínka a hashtag: barva odkazu, ale bez podtržení. Podtržení zůstává adresám, které
+             * odvedou z aplikace; tohle vede dovnitř, jako v ostatních klientech. VÝJIMKA je
+             * odchozí bublina: barva odkazu je tam barva textu (na `primary` jiná nejde), takže
+             * bez podtržení by zmínka nebyla k poznání.
+             */
+            is MessageEntityType.Mention, is MessageEntityType.MentionUser, is MessageEntityType.Hashtag -> addLink(
+                clickable = LinkAnnotation.Clickable(
+                    tag = ENTITY_TAG,
+                    styles = TextLinkStyles(
+                        style = SpanStyle(
+                            color = linkColor,
+                            textDecoration = if (linkColor == overlayColor) TextDecoration.Underline else null,
+                        ),
+                    ),
+                    linkInteractionListener = { onEntityClick(type) },
                 ),
                 start = start,
                 end = end,
@@ -245,3 +276,6 @@ private fun buildMessageText(
 private const val CODE_BACKGROUND_ALPHA = 0.15f
 
 private const val SPOILER_TAG = "spoiler"
+
+/** Značka klikatelné zmínky a hashtagu; obsluhu nese posluchač, značka jen odliší typ anotace. */
+private const val ENTITY_TAG = "entity"

@@ -42,6 +42,15 @@ interface ChatRepository {
      */
     suspend fun openSavedMessages(): Result<Long>
 
+    /** Chat veřejného uživatele, skupiny nebo kanálu podle uživatelského jména (bez `@`). */
+    suspend fun chatByUsername(username: String): Result<Long>
+
+    /**
+     * Soukromý chat s uživatelem. TDLib ho zná, až když ho vytvoří `createPrivateChat` (lokálně,
+     * nic se neposílá) — u zmínky uživatele, se kterým se ještě nepsalo, v databázi není.
+     */
+    suspend fun privateChat(userId: Long): Result<Long>
+
     /**
      * Chaty podle názvu a uživatelského jména, ze VŠECH známých — i archivované a chaty mimo
      * složky, na rozdíl od filtru nad [chats]. Bez [onServer] se hledá jen v lokální databázi

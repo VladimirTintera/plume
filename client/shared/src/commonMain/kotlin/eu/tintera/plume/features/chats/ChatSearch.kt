@@ -82,6 +82,21 @@ class ChatSearch(
     private suspend fun search(text: String) {
         // Krátká pauza: lokální hledání je rychlé, ale dotaz na server na každý znak ne.
         delay(TYPING_DEBOUNCE_MS)
+
+        /*
+         * `#tag` je hledání zpráv s tagem (ťuknutí na hashtag v konverzaci). Hledání chatů
+         * mřížku zahodí a vrátí chaty se slovem v názvu — „#plume" našlo kanály „Plumex"
+         * a „plume", tedy šum nad tím, co uživatel hledal.
+         */
+        if (everywhere && isHashtagQuery(text)) {
+            _state.value = ChatSearchState(query = text, messagesLoading = true)
+            val page = repository.searchMessages(text).logged("searchMessages")
+            _state.update {
+                it.copy(messages = page?.messages.orEmpty(), messagesNextOffset = page?.nextOffset, messagesLoading = false)
+            }
+            return
+        }
+
         val local = repository.searchChats(text).logged("searchChats").orEmpty()
         _state.value = ChatSearchState(
             query = text,
@@ -195,6 +210,12 @@ data class ChatSearchState(
 
     /** Hledání pro [query] doběhlo celé — prázdný výsledek teď znamená „nic nenalezeno". */
     val settled: Boolean get() = !searching && !messagesLoading
+}
+
+/** Dotaz je hashtag (`#tag`, jedno slovo) — hledají se jen zprávy. */
+fun isHashtagQuery(text: String): Boolean {
+    val trimmed = text.trim()
+    return trimmed.length > 1 && trimmed.startsWith('#') && trimmed.none { it.isWhitespace() }
 }
 
 /**
