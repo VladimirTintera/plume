@@ -231,14 +231,14 @@ Co zbývá:
     ťuknutí, s průběhem přes náhled jako u videa.
   - **HEIC náhled nemá**, takže je v řádku jen ikona obrázku. Vlastní náhled by znamenal
     stáhnout celý soubor (fotka z iPhonu má jednotky MB) — až s velkým náhledem výš.
-- ~~**Uložení** fotky a videa do galerie~~ — hotovo (ikona v horní liště prohlížeče,
-  `MediaSaver`). Zbývá:
-  - **Ověřit na iOS** (`PHPhotoLibrary`, dotaz na oprávnění) a na Androidu 9 a starším
-    (`WRITE_EXTERNAL_STORAGE`, veřejný adresář); vyzkoušené je jen Android 16.
-  - **Sdílení ven** (systémová nabídka „Sdílet") — `ACTION_SEND` přes `FileProvider`,
-    `UIActivityViewController` na iOS.
-  - **Uložení souboru, který obrázkem ani videem není**, do Stažených (`MediaStore.Downloads`,
-    na iOS do Souborů přes `UIDocumentPickerViewController` v režimu export).
+- ~~**Uložení do galerie, sdílení a „Uložit jako…"** z prohlížeče~~ — hotovo (`MediaSaver`,
+  `MediaSharer`, `rememberSaveAs`). Zbývá:
+  - **Ověřit na iOS** (`PHPhotoLibrary` s dotazem na oprávnění, `UIActivityViewController`
+    i jako popover na iPadu) a na Androidu 9 a starším (`WRITE_EXTERNAL_STORAGE`, veřejný
+    adresář); vyzkoušené je jen Android 16.
+  - **Sdílet a Uložit jako… u souborů v konverzaci.** Soubor, který obrázkem ani videem není
+    (PDF, archiv), se do prohlížeče nedostane, takže tyhle akce patří do nabídky nad zprávou.
+    `MediaSharer` i `rememberSaveAs` jsou na to připravené; na iOS stačí Sdílet.
 - **Odpověď z prohlížeče.** Google Zprávy mají vlevo v dolní liště tlačítko odpovědi. U nás by
   muselo vrátit do konverzace s připravenou citací — konverzace je v zásobníku pod prohlížečem,
   takže je potřeba cesta, jak jí požadavek předat (jako `ChatOpenRequests`).

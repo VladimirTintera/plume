@@ -170,6 +170,7 @@ fun appModule() = module {
             repository = get(),
             files = get(),
             saver = get(),
+            sharer = get(),
         )
     }
 }

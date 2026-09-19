@@ -1821,6 +1821,22 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   `PHAssetChangeRequest` s oprávněním jen k přidávání (`NSPhotoLibraryAddUsageDescription`).
   Nabízí se podle `canBeSaved` (`MessageActions.canSave`), stejná ochrana obsahu jako
   u kopírování.
+- **Lišta prohlížeče má venku jen Sdílet a Do galerie, zbytek je v nabídce ⋮** (Přeposlat,
+  Uložit jako…, Smazat). Se čtyřmi ikonami by se na užším telefonu nevešel titulek; smazání
+  do nabídky patří i tak — nevratná akce nemá stát vedle častých — a Přeposlat je sdílení do
+  Telegramu, takže vedle Sdílet by byly dvě podobné ikony. Co právě běží, točí na místě svého
+  tlačítka (`MediaViewerState.busy`), u „Uložit jako…" na místě ⋮.
+- **„Uložit jako…" je jen na Androidu** (`ACTION_CREATE_DOCUMENT`, bez oprávnění, uživatel
+  si vybere Stažené i cokoli jiného; `rememberSaveAs` vrací na iOS `null`). Na iOS nabízí
+  dialog sdílení sám „Uložit obrázek" i „Uložit do Souborů", takže tam sdílení pokrývá všechno.
+  Vestavěný `CreateDocument` má typ napevno z konstruktoru, proto vlastní kontrakt s typem
+  podle souboru.
+- **Sdílí se KOPIE pod čitelným jménem** (`cache/shared`, vydává ji provider `…documents`),
+  ne soubor TDLib — příjemce jméno ukazuje. Mazat se může až při dalším sdílení, protože
+  příjemce soubor čte až po odeslání. Oprávnění jde v `ClipData` (výběr aplikací ho předá dál)
+  i výslovným `grantUriPermission` všem, kdo `ACTION_SEND` přijme — tatáž past jako
+  u otevírání souborů. Na iPadu potřebuje `UIActivityViewController` kotvu popoveru, jinak
+  aplikace spadne.
 - **Fotka a video se ukládají pod jménem podle času zprávy** (`savedFileName`,
   `Plume_20260918_233025.jpg`). TDLib je drží jako `5868681087951770588_121.jpg`, což v galerii
   nic neřekne. Soubor si nechává jméno, které mu dal odesílatel.
