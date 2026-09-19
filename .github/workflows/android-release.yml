@@ -6,8 +6,9 @@
 # Co workflow udělá:
 #   1. z tagu vytáhne verzi (žádný verzovací commit není potřeba — build ji bere přes -P),
 #   2. postaví podepsaný AAB,
-#   3. nahraje ho do Google Play na **internal** track,
-#   4. založí GitHub Release s changelogem od předchozího android tagu.
+#   3. z `release-notes/` složí poznámky pro uživatele (cs + en) a s nimi nahraje AAB do Google
+#      Play na **internal** track,
+#   4. založí GitHub Release s poznámkami a changelogem od předchozího android tagu.
 #
 # AAB se NIKAM nepřikládá — ani jako artefakt běhu, ani jako příloha releasu. Bundl má přes
 # 50 MB a artefakty se počítají do kvóty Actions (na free účtu 500 MB, tedy deset releasů).
@@ -156,6 +157,17 @@ jobs:
           echo "=== OOM killer (dmesg) ==="
           sudo dmesg | grep -iE "oom|killed process" | tail -20 || echo "(žádné OOM záznamy)"
 
+      # Poznámky pro uživatele z `release-notes/` (soubory přidané od předchozího tagu, čtené
+      # z tagu). Play bere nejvýš 500 znaků na jazyk; co se nevejde, nahradí řádek „…a další".
+      - name: Release notes
+        id: notes
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          PREV=$(git tag -l 'android-*' --sort=-v:refname | grep -vx "$TAG" | head -1)
+          echo "prev=$PREV" >> "$GITHUB_OUTPUT"
+          echo "Poznámky od: ${PREV:-<žádný předchozí tag>}"
+          python3 .github/scripts/release_notes.py play "$PREV" "$TAG" whatsnew
+
       # POZOR: úplně první AAB musí do Play Console nahrát člověk ručně — dokud appka nemá žádný
       # release, androidpublisher API upload odmítne. Tenhle krok je až pro další verze.
       - name: Upload to Google Play (internal track)
@@ -167,17 +179,19 @@ jobs:
           # `tracks` (množné číslo) nahradilo deprecated `track`; hodnota se dělí čárkou,
           # takže jediný track se píše stejně jako dřív.
           tracks: internal
+          # whatsnew-cs-CZ a whatsnew-en-US; oba jazyky musí být v záznamu aplikace v Play Console
+          whatsNewDirectory: whatsnew
 
       - name: Generate changelog
         run: |
           TAG="${GITHUB_REF_NAME}"
-          PREV=$(git tag -l 'android-*' --sort=-v:refname | grep -vx "$TAG" | head -1)
+          PREV="${{ steps.notes.outputs.prev }}"
           {
             echo "**Android** ${{ steps.tag.outputs.versionName }} (${{ steps.tag.outputs.versionCode }}) → Play internal track"
             echo
+            python3 .github/scripts/release_notes.py markdown "$PREV" "$TAG"
             bash .github/scripts/release-notes.sh "$PREV" "$TAG" "targetu"
           } > release-notes.md
-          echo "Changelog od: ${PREV:-<žádný předchozí tag>}"
 
       - name: Create GitHub Release
         env:

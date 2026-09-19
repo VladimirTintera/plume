@@ -1,0 +1,37 @@
+# Každý PR musí přidat do `release-notes/` soubor s poznámkou pro uživatele (cs + en),
+# nebo `type: internal`, když uživatel nic nepozná. Z těch souborů skládá release text
+# „Co je nového" pro Google Play — formát a důvody v .github/scripts/release_notes.py.
+#
+# Soubor se vyžaduje i u interních změn: jinak by nešlo odlišit „nic pro uživatele"
+# od „zapomněl jsem".
+name: Release notes
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check release note
+        run: |
+          set -euo pipefail
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          ADDED=$(git diff --diff-filter=A --name-only "$BASE...$HEAD" -- 'release-notes/*.md')
+          CHANGED=$(git diff --diff-filter=AM --name-only "$BASE...$HEAD" -- 'release-notes/*.md')
+          if [ -z "$ADDED" ]; then
+            echo "::error::PR nepřidává poznámku do release-notes/. Přidej release-notes/<větev>.md s řádky type:/cs:/en: (nebo jen 'type: internal')."
+            exit 1
+          fi
+          python3 .github/scripts/release_notes.py check $CHANGED
