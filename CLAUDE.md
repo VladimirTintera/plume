@@ -753,6 +753,11 @@ v chatech", vedle ní menu ⋮. Po ťuknutí se rozbalí `ExpandedFullScreenSear
   se stavem `ChatMemberStatusLeft`, `getSupergroup` je lokální) nahradí vstupní pole tlačítkem
   „Přidat se" (`joinChat`). Psát do cizí skupiny nejde a nabízet pole by znamenalo chybu po
   odeslání.
+- **Spodní inset si berou seznamy výsledků, ne `ExpandedFullScreenSearchBar`.** Jeho výchozí
+  `windowInsets` je `safeDrawing` a spodek dává obsahu jako padding, takže výsledky končily
+  useknuté nad navigační lištou na holé ploše. Hledání dostane jen `Top + Horizontal`, seznamy
+  spodek (lišta i klávesnice) v `contentPadding` (`resultsPadding`) — obsah jede pod lištu
+  a poslední položka se nad ni doroluje. Tentýž vzor jako u seznamu chatů a konverzace.
 - **Selhání hledání se nehlásí.** Prázdný výsledek je u hledání normální stav a lokální výsledky
   zůstanou, i když server neodpoví.
 - **Dotaz se maže při KAŽDÉM sbalení** (efekt nad `expanded`), ne v obsluze šipky. Gesto zpět

@@ -1,6 +1,11 @@
 package eu.tintera.plume.features.chats
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -221,6 +226,13 @@ internal fun ChatSearchBar(
         state = searchBarState,
         inputField = inputField,
         colors = colors.searchBarColors,
+        /*
+         * Spodní inset si berou seznamy výsledků (`resultsPadding`), ne hledání. Výchozí
+         * `safeDrawing` dává obsahu spodek jako padding, takže výsledky končily useknuté nad
+         * navigační lištou na holé ploše. Takhle jedou pod lištu a poslední položka se nad ni
+         * doroluje. Klávesnice je ve `safeDrawing` taky, takže nic nezakryje.
+         */
+        windowInsets = { WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal) },
     ) {
         SearchResults(
             query = textFieldState.text.toString(),
@@ -359,7 +371,7 @@ private fun SearchResults(
 
     val highlight = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
 
-    LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(vertical = 8.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = resultsPadding()) {
         val chatCount = chats.size + if (showSaved) 1 else 0
         /*
          * Nadpis chatů je tu vždycky, když jsou chaty — ne až když přibudou další sekce.
@@ -506,7 +518,7 @@ private fun Suggestions(
     onPick: (Long) -> Unit,
     onClearRecent: () -> Unit,
 ) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = resultsPadding()) {
         if (search.top.isNotEmpty()) {
             item(key = "top-header") { SectionHeader(stringResource(Res.string.chats_search_people)) }
             item(key = "top") {
@@ -615,6 +627,13 @@ private fun ChatResultRow(
 }
 
 private val TOP_CHAT_WIDTH = 76.dp
+
+/** Odsazení seznamů v hledání: spodní systémové lišty a klávesnice (viz `windowInsets` hledání). */
+@Composable
+private fun resultsPadding(): PaddingValues {
+    val bottom = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues().calculateBottomPadding()
+    return PaddingValues(top = 8.dp, bottom = 8.dp + bottom)
+}
 
 /** Kolik řádků ukáže sbalená sekce chatů a veřejných výsledků. */
 private const val COLLAPSED_ROWS = 4
