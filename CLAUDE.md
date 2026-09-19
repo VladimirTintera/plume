@@ -1295,6 +1295,18 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   spodní padding je přesně výška `bottomBar`. `padding` ze Scaffoldu se v obsahu jen aplikuje
   a inset NEKONZUMUJE — se spodním insetem v `contentWindowInsets` se výška systémové lišty
   připočítávala dvakrát a pole viselo zbytečně vysoko, se zavřenou i otevřenou klávesnicí.
+- **Ikony přílohy a výběru emoji stojí VEDLE `TextField`, ne v jeho `leadingIcon` / `trailingIcon`.**
+  Sloty `TextField` centrují na výšku pole, takže s víceřádkovou zprávou ikony ujížděly doprostřed.
+  V řádku se spodním zarovnáním drží u posledního řádku jako odesílací tlačítko; odsazení 4 dp je
+  (56 − 48) / 2, tedy střed jednořádkového pole. Barvu mají `primary` — výchozí
+  `onSurfaceVariant` byla na `surfaceContainerHigh` karty zašedlá a nečitelná.
+- **Nabídka příloh není `DropdownMenu`** (`AttachButton`). M3 menu drží od okraje okna povinný
+  odstup 48 dp (`MenuVerticalMargin`, zahrnuto i do volby „spodkem ke kotvě"), a tlačítko
+  u spodku obrazovky v tom pásu leží — menu se proto posadilo k oknu, zhruba 45 dp nad tlačítko.
+  `offset` nepomůže, přičítá se ke kandidátům PŘED kontrolou. Vlastní `Popup` s pozicí nad
+  kotvou; vzhled z `MenuDefaults`, položky standardní `DropdownMenuItem`. **Totéž čeká každé
+  `DropdownMenu` u spodku obrazovky.** Poznalo se to změřením (`uiautomator dump`): spodek menu
+  byl přesně `výška okna − 48 dp`, ne horní hrana kotvy.
 - **Citace a psaní jsou JEDNA karta.** Dva samostatné kusy nad sebou dělaly z odpovědi cizí prvek
   vsunutý mezi konverzaci a vstup; ve společné kartě je vidět, že citace patří k tomu, co se
   právě píše. Pole uvnitř je proto průhledné — kontejner nese karta, ne ono, a dvě zaoblené
