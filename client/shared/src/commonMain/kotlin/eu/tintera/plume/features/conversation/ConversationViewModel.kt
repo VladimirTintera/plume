@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.SenderInfo
 import eu.tintera.plume.resources.invite_request_sent
 import eu.tintera.plume.resources.conversation_link_failed
 import eu.tintera.plume.core.telegram.InvitePreview
@@ -393,6 +394,9 @@ class ConversationViewModel(
     /** Běžící hledání v chatu (dotaz s pauzou, dotažení stránky); nový dotaz ho ruší. */
     private var searchJob: Job? = null
 
+    /** Běžící hledání členů pro filtr podle odesílatele. */
+    private var memberJob: Job? = null
+
     /** Lupa v hlavičce: hledání v chatu. */
     fun openSearch() {
         if (_state.value.search == null) _state.update { it.copy(search = InChatSearch()) }
@@ -400,7 +404,8 @@ class ConversationViewModel(
 
     fun closeSearch() {
         searchJob?.cancel()
-        _state.update { it.copy(search = null) }
+        memberJob?.cancel()
+        _state.update { it.copy(search = null, memberPicker = null) }
     }
 
     /**
@@ -409,19 +414,38 @@ class ConversationViewModel(
      */
     fun onSearchQuery(text: String) {
         _state.update { state -> state.search?.let { state.copy(search = it.copy(query = text)) } ?: state }
+        restartSearch(debounce = true)
+    }
+
+    /**
+     * Hledání jen ve zprávách jednoho člena skupiny (`null` = filtr pryč). Hledá se hned, bez pauzy
+     * — výběr je hotové rozhodnutí, ne psaní. S odesílatelem stačí prázdný dotaz: výsledkem jsou
+     * všechny jeho zprávy.
+     */
+    fun setSearchSender(sender: SenderInfo?) {
+        _state.update { state ->
+            state.search?.let { state.copy(search = it.copy(sender = sender), memberPicker = null) } ?: state
+        }
+        restartSearch(debounce = false)
+    }
+
+    /** Spustí hledání pro současný text a odesílatele; rozběhnuté předchozí zruší. */
+    private fun restartSearch(debounce: Boolean) {
         searchJob?.cancel()
-        val query = text.trim()
-        if (query.isEmpty()) {
-            _state.update { state -> state.search?.let { state.copy(search = InChatSearch(query = text)) } ?: state }
+        val search = _state.value.search ?: return
+        if (!search.hasCriteria) {
+            _state.update { state -> state.search?.let { state.copy(search = it.cleared()) } ?: state }
             return
         }
+        val query = search.query.trim()
+        val senderId = search.sender?.id
         searchJob = viewModelScope.launch {
-            delay(SEARCH_DEBOUNCE_MS)
+            if (debounce) delay(SEARCH_DEBOUNCE_MS)
             _state.update { state -> state.search?.let { state.copy(search = it.copy(loading = true)) } ?: state }
-            repository.searchInChat(chatId, query)
+            repository.searchInChat(chatId, query, senderUserId = senderId)
                 .onSuccess { page ->
                     _state.update { state ->
-                        state.search?.let { state.copy(search = it.withFirstPage(query, page)) } ?: state
+                        state.search?.let { state.copy(search = it.withFirstPage(query, page, senderId)) } ?: state
                     }
                     _state.value.search?.current?.let { jumpToMessage(it, fromSearch = true) }
                 }
@@ -429,6 +453,38 @@ class ConversationViewModel(
                     val message = failure.reported(Res.string.conversation_search_failed)
                     _state.update { state ->
                         state.copy(error = message, search = state.search?.copy(loading = false))
+                    }
+                }
+        }
+    }
+
+    /** Výběr člena pro hledání podle odesílatele. */
+    fun openMemberPicker() {
+        _state.update { it.copy(memberPicker = MemberPicker()) }
+        onMemberQuery("")
+    }
+
+    fun closeMemberPicker() {
+        memberJob?.cancel()
+        _state.update { it.copy(memberPicker = null) }
+    }
+
+    /** Hledání člena podle jména, s krátkou pauzou v psaní; prázdné = první členové skupiny. */
+    fun onMemberQuery(text: String) {
+        _state.update { state -> state.memberPicker?.let { state.copy(memberPicker = it.copy(query = text, loading = true)) } ?: state }
+        memberJob?.cancel()
+        memberJob = viewModelScope.launch {
+            if (text.isNotEmpty()) delay(SEARCH_DEBOUNCE_MS)
+            repository.searchMembers(chatId, text.trim())
+                .onSuccess { members ->
+                    _state.update { state ->
+                        state.memberPicker?.let { state.copy(memberPicker = it.copy(members = members, loading = false)) } ?: state
+                    }
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Členy chatu se nepodařilo načíst." }
+                    _state.update { state ->
+                        state.memberPicker?.let { state.copy(memberPicker = it.copy(members = emptyList(), loading = false)) } ?: state
                     }
                 }
         }
@@ -446,10 +502,10 @@ class ConversationViewModel(
         if (search.loading) return
         searchJob = viewModelScope.launch {
             _state.update { state -> state.search?.let { state.copy(search = it.copy(loading = true)) } ?: state }
-            repository.searchInChat(chatId, search.resultsQuery, fromMessageId = from)
+            repository.searchInChat(chatId, search.resultsQuery, fromMessageId = from, senderUserId = search.resultsSenderId)
                 .onSuccess { page ->
                     _state.update { state ->
-                        val loaded = state.search?.withNextPage(search.resultsQuery, page)
+                        val loaded = state.search?.withNextPage(search.resultsQuery, page, search.resultsSenderId)
                         state.copy(search = loaded?.older() ?: loaded)
                     }
                     _state.value.search?.current?.takeIf { it != search.current }?.let { jumpToMessage(it, fromSearch = true) }
@@ -2019,6 +2075,9 @@ data class ScrollTarget(
     val older: Boolean? = null,
 )
 
+/** Otevřený výběr člena: dotaz a nalezení členové. */
+data class MemberPicker(val query: String = "", val members: List<SenderInfo> = emptyList(), val loading: Boolean = true)
+
 /** Chat k otevření nad konverzací; s [messageId] se v něm skočí na zprávu. */
 data class ChatTarget(val chatId: Long, val messageId: Long? = null)
 
@@ -2203,6 +2262,8 @@ data class ConversationState(
     val search: InChatSearch? = null,
     /** Jednorázová událost: otevřít chat ze zmínky nebo odkazu, případně se skokem na zprávu. */
     val openChat: ChatTarget? = null,
+    /** Výběr člena pro hledání podle odesílatele; `null` = zavřený. */
+    val memberPicker: MemberPicker? = null,
     /** Náhled chatu z pozvánky; `null` = zavřený. */
     val invite: InviteSheetState? = null,
     /** Jednorázová událost: otevřít sheet sady samolepek z odkazu `t.me/addstickers/…`. */

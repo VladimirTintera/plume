@@ -144,6 +144,10 @@
     <string name="conversation_search_clear">Vymazat</string>
     <string name="conversation_search_close">Zavřít hledání</string>
     <string name="conversation_search_failed">V chatu se nepodařilo hledat.</string>
+    <string name="conversation_search_by_member">Hledat podle člena</string>
+    <string name="conversation_search_members">Hledat členy</string>
+    <string name="conversation_search_members_none">Nikdo nenalezen</string>
+    <string name="conversation_search_sender_remove">Zrušit filtr podle člena</string>
     <string name="conversation_join">Přidat se</string>
     <string name="conversation_join_failed">Přidat se nepodařilo.</string>
     <string name="conversation_link_failed">Odkaz se nepodařilo otevřít.</string>

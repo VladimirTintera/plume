@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ChatSearchPage
+import eu.tintera.plume.core.telegram.SenderInfo
 
 /**
  * Hledání uvnitř konverzace: dotaz, nalezené zprávy a která z nich je právě ukázaná.
@@ -16,6 +17,13 @@ data class InChatSearch(
     val query: String = "",
     /** Dotaz, ke kterému patří [results]; během psaní se od [query] liší. */
     val resultsQuery: String = "",
+    /**
+     * Jen zprávy tohohle člena skupiny. S ním smí být dotaz prázdný — pak jsou výsledkem všechny
+     * jeho zprávy.
+     */
+    val sender: SenderInfo? = null,
+    /** Odesílatel, ke kterému patří [results]. */
+    val resultsSenderId: Long? = null,
     val results: List<Long> = emptyList(),
     val index: Int = -1,
     /** Odhad serveru; bez něj se počítá jen s načtenými. */
@@ -33,12 +41,19 @@ data class InChatSearch(
 
     val hasNewer: Boolean get() = index > 0
 
-    /** Hledání pro dotaz doběhlo a nic nenašlo. */
-    val nothingFound: Boolean get() = !loading && resultsQuery.isNotBlank() && resultsQuery == query.trim() && results.isEmpty()
+    /** Je podle čeho hledat — text, nebo aspoň odesílatel. */
+    val hasCriteria: Boolean get() = query.isNotBlank() || sender != null
 
-    /** První stránka pro [forQuery]: ukáže se nejnovější výsledek. */
-    fun withFirstPage(forQuery: String, page: ChatSearchPage): InChatSearch = copy(
+    /** Hledání pro současný dotaz a odesílatele doběhlo a nic nenašlo. */
+    val nothingFound: Boolean
+        get() = !loading && results.isEmpty() &&
+            (resultsQuery.isNotBlank() || resultsSenderId != null) &&
+            resultsQuery == query.trim() && resultsSenderId == sender?.id
+
+    /** První stránka pro [forQuery] a [forSenderId]: ukáže se nejnovější výsledek. */
+    fun withFirstPage(forQuery: String, page: ChatSearchPage, forSenderId: Long? = null): InChatSearch = copy(
         resultsQuery = forQuery,
+        resultsSenderId = forSenderId,
         results = page.messageIds,
         index = if (page.messageIds.isEmpty()) -1 else 0,
         total = page.total,
@@ -46,9 +61,9 @@ data class InChatSearch(
         loading = false,
     )
 
-    /** Další stránka starších — jen pro dotaz, ke kterému patří načtené výsledky. */
-    fun withNextPage(forQuery: String, page: ChatSearchPage): InChatSearch {
-        if (forQuery != resultsQuery) return this
+    /** Další stránka starších — jen pro dotaz a odesílatele, ke kterým patří načtené výsledky. */
+    fun withNextPage(forQuery: String, page: ChatSearchPage, forSenderId: Long? = null): InChatSearch {
+        if (forQuery != resultsQuery || forSenderId != resultsSenderId) return this
         val known = results.toHashSet()
         return copy(
             results = results + page.messageIds.filter { known.add(it) },
@@ -61,4 +76,7 @@ data class InChatSearch(
     fun older(): InChatSearch? = if (index + 1 < results.size) copy(index = index + 1) else null
 
     fun newer(): InChatSearch? = if (index > 0) copy(index = index - 1) else null
+
+    /** Bez podmínek (prázdný dotaz i odesílatel): výsledky pryč, text a odesílatel zůstanou. */
+    fun cleared(): InChatSearch = InChatSearch(query = query, sender = sender)
 }

@@ -250,7 +250,20 @@ interface ConversationRepository {
      * Zprávy s [query] v tomhle chatu, od nejnovější. Další stránka od [fromMessageId]
      * z předchozí ([ChatSearchPage.nextFromMessageId]); nula je první stránka.
      */
-    suspend fun searchInChat(chatId: Long, query: String, fromMessageId: Long = 0): Result<ChatSearchPage>
+    suspend fun searchInChat(
+        chatId: Long,
+        query: String,
+        fromMessageId: Long = 0,
+        /** Jen zprávy tohohle uživatele; s ním smí být [query] i prázdný (všechny jeho zprávy). */
+        senderUserId: Long? = null,
+    ): Result<ChatSearchPage>
+
+    /**
+     * Členové skupiny podle jména, pro hledání podle odesílatele. Jen uživatelé — anonymní správce
+     * vystupující za skupinu ani kanál se filtrovat nedá. Server u velké skupiny vrátí jen část,
+     * proto se hledá podle [query], ne listuje.
+     */
+    suspend fun searchMembers(chatId: Long, query: String): Result<List<SenderInfo>>
 
     /**
      * Sponzorované zprávy pro daný chat. Mimo kanály vrací prázdný seznam.

@@ -697,6 +697,11 @@ fun ConversationScreen(
                     initialQuery = search.query,
                     onQueryChange = viewModel::onSearchQuery,
                     onClose = viewModel::closeSearch,
+                    sender = search.sender,
+                    // Podle člena jen ve skupině: v soukromém chatu jsou odesílatelé dva a v kanálu
+                    // píše jen kanál.
+                    onPickSender = viewModel::openMemberPicker.takeIf { state.info?.let { it.isGroup && !it.isChannel } == true },
+                    onRemoveSender = { viewModel.setSearchSender(null) },
                 )
                 return@topBar
             }
@@ -895,6 +900,15 @@ fun ConversationScreen(
             val setId = state.openStickerSet ?: return@LaunchedEffect
             viewModel.consumeOpenStickerSet()
             openStickerSetId = setId
+        }
+
+        state.memberPicker?.let { picker ->
+            MemberPickerSheet(
+                picker = picker,
+                onQueryChange = viewModel::onMemberQuery,
+                onPick = viewModel::setSearchSender,
+                onDismiss = viewModel::closeMemberPicker,
+            )
         }
 
         state.invite?.let { invite ->

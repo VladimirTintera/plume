@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ChatSearchPage
+import eu.tintera.plume.core.telegram.SenderInfo
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -66,5 +67,38 @@ class InChatSearchTest {
     fun pocetNeniMensiNezNactene() {
         val search = InChatSearch(query = "a").withFirstPage("a", page(3, 2, 1, total = null))
         assertEquals(3, search.count)
+    }
+
+    private val jana = SenderInfo(id = 42, title = "Jana", avatarFileId = null)
+
+    @Test
+    fun odesilatelStaciKHledaniIBezTextu() {
+        val search = InChatSearch(sender = jana)
+        assertTrue(search.hasCriteria)
+        assertFalse(InChatSearch(query = "  ").hasCriteria)
+    }
+
+    @Test
+    fun nicNenalezenoPlatiProDotazIOdesilatele() {
+        val found = InChatSearch(sender = jana).withFirstPage("", page(), forSenderId = 42)
+        assertTrue(found.nothingFound)
+        // Uživatel mezitím filtr zrušil: prázdný výsledek patří jinému hledání.
+        assertFalse(found.copy(sender = null).nothingFound)
+    }
+
+    @Test
+    fun strankaJinehoOdesilateleSeZahodi() {
+        val search = InChatSearch(query = "a", sender = jana).withFirstPage("a", page(9, next = 9), forSenderId = 42)
+        assertEquals(search, search.withNextPage("a", page(1), forSenderId = null))
+        assertEquals(listOf(9L, 1L), search.withNextPage("a", page(1), forSenderId = 42).results)
+    }
+
+    @Test
+    fun vycisteniNechaTextIOdesilatele() {
+        val search = InChatSearch(query = "x", sender = jana).withFirstPage("x", page(5), forSenderId = 42)
+        val cleared = search.cleared()
+        assertEquals("x", cleared.query)
+        assertEquals(jana, cleared.sender)
+        assertTrue(cleared.results.isEmpty())
     }
 }

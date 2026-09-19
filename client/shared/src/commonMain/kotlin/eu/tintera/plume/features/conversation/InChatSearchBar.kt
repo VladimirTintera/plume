@@ -1,5 +1,27 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.search_24dp
+import eu.tintera.plume.resources.person_search_24dp
+import eu.tintera.plume.resources.conversation_search_sender_remove
+import eu.tintera.plume.resources.conversation_search_members_none
+import eu.tintera.plume.resources.conversation_search_members
+import eu.tintera.plume.resources.conversation_search_by_member
+import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.telegram.SenderInfo
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material3.rememberBottomSheetState
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.InputChipDefaults
+import androidx.compose.material3.InputChip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -65,6 +87,11 @@ internal fun InChatSearchTopBar(
     initialQuery: String,
     onQueryChange: (String) -> Unit,
     onClose: () -> Unit,
+    /** Vybraný člen, jehož zprávy se hledají; `null` = všechny. */
+    sender: SenderInfo? = null,
+    /** Výběr člena; `null` mimo skupiny, kde odesílatel není jen jeden protějšek. */
+    onPickSender: (() -> Unit)? = null,
+    onRemoveSender: () -> Unit = {},
 ) {
     var query by rememberSaveable { mutableStateOf(initialQuery) }
     val focus = remember { FocusRequester() }
@@ -82,6 +109,32 @@ internal fun InChatSearchTopBar(
             }
         },
         title = {
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            // Vybraný člen je čip před polem: je vidět, že se hledá jen v jeho zprávách,
+            // a ťuknutím se filtr zruší.
+            sender?.let {
+                InputChip(
+                    selected = true,
+                    onClick = onRemoveSender,
+                    label = { Text(it.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    avatar = {
+                        Avatar(
+                            chatId = it.id,
+                            title = it.title,
+                            avatarFileId = it.avatarFileId,
+                            size = InputChipDefaults.AvatarSize,
+                        )
+                    },
+                    trailingIcon = {
+                        Icon(
+                            painterResource(Res.drawable.close_24dp),
+                            contentDescription = stringResource(Res.string.conversation_search_sender_remove),
+                            modifier = Modifier.size(InputChipDefaults.IconSize),
+                        )
+                    },
+                    modifier = Modifier.widthIn(max = SENDER_CHIP_MAX_WIDTH),
+                )
+            }
             TextField(
                 value = query,
                 onValueChange = {
@@ -99,10 +152,19 @@ internal fun InChatSearchTopBar(
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                 ),
-                modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                modifier = Modifier.weight(1f).focusRequester(focus),
             )
+          }
         },
         actions = {
+            if (onPickSender != null && sender == null) {
+                IconButton(onClick = onPickSender) {
+                    Icon(
+                        painterResource(Res.drawable.person_search_24dp),
+                        contentDescription = stringResource(Res.string.conversation_search_by_member),
+                    )
+                }
+            }
             if (query.isNotEmpty()) {
                 IconButton(onClick = {
                     query = ""
@@ -171,3 +233,67 @@ internal fun InChatSearchNavigator(
         }
     }
 }
+
+/** Čip vybraného člena nesmí vytlačit pole — dlouhé jméno se zkrátí. */
+private val SENDER_CHIP_MAX_WIDTH = 160.dp
+
+/**
+ * Výběr člena skupiny pro hledání podle odesílatele: pole na jméno a seznam členů. Server u velké
+ * skupiny vrátí jen část, takže se hledá podle jména, ne listuje (`searchChatMembers`).
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun MemberPickerSheet(
+    picker: MemberPicker,
+    onQueryChange: (String) -> Unit,
+    onPick: (SenderInfo) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    var query by rememberSaveable { mutableStateOf(picker.query) }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        TextField(
+            value = query,
+            onValueChange = {
+                query = it
+                onQueryChange(it)
+            },
+            placeholder = { Text(stringResource(Res.string.conversation_search_members)) },
+            leadingIcon = { Icon(painterResource(Res.drawable.search_24dp), contentDescription = null) },
+            singleLine = true,
+            shape = RoundedCornerShape(28.dp),
+            colors = TextFieldDefaults.colors(
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+            ),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        )
+        // Pevná výška: sheet se při psaní nenatahuje a nesmršťuje podle počtu nalezených.
+        Box(Modifier.fillMaxWidth().height(MEMBER_LIST_HEIGHT).padding(top = 8.dp)) {
+            when {
+                picker.loading && picker.members.isEmpty() -> LoadingIndicator(Modifier.align(Alignment.Center))
+                picker.members.isEmpty() -> Text(
+                    stringResource(Res.string.conversation_search_members_none),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.Center),
+                )
+                else -> LazyColumn {
+                    items(picker.members, key = { it.id }) { member ->
+                        ListItem(
+                            headlineContent = { Text(member.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            leadingContent = {
+                                Avatar(chatId = member.id, title = member.title, avatarFileId = member.avatarFileId, size = 40.dp)
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            modifier = Modifier.clickable { onPick(member) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private val MEMBER_LIST_HEIGHT = 420.dp

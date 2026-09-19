@@ -1379,6 +1379,16 @@ Lupa v hlavičce chatu přepne hlavičku na pole a místo vstupního pole ukáž
   další zpět odchází z chatu. Konverzace zůstane na posledním výsledku.
 - **Ukázaný výsledek zůstává zvýrazněný** (barva a obíhající vlnitý okraj, viz „Vzhled
   konverzace") — po jednorázovém pulzu by se v konverzaci ztratil.
+- **Ve skupině jde hledat podle člena** (ikona `person_search` v hlavičce hledání →
+  `MemberPickerSheet`, `searchChatMembers` podle jména; `searchChatMessages` se `senderId`).
+  Vybraný člen je čip před polem, ťuknutím se filtr zruší. S členem stačí prázdný dotaz —
+  výsledkem jsou všechny jeho zprávy (`InChatSearch.hasCriteria`), text k tomu hledání zúží.
+  V soukromém chatu a v kanálu se nenabízí: odesílatelé jsou dva, respektive jeden.
+- **Výsledky patří dvojici dotaz + odesílatel** (`resultsQuery`, `resultsSenderId`): stránka
+  i „nic nenalezeno" pro jinou dvojici se zahodí. Výběr člena hledá hned, bez pauzy — je to
+  hotové rozhodnutí, ne psaní.
+- **Členové jen podle jména, ne seznamem.** Server u velké skupiny vrátí jen část; anonymní
+  správce (odesílatel = chat) filtrovat nejde, `searchMembers` bere jen uživatele.
 - **Hledané slovo je v textu zvýrazněné u KAŽDÉ zprávy**, ne jen u ukázaného výsledku
   (`MessageText` → `RichText(highlights)`). Je vidět, proč se zpráva našla. Zvýrazňuje se dotaz,
   ke kterému patří výsledky (`resultsQuery`), ne rozepsaný text.
