@@ -88,6 +88,12 @@ v [README](README.md#release-do-google-play). Sem patří jen to, co se z workfl
   kterému zprávy posílá Bot API. Česky se z `adb input text` psát nedá — odchozí text jde do
   pole přes sdílení (`SEND` s `EXTRA_SHORTCUT_ID chat_<id bota>`). Pozor: `chat_id` v Bot API
   u soukromého chatu je id UŽIVATELE, takže `chat_<chat_id>` otevře Uložené zprávy, ne bota.
+- **Ikona aplikace (pírko) se generuje, nekreslí se ručně** (`play/tools/icon.py`). Jedna
+  geometrie v shapely → PNG pro Play, 1024px PNG pro iOS a vektor popředí adaptivní ikony
+  Androidu (`ic_launcher_foreground.xml`, i jako `monochrome` pro tématické ikony). Tři ručně
+  udržované kopie by se rozešly. Pozadí je gradient v `ic_launcher_background.xml` — jeho barvy
+  musí sedět s `TOP`/`BOTTOM` ve skriptu. Pírko sahá do 31 dp od středu, bezpečná zóna
+  adaptivní ikony je 33 dp; víc a launcher s kulatou maskou ho ořízne.
 - **Balíček SDK platformy se jmenuje `platforms;android-37.0`** — u minor verzí je nula součástí
   id. Musí odpovídat `android-compileSdk` v `libs.versions.toml`.
 
@@ -2987,8 +2993,14 @@ a odložené rušení prázdné notifikace.
   notifikace třídí (Light Flow, hodinky), ji nemusí poznat jako zprávu. Titulek a text si systém
   z `MessagingStyle` doplní sám, ticker ne — a starší čtenáři notifikací berou text odsud.
   Porovnání s oficiálním klientem: `adb shell dumpsys notification --noredact`.
-- **Ikona notifikace je zatím systémová** (`android.R.drawable.ic_dialog_email`). Cílově sem
-  patří vlastní monochromatická ikona v `androidApp/res/drawable`.
+- **Ikona notifikace je pírko** (`ic_notification`), vygenerované `play/tools/icon.py` jako
+  ikona aplikace. Leží v `:client:shared` (`androidMain/res`, třída `eu.tintera.plume.client.R`),
+  ne v `androidApp` — kód notifikací je v knihovně a na prostředky aplikace nedosáhne. Osten
+  je silnější než u ikony aplikace: při 24 dp by původní šířka s vlajkou splynula.
+- **Odznak v rohu avataru konverzační notifikace je IKONA APLIKACE, ne malá ikona**, a System
+  UI si ji drží v paměti. Po změně ikony tam zůstala ta stará i po přeinstalování a se změněným
+  `versionCode`; `am force-stop com.android.systemui` System UI nerestartuje (ověřit `ps`).
+  Pomohl až restart emulátoru.
 - **`adb shell am force-stop` znemožní doručení FCM.** Aplikace se dostane do „stopped state"
   a zprávy jí systém nedoručí, dokud ji uživatel ručně nespustí. Push se tak testovat nedá —
   aplikaci je potřeba jen odswipovat z přehledu úloh.

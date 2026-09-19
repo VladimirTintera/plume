@@ -18,6 +18,7 @@ import androidx.core.content.FileProvider
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.NotificationIntents
 import eu.tintera.plume.core.share.bookmarkIcon
 import eu.tintera.plume.core.share.conversationShortcut
@@ -285,7 +286,7 @@ actual class NotificationPresenter(
         }
 
         val built = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_email)
+            .setSmallIcon(R.drawable.ic_notification)
             // Velká ikona je záloha. U `MessagingStyle` si ji Android bere ze ZKRATKY (viz
             // `publishShortcut`) a tuhle ignoruje — uplatní se, jen když se zkratku nepodaří
             // publikovat.
