@@ -440,7 +440,12 @@ private fun DeviceDetailSheet(
     onTerminate: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    // Rovnou celý: napůl rozbalený sheet schoval odhlášení pod spodní okraj a vypadalo to,
+    // že jednotlivé zařízení odhlásit nejde (stejná past jako „Odebrat sadu" u samolepek).
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
             Modifier
@@ -453,6 +458,24 @@ private fun DeviceDetailSheet(
                 leadingContent = { DeviceIcon(device.kind.icon) },
                 headlineContent = { Text(device.title, style = MaterialTheme.typography.titleLarge) },
             )
+
+            // Odhlášení hned pod hlavičkou, ne až za údaji: je to to, kvůli čemu se sem chodí,
+            // a na menším telefonu by pod údaji a přepínači skončilo pod okrajem.
+            // Jen u CIZÍHO zařízení — odhlášení tohoto je v Obecných (maže lokální data).
+            if (!device.isCurrent) {
+                Button(
+                    onClick = onTerminate,
+                    enabled = !busy,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    ),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                ) {
+                    Text(stringResource(Res.string.devices_terminate))
+                }
+            }
+
             DetailRow(Res.string.devices_detail_app, device.appLine)
             DetailRow(
                 Res.string.devices_detail_system,
@@ -465,8 +488,7 @@ private fun DeviceDetailSheet(
             DetailRow(Res.string.devices_detail_ip, device.ipAddress)
             DetailRow(Res.string.devices_detail_location, device.location)
 
-            // Přepínače a odhlášení jen u CIZÍHO zařízení: o tomhle rozhoduje systémové nastavení
-            // a odhlášení tohoto zařízení je v sekci Obecné (maže lokální data).
+            // Přepínače jen u cizího zařízení: o tomhle rozhoduje systémové nastavení.
             if (!device.isCurrent) {
                 Text(
                     stringResource(Res.string.devices_accept),
@@ -476,18 +498,6 @@ private fun DeviceDetailSheet(
                 )
                 SwitchRow(Res.string.devices_accept_calls, device.canAcceptCalls, !busy, onCanAcceptCalls)
                 SwitchRow(Res.string.devices_accept_secret_chats, device.canAcceptSecretChats, !busy, onCanAcceptSecretChats)
-
-                Button(
-                    onClick = onTerminate,
-                    enabled = !busy,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    ),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
-                ) {
-                    Text(stringResource(Res.string.devices_terminate))
-                }
             }
         }
     }
