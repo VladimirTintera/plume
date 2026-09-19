@@ -211,6 +211,9 @@
     <string name="menu_delete">Smazat</string>
     <string name="menu_forward">Přeposlat</string>
     <string name="forward_title">Přeposlat do</string>
+    <string name="share_title">Sdílet do</string>
+    <string name="share_preparing">Připravuji soubory…</string>
+    <string name="share_failed_files">Některé sdílené soubory se nepodařilo připravit</string>
     <string name="forward_search">Hledat chat</string>
     <string name="forward_empty">Hledání neodpovídá žádný chat.</string>
     <string name="forward_failed">Zprávu se nepodařilo přeposlat.</string>
@@ -361,6 +364,11 @@
     <string name="stickers_search">Hledat samolepky</string>
     <string name="stickers_tab_emoji">Emoji</string>
     <string name="stickers_tab_stickers">Samolepky</string>
+    <plurals name="share_files">
+        <item quantity="one">%1$d soubor</item>
+        <item quantity="few">%1$d soubory</item>
+        <item quantity="other">%1$d souborů</item>
+    </plurals>
     <plurals name="conversation_new_messages">
         <item quantity="one">%1$d nová zpráva</item>
         <item quantity="few">%1$d nové zprávy</item>

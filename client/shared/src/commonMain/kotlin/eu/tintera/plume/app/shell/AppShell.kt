@@ -57,6 +57,8 @@ import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForwardRoute
+import eu.tintera.plume.core.navigation.ShareRoute
+import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.navigation.SettingsRoute
 import eu.tintera.plume.core.navigation.SettingsSection
@@ -67,6 +69,7 @@ import eu.tintera.plume.features.chats.ChatListScreen
 import eu.tintera.plume.features.conversation.ConversationPlaceholder
 import eu.tintera.plume.features.conversation.ConversationScreen
 import eu.tintera.plume.features.forward.ForwardScreen
+import eu.tintera.plume.features.share.ShareScreen
 import eu.tintera.plume.features.media.MediaViewerScreen
 import org.koin.core.parameter.parametersOf
 import eu.tintera.plume.features.settings.SettingsScreen
@@ -116,6 +119,20 @@ fun AppShell(modifier: Modifier = Modifier) {
         val chatId = requestedChatId ?: return@LaunchedEffect
         navigation.openChat(chatId)
         chatOpenRequests.consume(chatId)
+    }
+
+    /*
+     * Sdílení ze systému (nabídka „Sdílet" v jiné aplikaci). Stav, ne událost — viz
+     * [ShareRequests]: sdílet jde i do aplikace, která teprve naběhla nebo visela na přihlášení.
+     * Klíčem je id sdílení, ne celý obsah: průběh přípravy souborů výběr znovu otevírat nemá.
+     * Výběr se otevírá jen pro sdílení bez vybraného chatu — to s vybraným už čeká v konverzaci.
+     */
+    val shareRequests = koinInject<ShareRequests>()
+    val incomingShare by shareRequests.incoming.collectAsStateWithLifecycle()
+    val pendingShareId = incomingShare?.takeIf { it.targetChatId == null }?.id
+
+    LaunchedEffect(pendingShareId) {
+        if (pendingShareId != null) navigation.openShare()
     }
 
     val currentTopLevel = navigation.section
@@ -406,6 +423,22 @@ private fun shellEntryProvider(
                 if (chatsStack.lastOrNull() != ConversationRoute(chatId)) {
                     chatsStack.add(ConversationRoute(chatId))
                 }
+            },
+        )
+    }
+
+    /*
+     * Výběr chatu pro obsah sdílený ze systému. Po výběru ho nahradí vybraný chat a obsah čeká
+     * nad vstupním polem; zpět (nebo šipka) sdílení zahodí.
+     */
+    entry<ShareRoute> {
+        ShareScreen(
+            viewModel = koinViewModel(),
+            onBack = { chatsStack.remove(ShareRoute) },
+            // Vybraný chat výběr NAHRADÍ — zpět z něj vede na seznam, ne do výběru.
+            onChosen = { chatId ->
+                chatsStack.remove(ShareRoute)
+                if (chatsStack.lastOrNull() != ConversationRoute(chatId)) chatsStack.add(ConversationRoute(chatId))
             },
         )
     }

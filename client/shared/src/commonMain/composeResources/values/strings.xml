@@ -211,6 +211,9 @@
     <string name="menu_delete">Delete</string>
     <string name="menu_forward">Forward</string>
     <string name="forward_title">Forward to</string>
+    <string name="share_title">Share to</string>
+    <string name="share_preparing">Preparing files…</string>
+    <string name="share_failed_files">Some shared files couldn't be prepared</string>
     <string name="forward_search">Search chats</string>
     <string name="forward_empty">No chat matches the search.</string>
     <string name="forward_failed">The message could not be forwarded.</string>
@@ -361,6 +364,10 @@
     <string name="stickers_search">Search stickers</string>
     <string name="stickers_tab_emoji">Emoji</string>
     <string name="stickers_tab_stickers">Stickers</string>
+    <plurals name="share_files">
+        <item quantity="one">%1$d file</item>
+        <item quantity="other">%1$d files</item>
+    </plurals>
     <plurals name="conversation_new_messages">
         <item quantity="one">%1$d new message</item>
         <item quantity="other">%1$d new messages</item>

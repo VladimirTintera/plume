@@ -13,6 +13,8 @@ import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSharer
 import eu.tintera.plume.core.files.SaveAsLauncher
+import eu.tintera.plume.core.share.ShareRequests
+import eu.tintera.plume.core.share.SharedContent
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatActivity
@@ -70,11 +72,13 @@ import eu.tintera.plume.resources.document_open_failed
 import eu.tintera.plume.resources.media_save_failed
 import eu.tintera.plume.resources.media_saved_as
 import eu.tintera.plume.resources.media_share_failed
+import eu.tintera.plume.resources.share_failed_files
 import eu.tintera.plume.resources.message_info_failed
 import eu.tintera.plume.resources.message_info_link_copied
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -127,6 +131,8 @@ class ConversationViewModel(
     private val voicePlayer: VoicePlayer,
     private val fileOpener: FileOpener,
     private val sharer: MediaSharer,
+    /** Obsah sdílený ze systému, pro který uživatel vybral tenhle chat. */
+    private val shareRequests: ShareRequests,
     audioRecorder: AudioRecorder,
     connection: ConnectionRepository,
 ) : ViewModel() {
@@ -167,6 +173,12 @@ class ConversationViewModel(
 
     /** Poslední text z pole, jak ho hlásí obrazovka. Kvůli ukládání konceptu. */
     private var draftText = ""
+
+    /**
+     * Koncept z TDLib je vyřízený (vrácený do pole, nebo žádný není). Sdílený text se vkládá až
+     * po něm: koncept jde jen do prázdného pole, takže sdílení před ním by ho z pole vytlačilo.
+     */
+    private val draftRestored = CompletableDeferred<Unit>()
 
     /** Koncept odložený po dobu úpravy zprávy; po ní se vrátí do pole. */
     private var draftBeforeEdit = ""
@@ -211,6 +223,16 @@ class ConversationViewModel(
                 info.draftText?.let { draftText = it }
                 info.draftReplyToMessageId?.let(::restoreDraftReply)
                 loadUntilUnread()
+            }
+            draftRestored.complete(Unit)
+        }
+
+        viewModelScope.launch {
+            // Sdílení ze systému do tohohle chatu. Odběr trvá po celou dobu konverzace: chat mohl
+            // být otevřený pod výběrem a vybraný až potom.
+            shareRequests.deliveries(chatId).collect { content ->
+                draftRestored.await()
+                receiveShared(content)
             }
         }
 
@@ -570,6 +592,25 @@ class ConversationViewModel(
                 attachments = staged.attachments,
                 notice = if (staged.overflow) UiText(Res.string.conversation_attachments_limit, MAX_ATTACHMENTS) else it.notice,
             )
+        }
+    }
+
+    /**
+     * Obsah sdílený ze systému: soubory k připraveným přílohám nad polem, text do pole.
+     *
+     * Nic se neposílá — uživatel má vidět, co odejde, a k souborům napsat popisek. Rozepsaný
+     * koncept se **doplní, nepřepíše**: kdo sdílí odkaz do chatu, kde má něco rozepsaného,
+     * nechce o to přijít.
+     */
+    private fun receiveShared(content: SharedContent) {
+        shareRequests.consume(content.id)
+        content.attachments?.takeIf { it.isNotEmpty() }?.let(::addAttachments)
+        content.text?.let { shared ->
+            val text = if (draftText.isBlank()) shared else draftText.trimEnd() + "\n" + shared
+            _state.update { it.copy(inputFill = InputFill(text, onlyIfEmpty = false)) }
+        }
+        if (content.failed > 0) {
+            _state.update { it.copy(notice = UiText(Res.string.share_failed_files)) }
         }
     }
 
