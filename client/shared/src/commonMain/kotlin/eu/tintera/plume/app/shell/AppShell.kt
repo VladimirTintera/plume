@@ -401,6 +401,7 @@ private fun ShellContent(
                 wide = wide,
                 twoPane = twoPane,
                 closeShare = closeShare,
+                navigation = navigation,
             )
             /*
              * Položky se dekorují pro KAŽDOU sekci, i tu, která není vidět. Zásobník, který se
@@ -453,6 +454,7 @@ private fun shellEntryProvider(
     wide: Boolean,
     twoPane: Boolean,
     closeShare: () -> Unit,
+    navigation: AppNavigation,
 ): (NavKey) -> NavEntry<NavKey> = entryProvider {
 
     entry<ChatsRoute>(
@@ -466,6 +468,8 @@ private fun shellEntryProvider(
                 .lastOrNull()?.chatId,
             onChatClick = { chatId -> chatsStack.openConversation(chatId) },
             onMessageClick = { chatId, messageId -> chatsStack.openConversation(chatId, messageId) },
+            searchRequest = navigation.searchRequest,
+            onSearchRequestHandled = navigation::consumeSearchRequest,
             onOpenArchive = {
                 if (chatsStack.lastOrNull() != ArchiveRoute) chatsStack.add(ArchiveRoute)
             },
@@ -515,6 +519,11 @@ private fun shellEntryProvider(
             onForward = { messageIds ->
                 chatsStack.add(ForwardRoute(route.chatId, messageIds))
             },
+            // Zmínka otevře chat NAD touhle konverzací (ne místo ní), takže zpět vede sem.
+            onOpenChat = { chatId ->
+                if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(chatId))
+            },
+            onSearch = { query -> navigation.openSearch(query, keepConversation = twoPane) },
         )
     }
 

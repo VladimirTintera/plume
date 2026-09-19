@@ -139,6 +139,7 @@
     <string name="conversation_message_too_deep">Zpráva je v historii moc daleko, skočit na ni zatím nejde.</string>
     <string name="conversation_join">Přidat se</string>
     <string name="conversation_join_failed">Přidat se nepodařilo.</string>
+    <string name="conversation_mention_not_found">Tenhle chat se nepodařilo najít.</string>
     <string name="conversation_sticker_send_failed">Samolepku se nepodařilo odeslat.</string>
     <string name="conversation_attachments_limit">Najednou jde poslat nejvýš %1$d příloh.</string>
     <string name="conversation_attachments_send_failed">Přílohy se nepodařilo odeslat.</string>

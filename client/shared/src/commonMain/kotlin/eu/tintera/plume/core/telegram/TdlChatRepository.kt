@@ -354,6 +354,12 @@ class TdlChatRepository(
             .toResult()
             .map { }
 
+    override suspend fun chatByUsername(username: String): Result<Long> =
+        client.searchPublicChat(username = username).toResult().map { it.id }
+
+    override suspend fun privateChat(userId: Long): Result<Long> =
+        client.createPrivateChat(userId = userId, force = false).toResult().map { it.id }
+
     override suspend fun openSavedMessages(): Result<Long> {
         val userId = me.value ?: session.me().getOrNull()?.id
             ?: return Result.failure(IllegalStateException("Účet není přihlášený."))

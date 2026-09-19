@@ -28,9 +28,8 @@ data class MessageEntity(
  * jen s jiným schématem.
  *
  * Typy, které neumíme dovést do konce, se sem **nemapují vůbec** a text po nich zůstane obyčejný.
- * Týká se to zmínek (`@jmeno`), hashtagů a příkazů botů: obarvit je umíme, ale kliknutí by nemělo
- * kam vést — zmínka se musí vyhledat uvnitř aplikace (`searchPublicChat`), ne otevřít v prohlížeči.
- * Modrý text, po kterém se nic nestane, je horší než text černý.
+ * Týká se to příkazů botů a cashtagů: obarvit je umíme, ale kliknutí by nemělo kam vést. Modrý
+ * text, po kterém se nic nestane, je horší než text černý.
  */
 sealed interface MessageEntityType {
 
@@ -41,6 +40,21 @@ sealed interface MessageEntityType {
      * U odkazu psaného bez schématu (`example.com`) ho doplní mapování z TDLib.
      */
     data class Link(val url: String) : MessageEntityType
+
+    /**
+     * `@jméno` přímo v textu. Vede na chat uvnitř aplikace (`searchPublicChat`), ne do
+     * prohlížeče. [username] je bez zavináče.
+     */
+    data class Mention(val username: String) : MessageEntityType
+
+    /**
+     * Zmínka uživatele bez veřejného jména — text je jméno, uživatel je jen [userId]. Vede na
+     * soukromý chat s ním.
+     */
+    data class MentionUser(val userId: Long) : MessageEntityType
+
+    /** `#tag` — vede na hledání zpráv s tím tagem. [tag] je i s mřížkou, tak se i hledá. */
+    data class Hashtag(val tag: String) : MessageEntityType
 
     data object Bold : MessageEntityType
 

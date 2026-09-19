@@ -57,6 +57,7 @@ import eu.tintera.plume.resources.conversation_favorite_removed
 import eu.tintera.plume.resources.conversation_history_failed
 import eu.tintera.plume.resources.conversation_pin_failed
 import eu.tintera.plume.resources.conversation_join_failed
+import eu.tintera.plume.resources.conversation_mention_not_found
 import eu.tintera.plume.resources.conversation_message_deleted
 import eu.tintera.plume.resources.conversation_message_too_deep
 import eu.tintera.plume.resources.conversation_quote_deleted
@@ -966,6 +967,26 @@ class ConversationViewModel(
         urlOpener.open(url)
     }
 
+    /**
+     * Zmínka v textu: najde chat a obrazovka ho otevře nad touhle konverzací ([ConversationState.openChat]).
+     * Zmínka téhož chatu (sebe sama v Uložených zprávách, kanál ve vlastním příspěvku) nikam nevede.
+     */
+    private fun openMentioned(resolve: suspend () -> Result<Long>) {
+        viewModelScope.launch {
+            resolve()
+                .onSuccess { target -> if (target != chatId) _state.update { it.copy(openChat = target) } }
+                .onFailure { failure ->
+                    val message = failure.reported(Res.string.conversation_mention_not_found)
+                    _state.update { it.copy(error = message) }
+                }
+        }
+    }
+
+    /** Obrazovka chat otevřela. Bez toho by se po otočení displeje otevřel znovu. */
+    fun consumeOpenChat() {
+        _state.update { it.copy(openChat = null) }
+    }
+
     /** Nastaví zprávu, na kterou se odpovídá. Zobrazí se nad vstupním polem. */
     private fun replyTo(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
@@ -1176,6 +1197,8 @@ class ConversationViewModel(
             MessageAction.SwipeReply, MessageMenuAction.Reply -> replyTo(messageId)
             is MessageAction.JumpTo -> jumpToMessage(action.messageId)
             is MessageAction.OpenLink -> openLink(action.url)
+            is MessageAction.OpenMention -> openMentioned { chatRepository.chatByUsername(action.username) }
+            is MessageAction.OpenUser -> openMentioned { chatRepository.privateChat(action.userId) }
             MessageAction.OpenDocument -> openDocument(messageId)
             MessageAction.CancelUpload -> cancelUpload(messageId)
             MessageAction.ToggleVoice -> toggleVoice(messageId)
@@ -1189,7 +1212,8 @@ class ConversationViewModel(
             MessageMenuAction.Unpin -> unpinFromMenu(messageId)
             MessageMenuAction.Delete -> requestDelete(messageId)
             MessageMenuAction.ShareFile -> shareDocument(messageId)
-            MessageAction.OpenMedia, is MessageAction.OpenStickerSet, MessageMenuAction.SaveFileAs ->
+            MessageAction.OpenMedia, is MessageAction.OpenStickerSet, is MessageAction.SearchHashtag,
+            MessageMenuAction.SaveFileAs ->
                 logger.w { "Akce $action patří obrazovce, do ViewModelu nemá chodit." }
         }
     }
@@ -1947,6 +1971,8 @@ data class ConversationState(
     val editing: ChatMessage? = null,
     /** Zpráva krátce zvýrazněná po skoku na citaci; `null` většinu času. */
     val highlightedMessageId: Long? = null,
+    /** Jednorázová událost: otevřít chat ze zmínky v textu. */
+    val openChat: Long? = null,
     /** Běží přidání ke skupině / kanálu ([ConversationViewModel.join]). */
     val joining: Boolean = false,
     /** Reklamy k zobrazení. Podle Telegram ToS se nesmí filtrovat ani skrývat. */

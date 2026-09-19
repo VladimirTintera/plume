@@ -67,8 +67,10 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
      - **Jméno odesílatele u nalezené zprávy ve skupině**; dnes je vidět jen chat.
      - **Kanál po „Přidat se" pořád nabízí vstupní pole**, stejně jako každý kanál — práva
        psát konverzace zatím neřeší vůbec.
-  2. **Klikatelné zmínky a hashtagy v textu**: `@jmeno` přes `searchPublicChat`, `#tag` otevře
-     hledání. Dnes se v textu schválně nemapují, protože kliknutí nemá kam vést.
+  2. ~~**Klikatelné zmínky a hashtagy v textu**~~ — hotovo (`@jméno` otevře chat, `#tag`
+     hledání zpráv). Zbývá **interní `t.me` odkazy** (pozvánka, odkaz na zprávu, `t.me/jméno`)
+     otevírat v aplikaci místo prohlížeče a **veřejné příspěvky s tagem**
+     (`searchPublicMessagesByTag`) jako další sekce u hashtagového dotazu.
   3. **Hledání v konverzaci** (lupa v hlavičce, šipky mezi výsledky) přes `searchChatMessages`.
   4. **Filtry obsahu** (média, soubory, odkazy), hlavně pro profil chatu.
 

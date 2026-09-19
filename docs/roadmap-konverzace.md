@@ -198,9 +198,9 @@ otevřít. Poučení je v `CLAUDE.md`, sekce „Formátování textu (entity)". 
 
 Co z toho zůstalo nedodělané:
 
-- **Zmínky, hashtagy a příkazy botů** se nemapují. Kliknutí by nemělo kam vést — potřebují
-  vyhledání uvnitř aplikace (`searchPublicChat`, `searchChatMessages`), ne prohlížeč. Až bude kam,
-  přibude sem typ entity a obarvení.
+- ~~**Zmínky a hashtagy**~~ — hotovo (poučení v `CLAUDE.md`, „Formátování textu"). **Příkazy
+  botů** (`/start`) a cashtagy se dál nemapují — příkaz by ťuknutím odeslal zprávu botovi a to
+  chce vlastní rozmyšlení.
 - **Citace v textu** (`BlockQuote`, `ExpandableBlockQuote`) se vykreslují jako obyčejný text.
   Svislý pruh vlevo nejde udělat uvnitř jednoho `Text`; znamená to rozpad textu na bloky
   a `Column` místo jedné `Text` — samostatný kus práce.

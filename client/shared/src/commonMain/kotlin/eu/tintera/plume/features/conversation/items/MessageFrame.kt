@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.telegram.MessageEntityType
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -717,6 +718,14 @@ internal fun MessageBodyScope.MessageText(
         style = style,
         linkColor = linkColor,
         onLinkClick = { act(MessageAction.OpenLink(it)) },
+        onEntityClick = { type ->
+            when (type) {
+                is MessageEntityType.Mention -> act(MessageAction.OpenMention(type.username))
+                is MessageEntityType.MentionUser -> act(MessageAction.OpenUser(type.userId))
+                is MessageEntityType.Hashtag -> act(MessageAction.SearchHashtag(type.tag))
+                else -> Unit
+            }
+        },
         onLongClick = ::requestMenu,
     )
 }

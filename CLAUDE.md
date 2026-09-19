@@ -1630,9 +1630,26 @@ to tu bylo, než vznikly `MessageEntity` a `RichText`.
   stisk tam dostane bublina a nabídka by se otevřela dvakrát.
 - **Odkaz bez schématu dostane `https://`.** TDLib označí za odkaz i holé `example.com`; Android
   by z toho udělal relativní URI a intent by nikam nevedl.
-- **Zmínky, hashtagy a příkazy botů se schválně nemapují.** Obarvit je umíme, ale kliknutí by
-  nemělo kam vést — zmínka se hledá uvnitř aplikace (`searchPublicChat`), ne v prohlížeči.
-  Modrý text, po kterém se nic nestane, je horší než text černý.
+- **Příkazy botů a cashtagy se schválně nemapují.** Obarvit je umíme, ale kliknutí by nemělo
+  kam vést — modrý text, po kterém se nic nestane, je horší než text černý.
+- **Zmínka a hashtag vedou dovnitř aplikace, ne na adresu** (`MessageEntityType.Mention`,
+  `MentionUser`, `Hashtag`; v `RichText` jako `LinkAnnotation.Clickable` s vlastní obsluhou
+  `onEntityClick`, mimo `onLinkClick`). `@jméno` najde chat přes `searchPublicChat`, zmínka
+  uživatele bez jména (`TextEntityTypeMentionName`) nese jen `userId` a vede na
+  `createPrivateChat`. Chat se otevře NAD konverzací (`onOpenChat`), takže zpět vede do ní;
+  zmínka téhož chatu (kanál ve vlastním příspěvku) nikam nevede. Veřejný chat, kde uživatel
+  není, dostane „Přidat se" jako z globálního hledání.
+- **Hashtag otevře hledání v seznamu chatů s `#tag`** (`AppNavigation.openSearch`,
+  `searchRequest`). Požadavek je STAV, ne událost — seznam chatů na telefonu pod konverzací
+  složený není a vyzvedne si ho, až se složí. Na telefonu se zásobník Chatů srovná na kořen,
+  v dvoupanelu konverzace zůstane. Efekt, který hledání rozbalí, požadavek nuluje AŽ NAKONEC —
+  vynulování mění jeho klíč a na začátku by zrušilo rozbalování (tatáž past jako „Vrátit").
+- **Hashtagový dotaz hledá jen zprávy** (`isHashtagQuery`). Hledání chatů i veřejných chatů
+  mřížku zahodí, takže „#plume" vracelo kanály „Plumex" a „plume" — šum nad tím, co uživatel
+  hledal.
+- **Zmínka a hashtag nejsou podtržené — kromě odchozí bubliny.** Podtržení patří adresám, které
+  z aplikace odvedou. V odchozí bublině je ale barva odkazu barva textu (na `primary` jiná
+  nejde), takže tam se podtrhávají, jinak by nebyly k poznání (`linkColor == overlayColor`).
 - **Spoiler musí být opravdu nečitelný**: průhledný text na plné ploše, ne jen jiná barva.
   Odkrývá se ťuknutím přes `LinkAnnotation.Clickable` — `Modifier.clickable` by platilo pro celou
   zprávu, ne pro skrytý úsek. Odkrývá se celá zpráva naráz; dohledávat spoilery po kouskách
