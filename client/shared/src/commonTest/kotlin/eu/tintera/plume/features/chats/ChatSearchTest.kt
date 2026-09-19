@@ -2,6 +2,7 @@ package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.telegram.FoundMessage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -74,6 +75,47 @@ class ChatSearchTest {
         assertTrue(pickerChats("anna", list, ChatSearchState(query = "anna", searching = true)).loading)
         assertFalse(pickerChats("anna", list, ChatSearchState(query = "anna")).loading)
     }
+
+    /** Zvýraznění bez ohledu na velikost písmen, všechny výskyty, bez překryvů. */
+    @Test
+    fun zvyrazneniVsechVyskytu() {
+        assertEquals(listOf(0..2, 5..7, 10..12), highlightRanges("Ahoj ahoj Aho", " aho "))
+        assertEquals(listOf(0..1, 2..3), highlightRanges("aaaa", "aa"))
+        assertEquals(emptyList(), highlightRanges("text", "  "))
+    }
+
+    /** TDLib hledá bez diakritiky, zvýraznění musí taky — a na pozicích v původním textu. */
+    @Test
+    fun zvyrazneniBezDiakritiky() {
+        assertEquals(listOf(0..6), highlightRanges("Obšlehl jsem", "obslehl"))
+        assertEquals(listOf(4..8), highlightRanges("Tak zprav", "zpráv"))
+    }
+
+    /** Slovo z konce dlouhé zprávy musí být ve dvouřádkovém výsledku vidět. */
+    @Test
+    fun ukazkaZacinaPredNalezenymSlovem() {
+        val text = "Úvodní věta, která je dost dlouhá, aby se hledané slovo nevešlo, a pak durov na konci."
+        val snippet = snippetAround(text, "durov")
+        assertTrue(snippet.startsWith("…"))
+        assertTrue(snippet.indexOf("durov") in 1..30, snippet)
+        // Začíná na začátku slova, ne uprostřed.
+        assertTrue(snippet[1] != ' ' && text.contains(" " + snippet.drop(1)), snippet)
+        // Krátký text i výskyt u začátku zůstávají celé.
+        assertEquals("durov je tu", snippetAround("durov je tu", "durov"))
+    }
+
+    /** Další stránka zpráv nesmí zopakovat zprávu z hranice předchozí; stejné id v jiném chatu je jiná zpráva. */
+    @Test
+    fun strankyZpravBezDuplicit() {
+        val merged = mergeFoundMessages(
+            loaded = listOf(found(chat = 1, message = 10), found(chat = 1, message = 9)),
+            page = listOf(found(chat = 1, message = 9), found(chat = 2, message = 9), found(chat = 1, message = 8)),
+        )
+        assertEquals(listOf(1L to 10L, 1L to 9L, 2L to 9L, 1L to 8L), merged.map { it.chat.id to it.messageId })
+    }
+
+    private fun found(chat: Long, message: Long) =
+        FoundMessage(chat = chat(chat), messageId = message, text = "", date = 0, isOutgoing = false)
 
     private fun chat(id: Long) = ChatSummary(
         id = id,

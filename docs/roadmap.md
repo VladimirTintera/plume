@@ -57,9 +57,16 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
 - **Hledání.** ~~Chaty ve všech složkách (lokálně i na serveru), historie hledání a nejčastější
   lidé, totéž ve výběru pro přeposílání a sdílení~~ — hotovo (`ChatSearch`, poučení
   v `CLAUDE.md`, „Hledání chatů"). Zbývá, po krocích:
-  1. **Globální hledání a zprávy** v rozbaleném hledání: sekce Globálně (`searchPublicChats`)
-     a Zprávy (`searchMessages`, stránkování přes `offset`); ťuknutí na zprávu otevře chat se
-     skokem na ni (`loadUntil` a zvýraznění jako u citace).
+  1. ~~**Globální hledání a zprávy**~~ — hotovo (sekce Globálně a Zprávy, skok na nalezenou
+     zprávu, „Přidat se" u veřejného chatu). Zbývá:
+     - **Obousměrné stránkování konverzace**, aby šlo skočit na libovolně starou zprávu. Dnes
+       se historie dotahuje jen od nejnovější a zpráva za stropem (`MAX_SEARCH_JUMP_PAGES`)
+       skončí hláškou.
+     - **Filtry hledání zpráv** (jen soukromé / skupiny / kanály, rozsah dat) — `searchMessages`
+       je umí (`chatTypeFilter`, `minDate`, `maxDate`).
+     - **Jméno odesílatele u nalezené zprávy ve skupině**; dnes je vidět jen chat.
+     - **Kanál po „Přidat se" pořád nabízí vstupní pole**, stejně jako každý kanál — práva
+       psát konverzace zatím neřeší vůbec.
   2. **Klikatelné zmínky a hashtagy v textu**: `@jmeno` přes `searchPublicChat`, `#tag` otevře
      hledání. Dnes se v textu schválně nemapují, protože kliknutí nemá kam vést.
   3. **Hledání v konverzaci** (lupa v hlavičce, šipky mezi výsledky) přes `searchChatMessages`.

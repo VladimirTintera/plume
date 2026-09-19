@@ -12,8 +12,8 @@ konverzace (historie, živé zprávy, odesílání, přílohy a alba, hlasovky, 
 přeposílání, připnuté zprávy), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
-Není: notifikace na iOS ani hlášení pádů z iOS; obrazovky hledání, profilu chatu a nové
-konverzace. Nastavení je list-detail se sekcemi Obecné a Vzhled; vědomě nastavitelné je zatím
+Není: notifikace na iOS ani hlášení pádů z iOS; obrazovky profilu chatu a nové konverzace.
+Hledání umí chaty, veřejné chaty a zprávy napříč chaty, ne zatím uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné a Vzhled; vědomě nastavitelné je zatím
 téma aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
 Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
@@ -720,6 +720,39 @@ v chatech", vedle ní menu ⋮. Po ťuknutí se rozbalí `ExpandedFullScreenSear
   + hlavička + chaty) — `LazyListState` klíč položky mimo obrazovku na index nepřevede. Chat,
   který je celý vidět, se nehýbe. Požadavek je `rememberSaveable`: na telefonu konverzace
   seznam překryje a posun proběhne, až se na seznam uživatel vrátí.
+- **V hlavním hledání jsou pod chaty ještě sekce Globálně a Zprávy** (`ChatSearch(everywhere =
+  true)`; přeposílání a sdílení hledají jen chaty). Globálně je `searchPublicChats` bez chatů,
+  které jsou už mezi výsledky (`globalOnly` — server vynechává jen chaty ze seznamu, ne všechny
+  známé). Zprávy jsou `searchMessages(chatList = null)` přes hlavní seznam i archiv, stránkované
+  `nextOffset` (prázdný = konec), duplicity na hranici stránek zahazuje `mergeFoundMessages`.
+- **Chaty a Globálně jsou sbalené na čtyři řádky** se „Zobrazit vše" — u krátkého dotazu jich
+  jsou desítky a zprávy by skončily daleko dole.
+- **Nadpis sekce chatů je vždycky, když jsou chaty.** Dokud se ukazoval až s dalšími sekcemi,
+  vložil se nad už vykreslené chaty a `LazyColumn`, který drží pozici podle první viditelné
+  položky, ho odsunul nad horní hranu — nebyl vidět nikdy. Totéž čeká každou položku vkládanou
+  nad obsah, na který se uživatel už dívá.
+- **TDLib hledá bez ohledu na diakritiku, zvýraznění musí taky** (`highlightRanges`
+  s `foldDiacritics`, znak za znak, takže pozice sedí na původní text). „obslehl" najde
+  „Obšlehl"; se zvýrazněním jen přes `ignoreCase` by nalezená zpráva neměla zvýrazněné nic.
+  Tabulka diakritiky je v escape sekvencích — `verifyNoHardcodedText` hlídá diakritiku
+  v literálech a oslabovat ho kvůli datům nestojí za to.
+- **Ukázka zprávy začíná kousek před nalezeným slovem** (`snippetAround`, „…" na začátku).
+  Ve dvou řádcích by slovo z konce dlouhé zprávy bylo za výpustkou a řádek by nevysvětlil,
+  proč se našel. Slovo jen v adrese skrytého odkazu vidět nebude — text ji nenese.
+- **Ťuknutí na zprávu otevře chat se skokem na ni**: `ConversationRoute(chatId, messageId)`,
+  ViewModel dostane `initialMessageId` a místo skoku na nepřečtené zavolá `jumpToMessage`
+  (dotažení historie a zvýraznění jako u citace, strop `MAX_SEARCH_JUMP_PAGES`). Druhý parametr
+  Koinu se čte INDEXEM (`parameters.values.getOrNull(1)`): bývá `null` a podle typu by se spletl
+  s `chatId`. **Konverzace na vrcholu zásobníku se porovnává podle `chatId`**
+  (`isOpenConversation`), ne rovností routy — s `messageId` by přeposlání otevřelo tentýž chat
+  podruhé.
+- **Historie se dotahuje jen od nejnovější dozadu**, takže zpráva starší než strop stránek se
+  otevře s hláškou „moc daleko" (`conversation_message_too_deep`). Skok kamkoli chce obousměrné
+  stránkování (kotva uprostřed) — v roadmapě.
+- **Globální výsledek otevře chat, ve kterém uživatel není**: `ChatInfo.canJoin` (supergroup
+  se stavem `ChatMemberStatusLeft`, `getSupergroup` je lokální) nahradí vstupní pole tlačítkem
+  „Přidat se" (`joinChat`). Psát do cizí skupiny nejde a nabízet pole by znamenalo chybu po
+  odeslání.
 - **Selhání hledání se nehlásí.** Prázdný výsledek je u hledání normální stav a lokální výsledky
   zůstanou, i když server neodpoví.
 - **Dotaz se maže při KAŽDÉM sbalení** (efekt nad `expanded`), ne v obsluze šipky. Gesto zpět

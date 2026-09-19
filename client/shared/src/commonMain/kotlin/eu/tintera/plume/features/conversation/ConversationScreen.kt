@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.Button
+import eu.tintera.plume.resources.conversation_join
+import androidx.compose.foundation.layout.imePadding
 import eu.tintera.plume.core.ui.chatTitle
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -652,6 +656,10 @@ fun ConversationScreen(
         bottomBar = {
             // Horní hrana pole je spodní mez pro nabídku nad zprávou (viz `contentBottom`).
             Box(Modifier.onGloballyPositioned { contentBottom.value = it.boundsInWindow().top }) {
+            if (state.info?.canJoin == true) {
+                JoinBar(joining = state.joining, onJoin = viewModel::join)
+                return@Box
+            }
             MessageInput(
                 replyingTo = state.replyingTo,
                 partnerName = state.info?.title,
@@ -1564,3 +1572,26 @@ private fun Presence.describe(): String = when (this) {
 
 /** Hodiny serveru a telefonu se můžou o chvilku lišit; o tolik starší zpráva je ještě příchod. */
 private const val ARRIVAL_TOLERANCE_SECONDS = 5
+
+/**
+ * Místo vstupního pole ve skupině nebo kanálu, kde uživatel není (otevřeno z globálního hledání).
+ * Plné tlačítko přes šířku — je to jediná akce, kterou tu jde udělat.
+ */
+@Composable
+private fun JoinBar(joining: Boolean, onJoin: () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .imePadding()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Button(
+            onClick = onJoin,
+            enabled = !joining,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+        ) {
+            Text(stringResource(Res.string.conversation_join))
+        }
+    }
+}

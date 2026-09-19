@@ -151,10 +151,12 @@ fun appModule() = module {
     viewModelOf(::SettingsViewModel)
     viewModelOf(::AppearanceViewModel)
 
-    // chatId přichází z navigační routy, ne z grafu → runtime parametr.
+    // chatId přichází z navigační routy, ne z grafu → runtime parametr. Druhý parametr je zpráva,
+    // na kterou se po otevření skočí; bývá `null`, a podle typu by se spletl s chatId — proto index.
     viewModel { parameters ->
         ConversationViewModel(
             chatId = parameters.get(),
+            initialMessageId = parameters.values.getOrNull(1) as Long?,
             repository = get(),
             chatRepository = get(),
             stickerRepository = get(),

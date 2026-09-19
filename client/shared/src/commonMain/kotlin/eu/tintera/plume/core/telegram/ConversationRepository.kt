@@ -249,6 +249,9 @@ interface ConversationRepository {
      */
     suspend fun sponsoredMessages(chatId: Long): Result<List<SponsoredMessage>>
 
+    /** Přidá se k veřejné skupině nebo kanálu (nalezenému v globálním hledání). */
+    suspend fun joinChat(chatId: Long): Result<Unit>
+
     /**
      * Nahlásí, že uživatel sponzorovanou zprávu viděl.
      *
@@ -361,6 +364,12 @@ data class ChatInfo(
     val isSavedMessages: Boolean,
     /** Rozepsaný text z minula (i z jiného zařízení), nebo `null`. */
     val draftText: String?,
+    /**
+     * Uživatel ve skupině nebo kanálu není a přidat se může — chat otevřel z globálního hledání.
+     * Místo vstupního pole je pak tlačítko „Přidat se": psát do cizí skupiny nejde a v kanálu
+     * nejde nikdy.
+     */
+    val canJoin: Boolean = false,
     /** Zpráva, na kterou koncept odpovídá, nebo `null`. */
     val draftReplyToMessageId: Long?,
 )

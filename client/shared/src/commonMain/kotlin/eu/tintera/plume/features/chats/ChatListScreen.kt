@@ -112,6 +112,8 @@ fun ChatListScreen(
     viewModel: ChatsViewModel,
     selectedChatId: Long?,
     onChatClick: (Long) -> Unit,
+    /** Nalezená zpráva: otevřít její chat a skočit na ni. */
+    onMessageClick: (chatId: Long, messageId: Long) -> Unit,
     onOpenArchive: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -155,6 +157,11 @@ fun ChatListScreen(
                     scrollToChat = chatId
                     onChatClick(chatId)
                 },
+                onMessageClick = { chatId, messageId ->
+                    scrollToChat = chatId
+                    onMessageClick(chatId, messageId)
+                },
+                onLoadMoreMessages = viewModel.search::loadMoreMessages,
                 onClearRecent = viewModel.search::clearRecent,
                 actions = {
                     /*

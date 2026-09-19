@@ -1,6 +1,21 @@
 package eu.tintera.plume.features.chats
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import eu.tintera.plume.core.telegram.FoundMessage
+import eu.tintera.plume.core.ui.asRelativeTime
+import eu.tintera.plume.core.ui.tabularNumbers
+import eu.tintera.plume.resources.chats_search_section_chats
+import eu.tintera.plume.resources.chats_search_section_global
+import eu.tintera.plume.resources.chats_search_section_messages
+import eu.tintera.plume.resources.chats_search_show_all
+import eu.tintera.plume.resources.chats_search_show_less
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -94,7 +109,8 @@ import org.jetbrains.compose.resources.stringResource
  * `null` a pak není vidět nic; nadpis „Chaty" by jen opakoval, co říká navigace.
  *
  * **Hledá se ve všech známých chatech** ([ChatSearch]): i v archivu a v chatech, které
- * v žádném seznamu nejsou. Pod prázdným dotazem jsou nejčastější lidé a historie hledání.
+ * v žádném seznamu nejsou; pod nimi veřejné chaty a zprávy. Pod prázdným dotazem jsou
+ * nejčastější lidé a historie hledání.
  * Uložené zprávy se najdou podle přeloženého názvu — TDLib je zná pod jménem účtu.
  */
 @Composable
@@ -106,6 +122,8 @@ internal fun ChatSearchBar(
     onQueryChange: (String) -> Unit,
     onExpandedChange: (Boolean) -> Unit,
     onChatClick: (Long) -> Unit,
+    onMessageClick: (chatId: Long, messageId: Long) -> Unit,
+    onLoadMoreMessages: () -> Unit,
     onClearRecent: () -> Unit,
     actions: @Composable RowScope.() -> Unit,
 ) {
@@ -212,6 +230,11 @@ internal fun ChatSearchBar(
                 collapse()
                 onChatClick(chatId)
             },
+            onMessageClick = { chatId, messageId ->
+                collapse()
+                onMessageClick(chatId, messageId)
+            },
+            onLoadMoreMessages = onLoadMoreMessages,
             onClearRecent = onClearRecent,
         )
     }
@@ -269,7 +292,11 @@ private class LastValue<T> {
 
 /**
  * Obsah rozbaleného hledání. Bez dotazu návrhy (řádek nejčastějších lidí, historie hledání),
- * s dotazem výsledky; Uložené zprávy podle přeloženého názvu vždy první.
+ * s dotazem sekce: chaty (Uložené zprávy podle přeloženého názvu vždy první), veřejné chaty,
+ * které uživatel nesleduje, a zprávy napříč chaty.
+ *
+ * Chaty a veřejné výsledky jsou sbalené na pár řádků ([COLLAPSED_ROWS]) — u krátkého dotazu
+ * jich je desítky a zprávy by skončily daleko pod nimi. Zprávy se stránkují, dokud se listuje.
  */
 @Composable
 private fun SearchResults(
@@ -277,10 +304,14 @@ private fun SearchResults(
     search: ChatSearchState,
     savedMessagesChatId: Long?,
     onPick: (Long) -> Unit,
+    onMessageClick: (chatId: Long, messageId: Long) -> Unit,
+    onLoadMoreMessages: () -> Unit,
     onClearRecent: () -> Unit,
 ) {
     val trimmed = query.trim()
     val onPickLatest by rememberUpdatedState(onPick)
+    val onMessageClickLatest by rememberUpdatedState(onMessageClick)
+    val onLoadMoreLatest by rememberUpdatedState(onLoadMoreMessages)
 
     if (trimmed.isEmpty()) {
         Suggestions(search, onPick = { onPickLatest(it) }, onClearRecent = onClearRecent)
@@ -292,12 +323,14 @@ private fun SearchResults(
     // Výsledky patří k dotazu, na který TDLib odpovídal. Dokud nedorazí nové, ukazují se
     // staré jen pro tentýž dotaz — jinak by pod „jana" chvíli visely výsledky pro „ja".
     val current = search.query == trimmed
-    val matches = if (current) search.results.filter { it.id != savedMessagesChatId } else emptyList()
-    val searching = !current || search.searching
+    val chats = if (current) search.results.filter { it.id != savedMessagesChatId } else emptyList()
+    val global = if (current) search.globalOnly else emptyList()
+    val messages = if (current) search.messages else emptyList()
+    val settled = current && search.settled
 
-    if (matches.isEmpty() && !showSaved) {
+    if (chats.isEmpty() && global.isEmpty() && messages.isEmpty() && !showSaved) {
         Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.TopCenter) {
-            if (searching) {
+            if (!settled) {
                 CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
             } else {
                 Text(
@@ -310,7 +343,36 @@ private fun SearchResults(
         return
     }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
+    // Rozbalení sekcí patří k dotazu; nový dotaz je zase sbalí.
+    var chatsExpanded by rememberSaveable(trimmed) { mutableStateOf(false) }
+    var globalExpanded by rememberSaveable(trimmed) { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+
+    // Další stránka zpráv, jakmile se listuje ke konci.
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            val info = listState.layoutInfo
+            val last = info.visibleItemsInfo.lastOrNull()?.index ?: return@snapshotFlow false
+            last >= info.totalItemsCount - LOAD_MORE_THRESHOLD
+        }.collect { nearEnd -> if (nearEnd) onLoadMoreLatest() }
+    }
+
+    val highlight = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+
+    LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(vertical = 8.dp)) {
+        val chatCount = chats.size + if (showSaved) 1 else 0
+        /*
+         * Nadpis chatů je tu vždycky, když jsou chaty — ne až když přibudou další sekce.
+         * Seznam drží pozici podle první viditelné položky, takže nadpis vložený nad chaty
+         * později odjel nad horní hranu a nebylo ho vidět.
+         */
+        if (chatCount > 0) {
+            item(key = "chats-header") {
+                SectionHeader(stringResource(Res.string.chats_search_section_chats)) {
+                    ExpandToggle(chatCount, chatsExpanded) { chatsExpanded = it }
+                }
+            }
+        }
         savedMessagesChatId?.takeIf { showSaved }?.let { savedId ->
             item(key = savedId) {
                 ChatResultRow(
@@ -323,7 +385,12 @@ private fun SearchResults(
                 )
             }
         }
-        items(matches, key = { it.id }) { chat ->
+        val shownChats = if (chatsExpanded || global.isEmpty() && messages.isEmpty()) {
+            chats
+        } else {
+            chats.take((COLLAPSED_ROWS - if (showSaved) 1 else 0).coerceAtLeast(0))
+        }
+        items(shownChats, key = { it.id }) { chat ->
             ChatResultRow(
                 chatId = chat.id,
                 title = chat.title,
@@ -334,7 +401,103 @@ private fun SearchResults(
                 modifier = Modifier.animateItem(),
             )
         }
+
+        if (global.isNotEmpty()) {
+            item(key = "global-header") {
+                SectionHeader(stringResource(Res.string.chats_search_section_global)) {
+                    ExpandToggle(global.size, globalExpanded) { globalExpanded = it }
+                }
+            }
+            items(if (globalExpanded) global else global.take(COLLAPSED_ROWS), key = { "global-${it.id}" }) { chat ->
+                ChatResultRow(
+                    chatId = chat.id,
+                    title = chat.title,
+                    avatarFileId = chat.avatarFileId,
+                    archived = false,
+                    onClick = { onPickLatest(chat.id) },
+                    modifier = Modifier.animateItem(),
+                )
+            }
+        }
+
+        if (messages.isNotEmpty()) {
+            item(key = "messages-header") { SectionHeader(stringResource(Res.string.chats_search_section_messages)) }
+            items(messages, key = { "message-${it.chat.id}-${it.messageId}" }) { found ->
+                MessageResultRow(
+                    found = found,
+                    query = trimmed,
+                    highlight = highlight,
+                    onClick = { onMessageClickLatest(found.chat.id, found.messageId) },
+                )
+            }
+        }
+        if (current && search.messagesLoading && (messages.isNotEmpty() || chatCount > 0)) {
+            item(key = "messages-loading") {
+                Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                }
+            }
+        }
     }
+}
+
+/** „Zobrazit vše" / „Zobrazit méně" v nadpisu sekce — jen když se sekce do sbalené podoby nevejde. */
+@Composable
+private fun ExpandToggle(count: Int, expanded: Boolean, onChange: (Boolean) -> Unit) {
+    if (count <= COLLAPSED_ROWS) return
+    TextButton(onClick = { onChange(!expanded) }) {
+        Text(stringResource(if (expanded) Res.string.chats_search_show_less else Res.string.chats_search_show_all))
+    }
+}
+
+/**
+ * Nalezená zpráva: chat, kdy přišla a text se zvýrazněným dotazem. Dva řádky textu — nalezené
+ * slovo bývá uprostřed a jeden řádek by ho často usekl.
+ */
+@Composable
+private fun MessageResultRow(
+    found: FoundMessage,
+    query: String,
+    highlight: SpanStyle,
+    onClick: () -> Unit,
+) {
+    val text = remember(found.text, query, highlight) {
+        val snippet = snippetAround(found.text.replace('\n', ' '), query)
+        buildAnnotatedString {
+            append(snippet)
+            highlightRanges(snippet, query).forEach { addStyle(highlight, it.first, it.last + 1) }
+        }
+    }
+    ListItem(
+        headlineContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    chatTitle(found.chat.id, found.chat.title),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    found.date.asRelativeTime(),
+                    style = MaterialTheme.typography.labelMedium.tabularNumbers(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
+        },
+        supportingContent = { Text(text, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        leadingContent = {
+            Avatar(
+                chatId = found.chat.id,
+                title = found.chat.title,
+                avatarFileId = found.chat.avatarFileId,
+                size = 40.dp,
+                isSavedMessages = isSavedMessages(found.chat.id),
+            )
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = Modifier.clickable(onClick = onClick),
+    )
 }
 
 @Composable
@@ -452,3 +615,91 @@ private fun ChatResultRow(
 }
 
 private val TOP_CHAT_WIDTH = 76.dp
+
+/** Kolik řádků ukáže sbalená sekce chatů a veřejných výsledků. */
+private const val COLLAPSED_ROWS = 4
+
+/** Kolik položek před koncem už spustí další stránku zpráv. */
+private const val LOAD_MORE_THRESHOLD = 5
+
+/**
+ * Úseky [text], kde stojí [query], bez překryvů. Pro zvýraznění nalezeného slova ve výsledku
+ * hledání zpráv.
+ *
+ * **Bez ohledu na velikost písmen i diakritiku** — tak hledá TDLib: „obslehl" najde „Obšlehl"
+ * a zvýraznění se s tím musí shodnout, jinak by nalezená zpráva nic zvýrazněného neměla.
+ * Porovnává se po znacích ([foldDiacritics] délku nemění), takže pozice sedí na původní text.
+ */
+internal fun highlightRanges(text: String, query: String): List<IntRange> {
+    val needle = foldDiacritics(query.trim())
+    if (needle.isEmpty()) return emptyList()
+    val haystack = foldDiacritics(text)
+    val ranges = mutableListOf<IntRange>()
+    var from = 0
+    while (true) {
+        val index = haystack.indexOf(needle, from, ignoreCase = true)
+        if (index < 0) break
+        ranges += index until index + needle.length
+        from = index + needle.length
+    }
+    return ranges
+}
+
+/**
+ * Text zprávy tak, aby nalezené slovo bylo vidět: začíná kousek ([SNIPPET_CONTEXT] znaků) před
+ * prvním výskytem, na začátku slova, se „…" na začátku. Výsledek má dva řádky a slovo z konce
+ * dlouhé zprávy by jinak skončilo za výpustkou — řádek by pak nevysvětlil, proč se našel.
+ */
+internal fun snippetAround(text: String, query: String): String {
+    val first = highlightRanges(text, query).firstOrNull()?.first ?: return text
+    if (first <= SNIPPET_CONTEXT) return text
+    val space = text.lastIndexOf(' ', first - SNIPPET_CONTEXT)
+    val start = if (space in 0 until first) space + 1 else first - SNIPPET_CONTEXT
+    return "…" + text.substring(start)
+}
+
+/** Kolik znaků před nalezeným slovem zůstane ve výsledku vidět. */
+private const val SNIPPET_CONTEXT = 24
+
+/**
+ * Písmena s diakritikou na základní, znak za znak (délka textu se nemění). Pokrývá latinku
+ * střední a západní Evropy; Kotlin v commonMain `Normalizer` nemá a pro zvýraznění to stačí —
+ * nepokrytý znak se jen nezvýrazní.
+ */
+internal fun foldDiacritics(text: String): String = buildString(text.length) {
+    text.forEach { append(DIACRITICS[it] ?: it) }
+}
+
+private val DIACRITICS: Map<Char, Char> = buildMap {
+    fun map(from: String, to: Char) = from.forEach { put(it, to) }
+    // Znaky jsou zapsané escape sekvencemi: `verifyNoHardcodedText` hlídá diakritiku v literálech
+    // (text pro uživatele patří do prostředků) a tahle tabulka text pro uživatele není.
+    // áàâäãåą → a, ÁÀÂÄÃÅĄ → A
+    map("\u00e1\u00e0\u00e2\u00e4\u00e3\u00e5\u0105", 'a'); map("\u00c1\u00c0\u00c2\u00c4\u00c3\u00c5\u0104", 'A')
+    // čćç → c, ČĆÇ → C
+    map("\u010d\u0107\u00e7", 'c'); map("\u010c\u0106\u00c7", 'C')
+    // ď → d, Ď → D
+    map("\u010f", 'd'); map("\u010e", 'D')
+    // éěèêëę → e, ÉĚÈÊËĘ → E
+    map("\u00e9\u011b\u00e8\u00ea\u00eb\u0119", 'e'); map("\u00c9\u011a\u00c8\u00ca\u00cb\u0118", 'E')
+    // íìîï → i, ÍÌÎÏ → I
+    map("\u00ed\u00ec\u00ee\u00ef", 'i'); map("\u00cd\u00cc\u00ce\u00cf", 'I')
+    // ľĺł → l, ĽĹŁ → L
+    map("\u013e\u013a\u0142", 'l'); map("\u013d\u0139\u0141", 'L')
+    // ňńñ → n, ŇŃÑ → N
+    map("\u0148\u0144\u00f1", 'n'); map("\u0147\u0143\u00d1", 'N')
+    // óòôöõő → o, ÓÒÔÖÕŐ → O
+    map("\u00f3\u00f2\u00f4\u00f6\u00f5\u0151", 'o'); map("\u00d3\u00d2\u00d4\u00d6\u00d5\u0150", 'O')
+    // řŕ → r, ŘŔ → R
+    map("\u0159\u0155", 'r'); map("\u0158\u0154", 'R')
+    // šś → s, ŠŚ → S
+    map("\u0161\u015b", 's'); map("\u0160\u015a", 'S')
+    // ť → t, Ť → T
+    map("\u0165", 't'); map("\u0164", 'T')
+    // úůùûüű → u, ÚŮÙÛÜŰ → U
+    map("\u00fa\u016f\u00f9\u00fb\u00fc\u0171", 'u'); map("\u00da\u016e\u00d9\u00db\u00dc\u0170", 'U')
+    // ýÿ → y, ÝŸ → Y
+    map("\u00fd\u00ff", 'y'); map("\u00dd\u0178", 'Y')
+    // žźż → z, ŽŹŻ → Z
+    map("\u017e\u017a\u017c", 'z'); map("\u017d\u0179\u017b", 'Z')
+}

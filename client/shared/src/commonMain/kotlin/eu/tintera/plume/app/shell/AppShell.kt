@@ -465,6 +465,7 @@ private fun shellEntryProvider(
             selectedChatId = chatsStack.filterIsInstance<ConversationRoute>()
                 .lastOrNull()?.chatId,
             onChatClick = { chatId -> chatsStack.openConversation(chatId) },
+            onMessageClick = { chatId, messageId -> chatsStack.openConversation(chatId, messageId) },
             onOpenArchive = {
                 if (chatsStack.lastOrNull() != ArchiveRoute) chatsStack.add(ArchiveRoute)
             },
@@ -504,8 +505,8 @@ private fun shellEntryProvider(
             // té první — i se zprávami. Koin navíc u cachované instance ignoruje
             // nové `parameters`, takže se to neprojeví ani chybou, jen špatným obsahem.
             viewModel = koinViewModel(
-                key = "conversation-${route.chatId}",
-                parameters = { parametersOf(route.chatId) },
+                key = "conversation-${route.chatId}-${route.messageId}",
+                parameters = { parametersOf(route.chatId, route.messageId) },
             ),
             onBack = { chatsStack.removeLastOrNull() },
             onOpenMedia = { messageId ->
@@ -552,7 +553,7 @@ private fun shellEntryProvider(
             onBack = { chatsStack.removeLastOrNull() },
             onForwarded = { chatId ->
                 chatsStack.removeLastOrNull()
-                if (chatsStack.lastOrNull() != ConversationRoute(chatId)) {
+                if (!chatsStack.isOpenConversation(chatId)) {
                     chatsStack.add(ConversationRoute(chatId))
                 }
             },
@@ -570,7 +571,7 @@ private fun shellEntryProvider(
             // Vybraný chat výběr NAHRADÍ — zpět z něj vede na seznam, ne do výběru.
             onChosen = { chatId ->
                 chatsStack.remove(ShareRoute)
-                if (chatsStack.lastOrNull() != ConversationRoute(chatId)) chatsStack.add(ConversationRoute(chatId))
+                if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(chatId))
             },
         )
     }
@@ -606,9 +607,16 @@ private fun shellEntryProvider(
  * Otevření chatu ze seznamu (hlavního i archivu) NAHRADÍ otevřenou konverzaci, nevrší se
  * zásobník. Nová jde na konec — z archivu tedy za něj, takže zpět z ní vede do archivu.
  */
-private fun MutableList<NavKey>.openConversation(chatId: Long) {
+/**
+ * Je na vrcholu zásobníku konverzace [chatId]? Porovnává se jen chat — routa může nést i zprávu
+ * ze hledání, a rovnost celé routy by pak přidala tutéž konverzaci podruhé.
+ */
+private fun List<NavKey>.isOpenConversation(chatId: Long): Boolean =
+    (lastOrNull() as? ConversationRoute)?.chatId == chatId
+
+private fun MutableList<NavKey>.openConversation(chatId: Long, messageId: Long? = null) {
     removeAll { it is ConversationRoute }
-    add(ConversationRoute(chatId))
+    add(ConversationRoute(chatId, messageId))
 }
 
 /**

@@ -4,15 +4,18 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.telegram.FoundMessage
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
@@ -23,16 +26,20 @@ import kotlinx.coroutines.launch
  * i ty, které lokálně ještě nejsou. Nejdřív lokální databáze (výsledek je hned), pak server;
  * serverové výsledky se připojí za lokální ([mergeChatResults]).
  *
+ * S [everywhere] hledá navíc veřejné chaty, které uživatel nesleduje, a zprávy napříč chaty
+ * (stránkované, [loadMoreMessages]). To chce jen hledání v seznamu chatů; výběr pro přeposílání
+ * hledá jen chaty.
+ *
  * S prázdným dotazem ukazuje návrhy — nejčastější lidi a historii hledání —, ale jen když
  * o ně volající požádá ([setSuggestionsWanted]). Výběr pro přeposílání má pod prázdným hledáním
  * celý seznam chatů a návrhy by tam byly navíc.
  *
- * Běží v rozsahu volajícího (`viewModelScope`) a hledá, jen dokud někdo stav čte.
+ * Běží v rozsahu volajícího (`viewModelScope`); bez dotazu nedělá nic.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
 class ChatSearch(
     private val repository: ChatRepository,
     private val scope: CoroutineScope,
+    private val everywhere: Boolean = false,
 ) {
     private val logger = Logger.withTag("ChatSearch")
 
@@ -42,34 +49,70 @@ class ChatSearch(
     /** Zvedá se po vymazání historie — návrhy se přečtou znovu. */
     private val suggestionsVersion = MutableStateFlow(0)
 
-    val state: StateFlow<ChatSearchState> =
-        combine(query, suggestionsWanted, suggestionsVersion) { text, wanted, _ -> text.trim() to wanted }
-            // `transformLatest`: rozepsané hledání se dalším znakem zahodí, takže pomalá odpověď
-            // serveru na „ja" nepřepíše výsledky pro „jana".
-            .transformLatest { (text, wanted) ->
-                if (text.isEmpty()) {
-                    if (!wanted) {
-                        emit(ChatSearchState())
-                        return@transformLatest
-                    }
-                    emit(
-                        ChatSearchState(
-                            top = repository.topChats().logged("topChats").orEmpty(),
-                            recent = repository.recentlyFoundChats().logged("historie").orEmpty(),
-                        ),
-                    )
-                    return@transformLatest
+    private val _state = MutableStateFlow(ChatSearchState())
+    val state: StateFlow<ChatSearchState> = _state.asStateFlow()
+
+    /** Dotažení další stránky zpráv. Nový dotaz ho ruší. */
+    private var moreMessages: Job? = null
+
+    init {
+        scope.launch {
+            combine(query, suggestionsWanted, suggestionsVersion) { text, wanted, version -> Triple(text.trim(), wanted, version) }
+                .distinctUntilChanged()
+                // `collectLatest`: rozepsané hledání se dalším znakem zahodí, takže pomalá odpověď
+                // serveru na „ja" nepřepíše výsledky pro „jana".
+                .collectLatest { (text, wanted) ->
+                    moreMessages?.cancel()
+                    if (text.isEmpty()) suggest(wanted) else search(text)
                 }
+        }
+    }
 
-                // Krátká pauza: lokální hledání je rychlé, ale dotaz na server na každý znak ne.
-                delay(TYPING_DEBOUNCE_MS)
-                val local = repository.searchChats(text).logged("searchChats").orEmpty()
-                emit(ChatSearchState(query = text, results = local, searching = true))
+    private suspend fun suggest(wanted: Boolean) {
+        if (!wanted) {
+            _state.value = ChatSearchState()
+            return
+        }
+        _state.value = ChatSearchState(
+            top = repository.topChats().logged("topChats").orEmpty(),
+            recent = repository.recentlyFoundChats().logged("recentlyFoundChats").orEmpty(),
+        )
+    }
 
+    private suspend fun search(text: String) {
+        // Krátká pauza: lokální hledání je rychlé, ale dotaz na server na každý znak ne.
+        delay(TYPING_DEBOUNCE_MS)
+        val local = repository.searchChats(text).logged("searchChats").orEmpty()
+        _state.value = ChatSearchState(
+            query = text,
+            results = local,
+            searching = true,
+            messagesLoading = everywhere,
+        )
+
+        coroutineScope {
+            launch {
                 val server = repository.searchChats(text, onServer = true).logged("searchChatsOnServer").orEmpty()
-                emit(ChatSearchState(query = text, results = mergeChatResults(local, server)))
+                _state.update { it.copy(results = mergeChatResults(it.results, server), searching = false) }
             }
-            .stateIn(scope, SharingStarted.WhileSubscribed(5_000), ChatSearchState())
+            if (everywhere) {
+                launch {
+                    val global = repository.searchPublicChats(text).logged("searchPublicChats").orEmpty()
+                    _state.update { it.copy(global = global) }
+                }
+                launch {
+                    val page = repository.searchMessages(text).logged("searchMessages")
+                    _state.update {
+                        it.copy(
+                            messages = page?.messages.orEmpty(),
+                            messagesNextOffset = page?.nextOffset,
+                            messagesLoading = false,
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     fun setQuery(text: String) {
         query.value = text
@@ -78,6 +121,28 @@ class ChatSearch(
     /** Hledání je otevřené a má pod prázdným dotazem ukázat návrhy. */
     fun setSuggestionsWanted(wanted: Boolean) {
         suggestionsWanted.value = wanted
+    }
+
+    /** Další stránka zpráv; volá se, když se seznam blíží ke konci. */
+    fun loadMoreMessages() {
+        val current = _state.value
+        val offset = current.messagesNextOffset ?: return
+        if (current.messagesLoading || moreMessages?.isActive == true) return
+
+        _state.update { it.copy(messagesLoading = true) }
+        moreMessages = scope.launch {
+            val page = repository.searchMessages(current.query, offset).logged("searchMessages")
+            _state.update {
+                // Mezitím se změnil dotaz — stránka patří k jinému hledání.
+                if (it.query != current.query) return@update it
+                it.copy(
+                    messages = mergeFoundMessages(it.messages, page?.messages.orEmpty()),
+                    // Selhání stránkování zastaví: jinak by se na konci seznamu zkoušelo pořád dokola.
+                    messagesNextOffset = page?.nextOffset,
+                    messagesLoading = false,
+                )
+            }
+        }
     }
 
     /** Ťuknutí na výsledek — chat se zapíše do historie hledání. */
@@ -104,7 +169,8 @@ class ChatSearch(
 
 /**
  * Stav hledání. S prázdným [query] nese návrhy ([top], [recent]), jinak výsledky.
- * [searching] = lokální výsledky jsou, serverové ještě ne.
+ * [searching] = lokální výsledky jsou, serverové ještě ne; [messagesLoading] = načítá se
+ * (první nebo další) stránka zpráv.
  */
 data class ChatSearchState(
     val query: String = "",
@@ -112,7 +178,24 @@ data class ChatSearchState(
     val searching: Boolean = false,
     val top: List<ChatSummary> = emptyList(),
     val recent: List<ChatSummary> = emptyList(),
-)
+    val global: List<ChatSummary> = emptyList(),
+    val messages: List<FoundMessage> = emptyList(),
+    val messagesNextOffset: String? = null,
+    val messagesLoading: Boolean = false,
+) {
+    /**
+     * Veřejné výsledky bez chatů, které jsou už mezi [results] — server je vynechává jen
+     * u chatů v seznamu, ne u všech známých.
+     */
+    val globalOnly: List<ChatSummary>
+        get() {
+            val known = results.mapTo(HashSet()) { it.id }
+            return global.filter { it.id !in known }
+        }
+
+    /** Hledání pro [query] doběhlo celé — prázdný výsledek teď znamená „nic nenalezeno". */
+    val settled: Boolean get() = !searching && !messagesLoading
+}
 
 /**
  * Serverové výsledky za lokální, bez duplicit. Lokální pořadí zůstává — výsledky, které
@@ -121,6 +204,12 @@ data class ChatSearchState(
 fun mergeChatResults(local: List<ChatSummary>, server: List<ChatSummary>): List<ChatSummary> {
     val seen = local.mapTo(HashSet()) { it.id }
     return local + server.filter { seen.add(it.id) }
+}
+
+/** Další stránka zpráv za předchozí. TDLib se na hranici stránek může opakovat. */
+fun mergeFoundMessages(loaded: List<FoundMessage>, page: List<FoundMessage>): List<FoundMessage> {
+    val seen = loaded.mapTo(HashSet()) { it.chat.id to it.messageId }
+    return loaded + page.filter { seen.add(it.chat.id to it.messageId) }
 }
 
 /**

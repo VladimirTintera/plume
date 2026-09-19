@@ -388,6 +388,38 @@ class TdlChatRepository(
         return result.toResult().map { summariesFor(it.chatIds) }
     }
 
+    override suspend fun searchPublicChats(query: String): Result<List<ChatSummary>> =
+        client.searchPublicChats(query = query).toResult().map { summariesFor(it.chatIds) }
+
+    override suspend fun searchMessages(query: String, offset: String): Result<FoundMessagesPage> =
+        client.searchMessages(
+            // `null` = hlavní seznam i archiv; tajné chaty `searchMessages` stejně neprochází.
+            chatList = null,
+            query = query,
+            offset = offset,
+            limit = MESSAGE_SEARCH_PAGE,
+            minDate = 0,
+            maxDate = 0,
+        )
+            .toResult()
+            .map { found ->
+                val messages = found.messages.filterNotNull()
+                val chats = summariesFor(messages.map { it.chatId }.distinct().toLongArray()).associateBy { it.id }
+                FoundMessagesPage(
+                    messages = messages.mapNotNull { message ->
+                        FoundMessage(
+                            chat = chats[message.chatId] ?: return@mapNotNull null,
+                            messageId = message.id,
+                            text = message.previewText(),
+                            date = message.date,
+                            isOutgoing = message.isOutgoing,
+                        )
+                    },
+                    // Prázdný `nextOffset` je u TDLib konec výsledků.
+                    nextOffset = found.nextOffset.takeIf { it.isNotEmpty() },
+                )
+            }
+
     // `searchChats` s prázdným dotazem vrací právě historii hledání — `searchRecentlyFoundChats`
     // prázdný dotaz nebere.
     override suspend fun recentlyFoundChats(): Result<List<ChatSummary>> =
@@ -630,6 +662,9 @@ class TdlChatRepository(
 
         /** Výsledků hledání chatů. Víc se na obrazovku stejně nevejde a nikdo je neprojde. */
         const val SEARCH_LIMIT = 50
+
+        /** Stránka hledání zpráv. TDLib jich stejně vrací, kolik uzná za vhodné. */
+        const val MESSAGE_SEARCH_PAGE = 30
 
         /** Řádek nejčastějších lidí nad historií hledání. */
         const val TOP_CHATS_LIMIT = 10

@@ -52,6 +52,19 @@ interface ChatRepository {
      */
     suspend fun searchChats(query: String, onServer: Boolean = false): Result<List<ChatSummary>>
 
+    /**
+     * Veřejné kanály, skupiny a uživatelé, které uživatel ještě nesleduje („globální hledání").
+     * Hledá server v uživatelských jménech a názvech; chaty, které uživatel už má, vynechává.
+     */
+    suspend fun searchPublicChats(query: String): Result<List<ChatSummary>>
+
+    /**
+     * Zprávy se [query] napříč všemi chaty (hlavní seznam i archiv), od nejnovější.
+     * Další stránka se chce s [FoundMessagesPage.nextOffset] z předchozí; prázdný offset je první
+     * stránka.
+     */
+    suspend fun searchMessages(query: String, offset: String = ""): Result<FoundMessagesPage>
+
     /** Naposledy nalezené chaty (nejvýš 50), nejnovější první. Historii vede TDLib. */
     suspend fun recentlyFoundChats(): Result<List<ChatSummary>>
 
@@ -113,6 +126,25 @@ sealed interface ChatListState {
 
     data class Failed(val message: UiText) : ChatListState
 }
+
+/** Stránka výsledků hledání zpráv. [nextOffset] `null` = další už nejsou. */
+data class FoundMessagesPage(
+    val messages: List<FoundMessage>,
+    val nextOffset: String?,
+)
+
+/**
+ * Nalezená zpráva: kde je, kdy přišla a její text, jak by ho ukázal seznam chatů.
+ * [chat] nese název a avatar chatu, ve kterém zpráva je.
+ */
+data class FoundMessage(
+    val chat: ChatSummary,
+    val messageId: Long,
+    val text: String,
+    /** Unixový čas. */
+    val date: Int,
+    val isOutgoing: Boolean,
+)
 
 /**
  * Složka seznamu chatů. Vlastní složky (`ChatListFolder`) zatím nejsou.

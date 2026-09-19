@@ -48,9 +48,14 @@ data class SettingsSectionRoute(val section: SettingsSection) : Route
 @Serializable
 data object ArchiveRoute : Route
 
-/** Konverzace. V list-detail rozvržení je to detail panel vedle seznamu. */
+/**
+ * Konverzace. V list-detail rozvržení je to detail panel vedle seznamu.
+ *
+ * [messageId]: zpráva, na kterou má konverzace po otevření skočit (nalezená v hledání).
+ * Výchozí `null` drží stará uložená zásobníková data čitelná.
+ */
 @Serializable
-data class ConversationRoute(val chatId: Long) : Route
+data class ConversationRoute(val chatId: Long, val messageId: Long? = null) : Route
 
 /**
  * Prohlížeč média přes celou obrazovku.
