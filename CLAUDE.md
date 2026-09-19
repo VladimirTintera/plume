@@ -371,6 +371,15 @@ curl -s https://repo1.maven.org/maven2/dev/g000sha256/tdl-coroutines-iosarm64/<v
 - **Klient se proto nikde nesmí zachytit do `val`.** Požadavky jdou přes `holder.client`
   (getter), odběry přes `holder.updates { … }`, které se na novou instanci přepnou samy
   (`flatMapLatest`). `client.fooUpdates.collect` na zachyceném klientovi po odhlášení tiše skončí.
+- **Nový klient se zakládá, až když skončí odběr stavů, ne podle `AuthorizationStateClosed`.**
+  Wrapper ukončuje update flows jedním příznakem `stopped` SPOLEČNÝM pro všechny odběry
+  klienta (`TdlRepository.checkStopped`): kdo `Closed` zpracuje první, příznak nastaví a ostatním
+  odběrům flow skončí DŘÍV, než k nim `Closed` dojde. Odběrů jsou desítky, takže session o `Closed`
+  přicházela podle toho, kdo byl zrovna rychlejší — a po ukončení relace z jiného zařízení
+  („Zařízení" → odhlásit) zůstala aplikace natrvalo na „Odhlašuji", dokud se nekillnula. Flow
+  jinak než zavřením klienta neskončí, takže konec `collect` je spolehlivý signál
+  (`onClientClosed`). **Obecně: na poslední update flow, který klient pošle, se nedá spolehnout —
+  vidí ho jen nejrychlejší odběratel.**
 - **Session se k novému klientovi přihlašuje `CoroutineStart.UNDISPATCHED`.** Odběr musí stát
   dřív než `getAuthorizationState` a nová instance nic nevydá, dokud nedostane první request —
   takže ztracený první stav by automat zastavil.

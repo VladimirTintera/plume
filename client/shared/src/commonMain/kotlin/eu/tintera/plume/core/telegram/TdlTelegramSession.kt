@@ -69,13 +69,21 @@ class TdlTelegramSession(
      * ztratí a přihlašovací automat se nikdy nerozjede. `UNDISPATCHED` to zaručuje: korutina
      * se až k prvnímu uspání (tedy k registraci odběru) provede hned, ne až ji dispatcher naplánuje.
      *
-     * Odběr skončí sám: wrapper po `AuthorizationStateClosed` flow uzavře.
+     * **Konec odběru = zavřený klient, a teprve podle něj se vyrábí nový.** Na samotný stav
+     * `AuthorizationStateClosed` se spolehnout nejde: wrapper ukončuje update flows jedním
+     * příznakem `stopped` SPOLEČNÝM pro všechny odběratele klienta. Kdo `Closed` zpracuje první,
+     * příznak nastaví a ostatním odběrům flow skončí dřív, než k nim `Closed` dojde — odběratelů
+     * jsou desítky (repositories přes `holder.updates`), takže tenhle o něj přicházel. Při
+     * vzdáleném odhlášení (jiné zařízení ukončilo relaci) tak aplikace zůstala natrvalo na
+     * „Odhlašování". Flow ale jinak než zavřením klienta neskončí, takže konec `collect` je
+     * spolehlivý signál v obou případech.
      */
     private suspend fun attach(target: TdlClient) {
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             target.authorizationStateUpdates.collect { update ->
                 handleAuthorizationState(update.authorizationState)
             }
+            onClientClosed(target)
         }
 
         target.getAuthorizationState()
@@ -104,13 +112,9 @@ class TdlTelegramSession(
             is AuthorizationStateClosing,
                 -> _authStage.value = AuthStage.LoggingOut
 
-            // Zavřený klient už nic neudělá — ani nepřijme nové přihlášení. Bez nové instance
-            // by aplikace zůstala natrvalo stát na odhlášení. Nový klient začne od
-            // `WaitTdlibParameters`, takže se sám dostane až k zadání čísla.
-            is AuthorizationStateClosed -> {
-                _authStage.value = AuthStage.LoggingOut
-                attach(holder.recreate())
-            }
+            // Novou instanci vyrábí až konec odběru (`onClientClosed`), ne tenhle stav — ten
+            // sem dojít nemusí, viz `attach`.
+            is AuthorizationStateClosed -> _authStage.value = AuthStage.LoggingOut
 
             // Stavy kolem e-mailového ověření a Premium nákupu spike neřeší. Padnout na nich ale
             // nesmíme — uživatel by viděl zamrzlou obrazovku bez vysvětlení. Text pojmenovává
@@ -122,6 +126,21 @@ class TdlTelegramSession(
 
             is AuthorizationStateWaitPremiumPurchase -> _authStage.value = AuthStage.Failed(UiText(Res.string.auth_error_premium_required))
         }
+    }
+
+    /**
+     * Zavřený klient už nic neudělá — ani nepřijme nové přihlášení. Bez nové instance by aplikace
+     * zůstala natrvalo stát na odhlášení. Nový klient začne od `WaitTdlibParameters`, takže se
+     * sám dostane až k zadání čísla.
+     *
+     * Kontrola [target] proti aktuálnímu klientovi je pojistka, aby jeden zavřený klient nevyrobil
+     * náhradu dvakrát.
+     */
+    private suspend fun onClientClosed(target: TdlClient) {
+        if (holder.client !== target) return
+        logger.i { "Klient TDLib zavřený, zakládám nový." }
+        _authStage.value = AuthStage.LoggingOut
+        attach(holder.recreate())
     }
 
     /**
