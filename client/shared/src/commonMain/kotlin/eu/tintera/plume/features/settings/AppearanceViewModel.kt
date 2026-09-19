@@ -22,9 +22,14 @@ class AppearanceViewModel(
     /** `null` znamená „uživatel si nevybral" — výchozí motiv dopočítá až obrazovka podle platformy. */
     val themeMode: StateFlow<ThemeMode?> = settings.themeMode
 
+    /** `null` znamená „uživatel si nevybral" — výchozí je `supportsDynamicColor`. */
+    val dynamicColor: StateFlow<Boolean?> = settings.dynamicColor
+
     val separateUnreadChats: StateFlow<Boolean> = settings.separateUnreadChats
 
     fun setThemeMode(mode: ThemeMode) = settings.setThemeMode(mode)
+
+    fun setDynamicColor(enabled: Boolean) = settings.setDynamicColor(enabled)
 
     fun setSeparateUnreadChats(separate: Boolean) = settings.setSeparateUnreadChats(separate)
 }

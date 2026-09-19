@@ -176,6 +176,21 @@ class DataStoreAppSettingsTest {
         )
     }
 
+    /** `null` znamená „uživatel si nevybral" — výchozí podle platformy se dopočítá až v UI. */
+    @Test
+    fun dynamickeBarvyJsouVychoziNevybrane() = settingsTest { settings, _ ->
+        assertEquals(null, settings.dynamicColor.value)
+    }
+
+    @Test
+    fun dynamickeBarvySeUlozi() = settingsTest { settings, _ ->
+        settings.setDynamicColor(false)
+        assertEquals(false, settings.dynamicColor.awaitValue("vypnuté barvy z tapety") { it == false })
+
+        settings.setDynamicColor(true)
+        assertEquals(true, settings.dynamicColor.awaitValue("zapnuté barvy z tapety") { it == true })
+    }
+
     /**
      * Neznámý název motivu (hodnota z novější verze aplikace) se chová jako nevybraný.
      *

@@ -92,7 +92,8 @@
     <string name="settings_theme_system">Follow the system</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
-    <string name="settings_theme_dynamic">Colors from the wallpaper</string>
+    <string name="settings_theme_dynamic">Dynamic color</string>
+    <string name="settings_theme_dynamic_summary">Apply system wallpaper colors</string>
     <string name="settings_chats">Chat list</string>
     <string name="settings_separate_unread">Unread in their own block</string>
     <string name="settings_separate_unread_summary">Unread chats move above the rest. Off, the list keeps the order Telegram sends.</string>

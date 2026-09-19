@@ -21,15 +21,12 @@ expect fun SystemBarsAppearance(isDark: Boolean)
 @Composable
 expect fun colorScheme(isDark: Boolean, dynamic: Boolean): ColorScheme
 
-/** Výchozí motiv, když uživatel nic nenastavil: Android → Dynamic (zachová Material You), jinde System. */
-fun defaultThemeMode(): ThemeMode = if (supportsDynamicColor) ThemeMode.DYNAMIC else ThemeMode.SYSTEM
-
-/** Efektivní „je tmavé téma" pro daný [ThemeMode] (SYSTEM/DYNAMIC → sledují systémový dark mód). */
+/** Efektivní „je tmavé téma" pro daný [ThemeMode] (SYSTEM → sleduje systémový dark mód). */
 @Composable
 fun ThemeMode.resolveIsDark(): Boolean = when (this) {
     ThemeMode.LIGHT -> false
     ThemeMode.DARK -> true
-    ThemeMode.SYSTEM, ThemeMode.DYNAMIC -> isSystemInDarkTheme()
+    ThemeMode.SYSTEM -> isSystemInDarkTheme()
 }
 
 /**
@@ -41,12 +38,12 @@ fun ThemeMode.resolveIsDark(): Boolean = when (this) {
  */
 @Composable
 fun AppTheme(
-    themeMode: ThemeMode = defaultThemeMode(),
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    dynamicColor: Boolean = supportsDynamicColor,
     content: @Composable () -> Unit,
 ) {
     val isDark = themeMode.resolveIsDark()
-    val dynamic = themeMode == ThemeMode.DYNAMIC
-    val colorScheme = colorScheme(isDark, dynamic)
+    val colorScheme = colorScheme(isDark, dynamicColor && supportsDynamicColor)
 
     SystemBarsAppearance(isDark)
 

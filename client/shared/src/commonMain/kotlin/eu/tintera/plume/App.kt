@@ -9,10 +9,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.app.root.presentation.AppTheme
-import eu.tintera.plume.app.root.presentation.defaultThemeMode
+import eu.tintera.plume.app.root.presentation.supportsDynamicColor
 import eu.tintera.plume.app.shell.AppShell
 import eu.tintera.plume.core.notifications.NotificationPermissionPrompt
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.settings.ThemeMode
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.ui.forgetKnownImagePaths
 import eu.tintera.plume.core.ui.forgetStickerAnimations
@@ -32,13 +33,17 @@ import org.koin.compose.viewmodel.koinViewModel
 fun App() {
     /*
      * Motiv se čte z nastavení, ne z výchozí hodnoty parametru. `null` znamená „uživatel si
-     * nevybral" — teprve tehdy rozhoduje platforma (`defaultThemeMode`), takže se do úložiště
+     * nevybral" — teprve tehdy rozhoduje platforma (`supportsDynamicColor`), takže se do úložiště
      * nezapíše hodnota, která by na jiném zařízení znamenala něco jiného.
      */
     val settings = koinInject<AppSettings>()
     val themeMode by settings.themeMode.collectAsStateWithLifecycle()
+    val dynamicColor by settings.dynamicColor.collectAsStateWithLifecycle()
 
-    AppTheme(themeMode = themeMode ?: defaultThemeMode()) {
+    AppTheme(
+        themeMode = themeMode ?: ThemeMode.SYSTEM,
+        dynamicColor = dynamicColor ?: supportsDynamicColor,
+    ) {
         Surface(Modifier.fillMaxSize()) {
             val authViewModel: AuthViewModel = koinViewModel()
             val stage by authViewModel.stage.collectAsStateWithLifecycle()
