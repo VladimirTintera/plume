@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
@@ -17,6 +18,8 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.Text
@@ -201,27 +204,41 @@ fun AppShell(modifier: Modifier = Modifier) {
              * Položky jsou na STŘEDU: M3 u tabletů doporučuje střed, protože se na něj líp
              * dosáhne palcem. Nahoru patří jen menu a FAB, a ty rail nemá.
              */
-            WideNavigationRail(arrangement = Arrangement.Center) {
-                TopLevelDestination.entries.forEach { dest ->
-                    val selected = currentTopLevel == dest.route
-                    WideNavigationRailItem(
-                        selected = selected,
-                        onClick = { navigation.selectSection(dest.route) },
-                        // Bez popisku nese název sekce ikona, jinak by ho čtečka obrazovky neměla.
-                        icon = {
-                            DestinationIcon(
-                                dest,
-                                selected,
-                                contentDescription = if (railLabels) null else stringResource(dest.label),
-                            )
-                        },
-                        label = if (railLabels) {
-                            { Text(stringResource(dest.label)) }
-                        } else {
-                            null
-                        },
-                        railExpanded = false,
-                    )
+            if (railLabels) {
+                WideNavigationRail(arrangement = Arrangement.Center) {
+                    TopLevelDestination.entries.forEach { dest ->
+                        val selected = currentTopLevel == dest.route
+                        WideNavigationRailItem(
+                            selected = selected,
+                            onClick = { navigation.selectSection(dest.route) },
+                            icon = { DestinationIcon(dest, selected) },
+                            label = { Text(stringResource(dest.label)) },
+                            railExpanded = false,
+                        )
+                    }
+                }
+            } else {
+                /*
+                 * Na nízkém okně klasický `NavigationRail`, ne wide. Zúžený wide rail má pevnou
+                 * šířku 96 dp a položku BEZ popisku staví k levému okraji (měří ji na šířku
+                 * indikátoru a klade na x = 0) — ikony visely mimo střed a vpravo od nich zbyl
+                 * prázdný pruh. `NavigationRail` má 80 dp a ikony na středu.
+                 */
+                NavigationRail {
+                    Spacer(Modifier.weight(1f))
+                    TopLevelDestination.entries.forEach { dest ->
+                        val selected = currentTopLevel == dest.route
+                        NavigationRailItem(
+                            selected = selected,
+                            onClick = { navigation.selectSection(dest.route) },
+                            // Bez popisku nese název sekce ikona, jinak by ho čtečka obrazovky
+                            // neměla.
+                            icon = {
+                                DestinationIcon(dest, selected, contentDescription = stringResource(dest.label))
+                            },
+                        )
+                    }
+                    Spacer(Modifier.weight(1f))
                 }
             }
         }

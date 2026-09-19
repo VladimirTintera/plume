@@ -520,8 +520,10 @@ stavovou lištu. Střed doporučuje M3 pro tablety (líp se na něj dosáhne); n
 a FAB, které rail nemá. Až přibudou, půjdou do `header`, který je nahoře vždy.
 
 **Na nízkém okně (telefon naležato) má rail jen ikony** — výška pod `HEIGHT_DP_MEDIUM_LOWER_BOUND`.
-Popisky tam braly výšku, která chybí, a rail roztahovaly. Bez popisku nese název sekce
-`contentDescription` ikony.
+Bez popisku nese název sekce `contentDescription` ikony. **Je to klasický `NavigationRail`
+(80 dp), ne `WideNavigationRail`:** zúžený wide rail má pevných 96 dp bez ohledu na popisky
+a položku bez popisku měří na šířku indikátoru a klade na x = 0 — ikony visely u levého okraje
+a vpravo zbyl prázdný pruh. Popisky tedy šířku neovlivňovaly, jen výšku.
 
 **Boční insety NEVĚDÍ, kde prvek leží.** Compose dá `safeDrawing`/`displayCutout` každému, kdo si
 o ně řekne, i když stojí daleko od kamery. Telefon naležato proto měl v konverzaci (panel VPRAVO)
