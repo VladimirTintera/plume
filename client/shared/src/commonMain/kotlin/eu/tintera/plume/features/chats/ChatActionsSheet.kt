@@ -22,8 +22,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.archive_24dp
+import eu.tintera.plume.resources.chats_action_archive
+import eu.tintera.plume.resources.chats_action_unarchive
+import eu.tintera.plume.resources.unarchive_24dp
 import eu.tintera.plume.resources.chats_action_delete
 import eu.tintera.plume.resources.chats_action_leave
 import eu.tintera.plume.resources.chats_action_mark_read
@@ -58,6 +63,8 @@ fun ChatActionsSheet(
     onTogglePinned: () -> Unit,
     onToggleMuted: () -> Unit,
     onToggleUnread: () -> Unit,
+    /** `null` = chat archivovat nejde (Uložené zprávy), položka se nenabídne. */
+    onToggleArchived: (() -> Unit)?,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -98,6 +105,16 @@ fun ChatActionsSheet(
                 shape = RoundedCornerShape(4.dp),
                 onClick = onToggleUnread,
             )
+
+            onToggleArchived?.let { onClick ->
+                val archived = chat.folder == ChatFolder.Archive
+                ActionRow(
+                    icon = if (archived) Res.drawable.unarchive_24dp else Res.drawable.archive_24dp,
+                    label = stringResource(if (archived) Res.string.chats_action_unarchive else Res.string.chats_action_archive),
+                    shape = RoundedCornerShape(4.dp),
+                    onClick = onClick,
+                )
+            }
 
             ActionRow(
                 icon = Res.drawable.delete_24dp,

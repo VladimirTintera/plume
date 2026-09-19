@@ -42,7 +42,7 @@ class ForwardViewModel(
     private val _error = MutableStateFlow<UiText?>(null)
 
     val state: StateFlow<ForwardState> = combine(
-        chatRepository.chats,
+        chatRepository.chats(),
         query,
         _sending,
         _error,

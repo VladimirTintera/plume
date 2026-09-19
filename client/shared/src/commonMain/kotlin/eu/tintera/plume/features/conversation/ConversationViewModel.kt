@@ -20,7 +20,6 @@ import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatInfo
-import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionRepository
@@ -89,7 +88,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.conflate
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -112,7 +110,7 @@ class ConversationViewModel(
     private val chatId: Long,
     private val repository: ConversationRepository,
     /**
-     * Jen kvůli „píše…". Činnost v chatu už sleduje seznam chatů — i s odpočtem, který ji zhasne,
+     * Jen kvůli „píše…". Činnost v chatu už sleduje repository chatů — i s odpočtem, který ji zhasne,
      * kdyby se ztratilo ukončení, a s odfiltrováním vlastní činnosti. Druhá kopie téže logiky
      * v konverzaci by se s ní dřív nebo později rozešla.
      */
@@ -531,11 +529,7 @@ class ConversationViewModel(
         }
 
         viewModelScope.launch {
-            chatRepository.chats
-                .map { list ->
-                    (list as? ChatListState.Ready)?.chats?.firstOrNull { it.id == chatId }?.activity
-                }
-                .distinctUntilChanged()
+            chatRepository.activity(chatId)
                 .collect { activity -> _state.update { it.copy(activity = activity) } }
         }
 

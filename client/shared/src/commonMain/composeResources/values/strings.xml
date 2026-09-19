@@ -58,6 +58,13 @@
     <string name="chats_leave_title">Leave the chat?</string>
     <string name="chats_delete_body">The history of %1$s will be deleted for you. The other side keeps theirs.</string>
     <string name="chats_leave_body">You will leave %1$s and stop receiving messages. Getting back in needs a new invite.</string>
+    <string name="chats_archive">Archive</string>
+    <string name="chats_archive_empty">No archived chats. Archive a chat from its long-press menu and it moves here.</string>
+    <string name="chats_action_archive">Archive</string>
+    <string name="chats_action_unarchive">Move to chats</string>
+    <string name="chats_archived">Chat archived</string>
+    <string name="chats_unarchived">Chat moved back to chats</string>
+    <string name="chats_undo">Undo</string>
     <string name="settings_title">Settings</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_notifications_on">On</string>

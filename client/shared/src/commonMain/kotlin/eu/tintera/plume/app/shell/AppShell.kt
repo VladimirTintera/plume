@@ -57,6 +57,7 @@ import eu.tintera.plume.core.adaptive.twoPane
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.koinInject
 import eu.tintera.plume.core.navigation.ChatOpenRequests
+import eu.tintera.plume.core.navigation.ArchiveRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForwardRoute
@@ -68,6 +69,8 @@ import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.navigation.SettingsSectionRoute
 import eu.tintera.plume.core.navigation.TopLevelRoute
 import eu.tintera.plume.core.ui.LocalTwoPane
+import eu.tintera.plume.core.telegram.ChatFolder
+import eu.tintera.plume.features.chats.ArchiveScreen
 import eu.tintera.plume.features.chats.ChatListScreen
 import eu.tintera.plume.features.conversation.ConversationPlaceholder
 import eu.tintera.plume.features.conversation.ConversationScreen
@@ -372,11 +375,34 @@ private fun shellEntryProvider(
             viewModel = koinViewModel(),
             selectedChatId = chatsStack.filterIsInstance<ConversationRoute>()
                 .lastOrNull()?.chatId,
-            onChatClick = { chatId ->
-                // Otevření jiného chatu nahradí detail, nevrší se zásobník.
-                chatsStack.removeAll { it is ConversationRoute }
-                chatsStack.add(ConversationRoute(chatId))
+            onChatClick = { chatId -> chatsStack.openConversation(chatId) },
+            onOpenArchive = {
+                if (chatsStack.lastOrNull() != ArchiveRoute) chatsStack.add(ArchiveRoute)
             },
+        )
+    }
+
+    /*
+     * Archiv je list panel té samé scény (výchozí klíč jako Chaty). Scéna kreslí vlevo POSLEDNÍ
+     * list panel v zásobníku, takže archiv hlavní seznam nahradí a konverzace vpravo zůstane;
+     * zpět ho odebere a vlevo je zase hlavní seznam.
+     */
+    entry<ArchiveRoute>(
+        metadata = ListDetailSceneStrategy.listPane(
+            detailPlaceholder = { ConversationPlaceholder() },
+        ),
+    ) {
+        ArchiveScreen(
+            // Klíč se složkou: ViewModel se cachuje podle klíče a Koin by u cachované instance
+            // parametr ignoroval (viz konverzace).
+            viewModel = koinViewModel(
+                key = "chats-archive",
+                parameters = { parametersOf(ChatFolder.Archive) },
+            ),
+            selectedChatId = chatsStack.filterIsInstance<ConversationRoute>()
+                .lastOrNull()?.chatId,
+            onChatClick = { chatId -> chatsStack.openConversation(chatId) },
+            onBack = { chatsStack.remove(ArchiveRoute) },
         )
     }
 
@@ -482,6 +508,15 @@ private fun shellEntryProvider(
             onBack = if (wide) null else popSection,
         )
     }
+}
+
+/**
+ * Otevření chatu ze seznamu (hlavního i archivu) NAHRADÍ otevřenou konverzaci, nevrší se
+ * zásobník. Nová jde na konec — z archivu tedy za něj, takže zpět z ní vede do archivu.
+ */
+private fun MutableList<NavKey>.openConversation(chatId: Long) {
+    removeAll { it is ConversationRoute }
+    add(ConversationRoute(chatId))
 }
 
 /**

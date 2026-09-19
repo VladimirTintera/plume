@@ -7,12 +7,12 @@ nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí
 
 ## Stav
 
-Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar), živý seznam chatů,
+Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar), živý seznam chatů a archiv,
 konverzace (historie, živé zprávy, odesílání, přílohy a alba, hlasovky, samolepky a emoji, úprava,
 přeposílání, připnuté zprávy), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
-Není: notifikace na iOS ani hlášení pádů z iOS; obrazovky archivu, hledání, profilu chatu a nové
+Není: notifikace na iOS ani hlášení pádů z iOS; obrazovky hledání, profilu chatu a nové
 konverzace. Nastavení je list-detail se sekcemi Obecné a Vzhled; vědomě nastavitelné je zatím
 téma aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
 Rozpracovaný detail chatu má vlastní seznam:
@@ -698,7 +698,7 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
   `LocalSavedMessagesChatId` (poskytuje shell). **`Avatar` si to NEzjišťuje sám** — kreslí
   i odesílatele (reakce, zhlédnutí, profilovky ve skupině) a tam má být vlastní tvář.
 - **V seznamu chatů nejsou, pokud nejsou připnuté** (`chatGroups`, test
-  `ulozeneZpravyJenPripnute`). Vstup je menu ⋮ v horní liště (přibude do něj Archiv). Připnutí
+  `ulozeneZpravyJenPripnute`). Vstup je menu ⋮ v horní liště (vedle archivu). Připnutí
   je výslovné přání uživatele, takže připnuté zůstávají — schovat je by působilo jako chyba.
 - **Ve výběrech (přeposlání, sdílení, iOS rozšíření, Direct Share) jsou vždy první**, i když
   v seznamu chatů nejsou. „Pošlu si to" je nejčastější cíl. Hledání je najde podle přeloženého
@@ -735,6 +735,38 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
 - **Telegram dostupnost záměrně rozmazává.** Kdo si to v soukromí vypne, je vidět jen jako
   „naposledy nedávno" a přesný čas nedostaneme. Proto je `Presence` několik pojmenovaných stupňů,
   ne čas — dopočítávat minutu, kterou neznáme, by bylo horší než neurčitost.
+
+### Archiv
+
+Archivované chaty jsou vlastní seznam (`ArchiveRoute`, `ArchiveScreen`), vstup je menu ⋮ vedle
+hledání. Do archivu a zpátky se chat dostane z nabídky po dlouhém stisku; místo potvrzení je
+snackbar s „Vrátit".
+
+- **Repository drží VŠECHNY chaty, které TDLib ohlásí, a složka je jen pozice**
+  (`TdlChatRepository.positions`, `ChatFolder`). Dřív se chat mimo hlavní seznam vůbec neukládal,
+  takže se zahazovaly i jeho updaty — archivovaný chat neukázal v konverzaci „píše…". Seznamy
+  složek se skládají až při publikaci; `ChatSummary.order` / `isPinned` / `folder` platí pro tu
+  složku, ze které položka přišla.
+- **Počet pro `getChats` se bere ze složky, ne ze všech známých chatů.** Těch je víc (i chaty
+  mimo složky, z notifikací a odkazů) a limit by se nafukoval.
+- **Archivace je `addChatToList(ChatListArchive)`, vrácení `addChatToList(ChatListMain)`.**
+  Složky se vylučují, odebrání z té druhé pošle TDLib samo updatem pozice s nulovým `order`.
+  Uložené zprávy archivovat nejdou, nabídka je u nich nemá.
+- **Připnutí patří pozici ve složce.** Archiv má vlastní připnuté (a vlastní limit
+  `pinned_archived_chat_count_max`), proto `setPinned` bere složku.
+- **Archiv se začne načítat až při otevření** (`ChatsViewModel` s parametrem `ChatFolder.Archive`).
+  Do té doby je `Loading`, ne prázdný — složka je hotová, až se jednou přečte z databáze, nebo
+  když v ní už něco je.
+- **Jeden ViewModel i obsah pro oba seznamy.** `ChatsViewModel` dostane složku parametrem
+  (Koin, klíč `chats-archive`), seznam je `ChatListContent`, akce `ChatActionsHost`. Archiv
+  nemá hledání ani kartu aktualizace, jinak je to tentýž kód.
+- **Na široké ploše je archiv LIST panel téže scény** (výchozí `sceneKey` jako Chaty).
+  Scéna kreslí vlevo POSLEDNÍ list panel zásobníku, takže archiv hlavní seznam nahradí
+  a otevřená konverzace vpravo zůstane; zpět vrátí hlavní seznam. Chat otevřený z archivu jde
+  do zásobníku ZA archiv, takže zpět z něj vede do archivu. Šipku zpět má archiv i v dvoupanelu —
+  na rozdíl od sekce nastavení je to seznam, ne detail.
+- **Hlavička je obyčejný `TopAppBar` bez scroll behavior**, takže nemění barvu — tónovaný pruh
+  přes celou šířku byl důvod, proč hlavní seznam opustil `LargeFlexibleTopAppBar`.
 
 ### Akce nad chatem
 
@@ -1167,7 +1199,7 @@ vidí, že píšeme my.
 
 - **Činnost se bere ze `ChatRepository`, ne z vlastního odběru.** Seznam chatů ji už sleduje
   i s odpočtem zhasnutí a odfiltrováním vlastní činnosti; druhá kopie téže logiky by se s ní
-  rozešla. Důsledek: chat, který v hlavním seznamu není (archiv), „píše…" v hlavičce neukáže.
+  rozešla. Čte se přes `ChatRepository.activity(chatId)`, které nezáleží na složce — viz „Archiv".
 - **Činnost má v podtitulu přednost před dostupností** a výšku hlavičky animuje
   `AnimatedContent` — skupina podtitul jinak nemá a název by při „píše…" poskočil.
 - **Vlastní „píšu" se opakuje nejvýš jednou za 5 s** (`TYPING_REPEAT`). Server činnost zhasíná
@@ -2803,8 +2835,8 @@ není „Android bez barev", ale má vlastní konzistentní paletu.
   hodnotou; opačné pořadí zahodí první `AuthorizationState` a přihlášení zůstane viset.
 - **`loadChats` vrací `Ok`, ne data.** Chyba 404 znamená „konec seznamu", ne selhání. Samotné
   chaty přicházejí **updaty**, ne návratovou hodnotou — viz `TdlChatRepository`.
-- **`ChatPosition.order == 0` znamená, že chat ve složce NENÍ.** Musí ze seznamu zmizet, jinak tam
-  zůstane viset po archivaci.
+- **`ChatPosition.order == 0` znamená, že chat ve složce NENÍ.** Musí ze seznamu složky zmizet,
+  jinak tam zůstane viset po archivaci. Chat sám ale známý zůstává — viz „Archiv".
 - **Material Symbols z Google Fonts potřebují úpravu**, než je uložíš do `composeResources`:
   vyhoď `android:tint="?attr/…"` a nahraď `@android:color/white` literální barvou. Resource
   reference commonMain parser nezná. `material-icons-core` **nepoužívej** — Google ho neudržuje,

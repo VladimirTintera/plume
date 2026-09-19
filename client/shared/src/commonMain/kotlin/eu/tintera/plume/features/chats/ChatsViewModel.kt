@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
@@ -19,12 +20,19 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_action_failed
 
+/**
+ * Seznam jedné složky — hlavních chatů, nebo archivu. Obrazovky se liší jen hlavičkou (archiv
+ * nemá hledání ani kartu aktualizace), seznam a akce nad chatem jsou tytéž, takže ViewModel je
+ * jeden a složku dostane parametrem.
+ */
 class ChatsViewModel(
+    val folder: ChatFolder,
     private val repository: ChatRepository,
     connection: ConnectionRepository,
     private val settings: AppSettings,
@@ -38,7 +46,13 @@ class ChatsViewModel(
      * Stav se bere přímo z repository — ta je singleton a drží živý seznam nezávisle na tom,
      * jestli obrazovka existuje. ViewModel tu nic nekešuje, jen přeposílá a spouští dotažení.
      */
-    val state: StateFlow<ChatListState> = repository.chats
+    val state: StateFlow<ChatListState> = repository.chats(folder)
+
+    init {
+        // Hlavní seznam se načítá sám po přihlášení. Archiv až tady: na seznam, který nikdo
+        // neotevře, se nemá co ptát serveru.
+        if (folder == ChatFolder.Archive) loadMore()
+    }
 
     /**
      * Stav spojení. Ve stavu seznamu schválně není — se seznamem chatů nijak nesouvisí a v
@@ -89,7 +103,7 @@ class ChatsViewModel(
     }
 
     fun loadMore() {
-        viewModelScope.launch { repository.loadMore() }
+        viewModelScope.launch { repository.loadMore(folder) }
     }
 
     fun showActions(chat: ChatSummary) {
@@ -100,15 +114,38 @@ class ChatsViewModel(
         _actions.value = _actions.value.copy(target = null)
     }
 
-    fun togglePinned(chat: ChatSummary) = run(chat) {
-        repository.setPinned(chat.id, !chat.isPinned)
+    fun togglePinned(chat: ChatSummary) = run(chat.id) {
+        repository.setPinned(chat.id, chat.folder, !chat.isPinned)
     }
 
-    fun toggleMuted(chat: ChatSummary) = run(chat) {
+    /**
+     * Do archivu a zpátky. Vratné, takže bez potvrzení — místo něj snackbar s „Vrátit"
+     * ([ChatActionsState.archived]), jako u odepnutí zprávy.
+     */
+    fun toggleArchived(chat: ChatSummary) {
+        val archived = chat.folder != ChatFolder.Archive
+        run(chat.id, onSuccess = {
+            _actions.update { it.copy(archived = ArchiveChange(chat.id, archived)) }
+        }) {
+            repository.setArchived(chat.id, archived)
+        }
+    }
+
+    /** Snackbar s „Vrátit" už je vidět — událost se nuluje hned, jinak by se po otočení ukázal znovu. */
+    fun consumeArchived() {
+        _actions.update { it.copy(archived = null) }
+    }
+
+    /** „Vrátit" ve snackbaru. Oprava omylu, takže se na ni už další „Vrátit" nenabízí. */
+    fun undoArchive(change: ArchiveChange) = run(change.chatId) {
+        repository.setArchived(change.chatId, !change.archived)
+    }
+
+    fun toggleMuted(chat: ChatSummary) = run(chat.id) {
         repository.setMuted(chat.id, !chat.isMuted)
     }
 
-    fun toggleUnread(chat: ChatSummary) = run(chat) {
+    fun toggleUnread(chat: ChatSummary) = run(chat.id) {
         repository.setMarkedAsUnread(chat.id, !chat.hasUnread)
     }
 
@@ -121,7 +158,7 @@ class ChatsViewModel(
         _actions.value = _actions.value.copy(pendingDelete = null)
     }
 
-    fun confirmDelete(chat: ChatSummary) = run(chat) {
+    fun confirmDelete(chat: ChatSummary) = run(chat.id) {
         repository.deleteOrLeave(chat.id)
     }
 
@@ -137,13 +174,17 @@ class ChatsViewModel(
      * mezi ťuknutím a potvrzením vidět prodleva; tady se položka jen přeskládá a předběhnout
      * server by znamenalo riskovat, že se seznam rozejde se skutečností.
      */
-    private fun run(chat: ChatSummary, action: suspend () -> Result<Unit>) {
+    private fun run(
+        chatId: Long,
+        onSuccess: () -> Unit = {},
+        action: suspend () -> Result<Unit>,
+    ) {
         _actions.value = ChatActionsState()
 
         viewModelScope.launch {
-            action().onFailure { failure ->
+            action().onSuccess { onSuccess() }.onFailure { failure ->
                 // Surová hláška od TDLib patří do logu, ne do snackbaru — viz userMessage().
-                logger.w(failure) { "Akce nad chatem ${chat.id} selhala." }
+                logger.w(failure) { "Akce nad chatem $chatId selhala." }
                 _actions.value = ChatActionsState(
                     error = failure.userMessage(Res.string.chats_action_failed),
                 )
@@ -162,7 +203,12 @@ data class ChatActionsState(
     val target: ChatSummary? = null,
     val pendingDelete: ChatSummary? = null,
     val error: UiText? = null,
+    /** Jednorázová událost pro snackbar s „Vrátit" po archivaci nebo vrácení z archivu. */
+    val archived: ArchiveChange? = null,
 )
+
+/** Chat se přesunul do archivu ([archived]), nebo z něj. */
+data class ArchiveChange(val chatId: Long, val archived: Boolean)
 
 /** Nepřečteno = nepřečtené zprávy NEBO ruční příznak. Obojí se v seznamu chová stejně. */
 val ChatSummary.hasUnread: Boolean get() = unreadCount > 0 || isMarkedAsUnread

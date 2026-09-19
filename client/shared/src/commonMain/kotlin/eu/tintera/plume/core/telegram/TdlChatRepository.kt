@@ -6,6 +6,7 @@ import dev.g000sha256.tdl.TdlResult
 import dev.g000sha256.tdl.dto.Chat
 import dev.g000sha256.tdl.toResult
 import dev.g000sha256.tdl.dto.ChatList
+import dev.g000sha256.tdl.dto.ChatListArchive
 import dev.g000sha256.tdl.dto.ChatListMain
 import dev.g000sha256.tdl.dto.ChatNotificationSettings
 import dev.g000sha256.tdl.dto.ChatPosition
@@ -34,9 +35,12 @@ import dev.g000sha256.tdl.dto.UserStatusRecently
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -56,6 +60,11 @@ import eu.tintera.plume.resources.chats_load_failed
  * **Řazení:** `ChatPosition.order` je int64, do kterého Telegram kóduje i připnutí — připnuté chaty
  * dostanou velmi vysoký order. Takže stačí řadit sestupně podle `order` a nic dopočítávat.
  * `order == 0` znamená, že chat v dané složce **není** — musí ze seznamu zmizet.
+ *
+ * **Drží se VŠECHNY chaty, které TDLib ohlásí, i ty mimo složky.** Složka je jen pozice
+ * ([positions]); archivace je změna pozice, ne jiný chat. Dokud se držely jen chaty hlavního
+ * seznamu, zahazovaly se updaty všech ostatních — archivovaný chat neukázal v hlavičce
+ * konverzace „píše…" a po vrácení z archivu přišel o dostupnost protějšku.
  */
 class TdlChatRepository(
     private val holder: TelegramClientHolder,
@@ -67,14 +76,34 @@ class TdlChatRepository(
 
     private val client: TdlClient get() = holder.client
 
-    /** Zdroj pravdy. Klíč je chatId; pořadí drží [ChatSummary.order], ne pozice v mapě. */
+    /**
+     * Zdroj pravdy: všechny známé chaty podle chatId. [ChatSummary.order] a [ChatSummary.isPinned]
+     * tu nic neznamenají — pozice ve složkách je v [positions] a do položky se dosadí až při
+     * sestavení seznamu složky.
+     */
     private val known = mutableMapOf<Long, ChatSummary>()
+
+    /** Pozice chatu ve složkách. Chat mimo všechny složky tu nemá záznam. */
+    private val positions = mutableMapOf<Long, Map<ChatFolder, FolderPosition>>()
     private val mutex = Mutex()
 
-    private val _chats = MutableStateFlow<ChatListState>(ChatListState.Loading)
-    override val chats: StateFlow<ChatListState> = _chats.asStateFlow()
+    private val lists = ChatFolder.entries.associateWith {
+        MutableStateFlow<ChatListState>(ChatListState.Loading)
+    }
 
-    private var exhausted = false
+    /** Všechny známé chaty — pro [activity], které na složce nezáleží. */
+    private val all = MutableStateFlow<Map<Long, ChatSummary>>(emptyMap())
+
+    override fun chats(folder: ChatFolder): StateFlow<ChatListState> = lists.getValue(folder).asStateFlow()
+
+    override fun activity(chatId: Long): Flow<ChatActivity?> =
+        all.map { it[chatId]?.activity }.distinctUntilChanged()
+
+    /** Složky, u kterých TDLib ohlásil, že další chaty už nejsou. */
+    private val exhausted = mutableSetOf<ChatFolder>()
+
+    /** Složky, které se aspoň jednou přečetly z lokální databáze — do té doby se načítají. */
+    private val synced = mutableSetOf<ChatFolder>()
     private var started = false
 
     /** Id přihlášeného účtu; `null`, dokud přihlášení neproběhne. Je to i id Uložených zpráv. */
@@ -140,13 +169,11 @@ class TdlChatRepository(
                 // Náhled se čte z prostředků (`suspend`), takže se připraví před `edit` —
                 // ten bere obyčejnou funkci, protože běží pod zámkem nad stavem seznamu.
                 val preview = update.lastMessage?.previewText()
+                setPositions(update.chatId, update.positions)
                 edit(update.chatId) { current ->
-                    val position = update.positions.mainPosition()
                     current.copy(
                         lastMessagePreview = preview,
                         lastMessageTimestamp = update.lastMessage?.date,
-                        order = position?.order ?: current.order,
-                        isPinned = position?.isPinned ?: current.isPinned,
                     )
                 }
             }
@@ -158,14 +185,8 @@ class TdlChatRepository(
          */
         scope.launch {
             holder.updates { chatDraftMessageUpdates }.collect { update ->
-                edit(update.chatId) { current ->
-                    val position = update.positions.mainPosition()
-                    current.copy(
-                        draft = update.draftMessage?.toChatDraft(),
-                        order = position?.order ?: current.order,
-                        isPinned = position?.isPinned ?: current.isPinned,
-                    )
-                }
+                setPositions(update.chatId, update.positions)
+                edit(update.chatId) { current -> current.copy(draft = update.draftMessage?.toChatDraft()) }
             }
         }
 
@@ -233,10 +254,11 @@ class TdlChatRepository(
             holder.replaced.collect { clear() }
         }
 
-        // Odebrání ze složky — chat sice dál existuje, ale v hlavním seznamu nemá co dělat.
+        // Odebrání ze složky — chat sice dál existuje, ale v téhle složce nemá co dělat.
         scope.launch {
             holder.updates { chatRemovedFromListUpdates }.collect { update ->
-                if (update.chatList.isMain()) remove(update.chatId)
+                val folder = update.chatList.folder() ?: return@collect
+                changePositions(update.chatId) { it - folder }
             }
         }
     }
@@ -270,8 +292,20 @@ class TdlChatRepository(
         return copy(presence = status.toPresence())
     }
 
-    override suspend fun setPinned(chatId: Long, pinned: Boolean): Result<Unit> =
-        client.toggleChatIsPinned(chatList = ChatListMain(), chatId = chatId, isPinned = pinned)
+    override suspend fun setPinned(chatId: Long, folder: ChatFolder, pinned: Boolean): Result<Unit> =
+        client.toggleChatIsPinned(chatList = folder.toChatList(), chatId = chatId, isPinned = pinned)
+            .toResult()
+            .map { }
+
+    /**
+     * `addChatToList` chat do cílové složky PŘESUNE: hlavní seznam a archiv se vylučují, takže
+     * TDLib z té druhé pošle odebrání samo (`UpdateChatPosition` s nulovým `order`).
+     */
+    override suspend fun setArchived(chatId: Long, archived: Boolean): Result<Unit> =
+        client.addChatToList(
+            chatId = chatId,
+            chatList = (if (archived) ChatFolder.Archive else ChatFolder.Main).toChatList(),
+        )
             .toResult()
             .map { }
 
@@ -327,7 +361,7 @@ class TdlChatRepository(
 
     override suspend fun deleteOrLeave(chatId: Long): Result<Unit> {
         val summary = mutex.withLock { known[chatId] }
-            ?: return Result.failure(IllegalStateException("Chat není v seznamu."))
+            ?: return Result.failure(IllegalStateException("Chat není známý."))
 
         val result = if (summary.isPrivate) {
             client.deleteChatHistory(
@@ -344,22 +378,22 @@ class TdlChatRepository(
         return result.toResult().map { }
     }
 
-    override suspend fun loadMore() {
-        if (exhausted) return
+    override suspend fun loadMore(folder: ChatFolder) {
+        if (folder in exhausted) return
 
         // `loadChats` vrací Ok, ne data — jen řekne TDLib, ať dotáhne další kus ze serveru.
         // Chyba 404 znamená „už není co načítat", což není selhání, ale konec seznamu.
-        when (val result = client.loadChats(chatList = ChatListMain(), limit = PAGE_SIZE)) {
+        when (val result = client.loadChats(chatList = folder.toChatList(), limit = PAGE_SIZE)) {
             is TdlResult.Failure -> {
                 if (result.code == NOT_FOUND) {
-                    exhausted = true
-                    logger.d { "Seznam chatů je celý načtený." }
+                    exhausted += folder
+                    logger.d { "Složka $folder je celá načtená." }
                 } else {
-                    logger.e { "loadChats selhalo: ${result.code} ${result.message}" }
+                    logger.e { "loadChats($folder) selhalo: ${result.code} ${result.message}" }
                     // Když už nějaké chaty máme, chybu nedeklarujeme jako prázdný stav —
                     // uživatel by přišel o seznam kvůli selhání dotažení dalších.
-                    if (known.isEmpty()) {
-                        _chats.value = ChatListState.Failed(UiText(Res.string.chats_load_failed))
+                    if (mutex.withLock { countIn(folder) } == 0) {
+                        lists.getValue(folder).value = ChatListState.Failed(UiText(Res.string.chats_load_failed))
                         return
                     }
                 }
@@ -368,7 +402,7 @@ class TdlChatRepository(
             is TdlResult.Success -> Unit
         }
 
-        syncFromLocalDatabase()
+        syncFromLocalDatabase(folder)
     }
 
     /**
@@ -379,12 +413,13 @@ class TdlChatRepository(
      * už proletěla do prázdna a seznam by zůstal navždy prázdný. Tohle je ta pojistka — updaty
      * pak drží seznam živý, tenhle průchod ho jen spolehlivě nastartuje.
      */
-    private suspend fun syncFromLocalDatabase() {
-        val limit = known.size + PAGE_SIZE
+    private suspend fun syncFromLocalDatabase(folder: ChatFolder) {
+        // Počítá se jen složka, ne všechny známé chaty — těch je (i mimo složky) víc.
+        val limit = mutex.withLock { countIn(folder) } + PAGE_SIZE
 
-        val chatIds = when (val result = client.getChats(chatList = ChatListMain(), limit = limit)) {
+        val chatIds = when (val result = client.getChats(chatList = folder.toChatList(), limit = limit)) {
             is TdlResult.Failure -> {
-                logger.e { "getChats selhalo: ${result.code} ${result.message}" }
+                logger.e { "getChats($folder) selhalo: ${result.code} ${result.message}" }
                 return
             }
 
@@ -396,42 +431,70 @@ class TdlChatRepository(
         // zbytečných přeřazení celého seznamu.
         // `toList()` je nutný: `chatIds` je LongArray a `mapNotNull` je definované jen pro
         // `Array<T>` a `Iterable`, ne pro primitivní pole.
-        val summaries = chatIds.toList().mapNotNull { chatId ->
+        val chats = chatIds.toList().mapNotNull { chatId ->
             when (val chat = client.getChat(chatId)) {
-                is TdlResult.Success -> chat.result.toSummaryOrNull()?.withPresence()
+                is TdlResult.Success -> chat.result
                 is TdlResult.Failure -> {
                     logger.w { "getChat($chatId) selhalo: ${chat.code} ${chat.message}" }
                     null
                 }
             }
         }
+        val summaries = chats.map { it.toSummary().withPresence() }
 
-        mutex.withLock { summaries.forEach { known[it.id] = it.keepingLiveState(known[it.id]) } }
+        mutex.withLock {
+            summaries.forEach { known[it.id] = it.keepingLiveState(known[it.id]) }
+            chats.forEach { positions[it.id] = it.positions.toFolderPositions() }
+            synced += folder
+        }
 
         // I prázdný výsledek je výsledek — bez tohohle by seznam bez chatů zůstal viset na spinneru.
         publish()
     }
 
     private suspend fun upsert(chat: Chat) {
-        val summary = chat.toSummaryOrNull() ?: return
-        put(summary)
+        val summary = chat.toSummary()
+        mutex.withLock {
+            known[summary.id] = summary.keepingLiveState(known[summary.id])
+            positions[chat.id] = chat.positions.toFolderPositions()
+        }
+        publish()
     }
 
     private suspend fun applyPosition(chatId: Long, position: ChatPosition) {
-        if (!position.list.isMain()) return
-
-        if (position.order == 0L) {
-            remove(chatId)
-            return
+        val folder = position.list.folder() ?: return
+        changePositions(chatId) { current ->
+            if (position.order == 0L) current - folder else current + (folder to position.toFolderPosition())
         }
-
-        edit(chatId) { it.copy(order = position.order, isPinned = position.isPinned) }
     }
 
-    private suspend fun put(summary: ChatSummary) {
-        mutex.withLock { known[summary.id] = summary.keepingLiveState(known[summary.id]) }
+    /**
+     * Pozice z updatu, který nese i něco jiného (poslední zpráva, koncept). Mění se jen složky,
+     * které update jmenuje; nula znamená odchod ze složky jako u [applyPosition].
+     */
+    private suspend fun setPositions(chatId: Long, update: Array<ChatPosition>) {
+        val changes = update.mapNotNull { position -> position.list.folder()?.let { it to position } }
+        if (changes.isEmpty()) return
+        changePositions(chatId) { current ->
+            changes.fold(current) { acc, (folder, position) ->
+                if (position.order == 0L) acc - folder else acc + (folder to position.toFolderPosition())
+            }
+        }
+    }
+
+    private suspend fun changePositions(
+        chatId: Long,
+        transform: (Map<ChatFolder, FolderPosition>) -> Map<ChatFolder, FolderPosition>,
+    ) {
+        mutex.withLock {
+            val updated = transform(positions[chatId].orEmpty())
+            if (updated.isEmpty()) positions.remove(chatId) else positions[chatId] = updated
+        }
         publish()
     }
+
+    /** Počet chatů ve složce. Volat pod [mutex]. */
+    private fun countIn(folder: ChatFolder): Int = positions.values.count { folder in it }
 
     /**
      * Dostupnost a činnost přežijí přepsání chatu.
@@ -460,25 +523,46 @@ class TdlChatRepository(
         if (changed) publish()
     }
 
-    private suspend fun remove(chatId: Long) {
-        mutex.withLock { known.remove(chatId) }
-        publish()
-    }
-
     private suspend fun clear() {
         mutex.withLock {
             known.clear()
+            positions.clear()
+            exhausted.clear()
+            synced.clear()
             activityTimers.values.forEach { it.cancel() }
             activityTimers.clear()
         }
         me.value = null
-        exhausted = false
-        _chats.value = ChatListState.Loading
+        all.value = emptyMap()
+        lists.values.forEach { it.value = ChatListState.Loading }
     }
 
+    /**
+     * Sestaví seznam každé složky. Složka je hotová, jakmile se jednou přečetla z databáze, nebo
+     * když v ní už něco je — prázdný archiv, na který se ještě nikdo nezeptal, se načítá, není
+     * „prázdný".
+     */
     private suspend fun publish() {
-        val sorted = mutex.withLock { known.values.sortedByDescending { it.order } }
-        _chats.value = ChatListState.Ready(chats = sorted, canLoadMore = !exhausted)
+        val (snapshot, byFolder, ready) = mutex.withLock {
+            val byFolder = ChatFolder.entries.associateWith { folder ->
+                known.values
+                    .mapNotNull { chat ->
+                        positions[chat.id]?.get(folder)?.let { position ->
+                            chat.copy(order = position.order, isPinned = position.isPinned, folder = folder)
+                        }
+                    }
+                    .sortedByDescending { it.order }
+            }
+            Triple(known.toMap(), byFolder, ChatFolder.entries.filter { it in synced || byFolder.getValue(it).isNotEmpty() })
+        }
+
+        all.value = snapshot
+        ready.forEach { folder ->
+            lists.getValue(folder).value = ChatListState.Ready(
+                chats = byFolder.getValue(folder),
+                canLoadMore = folder !in exhausted,
+            )
+        }
     }
 
     private companion object {
@@ -502,20 +586,17 @@ class TdlChatRepository(
 }
 
 /**
- * Převod na doménový model. Vrací `null`, když chat v hlavní složce není (`order == 0`) — takový
- * do seznamu nepatří.
+ * Převod na doménový model. Pozice ve složce se nevyplňuje — tu drží repository zvlášť
+ * a dosadí ji až do seznamu konkrétní složky.
  */
-private suspend fun Chat.toSummaryOrNull(): ChatSummary? {
-    val position = positions.mainPosition() ?: return null
-    if (position.order == 0L) return null
-
+private suspend fun Chat.toSummary(): ChatSummary {
     return ChatSummary(
         id = id,
         title = title,
         unreadCount = unreadCount,
         lastMessagePreview = lastMessage?.previewText(),
-        isPinned = position.isPinned,
-        order = position.order,
+        isPinned = false,
+        order = 0L,
         avatarFileId = photo?.small?.id,
         isMuted = notificationSettings.isMuted(),
         isMarkedAsUnread = isMarkedAsUnread,
@@ -541,9 +622,28 @@ internal fun DraftMessage.toChatDraft(): ChatDraft? {
     return ChatDraft(text = text, timestamp = date)
 }
 
-private fun ChatList?.isMain(): Boolean = this is ChatListMain
+/** Pozice chatu v jedné složce. */
+private data class FolderPosition(val order: Long, val isPinned: Boolean)
 
-private fun Array<ChatPosition>.mainPosition(): ChatPosition? = firstOrNull { it.list.isMain() }
+private fun ChatPosition.toFolderPosition() = FolderPosition(order = order, isPinned = isPinned)
+
+/** Vlastní složky (`ChatListFolder`) zatím nejsou, takže vrací `null`. */
+private fun ChatList?.folder(): ChatFolder? = when (this) {
+    is ChatListMain -> ChatFolder.Main
+    is ChatListArchive -> ChatFolder.Archive
+    else -> null
+}
+
+private fun ChatFolder.toChatList(): ChatList = when (this) {
+    ChatFolder.Main -> ChatListMain()
+    ChatFolder.Archive -> ChatListArchive()
+}
+
+private fun Array<ChatPosition>.toFolderPositions(): Map<ChatFolder, FolderPosition> =
+    mapNotNull { position ->
+        val folder = position.list.folder() ?: return@mapNotNull null
+        if (position.order == 0L) null else folder to position.toFolderPosition()
+    }.toMap()
 
 
 /**
