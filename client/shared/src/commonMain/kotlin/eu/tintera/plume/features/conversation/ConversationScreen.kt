@@ -465,6 +465,8 @@ fun ConversationScreen(
      * zprávu a index by ukazoval jinam.
      */
     val jumpSpec = MaterialTheme.motionScheme.slowSpatialSpec<Float>()
+    // Seznam se během dojíždění mění (dotahují se stránky), takže se cíl hledá v AKTUÁLNÍM seznamu.
+    val currentItems by rememberUpdatedState(items)
     LaunchedEffect(state.scrollTarget) {
         val target = state.scrollTarget ?: return@LaunchedEffect
         // Hledá se BLOK, ne zpráva: fotka z alba je v seznamu součástí jedné položky.
@@ -475,10 +477,12 @@ fun ConversationScreen(
             while (items.getOrNull(index + 1).let { it is UnreadDividerItem || it is DayDividerItem }) index++
         }
         // Na citaci a mezi výsledky hledání se DOJÍŽDÍ (viz `animateToAnchor`); první
-        // nepřečtená při otevření chatu a návrat dolů skočí hned.
+        // nepřečtená při otevření chatu, návrat dolů a skok do nového okna skočí hned.
         if (index >= 0) {
-            if (target.anchor == ScrollAnchor.Center) {
-                listState.animateToAnchor(index, target.anchor, jumpSpec)
+            if (target.animate) {
+                listState.animateToAnchor(index, target.anchor, jumpSpec) {
+                    currentItems.indexOfFirst { it.containsMessage(target.messageId) }
+                }
             } else {
                 listState.scrollToAnchor(index, target.anchor)
             }
@@ -1579,7 +1583,13 @@ private suspend fun LazyListState.scrollToAnchor(index: Int, anchor: ScrollAncho
  * ([MAX_ANIMATED_JUMP_ITEMS]) se nedojíždí: rolování přes desítky zpráv by trvalo a nic by
  * neukázalo, a navíc by skládalo všechno mezi.
  */
-private suspend fun LazyListState.animateToAnchor(index: Int, anchor: ScrollAnchor, spec: AnimationSpec<Float>) {
+private suspend fun LazyListState.animateToAnchor(
+    index: Int,
+    anchor: ScrollAnchor,
+    spec: AnimationSpec<Float>,
+    /** Index cíle v AKTUÁLNÍM seznamu. Během jízdy se mohou dotáhnout stránky a index se posune. */
+    currentIndex: () -> Int,
+) {
     val info = layoutInfo
     val visible = info.visibleItemsInfo
     if (visible.isEmpty()) return scrollToAnchor(index, anchor)
@@ -1612,8 +1622,9 @@ private suspend fun LazyListState.animateToAnchor(index: Int, anchor: ScrollAnch
         animateScrollBy((estimatedOffset - desired(average)).toFloat(), spec)
     }
     // Doladění podle skutečného layoutu; odhad se mohl minout, nebo cíl vůbec není vidět.
-    val landed = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
-        ?: return scrollToAnchor(index, anchor)
+    val now = currentIndex().takeIf { it >= 0 } ?: return
+    val landed = layoutInfo.visibleItemsInfo.firstOrNull { it.index == now }
+        ?: return scrollToAnchor(now, anchor)
     val correction = (landed.offset - desired(landed.size)).toFloat()
     if (correction != 0f) animateScrollBy(correction, spec)
 }

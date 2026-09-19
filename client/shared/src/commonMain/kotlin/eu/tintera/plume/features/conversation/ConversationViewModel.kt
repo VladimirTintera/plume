@@ -587,8 +587,11 @@ class ConversationViewModel(
      */
     fun jumpToMessage(messageId: Long, fromSearch: Boolean = false) {
         viewModelScope.launch {
-            val loaded = _state.value.messages.any { it.id == messageId } ||
-                loadAround(messageId, requireTarget = true)
+            // Dojíždí se jen ke zprávě, která už v seznamu byla. Po výměně okna (`loadAround`) je
+            // seznam nový a začíná u spodní hrany okna — tam se dotahují novější zprávy a indexy by
+            // se dojíždění posouvaly pod rukama.
+            val alreadyLoaded = _state.value.messages.any { it.id == messageId }
+            val loaded = alreadyLoaded || loadAround(messageId, requireTarget = true)
             if (!loaded) {
                 // Okno kolem ní zprávu neobsahuje — byla smazaná (nebo nešla načíst, to ohlásilo
                 // `loadAround` samo).
@@ -602,7 +605,7 @@ class ConversationViewModel(
 
             _state.update {
                 it.copy(
-                    scrollTarget = ScrollTarget(messageId, ScrollAnchor.Center),
+                    scrollTarget = ScrollTarget(messageId, ScrollAnchor.Center, animate = alreadyLoaded),
                     highlightedMessageId = messageId,
                 )
             }
@@ -1938,6 +1941,8 @@ enum class ScrollAnchor {
 data class ScrollTarget(
     val messageId: Long,
     val anchor: ScrollAnchor,
+    /** Dojet k ní, ne skočit — jen když zpráva v seznamu už byla (viz `jumpToMessage`). */
+    val animate: Boolean = false,
 )
 
 /**

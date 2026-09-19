@@ -1320,6 +1320,13 @@ se ukáže i bez nových zpráv, jakmile je uživatel o kus výš.
   z průměrné výšky viditelných položek a pak se doladí podle skutečného layoutu. Dál než
   `MAX_ANIMATED_JUMP_ITEMS` (40 položek) a po výměně okna se skáče — rolování přes desítky
   zpráv by trvalo a skládalo by všechno mezi.
+- **Dojíždí se jen ke zprávě, která v seznamu UŽ BYLA** (`ScrollTarget.animate`, rozhoduje
+  `jumpToMessage`). Po výměně okna začíná nový seznam u spodní hrany okna, a tam se hned
+  dotahují novější zprávy — ty se vkládají na začátek a posunou všechny indexy. Dojíždění
+  z tohohle místa skončilo u úplně jiné zprávy a nalezená nebyla vidět.
+- **Cíl se po dojetí hledá znovu podle id, ne podle indexu ze začátku jízdy** (`currentIndex`
+  nad `rememberUpdatedState(items)`). Během jízdy se můžou dotáhnout stránky; `items`
+  zachycené při spuštění efektu jsou v tu chvíli staré.
 - **Zpráva, kterou okno neobsahuje, byla smazaná** — hláška „už není k dispozici" (u citace
   i u výsledku hledání vlastní věta). „Moc hluboko" už nenastane.
 
