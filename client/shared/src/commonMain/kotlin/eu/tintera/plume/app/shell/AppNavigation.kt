@@ -167,3 +167,19 @@ private val SelectedSectionSaver = Saver<MutableState<TopLevelRoute>, String>(
         mutableStateOf(route)
     },
 )
+
+/**
+ * Zavření obrazovky [route] z její vlastní šipky zpět: odebere PRÁVĚ TU položku, ne poslední,
+ * a kořen (index 0) nikdy. Vrací, jestli se něco odebralo.
+ *
+ * `removeLastOrNull()` tu dřív shodil aplikaci („NavDisplay entries cannot be empty"). Obrazovka
+ * po odebrání ještě dobíhá odchodovou animací a její tlačítka dál reagují — druhé ťuknutí na
+ * šipku (rychlý dvojklik, nebo mezera z klávesnice, když má šipka fokus) už nemělo co zavřít
+ * a odebralo seznam chatů pod ní. Obrazovka, která není v zásobníku, nesmí odebrat nic.
+ */
+internal fun MutableList<NavKey>.pop(route: NavKey): Boolean {
+    val index = lastIndexOf(route)
+    if (index <= 0) return false
+    removeAt(index)
+    return true
+}
