@@ -3,6 +3,8 @@ package eu.tintera.plume.core.telegram
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSApplicationSupportDirectory
 import platform.Foundation.NSFileManager
+import platform.Foundation.NSURL
+import platform.Foundation.NSURLIsExcludedFromBackupKey
 import platform.Foundation.NSUserDomainMask
 import platform.UIKit.UIDevice
 
@@ -14,6 +16,31 @@ import platform.UIKit.UIDevice
 actual class TelegramPaths {
     actual val databaseDirectory: String = applicationSupportDirectory() + "/tdlib"
     actual val filesDirectory: String = applicationSupportDirectory() + "/tdlib-files"
+
+    /**
+     * Application Support se na rozdíl od Androidu zálohuje (iCloud i lokální záloha), takže se
+     * oba adresáře musí označit `NSURLIsExcludedFromBackupKey`. Příznak jde nastavit jen na
+     * existující cestu — proto se adresáře napřed zakládají.
+     */
+    actual fun prepare() {
+        excludeFromBackup(databaseDirectory)
+        excludeFromBackup(filesDirectory)
+    }
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private fun excludeFromBackup(path: String) {
+    val manager = NSFileManager.defaultManager
+    if (!manager.fileExistsAtPath(path)) {
+        manager.createDirectoryAtPath(
+            path = path,
+            withIntermediateDirectories = true,
+            attributes = null,
+            error = null,
+        )
+    }
+    NSURL.fileURLWithPath(path, isDirectory = true)
+        .setResourceValue(value = true, forKey = NSURLIsExcludedFromBackupKey, error = null)
 }
 
 /** Application Support aplikace. Sdílí ho databáze TDLib i nastavení aplikace. */

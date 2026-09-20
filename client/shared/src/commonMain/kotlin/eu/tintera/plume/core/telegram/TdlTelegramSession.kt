@@ -18,6 +18,7 @@ import dev.g000sha256.tdl.dto.AuthorizationStateWaitPremiumPurchase
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitRegistration
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitTdlibParameters
 import dev.g000sha256.tdl.dto.OptionValueInteger
+import dev.g000sha256.tdl.TdlThrowable
 import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -25,6 +26,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import okio.FileSystem
+import okio.Path.Companion.toPath
+import eu.tintera.plume.core.secrets.DatabaseKeyStore
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auth_error_email_unsupported
@@ -42,6 +46,7 @@ import eu.tintera.plume.resources.auth_error_missing_api_credentials
 class TdlTelegramSession(
     private val holder: TelegramClientHolder,
     private val paths: TelegramPaths,
+    private val keys: DatabaseKeyStore,
     private val scope: CoroutineScope,
 ) : TelegramSession {
 
@@ -174,15 +179,41 @@ class TdlTelegramSession(
             return
         }
 
-        // Pojmenované argumenty schválně: upstream do těchhle parametrů přidává a přejmenovává
-        // i v patch verzích, poziční volání by se tiše rozsypalo.
-        client.setTdlibParameters(
+        if (openEncryptedDatabase()) enableNotifications()
+    }
+
+    /**
+     * Otevře databázi TDLib, ať už je v jakémkoli stavu. Pravidlo i s vysvětlením kroků je
+     * v [unlockDatabase] — tady zůstala jen volání, která potřebují klienta.
+     */
+    private suspend fun openEncryptedDatabase(): Boolean {
+        val failure = unlockDatabase(
+            keys = keys,
+            isWrongKey = { it.isWrongDatabaseKey() },
+            open = { key -> openDatabase(key) },
+            encrypt = { key -> encryptDatabase(key) },
+            wipe = { cause ->
+                logger.e(cause) { "Databázi TDLib nejde odemknout, mažu ji a začínám od přihlášení." }
+                wipeLocalData()
+            },
+        )
+        if (failure != null) return failStart(failure)
+        return true
+    }
+
+    /**
+     * Vrací chybu, ne výsledek — volajícího zajímá jen to, jestli (a proč) otevření selhalo.
+     *
+     * Pojmenované argumenty schválně: upstream do těchhle parametrů přidává a přejmenovává
+     * i v patch verzích, poziční volání by se tiše rozsypalo.
+     */
+    private suspend fun openDatabase(databaseKey: ByteArray): Throwable? {
+        paths.prepare()
+        return client.setTdlibParameters(
             useTestDc = false,
             databaseDirectory = paths.databaseDirectory,
             filesDirectory = paths.filesDirectory,
-            // Prázdný klíč = databáze bez dodatečného šifrování. Pro spike v pořádku; před ostrým
-            // nasazením sem patří klíč z Keystore / Keychain.
-            databaseEncryptionKey = ByteArray(0),
+            databaseEncryptionKey = databaseKey,
             useFileDatabase = true,
             useChatInfoDatabase = true,
             useMessageDatabase = true,
@@ -195,13 +226,52 @@ class TdlTelegramSession(
             applicationVersion = "0.1.0",
         )
             .toResult()
+            .exceptionOrNull()
+    }
+
+    /**
+     * Přešifruje otevřenou databázi uloženým klíčem.
+     *
+     * Při selhání se klíč NEZAHAZUJE: databáze ho zatím nemá, ale příští start ji zase otevře
+     * prázdným klíčem a zkusí to znovu (krok 2 v [openEncryptedDatabase]). Aplikace zatím běží
+     * dál, jen s nešifrovanou databází — proto `e` s výjimkou, ať je to v hlášeních vidět.
+     */
+    private suspend fun encryptDatabase(key: ByteArray) {
+        client.setDatabaseEncryptionKey(newEncryptionKey = key)
+            .toResult()
             .onFailure {
-                logger.e(it) { "setTdlibParameters selhalo." }
-                _authStage.value = AuthStage.Failed(it.userMessage(Res.string.auth_error_start_failed))
+                logger.e(it) { "Databázi TDLib se nepodařilo zašifrovat, zůstává nešifrovaná." }
                 return
             }
 
-        enableNotifications()
+        logger.i { "Databáze TDLib zašifrovaná." }
+    }
+
+    /**
+     * Zahodí databázi i stažená média. **Soubory jdou pryč s databází, ne zvlášť**: `fileId` platí
+     * jen v jedné databázi TDLib, takže bez ní jsou stažená média neadresovatelné bajty.
+     */
+    private fun wipeLocalData() {
+        FileSystem.SYSTEM.deleteRecursively(paths.databaseDirectory.toPath(), mustExist = false)
+        FileSystem.SYSTEM.deleteRecursively(paths.filesDirectory.toPath(), mustExist = false)
+    }
+
+    /**
+     * Chyba, která znamená „tímhle klíčem se databáze otevřít nedá".
+     *
+     * Dokumentace `setTdlibParameters` slibuje kód 401, hlášku si píše sama TDLib (ověřeno
+     * v knihovně: `strings libtdjsonjava.so | grep "encryption key"`). Bere se obojí, protože
+     * na tomhle rozhodnutí visí smazání lokálních dat — a kdyby se nepoznalo, uživatel by místo
+     * nového přihlášení dostal obrazovku s chybou, ze které nevede cesta ven.
+     */
+    private fun Throwable.isWrongDatabaseKey(): Boolean =
+        this is TdlThrowable && (code == WRONG_KEY_CODE || message == WRONG_KEY_MESSAGE)
+
+    /** Vrací `false`, aby šlo psát `return failStart(…)`. */
+    private fun failStart(failure: Throwable): Boolean {
+        logger.e(failure) { "setTdlibParameters selhalo." }
+        _authStage.value = AuthStage.Failed(failure.userMessage(Res.string.auth_error_start_failed))
+        return false
     }
 
     /**
@@ -275,5 +345,9 @@ class TdlTelegramSession(
 
         /** Kolik notifikací se drží v jedné skupině (chatu). */
         const val NOTIFICATION_GROUP_SIZE_MAX = 10L
+
+
+        const val WRONG_KEY_CODE = 401
+        const val WRONG_KEY_MESSAGE = "Wrong database encryption key"
     }
 }

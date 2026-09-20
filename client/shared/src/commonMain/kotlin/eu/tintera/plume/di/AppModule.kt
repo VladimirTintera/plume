@@ -15,6 +15,7 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionController
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.TdlConnectionRepository
+import eu.tintera.plume.core.secrets.DatabaseKeyStore
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.DataStoreAppSettings
 import eu.tintera.plume.core.telegram.EmojiRepository
@@ -73,6 +74,7 @@ fun appModule() = module {
         TdlTelegramSession(
             holder = get(),
             paths = get(),
+            keys = get(),
             scope = get(named(APP_SCOPE)),
         )
     }
