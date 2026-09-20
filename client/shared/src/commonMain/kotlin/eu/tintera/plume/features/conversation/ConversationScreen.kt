@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.SelfDestructType
 import androidx.compose.ui.draw.clip
 import eu.tintera.plume.resources.profile_open
 import androidx.compose.foundation.layout.RowScope
@@ -17,6 +18,8 @@ import androidx.compose.foundation.layout.imePadding
 import eu.tintera.plume.core.ui.chatTitle
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.defaultMinSize
@@ -272,6 +275,7 @@ fun ConversationScreen(
     val jumpTransition = remember { JumpTransition() }
     val snackbarHostState = remember { SnackbarHostState() }
     var stickerPickerOpen by rememberSaveable { mutableStateOf(false) }
+    var previewAttachmentIndex by rememberSaveable { mutableStateOf<Int?>(null) }
 
     // Snackbar o odepnutí se skládá v efektu, kde `stringResource` volat nejde — text se proto
     // přečte tady v kompozici.
@@ -692,6 +696,11 @@ fun ConversationScreen(
         isBackEnabled = state.search != null,
         onBackCompleted = viewModel::closeSearch,
     )
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = previewAttachmentIndex != null,
+        onBackCompleted = { previewAttachmentIndex = null },
+    )
 
     Scaffold(
         modifier = Modifier.fillMaxSize().hazeSource(hazeState),
@@ -870,6 +879,10 @@ fun ConversationScreen(
                 onPickDocument = attachmentPicker::pickDocument,
                 attachments = state.attachments,
                 onRemoveAttachment = viewModel::removeAttachment,
+                onOpenAttachment = { index -> previewAttachmentIndex = index },
+                onToggleAttachmentSpoiler = viewModel::toggleAttachmentSpoiler,
+                onSetAttachmentSelfDestruct = viewModel::setAttachmentSelfDestruct,
+                previewAttachmentIndex = previewAttachmentIndex,
                 expressionMode = expressionMode,
                 draft = draft,
                 onDraftValueChange = { draft = it },
@@ -1150,6 +1163,43 @@ fun ConversationScreen(
         hazeState = hazeState,
         onShownChange = { menuKey.value = it },
     )
+
+    val lastPreviewed = remember { arrayOf<Pair<Int, OutgoingAttachment>?>(null) }
+    if (previewAttachmentIndex != null) {
+        val att = state.attachments.getOrNull(previewAttachmentIndex!!)
+        if (att != null) {
+            lastPreviewed[0] = previewAttachmentIndex!! to att
+        }
+    }
+    val currentTarget = if (previewAttachmentIndex != null) {
+        previewAttachmentIndex?.let { idx -> state.attachments.getOrNull(idx)?.let { idx to it } }
+    } else {
+        lastPreviewed[0]
+    }
+
+    AnimatedVisibility(
+        visible = previewAttachmentIndex != null && currentTarget != null,
+        enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)),
+        exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)),
+    ) {
+        currentTarget?.let { (index, attachment) ->
+            StagedAttachmentPreview(
+                attachment = attachment,
+                isOpen = previewAttachmentIndex != null,
+                onDismiss = { previewAttachmentIndex = null },
+                onDelete = {
+                    viewModel.removeAttachment(index)
+                    previewAttachmentIndex = null
+                },
+                onToggleSpoiler = {
+                    viewModel.toggleAttachmentSpoiler(index)
+                },
+                onSetSelfDestruct = { type ->
+                    viewModel.setAttachmentSelfDestruct(index, type)
+                },
+            )
+        }
+    }
     }
 }
 
@@ -1251,6 +1301,10 @@ private fun MessageInput(
     /** Přílohy čekající na odeslání; text pole je pak jejich popisek. */
     attachments: List<OutgoingAttachment>,
     onRemoveAttachment: (Int) -> Unit,
+    onOpenAttachment: (Int) -> Unit = {},
+    onToggleAttachmentSpoiler: (Int) -> Unit = {},
+    onSetAttachmentSelfDestruct: (Int, SelfDestructType?) -> Unit = { _, _ -> },
+    previewAttachmentIndex: Int? = null,
     /** Ikona tlačítka výběru ukazuje, čím se výběr otevře — emoji, nebo samolepkami. */
     expressionMode: ExpressionMode,
     /** Rozepsaný text; drží ho obrazovka, protože do něj vkládá i výběr emoji. */
@@ -1346,7 +1400,14 @@ private fun MessageInput(
                 if (editing != null) {
                     EditingHeader(message = editing, onCancel = onCancelEdit)
                 } else {
-                  StagedAttachmentsStrip(attachments = attachments, onRemove = onRemoveAttachment)
+                  StagedAttachmentsStrip(
+                      attachments = attachments,
+                      onRemove = onRemoveAttachment,
+                      onOpen = onOpenAttachment,
+                      onToggleSpoiler = onToggleAttachmentSpoiler,
+                      onSetSelfDestruct = onSetAttachmentSelfDestruct,
+                      previewAttachmentIndex = previewAttachmentIndex,
+                  )
                   replyingTo?.let { target ->
                     // Citace je horní pruh karty, barevně oddělený — stejně jako na kartě zprávy,
                     // ne subkartička v kartě.

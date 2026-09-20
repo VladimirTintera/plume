@@ -1,5 +1,8 @@
 package eu.tintera.plume.core.telegram
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -7,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -20,7 +24,9 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * Po vypršení času nebo po opuštění jednorázového zhlédnutí je zpráva označena za spotřebovanou.
  */
-class SelfDestructTimers {
+class SelfDestructTimers(
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+) {
 
     /** Mapování messageId na epoch sekundu expirace. */
     private val _timerExpirations = MutableStateFlow<Map<Long, Long>>(emptyMap())
@@ -41,6 +47,12 @@ class SelfDestructTimers {
         val now = Clock.System.now().epochSeconds
         val expiresAt = now + durationSeconds
         _timerExpirations.update { it + (messageId to expiresAt) }
+
+        scope.launch {
+            delay((durationSeconds * 1000L).milliseconds)
+            markConsumed(messageId)
+        }
+
         return expiresAt
     }
 

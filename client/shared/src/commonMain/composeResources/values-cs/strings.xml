@@ -372,6 +372,10 @@
     <string name="content_expired_photo">Fotka vypršela</string>
     <string name="media_view_once">Jednorázové zhlédnutí</string>
     <string name="media_self_destruct_seconds">%1$ds</string>
+    <string name="attachment_spoiler">Spoiler</string>
+    <string name="attachment_timer_off">Bez časovače</string>
+    <string name="attachment_preview_title">Náhled</string>
+    <string name="attachment_done">Hotovo</string>
     <string name="content_expired_video">Video vypršelo</string>
     <string name="content_expired_video_note">Video zpráva vypršela</string>
     <string name="content_expired_voice_note">Hlasová zpráva vypršela</string>

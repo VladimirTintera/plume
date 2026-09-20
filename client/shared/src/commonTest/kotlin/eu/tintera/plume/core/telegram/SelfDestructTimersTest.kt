@@ -47,4 +47,17 @@ class SelfDestructTimersTest {
         timers.markConsumed(456L)
         assertTrue(timers.isConsumed(456L))
     }
+
+    @Test
+    fun `casovac po uplynuti casu automaticky oznaci zpravu za spotrebovanou`() = kotlinx.coroutines.test.runTest {
+        val timers = SelfDestructTimers(scope = this)
+        timers.startTimer(789L, 2)
+        assertFalse(timers.isConsumed(789L))
+
+        testScheduler.advanceTimeBy(1_000)
+        assertFalse(timers.isConsumed(789L))
+
+        testScheduler.advanceTimeBy(1_500)
+        assertTrue(timers.isConsumed(789L))
+    }
 }

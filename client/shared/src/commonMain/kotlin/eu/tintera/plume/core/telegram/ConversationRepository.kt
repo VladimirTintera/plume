@@ -321,7 +321,13 @@ sealed interface OutgoingAttachment {
      * Fotka jako fotka (s náhledem v bublině). [width] a [height] jsou rozměry připraveného souboru;
      * server je může přepsat, ale bez nich by bublina odesílané zprávy neměla poměr stran.
      */
-    data class Photo(override val path: String, val width: Int, val height: Int) : OutgoingAttachment
+    data class Photo(
+        override val path: String,
+        val width: Int,
+        val height: Int,
+        val hasSpoiler: Boolean = false,
+        val selfDestructType: SelfDestructType? = null,
+    ) : OutgoingAttachment
 
     /**
      * Video jako video (přehrávatelná zpráva, v albu s fotkami). [durationSeconds], [width]
@@ -337,6 +343,8 @@ sealed interface OutgoingAttachment {
         val durationSeconds: Int,
         val thumbnail: OutgoingThumbnail?,
         val streamable: Boolean,
+        val hasSpoiler: Boolean = false,
+        val selfDestructType: SelfDestructType? = null,
     ) : OutgoingAttachment
 
     /** Cokoli jako soubor, beze změny. Název souboru se bere z cesty. */

@@ -372,6 +372,10 @@
     <string name="content_expired_photo">The photo expired</string>
     <string name="media_view_once">View once</string>
     <string name="media_self_destruct_seconds">%1$ds</string>
+    <string name="attachment_spoiler">Spoiler</string>
+    <string name="attachment_timer_off">Timer off</string>
+    <string name="attachment_preview_title">Preview</string>
+    <string name="attachment_done">Done</string>
     <string name="content_expired_video">The video expired</string>
     <string name="content_expired_video_note">The video message expired</string>
     <string name="content_expired_voice_note">The voice message expired</string>

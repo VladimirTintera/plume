@@ -47,9 +47,13 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -177,7 +181,27 @@ fun MediaViewerScreen(
         scope.launch { snackbarHostState.showSnackbar(getString(notice.resource, *notice.args.toTypedArray())) }
     }
 
-    LaunchedEffect(state.closed) { if (state.closed) onBack() }
+    LaunchedEffect(state.closed) {
+        if (state.closed) {
+            viewModel.onDismiss()
+            onBack()
+        }
+    }
+
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = true,
+        onBackCompleted = {
+            viewModel.onDismiss()
+            onBack()
+        },
+    )
+
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.onDismiss()
+        }
+    }
 
     val savePermission = rememberSavePermission()
     val saveAs = rememberSaveAs()
