@@ -31,6 +31,7 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
       nad polem v M3 carouselu, popisek z textu pole).
    4. ~~**Zrušení nahrávání**~~ — hotovo (křížek v průběhu, i u dlaždice alba).
    5. ~~**Videa** ve výběru i v albu~~ — hotovo (bez překódování; přehrávání viz bod 2).
+   6. **Skryté a časované fotky (spoilery a sebedestrukce)** — zobrazení i odesílání (podrobněji sekce E níže).
 2. **Přehrávání videa a hlasovek.** ~~Hlasovky~~ — hotovo (přehrávání v bublině, waveform
    s posunem, poslechnuto). U hlasovek zbývá rychlost přehrávání, automatické pokračování další
    neposlechnutou, sluchátko u ucha a audio focus / přerušení hovorem. ~~Nahrávání~~ — hotovo
@@ -251,6 +252,39 @@ Co zbývá:
 - **Let z bubliny na širokém rozvržení.** `LocalTwoPane` tam sdílené prvky vypíná kvůli seznamu
   vedle konverzace; pro prohlížeč to neplatí (ten překryje všechno), ale rozlišit to znamená
   zjemnit ten příznak.
+
+## E) Skryté fotky a časovaná média (spoilery a sebedestrukce)
+
+V TDLib jde o dva odlišné mechanismy, které se dosud v modelu ani UI nezpracovávají:
+
+### 1. Skryté fotky se spoilerem (`hasSpoiler`)
+Pouze vizuální překrytí citlivého obsahu, fotka se nemaže a zůstává v historii chatu.
+- **Příjem a zobrazení**: `MessagePhoto.hasSpoiler`. V bublině i mřížce alba překrýt snímek
+  třpytivým šumem (spoiler animace / blur), ťuknutím se fotka trvale odhalí.
+- **Odesílání**: přepínač „Skrýt spoilerem“ u náhledu přílohy v carouselu nad vstupním polem
+  (`InputMessagePhoto(..., hasSpoiler = true)`). Podporováno v 1-on-1 chatech, skupinách i kanálech
+  (ne v tajných chatech).
+- *(Souvislost)*: textové spoilery v popisku i těle zprávy (`TextEntityTypeSpoiler`) již aplikace umí.
+
+### 2. Časované a mizející fotky (View-once a self-destruct timer)
+Efemérní média s ochranou soukromí určená výhradně pro soukromé (1-on-1) chaty.
+- **Model a typy v TDLib**:
+  - `MessageSelfDestructTypeImmediately` — jednorázové zhlédnutí (View-once, po zavření zaniká).
+  - `MessageSelfDestructTypeTimer(selfDestructTime)` — odpočet po zadaný počet sekund od otevření.
+  - `MessagePhoto.isSecret` — příznak pro rozostřený náhled v bublině s ikonou plamínku / „1“ (tap-to-view).
+  - `Message.selfDestructIn` — zbývající čas v sekundách do zničení.
+- **Životní cyklus a otevření**:
+  - Při otevření musí klient zavolat `client.openMessageContent(chatId, messageId)`, což v TDLib spustí
+    odpočet a vyvolá `UpdateMessageContentOpened`.
+- **Expirace**:
+  - Po vypršení času nebo zavření view-once fotky TDLib změní obsah zprávy na `MessageExpiredPhoto`.
+  - V bublině se místo fotky zobrazí stav vypršení („Fotka vypršela“ / ikona plamínku); soubor na disku
+    TDLib smaže automaticky (`FileTypeSelfDestructingPhoto`).
+- **Ochrana soukromí**:
+  - TDLib v `MessageProperties` nastavuje `canBeSaved = false`, `canBeForwarded = false`, `canBeCopied = false`.
+  - Zákaz screenshotů v UI (na Androidu `FLAG_SECURE` na okně při zobrazení secret média).
+- **Odesílání**:
+  - Tlačítko časovače / view-once u přílohy nad vstupním polem v soukromých chatech (`InputMessagePhoto.selfDestructType`).
 
 ## Zásobník: co jsem našel při čtení kódu
 
