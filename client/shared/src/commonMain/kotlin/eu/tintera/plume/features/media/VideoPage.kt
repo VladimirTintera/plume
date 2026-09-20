@@ -52,11 +52,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import dev.chrisbanes.haze.blur.HazeBlurStyle
 import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.features.conversation.items.SpoilerOverlay
+import eu.tintera.plume.features.conversation.items.spoilerBlur
 import eu.tintera.plume.core.ui.photoKey
 import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.tabularNumbers
@@ -115,6 +118,10 @@ internal fun VideoPage(
     onTap: () -> Unit,
     /** Přepne na celou obrazovku (tlačítko přehrání v galerii). */
     onEngage: () -> Unit,
+    hasSpoiler: Boolean = false,
+    revealed: Boolean = true,
+    onReveal: () -> Unit = {},
+    spoilerStyle: HazeBlurStyle = HazeBlurStyle,
     modifier: Modifier = Modifier,
     captionAlpha: () -> Float = { 1f },
     cardBias: () -> Float = { 0f },
@@ -228,9 +235,15 @@ internal fun VideoPage(
                     }
                 }
             }
-            .pointerInput(Unit) {
+            .pointerInput(hasSpoiler, revealed) {
                 detectTapGestures(onTap = {
-                    if (currentImmersive && !controlsVisible) controlsVisible = true else currentTap()
+                    if (hasSpoiler && !revealed) {
+                        onReveal()
+                    } else if (currentImmersive && !controlsVisible) {
+                        controlsVisible = true
+                    } else {
+                        currentTap()
+                    }
                 })
             }
             /*
@@ -250,7 +263,10 @@ internal fun VideoPage(
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     background = Color.Transparent,
-                    modifier = Modifier.fillMaxSize().sharedNavElement(photoKey(messageId)),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .sharedNavElement(photoKey(messageId))
+                        .spoilerBlur(hasSpoiler, revealed, spoilerStyle),
                 )
             }
             // V galerii jen náhled; povrch se složí až na celé obrazovce.
@@ -288,7 +304,7 @@ internal fun VideoPage(
 
             // Tlačítko přehrání v galerii: jen přepne na celou obrazovku, video se spustí tam.
             AnimatedVisibility(
-                visible = !immersive,
+                visible = !immersive && (!hasSpoiler || revealed),
                 enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 modifier = Modifier.align(Alignment.Center),
@@ -309,6 +325,13 @@ internal fun VideoPage(
                         modifier = Modifier.size(IconButtonDefaults.largeIconSize),
                     )
                 }
+            }
+
+            if (hasSpoiler) {
+                SpoilerOverlay(
+                    visible = !revealed,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
 
             AnimatedVisibility(

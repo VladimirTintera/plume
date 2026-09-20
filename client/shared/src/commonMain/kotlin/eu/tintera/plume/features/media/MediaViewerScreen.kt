@@ -46,6 +46,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
@@ -55,6 +56,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import org.koin.compose.koinInject
+import eu.tintera.plume.core.telegram.RevealedSpoilers
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -88,6 +91,9 @@ import eu.tintera.plume.core.files.rememberSavePermission
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.DarkSystemBars
 import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.features.conversation.items.SpoilerOverlay
+import eu.tintera.plume.features.conversation.items.rememberSpoilerBlurStyle
+import eu.tintera.plume.features.conversation.items.spoilerBlur
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.photoKey
@@ -287,6 +293,13 @@ private fun ViewerContent(
     val enterImmersive = { immersive = true }
     val toggleImmersive = { immersive = !immersive }
 
+    val spoilerStyle = rememberSpoilerBlurStyle()
+    val revealedSpoilers = koinInject<RevealedSpoilers>()
+    val revealedIds by revealedSpoilers.revealed.collectAsState()
+    LaunchedEffect(state.initialMessageId) {
+        revealedSpoilers.reveal(state.initialMessageId)
+    }
+
     // Obsah pod prohlížečem prosvítá, jak se fotka odtahuje pryč — je tím vidět, že gesto něco
     // dělá, ještě než se pustí. Pozadí i lišty mizí spolu.
     val fadeWithDismiss = Modifier.graphicsLayer {
@@ -324,6 +337,13 @@ private fun ViewerContent(
         ) { page ->
             val item = latestItems[page]
             val isCurrent = page == pagerState.currentPage
+            val hasSpoiler = when (val m = item.media) {
+                is MessageMedia.Photo -> m.hasSpoiler
+                is MessageMedia.Video -> m.hasSpoiler
+                else -> false
+            }
+            val revealed = !hasSpoiler || item.messageId in revealedIds
+            val onReveal = { revealedSpoilers.reveal(item.messageId) }
             // Karta leží mezi lištami; stránka sama jde přes celou výšku, aby přiblížená fotka
             // měla kam růst.
             val captionAlpha = { 1f - abs(pagerState.getOffsetDistanceInPages(page)).coerceIn(0f, 1f) }
@@ -351,6 +371,10 @@ private fun ViewerContent(
                     onDismiss = onDismiss,
                     onTap = toggleImmersive,
                     onEngage = enterImmersive,
+                    hasSpoiler = hasSpoiler,
+                    revealed = revealed,
+                    onReveal = onReveal,
+                    spoilerStyle = spoilerStyle,
                     modifier = pageModifier,
                     captionAlpha = captionAlpha,
                     cardBias = cardBias,
@@ -369,6 +393,10 @@ private fun ViewerContent(
                     onDismiss = onDismiss,
                     onTap = toggleImmersive,
                     onEngage = enterImmersive,
+                    hasSpoiler = hasSpoiler,
+                    revealed = revealed,
+                    onReveal = onReveal,
+                    spoilerStyle = spoilerStyle,
                     modifier = pageModifier,
                     captionAlpha = captionAlpha,
                     cardBias = cardBias,
@@ -778,6 +806,10 @@ private fun ZoomableImage(
     onTap: () -> Unit,
     /** Přiblížení gestem — přepne na celou obrazovku. */
     onEngage: () -> Unit,
+    hasSpoiler: Boolean = false,
+    revealed: Boolean = true,
+    onReveal: () -> Unit = {},
+    spoilerStyle: HazeBlurStyle = HazeBlurStyle,
     modifier: Modifier = Modifier,
     captionAlpha: () -> Float = { 1f },
     cardBias: () -> Float = { 0f },
@@ -907,38 +939,48 @@ private fun ZoomableImage(
                     }
                 }
             }
-            .pointerInput(Unit) {
+            .pointerInput(hasSpoiler, revealed) {
                 detectTapGestures(
-                    onTap = { currentTap() },
-                    onDoubleTap = { tap ->
-                        currentEngage()
-                        val target = if (scale > 1f) 1f else DOUBLE_TAP_SCALE
-                        val relativeX = tap.x - card.bounds.center.x
-                        val relativeY = tap.y - card.bounds.center.y
-                        val factor = target / scale
-
-                        val destination = if (target == 1f) {
-                            Offset.Zero
+                    onTap = {
+                        if (hasSpoiler && !revealed) {
+                            onReveal()
                         } else {
-                            val maxX = max(0f, (card.bounds.width * target - size.width) / 2f)
-                            val maxY = max(0f, (card.bounds.height * target - size.height) / 2f)
-                            Offset(
-                                (relativeX - (relativeX - offsetX) * factor).coerceIn(-maxX, maxX),
-                                (relativeY - (relativeY - offsetY) * factor).coerceIn(-maxY, maxY),
-                            )
+                            currentTap()
                         }
+                    },
+                    onDoubleTap = { tap ->
+                        if (hasSpoiler && !revealed) {
+                            onReveal()
+                        } else {
+                            currentEngage()
+                            val target = if (scale > 1f) 1f else DOUBLE_TAP_SCALE
+                            val relativeX = tap.x - card.bounds.center.x
+                            val relativeY = tap.y - card.bounds.center.y
+                            val factor = target / scale
 
-                        val fromScale = scale
-                        val fromX = offsetX
-                        val fromY = offsetY
+                            val destination = if (target == 1f) {
+                                Offset.Zero
+                            } else {
+                                val maxX = max(0f, (card.bounds.width * target - size.width) / 2f)
+                                val maxY = max(0f, (card.bounds.height * target - size.height) / 2f)
+                                Offset(
+                                    (relativeX - (relativeX - offsetX) * factor).coerceIn(-maxX, maxX),
+                                    (relativeY - (relativeY - offsetY) * factor).coerceIn(-maxY, maxY),
+                                )
+                            }
 
-                        scope.launch {
-                            // Jedna animace řídí všechny tři hodnoty, aby se posun
-                            // nerozešel s přiblížením a fotka po cestě neuhýbala.
-                            animate(0f, 1f) { progress, _ ->
-                                scale = fromScale + (target - fromScale) * progress
-                                offsetX = fromX + (destination.x - fromX) * progress
-                                offsetY = fromY + (destination.y - fromY) * progress
+                            val fromScale = scale
+                            val fromX = offsetX
+                            val fromY = offsetY
+
+                            scope.launch {
+                                // Jedna animace řídí všechny tři hodnoty, aby se posun
+                                // nerozešel s přiblížením a fotka po cestě neuhýbala.
+                                animate(0f, 1f) { progress, _ ->
+                                    scale = fromScale + (target - fromScale) * progress
+                                    offsetX = fromX + (destination.x - fromX) * progress
+                                    offsetY = fromY + (destination.y - fromY) * progress
+                                }
                             }
                         }
                     },
@@ -954,16 +996,7 @@ private fun ZoomableImage(
                 scaleY = shrink
             },
     ) {
-        RemoteImage(
-            // Ostrá verze; zmenšenina z bubliny slouží jako okamžitý náhled, než se dotáhne.
-            // Ta je skoro vždycky už na disku, protože ji kreslila konverzace.
-            fileId = photo.fullFileId,
-            thumbnailFileId = photo.fileId,
-            contentDescription = stringResource(Res.string.media_photo),
-            // Karta má poměr stran fotky, takže `Crop` nic neukrojí — jen zakryje zaokrouhlení.
-            // Soubor bez náhledu rozměry nemá a karta je čtverec; tam by `Crop` ukrojil kraje.
-            contentScale = if (photo.width > 0 && photo.height > 0) ContentScale.Crop else ContentScale.Fit,
-            background = Color.Transparent,
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .onPlaced { card.bounds = it.boundsInParent() }
@@ -978,7 +1011,29 @@ private fun ZoomableImage(
                     clip = true
                     this.shape = RoundedCornerShape(CARD_CORNER * (1f - immersion()))
                 },
-        )
+        ) {
+            RemoteImage(
+                // Ostrá verze; zmenšenina z bubliny slouží jako okamžitý náhled, než se dotáhne.
+                // Ta je skoro vždycky už na disku, protože ji kreslila konverzace.
+                fileId = photo.fullFileId,
+                thumbnailFileId = photo.fileId,
+                contentDescription = stringResource(Res.string.media_photo),
+                // Karta má poměr stran fotky, takže `Crop` nic neukrojí — jen zakryje zaokrouhlení.
+                // Soubor bez náhledu rozměry nemá a karta je čtverec; tam by `Crop` ukrojil kraje.
+                contentScale = if (photo.width > 0 && photo.height > 0) ContentScale.Crop else ContentScale.Fit,
+                background = Color.Transparent,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .spoilerBlur(hasSpoiler, revealed, spoilerStyle),
+            )
+
+            if (hasSpoiler) {
+                SpoilerOverlay(
+                    visible = !revealed,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
     }
 }
 
