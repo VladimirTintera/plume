@@ -13,18 +13,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import org.koin.compose.koinInject
+import eu.tintera.plume.core.telegram.RevealedSpoilers
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -136,13 +136,15 @@ private fun AlbumTile(
 
     when (val media = member.media) {
         is MessageMedia.Photo -> {
-            var revealed by rememberSaveable(member.id) { mutableStateOf(!media.hasSpoiler) }
-            val blurRadius by animateDpAsState(if (revealed) 0.dp else 24.dp)
+            val revealedSpoilers = koinInject<RevealedSpoilers>()
+            val revealedIds by revealedSpoilers.revealed.collectAsState()
+            val revealed = !media.hasSpoiler || member.id in revealedIds
+            val spoilerStyle = rememberSpoilerBlurStyle()
             Box(
                 modifier = modifier.combinedClickable(
                     onClick = {
                         if (media.hasSpoiler && !revealed) {
-                            revealed = true
+                            revealedSpoilers.reveal(member.id)
                         } else {
                             onOpen()
                         }
@@ -158,7 +160,7 @@ private fun AlbumTile(
                     modifier = Modifier
                         .fillMaxSize()
                         .sharedNavElement(photoKey(member.id))
-                        .blur(blurRadius),
+                        .spoilerBlur(media.hasSpoiler, revealed, spoilerStyle),
                 )
                 if (media.hasSpoiler) {
                     SpoilerOverlay(visible = !revealed)
@@ -175,7 +177,9 @@ private fun AlbumTile(
         }
 
         is MessageMedia.Video -> {
-            var revealed by rememberSaveable(member.id) { mutableStateOf(!media.hasSpoiler) }
+            val revealedSpoilers = koinInject<RevealedSpoilers>()
+            val revealedIds by revealedSpoilers.revealed.collectAsState()
+            val revealed = !media.hasSpoiler || member.id in revealedIds
             VideoThumbnail(
                 video = media,
                 messageId = member.id,
@@ -185,7 +189,7 @@ private fun AlbumTile(
                 modifier = modifier.combinedClickable(
                     onClick = {
                         if (media.hasSpoiler && !revealed) {
-                            revealed = true
+                            revealedSpoilers.reveal(member.id)
                         } else {
                             onOpen()
                         }

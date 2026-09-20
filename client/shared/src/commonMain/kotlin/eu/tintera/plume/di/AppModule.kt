@@ -23,6 +23,7 @@ import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.telegram.TdlEmojiRepository
 import eu.tintera.plume.core.telegram.TdlStickerRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.RevealedSpoilers
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.TdlChatRepository
@@ -140,6 +141,7 @@ fun appModule() = module {
     // Most mezi platformním vstupem (ťuknutí na notifikaci) a navigací.
     single { ChatOpenRequests() }
     single { ConversationSearchRequests() }
+    single { RevealedSpoilers() }
     single<ProfileRepository> { TdlProfileRepository(holder = get()) }
     // Eager: nepotvrzené přihlášení TDLib ohlásí hned po startu (viz TdlDeviceRepository).
     single<DeviceRepository>(createdAtStart = true) {

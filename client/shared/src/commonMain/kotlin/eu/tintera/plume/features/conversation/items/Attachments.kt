@@ -16,21 +16,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import org.koin.compose.koinInject
+import eu.tintera.plume.core.telegram.RevealedSpoilers
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -111,8 +111,10 @@ internal fun MessageAttachment(
             // Rámeček i jeho pravidla jsou v `photoFrame` (s testy): fotka se zužuje, neořezává.
             BoxWithConstraints {
                 val frame = photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), fillWidth)
-                var revealed by rememberSaveable(messageId) { mutableStateOf(!media.hasSpoiler) }
-                val blurRadius by animateDpAsState(if (revealed) 0.dp else 24.dp)
+                val revealedSpoilers = koinInject<RevealedSpoilers>()
+                val revealedIds by revealedSpoilers.revealed.collectAsState()
+                val revealed = !media.hasSpoiler || messageId in revealedIds
+                val spoilerStyle = rememberSpoilerBlurStyle()
 
                 Box(
                     modifier = Modifier
@@ -129,7 +131,7 @@ internal fun MessageAttachment(
                         .combinedClickable(
                             onClick = {
                                 if (media.hasSpoiler && !revealed) {
-                                    revealed = true
+                                    revealedSpoilers.reveal(messageId)
                                 } else {
                                     onOpen()
                                 }
@@ -146,7 +148,7 @@ internal fun MessageAttachment(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxSize()
-                            .blur(blurRadius),
+                            .spoilerBlur(media.hasSpoiler, revealed, spoilerStyle),
                     )
 
                     if (media.hasSpoiler) {
@@ -205,7 +207,9 @@ internal fun MessageAttachment(
         is MessageMedia.Video -> BoxWithConstraints {
             // Stejný rámeček jako fotka: video na výšku se zúží, místo aby přišlo o kraje.
             val frame = photoFrame(maxWidth, media.albumRatio(), fillWidth)
-            var revealed by rememberSaveable(messageId) { mutableStateOf(!media.hasSpoiler) }
+            val revealedSpoilers = koinInject<RevealedSpoilers>()
+            val revealedIds by revealedSpoilers.revealed.collectAsState()
+            val revealed = !media.hasSpoiler || messageId in revealedIds
             VideoThumbnail(
                 video = media,
                 messageId = messageId,
@@ -219,7 +223,7 @@ internal fun MessageAttachment(
                     .combinedClickable(
                         onClick = {
                             if (media.hasSpoiler && !revealed) {
-                                revealed = true
+                                revealedSpoilers.reveal(messageId)
                             } else {
                                 onOpen()
                             }
@@ -403,7 +407,7 @@ internal fun VideoThumbnail(
     modifier: Modifier = Modifier,
     revealed: Boolean = true,
 ) {
-    val blurRadius by animateDpAsState(if (revealed) 0.dp else 24.dp)
+    val spoilerStyle = rememberSpoilerBlurStyle()
     Box(modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
         video.thumbnailFileId?.let { thumbnail ->
             RemoteImage(
@@ -413,7 +417,7 @@ internal fun VideoThumbnail(
                 modifier = Modifier
                     .fillMaxSize()
                     .sharedNavElement(photoKey(messageId))
-                    .blur(blurRadius),
+                    .spoilerBlur(video.hasSpoiler, revealed, spoilerStyle),
             )
         }
         if (uploading) {
