@@ -527,6 +527,18 @@ class TdlConversationRepository(
 
     private fun OutgoingAttachment.toInputContent(caption: FormattedText?): InputMessageContent {
         val file = InputFileLocal(path = path)
+        if (mode == AttachmentMode.AsFile || this is OutgoingAttachment.Document) {
+            return InputMessageDocument(
+                document = InputDocument(
+                    document = file,
+                    thumbnail = null,
+                    // Soubor zůstane souborem: bez toho by TDLib z odeslaného videa nebo hudby
+                    // udělal přehrávatelnou zprávu, a uživatel posílal výslovně „soubor".
+                    disableContentTypeDetection = true,
+                ),
+                caption = caption,
+            )
+        }
         return when (this) {
             is OutgoingAttachment.Photo -> InputMessagePhoto(
                 photo = InputPhoto(

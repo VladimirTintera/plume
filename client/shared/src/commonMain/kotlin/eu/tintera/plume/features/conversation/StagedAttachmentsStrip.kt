@@ -13,14 +13,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
@@ -38,27 +36,25 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import eu.tintera.plume.core.telegram.AttachmentMode
 import eu.tintera.plume.core.telegram.OutgoingAttachment
-import eu.tintera.plume.core.telegram.SelfDestructType
 import eu.tintera.plume.core.ui.attachmentKey
 import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.features.conversation.items.SpoilerOverlay
 import eu.tintera.plume.features.conversation.items.rememberSpoilerBlurStyle
 import eu.tintera.plume.features.conversation.items.spoilerBlur
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.attachment_mode_title
 import eu.tintera.plume.resources.attachment_remove_file
 import eu.tintera.plume.resources.attachment_remove_photo
-import eu.tintera.plume.resources.attachment_spoiler
-import eu.tintera.plume.resources.attachment_timer_off
 import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.content_file
 import eu.tintera.plume.resources.conversation_attachment_position
 import eu.tintera.plume.resources.description_24dp
-import eu.tintera.plume.resources.media_self_destruct_seconds
 import eu.tintera.plume.resources.media_video
 import eu.tintera.plume.resources.media_view_once
 import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.schedule_24dp
-import eu.tintera.plume.resources.visibility_off_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -66,18 +62,18 @@ import org.jetbrains.compose.resources.stringResource
  * Přílohy čekající na odeslání, nahoře v kartě vstupního pole.
  *
  * U jedné fotky/videa se zobrazí miniatura s možností otevření do fullscreenu a vedle ní
- * ovládací prvky (přepínač spoileru a volič samozničujícího časovače).
- * U víc fotek jsou v M3 **multi-browse carouselu**. Soubory jsou řádky s názvem.
+ * Material 3 Expressive karta pro volbu režimu odeslání (standard, spoiler, view-once, časovač, soubor).
+ * U víc fotek jsou v M3 **multi-browse carouselu**, kde každá položka má tlačítko pro nastavení svého režimu.
+ * Soubory jsou řádky s názvem.
  *
- * Indexy v [onRemove] jsou indexy v [attachments].
+ * Indexy v [onRemove] a [onSetMode] jsou indexy v [attachments].
  */
 @Composable
 fun StagedAttachmentsStrip(
     attachments: List<OutgoingAttachment>,
     onRemove: (Int) -> Unit,
     onOpen: (Int) -> Unit = {},
-    onToggleSpoiler: (Int) -> Unit = {},
-    onSetSelfDestruct: (Int, SelfDestructType?) -> Unit = { _, _ -> },
+    onSetMode: (Int, AttachmentMode) -> Unit = { _, _ -> },
     previewAttachmentIndex: Int? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -89,8 +85,7 @@ fun StagedAttachmentsStrip(
                 attachment = attachments.first(),
                 onRemove = { onRemove(0) },
                 onOpen = { onOpen(0) },
-                onToggleSpoiler = { onToggleSpoiler(0) },
-                onSetSelfDestruct = { onSetSelfDestruct(0, it) },
+                onSetMode = { onSetMode(0, it) },
                 isPreviewOpen = previewAttachmentIndex == 0,
                 modifier = modifier,
             )
@@ -99,7 +94,7 @@ fun StagedAttachmentsStrip(
                 attachments = attachments,
                 onRemove = onRemove,
                 onOpen = onOpen,
-                onToggleSpoiler = onToggleSpoiler,
+                onSetMode = onSetMode,
                 previewingIndex = previewAttachmentIndex,
                 modifier = modifier,
             )
@@ -137,26 +132,28 @@ private fun SinglePhotoPreview(
     attachment: OutgoingAttachment,
     onRemove: () -> Unit,
     onOpen: () -> Unit,
-    onToggleSpoiler: () -> Unit,
-    onSetSelfDestruct: (SelfDestructType?) -> Unit,
+    onSetMode: (AttachmentMode) -> Unit,
     isPreviewOpen: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    val hasSpoiler = when (attachment) {
-        is OutgoingAttachment.Photo -> attachment.hasSpoiler
-        is OutgoingAttachment.Video -> attachment.hasSpoiler
-        is OutgoingAttachment.Document -> false
-    }
-    val selfDestructType = when (attachment) {
-        is OutgoingAttachment.Photo -> attachment.selfDestructType
-        is OutgoingAttachment.Video -> attachment.selfDestructType
-        is OutgoingAttachment.Document -> null
-    }
+    val isVideo = attachment is OutgoingAttachment.Video
+    val mode = attachment.mode
+    val hasSpoiler = attachment.hasSpoiler
     val image = when (attachment) {
         is OutgoingAttachment.Video -> attachment.thumbnail?.path
         else -> attachment.path
     }
     val spoilerStyle = rememberSpoilerBlurStyle()
+    var showSheet by remember { mutableStateOf(false) }
+
+    if (showSheet) {
+        AttachmentModeSheet(
+            currentMode = mode,
+            isVideo = isVideo,
+            onSelectMode = onSetMode,
+            onDismiss = { showSheet = false },
+        )
+    }
 
     Row(
         modifier = modifier
@@ -195,16 +192,33 @@ private fun SinglePhotoPreview(
                 Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerHighest))
             }
 
-            if (selfDestructType != null) {
-                TimerBadge(
-                    selfDestructType = selfDestructType,
-                    modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
-                )
-            } else if (attachment is OutgoingAttachment.Video) {
-                VideoBadge(
-                    durationSeconds = attachment.durationSeconds,
-                    modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
-                )
+            // Štítky na miniatuře
+            when (mode) {
+                is AttachmentMode.Timer -> {
+                    TimerBadge(
+                        label = "${mode.seconds}s",
+                        modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
+                    )
+                }
+                is AttachmentMode.ViewOnce -> {
+                    TimerBadge(
+                        label = stringResource(Res.string.media_view_once),
+                        modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
+                    )
+                }
+                is AttachmentMode.AsFile -> {
+                    FileBadge(
+                        modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
+                    )
+                }
+                is AttachmentMode.Standard, is AttachmentMode.Spoiler -> {
+                    if (attachment is OutgoingAttachment.Video) {
+                        VideoBadge(
+                            durationSeconds = attachment.durationSeconds,
+                            modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
+                        )
+                    }
+                }
             }
 
             FilledTonalIconButton(
@@ -219,92 +233,43 @@ private fun SinglePhotoPreview(
             }
         }
 
-        // Ovládací prvky napravo
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            // Spoiler chip
-            FilterChip(
-                selected = hasSpoiler,
-                onClick = onToggleSpoiler,
-                leadingIcon = {
-                    Icon(
-                        painter = painterResource(Res.drawable.visibility_off_24dp),
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                },
-                label = { Text(stringResource(Res.string.attachment_spoiler)) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        // Ovládací prvek napravo: kombinace FilledTonal (výchozí) a Filled (aktivní režim)
+        val isCustomMode = mode !is AttachmentMode.Standard
+        if (isCustomMode) {
+            FilledIconButton(
+                onClick = { showSheet = true },
+                modifier = Modifier
+                    .padding(start = 12.dp)
+                    .size(48.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
-            )
-
-            // Self-destruct timer chip
-            var menuExpanded by remember { mutableStateOf(false) }
-            Box {
-                FilterChip(
-                    selected = selfDestructType != null,
-                    onClick = { menuExpanded = true },
-                    leadingIcon = {
-                        Icon(
-                            painter = painterResource(Res.drawable.schedule_24dp),
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    },
-                    label = {
-                        Text(
-                            when (selfDestructType) {
-                                is SelfDestructType.Timer -> stringResource(
-                                    Res.string.media_self_destruct_seconds,
-                                    selfDestructType.seconds,
-                                )
-                                is SelfDestructType.Immediately -> stringResource(Res.string.media_view_once)
-                                null -> stringResource(Res.string.attachment_timer_off)
-                            },
-                        )
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    ),
+            ) {
+                Icon(
+                    painter = painterResource(getAttachmentModeIcon(mode, isVideo)),
+                    contentDescription = stringResource(Res.string.attachment_mode_title),
+                    modifier = Modifier.size(24.dp),
                 )
-
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(Res.string.attachment_timer_off)) },
-                        onClick = {
-                            onSetSelfDestruct(null)
-                            menuExpanded = false
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(Res.string.media_view_once)) },
-                        onClick = {
-                            onSetSelfDestruct(SelfDestructType.Immediately)
-                            menuExpanded = false
-                        },
-                    )
-                    listOf(5, 10, 15, 30).forEach { seconds ->
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.media_self_destruct_seconds, seconds)) },
-                            onClick = {
-                                onSetSelfDestruct(SelfDestructType.Timer(seconds))
-                                menuExpanded = false
-                            },
-                        )
-                    }
-                }
+            }
+        } else {
+            FilledTonalIconButton(
+                onClick = { showSheet = true },
+                modifier = Modifier
+                    .padding(start = 12.dp)
+                    .size(48.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                ),
+            ) {
+                Icon(
+                    painter = painterResource(getAttachmentModeIcon(mode, isVideo)),
+                    contentDescription = stringResource(Res.string.attachment_mode_title),
+                    modifier = Modifier.size(24.dp),
+                )
             }
         }
     }
@@ -316,12 +281,26 @@ private fun PhotoCarousel(
     attachments: List<OutgoingAttachment>,
     onRemove: (Int) -> Unit,
     onOpen: (Int) -> Unit,
-    onToggleSpoiler: (Int) -> Unit,
+    onSetMode: (Int, AttachmentMode) -> Unit,
     previewingIndex: Int? = null,
     modifier: Modifier,
 ) {
     val carouselState = rememberCarouselState { attachments.size }
     val spoilerStyle = rememberSpoilerBlurStyle()
+    var sheetAttachmentIndex by remember { mutableStateOf<Int?>(null) }
+
+    val targetAttachment = sheetAttachmentIndex?.let { attachments.getOrNull(it) }
+    if (targetAttachment != null && sheetAttachmentIndex != null) {
+        val targetIndex = sheetAttachmentIndex!!
+        AttachmentModeSheet(
+            currentMode = targetAttachment.mode,
+            isVideo = targetAttachment is OutgoingAttachment.Video,
+            onSelectMode = { newMode ->
+                onSetMode(targetIndex, newMode)
+            },
+            onDismiss = { sheetAttachmentIndex = null },
+        )
+    }
 
     HorizontalMultiBrowseCarousel(
         state = carouselState,
@@ -334,11 +313,10 @@ private fun PhotoCarousel(
             .height(PHOTO_ITEM_HEIGHT),
     ) { index ->
         val attachment = attachments.getOrNull(index) ?: return@HorizontalMultiBrowseCarousel
-        val hasSpoiler = when (attachment) {
-            is OutgoingAttachment.Photo -> attachment.hasSpoiler
-            is OutgoingAttachment.Video -> attachment.hasSpoiler
-            is OutgoingAttachment.Document -> false
-        }
+        val mode = attachment.mode
+        val hasSpoiler = attachment.hasSpoiler
+        val isVideo = attachment is OutgoingAttachment.Video
+
         Box(
             Modifier
                 .fillMaxSize()
@@ -375,22 +353,33 @@ private fun PhotoCarousel(
                 Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerHighest))
             }
 
-            val selfDestructType = when (attachment) {
-                is OutgoingAttachment.Photo -> attachment.selfDestructType
-                is OutgoingAttachment.Video -> attachment.selfDestructType
-                is OutgoingAttachment.Document -> null
-            }
-
-            if (selfDestructType != null) {
-                TimerBadge(
-                    selfDestructType = selfDestructType,
-                    modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
-                )
-            } else if (attachment is OutgoingAttachment.Video) {
-                VideoBadge(
-                    durationSeconds = attachment.durationSeconds,
-                    modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
-                )
+            // Štítky na miniatuře v carouselu
+            when (mode) {
+                is AttachmentMode.Timer -> {
+                    TimerBadge(
+                        label = "${mode.seconds}s",
+                        modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
+                    )
+                }
+                is AttachmentMode.ViewOnce -> {
+                    TimerBadge(
+                        label = stringResource(Res.string.media_view_once),
+                        modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
+                    )
+                }
+                is AttachmentMode.AsFile -> {
+                    FileBadge(
+                        modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
+                    )
+                }
+                is AttachmentMode.Standard, is AttachmentMode.Spoiler -> {
+                    if (attachment is OutgoingAttachment.Video) {
+                        VideoBadge(
+                            durationSeconds = attachment.durationSeconds,
+                            modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
+                        )
+                    }
+                }
             }
 
             FilledTonalIconButton(
@@ -404,14 +393,25 @@ private fun PhotoCarousel(
                 )
             }
 
-            IconButton(
-                onClick = { onToggleSpoiler(index) },
+            val isCustomMode = mode !is AttachmentMode.Standard
+            FilledTonalIconButton(
+                onClick = { sheetAttachmentIndex = index },
                 modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp).size(32.dp),
+                colors = if (isCustomMode) {
+                    IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    )
+                } else {
+                    IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
+                        contentColor = Color.White,
+                    )
+                },
             ) {
                 Icon(
-                    painterResource(Res.drawable.visibility_off_24dp),
-                    contentDescription = stringResource(Res.string.attachment_spoiler),
-                    tint = if (hasSpoiler) MaterialTheme.colorScheme.primary else Color.White,
+                    painter = painterResource(getAttachmentModeIcon(mode, isVideo)),
+                    contentDescription = stringResource(Res.string.attachment_mode_title),
                     modifier = Modifier.size(18.dp),
                 )
             }
@@ -423,7 +423,7 @@ private fun PhotoCarousel(
  * Štítek samozničujícího média: ikona časovače a typ/doba.
  */
 @Composable
-private fun TimerBadge(selfDestructType: SelfDestructType, modifier: Modifier = Modifier) {
+private fun TimerBadge(label: String, modifier: Modifier = Modifier) {
     Row(
         modifier
             .clip(RoundedCornerShape(8.dp))
@@ -439,10 +439,34 @@ private fun TimerBadge(selfDestructType: SelfDestructType, modifier: Modifier = 
             modifier = Modifier.size(14.dp),
         )
         Text(
-            text = when (selfDestructType) {
-                is SelfDestructType.Immediately -> stringResource(Res.string.media_view_once)
-                is SelfDestructType.Timer -> "${selfDestructType.seconds}s"
-            },
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.White,
+        )
+    }
+}
+
+/**
+ * Štítek média odesílaného jako nekomprimovaný soubor.
+ */
+@Composable
+private fun FileBadge(modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Icon(
+            painterResource(Res.drawable.description_24dp),
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(13.dp),
+        )
+        Text(
+            text = stringResource(Res.string.content_file),
             style = MaterialTheme.typography.labelSmall,
             color = Color.White,
         )

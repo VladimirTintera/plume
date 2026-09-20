@@ -314,8 +314,34 @@ data class PhotoPosition(
  * TDLib posílá soubor podle **cesty** (`InputFileLocal`), takže výběr z galerie nebo souborů ho musí
  * nejdřív zkopírovat k sobě — systémové URI (`content://`, iOS security-scoped URL) TDLib neotevře.
  */
+/** Režim odesílání přílohy: běžné zobrazení, spoiler, samozničení nebo odeslání jako soubor. */
+sealed interface AttachmentMode {
+    /** Běžné zobrazení v bublině konverzace. */
+    data object Standard : AttachmentMode
+
+    /** Skryté pod rozostřením se třpytivou texturou, dokud příjemce neklepne. */
+    data object Spoiler : AttachmentMode
+
+    /** Jednorázové zhlédnutí: po zavření zaniká. */
+    data object ViewOnce : AttachmentMode
+
+    /** Odpočet po zadaný počet sekund od otevření. */
+    data class Timer(val seconds: Int) : AttachmentMode
+
+    /** Odeslat jako nekomprimovaný soubor (v plné kvalitě a bez úprav). */
+    data object AsFile : AttachmentMode
+}
+
 sealed interface OutgoingAttachment {
     val path: String
+    val mode: AttachmentMode get() = AttachmentMode.Standard
+    val hasSpoiler: Boolean get() = mode is AttachmentMode.Spoiler
+    val selfDestructType: SelfDestructType?
+        get() = when (val m = mode) {
+            is AttachmentMode.ViewOnce -> SelfDestructType.Immediately
+            is AttachmentMode.Timer -> SelfDestructType.Timer(m.seconds)
+            else -> null
+        }
 
     /**
      * Fotka jako fotka (s náhledem v bublině). [width] a [height] jsou rozměry připraveného souboru;
@@ -325,8 +351,7 @@ sealed interface OutgoingAttachment {
         override val path: String,
         val width: Int,
         val height: Int,
-        val hasSpoiler: Boolean = false,
-        val selfDestructType: SelfDestructType? = null,
+        override val mode: AttachmentMode = AttachmentMode.Standard,
     ) : OutgoingAttachment
 
     /**
@@ -343,12 +368,13 @@ sealed interface OutgoingAttachment {
         val durationSeconds: Int,
         val thumbnail: OutgoingThumbnail?,
         val streamable: Boolean,
-        val hasSpoiler: Boolean = false,
-        val selfDestructType: SelfDestructType? = null,
+        override val mode: AttachmentMode = AttachmentMode.Standard,
     ) : OutgoingAttachment
 
     /** Cokoli jako soubor, beze změny. Název souboru se bere z cesty. */
-    data class Document(override val path: String) : OutgoingAttachment
+    data class Document(override val path: String) : OutgoingAttachment {
+        override val mode: AttachmentMode get() = AttachmentMode.AsFile
+    }
 }
 
 /** Náhled přílohy připravený na disku (JPEG). */

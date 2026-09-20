@@ -376,6 +376,17 @@
     <string name="attachment_timer_off">Timer off</string>
     <string name="attachment_preview_title">Preview</string>
     <string name="attachment_done">Done</string>
+    <string name="attachment_mode_title">Send mode</string>
+    <string name="attachment_mode_standard_photo">Standard photo</string>
+    <string name="attachment_mode_standard_video">Standard video</string>
+    <string name="attachment_mode_standard_desc">Compressed preview in chat bubble</string>
+    <string name="attachment_mode_spoiler_desc">Hidden under blur until tapped</string>
+    <string name="attachment_mode_view_once_desc">Self-destructs right after closing</string>
+    <string name="attachment_mode_timer_desc">Self-destructs after set time upon opening</string>
+    <string name="attachment_mode_as_file">Send as file</string>
+    <string name="attachment_mode_as_file_desc">Original quality without compression</string>
+    <string name="attachment_mode_section_protection">Display &amp; Protection</string>
+    <string name="attachment_mode_section_format">Quality &amp; Format</string>
     <string name="content_expired_video">The video expired</string>
     <string name="content_expired_video_note">The video message expired</string>
     <string name="content_expired_voice_note">The voice message expired</string>
