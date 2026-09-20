@@ -511,6 +511,23 @@ vytlačit do keše spuštěním pár jiných aplikací, pak je asi do dvaceti vt
 (`dumpsys activity processes eu.tintera.plume`). Zpráva od testovacího bota pak musí skončit
 notifikací se správným textem. Ověřeno na emulátoru.
 
+### Release build (R8)
+
+Šifrování klíč nikde nedohledává reflexí, takže nová keep pravidla nepotřebuje — ověřit se to
+ale musí na zařízení, protože chybějící keep pravidlo se při buildu nepozná (viz „R8").
+Ověřeno na emulátoru: databáze se uloženým klíčem otevřela (`WaitTdlibParameters` → `Ready`,
+bez přešifrování), a **po `am kill` z pozadí se aplikace vrátila do otevřené konverzace** —
+tedy i polymorfní serializace klíčů navigace drží.
+
+- **Release APK se dá rovnou podepsat debug klíčem**, místo stavět a pak přepodepisovat:
+  `-PreleaseStoreFile=$HOME/.android/debug.keystore -PreleaseStorePassword=android
+  -PreleaseKeyAlias=androiddebugkey -PreleaseKeyPassword=android`. Minifikace je vlastnost
+  buildu, s podpisem nesouvisí, a `adb install -r` přes debug build nechá data i přihlášení.
+- **Cesta ven se na release buildu ověřit NEDÁ.** `run-as` na nepodepsatelné aplikaci hlásí
+  „package not debuggable" a `adb root` na emulátoru s Play službami neprojde, takže se
+  `tdlib-key` nemá jak poškodit. Testuje se tedy na debug buildu; z R8 je v té větvi citlivé
+  jen `is TdlThrowable` a řetězcová konstanta, obojí přejmenování přežije.
+
 ### Jak to ověřit na iOS
 
 Aplikace na simulátoru **do unified logu nic nepíše** — `log stream --predicate 'process ==
