@@ -142,6 +142,7 @@ import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.audio.rememberRecordPermission
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.ui.describe
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SponsoredMessage
@@ -1961,14 +1962,6 @@ private data class HeaderSubtitle(val text: String, val accent: Boolean)
  * „naposledy nedávno" a přesný čas nedostaneme. Proto se nikde nedopočítává nic přesnějšího,
  * než co server dal — vymyslet minutu, kterou neznáme, by bylo horší než neurčitost.
  */
-@Composable
-internal fun Presence.describe(): String = when (this) {
-    Presence.Online -> stringResource(Res.string.presence_online)
-    Presence.Recently -> stringResource(Res.string.presence_recently)
-    Presence.LastWeek -> stringResource(Res.string.presence_last_week)
-    Presence.LastMonth -> stringResource(Res.string.presence_last_month)
-    is Presence.Offline -> stringResource(Res.string.presence_offline, wasOnline.asRelativeTime())
-}
 
 /** Hodiny serveru a telefonu se můžou o chvilku lišit; o tolik starší zpráva je ještě příchod. */
 private const val ARRIVAL_TOLERANCE_SECONDS = 5

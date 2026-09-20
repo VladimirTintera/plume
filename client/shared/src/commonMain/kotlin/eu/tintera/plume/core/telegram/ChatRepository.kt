@@ -62,6 +62,12 @@ interface ChatRepository {
     suspend fun privateChat(userId: Long): Result<Long>
 
     /**
+     * Kontakty uživatele seřazené podle jména, s dostupností protějšku.
+     * Pro každý kontakt zajistí privátní chat (lokálně v TDLib).
+     */
+    suspend fun contacts(): Result<List<ChatSummary>>
+
+    /**
      * Chaty podle názvu a uživatelského jména, ze VŠECH známých — i archivované a chaty mimo
      * složky, na rozdíl od filtru nad [chats]. Bez [onServer] se hledá jen v lokální databázi
      * (okamžitě), s ním se ptá serveru, který zná i chaty, jež lokálně ještě nejsou.

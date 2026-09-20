@@ -75,6 +75,7 @@ import eu.tintera.plume.core.navigation.ShareRoute
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.navigation.MediaRoute
+import eu.tintera.plume.core.navigation.NewChatRoute
 import eu.tintera.plume.core.navigation.SettingsRoute
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.navigation.SettingsSectionRoute
@@ -84,6 +85,7 @@ import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.features.chats.ArchiveScreen
 import eu.tintera.plume.features.chats.ChatListScreen
+import eu.tintera.plume.features.chats.NewChatScreen
 import eu.tintera.plume.features.conversation.ConversationPlaceholder
 import eu.tintera.plume.features.conversation.ConversationScreen
 import eu.tintera.plume.features.forward.ForwardScreen
@@ -165,7 +167,7 @@ fun AppShell(modifier: Modifier = Modifier) {
      */
     // Výběr chatu pro sdílení je vsuvka odjinud, ne sekce aplikace — bar ani rail k ní nepatří.
     val inDetail = navigation.currentStack.any {
-        it is ConversationRoute || it is ChatProfileRoute || it is MediaRoute || it is ShareRoute
+        it is ConversationRoute || it is ChatProfileRoute || it is MediaRoute || it is ShareRoute || it is NewChatRoute
     }
     val showBottomBar = compact && !inDetail
 
@@ -478,6 +480,9 @@ private fun shellEntryProvider(
             onOpenArchive = {
                 if (chatsStack.lastOrNull() != ArchiveRoute) chatsStack.add(ArchiveRoute)
             },
+            onNewChat = {
+                if (chatsStack.lastOrNull() != NewChatRoute) chatsStack.add(NewChatRoute)
+            },
             modifier = Modifier.listPaneInsets(twoPane),
         )
     }
@@ -503,6 +508,26 @@ private fun shellEntryProvider(
                 .lastOrNull()?.chatId,
             onChatClick = { chatId -> chatsStack.openConversation(chatId) },
             onBack = { chatsStack.remove(ArchiveRoute) },
+            modifier = Modifier.listPaneInsets(twoPane),
+        )
+    }
+
+    /*
+     * Zahájení nové konverzace. List panel jako Chaty a Archiv: vlevo nahradí seznam chatů,
+     * po výběru kontaktu se odebere a otevře se konverzace.
+     */
+    entry<NewChatRoute>(
+        metadata = ListDetailSceneStrategy.listPane(
+            detailPlaceholder = { ConversationPlaceholder() },
+        ),
+    ) {
+        NewChatScreen(
+            viewModel = koinViewModel(),
+            onBack = { chatsStack.remove(NewChatRoute) },
+            onChatSelected = { chatId ->
+                chatsStack.remove(NewChatRoute)
+                chatsStack.openConversation(chatId)
+            },
             modifier = Modifier.listPaneInsets(twoPane),
         )
     }

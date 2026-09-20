@@ -431,6 +431,21 @@ class TdlChatRepository(
     override suspend fun privateChat(userId: Long): Result<Long> =
         client.createPrivateChat(userId = userId, force = false).toResult().map { it.id }
 
+    override suspend fun contacts(): Result<List<ChatSummary>> =
+        client.getContacts().toResult().map { users ->
+            val chatIds = users.userIds.toList().mapNotNull { userId ->
+                when (val chat = client.createPrivateChat(userId = userId, force = false)) {
+                    is TdlResult.Success -> chat.result.id
+                    is TdlResult.Failure -> {
+                        logger.w { "createPrivateChat($userId) selhalo: ${chat.code} ${chat.message}" }
+                        null
+                    }
+                }
+            }
+            val summaries = summariesFor(chatIds.toLongArray()).map { it.withPresence() }
+            summaries.sortedBy { it.title.lowercase() }
+        }
+
     override suspend fun openSavedMessages(): Result<Long> {
         val userId = me.value ?: session.me().getOrNull()?.id
             ?: return Result.failure(IllegalStateException("Účet není přihlášený."))

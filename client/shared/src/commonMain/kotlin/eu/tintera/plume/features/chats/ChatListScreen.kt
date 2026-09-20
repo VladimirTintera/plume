@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -54,6 +56,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -94,6 +97,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.archive_24dp
 import eu.tintera.plume.resources.chats_archive
 import eu.tintera.plume.resources.chats_archived
+import eu.tintera.plume.resources.chats_new
 import eu.tintera.plume.resources.chats_undo
 import eu.tintera.plume.resources.chats_unarchived
 import eu.tintera.plume.resources.chats_draft_prefix
@@ -101,6 +105,7 @@ import eu.tintera.plume.resources.chats_empty
 import eu.tintera.plume.resources.chats_muted
 import eu.tintera.plume.resources.chats_section_pinned
 import eu.tintera.plume.resources.common_try_again
+import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.push_pin_filled_24dp
 import kotlinx.coroutines.launch
@@ -119,6 +124,7 @@ fun ChatListScreen(
     searchRequest: String?,
     onSearchRequestHandled: () -> Unit,
     onOpenArchive: () -> Unit,
+    onNewChat: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val search by viewModel.search.state.collectAsStateWithLifecycle()
@@ -130,6 +136,29 @@ fun ChatListScreen(
     // Hledání při scrollu dolů odjede a při scrollu nahoru se vrátí.
     val scrollBehavior = SearchBarDefaults.enterAlwaysSearchBarScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val listState = rememberLazyListState()
+    var fabExpanded by remember { mutableStateOf(true) }
+    var previousIndex by remember { mutableIntStateOf(0) }
+    var previousOffset by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }.collect { (index, offset) ->
+            if (index == 0 && offset == 0) {
+                fabExpanded = true
+            } else if (index < previousIndex || (index == previousIndex && offset < previousOffset)) {
+                // Scroll nahoru -> rozbalit
+                fabExpanded = true
+            } else if (index > previousIndex || (index == previousIndex && offset > previousOffset)) {
+                // Scroll dolů -> sbalit
+                fabExpanded = false
+            }
+            previousIndex = index
+            previousOffset = offset
+        }
+    }
 
     ChatActionsHost(viewModel, snackbarHostState)
 
@@ -149,6 +178,21 @@ fun ChatListScreen(
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = onNewChat,
+                expanded = fabExpanded,
+                icon = {
+                    Icon(
+                        painter = painterResource(Res.drawable.edit_24dp),
+                        contentDescription = stringResource(Res.string.chats_new),
+                    )
+                },
+                text = {
+                    Text(stringResource(Res.string.chats_new))
+                },
+            )
+        },
         topBar = {
             ChatSearchBar(
                 connection = connection.label(),
@@ -212,6 +256,7 @@ fun ChatListScreen(
                 padding = padding,
                 scrollToChat = scrollToChat,
                 onScrolledToChat = { scrollToChat = null },
+                listState = listState,
                 // Položky hlavičky: nové přihlášení a karta s aktualizací.
                 headerItemCount = listOfNotNull(unconfirmedLogin, updateCard).size,
                 empty = {
@@ -352,12 +397,12 @@ internal fun ChatListContent(
     scrollToChat: Long? = null,
     onScrolledToChat: () -> Unit = {},
     headerItemCount: Int = 0,
+    listState: LazyListState = rememberLazyListState(),
     header: LazyListScope.() -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
-    val listState = rememberLazyListState()
 
     // Dotažení dalších chatů, jakmile se uživatel blíží ke konci. TDLib pak pošle updaty a seznam
     // se doplní sám — proto se tu nečeká na návratovou hodnotu.

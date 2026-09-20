@@ -34,6 +34,7 @@ import eu.tintera.plume.core.telegram.TelegramClientHolder
 import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.features.auth.AuthViewModel
 import eu.tintera.plume.features.chats.ChatsViewModel
+import eu.tintera.plume.features.chats.NewChatViewModel
 import eu.tintera.plume.features.conversation.ConversationViewModel
 import eu.tintera.plume.features.conversation.StickerPickerViewModel
 import eu.tintera.plume.features.conversation.StickerSetViewModel
@@ -227,4 +228,6 @@ fun appModule() = module {
             sharer = get(),
         )
     }
+
+    viewModelOf(::NewChatViewModel)
 }

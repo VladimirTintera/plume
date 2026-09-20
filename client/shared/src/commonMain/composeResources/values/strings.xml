@@ -525,4 +525,10 @@
         <item quantity="one">%1$d day</item>
         <item quantity="other">%1$d days</item>
     </plurals>
+    <string name="chats_new">New message</string>
+    <string name="new_chat_title">New message</string>
+    <string name="new_chat_search">Search contacts or @username</string>
+    <string name="new_chat_contacts">Contacts</string>
+    <string name="new_chat_empty">No contacts</string>
+    <string name="new_chat_load_failed">Couldn't load contacts</string>
 </resources>
