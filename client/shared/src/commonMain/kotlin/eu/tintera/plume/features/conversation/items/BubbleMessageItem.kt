@@ -37,12 +37,6 @@ internal data class BubbleMessageItem(
     val partnerName: String?,
 ) : MessageItem {
 
-    /**
-     * Text nechává protější stranu volnou: dlouhé zprávy obou stran šly přes celou šířku
-     * a strany se daly rozlišit jen barvou. Google Zprávy i Telegram drží podobný okraj.
-     */
-    override val maxWidthFraction: Float get() = TEXT_MAX_WIDTH_FRACTION
-
     override fun containsMessage(messageId: Long): Boolean =
         frame.message.id == messageId || album?.any { it.id == messageId } == true
 
@@ -153,6 +147,3 @@ internal fun MessageBodyScope.QuotedBubble(
         }
     }
 }
-
-/** Nejvyšší šířka textové bubliny jako podíl řádku. */
-internal const val TEXT_MAX_WIDTH_FRACTION = 0.82f

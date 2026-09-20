@@ -154,10 +154,13 @@ internal interface MessageItem : ConversationItem {
     override fun containsMessage(messageId: Long): Boolean = frame.message.id == messageId
 
     /**
-     * Nejvyšší šířka zprávy jako podíl řádku. Text v bublině nechává protější stranu volnou
-     * (viz [BubbleMessageItem]); obrázek a karty si šířku určují samy.
+     * Nejvyšší šířka zprávy jako podíl řádku. Protější strana zůstává volná, aby bylo na první
+     * pohled poznat, kdo zprávu poslal — u holého snímku je ten pruh jediné vodítko, bublinu
+     * ani její barvu nemá (viz [MESSAGE_MAX_WIDTH_FRACTION]).
+     *
+     * Blok to smí přebít, ale je to výjimka, kterou musí odůvodnit.
      */
-    val maxWidthFraction: Float get() = 1f
+    val maxWidthFraction: Float get() = MESSAGE_MAX_WIDTH_FRACTION
 
     @Composable
     fun MessageBodyScope.Body()
