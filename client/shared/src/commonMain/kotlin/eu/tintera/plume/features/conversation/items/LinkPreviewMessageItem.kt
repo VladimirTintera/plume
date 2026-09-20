@@ -30,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.accentOn
-import eu.tintera.plume.features.conversation.CAPTIONED_MIN_WIDTH_FRACTION
 import eu.tintera.plume.features.conversation.photoFrame
 
 /**
@@ -73,11 +72,11 @@ internal data class LinkPreviewMessageItem(
             val photo = preview.photo
             if (preview.showsLargePhoto && photo != null) {
                 BoxWithConstraints {
-                    // Text zprávy i popis webu mají šířku obrázku — úzký obrázek je nesmí lámat po slovech.
+                    // Text zprávy i popis webu mají šířku obrázku; s ním využije celou nabízenou šířku.
                     val frameSize = photoFrame(
                         maxWidth,
                         photo.width.toFloat() / photo.height.toFloat(),
-                        CAPTIONED_MIN_WIDTH_FRACTION,
+                        fillWidth = true,
                     )
                     Column(Modifier.width(frameSize.width).clip(shape)) {
                         MessagePart()

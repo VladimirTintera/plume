@@ -1473,12 +1473,13 @@ jako `výška × poměr`.
 - **Počítá se ručně v `BoxWithConstraints`**, ne přes `aspectRatio` — viz „Gotchas".
 - **Popisek se zalomí na šířku fotky** (viz „Médium bez bubliny"), takže zúžená fotka s dlouhým
   popiskem („Screenshot (18. 9. 2026 5:23:34)") nenechá vedle sebe prázdné místo.
-- **Fotka s popiskem má podlahu šířky 75 %** (`CAPTIONED_MIN_WIDTH_FRACTION`, parametr
-  `minWidthFraction` u `photoFrame`). Popisek má šířku fotky, a vysoký snímek zúžený na pár set
-  bodů lámal text po dvou třech slovech — delší popis byl nečitelný. S popiskem se proto fotka
-  rozšíří, výška zůstane na stropu a obrázek se **ořízne na střed** (`Crop`, poměr stran bez
-  deformace), jako v Telegramu. Bez popisku se dál jen zužuje a je vidět celá. Totéž platí pro
-  obrázek náhledu odkazu: text zprávy i popis webu mají jeho šířku.
+- **Fotka s popiskem využije celou nabízenou šířku** (parametr `fillWidth` u `photoFrame`).
+  Popisek má šířku fotky, a vysoký snímek zúžený na pár set bodů lámal text po dvou třech
+  slovech — delší popis byl nečitelný. S popiskem se proto fotka rozšíří na celou dostupnou
+  šířku (kterou shora hlídá strop rámu 82 % řádku), výška zůstane na stropu a obrázek se
+  **ořízne na střed** (`Crop`, poměr stran bez deformace), jako v Telegramu. Bez popisku se
+  dál jen zužuje a je vidět celá. Totéž platí pro velký obrázek náhledu odkazu: text zprávy
+  i popis webu mají jeho šířku.
 - **Album ve čtvercích zůstává.** Mřížka je vědomé rozhodnutí (viz „Alba"), takže pravidlo platí
   jen pro samostatnou fotku a video; řádek alba s jednou fotkou se ořezává dál.
 
@@ -2257,9 +2258,8 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   jako v seznamu, stejná šířka, bez gest).
 - **Kopie dostává stejné OMEZENÍ šířky jako zpráva v seznamu, ne šířku zprávy napevno**
   (`MenuAnchor.maxWidth`, zapisuje ho rám v `layout`, a stejný `maxWidthFraction`). S šířkou
-  zprávy jako stropem vyšlo jinak všechno, co se řídí dostupnou šířkou: fotka s popiskem má
-  podlahu 75 % dostupné šířky, v kopii to bylo 75 % ze samotné karty — vysoký snímek se
-  v nabídce zúžil a po návratu skokem dorostl, až se ukázala zpráva v seznamu. V seznamu se zprůhlední (`isInMenu`) a drží místo —
+  zprávy jako stropem vyšlo jinak všechno, co se řídí dostupnou šířkou: fotka s popiskem využívá
+  plnou dostupnou šířku, v kopii by se při pevném oříznutí chovala jinak. V seznamu se zprůhlední (`isInMenu`) a drží místo —
   po ní zůstane prázdno, jako v Google Zprávách.
 - **Let tam i zpátky je ruční posun kopie (`Animatable`), NE sdílený prvek.** Sdílený prvek se během
   přechodu kreslí v překryvu nad celou aplikací, mimo ořezy rodičů, takže zpráva začínající pod
