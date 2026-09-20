@@ -125,6 +125,7 @@ fun ChatListScreen(
     onSearchRequestHandled: () -> Unit,
     onOpenArchive: () -> Unit,
     onNewChat: () -> Unit = {},
+    onChatArchived: ((ArchiveChange) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val search by viewModel.search.state.collectAsStateWithLifecycle()
@@ -160,7 +161,7 @@ fun ChatListScreen(
         }
     }
 
-    ChatActionsHost(viewModel, snackbarHostState)
+    ChatActionsHost(viewModel, snackbarHostState, onArchived = onChatArchived)
 
     /*
      * Chat vybraný v hledání, na který má seznam dojet. Ukládá se (`rememberSaveable`): na
@@ -327,7 +328,11 @@ fun ChatListScreen(
  * ([ChatSummary.folder]).
  */
 @Composable
-internal fun ChatActionsHost(viewModel: ChatsViewModel, snackbarHostState: SnackbarHostState) {
+internal fun ChatActionsHost(
+    viewModel: ChatsViewModel,
+    snackbarHostState: SnackbarHostState,
+    onArchived: ((ArchiveChange) -> Unit)? = null,
+) {
     val actions by viewModel.actions.collectAsStateWithLifecycle()
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
     // Snackbar s „Vrátit" běží mimo efekt: ten se nulováním události restartuje a zrušil by ho
@@ -345,6 +350,7 @@ internal fun ChatActionsHost(viewModel: ChatsViewModel, snackbarHostState: Snack
     LaunchedEffect(actions.archived) {
         val change = actions.archived ?: return@LaunchedEffect
         viewModel.consumeArchived()
+        onArchived?.invoke(change)
         snackbarScope.launch {
             val result = snackbarHostState.showSnackbar(
                 message = getString(if (change.archived) Res.string.chats_archived else Res.string.chats_unarchived),
