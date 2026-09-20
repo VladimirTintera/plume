@@ -94,6 +94,12 @@ data class ForwardRoute(val fromChatId: Long, val messageIds: List<Long>) : Rout
 data object ShareRoute : Route
 
 /**
+ * Zahájení nové konverzace (výběr kontaktu nebo hledání).
+ */
+@Serializable
+data object NewChatRoute : Route
+
+/**
  * Konfigurace pro ukládání navigačního zásobníku.
  *
  * **Každá nová routa se MUSÍ zaregistrovat níže.** `NavKey` je otevřená polymorfní hierarchie
@@ -120,6 +126,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
             subclass(ShareRoute::class, ShareRoute.serializer())
+            subclass(NewChatRoute::class, NewChatRoute.serializer())
         }
     }
 }

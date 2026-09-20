@@ -532,4 +532,10 @@
         <item quantity="few">%1$d dny</item>
         <item quantity="other">%1$d dní</item>
     </plurals>
+    <string name="chats_new">Nová zpráva</string>
+    <string name="new_chat_title">Nová zpráva</string>
+    <string name="new_chat_search">Hledat kontakty nebo @uživatele</string>
+    <string name="new_chat_contacts">Kontakty</string>
+    <string name="new_chat_empty">Žádné kontakty</string>
+    <string name="new_chat_load_failed">Kontakty se nepodařilo načíst</string>
 </resources>

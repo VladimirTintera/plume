@@ -55,7 +55,7 @@ import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.chatTitleKey
 import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
-import eu.tintera.plume.features.conversation.describe
+import eu.tintera.plume.core.ui.describe
 import eu.tintera.plume.features.settings.SettingsGroup
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp

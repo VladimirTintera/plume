@@ -43,7 +43,7 @@ Android je napřed; tohle je, čím se to dorovnává.
 ## Obrazovky a sekce, které nejsou
 
 Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `SettingsRoute`,
-`ArchiveRoute`, `ConversationRoute`, `MediaRoute`, `ForwardRoute`, `ShareRoute`.
+`ArchiveRoute`, `ConversationRoute`, `MediaRoute`, `ForwardRoute`, `ShareRoute`, `NewChatRoute`.
 
 - ~~**Archiv**~~ — hotovo (seznam v menu ⋮, archivace a vrácení z nabídky chatu s „Vrátit").
   Poučení v `CLAUDE.md`, „Archiv". Zbývá:
@@ -79,7 +79,9 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
 
   Na rozloženém Foldu by místo celoobrazovkového hledání sedělo `ExpandedDockedSearchBar`.
   Nastavení má pořád `LargeFlexibleTopAppBar` se stejnou vadou po sbalení jako měly Chaty.
-- **Nová konverzace a kontakty.** Napsat se dá jen tomu, s kým už chat existuje.
+- ~~**Nová konverzace a kontakty.**~~ — hotovo (M3 Extended FAB s popiskem napojený na scroll,
+  `NewChatRoute`, Uložené zprávy, kontakty z TDLib s dostupností, globální vyhledávání lidí podle
+  @username; poučení v `CLAUDE.md`, „Nová konverzace").
 - **Přihlašovací obrazovka** — hotová (výběr země, formátování čísla, návrat z QR na číslo,
   expressive přestavba; `CLAUDE.md`, „Přihlašovací obrazovka"). Zbývá:
   - **Zpět na přihlašovací obrazovce ukončí aplikaci.** Přihlášení není v `NavDisplay`, takže

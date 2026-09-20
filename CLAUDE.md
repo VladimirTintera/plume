@@ -12,7 +12,7 @@ konverzace (historie, živé zprávy, odesílání, přílohy a alba, hlasovky, 
 přeposílání, připnuté zprávy), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
-Není: notifikace na iOS ani hlášení pádů z iOS; obrazovka nové konverzace; sdílená média v profilu chatu.
+Není: notifikace na iOS ani hlášení pádů z iOS; sdílená média v profilu chatu.
 Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné, Vzhled a Zařízení; vědomě nastavitelné je zatím
 téma aplikace (motiv a barvy z tapety) a vyčlenění nepřečtených chatů do vlastního bloku.
 Rozpracovaný detail chatu má vlastní seznam:
@@ -1190,6 +1190,22 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
   „Uložené zprávy" a záložku (`bookmarkIcon`), ne jméno a fotku účtu.
 - **Témata Uložených zpráv (`SavedMessagesTopic`, dělení podle původního chatu) a štítky zatím
   nejsou.** Konverzace ukazuje všechny uložené zprávy dohromady, jako dřív.
+
+### Nová konverzace a kontakty
+
+`NewChatScreen` (`features/chats`), `NewChatRoute`, vstup FAB s tužkou v seznamu chatů.
+
+- **M3 Expressive Extended FAB napojený na scroll.** Na začátku seznamu nebo při scrollu nahoru
+  je rozbalený s textem „Nová zpráva", při scrollu dolů se plynule sbalí do kompaktní ikony,
+  aby nezakrýval řádky chatů.
+- **Kontakty jdou z `getContacts`** a pro každý se lokálně zavolá `createPrivateChat(userId, force = false)`
+  — TDLib tak pro kontakt založí chat objekt (lokálně v paměti/databázi, bez odesílání zpráv)
+  a do seznamu se dostane kompletní `ChatSummary` s avatarem i dostupností (`withPresence()`).
+- **Uložené zprávy jsou i tady nahoře**, jako samostatná karta v `primaryContainer`.
+- **Vyhledávání kombinuje tři vrstvy:** lokální kontakty (filtrace podle jména), existující známé chaty
+  z `searchChats` a veřejné Telegram uživatele / skupiny z `searchPublicChats` (podle `@username`).
+- **List panel na dvoupanelovém rozvržení:** Na tabletu / TwoPane nahradí levý panel stejně jako
+  Archiv, po výběru kontaktu se zavře a v pravém panelu se otevře konverzace.
 
 ### Co položka ukazuje
 
