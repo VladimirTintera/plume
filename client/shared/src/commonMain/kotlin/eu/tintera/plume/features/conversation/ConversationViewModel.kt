@@ -40,6 +40,7 @@ import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.ReactionDetail
+import eu.tintera.plume.core.telegram.AttachmentMode
 import eu.tintera.plume.core.telegram.SelfDestructType
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.SentMessageUpdate
@@ -861,25 +862,13 @@ class ConversationViewModel(
         }
     }
 
-    fun toggleAttachmentSpoiler(index: Int) {
+    fun setAttachmentMode(index: Int, mode: AttachmentMode) {
         _state.update { state ->
             val updated = state.attachments.mapIndexed { i, attachment ->
                 if (i == index) {
                     when (attachment) {
-                        is OutgoingAttachment.Photo -> {
-                            val newSpoiler = !attachment.hasSpoiler
-                            attachment.copy(
-                                hasSpoiler = newSpoiler,
-                                selfDestructType = if (newSpoiler) null else attachment.selfDestructType,
-                            )
-                        }
-                        is OutgoingAttachment.Video -> {
-                            val newSpoiler = !attachment.hasSpoiler
-                            attachment.copy(
-                                hasSpoiler = newSpoiler,
-                                selfDestructType = if (newSpoiler) null else attachment.selfDestructType,
-                            )
-                        }
+                        is OutgoingAttachment.Photo -> attachment.copy(mode = mode)
+                        is OutgoingAttachment.Video -> attachment.copy(mode = mode)
                         is OutgoingAttachment.Document -> attachment
                     }
                 } else {
@@ -890,27 +879,19 @@ class ConversationViewModel(
         }
     }
 
+    fun toggleAttachmentSpoiler(index: Int) {
+        val current = _state.value.attachments.getOrNull(index) ?: return
+        val newMode = if (current.mode is AttachmentMode.Spoiler) AttachmentMode.Standard else AttachmentMode.Spoiler
+        setAttachmentMode(index, newMode)
+    }
+
     fun setAttachmentSelfDestruct(index: Int, type: SelfDestructType?) {
-        _state.update { state ->
-            val updated = state.attachments.mapIndexed { i, attachment ->
-                if (i == index) {
-                    when (attachment) {
-                        is OutgoingAttachment.Photo -> attachment.copy(
-                            selfDestructType = type,
-                            hasSpoiler = if (type != null) false else attachment.hasSpoiler,
-                        )
-                        is OutgoingAttachment.Video -> attachment.copy(
-                            selfDestructType = type,
-                            hasSpoiler = if (type != null) false else attachment.hasSpoiler,
-                        )
-                        is OutgoingAttachment.Document -> attachment
-                    }
-                } else {
-                    attachment
-                }
-            }
-            state.copy(attachments = updated)
+        val newMode = when (type) {
+            is SelfDestructType.Immediately -> AttachmentMode.ViewOnce
+            is SelfDestructType.Timer -> AttachmentMode.Timer(type.seconds)
+            null -> AttachmentMode.Standard
         }
+        setAttachmentMode(index, newMode)
     }
 
     /**

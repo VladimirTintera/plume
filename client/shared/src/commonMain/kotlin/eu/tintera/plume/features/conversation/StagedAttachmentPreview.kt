@@ -16,10 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,8 +38,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import eu.tintera.plume.core.telegram.AttachmentMode
 import eu.tintera.plume.core.telegram.OutgoingAttachment
-import eu.tintera.plume.core.telegram.SelfDestructType
 import eu.tintera.plume.core.ui.attachmentKey
 import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.features.conversation.items.SpoilerOverlay
@@ -53,43 +49,29 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.attachment_done
 import eu.tintera.plume.resources.attachment_preview_title
-import eu.tintera.plume.resources.attachment_spoiler
-import eu.tintera.plume.resources.attachment_timer_off
 import eu.tintera.plume.resources.delete_24dp
-import eu.tintera.plume.resources.media_self_destruct_seconds
-import eu.tintera.plume.resources.media_view_once
-import eu.tintera.plume.resources.schedule_24dp
-import eu.tintera.plume.resources.visibility_off_24dp
+import eu.tintera.plume.resources.keyboard_arrow_down_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
  * Zvětšený fullscreen náhled připravené přílohy před odesláním.
  *
- * Umožňuje prohlédnout detail snímku (včetně zoomu a posunu), zkontrolovat nebo přepnout
- * spoiler, nastavit samozničující časovač (view-once / TTL) a případně snímek zahodit.
+ * Umožňuje prohlédnout detail snímku (včetně zoomu a posunu), zkontrolovat nebo vybrat
+ * režim odeslání v Material 3 Expressive dialogu a případně snímek zahodit.
  */
 @Composable
 internal fun StagedAttachmentPreview(
     attachment: OutgoingAttachment,
     onDismiss: () -> Unit,
     onDelete: () -> Unit,
-    onToggleSpoiler: () -> Unit,
-    onSetSelfDestruct: (SelfDestructType?) -> Unit,
+    onSetMode: (AttachmentMode) -> Unit,
     isOpen: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    val hasSpoiler = when (attachment) {
-        is OutgoingAttachment.Photo -> attachment.hasSpoiler
-        is OutgoingAttachment.Video -> attachment.hasSpoiler
-        is OutgoingAttachment.Document -> false
-    }
-
-    val selfDestructType = when (attachment) {
-        is OutgoingAttachment.Photo -> attachment.selfDestructType
-        is OutgoingAttachment.Video -> attachment.selfDestructType
-        is OutgoingAttachment.Document -> null
-    }
+    val mode = attachment.mode
+    val isVideo = attachment is OutgoingAttachment.Video
+    val hasSpoiler = attachment.hasSpoiler
 
     val imagePath = when (attachment) {
         is OutgoingAttachment.Video -> attachment.thumbnail?.path ?: attachment.path
@@ -113,6 +95,16 @@ internal fun StagedAttachmentPreview(
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
     val spoilerStyle = rememberSpoilerBlurStyle()
+    var showModeSheet by remember { mutableStateOf(false) }
+
+    if (showModeSheet) {
+        AttachmentModeSheet(
+            currentMode = mode,
+            isVideo = isVideo,
+            onSelectMode = onSetMode,
+            onDismiss = { showModeSheet = false },
+        )
+    }
 
     LaunchedEffect(isOpen) {
         if (!isOpen) {
@@ -228,84 +220,36 @@ internal fun StagedAttachmentPreview(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                // Přepínač Spoileru
-                FilterChip(
-                    selected = hasSpoiler,
-                    onClick = onToggleSpoiler,
-                    leadingIcon = {
+                // Tonal pill button pro výběr režimu odeslání
+                val isCustomMode = mode !is AttachmentMode.Standard
+                Surface(
+                    onClick = { showModeSheet = true },
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (isCustomMode) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
+                            else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         Icon(
-                            painter = painterResource(Res.drawable.visibility_off_24dp),
+                            painter = painterResource(getAttachmentModeIcon(mode, isVideo)),
                             contentDescription = null,
+                            tint = if (isCustomMode) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(18.dp),
                         )
-                    },
-                    label = { Text(stringResource(Res.string.attachment_spoiler)) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    ),
-                )
-
-                // Volič časovače
-                var menuExpanded by remember { mutableStateOf(false) }
-                Box {
-                    FilterChip(
-                        selected = selfDestructType != null,
-                        onClick = { menuExpanded = true },
-                        leadingIcon = {
-                            Icon(
-                                painter = painterResource(Res.drawable.schedule_24dp),
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        },
-                        label = {
-                            Text(
-                                when (selfDestructType) {
-                                    is SelfDestructType.Timer -> stringResource(
-                                        Res.string.media_self_destruct_seconds,
-                                        selfDestructType.seconds,
-                                    )
-                                    is SelfDestructType.Immediately -> stringResource(Res.string.media_view_once)
-                                    null -> stringResource(Res.string.attachment_timer_off)
-                                },
-                            )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        ),
-                    )
-
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.attachment_timer_off)) },
-                            onClick = {
-                                onSetSelfDestruct(null)
-                                menuExpanded = false
-                            },
+                        Text(
+                            text = getAttachmentModeLabel(mode, isVideo),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (isCustomMode) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                         )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.media_view_once)) },
-                            onClick = {
-                                onSetSelfDestruct(SelfDestructType.Immediately)
-                                menuExpanded = false
-                            },
+                        Icon(
+                            painter = painterResource(Res.drawable.keyboard_arrow_down_24dp),
+                            contentDescription = null,
+                            tint = if (isCustomMode) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp),
                         )
-                        listOf(5, 10, 15, 30).forEach { seconds ->
-                            DropdownMenuItem(
-                                text = { Text(stringResource(Res.string.media_self_destruct_seconds, seconds)) },
-                                onClick = {
-                                    onSetSelfDestruct(SelfDestructType.Timer(seconds))
-                                    menuExpanded = false
-                                },
-                            )
-                        }
                     }
                 }
 
@@ -314,7 +258,7 @@ internal fun StagedAttachmentPreview(
                 TextButton(onClick = onDismiss) {
                     Text(
                         text = stringResource(Res.string.attachment_done),
-                        color = MaterialTheme.colorScheme.primary,
+                        color = Color.White,
                         style = MaterialTheme.typography.labelLarge,
                     )
                 }

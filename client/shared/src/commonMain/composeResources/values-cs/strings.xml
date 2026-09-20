@@ -376,6 +376,17 @@
     <string name="attachment_timer_off">Bez časovače</string>
     <string name="attachment_preview_title">Náhled</string>
     <string name="attachment_done">Hotovo</string>
+    <string name="attachment_mode_title">Způsob odeslání</string>
+    <string name="attachment_mode_standard_photo">Běžná fotka</string>
+    <string name="attachment_mode_standard_video">Běžné video</string>
+    <string name="attachment_mode_standard_desc">Komprimované zobrazení v bublině</string>
+    <string name="attachment_mode_spoiler_desc">Skryto pod rozostřením do klepnutí</string>
+    <string name="attachment_mode_view_once_desc">Smaže se ihned po zavření příjemcem</string>
+    <string name="attachment_mode_timer_desc">Smaže se po otevření za stanovený čas</string>
+    <string name="attachment_mode_as_file">Odeslat jako soubor</string>
+    <string name="attachment_mode_as_file_desc">V původní kvalitě bez komprese</string>
+    <string name="attachment_mode_section_protection">Zobrazení a ochrana</string>
+    <string name="attachment_mode_section_format">Kvalita a formát</string>
     <string name="content_expired_video">Video vypršelo</string>
     <string name="content_expired_video_note">Video zpráva vypršela</string>
     <string name="content_expired_voice_note">Hlasová zpráva vypršela</string>

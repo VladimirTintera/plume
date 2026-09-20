@@ -1,6 +1,6 @@
 package eu.tintera.plume.features.conversation
 
-import eu.tintera.plume.core.telegram.SelfDestructType
+import eu.tintera.plume.core.telegram.AttachmentMode
 import androidx.compose.ui.draw.clip
 import eu.tintera.plume.resources.profile_open
 import androidx.compose.foundation.layout.RowScope
@@ -880,8 +880,7 @@ fun ConversationScreen(
                 attachments = state.attachments,
                 onRemoveAttachment = viewModel::removeAttachment,
                 onOpenAttachment = { index -> previewAttachmentIndex = index },
-                onToggleAttachmentSpoiler = viewModel::toggleAttachmentSpoiler,
-                onSetAttachmentSelfDestruct = viewModel::setAttachmentSelfDestruct,
+                onSetAttachmentMode = viewModel::setAttachmentMode,
                 previewAttachmentIndex = previewAttachmentIndex,
                 expressionMode = expressionMode,
                 draft = draft,
@@ -1191,11 +1190,8 @@ fun ConversationScreen(
                     viewModel.removeAttachment(index)
                     previewAttachmentIndex = null
                 },
-                onToggleSpoiler = {
-                    viewModel.toggleAttachmentSpoiler(index)
-                },
-                onSetSelfDestruct = { type ->
-                    viewModel.setAttachmentSelfDestruct(index, type)
+                onSetMode = { mode ->
+                    viewModel.setAttachmentMode(index, mode)
                 },
             )
         }
@@ -1302,8 +1298,7 @@ private fun MessageInput(
     attachments: List<OutgoingAttachment>,
     onRemoveAttachment: (Int) -> Unit,
     onOpenAttachment: (Int) -> Unit = {},
-    onToggleAttachmentSpoiler: (Int) -> Unit = {},
-    onSetAttachmentSelfDestruct: (Int, SelfDestructType?) -> Unit = { _, _ -> },
+    onSetAttachmentMode: (Int, AttachmentMode) -> Unit = { _, _ -> },
     previewAttachmentIndex: Int? = null,
     /** Ikona tlačítka výběru ukazuje, čím se výběr otevře — emoji, nebo samolepkami. */
     expressionMode: ExpressionMode,
@@ -1404,8 +1399,7 @@ private fun MessageInput(
                       attachments = attachments,
                       onRemove = onRemoveAttachment,
                       onOpen = onOpenAttachment,
-                      onToggleSpoiler = onToggleAttachmentSpoiler,
-                      onSetSelfDestruct = onSetAttachmentSelfDestruct,
+                      onSetMode = onSetAttachmentMode,
                       previewAttachmentIndex = previewAttachmentIndex,
                   )
                   replyingTo?.let { target ->
