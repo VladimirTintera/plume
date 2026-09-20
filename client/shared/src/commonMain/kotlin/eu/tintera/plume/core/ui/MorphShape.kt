@@ -79,31 +79,44 @@ object ShapeMorphs {
     val Highlight = Morph(MaterialShapes.Circle, MaterialShapes.Cookie12Sided)
 
     /**
-     * Zaoblená pěticípá hvězda, na které se zastaví [Intro]. Cípy jsou zaoblené víc než žlábky
-     * mezi nimi — se stejným zaoblením obou vyšla spíš kytička. Vnitřní poloměr 0,58, aby se
-     * dovnitř vešla ikona.
+     * Zaoblená hvězda, na které se zastaví [Intro]. Cípy jsou zaoblené víc než žlábky mezi nimi —
+     * se stejným zaoblením obou vyšla spíš kytička.
+     *
+     * **Sedm cípů, ne pět.** Pěticípá hvězda má jeden cíp nahoře a dva dole, takže její optický
+     * střed nesedí se středem obrysu, do kterého se vepisuje ikona — tvar pak působí
+     * nevystředěně. S lichým, ale vyšším počtem cípů je rozdíl neznatelný a tvar zůstane
+     * hvězdou, ne kolečkem. Mělčí žlábky (vnitřní poloměr 0,68 místo 0,58) k tomu patří:
+     * se sedmi hlubokými cípy by z toho byl ježek.
      */
     val Star: RoundedPolygon =
         RoundedPolygon.star(
-            numVerticesPerRadius = 5,
-            innerRadius = 0.58f,
+            numVerticesPerRadius = STAR_POINTS,
+            innerRadius = 0.68f,
             rounding = CornerRounding(0.24f),
             innerRounding = CornerRounding(0.1f),
         ).normalized()
 
     /**
-     * Úvodní sled tvarů prázdného stavu, po úsecích: průběh 0..[Intro].size, úsek `i` je morf
-     * mezi `i`-tým a dalším tvarem. Končí na [Star]. Pětiúhelník je předposlední schválně —
-     * do pěticípé hvězdy přejde bez přeskupování vrcholů.
+     * Mnohoúhelník před hvězdou. Má **stejný počet vrcholů jako [Star]**, takže se při morfu
+     * nepřeskupují — proto se nebere `MaterialShapes.Pentagon`, který sedl jen k pěti cípům.
+     */
+    private val PreStar: RoundedPolygon =
+        RoundedPolygon(numVertices = STAR_POINTS, rounding = CornerRounding(0.2f)).normalized()
+
+    /**
+     * Úvodní sled tvarů, po úsecích: průběh 0..[Intro].size, úsek `i` je morf mezi `i`-tým
+     * a dalším tvarem. Končí na [Star].
      */
     val Intro: List<Morph> = listOf(
         Morph(MaterialShapes.Circle, MaterialShapes.Clover4Leaf),
-        Morph(MaterialShapes.Clover4Leaf, MaterialShapes.Pentagon),
-        Morph(MaterialShapes.Pentagon, Star),
+        Morph(MaterialShapes.Clover4Leaf, PreStar),
+        Morph(PreStar, Star),
     )
 
     /** Pootočení sušenky, když se z kruhu stává (a zpátky). */
     const val REST_ROTATION = 60f
+
+    private const val STAR_POINTS = 7
 }
 
 /**

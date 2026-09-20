@@ -591,6 +591,12 @@ Jedna obrazovka pro všechny fáze (`AuthScreen`), fáze se střídají v `Anima
   dva různé vzhledy by jazyk tvarů rozmělnily (viz `ShapeMorphs`).
 - **Fáze přijíždějí zdola a odjíždějí nahoru.** Přihlášení jde dopředu, tak jde i pohyb jedním
   směrem; prolnutí samo by nedalo najevo, že se postoupilo o krok.
+- **Tvar se při změně kroku proanimuje znovu** (`replayKey`). Nad měnícím se obsahem by jinak
+  stál jako obrázek, a přitom je to jediné, co drží souvislost mezi kroky.
+- **Kroky pro tvar jsou hrubší než `AuthStage`** (`AuthPhase`). Startovní `Connecting` patří
+  k zadání čísla, protože k němu automat míří — jinak by se tvar hned po náběhu proanimoval
+  podruhé a vypadalo by to jako zadrhnutí. Kód a heslo jsou taky jeden krok: mezi nimi se
+  nepřechází tam a zpět.
 
 ### Výběr země a formát čísla
 
@@ -909,13 +915,23 @@ celý rozložený Fold a hlavička s pevnou maximální šířkou v tom visela.
   jsou oba dvoupanel, takže zpět z konverzace odešel rovnou z aplikace. V Nastavení zůstává
   výchozí — sekce je v dvoupanelu otevřená vždycky (`ensureSettingsSection`), a kdyby zpět
   odebral jen ji, efekt by ji hned vrátil a z Nastavení by nešlo odejít.
-- **Placeholder má úvodní animaci** (`ShapeMorphs.Intro`): tvar naroste, protočí se a projde
-  kruh → čtyřlístek → pětiúhelník → zaoblená hvězda, pak naskočí ikona a text. Běží při každém
-  zobrazení, i po zavření chatu, a pak stojí. Průběh tvaru jde po úsecích jednou dráhou
+- **Placeholder má úvodní animaci** (`IntroShape` nad `ShapeMorphs.Intro`): tvar naroste, protočí
+  se a projde kruh → čtyřlístek → sedmiúhelník → zaoblená hvězda, pak naskočí ikona a text. Běží
+  při každém zobrazení, i po zavření chatu, a pak stojí. Průběh tvaru jde po úsecích jednou dráhou
   (`tween` s emphasized decelerate), otočení a zvětšení jsou pružiny — hvězda dokmitne, i když
-  tvar už stojí. Tvar se čte až v `drawBehind`, animace nic nerekomponuje.
+  tvar už stojí. Tvar se čte až v `drawBehind`, animace nic nerekomponuje. **Tentýž tvar má
+  i přihlášení** — viz „Přihlašovací obrazovka".
 - **Hvězda má cípy zaoblené víc než žlábky** (`rounding` 0,24, `innerRounding` 0,1). Se stejným
   zaoblením obou vyšla kytička.
+- **Cípů je SEDM, ne pět.** Pěticípá hvězda má jeden cíp nahoře a dva dole, takže její optický
+  střed nesedí se středem obrysu, do kterého se vepisuje ikona — tvar působil nevystředěně
+  (`MorphShape` centruje podle obalového obdélníku, a ten u nesymetrické hvězdy leží jinde než
+  těžiště). S vyšším lichým počtem je rozdíl neznatelný a hvězda zůstane hvězdou. Patří k tomu
+  mělčí žlábky (vnitřní poloměr 0,68 místo 0,58); se sedmi hlubokými cípy je z toho ježek.
+- **Mnohoúhelník před hvězdou má stejný počet vrcholů jako ona**, jinak se při morfu přeskupují.
+  Proto se nebere `MaterialShapes.Pentagon` — ten sedl jen k pěti cípům.
+- **Tvar se dá proanimovat znovu** (`IntroShape(replayKey = …)`): opakování je kratší než úvod,
+  otáčí se opačně a NEodhaluje obsah — ikona uvnitř se mění sama a dvojí naskakování by se pralo.
 
 **Scaffold list-detail si sám bere fokus — vypnuto** (`shouldAutoFocusCurrentDestination = false`
 v `PaneDirective.kt`). `ThreePaneScaffold` při každé změně aktuálního panelu zavolá na panel

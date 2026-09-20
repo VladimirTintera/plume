@@ -9,7 +9,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -39,6 +42,12 @@ fun IntroShape(
     modifier: Modifier = Modifier,
     shapeSize: Dp = DEFAULT_SHAPE_SIZE,
     color: Color = MaterialTheme.colorScheme.primaryContainer,
+    /**
+     * Změna hodnoty tvar znovu proanimuje, kratčeji než při prvním zobrazení. Bez ní by tvar
+     * nad měnícím se obsahem stál jako obrázek — a přitom je to jediná věc, která na obrazovce
+     * drží souvislost mezi kroky.
+     */
+    replayKey: Any? = null,
     /** Obsah uvnitř tvaru. Naskočí za ním; o průhlednost a zvětšení se stará [IntroShape]. */
     content: @Composable () -> Unit,
 ) {
@@ -47,17 +56,31 @@ fun IntroShape(
     val rotation = remember { Animatable(START_ROTATION) }
     val scale = remember { Animatable(START_SCALE) }
     val iconReveal = remember { Animatable(0f) }
+    var introPlayed by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        // Tvary se střídají po dráze se zpomalením na konci; otočení a zvětšení jsou pružiny,
-        // takže hvězda na konci ještě lehce dokmitne, když už tvar stojí.
-        launch { progress.animateTo(morphs.size.toFloat(), tween(MORPH_MILLIS, easing = EmphasizedDecelerate)) }
-        launch { rotation.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = 25f)) }
-        launch { scale.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = 150f)) }
-        launch {
-            delay(ICON_DELAY_MILLIS)
-            iconReveal.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 300f))
+    LaunchedEffect(replayKey) {
+        if (!introPlayed) {
+            introPlayed = true
+            // Tvary se střídají po dráze se zpomalením na konci; otočení a zvětšení jsou pružiny,
+            // takže hvězda na konci ještě lehce dokmitne, když už tvar stojí.
+            launch { progress.animateTo(morphs.size.toFloat(), tween(MORPH_MILLIS, easing = EmphasizedDecelerate)) }
+            launch { rotation.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = 25f)) }
+            launch { scale.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = 150f)) }
+            launch {
+                delay(ICON_DELAY_MILLIS)
+                iconReveal.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 300f))
+            }
+            return@LaunchedEffect
         }
+
+        // Opakování je kratší a bez odhalování obsahu: ikona uvnitř se mění sama a dvojí
+        // naskakování by se pralo. Otáčí se na druhou stranu než úvod, ať to není totéž znovu.
+        progress.snapTo(0f)
+        rotation.snapTo(REPLAY_ROTATION)
+        scale.snapTo(REPLAY_SCALE)
+        launch { progress.animateTo(morphs.size.toFloat(), tween(REPLAY_MILLIS, easing = EmphasizedDecelerate)) }
+        launch { rotation.animateTo(0f, spring(dampingRatio = 0.55f, stiffness = 60f)) }
+        launch { scale.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 200f)) }
     }
 
     Box(
@@ -105,3 +128,8 @@ private const val START_ROTATION = -300f
 private const val START_SCALE = 0.4f
 private const val MORPH_MILLIS = 1600
 private const val ICON_DELAY_MILLIS = 450L
+
+/** Opakování při změně fáze. Kratší než úvod a otáčí se opačně, ať to není totéž znovu. */
+private const val REPLAY_MILLIS = 900
+private const val REPLAY_ROTATION = 140f
+private const val REPLAY_SCALE = 0.82f

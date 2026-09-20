@@ -121,10 +121,12 @@ fun AuthScreen(
                 verticalArrangement = Arrangement.spacedBy(24.dp),
                 modifier = Modifier.widthIn(max = CONTENT_MAX_WIDTH),
             ) {
-                IntroShape {
+                // Tvar se proanimuje při každé změně kroku — nad měnícím se obsahem by jinak
+                // stál jako obrázek, a přitom je to jediné, co drží souvislost mezi kroky.
+                IntroShape(replayKey = stage.phase()) {
                     // Ikona říká, v jaké fázi přihlášení uživatel je. Vyměňuje se prolnutím,
                     // aby se tvar pod ní nehýbal.
-                    AnimatedContent(targetState = stage.icon(), label = "auth-icon") { icon ->
+                    AnimatedContent(targetState = stage.phase().icon, label = "auth-icon") { icon ->
                         Icon(
                             painterResource(icon),
                             contentDescription = null,
@@ -232,13 +234,33 @@ private fun phaseTransition() =
     (slideInVertically { it / PHASE_SLIDE_FRACTION } + fadeIn())
         .togetherWith(slideOutVertically { -it / PHASE_SLIDE_FRACTION } + fadeOut())
 
-private fun AuthStage.icon(): DrawableResource = when (this) {
-    AuthStage.WaitPhoneNumber, AuthStage.WaitRegistration -> Res.drawable.smartphone_24dp
-    AuthStage.WaitCode -> Res.drawable.schedule_24dp
-    is AuthStage.WaitPassword -> Res.drawable.schedule_24dp
-    is AuthStage.WaitQrConfirmation -> Res.drawable.qr_code_scanner_24dp
-    is AuthStage.Failed -> Res.drawable.error_24dp
-    else -> Res.drawable.forum_24dp
+/**
+ * Krok přihlášení pro uvítací tvar: nese ikonu a zároveň rozhoduje, kdy se tvar proanimuje znovu.
+ *
+ * Je to hrubší dělení než [AuthStage] schválně. Startovní `Connecting` patří k zadání čísla,
+ * protože k němu automat míří — jinak by se tvar hned po náběhu proanimoval podruhé a vypadalo
+ * by to jako zadrhnutí.
+ */
+private enum class AuthPhase(val icon: DrawableResource) {
+    Number(Res.drawable.smartphone_24dp),
+    Code(Res.drawable.schedule_24dp),
+    Qr(Res.drawable.qr_code_scanner_24dp),
+    Error(Res.drawable.error_24dp),
+    Done(Res.drawable.forum_24dp),
+}
+
+private fun AuthStage.phase(): AuthPhase = when (this) {
+    AuthStage.Connecting,
+    AuthStage.LoggingOut,
+    AuthStage.WaitPhoneNumber,
+    AuthStage.WaitRegistration,
+        -> AuthPhase.Number
+
+    AuthStage.WaitCode -> AuthPhase.Code
+    is AuthStage.WaitPassword -> AuthPhase.Code
+    is AuthStage.WaitQrConfirmation -> AuthPhase.Qr
+    is AuthStage.Failed -> AuthPhase.Error
+    AuthStage.Ready -> AuthPhase.Done
 }
 
 private fun AuthStage.headline(): StringResource = when (this) {
