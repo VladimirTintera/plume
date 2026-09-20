@@ -29,3 +29,14 @@ actual val platformDeviceModel: String = "${Build.MANUFACTURER} ${Build.MODEL}"
 actual val platformSystemVersion: String = "Android ${Build.VERSION.RELEASE}"
 
 actual val platformLanguageCode: String get() = Locale.getDefault().language
+
+/**
+ * `Locale.getDefault()` sleduje i jazyk nastavený jen pro aplikaci (per-app locale), takže
+ * název země odpovídá tomu, v čem je zbytek obrazovky.
+ *
+ * Neznámý region vrací `getDisplayCountry` jako samotný kód — to je „nevím", ne překlad.
+ */
+actual fun localizedCountryName(code: String): String? =
+    runCatching { Locale.Builder().setRegion(code).build().getDisplayCountry(Locale.getDefault()) }
+        .getOrNull()
+        ?.takeIf { it.isNotBlank() && !it.equals(code, ignoreCase = true) }

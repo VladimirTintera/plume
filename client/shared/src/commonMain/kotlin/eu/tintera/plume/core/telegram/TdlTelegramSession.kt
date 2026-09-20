@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.BuildConfiguration
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.AuthorizationState
+import dev.g000sha256.tdl.dto.CountryInfo
 import dev.g000sha256.tdl.dto.AuthorizationStateClosed
 import dev.g000sha256.tdl.dto.AuthorizationStateClosing
 import dev.g000sha256.tdl.dto.AuthorizationStateLoggingOut
@@ -357,20 +358,27 @@ class TdlTelegramSession(
             .map { countries ->
                 countries.countries
                     .filterNot { it.isHidden }
-                    .mapNotNull { info ->
-                        val calling = info.callingCodes.firstOrNull() ?: return@mapNotNull null
-                        Country(
-                            code = info.countryCode,
-                            name = info.name,
-                            flagEmoji = info.flagEmoji,
-                            callingCode = "+$calling",
-                        )
-                    }
+                    .mapNotNull { info -> info.toCountry() }
                     // TDLib řadí podle KÓDU země (AD, AE, AF…), což pro čtenáře není pořadí.
                     // Výjimka z pravidla „pořadí necháváme od TDLib": u chatů je to pořadí,
                     // na které je uživatel zvyklý z jiných klientů, tady je to náhodná řada.
                     .sortedBy { foldDiacritics(it.name).lowercase() }
             }
+
+    /**
+     * Překlad názvu dává systém, ne TDLib — ten před autorizací vrací anglické názvy. Anglický
+     * název se přesto nese dál, protože se podle něj taky hledá.
+     */
+    private fun CountryInfo.toCountry(fallbackCallingCode: String? = null): Country? {
+        val calling = callingCodes.firstOrNull() ?: fallbackCallingCode ?: return null
+        return Country(
+            code = countryCode,
+            name = localizedCountryName(countryCode) ?: name,
+            englishName = englishName,
+            flagEmoji = flagEmoji,
+            callingCode = "+$calling",
+        )
+    }
 
     override suspend fun suggestedCountryCode(): Result<String> =
         client.getCountryCode()
@@ -382,14 +390,7 @@ class TdlTelegramSession(
             .toResult()
             .map { info ->
                 PhoneNumberDetails(
-                    country = info.country?.let { country ->
-                        Country(
-                            code = country.countryCode,
-                            name = country.name,
-                            flagEmoji = country.flagEmoji,
-                            callingCode = "+${country.callingCodes.firstOrNull() ?: info.countryCallingCode}",
-                        )
-                    },
+                    country = info.country?.toCountry(fallbackCallingCode = info.countryCallingCode),
                     callingCode = info.countryCallingCode,
                     mask = info.formattedPhoneNumber,
                 )

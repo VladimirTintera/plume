@@ -4,6 +4,8 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSApplicationSupportDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSLocale
+import platform.Foundation.NSLocaleCountryCode
+import platform.Foundation.currentLocale
 import platform.Foundation.preferredLanguages
 import platform.Foundation.NSURL
 import platform.Foundation.NSURLIsExcludedFromBackupKey
@@ -64,6 +66,11 @@ actual val platformSystemVersion: String =
     "${UIDevice.currentDevice.systemName} ${UIDevice.currentDevice.systemVersion}"
 
 /** `preferredLanguages` je „cs-CZ"; TDLib chce samotný kód jazyka. */
+/** Neznámý region vrací `displayNameForKey` jako `null`, takže není co odfiltrovávat navíc. */
+actual fun localizedCountryName(code: String): String? =
+    NSLocale.currentLocale.displayNameForKey(NSLocaleCountryCode, code)
+        ?.takeIf { it.isNotBlank() && !it.equals(code, ignoreCase = true) }
+
 actual val platformLanguageCode: String
     get() = (NSLocale.preferredLanguages.firstOrNull() as? String)
         ?.substringBefore('-')

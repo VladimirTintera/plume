@@ -35,3 +35,13 @@ expect val platformSystemVersion: String
  * Compose prostředky na něj v `core` nedosáhnou a mimo kompozici by se stejně nečetly.
  */
 expect val platformLanguageCode: String
+
+/**
+ * Název země v jazyce zařízení podle kódu ISO 3166-1 alpha-2, nebo `null`, když ho systém nezná.
+ *
+ * **Data dává operační systém** (na obou platformách CLDR), takže se nestahují a nedrží se
+ * vlastní tabulka dvou set zemí. TDLib je použít nejde: `CountryInfo.name` má být podle
+ * dokumentace „native name", ale před autorizací vrací anglické názvy — ověřeno na emulátoru
+ * se systémovou i aplikační češtinou.
+ */
+expect fun localizedCountryName(code: String): String?

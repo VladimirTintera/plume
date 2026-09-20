@@ -140,8 +140,11 @@ private fun CountryRow(country: Country, isSelected: Boolean, onClick: () -> Uni
 }
 
 /**
- * Země, které odpovídají dotazu: podle názvu (bez ohledu na diakritiku) nebo podle předvolby,
- * ať se dá napsat rovnou „+420". Prázdný dotaz vrací všechno.
+ * Země, které odpovídají dotazu: podle názvu (bez ohledu na diakritiku), podle **anglického
+ * názvu** a podle předvolby, ať se dá napsat rovnou „+420". Prázdný dotaz vrací všechno.
+ *
+ * Anglický název je tam proto, že názvy překládá systém — kdo zná zemi jen anglicky, by ji
+ * v českém seznamu jinak nenašel („Germany" vs. „Německo").
  */
 internal fun List<Country>.matching(query: String): List<Country> {
     val trimmed = query.trim()
@@ -151,6 +154,7 @@ internal fun List<Country>.matching(query: String): List<Country> {
     val digits = trimmed.removePrefix("+").filter { it.isDigit() }
     return filter { country ->
         foldDiacritics(country.name).lowercase().contains(folded) ||
+            foldDiacritics(country.englishName).lowercase().contains(folded) ||
             (digits.isNotEmpty() && country.callingCode.removePrefix("+").startsWith(digits))
     }
 }
