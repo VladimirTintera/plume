@@ -15,7 +15,6 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
-import eu.tintera.plume.features.conversation.CAPTIONED_MIN_WIDTH_FRACTION
 
 /**
  * Fotka, video nebo album přímo na ploše konverzace, bez bubliny (pravidlo: [showsBareMedia]).
@@ -69,8 +68,8 @@ internal data class MediaMessageItem(
                                 media = it,
                                 accent = surfaceAccent,
                                 mediaShape = mediaShape,
-                                // Popisek má šířku fotky, takže úzká fotka by ho lámala po slovech.
-                                minWidthFraction = if (hasCaption) CAPTIONED_MIN_WIDTH_FRACTION else 0f,
+                                // Popisek má šířku fotky; s ním využije celou nabízenou šířku.
+                                fillWidth = hasCaption,
                             )
                         }
                     }

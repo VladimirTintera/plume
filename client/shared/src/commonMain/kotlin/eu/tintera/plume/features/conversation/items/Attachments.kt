@@ -92,8 +92,8 @@ internal fun MessageAttachment(
      * navázal na sousedy i na popisek pod sebou. `null` znamená obrázek uvnitř bubliny.
      */
     mediaShape: Shape? = null,
-    /** Fotka a video se nezúží pod tenhle podíl šířky; u fotky s popiskem ji má popisek dost. */
-    minWidthFraction: Float = 0f,
+    /** Fotka a video využijí celou nabízenou šířku (u fotky s popiskem, aby se popisek nelámal). */
+    fillWidth: Boolean = false,
 ) {
     val shape = RoundedCornerShape(12.dp)
     // Náhled souboru zůstává malý čtvereček bez ohledu na tvar bubliny — velké zaoblení bubliny
@@ -104,7 +104,7 @@ internal fun MessageAttachment(
         is MessageMedia.Photo -> {
             // Rámeček i jeho pravidla jsou v `photoFrame` (s testy): fotka se zužuje, neořezává.
             BoxWithConstraints {
-                val frame = photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), minWidthFraction)
+                val frame = photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), fillWidth)
 
                 RemoteImage(
                     fileId = media.fileId,
@@ -177,7 +177,7 @@ internal fun MessageAttachment(
         is MessageMedia.AnimatedEmoji -> AnimatedEmojiImage(media)
         is MessageMedia.Video -> BoxWithConstraints {
             // Stejný rámeček jako fotka: video na výšku se zúží, místo aby přišlo o kraje.
-            val frame = photoFrame(maxWidth, media.albumRatio(), minWidthFraction)
+            val frame = photoFrame(maxWidth, media.albumRatio(), fillWidth)
             VideoThumbnail(
                 video = media,
                 messageId = messageId,
