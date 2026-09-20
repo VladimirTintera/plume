@@ -3,6 +3,7 @@ package eu.tintera.plume.core.telegram
 import android.content.Context
 import android.os.Build
 import java.io.File
+import java.util.Locale
 
 /**
  * `filesDir` je privátní pro aplikaci a systém ho nezálohuje do cloudu bez našeho svolení —
@@ -26,3 +27,5 @@ actual class TelegramPaths(context: Context) {
 actual val platformDeviceModel: String = "${Build.MANUFACTURER} ${Build.MODEL}"
 
 actual val platformSystemVersion: String = "Android ${Build.VERSION.RELEASE}"
+
+actual val platformLanguageCode: String get() = Locale.getDefault().language

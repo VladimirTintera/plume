@@ -29,6 +29,7 @@ import kotlinx.coroutines.launch
 import okio.FileSystem
 import okio.Path.Companion.toPath
 import eu.tintera.plume.core.secrets.DatabaseKeyStore
+import eu.tintera.plume.core.ui.foldDiacritics
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auth_error_email_unsupported
@@ -58,6 +59,13 @@ class TdlTelegramSession(
     override val authStage: StateFlow<AuthStage> = _authStage.asStateFlow()
 
     private var started = false
+
+    /**
+     * Běží restart přihlášení z QR zpátky na číslo (`destroy`). Zavřený klient se jinak hlásí
+     * jako [AuthStage.LoggingOut] („Odhlašuji"), což by tady lhalo — uživatel se odhlásit nemohl,
+     * protože přihlášený nikdy nebyl.
+     */
+    private var restartingLogin = false
 
     override suspend fun start() {
         if (started) return
@@ -113,13 +121,15 @@ class TdlTelegramSession(
             is AuthorizationStateWaitRegistration -> _authStage.value = AuthStage.WaitRegistration
             is AuthorizationStateReady -> _authStage.value = AuthStage.Ready
 
+            // Při návratu z QR na číslo se klient taky zavírá, jenže odhlášení to není —
+            // uživatel přihlášený nikdy nebyl. „Odhlašuji" by na ten okamžik lhalo.
             is AuthorizationStateLoggingOut,
             is AuthorizationStateClosing,
-                -> _authStage.value = AuthStage.LoggingOut
+                -> _authStage.value = closingStage()
 
             // Novou instanci vyrábí až konec odběru (`onClientClosed`), ne tenhle stav — ten
             // sem dojít nemusí, viz `attach`.
-            is AuthorizationStateClosed -> _authStage.value = AuthStage.LoggingOut
+            is AuthorizationStateClosed -> _authStage.value = closingStage()
 
             // Stavy kolem e-mailového ověření a Premium nákupu spike neřeší. Padnout na nich ale
             // nesmíme — uživatel by viděl zamrzlou obrazovku bez vysvětlení. Text pojmenovává
@@ -133,6 +143,9 @@ class TdlTelegramSession(
         }
     }
 
+    private fun closingStage(): AuthStage =
+        if (restartingLogin) AuthStage.Connecting else AuthStage.LoggingOut
+
     /**
      * Zavřený klient už nic neudělá — ani nepřijme nové přihlášení. Bez nové instance by aplikace
      * zůstala natrvalo stát na odhlášení. Nový klient začne od `WaitTdlibParameters`, takže se
@@ -144,7 +157,8 @@ class TdlTelegramSession(
     private suspend fun onClientClosed(target: TdlClient) {
         if (holder.client !== target) return
         logger.i { "Klient TDLib zavřený, zakládám nový." }
-        _authStage.value = AuthStage.LoggingOut
+        _authStage.value = closingStage()
+        restartingLogin = false
         attach(holder.recreate())
     }
 
@@ -220,7 +234,7 @@ class TdlTelegramSession(
             useSecretChats = false,
             apiId = BuildConfiguration.TELEGRAM_API_ID,
             apiHash = BuildConfiguration.TELEGRAM_API_HASH,
-            systemLanguageCode = "cs",
+            systemLanguageCode = platformLanguageCode,
             deviceModel = platformDeviceModel,
             systemVersion = platformSystemVersion,
             applicationVersion = "0.1.0",
@@ -320,6 +334,66 @@ class TdlTelegramSession(
         client.requestQrCodeAuthentication(otherUserIds = LongArray(0))
             .toResult()
             .map { }
+
+    /**
+     * `destroy`, ne `logOut`: odhlašovat není co (účet ještě není) a `logOut` navíc chce funkční
+     * připojení — právě to nemusí mít ten, kdo se z QR vrací kvůli tomu, že nemá čím kód
+     * naskenovat. `destroy` funguje offline a smí se volat před autorizací.
+     *
+     * Zavřený klient se nahradí novým v `onClientClosed`; ten začne od `WaitTdlibParameters`
+     * a sám dojde k zadání čísla.
+     */
+    override suspend fun restartLogin(): Result<Unit> {
+        restartingLogin = true
+        return client.destroy()
+            .toResult()
+            .map { }
+            .onFailure { restartingLogin = false }
+    }
+
+    override suspend fun countries(): Result<List<Country>> =
+        client.getCountries()
+            .toResult()
+            .map { countries ->
+                countries.countries
+                    .filterNot { it.isHidden }
+                    .mapNotNull { info ->
+                        val calling = info.callingCodes.firstOrNull() ?: return@mapNotNull null
+                        Country(
+                            code = info.countryCode,
+                            name = info.name,
+                            flagEmoji = info.flagEmoji,
+                            callingCode = "+$calling",
+                        )
+                    }
+                    // TDLib řadí podle KÓDU země (AD, AE, AF…), což pro čtenáře není pořadí.
+                    // Výjimka z pravidla „pořadí necháváme od TDLib": u chatů je to pořadí,
+                    // na které je uživatel zvyklý z jiných klientů, tady je to náhodná řada.
+                    .sortedBy { foldDiacritics(it.name).lowercase() }
+            }
+
+    override suspend fun suggestedCountryCode(): Result<String> =
+        client.getCountryCode()
+            .toResult()
+            .map { it.text }
+
+    override suspend fun phoneNumberInfo(prefix: String): Result<PhoneNumberDetails> =
+        client.getPhoneNumberInfoSync(languageCode = platformLanguageCode, phoneNumberPrefix = prefix)
+            .toResult()
+            .map { info ->
+                PhoneNumberDetails(
+                    country = info.country?.let { country ->
+                        Country(
+                            code = country.countryCode,
+                            name = country.name,
+                            flagEmoji = country.flagEmoji,
+                            callingCode = "+${country.callingCodes.firstOrNull() ?: info.countryCallingCode}",
+                        )
+                    },
+                    callingCode = info.countryCallingCode,
+                    mask = info.formattedPhoneNumber,
+                )
+            }
 
     override suspend fun logOut(): Result<Unit> =
         client.logOut()

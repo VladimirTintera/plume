@@ -20,7 +20,7 @@
     <string name="auth_headline_ready">Done</string>
     <string name="auth_headline_logging_out">Signing out</string>
     <string name="auth_headline_failed">That didn't work</string>
-    <string name="auth_support_phone">Enter the number with its country code, for example +420…</string>
+    <string name="auth_support_phone">We will send a confirmation code to this number.</string>
     <string name="auth_support_code">The code arrived in another Telegram client or by SMS.</string>
     <string name="auth_support_password_hint">Hint: %1$s</string>
     <string name="auth_support_qr">In Telegram on a signed-in device open Settings → Devices → Link Desktop Device and scan the code.</string>
@@ -34,6 +34,12 @@
     <string name="auth_error_email_unsupported">This account wants email verification, which we can't do yet. Try a number or a QR code.</string>
     <string name="auth_error_premium_required">Signing in to this account requires buying Telegram Premium, which this client can't do.</string>
     <string name="auth_error_missing_api_credentials">api_id/api_hash is missing. Generate them at my.telegram.org and put them into local.properties as telegramApiId and telegramApiHash.</string>
+    <string name="auth_error_restart">Going back to the phone number did not work. Try again.</string>
+    <string name="auth_country_label">Country</string>
+    <string name="auth_country_choose">Choose a country</string>
+    <string name="auth_country_search">Search for a country</string>
+    <string name="auth_country_empty">No country found</string>
+    <string name="auth_use_phone_number">Use a phone number instead</string>
     <string name="auth_error_start_failed">Couldn't start the connection to Telegram.</string>
     <string name="chats_empty">Nothing here yet.</string>
     <string name="saved_messages">Saved Messages</string>
