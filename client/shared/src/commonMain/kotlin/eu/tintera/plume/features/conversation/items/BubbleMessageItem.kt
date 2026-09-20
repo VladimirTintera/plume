@@ -67,7 +67,7 @@ internal data class BubbleMessageItem(
                     // ve zvýrazněné zprávě se `tertiary` s `tertiaryContainer` může potkat
                     // na téže světlosti (viz accentOn).
                     accent = accentOn(
-                        background = insetContainerColor(),
+                        background = insetColor,
                         accent = if (!quote.isOutgoing && quote.senderName != null) {
                             senderColor(quote.senderId)
                         } else {
@@ -113,7 +113,7 @@ internal data class BubbleMessageItem(
 }
 
 /**
- * Karta odpovědi: [quote] nahoře v tónované ploše ([insetContainerColor]), [content] pod ní
+ * Karta odpovědi: [quote] nahoře v tónované ploše ([MessageBodyScope.insetColor]), [content] pod ní
  * v barvě bubliny.
  *
  * **Vlastní `Layout`, ne `IntrinsicSize`.** Obě plochy musí mít šířku té širší části, a pod
@@ -126,7 +126,7 @@ internal fun MessageBodyScope.QuotedBubble(
     quote: @Composable () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val quoteColor = insetContainerColor()
+    val quoteColor = insetColor
     val onQuoteColor = MaterialTheme.colorScheme.onTertiaryContainer
     val bubble = bubbleColor
     // Výška citace z měření pro kreslení ploch. Pole, ne stav: kreslí se až po layoutu téhož snímku.

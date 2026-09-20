@@ -5,7 +5,6 @@ import eu.tintera.plume.resources.format_quote_24dp
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.size
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
@@ -136,26 +135,6 @@ private fun QuoteLines(message: ChatMessage, partnerName: String?, accent: Color
         overflow = TextOverflow.Ellipsis,
     )
 }
-
-/**
- * Plocha vloženého obsahu v kartě zprávy — citace nahoře, popis webu u náhledu odkazu dole.
- * `tertiaryContainer` na obou stranách: je to cizí obsah, takže se od textu zprávy musí lišit,
- * a terciární role nesplyne s žádnou z barev bublin.
- *
- * Zvýrazněná příchozí zpráva (skok, hledání) ale sama přejde do `tertiaryContainer` — plocha pak
- * ztmavne o kus k `tertiary`, jinak by obě části karty splynuly.
- */
-@Composable
-internal fun MessageBodyScope.insetContainerColor(): Color {
-    val colors = MaterialTheme.colorScheme
-    return if (frame.emphasized && !message.isOutgoing) {
-        lerp(colors.tertiaryContainer, colors.tertiary, EMPHASIZED_INSET_SHIFT)
-    } else {
-        colors.tertiaryContainer
-    }
-}
-
-private const val EMPHASIZED_INSET_SHIFT = 0.22f
 
 @Composable
 internal fun MessageMedia?.describe(): String = when (this) {

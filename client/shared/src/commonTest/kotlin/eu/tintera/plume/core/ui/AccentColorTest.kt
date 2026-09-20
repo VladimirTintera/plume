@@ -48,6 +48,55 @@ class AccentColorTest {
         )
     }
 
+    /**
+     * Citace uvnitř zvýrazněné PŘÍCHOZÍ zprávy: bublina sama přejde do `tertiaryContainer`, takže
+     * plocha citace je s ní totožná a musí se posunout.
+     */
+    @Test
+    fun plochaTotoznaSBublinouSePosune() {
+        val bublina = Color(0xFF26486F)
+        val posunuta = surfaceApart(
+            background = bublina,
+            container = Color(0xFF26486F),
+            toward = Color(0xFFD2E4FF),
+        )
+
+        assertTrue(
+            contrastRatio(posunuta, bublina) > 1.2f,
+            "plochy se musí poznat, je to ${contrastRatio(posunuta, bublina)}",
+        )
+        assertTrue(
+            contrastRatio(Color(0xFFD2E4FF), posunuta) > 4.5f,
+            "text na posunuté ploše musí zůstat čitelný",
+        )
+    }
+
+    /**
+     * Paleta ze zařízení (zvýšený kontrast, tmavý režim): `tertiary` i `tertiaryContainer` jsou
+     * světlé, takže se karta slila v jednu plochu i u zvýrazněné ODCHOZÍ zprávy — bublina
+     * `tertiary`, citace `tertiaryContainer`.
+     */
+    @Test
+    fun plochaSplyvajiciSJinouRoliSePosuneTaky() {
+        val bublinaTertiary = Color(0xFF96F5BF)
+        val posunuta = surfaceApart(
+            background = bublinaTertiary,
+            container = Color(0xFF9AF6C2),
+            toward = Color(0xFF004B1B),
+        )
+
+        assertTrue(contrastRatio(posunuta, bublinaTertiary) > 1.2f)
+    }
+
+    /** Plocha, která se od bubliny pozná sama, zůstává — běžná paleta se nemění. */
+    @Test
+    fun odlisenaPlochaZustane() {
+        val bublina = Color(0xFF262A31)
+        val container = Color(0xFF26486F)
+
+        assertEquals(container, surfaceApart(bublina, container, toward = Color(0xFFD2E4FF)))
+    }
+
     /** Poloprůhledný akcent se posuzuje až složený na ploše, ne podle své vlastní barvy. */
     @Test
     fun pruhlednyAkcentSePosuzujeSlozeny() {

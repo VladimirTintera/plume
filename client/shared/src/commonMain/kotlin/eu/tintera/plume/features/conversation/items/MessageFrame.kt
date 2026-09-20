@@ -80,6 +80,7 @@ import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.RichText
 import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.senderColor
+import eu.tintera.plume.core.ui.surfaceApart
 import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.features.conversation.MessageFlight
 import eu.tintera.plume.features.conversation.MessageMenu
@@ -195,6 +196,11 @@ internal class MessageBodyScope(
      */
     val accent: Color,
     /**
+     * Plocha vloženého obsahu — citace nahoře na kartě zprávy, popis webu u náhledu odkazu dole.
+     * `tertiaryContainer`, dokud se od bubliny pozná; jinak posunutá (viz [surfaceApart]).
+     */
+    val insetColor: Color,
+    /**
      * Kolik místa si obsah nechá dole. Čip reakce leží PŘES dolní nároží — dolní půlka mu visí
      * ven, horní na zprávě —, takže se rezervuje jen ta horní půlka. Platí pro to, co je ve
      * zprávě poslední: bublinu, popisek pod holou fotkou i popis náhledu odkazu.
@@ -285,6 +291,20 @@ internal fun rememberMessageBodyScope(
         animationSpec = emphasisSpec,
         label = "bubble-accent",
     )
+    /*
+     * Plocha citace a popisu webu se počítá tady se zbytkem barev, ne v místě kreslení: rozhoduje
+     * se z CÍLOVÉ barvy bubliny (z animované by se přepnula uprostřed přechodu) a výsledek se
+     * prolíná spolu s ní. Dřív skákala, protože visela rovnou na `frame.emphasized`.
+     */
+    val insetColor by animateColorAsState(
+        targetValue = surfaceApart(
+            background = targetBubble,
+            container = colors.tertiaryContainer,
+            toward = colors.onTertiaryContainer,
+        ),
+        animationSpec = emphasisSpec,
+        label = "inset-color",
+    )
 
     /*
      * Stažené nároží drží skupinu pohromadě, takže je jen TAM, KDE NA SEBE BUBLINY NAVAZUJÍ.
@@ -341,7 +361,7 @@ internal fun rememberMessageBodyScope(
     // (viz `MessageBox`).
     val contentBottom = 8.dp
 
-    return remember(scope, frame, shape, bubbleColor, onBubbleColor, accent, contentBottom) {
+    return remember(scope, frame, shape, bubbleColor, onBubbleColor, accent, insetColor, contentBottom) {
         MessageBodyScope(
             items = scope,
             frame = frame,
@@ -349,6 +369,7 @@ internal fun rememberMessageBodyScope(
             bubbleColor = bubbleColor,
             onBubbleColor = onBubbleColor,
             accent = accent,
+            insetColor = insetColor,
             contentBottom = contentBottom,
             anchor = anchor,
         )

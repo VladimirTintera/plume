@@ -47,7 +47,7 @@ import eu.tintera.plume.features.conversation.photoFrame
  *   právě barvou (`primary`) — v jiné roli by se strany rozlišovaly jen zarovnáním.
  * - **Popis webu je `tertiaryContainer`**, na obou stranách. Je to cizí vložený obsah, takže se
  *   od textu zprávy musí lišit; terciární role je v M3 na doplňkové prvky a nesplyne s žádnou
- *   z barev bublin; zvýrazněná příchozí zpráva viz [insetContainerColor].
+ *   z barev bublin. Kde by s bublinou přesto splynula, se posune — viz [MessageBodyScope.insetColor].
  * - **Šířka.** S velkým obrázkem ji určuje obrázek ([photoFrame]); bez něj obsah, nejvýš jako
  *   textová bublina, a obě části mají stejnou šířku (`IntrinsicSize.Max` — uvnitř není nic se
  *   `SubcomposeLayout`, viz „Gotchas").
@@ -120,9 +120,8 @@ internal data class LinkPreviewMessageItem(
         val hasInfo = preview.siteName != null || preview.title != null || preview.description != null
         if (!hasInfo && thumbnail == null) return
         val colors = MaterialTheme.colorScheme
-        val container = insetContainerColor()
         Surface(
-            color = container,
+            color = insetColor,
             contentColor = colors.onTertiaryContainer,
             modifier = Modifier.fillMaxWidth().then(openLink()),
         ) {
@@ -132,7 +131,7 @@ internal data class LinkPreviewMessageItem(
             ) {
                 PreviewInfo(
                     preview = preview,
-                    accent = accentOn(container, colors.tertiary, colors.onTertiaryContainer),
+                    accent = accentOn(insetColor, colors.tertiary, colors.onTertiaryContainer),
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 thumbnail?.let { photo ->

@@ -1139,8 +1139,16 @@ v `items/LinkPreviewMessageItem.kt`.
   proto, že v kompaktní kartě nic se `SubcomposeLayout` není — velký obrázek (`BoxWithConstraints`)
   má vlastní větev se šířkou z `photoFrame`.
 - **Zvýrazněná příchozí zpráva přejde do `tertiaryContainer`** — stejné barvy jako popis. Popis
-  (i citace nad odpovědí) proto ztmavne o kus k `tertiary` (`insetContainerColor`), jinak by
-  obě části splynuly.
+  (i citace nad odpovědí) se proto posune o kus k barvě popředí té plochy (`surfaceApart`,
+  `MessageBodyScope.insetColor`), jinak by obě části splynuly. **Posouvá se k `on*` roli, ne
+  k `tertiary`:** `tertiary` je přesně ta barva, na kterou se spolehnout nedá — v paletě se
+  zvýšeným kontrastem leží na téže světlosti jako `tertiaryContainer`, takže se karta slila
+  v jednu plochu i u zvýrazněné ODCHOZÍ zprávy (bublina `tertiary`, popis `tertiaryContainer`).
+  Podmínka proto není „příchozí a zvýrazněná", ale změřený kontrast vůči bublině.
+- **Posun 0,18 vyšel z porovnání s tím dřívějším** (0,22 k `tertiary`): ten dával odstup ploch
+  1,51 v tmavém a 1,35 ve světlém tématu, tenhle 1,49 a 1,35 — vzhled v běžné paletě zůstává
+  a text na posunuté ploše je pořád nad AA. Větší posun by ho ukrajoval, protože míří přesně
+  k barvě toho textu.
 - **U zprávy s citací nebo přílohou zůstává náhled v bublině** (`LinkPreviewCard`), a to jako
   tónovaný kontejner stejný jako citace (`QUOTE_CONTAINER_ALPHA`, `QUOTE_CORNER`), ne proužek.
 
@@ -1704,7 +1712,7 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   jméno nad zprávou a jméno v citaci. Osm odstínů rovnoměrně po kruhu od odstínu `primary`,
   HCT tón 40 / 80 podle režimu — kontrast i soulad s Material You, žádná barva natvrdo.
 - **Odpověď je karta ze dvou částí, jako náhled odkazu**: nahoře citace v tónované ploše
-  (`insetContainerColor`, `tertiaryContainer`), pod ní odpověď v barvě bubliny
+  (`MessageBodyScope.insetColor`, `tertiaryContainer`), pod ní odpověď v barvě bubliny
   (`QuotedBubble` v `BubbleMessageItem.kt`). Dřív byla citace subkartička uvnitř bubliny —
   zaoblená plocha v ploše, dvě vnořené karty. Jméno citovaného nese ve skupině jeho barvu,
   jinak `tertiary`.
