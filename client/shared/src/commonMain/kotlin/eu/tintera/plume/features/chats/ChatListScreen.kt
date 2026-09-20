@@ -138,26 +138,25 @@ fun ChatListScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val listState = rememberLazyListState()
+    var fabExpanded by remember { mutableStateOf(true) }
     var previousIndex by remember { mutableIntStateOf(0) }
     var previousOffset by remember { mutableIntStateOf(0) }
-    val isScrollingUp by remember {
-        derivedStateOf {
-            if (listState.firstVisibleItemIndex < previousIndex) {
-                true
-            } else if (listState.firstVisibleItemIndex > previousIndex) {
-                false
-            } else {
-                listState.firstVisibleItemScrollOffset <= previousOffset
+
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }.collect { (index, offset) ->
+            if (index == 0 && offset == 0) {
+                fabExpanded = true
+            } else if (index < previousIndex || (index == previousIndex && offset < previousOffset)) {
+                // Scroll nahoru -> rozbalit
+                fabExpanded = true
+            } else if (index > previousIndex || (index == previousIndex && offset > previousOffset)) {
+                // Scroll dolů -> sbalit
+                fabExpanded = false
             }
-        }
-    }
-    LaunchedEffect(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) {
-        previousIndex = listState.firstVisibleItemIndex
-        previousOffset = listState.firstVisibleItemScrollOffset
-    }
-    val fabExpanded by remember {
-        derivedStateOf {
-            listState.firstVisibleItemIndex == 0 || isScrollingUp
+            previousIndex = index
+            previousOffset = offset
         }
     }
 

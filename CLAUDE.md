@@ -1197,7 +1197,7 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
 
 - **M3 Expressive Extended FAB napojený na scroll.** Na začátku seznamu nebo při scrollu nahoru
   je rozbalený s textem „Nová zpráva", při scrollu dolů se plynule sbalí do kompaktní ikony,
-  aby nezakrýval řádky chatů.
+  aby nezakrýval řádky chatů, a po zastavení scrollu zůstává sbalený až do dalšího scrollu nahoru (dle M3 guidelines).
 - **Kontakty jdou z `getContacts`** a pro každý se lokálně zavolá `createPrivateChat(userId, force = false)`
   — TDLib tak pro kontakt založí chat objekt (lokálně v paměti/databázi, bez odesílání zpráv)
   a do seznamu se dostane kompletní `ChatSummary` s avatarem i dostupností (`withPresence()`).
