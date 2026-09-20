@@ -39,9 +39,9 @@ class NewChatViewModel(
     private val search = ChatSearch(chatRepository, viewModelScope, everywhere = true)
 
     val state: StateFlow<NewChatState> = combine(
-        combine(query, contacts, loading) { q, c, l -> Triple(q, c, l) },
-        combine(error, search.state, chatRepository.savedMessagesChatId) { e, s, id -> Triple(e, s, id) },
-    ) { (text, allContacts, isLoading), (err, searchState, savedId) ->
+        combine(loading, error, contacts) { l, e, c -> Triple(l, e, c) },
+        combine(query, search.state, chatRepository.savedMessagesChatId) { q, s, id -> Triple(q, s, id) },
+    ) { (isLoading, err, allContacts), (text, searchState, savedId) ->
         val trimmed = text.trim()
         if (trimmed.isEmpty()) {
             NewChatState(

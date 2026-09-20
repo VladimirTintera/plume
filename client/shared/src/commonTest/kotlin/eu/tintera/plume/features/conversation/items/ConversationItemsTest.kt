@@ -347,6 +347,28 @@ class ConversationItemsTest {
         assertEquals(Delivery.Failed, failed[1].badge)
     }
 
+    @Test
+    fun fotkaSeSpoileremSiNesePriznakVModelu() {
+        val photoWithSpoiler = photo.copy(hasSpoiler = true)
+        val msg = message(1, media = photoWithSpoiler)
+        val item = single(msg)
+        assertIs<MediaMessageItem>(item)
+        val media = item.frame.message.media
+        assertIs<MessageMedia.Photo>(media)
+        assertTrue(media.hasSpoiler)
+    }
+
+    @Test
+    fun videoSeSpoileremSiNesePriznakVModelu() {
+        val video = MessageMedia.Video(fileId = 1, thumbnailFileId = 2, width = 100, height = 100, durationSeconds = 10, hasSpoiler = true)
+        val msg = message(1, media = video)
+        val item = single(msg)
+        assertIs<MediaMessageItem>(item)
+        val media = item.frame.message.media
+        assertIs<MessageMedia.Video>(media)
+        assertTrue(media.hasSpoiler)
+    }
+
     private companion object {
         /** Poledne jednoho dne v UTC — daleko od půlnoci v každém rozumném časovém pásmu. */
         const val DAY = 86_400 * 20_000 + 43_200

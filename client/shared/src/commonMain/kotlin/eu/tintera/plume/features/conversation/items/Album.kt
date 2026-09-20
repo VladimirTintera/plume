@@ -13,12 +13,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -129,35 +135,65 @@ private fun AlbumTile(
     val uploading = member.sendState == SendState.Sending
 
     when (val media = member.media) {
-        is MessageMedia.Photo -> Box(modifier) {
-            RemoteImage(
-                fileId = media.fileId,
-                thumbnailFileId = media.thumbnailFileId,
-                contentDescription = stringResource(Res.string.media_photo),
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .sharedNavElement(photoKey(member.id))
-                    // Dlouhý stisk se opakuje — potomek s vlastním klikáním ho k bublině nepustí.
-                    .combinedClickable(onClick = onOpen, onLongClick = onRequestMenu),
-            )
-            // Každá dlaždice nahrává sama za sebe, takže má i vlastní zrušení.
-            if (uploading) {
-                UploadIndicator(
+        is MessageMedia.Photo -> {
+            var revealed by rememberSaveable(member.id) { mutableStateOf(!media.hasSpoiler) }
+            val blurRadius by animateDpAsState(if (revealed) 0.dp else 24.dp)
+            Box(
+                modifier = modifier.combinedClickable(
+                    onClick = {
+                        if (media.hasSpoiler && !revealed) {
+                            revealed = true
+                        } else {
+                            onOpen()
+                        }
+                    },
+                    onLongClick = onRequestMenu,
+                ),
+            ) {
+                RemoteImage(
                     fileId = media.fileId,
-                    onCancel = onCancelUpload,
-                    modifier = Modifier.align(Alignment.Center),
+                    thumbnailFileId = media.thumbnailFileId,
+                    contentDescription = stringResource(Res.string.media_photo),
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .sharedNavElement(photoKey(member.id))
+                        .blur(blurRadius),
                 )
+                if (media.hasSpoiler) {
+                    SpoilerOverlay(visible = !revealed)
+                }
+                // Každá dlaždice nahrává sama za sebe, takže má i vlastní zrušení.
+                if (uploading) {
+                    UploadIndicator(
+                        fileId = media.fileId,
+                        onCancel = onCancelUpload,
+                        modifier = Modifier.align(Alignment.Center),
+                    )
+                }
             }
         }
 
-        is MessageMedia.Video -> VideoThumbnail(
-            video = media,
-            messageId = member.id,
-            uploading = uploading,
-            onCancelUpload = onCancelUpload,
-            modifier = modifier.combinedClickable(onClick = onOpen, onLongClick = onRequestMenu),
-        )
+        is MessageMedia.Video -> {
+            var revealed by rememberSaveable(member.id) { mutableStateOf(!media.hasSpoiler) }
+            VideoThumbnail(
+                video = media,
+                messageId = member.id,
+                uploading = uploading,
+                onCancelUpload = onCancelUpload,
+                revealed = revealed,
+                modifier = modifier.combinedClickable(
+                    onClick = {
+                        if (media.hasSpoiler && !revealed) {
+                            revealed = true
+                        } else {
+                            onOpen()
+                        }
+                    },
+                    onLongClick = onRequestMenu,
+                ),
+            )
+        }
 
         is MessageMedia.Attachment -> Box(modifier.combinedClickable(onClick = {}, onLongClick = onRequestMenu)) {
             val uploadingFile = media.fileId?.takeIf { uploading }

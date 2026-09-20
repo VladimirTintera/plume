@@ -16,15 +16,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -105,14 +111,10 @@ internal fun MessageAttachment(
             // Rámeček i jeho pravidla jsou v `photoFrame` (s testy): fotka se zužuje, neořezává.
             BoxWithConstraints {
                 val frame = photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), fillWidth)
+                var revealed by rememberSaveable(messageId) { mutableStateOf(!media.hasSpoiler) }
+                val blurRadius by animateDpAsState(if (revealed) 0.dp else 24.dp)
 
-                RemoteImage(
-                    fileId = media.fileId,
-                    thumbnailFileId = media.thumbnailFileId,
-                    contentDescription = stringResource(Res.string.media_photo),
-                    // `Crop` dořeší podlahu šířky (extrémně vysoká fotka, fotka s popiskem):
-                    // poměr stran zůstává a vidět je prostředek. Jinak není co ořezávat.
-                    contentScale = ContentScale.Crop,
+                Box(
                     modifier = Modifier
                         .size(frame)
                         .clip(pictureShape)
@@ -124,15 +126,40 @@ internal fun MessageAttachment(
                          * Dlouhý stisk se musí zopakovat tady: potomek s vlastním klikáním ho
                          * nepustí k rodiči, takže by nad fotkou nešla otevřít nabídka.
                          */
-                        .combinedClickable(onClick = onOpen, onLongClick = onRequestMenu),
-                )
-
-                if (uploading) {
-                    UploadIndicator(
+                        .combinedClickable(
+                            onClick = {
+                                if (media.hasSpoiler && !revealed) {
+                                    revealed = true
+                                } else {
+                                    onOpen()
+                                }
+                            },
+                            onLongClick = onRequestMenu,
+                        ),
+                ) {
+                    RemoteImage(
                         fileId = media.fileId,
-                        onCancel = onCancelUpload,
-                        modifier = Modifier.align(Alignment.Center),
+                        thumbnailFileId = media.thumbnailFileId,
+                        contentDescription = stringResource(Res.string.media_photo),
+                        // `Crop` dořeší podlahu šířky (extrémně vysoká fotka, fotka s popiskem):
+                        // poměr stran zůstává a vidět je prostředek. Jinak není co ořezávat.
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .blur(blurRadius),
                     )
+
+                    if (media.hasSpoiler) {
+                        SpoilerOverlay(visible = !revealed)
+                    }
+
+                    if (uploading) {
+                        UploadIndicator(
+                            fileId = media.fileId,
+                            onCancel = onCancelUpload,
+                            modifier = Modifier.align(Alignment.Center),
+                        )
+                    }
                 }
             }
         }
@@ -178,16 +205,27 @@ internal fun MessageAttachment(
         is MessageMedia.Video -> BoxWithConstraints {
             // Stejný rámeček jako fotka: video na výšku se zúží, místo aby přišlo o kraje.
             val frame = photoFrame(maxWidth, media.albumRatio(), fillWidth)
+            var revealed by rememberSaveable(messageId) { mutableStateOf(!media.hasSpoiler) }
             VideoThumbnail(
                 video = media,
                 messageId = messageId,
                 uploading = uploading,
                 onCancelUpload = onCancelUpload,
+                revealed = revealed,
                 modifier = Modifier
                     .size(frame)
                     .clip(pictureShape)
                     // Dlouhý stisk se opakuje — potomek s vlastním klikáním ho k bublině nepustí.
-                    .combinedClickable(onClick = onOpen, onLongClick = onRequestMenu),
+                    .combinedClickable(
+                        onClick = {
+                            if (media.hasSpoiler && !revealed) {
+                                revealed = true
+                            } else {
+                                onOpen()
+                            }
+                        },
+                        onLongClick = onRequestMenu,
+                    ),
             )
         }
 
@@ -363,19 +401,24 @@ internal fun VideoThumbnail(
     uploading: Boolean,
     onCancelUpload: () -> Unit,
     modifier: Modifier = Modifier,
+    revealed: Boolean = true,
 ) {
+    val blurRadius by animateDpAsState(if (revealed) 0.dp else 24.dp)
     Box(modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
         video.thumbnailFileId?.let { thumbnail ->
             RemoteImage(
                 fileId = thumbnail,
                 contentDescription = stringResource(Res.string.media_video),
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().sharedNavElement(photoKey(messageId)),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .sharedNavElement(photoKey(messageId))
+                    .blur(blurRadius),
             )
         }
         if (uploading) {
             UploadIndicator(fileId = video.fileId, onCancel = onCancelUpload, modifier = Modifier.align(Alignment.Center))
-        } else {
+        } else if (revealed) {
             Box(
                 Modifier
                     .align(Alignment.Center)
@@ -392,17 +435,22 @@ internal fun VideoThumbnail(
                 )
             }
         }
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
-            contentColor = Color.White,
-            modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
-        ) {
-            Text(
-                text = formatDuration(video.durationSeconds),
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-            )
+        if (video.hasSpoiler) {
+            SpoilerOverlay(visible = !revealed)
+        }
+        if (revealed) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
+                contentColor = Color.White,
+                modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
+            ) {
+                Text(
+                    text = formatDuration(video.durationSeconds),
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                )
+            }
         }
     }
 }

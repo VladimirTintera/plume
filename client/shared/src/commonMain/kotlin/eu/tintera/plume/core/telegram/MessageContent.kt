@@ -335,7 +335,7 @@ private fun Thumbnail?.picture(): Thumbnail? = this?.takeIf { it.format !is Thum
 
 /** Příloha zprávy, nebo `null` u čistě textové. */
 internal suspend fun Message.messageMedia(): MessageMedia? = when (val content = this.content) {
-    is MessagePhoto -> content.photo.toMedia()
+    is MessagePhoto -> content.photo.toMedia(hasSpoiler = content.hasSpoiler)
 
     is MessageVideo -> MessageMedia.Video(
         fileId = content.video.video.id,
@@ -344,6 +344,7 @@ internal suspend fun Message.messageMedia(): MessageMedia? = when (val content =
         width = content.video.width,
         height = content.video.height,
         durationSeconds = content.video.duration,
+        hasSpoiler = content.hasSpoiler,
     )
 
     is MessageAnimation -> MessageMedia.Attachment(
@@ -476,7 +477,7 @@ internal fun Message.linkPreview(): LinkPreview? {
  * Do bubliny se bere největší varianta do [MAX_DISPLAY_EDGE]; originál by u fotky z foťáku znamenal
  * desítky megabajtů kvůli obrázku širokému pár set bodů.
  */
-private fun Photo.toMedia(): MessageMedia.Photo? {
+private fun Photo.toMedia(hasSpoiler: Boolean = false): MessageMedia.Photo? {
     val available = sizes.filterNotNull().ifEmpty { return null }
 
     val display = available
@@ -498,6 +499,7 @@ private fun Photo.toMedia(): MessageMedia.Photo? {
         fullFileId = full.photo.id,
         width = display.width,
         height = display.height,
+        hasSpoiler = hasSpoiler,
     )
 }
 
