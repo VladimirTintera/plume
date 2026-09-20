@@ -163,7 +163,7 @@ import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.features.conversation.items.BUBBLE_CORNER
-import eu.tintera.plume.features.conversation.items.CenteredNote
+import eu.tintera.plume.features.conversation.items.FloatingDayBadge
 import eu.tintera.plume.features.conversation.items.ConversationItemScope
 import eu.tintera.plume.features.conversation.items.DayDividerItem
 import eu.tintera.plume.features.conversation.items.MESSAGE_SPACING
@@ -1085,10 +1085,8 @@ fun ConversationScreen(
                 exit = fadeOut(),
                 modifier = Modifier.align(Alignment.TopCenter),
             ) {
-                CenteredNote(
+                FloatingDayBadge(
                     text = floatingDay,
-                    // Stín ho odlepí od zpráv, které pod ním projíždějí.
-                    shadowElevation = 3.dp,
                     modifier = Modifier.padding(top = 8.dp + pinnedHeight),
                 )
             }

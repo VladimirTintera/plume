@@ -1,8 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -16,7 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.ui.asDayLabel
@@ -65,16 +62,12 @@ internal fun RevealingTime(
 
 /**
  * Předěl „Nepřečtené zprávy".
- *
- * Akcentní barva, ne šedá jako u data: je to jediná věc na obrazovce, kterou uživatel po otevření
- * chatu opravdu hledá.
  */
 @Composable
 internal fun UnreadDivider(modifier: Modifier = Modifier) {
     CenteredNote(
         text = stringResource(Res.string.conversation_unread_divider),
-        color = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier.padding(top = DAY_DIVIDER_SPACING, bottom = DIVIDER_BOTTOM_SPACING),
     )
 }
@@ -94,17 +87,11 @@ internal fun ServiceMessage(message: ChatMessage, modifier: Modifier = Modifier)
  *
  * Bez něj se v delší historii nedá poznat, kde končí včerejšek — u zprávy se vypisují jen hodiny,
  * protože datum má nést právě tohle.
- *
- * Vypadá stejně jako systémové oznámení schválně: obojí je poznámka na okraji konverzace, ne
- * zpráva od někoho. Dvě různá pojetí téhož by seznam jen roztříštila.
  */
 @Composable
 internal fun DayDivider(timestamp: Int, modifier: Modifier = Modifier) {
     CenteredNote(
-        // S časem první zprávy dne, jako v Google Zprávách („Včera · 21:00"). V bublině čas není,
-        // takže tohle je vedle časových předělů jediné místo, kde je vidět bez tahu doleva.
         text = stringResource(Res.string.date_with_time, timestamp.asDayLabel(), timestamp.asTimeOfDay()),
-        // Víc místa než u oznámení: předěl odděluje bloky, takže potřebuje kolem sebe vzduch.
         modifier = modifier.padding(top = DAY_DIVIDER_SPACING, bottom = DIVIDER_BOTTOM_SPACING),
     )
 }
@@ -126,37 +113,51 @@ internal fun TimeDivider(timestamp: Int, modifier: Modifier = Modifier) {
 }
 
 /**
- * Poznámka na střed konverzace.
+ * Plovoucí odznak dne při scrollování nad zprávami.
  *
- * Malé písmo v `surfaceContainer` — nemá to soupeřit s bublinami, jen říct, co se mezi nimi děje.
+ * Má zaoblenou pilulku a stín, aby byl čitelný nad projíždějícím obsahem.
+ */
+@Composable
+internal fun FloatingDayBadge(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(BUBBLE_CORNER),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        shadowElevation = 3.dp,
+        modifier = modifier,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+        )
+    }
+}
+
+/**
+ * Informativní systémová poznámka na střed konverzace (předěly času, data, oznámení apod.).
+ *
+ * Zobrazuje se čistě textově bez pilulky v decentní barvě [color].
  */
 @Composable
 internal fun CenteredNote(
     text: String,
     modifier: Modifier = Modifier,
-    /** Nenulová jen u plovoucí varianty, která leží nad zprávami místo mezi nimi. */
-    shadowElevation: Dp = 0.dp,
-    color: Color = MaterialTheme.colorScheme.surfaceContainer,
-    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        Surface(
-            shape = RoundedCornerShape(BUBBLE_CORNER),
-            color = color,
-            contentColor = contentColor,
-            shadowElevation = shadowElevation,
-        ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelMedium,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            )
-        }
-    }
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium.tabularNumbers(),
+        color = color,
+        textAlign = TextAlign.Center,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 4.dp),
+    )
 }
 
 /** Vzduch kolem předělu dne. Odděluje bloky, takže potřebuje víc než rozestup mezi zprávami. */
