@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.senderColor
 
 /**
@@ -62,12 +63,18 @@ internal data class BubbleMessageItem(
                     onClick = message.replyToMessageId?.let { id -> { act(MessageAction.JumpTo(id)) } },
                     onLongClick = ::requestMenu,
                     // Citace někoho ze skupiny nese jeho barvu, jako jméno nad jeho zprávou;
-                    // jinak akcent tónované plochy.
-                    accent = if (!quote.isOutgoing && quote.senderName != null) {
-                        senderColor(quote.senderId)
-                    } else {
-                        MaterialTheme.colorScheme.tertiary
-                    },
+                    // jinak akcent tónované plochy. Obojí projde kontrolou proti té ploše —
+                    // ve zvýrazněné zprávě se `tertiary` s `tertiaryContainer` může potkat
+                    // na téže světlosti (viz accentOn).
+                    accent = accentOn(
+                        background = insetContainerColor(),
+                        accent = if (!quote.isOutgoing && quote.senderName != null) {
+                            senderColor(quote.senderId)
+                        } else {
+                            MaterialTheme.colorScheme.tertiary
+                        },
+                        fallback = MaterialTheme.colorScheme.onTertiaryContainer,
+                    ),
                     contained = false,
                 )
             },
@@ -79,7 +86,7 @@ internal data class BubbleMessageItem(
     @Composable
     private fun MessageBodyScope.Content() {
         Column {
-            SenderName()
+            SenderName(background = bubbleColor)
 
             if (album != null) {
                 Album(members = album, accent = accent)

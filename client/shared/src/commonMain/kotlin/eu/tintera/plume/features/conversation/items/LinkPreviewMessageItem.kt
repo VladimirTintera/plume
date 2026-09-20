@@ -22,12 +22,14 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.features.conversation.CAPTIONED_MIN_WIDTH_FRACTION
 import eu.tintera.plume.features.conversation.photoFrame
 
@@ -118,8 +120,9 @@ internal data class LinkPreviewMessageItem(
         val hasInfo = preview.siteName != null || preview.title != null || preview.description != null
         if (!hasInfo && thumbnail == null) return
         val colors = MaterialTheme.colorScheme
+        val container = insetContainerColor()
         Surface(
-            color = insetContainerColor(),
+            color = container,
             contentColor = colors.onTertiaryContainer,
             modifier = Modifier.fillMaxWidth().then(openLink()),
         ) {
@@ -127,7 +130,11 @@ internal data class LinkPreviewMessageItem(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = contentBottom + 2.dp),
             ) {
-                PreviewInfo(preview, Modifier.weight(1f, fill = false))
+                PreviewInfo(
+                    preview = preview,
+                    accent = accentOn(container, colors.tertiary, colors.onTertiaryContainer),
+                    modifier = Modifier.weight(1f, fill = false),
+                )
                 thumbnail?.let { photo ->
                     RemoteImage(
                         fileId = photo.fileId,
@@ -153,17 +160,21 @@ internal data class LinkPreviewMessageItem(
 }
 
 /**
- * Web, titulek a popis. Název webu nese akcent té plochy, na které leží (`tertiary` na
+ * Web, titulek a popis. Název webu nese [accent] té plochy, na které leží (`tertiary` na
  * `tertiaryContainer`), titulek a popis její barvu popředí.
+ *
+ * Akcent se podává zvenku, protože plochu zná volající — a protože se na ní `tertiary` nemusí
+ * uhlídat: v paletě se zvýšeným kontrastem je v tmavém režimu `tertiaryContainer` světlý a název
+ * webu na něm zmizel. Rozhoduje o tom [accentOn], tatáž past jako u citace.
  */
 @Composable
-internal fun PreviewInfo(preview: LinkPreview, modifier: Modifier = Modifier) {
+internal fun PreviewInfo(preview: LinkPreview, accent: Color, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         preview.siteName?.let {
             Text(
                 text = it,
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.tertiary,
+                color = accent,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
