@@ -1,0 +1,64 @@
+#!/bin/sh
+#
+# Poznámka k vydání musí být ve větvi dřív, než z ní vznikne PR.
+#
+# Hlídá to i workflow „Release notes", jenže to se ozve až po pushnutí a otevření PR —
+# tedy ve chvíli, kdy se k tomu člověk musí vracet. Tenhle hook říká totéž o krok dřív
+# a **týmž skriptem** (`.github/scripts/release_notes.py`), aby se obě kontroly nemohly
+# rozejít.
+#
+# Zapíná se jednou na klon:   git config core.hooksPath .githooks
+# Obejít jednorázově:         git push --no-verify
+#
+# Nekontroluje se:
+#  - tagy — release se vydává pushnutím tagu `android-<versionName>-<versionCode>`
+#    a poznámky v něm už dávno jsou; blokovat ho by znamenalo rozbít vydávání,
+#  - `main` — tam se nic nedostane jinak než sloučením PR, který kontrolou prošel,
+#  - mazání větve.
+set -u
+
+# Bez known `origin/main` není co s čím porovnat (čerstvý klon bez fetche, jiný remote).
+git rev-parse --verify --quiet refs/remotes/origin/main >/dev/null || exit 0
+
+zero=$(git hash-object --stdin </dev/null | tr '0-9a-f' '0')
+status=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ -n "${local_ref:-}" ] || continue
+    [ "$local_sha" = "$zero" ] && continue
+
+    case "$local_ref" in refs/tags/*) continue ;; esac
+    case "$remote_ref" in refs/heads/main) continue ;; esac
+
+    base=$(git merge-base refs/remotes/origin/main "$local_sha" 2>/dev/null) || continue
+
+    added=$(git diff --diff-filter=A --name-only "$base" "$local_sha" -- 'release-notes/*.md')
+    if [ -z "$added" ]; then
+        branch=${local_ref#refs/heads/}
+        echo "chyba: větev '$branch' nepřidává poznámku do release-notes/." >&2
+        echo "       Přidej release-notes/$(echo "$branch" | tr '/' '-').md s řádky type:/cs:/en:" >&2
+        echo "       (nebo jen 'type: internal', když uživatel nic nepozná)." >&2
+        status=1
+        continue
+    fi
+
+    # Formát se čte Z PUSHOVANÉHO COMMITU, ne z pracovního stromu: pushnout jde i starší
+    # commit, než na jaký se člověk zrovna dívá, a hlídá se to, co uvidí CI.
+    command -v python3 >/dev/null 2>&1 || {
+        echo "poznámka: python3 tu není, formát poznámky ověří až CI." >&2
+        continue
+    }
+
+    changed=$(git diff --diff-filter=AM --name-only "$base" "$local_sha" -- 'release-notes/*.md')
+    tmp=$(mktemp -d) || exit 1
+    for file in $changed; do
+        git show "$local_sha:$file" > "$tmp/$(basename "$file")" || status=1
+    done
+    # Kontrola běží AŽ V TOM adresáři, aby se v hlášce objevilo jméno poznámky,
+    # a ne cesta do /var/folders, ve které ji nikdo nehledá.
+    script=$(git rev-parse --show-toplevel)/.github/scripts/release_notes.py
+    (cd "$tmp" && python3 "$script" check ./*.md) || status=1
+    rm -rf "$tmp"
+done
+
+exit $status

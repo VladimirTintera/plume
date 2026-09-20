@@ -292,6 +292,21 @@ en: Search in the chat list
 `type` je `feat`, `fix`, nebo `internal` (dokumentace, CI, refaktoring — pak bez `cs`/`en`).
 Formát, ořez i skládání jsou v `.github/scripts/release_notes.py`.
 
+**Chybějící poznámku hlídá `pre-push` hook, ne až CI** (`.githooks/pre-push`, zapíná se jednou
+na klon: `git config core.hooksPath .githooks`; obejít jde `git push --no-verify`).
+
+- **Hlídá se až při pushi, ne při commitu.** U vícekolového PR přijde poznámka běžně až s druhým
+  commitem, takže pre-commit by hlásil falešný poplach u každého předchozího. Push je okamžik,
+  kdy z větve vzniká PR.
+- **Tagy a `main` hook přeskakuje.** Release se vydává pushnutím tagu `android-…` a poznámky
+  v něm už dávno jsou — blokovat ho by znamenalo rozbít vydávání. Do `main` se nic nedostane
+  jinak než sloučením PR, který kontrolou prošel.
+- **Formát se čte Z PUSHOVANÉHO COMMITU** (`git show`), ne z pracovního stromu: pushnout jde
+  i starší commit, a hlídat se má to, co uvidí CI.
+- **Kontrolu dělá TENTÝŽ skript jako workflow.** Dvě kopie pravidel by se rozešly a lokální
+  kontrola by začala pouštět dál, co CI zamítne. `release_notes.py` proto jen podle
+  `GITHUB_ACTIONS` přepíná, jestli chybu vypsat jako anotaci GitHubu, nebo jako větu.
+
 - **Píše se pro uživatele, ne pro vývojáře.** „Hledání v seznamu chatů", ne „ChatSearchBar přes
   AppBarWithSearch". Co uživatel nepozná, je `internal` — i tak se soubor přidává, jinak by
   nešlo odlišit „nic pro uživatele" od „zapomenuto".

@@ -19,6 +19,7 @@ poznámky z tagu reprodukovatelné stejně jako verze.
     release_notes.py markdown <prev-tag|""> <tag>        – sekce do popisu GitHub Release
 """
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -118,7 +119,12 @@ def main(argv):
                 parse(Path(path).read_text(encoding="utf-8"), path)
                 print(f"ok: {path}")
             except ValueError as error:
-                print(f"::error file={path}::{error}")
+                # Na CI jako anotace u souboru, jinak prostě chyba — pre-push hook tím
+                # vypisuje čitelnou větu, ne značkování GitHubu.
+                if os.environ.get("GITHUB_ACTIONS"):
+                    print(f"::error file={path}::{error}")
+                else:
+                    print(f"chyba: {error}", file=sys.stderr)
                 failed = True
         return 1 if failed else 0
 
