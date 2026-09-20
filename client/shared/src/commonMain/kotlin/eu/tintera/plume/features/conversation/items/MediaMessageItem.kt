@@ -28,6 +28,10 @@ import eu.tintera.plume.features.conversation.CAPTIONED_MIN_WIDTH_FRACTION
  * snímku** — zalomí se do ní. Dřív byly snímek a popisek dva kusy se spárou a popisek byl široký
  * jako jeho text: u krátkého čouhalo zaoblené nároží a vypadal jako další, useknutá zpráva;
  * u dlouhého se roztáhl vedle zúžené fotky.
+ *
+ * **Řádek snímek nezabere celý** (výchozí [MESSAGE_MAX_WIDTH_FRACTION]). Bez bubliny nemá barvu,
+ * podle které by se poznal odesílatel, takže volný pruh na protější straně je tu jediné vodítko —
+ * na fotku přes celou šířku se obě strany konverzace dívaly stejně.
  */
 @Immutable
 internal data class MediaMessageItem(

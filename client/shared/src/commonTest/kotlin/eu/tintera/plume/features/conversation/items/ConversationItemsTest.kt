@@ -314,6 +314,31 @@ class ConversationItemsTest {
     }
 
     @Test
+    fun zadnyBlokZpravyNezabereCelyRadek() {
+        /*
+         * Protější strana musí zůstat volná u KAŽDÉHO druhu zprávy, ne jen u textu. Holý snímek
+         * ani album nemá bublinu, takže barvu, podle které by se odesílatel poznal, nemá vůbec —
+         * fotka přes celý řádek vypadala na obou stranách konverzace stejně.
+         */
+        val blocks = listOf(
+            single(message(1)),
+            single(message(2, text = "🙂🙂")),
+            single(message(3, text = "", media = sticker)),
+            single(message(4, text = "popisek", media = photo)),
+            single(message(5, text = "https://example.com", linkPreview = preview())),
+            single(message(6, text = "https://example.com", linkPreview = preview(large = false))),
+        )
+
+        blocks.forEach { block ->
+            val item = assertIs<MessageItem>(block)
+            assertTrue(
+                item.maxWidthFraction < 1f,
+                "${item::class.simpleName} zabere celý řádek (${item.maxWidthFraction})",
+            )
+        }
+    }
+
+    @Test
     fun selhaneOdeslaniJeVidetVzdycky() {
         val failed = items(
             message(3, isOutgoing = true),

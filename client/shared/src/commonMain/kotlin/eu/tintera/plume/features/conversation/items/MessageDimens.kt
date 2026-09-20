@@ -21,3 +21,17 @@ internal const val MAX_LARGE_EMOJI = 3
 
 /** Rozestup mezi zprávami téhož odesílatele. Patří k sobě, tak se drží u sebe. */
 internal val MESSAGE_SPACING = 4.dp
+
+/**
+ * Nejvyšší šířka zprávy jako podíl řádku — pro KAŽDÝ druh bloku, ne jen pro text.
+ *
+ * Zpráva přes celou šířku nechá na obou stranách stejný okraj, takže se strany konverzace poznají
+ * jen podle barvy. U textu to bylo nepříjemné, u fotky je to slepá ulička: holý snímek se kreslí
+ * na plochu bez bubliny (viz `showsBareMedia`), takže **žádnou barvu, podle které by se strana
+ * poznala, nemá** — u obrázku přes celý řádek nešlo na první pohled říct, kdo ho poslal.
+ *
+ * Volný pruh na protější straně je proto pravidlo rámu, ne vlastnost jednoho bloku: nese ho
+ * výchozí `MessageItem.maxWidthFraction`, takže nový druh zprávy ho dostane sám od sebe a šířka
+ * přes celý řádek je vědomá výjimka. Google Zprávy i Telegram drží podobný okraj.
+ */
+internal const val MESSAGE_MAX_WIDTH_FRACTION = 0.82f

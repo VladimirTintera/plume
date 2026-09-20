@@ -1132,8 +1132,9 @@ Messages.
   další, useknutá zpráva, u dlouhého se roztáhl vedle zúžené fotky.
 - **Šířku popisku dává vlastní `Layout`, ne `IntrinsicSize`.** Snímek je v `BoxWithConstraints`
   a ten intrinsické míry neumí (viz „Gotchas"); layout změří snímek a popisku dá jeho šířku napevno.
-- **Karta se zarovnává ke straně odesílatele** (`horizontalAlignment` podle `isOutgoing`) — užší
-  než řádek je skoro vždycky, protože fotka se zužuje.
+- **Karta se zarovnává ke straně odesílatele** (`horizontalAlignment` podle `isOutgoing`) a užší
+  než řádek je VŽDYCKY: strop 82 % platí i tady (viz „Vzhled konverzace"). Dokud šla fotka na
+  šířku přes celý řádek, bylo zarovnání k ničemu — okraj vyšel na obou stranách stejný.
 - **Snímek bez popisku přebírá tvar bubliny** (`mediaShape`), aby navazoval na sousedy v bloku;
   s popiskem je rovný a ořezává karta.
   Náhled souboru v řádku si drží svých 12 dp — velké zaoblení bubliny by z 48dp čtverečku udělalo
@@ -1159,8 +1160,8 @@ v `items/LinkPreviewMessageItem.kt`.
 - **Dvě plochy, ne proužek.** Malý náhled byl dřív uvnitř bubliny oddělený proužkem akcentu
   vlevo (převzatým z citace) — jazyk M2. Odlišná plocha dělá totéž bez čáry navíc a karta
   vypadá stejně s velkým obrázkem i bez něj.
-- **Bez velkého obrázku je karta široká podle obsahu**, nejvýš jako textová bublina
-  (`TEXT_MAX_WIDTH_FRACTION`), a obě části mají stejnou šířku (`IntrinsicSize.Max`). Smí to jen
+- **Bez velkého obrázku je karta široká podle obsahu**, nejvýš jako každá jiná zpráva
+  (`MESSAGE_MAX_WIDTH_FRACTION`), a obě části mají stejnou šířku (`IntrinsicSize.Max`). Smí to jen
   proto, že v kompaktní kartě nic se `SubcomposeLayout` není — velký obrázek (`BoxWithConstraints`)
   má vlastní větev se šířkou z `photoFrame`.
 - **Zvýrazněná příchozí zpráva přejde do `tertiaryContainer`** — stejné barvy jako popis. Popis
@@ -1730,9 +1731,15 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
 
 ### Vzhled konverzace
 
-- **Textová bublina má strop 82 % řádku** (`MessageItem.maxWidthFraction`, jen `BubbleMessageItem`).
-  Dlouhé zprávy obou stran šly přes celou šířku a strany se poznaly jen barvou. Obrázky a karty
-  si šířku určují samy; kopie zprávy v nabídce má šířku napevno.
+- **Žádná zpráva nezabere celý řádek: strop je 82 %** (`MESSAGE_MAX_WIDTH_FRACTION`, výchozí
+  hodnota `MessageItem.maxWidthFraction`). Volný pruh na protější straně je pravidlo RÁMU, ne
+  vlastnost jednoho bloku — nový druh zprávy ho dostane sám od sebe a celá šířka je vědomá výjimka.
+  Dřív ho měla jen textová bublina a obrázky si šířku určovaly samy: **holá fotka, album i karta
+  náhledu odkazu s velkým obrázkem šly přes celý řádek**, a protože se kreslí bez bubliny, neměly
+  ani barvu, podle které by se odesílatel poznal — na obou stranách konverzace vypadaly stejně.
+  Hlídá to test `zadnyBlokZpravyNezabereCelyRadek` (projde všechny druhy bloků), aby se šířka
+  přes celý řádek nevrátila zadem u dalšího typu zprávy. Kopie zprávy v nabídce dostává tentýž
+  podíl i totéž omezení šířky jako zpráva v seznamu.
 - **Odesílatel ve skupině má stálou barvu** (`senderColor` v `core/ui`, testy `SenderColorTest`):
   jméno nad zprávou a jméno v citaci. Osm odstínů rovnoměrně po kruhu od odstínu `primary`,
   HCT tón 40 / 80 podle režimu — kontrast i soulad s Material You, žádná barva natvrdo.

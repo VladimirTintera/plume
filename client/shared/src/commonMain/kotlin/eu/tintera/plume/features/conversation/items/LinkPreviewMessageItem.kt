@@ -48,9 +48,10 @@ import eu.tintera.plume.features.conversation.photoFrame
  * - **Popis webu je `tertiaryContainer`**, na obou stranách. Je to cizí vložený obsah, takže se
  *   od textu zprávy musí lišit; terciární role je v M3 na doplňkové prvky a nesplyne s žádnou
  *   z barev bublin. Kde by s bublinou přesto splynula, se posune — viz [MessageBodyScope.insetColor].
- * - **Šířka.** S velkým obrázkem ji určuje obrázek ([photoFrame]); bez něj obsah, nejvýš jako
- *   textová bublina, a obě části mají stejnou šířku (`IntrinsicSize.Max` — uvnitř není nic se
- *   `SubcomposeLayout`, viz „Gotchas").
+ * - **Šířka.** S velkým obrázkem ji určuje obrázek ([photoFrame]); bez něj obsah. Řádek karta
+ *   nikdy nezabere celý — protější strana zůstává volná jako u každé zprávy
+ *   ([MESSAGE_MAX_WIDTH_FRACTION]). Obě části mají stejnou šířku (`IntrinsicSize.Max` — uvnitř
+ *   není nic se `SubcomposeLayout`, viz „Gotchas").
  * - **Barvu z obrázku nevytahujeme.** TDLib u náhledu žádnou barvu neposílá a kvantizace z bitmapy
  *   by znamenala keš na `fileId` a počítání mimo hlavní vlákno.
  */
@@ -59,9 +60,6 @@ internal data class LinkPreviewMessageItem(
     override val frame: MessageFrameData,
     val preview: LinkPreview,
 ) : MessageItem {
-
-    override val maxWidthFraction: Float
-        get() = if (preview.showsLargePhoto) 1f else TEXT_MAX_WIDTH_FRACTION
 
     @Composable
     override fun MessageBodyScope.Body() {
