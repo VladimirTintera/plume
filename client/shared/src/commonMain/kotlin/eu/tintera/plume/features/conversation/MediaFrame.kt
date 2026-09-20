@@ -47,7 +47,8 @@ internal fun photoFrame(
 ): DpSize {
     val safeRatio = if (ratio.isFinite() && ratio > 0f) ratio else 1f
     val natural = (available / safeRatio).coerceAtMost(MAX_PHOTO_HEIGHT)
-    val width = if (fillWidth) available else (natural * safeRatio).coerceIn(MIN_PHOTO_WIDTH, available)
+    val minWidth = MIN_PHOTO_WIDTH.coerceAtMost(available)
+    val width = if (fillWidth) available else (natural * safeRatio).coerceIn(minWidth, available)
     // Po rozšíření na plnou šířku se výška dopočítá znovu (se stropem): panorama s popiskem se tak
     // nenatáhne do výšky, jen vysoký snímek dostane strop a ořízne se na střed.
     val height = (width / safeRatio).coerceAtMost(MAX_PHOTO_HEIGHT)

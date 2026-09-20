@@ -685,6 +685,7 @@ sealed interface MessageMedia {
         val fullFileId: Int,
         val width: Int,
         val height: Int,
+        val hasSpoiler: Boolean = false,
     ) : MessageMedia
 
     /**
@@ -699,6 +700,7 @@ sealed interface MessageMedia {
         val width: Int,
         val height: Int,
         val durationSeconds: Int,
+        val hasSpoiler: Boolean = false,
     ) : MessageMedia
 
     /**
