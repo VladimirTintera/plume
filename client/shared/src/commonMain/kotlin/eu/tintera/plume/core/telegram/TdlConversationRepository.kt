@@ -29,6 +29,9 @@ import dev.g000sha256.tdl.dto.InputVideo
 import dev.g000sha256.tdl.dto.InputVoiceNote
 import dev.g000sha256.tdl.dto.Message
 import dev.g000sha256.tdl.dto.MessageInteractionInfo
+import dev.g000sha256.tdl.dto.MessageSelfDestructType
+import dev.g000sha256.tdl.dto.MessageSelfDestructTypeImmediately
+import dev.g000sha256.tdl.dto.MessageSelfDestructTypeTimer
 import dev.g000sha256.tdl.dto.MessageReadDateMyPrivacyRestricted
 import dev.g000sha256.tdl.dto.MessageReadDateRead
 import dev.g000sha256.tdl.dto.MessageReadDateTooOld
@@ -537,8 +540,8 @@ class TdlConversationRepository(
                 ),
                 caption = caption,
                 showCaptionAboveMedia = false,
-                selfDestructType = null,
-                hasSpoiler = false,
+                selfDestructType = selfDestructType?.toTdl(),
+                hasSpoiler = hasSpoiler,
             )
 
             is OutgoingAttachment.Video -> InputMessageVideo(
@@ -557,8 +560,8 @@ class TdlConversationRepository(
                 ),
                 caption = caption,
                 showCaptionAboveMedia = false,
-                selfDestructType = null,
-                hasSpoiler = false,
+                selfDestructType = selfDestructType?.toTdl(),
+                hasSpoiler = hasSpoiler,
             )
 
             is OutgoingAttachment.Document -> InputMessageDocument(
@@ -1025,6 +1028,11 @@ private fun replyTo(messageId: Long) = InputMessageReplyToMessage(
     checklistTaskId = 0,
     pollOptionId = "",
 )
+
+private fun SelfDestructType.toTdl(): MessageSelfDestructType = when (this) {
+    is SelfDestructType.Immediately -> MessageSelfDestructTypeImmediately()
+    is SelfDestructType.Timer -> MessageSelfDestructTypeTimer(seconds)
+}
 
 /** Připnutých zpráv na jeden dotaz. Víc TDLib nedovolí. */
 private const val PINNED_PAGE_SIZE = 100

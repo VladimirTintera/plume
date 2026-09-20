@@ -120,3 +120,8 @@ fun chatTitleKey(chatId: Long): String = "chat-title-$chatId"
  * Id zprávy stačí — fotka je ve zprávě nejvýš jedna a v rámci chatu jsou id jedinečná.
  */
 fun photoKey(messageId: Long): String = "photo-$messageId"
+
+/**
+ * Klíč páru náhled přílohy nad vstupem ↔ celoobrazovkový náhled.
+ */
+fun attachmentKey(path: String): String = "attachment-$path"

@@ -463,10 +463,14 @@ class MediaViewerViewModel(
         )
     }
 
-    /** Uživatel zavírá prohlížeč (gestem, křížkem). */
+    /** Uživatel zavírá prohlížeč (gestem, křížkem, tlačítkem Zpět). */
     fun onDismiss() {
         if (_state.value.isSelfDestruct) {
-            timers.markConsumed(messageId)
+            val type = _state.value.selfDestructType
+            val remaining = _state.value.remainingSeconds ?: timers.remainingSeconds(messageId)
+            if (type is SelfDestructType.Immediately || type == null || (remaining != null && remaining <= 0)) {
+                timers.markConsumed(messageId)
+            }
         }
     }
 

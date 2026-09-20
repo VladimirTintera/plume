@@ -40,6 +40,7 @@ import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.ReactionDetail
+import eu.tintera.plume.core.telegram.SelfDestructType
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.SentMessageUpdate
 import eu.tintera.plume.core.telegram.SponsoredMessage
@@ -857,6 +858,58 @@ class ConversationViewModel(
     fun removeAttachment(index: Int) {
         _state.update { state ->
             state.copy(attachments = state.attachments.filterIndexed { i, _ -> i != index })
+        }
+    }
+
+    fun toggleAttachmentSpoiler(index: Int) {
+        _state.update { state ->
+            val updated = state.attachments.mapIndexed { i, attachment ->
+                if (i == index) {
+                    when (attachment) {
+                        is OutgoingAttachment.Photo -> {
+                            val newSpoiler = !attachment.hasSpoiler
+                            attachment.copy(
+                                hasSpoiler = newSpoiler,
+                                selfDestructType = if (newSpoiler) null else attachment.selfDestructType,
+                            )
+                        }
+                        is OutgoingAttachment.Video -> {
+                            val newSpoiler = !attachment.hasSpoiler
+                            attachment.copy(
+                                hasSpoiler = newSpoiler,
+                                selfDestructType = if (newSpoiler) null else attachment.selfDestructType,
+                            )
+                        }
+                        is OutgoingAttachment.Document -> attachment
+                    }
+                } else {
+                    attachment
+                }
+            }
+            state.copy(attachments = updated)
+        }
+    }
+
+    fun setAttachmentSelfDestruct(index: Int, type: SelfDestructType?) {
+        _state.update { state ->
+            val updated = state.attachments.mapIndexed { i, attachment ->
+                if (i == index) {
+                    when (attachment) {
+                        is OutgoingAttachment.Photo -> attachment.copy(
+                            selfDestructType = type,
+                            hasSpoiler = if (type != null) false else attachment.hasSpoiler,
+                        )
+                        is OutgoingAttachment.Video -> attachment.copy(
+                            selfDestructType = type,
+                            hasSpoiler = if (type != null) false else attachment.hasSpoiler,
+                        )
+                        is OutgoingAttachment.Document -> attachment
+                    }
+                } else {
+                    attachment
+                }
+            }
+            state.copy(attachments = updated)
         }
     }
 
