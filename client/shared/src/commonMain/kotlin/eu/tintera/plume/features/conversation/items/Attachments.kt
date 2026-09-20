@@ -54,7 +54,12 @@ import eu.tintera.plume.features.conversation.VoiceNoteContent
 import eu.tintera.plume.features.conversation.formatDuration
 import eu.tintera.plume.features.conversation.photoFrame
 import eu.tintera.plume.resources.Res
+import androidx.compose.foundation.layout.Spacer
+import eu.tintera.plume.core.telegram.SelfDestructTimers
+import eu.tintera.plume.core.telegram.SelfDestructType
 import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.content_expired_photo
+import eu.tintera.plume.resources.content_expired_video
 import eu.tintera.plume.resources.conversation_cancel_sending
 import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.image_24dp
@@ -64,9 +69,12 @@ import eu.tintera.plume.resources.file_size_gb
 import eu.tintera.plume.resources.file_size_kb
 import eu.tintera.plume.resources.file_size_mb
 import eu.tintera.plume.resources.media_photo
+import eu.tintera.plume.resources.media_self_destruct_seconds
 import eu.tintera.plume.resources.media_sticker
 import eu.tintera.plume.resources.media_video
+import eu.tintera.plume.resources.media_view_once
 import eu.tintera.plume.resources.play_arrow_24dp
+import eu.tintera.plume.resources.schedule_24dp
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -108,59 +116,83 @@ internal fun MessageAttachment(
 
     when (media) {
         is MessageMedia.Photo -> {
-            // Rámeček i jeho pravidla jsou v `photoFrame` (s testy): fotka se zužuje, neořezává.
-            BoxWithConstraints {
-                val frame = photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), fillWidth)
-                val revealedSpoilers = koinInject<RevealedSpoilers>()
-                val revealedIds by revealedSpoilers.revealed.collectAsState()
-                val revealed = !media.hasSpoiler || messageId in revealedIds
-                val spoilerStyle = rememberSpoilerBlurStyle()
+            val timers = koinInject<SelfDestructTimers>()
+            val consumedIds by timers.consumedIds.collectAsState()
+            val isConsumed = messageId in consumedIds || timers.isConsumed(messageId)
+            val isSelfDestruct = media.isSecret || media.selfDestructType != null
 
-                Box(
-                    modifier = Modifier
-                        .size(frame)
-                        .clip(pictureShape)
-                        .sharedNavElement(photoKey(messageId))
-                        /*
-                         * Gesta patří FOTCE, ne celé bublině.
-                         *
-                         * Kdyby ťuknutí odchytávala bublina, sebralo by ho i odkazům v popisku.
-                         * Dlouhý stisk se musí zopakovat tady: potomek s vlastním klikáním ho
-                         * nepustí k rodiči, takže by nad fotkou nešla otevřít nabídka.
-                         */
-                        .combinedClickable(
-                            onClick = {
-                                if (media.hasSpoiler && !revealed) {
-                                    revealedSpoilers.reveal(messageId)
-                                } else {
-                                    onOpen()
-                                }
-                            },
-                            onLongClick = onRequestMenu,
-                        ),
-                ) {
-                    RemoteImage(
-                        fileId = media.fileId,
-                        thumbnailFileId = media.thumbnailFileId,
-                        contentDescription = stringResource(Res.string.media_photo),
-                        // `Crop` dořeší podlahu šířky (extrémně vysoká fotka, fotka s popiskem):
-                        // poměr stran zůstává a vidět je prostředek. Jinak není co ořezávat.
-                        contentScale = ContentScale.Crop,
+            if (isSelfDestruct && isConsumed) {
+                ExpiredMediaRow(
+                    isVideo = false,
+                    accent = accent,
+                    modifier = Modifier.combinedClickable(
+                        onClick = {},
+                        onLongClick = onRequestMenu,
+                    ),
+                )
+            } else {
+                // Rámeček i jeho pravidla jsou v `photoFrame` (s testy): fotka se zužuje, neořezává.
+                BoxWithConstraints {
+                    val frame = photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), fillWidth)
+                    val revealedSpoilers = koinInject<RevealedSpoilers>()
+                    val revealedIds by revealedSpoilers.revealed.collectAsState()
+                    val revealed = !media.hasSpoiler || messageId in revealedIds
+                    val spoilerStyle = rememberSpoilerBlurStyle()
+                    val shouldBlur = isSelfDestruct || (media.hasSpoiler && !revealed)
+
+                    Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .spoilerBlur(media.hasSpoiler, revealed, spoilerStyle),
-                    )
-
-                    if (media.hasSpoiler) {
-                        SpoilerOverlay(visible = !revealed)
-                    }
-
-                    if (uploading) {
-                        UploadIndicator(
+                            .size(frame)
+                            .clip(pictureShape)
+                            .sharedNavElement(photoKey(messageId))
+                            /*
+                             * Gesta patří FOTCE, ne celé bublině.
+                             *
+                             * Kdyby ťuknutí odchytávala bublina, sebralo by ho i odkazům v popisku.
+                             * Dlouhý stisk se musí zopakovat tady: potomek s vlastním klikáním ho
+                             * nepustí k rodiči, takže by nad fotkou nešla otevřít nabídka.
+                             */
+                            .combinedClickable(
+                                onClick = {
+                                    if (isSelfDestruct) {
+                                        onOpen()
+                                    } else if (media.hasSpoiler && !revealed) {
+                                        revealedSpoilers.reveal(messageId)
+                                    } else {
+                                        onOpen()
+                                    }
+                                },
+                                onLongClick = onRequestMenu,
+                            ),
+                    ) {
+                        RemoteImage(
                             fileId = media.fileId,
-                            onCancel = onCancelUpload,
-                            modifier = Modifier.align(Alignment.Center),
+                            thumbnailFileId = media.thumbnailFileId,
+                            contentDescription = stringResource(Res.string.media_photo),
+                            // `Crop` dořeší podlahu šířky (extrémně vysoká fotka, fotka s popiskem):
+                            // poměr stran zůstává a vidět je prostředek. Jinak není co ořezávat.
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .spoilerBlur(shouldBlur, revealed = false, spoilerStyle),
                         )
+
+                        if (isSelfDestruct) {
+                            SelfDestructBadge(
+                                selfDestructType = media.selfDestructType,
+                                modifier = Modifier.align(Alignment.Center),
+                            )
+                        } else if (media.hasSpoiler) {
+                            SpoilerOverlay(visible = !revealed)
+                        }
+
+                        if (uploading) {
+                            UploadIndicator(
+                                fileId = media.fileId,
+                                onCancel = onCancelUpload,
+                                modifier = Modifier.align(Alignment.Center),
+                            )
+                        }
                     }
                 }
             }
@@ -204,33 +236,54 @@ internal fun MessageAttachment(
             ),
         )
         is MessageMedia.AnimatedEmoji -> AnimatedEmojiImage(media)
-        is MessageMedia.Video -> BoxWithConstraints {
-            // Stejný rámeček jako fotka: video na výšku se zúží, místo aby přišlo o kraje.
-            val frame = photoFrame(maxWidth, media.albumRatio(), fillWidth)
-            val revealedSpoilers = koinInject<RevealedSpoilers>()
-            val revealedIds by revealedSpoilers.revealed.collectAsState()
-            val revealed = !media.hasSpoiler || messageId in revealedIds
-            VideoThumbnail(
-                video = media,
-                messageId = messageId,
-                uploading = uploading,
-                onCancelUpload = onCancelUpload,
-                revealed = revealed,
-                modifier = Modifier
-                    .size(frame)
-                    .clip(pictureShape)
-                    // Dlouhý stisk se opakuje — potomek s vlastním klikáním ho k bublině nepustí.
-                    .combinedClickable(
-                        onClick = {
-                            if (media.hasSpoiler && !revealed) {
-                                revealedSpoilers.reveal(messageId)
-                            } else {
-                                onOpen()
-                            }
-                        },
+        is MessageMedia.Video -> {
+            val timers = koinInject<SelfDestructTimers>()
+            val consumedIds by timers.consumedIds.collectAsState()
+            val isConsumed = messageId in consumedIds || timers.isConsumed(messageId)
+            val isSelfDestruct = media.isSecret || media.selfDestructType != null
+
+            if (isSelfDestruct && isConsumed) {
+                ExpiredMediaRow(
+                    isVideo = true,
+                    accent = accent,
+                    modifier = Modifier.combinedClickable(
+                        onClick = {},
                         onLongClick = onRequestMenu,
                     ),
-            )
+                )
+            } else {
+                BoxWithConstraints {
+                    // Stejný rámeček jako fotka: video na výšku se zúží, místo aby přišlo o kraje.
+                    val frame = photoFrame(maxWidth, media.albumRatio(), fillWidth)
+                    val revealedSpoilers = koinInject<RevealedSpoilers>()
+                    val revealedIds by revealedSpoilers.revealed.collectAsState()
+                    val revealed = !media.hasSpoiler || messageId in revealedIds
+                    VideoThumbnail(
+                        video = media,
+                        messageId = messageId,
+                        uploading = uploading,
+                        onCancelUpload = onCancelUpload,
+                        revealed = revealed,
+                        isSelfDestruct = isSelfDestruct,
+                        modifier = Modifier
+                            .size(frame)
+                            .clip(pictureShape)
+                            // Dlouhý stisk se opakuje — potomek s vlastním klikáním ho k bublině nepustí.
+                            .combinedClickable(
+                                onClick = {
+                                    if (isSelfDestruct) {
+                                        onOpen()
+                                    } else if (media.hasSpoiler && !revealed) {
+                                        revealedSpoilers.reveal(messageId)
+                                    } else {
+                                        onOpen()
+                                    }
+                                },
+                                onLongClick = onRequestMenu,
+                            ),
+                    )
+                }
+            }
         }
 
         is MessageMedia.Document -> DocumentContent(
@@ -406,8 +459,10 @@ internal fun VideoThumbnail(
     onCancelUpload: () -> Unit,
     modifier: Modifier = Modifier,
     revealed: Boolean = true,
+    isSelfDestruct: Boolean = false,
 ) {
     val spoilerStyle = rememberSpoilerBlurStyle()
+    val shouldBlur = isSelfDestruct || (video.hasSpoiler && !revealed)
     Box(modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
         video.thumbnailFileId?.let { thumbnail ->
             RemoteImage(
@@ -417,11 +472,16 @@ internal fun VideoThumbnail(
                 modifier = Modifier
                     .fillMaxSize()
                     .sharedNavElement(photoKey(messageId))
-                    .spoilerBlur(video.hasSpoiler, revealed, spoilerStyle),
+                    .spoilerBlur(shouldBlur, revealed = false, spoilerStyle),
             )
         }
         if (uploading) {
             UploadIndicator(fileId = video.fileId, onCancel = onCancelUpload, modifier = Modifier.align(Alignment.Center))
+        } else if (isSelfDestruct) {
+            SelfDestructBadge(
+                selfDestructType = video.selfDestructType,
+                modifier = Modifier.align(Alignment.Center),
+            )
         } else if (revealed) {
             Box(
                 Modifier
@@ -439,10 +499,10 @@ internal fun VideoThumbnail(
                 )
             }
         }
-        if (video.hasSpoiler) {
+        if (!isSelfDestruct && video.hasSpoiler) {
             SpoilerOverlay(visible = !revealed)
         }
-        if (revealed) {
+        if (!isSelfDestruct && revealed) {
             Surface(
                 shape = RoundedCornerShape(8.dp),
                 color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
@@ -627,3 +687,73 @@ private val ANIMATED_EMOJI_SIZE = 112.dp
 
 /** Delší hrana samolepky. Telegram je kreslí zhruba takhle velké. */
 private val STICKER_SIZE = 160.dp
+
+/**
+ * Odznak samozničujícího média (view-once nebo odpočet času).
+ */
+@Composable
+internal fun SelfDestructBadge(
+    selfDestructType: SelfDestructType?,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f),
+        contentColor = Color.White,
+        modifier = modifier.padding(8.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+        ) {
+            Icon(
+                painter = painterResource(Res.drawable.schedule_24dp),
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            val text = when (selfDestructType) {
+                is SelfDestructType.Timer -> stringResource(Res.string.media_self_destruct_seconds, selfDestructType.seconds)
+                else -> stringResource(Res.string.media_view_once)
+            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
+    }
+}
+
+/**
+ * Řádek pro vypršelé samozničující médium.
+ */
+@Composable
+internal fun ExpiredMediaRow(
+    isVideo: Boolean,
+    accent: Color,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = modifier,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+        ) {
+            Icon(
+                painter = painterResource(Res.drawable.schedule_24dp),
+                contentDescription = null,
+                tint = accent.takeIf { it != Color.Unspecified } ?: MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
+            Text(
+                text = stringResource(if (isVideo) Res.string.content_expired_video else Res.string.content_expired_photo),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}

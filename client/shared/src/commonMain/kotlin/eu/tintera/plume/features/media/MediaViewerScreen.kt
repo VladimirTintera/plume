@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -89,6 +91,7 @@ import dev.chrisbanes.haze.rememberHazeState
 import eu.tintera.plume.core.files.rememberSaveAs
 import eu.tintera.plume.core.files.rememberSavePermission
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.SelfDestructType
 import eu.tintera.plume.core.ui.DarkSystemBars
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.features.conversation.items.SpoilerOverlay
@@ -112,12 +115,15 @@ import eu.tintera.plume.resources.download_24dp
 import eu.tintera.plume.resources.forward_24dp
 import eu.tintera.plume.resources.media_photo
 import eu.tintera.plume.resources.media_position
+import eu.tintera.plume.resources.media_self_destruct_seconds
+import eu.tintera.plume.resources.media_view_once
 import eu.tintera.plume.resources.menu_delete
 import eu.tintera.plume.resources.media_more
 import eu.tintera.plume.resources.media_save
 import eu.tintera.plume.resources.media_save_as
 import eu.tintera.plume.resources.media_share
 import eu.tintera.plume.resources.more_vert_24dp
+import eu.tintera.plume.resources.schedule_24dp
 import eu.tintera.plume.resources.share_24dp
 import eu.tintera.plume.resources.menu_forward
 import eu.tintera.plume.resources.menu_more_reactions
@@ -201,7 +207,10 @@ fun MediaViewerScreen(
                         }
                     }
                 },
-                onDismiss = onBack,
+                onDismiss = {
+                    viewModel.onDismiss()
+                    onBack()
+                },
             )
         } else {
             // Bez fotek (chyba, načítání) není co rozostřit; zůstává tmavá plocha a cesta ven.
@@ -216,7 +225,13 @@ fun MediaViewerScreen(
 
                     state.loading -> LoadingIndicator(Modifier.align(Alignment.Center))
                 }
-                CloseButton(onBack, Modifier.align(Alignment.TopStart).statusBarsPadding())
+                CloseButton(
+                    onClick = {
+                        viewModel.onDismiss()
+                        onBack()
+                    },
+                    modifier = Modifier.align(Alignment.TopStart).statusBarsPadding(),
+                )
             }
         }
 
@@ -282,7 +297,10 @@ private fun ViewerContent(
      *
      * Režim patří celému prohlížeči, ne stránce: listuje se v něm dál.
      */
-    var immersive by rememberSaveable { mutableStateOf(false) }
+    var immersive by rememberSaveable(state.isSelfDestruct) { mutableStateOf(state.isSelfDestruct) }
+    LaunchedEffect(state.isSelfDestruct) {
+        if (state.isSelfDestruct) immersive = true
+    }
     val immersionState = animateFloatAsState(
         targetValue = if (immersive) 1f else 0f,
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
@@ -291,7 +309,7 @@ private fun ViewerContent(
     // Pružina přestřelí; záporné odsazení nebo zaoblení by layout odmítl.
     val immersion = { immersionState.value.coerceIn(0f, 1f) }
     val enterImmersive = { immersive = true }
-    val toggleImmersive = { immersive = !immersive }
+    val toggleImmersive = { if (!state.isSelfDestruct) immersive = !immersive }
 
     val spoilerStyle = rememberSpoilerBlurStyle()
     val revealedSpoilers = koinInject<RevealedSpoilers>()
@@ -412,7 +430,7 @@ private fun ViewerContent(
         val chromeExit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec())
 
         AnimatedVisibility(
-            visible = !immersive && current != null,
+            visible = !immersive && current != null && !state.isSelfDestruct,
             enter = chromeEnter,
             exit = chromeExit,
             modifier = Modifier.align(Alignment.TopStart).then(fadeWithDismiss),
@@ -432,9 +450,22 @@ private fun ViewerContent(
             }
         }
 
+        AnimatedVisibility(
+            visible = state.isSelfDestruct,
+            enter = chromeEnter,
+            exit = chromeExit,
+            modifier = Modifier.align(Alignment.TopStart).then(fadeWithDismiss),
+        ) {
+            SelfDestructTopBar(
+                remainingSeconds = state.remainingSeconds,
+                selfDestructType = state.selfDestructType,
+                onClose = onDismiss,
+            )
+        }
+
         val emoji = current?.let { state.availableReactions[it.messageId] }.orEmpty()
         AnimatedVisibility(
-            visible = !immersive && current != null && emoji.isNotEmpty(),
+            visible = !immersive && current != null && emoji.isNotEmpty() && !state.isSelfDestruct,
             enter = chromeEnter,
             exit = chromeExit,
             modifier = Modifier.align(Alignment.BottomCenter).then(fadeWithDismiss),
@@ -444,6 +475,55 @@ private fun ViewerContent(
                     item = current,
                     emoji = emoji,
                     onReact = { onReact(current.messageId, it) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SelfDestructTopBar(
+    remainingSeconds: Int?,
+    selfDestructType: SelfDestructType?,
+    onClose: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .height(TOP_BAR_HEIGHT)
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CloseButton(onClose)
+
+        Spacer(Modifier.weight(1f))
+
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.65f),
+            modifier = Modifier.padding(end = 12.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.schedule_24dp),
+                    contentDescription = null,
+                    tint = ON_SCRIM,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                val timerText = when {
+                    remainingSeconds != null -> stringResource(Res.string.media_self_destruct_seconds, remainingSeconds)
+                    selfDestructType is SelfDestructType.Timer -> stringResource(Res.string.media_self_destruct_seconds, selfDestructType.seconds)
+                    else -> stringResource(Res.string.media_view_once)
+                }
+                Text(
+                    text = timerText,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = ON_SCRIM,
                 )
             }
         }

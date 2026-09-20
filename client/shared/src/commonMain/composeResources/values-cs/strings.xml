@@ -370,6 +370,8 @@
     <string name="content_call">Hovor</string>
     <string name="content_video_call">Videohovor</string>
     <string name="content_expired_photo">Fotka vypršela</string>
+    <string name="media_view_once">Jednorázové zhlédnutí</string>
+    <string name="media_self_destruct_seconds">%1$ds</string>
     <string name="content_expired_video">Video vypršelo</string>
     <string name="content_expired_video_note">Video zpráva vypršela</string>
     <string name="content_expired_voice_note">Hlasová zpráva vypršela</string>

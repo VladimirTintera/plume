@@ -28,6 +28,9 @@ import dev.g000sha256.tdl.dto.MessageLocation
 import dev.g000sha256.tdl.dto.MessagePaidMedia
 import dev.g000sha256.tdl.dto.MessagePhoto
 import dev.g000sha256.tdl.dto.MessagePoll
+import dev.g000sha256.tdl.dto.MessageSelfDestructType
+import dev.g000sha256.tdl.dto.MessageSelfDestructTypeImmediately
+import dev.g000sha256.tdl.dto.MessageSelfDestructTypeTimer
 import dev.g000sha256.tdl.dto.MessageSticker
 import dev.g000sha256.tdl.dto.MessageStory
 import dev.g000sha256.tdl.dto.MessageText
@@ -333,9 +336,18 @@ private fun MessageDice.diceText(): String = if (value > 0) "$emoji $value" else
 /** Náhled, který jde nakreslit jako obrázek — animovaný MPEG-4 Coil neotevře. */
 private fun Thumbnail?.picture(): Thumbnail? = this?.takeIf { it.format !is ThumbnailFormatMpeg4 }
 
+internal fun MessageSelfDestructType.toSelfDestructType(): SelfDestructType = when (this) {
+    is MessageSelfDestructTypeImmediately -> SelfDestructType.Immediately
+    is MessageSelfDestructTypeTimer -> SelfDestructType.Timer(selfDestructTime)
+}
+
 /** Příloha zprávy, nebo `null` u čistě textové. */
 internal suspend fun Message.messageMedia(): MessageMedia? = when (val content = this.content) {
-    is MessagePhoto -> content.photo.toMedia(hasSpoiler = content.hasSpoiler)
+    is MessagePhoto -> content.photo.toMedia(
+        hasSpoiler = content.hasSpoiler,
+        isSecret = content.isSecret,
+        selfDestructType = selfDestructType?.toSelfDestructType(),
+    )
 
     is MessageVideo -> MessageMedia.Video(
         fileId = content.video.video.id,
@@ -345,6 +357,8 @@ internal suspend fun Message.messageMedia(): MessageMedia? = when (val content =
         height = content.video.height,
         durationSeconds = content.video.duration,
         hasSpoiler = content.hasSpoiler,
+        isSecret = content.isSecret,
+        selfDestructType = selfDestructType?.toSelfDestructType(),
     )
 
     is MessageAnimation -> MessageMedia.Attachment(
@@ -477,7 +491,11 @@ internal fun Message.linkPreview(): LinkPreview? {
  * Do bubliny se bere největší varianta do [MAX_DISPLAY_EDGE]; originál by u fotky z foťáku znamenal
  * desítky megabajtů kvůli obrázku širokému pár set bodů.
  */
-private fun Photo.toMedia(hasSpoiler: Boolean = false): MessageMedia.Photo? {
+private fun Photo.toMedia(
+    hasSpoiler: Boolean = false,
+    isSecret: Boolean = false,
+    selfDestructType: SelfDestructType? = null,
+): MessageMedia.Photo? {
     val available = sizes.filterNotNull().ifEmpty { return null }
 
     val display = available
@@ -500,6 +518,8 @@ private fun Photo.toMedia(hasSpoiler: Boolean = false): MessageMedia.Photo? {
         width = display.width,
         height = display.height,
         hasSpoiler = hasSpoiler,
+        isSecret = isSecret,
+        selfDestructType = selfDestructType,
     )
 }
 

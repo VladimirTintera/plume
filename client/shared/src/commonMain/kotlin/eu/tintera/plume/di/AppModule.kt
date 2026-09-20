@@ -24,6 +24,7 @@ import eu.tintera.plume.core.telegram.TdlEmojiRepository
 import eu.tintera.plume.core.telegram.TdlStickerRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.RevealedSpoilers
+import eu.tintera.plume.core.telegram.SelfDestructTimers
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.TdlChatRepository
@@ -142,6 +143,7 @@ fun appModule() = module {
     single { ChatOpenRequests() }
     single { ConversationSearchRequests() }
     single { RevealedSpoilers() }
+    single { SelfDestructTimers() }
     single<ProfileRepository> { TdlProfileRepository(holder = get()) }
     // Eager: nepotvrzené přihlášení TDLib ohlásí hned po startu (viz TdlDeviceRepository).
     single<DeviceRepository>(createdAtStart = true) {
@@ -228,6 +230,7 @@ fun appModule() = module {
             files = get(),
             saver = get(),
             sharer = get(),
+            timers = get(),
         )
     }
 

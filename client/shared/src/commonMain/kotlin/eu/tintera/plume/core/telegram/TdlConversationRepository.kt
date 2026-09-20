@@ -370,7 +370,14 @@ class TdlConversationRepository(
                 found.messages
                     .filterNotNull()
                     .map { it.toChatMessage(isGroup) }
-                    .filter { it.media is MessageMedia.Photo || it.media is MessageMedia.Video }
+                    .filter { message ->
+                        val photo = message.media as? MessageMedia.Photo
+                        val video = message.media as? MessageMedia.Video
+                        (photo != null || video != null) &&
+                            message.selfDestructType == null &&
+                            photo?.isSecret != true &&
+                            video?.isSecret != true
+                    }
                     .sortedBy { it.id }
             }
     }
@@ -798,6 +805,7 @@ class TdlConversationRepository(
             timestamp = date,
             isEdited = editDate > 0,
             mediaAlbumId = mediaAlbumId,
+            selfDestructType = selfDestructType?.toSelfDestructType(),
         )
     }
 
@@ -991,7 +999,6 @@ private const val REACTION_ROW_SIZE = 8
 private fun MessageSender.plainId(): Long = when (this) {
     is MessageSenderUser -> userId
     is MessageSenderChat -> chatId
-    else -> 0L
 }
 
 /**

@@ -468,6 +468,8 @@ data class ChatMessage(
      * popiskem i reakcemi) spojené tímhle id. Do jedné bubliny je skládá až konverzace.
      */
     val mediaAlbumId: Long = 0L,
+    /** Typ samozničení (view-once nebo časovač), nebo `null` u běžné zprávy. */
+    val selfDestructType: SelfDestructType? = null,
 )
 
 /**
@@ -661,6 +663,15 @@ enum class SendState {
     Failed,
 }
 
+/** Typ samozničení zprávy (view-once nebo časovač). */
+sealed interface SelfDestructType {
+    /** Jednorázové zhlédnutí: po zavření zaniká. */
+    data object Immediately : SelfDestructType
+
+    /** Odpočet po zadaný počet sekund od otevření. */
+    data class Timer(val seconds: Int) : SelfDestructType
+}
+
 /** Příloha zprávy. */
 sealed interface MessageMedia {
 
@@ -686,6 +697,8 @@ sealed interface MessageMedia {
         val width: Int,
         val height: Int,
         val hasSpoiler: Boolean = false,
+        val isSecret: Boolean = false,
+        val selfDestructType: SelfDestructType? = null,
     ) : MessageMedia
 
     /**
@@ -701,6 +714,8 @@ sealed interface MessageMedia {
         val height: Int,
         val durationSeconds: Int,
         val hasSpoiler: Boolean = false,
+        val isSecret: Boolean = false,
+        val selfDestructType: SelfDestructType? = null,
     ) : MessageMedia
 
     /**
