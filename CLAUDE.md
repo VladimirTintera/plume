@@ -255,6 +255,9 @@ In-App Updates v režimu **flexible**: stahuje se na pozadí, pak „Restartovat
 - **Karta je další blok seznamu**: zaoblení `GROUP_CORNER`, mezera pod ní jako mezi skupinami,
   `primaryContainer` (od světlých řádků ji odliší, sytou barvu nese jen tlačítko). Jedna karta
   pro všechny tři stavy s `animateContentSize` — výměna celé položky by vypadala jako nová.
+- **Ikona je `system_update` (telefon se šipkou dovnitř), ne `upgrade`.** Šipka nahoru k čáře se
+  čte jako NAHRÁVÁNÍ — a to je přesně opačný směr, než co karta nabízí. Ikona má říct, co se
+  stane, ne jakým gestem se to spustí.
 
 ## Pracovní postup
 
@@ -1136,8 +1139,16 @@ v `items/LinkPreviewMessageItem.kt`.
   proto, že v kompaktní kartě nic se `SubcomposeLayout` není — velký obrázek (`BoxWithConstraints`)
   má vlastní větev se šířkou z `photoFrame`.
 - **Zvýrazněná příchozí zpráva přejde do `tertiaryContainer`** — stejné barvy jako popis. Popis
-  (i citace nad odpovědí) proto ztmavne o kus k `tertiary` (`insetContainerColor`), jinak by
-  obě části splynuly.
+  (i citace nad odpovědí) se proto posune o kus k barvě popředí té plochy (`surfaceApart`,
+  `MessageBodyScope.insetColor`), jinak by obě části splynuly. **Posouvá se k `on*` roli, ne
+  k `tertiary`:** `tertiary` je přesně ta barva, na kterou se spolehnout nedá — v paletě se
+  zvýšeným kontrastem leží na téže světlosti jako `tertiaryContainer`, takže se karta slila
+  v jednu plochu i u zvýrazněné ODCHOZÍ zprávy (bublina `tertiary`, popis `tertiaryContainer`).
+  Podmínka proto není „příchozí a zvýrazněná", ale změřený kontrast vůči bublině.
+- **Posun 0,18 vyšel z porovnání s tím dřívějším** (0,22 k `tertiary`): ten dával odstup ploch
+  1,51 v tmavém a 1,35 ve světlém tématu, tenhle 1,49 a 1,35 — vzhled v běžné paletě zůstává
+  a text na posunuté ploše je pořád nad AA. Větší posun by ho ukrajoval, protože míří přesně
+  k barvě toho textu.
 - **U zprávy s citací nebo přílohou zůstává náhled v bublině** (`LinkPreviewCard`), a to jako
   tónovaný kontejner stejný jako citace (`QUOTE_CONTAINER_ALPHA`, `QUOTE_CORNER`), ne proužek.
 
@@ -1701,7 +1712,7 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   jméno nad zprávou a jméno v citaci. Osm odstínů rovnoměrně po kruhu od odstínu `primary`,
   HCT tón 40 / 80 podle režimu — kontrast i soulad s Material You, žádná barva natvrdo.
 - **Odpověď je karta ze dvou částí, jako náhled odkazu**: nahoře citace v tónované ploše
-  (`insetContainerColor`, `tertiaryContainer`), pod ní odpověď v barvě bubliny
+  (`MessageBodyScope.insetColor`, `tertiaryContainer`), pod ní odpověď v barvě bubliny
   (`QuotedBubble` v `BubbleMessageItem.kt`). Dřív byla citace subkartička uvnitř bubliny —
   zaoblená plocha v ploše, dvě vnořené karty. Jméno citovaného nese ve skupině jeho barvu,
   jinak `tertiary`.
@@ -3232,6 +3243,19 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   `surfaceContainerHigh` (overlay) < `surfaceContainerHighest` (menu nad overlayem). `tonalElevation`
   u `surfaceContainer*` barev nic nedělá — M3 `Surface` tónuje jen `color == colorScheme.surface`.
 - Barvy vždy z `MaterialTheme.colorScheme`, nikdy natvrdo hex.
+- **Akcent na tónované ploše se musí ověřit PROTI TÉ PLOŠE** (`accentOn` v `core/ui/AccentColor.kt`,
+  testy `AccentColorTest`). M3 garantuje kontrast jen mezi plochou a její `on*` rolí; že je
+  `tertiary` čitelná na `tertiaryContainer` (jméno v citaci, název webu u náhledu odkazu, odkaz ve
+  zvýrazněné bublině, hlavička nad vstupním polem), je vizuální zkratka — a **v paletě se zvýšeným
+  kontrastem** (Android: Usnadnění → Kontrast) **neplatí**: tam jsou v tmavém režimu container role
+  SVĚTLÉ a jejich `on*` tmavé, takže se `tertiary` s `tertiaryContainer` potkají na téže světlosti.
+  Změřeno ze snímku od uživatele: text odkazu #8AE9B3–#B3FFD6 na ploše #96F5BF, tedy kontrast 1,05
+  — odkaz nebyl vidět vůbec. Akcent proto při nedostatku kontrastu ustoupí barvě popředí té plochy
+  a odlišení nese řez (u odkazu podtržení, `RichText` ho přidá samo, když `linkColor == overlayColor`).
+  **Platí i pro `senderColor`** — osm odstínů je laděných na plochu konverzace, ne na bublinu.
+- **Rozhoduje se z CÍLOVÝCH barev, ne z právě animovaných.** Barva bubliny se při zvýraznění
+  prolíná; kdyby se kontrast počítal z okamžité hodnoty, přepnul by akcent uprostřed přechodu
+  skokem. Výsledek se pak prolíná spolu s ní (`bubble-accent` v `MessageFrame`).
 - **Animace nechávej na `MotionScheme`** (`AppMotion` v `app/root/presentation/theme/Motion.kt`).
   Spatial specy mají jemný bounce (dampingRatio 0.6–0.78), effects specy bounce nemají — overshoot
   u alphy/barvy se ořízne do [0,1] a působí jako bliknutí.

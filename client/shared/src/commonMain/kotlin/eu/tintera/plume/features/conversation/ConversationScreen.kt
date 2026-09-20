@@ -147,6 +147,7 @@ import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SponsoredMessage
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.chatAvatarKey
@@ -1352,7 +1353,7 @@ private fun MessageInput(
                         QuotedMessage(
                             message = target,
                             partnerName = partnerName,
-                            accent = MaterialTheme.colorScheme.tertiary,
+                            accent = composerHeaderAccent(),
                             contained = false,
                             modifier = Modifier.weight(1f),
                         )
@@ -1695,6 +1696,20 @@ private fun ComposerHeader(content: @Composable RowScope.() -> Unit) {
 }
 
 /**
+ * Akcent uvnitř [ComposerHeader] — `tertiary`, dokud je na jeho ploše vidět.
+ *
+ * `tertiary` na `tertiaryContainer` je zkratka, kterou M3 negarantuje: v paletě se zvýšeným
+ * kontrastem se v tmavém režimu obě potkají na téže světlosti a popisek zmizí. Tatáž past jako
+ * u citace na kartě zprávy — viz [accentOn].
+ */
+@Composable
+private fun composerHeaderAccent(): Color = accentOn(
+    background = MaterialTheme.colorScheme.tertiaryContainer,
+    accent = MaterialTheme.colorScheme.tertiary,
+    fallback = MaterialTheme.colorScheme.onTertiaryContainer,
+)
+
+/**
  * Hlavička karty při úpravě zprávy.
  *
  * Vypadá jako citace (ikona, popisek, původní text), protože plní stejnou roli: říká, k čemu
@@ -1702,18 +1717,19 @@ private fun ComposerHeader(content: @Composable RowScope.() -> Unit) {
  */
 @Composable
 private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit) = ComposerHeader {
+    val accent = composerHeaderAccent()
     Column(Modifier.weight(1f).padding(start = 14.dp, top = 8.dp, bottom = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 painterResource(Res.drawable.edit_24dp),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.tertiary,
+                tint = accent,
                 modifier = Modifier.padding(end = 4.dp).size(16.dp),
             )
             Text(
                 text = stringResource(Res.string.conversation_editing),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.tertiary,
+                color = accent,
             )
         }
         Text(

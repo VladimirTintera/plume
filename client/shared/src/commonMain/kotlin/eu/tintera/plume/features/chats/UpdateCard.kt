@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.update.AppUpdateState
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.system_update_24dp
 import eu.tintera.plume.resources.update_action_later
 import eu.tintera.plume.resources.update_action_restart
 import eu.tintera.plume.resources.update_action_update
@@ -33,7 +34,6 @@ import eu.tintera.plume.resources.update_available_title
 import eu.tintera.plume.resources.update_downloaded_text
 import eu.tintera.plume.resources.update_downloaded_title
 import eu.tintera.plume.resources.update_downloading_title
-import eu.tintera.plume.resources.upgrade_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -76,7 +76,7 @@ fun UpdateCard(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        painterResource(Res.drawable.upgrade_24dp),
+                        painterResource(Res.drawable.system_update_24dp),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimary,
                     )

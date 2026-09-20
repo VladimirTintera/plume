@@ -78,7 +78,9 @@ import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.RichText
+import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.senderColor
+import eu.tintera.plume.core.ui.surfaceApart
 import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.features.conversation.MessageFlight
 import eu.tintera.plume.features.conversation.MessageMenu
@@ -194,6 +196,11 @@ internal class MessageBodyScope(
      */
     val accent: Color,
     /**
+     * Plocha vloženého obsahu — citace nahoře na kartě zprávy, popis webu u náhledu odkazu dole.
+     * `tertiaryContainer`, dokud se od bubliny pozná; jinak posunutá (viz [surfaceApart]).
+     */
+    val insetColor: Color,
+    /**
      * Kolik místa si obsah nechá dole. Čip reakce leží PŘES dolní nároží — dolní půlka mu visí
      * ven, horní na zprávě —, takže se rezervuje jen ta horní půlka. Platí pro to, co je ve
      * zprávě poslední: bublinu, popisek pod holou fotkou i popis náhledu odkazu.
@@ -248,31 +255,56 @@ internal fun rememberMessageBodyScope(
      */
     val colors = MaterialTheme.colorScheme
     val emphasisSpec = MaterialTheme.motionScheme.slowEffectsSpec<Color>()
-    val bubbleColor by animateColorAsState(
-        targetValue = when {
-            message.isOutgoing && frame.emphasized -> colors.tertiary
-            message.isOutgoing -> colors.primary
-            frame.emphasized -> colors.tertiaryContainer
-            else -> colors.surfaceContainerHigh
-        },
-        animationSpec = emphasisSpec,
-        label = "bubble-color",
-    )
-    val onBubbleColor by animateColorAsState(
-        targetValue = when {
-            message.isOutgoing && frame.emphasized -> colors.onTertiary
-            message.isOutgoing -> colors.onPrimary
-            frame.emphasized -> colors.onTertiaryContainer
-            else -> colors.onSurface
-        },
-        animationSpec = emphasisSpec,
-        label = "bubble-content-color",
-    )
-    val accent = when {
-        message.isOutgoing -> onBubbleColor
-        frame.emphasized -> colors.tertiary
-        else -> colors.primary
+    val targetBubble = when {
+        message.isOutgoing && frame.emphasized -> colors.tertiary
+        message.isOutgoing -> colors.primary
+        frame.emphasized -> colors.tertiaryContainer
+        else -> colors.surfaceContainerHigh
     }
+    val targetOnBubble = when {
+        message.isOutgoing && frame.emphasized -> colors.onTertiary
+        message.isOutgoing -> colors.onPrimary
+        frame.emphasized -> colors.onTertiaryContainer
+        else -> colors.onSurface
+    }
+    val bubbleColor by animateColorAsState(targetBubble, emphasisSpec, label = "bubble-color")
+    val onBubbleColor by animateColorAsState(targetOnBubble, emphasisSpec, label = "bubble-content-color")
+    /*
+     * Akcent (odkaz, citace, proužek náhledu) se bere z role, ale MUSÍ projít kontrolou proti
+     * ploše, na které leží — viz [accentOn]. V odchozí bublině je pozadí samo `primary`, takže
+     * tam akcent nese rovnou barva popředí; u příchozí je to `primary` na `surfaceContainerHigh`
+     * a u zvýrazněné `tertiary` na `tertiaryContainer`. To druhé se v paletě se zvýšeným
+     * kontrastem potkalo na téže světlosti a odkaz zmizel.
+     *
+     * Rozhoduje se z CÍLOVÝCH barev a výsledek se prolíná: kdyby se kontrast počítal z právě
+     * animované plochy, přepnul by se akcent uprostřed přechodu skokem.
+     */
+    val accent by animateColorAsState(
+        targetValue = when {
+            message.isOutgoing -> targetOnBubble
+            else -> accentOn(
+                background = targetBubble,
+                accent = if (frame.emphasized) colors.tertiary else colors.primary,
+                fallback = targetOnBubble,
+            )
+        },
+        animationSpec = emphasisSpec,
+        label = "bubble-accent",
+    )
+    /*
+     * Plocha citace a popisu webu se počítá tady se zbytkem barev, ne v místě kreslení: rozhoduje
+     * se z CÍLOVÉ barvy bubliny (z animované by se přepnula uprostřed přechodu) a výsledek se
+     * prolíná spolu s ní. Dřív skákala, protože visela rovnou na `frame.emphasized`.
+     */
+    val insetColor by animateColorAsState(
+        targetValue = surfaceApart(
+            background = targetBubble,
+            container = colors.tertiaryContainer,
+            toward = colors.onTertiaryContainer,
+        ),
+        animationSpec = emphasisSpec,
+        label = "inset-color",
+    )
 
     /*
      * Stažené nároží drží skupinu pohromadě, takže je jen TAM, KDE NA SEBE BUBLINY NAVAZUJÍ.
@@ -329,7 +361,7 @@ internal fun rememberMessageBodyScope(
     // (viz `MessageBox`).
     val contentBottom = 8.dp
 
-    return remember(scope, frame, shape, bubbleColor, onBubbleColor, accent, contentBottom) {
+    return remember(scope, frame, shape, bubbleColor, onBubbleColor, accent, insetColor, contentBottom) {
         MessageBodyScope(
             items = scope,
             frame = frame,
@@ -337,6 +369,7 @@ internal fun rememberMessageBodyScope(
             bubbleColor = bubbleColor,
             onBubbleColor = onBubbleColor,
             accent = accent,
+            insetColor = insetColor,
             contentBottom = contentBottom,
             anchor = anchor,
         )
@@ -763,15 +796,23 @@ internal fun MessageBodyScope.Bubble(content: @Composable ColumnScope.() -> Unit
 /**
  * Jméno odesílatele — jen u první zprávy bloku a jen tam, kde ho TDLib vyplní (skupiny). Ve stálé
  * barvě odesílatele ([senderColor]), aby se dal poznat i bez čtení jména.
+ *
+ * [background] je plocha, na které jméno leží: uvnitř bubliny její barva, u bloků bez bubliny
+ * (holá fotka, album, karta náhledu odkazu) plocha konverzace. Barva odesílatele je laděná na
+ * plochu konverzace, takže na zvýrazněné bublině může splynout — pak ustoupí barvě popředí
+ * (viz [accentOn]).
  */
 @Composable
-internal fun MessageBodyScope.SenderName(modifier: Modifier = Modifier) {
+internal fun MessageBodyScope.SenderName(
+    modifier: Modifier = Modifier,
+    background: Color = MaterialTheme.colorScheme.background,
+) {
     if (continuesAbove) return
     message.senderName?.let {
         Text(
             text = it,
             style = MaterialTheme.typography.labelLarge,
-            color = senderColor(message.senderId),
+            color = accentOn(background, senderColor(message.senderId), LocalContentColor.current),
             modifier = modifier,
         )
     }
