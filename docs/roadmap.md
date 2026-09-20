@@ -20,13 +20,6 @@ Teď je prázdné.
 
 ## Než se dá vydat na veřejnost
 
-- ~~**Šifrovaná databáze TDLib**~~ — hotovo (klíč z Android Keystore / iOS Keychain, migrace
-  existujících instalací, zahození nečitelné databáze). Poučení v `CLAUDE.md`, „Šifrovaná
-  databáze TDLib". Android je ověřený na emulátoru (migrace nechá uživatele přihlášeného,
-  poškozený `tdlib-key` skončí na přihlašovací obrazovce a ne pádem, databáze se prázdným klíčem
-  otevřít nedá a push do zmrazeného procesu klíč načte bez UI). Zbývá **iOS**: Keychain je
-  ověřený jen překladem a linkem — `SecItemAdd`/`SecItemCopyMatching` proti skutečnému
-  Keychainu, `NSURLIsExcludedFromBackupKey` ani chování po obnově zálohy zatím nikdo neviděl.
 - **Záznam v Play dokončit mimo API.** Texty a grafika (cs, en) jsou nahrané, workflow Play
   Listing je nahrává z `play/`. Ručně v Play Console zbývá kategorie, zásady ochrany soukromí (URL),
   hodnocení obsahu (IARC), cílová skupina, bezpečnost dat a prohlášení o reklamách.

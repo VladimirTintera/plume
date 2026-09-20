@@ -511,7 +511,30 @@ vytlačit do keše spuštěním pár jiných aplikací, pak je asi do dvaceti vt
 (`dumpsys activity processes eu.tintera.plume`). Zpráva od testovacího bota pak musí skončit
 notifikací se správným textem. Ověřeno na emulátoru.
 
-Zbývá ověřit **na iOS** — Keychain je zatím ověřený jen překladem a linkem.
+### Jak to ověřit na iOS
+
+Aplikace na simulátoru **do unified logu nic nepíše** — `log stream --predicate 'process ==
+"Plume"'` ukáže jen systémové vrstvy (Security, FileURL, RunningBoard), ne Kermit, a
+`simctl launch --console-pty` nevypíše nic. Ověřuje se proto chováním a stavem na disku, ne logem.
+
+- **Keychain simulátoru se dá číst**: `~/Library/Developer/CoreSimulator/Devices/<id>/data/
+  Library/Keychains/keychain-2-debug.db`, tabulka `genp`. `svce` i `acct` jsou zašifrované,
+  ale **`agrp` a `pdmn` jsou v plaintextu**, takže záznam se pozná podle skupiny
+  (`<TEAM>.eu.tintera.plume`) a atribut přístupnosti podle `pdmn`: **`cku` =
+  `AfterFirstUnlockThisDeviceOnly`** (`ak` = WhenUnlocked, `aku` = WhenUnlockedThisDeviceOnly,
+  `dku` = AlwaysThisDeviceOnly). Soubor je WAL, takže se před dotazem kopíruje i s `-wal`/`-shm`.
+- **Že `SecItemCopyMatching` čte**, se pozná podle toho, že se `hex(data)` toho řádku mezi starty
+  NEMĚNÍ — kdyby čtení selhalo, kód vyrobí a uloží klíč nový.
+- **Vyloučení ze zálohy** je v systémovém logu (`kExcludedFromBackupXattrName set on path: …`)
+  a v `xattr -l` na obou adresářích (`com.apple.metadata:com_apple_backup_excludeItem`).
+- **Nepřihlášená aplikace se ověřit nedá.** Bez účtu nemá TDLib co uchovávat, `td.binlog` vůbec
+  nevznikne a `db.sqlite` dostává při každém startu nový inode — vypadá to jako mazání, a není
+  to ono. **Sledovat se musí `td.binlog`**: přežije-li restart se stejným inodem, databáze se
+  uloženým klíčem otevřela.
+- **Cesta ven se vyvolá `xcrun simctl keychain <id> reset`.** Odebrat jednotlivý záznam simctl
+  neumí, takže to smaže keychain celého simulátoru (i cizím aplikacím na něm). Po restartu musí
+  `db.sqlite` i `td.binlog` spadnout na jednotky kilobajtů, `td.binlog` dostat nový inode
+  a aplikace skončit na přihlašovací obrazovce, bez pádu. Ověřeno: 14 MB → 12 kB.
 
 ## Přihlášení QR kódem
 
