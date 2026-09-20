@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.auth_country_choose
 import eu.tintera.plume.resources.auth_country_label
 import eu.tintera.plume.resources.auth_input_phone
 import eu.tintera.plume.resources.keyboard_arrow_down_24dp
@@ -101,9 +102,16 @@ internal fun PhoneField(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    // Než dorazí odhad podle IP, stojí tu výzva — ne podruhé slovo „Země",
+                    // což vypadalo jako chyba vykreslení.
                     Text(
-                        phone.country?.name ?: stringResource(Res.string.auth_country_label),
+                        phone.country?.name ?: stringResource(Res.string.auth_country_choose),
                         style = MaterialTheme.typography.bodyLarge,
+                        color = if (phone.country == null) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                     )
                 }
                 Icon(
@@ -126,7 +134,10 @@ internal fun PhoneField(
                 TextField(
                     value = phone.digits,
                     onValueChange = onPhoneChange,
-                    label = { Text(stringResource(Res.string.auth_input_phone)) },
+                    // Nápověda, ne plovoucí label: ten po vyplnění odskočí nahoru a text
+                    // s ním klesne, takže by číslo přestalo lícovat s předvolbou vedle —
+                    // a ta label nemá a mít nemůže.
+                    placeholder = { Text(stringResource(Res.string.auth_input_phone)) },
                     singleLine = true,
                     isError = isError,
                     // Hodnotou jsou syrové číslice a oddělovače dodává až zobrazení — jinak by

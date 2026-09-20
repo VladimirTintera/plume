@@ -610,6 +610,12 @@ before authorization":
 - `getPhoneNumberInfoSync(languageCode, prefix)` → z rozepsaného čísla pozná zemi a vrátí masku,
   ve které **`-` je očekávaná číslice**. Je to lokální dotaz, takže se smí volat při každém úhozu.
 
+- **Číslo má nápovědu, ne plovoucí label.** Label po vyplnění odskočí nahoru a text s ním
+  klesne — číslo pak nelícovalo s předvolbou vedle, a ta label nemá a mít nemůže (je to volba,
+  ne psané pole). Platí obecně: **pole, které stojí v řádku vedle textu bez labelu, label mít
+  nesmí.**
+- **Než dorazí odhad země, stojí v řádku výzva „Vyber zemi", ne podruhé slovo „Země".** Popisek
+  a hodnota se stejným textem nad sebou vypadaly jako chyba vykreslení.
 - **Řadí se abecedně, ne jak to pošle TDLib.** Ten řadí podle KÓDU země (AD, AE, AF…), což pro
   čtenáře není pořadí. Vědomá výjimka z pravidla „pořadí necháváme od TDLib" — u chatů je to
   pořadí, na které je uživatel zvyklý z jiných klientů, tady je to náhodná řada.
