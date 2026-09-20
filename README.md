@@ -54,6 +54,16 @@ aplikaci, [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md) pro detail ch
    (build fáze „Compile Kotlin Framework"). Do `iosApp/Configuration/Config.xcconfig` doplň `TEAM_ID`,
    pokud chceš běžet na zařízení.
 
+5. Zapni hooky, pokud budeš přispívat:
+
+   ```bash
+   git config core.hooksPath .githooks
+   ```
+
+   `pre-push` ohlídá, že větev přidává poznámku do [`release-notes/`](release-notes) — jinak to
+   zjistíš až z červeného checku na otevřeném PR. Git hooky se neklonují, takže je to krok
+   na každý klon zvlášť.
+
 ## Push notifikace
 
 Aplikace zobrazuje notifikace o nových zprávách **i bez jakéhokoli nastavení** — dokud proces běží
