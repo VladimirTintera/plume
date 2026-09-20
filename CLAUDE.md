@@ -630,10 +630,24 @@ before authorization":
   než pole bez mezer.
 - **Ne každá země formát má.** Česko ano („777 123 456"), Německo ne — číslo pak zůstane
   bez mezer a je to v pořádku.
-- **Názvy zemí chodí anglicky, i když je aplikace v češtině.** `CountryInfo.name` má být podle
-  dokumentace „native name", ale TDLib před autorizací vrací anglické názvy (ověřeno na
-  emulátoru se systémovou i aplikační češtinou). Hledání proto bere i předvolbu, ať se dá napsat
-  rovnou „+420"; dohledat český překlad by znamenalo řešit jazykové balíčky TDLib.
+- **Názvy zemí překládá OPERAČNÍ SYSTÉM, ne TDLib** (`localizedCountryName`). `CountryInfo.name`
+  má být podle dokumentace „native name", jenže TDLib před autorizací vrací anglické názvy
+  (ověřeno na emulátoru se systémovou i aplikační češtinou). Kód země je ISO 3166-1 alpha-2
+  a k němu mají obě platformy data z CLDR: Android `Locale.getDisplayCountry()`, iOS
+  `NSLocale.displayNameForKey(NSLocaleCountryCode)`. Nestahuje se nic a nedrží se vlastní
+  tabulka dvou set zemí, která by stárla.
+- **Neznámý region se pozná podle toho, že se vrátí sám kód.** `getDisplayCountry` u regionu,
+  který nezná, vrátí vstup — to je „nevím", ne překlad, a spadne se na název od TDLib.
+- **Na Androidu stačí `Locale.getDefault()`**, ten sleduje i jazyk nastavený jen pro aplikaci
+  (per-app locale), takže název země odpovídá tomu, v čem je zbytek obrazovky.
+- **Na iOS se `NSLocale.currentLocale` použít NESMÍ.** Jde za regionálním nastavením systému,
+  ne za jazykem aplikace: česká aplikace na anglickém simulátoru měla „Země: Czechia" k česky
+  psanému zbytku obrazovky. Locale se proto staví z [platformLanguageCode]
+  (`NSLocale(localeIdentifier = …)`) — tedy z téhož zdroje jazyka, jaký dostává i TDLib.
+  Ověřeno na simulátoru: `simctl launch … -AppleLanguages "(cs)"` ukáže rozdíl bez přepínání
+  celého systému.
+- **Hledá se i podle anglického názvu** (`Country.englishName` od TDLib, nekreslí se). Kdo zná
+  zemi jen anglicky, by ji v českém seznamu jinak nenašel — „Germany" vs. „Německo".
 
 ## Odhlášení
 

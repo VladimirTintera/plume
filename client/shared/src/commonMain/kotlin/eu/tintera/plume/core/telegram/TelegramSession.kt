@@ -83,8 +83,16 @@ interface TelegramSession {
 data class Country(
     /** Dvoupísmenný kód ISO 3166-1 alpha-2. Slouží i jako klíč v seznamu. */
     val code: String,
-    /** Název v jazyce aplikace. */
+    /**
+     * Název v jazyce zařízení. Překlad dává OPERAČNÍ SYSTÉM podle [code] (viz
+     * `localizedCountryName`), ne TDLib — ten před autorizací vrací anglické názvy.
+     */
     val name: String,
+    /**
+     * Anglický název od TDLib. Nekreslí se, ale hledá se podle něj taky: kdo zná zemi jen
+     * anglicky, ji v českém seznamu jinak nenajde.
+     */
+    val englishName: String,
     /** Emoji vlajky; může být prázdné. */
     val flagEmoji: String,
     /** Předvolba včetně `+`. */

@@ -4,6 +4,7 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSApplicationSupportDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSLocale
+import platform.Foundation.NSLocaleCountryCode
 import platform.Foundation.preferredLanguages
 import platform.Foundation.NSURL
 import platform.Foundation.NSURLIsExcludedFromBackupKey
@@ -63,7 +64,22 @@ actual val platformDeviceModel: String = UIDevice.currentDevice.model
 actual val platformSystemVersion: String =
     "${UIDevice.currentDevice.systemName} ${UIDevice.currentDevice.systemVersion}"
 
-/** `preferredLanguages` je „cs-CZ"; TDLib chce samotný kód jazyka. */
+/**
+ * Locale se staví z [platformLanguageCode], NE z `NSLocale.currentLocale`.
+ *
+ * `currentLocale` jde za regionálním nastavením systému, ne za jazykem aplikace: s českou
+ * aplikací na anglickém simulátoru vracel „Czechia" k česky psanému zbytku obrazovky. Název
+ * země má být v tom, v čem uživatel čte všechno ostatní, takže se bere tentýž zdroj jazyka,
+ * jaký dostává i TDLib.
+ *
+ * Neznámý region vrací `displayNameForKey` jako `null`, takže není co odfiltrovávat navíc.
+ */
+actual fun localizedCountryName(code: String): String? =
+    NSLocale(localeIdentifier = platformLanguageCode)
+        .displayNameForKey(NSLocaleCountryCode, code)
+        ?.takeIf { it.isNotBlank() && !it.equals(code, ignoreCase = true) }
+
+/** `preferredLanguages` je „cs-CZ"; jazyk se z toho bere bez regionu. */
 actual val platformLanguageCode: String
     get() = (NSLocale.preferredLanguages.firstOrNull() as? String)
         ?.substringBefore('-')

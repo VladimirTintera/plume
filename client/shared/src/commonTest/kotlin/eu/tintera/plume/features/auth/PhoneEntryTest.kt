@@ -12,8 +12,8 @@ import kotlin.test.assertEquals
  */
 class PhoneEntryTest {
 
-    private val czechia = Country(code = "CZ", name = "Česko", flagEmoji = "🇨🇿", callingCode = "+420")
-    private val switzerland = Country(code = "CH", name = "Švýcarsko", flagEmoji = "🇨🇭", callingCode = "+41")
+    private val czechia = Country(code = "CZ", name = "Česko", englishName = "Czech Republic", flagEmoji = "🇨🇿", callingCode = "+420")
+    private val switzerland = Country(code = "CH", name = "Švýcarsko", englishName = "Switzerland", flagEmoji = "🇨🇭", callingCode = "+41")
 
     @Test
     fun `z masky se bere jen to co uzivatel napsal`() {
@@ -85,6 +85,18 @@ class PhoneEntryTest {
         assertEquals(listOf(switzerland), list.matching("svycar"))
         assertEquals(listOf(switzerland), list.matching("ŠVÝCARSKO"))
         assertEquals(listOf(czechia), list.matching("Česko"))
+    }
+
+    /**
+     * Názvy překládá systém, takže v české aplikaci je „Německo" — kdo zná zemi jen anglicky,
+     * ji musí najít taky.
+     */
+    @Test
+    fun `hledat jde i podle anglickeho nazvu`() {
+        val list = listOf(czechia, switzerland)
+
+        assertEquals(listOf(switzerland), list.matching("switz"))
+        assertEquals(listOf(czechia), list.matching("Czech Rep"))
     }
 
     @Test
