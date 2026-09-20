@@ -3,6 +3,8 @@ package eu.tintera.plume.core.telegram
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSApplicationSupportDirectory
 import platform.Foundation.NSFileManager
+import platform.Foundation.NSLocale
+import platform.Foundation.preferredLanguages
 import platform.Foundation.NSURL
 import platform.Foundation.NSURLIsExcludedFromBackupKey
 import platform.Foundation.NSUserDomainMask
@@ -60,3 +62,9 @@ actual val platformDeviceModel: String = UIDevice.currentDevice.model
 
 actual val platformSystemVersion: String =
     "${UIDevice.currentDevice.systemName} ${UIDevice.currentDevice.systemVersion}"
+
+/** `preferredLanguages` je „cs-CZ"; TDLib chce samotný kód jazyka. */
+actual val platformLanguageCode: String
+    get() = (NSLocale.preferredLanguages.firstOrNull() as? String)
+        ?.substringBefore('-')
+        ?: "en"

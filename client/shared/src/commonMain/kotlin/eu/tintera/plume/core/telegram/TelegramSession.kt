@@ -42,11 +42,67 @@ interface TelegramSession {
     /** Přepne přihlášení do QR režimu — výsledkem je [AuthStage.WaitQrConfirmation] s odkazem. */
     suspend fun startQrLogin(): Result<Unit>
 
+    /**
+     * Zahodí rozjeté QR přihlášení a vrátí automat na začátek, k zadání čísla.
+     *
+     * **Jinak se z QR režimu ven nedostaneme.** TDLib u `setAuthenticationPhoneNumber`
+     * i `requestQrCodeAuthentication` vyjmenovává stavy, ve kterých se smí volat, a
+     * `authorizationStateWaitOtherDeviceConfirmation` v žádném z těch seznamů není. Bez tohohle
+     * by uživatel, který nemá čím QR kód naskenovat, neměl jinou cestu než aplikaci odinstalovat.
+     */
+    suspend fun restartLogin(): Result<Unit>
+
+    /**
+     * Země pro výběr předvolby, bez těch, které TDLib schovává. Seznam **dává TDLib**
+     * (`getCountries`), nedržíme vlastní tabulku: názvy jsou přeložené, vlajky a předvolby
+     * aktuální a nic se u nás nerozejde se skutečností.
+     */
+    suspend fun countries(): Result<List<Country>>
+
+    /** Země odhadnutá podle IP — jen na předvyplnění, uživatel ji může změnit. */
+    suspend fun suggestedCountryCode(): Result<String>
+
+    /**
+     * Rozbor rozepsaného čísla. Volá se při psaní, takže jde o lokální (synchronní) dotaz
+     * do dat, která má TDLib u sebe — na síť se nechodí.
+     */
+    suspend fun phoneNumberInfo(prefix: String): Result<PhoneNumberDetails>
+
     suspend fun logOut(): Result<Unit>
 
     /** Přihlášený účet. Dává smysl až v [AuthStage.Ready]. */
     suspend fun me(): Result<AccountInfo>
 }
+
+/**
+ * Země v seznamu předvoleb.
+ *
+ * [callingCode] je ta, kterou ukazujeme; zemí s víc předvolbami je hrstka a k PÁROVÁNÍ
+ * rozepsaného čísla se stejně nepoužívá — to dělá TDLib v [TelegramSession.phoneNumberInfo].
+ */
+data class Country(
+    /** Dvoupísmenný kód ISO 3166-1 alpha-2. Slouží i jako klíč v seznamu. */
+    val code: String,
+    /** Název v jazyce aplikace. */
+    val name: String,
+    /** Emoji vlajky; může být prázdné. */
+    val flagEmoji: String,
+    /** Předvolba včetně `+`. */
+    val callingCode: String,
+)
+
+/**
+ * Co TDLib pozná z rozepsaného čísla.
+ *
+ * [mask] je předpis formátování, ve kterém **`-` znamená očekávanou číslici** a cokoli jiného
+ * je oddělovač. Vlastní tabulku formátů tím držet nemusíme.
+ */
+data class PhoneNumberDetails(
+    val country: Country?,
+    /** Předvolba bez `+`, jak ji vrací TDLib. */
+    val callingCode: String,
+    val mask: String,
+)
 
 /** Základní údaje o přihlášeném účtu. */
 data class AccountInfo(

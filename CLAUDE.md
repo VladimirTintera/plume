@@ -565,6 +565,63 @@ Aplikace na simulátoru **do unified logu nic nepíše** — `log stream --predi
   moduly vlasové spáry; zbytek šířky se rozdělí do okrajů.
 - **Odkaz se obnovuje.** TDLib posílá nový `AuthorizationStateWaitOtherDeviceConfirmation`
   zhruba každou půlminutu; kód se přepočítá přes `remember(content)`.
+- **Z QR režimu se přes zadání čísla vrátit NEJDE** — je to smlouva TDLib, ne naše chyba.
+  `setAuthenticationPhoneNumber` i `requestQrCodeAuthentication` vyjmenovávají stavy, ve kterých
+  se smí volat, a `authorizationStateWaitOtherDeviceConfirmation` v žádném z těch seznamů není;
+  berou ho jen `checkAuthenticationPasskey` a `checkAuthenticationWebToken` („for official
+  Telegram apps only").
+- **Jediné dveře ven jsou `destroy()`** (`TelegramSession.restartLogin`). Zavře klienta,
+  `onClientClosed` vyrobí nového a ten dojde k zadání čísla. **Ne `logOut`**: ten chce funkční
+  připojení a je to „řádné odhlášení" relace, která ještě neexistuje — a právě spojení nemusí
+  mít ten, kdo se z QR vrací. `destroy` smí být volaný před autorizací a funguje offline.
+  Bez tlačítka „Přihlásit se číslem" je QR slepá ulička: kdo nemá čím kód naskenovat, musel by
+  aplikaci odinstalovat.
+- **Zavírání klienta se v téhle situaci NEHLÁSÍ jako odhlašování** (`restartingLogin`,
+  `closingStage()`). „Odhlašuji" by lhalo — uživatel přihlášený nikdy nebyl.
+
+## Přihlašovací obrazovka
+
+Jedna obrazovka pro všechny fáze (`AuthScreen`), fáze se střídají v `AnimatedContent`.
+
+- **Uvítací tvar stojí NAD `AnimatedContent`, ne uvnitř.** Uvnitř by se jeho úvodní animace
+  pouštěla při každém kroku přihlášení a z uvítání by byl tik. Takhle naběhne jednou a pak jen
+  mění ikonu podle fáze.
+- **Je to tentýž tvar jako u prázdného stavu** — `IntroShape` v `core/ui`, vytažený z
+  `IntroEmptyState`. „Vítej v aplikaci" a „tady zatím nic není" jsou dvě podoby téhož okamžiku;
+  dva různé vzhledy by jazyk tvarů rozmělnily (viz `ShapeMorphs`).
+- **Fáze přijíždějí zdola a odjíždějí nahoru.** Přihlášení jde dopředu, tak jde i pohyb jedním
+  směrem; prolnutí samo by nedalo najevo, že se postoupilo o krok.
+
+### Výběr země a formát čísla
+
+**Seznam zemí ani formáty čísel se nedrží u nás** — dává je TDLib, a všechno „can be called
+before authorization":
+
+- `getCountries()` → kód, název, **emoji vlajky**, `isHidden` a předvolby. Vlajka je emoji ze
+  systémového písma, takže se pro dvě stě zemí nedrží žádná sada ikon.
+- `getCountryCode()` → země podle IP. **Použije se, jen dokud si uživatel nevybral sám** —
+  dorazí po síti a přepsat jím ruční volbu by vypadalo jako chyba.
+- `getPhoneNumberInfoSync(languageCode, prefix)` → z rozepsaného čísla pozná zemi a vrátí masku,
+  ve které **`-` je očekávaná číslice**. Je to lokální dotaz, takže se smí volat při každém úhozu.
+
+- **Řadí se abecedně, ne jak to pošle TDLib.** Ten řadí podle KÓDU země (AD, AE, AF…), což pro
+  čtenáře není pořadí. Vědomá výjimka z pravidla „pořadí necháváme od TDLib" — u chatů je to
+  pořadí, na které je uživatel zvyklý z jiných klientů, tady je to náhodná řada.
+- **Maska se ukazuje jen po poslední zadanou číslici** (`formatNationalNumber`). „777 --- ---"
+  vypadá jako rozbité pole.
+- **Hodnotou pole jsou syrové číslice, oddělovače dodává `VisualTransformation`.** S naformátovanou
+  hodnotou by kurzor skákal pokaždé, když formátování vloží mezeru. Mapování pozic je pokryté
+  testy (`PhoneEntryTest`) — chyba v něm se na zařízení pozná až skákajícím kurzorem, což se
+  při klikání přehlédne.
+- **Nesedící maska transformaci vypne.** Než po změně země dorazí přeformátování, je na jeden
+  snímek maska od předchozí země; pole, které ukazuje jiné číslo, než v něm je, by bylo horší
+  než pole bez mezer.
+- **Ne každá země formát má.** Česko ano („777 123 456"), Německo ne — číslo pak zůstane
+  bez mezer a je to v pořádku.
+- **Názvy zemí chodí anglicky, i když je aplikace v češtině.** `CountryInfo.name` má být podle
+  dokumentace „native name", ale TDLib před autorizací vrací anglické názvy (ověřeno na
+  emulátoru se systémovou i aplikační češtinou). Hledání proto bere i předvolbu, ať se dá napsat
+  rovnou „+420"; dohledat český překlad by znamenalo řešit jazykové balíčky TDLib.
 
 ## Odhlášení
 

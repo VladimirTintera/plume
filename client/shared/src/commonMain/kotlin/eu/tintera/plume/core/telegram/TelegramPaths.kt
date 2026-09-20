@@ -28,3 +28,10 @@ expect class TelegramPaths {
 expect val platformDeviceModel: String
 
 expect val platformSystemVersion: String
+
+/**
+ * Dvoupísmenný kód jazyka zařízení. TDLib podle něj překládá názvy zemí a formátuje čísla
+ * (`getCountries`, `getPhoneNumberInfoSync`), takže se nesmí hádat z jazyka aplikace —
+ * Compose prostředky na něj v `core` nedosáhnou a mimo kompozici by se stejně nečetly.
+ */
+expect val platformLanguageCode: String

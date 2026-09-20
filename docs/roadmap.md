@@ -80,6 +80,12 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
   Na rozloženém Foldu by místo celoobrazovkového hledání sedělo `ExpandedDockedSearchBar`.
   Nastavení má pořád `LargeFlexibleTopAppBar` se stejnou vadou po sbalení jako měly Chaty.
 - **Nová konverzace a kontakty.** Napsat se dá jen tomu, s kým už chat existuje.
+- **Přihlašovací obrazovka** — hotová (výběr země, formátování čísla, návrat z QR na číslo,
+  expressive přestavba; `CLAUDE.md`, „Přihlašovací obrazovka"). Zbývá:
+  - **Názvy zemí jsou anglické i v české aplikaci.** TDLib je před autorizací nelokalizuje;
+    znamenalo by to sáhnout na jeho jazykové balíčky.
+  - **Zpět na přihlašovací obrazovce ukončí aplikaci.** Přihlášení není v `NavDisplay`, takže
+    z kódu ani hesla nevede cesta zpátky k číslu jinak než dokončením nebo restartem.
 - **Sdílení ze systému do aplikace.** ~~Android~~ — hotovo (text, odkaz, jeden i víc
   souborů; výběr chatu, obsah čeká nad vstupním polem). Poučení v `CLAUDE.md`, „Sdílení do
   aplikace". Zbývá:

@@ -20,7 +20,7 @@
     <string name="auth_headline_ready">Hotovo</string>
     <string name="auth_headline_logging_out">Odhlašuji</string>
     <string name="auth_headline_failed">Nepovedlo se</string>
-    <string name="auth_support_phone">Zadej číslo i s předvolbou, například +420…</string>
+    <string name="auth_support_phone">Na tohle číslo pošleme ověřovací kód.</string>
     <string name="auth_support_code">Kód dorazil do jiného Telegram klienta nebo SMS.</string>
     <string name="auth_support_password_hint">Nápověda: %1$s</string>
     <string name="auth_support_qr">V Telegramu na přihlášeném zařízení otevři Nastavení → Zařízení → Připojit zařízení a naskenuj kód.</string>
@@ -34,6 +34,12 @@
     <string name="auth_error_email_unsupported">Tenhle účet chce ověření e-mailem a to zatím neumíme. Zkus číslo nebo QR kód.</string>
     <string name="auth_error_premium_required">Přihlášení k tomuhle účtu vyžaduje nákup Telegram Premium; ten tenhle klient neumí.</string>
     <string name="auth_error_missing_api_credentials">Chybí api_id/api_hash. Vygeneruj si je na my.telegram.org a vlož do local.properties jako telegramApiId a telegramApiHash.</string>
+    <string name="auth_error_restart">Návrat k zadání čísla se nepodařil. Zkus to prosím znovu.</string>
+    <string name="auth_country_label">Země</string>
+    <string name="auth_country_choose">Vyber zemi</string>
+    <string name="auth_country_search">Hledat zemi</string>
+    <string name="auth_country_empty">Žádná země nenalezena</string>
+    <string name="auth_use_phone_number">Přihlásit se číslem</string>
     <string name="auth_error_start_failed">Nepodařilo se spustit spojení s Telegramem.</string>
     <string name="chats_empty">Zatím tu nic není.</string>
     <string name="saved_messages">Uložené zprávy</string>
