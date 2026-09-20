@@ -7,8 +7,12 @@
 # a **týmž skriptem** (`.github/scripts/release_notes.py`), aby se obě kontroly nemohly
 # rozejít.
 #
-# Zapíná se jednou na klon:   git config core.hooksPath .githooks
+# Zapíná se jednou na klon:   git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"
 # Obejít jednorázově:         git push --no-verify
+#
+# Cesta musí být ABSOLUTNÍ. Relativní se počítá od pracovního stromu, do kterého se pushuje —
+# a worktree (`.claude/worktrees/…`) stojí na vlastní větvi, kde `.githooks` být nemusí. Hook
+# pak tiše neběží, protože git na chybějící cestu nenadává.
 #
 # Nekontroluje se:
 #  - tagy — release se vydává pushnutím tagu `android-<versionName>-<versionCode>`
@@ -21,6 +25,7 @@ set -u
 git rev-parse --verify --quiet refs/remotes/origin/main >/dev/null || exit 0
 
 zero=$(git hash-object --stdin </dev/null | tr '0-9a-f' '0')
+hook_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 status=0
 
 while read -r local_ref local_sha remote_ref remote_sha; do
@@ -54,9 +59,21 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     for file in $changed; do
         git show "$local_sha:$file" > "$tmp/$(basename "$file")" || status=1
     done
+    # Skript se bere vedle hooku, a teprve když tam není, z pushovaného stromu: z worktree
+    # se pushuje větev, která `.github/scripts/` mít nemusí, zato hook leží v hlavním stromu.
+    script=""
+    for candidate in "$hook_dir/../.github/scripts/release_notes.py" \
+                     "$(git rev-parse --show-toplevel)/.github/scripts/release_notes.py"; do
+        [ -f "$candidate" ] && { script=$candidate; break; }
+    done
+    if [ -z "$script" ]; then
+        echo "poznámka: release_notes.py tu není, formát poznámky ověří až CI." >&2
+        rm -rf "$tmp"
+        continue
+    fi
+
     # Kontrola běží AŽ V TOM adresáři, aby se v hlášce objevilo jméno poznámky,
     # a ne cesta do /var/folders, ve které ji nikdo nehledá.
-    script=$(git rev-parse --show-toplevel)/.github/scripts/release_notes.py
     (cd "$tmp" && python3 "$script" check ./*.md) || status=1
     rm -rf "$tmp"
 done

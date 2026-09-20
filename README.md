@@ -57,12 +57,13 @@ aplikaci, [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md) pro detail ch
 5. Zapni hooky, pokud budeš přispívat:
 
    ```bash
-   git config core.hooksPath .githooks
+   git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"
    ```
 
    `pre-push` ohlídá, že větev přidává poznámku do [`release-notes/`](release-notes) — jinak to
    zjistíš až z červeného checku na otevřeném PR. Git hooky se neklonují, takže je to krok
-   na každý klon zvlášť.
+   na každý klon zvlášť; **cesta musí být absolutní**, jinak hook mlčky neběží v dalších
+   pracovních stromech (`git worktree`).
 
 ## Push notifikace
 

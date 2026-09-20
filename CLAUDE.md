@@ -293,7 +293,8 @@ en: Search in the chat list
 Formát, ořez i skládání jsou v `.github/scripts/release_notes.py`.
 
 **Chybějící poznámku hlídá `pre-push` hook, ne až CI** (`.githooks/pre-push`, zapíná se jednou
-na klon: `git config core.hooksPath .githooks`; obejít jde `git push --no-verify`).
+na klon: `git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"`; obejít jde
+`git push --no-verify`).
 
 - **Hlídá se až při pushi, ne při commitu.** U vícekolového PR přijde poznámka běžně až s druhým
   commitem, takže pre-commit by hlásil falešný poplach u každého předchozího. Push je okamžik,
@@ -303,6 +304,15 @@ na klon: `git config core.hooksPath .githooks`; obejít jde `git push --no-verif
   jinak než sloučením PR, který kontrolou prošel.
 - **Formát se čte Z PUSHOVANÉHO COMMITU** (`git show`), ne z pracovního stromu: pushnout jde
   i starší commit, a hlídat se má to, co uvidí CI.
+- **`core.hooksPath` musí být ABSOLUTNÍ cesta.** Relativní se počítá od pracovního stromu, do
+  kterého se pushuje — a worktree (`.claude/worktrees/…`) stojí na vlastní větvi, kde `.githooks`
+  být nemusí, protože je starší než hook. Hook tam pak neběžel a **nijak se to neohlásilo**: git
+  na chybějící cestu k hooku nenadává. Config je mezi worktrees sdílený, takže absolutní cesta
+  se nastavuje jednou a platí pro všechny.
+- **Skript se hledá vedle hooku, teprve pak v pushovaném stromu.** Z worktree se pushuje větev,
+  která `.github/scripts/` mít nemusí; hook naopak leží v hlavním stromu, kam absolutní cesta
+  míří. Když není ani jeden, kontrola formátu se přeskočí a zbyde na CI — hook nemá blokovat
+  push kvůli tomu, že si na něco nedosáhl.
 - **Kontrolu dělá TENTÝŽ skript jako workflow.** Dvě kopie pravidel by se rozešly a lokální
   kontrola by začala pouštět dál, co CI zamítne. `release_notes.py` proto jen podle
   `GITHUB_ACTIONS` přepíná, jestli chybu vypsat jako anotaci GitHubu, nebo jako větu.
