@@ -640,6 +640,12 @@ before authorization":
   který nezná, vrátí vstup — to je „nevím", ne překlad, a spadne se na název od TDLib.
 - **Na Androidu stačí `Locale.getDefault()`**, ten sleduje i jazyk nastavený jen pro aplikaci
   (per-app locale), takže název země odpovídá tomu, v čem je zbytek obrazovky.
+- **Na iOS se `NSLocale.currentLocale` použít NESMÍ.** Jde za regionálním nastavením systému,
+  ne za jazykem aplikace: česká aplikace na anglickém simulátoru měla „Země: Czechia" k česky
+  psanému zbytku obrazovky. Locale se proto staví z [platformLanguageCode]
+  (`NSLocale(localeIdentifier = …)`) — tedy z téhož zdroje jazyka, jaký dostává i TDLib.
+  Ověřeno na simulátoru: `simctl launch … -AppleLanguages "(cs)"` ukáže rozdíl bez přepínání
+  celého systému.
 - **Hledá se i podle anglického názvu** (`Country.englishName` od TDLib, nekreslí se). Kdo zná
   zemi jen anglicky, by ji v českém seznamu jinak nenašel — „Germany" vs. „Německo".
 
