@@ -9,6 +9,19 @@ package eu.tintera.plume.core.telegram
 expect class TelegramPaths {
     val databaseDirectory: String
     val filesDirectory: String
+
+    /**
+     * Založí adresáře a označí je, aby nešly do zálohy.
+     *
+     * TDLib si je vyrobí sám, jenže pak by na nich příznak chvíli nebyl. Volá se proto před
+     * KAŽDÝM `setTdlibParameters` — je to pár syscallů a jediné místo, kde se na to nedá
+     * zapomenout ani po smazání nečitelné databáze, kdy adresáře vznikají znovu.
+     *
+     * **Zálohovaná databáze je k ničemu a škodí.** Klíč k ní leží v Keystore / Keychainu
+     * a ten se na jiné zařízení nepřenáší, takže obnovená databáze by se stejně zahodila —
+     * jen by do zálohy putovala celá historie zpráv.
+     */
+    fun prepare()
 }
 
 /** Popis zařízení, který se posílá serveru a zobrazuje v „Aktivní relace" v oficiálním klientovi. */

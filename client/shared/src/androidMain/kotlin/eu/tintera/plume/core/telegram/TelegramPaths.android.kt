@@ -2,6 +2,7 @@ package eu.tintera.plume.core.telegram
 
 import android.content.Context
 import android.os.Build
+import java.io.File
 
 /**
  * `filesDir` je privátní pro aplikaci a systém ho nezálohuje do cloudu bez našeho svolení —
@@ -11,6 +12,15 @@ import android.os.Build
 actual class TelegramPaths(context: Context) {
     actual val databaseDirectory: String = context.filesDir.resolve("tdlib").absolutePath
     actual val filesDirectory: String = context.filesDir.resolve("tdlib-files").absolutePath
+
+    /**
+     * Na Androidu stačí adresáře založit: zálohu vypíná manifest (`allowBackup="false"`) pro celou
+     * aplikaci, takže se tu nic označovat nemusí.
+     */
+    actual fun prepare() {
+        File(databaseDirectory).mkdirs()
+        File(filesDirectory).mkdirs()
+    }
 }
 
 actual val platformDeviceModel: String = "${Build.MANUFACTURER} ${Build.MODEL}"

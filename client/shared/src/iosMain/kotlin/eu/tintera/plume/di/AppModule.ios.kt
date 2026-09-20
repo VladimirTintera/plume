@@ -11,6 +11,8 @@ import eu.tintera.plume.core.share.ShareTargetPublisher
 import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.connectivity.NetworkMonitor
 import eu.tintera.plume.core.notifications.NotificationPermission
+import eu.tintera.plume.core.secrets.DatabaseKeyStore
+import eu.tintera.plume.core.secrets.KeychainDatabaseKeyStore
 import eu.tintera.plume.core.settings.SETTINGS_FILE_NAME
 import eu.tintera.plume.core.settings.createSettingsDataStore
 import eu.tintera.plume.core.telegram.applicationSupportDirectory
@@ -24,6 +26,7 @@ import org.koin.core.qualifier.named
 
 actual fun Module.platformModule() {
     single { TelegramPaths() }
+    single<DatabaseKeyStore> { KeychainDatabaseKeyStore() }
     single { NotificationPermission() }
     single { NotificationPresenter() }
     single { UrlOpener() }

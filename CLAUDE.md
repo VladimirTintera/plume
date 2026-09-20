@@ -406,6 +406,113 @@ nenačte. Před bumpem zkontroluj:
 curl -s https://repo1.maven.org/maven2/dev/g000sha256/tdl-coroutines-iosarm64/<ver>/tdl-coroutines-iosarm64-<ver>.module | grep -A2 kotlin-stdlib
 ```
 
+## Šifrovaná databáze TDLib
+
+TDLib drží historii zpráv v SQLite databázi v adresáři aplikace a šifruje ji klíčem, který dostane
+v `setTdlibParameters`. Klíč je 32 náhodných bajtů z **`core/secrets`** — další hranice vedle
+`core/telegram`, `core/logging` a `core/update`: `java.security.KeyStore` a `platform.Security.*`
+smí být importované jen tam.
+
+- **`DatabaseKeyStore` je rozhraní, ne `expect class`** (jako `ShareTargetPublisher`
+  a `CrashReporter`). Na jeho hodnotách visí rozhodnutí, jestli se smažou lokální data, a to chce
+  test s podstrčeným úložištěm — `expect class` se v `commonTest` nahradit nedá.
+- **Klíč NESMÍ vyžadovat ověření uživatele.** Push budí mrtvý proces, když telefon leží zamčený
+  v kapse, a TDLib potřebuje klíč dřív, než se složí jakékoli UI. Klíč za otiskem prstu znamená,
+  že z pozadí nechodí notifikace vůbec. Z téhož důvodu je iOS `kSecAttrAccessibleAfterFirstUnlock…`,
+  ne `WhenUnlocked`.
+- **Tím je daná i mez.** Klíč dostane každý kód běžící pod naší aplikací: chrání to proti vytažení
+  disku, záloze, `adb backup` a forenznímu čtení souborů, ne proti rootnutému zařízení s běžící
+  aplikací. Stejný kompromis dělá i oficiální klient — jen to musí být napsané, aby se to za rok
+  nepletlo za víc.
+- **Android Keystore neumí uložit bajty, jen klíče.** To je past, na které se to nejčastěji láme:
+  `AndroidKeyStore` není trezor na data. Klíč se proto obaluje AES-GCM klíčem z Keystore a na disku
+  leží jen šifrotext (`filesDir/tdlib-key`, `[délka IV][IV][šifrotext]`). `androidx.security:security-crypto`
+  dělá totéž, ale je to závislost navíc kvůli padesáti řádkům — stejná úvaha jako u `app-update`
+  proti `app-update-ktx`.
+- **`setInvalidatedByBiometricEnrollment` se NENASTAVUJE.** Přidaný otisk prstu by zneplatnil klíč
+  a uživatel by přišel o přihlášení kvůli nastavení telefonu.
+- **Soubor s klíčem se píše přes dočasný soubor a přejmenování.** Zabitý proces uprostřed zápisu
+  by nechal na disku uříznutý klíč — a s ním databázi, která už nejde otevřít.
+- **Na iOS klíč NEPATŘÍ do App Group.** Rozšíření sdílení TDLib nespouští a databázi nevidí,
+  takže `kSecAttrAccessGroup` by jen rozšířil plochu bez užitku.
+- **`ThisDeviceOnly`, a proto se adresáře TDLib vylučují ze zálohy** (`NSURLIsExcludedFromBackupKey`
+  v `TelegramPaths.prepare()`). Klíč se na jiné zařízení nepřenese, takže obnovená databáze by se
+  stejně zahodila — jen by do zálohy putovala celá historie zpráv. Na Androidu to řeší
+  `allowBackup="false"` pro celou aplikaci. `prepare()` běží před KAŽDÝM `setTdlibParameters`,
+  ne jednou při startu: adresáře vznikají znovu i po smazání nečitelné databáze a na jediném
+  místě se na to nedá zapomenout.
+
+### Pořadí, migrace a cesta ven
+
+Pravidlo je čistá funkce `unlockDatabase` (`core/telegram/DatabaseUnlock.kt`, testy
+`DatabaseUnlockTest`), ne tělo session: pořadí kroků je to jediné, co se na tom dá rozbít, a uvnitř
+třídy s živým klientem by se to neotestovalo.
+
+- **Klíč se ukládá DŘÍV, než se jím databáze zašifruje.** Obrácené pořadí („nejdřív zašifrovat,
+  pak uložit") má okno, ve kterém zabitý proces nechá zašifrovanou databázi bez klíče — a to je
+  nenávratné odhlášení. Takhle je nejhorší možný stav ten, že databáze za klíčem zaostává, a ten
+  se pozná a dožene.
+- **Kroky jsou tři a každý pojmenovává jeden stav světa:** otevřít uloženým klíčem (běžný start,
+  jedno volání jako dřív) → nejde to, otevřít prázdným a zašifrovat (instalace z verze bez
+  šifrování i přerušená migrace) → nejde ani to, databáze je zašifrovaná klíčem, který nemáme,
+  takže se zahodí. První spuštění uspěje hned v prvním kroku: databáze ještě není a TDLib ji
+  založí rovnou zašifrovanou, takže nikdy nevznikne ani na okamžik nešifrovaná.
+- **Databázi s prázdným klíčem NELZE otevřít neprázdným** — TDLib vrátí 401 (hláška
+  „Wrong database encryption key", ověřeno `strings libtdjsonjava.so | grep "encryption key"`).
+  Přešifruje se až otevřená databáze, přes `setDatabaseEncryptionKey`. Není to tedy „změnit jeden
+  řádek": bez migračního kroku by se každá existující instalace odhlásila.
+- **Mazat se smí JEN na chybu o klíči.** Kdyby se mazalo při každém selhání `setTdlibParameters`,
+  odhlásil by uživatele plný disk nebo překlep v `api_id`. Sedí na to test — a ověřilo se
+  pokusem, ne úvahou: po odstranění téhle podmínky selžou přesně ty dva testy, které ji hlídají.
+- **Soubory jdou pryč s databází, ne zvlášť.** `fileId` platí jen v jedné databázi TDLib, takže
+  bez ní jsou stažená média neadresovatelné bajty.
+- **Ztráta klíče se nevysvětluje vlastní hláškou.** Po zahození nečitelné databáze se otevře nová
+  a uživatel skončí na přihlašovací obrazovce — po přenosu na nový telefon je to stejně to, co od
+  Telegramu čeká. `AuthStage.Failed` by tu byl slepý konec: obrazovka chyby nemá tlačítko, kterým
+  se dá pokračovat.
+- **Selhání samotného zašifrování aplikaci nezastaví.** Databáze zůstane nešifrovaná, klíč uložený,
+  a příští start to zkusí znovu druhým krokem. Loguje se `e` s výjimkou, takže je to v Crashlytics
+  vidět jako problém.
+
+### Prázdný klíč NEZNAMENÁ nešifrovanou databázi
+
+**TDLib má SQLCipher zalinkovaný vždycky a `db.sqlite` je neprůhledná i s prázdným klíčem** —
+ověřeno na emulátoru ještě před změnou: soubor nemá hlavičku „SQLite format 3", `strings` v něm
+ani v `td.binlog` nenajde jediné jméno, adresu ani český text. Z prázdného klíče se tedy nestává
+čitelná databáze, ale databáze šifrovaná **konstantou, kterou zná každý, kdo má TDLib**. To je
+zamlžení, ne ochrana; smysl téhle změny je vyměnit ji za klíč, který má jen tohle zařízení.
+
+Plyne z toho i to, **čím se to NEDÁ ověřit**. První verze tohohle odstavce radila porovnat
+`strings files/tdlib/db.sqlite` před změnou a po ní — jenže ten test vyjde stejně v obou
+případech a „nic nenašel" by se dalo přečíst jako úspěch i u kódu, který klíč vůbec nenastaví.
+**Jediný důkaz, že klíč zabral, je, že databáze už PRÁZDNÝM klíčem otevřít nejde.**
+
+### Jak to ověřit
+
+Přesně to říká cesta ven, takže se obojí ověří jedním pokusem. Nová verze se nainstaluje přes
+existující data (`adb install -r`, data zůstanou) a v logu musí být:
+
+1. **při prvním spuštění** „Databáze TDLib zašifrovaná." a hned za ní `AuthorizationState -> Ready`
+   — migrace proběhla a uživatel zůstal přihlášený,
+2. **při druhém spuštění** už ta hláška NENÍ — databáze se otevřela rovnou uloženým klíčem,
+   jedním voláním,
+3. **po poškození klíče** (`run-as eu.tintera.plume sh -c 'head -c 61 /dev/urandom > files/tdlib-key'`)
+   „Klíč k databázi nejde rozšifrovat" → „Databázi TDLib nejde odemknout" s `TdlThrowable: Wrong
+   database encryption key` → `AuthorizationState -> WaitPhoneNumber`, bez pádu, a `db.sqlite`
+   spadne z megabajtů na jednotky kilobajtů.
+
+**Krok 3 je ten důkaz.** Aby se došlo až k mazání, musel selhat i pokus s PRÁZDNÝM klíčem —
+tedy databáze opravdu není ta, kterou TDLib zakládá sám. Ověřeno na emulátoru: 15 MB → 12 kB
+a přihlašovací obrazovka.
+
+**Push do zmrazeného procesu je čtvrtý krok** a ověřuje to, co žádný z předchozích: že se klíč
+načte bez jakéhokoli UI. Aplikaci nestačí odsunout na plochu (zůstane na adj 700) — musí se
+vytlačit do keše spuštěním pár jiných aplikací, pak je asi do dvaceti vteřin `isFrozen=true`
+(`dumpsys activity processes eu.tintera.plume`). Zpráva od testovacího bota pak musí skončit
+notifikací se správným textem. Ověřeno na emulátoru.
+
+Zbývá ověřit **na iOS** — Keychain je zatím ověřený jen překladem a linkem.
+
 ## Přihlášení QR kódem
 
 - **QR se generuje na platformě** (`encodeQrCode`): Android přes zxing, iOS přes CoreImage
@@ -3413,8 +3520,4 @@ a perzistence nastavení — všechno dávno hotové. Seznam úkolů vedený na 
 na jednom a to druhé tiše lže. README proto říká, co aplikace umí, a na roadmapy odkazuje;
 číslování fází z něj zmizelo ze stejného důvodu (README hlásilo fázi 7, CLAUDE.md fázi 6).
 
-Obojí je živý dokument: co se udělá, odtud zmizí a poučení z toho patří sem. Jedna věc zůstává
-i tady, protože je to bezpečnostní dluh, ne položka seznamu:
-
-- **`databaseEncryptionKey` je prázdný.** Před ostrým nasazením tam patří klíč z Android
-  Keystore / iOS Keychain; do té doby leží databáze TDLib na disku odšifrovaná.
+Obojí je živý dokument: co se udělá, odtud zmizí a poučení z toho patří sem.
