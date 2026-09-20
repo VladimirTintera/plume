@@ -223,7 +223,7 @@ fun AttachmentModeSheet(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    text = "1 s",
+                                    text = stringResource(Res.string.media_self_destruct_seconds, 1),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
                                 )
@@ -233,7 +233,7 @@ fun AttachmentModeSheet(
                                     color = MaterialTheme.colorScheme.primary,
                                 )
                                 Text(
-                                    text = "30 s",
+                                    text = stringResource(Res.string.media_self_destruct_seconds, 30),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
                                 )
