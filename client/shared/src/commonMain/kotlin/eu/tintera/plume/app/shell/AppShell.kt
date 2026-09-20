@@ -67,6 +67,8 @@ import eu.tintera.plume.core.adaptive.twoPane
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.koinInject
 import eu.tintera.plume.core.navigation.ChatOpenRequests
+import eu.tintera.plume.core.navigation.ArchiveChatProfileRoute
+import eu.tintera.plume.core.navigation.ArchiveConversationRoute
 import eu.tintera.plume.core.navigation.ArchiveRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
@@ -167,7 +169,8 @@ fun AppShell(modifier: Modifier = Modifier) {
      */
     // Výběr chatu pro sdílení je vsuvka odjinud, ne sekce aplikace — bar ani rail k ní nepatří.
     val inDetail = navigation.currentStack.any {
-        it is ConversationRoute || it is ChatProfileRoute || it is MediaRoute || it is ShareRoute || it is NewChatRoute
+        it is ConversationRoute || it is ArchiveConversationRoute || it is ChatProfileRoute ||
+            it is ArchiveChatProfileRoute || it is MediaRoute || it is ShareRoute || it is NewChatRoute
     }
     val showBottomBar = compact && !inDetail
 
@@ -370,14 +373,11 @@ private fun ShellContent(
          * jinak by se rozvržení přepínalo tam a zpátky, než seznam dorazí.
          */
         val chatRepository = koinInject<ChatRepository>()
-        val shownFolder = if (chatsStack.lastOrNull { it == ChatsRoute || it == ArchiveRoute } == ArchiveRoute) {
-            ChatFolder.Archive
-        } else {
-            ChatFolder.Main
-        }
+        val shownFolder = chatsStack.shownChatFolder()
         val shownList by remember(shownFolder) { chatRepository.chats(shownFolder) }.collectAsStateWithLifecycle()
+        // Otevřená konverzace se hledá jen v TÉ větvi, jejíž seznam je vidět — viz hasOpenConversation.
         val nothingToPick = navigation.section == ChatsRoute &&
-            chatsStack.none { it is ConversationRoute } &&
+            !chatsStack.hasOpenConversation(shownFolder) &&
             (shownList as? ChatListState.Ready)?.chats?.isEmpty() == true
 
         val twoPane = wide && !nothingToPick
@@ -483,17 +483,19 @@ private fun shellEntryProvider(
             onNewChat = {
                 if (chatsStack.lastOrNull() != NewChatRoute) chatsStack.add(NewChatRoute)
             },
+            onChatArchived = chatsStack::closeConversationOf,
             modifier = Modifier.listPaneInsets(twoPane),
         )
     }
 
     /*
-     * Archiv je list panel té samé scény (výchozí klíč jako Chaty). Scéna kreslí vlevo POSLEDNÍ
-     * list panel v zásobníku, takže archiv hlavní seznam nahradí a konverzace vpravo zůstane;
-     * zpět ho odebere a vlevo je zase hlavní seznam.
+     * Archiv je samostatná list-detail scéna (ARCHIVE_SCENE). V dvoupanelu má vpravo vlastní
+     * detail panel [ArchiveConversationRoute] (nebo placeholder), takže nezasahuje do otevřené
+     * konverzace hlavního seznamu; zpět odebere celou archivní větev a vrátí hlavní seznam.
      */
     entry<ArchiveRoute>(
         metadata = ListDetailSceneStrategy.listPane(
+            ARCHIVE_SCENE,
             detailPlaceholder = { ConversationPlaceholder() },
         ),
     ) {
@@ -504,10 +506,11 @@ private fun shellEntryProvider(
                 key = "chats-archive",
                 parameters = { parametersOf(ChatFolder.Archive) },
             ),
-            selectedChatId = chatsStack.filterIsInstance<ConversationRoute>()
+            selectedChatId = chatsStack.filterIsInstance<ArchiveConversationRoute>()
                 .lastOrNull()?.chatId,
-            onChatClick = { chatId -> chatsStack.openConversation(chatId) },
-            onBack = { chatsStack.remove(ArchiveRoute) },
+            onChatClick = { chatId -> chatsStack.openArchiveConversation(chatId) },
+            onBack = chatsStack::closeArchive,
+            onChatArchived = chatsStack::closeConversationOf,
             modifier = Modifier.listPaneInsets(twoPane),
         )
     }
@@ -573,6 +576,46 @@ private fun shellEntryProvider(
             },
             onOpenChat = { chatId ->
                 if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(chatId))
+            },
+        )
+    }
+
+    entry<ArchiveConversationRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
+        ConversationScreen(
+            viewModel = koinViewModel(
+                key = "conversation-${route.chatId}-${route.messageId}",
+                parameters = { parametersOf(route.chatId, route.messageId) },
+            ),
+            onBack = { chatsStack.pop(route) },
+            onOpenMedia = { messageId ->
+                chatsStack.add(MediaRoute(route.chatId, messageId))
+            },
+            onForward = { messageIds ->
+                chatsStack.add(ForwardRoute(route.chatId, messageIds))
+            },
+            onOpenChat = { chatId, messageId ->
+                if (!chatsStack.isOpenArchiveConversation(chatId)) {
+                    chatsStack.add(ArchiveConversationRoute(chatId, messageId))
+                }
+            },
+            onSearch = { query -> navigation.openSearch(query, keepConversation = false) },
+            onOpenProfile = { chatsStack.add(ArchiveChatProfileRoute(route.chatId)) },
+        )
+    }
+
+    entry<ArchiveChatProfileRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
+        val searchRequests = koinInject<ConversationSearchRequests>()
+        ChatProfileScreen(
+            viewModel = koinViewModel(key = "profile-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+            onSearch = {
+                searchRequests.request(route.chatId)
+                chatsStack.pop(route)
+            },
+            onOpenChat = { chatId ->
+                if (!chatsStack.isOpenArchiveConversation(chatId)) {
+                    chatsStack.add(ArchiveConversationRoute(chatId))
+                }
             },
         )
     }
@@ -663,19 +706,32 @@ private fun shellEntryProvider(
 }
 
 /**
- * Otevření chatu ze seznamu (hlavního i archivu) NAHRADÍ otevřenou konverzaci, nevrší se
- * zásobník. Nová jde na konec — z archivu tedy za něj, takže zpět z ní vede do archivu.
- */
-/**
  * Je na vrcholu zásobníku konverzace [chatId]? Porovnává se jen chat — routa může nést i zprávu
  * ze hledání, a rovnost celé routy by pak přidala tutéž konverzaci podruhé.
  */
 private fun List<NavKey>.isOpenConversation(chatId: Long): Boolean =
     (lastOrNull() as? ConversationRoute)?.chatId == chatId
 
+/**
+ * Otevření chatu z hlavního seznamu NAHRADÍ otevřenou konverzaci, nevrší se zásobník — stejně
+ * jako sekce v Nastavení.
+ */
 private fun MutableList<NavKey>.openConversation(chatId: Long, messageId: Long? = null) {
     removeAll { it is ConversationRoute }
     add(ConversationRoute(chatId, messageId))
+}
+
+/** Totéž co [isOpenConversation], ale pro větev archivu. */
+private fun List<NavKey>.isOpenArchiveConversation(chatId: Long): Boolean =
+    (lastOrNull() as? ArchiveConversationRoute)?.chatId == chatId
+
+/**
+ * Totéž co [openConversation], ale pro větev archivu: nahrazuje se jen archivní konverzace,
+ * takže chat otevřený z hlavního seznamu zůstane, kde byl.
+ */
+private fun MutableList<NavKey>.openArchiveConversation(chatId: Long, messageId: Long? = null) {
+    removeAll { it is ArchiveConversationRoute }
+    add(ArchiveConversationRoute(chatId, messageId))
 }
 
 /**
@@ -686,6 +742,15 @@ private fun MutableList<NavKey>.openConversation(chatId: Long, messageId: Long? 
 @Composable
 private fun Modifier.listPaneInsets(twoPane: Boolean): Modifier =
     if (twoPane) consumeWindowInsets(WindowInsets.safeDrawing.only(WindowInsetsSides.End)) else this
+
+/**
+ * Klíč scény list-detail pro archiv.
+ *
+ * Archiv a jeho otevřená konverzace tvoří samostatnou list-detail scénu. Bez vlastního klíče
+ * by v dvoupanelovém rozvržení archiv sdílel scénu s hlavním seznamem a pravý panel by ukazoval
+ * cizí otevřenou konverzaci z hlavního seznamu.
+ */
+private const val ARCHIVE_SCENE = "archive"
 
 /**
  * Klíč scény list-detail pro nastavení.

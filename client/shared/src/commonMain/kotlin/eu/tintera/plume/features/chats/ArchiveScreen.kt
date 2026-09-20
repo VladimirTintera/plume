@@ -27,9 +27,9 @@ import org.jetbrains.compose.resources.stringResource
  * Seznam i akce nad chatem jsou tytéž jako v hlavním seznamu ([ChatListContent],
  * [ChatActionsHost]); jiná je jen hlavička. Hledání ani karta s aktualizací sem nepatří — hledá
  * se z hlavního seznamu a archiv je obrazovka, na kterou se chodí jednou za čas.
- *
- * Na širokém rozvržení je archiv LIST panel téže scény jako seznam chatů: nahradí ho vlevo
- * a otevřená konverzace vpravo zůstane. Šipka zpět je proto i tam — vede na hlavní seznam.
+ * Na širokém rozvržení je archiv LIST panel samostatné scény archivu: má vlastní detail
+ * panel [ArchiveConversationRoute], takže nezasahuje do otevřené konverzace hlavního seznamu.
+ * Šipka zpět je proto i tam — vede na hlavní seznam.
  */
 @Composable
 fun ArchiveScreen(
@@ -37,11 +37,12 @@ fun ArchiveScreen(
     selectedChatId: Long?,
     onChatClick: (Long) -> Unit,
     onBack: () -> Unit,
+    onChatArchived: ((ArchiveChange) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
-    ChatActionsHost(viewModel, snackbarHostState)
+    ChatActionsHost(viewModel, snackbarHostState, onArchived = onChatArchived)
 
     Scaffold(
         modifier = modifier,

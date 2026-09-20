@@ -1256,11 +1256,14 @@ snackbar s „Vrátit".
 - **Jeden ViewModel i obsah pro oba seznamy.** `ChatsViewModel` dostane složku parametrem
   (Koin, klíč `chats-archive`), seznam je `ChatListContent`, akce `ChatActionsHost`. Archiv
   nemá hledání ani kartu aktualizace, jinak je to tentýž kód.
-- **Na široké ploše je archiv LIST panel téže scény** (výchozí `sceneKey` jako Chaty).
-  Scéna kreslí vlevo POSLEDNÍ list panel zásobníku, takže archiv hlavní seznam nahradí
-  a otevřená konverzace vpravo zůstane; zpět vrátí hlavní seznam. Chat otevřený z archivu jde
-  do zásobníku ZA archiv, takže zpět z něj vede do archivu. Šipku zpět má archiv i v dvoupanelu —
-  na rozdíl od sekce nastavení je to seznam, ne detail.
+- **Na široké ploše je archiv samostatná list-detail scéna** (`ARCHIVE_SCENE` v `AppShell`).
+  V dvoupanelu má vpravo vlastní detail panel `ArchiveConversationRoute` (nebo placeholder),
+  takže neukazuje cizí konverzaci otevřenou z hlavního seznamu. Šipka zpět v hlavičce archivu
+  odebere celou archivní větev a vrátí hlavní seznam v jeho původním stavu (včetně původně
+  otevřené konverzace). Chat otevřený z archivu má vlastní routu `ArchiveConversationRoute`
+  a při jeho obnovení z archivu („Vrátit mezi chaty“) se jeho konverzace automaticky zavře.
+  Symetricky při archivaci chatu z hlavního seznamu se zavře jeho otevřená `ConversationRoute`.
+  Šipku zpět má archiv i v dvoupanelu — na rozdíl od sekce nastavení je to seznam, ne detail.
 - **Prázdný archiv má tentýž animovaný prázdný stav jako placeholder detailu**
   (`IntroEmptyState` v `core/ui`, vytažený z `ConversationPlaceholder`). Na široké ploše stojí
   oba vedle sebe a dva různé vzhledy pro „tady nic není" by se přely. Prázdný stav si
@@ -1270,6 +1273,18 @@ snackbar s „Vrátit".
   jeden panel. Placeholder „vyber chat vlevo" by vedle prázdného stavu radil něco, co udělat
   nejde. Rozhoduje se až nad `Ready` — `Loading` za prázdný nepočítat, jinak se rozvržení
   přepne tam a zpátky, než seznam dorazí. Výjimka z pravidla „dva panely vždycky" (viz „Navigace").
+- **„Otevřená konverzace" se od rozdělení scén musí ptát NA VĚTEV, ne na zásobník jako celek**
+  (`hasOpenConversation`). Dokud podmínka brala `ConversationRoute` i `ArchiveConversationRoute`
+  najednou, držela otevřená konverzace hlavního seznamu dvoupanel i nad PRÁZDNÝM archivem —
+  vlevo prázdný stav, vpravo placeholder archivní scény, tedy přesně ty dva prázdné stavy vedle
+  sebe, kterým má `nothingToPick` bránit. Dřív to nevadilo, protože archiv sdílel scénu
+  s hlavním seznamem a vpravo stála skutečná konverzace. **Obecně: co se ptá na zásobník Chatů,
+  musí od rozdělení scén vědět, kterou větev se ptá.**
+- **Pravidla nad zásobníkem Chatů jsou čisté funkce** (`ChatsStack.kt`, testy `ChatsStackTest`),
+  ne lambdy v `entryProvider`. Zásobník nese dvě list-detail větve naráz, takže skoro každá
+  operace musí vědět, do které patří — a uvnitř lambdy se to neotestuje. První verze testů to
+  obešla tak, že si těla lambd přepsala do testu; takový test projde i nad rozbitým kódem,
+  protože produkční cestu vůbec nezavolá.
 - **Hlavička je obyčejný `TopAppBar` bez scroll behavior**, takže nemění barvu — tónovaný pruh
   přes celou šířku byl důvod, proč hlavní seznam opustil `LargeFlexibleTopAppBar`.
 

@@ -42,11 +42,24 @@ enum class SettingsSection { General, Appearance, Devices }
 data class SettingsSectionRoute(val section: SettingsSection) : Route
 
 /**
- * Archivované chaty. V list-detail rozvržení je to LIST panel téže scény jako [ChatsRoute]:
- * hlavní seznam vlevo nahradí a otevřená konverzace vpravo zůstane.
+ * Archivované chaty. V list-detail rozvržení je to LIST panel scény archivu:
+ * má vlastní detail panel [ArchiveConversationRoute], takže neovlivňuje otevřenou konverzaci
+ * v hlavním seznamu.
  */
 @Serializable
 data object ArchiveRoute : Route
+
+/**
+ * Konverzace v archivu. V list-detail rozvržení je to detail panel scény archivu.
+ */
+@Serializable
+data class ArchiveConversationRoute(val chatId: Long, val messageId: Long? = null) : Route
+
+/**
+ * Profil chatu otevřený z archivní konverzace.
+ */
+@Serializable
+data class ArchiveChatProfileRoute(val chatId: Long) : Route
 
 /**
  * Konverzace. V list-detail rozvržení je to detail panel vedle seznamu.
@@ -121,6 +134,8 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(SettingsRoute::class, SettingsRoute.serializer())
             subclass(SettingsSectionRoute::class, SettingsSectionRoute.serializer())
             subclass(ArchiveRoute::class, ArchiveRoute.serializer())
+            subclass(ArchiveConversationRoute::class, ArchiveConversationRoute.serializer())
+            subclass(ArchiveChatProfileRoute::class, ArchiveChatProfileRoute.serializer())
             subclass(ConversationRoute::class, ConversationRoute.serializer())
             subclass(ChatProfileRoute::class, ChatProfileRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
