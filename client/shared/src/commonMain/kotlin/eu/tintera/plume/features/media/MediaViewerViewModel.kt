@@ -17,6 +17,8 @@ import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.PhotoPosition
+import eu.tintera.plume.core.telegram.SelfDestructTimers
+import eu.tintera.plume.core.telegram.SelfDestructType
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.features.conversation.PendingDelete
@@ -62,6 +64,7 @@ class MediaViewerViewModel(
     private val files: FileRepository,
     private val saver: MediaSaver,
     private val sharer: MediaSharer,
+    private val timers: SelfDestructTimers,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("MediaViewer")
@@ -101,7 +104,12 @@ class MediaViewerViewModel(
         }
         viewModelScope.launch {
             repository.editedMessages(chatId).collect { message ->
-                updateItem(message.id) { it.copy(caption = message.text) }
+                if (message.id == messageId && message.media == null && _state.value.isSelfDestruct) {
+                    // Vypršela platnost v TDLib (MessageExpiredPhoto)
+                    _state.update { it.copy(closed = true) }
+                } else {
+                    updateItem(message.id) { it.copy(caption = message.text) }
+                }
             }
         }
         viewModelScope.launch {
@@ -118,6 +126,53 @@ class MediaViewerViewModel(
     }
 
     private suspend fun loadInitial() {
+        val initialMessage = repository.message(chatId, messageId).getOrNull()
+        val isSecret = initialMessage != null && (
+            (initialMessage.media as? MessageMedia.Photo)?.isSecret == true ||
+                (initialMessage.media as? MessageMedia.Video)?.isSecret == true ||
+                initialMessage.selfDestructType != null
+        )
+
+        if (initialMessage != null && isSecret) {
+            single = true
+            if (timers.isConsumed(messageId) || initialMessage.media == null) {
+                _state.update { it.copy(closed = true, loading = false) }
+                return
+            }
+            val item = initialMessage.toViewerItem()
+            val selfDestructType = initialMessage.selfDestructType
+                ?: (initialMessage.media as? MessageMedia.Photo)?.selfDestructType
+                ?: (initialMessage.media as? MessageMedia.Video)?.selfDestructType
+
+            _state.update {
+                it.copy(
+                    items = listOfNotNull(item),
+                    initialPosition = null,
+                    reachedOldest = true,
+                    reachedNewest = true,
+                    loading = false,
+                    isSelfDestruct = true,
+                    selfDestructType = selfDestructType,
+                )
+            }
+
+            // Oznámit TDLib otevření obsahu — spustí serverový/lokální odpočet
+            repository.openContent(chatId, messageId)
+
+            if (selfDestructType is SelfDestructType.Timer) {
+                viewModelScope.launch {
+                    timers.observeRemainingSeconds(messageId, selfDestructType.seconds)
+                        .collect { remaining ->
+                            _state.update { it.copy(remainingSeconds = remaining) }
+                            if (remaining <= 0) {
+                                _state.update { it.copy(closed = true) }
+                            }
+                        }
+                }
+            }
+            return
+        }
+
         repository.visualMedia(chatId, messageId, older = PAGE_SIZE, newer = PAGE_SIZE)
             .onSuccess { messages ->
                 val items = messages.mapNotNull { it.toViewerItem() }
@@ -408,6 +463,13 @@ class MediaViewerViewModel(
         )
     }
 
+    /** Uživatel zavírá prohlížeč (gestem, křížkem). */
+    fun onDismiss() {
+        if (_state.value.isSelfDestruct) {
+            timers.markConsumed(messageId)
+        }
+    }
+
     private companion object {
         /** Kolik fotek se dotahuje najednou na každou stranu. */
         const val PAGE_SIZE = 20
@@ -493,4 +555,7 @@ data class MediaViewerState(
     val reachedNewest: Boolean = false,
     val loading: Boolean = true,
     val error: UiText? = null,
+    val isSelfDestruct: Boolean = false,
+    val selfDestructType: SelfDestructType? = null,
+    val remainingSeconds: Int? = null,
 )
