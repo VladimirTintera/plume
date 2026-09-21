@@ -42,8 +42,8 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    smyčce bez zvuku; `CLAUDE.md`, „GIFy"). ~~GIFy z klávesnice~~ — hotovo na Androidu (Gboard;
    `CLAUDE.md`, „GIFy a samolepky z klávesnice"); ~~výběr GIFů v aplikaci~~ — hotovo
    (uložené, populární, hledání přes `@gif`; `CLAUDE.md`, „Výběr GIFů"). ~~Vložení ze schránky~~ — hotovo
-   na Androidu (položka kontextové nabídky pole). Chybí iOS (vložení obrázku do pole, GIFy
-   ověřené na zařízení). ~~Streamování~~ — hotovo na Androidu (`CLAUDE.md`,
+   na Androidu i iOS (položka kontextové nabídky pole). Na iOS chybí GIFy ověřené na zařízení
+   a vložení bez dotazu „Povolit vložení?" (`UIPasteControl`). ~~Streamování~~ — hotovo na Androidu (`CLAUDE.md`,
    „Video"); iOS čeká na `AVAssetResourceLoaderDelegate`. Zbývá rychlost, ztlumení a obraz
    v obraze.
 3. ~~**Přeposílání zpráv**~~ — hotovo (položka v nabídce, výběr chatu, album celé). Zbývá
