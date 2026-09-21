@@ -224,6 +224,8 @@ fun appModule() = module {
             files = get(),
             fileOpener = get(),
             urlOpener = get(),
+            notificationSettings = get(),
+            notificationPermission = get(),
         )
     }
 

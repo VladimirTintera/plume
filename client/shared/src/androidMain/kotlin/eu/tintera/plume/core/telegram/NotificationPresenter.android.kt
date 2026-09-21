@@ -21,6 +21,7 @@ import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.NotificationIntents
 import eu.tintera.plume.core.notifications.channelId
 import eu.tintera.plume.core.notifications.createNotificationChannels
+import eu.tintera.plume.core.notifications.deleteConversationChannels
 import eu.tintera.plume.core.share.bookmarkIcon
 import eu.tintera.plume.core.share.conversationShortcut
 import eu.tintera.plume.core.share.pushConversationShortcut
@@ -185,6 +186,8 @@ actual class NotificationPresenter(
         recentlyRemoved.clear()
         // Notifikace z minulého běhu procesu v `conversations` nejsou.
         manager.cancelAll()
+        runCatching { deleteConversationChannels(context) }
+            .onFailure { logger.w(it) { "Kanály konverzací se nepodařilo smazat." } }
         // Dlouhověké zkratky si systém drží i mimo dynamické, `removeAllDynamicShortcuts` by
         // je v keši nechal.
         runCatching {

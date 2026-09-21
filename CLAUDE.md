@@ -3844,6 +3844,26 @@ JEHO kanálu (`ACTION_CHANNEL_NOTIFICATION_SETTINGS`).
   nenastavená přijde jako `OptionValueEmpty`, tedy „upozorňovat".
 - **Oprávnění k notifikacím je v sekci Notifikace, ne v Obecných** — bez něj ostatní volby nic
   nezmění, proto nahoře.
+- **Upozornění jednoho chatu jsou v profilu**: řádek „Upozornění" v bloku Informace se stavem
+  („Ztlumeno do 14:30 · výchozí nastavení") otevře sheet s dobou ztlumení, náhledem, připnutými,
+  zmínkami (jen skupina), zvukem konverzace a obnovením (`ChatNotificationSheet`). Dlaždice
+  Ztlumit nad ním zůstává rychlým přepínačem. Hodnoty jsou ÚČINNÉ (`chatSettings`): kde chat jede
+  podle rozsahu, ukazuje se hodnota rozsahu — a proto se čte znovu i na změnu rozsahu. Změna
+  jedné volby zapíše `useDefault… = false` jen u ní, zbytek se přenese.
+- **`muteFor` je ZBÝVAJÍCÍ čas v sekundách**, ne okamžik konce; konec ztlumení se dopočítá při
+  čtení (`muteState`, testy `MuteStateTest`). Nad rok = navždy — my zapisujeme `Int.MAX_VALUE`,
+  jiní klienti roky. `asDayLabel` je dělaný na minulost a zítřek vydával za „Dnes"; budoucí čas
+  má `asUpcomingTime`.
+- **Zvuk jednoho chatu = kanál konverzace** (`ensureConversationChannel`, Android 11+). Systém si
+  ho zakládá sám, až když uživatel u notifikace zvolí „Prioritní"; dřív `EXTRA_CONVERSATION_ID`
+  otevře jen nadřazený kanál. Aplikace ho proto založí sama (`setConversationId(parent,
+  shortcutId)`, nastavení zkopírované z nadřazeného) a notifikace se zkratkou konverzace do něj
+  systém směruje sám — v `dumpsys notification` je vidět jako `effectiveNotificationChannel`,
+  zatímco `channel=` dál ukazuje nadřazený. **Past: `getNotificationChannel(parent,
+  conversationId)` bez kanálu konverzace vrátí NADŘAZENÝ kanál, ne `null`** — rozhoduje až
+  `conversationId` výsledku. Kanály konverzací nesou názvy chatů, takže se po odhlášení mažou.
+- **Systémové nastavení se otevírá ve vlastní úloze** (`FLAG_ACTIVITY_NEW_TASK`): zpět z něj
+  nevede do Plume, ale dál po nastavení systému. Při ověřování se do aplikace vrací `am start`.
 - **Ověření:** `adb shell dumpsys notification --noredact | grep "pkg=eu.tintera.plume"` ukáže
   `channel=` u notifikace; kanály aplikace jsou v `dumpsys notification` pod
   `AppSettings: eu.tintera.plume` (smazaný má `mDeleted=true`). Soukromá zpráva od bota přišla

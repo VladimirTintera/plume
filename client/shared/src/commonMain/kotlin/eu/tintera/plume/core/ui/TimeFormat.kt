@@ -6,6 +6,8 @@ import eu.tintera.plume.resources.date_day_month
 import eu.tintera.plume.resources.date_day_month_year
 import eu.tintera.plume.resources.date_short
 import eu.tintera.plume.resources.date_today
+import eu.tintera.plume.resources.date_tomorrow
+import eu.tintera.plume.resources.date_upcoming_time
 import eu.tintera.plume.resources.date_yesterday
 import eu.tintera.plume.resources.date_yesterday_short
 import eu.tintera.plume.resources.day_long_1
@@ -128,6 +130,26 @@ fun Int.asDayLabel(): String {
             date.year,
         )
     }
+}
+
+/**
+ * Čas v BUDOUCNOSTI — konec ztlumení: dnes jen hodina, zítra slovem, jindy datum.
+ *
+ * [asDayLabel] je dělaný na minulost a budoucí den by vydával za „dnes".
+ */
+@Composable
+fun Long.asUpcomingTime(): String {
+    val zone = TimeZone.currentSystemDefault()
+    val date = Instant.fromEpochSeconds(this).toLocalDateTime(zone).date
+    val today = Clock.System.now().toLocalDateTime(zone).date
+    val time = toInt().asTimeOfDay(zone)
+    val day = when ((date.toEpochDays() - today.toEpochDays()).toInt()) {
+        in Int.MIN_VALUE..0 -> return time
+        1 -> stringResource(Res.string.date_tomorrow)
+        in 2..6 -> stringResource(date.dayOfWeek.longName())
+        else -> stringResource(Res.string.date_day_month, date.day, stringResource(date.month.name()))
+    }
+    return stringResource(Res.string.date_upcoming_time, day, time)
 }
 
 /**

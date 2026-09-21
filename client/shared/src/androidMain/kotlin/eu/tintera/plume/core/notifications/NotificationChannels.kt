@@ -3,6 +3,8 @@ package eu.tintera.plume.core.notifications
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.os.Build
+import eu.tintera.plume.core.share.shortcutId
 import eu.tintera.plume.core.telegram.NotificationChannelKind
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notification_channel_channels
@@ -59,6 +61,52 @@ suspend fun createNotificationChannels(context: Context) {
     }
     // Jediný kanál z dřívějška — jinak by v systémovém nastavení visel jako prázdná položka.
     manager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
+}
+
+/**
+ * Kanál jedné konverzace pod kanálem [parent] (Android 11+), založený, když ještě není.
+ *
+ * Takový kanál si jinak zakládá systém sám, až když uživatel u notifikace zvolí „Prioritní"
+ * nebo vlastní zvuk — dřív systémové nastavení s `EXTRA_CONVERSATION_ID` ukáže jen nadřazený
+ * kanál a nastavit tam jde celá skupina chatů, ne ten jeden. Notifikace se zkratkou konverzace
+ * (`setShortcutId`) do něj pak systém směruje sám. Nastavení se přebírá z nadřazeného kanálu,
+ * ať se založením nic nezmění — i to je chování systému.
+ *
+ * Vrací id zkratky, které se předá do nastavení; `null` pod Androidem 11.
+ */
+fun ensureConversationChannel(context: Context, parent: NotificationChannelKind, chatId: Long, title: String): String? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+    val manager = context.getSystemService(NotificationManager::class.java)
+    val conversationId = shortcutId(chatId)
+    // Pozor: bez kanálu konverzace vrátí tohle volání NADŘAZENÝ kanál, ne `null`.
+    if (manager.getNotificationChannel(parent.channelId, conversationId)?.conversationId == conversationId) return conversationId
+    val source = manager.getNotificationChannel(parent.channelId) ?: return null
+    val channel = NotificationChannel("${parent.channelId}_$conversationId", title, source.importance).apply {
+        description = source.description
+        setSound(source.sound, source.audioAttributes)
+        enableVibration(source.shouldVibrate())
+        vibrationPattern = source.vibrationPattern
+        enableLights(source.shouldShowLights())
+        lightColor = source.lightColor
+        setShowBadge(source.canShowBadge())
+        lockscreenVisibility = source.lockscreenVisibility
+        setBypassDnd(source.canBypassDnd())
+        setConversationId(parent.channelId, conversationId)
+    }
+    manager.createNotificationChannel(channel)
+    return conversationId
+}
+
+/**
+ * Po odhlášení pryč i kanály konverzací — nesou názvy chatů odhlášeného účtu a v systémovém
+ * nastavení by po něm visely.
+ */
+fun deleteConversationChannels(context: Context) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+    val manager = context.getSystemService(NotificationManager::class.java)
+    manager.notificationChannels
+        .filter { it.conversationId != null }
+        .forEach { manager.deleteNotificationChannel(it.id) }
 }
 
 private const val LEGACY_CHANNEL_ID = "messages"
