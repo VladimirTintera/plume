@@ -873,13 +873,7 @@ class TdlConversationRepository(
      * chybějící pole by uživatele od chatu odřízlo.
      */
     private suspend fun chatAccess(chat: Chat): ChatAccess {
-        val status = when (val type = chat.type) {
-            is ChatTypeSupergroup -> client.getSupergroup(supergroupId = type.supergroupId).toResult().getOrNull()?.status?.toOwn()
-            // Převedená skupina (`isActive == false`) žije dál jako supergroup; do té staré se nepíše.
-            is ChatTypeBasicGroup -> client.getBasicGroup(basicGroupId = type.basicGroupId).toResult().getOrNull()
-                ?.let { group -> if (group.isActive) group.status.toOwn() else OwnMemberStatus.Left }
-            else -> null
-        }
+        val status = client.ownMemberStatus(chat)
         val supergroup = chat.type as? ChatTypeSupergroup
         return ChatAccess(
             canJoin = supergroup != null && status == OwnMemberStatus.Left,
@@ -1253,6 +1247,18 @@ private fun ChatPermissions.toContentAccess(): ContentAccess = ContentAccess(
     voiceNotes = canSendVoiceNotes,
     stickers = canSendOtherMessages,
 )
+
+/**
+ * Vlastní postavení ve skupině nebo kanálu; `null` v soukromém chatu i tam, kde ho zjistit nejde.
+ * Oba dotazy jsou lokální — TDLib skupinu zná, když zná chat.
+ */
+internal suspend fun TdlClient.ownMemberStatus(chat: Chat): OwnMemberStatus? = when (val type = chat.type) {
+    is ChatTypeSupergroup -> getSupergroup(supergroupId = type.supergroupId).toResult().getOrNull()?.status?.toOwn()
+    // Převedená skupina (`isActive == false`) žije dál jako supergroup; do té staré se nepíše.
+    is ChatTypeBasicGroup -> getBasicGroup(basicGroupId = type.basicGroupId).toResult().getOrNull()
+        ?.let { group -> if (group.isActive) group.status.toOwn() else OwnMemberStatus.Left }
+    else -> null
+}
 
 /** Postavení uživatele ve skupině; `when` bez `else`, takže nový stav v TDLib rozbije překlad. */
 private fun ChatMemberStatus.toOwn(): OwnMemberStatus = when (this) {

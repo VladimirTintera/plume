@@ -16,6 +16,17 @@ object NotificationIntents {
 
     const val EXTRA_CHAT_ID = "eu.tintera.plume.extra.CHAT_ID"
 
+    const val EXTRA_GROUP_ID = "eu.tintera.plume.extra.NOTIFICATION_GROUP_ID"
+
+    /** Citovaná zpráva odpovědi z notifikace; chybí = bez citace. */
+    const val EXTRA_REPLY_TO_MESSAGE_ID = "eu.tintera.plume.extra.REPLY_TO_MESSAGE_ID"
+
+    /** Akce odpovědi z notifikace. Přijímá ji `NotificationReplyReceiver` ve vstupním bodu. */
+    const val ACTION_REPLY = "eu.tintera.plume.action.NOTIFICATION_REPLY"
+
+    /** Klíč textu v `RemoteInput`. */
+    const val KEY_REPLY_TEXT = "eu.tintera.plume.extra.REPLY_TEXT"
+
     /**
      * Holý intent na otevření chatu.
      *
@@ -51,6 +62,33 @@ object NotificationIntents {
             // UPDATE_CURRENT: existující intent pro tentýž chat se přepíše, ne zduplikuje.
             // IMMUTABLE je od Androidu 12 povinné, když intent nemá měnit příjemce.
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    /**
+     * Broadcast s odpovědí z notifikace.
+     *
+     * Příjemce je ve vstupním bodu (kvůli WorkManageru), takže se na něj míří AKCÍ a balíčkem,
+     * ne třídou — `:client:shared` ho nezná, stejně jako `MainActivity`. Broadcast s balíčkem
+     * je explicitní a dorazí i příjemci deklarovanému v manifestu.
+     */
+    fun reply(context: Context, groupId: Int, chatId: Long, replyToMessageId: Long?): PendingIntent {
+        val intent = Intent(ACTION_REPLY)
+            .setPackage(context.packageName)
+            .putExtra(EXTRA_CHAT_ID, chatId)
+            .putExtra(EXTRA_GROUP_ID, groupId)
+            // UPDATE_CURRENT přepíše extras při každém překreslení, takže cituje vždy tu
+            // nejnovější zprávu, kterou má uživatel před očima.
+            .apply { replyToMessageId?.let { putExtra(EXTRA_REPLY_TO_MESSAGE_ID, it) } }
+
+        return PendingIntent.getBroadcast(
+            context,
+            // Jedinečný kód z téhož důvodu jako u [openChat]; broadcast a activity se
+            // navzájem nepřepíšou, typ PendingIntentu vstupuje do rovnosti.
+            groupId,
+            intent,
+            // MUTABLE je u `RemoteInput` povinné: systém do intentu vkládá napsaný text.
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
         )
     }
 }

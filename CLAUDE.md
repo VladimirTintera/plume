@@ -3663,6 +3663,49 @@ a odložené rušení prázdné notifikace.
   je to past jen emulátorová. Před testováním notifikací na telefonu tedy emulátor zhasnout,
   odejít v něm z konverzace, nebo ho odhlásit.
 
+### Odpověď z notifikace
+
+Notifikace chatu má akci „Odpovědět" s polem na text (`RemoteInput`). Odpověď odejde, aniž by se
+aplikace otevřela; po potvrzení se chat přečte a TDLib notifikaci stáhne.
+
+- **Cesta:** akce → broadcast `NotificationReplyReceiver` (vstupní bod, `goAsync`) →
+  `NotificationReplies` v `core/notifications` (odeslat, dočkat se, přečíst). Co se nevejde do
+  okna příjemce (8 s z 10), dočká `ReplyDeliveryWorker`. Příjemce je ve vstupním bodu kvůli
+  WorkManageru; `:client:shared` na něj míří akcí a balíčkem (`NotificationIntents.reply`), ne
+  třídou — stejně jako na `MainActivity`.
+- **`PendingIntent` akce musí být MUTABLE.** Systém do něj vkládá napsaný text; s IMMUTABLE by
+  `RemoteInput.getResultsFromIntent` vrátil `null`.
+- **Notifikace se po odpovědi MUSÍ překreslit**, jinak se v ní točí kolečko napořád. Překreslí se
+  hned vlastním řádkem s odpovědí (`showReply`, osoba `null` = uživatel), ještě před odesláním.
+- **Přečte se až PO potvrzení od serveru.** Přečtení notifikaci stáhne; kdyby přišlo hned
+  a odeslání selhalo, nebylo by kde ukázat „Neodesláno: …" (`showReplyFailed`, i s textem, a se
+  zvukem — selhání uživatel zaregistrovat musí). Přečte se zpráva nejnovější PŘED odesláním:
+  po něm je nejnovější naše odpověď a její přečtení nic neoznačí.
+- **Vlastní řádek notifikaci naživu nedrží.** TDLib ho nezná, takže ho neodebere; notifikace se
+  ruší, když v ní zbydou jen vlastní řádky.
+- **Potvrzení se zjišťuje dotazem na zprávu, ne updatem** (`NotificationReplies.await`). Úloha
+  začíná pozdě a `UpdateMessageSendSucceeded` mohl dávno proletět. Stav jde přečíst kdykoli:
+  TDLib po potvrzení zprávu přečísluje, takže nenalezené dočasné id = odesláno.
+- **Mrtvý proces:** akce ho probudí jako push, `startKoin` rozběhne TDLib a odpověď čeká na
+  `AuthStage.Ready`. Notifikace z minulého běhu v paměti presenteru není — řádek se připíše
+  přestavěním té z lišty (`NotificationCompat.Builder(context, notification)`).
+- **Ve skupině odpověď cituje nejnovější zprávu z notifikace**, v soukromém chatu ne. Tak to
+  dělá i oficiální klient (`WearReplyReceiver` posílá `max_id` jako `replyToMsg`): mezi více
+  lidmi by jinak nebylo poznat, komu se odpovídá; ve dvou je citace šum. Id jde v extras akce
+  a `FLAG_UPDATE_CURRENT` ho přepíše při každém překreslení.
+- **Oficiální klient chat čte HNED, ne po potvrzení**, a ve vláknech (topics) vůbec — tam mu
+  notifikace po odpovědi zůstane.
+- **Kam se psát nesmí, akce není** (`ChatNotification.canReply`, totéž pravidlo `writeAccess` jako
+  vstupní pole; `ownMemberStatus` je sdílené). Neznámý chat psaní neblokuje.
+- **Bez sítě odeslání NESELŽE, TDLib čeká.** „Neodesláno" tedy znamená odmítnutí serverem,
+  ne výpadek spojení; offline odpověď zůstane v notifikaci a úloha ji potvrdí, jakmile se síť
+  vrátí (ověřeno letovým režimem: potvrzení v úloze za 16 s po zapnutí sítě).
+- **Ověřit to jde jen s notifikací, kterou nepřečte jiné zařízení.** Telefon s otevřeným chatem
+  s botem zprávu přečte hned a TDLib notifikaci stáhne dřív, než se ukáže. Tlačítko v liště
+  najde `uiautomator dump` (text „Reply"), text se napíše `input text` a odešle Enterem.
+- Ověřeno na emulátoru: živý proces (odesláno za 2 s), proces zabitý `am kill` (0,5 s),
+  letový režim (úloha). Cesta „Neodesláno" ověřená není — server odpověď bota neodmítne.
+
 ## Sdílení do aplikace
 
 Plume je v systémové nabídce „Sdílet" (Android): text, odkaz, jeden i víc souborů. Otevře se
