@@ -18,6 +18,9 @@ object NotificationIntents {
 
     const val EXTRA_GROUP_ID = "eu.tintera.plume.extra.NOTIFICATION_GROUP_ID"
 
+    /** Citovaná zpráva odpovědi z notifikace; chybí = bez citace. */
+    const val EXTRA_REPLY_TO_MESSAGE_ID = "eu.tintera.plume.extra.REPLY_TO_MESSAGE_ID"
+
     /** Akce odpovědi z notifikace. Přijímá ji `NotificationReplyReceiver` ve vstupním bodu. */
     const val ACTION_REPLY = "eu.tintera.plume.action.NOTIFICATION_REPLY"
 
@@ -69,11 +72,14 @@ object NotificationIntents {
      * ne třídou — `:client:shared` ho nezná, stejně jako `MainActivity`. Broadcast s balíčkem
      * je explicitní a dorazí i příjemci deklarovanému v manifestu.
      */
-    fun reply(context: Context, groupId: Int, chatId: Long): PendingIntent {
+    fun reply(context: Context, groupId: Int, chatId: Long, replyToMessageId: Long?): PendingIntent {
         val intent = Intent(ACTION_REPLY)
             .setPackage(context.packageName)
             .putExtra(EXTRA_CHAT_ID, chatId)
             .putExtra(EXTRA_GROUP_ID, groupId)
+            // UPDATE_CURRENT přepíše extras při každém překreslení, takže cituje vždy tu
+            // nejnovější zprávu, kterou má uživatel před očima.
+            .apply { replyToMessageId?.let { putExtra(EXTRA_REPLY_TO_MESSAGE_ID, it) } }
 
         return PendingIntent.getBroadcast(
             context,

@@ -32,10 +32,12 @@ class NotificationReplies(
      * Odešle [text] a vrátí rozepsanou zprávu. TDLib ji má uloženou v databázi a došle ji sám,
      * i kdyby proces mezitím zamrzl — potvrzení hlídá [await].
      *
+     * [replyToMessageId] je citovaná zpráva — ve skupině nejnovější z notifikace, jinak `null`.
+     *
      * Akce z notifikace umí probudit mrtvý proces; TDLib se tedy může teprve spouštět, a proto
      * se nejdřív čeká na přihlášení (nejvýš [timeout]).
      */
-    suspend fun send(chatId: Long, text: String, timeout: Duration): Result<PendingReply> {
+    suspend fun send(chatId: Long, text: String, replyToMessageId: Long?, timeout: Duration): Result<PendingReply> {
         val ready = withTimeoutOrNull(timeout) { session.authStage.first { it == AuthStage.Ready } }
         if (ready == null) return Result.failure(IllegalStateException("TDLib není přihlášený do $timeout."))
 
@@ -46,7 +48,7 @@ class NotificationReplies(
             ?.firstOrNull()
             ?.id
 
-        return conversations.send(chatId = chatId, text = text, replyToMessageId = null)
+        return conversations.send(chatId = chatId, text = text, replyToMessageId = replyToMessageId)
             .map { PendingReply(chatId = chatId, messageId = it.id, readUpTo = readUpTo) }
             .onFailure { logger.w(it) { "Odpověď z notifikace se nepodařilo odeslat." } }
     }

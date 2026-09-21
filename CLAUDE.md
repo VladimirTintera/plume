@@ -3689,6 +3689,12 @@ aplikace otevřela; po potvrzení se chat přečte a TDLib notifikaci stáhne.
 - **Mrtvý proces:** akce ho probudí jako push, `startKoin` rozběhne TDLib a odpověď čeká na
   `AuthStage.Ready`. Notifikace z minulého běhu v paměti presenteru není — řádek se připíše
   přestavěním té z lišty (`NotificationCompat.Builder(context, notification)`).
+- **Ve skupině odpověď cituje nejnovější zprávu z notifikace**, v soukromém chatu ne. Tak to
+  dělá i oficiální klient (`WearReplyReceiver` posílá `max_id` jako `replyToMsg`): mezi více
+  lidmi by jinak nebylo poznat, komu se odpovídá; ve dvou je citace šum. Id jde v extras akce
+  a `FLAG_UPDATE_CURRENT` ho přepíše při každém překreslení.
+- **Oficiální klient chat čte HNED, ne po potvrzení**, a ve vláknech (topics) vůbec — tam mu
+  notifikace po odpovědi zůstane.
 - **Kam se psát nesmí, akce není** (`ChatNotification.canReply`, totéž pravidlo `writeAccess` jako
   vstupní pole; `ownMemberStatus` je sdílené). Neznámý chat psaní neblokuje.
 - **Bez sítě odeslání NESELŽE, TDLib čeká.** „Neodesláno" tedy znamená odmítnutí serverem,

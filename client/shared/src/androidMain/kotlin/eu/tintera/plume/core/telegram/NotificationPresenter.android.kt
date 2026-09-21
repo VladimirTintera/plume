@@ -313,7 +313,15 @@ actual class NotificationPresenter(
             .setTicker(conversation.lines.lastOrNull()?.let { "${it.sender ?: conversation.title}: ${it.text}" })
             .setSilent(silent)
             .setAutoCancel(true)
-            .apply { if (conversation.canReply) replyAction(groupId, conversation.chatId)?.let(::addAction) }
+            .apply {
+                if (conversation.canReply) {
+                    // Ve skupině odpověď cituje nejnovější zprávu z notifikace, jako oficiální
+                    // klient: bez citace by nebylo poznat, komu z více lidí se odpovídá.
+                    // V soukromém chatu je to jasné a citace by byla šum.
+                    val quoted = if (isGroup) conversation.lines.lastOrNull { !it.isOwn && it.messageId != null }?.messageId else null
+                    replyAction(groupId, conversation.chatId, quoted)?.let(::addAction)
+                }
+            }
             .setContentIntent(
                 NotificationIntents.openChat(
                     context = context,
@@ -380,8 +388,8 @@ actual class NotificationPresenter(
      * příjemce dostal prázdné výsledky. Sémantika `REPLY` a `showsUserInterface = false` říkají
      * hodinkám a Android Auto, že jde o odpověď bez otevření aplikace.
      */
-    private suspend fun replyAction(groupId: Int, chatId: Long): NotificationCompat.Action? {
-        val intent = NotificationIntents.reply(context, groupId = groupId, chatId = chatId)
+    private suspend fun replyAction(groupId: Int, chatId: Long, replyToMessageId: Long?): NotificationCompat.Action? {
+        val intent = NotificationIntents.reply(context, groupId = groupId, chatId = chatId, replyToMessageId = replyToMessageId)
         val label = getString(Res.string.notification_reply)
         val input = RemoteInput.Builder(NotificationIntents.KEY_REPLY_TEXT)
             .setLabel(label)

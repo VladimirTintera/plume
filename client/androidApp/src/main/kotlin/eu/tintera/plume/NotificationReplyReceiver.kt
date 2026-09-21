@@ -36,6 +36,7 @@ class NotificationReplyReceiver : BroadcastReceiver() {
             ?.trim()
         val chatId = intent.getLongExtra(NotificationIntents.EXTRA_CHAT_ID, 0L)
         val groupId = intent.getIntExtra(NotificationIntents.EXTRA_GROUP_ID, 0)
+        val replyTo = intent.getLongExtra(NotificationIntents.EXTRA_REPLY_TO_MESSAGE_ID, 0L).takeIf { it != 0L }
         if (text.isNullOrEmpty() || chatId == 0L) return
 
         val koin = GlobalContext.getOrNull() ?: return
@@ -50,7 +51,7 @@ class NotificationReplyReceiver : BroadcastReceiver() {
                 // Hned: dokud se notifikace nepřekreslí, točí se v ní kolečko.
                 presenter.showReply(groupId, text)
 
-                val reply = replies.send(chatId, text, READY_TIMEOUT).getOrElse {
+                val reply = replies.send(chatId, text, replyTo, READY_TIMEOUT).getOrElse {
                     presenter.showReplyFailed(groupId, text)
                     return@launch
                 }
