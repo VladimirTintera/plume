@@ -3044,6 +3044,20 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
 - **iOS zatím streamovat neumí** (`videoStreamingSupported = false`). `AVPlayer` by potřeboval
   `AVAssetResourceLoaderDelegate` — vlastní zdroj odpovídající na požadavky na rozsahy bajtů;
   do té doby se tam čeká na celý soubor.
+- **Velký průběh uprostřed jen do ROZBĚHNUTÍ videa** (`hasPlayed` = přehrávač poprvé hlásí
+  `isPlaying`), ne dokud se stahuje. U streamovaného videa je soubor „načtený" hned, ale
+  přehrávač ještě čeká na data — procento staženého souboru by tam lhalo (hraje se dávno před
+  100 %), proto se po načtení točí neurčitě. Tlačítko play/pauza se do té doby neukazuje.
+- **Stahování pod hrajícím videem je kroužek v pravém horním rohu** (`VideoDownloadIndicator`);
+  ťuknutí ho rozvine do čáry u spodní hrany karty (posuvník se nad ni zvedne), další svine.
+  Rozvinutí je jeden oblouk, jehož úhel klesá k nule a délka roste na šířku karty, kreslený na
+  `Canvas` — M3 přechod z kruhového průběhu do lineárního nemá. Kroužek i čára ukazují tentýž
+  úsek (`downloadedFractions`), jinak by se obsah při rozvinutí změnil pod rukama.
+- **TDLib hlásí jen SOUVISLÝ úsek od `downloadOffset`**, takže čára ukazuje, z čeho přehrávač
+  právě čte, ne všechno, co se kdy stáhlo (po skoku pro `moov` na konec se úsek přestěhuje).
+- **Na emulátoru se stahování zpomalit NEDÁ**: `adb emu network speed edge`/`gprs` odpoví OK,
+  a 2,5MB video se přesto stáhne za vteřinu. Vzhled indikátoru se proto ověřuje podstrčeným
+  stavem (`downloadVisible` bez podmínky na `Downloading`, pevný úsek), jako karta aktualizace.
 - **Přehrávač je v kompozici** (`rememberVideoPlayer`) a s ní se uvolní. Hraje jen vybraná
   stránka; stav (pozice, délka, dohráno) se čte po 200 ms, přehrávače ho samy nehlásí.
   Spuštění videa zastaví hrající hlasovku.
