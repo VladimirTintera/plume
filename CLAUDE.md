@@ -3053,6 +3053,14 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   Rozvinutí je jeden oblouk, jehož úhel klesá k nule a délka roste na šířku karty, kreslený na
   `Canvas` — M3 přechod z kruhového průběhu do lineárního nemá. Kroužek i čára ukazují tentýž
   úsek (`downloadedFractions`), jinak by se obsah při rozvinutí změnil pod rukama.
+- **Stažený úsek na rozvinuté čáře se vlní** jako `LinearWavyProgressIndicator` (vlnitý průběh,
+  rovná dráha, vlnky obíhají); kroužek v rohu zůstává rovný — nad hrajícím videem by vlnění
+  pořád tahalo oko. Hotová komponenta to být nemůže: umí jen průběh od nuly.
+- **Oblouk se kotví za střed TĚTIVY a otáčení dozní dřív, než se narovná** (`(1 − t)³`).
+  S kotvou ve vrcholu a lineárním otáčením byl oblouk v půlce skoro rovný, stál svisle a čára
+  se protočila jako vrtule přes spodní hranu karty. **Proměnu jde prohlédnout jen zpomaleně**:
+  `adb shell settings put global animator_duration_scale 10` (Compose ho respektuje) a série
+  `screencap` — v normální rychlosti ji snímky minou.
 - **TDLib hlásí jen SOUVISLÝ úsek od `downloadOffset`**, takže čára ukazuje, z čeho přehrávač
   právě čte, ne všechno, co se kdy stáhlo (po skoku pro `moov` na konec se úsek přestěhuje).
 - **Na emulátoru se stahování zpomalit NEDÁ**: `adb emu network speed edge`/`gprs` odpoví OK,
