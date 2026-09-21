@@ -2965,15 +2965,32 @@ z výběru; statický obrázek a samolepka z klávesnice čekají nad polem jako
 - **Průhledný obrázek se před JPEG skládá na bílou** (`opaque()` v `preparePhoto`). JPEG alfu
   nemá a průhledné pixely z něj vyšly černé — samolepka z Gboardu odcházela na černém čtverci.
   Týkalo se to i PNG z výběru příloh.
-- **iOS nic nedeklaruje**: tamní klávesnice GIFy do pole nevkládají, jdou přes schránku.
+- **iOS klávesnice GIFy do pole nevkládají** (`commitContent` tam nemá obdobu) — GIF klávesnice
+  i samolepky jdou přes SCHRÁNKU. Na iOS proto `KeyboardContentReceiver` dělá jen vložení ze
+  schránky (viz níž).
 - **Obrázek a GIF ze schránky vkládá vlastní položka kontextové nabídky pole** („Vložit GIF" /
   „Vložit obrázek", `appendTextContextMenuComponents`). Systémové „Vložit" v poli umí jen text
   a s obrázkem ve schránce se ani neukáže. Položka je jen tehdy, když schránka nese typ, který chat
   přijme; rozhoduje `primaryClipDescription`, který se čte při otevření nabídky — popis systém
   jako čtení schránky nehlásí, obsah (`primaryClip`) se bere až po ťuknutí. Dál stejná cesta
   jako obsah z klávesnice (`prepare`): GIF odchází hned, obrázek čeká nad polem.
-- **Funguje to jen s NOVOU kontextovou nabídkou** (`ComposeFoundationFlags.isNewContextMenuEnabled`,
-  na Androidu v 1.12 výchozí). Staré `TextToolbar` vlastní položky nebere.
+- **Funguje to jen s NOVOU kontextovou nabídkou** (`ComposeFoundationFlags.isNewContextMenuEnabled`).
+  Staré `TextToolbar` vlastní položky nebere. **Na Androidu je v 1.12 výchozí, na iOS NE**
+  (`isNewContextMenuInitiallyEnabled = false` ve skiko) — zapíná se v `MainViewController`,
+  dřív než se cokoli složí. Nabídku na iOS kreslí dál systém (`UIEditMenuInteraction`), vlastní
+  položky jdou do ní jako nativní akce (`CMPEditMenuCustomAction`); systémové „Vložit" textu
+  funguje dál (ověřeno na poli s číslem při přihlášení).
+- **iOS: typ ve schránce se zjišťuje `containsPasteboardTypes`**, které systém nehlásí jako
+  čtení. Data (`dataForPasteboardType`) až po ťuknutí — a protože to není systémové „Vložit",
+  iOS se zeptá „Povolit vložení?". Obejít to jde jen `UIPasteControl` (tlačítko kreslí systém).
+  Typy jsou UTI: `com.compuserve.gif`, `public.mpeg-4`, `public.png`/`jpeg`/`heic`,
+  `org.webmproject.webp`. GIF má přednost — z téže položky by obrázek byl jen první snímek.
+- **Na simulátoru se to ověří bez podstrkávání**: GIF do schránky Macu (`osascript -e 'set the
+  clipboard to (read (POSIX file "…/x.gif") as «class GIFf»)'`), pak `xcrun simctl pbsync host
+  <zařízení>`. Dotaz „Povolit vložení?" se ukáže s původem „CoreSimulatorBridge". Ověřeno:
+  „Paste GIF" v nabídce, po povolení GIF odešel a hraje.
+- **`preparePhotoData` na iOS skládá na bílou** (`opaque = true` + `UIRectFill`), ze stejného
+  důvodu jako `opaque()` na Androidu.
 - **Obrázek do schránky emulátoru z `adb` nedostaneš** — `cmd clipboard` neexistuje a Chrome
   i Fotky chtějí nejdřív projít úvodním souhlasem. Ověřuje se podstrčením: dočasně v debug buildu
   `setPrimaryClip(ClipData.newUri(…))` s GIFem v `cache/shared` (vydává ho provider `…documents`;

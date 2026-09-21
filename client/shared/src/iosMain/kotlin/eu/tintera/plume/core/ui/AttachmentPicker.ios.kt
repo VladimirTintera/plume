@@ -6,6 +6,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.telegram.OutgoingAnimation
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.OutgoingThumbnail
 import eu.tintera.plume.resources.Res
@@ -55,6 +56,8 @@ import platform.PhotosUI.PHPickerResult
 import platform.PhotosUI.PHPickerViewController
 import platform.PhotosUI.PHPickerViewControllerDelegateProtocol
 import platform.UIKit.UIApplication
+import platform.UIKit.UIColor
+import platform.UIKit.UIRectFill
 import platform.UIKit.UIDocumentPickerDelegateProtocol
 import platform.UIKit.UIDocumentPickerViewController
 import platform.UIKit.UIGraphicsImageRenderer
@@ -200,16 +203,53 @@ internal fun preparePhotoData(data: NSData): OutgoingAttachment.Photo {
     val width = (sourceWidth * scale).roundToInt()
     val height = (sourceHeight * scale).roundToInt()
 
-    val format = UIGraphicsImageRendererFormat.defaultFormat().apply { this.scale = 1.0 }
+    /*
+     * Neprůhledně a na bílou: JPEG průhlednost nemá a průhledné pixely z něj vyšly černé —
+     * samolepka nebo PNG s průhledným pozadím by odešly na černém čtverci (stejně jako na Androidu).
+     */
+    val format = UIGraphicsImageRendererFormat.defaultFormat().apply {
+        this.scale = 1.0
+        this.opaque = true
+    }
     val renderer = UIGraphicsImageRenderer(size = CGSizeMake(width.toDouble(), height.toDouble()), format = format)
     val scaled = renderer.imageWithActions { _ ->
-        image.drawInRect(CGRectMake(0.0, 0.0, width.toDouble(), height.toDouble()))
+        val rect = CGRectMake(0.0, 0.0, width.toDouble(), height.toDouble())
+        UIColor.whiteColor.setFill()
+        UIRectFill(rect)
+        image.drawInRect(rect)
     }
     val jpeg = UIImageJPEGRepresentation(scaled, PHOTO_JPEG_QUALITY / 100.0) ?: error("JPEG nejde vytvořit.")
 
     val path = outgoingPath("photo.jpg")
     check(jpeg.writeToFile(path, atomically = true)) { "Fotku nejde uložit." }
     return OutgoingAttachment.Photo(path = path, width = width, height = height)
+}
+
+/**
+ * GIF ze schránky beze změny. Na MP4 ho převede server; rozměry stačí z první snímku
+ * (`UIImage` z GIFu nese velikost animace), délku u GIFu nezná nikdo, dokud ho server nepřevede.
+ */
+@OptIn(ExperimentalForeignApi::class)
+internal fun prepareGifData(data: NSData): OutgoingAnimation {
+    val image = UIImage.imageWithData(data) ?: error("GIF nejde přečíst.")
+    val (width, height) = image.size.useContents { (width * image.scale).roundToInt() to (height * image.scale).roundToInt() }
+    val path = outgoingPath("animation.gif")
+    check(data.writeToFile(path, atomically = true)) { "GIF nejde uložit." }
+    return OutgoingAnimation(path = path, width = width, height = height, durationSeconds = 0, thumbnail = null)
+}
+
+/** MP4 bez zvuku ze schránky jako GIF: tatáž příprava jako video, jen jiný druh zprávy. */
+internal suspend fun prepareMp4AnimationData(data: NSData): OutgoingAnimation {
+    val path = outgoingPath("animation.mp4")
+    check(data.writeToFile(path, atomically = true)) { "Video nejde uložit." }
+    val video = prepareVideoAt(path)
+    return OutgoingAnimation(
+        path = video.path,
+        width = video.width,
+        height = video.height,
+        durationSeconds = video.durationSeconds,
+        thumbnail = video.thumbnail,
+    )
 }
 
 /**
