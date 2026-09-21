@@ -442,8 +442,14 @@
     <string name="notification_permission_body">Without notifications you'll only find out about a new message when you open the app. You can turn them on or off any time in Settings.</string>
     <string name="notification_permission_enable">Turn on</string>
     <string name="notification_permission_later">Not now</string>
-    <string name="notification_channel_name">Messages</string>
-    <string name="notification_channel_description">New messages from Telegram</string>
+    <string name="notification_channel_private">Private chats</string>
+    <string name="notification_channel_private_description">Messages from people and bots</string>
+    <string name="notification_channel_groups">Groups</string>
+    <string name="notification_channel_groups_description">Messages in groups</string>
+    <string name="notification_channel_channels">Channels</string>
+    <string name="notification_channel_channels_description">Posts in channels</string>
+    <string name="notification_channel_mentions">Mentions and replies</string>
+    <string name="notification_channel_mentions_description">When someone mentions you or replies to your message, even in a muted chat</string>
     <string name="notification_self_name">Me</string>
     <string name="notification_reply">Reply</string>
     <string name="notification_mark_read">Mark as read</string>

@@ -110,4 +110,26 @@ data class ChatNotification(
     val canReply: Boolean = true,
     /** Nabídnout „Ztlumit"? Jen u běžných zpráv, ne u zmínek, které projdou i ztlumeným chatem. */
     val canMute: Boolean = true,
+    /** Systémový kanál, kterým notifikace půjde (Android). Viz [notificationChannelFor]. */
+    val channel: NotificationChannelKind = NotificationChannelKind.Private,
 )
+
+/**
+ * Systémový kanál notifikace — na Androidu jde každý zvlášť ztišit nebo nastavit zvuk.
+ *
+ * Tři odpovídají rozsahům nastavení TDLib (soukromé chaty, skupiny, kanály), takže u každého
+ * rozsahu v Nastavení vede odkaz „Zvuk a vibrace" do jeho kanálu. Zmínky mají vlastní: projdou
+ * i ztlumeným chatem a v tiché skupině jsou to jediné, co má zvonit.
+ */
+enum class NotificationChannelKind { Private, Groups, Channels, Mentions }
+
+/**
+ * Kanál pro notifikaci. [isMention] = skupina notifikací `NotificationGroupTypeMentions`
+ * (zmínky a odpovědi na mě); má přednost před druhem chatu.
+ */
+fun notificationChannelFor(isMention: Boolean, kind: ChatKind): NotificationChannelKind = when {
+    isMention -> NotificationChannelKind.Mentions
+    kind == ChatKind.Group -> NotificationChannelKind.Groups
+    kind == ChatKind.Channel -> NotificationChannelKind.Channels
+    else -> NotificationChannelKind.Private
+}

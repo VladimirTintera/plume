@@ -442,8 +442,14 @@
     <string name="notification_permission_body">Bez notifikací se o nové zprávě dozvíš, až aplikaci otevřeš. Zapnout nebo vypnout je můžeš kdykoliv v Nastavení.</string>
     <string name="notification_permission_enable">Zapnout</string>
     <string name="notification_permission_later">Teď ne</string>
-    <string name="notification_channel_name">Zprávy</string>
-    <string name="notification_channel_description">Nové zprávy z Telegramu</string>
+    <string name="notification_channel_private">Soukromé chaty</string>
+    <string name="notification_channel_private_description">Zprávy od lidí a botů</string>
+    <string name="notification_channel_groups">Skupiny</string>
+    <string name="notification_channel_groups_description">Zprávy ve skupinách</string>
+    <string name="notification_channel_channels">Kanály</string>
+    <string name="notification_channel_channels_description">Příspěvky v kanálech</string>
+    <string name="notification_channel_mentions">Zmínky a odpovědi</string>
+    <string name="notification_channel_mentions_description">Když tě někdo zmíní nebo odpoví na tvou zprávu, i ve ztlumeném chatu</string>
     <string name="notification_self_name">Já</string>
     <string name="notification_reply">Odpovědět</string>
     <string name="notification_mark_read">Označit jako přečtené</string>

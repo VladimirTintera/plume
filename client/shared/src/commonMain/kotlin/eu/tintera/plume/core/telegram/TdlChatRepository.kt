@@ -19,6 +19,7 @@ import dev.g000sha256.tdl.dto.ChatListArchive
 import dev.g000sha256.tdl.dto.ChatListMain
 import dev.g000sha256.tdl.dto.ChatNotificationSettings
 import dev.g000sha256.tdl.dto.ChatPosition
+import dev.g000sha256.tdl.dto.ChatType
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
@@ -824,11 +825,7 @@ private suspend fun Chat.toSummary(): ChatSummary {
         avatarFileId = photo?.small?.id,
         isMuted = notificationSettings.isMuted(),
         isMarkedAsUnread = isMarkedAsUnread,
-        kind = when (val chatType = type) {
-            is ChatTypeSupergroup -> if (chatType.isChannel) ChatKind.Channel else ChatKind.Group
-            is ChatTypeBasicGroup -> ChatKind.Group
-            is ChatTypePrivate, is ChatTypeSecret -> ChatKind.Private
-        },
+        kind = type.chatKind(),
         lastMessageTimestamp = lastMessage?.date,
         // Dostupnost `Chat` nenese — dorazí updatem. Do té doby je `null`, což UI kreslí
         // prostě bez tečky.
@@ -907,4 +904,11 @@ internal fun ChatAction.toActivity(): ChatActivity? = when (this) {
     is ChatActionUploadingDocument, is ChatActionUploadingVoiceNote -> ChatActivity.SendingFile
     is ChatActionChoosingSticker -> ChatActivity.ChoosingSticker
     else -> ChatActivity.Other
+}
+
+/** Druh chatu: tajný chat a bot jsou soukromé, základní skupina i supergroup skupina. */
+internal fun ChatType.chatKind(): ChatKind = when (this) {
+    is ChatTypeSupergroup -> if (isChannel) ChatKind.Channel else ChatKind.Group
+    is ChatTypeBasicGroup -> ChatKind.Group
+    is ChatTypePrivate, is ChatTypeSecret -> ChatKind.Private
 }

@@ -14,6 +14,7 @@ import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.Notification
+import dev.g000sha256.tdl.dto.NotificationGroupTypeMentions
 import dev.g000sha256.tdl.dto.NotificationGroupTypeMessages
 import dev.g000sha256.tdl.dto.NotificationTypeNewMessage
 import dev.g000sha256.tdl.dto.NotificationTypeNewPushMessage
@@ -148,6 +149,15 @@ class TdlNotificationRepository(
         // uživatel ztlumený natrvalo nebo výchozím nastavením.
         val canMute = update.type is NotificationGroupTypeMessages
 
+        // Druh chatu podle toho, čím se notifikace řídí (`notificationSettingsChatId`), ne podle
+        // chatu samotného — tak si ho vybírá i TDLib, když rozhoduje o ztlumení a zvuku.
+        val settingsChat = if (update.notificationSettingsChatId == update.chatId) chat
+        else client.getChat(update.notificationSettingsChatId).toResult().getOrNull() ?: chat
+        val channel = notificationChannelFor(
+            isMention = update.type is NotificationGroupTypeMentions,
+            kind = settingsChat?.type?.chatKind() ?: ChatKind.Private,
+        )
+
         val notifications = added.mapNotNull { notification ->
             val content = notification.content() ?: return@mapNotNull null
 
@@ -171,6 +181,7 @@ class TdlNotificationRepository(
                 imageCaption = content.imageCaption,
                 canReply = canReply,
                 canMute = canMute,
+                channel = channel,
             )
         }
 
