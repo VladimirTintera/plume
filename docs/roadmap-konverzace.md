@@ -8,10 +8,12 @@ Pořadí je doporučení, ne závazek.
 Konverzace umí: historii se stránkováním, skok na první nepřečtenou, předěly dne, živé zprávy,
 odesílání s letem bubliny, koncept uložený v TDLib, „píše…" oběma směry, úpravu vlastní zprávy,
 odpovědi (i swipem) se skokem na citaci, reakce, nabídku nad zprávou (odpovědět, upravit,
-kopírovat, připnout/odepnout, smazat, oblíbené samolepky), připnuté zprávy s odepínáním,
-formátování textu a náhledy odkazů, fotky s prohlížečem, samolepky (i animované `.tgs`),
-animovaná emoji, výběr samolepek (sady, hledání, oblíbené, trendy) a emoji (hledání, nedávná,
-odstíny pleti), profilovky ve skupinách, sponzorované zprávy, stav doručení.
+kopírovat, připnout/odepnout, přeposlat, informace, smazat, oblíbené samolepky), připnuté
+zprávy s odepínáním, formátování textu, klikatelné zmínky a hashtagy, náhledy odkazů, fotky
+a video s prohlížečem (uložení, sdílení), alba a posílání příloh, soubory (otevření, sdílení,
+uložení), hlasovky (přehrávání i nahrávání), hledání v konverzaci, samolepky (i animované
+`.tgs`), animovaná emoji, výběr samolepek (sady, hledání, oblíbené, trendy) a emoji (hledání,
+nedávná, odstíny pleti), profilovky ve skupinách, sponzorované zprávy, stav doručení.
 
 Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonTest`,
 `./gradlew :client:shared:testAndroidHostTest`).
@@ -176,10 +178,11 @@ v `CLAUDE.md`, sekce „Nabídka nad zprávou".
 Kód: `MessageMenu.kt`, `MessageMenu`/`PendingDelete` v `ConversationViewModel.kt`,
 `messageActions`/`deleteMessages` v repository, `core/ui/TextClipboard.kt`.
 
-V nabídce zatím: **Odpovědět, Upravit, Kopírovat, Připnout/Odepnout, Smazat**. Mrtvé položky se tam nedávají, takže zbytek
-přibude s tím, co bude umět:
+V nabídce zatím: **Odpovědět, Upravit, Kopírovat, Připnout/Odepnout, Přeposlat, Informace,
+Smazat**, u samolepky oblíbené a u souboru Sdílet a Uložit jako…. Mrtvé položky se tam nedávají,
+takže zbytek přibude s tím, co bude umět:
 
-- **Přeposlat** — potřebuje výběr cílového chatu, tedy vlastní obrazovku.
+- ~~**Přeposlat**~~ — hotovo (výběr cílového chatu `ForwardRoute`, viz bod 3 nahoře).
 - **Upravit popisek média** (`editMessageCaption`) a **zprávu s ručním formátováním** —
   vstupní pole umí jen holý text, takže úprava se u nich zatím nenabízí.
 - **Vybrat víc zpráv** — hromadné mazání a přeposílání, znamená režim výběru v celé konverzaci.
@@ -209,17 +212,17 @@ Co z toho zůstalo nedodělané:
 - **Náhled odkazu nad textem** (`showAboveText`) — náhled se zatím kreslí vždycky pod ním.
 - **Vlastní emoji** (`TextEntityTypeCustomEmoji`) jsou samolepky uvnitř textu; patří k médiím.
 
-## D) Otevření média — HOTOVO pro fotky
+## D) Otevření média — HOTOVO pro fotky, video a dokumenty
 
-Ťuknutí na fotku ji otevře přes celou obrazovku; štípnutí a dvojité ťuknutí přibližují, tah dolů
-zavírá, do stran se listuje fotkami chatu. Poučení je v `CLAUDE.md`, sekce „Prohlížeč médií". Kód: `features/media/`,
+Ťuknutí na fotku nebo video je otevře přes celou obrazovku; štípnutí a dvojité ťuknutí přibližují,
+tah dolů zavírá, do stran se listuje fotkami a videi chatu. Dokumenty se stáhnou a předají systému
+(`CLAUDE.md`, „Soubory v chatu"). Poučení je v `CLAUDE.md`, sekce „Prohlížeč médií". Kód: `features/media/`,
 `MediaRoute` v `Routes.kt`, `fullFileId` v `MessageMedia.Photo`.
 
 Co zbývá:
 
-- **Ostatní typy médií.** GIF a dokumenty se pořád jen popisují. Prohlížeč
-  u nich zatím řekne, že je neumíme otevřít. Přehrávání je samostatná fáze (potřebuje platformní
-  přehrávač přes `expect`/`actual`); u dokumentů stačí míň — stáhnout a předat systému.
+- **GIF** (`MessageAnimation`) se pořád jen popisuje. Platformní přehrávač už je (video),
+  zbývá přehrávat bez zvuku přímo v bublině — viz bod 2 nahoře.
 - **Obrázky a videa poslané jako soubor.** ~~Náhled místo ikony v řádku souboru~~ a
   ~~rozpoznání obrázku a videa~~ a ~~otevření v prohlížeči médií~~ — hotovo (`documentKind`,
   `DocumentThumbnail`, `opensInViewer`, `asViewerMedia`). Zbývá:

@@ -43,7 +43,9 @@ Android je napřed; tohle je, čím se to dorovnává.
 ## Obrazovky a sekce, které nejsou
 
 Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `SettingsRoute`,
-`ArchiveRoute`, `ConversationRoute`, `MediaRoute`, `ForwardRoute`, `ShareRoute`, `NewChatRoute`.
+`SettingsSectionRoute`, `ArchiveRoute`, `ArchiveConversationRoute`, `ArchiveChatProfileRoute`,
+`ConversationRoute`, `ChatProfileRoute`, `MediaRoute`, `ForwardRoute`, `ShareRoute`, `NewChatRoute`
+(`core/navigation/Routes.kt`).
 
 - ~~**Archiv**~~ — hotovo (seznam v menu ⋮, archivace a vrácení z nabídky chatu s „Vrátit").
   Poučení v `CLAUDE.md`, „Archiv". Zbývá:
