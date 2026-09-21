@@ -41,6 +41,17 @@ actual class NotificationPermission(private val context: Context) {
         context.startActivity(intent)
     }
 
+    actual fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind) {
+        val conversationId = ensureConversationChannel(context, channel, chatId, title)
+        val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            .putExtra(Settings.EXTRA_CHANNEL_ID, channel.channelId)
+            .apply { if (conversationId != null) putExtra(Settings.EXTRA_CONVERSATION_ID, conversationId) }
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        context.startActivity(intent)
+    }
+
     /** Bylo už vysvětlení ukázané? Ptát se při každém spuštění by bylo otravné. */
     internal fun wasAsked(): Boolean = prefs().getBoolean(KEY_ASKED, false)
 

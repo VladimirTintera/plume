@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.profile
 
+import androidx.compose.foundation.clickable
+import eu.tintera.plume.resources.profile_notif_title
+import eu.tintera.plume.core.telegram.ChatNotificationPrefs
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.ui.avatarShape
 import androidx.compose.foundation.layout.Arrangement
@@ -236,10 +239,30 @@ fun ChatProfileScreen(
                     onTitlePlaced = { titleBottom = it },
                 )
                 ProfileActions(muted = state.muted, onToggleMute = viewModel::toggleMute, onSearch = onSearch)
-                if (profile.usernames.isNotEmpty() || profile.phone != null || profile.about.isNotBlank()) {
-                    ProfileInfo(profile, onLinkClick = viewModel::openLink)
+                val notifications = state.notifications
+                if (profile.usernames.isNotEmpty() || profile.phone != null || profile.about.isNotBlank() || notifications != null) {
+                    ProfileInfo(
+                        profile,
+                        notifications = notifications,
+                        onLinkClick = viewModel::openLink,
+                        onOpenNotifications = viewModel::openNotificationSheet,
+                    )
                 }
             }
+        }
+
+        val notifications = state.notifications
+        if (state.notificationSheet && notifications != null) {
+            ChatNotificationSheet(
+                prefs = notifications,
+                supportsConversationSettings = viewModel.supportsConversationSettings,
+                onMute = viewModel::mute,
+                onUnmute = viewModel::unmute,
+                onOption = viewModel::setNotificationOption,
+                onOpenConversationSettings = viewModel::openConversationSettings,
+                onReset = viewModel::resetNotifications,
+                onDismiss = viewModel::closeNotificationSheet,
+            )
         }
 
         val tabs = state.tabs
@@ -680,7 +703,12 @@ private val ACTION_CHECKED_CORNER = 48.dp
  * záložek tmavší plocha a profil z toho měl dva různé vzhledy pro „seznam věcí".
  */
 @Composable
-private fun ProfileInfo(profile: ChatProfile, onLinkClick: (String) -> Unit) {
+private fun ProfileInfo(
+    profile: ChatProfile,
+    notifications: ChatNotificationPrefs?,
+    onLinkClick: (String) -> Unit,
+    onOpenNotifications: () -> Unit,
+) {
     val rows = buildList<@Composable (Shape) -> Unit> {
         profile.usernames.firstOrNull()?.let { username ->
             add { shape ->
@@ -712,6 +740,19 @@ private fun ProfileInfo(profile: ChatProfile, onLinkClick: (String) -> Unit) {
                 }
             }
         }
+        // Upozornění poslední: údaje o chatu napřed, jeho nastavení až za nimi. Řádek vede do
+        // sheetu s dobou ztlumení a volbami; dlaždice Ztlumit nahoře zůstává rychlým přepínačem.
+        notifications?.let { prefs ->
+            add { shape ->
+                InfoRow(
+                    label = stringResource(Res.string.profile_notif_title),
+                    shape = shape,
+                    onClick = onOpenNotifications,
+                ) {
+                    Text(prefs.summary(), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+        }
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
@@ -728,12 +769,12 @@ private fun ProfileInfo(profile: ChatProfile, onLinkClick: (String) -> Unit) {
 
 /** Údaj: hodnota a pod ní, co to je — jako v kontaktech. */
 @Composable
-private fun InfoRow(label: String, shape: Shape, value: @Composable () -> Unit) {
+private fun InfoRow(label: String, shape: Shape, onClick: (() -> Unit)? = null, value: @Composable () -> Unit) {
     ListItem(
         headlineContent = value,
         supportingContent = { Text(label) },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-        modifier = Modifier.clip(shape),
+        modifier = Modifier.clip(shape).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
     )
 }
 

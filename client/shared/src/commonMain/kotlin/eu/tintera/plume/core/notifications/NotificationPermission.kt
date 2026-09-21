@@ -30,6 +30,12 @@ expect class NotificationPermission {
 
     /** Otevře systémové nastavení kanálu — zvuk, vibrace, důležitost. */
     fun openChannelSettings(channel: NotificationChannelKind)
+
+    /**
+     * Otevře systémové nastavení jedné konverzace (zvuk, prioritní, tichá). Kde to platforma
+     * neumí (Android do 10), otevře kanál [channel], pod který konverzace patří.
+     */
+    fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind)
 }
 
 /**

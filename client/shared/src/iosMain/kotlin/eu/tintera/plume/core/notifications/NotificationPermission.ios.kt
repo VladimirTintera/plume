@@ -12,6 +12,7 @@ actual class NotificationPermission {
     actual fun openSystemSettings() = Unit
     actual val supportsChannelSettings: Boolean = false
     actual fun openChannelSettings(channel: NotificationChannelKind) = Unit
+    actual fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind) = Unit
 }
 
 @Composable

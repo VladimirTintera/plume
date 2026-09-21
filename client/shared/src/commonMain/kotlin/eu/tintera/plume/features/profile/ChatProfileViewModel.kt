@@ -28,6 +28,12 @@ import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SharedMediaCounts
 import eu.tintera.plume.core.telegram.SharedMediaKind
+import eu.tintera.plume.core.telegram.ChatNotificationOption
+import eu.tintera.plume.core.telegram.ChatNotificationPrefs
+import eu.tintera.plume.core.telegram.NotificationSettingsRepository
+import eu.tintera.plume.core.notifications.NotificationPermission
+import eu.tintera.plume.resources.settings_notif_error
+import kotlin.time.Duration
 import eu.tintera.plume.resources.document_download_failed
 import eu.tintera.plume.resources.document_open_failed
 import eu.tintera.plume.resources.profile_shared_failed
@@ -49,6 +55,8 @@ class ChatProfileViewModel(
     private val files: FileRepository,
     private val fileOpener: FileOpener,
     private val urlOpener: UrlOpener,
+    private val notificationSettings: NotificationSettingsRepository,
+    private val notificationPermission: NotificationPermission,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Profile")
@@ -73,6 +81,9 @@ class ChatProfileViewModel(
         }
         viewModelScope.launch {
             chats.muted(chatId).collect { muted -> _state.update { it.copy(muted = muted) } }
+        }
+        viewModelScope.launch {
+            notificationSettings.chatSettings(chatId).collect { prefs -> _state.update { it.copy(notifications = prefs) } }
         }
         viewModelScope.launch {
             // Počty rozhodují, které záložky vůbec budou — proto hned při otevření, ne až
@@ -220,6 +231,53 @@ class ChatProfileViewModel(
         }
     }
 
+    fun openNotificationSheet() = _state.update { it.copy(notificationSheet = true) }
+
+    fun closeNotificationSheet() = _state.update { it.copy(notificationSheet = false) }
+
+    /** Ztlumení na dobu; `null` = navždy. Sheet se zavře — rozhodnuto, víc tam není co dělat. */
+    fun mute(duration: Duration?) {
+        _state.update { it.copy(notificationSheet = false) }
+        viewModelScope.launch {
+            val result = if (duration == null) chats.setMuted(chatId, true) else chats.muteFor(chatId, duration)
+            result.onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.profile_mute_failed)) } }
+        }
+    }
+
+    fun unmute() {
+        _state.update { it.copy(notificationSheet = false) }
+        viewModelScope.launch {
+            chats.setMuted(chatId, false).onFailure { failure ->
+                _state.update { it.copy(error = failure.reported(Res.string.profile_mute_failed)) }
+            }
+        }
+    }
+
+    /** Přepínač v sheetu; stav se nepřepisuje lokálně, potvrzení přijde updatem chatu. */
+    fun setNotificationOption(option: ChatNotificationOption, value: Boolean) {
+        viewModelScope.launch {
+            notificationSettings.setChatOption(chatId, option, value).onFailure { failure ->
+                _state.update { it.copy(error = failure.reported(Res.string.settings_notif_error)) }
+            }
+        }
+    }
+
+    fun resetNotifications() {
+        viewModelScope.launch {
+            notificationSettings.resetToDefault(chatId).onFailure { failure ->
+                _state.update { it.copy(error = failure.reported(Res.string.settings_notif_error)) }
+            }
+        }
+    }
+
+    val supportsConversationSettings: Boolean = notificationPermission.supportsChannelSettings
+
+    fun openConversationSettings() {
+        val prefs = _state.value.notifications ?: return
+        val title = _state.value.profile?.title ?: return
+        notificationPermission.openConversationSettings(chatId, title, prefs.scope.channel)
+    }
+
     /** Člen skupiny: otevře se soukromý chat s ním (TDLib ho založí lokálně, nic se neposílá). */
     fun openMember(userId: Long) {
         viewModelScope.launch {
@@ -255,6 +313,9 @@ data class ChatProfileState(
     val presence: Presence? = null,
     /** `null`, dokud chat repository nezná — tlačítko se pak nekreslí. */
     val muted: Boolean? = null,
+    /** Upozornění chatu i s tím, co přebírá z výchozího nastavení; `null` = řádek se nekreslí. */
+    val notifications: ChatNotificationPrefs? = null,
+    val notificationSheet: Boolean = false,
     /** `null`, dokud počty nedorazí; teprve podle nich se vykreslí záložky. */
     val counts: SharedMediaCounts? = null,
     /** Načtený obsah záložek; chybějící klíč = záložka se ještě neukázala. */

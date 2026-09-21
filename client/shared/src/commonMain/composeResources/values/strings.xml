@@ -621,4 +621,18 @@
     <string name="settings_notif_contact_joined">Contact joined Telegram</string>
     <string name="settings_notif_mentions_sound_summary">Sound for mentions and replies, in system settings</string>
     <string name="settings_notif_error">Couldn't save the setting.</string>
+    <string name="date_tomorrow">tomorrow</string>
+    <string name="date_upcoming_time">%1$s, %2$s</string>
+    <string name="profile_notif_title">Notifications</string>
+    <string name="profile_notif_on">On</string>
+    <string name="profile_notif_muted">Muted</string>
+    <string name="profile_notif_muted_until">Muted until %1$s</string>
+    <string name="profile_notif_default">%1$s · default settings</string>
+    <string name="profile_notif_unmute">Turn on notifications</string>
+    <string name="profile_notif_mute_1h">Mute for 1 hour</string>
+    <string name="profile_notif_mute_8h">Mute for 8 hours</string>
+    <string name="profile_notif_mute_2d">Mute for 2 days</string>
+    <string name="profile_notif_mute_forever">Mute forever</string>
+    <string name="profile_notif_sound_summary">For this chat only, in system settings</string>
+    <string name="profile_notif_reset">Reset to default settings</string>
 </resources>

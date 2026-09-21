@@ -25,7 +25,54 @@ interface NotificationSettingsRepository {
     suspend fun contactJoinedEnabled(): Result<Boolean>
 
     suspend fun setContactJoinedEnabled(enabled: Boolean): Result<Unit>
+
+    /**
+     * Upozornění jednoho chatu, živě — i s tím, co chat přebírá z výchozího nastavení rozsahu.
+     * `null`, dokud se nenačte.
+     */
+    fun chatSettings(chatId: Long): Flow<ChatNotificationPrefs?>
+
+    /** Změní jednu volbu chatu; ostatní (i zvuk nastavený jinde) zůstanou. */
+    suspend fun setChatOption(chatId: Long, option: ChatNotificationOption, value: Boolean): Result<Unit>
 }
+
+/**
+ * Upozornění chatu. Hodnoty jsou ÚČINNÉ: kde chat jede podle rozsahu, je tu hodnota rozsahu —
+ * přepínač má ukazovat, co se opravdu stane, ne co leží v nepoužitém poli.
+ */
+data class ChatNotificationPrefs(
+    val mute: MuteState,
+    /** Ztlumení se řídí rozsahem (soukromé chaty / skupiny / kanály), ne chatem samotným. */
+    val muteIsDefault: Boolean,
+    val showPreview: Boolean,
+    val pinnedMessages: Boolean,
+    val mentions: Boolean,
+    /** Chat nemá nic vlastního — obnovení výchozího nastavení by nic nezměnilo. */
+    val isDefault: Boolean,
+    val scope: NotificationScope,
+)
+
+sealed interface MuteState {
+    data object Off : MuteState
+    data object Forever : MuteState
+
+    /** Ztlumeno do [epochSeconds]; pak se upozornění samo vrátí. */
+    data class Until(val epochSeconds: Long) : MuteState
+}
+
+enum class ChatNotificationOption { ShowPreview, PinnedMessages, Mentions }
+
+/**
+ * Ztlumení z počtu zbývajících sekund, jak ho posílá TDLib. Nad rok se bere jako „navždy" —
+ * klienti navždy zapisují `Int.MAX_VALUE`, ale starší a jiní klienti i roky.
+ */
+fun muteState(muteForSeconds: Int, nowEpochSeconds: Long): MuteState = when {
+    muteForSeconds <= 0 -> MuteState.Off
+    muteForSeconds > FOREVER_THRESHOLD_SECONDS -> MuteState.Forever
+    else -> MuteState.Until(nowEpochSeconds + muteForSeconds)
+}
+
+private const val FOREVER_THRESHOLD_SECONDS = 366 * 24 * 60 * 60
 
 /** Rozsah výchozího nastavení v TDLib. Odpovídá jedna k jedné kanálu [channel]. */
 enum class NotificationScope(val channel: NotificationChannelKind) {

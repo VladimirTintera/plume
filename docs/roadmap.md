@@ -156,12 +156,9 @@ Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení
   a odkaz do systémového kanálu; poučení v `CLAUDE.md`, „Kanály a nastavení notifikací"). Zbývá:
   - **Ověřit kanály Skupiny, Kanály a Zmínky skutečnou zprávou** — na emulátoru prošla jen
     soukromá zpráva od bota; do skutečných skupin se testovací zprávy neposílají.
-  - **Nastavení jednotlivého chatu přes systém.** Notifikace je díky `MessagingStyle`
-    a dlouhověké zkratce „konverzace", takže si u ní uživatel v Androidu 11+ nastaví „Prioritní"
-    nebo vlastní zvuk jen pro ten chat (podkanál z rodičovského). Ověřit, že to funguje, a odkázat
-    na to z Nastavení nebo z profilu chatu.
-  - **Nastavení notifikací chatu v profilu** (ztlumení na dobu, náhled, zmínky jen pro ten chat);
-    dnes profil umí jen ztlumit/zapnout a výjimky jde jen obnovit.
+  - ~~**Upozornění jednoho chatu v profilu**~~ — hotovo (doba ztlumení, náhled, připnuté,
+    zmínky, obnovení, zvuk přes kanál konverzace). Zbývá totéž z nabídky chatu v seznamu
+    (dlouhý stisk umí jen ztlumit navždy / zapnout).
   - **Stories** (`muteStories`, `showStoryPoster`), až budou stories.
   - **Zvuk z Telegramu** (`notificationSoundId`) se nesynchronizuje. Šlo by to jen novým kanálem
     s verzí v id při každé změně (jako oficiální klient) — a tím zahodit, co si uživatel nastavil
