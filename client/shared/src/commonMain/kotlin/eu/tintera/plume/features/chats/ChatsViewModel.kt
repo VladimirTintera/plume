@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import co.touchlab.kermit.Logger
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.settings.AppSettings
@@ -44,6 +45,8 @@ class ChatsViewModel(
     val appUpdates: AppUpdates,
     private val devices: DeviceRepository,
     private val session: TelegramSession,
+    /** Filtr přežije zabití procesu v pozadí; nové spuštění aplikace začne na všech chatech. */
+    private val savedState: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -54,16 +57,25 @@ class ChatsViewModel(
      */
     val state: StateFlow<ChatListState> = repository.chats(folder)
 
-    private val _filter = MutableStateFlow(ChatFilter.All)
+    private val _filter = MutableStateFlow(
+        savedState.get<String>(FILTER_KEY)?.let { name -> ChatFilter.entries.find { it.name == name } }
+            ?: ChatFilter.All,
+    )
 
     /**
-     * Filtr z plovoucího toolbaru (jen hlavní seznam). Žije s ViewModelem, tedy s položkou
-     * navigace: návrat z konverzace ho zachová, nové spuštění začne na všech chatech.
+     * Filtr z plovoucího toolbaru (jen hlavní seznam). Žije s položkou navigace: návrat
+     * z konverzace ho zachová a přes [SavedStateHandle] přežije i zabití procesu v pozadí — kdo se
+     * vrátí do obnovené konverzace, nemá najít přepnutý filtr. Nové spuštění aplikace ale začne na
+     * všech chatech: filtr je chvilkové zúžení, ne nastavení, a uložené Nepřečtené by při startu
+     * vypadaly jako seznam, ze kterého zmizely chaty.
+     *
+     * Ukládá se názvem, ne pořadím — stejně jako výčty v `AppSettings`.
      */
     val filter: StateFlow<ChatFilter> = _filter.asStateFlow()
 
     fun setFilter(filter: ChatFilter) {
         _filter.value = filter
+        savedState[FILTER_KEY] = filter.name
     }
 
     private val _account = MutableStateFlow<AccountInfo?>(null)
@@ -265,3 +277,6 @@ data class ArchiveChange(val chatId: Long, val archived: Boolean)
 
 /** Nepřečteno = nepřečtené zprávy NEBO ruční příznak. Obojí se v seznamu chová stejně. */
 val ChatSummary.hasUnread: Boolean get() = unreadCount > 0 || isMarkedAsUnread
+
+/** Klíč filtru v [SavedStateHandle] seznamu chatů. */
+private const val FILTER_KEY = "filter"

@@ -1073,7 +1073,11 @@ testy v `ChatGroupsTest`). Nahradil spodní navigační lištu.
 - **Přepnutí filtru skočí na vršek seznamu** — v obsluze ťuknutí, NE v `LaunchedEffect(filter)`:
   efekt by se spustil znovu při každém návratu seznamu do kompozice (z konverzace na telefonu)
   a seznam by pokaždé odjel nahoru.
-- **Filtr žije s ViewModelem**, návrat z konverzace ho zachová, nové spuštění začne na Vše.
+- **Filtr se neukládá do nastavení, jen do `SavedStateHandle`.** Návrat z konverzace i zabití
+  procesu v pozadí ho zachová (obnovená konverzace s přepnutým filtrem pod ní by působila jako
+  chyba), nové spuštění aplikace začne na Vše. Filtr je chvilkové zúžení, ne volba: uložené
+  Nepřečtené by při startu vypadaly jako seznam, ze kterého zmizely chaty. `SavedStateHandle`
+  dodá Koin (`get()`) z `CreationExtras`, které nese dekorátor ViewModelů Nav3.
 - **Snackbar je nad toolbarem**, ne ve slotu Scaffoldu — ten by ho dal pod toolbar. Seznam má
   dole navíc `TOOLBAR_CLEARANCE`, aby šel poslední chat odscrollovat nad toolbar.
 - **Nabízí se jen filtr, který má smysl** (`availableFilters`, testy `ChatGroupsTest`). Filtr
