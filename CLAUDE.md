@@ -4008,6 +4008,10 @@ cesta je známá až po stažení a průběh chodí updaty. Překlad do jednoho 
   snímkem bez obrázku. U sdíleného prvku ze seznamu do konverzace to bylo vidět: avatar odletěl jako
   prázdný kruh a obrázek naskočil až na místě. Mapa se čte i zapisuje jen z kompozice, takže
   nepotřebuje zámek.
+- **Indikátor načítání obrázku roste s plochou** (`loadingIndicatorSize` v `RemoteImage`):
+  `ContainedLoadingIndicator`, 30 % kratší strany, nejvýš 64 dp; pod 24 dp (malé avatary) se
+  nekreslí. Pevných 24 dp bez kontejneru uprostřed velké fotky vypadalo jako chyba vykreslení,
+  ne načítání. Vzhled se ověřuje podstrčeným stavem (`Crossfade` s `null` a podmínka `true`).
 - **`FileRepository` je eager** (`createdAtStart`) ze stejného důvodu jako seznam chatů — v
   konstruktoru se přihlašuje k `fileUpdates`.
 

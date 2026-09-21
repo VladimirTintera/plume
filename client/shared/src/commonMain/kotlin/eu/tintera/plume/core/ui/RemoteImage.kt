@@ -4,8 +4,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -15,12 +14,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import kotlinx.coroutines.flow.flowOf
+import kotlin.math.min
+import kotlin.math.roundToInt
 import org.koin.compose.koinInject
 
 /**
@@ -69,7 +72,9 @@ fun RemoteImage(
             if (current == null) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     // Průběh se schválně nezobrazuje číselně — u náhledů by to byl neklid.
-                    if (state is FileState.Downloading) LoadingIndicator(Modifier.size(24.dp))
+                    if (state is FileState.Downloading) {
+                        ContainedLoadingIndicator(Modifier.loadingIndicatorSize())
+                    }
                 }
             } else {
                 AsyncImage(
@@ -83,6 +88,24 @@ fun RemoteImage(
         }
     }
 }
+
+/**
+ * Velikost indikátoru podle plochy obrázku: [INDICATOR_FRACTION] kratší strany, nejvýš
+ * [MAX_INDICATOR]. Pevných 24 dp bylo uprostřed velké fotky tak malých, že to vypadalo jako
+ * chyba vykreslení, ne načítání. Pod [MIN_INDICATOR] (malý avatar) se nekreslí vůbec — tam
+ * stačí podložka a tečka by byla jen šum.
+ */
+private fun Modifier.loadingIndicatorSize() = layout { measurable, constraints ->
+    val available = min(constraints.maxWidth, constraints.maxHeight)
+    val side = (available * INDICATOR_FRACTION).roundToInt().coerceAtMost(MAX_INDICATOR.roundToPx())
+    if (side < MIN_INDICATOR.roundToPx()) return@layout layout(0, 0) {}
+    val placeable = measurable.measure(Constraints.fixed(side, side))
+    layout(side, side) { placeable.place(0, 0) }
+}
+
+private const val INDICATOR_FRACTION = 0.3f
+private val MAX_INDICATOR = 64.dp
+private val MIN_INDICATOR = 24.dp
 
 /**
  * Stav souboru, nebo [FileState.Pending] když id není.
