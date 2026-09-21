@@ -239,6 +239,12 @@ interface ConversationRepository {
     suspend fun chatInfo(chatId: Long): Result<ChatInfo>
 
     /**
+     * Změny toho, jestli se do chatu smí psát a jestli se k němu jde přidat (správce změní
+     * práva, uživatel se přidá nebo odejde). Soukromý chat nic nevydá — tam se píše vždycky.
+     */
+    fun accessUpdates(chatId: Long): Flow<ChatAccess>
+
+    /**
      * Uloží rozepsanou zprávu do TDLib, odkud ji vidí seznam chatů i ostatní zařízení.
      *
      * Prázdný [text] koncept **smaže** — i kdyby zbývala citace. Odpověď bez textu Telegram jako
@@ -437,6 +443,11 @@ data class ChatInfo(
      * nejde nikdy.
      */
     val canJoin: Boolean = false,
+    /**
+     * Smí se do chatu psát ([writeAccess]). Kde ne, konverzace místo vstupního pole ukáže, co se
+     * dělat dá — pole, ze kterého zpráva skončí chybou, je horší než žádné.
+     */
+    val writeAccess: WriteAccess = WriteAccess.Allowed,
     /** Zpráva, na kterou koncept odpovídá, nebo `null`. */
     val draftReplyToMessageId: Long?,
 )
@@ -844,3 +855,6 @@ sealed interface MessageMedia {
         val emoji: String,
     ) : MessageMedia
 }
+
+/** Přístup k chatu, jak se mění za běhu — viz [ConversationRepository.accessUpdates]. */
+data class ChatAccess(val canJoin: Boolean, val writeAccess: WriteAccess)

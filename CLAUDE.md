@@ -1835,6 +1835,30 @@ u spodní hrany (`loadNewer`, `offset = -PAGE_SIZE`), dokud stránka nepřinese 
 - **Ukáže se až o pár položek výš** (`SCROLL_DOWN_THRESHOLD_ITEMS`), ne při prvním pixelu —
   u spodní hrany by blikalo pod prstem.
 
+### Práva psát
+
+Kde se do chatu psát nesmí, není vstupní pole (`WriteAccess`, pravidlo `writeAccess`
+v `core/telegram/WriteAccess.kt`, testy `WriteAccessTest`). Pole, ze kterého zpráva skončí
+chybou až po odeslání, je horší než žádné. Kanál bez práva publikovat má místo něj tlačítko
+Ztlumit / Zapnout zvuk, omezená skupina a chat, ve kterém uživatel není, větu proč.
+
+- **Rozhoduje vlastní postavení ve skupině, ne typ chatu.** V kanálu publikuje vlastník
+  a správce s `canPostMessages`; ve skupině výchozí práva (`Chat.permissions.canSendBasicMessages`),
+  u omezeného člena jeho vlastní (`ChatMemberStatusRestricted.permissions`) — ta výchozí přebíjejí
+  oběma směry. Správce a vlastník píšou do skupiny vždycky.
+- **Postavení je lokální dotaz** (`getSupergroup` / `getBasicGroup`). Když ho zjistit nejde,
+  psaní se NEBLOKUJE: pole navíc skončí nanejvýš chybou, chybějící pole by uživatele od chatu
+  odřízlo.
+- **Práva se mění za běhu** (`accessUpdates`: `UpdateChatPermissions`, `UpdateSupergroup`,
+  `UpdateBasicGroup`). Update skupiny chodí i kvůli počtu členů, takže se přístup čte znovu
+  a dál jde jen změna (`distinctUntilChanged`). Tudy se vrátí i pole po „Přidat se".
+- **Převedená skupina** (`BasicGroup.isActive == false`) žije dál jako supergroup; do staré se
+  nepíše, takže se bere jako „nejste v chatu".
+- **Swipe na odpověď se v chatu jen pro čtení nekoná** (`ConversationState.canWrite`); nabídka
+  nad zprávou se řídí `canBeReplied` od serveru jako dřív.
+- **Jednotlivé druhy obsahu zatím nerozlišujeme.** Skupina, kde smí jen text (bez fotek,
+  samolepek, hlasovek), má pole celé; zakázaný druh skončí chybou po odeslání.
+
 ### „Píše…" v konverzaci
 
 Hlavička ukazuje činnost protějšku (ve skupině kohokoli) místo dostupnosti a protějšek naopak

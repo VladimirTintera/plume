@@ -164,10 +164,10 @@ v `CLAUDE.md`, sekce „Odpověď swipem". Kód je v `MessageFrame` (`items/Mess
 
 Co zůstalo otevřené:
 
-- **Nekontroluje se, jestli jde na zprávu vůbec odpovědět.** `canBeReplied` známe teprve
-  z `getMessageProperties`, a to se ptáme až při otevření nabídky — dotazovat se na každou zprávu
-  v historii kvůli gestu, které se použije jednou za čas, nedává smysl. V praxi to nevadí, protože
-  chaty jen pro čtení zatím neřešíme ani ve vstupním poli.
+- **Na úrovni zprávy se `canBeReplied` nekontroluje.** Známe ho teprve z `getMessageProperties`,
+  a to se ptáme až při otevření nabídky — dotazovat se na každou zprávu v historii kvůli gestu,
+  které se použije jednou za čas, nedává smysl. Kde se do chatu psát nesmí vůbec (kanál bez
+  práva publikovat, omezená skupina), swipe nic neudělá (`ConversationState.canWrite`).
 
 ## B) Popup nad zprávou místo bottom sheetu — HOTOVO
 
@@ -284,6 +284,9 @@ a scrollování" u duplicitního klíče po potvrzení odeslání).
 
 **Chybějící základ**
 
+- **Práva po druzích obsahu.** Pole se schová, jen když chat nedovolí psát vůbec. Skupina, kde
+  smí jen text, nechá pole celé a fotka, samolepka nebo hlasovka skončí chybou po odeslání —
+  sponka, výběr samolepek a mikrofon by se měly řídit `ChatPermissions.canSendPhotos` atd.
 - **Pruh připnutých podle scrollu.** Dnes ukazuje nejnovější a ťuknutí posouvá ke starší.
   Oficiální klient navíc při scrollu historií ukazuje tu připnutou, která je nejblíž NAD
   viditelnou částí — pruh pak slouží i jako orientace. Stačilo by id nejvyšší viditelné zprávy
