@@ -1856,8 +1856,26 @@ Ztlumit / Zapnout zvuk, omezená skupina a chat, ve kterém uživatel není, vě
   nepíše, takže se bere jako „nejste v chatu".
 - **Swipe na odpověď se v chatu jen pro čtení nekoná** (`ConversationState.canWrite`); nabídka
   nad zprávou se řídí `canBeReplied` od serveru jako dřív.
-- **Jednotlivé druhy obsahu zatím nerozlišujeme.** Skupina, kde smí jen text (bez fotek,
-  samolepek, hlasovek), má pole celé; zakázaný druh skončí chybou po odeslání.
+- **Druhy obsahu mají vlastní pravidlo** (`ContentAccess`, `contentAccess` vedle `writeAccess`,
+  testy `WriteAccessTest`). Skupina smí povolit text a zakázat fotky; co se poslat nesmí, se
+  nenabízí — sponka schová položku a bez jediné se nekreslí vůbec, mikrofon ustoupí odeslání,
+  výběr zůstane na emoji. **Obě pravidla se musí shodovat v tom, koho omezení míjejí:** správce
+  a vlastník omezení nemají, členovi platí výchozí práva skupiny, omezenému členovi jeho vlastní.
+- **Neznámé postavení NEOMEZUJE nic**, stejně jako u psaní. Chybějící sponka odřízne uživatele
+  od chatu víc než chyba po odeslání, která přijde jednou za čas.
+- **Filtrovat se musí i to, co vydá systémový výběr** (`allowedByContent`, testy
+  `StagedAttachmentsTest`). Výběr fotek vydá fotky i videa jedním tahem, takže ve skupině jen
+  pro fotky se mezi vybranými objeví video — a bez filtru by skončilo chybou po odeslání.
+- **Rozhoduje, JAKO CO příloha odejde, ne čím je.** Režim „Odeslat jako soubor" posílá fotku
+  i video přes `InputMessageDocument` (`toInputContent`), takže se řídí právem na SOUBORY.
+  Kdo to plete, nabídne přílohu, kterou server odmítne.
+- **UI nestačí, pojistka patří i do ViewModelu.** Výběr samolepek se bez práva neotevře, jenže
+  sada jde otevřít ťuknutím na samolepku v historii a poslat se dá z ní. Hláška je lepší než
+  chyba od serveru.
+- **Omezená skupina se bez druhého účtu nevyrobí.** Vlastník omezení nemá, takže vlastní
+  testovací skupina pravidlo neprověří — ověřuje se podstrčeným `ContentAccess` v `chatAccess()`,
+  jako vzhled karty aktualizace. Ověřeno na emulátoru: „jen fotky" nechá sponku s jedinou
+  položkou, smajlík místo samolepky a odeslání místo mikrofonu; „nic" sponku schová celou.
 
 ### „Píše…" v konverzaci
 
