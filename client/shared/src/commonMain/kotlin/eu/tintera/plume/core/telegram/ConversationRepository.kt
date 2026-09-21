@@ -504,6 +504,15 @@ data class ChatMessage(
     val mediaAlbumId: Long = 0L,
     /** Typ samozničení (view-once nebo časovač), nebo `null` u běžné zprávy. */
     val selfDestructType: SelfDestructType? = null,
+    /**
+     * Kolik vteřin zbývá do zničení, jak to hlásí TDLib v okamžiku čtení zprávy; `null`, dokud
+     * odpočet neběží (zpráva ještě nebyla otevřena).
+     *
+     * **Tohle je autorita, ne délka časovače.** Odpočet běží od prvního otevření — i na jiném
+     * zařízení nebo před restartem aplikace — a začít znovu od plné délky by obsah ukázalo déle,
+     * než odesílatel dovolil.
+     */
+    val selfDestructIn: Int? = null,
 )
 
 /**

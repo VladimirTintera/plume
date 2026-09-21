@@ -74,6 +74,8 @@ fun StagedAttachmentsStrip(
     onRemove: (Int) -> Unit,
     onOpen: (Int) -> Unit = {},
     onSetMode: (Int, AttachmentMode) -> Unit = { _, _ -> },
+    /** Chat mizení dovoluje; v albu (carousel) se stejně nenabízí. */
+    selfDestructAllowed: Boolean = false,
     previewAttachmentIndex: Int? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -86,6 +88,7 @@ fun StagedAttachmentsStrip(
                 onRemove = { onRemove(0) },
                 onOpen = { onOpen(0) },
                 onSetMode = { onSetMode(0, it) },
+                selfDestructAllowed = selfDestructAllowed,
                 isPreviewOpen = previewAttachmentIndex == 0,
                 modifier = modifier,
             )
@@ -133,6 +136,7 @@ private fun SinglePhotoPreview(
     onRemove: () -> Unit,
     onOpen: () -> Unit,
     onSetMode: (AttachmentMode) -> Unit,
+    selfDestructAllowed: Boolean,
     isPreviewOpen: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
@@ -150,6 +154,7 @@ private fun SinglePhotoPreview(
         AttachmentModeSheet(
             currentMode = mode,
             isVideo = isVideo,
+            selfDestructAllowed = selfDestructAllowed,
             onSelectMode = onSetMode,
             onDismiss = { showSheet = false },
         )
@@ -295,6 +300,8 @@ private fun PhotoCarousel(
         AttachmentModeSheet(
             currentMode = targetAttachment.mode,
             isVideo = targetAttachment is OutgoingAttachment.Video,
+            // Víc příloh je album a v albu mizení není (`selfDestructAllowed`).
+            selfDestructAllowed = false,
             onSelectMode = { newMode ->
                 onSetMode(targetIndex, newMode)
             },

@@ -1,9 +1,11 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.AttachmentMode
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class StagedAttachmentsTest {
@@ -59,6 +61,33 @@ class StagedAttachmentsTest {
     fun emptyPickKeepsCurrent() {
         val staged = stageAttachments(listOf(photo(1)), emptyList())
         assertEquals(listOf(photo(1)), staged.attachments)
+    }
+
+    @Test
+    fun mizeniJenVSoukromemChatuSJednouPrilohou() {
+        assertTrue(selfDestructAllowed(isPrivateChat = true, isSavedMessages = false, attachmentCount = 1))
+        // Skupina a kanál: TDLib „Messages can self-destruct only in private chats".
+        assertFalse(selfDestructAllowed(isPrivateChat = false, isSavedMessages = false, attachmentCount = 1))
+        assertFalse(selfDestructAllowed(isPrivateChat = true, isSavedMessages = true, attachmentCount = 1))
+        assertFalse(selfDestructAllowed(isPrivateChat = true, isSavedMessages = false, attachmentCount = 2))
+    }
+
+    @Test
+    fun zAlbaMizeniViditelneZmizi() {
+        val viewOnce = photo(1).copy(mode = AttachmentMode.ViewOnce)
+        val timer = video(1).copy(mode = AttachmentMode.Timer(10))
+        val spoiler = photo(2).copy(mode = AttachmentMode.Spoiler)
+
+        val dropped = dropForbiddenSelfDestruct(listOf(viewOnce, timer, spoiler), allowed = false)
+
+        // Mizení zmizí, spoiler s mizením nesouvisí a zůstane.
+        assertEquals(listOf(photo(1), video(1), spoiler), dropped)
+    }
+
+    @Test
+    fun bezMizeniNeniCoHlasit() {
+        assertNull(dropForbiddenSelfDestruct(listOf(photo(1), photo(2)), allowed = false))
+        assertNull(dropForbiddenSelfDestruct(listOf(photo(1).copy(mode = AttachmentMode.ViewOnce)), allowed = true))
     }
 }
 

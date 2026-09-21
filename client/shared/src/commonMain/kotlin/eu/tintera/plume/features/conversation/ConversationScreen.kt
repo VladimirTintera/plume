@@ -881,6 +881,7 @@ fun ConversationScreen(
                 onRemoveAttachment = viewModel::removeAttachment,
                 onOpenAttachment = { index -> previewAttachmentIndex = index },
                 onSetAttachmentMode = viewModel::setAttachmentMode,
+                selfDestructAllowed = state.canSelfDestruct(attachmentCount = 1),
                 previewAttachmentIndex = previewAttachmentIndex,
                 expressionMode = expressionMode,
                 draft = draft,
@@ -1191,6 +1192,7 @@ fun ConversationScreen(
                 onSetMode = { mode ->
                     viewModel.setAttachmentMode(index, mode)
                 },
+                selfDestructAllowed = state.canSelfDestruct(),
             )
         }
     }
@@ -1297,6 +1299,8 @@ private fun MessageInput(
     onRemoveAttachment: (Int) -> Unit,
     onOpenAttachment: (Int) -> Unit = {},
     onSetAttachmentMode: (Int, AttachmentMode) -> Unit = { _, _ -> },
+    /** Soukromý chat, kde se u jedné přílohy smí nabídnout mizení (`canSelfDestruct`). */
+    selfDestructAllowed: Boolean = false,
     previewAttachmentIndex: Int? = null,
     /** Ikona tlačítka výběru ukazuje, čím se výběr otevře — emoji, nebo samolepkami. */
     expressionMode: ExpressionMode,
@@ -1398,6 +1402,7 @@ private fun MessageInput(
                       onRemove = onRemoveAttachment,
                       onOpen = onOpenAttachment,
                       onSetMode = onSetAttachmentMode,
+                      selfDestructAllowed = selfDestructAllowed,
                       previewAttachmentIndex = previewAttachmentIndex,
                   )
                   replyingTo?.let { target ->

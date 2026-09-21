@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.AttachmentMode
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 
 /** Kolik příloh jde poslat najednou — strop alba v Telegramu. */
@@ -37,3 +38,36 @@ internal fun stageAttachments(
 
 /** Fotky a videa jdou do jednoho alba spolu; soubory jen se soubory. */
 private val OutgoingAttachment.isVisual: Boolean get() = this !is OutgoingAttachment.Document
+
+/**
+ * Smí se u přílohy nabídnout jednorázové zhlédnutí nebo časovač.
+ *
+ * **Jen v soukromém chatu** — TDLib jinde odpoví „Messages can self-destruct only in private
+ * chats". Uložené zprávy jsou technicky soukromý chat, ale není tam komu obsah ukázat, takže
+ * se nenabízí ani tam. **A jen u jedné přílohy**: mizející médium se otevírá samo, bez
+ * listování (viz prohlížeč médií), takže do alba nepatří.
+ */
+internal fun selfDestructAllowed(isPrivateChat: Boolean, isSavedMessages: Boolean, attachmentCount: Int): Boolean =
+    isPrivateChat && !isSavedMessages && attachmentCount == 1
+
+/**
+ * Přílohy, u kterých mizení není dovolené, přepne na běžné odeslání.
+ *
+ * Volá se po každé změně připravených příloh: kdo k mizející fotce přidá druhou, dostane album
+ * — a mizení z něj musí zmizet VIDITELNĚ nad polem, ne tiše až při odeslání. Vrací `null`,
+ * když není co přepínat; jinak nový seznam, a změna se má ohlásit.
+ */
+internal fun dropForbiddenSelfDestruct(
+    attachments: List<OutgoingAttachment>,
+    allowed: Boolean,
+): List<OutgoingAttachment>? {
+    if (allowed || attachments.none { it.selfDestructType != null }) return null
+    return attachments.map { attachment ->
+        if (attachment.selfDestructType == null) return@map attachment
+        when (attachment) {
+            is OutgoingAttachment.Photo -> attachment.copy(mode = AttachmentMode.Standard)
+            is OutgoingAttachment.Video -> attachment.copy(mode = AttachmentMode.Standard)
+            is OutgoingAttachment.Document -> attachment
+        }
+    }
+}

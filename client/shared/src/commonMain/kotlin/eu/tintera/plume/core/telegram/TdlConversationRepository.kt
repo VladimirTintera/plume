@@ -61,6 +61,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.math.ceil
 
 /**
  * Konverzace nad TDLib.
@@ -821,6 +822,8 @@ class TdlConversationRepository(
             isEdited = editDate > 0,
             mediaAlbumId = mediaAlbumId,
             selfDestructType = selfDestructType?.toSelfDestructType(),
+            // Zlomky vteřiny nahoru: „0 s" by u běžícího odpočtu znamenalo, že už vypršel.
+            selfDestructIn = selfDestructIn.takeIf { it > 0.0 }?.let { ceil(it).toInt() },
         )
     }
 

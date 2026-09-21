@@ -30,6 +30,18 @@ class SelfDestructTimersTest {
     }
 
     @Test
+    fun `kratsi zbyvajici cas od TDLib odpocet zkrati`() {
+        val timers = SelfDestructTimers()
+        val local = timers.startTimer(123L, 30)
+        // Odpočet začal jinde (jiné zařízení, před restartem): TDLib hlásí míň, a to platí.
+        val fromTdlib = timers.startTimer(123L, 5)
+
+        assertTrue(fromTdlib < local)
+        val remaining = assertNotNull(timers.remainingSeconds(123L))
+        assertTrue(remaining in 4..5)
+    }
+
+    @Test
     fun `oznaceni za spotrebovane zneplatni zpravu`() {
         val timers = SelfDestructTimers()
         timers.startTimer(123L, 10)
