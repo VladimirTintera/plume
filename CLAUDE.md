@@ -3691,8 +3691,14 @@ aplikace otevřela; po potvrzení se chat přečte a TDLib notifikaci stáhne.
   přestavěním té z lišty (`NotificationCompat.Builder(context, notification)`).
 - **Kam se psát nesmí, akce není** (`ChatNotification.canReply`, totéž pravidlo `writeAccess` jako
   vstupní pole; `ownMemberStatus` je sdílené). Neznámý chat psaní neblokuje.
+- **Bez sítě odeslání NESELŽE, TDLib čeká.** „Neodesláno" tedy znamená odmítnutí serverem,
+  ne výpadek spojení; offline odpověď zůstane v notifikaci a úloha ji potvrdí, jakmile se síť
+  vrátí (ověřeno letovým režimem: potvrzení v úloze za 16 s po zapnutí sítě).
 - **Ověřit to jde jen s notifikací, kterou nepřečte jiné zařízení.** Telefon s otevřeným chatem
-  s botem zprávu přečte hned a TDLib notifikaci stáhne dřív, než se ukáže.
+  s botem zprávu přečte hned a TDLib notifikaci stáhne dřív, než se ukáže. Tlačítko v liště
+  najde `uiautomator dump` (text „Reply"), text se napíše `input text` a odešle Enterem.
+- Ověřeno na emulátoru: živý proces (odesláno za 2 s), proces zabitý `am kill` (0,5 s),
+  letový režim (úloha). Cesta „Neodesláno" ověřená není — server odpověď bota neodmítne.
 
 ## Sdílení do aplikace
 
