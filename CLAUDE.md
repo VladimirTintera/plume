@@ -3918,6 +3918,13 @@ není „Android bez barev", ale má vlastní konzistentní paletu.
 
 ## Gotchas
 
+- **Test ViewModelu MUSÍ nastavit `Dispatchers.setMain`** (a v `@AfterTest` `resetMain`).
+  `viewModelScope` běží na `Dispatchers.Main`: na JVM žádný není a lifecycle vezme prázdný
+  kontext, takže test projde, kdežto na iOS je `Main` skutečná hlavní fronta, kterou `runTest`
+  na hlavním vlákně nevyprázdní — ViewModel se nerozběhne a test visí do minutového limitu
+  (`UncompletedCoroutinesError`). Zelené `testAndroidHostTest` proto o iOS nic neříká.
+  S `StandardTestDispatcher` jako `Main` si `runTest` převezme jeho plánovač a ViewModel jede
+  na tomtéž virtuálním čase (viz `NewChatViewModelTest`).
 - **`androidResources { enable = true }`** v KMP modulu je povinné, jinak se composeResources nezabalí
   a čtení stringu spadne až za běhu na „No instrumentation registered!".
 - **iOS framework musí být `isStatic = true`** — TDLib je statická knihovna, jinak link padne na
