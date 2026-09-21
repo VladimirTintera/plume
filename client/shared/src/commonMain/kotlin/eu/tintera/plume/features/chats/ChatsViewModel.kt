@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.telegram.AccountRepository
 import kotlin.time.Duration
 import co.touchlab.kermit.Logger
 import androidx.lifecycle.SavedStateHandle
@@ -14,7 +15,6 @@ import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.ConnectionState
 import eu.tintera.plume.core.telegram.AccountInfo
 import eu.tintera.plume.core.telegram.DeviceRepository
-import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.core.telegram.UnconfirmedDevice
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.update.AppUpdateState
@@ -45,7 +45,7 @@ class ChatsViewModel(
     /** Obrazovka ho potřebuje ke spuštění aktualizace (`rememberStartUpdate`). */
     val appUpdates: AppUpdates,
     private val devices: DeviceRepository,
-    private val session: TelegramSession,
+    private val accounts: AccountRepository,
     /** Filtr přežije zabití procesu v pozadí; nové spuštění aplikace začne na všech chatech. */
     private val savedState: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
@@ -90,10 +90,9 @@ class ChatsViewModel(
         if (folder == ChatFolder.Archive) loadMore()
         // Účet potřebuje jen hlavička hlavního seznamu. Selhání nevadí — místo fotky jsou iniciály.
         if (folder == ChatFolder.Main) {
+            // Živě: po změně fotky v úpravě profilu nesmí pilulka ukazovat tu starou.
             viewModelScope.launch {
-                session.me()
-                    .onSuccess { _account.value = it }
-                    .onFailure { logger.w(it) { "Účet pro hlavičku seznamu se nepodařilo načíst." } }
+                accounts.account.collect { account -> if (account != null) _account.value = account }
             }
         }
     }

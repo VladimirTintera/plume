@@ -851,6 +851,34 @@ se z telefonu nedalo chodit zpět bez `BackHandler`, který v téhle aplikaci za
 - **Pozor na názvy barev `ListItemDefaults.colors`**: `contentColor` (ne `headlineColor`)
   a `supportingContentColor` (ne `supportingColor`). Hádaný název se pozná až překladem.
 
+### Úprava profilu
+
+Karta účtu v Obecných otevře `EditProfileRoute` (`EditProfileScreen`, `AccountRepository`): fotka,
+jméno, příjmení, uživatelské jméno a bio.
+
+- **Routa se vrší nad sekci Obecné** — na telefonu jako obrazovka, v dvoupanelu nahradí sekci
+  vpravo. **Zpět tam musí být `PopUntilContentChange`** (jen když je úprava nahoře): dvoupanel
+  zůstává dvoupanelem, takže výchozí `PopUntilScaffoldValueChange` odebral úpravu i sekci pod
+  ní a gesto zpět odešlo z Nastavení rovnou do Chatů. Klik na jinou sekci úpravu ze zásobníku
+  odebere taky, jinak by visela pod novou sekcí.
+- **Fotka se ukládá hned, texty až tlačítkem Uložit.** Fotka má vlastní nahrávání; kdyby čekala
+  na Uložit, zmizela by s odchodem. Ořízne se na čtverec ze středu (`SquarePhoto`, platformní)
+  — kreslí se v kruhu a neořezanou by každý klient ořízl jinak.
+- **Text polí je Compose stav přímo ve ViewModelu**, ne `StateFlow` — jinak poskakuje kurzor.
+- **Uživatelské jméno se kontroluje dvakrát**: místní pravidla hned při psaní
+  (`usernameFormatError`, testy `UsernameFormatTest`), pak dostupnost na serveru po pauze
+  (`checkChatUsername`). Vlastní účet se ptá přes **soukromý chat se sebou** (id chatu = id
+  uživatele) — TDLib jiný chat odmítne větou „Can't check username for private chat with other
+  user". Nezjištěná dostupnost ukládání neblokuje, rozhodne server.
+- **Jméno, uživatelské jméno a bio jsou tři volání.** Když jedno selže, další se neposílají
+  a co prošlo, se zapíše jako výchozí stav — další pokus ho neposílá znovu.
+- **Strop bia posílá server** (`bio_length_max`, bez Premium 70); počítadlo je vidět pořád.
+- **Účet je živý** (`AccountRepository.account` nad `UpdateUser`): karta v Obecných i fotka ve
+  vyhledávací pilulce se po úpravě změní samy, i když se profil upravil na jiném zařízení.
+- **Ověřeno bez zásahu do účtu**: načtení, všechny tři stavy kontroly jména (krátké, obsazené
+  „durov", volné), odchod bez uložení a zpět v dvoupanelu. Uložení a změna fotky mění skutečný
+  profil, proto se zkouší jen se souhlasem.
+
 ## Jazyky
 
 **Výchozí jazyk je angličtina** (`composeResources/values/strings.xml`), čeština je mutace

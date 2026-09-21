@@ -42,6 +42,13 @@ enum class SettingsSection { General, Notifications, Appearance, Devices }
 data class SettingsSectionRoute(val section: SettingsSection) : Route
 
 /**
+ * Úprava vlastního profilu. Vrší se nad sekci Obecné (odkud se otevírá kartou účtu): na telefonu
+ * samostatná obrazovka, v dvoupanelu nahradí sekci v pravém panelu a zpět vede do ní.
+ */
+@Serializable
+data object EditProfileRoute : Route
+
+/**
  * Archivované chaty. V list-detail rozvržení je to LIST panel scény archivu:
  * má vlastní detail panel [ArchiveConversationRoute], takže neovlivňuje otevřenou konverzaci
  * v hlavním seznamu.
@@ -133,6 +140,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ChatsRoute::class, ChatsRoute.serializer())
             subclass(SettingsRoute::class, SettingsRoute.serializer())
             subclass(SettingsSectionRoute::class, SettingsSectionRoute.serializer())
+            subclass(EditProfileRoute::class, EditProfileRoute.serializer())
             subclass(ArchiveRoute::class, ArchiveRoute.serializer())
             subclass(ArchiveConversationRoute::class, ArchiveConversationRoute.serializer())
             subclass(ArchiveChatProfileRoute::class, ArchiveChatProfileRoute.serializer())
