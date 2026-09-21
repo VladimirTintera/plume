@@ -1,7 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.resources.saved_messages
-import eu.tintera.plume.resources.bookmark_filled_24dp
+import eu.tintera.plume.resources.bookmark_24dp
 import eu.tintera.plume.core.ui.isSavedMessages
 import eu.tintera.plume.core.ui.chatTitle
 import androidx.compose.runtime.getValue
@@ -504,7 +504,7 @@ private fun AccountMenu(
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(
                 text = { Text(stringResource(Res.string.saved_messages)) },
-                leadingIcon = { Icon(painterResource(Res.drawable.bookmark_filled_24dp), contentDescription = null) },
+                leadingIcon = { Icon(painterResource(Res.drawable.bookmark_24dp), contentDescription = null) },
                 onClick = {
                     open = false
                     onSavedMessages()
