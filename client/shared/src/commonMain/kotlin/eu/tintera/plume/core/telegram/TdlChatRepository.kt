@@ -46,6 +46,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlin.time.Duration
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -319,6 +320,15 @@ class TdlChatRepository(
             .toResult()
             .map { }
 
+    override fun muted(chatId: Long): Flow<Boolean?> =
+        all.map { it[chatId]?.isMuted }.distinctUntilChanged()
+
+    override suspend fun setMuted(chatId: Long, muted: Boolean): Result<Unit> =
+        setMuteFor(chatId, if (muted) MUTE_FOREVER else 0)
+
+    override suspend fun muteFor(chatId: Long, duration: Duration): Result<Unit> =
+        setMuteFor(chatId, duration.inWholeSeconds.toInt())
+
     /**
      * Ztlumení se nastavuje **celým objektem nastavení**, ne jedním polem.
      *
@@ -328,10 +338,7 @@ class TdlChatRepository(
      * `useDefaultMuteFor = false` je nutné: dokud je `true`, jede chat podle globálního
      * nastavení a `muteFor` se ignoruje.
      */
-    override fun muted(chatId: Long): Flow<Boolean?> =
-        all.map { it[chatId]?.isMuted }.distinctUntilChanged()
-
-    override suspend fun setMuted(chatId: Long, muted: Boolean): Result<Unit> {
+    private suspend fun setMuteFor(chatId: Long, seconds: Int): Result<Unit> {
         val current = when (val result = client.getChat(chatId)) {
             is TdlResult.Failure -> return Result.failure(IllegalStateException(result.message))
             is TdlResult.Success -> result.result.notificationSettings
@@ -339,7 +346,7 @@ class TdlChatRepository(
 
         val updated = ChatNotificationSettings(
             useDefaultMuteFor = false,
-            muteFor = if (muted) MUTE_FOREVER else 0,
+            muteFor = seconds,
             useDefaultSound = current.useDefaultSound,
             soundId = current.soundId,
             useDefaultShowPreview = current.useDefaultShowPreview,

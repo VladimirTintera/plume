@@ -2,6 +2,7 @@ package eu.tintera.plume.core.notifications
 
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.AuthStage
+import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.TelegramSession
@@ -9,10 +10,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Akce přímo z notifikace: odpověď a označení za přečtené.
+ * Akce přímo z notifikace: odpověď, označení za přečtené a ztlumení.
  *
  * Platformní část (akce v notifikaci, příjem textu, udržení procesu naživu) je jinde; tady je
  * jen to, co se děje v TDLib.
@@ -27,6 +29,7 @@ import kotlin.time.Duration.Companion.milliseconds
 class NotificationActions(
     private val session: TelegramSession,
     private val conversations: ConversationRepository,
+    private val chats: ChatRepository,
 ) {
 
     private val logger = Logger.withTag("NotificationReply")
@@ -91,6 +94,17 @@ class NotificationActions(
             .onFailure { logger.w(it) { "Chat se z notifikace nepodařilo označit za přečtený." } }
     }
 
+    /**
+     * Ztlumí chat na [MUTE_DURATION]. Kratší ztlumení je z notifikace to, co člověk chce: skupina
+     * se zrovna rozjela a za hodinu už nevadí. Natrvalo jde ztlumit v aplikaci; tady by se
+     * snadno zapomnělo.
+     */
+    suspend fun mute(chatId: Long, timeout: Duration): Result<Unit> {
+        if (!awaitReady(timeout)) return Result.failure(IllegalStateException("TDLib není přihlášený do $timeout."))
+        return chats.muteFor(chatId, MUTE_DURATION)
+            .onFailure { logger.w(it) { "Chat se z notifikace nepodařilo ztlumit." } }
+    }
+
     private suspend fun awaitReady(timeout: Duration): Boolean =
         withTimeoutOrNull(timeout) { session.authStage.first { it == AuthStage.Ready } } != null
 
@@ -109,8 +123,11 @@ class NotificationActions(
         }
     }
 
-    private companion object {
-        val POLL_INTERVAL = 500.milliseconds
+    companion object {
+        private val POLL_INTERVAL = 500.milliseconds
+
+        /** Na jak dlouho ztlumí akce z notifikace. Popisek akce ji musí pojmenovat. */
+        val MUTE_DURATION = 1.hours
     }
 }
 

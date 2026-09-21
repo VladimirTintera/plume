@@ -3665,10 +3665,11 @@ a odložené rušení prázdné notifikace.
 
 ### Akce z notifikace
 
-Notifikace chatu má akce „Odpovědět" s polem na text (`RemoteInput`) a „Označit jako přečtené".
+Notifikace chatu má akce „Odpovědět" s polem na text (`RemoteInput`), „Označit jako přečtené"
+a „Ztlumit na hodinu".
 Odpověď odejde, aniž by se aplikace otevřela; po potvrzení se chat přečte a TDLib notifikaci
-stáhne. Obě akce jdou přes jednoho příjemce a jednu třídu (`NotificationActionReceiver`,
-`NotificationActions`) — příští akce (ztlumení) přibude tamtéž.
+stáhne. Všechny akce jdou přes jednoho příjemce a jednu třídu (`NotificationActionReceiver`,
+`NotificationActions`). **Víc než tři akce být nesmí** — Android víc neukáže.
 
 - **„Označit jako přečtené" čte PO nejnovější zprávu NOTIFIKACE, ne chatu.** Co mezitím přišlo,
   uživatel neviděl. Id jde v extras akce; u notifikace z minulého běhu procesu (řádky bez id)
@@ -3676,7 +3677,16 @@ stáhne. Obě akce jdou přes jednoho příjemce a jednu třídu (`NotificationA
 - **Po přečtení se notifikace neruší ručně**, stáhne ji TDLib (`removedNotificationIds`), i po
   probuzení mrtvého procesu. Na potvrzení se nečeká: přečtení drží TDLib v databázi a pošle ho,
   až bude spojení. Proto přečtení nemá obdobu `ReplyDeliveryWorker`.
-- **Dvě akce, jeden request code** (`groupId`) nevadí: akce intentu vstupuje do `filterEquals`,
+- **Ztlumení je na HODINU, ne natrvalo** (`NotificationActions.MUTE_DURATION`, `muteFor`).
+  Z notifikace se ztlumuje skupina, která se zrovna rozjela; natrvalo jde ztlumit v aplikaci
+  a z notifikace by se na to snadno zapomnělo. Délku musí nést popisek akce.
+- **„Ztlumit" jen u běžných zpráv** (`ChatNotification.canMute` =
+  `NotificationGroupTypeMessages`). Zmínky a odpovědi chodí i ze ztlumeného chatu, a ztlumení
+  na hodinu by mu po hodině zvuk VRÁTILO — i když ho měl uživatel ztlumený natrvalo.
+- **Ztlumený chat TDLib z notifikací stáhne sám**, ve stejné milisekundě jako potvrzení
+  `setChatNotificationSettings` (ověřeno logem, i po probuzení mrtvého procesu). Ruční zavírání
+  notifikace po ztlumení (první verze) bylo zbytečné.
+- **Tři akce, jeden request code** (`groupId`) nevadí: akce intentu vstupuje do `filterEquals`,
   takže se `PendingIntent`y nepřepíšou.
 
 - **Cesta:** akce → broadcast `NotificationActionReceiver` (vstupní bod, `goAsync`) →

@@ -28,6 +28,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notification_channel_description
 import eu.tintera.plume.resources.notification_channel_name
 import eu.tintera.plume.resources.notification_mark_read
+import eu.tintera.plume.resources.notification_mute_hour
 import eu.tintera.plume.resources.notification_reply
 import eu.tintera.plume.resources.notification_reply_failed
 import eu.tintera.plume.resources.notification_self_name
@@ -133,6 +134,7 @@ actual class NotificationPresenter(
                     title = newest.chatTitle,
                     isSavedMessages = newest.isSavedMessages,
                     canReply = newest.canReply,
+                    canMute = newest.canMute,
                     // Po restartu procesu je mapa prázdná, ale notifikace v liště zůstaly.
                     // Bez převzetí jejich řádků by nová zpráva přepsala předchozí.
                     lines = recoverLines(groupId),
@@ -144,6 +146,7 @@ actual class NotificationPresenter(
             conversation.avatarPath = newest.chatAvatarPath ?: conversation.avatarPath
             // Práva psát se můžou změnit; platí to, co TDLib řekl u nejnovější zprávy.
             conversation.canReply = newest.canReply
+            conversation.canMute = newest.canMute
 
             val added = batch
                 .filter { line -> conversation.lines.none { it.notificationId == line.notificationId } }
@@ -212,6 +215,7 @@ actual class NotificationPresenter(
         // Neznámá skupina = notifikace z minulého běhu procesu. Její řádky nemáme s čím
         // spárovat, takže jde pryč celá; TDLib stejně ruší po přečtení celý chat naráz.
         if (conversation == null) {
+            logger.d { "Skupina ${update.groupId} není v paměti, ruším celou notifikaci." }
             manager.cancel(update.groupId)
             return
         }
@@ -322,6 +326,8 @@ actual class NotificationPresenter(
                     val quoted = if (isGroup) conversation.lines.lastOrNull { !it.isOwn && it.messageId != null }?.messageId else null
                     replyAction(groupId, conversation.chatId, quoted)?.let(::addAction)
                 }
+                // Pořadí akcí: odpověď, přečtení, ztlumení — od nejčastější. Android jich ukáže
+                // nejvýš tři, víc jich tedy být nesmí.
                 addAction(
                     markReadAction(
                         groupId = groupId,
@@ -329,6 +335,7 @@ actual class NotificationPresenter(
                         messageId = conversation.lines.lastOrNull { !it.isOwn && it.messageId != null }?.messageId,
                     ),
                 )
+                if (conversation.canMute) addAction(muteAction(groupId, conversation.chatId))
             }
             .setContentIntent(
                 NotificationIntents.openChat(
@@ -428,6 +435,19 @@ actual class NotificationPresenter(
             NotificationIntents.markRead(context, groupId = groupId, chatId = chatId, messageId = messageId),
         )
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ)
+            .setShowsUserInterface(false)
+            .build()
+
+    /**
+     * Akce „Ztlumit na hodinu". Sémantika `MUTE` pro hodinky a Android Auto.
+     */
+    private suspend fun muteAction(groupId: Int, chatId: Long): NotificationCompat.Action =
+        NotificationCompat.Action.Builder(
+            IconCompat.createWithResource(context, R.drawable.ic_notification_mute),
+            getString(Res.string.notification_mute_hour),
+            NotificationIntents.mute(context, groupId = groupId, chatId = chatId),
+        )
+            .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MUTE)
             .setShowsUserInterface(false)
             .build()
 
@@ -567,6 +587,8 @@ actual class NotificationPresenter(
         val isSavedMessages: Boolean = false,
         /** Nabídnout akci „Odpovědět". */
         var canReply: Boolean = true,
+        /** Nabídnout akci „Ztlumit". */
+        var canMute: Boolean = true,
     )
 
     /** Jedna zpráva v notifikaci. [notificationId] je `null` u řádku převzatého po restartu. */

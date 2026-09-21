@@ -108,4 +108,6 @@ data class ChatNotification(
     val imageCaption: String? = null,
     /** Nabídnout v notifikaci „Odpovědět"? Ne tam, kam uživatel psát nesmí. */
     val canReply: Boolean = true,
+    /** Nabídnout „Ztlumit"? Jen u běžných zpráv, ne u zmínek, které projdou i ztlumeným chatem. */
+    val canMute: Boolean = true,
 )
