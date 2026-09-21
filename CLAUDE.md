@@ -255,6 +255,10 @@ In-App Updates v režimu **flexible**: stahuje se na pozadí, pak „Restartovat
 - **Karta je další blok seznamu**: zaoblení `GROUP_CORNER`, mezera pod ní jako mezi skupinami,
   `primaryContainer` (od světlých řádků ji odliší, sytou barvu nese jen tlačítko). Jedna karta
   pro všechny tři stavy s `animateContentSize` — výměna celé položky by vypadala jako nová.
+- **Syté prvky karty jdou přes `accentOn`, ne `primary` natvrdo.** V paletě se zvýšeným
+  kontrastem je `primaryContainer` v tmavém režimu světlý jako `primary`, takže „Teď ne" bylo
+  bílé na světle modré a kolečko ikony s tlačítkem splývaly s kartou. Kde `primary` na kartě
+  vidět není, převezme jeho roli `onPrimaryContainer` (viz „Material 3 / vzhled").
 - **Ikona je `system_update` (telefon se šipkou dovnitř), ne `upgrade`.** Šipka nahoru k čáře se
   čte jako NAHRÁVÁNÍ — a to je přesně opačný směr, než co karta nabízí. Ikona má říct, co se
   stane, ne jakým gestem se to spustí.

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
@@ -23,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.update.AppUpdateState
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.system_update_24dp
@@ -44,6 +46,11 @@ import org.jetbrains.compose.resources.stringResource
  * stejným zaoblením jako skupiny chatů. `primaryContainer` ji od světlých řádků odliší, aniž by
  * křičela — sytou barvu nese jen tlačítko.
  *
+ * **Syté prvky na kartě nesmí brát `primary` natvrdo** ([accentOn]). V paletě se zvýšeným
+ * kontrastem je `primaryContainer` v tmavém režimu SVĚTLÝ, stejně jako `primary` — „Teď ne"
+ * pak bylo bílé na světle modré a kolečko ikony i tlačítko s kartou splývaly. Když `primary`
+ * na kartě vidět není, přebírá jeho roli `onPrimaryContainer` (a obsah na něm barvu karty).
+ *
  * Jedna karta pro všechny tři stavy, s `animateContentSize`: nabídka → stahování → hotovo je
  * tatáž věc v čase, a výměna celé karty by v seznamu vypadala jako nová položka.
  */
@@ -56,6 +63,11 @@ fun UpdateCard(
     onRestart: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val colors = MaterialTheme.colorScheme
+    val accent = accentOn(colors.primaryContainer, colors.primary, colors.onPrimaryContainer)
+    val onAccent = if (accent == colors.primary) colors.onPrimary else colors.primaryContainer
+    val buttonColors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = onAccent)
+
     Surface(
         shape = RoundedCornerShape(GROUP_CORNER),
         color = MaterialTheme.colorScheme.primaryContainer,
@@ -72,13 +84,13 @@ fun UpdateCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    Modifier.size(40.dp).background(MaterialTheme.colorScheme.primary, CircleShape),
+                    Modifier.size(40.dp).background(accent, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         painterResource(Res.drawable.system_update_24dp),
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
+                        tint = onAccent,
                     )
                 }
 
@@ -113,10 +125,13 @@ fun UpdateCard(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                 ) {
-                    TextButton(onClick = { onDismiss(state.versionCode) }) {
+                    TextButton(
+                        onClick = { onDismiss(state.versionCode) },
+                        colors = ButtonDefaults.textButtonColors(contentColor = accent),
+                    ) {
                         Text(stringResource(Res.string.update_action_later))
                     }
-                    Button(onClick = onUpdate) { Text(stringResource(Res.string.update_action_update)) }
+                    Button(onClick = onUpdate, colors = buttonColors) { Text(stringResource(Res.string.update_action_update)) }
                 }
 
                 // Průběh místo tlačítek: stahování nejde z karty zrušit (to umí jen obchod)
@@ -125,9 +140,9 @@ fun UpdateCard(
                     val progress = state.progress
                     val modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
                     if (progress == null) {
-                        LinearWavyProgressIndicator(modifier)
+                        LinearWavyProgressIndicator(modifier, color = accent)
                     } else {
-                        LinearWavyProgressIndicator(progress = { progress }, modifier = modifier)
+                        LinearWavyProgressIndicator(progress = { progress }, modifier = modifier, color = accent)
                     }
                 }
 
@@ -135,7 +150,7 @@ fun UpdateCard(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    Button(onClick = onRestart) { Text(stringResource(Res.string.update_action_restart)) }
+                    Button(onClick = onRestart, colors = buttonColors) { Text(stringResource(Res.string.update_action_restart)) }
                 }
 
                 AppUpdateState.None -> Unit
