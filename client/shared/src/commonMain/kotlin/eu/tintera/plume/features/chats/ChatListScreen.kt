@@ -4,8 +4,9 @@ import eu.tintera.plume.resources.saved_messages
 import eu.tintera.plume.resources.bookmark_filled_24dp
 import eu.tintera.plume.core.ui.isSavedMessages
 import eu.tintera.plume.core.ui.chatTitle
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
@@ -57,7 +58,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -66,8 +66,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import eu.tintera.plume.core.adaptive.isCompact
-import eu.tintera.plume.core.adaptive.isShortWindow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -83,7 +81,6 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.features.devices.UnconfirmedLoginCard
 import eu.tintera.plume.core.update.rememberStartUpdate
-import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.Presence
@@ -377,7 +374,7 @@ fun ChatListScreen(
  *
  * Filtry jsou ikony bez popisků (pět popisků by se na telefon nevešlo); název nese tooltip po
  * podržení a `contentDescription`. Vybraný filtr je `secondaryContainer` — výběr je navigační
- * stav, stejná role jako vybraná položka railu — a tvarem se mění z kruhu na čtverec
+ * stav, stejná role jako vybraná položka navigace v M3 — a tvarem se mění z kruhu na čtverec
  * (`toggleableShapes`), takže je poznat i bez barvy.
  */
 @Composable
@@ -637,12 +634,6 @@ internal fun ChatListContent(
             .collect { if (it) viewModel.loadMore() }
     }
 
-    /*
-     * Vedle railu na telefonu naležato je okraj vlevo užší. Rail má kolem ikon vlastní vzduch,
-     * takže plných 16 dp jen ukusovalo šířku, které je naležato málo. 8 dp je vnitřní okraj
-     * vyhledávací pilulky nad seznamem — karty s ní lícují.
-     */
-    val startPadding = if (!isCompact() && isShortWindow()) 8.dp else 16.dp
 
     val groups = (state as? ChatListState.Ready)?.chats?.let { chats ->
         remember(chats, filter, separateUnread, savedMessagesChatId) {
@@ -724,7 +715,7 @@ internal fun ChatListContent(
                     top = padding.calculateTopPadding() + 8.dp - TOP_ANCHOR_HEIGHT -
                         GROUP_ITEM_SPACING,
                     bottom = padding.calculateBottomPadding() + 8.dp,
-                    start = startPadding,
+                    start = 16.dp,
                     end = 16.dp,
                 ),
                 // Rozestup UVNITŘ skupiny. Mezera mezi skupinami se přidává u její první

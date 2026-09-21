@@ -50,7 +50,7 @@ fun SettingsScreen(
     selectedSection: SettingsSection?,
     onSectionClick: (SettingsSection) -> Unit,
     modifier: Modifier = Modifier,
-    /** Šipka zpět do Chatů — jen na telefonu, kde vedle není rail. */
+    /** Šipka zpět do Chatů. Nastavení se otevírají z menu účtu, jiná cesta zpět není. */
     onBack: (() -> Unit)? = null,
 ) {
     Scaffold(
@@ -104,7 +104,7 @@ private fun SectionRow(
 ) {
     /*
      * Výběr v list-detail je navigační stav, ne zvýraznění obsahu → `secondaryContainer`,
-     * stejná role, jakou nese vybraná položka v nav railu i vybraný chat v seznamu.
+     * stejná role, jakou nese vybraný filtr v toolbaru i vybraný chat v seznamu.
      */
     val containerColor = if (selected) {
         MaterialTheme.colorScheme.secondaryContainer
