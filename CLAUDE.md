@@ -2766,6 +2766,9 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
 - **Záložky jsou connected button group** (`ToggleButton` s `ButtonGroupDefaults.connected*Shapes`),
   ne `PrimaryTabRow` s podtržením — to je vzhled M2 a mezi zaoblenými bloky působil cize.
   Vybraná je plná `primary` a zakulatí se celá. Semantika `Role.Tab`.
+- **Vybraná záložka si přianimuje ikonu a o ni se rozšíří** (váha 1 → 1,4, jednou pružinou
+  s ikonou). Se stejnou šířkou všech čtyř by ikona ukrojila popisek („Čle…"); ověřuje se
+  v češtině, má nejdelší popisky.
 - **Název se po odjetí velkého jména ukáže v liště** (`titleInBar`: scroll za spodkem jména,
   změřeným `onPlaced`). Bez toho nebylo u sbalené hlavičky poznat, čí profil je otevřený.
 - **Hledat zavře profil a otevře hledání v konverzaci** přes `ConversationSearchRequests` — STAV,

@@ -65,7 +65,16 @@ import org.jetbrains.compose.resources.StringResource
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.material3.ButtonDefaults
+import eu.tintera.plume.resources.description_filled_24dp
+import eu.tintera.plume.resources.group_filled_24dp
+import eu.tintera.plume.resources.link_24dp
+import eu.tintera.plume.resources.perm_media_filled_24dp
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -348,6 +357,10 @@ private fun collapseFirst(outer: ScrollState) = object : NestedScrollConnection 
  * Klasický `PrimaryTabRow` s podtržením je vzhled z M2 a v profilu, kde je všechno ostatní
  * zaoblený blok, působil jako cizí prvek. Vybraná záložka je plná `primary` a zakulatí se celá,
  * takže se pozná tvarem i barvou. Pozadí má barvu stránky: přilepené nahoře překrývá nic.
+ *
+ * **Vybraná záložka si přianimuje ikonu a o ni se rozšíří** (váha 1 → [SELECTED_TAB_WEIGHT]).
+ * Se stejnou šířkou všech by se ikona do čtvrtiny řádku vešla jen na úkor popisku („Čle…").
+ * Ikona i šířka jedou jednou pružinou (`defaultSpatialSpec`), aby se text nepřeskládal skokem.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -366,8 +379,14 @@ private fun ProfileTabSelector(
             .selectableGroup(),
     ) {
         tabs.forEachIndexed { index, tab ->
+            val checked = index == selected
+            val weight by animateFloatAsState(
+                targetValue = if (checked && tabs.size > 1) SELECTED_TAB_WEIGHT else 1f,
+                animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                label = "profile-tab-weight",
+            )
             ToggleButton(
-                checked = index == selected,
+                checked = checked,
                 onCheckedChange = { onSelect(index) },
                 shapes = when {
                     tabs.size == 1 -> ToggleButtonDefaults.shapes()
@@ -377,8 +396,22 @@ private fun ProfileTabSelector(
                 },
                 // Čtyři popisky se na telefon vejdou jen s užším vnitřním odsazením.
                 contentPadding = PaddingValues(horizontal = 8.dp),
-                modifier = Modifier.weight(1f).semantics { role = Role.Tab },
+                modifier = Modifier.weight(weight).semantics { role = Role.Tab },
             ) {
+                AnimatedVisibility(
+                    visible = checked,
+                    enter = expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+                        scaleIn(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+                        fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                        fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+                ) {
+                    Icon(
+                        painterResource(tab.icon()),
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = ButtonDefaults.IconSpacing).size(ButtonDefaults.IconSize),
+                    )
+                }
                 Text(stringResource(tab.label()), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
@@ -439,6 +472,19 @@ private val ProfileTab.key: String
         ProfileTab.Members -> "members"
         is ProfileTab.Shared -> kind.name
     }
+
+/** Ikona vybrané záložky; vyplněná varianta tam, kde ji Material Symbols má. */
+private fun ProfileTab.icon(): DrawableResource = when (this) {
+    ProfileTab.Members -> Res.drawable.group_filled_24dp
+    is ProfileTab.Shared -> when (kind) {
+        SharedMediaKind.Media -> Res.drawable.perm_media_filled_24dp
+        SharedMediaKind.Files -> Res.drawable.description_filled_24dp
+        SharedMediaKind.Links -> Res.drawable.link_24dp
+    }
+}
+
+/** O kolik je vybraná záložka širší než ostatní — přesně tolik, aby se vešla ikona. */
+private const val SELECTED_TAB_WEIGHT = 1.4f
 
 private fun ProfileTab.label(): StringResource = when (this) {
     ProfileTab.Members -> Res.string.profile_tab_members
