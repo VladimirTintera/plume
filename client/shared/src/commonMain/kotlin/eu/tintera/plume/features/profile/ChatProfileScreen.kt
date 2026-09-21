@@ -40,14 +40,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Tab
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -58,7 +54,6 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import eu.tintera.plume.core.telegram.SharedMediaKind
 import eu.tintera.plume.resources.profile_tab_files
 import eu.tintera.plume.resources.profile_tab_links
@@ -69,8 +64,25 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -85,7 +97,6 @@ import eu.tintera.plume.core.ui.chatTitleKey
 import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.describe
-import eu.tintera.plume.features.settings.SettingsGroup
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.common_back
@@ -154,6 +165,12 @@ fun ChatProfileScreen(
         snackbarHostState.showSnackbar(getString(error.resource, *error.args.toTypedArray()))
     }
 
+    // Jeden scroll pro celý profil: čte ho i hlavička obrazovky (název se v ní ukáže, až ten
+    // velký odjede pod ni), takže žije tady, ne v obsahu.
+    val scrollState = rememberScrollState()
+    var titleBottom by remember { mutableIntStateOf(Int.MAX_VALUE) }
+    val titleInBar by remember { derivedStateOf { scrollState.value > titleBottom } }
+
     Scaffold(
         modifier = modifier,
         contentWindowInsets = ScaffoldDefaults.contentWindowInsets
@@ -161,7 +178,17 @@ fun ChatProfileScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = {},
+                title = {
+                    AnimatedVisibility(
+                        visible = titleInBar && state.profile != null,
+                        enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()) +
+                            slideInVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it / 2 },
+                        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) +
+                            slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it / 2 },
+                    ) {
+                        Text(state.profile?.title.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
@@ -185,7 +212,7 @@ fun ChatProfileScreen(
                 verticalArrangement = Arrangement.spacedBy(20.dp),
                 modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 20.dp),
             ) {
-                ProfileHeader(state, profile)
+                ProfileHeader(state, profile, onTitlePlaced = { titleBottom = it })
                 ProfileActions(muted = state.muted, onToggleMute = viewModel::toggleMute, onSearch = onSearch)
                 if (profile.usernames.isNotEmpty() || profile.phone != null || profile.about.isNotBlank()) {
                     ProfileInfo(profile, onLinkClick = viewModel::openLink)
@@ -200,7 +227,7 @@ fun ChatProfileScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scrollState)
                     .padding(top = padding.calculateTopPadding(), bottom = 24.dp + bottom),
             ) {
                 header()
@@ -210,6 +237,7 @@ fun ChatProfileScreen(
                 state = state,
                 tabs = tabs,
                 viewModel = viewModel,
+                scrollState = scrollState,
                 header = header,
                 topPadding = padding.calculateTopPadding(),
                 bottomPadding = 24.dp + bottom,
@@ -219,23 +247,27 @@ fun ChatProfileScreen(
 }
 
 /**
- * Hlavička, pod ní lepící záložky a pod nimi stránky.
+ * Hlavička, pod ní lepící záložky a pod nimi stránky — celé to je JEDNA scrollovatelná plocha.
  *
  * **Profil kolem záložek NENÍ `LazyColumn`.** Obsah záložky je sám svislý seznam a dva svislé
- * scrolly do sebe Compose nezměří (`Vertically scrollable component was measured with an infinity
- * maximum height constraints`). Místo toho stránky vyplní celou plochu, hlavička je kreslená nad
- * nimi a posouvá ji `NestedScrollConnection`: při scrollu dolů se nejdřív sbalí hlavička, teprve
- * pak se hýbe seznam; při scrollu nahoru naopak až poté, co seznam dojede na začátek.
+ * scrolly do sebe Compose nezměří, když vnitřní dostane nekonečnou výšku. Proto je vnější sloupec
+ * `verticalScroll` a pager v něm má PEVNOU výšku (plocha bez záložek): spodek pageru dosedne na
+ * spodek obrazovky přesně ve chvíli, kdy hlavička odjede, a záložky tím zůstanou přilepené nahoře.
  *
- * **Záložky se tím přilepí samy** — jsou ve stejném sloupci pod hlavičkou, takže jakmile se
- * hlavička odsune o svou výšku, zůstanou nahoře. Žádný `stickyHeader` není potřeba.
+ * **Hlavička se musí dát táhnout.** Dřív byla nakreslená přes stránky a posouval ji jen
+ * `NestedScrollConnection` ze seznamu pod ní — tah prstem přes fotku nebo údaje nedělal nic
+ * a u krátké záložky nebylo čím hlavičku sbalit. Teď ji nese vnější scroll.
+ *
+ * **Pořadí při scrollu dolů obrací [collapseFirst]**: napřed se sbalí hlavička, teprve zbytek
+ * dostane seznam. Nahoru to platí samo — vnější scroll dostane jen to, co seznam nespotřeboval,
+ * tedy až když dojede na začátek; totéž u flingu.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProfileTabs(
     state: ChatProfileState,
     tabs: List<ProfileTab>,
     viewModel: ChatProfileViewModel,
+    scrollState: ScrollState,
     header: @Composable () -> Unit,
     topPadding: Dp,
     bottomPadding: Dp,
@@ -248,90 +280,106 @@ private fun ProfileTabs(
     val currentTabs by rememberUpdatedState(tabs)
     val pagerState = rememberPagerState { currentTabs.size }
     val density = LocalDensity.current
-    var headerHeight by remember { mutableIntStateOf(0) }
     var tabsHeight by remember { mutableIntStateOf(0) }
-    val offset = remember { mutableFloatStateOf(0f) }
+    val scope = rememberCoroutineScope()
+    val collapseFirst = remember(scrollState) { collapseFirst(scrollState) }
 
-    // Hlavička se smí schovat celá; záložky zůstávají vidět vždycky.
-    val maxOffset = -headerHeight.toFloat()
-    val connection = remember(maxOffset) {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                // Scroll dolů: napřed se sbalí hlavička, zbytek dostane seznam.
-                val delta = available.y
-                if (delta >= 0f) return Offset.Zero
-                val target = (offset.floatValue + delta).coerceAtLeast(maxOffset)
-                val consumed = target - offset.floatValue
-                offset.floatValue = target
-                return Offset(0f, consumed)
-            }
-
-            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                // Scroll nahoru: hlavička se vrací, až když seznam nemá kam dál (zbylo `available`).
-                val delta = available.y
-                if (delta <= 0f) return Offset.Zero
-                val target = (offset.floatValue + delta).coerceAtMost(0f)
-                val gained = target - offset.floatValue
-                offset.floatValue = target
-                return Offset(0f, gained)
-            }
-        }
-    }
-
-    // Obsah stránek začíná pod hlavičkou a záložkami — ty ho překrývají, ne odsouvají.
-    val headerDp = with(density) { headerHeight.toDp() }
+    // Stránky začínají pod záložkami a mají vzduch od okrajů, jako skupiny v seznamu chatů.
     val contentPadding = PaddingValues(
-        top = topPadding + headerDp + with(density) { tabsHeight.toDp() },
+        start = 16.dp,
+        end = 16.dp,
+        top = 8.dp,
         bottom = bottomPadding,
     )
 
-    BoxWithConstraints(Modifier.fillMaxSize().nestedScroll(connection)) {
-        /*
-         * Pager jede s hlavičkou a je o její výšku VYŠŠÍ, než je plocha.
-         *
-         * Dokud se posouvala jen hlavička, zůstal seznam stát na nule i s celým horním
-         * `contentPadding` — mezi přilepenými záložkami a obsahem zela mezera o výšku hlavičky.
-         * Zmenšovat `contentPadding` podle offsetu by znamenalo přepočet layoutu seznamu
-         * v každém snímku scrollu; takhle se jen posune hotová vrstva a spodek pageru dosedne
-         * přesně na spodek plochy, jakmile je hlavička schovaná.
-         */
-        val pageHeight = maxHeight + headerDp
-        HorizontalPager(
-            state = pagerState,
-            key = { currentTabs.getOrNull(it)?.key ?: it.toString() },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(pageHeight)
-                .offset { IntOffset(0, offset.floatValue.roundToInt()) },
-        ) { page ->
-            val tab = currentTabs.getOrNull(page) ?: return@HorizontalPager
-            // Stránka se načte, až když se poprvé ukáže; pager skládá jen viditelné.
-            LaunchedEffect(tab) {
-                if (tab is ProfileTab.Shared) viewModel.loadShared(tab.kind)
-            }
-            TabContent(tab = tab, state = state, viewModel = viewModel, contentPadding = contentPadding)
-        }
-
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val pageHeight = (maxHeight - topPadding - with(density) { tabsHeight.toDp() }).coerceAtLeast(0.dp)
         Column(
-            modifier = Modifier
-                .offset { IntOffset(0, offset.floatValue.roundToInt()) }
-                .padding(top = topPadding)
-                // Bez pozadí by obsah stránky prosvítal skrz hlavičku, kterou překrývá.
-                .background(MaterialTheme.colorScheme.surface),
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(top = topPadding),
         ) {
-            Box(Modifier.onSizeChanged { headerHeight = it.height }) { header() }
-            PrimaryTabRow(
-                selectedTabIndex = pagerState.currentPage,
+            header()
+            ProfileTabSelector(
+                tabs = currentTabs,
+                selected = pagerState.currentPage,
+                onSelect = { scope.launch { pagerState.animateScrollToPage(it) } },
                 modifier = Modifier.onSizeChanged { tabsHeight = it.height },
-            ) {
-                val scope = rememberCoroutineScope()
-                currentTabs.forEachIndexed { index, tab ->
-                    Tab(
-                        selected = pagerState.currentPage == index,
-                        onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
-                        text = { Text(stringResource(tab.label()), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    )
+            )
+            HorizontalPager(
+                state = pagerState,
+                key = { currentTabs.getOrNull(it)?.key ?: it.toString() },
+                // Stránky nesahají k sobě; při swipu je mezi bloky vidět mezera.
+                pageSpacing = 16.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(pageHeight)
+                    .nestedScroll(collapseFirst),
+            ) { page ->
+                val tab = currentTabs.getOrNull(page) ?: return@HorizontalPager
+                // Stránka se načte, až když se poprvé ukáže; pager skládá jen viditelné.
+                LaunchedEffect(tab) {
+                    if (tab is ProfileTab.Shared) viewModel.loadShared(tab.kind)
                 }
+                TabContent(tab = tab, state = state, viewModel = viewModel, contentPadding = contentPadding)
+            }
+        }
+    }
+}
+
+/**
+ * Scroll dolů (obsah jede nahoru) si napřed vezme vnější plocha, dokud hlavička neodjede.
+ *
+ * Bez toho by se nejdřív scrolloval seznam v záložce a hlavička by zůstala stát, dokud by seznam
+ * nedojel na konec — u dlouhé mřížky médií nikdy.
+ */
+private fun collapseFirst(outer: ScrollState) = object : NestedScrollConnection {
+    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+        if (available.y >= 0f) return Offset.Zero
+        val consumed = outer.dispatchRawDelta(-available.y)
+        return Offset(0f, -consumed)
+    }
+}
+
+/**
+ * Záložky jako spojená skupina přepínacích tlačítek (M3 Expressive connected button group).
+ *
+ * Klasický `PrimaryTabRow` s podtržením je vzhled z M2 a v profilu, kde je všechno ostatní
+ * zaoblený blok, působil jako cizí prvek. Vybraná záložka je plná `primary` a zakulatí se celá,
+ * takže se pozná tvarem i barvou. Pozadí má barvu stránky: přilepené nahoře překrývá nic.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ProfileTabSelector(
+    tabs: List<ProfileTab>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+        modifier = modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .selectableGroup(),
+    ) {
+        tabs.forEachIndexed { index, tab ->
+            ToggleButton(
+                checked = index == selected,
+                onCheckedChange = { onSelect(index) },
+                shapes = when {
+                    tabs.size == 1 -> ToggleButtonDefaults.shapes()
+                    index == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    index == tabs.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                },
+                // Čtyři popisky se na telefon vejdou jen s užším vnitřním odsazením.
+                contentPadding = PaddingValues(horizontal = 8.dp),
+                modifier = Modifier.weight(1f).semantics { role = Role.Tab },
+            ) {
+                Text(stringResource(tab.label()), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -402,7 +450,12 @@ private fun ProfileTab.label(): StringResource = when (this) {
 }
 
 @Composable
-private fun ProfileHeader(state: ChatProfileState, profile: ChatProfile) {
+private fun ProfileHeader(
+    state: ChatProfileState,
+    profile: ChatProfile,
+    /** Spodek jména v px od vršku hlavičky — odtud výš ho nese lišta. */
+    onTitlePlaced: (Int) -> Unit,
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -425,7 +478,10 @@ private fun ProfileHeader(state: ChatProfileState, profile: ChatProfile) {
             text = profile.title,
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp).sharedNavText(chatTitleKey(profile.chatId)),
+            modifier = Modifier
+                .padding(top = 8.dp)
+                .sharedNavText(chatTitleKey(profile.chatId))
+                .onPlaced { onTitlePlaced((it.positionInParent().y + it.size.height).roundToInt()) },
         )
         val subtitle = when (profile.kind) {
             ProfileKind.User -> state.presence?.describe()
@@ -481,40 +537,66 @@ private fun ProfileAction(icon: DrawableResource, label: String, onClick: () -> 
     }
 }
 
+/**
+ * Údaje jako blok zaoblených řádků — stejný jazyk jako skupiny v seznamu chatů a obsah záložek
+ * pod ním. Karta `SettingsGroup` (výplň `surfaceContainerHighest`) byla vedle světlých řádků
+ * záložek tmavší plocha a profil z toho měl dva různé vzhledy pro „seznam věcí".
+ */
 @Composable
 private fun ProfileInfo(profile: ChatProfile, onLinkClick: (String) -> Unit) {
-    SettingsGroup(title = Res.string.profile_info) {
+    val rows = buildList<@Composable (Shape) -> Unit> {
         profile.usernames.firstOrNull()?.let { username ->
-            InfoRow(label = stringResource(Res.string.profile_username)) {
-                Text(stringResource(Res.string.profile_username_value, username), style = MaterialTheme.typography.bodyLarge)
+            add { shape ->
+                InfoRow(label = stringResource(Res.string.profile_username), shape = shape) {
+                    Text(stringResource(Res.string.profile_username_value, username), style = MaterialTheme.typography.bodyLarge)
+                }
             }
         }
         profile.phone?.let { phone ->
-            InfoRow(label = stringResource(Res.string.profile_phone)) {
-                Text(phone, style = MaterialTheme.typography.bodyLarge)
+            add { shape ->
+                InfoRow(label = stringResource(Res.string.profile_phone), shape = shape) {
+                    Text(phone, style = MaterialTheme.typography.bodyLarge)
+                }
             }
         }
         if (profile.about.isNotBlank()) {
             val isPerson = profile.kind == ProfileKind.User || profile.kind == ProfileKind.Bot
-            InfoRow(label = stringResource(if (isPerson) Res.string.profile_bio else Res.string.profile_description)) {
-                RichText(
-                    text = profile.about,
-                    entities = profile.aboutEntities,
-                    style = MaterialTheme.typography.bodyLarge,
-                    onLinkClick = onLinkClick,
-                )
+            add { shape ->
+                InfoRow(
+                    label = stringResource(if (isPerson) Res.string.profile_bio else Res.string.profile_description),
+                    shape = shape,
+                ) {
+                    RichText(
+                        text = profile.about,
+                        entities = profile.aboutEntities,
+                        style = MaterialTheme.typography.bodyLarge,
+                        onLinkClick = onLinkClick,
+                    )
+                }
             }
+        }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            stringResource(Res.string.profile_info),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 16.dp),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING)) {
+            rows.forEachIndexed { index, row -> row(groupItemShape(index, rows.size)) }
         }
     }
 }
 
 /** Údaj: hodnota a pod ní, co to je — jako v kontaktech. */
 @Composable
-private fun InfoRow(label: String, value: @Composable () -> Unit) {
+private fun InfoRow(label: String, shape: Shape, value: @Composable () -> Unit) {
     ListItem(
         headlineContent = value,
         supportingContent = { Text(label) },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        modifier = Modifier.clip(shape),
     )
 }
 

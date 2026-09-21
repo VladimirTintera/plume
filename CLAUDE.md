@@ -2757,9 +2757,17 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
   rozvržení ji v pravém panelu nahradí a zpět vede do ní. Spodní bar se skrývá jako u konverzace
   (`inDetail`). Routa je v `NavSavedStateConfiguration`.
 - **Avatar a název přiletí z hlavičky konverzace** — tytéž sdílené klíče jako ze seznamu chatů.
-- **Údaje a členové jsou `SettingsGroup`** z Nastavení: pro „seznam vlastností" má aplikace jeden
-  vzhled. Akce jsou tónované dlaždice s ikonou nad popiskem; popisek říká, co se stane
-  (Ztlumit / Zapnout zvuk), ne stav.
+- **Údaje i obsah záložek jsou bloky zaoblených řádků** (`groupItemShape`, `surfaceContainerLowest`,
+  spára 2 dp), stejný jazyk jako seznam chatů. Dřív byly údaje karta `SettingsGroup`
+  (`surfaceContainerHighest`) a záložky holé řádky — v jednom profilu dva vzhledy pro „seznam věcí".
+  Mřížka médií nese velké zaoblení jen v rozích bloku (`mediaTileShape`, i schod neúplného
+  posledního řádku). Role člena je tonální štítek, ne barevné slovo. Akce jsou tónované dlaždice
+  s ikonou nad popiskem; popisek říká, co se stane (Ztlumit / Zapnout zvuk), ne stav.
+- **Záložky jsou connected button group** (`ToggleButton` s `ButtonGroupDefaults.connected*Shapes`),
+  ne `PrimaryTabRow` s podtržením — to je vzhled M2 a mezi zaoblenými bloky působil cize.
+  Vybraná je plná `primary` a zakulatí se celá. Semantika `Role.Tab`.
+- **Název se po odjetí velkého jména ukáže v liště** (`titleInBar`: scroll za spodkem jména,
+  změřeným `onPlaced`). Bez toho nebylo u sbalené hlavičky poznat, čí profil je otevřený.
 - **Hledat zavře profil a otevře hledání v konverzaci** přes `ConversationSearchRequests` — STAV,
   ne událost (jako `ChatOpenRequests`): konverzace pod profilem si požadavek vyzvedne, až ho
   odebírá. Hledání patří konverzaci, profil by ho jen zdvojil.
@@ -2786,15 +2794,18 @@ obsahu bývá zlomek zpráv.
   který chat nemá. Dokud počty nedorazí, nejsou žádné — záložka, která by po chvíli zmizela,
   vypadá jako chyba.
 - **Profil kvůli tomu NENÍ `LazyColumn`.** Obsah záložky je sám svislý seznam a dva svislé
-  scrolly do sebe Compose nezměří (`Vertically scrollable component was measured with an infinity
-  maximum height constraints`). Stránky proto vyplní celou plochu, hlavička je kreslená nad nimi
-  a posouvá ji `NestedScrollConnection`: dolů se nejdřív sbalí hlavička, nahoru naopak až poté,
-  co seznam dojede na začátek. **Záložky se tím přilepí samy** — jsou pod hlavičkou ve stejném
-  sloupci, takže po odsunutí hlavičky zůstanou nahoře; žádný `stickyHeader`.
-- **Pager musí jet S HLAVIČKOU a být o její výšku VYŠŠÍ.** Dokud se posouvala jen hlavička,
-  zůstal seznam stát na nule i s celým horním `contentPadding` a mezi přilepenými záložkami
-  a obsahem zela mezera o výšku hlavičky. Zmenšovat `contentPadding` podle offsetu by znamenalo
-  přepočet layoutu seznamu v každém snímku scrollu.
+  scrolly do sebe Compose nezměří, když vnitřní dostane nekonečnou výšku (`Vertically scrollable
+  component was measured with an infinity maximum height constraints`). Profil je proto
+  `verticalScroll` sloupec (hlavička, záložky, pager) a **pager má PEVNOU výšku** = plocha bez
+  záložek. Vnější scroll tím sahá přesně o výšku hlavičky a **záložky se přilepí samy**; žádný
+  `stickyHeader`.
+- **Hlavička se musí dát táhnout prstem.** První verze kreslila hlavičku PŘES stránky a posouvala
+  ji jen `NestedScrollConnection` ze seznamu pod ní: tah přes fotku nebo údaje nedělal nic
+  a u krátké záložky (tři členové) nebylo čím hlavičku sbalit. Teď ji nese vnější scroll.
+- **Scroll dolů si napřed vezme hlavička** (`collapseFirst` na pageru, `dispatchRawDelta` do
+  vnějšího `ScrollState` v `onPreScroll`). Nahoru to platí samo: vnější scroll dostane jen to,
+  co seznam nespotřeboval, tedy až po dojetí na začátek — i u flingu. Ověřuje se `input swipe`:
+  malý tah dolů v odscrollované mřížce hýbe mřížkou, hlavička zůstává sbalená.
 - **Dotažení další stránky NESMÍ stát na `layoutInfo`.** Porovnání indexu poslední viditelné
   položky s počtem se u mřížky minulo a další stránka nedorazila NIKDY — u seznamu s jedinou
   položkou naopak prošlo hned, takže vada byla vidět jen na mřížce. Spouští ho proto kompozice
