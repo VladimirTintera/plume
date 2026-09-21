@@ -4,6 +4,7 @@ import androidx.compose.foundation.ComposeFoundationFlags
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.ui.window.ComposeUIViewController
 import platform.UIKit.UIViewController
+import eu.tintera.plume.core.notifications.IosNotificationCenter
 import eu.tintera.plume.di.startKoin
 
 /**
@@ -18,7 +19,12 @@ fun MainViewController(): UIViewController {
     return ComposeUIViewController { App() }
 }
 
-/** Volá se z iOSApp.swift při startu — Koin musí běžet dřív, než se složí první obrazovka. */
+/**
+ * Volá se z iOSApp.swift při startu — Koin musí běžet dřív, než se složí první obrazovka.
+ * Delegát notifikací taky: odpověď na akci z notifikace dostane jen ten, kdo existuje dřív, než
+ * aplikace doběhne start.
+ */
 fun initKoin() {
-    startKoin { }
+    val koin = startKoin { }.koin
+    IosNotificationCenter.install(koin)
 }
