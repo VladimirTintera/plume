@@ -190,6 +190,7 @@
     <string name="conversation_mention_not_found">Tenhle chat se nepodařilo najít.</string>
     <string name="conversation_sticker_send_failed">Samolepku se nepodařilo odeslat.</string>
     <string name="conversation_attachments_limit">Najednou jde poslat nejvýš %1$d příloh.</string>
+    <string name="conversation_gif_send_failed">GIF se nepodařilo odeslat.</string>
     <string name="conversation_content_not_allowed">Tenhle druh přílohy chat nepřijímá.</string>
     <string name="conversation_self_destruct_album">Mizející fotky a videa nejdou poslat v albu — přílohy odejdou normálně.</string>
     <string name="conversation_attachments_send_failed">Přílohy se nepodařilo odeslat.</string>
@@ -463,6 +464,14 @@
     <string name="stickers_search">Hledat samolepky</string>
     <string name="stickers_tab_emoji">Emoji</string>
     <string name="stickers_tab_stickers">Samolepky</string>
+    <string name="stickers_tab_gifs">GIFy</string>
+    <string name="gifs_search">Hledat GIFy</string>
+    <string name="gifs_section_saved">Uložené</string>
+    <string name="gifs_section_trending">Populární</string>
+    <string name="gifs_none_found">Žádné GIFy nenalezeny.</string>
+    <string name="gifs_remove_saved">Odebrat z uložených</string>
+    <string name="gifs_failed">GIFy se nepodařilo načíst.</string>
+    <string name="conversation_open_gifs">GIFy</string>
     <plurals name="invite_members">
         <item quantity="one">%1$s člen</item>
         <item quantity="few">%1$s členové</item>

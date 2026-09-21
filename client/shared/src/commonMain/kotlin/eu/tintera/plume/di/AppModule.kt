@@ -20,6 +20,8 @@ import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.DataStoreAppSettings
 import eu.tintera.plume.core.telegram.EmojiRepository
 import eu.tintera.plume.core.telegram.StickerRepository
+import eu.tintera.plume.core.telegram.GifRepository
+import eu.tintera.plume.core.telegram.TdlGifRepository
 import eu.tintera.plume.core.telegram.TdlEmojiRepository
 import eu.tintera.plume.core.telegram.TdlStickerRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
@@ -39,6 +41,7 @@ import eu.tintera.plume.features.chats.ChatsViewModel
 import eu.tintera.plume.features.chats.NewChatViewModel
 import eu.tintera.plume.features.conversation.ConversationViewModel
 import eu.tintera.plume.features.conversation.StickerPickerViewModel
+import eu.tintera.plume.features.conversation.GifPickerViewModel
 import eu.tintera.plume.features.conversation.StickerSetViewModel
 import eu.tintera.plume.features.media.MediaViewerViewModel
 import eu.tintera.plume.features.share.ShareViewModel
@@ -128,6 +131,7 @@ fun appModule() = module {
 
     // Bezstavová — seznamy jsou toky nad updaty, drží se jen po dobu otevřeného výběru.
     single<StickerRepository> { TdlStickerRepository(holder = get()) }
+    single<GifRepository> { TdlGifRepository(holder = get()) }
     single<EmojiRepository> { TdlEmojiRepository(holder = get()) }
 
     // Eagerně: nastavení se načte při startu, aby ho první obrazovka měla hned (viz AppSettings).
@@ -168,6 +172,7 @@ fun appModule() = module {
         )
     }
     viewModelOf(::StickerPickerViewModel)
+    viewModel { params -> GifPickerViewModel(chatId = params.get(), repository = get()) }
     viewModel { parameters -> StickerSetViewModel(setId = parameters.get(), repository = get()) }
     viewModelOf(::SettingsViewModel)
     viewModelOf(::AppearanceViewModel)

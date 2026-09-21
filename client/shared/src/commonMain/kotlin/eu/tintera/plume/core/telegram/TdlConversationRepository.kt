@@ -19,9 +19,11 @@ import dev.g000sha256.tdl.dto.ChatPermissions
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
 import dev.g000sha256.tdl.dto.FormattedText
+import dev.g000sha256.tdl.dto.InputAnimation
 import dev.g000sha256.tdl.dto.InputDocument
 import dev.g000sha256.tdl.dto.InputFileId
 import dev.g000sha256.tdl.dto.InputFileLocal
+import dev.g000sha256.tdl.dto.InputMessageAnimation
 import dev.g000sha256.tdl.dto.InputMessageContent
 import dev.g000sha256.tdl.dto.InputMessageDocument
 import dev.g000sha256.tdl.dto.InputMessagePhoto
@@ -695,6 +697,67 @@ class TdlConversationRepository(
                 // Nedávné se udržují i samy, ale výslovné přidání posune samolepku nahoru hned.
                 // Neúspěch nevadí — zpráva už odešla.
                 client.addRecentSticker(isAttached = false, sticker = file)
+            }
+    }
+
+    override suspend fun sendAnimation(
+        chatId: Long,
+        animation: OutgoingAnimation,
+        replyToMessageId: Long?,
+    ): Result<ChatMessage> =
+        client.sendMessage(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyToMessageId?.let(::replyTo),
+            options = null,
+            replyMarkup = null,
+            inputMessageContent = InputMessageAnimation(
+                animation = InputAnimation(
+                    animation = InputFileLocal(path = animation.path),
+                    thumbnail = animation.thumbnail?.let {
+                        InputThumbnail(thumbnail = InputFileLocal(path = it.path), width = it.width, height = it.height)
+                    },
+                    addedStickerFileIds = intArrayOf(),
+                    duration = animation.durationSeconds,
+                    width = animation.width,
+                    height = animation.height,
+                ),
+                caption = null,
+                showCaptionAboveMedia = false,
+                hasSpoiler = false,
+            ),
+        )
+            .toResult()
+            .map { it.toChatMessage(isGroup(chatId)) }
+
+    override suspend fun sendGif(chatId: Long, gif: GifItem, replyToMessageId: Long?): Result<ChatMessage> {
+        val file = InputFileId(id = gif.animation.fileId)
+        return client.sendMessage(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyToMessageId?.let(::replyTo),
+            options = null,
+            replyMarkup = null,
+            inputMessageContent = InputMessageAnimation(
+                animation = InputAnimation(
+                    animation = file,
+                    // Soubor na serveru už je i s náhledem; nahrává se jen u nového GIFu.
+                    thumbnail = null,
+                    addedStickerFileIds = intArrayOf(),
+                    duration = 0,
+                    width = gif.animation.width,
+                    height = gif.animation.height,
+                ),
+                caption = null,
+                showCaptionAboveMedia = false,
+                hasSpoiler = false,
+            ),
+        )
+            .toResult()
+            .map { it.toChatMessage(isGroup(chatId)) }
+            .onSuccess {
+                // Neúspěch nevadí — zpráva už odešla. Jen GIF nebude mezi uloženými nahoře.
+                client.addSavedAnimation(animation = file)
             }
     }
 

@@ -97,7 +97,7 @@ interface AppSettings {
 const val MAX_RECENT_EMOJIS = 40
 
 /** Část výběru: emoji se vkládají do textu, samolepky se posílají. */
-enum class ExpressionMode { Emoji, Stickers }
+enum class ExpressionMode { Emoji, Stickers, Gifs }
 
 /**
  * [AppSettings] nad DataStore Preferences.

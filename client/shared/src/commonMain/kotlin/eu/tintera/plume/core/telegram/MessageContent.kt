@@ -362,15 +362,7 @@ internal suspend fun Message.messageMedia(): MessageMedia? = when (val content =
         supportsStreaming = content.video.supportsStreaming,
     )
 
-    is MessageAnimation -> MessageMedia.Animation(
-        fileId = content.animation.animation.id,
-        // Náhled MPEG-4 není obrázek a Coil ho neotevře — tatáž past jako u videa.
-        thumbnailFileId = content.animation.thumbnail?.takeIf { it.format !is ThumbnailFormatMpeg4 }?.file?.id,
-        width = content.animation.width,
-        height = content.animation.height,
-        // `expectedSize` je známá i před stažením; `size` je nula, dokud soubor nedorazí.
-        sizeBytes = content.animation.animation.expectedSize,
-    )
+    is MessageAnimation -> content.animation.toMedia()
 
     is MessageDocument -> MessageMedia.Document(
         fileId = content.document.document.id,

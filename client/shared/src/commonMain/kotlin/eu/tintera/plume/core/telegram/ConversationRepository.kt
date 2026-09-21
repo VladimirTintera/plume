@@ -186,6 +186,18 @@ interface ConversationRepository {
     suspend fun sendSticker(chatId: Long, sticker: StickerItem, replyToMessageId: Long?): Result<ChatMessage>
 
     /**
+     * Odešle GIF (z klávesnice) jako animaci, ne jako fotku — z fotky by zbyl první snímek.
+     * Skutečný GIF převede na MP4 server sám. Vrací rozepsanou zprávu hned jako [send].
+     */
+    suspend fun sendAnimation(chatId: Long, animation: OutgoingAnimation, replyToMessageId: Long?): Result<ChatMessage>
+
+    /**
+     * Odešle GIF z výběru — soubor, který na serveru už je, takže se nic nenahrává. GIF se
+     * zároveň zařadí na začátek uložených, jako samolepka mezi nedávné.
+     */
+    suspend fun sendGif(chatId: Long, gif: GifItem, replyToMessageId: Long?): Result<ChatMessage>
+
+    /**
      * Odešle přílohy z disku zařízení, s popiskem. Jedna příloha jde jako obyčejná zpráva, víc jako
      * **album** (`sendMessageAlbum`, 2–10) — Telegram víc příloh v jedné zprávě nenese.
      *
@@ -397,6 +409,18 @@ sealed interface OutgoingAttachment {
         override val mode: AttachmentMode get() = AttachmentMode.AsFile
     }
 }
+
+/**
+ * GIF připravený na disku (GIF nebo MP4 bez zvuku). [durationSeconds] je u GIFu nula — délku zná
+ * až server, který ho převádí; [thumbnail] má jen MP4, GIFu náhled vyrobí server.
+ */
+data class OutgoingAnimation(
+    val path: String,
+    val width: Int,
+    val height: Int,
+    val durationSeconds: Int,
+    val thumbnail: OutgoingThumbnail?,
+)
 
 /** Náhled přílohy připravený na disku (JPEG). */
 data class OutgoingThumbnail(val path: String, val width: Int, val height: Int)

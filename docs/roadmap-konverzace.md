@@ -39,7 +39,10 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    neposlechnutou, sluchátko u ucha a audio focus / přerušení hovorem. ~~Nahrávání~~ — hotovo
    (ťuknutím); chybí podržení se zamčením, náhled před odesláním a průběh nahrávání hlasovky.
    ~~Video~~ — hotovo v prohlížeči (Media3 / AVPlayer). ~~GIFy~~ — hotovo (hrají v bublině ve
-   smyčce bez zvuku; `CLAUDE.md`, „GIFy"). ~~Streamování~~ — hotovo na Androidu (`CLAUDE.md`,
+   smyčce bez zvuku; `CLAUDE.md`, „GIFy"). ~~GIFy z klávesnice~~ — hotovo na Androidu (Gboard;
+   `CLAUDE.md`, „GIFy a samolepky z klávesnice"); ~~výběr GIFů v aplikaci~~ — hotovo
+   (uložené, populární, hledání přes `@gif`; `CLAUDE.md`, „Výběr GIFů"). Chybí vložení GIFu ze
+   schránky a GIFy na iOS ověřené na zařízení. ~~Streamování~~ — hotovo na Androidu (`CLAUDE.md`,
    „Video"); iOS čeká na `AVAssetResourceLoaderDelegate`. Zbývá rychlost, ztlumení a obraz
    v obraze.
 3. ~~**Přeposílání zpráv**~~ — hotovo (položka v nabídce, výběr chatu, album celé). Zbývá
@@ -222,8 +225,6 @@ tah dolů zavírá, do stran se listuje fotkami a videi chatu. Dokumenty se stá
 
 Co zbývá:
 
-- **GIF** (`MessageAnimation`) se pořád jen popisuje. Platformní přehrávač už je (video),
-  zbývá přehrávat bez zvuku přímo v bublině — viz bod 2 nahoře.
 - **Obrázky a videa poslané jako soubor.** ~~Náhled místo ikony v řádku souboru~~ a
   ~~rozpoznání obrázku a videa~~ a ~~otevření v prohlížeči médií~~ — hotovo (`documentKind`,
   `DocumentThumbnail`, `opensInViewer`, `asViewerMedia`). Zbývá:

@@ -36,6 +36,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.text.BasicTextField
+import eu.tintera.plume.core.ui.KeyboardContent
+import eu.tintera.plume.core.ui.KeyboardContentReceiver
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.VisualTransformation
@@ -203,6 +205,8 @@ import eu.tintera.plume.resources.conversation_attach_media
 import eu.tintera.plume.resources.conversation_cancel_edit
 import eu.tintera.plume.resources.conversation_cancel_reply
 import eu.tintera.plume.resources.conversation_editing
+import eu.tintera.plume.resources.conversation_open_gifs
+import eu.tintera.plume.resources.gif_box_24dp
 import eu.tintera.plume.resources.conversation_empty
 import eu.tintera.plume.resources.conversation_fallback_title
 import eu.tintera.plume.resources.conversation_input_caption
@@ -915,6 +919,14 @@ fun ConversationScreen(
                 expressionMode = expressionMode,
                 draft = draft,
                 onDraftValueChange = { draft = it },
+                onKeyboardContent = { received ->
+                    when (received) {
+                        // GIF odchází hned, jako samolepka; obrázek čeká nad polem jako z výběru.
+                        is KeyboardContent.Animation -> viewModel.sendAnimation(received.animation)
+                        is KeyboardContent.Image -> viewModel.addAttachments(listOf(received.photo))
+                    }
+                },
+                onKeyboardContentFailed = viewModel::reportError,
             )
             }
         },
@@ -955,6 +967,11 @@ fun ConversationScreen(
                 onPick = { sticker ->
                     stickerPickerOpen = false
                     viewModel.sendSticker(sticker)
+                },
+                chatId = viewModel.chatId,
+                onPickGif = { gif ->
+                    stickerPickerOpen = false
+                    viewModel.sendGif(gif)
                 },
                 onDismiss = { stickerPickerOpen = false },
             )
@@ -1343,6 +1360,9 @@ private fun MessageInput(
      * (a bez jediné i sama sebe), mikrofon ustoupí odeslání, samolepky zůstanou na emoji.
      */
     content: ContentAccess = ContentAccess.All,
+    /** GIF nebo obrázek vložený z klávesnice (Gboard), už zkopírovaný do cache. */
+    onKeyboardContent: (KeyboardContent) -> Unit = {},
+    onKeyboardContentFailed: (UiText) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
 
@@ -1500,52 +1520,61 @@ private fun MessageInput(
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
             )
-            BasicTextField(
-                value = draft,
-                onValueChange = {
-                    val changed = it.text != draft.text
-                    onDraftValueChange(it)
-                    // Pohyb kurzoru nebo výběr taky volá `onValueChange`; psaní to není.
-                    if (changed) onDraftChanged(it.text)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .defaultMinSize(minHeight = TextFieldDefaults.MinHeight),
-                textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                maxLines = 6,
-                interactionSource = fieldInteraction,
-                keyboardOptions = KeyboardOptions(
-                    // Zpráva jsou věty, ne jedno slovo: klávesnice má po tečce nabídnout velké
-                    // písmeno sama. Výchozí `None` nutí uživatele přepínat shift ručně.
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = ImeAction.Send,
-                ),
-                keyboardActions = KeyboardActions(
-                    onSend = {
-                        onSend(draft.text)
-                        onDraftValueChange(TextFieldValue())
+            // Klávesnice nabízí GIFy a samolepky jen poli, které řekne, že je přijme.
+            // Při úpravě zprávy ne — k upravovanému textu příloha nepatří, stejně jako sponka.
+            KeyboardContentReceiver(
+                acceptAnimations = editing == null && content.stickers,
+                acceptImages = editing == null && content.photos,
+                onContent = onKeyboardContent,
+                onError = onKeyboardContentFailed,
+            ) {
+                BasicTextField(
+                    value = draft,
+                    onValueChange = {
+                        val changed = it.text != draft.text
+                        onDraftValueChange(it)
+                        // Pohyb kurzoru nebo výběr taky volá `onValueChange`; psaní to není.
+                        if (changed) onDraftChanged(it.text)
                     },
-                ),
-                decorationBox = { innerTextField ->
-                    TextFieldDefaults.DecorationBox(
-                        value = draft.text,
-                        innerTextField = innerTextField,
-                        enabled = true,
-                        singleLine = false,
-                        visualTransformation = VisualTransformation.None,
-                        interactionSource = fieldInteraction,
-                        // S přílohami je text jejich popisek.
-                        placeholder = { Text(stringResource(if (withAttachments) Res.string.conversation_input_caption else Res.string.conversation_input_message)) },
-                        colors = fieldColors,
-                        contentPadding = TextFieldDefaults.contentPaddingWithoutLabel(
-                            start = if (editing == null) FIELD_ICON_GAP else FIELD_EDGE_PADDING,
-                            end = FIELD_ICON_GAP,
-                        ),
-                        container = {},
-                    )
-                },
-            )
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = TextFieldDefaults.MinHeight),
+                    textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    maxLines = 6,
+                    interactionSource = fieldInteraction,
+                    keyboardOptions = KeyboardOptions(
+                        // Zpráva jsou věty, ne jedno slovo: klávesnice má po tečce nabídnout velké
+                        // písmeno sama. Výchozí `None` nutí uživatele přepínat shift ručně.
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Send,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSend = {
+                            onSend(draft.text)
+                            onDraftValueChange(TextFieldValue())
+                        },
+                    ),
+                    decorationBox = { innerTextField ->
+                        TextFieldDefaults.DecorationBox(
+                            value = draft.text,
+                            innerTextField = innerTextField,
+                            enabled = true,
+                            singleLine = false,
+                            visualTransformation = VisualTransformation.None,
+                            interactionSource = fieldInteraction,
+                            // S přílohami je text jejich popisek.
+                            placeholder = { Text(stringResource(if (withAttachments) Res.string.conversation_input_caption else Res.string.conversation_input_message)) },
+                            colors = fieldColors,
+                            contentPadding = TextFieldDefaults.contentPaddingWithoutLabel(
+                                start = if (editing == null) FIELD_ICON_GAP else FIELD_EDGE_PADDING,
+                                end = FIELD_ICON_GAP,
+                            ),
+                            container = {},
+                        )
+                    },
+                )
+            }
 
             // Startovní strana letu: **už vypadá jako bublina**, ne jen jako text. Sdílí se celý
             // kontejner, takže po cestě roste i pozadí — kdyby se sdílel jen text, doletěl by
@@ -1587,10 +1616,13 @@ private fun MessageInput(
             ) {
                 // Ikona slibuje, co se otevře: poslední použitou část výběru. Při úpravě
                 // zprávy jde otevřít jen emoji — samolepka do textu upravované zprávy nepatří.
-                if (editing != null || !content.stickers || expressionMode == ExpressionMode.Emoji) {
-                    Icon(painterResource(Res.drawable.mood_24dp), contentDescription = stringResource(Res.string.conversation_open_emoji))
-                } else {
-                    Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = stringResource(Res.string.conversation_open_stickers))
+                when {
+                    editing != null || !content.stickers || expressionMode == ExpressionMode.Emoji ->
+                        Icon(painterResource(Res.drawable.mood_24dp), contentDescription = stringResource(Res.string.conversation_open_emoji))
+                    expressionMode == ExpressionMode.Gifs ->
+                        Icon(painterResource(Res.drawable.gif_box_24dp), contentDescription = stringResource(Res.string.conversation_open_gifs))
+                    else ->
+                        Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = stringResource(Res.string.conversation_open_stickers))
                 }
             }
                 }
