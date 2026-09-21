@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import kotlin.time.Duration
 import co.touchlab.kermit.Logger
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -206,8 +207,13 @@ class ChatsViewModel(
         repository.setArchived(change.chatId, !change.archived)
     }
 
-    fun toggleMuted(chat: ChatSummary) = run(chat.id) {
-        repository.setMuted(chat.id, !chat.isMuted)
+    /** Ztlumení na dobu; `null` = navždy. */
+    fun mute(chat: ChatSummary, duration: Duration?) = run(chat.id) {
+        if (duration == null) repository.setMuted(chat.id, true) else repository.muteFor(chat.id, duration)
+    }
+
+    fun unmute(chat: ChatSummary) = run(chat.id) {
+        repository.setMuted(chat.id, false)
     }
 
     fun toggleUnread(chat: ChatSummary) = run(chat.id) {
