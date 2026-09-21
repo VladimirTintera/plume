@@ -678,4 +678,15 @@
     <string name="error_first_name_invalid">Tohle jméno použít nejde.</string>
     <string name="error_about_too_long">Text o tobě je příliš dlouhý.</string>
     <string name="edit_profile_username_prefix">@</string>
+    <string name="profile_more">Další možnosti</string>
+    <string name="profile_copy_link">Kopírovat odkaz</string>
+    <string name="profile_link_copied">Odkaz zkopírován</string>
+    <string name="profile_block">Zablokovat</string>
+    <string name="profile_unblock">Odblokovat</string>
+    <string name="profile_block_title">Zablokovat %1$s?</string>
+    <string name="profile_block_body">Nebude ti moct psát ani volat. Odblokovat jde kdykoli tady v profilu.</string>
+    <string name="profile_block_bot_body">Bot ti přestane posílat zprávy. Odblokovat jde kdykoli tady v profilu.</string>
+    <string name="profile_leave_group">Opustit skupinu</string>
+    <string name="profile_leave_channel">Opustit kanál</string>
+    <string name="profile_action_failed">Nepovedlo se to. Zkus to znovu.</string>
 </resources>

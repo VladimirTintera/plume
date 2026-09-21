@@ -15,6 +15,15 @@ interface ProfileRepository {
      * ([ChatProfile.canListMembers]); u velké skupiny jen prvních [MAX_PROFILE_MEMBERS].
      */
     suspend fun members(chatId: Long): Result<List<ProfileMember>>
+
+    /** Zablokovat / odblokovat uživatele nebo bota (`setMessageSenderBlockList`). */
+    suspend fun setBlocked(userId: Long, blocked: Boolean): Result<Unit>
+
+    /**
+     * Soukromý chat smaže jen u nás (`deleteChatHistory`, `revoke = false`), ze skupiny a kanálu
+     * odejde (`leaveChat`) — stejně jako „Smazat" v seznamu chatů, viz „Akce nad chatem".
+     */
+    suspend fun deleteOrLeave(profile: ChatProfile): Result<Unit>
 }
 
 data class ChatProfile(
@@ -36,7 +45,22 @@ data class ChatProfile(
     val memberCount: Int?,
     /** Server vydá seznam členů (skupina, ne kanál; supergroup se skrytými členy ne). */
     val canListMembers: Boolean,
-)
+    /** Uživatel za soukromým chatem; `null` u skupiny a kanálu. */
+    val userId: Long? = null,
+    /** Uživatel nebo bot je zablokovaný. */
+    val isBlocked: Boolean = false,
+    /** Hlavní pozvánka do skupiny / kanálu — server ji vydá jen správci s právem zvát. */
+    val inviteLink: String? = null,
+    /** Uživatel ve skupině / kanálu je (smí odejít); u soukromého chatu `false`. */
+    val isMember: Boolean = false,
+) {
+    /** Odkaz ke sdílení: veřejné jméno, jinak pozvánka; `null` = není co sdílet. */
+    val link: String?
+        get() = usernames.firstOrNull()?.let { "https://t.me/$it" } ?: inviteLink
+
+    /** Soukromý chat (i s botem) jde smazat, ze skupiny a kanálu se odchází. */
+    val isPrivate: Boolean get() = kind == ProfileKind.User || kind == ProfileKind.Bot
+}
 
 enum class ProfileKind { User, Bot, SavedMessages, Group, Channel }
 

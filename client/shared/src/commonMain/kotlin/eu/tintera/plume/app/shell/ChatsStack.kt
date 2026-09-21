@@ -1,5 +1,7 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.core.navigation.MediaRoute
+import eu.tintera.plume.core.navigation.ChatProfileRoute
 import androidx.navigation3.runtime.NavKey
 import eu.tintera.plume.core.navigation.ArchiveChatProfileRoute
 import eu.tintera.plume.core.navigation.ArchiveConversationRoute
@@ -63,5 +65,23 @@ internal fun MutableList<NavKey>.closeConversationOf(change: ArchiveChange) {
         removeAll { (it as? ConversationRoute)?.chatId == change.chatId }
     } else {
         removeAll { (it as? ArchiveConversationRoute)?.chatId == change.chatId }
+    }
+}
+
+/**
+ * Chat je pryč (smazaný, opuštěný): zavře se všechno, co ho ukazuje — konverzace, profil
+ * a prohlížeč jeho médií, v hlavním seznamu i v archivu. Zůstat by po něm nemělo nic, co by
+ * šlo zpátky otevřít jen proto, aby se ukázalo prázdné.
+ */
+internal fun MutableList<NavKey>.closeChat(chatId: Long) {
+    removeAll {
+        when (it) {
+            is ConversationRoute -> it.chatId == chatId
+            is ArchiveConversationRoute -> it.chatId == chatId
+            is ChatProfileRoute -> it.chatId == chatId
+            is ArchiveChatProfileRoute -> it.chatId == chatId
+            is MediaRoute -> it.chatId == chatId
+            else -> false
+        }
     }
 }

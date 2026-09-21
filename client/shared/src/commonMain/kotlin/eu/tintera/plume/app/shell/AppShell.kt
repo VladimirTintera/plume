@@ -409,6 +409,7 @@ private fun shellEntryProvider(
                 if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(chatId))
             },
             onOpenMedia = { messageId -> chatsStack.add(MediaRoute(route.chatId, messageId)) },
+            onChatGone = { chatsStack.closeChat(route.chatId) },
         )
     }
 
@@ -454,6 +455,7 @@ private fun shellEntryProvider(
                 }
             },
             onOpenMedia = { messageId -> chatsStack.add(MediaRoute(route.chatId, messageId)) },
+            onChatGone = { chatsStack.closeChat(route.chatId) },
         )
     }
 

@@ -670,4 +670,15 @@
     <string name="error_first_name_invalid">This first name can't be used.</string>
     <string name="error_about_too_long">The bio is too long.</string>
     <string name="edit_profile_username_prefix">@</string>
+    <string name="profile_more">More options</string>
+    <string name="profile_copy_link">Copy link</string>
+    <string name="profile_link_copied">Link copied</string>
+    <string name="profile_block">Block</string>
+    <string name="profile_unblock">Unblock</string>
+    <string name="profile_block_title">Block %1$s?</string>
+    <string name="profile_block_body">They won't be able to message or call you. You can unblock them any time here in the profile.</string>
+    <string name="profile_block_bot_body">The bot will stop sending you messages. You can unblock it any time here in the profile.</string>
+    <string name="profile_leave_group">Leave group</string>
+    <string name="profile_leave_channel">Leave channel</string>
+    <string name="profile_action_failed">That didn't work. Try again.</string>
 </resources>
