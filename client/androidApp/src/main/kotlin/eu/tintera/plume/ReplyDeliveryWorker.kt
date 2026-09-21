@@ -10,7 +10,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import co.touchlab.kermit.Logger
-import eu.tintera.plume.core.notifications.NotificationReplies
+import eu.tintera.plume.core.notifications.NotificationActions
 import eu.tintera.plume.core.notifications.PendingReply
 import eu.tintera.plume.core.notifications.ReplyState
 import eu.tintera.plume.core.telegram.NotificationPresenter
@@ -42,7 +42,7 @@ class ReplyDeliveryWorker(
         val groupId = inputData.getInt(KEY_GROUP_ID, 0)
         val text = inputData.getString(KEY_TEXT).orEmpty()
 
-        when (koin.get<NotificationReplies>().await(reply, TIMEOUT)) {
+        when (koin.get<NotificationActions>().await(reply, TIMEOUT)) {
             ReplyState.Sent -> logger.d { "Odpověď z notifikace potvrzena v úloze." }
             ReplyState.Failed -> koin.get<NotificationPresenter>().showReplyFailed(groupId, text)
             // TDLib ji má dál v databázi a došle ji při příštím běhu procesu.

@@ -173,10 +173,8 @@ Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení
 
   Zvuky a vibrace vlastní volbou NEBUDOU: na Androidu je vlastní kanál a aplikace je po jeho
   vytvoření stejně přepsat nemůže (viz rozbor kanálů).
-- **Rychlé akce z notifikace.** Odpověď z notifikace na Androidu je hotová (viz CLAUDE.md,
-  „Odpověď z notifikace"). Chybí:
-  - **Označit jako přečtené** (`viewMessages` s `forceRead`), notifikaci pak stáhne sama TDLib.
-    Stejný příjemce a úloha jako u odpovědi, jen bez textu.
+- **Rychlé akce z notifikace.** Odpověď a označení za přečtené jsou na Androidu hotové (viz
+  CLAUDE.md, „Akce z notifikace"). Chybí:
   - **Ztlumit** chat (třeba na hodinu), stejným objektem `ChatNotificationSettings` jako
     v nabídce chatu.
   - **Odpověď na iOS** (`UNTextInputNotificationAction`) — až budou na iOS notifikace vůbec.

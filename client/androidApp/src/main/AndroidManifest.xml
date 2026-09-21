@@ -90,14 +90,15 @@
                 android:resource="@xml/documents" />
         </provider>
 
-        <!-- Odpověď z notifikace. Neexportovaný: broadcast posílá PendingIntent naší aplikace,
+        <!-- Akce z notifikace (odpověď, přečtení). Neexportovaný: broadcast posílá PendingIntent naší aplikace,
              nikdo cizí ho vyvolat nemá. Míří se na něj akcí a balíčkem (NotificationIntents.reply),
              protože :client:shared tuhle třídu nezná. -->
         <receiver
-            android:name=".NotificationReplyReceiver"
+            android:name=".NotificationActionReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="eu.tintera.plume.action.NOTIFICATION_REPLY" />
+                <action android:name="eu.tintera.plume.action.NOTIFICATION_MARK_READ" />
             </intent-filter>
         </receiver>
 

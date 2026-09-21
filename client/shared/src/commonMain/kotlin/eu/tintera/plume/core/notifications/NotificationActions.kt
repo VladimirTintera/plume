@@ -12,16 +12,19 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Odpověď přímo z notifikace.
+ * Akce přímo z notifikace: odpověď a označení za přečtené.
  *
  * Platformní část (akce v notifikaci, příjem textu, udržení procesu naživu) je jinde; tady je
- * jen to, co se děje v TDLib: odeslat a dočkat se potvrzení.
+ * jen to, co se děje v TDLib.
+ *
+ * Akce z notifikace umí probudit mrtvý proces; TDLib se tedy může teprve spouštět, a proto se
+ * u každé nejdřív čeká na přihlášení.
  *
  * **Chat se označí za přečtený až po potvrzení od serveru.** Přečtení notifikaci stáhne
  * (TDLib pošle `removedNotificationIds`) — kdyby se to stalo hned a odeslání pak selhalo,
  * nezbylo by nic, na čem by se to dalo ukázat.
  */
-class NotificationReplies(
+class NotificationActions(
     private val session: TelegramSession,
     private val conversations: ConversationRepository,
 ) {
@@ -34,19 +37,14 @@ class NotificationReplies(
      *
      * [replyToMessageId] je citovaná zpráva — ve skupině nejnovější z notifikace, jinak `null`.
      *
-     * Akce z notifikace umí probudit mrtvý proces; TDLib se tedy může teprve spouštět, a proto
-     * se nejdřív čeká na přihlášení (nejvýš [timeout]).
+     * Na přihlášení se čeká nejvýš [timeout].
      */
     suspend fun send(chatId: Long, text: String, replyToMessageId: Long?, timeout: Duration): Result<PendingReply> {
-        val ready = withTimeoutOrNull(timeout) { session.authStage.first { it == AuthStage.Ready } }
-        if (ready == null) return Result.failure(IllegalStateException("TDLib není přihlášený do $timeout."))
+        if (!awaitReady(timeout)) return Result.failure(IllegalStateException("TDLib není přihlášený do $timeout."))
 
         // Nejnovější zpráva PŘED odesláním: po něm by jí byla naše odpověď, a přečtení vlastní
         // zprávy nic neoznačí.
-        val readUpTo = conversations.history(chatId = chatId, fromMessageId = 0, limit = 1)
-            .getOrNull()
-            ?.firstOrNull()
-            ?.id
+        val readUpTo = newestMessageId(chatId)
 
         return conversations.send(chatId = chatId, text = text, replyToMessageId = replyToMessageId)
             .map { PendingReply(chatId = chatId, messageId = it.id, readUpTo = readUpTo) }
@@ -72,6 +70,32 @@ class NotificationReplies(
         }
         return state
     }
+
+    /**
+     * Označí chat za přečtený až po [messageId] — nejnovější zprávu, kterou notifikace ukazovala.
+     * Ne „až po nejnovější v chatu": co mezitím přišlo, uživatel neviděl a notifikace o tom
+     * přijde znovu.
+     *
+     * `null` = notifikace z minulého běhu procesu, jejíž řádky id zpráv nenesou; pak se čte po
+     * nejnovější zprávu v chatu — v tu chvíli je to skoro vždycky táž.
+     *
+     * TDLib notifikaci po přečtení stáhne sám (`removedNotificationIds`), rušit ji není potřeba.
+     * Přečtení drží TDLib v databázi a na server ho pošle, až bude spojení, takže se na nic
+     * dalšího nečeká.
+     */
+    suspend fun markRead(chatId: Long, messageId: Long?, timeout: Duration): Result<Unit> {
+        if (!awaitReady(timeout)) return Result.failure(IllegalStateException("TDLib není přihlášený do $timeout."))
+        val upTo = messageId ?: newestMessageId(chatId)
+            ?: return Result.failure(IllegalStateException("V chatu $chatId není co přečíst."))
+        return conversations.markRead(chatId, listOf(upTo))
+            .onFailure { logger.w(it) { "Chat se z notifikace nepodařilo označit za přečtený." } }
+    }
+
+    private suspend fun awaitReady(timeout: Duration): Boolean =
+        withTimeoutOrNull(timeout) { session.authStage.first { it == AuthStage.Ready } } != null
+
+    private suspend fun newestMessageId(chatId: Long): Long? =
+        conversations.history(chatId = chatId, fromMessageId = 0, limit = 1).getOrNull()?.firstOrNull()?.id
 
     private suspend fun settled(reply: PendingReply): ReplyState {
         while (true) {
