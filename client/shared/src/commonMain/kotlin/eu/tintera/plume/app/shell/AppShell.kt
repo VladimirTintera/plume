@@ -8,7 +8,6 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -17,12 +16,9 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.ShortNavigationBar
-import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.WideNavigationRail
 import androidx.compose.material3.WideNavigationRailItem
@@ -40,12 +36,8 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import org.jetbrains.compose.resources.painterResource
 import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
 import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
@@ -102,10 +94,13 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * Kořenový shell přihlášené aplikace: sekční navigace + list-detail pro chaty.
  *
- * **Rozdělení odpovědnosti za insety:** shell vlastní spodní navigaci, takže na compactu
- * zkonzumuje `navigationBars` inset za obsah — žádná obrazovka o spodním baru nemusí vědět.
- * Horní (status bar) inset shell nekonzumuje, protože nahoře žádný chrome nekreslí; řeší ho
- * každá obrazovka svým top barem.
+ * **Na telefonu (compact) sekční navigace není.** Sekce jsou dvě, a navigační lišta má podle M3
+ * smysl od tří: zabírala ~80 dp jen kvůli skoku do Nastavení. Do Nastavení se tam chodí z menu
+ * účtu ve vyhledávací pilulce a zpět; spodek obrazovky patří plovoucímu toolbaru seznamu chatů.
+ * Rail na širší ploše zůstává — místo na výšku nebere.
+ *
+ * **Insety:** shell konzumuje jen levý inset za rail. Spodní (navigační lišta) i horní (stavová)
+ * si řeší každá obrazovka sama, protože pod nimi žádný chrome shellu není.
  */
 @Composable
 fun AppShell(modifier: Modifier = Modifier) {
@@ -161,20 +156,6 @@ fun AppShell(modifier: Modifier = Modifier) {
     val compact = isCompact()
 
     /*
-     * V konverzaci se spodní bar na telefonu skrývá.
-     *
-     * Na compactu zabírá konverzace celou obrazovku, takže sekční navigace nedává smysl — ven
-     * se odtud chodí zpět, ne přepnutím sekce. Na širokém rozvržení je konverzace jen panel
-     * vedle seznamu, tam navigace smysl dává a rail zůstává.
-     */
-    // Výběr chatu pro sdílení je vsuvka odjinud, ne sekce aplikace — bar ani rail k ní nepatří.
-    val inDetail = navigation.currentStack.any {
-        it is ConversationRoute || it is ArchiveConversationRoute || it is ChatProfileRoute ||
-            it is ArchiveChatProfileRoute || it is MediaRoute || it is ShareRoute || it is NewChatRoute
-    }
-    val showBottomBar = compact && !inDetail
-
-    /*
      * Prohlížeč médií je přes celou obrazovku i na širokém rozvržení — rail vedle něj by jen
      * ukusoval místo fotce a sousedním stránkám. Na rozdíl od konverzace to není panel vedle
      * seznamu, ze kterého se přepíná sekce; ven se jde zpět.
@@ -187,7 +168,7 @@ fun AppShell(modifier: Modifier = Modifier) {
      */
     val railLabels = !isShortWindow()
 
-    // Obsah drží stabilní instanci přes přepnutí rail↔bar. Bez movableContent by se při změně
+    // Obsah drží stabilní instanci přes přepnutí rail ↔ bez railu. Bez movableContent by se při změně
     // breakpointu celý podstrom odmountoval a namountoval znovu — ztratil by se scroll, stav
     // a rozjely by se animace.
     val content = remember {
@@ -203,7 +184,7 @@ fun AppShell(modifier: Modifier = Modifier) {
     Row(modifier.fillMaxSize()) {
         AnimatedVisibility(
             visible = showRail,
-            // Jako u spodního baru: mizí i MÍSTO, ne jen rail, jinak by obsah doskočil až na konci.
+            // Mizí i MÍSTO, ne jen rail, jinak by obsah doskočil až na konci.
             enter = slideInHorizontally { -it } + expandHorizontally(expandFrom = Alignment.Start) + fadeIn(),
             exit = slideOutHorizontally { -it } + shrinkHorizontally(shrinkTowards = Alignment.Start) + fadeOut(),
         ) {
@@ -253,62 +234,23 @@ fun AppShell(modifier: Modifier = Modifier) {
             }
         }
 
-        Column(Modifier.weight(1f).fillMaxSize()) {
-            Box(
-                Modifier
-                    .weight(1f)
-                    .fillMaxSize()
-                    /*
-                     * Levý inset (výřez kamery, boční navigační lišta) vyřešil rail, obsah vedle
-                     * něj ho už nemá. Insety v Compose nevědí, kde prvek leží: bez konzumace si
-                     * je vzala každá obrazovka znovu, takže telefon naležato měl v hlavičce
-                     * konverzace i v seznamu zpráv mezeru o šířce výřezu — přestože panel stojí
-                     * u pravého okraje, daleko od kamery.
-                     */
-                    .then(
-                        if (showRail) Modifier.consumeWindowInsets(WindowInsets.safeDrawing.only(WindowInsetsSides.Start))
-                        else Modifier,
-                    )
-                    // Inset spodní navigace se konzumuje JEN když se bar opravdu kreslí.
-                    // Kdyby se konzumoval vždycky, vstupní pole konverzace by si na skrytém
-                    // baru myslelo, že inset už někdo vyřešil, a zalezlo by pod systémovou lištu.
-                    .then(
-                        if (showBottomBar) Modifier.consumeWindowInsets(WindowInsets.navigationBars)
-                        else Modifier,
-                    ),
-            ) {
-                content()
-            }
-
-            AnimatedVisibility(
-                visible = showBottomBar,
+        Box(
+            Modifier
+                .weight(1f)
+                .fillMaxSize()
                 /*
-                 * Bar odjíždí dolů, odkud přišel — skokové zmizení by při otevření konverzace
-                 * trhlo celým obsahem.
-                 *
-                 * `shrinkVertically` je tam nutně navíc: samotný `slideOutVertically` obsah jen
-                 * POSUNE, ale jeho místo v layoutu drží po celou animaci. Vstupní pole konverzace
-                 * proto celou dobu viselo nad prázdným pruhem a doskočilo dolů až na konci.
-                 * Se `shrinkVertically` se zmenšuje i to místo, takže obsah roste současně
-                 * s odjezdem baru.
+                 * Levý inset (výřez kamery, boční navigační lišta) vyřešil rail, obsah vedle
+                 * něj ho už nemá. Insety v Compose nevědí, kde prvek leží: bez konzumace si
+                 * je vzala každá obrazovka znovu, takže telefon naležato měl v hlavičce
+                 * konverzace i v seznamu zpráv mezeru o šířce výřezu — přestože panel stojí
+                 * u pravého okraje, daleko od kamery.
                  */
-                enter = slideInVertically { it } + expandVertically(expandFrom = Alignment.Top) +
-                    fadeIn(),
-                exit = slideOutVertically { it } + shrinkVertically(shrinkTowards = Alignment.Top) +
-                    fadeOut(),
-            ) {
-                ShortNavigationBar {
-                    TopLevelDestination.entries.forEach { dest ->
-                        val selected = currentTopLevel == dest.route
-                        ShortNavigationBarItem(
-                            selected = selected,
-                            onClick = { navigation.selectSection(dest.route) },
-                            icon = { DestinationIcon(dest, selected) },
-                            label = { Text(stringResource(dest.label)) },
-                        )
-                    }
-                }
-            }
+                .then(
+                    if (showRail) Modifier.consumeWindowInsets(WindowInsets.safeDrawing.only(WindowInsetsSides.Start))
+                    else Modifier,
+                )
+        ) {
+            content()
         }
     }
 }
@@ -407,6 +349,8 @@ private fun ShellContent(
                     .lastOrNull()?.section,
                 wide = wide,
                 twoPane = twoPane,
+                // Na telefonu rail není, takže Nastavení potřebují vlastní cestu zpět.
+                compact = isCompact(),
                 closeShare = closeShare,
                 navigation = navigation,
             )
@@ -460,6 +404,7 @@ private fun shellEntryProvider(
     selectedSettingsSection: SettingsSection?,
     wide: Boolean,
     twoPane: Boolean,
+    compact: Boolean,
     closeShare: () -> Unit,
     navigation: AppNavigation,
 ): (NavKey) -> NavEntry<NavKey> = entryProvider {
@@ -484,6 +429,7 @@ private fun shellEntryProvider(
                 if (chatsStack.lastOrNull() != NewChatRoute) chatsStack.add(NewChatRoute)
             },
             onChatArchived = chatsStack::closeConversationOf,
+            onOpenSettings = navigation::openSettings,
             modifier = Modifier.listPaneInsets(twoPane),
         )
     }
@@ -689,6 +635,8 @@ private fun shellEntryProvider(
                 settingsStack.removeAll { it is SettingsSectionRoute }
                 settingsStack.add(SettingsSectionRoute(section))
             },
+            // Na telefonu se sem chodí z menu účtu, ne z railu — šipka vrací do Chatů.
+            onBack = if (compact) navigation::goBack else null,
             modifier = Modifier.listPaneInsets(twoPane),
         )
     }

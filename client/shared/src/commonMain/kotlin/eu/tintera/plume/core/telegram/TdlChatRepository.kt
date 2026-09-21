@@ -19,7 +19,9 @@ import dev.g000sha256.tdl.dto.ChatListArchive
 import dev.g000sha256.tdl.dto.ChatListMain
 import dev.g000sha256.tdl.dto.ChatNotificationSettings
 import dev.g000sha256.tdl.dto.ChatPosition
+import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypePrivate
+import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.ChatAction
 import dev.g000sha256.tdl.dto.ChatActionCancel
 import dev.g000sha256.tdl.dto.ChatActionChoosingSticker
@@ -800,7 +802,11 @@ private suspend fun Chat.toSummary(): ChatSummary {
         avatarFileId = photo?.small?.id,
         isMuted = notificationSettings.isMuted(),
         isMarkedAsUnread = isMarkedAsUnread,
-        isPrivate = type is ChatTypePrivate || type is ChatTypeSecret,
+        kind = when (val chatType = type) {
+            is ChatTypeSupergroup -> if (chatType.isChannel) ChatKind.Channel else ChatKind.Group
+            is ChatTypeBasicGroup -> ChatKind.Group
+            is ChatTypePrivate, is ChatTypeSecret -> ChatKind.Private
+        },
         lastMessageTimestamp = lastMessage?.date,
         // Dostupnost `Chat` nenese — dorazí updatem. Do té doby je `null`, což UI kreslí
         // prostě bez tečky.

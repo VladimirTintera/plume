@@ -10,7 +10,9 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.ConnectionState
+import eu.tintera.plume.core.telegram.AccountInfo
 import eu.tintera.plume.core.telegram.DeviceRepository
+import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.core.telegram.UnconfirmedDevice
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.update.AppUpdateState
@@ -41,6 +43,7 @@ class ChatsViewModel(
     /** Obrazovka ho potřebuje ke spuštění aktualizace (`rememberStartUpdate`). */
     val appUpdates: AppUpdates,
     private val devices: DeviceRepository,
+    private val session: TelegramSession,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -51,10 +54,35 @@ class ChatsViewModel(
      */
     val state: StateFlow<ChatListState> = repository.chats(folder)
 
+    private val _filter = MutableStateFlow(ChatFilter.All)
+
+    /**
+     * Filtr z plovoucího toolbaru (jen hlavní seznam). Žije s ViewModelem, tedy s položkou
+     * navigace: návrat z konverzace ho zachová, nové spuštění začne na všech chatech.
+     */
+    val filter: StateFlow<ChatFilter> = _filter.asStateFlow()
+
+    fun setFilter(filter: ChatFilter) {
+        _filter.value = filter
+    }
+
+    private val _account = MutableStateFlow<AccountInfo?>(null)
+
+    /** Přihlášený účet — jeho fotka je v hledání vstupem do menu a Nastavení. */
+    val account: StateFlow<AccountInfo?> = _account.asStateFlow()
+
     init {
         // Hlavní seznam se načítá sám po přihlášení. Archiv až tady: na seznam, který nikdo
         // neotevře, se nemá co ptát serveru.
         if (folder == ChatFolder.Archive) loadMore()
+        // Účet potřebuje jen hlavička hlavního seznamu. Selhání nevadí — místo fotky jsou iniciály.
+        if (folder == ChatFolder.Main) {
+            viewModelScope.launch {
+                session.me()
+                    .onSuccess { _account.value = it }
+                    .onFailure { logger.w(it) { "Účet pro hlavičku seznamu se nepodařilo načíst." } }
+            }
+        }
     }
 
     /**

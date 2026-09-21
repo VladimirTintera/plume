@@ -411,6 +411,7 @@ class TdlTelegramSession(
                     lastName = user.lastName,
                     phoneNumber = user.phoneNumber,
                     username = user.usernames?.editableUsername?.takeIf { it.isNotBlank() },
+                    photoFileId = user.profilePhoto?.small?.id,
                 )
             }
 

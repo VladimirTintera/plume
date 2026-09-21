@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.ChatKind
+import eu.tintera.plume.core.ui.avatarShape
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.FilledTonalButton
@@ -771,6 +773,12 @@ fun ConversationScreen(
                                 avatarFileId = info.avatarFileId,
                                 size = 36.dp,
                                 isSavedMessages = info.isSavedMessages,
+                                // Stejný tvar jako v seznamu, odkud avatar přiletěl.
+                                shape = when {
+                                    info.isChannel -> ChatKind.Channel
+                                    info.isGroup -> ChatKind.Group
+                                    else -> ChatKind.Private
+                                }.avatarShape(),
                                 modifier = Modifier.sharedNavElement(chatAvatarKey(info.id)),
                             )
                         }

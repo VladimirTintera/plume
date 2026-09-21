@@ -55,11 +55,21 @@ class AppNavigation internal constructor(
         get() = if (section == START_SECTION) listOf(START_SECTION) else listOf(START_SECTION, section)
 
     /**
-     * Ťuknutí na sekci v railu / baru. Jiná sekce se jen vybere se vším, co v ní bylo otevřené;
+     * Ťuknutí na sekci v railu. Jiná sekce se jen vybere se vším, co v ní bylo otevřené;
      * ťuknutí na tu, ve které uživatel už je, ji vrátí na kořen (M3 konvence).
      */
     fun selectSection(target: TopLevelRoute) {
         if (target == section) popToRoot(target) else selected.value = target
+    }
+
+    /**
+     * Nastavení z menu účtu v seznamu chatů. Na telefonu je to jediný vstup (spodní lišta není),
+     * a proto vždycky na kořen: menu slibuje „Nastavení", ne sekci, kterou tam kdysi uživatel
+     * nechal otevřenou. Zpět pak vede do Chatů jako z railu.
+     */
+    fun openSettings() {
+        popToRoot(SettingsRoute)
+        selected.value = SettingsRoute
     }
 
     /**

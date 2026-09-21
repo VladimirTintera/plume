@@ -119,6 +119,8 @@ data class AccountInfo(
     val lastName: String,
     val phoneNumber: String,
     val username: String?,
+    /** `fileId` malé varianty profilové fotky, nebo `null` bez fotky. */
+    val photoFileId: Int? = null,
 ) {
     val displayName: String get() = listOf(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
 }

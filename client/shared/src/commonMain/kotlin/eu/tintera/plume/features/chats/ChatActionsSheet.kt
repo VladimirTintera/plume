@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.telegram.isPrivate
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.archive_24dp
 import eu.tintera.plume.resources.chats_action_archive

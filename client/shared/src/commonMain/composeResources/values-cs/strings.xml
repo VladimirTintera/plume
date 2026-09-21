@@ -582,6 +582,13 @@
         <item quantity="few">%1$d dny</item>
         <item quantity="other">%1$d dní</item>
     </plurals>
+    <string name="chats_filter_all">Všechny chaty</string>
+    <string name="chats_filter_unread">Nepřečtené</string>
+    <string name="chats_filter_private">Lidé</string>
+    <string name="chats_filter_groups">Skupiny</string>
+    <string name="chats_filter_channels">Kanály</string>
+    <string name="chats_filter_empty">Tomuhle filtru žádný chat neodpovídá.</string>
+    <string name="chats_account">Účet a další</string>
     <string name="chats_new">Nová zpráva</string>
     <string name="new_chat_title">Nová zpráva</string>
     <string name="new_chat_search">Hledat kontakty nebo @uživatele</string>

@@ -14,7 +14,7 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 
 /**
- * Sekce v railu / spodním baru.
+ * Sekce v railu (na telefonu navigační lišta není, Nastavení jsou v menu účtu).
  *
  * Ikony jsou **Material Symbols** jako vector drawables v `composeResources`
  * (`androidx.compose.material:material-icons-*` Google neudržuje, poslední verze je 1.7.3).
