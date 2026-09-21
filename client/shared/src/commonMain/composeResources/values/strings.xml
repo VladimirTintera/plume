@@ -117,6 +117,7 @@
     <string name="media_share_failed">Couldn't share</string>
     <string name="media_photo_load_failed">Couldn't load the photo.</string>
     <string name="media_video_download_failed">Couldn't download the video.</string>
+    <string name="media_download_progress">Download progress</string>
     <string name="media_play">Play</string>
     <string name="media_pause">Pause</string>
     <string name="media_replay">Play again</string>

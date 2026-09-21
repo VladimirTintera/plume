@@ -3044,6 +3044,26 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
 - **iOS zatím streamovat neumí** (`videoStreamingSupported = false`). `AVPlayer` by potřeboval
   `AVAssetResourceLoaderDelegate` — vlastní zdroj odpovídající na požadavky na rozsahy bajtů;
   do té doby se tam čeká na celý soubor.
+- **Velký průběh uprostřed jen do ROZBĚHNUTÍ videa** (`hasPlayed` = přehrávač poprvé hlásí
+  `isPlaying`), ne dokud se stahuje. U streamovaného videa je soubor „načtený" hned, ale
+  přehrávač ještě čeká na data — procento staženého souboru by tam lhalo (hraje se dávno před
+  100 %), proto se po načtení točí neurčitě. Tlačítko play/pauza se do té doby neukazuje.
+- **Stahování pod hrajícím videem je kroužek v pravém horním rohu** (`VideoDownloadIndicator`);
+  ťuknutí ho roztáhne do čáry přes horní okraj karty, další ho svine. Nahoře, protože kroužek tam
+  už je a jen se roztáhne do šířky; dole by se čára přetahovala o místo s posuvníkem.
+- **Jsou to běžné `CircularWavyProgressIndicator` / `LinearWavyProgressIndicator`** a přechod je
+  obyčejné `AnimatedContent` se `SizeTransform`, rostoucí z rohu (`contentAlignment = TopEnd`).
+  První verze kreslila na `Canvas` oblouk, který se rozvine do čáry — vymyšlený prvek, který
+  nikde jinde není; uživatel chtěl standardní vzhled. Ukazuje se proto celkový `progress`, ne
+  souvislý stažený úsek: obě komponenty kreslí průběh od nuly.
+- **Podklad pilulky nese kontejner `AnimatedContent`, ne obsah.** Velikost se animuje na
+  kontejneru; podklad na obsahu `SizeTransform` ořízne a pilulka roste s hranatým okrajem.
+- **Na emulátoru se stahování zpomalit NEDÁ**: `adb emu network speed edge`/`gprs` odpoví OK,
+  a 2,5MB video se přesto stáhne za vteřinu. Vzhled indikátoru se proto ověřuje podstrčeným
+  stavem (`downloadVisible` bez podmínky na `Downloading`, pevný `progress`), jako karta aktualizace.
+  **Přechod jde prohlédnout jen zpomaleně**: `adb shell settings put global
+  animator_duration_scale 10` (Compose ho respektuje) a série `screencap` — v normální
+  rychlosti ho snímky minou.
 - **Přehrávač je v kompozici** (`rememberVideoPlayer`) a s ní se uvolní. Hraje jen vybraná
   stránka; stav (pozice, délka, dohráno) se čte po 200 ms, přehrávače ho samy nehlásí.
   Spuštění videa zastaví hrající hlasovku.
