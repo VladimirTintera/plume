@@ -17,7 +17,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.koin.core.Koin
-import platform.Foundation.NSNumber
 import platform.Foundation.NSUUID
 import platform.UIKit.UIApplication
 import platform.UIKit.UIBackgroundTaskInvalid
@@ -46,11 +45,10 @@ import kotlin.time.TimeSource
 /**
  * Akce z notifikace na iOS: kategorie s akcemi a obsluha toho, na co uživatel v notifikaci ťukl.
  *
- * **Notifikace na iOS zatím nevznikají** — chybí APNs a notification service extension, která
- * by push rozšifrovala (viz `NotificationPresenter.ios`). Tohle je druhá půlka, připravená
- * dopředu: extension jen vyplní kategorii a klíče z [NotificationCategories] a akce budou
- * fungovat. Ověřit se to dá už teď: `xcrun simctl push` doručí na simulátor notifikaci
- * s kategorií bez APNs (postup v CLAUDE.md, „Akce z notifikace").
+ * Notifikace přicházejí z APNs (viz [IosPush]); kategorii a klíče z [NotificationCategories]
+ * doplní rozšíření notifikací (`NotificationService.swift`). Když neběží, akce nejsou, ale
+ * ťuknutí chat otevře i tak — [pushInfo] čte i holý push od Telegramu. Ověřit to jde bez APNs:
+ * `xcrun simctl push` doručí na simulátor notifikaci (postup v CLAUDE.md, „Akce z notifikace").
  *
  * **Delegát se nastavuje při startu, v `initKoin`**, ne až se složí UI. Ťuknutí na akci umí
  * spustit ukončenou aplikaci na pozadí a iOS odpověď doručí jen delegátovi, který existuje
@@ -132,15 +130,14 @@ object IosNotificationCenter {
         ) {
             val response = didReceiveNotificationResponse
             val content = response.notification.request.content
-            val chatId = content.userInfo[NotificationCategories.KEY_CHAT_ID].asLong()
-            if (chatId == null) {
+            val info = pushInfo(content.userInfo)
+            if (info == null) {
                 withCompletionHandler()
                 return
             }
-            // 0 = id chybí (tak ho vyplní i extension, když zprávu ještě nezná), ne zpráva s id 0.
-            val messageId = content.userInfo[NotificationCategories.KEY_MESSAGE_ID].asLong()?.takeIf { it > 0 }
-            // Z JSONu pushe přijde `NSNumber` (1), z lokální notifikace i Kotlin `Boolean`.
-            val isGroup = content.userInfo[NotificationCategories.KEY_IS_GROUP].let { it == true || it.asLong() == 1L }
+            val chatId = info.chatId
+            val messageId = info.messageId
+            val isGroup = info.isGroup
 
             // Ťuknutí na samotnou notifikaci otevře chat; aplikace jde do popředí sama.
             if (response.actionIdentifier == UNNotificationDefaultActionIdentifier) {
@@ -194,6 +191,12 @@ object IosNotificationCenter {
             willPresentNotification: UNNotification,
             withCompletionHandler: (UNNotificationPresentationOptions) -> Unit,
         ) {
+            // Přečtení a smazání jinde, obnova odznaku — nic k ukázání.
+            val locKey = telegramPush(willPresentNotification.request.content.userInfo)?.locKey
+            if (locKey in TelegramPush.SERVICE_KEYS) {
+                withCompletionHandler(0uL)
+                return
+            }
             withCompletionHandler(
                 UNNotificationPresentationOptionBanner or UNNotificationPresentationOptionList or UNNotificationPresentationOptionSound,
             )
@@ -230,15 +233,6 @@ object IosNotificationCenter {
             val request = UNNotificationRequest.requestWithIdentifier(NSUUID().UUIDString, content, null)
             UNUserNotificationCenter.currentNotificationCenter().addNotificationRequest(request, null)
         }
-    }
-
-    /** `userInfo` z JSONu pushe nese čísla jako `NSNumber`; z lokální notifikace i jako Kotlin číslo. */
-    private fun Any?.asLong(): Long? = when (this) {
-        is Long -> this
-        is Number -> toLong()
-        is NSNumber -> longLongValue
-        is String -> toLongOrNull()
-        else -> null
     }
 
     /** Na rozběhnutí TDLib, když akce spustila ukončenou aplikaci. */

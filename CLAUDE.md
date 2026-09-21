@@ -12,7 +12,7 @@ konverzace (historie, živé zprávy, odesílání, přílohy a alba, hlasovky, 
 přeposílání, připnuté zprávy), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
-Není: notifikace na iOS ani hlášení pádů z iOS; sdílená média v profilu chatu.
+Není: hlášení pádů z iOS. Notifikace na iOS (APNs) jsou napojené, ale čekají na certifikát APNs u Telegramu a ověření skutečným pushem.
 Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné, Notifikace, Vzhled a Zařízení; vědomě
 nastavitelné je téma aplikace (motiv a barvy z tapety), vyčlenění nepřečtených chatů do vlastního
 bloku a upozornění po rozsazích (soukromé chaty / skupiny / kanály) s výjimkami.
@@ -3894,11 +3894,10 @@ stáhne. Všechny akce jdou přes jednoho příjemce a jednu třídu (`Notificat
 - **Ztlumený chat TDLib z notifikací stáhne sám**, ve stejné milisekundě jako potvrzení
   `setChatNotificationSettings` (ověřeno logem, i po probuzení mrtvého procesu). Ruční zavírání
   notifikace po ztlumení (první verze) bylo zbytečné.
-- **iOS: akce jsou připravené, notifikace zatím ne** (`IosNotificationCenter`, smlouva
-  `NotificationCategories` v commonMain). Chybí APNs a notification service extension; ta až
-  vznikne, jen vyplní `categoryIdentifier` a klíče `plume_chat_id` / `plume_message_id` /
-  `plume_is_group`. **Na iOS nesou akce KATEGORIE**, ne notifikace — kombinace „smí odpovědět /
-  smí ztlumit" jsou čtyři předem zaregistrované kategorie.
+- **iOS: akce nese KATEGORIE, ne notifikace** (`IosNotificationCenter`, smlouva
+  `NotificationCategories` v commonMain) — kombinace „smí odpovědět / smí ztlumit" jsou čtyři
+  předem zaregistrované kategorie. Kategorii a klíče `plume_*` vyplní rozšíření notifikací, viz
+  „Notifikace na iOS (APNs)".
 - **iOS: delegát `UNUserNotificationCenter` se nastavuje v `initKoin`** (z `App.init`). Akce umí
   spustit ukončenou aplikaci a odpověď dostane jen delegát, který existuje dřív, než aplikace
   doběhne start. Drží se silnou referencí — centrum ho má jen slabě.
@@ -3965,6 +3964,57 @@ stáhne. Všechny akce jdou přes jednoho příjemce a jednu třídu (`Notificat
 - **Druhé přihlášené zařízení dává na tlačítko jen pár vteřin**, pak notifikaci stáhne. Lištu
   proto rozbalit PŘEDEM, čekat na „Zobrazuji" v logu a tlačítko hledat `uiautomator dump`
   až potom — poloha tlačítek se mění s počtem řádků notifikace. Cesta „Neodesláno" ověřená není — server odpověď bota neodmítne.
+
+### Notifikace na iOS (APNs)
+
+Na iOS notifikace **zobrazuje systém přímo z APNs pushe od Telegramu**, ne aplikace. Zařízení se
+registruje `registerDevice` s `deviceTokenApplePush` (`IosPush`); token vydá iOS do `AppDelegate`
+(`iOSApp.swift`) a ten ho předá do Kotlinu.
+
+- **Plain APNs od Telegramu NENÍ šifrovaný** — `deviceTokenApplePush` šifrování nemá (má ho jen
+  FCM a APNs VoIP). Push nese `aps.alert.loc-key` + `loc-args` (typ zprávy, jména, text)
+  a `custom` (`from_id` / `chat_id` / `channel_id`, `msg_id`, `mention`…). TDLib se v tom
+  neúčastní: `processPushNotification` by potřebovalo TDLib v rozšíření, a to na databázi
+  aplikace nedosáhne a limit paměti rozšíření by ji stejně nesnesl.
+- **Větu skládá iOS z `Localizable.strings` aplikace.** Chybějící klíč ukáže doslova
+  („MESSAGE_PHOTO"), takže tam musí být všechny. Soubory se generují
+  (`python3 iosApp/tools/push_strings.py`): angličtina z `core.telegram.org/api/config.json`
+  (`push`), čeština je ve skriptu; skript skončí chybou, když Telegram přidá klíč. Česky
+  přítomným časem („Jana posílá fotku") — rod odesílatele push neprozradí.
+- **Rozšíření notifikací (`iosApp/NotificationService`) text neskládá**, jen doplní kategorii
+  s akcemi, vlákno podle chatu a klíče `plume_*`. Totéž pravidlo má Kotlin (`TelegramPush`),
+  protože **jestli Telegram posílá `mutable-content`, nikde popsané není** — bez něj rozšíření
+  neběží a aplikace čte holé `custom` (`pushInfo`). Ťuknutí otevře chat v obou případech; akce
+  jsou jen s rozšířením.
+- **Číslování:** chat uživatele = `from_id`, základní skupina = −`chat_id`, supergroup i kanál
+  = −10¹² − `channel_id`; zpráva = `msg_id` posunuté o 20 bitů. Skupina se pozná podle
+  `loc-key` s prefixem `CHAT_` (i supergroup — ta nese `channel_id`), kanál podle `CHANNEL_`.
+- **`sandbox` musí sedět s prostředím tokenu** (`#if DEBUG` v `AppDelegate`): build z Xcode má
+  token vývojového APNs, TestFlight a App Store produkčního. Při nesouladu APNs push tiše
+  zahodí. Entitlement je `aps-environment = development`; při exportu pro App Store ho Xcode
+  přepne sám.
+- **Registrace u APNs se opakuje při každém startu** (když je oprávnění), token jde do TDLib až
+  při `AuthStage.Ready` — jako `PushRegistrar` na Androidu.
+- **Metody z kategorií ObjC jsou v Kotlinu rozšíření a potřebují vlastní import**:
+  `UIApplication.registerForRemoteNotifications()` bez `import platform.UIKit.registerForRemoteNotifications`
+  hlásí „Unresolved reference", přestože třída importovaná je.
+- **Přečtení jinde push nezpracuje** (`READ_HISTORY` je servisní push, bez TDLib v rozšíření
+  se nevyhodnotí). Proto `NotificationPresenter.ios` při běhu aplikace uklidí notifikace chatů,
+  které TDLib hlásí jako přečtené, a srovná odznak (`setBadgeCount`, nepřečtené zprávy
+  neztlumených chatů hlavního seznamu) — server ho nastavuje v pushi a po přečtení v aplikaci by
+  zůstal starý. Servisní klíče se v popředí nezobrazují.
+- **Vysvětlení před systémovým dotazem je společné** (`NotificationRationaleDialog`). iOS dá
+  systémový dotaz jen jednou napořád; „Teď ne" se pamatuje v `NSUserDefaults`.
+- **`simctl push` rozšíření NESPUSTÍ** — vloží notifikaci přímo (v logu `mutableContent: YES`
+  a žádná služba). Na simulátoru se tím ověří šablony, ťuknutí (otevře chat jen z `custom`)
+  a úklid přečtených chatů; rozšíření jen skutečný push přes APNs.
+- **Co poslal Telegram, se dá přečíst**: rozšíření v DEBUG buildu ukládá poslední push do
+  kontejneru App Group (`push/last.json`). U prvního skutečného pushe je to jediný způsob, jak
+  ověřit tvar pushe (`mutable-content`, `custom`), o kterém dokumentace mlčí.
+- **Co je potřeba mimo repo:** v Apple Developer účtu zapnout Push Notifications pro App ID
+  aplikace (automatické podepisování s vyplněným `TEAM_ID` založí i App ID rozšíření
+  `….notifications`), vyrobit certifikát / klíč APNs a nahrát ho Telegramu v nastavení
+  aplikace na my.telegram.org (tam, kde je service account pro FCM).
 
 ## Sdílení do aplikace
 
