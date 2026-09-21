@@ -67,7 +67,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.material3.ButtonDefaults
@@ -221,7 +229,12 @@ fun ChatProfileScreen(
                 verticalArrangement = Arrangement.spacedBy(20.dp),
                 modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 20.dp),
             ) {
-                ProfileHeader(state, profile, onTitlePlaced = { titleBottom = it })
+                ProfileHeader(
+                    state = state,
+                    profile = profile,
+                    scroll = { scrollState.value },
+                    onTitlePlaced = { titleBottom = it },
+                )
                 ProfileActions(muted = state.muted, onToggleMute = viewModel::toggleMute, onSearch = onSearch)
                 if (profile.usernames.isNotEmpty() || profile.phone != null || profile.about.isNotBlank()) {
                     ProfileInfo(profile, onLinkClick = viewModel::openLink)
@@ -499,6 +512,8 @@ private fun ProfileTab.label(): StringResource = when (this) {
 private fun ProfileHeader(
     state: ChatProfileState,
     profile: ChatProfile,
+    /** Posun profilu v px; čte se až při kreslení avataru, scroll nic nerekomponuje. */
+    scroll: () -> Int,
     /** Spodek jména v px od vršku hlavičky — odtud výš ho nese lišta. */
     onTitlePlaced: (Int) -> Unit,
 ) {
@@ -518,7 +533,24 @@ private fun ProfileHeader(
                 ProfileKind.Channel -> ChatKind.Channel
                 ProfileKind.User, ProfileKind.Bot, ProfileKind.SavedMessages -> ChatKind.Private
             }.avatarShape(),
-            modifier = Modifier.sharedNavElement(chatAvatarKey(profile.chatId)),
+            modifier = Modifier
+                .sharedNavElement(chatAvatarKey(profile.chatId))
+                .graphicsLayer {
+                    /*
+                     * Avatar se při sbalování zmenšuje do jména pod sebou a mizí, místo aby odjel
+                     * pod lištu useknutý její hranou. Průběh je podíl výšky avataru, o který
+                     * profil odjel. Zmenšuje se ke SPODKU a právě o tolik, o kolik odjel: vršek
+                     * tím stojí těsně pod lištou a spodek jede se jménem. S menším zmenšením
+                     * (zkoušeno 0,5) vršek dál utíkal pod lištu a byl useknutý. Posun (parallax)
+                     * ne — avatar by najel na jméno, které jede plnou rychlostí.
+                     */
+                    val progress = (scroll() / size.height).coerceIn(0f, 1f)
+                    val scale = 1f - progress
+                    scaleX = scale
+                    scaleY = scale
+                    alpha = 1f - progress
+                    transformOrigin = TransformOrigin(0.5f, 1f)
+                },
         )
         Text(
             text = profile.title,
@@ -550,6 +582,7 @@ private fun ProfileActions(muted: Boolean?, onToggleMute: () -> Unit, onSearch: 
                 icon = if (muted) Res.drawable.notifications_24dp else Res.drawable.notifications_off_24dp,
                 label = stringResource(if (muted) Res.string.profile_unmute else Res.string.profile_mute),
                 onClick = onToggleMute,
+                checked = muted,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -562,26 +595,84 @@ private fun ProfileActions(muted: Boolean?, onToggleMute: () -> Unit, onSearch: 
     }
 }
 
-/** Akce jako tónovaná dlaždice: ikona nad popiskem. */
+/**
+ * Akce jako tónovaná dlaždice: ikona nad popiskem.
+ *
+ * - **Stisk dlaždici zhranatí** ([ACTION_PRESSED_CORNER]), jako u tlačítek M3 Expressive —
+ *   zpětná vazba tvarem, ne jen vlnkou.
+ * - **Přepínač (ztlumení) nese stav tvarem a barvou** ([checked]): zapnutý je celý zakulacený
+ *   a v `tertiaryContainer`, stejně jako vybraná záložka pod ním je celá kulatá. Dřív se stav
+ *   poznal jen z popisku, který navíc říká opak („Zapnout zvuk" = teď je ztlumeno).
+ *   Hledat stav nemá, a proto ho tvarem nenese — tvar jen tam, kde se mění stav.
+ * - **Ikona a popisek se vymění přechodem**, ne skokem: změna přijde až s potvrzením serveru,
+ *   o chvilku po ťuknutí, a skoková výměna se dala přehlédnout.
+ */
 @Composable
-private fun ProfileAction(icon: DrawableResource, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun ProfileAction(
+    icon: DrawableResource,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    checked: Boolean? = null,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val corner by animateDpAsState(
+        targetValue = when {
+            pressed -> ACTION_PRESSED_CORNER
+            checked == true -> ACTION_CHECKED_CORNER
+            else -> ACTION_CORNER
+        },
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "profile-action-corner",
+    )
+    val container by animateColorAsState(
+        if (checked == true) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+        label = "profile-action-container",
+    )
+    val content by animateColorAsState(
+        if (checked == true) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+        label = "profile-action-content",
+    )
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        // Pružina přestřelí; záporné zaoblení `RoundedCornerShape` odmítne.
+        shape = RoundedCornerShape(corner.coerceAtLeast(0.dp)),
+        color = container,
+        contentColor = content,
+        interactionSource = interactionSource,
         modifier = modifier,
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier.padding(vertical = 14.dp),
-        ) {
-            Icon(painterResource(icon), contentDescription = null)
-            Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        val enterFade = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+        val enterScale = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+        val exitFade = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+        AnimatedContent(
+            targetState = icon to label,
+            transitionSpec = {
+                (fadeIn(enterFade) + scaleIn(enterScale, initialScale = 0.6f)).togetherWith(fadeOut(exitFade))
+            },
+            contentAlignment = Alignment.Center,
+            label = "profile-action-content",
+        ) { (shownIcon, shownLabel) ->
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
+            ) {
+                Icon(painterResource(shownIcon), contentDescription = null)
+                Text(shownLabel, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }
+
+private val ACTION_CORNER = 20.dp
+private val ACTION_PRESSED_CORNER = 12.dp
+
+/** Víc než polovina výšky dlaždice; `RoundedCornerShape` zaoblení na polovinu stáhne sám. */
+private val ACTION_CHECKED_CORNER = 48.dp
 
 /**
  * Údaje jako blok zaoblených řádků — stejný jazyk jako skupiny v seznamu chatů a obsah záložek

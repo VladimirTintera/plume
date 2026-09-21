@@ -2769,6 +2769,14 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
 - **Vybraná záložka si přianimuje ikonu a o ni se rozšíří** (váha 1 → 1,4, jednou pružinou
   s ikonou). Se stejnou šířkou všech čtyř by ikona ukrojila popisek („Čle…"); ověřuje se
   v češtině, má nejdelší popisky.
+- **Avatar se při sbalování zmenšuje do jména a mizí** (`graphicsLayer`, průběh = podíl výšky
+  avataru, o který profil odjel). Zmenšuje se ke spodku a PŘESNĚ o tolik, o kolik odjel: vršek
+  tím stojí těsně pod lištou. S poloviční mírou (první pokus) vršek dál utíkal pod lištu a byl
+  useknutý. Scroll se čte až při kreslení, nic nerekomponuje.
+- **Dlaždice akcí mění tvar**: stiskem zhranatí (20 → 12 dp) jako tlačítka M3 Expressive a ztlumený
+  chat má dlaždici celou kulatou v `tertiaryContainer` — stejný jazyk jako vybraná záložka.
+  Hledat stav nemá, takže tvarem nic nenese. Ikona s popiskem se mění přechodem: změna přijde až
+  s potvrzením serveru a skok se dal přehlédnout.
 - **Název se po odjetí velkého jména ukáže v liště** (`titleInBar`: scroll za spodkem jména,
   změřeným `onPlaced`). Bez toho nebylo u sbalené hlavičky poznat, čí profil je otevřený.
 - **Hledat zavře profil a otevře hledání v konverzaci** přes `ConversationSearchRequests` — STAV,
@@ -2820,11 +2828,12 @@ obsahu bývá zlomek zpráv.
 - **Ťuknutí vede tam, kam z konverzace**: médium do prohlížeče (táž `MediaRoute`), soubor se
   stáhne a předá systému (včetně průběhu v řádku a druhého ťuknutí jako zrušení), odkaz do
   prohlížeče.
+- **Titulek „null" posílá server doslova** (u `share.google/…` a podobných). `ifBlank` ho
+  nechytil a stál v záložce Odkazy i v bublině; texty náhledu jdou proto přes `previewText`
+  (`MessageContent.kt`, testy `LinkPreviewTextTest`), který ho zahodí jako prázdný.
 - **`mailto:` se v adrese neukazuje** (`displayUrl`, testy `SharedMediaTest`). Filtr odkazů bere
   i e-maily a schéma u nich nic neříká; `https` od `tg` odlišit potřeba je, takže se zahazuje
   jen ono.
-- **Titulek „null" u náhledu je obsah OD SERVERU**, ne naše chyba — `linkPreview()` mapuje přes
-  `ifBlank { null }` a stejně to vypadá i v bublině konverzace.
 
 ## Hlasovky
 
