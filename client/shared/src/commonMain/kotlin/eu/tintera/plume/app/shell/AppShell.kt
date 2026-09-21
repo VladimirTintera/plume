@@ -5,40 +5,19 @@ import eu.tintera.plume.features.profile.ChatProfileScreen
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.ui.LocalSavedMessagesChatId
 import eu.tintera.plume.core.telegram.ChatRepository
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.Text
-import androidx.compose.material3.WideNavigationRail
-import androidx.compose.material3.WideNavigationRailItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import org.jetbrains.compose.resources.painterResource
 import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
 import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
 import androidx.compose.material3.adaptive.navigation3.rememberListDetailSceneStrategy
@@ -52,8 +31,6 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.ui.NavDisplay
 import eu.tintera.plume.core.adaptive.TWO_PANE_MIN_WIDTH
 import eu.tintera.plume.core.adaptive.contentPaneScaffoldDirective
-import eu.tintera.plume.core.adaptive.isCompact
-import eu.tintera.plume.core.adaptive.isShortWindow
 import eu.tintera.plume.core.adaptive.singlePane
 import eu.tintera.plume.core.adaptive.twoPane
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -89,18 +66,17 @@ import org.koin.core.parameter.parametersOf
 import eu.tintera.plume.features.settings.SettingsScreen
 import eu.tintera.plume.features.settings.SettingsSectionScreen
 import org.koin.compose.viewmodel.koinViewModel
-import org.jetbrains.compose.resources.stringResource
 
 /**
- * Kořenový shell přihlášené aplikace: sekční navigace + list-detail pro chaty.
+ * Kořenový shell přihlášené aplikace: dva zásobníky (Chaty, Nastavení) a list-detail pro chaty.
  *
- * **Na telefonu (compact) sekční navigace není.** Sekce jsou dvě, a navigační lišta má podle M3
- * smysl od tří: zabírala ~80 dp jen kvůli skoku do Nastavení. Do Nastavení se tam chodí z menu
- * účtu ve vyhledávací pilulce a zpět; spodek obrazovky patří plovoucímu toolbaru seznamu chatů.
- * Rail na širší ploše zůstává — místo na výšku nebere.
+ * **Sekční navigace není na žádné šířce.** Sekce jsou dvě a navigační lišta i rail mají podle M3
+ * smysl od tří. Do Nastavení se chodí z menu účtu ve vyhledávací pilulce seznamu chatů a zpět;
+ * spodek obrazovky patří plovoucímu toolbaru seznamu chatů. Rail na širší ploše kdysi zůstal,
+ * ale jen zdvojoval menu účtu a ukusoval šířku panelům.
  *
- * **Insety:** shell konzumuje jen levý inset za rail. Spodní (navigační lišta) i horní (stavová)
- * si řeší každá obrazovka sama, protože pod nimi žádný chrome shellu není.
+ * **Insety:** shell žádné nekonzumuje, pod žádným chromem shellu nic neleží — každá obrazovka si
+ * je řeší sama.
  */
 @Composable
 fun AppShell(modifier: Modifier = Modifier) {
@@ -152,114 +128,18 @@ fun AppShell(modifier: Modifier = Modifier) {
         if (pendingShareId != null) navigation.openShare()
     }
 
-    val currentTopLevel = navigation.section
-    val compact = isCompact()
-
-    /*
-     * Prohlížeč médií je přes celou obrazovku i na širokém rozvržení — rail vedle něj by jen
-     * ukusoval místo fotce a sousedním stránkám. Na rozdíl od konverzace to není panel vedle
-     * seznamu, ze kterého se přepíná sekce; ven se jde zpět.
-     */
-    val showRail = !compact && navigation.currentStack.lastOrNull().let { it !is MediaRoute && it !is ShareRoute }
-
-    /*
-     * Na nízkém okně (telefon naležato) má rail jen ikony. Popisky pod nimi zabíraly výšku, která
-     * tam chybí, a rail roztahovaly do šířky — a dvě sekce se poznají podle ikony i bez nich.
-     */
-    val railLabels = !isShortWindow()
-
-    // Obsah drží stabilní instanci přes přepnutí rail ↔ bez railu. Bez movableContent by se při změně
-    // breakpointu celý podstrom odmountoval a namountoval znovu — ztratil by se scroll, stav
-    // a rozjely by se animace.
-    val content = remember {
-        movableContentOf {
-            ShellContent(
-                navigation = navigation,
-                entryDecorators = entryDecorators,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-    }
-
-    Row(modifier.fillMaxSize()) {
-        AnimatedVisibility(
-            visible = showRail,
-            // Mizí i MÍSTO, ne jen rail, jinak by obsah doskočil až na konci.
-            enter = slideInHorizontally { -it } + expandHorizontally(expandFrom = Alignment.Start) + fadeIn(),
-            exit = slideOutHorizontally { -it } + shrinkHorizontally(shrinkTowards = Alignment.Start) + fadeOut(),
-        ) {
-            /*
-             * Insety jsou výchozí (stavová a navigační lišta, výřez na straně). Dřív tu byly
-             * nulové a první položka se lepila pod stavovou lištu.
-             *
-             * Položky jsou na STŘEDU: M3 u tabletů doporučuje střed, protože se na něj líp
-             * dosáhne palcem. Nahoru patří jen menu a FAB, a ty rail nemá.
-             */
-            if (railLabels) {
-                WideNavigationRail(arrangement = Arrangement.Center) {
-                    TopLevelDestination.entries.forEach { dest ->
-                        val selected = currentTopLevel == dest.route
-                        WideNavigationRailItem(
-                            selected = selected,
-                            onClick = { navigation.selectSection(dest.route) },
-                            icon = { DestinationIcon(dest, selected) },
-                            label = { Text(stringResource(dest.label)) },
-                            railExpanded = false,
-                        )
-                    }
-                }
-            } else {
-                /*
-                 * Na nízkém okně klasický `NavigationRail`, ne wide. Zúžený wide rail má pevnou
-                 * šířku 96 dp a položku BEZ popisku staví k levému okraji (měří ji na šířku
-                 * indikátoru a klade na x = 0) — ikony visely mimo střed a vpravo od nich zbyl
-                 * prázdný pruh. `NavigationRail` má 80 dp a ikony na středu.
-                 */
-                NavigationRail {
-                    Spacer(Modifier.weight(1f))
-                    TopLevelDestination.entries.forEach { dest ->
-                        val selected = currentTopLevel == dest.route
-                        NavigationRailItem(
-                            selected = selected,
-                            onClick = { navigation.selectSection(dest.route) },
-                            // Bez popisku nese název sekce ikona, jinak by ho čtečka obrazovky
-                            // neměla.
-                            icon = {
-                                DestinationIcon(dest, selected, contentDescription = stringResource(dest.label))
-                            },
-                        )
-                    }
-                    Spacer(Modifier.weight(1f))
-                }
-            }
-        }
-
-        Box(
-            Modifier
-                .weight(1f)
-                .fillMaxSize()
-                /*
-                 * Levý inset (výřez kamery, boční navigační lišta) vyřešil rail, obsah vedle
-                 * něj ho už nemá. Insety v Compose nevědí, kde prvek leží: bez konzumace si
-                 * je vzala každá obrazovka znovu, takže telefon naležato měl v hlavičce
-                 * konverzace i v seznamu zpráv mezeru o šířce výřezu — přestože panel stojí
-                 * u pravého okraje, daleko od kamery.
-                 */
-                .then(
-                    if (showRail) Modifier.consumeWindowInsets(WindowInsets.safeDrawing.only(WindowInsetsSides.Start))
-                    else Modifier,
-                )
-        ) {
-            content()
-        }
-    }
+    ShellContent(
+        navigation = navigation,
+        entryDecorators = entryDecorators,
+        modifier = modifier.fillMaxSize(),
+    )
 }
 
 /**
  * Vlastní navigační plocha.
  *
- * `directive` se počítá ze šířky **content-oblasti** (`BoxWithConstraints`), ne z okna — vlevo
- * ukusuje rail a scaffold by jinak počítal se šířkou, kterou nemá.
+ * `directive` se počítá ze šířky **content-oblasti** (`BoxWithConstraints`), ne z okna — scaffold
+ * má rozhodovat podle místa, které opravdu dostane.
  */
 @Composable
 private fun ShellContent(
@@ -349,8 +229,6 @@ private fun ShellContent(
                     .lastOrNull()?.section,
                 wide = wide,
                 twoPane = twoPane,
-                // Na telefonu rail není, takže Nastavení potřebují vlastní cestu zpět.
-                compact = isCompact(),
                 closeShare = closeShare,
                 navigation = navigation,
             )
@@ -404,7 +282,6 @@ private fun shellEntryProvider(
     selectedSettingsSection: SettingsSection?,
     wide: Boolean,
     twoPane: Boolean,
-    compact: Boolean,
     closeShare: () -> Unit,
     navigation: AppNavigation,
 ): (NavKey) -> NavEntry<NavKey> = entryProvider {
@@ -635,8 +512,9 @@ private fun shellEntryProvider(
                 settingsStack.removeAll { it is SettingsSectionRoute }
                 settingsStack.add(SettingsSectionRoute(section))
             },
-            // Na telefonu se sem chodí z menu účtu, ne z railu — šipka vrací do Chatů.
-            onBack = if (compact) navigation::goBack else null,
+            // Sem se chodí z menu účtu na každé šířce, takže šipka zpět do Chatů je vždycky.
+            // Zavírá Nastavení celá — v dvoupanelu je sekce otevřená pořád, viz `closeSettings`.
+            onBack = navigation::closeSettings,
             modifier = Modifier.listPaneInsets(twoPane),
         )
     }
@@ -710,20 +588,3 @@ private const val ARCHIVE_SCENE = "archive"
  * nebyla výměna scény, ale změna obsahu té stávající.
  */
 private const val SETTINGS_SCENE = "settings"
-
-/** Vyplněná varianta při výběru — M3 konvence. Crossfade, ať přepnutí neproblikne. */
-@Composable
-private fun DestinationIcon(
-    destination: TopLevelDestination,
-    selected: Boolean,
-    contentDescription: String? = null,
-) {
-    Crossfade(selected, label = "nav-icon") { isSelected ->
-        Icon(
-            painter = painterResource(
-                if (isSelected) destination.selectedIcon else destination.icon,
-            ),
-            contentDescription = contentDescription,
-        )
-    }
-}

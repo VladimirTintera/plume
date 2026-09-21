@@ -7,7 +7,7 @@ nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí
 
 ## Stav
 
-Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail na širší ploše, na telefonu bez navigační lišty), živý seznam chatů a archiv,
+Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (bez railu i navigační lišty, Nastavení z menu účtu), živý seznam chatů a archiv,
 konverzace (historie, živé zprávy, odesílání, přílohy a alba, hlasovky, samolepky a emoji, úprava,
 přeposílání, připnuté zprávy), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
@@ -826,16 +826,19 @@ se z telefonu nedalo chodit zpět bez `BackHandler`, který v téhle aplikaci za
 - **Efekt, který sekci zapisuje, stojí v shellu, ne v obrazovce seznamu sekcí.** Obrazovka po
   přepnutí sekce aplikace ještě dobíhá odchodovou animací a její efekty dál běží. Dokud byl
   efekt v ní, po rychlém Nastavení → Chaty přidal `SettingsSectionRoute` do zásobníku, který
-  už patřil Chatům — rail hlásil Chaty, na ploše bylo „Obecné". Shell se ptá na vybranou
-  sekci aplikace; klíčem je i velikost zásobníku Nastavení kvůli ťuknutí na už vybrané
-  Nastavení (návrat na kořen). **Obecně: efekt, který zapisuje do zásobníku, nepatří do
+  už patřil Chatům — vybrané byly Chaty, na ploše bylo „Obecné". Shell se ptá na vybranou
+  sekci aplikace; klíčem je i velikost zásobníku Nastavení (návrat na kořen). **Obecně: efekt, který zapisuje do zásobníku, nepatří do
   obrazovky, která může být zrovna na odchodu.**
 - **Šipka zpět je v sekci jen na compactu.** V dvoupanelu je seznam sekcí pořád vidět vedle
   a sekce se NAHRAZUJE, nevrší se zásobník — stejně jako konverzace.
-- **Na telefonu se do Nastavení chodí z menu účtu** (fotka ve vyhledávací pilulce seznamu
+- **Do Nastavení se chodí z menu účtu na každé šířce** (fotka ve vyhledávací pilulce seznamu
   chatů, `AppNavigation.openSettings`), a proto vždycky na kořen — menu slibuje „Nastavení",
-  ne sekci, kterou tam uživatel kdysi nechal. Seznam sekcí má na compactu šipku zpět do Chatů
-  (`SettingsScreen(onBack)`); na širší ploše ji nemá, vedle je rail.
+  ne sekci, kterou tam uživatel kdysi nechal. Seznam sekcí má proto šipku zpět do Chatů vždycky
+  (`SettingsScreen(onBack)`), i v dvoupanelu.
+- **Šipka seznamu sekcí volá `closeSettings`, ne `goBack`.** `goBack` odebírá jednu položku,
+  a v dvoupanelu je to otevřená sekce — efekt `ensureSettingsSection` ji hned vrátil a šipka
+  nedělala nic. Dokud vedle stál rail, šipka v dvoupanelu nebyla a nic se nepoznalo.
+  Systémové zpět to nepotřebuje: `NavDisplay` ho zavolá za obě položky scény naráz.
 - **Seznam sekcí nemá ViewModel.** Obsah (účet, notifikace, motiv) patří sekcím; kdyby si účet
   načítal i seznam, ptali bychom se na něj v dvoupanelu dvakrát. Ze stejného důvodu se ViewModel
   sekce vyrábí až uvnitř `when` nad sekcí — složí se jen jedna větev.
@@ -886,27 +889,14 @@ Navigation3 (`rememberNavBackStack` + `NavDisplay` + `entryProvider`). Klíče j
 
 Seznam chatů a konverzace tvoří **list-detail** dvojici přes `rememberListDetailSceneStrategy`:
 `ChatsRoute` nese metadata `listPane(detailPlaceholder = …)`, `ConversationRoute` má `detailPane()`.
-`directive` se počítá ze šířky **content-oblasti** (`BoxWithConstraints`), ne z okna — vlevo ukusuje
-rail a scaffold by jinak rozhodl špatně.
-
-**Rail má výchozí insety a položky na středu.** Nulové insety (`WindowInsets()`) ho lepily pod
-stavovou lištu. Střed doporučuje M3 pro tablety (líp se na něj dosáhne); nahoru patří jen menu
-a FAB, které rail nemá. Až přibudou, půjdou do `header`, který je nahoře vždy.
-
-**Na nízkém okně (telefon naležato) má rail jen ikony** — výška pod `HEIGHT_DP_MEDIUM_LOWER_BOUND`.
-Bez popisku nese název sekce `contentDescription` ikony. **Je to klasický `NavigationRail`
-(80 dp), ne `WideNavigationRail`:** zúžený wide rail má pevných 96 dp bez ohledu na popisky
-a položku bez popisku měří na šířku indikátoru a klade na x = 0 — ikony visely u levého okraje
-a vpravo zbyl prázdný pruh. Popisky tedy šířku neovlivňovaly, jen výšku.
-Seznam chatů vedle něj má naležato levý okraj 8 dp místo 16 (`isShortWindow`): rail má kolem
-ikon vlastní vzduch a 8 dp je vnitřní okraj vyhledávací pilulky, takže karty s ní lícují.
+`directive` se počítá ze šířky **content-oblasti** (`BoxWithConstraints`), ne z okna — scaffold
+má rozhodovat podle místa, které opravdu dostane.
 
 **Boční insety NEVĚDÍ, kde prvek leží.** Compose dá `safeDrawing`/`displayCutout` každému, kdo si
 o ně řekne, i když stojí daleko od kamery. Telefon naležato proto měl v konverzaci (panel VPRAVO)
 mezeru o šířku výřezu vlevo — v hlavičce a seznamu zpráv, ne ve vstupním poli, které si boky
 nebralo vůbec. Pravidlo: kdo inset vyřešil, ten ho **zkonzumuje** (`consumeWindowInsets`).
-Shell konzumuje levý inset za rail, seznam v dvoupanelu pravý (`listPaneInsets`) — ten patří
-panelu vpravo. Vstupní pole bere `safeDrawing` bokem i spodkem, jinak by odeslání zajelo pod
+Seznam v dvoupanelu konzumuje pravý inset (`listPaneInsets`) — ten patří panelu vpravo. Vstupní pole bere `safeDrawing` bokem i spodkem, jinak by odeslání zajelo pod
 výřez nebo boční třítlačítkovou lištu. Ověřuje se v OBOU rotacích naležato
 (`adb shell cmd window user-rotation lock 1` / `3`, pak `free`) — výřez je pokaždé na jiné straně.
 
@@ -914,17 +904,14 @@ výřez nebo boční třítlačítkovou lištu. Ověřuje se v OBOU rotacích na
 časů schovaný „za pravým okrajem" (odkrývání tahem) byl schovaný jen dokud seznam končil
 u okraje obrazovky. S insetem vpravo prosvítal; proto `clipToBounds` na ploše seznamu.
 
-**Na telefonu (compact) sekční navigace není — žádná spodní lišta.** Sekce jsou dvě a navigační
-lišta má podle M3 smysl až od tří; zabírala ~80 dp jen kvůli skoku do Nastavení a seznam chatů
-pod ní působil přeplácaně. Do Nastavení vede menu účtu v pilulce, spodek obrazovky patří
-plovoucímu toolbaru seznamu chatů (viz „Filtry a plovoucí toolbar"). Rail na širší ploše zůstává,
-místo na výšku nebere. Důsledek pro insety: shell spodní (navigační) inset nekonzumuje nikde,
-každá obrazovka si ho bere sama (Scaffold ho má ve výchozích `contentWindowInsets`).
-
-**Skrytí railu musí animovat i jeho MÍSTO, ne jen posun.** `slideOutHorizontally` obsah jenom
-posune — jeho slot v layoutu drží po celou animaci a obsah by doskočil až na konci. Proto
-`shrinkHorizontally` (a `expandHorizontally`) navíc. Stejná past byla u dřívější spodní lišty:
-vstupní pole konverzace viselo nad prázdným pruhem.
+**Sekční navigace není — ani spodní lišta, ani rail.** Sekce jsou dvě a navigační lišta i rail
+mají podle M3 smysl až od tří. Lišta zabírala ~80 dp jen kvůli skoku do Nastavení a seznam chatů
+pod ní působil přeplácaně; rail na širší ploše přežil o něco déle, ale jen zdvojoval menu účtu
+a ukusoval šířku panelům. Do Nastavení vede menu účtu v pilulce na každé šířce, spodek obrazovky
+patří plovoucímu toolbaru seznamu chatů (viz „Filtry a plovoucí toolbar"). Důsledek pro insety:
+shell žádný nekonzumuje, každá obrazovka si je bere sama (Scaffold je má ve výchozích
+`contentWindowInsets`). **Kdyby sekcí přibylo na tři**, přijde rail zpátky — past s místem:
+skrytí musí animovat i SLOT (`shrinkHorizontally`), ne jen posun, jinak obsah doskočí až na konci.
 
 **Avatar a název letí ze seznamu do konverzace.** Klíče `chatAvatarKey` / `chatTitleKey`
 obsahují id chatu, jinak by se při rychlém přepnutí spároval avatar jednoho chatu s druhým.
@@ -1069,7 +1056,7 @@ testy v `ChatGroupsTest`). Nahradil spodní navigační lištu.
   Přečtený chat z filtru zmizí, jako ve složce Nepřečtené u oficiálních klientů.
 - **Ikony bez popisků**, pět popisků by se na telefon nevešlo. Název nese tooltip po podržení
   a `contentDescription`. Vybraný filtr: `secondaryContainer` (výběr je navigační stav, stejná
-  role jako rail) a tvar kruh → čtverec (`toggleableShapes`), takže se pozná i bez barvy.
+  role jako vybraná položka navigace v M3) a tvar kruh → čtverec (`toggleableShapes`), takže se pozná i bez barvy.
 - **Přepnutí filtru skočí na vršek seznamu** — v obsluze ťuknutí, NE v `LaunchedEffect(filter)`:
   efekt by se spustil znovu při každém návratu seznamu do kompozice (z konverzace na telefonu)
   a seznam by pokaždé odjel nahoru.
@@ -2900,11 +2887,9 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   největší, co server má; `fileId` (do 1280 px) slouží jako okamžitý náhled, protože ho konverzace
   už stáhla. V bublině by originál znamenal desítky megabajtů kvůli obrázku širokému pár set bodů.
 - **Prohlížeč nemá metadata list-detail scény**, takže ho scéna nepřevezme a `NavDisplay` ho
-  vykreslí přes celou plochu i na širokém rozvržení. **Rail se v něm schová** (`showRail`
-  v `AppShell`, i s místem přes `shrinkHorizontally`): není to panel vedle seznamu, ze kterého
-  se přepíná sekce, a rail by jen ukusoval šířku fotce a sousedním stránkám.
+  vykreslí přes celou plochu i na širokém rozvržení.
 - **Ořez pozadí je nutný** (`clipToBounds` v `AmbientBackground`). Pozadí sousedů leží posunuté
-  mimo plochu prohlížeče; bez ořezu prosvítalo vlevo přes rail nerozostřené — rozostření pokrývá
+  mimo plochu prohlížeče; bez ořezu prosvítalo vlevo (tehdy přes rail) nerozostřené — rozostření pokrývá
   jen plochu prohlížeče.
 - **Gesta patří FOTCE, ne bublině.** Kdyby ťuknutí odchytávala bublina, sebralo by ho i odkazům
   v popisku. Dlouhý stisk se na fotce musí zopakovat: potomek s vlastním klikáním ho nepustí
@@ -2951,7 +2936,7 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   (`MAX_PAGE_WIDTH` 640 dp, zbytek jde do `contentPadding`, mezera mezi kartami je tam 24 dp místo 8) a **sousední karta se přisouvá k okraji
   bližšímu aktuální stránce** (`cardBias` = −`getOffsetDistanceInPages`, čteno až při umístění
   v `MediaPageLayout`). Plynule s tahem — karta, která dojede doprostřed, stojí na středu.
-  Šířka se bere z `BoxWithConstraints`, ne z okna: vedle prohlížeče může ležet rail.
+  Šířka se bere z `BoxWithConstraints`, ne z okna.
 - **Pozadí jezdí s pagerem**, neprolíná se. Kreslí se pozadí aktuální stránky i sousedů vedle
   sebe, posunutá o `currentPageOffsetFraction` (čteno až v `graphicsLayer`). Dokud se pozadí
   jen prolnulo podle `currentPage`, měnilo se skokem až po přeskočení na další stránku, zatímco
@@ -3899,7 +3884,6 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   návrat do Plume, kde by sdílený obsah zmizel bez stopy — bez volby chatu nemá kam jít.
   `singleTask` drží Plume ve vlastní úloze, takže pod ní je právě aplikace, ze které se sdílelo.
   Výběr se napřed odebere ze zásobníku, aby příští otevření Plume nezačínalo ve výběru.
-  Bar ani rail k výběru nepatří (`inDetail`, `showRail`) — je to vsuvka odjinud, ne sekce.
 - **Otevřený výběr se při dalším sdílení NEvyměňuje** (`openShare`). Odebrat a vrátit by ho
   zlikvidovalo a jeho `onDispose` by zahodil právě to nové sdílení.
 - **Direct Share (chaty přímo v nabídce „Sdílet") stojí na zkratkách konverzací**, týchž, které
@@ -4111,9 +4095,7 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
 - **`SharedTransitionLayout` je v kořenovém tématu**, ne uvnitř obrazovek — sdílený prvek musí přežít
   výměnu obrazovky. Scope se bere z `LocalSharedTransitionScope`.
 - **Ikony = Material Symbols** jako vector drawables v `composeResources`, s vyplněnou i nevyplněnou
-  variantou (vybraná položka navigace má vyplněnou). Viz `TopLevelDestination`.
-- **Obsah shellu jde přes `movableContentOf`.** Při přepnutí breakpointu rail↔bar se podstrom
-  PŘESUNE, ne přerenderuje — jinak by se odmountoval a ztratil scroll i stav.
+  variantou (vybraná položka — filtr v toolbaru — má vyplněnou).
 
 ### Typografie
 

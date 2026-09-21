@@ -55,21 +55,23 @@ class AppNavigation internal constructor(
         get() = if (section == START_SECTION) listOf(START_SECTION) else listOf(START_SECTION, section)
 
     /**
-     * Ťuknutí na sekci v railu. Jiná sekce se jen vybere se vším, co v ní bylo otevřené;
-     * ťuknutí na tu, ve které uživatel už je, ji vrátí na kořen (M3 konvence).
-     */
-    fun selectSection(target: TopLevelRoute) {
-        if (target == section) popToRoot(target) else selected.value = target
-    }
-
-    /**
-     * Nastavení z menu účtu v seznamu chatů. Na telefonu je to jediný vstup (spodní lišta není),
-     * a proto vždycky na kořen: menu slibuje „Nastavení", ne sekci, kterou tam kdysi uživatel
-     * nechal otevřenou. Zpět pak vede do Chatů jako z railu.
+     * Nastavení z menu účtu v seznamu chatů — jediný vstup, rail ani lišta nejsou. Proto
+     * vždycky na kořen: menu slibuje „Nastavení", ne sekci, kterou tam kdysi uživatel nechal
+     * otevřenou. Zpět pak vede do Chatů.
      */
     fun openSettings() {
         popToRoot(SettingsRoute)
         selected.value = SettingsRoute
+    }
+
+    /**
+     * Šipka v hlavičce Nastavení: z Nastavení pryč, do Chatů. Ne [goBack] — ten odebírá jednu
+     * položku, a v dvoupanelu je to otevřená sekce, kterou [ensureSettingsSection] hned vrátí;
+     * šipka by pak nedělala nic. Zásobník se srovná na kořen, stejně jako ho najde [openSettings].
+     */
+    fun closeSettings() {
+        popToRoot(SettingsRoute)
+        selected.value = START_SECTION
     }
 
     /**

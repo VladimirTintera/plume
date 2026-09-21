@@ -15,7 +15,7 @@ import kotlinx.serialization.modules.subclass
  */
 sealed interface Route : NavKey
 
-/** Sekce dosažitelné z railu/baru. Zásobník má vždycky právě jednu na dně. */
+/** Sekce aplikace, každá s vlastním zásobníkem. Zásobník má vždycky právě jednu na dně. */
 sealed interface TopLevelRoute : Route
 
 @Serializable

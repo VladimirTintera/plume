@@ -6,7 +6,6 @@
     <string name="common_delete">Smazat</string>
     <string name="common_close">Zavřít</string>
     <string name="common_try_again">Zkusit znovu</string>
-    <string name="nav_chats">Chaty</string>
     <string name="nav_settings">Nastavení</string>
     <string name="auth_continue">Pokračovat</string>
     <string name="auth_sign_in_with_qr">Přihlásit se QR kódem</string>
