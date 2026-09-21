@@ -168,6 +168,7 @@ fun NewChatScreen(
                                         avatarFileId = null,
                                         size = 40.dp,
                                         isSavedMessages = true,
+                                        backdrop = MaterialTheme.colorScheme.primaryContainer,
                                     )
                                 },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),

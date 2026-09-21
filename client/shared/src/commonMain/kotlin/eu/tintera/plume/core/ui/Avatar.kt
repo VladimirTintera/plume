@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -50,14 +51,22 @@ fun Avatar(
      * reakce a zhlédnutí, kde jde vždycky o člověka.
      */
     shape: Shape = CircleShape,
+    /**
+     * Plocha, na které avatar leží. Potřebuje ji jen záložka Uložených zpráv: ta je v `primary`
+     * a na tónované kartě (`primaryContainer` ve výběrech) s ní v paletě se zvýšeným kontrastem
+     * splývá — viz [accentOn].
+     */
+    backdrop: Color = MaterialTheme.colorScheme.surface,
 ) {
 
     if (isSavedMessages) {
+        val colors = MaterialTheme.colorScheme
+        val fill = accentOn(backdrop, colors.primary, colors.contentColorFor(backdrop))
         Surface(
             modifier = modifier.size(size),
             shape = shape,
-            color = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
+            color = fill,
+            contentColor = if (fill == colors.primary) colors.onPrimary else backdrop,
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
