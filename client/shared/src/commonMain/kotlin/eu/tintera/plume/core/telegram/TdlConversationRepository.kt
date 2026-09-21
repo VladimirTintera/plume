@@ -15,6 +15,7 @@ import dev.g000sha256.tdl.dto.ChatMemberStatusCreator
 import dev.g000sha256.tdl.dto.ChatMemberStatusLeft
 import dev.g000sha256.tdl.dto.ChatMemberStatusMember
 import dev.g000sha256.tdl.dto.ChatMemberStatusRestricted
+import dev.g000sha256.tdl.dto.ChatPermissions
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
 import dev.g000sha256.tdl.dto.FormattedText
@@ -730,6 +731,7 @@ class TdlConversationRepository(
                     draftText = chat.draftMessage?.toChatDraft()?.text,
                     canJoin = access.canJoin,
                     writeAccess = access.writeAccess,
+                    content = access.content,
                     draftReplyToMessageId = (chat.draftMessage?.replyTo as? InputMessageReplyToMessage)
                         ?.messageId,
                 )
@@ -759,6 +761,7 @@ class TdlConversationRepository(
                 status = status,
                 membersCanSend = chat.permissions.canSendBasicMessages,
             ),
+            content = contentAccess(status = status, groupDefaults = chat.permissions.toContentAccess()),
         )
     }
 
@@ -1112,6 +1115,18 @@ private const val MEMBER_SEARCH_LIMIT = 50
 /** Strop stránek připnutých zpráv. Pět set připnutých v jednom chatu je víc než dost. */
 private const val MAX_PINNED_PAGES = 5
 
+/**
+ * Práva na druhy obsahu z `ChatPermissions`. Bere se jen to, co aplikace umí poslat — hudba,
+ * video kolečka a ankety by tu byly mrtvá pole.
+ */
+private fun ChatPermissions.toContentAccess(): ContentAccess = ContentAccess(
+    photos = canSendPhotos,
+    videos = canSendVideos,
+    documents = canSendDocuments,
+    voiceNotes = canSendVoiceNotes,
+    stickers = canSendOtherMessages,
+)
+
 /** Postavení uživatele ve skupině; `when` bez `else`, takže nový stav v TDLib rozbije překlad. */
 private fun ChatMemberStatus.toOwn(): OwnMemberStatus = when (this) {
     is ChatMemberStatusCreator -> OwnMemberStatus.Creator(isMember = isMember)
@@ -1120,6 +1135,7 @@ private fun ChatMemberStatus.toOwn(): OwnMemberStatus = when (this) {
     is ChatMemberStatusRestricted -> OwnMemberStatus.Restricted(
         isMember = isMember,
         canSendMessages = permissions.canSendBasicMessages,
+        content = permissions.toContentAccess(),
     )
     is ChatMemberStatusLeft -> OwnMemberStatus.Left
     is ChatMemberStatusBanned -> OwnMemberStatus.Banned

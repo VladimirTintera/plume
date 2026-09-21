@@ -3,6 +3,7 @@ package eu.tintera.plume.features.conversation
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.FilledTonalButton
+import eu.tintera.plume.core.telegram.ContentAccess
 import eu.tintera.plume.core.telegram.WriteAccess
 import eu.tintera.plume.resources.conversation_not_member
 import eu.tintera.plume.resources.conversation_write_restricted
@@ -908,6 +909,7 @@ fun ConversationScreen(
                 onRemoveAttachment = viewModel::removeAttachment,
                 onOpenAttachment = { index -> previewAttachmentIndex = index },
                 onSetAttachmentMode = viewModel::setAttachmentMode,
+                content = state.content,
                 selfDestructAllowed = state.canSelfDestruct(attachmentCount = 1),
                 previewAttachmentIndex = previewAttachmentIndex,
                 expressionMode = expressionMode,
@@ -943,7 +945,7 @@ fun ConversationScreen(
                 mode = expressionMode,
                 onModeChange = viewModel::setExpressionMode,
                 // Při úpravě zprávy jen emoji: samolepku do upravované zprávy vložit nejde.
-                stickersAvailable = state.editing == null,
+                stickersAvailable = state.editing == null && state.content.stickers,
                 draft = draft,
                 // Úprava z výběru emoji je psaní jako každé jiné: ukládá koncept i hlásí „píše…".
                 onDraftEdit = {
@@ -1334,6 +1336,11 @@ private fun MessageInput(
     /** Rozepsaný text; drží ho obrazovka, protože do něj vkládá i výběr emoji. */
     draft: TextFieldValue,
     onDraftValueChange: (TextFieldValue) -> Unit,
+    /**
+     * Které druhy obsahu chat přijme. Co se poslat nesmí, se nenabízí: sponka schová položku
+     * (a bez jediné i sama sebe), mikrofon ustoupí odeslání, samolepky zůstanou na emoji.
+     */
+    content: ContentAccess = ContentAccess.All,
     modifier: Modifier = Modifier,
 ) {
 
@@ -1464,10 +1471,13 @@ private fun MessageInput(
              * Odsazení 4 dp je (56 − 48) / 2: tlačítko pak sedí na střed jednořádkového pole.
              */
             // Přílohy jen při psaní — k úpravě textové zprávy příloha nepatří.
-            if (editing == null) {
+            if (editing == null && content.anyAttachment) {
                 AttachButton(
                     onPickMedia = onPickMedia,
                     onPickDocument = onPickDocument,
+                    // Skupina může povolit fotky a zakázat soubory; nabídne se jen dovolené.
+                    canPickMedia = content.photos || content.videos,
+                    canPickDocument = content.documents,
                     contentColor = inputIconColor(),
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )
@@ -1575,7 +1585,7 @@ private fun MessageInput(
             ) {
                 // Ikona slibuje, co se otevře: poslední použitou část výběru. Při úpravě
                 // zprávy jde otevřít jen emoji — samolepka do textu upravované zprávy nepatří.
-                if (editing != null || expressionMode == ExpressionMode.Emoji) {
+                if (editing != null || !content.stickers || expressionMode == ExpressionMode.Emoji) {
                     Icon(painterResource(Res.drawable.mood_24dp), contentDescription = stringResource(Res.string.conversation_open_emoji))
                 } else {
                     Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = stringResource(Res.string.conversation_open_stickers))
@@ -1604,7 +1614,8 @@ private fun MessageInput(
              * jinak bylo neaktivní, dostane smysl. Ťuknutí nahrávání spustí, odeslání ho ukončí.
              * Při úpravě zprávy mikrofon není — hlasovka úprava není.
              */
-            val showMic = !isRecording && editing == null && draft.text.isBlank() && !withAttachments
+            // Bez práva na hlasovky mikrofon není — tlačítko zůstane odesláním, jen neaktivním.
+            val showMic = !isRecording && editing == null && draft.text.isBlank() && !withAttachments && content.voiceNotes
             val kind = when {
                 editing != null -> SendButtonKind.Save
                 showMic -> SendButtonKind.Mic
