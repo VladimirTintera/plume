@@ -1413,6 +1413,25 @@ class ConversationViewModel(
         }
     }
 
+    /**
+     * Profil odesílatele ze skupiny. Profil stojí na CHATU, takže se napřed najde (a případně
+     * lokálně založí) soukromý chat s ním — stejně jako při ťuknutí na člena v profilu skupiny.
+     */
+    private fun openSenderProfile(userId: Long) {
+        viewModelScope.launch {
+            chatRepository.privateChat(userId)
+                .onSuccess { target -> _state.update { it.copy(openProfile = target) } }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.reported(Res.string.conversation_mention_not_found)) }
+                }
+        }
+    }
+
+    /** Obrazovka profil otevřela; jednorázová událost jako [consumeOpenChat]. */
+    fun consumeOpenProfile() {
+        _state.update { it.copy(openProfile = null) }
+    }
+
     /** Obrazovka chat otevřela. Bez toho by se po otočení displeje otevřel znovu. */
     fun consumeOpenChat() {
         _state.update { it.copy(openChat = null) }
@@ -1658,6 +1677,7 @@ class ConversationViewModel(
             is MessageAction.OpenLink -> openLink(action.url)
             is MessageAction.OpenMention -> openMentioned { chatRepository.chatByUsername(action.username) }
             is MessageAction.OpenUser -> openMentioned { chatRepository.privateChat(action.userId) }
+            is MessageAction.OpenSenderProfile -> openSenderProfile(action.userId)
             MessageAction.OpenDocument -> openDocument(messageId)
             MessageAction.CancelUpload -> cancelUpload(messageId)
             MessageAction.ToggleVoice -> toggleVoice(messageId)
@@ -2468,6 +2488,8 @@ data class ConversationState(
     val search: InChatSearch? = null,
     /** Jednorázová událost: otevřít chat ze zmínky nebo odkazu, případně se skokem na zprávu. */
     val openChat: ChatTarget? = null,
+    /** Jednorázová událost: otevřít profil chatu (odesílatele ze skupiny). */
+    val openProfile: Long? = null,
     /** Výběr člena pro hledání podle odesílatele; `null` = zavřený. */
     val memberPicker: MemberPicker? = null,
     /** Náhled chatu z pozvánky; `null` = zavřený. */

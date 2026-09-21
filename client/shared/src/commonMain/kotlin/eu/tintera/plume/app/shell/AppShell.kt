@@ -383,6 +383,7 @@ private fun shellEntryProvider(
             },
             onSearch = { query -> navigation.openSearch(query, keepConversation = twoPane) },
             onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
+            onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(chatId)) },
         )
     }
 
@@ -393,9 +394,12 @@ private fun shellEntryProvider(
             viewModel = koinViewModel(key = "profile-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
             // Hledat patří konverzaci: profil se zavře a konverzace pod ním otevře hledání.
+            // Profil odesílatele otevřený ze skupiny má pod sebou SKUPINU — pak se místo ní
+            // otevře konverzace s ním, jinak by hledání čekalo na chat, který není vidět.
             onSearch = {
                 searchRequests.request(route.chatId)
                 chatsStack.pop(route)
+                if (!chatsStack.isOpenConversation(route.chatId)) chatsStack.add(ConversationRoute(route.chatId))
             },
             onOpenChat = { chatId ->
                 if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(chatId))
@@ -424,6 +428,7 @@ private fun shellEntryProvider(
             },
             onSearch = { query -> navigation.openSearch(query, keepConversation = false) },
             onOpenProfile = { chatsStack.add(ArchiveChatProfileRoute(route.chatId)) },
+            onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(chatId)) },
         )
     }
 
@@ -435,6 +440,9 @@ private fun shellEntryProvider(
             onSearch = {
                 searchRequests.request(route.chatId)
                 chatsStack.pop(route)
+                if (!chatsStack.isOpenArchiveConversation(route.chatId)) {
+                    chatsStack.add(ArchiveConversationRoute(route.chatId))
+                }
             },
             onOpenChat = { chatId ->
                 if (!chatsStack.isOpenArchiveConversation(chatId)) {

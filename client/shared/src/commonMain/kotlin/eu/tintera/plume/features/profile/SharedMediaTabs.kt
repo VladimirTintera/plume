@@ -54,6 +54,10 @@ import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.photoKey
 import eu.tintera.plume.core.ui.sharedNavElement
+import eu.tintera.plume.core.ui.sharedNavText
+import eu.tintera.plume.core.ui.LocalSavedMessagesChatId
+import eu.tintera.plume.core.ui.chatAvatarKey
+import eu.tintera.plume.core.ui.chatTitleKey
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.image_24dp
@@ -358,14 +362,28 @@ internal fun ProfileMembersList(
         modifier = modifier.fillMaxSize(),
     ) {
         itemsIndexed(members, key = { _, it -> it.sender.id }) { index, member ->
+            /*
+             * Ťuknutí otevře soukromý chat s členem (id chatu = id uživatele), takže avatar
+             * a jméno letí do hlavičky konverzace týmiž klíči jako ze seznamu chatů. Kromě
+             * vlastního účtu: ten vede do Uložených zpráv, které mají místo fotky záložku.
+             */
+            val flies = member.sender.id != LocalSavedMessagesChatId.current
             ListItem(
-                headlineContent = { Text(member.sender.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                headlineContent = {
+                    Text(
+                        member.sender.title,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = if (flies) Modifier.sharedNavText(chatTitleKey(member.sender.id)) else Modifier,
+                    )
+                },
                 leadingContent = {
                     Avatar(
                         chatId = member.sender.id,
                         title = member.sender.title,
                         avatarFileId = member.sender.avatarFileId,
                         size = MEMBER_AVATAR_SIZE,
+                        modifier = if (flies) Modifier.sharedNavElement(chatAvatarKey(member.sender.id)) else Modifier,
                     )
                 },
                 // Bot je pod jménem, ne ve štítku: štítek patří roli a bot bývá i správce.

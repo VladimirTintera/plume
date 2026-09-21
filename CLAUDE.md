@@ -2761,6 +2761,16 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
   rozvržení ji v pravém panelu nahradí a zpět vede do ní. Spodní bar se skrývá jako u konverzace
   (`inDetail`). Routa je v `NavSavedStateConfiguration`.
 - **Avatar a název přiletí z hlavičky konverzace** — tytéž sdílené klíče jako ze seznamu chatů.
+- **Do profilu vede i tvář odesílatele ve skupině** (`MessageAction.OpenSenderProfile`). Profil
+  stojí na chatu, takže se napřed najde soukromý chat (`privateChat`, lokálně). **Sdílený klíč
+  nese jen ŤUKNUTÁ tvář** (`ConversationItemScope.isProfileFlight`, `rememberSaveable` podle id
+  zprávy): tentýž člověk má tvář u každého bloku zpráv a o jeden klíč by se přetahovaly všechny.
+  Klíč se nastaví při ťuknutí, dřív než se asynchronně najde chat — navigace ho pak už vidí.
+  Záporné id odesílatele je chat (anonymní správce), ten profil neotevírá.
+- **Hledat v profilu otevřeném ze skupiny otevře konverzaci S NÍM**, ne skupinu pod profilem:
+  požadavek hledání je stav podle chatu a čekal by na chat, který není vidět.
+- **Člen ze seznamu letí do hlavičky konverzace** (avatar i jméno, klíče jako ze seznamu chatů),
+  kromě vlastního účtu — ten vede do Uložených zpráv se záložkou místo fotky.
 - **Údaje i obsah záložek jsou bloky zaoblených řádků** (`groupItemShape`, `surfaceContainerLowest`,
   spára 2 dp), stejný jazyk jako seznam chatů. Dřív byly údaje karta `SettingsGroup`
   (`surfaceContainerHighest`) a záložky holé řádky — v jednom profilu dva vzhledy pro „seznam věcí".

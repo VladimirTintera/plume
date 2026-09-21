@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.resources.profile_open
+import eu.tintera.plume.core.ui.chatAvatarKey
+import eu.tintera.plume.core.ui.sharedNavElement
+import androidx.compose.foundation.clickable
 import eu.tintera.plume.core.ui.highlightRanges
 import eu.tintera.plume.core.telegram.MessageEntityType
 import androidx.compose.animation.animateColorAsState
@@ -528,13 +532,36 @@ private fun MessageFrame(
         when (frame.avatar) {
             SenderAvatar.None -> Unit
             SenderAvatar.Spacer -> Spacer(Modifier.width(SENDER_AVATAR_SLOT))
-            SenderAvatar.Shown -> Avatar(
-                chatId = message.senderId,
-                title = message.senderName.orEmpty(),
-                avatarFileId = message.senderAvatarFileId,
-                size = SENDER_AVATAR_SIZE,
-                modifier = Modifier.padding(end = SENDER_AVATAR_SLOT - SENDER_AVATAR_SIZE),
-            )
+            SenderAvatar.Shown -> {
+                // Profil jen u člověka: záporné id je chat (anonymní správce, kanál), ne uživatel.
+                val userId = message.senderId.takeIf { it > 0 }
+                val profileLabel = stringResource(Res.string.profile_open)
+                Avatar(
+                    chatId = message.senderId,
+                    title = message.senderName.orEmpty(),
+                    avatarFileId = message.senderAvatarFileId,
+                    size = SENDER_AVATAR_SIZE,
+                    modifier = Modifier
+                        .padding(end = SENDER_AVATAR_SLOT - SENDER_AVATAR_SIZE)
+                        .then(
+                            if (userId != null && scope.isProfileFlight(message.id)) {
+                                Modifier.sharedNavElement(chatAvatarKey(userId))
+                            } else {
+                                Modifier
+                            },
+                        )
+                        .clip(CircleShape)
+                        .then(
+                            if (userId != null) {
+                                Modifier.clickable(onClickLabel = profileLabel) {
+                                    scope.onAction(message.id, MessageAction.OpenSenderProfile(userId))
+                                }
+                            } else {
+                                Modifier
+                            },
+                        ),
+                )
+            }
         }
 
         Column(
