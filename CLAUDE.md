@@ -2896,6 +2896,28 @@ za `MessageExpiredPhoto` / `MessageExpiredVideo`.
 - **Mizející média nejsou v listování prohlížeče** (`visualMedia` je vyřazuje), nemají v něm
   reakce, sdílení ani uložení, a notifikace k nim nepřikládá obrázek — stejně jako ke spoileru.
 
+### Jak to ověřit
+
+**Přes testovacího bota jde ověřit jen ODESÍLACÍ strana.** Bot API mizející média posílat neumí
+— `sendPhoto` nemá `ttl_seconds` a `ephemeral_message_parameters` (Bot API 10.3) je něco jiného:
+viditelnost zprávy ve skupině, ne mizení. Kdo čeká, že si mizející fotku pošle botem, hledá
+parametr, který neexistuje.
+
+- **Chat s botem je platný cíl a server ho přijme.** `selfDestructAllowed` se ptá na soukromý
+  chat, a chat s botem jím je — ověřeno na emulátoru odesláním obou režimů. Testuje se tedy
+  v něm, ne ve skupině.
+- **Příjmová strana potřebuje druhý uživatelský účet.** Tikající odpočet ze `selfDestructIn`,
+  spotřebování po zhlédnutí, výměna za `MessageExpiredPhoto` a vyřazení z listování prohlížeče
+  se u vlastní odeslané zprávy z principu neprojeví — u odesílatele se nespotřebovává.
+- **Že se vlastní zpráva nespotřebovává, se pozná podle STOJÍCÍHO odpočtu**: v prohlížeči zůstane
+  „10s" i po patnácti vteřinách. U jednorázového zhlédnutí to samé přežije otevření i zavření.
+- **`FLAG_SECURE` se ověřuje dvakrát, ne snímkem.** Černý `screencap` sám o sobě nic nedokazuje —
+  stejně vyjde i obrazovka, která se nestihla vykreslit. Druhá půlka důkazu je
+  `adb shell dumpsys window windows | grep -A3 plume`, kde musí být ve `fl=` příznak `SECURE`.
+- **Se zapnutým `FLAG_SECURE` se prohlížeč nedá ověřovat snímky** a musí se číst strom
+  zpřístupnění (`adb shell uiautomator dump`). Ten čte hierarchii, ne pixely, takže ho ochrana
+  proti snímkům neomezuje.
+
 ## Typy zpráv
 
 TDLib má přes sto podtypů `MessageContent`. Vykreslit umíme hrstku; zbytek musí mít aspoň
