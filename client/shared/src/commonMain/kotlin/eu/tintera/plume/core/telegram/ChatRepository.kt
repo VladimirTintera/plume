@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.telegram
 
 import kotlinx.coroutines.flow.Flow
+import kotlin.time.Duration
 import kotlinx.coroutines.flow.StateFlow
 import eu.tintera.plume.core.ui.UiText
 
@@ -123,11 +124,14 @@ interface ChatRepository {
      */
     suspend fun setArchived(chatId: Long, archived: Boolean): Result<Unit>
 
-    /** Ztlumí chat nebo ztlumení zruší. */
     /** Je chat ztlumený? Živě, pro profil chatu; `null`, dokud chat repository nezná. */
     fun muted(chatId: Long): Flow<Boolean?>
 
+    /** Ztlumí chat natrvalo, nebo ztlumení zruší. */
     suspend fun setMuted(chatId: Long, muted: Boolean): Result<Unit>
+
+    /** Ztlumí chat na [duration]; pak se zvuk vrátí sám (odpočet vede server). */
+    suspend fun muteFor(chatId: Long, duration: Duration): Result<Unit>
 
     /** Ruční příznak nepřečtení. Nezávislý na počtu nepřečtených zpráv. */
     suspend fun setMarkedAsUnread(chatId: Long, unread: Boolean): Result<Unit>

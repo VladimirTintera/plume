@@ -14,6 +14,7 @@ import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.Notification
+import dev.g000sha256.tdl.dto.NotificationGroupTypeMessages
 import dev.g000sha256.tdl.dto.NotificationTypeNewMessage
 import dev.g000sha256.tdl.dto.NotificationTypeNewPushMessage
 import dev.g000sha256.tdl.dto.PushMessageContentPhoto
@@ -142,6 +143,11 @@ class TdlNotificationRepository(
             membersCanSend = chat.permissions.canSendBasicMessages,
         ) == WriteAccess.Allowed
 
+        // Ztlumit má smysl jen u běžných zpráv. Zmínky a odpovědi (`Mentions`) chodí i ze
+        // ztlumeného chatu — ztlumení na hodinu by mu po hodině zvuk VRÁTILO, i když ho měl
+        // uživatel ztlumený natrvalo nebo výchozím nastavením.
+        val canMute = update.type is NotificationGroupTypeMessages
+
         val notifications = added.mapNotNull { notification ->
             val content = notification.content() ?: return@mapNotNull null
 
@@ -164,6 +170,7 @@ class TdlNotificationRepository(
                 imagePath = downloadedPath(content.image, IMAGE_TIMEOUT),
                 imageCaption = content.imageCaption,
                 canReply = canReply,
+                canMute = canMute,
             )
         }
 

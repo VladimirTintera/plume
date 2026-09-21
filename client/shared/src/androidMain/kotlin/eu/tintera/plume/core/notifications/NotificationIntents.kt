@@ -27,6 +27,9 @@ object NotificationIntents {
     /** Označení chatu za přečtený z notifikace. Týž příjemce jako [ACTION_REPLY]. */
     const val ACTION_MARK_READ = "eu.tintera.plume.action.NOTIFICATION_MARK_READ"
 
+    /** Ztlumení chatu z notifikace. Týž příjemce jako [ACTION_REPLY]. */
+    const val ACTION_MUTE = "eu.tintera.plume.action.NOTIFICATION_MUTE"
+
     /** Nejnovější zpráva notifikace, po kterou se čte; chybí = po nejnovější v chatu. */
     const val EXTRA_MESSAGE_ID = "eu.tintera.plume.extra.MESSAGE_ID"
 
@@ -109,6 +112,21 @@ object NotificationIntents {
             .putExtra(EXTRA_CHAT_ID, chatId)
             .putExtra(EXTRA_GROUP_ID, groupId)
             .apply { messageId?.let { putExtra(EXTRA_MESSAGE_ID, it) } }
+
+        return PendingIntent.getBroadcast(
+            context,
+            groupId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    /** Broadcast „Ztlumit". IMMUTABLE — do intentu nikdo nic nevkládá. */
+    fun mute(context: Context, groupId: Int, chatId: Long): PendingIntent {
+        val intent = Intent(ACTION_MUTE)
+            .setPackage(context.packageName)
+            .putExtra(EXTRA_CHAT_ID, chatId)
+            .putExtra(EXTRA_GROUP_ID, groupId)
 
         return PendingIntent.getBroadcast(
             context,

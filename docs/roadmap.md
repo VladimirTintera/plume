@@ -173,8 +173,7 @@ Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení
 
   Zvuky a vibrace vlastní volbou NEBUDOU: na Androidu je vlastní kanál a aplikace je po jeho
   vytvoření stejně přepsat nemůže (viz rozbor kanálů).
-- **Rychlé akce z notifikace.** Odpověď a označení za přečtené jsou na Androidu hotové (viz
-  CLAUDE.md, „Akce z notifikace"). Chybí:
-  - **Ztlumit** chat (třeba na hodinu), stejným objektem `ChatNotificationSettings` jako
-    v nabídce chatu.
-  - **Odpověď na iOS** (`UNTextInputNotificationAction`) — až budou na iOS notifikace vůbec.
+- **Rychlé akce z notifikace.** Odpověď, označení za přečtené a ztlumení na hodinu jsou na
+  Androidu hotové (viz CLAUDE.md, „Akce z notifikace"). Chybí:
+  - **Akce na iOS** (`UNTextInputNotificationAction` a kategorie notifikace) — až budou na iOS
+    notifikace vůbec.

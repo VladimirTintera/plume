@@ -161,6 +161,7 @@ class NewChatViewModelTest {
         override fun muted(chatId: Long): Flow<Boolean?> = emptyFlow()
 
         override suspend fun setMuted(chatId: Long, muted: Boolean): Result<Unit> = Result.success(Unit)
+        override suspend fun muteFor(chatId: Long, duration: kotlin.time.Duration): Result<Unit> = Result.success(Unit)
 
         override suspend fun setMarkedAsUnread(chatId: Long, unread: Boolean): Result<Unit> =
             Result.success(Unit)

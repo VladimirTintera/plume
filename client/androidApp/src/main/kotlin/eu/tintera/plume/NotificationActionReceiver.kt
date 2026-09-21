@@ -19,7 +19,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * Akce z notifikace: odpověď a označení za přečtené.
+ * Akce z notifikace: odpověď, označení za přečtené a ztlumení.
  *
  * **Proces může být mrtvý nebo zmrazený** — akce z notifikace ho probudí stejně jako push, takže
  * TDLib se teprve rozbíhá (`startKoin` z `MainApplication`) a na přihlášení se čeká. Po dobu
@@ -53,6 +53,12 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     koin.get<NotificationActions>().markRead(chatId, messageId, READY_TIMEOUT)
                         .onSuccess { logger.d { "Chat $chatId z notifikace přečten." } }
                 }
+            }
+
+            NotificationIntents.ACTION_MUTE -> runAsync {
+                koin.get<NotificationActions>().mute(chatId, READY_TIMEOUT)
+                    // Notifikaci stáhne TDLib sám: ztlumený chat z aktivních notifikací vyřadí.
+                    .onSuccess { logger.d { "Chat $chatId z notifikace ztlumen na ${NotificationActions.MUTE_DURATION}." } }
             }
         }
     }
