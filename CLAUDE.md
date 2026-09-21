@@ -1067,6 +1067,10 @@ testy v `ChatGroupsTest`). Nahradil spodní navigační lištu.
   dodá Koin (`get()`) z `CreationExtras`, které nese dekorátor ViewModelů Nav3.
 - **Snackbar je nad toolbarem**, ne ve slotu Scaffoldu — ten by ho dal pod toolbar. Seznam má
   dole navíc `TOOLBAR_CLEARANCE`, aby šel poslední chat odscrollovat nad toolbar.
+- **Toolbar stojí i nad klávesnicí** (`imePadding` za `consumeWindowInsets` spodního paddingu
+  Scaffoldu). Scaffold dává do paddingu jen systémové lišty, takže vysunutá klávesnice toolbar
+  i snackbar zakryla. Bez zkonzumování by se lišta a klávesnice sečetly a toolbar by visel
+  o výšku lišty výš.
 - **Nabízí se jen filtr, který má smysl** (`availableFilters`, testy `ChatGroupsTest`). Filtr
   podle druhu jen tehdy, když něco odfiltruje a něco nechá: bez kanálů by Kanály ukázaly prázdno
   a se samými lidmi by Lidé byli totéž co Vše. Nepotřebná ikona se schová i s místem

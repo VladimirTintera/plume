@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.layout.Spacer
@@ -340,11 +342,20 @@ fun ChatListScreen(
                     ),
             )
 
+            /*
+             * Nad navigační lištou A nad klávesnicí. Scaffold dává do paddingu jen systémové
+             * lišty, takže vysunutá klávesnice (hledání, dvoupanel s psaním vpravo) toolbar
+             * i snackbar překryla. Padding ze Scaffoldu se zkonzumuje a `imePadding` pak přidá
+             * jen to, o co je klávesnice vyšší než lišta — jinak by se obojí sečetlo.
+             */
+            val bottomPadding = PaddingValues(bottom = scaffoldPadding.calculateBottomPadding())
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = scaffoldPadding.calculateBottomPadding()),
+                    .padding(bottomPadding)
+                    .consumeWindowInsets(bottomPadding)
+                    .imePadding(),
             ) {
                 SnackbarHost(snackbarHostState)
                 ChatListToolbar(
