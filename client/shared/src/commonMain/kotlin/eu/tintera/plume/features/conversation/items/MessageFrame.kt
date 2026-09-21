@@ -966,10 +966,10 @@ private fun ReplyHint(progress: () -> Float, modifier: Modifier = Modifier) {
 }
 
 /** Profilovka odesílatele ve skupině. Menší než v seznamu chatů — doprovází bublinu, nevede ji. */
-private val SENDER_AVATAR_SIZE = 32.dp
+internal val SENDER_AVATAR_SIZE = 32.dp
 
 /** Místo pro profilovku i s mezerou k bublině; stejné u zpráv s tváří i bez ní. */
-private val SENDER_AVATAR_SLOT = 40.dp
+internal val SENDER_AVATAR_SLOT = 40.dp
 
 
 /**

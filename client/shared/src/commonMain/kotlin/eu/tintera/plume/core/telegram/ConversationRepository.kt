@@ -299,6 +299,12 @@ interface ConversationRepository {
     suspend fun searchMembers(chatId: Long, query: String): Result<List<SenderInfo>>
 
     /**
+     * Jméno a fotka uživatele nebo chatu s tímhle id — pro tvář toho, kdo ve skupině píše.
+     * Z keše odesílatelů, takže opakované „píše…" téhož člověka se na nic neptá.
+     */
+    suspend fun sender(senderId: Long): Result<SenderInfo>
+
+    /**
      * Sponzorované zprávy pro daný chat. Mimo kanály vrací prázdný seznam.
      *
      * Zobrazení je podle Telegram ToS **povinné** — výsledek se nesmí filtrovat ani skrývat.

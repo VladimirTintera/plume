@@ -789,8 +789,22 @@ class ConversationViewModel(
         }
 
         viewModelScope.launch {
-            chatRepository.activity(chatId)
-                .collect { activity -> _state.update { it.copy(activity = activity) } }
+            /*
+             * Kdo píše, se kreslí jeho tváří v místě, kam jeho zpráva naskočí. V soukromém chatu je
+             * to protějšek (odesílatel = chat), tvář nese [ChatInfo]; jinde se dohledá — z keše
+             * odesílatelů, takže opakované ohlášení se na nic neptá. Když to nejde, trojtečka
+             * zůstane bez tváře: vědět, ŽE někdo píše, je důležitější než kdo.
+             */
+            chatRepository.typing(chatId)
+                .map { typing ->
+                    typing?.let {
+                        Typing(
+                            activity = it.activity,
+                            sender = if (it.senderId == chatId) null else repository.sender(it.senderId).getOrNull(),
+                        )
+                    }
+                }
+                .collect { typing -> _state.update { it.copy(typing = typing) } }
         }
 
         viewModelScope.launch {
@@ -2359,14 +2373,23 @@ enum class PinScope {
  */
 private const val MAX_QUICK_REACTIONS = 6
 
+/**
+ * Činnost v chatu pro konverzaci. [sender] je `null` v soukromém chatu (tvář nese [ChatInfo])
+ * a tam, kde se odesílatele nepodařilo zjistit.
+ */
+data class Typing(val activity: ChatActivity, val sender: SenderInfo?)
+
 data class ConversationState(
     val info: ChatInfo? = null,
     /** Zpráva otevřená k výběru úryvku textu; `null` = sheet je zavřený. */
     val selectingText: ChatMessage? = null,
     /** Dostupnost protějšku pro podtitul hlavičky. `null` u skupin a kanálů. */
     val presence: Presence? = null,
-    /** Co protějšek (ve skupině kdokoli) právě dělá. Má v hlavičce přednost před dostupností. */
-    val activity: ChatActivity? = null,
+    /**
+     * Co protějšek (ve skupině kdokoli) právě dělá. Kreslí se v seznamu zpráv tam, kam jeho zpráva
+     * naskočí (`TypingItem`), ne v hlavičce.
+     */
+    val typing: Typing? = null,
     /** Otevřená nabídka nad zprávou (rychlé reakce + akce). */
     val messageMenu: MessageMenu? = null,
     /** Zpráva čekající na potvrzení smazání. */

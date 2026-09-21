@@ -1,6 +1,6 @@
 package eu.tintera.plume.features.chats
 
-import eu.tintera.plume.core.telegram.ChatActivity
+import eu.tintera.plume.core.telegram.ChatTyping
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -118,7 +118,7 @@ class NewChatViewModelTest {
         override fun chats(folder: ChatFolder): StateFlow<ChatListState> =
             MutableStateFlow(ChatListState.Ready(emptyList(), canLoadMore = false))
 
-        override fun activity(chatId: Long): Flow<ChatActivity?> = emptyFlow()
+        override fun typing(chatId: Long): Flow<ChatTyping?> = emptyFlow()
 
         override suspend fun openSavedMessages(): Result<Long> = Result.success(999L)
 

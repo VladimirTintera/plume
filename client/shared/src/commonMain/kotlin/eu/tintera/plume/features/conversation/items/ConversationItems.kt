@@ -49,6 +49,10 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
     // se karta vykreslila uprostřed minulosti; ukáže se, až se okno dostránkuje k přítomnosti.
     if (state.reachedEnd) state.sponsored.mapTo(items, ::SponsoredItem)
 
+    // „Píše…" stojí tam, kam zpráva naskočí: nad reklamou, pod nejnovější zprávou. V okně
+    // v historii nejnovější zpráva není, takže tam by stálo uprostřed minulosti.
+    if (state.reachedEnd) typingItem(state)?.let(items::add)
+
     rows.forEachIndexed { index, row ->
         val message = row.display
         val key = state.keyOf(row.oldest)
@@ -137,6 +141,21 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
 
     if (state.loading) items += LoadingOlderItem
     return items
+}
+
+/**
+ * Blok „píše…", nebo `null`, když nikdo nic nedělá. Kanál ho nemá — příspěvky nepíše nikdo, kdo
+ * by se dal ukázat, a hlavičku kanálu nese chat sám.
+ */
+private fun typingItem(state: ConversationState): TypingItem? {
+    val typing = state.typing ?: return null
+    val info = state.info
+    if (info?.isChannel == true) return null
+    val inGroup = info?.isGroup == true
+    val face = typing.sender?.let { TypingFace(it.id, it.title, it.avatarFileId) }
+        // V soukromém chatu píše protějšek, a jeho tvář je tvář chatu.
+        ?: info?.takeUnless { inGroup }?.let { TypingFace(it.id, it.title, it.avatarFileId) }
+    return TypingItem(activity = typing.activity, face = face, inGroup = inGroup)
 }
 
 /**
