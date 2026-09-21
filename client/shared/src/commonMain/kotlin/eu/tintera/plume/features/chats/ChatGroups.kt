@@ -60,3 +60,38 @@ fun List<ChatSummary>.filteredBy(filter: ChatFilter): List<ChatSummary> = when (
     ChatFilter.Groups -> filter { it.kind == ChatKind.Group }
     ChatFilter.Channels -> filter { it.kind == ChatKind.Channel }
 }
+
+/**
+ * Filtry, které má smysl nabízet v toolbaru.
+ *
+ * - **Vše a Nepřečtené jsou vždycky.** Nepřečtené jsou STAV, který se mění každou chvíli; ikona,
+ *   která by se objevovala a mizela s každou zprávou, by toolbar pod palcem přeskládávala.
+ *   Prázdný výsledek („všechno přečteno") je u nich odpověď, ne slepá ulička.
+ * - **Filtr podle druhu jen tehdy, když něco odfiltruje a něco nechá.** Bez kanálů by Kanály
+ *   ukázaly prázdno, a když jsou všechny chaty lidé, jsou Lidé totéž co Vše. Druh chatu se mění
+ *   zřídka, takže toolbar zůstává klidný.
+ * - **Vybraný filtr nemizí nikdy** ([selected]). Když uživatel opustí poslední kanál, zůstane
+ *   na Kanálech s prázdným stavem; ikona by mu jinak zmizela pod prstem i s výběrem.
+ *
+ * Počítá se nad týmiž chaty, které seznam ukazuje — bez nepřipnutých Uložených zpráv, jinak by
+ * jimi Lidé „existovali" a ukázali prázdno. [chats] je `null`, dokud se seznam načítá: pak se
+ * nabízí jen to, co je vždycky, a filtry podle druhu naběhnou, až je jasné, že mají co ukázat.
+ */
+fun availableFilters(
+    chats: List<ChatSummary>?,
+    selected: ChatFilter,
+    savedMessagesChatId: Long? = null,
+): List<ChatFilter> {
+    val kinds = chats.orEmpty()
+        .filter { it.id != savedMessagesChatId || it.isPinned }
+        .mapTo(mutableSetOf()) { it.kind }
+    return ChatFilter.entries.filter { filter ->
+        val kind = when (filter) {
+            ChatFilter.All, ChatFilter.Unread -> return@filter true
+            ChatFilter.Private -> ChatKind.Private
+            ChatFilter.Groups -> ChatKind.Group
+            ChatFilter.Channels -> ChatKind.Channel
+        }
+        filter == selected || (kind in kinds && kinds.size > 1)
+    }
+}

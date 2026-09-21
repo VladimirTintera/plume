@@ -104,6 +104,52 @@ class ChatGroupsTest {
         assertEquals(listOf(1L, 3L), chats.filteredBy(ChatFilter.Unread).map { it.id })
     }
 
+    /** Lidé, skupiny i kanály: nabízí se všechno. */
+    @Test
+    fun filtryPodleDruhuJenKdyzJeCoRozlisit() {
+        val mixed = listOf(chat(1), chat(2, kind = ChatKind.Group), chat(3, kind = ChatKind.Channel))
+        assertEquals(ChatFilter.entries, availableFilters(mixed, ChatFilter.All))
+
+        // Bez kanálů Kanály nejsou.
+        assertEquals(
+            listOf(ChatFilter.All, ChatFilter.Unread, ChatFilter.Private, ChatFilter.Groups),
+            availableFilters(mixed.dropLast(1), ChatFilter.All),
+        )
+
+        // Samí lidé: Lidé by byli totéž co Vše.
+        assertEquals(listOf(ChatFilter.All, ChatFilter.Unread), availableFilters(listOf(chat(1), chat(2)), ChatFilter.All))
+    }
+
+    /** Vybraný filtr pod prstem nezmizí, i když už nemá co ukázat. */
+    @Test
+    fun vybranyFiltrZustava() {
+        val chats = listOf(chat(1), chat(2, kind = ChatKind.Group))
+
+        assertEquals(
+            listOf(ChatFilter.All, ChatFilter.Unread, ChatFilter.Private, ChatFilter.Groups, ChatFilter.Channels),
+            availableFilters(chats, ChatFilter.Channels),
+        )
+    }
+
+    /** Nepřipnuté Uložené zprávy v seznamu nejsou, takže Lidé kvůli nim nevzniknou. */
+    @Test
+    fun ulozeneZpravyNedelajiLidi() {
+        val saved = 9L
+        val chats = listOf(chat(saved), chat(2, kind = ChatKind.Group))
+
+        assertEquals(listOf(ChatFilter.All, ChatFilter.Unread), availableFilters(chats, ChatFilter.All, saved))
+        assertEquals(
+            listOf(ChatFilter.All, ChatFilter.Unread, ChatFilter.Private, ChatFilter.Groups),
+            availableFilters(chats.map { if (it.id == saved) it.copy(isPinned = true) else it }, ChatFilter.All, saved),
+        )
+    }
+
+    /** Než se seznam načte, nabízí se jen to, co je vždycky. */
+    @Test
+    fun behemNacitaniJenVseANeprectene() {
+        assertEquals(listOf(ChatFilter.All, ChatFilter.Unread), availableFilters(null, ChatFilter.All))
+    }
+
     private fun List<List<ChatSummary>>.ids(): List<List<Long>> = map { group -> group.map { it.id } }
 
     private fun chat(

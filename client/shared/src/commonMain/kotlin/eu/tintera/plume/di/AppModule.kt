@@ -175,6 +175,7 @@ fun appModule() = module {
             appUpdates = get(),
             devices = get(),
             session = get(),
+            savedState = get(),
         )
     }
     viewModelOf(::StickerPickerViewModel)
