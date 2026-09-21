@@ -154,7 +154,16 @@
     <string name="conversation_search_failed">Couldn't search this chat.</string>
     <string name="profile_open">Open profile</string>
     <string name="profile_mute">Mute</string>
+    <string name="profile_tab_files">Files</string>
+    <string name="profile_tab_links">Links</string>
+    <string name="profile_tab_media">Media</string>
+    <string name="profile_tab_members">Members</string>
     <string name="profile_unmute">Unmute</string>
+    <string name="profile_shared_file_meta">%1$s · %2$s</string>
+    <string name="profile_shared_link">Link</string>
+    <string name="profile_shared_media_video">Video</string>
+    <string name="profile_shared_photo">Photo</string>
+    <string name="profile_shared_failed">Shared content couldn't be loaded.</string>
     <string name="profile_search">Search</string>
     <string name="profile_info">Info</string>
     <string name="profile_username">Username</string>
@@ -162,7 +171,6 @@
     <string name="profile_phone">Phone</string>
     <string name="profile_bio">Bio</string>
     <string name="profile_description">Description</string>
-    <string name="profile_members">Members</string>
     <string name="profile_role_owner">Owner</string>
     <string name="profile_role_admin">Admin</string>
     <string name="profile_bot">Bot</string>

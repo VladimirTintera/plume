@@ -577,6 +577,7 @@ private fun shellEntryProvider(
             onOpenChat = { chatId ->
                 if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(chatId))
             },
+            onOpenMedia = { messageId -> chatsStack.add(MediaRoute(route.chatId, messageId)) },
         )
     }
 
@@ -617,6 +618,7 @@ private fun shellEntryProvider(
                     chatsStack.add(ArchiveConversationRoute(chatId))
                 }
             },
+            onOpenMedia = { messageId -> chatsStack.add(MediaRoute(route.chatId, messageId)) },
         )
     }
 
