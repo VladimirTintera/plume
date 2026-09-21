@@ -1,3 +1,3 @@
 type: feat
-cs: Profil chatu ožil: avatar se při posouvání zmenšuje, ztlumení je vidět na tlačítku
-en: Livelier chat profile: the photo shrinks as you scroll, muting shows on its button
+cs: Profil chatu ožil: zmenšující se avatar, viditelné ztlumení, barevné role členů
+en: Livelier chat profile: shrinking photo, visible mute state, colored member roles

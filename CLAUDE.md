@@ -2761,7 +2761,9 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
   spára 2 dp), stejný jazyk jako seznam chatů. Dřív byly údaje karta `SettingsGroup`
   (`surfaceContainerHighest`) a záložky holé řádky — v jednom profilu dva vzhledy pro „seznam věcí".
   Mřížka médií nese velké zaoblení jen v rozích bloku (`mediaTileShape`, i schod neúplného
-  posledního řádku). Role člena je tonální štítek, ne barevné slovo. Akce jsou tónované dlaždice
+  posledního řádku). Role člena je tonální štítek, ne barevné slovo;
+  vlastník terciární s hvězdou, správce sekundární se štítem — ikona proto, že barva sama
+  rozdíl nenese (barvoslepost, paleta se zvýšeným kontrastem). Akce jsou tónované dlaždice
   s ikonou nad popiskem; popisek říká, co se stane (Ztlumit / Zapnout zvuk), ne stav.
 - **Záložky jsou connected button group** (`ToggleButton` s `ButtonGroupDefaults.connected*Shapes`),
   ne `PrimaryTabRow` s podtržením — to je vzhled M2 a mezi zaoblenými bloky působil cize.
