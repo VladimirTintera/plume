@@ -23,10 +23,12 @@ import eu.tintera.plume.resources.menu_forward
 import eu.tintera.plume.resources.menu_info
 import eu.tintera.plume.resources.menu_pin
 import eu.tintera.plume.resources.menu_reply
+import eu.tintera.plume.resources.menu_select_text
 import eu.tintera.plume.resources.menu_unpin
 import eu.tintera.plume.resources.push_pin_24dp
 import eu.tintera.plume.resources.reply_24dp
 import eu.tintera.plume.resources.star_24dp
+import eu.tintera.plume.resources.text_select_24dp
 import eu.tintera.plume.resources.star_filled_24dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
@@ -117,6 +119,19 @@ sealed interface MessageMenuAction : MessageAction {
     data object Copy : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
             MenuPresentation(Res.drawable.content_copy_24dp, Res.string.menu_copy).takeIf { menu.actions.canCopy }
+    }
+
+    /**
+     * Vybrat úryvek textu. Kandidát za stejných podmínek jako [Copy]: bez textu není co vybírat
+     * a chráněný obsah (`canBeSaved`) ven nesmí ani po kouskách.
+     *
+     * **Je to samostatná položka, ne výběr přímo v bublině.** Dlouhý stisk už patří nabídce nad
+     * zprávou a `SelectionContainer` by si ho vzal pro sebe — z bubliny by nešlo otevřít nabídku.
+     * Sheet je stejná cesta jako „Informace": jednorázová akce, která nabídku ukončí.
+     */
+    data object SelectText : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.text_select_24dp, Res.string.menu_select_text).takeIf { menu.actions.canCopy }
     }
 
     /** Kandidát jen u samolepky. Jestli už v oblíbených je, se zjistí při otevření nabídky. */
