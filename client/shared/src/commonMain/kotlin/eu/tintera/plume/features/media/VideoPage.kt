@@ -64,6 +64,9 @@ import eu.tintera.plume.core.ui.photoKey
 import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.core.video.VideoSurface
+import eu.tintera.plume.core.video.StreamingSource
+import eu.tintera.plume.core.video.videoStreamingSupported
+import kotlinx.coroutines.flow.MutableStateFlow
 import eu.tintera.plume.core.video.rememberVideoPlayer
 import eu.tintera.plume.features.conversation.formatDuration
 import eu.tintera.plume.resources.Res
@@ -143,6 +146,21 @@ internal fun VideoPage(
     }
     val path = (file as? FileState.Ready)?.path
 
+    /*
+     * Streamování: přehrát rozestavěný soubor, místo aby se čekalo na celý.
+     *
+     * Jde to, jen když má video index na začátku (`supportsStreaming` od serveru) a když to
+     * platforma umí — na iOS zatím ne. Souvisle stažených bajtů (`downloadedPrefixSize`) se
+     * čte z vlákna přehrávače, proto `MutableStateFlow`, ne Compose stav.
+     */
+    val streamable = videoStreamingSupported && video.supportsStreaming
+    val downloading = file as? FileState.Downloading
+    // Stažený úsek se čte z vlákna přehrávače, proto `MutableStateFlow`, ne Compose stav.
+    val downloadedRange = remember(video.fileId) { MutableStateFlow(LongRange.EMPTY) }
+    downloadedRange.value = downloading?.downloaded ?: LongRange.EMPTY
+    val streamPath = downloading?.path?.takeIf { streamable }
+    val streamTotal = downloading?.totalSize ?: 0L
+
     val player = rememberVideoPlayer()
     var loaded by remember { mutableStateOf(false) }
     var controlsVisible by remember { mutableStateOf(true) }
@@ -153,10 +171,28 @@ internal fun VideoPage(
     // Během tažení posuvníku se ukazuje místo pod prstem, ne kde přehrávač zrovna je.
     var seekingFraction by remember { mutableStateOf<Float?>(null) }
 
-    LaunchedEffect(path) {
-        if (path != null && !loaded) {
-            player.load(path)
-            loaded = true
+    LaunchedEffect(path, streamPath) {
+        if (loaded) return@LaunchedEffect
+        when {
+            // Hotový soubor má přednost: jednodušší cesta a nic se na něj nečeká.
+            path != null -> {
+                player.load(path)
+                loaded = true
+            }
+            // Streamovat se dá, teprve až je na disku začátek souboru s indexem.
+            streamPath != null && streamTotal > 0 -> {
+                player.loadStreaming(
+                    StreamingSource(
+                        path = streamPath,
+                        totalSize = streamTotal,
+                        downloaded = { downloadedRange.value },
+                        // Přehrávač si řekne o `moov` atom na konci souboru; bez přesunu
+                        // stahování by na něj čekal marně.
+                        requestFrom = { offset -> scope.launch { repository.downloadFrom(video.fileId, offset) } },
+                    ),
+                )
+                loaded = true
+            }
         }
     }
 

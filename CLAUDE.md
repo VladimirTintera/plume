@@ -2952,9 +2952,26 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   video stahuje a hraje. Návrat do galerie ho pozastaví.
 - **Ťuknutí na celé obrazovce u videa napřed ukáže schované ovládání**, teprve ťuknutí
   s ovládáním na očích vede do galerie. Jinak by se u hrajícího videa k posuvníku nedalo dostat.
-- **Video se stáhne celé, teprve pak hraje** (průběh přes náhled). Rozestavěný soubor z TDLib
-  přehrávač nepřečte, index bývá na konci. Streamování (čtení částí přes `readFilePart` / vlastní
-  zdroj dat přehrávače) je v roadmapě. Stahovat začne až vybraná stránka; soused složený dopředu ne.
+- **Video se streamuje z rozestavěného souboru** (Android; `StreamingSource`,
+  `PartialFileDataSource`). ExoPlayer dostane vlastní `DataSource`, který čte soubor TDLib
+  a místo konce vstupu POČKÁ, až data dorazí — `FileDataSource` by na konci rozestavěného
+  souboru ohlásil konec a přehrávání by po pár vteřinách skončilo. Stahovat začne až vybraná
+  stránka; soused složený dopředu ne.
+- **Bez přesouvání stahování by to nefungovalo.** Přehrávač si hned na začátku řekne o `moov`
+  atom, a ten u většiny videí leží na KONCI souboru; TDLib přitom stahuje od začátku, takže by
+  se na něj čekalo marně. `StreamingSource.requestFrom` proto volá `downloadFile` s offsetem.
+- **`downloadedPrefixSize` se počítá od `downloadOffset`, ne od začátku souboru.** Po skoku na
+  konec je dostupný úsek `downloadOffset ..< downloadOffset + prefix` — prvních N bajtů
+  dostupných NENÍ, i když se předtím stáhly (testy `FileStateTest`). Kdo to plete, čte díry.
+- **`supportsStreaming` od serveru říká, co tvrdí odesílatel, ne kde index doopravdy je.**
+  Ověřeno: video poslané botem s `supports_streaming=true` mělo `moov` na konci. Nedá se z něj
+  tedy usuzovat, že skok nebude potřeba — jen se podle něj streamování vůbec zkusí.
+- **Čekání na data blokuje vlákno ExoPlayeru, a tak to má být** — je to jeho vlastní vlákno pro
+  načítání. Po 30 s bez nových dat se čtení vzdá: stahování mohlo spadnout a věčné čekání by
+  vypadalo jako zamrzlý přehrávač.
+- **iOS zatím streamovat neumí** (`videoStreamingSupported = false`). `AVPlayer` by potřeboval
+  `AVAssetResourceLoaderDelegate` — vlastní zdroj odpovídající na požadavky na rozsahy bajtů;
+  do té doby se tam čeká na celý soubor.
 - **Přehrávač je v kompozici** (`rememberVideoPlayer`) a s ní se uvolní. Hraje jen vybraná
   stránka; stav (pozice, délka, dohráno) se čte po 200 ms, přehrávače ho samy nehlásí.
   Spuštění videa zastaví hrající hlasovku.
