@@ -1632,6 +1632,34 @@ album. Bublina ukazuje průběh nahrávání.
   soubor z foťáku, kde index bývá na konci, takže `supportsStreaming = false`. Soubor
   z `loadFileRepresentation` platí jen uvnitř callbacku — kopíruje se hned v něm.
 
+### Otevřený chat (`openChat` / `closeChat`)
+
+Otevřená konverzace to hlásí TDLib (`ConversationRepository.openChat`, protějšek při odchodu).
+Dokud se to nedělalo, vypadal každý chat jako zavřený — a notifikace k chatu, na který se
+uživatel právě díval, na liště problikla, než ji stihlo zrušit hlášení přečtení.
+
+- **U otevřeného chatu se notifikace ODKLÁDÁ, neruší.** V `add_new_message_notification` je
+  `min_delay_ms = 1000`, když je klient online a chat otevřený. To je celý ten rozdíl: během té
+  vteřiny dorazí `viewMessages` z konverzace a notifikace se zahodí dřív, než se ukáže.
+  **Otevřený chat notifikace NEPOTLAČUJE** — kdyby potlačoval, byl by chat nechaný „otevřený"
+  na pozadí tichou ztrátou zpráv.
+- **Proto se při odchodu do pozadí nezavírá.** Odklad se váže na `online`, a ten aplikace
+  v pozadí vypíná sama (`ConnectionController`), takže na notifikace to nemá vliv. Zavírat
+  a otevírat chat při každém přepnutí do pozadí by byla složitost bez užitku.
+- **Pár musí sedět, takže obě volání jdou z `appScope`, ne z `viewModelScope`.** Ten se při
+  odchodu z chatu ruší, takže otevření by se nemuselo odeslat, zatímco zavření (v `onCleared`)
+  ano — a TDLib si otevření počítá. Zavření navíc čeká na doběhnutí otevření (`join`), jinak by
+  se pořadí mohlo obrátit a chat by zůstal otevřený napořád.
+- **Zavření je PRVNÍ věc v `onCleared`.** Kus pod ním končí předčasným `return` (nemá-li se co
+  uložit z konceptu); pod ním by se na zavření při odchodu z chatu bez rozepsané zprávy nedošlo.
+- **Zavřít neotevřený chat nevadí.** `close_dialog` s nulovým počtem se jen vrátí, takže na
+  vyměněném klientovi (po odhlášení se počty resetují) to nic nerozbije.
+- **Je to víc než notifikace.** Otevřený chat si TDLib nechává načtený v paměti, zvedá prioritu
+  stahování jeho souborů, kratčeji odkládá ukládání konceptu a u supergroup a kanálů podle toho
+  řídí doručování updatů.
+- **Na blikání kvůli druhému zařízení to nemá vliv** — tam zprávu přečte ten druhý klient a ten
+  o naší obrazovce nic neví (viz „Notifikace → Poučení", běžící emulátor).
+
 ### Předěly dne
 
 V bublině se vypisují jen hodiny, protože datum má nést předěl nad blokem zpráv. Bez něj se

@@ -219,6 +219,15 @@ class ConversationViewModel(
     /** Už nahlášená zhlédnutí reklam — každé se hlásí jen jednou. */
     private val reportedSponsoredViews = mutableSetOf<Long>()
 
+    /**
+     * Ohlášení TDLib, že je chat otevřený (viz [ConversationRepository.openChat]).
+     *
+     * Běží v [appScope], ne ve `viewModelScope`: ten se při odchodu z chatu zruší a půlka páru
+     * by nikdy neodešla — TDLib si otevření počítá, takže by chat zůstal navždy „otevřený",
+     * nebo by se zavřel chat, který se ani neotevřel. Zavření na tuhle úlohu proto čeká.
+     */
+    private val chatOpened = appScope.launch { repository.openChat(chatId) }
+
     init {
         viewModelScope.launch {
             voicePlayer.errors.collect { message -> _state.update { it.copy(error = message) } }
@@ -1294,6 +1303,13 @@ class ConversationViewModel(
      * Běží v `appScope`, takže ho zrušení ViewModelu nezastaví.
      */
     override fun onCleared() {
+        // Konverzace je pryč, takže se na ni uživatel nedívá. Musí odejít DŘÍV než cokoli, co
+        // může skončit předčasným `return` — TDLib by jinak chat považoval za otevřený dál.
+        appScope.launch {
+            chatOpened.join()
+            repository.closeChat(chatId)
+        }
+
         // Hlasovka z chatu, který se zavřel, nemá kde ukazovat průběh ani jak se zastavit.
         voicePlayer.stop(chatId)
         // Rozpracovaná nahrávka se při odchodu zahazuje — neposílat nic, co uživatel neodeslal.

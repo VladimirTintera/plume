@@ -785,6 +785,20 @@ class TdlConversationRepository(
             .toResult()
             .map { }
 
+    override suspend fun openChat(chatId: Long): Result<Unit> =
+        client.openChat(chatId = chatId)
+            .toResult()
+            .map { }
+            // Chat, který lokální databáze nezná, TDLib otevřít odmítne. Uživateli se tím nic
+            // nestane — jen přijde o odložení notifikace — takže se to jen loguje.
+            .onFailure { logger.w(it) { "Otevření chatu se nepodařilo ohlásit." } }
+
+    override suspend fun closeChat(chatId: Long): Result<Unit> =
+        client.closeChat(chatId = chatId)
+            .toResult()
+            .map { }
+            .onFailure { logger.w(it) { "Zavření chatu se nepodařilo ohlásit." } }
+
     override suspend fun editText(chatId: Long, messageId: Long, text: String): Result<Unit> =
         client.editMessageText(
             chatId = chatId,

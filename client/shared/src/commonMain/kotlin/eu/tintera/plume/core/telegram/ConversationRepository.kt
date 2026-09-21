@@ -263,6 +263,22 @@ interface ConversationRepository {
     /** Označí zprávy za přečtené. Bez tohohle zůstane odznak nepřečtených viset napořád. */
     suspend fun markRead(chatId: Long, messageIds: List<Long>): Result<Unit>
 
+    /**
+     * Řekne TDLib, že se uživatel na chat dívá.
+     *
+     * Není to jen informace navíc: u otevřeného chatu TDLib **odloží notifikaci aspoň o vteřinu**
+     * (`min_delay_ms` v `add_new_message_notification`, platí, když je klient online), takže ji
+     * stihne zrušit hlášení přečtení z [markRead] a na liště ani neproblikne. Kromě toho drží
+     * zprávy chatu načtené, zvedá prioritu stahování souborů a u supergroup a kanálů se podle
+     * toho řídí doručování updatů.
+     *
+     * Musí být v páru s [closeChat] — TDLib si otevření počítá.
+     */
+    suspend fun openChat(chatId: Long): Result<Unit>
+
+    /** Protějšek [openChat]. Volá se při odchodu z konverzace. */
+    suspend fun closeChat(chatId: Long): Result<Unit>
+
     suspend fun chatInfo(chatId: Long): Result<ChatInfo>
 
     /**
