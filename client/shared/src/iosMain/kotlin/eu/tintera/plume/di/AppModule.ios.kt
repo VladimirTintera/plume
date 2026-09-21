@@ -28,7 +28,7 @@ actual fun Module.platformModule() {
     single { TelegramPaths() }
     single<DatabaseKeyStore> { KeychainDatabaseKeyStore() }
     single { NotificationPermission() }
-    single { NotificationPresenter() }
+    single { NotificationPresenter(chats = get()) }
     single { UrlOpener() }
     single { FileOpener() }
     single { MediaSaver() }

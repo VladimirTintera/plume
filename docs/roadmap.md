@@ -32,8 +32,17 @@ Teď je prázdné.
 
 Android je napřed; tohle je, čím se to dorovnává.
 
-- **Notifikace.** TDLib `registerDevice` + notification service extension. Firebase v Xcode
-  projektu zatím vůbec není.
+- **Notifikace** — napojené (APNs, rozšíření notifikací, texty, oprávnění, úklid přečtených
+  a odznak; `CLAUDE.md`, „Notifikace na iOS (APNs)"). Zbývá:
+  - **Certifikát APNs u Telegramu** (my.telegram.org) a Push Notifications v Apple Developer účtu.
+  - **Ověřit skutečným pushem na telefonu**: jestli Telegram posílá `mutable-content` (běží
+    rozšíření → akce a seskupení), tvar `custom` (`push/last.json` v App Group) a češtinu šablon.
+  - **Titulek zvlášť** (jméno chatu jako titulek, text pod ním) — dnes je celá věta v těle,
+    jako „Jana: ahoj". Šlo by to v rozšíření, až bude jisté, že běží.
+  - **Přečtení a smazání jinde v reálném čase** (`READ_HISTORY`, `MESSAGE_DELETED`) — dnes se
+    uklidí až s otevřením aplikace.
+  - **Vysvětlení před dotazem na oprávnění ověřit na čistém simulátoru** (na testovacím bylo
+    oprávnění vyřízené dřív).
 - **Hlášení pádů.** `NoopCrashReporter`. Implementace musí přijít ze Swiftu — `FirebaseCrashlytics`
   je ObjC knihovna, kterou Kotlin/Native nevidí, a Kotlin výjimka nese jen adresy stack trace.
   Vzor je `IosCrashlyticsLogger` v projektu com.profilog.telemetry.android.
@@ -166,6 +175,4 @@ Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení
     `timeSensitive`). Přijde na řadu s notifikacemi na iOS vůbec.
 - **Rychlé akce z notifikace.** Odpověď, označení za přečtené a ztlumení na hodinu jsou na
   Androidu hotové (viz CLAUDE.md, „Akce z notifikace"). Chybí:
-  - **iOS** má akce připravené (`IosNotificationCenter`, ověřeno přes `simctl push`); chybí
-    samotné notifikace — APNs, notification service extension, žádost o oprávnění. Extension
-    musí vyplnit kategorii a klíče z `NotificationCategories`.
+  - **iOS** — akce vyplní rozšíření notifikací; ověřit skutečným pushem (viz iOS výš).
