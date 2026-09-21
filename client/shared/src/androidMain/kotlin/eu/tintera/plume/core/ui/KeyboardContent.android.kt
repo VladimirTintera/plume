@@ -1,12 +1,18 @@
 package eu.tintera.plume.core.ui
 
+import android.content.ClipboardManager
 import android.content.Context
+import android.net.Uri
 import android.os.Build
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.text.contextmenu.builder.item
+import androidx.compose.foundation.text.contextmenu.modifier.appendTextContextMenuComponents
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.InterceptPlatformTextInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.PlatformTextInputInterceptor
@@ -17,10 +23,13 @@ import androidx.core.view.inputmethod.InputContentInfoCompat
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.attachment_prepare_failed
+import eu.tintera.plume.resources.paste_gif
+import eu.tintera.plume.resources.paste_image
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.stringResource
 
 private val logger = Logger.withTag("KeyboardContent")
 
@@ -67,7 +76,65 @@ actual fun KeyboardContentReceiver(
             )
         }
     }
-    InterceptPlatformTextInput(interceptor = interceptor, content = content)
+    val pasteGif = stringResource(Res.string.paste_gif)
+    val pasteImage = stringResource(Res.string.paste_image)
+    InterceptPlatformTextInput(interceptor = interceptor) {
+        /*
+         * Vložení ze schránky. Systémové „Vložit" v poli umí jen TEXT — obrázek ve schránce ho ani
+         * neukáže. Proto vlastní položka v kontextové nabídce pole, jen když schránka nese typ, který
+         * chat přijme. Builder běží při každém otevření nabídky, schránka se čte až tehdy — popis
+         * (`primaryClipDescription`) systém nehlásí jako čtení schránky, obsah až po ťuknutí.
+         */
+        Box(
+            Modifier.appendTextContextMenuComponents {
+                val type = clipboardType(context, mimeTypes) ?: return@appendTextContextMenuComponents
+                item(
+                    key = PasteMediaKey,
+                    label = if (type == GIF || type == MP4) pasteGif else pasteImage,
+                ) {
+                    close()
+                    pasteFromClipboard(context, scope, mimeTypes, { received(it) }, { failed(it) })
+                }
+            },
+            propagateMinConstraints = true,
+        ) {
+            content()
+        }
+    }
+}
+
+/** Klíč položky „Vložit GIF / obrázek" v kontextové nabídce pole. */
+private object PasteMediaKey
+
+private fun clipboardManager(context: Context): ClipboardManager? =
+    context.getSystemService(ClipboardManager::class.java)
+
+/** Přijatelný typ obsahu ve schránce, nebo `null`. Text ve schránce vkládá systémové „Vložit". */
+private fun clipboardType(context: Context, accepted: List<String>): String? {
+    if (accepted.isEmpty()) return null
+    val description = clipboardManager(context)?.primaryClipDescription ?: return null
+    return accepted.firstOrNull { description.hasMimeType(it) }
+}
+
+/**
+ * Vezme ze schránky první položku s adresou obsahu. Oprávnění ke čtení dává systém aplikaci
+ * v popředí sám, na rozdíl od klávesnice se o ně nežádá.
+ */
+private fun pasteFromClipboard(
+    context: Context,
+    scope: CoroutineScope,
+    accepted: List<String>,
+    onContent: (KeyboardContent) -> Unit,
+    onError: (UiText) -> Unit,
+) {
+    val type = clipboardType(context, accepted) ?: return
+    val clip = clipboardManager(context)?.primaryClip ?: return
+    val uri = (0 until clip.itemCount).firstNotNullOfOrNull { clip.getItemAt(it).uri } ?: run {
+        logger.w { "Schránka hlásí $type, ale nenese adresu obsahu." }
+        onError(UiText(Res.string.attachment_prepare_failed))
+        return
+    }
+    prepare(context, scope, uri, type, onContent, onError, release = {})
 }
 
 /**
@@ -96,28 +163,44 @@ private fun receive(
         }
     }
 
+    prepare(context, scope, info.contentUri, type, onContent, onError) {
+        // Kopie je hotová (nebo nebude), oprávnění už netřeba.
+        if (needsPermission) runCatching { info.releasePermission() }
+    }
+    return true
+}
+
+/**
+ * Zkopíruje obsah do cache mimo hlavní vlákno a předá ho dál. [release] běží po kopii, ať se
+ * povedla, nebo ne. Sdílí to klávesnice i schránka — obojí dává `content://` adresu s typem.
+ */
+private fun prepare(
+    context: Context,
+    scope: CoroutineScope,
+    uri: Uri,
+    type: String,
+    onContent: (KeyboardContent) -> Unit,
+    onError: (UiText) -> Unit,
+    release: () -> Unit,
+) {
     scope.launch {
         val prepared = withContext(Dispatchers.IO) {
             try {
                 runCatching {
                     when (type) {
-                        GIF, MP4 -> KeyboardContent.Animation(
-                            prepareAnimation(context, info.contentUri, isVideo = type == MP4),
-                        )
-                        else -> KeyboardContent.Image(preparePhoto(context, info.contentUri))
+                        GIF, MP4 -> KeyboardContent.Animation(prepareAnimation(context, uri, isVideo = type == MP4))
+                        else -> KeyboardContent.Image(preparePhoto(context, uri))
                     }
                 }
             } finally {
-                // Kopie je hotová (nebo nebude), oprávnění už netřeba.
-                if (needsPermission) runCatching { info.releasePermission() }
+                release()
             }
         }
         prepared
             .onSuccess(onContent)
             .onFailure {
-                logger.w(it) { "Obsah z klávesnice ($type) se nepodařilo připravit." }
+                logger.w(it) { "Vložený obsah ($type) se nepodařilo připravit." }
                 onError(UiText(Res.string.attachment_prepare_failed))
             }
     }
-    return true
 }
