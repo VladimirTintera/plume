@@ -3172,8 +3172,15 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
   by nebylo poznat, že podržení zabralo.
 - **Sheety výběru a sady nemají napůl rozbalený stav** (`enabledValues = Hidden, Expanded`).
   Jejich obsah je vyšší než polovina obrazovky a napůl rozbalený sheet schoval spodek pod okraj —
-  tlačítko „Odebrat sadu" skončilo pod navigační lištou. Spodní inset lišty řeší výchozí
-  `BottomSheetDefaults.modalWindowInsets`, na to se sahat nemusí.
+  tlačítko „Odebrat sadu" skončilo pod navigační lištou. V sheetu SADY řeší spodní inset
+  výchozí `BottomSheetDefaults.modalWindowInsets` — je tam tlačítko a to nad lištou stát musí.
+- **Sheet výběru (emoji, samolepky, GIFy) si z insetů bere jen stavovou lištu a klávesnici**
+  (`expressionSheetInsets`), navigační lištu dostanou seznamy do `contentPadding`
+  (`sheetListPadding`). S výchozími insety byla lišta odsazením celého obsahu: mřížka končila
+  ostrou hranou nad ní a pod ní zůstal prázdný pruh sheetu. Plochy s pevnou výškou jsou o lištu
+  vyšší (`sheetBottomInset`), aby viditelná část zůstala stejná. **Klávesnici seznamům nechat
+  nejde** — mřížka má pevnou výšku a skoro celá by zmizela pod ní; proto `navigationBars
+  .exclude(ime)`: s otevřenou klávesnicí lištu kryje ona a její místo drží sheet.
 - **Mřížka má pevnou výšku**, jinak by se sheet při přepnutí záložky natahoval a smršťoval.
 - **Hledání má dva zdroje.** `getStickers` prochází nainstalované sady podle emoji i podle
   klíčových slov samolepek; `searchStickers` veřejné sady, ale jen podle emoji. Slovo se proto
@@ -3221,6 +3228,33 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
 - **Samolepka nezakládá let ze vstupního pole** a nemaže rozepsaný text — z pole nevyletěla.
 - **Ikony Material Symbols ze SVG mají souřadnice y v -960..0.** Ve vector drawable se to řeší
   `group` s `translateY="960"`, cesta zůstává, jak je.
+
+## Výběr GIFů
+
+Třetí část sheetu výběru (Emoji / Samolepky / GIFy, `ExpressionMode.Gifs`): pole hledání, pod
+ním mřížka. Bez dotazu nahoře uložené GIFy, pod nimi populární. Ťuknutí GIF hned pošle
+(`GifPanel`, `GifPickerViewModel`, hranice `GifRepository` v `core/telegram`).
+
+- **Hledání GIFů API nemá — hledá inline bot.** Jméno posílá server (`animation_search_bot_username`,
+  dnes `gif`), `searchPublicChat` z něj udělá id a `getInlineQueryResults` vrací
+  `InlineQueryResultAnimation`. Prázdný dotaz = populární. Stránkuje `nextOffset` (prázdný =
+  konec). Id bota se pamatuje pro INSTANCI klienta — po odhlášení je jiný.
+- **Posílá se `InputFileId`, ne `sendInlineQueryResultMessage`.** GIF z výsledku je soubor, který
+  na serveru už je; přes bota by u zprávy stálo „přes @gif" a byly by to dvě různé cesty pro
+  uložený a nalezený GIF. Po odeslání `addSavedAnimation`, ať je nahoře (jako `addRecentSticker`).
+- **Uložené jsou živý tok** (`UpdateSavedAnimations` → znovu `getSavedAnimations`). GIF poslaný
+  z klávesnice se mezi ně dostane sám. Podržení uloženého nabídne křížek na odebrání.
+- **Stránka patří dotazu** (`GifResults.withPage`, testy `GifResultsTest`) — pomalá odpověď na
+  „ko" nesmí přepsat „kočka". Bot vrací tentýž GIF na dvou stránkách; duplicitní klíč by mřížku
+  shodil, proto `distinctBy`.
+- **GIFy v mřížce hrají**, jako v konverzaci: GIF se vybírá podle toho, co dělá. Hrají jen
+  složené buňky a velký se sám nestahuje (`autoPlays`).
+- **Obraz přehrávače se do buňky ROZTAHUJE, ne vepisuje** (`coverAspect`). `VideoSurface` obraz
+  vepisuje, takže v buňkách pevné výšky zůstávaly pruhy a každý GIF měl jinou velikost.
+- **Právo je totéž jako u samolepek** (`canSendOtherMessages`): bez něj ani při úpravě se část
+  GIFy nenabízí. `ViewModel` klíčovaný chatem (`gifs-$chatId`) — inline bot chce vědět, kam se hledá.
+- **Zdrojový soubor nesmí obsahovat znak NUL.** Konstanta `"\u0000"` zapsaná nástrojem jako
+  skutečný bajt udělala z `.kt` pro `grep` binární soubor a hledání v něm tiše nic nenašlo.
 
 ## Výběr emoji
 

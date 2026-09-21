@@ -205,6 +205,8 @@ import eu.tintera.plume.resources.conversation_attach_media
 import eu.tintera.plume.resources.conversation_cancel_edit
 import eu.tintera.plume.resources.conversation_cancel_reply
 import eu.tintera.plume.resources.conversation_editing
+import eu.tintera.plume.resources.conversation_open_gifs
+import eu.tintera.plume.resources.gif_box_24dp
 import eu.tintera.plume.resources.conversation_empty
 import eu.tintera.plume.resources.conversation_fallback_title
 import eu.tintera.plume.resources.conversation_input_caption
@@ -966,6 +968,11 @@ fun ConversationScreen(
                     stickerPickerOpen = false
                     viewModel.sendSticker(sticker)
                 },
+                chatId = viewModel.chatId,
+                onPickGif = { gif ->
+                    stickerPickerOpen = false
+                    viewModel.sendGif(gif)
+                },
                 onDismiss = { stickerPickerOpen = false },
             )
         }
@@ -1609,10 +1616,13 @@ private fun MessageInput(
             ) {
                 // Ikona slibuje, co se otevře: poslední použitou část výběru. Při úpravě
                 // zprávy jde otevřít jen emoji — samolepka do textu upravované zprávy nepatří.
-                if (editing != null || !content.stickers || expressionMode == ExpressionMode.Emoji) {
-                    Icon(painterResource(Res.drawable.mood_24dp), contentDescription = stringResource(Res.string.conversation_open_emoji))
-                } else {
-                    Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = stringResource(Res.string.conversation_open_stickers))
+                when {
+                    editing != null || !content.stickers || expressionMode == ExpressionMode.Emoji ->
+                        Icon(painterResource(Res.drawable.mood_24dp), contentDescription = stringResource(Res.string.conversation_open_emoji))
+                    expressionMode == ExpressionMode.Gifs ->
+                        Icon(painterResource(Res.drawable.gif_box_24dp), contentDescription = stringResource(Res.string.conversation_open_gifs))
+                    else ->
+                        Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = stringResource(Res.string.conversation_open_stickers))
                 }
             }
                 }

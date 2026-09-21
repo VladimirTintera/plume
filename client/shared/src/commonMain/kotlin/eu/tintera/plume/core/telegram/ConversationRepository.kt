@@ -192,6 +192,12 @@ interface ConversationRepository {
     suspend fun sendAnimation(chatId: Long, animation: OutgoingAnimation, replyToMessageId: Long?): Result<ChatMessage>
 
     /**
+     * Odešle GIF z výběru — soubor, který na serveru už je, takže se nic nenahrává. GIF se
+     * zároveň zařadí na začátek uložených, jako samolepka mezi nedávné.
+     */
+    suspend fun sendGif(chatId: Long, gif: GifItem, replyToMessageId: Long?): Result<ChatMessage>
+
+    /**
      * Odešle přílohy z disku zařízení, s popiskem. Jedna příloha jde jako obyčejná zpráva, víc jako
      * **album** (`sendMessageAlbum`, 2–10) — Telegram víc příloh v jedné zprávě nenese.
      *

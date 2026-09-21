@@ -39,6 +39,7 @@ import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageInfo
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
+import eu.tintera.plume.core.telegram.GifItem
 import eu.tintera.plume.core.telegram.OutgoingAnimation
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Presence
@@ -125,7 +126,7 @@ import org.jetbrains.compose.resources.StringResource
  * opačně, každé přidání staré stránky by znamenalo přepočet celého seznamu.
  */
 class ConversationViewModel(
-    private val chatId: Long,
+    val chatId: Long,
     /** Zpráva, na kterou se po otevření skočí místo na první nepřečtenou (nalezená v hledání). */
     private val initialMessageId: Long?,
     private val repository: ConversationRepository,
@@ -862,6 +863,17 @@ class ConversationViewModel(
         }
         sendMedia(Res.string.conversation_sticker_send_failed) { replyTo ->
             repository.sendSticker(chatId, sticker, replyTo)
+        }
+    }
+
+    /** Odešle GIF z výběru. Stejné právo a stejné chování jako [sendSticker]. */
+    fun sendGif(gif: GifItem) {
+        if (!_state.value.content.stickers) {
+            _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
+            return
+        }
+        sendMedia(Res.string.conversation_gif_send_failed) { replyTo ->
+            repository.sendGif(chatId, gif, replyTo)
         }
     }
 

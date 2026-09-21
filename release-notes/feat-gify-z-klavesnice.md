@@ -1,3 +1,3 @@
 type: feat
-cs: GIFy a samolepky z klávesnice (Gboard) jdou poslat přímo do chatu
-en: Send GIFs and stickers straight from your keyboard (Gboard)
+cs: Výběr GIFů s hledáním; GIFy a samolepky jdou poslat i z klávesnice
+en: GIF picker with search; send GIFs and stickers from your keyboard too

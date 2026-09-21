@@ -730,6 +730,37 @@ class TdlConversationRepository(
             .toResult()
             .map { it.toChatMessage(isGroup(chatId)) }
 
+    override suspend fun sendGif(chatId: Long, gif: GifItem, replyToMessageId: Long?): Result<ChatMessage> {
+        val file = InputFileId(id = gif.animation.fileId)
+        return client.sendMessage(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyToMessageId?.let(::replyTo),
+            options = null,
+            replyMarkup = null,
+            inputMessageContent = InputMessageAnimation(
+                animation = InputAnimation(
+                    animation = file,
+                    // Soubor na serveru už je i s náhledem; nahrává se jen u nového GIFu.
+                    thumbnail = null,
+                    addedStickerFileIds = intArrayOf(),
+                    duration = 0,
+                    width = gif.animation.width,
+                    height = gif.animation.height,
+                ),
+                caption = null,
+                showCaptionAboveMedia = false,
+                hasSpoiler = false,
+            ),
+        )
+            .toResult()
+            .map { it.toChatMessage(isGroup(chatId)) }
+            .onSuccess {
+                // Neúspěch nevadí — zpráva už odešla. Jen GIF nebude mezi uloženými nahoře.
+                client.addSavedAnimation(animation = file)
+            }
+    }
+
     override suspend fun sendTyping(chatId: Long, typing: Boolean): Result<Unit> =
         client.sendChatAction(
             chatId = chatId,
