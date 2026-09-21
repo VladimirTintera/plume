@@ -292,9 +292,8 @@ a scrollování" u duplicitního klíče po potvrzení odeslání).
 
 **Chybějící základ**
 
-- **Práva po druzích obsahu.** Pole se schová, jen když chat nedovolí psát vůbec. Skupina, kde
-  smí jen text, nechá pole celé a fotka, samolepka nebo hlasovka skončí chybou po odeslání —
-  sponka, výběr samolepek a mikrofon by se měly řídit `ChatPermissions.canSendPhotos` atd.
+- ~~**Práva po druzích obsahu.**~~ — hotovo (`ContentAccess` ve `WriteAccess.kt`: sponka,
+  výběr samolepek, mikrofon i vložení z klávesnice se řídí právy chatu; `CLAUDE.md`, „Práva psát").
 - ~~**Pruh připnutých podle scrollu.**~~ — hotovo (`pinnedForScroll`; `CLAUDE.md`, „Připnuté
   zprávy"). Skok z pruhu kotví nahoru, takže procházení jde krok za krokem.
 - ~~**Označení části textu.**~~ — hotovo („Vybrat text" v nabídce otevře sheet s textem;
