@@ -47,8 +47,12 @@ import org.jetbrains.compose.resources.stringResource
  * Tlačítko příloh s nabídkou Fotka / Soubor.
  *
  * Dvě položky, ne rovnou výběr: Photo Picker ukazuje jen fotky a výběr dokumentu nemá náhledy, takže
- * jeden systémový výběr pro obojí by byl horší v obou případech. Klávesnice se zavře, než se otevře
- * systémový výběr — jinak by po návratu vyskočila přes bublinu s nahráváním.
+ * jeden systémový výběr pro obojí by byl horší v obou případech. Klávesnice se zavře, než se
+ * otevře systémový výběr — jinak by po návratu vyskočila přes bublinu s nahráváním.
+ *
+ * Co skupina zakazuje, se nenabízí ([canPickMedia], [canPickDocument]). Bez jediné položky se
+ * tlačítko nekreslí vůbec — o to se stará volající (`ContentAccess.anyAttachment`), protože
+ * prázdná nabídka by byla horší než chybějící sponka.
  *
  * **Nabídka NENÍ `DropdownMenu`.** Ten drží od okraje okna povinný odstup 48 dp
  * (`MenuVerticalMargin`) a tlačítko u spodku obrazovky v tom pásu leží — „spodkem k tlačítku"
@@ -60,6 +64,9 @@ import org.jetbrains.compose.resources.stringResource
 internal fun AttachButton(
     onPickMedia: () -> Unit,
     onPickDocument: () -> Unit,
+    /** Skupina smí zakázat jen některé druhy; zakázaná položka se nenabízí. */
+    canPickMedia: Boolean = true,
+    canPickDocument: Boolean = true,
     contentColor: Color,
     modifier: Modifier = Modifier,
 ) {
@@ -104,16 +111,20 @@ internal fun AttachButton(
                         modifier = Modifier.padding(4.dp),
                     ) {
                         Column(Modifier.width(IntrinsicSize.Max).padding(vertical = 8.dp)) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(Res.string.conversation_attach_media)) },
-                                leadingIcon = { Icon(painterResource(Res.drawable.perm_media_24dp), contentDescription = null) },
-                                onClick = { pick(onPickMedia) },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(Res.string.conversation_attach_file)) },
-                                leadingIcon = { Icon(painterResource(Res.drawable.description_24dp), contentDescription = null) },
-                                onClick = { pick(onPickDocument) },
-                            )
+                            if (canPickMedia) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(Res.string.conversation_attach_media)) },
+                                    leadingIcon = { Icon(painterResource(Res.drawable.perm_media_24dp), contentDescription = null) },
+                                    onClick = { pick(onPickMedia) },
+                                )
+                            }
+                            if (canPickDocument) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(Res.string.conversation_attach_file)) },
+                                    leadingIcon = { Icon(painterResource(Res.drawable.description_24dp), contentDescription = null) },
+                                    onClick = { pick(onPickDocument) },
+                                )
+                            }
                         }
                     }
                 }

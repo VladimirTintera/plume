@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.AttachmentMode
+import eu.tintera.plume.core.telegram.ContentAccess
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -88,6 +89,47 @@ class StagedAttachmentsTest {
     fun bezMizeniNeniCoHlasit() {
         assertNull(dropForbiddenSelfDestruct(listOf(photo(1), photo(2)), allowed = false))
         assertNull(dropForbiddenSelfDestruct(listOf(photo(1).copy(mode = AttachmentMode.ViewOnce)), allowed = true))
+    }
+
+    // --- Druhy obsahu, které chat přijme ---
+
+    private val jenFotky = ContentAccess(
+        photos = true,
+        videos = false,
+        documents = false,
+        voiceNotes = false,
+        stickers = false,
+    )
+
+    @Test
+    fun vyberVydaObojiAleProjdouJenDovolene() {
+        // Systémový výběr fotek vydá fotky i videa jedním tahem.
+        val picked = listOf(photo(1), video(1))
+        assertEquals<List<OutgoingAttachment>>(listOf(photo(1)), allowedByContent(picked, jenFotky))
+    }
+
+    @Test
+    fun nicDovolenehoZnamenaPrazdnySeznam() {
+        assertEquals(emptyList<OutgoingAttachment>(), allowedByContent(listOf(video(1)), jenFotky))
+    }
+
+    @Test
+    fun fotkaJakoSouborSeRidiPravemNaSoubory() {
+        // Režim „Odeslat jako soubor" posílá fotku přes InputMessageDocument.
+        val jakoSoubor = photo(1).copy(mode = AttachmentMode.AsFile)
+        assertEquals(emptyList<OutgoingAttachment>(), allowedByContent(listOf(jakoSoubor), jenFotky))
+        assertEquals<List<OutgoingAttachment>>(
+            listOf(jakoSoubor),
+            allowedByContent(listOf(jakoSoubor), jenFotky.copy(documents = true)),
+        )
+    }
+
+    @Test
+    fun beznaFotkaSePravemNaSouboryNeridi() {
+        assertEquals(
+            emptyList<OutgoingAttachment>(),
+            allowedByContent(listOf(photo(1)), jenFotky.copy(photos = false, documents = true)),
+        )
     }
 }
 

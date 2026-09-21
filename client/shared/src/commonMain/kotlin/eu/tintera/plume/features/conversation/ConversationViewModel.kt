@@ -26,6 +26,7 @@ import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatInfo
+import eu.tintera.plume.core.telegram.ContentAccess
 import eu.tintera.plume.core.telegram.WriteAccess
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -56,6 +57,7 @@ import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_attachments_limit
+import eu.tintera.plume.resources.conversation_content_not_allowed
 import eu.tintera.plume.resources.conversation_self_destruct_album
 import eu.tintera.plume.resources.profile_mute_failed
 import eu.tintera.plume.resources.conversation_attachments_send_failed
@@ -781,7 +783,15 @@ class ConversationViewModel(
         viewModelScope.launch {
             // Práva psát se mění za běhu: správce je změní, uživatel se přidá (i odjinud).
             repository.accessUpdates(chatId).collect { access ->
-                _state.update { it.copy(info = it.info?.copy(canJoin = access.canJoin, writeAccess = access.writeAccess)) }
+                _state.update {
+                    it.copy(
+                        info = it.info?.copy(
+                            canJoin = access.canJoin,
+                            writeAccess = access.writeAccess,
+                            content = access.content,
+                        ),
+                    )
+                }
             }
         }
 
@@ -832,6 +842,12 @@ class ConversationViewModel(
      * Citace se spotřebuje stejně jako u textu.
      */
     fun sendSticker(sticker: StickerItem) {
+        // Výběr samolepek se bez práva neotevře, ale sada jde otevřít i ťuknutím na samolepku
+        // v historii — a z ní se posílá taky. Hláška je lepší než chyba od serveru.
+        if (!_state.value.content.stickers) {
+            _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
+            return
+        }
         sendMedia(Res.string.conversation_sticker_send_failed) { replyTo ->
             repository.sendSticker(chatId, sticker, replyTo)
         }
@@ -843,7 +859,10 @@ class ConversationViewModel(
      * víc jako album). Pravidla skládání viz [stageAttachments].
      */
     fun addAttachments(picked: List<OutgoingAttachment>) {
-        val staged = stageAttachments(_state.value.attachments, picked)
+        // Výběr fotek vydá fotky i videa najednou; co chat nepřijme, se sem nedostane.
+        val allowed = allowedByContent(picked, _state.value.content)
+        val forbidden = allowed.size < picked.size
+        val staged = stageAttachments(_state.value.attachments, allowed)
         // Z jedné mizející fotky se přidáním další stává album, a v něm mizení není dovolené.
         val dropped = dropForbiddenSelfDestruct(
             staged.attachments,
@@ -853,6 +872,7 @@ class ConversationViewModel(
             it.copy(
                 attachments = dropped ?: staged.attachments,
                 notice = when {
+                    forbidden -> UiText(Res.string.conversation_content_not_allowed)
                     staged.overflow -> UiText(Res.string.conversation_attachments_limit, MAX_ATTACHMENTS)
                     dropped != null -> UiText(Res.string.conversation_self_destruct_album)
                     else -> it.notice
@@ -1923,6 +1943,10 @@ class ConversationViewModel(
      * Hrající hlasovka se zastaví — nahrával by se i její zvuk z reproduktoru.
      */
     fun startRecording() {
+        if (!_state.value.content.voiceNotes) {
+            _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
+            return
+        }
         voicePlayer.stop()
         voiceRecorder.start().onFailure {
             _state.update { it.copy(error = UiText(Res.string.conversation_recording_start_failed)) }
@@ -2393,6 +2417,13 @@ data class ConversationState(
     /** Do chatu se smí psát: vstupní pole, odpověď swipem. Dokud hlavička nedorazí, bere se, že ano. */
     val canWrite: Boolean
         get() = info == null || (!info.canJoin && info.writeAccess == WriteAccess.Allowed)
+
+    /**
+     * Které druhy obsahu chat přijme. Dokud hlavička nedorazí, neomezuje se nic — ikona, která
+     * by problikla a zmizela, je horší než ikona, po které přijde chyba jednou za čas.
+     */
+    val content: ContentAccess
+        get() = info?.content ?: ContentAccess.All
 
     fun canSelfDestruct(attachmentCount: Int = attachments.size): Boolean =
         info != null && selfDestructAllowed(!info.isGroup, info.isSavedMessages, attachmentCount)

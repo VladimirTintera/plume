@@ -22,7 +22,12 @@ internal sealed interface OwnMemberStatus {
     data class Creator(val isMember: Boolean) : OwnMemberStatus
     data class Admin(val canPostMessages: Boolean) : OwnMemberStatus
     data object Member : OwnMemberStatus
-    data class Restricted(val isMember: Boolean, val canSendMessages: Boolean) : OwnMemberStatus
+    data class Restricted(
+        val isMember: Boolean,
+        val canSendMessages: Boolean,
+        /** Vlastní práva omezeného člena na jednotlivé druhy obsahu. */
+        val content: ContentAccess,
+    ) : OwnMemberStatus
     data object Left : OwnMemberStatus
     data object Banned : OwnMemberStatus
 }
@@ -56,4 +61,56 @@ internal fun writeAccess(isChannel: Boolean, status: OwnMemberStatus?, membersCa
             else -> WriteAccess.Restricted
         }
         OwnMemberStatus.Left, OwnMemberStatus.Banned -> WriteAccess.NotMember
+    }
+
+/**
+ * Co konkrétně se do chatu smí poslat.
+ *
+ * Uplatní se, teprve když se smí psát vůbec ([WriteAccess.Allowed]) — jinak vstupní pole není
+ * a druhy obsahu nemá co omezovat. Skupina může mít zakázané jen některé druhy: text dovolený,
+ * fotky ne. Bez tohohle rozlišení nabídla sponka výběr, který skončil chybou AŽ PO odeslání.
+ *
+ * Druhy jsou jen ty, které aplikace umí poslat. Hudba (`canSendAudios`), video kolečka
+ * a ankety tu nejsou, protože se neposílají; až přibudou, přibude i pole.
+ */
+data class ContentAccess(
+    val photos: Boolean,
+    val videos: Boolean,
+    val documents: Boolean,
+    val voiceNotes: Boolean,
+    /** Samolepky, animovaná emoji a GIFy — TDLib je vede pod jedním `canSendOtherMessages`. */
+    val stickers: Boolean,
+) {
+    /** Sponka má co nabídnout. Bez jediného dovoleného druhu se nekreslí vůbec. */
+    val anyAttachment: Boolean get() = photos || videos || documents
+
+    companion object {
+        /** Nic se neomezuje: soukromý chat, správce, vlastník i neznámé postavení. */
+        val All = ContentAccess(
+            photos = true,
+            videos = true,
+            documents = true,
+            voiceNotes = true,
+            stickers = true,
+        )
+    }
+}
+
+/**
+ * Pravidlo, co se smí poslat. Čistá funkce kvůli testům (`WriteAccessTest`) — stejně jako
+ * [writeAccess], se kterým se musí shodovat v tom, koho omezení míjejí.
+ *
+ * - [status] `null` = soukromý chat, tam se posílá všechno.
+ * - **Správce a vlastník nejsou omezení nikdy** — jako u [writeAccess].
+ * - Členovi platí výchozí práva skupiny ([groupDefaults] z `Chat.permissions`), omezenému
+ *   členovi jeho vlastní (`ChatMemberStatusRestricted.permissions`) — ta výchozí přebíjejí.
+ * - Kdo v chatu není, nepíše vůbec; hodnota se neuplatní, tak se neomezuje.
+ */
+internal fun contentAccess(status: OwnMemberStatus?, groupDefaults: ContentAccess): ContentAccess =
+    when (status) {
+        null -> ContentAccess.All
+        is OwnMemberStatus.Creator, is OwnMemberStatus.Admin -> ContentAccess.All
+        OwnMemberStatus.Member -> groupDefaults
+        is OwnMemberStatus.Restricted -> status.content
+        OwnMemberStatus.Left, OwnMemberStatus.Banned -> ContentAccess.All
     }

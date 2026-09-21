@@ -448,6 +448,11 @@ data class ChatInfo(
      * dělat dá — pole, ze kterého zpráva skončí chybou, je horší než žádné.
      */
     val writeAccess: WriteAccess = WriteAccess.Allowed,
+    /**
+     * Které druhy obsahu chat přijme. Skupina může povolit text a zakázat fotky; sponka, výběr
+     * samolepek a mikrofon se podle toho schovají, aby odeslání neskončilo chybou.
+     */
+    val content: ContentAccess = ContentAccess.All,
     /** Zpráva, na kterou koncept odpovídá, nebo `null`. */
     val draftReplyToMessageId: Long?,
 )
@@ -857,4 +862,9 @@ sealed interface MessageMedia {
 }
 
 /** Přístup k chatu, jak se mění za běhu — viz [ConversationRepository.accessUpdates]. */
-data class ChatAccess(val canJoin: Boolean, val writeAccess: WriteAccess)
+data class ChatAccess(
+    val canJoin: Boolean,
+    val writeAccess: WriteAccess,
+    /** Co se smí poslat, když se smí psát. Viz [ContentAccess]. */
+    val content: ContentAccess = ContentAccess.All,
+)
