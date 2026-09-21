@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.resources.settings_edit_profile
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,7 +36,7 @@ import org.jetbrains.compose.resources.stringResource
  * [SettingsSectionScreen].
  */
 @Composable
-fun GeneralSettings(viewModel: SettingsViewModel) {
+fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit) {
     val account by viewModel.account.collectAsStateWithLifecycle()
     var confirmLogOut by rememberSaveable { mutableStateOf(false) }
 
@@ -49,7 +50,8 @@ fun GeneralSettings(viewModel: SettingsViewModel) {
         )
     }
 
-    Card(Modifier.fillMaxWidth()) {
+    // Karta účtu vede do úpravy profilu — tam, kde je vidět, co se upravuje.
+    Card(onClick = onEditProfile, modifier = Modifier.fillMaxWidth()) {
         Column(
             Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -71,6 +73,12 @@ fun GeneralSettings(viewModel: SettingsViewModel) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                Text(
+                    stringResource(Res.string.settings_edit_profile),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
         }
     }
