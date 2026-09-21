@@ -21,8 +21,14 @@ object NotificationIntents {
     /** Citovaná zpráva odpovědi z notifikace; chybí = bez citace. */
     const val EXTRA_REPLY_TO_MESSAGE_ID = "eu.tintera.plume.extra.REPLY_TO_MESSAGE_ID"
 
-    /** Akce odpovědi z notifikace. Přijímá ji `NotificationReplyReceiver` ve vstupním bodu. */
+    /** Akce odpovědi z notifikace. Přijímá ji `NotificationActionReceiver` ve vstupním bodu. */
     const val ACTION_REPLY = "eu.tintera.plume.action.NOTIFICATION_REPLY"
+
+    /** Označení chatu za přečtený z notifikace. Týž příjemce jako [ACTION_REPLY]. */
+    const val ACTION_MARK_READ = "eu.tintera.plume.action.NOTIFICATION_MARK_READ"
+
+    /** Nejnovější zpráva notifikace, po kterou se čte; chybí = po nejnovější v chatu. */
+    const val EXTRA_MESSAGE_ID = "eu.tintera.plume.extra.MESSAGE_ID"
 
     /** Klíč textu v `RemoteInput`. */
     const val KEY_REPLY_TEXT = "eu.tintera.plume.extra.REPLY_TEXT"
@@ -89,6 +95,26 @@ object NotificationIntents {
             intent,
             // MUTABLE je u `RemoteInput` povinné: systém do intentu vkládá napsaný text.
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+        )
+    }
+
+    /**
+     * Broadcast „Označit jako přečtené". Na rozdíl od odpovědi do intentu nikdo nic nevkládá,
+     * takže IMMUTABLE. Se stejným request code jako odpověď se nepřepíšou — akce intentu
+     * vstupuje do `filterEquals`.
+     */
+    fun markRead(context: Context, groupId: Int, chatId: Long, messageId: Long?): PendingIntent {
+        val intent = Intent(ACTION_MARK_READ)
+            .setPackage(context.packageName)
+            .putExtra(EXTRA_CHAT_ID, chatId)
+            .putExtra(EXTRA_GROUP_ID, groupId)
+            .apply { messageId?.let { putExtra(EXTRA_MESSAGE_ID, it) } }
+
+        return PendingIntent.getBroadcast(
+            context,
+            groupId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
 }

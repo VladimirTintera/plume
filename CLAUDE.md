@@ -3663,13 +3663,24 @@ a odložené rušení prázdné notifikace.
   je to past jen emulátorová. Před testováním notifikací na telefonu tedy emulátor zhasnout,
   odejít v něm z konverzace, nebo ho odhlásit.
 
-### Odpověď z notifikace
+### Akce z notifikace
 
-Notifikace chatu má akci „Odpovědět" s polem na text (`RemoteInput`). Odpověď odejde, aniž by se
-aplikace otevřela; po potvrzení se chat přečte a TDLib notifikaci stáhne.
+Notifikace chatu má akce „Odpovědět" s polem na text (`RemoteInput`) a „Označit jako přečtené".
+Odpověď odejde, aniž by se aplikace otevřela; po potvrzení se chat přečte a TDLib notifikaci
+stáhne. Obě akce jdou přes jednoho příjemce a jednu třídu (`NotificationActionReceiver`,
+`NotificationActions`) — příští akce (ztlumení) přibude tamtéž.
 
-- **Cesta:** akce → broadcast `NotificationReplyReceiver` (vstupní bod, `goAsync`) →
-  `NotificationReplies` v `core/notifications` (odeslat, dočkat se, přečíst). Co se nevejde do
+- **„Označit jako přečtené" čte PO nejnovější zprávu NOTIFIKACE, ne chatu.** Co mezitím přišlo,
+  uživatel neviděl. Id jde v extras akce; u notifikace z minulého běhu procesu (řádky bez id)
+  se čte po nejnovější zprávu v chatu. Nabízí se i v kanálu — číst jde všude.
+- **Po přečtení se notifikace neruší ručně**, stáhne ji TDLib (`removedNotificationIds`), i po
+  probuzení mrtvého procesu. Na potvrzení se nečeká: přečtení drží TDLib v databázi a pošle ho,
+  až bude spojení. Proto přečtení nemá obdobu `ReplyDeliveryWorker`.
+- **Dvě akce, jeden request code** (`groupId`) nevadí: akce intentu vstupuje do `filterEquals`,
+  takže se `PendingIntent`y nepřepíšou.
+
+- **Cesta:** akce → broadcast `NotificationActionReceiver` (vstupní bod, `goAsync`) →
+  `NotificationActions` v `core/notifications` (odeslat, dočkat se, přečíst). Co se nevejde do
   okna příjemce (8 s z 10), dočká `ReplyDeliveryWorker`. Příjemce je ve vstupním bodu kvůli
   WorkManageru; `:client:shared` na něj míří akcí a balíčkem (`NotificationIntents.reply`), ne
   třídou — stejně jako na `MainActivity`.
@@ -3683,7 +3694,7 @@ aplikace otevřela; po potvrzení se chat přečte a TDLib notifikaci stáhne.
   po něm je nejnovější naše odpověď a její přečtení nic neoznačí.
 - **Vlastní řádek notifikaci naživu nedrží.** TDLib ho nezná, takže ho neodebere; notifikace se
   ruší, když v ní zbydou jen vlastní řádky.
-- **Potvrzení se zjišťuje dotazem na zprávu, ne updatem** (`NotificationReplies.await`). Úloha
+- **Potvrzení se zjišťuje dotazem na zprávu, ne updatem** (`NotificationActions.await`). Úloha
   začíná pozdě a `UpdateMessageSendSucceeded` mohl dávno proletět. Stav jde přečíst kdykoli:
   TDLib po potvrzení zprávu přečísluje, takže nenalezené dočasné id = odesláno.
 - **Mrtvý proces:** akce ho probudí jako push, `startKoin` rozběhne TDLib a odpověď čeká na
@@ -3704,7 +3715,13 @@ aplikace otevřela; po potvrzení se chat přečte a TDLib notifikaci stáhne.
   s botem zprávu přečte hned a TDLib notifikaci stáhne dřív, než se ukáže. Tlačítko v liště
   najde `uiautomator dump` (text „Reply"), text se napíše `input text` a odešle Enterem.
 - Ověřeno na emulátoru: živý proces (odesláno za 2 s), proces zabitý `am kill` (0,5 s),
-  letový režim (úloha). Cesta „Neodesláno" ověřená není — server odpověď bota neodmítne.
+  letový režim (úloha). Přečtení: živý proces i zabitý (proces spustil broadcast, TDLib `Ready`
+  za 1 s, notifikace pryč).
+- **`am kill` zabije jen proces v keši** — s rozbalenou lištou ho nezabil. Spolehlivě to jde
+  u debug buildu přes `adb shell run-as eu.tintera.plume kill -9 <pid>`.
+- **Druhé přihlášené zařízení dává na tlačítko jen pár vteřin**, pak notifikaci stáhne. Lištu
+  proto rozbalit PŘEDEM, čekat na „Zobrazuji" v logu a tlačítko hledat `uiautomator dump`
+  až potom — poloha tlačítek se mění s počtem řádků notifikace. Cesta „Neodesláno" ověřená není — server odpověď bota neodmítne.
 
 ## Sdílení do aplikace
 

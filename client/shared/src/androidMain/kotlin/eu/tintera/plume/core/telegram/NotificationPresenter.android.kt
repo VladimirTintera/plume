@@ -27,6 +27,7 @@ import eu.tintera.plume.core.share.pushConversationShortcut
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notification_channel_description
 import eu.tintera.plume.resources.notification_channel_name
+import eu.tintera.plume.resources.notification_mark_read
 import eu.tintera.plume.resources.notification_reply
 import eu.tintera.plume.resources.notification_reply_failed
 import eu.tintera.plume.resources.notification_self_name
@@ -321,6 +322,13 @@ actual class NotificationPresenter(
                     val quoted = if (isGroup) conversation.lines.lastOrNull { !it.isOwn && it.messageId != null }?.messageId else null
                     replyAction(groupId, conversation.chatId, quoted)?.let(::addAction)
                 }
+                addAction(
+                    markReadAction(
+                        groupId = groupId,
+                        chatId = conversation.chatId,
+                        messageId = conversation.lines.lastOrNull { !it.isOwn && it.messageId != null }?.messageId,
+                    ),
+                )
             }
             .setContentIntent(
                 NotificationIntents.openChat(
@@ -406,6 +414,22 @@ actual class NotificationPresenter(
             .setAllowGeneratedReplies(true)
             .build()
     }
+
+    /**
+     * Akce „Označit jako přečtené". Nabízí se vždycky, i v kanálu — číst jde všude.
+     *
+     * Sémantika `MARK_AS_READ` a `showsUserInterface = false`: hodinky a Android Auto ji pak
+     * nabídnou jako přečtení, ne jako obecné tlačítko, a systém kvůli ní neodemyká obrazovku.
+     */
+    private suspend fun markReadAction(groupId: Int, chatId: Long, messageId: Long?): NotificationCompat.Action =
+        NotificationCompat.Action.Builder(
+            IconCompat.createWithResource(context, R.drawable.ic_notification_mark_read),
+            getString(Res.string.notification_mark_read),
+            NotificationIntents.markRead(context, groupId = groupId, chatId = chatId, messageId = messageId),
+        )
+            .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ)
+            .setShowsUserInterface(false)
+            .build()
 
     /**
      * Fotka ze zprávy pro notifikaci jako `content://` URI.
