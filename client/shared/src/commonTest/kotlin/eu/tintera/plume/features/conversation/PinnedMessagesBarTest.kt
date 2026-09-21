@@ -6,7 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** Pořadí v pruhu připnutých: ťuknutí vede ke starší, za nejstarší zase nejnovější. */
+/** Pruh připnutých: která zpráva se ukáže a jak se drží při změnách seznamu. */
 class PinnedMessagesBarTest {
 
     private fun message(id: Long) = ChatMessage(
@@ -47,20 +47,44 @@ class PinnedMessagesBarTest {
         assertEquals(2, pinnedIndex(withNewer, 20))
     }
 
+    // --- Která připnutá se ukáže podle scrollu ---
+
+    /** Od nejnovější po nejstarší, jak je drží stav konverzace. */
+    private val pripnute = listOf(message(300), message(200), message(100))
+
     @Test
-    fun tuknutiVedeKeStarsiADokola() {
-        assertEquals(20L, nextPinnedId(pinned, 30))
-        assertEquals(10L, nextPinnedId(pinned, 20))
-        assertEquals(30L, nextPinnedId(pinned, 10))
+    fun bezPripnutychNeniCoUkazat() {
+        assertNull(pinnedForScroll(emptyList(), topVisibleMessageId = 250))
     }
 
     @Test
-    fun jedinaZpravaZustava() {
-        assertEquals(30L, nextPinnedId(listOf(message(30)), 30))
+    fun nezSeNecoVykresliPlatiNejnovejsi() {
+        assertEquals(300, pinnedForScroll(pripnute, topVisibleMessageId = null))
     }
 
     @Test
-    fun prazdnySeznamNemaDalsi() {
-        assertNull(nextPinnedId(emptyList(), 30))
+    fun uspodkuHistorieJeToNejnovejsi() {
+        // Uživatel je dole u nejnovějších zpráv: všechny připnuté leží nad ním.
+        assertEquals(300, pinnedForScroll(pripnute, topVisibleMessageId = 999))
+    }
+
+    @Test
+    fun uprostredSeUkazeTaNadViditelnouCasti() {
+        assertEquals(200, pinnedForScroll(pripnute, topVisibleMessageId = 250))
+        assertEquals(100, pinnedForScroll(pripnute, topVisibleMessageId = 150))
+    }
+
+    @Test
+    fun naPripnuteSeUkazeTaStarsi() {
+        // Porovnává se STRIKTNĚ: jinak by ťuknutí vedlo pořád na tutéž zprávu.
+        assertEquals(200, pinnedForScroll(pripnute, topVisibleMessageId = 300))
+        assertEquals(100, pinnedForScroll(pripnute, topVisibleMessageId = 200))
+    }
+
+    @Test
+    fun nadNejstarsiZustavaNejstarsi() {
+        // Začátek historie — výš už žádná připnutá není.
+        assertEquals(100, pinnedForScroll(pripnute, topVisibleMessageId = 100))
+        assertEquals(100, pinnedForScroll(pripnute, topVisibleMessageId = 50))
     }
 }

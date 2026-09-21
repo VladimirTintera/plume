@@ -1128,10 +1128,11 @@ fun ConversationScreen(
              * a odsazuje se o jejich ZMĚŘENOU výšku. Kdyby byly součástí `topBar`, ukusovaly by místo
              * i ve chvíli, kdy odjíždějí, a obsah by pod nimi na konci animace poskočil.
              *
-             * Ukazuje se jedna zpráva (viz `PinnedMessagesBar`). Která, drží obrazovka podle id,
-             * ne indexu: když přibude nová připnutá, index by ukázal jinou zprávu.
+             * Ukazuje se jedna zpráva (viz `PinnedMessagesBar`), a **která, rozhoduje scroll**
+             * (`pinnedForScroll`): ta, kterou uživatel právě míjí. Pruh tím slouží i jako
+             * orientace v historii. Nedrží se proto žádný stav — odvozuje se z klíče nejvyšší
+             * viditelné položky, takže nová připnutá zpráva výběr nerozhodí.
              */
-            var shownPinnedId by rememberSaveable { mutableStateOf<Long?>(null) }
             var allPinnedOpen by rememberSaveable { mutableStateOf(false) }
 
             val density = LocalDensity.current
@@ -1150,13 +1151,11 @@ fun ConversationScreen(
 
                 PinnedMessagesBar(
                     messages = pinned,
-                    index = pinnedIndex(pinned, shownPinnedId),
+                    index = pinnedIndex(pinned, pinnedForScroll(pinned, topVisibleKey)),
                     canUnpin = state.canUnpin,
-                    onOpen = { message ->
-                        viewModel.jumpToMessage(message.id)
-                        // Další ťuknutí vede o jednu starší, jako v oficiálním klientu.
-                        shownPinnedId = nextPinnedId(pinned, message.id)
-                    },
+                    // Ťuknutí skočí na ukázanou zprávu; po skoku stojí nahoře viewportu, takže
+                    // pruh sám přepne na tu starší a další ťuknutí vede o krok zpět.
+                    onOpen = { message -> viewModel.jumpToMessage(message.id) },
                     onUnpin = viewModel::unpin,
                     onShowAll = { allPinnedOpen = true },
                 )
@@ -1166,10 +1165,7 @@ fun ConversationScreen(
                 PinnedMessagesSheet(
                     messages = state.pinned,
                     canUnpin = state.canUnpin,
-                    onOpen = { message ->
-                        viewModel.jumpToMessage(message.id)
-                        shownPinnedId = message.id
-                    },
+                    onOpen = { message -> viewModel.jumpToMessage(message.id) },
                     onUnpin = viewModel::unpin,
                     onDismiss = { allPinnedOpen = false },
                 )
