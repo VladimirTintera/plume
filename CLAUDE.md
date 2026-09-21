@@ -3686,6 +3686,31 @@ stáhne. Všechny akce jdou přes jednoho příjemce a jednu třídu (`Notificat
 - **Ztlumený chat TDLib z notifikací stáhne sám**, ve stejné milisekundě jako potvrzení
   `setChatNotificationSettings` (ověřeno logem, i po probuzení mrtvého procesu). Ruční zavírání
   notifikace po ztlumení (první verze) bylo zbytečné.
+- **iOS: akce jsou připravené, notifikace zatím ne** (`IosNotificationCenter`, smlouva
+  `NotificationCategories` v commonMain). Chybí APNs a notification service extension; ta až
+  vznikne, jen vyplní `categoryIdentifier` a klíče `plume_chat_id` / `plume_message_id` /
+  `plume_is_group`. **Na iOS nesou akce KATEGORIE**, ne notifikace — kombinace „smí odpovědět /
+  smí ztlumit" jsou čtyři předem zaregistrované kategorie.
+- **iOS: delegát `UNUserNotificationCenter` se nastavuje v `initKoin`** (z `App.init`). Akce umí
+  spustit ukončenou aplikaci a odpověď dostane jen delegát, který existuje dřív, než aplikace
+  doběhne start. Drží se silnou referencí — centrum ho má jen slabě.
+- **iOS: `suspend` v argumentech ObjC volání shodí aplikaci.** Kategorie měly popisky
+  `title = getString(…)` přímo v `actionWithIdentifier(…)`: Kotlin/Native převedl už vyhodnocené
+  argumenty na NSString, korutina se uspala, pokračovala jinde a autorelease pool je uvolnil —
+  pád na `objc_retain` hned při startu. Test bez suspendu v argumentech prošel, takže se to
+  pozná jen v aplikaci. **Hodnoty ze `suspend` funkcí se načtou do proměnných PŘED voláním ObjC.**
+- **iOS: přečtení a ztlumení potřebují chvíli PO potvrzení** (`SYNC_GRACE`, 3 s). TDLib je
+  potvrdí lokálně hned a na server pošle až potom; po completion handleru iOS proces uspí,
+  a když ho pak ukončí, chat zůstane nepřečtený. Ověřeno: studený start, akce, iOS proces sám
+  ukončil — bez pauzy nepřečteno, s ní přečteno. Stav spojení se na to použít nesmí (jen popisek).
+- **iOS: `plume_message_id` 0 = id chybí.** Nula prošla jako id zprávy a TDLib odmítl
+  `viewMessages` („Invalid message identifier").
+- **Ověření na simulátoru bez APNs:** `xcrun simctl push <zařízení> eu.tintera.plume x.apns`
+  s `aps.category` a klíči výš (aplikace potřebuje oprávnění k notifikacím — to se zatím
+  nežádá, pro test ho dočasně vyžádat v `install`). Akce: centrum notifikací (tah od horní hrany),
+  notifikace doleva → View. Podržení na simulátoru náhled NEotevře. Aplikace do unified logu
+  nepíše; průběh akce se dá sledovat jen dočasným zápisem do souboru v `Documents`
+  (`simctl get_app_container … data`). Ověřeno: všechny tři akce, přečtení i ze studeného startu.
 - **Tři akce, jeden request code** (`groupId`) nevadí: akce intentu vstupuje do `filterEquals`,
   takže se `PendingIntent`y nepřepíšou.
 

@@ -175,5 +175,6 @@ Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení
   vytvoření stejně přepsat nemůže (viz rozbor kanálů).
 - **Rychlé akce z notifikace.** Odpověď, označení za přečtené a ztlumení na hodinu jsou na
   Androidu hotové (viz CLAUDE.md, „Akce z notifikace"). Chybí:
-  - **Akce na iOS** (`UNTextInputNotificationAction` a kategorie notifikace) — až budou na iOS
-    notifikace vůbec.
+  - **iOS** má akce připravené (`IosNotificationCenter`, ověřeno přes `simctl push`); chybí
+    samotné notifikace — APNs, notification service extension, žádost o oprávnění. Extension
+    musí vyplnit kategorii a klíče z `NotificationCategories`.

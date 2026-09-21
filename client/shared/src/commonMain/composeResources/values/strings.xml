@@ -449,6 +449,7 @@
     <string name="notification_reply">Reply</string>
     <string name="notification_mark_read">Mark as read</string>
     <string name="notification_mute_hour">Mute for 1 hour</string>
+    <string name="notification_reply_send">Send</string>
     <string name="notification_reply_failed">Not sent: %1$s</string>
     <string name="clipboard_label">Message</string>
     <string name="conversation_fallback_title">Conversation</string>
