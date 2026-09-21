@@ -4,6 +4,8 @@ import eu.tintera.plume.features.profile.ChatProfileViewModel
 import eu.tintera.plume.core.telegram.TdlProfileRepository
 import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.DeviceRepository
+import eu.tintera.plume.core.telegram.NotificationSettingsRepository
+import eu.tintera.plume.core.telegram.TdlNotificationSettingsRepository
 import eu.tintera.plume.core.telegram.TdlDeviceRepository
 import eu.tintera.plume.features.devices.DevicesViewModel
 import eu.tintera.plume.features.conversation.ConversationSearchRequests
@@ -48,6 +50,7 @@ import eu.tintera.plume.features.media.MediaViewerViewModel
 import eu.tintera.plume.features.share.ShareViewModel
 import eu.tintera.plume.features.settings.AppearanceViewModel
 import eu.tintera.plume.features.settings.SettingsViewModel
+import eu.tintera.plume.features.settings.NotificationSettingsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -154,6 +157,7 @@ fun appModule() = module {
     single { RevealedSpoilers() }
     single { SelfDestructTimers() }
     single<ProfileRepository> { TdlProfileRepository(holder = get()) }
+    single<NotificationSettingsRepository> { TdlNotificationSettingsRepository(holder = get()) }
     // Eager: nepotvrzené přihlášení TDLib ohlásí hned po startu (viz TdlDeviceRepository).
     single<DeviceRepository>(createdAtStart = true) {
         TdlDeviceRepository(holder = get(), scope = get(named(APP_SCOPE)))
@@ -184,6 +188,7 @@ fun appModule() = module {
     viewModelOf(::SettingsViewModel)
     viewModelOf(::AppearanceViewModel)
     viewModelOf(::DevicesViewModel)
+    viewModelOf(::NotificationSettingsViewModel)
 
     // chatId přichází z navigační routy, ne z grafu → runtime parametr. Druhý parametr je zpráva,
     // na kterou se po otevření skočí; bývá `null`, a podle typu by se spletl s chatId — proto index.

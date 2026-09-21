@@ -32,7 +32,7 @@ data object SettingsRoute : TopLevelRoute
  * doprostřed nezmění význam uloženého zásobníku.
  */
 @Serializable
-enum class SettingsSection { General, Appearance, Devices }
+enum class SettingsSection { General, Notifications, Appearance, Devices }
 
 /**
  * Jedna sekce nastavení. V list-detail rozvržení je to detail panel vedle seznamu sekcí,
