@@ -129,6 +129,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -262,6 +263,8 @@ fun ConversationScreen(
     onSearch: (query: String) -> Unit,
     /** Ťuknutí na hlavičku: profil chatu. */
     onOpenProfile: () -> Unit,
+    /** Profil jiného chatu nad konverzací — odesílatel ze skupiny, na jehož tvář se ťuklo. */
+    onOpenUserProfile: (chatId: Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
@@ -439,6 +442,18 @@ fun ConversationScreen(
         viewModel.consumeOpenChat()
         currentOnOpenChat(target.chatId, target.messageId)
     }
+    val currentOnOpenUserProfile by rememberUpdatedState(onOpenUserProfile)
+    LaunchedEffect(state.openProfile) {
+        val target = state.openProfile ?: return@LaunchedEffect
+        viewModel.consumeOpenProfile()
+        currentOnOpenUserProfile(target)
+    }
+
+    /*
+     * Zpráva, na jejíž tvář se naposledy ťuklo: jen ta nese sdílený prvek do profilu. Přežije
+     * i návrat z profilu (a zabití procesu), aby tvář měla kam doletět zpátky.
+     */
+    val profileFlight = rememberSaveable { mutableStateOf<Long?>(null) }
     val saveAs = rememberSaveAs()
     val currentSaveAs by rememberUpdatedState(saveAs)
     val itemScope = remember(viewModel) {
@@ -457,6 +472,7 @@ fun ConversationScreen(
             onSaveFileAs = { messageId -> currentSaveAs?.let { viewModel.saveDocumentAs(messageId, it) } },
             jumpTransition = jumpTransition,
             searchHighlight = searchHighlight,
+            profileFlight = profileFlight,
         )
     }
 
@@ -2054,7 +2070,10 @@ private class ScreenItemScope(
     private val onSaveFileAs: (messageId: Long) -> Unit,
     private val jumpTransition: JumpTransition,
     private val searchHighlight: State<String?>,
+    private val profileFlight: MutableState<Long?>,
 ) : ConversationItemScope {
+    override fun isProfileFlight(messageId: Long): Boolean = profileFlight.value == messageId
+
     override fun searchHighlight(): String? = searchHighlight.value
 
     override fun gatherShift(key: Any): Float = jumpTransition.shiftOf(key)
@@ -2088,6 +2107,11 @@ private class ScreenItemScope(
         is MessageAction.OpenStickerSet -> onOpenStickerSet(action.setId)
         is MessageAction.SearchHashtag -> onSearch(action.tag)
         MessageMenuAction.SaveFileAs -> onSaveFileAs(messageId)
+        is MessageAction.OpenSenderProfile -> {
+            // Klíč letu musí stát dřív, než se profil otevře; chat se hledá asynchronně.
+            profileFlight.value = messageId
+            viewModel.onAction(messageId, action)
+        }
         else -> viewModel.onAction(messageId, action)
     }
 

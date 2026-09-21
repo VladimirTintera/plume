@@ -101,6 +101,12 @@ internal interface ConversationItemScope {
      */
     fun searchHighlight(): String? = null
 
+    /**
+     * Nese tvář odesílatele u téhle zprávy sdílený prvek do profilu? Jen ta ŤUKNUTÁ: tentýž
+     * člověk má ve skupině tvář u každého bloku zpráv a o jeden klíč by se přetahovaly všechny.
+     */
+    fun isProfileFlight(messageId: Long): Boolean = false
+
     /** Svislý posun položky při příjezdu po přeskoku (viz `JumpTransition`); čte se až při kreslení. */
     fun gatherShift(key: Any): Float = 0f
 

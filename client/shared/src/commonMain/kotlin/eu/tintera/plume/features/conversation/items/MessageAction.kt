@@ -72,6 +72,13 @@ sealed interface MessageAction {
     /** Zmínka uživatele bez veřejného jména: soukromý chat s ním. */
     data class OpenUser(val userId: Long) : MessageAction
 
+    /**
+     * Ťuknutí na tvář odesílatele ve skupině: jeho profil. Ze zprávy se najde soukromý chat
+     * (profil stojí na chatu, ne na uživateli), a tvář do profilu přiletí — viz
+     * [ConversationItemScope.isProfileFlight].
+     */
+    data class OpenSenderProfile(val userId: Long) : MessageAction
+
     /** `#tag` v textu: hledání zpráv s tagem. Navigace — vyřizuje ji obrazovka, ne ViewModel. */
     data class SearchHashtag(val tag: String) : MessageAction
 
