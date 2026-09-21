@@ -2847,6 +2847,20 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
   „10704668 odběratelů" se nedalo přečíst. Commonmain `NumberFormat` nemá; mezera je čitelná
   v češtině i angličtině. Plurály proto berou číslo jako `%1$s`.
 
+- **Méně časté akce jsou za ⋮ v liště** (`ProfileMenu`): kopírovat odkaz (veřejné jméno, jinak
+  pozvánka — tu server vydá jen správci s právem zvát), zablokovat / odblokovat uživatele či
+  bota a smazat chat / opustit skupinu nebo kanál. Dlaždice nesou to, kvůli čemu se do profilu
+  chodí; tohle se dělá jednou za čas a dvě z toho jsou nevratné, s potvrzením a stejnými texty
+  jako v seznamu chatů. Odblokovat je bez potvrzení.
+- **Po smazání nebo odchodu se zavře všechno, co chat ukazuje** (`closeChat` v `ChatsStack.kt`,
+  test v `ChatsStackTest`): konverzace, profil a prohlížeč médií, v hlavním seznamu i archivu.
+- **Blokuje se hlavní seznam** (`BlockListMain`) — ten brání psát i volat. Stav se čte
+  z `UserFullInfo.blockList` a po akci přepíše lokálně: profil `UpdateUserFullInfo` neodebírá.
+- **Opustit se nabízí jen tam, kde uživatel je** (`isMember` z vlastního postavení) — z chatu
+  otevřeného z globálního hledání není odkud odejít.
+- **Snackbar profilu dřív neukázal nikdy nic**, ani chybu: efekt klíčovaný `state.error` hlášku
+  vynuloval a tím se sám zrušil (past „Vrátit"). Teď běží v `rememberCoroutineScope`.
+
 ### Sdílená média v profilu
 
 Pod hlavičkou profilu jsou záložky: **Členové** (kde je server vydá), **Média**, **Soubory**

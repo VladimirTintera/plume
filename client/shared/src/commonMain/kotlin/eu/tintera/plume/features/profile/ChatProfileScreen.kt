@@ -1,5 +1,32 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.common_cancel
+import eu.tintera.plume.resources.common_delete
+import eu.tintera.plume.resources.chats_leave_body
+import eu.tintera.plume.resources.chats_leave_title
+import eu.tintera.plume.resources.chats_delete_body
+import eu.tintera.plume.resources.chats_delete_title
+import eu.tintera.plume.resources.chats_action_leave
+import eu.tintera.plume.resources.chats_action_delete
+import eu.tintera.plume.resources.profile_leave_group
+import eu.tintera.plume.resources.profile_leave_channel
+import eu.tintera.plume.resources.profile_block_bot_body
+import eu.tintera.plume.resources.profile_block_body
+import eu.tintera.plume.resources.profile_block_title
+import eu.tintera.plume.resources.profile_unblock
+import eu.tintera.plume.resources.profile_block
+import eu.tintera.plume.resources.profile_copy_link
+import eu.tintera.plume.resources.profile_more
+import eu.tintera.plume.resources.logout_24dp
+import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.block_24dp
+import eu.tintera.plume.resources.more_vert_24dp
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.clickable
 import eu.tintera.plume.resources.profile_notif_title
 import eu.tintera.plume.core.telegram.ChatNotificationPrefs
@@ -162,6 +189,8 @@ fun ChatProfileScreen(
     onOpenChat: (chatId: Long) -> Unit,
     /** Fotka nebo video ze záložky Média: otevře se prohlížeč, stejně jako z konverzace. */
     onOpenMedia: (messageId: Long) -> Unit,
+    /** Chat je smazaný nebo opuštěný — zavřít profil i konverzaci. */
+    onChatGone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -179,10 +208,18 @@ fun ChatProfileScreen(
         viewModel.consumeOpenMedia()
         currentOnOpenMedia(target)
     }
+    val currentOnChatGone by rememberUpdatedState(onChatGone)
+    LaunchedEffect(state.chatGone) {
+        if (state.chatGone) currentOnChatGone()
+    }
+    // Snackbar MIMO tělo efektu: `consumeError` mění klíč efektu a zrušil by ho dřív, než se
+    // hláška ukáže — tak to bylo, a profil žádnou hlášku (ani chybu) nikdy neukázal.
+    val snackbarScope = rememberCoroutineScope()
     LaunchedEffect(state.error) {
         val error = state.error ?: return@LaunchedEffect
+        val text = getString(error.resource, *error.args.toTypedArray())
         viewModel.consumeError()
-        snackbarHostState.showSnackbar(getString(error.resource, *error.args.toTypedArray()))
+        snackbarScope.launch { snackbarHostState.showSnackbar(text) }
     }
 
     // Jeden scroll pro celý profil: čte ho i hlavička obrazovky (název se v ní ukáže, až ten
@@ -212,6 +249,16 @@ fun ChatProfileScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                    }
+                },
+                actions = {
+                    state.profile?.let { profile ->
+                        ProfileMenu(
+                            profile = profile,
+                            onCopyLink = viewModel::copyLink,
+                            onSetBlocked = viewModel::setBlocked,
+                            onDeleteOrLeave = viewModel::deleteOrLeave,
+                        )
                     }
                 },
             )
@@ -779,3 +826,118 @@ private fun InfoRow(label: String, shape: Shape, onClick: (() -> Unit)? = null, 
 }
 
 private val HEADER_AVATAR_SIZE = 112.dp
+
+/**
+ * Méně častá akce nad chatem za ⋮: odkaz, blokování, smazání / odchod.
+ *
+ * Nahoře v liště, ne jako další dlaždice: dlaždice (Ztlumit, Hledat) jsou to, kvůli čemu se do
+ * profilu chodí; tohle se dělá jednou za čas a dvě z toho jsou nevratné. `DropdownMenu` tu
+ * nevadí — past s odstupem od okraje (viz „Vzhled konverzace") je jen u spodku obrazovky.
+ * Nevratné akce mají potvrzení s konkrétním následkem, stejné texty jako v seznamu chatů.
+ */
+@Composable
+private fun ProfileMenu(
+    profile: ChatProfile,
+    onCopyLink: () -> Unit,
+    onSetBlocked: (Boolean) -> Unit,
+    onDeleteOrLeave: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var confirmBlock by rememberSaveable { mutableStateOf(false) }
+    var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    val canBlock = profile.userId != null
+    val canDeleteOrLeave = profile.isPrivate || profile.isMember
+    if (profile.link == null && !canBlock && !canDeleteOrLeave) return
+
+    IconButton(onClick = { expanded = true }) {
+        Icon(painterResource(Res.drawable.more_vert_24dp), contentDescription = stringResource(Res.string.profile_more))
+    }
+    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        if (profile.link != null) {
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.profile_copy_link)) },
+                leadingIcon = { Icon(painterResource(Res.drawable.link_24dp), contentDescription = null) },
+                onClick = {
+                    expanded = false
+                    onCopyLink()
+                },
+            )
+        }
+        if (canBlock) {
+            DropdownMenuItem(
+                text = { Text(stringResource(if (profile.isBlocked) Res.string.profile_unblock else Res.string.profile_block)) },
+                leadingIcon = { Icon(painterResource(Res.drawable.block_24dp), contentDescription = null) },
+                onClick = {
+                    expanded = false
+                    // Odblokovat je vratné a nic neodřízne — bez potvrzení.
+                    if (profile.isBlocked) onSetBlocked(false) else confirmBlock = true
+                },
+            )
+        }
+        if (canDeleteOrLeave) {
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        stringResource(
+                            when (profile.kind) {
+                                ProfileKind.Channel -> Res.string.profile_leave_channel
+                                ProfileKind.Group -> Res.string.profile_leave_group
+                                else -> Res.string.chats_action_delete
+                            },
+                        ),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        painterResource(if (profile.isPrivate) Res.drawable.delete_24dp else Res.drawable.logout_24dp),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    confirmDelete = true
+                },
+            )
+        }
+    }
+
+    if (confirmBlock) {
+        AlertDialog(
+            onDismissRequest = { confirmBlock = false },
+            title = { Text(stringResource(Res.string.profile_block_title, profile.title)) },
+            text = {
+                Text(stringResource(if (profile.kind == ProfileKind.Bot) Res.string.profile_block_bot_body else Res.string.profile_block_body))
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmBlock = false
+                    onSetBlocked(true)
+                }) { Text(stringResource(Res.string.profile_block), color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirmBlock = false }) { Text(stringResource(Res.string.common_cancel)) } },
+        )
+    }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text(stringResource(if (profile.isPrivate) Res.string.chats_delete_title else Res.string.chats_leave_title)) },
+            text = {
+                Text(stringResource(if (profile.isPrivate) Res.string.chats_delete_body else Res.string.chats_leave_body, profile.title))
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDelete = false
+                    onDeleteOrLeave()
+                }) {
+                    Text(
+                        stringResource(if (profile.isPrivate) Res.string.common_delete else Res.string.chats_action_leave),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(Res.string.common_cancel)) } },
+        )
+    }
+}

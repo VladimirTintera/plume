@@ -231,6 +231,7 @@ fun appModule() = module {
             urlOpener = get(),
             notificationSettings = get(),
             notificationPermission = get(),
+            clipboard = get(),
         )
     }
 

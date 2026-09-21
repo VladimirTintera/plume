@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.profile_action_failed
+import eu.tintera.plume.resources.profile_link_copied
+import eu.tintera.plume.core.ui.TextClipboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
@@ -57,6 +60,7 @@ class ChatProfileViewModel(
     private val urlOpener: UrlOpener,
     private val notificationSettings: NotificationSettingsRepository,
     private val notificationPermission: NotificationPermission,
+    private val clipboard: TextClipboard,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Profile")
@@ -278,6 +282,36 @@ class ChatProfileViewModel(
         notificationPermission.openConversationSettings(chatId, title, prefs.scope.channel)
     }
 
+    /** Odkaz na chat (veřejné jméno, jinak pozvánka) do schránky. */
+    fun copyLink() {
+        val link = _state.value.profile?.link ?: return
+        viewModelScope.launch {
+            clipboard.copy(link)
+            _state.update { it.copy(error = UiText(Res.string.profile_link_copied)) }
+        }
+    }
+
+    /** Stav se po úspěchu přepíše lokálně — `UpdateUserFullInfo` profil neodebírá. */
+    fun setBlocked(blocked: Boolean) {
+        val profile = _state.value.profile ?: return
+        val userId = profile.userId ?: return
+        viewModelScope.launch {
+            profiles.setBlocked(userId, blocked)
+                .onSuccess { _state.update { it.copy(profile = it.profile?.copy(isBlocked = blocked)) } }
+                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.profile_action_failed)) } }
+        }
+    }
+
+    /** Po úspěchu obrazovka zavře profil i konverzaci — chat už v seznamu není. */
+    fun deleteOrLeave() {
+        val profile = _state.value.profile ?: return
+        viewModelScope.launch {
+            profiles.deleteOrLeave(profile)
+                .onSuccess { _state.update { it.copy(chatGone = true) } }
+                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.profile_action_failed)) } }
+        }
+    }
+
     /** Člen skupiny: otevře se soukromý chat s ním (TDLib ho založí lokálně, nic se neposílá). */
     fun openMember(userId: Long) {
         viewModelScope.launch {
@@ -323,6 +357,8 @@ data class ChatProfileState(
     /** Průběh stahování souboru podle `fileId`, dokud se neotevře. */
     val documentDownloads: Map<Int, Float> = emptyMap(),
     val error: UiText? = null,
+    /** Jednorázová událost: chat je smazaný / opuštěný, profil i konverzace se zavřou. */
+    val chatGone: Boolean = false,
     /** Jednorázová událost: otevřít chat (člen skupiny). */
     val openChat: Long? = null,
     /** Jednorázová událost: otevřít prohlížeč médií na této zprávě. */

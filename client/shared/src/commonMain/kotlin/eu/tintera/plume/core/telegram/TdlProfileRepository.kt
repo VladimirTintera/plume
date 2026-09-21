@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.telegram
 
+import dev.g000sha256.tdl.dto.BlockListMain
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.ChatMemberStatusAdministrator
 import dev.g000sha256.tdl.dto.ChatMemberStatusBanned
@@ -51,6 +52,8 @@ class TdlProfileRepository(
                     memberCount = group?.memberCount?.takeIf { it > 0 },
                     // Malá skupina členy vydá vždycky.
                     canListMembers = true,
+                    inviteLink = full?.inviteLink?.inviteLink?.takeIf { it.isNotBlank() },
+                    isMember = client.ownMemberStatus(chat).isMember(),
                 )
             }
 
@@ -63,6 +66,8 @@ class TdlProfileRepository(
                     memberCount = (full?.memberCount ?: group?.memberCount)?.takeIf { it > 0 },
                     // Kanál členy vydá jen správcům a skupina se skrytými členy vůbec.
                     canListMembers = !type.isChannel && full?.canGetMembers == true,
+                    inviteLink = full?.inviteLink?.inviteLink?.takeIf { it.isNotBlank() },
+                    isMember = client.ownMemberStatus(chat).isMember(),
                 )
             }
         }
@@ -86,7 +91,30 @@ class TdlProfileRepository(
             usernames = user.usernames?.activeUsernames?.toList().orEmpty(),
             // TDLib posílá číslo bez „+"; prázdné = uživatel ho neukazuje.
             phone = user.phoneNumber.takeIf { it.isNotBlank() }?.let { "+$it" },
+            userId = userId,
+            isBlocked = full?.blockList != null,
         )
+    }
+
+    /** Blokuje se hlavní seznam (`BlockListMain`) — ten brání psát i volat; stories mají vlastní. */
+    override suspend fun setBlocked(userId: Long, blocked: Boolean): Result<Unit> =
+        client.setMessageSenderBlockList(
+            senderId = MessageSenderUser(userId = userId),
+            blockList = if (blocked) BlockListMain() else null,
+        ).toResult().map { }
+
+    override suspend fun deleteOrLeave(profile: ChatProfile): Result<Unit> =
+        if (profile.isPrivate) {
+            client.deleteChatHistory(chatId = profile.chatId, removeFromChatList = true, revoke = false)
+        } else {
+            client.leaveChat(chatId = profile.chatId)
+        }.toResult().map { }
+
+    private fun OwnMemberStatus?.isMember(): Boolean = when (this) {
+        is OwnMemberStatus.Creator -> isMember
+        is OwnMemberStatus.Admin, OwnMemberStatus.Member -> true
+        is OwnMemberStatus.Restricted -> isMember
+        OwnMemberStatus.Left, OwnMemberStatus.Banned, null -> false
     }
 
     private fun ChatProfile.withAbout(body: MessageBody) = copy(about = body.text, aboutEntities = body.entities)
