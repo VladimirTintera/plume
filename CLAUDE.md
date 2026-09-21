@@ -1670,9 +1670,21 @@ za ikonou seznamu v sheetu (`PinnedMessagesSheet`), s odepínáním.
   neposílá vůbec; pořadí je podle id zprávy a `getChatPinnedMessage` vrací taky tu s nejvyšším
   id. U kanálu, který připíná čerstvé příspěvky, je to totéž; připne-li někdo starou zprávu,
   zařadí se podle svého stáří.
-- **Ukázaná zpráva se drží podle id, ne indexu** (`pinnedIndex`, `nextPinnedId`, testy
-  `PinnedMessagesBarTest`). Nová připnutá by jinak posunula index a pruh by přeskočil na jinou.
-  Odepnutá ukázaná spadne na nejnovější.
+- **Která se ukáže, ROZHODUJE SCROLL** (`pinnedForScroll`, testy `PinnedMessagesBarTest`): ta,
+  kterou uživatel právě míjí — nejnovější z připnutých nad viditelnou částí. Pruh tím slouží
+  i jako orientace v historii, místo aby napořád visel na nejnovější. Nedrží se k tomu žádný
+  stav; odvozuje se z klíče nejvyšší viditelné položky (ten už existoval kvůli plovoucímu datu),
+  takže nová připnutá zpráva výběr nerozhodí.
+- **Porovnává se STRIKTNĚ** (`it.id < top`). Připnutá, na kterou se právě skočilo, stojí nahoře
+  viewportu; kdyby se počítala jako „nad", ukazoval by ji pruh dál a ťuknutí by vedlo pořád na
+  ni — procházení by se zaseklo. Nad nejstarší připnutou se ukazuje ona sama, výš už žádná není.
+- **Skok z pruhu kotví NAHORU, ne na střed** (`jumpToMessage(anchor = ScrollAnchor.Top)`). Se
+  středem se nad cílem odkryje kus historie a pruh přeskočí rovnou k nejstarší připnuté — z 19
+  → 16 → 14 se prostřední krok ztratí. Citace a hledání na středu zůstávají: tam je naopak
+  potřeba vidět, na co zpráva navazuje.
+- **Ukázaná zpráva se drží podle id, ne indexu** (`pinnedIndex`, testy `PinnedMessagesBarTest`).
+  Nová připnutá by jinak posunula index a pruh by přeskočil na jinou. Odepnutá ukázaná spadne
+  na nejnovější.
 - **Křížek v pruhu je jen u jediné připnuté.** U víc zpráv je vpravo seznam a odepíná se v něm —
   křížek vedle jedné z mnoha svádí k domněnce, že zavře celý pruh.
 - **Sheet se po odepnutí nezavírá** (odepíná se často víc zpráv po sobě), po ťuknutí na řádek

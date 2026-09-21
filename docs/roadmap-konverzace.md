@@ -292,10 +292,8 @@ a scrollování" u duplicitního klíče po potvrzení odeslání).
 - **Práva po druzích obsahu.** Pole se schová, jen když chat nedovolí psát vůbec. Skupina, kde
   smí jen text, nechá pole celé a fotka, samolepka nebo hlasovka skončí chybou po odeslání —
   sponka, výběr samolepek a mikrofon by se měly řídit `ChatPermissions.canSendPhotos` atd.
-- **Pruh připnutých podle scrollu.** Dnes ukazuje nejnovější a ťuknutí posouvá ke starší.
-  Oficiální klient navíc při scrollu historií ukazuje tu připnutou, která je nejblíž NAD
-  viditelnou částí — pruh pak slouží i jako orientace. Stačilo by id nejvyšší viditelné zprávy
-  (klíč bloku) porovnat se seznamem připnutých.
+- ~~**Pruh připnutých podle scrollu.**~~ — hotovo (`pinnedForScroll`; `CLAUDE.md`, „Připnuté
+  zprávy"). Skok z pruhu kotví nahoru, takže procházení jde krok za krokem.
 - **Označení části textu.** Kopíruje se jen celá zpráva z nabídky; vybrat úryvek
   (`SelectionContainer`) zatím nejde.
 
