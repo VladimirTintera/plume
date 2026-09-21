@@ -665,7 +665,17 @@ class ConversationViewModel(
      * Zvýraznění je nutné. Po skoku uprostřed historie by jinak nebylo poznat, na kterou
      * z bublin na obrazovce citace mířila.
      */
-    fun jumpToMessage(messageId: Long, fromSearch: Boolean = false) {
+    /**
+     * Skok na zprávu. [anchor] `Center` je pro citaci a hledání — kolem je vidět, na co zpráva
+     * navazuje. Pruh připnutých posílá `Top`: ukazuje tu připnutou, kterou uživatel míjí, takže
+     * ji skok musí posadit NAD viditelnou část, aby pruh mohl přejít na předchozí. Se středem
+     * se nad cílem odkryje kus historie a pruh přeskočí rovnou k nejstarší připnuté.
+     */
+    fun jumpToMessage(
+        messageId: Long,
+        fromSearch: Boolean = false,
+        anchor: ScrollAnchor = ScrollAnchor.Center,
+    ) {
         viewModelScope.launch {
             // Dojíždí se jen ke zprávě, která už v seznamu byla. Po výměně okna (`loadAround`) je
             // seznam nový a začíná u spodní hrany okna — tam se dotahují novější zprávy a indexy by
@@ -692,7 +702,7 @@ class ConversationViewModel(
                 it.copy(
                     scrollTarget = ScrollTarget(
                         messageId,
-                        ScrollAnchor.Center,
+                        anchor,
                         animate = alreadyLoaded,
                         older = older.takeUnless { alreadyLoaded },
                     ),

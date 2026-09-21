@@ -309,16 +309,29 @@ private fun MessageMedia?.thumbnailFileId(): Int? = when (this) {
     else -> null
 }
 
+/**
+ * Připnutá, kterou uživatel právě míjí: nejnovější z těch, které leží NAD viditelnou částí.
+ *
+ * Pruh tím slouží i jako orientace v historii — ukazuje, pod kterou připnutou zprávou uživatel
+ * zrovna je, místo aby napořád visel na nejnovější. Tak to dělá i oficiální klient.
+ *
+ * **Porovnává se STRIKTNĚ.** Připnutá, na kterou se právě skočilo, stojí nahoře viewportu;
+ * kdyby se počítala jako „nad", ukazoval by ji pruh dál a ťuknutí by vedlo pořád na ni —
+ * procházení připnutých by se zaseklo.
+ *
+ * [pinned] je od nejnovější po nejstarší. Nad nejstarší připnutou (tedy na začátku historie)
+ * se ukazuje ona sama: výš už žádná není. Dokud se nic nevykreslilo ([topVisibleMessageId] je
+ * `null`), platí nejnovější — s tou se pruh otevírá.
+ */
+internal fun pinnedForScroll(pinned: List<ChatMessage>, topVisibleMessageId: Long?): Long? {
+    if (pinned.isEmpty()) return null
+    val top = topVisibleMessageId ?: return pinned.first().id
+    return (pinned.firstOrNull { it.id < top } ?: pinned.last()).id
+}
+
 /** Pořadí ukázané zprávy v pruhu, když zná jen id (seznam se mezitím mohl změnit). */
 internal fun pinnedIndex(messages: List<ChatMessage>, shownId: Long?): Int =
     messages.indexOfFirst { it.id == shownId }.coerceAtLeast(0)
-
-/** Další na řadě po ťuknutí: starší, za nejstarší zase nejnovější. */
-internal fun nextPinnedId(messages: List<ChatMessage>, currentId: Long): Long? {
-    if (messages.isEmpty()) return null
-    val index = messages.indexOfFirst { it.id == currentId }
-    return messages[(index + 1).mod(messages.size)].id
-}
 
 private val PINNED_BAR_HEIGHT = 52.dp
 private val PINNED_BAR_CORNER = 16.dp
