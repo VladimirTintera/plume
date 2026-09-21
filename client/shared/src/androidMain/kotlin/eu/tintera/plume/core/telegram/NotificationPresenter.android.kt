@@ -1,8 +1,6 @@
 package eu.tintera.plume.core.telegram
 
 import android.Manifest
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -21,12 +19,12 @@ import androidx.core.graphics.drawable.IconCompat
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.NotificationIntents
+import eu.tintera.plume.core.notifications.channelId
+import eu.tintera.plume.core.notifications.createNotificationChannels
 import eu.tintera.plume.core.share.bookmarkIcon
 import eu.tintera.plume.core.share.conversationShortcut
 import eu.tintera.plume.core.share.pushConversationShortcut
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.notification_channel_description
-import eu.tintera.plume.resources.notification_channel_name
 import eu.tintera.plume.resources.notification_mark_read
 import eu.tintera.plume.resources.notification_mute_hour
 import eu.tintera.plume.resources.notification_reply
@@ -97,9 +95,9 @@ actual class NotificationPresenter(
 
     actual fun start(repository: NotificationRepository) {
         scope.launch(dispatcher) {
-            // Kanál i jméno „Já" se čtou z prostředků (`suspend`), takže se zakládá až tady.
-            createChannel()
-            logger.d { "Kanál vytvořen, odebírám notifikace." }
+            // Názvy kanálů i jméno „Já" se čtou z prostředků (`suspend`), takže se zakládá až tady.
+            createNotificationChannels(context)
+            logger.d { "Kanály vytvořeny, odebírám notifikace." }
 
             repository.updates.collect { update ->
                 when (update) {
@@ -109,17 +107,6 @@ actual class NotificationPresenter(
                 }
             }
         }
-    }
-
-    private suspend fun createChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            getString(Res.string.notification_channel_name),
-            NotificationManager.IMPORTANCE_HIGH,
-        ).apply {
-            description = getString(Res.string.notification_channel_description)
-        }
-        manager.createNotificationChannel(channel)
     }
 
     private suspend fun add(notifications: List<ChatNotification>) {
@@ -135,6 +122,7 @@ actual class NotificationPresenter(
                     isSavedMessages = newest.isSavedMessages,
                     canReply = newest.canReply,
                     canMute = newest.canMute,
+                    channel = newest.channel,
                     // Po restartu procesu je mapa prázdná, ale notifikace v liště zůstaly.
                     // Bez převzetí jejich řádků by nová zpráva přepsala předchozí.
                     lines = recoverLines(groupId),
@@ -147,6 +135,7 @@ actual class NotificationPresenter(
             // Práva psát se můžou změnit; platí to, co TDLib řekl u nejnovější zprávy.
             conversation.canReply = newest.canReply
             conversation.canMute = newest.canMute
+            conversation.channel = newest.channel
 
             val added = batch
                 .filter { line -> conversation.lines.none { it.notificationId == line.notificationId } }
@@ -300,7 +289,7 @@ actual class NotificationPresenter(
             }
         }
 
-        val built = NotificationCompat.Builder(context, CHANNEL_ID)
+        val built = NotificationCompat.Builder(context, conversation.channel.channelId)
             .setSmallIcon(R.drawable.ic_notification)
             // Velká ikona je záloha. U `MessagingStyle` si ji Android bere ze ZKRATKY (viz
             // `publishShortcut`) a tuhle ignoruje — uplatní se, jen když se zkratku nepodaří
@@ -589,6 +578,8 @@ actual class NotificationPresenter(
         var canReply: Boolean = true,
         /** Nabídnout akci „Ztlumit". */
         var canMute: Boolean = true,
+        /** Systémový kanál; TDLib drží zmínky v jiné skupině než běžné zprávy téhož chatu. */
+        var channel: NotificationChannelKind = NotificationChannelKind.Private,
     )
 
     /** Jedna zpráva v notifikaci. [notificationId] je `null` u řádku převzatého po restartu. */
@@ -610,8 +601,6 @@ actual class NotificationPresenter(
     private class RemovedLine(val groupId: Int, val messageId: Long, val removedAtMs: Long)
 
     private companion object {
-        const val CHANNEL_ID = "messages"
-
         /** Kolik zpráv se v notifikaci drží. Android jich stejně vykreslí jen posledních pár. */
         const val MAX_LINES = 10
 

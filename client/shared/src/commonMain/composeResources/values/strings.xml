@@ -82,7 +82,6 @@
     <string name="chats_unarchived">Chat moved back to chats</string>
     <string name="chats_undo">Undo</string>
     <string name="settings_title">Settings</string>
-    <string name="settings_notifications">Notifications</string>
     <string name="settings_notifications_on">On</string>
     <string name="settings_notifications_off">Off — you'll only find out about new messages in the app</string>
     <string name="settings_sign_out">Sign out</string>
@@ -442,8 +441,14 @@
     <string name="notification_permission_body">Without notifications you'll only find out about a new message when you open the app. You can turn them on or off any time in Settings.</string>
     <string name="notification_permission_enable">Turn on</string>
     <string name="notification_permission_later">Not now</string>
-    <string name="notification_channel_name">Messages</string>
-    <string name="notification_channel_description">New messages from Telegram</string>
+    <string name="notification_channel_private">Private chats</string>
+    <string name="notification_channel_private_description">Messages from people and bots</string>
+    <string name="notification_channel_groups">Groups</string>
+    <string name="notification_channel_groups_description">Messages in groups</string>
+    <string name="notification_channel_channels">Channels</string>
+    <string name="notification_channel_channels_description">Posts in channels</string>
+    <string name="notification_channel_mentions">Mentions and replies</string>
+    <string name="notification_channel_mentions_description">When someone mentions you or replies to your message, even in a muted chat</string>
     <string name="notification_self_name">Me</string>
     <string name="notification_reply">Reply</string>
     <string name="notification_mark_read">Mark as read</string>
@@ -590,4 +595,30 @@
     <string name="new_chat_contacts">Contacts</string>
     <string name="new_chat_empty">No contacts</string>
     <string name="new_chat_load_failed">Couldn't load contacts</string>
+    <string name="settings_section_notifications">Notifications</string>
+    <string name="settings_section_notifications_summary">Alerts, previews and exceptions</string>
+    <string name="settings_notif_system">Allowed in system</string>
+    <string name="settings_notif_enabled">Notifications</string>
+    <string name="settings_notif_preview">Message preview</string>
+    <string name="settings_notif_preview_summary">Show message text in the notification</string>
+    <string name="settings_notif_pinned">Pinned messages</string>
+    <string name="settings_notif_pinned_summary">Notify when a message is pinned</string>
+    <string name="settings_notif_mentions">Mentions and replies</string>
+    <string name="settings_notif_mentions_summary">Notify even in muted groups</string>
+    <string name="settings_notif_sound">Sound and vibration</string>
+    <string name="settings_notif_sound_summary">In system settings</string>
+    <string name="settings_notif_exceptions">Exceptions</string>
+    <plurals name="settings_notif_exceptions_count">
+        <item quantity="one">%1$d chat with its own settings</item>
+        <item quantity="other">%1$d chats with their own settings</item>
+    </plurals>
+    <string name="settings_notif_exceptions_summary">Chats with their own notification settings. Reset returns them to the defaults above.</string>
+    <string name="settings_notif_state_muted">Muted</string>
+    <string name="settings_notif_state_enabled">Notifications on</string>
+    <string name="settings_notif_state_custom">Custom settings</string>
+    <string name="settings_notif_reset">Reset</string>
+    <string name="settings_notif_other">Other</string>
+    <string name="settings_notif_contact_joined">Contact joined Telegram</string>
+    <string name="settings_notif_mentions_sound_summary">Sound for mentions and replies, in system settings</string>
+    <string name="settings_notif_error">Couldn't save the setting.</string>
 </resources>

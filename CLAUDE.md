@@ -13,8 +13,9 @@ přeposílání, připnuté zprávy), prohlížeč médií s fotkami i videem, r
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
 Není: notifikace na iOS ani hlášení pádů z iOS; sdílená média v profilu chatu.
-Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné, Vzhled a Zařízení; vědomě nastavitelné je zatím
-téma aplikace (motiv a barvy z tapety) a vyčlenění nepřečtených chatů do vlastního bloku.
+Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné, Notifikace, Vzhled a Zařízení; vědomě
+nastavitelné je téma aplikace (motiv a barvy z tapety), vyčlenění nepřečtených chatů do vlastního
+bloku a upozornění po rozsazích (soukromé chaty / skupiny / kanály) s výjimkami.
 Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
 
@@ -3804,6 +3805,51 @@ a odložené rušení prázdné notifikace.
   `mCurrentFocus=null`, `visibleRequested=false`); na skutečném telefonu to zhasne samo, proto
   je to past jen emulátorová. Před testováním notifikací na telefonu tedy emulátor zhasnout,
   odejít v něm z konverzace, nebo ho odhlásit.
+
+### Kanály a nastavení notifikací
+
+Kanály jsou čtyři (`NotificationChannelKind`, čistá funkce `notificationChannelFor`, testy
+`NotificationChannelTest`): Soukromé chaty, Skupiny, Kanály — jedna k jedné s rozsahy nastavení
+TDLib — a Zmínky a odpovědi. Sekce Notifikace v Nastavení (`NotificationSettings`,
+`NotificationSettingsRepository`) drží u každého rozsahu volby TDLib a odkaz „Zvuk a vibrace" do
+JEHO kanálu (`ACTION_CHANNEL_NOTIFICATION_SETTINGS`).
+
+- **TDLib o kanálech neví nic**, rozhoduje jen, jestli se notifikace ukáže. Kanál vybírá aplikace
+  podle druhu chatu z `notificationSettingsChatId` — tedy chatu, podle jehož nastavení se TDLib
+  řídila —, zmínky podle `NotificationGroupTypeMentions`. Zmínky mají přednost: ve ztišené skupině
+  jsou to jediné, co má zvonit.
+- **Zmínky a běžné zprávy téhož chatu jsou v TDLib dvě skupiny notifikací**, tedy dvě systémové
+  notifikace s různým `groupId`. Kanál proto patří konverzaci presenteru, ne chatu.
+- **Kanál je po založení uživatelův.** `createNotificationChannel` u existujícího id přepíše jen
+  název a popis — proto se volá při každém startu (překlad po změně jazyka) a nic tím nerozbije.
+  **Id kanálu se nesmí měnit** (`channelId`): nové id je pro systém nový kanál a nastavení
+  starého zůstane u něj. Zvuk z Telegramu (`notificationSoundId`) se proto nesynchronizuje.
+- **Kanály telegramových kanálů mají `IMPORTANCE_DEFAULT`**, ostatní `HIGH` — příspěvků chodí
+  hodně a málokdy se na ně reaguje hned. Rozhoduje se jen při založení.
+- **Starý kanál `messages` se maže** (`deleteNotificationChannel`), jinak by v systému visel
+  prázdný. Co si u něj uživatel nastavil, se nepřenese — kanál přenést nejde.
+- **Rozsah se zapisuje celým objektem** (`setScopeNotificationSettings`), stejně jako ztlumení
+  chatu: zvuk a stories se přenesou z aktuálního stavu, jinak by se přepsalo nastavení z jiného
+  klienta. Hodnoty jsou živé přes `UpdateScopeNotificationSettings` (odběr před prvním čtením),
+  takže přepínač čeká na potvrzení z TDLib — přijde lokálně hned.
+- **„Upozornění vypnutá" = `muteFor` > 0**, zapnutá = 0. Dočasně ztlumený rozsah se tedy ukáže
+  jako vypnutý; vypnutí zapisuje `Int.MAX_VALUE` jako ztlumení chatu navždy.
+- **Náhled se bez upozornění nedá přepnout, zmínky a připnuté ano.** Zmínky projdou i ztlumeným
+  chatem — přesně proto existují. Přepínač zmínek je jen u skupin: v soukromém chatu je každá
+  zpráva „pro mě", v kanálu píše jen kanál.
+- **Výjimky** (`getChatNotificationSettingsExceptions`, `compareSound = false`) jsou jediné místo,
+  kde je vidět, co kde je ztlumené. „Obnovit" zapne všechna `useDefault*` a seznam se čte znovu —
+  co zbylo, ví jen server. Chat s vlastní volbou jinou než ztlumení je „Vlastní nastavení".
+- **„Kontakt se připojil" je volba s ZÁPORNÝM názvem** (`disable_contact_registered_notifications`);
+  nenastavená přijde jako `OptionValueEmpty`, tedy „upozorňovat".
+- **Oprávnění k notifikacím je v sekci Notifikace, ne v Obecných** — bez něj ostatní volby nic
+  nezmění, proto nahoře.
+- **Ověření:** `adb shell dumpsys notification --noredact | grep "pkg=eu.tintera.plume"` ukáže
+  `channel=` u notifikace; kanály aplikace jsou v `dumpsys notification` pod
+  `AppSettings: eu.tintera.plume` (smazaný má `mDeleted=true`). Soukromá zpráva od bota přišla
+  kanálem `private`, odkaz „Zvuk a vibrace" otevřel systémové nastavení správného kanálu, zápis
+  rozsahu i obnovení výjimky se projevily hned (emulátor). Skupiny, kanály a zmínky kanálem
+  ověřené nejsou — do skutečných skupin se testovací zprávy neposílají.
 
 ### Akce z notifikace
 

@@ -33,6 +33,8 @@ import eu.tintera.plume.resources.settings_section_devices
 import eu.tintera.plume.resources.settings_section_devices_summary
 import eu.tintera.plume.resources.settings_section_general
 import eu.tintera.plume.resources.settings_section_general_summary
+import eu.tintera.plume.resources.settings_section_notifications
+import eu.tintera.plume.resources.settings_section_notifications_summary
 import eu.tintera.plume.resources.settings_title
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
@@ -163,6 +165,7 @@ private fun SectionRow(
 internal val SettingsSection.title: StringResource
     get() = when (this) {
         SettingsSection.General -> Res.string.settings_section_general
+        SettingsSection.Notifications -> Res.string.settings_section_notifications
         SettingsSection.Appearance -> Res.string.settings_section_appearance
         SettingsSection.Devices -> Res.string.settings_section_devices
     }
@@ -171,6 +174,7 @@ internal val SettingsSection.title: StringResource
 private val SettingsSection.summary: StringResource
     get() = when (this) {
         SettingsSection.General -> Res.string.settings_section_general_summary
+        SettingsSection.Notifications -> Res.string.settings_section_notifications_summary
         SettingsSection.Appearance -> Res.string.settings_section_appearance_summary
         SettingsSection.Devices -> Res.string.settings_section_devices_summary
     }

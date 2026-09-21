@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.ContextCompat
+import eu.tintera.plume.core.telegram.NotificationChannelKind
 
 actual class NotificationPermission(private val context: Context) {
 
@@ -24,6 +25,17 @@ actual class NotificationPermission(private val context: Context) {
         val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
             .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
             // Spouštíme mimo activity kontext (z Koinu drženého Application), takže je NEW_TASK nutný.
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        context.startActivity(intent)
+    }
+
+    actual val supportsChannelSettings: Boolean = true
+
+    actual fun openChannelSettings(channel: NotificationChannelKind) {
+        val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            .putExtra(Settings.EXTRA_CHANNEL_ID, channel.channelId)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
         context.startActivity(intent)

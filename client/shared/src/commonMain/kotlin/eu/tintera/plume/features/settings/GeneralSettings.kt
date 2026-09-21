@@ -1,18 +1,13 @@
 package eu.tintera.plume.features.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,27 +18,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.common_cancel
-import eu.tintera.plume.resources.notifications_24dp
-import eu.tintera.plume.resources.open_in_new_24dp
-import eu.tintera.plume.resources.settings_notifications
-import eu.tintera.plume.resources.settings_notifications_off
-import eu.tintera.plume.resources.settings_notifications_on
 import eu.tintera.plume.resources.settings_sign_out
 import eu.tintera.plume.resources.settings_sign_out_body
 import eu.tintera.plume.resources.settings_sign_out_confirm
 import eu.tintera.plume.resources.settings_sign_out_title
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Sekce „Obecné": kdo je přihlášený, stav notifikací a odhlášení.
+ * Sekce „Obecné": kdo je přihlášený a odhlášení. Stav notifikací je v sekci Notifikace.
  *
  * Je to obsah do sloupce sekce, ne celá obrazovka — hlavičku a scrollování drží
  * [SettingsSectionScreen].
@@ -51,7 +37,6 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun GeneralSettings(viewModel: SettingsViewModel) {
     val account by viewModel.account.collectAsStateWithLifecycle()
-    val notificationsEnabled by viewModel.notificationsEnabled.collectAsStateWithLifecycle()
     var confirmLogOut by rememberSaveable { mutableStateOf(false) }
 
     if (confirmLogOut) {
@@ -62,12 +47,6 @@ fun GeneralSettings(viewModel: SettingsViewModel) {
             },
             onDismiss = { confirmLogOut = false },
         )
-    }
-
-    // Uživatel se sem vrací ze systémového nastavení, kde mohl notifikace přepnout.
-    LifecycleResumeEffect(Unit) {
-        viewModel.refreshNotificationState()
-        onPauseOrDispose { }
     }
 
     Card(Modifier.fillMaxWidth()) {
@@ -94,41 +73,6 @@ fun GeneralSettings(viewModel: SettingsViewModel) {
                 }
             }
         }
-    }
-
-    // Stav oprávnění se ukazuje vždycky, ne jen když chybí — jinak by uživatel neměl kde
-    // ověřit, že notifikace opravdu běží, a neměl by je kde vypnout.
-    Card(Modifier.fillMaxWidth()) {
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            leadingContent = {
-                Icon(
-                    painterResource(Res.drawable.notifications_24dp),
-                    contentDescription = null,
-                )
-            },
-            headlineContent = { Text(stringResource(Res.string.settings_notifications)) },
-            supportingContent = {
-                Text(
-                    stringResource(
-                        if (notificationsEnabled) {
-                            Res.string.settings_notifications_on
-                        } else {
-                            Res.string.settings_notifications_off
-                        },
-                    ),
-                )
-            },
-            trailingContent = {
-                Icon(
-                    painterResource(Res.drawable.open_in_new_24dp),
-                    contentDescription = null,
-                )
-            },
-            modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .clickable { viewModel.openNotificationSettings() },
-        )
     }
 
     // Destruktivní akce dostane error roli a potvrzení s konkrétním následkem.

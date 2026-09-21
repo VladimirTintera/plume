@@ -119,12 +119,11 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
 
 ## Nastavení
 
-Nastavení je list-detail: vlevo sekce (Obecné, Vzhled, Zařízení), vpravo jejich obsah. Obecné drží kartu
-účtu (jméno, telefon, uživatelské jméno), stav oprávnění k notifikacím s odkazem do systému
-a odhlášení; Vzhled motiv aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
+Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení), vpravo jejich obsah. Obecné drží kartu
+účtu (jméno, telefon, uživatelské jméno) a odhlášení; Notifikace oprávnění a volby po rozsazích; Vzhled motiv aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
 
 - **Úprava vlastního profilu** — fotka, jméno, uživatelské jméno, bio.
-- **Sekce Notifikace** — viz [Notifikace](#notifikace) níž.
+- ~~**Sekce Notifikace**~~ — hotovo, viz [Notifikace](#notifikace) níž.
 - ~~**Sekce Zařízení**~~ — hotovo (seznam, odhlášení, weby, automatické odhlášení, „Byli jste
   to vy?" v seznamu chatů, přihlášení jiného zařízení QR kódem). Poučení v `CLAUDE.md`,
   „Zařízení". Zbývá:
@@ -152,27 +151,23 @@ Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení
 
 ## Notifikace
 
-- **Kanály podle druhu chatu.** Dnes je jediný kanál `messages`, takže v systému nejde ztišit
-  skupiny a nechat zvonit soukromé zprávy. Návrh: Soukromé zprávy / Skupiny / Kanály podle
-  rozsahu TDLib a samostatný kanál Zmínky (`NotificationGroupType.Mentions`). TDLib o kanálech
-  neví nic, jen dává data k rozdělení. Kanál je po vytvoření neměnný, proto se zvuk z Telegramu
-  zatím nesynchronizuje a nechává se systému. Rozbor: [notifikacni-kanaly.md](notifikacni-kanaly.md).
-- **Sekce Notifikace v Nastavení.** Dnes o notifikacích rozhoduje jen TDLib a aplikace k tomu
-  nemá jedinou volbu. Všechno níž jde přes TDLib a synchronizuje se přes server na ostatní
-  zařízení. Obrazovka se skládá po rozsazích (soukromé / skupiny / kanály), každý s vlastními
-  volbami a pod nimi odkaz „Zvuk a vibrace" do SVÉHO systémového kanálu
-  (`Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS`). Proto patří dohromady s kanály výš.
-  - zapnutí rozsahu (`muteFor`) a náhled textu (`showPreview`), `setScopeNotificationSettings`,
-  - notifikace o připnutých zprávách (`disablePinnedMessageNotifications`) a o zmínkách
-    (`disableMentionNotifications`); zmínky projdou i ztlumeným chatem,
-  - stories (`muteStories`, `showStoryPoster`), až budou stories,
-  - **výjimky**: chaty s vlastním nastavením (`getChatNotificationSettingsExceptions`) — jediné
-    místo, kde je vidět, co kde je ztlumené,
-  - „kontakt se připojil k Telegramu" (volba `disable_contact_registered_notifications`),
-  - oprávnění k notifikacím s odkazem do systému se sem přestěhuje z Obecných.
-
-  Zvuky a vibrace vlastní volbou NEBUDOU: na Androidu je vlastní kanál a aplikace je po jeho
-  vytvoření stejně přepsat nemůže (viz rozbor kanálů).
+- ~~**Kanály podle druhu chatu a sekce Notifikace v Nastavení**~~ — hotovo (kanály Soukromé
+  chaty / Skupiny / Kanály / Zmínky, u každého rozsahu zapnutí, náhled, připnuté, zmínky, výjimky
+  a odkaz do systémového kanálu; poučení v `CLAUDE.md`, „Kanály a nastavení notifikací"). Zbývá:
+  - **Ověřit kanály Skupiny, Kanály a Zmínky skutečnou zprávou** — na emulátoru prošla jen
+    soukromá zpráva od bota; do skutečných skupin se testovací zprávy neposílají.
+  - **Nastavení jednotlivého chatu přes systém.** Notifikace je díky `MessagingStyle`
+    a dlouhověké zkratce „konverzace", takže si u ní uživatel v Androidu 11+ nastaví „Prioritní"
+    nebo vlastní zvuk jen pro ten chat (podkanál z rodičovského). Ověřit, že to funguje, a odkázat
+    na to z Nastavení nebo z profilu chatu.
+  - **Nastavení notifikací chatu v profilu** (ztlumení na dobu, náhled, zmínky jen pro ten chat);
+    dnes profil umí jen ztlumit/zapnout a výjimky jde jen obnovit.
+  - **Stories** (`muteStories`, `showStoryPoster`), až budou stories.
+  - **Zvuk z Telegramu** (`notificationSoundId`) se nesynchronizuje. Šlo by to jen novým kanálem
+    s verzí v id při každé změně (jako oficiální klient) — a tím zahodit, co si uživatel nastavil
+    v systému. Stojí za to, až bude v aplikaci výběr zvuku.
+  - **iOS** kanály nemá; obdobou je `threadIdentifier` a `interruptionLevel` (zmínky jako
+    `timeSensitive`). Přijde na řadu s notifikacemi na iOS vůbec.
 - **Rychlé akce z notifikace.** Odpověď, označení za přečtené a ztlumení na hodinu jsou na
   Androidu hotové (viz CLAUDE.md, „Akce z notifikace"). Chybí:
   - **iOS** má akce připravené (`IosNotificationCenter`, ověřeno přes `simctl push`); chybí

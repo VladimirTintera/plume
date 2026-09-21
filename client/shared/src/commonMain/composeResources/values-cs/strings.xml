@@ -82,7 +82,6 @@
     <string name="chats_unarchived">Chat je zpátky mezi chaty</string>
     <string name="chats_undo">Vrátit</string>
     <string name="settings_title">Nastavení</string>
-    <string name="settings_notifications">Notifikace</string>
     <string name="settings_notifications_on">Zapnuté</string>
     <string name="settings_notifications_off">Vypnuté — o nových zprávách se dozvíš až v aplikaci</string>
     <string name="settings_sign_out">Odhlásit se</string>
@@ -442,8 +441,14 @@
     <string name="notification_permission_body">Bez notifikací se o nové zprávě dozvíš, až aplikaci otevřeš. Zapnout nebo vypnout je můžeš kdykoliv v Nastavení.</string>
     <string name="notification_permission_enable">Zapnout</string>
     <string name="notification_permission_later">Teď ne</string>
-    <string name="notification_channel_name">Zprávy</string>
-    <string name="notification_channel_description">Nové zprávy z Telegramu</string>
+    <string name="notification_channel_private">Soukromé chaty</string>
+    <string name="notification_channel_private_description">Zprávy od lidí a botů</string>
+    <string name="notification_channel_groups">Skupiny</string>
+    <string name="notification_channel_groups_description">Zprávy ve skupinách</string>
+    <string name="notification_channel_channels">Kanály</string>
+    <string name="notification_channel_channels_description">Příspěvky v kanálech</string>
+    <string name="notification_channel_mentions">Zmínky a odpovědi</string>
+    <string name="notification_channel_mentions_description">Když tě někdo zmíní nebo odpoví na tvou zprávu, i ve ztlumeném chatu</string>
     <string name="notification_self_name">Já</string>
     <string name="notification_reply">Odpovědět</string>
     <string name="notification_mark_read">Označit jako přečtené</string>
@@ -597,4 +602,31 @@
     <string name="new_chat_contacts">Kontakty</string>
     <string name="new_chat_empty">Žádné kontakty</string>
     <string name="new_chat_load_failed">Kontakty se nepodařilo načíst</string>
+    <string name="settings_section_notifications">Notifikace</string>
+    <string name="settings_section_notifications_summary">Upozornění, náhledy a výjimky</string>
+    <string name="settings_notif_system">Povolení v systému</string>
+    <string name="settings_notif_enabled">Upozornění</string>
+    <string name="settings_notif_preview">Náhled zprávy</string>
+    <string name="settings_notif_preview_summary">Text zprávy v upozornění</string>
+    <string name="settings_notif_pinned">Připnuté zprávy</string>
+    <string name="settings_notif_pinned_summary">Upozornit na nově připnutou zprávu</string>
+    <string name="settings_notif_mentions">Zmínky a odpovědi</string>
+    <string name="settings_notif_mentions_summary">Upozornit i ve ztlumené skupině</string>
+    <string name="settings_notif_sound">Zvuk a vibrace</string>
+    <string name="settings_notif_sound_summary">V nastavení systému</string>
+    <string name="settings_notif_exceptions">Výjimky</string>
+    <plurals name="settings_notif_exceptions_count">
+        <item quantity="one">%1$d chat s vlastním nastavením</item>
+        <item quantity="few">%1$d chaty s vlastním nastavením</item>
+        <item quantity="other">%1$d chatů s vlastním nastavením</item>
+    </plurals>
+    <string name="settings_notif_exceptions_summary">Chaty s vlastním nastavením upozornění. Obnovením se vrátí k výchozímu nastavení výš.</string>
+    <string name="settings_notif_state_muted">Ztlumeno</string>
+    <string name="settings_notif_state_enabled">Upozornění zapnutá</string>
+    <string name="settings_notif_state_custom">Vlastní nastavení</string>
+    <string name="settings_notif_reset">Obnovit</string>
+    <string name="settings_notif_other">Ostatní</string>
+    <string name="settings_notif_contact_joined">Kontakt se připojil k Telegramu</string>
+    <string name="settings_notif_mentions_sound_summary">Zvuk zmínek a odpovědí v nastavení systému</string>
+    <string name="settings_notif_error">Nastavení se nepodařilo uložit.</string>
 </resources>
