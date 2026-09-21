@@ -12,6 +12,8 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
@@ -21,6 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
+import eu.tintera.plume.core.telegram.Minithumbnail
 import kotlinx.coroutines.flow.flowOf
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -34,6 +37,9 @@ import org.koin.compose.koinInject
  *
  * [thumbnailFileId] je menší varianta téhož obrázku. Stáhne se výrazně dřív a slouží jako náhled,
  * než dorazí ostrá verze — bez toho bliká prázdné místo i několik sekund.
+ *
+ * [placeholder] je ještě o krok dřív: rozmazaný náhled přímo ze zprávy, bez stahování. Kreslí
+ * se místo holé podložky, dokud není ani [thumbnailFileId].
  */
 @Composable
 fun RemoteImage(
@@ -45,6 +51,7 @@ fun RemoteImage(
     // Podložka, než dorazí obrázek. Průhlednou chce obsah s vlastním tvarem — samolepka
     // v rámečku vypadá jako obrázek, ne jako samolepka.
     background: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
+    placeholder: Minithumbnail? = null,
 ) {
     val state = rememberFileState(fileId)
     val thumbnailState = rememberFileState(thumbnailFileId)
@@ -71,6 +78,7 @@ fun RemoteImage(
         Crossfade(targetState = path, label = "remote-image") { current ->
             if (current == null) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    if (placeholder != null) BlurredPlaceholder(placeholder, contentScale)
                     // Průběh se schválně nezobrazuje číselně — u náhledů by to byl neklid.
                     if (state is FileState.Downloading) {
                         ContainedLoadingIndicator(Modifier.loadingIndicatorSize())
@@ -88,6 +96,28 @@ fun RemoteImage(
         }
     }
 }
+
+/**
+ * Rozmazaný náhled ze zprávy přes celou plochu.
+ *
+ * **`Modifier.blur`, ne Haze.** Obojí rozostří vlastní obsah na Androidu 12+ i na iOS, jenže na
+ * starším Androidu Haze kreslí místo rozostření tónovanou plochu, kdežto `blur` se jen vypne —
+ * a zbude náhled o čtyřiceti pixelech zvětšený bilineárně, který rozmazaně vypadá sám.
+ * Okraj se ořezává (`Rectangle`), jinak by rozostření do stran vyprůhlednilo kraje.
+ */
+@Composable
+private fun BlurredPlaceholder(placeholder: Minithumbnail, contentScale: ContentScale) {
+    AsyncImage(
+        model = placeholder.jpeg,
+        contentDescription = null,
+        contentScale = contentScale,
+        modifier = Modifier
+            .fillMaxSize()
+            .blur(PLACEHOLDER_BLUR, BlurredEdgeTreatment.Rectangle),
+    )
+}
+
+private val PLACEHOLDER_BLUR = 16.dp
 
 /**
  * Velikost indikátoru podle plochy obrázku: [INDICATOR_FRACTION] kratší strany, nejvýš

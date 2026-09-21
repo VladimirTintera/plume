@@ -360,6 +360,7 @@ internal suspend fun Message.messageMedia(): MessageMedia? = when (val content =
         isSecret = content.isSecret,
         selfDestructType = selfDestructType?.toSelfDestructType(),
         supportsStreaming = content.video.supportsStreaming,
+        minithumbnail = content.video.minithumbnail?.toDomain(),
     )
 
     is MessageAnimation -> content.animation.toMedia()
@@ -518,8 +519,13 @@ private fun Photo.toMedia(
         hasSpoiler = hasSpoiler,
         isSecret = isSecret,
         selfDestructType = selfDestructType,
+        minithumbnail = minithumbnail?.toDomain(),
     )
 }
+
+/** Rozmazaný náhled ze zprávy; prázdná data jsou jako žádná. */
+internal fun dev.g000sha256.tdl.dto.Minithumbnail.toDomain(): Minithumbnail? =
+    data.takeIf { it.isNotEmpty() }?.let { Minithumbnail(it, width, height) }
 
 /** Delší hrana zobrazované varianty fotky. Nad tím už jde o zbytečná data. */
 private const val MAX_DISPLAY_EDGE = 1280

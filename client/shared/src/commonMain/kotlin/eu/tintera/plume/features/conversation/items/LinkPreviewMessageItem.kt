@@ -83,6 +83,7 @@ internal data class LinkPreviewMessageItem(
                         RemoteImage(
                             fileId = photo.fileId,
                             thumbnailFileId = photo.thumbnailFileId,
+                            placeholder = photo.minithumbnail,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.size(frameSize).then(openLink()),
@@ -135,6 +136,7 @@ internal data class LinkPreviewMessageItem(
                     RemoteImage(
                         fileId = photo.fileId,
                         thumbnailFileId = photo.thumbnailFileId,
+                        placeholder = photo.minithumbnail,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.size(LINK_PREVIEW_THUMBNAIL).clip(RoundedCornerShape(12.dp)),

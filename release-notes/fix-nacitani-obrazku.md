@@ -1,3 +1,3 @@
 type: fix
-cs: Výraznější indikátor načítání fotek
-en: More visible loading indicator for photos
+cs: Fotky se při načítání ukazují rozmazaně místo šedé plochy
+en: Photos show a blurred preview while loading instead of a grey box

@@ -168,6 +168,7 @@ internal fun MessageAttachment(
                         RemoteImage(
                             fileId = media.fileId,
                             thumbnailFileId = media.thumbnailFileId,
+                            placeholder = media.minithumbnail,
                             contentDescription = stringResource(Res.string.media_photo),
                             // `Crop` dořeší podlahu šířky (extrémně vysoká fotka, fotka s popiskem):
                             // poměr stran zůstává a vidět je prostředek. Jinak není co ořezávat.
@@ -478,6 +479,7 @@ internal fun VideoThumbnail(
         video.thumbnailFileId?.let { thumbnail ->
             RemoteImage(
                 fileId = thumbnail,
+                placeholder = video.minithumbnail,
                 contentDescription = stringResource(Res.string.media_video),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier

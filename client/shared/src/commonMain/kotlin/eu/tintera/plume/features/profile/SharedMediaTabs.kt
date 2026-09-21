@@ -130,6 +130,7 @@ private fun MediaTile(message: ChatMessage, onOpen: () -> Unit) {
             RemoteImage(
                 fileId = fileId,
                 thumbnailFileId = thumbnailFileId,
+                placeholder = photo?.minithumbnail ?: video?.minithumbnail,
                 contentDescription = stringResource(
                     if (video != null) Res.string.profile_shared_media_video else Res.string.profile_shared_photo,
                 ),

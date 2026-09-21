@@ -155,6 +155,7 @@ private fun AlbumTile(
                 RemoteImage(
                     fileId = media.fileId,
                     thumbnailFileId = media.thumbnailFileId,
+                    placeholder = media.minithumbnail,
                     contentDescription = stringResource(Res.string.media_photo),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
