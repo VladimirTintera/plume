@@ -13,7 +13,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -22,6 +28,23 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NewChatViewModelTest {
+
+    /*
+     * `viewModelScope` běží na `Dispatchers.Main`. Na JVM žádný není a lifecycle místo něj vezme
+     * prázdný kontext, takže to tam prošlo samo. Na iOS je `Main` SKUTEČNÁ hlavní fronta, kterou
+     * `runTest` na hlavním vlákně nevyprázdní — načtení kontaktů se nikdy nerozběhlo a test visel
+     * do minutového limitu. Testovací `Main` sdílí plánovač s `runTest` (ten si ho převezme sám),
+     * takže ViewModel i test jedou na stejném virtuálním čase na obou platformách.
+     */
+    @BeforeTest
+    fun setUp() {
+        Dispatchers.setMain(StandardTestDispatcher())
+    }
+
+    @AfterTest
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
 
     @Test
     fun nacteniKontaktuPoStartu() = runTest {
