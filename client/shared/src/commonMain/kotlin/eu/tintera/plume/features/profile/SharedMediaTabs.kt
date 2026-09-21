@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,7 +16,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularWavyProgressIndicator
@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.files.DocumentKind
@@ -71,9 +72,9 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * Obsah záložek profilu.
  *
- * Každá záložka je **vlastní scrollovatelný seznam** — profil kolem nich není `LazyColumn`, ale
- * hlavička posouvaná přes nested scroll (viz `ChatProfileScreen`), takže se dva svislé scrolly
- * nevnořují. [contentPadding] odsune obsah pod hlavičku; ta ho překrývá.
+ * Každá záložka je **vlastní scrollovatelný seznam** s pevnou výškou stránky pageru — profil
+ * kolem nich není `LazyColumn`, ale `verticalScroll` sloupec (viz `ChatProfileScreen`), takže
+ * vnitřní seznam nikdy nedostane nekonečnou výšku.
  *
  * Další stránka se dotahuje, až se doroluje na konec ([onLoadMore]) — ne dopředu: sdíleného
  * obsahu bývají v dlouhém chatu tisíce položek.
@@ -103,7 +104,7 @@ internal fun SharedMediaGrid(
     ) {
         itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
             LoadMoreAtEnd(index, messages.size, onLoadMore)
-            MediaTile(message, onOpen = { onOpen(message.id) })
+            MediaTile(message, shape = mediaTileShape(index, messages.size), onOpen = { onOpen(message.id) })
         }
         if (loading) {
             item(span = { GridItemSpan(maxLineSpan) }) {
@@ -115,7 +116,7 @@ internal fun SharedMediaGrid(
 
 /** Dlaždice mřížky: čtverec s náhledem, u videa symbol přehrání. */
 @Composable
-private fun MediaTile(message: ChatMessage, onOpen: () -> Unit) {
+private fun MediaTile(message: ChatMessage, shape: Shape, onOpen: () -> Unit) {
     val photo = message.media as? MessageMedia.Photo
     val video = message.media as? MessageMedia.Video
     val fileId = photo?.fileId ?: video?.thumbnailFileId
@@ -124,6 +125,8 @@ private fun MediaTile(message: ChatMessage, onOpen: () -> Unit) {
     Box(
         Modifier
             .aspectRatio(1f)
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             .clickable(onClick = onOpen),
     ) {
         if (fileId != null) {
@@ -147,7 +150,7 @@ private fun MediaTile(message: ChatMessage, onOpen: () -> Unit) {
                 shape = RoundedCornerShape(percent = 50),
                 color = Color.Black.copy(alpha = VIDEO_BADGE_ALPHA),
                 contentColor = Color.White,
-                modifier = Modifier.align(Alignment.BottomStart).padding(4.dp),
+                modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
             ) {
                 Icon(
                     painterResource(Res.drawable.play_arrow_24dp),
@@ -169,7 +172,11 @@ internal fun SharedFilesList(
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(contentPadding = contentPadding, modifier = modifier.fillMaxSize()) {
+    LazyColumn(
+        contentPadding = contentPadding,
+        verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+        modifier = modifier.fillMaxSize(),
+    ) {
         itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
             LoadMoreAtEnd(index, messages.size, onLoadMore)
             val document = message.media as? MessageMedia.Document ?: return@itemsIndexed
@@ -178,6 +185,7 @@ internal fun SharedFilesList(
                 document = document,
                 progress = downloads[document.fileId],
                 onOpen = { onOpen(message.id) },
+                modifier = Modifier.animateItem().clip(groupItemShape(index, messages.size)),
             )
         }
         if (loading) item { TabLoading() }
@@ -192,6 +200,7 @@ private fun FileRow(
     document: MessageMedia.Document,
     progress: Float?,
     onOpen: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val size = formatFileSize(document.sizeBytes)
     val unit = stringResource(
@@ -222,8 +231,8 @@ private fun FileRow(
                 }
             }
         },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = Modifier.clickable(onClick = onOpen),
+        colors = rowColors(),
+        modifier = modifier.clickable(onClick = onOpen),
     )
 }
 
@@ -243,11 +252,20 @@ internal fun SharedLinksList(
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(contentPadding = contentPadding, modifier = modifier.fillMaxSize()) {
+    LazyColumn(
+        contentPadding = contentPadding,
+        verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+        modifier = modifier.fillMaxSize(),
+    ) {
         itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
             LoadMoreAtEnd(index, messages.size, onLoadMore)
             val url = message.sharedUrl() ?: return@itemsIndexed
-            LinkRow(message = message, url = url, onOpen = { onOpen(url) })
+            LinkRow(
+                message = message,
+                url = url,
+                onOpen = { onOpen(url) },
+                modifier = Modifier.animateItem().clip(groupItemShape(index, messages.size)),
+            )
         }
         if (loading) item { TabLoading() }
     }
@@ -259,7 +277,7 @@ internal fun SharedLinksList(
  * Náhled skládá server, takže se bere, co poslal; bez něj zbyde text zprávy, ve kterém odkaz je.
  */
 @Composable
-private fun LinkRow(message: ChatMessage, url: String, onOpen: () -> Unit) {
+private fun LinkRow(message: ChatMessage, url: String, onOpen: () -> Unit, modifier: Modifier = Modifier) {
     val preview = message.linkPreview
     val title = preview?.title?.takeIf { it.isNotBlank() }
         ?: preview?.siteName?.takeIf { it.isNotBlank() }
@@ -296,8 +314,8 @@ private fun LinkRow(message: ChatMessage, url: String, onOpen: () -> Unit) {
                 }
             }
         },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = Modifier.clickable(onClick = onOpen),
+        colors = rowColors(),
+        modifier = modifier.clickable(onClick = onOpen),
     )
 }
 
@@ -323,8 +341,12 @@ internal fun ProfileMembersList(
         }
         return
     }
-    LazyColumn(contentPadding = contentPadding, modifier = modifier.fillMaxSize()) {
-        items(members, key = { it.sender.id }) { member ->
+    LazyColumn(
+        contentPadding = contentPadding,
+        verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+        modifier = modifier.fillMaxSize(),
+    ) {
+        itemsIndexed(members, key = { _, it -> it.sender.id }) { index, member ->
             ListItem(
                 headlineContent = { Text(member.sender.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 leadingContent = {
@@ -340,16 +362,68 @@ internal fun ProfileMembersList(
                     MemberRole.Admin -> { { MemberRoleLabel(stringResource(Res.string.profile_role_admin)) } }
                     MemberRole.Member -> null
                 },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                modifier = Modifier.clickable { onOpen(member.sender.id) },
+                colors = rowColors(),
+                modifier = Modifier
+                    .animateItem()
+                    .clip(groupItemShape(index, members.size))
+                    .clickable { onOpen(member.sender.id) },
             )
         }
     }
 }
 
+/** Role jako tonální štítek — holé barevné slovo na konci řádku vypadalo jako odkaz. */
 @Composable
 private fun MemberRoleLabel(text: String) {
-    Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+    Surface(
+        shape = RoundedCornerShape(percent = 50),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+        )
+    }
+}
+
+/** Řádky záložek jsou světlé bloky na tónované stránce, jako chaty v seznamu. */
+@Composable
+private fun rowColors() = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest)
+
+/**
+ * Tvar položky ve skupině: velké zaoblení nese krajní položka, uvnitř jsou malá nároží.
+ * Se spárou [GROUP_ITEM_SPACING] z toho vznikne jeden blok — vzor M3 Expressive, kterým
+ * seznam chatů i nastavení nahrazují karty po položkách.
+ */
+internal fun groupItemShape(index: Int, count: Int): Shape = RoundedCornerShape(
+    topStart = if (index == 0) GROUP_CORNER else INNER_CORNER,
+    topEnd = if (index == 0) GROUP_CORNER else INNER_CORNER,
+    bottomStart = if (index == count - 1) GROUP_CORNER else INNER_CORNER,
+    bottomEnd = if (index == count - 1) GROUP_CORNER else INNER_CORNER,
+)
+
+/**
+ * Tvar dlaždice mřížky: velké zaoblení jen v rozích celého bloku.
+ *
+ * Neúplný poslední řádek dělá v bloku schod; roh nad ním (poslední dlaždice předposledního
+ * řádku) je taky vnější, takže se zaoblí.
+ */
+internal fun mediaTileShape(index: Int, count: Int, columns: Int = MEDIA_COLUMNS): Shape {
+    val row = index / columns
+    val column = index % columns
+    val lastRow = (count - 1) / columns
+    val incomplete = count % columns != 0
+    fun corner(outer: Boolean) = if (outer) GROUP_CORNER else INNER_CORNER
+    return RoundedCornerShape(
+        topStart = corner(index == 0),
+        topEnd = corner(index == minOf(columns, count) - 1),
+        bottomStart = corner(row == lastRow && column == 0),
+        bottomEnd = corner(
+            index == count - 1 || (incomplete && row == lastRow - 1 && column == columns - 1),
+        ),
+    )
 }
 
 @Composable
@@ -381,6 +455,9 @@ private fun LoadMoreAtEnd(index: Int, count: Int, onLoadMore: () -> Unit) {
     LaunchedEffect(count) { current() }
 }
 
+internal val GROUP_CORNER = 20.dp
+internal val INNER_CORNER = 4.dp
+internal val GROUP_ITEM_SPACING = 2.dp
 private val FILE_ICON_SIZE = 44.dp
 private val FILE_ICON_CORNER = 8.dp
 private val MEMBER_AVATAR_SIZE = 40.dp
