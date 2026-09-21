@@ -2989,6 +2989,21 @@ z výběru; statický obrázek a samolepka z klávesnice čekají nad polem jako
   clipboard to (read (POSIX file "…/x.gif") as «class GIFf»)'`), pak `xcrun simctl pbsync host
   <zařízení>`. Dotaz „Povolit vložení?" se ukáže s původem „CoreSimulatorBridge". Ověřeno:
   „Paste GIF" v nabídce, po povolení GIF odešel a hraje.
+- **Bez dotazu „Povolit vložení?" vkládá jen `UIPasteControl`** — systémové tlačítko
+  (`ClipboardPasteSuggestion`). Když má pole fokus a schránka nese GIF / obrázek, nad polem se
+  ukáže pruh „GIF ve schránce" s tímto tlačítkem. Položka v kontextové nabídce zůstává, ale ptá se.
+  - **Interop view musí být `placedAsOverlay = true`.** Výchozí interop leží POD plátnem Metalu
+    a prosvítá průhledným otvorem; iOS pak tlačítko považuje za zakryté, ťuknutí neprojde
+    ověřením a dotaz na povolení přijde stejně. Nic se nehlásí — pozná se to jen podle dotazu.
+    Průhledné pozadí (`clearColor`) k tomu, jinak má kapsle bílé rohy.
+  - **`intrinsicContentSize` u `UIPasteControl` rozměr NEHLÁSÍ** (−1), Compose mu dal nulovou
+    plochu a tlačítko nebylo vidět. Měří se `systemLayoutSizeFittingSize`, s minimem.
+  - **Cíl je `UIResponder` s `pasteConfiguration`** (přijímané UTI) a `pasteItemProviders`;
+    data z `NSItemProvider.loadDataRepresentation` chodí na vlákně na pozadí.
+  - **Vložený obsah se podruhé nenabízí**, pamatuje se `changeCount` schránky pro celý proces.
+    Při vložení se čte ŽIVÝ `changeCount` — mění se i bez notifikace (jiná aplikace, na
+    simulátoru synchronizace se schránkou Macu), a s číslem z doby zobrazení pruh zůstal viset.
+  - Android návrh nekreslí — tam se na vložení nikdo neptá.
 - **`preparePhotoData` na iOS skládá na bílou** (`opaque = true` + `UIRectFill`), ze stejného
   důvodu jako `opaque()` na Androidu.
 - **Obrázek do schránky emulátoru z `adb` nedostaneš** — `cmd clipboard` neexistuje a Chrome

@@ -35,7 +35,10 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.text.BasicTextField
+import eu.tintera.plume.core.ui.ClipboardMediaKind
+import eu.tintera.plume.core.ui.ClipboardPasteSuggestion
 import eu.tintera.plume.core.ui.KeyboardContent
 import eu.tintera.plume.core.ui.KeyboardContentReceiver
 import androidx.compose.material3.LocalTextStyle
@@ -204,6 +207,8 @@ import eu.tintera.plume.resources.conversation_attach_file
 import eu.tintera.plume.resources.conversation_attach_media
 import eu.tintera.plume.resources.conversation_cancel_edit
 import eu.tintera.plume.resources.conversation_cancel_reply
+import eu.tintera.plume.resources.clipboard_has_gif
+import eu.tintera.plume.resources.clipboard_has_image
 import eu.tintera.plume.resources.conversation_editing
 import eu.tintera.plume.resources.conversation_open_gifs
 import eu.tintera.plume.resources.gif_box_24dp
@@ -1381,6 +1386,9 @@ private fun MessageInput(
     // Úprava zprávy přílohy schová — odeslání by je stejně neposlalo.
     val withAttachments = attachments.isNotEmpty() && editing == null
     val keyboard = LocalSoftwareKeyboardController.current
+    // Nahoře, ne u pole: podle fokusu se ukazuje i návrh vložení ze schránky nad polem.
+    val fieldInteraction = remember { MutableInteractionSource() }
+    val fieldFocused by fieldInteraction.collectIsFocusedAsState()
 
     /*
      * Pruh má barvu POZADÍ, jen průsvitnou.
@@ -1480,6 +1488,32 @@ private fun MessageInput(
                         }
                     }
                   }
+                  /*
+                   * GIF nebo obrázek ve schránce: na iOS nabídne vložení systémovým tlačítkem,
+                   * které se na povolení neptá (viz `ClipboardPasteSuggestion`). Jen s fokusem
+                   * v poli — návrh patří k psaní, jako návrhy klávesnice.
+                   */
+                  ClipboardPasteSuggestion(
+                      active = fieldFocused && !isRecording,
+                      acceptAnimations = content.stickers,
+                      acceptImages = content.photos,
+                      onContent = onKeyboardContent,
+                      onError = onKeyboardContentFailed,
+                  ) { kind, pasteButton ->
+                      ComposerHeader {
+                          Text(
+                              text = stringResource(
+                                  when (kind) {
+                                      ClipboardMediaKind.Animation -> Res.string.clipboard_has_gif
+                                      ClipboardMediaKind.Image -> Res.string.clipboard_has_image
+                                  },
+                              ),
+                              style = MaterialTheme.typography.labelLarge,
+                              modifier = Modifier.weight(1f).padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
+                          )
+                          pasteButton()
+                      }
+                  }
                 }
 
                 // Při nahrávání místo pole pruh s časem; citace nad ním zůstává, hlasovka na ni odpoví.
@@ -1511,7 +1545,6 @@ private fun MessageInput(
              * mezera skoro 30 dp, než začal text. U ikony stačí 4 dp — glyf má svůj vzduch.
              * Bez sponky (úprava zprávy) zůstává výchozích 16 dp od hrany karty.
              */
-            val fieldInteraction = remember { MutableInteractionSource() }
             val fieldColors = TextFieldDefaults.colors(
                 // Kontejner i podtržení nese karta kolem; pole samo nekreslí nic.
                 focusedContainerColor = Color.Transparent,

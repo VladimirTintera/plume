@@ -37,3 +37,26 @@ expect fun KeyboardContentReceiver(
     onError: (UiText) -> Unit,
     content: @Composable () -> Unit,
 )
+
+/** Co leží ve schránce — podle toho se návrh vložení popíše. */
+enum class ClipboardMediaKind { Animation, Image }
+
+/**
+ * Návrh vložit obrázek nebo GIF ze schránky tlačítkem, které kreslí SYSTÉM — na iOS
+ * `UIPasteControl`. Jen tak se vložení obejde bez dotazu „Povolit vložení?": iOS ho neklade,
+ * když uživatel ťukne na jeho vlastní tlačítko, kdežto položka „Vložit GIF" v kontextové nabídce
+ * ([KeyboardContentReceiver]) je naše akce a dotaz vyvolá.
+ *
+ * [container] dostane druh obsahu a tlačítko k umístění; volá se jen tehdy, když je [active]
+ * (pole má fokus) a schránka nese typ, který chat přijme, a který se ještě nevložil. Android
+ * nekreslí nic — tam se na vložení nikdo neptá a stačí položka v nabídce.
+ */
+@Composable
+expect fun ClipboardPasteSuggestion(
+    active: Boolean,
+    acceptAnimations: Boolean,
+    acceptImages: Boolean,
+    onContent: (KeyboardContent) -> Unit,
+    onError: (UiText) -> Unit,
+    container: @Composable (kind: ClipboardMediaKind, pasteButton: @Composable () -> Unit) -> Unit,
+)
