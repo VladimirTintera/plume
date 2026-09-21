@@ -67,8 +67,8 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
      - **Filtry hledání zpráv** (jen soukromé / skupiny / kanály, rozsah dat) — `searchMessages`
        je umí (`chatTypeFilter`, `minDate`, `maxDate`).
      - **Jméno odesílatele u nalezené zprávy ve skupině**; dnes je vidět jen chat.
-     - **Kanál po „Přidat se" pořád nabízí vstupní pole**, stejně jako každý kanál — práva
-       psát konverzace zatím neřeší vůbec.
+     - ~~**Kanál po „Přidat se" pořád nabízí vstupní pole**~~ — hotovo: kanál bez práva
+       publikovat má místo pole Ztlumit (`CLAUDE.md`, „Práva psát").
   2. ~~**Klikatelné zmínky a hashtagy v textu**~~ — hotovo (`@jméno` otevře chat, `#tag`
      hledání zpráv). Odkazy na Telegram (chat, zpráva, pozvánka, sada samolepek) se otevírají
      v aplikaci (`CLAUDE.md`, „Odkazy na Telegram"); zbývající druhy (boti se `start`,

@@ -173,6 +173,8 @@
     <string name="conversation_search_members_none">No members found</string>
     <string name="conversation_search_sender_remove">Remove member filter</string>
     <string name="conversation_join">Join</string>
+    <string name="conversation_write_restricted">Admins have restricted sending messages in this group.</string>
+    <string name="conversation_not_member">You are no longer in this chat.</string>
     <string name="conversation_join_failed">Couldn't join.</string>
     <string name="conversation_link_failed">Couldn't open this link.</string>
     <string name="invite_request">Request to join</string>

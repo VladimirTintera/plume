@@ -7,7 +7,14 @@ import dev.g000sha256.tdl.dto.ChatActionTyping
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
+import dev.g000sha256.tdl.dto.Chat
+import dev.g000sha256.tdl.dto.ChatMemberStatus
+import dev.g000sha256.tdl.dto.ChatMemberStatusAdministrator
+import dev.g000sha256.tdl.dto.ChatMemberStatusBanned
+import dev.g000sha256.tdl.dto.ChatMemberStatusCreator
 import dev.g000sha256.tdl.dto.ChatMemberStatusLeft
+import dev.g000sha256.tdl.dto.ChatMemberStatusMember
+import dev.g000sha256.tdl.dto.ChatMemberStatusRestricted
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
 import dev.g000sha256.tdl.dto.FormattedText
@@ -55,6 +62,9 @@ import kotlin.time.Clock
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -703,6 +713,7 @@ class TdlConversationRepository(
         client.getChat(chatId)
             .toResult()
             .map { chat ->
+                val access = chatAccess(chat)
                 ChatInfo(
                     id = chat.id,
                     title = chat.title,
@@ -717,16 +728,56 @@ class TdlConversationRepository(
                     isSavedMessages = (chat.type as? ChatTypePrivate)?.userId
                         ?.let { it == client.getMe().toResult().getOrNull()?.id } == true,
                     draftText = chat.draftMessage?.toChatDraft()?.text,
-                    canJoin = (chat.type as? ChatTypeSupergroup)?.let { type ->
-                        // `getSupergroup` je lokální — TDLib supergroup zná, když zná chat.
-                        client.getSupergroup(supergroupId = type.supergroupId).toResult().getOrNull()
-                            ?.status is ChatMemberStatusLeft
-                    } == true,
+                    canJoin = access.canJoin,
+                    writeAccess = access.writeAccess,
                     draftReplyToMessageId = (chat.draftMessage?.replyTo as? InputMessageReplyToMessage)
                         ?.messageId,
                 )
             }
 
+
+    /**
+     * Jestli se do chatu smí psát a jestli se k němu jde přidat.
+     *
+     * `getSupergroup` / `getBasicGroup` jsou lokální — TDLib skupinu zná, když zná chat. Když
+     * postavení zjistit nejde, psaní se NEBLOKUJE: pole navíc skončí nanejvýš chybou po odeslání,
+     * chybějící pole by uživatele od chatu odřízlo.
+     */
+    private suspend fun chatAccess(chat: Chat): ChatAccess {
+        val status = when (val type = chat.type) {
+            is ChatTypeSupergroup -> client.getSupergroup(supergroupId = type.supergroupId).toResult().getOrNull()?.status?.toOwn()
+            // Převedená skupina (`isActive == false`) žije dál jako supergroup; do té staré se nepíše.
+            is ChatTypeBasicGroup -> client.getBasicGroup(basicGroupId = type.basicGroupId).toResult().getOrNull()
+                ?.let { group -> if (group.isActive) group.status.toOwn() else OwnMemberStatus.Left }
+            else -> null
+        }
+        val supergroup = chat.type as? ChatTypeSupergroup
+        return ChatAccess(
+            canJoin = supergroup != null && status == OwnMemberStatus.Left,
+            writeAccess = writeAccess(
+                isChannel = supergroup?.isChannel == true,
+                status = status,
+                membersCanSend = chat.permissions.canSendBasicMessages,
+            ),
+        )
+    }
+
+    override fun accessUpdates(chatId: Long): Flow<ChatAccess> = flow {
+        val type = client.getChat(chatId).toResult().getOrNull()?.type ?: return@flow
+        val supergroupId = (type as? ChatTypeSupergroup)?.supergroupId
+        val basicGroupId = (type as? ChatTypeBasicGroup)?.basicGroupId
+        if (supergroupId == null && basicGroupId == null) return@flow
+        emitAll(
+            merge(
+                holder.updates { chatPermissionsUpdates }.filter { it.chatId == chatId }.map { },
+                holder.updates { supergroupUpdates }.filter { it.supergroup.id == supergroupId }.map { },
+                holder.updates { basicGroupUpdates }.filter { it.basicGroup.id == basicGroupId }.map { },
+            )
+                // Update skupiny chodí i kvůli počtu členů; čte se znovu a pustí dál jen změna.
+                .mapNotNull { client.getChat(chatId).toResult().getOrNull()?.let { chatAccess(it) } }
+                .distinctUntilChanged(),
+        )
+    }
     /**
      * Dostupnost protějšku.
      *
@@ -1060,3 +1111,16 @@ private const val MEMBER_SEARCH_LIMIT = 50
 
 /** Strop stránek připnutých zpráv. Pět set připnutých v jednom chatu je víc než dost. */
 private const val MAX_PINNED_PAGES = 5
+
+/** Postavení uživatele ve skupině; `when` bez `else`, takže nový stav v TDLib rozbije překlad. */
+private fun ChatMemberStatus.toOwn(): OwnMemberStatus = when (this) {
+    is ChatMemberStatusCreator -> OwnMemberStatus.Creator(isMember = isMember)
+    is ChatMemberStatusAdministrator -> OwnMemberStatus.Admin(canPostMessages = rights.canPostMessages)
+    is ChatMemberStatusMember -> OwnMemberStatus.Member
+    is ChatMemberStatusRestricted -> OwnMemberStatus.Restricted(
+        isMember = isMember,
+        canSendMessages = permissions.canSendBasicMessages,
+    )
+    is ChatMemberStatusLeft -> OwnMemberStatus.Left
+    is ChatMemberStatusBanned -> OwnMemberStatus.Banned
+}

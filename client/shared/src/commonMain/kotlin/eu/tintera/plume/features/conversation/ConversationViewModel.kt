@@ -26,6 +26,7 @@ import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatInfo
+import eu.tintera.plume.core.telegram.WriteAccess
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionRepository
@@ -56,6 +57,7 @@ import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_attachments_limit
 import eu.tintera.plume.resources.conversation_self_destruct_album
+import eu.tintera.plume.resources.profile_mute_failed
 import eu.tintera.plume.resources.conversation_attachments_send_failed
 import eu.tintera.plume.resources.conversation_cancel_send_failed
 import eu.tintera.plume.resources.conversation_delete_failed
@@ -777,6 +779,18 @@ class ConversationViewModel(
         }
 
         viewModelScope.launch {
+            // Práva psát se mění za běhu: správce je změní, uživatel se přidá (i odjinud).
+            repository.accessUpdates(chatId).collect { access ->
+                _state.update { it.copy(info = it.info?.copy(canJoin = access.canJoin, writeAccess = access.writeAccess)) }
+            }
+        }
+
+        viewModelScope.launch {
+            // Jen kvůli kanálu bez práva publikovat: místo pole je tam tlačítko Ztlumit.
+            chatRepository.muted(chatId).collect { muted -> _state.update { it.copy(muted = muted) } }
+        }
+
+        viewModelScope.launch {
             repository.presenceUpdates(chatId).collect { presence ->
                 _state.update { it.copy(presence = presence) }
             }
@@ -1317,10 +1331,22 @@ class ConversationViewModel(
 
     /** Nastaví zprávu, na kterou se odpovídá. Zobrazí se nad vstupním polem. */
     private fun replyTo(messageId: Long) {
+        // Swipe na odpověď se nabízí u každé zprávy; kde se psát nesmí, není kam odpovědět.
+        if (!_state.value.canWrite) return
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         _state.update { it.copy(replyingTo = message, messageMenu = null) }
         // Citace je součást konceptu — jen když už se něco píše, jinak není co ukládat.
         if (draftText.isNotBlank()) scheduleDraftSave()
+    }
+
+    /** Ztlumit / zapnout zvuk kanálu z pruhu místo vstupního pole. Potvrzení přijde updatem. */
+    fun toggleMute() {
+        val muted = _state.value.muted ?: return
+        viewModelScope.launch {
+            chatRepository.setMuted(chatId, !muted).onFailure { failure ->
+                _state.update { it.copy(error = failure.reported(Res.string.profile_mute_failed)) }
+            }
+        }
     }
 
     fun clearReply() {
@@ -2329,6 +2355,8 @@ data class ConversationState(
     val openStickerSet: Long? = null,
     /** Běží přidání ke skupině / kanálu ([ConversationViewModel.join]). */
     val joining: Boolean = false,
+    /** Ztlumení chatu; `null`, dokud se nepřečte. Ukazuje se jen v kanálu bez práva publikovat. */
+    val muted: Boolean? = null,
     /** Reklamy k zobrazení. Podle Telegram ToS se nesmí filtrovat ani skrývat. */
     val sponsored: List<SponsoredMessage> = emptyList(),
     /** Text právě letící ze vstupního pole do bubliny; `null` když se nic neodesílá. */
@@ -2362,6 +2390,10 @@ data class ConversationState(
      * Jestli se u připravené přílohy smí nabídnout mizení — pro [attachmentCount] příloh.
      * Pravidlo je [selfDestructAllowed]; dokud hlavička chatu nedorazí, nesmí se nic.
      */
+    /** Do chatu se smí psát: vstupní pole, odpověď swipem. Dokud hlavička nedorazí, bere se, že ano. */
+    val canWrite: Boolean
+        get() = info == null || (!info.canJoin && info.writeAccess == WriteAccess.Allowed)
+
     fun canSelfDestruct(attachmentCount: Int = attachments.size): Boolean =
         info != null && selfDestructAllowed(!info.isGroup, info.isSavedMessages, attachmentCount)
 

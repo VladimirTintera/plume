@@ -173,6 +173,8 @@
     <string name="conversation_search_members_none">Nikdo nenalezen</string>
     <string name="conversation_search_sender_remove">Zrušit filtr podle člena</string>
     <string name="conversation_join">Přidat se</string>
+    <string name="conversation_write_restricted">Správci v téhle skupině psaní omezili.</string>
+    <string name="conversation_not_member">V tomhle chatu už nejste.</string>
     <string name="conversation_join_failed">Přidat se nepodařilo.</string>
     <string name="conversation_link_failed">Odkaz se nepodařilo otevřít.</string>
     <string name="invite_request">Požádat o přijetí</string>

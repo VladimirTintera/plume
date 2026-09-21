@@ -1,5 +1,16 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.FilledTonalButton
+import eu.tintera.plume.core.telegram.WriteAccess
+import eu.tintera.plume.resources.conversation_not_member
+import eu.tintera.plume.resources.conversation_write_restricted
+import eu.tintera.plume.resources.notifications_24dp
+import eu.tintera.plume.resources.notifications_off_24dp
+import eu.tintera.plume.resources.profile_mute
+import eu.tintera.plume.resources.profile_unmute
+import org.jetbrains.compose.resources.StringResource
 import eu.tintera.plume.core.telegram.AttachmentMode
 import androidx.compose.ui.draw.clip
 import eu.tintera.plume.resources.profile_open
@@ -849,6 +860,22 @@ fun ConversationScreen(
             if (state.info?.canJoin == true) {
                 JoinBar(joining = state.joining, onJoin = viewModel::join)
                 return@Box
+            }
+            // Kde se psát nesmí, pole by skončilo chybou až po odeslání. Kanál aspoň nabídne ztlumení.
+            when (state.info?.writeAccess) {
+                WriteAccess.ChannelReadOnly -> {
+                    MuteBar(muted = state.muted, onToggle = viewModel::toggleMute)
+                    return@Box
+                }
+                WriteAccess.Restricted -> {
+                    ReadOnlyNote(Res.string.conversation_write_restricted)
+                    return@Box
+                }
+                WriteAccess.NotMember -> {
+                    ReadOnlyNote(Res.string.conversation_not_member)
+                    return@Box
+                }
+                WriteAccess.Allowed, null -> Unit
             }
             MessageInput(
                 replyingTo = state.replyingTo,
@@ -2045,4 +2072,47 @@ private fun JoinBar(joining: Boolean, onJoin: () -> Unit) {
             Text(stringResource(Res.string.conversation_join))
         }
     }
+}
+
+/**
+ * Místo vstupního pole v kanálu, kde uživatel nepublikuje: ztlumit / zapnout zvuk, jako
+ * v oficiálním klientu. Popisek říká, co se stane, ne stav (stejně jako v profilu chatu).
+ */
+@Composable
+private fun MuteBar(muted: Boolean?, onToggle: () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .imePadding()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        FilledTonalButton(
+            onClick = onToggle,
+            enabled = muted != null,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+        ) {
+            Icon(
+                painterResource(if (muted == true) Res.drawable.notifications_24dp else Res.drawable.notifications_off_24dp),
+                contentDescription = null,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(if (muted == true) Res.string.profile_unmute else Res.string.profile_mute))
+        }
+    }
+}
+
+/** Místo vstupního pole tam, kde psát nejde a nic se s tím udělat nedá — aspoň proč. */
+@Composable
+private fun ReadOnlyNote(text: StringResource) {
+    Text(
+        text = stringResource(text),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 24.dp, vertical = 20.dp),
+    )
 }
