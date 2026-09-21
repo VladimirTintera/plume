@@ -19,9 +19,11 @@ import dev.g000sha256.tdl.dto.ChatPermissions
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
 import dev.g000sha256.tdl.dto.FormattedText
+import dev.g000sha256.tdl.dto.InputAnimation
 import dev.g000sha256.tdl.dto.InputDocument
 import dev.g000sha256.tdl.dto.InputFileId
 import dev.g000sha256.tdl.dto.InputFileLocal
+import dev.g000sha256.tdl.dto.InputMessageAnimation
 import dev.g000sha256.tdl.dto.InputMessageContent
 import dev.g000sha256.tdl.dto.InputMessageDocument
 import dev.g000sha256.tdl.dto.InputMessagePhoto
@@ -697,6 +699,36 @@ class TdlConversationRepository(
                 client.addRecentSticker(isAttached = false, sticker = file)
             }
     }
+
+    override suspend fun sendAnimation(
+        chatId: Long,
+        animation: OutgoingAnimation,
+        replyToMessageId: Long?,
+    ): Result<ChatMessage> =
+        client.sendMessage(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyToMessageId?.let(::replyTo),
+            options = null,
+            replyMarkup = null,
+            inputMessageContent = InputMessageAnimation(
+                animation = InputAnimation(
+                    animation = InputFileLocal(path = animation.path),
+                    thumbnail = animation.thumbnail?.let {
+                        InputThumbnail(thumbnail = InputFileLocal(path = it.path), width = it.width, height = it.height)
+                    },
+                    addedStickerFileIds = intArrayOf(),
+                    duration = animation.durationSeconds,
+                    width = animation.width,
+                    height = animation.height,
+                ),
+                caption = null,
+                showCaptionAboveMedia = false,
+                hasSpoiler = false,
+            ),
+        )
+            .toResult()
+            .map { it.toChatMessage(isGroup(chatId)) }
 
     override suspend fun sendTyping(chatId: Long, typing: Boolean): Result<Unit> =
         client.sendChatAction(

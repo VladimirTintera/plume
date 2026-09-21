@@ -2940,6 +2940,33 @@ týmž přehrávačem jako video (`MessageMedia.Animation`, `AnimationBubble`).
   je přitom známá). Pozná se to podle toho, že **stejně selže i video v prohlížeči médií** —
   tedy cesta, která s GIFy nesouvisí. Ověřit jde vzhled, značka a přepínání pauzy.
 
+### GIFy a samolepky z klávesnice
+
+GIF vybraný v Gboardu **odchází hned** jako animace (`InputMessageAnimation`), jako samolepka
+z výběru; statický obrázek a samolepka z klávesnice čekají nad polem jako fotka z výběru
+(`KeyboardContentReceiver` v `core/ui`, `ConversationViewModel.sendAnimation`).
+
+- **Klávesnice nabízí GIFy jen poli, které řekne, že je přijme** (`EditorInfo.contentMimeTypes`).
+  Bez toho Gboard hlásí „animované GIFy nejsou podporované" — a nic z toho není chyba, jen
+  chybějící deklarace.
+- **`Modifier.contentReceiver` z Compose tu NEJDE.** Funguje jen s `BasicTextField` nad
+  `TextFieldState` a naše pole stojí na `TextFieldValue` (viz „Koncept"). Android proto obaluje
+  vstupní spojení přes `InterceptPlatformTextInput`: typy se do `EditorInfo` doplní až PO
+  původním `createInputConnection` (ten ho vyplňuje a přepsal by je), `commitContent` převezme
+  `InputConnectionCompat.createWrapper`.
+- **Obal stojí kolem pole vždycky**, i když chat nic nepřijme (pak jen propouští). Větev
+  „bez obalu" by pole při přepnutí do úpravy složila znovu a vzala mu fokus.
+- **Nabízí se jen to, co chat přijme**: GIF podle práva na samolepky (`canSendOtherMessages`),
+  obrázek podle práva na fotky; při úpravě zprávy nic, jako u sponky. Pojistka je i ve ViewModelu.
+- **Obsah se kopíruje HNED a oprávnění se pak vrací** (`requestPermission` /
+  `releasePermission`). Oprávnění k URI od klávesnice je dočasné, stejně jako u sdílení.
+- **Přípona souboru se doplňuje podle typu** (`prepareAnimation`) — jméno od klávesnice bývá
+  bez ní a TDLib podle ní pozná, co nahrává. GIF se nepřevádí, na MP4 ho převede server.
+- **Průhledný obrázek se před JPEG skládá na bílou** (`opaque()` v `preparePhoto`). JPEG alfu
+  nemá a průhledné pixely z něj vyšly černé — samolepka z Gboardu odcházela na černém čtverci.
+  Týkalo se to i PNG z výběru příloh.
+- **iOS nic nedeklaruje**: tamní klávesnice GIFy do pole nevkládají, jdou přes schránku.
+
 ### Video
 
 Video je vlastní typ přílohy (`MessageMedia.Video`: soubor, náhled, rozměry, délka). V bublině

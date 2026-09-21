@@ -39,6 +39,7 @@ import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageInfo
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
+import eu.tintera.plume.core.telegram.OutgoingAnimation
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.ReactionDetail
@@ -58,6 +59,7 @@ import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_attachments_limit
 import eu.tintera.plume.resources.conversation_content_not_allowed
+import eu.tintera.plume.resources.conversation_gif_send_failed
 import eu.tintera.plume.resources.conversation_self_destruct_album
 import eu.tintera.plume.resources.profile_mute_failed
 import eu.tintera.plume.resources.conversation_attachments_send_failed
@@ -860,6 +862,21 @@ class ConversationViewModel(
         }
         sendMedia(Res.string.conversation_sticker_send_failed) { replyTo ->
             repository.sendSticker(chatId, sticker, replyTo)
+        }
+    }
+
+    /**
+     * Odešle GIF vložený z klávesnice — hned, bez čekání nad polem, jako samolepku. Rozepsaný text
+     * zůstává a citace se spotřebuje. GIFy vede TDLib pod týmž právem jako samolepky
+     * (`canSendOtherMessages`); klávesnici se bez něj GIF nenabízí, ale pojistka patří i sem.
+     */
+    fun sendAnimation(animation: OutgoingAnimation) {
+        if (!_state.value.content.stickers || _state.value.editing != null) {
+            _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
+            return
+        }
+        sendMedia(Res.string.conversation_gif_send_failed) { replyTo ->
+            repository.sendAnimation(chatId, animation, replyTo)
         }
     }
 

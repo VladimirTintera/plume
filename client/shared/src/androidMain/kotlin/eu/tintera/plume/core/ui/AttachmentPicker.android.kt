@@ -3,6 +3,8 @@ package eu.tintera.plume.core.ui
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.ImageDecoder
 import android.graphics.Matrix
 import android.media.ExifInterface
@@ -20,6 +22,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.telegram.OutgoingAnimation
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.OutgoingThumbnail
 import eu.tintera.plume.core.ui.UiText
@@ -111,6 +114,21 @@ private fun prepareVideo(context: Context, uri: Uri): OutgoingAttachment.Video {
         target.outputStream().use { input.copyTo(it) }
     }
 
+    val video = videoMetadata(target)
+    return OutgoingAttachment.Video(
+        path = target.absolutePath,
+        width = video.width,
+        height = video.height,
+        durationSeconds = video.durationSeconds,
+        thumbnail = video.thumbnail,
+        streamable = false,
+    )
+}
+
+private class VideoMetadata(val width: Int, val height: Int, val durationSeconds: Int, val thumbnail: OutgoingThumbnail?)
+
+/** Rozměry (po otočení), délka a první snímek jako JPEG náhled vedle souboru. */
+private fun videoMetadata(target: File): VideoMetadata {
     val retriever = MediaMetadataRetriever()
     try {
         retriever.setDataSource(target.absolutePath)
@@ -135,17 +153,56 @@ private fun prepareVideo(context: Context, uri: Uri): OutgoingAttachment.Video {
             OutgoingThumbnail(path = file.absolutePath, width = scaled.width, height = scaled.height)
         }.getOrNull()
 
-        return OutgoingAttachment.Video(
-            path = target.absolutePath,
+        return VideoMetadata(
             width = if (rotated) rawHeight else rawWidth,
             height = if (rotated) rawWidth else rawHeight,
             durationSeconds = ((durationMs + 500) / 1000).toInt(),
             thumbnail = thumbnail,
-            streamable = false,
         )
     } finally {
         retriever.release()
     }
+}
+
+/**
+ * Zkopíruje GIF (nebo MP4 bez zvuku) z klávesnice beze změny. Nic se nepřevádí: skutečný GIF
+ * převede na MP4 server. Z GIFu stačí rozměry (hlavička, bez dekódování snímků); z MP4 se jako
+ * u videa čte i délka a první snímek.
+ *
+ * **Přípona musí sedět s obsahem.** Jméno od klávesnice bývá prázdné nebo bez přípony a TDLib
+ * podle ní pozná, co nahrává.
+ */
+internal fun prepareAnimation(context: Context, uri: Uri, isVideo: Boolean): OutgoingAnimation {
+    val extension = if (isVideo) "mp4" else "gif"
+    val name = displayName(context, uri)
+        ?.let { if (it.endsWith(".$extension", ignoreCase = true)) it else "$it.$extension" }
+        ?: "animation.$extension"
+    val target = outgoingFile(context, name)
+    requireNotNull(context.contentResolver.openInputStream(uri)).use { input ->
+        target.outputStream().use { input.copyTo(it) }
+    }
+
+    if (!isVideo) {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(target.absolutePath, bounds)
+        require(bounds.outWidth > 0 && bounds.outHeight > 0) { "GIF nejde přečíst." }
+        return OutgoingAnimation(
+            path = target.absolutePath,
+            width = bounds.outWidth,
+            height = bounds.outHeight,
+            durationSeconds = 0,
+            thumbnail = null,
+        )
+    }
+
+    val video = videoMetadata(target)
+    return OutgoingAnimation(
+        path = target.absolutePath,
+        width = video.width,
+        height = video.height,
+        durationSeconds = video.durationSeconds,
+        thumbnail = video.thumbnail,
+    )
 }
 
 private fun displayName(context: Context, uri: Uri): String? =
@@ -160,11 +217,25 @@ private fun displayName(context: Context, uri: Uri): String? =
  * přepsaný JPEG EXIF nemá, takže bez otočení pixelů by odešla bokem. `ImageDecoder` (Android 9+)
  * orientaci použije sám, pro starší se otáčí podle `ExifInterface`.
  */
-private fun preparePhoto(context: Context, uri: Uri): OutgoingAttachment.Photo {
-    val bitmap = decodeScaled(context, uri)
+internal fun preparePhoto(context: Context, uri: Uri): OutgoingAttachment.Photo {
+    val bitmap = decodeScaled(context, uri).opaque()
     val target = outgoingFile(context, "photo.jpg")
     target.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, PHOTO_JPEG_QUALITY, it) }
     return OutgoingAttachment.Photo(path = target.absolutePath, width = bitmap.width, height = bitmap.height)
+}
+
+/**
+ * JPEG průhlednost nemá a průhledné pixely z něj vyjdou ČERNÉ — samolepka z klávesnice nebo PNG
+ * s průhledným pozadím by odešly na černém čtverci. Proto se průhledný obrázek skládá na bílou.
+ */
+private fun Bitmap.opaque(): Bitmap {
+    if (!hasAlpha()) return this
+    val flattened = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    Canvas(flattened).apply {
+        drawColor(Color.WHITE)
+        drawBitmap(this@opaque, 0f, 0f, null)
+    }
+    return flattened
 }
 
 private fun decodeScaled(context: Context, uri: Uri): Bitmap {
