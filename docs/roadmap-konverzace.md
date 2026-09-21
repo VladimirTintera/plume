@@ -265,10 +265,15 @@ Poučení v `CLAUDE.md`, „Spoilery a mizející média".
 
 Co zbývá:
 
-- **Ověřit na zařízení s druhým účtem.** Mizející médium se dá poslat jen do soukromého chatu
-  a bot ho neodešle (Bot API mizení nezná), takže příjem zatím nikdo neviděl — hlavně jestli
-  jednorázové zhlédnutí TDLib nevyprší hned po `openMessageContent`, ještě v otevřeném
-  prohlížeči.
+- **Odesílací strana je ověřená na emulátoru**, příjmová ne. Ověřeno: nabídka režimů
+  v soukromém chatu (a její nepřítomnost v Uložených zprávách i ve skupině), viditelné vypnutí
+  mizení u alba se snackbarem, odeslání obou režimů a `FLAG_SECURE` (příznak `SECURE`
+  v `dumpsys window`, ne jen černý snímek). Postup je v `CLAUDE.md`, „Jak to ověřit".
+- **Příjem zatím nikdo neviděl a potřebuje druhý uživatelský účet.** Do bota se mizející
+  médium poslat DÁ (chat s botem je soukromý chat a server ho přijme), ale bot ho neodešle —
+  Bot API mizení nezná, `sendPhoto` nemá `ttl_seconds`. U vlastní odeslané zprávy se odpočet
+  z principu nespustí, takže přes ni se příjem ověřit nedá. Hlavně jde o to, jestli jednorázové
+  zhlédnutí TDLib nevyprší hned po `openMessageContent`, ještě v otevřeném prohlížeči.
 - **Odpočet je jen v paměti a podle `messageId`.** Po restartu ho zachrání `selfDestructIn` od
   TDLib; spotřebované jednorázové médium ale ukáže vypršení až ve chvíli, kdy TDLib vymění obsah
   za `MessageExpiredPhoto`.
