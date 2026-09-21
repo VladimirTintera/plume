@@ -1076,8 +1076,22 @@ testy v `ChatGroupsTest`). Nahradil spodní navigační lištu.
 - **Filtr žije s ViewModelem**, návrat z konverzace ho zachová, nové spuštění začne na Vše.
 - **Snackbar je nad toolbarem**, ne ve slotu Scaffoldu — ten by ho dal pod toolbar. Seznam má
   dole navíc `TOOLBAR_CLEARANCE`, aby šel poslední chat odscrollovat nad toolbar.
-- Prázdný výsledek filtru má vlastní text („Tomuhle filtru žádný chat neodpovídá"), ne „Zatím tu
-  nic není" — chaty jsou, jen ne tyhle.
+- **Nabízí se jen filtr, který má smysl** (`availableFilters`, testy `ChatGroupsTest`). Filtr
+  podle druhu jen tehdy, když něco odfiltruje a něco nechá: bez kanálů by Kanály ukázaly prázdno
+  a se samými lidmi by Lidé byli totéž co Vše. Nepotřebná ikona se schová i s místem
+  (`shrinkHorizontally`), toolbar se zúží.
+- **Nepřečtené jsou vždycky.** Je to stav, který se mění s každou zprávou — ikona, která by se
+  objevovala a mizela, by toolbar pod palcem přeskládávala. Zašedlá by zase vypadala rozbitě.
+  Prázdný výsledek je dobrá zpráva a tak ho i kreslíme: „Všechno přečteno".
+- **Vybraný filtr nemizí nikdy**, ani když už nemá co ukázat (poslední kanál opuštěn) — výběr by
+  zmizel pod prstem.
+- **Druh se počítá nad tím, co seznam UKAZUJE**, tedy bez nepřipnutých Uložených zpráv. Ty jsou
+  soukromý chat, a jinak by kvůli nim existovali Lidé s prázdným výsledkem.
+- **Dokud se seznam načítá, jsou jen Vše a Nepřečtené**, filtry podle druhu naběhnou potom.
+  Objevení ikony ruší míň než její zmizení.
+- Prázdný výsledek filtru je `IntroEmptyState` (u Nepřečtených „Všechno přečteno", jinak ikona
+  filtru a „Tomuhle filtru žádný chat neodpovídá"), ne „Zatím tu nic není" — chaty jsou, jen ne
+  tyhle. Stejný prázdný stav jako archiv a placeholder detailu.
 
 ### Tvar avataru podle druhu chatu
 

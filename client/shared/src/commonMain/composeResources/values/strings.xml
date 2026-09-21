@@ -581,6 +581,9 @@
     <string name="chats_filter_groups">Groups</string>
     <string name="chats_filter_channels">Channels</string>
     <string name="chats_filter_empty">No chats match this filter.</string>
+    <string name="chats_filter_empty_title">Nothing here</string>
+    <string name="chats_filter_unread_empty_title">All caught up</string>
+    <string name="chats_filter_unread_empty">New messages will show up here.</string>
     <string name="chats_account">Account and more</string>
     <string name="chats_new">New message</string>
     <string name="new_chat_title">New message</string>

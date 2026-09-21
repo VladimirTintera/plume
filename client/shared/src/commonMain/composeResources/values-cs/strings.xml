@@ -588,6 +588,9 @@
     <string name="chats_filter_groups">Skupiny</string>
     <string name="chats_filter_channels">Kanály</string>
     <string name="chats_filter_empty">Tomuhle filtru žádný chat neodpovídá.</string>
+    <string name="chats_filter_empty_title">Nic tu není</string>
+    <string name="chats_filter_unread_empty_title">Všechno přečteno</string>
+    <string name="chats_filter_unread_empty">Nové zprávy se objeví tady.</string>
     <string name="chats_account">Účet a další</string>
     <string name="chats_new">Nová zpráva</string>
     <string name="new_chat_title">Nová zpráva</string>

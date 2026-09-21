@@ -9,7 +9,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -53,6 +58,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -117,6 +123,7 @@ import androidx.compose.material3.rememberTooltipState
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import eu.tintera.plume.core.telegram.AccountInfo
+import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.resources.campaign_24dp
 import eu.tintera.plume.resources.campaign_filled_24dp
@@ -124,6 +131,10 @@ import eu.tintera.plume.resources.chats_account
 import eu.tintera.plume.resources.chats_filter_all
 import eu.tintera.plume.resources.chats_filter_channels
 import eu.tintera.plume.resources.chats_filter_empty
+import eu.tintera.plume.resources.chats_filter_empty_title
+import eu.tintera.plume.resources.chats_filter_unread_empty
+import eu.tintera.plume.resources.chats_filter_unread_empty_title
+import eu.tintera.plume.resources.done_all_24dp
 import eu.tintera.plume.resources.chats_filter_groups
 import eu.tintera.plume.resources.chats_filter_private
 import eu.tintera.plume.resources.chats_filter_unread
@@ -167,6 +178,11 @@ fun ChatListScreen(
     val updateCard by viewModel.updateCard.collectAsStateWithLifecycle()
     val unconfirmedLogin by viewModel.unconfirmedLogin.collectAsStateWithLifecycle()
     val filter by viewModel.filter.collectAsStateWithLifecycle()
+    val chatList by viewModel.state.collectAsStateWithLifecycle()
+    val readyChats = (chatList as? ChatListState.Ready)?.chats
+    val filters = remember(readyChats, filter, savedMessagesChatId) {
+        availableFilters(readyChats, filter, savedMessagesChatId)
+    }
     val account by viewModel.account.collectAsStateWithLifecycle()
     val startUpdate = rememberStartUpdate(viewModel.appUpdates)
     // Hledání při scrollu dolů odjede a při scrollu nahoru se vrátí.
@@ -336,6 +352,7 @@ fun ChatListScreen(
                 SnackbarHost(snackbarHostState)
                 ChatListToolbar(
                     expanded = toolbarExpanded,
+                    filters = filters,
                     filter = filter,
                     onFilterChange = { selected ->
                         viewModel.setFilter(selected)
@@ -366,6 +383,8 @@ fun ChatListScreen(
 @Composable
 private fun ChatListToolbar(
     expanded: Boolean,
+    /** Nabízené filtry ([availableFilters]); ostatní se schovají i s místem. */
+    filters: List<ChatFilter>,
     filter: ChatFilter,
     onFilterChange: (ChatFilter) -> Unit,
     onNewChat: () -> Unit,
@@ -385,26 +404,38 @@ private fun ChatListToolbar(
         modifier = modifier,
     ) {
         ChatFilter.entries.forEach { entry ->
-            val label = stringResource(entry.label)
-            TooltipBox(
-                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                tooltip = { PlainTooltip { Text(label) } },
-                state = rememberTooltipState(),
+            /*
+             * Filtr, který nemá co ukázat, se schová i se svým místem (`shrinkHorizontally`),
+             * takže se toolbar plynule zúží. Pořadí ostatních zůstává, ikony se jen dosunou.
+             */
+            AnimatedVisibility(
+                visible = entry in filters,
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                    expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                    shrinkHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()),
             ) {
-                val selected = entry == filter
-                IconToggleButton(
-                    checked = selected,
-                    onCheckedChange = { onFilterChange(entry) },
-                    shapes = IconButtonDefaults.toggleableShapes(),
-                    colors = IconButtonDefaults.iconToggleButtonColors(
-                        checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    ),
+                val label = stringResource(entry.label)
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                    tooltip = { PlainTooltip { Text(label) } },
+                    state = rememberTooltipState(),
                 ) {
-                    Icon(
-                        painterResource(if (selected) entry.selectedIcon else entry.icon),
-                        contentDescription = label,
-                    )
+                    val selected = entry == filter
+                    IconToggleButton(
+                        checked = selected,
+                        onCheckedChange = { onFilterChange(entry) },
+                        shapes = IconButtonDefaults.toggleableShapes(),
+                        colors = IconButtonDefaults.iconToggleButtonColors(
+                            checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        ),
+                    ) {
+                        Icon(
+                            painterResource(if (selected) entry.selectedIcon else entry.icon),
+                            contentDescription = label,
+                        )
+                    }
                 }
             }
         }
@@ -661,14 +692,27 @@ internal fun ChatListContent(
         is ChatListState.Ready -> if (current.chats.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding), content = empty)
         } else if (groups.isEmpty() && filter != ChatFilter.All) {
-            // Filtru nic neodpovídá. Jiný text než prázdný seznam: chaty jsou, jen ne tyhle.
-            Box(Modifier.fillMaxSize().padding(padding).padding(24.dp), contentAlignment = Alignment.Center) {
-                Text(
-                    stringResource(Res.string.chats_filter_empty),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
+            /*
+             * Filtru nic neodpovídá. Jiný stav než prázdný seznam: chaty jsou, jen ne tyhle.
+             * Tentýž animovaný prázdný stav jako archiv a placeholder detailu; u Nepřečtených
+             * je to dobrá zpráva, ne slepá ulička, a tak to taky říká.
+             */
+            Box(Modifier.fillMaxSize().padding(padding)) {
+                key(filter) {
+                    if (filter == ChatFilter.Unread) {
+                        IntroEmptyState(
+                            icon = Res.drawable.done_all_24dp,
+                            title = stringResource(Res.string.chats_filter_unread_empty_title),
+                            text = stringResource(Res.string.chats_filter_unread_empty),
+                        )
+                    } else {
+                        IntroEmptyState(
+                            icon = filter.icon,
+                            title = stringResource(Res.string.chats_filter_empty_title),
+                            text = stringResource(Res.string.chats_filter_empty),
+                        )
+                    }
+                }
             }
         } else {
             LazyColumn(
