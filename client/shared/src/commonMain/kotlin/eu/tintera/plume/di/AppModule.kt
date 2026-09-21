@@ -204,6 +204,8 @@ fun appModule() = module {
             profiles = get(),
             chats = get(),
             conversations = get(),
+            files = get(),
+            fileOpener = get(),
             urlOpener = get(),
         )
     }

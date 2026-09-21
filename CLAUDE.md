@@ -2656,7 +2656,44 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
 - **Počty se oddělují po tisících úzkou nezlomitelnou mezerou** (`Int.grouped()` v `core/ui`) —
   „10704668 odběratelů" se nedalo přečíst. Commonmain `NumberFormat` nemá; mezera je čitelná
   v češtině i angličtině. Plurály proto berou číslo jako `%1$s`.
-- **Sdílená média (Média / Soubory / Odkazy) zatím nejsou** — další krok, viz roadmapa.
+
+### Sdílená média v profilu
+
+Pod hlavičkou profilu jsou záložky: **Členové** (kde je server vydá), **Média**, **Soubory**
+a **Odkazy**. Obsah jde přes `searchChatMessages` s filtrem
+(`SearchMessagesFilterPhotoAndVideo` / `Document` / `Url`), ne procházením historie — sdíleného
+obsahu bývá zlomek zpráv.
+
+- **Nabízejí se jen neprázdné záložky.** Počty se čtou naráz (`getChatMessageCount` na všechny
+  druhy současně) a teprve podle nich se záložky vykreslí; prázdná záložka by slibovala obsah,
+  který chat nemá. Dokud počty nedorazí, nejsou žádné — záložka, která by po chvíli zmizela,
+  vypadá jako chyba.
+- **Profil kvůli tomu NENÍ `LazyColumn`.** Obsah záložky je sám svislý seznam a dva svislé
+  scrolly do sebe Compose nezměří (`Vertically scrollable component was measured with an infinity
+  maximum height constraints`). Stránky proto vyplní celou plochu, hlavička je kreslená nad nimi
+  a posouvá ji `NestedScrollConnection`: dolů se nejdřív sbalí hlavička, nahoru naopak až poté,
+  co seznam dojede na začátek. **Záložky se tím přilepí samy** — jsou pod hlavičkou ve stejném
+  sloupci, takže po odsunutí hlavičky zůstanou nahoře; žádný `stickyHeader`.
+- **Pager musí jet S HLAVIČKOU a být o její výšku VYŠŠÍ.** Dokud se posouvala jen hlavička,
+  zůstal seznam stát na nule i s celým horním `contentPadding` a mezi přilepenými záložkami
+  a obsahem zela mezera o výšku hlavičky. Zmenšovat `contentPadding` podle offsetu by znamenalo
+  přepočet layoutu seznamu v každém snímku scrollu.
+- **Dotažení další stránky NESMÍ stát na `layoutInfo`.** Porovnání indexu poslední viditelné
+  položky s počtem se u mřížky minulo a další stránka nedorazila NIKDY — u seznamu s jedinou
+  položkou naopak prošlo hned, takže vada byla vidět jen na mřížce. Spouští ho proto kompozice
+  jedné z posledních položek (`LoadMoreAtEnd`): skládá se, teprve když je blízko viewportu.
+- **Konec pozná jen prázdná odpověď od serveru**, ne počet po filtrování: stránka samých
+  mizejících fotek vyjde prázdná i uprostřed chatu.
+- **Mizející a tajná média se vyřazují** stejně jako z listování v prohlížeči — trvalý přehled
+  není místo pro obsah, který má po zhlédnutí zmizet.
+- **Ťuknutí vede tam, kam z konverzace**: médium do prohlížeče (táž `MediaRoute`), soubor se
+  stáhne a předá systému (včetně průběhu v řádku a druhého ťuknutí jako zrušení), odkaz do
+  prohlížeče.
+- **`mailto:` se v adrese neukazuje** (`displayUrl`, testy `SharedMediaTest`). Filtr odkazů bere
+  i e-maily a schéma u nich nic neříká; `https` od `tg` odlišit potřeba je, takže se zahazuje
+  jen ono.
+- **Titulek „null" u náhledu je obsah OD SERVERU**, ne naše chyba — `linkPreview()` mapuje přes
+  `ifBlank { null }` a stejně to vypadá i v bublině konverzace.
 
 ## Hlasovky
 

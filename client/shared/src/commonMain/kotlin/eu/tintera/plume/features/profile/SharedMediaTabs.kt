@@ -1,0 +1,396 @@
+package eu.tintera.plume.features.profile
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.files.DocumentKind
+import eu.tintera.plume.core.files.documentKind
+import eu.tintera.plume.core.files.FileSizeUnit
+import eu.tintera.plume.core.files.formatFileSize
+import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.MemberRole
+import eu.tintera.plume.core.telegram.MessageEntityType
+import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.ProfileMember
+import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.ui.asDayLabel
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.description_24dp
+import eu.tintera.plume.resources.image_24dp
+import eu.tintera.plume.resources.language_24dp
+import eu.tintera.plume.resources.play_arrow_24dp
+import eu.tintera.plume.resources.profile_role_admin
+import eu.tintera.plume.resources.profile_role_owner
+import eu.tintera.plume.resources.profile_shared_file_meta
+import eu.tintera.plume.resources.profile_shared_link
+import eu.tintera.plume.resources.profile_shared_media_video
+import eu.tintera.plume.resources.profile_shared_photo
+import eu.tintera.plume.resources.file_size_b
+import eu.tintera.plume.resources.file_size_gb
+import eu.tintera.plume.resources.file_size_kb
+import eu.tintera.plume.resources.file_size_mb
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+
+/**
+ * Obsah záložek profilu.
+ *
+ * Každá záložka je **vlastní scrollovatelný seznam** — profil kolem nich není `LazyColumn`, ale
+ * hlavička posouvaná přes nested scroll (viz `ChatProfileScreen`), takže se dva svislé scrolly
+ * nevnořují. [contentPadding] odsune obsah pod hlavičku; ta ho překrývá.
+ *
+ * Další stránka se dotahuje, až se doroluje na konec ([onLoadMore]) — ne dopředu: sdíleného
+ * obsahu bývají v dlouhém chatu tisíce položek.
+ */
+
+/** Dlaždic mřížky médií na šířku. Tři jsou kompromis mezi přehledem a velikostí náhledu. */
+private const val MEDIA_COLUMNS = 3
+
+/** Kolik položek před koncem spustí dotažení další stránky. */
+private const val LOAD_MORE_THRESHOLD = 6
+
+@Composable
+internal fun SharedMediaGrid(
+    messages: List<ChatMessage>,
+    loading: Boolean,
+    contentPadding: PaddingValues,
+    onOpen: (messageId: Long) -> Unit,
+    onLoadMore: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(MEDIA_COLUMNS),
+        contentPadding = contentPadding,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = modifier.fillMaxSize(),
+    ) {
+        itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
+            LoadMoreAtEnd(index, messages.size, onLoadMore)
+            MediaTile(message, onOpen = { onOpen(message.id) })
+        }
+        if (loading) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                TabLoading()
+            }
+        }
+    }
+}
+
+/** Dlaždice mřížky: čtverec s náhledem, u videa symbol přehrání. */
+@Composable
+private fun MediaTile(message: ChatMessage, onOpen: () -> Unit) {
+    val photo = message.media as? MessageMedia.Photo
+    val video = message.media as? MessageMedia.Video
+    val fileId = photo?.fileId ?: video?.thumbnailFileId
+    val thumbnailFileId = photo?.thumbnailFileId ?: video?.thumbnailFileId
+
+    Box(
+        Modifier
+            .aspectRatio(1f)
+            .clickable(onClick = onOpen),
+    ) {
+        if (fileId != null) {
+            RemoteImage(
+                fileId = fileId,
+                thumbnailFileId = thumbnailFileId,
+                contentDescription = stringResource(
+                    if (video != null) Res.string.profile_shared_media_video else Res.string.profile_shared_photo,
+                ),
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            // Video bez náhledu (server ho nedal) — prázdná plocha by vypadala jako chyba.
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(painterResource(Res.drawable.image_24dp), contentDescription = null)
+            }
+        }
+        if (video != null) {
+            Surface(
+                shape = RoundedCornerShape(percent = 50),
+                color = Color.Black.copy(alpha = VIDEO_BADGE_ALPHA),
+                contentColor = Color.White,
+                modifier = Modifier.align(Alignment.BottomStart).padding(4.dp),
+            ) {
+                Icon(
+                    painterResource(Res.drawable.play_arrow_24dp),
+                    contentDescription = null,
+                    modifier = Modifier.padding(2.dp).size(16.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun SharedFilesList(
+    messages: List<ChatMessage>,
+    loading: Boolean,
+    downloads: Map<Int, Float>,
+    contentPadding: PaddingValues,
+    onOpen: (messageId: Long) -> Unit,
+    onLoadMore: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(contentPadding = contentPadding, modifier = modifier.fillMaxSize()) {
+        itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
+            LoadMoreAtEnd(index, messages.size, onLoadMore)
+            val document = message.media as? MessageMedia.Document ?: return@itemsIndexed
+            FileRow(
+                message = message,
+                document = document,
+                progress = downloads[document.fileId],
+                onOpen = { onOpen(message.id) },
+            )
+        }
+        if (loading) item { TabLoading() }
+    }
+}
+
+/** Řádek souboru: náhled nebo ikona podle druhu, název a pod ním velikost s datem. */
+@Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private fun FileRow(
+    message: ChatMessage,
+    document: MessageMedia.Document,
+    progress: Float?,
+    onOpen: () -> Unit,
+) {
+    val size = formatFileSize(document.sizeBytes)
+    val unit = stringResource(
+        when (size.unit) {
+            FileSizeUnit.Bytes -> Res.string.file_size_b
+            FileSizeUnit.Kilobytes -> Res.string.file_size_kb
+            FileSizeUnit.Megabytes -> Res.string.file_size_mb
+            FileSizeUnit.Gigabytes -> Res.string.file_size_gb
+        },
+        size.value,
+    )
+    ListItem(
+        headlineContent = { Text(document.fileName, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        // Oddělovač i pořadí patří překladu, ne slepenci v kódu.
+        supportingContent = {
+            Text(stringResource(Res.string.profile_shared_file_meta, unit, message.timestamp.asDayLabel()))
+        },
+        leadingContent = {
+            Box(Modifier.size(FILE_ICON_SIZE), contentAlignment = Alignment.Center) {
+                when {
+                    // Průběh nahrazuje náhled, aby bylo hned vidět, že se něco děje.
+                    progress != null -> CircularWavyProgressIndicator()
+                    document.thumbnailFileId != null -> RemoteImage(
+                        fileId = document.thumbnailFileId,
+                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(FILE_ICON_CORNER)),
+                    )
+                    else -> Icon(painterResource(document.icon()), contentDescription = null)
+                }
+            }
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = Modifier.clickable(onClick = onOpen),
+    )
+}
+
+/** Ikona podle druhu souboru; poznává se podle přípony, ne podle `mimeType` od odesílatele. */
+private fun MessageMedia.Document.icon(): DrawableResource = when (documentKind(fileName, mimeType)) {
+    DocumentKind.Image -> Res.drawable.image_24dp
+    DocumentKind.Video -> Res.drawable.play_arrow_24dp
+    DocumentKind.Other -> Res.drawable.description_24dp
+}
+
+@Composable
+internal fun SharedLinksList(
+    messages: List<ChatMessage>,
+    loading: Boolean,
+    contentPadding: PaddingValues,
+    onOpen: (url: String) -> Unit,
+    onLoadMore: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(contentPadding = contentPadding, modifier = modifier.fillMaxSize()) {
+        itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
+            LoadMoreAtEnd(index, messages.size, onLoadMore)
+            val url = message.sharedUrl() ?: return@itemsIndexed
+            LinkRow(message = message, url = url, onOpen = { onOpen(url) })
+        }
+        if (loading) item { TabLoading() }
+    }
+}
+
+/**
+ * Řádek odkazu: titulek webu (nebo text zprávy) a pod ním adresa.
+ *
+ * Náhled skládá server, takže se bere, co poslal; bez něj zbyde text zprávy, ve kterém odkaz je.
+ */
+@Composable
+private fun LinkRow(message: ChatMessage, url: String, onOpen: () -> Unit) {
+    val preview = message.linkPreview
+    val title = preview?.title?.takeIf { it.isNotBlank() }
+        ?: preview?.siteName?.takeIf { it.isNotBlank() }
+        ?: message.text.takeIf { it.isNotBlank() }
+        ?: url
+    ListItem(
+        headlineContent = { Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        supportingContent = {
+            Column {
+                Text(
+                    displayUrl(url),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(message.timestamp.asDayLabel(), style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        leadingContent = {
+            Box(Modifier.size(FILE_ICON_SIZE), contentAlignment = Alignment.Center) {
+                val photo = preview?.photo
+                if (photo != null) {
+                    RemoteImage(
+                        fileId = photo.fileId,
+                        thumbnailFileId = photo.thumbnailFileId,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(FILE_ICON_CORNER)),
+                    )
+                } else {
+                    Icon(
+                        painterResource(Res.drawable.language_24dp),
+                        contentDescription = stringResource(Res.string.profile_shared_link),
+                    )
+                }
+            }
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = Modifier.clickable(onClick = onOpen),
+    )
+}
+
+/**
+ * Adresa, kterou zpráva sdílí.
+ *
+ * Náhled od serveru má přednost — je to ten odkaz, který Telegram ze zprávy vybral. Bez náhledu
+ * se vezme první odkaz z entit; zpráva se do záložky dostala proto, že v ní nějaký je.
+ */
+private fun ChatMessage.sharedUrl(): String? =
+    linkPreview?.url ?: entities.firstNotNullOfOrNull { (it.type as? MessageEntityType.Link)?.url }
+
+@Composable
+internal fun ProfileMembersList(
+    members: List<ProfileMember>?,
+    contentPadding: PaddingValues,
+    onOpen: (userId: Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (members == null) {
+        Box(modifier.fillMaxSize().padding(contentPadding), contentAlignment = Alignment.Center) {
+            TabLoading()
+        }
+        return
+    }
+    LazyColumn(contentPadding = contentPadding, modifier = modifier.fillMaxSize()) {
+        items(members, key = { it.sender.id }) { member ->
+            ListItem(
+                headlineContent = { Text(member.sender.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                leadingContent = {
+                    Avatar(
+                        chatId = member.sender.id,
+                        title = member.sender.title,
+                        avatarFileId = member.sender.avatarFileId,
+                        size = MEMBER_AVATAR_SIZE,
+                    )
+                },
+                trailingContent = when (member.role) {
+                    MemberRole.Owner -> { { MemberRoleLabel(stringResource(Res.string.profile_role_owner)) } }
+                    MemberRole.Admin -> { { MemberRoleLabel(stringResource(Res.string.profile_role_admin)) } }
+                    MemberRole.Member -> null
+                },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable { onOpen(member.sender.id) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun MemberRoleLabel(text: String) {
+    Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private fun TabLoading() {
+    Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+        LoadingIndicator()
+    }
+}
+
+/**
+ * Spustí [onLoadMore], jakmile se doroluje blízko konce.
+ *
+ * Čte se přes `snapshotFlow`, ne v kompozici: index poslední viditelné položky se při scrollu
+ * mění každý snímek a rekomponovat kvůli němu celý seznam by bylo drahé.
+ */
+/**
+ * Dotáhne další stránku, jakmile se složí jedna z posledních položek.
+ *
+ * Skládá se, teprve když je položka blízko viewportu, takže „doroloval se ke konci" pozná sama
+ * kompozice. **Přes `layoutInfo` to nefungovalo**: u mřížky se porovnání indexu viditelné položky
+ * s počtem minulo a další stránka nedorazila nikdy (u seznamu s jedinou položkou naopak prošlo
+ * hned, takže vada byla vidět jen na mřížce). Klíč `count` pustí efekt jednou za stránku.
+ */
+@Composable
+private fun LoadMoreAtEnd(index: Int, count: Int, onLoadMore: () -> Unit) {
+    if (index < count - LOAD_MORE_THRESHOLD) return
+    val current by rememberUpdatedState(onLoadMore)
+    LaunchedEffect(count) { current() }
+}
+
+private val FILE_ICON_SIZE = 44.dp
+private val FILE_ICON_CORNER = 8.dp
+private val MEMBER_AVATAR_SIZE = 40.dp
+
+/** Podklad symbolu přehrání na dlaždici videa — na světlé fotce by bílá ikona zanikla. */
+private const val VIDEO_BADGE_ALPHA = 0.55f
+
+/**
+ * Adresa, jak ji uvidí uživatel.
+ *
+ * `mailto:` se zahazuje — filtr odkazů od TDLib bere i e-maily a schéma u nich nic neříká;
+ * ostatní schémata se nechávají, protože `https` od `tg` odlišit potřeba je.
+ */
+internal fun displayUrl(url: String): String = url.removePrefix("mailto:")

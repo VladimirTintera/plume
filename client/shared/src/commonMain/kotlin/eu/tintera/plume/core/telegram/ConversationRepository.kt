@@ -151,6 +151,21 @@ interface ConversationRepository {
     suspend fun visualMediaPosition(chatId: Long, messageId: Long): Result<PhotoPosition?>
 
     /** Jedna konkrétní zpráva. Pro doplnění citace, která není v načtené historii. */
+    /**
+     * Stránka sdíleného obsahu od nejnovější dozadu.
+     *
+     * [fromMessageId] `0` začíná u nejnovější, jinak se pokračuje od poslední načtené (ta sama
+     * ve výsledku není). Konec se pozná prázdnou stránkou.
+     */
+    suspend fun sharedMedia(
+        chatId: Long,
+        kind: SharedMediaKind,
+        fromMessageId: Long = 0,
+    ): Result<SharedMediaPage>
+
+    /** Počty pro všechny druhy naráz; profil podle nich schová prázdné řádky. */
+    suspend fun sharedMediaCounts(chatId: Long): Result<SharedMediaCounts>
+
     suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage>
 
     /**
@@ -862,6 +877,40 @@ sealed interface MessageMedia {
 }
 
 /** Přístup k chatu, jak se mění za běhu — viz [ConversationRepository.accessUpdates]. */
+/**
+ * Druh sdíleného obsahu v profilu chatu. Každý je vlastní filtr `searchChatMessages` — hledání
+ * s filtrem, ne procházení historie: sdíleného obsahu bývá zlomek zpráv.
+ */
+enum class SharedMediaKind {
+    /** Fotky a videa; mizející a tajná se vyřazují stejně jako v prohlížeči. */
+    Media,
+
+    /** Soubory poslané jako dokument. */
+    Files,
+
+    /** Zprávy s odkazem — filtruje je server, ne my. */
+    Links,
+}
+
+/**
+ * Stránka sdíleného obsahu. [reachedEnd] pozná jen prázdná odpověď, stejně jako konec historie —
+ * TDLib žádný příznak „jsi na konci" nedává.
+ */
+data class SharedMediaPage(val messages: List<ChatMessage>, val reachedEnd: Boolean)
+
+/** Kolik čeho v chatu je; podle toho profil řádek ukáže, nebo ne. */
+data class SharedMediaCounts(val media: Int, val files: Int, val links: Int) {
+    fun of(kind: SharedMediaKind): Int = when (kind) {
+        SharedMediaKind.Media -> media
+        SharedMediaKind.Files -> files
+        SharedMediaKind.Links -> links
+    }
+
+    companion object {
+        val Empty = SharedMediaCounts(media = 0, files = 0, links = 0)
+    }
+}
+
 data class ChatAccess(
     val canJoin: Boolean,
     val writeAccess: WriteAccess,

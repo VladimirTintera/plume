@@ -55,13 +55,17 @@ import dev.g000sha256.tdl.dto.MessageSendingStatePending
 import dev.g000sha256.tdl.dto.MessageSourceChatHistory
 import dev.g000sha256.tdl.dto.MessageText
 import dev.g000sha256.tdl.dto.ReactionTypeEmoji
+import dev.g000sha256.tdl.dto.SearchMessagesFilter
+import dev.g000sha256.tdl.dto.SearchMessagesFilterDocument
 import dev.g000sha256.tdl.dto.SearchMessagesFilterPhotoAndVideo
+import dev.g000sha256.tdl.dto.SearchMessagesFilterUrl
 import dev.g000sha256.tdl.dto.SearchMessagesFilterPinned
 import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.toResult
 import kotlin.time.Clock
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
@@ -411,6 +415,66 @@ class TdlConversationRepository(
         val number = total - fromNewest + 1
         return Result.success(PhotoPosition(number, total).takeIf { fromNewest > 0 && number in 1..total })
     }
+
+    /**
+     * Sdílený obsah profilu: hledání s filtrem, ne procházení historie — fotek, souborů
+     * a odkazů bývá zlomek zpráv a `getChatHistory` by kvůli nim tahal stovky textů.
+     *
+     * Mizející a tajná média se vyřazují stejně jako v prohlížeči: obsah, který má zmizet po
+     * zhlédnutí, do trvalého přehledu nepatří.
+     */
+    override suspend fun sharedMedia(
+        chatId: Long,
+        kind: SharedMediaKind,
+        fromMessageId: Long,
+    ): Result<SharedMediaPage> {
+        val isGroup = isGroup(chatId)
+        return client.searchChatMessages(
+            chatId = chatId,
+            topicId = null,
+            query = "",
+            senderId = null,
+            fromMessageId = fromMessageId,
+            offset = 0,
+            limit = SHARED_MEDIA_PAGE,
+            filter = kind.toFilter(),
+        )
+            .toResult()
+            .map { found ->
+                val messages = found.messages
+                    .filterNotNull()
+                    .map { it.toChatMessage(isGroup) }
+                    .filter { kind != SharedMediaKind.Media || it.isLastingVisualMedia }
+                // Konec se pozná JEN podle toho, že server nevrátil nic. Počet po filtrování
+                // na to nestačí: stránka samých mizejících fotek vyjde prázdná uprostřed chatu.
+                SharedMediaPage(messages = messages, reachedEnd = found.messages.isEmpty())
+            }
+    }
+
+    /**
+     * Počty se ptají naráz, ne jeden po druhém — jsou to tři nezávislé dotazy na server a profil
+     * podle nich teprve vykreslí řádky. Druh, na který server neodpoví, má nulu: řádek se
+     * neukáže, ale ostatní se tím nezahodí.
+     */
+    override suspend fun sharedMediaCounts(chatId: Long): Result<SharedMediaCounts> = runCatching {
+        coroutineScope {
+            val counts = SharedMediaKind.entries
+                .map { kind -> async { kind to countOf(chatId, kind) } }
+                .awaitAll()
+                .toMap()
+            SharedMediaCounts(
+                media = counts.getValue(SharedMediaKind.Media),
+                files = counts.getValue(SharedMediaKind.Files),
+                links = counts.getValue(SharedMediaKind.Links),
+            )
+        }
+    }
+
+    private suspend fun countOf(chatId: Long, kind: SharedMediaKind): Int =
+        client.getChatMessageCount(chatId = chatId, filter = kind.toFilter(), returnLocal = false)
+            .toResult()
+            .map { it.count }
+            .getOrDefault(0)
 
     override suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage> {
         val isGroup = isGroup(chatId)
@@ -1140,3 +1204,29 @@ private fun ChatMemberStatus.toOwn(): OwnMemberStatus = when (this) {
     is ChatMemberStatusLeft -> OwnMemberStatus.Left
     is ChatMemberStatusBanned -> OwnMemberStatus.Banned
 }
+
+/** Zpráv na stránku sdíleného obsahu. Mřížka jich na obrazovku vezme pár desítek. */
+private const val SHARED_MEDIA_PAGE = 50
+
+/** Filtr `searchChatMessages` pro druh sdíleného obsahu. */
+private fun SharedMediaKind.toFilter(): SearchMessagesFilter = when (this) {
+    SharedMediaKind.Media -> SearchMessagesFilterPhotoAndVideo()
+    SharedMediaKind.Files -> SearchMessagesFilterDocument()
+    SharedMediaKind.Links -> SearchMessagesFilterUrl()
+}
+
+/**
+ * Fotka nebo video, které v chatu zůstávají.
+ *
+ * Mizející a tajná se vyřazují: přehled sdílených médií je trvalý seznam a obsah, který má po
+ * zhlédnutí zmizet, do něj nepatří — stejně jako se nedostane do listování v prohlížeči.
+ */
+private val ChatMessage.isLastingVisualMedia: Boolean
+    get() {
+        val photo = media as? MessageMedia.Photo
+        val video = media as? MessageMedia.Video
+        return (photo != null || video != null) &&
+            selfDestructType == null &&
+            photo?.isSecret != true &&
+            video?.isSecret != true
+    }

@@ -154,7 +154,16 @@
     <string name="conversation_search_failed">V chatu se nepodařilo hledat.</string>
     <string name="profile_open">Otevřít profil</string>
     <string name="profile_mute">Ztlumit</string>
+    <string name="profile_tab_files">Soubory</string>
+    <string name="profile_tab_links">Odkazy</string>
+    <string name="profile_tab_media">Média</string>
+    <string name="profile_tab_members">Členové</string>
     <string name="profile_unmute">Zapnout zvuk</string>
+    <string name="profile_shared_file_meta">%1$s · %2$s</string>
+    <string name="profile_shared_link">Odkaz</string>
+    <string name="profile_shared_media_video">Video</string>
+    <string name="profile_shared_photo">Fotka</string>
+    <string name="profile_shared_failed">Sdílený obsah se nepodařilo načíst.</string>
     <string name="profile_search">Hledat</string>
     <string name="profile_info">Informace</string>
     <string name="profile_username">Uživatelské jméno</string>
@@ -162,7 +171,6 @@
     <string name="profile_phone">Telefon</string>
     <string name="profile_bio">O sobě</string>
     <string name="profile_description">Popis</string>
-    <string name="profile_members">Členové</string>
     <string name="profile_role_owner">Vlastník</string>
     <string name="profile_role_admin">Správce</string>
     <string name="profile_bot">Bot</string>
