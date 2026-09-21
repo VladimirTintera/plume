@@ -1153,9 +1153,11 @@ fun ConversationScreen(
                     messages = pinned,
                     index = pinnedIndex(pinned, pinnedForScroll(pinned, topVisibleKey)),
                     canUnpin = state.canUnpin,
-                    // Ťuknutí skočí na ukázanou zprávu; po skoku stojí nahoře viewportu, takže
-                    // pruh sám přepne na tu starší a další ťuknutí vede o krok zpět.
-                    onOpen = { message -> viewModel.jumpToMessage(message.id) },
+                    // Ťuknutí skočí na ukázanou zprávu, a to KOTVOU NAHORU: zpráva pak stojí nad
+                    // viditelnou částí, takže pruh přejde na předchozí připnutou a další ťuknutí
+                    // vede o krok zpět. Se středem se nad cílem odkryje kus historie a pruh
+                    // přeskočí rovnou k nejstarší.
+                    onOpen = { message -> viewModel.jumpToMessage(message.id, anchor = ScrollAnchor.Top) },
                     onUnpin = viewModel::unpin,
                     onShowAll = { allPinnedOpen = true },
                 )
@@ -1165,7 +1167,7 @@ fun ConversationScreen(
                 PinnedMessagesSheet(
                     messages = state.pinned,
                     canUnpin = state.canUnpin,
-                    onOpen = { message -> viewModel.jumpToMessage(message.id) },
+                    onOpen = { message -> viewModel.jumpToMessage(message.id, anchor = ScrollAnchor.Top) },
                     onUnpin = viewModel::unpin,
                     onDismiss = { allPinnedOpen = false },
                 )
