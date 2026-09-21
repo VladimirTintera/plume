@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.forward
 
+import eu.tintera.plume.core.ui.avatarShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -213,7 +214,7 @@ fun ChatPicker(
                     ListItem(
                         headlineContent = { Text(chat.title) },
                         leadingContent = {
-                            Avatar(chatId = chat.id, title = chat.title, avatarFileId = chat.avatarFileId, size = 40.dp)
+                            Avatar(chatId = chat.id, title = chat.title, avatarFileId = chat.avatarFileId, size = 40.dp, shape = chat.kind.avatarShape())
                         },
                         modifier = Modifier.clickable(enabled = enabled) { onPick(chat.id) },
                     )

@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.telegram.ChatKind
+import eu.tintera.plume.core.ui.avatarShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -411,6 +413,12 @@ private fun ProfileHeader(state: ChatProfileState, profile: ChatProfile) {
             title = profile.title,
             avatarFileId = profile.photoFileId ?: profile.photoThumbnailFileId,
             size = HEADER_AVATAR_SIZE,
+            // Stejný tvar jako v seznamu a hlavičce konverzace, odkud avatar přiletěl.
+            shape = when (profile.kind) {
+                ProfileKind.Group -> ChatKind.Group
+                ProfileKind.Channel -> ChatKind.Channel
+                ProfileKind.User, ProfileKind.Bot, ProfileKind.SavedMessages -> ChatKind.Private
+            }.avatarShape(),
             modifier = Modifier.sharedNavElement(chatAvatarKey(profile.chatId)),
         )
         Text(

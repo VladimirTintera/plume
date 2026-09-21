@@ -7,7 +7,7 @@ nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí
 
 ## Stav
 
-Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar), živý seznam chatů a archiv,
+Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail na širší ploše, na telefonu bez navigační lišty), živý seznam chatů a archiv,
 konverzace (historie, živé zprávy, odesílání, přílohy a alba, hlasovky, samolepky a emoji, úprava,
 přeposílání, připnuté zprávy), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
@@ -828,8 +828,10 @@ se z telefonu nedalo chodit zpět bez `BackHandler`, který v téhle aplikaci za
   obrazovky, která může být zrovna na odchodu.**
 - **Šipka zpět je v sekci jen na compactu.** V dvoupanelu je seznam sekcí pořád vidět vedle
   a sekce se NAHRAZUJE, nevrší se zásobník — stejně jako konverzace.
-- **Spodní bar se v sekci nastavení NESKRÝVÁ**, na rozdíl od konverzace. Sekce je mělká obrazovka
-  v téže sekci aplikace; ťuknutí na „Nastavení" v baru z ní vede zpátky na seznam sekcí.
+- **Na telefonu se do Nastavení chodí z menu účtu** (fotka ve vyhledávací pilulce seznamu
+  chatů, `AppNavigation.openSettings`), a proto vždycky na kořen — menu slibuje „Nastavení",
+  ne sekci, kterou tam uživatel kdysi nechal. Seznam sekcí má na compactu šipku zpět do Chatů
+  (`SettingsScreen(onBack)`); na širší ploše ji nemá, vedle je rail.
 - **Seznam sekcí nemá ViewModel.** Obsah (účet, notifikace, motiv) patří sekcím; kdyby si účet
   načítal i seznam, ptali bychom se na něj v dvoupanelu dvakrát. Ze stejného důvodu se ViewModel
   sekce vyrábí až uvnitř `when` nad sekcí — složí se jen jedna větev.
@@ -908,17 +910,17 @@ výřez nebo boční třítlačítkovou lištu. Ověřuje se v OBOU rotacích na
 časů schovaný „za pravým okrajem" (odkrývání tahem) byl schovaný jen dokud seznam končil
 u okraje obrazovky. S insetem vpravo prosvítal; proto `clipToBounds` na ploše seznamu.
 
-**Spodní bar se v konverzaci skrývá — jen na compactu.** Na telefonu zabírá konverzace celou
-obrazovku a sekční navigace tam nedává smysl; ven se chodí zpět, ne přepnutím sekce. Na širokém
-rozvržení je konverzace jen panel vedle seznamu, takže rail zůstává. Past: `consumeWindowInsets`
-spodního insetu musí být podmíněné stejnou podmínkou jako bar — když se konzumuje i se skrytým
-barem, vstupní pole konverzace zaleze pod systémovou lištu.
+**Na telefonu (compact) sekční navigace není — žádná spodní lišta.** Sekce jsou dvě a navigační
+lišta má podle M3 smysl až od tří; zabírala ~80 dp jen kvůli skoku do Nastavení a seznam chatů
+pod ní působil přeplácaně. Do Nastavení vede menu účtu v pilulce, spodek obrazovky patří
+plovoucímu toolbaru seznamu chatů (viz „Filtry a plovoucí toolbar"). Rail na širší ploše zůstává,
+místo na výšku nebere. Důsledek pro insety: shell spodní (navigační) inset nekonzumuje nikde,
+každá obrazovka si ho bere sama (Scaffold ho má ve výchozích `contentWindowInsets`).
 
-**Skrytí baru musí animovat i jeho MÍSTO, ne jen posun.** `slideOutVertically` obsah jenom
-posune — jeho slot v layoutu drží po celou animaci. Vstupní pole konverzace proto viselo nad
-prázdným pruhem a doskočilo dolů až na konci. Řeší to `shrinkVertically` (a `expandVertically`
-na druhou stranu) přidané k posunu: zmenšuje se i to místo, takže obsah roste současně
-s odjezdem baru.
+**Skrytí railu musí animovat i jeho MÍSTO, ne jen posun.** `slideOutHorizontally` obsah jenom
+posune — jeho slot v layoutu drží po celou animaci a obsah by doskočil až na konci. Proto
+`shrinkHorizontally` (a `expandHorizontally`) navíc. Stejná past byla u dřívější spodní lišty:
+vstupní pole konverzace viselo nad prázdným pruhem.
 
 **Avatar a název letí ze seznamu do konverzace.** Klíče `chatAvatarKey` / `chatTitleKey`
 obsahují id chatu, jinak by se při rychlém přepnutí spároval avatar jednoho chatu s druhým.
@@ -1049,10 +1051,53 @@ když si o to uživatel řekne v Nastavení (`separateUnreadChats`, **výchozí 
   u vršku zůstane. **Nulovou výšku mít nesmí**, to by ji seznam za viditelnou nepovažoval; její
   výška i rozestup za ní se odečítají z horního odsazení, aby první chat neposkočil.
 
+### Filtry a plovoucí toolbar
+
+Dole je `HorizontalFloatingToolbar` s FAB „Nová zpráva" (M3 Expressive) a v něm filtry seznamu:
+Vše, Nepřečtené, Lidé, Skupiny, Kanály (`ChatFilter`, čistá funkce `filteredBy` v `ChatGroups.kt`,
+testy v `ChatGroupsTest`). Nahradil spodní navigační lištu.
+
+- **Filtr je lokální, nad načteným seznamem.** Vlastní složky Telegramu (`ChatListFolder`) zatím
+  nejsou; tohle je jejich nejčastější náhrada. Skupiny (`chatGroups`) se dělají až nad výsledkem.
+  Druh chatu nese `ChatSummary.kind` (`ChatKind`: tajný chat i bot jsou `Private`, základní
+  skupina i supergroup `Group`, kanál `Channel`); `isPrivate` je z něj odvozené.
+- **Nepřečtené = `hasUnread`**, tedy i ručně označené — přesně ty, u kterých svítí odznak.
+  Přečtený chat z filtru zmizí, jako ve složce Nepřečtené u oficiálních klientů.
+- **Ikony bez popisků**, pět popisků by se na telefon nevešlo. Název nese tooltip po podržení
+  a `contentDescription`. Vybraný filtr: `secondaryContainer` (výběr je navigační stav, stejná
+  role jako rail) a tvar kruh → čtverec (`toggleableShapes`), takže se pozná i bez barvy.
+- **Přepnutí filtru skočí na vršek seznamu** — v obsluze ťuknutí, NE v `LaunchedEffect(filter)`:
+  efekt by se spustil znovu při každém návratu seznamu do kompozice (z konverzace na telefonu)
+  a seznam by pokaždé odjel nahoru.
+- **Filtr žije s ViewModelem**, návrat z konverzace ho zachová, nové spuštění začne na Vše.
+- **Snackbar je nad toolbarem**, ne ve slotu Scaffoldu — ten by ho dal pod toolbar. Seznam má
+  dole navíc `TOOLBAR_CLEARANCE`, aby šel poslední chat odscrollovat nad toolbar.
+- Prázdný výsledek filtru má vlastní text („Tomuhle filtru žádný chat neodpovídá"), ne „Zatím tu
+  nic není" — chaty jsou, jen ne tyhle.
+
+### Tvar avataru podle druhu chatu
+
+Člověk kruh, skupina čtyřlaločná sušenka (`MaterialShapes.Cookie4Sided`), kanál zaoblený čtverec
+(`MaterialShapes.Square`) — `ChatKind.avatarShape()` v `core/ui/Avatar.kt`. Druh se pozná dřív,
+než se dočte název.
+
+- **Statický tvar nese DRUH, morf nese STAV** (`ShapeMorphs`). Avatary se nehýbou a neberou
+  tvary, které už něco znamenají (šesti- a dvanáctistranná sušenka, SoftBurst).
+- **Tvar musí sedět všude, kam avatar letí sdíleným prvkem**: seznam → hlavička konverzace →
+  profil. Jinak by uprostřed letu přeskočil. Hlavička ho odvozuje z `isChannel`/`isGroup`,
+  profil z `ProfileKind`. Výchozí `Avatar(shape = CircleShape)` je pro odesílatele, reakce apod.
+  — tam jde vždycky o člověka.
+
 ### Hlavička: vyhledávací pilulka
 
 Seznam chatů nemá nadpis, ale `AppBarWithSearch` (`ChatSearchBar.kt`): pilulka „Hledat
-v chatech", vedle ní menu ⋮. Po ťuknutí se rozbalí `ExpandedFullScreenSearchBar` s výsledky.
+v chatech" přes celou šířku, na jejím konci fotka účtu s menu (Uložené zprávy, Archiv,
+Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky). Po ťuknutí se rozbalí
+`ExpandedFullScreenSearchBar` s výsledky.
+
+- **Fotka účtu je vidět hned, i než se účet načte** (ikona člověka). Tlačítko, které se objeví
+  až později, by do té doby nešlo otevřít — a na telefonu je to jediná cesta do Nastavení.
+  Fotka je `AccountInfo.photoFileId` (`getMe`), načítá ji `ChatsViewModel` jen pro hlavní seznam.
 
 - **Nahradila `LargeFlexibleTopAppBar`, protože ten byl hezký jen rozbalený.** Sbalený přešel na
   `scrolledContainerColor` (`surfaceContainer`), tedy pruh přes celou šířku v roli, která jinde
@@ -1177,7 +1222,7 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
   `LocalSavedMessagesChatId` (poskytuje shell). **`Avatar` si to NEzjišťuje sám** — kreslí
   i odesílatele (reakce, zhlédnutí, profilovky ve skupině) a tam má být vlastní tvář.
 - **V seznamu chatů nejsou, pokud nejsou připnuté** (`chatGroups`, test
-  `ulozeneZpravyJenPripnute`). Vstup je menu ⋮ v horní liště (vedle archivu). Připnutí
+  `ulozeneZpravyJenPripnute`). Vstup je menu účtu v pilulce (vedle archivu). Připnutí
   je výslovné přání uživatele, takže připnuté zůstávají — schovat je by působilo jako chyba.
 - **Ve výběrech (přeposlání, sdílení, iOS rozšíření, Direct Share) jsou vždy první**, i když
   v seznamu chatů nejsou. V `ChatPicker` jako samostatná karta v `primaryContainer` nad
@@ -1195,9 +1240,8 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
 
 `NewChatScreen` (`features/chats`), `NewChatRoute`, vstup FAB s tužkou v seznamu chatů.
 
-- **M3 Expressive Extended FAB napojený na scroll.** Na začátku seznamu nebo při scrollu nahoru
-  je rozbalený s textem „Nová zpráva", při scrollu dolů se plynule sbalí do kompaktní ikony,
-  aby nezakrýval řádky chatů, a po zastavení scrollu zůstává sbalený až do dalšího scrollu nahoru (dle M3 guidelines).
+- **FAB je součástí plovoucího toolbaru** (viz „Filtry a plovoucí toolbar"). Při scrollu dolů se
+  toolbar sbalí a zbude jen FAB, po zastavení zůstává sbalený až do dalšího scrollu nahoru.
 - **Kontakty jdou z `getContacts`** a pro každý se lokálně zavolá `createPrivateChat(userId, force = false)`
   — TDLib tak pro kontakt založí chat objekt (lokálně v paměti/databázi, bez odesílání zpráv)
   a do seznamu se dostane kompletní `ChatSummary` s avatarem i dostupností (`withPresence()`).
@@ -1234,8 +1278,8 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
 
 ### Archiv
 
-Archivované chaty jsou vlastní seznam (`ArchiveRoute`, `ArchiveScreen`), vstup je menu ⋮ vedle
-hledání. Do archivu a zpátky se chat dostane z nabídky po dlouhém stisku; místo potvrzení je
+Archivované chaty jsou vlastní seznam (`ArchiveRoute`, `ArchiveScreen`), vstup je menu účtu
+v pilulce hledání. Do archivu a zpátky se chat dostane z nabídky po dlouhém stisku; místo potvrzení je
 snackbar s „Vrátit".
 
 - **Repository drží VŠECHNY chaty, které TDLib ohlásí, a složka je jen pozice**

@@ -1,8 +1,6 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.resources.saved_messages
-import eu.tintera.plume.resources.more_vert_24dp
-import eu.tintera.plume.resources.chats_menu
 import eu.tintera.plume.resources.bookmark_filled_24dp
 import eu.tintera.plume.core.ui.isSavedMessages
 import eu.tintera.plume.core.ui.chatTitle
@@ -11,7 +9,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -108,6 +105,40 @@ import eu.tintera.plume.resources.common_try_again
 import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.push_pin_filled_24dp
+import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconToggleButton
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import eu.tintera.plume.core.telegram.AccountInfo
+import eu.tintera.plume.core.ui.avatarShape
+import eu.tintera.plume.resources.campaign_24dp
+import eu.tintera.plume.resources.campaign_filled_24dp
+import eu.tintera.plume.resources.chats_account
+import eu.tintera.plume.resources.chats_filter_all
+import eu.tintera.plume.resources.chats_filter_channels
+import eu.tintera.plume.resources.chats_filter_empty
+import eu.tintera.plume.resources.chats_filter_groups
+import eu.tintera.plume.resources.chats_filter_private
+import eu.tintera.plume.resources.chats_filter_unread
+import eu.tintera.plume.resources.forum_24dp
+import eu.tintera.plume.resources.forum_filled_24dp
+import eu.tintera.plume.resources.group_24dp
+import eu.tintera.plume.resources.group_filled_24dp
+import eu.tintera.plume.resources.mark_chat_unread_24dp
+import eu.tintera.plume.resources.mark_chat_unread_filled_24dp
+import eu.tintera.plume.resources.nav_settings
+import eu.tintera.plume.resources.person_24dp
+import eu.tintera.plume.resources.person_filled_24dp
+import eu.tintera.plume.resources.settings_24dp
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
@@ -126,6 +157,8 @@ fun ChatListScreen(
     onOpenArchive: () -> Unit,
     onNewChat: () -> Unit = {},
     onChatArchived: ((ArchiveChange) -> Unit)? = null,
+    /** Menu účtu → Nastavení. Na telefonu jediný vstup, spodní lišta není. */
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val search by viewModel.search.state.collectAsStateWithLifecycle()
@@ -133,13 +166,17 @@ fun ChatListScreen(
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
     val updateCard by viewModel.updateCard.collectAsStateWithLifecycle()
     val unconfirmedLogin by viewModel.unconfirmedLogin.collectAsStateWithLifecycle()
+    val filter by viewModel.filter.collectAsStateWithLifecycle()
+    val account by viewModel.account.collectAsStateWithLifecycle()
     val startUpdate = rememberStartUpdate(viewModel.appUpdates)
     // Hledání při scrollu dolů odjede a při scrollu nahoru se vrátí.
     val scrollBehavior = SearchBarDefaults.enterAlwaysSearchBarScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     val listState = rememberLazyListState()
-    var fabExpanded by remember { mutableStateOf(true) }
+    // Toolbar s filtry: rozbalený nahoře a při scrollu nahoru, při scrollu dolů z něj zbude FAB.
+    var toolbarExpanded by remember { mutableStateOf(true) }
     var previousIndex by remember { mutableIntStateOf(0) }
     var previousOffset by remember { mutableIntStateOf(0) }
 
@@ -148,13 +185,13 @@ fun ChatListScreen(
             listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
         }.collect { (index, offset) ->
             if (index == 0 && offset == 0) {
-                fabExpanded = true
+                toolbarExpanded = true
             } else if (index < previousIndex || (index == previousIndex && offset < previousOffset)) {
                 // Scroll nahoru -> rozbalit
-                fabExpanded = true
+                toolbarExpanded = true
             } else if (index > previousIndex || (index == previousIndex && offset > previousOffset)) {
                 // Scroll dolů -> sbalit
-                fabExpanded = false
+                toolbarExpanded = false
             }
             previousIndex = index
             previousOffset = offset
@@ -176,24 +213,12 @@ fun ChatListScreen(
         onPauseOrDispose { }
     }
 
+    /*
+     * FAB a snackbar nejsou ve slotech Scaffoldu: FAB je součástí plovoucího toolbaru dole
+     * a snackbar musí stát NAD ním — Scaffold by FAB dal do rohu a snackbar pod toolbar.
+     */
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onNewChat,
-                expanded = fabExpanded,
-                icon = {
-                    Icon(
-                        painter = painterResource(Res.drawable.edit_24dp),
-                        contentDescription = stringResource(Res.string.chats_new),
-                    )
-                },
-                text = {
-                    Text(stringResource(Res.string.chats_new))
-                },
-            )
-        },
         topBar = {
             ChatSearchBar(
                 connection = connection.label(),
@@ -215,40 +240,22 @@ fun ChatListScreen(
                 onClearRecent = viewModel.search::clearRecent,
                 request = searchRequest,
                 onRequestHandled = onSearchRequestHandled,
-                actions = {
-                    /*
-                     * Menu, ne samostatné ikony vedle hledání. Uložené zprávy v seznamu nejsou
-                     * (jen připnuté) a archiv je vlastní seznam — tohle je vstup do obou, jako
-                     * v oficiálních klientech.
-                     */
-                    var menuOpen by remember { mutableStateOf(false) }
-                    Box {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(painterResource(Res.drawable.more_vert_24dp), contentDescription = stringResource(Res.string.chats_menu))
-                        }
-                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(Res.string.saved_messages)) },
-                                leadingIcon = { Icon(painterResource(Res.drawable.bookmark_filled_24dp), contentDescription = null) },
-                                onClick = {
-                                    menuOpen = false
-                                    viewModel.openSavedMessages(onChatClick)
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(Res.string.chats_archive)) },
-                                leadingIcon = { Icon(painterResource(Res.drawable.archive_24dp), contentDescription = null) },
-                                onClick = {
-                                    menuOpen = false
-                                    onOpenArchive()
-                                },
-                            )
-                        }
-                    }
+                trailing = {
+                    AccountMenu(
+                        account = account,
+                        onSavedMessages = { viewModel.openSavedMessages(onChatClick) },
+                        onArchive = onOpenArchive,
+                        onSettings = onOpenSettings,
+                    )
                 },
             )
         },
-    ) { padding ->
+    ) { scaffoldPadding ->
+        // Poslední chat se musí dát odscrollovat nad toolbar, jinak by pod ním zůstal schovaný.
+        val padding = PaddingValues(
+            top = scaffoldPadding.calculateTopPadding(),
+            bottom = scaffoldPadding.calculateBottomPadding() + TOOLBAR_CLEARANCE,
+        )
         Box(Modifier.fillMaxSize()) {
             ChatListContent(
                 viewModel = viewModel,
@@ -258,6 +265,7 @@ fun ChatListScreen(
                 scrollToChat = scrollToChat,
                 onScrolledToChat = { scrollToChat = null },
                 listState = listState,
+                filter = filter,
                 // Položky hlavičky: nové přihlášení a karta s aktualizací.
                 headerItemCount = listOfNotNull(unconfirmedLogin, updateCard).size,
                 empty = {
@@ -317,6 +325,178 @@ fun ChatListScreen(
                             1f to surface.copy(alpha = 0f),
                         ),
                     ),
+            )
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = scaffoldPadding.calculateBottomPadding()),
+            ) {
+                SnackbarHost(snackbarHostState)
+                ChatListToolbar(
+                    expanded = toolbarExpanded,
+                    filter = filter,
+                    onFilterChange = { selected ->
+                        viewModel.setFilter(selected)
+                        // Nový filtr = jiný seznam; začít od jeho vršku, ne uprostřed.
+                        scope.launch { listState.scrollToItem(0) }
+                    },
+                    onNewChat = onNewChat,
+                    modifier = Modifier.padding(bottom = FloatingToolbarDefaults.ScreenOffset),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Plovoucí toolbar dole: filtry seznamu a FAB „Nová zpráva" (M3 Expressive
+ * `HorizontalFloatingToolbar` s FAB). Nahradil spodní navigační lištu — ta u dvou sekcí jen
+ * zabírala místo, kdežto tady má spodek obrazovky na dosah palce skutečnou práci.
+ *
+ * Při scrollu dolů se toolbar sbalí a zbude jen FAB ([expanded]), takže nezakrývá chaty; nahoře
+ * a při scrollu nahoru je zase celý.
+ *
+ * Filtry jsou ikony bez popisků (pět popisků by se na telefon nevešlo); název nese tooltip po
+ * podržení a `contentDescription`. Vybraný filtr je `secondaryContainer` — výběr je navigační
+ * stav, stejná role jako vybraná položka railu — a tvarem se mění z kruhu na čtverec
+ * (`toggleableShapes`), takže je poznat i bez barvy.
+ */
+@Composable
+private fun ChatListToolbar(
+    expanded: Boolean,
+    filter: ChatFilter,
+    onFilterChange: (ChatFilter) -> Unit,
+    onNewChat: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    HorizontalFloatingToolbar(
+        expanded = expanded,
+        floatingActionButton = {
+            FloatingToolbarDefaults.VibrantFloatingActionButton(onClick = onNewChat) {
+                Icon(
+                    painterResource(Res.drawable.edit_24dp),
+                    contentDescription = stringResource(Res.string.chats_new),
+                )
+            }
+        },
+        colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
+        modifier = modifier,
+    ) {
+        ChatFilter.entries.forEach { entry ->
+            val label = stringResource(entry.label)
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                tooltip = { PlainTooltip { Text(label) } },
+                state = rememberTooltipState(),
+            ) {
+                val selected = entry == filter
+                IconToggleButton(
+                    checked = selected,
+                    onCheckedChange = { onFilterChange(entry) },
+                    shapes = IconButtonDefaults.toggleableShapes(),
+                    colors = IconButtonDefaults.iconToggleButtonColors(
+                        checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    ),
+                ) {
+                    Icon(
+                        painterResource(if (selected) entry.selectedIcon else entry.icon),
+                        contentDescription = label,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private val ChatFilter.label: StringResource
+    get() = when (this) {
+        ChatFilter.All -> Res.string.chats_filter_all
+        ChatFilter.Unread -> Res.string.chats_filter_unread
+        ChatFilter.Private -> Res.string.chats_filter_private
+        ChatFilter.Groups -> Res.string.chats_filter_groups
+        ChatFilter.Channels -> Res.string.chats_filter_channels
+    }
+
+/** Nevyplněná varianta; vybraný filtr má vyplněnou ([selectedIcon]) — M3 konvence jako v navigaci. */
+private val ChatFilter.icon: DrawableResource
+    get() = when (this) {
+        ChatFilter.All -> Res.drawable.forum_24dp
+        ChatFilter.Unread -> Res.drawable.mark_chat_unread_24dp
+        ChatFilter.Private -> Res.drawable.person_24dp
+        ChatFilter.Groups -> Res.drawable.group_24dp
+        ChatFilter.Channels -> Res.drawable.campaign_24dp
+    }
+
+private val ChatFilter.selectedIcon: DrawableResource
+    get() = when (this) {
+        ChatFilter.All -> Res.drawable.forum_filled_24dp
+        ChatFilter.Unread -> Res.drawable.mark_chat_unread_filled_24dp
+        ChatFilter.Private -> Res.drawable.person_filled_24dp
+        ChatFilter.Groups -> Res.drawable.group_filled_24dp
+        ChatFilter.Channels -> Res.drawable.campaign_filled_24dp
+    }
+
+/**
+ * Fotka účtu na konci vyhledávací pilulky a pod ní menu: Uložené zprávy, Archiv, Nastavení.
+ *
+ * Vzor Gmailu a Google Messages. Nahradil ⋮ vedle pilulky, a hlavně spodní lištu: Nastavení
+ * jsou na telefonu jen tady. Pilulka tím dostala celou šířku.
+ *
+ * Než se účet načte (nebo když se načíst nepodaří), je místo fotky ikona člověka — tlačítko
+ * se nesmí objevit až později, menu by do té doby nebylo kde otevřít.
+ */
+@Composable
+private fun AccountMenu(
+    account: AccountInfo?,
+    onSavedMessages: () -> Unit,
+    onArchive: () -> Unit,
+    onSettings: () -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    val label = stringResource(Res.string.chats_account)
+    Box {
+        IconButton(
+            onClick = { open = true },
+            modifier = Modifier.semantics { contentDescription = label },
+        ) {
+            if (account != null) {
+                Avatar(
+                    chatId = account.id,
+                    title = account.displayName,
+                    avatarFileId = account.photoFileId,
+                    size = ACCOUNT_AVATAR_SIZE,
+                )
+            } else {
+                Icon(painterResource(Res.drawable.person_24dp), contentDescription = null)
+            }
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.saved_messages)) },
+                leadingIcon = { Icon(painterResource(Res.drawable.bookmark_filled_24dp), contentDescription = null) },
+                onClick = {
+                    open = false
+                    onSavedMessages()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.chats_archive)) },
+                leadingIcon = { Icon(painterResource(Res.drawable.archive_24dp), contentDescription = null) },
+                onClick = {
+                    open = false
+                    onArchive()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.nav_settings)) },
+                leadingIcon = { Icon(painterResource(Res.drawable.settings_24dp), contentDescription = null) },
+                onClick = {
+                    open = false
+                    onSettings()
+                },
             )
         }
     }
@@ -404,6 +584,8 @@ internal fun ChatListContent(
     onScrolledToChat: () -> Unit = {},
     headerItemCount: Int = 0,
     listState: LazyListState = rememberLazyListState(),
+    /** Filtr z toolbaru; archiv žádný nemá. */
+    filter: ChatFilter = ChatFilter.All,
     header: LazyListScope.() -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -432,7 +614,9 @@ internal fun ChatListContent(
     val startPadding = if (!isCompact() && isShortWindow()) 8.dp else 16.dp
 
     val groups = (state as? ChatListState.Ready)?.chats?.let { chats ->
-        remember(chats, separateUnread, savedMessagesChatId) { chatGroups(chats, separateUnread, savedMessagesChatId) }
+        remember(chats, filter, separateUnread, savedMessagesChatId) {
+            chatGroups(chats.filteredBy(filter), separateUnread, savedMessagesChatId)
+        }
     }.orEmpty()
 
     /*
@@ -476,6 +660,16 @@ internal fun ChatListContent(
 
         is ChatListState.Ready -> if (current.chats.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding), content = empty)
+        } else if (groups.isEmpty() && filter != ChatFilter.All) {
+            // Filtru nic neodpovídá. Jiný text než prázdný seznam: chaty jsou, jen ne tyhle.
+            Box(Modifier.fillMaxSize().padding(padding).padding(24.dp), contentAlignment = Alignment.Center) {
+                Text(
+                    stringResource(Res.string.chats_filter_empty),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
         } else {
             LazyColumn(
                 state = listState,
@@ -614,6 +808,8 @@ private fun ChatRow(
                     avatarFileId = chat.avatarFileId,
                     size = AVATAR_SIZE,
                     isSavedMessages = isSavedMessages(chat.id),
+                    // Druh chatu tvarem: člověk kruh, skupina sušenka, kanál čtverec.
+                    shape = chat.kind.avatarShape(),
                     modifier = Modifier.sharedNavElement(chatAvatarKey(chat.id)),
                 )
 
@@ -679,7 +875,13 @@ private fun ChatRow(
                             // Časy stojí pod sebou u pravého okraje — stejně široké číslice
                             // je drží v zákrytu.
                             style = MaterialTheme.typography.labelMedium.tabularNumbers(),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            // U nepřečteného chatu je čas akcentem, stejně jako odznak pod ním —
+                            // oči jdou po pravém sloupci a hledají, kde se něco stalo.
+                            color = if (chat.hasUnread && !selected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                             maxLines = 1,
                         )
                     }
@@ -767,4 +969,13 @@ private val AVATAR_SIZE = 52.dp
 
 /** Průměr zelené tečky i s obroučkou. */
 private val ONLINE_DOT = 14.dp
+
+/** Fotka účtu v pilulce — o kus menší než ikona, ať pilulku nevyboulí. */
+private val ACCOUNT_AVATAR_SIZE = 30.dp
+
+/**
+ * O kolik se prodlužuje spodek seznamu kvůli plovoucímu toolbaru: jeho výška, odsazení od
+ * okraje a trochu vzduchu, aby poslední chat nekončil těsně pod ním.
+ */
+private val TOOLBAR_CLEARANCE = FloatingToolbarDefaults.ContainerSize + FloatingToolbarDefaults.ScreenOffset + 8.dp
 

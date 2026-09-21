@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.ui.graphics.Shape
+import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.highlightRanges
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.SideEffect
@@ -52,7 +54,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -105,7 +106,8 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Hlavička seznamu chatů: vyhledávací pilulka a vedle ní [actions].
+ * Hlavička seznamu chatů: vyhledávací pilulka přes celou šířku, na jejím konci [trailing]
+ * (fotka účtu s menu — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
  *
  * Nahradila `LargeFlexibleTopAppBar`. Ten byl hezký jen rozbalený: sbalený přešel na
  * `surfaceContainer`, tedy pruh přes celou šířku v roli, která jinde v seznamu není, a na
@@ -140,7 +142,8 @@ internal fun ChatSearchBar(
     /** Dotaz zvenku (hashtag z konverzace): hledání se s ním rozbalí. */
     request: String?,
     onRequestHandled: () -> Unit,
-    actions: @Composable RowScope.() -> Unit,
+    /** Konec sbalené pilulky (menu účtu). V rozbaleném hledání není — tam je ✕ dotazu. */
+    trailing: @Composable () -> Unit,
 ) {
     val searchBarState = rememberSearchBarState()
     val textFieldState = rememberTextFieldState()
@@ -202,8 +205,11 @@ internal fun ChatSearchBar(
                             contentDescription = stringResource(Res.string.chats_search_clear),
                         )
                     }
-                    // V rozbaleném hledání stav nepatří — uživatel se dívá na výsledky.
-                    !expanded -> ConnectionPill(connection)
+                    // V rozbaleném hledání stav ani účet nepatří — uživatel se dívá na výsledky.
+                    !expanded -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        ConnectionPill(connection)
+                        trailing()
+                    }
                 }
             },
         )
@@ -242,7 +248,6 @@ internal fun ChatSearchBar(
         // behavior ji v téhle alphě nenakreslil a chaty pod ním prosvítaly.
         modifier = Modifier.background(MaterialTheme.colorScheme.surface),
         scrollBehavior = scrollBehavior,
-        actions = actions,
     )
 
     ExpandedFullScreenSearchBar(
@@ -448,6 +453,7 @@ private fun SearchResults(
                 onClick = { onPickLatest(chat.id) },
                 // Serverové výsledky přibývají za lokálními — plynule, ne skokem.
                 modifier = Modifier.animateItem(),
+                avatarShape = chat.kind.avatarShape(),
             )
         }
 
@@ -465,6 +471,7 @@ private fun SearchResults(
                     archived = false,
                     onClick = { onPickLatest(chat.id) },
                     modifier = Modifier.animateItem(),
+                    avatarShape = chat.kind.avatarShape(),
                 )
             }
         }
@@ -542,6 +549,7 @@ private fun MessageResultRow(
                 avatarFileId = found.chat.avatarFileId,
                 size = 40.dp,
                 isSavedMessages = isSavedMessages(found.chat.id),
+                shape = found.chat.kind.avatarShape(),
             )
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -585,6 +593,7 @@ private fun Suggestions(
                     archived = chat.folder == ChatFolder.Archive,
                     onClick = { onPick(chat.id) },
                     modifier = Modifier.animateItem(),
+                    avatarShape = chat.kind.avatarShape(),
                 )
             }
         }
@@ -626,6 +635,7 @@ private fun TopChat(chat: ChatSummary, onClick: () -> Unit) {
             avatarFileId = chat.avatarFileId,
             size = 52.dp,
             isSavedMessages = isSavedMessages(chat.id),
+            shape = chat.kind.avatarShape(),
         )
         Text(
             // Jen první slovo — celé jméno se pod avatar nevejde a useknuté nic neřekne.
@@ -645,6 +655,7 @@ private fun ChatResultRow(
     archived: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    avatarShape: Shape = CircleShape,
 ) {
     ListItem(
         headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -656,7 +667,7 @@ private fun ChatResultRow(
             null
         },
         leadingContent = {
-            Avatar(chatId = chatId, title = title, avatarFileId = avatarFileId, size = 40.dp, isSavedMessages = isSavedMessages(chatId))
+            Avatar(chatId = chatId, title = title, avatarFileId = avatarFileId, size = 40.dp, isSavedMessages = isSavedMessages(chatId), shape = avatarShape)
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = modifier.clickable(onClick = onClick),

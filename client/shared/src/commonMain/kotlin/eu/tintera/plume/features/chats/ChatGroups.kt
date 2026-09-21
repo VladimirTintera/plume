@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary
 
 /**
@@ -39,4 +40,23 @@ fun chatGroups(
     }
 
     return groups.filter { it.isNotEmpty() }
+}
+
+/**
+ * Filtr seznamu chatů z plovoucího toolbaru dole. Je jen lokální, nad načteným seznamem — vlastní
+ * složky Telegramu (`ChatListFolder`) zatím nejsou a tohle je jejich nejčastější náhrada.
+ */
+enum class ChatFilter { All, Unread, Private, Groups, Channels }
+
+/**
+ * Chaty, které filtr pustí dál. Pořadí zůstává, skupiny ([chatGroups]) se dělají až nad výsledkem.
+ *
+ * Nepřečtené počítají i ručně označené ([hasUnread]) — přesně ty, které ukazuje odznak.
+ */
+fun List<ChatSummary>.filteredBy(filter: ChatFilter): List<ChatSummary> = when (filter) {
+    ChatFilter.All -> this
+    ChatFilter.Unread -> filter { it.hasUnread }
+    ChatFilter.Private -> filter { it.kind == ChatKind.Private }
+    ChatFilter.Groups -> filter { it.kind == ChatKind.Group }
+    ChatFilter.Channels -> filter { it.kind == ChatKind.Channel }
 }

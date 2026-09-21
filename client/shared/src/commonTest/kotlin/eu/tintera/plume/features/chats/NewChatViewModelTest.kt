@@ -4,6 +4,7 @@ import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.FoundMessagesPage
 import eu.tintera.plume.core.telegram.InternalLink
@@ -102,7 +103,7 @@ class NewChatViewModelTest {
         avatarFileId = null,
         isMuted = false,
         isMarkedAsUnread = false,
-        isPrivate = true,
+        kind = ChatKind.Private,
         lastMessageTimestamp = null,
         presence = null,
         activity = null,

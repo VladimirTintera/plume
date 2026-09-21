@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -23,6 +25,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.arrow_back_24dp
+import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.settings_section_appearance
 import eu.tintera.plume.resources.settings_section_appearance_summary
 import eu.tintera.plume.resources.settings_section_devices
@@ -31,6 +35,7 @@ import eu.tintera.plume.resources.settings_section_general
 import eu.tintera.plume.resources.settings_section_general_summary
 import eu.tintera.plume.resources.settings_title
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -45,10 +50,26 @@ fun SettingsScreen(
     selectedSection: SettingsSection?,
     onSectionClick: (SettingsSection) -> Unit,
     modifier: Modifier = Modifier,
+    /** Šipka zpět do Chatů — jen na telefonu, kde vedle není rail. */
+    onBack: (() -> Unit)? = null,
 ) {
     Scaffold(
         modifier = modifier,
-        topBar = { LargeFlexibleTopAppBar(title = { Text(stringResource(Res.string.settings_title)) }) },
+        topBar = {
+            LargeFlexibleTopAppBar(
+                title = { Text(stringResource(Res.string.settings_title)) },
+                navigationIcon = {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                painterResource(Res.drawable.arrow_back_24dp),
+                                contentDescription = stringResource(Res.string.common_back),
+                            )
+                        }
+                    }
+                },
+            )
+        },
     ) { padding ->
         Column(
             Modifier

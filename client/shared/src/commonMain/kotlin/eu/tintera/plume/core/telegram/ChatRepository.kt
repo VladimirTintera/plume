@@ -186,6 +186,12 @@ data class FoundMessage(
 enum class ChatFolder { Main, Archive }
 
 /**
+ * Druh chatu tak, jak ho rozlišuje uživatel: s člověkem (i tajný chat a bot), skupina (základní
+ * i supergroup), kanál. TDLib má typů víc, ale pro filtr a tvar avataru na víc nezáleží.
+ */
+enum class ChatKind { Private, Group, Channel }
+
+/**
  * Položka seznamu chatů.
  *
  * [order] je pořadové číslo z TDLib (`ChatPosition.order`) — ne index. Je to int64, do kterého
@@ -207,13 +213,8 @@ data class ChatSummary(
     val isMuted: Boolean,
     /** Ruční příznak „nepřečteno" — nezávislý na [unreadCount]. */
     val isMarkedAsUnread: Boolean,
-    /**
-     * Soukromý chat s jedním člověkem.
-     *
-     * Rozhoduje o tom, co znamená odstranění: u soukromého chatu smazání historie, u skupiny
-     * a kanálu odchod. Jsou to dvě různé věci a nabídnout je pod jedním popiskem by lhalo.
-     */
-    val isPrivate: Boolean,
+    /** Soukromý chat, skupina, nebo kanál — podle toho filtr v seznamu a tvar avataru. */
+    val kind: ChatKind,
     /** Unixový čas poslední zprávy, nebo `null` u prázdného chatu. */
     val lastMessageTimestamp: Int?,
     /** Dostupnost protějšku. `null` u skupin a kanálů — ty žádnou nemají. */
@@ -231,6 +232,14 @@ data class ChatSummary(
      */
     val draft: ChatDraft?,
 )
+
+/**
+ * Soukromý chat s jedním člověkem.
+ *
+ * Rozhoduje o tom, co znamená odstranění: u soukromého chatu smazání historie, u skupiny
+ * a kanálu odchod. Jsou to dvě různé věci a nabídnout je pod jedním popiskem by lhalo.
+ */
+val ChatSummary.isPrivate: Boolean get() = kind == ChatKind.Private
 
 /** Rozepsaná zpráva chatu, jak ji drží TDLib (a s ním i ostatní zařízení). */
 data class ChatDraft(

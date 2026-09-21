@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -79,9 +80,38 @@ class ChatGroupsTest {
         assertEquals(listOf(listOf(3L, 1L, 2L)), groups.ids())
     }
 
+    /** Filtr podle druhu pouští jen svůj druh a pořadí nechává. */
+    @Test
+    fun filtrPodleDruhu() {
+        val chats = listOf(
+            chat(1, kind = ChatKind.Channel),
+            chat(2),
+            chat(3, kind = ChatKind.Group),
+            chat(4),
+        )
+
+        assertEquals(listOf(1L, 2L, 3L, 4L), chats.filteredBy(ChatFilter.All).map { it.id })
+        assertEquals(listOf(2L, 4L), chats.filteredBy(ChatFilter.Private).map { it.id })
+        assertEquals(listOf(3L), chats.filteredBy(ChatFilter.Groups).map { it.id })
+        assertEquals(listOf(1L), chats.filteredBy(ChatFilter.Channels).map { it.id })
+    }
+
+    /** Nepřečtené jsou i ručně označené — přesně ty, u kterých svítí odznak. */
+    @Test
+    fun filtrNeprecteneBereIRucneOznacene() {
+        val chats = listOf(chat(1, unread = 2), chat(2), chat(3).copy(isMarkedAsUnread = true))
+
+        assertEquals(listOf(1L, 3L), chats.filteredBy(ChatFilter.Unread).map { it.id })
+    }
+
     private fun List<List<ChatSummary>>.ids(): List<List<Long>> = map { group -> group.map { it.id } }
 
-    private fun chat(id: Long, unread: Int = 0, pinned: Boolean = false) = ChatSummary(
+    private fun chat(
+        id: Long,
+        unread: Int = 0,
+        pinned: Boolean = false,
+        kind: ChatKind = ChatKind.Private,
+    ) = ChatSummary(
         id = id,
         title = "Chat $id",
         unreadCount = unread,
@@ -91,7 +121,7 @@ class ChatGroupsTest {
         avatarFileId = null,
         isMuted = false,
         isMarkedAsUnread = false,
-        isPrivate = true,
+        kind = kind,
         lastMessageTimestamp = null,
         presence = null,
         activity = null,

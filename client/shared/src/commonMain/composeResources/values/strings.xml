@@ -574,6 +574,13 @@
         <item quantity="one">%1$d day</item>
         <item quantity="other">%1$d days</item>
     </plurals>
+    <string name="chats_filter_all">All chats</string>
+    <string name="chats_filter_unread">Unread</string>
+    <string name="chats_filter_private">People</string>
+    <string name="chats_filter_groups">Groups</string>
+    <string name="chats_filter_channels">Channels</string>
+    <string name="chats_filter_empty">No chats match this filter.</string>
+    <string name="chats_account">Account and more</string>
     <string name="chats_new">New message</string>
     <string name="new_chat_title">New message</string>
     <string name="new_chat_search">Search contacts or @username</string>

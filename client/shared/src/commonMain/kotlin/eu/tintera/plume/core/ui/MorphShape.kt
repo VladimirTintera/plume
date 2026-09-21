@@ -31,8 +31,9 @@ import androidx.graphics.shapes.star
  * - [ShapeMorphs.Intro] kruh → čtyřlístek → pětiúhelník → zaoblená hvězda: uvítání prázdného
  *   stavu (detail bez otevřeného chatu). Jednou při zobrazení, pak tvar stojí.
  *
- * Tam, kde se stav nemění (avatary, položky seznamu, reakce), se tvary nepoužívají — kdyby se
- * hýbalo všechno, přestalo by to cokoli znamenat.
+ * Tam, kde se stav nemění (avatary, položky seznamu, reakce), se morfy nepoužívají — kdyby se
+ * hýbalo všechno, přestalo by to cokoli znamenat. Avatary mají jen STATICKÝ tvar podle druhu
+ * chatu (`avatarShape`), a to z tvarů, které tady žádný stav neznamenají.
  *
  * Instance je pro jednu hodnotu [progress]: Compose si obrys drží podle instance a velikosti,
  * takže tvar, který by průběh četl sám, by se nepřekreslil. Kde se průběh čte až při kreslení,
