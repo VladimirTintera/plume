@@ -3425,6 +3425,18 @@ a odložené rušení prázdné notifikace.
 - **`adb shell am force-stop` znemožní doručení FCM.** Aplikace se dostane do „stopped state"
   a zprávy jí systém nedoručí, dokud ji uživatel ručně nespustí. Push se tak testovat nedá —
   aplikaci je potřeba jen odswipovat z přehledu úloh.
+- **Běžící emulátor stahuje notifikace z telefonu.** Je to plnohodnotné druhé přihlášené
+  zařízení: s otevřenou konverzací hlásí zprávy jako přečtené (`viewMessages(forceRead = true)`
+  podle viditelných položek) a TDLib v telefonu notifikaci vzápětí stáhne
+  (`removedNotificationIds`) — na liště blikne a zmizí. Vypadá to jako chyba notifikací, a není.
+- **Emulátor NEVÍ, že se na něj nedíváš.** Ztrátu fokusu hostitelského okna nepředává: změřeno
+  na emulátoru vloženém v Android Studiu, s frontmost aplikací na Macu mimo něj (Android Studio,
+  Finder i jiná) hlásí `dumpsys window` pokaždé `mCurrentFocus=eu.tintera.plume/MainActivity`
+  a Plume zůstává `ResumedActivity`. Podmínka na `isWindowFocused` u hlášení přečtení by tenhle
+  případ tedy NEVYŘEŠILA. Zabere až zhasnutý displej (`adb shell input keyevent 26` →
+  `mCurrentFocus=null`, `visibleRequested=false`); na skutečném telefonu to zhasne samo, proto
+  je to past jen emulátorová. Před testováním notifikací na telefonu tedy emulátor zhasnout,
+  odejít v něm z konverzace, nebo ho odhlásit.
 
 ## Sdílení do aplikace
 
