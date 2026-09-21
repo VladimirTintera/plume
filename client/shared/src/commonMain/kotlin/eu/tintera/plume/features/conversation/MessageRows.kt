@@ -131,7 +131,9 @@ internal fun groupAlbums(messages: List<ChatMessage>): List<MessageRow> {
 internal fun showsBareMedia(message: ChatMessage, album: List<ChatMessage>?): Boolean {
     if (message.replyToMessageId != null || message.linkPreview != null) return false
     val media = album?.map { it.media } ?: listOf(message.media)
-    return media.isNotEmpty() && media.all { it is MessageMedia.Photo || it is MessageMedia.Video }
+    return media.isNotEmpty() && media.all {
+        it is MessageMedia.Photo || it is MessageMedia.Video || it is MessageMedia.Animation
+    }
 }
 
 /**

@@ -2915,6 +2915,31 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
 - **Let z bubliny jede přes sdílený prvek** (`photoKey`), stejně jako avatar a název chatu.
   Na širokém rozvržení se nekoná: `LocalTwoPane` tam sdílení vypíná.
 
+### GIFy
+
+GIF je v Telegramu **MP4 bez zvuku** (`MessageAnimation`), ne skutečný GIF — přehrává se proto
+týmž přehrávačem jako video (`MessageMedia.Animation`, `AnimationBubble`).
+
+- **Hraje sám, dokud je vidět, ve smyčce a ztlumeně.** GIF, který se nehýbe, není GIF. Přehrávač
+  žije s kompozicí bloku, takže odscrollovaný GIF dekodér vrátí. `LazyColumn` skládá i kousek za
+  viewportem, takže pár GIFů hraje mimo obrazovku — proti sledování skutečné viditelnosti je to
+  levnější a rozdíl je neznatelný.
+- **Ztlumený obsah NEŽÁDÁ o audio focus** (Android `handleAudioFocus = !muted`) a nepřepíná
+  kategorii `AVAudioSession` (iOS). Ztlumený GIF nemá co ztišit hudbu, která uživateli hraje —
+  a ExoPlayer si o fokus řekne i při nulové hlasitosti.
+- **Smyčku `AVPlayer` neumí sám.** Řeší ji pozorovatel `AVPlayerItemDidPlayToEndTimeNotification`,
+  který se drží silnou referencí a odhlašuje při uvolnění přehrávače — `NSNotificationCenter` si
+  pozorovatele nedrží. `AVPlayerLooper` by znamenal `AVQueuePlayer`.
+- **Velký GIF se sám nestahuje** (`MAX_AUTOPLAY_ANIMATION_BYTES`, 5 MB; testy `MessageRowsTest`).
+  Autoplay by bez ptaní snědl data, takže nad stropem — a u neznámé velikosti — zůstane náhled
+  a čeká na ťuknutí. Ťuknutí na hrající GIF ho pozastaví, jinak by nešel zastavit vůbec.
+- **GIF jde na plochu bez bubliny** jako fotka a video (`showsBareMedia`): je to obrázek sám
+  o sobě. Od videa ho odliší značka „GIF" v rohu a to, že nemá délku.
+- **Přehrávání se na emulátoru ověřit NEDÁ**, když je stroj zatížený: `c2.goldfish.h264.decoder`
+  selže na `queueInputBuffer error: 14` a ExoPlayer uvízne ve `STATE_BUFFERING` (délka souboru
+  je přitom známá). Pozná se to podle toho, že **stejně selže i video v prohlížeči médií** —
+  tedy cesta, která s GIFy nesouvisí. Ověřit jde vzhled, značka a přepínání pauzy.
+
 ### Video
 
 Video je vlastní typ přílohy (`MessageMedia.Video`: soubor, náhled, rozměry, délka). V bublině

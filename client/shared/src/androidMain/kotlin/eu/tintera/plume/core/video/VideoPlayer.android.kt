@@ -26,7 +26,18 @@ import java.io.File
  */
 actual class VideoPlayer(internal val exo: ExoPlayer) {
 
-    actual fun load(path: String) {
+    actual fun load(path: String, loop: Boolean, muted: Boolean) {
+        exo.repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+        exo.volume = if (muted) 0f else 1f
+        /*
+         * Ztlumený obsah o AUDIO FOCUS NEŽÁDÁ.
+         *
+         * `handleAudioFocus = true` je správně pro video se zvukem, jenže ExoPlayer si o fokus
+         * řekne i při nulové hlasitosti — a když ho nedostane, přehrávání POTLAČÍ: `isPlaying`
+         * zůstane `false` a pozice stojí na nule, přestože je soubor načtený a délka známá.
+         * Přesně tak se GIF v bublině nehýbal. Ztlumený GIF navíc nemá co ztišit hudbu uživatele.
+         */
+        exo.setAudioAttributes(audioAttributes, /* handleAudioFocus = */ !muted)
         exo.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(File(path))))
         exo.prepare()
     }
@@ -49,19 +60,19 @@ actual class VideoPlayer(internal val exo: ExoPlayer) {
     actual val isEnded: Boolean get() = exo.playbackState == Player.STATE_ENDED
 }
 
+/** Zvuk videa: běžné médium, takže ztlumí hudbu a ustoupí hovoru. */
+private val audioAttributes = AudioAttributes.Builder()
+    .setUsage(C.USAGE_MEDIA)
+    .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+    .build()
+
 @Composable
 actual fun rememberVideoPlayer(): VideoPlayer {
     val context = LocalContext.current
     val player = remember {
         VideoPlayer(
             ExoPlayer.Builder(context.applicationContext)
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(C.USAGE_MEDIA)
-                        .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-                        .build(),
-                    /* handleAudioFocus = */ true,
-                )
+                .setAudioAttributes(audioAttributes, /* handleAudioFocus = */ true)
                 .build(),
         )
     }

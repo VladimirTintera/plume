@@ -38,9 +38,9 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    s posunem, poslechnuto). U hlasovek zbývá rychlost přehrávání, automatické pokračování další
    neposlechnutou, sluchátko u ucha a audio focus / přerušení hovorem. ~~Nahrávání~~ — hotovo
    (ťuknutím); chybí podržení se zamčením, náhled před odesláním a průběh nahrávání hlasovky.
-   ~~Video~~ — hotovo v prohlížeči (Media3 / AVPlayer). Zbývá **streamování** (dnes se stahuje
-   celé), rychlost, ztlumení, obraz v obraze a GIFy (`MessageAnimation`, přehrávat bez zvuku
-   přímo v bublině).
+   ~~Video~~ — hotovo v prohlížeči (Media3 / AVPlayer). ~~GIFy~~ — hotovo (hrají v bublině ve
+   smyčce bez zvuku; `CLAUDE.md`, „GIFy"). Zbývá **streamování** (dnes se stahuje celé),
+   rychlost, ztlumení a obraz v obraze.
 3. ~~**Přeposílání zpráv**~~ — hotovo (položka v nabídce, výběr chatu, album celé). Zbývá
    víc cílů najednou, výběr víc zpráv a kopie bez odesílatele.
 4. ~~**Otevírání dokumentů**~~ — hotovo (stažení s průběhem, `ACTION_VIEW` / `UIDocumentInteractionController`).
