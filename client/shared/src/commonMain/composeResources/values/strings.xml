@@ -465,6 +465,8 @@
     <string name="stickers_tab_emoji">Emoji</string>
     <string name="stickers_tab_stickers">Stickers</string>
     <string name="stickers_tab_gifs">GIFs</string>
+    <string name="clipboard_has_gif">GIF in clipboard</string>
+    <string name="clipboard_has_image">Image in clipboard</string>
     <string name="paste_gif">Paste GIF</string>
     <string name="paste_image">Paste image</string>
     <string name="gifs_search">Search GIFs</string>

@@ -465,6 +465,8 @@
     <string name="stickers_tab_emoji">Emoji</string>
     <string name="stickers_tab_stickers">Samolepky</string>
     <string name="stickers_tab_gifs">GIFy</string>
+    <string name="clipboard_has_gif">GIF ve schránce</string>
+    <string name="clipboard_has_image">Obrázek ve schránce</string>
     <string name="paste_gif">Vložit GIF</string>
     <string name="paste_image">Vložit obrázek</string>
     <string name="gifs_search">Hledat GIFy</string>

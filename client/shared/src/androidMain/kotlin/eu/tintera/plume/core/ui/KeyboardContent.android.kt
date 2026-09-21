@@ -103,6 +103,17 @@ actual fun KeyboardContentReceiver(
     }
 }
 
+/** Android se na vložení ze schránky neptá; položka v kontextové nabídce stačí. */
+@Composable
+actual fun ClipboardPasteSuggestion(
+    active: Boolean,
+    acceptAnimations: Boolean,
+    acceptImages: Boolean,
+    onContent: (KeyboardContent) -> Unit,
+    onError: (UiText) -> Unit,
+    container: @Composable (kind: ClipboardMediaKind, pasteButton: @Composable () -> Unit) -> Unit,
+) = Unit
+
 /** Klíč položky „Vložit GIF / obrázek" v kontextové nabídce pole. */
 private object PasteMediaKey
 
