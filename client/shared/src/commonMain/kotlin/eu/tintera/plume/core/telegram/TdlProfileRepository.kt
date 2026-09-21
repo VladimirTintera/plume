@@ -115,17 +115,26 @@ class TdlProfileRepository(
                             is ChatMemberStatusLeft, is ChatMemberStatusBanned -> return@mapNotNull null
                             else -> MemberRole.Member
                         }
-                        member(userId)?.let { ProfileMember(it, role) }
+                        member(userId)?.let { (sender, isBot) ->
+                            ProfileMember(
+                                sender = sender,
+                                role = role,
+                                tag = member.tag.trim().ifEmpty { null },
+                                isBot = isBot,
+                            )
+                        }
                     }
                     // Vlastník a správci napřed; uvnitř role pořadí od serveru.
                     .sortedBy { it.role.ordinal }
             }
 
-    private suspend fun member(userId: Long): SenderInfo? {
+    /** Člen a jestli je to bot — obojí z jednoho `getUser`. */
+    private suspend fun member(userId: Long): Pair<SenderInfo, Boolean>? {
         val user = client.getUser(userId = userId).toResult().getOrNull() ?: return null
         val name = listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" ")
         // Smazaný účet jméno nemá; v seznamu by byl prázdný řádek.
         if (name.isBlank()) return null
-        return SenderInfo(id = userId, title = name, avatarFileId = user.profilePhoto?.small?.id)
+        return SenderInfo(id = userId, title = name, avatarFileId = user.profilePhoto?.small?.id) to
+            (user.type is UserTypeBot)
     }
 }

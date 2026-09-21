@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -58,6 +59,8 @@ import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.image_24dp
 import eu.tintera.plume.resources.language_24dp
 import eu.tintera.plume.resources.play_arrow_24dp
+import eu.tintera.plume.resources.profile_bot
+import eu.tintera.plume.resources.smart_toy_24dp
 import eu.tintera.plume.resources.shield_person_filled_24dp
 import eu.tintera.plume.resources.star_filled_24dp
 import eu.tintera.plume.resources.profile_role_admin
@@ -365,9 +368,16 @@ internal fun ProfileMembersList(
                         size = MEMBER_AVATAR_SIZE,
                     )
                 },
-                trailingContent = when (member.role) {
-                    MemberRole.Owner, MemberRole.Admin -> { { MemberRoleLabel(member.role) } }
-                    MemberRole.Member -> null
+                // Bot je pod jménem, ne ve štítku: štítek patří roli a bot bývá i správce.
+                supportingContent = if (member.isBot) {
+                    { BotLabel() }
+                } else {
+                    null
+                },
+                trailingContent = if (member.hasLabel) {
+                    { MemberRoleLabel(member) }
+                } else {
+                    null
                 },
                 colors = rowColors(),
                 modifier = Modifier
@@ -379,35 +389,65 @@ internal fun ProfileMembersList(
     }
 }
 
+/** Štítek na konci řádku má vlastník, správce a každý, komu skupina dala vlastní štítek. */
+internal val ProfileMember.hasLabel: Boolean
+    get() = role != MemberRole.Member || tag != null
+
 /**
  * Role jako tonální štítek — holé barevné slovo na konci řádku vypadalo jako odkaz.
  *
- * **Vlastník a správce se liší barvou I ikonou.** Vlastník je terciární s hvězdou, správce
- * sekundární se štítem: se stejnou barvou se v dlouhém seznamu vlastník mezi správci ztrácel,
- * a barva sama nestačí (barvoslepost, paleta se zvýšeným kontrastem) — proto i ikona.
+ * - **Vlastník a správce se liší barvou I ikonou.** Vlastník je terciární s hvězdou, správce
+ *   sekundární se štítem: se stejnou barvou se vlastník mezi správci ztrácel, a barva sama
+ *   nestačí (barvoslepost, paleta se zvýšeným kontrastem) — proto i ikona.
+ * - **Vlastní štítek člena ([ProfileMember.tag]) nahrazuje slovo role**, ikona a barva role
+ *   zůstávají — „Moderátor" se hvězdou pořád říká, že jde o vlastníka. Tak to ukazují i oficiální
+ *   klienti. Běžný člen se štítkem má neutrální štítek bez ikony: nic neřídí.
  */
 @Composable
-private fun MemberRoleLabel(role: MemberRole) {
-    val (container, content) = when (role) {
-        MemberRole.Owner -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
-        else -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+private fun MemberRoleLabel(member: ProfileMember) {
+    val colors = MaterialTheme.colorScheme
+    val (container, content) = when (member.role) {
+        MemberRole.Owner -> colors.tertiaryContainer to colors.onTertiaryContainer
+        MemberRole.Admin -> colors.secondaryContainer to colors.onSecondaryContainer
+        MemberRole.Member -> colors.surfaceContainerHigh to colors.onSurfaceVariant
+    }
+    val icon = when (member.role) {
+        MemberRole.Owner -> Res.drawable.star_filled_24dp
+        MemberRole.Admin -> Res.drawable.shield_person_filled_24dp
+        MemberRole.Member -> null
+    }
+    val text = member.tag ?: when (member.role) {
+        MemberRole.Owner -> stringResource(Res.string.profile_role_owner)
+        MemberRole.Admin -> stringResource(Res.string.profile_role_admin)
+        MemberRole.Member -> return
     }
     Surface(shape = RoundedCornerShape(percent = 50), color = container, contentColor = content) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier.padding(start = 8.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
+            modifier = Modifier
+                .padding(start = if (icon != null) 8.dp else 10.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
         ) {
-            Icon(
-                painterResource(if (role == MemberRole.Owner) Res.drawable.star_filled_24dp else Res.drawable.shield_person_filled_24dp),
-                contentDescription = null,
-                modifier = Modifier.size(ROLE_ICON_SIZE),
-            )
+            if (icon != null) {
+                Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(ROLE_ICON_SIZE))
+            }
             Text(
-                stringResource(if (role == MemberRole.Owner) Res.string.profile_role_owner else Res.string.profile_role_admin),
+                text,
                 style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                // Štítek píše skupina a může být dlouhý; jméno člena má přednost.
+                modifier = Modifier.widthIn(max = MAX_TAG_WIDTH),
             )
         }
+    }
+}
+
+@Composable
+private fun BotLabel() {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Icon(painterResource(Res.drawable.smart_toy_24dp), contentDescription = null, modifier = Modifier.size(ROLE_ICON_SIZE))
+        Text(stringResource(Res.string.profile_bot))
     }
 }
 
@@ -485,6 +525,7 @@ private val FILE_ICON_SIZE = 44.dp
 private val FILE_ICON_CORNER = 8.dp
 private val MEMBER_AVATAR_SIZE = 40.dp
 private val ROLE_ICON_SIZE = 14.dp
+private val MAX_TAG_WIDTH = 120.dp
 
 /** Podklad symbolu přehrání na dlaždici videa — na světlé fotce by bílá ikona zanikla. */
 private const val VIDEO_BADGE_ALPHA = 0.55f

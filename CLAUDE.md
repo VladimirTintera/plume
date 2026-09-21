@@ -2767,7 +2767,12 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
   Mřížka médií nese velké zaoblení jen v rozích bloku (`mediaTileShape`, i schod neúplného
   posledního řádku). Role člena je tonální štítek, ne barevné slovo;
   vlastník terciární s hvězdou, správce sekundární se štítem — ikona proto, že barva sama
-  rozdíl nenese (barvoslepost, paleta se zvýšeným kontrastem). Akce jsou tónované dlaždice
+  rozdíl nenese (barvoslepost, paleta se zvýšeným kontrastem). Vlastní štítek člena nahrazuje
+  slovo role, ikona a barva role zůstávají; běžný člen se štítkem má neutrální štítek. Bot je
+  pod jménem, ne ve štítku — bývá i správce a dva štítky vedle sebe by se praly.
+- **„Custom title" správce v TDLib 15 už NENÍ.** `ChatMemberStatusCreator/Administrator` ho
+  nenesou; nahradil ho `ChatMember.tag`, který smí mít kterýkoli člen. Kdo hledá titul u stavu
+  správce, nenajde nic. Akce jsou tónované dlaždice
   s ikonou nad popiskem; popisek říká, co se stane (Ztlumit / Zapnout zvuk), ne stav.
 - **Záložky jsou connected button group** (`ToggleButton` s `ButtonGroupDefaults.connected*Shapes`),
   ne `PrimaryTabRow` s podtržením — to je vzhled M2 a mezi zaoblenými bloky působil cize.
