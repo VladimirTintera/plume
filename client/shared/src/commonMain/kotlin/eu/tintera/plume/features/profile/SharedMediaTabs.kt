@@ -51,6 +51,8 @@ import eu.tintera.plume.core.telegram.ProfileMember
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.asDayLabel
+import eu.tintera.plume.core.ui.photoKey
+import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.image_24dp
@@ -129,6 +131,9 @@ private fun MediaTile(message: ChatMessage, shape: Shape, onOpen: () -> Unit) {
         Modifier
             .aspectRatio(1f)
             .clip(shape)
+            // Tentýž klíč jako fotka v bublině: prohlížeč z dlaždice vyroste a při zavření se
+            // do ní vrátí. Konverzace pod profilem v tu chvíli složená není, o klíč se nepřou.
+            .sharedNavElement(photoKey(message.id))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             .clickable(onClick = onOpen),
     ) {

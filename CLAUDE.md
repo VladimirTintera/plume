@@ -2827,6 +2827,9 @@ obsahu bývá zlomek zpráv.
   mizejících fotek vyjde prázdná i uprostřed chatu.
 - **Mizející a tajná média se vyřazují** stejně jako z listování v prohlížeči — trvalý přehled
   není místo pro obsah, který má po zhlédnutí zmizet.
+- **Dlaždice mřížky nese sdílený prvek `photoKey`** jako fotka v bublině — prohlížeč z ní vyroste
+  a při zavření se do ní vrátí. Konverzace pod profilem je v tu chvíli nesložená, takže se o klíč
+  nic nepře; na široké ploše sdílení vypíná `LocalTwoPane` jako všude.
 - **Ťuknutí vede tam, kam z konverzace**: médium do prohlížeče (táž `MediaRoute`), soubor se
   stáhne a předá systému (včetně průběhu v řádku a druhého ťuknutí jako zrušení), odkaz do
   prohlížeče.
