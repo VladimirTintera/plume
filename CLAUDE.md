@@ -3049,23 +3049,21 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   přehrávač ještě čeká na data — procento staženého souboru by tam lhalo (hraje se dávno před
   100 %), proto se po načtení točí neurčitě. Tlačítko play/pauza se do té doby neukazuje.
 - **Stahování pod hrajícím videem je kroužek v pravém horním rohu** (`VideoDownloadIndicator`);
-  ťuknutí ho rozvine do čáry u spodní hrany karty (posuvník se nad ni zvedne), další svine.
-  Rozvinutí je jeden oblouk, jehož úhel klesá k nule a délka roste na šířku karty, kreslený na
-  `Canvas` — M3 přechod z kruhového průběhu do lineárního nemá. Kroužek i čára ukazují tentýž
-  úsek (`downloadedFractions`), jinak by se obsah při rozvinutí změnil pod rukama.
-- **Stažený úsek na rozvinuté čáře se vlní** jako `LinearWavyProgressIndicator` (vlnitý průběh,
-  rovná dráha, vlnky obíhají); kroužek v rohu zůstává rovný — nad hrajícím videem by vlnění
-  pořád tahalo oko. Hotová komponenta to být nemůže: umí jen průběh od nuly.
-- **Oblouk se kotví za střed TĚTIVY a otáčení dozní dřív, než se narovná** (`(1 − t)³`).
-  S kotvou ve vrcholu a lineárním otáčením byl oblouk v půlce skoro rovný, stál svisle a čára
-  se protočila jako vrtule přes spodní hranu karty. **Proměnu jde prohlédnout jen zpomaleně**:
-  `adb shell settings put global animator_duration_scale 10` (Compose ho respektuje) a série
-  `screencap` — v normální rychlosti ji snímky minou.
-- **TDLib hlásí jen SOUVISLÝ úsek od `downloadOffset`**, takže čára ukazuje, z čeho přehrávač
-  právě čte, ne všechno, co se kdy stáhlo (po skoku pro `moov` na konec se úsek přestěhuje).
+  ťuknutí ho roztáhne do čáry přes horní okraj karty, další ho svine. Nahoře, protože kroužek tam
+  už je a jen se roztáhne do šířky; dole by se čára přetahovala o místo s posuvníkem.
+- **Jsou to běžné `CircularWavyProgressIndicator` / `LinearWavyProgressIndicator`** a přechod je
+  obyčejné `AnimatedContent` se `SizeTransform`, rostoucí z rohu (`contentAlignment = TopEnd`).
+  První verze kreslila na `Canvas` oblouk, který se rozvine do čáry — vymyšlený prvek, který
+  nikde jinde není; uživatel chtěl standardní vzhled. Ukazuje se proto celkový `progress`, ne
+  souvislý stažený úsek: obě komponenty kreslí průběh od nuly.
+- **Podklad pilulky nese kontejner `AnimatedContent`, ne obsah.** Velikost se animuje na
+  kontejneru; podklad na obsahu `SizeTransform` ořízne a pilulka roste s hranatým okrajem.
 - **Na emulátoru se stahování zpomalit NEDÁ**: `adb emu network speed edge`/`gprs` odpoví OK,
   a 2,5MB video se přesto stáhne za vteřinu. Vzhled indikátoru se proto ověřuje podstrčeným
-  stavem (`downloadVisible` bez podmínky na `Downloading`, pevný úsek), jako karta aktualizace.
+  stavem (`downloadVisible` bez podmínky na `Downloading`, pevný `progress`), jako karta aktualizace.
+  **Přechod jde prohlédnout jen zpomaleně**: `adb shell settings put global
+  animator_duration_scale 10` (Compose ho respektuje) a série `screencap` — v normální
+  rychlosti ho snímky minou.
 - **Přehrávač je v kompozici** (`rememberVideoPlayer`) a s ní se uvolní. Hraje jen vybraná
   stránka; stav (pozice, délka, dohráno) se čte po 200 ms, přehrávače ho samy nehlásí.
   Spuštění videa zastaví hrající hlasovku.

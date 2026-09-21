@@ -2,7 +2,6 @@ package eu.tintera.plume.features.media
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -96,8 +95,8 @@ import org.koin.compose.koinInject
  * - **Stahování začne, až je stránka vybraná na celé obrazovce** — soused složený dopředu
  *   stahovat nemá. Kde to jde, video se streamuje z rozestavěného souboru (viz níž).
  * - **Velký průběh uprostřed jen do rozběhnutí videa**, pak ho vystřídá ovládání a stav
- *   stahování se stáhne do kroužku v rohu ([VideoDownloadIndicator]); ťuknutím se rozvine do
- *   čáry přes spodní hranu, kde je vidět stažený úsek.
+ *   stahování se stáhne do kroužku v rohu ([VideoDownloadIndicator]); ťuknutím se roztáhne do
+ *   čáry přes horní okraj, kde je vidět stažený úsek.
  * - **Hraje jen vybraná stránka**; odlistování pozastaví, návrat pokračuje.
  * - **Ovládání se schová po [CONTROLS_HIDE_MS]** během přehrávání. Ťuknutí na celé obrazovce
  *   ho napřed vrátí, a teprve ťuknutí s ovládáním na očích vede zpátky do galerie. Jinak by
@@ -420,13 +419,6 @@ internal fun VideoPage(
                 }
             }
 
-            // Rozvinutá čára stahování leží u spodní hrany; posuvník se nad ni zvedne.
-            val sliderLift by animateDpAsState(
-                targetValue = if (downloadExpanded && downloadVisible) STRIP_HEIGHT else 0.dp,
-                animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
-                label = "video-slider-lift",
-            )
-
             // Posuvník leží na spodku karty s přechodem do tmava — na světlém záběru by bílý
             // posuvník jinak zmizel.
             AnimatedVisibility(
@@ -443,8 +435,7 @@ internal fun VideoPage(
                                 listOf(Color.Transparent, MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f)),
                             ),
                         )
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
-                        .padding(bottom = sliderLift.coerceAtLeast(0.dp)),
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -482,7 +473,7 @@ internal fun VideoPage(
             }
 
             VideoDownloadIndicator(
-                range = (file as? FileState.Downloading)?.let(::downloadedFractions) ?: (0f..1f), // dostaženo: plný, než zmizí
+                progress = (file as? FileState.Downloading)?.progress ?: 1f, // dostaženo: plný, než zmizí
                 visible = downloadVisible,
                 expanded = downloadExpanded,
                 onToggle = { downloadExpanded = !downloadExpanded },
