@@ -173,15 +173,10 @@ Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení
 
   Zvuky a vibrace vlastní volbou NEBUDOU: na Androidu je vlastní kanál a aplikace je po jeho
   vytvoření stejně přepsat nemůže (viz rozbor kanálů).
-- **Rychlé akce z notifikace.** Dnes notifikace umí jen otevřít chat. Chybí:
-  - **Odpovědět** přímo z notifikace (`RemoteInput` na Androidu, `UNTextInputNotificationAction`
-    na iOS); odeslaná odpověď se připíše do `MessagingStyle` jako vlastní řádek, jinak by
-    notifikace po odeslání vypadala, že se nic nestalo. Android k tomu nabízí i chytré návrhy
-    odpovědí (`setAllowGeneratedReplies`).
+- **Rychlé akce z notifikace.** Odpověď z notifikace na Androidu je hotová (viz CLAUDE.md,
+  „Odpověď z notifikace"). Chybí:
   - **Označit jako přečtené** (`viewMessages` s `forceRead`), notifikaci pak stáhne sama TDLib.
+    Stejný příjemce a úloha jako u odpovědi, jen bez textu.
   - **Ztlumit** chat (třeba na hodinu), stejným objektem `ChatNotificationSettings` jako
     v nabídce chatu.
-  - Pozor: akce se spouští v procesu, který může být mrtvý nebo zmrazený — TDLib se musí
-    rozběhnout bez UI (jako u pushe) a odeslání musí doběhnout v `goAsync` / expedited úloze,
-    ne v korutině, kterou systém uprostřed zmrazí. Akce patří k zobrazitelným notifikacím
-    `NewMessage` i `NewPushMessage`, u dočasné z pushe ale ještě nemusí jít zprávu adresovat.
+  - **Odpověď na iOS** (`UNTextInputNotificationAction`) — až budou na iOS notifikace vůbec.

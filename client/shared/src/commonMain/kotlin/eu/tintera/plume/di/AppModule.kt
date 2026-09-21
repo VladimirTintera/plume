@@ -29,6 +29,7 @@ import eu.tintera.plume.core.telegram.RevealedSpoilers
 import eu.tintera.plume.core.telegram.SelfDestructTimers
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.NotificationRepository
+import eu.tintera.plume.core.notifications.NotificationReplies
 import eu.tintera.plume.core.telegram.TdlChatRepository
 import eu.tintera.plume.core.telegram.TdlConversationRepository
 import eu.tintera.plume.core.telegram.TdlFileRepository
@@ -100,6 +101,10 @@ fun appModule() = module {
     // Bezstavová — na rozdíl od seznamu chatů nemusí vznikat dopředu, stránkovací stav
     // drží ConversationViewModel.
     single<ConversationRepository> { TdlConversationRepository(holder = get()) }
+
+    // Odpověď z notifikace. Nad ConversationRepository, ne v něm: jde o pořadí kroků (odeslat,
+    // dočkat se potvrzení, pak teprve přečíst), ne o další volání TDLib.
+    single { NotificationReplies(session = get(), conversations = get()) }
 
     // Eagerně: v konstruktoru se přihlašuje k `fileUpdates` a průběh stahování chodí pro všechny
     // soubory. Při líné konstrukci by se ztratily updaty k souborům, jejichž stahování už běží.

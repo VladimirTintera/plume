@@ -446,6 +446,8 @@
     <string name="notification_channel_name">Messages</string>
     <string name="notification_channel_description">New messages from Telegram</string>
     <string name="notification_self_name">Me</string>
+    <string name="notification_reply">Reply</string>
+    <string name="notification_reply_failed">Not sent: %1$s</string>
     <string name="clipboard_label">Message</string>
     <string name="conversation_fallback_title">Conversation</string>
     <string name="conversation_scroll_to_end">To the end of the conversation</string>

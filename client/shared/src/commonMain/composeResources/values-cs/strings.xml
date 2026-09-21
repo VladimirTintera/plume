@@ -446,6 +446,8 @@
     <string name="notification_channel_name">Zprávy</string>
     <string name="notification_channel_description">Nové zprávy z Telegramu</string>
     <string name="notification_self_name">Já</string>
+    <string name="notification_reply">Odpovědět</string>
+    <string name="notification_reply_failed">Neodesláno: %1$s</string>
     <string name="clipboard_label">Zpráva</string>
     <string name="conversation_fallback_title">Konverzace</string>
     <string name="conversation_scroll_to_end">Na konec konverzace</string>

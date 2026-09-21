@@ -106,4 +106,6 @@ data class ChatNotification(
      * jde do notifikace jako řádek navíc; [text] zůstává kvůli tickeru a čtečkám notifikací.
      */
     val imageCaption: String? = null,
+    /** Nabídnout v notifikaci „Odpovědět"? Ne tam, kam uživatel psát nesmí. */
+    val canReply: Boolean = true,
 )

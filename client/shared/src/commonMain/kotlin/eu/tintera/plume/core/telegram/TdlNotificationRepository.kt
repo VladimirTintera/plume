@@ -2,6 +2,7 @@ package eu.tintera.plume.core.telegram
 
 import eu.tintera.plume.resources.saved_messages
 import dev.g000sha256.tdl.dto.ChatTypePrivate
+import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.DeviceToken
@@ -132,6 +133,15 @@ class TdlNotificationRepository(
             ?: added.firstNotNullOfOrNull { (it.type as? NotificationTypeNewPushMessage)?.senderName }
             ?: ""
 
+        // Odpověď z notifikace jen tam, kam se smí psát (kanál bez práva publikovat, omezená
+        // skupina) — akce, která skončí chybou, je horší než žádná. Neznámý chat psaní
+        // neblokuje, stejně jako vstupní pole v konverzaci.
+        val canReply = chat == null || writeAccess(
+            isChannel = (chat.type as? ChatTypeSupergroup)?.isChannel == true,
+            status = client.ownMemberStatus(chat),
+            membersCanSend = chat.permissions.canSendBasicMessages,
+        ) == WriteAccess.Allowed
+
         val notifications = added.mapNotNull { notification ->
             val content = notification.content() ?: return@mapNotNull null
 
@@ -153,6 +163,7 @@ class TdlNotificationRepository(
                 isSavedMessages = isSavedMessages,
                 imagePath = downloadedPath(content.image, IMAGE_TIMEOUT),
                 imageCaption = content.imageCaption,
+                canReply = canReply,
             )
         }
 
