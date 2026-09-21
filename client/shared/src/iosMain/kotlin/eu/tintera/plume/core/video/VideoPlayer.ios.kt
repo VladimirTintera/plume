@@ -25,6 +25,11 @@ import platform.AVFoundation.seekToTime
 import platform.CoreGraphics.CGRectMake
 import platform.CoreMedia.CMTimeGetSeconds
 import platform.CoreMedia.CMTimeMakeWithSeconds
+import platform.AVFoundation.AVPlayerItemDidPlayToEndTimeNotification
+import platform.AVFoundation.muted
+import platform.AVFoundation.setMuted
+import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSOperationQueue
 import platform.Foundation.NSURL
 import platform.QuartzCore.CATransaction
 import platform.UIKit.UIColor
@@ -36,14 +41,52 @@ actual class VideoPlayer {
 
     internal val player = AVPlayer()
 
-    actual fun load(path: String) {
+    /** Ztlumený obsah (GIF) nesmí sahat na zvukovou relaci — ztišil by hudbu uživatele pro nic. */
+    private var muted = false
+
+    /**
+     * Pozorovatel konce přehrávání pro smyčku.
+     *
+     * `AVPlayer` opakování neumí sám a `AVPlayerLooper` by znamenal `AVQueuePlayer`. Drží se
+     * silnou referencí a odhlašuje v [release]: `NSNotificationCenter` si pozorovatele nedrží.
+     */
+    private var loopObserver: Any? = null
+
+    actual fun load(path: String, loop: Boolean, muted: Boolean) {
+        this.muted = muted
+        player.muted = muted
         player.replaceCurrentItemWithPlayerItem(AVPlayerItem(uRL = NSURL.fileURLWithPath(path)))
+        setLooping(loop)
+    }
+
+    private fun setLooping(loop: Boolean) {
+        loopObserver?.let { NSNotificationCenter.defaultCenter.removeObserver(it) }
+        loopObserver = null
+        if (!loop) return
+        loopObserver = NSNotificationCenter.defaultCenter.addObserverForName(
+            name = AVPlayerItemDidPlayToEndTimeNotification,
+            `object` = player.currentItem,
+            queue = NSOperationQueue.mainQueue,
+        ) { _ ->
+            player.seekToTime(CMTimeMakeWithSeconds(0.0, preferredTimescale = 600))
+            player.play()
+        }
+    }
+
+    /** Odhlásí pozorovatele smyčky. Volá se při uvolnění přehrávače z kompozice. */
+    internal fun release() {
+        loopObserver?.let { NSNotificationCenter.defaultCenter.removeObserver(it) }
+        loopObserver = null
+        player.pause()
     }
 
     actual fun play() {
-        // Kategorie „přehrávání": zvuk videa hraje i s přepínačem ztlumení.
-        AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayback, error = null)
-        AVAudioSession.sharedInstance().setActive(true, error = null)
+        // Kategorie „přehrávání": zvuk videa hraje i s přepínačem ztlumení. U ztlumeného obsahu
+        // se relace nepřepíná — GIF nemá co ztišit hudbu, která uživateli hraje.
+        if (!muted) {
+            AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayback, error = null)
+            AVAudioSession.sharedInstance().setActive(true, error = null)
+        }
         if (isEnded) seekTo(0)
         player.play()
     }
@@ -73,7 +116,9 @@ actual fun rememberVideoPlayer(): VideoPlayer {
     val player = remember { VideoPlayer() }
     DisposableEffect(player) {
         onDispose {
-            player.pause()
+            // `release` odhlásí pozorovatele smyčky — `NSNotificationCenter` si ho nedrží slabě
+            // a bez odhlášení by přežil přehrávač.
+            player.release()
             player.player.replaceCurrentItemWithPlayerItem(null)
         }
     }

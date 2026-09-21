@@ -793,6 +793,27 @@ sealed interface MessageMedia {
     ) : MessageMedia
 
     /**
+     * GIF — v Telegramu je to MP4 bez zvuku (`MessageAnimation`), ne skutečný GIF.
+     *
+     * Hraje v bublině ve smyčce, jakmile je vidět: GIF, který se nehýbe, není GIF. Stahuje se
+     * proto sám, ale jen do [MAX_AUTOPLAY_ANIMATION_BYTES] — velký soubor by bez ptaní snědl
+     * data, takže nad stropem se čeká na ťuknutí.
+     *
+     * [sizeBytes] je velikost na serveru (`expectedSize`), známá dřív, než soubor dorazí.
+     * Rozměry kvůli poměru stran bubliny.
+     */
+    data class Animation(
+        val fileId: Int,
+        val thumbnailFileId: Int?,
+        val width: Int,
+        val height: Int,
+        val sizeBytes: Long,
+    ) : MessageMedia {
+        /** Pustí se samo, nebo až na ťuknutí. */
+        val autoPlays: Boolean get() = sizeBytes in 1..MAX_AUTOPLAY_ANIMATION_BYTES
+    }
+
+    /**
      * Soubor: v bublině název a velikost, ťuknutí ho stáhne a otevře systémem.
      *
      * [mimeType] posílá odesílatel, takže se na něj nedá spoléhat — systém si typ často odvodí
@@ -917,3 +938,11 @@ data class ChatAccess(
     /** Co se smí poslat, když se smí psát. Viz [ContentAccess]. */
     val content: ContentAccess = ContentAccess.All,
 )
+
+/**
+ * Do jaké velikosti se GIF stáhne sám.
+ *
+ * GIFy z Telegramu bývají pod megabajt, ale limit serveru je mnohem výš. Bez stropu by
+ * autoplay stáhl bez ptaní i desetimegabajtový soubor — nad ním se proto čeká na ťuknutí.
+ */
+const val MAX_AUTOPLAY_ANIMATION_BYTES: Long = 5L * 1024 * 1024

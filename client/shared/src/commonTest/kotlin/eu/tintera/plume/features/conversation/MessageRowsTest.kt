@@ -3,6 +3,7 @@ package eu.tintera.plume.features.conversation
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.MAX_AUTOPLAY_ANIMATION_BYTES
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.features.conversation.items.albumRowSizes
 import kotlin.test.Test
@@ -178,10 +179,29 @@ class MessageRowsTest {
         thumbnailFileId = null,
     )
 
+    private fun animation(sizeBytes: Long = 400_000) = MessageMedia.Animation(
+        fileId = 1,
+        thumbnailFileId = null,
+        width = 480,
+        height = 480,
+        sizeBytes = sizeBytes,
+    )
+
     @Test
-    fun fotkaAVideoJdouNaPlochu() {
+    fun fotkaVideoAGifJdouNaPlochu() {
         assertTrue(showsBareMedia(message(id = 1, media = photo()), album = null))
         assertTrue(showsBareMedia(message(id = 1, media = video()), album = null))
+        // GIF je taky obrázek sám o sobě — bublina kolem něj nemá co ohraničovat.
+        assertTrue(showsBareMedia(message(id = 1, media = animation()), album = null))
+    }
+
+    @Test
+    fun velkyGifSeSamNestahuje() {
+        // Autoplay by bez ptaní snědl data; nad stropem se čeká na ťuknutí.
+        assertTrue(animation().autoPlays)
+        assertFalse(animation(sizeBytes = MAX_AUTOPLAY_ANIMATION_BYTES + 1).autoPlays)
+        // Neznámá velikost (nula od serveru) se taky nepouští sama — nevíme, co by se stáhlo.
+        assertFalse(animation(sizeBytes = 0).autoPlays)
     }
 
     @Test

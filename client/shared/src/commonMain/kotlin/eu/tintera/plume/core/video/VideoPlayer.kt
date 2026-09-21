@@ -13,7 +13,14 @@ import androidx.compose.ui.Modifier
  * v podobě, kterou by šlo sdílet. Volá se jen z hlavního vlákna.
  */
 expect class VideoPlayer {
-    fun load(path: String)
+    /**
+     * Načte soubor.
+     *
+     * [loop] dohrané video pustí znovu — pro GIF, který má běžet pořád dokola.
+     * [muted] ztlumí zvuk a **nesahá na zvukovou relaci systému**: GIF nemá co ztišit hudbu
+     * uživatele, kdežto puštěné video ano.
+     */
+    fun load(path: String, loop: Boolean = false, muted: Boolean = false)
 
     /** Pustí; u dohraného videa od začátku. */
     fun play()

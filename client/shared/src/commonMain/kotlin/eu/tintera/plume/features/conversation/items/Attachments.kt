@@ -236,6 +236,17 @@ internal fun MessageAttachment(
             ),
         )
         is MessageMedia.AnimatedEmoji -> AnimatedEmojiImage(media)
+        is MessageMedia.Animation -> BoxWithConstraints {
+            // Stejný rámeček jako fotka a video: GIF na výšku se zúží, místo aby přišel o kraje.
+            val frame = photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), fillWidth)
+            AnimationBubble(
+                animation = media,
+                shape = pictureShape,
+                onRequestMenu = onRequestMenu,
+                modifier = Modifier.size(frame),
+            )
+        }
+
         is MessageMedia.Video -> {
             val timers = koinInject<SelfDestructTimers>()
             val consumedIds by timers.consumedIds.collectAsState()
