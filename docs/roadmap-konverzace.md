@@ -215,10 +215,6 @@ Co z toho zůstalo nedodělané:
   Svislý pruh vlevo nejde udělat uvnitř jednoho `Text`; znamená to rozpad textu na bloky
   a `Column` místo jedné `Text` — samostatný kus práce.
 - **Náhled odkazu nad textem** (`showAboveText`) — náhled se zatím kreslí vždycky pod ním.
-- **Náhled odkazu s titulkem „null".** Server u některých odkazů (třeba `share.google/…`) posílá
-  titulek doslova jako řetězec „null" — `ifBlank { null }` v `linkPreview()` ho nechytí. Je to
-  vidět v bublině i v záložce Odkazy v profilu. Oprava patří do mapování v `core/telegram`
-  (zahodit titulek „null"), aby platila pro obě místa naráz.
 - **Vlastní emoji** (`TextEntityTypeCustomEmoji`) jsou samolepky uvnitř textu; patří k médiím.
 
 ## D) Otevření média — HOTOVO pro fotky, video a dokumenty

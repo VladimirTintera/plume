@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -50,11 +51,15 @@ import eu.tintera.plume.core.telegram.ProfileMember
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.asDayLabel
+import eu.tintera.plume.core.ui.photoKey
+import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.image_24dp
 import eu.tintera.plume.resources.language_24dp
 import eu.tintera.plume.resources.play_arrow_24dp
+import eu.tintera.plume.resources.shield_person_filled_24dp
+import eu.tintera.plume.resources.star_filled_24dp
 import eu.tintera.plume.resources.profile_role_admin
 import eu.tintera.plume.resources.profile_role_owner
 import eu.tintera.plume.resources.profile_shared_file_meta
@@ -126,6 +131,9 @@ private fun MediaTile(message: ChatMessage, shape: Shape, onOpen: () -> Unit) {
         Modifier
             .aspectRatio(1f)
             .clip(shape)
+            // Tentýž klíč jako fotka v bublině: prohlížeč z dlaždice vyroste a při zavření se
+            // do ní vrátí. Konverzace pod profilem v tu chvíli složená není, o klíč se nepřou.
+            .sharedNavElement(photoKey(message.id))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             .clickable(onClick = onOpen),
     ) {
@@ -358,8 +366,7 @@ internal fun ProfileMembersList(
                     )
                 },
                 trailingContent = when (member.role) {
-                    MemberRole.Owner -> { { MemberRoleLabel(stringResource(Res.string.profile_role_owner)) } }
-                    MemberRole.Admin -> { { MemberRoleLabel(stringResource(Res.string.profile_role_admin)) } }
+                    MemberRole.Owner, MemberRole.Admin -> { { MemberRoleLabel(member.role) } }
                     MemberRole.Member -> null
                 },
                 colors = rowColors(),
@@ -372,19 +379,35 @@ internal fun ProfileMembersList(
     }
 }
 
-/** Role jako tonální štítek — holé barevné slovo na konci řádku vypadalo jako odkaz. */
+/**
+ * Role jako tonální štítek — holé barevné slovo na konci řádku vypadalo jako odkaz.
+ *
+ * **Vlastník a správce se liší barvou I ikonou.** Vlastník je terciární s hvězdou, správce
+ * sekundární se štítem: se stejnou barvou se v dlouhém seznamu vlastník mezi správci ztrácel,
+ * a barva sama nestačí (barvoslepost, paleta se zvýšeným kontrastem) — proto i ikona.
+ */
 @Composable
-private fun MemberRoleLabel(text: String) {
-    Surface(
-        shape = RoundedCornerShape(percent = 50),
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-    ) {
-        Text(
-            text,
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-        )
+private fun MemberRoleLabel(role: MemberRole) {
+    val (container, content) = when (role) {
+        MemberRole.Owner -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+        else -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+    }
+    Surface(shape = RoundedCornerShape(percent = 50), color = container, contentColor = content) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.padding(start = 8.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
+        ) {
+            Icon(
+                painterResource(if (role == MemberRole.Owner) Res.drawable.star_filled_24dp else Res.drawable.shield_person_filled_24dp),
+                contentDescription = null,
+                modifier = Modifier.size(ROLE_ICON_SIZE),
+            )
+            Text(
+                stringResource(if (role == MemberRole.Owner) Res.string.profile_role_owner else Res.string.profile_role_admin),
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
     }
 }
 
@@ -461,6 +484,7 @@ internal val GROUP_ITEM_SPACING = 2.dp
 private val FILE_ICON_SIZE = 44.dp
 private val FILE_ICON_CORNER = 8.dp
 private val MEMBER_AVATAR_SIZE = 40.dp
+private val ROLE_ICON_SIZE = 14.dp
 
 /** Podklad symbolu přehrání na dlaždici videa — na světlé fotce by bílá ikona zanikla. */
 private const val VIDEO_BADGE_ALPHA = 0.55f

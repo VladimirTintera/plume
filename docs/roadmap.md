@@ -61,11 +61,6 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   - **Akce navíc**: opustit / smazat chat, zablokovat uživatele, sdílet kontakt, upravit skupinu
     (správce), pozvánka do skupiny.
   - **Seznam členů velké skupiny** se stránkováním a hledáním; dnes prvních 200.
-  - **Vzhled hlavičky**: avatar by se při sbalování plynule zmenšoval (dnes jen odjede nahoru pod
-    lištu) a dlaždice Ztlumit / Hledat by při stisku měnily tvar jako odesílací tlačítko
-    v konverzaci (`ShapeMorphs`). Pozor na pravidlo „tvar jen tam, kde se mění stav": ztlumení
-    stav mění, hledání ne.
-  - **Titulek „null" v záložce Odkazy** — viz `roadmap-konverzace.md`, „Náhled odkazu".
 - **Hledání.** ~~Chaty ve všech složkách (lokálně i na serveru), historie hledání a nejčastější
   lidé, totéž ve výběru pro přeposílání a sdílení~~ — hotovo (`ChatSearch`, poučení
   v `CLAUDE.md`, „Hledání chatů"). Zbývá, po krocích:
