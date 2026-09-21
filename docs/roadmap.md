@@ -157,8 +157,7 @@ Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení
   - **Ověřit kanály Skupiny, Kanály a Zmínky skutečnou zprávou** — na emulátoru prošla jen
     soukromá zpráva od bota; do skutečných skupin se testovací zprávy neposílají.
   - ~~**Upozornění jednoho chatu v profilu**~~ — hotovo (doba ztlumení, náhled, připnuté,
-    zmínky, obnovení, zvuk přes kanál konverzace). Zbývá totéž z nabídky chatu v seznamu
-    (dlouhý stisk umí jen ztlumit navždy / zapnout).
+    zmínky, obnovení, zvuk přes kanál konverzace) a doby ztlumení i v nabídce chatu v seznamu.
   - **Stories** (`muteStories`, `showStoryPoster`), až budou stories.
   - **Zvuk z Telegramu** (`notificationSoundId`) se nesynchronizuje. Šlo by to jen novým kanálem
     s verzí v id při každé změně (jako oficiální klient) — a tím zahodit, co si uživatel nastavil

@@ -1361,6 +1361,10 @@ Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečte
   hodnoty se musí přenést z aktuálního stavu chatu, jinak by se uživateli tiše přepsal třeba
   vlastní zvuk. `useDefaultMuteFor = false` je nutné: dokud je `true`, jede chat podle globálního
   nastavení a `muteFor` se ignoruje. Ztlumení „navždy" je `Int.MAX_VALUE` sekund.
+- **„Ztlumit" se v nabídce rozbalí na doby** (hodina, 8 hodin, 2 dny, navždy), přímo v sheetu,
+  ne v dalším — jsou to varianty jedné položky. Stejné doby jako v profilu chatu. Ztlumený chat
+  má jen „Zrušit ztlumení"; zapisuje výslovnou nulu, ne návrat k výchozímu (ten je v profilu),
+  takže projde i ztlumeným rozsahem.
 - **Stav se po akci nepřepisuje lokálně.** U reakcí v konverzaci to smysl dávalo (mezi ťuknutím
   a potvrzením je vidět prodleva), tady se položka jen přeskládá — a předběhnout server by
   znamenalo riskovat, že se seznam rozejde se skutečností. Potvrzení chodí updaty

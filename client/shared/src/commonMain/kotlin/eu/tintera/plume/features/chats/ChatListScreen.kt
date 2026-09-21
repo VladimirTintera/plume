@@ -584,7 +584,8 @@ internal fun ChatActionsHost(
         ChatActionsSheet(
             chat = chat,
             onTogglePinned = { viewModel.togglePinned(chat) },
-            onToggleMuted = { viewModel.toggleMuted(chat) },
+            onMute = { duration -> viewModel.mute(chat, duration) },
+            onUnmute = { viewModel.unmute(chat) },
             onToggleUnread = { viewModel.toggleUnread(chat) },
             // Uložené zprávy archivovat nejdou — TDLib by to odmítl.
             onToggleArchived = if (chat.id == savedMessagesChatId) null else {
