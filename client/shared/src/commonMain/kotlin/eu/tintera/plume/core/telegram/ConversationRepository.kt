@@ -790,6 +790,15 @@ sealed interface MessageMedia {
         val hasSpoiler: Boolean = false,
         val isSecret: Boolean = false,
         val selfDestructType: SelfDestructType? = null,
+        /**
+         * Video se dá přehrávat během stahování.
+         *
+         * Říká to server (`Video.supportsStreaming`) a znamená to, že **index je na začátku
+         * souboru** — bez něj přehrávač z rozestavěného souboru nepozná nic a musí se počkat
+         * na celý. Odesílatel to ovlivňuje tím, jak soubor uložil (viz `streamable`
+         * u odesílané přílohy).
+         */
+        val supportsStreaming: Boolean = false,
     ) : MessageMedia
 
     /**

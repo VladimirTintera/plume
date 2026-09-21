@@ -83,6 +83,27 @@ class TdlFileRepository(
         request(fileId)
     }
 
+    /**
+     * Přesune stahování na [offset]. Používá to streamování videa, když si přehrávač řekne
+     * o data mimo souvisle stažený úsek — typicky o `moov` atom na konci souboru.
+     *
+     * Volá se z vlákna přehrávače, takže nic nečeká na výsledek: nový stav dorazí updatem
+     * jako u běžného stahování. Opakované volání se stejným offsetem TDLib nevadí.
+     */
+    override suspend fun downloadFrom(fileId: Int, offset: Long) {
+        logger.d { "Stahování souboru $fileId se přesouvá na $offset" }
+        client.downloadFile(
+            fileId = fileId,
+            priority = DEFAULT_PRIORITY,
+            offset = offset,
+            // 0 = zbytek souboru od offsetu.
+            limit = 0,
+            synchronous = false,
+        )
+            .toResult()
+            .onFailure { failure -> logger.w { "downloadFile($fileId, offset=$offset) selhalo: ${failure.message}" } }
+    }
+
     private suspend fun request(fileId: Int) {
         val alreadyRequested = mutex.withLock { !requested.add(fileId) }
         if (alreadyRequested) return
@@ -144,7 +165,14 @@ class TdlFileRepository(
                 } else {
                     0f
                 }
-                FileState.Downloading(progress)
+                FileState.Downloading(
+                    progress = progress,
+                    // Rozestavěný soubor už na disku je; streamování z něj čte souvislý úsek.
+                    path = local.path.takeIf { it.isNotEmpty() },
+                    downloadOffset = local.downloadOffset,
+                    downloadedPrefixSize = local.downloadedPrefixSize,
+                    totalSize = total,
+                )
             }
 
             else -> FileState.Pending

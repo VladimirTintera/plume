@@ -32,6 +32,16 @@ interface FileRepository {
      * zůstal by stav viset a další ťuknutí by nic neudělalo — tohle je ta cesta ven.
      */
     suspend fun retryDownload(fileId: Int)
+
+    /**
+     * Přesune stahování na [offset] — pro streamování, když si přehrávač řekne o data, která
+     * ještě nedorazila.
+     *
+     * TDLib pak plní soubor od téhle pozice a `downloadedPrefixSize` se počítá **od ní**, ne od
+     * začátku souboru: dostupný úsek je `downloadOffset ..< downloadOffset + downloadedPrefixSize`.
+     * Typicky se tím skáče na konec pro `moov` atom (index bývá u videí na konci) a zpátky.
+     */
+    suspend fun downloadFrom(fileId: Int, offset: Long)
 }
 
 sealed interface FileState {
@@ -39,8 +49,24 @@ sealed interface FileState {
     /** Ještě se nezačalo stahovat, nebo čekáme na první update. */
     data object Pending : FileState
 
-    /** [progress] je 0f–1f; u souborů s neznámou velikostí zůstane na 0f. */
-    data class Downloading(val progress: Float) : FileState
+    /**
+     * [progress] je 0f–1f; u souborů s neznámou velikostí zůstane na 0f.
+     *
+     * [path] je rozestavěný soubor — cestu TDLib vyplňuje od začátku stahování, takže se z něj
+     * dá číst dřív, než je hotový. Čte se **jen po [downloadedPrefixSize]**: to je souvisle
+     * stažený úsek od začátku, za ním jsou v souboru díry. Na tom stojí streamování videa.
+     */
+    data class Downloading(
+        val progress: Float,
+        val path: String? = null,
+        val downloadOffset: Long = 0,
+        val downloadedPrefixSize: Long = 0,
+        val totalSize: Long = 0,
+    ) : FileState {
+        /** Úsek souboru, který je na disku souvisle k dispozici. */
+        val downloaded: LongRange
+            get() = downloadOffset until (downloadOffset + downloadedPrefixSize)
+    }
 
     /** [path] je absolutní cesta do adresáře TDLib. */
     data class Ready(val path: String) : FileState

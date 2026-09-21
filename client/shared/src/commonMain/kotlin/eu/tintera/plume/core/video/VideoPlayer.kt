@@ -22,6 +22,15 @@ expect class VideoPlayer {
      */
     fun load(path: String, loop: Boolean = false, muted: Boolean = false)
 
+    /**
+     * Načte soubor, který se ještě stahuje, a **čeká na data místo aby skončil**.
+     *
+     * Volá se jen tam, kde to platforma umí ([videoStreamingSupported]) a kde má video index na
+     * začátku (`MessageMedia.Video.supportsStreaming`) — jinak z rozestavěného souboru přehrávač
+     * nepozná nic.
+     */
+    fun loadStreaming(source: StreamingSource, loop: Boolean = false, muted: Boolean = false)
+
     /** Pustí; u dohraného videa od začátku. */
     fun play()
 
@@ -45,3 +54,32 @@ expect fun rememberVideoPlayer(): VideoPlayer
 /** Obraz přehrávače, vepsaný do plochy se zachovaným poměrem stran. Gesta nepřijímá. */
 @Composable
 expect fun VideoSurface(player: VideoPlayer, modifier: Modifier = Modifier)
+
+/**
+ * Rozestavěný soubor pro streamování.
+ *
+ * [path] je soubor TDLib, který na disku roste. Číst se z něj smí **jen uvnitř [downloaded]** —
+ * mimo ten úsek jsou díry: TDLib stahuje od `downloadOffset` a souvisle má jen
+ * `downloadedPrefixSize` bajtů.
+ *
+ * [requestFrom] přesune stahování jinam. **Bez toho streamování nestačí:** přehrávač si hned na
+ * začátku řekne o `moov` atom, a ten u většiny videí leží na KONCI souboru — příznak
+ * `supportsStreaming` od serveru říká jen to, co tvrdí odesílatel, ne kde index doopravdy je.
+ *
+ * Obě funkce se volají z vlákna přehrávače, ne z kompozice.
+ */
+class StreamingSource(
+    val path: String,
+    val totalSize: Long,
+    val downloaded: () -> LongRange,
+    val requestFrom: (Long) -> Unit,
+)
+
+/**
+ * Umí tahle platforma přehrát rozestavěný soubor?
+ *
+ * Android ano (vlastní `DataSource` nad souborem TDLib). iOS zatím ne — `AVPlayer` by chtěl
+ * `AVAssetResourceLoaderDelegate`, což je samostatný kus práce; tam se čeká na celý soubor
+ * jako dosud.
+ */
+expect val videoStreamingSupported: Boolean

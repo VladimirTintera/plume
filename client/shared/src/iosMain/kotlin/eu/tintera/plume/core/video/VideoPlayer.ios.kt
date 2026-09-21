@@ -80,6 +80,15 @@ actual class VideoPlayer {
         player.pause()
     }
 
+    /**
+     * iOS streamování zatím neumí ([videoStreamingSupported] je `false`), takže se sem volání
+     * nedostane. Kdyby se přesto dostalo, přehraje se, co je na disku — to je pořád lepší než
+     * pád, ale u rozestavěného souboru to skončí dřív.
+     */
+    actual fun loadStreaming(source: StreamingSource, loop: Boolean, muted: Boolean) {
+        load(source.path, loop = loop, muted = muted)
+    }
+
     actual fun play() {
         // Kategorie „přehrávání": zvuk videa hraje i s přepínačem ztlumení. U ztlumeného obsahu
         // se relace nepřepíná — GIF nemá co ztišit hudbu, která uživateli hraje.
@@ -162,3 +171,12 @@ private class PlayerLayerView(player: AVPlayer) : UIView(frame = CGRectMake(0.0,
 }
 
 private const val END_TOLERANCE_MS = 100L
+
+/**
+ * iOS zatím rozestavěný soubor přehrát neumí.
+ *
+ * `AVPlayer` by na to potřeboval `AVAssetResourceLoaderDelegate` — vlastní zdroj dat, který
+ * odpovídá na požadavky na rozsahy bajtů. Je to samostatný kus práce; do té doby se na iOS
+ * čeká na celý soubor jako dosud.
+ */
+actual val videoStreamingSupported: Boolean = false

@@ -359,6 +359,7 @@ internal suspend fun Message.messageMedia(): MessageMedia? = when (val content =
         hasSpoiler = content.hasSpoiler,
         isSecret = content.isSecret,
         selfDestructType = selfDestructType?.toSelfDestructType(),
+        supportsStreaming = content.video.supportsStreaming,
     )
 
     is MessageAnimation -> MessageMedia.Animation(
