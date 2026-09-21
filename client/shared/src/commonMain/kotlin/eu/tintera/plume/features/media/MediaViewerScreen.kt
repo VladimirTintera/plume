@@ -97,6 +97,7 @@ import eu.tintera.plume.core.files.rememberSavePermission
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SelfDestructType
 import eu.tintera.plume.core.ui.DarkSystemBars
+import eu.tintera.plume.core.ui.SecureScreen
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.features.conversation.items.SpoilerOverlay
 import eu.tintera.plume.features.conversation.items.rememberSpoilerBlurStyle
@@ -162,6 +163,8 @@ fun MediaViewerScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     // Podklad je tmavý v obou motivech, takže i ikony lišt musí být světlé.
     DarkSystemBars()
+    // Mizející médium se nesmí dát vyfotit — jinak by odpočet nic neznamenal.
+    SecureScreen(enabled = state.isSelfDestruct)
 
     /**
      * Svislé tažení zavírající prohlížeč.

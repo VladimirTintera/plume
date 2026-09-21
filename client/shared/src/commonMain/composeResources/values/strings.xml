@@ -180,6 +180,7 @@
     <string name="conversation_mention_not_found">Couldn't find that chat.</string>
     <string name="conversation_sticker_send_failed">Couldn't send the sticker.</string>
     <string name="conversation_attachments_limit">You can send at most %1$d attachments at once.</string>
+    <string name="conversation_self_destruct_album">Disappearing photos and videos can't be sent in an album — the attachments will be sent normally.</string>
     <string name="conversation_attachments_send_failed">Couldn't send the attachments.</string>
     <string name="conversation_send_failed">Couldn't send the message.</string>
     <string name="conversation_edit_failed">Couldn't edit the message.</string>

@@ -100,12 +100,17 @@ fun getAttachmentModeLabel(mode: AttachmentMode, isVideo: Boolean): String = whe
  * - Jednorázové zhlédnutí (View once)
  * - Časovač autodestrukce (5s, 10s, 15s, 30s)
  * - Odeslání jako soubor bez komprese (AsFile)
+ *
+ * [selfDestructAllowed] = `false` schová jednorázové zhlédnutí i časovač — mizet smí jen jediná
+ * příloha v soukromém chatu (pravidlo `selfDestructAllowed` v `StagedAttachments.kt`). Nabídnout
+ * je jinde by znamenalo chybu až po odeslání.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AttachmentModeSheet(
     currentMode: AttachmentMode,
     isVideo: Boolean,
+    selfDestructAllowed: Boolean,
     onSelectMode: (AttachmentMode) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -161,7 +166,12 @@ fun AttachmentModeSheet(
                     description = stringResource(Res.string.attachment_mode_spoiler_desc),
                     icon = Res.drawable.visibility_off_24dp,
                     selected = currentMode is AttachmentMode.Spoiler,
-                    shape = RoundedCornerShape(4.dp),
+                    // Bez mizejících médií je spoiler poslední položkou skupiny.
+                    shape = if (selfDestructAllowed) {
+                        RoundedCornerShape(4.dp)
+                    } else {
+                        RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
+                    },
                     onClick = {
                         onSelectMode(AttachmentMode.Spoiler)
                         onDismiss()
@@ -169,7 +179,7 @@ fun AttachmentModeSheet(
                 )
 
                 // 3. View Once
-                ModeOptionRow(
+                if (selfDestructAllowed) ModeOptionRow(
                     title = stringResource(Res.string.media_view_once),
                     description = stringResource(Res.string.attachment_mode_view_once_desc),
                     icon = Res.drawable.schedule_24dp,
@@ -184,7 +194,7 @@ fun AttachmentModeSheet(
                 // 4. Timer
                 val timerMode = currentMode as? AttachmentMode.Timer
                 val isTimerSelected = timerMode != null
-                Column(
+                if (selfDestructAllowed) Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp))

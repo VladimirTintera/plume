@@ -37,15 +37,19 @@ class SelfDestructTimers(
     val consumedIds: StateFlow<Set<Long>> = _consumedIds.asStateFlow()
 
     /**
-     * Spustí odpočet pro danou zprávu, pokud ještě neběží.
-     * Vrátí čas expirace v epoch sekundách.
+     * Spustí odpočet pro danou zprávu, nebo ho zkrátí, když [durationSeconds] končí dřív než
+     * běžící. Vrátí čas expirace v epoch sekundách.
+     *
+     * **Prodloužit odpočet nejde.** [durationSeconds] je zbývající čas od TDLib, a ten může být
+     * kratší než lokální odhad (odpočet začal na jiném zařízení); delší nikdy — obsah by pak byl
+     * vidět déle, než odesílatel dovolil.
      */
     fun startTimer(messageId: Long, durationSeconds: Int): Long {
-        val existing = _timerExpirations.value[messageId]
-        if (existing != null) return existing
-
         val now = Clock.System.now().epochSeconds
         val expiresAt = now + durationSeconds
+        val existing = _timerExpirations.value[messageId]
+        if (existing != null && existing <= expiresAt) return existing
+
         _timerExpirations.update { it + (messageId to expiresAt) }
 
         scope.launch {

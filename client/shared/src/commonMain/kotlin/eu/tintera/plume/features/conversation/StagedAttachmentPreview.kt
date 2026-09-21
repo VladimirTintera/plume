@@ -66,6 +66,7 @@ internal fun StagedAttachmentPreview(
     onDismiss: () -> Unit,
     onDelete: () -> Unit,
     onSetMode: (AttachmentMode) -> Unit,
+    selfDestructAllowed: Boolean,
     isOpen: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
@@ -101,6 +102,7 @@ internal fun StagedAttachmentPreview(
         AttachmentModeSheet(
             currentMode = mode,
             isVideo = isVideo,
+            selfDestructAllowed = selfDestructAllowed,
             onSelectMode = onSetMode,
             onDismiss = { showModeSheet = false },
         )

@@ -2845,6 +2845,33 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   jen pozici z layoutu, transformaci vrstvy ne.
 - **Náhled MPEG-4 se zahazuje** (`ThumbnailFormatMpeg4`) — není to obrázek a Coil ho neotevře.
 
+## Spoilery a mizející média
+
+Dva různé mechanismy TDLib. **Spoiler** (`hasSpoiler`) je jen rozmazání, fotka v historii zůstává
+a ťuknutí ji odkryje. **Mizející médium** (`selfDestructType`: jednorázové zhlédnutí nebo časovač)
+se otevírá rovnou na celou obrazovku bez listování a po zhlédnutí nebo odpočtu ho TDLib vymění
+za `MessageExpiredPhoto` / `MessageExpiredVideo`.
+
+- **Mizení se nabízí jen jedné příloze v soukromém chatu** (`selfDestructAllowed`
+  v `StagedAttachments.kt`, testy `StagedAttachmentsTest`). Jinde TDLib odpoví „Messages can
+  self-destruct only in private chats" (ověřeno `libtdjsonjava.so`) — a to až po odeslání.
+  Dokud to hlídané nebylo, výběr režimu nabízel časovač i ve skupině a v kanálu.
+- **Z alba mizení VIDITELNĚ zmizí** (`dropForbiddenSelfDestruct`, snackbar). Kdo k mizející
+  fotce přidá druhou, dostane album; tiché přepnutí až při odeslání by poslalo trvale fotku,
+  o které si odesílatel myslel, že zmizí.
+- **Zbývající čas je od TDLib, ne délka časovače** (`ChatMessage.selfDestructIn`, čte se po
+  `openMessageContent`). Odpočet běží od prvního otevření — i na jiném zařízení nebo před
+  restartem — a `SelfDestructTimers` drží jen paměť procesu. Začít znovu od plné délky by obsah
+  ukázalo déle, než odesílatel dovolil; proto `startTimer` odpočet umí zkrátit, prodloužit ne.
+- **Vlastní odeslané mizející médium se u odesílatele nespotřebovává.** Odpočet patří příjemci;
+  dokud se spouštěl i odesílateli, viděl u své zprávy „vypršelo", i když ji příjemce ještě
+  neotevřel — a po restartu zase fotku, protože se to pamatovalo jen v paměti.
+- **Prohlížeč s mizejícím médiem má `FLAG_SECURE`** (`SecureScreen`): snímek obrazovky vyjde
+  černý a obsah se neukáže ani v přehledu úloh. iOS snímky zakázat neumí, tam je `SecureScreen`
+  prázdné.
+- **Mizející média nejsou v listování prohlížeče** (`visualMedia` je vyřazuje), nemají v něm
+  reakce, sdílení ani uložení, a notifikace k nim nepřikládá obrázek — stejně jako ke spoileru.
+
 ## Typy zpráv
 
 TDLib má přes sto podtypů `MessageContent`. Vykreslit umíme hrstku; zbytek musí mít aspoň

@@ -55,6 +55,7 @@ import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_attachments_limit
+import eu.tintera.plume.resources.conversation_self_destruct_album
 import eu.tintera.plume.resources.conversation_attachments_send_failed
 import eu.tintera.plume.resources.conversation_cancel_send_failed
 import eu.tintera.plume.resources.conversation_delete_failed
@@ -829,10 +830,19 @@ class ConversationViewModel(
      */
     fun addAttachments(picked: List<OutgoingAttachment>) {
         val staged = stageAttachments(_state.value.attachments, picked)
+        // Z jedné mizející fotky se přidáním další stává album, a v něm mizení není dovolené.
+        val dropped = dropForbiddenSelfDestruct(
+            staged.attachments,
+            allowed = _state.value.canSelfDestruct(staged.attachments.size),
+        )
         _state.update {
             it.copy(
-                attachments = staged.attachments,
-                notice = if (staged.overflow) UiText(Res.string.conversation_attachments_limit, MAX_ATTACHMENTS) else it.notice,
+                attachments = dropped ?: staged.attachments,
+                notice = when {
+                    staged.overflow -> UiText(Res.string.conversation_attachments_limit, MAX_ATTACHMENTS)
+                    dropped != null -> UiText(Res.string.conversation_self_destruct_album)
+                    else -> it.notice
+                },
             )
         }
     }
@@ -863,6 +873,9 @@ class ConversationViewModel(
     }
 
     fun setAttachmentMode(index: Int, mode: AttachmentMode) {
+        val selfDestruct = mode is AttachmentMode.ViewOnce || mode is AttachmentMode.Timer
+        // Volba se nenabízí tam, kde neprojde; kdyby sem přesto došla, zpráva by skončila chybou.
+        if (selfDestruct && !_state.value.canSelfDestruct()) return
         _state.update { state ->
             val updated = state.attachments.mapIndexed { i, attachment ->
                 if (i == index) {
@@ -2345,6 +2358,13 @@ data class ConversationState(
     val window: Int = 0,
     val error: UiText? = null,
 ) {
+    /**
+     * Jestli se u připravené přílohy smí nabídnout mizení — pro [attachmentCount] příloh.
+     * Pravidlo je [selfDestructAllowed]; dokud hlavička chatu nedorazí, nesmí se nic.
+     */
+    fun canSelfDestruct(attachmentCount: Int = attachments.size): Boolean =
+        info != null && selfDestructAllowed(!info.isGroup, info.isSavedMessages, attachmentCount)
+
     /** Id všech načtených zpráv alba, do kterého zpráva patří; u samostatné zprávy jen ona. */
     fun albumMemberIds(messageId: Long): List<Long> {
         val album = messages.firstOrNull { it.id == messageId }?.mediaAlbumId ?: return listOf(messageId)

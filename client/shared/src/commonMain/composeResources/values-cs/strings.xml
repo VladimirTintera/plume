@@ -180,6 +180,7 @@
     <string name="conversation_mention_not_found">Tenhle chat se nepodařilo najít.</string>
     <string name="conversation_sticker_send_failed">Samolepku se nepodařilo odeslat.</string>
     <string name="conversation_attachments_limit">Najednou jde poslat nejvýš %1$d příloh.</string>
+    <string name="conversation_self_destruct_album">Mizející fotky a videa nejdou poslat v albu — přílohy odejdou normálně.</string>
     <string name="conversation_attachments_send_failed">Přílohy se nepodařilo odeslat.</string>
     <string name="conversation_send_failed">Zprávu se nepodařilo odeslat.</string>
     <string name="conversation_edit_failed">Zprávu se nepodařilo upravit.</string>

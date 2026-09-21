@@ -83,6 +83,9 @@ class MediaViewerViewModel(
      */
     private var single = false
 
+    /** Otevřené mizející médium poslal sám uživatel: žádný odpočet ani spotřebování. */
+    private var ownSelfDestruct = false
+
     /** Zprávy, u kterých se podrobnosti (reakce, práva) už načítají nebo načetly. */
     private val detailsRequested = mutableSetOf<Long>()
 
@@ -135,7 +138,9 @@ class MediaViewerViewModel(
 
         if (initialMessage != null && isSecret) {
             single = true
-            if (timers.isConsumed(messageId) || initialMessage.media == null) {
+            ownSelfDestruct = initialMessage.isOutgoing
+            // Vlastní odeslané médium se u odesílatele nespotřebovává — odpočet patří příjemci.
+            if ((!ownSelfDestruct && timers.isConsumed(messageId)) || initialMessage.media == null) {
                 _state.update { it.copy(closed = true, loading = false) }
                 return
             }
@@ -156,12 +161,22 @@ class MediaViewerViewModel(
                 )
             }
 
+            // Otevření vlastní zprávy nic nespouští: odpočet patří příjemci, a lokální odpočet by
+            // odesílateli ukázal „vypršelo", i když příjemce médium ještě neviděl.
+            if (ownSelfDestruct) return
+
             // Oznámit TDLib otevření obsahu — spustí serverový/lokální odpočet
             repository.openContent(chatId, messageId)
 
             if (selfDestructType is SelfDestructType.Timer) {
+                // Zbývající čas je od TDLib, ne délka časovače: odpočet mohl začít dřív (jiné
+                // zařízení, otevření před restartem). Po `openContent` ho TDLib už zná; dokud ne,
+                // platí hodnota z doby načtení a teprve pak plná délka.
+                val remaining = repository.message(chatId, messageId).getOrNull()?.selfDestructIn
+                    ?: initialMessage.selfDestructIn
+                    ?: selfDestructType.seconds
                 viewModelScope.launch {
-                    timers.observeRemainingSeconds(messageId, selfDestructType.seconds)
+                    timers.observeRemainingSeconds(messageId, remaining)
                         .collect { remaining ->
                             _state.update { it.copy(remainingSeconds = remaining) }
                             if (remaining <= 0) {
@@ -465,7 +480,7 @@ class MediaViewerViewModel(
 
     /** Uživatel zavírá prohlížeč (gestem, křížkem, tlačítkem Zpět). */
     fun onDismiss() {
-        if (_state.value.isSelfDestruct) {
+        if (_state.value.isSelfDestruct && !ownSelfDestruct) {
             val type = _state.value.selfDestructType
             val remaining = _state.value.remainingSeconds ?: timers.remainingSeconds(messageId)
             if (type is SelfDestructType.Immediately || type == null || (remaining != null && remaining <= 0)) {
