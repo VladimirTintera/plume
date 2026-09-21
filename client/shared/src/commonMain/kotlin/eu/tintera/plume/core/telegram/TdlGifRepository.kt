@@ -111,4 +111,5 @@ internal fun Animation.toMedia() = MessageMedia.Animation(
     height = height,
     // `expectedSize` je známá i před stažením; `size` je nula, dokud soubor nedorazí.
     sizeBytes = animation.expectedSize,
+    minithumbnail = minithumbnail?.toDomain(),
 )

@@ -81,6 +81,7 @@ internal fun AnimationBubble(
         animation.thumbnailFileId?.let { thumbnail ->
             RemoteImage(
                 fileId = thumbnail,
+                placeholder = animation.minithumbnail,
                 contentDescription = stringResource(Res.string.content_gif),
                 modifier = Modifier.fillMaxSize(),
             )

@@ -96,6 +96,7 @@ internal fun LinkPreviewCard(
                     RemoteImage(
                         fileId = photo.fileId,
                         thumbnailFileId = photo.thumbnailFileId,
+                        placeholder = photo.minithumbnail,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -118,6 +119,7 @@ internal fun LinkPreviewCard(
                     RemoteImage(
                         fileId = photo.fileId,
                         thumbnailFileId = photo.thumbnailFileId,
+                        placeholder = photo.minithumbnail,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier

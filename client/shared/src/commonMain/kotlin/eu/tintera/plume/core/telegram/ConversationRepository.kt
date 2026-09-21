@@ -598,6 +598,24 @@ data class LinkPreview(
 )
 
 /**
+ * Rozmazaný náhled obrázku, který přišel rovnou se zprávou (`minithumbnail` v TDLib).
+ *
+ * Malý JPEG, zhruba 40 px na delší straně, přímo v datech zprávy — nic se nestahuje, takže je
+ * k dispozici v prvním snímku, dřív než jakýkoli soubor. Místo šedé plochy ukáže barvy a obrys
+ * snímku, než dorazí náhled nebo ostrá verze.
+ *
+ * **Není to data class kvůli `equals`.** `ByteArray` se v data class porovnává podle
+ * reference, takže by každé nové namapování téže zprávy vypadalo jako změna a seznam by
+ * přestal přeskakovat nezměněné položky.
+ */
+class Minithumbnail(val jpeg: ByteArray, val width: Int, val height: Int) {
+    override fun equals(other: Any?) = other is Minithumbnail &&
+        width == other.width && height == other.height && jpeg.contentEquals(other.jpeg)
+
+    override fun hashCode() = 31 * (31 * width + height) + jpeg.contentHashCode()
+}
+
+/**
  * Reakce u zprávy.
  *
  * Zatím jen **standardní emoji**. Telegram umí i vlastní (placená) emoji, ta jsou ale samolepky —
@@ -803,6 +821,7 @@ sealed interface MessageMedia {
         val hasSpoiler: Boolean = false,
         val isSecret: Boolean = false,
         val selfDestructType: SelfDestructType? = null,
+        val minithumbnail: Minithumbnail? = null,
     ) : MessageMedia
 
     /**
@@ -829,6 +848,7 @@ sealed interface MessageMedia {
          * u odesílané přílohy).
          */
         val supportsStreaming: Boolean = false,
+        val minithumbnail: Minithumbnail? = null,
     ) : MessageMedia
 
     /**
@@ -847,6 +867,7 @@ sealed interface MessageMedia {
         val width: Int,
         val height: Int,
         val sizeBytes: Long,
+        val minithumbnail: Minithumbnail? = null,
     ) : MessageMedia {
         /** Pustí se samo, nebo až na ťuknutí. */
         val autoPlays: Boolean get() = sizeBytes in 1..MAX_AUTOPLAY_ANIMATION_BYTES

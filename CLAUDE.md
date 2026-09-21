@@ -4008,6 +4008,19 @@ cesta je známá až po stažení a průběh chodí updaty. Překlad do jednoho 
   snímkem bez obrázku. U sdíleného prvku ze seznamu do konverzace to bylo vidět: avatar odletěl jako
   prázdný kruh a obrázek naskočil až na místě. Mapa se čte i zapisuje jen z kompozice, takže
   nepotřebuje zámek.
+- **Indikátor načítání obrázku roste s plochou** (`loadingIndicatorSize` v `RemoteImage`):
+  `ContainedLoadingIndicator`, 30 % kratší strany, nejvýš 64 dp; pod 24 dp (malé avatary) se
+  nekreslí. Pevných 24 dp bez kontejneru uprostřed velké fotky vypadalo jako chyba vykreslení,
+  ne načítání. Vzhled se ověřuje podstrčeným stavem (`Crossfade` s `null` a podmínka `true`).
+- **Než dorazí jakýkoli soubor, kreslí se rozmazaný náhled ze zprávy** (`Minithumbnail`,
+  parametr `placeholder` u `RemoteImage`). TDLib ho posílá přímo v datech fotky, videa, GIFu
+  a dokumentu (JPEG kolem 40 px), takže je vidět v prvním snímku, bez stahování.
+- **`Minithumbnail` není data class.** `ByteArray` se v data class porovnává podle reference;
+  každé nové namapování téže zprávy by vypadalo jako změna a seznam by přestal přeskakovat
+  nezměněné položky. `equals` proto porovnává obsah.
+- **Rozmazává `Modifier.blur`, ne Haze.** Obojí umí vlastní obsah na Androidu 12+ i na iOS, ale
+  na starším Androidu Haze kreslí místo rozostření tónovanou plochu, kdežto `blur` se jen vypne
+  a zbude bilineárně zvětšený 40px náhled, který rozmazaně vypadá sám.
 - **`FileRepository` je eager** (`createdAtStart`) ze stejného důvodu jako seznam chatů — v
   konstruktoru se přihlašuje k `fileUpdates`.
 
