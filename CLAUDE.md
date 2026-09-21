@@ -2966,6 +2966,19 @@ z výběru; statický obrázek a samolepka z klávesnice čekají nad polem jako
   nemá a průhledné pixely z něj vyšly černé — samolepka z Gboardu odcházela na černém čtverci.
   Týkalo se to i PNG z výběru příloh.
 - **iOS nic nedeklaruje**: tamní klávesnice GIFy do pole nevkládají, jdou přes schránku.
+- **Obrázek a GIF ze schránky vkládá vlastní položka kontextové nabídky pole** („Vložit GIF" /
+  „Vložit obrázek", `appendTextContextMenuComponents`). Systémové „Vložit" v poli umí jen text
+  a s obrázkem ve schránce se ani neukáže. Položka je jen tehdy, když schránka nese typ, který chat
+  přijme; rozhoduje `primaryClipDescription`, který se čte při otevření nabídky — popis systém
+  jako čtení schránky nehlásí, obsah (`primaryClip`) se bere až po ťuknutí. Dál stejná cesta
+  jako obsah z klávesnice (`prepare`): GIF odchází hned, obrázek čeká nad polem.
+- **Funguje to jen s NOVOU kontextovou nabídkou** (`ComposeFoundationFlags.isNewContextMenuEnabled`,
+  na Androidu v 1.12 výchozí). Staré `TextToolbar` vlastní položky nebere.
+- **Obrázek do schránky emulátoru z `adb` nedostaneš** — `cmd clipboard` neexistuje a Chrome
+  i Fotky chtějí nejdřív projít úvodním souhlasem. Ověřuje se podstrčením: dočasně v debug buildu
+  `setPrimaryClip(ClipData.newUri(…))` s GIFem v `cache/shared` (vydává ho provider `…documents`;
+  soubor se tam dostane `adb push` do `/data/local/tmp` a `run-as … cp`). Pozor: po zápisu ukáže
+  Android vlevo dole náhled schránky a dlouhý stisk v tom místě otevře systémové sdílení, ne pole.
 
 ### Video
 

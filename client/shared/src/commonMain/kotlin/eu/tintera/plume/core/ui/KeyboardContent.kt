@@ -15,6 +15,8 @@ sealed interface KeyboardContent {
 
 /**
  * Řekne klávesnici, že pole v [content] přijme obrázky a GIFy, a vložený obsah připraví k odeslání.
+ * Totéž platí pro obrázek nebo GIF ve schránce: kontextová nabídka pole dostane položku
+ * „Vložit GIF / obrázek" (systémové „Vložit" umí jen text).
  *
  * Bez toho Gboard u GIFu hlásí „tato aplikace nepodporuje animované GIFy": co pole přijme, čte
  * z `EditorInfo.contentMimeTypes` a to naše pole nevyplňovalo. `Modifier.contentReceiver` z Compose
