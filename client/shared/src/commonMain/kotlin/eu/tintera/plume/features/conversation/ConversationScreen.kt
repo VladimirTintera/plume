@@ -481,6 +481,7 @@ fun ConversationScreen(
         state.search?.current,
         state.flight,
         state.messageMenu,
+        state.typing,
     ) { conversationItems(state) }
 
     // Klíč položky není u odeslaných zpráv jejich id (viz `ConversationState.itemKeys`), takže
@@ -626,6 +627,18 @@ fun ConversationScreen(
             anchor.id = newest.id
         }
         anchor.live = state.reachedEnd
+    }
+
+    /*
+     * „Píše…" se vkládá pod nejnovější zprávu, a seznam drží pozici podle první viditelné
+     * položky — tou je zpráva, takže by se indikátor vložil POD spodní hranu a nebyl by vidět.
+     * Kdo je dole, tomu se seznam ukotví i s ním; kdo čte historii, toho nevytrhne.
+     */
+    val typingShown = state.typing != null && state.reachedEnd
+    val typingAnchor = remember { booleanArrayOf(false) }
+    if (typingShown != typingAnchor[0]) {
+        if (typingShown && atBottom) listState.requestScrollToItem(0)
+        typingAnchor[0] = typingShown
     }
 
     val newestMessageId = newest?.id
@@ -788,20 +801,18 @@ fun ConversationScreen(
                             )
 
                             /*
-                             * Podtitul: stav spojení, jinak činnost, jinak dostupnost.
+                             * Podtitul: stav spojení, jinak dostupnost.
                              *
-                             * Nepřipojený klient je nade vším: dokud spojení nestojí, je „píše…"
-                             * i „naposledy viděn" jen stará hodnota, kterou nemá co obnovit —
-                             * ukázat ji místo vysvětlení, proč nic nechodí, by bylo zavádějící.
-                             * Mezi zbylými dvěma má přednost „píše…": je to novější a pro
-                             * čekajícího zajímavější informace, a obojí se na řádek nevejde.
+                             * Nepřipojený klient je nade vším: dokud spojení nestojí, je „naposledy
+                             * viděn" jen stará hodnota, kterou nemá co obnovit — ukázat ji místo
+                             * vysvětlení, proč nic nechodí, by bylo zavádějící.
                              *
-                             * Skupina dostupnost nemá, takže tam se podtitul objeví jen při
-                             * činnosti; výšku hlavičky proto animuje `AnimatedContent`, jinak by
-                             * název poskočil.
+                             * „Píše…" tu NENÍ: kreslí se v seznamu zpráv tam, kam zpráva naskočí
+                             * (`TypingItem`), jako v Google Zprávách. Skupina dostupnost nemá,
+                             * takže se podtitul objeví jen bez spojení; výšku hlavičky proto
+                             * animuje `AnimatedContent`, jinak by název poskočil.
                              */
                             val subtitle = connection.label()?.let { HeaderSubtitle(stringResource(it), accent = false) }
-                                ?: state.activity?.let { HeaderSubtitle(stringResource(it.label()), accent = true) }
                                 // Vlastní dostupnost v Uložených zprávách nic neříká — byl bys
                                 // pořád „online", protože se na ně právě díváš.
                                 ?: state.presence?.takeUnless { state.info?.isSavedMessages == true }?.let {

@@ -721,8 +721,8 @@ chodit. Dokud se nesledovalo, vypadala nepřipojená aplikace úplně normálně
 - **`Ready` se nehlásí.** V tom stavu aplikace stráví skoro celou dobu; „připojeno" je šum, zatímco
   „nepřipojeno" je jediná informace, která uživateli vysvětlí, proč mu nic nechodí. Proto
   `ConnectionState.label()` vrací u `Ready` `null`.
-- **V hlavičce konverzace má stav spojení přednost před „píše…" i dostupností.** Dokud spojení
-  nestojí, jsou obě jen staré hodnoty, které nemá co obnovit.
+- **V hlavičce konverzace má stav spojení přednost před dostupností.** Dokud spojení nestojí,
+  je dostupnost jen stará hodnota, kterou nemá co obnovit. „Píše…" v hlavičce není, viz níž.
 - **Ověřuje se to bez dozu** — chování je stejné: odejít z aplikace a vrátit se (v logu musí být
   „Návrat do popředí, obnovuji spojení"), zapnout a vypnout letový režim (`adb shell cmd
   connectivity airplane-mode enable`), otočit displej (v logu nesmí být NIC).
@@ -1891,14 +1891,30 @@ Ztlumit / Zapnout zvuk, omezená skupina a chat, ve kterém uživatel není, vě
 
 ### „Píše…" v konverzaci
 
-Hlavička ukazuje činnost protějšku (ve skupině kohokoli) místo dostupnosti a protějšek naopak
-vidí, že píšeme my.
+Činnost protějšku (ve skupině kohokoli) se kreslí **v seznamu zpráv tam, kam zpráva naskočí**:
+tvář toho, kdo píše, a skákající trojtečka (`TypingItem`), jako v Google Zprávách. Protějšek
+naopak vidí, že píšeme my.
 
+- **Bez bubliny.** Je to informace o dění v chatu, ne zpráva — patří mezi předěly a servisní
+  oznámení, které se kreslí holé na ploše. Bublina by tvrdila, že už něco přišlo.
+- **V hlavičce není.** Tam zůstává dostupnost; „píše…" ji dřív vytlačovalo a od místa, kde
+  zpráva přijde, bylo daleko.
 - **Činnost se bere ze `ChatRepository`, ne z vlastního odběru.** Seznam chatů ji už sleduje
   i s odpočtem zhasnutí a odfiltrováním vlastní činnosti; druhá kopie téže logiky by se s ní
-  rozešla. Čte se přes `ChatRepository.activity(chatId)`, které nezáleží na složce — viz „Archiv".
-- **Činnost má v podtitulu přednost před dostupností** a výšku hlavičky animuje
-  `AnimatedContent` — skupina podtitul jinak nemá a název by při „píše…" poskočil.
+  rozešla. `ChatRepository.typing(chatId)` nese i KDO (`ChatTyping.senderId`) — `ChatSummary`
+  drží jen druh, seznamu chatů stačí. Tvář dohledá `ConversationRepository.sender` z keše
+  odesílatelů; v soukromém chatu je to tvář chatu.
+- **Ve skupině lícuje s bublinami** (tvář 32 dp ve slotu 40 dp jako u zpráv), v soukromém chatu je
+  tvář jen malá ikonka (24 dp) — zprávy tam tvář nemají. Nezjištěný odesílatel ve skupině nechá
+  prázdné místo, ne tvář skupiny: ta by tvrdila, že píše skupina.
+- **Stojí pod nejnovější zprávou a nad reklamou**, jen když okno sahá k přítomnosti (`reachedEnd`)
+  a ne v kanálu. Klíč je jeden (`TYPING_KEY`), výměna píšícího je jen překreslení.
+- **Při objevení se seznam ukotví dolů** (`requestScrollToItem(0)`), když je uživatel dole —
+  seznam drží pozici podle první viditelné položky (nejnovější zprávy), takže by se indikátor
+  vložil pod spodní hranu. Kdo čte historii, toho nevytrhne.
+- **Trojtečka stačí jen u psaní.** Ostatní činnosti (nahrává hlasovku, vybírá samolepku) doplní
+  slovy vedle teček. Tečky skáčou jen v části periody (`dotLift`, testy `ConversationItemsTest`),
+  zbytek stojí — bez pauzy by vlnily neklidně. Fáze se čte až v `graphicsLayer`.
 - **Vlastní „píšu" se opakuje nejvýš jednou za 5 s** (`TYPING_REPEAT`). Server činnost zhasíná
   asi po šesti vteřinách; posílat ji na každý úhoz by byl dotaz na znak.
 - **Vymazání textu psaní výslovně ukončí** (`ChatActionCancel`), odeslání ne — to ukončí server

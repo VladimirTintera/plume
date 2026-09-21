@@ -22,10 +22,10 @@ interface ChatRepository {
     fun chats(folder: ChatFolder = ChatFolder.Main): StateFlow<ChatListState>
 
     /**
-     * Co se v chatu zrovna děje („píše…"), bez ohledu na to, ve které složce chat je — i v chatu,
-     * který není v žádné (otevřený z notifikace, z odkazu). `null`, když nic.
+     * Co se v chatu zrovna děje („píše…") a kdo to dělá, bez ohledu na to, ve které složce chat
+     * je — i v chatu, který není v žádné (otevřený z notifikace, z odkazu). `null`, když nic.
      */
-    fun activity(chatId: Long): Flow<ChatActivity?>
+    fun typing(chatId: Long): Flow<ChatTyping?>
 
     /**
      * Id chatu Uložené zprávy; `null`, dokud není přihlášeno.
@@ -259,6 +259,12 @@ sealed interface Presence {
 
     data object LastMonth : Presence
 }
+
+/**
+ * Činnost v chatu i s tím, kdo ji dělá. [senderId] je id uživatele, u anonymního správce nebo
+ * kanálu id chatu — ve skupině podle něj konverzace kreslí tvář toho, kdo píše.
+ */
+data class ChatTyping(val activity: ChatActivity, val senderId: Long)
 
 /**
  * Činnost v chatu („píše…").

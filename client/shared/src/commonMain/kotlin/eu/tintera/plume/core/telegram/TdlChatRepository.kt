@@ -35,6 +35,7 @@ import dev.g000sha256.tdl.dto.ChatActionUploadingVoiceNote
 import dev.g000sha256.tdl.dto.ChatTypeSecret
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
+import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.TopChatCategoryUsers
 import dev.g000sha256.tdl.dto.UserStatus
@@ -50,8 +51,10 @@ import kotlin.time.Duration
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -102,13 +105,24 @@ class TdlChatRepository(
         MutableStateFlow<ChatListState>(ChatListState.Loading)
     }
 
-    /** Všechny známé chaty — pro [activity], které na složce nezáleží. */
+    /** Všechny známé chaty — pro [typing], které na složce nezáleží. */
     private val all = MutableStateFlow<Map<Long, ChatSummary>>(emptyMap())
+
+    /**
+     * Kdo v chatu naposledy ohlásil činnost. `ChatSummary` nese jen DRUH činnosti (seznamu
+     * chatů stačí „píše…"); konverzace ve skupině potřebuje i tvář. Zhasíná se spolu s činností
+     * v [all], takže tu stará hodnota může zůstat — bez činnosti se nečte.
+     */
+    private val activitySenders = MutableStateFlow<Map<Long, Long>>(emptyMap())
 
     override fun chats(folder: ChatFolder): StateFlow<ChatListState> = lists.getValue(folder).asStateFlow()
 
-    override fun activity(chatId: Long): Flow<ChatActivity?> =
-        all.map { it[chatId]?.activity }.distinctUntilChanged()
+    override fun typing(chatId: Long): Flow<ChatTyping?> =
+        combine(
+            all.map { it[chatId]?.activity }.distinctUntilChanged(),
+            activitySenders.map { it[chatId] }.distinctUntilChanged(),
+        ) { activity, sender -> if (activity != null && sender != null) ChatTyping(activity, sender) else null }
+            .distinctUntilChanged()
 
     /** Složky, u kterých TDLib ohlásil, že další chaty už nejsou. */
     private val exhausted = mutableSetOf<ChatFolder>()
@@ -253,6 +267,13 @@ class TdlChatRepository(
                 val fromMe = (update.senderId as? MessageSenderUser)?.userId == myUserId
                 val activity = if (fromMe) null else update.action.toActivity()
 
+                if (activity != null) {
+                    val sender = when (val id = update.senderId) {
+                        is MessageSenderUser -> id.userId
+                        is MessageSenderChat -> id.chatId
+                    }
+                    activitySenders.update { it + (update.chatId to sender) }
+                }
                 edit(update.chatId) { it.copy(activity = activity) }
 
                 if (activity != null) scheduleActivityExpiry(update.chatId, activity)
@@ -725,6 +746,7 @@ class TdlChatRepository(
         }
         me.value = null
         all.value = emptyMap()
+        activitySenders.value = emptyMap()
         lists.values.forEach { it.value = ChatListState.Loading }
     }
 

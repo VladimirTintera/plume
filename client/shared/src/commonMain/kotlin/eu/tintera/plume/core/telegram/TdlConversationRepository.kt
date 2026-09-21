@@ -1128,6 +1128,10 @@ class TdlConversationRepository(
         return Result.success(details)
     }
 
+    override suspend fun sender(senderId: Long): Result<SenderInfo> =
+        resolveSender(senderId)?.let { Result.success(it) }
+            ?: Result.failure(IllegalStateException("Odesílatel $senderId není známý"))
+
     override suspend fun searchMembers(chatId: Long, query: String): Result<List<SenderInfo>> =
         client.searchChatMembers(chatId = chatId, query = query, limit = MEMBER_SEARCH_LIMIT, filter = null)
             .toResult()
