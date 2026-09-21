@@ -2428,6 +2428,14 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   mazání ne.
 - **Kopírování se řídí `canBeSaved`.** Kanál si může obsah chránit; pak se z něj nesmí vynášet
   ani text do schránky.
+- **Výběr části textu je SHEET z nabídky, ne výběr v bublině** (`SelectTextSheet`).
+  `SelectionContainer` zahajuje výběr dlouhým stiskem, a ten v konverzaci už patří nabídce nad
+  zprávou; kdyby se o gesto dělily, jedna by přestala fungovat — a nabídka je ta častější.
+  Text v sheetu je holý (`copyableText`), ne `RichText`: odkazy mají vlastní klikání a se
+  `SelectionContainer` by se o gesta praly. Kopírování obstará systémová nabídka nad výběrem,
+  vlastní tlačítko by jen zdvojovalo, co platforma umí sama.
+- **„Vybrat text" stojí na stejném právu jako „Kopírovat"** (`canCopy`). Chráněný obsah nesmí
+  ven ani po kouskách a bez textu není co vybírat; obojí hlídá test.
 - **Schránka je vlastní `expect`/`actual`, ne Compose API.** `LocalClipboardManager` je zastaralý
   a jeho náhrada pracuje s `ClipEntry`, což je `expect class` bez společné továrny na text —
   v commonMain se prostě nedá vyrobit.
