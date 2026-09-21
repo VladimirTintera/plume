@@ -40,7 +40,16 @@ data class ChatProfile(
 
 enum class ProfileKind { User, Bot, SavedMessages, Group, Channel }
 
-data class ProfileMember(val sender: SenderInfo, val role: MemberRole)
+data class ProfileMember(
+    val sender: SenderInfo,
+    val role: MemberRole,
+    /**
+     * Štítek člena ve skupině (`ChatMember.tag`), třeba „Moderátor". Dřív ho směl mít jen správce
+     * jako „custom title"; novější TDLib ho nese u každého člena. Prázdný od serveru → `null`.
+     */
+    val tag: String? = null,
+    val isBot: Boolean = false,
+)
 
 enum class MemberRole { Owner, Admin, Member }
 
