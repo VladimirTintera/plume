@@ -294,8 +294,8 @@ a scrollování" u duplicitního klíče po potvrzení odeslání).
   sponka, výběr samolepek a mikrofon by se měly řídit `ChatPermissions.canSendPhotos` atd.
 - ~~**Pruh připnutých podle scrollu.**~~ — hotovo (`pinnedForScroll`; `CLAUDE.md`, „Připnuté
   zprávy"). Skok z pruhu kotví nahoru, takže procházení jde krok za krokem.
-- **Označení části textu.** Kopíruje se jen celá zpráva z nabídky; vybrat úryvek
-  (`SelectionContainer`) zatím nejde.
+- ~~**Označení části textu.**~~ — hotovo („Vybrat text" v nabídce otevře sheet s textem;
+  `CLAUDE.md`, „Nabídka nad zprávou").
 
 ---
 

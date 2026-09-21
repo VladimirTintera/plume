@@ -182,7 +182,10 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageM
     add(MessageMenuAction.Reply)
     if (message.isEditableAsPlainText()) add(MessageMenuAction.Edit)
     // Bez textu není co kopírovat, i kdyby to server dovolil.
-    if (message.copyableText().isNotBlank()) add(MessageMenuAction.Copy)
+    if (message.copyableText().isNotBlank()) {
+        add(MessageMenuAction.Copy)
+        add(MessageMenuAction.SelectText)
+    }
     if (message.media is MessageMedia.Sticker) add(MessageMenuAction.ToggleFavoriteSticker)
     add(MessageMenuAction.Forward)
     // Soubor, který není obrázek ani video, se do prohlížeče nedostane; ven jde odsud.

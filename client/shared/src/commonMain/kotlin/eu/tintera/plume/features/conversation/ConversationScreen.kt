@@ -999,6 +999,10 @@ fun ConversationScreen(
             )
         }
 
+        state.selectingText?.let { message ->
+            SelectTextSheet(message = message, onDismiss = viewModel::dismissTextSelection)
+        }
+
         state.reactionDetails?.let { details ->
             ReactionDetailsSheet(details = details, onDismiss = viewModel::dismissReactionDetails)
         }

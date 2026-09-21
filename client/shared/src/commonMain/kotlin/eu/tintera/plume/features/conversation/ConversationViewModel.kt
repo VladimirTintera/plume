@@ -1463,6 +1463,22 @@ class ConversationViewModel(
      * `canGetViewers`, `canGetLink`), takže ptát se dopředu by znamenalo tři dotazy na každou
      * zprávu v historii kvůli sheetu, který se otevře jednou za čas.
      */
+    /**
+     * Otevře text zprávy k výběru úryvku.
+     *
+     * Nabídku to ukončí, jako „Informace" — je to jednorázová akce, která si otevře vlastní
+     * sheet. Text se bere týž, co by šel do schránky ([copyableText]), takže se výběr nabízí
+     * přesně nad tím, co zpráva opravdu nese.
+     */
+    private fun selectText(messageId: Long) {
+        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+        _state.update { it.copy(messageMenu = null, selectingText = message) }
+    }
+
+    fun dismissTextSelection() {
+        _state.update { it.copy(selectingText = null) }
+    }
+
     private fun showMessageInfo(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         _state.update { it.copy(messageMenu = null, messageInfo = MessageInfoSheet(message = message)) }
@@ -1592,6 +1608,7 @@ class ConversationViewModel(
             MessageMenuAction.ToggleFavoriteSticker -> toggleFavoriteSticker(messageId)
             MessageMenuAction.Forward -> requestForward(messageId)
             MessageMenuAction.Info -> showMessageInfo(messageId)
+            MessageMenuAction.SelectText -> selectText(messageId)
             MessageMenuAction.Pin -> requestPin(messageId)
             MessageMenuAction.Unpin -> unpinFromMenu(messageId)
             MessageMenuAction.Delete -> requestDelete(messageId)
@@ -2315,6 +2332,8 @@ private const val MAX_QUICK_REACTIONS = 6
 
 data class ConversationState(
     val info: ChatInfo? = null,
+    /** Zpráva otevřená k výběru úryvku textu; `null` = sheet je zavřený. */
+    val selectingText: ChatMessage? = null,
     /** Dostupnost protějšku pro podtitul hlavičky. `null` u skupin a kanálů. */
     val presence: Presence? = null,
     /** Co protějšek (ve skupině kdokoli) právě dělá. Má v hlavičce přednost před dostupností. */
