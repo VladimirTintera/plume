@@ -15,12 +15,15 @@ import dev.g000sha256.tdl.dto.ChatMemberStatusCreator
 import dev.g000sha256.tdl.dto.ChatMemberStatusLeft
 import dev.g000sha256.tdl.dto.ChatMemberStatusMember
 import dev.g000sha256.tdl.dto.ChatMemberStatusRestricted
+import dev.g000sha256.tdl.dto.ChatPermissions
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
 import dev.g000sha256.tdl.dto.FormattedText
+import dev.g000sha256.tdl.dto.InputAnimation
 import dev.g000sha256.tdl.dto.InputDocument
 import dev.g000sha256.tdl.dto.InputFileId
 import dev.g000sha256.tdl.dto.InputFileLocal
+import dev.g000sha256.tdl.dto.InputMessageAnimation
 import dev.g000sha256.tdl.dto.InputMessageContent
 import dev.g000sha256.tdl.dto.InputMessageDocument
 import dev.g000sha256.tdl.dto.InputMessagePhoto
@@ -54,13 +57,17 @@ import dev.g000sha256.tdl.dto.MessageSendingStatePending
 import dev.g000sha256.tdl.dto.MessageSourceChatHistory
 import dev.g000sha256.tdl.dto.MessageText
 import dev.g000sha256.tdl.dto.ReactionTypeEmoji
+import dev.g000sha256.tdl.dto.SearchMessagesFilter
+import dev.g000sha256.tdl.dto.SearchMessagesFilterDocument
 import dev.g000sha256.tdl.dto.SearchMessagesFilterPhotoAndVideo
+import dev.g000sha256.tdl.dto.SearchMessagesFilterUrl
 import dev.g000sha256.tdl.dto.SearchMessagesFilterPinned
 import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.toResult
 import kotlin.time.Clock
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
@@ -411,6 +418,66 @@ class TdlConversationRepository(
         return Result.success(PhotoPosition(number, total).takeIf { fromNewest > 0 && number in 1..total })
     }
 
+    /**
+     * Sdílený obsah profilu: hledání s filtrem, ne procházení historie — fotek, souborů
+     * a odkazů bývá zlomek zpráv a `getChatHistory` by kvůli nim tahal stovky textů.
+     *
+     * Mizející a tajná média se vyřazují stejně jako v prohlížeči: obsah, který má zmizet po
+     * zhlédnutí, do trvalého přehledu nepatří.
+     */
+    override suspend fun sharedMedia(
+        chatId: Long,
+        kind: SharedMediaKind,
+        fromMessageId: Long,
+    ): Result<SharedMediaPage> {
+        val isGroup = isGroup(chatId)
+        return client.searchChatMessages(
+            chatId = chatId,
+            topicId = null,
+            query = "",
+            senderId = null,
+            fromMessageId = fromMessageId,
+            offset = 0,
+            limit = SHARED_MEDIA_PAGE,
+            filter = kind.toFilter(),
+        )
+            .toResult()
+            .map { found ->
+                val messages = found.messages
+                    .filterNotNull()
+                    .map { it.toChatMessage(isGroup) }
+                    .filter { kind != SharedMediaKind.Media || it.isLastingVisualMedia }
+                // Konec se pozná JEN podle toho, že server nevrátil nic. Počet po filtrování
+                // na to nestačí: stránka samých mizejících fotek vyjde prázdná uprostřed chatu.
+                SharedMediaPage(messages = messages, reachedEnd = found.messages.isEmpty())
+            }
+    }
+
+    /**
+     * Počty se ptají naráz, ne jeden po druhém — jsou to tři nezávislé dotazy na server a profil
+     * podle nich teprve vykreslí řádky. Druh, na který server neodpoví, má nulu: řádek se
+     * neukáže, ale ostatní se tím nezahodí.
+     */
+    override suspend fun sharedMediaCounts(chatId: Long): Result<SharedMediaCounts> = runCatching {
+        coroutineScope {
+            val counts = SharedMediaKind.entries
+                .map { kind -> async { kind to countOf(chatId, kind) } }
+                .awaitAll()
+                .toMap()
+            SharedMediaCounts(
+                media = counts.getValue(SharedMediaKind.Media),
+                files = counts.getValue(SharedMediaKind.Files),
+                links = counts.getValue(SharedMediaKind.Links),
+            )
+        }
+    }
+
+    private suspend fun countOf(chatId: Long, kind: SharedMediaKind): Int =
+        client.getChatMessageCount(chatId = chatId, filter = kind.toFilter(), returnLocal = false)
+            .toResult()
+            .map { it.count }
+            .getOrDefault(0)
+
     override suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage> {
         val isGroup = isGroup(chatId)
         return client.getMessage(chatId = chatId, messageId = messageId)
@@ -633,6 +700,67 @@ class TdlConversationRepository(
             }
     }
 
+    override suspend fun sendAnimation(
+        chatId: Long,
+        animation: OutgoingAnimation,
+        replyToMessageId: Long?,
+    ): Result<ChatMessage> =
+        client.sendMessage(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyToMessageId?.let(::replyTo),
+            options = null,
+            replyMarkup = null,
+            inputMessageContent = InputMessageAnimation(
+                animation = InputAnimation(
+                    animation = InputFileLocal(path = animation.path),
+                    thumbnail = animation.thumbnail?.let {
+                        InputThumbnail(thumbnail = InputFileLocal(path = it.path), width = it.width, height = it.height)
+                    },
+                    addedStickerFileIds = intArrayOf(),
+                    duration = animation.durationSeconds,
+                    width = animation.width,
+                    height = animation.height,
+                ),
+                caption = null,
+                showCaptionAboveMedia = false,
+                hasSpoiler = false,
+            ),
+        )
+            .toResult()
+            .map { it.toChatMessage(isGroup(chatId)) }
+
+    override suspend fun sendGif(chatId: Long, gif: GifItem, replyToMessageId: Long?): Result<ChatMessage> {
+        val file = InputFileId(id = gif.animation.fileId)
+        return client.sendMessage(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyToMessageId?.let(::replyTo),
+            options = null,
+            replyMarkup = null,
+            inputMessageContent = InputMessageAnimation(
+                animation = InputAnimation(
+                    animation = file,
+                    // Soubor na serveru už je i s náhledem; nahrává se jen u nového GIFu.
+                    thumbnail = null,
+                    addedStickerFileIds = intArrayOf(),
+                    duration = 0,
+                    width = gif.animation.width,
+                    height = gif.animation.height,
+                ),
+                caption = null,
+                showCaptionAboveMedia = false,
+                hasSpoiler = false,
+            ),
+        )
+            .toResult()
+            .map { it.toChatMessage(isGroup(chatId)) }
+            .onSuccess {
+                // Neúspěch nevadí — zpráva už odešla. Jen GIF nebude mezi uloženými nahoře.
+                client.addSavedAnimation(animation = file)
+            }
+    }
+
     override suspend fun sendTyping(chatId: Long, typing: Boolean): Result<Unit> =
         client.sendChatAction(
             chatId = chatId,
@@ -656,6 +784,20 @@ class TdlConversationRepository(
         )
             .toResult()
             .map { }
+
+    override suspend fun openChat(chatId: Long): Result<Unit> =
+        client.openChat(chatId = chatId)
+            .toResult()
+            .map { }
+            // Chat, který lokální databáze nezná, TDLib otevřít odmítne. Uživateli se tím nic
+            // nestane — jen přijde o odložení notifikace — takže se to jen loguje.
+            .onFailure { logger.w(it) { "Otevření chatu se nepodařilo ohlásit." } }
+
+    override suspend fun closeChat(chatId: Long): Result<Unit> =
+        client.closeChat(chatId = chatId)
+            .toResult()
+            .map { }
+            .onFailure { logger.w(it) { "Zavření chatu se nepodařilo ohlásit." } }
 
     override suspend fun editText(chatId: Long, messageId: Long, text: String): Result<Unit> =
         client.editMessageText(
@@ -730,6 +872,7 @@ class TdlConversationRepository(
                     draftText = chat.draftMessage?.toChatDraft()?.text,
                     canJoin = access.canJoin,
                     writeAccess = access.writeAccess,
+                    content = access.content,
                     draftReplyToMessageId = (chat.draftMessage?.replyTo as? InputMessageReplyToMessage)
                         ?.messageId,
                 )
@@ -744,13 +887,7 @@ class TdlConversationRepository(
      * chybějící pole by uživatele od chatu odřízlo.
      */
     private suspend fun chatAccess(chat: Chat): ChatAccess {
-        val status = when (val type = chat.type) {
-            is ChatTypeSupergroup -> client.getSupergroup(supergroupId = type.supergroupId).toResult().getOrNull()?.status?.toOwn()
-            // Převedená skupina (`isActive == false`) žije dál jako supergroup; do té staré se nepíše.
-            is ChatTypeBasicGroup -> client.getBasicGroup(basicGroupId = type.basicGroupId).toResult().getOrNull()
-                ?.let { group -> if (group.isActive) group.status.toOwn() else OwnMemberStatus.Left }
-            else -> null
-        }
+        val status = client.ownMemberStatus(chat)
         val supergroup = chat.type as? ChatTypeSupergroup
         return ChatAccess(
             canJoin = supergroup != null && status == OwnMemberStatus.Left,
@@ -759,6 +896,7 @@ class TdlConversationRepository(
                 status = status,
                 membersCanSend = chat.permissions.canSendBasicMessages,
             ),
+            content = contentAccess(status = status, groupDefaults = chat.permissions.toContentAccess()),
         )
     }
 
@@ -1004,6 +1142,10 @@ class TdlConversationRepository(
         return Result.success(details)
     }
 
+    override suspend fun sender(senderId: Long): Result<SenderInfo> =
+        resolveSender(senderId)?.let { Result.success(it) }
+            ?: Result.failure(IllegalStateException("Odesílatel $senderId není známý"))
+
     override suspend fun searchMembers(chatId: Long, query: String): Result<List<SenderInfo>> =
         client.searchChatMembers(chatId = chatId, query = query, limit = MEMBER_SEARCH_LIMIT, filter = null)
             .toResult()
@@ -1112,6 +1254,30 @@ private const val MEMBER_SEARCH_LIMIT = 50
 /** Strop stránek připnutých zpráv. Pět set připnutých v jednom chatu je víc než dost. */
 private const val MAX_PINNED_PAGES = 5
 
+/**
+ * Práva na druhy obsahu z `ChatPermissions`. Bere se jen to, co aplikace umí poslat — hudba,
+ * video kolečka a ankety by tu byly mrtvá pole.
+ */
+private fun ChatPermissions.toContentAccess(): ContentAccess = ContentAccess(
+    photos = canSendPhotos,
+    videos = canSendVideos,
+    documents = canSendDocuments,
+    voiceNotes = canSendVoiceNotes,
+    stickers = canSendOtherMessages,
+)
+
+/**
+ * Vlastní postavení ve skupině nebo kanálu; `null` v soukromém chatu i tam, kde ho zjistit nejde.
+ * Oba dotazy jsou lokální — TDLib skupinu zná, když zná chat.
+ */
+internal suspend fun TdlClient.ownMemberStatus(chat: Chat): OwnMemberStatus? = when (val type = chat.type) {
+    is ChatTypeSupergroup -> getSupergroup(supergroupId = type.supergroupId).toResult().getOrNull()?.status?.toOwn()
+    // Převedená skupina (`isActive == false`) žije dál jako supergroup; do té staré se nepíše.
+    is ChatTypeBasicGroup -> getBasicGroup(basicGroupId = type.basicGroupId).toResult().getOrNull()
+        ?.let { group -> if (group.isActive) group.status.toOwn() else OwnMemberStatus.Left }
+    else -> null
+}
+
 /** Postavení uživatele ve skupině; `when` bez `else`, takže nový stav v TDLib rozbije překlad. */
 private fun ChatMemberStatus.toOwn(): OwnMemberStatus = when (this) {
     is ChatMemberStatusCreator -> OwnMemberStatus.Creator(isMember = isMember)
@@ -1120,7 +1286,34 @@ private fun ChatMemberStatus.toOwn(): OwnMemberStatus = when (this) {
     is ChatMemberStatusRestricted -> OwnMemberStatus.Restricted(
         isMember = isMember,
         canSendMessages = permissions.canSendBasicMessages,
+        content = permissions.toContentAccess(),
     )
     is ChatMemberStatusLeft -> OwnMemberStatus.Left
     is ChatMemberStatusBanned -> OwnMemberStatus.Banned
 }
+
+/** Zpráv na stránku sdíleného obsahu. Mřížka jich na obrazovku vezme pár desítek. */
+private const val SHARED_MEDIA_PAGE = 50
+
+/** Filtr `searchChatMessages` pro druh sdíleného obsahu. */
+private fun SharedMediaKind.toFilter(): SearchMessagesFilter = when (this) {
+    SharedMediaKind.Media -> SearchMessagesFilterPhotoAndVideo()
+    SharedMediaKind.Files -> SearchMessagesFilterDocument()
+    SharedMediaKind.Links -> SearchMessagesFilterUrl()
+}
+
+/**
+ * Fotka nebo video, které v chatu zůstávají.
+ *
+ * Mizející a tajná se vyřazují: přehled sdílených médií je trvalý seznam a obsah, který má po
+ * zhlédnutí zmizet, do něj nepatří — stejně jako se nedostane do listování v prohlížeči.
+ */
+private val ChatMessage.isLastingVisualMedia: Boolean
+    get() {
+        val photo = media as? MessageMedia.Photo
+        val video = media as? MessageMedia.Video
+        return (photo != null || video != null) &&
+            selfDestructType == null &&
+            photo?.isSecret != true &&
+            video?.isSecret != true
+    }

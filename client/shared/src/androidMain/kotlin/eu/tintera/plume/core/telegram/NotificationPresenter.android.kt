@@ -1,8 +1,6 @@
 package eu.tintera.plume.core.telegram
 
 import android.Manifest
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -13,6 +11,7 @@ import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
+import androidx.core.app.RemoteInput
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.content.pm.ShortcutManagerCompat
@@ -20,17 +19,23 @@ import androidx.core.graphics.drawable.IconCompat
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.NotificationIntents
+import eu.tintera.plume.core.notifications.channelId
+import eu.tintera.plume.core.notifications.createNotificationChannels
+import eu.tintera.plume.core.notifications.deleteConversationChannels
 import eu.tintera.plume.core.share.bookmarkIcon
 import eu.tintera.plume.core.share.conversationShortcut
 import eu.tintera.plume.core.share.pushConversationShortcut
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.notification_channel_description
-import eu.tintera.plume.resources.notification_channel_name
+import eu.tintera.plume.resources.notification_mark_read
+import eu.tintera.plume.resources.notification_mute_hour
+import eu.tintera.plume.resources.notification_reply
+import eu.tintera.plume.resources.notification_reply_failed
 import eu.tintera.plume.resources.notification_self_name
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.getString
 
 /**
@@ -91,9 +96,9 @@ actual class NotificationPresenter(
 
     actual fun start(repository: NotificationRepository) {
         scope.launch(dispatcher) {
-            // Kanál i jméno „Já" se čtou z prostředků (`suspend`), takže se zakládá až tady.
-            createChannel()
-            logger.d { "Kanál vytvořen, odebírám notifikace." }
+            // Názvy kanálů i jméno „Já" se čtou z prostředků (`suspend`), takže se zakládá až tady.
+            createNotificationChannels(context)
+            logger.d { "Kanály vytvořeny, odebírám notifikace." }
 
             repository.updates.collect { update ->
                 when (update) {
@@ -103,17 +108,6 @@ actual class NotificationPresenter(
                 }
             }
         }
-    }
-
-    private suspend fun createChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            getString(Res.string.notification_channel_name),
-            NotificationManager.IMPORTANCE_HIGH,
-        ).apply {
-            description = getString(Res.string.notification_channel_description)
-        }
-        manager.createNotificationChannel(channel)
     }
 
     private suspend fun add(notifications: List<ChatNotification>) {
@@ -127,6 +121,9 @@ actual class NotificationPresenter(
                     chatId = newest.chatId,
                     title = newest.chatTitle,
                     isSavedMessages = newest.isSavedMessages,
+                    canReply = newest.canReply,
+                    canMute = newest.canMute,
+                    channel = newest.channel,
                     // Po restartu procesu je mapa prázdná, ale notifikace v liště zůstaly.
                     // Bez převzetí jejich řádků by nová zpráva přepsala předchozí.
                     lines = recoverLines(groupId),
@@ -136,6 +133,10 @@ actual class NotificationPresenter(
             // Fotka chatu se doplňuje i u už rozepsané konverzace: na začátku nemusela být
             // stažená a nechat kvůli tomu notifikaci navždy bez ikony by byla škoda.
             conversation.avatarPath = newest.chatAvatarPath ?: conversation.avatarPath
+            // Práva psát se můžou změnit; platí to, co TDLib řekl u nejnovější zprávy.
+            conversation.canReply = newest.canReply
+            conversation.canMute = newest.canMute
+            conversation.channel = newest.channel
 
             val added = batch
                 .filter { line -> conversation.lines.none { it.notificationId == line.notificationId } }
@@ -185,6 +186,8 @@ actual class NotificationPresenter(
         recentlyRemoved.clear()
         // Notifikace z minulého běhu procesu v `conversations` nejsou.
         manager.cancelAll()
+        runCatching { deleteConversationChannels(context) }
+            .onFailure { logger.w(it) { "Kanály konverzací se nepodařilo smazat." } }
         // Dlouhověké zkratky si systém drží i mimo dynamické, `removeAllDynamicShortcuts` by
         // je v keši nechal.
         runCatching {
@@ -204,6 +207,7 @@ actual class NotificationPresenter(
         // Neznámá skupina = notifikace z minulého běhu procesu. Její řádky nemáme s čím
         // spárovat, takže jde pryč celá; TDLib stejně ruší po přečtení celý chat naráz.
         if (conversation == null) {
+            logger.d { "Skupina ${update.groupId} není v paměti, ruším celou notifikaci." }
             manager.cancel(update.groupId)
             return
         }
@@ -217,7 +221,9 @@ actual class NotificationPresenter(
             }
         conversation.lines = conversation.lines.filterNot { it.notificationId in removed }
 
-        if (conversation.lines.isEmpty()) {
+        // Vlastní odpověď z notifikace TDLib nezná, takže ji nikdy neodebere. Přečtení chatu
+        // (a to odpověď dělá) má notifikaci zavřít, i když v ní odpověď ještě visí.
+        if (conversation.lines.all { it.isOwn }) {
             /*
              * Prázdná notifikace se ruší AŽ PO CHVILCE. TDLib dočasnou notifikaci z pushe
              * nahrazuje odebráním a hned přidáním skutečné — naměřeno 5 ms od sebe. Okamžité
@@ -228,7 +234,7 @@ actual class NotificationPresenter(
              */
             scope.launch(dispatcher) {
                 delay(EMPTY_CANCEL_DELAY_MS)
-                if (conversations[update.groupId] === conversation && conversation.lines.isEmpty()) {
+                if (conversations[update.groupId] === conversation && conversation.lines.all { it.isOwn }) {
                     conversations.remove(update.groupId)
                     manager.cancel(update.groupId)
                     logger.d { "Skupina ${update.groupId} zůstala prázdná, ruším notifikaci." }
@@ -255,7 +261,7 @@ actual class NotificationPresenter(
         // Jméno odesílatele vyplňuje TDLib jen tam, kde není totožné s chatem — tedy ve
         // skupinách. Jeho přítomnost je proto spolehlivější příznak skupiny než cokoli,
         // co bychom dopočítávali z id chatu.
-        val isGroup = conversation.lines.any { it.sender != null }
+        val isGroup = conversation.lines.any { !it.isOwn && it.sender != null }
 
         val style = NotificationCompat.MessagingStyle(Person.Builder().setName(getString(Res.string.notification_self_name)).build())
             .setGroupConversation(isGroup)
@@ -267,7 +273,8 @@ actual class NotificationPresenter(
             val message = NotificationCompat.MessagingStyle.Message(
                 line.text,
                 line.timestampMs,
-                Person.Builder()
+                // `null` = uživatel sám (`MessagingStyle` ho kreslí jako „Já").
+                if (line.isOwn) null else Person.Builder()
                     .setName(line.sender ?: conversation.title)
                     // Profilovka u řádku jen ve SKUPINĚ. V soukromém chatu je to tatáž fotka,
                     // kterou nese ikona konverzace — dvě stejné fotky v jedné notifikaci nad
@@ -285,7 +292,7 @@ actual class NotificationPresenter(
             }
         }
 
-        val built = NotificationCompat.Builder(context, CHANNEL_ID)
+        val built = NotificationCompat.Builder(context, conversation.channel.channelId)
             .setSmallIcon(R.drawable.ic_notification)
             // Velká ikona je záloha. U `MessagingStyle` si ji Android bere ze ZKRATKY (viz
             // `publishShortcut`) a tuhle ignoruje — uplatní se, jen když se zkratku nepodaří
@@ -303,6 +310,25 @@ actual class NotificationPresenter(
             .setTicker(conversation.lines.lastOrNull()?.let { "${it.sender ?: conversation.title}: ${it.text}" })
             .setSilent(silent)
             .setAutoCancel(true)
+            .apply {
+                if (conversation.canReply) {
+                    // Ve skupině odpověď cituje nejnovější zprávu z notifikace, jako oficiální
+                    // klient: bez citace by nebylo poznat, komu z více lidí se odpovídá.
+                    // V soukromém chatu je to jasné a citace by byla šum.
+                    val quoted = if (isGroup) conversation.lines.lastOrNull { !it.isOwn && it.messageId != null }?.messageId else null
+                    replyAction(groupId, conversation.chatId, quoted)?.let(::addAction)
+                }
+                // Pořadí akcí: odpověď, přečtení, ztlumení — od nejčastější. Android jich ukáže
+                // nejvýš tři, víc jich tedy být nesmí.
+                addAction(
+                    markReadAction(
+                        groupId = groupId,
+                        chatId = conversation.chatId,
+                        messageId = conversation.lines.lastOrNull { !it.isOwn && it.messageId != null }?.messageId,
+                    ),
+                )
+                if (conversation.canMute) addAction(muteAction(groupId, conversation.chatId))
+            }
             .setContentIntent(
                 NotificationIntents.openChat(
                     context = context,
@@ -315,6 +341,107 @@ actual class NotificationPresenter(
         logger.d { "Zobrazuji $groupId: ${conversation.lines.size} zpráv z ${conversation.chatId}." }
         manager.notify(groupId, built)
     }
+
+    /**
+     * Připíše do notifikace odpověď, kterou uživatel právě odeslal z notifikace.
+     *
+     * **Android čeká, až aplikace notifikaci po odpovědi překreslí** — do té doby se v ní točí
+     * kolečko. Překreslit ji je tedy povinnost, a vlastní řádek zároveň ukáže, co odešlo;
+     * po potvrzení chat přečteme a TDLib notifikaci stáhne.
+     */
+    suspend fun showReply(groupId: Int, text: String) = withContext(dispatcher) {
+        appendOwnLine(groupId, text, silent = true)
+    }
+
+    /**
+     * Odpověď neodešla. Řádek s ní se nahradí hláškou i s textem — ten by se jinak ztratil —
+     * a notifikace upozorní znovu: selhání je jediné, co uživatel zaregistrovat musí.
+     */
+    suspend fun showReplyFailed(groupId: Int, text: String) = withContext(dispatcher) {
+        appendOwnLine(groupId, getString(Res.string.notification_reply_failed, text), silent = false, replacing = text)
+    }
+
+    private suspend fun appendOwnLine(groupId: Int, text: String, silent: Boolean, replacing: String? = null) {
+        val now = System.currentTimeMillis()
+        val conversation = conversations[groupId]
+        if (conversation != null) {
+            val kept = conversation.lines.filterNot { it.isOwn && it.text == replacing }
+            conversation.lines = (kept + Line(notificationId = null, sender = null, text = text, timestampMs = now, icon = null, isOwn = true))
+                .takeLast(MAX_LINES)
+            show(groupId, conversation, silent)
+            return
+        }
+
+        /*
+         * Notifikaci z minulého běhu procesu v paměti nemáme — akce z notifikace umí proces
+         * probudit, takže to je běžný případ. Poskládat ji znovu z `ChatNotification` nejde (fotku
+         * chatu ani zkratku už nemáme), přestaví se tedy z té, která je v liště.
+         */
+        val existing = manager.activeNotifications.firstOrNull { it.id == groupId }?.notification ?: return
+        val style = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(existing) ?: return
+        if (replacing != null) style.messages.removeAll { it.person == null && it.text?.toString() == replacing }
+        style.addMessage(text, now, null as Person?)
+        val rebuilt = NotificationCompat.Builder(context, existing)
+            .setStyle(style)
+            .setSilent(silent)
+            .build()
+        manager.notify(groupId, rebuilt)
+    }
+
+    /**
+     * Akce „Odpovědět" s polem na text.
+     *
+     * `PendingIntent` musí být **MUTABLE** — systém do něj vkládá napsaný text; s IMMUTABLE by
+     * příjemce dostal prázdné výsledky. Sémantika `REPLY` a `showsUserInterface = false` říkají
+     * hodinkám a Android Auto, že jde o odpověď bez otevření aplikace.
+     */
+    private suspend fun replyAction(groupId: Int, chatId: Long, replyToMessageId: Long?): NotificationCompat.Action? {
+        val intent = NotificationIntents.reply(context, groupId = groupId, chatId = chatId, replyToMessageId = replyToMessageId)
+        val label = getString(Res.string.notification_reply)
+        val input = RemoteInput.Builder(NotificationIntents.KEY_REPLY_TEXT)
+            .setLabel(label)
+            .build()
+        return NotificationCompat.Action.Builder(
+            IconCompat.createWithResource(context, R.drawable.ic_notification_reply),
+            label,
+            intent,
+        )
+            .addRemoteInput(input)
+            .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
+            .setShowsUserInterface(false)
+            // Chytré návrhy odpovědí od systému (Android 10+) a na hodinkách.
+            .setAllowGeneratedReplies(true)
+            .build()
+    }
+
+    /**
+     * Akce „Označit jako přečtené". Nabízí se vždycky, i v kanálu — číst jde všude.
+     *
+     * Sémantika `MARK_AS_READ` a `showsUserInterface = false`: hodinky a Android Auto ji pak
+     * nabídnou jako přečtení, ne jako obecné tlačítko, a systém kvůli ní neodemyká obrazovku.
+     */
+    private suspend fun markReadAction(groupId: Int, chatId: Long, messageId: Long?): NotificationCompat.Action =
+        NotificationCompat.Action.Builder(
+            IconCompat.createWithResource(context, R.drawable.ic_notification_mark_read),
+            getString(Res.string.notification_mark_read),
+            NotificationIntents.markRead(context, groupId = groupId, chatId = chatId, messageId = messageId),
+        )
+            .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ)
+            .setShowsUserInterface(false)
+            .build()
+
+    /**
+     * Akce „Ztlumit na hodinu". Sémantika `MUTE` pro hodinky a Android Auto.
+     */
+    private suspend fun muteAction(groupId: Int, chatId: Long): NotificationCompat.Action =
+        NotificationCompat.Action.Builder(
+            IconCompat.createWithResource(context, R.drawable.ic_notification_mute),
+            getString(Res.string.notification_mute_hour),
+            NotificationIntents.mute(context, groupId = groupId, chatId = chatId),
+        )
+            .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MUTE)
+            .setShowsUserInterface(false)
+            .build()
 
     /**
      * Fotka ze zprávy pro notifikaci jako `content://` URI.
@@ -390,6 +517,8 @@ actual class NotificationPresenter(
                 timestampMs = message.timestamp,
                 // Profilovka se převezme taky — znovu ji z cesty poskládat nejde, tu už nemáme.
                 icon = message.person?.icon,
+                // Bez osoby = uživatel sám, tedy odpověď odeslaná z notifikace.
+                isOwn = message.person == null,
                 image = message.dataUri?.takeIf { message.dataMimeType?.startsWith("image/") == true },
             )
         }
@@ -448,6 +577,12 @@ actual class NotificationPresenter(
         var avatarPath: String? = null,
         /** Uložené zprávy: zkratka se záložkou, jako ve sdílení (`AndroidShareTargetPublisher`). */
         val isSavedMessages: Boolean = false,
+        /** Nabídnout akci „Odpovědět". */
+        var canReply: Boolean = true,
+        /** Nabídnout akci „Ztlumit". */
+        var canMute: Boolean = true,
+        /** Systémový kanál; TDLib drží zmínky v jiné skupině než běžné zprávy téhož chatu. */
+        var channel: NotificationChannelKind = NotificationChannelKind.Private,
     )
 
     /** Jedna zpráva v notifikaci. [notificationId] je `null` u řádku převzatého po restartu. */
@@ -462,13 +597,13 @@ actual class NotificationPresenter(
         /** Fotka ze zprávy jako `content://` URI z [FileProvider]. */
         val image: Uri? = null,
         val imageCaption: String? = null,
+        /** Odpověď odeslaná z notifikace. TDLib o ní neví, takže ji neodebere. */
+        val isOwn: Boolean = false,
     )
 
     private class RemovedLine(val groupId: Int, val messageId: Long, val removedAtMs: Long)
 
     private companion object {
-        const val CHANNEL_ID = "messages"
-
         /** Kolik zpráv se v notifikaci drží. Android jich stejně vykreslí jen posledních pár. */
         const val MAX_LINES = 10
 

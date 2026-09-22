@@ -26,6 +26,7 @@ import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatInfo
+import eu.tintera.plume.core.telegram.ContentAccess
 import eu.tintera.plume.core.telegram.WriteAccess
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -38,6 +39,8 @@ import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageInfo
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
+import eu.tintera.plume.core.telegram.GifItem
+import eu.tintera.plume.core.telegram.OutgoingAnimation
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.ReactionDetail
@@ -56,6 +59,8 @@ import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_attachments_limit
+import eu.tintera.plume.resources.conversation_content_not_allowed
+import eu.tintera.plume.resources.conversation_gif_send_failed
 import eu.tintera.plume.resources.conversation_self_destruct_album
 import eu.tintera.plume.resources.profile_mute_failed
 import eu.tintera.plume.resources.conversation_attachments_send_failed
@@ -121,7 +126,7 @@ import org.jetbrains.compose.resources.StringResource
  * opačně, každé přidání staré stránky by znamenalo přepočet celého seznamu.
  */
 class ConversationViewModel(
-    private val chatId: Long,
+    val chatId: Long,
     /** Zpráva, na kterou se po otevření skočí místo na první nepřečtenou (nalezená v hledání). */
     private val initialMessageId: Long?,
     private val repository: ConversationRepository,
@@ -213,6 +218,15 @@ class ConversationViewModel(
 
     /** Už nahlášená zhlédnutí reklam — každé se hlásí jen jednou. */
     private val reportedSponsoredViews = mutableSetOf<Long>()
+
+    /**
+     * Ohlášení TDLib, že je chat otevřený (viz [ConversationRepository.openChat]).
+     *
+     * Běží v [appScope], ne ve `viewModelScope`: ten se při odchodu z chatu zruší a půlka páru
+     * by nikdy neodešla — TDLib si otevření počítá, takže by chat zůstal navždy „otevřený",
+     * nebo by se zavřel chat, který se ani neotevřel. Zavření na tuhle úlohu proto čeká.
+     */
+    private val chatOpened = appScope.launch { repository.openChat(chatId) }
 
     init {
         viewModelScope.launch {
@@ -663,7 +677,17 @@ class ConversationViewModel(
      * Zvýraznění je nutné. Po skoku uprostřed historie by jinak nebylo poznat, na kterou
      * z bublin na obrazovce citace mířila.
      */
-    fun jumpToMessage(messageId: Long, fromSearch: Boolean = false) {
+    /**
+     * Skok na zprávu. [anchor] `Center` je pro citaci a hledání — kolem je vidět, na co zpráva
+     * navazuje. Pruh připnutých posílá `Top`: ukazuje tu připnutou, kterou uživatel míjí, takže
+     * ji skok musí posadit NAD viditelnou část, aby pruh mohl přejít na předchozí. Se středem
+     * se nad cílem odkryje kus historie a pruh přeskočí rovnou k nejstarší připnuté.
+     */
+    fun jumpToMessage(
+        messageId: Long,
+        fromSearch: Boolean = false,
+        anchor: ScrollAnchor = ScrollAnchor.Center,
+    ) {
         viewModelScope.launch {
             // Dojíždí se jen ke zprávě, která už v seznamu byla. Po výměně okna (`loadAround`) je
             // seznam nový a začíná u spodní hrany okna — tam se dotahují novější zprávy a indexy by
@@ -690,7 +714,7 @@ class ConversationViewModel(
                 it.copy(
                     scrollTarget = ScrollTarget(
                         messageId,
-                        ScrollAnchor.Center,
+                        anchor,
                         animate = alreadyLoaded,
                         older = older.takeUnless { alreadyLoaded },
                     ),
@@ -774,14 +798,36 @@ class ConversationViewModel(
         }
 
         viewModelScope.launch {
-            chatRepository.activity(chatId)
-                .collect { activity -> _state.update { it.copy(activity = activity) } }
+            /*
+             * Kdo píše, se kreslí jeho tváří v místě, kam jeho zpráva naskočí. V soukromém chatu je
+             * to protějšek (odesílatel = chat), tvář nese [ChatInfo]; jinde se dohledá — z keše
+             * odesílatelů, takže opakované ohlášení se na nic neptá. Když to nejde, trojtečka
+             * zůstane bez tváře: vědět, ŽE někdo píše, je důležitější než kdo.
+             */
+            chatRepository.typing(chatId)
+                .map { typing ->
+                    typing?.let {
+                        Typing(
+                            activity = it.activity,
+                            sender = if (it.senderId == chatId) null else repository.sender(it.senderId).getOrNull(),
+                        )
+                    }
+                }
+                .collect { typing -> _state.update { it.copy(typing = typing) } }
         }
 
         viewModelScope.launch {
             // Práva psát se mění za běhu: správce je změní, uživatel se přidá (i odjinud).
             repository.accessUpdates(chatId).collect { access ->
-                _state.update { it.copy(info = it.info?.copy(canJoin = access.canJoin, writeAccess = access.writeAccess)) }
+                _state.update {
+                    it.copy(
+                        info = it.info?.copy(
+                            canJoin = access.canJoin,
+                            writeAccess = access.writeAccess,
+                            content = access.content,
+                        ),
+                    )
+                }
             }
         }
 
@@ -832,8 +878,40 @@ class ConversationViewModel(
      * Citace se spotřebuje stejně jako u textu.
      */
     fun sendSticker(sticker: StickerItem) {
+        // Výběr samolepek se bez práva neotevře, ale sada jde otevřít i ťuknutím na samolepku
+        // v historii — a z ní se posílá taky. Hláška je lepší než chyba od serveru.
+        if (!_state.value.content.stickers) {
+            _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
+            return
+        }
         sendMedia(Res.string.conversation_sticker_send_failed) { replyTo ->
             repository.sendSticker(chatId, sticker, replyTo)
+        }
+    }
+
+    /** Odešle GIF z výběru. Stejné právo a stejné chování jako [sendSticker]. */
+    fun sendGif(gif: GifItem) {
+        if (!_state.value.content.stickers) {
+            _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
+            return
+        }
+        sendMedia(Res.string.conversation_gif_send_failed) { replyTo ->
+            repository.sendGif(chatId, gif, replyTo)
+        }
+    }
+
+    /**
+     * Odešle GIF vložený z klávesnice — hned, bez čekání nad polem, jako samolepku. Rozepsaný text
+     * zůstává a citace se spotřebuje. GIFy vede TDLib pod týmž právem jako samolepky
+     * (`canSendOtherMessages`); klávesnici se bez něj GIF nenabízí, ale pojistka patří i sem.
+     */
+    fun sendAnimation(animation: OutgoingAnimation) {
+        if (!_state.value.content.stickers || _state.value.editing != null) {
+            _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
+            return
+        }
+        sendMedia(Res.string.conversation_gif_send_failed) { replyTo ->
+            repository.sendAnimation(chatId, animation, replyTo)
         }
     }
 
@@ -843,7 +921,10 @@ class ConversationViewModel(
      * víc jako album). Pravidla skládání viz [stageAttachments].
      */
     fun addAttachments(picked: List<OutgoingAttachment>) {
-        val staged = stageAttachments(_state.value.attachments, picked)
+        // Výběr fotek vydá fotky i videa najednou; co chat nepřijme, se sem nedostane.
+        val allowed = allowedByContent(picked, _state.value.content)
+        val forbidden = allowed.size < picked.size
+        val staged = stageAttachments(_state.value.attachments, allowed)
         // Z jedné mizející fotky se přidáním další stává album, a v něm mizení není dovolené.
         val dropped = dropForbiddenSelfDestruct(
             staged.attachments,
@@ -853,6 +934,7 @@ class ConversationViewModel(
             it.copy(
                 attachments = dropped ?: staged.attachments,
                 notice = when {
+                    forbidden -> UiText(Res.string.conversation_content_not_allowed)
                     staged.overflow -> UiText(Res.string.conversation_attachments_limit, MAX_ATTACHMENTS)
                     dropped != null -> UiText(Res.string.conversation_self_destruct_album)
                     else -> it.notice
@@ -1221,6 +1303,13 @@ class ConversationViewModel(
      * Běží v `appScope`, takže ho zrušení ViewModelu nezastaví.
      */
     override fun onCleared() {
+        // Konverzace je pryč, takže se na ni uživatel nedívá. Musí odejít DŘÍV než cokoli, co
+        // může skončit předčasným `return` — TDLib by jinak chat považoval za otevřený dál.
+        appScope.launch {
+            chatOpened.join()
+            repository.closeChat(chatId)
+        }
+
         // Hlasovka z chatu, který se zavřel, nemá kde ukazovat průběh ani jak se zastavit.
         voicePlayer.stop(chatId)
         // Rozpracovaná nahrávka se při odchodu zahazuje — neposílat nic, co uživatel neodeslal.
@@ -1322,6 +1411,25 @@ class ConversationViewModel(
                     _state.update { it.copy(error = message) }
                 }
         }
+    }
+
+    /**
+     * Profil odesílatele ze skupiny. Profil stojí na CHATU, takže se napřed najde (a případně
+     * lokálně založí) soukromý chat s ním — stejně jako při ťuknutí na člena v profilu skupiny.
+     */
+    private fun openSenderProfile(userId: Long) {
+        viewModelScope.launch {
+            chatRepository.privateChat(userId)
+                .onSuccess { target -> _state.update { it.copy(openProfile = target) } }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.reported(Res.string.conversation_mention_not_found)) }
+                }
+        }
+    }
+
+    /** Obrazovka profil otevřela; jednorázová událost jako [consumeOpenChat]. */
+    fun consumeOpenProfile() {
+        _state.update { it.copy(openProfile = null) }
     }
 
     /** Obrazovka chat otevřela. Bez toho by se po otočení displeje otevřel znovu. */
@@ -1433,6 +1541,22 @@ class ConversationViewModel(
      * `canGetViewers`, `canGetLink`), takže ptát se dopředu by znamenalo tři dotazy na každou
      * zprávu v historii kvůli sheetu, který se otevře jednou za čas.
      */
+    /**
+     * Otevře text zprávy k výběru úryvku.
+     *
+     * Nabídku to ukončí, jako „Informace" — je to jednorázová akce, která si otevře vlastní
+     * sheet. Text se bere týž, co by šel do schránky ([copyableText]), takže se výběr nabízí
+     * přesně nad tím, co zpráva opravdu nese.
+     */
+    private fun selectText(messageId: Long) {
+        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+        _state.update { it.copy(messageMenu = null, selectingText = message) }
+    }
+
+    fun dismissTextSelection() {
+        _state.update { it.copy(selectingText = null) }
+    }
+
     private fun showMessageInfo(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         _state.update { it.copy(messageMenu = null, messageInfo = MessageInfoSheet(message = message)) }
@@ -1553,6 +1677,7 @@ class ConversationViewModel(
             is MessageAction.OpenLink -> openLink(action.url)
             is MessageAction.OpenMention -> openMentioned { chatRepository.chatByUsername(action.username) }
             is MessageAction.OpenUser -> openMentioned { chatRepository.privateChat(action.userId) }
+            is MessageAction.OpenSenderProfile -> openSenderProfile(action.userId)
             MessageAction.OpenDocument -> openDocument(messageId)
             MessageAction.CancelUpload -> cancelUpload(messageId)
             MessageAction.ToggleVoice -> toggleVoice(messageId)
@@ -1562,6 +1687,7 @@ class ConversationViewModel(
             MessageMenuAction.ToggleFavoriteSticker -> toggleFavoriteSticker(messageId)
             MessageMenuAction.Forward -> requestForward(messageId)
             MessageMenuAction.Info -> showMessageInfo(messageId)
+            MessageMenuAction.SelectText -> selectText(messageId)
             MessageMenuAction.Pin -> requestPin(messageId)
             MessageMenuAction.Unpin -> unpinFromMenu(messageId)
             MessageMenuAction.Delete -> requestDelete(messageId)
@@ -1923,6 +2049,10 @@ class ConversationViewModel(
      * Hrající hlasovka se zastaví — nahrával by se i její zvuk z reproduktoru.
      */
     fun startRecording() {
+        if (!_state.value.content.voiceNotes) {
+            _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
+            return
+        }
         voicePlayer.stop()
         voiceRecorder.start().onFailure {
             _state.update { it.copy(error = UiText(Res.string.conversation_recording_start_failed)) }
@@ -2279,12 +2409,23 @@ enum class PinScope {
  */
 private const val MAX_QUICK_REACTIONS = 6
 
+/**
+ * Činnost v chatu pro konverzaci. [sender] je `null` v soukromém chatu (tvář nese [ChatInfo])
+ * a tam, kde se odesílatele nepodařilo zjistit.
+ */
+data class Typing(val activity: ChatActivity, val sender: SenderInfo?)
+
 data class ConversationState(
     val info: ChatInfo? = null,
+    /** Zpráva otevřená k výběru úryvku textu; `null` = sheet je zavřený. */
+    val selectingText: ChatMessage? = null,
     /** Dostupnost protějšku pro podtitul hlavičky. `null` u skupin a kanálů. */
     val presence: Presence? = null,
-    /** Co protějšek (ve skupině kdokoli) právě dělá. Má v hlavičce přednost před dostupností. */
-    val activity: ChatActivity? = null,
+    /**
+     * Co protějšek (ve skupině kdokoli) právě dělá. Kreslí se v seznamu zpráv tam, kam jeho zpráva
+     * naskočí (`TypingItem`), ne v hlavičce.
+     */
+    val typing: Typing? = null,
     /** Otevřená nabídka nad zprávou (rychlé reakce + akce). */
     val messageMenu: MessageMenu? = null,
     /** Zpráva čekající na potvrzení smazání. */
@@ -2347,6 +2488,8 @@ data class ConversationState(
     val search: InChatSearch? = null,
     /** Jednorázová událost: otevřít chat ze zmínky nebo odkazu, případně se skokem na zprávu. */
     val openChat: ChatTarget? = null,
+    /** Jednorázová událost: otevřít profil chatu (odesílatele ze skupiny). */
+    val openProfile: Long? = null,
     /** Výběr člena pro hledání podle odesílatele; `null` = zavřený. */
     val memberPicker: MemberPicker? = null,
     /** Náhled chatu z pozvánky; `null` = zavřený. */
@@ -2393,6 +2536,13 @@ data class ConversationState(
     /** Do chatu se smí psát: vstupní pole, odpověď swipem. Dokud hlavička nedorazí, bere se, že ano. */
     val canWrite: Boolean
         get() = info == null || (!info.canJoin && info.writeAccess == WriteAccess.Allowed)
+
+    /**
+     * Které druhy obsahu chat přijme. Dokud hlavička nedorazí, neomezuje se nic — ikona, která
+     * by problikla a zmizela, je horší než ikona, po které přijde chyba jednou za čas.
+     */
+    val content: ContentAccess
+        get() = info?.content ?: ContentAccess.All
 
     fun canSelfDestruct(attachmentCount: Int = attachments.size): Boolean =
         info != null && selfDestructAllowed(!info.isGroup, info.isSavedMessages, attachmentCount)

@@ -136,7 +136,7 @@ internal fun EmojiPanel(
 
     if (searchText.isNotBlank()) {
         Box(
-            Modifier.fillMaxWidth().height(STICKER_TAB_ROW_HEIGHT + EMOJI_GRID_HEIGHT),
+            Modifier.fillMaxWidth().height(STICKER_TAB_ROW_HEIGHT + EMOJI_GRID_HEIGHT + sheetBottomInset()),
             contentAlignment = Alignment.Center,
         ) {
             when (val current = search) {
@@ -203,7 +203,7 @@ internal fun EmojiPanel(
 
     HorizontalPager(
         state = pagerState,
-        modifier = Modifier.fillMaxWidth().height(EMOJI_GRID_HEIGHT),
+        modifier = Modifier.fillMaxWidth().height(EMOJI_GRID_HEIGHT + sheetBottomInset()),
     ) { page ->
         if (page > 0) {
             EmojiGrid(EMOJI_GROUPS[page - 1].emojis, cells)
@@ -277,7 +277,7 @@ private fun EmojiGrid(emojis: List<String>, cells: EmojiCells) {
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(EMOJI_CELL),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+        contentPadding = sheetListPadding(horizontal = 12.dp, vertical = 4.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
         items(shown, key = { it }) { emoji -> EmojiCell(emoji, cells) }

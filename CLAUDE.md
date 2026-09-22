@@ -7,14 +7,15 @@ nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí
 
 ## Stav
 
-Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (rail/bar), živý seznam chatů a archiv,
+Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (bez railu i navigační lišty, Nastavení z menu účtu), živý seznam chatů a archiv,
 konverzace (historie, živé zprávy, odesílání, přílohy a alba, hlasovky, samolepky a emoji, úprava,
 přeposílání, připnuté zprávy), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
-Není: notifikace na iOS ani hlášení pádů z iOS; sdílená média v profilu chatu.
-Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné, Vzhled a Zařízení; vědomě nastavitelné je zatím
-téma aplikace (motiv a barvy z tapety) a vyčlenění nepřečtených chatů do vlastního bloku.
+Není: hlášení pádů z iOS. Notifikace na iOS (APNs) jsou napojené, ale čekají na certifikát APNs u Telegramu a ověření skutečným pushem.
+Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné, Notifikace, Vzhled a Zařízení; vědomě
+nastavitelné je téma aplikace (motiv a barvy z tapety), vyčlenění nepřečtených chatů do vlastního
+bloku a upozornění po rozsazích (soukromé chaty / skupiny / kanály) s výjimkami.
 Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
 
@@ -255,6 +256,10 @@ In-App Updates v režimu **flexible**: stahuje se na pozadí, pak „Restartovat
 - **Karta je další blok seznamu**: zaoblení `GROUP_CORNER`, mezera pod ní jako mezi skupinami,
   `primaryContainer` (od světlých řádků ji odliší, sytou barvu nese jen tlačítko). Jedna karta
   pro všechny tři stavy s `animateContentSize` — výměna celé položky by vypadala jako nová.
+- **Syté prvky karty jdou přes `accentOn`, ne `primary` natvrdo.** V paletě se zvýšeným
+  kontrastem je `primaryContainer` v tmavém režimu světlý jako `primary`, takže „Teď ne" bylo
+  bílé na světle modré a kolečko ikony s tlačítkem splývaly s kartou. Kde `primary` na kartě
+  vidět není, převezme jeho roli `onPrimaryContainer` (viz „Material 3 / vzhled").
 - **Ikona je `system_update` (telefon se šipkou dovnitř), ne `upgrade`.** Šipka nahoru k čáře se
   čte jako NAHRÁVÁNÍ — a to je přesně opačný směr, než co karta nabízí. Ikona má říct, co se
   stane, ne jakým gestem se to spustí.
@@ -721,8 +726,8 @@ chodit. Dokud se nesledovalo, vypadala nepřipojená aplikace úplně normálně
 - **`Ready` se nehlásí.** V tom stavu aplikace stráví skoro celou dobu; „připojeno" je šum, zatímco
   „nepřipojeno" je jediná informace, která uživateli vysvětlí, proč mu nic nechodí. Proto
   `ConnectionState.label()` vrací u `Ready` `null`.
-- **V hlavičce konverzace má stav spojení přednost před „píše…" i dostupností.** Dokud spojení
-  nestojí, jsou obě jen staré hodnoty, které nemá co obnovit.
+- **V hlavičce konverzace má stav spojení přednost před dostupností.** Dokud spojení nestojí,
+  je dostupnost jen stará hodnota, kterou nemá co obnovit. „Píše…" v hlavičce není, viz níž.
 - **Ověřuje se to bez dozu** — chování je stejné: odejít z aplikace a vrátit se (v logu musí být
   „Návrat do popředí, obnovuji spojení"), zapnout a vypnout letový režim (`adb shell cmd
   connectivity airplane-mode enable`), otočit displej (v logu nesmí být NIC).
@@ -822,14 +827,19 @@ se z telefonu nedalo chodit zpět bez `BackHandler`, který v téhle aplikaci za
 - **Efekt, který sekci zapisuje, stojí v shellu, ne v obrazovce seznamu sekcí.** Obrazovka po
   přepnutí sekce aplikace ještě dobíhá odchodovou animací a její efekty dál běží. Dokud byl
   efekt v ní, po rychlém Nastavení → Chaty přidal `SettingsSectionRoute` do zásobníku, který
-  už patřil Chatům — rail hlásil Chaty, na ploše bylo „Obecné". Shell se ptá na vybranou
-  sekci aplikace; klíčem je i velikost zásobníku Nastavení kvůli ťuknutí na už vybrané
-  Nastavení (návrat na kořen). **Obecně: efekt, který zapisuje do zásobníku, nepatří do
+  už patřil Chatům — vybrané byly Chaty, na ploše bylo „Obecné". Shell se ptá na vybranou
+  sekci aplikace; klíčem je i velikost zásobníku Nastavení (návrat na kořen). **Obecně: efekt, který zapisuje do zásobníku, nepatří do
   obrazovky, která může být zrovna na odchodu.**
 - **Šipka zpět je v sekci jen na compactu.** V dvoupanelu je seznam sekcí pořád vidět vedle
   a sekce se NAHRAZUJE, nevrší se zásobník — stejně jako konverzace.
-- **Spodní bar se v sekci nastavení NESKRÝVÁ**, na rozdíl od konverzace. Sekce je mělká obrazovka
-  v téže sekci aplikace; ťuknutí na „Nastavení" v baru z ní vede zpátky na seznam sekcí.
+- **Do Nastavení se chodí z menu účtu na každé šířce** (fotka ve vyhledávací pilulce seznamu
+  chatů, `AppNavigation.openSettings`), a proto vždycky na kořen — menu slibuje „Nastavení",
+  ne sekci, kterou tam uživatel kdysi nechal. Seznam sekcí má proto šipku zpět do Chatů vždycky
+  (`SettingsScreen(onBack)`), i v dvoupanelu.
+- **Šipka seznamu sekcí volá `closeSettings`, ne `goBack`.** `goBack` odebírá jednu položku,
+  a v dvoupanelu je to otevřená sekce — efekt `ensureSettingsSection` ji hned vrátil a šipka
+  nedělala nic. Dokud vedle stál rail, šipka v dvoupanelu nebyla a nic se nepoznalo.
+  Systémové zpět to nepotřebuje: `NavDisplay` ho zavolá za obě položky scény naráz.
 - **Seznam sekcí nemá ViewModel.** Obsah (účet, notifikace, motiv) patří sekcím; kdyby si účet
   načítal i seznam, ptali bychom se na něj v dvoupanelu dvakrát. Ze stejného důvodu se ViewModel
   sekce vyrábí až uvnitř `when` nad sekcí — složí se jen jedna větev.
@@ -846,6 +856,34 @@ se z telefonu nedalo chodit zpět bez `BackHandler`, který v téhle aplikaci za
   patří `on*Container` (čas a ikony u vybraného chatu).
 - **Pozor na názvy barev `ListItemDefaults.colors`**: `contentColor` (ne `headlineColor`)
   a `supportingContentColor` (ne `supportingColor`). Hádaný název se pozná až překladem.
+
+### Úprava profilu
+
+Karta účtu v Obecných otevře `EditProfileRoute` (`EditProfileScreen`, `AccountRepository`): fotka,
+jméno, příjmení, uživatelské jméno a bio.
+
+- **Routa se vrší nad sekci Obecné** — na telefonu jako obrazovka, v dvoupanelu nahradí sekci
+  vpravo. **Zpět tam musí být `PopUntilContentChange`** (jen když je úprava nahoře): dvoupanel
+  zůstává dvoupanelem, takže výchozí `PopUntilScaffoldValueChange` odebral úpravu i sekci pod
+  ní a gesto zpět odešlo z Nastavení rovnou do Chatů. Klik na jinou sekci úpravu ze zásobníku
+  odebere taky, jinak by visela pod novou sekcí.
+- **Fotka se ukládá hned, texty až tlačítkem Uložit.** Fotka má vlastní nahrávání; kdyby čekala
+  na Uložit, zmizela by s odchodem. Ořízne se na čtverec ze středu (`SquarePhoto`, platformní)
+  — kreslí se v kruhu a neořezanou by každý klient ořízl jinak.
+- **Text polí je Compose stav přímo ve ViewModelu**, ne `StateFlow` — jinak poskakuje kurzor.
+- **Uživatelské jméno se kontroluje dvakrát**: místní pravidla hned při psaní
+  (`usernameFormatError`, testy `UsernameFormatTest`), pak dostupnost na serveru po pauze
+  (`checkChatUsername`). Vlastní účet se ptá přes **soukromý chat se sebou** (id chatu = id
+  uživatele) — TDLib jiný chat odmítne větou „Can't check username for private chat with other
+  user". Nezjištěná dostupnost ukládání neblokuje, rozhodne server.
+- **Jméno, uživatelské jméno a bio jsou tři volání.** Když jedno selže, další se neposílají
+  a co prošlo, se zapíše jako výchozí stav — další pokus ho neposílá znovu.
+- **Strop bia posílá server** (`bio_length_max`, bez Premium 70); počítadlo je vidět pořád.
+- **Účet je živý** (`AccountRepository.account` nad `UpdateUser`): karta v Obecných i fotka ve
+  vyhledávací pilulce se po úpravě změní samy, i když se profil upravil na jiném zařízení.
+- **Ověřeno bez zásahu do účtu**: načtení, všechny tři stavy kontroly jména (krátké, obsazené
+  „durov", volné), odchod bez uložení a zpět v dvoupanelu. Uložení a změna fotky mění skutečný
+  profil, proto se zkouší jen se souhlasem.
 
 ## Jazyky
 
@@ -886,27 +924,14 @@ Navigation3 (`rememberNavBackStack` + `NavDisplay` + `entryProvider`). Klíče j
 
 Seznam chatů a konverzace tvoří **list-detail** dvojici přes `rememberListDetailSceneStrategy`:
 `ChatsRoute` nese metadata `listPane(detailPlaceholder = …)`, `ConversationRoute` má `detailPane()`.
-`directive` se počítá ze šířky **content-oblasti** (`BoxWithConstraints`), ne z okna — vlevo ukusuje
-rail a scaffold by jinak rozhodl špatně.
-
-**Rail má výchozí insety a položky na středu.** Nulové insety (`WindowInsets()`) ho lepily pod
-stavovou lištu. Střed doporučuje M3 pro tablety (líp se na něj dosáhne); nahoru patří jen menu
-a FAB, které rail nemá. Až přibudou, půjdou do `header`, který je nahoře vždy.
-
-**Na nízkém okně (telefon naležato) má rail jen ikony** — výška pod `HEIGHT_DP_MEDIUM_LOWER_BOUND`.
-Bez popisku nese název sekce `contentDescription` ikony. **Je to klasický `NavigationRail`
-(80 dp), ne `WideNavigationRail`:** zúžený wide rail má pevných 96 dp bez ohledu na popisky
-a položku bez popisku měří na šířku indikátoru a klade na x = 0 — ikony visely u levého okraje
-a vpravo zbyl prázdný pruh. Popisky tedy šířku neovlivňovaly, jen výšku.
-Seznam chatů vedle něj má naležato levý okraj 8 dp místo 16 (`isShortWindow`): rail má kolem
-ikon vlastní vzduch a 8 dp je vnitřní okraj vyhledávací pilulky, takže karty s ní lícují.
+`directive` se počítá ze šířky **content-oblasti** (`BoxWithConstraints`), ne z okna — scaffold
+má rozhodovat podle místa, které opravdu dostane.
 
 **Boční insety NEVĚDÍ, kde prvek leží.** Compose dá `safeDrawing`/`displayCutout` každému, kdo si
 o ně řekne, i když stojí daleko od kamery. Telefon naležato proto měl v konverzaci (panel VPRAVO)
 mezeru o šířku výřezu vlevo — v hlavičce a seznamu zpráv, ne ve vstupním poli, které si boky
 nebralo vůbec. Pravidlo: kdo inset vyřešil, ten ho **zkonzumuje** (`consumeWindowInsets`).
-Shell konzumuje levý inset za rail, seznam v dvoupanelu pravý (`listPaneInsets`) — ten patří
-panelu vpravo. Vstupní pole bere `safeDrawing` bokem i spodkem, jinak by odeslání zajelo pod
+Seznam v dvoupanelu konzumuje pravý inset (`listPaneInsets`) — ten patří panelu vpravo. Vstupní pole bere `safeDrawing` bokem i spodkem, jinak by odeslání zajelo pod
 výřez nebo boční třítlačítkovou lištu. Ověřuje se v OBOU rotacích naležato
 (`adb shell cmd window user-rotation lock 1` / `3`, pak `free`) — výřez je pokaždé na jiné straně.
 
@@ -914,17 +939,14 @@ výřez nebo boční třítlačítkovou lištu. Ověřuje se v OBOU rotacích na
 časů schovaný „za pravým okrajem" (odkrývání tahem) byl schovaný jen dokud seznam končil
 u okraje obrazovky. S insetem vpravo prosvítal; proto `clipToBounds` na ploše seznamu.
 
-**Spodní bar se v konverzaci skrývá — jen na compactu.** Na telefonu zabírá konverzace celou
-obrazovku a sekční navigace tam nedává smysl; ven se chodí zpět, ne přepnutím sekce. Na širokém
-rozvržení je konverzace jen panel vedle seznamu, takže rail zůstává. Past: `consumeWindowInsets`
-spodního insetu musí být podmíněné stejnou podmínkou jako bar — když se konzumuje i se skrytým
-barem, vstupní pole konverzace zaleze pod systémovou lištu.
-
-**Skrytí baru musí animovat i jeho MÍSTO, ne jen posun.** `slideOutVertically` obsah jenom
-posune — jeho slot v layoutu drží po celou animaci. Vstupní pole konverzace proto viselo nad
-prázdným pruhem a doskočilo dolů až na konci. Řeší to `shrinkVertically` (a `expandVertically`
-na druhou stranu) přidané k posunu: zmenšuje se i to místo, takže obsah roste současně
-s odjezdem baru.
+**Sekční navigace není — ani spodní lišta, ani rail.** Sekce jsou dvě a navigační lišta i rail
+mají podle M3 smysl až od tří. Lišta zabírala ~80 dp jen kvůli skoku do Nastavení a seznam chatů
+pod ní působil přeplácaně; rail na širší ploše přežil o něco déle, ale jen zdvojoval menu účtu
+a ukusoval šířku panelům. Do Nastavení vede menu účtu v pilulce na každé šířce, spodek obrazovky
+patří plovoucímu toolbaru seznamu chatů (viz „Filtry a plovoucí toolbar"). Důsledek pro insety:
+shell žádný nekonzumuje, každá obrazovka si je bere sama (Scaffold je má ve výchozích
+`contentWindowInsets`). **Kdyby sekcí přibylo na tři**, přijde rail zpátky — past s místem:
+skrytí musí animovat i SLOT (`shrinkHorizontally`), ne jen posun, jinak obsah doskočí až na konci.
 
 **Avatar a název letí ze seznamu do konverzace.** Klíče `chatAvatarKey` / `chatTitleKey`
 obsahují id chatu, jinak by se při rychlém přepnutí spároval avatar jednoho chatu s druhým.
@@ -1055,10 +1077,75 @@ když si o to uživatel řekne v Nastavení (`separateUnreadChats`, **výchozí 
   u vršku zůstane. **Nulovou výšku mít nesmí**, to by ji seznam za viditelnou nepovažoval; její
   výška i rozestup za ní se odečítají z horního odsazení, aby první chat neposkočil.
 
+### Filtry a plovoucí toolbar
+
+Dole je `HorizontalFloatingToolbar` s FAB „Nová zpráva" (M3 Expressive) a v něm filtry seznamu:
+Vše, Nepřečtené, Lidé, Skupiny, Kanály (`ChatFilter`, čistá funkce `filteredBy` v `ChatGroups.kt`,
+testy v `ChatGroupsTest`). Nahradil spodní navigační lištu.
+
+- **Filtr je lokální, nad načteným seznamem.** Vlastní složky Telegramu (`ChatListFolder`) zatím
+  nejsou; tohle je jejich nejčastější náhrada. Skupiny (`chatGroups`) se dělají až nad výsledkem.
+  Druh chatu nese `ChatSummary.kind` (`ChatKind`: tajný chat i bot jsou `Private`, základní
+  skupina i supergroup `Group`, kanál `Channel`); `isPrivate` je z něj odvozené.
+- **Nepřečtené = `hasUnread`**, tedy i ručně označené — přesně ty, u kterých svítí odznak.
+  Přečtený chat z filtru zmizí, jako ve složce Nepřečtené u oficiálních klientů.
+- **Ikony bez popisků**, pět popisků by se na telefon nevešlo. Název nese tooltip po podržení
+  a `contentDescription`. Vybraný filtr: `secondaryContainer` (výběr je navigační stav, stejná
+  role jako vybraná položka navigace v M3) a tvar kruh → čtverec (`toggleableShapes`), takže se pozná i bez barvy.
+- **Přepnutí filtru skočí na vršek seznamu** — v obsluze ťuknutí, NE v `LaunchedEffect(filter)`:
+  efekt by se spustil znovu při každém návratu seznamu do kompozice (z konverzace na telefonu)
+  a seznam by pokaždé odjel nahoru.
+- **Filtr se neukládá do nastavení, jen do `SavedStateHandle`.** Návrat z konverzace i zabití
+  procesu v pozadí ho zachová (obnovená konverzace s přepnutým filtrem pod ní by působila jako
+  chyba), nové spuštění aplikace začne na Vše. Filtr je chvilkové zúžení, ne volba: uložené
+  Nepřečtené by při startu vypadaly jako seznam, ze kterého zmizely chaty. `SavedStateHandle`
+  dodá Koin (`get()`) z `CreationExtras`, které nese dekorátor ViewModelů Nav3.
+- **Snackbar je nad toolbarem**, ne ve slotu Scaffoldu — ten by ho dal pod toolbar. Seznam má
+  dole navíc `TOOLBAR_CLEARANCE`, aby šel poslední chat odscrollovat nad toolbar.
+- **Toolbar stojí i nad klávesnicí** (`imePadding` za `consumeWindowInsets` spodního paddingu
+  Scaffoldu). Scaffold dává do paddingu jen systémové lišty, takže vysunutá klávesnice toolbar
+  i snackbar zakryla. Bez zkonzumování by se lišta a klávesnice sečetly a toolbar by visel
+  o výšku lišty výš.
+- **Nabízí se jen filtr, který má smysl** (`availableFilters`, testy `ChatGroupsTest`). Filtr
+  podle druhu jen tehdy, když něco odfiltruje a něco nechá: bez kanálů by Kanály ukázaly prázdno
+  a se samými lidmi by Lidé byli totéž co Vše. Nepotřebná ikona se schová i s místem
+  (`shrinkHorizontally`), toolbar se zúží.
+- **Nepřečtené jsou vždycky.** Je to stav, který se mění s každou zprávou — ikona, která by se
+  objevovala a mizela, by toolbar pod palcem přeskládávala. Zašedlá by zase vypadala rozbitě.
+  Prázdný výsledek je dobrá zpráva a tak ho i kreslíme: „Všechno přečteno".
+- **Vybraný filtr nemizí nikdy**, ani když už nemá co ukázat (poslední kanál opuštěn) — výběr by
+  zmizel pod prstem.
+- **Druh se počítá nad tím, co seznam UKAZUJE**, tedy bez nepřipnutých Uložených zpráv. Ty jsou
+  soukromý chat, a jinak by kvůli nim existovali Lidé s prázdným výsledkem.
+- **Dokud se seznam načítá, jsou jen Vše a Nepřečtené**, filtry podle druhu naběhnou potom.
+  Objevení ikony ruší míň než její zmizení.
+- Prázdný výsledek filtru je `IntroEmptyState` (u Nepřečtených „Všechno přečteno", jinak ikona
+  filtru a „Tomuhle filtru žádný chat neodpovídá"), ne „Zatím tu nic není" — chaty jsou, jen ne
+  tyhle. Stejný prázdný stav jako archiv a placeholder detailu.
+
+### Tvar avataru podle druhu chatu
+
+Člověk kruh, skupina čtyřlaločná sušenka (`MaterialShapes.Cookie4Sided`), kanál zaoblený čtverec
+(`MaterialShapes.Square`) — `ChatKind.avatarShape()` v `core/ui/Avatar.kt`. Druh se pozná dřív,
+než se dočte název.
+
+- **Statický tvar nese DRUH, morf nese STAV** (`ShapeMorphs`). Avatary se nehýbou a neberou
+  tvary, které už něco znamenají (šesti- a dvanáctistranná sušenka, SoftBurst).
+- **Tvar musí sedět všude, kam avatar letí sdíleným prvkem**: seznam → hlavička konverzace →
+  profil. Jinak by uprostřed letu přeskočil. Hlavička ho odvozuje z `isChannel`/`isGroup`,
+  profil z `ProfileKind`. Výchozí `Avatar(shape = CircleShape)` je pro odesílatele, reakce apod.
+  — tam jde vždycky o člověka.
+
 ### Hlavička: vyhledávací pilulka
 
 Seznam chatů nemá nadpis, ale `AppBarWithSearch` (`ChatSearchBar.kt`): pilulka „Hledat
-v chatech", vedle ní menu ⋮. Po ťuknutí se rozbalí `ExpandedFullScreenSearchBar` s výsledky.
+v chatech" přes celou šířku, na jejím konci fotka účtu s menu (Uložené zprávy, Archiv,
+Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky). Po ťuknutí se rozbalí
+`ExpandedFullScreenSearchBar` s výsledky.
+
+- **Fotka účtu je vidět hned, i než se účet načte** (ikona člověka). Tlačítko, které se objeví
+  až později, by do té doby nešlo otevřít — a na telefonu je to jediná cesta do Nastavení.
+  Fotka je `AccountInfo.photoFileId` (`getMe`), načítá ji `ChatsViewModel` jen pro hlavní seznam.
 
 - **Nahradila `LargeFlexibleTopAppBar`, protože ten byl hezký jen rozbalený.** Sbalený přešel na
   `scrolledContainerColor` (`surfaceContainer`), tedy pruh přes celou šířku v roli, která jinde
@@ -1116,6 +1203,28 @@ v chatech", vedle ní menu ⋮. Po ťuknutí se rozbalí `ExpandedFullScreenSear
   které jsou už mezi výsledky (`globalOnly` — server vynechává jen chaty ze seznamu, ne všechny
   známé). Zprávy jsou `searchMessages(chatList = null)` přes hlavní seznam i archiv, stránkované
   `nextOffset` (prázdný = konec), duplicity na hranici stránek zahazuje `mergeFoundMessages`.
+- **Filtry hledání zpráv jsou nad výsledky** (`MessageSearchFilters`, `MessageSearchFilter`):
+  druh chatu (Soukromé / Skupiny / Kanály) a období (týden, měsíc, rok, vlastní rozsah). Filtruje
+  **server** (`searchMessages` s `chatTypeFilter`, `minDate`/`maxDate`, převod `dateRange`, testy
+  `MessageSearchFilterTest`) — filtr nad načtenou stránkou by z padesáti výsledků nechal pár
+  a zbytek dotahoval naprázdno. Druh chatu zúží lokálně i sekce chatů; s obdobím se sekce chatů
+  schovají, chaty datum nemají.
+- **Změna jen filtru nehledá chaty znovu** — seznam by se při každém ťuknutí na čip přeskládal;
+  zopakují se jen zprávy. Filtr se nuluje se sbalením hledání, jako dotaz.
+- **Druh chatu je connected button group** (`ToggleButton` se spojenými tvary, vybraný plný
+  s fajfkou, jako záložky profilu); druhé ťuknutí výběr zruší — filtr smí být prázdný.
+  **Období je split button**: levá část období zapne a vypne a ukazuje které (poslední vybrané
+  si pamatuje), šipka otevře Expressive menu se zaškrtnutou volbou a vlastním rozsahem. „Kdykoli"
+  v nabídce není — to je vypnutí levé části. Nejdřív to byly `FilterChip`y; uživatel chtěl
+  Expressive komponenty.
+- **Na tlačítku krátký popisek** („Týden"), plný je v nabídce, a tlačítka mají užší odsazení
+  (12 dp). S „Poslední týden" a výchozím odsazením se řádek v češtině nevešel a šipka nabídky
+  skončila za okrajem — ověřuje se v češtině s vybraným druhem i obdobím, to je nejširší stav.
+- **Výběr dat vrací půlnoc v UTC** — den se z ní vezme v UTC a začátek hledání je jeho půlnoc
+  v MÍSTNÍM pásmu; konec rozsahu je konec dne. Budoucí dny se nenabízejí.
+- **Ověřovat přes `adb` opatrně**: klávesa Esc (`keyevent 111`) hledání zavře a další ťuknutí
+  trefí seznam chatů — otevřený chat se tím označí jako přečtený. Klávesnice se schovává gestem
+  zpět, jen když je opravdu vidět (`dumpsys input_method | grep mInputShown`).
 - **Chaty a Globálně jsou sbalené na čtyři řádky** se „Zobrazit vše" — u krátkého dotazu jich
   jsou desítky a zprávy by skončily daleko dole.
 - **Nadpis sekce chatů je vždycky, když jsou chaty.** Dokud se ukazoval až s dalšími sekcemi,
@@ -1183,7 +1292,7 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
   `LocalSavedMessagesChatId` (poskytuje shell). **`Avatar` si to NEzjišťuje sám** — kreslí
   i odesílatele (reakce, zhlédnutí, profilovky ve skupině) a tam má být vlastní tvář.
 - **V seznamu chatů nejsou, pokud nejsou připnuté** (`chatGroups`, test
-  `ulozeneZpravyJenPripnute`). Vstup je menu ⋮ v horní liště (vedle archivu). Připnutí
+  `ulozeneZpravyJenPripnute`). Vstup je menu účtu v pilulce (vedle archivu). Připnutí
   je výslovné přání uživatele, takže připnuté zůstávají — schovat je by působilo jako chyba.
 - **Ve výběrech (přeposlání, sdílení, iOS rozšíření, Direct Share) jsou vždy první**, i když
   v seznamu chatů nejsou. V `ChatPicker` jako samostatná karta v `primaryContainer` nad
@@ -1191,6 +1300,9 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
   názvu.
 - **Chat se zakládá hned po přihlášení** (`createPrivateChat`, lokální). U účtu, který si nic
   neuložil, ho TDLib v databázi nemá a nešlo by ho otevřít ani do něj přeposlat.
+- **Záložka v avataru je `primary`, na kartě ve výběru proto dostává `backdrop`.** V paletě
+  se zvýšeným kontrastem je `primaryContainer` světlý jako `primary` a kolečko s kartou
+  splynulo; `Avatar` pak přes `accentOn` sáhne po barvě popředí té plochy.
 - **V hlavičce není „online"** — vlastní dostupnost v Uložených zprávách nic neříká.
 - **Zkratka konverzace a notifikace** (připomínka v Uložených zprávách) mají název
   „Uložené zprávy" a záložku (`bookmarkIcon`), ne jméno a fotku účtu.
@@ -1201,9 +1313,8 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
 
 `NewChatScreen` (`features/chats`), `NewChatRoute`, vstup FAB s tužkou v seznamu chatů.
 
-- **M3 Expressive Extended FAB napojený na scroll.** Na začátku seznamu nebo při scrollu nahoru
-  je rozbalený s textem „Nová zpráva", při scrollu dolů se plynule sbalí do kompaktní ikony,
-  aby nezakrýval řádky chatů, a po zastavení scrollu zůstává sbalený až do dalšího scrollu nahoru (dle M3 guidelines).
+- **FAB je součástí plovoucího toolbaru** (viz „Filtry a plovoucí toolbar"). Při scrollu dolů se
+  toolbar sbalí a zbude jen FAB, po zastavení zůstává sbalený až do dalšího scrollu nahoru.
 - **Kontakty jdou z `getContacts`** a pro každý se lokálně zavolá `createPrivateChat(userId, force = false)`
   — TDLib tak pro kontakt založí chat objekt (lokálně v paměti/databázi, bez odesílání zpráv)
   a do seznamu se dostane kompletní `ChatSummary` s avatarem i dostupností (`withPresence()`).
@@ -1240,8 +1351,8 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
 
 ### Archiv
 
-Archivované chaty jsou vlastní seznam (`ArchiveRoute`, `ArchiveScreen`), vstup je menu ⋮ vedle
-hledání. Do archivu a zpátky se chat dostane z nabídky po dlouhém stisku; místo potvrzení je
+Archivované chaty jsou vlastní seznam (`ArchiveRoute`, `ArchiveScreen`), vstup je menu účtu
+v pilulce hledání. Do archivu a zpátky se chat dostane z nabídky po dlouhém stisku; místo potvrzení je
 snackbar s „Vrátit".
 
 - **Repository drží VŠECHNY chaty, které TDLib ohlásí, a složka je jen pozice**
@@ -1293,6 +1404,43 @@ snackbar s „Vrátit".
   protože produkční cestu vůbec nezavolá.
 - **Hlavička je obyčejný `TopAppBar` bez scroll behavior**, takže nemění barvu — tónovaný pruh
   přes celou šířku byl důvod, proč hlavní seznam opustil `LargeFlexibleTopAppBar`.
+- **Počet nepřečtených v archivu počítá TDLib** (`UpdateUnreadChatCount` pro `ChatListArchive`),
+  ne my nad načteným seznamem — archiv se načítá až při otevření, takže do té doby by nebylo
+  z čeho počítat, a právě tehdy je odznak nejpotřebnější. Update chodí **jen se zapnutou databází
+  zpráv** (`useMessageDatabase`); bez ní se nic nerozbije, jen se nikdy neobjeví.
+- **`unreadCount` v tom updatu započítává i ručně označené chaty** (ověřeno na emulátoru:
+  archivovaný chat bez nepřečtených zpráv, jen s `isMarkedAsUnread`, odznak vyrobil). Sedí to
+  tedy s `ChatSummary.hasUnread` a dopočítávat `markedAsUnreadCount` netřeba.
+- **Odznak je na dvou místech, protože menu účtu je zavřené**: číslo u položky Archiv a tečka na
+  fotce účtu. **Tečka je jen od NEZTLUMENÝCH chatů** (`unreadUnmutedCount`) — do archivu se
+  ztlumené chaty ukládají, takže tečka od nich by byla signál, který nikdy nezhasne. Číslo
+  u položky počítá všechny, ale v neutrální barvě, dokud není co ztlumeného; sytý odznak nad
+  samými ztlumenými chaty je falešné volání.
+- **Ikona na podkladu patří k hraně, ze které se tah odkrývá** (doleva tedy vpravo od popisku,
+  doprava vlevo). S pevným pořadím se při tahu doleva odkryl jako první konec věty, ze kterého
+  není poznat, co se stane.
+- **Archivace tahem jde na OBĚ strany a obě dělají totéž.** Druhá akce v seznamu není, takže by
+  si uživatel musel pamatovat směr pro nic. Nepotvrzuje se — snackbar „Vrátit" je tentýž jako
+  u archivace z nabídky. Uložené zprávy tah nemají (`gesturesEnabled = false`), stejně jako
+  nemají položku v nabídce.
+- **`SwipeToDismissBox` hlásí dokončený tah z `LaunchedEffect`, jehož klíčem je i lambda
+  `onDismiss`.** Ta se při rekompozici položky může změnit a efekt se rozběhne ZNOVU — chat by
+  se archivoval podruhé a po „Vrátit" zase zpátky. Proto si tah pamatuje, že akce už odešla
+  (`sent`). Platí pro každé použití téhle komponenty, ne jen tady.
+- **Tvar bloku se počítá mimo řádek** (`groupItemShape`): tentýž tvar musí mít i podklad
+  odkrývaný tahem, jinak pod zaoblenou položkou vykukují jeho hranaté rohy. `animateItem` zůstává
+  na kořeni položky, tedy na tahu, ne na řádku uvnitř.
+- **Nastavení archivu je sheet z hlavičky archivu, ne pátá sekce Nastavení.** Jsou to dvě volby
+  o tom, co se s archivem děje samo, a kdo je hledá, stojí zrovna v archivu.
+- **TDLib na změnu `ArchiveChatListSettings` NEPOSÍLÁ update**, takže sheet je jediný zdroj pravdy:
+  přepínač se pohne hned a při selhání se vrátí. Čekat na potvrzení by znamenalo přepínač, který
+  se po ťuknutí nehýbe.
+- **Zapisuje se celým objektem**, jako ztlumení chatu: `keepChatsFromFoldersArchived` se přenese
+  z aktuálního stavu. Aplikace vlastní složky Telegramu nemá, takže ho jako volbu nenabízí — ale
+  nastavit ho mohl jiný klient a přepsat mu ho tiše by bylo horší než ho nenabízet.
+- **„Archivovat chaty od neznámých" povoluje server** (`can_archive_and_mute_new_chats_from_unknown_users`);
+  kde ho nepovolí, TDLib zapnutí odmítne. Přepínač se tam proto nenabízí vůbec — stejné pravidlo
+  jako u filtrů seznamu, které nemají co odfiltrovat.
 
 ### Akce nad chatem
 
@@ -1309,6 +1457,10 @@ Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečte
   hodnoty se musí přenést z aktuálního stavu chatu, jinak by se uživateli tiše přepsal třeba
   vlastní zvuk. `useDefaultMuteFor = false` je nutné: dokud je `true`, jede chat podle globálního
   nastavení a `muteFor` se ignoruje. Ztlumení „navždy" je `Int.MAX_VALUE` sekund.
+- **„Ztlumit" se v nabídce rozbalí na doby** (hodina, 8 hodin, 2 dny, navždy), přímo v sheetu,
+  ne v dalším — jsou to varianty jedné položky. Stejné doby jako v profilu chatu. Ztlumený chat
+  má jen „Zrušit ztlumení"; zapisuje výslovnou nulu, ne návrat k výchozímu (ten je v profilu),
+  takže projde i ztlumeným rozsahem.
 - **Stav se po akci nepřepisuje lokálně.** U reakcí v konverzaci to smysl dávalo (mezi ťuknutím
   a potvrzením je vidět prodleva), tady se položka jen přeskládá — a předběhnout server by
   znamenalo riskovat, že se seznam rozejde se skutečností. Potvrzení chodí updaty
@@ -1590,6 +1742,34 @@ album. Bublina ukazuje průběh nahrávání.
   soubor z foťáku, kde index bývá na konci, takže `supportsStreaming = false`. Soubor
   z `loadFileRepresentation` platí jen uvnitř callbacku — kopíruje se hned v něm.
 
+### Otevřený chat (`openChat` / `closeChat`)
+
+Otevřená konverzace to hlásí TDLib (`ConversationRepository.openChat`, protějšek při odchodu).
+Dokud se to nedělalo, vypadal každý chat jako zavřený — a notifikace k chatu, na který se
+uživatel právě díval, na liště problikla, než ji stihlo zrušit hlášení přečtení.
+
+- **U otevřeného chatu se notifikace ODKLÁDÁ, neruší.** V `add_new_message_notification` je
+  `min_delay_ms = 1000`, když je klient online a chat otevřený. To je celý ten rozdíl: během té
+  vteřiny dorazí `viewMessages` z konverzace a notifikace se zahodí dřív, než se ukáže.
+  **Otevřený chat notifikace NEPOTLAČUJE** — kdyby potlačoval, byl by chat nechaný „otevřený"
+  na pozadí tichou ztrátou zpráv.
+- **Proto se při odchodu do pozadí nezavírá.** Odklad se váže na `online`, a ten aplikace
+  v pozadí vypíná sama (`ConnectionController`), takže na notifikace to nemá vliv. Zavírat
+  a otevírat chat při každém přepnutí do pozadí by byla složitost bez užitku.
+- **Pár musí sedět, takže obě volání jdou z `appScope`, ne z `viewModelScope`.** Ten se při
+  odchodu z chatu ruší, takže otevření by se nemuselo odeslat, zatímco zavření (v `onCleared`)
+  ano — a TDLib si otevření počítá. Zavření navíc čeká na doběhnutí otevření (`join`), jinak by
+  se pořadí mohlo obrátit a chat by zůstal otevřený napořád.
+- **Zavření je PRVNÍ věc v `onCleared`.** Kus pod ním končí předčasným `return` (nemá-li se co
+  uložit z konceptu); pod ním by se na zavření při odchodu z chatu bez rozepsané zprávy nedošlo.
+- **Zavřít neotevřený chat nevadí.** `close_dialog` s nulovým počtem se jen vrátí, takže na
+  vyměněném klientovi (po odhlášení se počty resetují) to nic nerozbije.
+- **Je to víc než notifikace.** Otevřený chat si TDLib nechává načtený v paměti, zvedá prioritu
+  stahování jeho souborů, kratčeji odkládá ukládání konceptu a u supergroup a kanálů podle toho
+  řídí doručování updatů.
+- **Na blikání kvůli druhému zařízení to nemá vliv** — tam zprávu přečte ten druhý klient a ten
+  o naší obrazovce nic neví (viz „Notifikace → Poučení", běžící emulátor).
+
 ### Předěly dne
 
 V bublině se vypisují jen hodiny, protože datum má nést předěl nad blokem zpráv. Bez něj se
@@ -1676,9 +1856,21 @@ za ikonou seznamu v sheetu (`PinnedMessagesSheet`), s odepínáním.
   neposílá vůbec; pořadí je podle id zprávy a `getChatPinnedMessage` vrací taky tu s nejvyšším
   id. U kanálu, který připíná čerstvé příspěvky, je to totéž; připne-li někdo starou zprávu,
   zařadí se podle svého stáří.
-- **Ukázaná zpráva se drží podle id, ne indexu** (`pinnedIndex`, `nextPinnedId`, testy
-  `PinnedMessagesBarTest`). Nová připnutá by jinak posunula index a pruh by přeskočil na jinou.
-  Odepnutá ukázaná spadne na nejnovější.
+- **Která se ukáže, ROZHODUJE SCROLL** (`pinnedForScroll`, testy `PinnedMessagesBarTest`): ta,
+  kterou uživatel právě míjí — nejnovější z připnutých nad viditelnou částí. Pruh tím slouží
+  i jako orientace v historii, místo aby napořád visel na nejnovější. Nedrží se k tomu žádný
+  stav; odvozuje se z klíče nejvyšší viditelné položky (ten už existoval kvůli plovoucímu datu),
+  takže nová připnutá zpráva výběr nerozhodí.
+- **Porovnává se STRIKTNĚ** (`it.id < top`). Připnutá, na kterou se právě skočilo, stojí nahoře
+  viewportu; kdyby se počítala jako „nad", ukazoval by ji pruh dál a ťuknutí by vedlo pořád na
+  ni — procházení by se zaseklo. Nad nejstarší připnutou se ukazuje ona sama, výš už žádná není.
+- **Skok z pruhu kotví NAHORU, ne na střed** (`jumpToMessage(anchor = ScrollAnchor.Top)`). Se
+  středem se nad cílem odkryje kus historie a pruh přeskočí rovnou k nejstarší připnuté — z 19
+  → 16 → 14 se prostřední krok ztratí. Citace a hledání na středu zůstávají: tam je naopak
+  potřeba vidět, na co zpráva navazuje.
+- **Ukázaná zpráva se drží podle id, ne indexu** (`pinnedIndex`, testy `PinnedMessagesBarTest`).
+  Nová připnutá by jinak posunula index a pruh by přeskočil na jinou. Odepnutá ukázaná spadne
+  na nejnovější.
 - **Křížek v pruhu je jen u jediné připnuté.** U víc zpráv je vpravo seznam a odepíná se v něm —
   křížek vedle jedné z mnoha svádí k domněnce, že zavře celý pruh.
 - **Sheet se po odepnutí nezavírá** (odepíná se často víc zpráv po sobě), po ťuknutí na řádek
@@ -1753,10 +1945,36 @@ se ukáže i bez nových zpráv, jakmile je uživatel o kus výš.
 
 ### Hledání v konverzaci
 
-Lupa v hlavičce chatu přepne hlavičku na pole a místo vstupního pole ukáže řádek „N z M" se
-šipkami (`InChatSearchTopBar`, `InChatSearchNavigator`). Stav je `ConversationState.search`
-(`InChatSearch`, čistá data a přechody, testy `InChatSearchTest`); `null` = zavřené.
+Lupa v hlavičce chatu přepne hlavičku na **vyhledávací pilulku** a místo vstupního pole ukáže
+**plovoucí toolbar** „N z M" se šipkami (`InChatSearchTopBar`, `InChatSearchNavigator`). Stav je
+`ConversationState.search` (`InChatSearch`, čistá data a přechody, testy `InChatSearchTest`);
+`null` = zavřené.
 
+- **Že se hledá, musí být poznat TVAREM, ne textem.** Hlavička i spodek byly dřív v rolích, které
+  na ploše stránky nejsou vidět: pole bylo `TextField` s průhledným kontejnerem i indikátorem,
+  tedy k nerozeznání od nadpisu chatu (jediná změna oproti klidovému stavu byl zmizelý avatar),
+  a navigátor byl pruh v `surfaceContainer`, což je v tmavém tématu rozdíl na hranici
+  rozlišitelnosti — z celého pruhu byly vidět jen dvě šipky zavěšené v prázdnu. S prázdným
+  dotazem tak na obrazovce nebyl JEDINÝ signál, že je aplikace v jiném režimu.
+- **Pilulka je tentýž prvek jako hledání v seznamu chatů.** Jeden jazyk pro hledání v celé
+  aplikaci; na rozloženém Foldu vypadá hlavička konverzace při hledání stejně jako hlavička
+  seznamu vedle ní.
+- **Pilulka nejde postavit na `TopAppBar`.** Ten titulek MĚŘÍ na celou šířku, ale UMÍSŤUJE ho
+  16 dp od kraje, takže by pilulka o ten kus přetekla za pravý okraj. Hlavička hledání je proto
+  vlastní řádek s ručními insety (`TopAppBarDefaults.windowInsets`) a výškou 64 dp — ta musí
+  lícovat s hlavičkou konverzace, se kterou se střídá.
+- **Pole v pilulce je `BasicTextField` s `DecorationBox`**, ze stejného důvodu jako vstupní pole
+  konverzace: `TextField` si bere minimální výšku 56 dp a odsazení 16 dp napevno, takže by se
+  vedle ikony do pilulky nevešel.
+- **Výběr člena stojí VEDLE pilulky, ne v ní.** Je to akce nad hledáním, ne součást dotazu —
+  a tři ikony uvnitř by na úzkém telefonu nenechaly místo na text.
+- **Toolbar se bez kritérií neukazuje.** Prázdný dotaz nemá co počítat a šipky by byly jen
+  zašedlé. Plovoucí prvek smí naskočit, protože nemá v layoutu pevné místo: výšku drží `Box`
+  kolem něj, takže se seznam zpráv pod ním nepřeskládá.
+- **Plocha konverzace při hledání USTOUPÍ, neposune se k bublinám** (`surfaceContainerLowest`).
+  Výraznější tónování by šlo jen směrem k `surfaceContainerHigh` příchozí bubliny, tedy proti
+  čitelnosti zpráv; takhle se rozdíl naopak o kousek zvětší a nálezy vyskočí. Je to proto vědomě
+  jemné — silnější posun v tomhle směru role nenabízejí.
 - **`searchChatMessages`, stránkované `nextFromMessageId`** (po 50). Další stránka se dotahuje,
   až k ní uživatel došipkuje — u „google" má dlouhý chat přes 1 600 výsledků.
 - **Každý výsledek je skok přes `jumpToMessage`**, tedy i okno v historii (viz „Okno
@@ -1862,19 +2080,53 @@ Ztlumit / Zapnout zvuk, omezená skupina a chat, ve kterém uživatel není, vě
   nepíše, takže se bere jako „nejste v chatu".
 - **Swipe na odpověď se v chatu jen pro čtení nekoná** (`ConversationState.canWrite`); nabídka
   nad zprávou se řídí `canBeReplied` od serveru jako dřív.
-- **Jednotlivé druhy obsahu zatím nerozlišujeme.** Skupina, kde smí jen text (bez fotek,
-  samolepek, hlasovek), má pole celé; zakázaný druh skončí chybou po odeslání.
+- **Druhy obsahu mají vlastní pravidlo** (`ContentAccess`, `contentAccess` vedle `writeAccess`,
+  testy `WriteAccessTest`). Skupina smí povolit text a zakázat fotky; co se poslat nesmí, se
+  nenabízí — sponka schová položku a bez jediné se nekreslí vůbec, mikrofon ustoupí odeslání,
+  výběr zůstane na emoji. **Obě pravidla se musí shodovat v tom, koho omezení míjejí:** správce
+  a vlastník omezení nemají, členovi platí výchozí práva skupiny, omezenému členovi jeho vlastní.
+- **Neznámé postavení NEOMEZUJE nic**, stejně jako u psaní. Chybějící sponka odřízne uživatele
+  od chatu víc než chyba po odeslání, která přijde jednou za čas.
+- **Filtrovat se musí i to, co vydá systémový výběr** (`allowedByContent`, testy
+  `StagedAttachmentsTest`). Výběr fotek vydá fotky i videa jedním tahem, takže ve skupině jen
+  pro fotky se mezi vybranými objeví video — a bez filtru by skončilo chybou po odeslání.
+- **Rozhoduje, JAKO CO příloha odejde, ne čím je.** Režim „Odeslat jako soubor" posílá fotku
+  i video přes `InputMessageDocument` (`toInputContent`), takže se řídí právem na SOUBORY.
+  Kdo to plete, nabídne přílohu, kterou server odmítne.
+- **UI nestačí, pojistka patří i do ViewModelu.** Výběr samolepek se bez práva neotevře, jenže
+  sada jde otevřít ťuknutím na samolepku v historii a poslat se dá z ní. Hláška je lepší než
+  chyba od serveru.
+- **Omezená skupina se bez druhého účtu nevyrobí.** Vlastník omezení nemá, takže vlastní
+  testovací skupina pravidlo neprověří — ověřuje se podstrčeným `ContentAccess` v `chatAccess()`,
+  jako vzhled karty aktualizace. Ověřeno na emulátoru: „jen fotky" nechá sponku s jedinou
+  položkou, smajlík místo samolepky a odeslání místo mikrofonu; „nic" sponku schová celou.
 
 ### „Píše…" v konverzaci
 
-Hlavička ukazuje činnost protějšku (ve skupině kohokoli) místo dostupnosti a protějšek naopak
-vidí, že píšeme my.
+Činnost protějšku (ve skupině kohokoli) se kreslí **v seznamu zpráv tam, kam zpráva naskočí**:
+tvář toho, kdo píše, a skákající trojtečka (`TypingItem`), jako v Google Zprávách. Protějšek
+naopak vidí, že píšeme my.
 
+- **Bez bubliny.** Je to informace o dění v chatu, ne zpráva — patří mezi předěly a servisní
+  oznámení, které se kreslí holé na ploše. Bublina by tvrdila, že už něco přišlo.
+- **V hlavičce není.** Tam zůstává dostupnost; „píše…" ji dřív vytlačovalo a od místa, kde
+  zpráva přijde, bylo daleko.
 - **Činnost se bere ze `ChatRepository`, ne z vlastního odběru.** Seznam chatů ji už sleduje
   i s odpočtem zhasnutí a odfiltrováním vlastní činnosti; druhá kopie téže logiky by se s ní
-  rozešla. Čte se přes `ChatRepository.activity(chatId)`, které nezáleží na složce — viz „Archiv".
-- **Činnost má v podtitulu přednost před dostupností** a výšku hlavičky animuje
-  `AnimatedContent` — skupina podtitul jinak nemá a název by při „píše…" poskočil.
+  rozešla. `ChatRepository.typing(chatId)` nese i KDO (`ChatTyping.senderId`) — `ChatSummary`
+  drží jen druh, seznamu chatů stačí. Tvář dohledá `ConversationRepository.sender` z keše
+  odesílatelů; v soukromém chatu je to tvář chatu.
+- **Ve skupině lícuje s bublinami** (tvář 32 dp ve slotu 40 dp jako u zpráv), v soukromém chatu je
+  tvář jen malá ikonka (24 dp) — zprávy tam tvář nemají. Nezjištěný odesílatel ve skupině nechá
+  prázdné místo, ne tvář skupiny: ta by tvrdila, že píše skupina.
+- **Stojí pod nejnovější zprávou a nad reklamou**, jen když okno sahá k přítomnosti (`reachedEnd`)
+  a ne v kanálu. Klíč je jeden (`TYPING_KEY`), výměna píšícího je jen překreslení.
+- **Při objevení se seznam ukotví dolů** (`requestScrollToItem(0)`), když je uživatel dole —
+  seznam drží pozici podle první viditelné položky (nejnovější zprávy), takže by se indikátor
+  vložil pod spodní hranu. Kdo čte historii, toho nevytrhne.
+- **Trojtečka stačí jen u psaní.** Ostatní činnosti (nahrává hlasovku, vybírá samolepku) doplní
+  slovy vedle teček. Tečky skáčou jen v části periody (`dotLift`, testy `ConversationItemsTest`),
+  zbytek stojí — bez pauzy by vlnily neklidně. Fáze se čte až v `graphicsLayer`.
 - **Vlastní „píšu" se opakuje nejvýš jednou za 5 s** (`TYPING_REPEAT`). Server činnost zhasíná
   asi po šesti vteřinách; posílat ji na každý úhoz by byl dotaz na znak.
 - **Vymazání textu psaní výslovně ukončí** (`ChatActionCancel`), odeslání ne — to ukončí server
@@ -2152,13 +2404,14 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   zvýraznění: vlnky vedené přes 4dp nároží v něm dělaly špičku. Hraje-li, čte se přes
   `derivedStateOf` — pozice se mění dvacetkrát za vteřinu a položka se má překreslit jen při
   spuštění a zastavení.
-- **Nabídka příloh není `DropdownMenu`** (`AttachButton`). M3 menu drží od okraje okna povinný
-  odstup 48 dp (`MenuVerticalMargin`, zahrnuto i do volby „spodkem ke kotvě"), a tlačítko
-  u spodku obrazovky v tom pásu leží — menu se proto posadilo k oknu, zhruba 45 dp nad tlačítko.
-  `offset` nepomůže, přičítá se ke kandidátům PŘED kontrolou. Vlastní `Popup` s pozicí nad
-  kotvou; vzhled z `MenuDefaults`, položky standardní `DropdownMenuItem`. **Totéž čeká každé
-  `DropdownMenu` u spodku obrazovky.** Poznalo se to změřením (`uiautomator dump`): spodek menu
-  byl přesně `výška okna − 48 dp`, ne horní hrana kotvy.
+- **Nabídka příloh má vlastní umístění** (`AttachButton`, `AboveAnchorStartPositionProvider`).
+  Výchozí umístění M3 menu drží od okraje okna povinný odstup 48 dp (`MenuVerticalMargin`,
+  zahrnuto i do volby „spodkem ke kotvě"), a tlačítko u spodku obrazovky v tom pásu leží — menu
+  se proto posadilo k oknu, zhruba 45 dp nad tlačítko. `offset` nepomůže, přičítá se ke
+  kandidátům PŘED kontrolou. Expressive `DropdownMenuPopup` bere vlastní
+  `DropdownMenuPopupPositionProvider` (s `transformOrigin` v rohu u tlačítka), takže vzhled je
+  tentýž jako u ostatních nabídek. **Totéž čeká každou nabídku u spodku obrazovky.** Poznalo se
+  to změřením (`uiautomator dump`): spodek menu byl přesně `výška okna − 48 dp`.
 - **Citace a psaní jsou JEDNA karta.** Dva samostatné kusy nad sebou dělaly z odpovědi cizí prvek
   vsunutý mezi konverzaci a vstup; ve společné kartě je vidět, že citace patří k tomu, co se
   právě píše. Citace (i hlavička úpravy) je **horní pruh karty v `tertiaryContainer`**
@@ -2404,6 +2657,14 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   mazání ne.
 - **Kopírování se řídí `canBeSaved`.** Kanál si může obsah chránit; pak se z něj nesmí vynášet
   ani text do schránky.
+- **Výběr části textu je SHEET z nabídky, ne výběr v bublině** (`SelectTextSheet`).
+  `SelectionContainer` zahajuje výběr dlouhým stiskem, a ten v konverzaci už patří nabídce nad
+  zprávou; kdyby se o gesto dělily, jedna by přestala fungovat — a nabídka je ta častější.
+  Text v sheetu je holý (`copyableText`), ne `RichText`: odkazy mají vlastní klikání a se
+  `SelectionContainer` by se o gesta praly. Kopírování obstará systémová nabídka nad výběrem,
+  vlastní tlačítko by jen zdvojovalo, co platforma umí sama.
+- **„Vybrat text" stojí na stejném právu jako „Kopírovat"** (`canCopy`). Chráněný obsah nesmí
+  ven ani po kouskách a bez textu není co vybírat; obojí hlídá test.
 - **Schránka je vlastní `expect`/`actual`, ne Compose API.** `LocalClipboardManager` je zastaralý
   a jeho náhrada pracuje s `ClipEntry`, což je `expect class` bez společné továrny na text —
   v commonMain se prostě nedá vyrobit.
@@ -2628,9 +2889,45 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
   rozvržení ji v pravém panelu nahradí a zpět vede do ní. Spodní bar se skrývá jako u konverzace
   (`inDetail`). Routa je v `NavSavedStateConfiguration`.
 - **Avatar a název přiletí z hlavičky konverzace** — tytéž sdílené klíče jako ze seznamu chatů.
-- **Údaje a členové jsou `SettingsGroup`** z Nastavení: pro „seznam vlastností" má aplikace jeden
-  vzhled. Akce jsou tónované dlaždice s ikonou nad popiskem; popisek říká, co se stane
-  (Ztlumit / Zapnout zvuk), ne stav.
+- **Do profilu vede i tvář odesílatele ve skupině** (`MessageAction.OpenSenderProfile`). Profil
+  stojí na chatu, takže se napřed najde soukromý chat (`privateChat`, lokálně). **Sdílený klíč
+  nese jen ŤUKNUTÁ tvář** (`ConversationItemScope.isProfileFlight`, `rememberSaveable` podle id
+  zprávy): tentýž člověk má tvář u každého bloku zpráv a o jeden klíč by se přetahovaly všechny.
+  Klíč se nastaví při ťuknutí, dřív než se asynchronně najde chat — navigace ho pak už vidí.
+  Záporné id odesílatele je chat (anonymní správce), ten profil neotevírá.
+- **Hledat v profilu otevřeném ze skupiny otevře konverzaci S NÍM**, ne skupinu pod profilem:
+  požadavek hledání je stav podle chatu a čekal by na chat, který není vidět.
+- **Člen ze seznamu letí do hlavičky konverzace** (avatar i jméno, klíče jako ze seznamu chatů),
+  kromě vlastního účtu — ten vede do Uložených zpráv se záložkou místo fotky.
+- **Údaje i obsah záložek jsou bloky zaoblených řádků** (`groupItemShape`, `surfaceContainerLowest`,
+  spára 2 dp), stejný jazyk jako seznam chatů. Dřív byly údaje karta `SettingsGroup`
+  (`surfaceContainerHighest`) a záložky holé řádky — v jednom profilu dva vzhledy pro „seznam věcí".
+  Mřížka médií nese velké zaoblení jen v rozích bloku (`mediaTileShape`, i schod neúplného
+  posledního řádku). Role člena je tonální štítek, ne barevné slovo;
+  vlastník terciární s hvězdou, správce sekundární se štítem — ikona proto, že barva sama
+  rozdíl nenese (barvoslepost, paleta se zvýšeným kontrastem). Vlastní štítek člena nahrazuje
+  slovo role, ikona a barva role zůstávají; běžný člen se štítkem má neutrální štítek. Bot je
+  pod jménem, ne ve štítku — bývá i správce a dva štítky vedle sebe by se praly.
+- **„Custom title" správce v TDLib 15 už NENÍ.** `ChatMemberStatusCreator/Administrator` ho
+  nenesou; nahradil ho `ChatMember.tag`, který smí mít kterýkoli člen. Kdo hledá titul u stavu
+  správce, nenajde nic. Akce jsou tónované dlaždice
+  s ikonou nad popiskem; popisek říká, co se stane (Ztlumit / Zapnout zvuk), ne stav.
+- **Záložky jsou connected button group** (`ToggleButton` s `ButtonGroupDefaults.connected*Shapes`),
+  ne `PrimaryTabRow` s podtržením — to je vzhled M2 a mezi zaoblenými bloky působil cize.
+  Vybraná je plná `primary` a zakulatí se celá. Semantika `Role.Tab`.
+- **Vybraná záložka si přianimuje ikonu a o ni se rozšíří** (váha 1 → 1,4, jednou pružinou
+  s ikonou). Se stejnou šířkou všech čtyř by ikona ukrojila popisek („Čle…"); ověřuje se
+  v češtině, má nejdelší popisky.
+- **Avatar se při sbalování zmenšuje do jména a mizí** (`graphicsLayer`, průběh = podíl výšky
+  avataru, o který profil odjel). Zmenšuje se ke spodku a PŘESNĚ o tolik, o kolik odjel: vršek
+  tím stojí těsně pod lištou. S poloviční mírou (první pokus) vršek dál utíkal pod lištu a byl
+  useknutý. Scroll se čte až při kreslení, nic nerekomponuje.
+- **Dlaždice akcí mění tvar**: stiskem zhranatí (20 → 12 dp) jako tlačítka M3 Expressive a ztlumený
+  chat má dlaždici celou kulatou v `tertiaryContainer` — stejný jazyk jako vybraná záložka.
+  Hledat stav nemá, takže tvarem nic nenese. Ikona s popiskem se mění přechodem: změna přijde až
+  s potvrzením serveru a skok se dal přehlédnout.
+- **Název se po odjetí velkého jména ukáže v liště** (`titleInBar`: scroll za spodkem jména,
+  změřeným `onPlaced`). Bez toho nebylo u sbalené hlavičky poznat, čí profil je otevřený.
 - **Hledat zavře profil a otevře hledání v konverzaci** přes `ConversationSearchRequests` — STAV,
   ne událost (jako `ChatOpenRequests`): konverzace pod profilem si požadavek vyzvedne, až ho
   odebírá. Hledání patří konverzaci, profil by ho jen zdvojil.
@@ -2644,7 +2941,65 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
 - **Počty se oddělují po tisících úzkou nezlomitelnou mezerou** (`Int.grouped()` v `core/ui`) —
   „10704668 odběratelů" se nedalo přečíst. Commonmain `NumberFormat` nemá; mezera je čitelná
   v češtině i angličtině. Plurály proto berou číslo jako `%1$s`.
-- **Sdílená média (Média / Soubory / Odkazy) zatím nejsou** — další krok, viz roadmapa.
+
+- **Méně časté akce jsou za ⋮ v liště** (`ProfileMenu`): kopírovat odkaz (veřejné jméno, jinak
+  pozvánka — tu server vydá jen správci s právem zvát), zablokovat / odblokovat uživatele či
+  bota a smazat chat / opustit skupinu nebo kanál. Dlaždice nesou to, kvůli čemu se do profilu
+  chodí; tohle se dělá jednou za čas a dvě z toho jsou nevratné, s potvrzením a stejnými texty
+  jako v seznamu chatů. Odblokovat je bez potvrzení.
+- **Po smazání nebo odchodu se zavře všechno, co chat ukazuje** (`closeChat` v `ChatsStack.kt`,
+  test v `ChatsStackTest`): konverzace, profil a prohlížeč médií, v hlavním seznamu i archivu.
+- **Blokuje se hlavní seznam** (`BlockListMain`) — ten brání psát i volat. Stav se čte
+  z `UserFullInfo.blockList` a po akci přepíše lokálně: profil `UpdateUserFullInfo` neodebírá.
+- **Opustit se nabízí jen tam, kde uživatel je** (`isMember` z vlastního postavení) — z chatu
+  otevřeného z globálního hledání není odkud odejít.
+- **Snackbar profilu dřív neukázal nikdy nic**, ani chybu: efekt klíčovaný `state.error` hlášku
+  vynuloval a tím se sám zrušil (past „Vrátit"). Teď běží v `rememberCoroutineScope`.
+
+### Sdílená média v profilu
+
+Pod hlavičkou profilu jsou záložky: **Členové** (kde je server vydá), **Média**, **Soubory**
+a **Odkazy**. Obsah jde přes `searchChatMessages` s filtrem
+(`SearchMessagesFilterPhotoAndVideo` / `Document` / `Url`), ne procházením historie — sdíleného
+obsahu bývá zlomek zpráv.
+
+- **Nabízejí se jen neprázdné záložky.** Počty se čtou naráz (`getChatMessageCount` na všechny
+  druhy současně) a teprve podle nich se záložky vykreslí; prázdná záložka by slibovala obsah,
+  který chat nemá. Dokud počty nedorazí, nejsou žádné — záložka, která by po chvíli zmizela,
+  vypadá jako chyba.
+- **Profil kvůli tomu NENÍ `LazyColumn`.** Obsah záložky je sám svislý seznam a dva svislé
+  scrolly do sebe Compose nezměří, když vnitřní dostane nekonečnou výšku (`Vertically scrollable
+  component was measured with an infinity maximum height constraints`). Profil je proto
+  `verticalScroll` sloupec (hlavička, záložky, pager) a **pager má PEVNOU výšku** = plocha bez
+  záložek. Vnější scroll tím sahá přesně o výšku hlavičky a **záložky se přilepí samy**; žádný
+  `stickyHeader`.
+- **Hlavička se musí dát táhnout prstem.** První verze kreslila hlavičku PŘES stránky a posouvala
+  ji jen `NestedScrollConnection` ze seznamu pod ní: tah přes fotku nebo údaje nedělal nic
+  a u krátké záložky (tři členové) nebylo čím hlavičku sbalit. Teď ji nese vnější scroll.
+- **Scroll dolů si napřed vezme hlavička** (`collapseFirst` na pageru, `dispatchRawDelta` do
+  vnějšího `ScrollState` v `onPreScroll`). Nahoru to platí samo: vnější scroll dostane jen to,
+  co seznam nespotřeboval, tedy až po dojetí na začátek — i u flingu. Ověřuje se `input swipe`:
+  malý tah dolů v odscrollované mřížce hýbe mřížkou, hlavička zůstává sbalená.
+- **Dotažení další stránky NESMÍ stát na `layoutInfo`.** Porovnání indexu poslední viditelné
+  položky s počtem se u mřížky minulo a další stránka nedorazila NIKDY — u seznamu s jedinou
+  položkou naopak prošlo hned, takže vada byla vidět jen na mřížce. Spouští ho proto kompozice
+  jedné z posledních položek (`LoadMoreAtEnd`): skládá se, teprve když je blízko viewportu.
+- **Konec pozná jen prázdná odpověď od serveru**, ne počet po filtrování: stránka samých
+  mizejících fotek vyjde prázdná i uprostřed chatu.
+- **Mizející a tajná média se vyřazují** stejně jako z listování v prohlížeči — trvalý přehled
+  není místo pro obsah, který má po zhlédnutí zmizet.
+- **Dlaždice mřížky nese sdílený prvek `photoKey`** jako fotka v bublině — prohlížeč z ní vyroste
+  a při zavření se do ní vrátí. Konverzace pod profilem je v tu chvíli nesložená, takže se o klíč
+  nic nepře; na široké ploše sdílení vypíná `LocalTwoPane` jako všude.
+- **Ťuknutí vede tam, kam z konverzace**: médium do prohlížeče (táž `MediaRoute`), soubor se
+  stáhne a předá systému (včetně průběhu v řádku a druhého ťuknutí jako zrušení), odkaz do
+  prohlížeče.
+- **Titulek „null" posílá server doslova** (u `share.google/…` a podobných). `ifBlank` ho
+  nechytil a stál v záložce Odkazy i v bublině; texty náhledu jdou proto přes `previewText`
+  (`MessageContent.kt`, testy `LinkPreviewTextTest`), který ho zahodí jako prázdný.
+- **`mailto:` se v adrese neukazuje** (`displayUrl`, testy `SharedMediaTest`). Filtr odkazů bere
+  i e-maily a schéma u nich nic neříká; `https` od `tg` odlišit potřeba je, takže se zahazuje
+  jen ono.
 
 ## Hlasovky
 
@@ -2721,11 +3076,9 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   největší, co server má; `fileId` (do 1280 px) slouží jako okamžitý náhled, protože ho konverzace
   už stáhla. V bublině by originál znamenal desítky megabajtů kvůli obrázku širokému pár set bodů.
 - **Prohlížeč nemá metadata list-detail scény**, takže ho scéna nepřevezme a `NavDisplay` ho
-  vykreslí přes celou plochu i na širokém rozvržení. **Rail se v něm schová** (`showRail`
-  v `AppShell`, i s místem přes `shrinkHorizontally`): není to panel vedle seznamu, ze kterého
-  se přepíná sekce, a rail by jen ukusoval šířku fotce a sousedním stránkám.
+  vykreslí přes celou plochu i na širokém rozvržení.
 - **Ořez pozadí je nutný** (`clipToBounds` v `AmbientBackground`). Pozadí sousedů leží posunuté
-  mimo plochu prohlížeče; bez ořezu prosvítalo vlevo přes rail nerozostřené — rozostření pokrývá
+  mimo plochu prohlížeče; bez ořezu prosvítalo vlevo (tehdy přes rail) nerozostřené — rozostření pokrývá
   jen plochu prohlížeče.
 - **Gesta patří FOTCE, ne bublině.** Kdyby ťuknutí odchytávala bublina, sebralo by ho i odkazům
   v popisku. Dlouhý stisk se na fotce musí zopakovat: potomek s vlastním klikáním ho nepustí
@@ -2772,7 +3125,7 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   (`MAX_PAGE_WIDTH` 640 dp, zbytek jde do `contentPadding`, mezera mezi kartami je tam 24 dp místo 8) a **sousední karta se přisouvá k okraji
   bližšímu aktuální stránce** (`cardBias` = −`getOffsetDistanceInPages`, čteno až při umístění
   v `MediaPageLayout`). Plynule s tahem — karta, která dojede doprostřed, stojí na středu.
-  Šířka se bere z `BoxWithConstraints`, ne z okna: vedle prohlížeče může ležet rail.
+  Šířka se bere z `BoxWithConstraints`, ne z okna.
 - **Pozadí jezdí s pagerem**, neprolíná se. Kreslí se pozadí aktuální stránky i sousedů vedle
   sebe, posunutá o `currentPageOffsetFraction` (čteno až v `graphicsLayer`). Dokud se pozadí
   jen prolnulo podle `currentPage`, měnilo se skokem až po přeskočení na další stránku, zatímco
@@ -2846,6 +3199,103 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
 - **Let z bubliny jede přes sdílený prvek** (`photoKey`), stejně jako avatar a název chatu.
   Na širokém rozvržení se nekoná: `LocalTwoPane` tam sdílení vypíná.
 
+### GIFy
+
+GIF je v Telegramu **MP4 bez zvuku** (`MessageAnimation`), ne skutečný GIF — přehrává se proto
+týmž přehrávačem jako video (`MessageMedia.Animation`, `AnimationBubble`).
+
+- **Hraje sám, dokud je vidět, ve smyčce a ztlumeně.** GIF, který se nehýbe, není GIF. Přehrávač
+  žije s kompozicí bloku, takže odscrollovaný GIF dekodér vrátí. `LazyColumn` skládá i kousek za
+  viewportem, takže pár GIFů hraje mimo obrazovku — proti sledování skutečné viditelnosti je to
+  levnější a rozdíl je neznatelný.
+- **Ztlumený obsah NEŽÁDÁ o audio focus** (Android `handleAudioFocus = !muted`) a nepřepíná
+  kategorii `AVAudioSession` (iOS). Ztlumený GIF nemá co ztišit hudbu, která uživateli hraje —
+  a ExoPlayer si o fokus řekne i při nulové hlasitosti.
+- **Smyčku `AVPlayer` neumí sám.** Řeší ji pozorovatel `AVPlayerItemDidPlayToEndTimeNotification`,
+  který se drží silnou referencí a odhlašuje při uvolnění přehrávače — `NSNotificationCenter` si
+  pozorovatele nedrží. `AVPlayerLooper` by znamenal `AVQueuePlayer`.
+- **Velký GIF se sám nestahuje** (`MAX_AUTOPLAY_ANIMATION_BYTES`, 5 MB; testy `MessageRowsTest`).
+  Autoplay by bez ptaní snědl data, takže nad stropem — a u neznámé velikosti — zůstane náhled
+  a čeká na ťuknutí. Ťuknutí na hrající GIF ho pozastaví, jinak by nešel zastavit vůbec.
+- **GIF jde na plochu bez bubliny** jako fotka a video (`showsBareMedia`): je to obrázek sám
+  o sobě. Od videa ho odliší značka „GIF" v rohu a to, že nemá délku.
+- **Přehrávání se na emulátoru ověřit NEDÁ**, když je stroj zatížený: `c2.goldfish.h264.decoder`
+  selže na `queueInputBuffer error: 14` a ExoPlayer uvízne ve `STATE_BUFFERING` (délka souboru
+  je přitom známá). Pozná se to podle toho, že **stejně selže i video v prohlížeči médií** —
+  tedy cesta, která s GIFy nesouvisí. Ověřit jde vzhled, značka a přepínání pauzy.
+
+### GIFy a samolepky z klávesnice
+
+GIF vybraný v Gboardu **odchází hned** jako animace (`InputMessageAnimation`), jako samolepka
+z výběru; statický obrázek a samolepka z klávesnice čekají nad polem jako fotka z výběru
+(`KeyboardContentReceiver` v `core/ui`, `ConversationViewModel.sendAnimation`).
+
+- **Klávesnice nabízí GIFy jen poli, které řekne, že je přijme** (`EditorInfo.contentMimeTypes`).
+  Bez toho Gboard hlásí „animované GIFy nejsou podporované" — a nic z toho není chyba, jen
+  chybějící deklarace.
+- **`Modifier.contentReceiver` z Compose tu NEJDE.** Funguje jen s `BasicTextField` nad
+  `TextFieldState` a naše pole stojí na `TextFieldValue` (viz „Koncept"). Android proto obaluje
+  vstupní spojení přes `InterceptPlatformTextInput`: typy se do `EditorInfo` doplní až PO
+  původním `createInputConnection` (ten ho vyplňuje a přepsal by je), `commitContent` převezme
+  `InputConnectionCompat.createWrapper`.
+- **Obal stojí kolem pole vždycky**, i když chat nic nepřijme (pak jen propouští). Větev
+  „bez obalu" by pole při přepnutí do úpravy složila znovu a vzala mu fokus.
+- **Nabízí se jen to, co chat přijme**: GIF podle práva na samolepky (`canSendOtherMessages`),
+  obrázek podle práva na fotky; při úpravě zprávy nic, jako u sponky. Pojistka je i ve ViewModelu.
+- **Obsah se kopíruje HNED a oprávnění se pak vrací** (`requestPermission` /
+  `releasePermission`). Oprávnění k URI od klávesnice je dočasné, stejně jako u sdílení.
+- **Přípona souboru se doplňuje podle typu** (`prepareAnimation`) — jméno od klávesnice bývá
+  bez ní a TDLib podle ní pozná, co nahrává. GIF se nepřevádí, na MP4 ho převede server.
+- **Průhledný obrázek se před JPEG skládá na bílou** (`opaque()` v `preparePhoto`). JPEG alfu
+  nemá a průhledné pixely z něj vyšly černé — samolepka z Gboardu odcházela na černém čtverci.
+  Týkalo se to i PNG z výběru příloh.
+- **iOS klávesnice GIFy do pole nevkládají** (`commitContent` tam nemá obdobu) — GIF klávesnice
+  i samolepky jdou přes SCHRÁNKU. Na iOS proto `KeyboardContentReceiver` dělá jen vložení ze
+  schránky (viz níž).
+- **Obrázek a GIF ze schránky vkládá vlastní položka kontextové nabídky pole** („Vložit GIF" /
+  „Vložit obrázek", `appendTextContextMenuComponents`). Systémové „Vložit" v poli umí jen text
+  a s obrázkem ve schránce se ani neukáže. Položka je jen tehdy, když schránka nese typ, který chat
+  přijme; rozhoduje `primaryClipDescription`, který se čte při otevření nabídky — popis systém
+  jako čtení schránky nehlásí, obsah (`primaryClip`) se bere až po ťuknutí. Dál stejná cesta
+  jako obsah z klávesnice (`prepare`): GIF odchází hned, obrázek čeká nad polem.
+- **Funguje to jen s NOVOU kontextovou nabídkou** (`ComposeFoundationFlags.isNewContextMenuEnabled`).
+  Staré `TextToolbar` vlastní položky nebere. **Na Androidu je v 1.12 výchozí, na iOS NE**
+  (`isNewContextMenuInitiallyEnabled = false` ve skiko) — zapíná se v `MainViewController`,
+  dřív než se cokoli složí. Nabídku na iOS kreslí dál systém (`UIEditMenuInteraction`), vlastní
+  položky jdou do ní jako nativní akce (`CMPEditMenuCustomAction`); systémové „Vložit" textu
+  funguje dál (ověřeno na poli s číslem při přihlášení).
+- **iOS: typ ve schránce se zjišťuje `containsPasteboardTypes`**, které systém nehlásí jako
+  čtení. Data (`dataForPasteboardType`) až po ťuknutí — a protože to není systémové „Vložit",
+  iOS se zeptá „Povolit vložení?". Obejít to jde jen `UIPasteControl` (tlačítko kreslí systém).
+  Typy jsou UTI: `com.compuserve.gif`, `public.mpeg-4`, `public.png`/`jpeg`/`heic`,
+  `org.webmproject.webp`. GIF má přednost — z téže položky by obrázek byl jen první snímek.
+- **Na simulátoru se to ověří bez podstrkávání**: GIF do schránky Macu (`osascript -e 'set the
+  clipboard to (read (POSIX file "…/x.gif") as «class GIFf»)'`), pak `xcrun simctl pbsync host
+  <zařízení>`. Dotaz „Povolit vložení?" se ukáže s původem „CoreSimulatorBridge". Ověřeno:
+  „Paste GIF" v nabídce, po povolení GIF odešel a hraje.
+- **Bez dotazu „Povolit vložení?" vkládá jen `UIPasteControl`** — systémové tlačítko
+  (`ClipboardPasteSuggestion`). Když má pole fokus a schránka nese GIF / obrázek, nad polem se
+  ukáže pruh „GIF ve schránce" s tímto tlačítkem. Položka v kontextové nabídce zůstává, ale ptá se.
+  - **Interop view musí být `placedAsOverlay = true`.** Výchozí interop leží POD plátnem Metalu
+    a prosvítá průhledným otvorem; iOS pak tlačítko považuje za zakryté, ťuknutí neprojde
+    ověřením a dotaz na povolení přijde stejně. Nic se nehlásí — pozná se to jen podle dotazu.
+    Průhledné pozadí (`clearColor`) k tomu, jinak má kapsle bílé rohy.
+  - **`intrinsicContentSize` u `UIPasteControl` rozměr NEHLÁSÍ** (−1), Compose mu dal nulovou
+    plochu a tlačítko nebylo vidět. Měří se `systemLayoutSizeFittingSize`, s minimem.
+  - **Cíl je `UIResponder` s `pasteConfiguration`** (přijímané UTI) a `pasteItemProviders`;
+    data z `NSItemProvider.loadDataRepresentation` chodí na vlákně na pozadí.
+  - **Vložený obsah se podruhé nenabízí**, pamatuje se `changeCount` schránky pro celý proces.
+    Při vložení se čte ŽIVÝ `changeCount` — mění se i bez notifikace (jiná aplikace, na
+    simulátoru synchronizace se schránkou Macu), a s číslem z doby zobrazení pruh zůstal viset.
+  - Android návrh nekreslí — tam se na vložení nikdo neptá.
+- **`preparePhotoData` na iOS skládá na bílou** (`opaque = true` + `UIRectFill`), ze stejného
+  důvodu jako `opaque()` na Androidu.
+- **Obrázek do schránky emulátoru z `adb` nedostaneš** — `cmd clipboard` neexistuje a Chrome
+  i Fotky chtějí nejdřív projít úvodním souhlasem. Ověřuje se podstrčením: dočasně v debug buildu
+  `setPrimaryClip(ClipData.newUri(…))` s GIFem v `cache/shared` (vydává ho provider `…documents`;
+  soubor se tam dostane `adb push` do `/data/local/tmp` a `run-as … cp`). Pozor: po zápisu ukáže
+  Android vlevo dole náhled schránky a dlouhý stisk v tom místě otevře systémové sdílení, ne pole.
+
 ### Video
 
 Video je vlastní typ přílohy (`MessageMedia.Video`: soubor, náhled, rozměry, délka). V bublině
@@ -2858,9 +3308,46 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   video stahuje a hraje. Návrat do galerie ho pozastaví.
 - **Ťuknutí na celé obrazovce u videa napřed ukáže schované ovládání**, teprve ťuknutí
   s ovládáním na očích vede do galerie. Jinak by se u hrajícího videa k posuvníku nedalo dostat.
-- **Video se stáhne celé, teprve pak hraje** (průběh přes náhled). Rozestavěný soubor z TDLib
-  přehrávač nepřečte, index bývá na konci. Streamování (čtení částí přes `readFilePart` / vlastní
-  zdroj dat přehrávače) je v roadmapě. Stahovat začne až vybraná stránka; soused složený dopředu ne.
+- **Video se streamuje z rozestavěného souboru** (Android; `StreamingSource`,
+  `PartialFileDataSource`). ExoPlayer dostane vlastní `DataSource`, který čte soubor TDLib
+  a místo konce vstupu POČKÁ, až data dorazí — `FileDataSource` by na konci rozestavěného
+  souboru ohlásil konec a přehrávání by po pár vteřinách skončilo. Stahovat začne až vybraná
+  stránka; soused složený dopředu ne.
+- **Bez přesouvání stahování by to nefungovalo.** Přehrávač si hned na začátku řekne o `moov`
+  atom, a ten u většiny videí leží na KONCI souboru; TDLib přitom stahuje od začátku, takže by
+  se na něj čekalo marně. `StreamingSource.requestFrom` proto volá `downloadFile` s offsetem.
+- **`downloadedPrefixSize` se počítá od `downloadOffset`, ne od začátku souboru.** Po skoku na
+  konec je dostupný úsek `downloadOffset ..< downloadOffset + prefix` — prvních N bajtů
+  dostupných NENÍ, i když se předtím stáhly (testy `FileStateTest`). Kdo to plete, čte díry.
+- **`supportsStreaming` od serveru říká, co tvrdí odesílatel, ne kde index doopravdy je.**
+  Ověřeno: video poslané botem s `supports_streaming=true` mělo `moov` na konci. Nedá se z něj
+  tedy usuzovat, že skok nebude potřeba — jen se podle něj streamování vůbec zkusí.
+- **Čekání na data blokuje vlákno ExoPlayeru, a tak to má být** — je to jeho vlastní vlákno pro
+  načítání. Po 30 s bez nových dat se čtení vzdá: stahování mohlo spadnout a věčné čekání by
+  vypadalo jako zamrzlý přehrávač.
+- **iOS zatím streamovat neumí** (`videoStreamingSupported = false`). `AVPlayer` by potřeboval
+  `AVAssetResourceLoaderDelegate` — vlastní zdroj odpovídající na požadavky na rozsahy bajtů;
+  do té doby se tam čeká na celý soubor.
+- **Velký průběh uprostřed jen do ROZBĚHNUTÍ videa** (`hasPlayed` = přehrávač poprvé hlásí
+  `isPlaying`), ne dokud se stahuje. U streamovaného videa je soubor „načtený" hned, ale
+  přehrávač ještě čeká na data — procento staženého souboru by tam lhalo (hraje se dávno před
+  100 %), proto se po načtení točí neurčitě. Tlačítko play/pauza se do té doby neukazuje.
+- **Stahování pod hrajícím videem je kroužek v pravém horním rohu** (`VideoDownloadIndicator`);
+  ťuknutí ho roztáhne do čáry přes horní okraj karty, další ho svine. Nahoře, protože kroužek tam
+  už je a jen se roztáhne do šířky; dole by se čára přetahovala o místo s posuvníkem.
+- **Jsou to běžné `CircularWavyProgressIndicator` / `LinearWavyProgressIndicator`** a přechod je
+  obyčejné `AnimatedContent` se `SizeTransform`, rostoucí z rohu (`contentAlignment = TopEnd`).
+  První verze kreslila na `Canvas` oblouk, který se rozvine do čáry — vymyšlený prvek, který
+  nikde jinde není; uživatel chtěl standardní vzhled. Ukazuje se proto celkový `progress`, ne
+  souvislý stažený úsek: obě komponenty kreslí průběh od nuly.
+- **Podklad pilulky nese kontejner `AnimatedContent`, ne obsah.** Velikost se animuje na
+  kontejneru; podklad na obsahu `SizeTransform` ořízne a pilulka roste s hranatým okrajem.
+- **Na emulátoru se stahování zpomalit NEDÁ**: `adb emu network speed edge`/`gprs` odpoví OK,
+  a 2,5MB video se přesto stáhne za vteřinu. Vzhled indikátoru se proto ověřuje podstrčeným
+  stavem (`downloadVisible` bez podmínky na `Downloading`, pevný `progress`), jako karta aktualizace.
+  **Přechod jde prohlédnout jen zpomaleně**: `adb shell settings put global
+  animator_duration_scale 10` (Compose ho respektuje) a série `screencap` — v normální
+  rychlosti ho snímky minou.
 - **Přehrávač je v kompozici** (`rememberVideoPlayer`) a s ní se uvolní. Hraje jen vybraná
   stránka; stav (pozice, délka, dohráno) se čte po 200 ms, přehrávače ho samy nehlásí.
   Spuštění videa zastaví hrající hlasovku.
@@ -2901,6 +3388,28 @@ za `MessageExpiredPhoto` / `MessageExpiredVideo`.
   prázdné.
 - **Mizející média nejsou v listování prohlížeče** (`visualMedia` je vyřazuje), nemají v něm
   reakce, sdílení ani uložení, a notifikace k nim nepřikládá obrázek — stejně jako ke spoileru.
+
+### Jak to ověřit
+
+**Přes testovacího bota jde ověřit jen ODESÍLACÍ strana.** Bot API mizející média posílat neumí
+— `sendPhoto` nemá `ttl_seconds` a `ephemeral_message_parameters` (Bot API 10.3) je něco jiného:
+viditelnost zprávy ve skupině, ne mizení. Kdo čeká, že si mizející fotku pošle botem, hledá
+parametr, který neexistuje.
+
+- **Chat s botem je platný cíl a server ho přijme.** `selfDestructAllowed` se ptá na soukromý
+  chat, a chat s botem jím je — ověřeno na emulátoru odesláním obou režimů. Testuje se tedy
+  v něm, ne ve skupině.
+- **Příjmová strana potřebuje druhý uživatelský účet.** Tikající odpočet ze `selfDestructIn`,
+  spotřebování po zhlédnutí, výměna za `MessageExpiredPhoto` a vyřazení z listování prohlížeče
+  se u vlastní odeslané zprávy z principu neprojeví — u odesílatele se nespotřebovává.
+- **Že se vlastní zpráva nespotřebovává, se pozná podle STOJÍCÍHO odpočtu**: v prohlížeči zůstane
+  „10s" i po patnácti vteřinách. U jednorázového zhlédnutí to samé přežije otevření i zavření.
+- **`FLAG_SECURE` se ověřuje dvakrát, ne snímkem.** Černý `screencap` sám o sobě nic nedokazuje —
+  stejně vyjde i obrazovka, která se nestihla vykreslit. Druhá půlka důkazu je
+  `adb shell dumpsys window windows | grep -A3 plume`, kde musí být ve `fl=` příznak `SECURE`.
+- **Se zapnutým `FLAG_SECURE` se prohlížeč nedá ověřovat snímky** a musí se číst strom
+  zpřístupnění (`adb shell uiautomator dump`). Ten čte hierarchii, ne pixely, takže ho ochrana
+  proti snímkům neomezuje.
 
 ## Typy zpráv
 
@@ -3012,8 +3521,15 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
   by nebylo poznat, že podržení zabralo.
 - **Sheety výběru a sady nemají napůl rozbalený stav** (`enabledValues = Hidden, Expanded`).
   Jejich obsah je vyšší než polovina obrazovky a napůl rozbalený sheet schoval spodek pod okraj —
-  tlačítko „Odebrat sadu" skončilo pod navigační lištou. Spodní inset lišty řeší výchozí
-  `BottomSheetDefaults.modalWindowInsets`, na to se sahat nemusí.
+  tlačítko „Odebrat sadu" skončilo pod navigační lištou. V sheetu SADY řeší spodní inset
+  výchozí `BottomSheetDefaults.modalWindowInsets` — je tam tlačítko a to nad lištou stát musí.
+- **Sheet výběru (emoji, samolepky, GIFy) si z insetů bere jen stavovou lištu a klávesnici**
+  (`expressionSheetInsets`), navigační lištu dostanou seznamy do `contentPadding`
+  (`sheetListPadding`). S výchozími insety byla lišta odsazením celého obsahu: mřížka končila
+  ostrou hranou nad ní a pod ní zůstal prázdný pruh sheetu. Plochy s pevnou výškou jsou o lištu
+  vyšší (`sheetBottomInset`), aby viditelná část zůstala stejná. **Klávesnici seznamům nechat
+  nejde** — mřížka má pevnou výšku a skoro celá by zmizela pod ní; proto `navigationBars
+  .exclude(ime)`: s otevřenou klávesnicí lištu kryje ona a její místo drží sheet.
 - **Mřížka má pevnou výšku**, jinak by se sheet při přepnutí záložky natahoval a smršťoval.
 - **Hledání má dva zdroje.** `getStickers` prochází nainstalované sady podle emoji i podle
   klíčových slov samolepek; `searchStickers` veřejné sady, ale jen podle emoji. Slovo se proto
@@ -3061,6 +3577,33 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
 - **Samolepka nezakládá let ze vstupního pole** a nemaže rozepsaný text — z pole nevyletěla.
 - **Ikony Material Symbols ze SVG mají souřadnice y v -960..0.** Ve vector drawable se to řeší
   `group` s `translateY="960"`, cesta zůstává, jak je.
+
+## Výběr GIFů
+
+Třetí část sheetu výběru (Emoji / Samolepky / GIFy, `ExpressionMode.Gifs`): pole hledání, pod
+ním mřížka. Bez dotazu nahoře uložené GIFy, pod nimi populární. Ťuknutí GIF hned pošle
+(`GifPanel`, `GifPickerViewModel`, hranice `GifRepository` v `core/telegram`).
+
+- **Hledání GIFů API nemá — hledá inline bot.** Jméno posílá server (`animation_search_bot_username`,
+  dnes `gif`), `searchPublicChat` z něj udělá id a `getInlineQueryResults` vrací
+  `InlineQueryResultAnimation`. Prázdný dotaz = populární. Stránkuje `nextOffset` (prázdný =
+  konec). Id bota se pamatuje pro INSTANCI klienta — po odhlášení je jiný.
+- **Posílá se `InputFileId`, ne `sendInlineQueryResultMessage`.** GIF z výsledku je soubor, který
+  na serveru už je; přes bota by u zprávy stálo „přes @gif" a byly by to dvě různé cesty pro
+  uložený a nalezený GIF. Po odeslání `addSavedAnimation`, ať je nahoře (jako `addRecentSticker`).
+- **Uložené jsou živý tok** (`UpdateSavedAnimations` → znovu `getSavedAnimations`). GIF poslaný
+  z klávesnice se mezi ně dostane sám. Podržení uloženého nabídne křížek na odebrání.
+- **Stránka patří dotazu** (`GifResults.withPage`, testy `GifResultsTest`) — pomalá odpověď na
+  „ko" nesmí přepsat „kočka". Bot vrací tentýž GIF na dvou stránkách; duplicitní klíč by mřížku
+  shodil, proto `distinctBy`.
+- **GIFy v mřížce hrají**, jako v konverzaci: GIF se vybírá podle toho, co dělá. Hrají jen
+  složené buňky a velký se sám nestahuje (`autoPlays`).
+- **Obraz přehrávače se do buňky ROZTAHUJE, ne vepisuje** (`coverAspect`). `VideoSurface` obraz
+  vepisuje, takže v buňkách pevné výšky zůstávaly pruhy a každý GIF měl jinou velikost.
+- **Právo je totéž jako u samolepek** (`canSendOtherMessages`): bez něj ani při úpravě se část
+  GIFy nenabízí. `ViewModel` klíčovaný chatem (`gifs-$chatId`) — inline bot chce vědět, kam se hledá.
+- **Zdrojový soubor nesmí obsahovat znak NUL.** Konstanta `"\u0000"` zapsaná nástrojem jako
+  skutečný bajt udělala z `.kt` pro `grep` binární soubor a hledání v něm tiše nic nenašlo.
 
 ## Výběr emoji
 
@@ -3391,6 +3934,228 @@ a odložené rušení prázdné notifikace.
 - **`adb shell am force-stop` znemožní doručení FCM.** Aplikace se dostane do „stopped state"
   a zprávy jí systém nedoručí, dokud ji uživatel ručně nespustí. Push se tak testovat nedá —
   aplikaci je potřeba jen odswipovat z přehledu úloh.
+- **Běžící emulátor stahuje notifikace z telefonu.** Je to plnohodnotné druhé přihlášené
+  zařízení: s otevřenou konverzací hlásí zprávy jako přečtené (`viewMessages(forceRead = true)`
+  podle viditelných položek) a TDLib v telefonu notifikaci vzápětí stáhne
+  (`removedNotificationIds`) — na liště blikne a zmizí. Vypadá to jako chyba notifikací, a není.
+- **Emulátor NEVÍ, že se na něj nedíváš.** Ztrátu fokusu hostitelského okna nepředává: změřeno
+  na emulátoru vloženém v Android Studiu, s frontmost aplikací na Macu mimo něj (Android Studio,
+  Finder i jiná) hlásí `dumpsys window` pokaždé `mCurrentFocus=eu.tintera.plume/MainActivity`
+  a Plume zůstává `ResumedActivity`. Podmínka na `isWindowFocused` u hlášení přečtení by tenhle
+  případ tedy NEVYŘEŠILA. Zabere až zhasnutý displej (`adb shell input keyevent 26` →
+  `mCurrentFocus=null`, `visibleRequested=false`); na skutečném telefonu to zhasne samo, proto
+  je to past jen emulátorová. Před testováním notifikací na telefonu tedy emulátor zhasnout,
+  odejít v něm z konverzace, nebo ho odhlásit.
+
+### Kanály a nastavení notifikací
+
+Kanály jsou čtyři (`NotificationChannelKind`, čistá funkce `notificationChannelFor`, testy
+`NotificationChannelTest`): Soukromé chaty, Skupiny, Kanály — jedna k jedné s rozsahy nastavení
+TDLib — a Zmínky a odpovědi. Sekce Notifikace v Nastavení (`NotificationSettings`,
+`NotificationSettingsRepository`) drží u každého rozsahu volby TDLib a odkaz „Zvuk a vibrace" do
+JEHO kanálu (`ACTION_CHANNEL_NOTIFICATION_SETTINGS`).
+
+- **TDLib o kanálech neví nic**, rozhoduje jen, jestli se notifikace ukáže. Kanál vybírá aplikace
+  podle druhu chatu z `notificationSettingsChatId` — tedy chatu, podle jehož nastavení se TDLib
+  řídila —, zmínky podle `NotificationGroupTypeMentions`. Zmínky mají přednost: ve ztišené skupině
+  jsou to jediné, co má zvonit.
+- **Zmínky a běžné zprávy téhož chatu jsou v TDLib dvě skupiny notifikací**, tedy dvě systémové
+  notifikace s různým `groupId`. Kanál proto patří konverzaci presenteru, ne chatu.
+- **Kanál je po založení uživatelův.** `createNotificationChannel` u existujícího id přepíše jen
+  název a popis — proto se volá při každém startu (překlad po změně jazyka) a nic tím nerozbije.
+  **Id kanálu se nesmí měnit** (`channelId`): nové id je pro systém nový kanál a nastavení
+  starého zůstane u něj. Zvuk z Telegramu (`notificationSoundId`) se proto nesynchronizuje.
+- **Kanály telegramových kanálů mají `IMPORTANCE_DEFAULT`**, ostatní `HIGH` — příspěvků chodí
+  hodně a málokdy se na ně reaguje hned. Rozhoduje se jen při založení.
+- **Starý kanál `messages` se maže** (`deleteNotificationChannel`), jinak by v systému visel
+  prázdný. Co si u něj uživatel nastavil, se nepřenese — kanál přenést nejde.
+- **Rozsah se zapisuje celým objektem** (`setScopeNotificationSettings`), stejně jako ztlumení
+  chatu: zvuk a stories se přenesou z aktuálního stavu, jinak by se přepsalo nastavení z jiného
+  klienta. Hodnoty jsou živé přes `UpdateScopeNotificationSettings` (odběr před prvním čtením),
+  takže přepínač čeká na potvrzení z TDLib — přijde lokálně hned.
+- **„Upozornění vypnutá" = `muteFor` > 0**, zapnutá = 0. Dočasně ztlumený rozsah se tedy ukáže
+  jako vypnutý; vypnutí zapisuje `Int.MAX_VALUE` jako ztlumení chatu navždy.
+- **Náhled se bez upozornění nedá přepnout, zmínky a připnuté ano.** Zmínky projdou i ztlumeným
+  chatem — přesně proto existují. Přepínač zmínek je jen u skupin: v soukromém chatu je každá
+  zpráva „pro mě", v kanálu píše jen kanál.
+- **Výjimky** (`getChatNotificationSettingsExceptions`, `compareSound = false`) jsou jediné místo,
+  kde je vidět, co kde je ztlumené. „Obnovit" zapne všechna `useDefault*` a seznam se čte znovu —
+  co zbylo, ví jen server. Chat s vlastní volbou jinou než ztlumení je „Vlastní nastavení".
+- **„Kontakt se připojil" je volba s ZÁPORNÝM názvem** (`disable_contact_registered_notifications`);
+  nenastavená přijde jako `OptionValueEmpty`, tedy „upozorňovat".
+- **Oprávnění k notifikacím je v sekci Notifikace, ne v Obecných** — bez něj ostatní volby nic
+  nezmění, proto nahoře.
+- **Upozornění jednoho chatu jsou v profilu**: řádek „Upozornění" v bloku Informace se stavem
+  („Ztlumeno do 14:30 · výchozí nastavení") otevře sheet s dobou ztlumení, náhledem, připnutými,
+  zmínkami (jen skupina), zvukem konverzace a obnovením (`ChatNotificationSheet`). Dlaždice
+  Ztlumit nad ním zůstává rychlým přepínačem. Hodnoty jsou ÚČINNÉ (`chatSettings`): kde chat jede
+  podle rozsahu, ukazuje se hodnota rozsahu — a proto se čte znovu i na změnu rozsahu. Změna
+  jedné volby zapíše `useDefault… = false` jen u ní, zbytek se přenese.
+- **`muteFor` je ZBÝVAJÍCÍ čas v sekundách**, ne okamžik konce; konec ztlumení se dopočítá při
+  čtení (`muteState`, testy `MuteStateTest`). Nad rok = navždy — my zapisujeme `Int.MAX_VALUE`,
+  jiní klienti roky. `asDayLabel` je dělaný na minulost a zítřek vydával za „Dnes"; budoucí čas
+  má `asUpcomingTime`.
+- **Zvuk jednoho chatu = kanál konverzace** (`ensureConversationChannel`, Android 11+). Systém si
+  ho zakládá sám, až když uživatel u notifikace zvolí „Prioritní"; dřív `EXTRA_CONVERSATION_ID`
+  otevře jen nadřazený kanál. Aplikace ho proto založí sama (`setConversationId(parent,
+  shortcutId)`, nastavení zkopírované z nadřazeného) a notifikace se zkratkou konverzace do něj
+  systém směruje sám — v `dumpsys notification` je vidět jako `effectiveNotificationChannel`,
+  zatímco `channel=` dál ukazuje nadřazený. **Past: `getNotificationChannel(parent,
+  conversationId)` bez kanálu konverzace vrátí NADŘAZENÝ kanál, ne `null`** — rozhoduje až
+  `conversationId` výsledku. Kanály konverzací nesou názvy chatů, takže se po odhlášení mažou.
+- **Systémové nastavení se otevírá ve vlastní úloze** (`FLAG_ACTIVITY_NEW_TASK`): zpět z něj
+  nevede do Plume, ale dál po nastavení systému. Při ověřování se do aplikace vrací `am start`.
+- **Ověření:** `adb shell dumpsys notification --noredact | grep "pkg=eu.tintera.plume"` ukáže
+  `channel=` u notifikace; kanály aplikace jsou v `dumpsys notification` pod
+  `AppSettings: eu.tintera.plume` (smazaný má `mDeleted=true`). Soukromá zpráva od bota přišla
+  kanálem `private`, odkaz „Zvuk a vibrace" otevřel systémové nastavení správného kanálu, zápis
+  rozsahu i obnovení výjimky se projevily hned (emulátor). Skupiny, kanály a zmínky kanálem
+  ověřené nejsou — do skutečných skupin se testovací zprávy neposílají.
+
+### Akce z notifikace
+
+Notifikace chatu má akce „Odpovědět" s polem na text (`RemoteInput`), „Označit jako přečtené"
+a „Ztlumit na hodinu".
+Odpověď odejde, aniž by se aplikace otevřela; po potvrzení se chat přečte a TDLib notifikaci
+stáhne. Všechny akce jdou přes jednoho příjemce a jednu třídu (`NotificationActionReceiver`,
+`NotificationActions`). **Víc než tři akce být nesmí** — Android víc neukáže.
+
+- **„Označit jako přečtené" čte PO nejnovější zprávu NOTIFIKACE, ne chatu.** Co mezitím přišlo,
+  uživatel neviděl. Id jde v extras akce; u notifikace z minulého běhu procesu (řádky bez id)
+  se čte po nejnovější zprávu v chatu. Nabízí se i v kanálu — číst jde všude.
+- **Po přečtení se notifikace neruší ručně**, stáhne ji TDLib (`removedNotificationIds`), i po
+  probuzení mrtvého procesu. Na potvrzení se nečeká: přečtení drží TDLib v databázi a pošle ho,
+  až bude spojení. Proto přečtení nemá obdobu `ReplyDeliveryWorker`.
+- **Ztlumení je na HODINU, ne natrvalo** (`NotificationActions.MUTE_DURATION`, `muteFor`).
+  Z notifikace se ztlumuje skupina, která se zrovna rozjela; natrvalo jde ztlumit v aplikaci
+  a z notifikace by se na to snadno zapomnělo. Délku musí nést popisek akce.
+- **„Ztlumit" jen u běžných zpráv** (`ChatNotification.canMute` =
+  `NotificationGroupTypeMessages`). Zmínky a odpovědi chodí i ze ztlumeného chatu, a ztlumení
+  na hodinu by mu po hodině zvuk VRÁTILO — i když ho měl uživatel ztlumený natrvalo.
+- **Ztlumený chat TDLib z notifikací stáhne sám**, ve stejné milisekundě jako potvrzení
+  `setChatNotificationSettings` (ověřeno logem, i po probuzení mrtvého procesu). Ruční zavírání
+  notifikace po ztlumení (první verze) bylo zbytečné.
+- **iOS: akce nese KATEGORIE, ne notifikace** (`IosNotificationCenter`, smlouva
+  `NotificationCategories` v commonMain) — kombinace „smí odpovědět / smí ztlumit" jsou čtyři
+  předem zaregistrované kategorie. Kategorii a klíče `plume_*` vyplní rozšíření notifikací, viz
+  „Notifikace na iOS (APNs)".
+- **iOS: delegát `UNUserNotificationCenter` se nastavuje v `initKoin`** (z `App.init`). Akce umí
+  spustit ukončenou aplikaci a odpověď dostane jen delegát, který existuje dřív, než aplikace
+  doběhne start. Drží se silnou referencí — centrum ho má jen slabě.
+- **iOS: `suspend` v argumentech ObjC volání shodí aplikaci.** Kategorie měly popisky
+  `title = getString(…)` přímo v `actionWithIdentifier(…)`: Kotlin/Native převedl už vyhodnocené
+  argumenty na NSString, korutina se uspala, pokračovala jinde a autorelease pool je uvolnil —
+  pád na `objc_retain` hned při startu. Test bez suspendu v argumentech prošel, takže se to
+  pozná jen v aplikaci. **Hodnoty ze `suspend` funkcí se načtou do proměnných PŘED voláním ObjC.**
+- **iOS: přečtení a ztlumení potřebují chvíli PO potvrzení** (`SYNC_GRACE`, 3 s). TDLib je
+  potvrdí lokálně hned a na server pošle až potom; po completion handleru iOS proces uspí,
+  a když ho pak ukončí, chat zůstane nepřečtený. Ověřeno: studený start, akce, iOS proces sám
+  ukončil — bez pauzy nepřečteno, s ní přečteno. Stav spojení se na to použít nesmí (jen popisek).
+- **iOS: `plume_message_id` 0 = id chybí.** Nula prošla jako id zprávy a TDLib odmítl
+  `viewMessages` („Invalid message identifier").
+- **Ověření na simulátoru bez APNs:** `xcrun simctl push <zařízení> eu.tintera.plume x.apns`
+  s `aps.category` a klíči výš (aplikace potřebuje oprávnění k notifikacím — to se zatím
+  nežádá, pro test ho dočasně vyžádat v `install`). Akce: centrum notifikací (tah od horní hrany),
+  notifikace doleva → View. Podržení na simulátoru náhled NEotevře. Aplikace do unified logu
+  nepíše; průběh akce se dá sledovat jen dočasným zápisem do souboru v `Documents`
+  (`simctl get_app_container … data`). Ověřeno: všechny tři akce, přečtení i ze studeného startu.
+- **Tři akce, jeden request code** (`groupId`) nevadí: akce intentu vstupuje do `filterEquals`,
+  takže se `PendingIntent`y nepřepíšou.
+
+- **Cesta:** akce → broadcast `NotificationActionReceiver` (vstupní bod, `goAsync`) →
+  `NotificationActions` v `core/notifications` (odeslat, dočkat se, přečíst). Co se nevejde do
+  okna příjemce (8 s z 10), dočká `ReplyDeliveryWorker`. Příjemce je ve vstupním bodu kvůli
+  WorkManageru; `:client:shared` na něj míří akcí a balíčkem (`NotificationIntents.reply`), ne
+  třídou — stejně jako na `MainActivity`.
+- **`PendingIntent` akce musí být MUTABLE.** Systém do něj vkládá napsaný text; s IMMUTABLE by
+  `RemoteInput.getResultsFromIntent` vrátil `null`.
+- **Notifikace se po odpovědi MUSÍ překreslit**, jinak se v ní točí kolečko napořád. Překreslí se
+  hned vlastním řádkem s odpovědí (`showReply`, osoba `null` = uživatel), ještě před odesláním.
+- **Přečte se až PO potvrzení od serveru.** Přečtení notifikaci stáhne; kdyby přišlo hned
+  a odeslání selhalo, nebylo by kde ukázat „Neodesláno: …" (`showReplyFailed`, i s textem, a se
+  zvukem — selhání uživatel zaregistrovat musí). Přečte se zpráva nejnovější PŘED odesláním:
+  po něm je nejnovější naše odpověď a její přečtení nic neoznačí.
+- **Vlastní řádek notifikaci naživu nedrží.** TDLib ho nezná, takže ho neodebere; notifikace se
+  ruší, když v ní zbydou jen vlastní řádky.
+- **Potvrzení se zjišťuje dotazem na zprávu, ne updatem** (`NotificationActions.await`). Úloha
+  začíná pozdě a `UpdateMessageSendSucceeded` mohl dávno proletět. Stav jde přečíst kdykoli:
+  TDLib po potvrzení zprávu přečísluje, takže nenalezené dočasné id = odesláno.
+- **Mrtvý proces:** akce ho probudí jako push, `startKoin` rozběhne TDLib a odpověď čeká na
+  `AuthStage.Ready`. Notifikace z minulého běhu v paměti presenteru není — řádek se připíše
+  přestavěním té z lišty (`NotificationCompat.Builder(context, notification)`).
+- **Ve skupině odpověď cituje nejnovější zprávu z notifikace**, v soukromém chatu ne. Tak to
+  dělá i oficiální klient (`WearReplyReceiver` posílá `max_id` jako `replyToMsg`): mezi více
+  lidmi by jinak nebylo poznat, komu se odpovídá; ve dvou je citace šum. Id jde v extras akce
+  a `FLAG_UPDATE_CURRENT` ho přepíše při každém překreslení.
+- **Oficiální klient chat čte HNED, ne po potvrzení**, a ve vláknech (topics) vůbec — tam mu
+  notifikace po odpovědi zůstane.
+- **Kam se psát nesmí, akce není** (`ChatNotification.canReply`, totéž pravidlo `writeAccess` jako
+  vstupní pole; `ownMemberStatus` je sdílené). Neznámý chat psaní neblokuje.
+- **Bez sítě odeslání NESELŽE, TDLib čeká.** „Neodesláno" tedy znamená odmítnutí serverem,
+  ne výpadek spojení; offline odpověď zůstane v notifikaci a úloha ji potvrdí, jakmile se síť
+  vrátí (ověřeno letovým režimem: potvrzení v úloze za 16 s po zapnutí sítě).
+- **Ověřit to jde jen s notifikací, kterou nepřečte jiné zařízení.** Telefon s otevřeným chatem
+  s botem zprávu přečte hned a TDLib notifikaci stáhne dřív, než se ukáže. Tlačítko v liště
+  najde `uiautomator dump` (text „Reply"), text se napíše `input text` a odešle Enterem.
+- Ověřeno na emulátoru: živý proces (odesláno za 2 s), proces zabitý `am kill` (0,5 s),
+  letový režim (úloha). Přečtení: živý proces i zabitý (proces spustil broadcast, TDLib `Ready`
+  za 1 s, notifikace pryč).
+- **`am kill` zabije jen proces v keši** — s rozbalenou lištou ho nezabil. Spolehlivě to jde
+  u debug buildu přes `adb shell run-as eu.tintera.plume kill -9 <pid>`.
+- **Druhé přihlášené zařízení dává na tlačítko jen pár vteřin**, pak notifikaci stáhne. Lištu
+  proto rozbalit PŘEDEM, čekat na „Zobrazuji" v logu a tlačítko hledat `uiautomator dump`
+  až potom — poloha tlačítek se mění s počtem řádků notifikace. Cesta „Neodesláno" ověřená není — server odpověď bota neodmítne.
+
+### Notifikace na iOS (APNs)
+
+Na iOS notifikace **zobrazuje systém přímo z APNs pushe od Telegramu**, ne aplikace. Zařízení se
+registruje `registerDevice` s `deviceTokenApplePush` (`IosPush`); token vydá iOS do `AppDelegate`
+(`iOSApp.swift`) a ten ho předá do Kotlinu.
+
+- **Plain APNs od Telegramu NENÍ šifrovaný** — `deviceTokenApplePush` šifrování nemá (má ho jen
+  FCM a APNs VoIP). Push nese `aps.alert.loc-key` + `loc-args` (typ zprávy, jména, text)
+  a `custom` (`from_id` / `chat_id` / `channel_id`, `msg_id`, `mention`…). TDLib se v tom
+  neúčastní: `processPushNotification` by potřebovalo TDLib v rozšíření, a to na databázi
+  aplikace nedosáhne a limit paměti rozšíření by ji stejně nesnesl.
+- **Větu skládá iOS z `Localizable.strings` aplikace.** Chybějící klíč ukáže doslova
+  („MESSAGE_PHOTO"), takže tam musí být všechny. Soubory se generují
+  (`python3 iosApp/tools/push_strings.py`): angličtina z `core.telegram.org/api/config.json`
+  (`push`), čeština je ve skriptu; skript skončí chybou, když Telegram přidá klíč. Česky
+  přítomným časem („Jana posílá fotku") — rod odesílatele push neprozradí.
+- **Rozšíření notifikací (`iosApp/NotificationService`) text neskládá**, jen doplní kategorii
+  s akcemi, vlákno podle chatu a klíče `plume_*`. Totéž pravidlo má Kotlin (`TelegramPush`),
+  protože **jestli Telegram posílá `mutable-content`, nikde popsané není** — bez něj rozšíření
+  neběží a aplikace čte holé `custom` (`pushInfo`). Ťuknutí otevře chat v obou případech; akce
+  jsou jen s rozšířením.
+- **Číslování:** chat uživatele = `from_id`, základní skupina = −`chat_id`, supergroup i kanál
+  = −10¹² − `channel_id`; zpráva = `msg_id` posunuté o 20 bitů. Skupina se pozná podle
+  `loc-key` s prefixem `CHAT_` (i supergroup — ta nese `channel_id`), kanál podle `CHANNEL_`.
+- **`sandbox` musí sedět s prostředím tokenu** (`#if DEBUG` v `AppDelegate`): build z Xcode má
+  token vývojového APNs, TestFlight a App Store produkčního. Při nesouladu APNs push tiše
+  zahodí. Entitlement je `aps-environment = development`; při exportu pro App Store ho Xcode
+  přepne sám.
+- **Registrace u APNs se opakuje při každém startu** (když je oprávnění), token jde do TDLib až
+  při `AuthStage.Ready` — jako `PushRegistrar` na Androidu.
+- **Metody z kategorií ObjC jsou v Kotlinu rozšíření a potřebují vlastní import**:
+  `UIApplication.registerForRemoteNotifications()` bez `import platform.UIKit.registerForRemoteNotifications`
+  hlásí „Unresolved reference", přestože třída importovaná je.
+- **Přečtení jinde push nezpracuje** (`READ_HISTORY` je servisní push, bez TDLib v rozšíření
+  se nevyhodnotí). Proto `NotificationPresenter.ios` při běhu aplikace uklidí notifikace chatů,
+  které TDLib hlásí jako přečtené, a srovná odznak (`setBadgeCount`, nepřečtené zprávy
+  neztlumených chatů hlavního seznamu) — server ho nastavuje v pushi a po přečtení v aplikaci by
+  zůstal starý. Servisní klíče se v popředí nezobrazují.
+- **Vysvětlení před systémovým dotazem je společné** (`NotificationRationaleDialog`). iOS dá
+  systémový dotaz jen jednou napořád; „Teď ne" se pamatuje v `NSUserDefaults`.
+- **`simctl push` rozšíření NESPUSTÍ** — vloží notifikaci přímo (v logu `mutableContent: YES`
+  a žádná služba). Na simulátoru se tím ověří šablony, ťuknutí (otevře chat jen z `custom`)
+  a úklid přečtených chatů; rozšíření jen skutečný push přes APNs.
+- **Co poslal Telegram, se dá přečíst**: rozšíření v DEBUG buildu ukládá poslední push do
+  kontejneru App Group (`push/last.json`). U prvního skutečného pushe je to jediný způsob, jak
+  ověřit tvar pushe (`mutable-content`, `custom`), o kterém dokumentace mlčí.
+- **Co je potřeba mimo repo:** v Apple Developer účtu zapnout Push Notifications pro App ID
+  aplikace (automatické podepisování s vyplněným `TEAM_ID` založí i App ID rozšíření
+  `….notifications`), vyrobit certifikát / klíč APNs a nahrát ho Telegramu v nastavení
+  aplikace na my.telegram.org (tam, kde je service account pro FCM).
 
 ## Sdílení do aplikace
 
@@ -3423,7 +4188,6 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   návrat do Plume, kde by sdílený obsah zmizel bez stopy — bez volby chatu nemá kam jít.
   `singleTask` drží Plume ve vlastní úloze, takže pod ní je právě aplikace, ze které se sdílelo.
   Výběr se napřed odebere ze zásobníku, aby příští otevření Plume nezačínalo ve výběru.
-  Bar ani rail k výběru nepatří (`inDetail`, `showRail`) — je to vsuvka odjinud, ne sekce.
 - **Otevřený výběr se při dalším sdílení NEvyměňuje** (`openShare`). Odebrat a vrátit by ho
   zlikvidovalo a jeho `onDispose` by zahodil právě to nové sdílení.
 - **Direct Share (chaty přímo v nabídce „Sdílet") stojí na zkratkách konverzací**, týchž, které
@@ -3582,6 +4346,19 @@ cesta je známá až po stažení a průběh chodí updaty. Překlad do jednoho 
   snímkem bez obrázku. U sdíleného prvku ze seznamu do konverzace to bylo vidět: avatar odletěl jako
   prázdný kruh a obrázek naskočil až na místě. Mapa se čte i zapisuje jen z kompozice, takže
   nepotřebuje zámek.
+- **Indikátor načítání obrázku roste s plochou** (`loadingIndicatorSize` v `RemoteImage`):
+  `ContainedLoadingIndicator`, 30 % kratší strany, nejvýš 64 dp; pod 24 dp (malé avatary) se
+  nekreslí. Pevných 24 dp bez kontejneru uprostřed velké fotky vypadalo jako chyba vykreslení,
+  ne načítání. Vzhled se ověřuje podstrčeným stavem (`Crossfade` s `null` a podmínka `true`).
+- **Než dorazí jakýkoli soubor, kreslí se rozmazaný náhled ze zprávy** (`Minithumbnail`,
+  parametr `placeholder` u `RemoteImage`). TDLib ho posílá přímo v datech fotky, videa, GIFu
+  a dokumentu (JPEG kolem 40 px), takže je vidět v prvním snímku, bez stahování.
+- **`Minithumbnail` není data class.** `ByteArray` se v data class porovnává podle reference;
+  každé nové namapování téže zprávy by vypadalo jako změna a seznam by přestal přeskakovat
+  nezměněné položky. `equals` proto porovnává obsah.
+- **Rozmazává `Modifier.blur`, ne Haze.** Obojí umí vlastní obsah na Androidu 12+ i na iOS, ale
+  na starším Androidu Haze kreslí místo rozostření tónovanou plochu, kdežto `blur` se jen vypne
+  a zbude bilineárně zvětšený 40px náhled, který rozmazaně vypadá sám.
 - **`FileRepository` je eager** (`createdAtStart`) ze stejného důvodu jako seznam chatů — v
   konstruktoru se přihlašuje k `fileUpdates`.
 
@@ -3603,6 +4380,27 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   `surfaceContainerHigh` (overlay) < `surfaceContainerHighest` (menu nad overlayem). `tonalElevation`
   u `surfaceContainer*` barev nic nedělá — M3 `Surface` tónuje jen `color == colorScheme.surface`.
 - Barvy vždy z `MaterialTheme.colorScheme`, nikdy natvrdo hex.
+- **Přepnutí motivu se PROLÍNÁ, neprobliká** (`animateColorScheme` z materialkoloru v `AppTheme`,
+  spec `AppMotion.defaultEffectsSpec`). Skoková výměna schématu přebarvila celou obrazovku v jednom
+  snímku a vypadala jako chyba vykreslení. Animuje se KAŽDÁ role zvlášť, ne crossfade dvou kopií
+  aplikace přes sebe: v aplikaci je plno průsvitných vrstev (závoj nabídky nad zprávou, závoj pod
+  stavovou lištou, karta vstupního pole) a přes sebe položené kopie by prosvítaly.
+- **49 vlastních `animateColorAsState` se psát nemusí.** Materialkolor je v projektu už kvůli
+  generování palety a `animateColorScheme` pokrývá všechny role. Je ale stavěný proti STARŠÍ
+  material3 (4.1.1 → 1.10.0-alpha05, projekt jede na 1.12) a volá `ColorScheme.copy` — tedy
+  syntetické `copy$default` s pevným počtem parametrů. Nová barevná role v material3 by ho binárně
+  rozešla a **chyba by přišla až za běhu**; před bumpem materialkoloru nebo material3 se to ověří
+  `javap` nad `material3-desktop` (obě verze mají `copy-_VG5OTI$default` se 48 barvami).
+- **`ColorScheme` NEMÁ `equals`** (ověřeno `javap`), takže se porovnává referencí. Cíl animace proto
+  musí být STABILNÍ INSTANCE: `dynamicLightColorScheme`/`dynamicDarkColorScheme` se na Androidu
+  `remember`ují, jinak by `updateTransition` uvnitř `animateColorScheme` zakládalo transition
+  v každé rekompozici znovu. `rememberDynamicColorScheme` z materialkoloru stabilní je.
+- **Ikony systémových lišt se překlápějí skokem** (`SystemBarsAppearance`), i když barvy jedou
+  animací. Čekat na dojetí by znamenalo světlé ikony na světlém pozadí po celou dobu přechodu.
+- **Během přechodu rekomponuje všechno, co čte schéma** — je to nová instance v každém snímku.
+  Proto `defaultEffectsSpec` (kriticky tlumená pružina, ~čtvrt vteřiny), ne `slowEffectsSpec`:
+  delší animace by ten náklad jen natáhla. Co si z barev něco dopočítává (`senderColor` staví
+  osm HCT odstínů, `accentOn` měří kontrast), to se po dobu přechodu počítá každý snímek.
 - **Akcent na tónované ploše se musí ověřit PROTI TÉ PLOŠE** (`accentOn` v `core/ui/AccentColor.kt`,
   testy `AccentColorTest`). M3 garantuje kontrast jen mezi plochou a její `on*` rolí; že je
   `tertiary` čitelná na `tertiaryContainer` (jméno v citaci, název webu u náhledu odkazu, odkaz ve
@@ -3624,9 +4422,13 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
 - **`SharedTransitionLayout` je v kořenovém tématu**, ne uvnitř obrazovek — sdílený prvek musí přežít
   výměnu obrazovky. Scope se bere z `LocalSharedTransitionScope`.
 - **Ikony = Material Symbols** jako vector drawables v `composeResources`, s vyplněnou i nevyplněnou
-  variantou (vybraná položka navigace má vyplněnou). Viz `TopLevelDestination`.
-- **Obsah shellu jde přes `movableContentOf`.** Při přepnutí breakpointu rail↔bar se podstrom
-  PŘESUNE, ne přerenderuje — jinak by se odmountoval a ztratil scroll i stav.
+  variantou (vybraná položka — filtr v toolbaru — má vyplněnou).
+
+- **Nabídky jsou Expressive** (`ExpressiveMenu` v `core/ui`: `DropdownMenuPopup`
+  + `DropdownMenuGroup`), ne holé `DropdownMenu`. Položky jsou ve skupinách se společným
+  zaoblením krajních položek; **nevratná akce má skupinu vlastní a chybovou barvu**
+  (`MenuAction.destructive`), co k sobě patří, je v jedné. Nabídka s výběrem (období v hledání)
+  bere položky s `checked` — vybraná je zaškrtnutá.
 
 ### Typografie
 
@@ -3669,6 +4471,13 @@ není „Android bez barev", ale má vlastní konzistentní paletu.
 
 ## Gotchas
 
+- **Test ViewModelu MUSÍ nastavit `Dispatchers.setMain`** (a v `@AfterTest` `resetMain`).
+  `viewModelScope` běží na `Dispatchers.Main`: na JVM žádný není a lifecycle vezme prázdný
+  kontext, takže test projde, kdežto na iOS je `Main` skutečná hlavní fronta, kterou `runTest`
+  na hlavním vlákně nevyprázdní — ViewModel se nerozběhne a test visí do minutového limitu
+  (`UncompletedCoroutinesError`). Zelené `testAndroidHostTest` proto o iOS nic neříká.
+  S `StandardTestDispatcher` jako `Main` si `runTest` převezme jeho plánovač a ViewModel jede
+  na tomtéž virtuálním čase (viz `NewChatViewModelTest`).
 - **`androidResources { enable = true }`** v KMP modulu je povinné, jinak se composeResources nezabalí
   a čtení stringu spadne až za běhu na „No instrumentation registered!".
 - **iOS framework musí být `isStatic = true`** — TDLib je statická knihovna, jinak link padne na

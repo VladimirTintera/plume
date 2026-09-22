@@ -151,6 +151,21 @@ interface ConversationRepository {
     suspend fun visualMediaPosition(chatId: Long, messageId: Long): Result<PhotoPosition?>
 
     /** Jedna konkrétní zpráva. Pro doplnění citace, která není v načtené historii. */
+    /**
+     * Stránka sdíleného obsahu od nejnovější dozadu.
+     *
+     * [fromMessageId] `0` začíná u nejnovější, jinak se pokračuje od poslední načtené (ta sama
+     * ve výsledku není). Konec se pozná prázdnou stránkou.
+     */
+    suspend fun sharedMedia(
+        chatId: Long,
+        kind: SharedMediaKind,
+        fromMessageId: Long = 0,
+    ): Result<SharedMediaPage>
+
+    /** Počty pro všechny druhy naráz; profil podle nich schová prázdné řádky. */
+    suspend fun sharedMediaCounts(chatId: Long): Result<SharedMediaCounts>
+
     suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage>
 
     /**
@@ -169,6 +184,18 @@ interface ConversationRepository {
      * Samolepka se zároveň zařadí mezi nedávné, aby byla ve výběru příště nahoře.
      */
     suspend fun sendSticker(chatId: Long, sticker: StickerItem, replyToMessageId: Long?): Result<ChatMessage>
+
+    /**
+     * Odešle GIF (z klávesnice) jako animaci, ne jako fotku — z fotky by zbyl první snímek.
+     * Skutečný GIF převede na MP4 server sám. Vrací rozepsanou zprávu hned jako [send].
+     */
+    suspend fun sendAnimation(chatId: Long, animation: OutgoingAnimation, replyToMessageId: Long?): Result<ChatMessage>
+
+    /**
+     * Odešle GIF z výběru — soubor, který na serveru už je, takže se nic nenahrává. GIF se
+     * zároveň zařadí na začátek uložených, jako samolepka mezi nedávné.
+     */
+    suspend fun sendGif(chatId: Long, gif: GifItem, replyToMessageId: Long?): Result<ChatMessage>
 
     /**
      * Odešle přílohy z disku zařízení, s popiskem. Jedna příloha jde jako obyčejná zpráva, víc jako
@@ -236,6 +263,22 @@ interface ConversationRepository {
     /** Označí zprávy za přečtené. Bez tohohle zůstane odznak nepřečtených viset napořád. */
     suspend fun markRead(chatId: Long, messageIds: List<Long>): Result<Unit>
 
+    /**
+     * Řekne TDLib, že se uživatel na chat dívá.
+     *
+     * Není to jen informace navíc: u otevřeného chatu TDLib **odloží notifikaci aspoň o vteřinu**
+     * (`min_delay_ms` v `add_new_message_notification`, platí, když je klient online), takže ji
+     * stihne zrušit hlášení přečtení z [markRead] a na liště ani neproblikne. Kromě toho drží
+     * zprávy chatu načtené, zvedá prioritu stahování souborů a u supergroup a kanálů se podle
+     * toho řídí doručování updatů.
+     *
+     * Musí být v páru s [closeChat] — TDLib si otevření počítá.
+     */
+    suspend fun openChat(chatId: Long): Result<Unit>
+
+    /** Protějšek [openChat]. Volá se při odchodu z konverzace. */
+    suspend fun closeChat(chatId: Long): Result<Unit>
+
     suspend fun chatInfo(chatId: Long): Result<ChatInfo>
 
     /**
@@ -270,6 +313,12 @@ interface ConversationRepository {
      * proto se hledá podle [query], ne listuje.
      */
     suspend fun searchMembers(chatId: Long, query: String): Result<List<SenderInfo>>
+
+    /**
+     * Jméno a fotka uživatele nebo chatu s tímhle id — pro tvář toho, kdo ve skupině píše.
+     * Z keše odesílatelů, takže opakované „píše…" téhož člověka se na nic neptá.
+     */
+    suspend fun sender(senderId: Long): Result<SenderInfo>
 
     /**
      * Sponzorované zprávy pro daný chat. Mimo kanály vrací prázdný seznam.
@@ -383,6 +432,18 @@ sealed interface OutgoingAttachment {
     }
 }
 
+/**
+ * GIF připravený na disku (GIF nebo MP4 bez zvuku). [durationSeconds] je u GIFu nula — délku zná
+ * až server, který ho převádí; [thumbnail] má jen MP4, GIFu náhled vyrobí server.
+ */
+data class OutgoingAnimation(
+    val path: String,
+    val width: Int,
+    val height: Int,
+    val durationSeconds: Int,
+    val thumbnail: OutgoingThumbnail?,
+)
+
 /** Náhled přílohy připravený na disku (JPEG). */
 data class OutgoingThumbnail(val path: String, val width: Int, val height: Int)
 
@@ -448,6 +509,11 @@ data class ChatInfo(
      * dělat dá — pole, ze kterého zpráva skončí chybou, je horší než žádné.
      */
     val writeAccess: WriteAccess = WriteAccess.Allowed,
+    /**
+     * Které druhy obsahu chat přijme. Skupina může povolit text a zakázat fotky; sponka, výběr
+     * samolepek a mikrofon se podle toho schovají, aby odeslání neskončilo chybou.
+     */
+    val content: ContentAccess = ContentAccess.All,
     /** Zpráva, na kterou koncept odpovídá, nebo `null`. */
     val draftReplyToMessageId: Long?,
 )
@@ -546,6 +612,24 @@ data class LinkPreview(
      */
     val largePhoto: Boolean,
 )
+
+/**
+ * Rozmazaný náhled obrázku, který přišel rovnou se zprávou (`minithumbnail` v TDLib).
+ *
+ * Malý JPEG, zhruba 40 px na delší straně, přímo v datech zprávy — nic se nestahuje, takže je
+ * k dispozici v prvním snímku, dřív než jakýkoli soubor. Místo šedé plochy ukáže barvy a obrys
+ * snímku, než dorazí náhled nebo ostrá verze.
+ *
+ * **Není to data class kvůli `equals`.** `ByteArray` se v data class porovnává podle
+ * reference, takže by každé nové namapování téže zprávy vypadalo jako změna a seznam by
+ * přestal přeskakovat nezměněné položky.
+ */
+class Minithumbnail(val jpeg: ByteArray, val width: Int, val height: Int) {
+    override fun equals(other: Any?) = other is Minithumbnail &&
+        width == other.width && height == other.height && jpeg.contentEquals(other.jpeg)
+
+    override fun hashCode() = 31 * (31 * width + height) + jpeg.contentHashCode()
+}
 
 /**
  * Reakce u zprávy.
@@ -753,6 +837,7 @@ sealed interface MessageMedia {
         val hasSpoiler: Boolean = false,
         val isSecret: Boolean = false,
         val selfDestructType: SelfDestructType? = null,
+        val minithumbnail: Minithumbnail? = null,
     ) : MessageMedia
 
     /**
@@ -770,7 +855,39 @@ sealed interface MessageMedia {
         val hasSpoiler: Boolean = false,
         val isSecret: Boolean = false,
         val selfDestructType: SelfDestructType? = null,
+        /**
+         * Video se dá přehrávat během stahování.
+         *
+         * Říká to server (`Video.supportsStreaming`) a znamená to, že **index je na začátku
+         * souboru** — bez něj přehrávač z rozestavěného souboru nepozná nic a musí se počkat
+         * na celý. Odesílatel to ovlivňuje tím, jak soubor uložil (viz `streamable`
+         * u odesílané přílohy).
+         */
+        val supportsStreaming: Boolean = false,
+        val minithumbnail: Minithumbnail? = null,
     ) : MessageMedia
+
+    /**
+     * GIF — v Telegramu je to MP4 bez zvuku (`MessageAnimation`), ne skutečný GIF.
+     *
+     * Hraje v bublině ve smyčce, jakmile je vidět: GIF, který se nehýbe, není GIF. Stahuje se
+     * proto sám, ale jen do [MAX_AUTOPLAY_ANIMATION_BYTES] — velký soubor by bez ptaní snědl
+     * data, takže nad stropem se čeká na ťuknutí.
+     *
+     * [sizeBytes] je velikost na serveru (`expectedSize`), známá dřív, než soubor dorazí.
+     * Rozměry kvůli poměru stran bubliny.
+     */
+    data class Animation(
+        val fileId: Int,
+        val thumbnailFileId: Int?,
+        val width: Int,
+        val height: Int,
+        val sizeBytes: Long,
+        val minithumbnail: Minithumbnail? = null,
+    ) : MessageMedia {
+        /** Pustí se samo, nebo až na ťuknutí. */
+        val autoPlays: Boolean get() = sizeBytes in 1..MAX_AUTOPLAY_ANIMATION_BYTES
+    }
 
     /**
      * Soubor: v bublině název a velikost, ťuknutí ho stáhne a otevře systémem.
@@ -857,4 +974,51 @@ sealed interface MessageMedia {
 }
 
 /** Přístup k chatu, jak se mění za běhu — viz [ConversationRepository.accessUpdates]. */
-data class ChatAccess(val canJoin: Boolean, val writeAccess: WriteAccess)
+/**
+ * Druh sdíleného obsahu v profilu chatu. Každý je vlastní filtr `searchChatMessages` — hledání
+ * s filtrem, ne procházení historie: sdíleného obsahu bývá zlomek zpráv.
+ */
+enum class SharedMediaKind {
+    /** Fotky a videa; mizející a tajná se vyřazují stejně jako v prohlížeči. */
+    Media,
+
+    /** Soubory poslané jako dokument. */
+    Files,
+
+    /** Zprávy s odkazem — filtruje je server, ne my. */
+    Links,
+}
+
+/**
+ * Stránka sdíleného obsahu. [reachedEnd] pozná jen prázdná odpověď, stejně jako konec historie —
+ * TDLib žádný příznak „jsi na konci" nedává.
+ */
+data class SharedMediaPage(val messages: List<ChatMessage>, val reachedEnd: Boolean)
+
+/** Kolik čeho v chatu je; podle toho profil řádek ukáže, nebo ne. */
+data class SharedMediaCounts(val media: Int, val files: Int, val links: Int) {
+    fun of(kind: SharedMediaKind): Int = when (kind) {
+        SharedMediaKind.Media -> media
+        SharedMediaKind.Files -> files
+        SharedMediaKind.Links -> links
+    }
+
+    companion object {
+        val Empty = SharedMediaCounts(media = 0, files = 0, links = 0)
+    }
+}
+
+data class ChatAccess(
+    val canJoin: Boolean,
+    val writeAccess: WriteAccess,
+    /** Co se smí poslat, když se smí psát. Viz [ContentAccess]. */
+    val content: ContentAccess = ContentAccess.All,
+)
+
+/**
+ * Do jaké velikosti se GIF stáhne sám.
+ *
+ * GIFy z Telegramu bývají pod megabajt, ale limit serveru je mnohem výš. Bez stropu by
+ * autoplay stáhl bez ptaní i desetimegabajtový soubor — nad ním se proto čeká na ťuknutí.
+ */
+const val MAX_AUTOPLAY_ANIMATION_BYTES: Long = 5L * 1024 * 1024

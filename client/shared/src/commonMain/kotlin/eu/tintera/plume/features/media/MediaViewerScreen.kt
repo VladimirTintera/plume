@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.ExpressiveMenu
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
@@ -36,8 +38,6 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
@@ -748,26 +748,20 @@ private fun TopBar(
             BusyOr(busy == MediaTask.SaveAs) {
                 Box {
                     ChromeIcon(Res.drawable.more_vert_24dp, stringResource(Res.string.media_more)) { menuOpen = true }
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        if (canForward) {
-                            MenuItem(Res.drawable.forward_24dp, stringResource(Res.string.menu_forward)) {
-                                menuOpen = false
-                                onForward()
-                            }
-                        }
-                        if (saveAs != null) {
-                            MenuItem(Res.drawable.description_24dp, stringResource(Res.string.media_save_as)) {
-                                menuOpen = false
-                                saveAs()
-                            }
-                        }
-                        if (canDelete) {
-                            MenuItem(Res.drawable.delete_24dp, stringResource(Res.string.menu_delete)) {
-                                menuOpen = false
-                                onDelete()
-                            }
-                        }
-                    }
+                    ExpressiveMenu(
+                        expanded = menuOpen,
+                        onDismiss = { menuOpen = false },
+                        groups = listOf(
+                            listOfNotNull(
+                                MenuAction(stringResource(Res.string.menu_forward), Res.drawable.forward_24dp, onClick = onForward).takeIf { canForward },
+                                saveAs?.let { MenuAction(stringResource(Res.string.media_save_as), Res.drawable.description_24dp, onClick = it) },
+                            ),
+                            // Smazání zvlášť: nevratné, nemá stát mezi častými akcemi.
+                            listOfNotNull(
+                                MenuAction(stringResource(Res.string.menu_delete), Res.drawable.delete_24dp, destructive = true, onClick = onDelete).takeIf { canDelete },
+                            ),
+                        ),
+                    )
                 }
             }
         }
@@ -778,15 +772,6 @@ private fun TopBar(
 @Composable
 private fun BusyOr(busy: Boolean, content: @Composable () -> Unit) {
     if (busy) LoadingIndicator(color = ON_SCRIM, modifier = Modifier.size(48.dp)) else content()
-}
-
-@Composable
-private fun MenuItem(icon: org.jetbrains.compose.resources.DrawableResource, text: String, onClick: () -> Unit) {
-    DropdownMenuItem(
-        text = { Text(text) },
-        onClick = onClick,
-        leadingIcon = { Icon(painterResource(icon), contentDescription = null) },
-    )
 }
 
 /**

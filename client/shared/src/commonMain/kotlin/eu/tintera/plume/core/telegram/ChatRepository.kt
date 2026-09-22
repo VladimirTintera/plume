@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.telegram
 
 import kotlinx.coroutines.flow.Flow
+import kotlin.time.Duration
 import kotlinx.coroutines.flow.StateFlow
 import eu.tintera.plume.core.ui.UiText
 
@@ -21,10 +22,10 @@ interface ChatRepository {
     fun chats(folder: ChatFolder = ChatFolder.Main): StateFlow<ChatListState>
 
     /**
-     * Co se v chatu zrovna děje („píše…"), bez ohledu na to, ve které složce chat je — i v chatu,
-     * který není v žádné (otevřený z notifikace, z odkazu). `null`, když nic.
+     * Co se v chatu zrovna děje („píše…") a kdo to dělá, bez ohledu na to, ve které složce chat
+     * je — i v chatu, který není v žádné (otevřený z notifikace, z odkazu). `null`, když nic.
      */
-    fun activity(chatId: Long): Flow<ChatActivity?>
+    fun typing(chatId: Long): Flow<ChatTyping?>
 
     /**
      * Id chatu Uložené zprávy; `null`, dokud není přihlášeno.
@@ -88,7 +89,7 @@ interface ChatRepository {
      * Další stránka se chce s [FoundMessagesPage.nextOffset] z předchozí; prázdný offset je první
      * stránka.
      */
-    suspend fun searchMessages(query: String, offset: String = ""): Result<FoundMessagesPage>
+    suspend fun searchMessages(query: String, offset: String = "", filter: MessageSearchFilter = MessageSearchFilter()): Result<FoundMessagesPage>
 
     /** Naposledy nalezené chaty (nejvýš 50), nejnovější první. Historii vede TDLib. */
     suspend fun recentlyFoundChats(): Result<List<ChatSummary>>
@@ -103,6 +104,24 @@ interface ChatRepository {
      * v Telegramu vypnul (TDLib pak vrátí chybu, kterou tu nepovažujeme za selhání).
      */
     suspend fun topChats(): Result<List<ChatSummary>>
+
+    /**
+     * Kolik chatů v archivu je nepřečtených. Archiv je schovaný v menu účtu, takže bez tohohle
+     * není odkud se dozvědět, že v něm něco přibylo.
+     *
+     * Počítá TDLib (`UpdateUnreadChatCount`), ne my nad [chats]: archiv se načítá až při otevření,
+     * takže dokud ho nikdo neotevřel, není z čeho počítat.
+     */
+    val archiveUnread: StateFlow<ArchiveUnread>
+
+    /**
+     * Nastavení archivu. Čte se na vyžádání — TDLib na jeho změnu žádný update neposílá, takže
+     * se pak drží u toho, kdo ho zobrazuje.
+     */
+    suspend fun archiveSettings(): Result<ArchiveSettings>
+
+    /** Zapíše nastavení archivu. [ArchiveSettings.canArchiveUnknownSenders] se ignoruje — to říká server. */
+    suspend fun setArchiveSettings(settings: ArchiveSettings): Result<Unit>
 
     /** Požádá TDLib o dotažení dalších chatů ze serveru. Výsledek přijde updaty do [chats]. */
     suspend fun loadMore(folder: ChatFolder = ChatFolder.Main)
@@ -123,11 +142,14 @@ interface ChatRepository {
      */
     suspend fun setArchived(chatId: Long, archived: Boolean): Result<Unit>
 
-    /** Ztlumí chat nebo ztlumení zruší. */
     /** Je chat ztlumený? Živě, pro profil chatu; `null`, dokud chat repository nezná. */
     fun muted(chatId: Long): Flow<Boolean?>
 
+    /** Ztlumí chat natrvalo, nebo ztlumení zruší. */
     suspend fun setMuted(chatId: Long, muted: Boolean): Result<Unit>
+
+    /** Ztlumí chat na [duration]; pak se zvuk vrátí sám (odpočet vede server). */
+    suspend fun muteFor(chatId: Long, duration: Duration): Result<Unit>
 
     /** Ruční příznak nepřečtení. Nezávislý na počtu nepřečtených zpráv. */
     suspend fun setMarkedAsUnread(chatId: Long, unread: Boolean): Result<Unit>
@@ -182,6 +204,38 @@ data class FoundMessage(
 enum class ChatFolder { Main, Archive }
 
 /**
+ * Nepřečtené chaty v archivu. [unmutedChats] je podmnožina [chats] — archiv je místo, kam se
+ * ztlumené chaty ukládají, takže „je tam něco nepřečteného" a „je tam něco, co si žádá pozornost"
+ * jsou dvě různé věci.
+ */
+data class ArchiveUnread(val chats: Int = 0, val unmutedChats: Int = 0)
+
+/**
+ * Nastavení archivu (`ArchiveChatListSettings`).
+ *
+ * `keepChatsFromFoldersArchived` tu není: týká se vlastních složek Telegramu, které aplikace
+ * nemá, takže by to byla volba bez následku. Zápis ho přesto přenese z aktuálního stavu —
+ * nastavit ho mohl jiný klient.
+ */
+data class ArchiveSettings(
+    /** Nové chaty od lidí mimo kontakty jdou rovnou do archivu a ztlumené. */
+    val archiveUnknownSenders: Boolean,
+    /** Neztlumený chat zůstane v archivu i po nové zprávě, místo aby se vrátil mezi chaty. */
+    val keepUnmutedArchived: Boolean,
+    /**
+     * Smí se [archiveUnknownSenders] vůbec zapnout? Server to povoluje jen některým účtům
+     * (`can_archive_and_mute_new_chats_from_unknown_users`) a zapnutí jinde odmítne.
+     */
+    val canArchiveUnknownSenders: Boolean,
+)
+
+/**
+ * Druh chatu tak, jak ho rozlišuje uživatel: s člověkem (i tajný chat a bot), skupina (základní
+ * i supergroup), kanál. TDLib má typů víc, ale pro filtr a tvar avataru na víc nezáleží.
+ */
+enum class ChatKind { Private, Group, Channel }
+
+/**
  * Položka seznamu chatů.
  *
  * [order] je pořadové číslo z TDLib (`ChatPosition.order`) — ne index. Je to int64, do kterého
@@ -203,13 +257,8 @@ data class ChatSummary(
     val isMuted: Boolean,
     /** Ruční příznak „nepřečteno" — nezávislý na [unreadCount]. */
     val isMarkedAsUnread: Boolean,
-    /**
-     * Soukromý chat s jedním člověkem.
-     *
-     * Rozhoduje o tom, co znamená odstranění: u soukromého chatu smazání historie, u skupiny
-     * a kanálu odchod. Jsou to dvě různé věci a nabídnout je pod jedním popiskem by lhalo.
-     */
-    val isPrivate: Boolean,
+    /** Soukromý chat, skupina, nebo kanál — podle toho filtr v seznamu a tvar avataru. */
+    val kind: ChatKind,
     /** Unixový čas poslední zprávy, nebo `null` u prázdného chatu. */
     val lastMessageTimestamp: Int?,
     /** Dostupnost protějšku. `null` u skupin a kanálů — ty žádnou nemají. */
@@ -227,6 +276,14 @@ data class ChatSummary(
      */
     val draft: ChatDraft?,
 )
+
+/**
+ * Soukromý chat s jedním člověkem.
+ *
+ * Rozhoduje o tom, co znamená odstranění: u soukromého chatu smazání historie, u skupiny
+ * a kanálu odchod. Jsou to dvě různé věci a nabídnout je pod jedním popiskem by lhalo.
+ */
+val ChatSummary.isPrivate: Boolean get() = kind == ChatKind.Private
 
 /** Rozepsaná zpráva chatu, jak ji drží TDLib (a s ním i ostatní zařízení). */
 data class ChatDraft(
@@ -255,6 +312,12 @@ sealed interface Presence {
 
     data object LastMonth : Presence
 }
+
+/**
+ * Činnost v chatu i s tím, kdo ji dělá. [senderId] je id uživatele, u anonymního správce nebo
+ * kanálu id chatu — ve skupině podle něj konverzace kreslí tvář toho, kdo píše.
+ */
+data class ChatTyping(val activity: ChatActivity, val senderId: Long)
 
 /**
  * Činnost v chatu („píše…").

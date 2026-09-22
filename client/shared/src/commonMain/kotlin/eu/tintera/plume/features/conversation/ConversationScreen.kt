@@ -1,8 +1,11 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.ChatKind
+import eu.tintera.plume.core.ui.avatarShape
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.FilledTonalButton
+import eu.tintera.plume.core.telegram.ContentAccess
 import eu.tintera.plume.core.telegram.WriteAccess
 import eu.tintera.plume.resources.conversation_not_member
 import eu.tintera.plume.resources.conversation_write_restricted
@@ -34,7 +37,12 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.text.BasicTextField
+import eu.tintera.plume.core.ui.ClipboardMediaKind
+import eu.tintera.plume.core.ui.ClipboardPasteSuggestion
+import eu.tintera.plume.core.ui.KeyboardContent
+import eu.tintera.plume.core.ui.KeyboardContentReceiver
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.VisualTransformation
@@ -121,6 +129,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -201,7 +210,11 @@ import eu.tintera.plume.resources.conversation_attach_file
 import eu.tintera.plume.resources.conversation_attach_media
 import eu.tintera.plume.resources.conversation_cancel_edit
 import eu.tintera.plume.resources.conversation_cancel_reply
+import eu.tintera.plume.resources.clipboard_has_gif
+import eu.tintera.plume.resources.clipboard_has_image
 import eu.tintera.plume.resources.conversation_editing
+import eu.tintera.plume.resources.conversation_open_gifs
+import eu.tintera.plume.resources.gif_box_24dp
 import eu.tintera.plume.resources.conversation_empty
 import eu.tintera.plume.resources.conversation_fallback_title
 import eu.tintera.plume.resources.conversation_input_caption
@@ -250,6 +263,8 @@ fun ConversationScreen(
     onSearch: (query: String) -> Unit,
     /** Ťuknutí na hlavičku: profil chatu. */
     onOpenProfile: () -> Unit,
+    /** Profil jiného chatu nad konverzací — odesílatel ze skupiny, na jehož tvář se ťuklo. */
+    onOpenUserProfile: (chatId: Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
@@ -427,6 +442,18 @@ fun ConversationScreen(
         viewModel.consumeOpenChat()
         currentOnOpenChat(target.chatId, target.messageId)
     }
+    val currentOnOpenUserProfile by rememberUpdatedState(onOpenUserProfile)
+    LaunchedEffect(state.openProfile) {
+        val target = state.openProfile ?: return@LaunchedEffect
+        viewModel.consumeOpenProfile()
+        currentOnOpenUserProfile(target)
+    }
+
+    /*
+     * Zpráva, na jejíž tvář se naposledy ťuklo: jen ta nese sdílený prvek do profilu. Přežije
+     * i návrat z profilu (a zabití procesu), aby tvář měla kam doletět zpátky.
+     */
+    val profileFlight = rememberSaveable { mutableStateOf<Long?>(null) }
     val saveAs = rememberSaveAs()
     val currentSaveAs by rememberUpdatedState(saveAs)
     val itemScope = remember(viewModel) {
@@ -445,6 +472,7 @@ fun ConversationScreen(
             onSaveFileAs = { messageId -> currentSaveAs?.let { viewModel.saveDocumentAs(messageId, it) } },
             jumpTransition = jumpTransition,
             searchHighlight = searchHighlight,
+            profileFlight = profileFlight,
         )
     }
 
@@ -471,6 +499,7 @@ fun ConversationScreen(
         state.search?.current,
         state.flight,
         state.messageMenu,
+        state.typing,
     ) { conversationItems(state) }
 
     // Klíč položky není u odeslaných zpráv jejich id (viz `ConversationState.itemKeys`), takže
@@ -618,6 +647,18 @@ fun ConversationScreen(
         anchor.live = state.reachedEnd
     }
 
+    /*
+     * „Píše…" se vkládá pod nejnovější zprávu, a seznam drží pozici podle první viditelné
+     * položky — tou je zpráva, takže by se indikátor vložil POD spodní hranu a nebyl by vidět.
+     * Kdo je dole, tomu se seznam ukotví i s ním; kdo čte historii, toho nevytrhne.
+     */
+    val typingShown = state.typing != null && state.reachedEnd
+    val typingAnchor = remember { booleanArrayOf(false) }
+    if (typingShown != typingAnchor[0]) {
+        if (typingShown && atBottom) listState.requestScrollToItem(0)
+        typingAnchor[0] = typingShown
+    }
+
     val newestMessageId = newest?.id
 
     LaunchedEffect(newestMessageId) {
@@ -713,7 +754,32 @@ fun ConversationScreen(
         onBackCompleted = { previewAttachmentIndex = null },
     )
 
+    /*
+     * Plocha stránky při hledání USTOUPÍ o stupeň (`surfaceContainerLowest`): je to třetí signál
+     * režimu vedle pilulky v hlavičce a plovoucího toolbaru, a jediný, který je vidět i koutkem
+     * oka nad samotnými zprávami.
+     *
+     * **Ustupuje se OD bublin, ne k nim.** Posun opačným směrem (`surfaceContainerLow` a výš) je
+     * sice výraznější, ale míří k `surfaceContainerHigh` příchozí bubliny — plocha by se
+     * přiblížila tomu, co má nést, a zprávy by při hledání četly hůř než jindy. Takhle se rozdíl
+     * naopak o kousek zvětší a nálezy vyskočí. Je to proto jemné vědomě: silnější tónování
+     * v tomhle směru role nenabízejí.
+     */
+    val pageColor by animateColorAsState(
+        targetValue = if (state.search != null) {
+            MaterialTheme.colorScheme.surfaceContainerLowest
+        } else {
+            MaterialTheme.colorScheme.background
+        },
+        animationSpec = MaterialTheme.motionScheme.slowEffectsSpec<Color>(),
+        label = "conversation-page",
+    )
+
     Scaffold(
+        // Barva popředí se z plochy neodvozuje: `surfaceContainerLowest` mapování nemá a fallback
+        // by závisel na tom, co je zrovna v `LocalContentColor`.
+        containerColor = pageColor,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         modifier = Modifier.fillMaxSize().hazeSource(hazeState),
         /*
          * Spodní inset si řeší vstupní pole samo (`windowInsetsPadding` se `safeDrawing`).
@@ -761,6 +827,12 @@ fun ConversationScreen(
                                 avatarFileId = info.avatarFileId,
                                 size = 36.dp,
                                 isSavedMessages = info.isSavedMessages,
+                                // Stejný tvar jako v seznamu, odkud avatar přiletěl.
+                                shape = when {
+                                    info.isChannel -> ChatKind.Channel
+                                    info.isGroup -> ChatKind.Group
+                                    else -> ChatKind.Private
+                                }.avatarShape(),
                                 modifier = Modifier.sharedNavElement(chatAvatarKey(info.id)),
                             )
                         }
@@ -778,20 +850,18 @@ fun ConversationScreen(
                             )
 
                             /*
-                             * Podtitul: stav spojení, jinak činnost, jinak dostupnost.
+                             * Podtitul: stav spojení, jinak dostupnost.
                              *
-                             * Nepřipojený klient je nade vším: dokud spojení nestojí, je „píše…"
-                             * i „naposledy viděn" jen stará hodnota, kterou nemá co obnovit —
-                             * ukázat ji místo vysvětlení, proč nic nechodí, by bylo zavádějící.
-                             * Mezi zbylými dvěma má přednost „píše…": je to novější a pro
-                             * čekajícího zajímavější informace, a obojí se na řádek nevejde.
+                             * Nepřipojený klient je nade vším: dokud spojení nestojí, je „naposledy
+                             * viděn" jen stará hodnota, kterou nemá co obnovit — ukázat ji místo
+                             * vysvětlení, proč nic nechodí, by bylo zavádějící.
                              *
-                             * Skupina dostupnost nemá, takže tam se podtitul objeví jen při
-                             * činnosti; výšku hlavičky proto animuje `AnimatedContent`, jinak by
-                             * název poskočil.
+                             * „Píše…" tu NENÍ: kreslí se v seznamu zpráv tam, kam zpráva naskočí
+                             * (`TypingItem`), jako v Google Zprávách. Skupina dostupnost nemá,
+                             * takže se podtitul objeví jen bez spojení; výšku hlavičky proto
+                             * animuje `AnimatedContent`, jinak by název poskočil.
                              */
                             val subtitle = connection.label()?.let { HeaderSubtitle(stringResource(it), accent = false) }
-                                ?: state.activity?.let { HeaderSubtitle(stringResource(it.label()), accent = true) }
                                 // Vlastní dostupnost v Uložených zprávách nic neříká — byl bys
                                 // pořád „online", protože se na ně právě díváš.
                                 ?: state.presence?.takeUnless { state.info?.isSavedMessages == true }?.let {
@@ -908,11 +978,20 @@ fun ConversationScreen(
                 onRemoveAttachment = viewModel::removeAttachment,
                 onOpenAttachment = { index -> previewAttachmentIndex = index },
                 onSetAttachmentMode = viewModel::setAttachmentMode,
+                content = state.content,
                 selfDestructAllowed = state.canSelfDestruct(attachmentCount = 1),
                 previewAttachmentIndex = previewAttachmentIndex,
                 expressionMode = expressionMode,
                 draft = draft,
                 onDraftValueChange = { draft = it },
+                onKeyboardContent = { received ->
+                    when (received) {
+                        // GIF odchází hned, jako samolepka; obrázek čeká nad polem jako z výběru.
+                        is KeyboardContent.Animation -> viewModel.sendAnimation(received.animation)
+                        is KeyboardContent.Image -> viewModel.addAttachments(listOf(received.photo))
+                    }
+                },
+                onKeyboardContentFailed = viewModel::reportError,
             )
             }
         },
@@ -943,7 +1022,7 @@ fun ConversationScreen(
                 mode = expressionMode,
                 onModeChange = viewModel::setExpressionMode,
                 // Při úpravě zprávy jen emoji: samolepku do upravované zprávy vložit nejde.
-                stickersAvailable = state.editing == null,
+                stickersAvailable = state.editing == null && state.content.stickers,
                 draft = draft,
                 // Úprava z výběru emoji je psaní jako každé jiné: ukládá koncept i hlásí „píše…".
                 onDraftEdit = {
@@ -953,6 +1032,11 @@ fun ConversationScreen(
                 onPick = { sticker ->
                     stickerPickerOpen = false
                     viewModel.sendSticker(sticker)
+                },
+                chatId = viewModel.chatId,
+                onPickGif = { gif ->
+                    stickerPickerOpen = false
+                    viewModel.sendGif(gif)
                 },
                 onDismiss = { stickerPickerOpen = false },
             )
@@ -995,6 +1079,10 @@ fun ConversationScreen(
                 onCopyLink = viewModel::copyMessageLink,
                 onDismiss = viewModel::dismissMessageInfo,
             )
+        }
+
+        state.selectingText?.let { message ->
+            SelectTextSheet(message = message, onDismiss = viewModel::dismissTextSelection)
         }
 
         state.reactionDetails?.let { details ->
@@ -1126,10 +1214,11 @@ fun ConversationScreen(
              * a odsazuje se o jejich ZMĚŘENOU výšku. Kdyby byly součástí `topBar`, ukusovaly by místo
              * i ve chvíli, kdy odjíždějí, a obsah by pod nimi na konci animace poskočil.
              *
-             * Ukazuje se jedna zpráva (viz `PinnedMessagesBar`). Která, drží obrazovka podle id,
-             * ne indexu: když přibude nová připnutá, index by ukázal jinou zprávu.
+             * Ukazuje se jedna zpráva (viz `PinnedMessagesBar`), a **která, rozhoduje scroll**
+             * (`pinnedForScroll`): ta, kterou uživatel právě míjí. Pruh tím slouží i jako
+             * orientace v historii. Nedrží se proto žádný stav — odvozuje se z klíče nejvyšší
+             * viditelné položky, takže nová připnutá zpráva výběr nerozhodí.
              */
-            var shownPinnedId by rememberSaveable { mutableStateOf<Long?>(null) }
             var allPinnedOpen by rememberSaveable { mutableStateOf(false) }
 
             val density = LocalDensity.current
@@ -1148,13 +1237,13 @@ fun ConversationScreen(
 
                 PinnedMessagesBar(
                     messages = pinned,
-                    index = pinnedIndex(pinned, shownPinnedId),
+                    index = pinnedIndex(pinned, pinnedForScroll(pinned, topVisibleKey)),
                     canUnpin = state.canUnpin,
-                    onOpen = { message ->
-                        viewModel.jumpToMessage(message.id)
-                        // Další ťuknutí vede o jednu starší, jako v oficiálním klientu.
-                        shownPinnedId = nextPinnedId(pinned, message.id)
-                    },
+                    // Ťuknutí skočí na ukázanou zprávu, a to KOTVOU NAHORU: zpráva pak stojí nad
+                    // viditelnou částí, takže pruh přejde na předchozí připnutou a další ťuknutí
+                    // vede o krok zpět. Se středem se nad cílem odkryje kus historie a pruh
+                    // přeskočí rovnou k nejstarší.
+                    onOpen = { message -> viewModel.jumpToMessage(message.id, anchor = ScrollAnchor.Top) },
                     onUnpin = viewModel::unpin,
                     onShowAll = { allPinnedOpen = true },
                 )
@@ -1164,10 +1253,7 @@ fun ConversationScreen(
                 PinnedMessagesSheet(
                     messages = state.pinned,
                     canUnpin = state.canUnpin,
-                    onOpen = { message ->
-                        viewModel.jumpToMessage(message.id)
-                        shownPinnedId = message.id
-                    },
+                    onOpen = { message -> viewModel.jumpToMessage(message.id, anchor = ScrollAnchor.Top) },
                     onUnpin = viewModel::unpin,
                     onDismiss = { allPinnedOpen = false },
                 )
@@ -1334,6 +1420,14 @@ private fun MessageInput(
     /** Rozepsaný text; drží ho obrazovka, protože do něj vkládá i výběr emoji. */
     draft: TextFieldValue,
     onDraftValueChange: (TextFieldValue) -> Unit,
+    /**
+     * Které druhy obsahu chat přijme. Co se poslat nesmí, se nenabízí: sponka schová položku
+     * (a bez jediné i sama sebe), mikrofon ustoupí odeslání, samolepky zůstanou na emoji.
+     */
+    content: ContentAccess = ContentAccess.All,
+    /** GIF nebo obrázek vložený z klávesnice (Gboard), už zkopírovaný do cache. */
+    onKeyboardContent: (KeyboardContent) -> Unit = {},
+    onKeyboardContentFailed: (UiText) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
 
@@ -1352,6 +1446,9 @@ private fun MessageInput(
     // Úprava zprávy přílohy schová — odeslání by je stejně neposlalo.
     val withAttachments = attachments.isNotEmpty() && editing == null
     val keyboard = LocalSoftwareKeyboardController.current
+    // Nahoře, ne u pole: podle fokusu se ukazuje i návrh vložení ze schránky nad polem.
+    val fieldInteraction = remember { MutableInteractionSource() }
+    val fieldFocused by fieldInteraction.collectIsFocusedAsState()
 
     /*
      * Pruh má barvu POZADÍ, jen průsvitnou.
@@ -1451,6 +1548,32 @@ private fun MessageInput(
                         }
                     }
                   }
+                  /*
+                   * GIF nebo obrázek ve schránce: na iOS nabídne vložení systémovým tlačítkem,
+                   * které se na povolení neptá (viz `ClipboardPasteSuggestion`). Jen s fokusem
+                   * v poli — návrh patří k psaní, jako návrhy klávesnice.
+                   */
+                  ClipboardPasteSuggestion(
+                      active = fieldFocused && !isRecording,
+                      acceptAnimations = content.stickers,
+                      acceptImages = content.photos,
+                      onContent = onKeyboardContent,
+                      onError = onKeyboardContentFailed,
+                  ) { kind, pasteButton ->
+                      ComposerHeader {
+                          Text(
+                              text = stringResource(
+                                  when (kind) {
+                                      ClipboardMediaKind.Animation -> Res.string.clipboard_has_gif
+                                      ClipboardMediaKind.Image -> Res.string.clipboard_has_image
+                                  },
+                              ),
+                              style = MaterialTheme.typography.labelLarge,
+                              modifier = Modifier.weight(1f).padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
+                          )
+                          pasteButton()
+                      }
+                  }
                 }
 
                 // Při nahrávání místo pole pruh s časem; citace nad ním zůstává, hlasovka na ni odpoví.
@@ -1464,10 +1587,13 @@ private fun MessageInput(
              * Odsazení 4 dp je (56 − 48) / 2: tlačítko pak sedí na střed jednořádkového pole.
              */
             // Přílohy jen při psaní — k úpravě textové zprávy příloha nepatří.
-            if (editing == null) {
+            if (editing == null && content.anyAttachment) {
                 AttachButton(
                     onPickMedia = onPickMedia,
                     onPickDocument = onPickDocument,
+                    // Skupina může povolit fotky a zakázat soubory; nabídne se jen dovolené.
+                    canPickMedia = content.photos || content.videos,
+                    canPickDocument = content.documents,
                     contentColor = inputIconColor(),
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )
@@ -1479,7 +1605,6 @@ private fun MessageInput(
              * mezera skoro 30 dp, než začal text. U ikony stačí 4 dp — glyf má svůj vzduch.
              * Bez sponky (úprava zprávy) zůstává výchozích 16 dp od hrany karty.
              */
-            val fieldInteraction = remember { MutableInteractionSource() }
             val fieldColors = TextFieldDefaults.colors(
                 // Kontejner i podtržení nese karta kolem; pole samo nekreslí nic.
                 focusedContainerColor = Color.Transparent,
@@ -1488,52 +1613,61 @@ private fun MessageInput(
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
             )
-            BasicTextField(
-                value = draft,
-                onValueChange = {
-                    val changed = it.text != draft.text
-                    onDraftValueChange(it)
-                    // Pohyb kurzoru nebo výběr taky volá `onValueChange`; psaní to není.
-                    if (changed) onDraftChanged(it.text)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .defaultMinSize(minHeight = TextFieldDefaults.MinHeight),
-                textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                maxLines = 6,
-                interactionSource = fieldInteraction,
-                keyboardOptions = KeyboardOptions(
-                    // Zpráva jsou věty, ne jedno slovo: klávesnice má po tečce nabídnout velké
-                    // písmeno sama. Výchozí `None` nutí uživatele přepínat shift ručně.
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = ImeAction.Send,
-                ),
-                keyboardActions = KeyboardActions(
-                    onSend = {
-                        onSend(draft.text)
-                        onDraftValueChange(TextFieldValue())
+            // Klávesnice nabízí GIFy a samolepky jen poli, které řekne, že je přijme.
+            // Při úpravě zprávy ne — k upravovanému textu příloha nepatří, stejně jako sponka.
+            KeyboardContentReceiver(
+                acceptAnimations = editing == null && content.stickers,
+                acceptImages = editing == null && content.photos,
+                onContent = onKeyboardContent,
+                onError = onKeyboardContentFailed,
+            ) {
+                BasicTextField(
+                    value = draft,
+                    onValueChange = {
+                        val changed = it.text != draft.text
+                        onDraftValueChange(it)
+                        // Pohyb kurzoru nebo výběr taky volá `onValueChange`; psaní to není.
+                        if (changed) onDraftChanged(it.text)
                     },
-                ),
-                decorationBox = { innerTextField ->
-                    TextFieldDefaults.DecorationBox(
-                        value = draft.text,
-                        innerTextField = innerTextField,
-                        enabled = true,
-                        singleLine = false,
-                        visualTransformation = VisualTransformation.None,
-                        interactionSource = fieldInteraction,
-                        // S přílohami je text jejich popisek.
-                        placeholder = { Text(stringResource(if (withAttachments) Res.string.conversation_input_caption else Res.string.conversation_input_message)) },
-                        colors = fieldColors,
-                        contentPadding = TextFieldDefaults.contentPaddingWithoutLabel(
-                            start = if (editing == null) FIELD_ICON_GAP else FIELD_EDGE_PADDING,
-                            end = FIELD_ICON_GAP,
-                        ),
-                        container = {},
-                    )
-                },
-            )
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = TextFieldDefaults.MinHeight),
+                    textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    maxLines = 6,
+                    interactionSource = fieldInteraction,
+                    keyboardOptions = KeyboardOptions(
+                        // Zpráva jsou věty, ne jedno slovo: klávesnice má po tečce nabídnout velké
+                        // písmeno sama. Výchozí `None` nutí uživatele přepínat shift ručně.
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Send,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSend = {
+                            onSend(draft.text)
+                            onDraftValueChange(TextFieldValue())
+                        },
+                    ),
+                    decorationBox = { innerTextField ->
+                        TextFieldDefaults.DecorationBox(
+                            value = draft.text,
+                            innerTextField = innerTextField,
+                            enabled = true,
+                            singleLine = false,
+                            visualTransformation = VisualTransformation.None,
+                            interactionSource = fieldInteraction,
+                            // S přílohami je text jejich popisek.
+                            placeholder = { Text(stringResource(if (withAttachments) Res.string.conversation_input_caption else Res.string.conversation_input_message)) },
+                            colors = fieldColors,
+                            contentPadding = TextFieldDefaults.contentPaddingWithoutLabel(
+                                start = if (editing == null) FIELD_ICON_GAP else FIELD_EDGE_PADDING,
+                                end = FIELD_ICON_GAP,
+                            ),
+                            container = {},
+                        )
+                    },
+                )
+            }
 
             // Startovní strana letu: **už vypadá jako bublina**, ne jen jako text. Sdílí se celý
             // kontejner, takže po cestě roste i pozadí — kdyby se sdílel jen text, doletěl by
@@ -1575,10 +1709,13 @@ private fun MessageInput(
             ) {
                 // Ikona slibuje, co se otevře: poslední použitou část výběru. Při úpravě
                 // zprávy jde otevřít jen emoji — samolepka do textu upravované zprávy nepatří.
-                if (editing != null || expressionMode == ExpressionMode.Emoji) {
-                    Icon(painterResource(Res.drawable.mood_24dp), contentDescription = stringResource(Res.string.conversation_open_emoji))
-                } else {
-                    Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = stringResource(Res.string.conversation_open_stickers))
+                when {
+                    editing != null || !content.stickers || expressionMode == ExpressionMode.Emoji ->
+                        Icon(painterResource(Res.drawable.mood_24dp), contentDescription = stringResource(Res.string.conversation_open_emoji))
+                    expressionMode == ExpressionMode.Gifs ->
+                        Icon(painterResource(Res.drawable.gif_box_24dp), contentDescription = stringResource(Res.string.conversation_open_gifs))
+                    else ->
+                        Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = stringResource(Res.string.conversation_open_stickers))
                 }
             }
                 }
@@ -1604,7 +1741,8 @@ private fun MessageInput(
              * jinak bylo neaktivní, dostane smysl. Ťuknutí nahrávání spustí, odeslání ho ukončí.
              * Při úpravě zprávy mikrofon není — hlasovka úprava není.
              */
-            val showMic = !isRecording && editing == null && draft.text.isBlank() && !withAttachments
+            // Bez práva na hlasovky mikrofon není — tlačítko zůstane odesláním, jen neaktivním.
+            val showMic = !isRecording && editing == null && draft.text.isBlank() && !withAttachments && content.voiceNotes
             val kind = when {
                 editing != null -> SendButtonKind.Save
                 showMic -> SendButtonKind.Mic
@@ -1957,7 +2095,10 @@ private class ScreenItemScope(
     private val onSaveFileAs: (messageId: Long) -> Unit,
     private val jumpTransition: JumpTransition,
     private val searchHighlight: State<String?>,
+    private val profileFlight: MutableState<Long?>,
 ) : ConversationItemScope {
+    override fun isProfileFlight(messageId: Long): Boolean = profileFlight.value == messageId
+
     override fun searchHighlight(): String? = searchHighlight.value
 
     override fun gatherShift(key: Any): Float = jumpTransition.shiftOf(key)
@@ -1991,6 +2132,11 @@ private class ScreenItemScope(
         is MessageAction.OpenStickerSet -> onOpenStickerSet(action.setId)
         is MessageAction.SearchHashtag -> onSearch(action.tag)
         MessageMenuAction.SaveFileAs -> onSaveFileAs(messageId)
+        is MessageAction.OpenSenderProfile -> {
+            // Klíč letu musí stát dřív, než se profil otevře; chat se hledá asynchronně.
+            profileFlight.value = messageId
+            viewModel.onAction(messageId, action)
+        }
         else -> viewModel.onAction(messageId, action)
     }
 

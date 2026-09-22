@@ -14,8 +14,7 @@ import androidx.window.core.layout.computeWindowSizeClass
  * [PaneScaffoldDirective] odvozený z rozměrů **content-oblasti**, ne celého okna.
  *
  * List-detail strategie defaultně rozhoduje single/two-pane podle [currentWindowAdaptiveInfoV2],
- * tedy podle celého okna. Jenže obsah běží v menší ploše — vlevo ukusuje navigační rail, k tomu
- * padding. Strategie by pak počítala se šířkou, kterou reálně nemá, a rozhodla špatně. Tahle funkce
+ * tedy podle celého okna. Jenže obsah může běžet v menší ploše (padding, kdysi rail). Strategie by pak počítala se šířkou, kterou reálně nemá, a rozhodla špatně. Tahle funkce
  * spočítá directive z naměřené šířky content-oblasti (typicky z `BoxWithConstraints`).
  *
  * Pozn.: posture (hinge) se přebírá z okna — hinge bounds jsou v souřadnicích okna, takže u skládaček

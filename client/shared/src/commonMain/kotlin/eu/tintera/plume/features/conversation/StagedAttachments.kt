@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.AttachmentMode
+import eu.tintera.plume.core.telegram.ContentAccess
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 
 /** Kolik příloh jde poslat najednou — strop alba v Telegramu. */
@@ -69,5 +70,34 @@ internal fun dropForbiddenSelfDestruct(
             is OutgoingAttachment.Video -> attachment.copy(mode = AttachmentMode.Standard)
             is OutgoingAttachment.Document -> attachment
         }
+    }
+}
+
+/**
+ * Jako co příloha doopravdy odejde.
+ *
+ * Režim „Odeslat jako soubor" posílá fotku i video přes `InputMessageDocument`
+ * (`toInputContent`), takže se řídí právem na SOUBORY, ne na fotky. Kdo to plete, dostane
+ * chybu od serveru u přílohy, kterou aplikace nabídla.
+ */
+private fun OutgoingAttachment.goesAsDocument(): Boolean =
+    mode == AttachmentMode.AsFile || this is OutgoingAttachment.Document
+
+/**
+ * Vyřadí přílohy, které chat nepřijme.
+ *
+ * Systémový výběr fotek vydá fotky i videa jedním tahem, takže ve skupině, která povoluje jen
+ * fotky, se mezi vybranými objeví i video — a to by skončilo chybou AŽ PO odeslání. Volající
+ * porovná velikost seznamu a rozdíl ohlásí.
+ */
+internal fun allowedByContent(
+    picked: List<OutgoingAttachment>,
+    content: ContentAccess,
+): List<OutgoingAttachment> = picked.filter { attachment ->
+    when {
+        attachment.goesAsDocument() -> content.documents
+        attachment is OutgoingAttachment.Photo -> content.photos
+        attachment is OutgoingAttachment.Video -> content.videos
+        else -> true
     }
 }

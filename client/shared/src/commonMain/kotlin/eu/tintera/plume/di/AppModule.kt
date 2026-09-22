@@ -1,9 +1,14 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.features.settings.EditProfileViewModel
+import eu.tintera.plume.core.telegram.TdlAccountRepository
+import eu.tintera.plume.core.telegram.AccountRepository
 import eu.tintera.plume.features.profile.ChatProfileViewModel
 import eu.tintera.plume.core.telegram.TdlProfileRepository
 import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.DeviceRepository
+import eu.tintera.plume.core.telegram.NotificationSettingsRepository
+import eu.tintera.plume.core.telegram.TdlNotificationSettingsRepository
 import eu.tintera.plume.core.telegram.TdlDeviceRepository
 import eu.tintera.plume.features.devices.DevicesViewModel
 import eu.tintera.plume.features.conversation.ConversationSearchRequests
@@ -20,6 +25,8 @@ import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.DataStoreAppSettings
 import eu.tintera.plume.core.telegram.EmojiRepository
 import eu.tintera.plume.core.telegram.StickerRepository
+import eu.tintera.plume.core.telegram.GifRepository
+import eu.tintera.plume.core.telegram.TdlGifRepository
 import eu.tintera.plume.core.telegram.TdlEmojiRepository
 import eu.tintera.plume.core.telegram.TdlStickerRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
@@ -27,6 +34,7 @@ import eu.tintera.plume.core.telegram.RevealedSpoilers
 import eu.tintera.plume.core.telegram.SelfDestructTimers
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.NotificationRepository
+import eu.tintera.plume.core.notifications.NotificationActions
 import eu.tintera.plume.core.telegram.TdlChatRepository
 import eu.tintera.plume.core.telegram.TdlConversationRepository
 import eu.tintera.plume.core.telegram.TdlFileRepository
@@ -39,11 +47,13 @@ import eu.tintera.plume.features.chats.ChatsViewModel
 import eu.tintera.plume.features.chats.NewChatViewModel
 import eu.tintera.plume.features.conversation.ConversationViewModel
 import eu.tintera.plume.features.conversation.StickerPickerViewModel
+import eu.tintera.plume.features.conversation.GifPickerViewModel
 import eu.tintera.plume.features.conversation.StickerSetViewModel
 import eu.tintera.plume.features.media.MediaViewerViewModel
 import eu.tintera.plume.features.share.ShareViewModel
 import eu.tintera.plume.features.settings.AppearanceViewModel
 import eu.tintera.plume.features.settings.SettingsViewModel
+import eu.tintera.plume.features.settings.NotificationSettingsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -98,6 +108,10 @@ fun appModule() = module {
     // drží ConversationViewModel.
     single<ConversationRepository> { TdlConversationRepository(holder = get()) }
 
+    // Odpověď z notifikace. Nad ConversationRepository, ne v něm: jde o pořadí kroků (odeslat,
+    // dočkat se potvrzení, pak teprve přečíst), ne o další volání TDLib.
+    single { NotificationActions(session = get(), conversations = get(), chats = get()) }
+
     // Eagerně: v konstruktoru se přihlašuje k `fileUpdates` a průběh stahování chodí pro všechny
     // soubory. Při líné konstrukci by se ztratily updaty k souborům, jejichž stahování už běží.
     single<FileRepository>(createdAtStart = true) {
@@ -128,6 +142,7 @@ fun appModule() = module {
 
     // Bezstavová — seznamy jsou toky nad updaty, drží se jen po dobu otevřeného výběru.
     single<StickerRepository> { TdlStickerRepository(holder = get()) }
+    single<GifRepository> { TdlGifRepository(holder = get()) }
     single<EmojiRepository> { TdlEmojiRepository(holder = get()) }
 
     // Eagerně: nastavení se načte při startu, aby ho první obrazovka měla hned (viz AppSettings).
@@ -145,6 +160,8 @@ fun appModule() = module {
     single { RevealedSpoilers() }
     single { SelfDestructTimers() }
     single<ProfileRepository> { TdlProfileRepository(holder = get()) }
+    single<NotificationSettingsRepository> { TdlNotificationSettingsRepository(holder = get()) }
+    single<AccountRepository> { TdlAccountRepository(holder = get()) }
     // Eager: nepotvrzené přihlášení TDLib ohlásí hned po startu (viz TdlDeviceRepository).
     single<DeviceRepository>(createdAtStart = true) {
         TdlDeviceRepository(holder = get(), scope = get(named(APP_SCOPE)))
@@ -165,13 +182,18 @@ fun appModule() = module {
             settings = get(),
             appUpdates = get(),
             devices = get(),
+            accounts = get(),
+            savedState = get(),
         )
     }
     viewModelOf(::StickerPickerViewModel)
+    viewModel { params -> GifPickerViewModel(chatId = params.get(), repository = get()) }
     viewModel { parameters -> StickerSetViewModel(setId = parameters.get(), repository = get()) }
     viewModelOf(::SettingsViewModel)
     viewModelOf(::AppearanceViewModel)
     viewModelOf(::DevicesViewModel)
+    viewModelOf(::NotificationSettingsViewModel)
+    viewModelOf(::EditProfileViewModel)
 
     // chatId přichází z navigační routy, ne z grafu → runtime parametr. Druhý parametr je zpráva,
     // na kterou se po otevření skočí; bývá `null`, a podle typu by se spletl s chatId — proto index.
@@ -204,7 +226,12 @@ fun appModule() = module {
             profiles = get(),
             chats = get(),
             conversations = get(),
+            files = get(),
+            fileOpener = get(),
             urlOpener = get(),
+            notificationSettings = get(),
+            notificationPermission = get(),
+            clipboard = get(),
         )
     }
 

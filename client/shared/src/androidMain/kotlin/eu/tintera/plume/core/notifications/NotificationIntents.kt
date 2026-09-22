@@ -16,6 +16,26 @@ object NotificationIntents {
 
     const val EXTRA_CHAT_ID = "eu.tintera.plume.extra.CHAT_ID"
 
+    const val EXTRA_GROUP_ID = "eu.tintera.plume.extra.NOTIFICATION_GROUP_ID"
+
+    /** Citovaná zpráva odpovědi z notifikace; chybí = bez citace. */
+    const val EXTRA_REPLY_TO_MESSAGE_ID = "eu.tintera.plume.extra.REPLY_TO_MESSAGE_ID"
+
+    /** Akce odpovědi z notifikace. Přijímá ji `NotificationActionReceiver` ve vstupním bodu. */
+    const val ACTION_REPLY = "eu.tintera.plume.action.NOTIFICATION_REPLY"
+
+    /** Označení chatu za přečtený z notifikace. Týž příjemce jako [ACTION_REPLY]. */
+    const val ACTION_MARK_READ = "eu.tintera.plume.action.NOTIFICATION_MARK_READ"
+
+    /** Ztlumení chatu z notifikace. Týž příjemce jako [ACTION_REPLY]. */
+    const val ACTION_MUTE = "eu.tintera.plume.action.NOTIFICATION_MUTE"
+
+    /** Nejnovější zpráva notifikace, po kterou se čte; chybí = po nejnovější v chatu. */
+    const val EXTRA_MESSAGE_ID = "eu.tintera.plume.extra.MESSAGE_ID"
+
+    /** Klíč textu v `RemoteInput`. */
+    const val KEY_REPLY_TEXT = "eu.tintera.plume.extra.REPLY_TEXT"
+
     /**
      * Holý intent na otevření chatu.
      *
@@ -50,6 +70,68 @@ object NotificationIntents {
             intent,
             // UPDATE_CURRENT: existující intent pro tentýž chat se přepíše, ne zduplikuje.
             // IMMUTABLE je od Androidu 12 povinné, když intent nemá měnit příjemce.
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    /**
+     * Broadcast s odpovědí z notifikace.
+     *
+     * Příjemce je ve vstupním bodu (kvůli WorkManageru), takže se na něj míří AKCÍ a balíčkem,
+     * ne třídou — `:client:shared` ho nezná, stejně jako `MainActivity`. Broadcast s balíčkem
+     * je explicitní a dorazí i příjemci deklarovanému v manifestu.
+     */
+    fun reply(context: Context, groupId: Int, chatId: Long, replyToMessageId: Long?): PendingIntent {
+        val intent = Intent(ACTION_REPLY)
+            .setPackage(context.packageName)
+            .putExtra(EXTRA_CHAT_ID, chatId)
+            .putExtra(EXTRA_GROUP_ID, groupId)
+            // UPDATE_CURRENT přepíše extras při každém překreslení, takže cituje vždy tu
+            // nejnovější zprávu, kterou má uživatel před očima.
+            .apply { replyToMessageId?.let { putExtra(EXTRA_REPLY_TO_MESSAGE_ID, it) } }
+
+        return PendingIntent.getBroadcast(
+            context,
+            // Jedinečný kód z téhož důvodu jako u [openChat]; broadcast a activity se
+            // navzájem nepřepíšou, typ PendingIntentu vstupuje do rovnosti.
+            groupId,
+            intent,
+            // MUTABLE je u `RemoteInput` povinné: systém do intentu vkládá napsaný text.
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+        )
+    }
+
+    /**
+     * Broadcast „Označit jako přečtené". Na rozdíl od odpovědi do intentu nikdo nic nevkládá,
+     * takže IMMUTABLE. Se stejným request code jako odpověď se nepřepíšou — akce intentu
+     * vstupuje do `filterEquals`.
+     */
+    fun markRead(context: Context, groupId: Int, chatId: Long, messageId: Long?): PendingIntent {
+        val intent = Intent(ACTION_MARK_READ)
+            .setPackage(context.packageName)
+            .putExtra(EXTRA_CHAT_ID, chatId)
+            .putExtra(EXTRA_GROUP_ID, groupId)
+            .apply { messageId?.let { putExtra(EXTRA_MESSAGE_ID, it) } }
+
+        return PendingIntent.getBroadcast(
+            context,
+            groupId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    /** Broadcast „Ztlumit". IMMUTABLE — do intentu nikdo nic nevkládá. */
+    fun mute(context: Context, groupId: Int, chatId: Long): PendingIntent {
+        val intent = Intent(ACTION_MUTE)
+            .setPackage(context.packageName)
+            .putExtra(EXTRA_CHAT_ID, chatId)
+            .putExtra(EXTRA_GROUP_ID, groupId)
+
+        return PendingIntent.getBroadcast(
+            context,
+            groupId,
+            intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }

@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.notifications
 
 import androidx.compose.runtime.Composable
+import eu.tintera.plume.core.telegram.NotificationChannelKind
 
 /**
  * Stav oprávnění k zobrazování notifikací.
@@ -20,6 +21,21 @@ expect class NotificationPermission {
      * jak se z toho dostat — v aplikaci by mu notifikace nešly zapnout vůbec.
      */
     fun openSystemSettings()
+
+    /**
+     * Umí platforma nastavit zvuk a vibrace pro jednotlivý kanál? Android ano (od 8.0 je to
+     * jediné místo, kde se nastavují), iOS kanály nemá.
+     */
+    val supportsChannelSettings: Boolean
+
+    /** Otevře systémové nastavení kanálu — zvuk, vibrace, důležitost. */
+    fun openChannelSettings(channel: NotificationChannelKind)
+
+    /**
+     * Otevře systémové nastavení jedné konverzace (zvuk, prioritní, tichá). Kde to platforma
+     * neumí (Android do 10), otevře kanál [channel], pod který konverzace patří.
+     */
+    fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind)
 }
 
 /**

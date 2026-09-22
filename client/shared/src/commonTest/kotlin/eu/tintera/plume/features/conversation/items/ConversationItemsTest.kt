@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.conversation.items
 
 import eu.tintera.plume.features.conversation.ConversationState
+import eu.tintera.plume.features.conversation.Typing
+import eu.tintera.plume.core.telegram.ChatActivity
+import eu.tintera.plume.core.telegram.SenderInfo
 
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -80,6 +83,7 @@ class ConversationItemsTest {
             UnreadDividerItem -> "unread"
             is SponsoredItem -> "ad"
             LoadingOlderItem -> "loading"
+            is TypingItem -> "typing"
             else -> error("neznámý blok $it")
         }
     }
@@ -161,6 +165,83 @@ class ConversationItemsTest {
             state = ConversationState(sponsored = listOf(sponsored), loading = true),
         )
         assertEquals(listOf("ad", "m1", "day", "loading"), result.kinds())
+    }
+
+    @Test
+    fun piseStojiPodNejnovejsiZpravouANadReklamou() {
+        val sponsored = SponsoredMessage(messageId = 7L, title = "", text = "", buttonText = "", url = "", isRecommended = false, additionalInfo = null)
+        val result = items(
+            message(2),
+            message(1),
+            state = ConversationState(sponsored = listOf(sponsored), typing = Typing(ChatActivity.Typing, sender = null)),
+        )
+        assertEquals(listOf("ad", "typing", "m2", "m1", "day"), result.kinds())
+    }
+
+    @Test
+    fun piseVOkneVHistoriiNeni() {
+        // Nejnovější zpráva v okně není — indikátor by stál uprostřed minulosti.
+        val result = items(
+            message(1),
+            state = ConversationState(reachedEnd = false, typing = Typing(ChatActivity.Typing, sender = null)),
+        )
+        assertEquals(listOf("m1", "day"), result.kinds())
+    }
+
+    @Test
+    fun piseVSoukromemChatuNeseTvarChatu() {
+        val result = items(
+            message(1),
+            state = ConversationState(info = info(), typing = Typing(ChatActivity.Typing, sender = null)),
+        )
+        val typing = assertIs<TypingItem>(result[0])
+        assertEquals(TypingFace(CHAT_ID, "Chat", null), typing.face)
+        assertEquals(false, typing.inGroup)
+    }
+
+    @Test
+    fun piseVeSkupineNeseTvarOdesilatele() {
+        val sender = SenderInfo(id = 42L, title = "Jana", avatarFileId = 5)
+        val result = items(
+            message(1),
+            state = ConversationState(info = info(isGroup = true), typing = Typing(ChatActivity.RecordingVoice, sender)),
+        )
+        val typing = assertIs<TypingItem>(result[0])
+        assertEquals(TypingFace(42L, "Jana", 5), typing.face)
+        assertEquals(true, typing.inGroup)
+        assertEquals(ChatActivity.RecordingVoice, typing.activity)
+    }
+
+    @Test
+    fun piseVeSkupineBezZnamehoOdesilateleNemaTvarChatu() {
+        // Tvář skupiny u trojtečky by tvrdila, že píše skupina.
+        val result = items(
+            message(1),
+            state = ConversationState(info = info(isGroup = true), typing = Typing(ChatActivity.Typing, sender = null)),
+        )
+        assertNull(assertIs<TypingItem>(result[0]).face)
+    }
+
+    @Test
+    fun kanalPiseNeukazuje() {
+        val result = items(
+            message(1),
+            state = ConversationState(info = info(isGroup = true, isChannel = true), typing = Typing(ChatActivity.Typing, sender = null)),
+        )
+        assertEquals(listOf("m1", "day"), result.kinds())
+    }
+
+    @Test
+    fun teckyStridajiVyskokAOdpocinek() {
+        // Každá tečka skáče jen v části periody a o kus později než ta před ní.
+        assertEquals(0f, dotLift(0f, 0))
+        assertEquals(1f, dotLift(0.2f, 0), 0.001f)
+        assertEquals(0f, dotLift(0.2f, 2))
+        assertEquals(1f, dotLift(0.5f, 2), 0.001f)
+        // Konec periody je odpočinek všech tří, jinak by trojtečka vlnila bez ustání.
+        assertEquals(0f, dotLift(0.8f, 0))
+        assertEquals(0f, dotLift(0.8f, 1))
+        assertEquals(0f, dotLift(0.8f, 2))
     }
 
     @Test

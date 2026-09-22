@@ -2,6 +2,7 @@ package eu.tintera.plume.core.telegram
 
 import eu.tintera.plume.resources.saved_messages
 import dev.g000sha256.tdl.dto.ChatTypePrivate
+import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.DeviceToken
@@ -13,6 +14,8 @@ import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.Notification
+import dev.g000sha256.tdl.dto.NotificationGroupTypeMentions
+import dev.g000sha256.tdl.dto.NotificationGroupTypeMessages
 import dev.g000sha256.tdl.dto.NotificationTypeNewMessage
 import dev.g000sha256.tdl.dto.NotificationTypeNewPushMessage
 import dev.g000sha256.tdl.dto.PushMessageContentPhoto
@@ -132,6 +135,29 @@ class TdlNotificationRepository(
             ?: added.firstNotNullOfOrNull { (it.type as? NotificationTypeNewPushMessage)?.senderName }
             ?: ""
 
+        // Odpověď z notifikace jen tam, kam se smí psát (kanál bez práva publikovat, omezená
+        // skupina) — akce, která skončí chybou, je horší než žádná. Neznámý chat psaní
+        // neblokuje, stejně jako vstupní pole v konverzaci.
+        val canReply = chat == null || writeAccess(
+            isChannel = (chat.type as? ChatTypeSupergroup)?.isChannel == true,
+            status = client.ownMemberStatus(chat),
+            membersCanSend = chat.permissions.canSendBasicMessages,
+        ) == WriteAccess.Allowed
+
+        // Ztlumit má smysl jen u běžných zpráv. Zmínky a odpovědi (`Mentions`) chodí i ze
+        // ztlumeného chatu — ztlumení na hodinu by mu po hodině zvuk VRÁTILO, i když ho měl
+        // uživatel ztlumený natrvalo nebo výchozím nastavením.
+        val canMute = update.type is NotificationGroupTypeMessages
+
+        // Druh chatu podle toho, čím se notifikace řídí (`notificationSettingsChatId`), ne podle
+        // chatu samotného — tak si ho vybírá i TDLib, když rozhoduje o ztlumení a zvuku.
+        val settingsChat = if (update.notificationSettingsChatId == update.chatId) chat
+        else client.getChat(update.notificationSettingsChatId).toResult().getOrNull() ?: chat
+        val channel = notificationChannelFor(
+            isMention = update.type is NotificationGroupTypeMentions,
+            kind = settingsChat?.type?.chatKind() ?: ChatKind.Private,
+        )
+
         val notifications = added.mapNotNull { notification ->
             val content = notification.content() ?: return@mapNotNull null
 
@@ -153,6 +179,9 @@ class TdlNotificationRepository(
                 isSavedMessages = isSavedMessages,
                 imagePath = downloadedPath(content.image, IMAGE_TIMEOUT),
                 imageCaption = content.imageCaption,
+                canReply = canReply,
+                canMute = canMute,
+                channel = channel,
             )
         }
 

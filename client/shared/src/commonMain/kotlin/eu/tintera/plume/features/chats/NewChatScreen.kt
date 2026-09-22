@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.avatarShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -167,6 +168,7 @@ fun NewChatScreen(
                                         avatarFileId = null,
                                         size = 40.dp,
                                         isSavedMessages = true,
+                                        backdrop = MaterialTheme.colorScheme.primaryContainer,
                                     )
                                 },
                                 colors = ListItemDefaults.colors(
@@ -264,6 +266,7 @@ private fun ContactRow(
                 title = chat.title,
                 avatarFileId = chat.avatarFileId,
                 size = 40.dp,
+                shape = chat.kind.avatarShape(),
             )
         },
         modifier = modifier.clickable(onClick = onClick),

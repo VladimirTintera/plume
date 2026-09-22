@@ -1,5 +1,9 @@
 package eu.tintera.plume.core.telegram
 
+import kotlin.time.Clock
+import dev.g000sha256.tdl.dto.SearchMessagesChatTypeFilterChannel
+import dev.g000sha256.tdl.dto.SearchMessagesChatTypeFilterGroup
+import dev.g000sha256.tdl.dto.SearchMessagesChatTypeFilterPrivate
 import dev.g000sha256.tdl.dto.ChatJoinResultGuardBotApprovalRequired
 import dev.g000sha256.tdl.dto.ChatJoinResultDeclined
 import dev.g000sha256.tdl.dto.ChatJoinResultRequestSent
@@ -14,12 +18,16 @@ import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.TdlResult
 import dev.g000sha256.tdl.dto.Chat
 import dev.g000sha256.tdl.toResult
+import dev.g000sha256.tdl.dto.ArchiveChatListSettings
 import dev.g000sha256.tdl.dto.ChatList
 import dev.g000sha256.tdl.dto.ChatListArchive
 import dev.g000sha256.tdl.dto.ChatListMain
 import dev.g000sha256.tdl.dto.ChatNotificationSettings
 import dev.g000sha256.tdl.dto.ChatPosition
+import dev.g000sha256.tdl.dto.ChatType
+import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypePrivate
+import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.ChatAction
 import dev.g000sha256.tdl.dto.ChatActionCancel
 import dev.g000sha256.tdl.dto.ChatActionChoosingSticker
@@ -35,6 +43,8 @@ import dev.g000sha256.tdl.dto.ChatActionUploadingVoiceNote
 import dev.g000sha256.tdl.dto.ChatTypeSecret
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
+import dev.g000sha256.tdl.dto.MessageSenderChat
+import dev.g000sha256.tdl.dto.OptionValueBoolean
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.TopChatCategoryUsers
 import dev.g000sha256.tdl.dto.UserStatus
@@ -46,11 +56,15 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlin.time.Duration
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -101,13 +115,28 @@ class TdlChatRepository(
         MutableStateFlow<ChatListState>(ChatListState.Loading)
     }
 
-    /** Všechny známé chaty — pro [activity], které na složce nezáleží. */
+    /** Všechny známé chaty — pro [typing], které na složce nezáleží. */
     private val all = MutableStateFlow<Map<Long, ChatSummary>>(emptyMap())
+
+    /**
+     * Kdo v chatu naposledy ohlásil činnost. `ChatSummary` nese jen DRUH činnosti (seznamu
+     * chatů stačí „píše…"); konverzace ve skupině potřebuje i tvář. Zhasíná se spolu s činností
+     * v [all], takže tu stará hodnota může zůstat — bez činnosti se nečte.
+     */
+    private val activitySenders = MutableStateFlow<Map<Long, Long>>(emptyMap())
+
+    private val _archiveUnread = MutableStateFlow(ArchiveUnread())
+
+    override val archiveUnread: StateFlow<ArchiveUnread> = _archiveUnread.asStateFlow()
 
     override fun chats(folder: ChatFolder): StateFlow<ChatListState> = lists.getValue(folder).asStateFlow()
 
-    override fun activity(chatId: Long): Flow<ChatActivity?> =
-        all.map { it[chatId]?.activity }.distinctUntilChanged()
+    override fun typing(chatId: Long): Flow<ChatTyping?> =
+        combine(
+            all.map { it[chatId]?.activity }.distinctUntilChanged(),
+            activitySenders.map { it[chatId] }.distinctUntilChanged(),
+        ) { activity, sender -> if (activity != null && sender != null) ChatTyping(activity, sender) else null }
+            .distinctUntilChanged()
 
     /** Složky, u kterých TDLib ohlásil, že další chaty už nejsou. */
     private val exhausted = mutableSetOf<ChatFolder>()
@@ -252,6 +281,13 @@ class TdlChatRepository(
                 val fromMe = (update.senderId as? MessageSenderUser)?.userId == myUserId
                 val activity = if (fromMe) null else update.action.toActivity()
 
+                if (activity != null) {
+                    val sender = when (val id = update.senderId) {
+                        is MessageSenderUser -> id.userId
+                        is MessageSenderChat -> id.chatId
+                    }
+                    activitySenders.update { it + (update.chatId to sender) }
+                }
                 edit(update.chatId) { it.copy(activity = activity) }
 
                 if (activity != null) scheduleActivityExpiry(update.chatId, activity)
@@ -270,6 +306,22 @@ class TdlChatRepository(
                 val folder = update.chatList.folder() ?: return@collect
                 changePositions(update.chatId) { it - folder }
             }
+        }
+
+        /*
+         * Počet nepřečtených chatů v archivu. Nepočítá se nad [chats] — archiv se načítá až při
+         * otevření, takže dokud ho nikdo neotevřel, není z čeho počítat; tohle chodí i bez něj.
+         * TDLib ho posílá jen se zapnutou databází zpráv (`useMessageDatabase`).
+         */
+        scope.launch {
+            holder.updates { unreadChatCountUpdates }
+                .filter { it.chatList is ChatListArchive }
+                .collect { update ->
+                    _archiveUnread.value = ArchiveUnread(
+                        chats = update.unreadCount,
+                        unmutedChats = update.unreadUnmutedCount,
+                    )
+                }
         }
     }
 
@@ -320,6 +372,52 @@ class TdlChatRepository(
             .map { }
 
     /**
+     * Nastavení archivu a k němu volba serveru, jestli se smí zapínat automatická archivace.
+     * Nenastavená volba přijde jako `OptionValueEmpty`, tedy „nesmí".
+     */
+    override suspend fun archiveSettings(): Result<ArchiveSettings> {
+        val settings = client.getArchiveChatListSettings().toResult()
+            .onFailure { logger.w(it) { "Nastavení archivu se nepodařilo přečíst." } }
+            .getOrElse { return Result.failure(it) }
+        val canArchiveUnknown = client.getOption(name = ARCHIVE_UNKNOWN_OPTION).toResult().getOrNull()
+        return Result.success(
+            ArchiveSettings(
+                archiveUnknownSenders = settings.archiveAndMuteNewChatsFromUnknownUsers,
+                keepUnmutedArchived = settings.keepUnmutedChatsArchived,
+                canArchiveUnknownSenders = (canArchiveUnknown as? OptionValueBoolean)?.value == true,
+            ),
+        )
+    }
+
+    /**
+     * Zapisuje se celým objektem, jako ztlumení chatu: `keepChatsFromFoldersArchived` se přenese
+     * z aktuálního stavu, jinak by se tiše přepsalo, co si uživatel nastavil v jiném klientovi.
+     */
+    override suspend fun setArchiveSettings(settings: ArchiveSettings): Result<Unit> {
+        val current = client.getArchiveChatListSettings().toResult()
+            .getOrElse { return Result.failure(it) }
+        return client.setArchiveChatListSettings(
+            settings = ArchiveChatListSettings(
+                archiveAndMuteNewChatsFromUnknownUsers = settings.archiveUnknownSenders,
+                keepUnmutedChatsArchived = settings.keepUnmutedArchived,
+                keepChatsFromFoldersArchived = current.keepChatsFromFoldersArchived,
+            ),
+        )
+            .toResult()
+            .map { }
+            .onFailure { logger.w(it) { "Nastavení archivu se nepodařilo uložit." } }
+    }
+
+    override fun muted(chatId: Long): Flow<Boolean?> =
+        all.map { it[chatId]?.isMuted }.distinctUntilChanged()
+
+    override suspend fun setMuted(chatId: Long, muted: Boolean): Result<Unit> =
+        setMuteFor(chatId, if (muted) MUTE_FOREVER else 0)
+
+    override suspend fun muteFor(chatId: Long, duration: Duration): Result<Unit> =
+        setMuteFor(chatId, duration.inWholeSeconds.toInt())
+
+    /**
      * Ztlumení se nastavuje **celým objektem nastavení**, ne jedním polem.
      *
      * Ostatní hodnoty se proto musí přenést z aktuálního stavu chatu — poslat nový objekt
@@ -328,10 +426,7 @@ class TdlChatRepository(
      * `useDefaultMuteFor = false` je nutné: dokud je `true`, jede chat podle globálního
      * nastavení a `muteFor` se ignoruje.
      */
-    override fun muted(chatId: Long): Flow<Boolean?> =
-        all.map { it[chatId]?.isMuted }.distinctUntilChanged()
-
-    override suspend fun setMuted(chatId: Long, muted: Boolean): Result<Unit> {
+    private suspend fun setMuteFor(chatId: Long, seconds: Int): Result<Unit> {
         val current = when (val result = client.getChat(chatId)) {
             is TdlResult.Failure -> return Result.failure(IllegalStateException(result.message))
             is TdlResult.Success -> result.result.notificationSettings
@@ -339,7 +434,7 @@ class TdlChatRepository(
 
         val updated = ChatNotificationSettings(
             useDefaultMuteFor = false,
-            muteFor = if (muted) MUTE_FOREVER else 0,
+            muteFor = seconds,
             useDefaultSound = current.useDefaultSound,
             soundId = current.soundId,
             useDefaultShowPreview = current.useDefaultShowPreview,
@@ -483,15 +578,22 @@ class TdlChatRepository(
     override suspend fun searchPublicChats(query: String): Result<List<ChatSummary>> =
         client.searchPublicChats(query = query).toResult().map { summariesFor(it.chatIds) }
 
-    override suspend fun searchMessages(query: String, offset: String): Result<FoundMessagesPage> =
-        client.searchMessages(
+    override suspend fun searchMessages(query: String, offset: String, filter: MessageSearchFilter): Result<FoundMessagesPage> {
+        val (minDate, maxDate) = filter.period.dateRange(Clock.System.now().epochSeconds)
+        return client.searchMessages(
             // `null` = hlavní seznam i archiv; tajné chaty `searchMessages` stejně neprochází.
             chatList = null,
             query = query,
             offset = offset,
             limit = MESSAGE_SEARCH_PAGE,
-            minDate = 0,
-            maxDate = 0,
+            chatTypeFilter = when (filter.chatKind) {
+                null -> null
+                ChatKind.Private -> SearchMessagesChatTypeFilterPrivate()
+                ChatKind.Group -> SearchMessagesChatTypeFilterGroup()
+                ChatKind.Channel -> SearchMessagesChatTypeFilterChannel()
+            },
+            minDate = minDate,
+            maxDate = maxDate,
         )
             .toResult()
             .map { found ->
@@ -511,6 +613,7 @@ class TdlChatRepository(
                     nextOffset = found.nextOffset.takeIf { it.isNotEmpty() },
                 )
             }
+    }
 
     // `searchChats` s prázdným dotazem vrací právě historii hledání — `searchRecentlyFoundChats`
     // prázdný dotaz nebere.
@@ -718,6 +821,8 @@ class TdlChatRepository(
         }
         me.value = null
         all.value = emptyMap()
+        activitySenders.value = emptyMap()
+        _archiveUnread.value = ArchiveUnread()
         lists.values.forEach { it.value = ChatListState.Loading }
     }
 
@@ -775,6 +880,9 @@ class TdlChatRepository(
          * zhruba po pěti sekundách, takže tohle nechytne souvislé psaní, jen ztracený konec.
          */
         const val ACTIVITY_TIMEOUT_MS = 8_000L
+
+        /** Server rozhoduje, jestli účet smí zapnout automatickou archivaci chatů od neznámých. */
+        const val ARCHIVE_UNKNOWN_OPTION = "can_archive_and_mute_new_chats_from_unknown_users"
     }
 }
 
@@ -793,7 +901,7 @@ private suspend fun Chat.toSummary(): ChatSummary {
         avatarFileId = photo?.small?.id,
         isMuted = notificationSettings.isMuted(),
         isMarkedAsUnread = isMarkedAsUnread,
-        isPrivate = type is ChatTypePrivate || type is ChatTypeSecret,
+        kind = type.chatKind(),
         lastMessageTimestamp = lastMessage?.date,
         // Dostupnost `Chat` nenese — dorazí updatem. Do té doby je `null`, což UI kreslí
         // prostě bez tečky.
@@ -872,4 +980,11 @@ internal fun ChatAction.toActivity(): ChatActivity? = when (this) {
     is ChatActionUploadingDocument, is ChatActionUploadingVoiceNote -> ChatActivity.SendingFile
     is ChatActionChoosingSticker -> ChatActivity.ChoosingSticker
     else -> ChatActivity.Other
+}
+
+/** Druh chatu: tajný chat a bot jsou soukromé, základní skupina i supergroup skupina. */
+internal fun ChatType.chatKind(): ChatKind = when (this) {
+    is ChatTypeSupergroup -> if (isChannel) ChatKind.Channel else ChatKind.Group
+    is ChatTypeBasicGroup -> ChatKind.Group
+    is ChatTypePrivate, is ChatTypeSecret -> ChatKind.Private
 }

@@ -2,6 +2,7 @@ package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.ui.highlightRanges
 import eu.tintera.plume.core.telegram.ChatListState
+import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.FoundMessage
 import kotlin.test.Test
@@ -138,7 +139,7 @@ class ChatSearchTest {
         avatarFileId = null,
         isMuted = false,
         isMarkedAsUnread = false,
-        isPrivate = true,
+        kind = ChatKind.Private,
         lastMessageTimestamp = null,
         presence = null,
         activity = null,

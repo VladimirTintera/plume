@@ -6,6 +6,8 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.Color
+import com.materialkolor.ktx.animateColorScheme
 import eu.tintera.plume.app.root.presentation.theme.AppMotion
 import eu.tintera.plume.app.root.presentation.theme.appTypography
 import eu.tintera.plume.core.settings.ThemeMode
@@ -35,6 +37,12 @@ fun ThemeMode.resolveIsDark(): Boolean = when (this) {
  * [SharedTransitionLayout] je tu schválně už teď, i když spike zatím sdílené prvky nepoužívá:
  * přechod seznam chatů → konverzace (avatar a jméno letí do top baru) je klíčová expressive animace
  * a scope musí být nad celým navigačním stromem, ne uvnitř jedné obrazovky.
+ *
+ * **Schéma se prolíná, nemění se skokem** ([animateColorScheme]): přepnutí motivu v Nastavení
+ * přebarví celou obrazovku naráz a skoková výměna vypadala jako probliknutí. Každá role schématu
+ * má vlastní [androidx.compose.animation.animateColor], takže se plní i plochy, které nejsou
+ * přes sebe (pozadí stránky, bubliny, lišty) — překryvný crossfade celé aplikace by na průsvitných
+ * místech prosvítal.
  */
 @Composable
 fun AppTheme(
@@ -43,7 +51,8 @@ fun AppTheme(
     content: @Composable () -> Unit,
 ) {
     val isDark = themeMode.resolveIsDark()
-    val colorScheme = colorScheme(isDark, dynamicColor && supportsDynamicColor)
+    val target = colorScheme(isDark, dynamicColor && supportsDynamicColor)
+    val colorScheme = animateColorScheme(target, animationSpec = { AppMotion.defaultEffectsSpec<Color>() })
 
     SystemBarsAppearance(isDark)
 

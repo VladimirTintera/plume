@@ -169,6 +169,7 @@ internal fun MessageAttachment(
                         RemoteImage(
                             fileId = media.fileId,
                             thumbnailFileId = media.thumbnailFileId,
+                            placeholder = media.minithumbnail,
                             contentDescription = stringResource(Res.string.media_photo),
                             // `Crop` dořeší podlahu šířky (extrémně vysoká fotka, fotka s popiskem):
                             // poměr stran zůstává a vidět je prostředek. Jinak není co ořezávat.
@@ -237,6 +238,17 @@ internal fun MessageAttachment(
             ),
         )
         is MessageMedia.AnimatedEmoji -> AnimatedEmojiImage(media)
+        is MessageMedia.Animation -> BoxWithConstraints {
+            // Stejný rámeček jako fotka a video: GIF na výšku se zúží, místo aby přišel o kraje.
+            val frame = photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), fillWidth)
+            AnimationBubble(
+                animation = media,
+                shape = pictureShape,
+                onRequestMenu = onRequestMenu,
+                modifier = Modifier.size(frame),
+            )
+        }
+
         is MessageMedia.Video -> {
             val timers = koinInject<SelfDestructTimers>()
             val consumedIds by timers.consumedIds.collectAsState()
@@ -468,6 +480,7 @@ internal fun VideoThumbnail(
         video.thumbnailFileId?.let { thumbnail ->
             RemoteImage(
                 fileId = thumbnail,
+                placeholder = video.minithumbnail,
                 contentDescription = stringResource(Res.string.media_video),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier

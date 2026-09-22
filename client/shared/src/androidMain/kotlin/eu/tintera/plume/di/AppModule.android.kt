@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.ui.AndroidSquarePhoto
+import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSaver
@@ -42,6 +44,7 @@ actual fun Module.platformModule() {
     single { AppForeground(androidContext()) }
     single { AppUpdates(androidContext()) }
     single { TextClipboard(androidContext()) }
+    single<SquarePhoto> { AndroidSquarePhoto(androidContext()) }
     // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.
     factory { AudioRecorder(androidContext()) }
 

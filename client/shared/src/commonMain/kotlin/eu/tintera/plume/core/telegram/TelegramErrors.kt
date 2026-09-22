@@ -2,7 +2,11 @@ package eu.tintera.plume.core.telegram
 
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.error_about_too_long
 import eu.tintera.plume.resources.error_admin_required
+import eu.tintera.plume.resources.error_first_name_invalid
+import eu.tintera.plume.resources.error_username_invalid
+import eu.tintera.plume.resources.error_username_occupied
 import eu.tintera.plume.resources.error_flood_wait_minutes
 import eu.tintera.plume.resources.error_invite_invalid
 import eu.tintera.plume.resources.error_flood_wait_seconds
@@ -84,6 +88,13 @@ fun Throwable.userMessage(fallback: StringResource): UiText {
         // QR kód k přihlášení jiného zařízení platí jen pár desítek vteřin a jen jednou.
         "AUTH_TOKEN_EXPIRED", "AUTH_TOKEN_INVALID", "AUTH_TOKEN_ALREADY_ACCEPTED" ->
             Res.string.error_qr_login_expired
+
+        // Úprava profilu. Dostupnost jména se ověřuje předem, tohle je souboj o jméno mezi
+        // kontrolou a uložením, nebo pravidlo, které místní kontrola nezná.
+        "USERNAME_OCCUPIED" -> Res.string.error_username_occupied
+        "USERNAME_INVALID" -> Res.string.error_username_invalid
+        "FIRSTNAME_INVALID" -> Res.string.error_first_name_invalid
+        "ABOUT_TOO_LONG" -> Res.string.error_about_too_long
 
         else -> fallback
     }

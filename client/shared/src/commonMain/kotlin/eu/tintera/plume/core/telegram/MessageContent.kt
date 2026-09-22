@@ -359,12 +359,11 @@ internal suspend fun Message.messageMedia(): MessageMedia? = when (val content =
         hasSpoiler = content.hasSpoiler,
         isSecret = content.isSecret,
         selfDestructType = selfDestructType?.toSelfDestructType(),
+        supportsStreaming = content.video.supportsStreaming,
+        minithumbnail = content.video.minithumbnail?.toDomain(),
     )
 
-    is MessageAnimation -> MessageMedia.Attachment(
-        label = getString(Res.string.content_gif),
-        thumbnailFileId = content.animation.thumbnail?.file?.id,
-    )
+    is MessageAnimation -> content.animation.toMedia()
 
     is MessageDocument -> MessageMedia.Document(
         fileId = content.document.document.id,
@@ -472,9 +471,9 @@ internal fun Message.linkPreview(): LinkPreview? {
 
     val result = LinkPreview(
         url = preview.url,
-        siteName = preview.siteName.ifBlank { null },
-        title = preview.title.ifBlank { null },
-        description = preview.description.text.ifBlank { null },
+        siteName = previewText(preview.siteName),
+        title = previewText(preview.title),
+        description = previewText(preview.description.text),
         photo = photo,
         largePhoto = preview.showLargeMedia,
     )
@@ -483,6 +482,17 @@ internal fun Message.linkPreview(): LinkPreview? {
     }
     return result
 }
+
+/**
+ * Text náhledu odkazu, nebo `null`, když nic neříká.
+ *
+ * **Server posílá u některých odkazů titulek doslova jako řetězec „null"** (třeba
+ * `share.google/…` — stránka zřejmě do `og:title` vypsala prázdnou hodnotu z JavaScriptu).
+ * `ifBlank` ho nechytí a v bublině i v záložce Odkazy pak stálo „null". Slovo samo o sobě
+ * není nic, co by uživateli něco řeklo, takže se zahazuje jako prázdný text.
+ */
+internal fun previewText(raw: String): String? =
+    raw.trim().takeUnless { it.isEmpty() || it.equals("null", ignoreCase = true) }
 
 /**
  * Vybere z nabízených velikostí tu k zobrazení a tu nejmenší jako rychlý náhled.
@@ -520,8 +530,13 @@ private fun Photo.toMedia(
         hasSpoiler = hasSpoiler,
         isSecret = isSecret,
         selfDestructType = selfDestructType,
+        minithumbnail = minithumbnail?.toDomain(),
     )
 }
+
+/** Rozmazaný náhled ze zprávy; prázdná data jsou jako žádná. */
+internal fun dev.g000sha256.tdl.dto.Minithumbnail.toDomain(): Minithumbnail? =
+    data.takeIf { it.isNotEmpty() }?.let { Minithumbnail(it, width, height) }
 
 /** Delší hrana zobrazované varianty fotky. Nad tím už jde o zbytečná data. */
 private const val MAX_DISPLAY_EDGE = 1280

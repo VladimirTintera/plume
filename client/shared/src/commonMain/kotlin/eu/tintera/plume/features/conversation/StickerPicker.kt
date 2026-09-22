@@ -11,6 +11,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -75,6 +84,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -82,6 +92,7 @@ import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.EmojiRepository
+import eu.tintera.plume.core.telegram.GifItem
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.StickerItem
 import eu.tintera.plume.core.telegram.StickerQuery
@@ -113,6 +124,7 @@ import eu.tintera.plume.resources.stickers_section_public
 import eu.tintera.plume.resources.stickers_set_empty
 import eu.tintera.plume.resources.stickers_tab_emoji
 import eu.tintera.plume.resources.stickers_tab_favorites
+import eu.tintera.plume.resources.stickers_tab_gifs
 import eu.tintera.plume.resources.stickers_tab_recent
 import eu.tintera.plume.resources.stickers_tab_stickers
 import eu.tintera.plume.resources.stickers_tab_trending
@@ -368,6 +380,9 @@ fun StickerPickerSheet(
     draft: TextFieldValue,
     onDraftEdit: (TextFieldValue) -> Unit,
     onPick: (StickerItem) -> Unit,
+    /** Chat, do kterého se hledá — GIF bot to chce vědět. */
+    chatId: Long,
+    onPickGif: (GifItem) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val viewModel: StickerPickerViewModel = koinViewModel()
@@ -418,7 +433,11 @@ fun StickerPickerSheet(
 
     TrendingSetSheetHost(setId = openSetId, onClose = { openSetId = null }, pick = pick)
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        contentWindowInsets = { expressionSheetInsets() },
+    ) {
         /*
          * Emoji a samolepky jsou dvě části JEDNOHO sheetu, ne dva sheety: obojí se otevírá týmž
          * tlačítkem a patří k témuž psaní. Přepínač jsou segmentová tlačítka — dvě rovnocenné
@@ -437,6 +456,7 @@ fun StickerPickerSheet(
                         when (entry) {
                             ExpressionMode.Emoji -> stringResource(Res.string.stickers_tab_emoji)
                             ExpressionMode.Stickers -> stringResource(Res.string.stickers_tab_stickers)
+                            ExpressionMode.Gifs -> stringResource(Res.string.stickers_tab_gifs)
                         },
                     )
                 }
@@ -449,6 +469,15 @@ fun StickerPickerSheet(
                 draft = draft,
                 onDraftEdit = onDraftEdit,
                 languageCodes = languageCodes,
+            )
+            return@ModalBottomSheet
+        }
+
+        if (mode == ExpressionMode.Gifs) {
+            GifPanel(
+                chatId = chatId,
+                // Jako u samolepky: nejdřív sheet schovat, pak poslat.
+                onPick = { gif -> scope.launch { sheetState.hide() }.invokeOnCompletion { onPickGif(gif) } },
             )
             return@ModalBottomSheet
         }
@@ -469,7 +498,7 @@ fun StickerPickerSheet(
          * hledání: po smazání textu se záložky vrátí hned, bez čekání na debounce.
          */
         if (searchText.isNotBlank()) {
-            Box(Modifier.fillMaxWidth().height(STICKER_TAB_ROW_HEIGHT + STICKER_PICKER_HEIGHT)) {
+            Box(Modifier.fillMaxWidth().height(STICKER_TAB_ROW_HEIGHT + STICKER_PICKER_HEIGHT + sheetBottomInset())) {
                 StickerSearchResults(
                     search = search,
                     cells = StickerCells(activeStickerId, favoriteIds, pick, activate, toggleFavorite),
@@ -499,7 +528,7 @@ fun StickerPickerSheet(
             // Klíč podle záložky, ne indexu: až dorazí sady, stránky nedávných a oblíbených zůstanou
             // tytéž a nerozsype se jim stav (pozice scrollu).
             key = { index -> state.tabs.getOrNull(index)?.pageKey() ?: index },
-            modifier = Modifier.fillMaxWidth().height(STICKER_PICKER_HEIGHT),
+            modifier = Modifier.fillMaxWidth().height(STICKER_PICKER_HEIGHT + sheetBottomInset()),
         ) { page ->
             val tab = state.tabs.getOrNull(page) ?: return@HorizontalPager
             LaunchedEffect(tab) { viewModel.load(tab) }
@@ -571,7 +600,7 @@ private fun StickerPage(
          */
         LazyVerticalGrid(
             columns = GridCells.Adaptive(STICKER_CELL),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            contentPadding = sheetListPadding(horizontal = 12.dp, vertical = 8.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
             items(stickers, key = { it.id }) { sticker ->
@@ -631,7 +660,7 @@ private fun TrendingPage(
             )
 
             else -> LazyColumn(
-                contentPadding = PaddingValues(vertical = 8.dp),
+                contentPadding = sheetListPadding(horizontal = 0.dp, vertical = 8.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
                 items(sets, key = { it.id }) { set ->
@@ -880,7 +909,7 @@ private fun StickerSearchResults(
 
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(STICKER_CELL),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    contentPadding = sheetListPadding(horizontal = 12.dp, vertical = 8.dp),
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     searchSection(installedTitle, result.installed, cells)
@@ -997,6 +1026,33 @@ private fun EmojiFallback(emoji: String) {
  * vědomě, ne omylem, protože se objeví až po podržení.
  */
 private val FAVORITE_BUTTON_SIZE = 28.dp
+
+/**
+ * Insety sheetu výběru: nahoře stavová lišta, dole JEN klávesnice (hledání).
+ *
+ * Výchozí `modalWindowInsets` dává obsahu jako odsazení i navigační lištu, takže mřížka končila
+ * ostrou hranou nad lištou a pod ní zůstal prázdný pruh sheetu. Lištu si proto berou seznamy
+ * v `contentPadding` ([sheetListPadding]) a jedou pod ni — tentýž vzor jako seznam chatů,
+ * konverzace a výsledky hledání. Klávesnici nechat seznamům nejde: mřížka má pevnou výšku
+ * a skoro celá by zmizela pod ní.
+ */
+@Composable
+internal fun expressionSheetInsets(): WindowInsets =
+    WindowInsets.safeDrawing.only(WindowInsetsSides.Top).union(WindowInsets.ime)
+
+/**
+ * Kus navigační lišty, který sheet obsahu nechává (viz [expressionSheetInsets]). S otevřenou
+ * klávesnicí nula — lištu překrývá klávesnice a její místo drží sheet. O tolik jsou plochy
+ * s pevnou výškou vyšší, aby viditelná část zůstala stejná jako dřív.
+ */
+@Composable
+internal fun sheetBottomInset(): Dp =
+    WindowInsets.navigationBars.exclude(WindowInsets.ime).asPaddingValues().calculateBottomPadding()
+
+/** Odsazení seznamu v sheetu výběru: poslední řádek se doroluje nad navigační lištu. */
+@Composable
+internal fun sheetListPadding(horizontal: Dp, vertical: Dp): PaddingValues =
+    PaddingValues(start = horizontal, top = vertical, end = horizontal, bottom = vertical + sheetBottomInset())
 
 /** Řádek záložek. Při hledání ho výsledky zastoupí, takže jeho výška je pevná. */
 internal val STICKER_TAB_ROW_HEIGHT = 48.dp

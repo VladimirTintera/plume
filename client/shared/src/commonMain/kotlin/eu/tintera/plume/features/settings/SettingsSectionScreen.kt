@@ -42,9 +42,10 @@ import org.koin.compose.viewmodel.koinViewModel
 fun SettingsSectionScreen(
     section: SettingsSection,
     onBack: (() -> Unit)?,
+    onEditProfile: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Hlášky sekcí (odhlášené zařízení, výsledek QR přihlášení); zatím je má jen Zařízení.
+    // Hlášky sekcí (odhlášené zařízení, výsledek QR přihlášení, neuložené nastavení notifikací).
     val snackbarHostState = remember { SnackbarHostState() }
     Scaffold(
         modifier = modifier,
@@ -76,7 +77,8 @@ fun SettingsSectionScreen(
             // Jen jedna větev se skládá, takže vznikne právě jeden ViewModel — ten druhý
             // by si jinak vyžádal účet ze serveru zbytečně.
             when (section) {
-                SettingsSection.General -> GeneralSettings(viewModel = koinViewModel())
+                SettingsSection.General -> GeneralSettings(viewModel = koinViewModel(), onEditProfile = onEditProfile)
+                SettingsSection.Notifications -> NotificationSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
                 SettingsSection.Appearance -> AppearanceSettings(viewModel = koinViewModel())
                 SettingsSection.Devices -> DevicesSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
             }

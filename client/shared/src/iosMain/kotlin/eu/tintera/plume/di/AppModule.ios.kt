@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.ui.IosSquarePhoto
+import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSaver
@@ -28,7 +30,7 @@ actual fun Module.platformModule() {
     single { TelegramPaths() }
     single<DatabaseKeyStore> { KeychainDatabaseKeyStore() }
     single { NotificationPermission() }
-    single { NotificationPresenter() }
+    single { NotificationPresenter(chats = get()) }
     single { UrlOpener() }
     single { FileOpener() }
     single { MediaSaver() }
@@ -46,6 +48,7 @@ actual fun Module.platformModule() {
     single { AppForeground() }
     single { AppUpdates() }
     single { TextClipboard() }
+    single<SquarePhoto> { IosSquarePhoto() }
     // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.
     factory { AudioRecorder() }
 

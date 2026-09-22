@@ -84,6 +84,7 @@ class MessageActionTest {
                 MessageMenuAction.Reply,
                 MessageMenuAction.Edit,
                 MessageMenuAction.Copy,
+                MessageMenuAction.SelectText,
                 MessageMenuAction.Forward,
                 MessageMenuAction.Info,
                 MessageMenuAction.Pin,
@@ -159,8 +160,17 @@ class MessageActionTest {
     fun coServerNedovoliSeNenabizi() {
         val items = menuActions(message(), isPinned = false)
         val shown = items.filter { it.presentation(menu(items, actions = MessageActions.Fallback)) != null }
-        // Bez příznaků od serveru zbude jen to neškodné: odpověď, kopírování a informace.
-        assertEquals(listOf(MessageMenuAction.Reply, MessageMenuAction.Copy, MessageMenuAction.Info), shown)
+        // Bez příznaků od serveru zbude jen to neškodné: odpověď, kopírování, výběr textu
+        // (což je kopírování po kouskách) a informace.
+        assertEquals(
+            listOf(
+                MessageMenuAction.Reply,
+                MessageMenuAction.Copy,
+                MessageMenuAction.SelectText,
+                MessageMenuAction.Info,
+            ),
+            shown,
+        )
     }
 
     @Test
@@ -171,5 +181,18 @@ class MessageActionTest {
         val add = action.presentation(menu(listOf(action), favoriteSticker = false))?.label
         val remove = action.presentation(menu(listOf(action), favoriteSticker = true))?.label
         assertTrue(add != null && remove != null && add != remove)
+    }
+
+    @Test
+    fun vyberTextuJdeVzdyRukuVRuceSKopirovanim() {
+        // Bez textu není co vybírat — stejná podmínka jako u kopírování.
+        val bezTextu = menuActions(message(text = ""), isPinned = false)
+        assertTrue(MessageMenuAction.Copy !in bezTextu && MessageMenuAction.SelectText !in bezTextu)
+
+        // A chráněný obsah ven nesmí ani po kouskách: obojí stojí na `canCopy`.
+        val items = menuActions(message(), isPinned = false)
+        val chraneny = menu(items, actions = MessageActions.Fallback.copy(canCopy = false))
+        assertNull(MessageMenuAction.Copy.presentation(chraneny))
+        assertNull(MessageMenuAction.SelectText.presentation(chraneny))
     }
 }

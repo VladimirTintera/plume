@@ -7,6 +7,7 @@ import eu.tintera.plume.core.navigation.ArchiveRoute
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
+import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.features.chats.ArchiveChange
 import kotlin.test.Test
@@ -121,5 +122,25 @@ class ChatsStackTest {
         stack.closeConversationOf(ArchiveChange(chatId = 99, archived = true))
 
         assertEquals(listOf<NavKey>(ChatsRoute, mainChat, profile), stack)
+    }
+
+    /** Po smazání chatu z profilu nesmí zůstat jeho profil ani konverzace — ostatní ano. */
+    @Test
+    fun zavreniChatuOdeberJenJehoRouty() {
+        val stack = mutableListOf<NavKey>(
+            ChatsRoute,
+            ConversationRoute(chatId = 1),
+            ChatProfileRoute(chatId = 2),
+            ConversationRoute(chatId = 2),
+            ChatProfileRoute(chatId = 1),
+            MediaRoute(chatId = 1, messageId = 5),
+            ArchiveRoute,
+            ArchiveConversationRoute(chatId = 1),
+            ArchiveChatProfileRoute(chatId = 1),
+        )
+
+        stack.closeChat(1)
+
+        assertEquals(listOf<NavKey>(ChatsRoute, ChatProfileRoute(chatId = 2), ConversationRoute(chatId = 2), ArchiveRoute), stack)
     }
 }

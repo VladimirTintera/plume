@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -23,14 +25,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.arrow_back_24dp
+import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.settings_section_appearance
 import eu.tintera.plume.resources.settings_section_appearance_summary
 import eu.tintera.plume.resources.settings_section_devices
 import eu.tintera.plume.resources.settings_section_devices_summary
 import eu.tintera.plume.resources.settings_section_general
 import eu.tintera.plume.resources.settings_section_general_summary
+import eu.tintera.plume.resources.settings_section_notifications
+import eu.tintera.plume.resources.settings_section_notifications_summary
 import eu.tintera.plume.resources.settings_title
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -45,10 +52,26 @@ fun SettingsScreen(
     selectedSection: SettingsSection?,
     onSectionClick: (SettingsSection) -> Unit,
     modifier: Modifier = Modifier,
+    /** Šipka zpět do Chatů. Nastavení se otevírají z menu účtu, jiná cesta zpět není. */
+    onBack: (() -> Unit)? = null,
 ) {
     Scaffold(
         modifier = modifier,
-        topBar = { LargeFlexibleTopAppBar(title = { Text(stringResource(Res.string.settings_title)) }) },
+        topBar = {
+            LargeFlexibleTopAppBar(
+                title = { Text(stringResource(Res.string.settings_title)) },
+                navigationIcon = {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                painterResource(Res.drawable.arrow_back_24dp),
+                                contentDescription = stringResource(Res.string.common_back),
+                            )
+                        }
+                    }
+                },
+            )
+        },
     ) { padding ->
         Column(
             Modifier
@@ -83,7 +106,7 @@ private fun SectionRow(
 ) {
     /*
      * Výběr v list-detail je navigační stav, ne zvýraznění obsahu → `secondaryContainer`,
-     * stejná role, jakou nese vybraná položka v nav railu i vybraný chat v seznamu.
+     * stejná role, jakou nese vybraný filtr v toolbaru i vybraný chat v seznamu.
      */
     val containerColor = if (selected) {
         MaterialTheme.colorScheme.secondaryContainer
@@ -142,6 +165,7 @@ private fun SectionRow(
 internal val SettingsSection.title: StringResource
     get() = when (this) {
         SettingsSection.General -> Res.string.settings_section_general
+        SettingsSection.Notifications -> Res.string.settings_section_notifications
         SettingsSection.Appearance -> Res.string.settings_section_appearance
         SettingsSection.Devices -> Res.string.settings_section_devices
     }
@@ -150,6 +174,7 @@ internal val SettingsSection.title: StringResource
 private val SettingsSection.summary: StringResource
     get() = when (this) {
         SettingsSection.General -> Res.string.settings_section_general_summary
+        SettingsSection.Notifications -> Res.string.settings_section_notifications_summary
         SettingsSection.Appearance -> Res.string.settings_section_appearance_summary
         SettingsSection.Devices -> Res.string.settings_section_devices_summary
     }

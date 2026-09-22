@@ -1,10 +1,13 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.ui.graphics.Shape
+import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.highlightRanges
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.SideEffect
 import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.resources.chats_search_empty_hint
+import eu.tintera.plume.resources.search_filter_empty_hint
 import eu.tintera.plume.resources.search_off_24dp
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -18,7 +21,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.FoundMessage
+import eu.tintera.plume.core.telegram.MessageSearchFilter
 import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.chats_search_section_chats
@@ -52,7 +57,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -105,7 +109,8 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Hlavička seznamu chatů: vyhledávací pilulka a vedle ní [actions].
+ * Hlavička seznamu chatů: vyhledávací pilulka přes celou šířku, na jejím konci [trailing]
+ * (fotka účtu s menu — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
  *
  * Nahradila `LargeFlexibleTopAppBar`. Ten byl hezký jen rozbalený: sbalený přešel na
  * `surfaceContainer`, tedy pruh přes celou šířku v roli, která jinde v seznamu není, a na
@@ -137,10 +142,12 @@ internal fun ChatSearchBar(
     onMessageClick: (chatId: Long, messageId: Long) -> Unit,
     onLoadMoreMessages: () -> Unit,
     onClearRecent: () -> Unit,
+    onFilterChange: (MessageSearchFilter) -> Unit,
     /** Dotaz zvenku (hashtag z konverzace): hledání se s ním rozbalí. */
     request: String?,
     onRequestHandled: () -> Unit,
-    actions: @Composable RowScope.() -> Unit,
+    /** Konec sbalené pilulky (menu účtu). V rozbaleném hledání není — tam je ✕ dotazu. */
+    trailing: @Composable () -> Unit,
 ) {
     val searchBarState = rememberSearchBarState()
     val textFieldState = rememberTextFieldState()
@@ -202,8 +209,11 @@ internal fun ChatSearchBar(
                             contentDescription = stringResource(Res.string.chats_search_clear),
                         )
                     }
-                    // V rozbaleném hledání stav nepatří — uživatel se dívá na výsledky.
-                    !expanded -> ConnectionPill(connection)
+                    // V rozbaleném hledání stav ani účet nepatří — uživatel se dívá na výsledky.
+                    !expanded -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        ConnectionPill(connection)
+                        trailing()
+                    }
                 }
             },
         )
@@ -211,7 +221,11 @@ internal fun ChatSearchBar(
 
     // Hledání zavřené gestem zpět jde mimo `collapse()`; dotaz by jinak zůstal v pilulce.
     LaunchedEffect(expanded) {
-        if (!expanded) textFieldState.clearText()
+        if (!expanded) {
+            textFieldState.clearText()
+            // Filtr patří k jednomu hledání, jako dotaz; příště se začíná bez něj.
+            onFilterChange(MessageSearchFilter())
+        }
         // Návrhy (nejčastější, historie) se načítají jen při otevřeném hledání.
         onExpandedChange(expanded)
     }
@@ -242,7 +256,6 @@ internal fun ChatSearchBar(
         // behavior ji v téhle alphě nenakreslil a chaty pod ním prosvítaly.
         modifier = Modifier.background(MaterialTheme.colorScheme.surface),
         scrollBehavior = scrollBehavior,
-        actions = actions,
     )
 
     ExpandedFullScreenSearchBar(
@@ -271,6 +284,7 @@ internal fun ChatSearchBar(
             },
             onLoadMoreMessages = onLoadMoreMessages,
             onClearRecent = onClearRecent,
+            onFilterChange = onFilterChange,
         )
     }
 }
@@ -342,6 +356,7 @@ private fun SearchResults(
     onMessageClick: (chatId: Long, messageId: Long) -> Unit,
     onLoadMoreMessages: () -> Unit,
     onClearRecent: () -> Unit,
+    onFilterChange: (MessageSearchFilter) -> Unit,
 ) {
     val trimmed = query.trim()
     val onPickLatest by rememberUpdatedState(onPick)
@@ -354,12 +369,20 @@ private fun SearchResults(
     }
 
     val savedTitle = stringResource(Res.string.saved_messages)
-    val showSaved = savedMessagesChatId != null && savedTitle.contains(trimmed, ignoreCase = true)
+    val showSaved = savedMessagesChatId != null && savedTitle.contains(trimmed, ignoreCase = true) &&
+        search.filter.period == null && (search.filter.chatKind == null || search.filter.chatKind == ChatKind.Private)
     // Výsledky patří k dotazu, na který TDLib odpovídal. Dokud nedorazí nové, ukazují se
     // staré jen pro tentýž dotaz — jinak by pod „jana" chvíli visely výsledky pro „ja".
     val current = search.query == trimmed
-    val chats = if (current) search.results.filter { it.id != savedMessagesChatId } else emptyList()
-    val global = if (current) search.globalOnly else emptyList()
+    val filter = search.filter
+    // Druh chatu zúží i chaty; období se týká jen zpráv, takže s ním chaty nemají co ukázat.
+    val chatsShown = filter.period == null
+    val chats = if (current && chatsShown) {
+        search.results.filter { it.id != savedMessagesChatId && (filter.chatKind == null || it.kind == filter.chatKind) }
+    } else {
+        emptyList()
+    }
+    val global = if (current && chatsShown) search.globalOnly.filter { filter.chatKind == null || it.kind == filter.chatKind } else emptyList()
     val messages = if (current) search.messages else emptyList()
     val settled = current && search.settled
 
@@ -371,119 +394,127 @@ private fun SearchResults(
     val nothing = chats.isEmpty() && global.isEmpty() && messages.isEmpty() && !showSaved
     SideEffect { emptyShown = nothing && (settled || emptyShown) }
 
-    if (nothing) {
-        if (settled || emptyShown) {
-            // Stejný prázdný stav jako placeholder detailu a prázdný archiv. Spodek je nad
-            // klávesnicí a lištou (viz `resultsPadding`), jinak by se centroval pod klávesnici.
-            IntroEmptyState(
-                icon = Res.drawable.search_off_24dp,
-                title = stringResource(Res.string.chats_search_empty),
-                text = stringResource(Res.string.chats_search_empty_hint),
-                containerColor = Color.Transparent,
-                modifier = Modifier.padding(bottom = resultsPadding().calculateBottomPadding()),
-            )
-        } else {
-            // Expressive indikátor jako při načítání seznamu chatů — kroužek by tu byl jediný
-            // prvek starého jazyka.
-            Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.TopCenter) {
-                LoadingIndicator()
-            }
-        }
-        return
-    }
-
-    // Rozbalení sekcí patří k dotazu; nový dotaz je zase sbalí.
-    var chatsExpanded by rememberSaveable(trimmed) { mutableStateOf(false) }
-    var globalExpanded by rememberSaveable(trimmed) { mutableStateOf(false) }
-    val listState = rememberLazyListState()
-
-    // Další stránka zpráv, jakmile se listuje ke konci.
-    LaunchedEffect(listState) {
-        snapshotFlow {
-            val info = listState.layoutInfo
-            val last = info.visibleItemsInfo.lastOrNull()?.index ?: return@snapshotFlow false
-            last >= info.totalItemsCount - LOAD_MORE_THRESHOLD
-        }.collect { nearEnd -> if (nearEnd) onLoadMoreLatest() }
-    }
-
-    val highlight = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-
-    LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = resultsPadding()) {
-        val chatCount = chats.size + if (showSaved) 1 else 0
-        /*
-         * Nadpis chatů je tu vždycky, když jsou chaty — ne až když přibudou další sekce.
-         * Seznam drží pozici podle první viditelné položky, takže nadpis vložený nad chaty
-         * později odjel nad horní hranu a nebylo ho vidět.
-         */
-        if (chatCount > 0) {
-            item(key = "chats-header") {
-                SectionHeader(stringResource(Res.string.chats_search_section_chats)) {
-                    ExpandToggle(chatCount, chatsExpanded) { chatsExpanded = it }
-                }
-            }
-        }
-        savedMessagesChatId?.takeIf { showSaved }?.let { savedId ->
-            item(key = savedId) {
-                ChatResultRow(
-                    chatId = savedId,
-                    title = savedTitle,
-                    avatarFileId = null,
-                    archived = false,
-                    onClick = { onPickLatest(savedId) },
-                    modifier = Modifier.animateItem(),
+    Column(Modifier.fillMaxSize()) {
+        // Čipy nad výsledky, ne jako položka seznamu: filtr musí zůstat po ruce i odscrollovaný.
+        // Hashtag hledá jen zprávy, druh chatu se tam nabízí taky; období dává smysl vždycky.
+        MessageSearchFilters(filter = search.filter, onChange = onFilterChange)
+        if (nothing) {
+            if (settled || emptyShown) {
+                // Stejný prázdný stav jako placeholder detailu a prázdný archiv. Spodek je nad
+                // klávesnicí a lištou (viz `resultsPadding`), jinak by se centroval pod klávesnici.
+                IntroEmptyState(
+                    icon = Res.drawable.search_off_24dp,
+                    title = stringResource(Res.string.chats_search_empty),
+                    // S filtrem je nejčastější příčina právě filtr — věta to má říct.
+                    text = stringResource(if (search.filter.isEmpty) Res.string.chats_search_empty_hint else Res.string.search_filter_empty_hint),
+                    containerColor = Color.Transparent,
+                    modifier = Modifier.padding(bottom = resultsPadding().calculateBottomPadding()),
                 )
-            }
-        }
-        val shownChats = if (chatsExpanded || global.isEmpty() && messages.isEmpty()) {
-            chats
-        } else {
-            chats.take((COLLAPSED_ROWS - if (showSaved) 1 else 0).coerceAtLeast(0))
-        }
-        items(shownChats, key = { it.id }) { chat ->
-            ChatResultRow(
-                chatId = chat.id,
-                title = chat.title,
-                avatarFileId = chat.avatarFileId,
-                archived = chat.folder == ChatFolder.Archive,
-                onClick = { onPickLatest(chat.id) },
-                // Serverové výsledky přibývají za lokálními — plynule, ne skokem.
-                modifier = Modifier.animateItem(),
-            )
-        }
-
-        if (global.isNotEmpty()) {
-            item(key = "global-header") {
-                SectionHeader(stringResource(Res.string.chats_search_section_global)) {
-                    ExpandToggle(global.size, globalExpanded) { globalExpanded = it }
+            } else {
+                // Expressive indikátor jako při načítání seznamu chatů — kroužek by tu byl jediný
+                // prvek starého jazyka.
+                Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.TopCenter) {
+                    LoadingIndicator()
                 }
             }
-            items(if (globalExpanded) global else global.take(COLLAPSED_ROWS), key = { "global-${it.id}" }) { chat ->
+            return@Column
+        }
+
+        // Rozbalení sekcí patří k dotazu; nový dotaz je zase sbalí.
+        var chatsExpanded by rememberSaveable(trimmed) { mutableStateOf(false) }
+        var globalExpanded by rememberSaveable(trimmed) { mutableStateOf(false) }
+        val listState = rememberLazyListState()
+
+        // Další stránka zpráv, jakmile se listuje ke konci.
+        LaunchedEffect(listState) {
+            snapshotFlow {
+                val info = listState.layoutInfo
+                val last = info.visibleItemsInfo.lastOrNull()?.index ?: return@snapshotFlow false
+                last >= info.totalItemsCount - LOAD_MORE_THRESHOLD
+            }.collect { nearEnd -> if (nearEnd) onLoadMoreLatest() }
+        }
+
+        val highlight = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+
+        LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = resultsPadding()) {
+            val chatCount = chats.size + if (showSaved) 1 else 0
+            /*
+             * Nadpis chatů je tu vždycky, když jsou chaty — ne až když přibudou další sekce.
+             * Seznam drží pozici podle první viditelné položky, takže nadpis vložený nad chaty
+             * později odjel nad horní hranu a nebylo ho vidět.
+             */
+            if (chatCount > 0) {
+                item(key = "chats-header") {
+                    SectionHeader(stringResource(Res.string.chats_search_section_chats)) {
+                        ExpandToggle(chatCount, chatsExpanded) { chatsExpanded = it }
+                    }
+                }
+            }
+            savedMessagesChatId?.takeIf { showSaved }?.let { savedId ->
+                item(key = savedId) {
+                    ChatResultRow(
+                        chatId = savedId,
+                        title = savedTitle,
+                        avatarFileId = null,
+                        archived = false,
+                        onClick = { onPickLatest(savedId) },
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+            }
+            val shownChats = if (chatsExpanded || global.isEmpty() && messages.isEmpty()) {
+                chats
+            } else {
+                chats.take((COLLAPSED_ROWS - if (showSaved) 1 else 0).coerceAtLeast(0))
+            }
+            items(shownChats, key = { it.id }) { chat ->
                 ChatResultRow(
                     chatId = chat.id,
                     title = chat.title,
                     avatarFileId = chat.avatarFileId,
-                    archived = false,
+                    archived = chat.folder == ChatFolder.Archive,
                     onClick = { onPickLatest(chat.id) },
+                    // Serverové výsledky přibývají za lokálními — plynule, ne skokem.
                     modifier = Modifier.animateItem(),
+                    avatarShape = chat.kind.avatarShape(),
                 )
             }
-        }
 
-        if (messages.isNotEmpty()) {
-            item(key = "messages-header") { SectionHeader(stringResource(Res.string.chats_search_section_messages)) }
-            items(messages, key = { "message-${it.chat.id}-${it.messageId}" }) { found ->
-                MessageResultRow(
-                    found = found,
-                    query = trimmed,
-                    highlight = highlight,
-                    onClick = { onMessageClickLatest(found.chat.id, found.messageId) },
-                )
+            if (global.isNotEmpty()) {
+                item(key = "global-header") {
+                    SectionHeader(stringResource(Res.string.chats_search_section_global)) {
+                        ExpandToggle(global.size, globalExpanded) { globalExpanded = it }
+                    }
+                }
+                items(if (globalExpanded) global else global.take(COLLAPSED_ROWS), key = { "global-${it.id}" }) { chat ->
+                    ChatResultRow(
+                        chatId = chat.id,
+                        title = chat.title,
+                        avatarFileId = chat.avatarFileId,
+                        archived = false,
+                        onClick = { onPickLatest(chat.id) },
+                        modifier = Modifier.animateItem(),
+                        avatarShape = chat.kind.avatarShape(),
+                    )
+                }
             }
-        }
-        if (current && search.messagesLoading && (messages.isNotEmpty() || chatCount > 0)) {
-            item(key = "messages-loading") {
-                Box(Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
-                    LoadingIndicator()
+
+            if (messages.isNotEmpty()) {
+                item(key = "messages-header") { SectionHeader(stringResource(Res.string.chats_search_section_messages)) }
+                items(messages, key = { "message-${it.chat.id}-${it.messageId}" }) { found ->
+                    MessageResultRow(
+                        found = found,
+                        query = trimmed,
+                        highlight = highlight,
+                        onClick = { onMessageClickLatest(found.chat.id, found.messageId) },
+                    )
+                }
+            }
+            if (current && search.messagesLoading && (messages.isNotEmpty() || chatCount > 0)) {
+                item(key = "messages-loading") {
+                    Box(Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
+                        LoadingIndicator()
+                    }
                 }
             }
         }
@@ -542,6 +573,7 @@ private fun MessageResultRow(
                 avatarFileId = found.chat.avatarFileId,
                 size = 40.dp,
                 isSavedMessages = isSavedMessages(found.chat.id),
+                shape = found.chat.kind.avatarShape(),
             )
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -585,6 +617,7 @@ private fun Suggestions(
                     archived = chat.folder == ChatFolder.Archive,
                     onClick = { onPick(chat.id) },
                     modifier = Modifier.animateItem(),
+                    avatarShape = chat.kind.avatarShape(),
                 )
             }
         }
@@ -626,6 +659,7 @@ private fun TopChat(chat: ChatSummary, onClick: () -> Unit) {
             avatarFileId = chat.avatarFileId,
             size = 52.dp,
             isSavedMessages = isSavedMessages(chat.id),
+            shape = chat.kind.avatarShape(),
         )
         Text(
             // Jen první slovo — celé jméno se pod avatar nevejde a useknuté nic neřekne.
@@ -645,6 +679,7 @@ private fun ChatResultRow(
     archived: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    avatarShape: Shape = CircleShape,
 ) {
     ListItem(
         headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -656,7 +691,7 @@ private fun ChatResultRow(
             null
         },
         leadingContent = {
-            Avatar(chatId = chatId, title = title, avatarFileId = avatarFileId, size = 40.dp, isSavedMessages = isSavedMessages(chatId))
+            Avatar(chatId = chatId, title = title, avatarFileId = avatarFileId, size = 40.dp, isSavedMessages = isSavedMessages(chatId), shape = avatarShape)
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = modifier.clickable(onClick = onClick),

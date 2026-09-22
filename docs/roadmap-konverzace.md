@@ -38,9 +38,14 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    s posunem, poslechnuto). U hlasovek zbývá rychlost přehrávání, automatické pokračování další
    neposlechnutou, sluchátko u ucha a audio focus / přerušení hovorem. ~~Nahrávání~~ — hotovo
    (ťuknutím); chybí podržení se zamčením, náhled před odesláním a průběh nahrávání hlasovky.
-   ~~Video~~ — hotovo v prohlížeči (Media3 / AVPlayer). Zbývá **streamování** (dnes se stahuje
-   celé), rychlost, ztlumení, obraz v obraze a GIFy (`MessageAnimation`, přehrávat bez zvuku
-   přímo v bublině).
+   ~~Video~~ — hotovo v prohlížeči (Media3 / AVPlayer). ~~GIFy~~ — hotovo (hrají v bublině ve
+   smyčce bez zvuku; `CLAUDE.md`, „GIFy"). ~~GIFy z klávesnice~~ — hotovo na Androidu (Gboard;
+   `CLAUDE.md`, „GIFy a samolepky z klávesnice"); ~~výběr GIFů v aplikaci~~ — hotovo
+   (uložené, populární, hledání přes `@gif`; `CLAUDE.md`, „Výběr GIFů"). ~~Vložení ze schránky~~ — hotovo
+   na Androidu i iOS (položka kontextové nabídky pole). Na iOS chybí GIFy ověřené na zařízení
+   (~~vložení bez dotazu „Povolit vložení?"~~ — hotovo, `UIPasteControl` nad polem). ~~Streamování~~ — hotovo na Androidu (`CLAUDE.md`,
+   „Video"); iOS čeká na `AVAssetResourceLoaderDelegate`. Zbývá rychlost, ztlumení a obraz
+   v obraze.
 3. ~~**Přeposílání zpráv**~~ — hotovo (položka v nabídce, výběr chatu, album celé). Zbývá
    víc cílů najednou, výběr víc zpráv a kopie bez odesílatele.
 4. ~~**Otevírání dokumentů**~~ — hotovo (stažení s průběhem, `ACTION_VIEW` / `UIDocumentInteractionController`).
@@ -221,8 +226,6 @@ tah dolů zavírá, do stran se listuje fotkami a videi chatu. Dokumenty se stá
 
 Co zbývá:
 
-- **GIF** (`MessageAnimation`) se pořád jen popisuje. Platformní přehrávač už je (video),
-  zbývá přehrávat bez zvuku přímo v bublině — viz bod 2 nahoře.
 - **Obrázky a videa poslané jako soubor.** ~~Náhled místo ikony v řádku souboru~~ a
   ~~rozpoznání obrázku a videa~~ a ~~otevření v prohlížeči médií~~ — hotovo (`documentKind`,
   `DocumentThumbnail`, `opensInViewer`, `asViewerMedia`). Zbývá:
@@ -265,10 +268,15 @@ Poučení v `CLAUDE.md`, „Spoilery a mizející média".
 
 Co zbývá:
 
-- **Ověřit na zařízení s druhým účtem.** Mizející médium se dá poslat jen do soukromého chatu
-  a bot ho neodešle (Bot API mizení nezná), takže příjem zatím nikdo neviděl — hlavně jestli
-  jednorázové zhlédnutí TDLib nevyprší hned po `openMessageContent`, ještě v otevřeném
-  prohlížeči.
+- **Odesílací strana je ověřená na emulátoru**, příjmová ne. Ověřeno: nabídka režimů
+  v soukromém chatu (a její nepřítomnost v Uložených zprávách i ve skupině), viditelné vypnutí
+  mizení u alba se snackbarem, odeslání obou režimů a `FLAG_SECURE` (příznak `SECURE`
+  v `dumpsys window`, ne jen černý snímek). Postup je v `CLAUDE.md`, „Jak to ověřit".
+- **Příjem zatím nikdo neviděl a potřebuje druhý uživatelský účet.** Do bota se mizející
+  médium poslat DÁ (chat s botem je soukromý chat a server ho přijme), ale bot ho neodešle —
+  Bot API mizení nezná, `sendPhoto` nemá `ttl_seconds`. U vlastní odeslané zprávy se odpočet
+  z principu nespustí, takže přes ni se příjem ověřit nedá. Hlavně jde o to, jestli jednorázové
+  zhlédnutí TDLib nevyprší hned po `openMessageContent`, ještě v otevřeném prohlížeči.
 - **Odpočet je jen v paměti a podle `messageId`.** Po restartu ho zachrání `selfDestructIn` od
   TDLib; spotřebované jednorázové médium ale ukáže vypršení až ve chvíli, kdy TDLib vymění obsah
   za `MessageExpiredPhoto`.
@@ -284,15 +292,12 @@ a scrollování" u duplicitního klíče po potvrzení odeslání).
 
 **Chybějící základ**
 
-- **Práva po druzích obsahu.** Pole se schová, jen když chat nedovolí psát vůbec. Skupina, kde
-  smí jen text, nechá pole celé a fotka, samolepka nebo hlasovka skončí chybou po odeslání —
-  sponka, výběr samolepek a mikrofon by se měly řídit `ChatPermissions.canSendPhotos` atd.
-- **Pruh připnutých podle scrollu.** Dnes ukazuje nejnovější a ťuknutí posouvá ke starší.
-  Oficiální klient navíc při scrollu historií ukazuje tu připnutou, která je nejblíž NAD
-  viditelnou částí — pruh pak slouží i jako orientace. Stačilo by id nejvyšší viditelné zprávy
-  (klíč bloku) porovnat se seznamem připnutých.
-- **Označení části textu.** Kopíruje se jen celá zpráva z nabídky; vybrat úryvek
-  (`SelectionContainer`) zatím nejde.
+- ~~**Práva po druzích obsahu.**~~ — hotovo (`ContentAccess` ve `WriteAccess.kt`: sponka,
+  výběr samolepek, mikrofon i vložení z klávesnice se řídí právy chatu; `CLAUDE.md`, „Práva psát").
+- ~~**Pruh připnutých podle scrollu.**~~ — hotovo (`pinnedForScroll`; `CLAUDE.md`, „Připnuté
+  zprávy"). Skok z pruhu kotví nahoru, takže procházení jde krok za krokem.
+- ~~**Označení části textu.**~~ — hotovo („Vybrat text" v nabídce otevře sheet s textem;
+  `CLAUDE.md`, „Nabídka nad zprávou").
 
 ---
 

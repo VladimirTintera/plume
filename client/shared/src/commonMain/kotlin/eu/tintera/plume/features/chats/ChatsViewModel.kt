@@ -1,15 +1,21 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.telegram.AccountRepository
+import kotlin.time.Duration
 import co.touchlab.kermit.Logger
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.telegram.ArchiveSettings
+import eu.tintera.plume.core.telegram.ArchiveUnread
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.ConnectionState
+import eu.tintera.plume.core.telegram.AccountInfo
 import eu.tintera.plume.core.telegram.DeviceRepository
 import eu.tintera.plume.core.telegram.UnconfirmedDevice
 import eu.tintera.plume.core.telegram.userMessage
@@ -41,6 +47,9 @@ class ChatsViewModel(
     /** Obrazovka ho potřebuje ke spuštění aktualizace (`rememberStartUpdate`). */
     val appUpdates: AppUpdates,
     private val devices: DeviceRepository,
+    private val accounts: AccountRepository,
+    /** Filtr přežije zabití procesu v pozadí; nové spuštění aplikace začne na všech chatech. */
+    private val savedState: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -51,10 +60,100 @@ class ChatsViewModel(
      */
     val state: StateFlow<ChatListState> = repository.chats(folder)
 
+    private val _filter = MutableStateFlow(
+        savedState.get<String>(FILTER_KEY)?.let { name -> ChatFilter.entries.find { it.name == name } }
+            ?: ChatFilter.All,
+    )
+
+    /**
+     * Filtr z plovoucího toolbaru (jen hlavní seznam). Žije s položkou navigace: návrat
+     * z konverzace ho zachová a přes [SavedStateHandle] přežije i zabití procesu v pozadí — kdo se
+     * vrátí do obnovené konverzace, nemá najít přepnutý filtr. Nové spuštění aplikace ale začne na
+     * všech chatech: filtr je chvilkové zúžení, ne nastavení, a uložené Nepřečtené by při startu
+     * vypadaly jako seznam, ze kterého zmizely chaty.
+     *
+     * Ukládá se názvem, ne pořadím — stejně jako výčty v `AppSettings`.
+     */
+    val filter: StateFlow<ChatFilter> = _filter.asStateFlow()
+
+    fun setFilter(filter: ChatFilter) {
+        _filter.value = filter
+        savedState[FILTER_KEY] = filter.name
+    }
+
+    private val _account = MutableStateFlow<AccountInfo?>(null)
+
+    /** Přihlášený účet — jeho fotka je v hledání vstupem do menu a Nastavení. */
+    val account: StateFlow<AccountInfo?> = _account.asStateFlow()
+
+    /**
+     * Nepřečtené chaty v archivu — odznak u vstupu do archivu v menu účtu. Počítá TDLib, takže
+     * to platí i pro archiv, který uživatel v téhle relaci ještě neotevřel.
+     */
+    val archiveUnread: StateFlow<ArchiveUnread> = repository.archiveUnread
+
+    private val _archiveSettings = MutableStateFlow<ArchiveSettings?>(null)
+
+    /**
+     * Nastavení archivu, `null` dokud (nebo když) ho TDLib nevydá — pak se tlačítko v hlavičce
+     * archivu nenabízí. TDLib na jeho změnu update neposílá, takže je tohle jediný zdroj pravdy
+     * a zápis se do něj promítne rovnou; při selhání se vrátí zpátky.
+     */
+    val archiveSettings: StateFlow<ArchiveSettings?> = _archiveSettings.asStateFlow()
+
+    private val _archiveSettingsOpen = MutableStateFlow(false)
+
+    val archiveSettingsOpen: StateFlow<Boolean> = _archiveSettingsOpen.asStateFlow()
+
+    fun openArchiveSettings() {
+        _archiveSettingsOpen.value = true
+    }
+
+    fun closeArchiveSettings() {
+        _archiveSettingsOpen.value = false
+    }
+
+    fun setArchiveUnknownSenders(value: Boolean) =
+        writeArchiveSettings { it.copy(archiveUnknownSenders = value) }
+
+    fun setKeepUnmutedArchived(value: Boolean) =
+        writeArchiveSettings { it.copy(keepUnmutedArchived = value) }
+
+    /**
+     * Přepínač se pohne hned a při selhání se vrátí. Na rozdíl od akcí nad chatem tu potvrzení
+     * updatem nepřijde — kdyby se čekalo na server, přepínač by se po ťuknutí nehýbal vůbec.
+     */
+    private fun writeArchiveSettings(change: (ArchiveSettings) -> ArchiveSettings) {
+        val previous = _archiveSettings.value ?: return
+        val updated = change(previous)
+        if (updated == previous) return
+        _archiveSettings.value = updated
+
+        viewModelScope.launch {
+            repository.setArchiveSettings(updated).onFailure { failure ->
+                logger.w(failure) { "Nastavení archivu se nepodařilo uložit." }
+                _archiveSettings.value = previous
+                _actions.update { it.copy(error = failure.userMessage(Res.string.chats_action_failed)) }
+            }
+        }
+    }
+
     init {
         // Hlavní seznam se načítá sám po přihlášení. Archiv až tady: na seznam, který nikdo
         // neotevře, se nemá co ptát serveru.
-        if (folder == ChatFolder.Archive) loadMore()
+        if (folder == ChatFolder.Archive) {
+            loadMore()
+            // Nastavení archivu se čte hned, ne až při otevření sheetu: prázdný sheet, který se
+            // teprve plní, by problikl — a když ho TDLib nevydá, tlačítko se vůbec nenabídne.
+            viewModelScope.launch { _archiveSettings.value = repository.archiveSettings().getOrNull() }
+        }
+        // Účet potřebuje jen hlavička hlavního seznamu. Selhání nevadí — místo fotky jsou iniciály.
+        if (folder == ChatFolder.Main) {
+            // Živě: po změně fotky v úpravě profilu nesmí pilulka ukazovat tu starou.
+            viewModelScope.launch {
+                accounts.account.collect { account -> if (account != null) _account.value = account }
+            }
+        }
     }
 
     /**
@@ -166,8 +265,13 @@ class ChatsViewModel(
         repository.setArchived(change.chatId, !change.archived)
     }
 
-    fun toggleMuted(chat: ChatSummary) = run(chat.id) {
-        repository.setMuted(chat.id, !chat.isMuted)
+    /** Ztlumení na dobu; `null` = navždy. */
+    fun mute(chat: ChatSummary, duration: Duration?) = run(chat.id) {
+        if (duration == null) repository.setMuted(chat.id, true) else repository.muteFor(chat.id, duration)
+    }
+
+    fun unmute(chat: ChatSummary) = run(chat.id) {
+        repository.setMuted(chat.id, false)
     }
 
     fun toggleUnread(chat: ChatSummary) = run(chat.id) {
@@ -237,3 +341,6 @@ data class ArchiveChange(val chatId: Long, val archived: Boolean)
 
 /** Nepřečteno = nepřečtené zprávy NEBO ruční příznak. Obojí se v seznamu chová stejně. */
 val ChatSummary.hasUnread: Boolean get() = unreadCount > 0 || isMarkedAsUnread
+
+/** Klíč filtru v [SavedStateHandle] seznamu chatů. */
+private const val FILTER_KEY = "filter"

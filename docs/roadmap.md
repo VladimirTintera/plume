@@ -32,8 +32,17 @@ Teď je prázdné.
 
 Android je napřed; tohle je, čím se to dorovnává.
 
-- **Notifikace.** TDLib `registerDevice` + notification service extension. Firebase v Xcode
-  projektu zatím vůbec není.
+- **Notifikace** — napojené (APNs, rozšíření notifikací, texty, oprávnění, úklid přečtených
+  a odznak; `CLAUDE.md`, „Notifikace na iOS (APNs)"). Zbývá:
+  - **Certifikát APNs u Telegramu** (my.telegram.org) a Push Notifications v Apple Developer účtu.
+  - **Ověřit skutečným pushem na telefonu**: jestli Telegram posílá `mutable-content` (běží
+    rozšíření → akce a seskupení), tvar `custom` (`push/last.json` v App Group) a češtinu šablon.
+  - **Titulek zvlášť** (jméno chatu jako titulek, text pod ním) — dnes je celá věta v těle,
+    jako „Jana: ahoj". Šlo by to v rozšíření, až bude jisté, že běží.
+  - **Přečtení a smazání jinde v reálném čase** (`READ_HISTORY`, `MESSAGE_DELETED`) — dnes se
+    uklidí až s otevřením aplikace.
+  - **Vysvětlení před dotazem na oprávnění ověřit na čistém simulátoru** (na testovacím bylo
+    oprávnění vyřízené dřív).
 - **Hlášení pádů.** `NoopCrashReporter`. Implementace musí přijít ze Swiftu — `FirebaseCrashlytics`
   je ObjC knihovna, kterou Kotlin/Native nevidí, a Kotlin výjimka nese jen adresy stack trace.
   Vzor je `IosCrashlyticsLogger` v projektu com.profilog.telemetry.android.
@@ -42,30 +51,33 @@ Android je napřed; tohle je, čím se to dorovnává.
 
 ## Obrazovky a sekce, které nejsou
 
-Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `SettingsRoute`,
+Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou). Routy: `ChatsRoute`, `SettingsRoute`,
 `SettingsSectionRoute`, `ArchiveRoute`, `ArchiveConversationRoute`, `ArchiveChatProfileRoute`,
 `ConversationRoute`, `ChatProfileRoute`, `MediaRoute`, `ForwardRoute`, `ShareRoute`, `NewChatRoute`
 (`core/navigation/Routes.kt`).
 
-- ~~**Archiv**~~ — hotovo (seznam v menu ⋮, archivace a vrácení z nabídky chatu s „Vrátit").
-  Poučení v `CLAUDE.md`, „Archiv". Zbývá:
-  - **Nastavení archivu** (`ArchiveChatListSettings`): automatická archivace chatů od
-    neznámých a to, jestli ztlumené chaty s novou zprávou zůstávají v archivu.
-  - **Počet nepřečtených u vstupu do archivu** (`UpdateUnreadChatCount` pro `ChatListArchive`).
-  - **Archivovat tahem** po položce seznamu; dnes jen z nabídky po dlouhém stisku.
+- ~~**Archiv**~~ — hotovo (seznam v menu účtu, archivace a vrácení z nabídky chatu i tahem do
+  strany s „Vrátit", počet nepřečtených u vstupu, nastavení archivu). Poučení v `CLAUDE.md`,
+  „Archiv". Zbývá:
+  - **Ověřit nastavení archivu proti druhému účtu.** Že se „archivovat od neznámých" a
+    „nechávat chaty v archivu" opravdu projeví, se s jedním účtem nedá vidět — zapsání
+    i přečtení hodnot ověřené je, jejich následek ne.
 - ~~**Detail chatu / profil.**~~ — hotovo (ťuknutí na hlavičku: fotka, jméno, ztlumení, hledání,
   údaje, členové skupiny; `CLAUDE.md`, „Profil chatu"). Zbývá:
-  - **Sdílená média** — záložky Média / Soubory / Odkazy (`searchChatMessages` s filtry).
-  - **Akce navíc**: opustit / smazat chat, zablokovat uživatele, sdílet kontakt, upravit skupinu
-    (správce), pozvánka do skupiny.
+  - ~~**Sdílená média**~~ — hotovo (záložky Členové / Média / Soubory / Odkazy s dotahováním
+    stránek; `CLAUDE.md`, „Sdílená média v profilu"). Zbývá: filtry hledání uvnitř záložky
+    a velký náhled u souborů.
+  - ~~**Akce navíc**~~ — hotovo: kopírovat odkaz (i pozvánku pro správce), zablokovat, smazat
+    chat / opustit skupinu či kanál (⋮ v liště). Zbývá: **upravit skupinu** (název, popis,
+    fotka, práva — správce), **sdílet kontakt** jako zprávu do jiného chatu a správa
+    pozvánek (nová, s limitem, zrušení).
   - **Seznam členů velké skupiny** se stránkováním a hledáním; dnes prvních 200.
 - **Hledání.** ~~Chaty ve všech složkách (lokálně i na serveru), historie hledání a nejčastější
   lidé, totéž ve výběru pro přeposílání a sdílení~~ — hotovo (`ChatSearch`, poučení
   v `CLAUDE.md`, „Hledání chatů"). Zbývá, po krocích:
   1. ~~**Globální hledání a zprávy**~~ — hotovo (sekce Globálně a Zprávy, skok na nalezenou
      zprávu, „Přidat se" u veřejného chatu). Zbývá:
-     - **Filtry hledání zpráv** (jen soukromé / skupiny / kanály, rozsah dat) — `searchMessages`
-       je umí (`chatTypeFilter`, `minDate`, `maxDate`).
+     - ~~**Filtry hledání zpráv**~~ — hotovo (čipy druhu chatu a období nad výsledky).
      - **Jméno odesílatele u nalezené zprávy ve skupině**; dnes je vidět jen chat.
      - ~~**Kanál po „Přidat se" pořád nabízí vstupní pole**~~ — hotovo: kanál bez práva
        publikovat má místo pole Ztlumit (`CLAUDE.md`, „Práva psát").
@@ -117,12 +129,13 @@ Sekce v railu/baru jsou dnes dvě: Chaty a Nastavení. Routy: `ChatsRoute`, `Set
 
 ## Nastavení
 
-Nastavení je list-detail: vlevo sekce (Obecné, Vzhled, Zařízení), vpravo jejich obsah. Obecné drží kartu
-účtu (jméno, telefon, uživatelské jméno), stav oprávnění k notifikacím s odkazem do systému
-a odhlášení; Vzhled motiv aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
+Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení), vpravo jejich obsah. Obecné drží kartu
+účtu (jméno, telefon, uživatelské jméno) a odhlášení; Notifikace oprávnění a volby po rozsazích; Vzhled motiv aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
 
-- **Úprava vlastního profilu** — fotka, jméno, uživatelské jméno, bio.
-- **Sekce Notifikace** — viz [Notifikace](#notifikace) níž.
+- ~~**Úprava vlastního profilu**~~ — hotovo (fotka, jméno, uživatelské jméno s kontrolou
+  dostupnosti, bio; `CLAUDE.md`, „Úprava profilu"). Zbývá: historie profilových fotek, ořez
+  fotky ručně (dnes ze středu) a video jako profilovka.
+- ~~**Sekce Notifikace**~~ — hotovo, viz [Notifikace](#notifikace) níž.
 - ~~**Sekce Zařízení**~~ — hotovo (seznam, odhlášení, weby, automatické odhlášení, „Byli jste
   to vy?" v seznamu chatů, přihlášení jiného zařízení QR kódem). Poučení v `CLAUDE.md`,
   „Zařízení". Zbývá:
@@ -150,24 +163,19 @@ Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení
 
 ## Notifikace
 
-- **Kanály podle druhu chatu.** Dnes je jediný kanál `messages`, takže v systému nejde ztišit
-  skupiny a nechat zvonit soukromé zprávy. Návrh: Soukromé zprávy / Skupiny / Kanály podle
-  rozsahu TDLib a samostatný kanál Zmínky (`NotificationGroupType.Mentions`). TDLib o kanálech
-  neví nic, jen dává data k rozdělení. Kanál je po vytvoření neměnný, proto se zvuk z Telegramu
-  zatím nesynchronizuje a nechává se systému. Rozbor: [notifikacni-kanaly.md](notifikacni-kanaly.md).
-- **Sekce Notifikace v Nastavení.** Dnes o notifikacích rozhoduje jen TDLib a aplikace k tomu
-  nemá jedinou volbu. Všechno níž jde přes TDLib a synchronizuje se přes server na ostatní
-  zařízení. Obrazovka se skládá po rozsazích (soukromé / skupiny / kanály), každý s vlastními
-  volbami a pod nimi odkaz „Zvuk a vibrace" do SVÉHO systémového kanálu
-  (`Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS`). Proto patří dohromady s kanály výš.
-  - zapnutí rozsahu (`muteFor`) a náhled textu (`showPreview`), `setScopeNotificationSettings`,
-  - notifikace o připnutých zprávách (`disablePinnedMessageNotifications`) a o zmínkách
-    (`disableMentionNotifications`); zmínky projdou i ztlumeným chatem,
-  - stories (`muteStories`, `showStoryPoster`), až budou stories,
-  - **výjimky**: chaty s vlastním nastavením (`getChatNotificationSettingsExceptions`) — jediné
-    místo, kde je vidět, co kde je ztlumené,
-  - „kontakt se připojil k Telegramu" (volba `disable_contact_registered_notifications`),
-  - oprávnění k notifikacím s odkazem do systému se sem přestěhuje z Obecných.
-
-  Zvuky a vibrace vlastní volbou NEBUDOU: na Androidu je vlastní kanál a aplikace je po jeho
-  vytvoření stejně přepsat nemůže (viz rozbor kanálů).
+- ~~**Kanály podle druhu chatu a sekce Notifikace v Nastavení**~~ — hotovo (kanály Soukromé
+  chaty / Skupiny / Kanály / Zmínky, u každého rozsahu zapnutí, náhled, připnuté, zmínky, výjimky
+  a odkaz do systémového kanálu; poučení v `CLAUDE.md`, „Kanály a nastavení notifikací"). Zbývá:
+  - **Ověřit kanály Skupiny, Kanály a Zmínky skutečnou zprávou** — na emulátoru prošla jen
+    soukromá zpráva od bota; do skutečných skupin se testovací zprávy neposílají.
+  - ~~**Upozornění jednoho chatu v profilu**~~ — hotovo (doba ztlumení, náhled, připnuté,
+    zmínky, obnovení, zvuk přes kanál konverzace) a doby ztlumení i v nabídce chatu v seznamu.
+  - **Stories** (`muteStories`, `showStoryPoster`), až budou stories.
+  - **Zvuk z Telegramu** (`notificationSoundId`) se nesynchronizuje. Šlo by to jen novým kanálem
+    s verzí v id při každé změně (jako oficiální klient) — a tím zahodit, co si uživatel nastavil
+    v systému. Stojí za to, až bude v aplikaci výběr zvuku.
+  - **iOS** kanály nemá; obdobou je `threadIdentifier` a `interruptionLevel` (zmínky jako
+    `timeSensitive`). Přijde na řadu s notifikacemi na iOS vůbec.
+- **Rychlé akce z notifikace.** Odpověď, označení za přečtené a ztlumení na hodinu jsou na
+  Androidu hotové (viz CLAUDE.md, „Akce z notifikace"). Chybí:
+  - **iOS** — akce vyplní rozšíření notifikací; ověřit skutečným pushem (viz iOS výš).
