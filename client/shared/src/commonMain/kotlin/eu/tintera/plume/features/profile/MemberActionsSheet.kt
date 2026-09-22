@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -106,105 +108,116 @@ fun MemberActionsSheet(
     onTransferOwnership: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    /*
+     * Celý, bez napůl rozbaleného stavu, a obsah ještě scrollovatelný. S výchozím sheetem
+     * skončilo „Vyhodit" pod spodní hranou obrazovky — u nabídky, kde je tahle položka
+     * poslední a nejzávažnější, to vypadá, že vyhodit člena nejde. Ověřeno na emulátoru:
+     * osm položek se do napůl rozbaleného sheetu nevejde.
+     */
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
     val actions = member.actions
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
-            Text(text = member.name, style = MaterialTheme.typography.titleLarge)
-            member.subtitle()?.let { subtitle ->
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-
-        /*
-         * Položky se nejdřív posbírají a teprve pak vykreslí: tvar krajních položek se počítá
-         * z jejich POČTU, a ten je podle práv pokaždé jiný. Se skládáním za běhu by se zaoblení
-         * rozešlo s tím, co je vidět.
-         */
-        val items = buildList {
-            add(MemberSheetItem(Res.drawable.forum_24dp, Res.string.member_action_message, onMessage))
-            if (actions.canEditTag) {
-                add(MemberSheetItem(Res.drawable.sticky_note_2_24dp, Res.string.member_action_tag, onEditTag))
-            }
-            if (actions.canPromote) {
-                add(
-                    MemberSheetItem(
-                        icon = Res.drawable.shield_person_filled_24dp,
-                        label = if (member.role == MemberRole.Admin) {
-                            Res.string.member_action_edit_admin
-                        } else {
-                            Res.string.member_action_promote
-                        },
-                        onClick = onEditAdminRights,
-                    ),
-                )
-                if (member.role == MemberRole.Admin) {
-                    add(MemberSheetItem(Res.drawable.person_24dp, Res.string.member_action_dismiss_admin, onDismissAdmin))
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
+                Text(text = member.name, style = MaterialTheme.typography.titleLarge)
+                member.subtitle()?.let { subtitle ->
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
-            if (actions.canRestrict) {
-                add(
-                    MemberSheetItem(
-                        icon = Res.drawable.block_24dp,
-                        label = if (member.isRestricted) {
-                            Res.string.member_action_edit_restrictions
-                        } else {
-                            Res.string.member_action_restrict
-                        },
-                        onClick = onEditRestrictions,
-                    ),
-                )
-                if (member.isRestricted) {
-                    add(MemberSheetItem(Res.drawable.check_24dp, Res.string.member_action_unrestrict, onUnrestrict))
+
+            /*
+             * Položky se nejdřív posbírají a teprve pak vykreslí: tvar krajních položek se počítá
+             * z jejich POČTU, a ten je podle práv pokaždé jiný. Se skládáním za běhu by se zaoblení
+             * rozešlo s tím, co je vidět.
+             */
+            val items = buildList {
+                add(MemberSheetItem(Res.drawable.forum_24dp, Res.string.member_action_message, onMessage))
+                if (actions.canEditTag) {
+                    add(MemberSheetItem(Res.drawable.sticky_note_2_24dp, Res.string.member_action_tag, onEditTag))
+                }
+                if (actions.canPromote) {
+                    add(
+                        MemberSheetItem(
+                            icon = Res.drawable.shield_person_filled_24dp,
+                            label = if (member.role == MemberRole.Admin) {
+                                Res.string.member_action_edit_admin
+                            } else {
+                                Res.string.member_action_promote
+                            },
+                            onClick = onEditAdminRights,
+                        ),
+                    )
+                    if (member.role == MemberRole.Admin) {
+                        add(MemberSheetItem(Res.drawable.person_24dp, Res.string.member_action_dismiss_admin, onDismissAdmin))
+                    }
+                }
+                if (actions.canRestrict) {
+                    add(
+                        MemberSheetItem(
+                            icon = Res.drawable.block_24dp,
+                            label = if (member.isRestricted) {
+                                Res.string.member_action_edit_restrictions
+                            } else {
+                                Res.string.member_action_restrict
+                            },
+                            onClick = onEditRestrictions,
+                        ),
+                    )
+                    if (member.isRestricted) {
+                        add(MemberSheetItem(Res.drawable.check_24dp, Res.string.member_action_unrestrict, onUnrestrict))
+                    }
+                }
+                if (actions.canTransferOwnership) {
+                    add(MemberSheetItem(Res.drawable.star_filled_24dp, Res.string.member_action_transfer, onTransferOwnership))
+                }
+                if (actions.canBan) {
+                    add(
+                        MemberSheetItem(
+                            icon = Res.drawable.logout_24dp,
+                            label = if (member.kind == MemberGroupKind.Channel) {
+                                Res.string.member_action_ban_channel
+                            } else {
+                                Res.string.member_action_ban_group
+                            },
+                            onClick = onBan,
+                            // Vyhození je ta jediná akce, kterou uživatel sám nevrátí — dostane
+                            // chybovou barvu, aby se nespletla s ostatními.
+                            destructive = true,
+                        ),
+                    )
                 }
             }
-            if (actions.canTransferOwnership) {
-                add(MemberSheetItem(Res.drawable.star_filled_24dp, Res.string.member_action_transfer, onTransferOwnership))
-            }
-            if (actions.canBan) {
-                add(
-                    MemberSheetItem(
-                        icon = Res.drawable.logout_24dp,
-                        label = if (member.kind == MemberGroupKind.Channel) {
-                            Res.string.member_action_ban_channel
-                        } else {
-                            Res.string.member_action_ban_group
-                        },
-                        onClick = onBan,
-                        // Vyhození je ta jediná akce, kterou uživatel sám nevrátí — dostane
-                        // chybovou barvu, aby se nespletla s ostatními.
-                        destructive = true,
-                    ),
-                )
-            }
-        }
 
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            items.forEachIndexed { index, item ->
-                SheetActionRow(
-                    icon = item.icon,
-                    label = stringResource(item.label),
-                    shape = sheetActionShape(index, items.size),
-                    color = if (item.destructive) {
-                        MaterialTheme.colorScheme.errorContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerHigh
-                    },
-                    contentColor = if (item.destructive) {
-                        MaterialTheme.colorScheme.onErrorContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
-                    onClick = item.onClick,
-                )
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                items.forEachIndexed { index, item ->
+                    SheetActionRow(
+                        icon = item.icon,
+                        label = stringResource(item.label),
+                        shape = sheetActionShape(index, items.size),
+                        color = if (item.destructive) {
+                            MaterialTheme.colorScheme.errorContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerHigh
+                        },
+                        contentColor = if (item.destructive) {
+                            MaterialTheme.colorScheme.onErrorContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        onClick = item.onClick,
+                    )
+                }
             }
         }
     }
