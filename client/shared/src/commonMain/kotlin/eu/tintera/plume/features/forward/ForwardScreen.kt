@@ -50,6 +50,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -70,6 +77,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -251,6 +259,9 @@ fun ChatPicker(
 
     Scaffold(
         modifier = modifier,
+        // I klávesnice, ne jen systémové lišty: podle spodního insetu staví Scaffold tlačítko
+        // a snackbar, a vysunutá klávesnice by odesílací tlačítko schovala pod sebe.
+        contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             TopAppBar(
                 title = { Text(title) },
@@ -290,7 +301,26 @@ fun ChatPicker(
             }
         },
     ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
+        /*
+         * Spodní inset patří do `contentPadding` seznamu, ne na kontejner. S paddingem na
+         * sloupci skončil seznam nad navigační lištou ostrou hranou a poslední chat zůstal
+         * useknutý; takhle chaty jedou pod lištu a poslední se nad ni doroluje — tentýž vzor
+         * jako seznam chatů a výsledky hledání. Klávesnice je v tom taky (`safeDrawing`).
+         */
+        val layoutDirection = LocalLayoutDirection.current
+        val bottomInset = WindowInsets.safeDrawing
+            .only(WindowInsetsSides.Bottom)
+            .asPaddingValues()
+            .calculateBottomPadding()
+        Column(
+            Modifier
+                .padding(
+                    start = padding.calculateStartPadding(layoutDirection),
+                    end = padding.calculateEndPadding(layoutDirection),
+                    top = padding.calculateTopPadding(),
+                )
+                .fillMaxSize(),
+        ) {
             // Tatáž pilulka jako v hlavičce seznamu chatů a při hledání v konverzaci — jeden
             // prvek pro hledání v celé aplikaci.
             SearchPill(
@@ -315,7 +345,10 @@ fun ChatPicker(
             }
 
             if (loading) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
+                Box(
+                    Modifier.fillMaxSize().padding(bottom = bottomInset),
+                    contentAlignment = Alignment.Center,
+                ) { LoadingIndicator() }
                 return@Column
             }
 
@@ -330,7 +363,8 @@ fun ChatPicker(
                     title = stringResource(Res.string.chats_search_empty),
                     text = stringResource(Res.string.forward_empty),
                     containerColor = Color.Transparent,
-                    modifier = Modifier.fillMaxSize(),
+                    // Bez toho by se prázdný stav vystředil do plochy pod lištou, tedy níž.
+                    modifier = Modifier.fillMaxSize().padding(bottom = bottomInset),
                 )
                 return@Column
             }
@@ -342,7 +376,7 @@ fun ChatPicker(
                     top = 8.dp,
                     // Tlačítko leží na seznamu, takže poslední chat musí jít doscrollovat nad ně —
                     // jinak zůstane jeho zaškrtávátko schované pod tlačítkem.
-                    bottom = 8.dp + if (selected != null) FAB_CLEARANCE else 0.dp,
+                    bottom = 8.dp + bottomInset + if (selected != null) FAB_CLEARANCE else 0.dp,
                 ),
                 // Rozestup UVNITŘ bloku; mezeru mezi bloky si nese karta Uložených zpráv.
                 verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),

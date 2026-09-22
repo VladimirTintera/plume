@@ -2956,6 +2956,14 @@ po odeslání se otevře cílový chat, takže je vidět, že zpráva dorazila.
   proto animuje na POPISKU, ne na tlačítku — tatáž past jako u plovoucí lišty konverzace.
 - **Seznam má dole místo na tlačítko** (`FAB_CLEARANCE`), jinak zůstane zaškrtávátko posledního
   chatu schované pod ním. Přidává se, jen když se vybírá (u sdílení tlačítko není).
+- **Spodní inset patří do `contentPadding` seznamu, ne na kontejner.** S paddingem ze Scaffoldu
+  na sloupci skončil seznam nad navigační lištou ostrou hranou a poslední chat byl useknutý —
+  tentýž vzor jako seznam chatů a výsledky hledání: chaty jedou pod lištu a poslední se nad ni
+  doroluje. Ze Scaffoldu se na sloupec bere jen horní a boční padding.
+- **Scaffold výběru má `contentWindowInsets = safeDrawing`, tedy i klávesnici.** Podle spodního
+  insetu staví Scaffold tlačítko a snackbar, takže s výchozími systémovými lištami odesílací
+  tlačítko při hledání zmizelo pod klávesnicí. Seznam bere týž inset (`safeDrawing`), aby se
+  poslední chat dal doscrollovat i nad ni.
 - **Cílový chat se do zásobníku přidá jen, když na něm zásobník už nestojí** — přeposlání do
   téhož chatu by jinak otevřelo druhou kopii konverzace.
 - **Přeposílá se do VÍC cílů naráz**, takže ťuknutí na chat ho VYBERE (zaškrtávátko) a odesílá
