@@ -3611,6 +3611,8 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   — odkaz nebyl vidět vůbec. Akcent proto při nedostatku kontrastu ustoupí barvě popředí té plochy
   a odlišení nese řez (u odkazu podtržení, `RichText` ho přidá samo, když `linkColor == overlayColor`).
   **Platí i pro `senderColor`** — osm odstínů je laděných na plochu konverzace, ne na bublinu.
+  **A pro `primary` na `primaryContainer`** (vybraná volba režimu přílohy, úrovně v pruhu
+  nahrávání, „Teď ne" na kartě aktualizace): tatáž past o roli vedle.
 - **Rozhoduje se z CÍLOVÝCH barev, ne z právě animovaných.** Barva bubliny se při zvýraznění
   prolíná; kdyby se kontrast počítal z okamžité hodnoty, přepnul by akcent uprostřed přechodu
   skokem. Výsledek se pak prolíná spolu s ní (`bubble-accent` v `MessageFrame`).

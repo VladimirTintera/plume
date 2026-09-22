@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
@@ -23,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.update.AppUpdateState
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.system_update_24dp
@@ -113,7 +115,18 @@ fun UpdateCard(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                 ) {
-                    TextButton(onClick = { onDismiss(state.versionCode) }) {
+                    // Textové tlačítko je `primary` na `primaryContainer`; v paletě se zvýšeným
+                    // kontrastem by splynulo (viz `accentOn`).
+                    TextButton(
+                        onClick = { onDismiss(state.versionCode) },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = accentOn(
+                                background = MaterialTheme.colorScheme.primaryContainer,
+                                accent = MaterialTheme.colorScheme.primary,
+                                fallback = MaterialTheme.colorScheme.onPrimaryContainer,
+                            ),
+                        ),
+                    ) {
                         Text(stringResource(Res.string.update_action_later))
                     }
                     Button(onClick = onUpdate) { Text(stringResource(Res.string.update_action_update)) }
