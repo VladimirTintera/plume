@@ -7,6 +7,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowCompat
 import eu.tintera.plume.app.root.presentation.theme.expressiveColorScheme
@@ -19,7 +20,15 @@ actual fun colorScheme(isDark: Boolean, dynamic: Boolean): ColorScheme {
     return when {
         // DYNAMIC = Material You ze systému (tapeta). Statické módy = naše vibrant expressive schéma.
         dynamic && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
-            if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            /*
+             * `remember` tu není úspora práce, ale STABILNÍ INSTANCE. `ColorScheme` nemá `equals`,
+             * takže se porovnává referencí — a prolínání schématu (`animateColorScheme`) staví na
+             * `updateTransition`, které by v každé rekompozici dostalo „nový" cíl a zakládalo
+             * transition znovu. `expressiveColorScheme` je remembered už uvnitř materialkoloru.
+             */
+            remember(context, isDark) {
+                if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            }
 
         else -> expressiveColorScheme(isDark)
     }

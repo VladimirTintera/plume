@@ -4302,6 +4302,27 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   `surfaceContainerHigh` (overlay) < `surfaceContainerHighest` (menu nad overlayem). `tonalElevation`
   u `surfaceContainer*` barev nic nedělá — M3 `Surface` tónuje jen `color == colorScheme.surface`.
 - Barvy vždy z `MaterialTheme.colorScheme`, nikdy natvrdo hex.
+- **Přepnutí motivu se PROLÍNÁ, neprobliká** (`animateColorScheme` z materialkoloru v `AppTheme`,
+  spec `AppMotion.defaultEffectsSpec`). Skoková výměna schématu přebarvila celou obrazovku v jednom
+  snímku a vypadala jako chyba vykreslení. Animuje se KAŽDÁ role zvlášť, ne crossfade dvou kopií
+  aplikace přes sebe: v aplikaci je plno průsvitných vrstev (závoj nabídky nad zprávou, závoj pod
+  stavovou lištou, karta vstupního pole) a přes sebe položené kopie by prosvítaly.
+- **49 vlastních `animateColorAsState` se psát nemusí.** Materialkolor je v projektu už kvůli
+  generování palety a `animateColorScheme` pokrývá všechny role. Je ale stavěný proti STARŠÍ
+  material3 (4.1.1 → 1.10.0-alpha05, projekt jede na 1.12) a volá `ColorScheme.copy` — tedy
+  syntetické `copy$default` s pevným počtem parametrů. Nová barevná role v material3 by ho binárně
+  rozešla a **chyba by přišla až za běhu**; před bumpem materialkoloru nebo material3 se to ověří
+  `javap` nad `material3-desktop` (obě verze mají `copy-_VG5OTI$default` se 48 barvami).
+- **`ColorScheme` NEMÁ `equals`** (ověřeno `javap`), takže se porovnává referencí. Cíl animace proto
+  musí být STABILNÍ INSTANCE: `dynamicLightColorScheme`/`dynamicDarkColorScheme` se na Androidu
+  `remember`ují, jinak by `updateTransition` uvnitř `animateColorScheme` zakládalo transition
+  v každé rekompozici znovu. `rememberDynamicColorScheme` z materialkoloru stabilní je.
+- **Ikony systémových lišt se překlápějí skokem** (`SystemBarsAppearance`), i když barvy jedou
+  animací. Čekat na dojetí by znamenalo světlé ikony na světlém pozadí po celou dobu přechodu.
+- **Během přechodu rekomponuje všechno, co čte schéma** — je to nová instance v každém snímku.
+  Proto `defaultEffectsSpec` (kriticky tlumená pružina, ~čtvrt vteřiny), ne `slowEffectsSpec`:
+  delší animace by ten náklad jen natáhla. Co si z barev něco dopočítává (`senderColor` staví
+  osm HCT odstínů, `accentOn` měří kontrast), to se po dobu přechodu počítá každý snímek.
 - **Akcent na tónované ploše se musí ověřit PROTI TÉ PLOŠE** (`accentOn` v `core/ui/AccentColor.kt`,
   testy `AccentColorTest`). M3 garantuje kontrast jen mezi plochou a její `on*` rolí; že je
   `tertiary` čitelná na `tertiaryContainer` (jméno v citaci, název webu u náhledu odkazu, odkaz ve
