@@ -1,3 +1,3 @@
 type: feat
-cs: Výběr více zpráv: přeposlat, zkopírovat nebo smazat je jde naráz
-en: Select several messages and forward, copy or delete them at once
+cs: Výběr více zpráv a přeposlání do více chatů naráz
+en: Select several messages and forward them to several chats at once

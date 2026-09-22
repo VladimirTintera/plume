@@ -2861,6 +2861,17 @@ po odeslání se otevře cílový chat, takže je vidět, že zpráva dorazila.
   od …". Kopie bez odesílatele je v Telegramu samostatná volba a zatím ji nenabízíme.
 - **Cílový chat se do zásobníku přidá jen, když na něm zásobník už nestojí** — přeposlání do
   téhož chatu by jinak otevřelo druhou kopii konverzace.
+- **Přeposílá se do VÍC cílů naráz**, takže ťuknutí na chat ho VYBERE (zaškrtávátko) a odesílá
+  se až tlačítkem s počtem. Je to o ťuknutí víc než dřív, ale poslat totéž do víc chatů je běžný
+  případ a výběr se dá opravit; stejně to dělá i oficiální klient.
+- **Sdílení ze systému zůstává na jednom cíli** (`ChatPicker(selected = null)`). Obsah tam čeká
+  nad vstupním polem, takže „vyber a potvrď" by byl krok navíc před dalším krokem.
+- **Po odeslání se otevře PRVNÍ vybraný cíl.** Otevřít poslední nebo neotevřít nic by bylo
+  svévolné; první vybraný je ten, na který uživatel myslel nejdřív. Množina cílů si proto drží
+  pořadí výběru (`Set.plus` vrací `LinkedHashSet`).
+- **Do cílů se posílá POSTUPNĚ, ne souběžně.** Pořadí zpráv v cílech tím zůstane dané a server
+  nedostane deset přeposlání naráz. Selhání jednoho cíle ostatní nezastaví — co odešlo, odešlo,
+  a chyba se ohlásí na konci.
 
 ### Odkrývání časů tahem
 

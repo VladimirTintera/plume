@@ -314,6 +314,7 @@
     <string name="menu_delete">Delete</string>
     <string name="menu_forward">Forward</string>
     <string name="forward_title">Forward to</string>
+    <string name="forward_send">Forward (%1$d)</string>
     <string name="share_title">Share to</string>
     <string name="share_preparing">Preparing files…</string>
     <string name="share_failed_files">Some shared files couldn't be prepared</string>

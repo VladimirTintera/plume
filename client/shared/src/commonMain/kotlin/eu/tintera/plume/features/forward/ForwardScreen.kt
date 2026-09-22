@@ -1,6 +1,20 @@
 package eu.tintera.plume.features.forward
 
 import eu.tintera.plume.core.ui.avatarShape
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.LocalTextStyle
+import eu.tintera.plume.core.ui.tabularNumbers
+import eu.tintera.plume.resources.forward_24dp
+import eu.tintera.plume.resources.forward_send
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -74,7 +88,10 @@ fun ForwardScreen(
         chats = state.chats,
         // Dokud odesílání běží, další ťuknutí by poslalo zprávu dvakrát.
         enabled = !state.sending,
-        onPick = { chatId -> viewModel.forward(chatId, onForwarded) },
+        onPick = viewModel::toggle,
+        // Přeposílá se do víc chatů naráz, takže ťuknutí cíl VYBERE a odesílá se až tlačítkem.
+        selected = state.selected,
+        onConfirm = { viewModel.send(onForwarded) },
         savedMessagesChatId = state.savedMessagesChatId,
         onBack = onBack,
         error = state.error,
@@ -109,6 +126,15 @@ fun ChatPicker(
     closeIcon: Boolean = false,
     subtitle: String? = null,
     savedMessagesChatId: Long? = null,
+    /**
+     * Vybrané cíle; `null` = jeden cíl a ťuknutí ho rovnou použije.
+     *
+     * Sdílení ze systému zůstává na jednom cíli: obsah tam čeká nad vstupním polem, takže
+     * „vyber a potvrď" by byl krok navíc před dalším krokem. Přeposílání vybírá, protože
+     * poslat totéž do víc chatů je jeho běžný případ.
+     */
+    selected: Set<Long>? = null,
+    onConfirm: () -> Unit = {},
     error: UiText? = null,
     onErrorShown: () -> Unit = {},
 ) {
@@ -139,6 +165,29 @@ fun ChatPicker(
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            // Bez vybraného cíle není co odeslat — tlačítko naskočí, až je kam.
+            AnimatedVisibility(
+                visible = !selected.isNullOrEmpty(),
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                    scaleIn(MaterialTheme.motionScheme.defaultSpatialSpec(), initialScale = 0.8f),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                    scaleOut(MaterialTheme.motionScheme.defaultSpatialSpec(), targetScale = 0.8f),
+            ) {
+                ExtendedFloatingActionButton(
+                    onClick = onConfirm,
+                    // Počet roste a klesá; bez animace by tlačítko poskakovalo.
+                    modifier = Modifier.animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                ) {
+                    Icon(painterResource(Res.drawable.forward_24dp), contentDescription = null)
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(Res.string.forward_send, selected?.size ?: 0),
+                        style = LocalTextStyle.current.tabularNumbers(),
+                    )
+                }
+            }
+        },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             TextField(
@@ -204,6 +253,9 @@ fun ChatPicker(
                                 leadingContent = {
                                     Avatar(chatId = savedMessagesChatId, title = savedTitle, avatarFileId = null, size = 40.dp, isSavedMessages = true, backdrop = MaterialTheme.colorScheme.primaryContainer)
                                 },
+                                trailingContent = selected?.let {
+                                    { Checkbox(checked = savedMessagesChatId in it, onCheckedChange = null) }
+                                },
                                 // Barvu nese karta; průhledný řádek ji nepřekryje.
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                             )
@@ -216,6 +268,9 @@ fun ChatPicker(
                         leadingContent = {
                             Avatar(chatId = chat.id, title = chat.title, avatarFileId = chat.avatarFileId, size = 40.dp, shape = chat.kind.avatarShape())
                         },
+                        // Klikání nese celý řádek, zaškrtávátko má `onCheckedChange = null` —
+                        // do něj se nemá trefovat a čtečka obrazovky má číst jednu položku.
+                        trailingContent = selected?.let { { Checkbox(checked = chat.id in it, onCheckedChange = null) } },
                         modifier = Modifier.clickable(enabled = enabled) { onPick(chat.id) },
                     )
                 }
