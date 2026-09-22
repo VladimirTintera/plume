@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.telegram
 
+import kotlinx.coroutines.flow.Flow
 import kotlin.time.Duration
 
 /**
@@ -57,6 +58,16 @@ interface ProfileRepository {
      * na každého ze seznamu dopředu by znamenalo dvě stě dotazů za otevření profilu.
      */
     suspend fun member(chatId: Long, userId: Long): Result<MemberDetail>
+
+    /**
+     * Ozve se, kdykoli se v chatu změní postavení některého člena.
+     *
+     * Seznam se na to ČTE ZNOVU, neodvozuje se z updatu — stejně jako připnuté zprávy: jeden
+     * update nese jednoho člena, a co změna doopravdy udělala (a jestli server vůbec poslechl),
+     * ví jen server. TDLib `UpdateChatMember` navíc posílá jen správcům, tedy právě těm, kdo
+     * členy mění.
+     */
+    fun memberUpdates(chatId: Long): Flow<Unit>
 
     /**
      * Práva správce. **Prázdná práva ([AdminRights.any] `false`) člena ze správcovství sesadí** —

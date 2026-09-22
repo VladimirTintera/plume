@@ -72,6 +72,10 @@ data class ArchiveChatProfileRoute(val chatId: Long) : Route
 @Serializable
 data class ArchiveEditChatRoute(val chatId: Long) : Route
 
+/** Práva člena otevřená z profilu v archivní větvi. */
+@Serializable
+data class ArchiveMemberRightsRoute(val chatId: Long, val userId: Long, val admin: Boolean) : Route
+
 /**
  * Konverzace. V list-detail rozvržení je to detail panel vedle seznamu.
  *
@@ -94,6 +98,13 @@ data class ChatProfileRoute(val chatId: Long) : Route
  */
 @Serializable
 data class EditChatRoute(val chatId: Long) : Route
+
+/**
+ * Práva jednoho člena: správcovská ([admin] `true`), nebo jeho omezení. Vrší se nad profil
+ * stejně jako úprava skupiny.
+ */
+@Serializable
+data class MemberRightsRoute(val chatId: Long, val userId: Long, val admin: Boolean) : Route
 
 /**
  * Prohlížeč média přes celou obrazovku.
@@ -156,9 +167,11 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ArchiveConversationRoute::class, ArchiveConversationRoute.serializer())
             subclass(ArchiveChatProfileRoute::class, ArchiveChatProfileRoute.serializer())
             subclass(ArchiveEditChatRoute::class, ArchiveEditChatRoute.serializer())
+            subclass(ArchiveMemberRightsRoute::class, ArchiveMemberRightsRoute.serializer())
             subclass(ConversationRoute::class, ConversationRoute.serializer())
             subclass(ChatProfileRoute::class, ChatProfileRoute.serializer())
             subclass(EditChatRoute::class, EditChatRoute.serializer())
+            subclass(MemberRightsRoute::class, MemberRightsRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
             subclass(ShareRoute::class, ShareRoute.serializer())

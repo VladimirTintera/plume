@@ -10,6 +10,9 @@ import dev.g000sha256.tdl.dto.ChatAdministratorRights
 import dev.g000sha256.tdl.dto.ChatMemberStatus
 import dev.g000sha256.tdl.dto.ChatMemberStatusMember
 import dev.g000sha256.tdl.dto.ChatMemberStatusRestricted
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlin.time.Clock
 import kotlin.time.Duration
 import dev.g000sha256.tdl.TdlClient
@@ -285,6 +288,9 @@ class TdlProfileRepository(
             ),
         )
     }
+
+    override fun memberUpdates(chatId: Long): Flow<Unit> =
+        holder.updates { chatMemberUpdates }.filter { it.chatId == chatId }.map { }
 
     override suspend fun setAdminRights(chatId: Long, userId: Long, rights: AdminRights): Result<Unit> = runCatching {
         val memberId = MessageSenderUser(userId = userId)
