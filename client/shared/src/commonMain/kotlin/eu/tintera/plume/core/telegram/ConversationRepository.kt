@@ -94,7 +94,19 @@ interface ConversationRepository {
      * [messageIds] musí být **vzestupně** — tak to TDLib vyžaduje; album se přeposílá celé, takže
      * v cíli zůstane albem. Přeposlané zprávy dorazí do cílového chatu updaty jako každé jiné.
      */
-    suspend fun forward(fromChatId: Long, messageIds: List<Long>, toChatId: Long): Result<Unit>
+    suspend fun forward(
+        fromChatId: Long,
+        messageIds: List<Long>,
+        toChatId: Long,
+        options: ForwardOptions = ForwardOptions(),
+    ): Result<Unit>
+
+    /**
+     * Co přeposílané zprávy dovolí: jestli jdou poslat jako kopie bez odesílatele a jestli
+     * nesou popisek, který by šlo vynechat. Když se to zjistit nepodaří, nedovolí nic — volba,
+     * po které přijde chyba, je horší než volba, která tam není.
+     */
+    suspend fun forwardCapabilities(chatId: Long, messageIds: List<Long>): ForwardCapabilities
 
     /**
      * Smaže zprávy.
@@ -592,6 +604,26 @@ data class ChatMessage(
     val selfDestructIn: Int? = null,
     /** Odkud byla zpráva přeposlaná; `null` u zprávy, která přeposlaná není. */
     val forwardOrigin: ForwardOrigin? = null,
+)
+
+/**
+ * Jak přeposlat.
+ *
+ * [hideSender] pošle zprávu jako KOPII: v cíli nebude „Přeposláno od …" a vypadá, jako by ji
+ * napsal ten, kdo přeposílá. [hideCaptions] u kopie vynechá popisky médií; bez kopie ho TDLib
+ * ignoruje, takže má smysl jen spolu s [hideSender].
+ */
+data class ForwardOptions(
+    val hideSender: Boolean = false,
+    val hideCaptions: Boolean = false,
+)
+
+/** Co jde u přeposlání nabídnout — viz [ConversationRepository.forwardCapabilities]. */
+data class ForwardCapabilities(
+    /** Všechny zprávy jdou zkopírovat (`canBeCopied`), takže jde skrýt odesílatele. */
+    val canHideSender: Boolean = false,
+    /** Aspoň jedna zpráva je médium s popiskem — jinak „skrýt popisky" nemá co skrýt. */
+    val hasCaptions: Boolean = false,
 )
 
 /**
