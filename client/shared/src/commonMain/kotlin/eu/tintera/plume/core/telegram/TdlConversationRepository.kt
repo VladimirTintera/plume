@@ -847,6 +847,18 @@ class TdlConversationRepository(
             .toResult()
             .map { }
 
+    override suspend fun editCaption(chatId: Long, messageId: Long, caption: String): Result<Unit> =
+        client.editMessageCaption(
+            chatId = chatId,
+            messageId = messageId,
+            replyMarkup = null,
+            caption = FormattedText(text = caption, entities = detectEntities(caption)),
+            // Popisek nad médiem aplikace nekreslí ani neposílá, takže ho ani úprava nezavádí.
+            showCaptionAboveMedia = false,
+        )
+            .toResult()
+            .map { }
+
     /**
      * Odkazy, zmínky a spol. v textu, který uživatel napsal.
      *

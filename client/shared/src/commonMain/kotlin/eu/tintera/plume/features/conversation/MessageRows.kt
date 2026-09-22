@@ -156,8 +156,17 @@ internal fun showsLinkPreviewCard(message: ChatMessage): Boolean {
 /** Velký obrázek přes celou šířku karty; o velikosti rozhoduje odesílatel (`largePhoto`). */
 internal val LinkPreview.showsLargePhoto: Boolean get() = largePhoto && photo != null
 
+/** Co z té zprávy vstupní pole upravuje — a tím i které volání TDLib úpravu uloží. */
+internal enum class PlainTextEdit {
+    /** Text zprávy (`editMessageText`). */
+    Text,
+
+    /** Popisek přílohy (`editMessageCaption`) — jiné volání, úprava textu by ho nezměnila. */
+    Caption,
+}
+
 /**
- * Dá se zpráva upravit ve vstupním poli, aniž by přišla o formátování?
+ * Dá se zpráva upravit ve vstupním poli, aniž by přišla o formátování? A co se tím vlastně mění?
  *
  * Pole umí jen holý text. Odkazy, zmínky a spol. se při odeslání úpravy dohledají znovu, ale
  * **ruční formátování** (tučné, kurzíva, spoiler, odkaz s vlastním popiskem) by úprava tiše smazala.
@@ -165,17 +174,46 @@ internal val LinkPreview.showsLargePhoto: Boolean get() = largePhoto && photo !=
  *
  * Odkaz se pozná jako automatický, když jeho text v adrese opravdu stojí (`example.com` →
  * `https://example.com`). U odkazu s popiskem („klikni sem") to neplatí.
+ *
+ * **U přílohy se nabízí i prázdný popisek** — tím se popisek přidá, a smazáním zase odebere.
+ * Text zprávy prázdný být nesmí: prázdnou zprávu server odmítne.
  */
-internal fun ChatMessage.isEditableAsPlainText(): Boolean {
-    if (media != null || isService || text.isBlank()) return false
+internal fun ChatMessage.plainTextEdit(): PlainTextEdit? {
+    if (isService) return null
 
-    return entities.all { entity ->
+    val plain = entities.all { entity ->
         val type = entity.type as? MessageEntityType.Link ?: return@all false
         val start = entity.offset.coerceIn(0, text.length)
         val end = (entity.offset + entity.length).coerceIn(start, text.length)
         type.url.endsWith(text.substring(start, end), ignoreCase = true)
     }
+    if (!plain) return null
+
+    val media = media ?: return PlainTextEdit.Text.takeIf { text.isNotBlank() }
+    return PlainTextEdit.Caption.takeIf { media.carriesCaption }
 }
+
+/**
+ * Nese ten druh přílohy popisek?
+ *
+ * Samolepka ani animované emoji ho v Telegramu mít nemůžou, takže by u nich „Upravit" slibovalo
+ * něco, co server odmítne. `when` je bez `else`: nový druh přílohy se tím musí rozhodnout,
+ * místo aby tiše spadl do jedné z větví.
+ */
+private val MessageMedia.carriesCaption: Boolean
+    get() = when (this) {
+        is MessageMedia.Photo,
+        is MessageMedia.Video,
+        is MessageMedia.Animation,
+        is MessageMedia.Document,
+        is MessageMedia.VoiceNote,
+        is MessageMedia.Attachment,
+        -> true
+
+        is MessageMedia.Sticker,
+        is MessageMedia.AnimatedEmoji,
+        -> false
+    }
 
 /**
  * Text zprávy pro schránku.

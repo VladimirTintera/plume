@@ -103,18 +103,31 @@ class MessageActionTest {
     }
 
     @Test
-    fun fotkaBezPopiskuNemaCoKopirovatAniUpravit() {
+    fun fotkaBezPopiskuNemaCoKopirovat() {
         val items = menuActions(message(text = "", media = photo), isPinned = false)
         assertFalse(MessageMenuAction.Copy in items)
+        // Upravit jde i tak — popisek se tím k fotce teprve přidá.
+        assertTrue(MessageMenuAction.Edit in items)
+    }
+
+    @Test
+    fun popisekFotkySeUpravuje() {
+        val items = menuActions(message(text = "popisek", media = photo), isPinned = false)
+        assertTrue(MessageMenuAction.Copy in items)
+        assertTrue(MessageMenuAction.Edit in items)
+    }
+
+    @Test
+    fun rucniFormatovaniVylucujeIUpravuPopisku() {
+        val bold = MessageEntity(offset = 0, length = 4, type = MessageEntityType.Bold)
+        val items = menuActions(message(text = "tučný popisek", media = photo, entities = listOf(bold)), isPinned = false)
         assertFalse(MessageMenuAction.Edit in items)
     }
 
     @Test
-    fun popisekFotkySeNeupravujeJakoText() {
-        // Popisek je jiné volání (`editMessageCaption`); úprava textu by ho nezměnila.
-        val items = menuActions(message(text = "popisek", media = photo), isPinned = false)
-        assertTrue(MessageMenuAction.Copy in items)
-        assertFalse(MessageMenuAction.Edit in items)
+    fun samolepkaPopisekNema() {
+        // Samolepka ani animované emoji popisek nést nemůžou; „Upravit" by slibovalo chybu.
+        assertFalse(MessageMenuAction.Edit in menuActions(message(text = "", media = sticker), isPinned = false))
     }
 
     @Test

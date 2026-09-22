@@ -12,7 +12,7 @@ import eu.tintera.plume.core.ui.isSameDayAs
 import eu.tintera.plume.features.conversation.ConversationState
 import eu.tintera.plume.features.conversation.copyableText
 import eu.tintera.plume.features.conversation.groupAlbums
-import eu.tintera.plume.features.conversation.isEditableAsPlainText
+import eu.tintera.plume.features.conversation.plainTextEdit
 import eu.tintera.plume.features.conversation.readBadgeRows
 import eu.tintera.plume.features.conversation.showsLinkPreviewCard
 import eu.tintera.plume.features.conversation.showsBareMedia
@@ -203,12 +203,13 @@ private fun messageItem(
  * Kandidáti do nabídky nad zprávou, v pořadí, v jakém se v ní ukážou (viz [MessageMenuAction]).
  *
  * Tady se rozhoduje jen podle toho, co zpráva JE; co server dovolí, se zjistí až při otevření
- * nabídky. [message] je skutečná zpráva, ne `MessageRow.display`: u alba je to ta s popiskem
- * i s přílohou, takže úprava popisku alba se nenabídne (je to jiné volání než úprava textu).
+ * nabídky. [message] je skutečná zpráva, ne `MessageRow.display`: u alba má `display` přílohu
+ * vynulovanou (nese ji mřížka), takže by popisek alba vypadal jako text a upravil by se jiným
+ * voláním, než kterým se ukládá.
  */
 internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageMenuAction> = buildList {
     add(MessageMenuAction.Reply)
-    if (message.isEditableAsPlainText()) add(MessageMenuAction.Edit)
+    if (message.plainTextEdit() != null) add(MessageMenuAction.Edit)
     // Bez textu není co kopírovat, i kdyby to server dovolil.
     if (message.copyableText().isNotBlank()) {
         add(MessageMenuAction.Copy)

@@ -129,7 +129,7 @@ sealed interface MessageMenuAction : MessageAction {
             MenuPresentation(Res.drawable.reply_24dp, Res.string.menu_reply).takeIf { menu.actions.canReply }
     }
 
-    /** Kandidát jen u zprávy, kterou jde upravit bez ztráty formátování ([isEditableAsPlainText]). */
+    /** Kandidát jen tam, kde vstupní pole text nebo popisek upraví bez ztráty formátování. */
     data object Edit : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
             MenuPresentation(Res.drawable.edit_24dp, Res.string.menu_edit).takeIf { menu.actions.canEdit }

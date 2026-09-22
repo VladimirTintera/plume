@@ -2178,11 +2178,22 @@ naopak vidí, že píšeme my.
 „Upravit" v nabídce nad zprávou přepne vstupní pole do úpravy: karta místo citace ukazuje původní
 text, tlačítko je fajfka a potvrzení volá `editMessageText`.
 
-- **Nenabízí se u zpráv s ručním formátováním** (`isEditableAsPlainText`). Pole umí jen holý
+- **Nenabízí se u zpráv s ručním formátováním** (`plainTextEdit`). Pole umí jen holý
   text — tučné, kurzíva, spoiler nebo odkaz s vlastním popiskem by úprava tiše smazala.
   Automatické odkazy se poznají tak, že jejich text v adrese opravdu stojí; ty se při uložení
   dohledají znovu (`getTextEntities`, stejně jako při odeslání).
-- **Nenabízí se ani u médií** — popisek fotky je jiné volání (`editMessageCaption`).
+- **Popisek přílohy je JINÉ volání** (`editMessageCaption` vedle `editMessageText`), takže
+  pravidlo neříká jen „jde to", ale i CO se upravuje (`PlainTextEdit.Text` / `Caption`). Jedno
+  volání za druhé zaměnit nejde: úprava textu by popisek nezměnila a naopak.
+- **Popisek jde i přidat a odebrat.** „Upravit" se proto u přílohy nabízí i bez popisku (jinak
+  by ho k fotce nešlo doplnit) a prázdné pole je platná úprava, která popisek smaže — odesílací
+  tlačítko proto v téhle jediné situaci zůstává aktivní i s prázdným polem. U textu zprávy ne:
+  prázdnou zprávu server odmítne.
+- **Samolepka ani animované emoji popisek nést nemůžou** (`carriesCaption`, `when` bez `else`),
+  takže se u nich „Upravit" nenabízí — server by úpravu odmítl.
+- **Hlavička nad polem musí říct, že se upravuje POPISEK.** Příloha v konverzaci zůstane, ať se
+  v poli píše cokoli; bez toho by nebylo poznat, že se nepíše nová zpráva. U přílohy bez popisku
+  se původní text nekreslí vůbec — prázdný řádek vypadá jako chyba vykreslení.
 - **Rozepsaný koncept se po dobu úpravy odloží a pak vrátí.** Úprava je vsuvka; kdo si uprostřed
   psaní všimne překlepu, nechce přijít o rozepsanou zprávu. Při přepnutí z jedné úpravy do druhé
   se odložený koncept nepřepisuje.

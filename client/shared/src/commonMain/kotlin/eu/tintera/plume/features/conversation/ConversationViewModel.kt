@@ -1108,12 +1108,14 @@ class ConversationViewModel(
             return
         }
 
-        if (trimmed.isEmpty()) return
-
+        // Úprava se řeší dřív než prázdné pole: prázdný POPISEK je platná úprava (odebere ho),
+        // takže o tom rozhoduje `sendEdit` podle toho, co se vlastně upravuje.
         _state.value.editing?.let { target ->
             sendEdit(target, trimmed)
             return
         }
+
+        if (trimmed.isEmpty()) return
 
         // Odeslaná zpráva psaní ukončí sama; další úhoz má „píšu" ohlásit hned, ne až za pět vteřin.
         typingSentAt = null
@@ -1279,14 +1281,25 @@ class ConversationViewModel(
      * Z úprav se odchází **hned**, ne až po odpovědi serveru — výsledek dorazí updatem jako každá
      * jiná úprava a čekat na něj s rozepsaným polem by působilo zaseknutě. Když úprava selže,
      * vrátí se do pole i s textem, jinak by o něj uživatel přišel.
+     *
+     * **Popisek přílohy je jiné volání než text zprávy** (`editMessageCaption`): úprava textu by
+     * popisek nezměnila. Prázdný popisek se tím odebere, kdežto prázdný text by zprávu jen nechal,
+     * jak je — server ji odmítne a uživatel by o obsah přišel.
      */
     private fun sendEdit(target: ChatMessage, text: String) {
+        val kind = target.plainTextEdit() ?: return
+        if (kind == PlainTextEdit.Text && text.isEmpty()) return
+
         leaveEdit()
         // Beze změny není co posílat; server by vrátil chybu „zpráva se nezměnila".
         if (text == target.text.trim()) return
 
         viewModelScope.launch {
-            repository.editText(chatId, target.id, text).onFailure { failure ->
+            val edited = when (kind) {
+                PlainTextEdit.Text -> repository.editText(chatId, target.id, text)
+                PlainTextEdit.Caption -> repository.editCaption(chatId, target.id, text)
+            }
+            edited.onFailure { failure ->
                 if (_state.value.editing == null) draftBeforeEdit = draftText
                 _state.update {
                     it.copy(
