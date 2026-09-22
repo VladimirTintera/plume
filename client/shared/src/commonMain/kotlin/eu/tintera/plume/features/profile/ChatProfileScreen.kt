@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.common_delete
 import eu.tintera.plume.resources.chats_leave_body
@@ -24,8 +26,6 @@ import eu.tintera.plume.resources.more_vert_24dp
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.clickable
 import eu.tintera.plume.resources.profile_notif_title
@@ -831,7 +831,7 @@ private val HEADER_AVATAR_SIZE = 112.dp
  * Méně častá akce nad chatem za ⋮: odkaz, blokování, smazání / odchod.
  *
  * Nahoře v liště, ne jako další dlaždice: dlaždice (Ztlumit, Hledat) jsou to, kvůli čemu se do
- * profilu chodí; tohle se dělá jednou za čas a dvě z toho jsou nevratné. `DropdownMenu` tu
+ * profilu chodí; tohle se dělá jednou za čas a dvě z toho jsou nevratné. Nabídka (`ExpressiveMenu`) tu
  * nevadí — past s odstupem od okraje (viz „Vzhled konverzace") je jen u spodku obrazovky.
  * Nevratné akce mají potvrzení s konkrétním následkem, stejné texty jako v seznamu chatů.
  */
@@ -849,58 +849,48 @@ private fun ProfileMenu(
     val canDeleteOrLeave = profile.isPrivate || profile.isMember
     if (profile.link == null && !canBlock && !canDeleteOrLeave) return
 
-    IconButton(onClick = { expanded = true }) {
-        Icon(painterResource(Res.drawable.more_vert_24dp), contentDescription = stringResource(Res.string.profile_more))
-    }
-    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-        if (profile.link != null) {
-            DropdownMenuItem(
-                text = { Text(stringResource(Res.string.profile_copy_link)) },
-                leadingIcon = { Icon(painterResource(Res.drawable.link_24dp), contentDescription = null) },
-                onClick = {
-                    expanded = false
-                    onCopyLink()
-                },
-            )
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(painterResource(Res.drawable.more_vert_24dp), contentDescription = stringResource(Res.string.profile_more))
         }
-        if (canBlock) {
-            DropdownMenuItem(
-                text = { Text(stringResource(if (profile.isBlocked) Res.string.profile_unblock else Res.string.profile_block)) },
-                leadingIcon = { Icon(painterResource(Res.drawable.block_24dp), contentDescription = null) },
-                onClick = {
-                    expanded = false
-                    // Odblokovat je vratné a nic neodřízne — bez potvrzení.
-                    if (profile.isBlocked) onSetBlocked(false) else confirmBlock = true
-                },
-            )
-        }
-        if (canDeleteOrLeave) {
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        stringResource(
-                            when (profile.kind) {
-                                ProfileKind.Channel -> Res.string.profile_leave_channel
-                                ProfileKind.Group -> Res.string.profile_leave_group
-                                else -> Res.string.chats_action_delete
-                            },
-                        ),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        painterResource(if (profile.isPrivate) Res.drawable.delete_24dp else Res.drawable.logout_24dp),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                    )
-                },
-                onClick = {
-                    expanded = false
-                    confirmDelete = true
-                },
-            )
-        }
+        ExpressiveMenu(
+            expanded = expanded,
+            onDismiss = { expanded = false },
+            groups = listOf(
+                listOfNotNull(
+                    profile.link?.let { MenuAction(stringResource(Res.string.profile_copy_link), Res.drawable.link_24dp, onClick = onCopyLink) },
+                    if (canBlock) {
+                        MenuAction(
+                            stringResource(if (profile.isBlocked) Res.string.profile_unblock else Res.string.profile_block),
+                            Res.drawable.block_24dp,
+                            // Odblokovat je vratné a nic neodřízne — bez potvrzení.
+                            onClick = { if (profile.isBlocked) onSetBlocked(false) else confirmBlock = true },
+                        )
+                    } else {
+                        null
+                    },
+                ),
+                // Nevratné zvlášť, ve vlastní skupině a chybovou barvou.
+                listOfNotNull(
+                    if (canDeleteOrLeave) {
+                        MenuAction(
+                            stringResource(
+                                when (profile.kind) {
+                                    ProfileKind.Channel -> Res.string.profile_leave_channel
+                                    ProfileKind.Group -> Res.string.profile_leave_group
+                                    else -> Res.string.chats_action_delete
+                                },
+                            ),
+                            if (profile.isPrivate) Res.drawable.delete_24dp else Res.drawable.logout_24dp,
+                            destructive = true,
+                            onClick = { confirmDelete = true },
+                        )
+                    } else {
+                        null
+                    },
+                ),
+            ),
+        )
     }
 
     if (confirmBlock) {
