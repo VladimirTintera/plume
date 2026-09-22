@@ -2942,6 +2942,11 @@ po odeslání se otevře cílový chat, takže je vidět, že zpráva dorazila.
   vypadala jako chyba; když se zjistit nepodaří, nenabídne se.
 - **Volby se nepamatují.** Přeposlání bez odesílatele je rozhodnutí o konkrétní zprávě; zapnuté
   napořád by příště tiše vydávalo cizí zprávu za vlastní.
+- **`animateContentSize` na FAB mu UŘÍZNE stín a spodní nároží.** Modifikátor ořezává na svoje
+  hranice, takže plovoucí tlačítko vyšlo dole hranaté, jako by bylo useknuté. Počet cílů se
+  proto animuje na POPISKU, ne na tlačítku — tatáž past jako u plovoucí lišty konverzace.
+- **Seznam má dole místo na tlačítko** (`FAB_CLEARANCE`), jinak zůstane zaškrtávátko posledního
+  chatu schované pod ním. Přidává se, jen když se vybírá (u sdílení tlačítko není).
 - **Cílový chat se do zásobníku přidá jen, když na něm zásobník už nestojí** — přeposlání do
   téhož chatu by jinak otevřelo druhou kopii konverzace.
 - **Přeposílá se do VÍC cílů naráz**, takže ťuknutí na chat ho VYBERE (zaškrtávátko) a odesílá

@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -266,16 +267,16 @@ fun ChatPicker(
                 exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) +
                     scaleOut(MaterialTheme.motionScheme.defaultSpatialSpec(), targetScale = 0.8f),
             ) {
-                ExtendedFloatingActionButton(
-                    onClick = onConfirm,
-                    // Počet roste a klesá; bez animace by tlačítko poskakovalo.
-                    modifier = Modifier.animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()),
-                ) {
+                ExtendedFloatingActionButton(onClick = onConfirm) {
                     Icon(painterResource(Res.drawable.forward_24dp), contentDescription = null)
                     Spacer(Modifier.width(12.dp))
                     Text(
                         text = stringResource(Res.string.forward_send, selected?.size ?: 0),
                         style = LocalTextStyle.current.tabularNumbers(),
+                        // Počet roste a klesá; bez animace by tlačítko poskakovalo. Animuje se
+                        // POPISEK, ne tlačítko: `animateContentSize` ořezává na svoje hranice,
+                        // takže na tlačítku uřízl stín i zaoblení spodních nároží.
+                        modifier = Modifier.animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()),
                     )
                 }
             }
@@ -325,7 +326,12 @@ fun ChatPicker(
                 return@Column
             }
 
-            LazyColumn(Modifier.fillMaxSize()) {
+            LazyColumn(
+                // Tlačítko leží na seznamu, takže poslední chat musí jít doscrollovat nad ně —
+                // jinak zůstane jeho zaškrtávátko schované pod tlačítkem.
+                contentPadding = PaddingValues(bottom = if (selected != null) FAB_CLEARANCE else 0.dp),
+                modifier = Modifier.fillMaxSize(),
+            ) {
                 if (showSaved && savedMessagesChatId != null) {
                     /*
                      * Uložené zprávy jsou samostatná karta nad seznamem, ne jeho první řádek.
@@ -394,3 +400,6 @@ fun ChatPicker(
         }
     }
 }
+
+/** Výška odesílacího tlačítka i s odsazením, aby pod ním nezůstal schovaný poslední chat. */
+private val FAB_CLEARANCE = 88.dp
