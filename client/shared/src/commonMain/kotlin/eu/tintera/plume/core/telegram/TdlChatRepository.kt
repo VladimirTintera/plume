@@ -18,6 +18,7 @@ import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.TdlResult
 import dev.g000sha256.tdl.dto.Chat
 import dev.g000sha256.tdl.toResult
+import dev.g000sha256.tdl.dto.ArchiveChatListSettings
 import dev.g000sha256.tdl.dto.ChatList
 import dev.g000sha256.tdl.dto.ChatListArchive
 import dev.g000sha256.tdl.dto.ChatListMain
@@ -43,6 +44,7 @@ import dev.g000sha256.tdl.dto.ChatTypeSecret
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
 import dev.g000sha256.tdl.dto.MessageSenderChat
+import dev.g000sha256.tdl.dto.OptionValueBoolean
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.TopChatCategoryUsers
 import dev.g000sha256.tdl.dto.UserStatus
@@ -60,6 +62,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -121,6 +124,10 @@ class TdlChatRepository(
      * v [all], takže tu stará hodnota může zůstat — bez činnosti se nečte.
      */
     private val activitySenders = MutableStateFlow<Map<Long, Long>>(emptyMap())
+
+    private val _archiveUnread = MutableStateFlow(ArchiveUnread())
+
+    override val archiveUnread: StateFlow<ArchiveUnread> = _archiveUnread.asStateFlow()
 
     override fun chats(folder: ChatFolder): StateFlow<ChatListState> = lists.getValue(folder).asStateFlow()
 
@@ -300,6 +307,22 @@ class TdlChatRepository(
                 changePositions(update.chatId) { it - folder }
             }
         }
+
+        /*
+         * Počet nepřečtených chatů v archivu. Nepočítá se nad [chats] — archiv se načítá až při
+         * otevření, takže dokud ho nikdo neotevřel, není z čeho počítat; tohle chodí i bez něj.
+         * TDLib ho posílá jen se zapnutou databází zpráv (`useMessageDatabase`).
+         */
+        scope.launch {
+            holder.updates { unreadChatCountUpdates }
+                .filter { it.chatList is ChatListArchive }
+                .collect { update ->
+                    _archiveUnread.value = ArchiveUnread(
+                        chats = update.unreadCount,
+                        unmutedChats = update.unreadUnmutedCount,
+                    )
+                }
+        }
     }
 
     /**
@@ -347,6 +370,43 @@ class TdlChatRepository(
         )
             .toResult()
             .map { }
+
+    /**
+     * Nastavení archivu a k němu volba serveru, jestli se smí zapínat automatická archivace.
+     * Nenastavená volba přijde jako `OptionValueEmpty`, tedy „nesmí".
+     */
+    override suspend fun archiveSettings(): Result<ArchiveSettings> {
+        val settings = client.getArchiveChatListSettings().toResult()
+            .onFailure { logger.w(it) { "Nastavení archivu se nepodařilo přečíst." } }
+            .getOrElse { return Result.failure(it) }
+        val canArchiveUnknown = client.getOption(name = ARCHIVE_UNKNOWN_OPTION).toResult().getOrNull()
+        return Result.success(
+            ArchiveSettings(
+                archiveUnknownSenders = settings.archiveAndMuteNewChatsFromUnknownUsers,
+                keepUnmutedArchived = settings.keepUnmutedChatsArchived,
+                canArchiveUnknownSenders = (canArchiveUnknown as? OptionValueBoolean)?.value == true,
+            ),
+        )
+    }
+
+    /**
+     * Zapisuje se celým objektem, jako ztlumení chatu: `keepChatsFromFoldersArchived` se přenese
+     * z aktuálního stavu, jinak by se tiše přepsalo, co si uživatel nastavil v jiném klientovi.
+     */
+    override suspend fun setArchiveSettings(settings: ArchiveSettings): Result<Unit> {
+        val current = client.getArchiveChatListSettings().toResult()
+            .getOrElse { return Result.failure(it) }
+        return client.setArchiveChatListSettings(
+            settings = ArchiveChatListSettings(
+                archiveAndMuteNewChatsFromUnknownUsers = settings.archiveUnknownSenders,
+                keepUnmutedChatsArchived = settings.keepUnmutedArchived,
+                keepChatsFromFoldersArchived = current.keepChatsFromFoldersArchived,
+            ),
+        )
+            .toResult()
+            .map { }
+            .onFailure { logger.w(it) { "Nastavení archivu se nepodařilo uložit." } }
+    }
 
     override fun muted(chatId: Long): Flow<Boolean?> =
         all.map { it[chatId]?.isMuted }.distinctUntilChanged()
@@ -762,6 +822,7 @@ class TdlChatRepository(
         me.value = null
         all.value = emptyMap()
         activitySenders.value = emptyMap()
+        _archiveUnread.value = ArchiveUnread()
         lists.values.forEach { it.value = ChatListState.Loading }
     }
 
@@ -819,6 +880,9 @@ class TdlChatRepository(
          * zhruba po pěti sekundách, takže tohle nechytne souvislé psaní, jen ztracený konec.
          */
         const val ACTIVITY_TIMEOUT_MS = 8_000L
+
+        /** Server rozhoduje, jestli účet smí zapnout automatickou archivaci chatů od neznámých. */
+        const val ARCHIVE_UNKNOWN_OPTION = "can_archive_and_mute_new_chats_from_unknown_users"
     }
 }
 

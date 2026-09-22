@@ -1390,6 +1390,37 @@ snackbar s „Vrátit".
   protože produkční cestu vůbec nezavolá.
 - **Hlavička je obyčejný `TopAppBar` bez scroll behavior**, takže nemění barvu — tónovaný pruh
   přes celou šířku byl důvod, proč hlavní seznam opustil `LargeFlexibleTopAppBar`.
+- **Počet nepřečtených v archivu počítá TDLib** (`UpdateUnreadChatCount` pro `ChatListArchive`),
+  ne my nad načteným seznamem — archiv se načítá až při otevření, takže do té doby by nebylo
+  z čeho počítat, a právě tehdy je odznak nejpotřebnější. Update chodí **jen se zapnutou databází
+  zpráv** (`useMessageDatabase`); bez ní se nic nerozbije, jen se nikdy neobjeví.
+- **Odznak je na dvou místech, protože menu účtu je zavřené**: číslo u položky Archiv a tečka na
+  fotce účtu. **Tečka je jen od NEZTLUMENÝCH chatů** (`unreadUnmutedCount`) — do archivu se
+  ztlumené chaty ukládají, takže tečka od nich by byla signál, který nikdy nezhasne. Číslo
+  u položky počítá všechny, ale v neutrální barvě, dokud není co ztlumeného; sytý odznak nad
+  samými ztlumenými chaty je falešné volání.
+- **Archivace tahem jde na OBĚ strany a obě dělají totéž.** Druhá akce v seznamu není, takže by
+  si uživatel musel pamatovat směr pro nic. Nepotvrzuje se — snackbar „Vrátit" je tentýž jako
+  u archivace z nabídky. Uložené zprávy tah nemají (`gesturesEnabled = false`), stejně jako
+  nemají položku v nabídce.
+- **`SwipeToDismissBox` hlásí dokončený tah z `LaunchedEffect`, jehož klíčem je i lambda
+  `onDismiss`.** Ta se při rekompozici položky může změnit a efekt se rozběhne ZNOVU — chat by
+  se archivoval podruhé a po „Vrátit" zase zpátky. Proto si tah pamatuje, že akce už odešla
+  (`sent`). Platí pro každé použití téhle komponenty, ne jen tady.
+- **Tvar bloku se počítá mimo řádek** (`groupItemShape`): tentýž tvar musí mít i podklad
+  odkrývaný tahem, jinak pod zaoblenou položkou vykukují jeho hranaté rohy. `animateItem` zůstává
+  na kořeni položky, tedy na tahu, ne na řádku uvnitř.
+- **Nastavení archivu je sheet z hlavičky archivu, ne pátá sekce Nastavení.** Jsou to dvě volby
+  o tom, co se s archivem děje samo, a kdo je hledá, stojí zrovna v archivu.
+- **TDLib na změnu `ArchiveChatListSettings` NEPOSÍLÁ update**, takže sheet je jediný zdroj pravdy:
+  přepínač se pohne hned a při selhání se vrátí. Čekat na potvrzení by znamenalo přepínač, který
+  se po ťuknutí nehýbe.
+- **Zapisuje se celým objektem**, jako ztlumení chatu: `keepChatsFromFoldersArchived` se přenese
+  z aktuálního stavu. Aplikace vlastní složky Telegramu nemá, takže ho jako volbu nenabízí — ale
+  nastavit ho mohl jiný klient a přepsat mu ho tiše by bylo horší než ho nenabízet.
+- **„Archivovat chaty od neznámých" povoluje server** (`can_archive_and_mute_new_chats_from_unknown_users`);
+  kde ho nepovolí, TDLib zapnutí odmítne. Přepínač se tam proto nenabízí vůbec — stejné pravidlo
+  jako u filtrů seznamu, které nemají co odfiltrovat.
 
 ### Akce nad chatem
 

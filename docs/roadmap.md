@@ -56,12 +56,12 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
 `ConversationRoute`, `ChatProfileRoute`, `MediaRoute`, `ForwardRoute`, `ShareRoute`, `NewChatRoute`
 (`core/navigation/Routes.kt`).
 
-- ~~**Archiv**~~ — hotovo (seznam v menu ⋮, archivace a vrácení z nabídky chatu s „Vrátit").
-  Poučení v `CLAUDE.md`, „Archiv". Zbývá:
-  - **Nastavení archivu** (`ArchiveChatListSettings`): automatická archivace chatů od
-    neznámých a to, jestli ztlumené chaty s novou zprávou zůstávají v archivu.
-  - **Počet nepřečtených u vstupu do archivu** (`UpdateUnreadChatCount` pro `ChatListArchive`).
-  - **Archivovat tahem** po položce seznamu; dnes jen z nabídky po dlouhém stisku.
+- ~~**Archiv**~~ — hotovo (seznam v menu účtu, archivace a vrácení z nabídky chatu i tahem do
+  strany s „Vrátit", počet nepřečtených u vstupu, nastavení archivu). Poučení v `CLAUDE.md`,
+  „Archiv". Zbývá:
+  - **Ověřit nastavení archivu proti druhému účtu.** Že se „archivovat od neznámých" a
+    „nechávat chaty v archivu" opravdu projeví, se s jedním účtem nedá vidět — zapsání
+    i přečtení hodnot ověřené je, jejich následek ne.
 - ~~**Detail chatu / profil.**~~ — hotovo (ťuknutí na hlavičku: fotka, jméno, ztlumení, hledání,
   údaje, členové skupiny; `CLAUDE.md`, „Profil chatu"). Zbývá:
   - ~~**Sdílená média**~~ — hotovo (záložky Členové / Média / Soubory / Odkazy s dotahováním
