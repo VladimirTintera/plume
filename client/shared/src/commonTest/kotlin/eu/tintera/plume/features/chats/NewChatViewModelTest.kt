@@ -7,6 +7,7 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.FoundMessagesPage
+import eu.tintera.plume.core.telegram.MessageSearchFilter
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.InviteJoinResult
 import kotlinx.coroutines.flow.Flow
@@ -140,7 +141,7 @@ class NewChatViewModelTest {
         override suspend fun searchPublicChats(query: String): Result<List<ChatSummary>> =
             Result.success(emptyList())
 
-        override suspend fun searchMessages(query: String, offset: String): Result<FoundMessagesPage> =
+        override suspend fun searchMessages(query: String, offset: String, filter: MessageSearchFilter): Result<FoundMessagesPage> =
             Result.success(FoundMessagesPage(emptyList(), null))
 
         override suspend fun recentlyFoundChats(): Result<List<ChatSummary>> = Result.success(emptyList())

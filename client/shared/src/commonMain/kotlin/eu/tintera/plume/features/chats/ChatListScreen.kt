@@ -253,6 +253,7 @@ fun ChatListScreen(
                 },
                 onLoadMoreMessages = viewModel.search::loadMoreMessages,
                 onClearRecent = viewModel.search::clearRecent,
+                onFilterChange = viewModel.search::setFilter,
                 request = searchRequest,
                 onRequestHandled = onSearchRequestHandled,
                 trailing = {

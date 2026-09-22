@@ -77,8 +77,7 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   v `CLAUDE.md`, „Hledání chatů"). Zbývá, po krocích:
   1. ~~**Globální hledání a zprávy**~~ — hotovo (sekce Globálně a Zprávy, skok na nalezenou
      zprávu, „Přidat se" u veřejného chatu). Zbývá:
-     - **Filtry hledání zpráv** (jen soukromé / skupiny / kanály, rozsah dat) — `searchMessages`
-       je umí (`chatTypeFilter`, `minDate`, `maxDate`).
+     - ~~**Filtry hledání zpráv**~~ — hotovo (čipy druhu chatu a období nad výsledky).
      - **Jméno odesílatele u nalezené zprávy ve skupině**; dnes je vidět jen chat.
      - ~~**Kanál po „Přidat se" pořád nabízí vstupní pole**~~ — hotovo: kanál bez práva
        publikovat má místo pole Ztlumit (`CLAUDE.md`, „Práva psát").
