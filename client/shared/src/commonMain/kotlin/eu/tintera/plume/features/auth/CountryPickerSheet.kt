@@ -128,11 +128,22 @@ private fun CountryRow(country: Country, isSelected: Boolean, onClick: () -> Uni
             Text(
                 country.callingCode,
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (isSelected) {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
             )
         },
+        // Popředí vybraného řádku se musí předat i ListItem — sám barví text `onSurface`, což
+        // v tmavém tématu se zvýšeným kontrastem (světlý `secondaryContainer`) není vidět.
         colors = ListItemDefaults.colors(
             containerColor = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+            contentColor = if (isSelected) {
+                MaterialTheme.colorScheme.onSecondaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
         ),
         // Klikání nese celý řádek, ne jen text — stejně jako řádky v Nastavení.
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),

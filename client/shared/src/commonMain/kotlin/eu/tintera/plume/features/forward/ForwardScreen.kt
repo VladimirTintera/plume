@@ -10,6 +10,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.LocalTextStyle
 import eu.tintera.plume.core.ui.tabularNumbers
@@ -253,11 +254,33 @@ fun ChatPicker(
                                 leadingContent = {
                                     Avatar(chatId = savedMessagesChatId, title = savedTitle, avatarFileId = null, size = 40.dp, isSavedMessages = true, backdrop = MaterialTheme.colorScheme.primaryContainer)
                                 },
+                                /*
+                                 * Zaškrtávátko na kartě nese popředí KARTY, ne `primary`.
+                                 * V paletě se zvýšeným kontrastem je `primaryContainer`
+                                 * v tmavém režimu světlý jako `primary`, takže by plné
+                                 * políčko s kartou splynulo — tatáž past, kvůli které tu
+                                 * `contentColor` níž přebíjí barvu textu.
+                                 */
                                 trailingContent = selected?.let {
-                                    { Checkbox(checked = savedMessagesChatId in it, onCheckedChange = null) }
+                                    {
+                                        Checkbox(
+                                            checked = savedMessagesChatId in it,
+                                            onCheckedChange = null,
+                                            colors = CheckboxDefaults.colors(
+                                                checkedColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                checkmarkColor = MaterialTheme.colorScheme.primaryContainer,
+                                                uncheckedColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            ),
+                                        )
+                                    }
                                 },
-                                // Barvu nese karta; průhledný řádek ji nepřekryje.
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                                // Barvu nese karta; průhledný řádek ji nepřekryje. Text barví
+                                // ListItem sám (onSurface) a contentColor karty přebije —
+                                // v tmavém tématu by bylo světlé na světlé.
+                                colors = ListItemDefaults.colors(
+                                    containerColor = Color.Transparent,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                ),
                             )
                         }
                     }

@@ -67,6 +67,7 @@ import eu.tintera.plume.resources.visibility_off_24dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.accentOn
 
 /**
  * Vrátí ikonu odpovídající režimu přílohy.
@@ -240,7 +241,7 @@ fun AttachmentModeSheet(
                                 Text(
                                     text = stringResource(Res.string.media_self_destruct_seconds, selectedTimerSeconds),
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = selectedAccent(),
                                 )
                                 Text(
                                     text = stringResource(Res.string.media_self_destruct_seconds, 30),
@@ -258,8 +259,8 @@ fun AttachmentModeSheet(
                                 valueRange = 1f..30f,
                                 steps = 28,
                                 colors = SliderDefaults.colors(
-                                    thumbColor = MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    thumbColor = selectedAccent(),
+                                    activeTrackColor = selectedAccent(),
                                     inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                                 ),
                                 modifier = Modifier.fillMaxWidth(),
@@ -375,9 +376,20 @@ private fun ModeOptionRowContent(
             Icon(
                 painter = painterResource(Res.drawable.check_24dp),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = selectedAccent(),
                 modifier = Modifier.size(24.dp),
             )
         }
     }
 }
+
+/**
+ * Akcent na vybrané volbě, která leží v `primaryContainer`. V paletě se zvýšeným kontrastem
+ * na ní `primary` splyne, pak ustoupí barvě popředí plochy (viz `accentOn`).
+ */
+@Composable
+private fun selectedAccent(): Color = accentOn(
+    background = MaterialTheme.colorScheme.primaryContainer,
+    accent = MaterialTheme.colorScheme.primary,
+    fallback = MaterialTheme.colorScheme.onPrimaryContainer,
+)
