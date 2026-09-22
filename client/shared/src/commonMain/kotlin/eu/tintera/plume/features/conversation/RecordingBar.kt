@@ -24,6 +24,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.audio.VoiceRecording
+import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_discard_recording
@@ -49,7 +50,13 @@ fun RecordingBar(
     modifier: Modifier = Modifier,
 ) {
     val current = recording()
-    val barColor = MaterialTheme.colorScheme.primary
+    // Karta pole je při nahrávání `primaryContainer`; v paletě se zvýšeným kontrastem na ní
+    // `primary` splyne (viz `accentOn`).
+    val barColor = accentOn(
+        background = MaterialTheme.colorScheme.primaryContainer,
+        accent = MaterialTheme.colorScheme.primary,
+        fallback = MaterialTheme.colorScheme.onPrimaryContainer,
+    )
 
     Row(
         modifier.fillMaxWidth().heightIn(min = 56.dp).padding(end = 16.dp),

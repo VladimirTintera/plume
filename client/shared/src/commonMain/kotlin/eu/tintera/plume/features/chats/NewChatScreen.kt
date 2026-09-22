@@ -171,7 +171,12 @@ fun NewChatScreen(
                                         backdrop = MaterialTheme.colorScheme.primaryContainer,
                                     )
                                 },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                                colors = ListItemDefaults.colors(
+                                    containerColor = Color.Transparent,
+                                    // ListItem barví text sám (onSurface) a contentColor karty
+                                    // přebije — v tmavém tématu by bylo světlé na světlé.
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                ),
                             )
                         }
                     }

@@ -848,6 +848,12 @@ se z telefonu nedalo chodit zpět bez `BackHandler`, který v téhle aplikaci za
 - **Řádek nese klikání celý, ovládací prvek má `onClick = null`.** Do přepínače ani kolečka se
   nemá trefovat a čtečka obrazovky má číst jednu položku, ne dvě; semantiku dodá
   `selectable(role = RadioButton)` / `toggleable(role = Switch)`.
+- **`ListItem` na tónované kartě NEDĚDÍ `contentColor` karty.** Text si barví sám
+  (`onSurface`), takže `Surface(contentColor = onPrimaryContainer)` kolem něj nic neudělá —
+  v tmavém tématu vyšel světlý název na světlé kartě Uložených zpráv. Barva popředí se musí
+  předat i do `ListItemDefaults.colors`. Totéž platí pro vybraný řádek v `secondaryContainer`
+  (výběr země) a pro `onSurfaceVariant`: ten je počítaný na surface role, na vybrané položce
+  patří `on*Container` (čas a ikony u vybraného chatu).
 - **Pozor na názvy barev `ListItemDefaults.colors`**: `contentColor` (ne `headlineColor`)
   a `supportingContentColor` (ne `supportingColor`). Hádaný název se pozná až překladem.
 
@@ -4405,6 +4411,8 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   — odkaz nebyl vidět vůbec. Akcent proto při nedostatku kontrastu ustoupí barvě popředí té plochy
   a odlišení nese řez (u odkazu podtržení, `RichText` ho přidá samo, když `linkColor == overlayColor`).
   **Platí i pro `senderColor`** — osm odstínů je laděných na plochu konverzace, ne na bublinu.
+  **A pro `primary` na `primaryContainer`** (vybraná volba režimu přílohy, úrovně v pruhu
+  nahrávání, „Teď ne" na kartě aktualizace): tatáž past o roli vedle.
 - **Rozhoduje se z CÍLOVÝCH barev, ne z právě animovaných.** Barva bubliny se při zvýraznění
   prolíná; kdyby se kontrast počítal z okamžité hodnoty, přepnul by akcent uprostřed přechodu
   skokem. Výsledek se pak prolíná spolu s ní (`bubble-accent` v `MessageFrame`).

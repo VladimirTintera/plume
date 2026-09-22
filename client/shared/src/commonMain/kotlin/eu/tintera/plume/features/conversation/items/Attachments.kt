@@ -46,6 +46,7 @@ import eu.tintera.plume.core.files.opensInViewer
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.AnimatedSticker
 import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.core.ui.photoKey
 import eu.tintera.plume.core.ui.rememberUploadProgress
@@ -747,9 +748,10 @@ internal fun ExpiredMediaRow(
     accent: Color,
     modifier: Modifier = Modifier,
 ) {
+    val background = MaterialTheme.colorScheme.surfaceContainerHigh
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = background,
         modifier = modifier,
     ) {
         Row(
@@ -760,7 +762,13 @@ internal fun ExpiredMediaRow(
             Icon(
                 painter = painterResource(Res.drawable.schedule_24dp),
                 contentDescription = null,
-                tint = accent.takeIf { it != Color.Unspecified } ?: MaterialTheme.colorScheme.primary,
+                // Akcent patří bublině: u odchozí zprávy je to `onPrimary`, který na vlastní
+                // ploše řádku (`surfaceContainerHigh`) zmizí. Proto se ověřuje proti ní.
+                tint = accentOn(
+                    background = background,
+                    accent = accent.takeIf { it != Color.Unspecified } ?: MaterialTheme.colorScheme.primary,
+                    fallback = MaterialTheme.colorScheme.primary,
+                ),
                 modifier = Modifier.size(20.dp),
             )
             Text(

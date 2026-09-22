@@ -92,6 +92,7 @@ import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.chatTitleKey
@@ -1007,6 +1008,13 @@ private fun ChatRow(
     } else {
         MaterialTheme.colorScheme.onSurface
     }
+    // Čas a ikony: `onSurfaceVariant` je počítaný na surface role. Na vybrané položce by v paletě
+    // se zvýšeným kontrastem (světlý `secondaryContainer` v tmavém tématu) nebyl vidět.
+    val secondaryColor = if (selected) {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
     // `Card(onClick = …)` umí jen krátké ťuknutí. Dlouhý stisk potřebuje `combinedClickable`,
     // takže se klikání přesouvá na Surface — Card zůstává jen tvarem a barvou.
@@ -1062,7 +1070,7 @@ private fun ChatRow(
                             painterResource(Res.drawable.push_pin_filled_24dp),
                             contentDescription = stringResource(Res.string.chats_section_pinned),
                             modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = secondaryColor,
                         )
                     }
                     Text(
@@ -1084,7 +1092,7 @@ private fun ChatRow(
                             painterResource(Res.drawable.notifications_off_24dp),
                             contentDescription = stringResource(Res.string.chats_muted),
                             modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = secondaryColor,
                         )
                     }
 
@@ -1103,7 +1111,7 @@ private fun ChatRow(
                             color = if (chat.hasUnread && !selected) {
                                 MaterialTheme.colorScheme.primary
                             } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                                secondaryColor
                             },
                             maxLines = 1,
                         )
@@ -1116,7 +1124,7 @@ private fun ChatRow(
                  * rozdělané, a hledá ho spíš než poslední cizí zprávu. Obojí najednou se do
                  * řádku nevejde.
                  */
-                val draftLabelColor = MaterialTheme.colorScheme.tertiary
+                val draftLabelColor = accentOn(containerColor, MaterialTheme.colorScheme.tertiary, contentColor)
                 val subtitle: AnnotatedString? = chat.activity?.label()?.let { AnnotatedString(stringResource(it)) }
                     ?: chat.draft?.let { draft ->
                         buildAnnotatedString {
@@ -1136,7 +1144,7 @@ private fun ChatRow(
                         // ním by byly na jednom řádku dvě úrovně tučnosti a blok by ztěžkl.
                         color = when {
                             // Činnost se odliší barvou, aby bylo poznat, že to není text zprávy.
-                            chat.activity != null -> MaterialTheme.colorScheme.primary
+                            chat.activity != null -> accentOn(containerColor, MaterialTheme.colorScheme.primary, contentColor)
                             selected -> MaterialTheme.colorScheme.onSecondaryContainer
                             chat.hasUnread -> MaterialTheme.colorScheme.onSurface
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
