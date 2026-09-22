@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.resources.saved_messages
 import eu.tintera.plume.resources.bookmark_24dp
 import eu.tintera.plume.core.ui.isSavedMessages
@@ -8,8 +10,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandHorizontally
@@ -513,32 +513,18 @@ private fun AccountMenu(
                 Icon(painterResource(Res.drawable.person_24dp), contentDescription = null)
             }
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(Res.string.saved_messages)) },
-                leadingIcon = { Icon(painterResource(Res.drawable.bookmark_24dp), contentDescription = null) },
-                onClick = {
-                    open = false
-                    onSavedMessages()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(Res.string.chats_archive)) },
-                leadingIcon = { Icon(painterResource(Res.drawable.archive_24dp), contentDescription = null) },
-                onClick = {
-                    open = false
-                    onArchive()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(Res.string.nav_settings)) },
-                leadingIcon = { Icon(painterResource(Res.drawable.settings_24dp), contentDescription = null) },
-                onClick = {
-                    open = false
-                    onSettings()
-                },
-            )
-        }
+        // Kam se odtud jde: dvě místa v chatech, pak Nastavení — jiný druh cíle, vlastní skupina.
+        ExpressiveMenu(
+            expanded = open,
+            onDismiss = { open = false },
+            groups = listOf(
+                listOf(
+                    MenuAction(stringResource(Res.string.saved_messages), Res.drawable.bookmark_24dp, onClick = onSavedMessages),
+                    MenuAction(stringResource(Res.string.chats_archive), Res.drawable.archive_24dp, onClick = onArchive),
+                ),
+                listOf(MenuAction(stringResource(Res.string.nav_settings), Res.drawable.settings_24dp, onClick = onSettings)),
+            ),
+        )
     }
 }
 

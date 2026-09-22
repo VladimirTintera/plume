@@ -2356,13 +2356,14 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   zvýraznění: vlnky vedené přes 4dp nároží v něm dělaly špičku. Hraje-li, čte se přes
   `derivedStateOf` — pozice se mění dvacetkrát za vteřinu a položka se má překreslit jen při
   spuštění a zastavení.
-- **Nabídka příloh není `DropdownMenu`** (`AttachButton`). M3 menu drží od okraje okna povinný
-  odstup 48 dp (`MenuVerticalMargin`, zahrnuto i do volby „spodkem ke kotvě"), a tlačítko
-  u spodku obrazovky v tom pásu leží — menu se proto posadilo k oknu, zhruba 45 dp nad tlačítko.
-  `offset` nepomůže, přičítá se ke kandidátům PŘED kontrolou. Vlastní `Popup` s pozicí nad
-  kotvou; vzhled z `MenuDefaults`, položky standardní `DropdownMenuItem`. **Totéž čeká každé
-  `DropdownMenu` u spodku obrazovky.** Poznalo se to změřením (`uiautomator dump`): spodek menu
-  byl přesně `výška okna − 48 dp`, ne horní hrana kotvy.
+- **Nabídka příloh má vlastní umístění** (`AttachButton`, `AboveAnchorStartPositionProvider`).
+  Výchozí umístění M3 menu drží od okraje okna povinný odstup 48 dp (`MenuVerticalMargin`,
+  zahrnuto i do volby „spodkem ke kotvě"), a tlačítko u spodku obrazovky v tom pásu leží — menu
+  se proto posadilo k oknu, zhruba 45 dp nad tlačítko. `offset` nepomůže, přičítá se ke
+  kandidátům PŘED kontrolou. Expressive `DropdownMenuPopup` bere vlastní
+  `DropdownMenuPopupPositionProvider` (s `transformOrigin` v rohu u tlačítka), takže vzhled je
+  tentýž jako u ostatních nabídek. **Totéž čeká každou nabídku u spodku obrazovky.** Poznalo se
+  to změřením (`uiautomator dump`): spodek menu byl přesně `výška okna − 48 dp`.
 - **Citace a psaní jsou JEDNA karta.** Dva samostatné kusy nad sebou dělaly z odpovědi cizí prvek
   vsunutý mezi konverzaci a vstup; ve společné kartě je vidět, že citace patří k tomu, co se
   právě píše. Citace (i hlavička úpravy) je **horní pruh karty v `tertiaryContainer`**
@@ -4372,6 +4373,12 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   výměnu obrazovky. Scope se bere z `LocalSharedTransitionScope`.
 - **Ikony = Material Symbols** jako vector drawables v `composeResources`, s vyplněnou i nevyplněnou
   variantou (vybraná položka — filtr v toolbaru — má vyplněnou).
+
+- **Nabídky jsou Expressive** (`ExpressiveMenu` v `core/ui`: `DropdownMenuPopup`
+  + `DropdownMenuGroup`), ne holé `DropdownMenu`. Položky jsou ve skupinách se společným
+  zaoblením krajních položek; **nevratná akce má skupinu vlastní a chybovou barvu**
+  (`MenuAction.destructive`), co k sobě patří, je v jedné. Nabídka s výběrem (období v hledání)
+  bere položky s `checked` — vybraná je zaškrtnutá.
 
 ### Typografie
 
