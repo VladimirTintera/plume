@@ -13,6 +13,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -29,6 +30,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -93,6 +95,10 @@ import eu.tintera.plume.features.conversation.REACTION_ROW_HEIGHT
 import eu.tintera.plume.features.conversation.REACTION_SHADOW_ROOM
 import eu.tintera.plume.features.conversation.ReactionRow
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.check_circle_filled_24dp
+import eu.tintera.plume.resources.conversation_selection_deselect
+import eu.tintera.plume.resources.conversation_selection_select
+import eu.tintera.plume.resources.radio_button_unchecked_24dp
 import eu.tintera.plume.resources.conversation_edited
 import eu.tintera.plume.resources.reply_24dp
 import kotlin.math.roundToInt
@@ -135,6 +141,8 @@ internal data class MessageFrameData(
     val menuActions: List<MessageMenuAction>,
     /** Co udělá ťuknutí na zprávu samotnou (ne na odkaz, fotku…); `null` = nic. */
     val onTap: MessageAction?,
+    /** Je blok vybraný? `null` = režim výběru neběží a rám ho vůbec nekreslí. */
+    val selected: Boolean? = null,
 ) {
     /**
      * Zpráva je zvýrazněná: jednorázově po skoku ([highlighted]), nebo trvale jako ukázaný
@@ -460,6 +468,25 @@ private fun MessageFrame(
         label = "sending-alpha",
     )
 
+    /*
+     * Vybraná zpráva má za sebou pruh PŘES CELOU ŠÍŘKU, ne obarvenou bublinu: odchozí bublina je
+     * sytá `primary` a barvu by nenesla, a u zprávy bez bubliny (fotka, samolepka) by nebylo co
+     * obarvit. `secondaryContainer` je tatáž role, jakou má vybraná položka v seznamu chatů —
+     * výběr je v M3 selekční stav, ne zvýraznění obsahu. Průsvitný, aby text zůstal čitelný.
+     *
+     * Pruh zahrnuje i mezeru nad zprávou, takže z vybraných sousedů vznikne souvislý blok.
+     */
+    val selectionTint by animateColorAsState(
+        targetValue = if (frame.selected == true) {
+            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = SELECTION_TINT_ALPHA)
+        } else {
+            Color.Transparent
+        },
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+        label = "selection-tint",
+    )
+
+    Box(Modifier.fillMaxWidth().background(selectionTint)) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -481,7 +508,11 @@ private fun MessageFrame(
              *
              * Táhne se **doprava u obou stran konverzace**. Zrcadlit směr podle odesílatele by
              * znamenalo, že uživatel musí před každým gestem přemýšlet, čí zpráva to je.
+             *
+             * V režimu výběru gesto NENÍ: překryv nad zprávou bere ťuknutí, ale tah by mu
+             * propadl a založil odpověď uprostřed vybírání.
              */
+            .then(if (frame.selected != null) Modifier else Modifier
             .pointerInput(Unit) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
@@ -522,12 +553,14 @@ private fun MessageFrame(
                         drag.animateTo(0f, returnSpec)
                     }
                 }
-            },
+            }),
         horizontalArrangement = if (message.isOutgoing) Arrangement.End else Arrangement.Start,
         // Tvář sedí u spodní hrany bubliny — u dlouhé zprávy by uprostřed nebylo poznat, ke které
         // části bloku patří.
         verticalAlignment = Alignment.Bottom,
     ) {
+        if (frame.selected != null && message.isOutgoing) SelectionMark(frame.selected)
+
         // Mimo posouvaný `Box`: při tažení na odpověď jede bublina, tvář zůstává na místě.
         when (frame.avatar) {
             SenderAvatar.None -> Unit
@@ -643,7 +676,57 @@ private fun MessageFrame(
                 modifier = Modifier.align(Alignment.End),
             )
         }
+
+        /*
+         * Zaškrtnutí stojí na VOLNÉ straně zprávy — u odchozí vlevo, u příchozí vpravo. Volný
+         * pruh tam je vždycky (zpráva zabere nejvýš [MESSAGE_MAX_WIDTH_FRACTION] řádku), takže
+         * se kvůli němu nic neposouvá a oko ho najde tam, kde se stejně dívá.
+         */
+        if (frame.selected != null && !message.isOutgoing) SelectionMark(frame.selected)
     }
+
+        /*
+         * V režimu výběru bere ťuknutí i dlouhý stisk CELÝ řádek, přes překryv nad obsahem.
+         * Bez něj by fotka otevřela prohlížeč, odkaz prohlížeč a citace skok — potomci
+         * s vlastním klikáním si ťuknutí berou sami a k rámu ho nepustí.
+         */
+        if (frame.selected != null) {
+            val label = stringResource(if (frame.selected) Res.string.conversation_selection_deselect else Res.string.conversation_selection_select)
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .combinedClickable(
+                        onClickLabel = label,
+                        onLongClickLabel = label,
+                        onLongClick = { scope.onAction(currentMessageId, MessageAction.ToggleSelection) },
+                        onClick = { scope.onAction(currentMessageId, MessageAction.ToggleSelection) },
+                    ),
+            )
+        }
+    }
+}
+
+/**
+ * Kolečko výběru vedle zprávy. Vybrané je plné v akcentní barvě, nevybrané prázdné — samotné
+ * podbarvení řádku by u jediné vybrané zprávy nedalo poznat, že jdou vybírat i další.
+ */
+@Composable
+private fun RowScope.SelectionMark(selected: Boolean) {
+    Icon(
+        painter = painterResource(
+            if (selected) Res.drawable.check_circle_filled_24dp else Res.drawable.radio_button_unchecked_24dp,
+        ),
+        contentDescription = null,
+        tint = if (selected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        modifier = Modifier
+            .align(Alignment.CenterVertically)
+            .padding(horizontal = SELECTION_MARK_PADDING)
+            .size(SELECTION_MARK_SIZE),
+    )
 }
 
 /**
@@ -1082,3 +1165,12 @@ private const val HIGHLIGHT_SCALE = 1.06f
 
 /** Průhlednost odesílané zprávy, než ji server potvrdí. */
 private const val SENDING_ALPHA = 0.65f
+
+/** Jak silný je pruh za vybranou zprávou. Průsvitný, aby text i bubliny zůstaly čitelné. */
+private const val SELECTION_TINT_ALPHA = 0.55f
+
+/** Kolečko výběru je menší než ikona v liště — je to značka vedle zprávy, ne tlačítko. */
+private val SELECTION_MARK_SIZE = 20.dp
+
+/** Odstup kolečka od zprávy i od kraje. */
+private val SELECTION_MARK_PADDING = 6.dp

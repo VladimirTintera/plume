@@ -2680,6 +2680,60 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   už zpracovává; předběhnout server by znamenalo riskovat, že zpráva zmizí z obrazovky a na
   serveru zůstane.
 
+### Výběr víc zpráv
+
+Položka „Vybrat" v nabídce nad zprávou přepne konverzaci do režimu výběru: hlavička ukazuje ✕
+a počet, místo vstupního pole je plovoucí toolbar s akcemi (kopírovat, přeposlat, smazat) a každá
+zpráva má na volné straně kolečko. Stav je `ConversationState.selection` (`MessageSelection`,
+čistá data a odvozená práva, testy `MessageSelectionTest`); `null` = režim neběží.
+
+- **Vybírají se BLOKY seznamu, ne zprávy** (`MessageSelection.keys` jsou klíče položek). Album je
+  v konverzaci jedna věc a přeposlat nebo smazat půlku alba nedává smysl; na id zpráv se klíče
+  rozbalí až při akci (`selectedMessageIds`), stejně jako u nabídky nad jednou zprávou.
+- **Klíč bloku je klíč jeho NEJSTARŠÍ zprávy** (`blockKeyOf`), takže ťuknutí na kteroukoli fotku
+  alba vybere celé album. Ťuknutá fotka sama klíč bloku nenese.
+- **Vstupem je položka nabídky, ne rovnou dlouhý stisk.** Dlouhý stisk už patří nabídce a ta je
+  ta častější; zároveň by z něj nešlo poznat, že se vybírá. „Vybrat" se přitom nabízí VŽDY,
+  jako „Informace" — na právu od serveru nestojí a co výběr dovolí, se ukáže až na jeho liště.
+- **Práva se načítají pro každý vybraný blok zvlášť** (`getMessageProperties` při přidání do
+  výběru) a skládají se přes `all`, ne `any`: akce platí pro CELÝ výběr, takže přeposlat půlku
+  vybraného a o druhé mlčet by znamenalo, že uživatel neví, co odešlo. Dokud nedorazí všechna,
+  jsou akce zašedlé.
+- **Tlačítka v toolbaru NEMIZÍ, jen zšednou.** Práva chodí po jednom, takže by se toolbar při
+  každém ťuknutí přeskládal pod prstem — a zmizelá akce neřekne, že ji zrovna tenhle výběr
+  nedovoluje. Výjimka z pravidla „co server nedovolí, se nenabízí": tam jde o nabídku, která se
+  otevře hotová, tady o lištu, která žije s měnícím se výběrem.
+- **Ťuknutí bere PŘEKRYV nad celým řádkem**, ne `onTap` bubliny. Potomci s vlastním klikáním
+  (fotka, GIF, odkaz, citace, náhled odkazu, samolepka) si ťuknutí berou sami a k rámu ho
+  nepustí — bez překryvu by ťuknutí na fotku v režimu výběru otevřelo prohlížeč. Překryv bere
+  i dlouhý stisk (taky přepíná výběr) a **tah na odpověď se v režimu výběru vypíná úplně**:
+  překryvu by propadl a založil odpověď uprostřed vybírání.
+- **Vybraná zpráva má pruh přes celou šířku, ne obarvenou bublinu.** Odchozí bublina je sytá
+  `primary` a barvu by nenesla, a zpráva bez bubliny (fotka, samolepka) nemá co obarvit.
+  `secondaryContainer` je tatáž role jako vybraná položka v seznamu chatů — výběr je v M3
+  selekční stav, ne zvýraznění obsahu. Průsvitný (`SELECTION_TINT_ALPHA`), aby text zůstal
+  čitelný, a zahrnuje i mezeru nad zprávou, takže z vybraných sousedů vznikne souvislý blok.
+- **Kolečko stojí na VOLNÉ straně zprávy** — u odchozí vlevo, u příchozí vpravo. Volný pruh tam
+  je vždycky (zpráva zabere nejvýš `MESSAGE_MAX_WIDTH_FRACTION` řádku), takže se kvůli němu nic
+  neposouvá; Telegram místo toho obsah odsouvá a kolečko vsouvá zleva. Samotné podbarvení
+  nestačí: u jediné vybrané zprávy by z něj nebylo poznat, že jdou vybírat i další.
+- **`state.selection` MUSÍ být v klíčích `remember` nad builderem bloků**, jinak se seznam
+  nepřestaví a zaškrtnutí se neobjeví. Chytlo se to až na zařízení: první zpráva se označila
+  (vstup do výběru zároveň zavřel nabídku, a `messageMenu` v klíčích je), další už ne. V klíčích
+  jsou jen KLÍČE výběru — práva k němu chodí po jednom a seznam bloků se jimi nemění.
+- **Odebrání poslední vybrané režim ukončí.** Zůstat v něm s nulou vybraných je stav, ve kterém
+  nejde nic dělat a není jasné proč.
+- **Zpět ukončí výběr**, teprve další odejde z chatu — `NavigationBackHandler`, jako u hledání.
+- **Strop je sto zpráv** (`MAX_SELECTED_MESSAGES`). `deleteMessages` i `forwardMessages` berou
+  v TDLib nejvýš sto naráz, takže vyšší výběr by skončil chybou až u akce.
+- **Kopíruje se chronologicky, s prázdným řádkem mezi zprávami.** Zprávy bez textu se vynechají;
+  popisek alba nemusí být na ťuknuté fotce, takže se text hledá v celém bloku.
+- **Tělo potvrzení mazání má vlastní věty pro víc zpráv** (`delete_messages_*`), ne plurál nad
+  jednou větou: čeština i angličtina v nich mění víc než jedno slovo. Titulek plurál má
+  (`conversation_delete_selected_title`), protože nese počet.
+- **`PendingDelete.count` NENÍ `messageIds.size`.** Album je v bublině jedna věc, i když je to
+  pět zpráv — titulek „Smazat 5 zpráv?" nad jedním albem by lhal.
+
 ### Informace o zprávě
 
 Položka „Informace" v nabídce nad zprávou otevře bottom sheet: kdy zpráva odešla, kdy byla

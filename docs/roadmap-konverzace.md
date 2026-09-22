@@ -190,7 +190,8 @@ takže zbytek přibude s tím, co bude umět:
 - ~~**Přeposlat**~~ — hotovo (výběr cílového chatu `ForwardRoute`, viz bod 3 nahoře).
 - **Upravit popisek média** (`editMessageCaption`) a **zprávu s ručním formátováním** —
   vstupní pole umí jen holý text, takže úprava se u nich zatím nenabízí.
-- **Vybrat víc zpráv** — hromadné mazání a přeposílání, znamená režim výběru v celé konverzaci.
+- ~~**Vybrat víc zpráv**~~ — hotovo: „Vybrat" v nabídce přepne konverzaci do režimu výběru,
+  vybrané jde zkopírovat, přeposlat i smazat naráz (`CLAUDE.md`, „Výběr víc zpráv").
 - ~~**Informace / odkaz na zprávu**~~ — hotovo: sheet s časem odeslání a úpravy, časem přečtení,
   seznamem zhlédnutí a odkazem ke zkopírování. Poučení v `CLAUDE.md`, „Informace o zprávě".
   Zbývá jen `getMessageStatistics` u příspěvků v kanálech — jiná data a vlastní obrazovka.

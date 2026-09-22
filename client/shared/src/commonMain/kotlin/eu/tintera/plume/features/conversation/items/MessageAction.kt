@@ -23,10 +23,12 @@ import eu.tintera.plume.resources.menu_forward
 import eu.tintera.plume.resources.menu_info
 import eu.tintera.plume.resources.menu_pin
 import eu.tintera.plume.resources.menu_reply
+import eu.tintera.plume.resources.menu_select
 import eu.tintera.plume.resources.menu_select_text
 import eu.tintera.plume.resources.menu_unpin
 import eu.tintera.plume.resources.push_pin_24dp
 import eu.tintera.plume.resources.reply_24dp
+import eu.tintera.plume.resources.select_check_box_24dp
 import eu.tintera.plume.resources.star_24dp
 import eu.tintera.plume.resources.text_select_24dp
 import eu.tintera.plume.resources.star_filled_24dp
@@ -59,6 +61,9 @@ sealed interface MessageAction {
 
     /** Ťuknutí na vlastní zprávu: vyžádá si odznak přečtení, druhé ho schová. */
     data object ToggleReadReceipt : MessageAction
+
+    /** Ťuknutí (i dlouhý stisk) v režimu výběru: přidá blok do výběru, nebo ho z něj vyndá. */
+    data object ToggleSelection : MessageAction
 
     /** Tah doprava: odpověď. Totéž jako položka nabídky [MessageMenuAction.Reply]. */
     data object SwipeReply : MessageAction
@@ -190,6 +195,15 @@ sealed interface MessageMenuAction : MessageAction {
     data object SaveFileAs : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
             MenuPresentation(Res.drawable.description_24dp, Res.string.media_save_as).takeIf { menu.actions.canSave }
+    }
+
+    /**
+     * Vstup do režimu výběru víc zpráv. Nabízí se VŽDY, jako [Info]: vybrat jde každá zpráva
+     * a co se s výběrem dá dělat, ukáže až lišta výběru podle práv všech vybraných.
+     */
+    data object Select : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.select_check_box_24dp, Res.string.menu_select)
     }
 
     /** Pro sebe, nebo pro všechny — rozhodne se až v potvrzovacím dialogu. */
