@@ -831,6 +831,9 @@ private fun ProfileInfo(
                         entities = profile.aboutEntities,
                         style = MaterialTheme.typography.bodyLarge,
                         onLinkClick = onLinkClick,
+                        // Bio i popis skupiny můžou nést citaci; řádek stojí na
+                        // `surfaceContainerLowest`, takže blok musí být o stupeň výš.
+                        quoteBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
                     )
                 }
             }

@@ -125,6 +125,13 @@ class MessageActionTest {
     }
 
     @Test
+    fun citaceVTextuUpravuVylucuje() {
+        // Pole umí jen holý text, takže by úprava citaci smazala.
+        val quote = MessageEntity(offset = 0, length = 4, type = MessageEntityType.Quote(expandable = false))
+        assertFalse(MessageMenuAction.Edit in menuActions(message(entities = listOf(quote)), isPinned = false))
+    }
+
+    @Test
     fun samolepkaPopisekNema() {
         // Samolepka ani animované emoji popisek nést nemůžou; „Upravit" by slibovalo chybu.
         assertFalse(MessageMenuAction.Edit in menuActions(message(text = "", media = sticker), isPinned = false))

@@ -1043,6 +1043,9 @@ internal fun MessageBodyScope.MessageText(
         highlights = highlights,
         highlightColor = bubbleColor,
         highlightBackground = onBubbleColor,
+        // Citace v textu je cizí vložený obsah — tatáž plocha jako citace nad odpovědí a popis
+        // webu u náhledu odkazu.
+        quoteBackground = insetColor,
         text = message.text,
         entities = message.entities,
         style = style,
