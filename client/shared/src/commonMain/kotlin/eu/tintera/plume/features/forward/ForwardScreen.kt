@@ -202,7 +202,7 @@ fun ChatPicker(
                             ListItem(
                                 headlineContent = { Text(savedTitle, style = MaterialTheme.typography.titleMedium) },
                                 leadingContent = {
-                                    Avatar(chatId = savedMessagesChatId, title = savedTitle, avatarFileId = null, size = 40.dp, isSavedMessages = true)
+                                    Avatar(chatId = savedMessagesChatId, title = savedTitle, avatarFileId = null, size = 40.dp, isSavedMessages = true, backdrop = MaterialTheme.colorScheme.primaryContainer)
                                 },
                                 // Barvu nese karta; průhledný řádek ji nepřekryje.
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),

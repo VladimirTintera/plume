@@ -1289,6 +1289,9 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
   názvu.
 - **Chat se zakládá hned po přihlášení** (`createPrivateChat`, lokální). U účtu, který si nic
   neuložil, ho TDLib v databázi nemá a nešlo by ho otevřít ani do něj přeposlat.
+- **Záložka v avataru je `primary`, na kartě ve výběru proto dostává `backdrop`.** V paletě
+  se zvýšeným kontrastem je `primaryContainer` světlý jako `primary` a kolečko s kartou
+  splynulo; `Avatar` pak přes `accentOn` sáhne po barvě popředí té plochy.
 - **V hlavičce není „online"** — vlastní dostupnost v Uložených zprávách nic neříká.
 - **Zkratka konverzace a notifikace** (připomínka v Uložených zprávách) mají název
   „Uložené zprávy" a záložku (`bookmarkIcon`), ne jméno a fotku účtu.
