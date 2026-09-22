@@ -68,9 +68,11 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
     stránek; `CLAUDE.md`, „Sdílená média v profilu"). Zbývá: filtry hledání uvnitř záložky
     a velký náhled u souborů.
   - ~~**Akce navíc**~~ — hotovo: kopírovat odkaz (i pozvánku pro správce), zablokovat, smazat
-    chat / opustit skupinu či kanál (⋮ v liště). Zbývá: **upravit skupinu** (název, popis,
-    fotka, práva — správce), **sdílet kontakt** jako zprávu do jiného chatu a správa
-    pozvánek (nová, s limitem, zrušení).
+    chat / opustit skupinu či kanál (⋮ v liště) a ~~**upravit skupinu**~~ (název, popis, fotka,
+    práva členů; `CLAUDE.md`, „Úprava skupiny"). Zbývá: **sdílet kontakt** jako zprávu do jiného
+    chatu, správa pozvánek (nová, s limitem, zrušení) a **správa jednotlivých členů** (povýšit
+    na správce, omezit, vyhodit) — dnes jde měnit jen to, co smí členové jako celek.
+    Uložení úpravy skupiny taky **není ověřené na zařízení**: mění skutečnou skupinu.
   - **Seznam členů velké skupiny** se stránkováním a hledáním; dnes prvních 200.
 - **Hledání.** ~~Chaty ve všech složkách (lokálně i na serveru), historie hledání a nejčastější
   lidé, totéž ve výběru pro přeposílání a sdílení~~ — hotovo (`ChatSearch`, poučení

@@ -86,6 +86,69 @@ class WriteAccessTest {
     }
 
     @Test
+    fun soukromyChatSeNeupravuje() {
+        // Nemá co upravovat — jméno je uživatelovo, ne naše.
+        assertEquals(ChatEditRights(), chatEditRights(isChannel = false, status = null, membersCanChangeInfo = true))
+    }
+
+    @Test
+    fun vlastnikSmiVsechno() {
+        assertEquals(
+            ChatEditRights(canChangeInfo = true, canRestrictMembers = true),
+            chatEditRights(false, OwnMemberStatus.Creator(isMember = true), membersCanChangeInfo = false),
+        )
+        // V kanálu není co omezovat: výchozí práva členů nemá.
+        assertEquals(
+            ChatEditRights(canChangeInfo = true, canRestrictMembers = false),
+            chatEditRights(true, OwnMemberStatus.Creator(isMember = true), membersCanChangeInfo = false),
+        )
+        // Vlastník, který ve skupině není, ji upravovat nemůže.
+        assertEquals(ChatEditRights(), chatEditRights(false, OwnMemberStatus.Creator(isMember = false), true))
+    }
+
+    @Test
+    fun spravceSmiJenToCoMaVPravech() {
+        val jenInfo = OwnMemberStatus.Admin(canPostMessages = true, canChangeInfo = true, canRestrictMembers = false)
+        assertEquals(ChatEditRights(canChangeInfo = true), chatEditRights(false, jenInfo, false))
+
+        val jenPrava = OwnMemberStatus.Admin(canPostMessages = true, canChangeInfo = false, canRestrictMembers = true)
+        assertEquals(ChatEditRights(canRestrictMembers = true), chatEditRights(false, jenPrava, false))
+
+        // Správce bez obojího nabídku úpravy vůbec nedostane.
+        assertEquals(ChatEditRights(), chatEditRights(false, OwnMemberStatus.Admin(canPostMessages = true), false))
+    }
+
+    @Test
+    fun clenMeniInformaceJenKdyzToSkupinaDovoli() {
+        assertEquals(ChatEditRights(canChangeInfo = true), chatEditRights(false, OwnMemberStatus.Member, membersCanChangeInfo = true))
+        assertEquals(ChatEditRights(), chatEditRights(false, OwnMemberStatus.Member, membersCanChangeInfo = false))
+        // Práva členů nesmí měnit nikdy — `setChatPermissions` chce právo omezovat.
+        assertEquals(false, chatEditRights(false, OwnMemberStatus.Member, true).canRestrictMembers)
+        // V kanálu člen neupravuje nic, ani když výchozí práva tvrdí opak.
+        assertEquals(ChatEditRights(), chatEditRights(true, OwnMemberStatus.Member, membersCanChangeInfo = true))
+    }
+
+    @Test
+    fun omezenyClenSeRidiSvymiPravy() {
+        val smi = OwnMemberStatus.Restricted(true, canSendMessages = false, content = ContentAccess.All, canChangeInfo = true)
+        // Vlastní práva přebíjejí výchozí — stejně jako u psaní.
+        assertEquals(ChatEditRights(canChangeInfo = true), chatEditRights(false, smi, membersCanChangeInfo = false))
+
+        val nesmi = OwnMemberStatus.Restricted(true, canSendMessages = true, content = ContentAccess.All, canChangeInfo = false)
+        assertEquals(ChatEditRights(), chatEditRights(false, nesmi, membersCanChangeInfo = true))
+
+        // Kdo ve skupině není, neupravuje.
+        val pryc = OwnMemberStatus.Restricted(false, canSendMessages = true, content = ContentAccess.All, canChangeInfo = true)
+        assertEquals(ChatEditRights(), chatEditRights(false, pryc, true))
+    }
+
+    @Test
+    fun kdoVChatuNeniNeupravuje() {
+        assertEquals(ChatEditRights(), chatEditRights(false, OwnMemberStatus.Left, membersCanChangeInfo = true))
+        assertEquals(ChatEditRights(), chatEditRights(false, OwnMemberStatus.Banned, membersCanChangeInfo = true))
+    }
+
+    @Test
     fun sponkaSeNekresliBezJedinehoDruhuPrilohy() {
         assertEquals(false, jenText.anyAttachment)
         // Hlasovky a samolepky sponku neoživí — ty se posílají jinudy.

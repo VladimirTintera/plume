@@ -17,16 +17,23 @@ enum class WriteAccess {
     NotMember,
 }
 
-/** Postavení uživatele ve skupině nebo kanálu, zúžené na to, co rozhoduje o psaní. */
+/** Postavení uživatele ve skupině nebo kanálu, zúžené na to, co z něj aplikace potřebuje. */
 internal sealed interface OwnMemberStatus {
     data class Creator(val isMember: Boolean) : OwnMemberStatus
-    data class Admin(val canPostMessages: Boolean) : OwnMemberStatus
+    data class Admin(
+        val canPostMessages: Boolean,
+        /** Právo měnit název, popis a fotku chatu. */
+        val canChangeInfo: Boolean = false,
+        /** Právo měnit výchozí práva členů (`setChatPermissions` ho vyžaduje). */
+        val canRestrictMembers: Boolean = false,
+    ) : OwnMemberStatus
     data object Member : OwnMemberStatus
     data class Restricted(
         val isMember: Boolean,
         val canSendMessages: Boolean,
         /** Vlastní práva omezeného člena na jednotlivé druhy obsahu. */
         val content: ContentAccess,
+        val canChangeInfo: Boolean = false,
     ) : OwnMemberStatus
     data object Left : OwnMemberStatus
     data object Banned : OwnMemberStatus
@@ -114,3 +121,48 @@ internal fun contentAccess(status: OwnMemberStatus?, groupDefaults: ContentAcces
         is OwnMemberStatus.Restricted -> status.content
         OwnMemberStatus.Left, OwnMemberStatus.Banned -> ContentAccess.All
     }
+
+/**
+ * Co smí uživatel v chatu upravovat. Prázdné = obrazovka úpravy se vůbec nenabízí.
+ *
+ * Dvě různá práva, ne jedno: název, popis a fotka stojí na `canChangeInfo`, výchozí práva členů
+ * na `canRestrictMembers` (to vyžaduje `setChatPermissions`). Správce může mít jen jedno z nich.
+ */
+data class ChatEditRights(
+    val canChangeInfo: Boolean = false,
+    val canRestrictMembers: Boolean = false,
+) {
+    val any: Boolean get() = canChangeInfo || canRestrictMembers
+}
+
+/**
+ * Pravidlo, kdo smí chat upravovat. Čistá funkce kvůli testům (`WriteAccessTest`) — stejně jako
+ * [writeAccess], protože kombinací postavení a výchozích práv je dost a každá se na zařízení
+ * ověřuje jiným účtem.
+ *
+ * - Vlastník smí všechno.
+ * - Správce jen to, co má v právech.
+ * - Běžný člen může měnit informace, když to dovolují výchozí práva skupiny; práva členů nikdy.
+ * - Omezený člen se řídí svými vlastními právy — ta výchozí přebíjejí, stejně jako u psaní.
+ * - V kanálu i u toho, kdo v chatu není, se neupravuje nic. Soukromý chat ([status] `null`)
+ *   taky ne: nemá co upravovat.
+ */
+internal fun chatEditRights(
+    isChannel: Boolean,
+    status: OwnMemberStatus?,
+    membersCanChangeInfo: Boolean,
+): ChatEditRights = when (status) {
+    null -> ChatEditRights()
+    is OwnMemberStatus.Creator ->
+        if (status.isMember) ChatEditRights(canChangeInfo = true, canRestrictMembers = !isChannel) else ChatEditRights()
+    is OwnMemberStatus.Admin -> ChatEditRights(
+        canChangeInfo = status.canChangeInfo,
+        // Kanál výchozí práva členů nemá — nikdo do něj nepíše, takže není co omezovat.
+        canRestrictMembers = status.canRestrictMembers && !isChannel,
+    )
+    OwnMemberStatus.Member ->
+        ChatEditRights(canChangeInfo = !isChannel && membersCanChangeInfo)
+    is OwnMemberStatus.Restricted ->
+        if (status.isMember && !isChannel) ChatEditRights(canChangeInfo = status.canChangeInfo) else ChatEditRights()
+    OwnMemberStatus.Left, OwnMemberStatus.Banned -> ChatEditRights()
+}

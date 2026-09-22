@@ -4,6 +4,7 @@ import eu.tintera.plume.features.settings.EditProfileViewModel
 import eu.tintera.plume.core.telegram.TdlAccountRepository
 import eu.tintera.plume.core.telegram.AccountRepository
 import eu.tintera.plume.features.profile.ChatProfileViewModel
+import eu.tintera.plume.features.profile.EditChatViewModel
 import eu.tintera.plume.core.telegram.TdlProfileRepository
 import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.DeviceRepository
@@ -232,6 +233,14 @@ fun appModule() = module {
             notificationSettings = get(),
             notificationPermission = get(),
             clipboard = get(),
+        )
+    }
+
+    viewModel { parameters ->
+        EditChatViewModel(
+            chatId = parameters.get(),
+            repository = get(),
+            squarePhoto = get(),
         )
     }
 
