@@ -2896,8 +2896,11 @@ otevře kanál se skokem na původní zprávu (`ChatTarget(chatId, messageId)`),
   volně nad holou fotkou (první verze) vypadala jako popisek něčeho jiného. V bublině je prvním
   řádkem, u holého snímku horní díl karty v barvě bubliny (`ForwardHeader`, protějšek popisku
   pod snímkem — `MediaWithCaption` má proto hlavičku, snímek a popisek se stejnou šířkou),
-  u karty odkazu v horním dílu s textem a u samolepky a velkých emoji štítek v barvě bubliny
-  (`ForwardChip`) — bublinu kolem samolepky nekreslíme, holý text by od ní odplul.
+  a u karty odkazu v horním dílu s textem.
+- **Přeposlaná samolepka a pár emoji si bublinu vynutí** (`needsCard` v `messageItem()`, testy
+  `ConversationItemsTest`), stejně jako odpověď. Pravidlo je obecné: **holý obsah jde na plochu
+  jen sám; jakmile nese údaj navíc (popisek, citace, přeposlání), je z něj karta.** Samostatný
+  štítek nad samolepkou (zkoušeno) byl třetí, vymyšlený tvar vedle bubliny a karty.
 - **Značka je u KAŽDÉ zprávy bloku**, ne jen u první jako jméno odesílatele. Přeposlané zprávy
   téhož člověka bývají každá odjinud.
 - **Jméno zdroje jde z keše odesílatelů** (`resolveSender`, bere uživatele i chat). V kanálu,

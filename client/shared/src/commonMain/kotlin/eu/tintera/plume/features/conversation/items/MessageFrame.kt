@@ -1018,26 +1018,6 @@ internal fun MessageBodyScope.ForwardHeader() {
     }
 }
 
-/**
- * Značka přeposlání u samolepky a velkých emoji: štítek v barvě bubliny těsně nad nimi.
- * Bublinu kolem celé samolepky nekreslíme (viz „Emoji a samolepky"), ale holý text nad ní by
- * od zprávy odplul — štítek ji drží pohromadě s obsahem.
- */
-@Composable
-internal fun MessageBodyScope.ForwardChip() {
-    if (message.forwardOrigin == null) return
-    Surface(
-        color = bubbleColor,
-        contentColor = onBubbleColor,
-        shape = RoundedCornerShape(FORWARD_CHIP_CORNER),
-        modifier = Modifier.padding(bottom = 4.dp),
-    ) {
-        ForwardLabel(Modifier.padding(horizontal = 10.dp, vertical = 2.dp))
-    }
-}
-
-private val FORWARD_CHIP_CORNER = 12.dp
-
 /** Značka přeposlání je doplněk, ne obsah — ustoupí textu zprávy. */
 private const val FORWARD_LABEL_ALPHA = 0.78f
 
