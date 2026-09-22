@@ -56,8 +56,9 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxDefaults
+import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -903,7 +904,14 @@ private fun SwipeToArchive(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    val state = rememberSwipeToDismissBoxState()
+    /*
+     * Stav se drží `remember`em, NE `rememberSwipeToDismissBoxState` (ten je `rememberSaveable`).
+     * `LazyColumn` si stav položky pamatuje podle jejího klíče i poté, co položka ze seznamu
+     * zmizí — a chat odsunutý tahem ze seznamu právě mizí. Po „Vrátit" by se tedy vrátil rovnou
+     * odsunutý, tedy neviditelný.
+     */
+    val threshold = SwipeToDismissBoxDefaults.positionalThreshold
+    val state = remember { SwipeToDismissBoxState(SwipeToDismissBoxValue.Settled, threshold) }
     /*
      * `SwipeToDismissBox` hlásí dokončený tah z `LaunchedEffect`, jehož klíčem je i lambda
      * `onDismiss` — ta se při rekompozici položky může změnit a efekt by se rozběhl znovu.
@@ -937,14 +945,7 @@ private fun SwipeToArchive(
             ) {
                 // Bez tahu není co ukazovat; jinak by ikona prosvítala spárou mezi položkami.
                 if (direction != SwipeToDismissBoxValue.Settled) {
-                    val label = stringResource(
-                        if (archived) Res.string.chats_action_unarchive else Res.string.chats_action_archive,
-                    )
-                    Row(
-                        Modifier.padding(horizontal = 24.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
+                    val icon = @Composable {
                         Icon(
                             painterResource(
                                 if (archived) Res.drawable.unarchive_24dp else Res.drawable.archive_24dp,
@@ -952,11 +953,31 @@ private fun SwipeToArchive(
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
+                    }
+                    val label = @Composable {
                         Text(
-                            text = label,
+                            text = stringResource(
+                                if (archived) Res.string.chats_action_unarchive else Res.string.chats_action_archive,
+                            ),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
+                    }
+                    Row(
+                        Modifier.padding(horizontal = 24.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        // Ikona patří k hraně, ze které se podklad odkrývá — objeví se první
+                        // a popisek ji jen doplní. Opačné pořadí ukáže na začátku tahu konec
+                        // věty, ze kterého se nepozná, co se stane.
+                        if (direction == SwipeToDismissBoxValue.EndToStart) {
+                            label()
+                            icon()
+                        } else {
+                            icon()
+                            label()
+                        }
                     }
                 }
             }

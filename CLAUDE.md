@@ -1394,11 +1394,17 @@ snackbar s „Vrátit".
   ne my nad načteným seznamem — archiv se načítá až při otevření, takže do té doby by nebylo
   z čeho počítat, a právě tehdy je odznak nejpotřebnější. Update chodí **jen se zapnutou databází
   zpráv** (`useMessageDatabase`); bez ní se nic nerozbije, jen se nikdy neobjeví.
+- **`unreadCount` v tom updatu započítává i ručně označené chaty** (ověřeno na emulátoru:
+  archivovaný chat bez nepřečtených zpráv, jen s `isMarkedAsUnread`, odznak vyrobil). Sedí to
+  tedy s `ChatSummary.hasUnread` a dopočítávat `markedAsUnreadCount` netřeba.
 - **Odznak je na dvou místech, protože menu účtu je zavřené**: číslo u položky Archiv a tečka na
   fotce účtu. **Tečka je jen od NEZTLUMENÝCH chatů** (`unreadUnmutedCount`) — do archivu se
   ztlumené chaty ukládají, takže tečka od nich by byla signál, který nikdy nezhasne. Číslo
   u položky počítá všechny, ale v neutrální barvě, dokud není co ztlumeného; sytý odznak nad
   samými ztlumenými chaty je falešné volání.
+- **Ikona na podkladu patří k hraně, ze které se tah odkrývá** (doleva tedy vpravo od popisku,
+  doprava vlevo). S pevným pořadím se při tahu doleva odkryl jako první konec věty, ze kterého
+  není poznat, co se stane.
 - **Archivace tahem jde na OBĚ strany a obě dělají totéž.** Druhá akce v seznamu není, takže by
   si uživatel musel pamatovat směr pro nic. Nepotvrzuje se — snackbar „Vrátit" je tentýž jako
   u archivace z nabídky. Uložené zprávy tah nemají (`gesturesEnabled = false`), stejně jako
