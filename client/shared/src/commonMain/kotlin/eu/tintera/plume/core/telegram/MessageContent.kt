@@ -167,6 +167,8 @@ import eu.tintera.plume.resources.media_sticker
 import eu.tintera.plume.resources.media_video
 import eu.tintera.plume.resources.notification_new_message
 import org.jetbrains.compose.resources.getString
+import co.touchlab.kermit.Logger
+import kotlin.concurrent.Volatile
 
 /**
  * Textová podoba obsahu zprávy pro **náhled v seznamu chatů**.
@@ -270,12 +272,41 @@ private suspend fun MessageContent.describe(): String? = when (this) {
     is MessageExpiredVideoNote -> getString(Res.string.content_expired_video_note)
     is MessageExpiredVoiceNote -> getString(Res.string.content_expired_voice_note)
 
-    // Klient je starší než server. Doslovný název typu by uživateli neřekl nic.
-    is MessageUnsupported -> getString(Res.string.content_unsupported)
+    // Klient je starší než server. Doslovný název typu by uživateli neřekl nic; v aplikaci
+    // dostane „neumíme zobrazit", v notifikaci „Nová zpráva" — stejně jako neznámý typ.
+    is MessageUnsupported -> {
+        reportUnknownContent(this)
+        null
+    }
 
     // Systémová oznámení mají vlastní formulace i vykreslení. `null` = typ neumíme popsat
     // a jakou větou to říct, rozhodne volající (v aplikaci jinou než v notifikaci).
-    else -> serviceText()
+    else -> serviceText() ?: run {
+        reportUnknownContent(this)
+        null
+    }
+}
+
+private val logger = Logger.withTag("MessageContent")
+
+// Neměnná množina místo zámku: volá se z více vláken a commonMain zámek nemá. Souběh znamená
+// nanejvýš jeden řádek logu navíc, poškozenou kolekci ne.
+@Volatile
+private var reportedUnknownContent = emptySet<String>()
+
+/**
+ * Zapíše název typu, který neumíme popsat — jednou za typ a běh procesu, jinak by ho každé
+ * překreslení seznamu logovalo znovu. Obsah zprávy do logu nejde, jen typ.
+ *
+ * **Název se bere z `toString()`, ne z `::class.simpleName`.** R8 třídy přejmenovává (viz „R8"
+ * v CLAUDE.md), `toString()` z TDLib ale název nese jako řetězcový literál — ten přejmenování
+ * přežije. `w`, ne `i`: log jde do kontextu hlášení v Crashlytics a podle něj přibude popis.
+ */
+private fun reportUnknownContent(content: MessageContent) {
+    val name = content.toString().substringBefore('(')
+    if (name in reportedUnknownContent) return
+    reportedUnknownContent = reportedUnknownContent + name
+    logger.w { "Neznámý typ obsahu zprávy: $name" }
 }
 
 /**
