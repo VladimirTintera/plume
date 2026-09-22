@@ -14,6 +14,7 @@ import eu.tintera.plume.resources.error_fresh_session
 import eu.tintera.plume.resources.error_qr_login_expired
 import eu.tintera.plume.resources.error_message_cannot_be_deleted
 import eu.tintera.plume.resources.error_message_cannot_be_deleted_for_everyone
+import eu.tintera.plume.resources.error_member_admin_forbidden
 import eu.tintera.plume.resources.error_message_cannot_be_edited
 import eu.tintera.plume.resources.error_message_cannot_be_pinned
 import eu.tintera.plume.resources.error_no_write_access
@@ -23,6 +24,8 @@ import eu.tintera.plume.resources.error_phone_code_expired
 import eu.tintera.plume.resources.error_phone_code_invalid
 import eu.tintera.plume.resources.error_phone_number_invalid
 import eu.tintera.plume.resources.error_pin_limit
+import eu.tintera.plume.resources.error_transfer_needs_password
+import eu.tintera.plume.resources.error_transfer_too_fresh
 import org.jetbrains.compose.resources.StringResource
 
 /**
@@ -62,6 +65,12 @@ fun Throwable.userMessage(fallback: StringResource): UiText {
         }
     }
 
+    // Čerstvé heslo nebo relace u převodu vlastnictví; za podtržítkem je počet sekund, ale
+    // uživateli stačí, že to zatím nejde — přesnou chvíli stejně určuje server.
+    if (raw.startsWith(PASSWORD_TOO_FRESH_PREFIX) || raw.startsWith(SESSION_TOO_FRESH_PREFIX)) {
+        return UiText(Res.string.error_transfer_too_fresh)
+    }
+
     val mapped = when (raw) {
         // Věty od samotné TDLib (ověřené v `libtdjsonjava.so`). Vznikají z její vlastní kontroly
         // ještě před dotazem na server, takže na ně dojde dřív než na konstantu od serveru.
@@ -72,6 +81,8 @@ fun Throwable.userMessage(fallback: StringResource): UiText {
         "Message can't be deleted for everyone" -> Res.string.error_message_cannot_be_deleted_for_everyone
         "Have no write access to the chat" -> Res.string.error_no_write_access
         "Have not enough rights" -> Res.string.error_not_enough_rights
+        // Správu členů smí správce jen v rozsahu vlastních práv; cizího správce vůbec.
+        "Can't edit chat administrators" -> Res.string.error_member_admin_forbidden
 
         // Konstanty od serveru. TDLib je nepřekládá, posílá je dál, jak přišly.
         "PINNED_DIALOGS_TOO_MUCH" -> Res.string.error_pin_limit
@@ -96,6 +107,10 @@ fun Throwable.userMessage(fallback: StringResource): UiText {
         "FIRSTNAME_INVALID" -> Res.string.error_first_name_invalid
         "ABOUT_TOO_LONG" -> Res.string.error_about_too_long
 
+        // Převod vlastnictví. Obojí se ptáme dopředu (`canTransferOwnership`), tohle je pro
+        // případ, že se stav účtu mezi dotazem a potvrzením změní.
+        "PASSWORD_MISSING", "2-step verification is disabled" -> Res.string.error_transfer_needs_password
+
         else -> fallback
     }
     return UiText(mapped)
@@ -113,3 +128,5 @@ private fun floodWaitSeconds(raw: String): Int? = when {
 
 private const val FLOOD_WAIT_PREFIX = "FLOOD_WAIT_"
 private const val TOO_MANY_REQUESTS_PREFIX = "Too Many Requests: retry after "
+private const val PASSWORD_TOO_FRESH_PREFIX = "PASSWORD_TOO_FRESH_"
+private const val SESSION_TOO_FRESH_PREFIX = "SESSION_TOO_FRESH_"

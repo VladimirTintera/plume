@@ -15,13 +15,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.AnimatedVisibility
+import eu.tintera.plume.core.ui.SheetActionRow
 import eu.tintera.plume.core.ui.chatTitle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,14 +35,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatSummary
@@ -70,7 +67,6 @@ import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.mark_chat_unread_24dp
 import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.push_pin_filled_24dp
-import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -108,7 +104,7 @@ fun ChatActionsSheet(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            ActionRow(
+            SheetActionRow(
                 icon = Res.drawable.push_pin_filled_24dp,
                 // Popisek říká, co se STANE, ne jaký je stav — jinak si uživatel musí domýšlet,
                 // jestli „Připnuto" je tvrzení, nebo tlačítko.
@@ -118,7 +114,7 @@ fun ChatActionsSheet(
             )
 
             if (chat.isMuted) {
-                ActionRow(
+                SheetActionRow(
                     icon = Res.drawable.notifications_24dp,
                     label = stringResource(Res.string.chats_action_unmute),
                     shape = RoundedCornerShape(4.dp),
@@ -136,7 +132,7 @@ fun ChatActionsSheet(
                     animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
                     label = "mute-expand",
                 )
-                ActionRow(
+                SheetActionRow(
                     icon = Res.drawable.notifications_off_24dp,
                     label = stringResource(Res.string.chats_action_mute),
                     shape = RoundedCornerShape(4.dp),
@@ -158,7 +154,7 @@ fun ChatActionsSheet(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         MUTE_OPTIONS.forEach { (label, duration) ->
-                            ActionRow(
+                            SheetActionRow(
                                 icon = null,
                                 label = stringResource(label),
                                 shape = RoundedCornerShape(4.dp),
@@ -171,7 +167,7 @@ fun ChatActionsSheet(
                 }
             }
 
-            ActionRow(
+            SheetActionRow(
                 icon = Res.drawable.mark_chat_unread_24dp,
                 label = stringResource(if (chat.hasUnread) Res.string.chats_action_mark_read else Res.string.chats_action_mark_unread),
                 shape = RoundedCornerShape(4.dp),
@@ -180,7 +176,7 @@ fun ChatActionsSheet(
 
             onToggleArchived?.let { onClick ->
                 val archived = chat.folder == ChatFolder.Archive
-                ActionRow(
+                SheetActionRow(
                     icon = if (archived) Res.drawable.unarchive_24dp else Res.drawable.archive_24dp,
                     label = stringResource(if (archived) Res.string.chats_action_unarchive else Res.string.chats_action_archive),
                     shape = RoundedCornerShape(4.dp),
@@ -188,7 +184,7 @@ fun ChatActionsSheet(
                 )
             }
 
-            ActionRow(
+            SheetActionRow(
                 icon = Res.drawable.delete_24dp,
                 // Ze skupiny se odchází, soukromý chat se maže. Jeden popisek pro obojí by lhal.
                 label = stringResource(if (chat.isPrivate) Res.string.chats_action_delete else Res.string.chats_action_leave),
@@ -199,40 +195,6 @@ fun ChatActionsSheet(
                 contentColor = MaterialTheme.colorScheme.onErrorContainer,
                 onClick = onDelete,
             )
-        }
-    }
-}
-
-@Composable
-private fun ActionRow(
-    /** `null` = varianta položky nad ní; místo ikony zůstane odsazení, aby popisky lícovaly. */
-    icon: DrawableResource?,
-    label: String,
-    shape: RoundedCornerShape,
-    onClick: () -> Unit,
-    color: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    contentColor: Color = MaterialTheme.colorScheme.onSurface,
-    trailing: (@Composable () -> Unit)? = null,
-) {
-    Surface(
-        onClick = onClick,
-        shape = shape,
-        color = color,
-        contentColor = contentColor,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            if (icon != null) {
-                Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(20.dp))
-            } else {
-                Spacer(Modifier.size(20.dp))
-            }
-            Text(text = label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            trailing?.invoke()
         }
     }
 }

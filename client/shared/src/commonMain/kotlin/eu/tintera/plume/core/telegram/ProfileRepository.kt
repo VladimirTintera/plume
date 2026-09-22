@@ -1,5 +1,8 @@
 package eu.tintera.plume.core.telegram
 
+import kotlinx.coroutines.flow.Flow
+import kotlin.time.Duration
+
 /**
  * Profil chatu: kdo nebo co to je, o čem je a kdo v něm je.
  *
@@ -46,6 +49,70 @@ interface ProfileRepository {
      * mohl jiný klient a přepsat mu to tiše by bylo horší než to nenabízet.
      */
     suspend fun setPermissions(chatId: Long, permissions: GroupPermissions): Result<Unit>
+
+    /**
+     * Jeden člen se vším, co jeho správa potřebuje — role, práva, omezení a hlavně
+     * [MemberDetail.actions], tedy co s ním smí právě tenhle uživatel.
+     *
+     * Čte se až při otevření nabídky nad členem: `getChatMember` je dotaz na server a ptát se
+     * na každého ze seznamu dopředu by znamenalo dvě stě dotazů za otevření profilu.
+     */
+    suspend fun member(chatId: Long, userId: Long): Result<MemberDetail>
+
+    /**
+     * Ozve se, kdykoli se v chatu změní postavení některého člena.
+     *
+     * Seznam se na to ČTE ZNOVU, neodvozuje se z updatu — stejně jako připnuté zprávy: jeden
+     * update nese jednoho člena, a co změna doopravdy udělala (a jestli server vůbec poslechl),
+     * ví jen server. TDLib `UpdateChatMember` navíc posílá jen správcům, tedy právě těm, kdo
+     * členy mění.
+     */
+    fun memberUpdates(chatId: Long): Flow<Unit>
+
+    /**
+     * Práva správce. **Prázdná práva ([AdminRights.any] `false`) člena ze správcovství sesadí** —
+     * tak to bere TDLib, takže „Sesadit" není vlastní volání.
+     *
+     * Zapisuje se celým objektem: co aplikace nenabízí (videohovory, stories, témata), se přenese
+     * z jeho současných práv, stejně jako u [setPermissions].
+     */
+    suspend fun setAdminRights(chatId: Long, userId: Long, rights: AdminRights): Result<Unit>
+
+    /**
+     * Omezit, co člen smí posílat; [duration] `null` = navždy. Jen v supergroupě — jinde TDLib
+     * odpoví „Can't restrict users in basic group chats".
+     */
+    suspend fun restrictMember(
+        chatId: Long,
+        userId: Long,
+        permissions: GroupPermissions,
+        duration: Duration?,
+    ): Result<Unit>
+
+    /** Zrušit omezení: člen se vrátí k výchozím právům skupiny. */
+    suspend fun unrestrictMember(chatId: Long, userId: Long): Result<Unit>
+
+    /**
+     * Vyhodit ze skupiny; [duration] `null` = navždy. Zprávy po něm zůstanou — mazání historie
+     * je jiná věc a v nabídce by se vedle vyhození dalo snadno ťuknout omylem.
+     */
+    suspend fun banMember(chatId: Long, userId: Long, duration: Duration?): Result<Unit>
+
+    /** Vlastní štítek člena; prázdný řetězec ho odebere. */
+    suspend fun setMemberTag(chatId: Long, userId: Long, tag: String): Result<Unit>
+
+    /**
+     * Jestli účet vůbec smí předávat vlastnictví. Ptát se je potřeba PŘED zadáním hesla:
+     * bez dvoufázového ověření (nebo s čerstvě nastaveným heslem) to Telegram nedovolí
+     * a uživatel by jinak psal heslo zbytečně.
+     */
+    suspend fun canTransferOwnership(): Result<OwnershipTransferCheck>
+
+    /**
+     * Předat vlastnictví skupiny nebo kanálu. **Nevratné** a vyžaduje heslo dvoufázového
+     * ověření — to jde rovnou do TDLib a nikde se nedrží.
+     */
+    suspend fun transferOwnership(chatId: Long, userId: Long, password: String): Result<Unit>
 }
 
 /** Chat otevřený k úpravě: co se dá změnit a jak to teď vypadá. */

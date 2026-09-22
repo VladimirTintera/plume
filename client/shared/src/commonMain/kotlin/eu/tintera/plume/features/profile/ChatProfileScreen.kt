@@ -195,6 +195,8 @@ fun ChatProfileScreen(
     onChatGone: () -> Unit,
     /** Úprava skupiny; nabídne se, jen když na ni uživatel má právo. */
     onEdit: () -> Unit,
+    /** Práva správce ([admin] `true`), nebo omezení jednoho člena. */
+    onOpenMemberRights: (userId: Long, admin: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -215,6 +217,44 @@ fun ChatProfileScreen(
     val currentOnChatGone by rememberUpdatedState(onChatGone)
     LaunchedEffect(state.chatGone) {
         if (state.chatGone) currentOnChatGone()
+    }
+    val currentOnMemberRights by rememberUpdatedState(onOpenMemberRights)
+    LaunchedEffect(state.openMemberRights) {
+        val target = state.openMemberRights ?: return@LaunchedEffect
+        viewModel.consumeOpenMemberRights()
+        currentOnMemberRights(target.userId, target.admin)
+    }
+
+    state.memberSheet?.let { member ->
+        MemberActionsSheet(
+            member = member,
+            onMessage = {
+                viewModel.closeMemberActions()
+                viewModel.openMember(member.userId)
+            },
+            onEditAdminRights = { viewModel.openMemberRights(admin = true) },
+            onDismissAdmin = viewModel::dismissAdmin,
+            onEditRestrictions = { viewModel.openMemberRights(admin = false) },
+            onUnrestrict = viewModel::unrestrictMember,
+            onEditTag = viewModel::editMemberTag,
+            onBan = viewModel::confirmBan,
+            onTransferOwnership = viewModel::startOwnershipTransfer,
+            onDismiss = viewModel::closeMemberActions,
+        )
+    }
+    state.memberBan?.let { member ->
+        MemberBanDialog(member = member, onConfirm = viewModel::banMember, onDismiss = viewModel::cancelBan)
+    }
+    state.memberTag?.let { member ->
+        MemberTagDialog(member = member, onConfirm = viewModel::setMemberTag, onDismiss = viewModel::cancelMemberTag)
+    }
+    state.memberTransfer?.let { member ->
+        TransferOwnershipDialog(
+            member = member,
+            busy = state.transferBusy,
+            onConfirm = viewModel::transferOwnership,
+            onDismiss = viewModel::cancelOwnershipTransfer,
+        )
     }
     // Snackbar MIMO tělo efektu: `consumeError` mění klíč efektu a zrušil by ho dřív, než se
     // hláška ukáže — tak to bylo, a profil žádnou hlášku (ani chybu) nikdy neukázal.
@@ -518,6 +558,7 @@ private fun TabContent(
             members = state.members,
             contentPadding = contentPadding,
             onOpen = viewModel::openMember,
+            onManage = viewModel::openMemberActions,
         )
 
         is ProfileTab.Shared -> {

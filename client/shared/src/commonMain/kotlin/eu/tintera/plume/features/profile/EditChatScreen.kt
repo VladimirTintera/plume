@@ -297,7 +297,7 @@ private fun PermissionsGroup(
 
 /** Řádek nese klikání celý, přepínač má `onCheckedChange = null` — jako v Nastavení. */
 @Composable
-private fun SwitchRow(title: StringResource, checked: Boolean, onChange: (Boolean) -> Unit) {
+internal fun SwitchRow(title: StringResource, checked: Boolean, onChange: (Boolean) -> Unit) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         headlineContent = { Text(stringResource(title)) },

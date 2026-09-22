@@ -3098,6 +3098,88 @@ název, popis a výchozí práva členů.
   **Uložení mění skutečnou skupinu, takže se zkouší jen se souhlasem** — stejně jako u úpravy
   vlastního profilu.
 
+### Správa členů
+
+Dlouhý stisk na členovi v záložce Členové otevře nabídku (`MemberActionsSheet`): napsat zprávu,
+štítek, povýšit na správce / upravit jeho práva, sesadit, omezit / upravit omezení, zrušit
+omezení, předat vlastnictví, vyhodit. Práva správce a omezení mají vlastní obrazovku
+(`MemberRightsScreen`, routy `MemberRightsRoute` / `ArchiveMemberRightsRoute`). Pravidlo, co
+uživatel s kterým členem smí, je čistá funkce `memberActions` (`core/telegram/MemberManagement.kt`,
+testy `MemberManagementTest`).
+
+- **Ťuknutí otevírá konverzaci dál, správa je dlouhý stisk** — jako akce nad chatem v seznamu.
+  Kdyby ťuknutí otevíralo nabídku, zmizela by nejčastější cesta „napsat tomuhle člověku".
+- **Nabídka se neotevře, když nemá co ukázat** (`MemberActions.any`). Běžnému členovi by se
+  jinak otevřel prázdný sheet a vypadalo by to jako chyba.
+- **Meze jsou ověřené v knihovně, ne odhadnuté** (`strings libtdjsonjava.so`): „Can't restrict
+  users in basic group chats" (omezovat jde jen v supergroupě; v kanálu nikdo nepíše, takže tam
+  není co omezovat), „Can't change owner in basic group chats", „Can't promote or demote self",
+  „Can't restrict self" a **„Can't edit chat administrators"** — cizího správce, kterého jsem
+  sám nepovýšil, měnit nesmím. To poslední se pozná z `ChatMemberStatusAdministrator.canBeEdited`;
+  vlastníka ho neomezuje.
+- **Sesazení není vlastní volání, jsou to prázdná práva** (`AdminRights.any == false` →
+  `ChatMemberStatusMember`). Tak to bere TDLib, takže „Sesadit" v nabídce je zkratka k témuž
+  uložení.
+- **Vyhození jde přes `banChatMember`, ne `setChatMemberStatus`** — jen ono umí dobu a rozhodnutí
+  o zprávách. `revokeMessages = false` vědomě: mazání celé historie je jiná věc a v nabídce hned
+  vedle vyhození by se na něj dalo ťuknout omylem.
+- **V základní skupině je vyhození jen odebrání**, vyhozeného může kdokoli přidat zpátky; ze
+  supergroupy a kanálu se sám nevrátí. Text potvrzení je proto pro každý případ jiný — jeden
+  společný by lhal.
+- **Práva se ukládají TLAČÍTKEM, ne po jednom přepínači** — obráceně než výchozí práva skupiny
+  v `EditChatScreen`. Každý přepínač by byl vlastní `setChatMemberStatus`, tedy série změn
+  postavení na serveru, a u omezení se zároveň vybírá doba, která bez přepínačů nedává smysl.
+- **U už omezeného člena je první volba doby „ponechat"** se zbytkem běžícího omezení. Bez ní by
+  změna jediného přepínače u člověka omezeného na týden přepsala konec na „navždy" a nebylo by
+  z čeho to poznat. Je to **vlastní příznak `keepsCurrentEnd`, ne porovnání `duration` s tím, co
+  zbývá**: zbytek může vyjít přesně na některou z nabízených dob a obě volby by se pak tvářily
+  jako vybrané.
+- **Doby se drží pod 366 dny.** Všechno delší (a kratší než 30 sekund) bere TDLib jako navždy,
+  takže by delší volba slibovala konec, který nenastane. Navždy je `untilDate = 0`.
+- **Práva správce jsou zúžená sada a zapisují se celým objektem** (jako `GroupPermissions`): co
+  aplikace nenabízí (videohovory, stories, témata, přímé zprávy kanálu), se u stávajícího správce
+  přenese z jeho současných práv — nastavit mu to mohl jiný klient. `canManageChat` drží podle
+  toho, jestli správcem vůbec zůstává; v Telegramu je to implicitní právo každého správce.
+- **Skupina a kanál ukazují každý jinou podmnožinu.** V kanálu se publikuje a upravují cizí
+  příspěvky, ve skupině se připíná a omezuje; anonymita je jen v supergroupě.
+- **Seznam členů se po změně ČTE ZNOVU, neodvozuje se z updatu** (`ProfileRepository.memberUpdates`
+  nad `UpdateChatMember`, `conflate`). Jeden update nese jednoho člena a co změna doopravdy
+  udělala, ví jen server — tentýž vzor jako připnuté zprávy a relace v Nastavení. **`UpdateChatMember`
+  chodí jen správcům**, tedy právě těm, kdo členy mění; komu by k ničemu nebyl, ten ho nedostane.
+- **Jestli jde předat vlastnictví, se ptáme PŘED otevřením dialogu** (`canTransferOwnership`).
+  Bez zapnutého dvoufázového ověření (`PasswordNeeded`) nebo s čerstvým heslem či relací
+  (`PasswordTooFresh` / `SessionTooFresh`) to Telegram nedovolí a uživatel by psal heslo zbytečně.
+  Vlastníkem se navíc nestane bot.
+- **Heslo NENÍ `rememberSaveable`.** Uložený stav se serializuje a přežil by i zabití procesu;
+  heslo žije jen v dialogu a odchází rovnou do TDLib.
+- **Po převodu se profil čte znovu** — vlastníkem je někdo jiný, takže se změnila i naše vlastní
+  práva a s nimi celá nabídka.
+- **Koin čte parametry INDEXEM** (`parameters.values[0]`), protože `chatId` i `userId` jsou `Long`
+  a `get()` bere parametr podle typu — zaměnilo by je. Tatáž past jako u `messageId` konverzace.
+- **`var duration` a `fun setDuration(…)` se v JVM srazí** („Platform declaration clash"): property
+  si generuje setter téhož jména. Funkce se proto jmenuje `chooseDuration`.
+- **Nabídka je CELÁ rozbalená a ještě scrollovatelná** (`enabledValues = Hidden, Expanded`).
+  S výchozím sheetem skončilo „Vyhodit" pod spodní hranou obrazovky — u položky, která je
+  poslední a nejzávažnější, to vypadá, že vyhodit člena vůbec nejde. Tatáž past jako u výběru
+  samolepek a nastavení archivu; osm položek se do napůl rozbaleného sheetu nevejde.
+- **Ověřit to jde botem ve vlastní testovací skupině.** Vlastník sám sebe spravovat nemůže
+  („Can't promote or demote self"), takže se vlastní účet k ničemu nehodí; bot přidaný do skupiny
+  je plnohodnotný druhý člen, na kterém jde povýšení, omezení i vyhození vyzkoušet bez druhého
+  uživatelského účtu. **Omezit bota ale nejde** — omezení je jen v supergroupě, takže skupina se
+  musí nejdřív převést. Převod vlastnictví se takhle ověřit nedá vůbec: bot vlastníkem být nemůže.
+- **Ověřeno na emulátoru (bez zásahu do skutečné skupiny):** nabídka se na vlastním účtu
+  neotevře (`isSelf`), na správci ukáže právě těch sedm položek, které vlastník v supergroupě
+  má; práva správce se načtou se skutečnými hodnotami a „Uložit" je zašedlé, dokud se něco
+  nezmění; zpět bez uložení nic neposílá; dialog vyhození má předvybrané „Navždy" a text podle
+  druhu skupiny; „Předat vlastnictví" na účtu bez dvoufázového ověření skončí vysvětlením,
+  ještě než se zeptá na heslo. **Vlastní uložení práv, omezení, vyhození, štítek a dokončený
+  převod ověřené NEJSOU** — mění skutečnou skupinu a skutečné lidi.
+- **Dlouhý stisk přes `adb` chce 1,5 s.** Se `swipe … 900` se gesto vyhodnotilo jako ťuknutí
+  a místo nabídky se otevřela konverzace s tím členem — vypadalo to jako chyba `combinedClickable`.
+  A `uiautomator dump` při běžící animaci selže („null root node returned"), **jenže nechá na
+  místě STARÝ soubor**, takže další `cat` vypíše předchozí obrazovku a nová verze aplikace se
+  tváří, že se nezměnila. Před každým dumpem proto `rm -f /sdcard/ui.xml`.
+
 ### Sdílená média v profilu
 
 Pod hlavičkou profilu jsou záložky: **Členové** (kde je server vydá), **Média**, **Soubory**

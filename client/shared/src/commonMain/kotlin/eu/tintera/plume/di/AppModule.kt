@@ -5,6 +5,7 @@ import eu.tintera.plume.core.telegram.TdlAccountRepository
 import eu.tintera.plume.core.telegram.AccountRepository
 import eu.tintera.plume.features.profile.ChatProfileViewModel
 import eu.tintera.plume.features.profile.EditChatViewModel
+import eu.tintera.plume.features.profile.MemberRightsViewModel
 import eu.tintera.plume.core.telegram.TdlProfileRepository
 import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.DeviceRepository
@@ -241,6 +242,20 @@ fun appModule() = module {
             chatId = parameters.get(),
             repository = get(),
             squarePhoto = get(),
+        )
+    }
+
+    /*
+     * Tři parametry z routy, a dva z nich jsou `Long` — proto se čtou INDEXEM. `get()` bere
+     * parametr podle typu, takže by chatId a userId zaměnilo (tatáž past jako u `messageId`
+     * konverzace).
+     */
+    viewModel { parameters ->
+        MemberRightsViewModel(
+            chatId = parameters.values[0] as Long,
+            userId = parameters.values[1] as Long,
+            admin = parameters.values[2] as Boolean,
+            repository = get(),
         )
     }
 

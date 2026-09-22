@@ -6,7 +6,18 @@ import eu.tintera.plume.core.ui.TextClipboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.telegram.AdminRights
 import eu.tintera.plume.core.telegram.ChatProfile
+import eu.tintera.plume.core.telegram.MemberDetail
+import eu.tintera.plume.core.telegram.OwnershipTransferCheck
+import eu.tintera.plume.resources.error_transfer_needs_password
+import eu.tintera.plume.resources.error_transfer_too_fresh
+import eu.tintera.plume.resources.member_banned
+import eu.tintera.plume.resources.member_dismissed
+import eu.tintera.plume.resources.member_load_failed
+import eu.tintera.plume.resources.member_rights_saved
+import eu.tintera.plume.resources.member_unrestricted
+import eu.tintera.plume.resources.member_transferred
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.Presence
@@ -20,6 +31,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.profile_failed
 import eu.tintera.plume.resources.profile_mute_failed
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -85,6 +97,14 @@ class ChatProfileViewModel(
         }
         viewModelScope.launch {
             chats.muted(chatId).collect { muted -> _state.update { it.copy(muted = muted) } }
+        }
+        viewModelScope.launch {
+            /*
+             * Změna postavení člena (i naše vlastní, i z jiného klienta) znamená přečíst seznam
+             * znovu. `conflate`, protože „odebrat všem práva" pošle updatů dávku a čtení jich
+             * snese jedno.
+             */
+            profiles.memberUpdates(chatId).conflate().collect { reloadMembers() }
         }
         viewModelScope.launch {
             notificationSettings.chatSettings(chatId).collect { prefs -> _state.update { it.copy(notifications = prefs) } }
@@ -321,6 +341,167 @@ class ChatProfileViewModel(
         }
     }
 
+    // --- Správa členů ---
+
+    /**
+     * Dlouhý stisk na členovi. Člen se načítá až teď: `getChatMember` je dotaz na server
+     * a ptát se na každého ze seznamu dopředu by znamenalo dvě stě dotazů za otevření profilu.
+     *
+     * Nabídka se otevře, jen když má co ukázat ([MemberActions.any]) — běžnému členovi by se
+     * jinak otevřel prázdný sheet a vypadalo by to jako chyba.
+     */
+    fun openMemberActions(userId: Long) {
+        viewModelScope.launch {
+            profiles.member(chatId, userId)
+                .onSuccess { member -> if (member.actions.any) _state.update { it.copy(memberSheet = member) } }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.reported(Res.string.member_load_failed)) }
+                }
+        }
+    }
+
+    fun closeMemberActions() = _state.update { it.copy(memberSheet = null) }
+
+    /** Nabídka se zavře a obrazovka otevře práva správce, nebo omezení — podle [admin]. */
+    fun openMemberRights(admin: Boolean) {
+        val member = _state.value.memberSheet ?: return
+        _state.update {
+            it.copy(memberSheet = null, openMemberRights = MemberRightsTarget(member.userId, admin))
+        }
+    }
+
+    fun consumeOpenMemberRights() = _state.update { it.copy(openMemberRights = null) }
+
+    /** Sesazení je uložení prázdných práv — vlastní volání na to TDLib nemá. */
+    fun dismissAdmin() {
+        val member = _state.value.memberSheet ?: return
+        _state.update { it.copy(memberSheet = null) }
+        runMemberAction(UiText(Res.string.member_dismissed, member.name)) {
+            profiles.setAdminRights(chatId, member.userId, AdminRights())
+        }
+    }
+
+    fun unrestrictMember() {
+        val member = _state.value.memberSheet ?: return
+        _state.update { it.copy(memberSheet = null) }
+        runMemberAction(UiText(Res.string.member_unrestricted)) {
+            profiles.unrestrictMember(chatId, member.userId)
+        }
+    }
+
+    fun confirmBan() {
+        val member = _state.value.memberSheet ?: return
+        _state.update { it.copy(memberSheet = null, memberBan = member) }
+    }
+
+    fun cancelBan() = _state.update { it.copy(memberBan = null) }
+
+    /** Vyhození; [duration] `null` = navždy. */
+    fun banMember(duration: Duration?) {
+        val member = _state.value.memberBan ?: return
+        _state.update { it.copy(memberBan = null) }
+        runMemberAction(UiText(Res.string.member_banned, member.name)) {
+            profiles.banMember(chatId, member.userId, duration)
+        }
+    }
+
+    fun editMemberTag() {
+        val member = _state.value.memberSheet ?: return
+        _state.update { it.copy(memberSheet = null, memberTag = member) }
+    }
+
+    fun cancelMemberTag() = _state.update { it.copy(memberTag = null) }
+
+    fun setMemberTag(tag: String) {
+        val member = _state.value.memberTag ?: return
+        _state.update { it.copy(memberTag = null) }
+        runMemberAction(UiText(Res.string.member_rights_saved)) {
+            profiles.setMemberTag(chatId, member.userId, tag.trim())
+        }
+    }
+
+    /**
+     * Jestli převod vůbec jde, se ptáme PŘED otevřením dialogu: bez dvoufázového ověření
+     * (nebo s čerstvě nastaveným heslem) to Telegram nedovolí a uživatel by psal heslo zbytečně.
+     */
+    fun startOwnershipTransfer() {
+        val member = _state.value.memberSheet ?: return
+        _state.update { it.copy(memberSheet = null) }
+        viewModelScope.launch {
+            profiles.canTransferOwnership()
+                .onSuccess { check ->
+                    when (check) {
+                        OwnershipTransferCheck.Ready -> _state.update { it.copy(memberTransfer = member) }
+                        OwnershipTransferCheck.PasswordNeeded ->
+                            _state.update { it.copy(error = UiText(Res.string.error_transfer_needs_password)) }
+                        is OwnershipTransferCheck.TooFresh ->
+                            _state.update { it.copy(error = UiText(Res.string.error_transfer_too_fresh)) }
+                    }
+                }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.reported(Res.string.profile_action_failed)) }
+                }
+        }
+    }
+
+    fun cancelOwnershipTransfer() = _state.update { it.copy(memberTransfer = null) }
+
+    /** Heslo jde rovnou do repository a nikde se nedrží — ani ve stavu, ani v logu. */
+    fun transferOwnership(password: String) {
+        val member = _state.value.memberTransfer ?: return
+        _state.update { it.copy(transferBusy = true) }
+        viewModelScope.launch {
+            profiles.transferOwnership(chatId, member.userId, password)
+                .onSuccess {
+                    _state.update {
+                        it.copy(
+                            memberTransfer = null,
+                            transferBusy = false,
+                            error = UiText(Res.string.member_transferred, member.name),
+                        )
+                    }
+                    // Vlastníkem je teď někdo jiný, takže se změnila i naše vlastní práva.
+                    reloadProfile()
+                }
+                .onFailure { failure ->
+                    // Dialog zůstane otevřený: chybné heslo se opravuje na místě.
+                    _state.update {
+                        it.copy(transferBusy = false, error = failure.reported(Res.string.profile_action_failed))
+                    }
+                }
+        }
+    }
+
+    /**
+     * Akce nad členem: po úspěchu se seznam členů ČTE ZNOVU, nepřepisuje se lokálně. Co změna
+     * postavení udělala (a jestli server vůbec poslechl), ví jen server — stejně jako u relací
+     * v Nastavení → Zařízení.
+     */
+    private fun runMemberAction(success: UiText, action: suspend () -> Result<Unit>) {
+        viewModelScope.launch {
+            action()
+                .onSuccess {
+                    _state.update { it.copy(error = success) }
+                    loadMembers()
+                }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.reported(Res.string.profile_action_failed)) }
+                }
+        }
+    }
+
+    /** Po návratu z úpravy práv: role v seznamu se mohla změnit, a s ní i to, co sami smíme. */
+    fun reloadMembers() {
+        if (_state.value.profile?.canListMembers == true) loadMembers()
+    }
+
+    private fun reloadProfile() {
+        viewModelScope.launch {
+            profiles.profile(chatId).onSuccess { profile -> _state.update { it.copy(profile = profile) } }
+            loadMembers()
+        }
+    }
+
     fun openLink(url: String) {
         urlOpener.open(url)
     }
@@ -363,6 +544,18 @@ data class ChatProfileState(
     val openChat: Long? = null,
     /** Jednorázová událost: otevřít prohlížeč médií na této zprávě. */
     val openMedia: Long? = null,
+    /** Člen s otevřenou nabídkou akcí; `null` = nabídka není. */
+    val memberSheet: MemberDetail? = null,
+    /** Člen, u kterého se potvrzuje vyhození. */
+    val memberBan: MemberDetail? = null,
+    /** Člen, kterému se mění štítek. */
+    val memberTag: MemberDetail? = null,
+    /** Člen, kterému se předává vlastnictví; dialog se ptá na heslo. */
+    val memberTransfer: MemberDetail? = null,
+    /** Převod běží — tlačítko v dialogu se nesmí dát zmáčknout podruhé. */
+    val transferBusy: Boolean = false,
+    /** Jednorázová událost: otevřít obrazovku práv správce nebo omezení. */
+    val openMemberRights: MemberRightsTarget? = null,
 ) {
     /**
      * Které záložky mají být. Členové jsou první, pak jen ty druhy obsahu, které v chatu jsou —
@@ -384,6 +577,9 @@ data class ChatProfileState(
     fun sharedMessage(messageId: Long): ChatMessage? =
         shared.values.firstNotNullOfOrNull { tab -> tab.messages.firstOrNull { it.id == messageId } }
 }
+
+/** Kam vede „Upravit práva": [admin] `true` = práva správce, `false` = omezení člena. */
+data class MemberRightsTarget(val userId: Long, val admin: Boolean)
 
 /** Záložka profilu. Členové jsou vlastní druh, ne sdílený obsah. */
 sealed interface ProfileTab {

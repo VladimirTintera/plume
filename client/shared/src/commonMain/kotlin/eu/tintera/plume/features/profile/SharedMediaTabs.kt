@@ -2,6 +2,7 @@ package eu.tintera.plume.features.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -348,6 +349,8 @@ internal fun ProfileMembersList(
     members: List<ProfileMember>?,
     contentPadding: PaddingValues,
     onOpen: (userId: Long) -> Unit,
+    /** Dlouhý stisk: nabídka správy člena. Otevře se, jen když je co nabídnout. */
+    onManage: (userId: Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (members == null) {
@@ -401,7 +404,15 @@ internal fun ProfileMembersList(
                 modifier = Modifier
                     .animateItem()
                     .clip(groupItemShape(index, members.size))
-                    .clickable { onOpen(member.sender.id) },
+                    /*
+                     * Ťuknutí otevírá konverzaci jako dřív; správa je dlouhý stisk, stejně jako
+                     * akce nad chatem v seznamu. Kdyby ťuknutí otevíralo nabídku, zmizela by
+                     * nejčastější cesta „napsat tomuhle člověku".
+                     */
+                    .combinedClickable(
+                        onClick = { onOpen(member.sender.id) },
+                        onLongClick = { onManage(member.sender.id) },
+                    ),
             )
         }
     }
