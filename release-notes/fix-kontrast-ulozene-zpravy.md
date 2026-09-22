@@ -1,3 +1,3 @@
 type: fix
-cs: Čitelná karta Uložených zpráv v tmavém režimu
-en: Readable Saved Messages card in dark mode
+cs: Lepší čitelnost karet a vybraných řádků v tmavém režimu
+en: Better readability of cards and selected rows in dark mode
