@@ -838,6 +838,10 @@ se z telefonu nedalo chodit zpět bez `BackHandler`, který v téhle aplikaci za
 - **Řádek nese klikání celý, ovládací prvek má `onClick = null`.** Do přepínače ani kolečka se
   nemá trefovat a čtečka obrazovky má číst jednu položku, ne dvě; semantiku dodá
   `selectable(role = RadioButton)` / `toggleable(role = Switch)`.
+- **`ListItem` na tónované kartě NEDĚDÍ `contentColor` karty.** Text si barví sám
+  (`onSurface`), takže `Surface(contentColor = onPrimaryContainer)` kolem něj nic neudělá —
+  v tmavém tématu vyšel světlý název na světlé kartě Uložených zpráv. Barva popředí se musí
+  předat i do `ListItemDefaults.colors`.
 - **Pozor na názvy barev `ListItemDefaults.colors`**: `contentColor` (ne `headlineColor`)
   a `supportingContentColor` (ne `supportingColor`). Hádaný název se pozná až překladem.
 

@@ -203,8 +203,13 @@ fun ChatPicker(
                                 leadingContent = {
                                     Avatar(chatId = savedMessagesChatId, title = savedTitle, avatarFileId = null, size = 40.dp, isSavedMessages = true)
                                 },
-                                // Barvu nese karta; průhledný řádek ji nepřekryje.
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                                // Barvu nese karta; průhledný řádek ji nepřekryje. Text barví
+                                // ListItem sám (onSurface) a contentColor karty přebije —
+                                // v tmavém tématu by bylo světlé na světlé.
+                                colors = ListItemDefaults.colors(
+                                    containerColor = Color.Transparent,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                ),
                             )
                         }
                     }
