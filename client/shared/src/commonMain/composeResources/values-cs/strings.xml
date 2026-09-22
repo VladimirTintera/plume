@@ -443,6 +443,7 @@
     <string name="content_shared_users">Sdílení uživatelé</string>
     <string name="content_suggested_birthdate">Návrh data narození</string>
     <string name="content_suggested_photo">Návrh profilové fotky</string>
+    <string name="content_stake_dice">Kostka se sázkou</string>
     <string name="service_boost">Chat dostal boost</string>
     <string name="service_checklist_tasks_added">Do seznamu přibyly úkoly</string>
     <string name="service_checklist_tasks_done">Úkoly v seznamu změnily stav</string>
@@ -456,6 +457,46 @@
     <string name="service_protected_content_off">Ochrana obsahu chatu vypnuta</string>
     <string name="service_protected_content_on">Obsah chatu je chráněný</string>
     <string name="service_video_chat_invite">Pozvánka do videohovoru</string>
+    <string name="service_community_added">Chat byl přidán do komunity</string>
+    <string name="service_community_removed">Chat byl odebrán z komunity</string>
+    <string name="service_community_joined">Někdo se připojil z komunity</string>
+    <string name="service_direct_messages_on">Přímé zprávy kanálu jsou zapnuté</string>
+    <string name="service_direct_messages_off">Přímé zprávy kanálu jsou vypnuté</string>
+    <string name="service_paid_messages_free">Zprávy ve skupině jsou zase zdarma</string>
+    <string name="service_topic_closed">Téma bylo uzavřeno</string>
+    <string name="service_topic_reopened">Téma bylo zase otevřeno</string>
+    <string name="service_topic_hidden">Téma bylo skryto</string>
+    <string name="service_topic_unhidden">Téma je zase vidět</string>
+    <string name="service_protected_content_disable_requested">Někdo požádal o vypnutí ochrany obsahu</string>
+    <string name="service_protected_content_disable_expired">Žádost o vypnutí ochrany obsahu vypršela</string>
+    <string name="service_suggested_post_approved">Navržený příspěvek byl schválen</string>
+    <string name="service_suggested_post_declined">Navržený příspěvek byl odmítnut</string>
+    <string name="service_suggested_post_paid">Za navržený příspěvek dorazila platba</string>
+    <string name="service_suggested_post_refunded">Platba za navržený příspěvek byla vrácena</string>
+    <string name="service_suggested_post_failed">Navržený příspěvek nešlo schválit, nestačily prostředky</string>
+    <string name="service_gift_offer">Nabídka na koupi dárku</string>
+    <string name="service_gift_offer_rejected">Nabídka na koupi dárku byla odmítnuta</string>
+    <string name="service_gift_offer_expired">Nabídka na koupi dárku vypršela</string>
+    <string name="service_bot_write_access">Bot smí posílat zprávy</string>
+    <string name="service_bot_created">Vznikl nový bot</string>
+    <string name="service_web_app_data">Botovi se odeslala data</string>
+    <string name="service_passport_data">Odeslaly se údaje z Telegram Passportu</string>
+    <string name="service_payment_refunded">Platba byla vrácena</string>
+    <plurals name="service_direct_message_price">
+        <item quantity="one">Přímá zpráva teď stojí %1$d hvězdu</item>
+        <item quantity="few">Přímá zpráva teď stojí %1$d hvězdy</item>
+        <item quantity="other">Přímá zpráva teď stojí %1$d hvězd</item>
+    </plurals>
+    <plurals name="service_paid_message_price">
+        <item quantity="one">Zpráva ve skupině teď stojí %1$d hvězdu</item>
+        <item quantity="few">Zpráva ve skupině teď stojí %1$d hvězdy</item>
+        <item quantity="other">Zpráva ve skupině teď stojí %1$d hvězd</item>
+    </plurals>
+    <plurals name="service_paid_messages_refunded">
+        <item quantity="one">Za zprávy se vrátila %1$d hvězda</item>
+        <item quantity="few">Za zprávy se vrátily %1$d hvězdy</item>
+        <item quantity="other">Za zprávy se vrátilo %1$d hvězd</item>
+    </plurals>
     <string name="date_today">Dnes</string>
     <string name="date_yesterday">Včera</string>
     <string name="date_yesterday_short">včera</string>
