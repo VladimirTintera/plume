@@ -7,6 +7,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.telegram.ArchiveSettings
+import eu.tintera.plume.core.telegram.ArchiveUnread
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -84,10 +86,67 @@ class ChatsViewModel(
     /** Přihlášený účet — jeho fotka je v hledání vstupem do menu a Nastavení. */
     val account: StateFlow<AccountInfo?> = _account.asStateFlow()
 
+    /**
+     * Nepřečtené chaty v archivu — odznak u vstupu do archivu v menu účtu. Počítá TDLib, takže
+     * to platí i pro archiv, který uživatel v téhle relaci ještě neotevřel.
+     */
+    val archiveUnread: StateFlow<ArchiveUnread> = repository.archiveUnread
+
+    private val _archiveSettings = MutableStateFlow<ArchiveSettings?>(null)
+
+    /**
+     * Nastavení archivu, `null` dokud (nebo když) ho TDLib nevydá — pak se tlačítko v hlavičce
+     * archivu nenabízí. TDLib na jeho změnu update neposílá, takže je tohle jediný zdroj pravdy
+     * a zápis se do něj promítne rovnou; při selhání se vrátí zpátky.
+     */
+    val archiveSettings: StateFlow<ArchiveSettings?> = _archiveSettings.asStateFlow()
+
+    private val _archiveSettingsOpen = MutableStateFlow(false)
+
+    val archiveSettingsOpen: StateFlow<Boolean> = _archiveSettingsOpen.asStateFlow()
+
+    fun openArchiveSettings() {
+        _archiveSettingsOpen.value = true
+    }
+
+    fun closeArchiveSettings() {
+        _archiveSettingsOpen.value = false
+    }
+
+    fun setArchiveUnknownSenders(value: Boolean) =
+        writeArchiveSettings { it.copy(archiveUnknownSenders = value) }
+
+    fun setKeepUnmutedArchived(value: Boolean) =
+        writeArchiveSettings { it.copy(keepUnmutedArchived = value) }
+
+    /**
+     * Přepínač se pohne hned a při selhání se vrátí. Na rozdíl od akcí nad chatem tu potvrzení
+     * updatem nepřijde — kdyby se čekalo na server, přepínač by se po ťuknutí nehýbal vůbec.
+     */
+    private fun writeArchiveSettings(change: (ArchiveSettings) -> ArchiveSettings) {
+        val previous = _archiveSettings.value ?: return
+        val updated = change(previous)
+        if (updated == previous) return
+        _archiveSettings.value = updated
+
+        viewModelScope.launch {
+            repository.setArchiveSettings(updated).onFailure { failure ->
+                logger.w(failure) { "Nastavení archivu se nepodařilo uložit." }
+                _archiveSettings.value = previous
+                _actions.update { it.copy(error = failure.userMessage(Res.string.chats_action_failed)) }
+            }
+        }
+    }
+
     init {
         // Hlavní seznam se načítá sám po přihlášení. Archiv až tady: na seznam, který nikdo
         // neotevře, se nemá co ptát serveru.
-        if (folder == ChatFolder.Archive) loadMore()
+        if (folder == ChatFolder.Archive) {
+            loadMore()
+            // Nastavení archivu se čte hned, ne až při otevření sheetu: prázdný sheet, který se
+            // teprve plní, by problikl — a když ho TDLib nevydá, tlačítko se vůbec nenabídne.
+            viewModelScope.launch { _archiveSettings.value = repository.archiveSettings().getOrNull() }
+        }
         // Účet potřebuje jen hlavička hlavního seznamu. Selhání nevadí — místo fotky jsou iniciály.
         if (folder == ChatFolder.Main) {
             // Živě: po změně fotky v úpravě profilu nesmí pilulka ukazovat tu starou.

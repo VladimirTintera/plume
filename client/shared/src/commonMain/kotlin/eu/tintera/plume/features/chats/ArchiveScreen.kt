@@ -8,8 +8,10 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.archive_filled_24dp
@@ -17,7 +19,9 @@ import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.chats_archive
 import eu.tintera.plume.resources.chats_archive_empty
 import eu.tintera.plume.resources.chats_archive_empty_title
+import eu.tintera.plume.resources.chats_archive_settings
 import eu.tintera.plume.resources.common_back
+import eu.tintera.plume.resources.tune_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -41,8 +45,22 @@ fun ArchiveScreen(
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    val archiveSettings by viewModel.archiveSettings.collectAsStateWithLifecycle()
+    val settingsOpen by viewModel.archiveSettingsOpen.collectAsStateWithLifecycle()
 
     ChatActionsHost(viewModel, snackbarHostState, onArchived = onChatArchived)
+
+    // Sheet jen s načteným nastavením — tlačítko se bez něj stejně nenabízí.
+    archiveSettings?.let { settings ->
+        if (settingsOpen) {
+            ArchiveSettingsSheet(
+                settings = settings,
+                onArchiveUnknownSenders = viewModel::setArchiveUnknownSenders,
+                onKeepUnmutedArchived = viewModel::setKeepUnmutedArchived,
+                onDismiss = viewModel::closeArchiveSettings,
+            )
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -55,6 +73,21 @@ fun ArchiveScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                    }
+                },
+                actions = {
+                    /*
+                     * Jedna ikona místo ⋮ s jedinou položkou: uvnitř archivu nemá posuvník co
+                     * jiného znamenat než jeho nastavení. Nenabízí se, dokud (nebo když) ho
+                     * TDLib nevydá — prázdný sheet by slíbil volby, které nejsou.
+                     */
+                    if (archiveSettings != null) {
+                        IconButton(onClick = viewModel::openArchiveSettings) {
+                            Icon(
+                                painterResource(Res.drawable.tune_24dp),
+                                contentDescription = stringResource(Res.string.chats_archive_settings),
+                            )
+                        }
                     }
                 },
             )

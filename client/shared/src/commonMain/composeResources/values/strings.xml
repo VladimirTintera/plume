@@ -75,12 +75,21 @@
     <string name="chats_leave_body">You will leave %1$s and stop receiving messages. Getting back in needs a new invite.</string>
     <string name="chats_archive">Archive</string>
     <string name="chats_archive_empty_title">Archive is empty</string>
-    <string name="chats_archive_empty">Archive a chat from its long-press menu and it moves here.</string>
+    <string name="chats_archive_empty">Swipe a chat aside, or archive it from its long-press menu, and it moves here.</string>
+    <string name="chats_archive_settings">Archive settings</string>
+    <string name="chats_archive_unknown">Archive chats from unknown senders</string>
+    <string name="chats_archive_unknown_summary">New chats from people outside your contacts go straight here, muted.</string>
+    <string name="chats_archive_keep">Keep chats archived</string>
+    <string name="chats_archive_keep_summary">A new message no longer pulls an unmuted chat back to the main list.</string>
     <string name="chats_action_archive">Archive</string>
     <string name="chats_action_unarchive">Move to chats</string>
     <string name="chats_archived">Chat archived</string>
     <string name="chats_unarchived">Chat moved back to chats</string>
     <string name="chats_undo">Undo</string>
+    <plurals name="chats_archive_unread">
+        <item quantity="one">%1$d unread chat in the archive</item>
+        <item quantity="other">%1$d unread chats in the archive</item>
+    </plurals>
     <string name="settings_title">Settings</string>
     <string name="settings_notifications_on">On</string>
     <string name="settings_notifications_off">Off — you'll only find out about new messages in the app</string>

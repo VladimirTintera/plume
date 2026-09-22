@@ -3,6 +3,8 @@ package eu.tintera.plume.features.chats
 import eu.tintera.plume.core.telegram.ChatTyping
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatListState
+import eu.tintera.plume.core.telegram.ArchiveSettings
+import eu.tintera.plume.core.telegram.ArchiveUnread
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary
@@ -151,6 +153,13 @@ class NewChatViewModelTest {
         override suspend fun clearRecentlyFound(): Result<Unit> = Result.success(Unit)
 
         override suspend fun topChats(): Result<List<ChatSummary>> = Result.success(emptyList())
+
+        override val archiveUnread: StateFlow<ArchiveUnread> = MutableStateFlow(ArchiveUnread())
+
+        override suspend fun archiveSettings(): Result<ArchiveSettings> =
+            Result.success(ArchiveSettings(false, false, canArchiveUnknownSenders = false))
+
+        override suspend fun setArchiveSettings(settings: ArchiveSettings): Result<Unit> = Result.success(Unit)
 
         override suspend fun loadMore(folder: ChatFolder) {}
 

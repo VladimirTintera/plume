@@ -55,6 +55,10 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxDefaults
+import androidx.compose.material3.SwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -83,6 +87,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.features.devices.UnconfirmedLoginCard
 import eu.tintera.plume.core.update.rememberStartUpdate
+import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.Presence
@@ -95,8 +100,13 @@ import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.tabularNumbers
+import eu.tintera.plume.core.telegram.ArchiveUnread
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.archive_24dp
+import eu.tintera.plume.resources.chats_action_archive
+import eu.tintera.plume.resources.chats_action_unarchive
+import eu.tintera.plume.resources.chats_archive_unread
+import eu.tintera.plume.resources.unarchive_24dp
 import eu.tintera.plume.resources.chats_archive
 import eu.tintera.plume.resources.chats_archived
 import eu.tintera.plume.resources.chats_new
@@ -152,6 +162,7 @@ import org.jetbrains.compose.resources.StringResource
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -183,6 +194,7 @@ fun ChatListScreen(
         availableFilters(readyChats, filter, savedMessagesChatId)
     }
     val account by viewModel.account.collectAsStateWithLifecycle()
+    val archiveUnread by viewModel.archiveUnread.collectAsStateWithLifecycle()
     val startUpdate = rememberStartUpdate(viewModel.appUpdates)
     // Hledání při scrollu dolů odjede a při scrollu nahoru se vrátí.
     val scrollBehavior = SearchBarDefaults.enterAlwaysSearchBarScrollBehavior()
@@ -259,6 +271,7 @@ fun ChatListScreen(
                 trailing = {
                     AccountMenu(
                         account = account,
+                        archiveUnread = archiveUnread,
                         onSavedMessages = { viewModel.openSavedMessages(onChatClick) },
                         onArchive = onOpenArchive,
                         onSettings = onOpenSettings,
@@ -487,30 +500,81 @@ private val ChatFilter.selectedIcon: DrawableResource
  *
  * Než se účet načte (nebo když se načíst nepodaří), je místo fotky ikona člověka — tlačítko
  * se nesmí objevit až později, menu by do té doby nebylo kde otevřít.
+ *
+ * [archiveUnread] se ukazuje dvakrát, protože samotné menu je zavřené: číslem u položky Archiv
+ * a tečkou na tlačítku menu, jinak by se o nepřečtených v archivu nikdo nedozvěděl. Tečka je
+ * ale jen od NEZTLUMENÝCH chatů — do archivu se ztlumené chaty ukládají, takže tečka od nich
+ * by byla signál, který nikdy nezhasne. Číslo u položky počítá všechny; kdo menu otevřel, chce
+ * vědět, kolik toho v archivu čeká.
  */
 @Composable
 private fun AccountMenu(
     account: AccountInfo?,
+    archiveUnread: ArchiveUnread,
     onSavedMessages: () -> Unit,
     onArchive: () -> Unit,
     onSettings: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     val label = stringResource(Res.string.chats_account)
+    // Odznak je jen číslo — čtečka obrazovky potřebuje větu, ne „3".
+    val unreadLabel = pluralStringResource(Res.plurals.chats_archive_unread, archiveUnread.chats, archiveUnread.chats)
+    /*
+     * Ztlumený archiv nese odznak v neutrální barvě: chaty tam nepřečtené jsou, ale nic si
+     * nežádá pozornost — obarvit je akcentem by bylo falešné volání.
+     */
+    val accented = archiveUnread.unmutedChats > 0
+    val archiveBadge: (@Composable () -> Unit)? = if (archiveUnread.chats == 0) null else {
+        {
+            Badge(
+                containerColor = if (accented) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHighest
+                },
+                contentColor = if (accented) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            ) {
+                Text(
+                    text = archiveUnread.chats.toString(),
+                    style = LocalTextStyle.current.tabularNumbers(),
+                    modifier = Modifier.semantics { contentDescription = unreadLabel },
+                )
+            }
+        }
+    }
     Box {
         IconButton(
             onClick = { open = true },
             modifier = Modifier.semantics { contentDescription = label },
         ) {
-            if (account != null) {
-                Avatar(
-                    chatId = account.id,
-                    title = account.displayName,
-                    avatarFileId = account.photoFileId,
-                    size = ACCOUNT_AVATAR_SIZE,
-                )
-            } else {
-                Icon(painterResource(Res.drawable.person_24dp), contentDescription = null)
+            Box {
+                if (account != null) {
+                    Avatar(
+                        chatId = account.id,
+                        title = account.displayName,
+                        avatarFileId = account.photoFileId,
+                        size = ACCOUNT_AVATAR_SIZE,
+                    )
+                } else {
+                    Icon(painterResource(Res.drawable.person_24dp), contentDescription = null)
+                }
+
+                if (archiveUnread.unmutedChats > 0) {
+                    Box(
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            // Obroučka barvou pilulky — bez ní je tečka na tmavé fotce jen skvrna,
+                            // stejně jako u zelené tečky dostupnosti v řádku chatu.
+                            .size(ACCOUNT_DOT)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)
+                            .padding(2.dp)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape),
+                    )
+                }
             }
         }
         // Kam se odtud jde: dvě místa v chatech, pak Nastavení — jiný druh cíle, vlastní skupina.
@@ -520,7 +584,12 @@ private fun AccountMenu(
             groups = listOf(
                 listOf(
                     MenuAction(stringResource(Res.string.saved_messages), Res.drawable.bookmark_24dp, onClick = onSavedMessages),
-                    MenuAction(stringResource(Res.string.chats_archive), Res.drawable.archive_24dp, onClick = onArchive),
+                    MenuAction(
+                        label = stringResource(Res.string.chats_archive),
+                        icon = Res.drawable.archive_24dp,
+                        trailing = archiveBadge,
+                        onClick = onArchive,
+                    ),
                 ),
                 listOf(MenuAction(stringResource(Res.string.nav_settings), Res.drawable.settings_24dp, onClick = onSettings)),
             ),
@@ -737,28 +806,172 @@ internal fun ChatListContent(
 
                 groups.forEachIndexed { groupIndex, group ->
                     itemsIndexed(group, key = { _, chat -> chat.id }) { index, chat ->
-                        ChatRow(
-                            chat = chat,
-                            selected = chat.id == selectedChatId,
-                            // Krajní položky skupiny nesou její zaoblení, prostřední
-                            // se drží u sebe.
+                        // Krajní položky skupiny nesou její zaoblení, prostřední se drží u sebe.
+                        val shape = groupItemShape(
                             firstInGroup = index == 0,
                             lastInGroup = index == group.lastIndex,
-                            onClick = { onChatClick(chat.id) },
-                            onLongClick = { viewModel.showActions(chat) },
+                            selected = chat.id == selectedChatId,
+                        )
+                        SwipeToArchive(
+                            archived = chat.folder == ChatFolder.Archive,
+                            // Uložené zprávy archivovat nejdou, stejně jako v nabídce po dlouhém stisku.
+                            enabled = chat.id != savedMessagesChatId,
+                            shape = shape,
+                            onSwipe = { viewModel.toggleArchived(chat) },
                             // Animace přeskládání při změně pořadí — bez toho by chaty
-                            // při nové zprávě skákaly.
+                            // při nové zprávě skákaly. `animateItem` musí být na kořeni
+                            // položky, takže sedí na tahu, ne na řádku uvnitř.
                             modifier = Modifier
                                 .animateItem()
                                 .padding(
                                     top = if (index == 0 && groupIndex > 0) GROUP_SPACING
                                     else 0.dp,
                                 ),
-                        )
+                        ) {
+                            ChatRow(
+                                chat = chat,
+                                selected = chat.id == selectedChatId,
+                                shape = shape,
+                                onClick = { onChatClick(chat.id) },
+                                onLongClick = { viewModel.showActions(chat) },
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * Zaoblení položky v bloku: velké nahoře u první, velké dole u poslední, malé mezi nimi.
+ * Animuje se, protože skupiny se přeskládávají za běhu — přečtený chat přeskočí z nepřečtených
+ * mezi ostatní a tvary sousedů se tím mění.
+ *
+ * Počítá se mimo [ChatRow], protože tentýž tvar musí mít i podklad, který se odkrývá tahem —
+ * jinak by pod zaoblenou položkou vykukovaly jeho hranaté rohy.
+ */
+@Composable
+private fun groupItemShape(firstInGroup: Boolean, lastInGroup: Boolean, selected: Boolean): RoundedCornerShape {
+    val topCorner by animateDpAsState(
+        // Vybraná položka se z bloku vyčlení: zaoblená celá, jako skupina sama (M3 Expressive).
+        targetValue = if (firstInGroup || selected) GROUP_CORNER else INNER_CORNER,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "chat-corner-top",
+    )
+    val bottomCorner by animateDpAsState(
+        targetValue = if (lastInGroup || selected) GROUP_CORNER else INNER_CORNER,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "chat-corner-bottom",
+    )
+    return RoundedCornerShape(
+        topStart = topCorner,
+        topEnd = topCorner,
+        bottomStart = bottomCorner,
+        bottomEnd = bottomCorner,
+    )
+}
+
+/**
+ * Chat tahem do strany do archivu a zpátky.
+ *
+ * Táhnout jde na OBĚ strany a obě dělají totéž: druhá akce v seznamu není, takže by si uživatel
+ * musel pamatovat směr pro nic. Nevratné to není — snackbar „Vrátit" je tentýž jako u archivace
+ * z nabídky ([ChatActionsHost]), takže se tah nepotvrzuje.
+ *
+ * [enabled] `false` u Uložených zpráv: ty archivovat nejdou a tah, po kterém přijde chyba, je
+ * horší než tah, který se nechytne.
+ */
+@Composable
+private fun SwipeToArchive(
+    /** Chat je v archivu — tah ho tedy vrací mezi chaty. */
+    archived: Boolean,
+    enabled: Boolean,
+    shape: RoundedCornerShape,
+    onSwipe: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    /*
+     * Stav se drží `remember`em, NE `rememberSwipeToDismissBoxState` (ten je `rememberSaveable`).
+     * `LazyColumn` si stav položky pamatuje podle jejího klíče i poté, co položka ze seznamu
+     * zmizí — a chat odsunutý tahem ze seznamu právě mizí. Po „Vrátit" by se tedy vrátil rovnou
+     * odsunutý, tedy neviditelný.
+     */
+    val threshold = SwipeToDismissBoxDefaults.positionalThreshold
+    val state = remember { SwipeToDismissBoxState(SwipeToDismissBoxValue.Settled, threshold) }
+    /*
+     * `SwipeToDismissBox` hlásí dokončený tah z `LaunchedEffect`, jehož klíčem je i lambda
+     * `onDismiss` — ta se při rekompozici položky může změnit a efekt by se rozběhl znovu.
+     * Položka sice hned mizí ze seznamu, ale druhé zavolání by chat archivovalo podruhé (a po
+     * „Vrátit" i zpátky), takže se hlídá, že akce odejde jednou za tah.
+     */
+    var sent by remember { mutableStateOf(false) }
+
+    SwipeToDismissBox(
+        state = state,
+        modifier = modifier,
+        gesturesEnabled = enabled,
+        onDismiss = {
+            if (!sent) {
+                sent = true
+                onSwipe()
+            }
+        },
+        backgroundContent = {
+            val direction = state.dismissDirection
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .clip(shape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = if (direction == SwipeToDismissBoxValue.EndToStart) {
+                    Alignment.CenterEnd
+                } else {
+                    Alignment.CenterStart
+                },
+            ) {
+                // Bez tahu není co ukazovat; jinak by ikona prosvítala spárou mezi položkami.
+                if (direction != SwipeToDismissBoxValue.Settled) {
+                    val icon = @Composable {
+                        Icon(
+                            painterResource(
+                                if (archived) Res.drawable.unarchive_24dp else Res.drawable.archive_24dp,
+                            ),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    }
+                    val label = @Composable {
+                        Text(
+                            text = stringResource(
+                                if (archived) Res.string.chats_action_unarchive else Res.string.chats_action_archive,
+                            ),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    }
+                    Row(
+                        Modifier.padding(horizontal = 24.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        // Ikona patří k hraně, ze které se podklad odkrývá — objeví se první
+                        // a popisek ji jen doplní. Opačné pořadí ukáže na začátku tahu konec
+                        // věty, ze kterého se nepozná, co se stane.
+                        if (direction == SwipeToDismissBoxValue.EndToStart) {
+                            label()
+                            icon()
+                        } else {
+                            icon()
+                            label()
+                        }
+                    }
+                }
+            }
+        },
+    ) {
+        content()
     }
 }
 
@@ -767,8 +980,8 @@ internal fun ChatListContent(
 private fun ChatRow(
     chat: ChatSummary,
     selected: Boolean,
-    firstInGroup: Boolean,
-    lastInGroup: Boolean,
+    /** Tvar bloku — počítá ho [groupItemShape] vedle, protože ho potřebuje i podklad pod tahem. */
+    shape: RoundedCornerShape,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -794,30 +1007,6 @@ private fun ChatRow(
     } else {
         MaterialTheme.colorScheme.onSurface
     }
-
-    /*
-     * Zaoblení dělá ze sousedních položek jeden blok: velké nahoře u první, velké dole
-     * u poslední, malé mezi nimi. Animuje se, protože skupiny se přeskládávají za běhu —
-     * přečtený chat přeskočí z nepřečtených mezi ostatní a tvary sousedů se tím mění.
-     */
-    val topCorner by animateDpAsState(
-        // Vybraná položka se z bloku vyčlení: zaoblená celá, jako skupina sama (M3 Expressive).
-        targetValue = if (firstInGroup || selected) GROUP_CORNER else INNER_CORNER,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "chat-corner-top",
-    )
-    val bottomCorner by animateDpAsState(
-        targetValue = if (lastInGroup || selected) GROUP_CORNER else INNER_CORNER,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "chat-corner-bottom",
-    )
-
-    val shape = RoundedCornerShape(
-        topStart = topCorner,
-        topEnd = topCorner,
-        bottomStart = bottomCorner,
-        bottomEnd = bottomCorner,
-    )
 
     // `Card(onClick = …)` umí jen krátké ťuknutí. Dlouhý stisk potřebuje `combinedClickable`,
     // takže se klikání přesouvá na Surface — Card zůstává jen tvarem a barvou.
@@ -1006,6 +1195,9 @@ private val ONLINE_DOT = 14.dp
 
 /** Fotka účtu v pilulce — o kus menší než ikona, ať pilulku nevyboulí. */
 private val ACCOUNT_AVATAR_SIZE = 30.dp
+
+/** Tečka „v archivu něco je" na fotce účtu, i s obroučkou. Menší než tečka dostupnosti — je jen signál, ne stav. */
+private val ACCOUNT_DOT = 10.dp
 
 /**
  * O kolik se prodlužuje spodek seznamu kvůli plovoucímu toolbaru: jeho výška, odsazení od

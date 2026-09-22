@@ -75,12 +75,22 @@
     <string name="chats_leave_body">Odejdeš z %1$s a přestaneš dostávat zprávy. Zpátky se dá jen novou pozvánkou.</string>
     <string name="chats_archive">Archiv</string>
     <string name="chats_archive_empty_title">Archiv je prázdný</string>
-    <string name="chats_archive_empty">Chat se sem přesune z nabídky po dlouhém stisku.</string>
+    <string name="chats_archive_empty">Chat se sem přesune tahem do strany nebo z nabídky po dlouhém stisku.</string>
+    <string name="chats_archive_settings">Nastavení archivu</string>
+    <string name="chats_archive_unknown">Archivovat chaty od neznámých</string>
+    <string name="chats_archive_unknown_summary">Nové chaty od lidí mimo kontakty půjdou rovnou sem a ztlumené.</string>
+    <string name="chats_archive_keep">Nechávat chaty v archivu</string>
+    <string name="chats_archive_keep_summary">Nová zpráva už neztlumený chat nevrátí zpátky mezi chaty.</string>
     <string name="chats_action_archive">Archivovat</string>
     <string name="chats_action_unarchive">Vrátit mezi chaty</string>
     <string name="chats_archived">Chat je v archivu</string>
     <string name="chats_unarchived">Chat je zpátky mezi chaty</string>
     <string name="chats_undo">Vrátit</string>
+    <plurals name="chats_archive_unread">
+        <item quantity="one">%1$d nepřečtený chat v archivu</item>
+        <item quantity="few">%1$d nepřečtené chaty v archivu</item>
+        <item quantity="other">%1$d nepřečtených chatů v archivu</item>
+    </plurals>
     <string name="settings_title">Nastavení</string>
     <string name="settings_notifications_on">Zapnuté</string>
     <string name="settings_notifications_off">Vypnuté — o nových zprávách se dozvíš až v aplikaci</string>

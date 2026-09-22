@@ -105,6 +105,24 @@ interface ChatRepository {
      */
     suspend fun topChats(): Result<List<ChatSummary>>
 
+    /**
+     * Kolik chatů v archivu je nepřečtených. Archiv je schovaný v menu účtu, takže bez tohohle
+     * není odkud se dozvědět, že v něm něco přibylo.
+     *
+     * Počítá TDLib (`UpdateUnreadChatCount`), ne my nad [chats]: archiv se načítá až při otevření,
+     * takže dokud ho nikdo neotevřel, není z čeho počítat.
+     */
+    val archiveUnread: StateFlow<ArchiveUnread>
+
+    /**
+     * Nastavení archivu. Čte se na vyžádání — TDLib na jeho změnu žádný update neposílá, takže
+     * se pak drží u toho, kdo ho zobrazuje.
+     */
+    suspend fun archiveSettings(): Result<ArchiveSettings>
+
+    /** Zapíše nastavení archivu. [ArchiveSettings.canArchiveUnknownSenders] se ignoruje — to říká server. */
+    suspend fun setArchiveSettings(settings: ArchiveSettings): Result<Unit>
+
     /** Požádá TDLib o dotažení dalších chatů ze serveru. Výsledek přijde updaty do [chats]. */
     suspend fun loadMore(folder: ChatFolder = ChatFolder.Main)
 
@@ -184,6 +202,32 @@ data class FoundMessage(
  * Chat je v nejvýš jedné z nich — archivace ho z hlavního seznamu přesune, nezkopíruje.
  */
 enum class ChatFolder { Main, Archive }
+
+/**
+ * Nepřečtené chaty v archivu. [unmutedChats] je podmnožina [chats] — archiv je místo, kam se
+ * ztlumené chaty ukládají, takže „je tam něco nepřečteného" a „je tam něco, co si žádá pozornost"
+ * jsou dvě různé věci.
+ */
+data class ArchiveUnread(val chats: Int = 0, val unmutedChats: Int = 0)
+
+/**
+ * Nastavení archivu (`ArchiveChatListSettings`).
+ *
+ * `keepChatsFromFoldersArchived` tu není: týká se vlastních složek Telegramu, které aplikace
+ * nemá, takže by to byla volba bez následku. Zápis ho přesto přenese z aktuálního stavu —
+ * nastavit ho mohl jiný klient.
+ */
+data class ArchiveSettings(
+    /** Nové chaty od lidí mimo kontakty jdou rovnou do archivu a ztlumené. */
+    val archiveUnknownSenders: Boolean,
+    /** Neztlumený chat zůstane v archivu i po nové zprávě, místo aby se vrátil mezi chaty. */
+    val keepUnmutedArchived: Boolean,
+    /**
+     * Smí se [archiveUnknownSenders] vůbec zapnout? Server to povoluje jen některým účtům
+     * (`can_archive_and_mute_new_chats_from_unknown_users`) a zapnutí jinde odmítne.
+     */
+    val canArchiveUnknownSenders: Boolean,
+)
 
 /**
  * Druh chatu tak, jak ho rozlišuje uživatel: s člověkem (i tajný chat a bot), skupina (základní

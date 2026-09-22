@@ -17,11 +17,17 @@ import androidx.compose.ui.Modifier
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
-/** Položka [ExpressiveMenu]. [destructive] = nevratná akce, kreslí se v chybové barvě. */
+/**
+ * Položka [ExpressiveMenu]. [destructive] = nevratná akce, kreslí se v chybové barvě.
+ *
+ * [trailing] je na konci řádku (odznak s počtem) — je to STAV toho, kam položka vede, ne další
+ * akce; klikání nese celý řádek.
+ */
 class MenuAction(
     val label: String,
     val icon: DrawableResource? = null,
     val destructive: Boolean = false,
+    val trailing: (@Composable () -> Unit)? = null,
     val onClick: () -> Unit,
 )
 
@@ -67,6 +73,7 @@ fun ExpressiveMenu(
                         text = { Text(action.label) },
                         shape = MenuDefaults.itemShape(index, group.size).shape,
                         leadingIcon = action.icon?.let { icon -> { Icon(painterResource(icon), contentDescription = null) } },
+                        trailingIcon = action.trailing,
                         colors = colors,
                     )
                 }
