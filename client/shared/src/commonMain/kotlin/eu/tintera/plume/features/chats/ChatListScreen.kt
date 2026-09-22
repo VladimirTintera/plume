@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.material3.IconButton
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.layout.Spacer
@@ -55,10 +57,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxDefaults
-import androidx.compose.material3.SwipeToDismissBoxState
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -74,7 +72,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -82,9 +84,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import eu.tintera.plume.features.devices.UnconfirmedLoginCard
 import eu.tintera.plume.core.update.rememberStartUpdate
 import eu.tintera.plume.core.telegram.ChatFolder
@@ -880,6 +885,14 @@ private fun groupItemShape(firstInGroup: Boolean, lastInGroup: Boolean, selected
  * musel pamatovat směr pro nic. Nevratné to není — snackbar „Vrátit" je tentýž jako u archivace
  * z nabídky ([ChatActionsHost]), takže se tah nepotvrzuje.
  *
+ * **Vlastní detektor, ne `SwipeToDismissBox`.** Ten stojí na `draggable`, které si tah vezme po
+ * obyčejném touch slopu a je přitom směrově agnostické — palec jde na začátku scrollu obloukem do
+ * strany, takže seznamu gesto sebral a chaty odlétaly do archivu při obyčejném scrollování.
+ * A archivoval i ZKRATKOU PŘES RYCHLOST: tah rychlejší než 125 dp/s bral jako dokončený bez
+ * ohledu na to, kam došel, a vypnout to zvenku nejde. Tady rozhoduje [archiveSwipeDecision]
+ * (výrazně vodorovný tah, dvojnásobek slopu) a [archiveSwipeThreshold] (kus šířky řádku);
+ * rychlost se nepočítá vůbec.
+ *
  * [enabled] `false` u Uložených zpráv: ty archivovat nejdou a tah, po kterém přijde chyba, je
  * horší než tah, který se nechytne.
  */
@@ -893,88 +906,134 @@ private fun SwipeToArchive(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    /*
-     * Stav se drží `remember`em, NE `rememberSwipeToDismissBoxState` (ten je `rememberSaveable`).
-     * `LazyColumn` si stav položky pamatuje podle jejího klíče i poté, co položka ze seznamu
-     * zmizí — a chat odsunutý tahem ze seznamu právě mizí. Po „Vrátit" by se tedy vrátil rovnou
-     * odsunutý, tedy neviditelný.
-     */
-    val threshold = SwipeToDismissBoxDefaults.positionalThreshold
-    val state = remember { SwipeToDismissBoxState(SwipeToDismissBoxValue.Settled, threshold) }
-    /*
-     * `SwipeToDismissBox` hlásí dokončený tah z `LaunchedEffect`, jehož klíčem je i lambda
-     * `onDismiss` — ta se při rekompozici položky může změnit a efekt by se rozběhl znovu.
-     * Položka sice hned mizí ze seznamu, ale druhé zavolání by chat archivovalo podruhé (a po
-     * „Vrátit" i zpátky), takže se hlídá, že akce odejde jednou za tah.
-     */
-    var sent by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    val thresholdCap = with(LocalDensity.current) { SWIPE_THRESHOLD_MAX.toPx() }
 
-    SwipeToDismissBox(
-        state = state,
-        modifier = modifier,
-        gesturesEnabled = enabled,
-        onDismiss = {
-            if (!sent) {
-                sent = true
-                onSwipe()
+    /*
+     * Posun drží `remember`, NE `rememberSaveable`: `LazyColumn` si stav položky pamatuje podle
+     * jejího klíče i poté, co položka ze seznamu zmizí — a chat odtažený tahem právě mizí. Po
+     * „Vrátit" by se tedy vrátil rovnou odtažený, tedy neviditelný.
+     */
+    val drag = remember { Animatable(0f) }
+    /** Prah už byl v tomhle tahu překročen; hlídá, aby haptika odešla jen jednou za tah. */
+    var armed by remember { mutableStateOf(false) }
+    // Spec se musí vzít v kompozici — konec gesta je obyčejná suspend funkce, ne composable.
+    val returnSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+
+    /*
+     * Strana, ze které se podklad odkrývá. Čte se hrubě přes `derivedStateOf`: `drag.value` se
+     * mění každý snímek tahu a podklad se má překreslit jen při změně strany.
+     */
+    val side by remember {
+        derivedStateOf {
+            when {
+                drag.value > 0f -> SwipeSide.Start
+                drag.value < 0f -> SwipeSide.End
+                else -> SwipeSide.None
             }
-        },
-        backgroundContent = {
-            val direction = state.dismissDirection
-            Box(
+        }
+    }
+
+    Box(
+        modifier.then(
+            if (!enabled) {
                 Modifier
-                    .fillMaxSize()
-                    .clip(shape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = if (direction == SwipeToDismissBoxValue.EndToStart) {
-                    Alignment.CenterEnd
-                } else {
-                    Alignment.CenterStart
-                },
-            ) {
-                // Bez tahu není co ukazovat; jinak by ikona prosvítala spárou mezi položkami.
-                if (direction != SwipeToDismissBoxValue.Settled) {
-                    val icon = @Composable {
-                        Icon(
-                            painterResource(
-                                if (archived) Res.drawable.unarchive_24dp else Res.drawable.archive_24dp,
-                            ),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                    }
-                    val label = @Composable {
-                        Text(
-                            text = stringResource(
-                                if (archived) Res.string.chats_action_unarchive else Res.string.chats_action_archive,
-                            ),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                    }
-                    Row(
-                        Modifier.padding(horizontal = 24.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        // Ikona patří k hraně, ze které se podklad odkrývá — objeví se první
-                        // a popisek ji jen doplní. Opačné pořadí ukáže na začátku tahu konec
-                        // věty, ze kterého se nepozná, co se stane.
-                        if (direction == SwipeToDismissBoxValue.EndToStart) {
-                            label()
-                            icon()
-                        } else {
-                            icon()
-                            label()
-                        }
+            } else {
+                Modifier.pointerInput(Unit) {
+                    val maxDrag = { size.width.toFloat() }
+                    val threshold = { archiveSwipeThreshold(size.width.toFloat(), thresholdCap) }
+                    detectArchiveSwipe(
+                        onDrag = { delta ->
+                            coroutineScope.launch {
+                                val next = (drag.value + delta).coerceIn(-maxDrag(), maxDrag())
+                                drag.snapTo(next)
+                                if (!armed && abs(next) >= threshold()) {
+                                    armed = true
+                                    haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                }
+                            }
+                        },
+                        onEnd = { released ->
+                            val committed = released && abs(drag.value) >= threshold()
+                            val target = if (drag.value > 0f) maxDrag() else -maxDrag()
+                            armed = false
+                            coroutineScope.launch {
+                                /*
+                                 * Archivuje se při PUŠTĚNÍ, ne při překročení prahu — kdo si to
+                                 * rozmyslí, vrátí prst zpátky a nic se nestane. Akce odchází
+                                 * PŘED animací odjezdu: odscrollovaná položka se uklidí
+                                 * z kompozice i s tímhle rozsahem a animace by ji vzala s sebou.
+                                 */
+                                if (committed) onSwipe()
+                                drag.animateTo(if (committed) target else 0f, returnSpec)
+                            }
+                        },
+                    )
+                }
+            },
+        ),
+    ) {
+        Box(
+            Modifier
+                .matchParentSize()
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = if (side == SwipeSide.End) Alignment.CenterEnd else Alignment.CenterStart,
+        ) {
+            // Bez tahu není co ukazovat; jinak by ikona prosvítala spárou mezi položkami.
+            if (side != SwipeSide.None) {
+                val icon = @Composable {
+                    Icon(
+                        painterResource(
+                            if (archived) Res.drawable.unarchive_24dp else Res.drawable.archive_24dp,
+                        ),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+                val label = @Composable {
+                    Text(
+                        text = stringResource(
+                            if (archived) Res.string.chats_action_unarchive else Res.string.chats_action_archive,
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+                Row(
+                    Modifier.padding(horizontal = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    // Ikona patří k hraně, ze které se podklad odkrývá — objeví se první
+                    // a popisek ji jen doplní. Opačné pořadí ukáže na začátku tahu konec
+                    // věty, ze kterého se nepozná, co se stane.
+                    if (side == SwipeSide.End) {
+                        label()
+                        icon()
+                    } else {
+                        icon()
+                        label()
                     }
                 }
             }
-        },
-    ) {
-        content()
+        }
+        // Posun se čte až v layoutu, takže tah nic nerekomponuje.
+        Box(Modifier.offset { IntOffset(drag.value.roundToInt(), 0) }) {
+            content()
+        }
     }
 }
+
+/** Ze které hrany se odkrývá podklad pod taženým chatem. */
+private enum class SwipeSide { None, Start, End }
+
+/**
+ * Strop prahu archivace. Na široké ploše (tablet, dvoupanel) by podíl šířky znamenal tah přes
+ * půl obrazovky; na telefonu se neuplatní.
+ */
+private val SWIPE_THRESHOLD_MAX = 160.dp
 
 @Composable
 @OptIn(ExperimentalFoundationApi::class)

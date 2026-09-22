@@ -1421,12 +1421,31 @@ snackbar s „Vrátit".
   není poznat, co se stane.
 - **Archivace tahem jde na OBĚ strany a obě dělají totéž.** Druhá akce v seznamu není, takže by
   si uživatel musel pamatovat směr pro nic. Nepotvrzuje se — snackbar „Vrátit" je tentýž jako
-  u archivace z nabídky. Uložené zprávy tah nemají (`gesturesEnabled = false`), stejně jako
-  nemají položku v nabídce.
-- **`SwipeToDismissBox` hlásí dokončený tah z `LaunchedEffect`, jehož klíčem je i lambda
-  `onDismiss`.** Ta se při rekompozici položky může změnit a efekt se rozběhne ZNOVU — chat by
-  se archivoval podruhé a po „Vrátit" zase zpátky. Proto si tah pamatuje, že akce už odešla
-  (`sent`). Platí pro každé použití téhle komponenty, ne jen tady.
+  u archivace z nabídky. Uložené zprávy tah nemají, stejně jako nemají položku v nabídce.
+- **`SwipeToDismissBox` se na tohle NEHODÍ a je pryč** (pravidla v `ArchiveSwipeGesture.kt`,
+  testy `ArchiveSwipeGestureTest`). Byl „hodně moc citlivý": při scrollování seznamu odlétaly
+  chaty do archivu. Dvě příčiny, ani jedna se zvenku vypnout nedá:
+  - **Stojí na `draggable`, které si tah vezme po obyčejném touch slopu a je směrově
+    agnostické.** Položka je potomek seznamu, takže gesto dostane dřív — a palec jde na začátku
+    scrollu obloukem do strany, takže osm bodů do strany stačilo, aby seznam o scroll přišel.
+  - **Archivuje ZKRATKOU PŘES RYCHLOST.** `AnchoredDraggableDefaults.flingBehavior` bere tah
+    rychlejší než 125 dp/s jako dokončený BEZ OHLEDU NA TO, kam došel; `positionalThreshold`
+    (výchozích 56 dp) se v tu chvíli vůbec nepočítá. Zvedat práh je proti tomuhle k ničemu —
+    škubnutí prstem archivovalo, ať byl jakkoli vysoko.
+- **Vlastní detektor rozhodne jednou za gesto** (`archiveSwipeDecision`, stejný vzor jako
+  `detectTimeReveal` v konverzaci): rozhoduje se až po DVOJNÁSOBKU touch slopu a jen když je
+  vodorovná složka aspoň dvakrát větší než svislá; do té doby nic nespotřebovává, takže si
+  šikmý tah vezme seznam. Archivuje se při PUŠTĚNÍ po `archiveSwipeThreshold` (40 % šířky
+  řádku, nejvýš 160 dp), rychlost se nepočítá vůbec. Prah ohlásí haptika, jako u odpovědi
+  tahem v konverzaci.
+- **S vlastním detektorem odpadl hlídač dvojího odeslání.** `SwipeToDismissBox` hlásil dokončený
+  tah z `LaunchedEffect`, jehož klíčem byla i lambda `onDismiss` — ta se při rekompozici položky
+  mohla změnit, efekt se rozběhl ZNOVU a chat se archivoval podruhé (a po „Vrátit" zase zpátky).
+  Tady akce odchází přímo z konce gesta, takže jednou. **Past platí pro každé použití téhle
+  komponenty**, kdyby se někde vrátila.
+- **Archivace odchází PŘED animací odjezdu.** Odscrollovaná položka se uklidí z kompozice
+  i s rozsahem korutin, takže po odsunutí a rychlém scrollu by se akce na konci animace už
+  neměla kde odeslat.
 - **Tvar bloku se počítá mimo řádek** (`groupItemShape`): tentýž tvar musí mít i podklad
   odkrývaný tahem, jinak pod zaoblenou položkou vykukují jeho hranaté rohy. `animateItem` zůstává
   na kořeni položky, tedy na tahu, ne na řádku uvnitř.
