@@ -3502,6 +3502,10 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
   hovory i články (`MessageRichMessage`, text se bere z bloků) a všechno padalo do „neumíme
   zobrazit". Při bumpu TDLib projít seznam podtypů `MessageContent` a `PushMessageContent`
   (`unzip -l tdl-coroutines-api.jar | grep dto/Message`) proti `describe()` a `serviceText()`.
+- **Neznámý typ se zapíše do logu** (`reportUnknownContent`, `w`, jednou za typ a proces), a tím
+  do kontextu hlášení v Crashlytics. Bez toho se typ ze snímku „neumíme zobrazit" nedal zjistit.
+  Název se bere z `toString()` (TDLib ho má jako řetězcový literál, R8 ho nepřejmenuje), obsah
+  zprávy do logu nejde. `MessageUnsupported` jde toutéž cestou — v notifikaci „Nová zpráva".
 - **Když typ dostane přílohu s popiskem, `captionText()` pro něj musí vracet prázdno** — jinak
   se popisek v bublině objeví dvakrát. Platí pro video kolečko, hru a platbu.
 
