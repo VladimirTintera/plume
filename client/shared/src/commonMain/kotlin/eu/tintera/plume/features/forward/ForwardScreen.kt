@@ -211,8 +211,6 @@ private fun OptionToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit, e
  * Výběr chatu: hledání nad načteným seznamem a seznam chatů. Sdílí ho přeposílání a sdílení
  * do aplikace ze systému — obojí je „vyber, kam s tím".
  *
- * [subtitle] je pod hledáním: co se sdílí, nebo že se to ještě připravuje.
- *
  * **Uložené zprávy ([savedMessagesChatId]) jsou vždy první**, i když v seznamu chatů nejsou
  * (nepřipnuté tam nejsou) — „pošlu si to" je nejčastější cíl. Hledání je najde podle
  * přeloženého názvu, ne podle jména účtu, které nese TDLib.
@@ -231,7 +229,6 @@ fun ChatPicker(
     modifier: Modifier = Modifier,
     /** ✕ místo šipky: zavření celé akce, ne návrat o krok (sdílení ze systému). */
     closeIcon: Boolean = false,
-    subtitle: String? = null,
     savedMessagesChatId: Long? = null,
     /**
      * Vybrané cíle; `null` = jeden cíl a ťuknutí ho rovnou použije.
@@ -244,7 +241,10 @@ fun ChatPicker(
     onConfirm: () -> Unit = {},
     error: UiText? = null,
     onErrorShown: () -> Unit = {},
-    /** Pod hledáním, nad seznamem: volby akce (jak přeposlat). */
+    /**
+     * Pod hledáním, nad seznamem: co obrazovka k výběru dodává — volby přeposlání, u sdílení
+     * karta s tím, co se posílá.
+     */
     header: @Composable () -> Unit = {},
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -332,17 +332,6 @@ fun ChatPicker(
             )
 
             header()
-
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                )
-            }
 
             if (loading) {
                 Box(

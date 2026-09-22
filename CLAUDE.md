@@ -4538,7 +4538,14 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   kolečko — ve sdílení i ve velkém kruhu notifikace. Barvy ze systémové palety Material You
   (`system_accent1_100/900`): zkratka se kreslí mimo aplikaci, téma aplikace tam není. Paleta je
   od Androidu 12, na starším zůstane ikona prázdná.
-- **Seznam s hledáním je společný s přeposíláním** (`ChatPicker`).
+- **Seznam s hledáním je společný s přeposíláním** (`ChatPicker`). Co se sdílí, jde do jeho
+  slotu `header` — tentýž, ve kterém má přeposílání volby; `ChatPicker` sám žádný podtitul nezná.
+- **Co se sdílí, je KARTA, ne řádek textu na pozadí** (`SharedContentCard`). Jako holý text to byl
+  jediný prvek obrazovky, který nestál na ploše — a přitom je to to, podle čeho uživatel pozná,
+  že posílá správnou věc. Role je `tertiaryContainer`: je to cizí vložený obsah, tedy totéž co
+  citace nad vstupním polem nebo popis webu u náhledu odkazu. **Ikona říká druh** (sponka
+  u souborů, řetěz u odkazu, stránka u textu), a dokud se soubory připravují, je místo ní
+  indikátor — „Připravuji soubory…" je průběh, ne popis.
 
 ### iOS: rozšíření sdílení
 

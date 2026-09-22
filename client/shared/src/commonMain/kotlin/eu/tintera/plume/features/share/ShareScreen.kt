@@ -1,10 +1,25 @@
 package eu.tintera.plume.features.share
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -14,8 +29,12 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.features.chats.ChatSearch
 import eu.tintera.plume.features.chats.pickerChats
+import eu.tintera.plume.core.ui.GROUP_CORNER
 import eu.tintera.plume.features.forward.ChatPicker
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.attach_file_24dp
+import eu.tintera.plume.resources.description_24dp
+import eu.tintera.plume.resources.link_24dp
 import eu.tintera.plume.resources.share_files
 import eu.tintera.plume.resources.share_preparing
 import eu.tintera.plume.resources.share_title
@@ -24,6 +43,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -101,14 +121,6 @@ fun ShareScreen(
      */
     DisposableEffect(Unit) { onDispose { viewModel.abandon() } }
 
-    val attachments = content?.attachments
-    val subtitle = when {
-        content == null -> null
-        attachments == null -> stringResource(Res.string.share_preparing)
-        attachments.isNotEmpty() -> pluralStringResource(Res.plurals.share_files, attachments.size, attachments.size)
-        else -> content.text
-    }
-
     ChatPicker(
         title = stringResource(Res.string.share_title),
         query = state.query,
@@ -122,8 +134,72 @@ fun ShareScreen(
         },
         onBack = onClose,
         closeIcon = true,
-        subtitle = subtitle,
         savedMessagesChatId = state.savedMessagesChatId,
+        header = { content?.let { SharedContentCard(it) } },
         modifier = modifier,
     )
 }
+
+/**
+ * Co se sdílí — karta, ne holý řádek textu na pozadí.
+ *
+ * Je to **cizí vložený obsah**, tedy totéž co citace nad vstupním polem nebo popis webu u náhledu
+ * odkazu: proto `tertiaryContainer`. Jako holý text byla tahle informace jediný prvek obrazovky,
+ * který nestál na ploše — a přitom je to to, podle čeho uživatel pozná, že posílá správnou věc.
+ *
+ * **Ikona říká DRUH obsahu** (soubory / odkaz / text), dokud se soubory připravují, je místo ní
+ * indikátor — „Připravuji soubory…" je průběh, ne popis.
+ */
+@Composable
+private fun SharedContentCard(content: SharedContent, modifier: Modifier = Modifier) {
+    val attachments = content.attachments
+    val text = when {
+        attachments == null -> stringResource(Res.string.share_preparing)
+        attachments.isNotEmpty() ->
+            pluralStringResource(Res.plurals.share_files, attachments.size, attachments.size)
+        else -> content.text.orEmpty()
+    }
+    if (text.isBlank()) return
+
+    Surface(
+        shape = RoundedCornerShape(GROUP_CORNER),
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            if (attachments == null) {
+                LoadingIndicator(
+                    color = LocalContentColor.current,
+                    modifier = Modifier.size(ICON_SIZE),
+                )
+            } else {
+                Icon(
+                    painterResource(sharedContentIcon(content)),
+                    contentDescription = null,
+                    modifier = Modifier.size(ICON_SIZE),
+                )
+            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/** Soubory mají sponku, sdílený odkaz řetěz, holý text stránku — ikona má říct, co odejde. */
+private fun sharedContentIcon(content: SharedContent) = when {
+    !content.attachments.isNullOrEmpty() -> Res.drawable.attach_file_24dp
+    content.text?.contains("://") == true -> Res.drawable.link_24dp
+    else -> Res.drawable.description_24dp
+}
+
+/** Aby indikátor při přípravě souborů zabral přesně tolik co ikona a text nepopojel. */
+private val ICON_SIZE = 24.dp
