@@ -692,8 +692,6 @@
     <string name="search_filter_private">Soukromé</string>
     <string name="search_filter_groups">Skupiny</string>
     <string name="search_filter_channels">Kanály</string>
-    <string name="search_filter_date">Období</string>
-    <string name="search_filter_any_time">Kdykoli</string>
     <string name="search_filter_week">Poslední týden</string>
     <string name="search_filter_month">Poslední měsíc</string>
     <string name="search_filter_year">Poslední rok</string>
@@ -701,4 +699,8 @@
     <string name="search_filter_range">%1$s – %2$s</string>
     <string name="search_filter_apply">Použít</string>
     <string name="search_filter_empty_hint">Zkus jiné slovo nebo uvolni filtry.</string>
+    <string name="search_filter_choose_period">Vybrat období</string>
+    <string name="search_filter_week_short">Týden</string>
+    <string name="search_filter_month_short">Měsíc</string>
+    <string name="search_filter_year_short">Rok</string>
 </resources>

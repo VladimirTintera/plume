@@ -1197,7 +1197,7 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
   které jsou už mezi výsledky (`globalOnly` — server vynechává jen chaty ze seznamu, ne všechny
   známé). Zprávy jsou `searchMessages(chatList = null)` přes hlavní seznam i archiv, stránkované
   `nextOffset` (prázdný = konec), duplicity na hranici stránek zahazuje `mergeFoundMessages`.
-- **Filtry hledání zpráv jsou čipy nad výsledky** (`MessageSearchFilters`, `MessageSearchFilter`):
+- **Filtry hledání zpráv jsou nad výsledky** (`MessageSearchFilters`, `MessageSearchFilter`):
   druh chatu (Soukromé / Skupiny / Kanály) a období (týden, měsíc, rok, vlastní rozsah). Filtruje
   **server** (`searchMessages` s `chatTypeFilter`, `minDate`/`maxDate`, převod `dateRange`, testy
   `MessageSearchFilterTest`) — filtr nad načtenou stránkou by z padesáti výsledků nechal pár
@@ -1205,10 +1205,15 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
   schovají, chaty datum nemají.
 - **Změna jen filtru nehledá chaty znovu** — seznam by se při každém ťuknutí na čip přeskládal;
   zopakují se jen zprávy. Filtr se nuluje se sbalením hledání, jako dotaz.
-- **Čipy, ne connected button group**: ta je na volbu z pevné sady, kde je vždycky něco vybrané,
-  a čtyři spojená tlačítka by vzala celou šířku. **Nabídka období je Expressive menu**
-  (`DropdownMenuPopup` + `DropdownMenuGroup`, položky s `checked`): vybrané období je v ní
-  zaškrtnuté a vlastní rozsah je samostatná skupina, která pod sebou ukazuje svá data.
+- **Druh chatu je connected button group** (`ToggleButton` se spojenými tvary, vybraný plný
+  s fajfkou, jako záložky profilu); druhé ťuknutí výběr zruší — filtr smí být prázdný.
+  **Období je split button**: levá část období zapne a vypne a ukazuje které (poslední vybrané
+  si pamatuje), šipka otevře Expressive menu se zaškrtnutou volbou a vlastním rozsahem. „Kdykoli"
+  v nabídce není — to je vypnutí levé části. Nejdřív to byly `FilterChip`y; uživatel chtěl
+  Expressive komponenty.
+- **Na tlačítku krátký popisek** („Týden"), plný je v nabídce, a tlačítka mají užší odsazení
+  (12 dp). S „Poslední týden" a výchozím odsazením se řádek v češtině nevešel a šipka nabídky
+  skončila za okrajem — ověřuje se v češtině s vybraným druhem i obdobím, to je nejširší stav.
 - **Výběr dat vrací půlnoc v UTC** — den se z ní vezme v UTC a začátek hledání je jeho půlnoc
   v MÍSTNÍM pásmu; konec rozsahu je konec dne. Budoucí dny se nenabízejí.
 - **Ověřovat přes `adb` opatrně**: klávesa Esc (`keyevent 111`) hledání zavře a další ťuknutí
