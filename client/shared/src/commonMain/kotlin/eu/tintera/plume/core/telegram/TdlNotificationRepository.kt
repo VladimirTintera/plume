@@ -212,7 +212,7 @@ class TdlNotificationRepository(
                     senderPhoto = sender?.photo,
                     // `showPreview = false` znamená, že si uživatel nepřeje vidět obsah
                     // na zamykací obrazovce. Musíme to respektovat — i u obrázku.
-                    text = if (type.showPreview) message.previewText() else getString(Res.string.notification_new_message),
+                    text = if (type.showPreview) message.notificationText() else getString(Res.string.notification_new_message),
                     image = shownPhoto?.photo?.notificationImage(),
                     imageCaption = shownPhoto?.caption?.text?.takeIf { it.isNotBlank() },
                 )

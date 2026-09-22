@@ -3430,6 +3430,13 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
   formulace („Do skupiny přibyli členové") je vždycky pravdivá a nic nestojí.
 - **`MessageUnsupported` znamená, že klient je starší než server.** Doslovný název typu by
   uživateli neřekl nic, takže dostane stejnou větu jako ostatní neznámé typy.
+- **Notifikace „neumíme zobrazit" neříká nikdy** (`notificationText`): typ, který neumíme
+  popsat, je na liště „Nová zpráva". V aplikaci ta věta stojí na místě zprávy, na liště vypadala
+  jako chybová hláška místo zprávy.
+- **Nové typy TDLib se objevují tiše**: TDLib 15 přidal dárky, soutěže, boosty, skupinové
+  hovory i články (`MessageRichMessage`, text se bere z bloků) a všechno padalo do „neumíme
+  zobrazit". Při bumpu TDLib projít seznam podtypů `MessageContent` a `PushMessageContent`
+  (`unzip -l tdl-coroutines-api.jar | grep dto/Message`) proti `describe()` a `serviceText()`.
 - **Když typ dostane přílohu s popiskem, `captionText()` pro něj musí vracet prázdno** — jinak
   se popisek v bublině objeví dvakrát. Platí pro video kolečko, hru a platbu.
 

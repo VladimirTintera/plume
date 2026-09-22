@@ -40,6 +40,53 @@ import dev.g000sha256.tdl.dto.MessageVideo
 import dev.g000sha256.tdl.dto.MessageVideoNote
 import dev.g000sha256.tdl.dto.MessageVoiceNote
 import dev.g000sha256.tdl.dto.Photo
+import dev.g000sha256.tdl.dto.MessageChatShared
+import dev.g000sha256.tdl.dto.MessageGiveaway
+import dev.g000sha256.tdl.dto.MessageGiveawayWinners
+import dev.g000sha256.tdl.dto.MessageGroupCall
+import dev.g000sha256.tdl.dto.MessageRichMessage
+import dev.g000sha256.tdl.dto.MessageSuggestBirthdate
+import dev.g000sha256.tdl.dto.MessageSuggestProfilePhoto
+import dev.g000sha256.tdl.dto.MessageUsersShared
+import dev.g000sha256.tdl.dto.PageBlock
+import dev.g000sha256.tdl.dto.PageBlockHeader
+import dev.g000sha256.tdl.dto.PageBlockKicker
+import dev.g000sha256.tdl.dto.PageBlockParagraph
+import dev.g000sha256.tdl.dto.PageBlockSectionHeading
+import dev.g000sha256.tdl.dto.PageBlockSubheader
+import dev.g000sha256.tdl.dto.PageBlockSubtitle
+import dev.g000sha256.tdl.dto.PageBlockTitle
+import dev.g000sha256.tdl.dto.PushMessageContentGift
+import dev.g000sha256.tdl.dto.PushMessageContentGiveaway
+import dev.g000sha256.tdl.dto.PushMessageContentMediaAlbum
+import dev.g000sha256.tdl.dto.PushMessageContentPremiumGiftCode
+import dev.g000sha256.tdl.dto.PushMessageContentUpgradedGift
+import dev.g000sha256.tdl.dto.RichText
+import dev.g000sha256.tdl.dto.RichTextAnchorLink
+import dev.g000sha256.tdl.dto.RichTextBankCardNumber
+import dev.g000sha256.tdl.dto.RichTextBold
+import dev.g000sha256.tdl.dto.RichTextBotCommand
+import dev.g000sha256.tdl.dto.RichTextCashtag
+import dev.g000sha256.tdl.dto.RichTextCustomEmoji
+import dev.g000sha256.tdl.dto.RichTextDateTime
+import dev.g000sha256.tdl.dto.RichTextDiff
+import dev.g000sha256.tdl.dto.RichTextEmailAddress
+import dev.g000sha256.tdl.dto.RichTextFixed
+import dev.g000sha256.tdl.dto.RichTextHashtag
+import dev.g000sha256.tdl.dto.RichTextItalic
+import dev.g000sha256.tdl.dto.RichTextMarked
+import dev.g000sha256.tdl.dto.RichTextMention
+import dev.g000sha256.tdl.dto.RichTextMentionName
+import dev.g000sha256.tdl.dto.RichTextPhoneNumber
+import dev.g000sha256.tdl.dto.RichTextPlain
+import dev.g000sha256.tdl.dto.RichTextReference
+import dev.g000sha256.tdl.dto.RichTextReferenceLink
+import dev.g000sha256.tdl.dto.RichTextStrikethrough
+import dev.g000sha256.tdl.dto.RichTextSubscript
+import dev.g000sha256.tdl.dto.RichTextSuperscript
+import dev.g000sha256.tdl.dto.RichTextUnderline
+import dev.g000sha256.tdl.dto.RichTextUrl
+import dev.g000sha256.tdl.dto.RichTexts
 import dev.g000sha256.tdl.dto.PushMessageContent
 import dev.g000sha256.tdl.dto.PushMessageContentAnimation
 import dev.g000sha256.tdl.dto.PushMessageContentAudio
@@ -83,7 +130,17 @@ import dev.g000sha256.tdl.dto.ThumbnailFormatPng
 import dev.g000sha256.tdl.dto.ThumbnailFormatWebp
 import eu.tintera.plume.core.audio.decodeWaveform
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.content_album
 import eu.tintera.plume.resources.content_audio
+import eu.tintera.plume.resources.content_gift
+import eu.tintera.plume.resources.content_giveaway
+import eu.tintera.plume.resources.content_giveaway_winners
+import eu.tintera.plume.resources.content_group_call
+import eu.tintera.plume.resources.content_rich_message
+import eu.tintera.plume.resources.content_shared_chat
+import eu.tintera.plume.resources.content_shared_users
+import eu.tintera.plume.resources.content_suggested_birthdate
+import eu.tintera.plume.resources.content_suggested_photo
 import eu.tintera.plume.resources.content_call
 import eu.tintera.plume.resources.content_checklist
 import eu.tintera.plume.resources.content_contact
@@ -118,7 +175,18 @@ import org.jetbrains.compose.resources.getString
  * u médií se použije popisek, a když ho zpráva nemá, název typu — prázdný řádek u fotky vypadá
  * jako chyba načítání.
  */
-internal suspend fun Message.previewText(): String = when (val content = this.content) {
+internal suspend fun Message.previewText(): String =
+    previewTextOrNull() ?: getString(Res.string.content_unsupported)
+
+/**
+ * Text zprávy pro **notifikaci**: totéž co [previewText], jen typ, který neumíme popsat, dostane
+ * „Nová zpráva". Věta „tenhle typ zprávy zatím neumíme zobrazit" patří do aplikace, kde stojí na
+ * místě zprávy; na liště vypadá jako chybové hlášení místo zprávy.
+ */
+internal suspend fun Message.notificationText(): String =
+    previewTextOrNull() ?: getString(Res.string.notification_new_message)
+
+private suspend fun Message.previewTextOrNull(): String? = when (val content = this.content) {
     is MessageText -> content.text.text
     is MessagePhoto -> content.caption.text.ifBlankGet { getString(Res.string.media_photo) }
     is MessageVideo -> content.caption.text.ifBlankGet { getString(Res.string.media_video) }
@@ -137,7 +205,7 @@ internal suspend fun Message.previewText(): String = when (val content = this.co
  *
  * Push nese vlastní, chudší podobu obsahu než zpráva — TDLib ji vydá, když samotnou zprávu ještě
  * nemá. Slova jsou stejná jako v [previewText], ať notifikace nevypadá jinak podle toho, kudy
- * přišla. Co push nepopisuje nijak užitečně (servisní události, dárky, alba), dostane obecné
+ * přišla. Co push nepopisuje nijak užitečně (servisní události), dostane obecné
  * „Nová zpráva" — pravdivé a bez doslovného názvu typu.
  */
 internal suspend fun PushMessageContent.previewText(): String = when (this) {
@@ -158,6 +226,10 @@ internal suspend fun PushMessageContent.previewText(): String = when (this) {
     is PushMessageContentGame -> getString(Res.string.content_game, title)
     is PushMessageContentStory -> getString(Res.string.content_story)
     is PushMessageContentPaidMedia -> getString(Res.string.content_paid)
+    is PushMessageContentMediaAlbum -> getString(Res.string.content_album)
+    is PushMessageContentGift, is PushMessageContentUpgradedGift, is PushMessageContentPremiumGiftCode ->
+        getString(Res.string.content_gift)
+    is PushMessageContentGiveaway -> getString(Res.string.content_giveaway)
     else -> getString(Res.string.notification_new_message)
 }
 
@@ -168,7 +240,7 @@ internal suspend fun PushMessageContent.previewText(): String = when (this) {
  * takže se anketa, poloha i systémové oznámení tvářily stejně — a hlavně to vypadalo jako chyba
  * načítání, ne jako „tohle zatím neumíme".
  */
-private suspend fun MessageContent.describe(): String = when (this) {
+private suspend fun MessageContent.describe(): String? = when (this) {
     is MessageVideoNote -> getString(Res.string.content_video_note)
     is MessagePoll -> getString(Res.string.content_poll, poll.question.text)
     is MessageChecklist -> getString(Res.string.content_checklist, list.title.text)
@@ -181,6 +253,16 @@ private suspend fun MessageContent.describe(): String = when (this) {
     is MessageStory -> getString(Res.string.content_story)
     is MessagePaidMedia -> caption.text.ifBlankGet { getString(Res.string.content_paid) }
     is MessageCall -> getString(if (isVideo) Res.string.content_video_call else Res.string.content_call)
+    is MessageGroupCall -> getString(Res.string.content_group_call)
+    is MessageGiveaway -> getString(Res.string.content_giveaway)
+    is MessageGiveawayWinners -> getString(Res.string.content_giveaway_winners)
+    is MessageSuggestProfilePhoto -> getString(Res.string.content_suggested_photo)
+    is MessageSuggestBirthdate -> getString(Res.string.content_suggested_birthdate)
+    is MessageChatShared -> getString(Res.string.content_shared_chat)
+    is MessageUsersShared -> getString(Res.string.content_shared_users)
+    // Článek složený z bloků (TDLib 15). Kreslit ho neumíme, jeho text ano — prázdný je jen
+    // článek ze samých obrázků.
+    is MessageRichMessage -> message.blocks.plainText().ifBlankGet { getString(Res.string.content_rich_message) }
 
     // Zprávy s časovým omezením, které vypršely. Soubor už na serveru není, takže není co stáhnout.
     is MessageExpiredPhoto -> getString(Res.string.content_expired_photo)
@@ -191,8 +273,59 @@ private suspend fun MessageContent.describe(): String = when (this) {
     // Klient je starší než server. Doslovný název typu by uživateli neřekl nic.
     is MessageUnsupported -> getString(Res.string.content_unsupported)
 
-    // Systémová oznámení mají vlastní formulace i vykreslení.
-    else -> serviceText() ?: getString(Res.string.content_unsupported)
+    // Systémová oznámení mají vlastní formulace i vykreslení. `null` = typ neumíme popsat
+    // a jakou větou to říct, rozhodne volající (v aplikaci jinou než v notifikaci).
+    else -> serviceText()
+}
+
+/**
+ * Holý text článku: nadpisy a odstavce po řádcích. Obrázky, tabulky a vložený obsah se vynechají,
+ * text je tu jen náhled.
+ */
+private fun Array<PageBlock>.plainText(): String = mapNotNull { block ->
+    when (block) {
+        is PageBlockTitle -> block.title
+        is PageBlockSubtitle -> block.subtitle
+        is PageBlockHeader -> block.header
+        is PageBlockSubheader -> block.subheader
+        is PageBlockSectionHeading -> block.text
+        is PageBlockKicker -> block.kicker
+        is PageBlockParagraph -> block.text
+        else -> null
+    }?.plainText()?.trim()?.takeIf { it.isNotEmpty() }
+}.joinToString("\n")
+
+/**
+ * Formátování se zahazuje, text zůstává. **Spoiler se vynechá** — náhled by ho prozradil; stejně
+ * tak co text nenese (ikona, tlačítko, vzorec).
+ */
+private fun RichText.plainText(): String = when (this) {
+    is RichTextPlain -> text
+    is RichTexts -> texts.joinToString("") { it.plainText() }
+    is RichTextBold -> text.plainText()
+    is RichTextItalic -> text.plainText()
+    is RichTextUnderline -> text.plainText()
+    is RichTextStrikethrough -> text.plainText()
+    is RichTextFixed -> text.plainText()
+    is RichTextMarked -> text.plainText()
+    is RichTextSubscript -> text.plainText()
+    is RichTextSuperscript -> text.plainText()
+    is RichTextUrl -> text.plainText()
+    is RichTextEmailAddress -> text.plainText()
+    is RichTextPhoneNumber -> text.plainText()
+    is RichTextBankCardNumber -> text.plainText()
+    is RichTextMention -> text.plainText()
+    is RichTextMentionName -> text.plainText()
+    is RichTextHashtag -> text.plainText()
+    is RichTextCashtag -> text.plainText()
+    is RichTextBotCommand -> text.plainText()
+    is RichTextAnchorLink -> text.plainText()
+    is RichTextReference -> text.plainText()
+    is RichTextReferenceLink -> text.plainText()
+    is RichTextDateTime -> text.plainText()
+    is RichTextDiff -> text.plainText()
+    is RichTextCustomEmoji -> alternativeText
+    else -> ""
 }
 
 /**
