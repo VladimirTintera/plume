@@ -1052,6 +1052,8 @@ když si o to uživatel řekne v Nastavení (`separateUnreadChats`, **výchozí 
 
 - **Zaoblení nese krajní položka skupiny**: velké nahoře u první, velké dole u poslední, malé
   (4 dp) mezi nimi. S rozestupem 2 dp uvnitř skupiny a 14 dp mezi skupinami z toho vznikne blok.
+  Tvary a rozestupy jsou v `core/ui/GroupedList.kt` — týmž jazykem mluví i profil chatu
+  a výběr cíle přeposlání, a tři kopie konstant by se rozešly.
 - **Vybraná položka je zaoblená celá**, jako skupina sama (dvoupanel, v seznamu chatů i sekcí
   nastavení). Vyčlení se tím z bloku — tvarem, nejen barvou. Sousedé si svá malá nároží nechávají.
 - **Zaoblení se animuje.** Skupiny se přeskládávají za běhu — přečtený chat přeskočí
@@ -2929,6 +2931,13 @@ po odeslání se otevře cílový chat, takže je vidět, že zpráva dorazila.
   při hledání zápasil s klávesnicí.
 - **Bez dotazu je ve výběru živý hlavní seznam, s dotazem výsledky `ChatSearch`** — ze všech
   chatů, i archivovaných (`pickerChats`, viz „Hledání chatů").
+- **Výběr vypadá jako seznam chatů, ne jako systémový dialog**: hledá se v `SearchPill`
+  a chaty jsou blok zaoblených řádků (`groupItemShape`, `surfaceContainerLowest`, spára 2 dp)
+  s tváří podle druhu chatu. Vybraný cíl nese `secondaryContainer` a je zaoblený celý — výběr
+  je v M3 selekční stav, tatáž role jako u vybraného chatu v dvoupanelu; samotné zaškrtávátko
+  na konci řádku se v dlouhém seznamu hledá hůř než barva. Dřív to byl `TextField` s podtržením
+  a holé `ListItem`y na pozadí, tedy dva vzhledy pro „seznam věcí" v jedné aplikaci.
+- **Prázdný výsledek je `IntroEmptyState`**, jako u hledání v chatech a prázdného archivu.
 - **Během odesílání se seznam nedá ťuknout podruhé** — dvě ťuknutí by poslala zprávu dvakrát.
 - **Výchozí je přeposlání, kopie je volba** — přepínací tlačítka pod hledáním: „Skrýt
   odesílatele" (`sendCopy`, v cíli není „Přeposláno od …") a s ním „Skrýt popisky"
@@ -2960,6 +2969,22 @@ po odeslání se otevře cílový chat, takže je vidět, že zpráva dorazila.
 - **Do cílů se posílá POSTUPNĚ, ne souběžně.** Pořadí zpráv v cílech tím zůstane dané a server
   nedostane deset přeposlání naráz. Selhání jednoho cíle ostatní nezastaví — co odešlo, odešlo,
   a chyba se ohlásí na konci.
+
+### Jeden prvek pro hledání: `SearchPill`
+
+Hledání v seznamu chatů, v konverzaci, ve výběru člena i ve výběru chatu (přeposlání, sdílení)
+kreslí tentýž prvek — pilulka `surfaceContainerHigh` s ikonou, polem a ✕ (`core/ui/SearchPill.kt`).
+
+- **Tři různě vypadající pole = uživatel poznává hledání na každé obrazovce znovu.** Ve výběru
+  cíle byl `TextField` s podtržením, ve výběru člena `TextField` se zaoblením 28 dp a v konverzaci
+  ruční pilulka; rozešly se hned, jak se jedna z nich doladila.
+- **Text drží pole samo** (`initialQuery` je jen výchozí hodnota). Hodnota vrácená přes `StateFlow`
+  by přišla o dispatch později a kurzor by poskakoval — tentýž důvod jako u vstupního pole.
+- **Uvnitř je `BasicTextField` s `DecorationBox`**, ne `TextField`: ten má minimální výšku 56 dp
+  a odsazení 16 dp napevno, takže by vedle ikony v pilulce nezbylo místo na text.
+- **Sloty `leading` a `prefix` si nesou odsazení samy** — tlačítko má kolem glyfu svoje, holá
+  lupa ne. `leading` je v konverzaci zpět (zavírá hledání, ne obrazovku), jinde lupa; `prefix`
+  nese čip vybraného člena.
 
 ### Odkrývání časů tahem
 

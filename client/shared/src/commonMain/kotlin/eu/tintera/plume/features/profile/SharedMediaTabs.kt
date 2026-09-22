@@ -51,6 +51,10 @@ import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.ProfileMember
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.GROUP_CORNER
+import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
+import eu.tintera.plume.core.ui.INNER_CORNER
+import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.photoKey
@@ -485,18 +489,6 @@ private fun BotLabel() {
 private fun rowColors() = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest)
 
 /**
- * Tvar položky ve skupině: velké zaoblení nese krajní položka, uvnitř jsou malá nároží.
- * Se spárou [GROUP_ITEM_SPACING] z toho vznikne jeden blok — vzor M3 Expressive, kterým
- * seznam chatů i nastavení nahrazují karty po položkách.
- */
-internal fun groupItemShape(index: Int, count: Int): Shape = RoundedCornerShape(
-    topStart = if (index == 0) GROUP_CORNER else INNER_CORNER,
-    topEnd = if (index == 0) GROUP_CORNER else INNER_CORNER,
-    bottomStart = if (index == count - 1) GROUP_CORNER else INNER_CORNER,
-    bottomEnd = if (index == count - 1) GROUP_CORNER else INNER_CORNER,
-)
-
-/**
  * Tvar dlaždice mřížky: velké zaoblení jen v rozích celého bloku.
  *
  * Neúplný poslední řádek dělá v bloku schod; roh nad ním (poslední dlaždice předposledního
@@ -547,9 +539,6 @@ private fun LoadMoreAtEnd(index: Int, count: Int, onLoadMore: () -> Unit) {
     LaunchedEffect(count) { current() }
 }
 
-internal val GROUP_CORNER = 20.dp
-internal val INNER_CORNER = 4.dp
-internal val GROUP_ITEM_SPACING = 2.dp
 private val FILE_ICON_SIZE = 44.dp
 private val FILE_ICON_CORNER = 8.dp
 private val MEMBER_AVATAR_SIZE = 40.dp

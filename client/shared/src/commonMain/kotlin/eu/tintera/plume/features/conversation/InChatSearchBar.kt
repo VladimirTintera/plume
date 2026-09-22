@@ -2,9 +2,7 @@ package eu.tintera.plume.features.conversation
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,11 +12,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -35,29 +28,17 @@ import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.SenderInfo
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.SearchPill
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
@@ -76,7 +57,6 @@ import eu.tintera.plume.resources.conversation_search_sender_remove
 import eu.tintera.plume.resources.keyboard_arrow_down_24dp
 import eu.tintera.plume.resources.keyboard_arrow_up_24dp
 import eu.tintera.plume.resources.person_search_24dp
-import eu.tintera.plume.resources.search_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -110,13 +90,6 @@ internal fun InChatSearchTopBar(
     onPickSender: (() -> Unit)? = null,
     onRemoveSender: () -> Unit = {},
 ) {
-    var query by rememberSaveable { mutableStateOf(initialQuery) }
-    val focus = remember { FocusRequester() }
-    val interaction = remember { MutableInteractionSource() }
-    val keyboard = LocalSoftwareKeyboardController.current
-    // Kdo ťukne na lupu, chce psát — pole se fokusuje samo.
-    LaunchedEffect(Unit) { focus.requestFocus() }
-
     Surface(color = MaterialTheme.colorScheme.surface) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -126,12 +99,14 @@ internal fun InChatSearchTopBar(
                 .height(SEARCH_BAR_HEIGHT)
                 .padding(start = 8.dp, end = 4.dp),
         ) {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                modifier = Modifier.weight(1f).height(SEARCH_PILL_HEIGHT),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            SearchPill(
+                initialQuery = initialQuery,
+                onQueryChange = onQueryChange,
+                placeholder = stringResource(Res.string.conversation_search),
+                clearDescription = stringResource(Res.string.conversation_search_clear),
+                // Kdo ťukne na lupu, chce psát.
+                autoFocus = true,
+                leading = {
                     // Zpět je UVNITŘ pilulky, jako v rozbaleném hledání seznamu chatů: zavírá
                     // hledání, ne obrazovku, takže patří k němu.
                     IconButton(onClick = onClose) {
@@ -140,6 +115,8 @@ internal fun InChatSearchTopBar(
                             contentDescription = stringResource(Res.string.conversation_search_close),
                         )
                     }
+                },
+                prefix = {
                     // Vybraný člen je čip před polem: je vidět, že se hledá jen v jeho zprávách,
                     // a ťuknutím se filtr zruší.
                     sender?.let {
@@ -165,62 +142,9 @@ internal fun InChatSearchTopBar(
                             modifier = Modifier.widthIn(max = SENDER_CHIP_MAX_WIDTH),
                         )
                     }
-                    /*
-                     * `BasicTextField` s dekorací, ne `TextField`: ten si bere minimální výšku
-                     * 56 dp i s vlastním odsazením 16 dp napevno, takže by se do pilulky vedle
-                     * ikony nevešel a text by od ní začínal skoro 30 dp. Kontejner nese pilulka,
-                     * pole samo nekreslí nic — stejně jako vstupní pole konverzace.
-                     */
-                    BasicTextField(
-                        value = query,
-                        onValueChange = {
-                            query = it
-                            onQueryChange(it)
-                        },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyLarge
-                            .copy(color = MaterialTheme.colorScheme.onSurface),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
-                        interactionSource = interaction,
-                        modifier = Modifier.weight(1f).focusRequester(focus),
-                        decorationBox = { innerTextField ->
-                            TextFieldDefaults.DecorationBox(
-                                value = query,
-                                innerTextField = innerTextField,
-                                enabled = true,
-                                singleLine = true,
-                                visualTransformation = VisualTransformation.None,
-                                interactionSource = interaction,
-                                placeholder = {
-                                    Text(
-                                        stringResource(Res.string.conversation_search),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                },
-                                colors = searchFieldColors(),
-                                // Glyf ikony má kolem sebe vlastní vzduch, 16 dp by bylo moc.
-                                contentPadding = PaddingValues(horizontal = 4.dp),
-                                container = {},
-                            )
-                        },
-                    )
-                    if (query.isNotEmpty()) {
-                        IconButton(onClick = {
-                            query = ""
-                            onQueryChange("")
-                            focus.requestFocus()
-                        }) {
-                            Icon(
-                                painterResource(Res.drawable.close_24dp),
-                                contentDescription = stringResource(Res.string.conversation_search_clear),
-                            )
-                        }
-                    }
-                }
-            }
+                },
+                modifier = Modifier.weight(1f),
+            )
             // Výběr člena stojí VEDLE pilulky: je to akce nad hledáním, ne součást dotazu —
             // a tři ikony uvnitř pilulky by na úzkém telefonu nenechaly místo na text.
             if (onPickSender != null && sender == null) {
@@ -235,21 +159,8 @@ internal fun InChatSearchTopBar(
     }
 }
 
-/** Kontejner i podtržení nese pilulka; pole samo nekreslí nic. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun searchFieldColors() = TextFieldDefaults.colors(
-    focusedContainerColor = Color.Transparent,
-    unfocusedContainerColor = Color.Transparent,
-    focusedIndicatorColor = Color.Transparent,
-    unfocusedIndicatorColor = Color.Transparent,
-)
-
 /** Musí lícovat s hlavičkou konverzace, se kterou se hledání střídá. */
 private val SEARCH_BAR_HEIGHT = 64.dp
-
-/** Jako vstupní pole M3 hledání; ve 64dp liště zbydou 4 dp nad a pod. */
-private val SEARCH_PILL_HEIGHT = 56.dp
 
 /** Čip vybraného člena nesmí vytlačit pole — dlouhé jméno se zkrátí. */
 private val SENDER_CHIP_MAX_WIDTH = 160.dp
@@ -339,23 +250,13 @@ internal fun MemberPickerSheet(
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
-    var query by rememberSaveable { mutableStateOf(picker.query) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        TextField(
-            value = query,
-            onValueChange = {
-                query = it
-                onQueryChange(it)
-            },
-            placeholder = { Text(stringResource(Res.string.conversation_search_members)) },
-            leadingIcon = { Icon(painterResource(Res.drawable.search_24dp), contentDescription = null) },
-            singleLine = true,
-            shape = RoundedCornerShape(28.dp),
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-            ),
+        SearchPill(
+            initialQuery = picker.query,
+            onQueryChange = onQueryChange,
+            placeholder = stringResource(Res.string.conversation_search_members),
+            clearDescription = stringResource(Res.string.conversation_search_clear),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         )
         // Pevná výška: sheet se při psaní nenatahuje a nesmršťuje podle počtu nalezených.

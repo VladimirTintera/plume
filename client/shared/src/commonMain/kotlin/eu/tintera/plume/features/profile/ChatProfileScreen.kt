@@ -139,6 +139,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ChatProfile
 import eu.tintera.plume.core.telegram.ProfileKind
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
+import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.core.ui.RichText
 import eu.tintera.plume.core.ui.chatAvatarKey

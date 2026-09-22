@@ -1,6 +1,19 @@
 package eu.tintera.plume.features.forward
 
 import eu.tintera.plume.core.ui.avatarShape
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Shape
+import eu.tintera.plume.core.ui.GROUP_CORNER
+import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
+import eu.tintera.plume.core.ui.GROUP_SPACING
+import eu.tintera.plume.core.ui.IntroEmptyState
+import eu.tintera.plume.core.ui.SearchPill
+import eu.tintera.plume.core.ui.groupItemShape
+import eu.tintera.plume.resources.chats_search_clear
+import eu.tintera.plume.resources.chats_search_empty
+import eu.tintera.plume.resources.search_off_24dp
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandHorizontally
@@ -31,7 +44,6 @@ import androidx.compose.material3.LocalTextStyle
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.forward_24dp
 import eu.tintera.plume.resources.forward_send
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,12 +51,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -52,7 +62,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -77,7 +86,6 @@ import eu.tintera.plume.resources.forward_empty
 import eu.tintera.plume.resources.forward_search
 import eu.tintera.plume.resources.forward_title
 import eu.tintera.plume.resources.saved_messages
-import eu.tintera.plume.resources.search_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -283,12 +291,13 @@ fun ChatPicker(
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            TextField(
-                value = query,
-                onValueChange = onQueryChange,
-                singleLine = true,
-                placeholder = { Text(stringResource(Res.string.forward_search)) },
-                leadingIcon = { Icon(painterResource(Res.drawable.search_24dp), contentDescription = null) },
+            // Tatáž pilulka jako v hlavičce seznamu chatů a při hledání v konverzaci — jeden
+            // prvek pro hledání v celé aplikaci.
+            SearchPill(
+                initialQuery = query,
+                onQueryChange = onQueryChange,
+                placeholder = stringResource(Res.string.forward_search),
+                clearDescription = stringResource(Res.string.chats_search_clear),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             )
 
@@ -315,21 +324,28 @@ fun ChatPicker(
             val others = chats.filter { it.id != savedMessagesChatId }
 
             if (others.isEmpty() && !showSaved) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = stringResource(Res.string.forward_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(24.dp),
-                    )
-                }
+                // Tentýž prázdný stav jako u hledání v chatech a prázdného archivu.
+                IntroEmptyState(
+                    icon = Res.drawable.search_off_24dp,
+                    title = stringResource(Res.string.chats_search_empty),
+                    text = stringResource(Res.string.forward_empty),
+                    containerColor = Color.Transparent,
+                    modifier = Modifier.fillMaxSize(),
+                )
                 return@Column
             }
 
             LazyColumn(
-                // Tlačítko leží na seznamu, takže poslední chat musí jít doscrollovat nad ně —
-                // jinak zůstane jeho zaškrtávátko schované pod tlačítkem.
-                contentPadding = PaddingValues(bottom = if (selected != null) FAB_CLEARANCE else 0.dp),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 8.dp,
+                    // Tlačítko leží na seznamu, takže poslední chat musí jít doscrollovat nad ně —
+                    // jinak zůstane jeho zaškrtávátko schované pod tlačítkem.
+                    bottom = 8.dp + if (selected != null) FAB_CLEARANCE else 0.dp,
+                ),
+                // Rozestup UVNITŘ bloku; mezeru mezi bloky si nese karta Uložených zpráv.
+                verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
                 modifier = Modifier.fillMaxSize(),
             ) {
                 if (showSaved && savedMessagesChatId != null) {
@@ -337,69 +353,134 @@ fun ChatPicker(
                      * Uložené zprávy jsou samostatná karta nad seznamem, ne jeho první řádek.
                      * „Pošlu si to" (poznámky, odkazy na později) je nejčastější cíl a v řadě
                      * chatů by splynul s ostatními. Tonální `primaryContainer` ji odliší barvou,
-                     * kolem jen mezera — stejný jazyk jako karta aktualizace v seznamu chatů.
+                     * tvar má jako každý jiný blok.
                      */
                     item(key = savedMessagesChatId) {
-                        Surface(
-                            onClick = { onPick(savedMessagesChatId) },
+                        PickerRow(
+                            chatId = savedMessagesChatId,
+                            title = savedTitle,
+                            avatarFileId = null,
+                            avatarShape = CircleShape,
+                            isSavedMessages = true,
+                            checked = selected?.contains(savedMessagesChatId),
                             enabled = enabled,
-                            shape = MaterialTheme.shapes.large,
-                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(GROUP_CORNER),
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                        ) {
-                            ListItem(
-                                headlineContent = { Text(savedTitle, style = MaterialTheme.typography.titleMedium) },
-                                leadingContent = {
-                                    Avatar(chatId = savedMessagesChatId, title = savedTitle, avatarFileId = null, size = 40.dp, isSavedMessages = true, backdrop = MaterialTheme.colorScheme.primaryContainer)
-                                },
-                                /*
-                                 * Zaškrtávátko na kartě nese popředí KARTY, ne `primary`.
-                                 * V paletě se zvýšeným kontrastem je `primaryContainer`
-                                 * v tmavém režimu světlý jako `primary`, takže by plné
-                                 * políčko s kartou splynulo — tatáž past, kvůli které tu
-                                 * `contentColor` níž přebíjí barvu textu.
-                                 */
-                                trailingContent = selected?.let {
-                                    {
-                                        Checkbox(
-                                            checked = savedMessagesChatId in it,
-                                            onCheckedChange = null,
-                                            colors = CheckboxDefaults.colors(
-                                                checkedColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                checkmarkColor = MaterialTheme.colorScheme.primaryContainer,
-                                                uncheckedColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            ),
-                                        )
-                                    }
-                                },
-                                // Barvu nese karta; průhledný řádek ji nepřekryje. Text barví
-                                // ListItem sám (onSurface) a contentColor karty přebije —
-                                // v tmavém tématu by bylo světlé na světlé.
-                                colors = ListItemDefaults.colors(
-                                    containerColor = Color.Transparent,
-                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                ),
-                            )
-                        }
+                            onClick = { onPick(savedMessagesChatId) },
+                            modifier = Modifier.padding(bottom = GROUP_SPACING - GROUP_ITEM_SPACING),
+                        )
                     }
                 }
-                items(others, key = { it.id }) { chat ->
-                    ListItem(
-                        headlineContent = { Text(chat.title) },
-                        leadingContent = {
-                            Avatar(chatId = chat.id, title = chat.title, avatarFileId = chat.avatarFileId, size = 40.dp, shape = chat.kind.avatarShape())
+                itemsIndexed(others, key = { _, chat -> chat.id }) { index, chat ->
+                    val isSelected = selected?.contains(chat.id) == true
+                    PickerRow(
+                        chatId = chat.id,
+                        title = chat.title,
+                        avatarFileId = chat.avatarFileId,
+                        avatarShape = chat.kind.avatarShape(),
+                        isSavedMessages = false,
+                        checked = selected?.contains(chat.id),
+                        enabled = enabled,
+                        // Krajní položky bloku nesou jeho zaoblení; vybraný cíl je zaoblený celý,
+                        // takže se z bloku vyčlení i tvarem — jako vybraný chat v seznamu.
+                        shape = groupItemShape(index, others.size, selected = isSelected),
+                        containerColor = if (isSelected) {
+                            MaterialTheme.colorScheme.secondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerLowest
                         },
-                        // Klikání nese celý řádek, zaškrtávátko má `onCheckedChange = null` —
-                        // do něj se nemá trefovat a čtečka obrazovky má číst jednu položku.
-                        trailingContent = selected?.let { { Checkbox(checked = chat.id in it, onCheckedChange = null) } },
-                        modifier = Modifier.clickable(enabled = enabled) { onPick(chat.id) },
+                        contentColor = if (isSelected) {
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        onClick = { onPick(chat.id) },
+                        modifier = Modifier.animateItem(),
                     )
                 }
             }
         }
     }
 }
+
+/**
+ * Řádek výběru: blok zaoblených řádků jako seznam chatů, ne holý `ListItem` na pozadí.
+ *
+ * **Vybraný cíl nese `secondaryContainer`** — výběr je v M3 selekční stav, tatáž role jako
+ * u vybraného chatu v dvoupanelu. Zaškrtávátko samo by u jediné vybrané položky nestačilo:
+ * v dlouhém seznamu se hledá očima, a barva se najde dřív než políčko na konci řádku.
+ *
+ * **Klikání nese celý řádek, zaškrtávátko má `onCheckedChange = null`** — do políčka se nemá
+ * trefovat a čtečka obrazovky má číst jednu položku, ne dvě.
+ */
+@Composable
+private fun PickerRow(
+    chatId: Long,
+    title: String,
+    avatarFileId: Int?,
+    avatarShape: Shape,
+    isSavedMessages: Boolean,
+    /** `null` = vybírá se jeden cíl a ťuknutí ho rovnou použije, takže políčko nemá co ukázat. */
+    checked: Boolean?,
+    enabled: Boolean,
+    shape: Shape,
+    containerColor: Color,
+    contentColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = shape,
+        color = containerColor,
+        contentColor = contentColor,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Avatar(
+                chatId = chatId,
+                title = title,
+                avatarFileId = avatarFileId,
+                size = AVATAR_SIZE,
+                shape = avatarShape,
+                isSavedMessages = isSavedMessages,
+                // Záložka Uložených zpráv je `primary`; na tónované kartě by s ní splynula,
+                // takže `Avatar` musí vědět, na čem leží.
+                backdrop = containerColor,
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            checked?.let {
+                Checkbox(
+                    checked = it,
+                    onCheckedChange = null,
+                    // Políčko na tónované kartě nese popředí KARTY, ne `primary`: v paletě se
+                    // zvýšeným kontrastem je `primaryContainer` v tmavém režimu světlý jako
+                    // `primary` a plné políčko by s kartou splynulo.
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = contentColor,
+                        checkmarkColor = containerColor,
+                        uncheckedColor = contentColor,
+                    ),
+                )
+            }
+        }
+    }
+}
+
+/** Tvář chatu ve výběru — jako v seznamu chatů. */
+private val AVATAR_SIZE = 40.dp
 
 /** Výška odesílacího tlačítka i s odsazením, aby pod ním nezůstal schovaný poslední chat. */
 private val FAB_CLEARANCE = 88.dp
