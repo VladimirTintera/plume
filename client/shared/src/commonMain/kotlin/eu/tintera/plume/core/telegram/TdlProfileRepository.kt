@@ -1,6 +1,17 @@
 package eu.tintera.plume.core.telegram
 
 import dev.g000sha256.tdl.dto.BlockListMain
+import dev.g000sha256.tdl.dto.CanTransferOwnershipResultOk
+import dev.g000sha256.tdl.dto.CanTransferOwnershipResultPasswordNeeded
+import dev.g000sha256.tdl.dto.CanTransferOwnershipResultPasswordTooFresh
+import dev.g000sha256.tdl.dto.CanTransferOwnershipResultSessionTooFresh
+import dev.g000sha256.tdl.dto.Chat
+import dev.g000sha256.tdl.dto.ChatAdministratorRights
+import dev.g000sha256.tdl.dto.ChatMemberStatus
+import dev.g000sha256.tdl.dto.ChatMemberStatusMember
+import dev.g000sha256.tdl.dto.ChatMemberStatusRestricted
+import kotlin.time.Clock
+import kotlin.time.Duration
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.ChatMemberStatusAdministrator
 import dev.g000sha256.tdl.dto.ChatPermissions
@@ -233,7 +244,210 @@ class TdlProfileRepository(
         return SenderInfo(id = userId, title = name, avatarFileId = user.profilePhoto?.small?.id) to
             (user.type is UserTypeBot)
     }
+
+    // --- Správa členů ---
+
+    override suspend fun member(chatId: Long, userId: Long): Result<MemberDetail> = runCatching {
+        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+        val kind = chat.memberGroupKind()
+            ?: error("Chat $chatId nemá členy, které by šlo spravovat.")
+        val chatMember = client.getChatMember(chatId = chatId, memberId = MessageSenderUser(userId = userId))
+            .toResult().getOrThrow()
+        val (sender, isBot) = member(userId) ?: error("Uživatele $userId se nepodařilo načíst.")
+        val status = chatMember.status
+        val restricted = status as? ChatMemberStatusRestricted
+
+        MemberDetail(
+            chatId = chatId,
+            userId = userId,
+            name = sender.title,
+            avatarFileId = sender.avatarFileId,
+            isBot = isBot,
+            role = status.role(),
+            kind = kind,
+            tag = chatMember.tag.trim().ifEmpty { null },
+            // Kdo správce není, dostane běžnou moderátorskou sadu jako výchozí nabídku.
+            adminRights = (status as? ChatMemberStatusAdministrator)?.rights?.toAdminRights()
+                ?: AdminRights.Default,
+            // Omezený člen má vlastní práva, ostatní výchozí práva skupiny.
+            permissions = (restricted?.permissions ?: chat.permissions).toGroupPermissions(),
+            isRestricted = restricted != null,
+            restrictedUntil = restricted?.restrictedUntilDate?.takeIf { it != FOREVER },
+            actions = memberActions(
+                own = client.ownMemberStatus(chat),
+                target = TargetMember(
+                    role = status.role(),
+                    canBeEdited = (status as? ChatMemberStatusAdministrator)?.canBeEdited == true,
+                    isSelf = userId == client.getMe().toResult().getOrNull()?.id,
+                    isBot = isBot,
+                ),
+                kind = kind,
+            ),
+        )
+    }
+
+    override suspend fun setAdminRights(chatId: Long, userId: Long, rights: AdminRights): Result<Unit> = runCatching {
+        val memberId = MessageSenderUser(userId = userId)
+        val status = if (rights.any) {
+            // Celým objektem: co aplikace nenabízí, se přenese ze současných práv správce.
+            val current = client.getChatMember(chatId = chatId, memberId = memberId).toResult()
+                .getOrNull()?.status as? ChatMemberStatusAdministrator
+            ChatMemberStatusAdministrator(
+                canBeEdited = current?.canBeEdited ?: true,
+                rights = (current?.rights ?: emptyAdministratorRights()).merged(rights),
+            )
+        } else {
+            // Bez jediného práva je to sesazení na běžného člena; vlastní volání na to není.
+            ChatMemberStatusMember(memberUntilDate = FOREVER)
+        }
+        client.setChatMemberStatus(chatId = chatId, memberId = memberId, status = status).toResult().getOrThrow()
+        Unit
+    }
+
+    override suspend fun restrictMember(
+        chatId: Long,
+        userId: Long,
+        permissions: GroupPermissions,
+        duration: Duration?,
+    ): Result<Unit> = runCatching {
+        val memberId = MessageSenderUser(userId = userId)
+        // Základ jsou jeho současná práva (u neomezeného výchozí práva skupiny), aby se
+        // nepřepsalo to, co aplikace nenabízí — stejně jako u `setPermissions`.
+        val current = (client.getChatMember(chatId = chatId, memberId = memberId).toResult()
+            .getOrNull()?.status as? ChatMemberStatusRestricted)?.permissions
+            ?: client.getChat(chatId = chatId).toResult().getOrThrow().permissions
+        client.setChatMemberStatus(
+            chatId = chatId,
+            memberId = memberId,
+            status = ChatMemberStatusRestricted(
+                // Omezený člen ve skupině zůstává; vyhození je `banMember`.
+                isMember = true,
+                restrictedUntilDate = untilDate(duration, Clock.System.now().epochSeconds),
+                permissions = current.merged(permissions),
+            ),
+        ).toResult().getOrThrow()
+        Unit
+    }
+
+    /** Návrat mezi běžné členy: od té chvíle platí výchozí práva skupiny. */
+    override suspend fun unrestrictMember(chatId: Long, userId: Long): Result<Unit> =
+        client.setChatMemberStatus(
+            chatId = chatId,
+            memberId = MessageSenderUser(userId = userId),
+            status = ChatMemberStatusMember(memberUntilDate = FOREVER),
+        ).toResult().map { }
+
+    /**
+     * `banChatMember`, ne `setChatMemberStatus` — jen ono umí dobu a rozhodnutí o zprávách.
+     * `revokeMessages = false`: co po něm zůstalo, zůstane. Mazání celé historie je jiná věc
+     * a v nabídce hned vedle vyhození by se na něj dalo ťuknout omylem.
+     */
+    override suspend fun banMember(chatId: Long, userId: Long, duration: Duration?): Result<Unit> =
+        client.banChatMember(
+            chatId = chatId,
+            memberId = MessageSenderUser(userId = userId),
+            bannedUntilDate = untilDate(duration, Clock.System.now().epochSeconds),
+            revokeMessages = false,
+        ).toResult().map { }
+
+    override suspend fun setMemberTag(chatId: Long, userId: Long, tag: String): Result<Unit> =
+        client.setChatMemberTag(chatId = chatId, userId = userId, tag = tag).toResult().map { }
+
+    override suspend fun canTransferOwnership(): Result<OwnershipTransferCheck> =
+        client.canTransferOwnership().toResult().map { result ->
+            // Bez `else`: nový důvod v novější TDLib má rozbít překlad, ne tiše projít jako „jde to".
+            when (result) {
+                is CanTransferOwnershipResultOk -> OwnershipTransferCheck.Ready
+                is CanTransferOwnershipResultPasswordNeeded -> OwnershipTransferCheck.PasswordNeeded
+                is CanTransferOwnershipResultPasswordTooFresh ->
+                    OwnershipTransferCheck.TooFresh(result.retryAfter)
+                is CanTransferOwnershipResultSessionTooFresh ->
+                    OwnershipTransferCheck.TooFresh(result.retryAfter)
+            }
+        }
+
+    /** Heslo jde rovnou do TDLib a nikde se nedrží — ani v logu, ani ve stavu obrazovky. */
+    override suspend fun transferOwnership(chatId: Long, userId: Long, password: String): Result<Unit> =
+        client.transferChatOwnership(chatId = chatId, userId = userId, password = password).toResult().map { }
+
+    /** Druh chatu z pohledu správy členů; `null` = soukromý chat, tam se nespravuje nic. */
+    private fun Chat.memberGroupKind(): MemberGroupKind? = when (val type = type) {
+        is ChatTypeBasicGroup -> MemberGroupKind.BasicGroup
+        is ChatTypeSupergroup -> if (type.isChannel) MemberGroupKind.Channel else MemberGroupKind.Supergroup
+        is ChatTypePrivate, is ChatTypeSecret -> null
+    }
 }
+
+/** Role z postavení člena; `when` bez `else`, takže nový stav v TDLib rozbije překlad. */
+private fun ChatMemberStatus.role(): MemberRole = when (this) {
+    is ChatMemberStatusCreator -> MemberRole.Owner
+    is ChatMemberStatusAdministrator -> MemberRole.Admin
+    is ChatMemberStatusMember, is ChatMemberStatusRestricted -> MemberRole.Member
+    // Kdo odešel nebo byl vyhozen, členem není; role „Member" je tu jen proto, aby se
+    // nabídka dala postavit — co s ním jde dělat, rozhoduje `memberActions`.
+    is ChatMemberStatusLeft, is ChatMemberStatusBanned -> MemberRole.Member
+}
+
+private fun ChatAdministratorRights.toAdminRights() = AdminRights(
+    changeInfo = canChangeInfo,
+    postMessages = canPostMessages,
+    editMessages = canEditMessages,
+    deleteMessages = canDeleteMessages,
+    restrictMembers = canRestrictMembers,
+    inviteUsers = canInviteUsers,
+    pinMessages = canPinMessages,
+    promoteMembers = canPromoteMembers,
+    anonymous = isAnonymous,
+)
+
+/** Nový správce: všechno vypnuté, a teprve na to se položí vybraná práva. */
+private fun emptyAdministratorRights() = ChatAdministratorRights(
+    canManageChat = false,
+    canChangeInfo = false,
+    canPostMessages = false,
+    canEditMessages = false,
+    canDeleteMessages = false,
+    canInviteUsers = false,
+    canRestrictMembers = false,
+    canPinMessages = false,
+    canManageTopics = false,
+    canPromoteMembers = false,
+    canManageVideoChats = false,
+    canPostStories = false,
+    canEditStories = false,
+    canDeleteStories = false,
+    canManageDirectMessages = false,
+    canManageTags = false,
+    canSendWelcomeMessages = false,
+    isAnonymous = false,
+)
+
+/**
+ * Vybraná práva nad těmi současnými. Pojmenované argumenty, jako u všeho generovaného.
+ *
+ * `canManageChat` je v Telegramu implicitní právo každého správce (přístup ke statistikám
+ * a k seznamu členů), takže se drží podle toho, jestli správcem vůbec zůstává.
+ */
+private fun ChatAdministratorRights.merged(next: AdminRights) = ChatAdministratorRights(
+    canManageChat = next.any,
+    canChangeInfo = next.changeInfo,
+    canPostMessages = next.postMessages,
+    canEditMessages = next.editMessages,
+    canDeleteMessages = next.deleteMessages,
+    canInviteUsers = next.inviteUsers,
+    canRestrictMembers = next.restrictMembers,
+    canPinMessages = next.pinMessages,
+    canManageTopics = canManageTopics,
+    canPromoteMembers = next.promoteMembers,
+    canManageVideoChats = canManageVideoChats,
+    canPostStories = canPostStories,
+    canEditStories = canEditStories,
+    canDeleteStories = canDeleteStories,
+    canManageDirectMessages = canManageDirectMessages,
+    canManageTags = canManageTags,
+    canSendWelcomeMessages = canSendWelcomeMessages,
+    isAnonymous = next.anonymous,
+)
 
 private fun ChatPermissions.toGroupPermissions() = GroupPermissions(
     sendMessages = canSendBasicMessages,

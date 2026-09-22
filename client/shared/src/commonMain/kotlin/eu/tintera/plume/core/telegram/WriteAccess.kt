@@ -24,8 +24,12 @@ internal sealed interface OwnMemberStatus {
         val canPostMessages: Boolean,
         /** Právo měnit název, popis a fotku chatu. */
         val canChangeInfo: Boolean = false,
-        /** Právo měnit výchozí práva členů (`setChatPermissions` ho vyžaduje). */
+        /** Právo měnit výchozí práva členů (`setChatPermissions` ho vyžaduje), omezovat a vyhazovat. */
         val canRestrictMembers: Boolean = false,
+        /** Právo jmenovat další správce — jen v rozsahu vlastních práv, to hlídá server. */
+        val canPromoteMembers: Boolean = false,
+        /** Právo měnit vlastní štítky členů (`setChatMemberTag`). */
+        val canManageTags: Boolean = false,
     ) : OwnMemberStatus
     data object Member : OwnMemberStatus
     data class Restricted(
