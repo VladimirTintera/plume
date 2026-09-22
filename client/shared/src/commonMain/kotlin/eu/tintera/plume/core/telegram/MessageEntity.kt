@@ -72,4 +72,16 @@ sealed interface MessageEntityType {
      * jinak by obsah vyzradilo, což je přesně to, čemu se spoiler vyhýbá.
      */
     data object Spoiler : MessageEntityType
+
+    /**
+     * Citace uvnitř textu — úsek, který pisatel odněkud převzal.
+     *
+     * Kreslí se jako tónovaný blok za textem, ne proužkem vlevo: stejnou řečí mluví citace nad
+     * odpovědí i popis webu u náhledu odkazu (viz `MessageBodyScope.insetColor`). Bez toho byl
+     * převzatý text k nerozeznání od vlastních slov pisatele.
+     *
+     * [expandable] je citace, kterou Telegram v ostatních klientech sbaluje na pár řádků
+     * („Zobrazit víc"). Zatím se kreslí celá — příznak se drží, aby se sbalení dalo doplnit.
+     */
+    data class Quote(val expandable: Boolean) : MessageEntityType
 }

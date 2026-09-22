@@ -86,6 +86,14 @@ fun RichText(
     highlightColor: Color = Color.Unspecified,
     /** Podklad zvýrazněného úseku — zaoblená pilulka za textem, po řádcích. */
     highlightBackground: Color = Color.Unspecified,
+    /**
+     * Podklad citace v textu ([MessageEntityType.Quote]) — tónovaný blok za jejími řádky.
+     *
+     * Musí jít předat ze stejného důvodu jako [linkColor]: barva se počítá proti ploše, na které
+     * zpráva leží (`MessageBodyScope.insetColor`). Bez barvy se blok nekreslí a citace zůstane
+     * obyčejným textem.
+     */
+    quoteBackground: Color = Color.Unspecified,
 ) {
     /*
      * Spoilery se odkrývají po zprávě, ne po jednotlivých úsecích.
@@ -116,6 +124,7 @@ fun RichText(
     val visible = remember(text, entities, highlights, spoilersRevealed) {
         visibleHighlights(text, entities, highlights, spoilersRevealed)
     }
+    val quotes = remember(text, entities) { quoteRanges(text, entities) }
     val annotated = remember(text, entities, linkColor, contentColor, spoilersRevealed, visible, highlightColor) {
         buildMessageText(
             text = text,
@@ -140,6 +149,11 @@ fun RichText(
         style = style,
         onTextLayout = { layout = it },
         modifier = modifier.drawBehind {
+            // Napřed blok citace, teprve na něm pilulka zvýraznění — hledané slovo musí být vidět
+            // i uvnitř citace.
+            if (quotes.isNotEmpty() && quoteBackground.isSpecified) {
+                layout?.let { drawQuoteBlocks(it, quotes, quoteBackground) }
+            }
             if (visible.isNotEmpty() && highlightBackground.isSpecified) {
                 layout?.let { drawHighlightPills(it, visible, highlightBackground) }
             }
@@ -268,6 +282,10 @@ private fun buildMessageText(
                 end,
             )
 
+            // Citace se kreslí jako blok ZA textem (`drawQuoteBlocks`), ne stylem písma: podklad
+            // ve `SpanStyle` je hranatý obdélník po řádcích, ne jedna zaoblená plocha.
+            is MessageEntityType.Quote -> Unit
+
             MessageEntityType.Spoiler -> if (spoilersRevealed) {
                 // Po odkrytí zůstane jen jemný podklad, aby bylo poznat, co bylo skryté.
                 addStyle(
@@ -302,6 +320,49 @@ private fun buildMessageText(
     // `drawHighlightPills` — podklad ve `SpanStyle` zaoblit nejde.
     if (highlightColor.isSpecified) highlights.forEach { addStyle(SpanStyle(color = highlightColor), it.first, it.last + 1) }
 }
+
+/**
+ * Blok citace: tónovaná plocha za jejími řádky, přes celou šířku textu.
+ *
+ * **Plocha, ne proužek vlevo.** Proužek je jazyk M2 a v aplikaci už jednou ustoupil ploše
+ * (náhled odkazu, citace nad odpovědí); plocha navíc odliší převzatý text i tam, kde je citace
+ * jediný obsah zprávy.
+ *
+ * Svisle se blok drží mezi `lineTop` a `lineBottom`, takže do sousedních řádků nezasahuje:
+ * v těch mezích je i proklad řádku, a ten dělá písmu uvnitř bloku odstup. Do stran naopak
+ * **přetéká za text** ([QUOTE_BLEED]) — jinak by písmo doléhalo přímo k okraji plochy a odsadit
+ * ho zevnitř nejde, `ParagraphStyle` odsazení zprava nemá.
+ */
+private fun DrawScope.drawQuoteBlocks(layout: TextLayoutResult, ranges: List<IntRange>, color: Color) {
+    val bleed = QUOTE_BLEED.toPx()
+    val radius = CornerRadius(QUOTE_RADIUS.toPx())
+    ranges.forEach { range ->
+        val last = range.last.coerceAtMost(layout.layoutInput.text.length - 1)
+        if (last < range.first) return@forEach
+        val top = layout.getLineTop(layout.getLineForOffset(range.first))
+        val bottom = layout.getLineBottom(layout.getLineForOffset(last))
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(-bleed, top),
+            size = Size(size.width + 2 * bleed, bottom - top),
+            cornerRadius = radius,
+        )
+    }
+}
+
+/** O kolik blok citace přetéká za text do stran. Bublina má vnitřní odsazení 14 dp, vejde se. */
+private val QUOTE_BLEED = 6.dp
+
+private val QUOTE_RADIUS = 10.dp
+
+/** Úseky citací, oříznuté do textu a bez prázdných — kreslí se za nimi blok. */
+internal fun quoteRanges(text: String, entities: List<MessageEntity>): List<IntRange> =
+    entities.mapNotNull { entity ->
+        if (entity.type !is MessageEntityType.Quote) return@mapNotNull null
+        val start = entity.offset.coerceIn(0, text.length)
+        val end = (entity.offset + entity.length).coerceIn(start, text.length)
+        if (start == end) null else start until end
+    }
 
 /**
  * Podklad zvýrazněných úseků: zaoblená pilulka za každým řádkem úseku. Hranaté obdélníky

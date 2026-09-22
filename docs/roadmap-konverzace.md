@@ -215,9 +215,10 @@ Co z toho zůstalo nedodělané:
 - ~~**Zmínky a hashtagy**~~ — hotovo (poučení v `CLAUDE.md`, „Formátování textu"). **Příkazy
   botů** (`/start`) a cashtagy se dál nemapují — příkaz by ťuknutím odeslal zprávu botovi a to
   chce vlastní rozmyšlení.
-- **Citace v textu** (`BlockQuote`, `ExpandableBlockQuote`) se vykreslují jako obyčejný text.
-  Svislý pruh vlevo nejde udělat uvnitř jednoho `Text`; znamená to rozpad textu na bloky
-  a `Column` místo jedné `Text` — samostatný kus práce.
+- ~~**Citace v textu**~~ (`BlockQuote`, `ExpandableBlockQuote`) — hotovo: tónovaný blok kreslený
+  za textem z `TextLayoutResult` (`drawQuoteBlocks`), takže rozpad textu na víc `Text`ů nebyl
+  potřeba. Zbývá **sbalení dlouhé `ExpandableBlockQuote`** se „Zobrazit víc" — na to už by rozpad
+  potřeba byl, a s ním přepočet zvýraznění, spoilerů i dlouhého stisku nad odkazem.
 - **Náhled odkazu nad textem** (`showAboveText`) — náhled se zatím kreslí vždycky pod ním.
 - **Vlastní emoji** (`TextEntityTypeCustomEmoji`) jsou samolepky uvnitř textu; patří k médiím.
 

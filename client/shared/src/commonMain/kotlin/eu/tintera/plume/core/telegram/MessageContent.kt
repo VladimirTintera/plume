@@ -109,9 +109,11 @@ import dev.g000sha256.tdl.dto.Sticker
 import dev.g000sha256.tdl.dto.StickerFormatTgs
 import dev.g000sha256.tdl.dto.StickerFormatWebp
 import dev.g000sha256.tdl.dto.TextEntity
+import dev.g000sha256.tdl.dto.TextEntityTypeBlockQuote
 import dev.g000sha256.tdl.dto.TextEntityTypeBold
 import dev.g000sha256.tdl.dto.TextEntityTypeCode
 import dev.g000sha256.tdl.dto.TextEntityTypeEmailAddress
+import dev.g000sha256.tdl.dto.TextEntityTypeExpandableBlockQuote
 import dev.g000sha256.tdl.dto.TextEntityTypeHashtag
 import dev.g000sha256.tdl.dto.TextEntityTypeItalic
 import dev.g000sha256.tdl.dto.TextEntityTypeMention
@@ -466,6 +468,9 @@ private fun TextEntity.toEntity(text: String): MessageEntity? {
         // Inline kód i celý blok skončí stejně; liší se jen tím, že blok stojí na vlastních řádcích.
         is TextEntityTypeCode, is TextEntityTypePre, is TextEntityTypePreCode -> MessageEntityType.Code
         is TextEntityTypeSpoiler -> MessageEntityType.Spoiler
+        // Sbalitelná citace se zatím kreslí celá; příznak se drží kvůli „Zobrazit víc".
+        is TextEntityTypeBlockQuote -> MessageEntityType.Quote(expandable = false)
+        is TextEntityTypeExpandableBlockQuote -> MessageEntityType.Quote(expandable = true)
 
         else -> null
     }

@@ -2532,6 +2532,21 @@ to tu bylo, než vznikly `MessageEntity` a `RichText`.
   Odkrývá se ťuknutím přes `LinkAnnotation.Clickable` — `Modifier.clickable` by platilo pro celou
   zprávu, ne pro skrytý úsek. Odkrývá se celá zpráva naráz; dohledávat spoilery po kouskách
   je otrava.
+- **Citace v textu je BLOK ZA TEXTEM, ne styl písma** (`MessageEntityType.Quote`,
+  `drawQuoteBlocks` v `RichText.kt`, testy `QuoteRangesTest`). `SpanStyle.background` umí jen
+  hranatý obdélník po řádcích — tatáž past jako u zvýraznění hledaného slova —, takže se plocha
+  kreslí v `drawBehind` z `TextLayoutResult`, stejně jako pilulky zvýraznění. Blok jde napřed,
+  pilulka na něj: hledané slovo musí být vidět i uvnitř citace.
+- **Plocha, ne proužek vlevo.** Proužek je jazyk M2 a v aplikaci už jednou ustoupil ploše
+  (náhled odkazu, citace nad odpovědí); barva je proto táž `insetColor` a **předává se zvenku**
+  ze stejného důvodu jako barva odkazu — počítá se proti ploše, na které zpráva leží.
+- **Blok přetéká za text do STRAN, svisle se drží mezi `lineTop` a `lineBottom`.** Odsadit text
+  zevnitř nejde: `ParagraphStyle` odsazení zprava nemá, takže by písmo doléhalo k okraji plochy.
+  Svisle naopak stačí meze řádku — je v nich i proklad, který dělá písmu odstup, a blok tím
+  nezasahuje do sousedních řádků.
+- **Sbalitelná citace se zatím kreslí celá** (`Quote.expandable`). Sbalení na pár řádků se
+  „Zobrazit víc" by znamenalo rozpad textu na víc `Text`ů a s ním přepočet zvýraznění, spoilerů
+  i dlouhého stisku nad odkazem; příznak se drží, aby se to dalo doplnit.
 - **Při odesílání se entity dohledávají** (`getTextEntities`), jinak odkaz odejde jako mrtvý text —
   server si ho sám neoznačí. Když dohledání selže, zpráva stejně odejde.
 
