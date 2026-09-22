@@ -2194,6 +2194,10 @@ text, tlačítko je fajfka a potvrzení volá `editMessageText`.
 - **Hlavička nad polem musí říct, že se upravuje POPISEK.** Příloha v konverzaci zůstane, ať se
   v poli píše cokoli; bez toho by nebylo poznat, že se nepíše nová zpráva. U přílohy bez popisku
   se původní text nekreslí vůbec — prázdný řádek vypadá jako chyba vykreslení.
+- **Upravená příloha si kartu drží i s prázdným popiskem** (`hasCaption = text.isNotBlank() ||
+  isEdited` v `MediaMessageItem`): v pruhu pod snímkem zůstane samotné „upraveno". Dokud popisek
+  nešlo odebrat, byl ten stav nedosažitelný; teď je vědomý — jinak by se u fotky nikde nedozvěděl,
+  že se zpráva změnila, a čas úpravy je až v „Informace".
 - **Rozepsaný koncept se po dobu úpravy odloží a pak vrátí.** Úprava je vsuvka; kdo si uprostřed
   psaní všimne překlepu, nechce přijít o rozepsanou zprávu. Při přepnutí z jedné úpravy do druhé
   se odložený koncept nepřepisuje.
