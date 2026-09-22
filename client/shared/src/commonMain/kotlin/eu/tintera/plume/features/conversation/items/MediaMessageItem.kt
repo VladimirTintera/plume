@@ -45,10 +45,13 @@ internal data class MediaMessageItem(
     @Composable
     override fun MessageBodyScope.Body() {
         val hasCaption = message.text.isNotBlank() || message.isEdited
+        // Přeposlaná fotka nese značku v hlavičce téže karty — patří k obsahu, ne vedle něj.
+        val forwarded = message.forwardOrigin != null
+        val isCard = hasCaption || forwarded
         // Snímek leží na ploše, takže jeho akcent (průběh, ikony) patří k ní, ne k bublině.
         val surfaceAccent = if (message.isOutgoing) LocalContentColor.current else MaterialTheme.colorScheme.primary
-        // S popiskem ořezává karta celá, snímek sám zaoblený není; bez popisku nese tvar snímek.
-        val mediaShape = if (hasCaption) RectangleShape else shape
+        // S popiskem nebo hlavičkou ořezává karta celá, snímek sám zaoblený není; jinak nese tvar snímek.
+        val mediaShape = if (isCard) RectangleShape else shape
 
         Column(
             // Karta se srovnává ke straně odesílatele.
@@ -56,10 +59,10 @@ internal data class MediaMessageItem(
         ) {
             // Nad holým snímkem si jméno musí odsazení přinést samo.
             SenderName(Modifier.padding(bottom = 2.dp))
-            ForwardLabel(Modifier.padding(bottom = 2.dp))
 
             MediaWithCaption(
-                modifier = if (hasCaption) Modifier.clip(shape) else Modifier,
+                modifier = if (isCard) Modifier.clip(shape) else Modifier,
+                header = { if (forwarded) ForwardHeader() },
                 media = {
                     if (album != null) {
                         Album(members = album, accent = surfaceAccent, shape = mediaShape)
@@ -91,7 +94,7 @@ internal data class MediaMessageItem(
 }
 
 /**
- * Snímek a pod ním popisek s PŘESNĚ jeho šířkou.
+ * Hlavička snímku, pod ní snímek a pod ním popisek — hlavička i popisek s PŘESNĚ jeho šířkou.
  *
  * Vlastní layout, ne `IntrinsicSize`: snímek se kreslí v `BoxWithConstraints` (SubcomposeLayout),
  * a ten intrinsické míry neumí — aplikace by spadla (viz „Gotchas" v CLAUDE.md). Tady se snímek
@@ -99,22 +102,21 @@ internal data class MediaMessageItem(
  */
 @Composable
 private fun MediaWithCaption(
+    header: @Composable () -> Unit,
     media: @Composable () -> Unit,
     caption: @Composable () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Layout(contents = listOf(media, caption), modifier = modifier) { (mediaMeasurables, captionMeasurables), constraints ->
+    Layout(contents = listOf(header, media, caption), modifier = modifier) { (headerMeasurables, mediaMeasurables, captionMeasurables), constraints ->
         val mediaPlaceables = mediaMeasurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
         val width = mediaPlaceables.maxOfOrNull { it.width } ?: 0
-        val mediaHeight = mediaPlaceables.sumOf { it.height }
-        val captionPlaceables = captionMeasurables.map {
-            it.measure(Constraints(minWidth = width, maxWidth = width))
-        }
-        val height = mediaHeight + captionPlaceables.sumOf { it.height }
+        val fixed = Constraints(minWidth = width, maxWidth = width)
+        val headerPlaceables = headerMeasurables.map { it.measure(fixed) }
+        val captionPlaceables = captionMeasurables.map { it.measure(fixed) }
+        val height = (headerPlaceables + mediaPlaceables + captionPlaceables).sumOf { it.height }
         layout(width, height) {
             var y = 0
-            mediaPlaceables.forEach { it.place(0, y); y += it.height }
-            captionPlaceables.forEach { it.place(0, y); y += it.height }
+            (headerPlaceables + mediaPlaceables + captionPlaceables).forEach { it.place(0, y); y += it.height }
         }
     }
 }

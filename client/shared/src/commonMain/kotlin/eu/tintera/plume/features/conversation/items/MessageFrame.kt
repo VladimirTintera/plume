@@ -1005,6 +1005,39 @@ internal fun MessageBodyScope.ForwardLabel(modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * Hlavička holého snímku: značka přeposlání v barvě bubliny, jako horní díl karty, jejíž spodní
+ * díl je popisek. Přeposlání je údaj O ZPRÁVĚ, takže patří do téhož balíku jako obsah — volně
+ * nad fotkou vypadala značka jako popisek něčeho jiného.
+ */
+@Composable
+internal fun MessageBodyScope.ForwardHeader() {
+    if (message.forwardOrigin == null) return
+    Surface(color = bubbleColor, contentColor = onBubbleColor) {
+        ForwardLabel(Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 6.dp, bottom = 4.dp))
+    }
+}
+
+/**
+ * Značka přeposlání u samolepky a velkých emoji: štítek v barvě bubliny těsně nad nimi.
+ * Bublinu kolem celé samolepky nekreslíme (viz „Emoji a samolepky"), ale holý text nad ní by
+ * od zprávy odplul — štítek ji drží pohromadě s obsahem.
+ */
+@Composable
+internal fun MessageBodyScope.ForwardChip() {
+    if (message.forwardOrigin == null) return
+    Surface(
+        color = bubbleColor,
+        contentColor = onBubbleColor,
+        shape = RoundedCornerShape(FORWARD_CHIP_CORNER),
+        modifier = Modifier.padding(bottom = 4.dp),
+    ) {
+        ForwardLabel(Modifier.padding(horizontal = 10.dp, vertical = 2.dp))
+    }
+}
+
+private val FORWARD_CHIP_CORNER = 12.dp
+
 /** Značka přeposlání je doplněk, ne obsah — ustoupí textu zprávy. */
 private const val FORWARD_LABEL_ALPHA = 0.78f
 

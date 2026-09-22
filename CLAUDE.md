@@ -2892,6 +2892,12 @@ otevře kanál se skokem na původní zprávu (`ChatTarget(chatId, messageId)`),
 - **Původ jsou čtyři druhy a jen tři vedou někam** (`MessageOrigin*`). Skrytý uživatel
   (`MessageOriginHiddenUser`) nese jen jméno — zakázal si v soukromí odkaz na účet — takže se
   u něj značka nedá ťuknout. `when` je bez `else`: nový druh v novější TDLib rozbije překlad.
+- **Značka je součást téže karty jako obsah, ne text nad ní.** Přeposlání je údaj O ZPRÁVĚ;
+  volně nad holou fotkou (první verze) vypadala jako popisek něčeho jiného. V bublině je prvním
+  řádkem, u holého snímku horní díl karty v barvě bubliny (`ForwardHeader`, protějšek popisku
+  pod snímkem — `MediaWithCaption` má proto hlavičku, snímek a popisek se stejnou šířkou),
+  u karty odkazu v horním dílu s textem a u samolepky a velkých emoji štítek v barvě bubliny
+  (`ForwardChip`) — bublinu kolem samolepky nekreslíme, holý text by od ní odplul.
 - **Značka je u KAŽDÉ zprávy bloku**, ne jen u první jako jméno odesílatele. Přeposlané zprávy
   téhož člověka bývají každá odjinud.
 - **Jméno zdroje jde z keše odesílatelů** (`resolveSender`, bere uživatele i chat). V kanálu,

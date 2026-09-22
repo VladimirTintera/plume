@@ -32,7 +32,7 @@ internal data class LargeEmojiMessageItem(
         val onSurface = LocalContentColor.current
         PaddedColumn {
             SenderName()
-            ForwardLabel()
+            ForwardChip()
             MessageText(
                 linkColor = if (message.isOutgoing) onSurface else MaterialTheme.colorScheme.primary,
                 style = when (emojiCount) {
@@ -58,7 +58,7 @@ internal data class StickerMessageItem(
         val onSurface = LocalContentColor.current
         PaddedColumn {
             SenderName()
-            ForwardLabel()
+            ForwardChip()
             Attachment(
                 media = media,
                 accent = if (message.isOutgoing) onSurface else MaterialTheme.colorScheme.primary,

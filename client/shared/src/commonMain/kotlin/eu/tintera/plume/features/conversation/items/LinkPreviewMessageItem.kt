@@ -68,7 +68,6 @@ internal data class LinkPreviewMessageItem(
         ) {
             // Karta jde až k hraně řádku jako ostatní bubliny, takže jméno si odsazení nese samo.
             SenderName(Modifier.padding(bottom = 2.dp))
-            ForwardLabel(Modifier.padding(bottom = 2.dp))
 
             val photo = preview.photo
             if (preview.showsLargePhoto && photo != null) {
@@ -101,12 +100,13 @@ internal data class LinkPreviewMessageItem(
         }
     }
 
-    /** Horní část: text zprávy v barvě bubliny. */
+    /** Horní část: značka přeposlání a text zprávy v barvě bubliny. */
     @Composable
     private fun MessageBodyScope.MessagePart() {
-        if (message.text.isBlank() && !message.isEdited) return
+        if (message.text.isBlank() && !message.isEdited && message.forwardOrigin == null) return
         Surface(color = bubbleColor, contentColor = onBubbleColor, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+                ForwardLabel()
                 if (message.text.isNotBlank()) MessageText(linkColor = accent)
                 EditedLabel(color = onBubbleColor, modifier = Modifier.align(Alignment.End))
             }
