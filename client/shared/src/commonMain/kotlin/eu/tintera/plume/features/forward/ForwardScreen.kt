@@ -3,7 +3,22 @@ package eu.tintera.plume.features.forward
 import eu.tintera.plume.core.ui.avatarShape
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ToggleButton
+import eu.tintera.plume.core.telegram.ForwardCapabilities
+import eu.tintera.plume.core.telegram.ForwardOptions
+import eu.tintera.plume.resources.check_24dp
+import eu.tintera.plume.resources.forward_hide_captions
+import eu.tintera.plume.resources.forward_hide_sender
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
@@ -97,8 +112,82 @@ fun ForwardScreen(
         onBack = onBack,
         error = state.error,
         onErrorShown = viewModel::consumeError,
+        header = {
+            ForwardOptionsRow(
+                capabilities = state.capabilities,
+                options = state.options,
+                enabled = !state.sending,
+                onHideSender = viewModel::setHideSender,
+                onHideCaptions = viewModel::setHideCaptions,
+            )
+        },
         modifier = modifier,
     )
+}
+
+/**
+ * Jak přeposlat: „Skrýt odesílatele" (kopie bez „Přeposláno od …") a s ní „Skrýt popisky".
+ *
+ * Dvě NEZÁVISLÁ přepínací tlačítka, ne connected group — ta je pro výběr z jedné sady (druh
+ * chatu v hledání), tady jsou to dvě volby, z nichž druhá platí jen s první. Proto se druhá
+ * ukáže, až je první zapnutá, a jen když zprávy nějaký popisek nesou.
+ *
+ * Co server nedovolí (`canBeCopied`), se nenabízí vůbec — stejně jako položky nabídky nad zprávou.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ForwardOptionsRow(
+    capabilities: ForwardCapabilities,
+    options: ForwardOptions,
+    enabled: Boolean,
+    onHideSender: (Boolean) -> Unit,
+    onHideCaptions: (Boolean) -> Unit,
+) {
+    AnimatedVisibility(
+        visible = capabilities.canHideSender,
+        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+        exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        ) {
+            OptionToggle(
+                checked = options.hideSender,
+                onCheckedChange = onHideSender,
+                enabled = enabled,
+                label = stringResource(Res.string.forward_hide_sender),
+            )
+            AnimatedVisibility(
+                visible = options.hideSender && capabilities.hasCaptions,
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()),
+            ) {
+                OptionToggle(
+                    checked = options.hideCaptions,
+                    onCheckedChange = onHideCaptions,
+                    enabled = enabled,
+                    label = stringResource(Res.string.forward_hide_captions),
+                )
+            }
+        }
+    }
+}
+
+/** Přepínací tlačítko s fajfkou, když je zapnuté — jako filtry hledání zpráv. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun OptionToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit, enabled: Boolean, label: String) {
+    ToggleButton(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled) {
+        AnimatedVisibility(visible = checked) {
+            Icon(
+                painterResource(Res.drawable.check_24dp),
+                contentDescription = null,
+                modifier = Modifier.padding(end = ButtonDefaults.IconSpacing).size(ButtonDefaults.IconSize),
+            )
+        }
+        Text(label)
+    }
 }
 
 /**
@@ -138,6 +227,8 @@ fun ChatPicker(
     onConfirm: () -> Unit = {},
     error: UiText? = null,
     onErrorShown: () -> Unit = {},
+    /** Pod hledáním, nad seznamem: volby akce (jak přeposlat). */
+    header: @Composable () -> Unit = {},
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -199,6 +290,8 @@ fun ChatPicker(
                 leadingIcon = { Icon(painterResource(Res.drawable.search_24dp), contentDescription = null) },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             )
+
+            header()
 
             if (subtitle != null) {
                 Text(

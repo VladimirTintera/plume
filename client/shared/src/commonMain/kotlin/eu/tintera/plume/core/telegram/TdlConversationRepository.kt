@@ -336,20 +336,48 @@ class TdlConversationRepository(
         )
     }
 
-    override suspend fun forward(fromChatId: Long, messageIds: List<Long>, toChatId: Long): Result<Unit> =
+    override suspend fun forward(
+        fromChatId: Long,
+        messageIds: List<Long>,
+        toChatId: Long,
+        options: ForwardOptions,
+    ): Result<Unit> =
         client.forwardMessages(
             chatId = toChatId,
             topicId = null,
             fromChatId = fromChatId,
             messageIds = messageIds.sorted().toLongArray(),
             options = null,
-            // Přeposlání, ne kopie: v cíli zůstane „Přeposláno od …". Kopie bez odesílatele je
-            // v Telegramu samostatná volba a zatím ji nenabízíme.
-            sendCopy = false,
-            removeCaption = false,
+            // Kopie = bez „Přeposláno od …". Popisky jde vynechat jen u kopie, jinak je TDLib
+            // ignoruje — posílat `true` bez kopie by jen předstíralo, že se něco stane.
+            sendCopy = options.hideSender,
+            removeCaption = options.hideSender && options.hideCaptions,
         )
             .toResult()
             .map { }
+
+    override suspend fun forwardCapabilities(chatId: Long, messageIds: List<Long>): ForwardCapabilities =
+        coroutineScope {
+            // Zpráva kvůli popisku a příznaky kvůli kopii — pro každou zprávu obojí souběžně.
+            val found = messageIds.map { id ->
+                async {
+                    val message = async { client.getMessage(chatId = chatId, messageId = id).toResult().getOrNull() }
+                    val properties = async { client.getMessageProperties(chatId = chatId, messageId = id).toResult().getOrNull() }
+                    message.await() to properties.await()
+                }
+            }.awaitAll()
+            if (found.any { (message, properties) -> message == null || properties == null }) {
+                return@coroutineScope ForwardCapabilities()
+            }
+            ForwardCapabilities(
+                canHideSender = found.all { (_, properties) -> properties!!.canBeCopied },
+                // Popisek = text u přílohy. U typů bez přílohy je text naše vlastní věta
+                // („Anketa: …"), ne popisek, který by kopie mohla vynechat.
+                hasCaptions = found.any { (message, _) ->
+                    message!!.messageMedia() != null && message.captionBody().text.isNotBlank()
+                },
+            )
+        }
 
     override suspend fun unpin(chatId: Long, messageId: Long): Result<Unit> =
         client.unpinChatMessage(chatId = chatId, messageId = messageId).toResult().map { }

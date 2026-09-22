@@ -6,6 +6,8 @@ import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.ForwardCapabilities
+import eu.tintera.plume.core.telegram.ForwardOptions
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.features.chats.ChatSearch
 import eu.tintera.plume.features.chats.pickerChats
@@ -50,13 +52,24 @@ class ForwardViewModel(
     /** Hledání ve všech chatech, i v archivu — v načteném hlavním seznamu by archiv chyběl. */
     private val search = ChatSearch(chatRepository, viewModelScope)
 
+    /**
+     * Co zprávy dovolí, zjištěné jednou při otevření. Dokud to nedorazí, volby se nenabízejí —
+     * přepínač, který by po chvíli zmizel, vypadá jako chyba.
+     */
+    private val _capabilities = MutableStateFlow(ForwardCapabilities())
+    private val _options = MutableStateFlow(ForwardOptions())
+
+    init {
+        viewModelScope.launch { _capabilities.value = repository.forwardCapabilities(fromChatId, messageIds) }
+    }
+
     val state: StateFlow<ForwardState> = combine(
         combine(chatRepository.chats(), query, search.state) { list, text, found -> pickerChats(text, list, found) },
         query,
         combine(_sending, _selected, ::Pair),
         _error,
-        chatRepository.savedMessagesChatId,
-    ) { picker, text, (sending, selected), error, saved ->
+        combine(chatRepository.savedMessagesChatId, _capabilities, _options, ::Triple),
+    ) { picker, text, (sending, selected), error, (saved, capabilities, options) ->
         ForwardState(
             query = text,
             loading = picker.loading,
@@ -67,12 +80,22 @@ class ForwardViewModel(
             selected = selected,
             error = error,
             savedMessagesChatId = saved,
+            capabilities = capabilities,
+            options = options,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ForwardState())
 
     fun onQueryChange(text: String) {
         query.value = text
         search.setQuery(text)
+    }
+
+    fun setHideSender(hide: Boolean) {
+        _options.update { it.copy(hideSender = hide) }
+    }
+
+    fun setHideCaptions(hide: Boolean) {
+        _options.update { it.copy(hideCaptions = hide) }
     }
 
     /** Ťuknutí na chat ho přidá mezi cíle, nebo ho z nich vyndá. Odesílá se až tlačítkem. */
@@ -93,12 +116,13 @@ class ForwardViewModel(
     fun send(onDone: (chatId: Long) -> Unit) {
         val targets = _selected.value.toList()
         if (targets.isEmpty() || _sending.value) return
+        val options = _options.value.allowedBy(_capabilities.value)
         _sending.value = true
 
         viewModelScope.launch {
             var failed = false
             targets.forEach { target ->
-                repository.forward(fromChatId, messageIds, target)
+                repository.forward(fromChatId, messageIds, target, options)
                     .onSuccess { shareTargets.reportUsed(target) }
                     .onFailure { failed = true }
             }
@@ -125,4 +149,20 @@ data class ForwardState(
     val selected: Set<Long> = emptySet(),
     val error: UiText? = null,
     val savedMessagesChatId: Long? = null,
+    val capabilities: ForwardCapabilities = ForwardCapabilities(),
+    /** Co uživatel zvolil; co se opravdu pošle, určí [ForwardOptions.allowedBy]. */
+    val options: ForwardOptions = ForwardOptions(),
 )
+
+/**
+ * Volby zúžené na to, co zprávy dovolí. Popisky jde skrýt jen u kopie a jen tehdy, když nějaké
+ * jsou; vypnutím „skrýt odesílatele" se volba popisků neztratí, jen přestane platit — kdo si ji
+ * zapne znovu, najde ji, jak ji nechal.
+ */
+internal fun ForwardOptions.allowedBy(capabilities: ForwardCapabilities): ForwardOptions {
+    val hideSender = hideSender && capabilities.canHideSender
+    return ForwardOptions(
+        hideSender = hideSender,
+        hideCaptions = hideSender && hideCaptions && capabilities.hasCaptions,
+    )
+}

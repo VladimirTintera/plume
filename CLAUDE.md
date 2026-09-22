@@ -2930,8 +2930,18 @@ po odeslání se otevře cílový chat, takže je vidět, že zpráva dorazila.
 - **Bez dotazu je ve výběru živý hlavní seznam, s dotazem výsledky `ChatSearch`** — ze všech
   chatů, i archivovaných (`pickerChats`, viz „Hledání chatů").
 - **Během odesílání se seznam nedá ťuknout podruhé** — dvě ťuknutí by poslala zprávu dvakrát.
-- **Posílá se jako přeposlání, ne kopie** (`sendCopy = false`), takže v cíli zůstane „Přeposláno
-  od …". Kopie bez odesílatele je v Telegramu samostatná volba a zatím ji nenabízíme.
+- **Výchozí je přeposlání, kopie je volba** — přepínací tlačítka pod hledáním: „Skrýt
+  odesílatele" (`sendCopy`, v cíli není „Přeposláno od …") a s ním „Skrýt popisky"
+  (`removeCaption`). Pravidlo je čistá funkce `ForwardOptions.allowedBy` (testy
+  `ForwardOptionsTest`).
+- **Popisky jdou skrýt JEN u kopie.** TDLib `removeCaption` bez `sendCopy` ignoruje, takže se
+  druhé tlačítko ukáže až se zapnutým prvním — a jen když přeposílané zprávy nějaký popisek
+  nesou (médium s textem; u typů bez přílohy je text naše věta, ne popisek).
+- **Kopii nabízí jen `canBeCopied`** u VŠECH zpráv (`forwardCapabilities`, zjišťuje se jednou
+  při otevření, zpráva a příznaky souběžně). Volba se ukáže až po odpovědi — zmizelá by
+  vypadala jako chyba; když se zjistit nepodaří, nenabídne se.
+- **Volby se nepamatují.** Přeposlání bez odesílatele je rozhodnutí o konkrétní zprávě; zapnuté
+  napořád by příště tiše vydávalo cizí zprávu za vlastní.
 - **Cílový chat se do zásobníku přidá jen, když na něm zásobník už nestojí** — přeposlání do
   téhož chatu by jinak otevřelo druhou kopii konverzace.
 - **Přeposílá se do VÍC cílů naráz**, takže ťuknutí na chat ho VYBERE (zaškrtávátko) a odesílá
