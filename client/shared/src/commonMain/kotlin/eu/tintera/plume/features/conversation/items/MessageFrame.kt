@@ -100,6 +100,16 @@ import eu.tintera.plume.resources.conversation_selection_deselect
 import eu.tintera.plume.resources.conversation_selection_select
 import eu.tintera.plume.resources.radio_button_unchecked_24dp
 import eu.tintera.plume.resources.conversation_edited
+import eu.tintera.plume.resources.conversation_forwarded
+import eu.tintera.plume.resources.conversation_forwarded_from
+import eu.tintera.plume.resources.forward_24dp
+import eu.tintera.plume.core.telegram.ForwardOrigin
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import eu.tintera.plume.resources.reply_24dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.coroutineScope
@@ -930,6 +940,76 @@ internal fun MessageBodyScope.SenderName(
         )
     }
 }
+
+/**
+ * „Přeposláno od …" nad obsahem přeposlané zprávy. Na rozdíl od jména odesílatele u KAŽDÉ
+ * zprávy bloku — přeposlané zprávy téhož člověka bývají každá odjinud.
+ *
+ * Barva je barva popředí plochy, jen ztlumená: značka říká, odkud obsah je, a nesmí se
+ * přetahovat se jménem odesílatele nad ní ani s textem pod ní. Jméno zdroje nese řez, ne
+ * barvu — barva zdroje by se musela kontrolovat proti každé ploše zvlášť (viz [accentOn]).
+ *
+ * Ťuknutí vede ke zdroji ([MessageAction.OpenForwardOrigin]); vlastní klikání by bez
+ * opakovaného dlouhého stisku nad značkou spolklo nabídku zprávy (stejná past jako u citace).
+ */
+@Composable
+internal fun MessageBodyScope.ForwardLabel(modifier: Modifier = Modifier) {
+    val origin = message.forwardOrigin ?: return
+    val color = LocalContentColor.current.copy(alpha = FORWARD_LABEL_ALPHA)
+    val name = origin.name
+    val template = stringResource(Res.string.conversation_forwarded_from, FORWARD_NAME_SLOT)
+    val fallback = stringResource(Res.string.conversation_forwarded)
+    val text = remember(name, template, fallback) {
+        if (name == null) {
+            AnnotatedString(fallback)
+        } else {
+            // Jméno se vkládá až sem, aby šlo zvýraznit řezem, a pořadí slov zůstalo na překladu.
+            val start = template.indexOf(FORWARD_NAME_SLOT)
+            buildAnnotatedString {
+                append(template.substring(0, start))
+                withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(name) }
+                append(template.substring(start + FORWARD_NAME_SLOT.length))
+            }
+        }
+    }
+    val clickable = origin !is ForwardOrigin.Hidden
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .then(
+                if (clickable) {
+                    Modifier.combinedClickable(
+                        onClick = { act(MessageAction.OpenForwardOrigin(origin)) },
+                        onLongClick = ::requestMenu,
+                    )
+                } else {
+                    Modifier
+                },
+            )
+            .padding(vertical = 2.dp),
+    ) {
+        Icon(
+            painter = painterResource(Res.drawable.forward_24dp),
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(14.dp),
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/** Značka přeposlání je doplněk, ne obsah — ustoupí textu zprávy. */
+private const val FORWARD_LABEL_ALPHA = 0.78f
+
+/** Zástupný řetězec za jméno v šabloně „Přeposláno od %1$s"; ve jménech se nevyskytne. */
+private const val FORWARD_NAME_SLOT = "\u0001"
 
 /**
  * Text zprávy s formátováním a odkazy. [linkColor] podle pozadí — viz [MessageBodyScope.accent].

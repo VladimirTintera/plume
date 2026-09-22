@@ -56,6 +56,7 @@ internal data class MediaMessageItem(
         ) {
             // Nad holým snímkem si jméno musí odsazení přinést samo.
             SenderName(Modifier.padding(bottom = 2.dp))
+            ForwardLabel(Modifier.padding(bottom = 2.dp))
 
             MediaWithCaption(
                 modifier = if (hasCaption) Modifier.clip(shape) else Modifier,

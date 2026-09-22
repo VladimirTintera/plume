@@ -68,6 +68,7 @@ internal data class LinkPreviewMessageItem(
         ) {
             // Karta jde až k hraně řádku jako ostatní bubliny, takže jméno si odsazení nese samo.
             SenderName(Modifier.padding(bottom = 2.dp))
+            ForwardLabel(Modifier.padding(bottom = 2.dp))
 
             val photo = preview.photo
             if (preview.showsLargePhoto && photo != null) {

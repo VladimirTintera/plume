@@ -79,9 +79,10 @@ Co z toho zůstalo:
   náhledu — sjednocovat to dřív by znamenalo dělat tu práci dvakrát.
 - **Fotka s citací si bublinu drží** a nejspíš to tak zůstane: citace bez pozadí se ztratí.
   Kdyby se to mělo změnit, potřebuje citace vlastní kontejner nad snímkem, ne průhledné pozadí.
-- **Přeposlaná zpráva se zatím nepozná.** Google Messages dává vedle takového snímku šipku
-  (druhá předloha). Zdroj přeposlání (`forwardInfo`) doménový `ChatMessage` nenese vůbec, takže
-  je to samostatný kus práce — ne důsledek téhle změny.
+- ~~**Přeposlaná zpráva se zatím nepozná.**~~ — hotovo: „Přeposláno od …" nad obsahem, i nad
+  holým snímkem, ťuknutí vede ke zdroji (`CLAUDE.md`, „Přeposlaná zpráva"). Zbývá: přeposlání
+  z importu (`importInfo`), oznámení veřejné služby (`publicServiceAnnouncementType`) a značka
+  v náhledu seznamu chatů a v citaci.
 
 ### 2. ~~Fotky mají respektovat výšku~~ — HOTOVO
 

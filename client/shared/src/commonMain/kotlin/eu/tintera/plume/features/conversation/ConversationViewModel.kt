@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.SenderInfo
+import eu.tintera.plume.core.telegram.ForwardOrigin
 import eu.tintera.plume.resources.invite_request_sent
 import eu.tintera.plume.resources.conversation_link_failed
 import eu.tintera.plume.core.telegram.InvitePreview
@@ -1415,6 +1416,23 @@ class ConversationViewModel(
     }
 
     /**
+     * Zdroj přeposlané zprávy. Původní příspěvek se otevře jako odkaz na zprávu: v tomhle chatu
+     * skokem na místě, jinde konverzací se skokem na ni (i v kanálu, kde uživatel není — ten
+     * dostane „Přidat se").
+     */
+    private fun openForwardOrigin(origin: ForwardOrigin) {
+        when (origin) {
+            is ForwardOrigin.User -> openMentioned { chatRepository.privateChat(origin.userId) }
+            is ForwardOrigin.Chat -> when {
+                origin.chatId != chatId -> _state.update { it.copy(openChat = ChatTarget(origin.chatId, origin.messageId)) }
+                else -> origin.messageId?.let { jumpToMessage(it) }
+            }
+            // Skrytý účet server neprozradí, značka se u něj nedá ťuknout.
+            is ForwardOrigin.Hidden -> Unit
+        }
+    }
+
+    /**
      * Profil odesílatele ze skupiny. Profil stojí na CHATU, takže se napřed najde (a případně
      * lokálně založí) soukromý chat s ním — stejně jako při ťuknutí na člena v profilu skupiny.
      */
@@ -1679,6 +1697,7 @@ class ConversationViewModel(
             is MessageAction.OpenMention -> openMentioned { chatRepository.chatByUsername(action.username) }
             is MessageAction.OpenUser -> openMentioned { chatRepository.privateChat(action.userId) }
             is MessageAction.OpenSenderProfile -> openSenderProfile(action.userId)
+            is MessageAction.OpenForwardOrigin -> openForwardOrigin(action.origin)
             MessageAction.OpenDocument -> openDocument(messageId)
             MessageAction.CancelUpload -> cancelUpload(messageId)
             MessageAction.ToggleVoice -> toggleVoice(messageId)
