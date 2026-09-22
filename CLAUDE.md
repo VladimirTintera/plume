@@ -841,7 +841,9 @@ se z telefonu nedalo chodit zpět bez `BackHandler`, který v téhle aplikaci za
 - **`ListItem` na tónované kartě NEDĚDÍ `contentColor` karty.** Text si barví sám
   (`onSurface`), takže `Surface(contentColor = onPrimaryContainer)` kolem něj nic neudělá —
   v tmavém tématu vyšel světlý název na světlé kartě Uložených zpráv. Barva popředí se musí
-  předat i do `ListItemDefaults.colors`.
+  předat i do `ListItemDefaults.colors`. Totéž platí pro vybraný řádek v `secondaryContainer`
+  (výběr země) a pro `onSurfaceVariant`: ten je počítaný na surface role, na vybrané položce
+  patří `on*Container` (čas a ikony u vybraného chatu).
 - **Pozor na názvy barev `ListItemDefaults.colors`**: `contentColor` (ne `headlineColor`)
   a `supportingContentColor` (ne `supportingColor`). Hádaný název se pozná až překladem.
 
