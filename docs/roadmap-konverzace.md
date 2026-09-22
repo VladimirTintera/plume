@@ -189,8 +189,10 @@ Smazat**, u samolepky oblíbené a u souboru Sdílet a Uložit jako…. Mrtvé p
 takže zbytek přibude s tím, co bude umět:
 
 - ~~**Přeposlat**~~ — hotovo (výběr cílového chatu `ForwardRoute`, viz bod 3 nahoře).
-- **Upravit popisek média** (`editMessageCaption`) a **zprávu s ručním formátováním** —
-  vstupní pole umí jen holý text, takže úprava se u nich zatím nenabízí.
+- ~~**Upravit popisek média**~~ — hotovo (`editMessageCaption`; popisek jde přidat, změnit
+  i odebrat, viz `CLAUDE.md`, „Úprava zprávy"). **Zprávu s ručním formátováním** dál ne —
+  vstupní pole umí jen holý text, takže by úprava tučné, kurzívu nebo spoiler smazala.
+  Zbývá ověřit popisek ALBA (nabídka míří na zprávu s popiskem) a u hlasovky.
 - ~~**Vybrat víc zpráv**~~ — hotovo: „Vybrat" v nabídce přepne konverzaci do režimu výběru,
   vybrané jde zkopírovat, přeposlat i smazat naráz (`CLAUDE.md`, „Výběr víc zpráv").
 - ~~**Informace / odkaz na zprávu**~~ — hotovo: sheet s časem odeslání a úpravy, časem přečtení,

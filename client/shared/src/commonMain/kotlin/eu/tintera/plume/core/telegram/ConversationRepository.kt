@@ -245,6 +245,15 @@ interface ConversationRepository {
     suspend fun editText(chatId: Long, messageId: Long, text: String): Result<Unit>
 
     /**
+     * Upraví popisek přílohy. Je to JINÉ volání než [editText] — úprava textu by popisek nezměnila
+     * a naopak.
+     *
+     * Prázdný [caption] popisek odebere; to je v Telegramu platná úprava, na rozdíl od prázdného
+     * textu zprávy.
+     */
+    suspend fun editCaption(chatId: Long, messageId: Long, caption: String): Result<Unit>
+
+    /**
      * Potvrzení nebo selhání odeslané zprávy.
      *
      * Nese **staré i nové id**: TDLib po potvrzení zprávě id změní, takže ji nestačí aktualizovat,

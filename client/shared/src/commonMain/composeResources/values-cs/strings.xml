@@ -258,6 +258,7 @@
     <string name="conversation_send">Odeslat</string>
     <string name="conversation_attach">Přiložit</string>
     <string name="conversation_editing">Úprava zprávy</string>
+    <string name="conversation_editing_caption">Úprava popisku</string>
     <string name="conversation_cancel_edit">Zrušit úpravu</string>
     <string name="conversation_reply">Odpověď</string>
     <string name="conversation_voice_message">Hlasová zpráva</string>

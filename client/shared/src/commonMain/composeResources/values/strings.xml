@@ -255,6 +255,7 @@
     <string name="conversation_send">Send</string>
     <string name="conversation_attach">Attach</string>
     <string name="conversation_editing">Editing a message</string>
+    <string name="conversation_editing_caption">Editing the caption</string>
     <string name="conversation_cancel_edit">Cancel the edit</string>
     <string name="conversation_reply">Reply</string>
     <string name="conversation_voice_message">Voice message</string>

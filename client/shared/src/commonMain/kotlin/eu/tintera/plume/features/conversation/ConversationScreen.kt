@@ -213,6 +213,7 @@ import eu.tintera.plume.resources.conversation_cancel_reply
 import eu.tintera.plume.resources.clipboard_has_gif
 import eu.tintera.plume.resources.clipboard_has_image
 import eu.tintera.plume.resources.conversation_editing
+import eu.tintera.plume.resources.conversation_editing_caption
 import eu.tintera.plume.resources.conversation_open_gifs
 import eu.tintera.plume.resources.gif_box_24dp
 import eu.tintera.plume.resources.conversation_empty
@@ -1765,6 +1766,12 @@ private fun MessageInput(
              */
             // Bez práva na hlasovky mikrofon není — tlačítko zůstane odesláním, jen neaktivním.
             val showMic = !isRecording && editing == null && draft.text.isBlank() && !withAttachments && content.voiceNotes
+
+            /*
+             * Prázdný POPISEK je platná úprava — tím se popisek odebere —, takže tlačítko musí jít
+             * zmáčknout i s prázdným polem. U textu zprávy ne: prázdnou zprávu server odmítne.
+             */
+            val removableCaption = editing?.plainTextEdit() == PlainTextEdit.Caption
             val kind = when {
                 editing != null -> SendButtonKind.Save
                 showMic -> SendButtonKind.Mic
@@ -1834,8 +1841,8 @@ private fun MessageInput(
                         }
                     }
                 },
-                // Přílohy jdou poslat i bez popisku.
-                enabled = isRecording || showMic || draft.text.isNotBlank() || withAttachments,
+                // Přílohy jdou poslat i bez popisku a popisek jde i odebrat.
+                enabled = isRecording || showMic || draft.text.isNotBlank() || withAttachments || removableCaption,
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = containerColor,
                     contentColor = contentColor,
@@ -1960,10 +1967,15 @@ private fun composerHeaderAccent(): Color = accentOn(
  *
  * Vypadá jako citace (ikona, popisek, původní text), protože plní stejnou roli: říká, k čemu
  * se vztahuje to, co se píše. Původní text zůstává vidět, i když ho uživatel v poli přepíše.
+ *
+ * **Popisek přílohy to musí říct**: fotka v konverzaci zůstane, ať se v poli píše cokoli, takže
+ * bez toho by nebylo poznat, že se upravuje popisek, a ne zpráva. U přílohy bez popisku se
+ * původní text nekreslí vůbec — prázdný řádek by vypadal jako chyba vykreslení.
  */
 @Composable
 private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit) = ComposerHeader {
     val accent = composerHeaderAccent()
+    val caption = message.plainTextEdit() == PlainTextEdit.Caption
     Column(Modifier.weight(1f).padding(start = 14.dp, top = 8.dp, bottom = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
@@ -1973,17 +1985,21 @@ private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit) = Composer
                 modifier = Modifier.padding(end = 4.dp).size(16.dp),
             )
             Text(
-                text = stringResource(Res.string.conversation_editing),
+                text = stringResource(
+                    if (caption) Res.string.conversation_editing_caption else Res.string.conversation_editing,
+                ),
                 style = MaterialTheme.typography.labelLarge,
                 color = accent,
             )
         }
-        Text(
-            text = message.text,
-            style = MaterialTheme.typography.bodySmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (message.text.isNotBlank()) {
+            Text(
+                text = message.text,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
     IconButton(onClick = onCancel) {
         Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.conversation_cancel_edit))
