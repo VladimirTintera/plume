@@ -3,6 +3,7 @@ package eu.tintera.plume.core.telegram
 import dev.g000sha256.tdl.dto.BlockListMain
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.ChatMemberStatusAdministrator
+import dev.g000sha256.tdl.dto.ChatPermissions
 import dev.g000sha256.tdl.dto.ChatMemberStatusBanned
 import dev.g000sha256.tdl.dto.ChatMemberStatusCreator
 import dev.g000sha256.tdl.dto.ChatMemberStatusLeft
@@ -11,6 +12,8 @@ import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSecret
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.FormattedText
+import dev.g000sha256.tdl.dto.InputChatPhotoStatic
+import dev.g000sha256.tdl.dto.InputFileLocal
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.UserTypeBot
 import dev.g000sha256.tdl.toResult
@@ -54,6 +57,11 @@ class TdlProfileRepository(
                     canListMembers = true,
                     inviteLink = full?.inviteLink?.inviteLink?.takeIf { it.isNotBlank() },
                     isMember = client.ownMemberStatus(chat).isMember(),
+                    editRights = chatEditRights(
+                        isChannel = false,
+                        status = client.ownMemberStatus(chat),
+                        membersCanChangeInfo = chat.permissions.canChangeInfo,
+                    ),
                 )
             }
 
@@ -68,6 +76,11 @@ class TdlProfileRepository(
                     canListMembers = !type.isChannel && full?.canGetMembers == true,
                     inviteLink = full?.inviteLink?.inviteLink?.takeIf { it.isNotBlank() },
                     isMember = client.ownMemberStatus(chat).isMember(),
+                    editRights = chatEditRights(
+                        isChannel = type.isChannel,
+                        status = client.ownMemberStatus(chat),
+                        membersCanChangeInfo = chat.permissions.canChangeInfo,
+                    ),
                 )
             }
         }
@@ -94,6 +107,61 @@ class TdlProfileRepository(
             userId = userId,
             isBlocked = full?.blockList != null,
         )
+    }
+
+    override suspend fun editableChat(chatId: Long): Result<EditableChat> = runCatching {
+        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+        val isChannel = (chat.type as? ChatTypeSupergroup)?.isChannel == true
+        val description = when (val type = chat.type) {
+            is ChatTypeBasicGroup ->
+                client.getBasicGroupFullInfo(basicGroupId = type.basicGroupId).toResult().getOrNull()?.description
+            is ChatTypeSupergroup ->
+                client.getSupergroupFullInfo(supergroupId = type.supergroupId).toResult().getOrNull()?.description
+            else -> null
+        }
+        EditableChat(
+            chatId = chatId,
+            title = chat.title,
+            description = description.orEmpty(),
+            photoFileId = chat.photo?.big?.id,
+            photoThumbnailFileId = chat.photo?.small?.id,
+            isChannel = isChannel,
+            rights = chatEditRights(
+                isChannel = isChannel,
+                status = client.ownMemberStatus(chat),
+                membersCanChangeInfo = chat.permissions.canChangeInfo,
+            ),
+            permissions = chat.permissions.toGroupPermissions(),
+        )
+    }
+
+    override suspend fun setTitle(chatId: Long, title: String): Result<Unit> =
+        client.setChatTitle(chatId = chatId, title = title).toResult().map { }
+
+    override suspend fun setDescription(chatId: Long, description: String): Result<Unit> =
+        client.setChatDescription(chatId = chatId, description = description).toResult().map { }
+
+    /**
+     * Fotka jde přes CESTU (`InputFileLocal`), ne přes systémové URI — TDLib jiné nepřijme,
+     * stejně jako u příloh. `InputChatPhotoStatic` je obyčejný snímek; animovaná fotka
+     * a fotka ze samolepky jsou jiné druhy a aplikace je nenabízí.
+     */
+    override suspend fun setPhoto(chatId: Long, path: String): Result<Unit> =
+        client.setChatPhoto(
+            chatId = chatId,
+            photo = InputChatPhotoStatic(photo = InputFileLocal(path = path)),
+        ).toResult().map { }
+
+    /** `photo = null` fotku odebere — jiné volání na to TDLib nemá. */
+    override suspend fun deletePhoto(chatId: Long): Result<Unit> =
+        client.setChatPhoto(chatId = chatId, photo = null).toResult().map { }
+
+    override suspend fun setPermissions(chatId: Long, permissions: GroupPermissions): Result<Unit> = runCatching {
+        // Celým objektem: co aplikace nenabízí, se přenese z aktuálního stavu.
+        val current = client.getChat(chatId = chatId).toResult().getOrThrow().permissions
+        client.setChatPermissions(chatId = chatId, permissions = current.merged(permissions))
+            .toResult().getOrThrow()
+        Unit
     }
 
     /** Blokuje se hlavní seznam (`BlockListMain`) — ten brání psát i volat; stories mají vlastní. */
@@ -166,3 +234,39 @@ class TdlProfileRepository(
             (user.type is UserTypeBot)
     }
 }
+
+private fun ChatPermissions.toGroupPermissions() = GroupPermissions(
+    sendMessages = canSendBasicMessages,
+    sendPhotos = canSendPhotos,
+    sendVideos = canSendVideos,
+    sendDocuments = canSendDocuments,
+    sendVoiceNotes = canSendVoiceNotes,
+    sendStickers = canSendOtherMessages,
+    react = canReactToMessages,
+    inviteUsers = canInviteUsers,
+    pinMessages = canPinMessages,
+    changeInfo = canChangeInfo,
+)
+
+/**
+ * Nová práva nad těmi současnými. Pojmenované argumenty, jako u všeho generovaného: upstream
+ * do `ChatPermissions` přidává pole a poziční volání by se tiše rozsypalo.
+ */
+private fun ChatPermissions.merged(next: GroupPermissions) = ChatPermissions(
+    canSendBasicMessages = next.sendMessages,
+    canSendAudios = canSendAudios,
+    canSendDocuments = next.sendDocuments,
+    canSendPhotos = next.sendPhotos,
+    canSendVideos = next.sendVideos,
+    canSendVideoNotes = canSendVideoNotes,
+    canSendVoiceNotes = next.sendVoiceNotes,
+    canSendPolls = canSendPolls,
+    canSendOtherMessages = next.sendStickers,
+    canAddLinkPreviews = canAddLinkPreviews,
+    canReactToMessages = next.react,
+    canEditTag = canEditTag,
+    canChangeInfo = next.changeInfo,
+    canInviteUsers = next.inviteUsers,
+    canPinMessages = next.pinMessages,
+    canCreateTopics = canCreateTopics,
+)

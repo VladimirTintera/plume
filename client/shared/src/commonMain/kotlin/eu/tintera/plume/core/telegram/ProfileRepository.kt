@@ -24,7 +24,64 @@ interface ProfileRepository {
      * odejde (`leaveChat`) — stejně jako „Smazat" v seznamu chatů, viz „Akce nad chatem".
      */
     suspend fun deleteOrLeave(profile: ChatProfile): Result<Unit>
+
+    /**
+     * Co jde na chatu upravit a jak to teď vypadá. Čte se až při otevření úpravy — profil
+     * z toho potřebuje jen [ChatProfile.editRights], aby věděl, jestli položku nabídnout.
+     */
+    suspend fun editableChat(chatId: Long): Result<EditableChat>
+
+    suspend fun setTitle(chatId: Long, title: String): Result<Unit>
+
+    suspend fun setDescription(chatId: Long, description: String): Result<Unit>
+
+    /** Nová fotka chatu z lokálního souboru; kulatý ořez dělá až vykreslení. */
+    suspend fun setPhoto(chatId: Long, path: String): Result<Unit>
+
+    suspend fun deletePhoto(chatId: Long): Result<Unit>
+
+    /**
+     * Výchozí práva členů. Zapisuje se **celým objektem**, takže co aplikace nenabízí
+     * (hudba, video kolečka, ankety, témata…), se přenese z aktuálního stavu — nastavit to
+     * mohl jiný klient a přepsat mu to tiše by bylo horší než to nenabízet.
+     */
+    suspend fun setPermissions(chatId: Long, permissions: GroupPermissions): Result<Unit>
 }
+
+/** Chat otevřený k úpravě: co se dá změnit a jak to teď vypadá. */
+data class EditableChat(
+    val chatId: Long,
+    val title: String,
+    val description: String,
+    val photoFileId: Int?,
+    val photoThumbnailFileId: Int?,
+    val isChannel: Boolean,
+    val rights: ChatEditRights,
+    /** Výchozí práva členů; u kanálu se nenabízejí a jsou tu jen jako výchozí hodnoty. */
+    val permissions: GroupPermissions,
+)
+
+/**
+ * Výchozí práva členů skupiny, zúžená na to, co aplikace umí a na čem uživateli záleží.
+ *
+ * Druhy obsahu jsou tytéž jako v [ContentAccess] — tedy ty, které vstupní pole opravdu omezuje.
+ * Hudba, video kolečka, ankety, náhledy odkazů a témata tu nejsou: aplikace je neposílá, takže
+ * nabízet u nich přepínač by slibovalo vliv na něco, co stejně nejde udělat.
+ */
+data class GroupPermissions(
+    val sendMessages: Boolean,
+    val sendPhotos: Boolean,
+    val sendVideos: Boolean,
+    val sendDocuments: Boolean,
+    val sendVoiceNotes: Boolean,
+    /** Samolepky, animovaná emoji a GIFy — TDLib je vede pod jedním `canSendOtherMessages`. */
+    val sendStickers: Boolean,
+    val react: Boolean,
+    val inviteUsers: Boolean,
+    val pinMessages: Boolean,
+    /** Smí člen měnit název, popis a fotku skupiny. */
+    val changeInfo: Boolean,
+)
 
 data class ChatProfile(
     val chatId: Long,
@@ -53,6 +110,8 @@ data class ChatProfile(
     val inviteLink: String? = null,
     /** Uživatel ve skupině / kanálu je (smí odejít); u soukromého chatu `false`. */
     val isMember: Boolean = false,
+    /** Co smí uživatel na chatu upravovat; prázdné = položka „Upravit" se nenabízí. */
+    val editRights: ChatEditRights = ChatEditRights(),
 ) {
     /** Odkaz ke sdílení: veřejné jméno, jinak pozvánka; `null` = není co sdílet. */
     val link: String?

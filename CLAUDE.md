@@ -3037,6 +3037,48 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
 - **Snackbar profilu dřív neukázal nikdy nic**, ani chybu: efekt klíčovaný `state.error` hlášku
   vynuloval a tím se sám zrušil (past „Vrátit"). Teď běží v `rememberCoroutineScope`.
 
+### Úprava skupiny
+
+„Upravit" v ⋮ profilu otevře `EditChatRoute` (`EditChatScreen`, `EditChatViewModel`): fotka,
+název, popis a výchozí práva členů.
+
+- **Dvě práva, ne jedno** (`ChatEditRights`, pravidlo `chatEditRights` ve `WriteAccess.kt`, testy
+  `WriteAccessTest`). Název, popis a fotka stojí na `canChangeInfo`; výchozí práva členů na
+  `canRestrictMembers`, protože to vyžaduje `setChatPermissions`. Správce může mít jen jedno
+  z nich, takže se o každém bloku obrazovky rozhoduje zvlášť — a položka v menu se nabídne, když
+  je aspoň jedno.
+- **Rozhoduje vlastní postavení, ne typ chatu** — stejně jako u psaní (`writeAccess`). Vlastník
+  smí všechno; správce to, co má v právech; běžný člen mění informace jen tam, kde to dovolují
+  výchozí práva skupiny (`Chat.permissions.canChangeInfo`), a práva členů nikdy; omezený člen se
+  řídí svými vlastními právy, která ta výchozí přebíjejí.
+- **V kanálu se práva členů nenabízejí.** Nikdo do něj nepíše, takže není co omezovat — a TDLib
+  by `setChatPermissions` stejně odmítl.
+- **Fotka a práva se ukládají HNED, texty až tlačítkem Uložit.** Fotka má vlastní nahrávání
+  a přepínač se musí pohnout na ťuknutí; posílat text po písmenech nemá smysl. Stejné dělení
+  jako u úpravy vlastního profilu.
+- **TDLib na změnu `ChatPermissions` update NEPOSÍLÁ**, takže je obrazovka jediný zdroj pravdy:
+  přepínač se pohne hned a při selhání se vrátí — jako v nastavení archivu.
+- **Práva se zapisují CELÝM objektem**, takže co aplikace nenabízí (hudba, video kolečka, ankety,
+  náhledy odkazů, štítky, témata), se přenese z aktuálního stavu. Nastavit to mohl jiný klient
+  a přepsat mu to tiše by bylo horší než to nenabízet.
+- **Nabízí se jen ty druhy obsahu, které aplikace umí poslat** — tytéž jako `ContentAccess`.
+  Přepínač u něčeho, co se z aplikace stejně poslat nedá, by sliboval vliv, který nemá.
+- **Název a popis jsou dvě volání.** Když první selže, druhé se neposílá a co prošlo, se zapíše
+  jako výchozí stav — další pokus to neposílá znovu. Přesně jako u vlastního profilu.
+- **Fotka jde přes CESTU** (`InputChatPhotoStatic` + `InputFileLocal`), ne přes systémové URI —
+  TDLib jiné nepřijme, stejně jako u příloh. Ořezává se na čtverec ze středu (`SquarePhoto`),
+  protože se kreslí v kruhu. Odebrání je `setChatPhoto(photo = null)`; jiné volání na to není.
+- **Úprava má vlastní routu v OBOU větvích** (`EditChatRoute`, `ArchiveEditChatRoute`). Scéna se
+  určuje metadaty, takže jedna routa nemůže patřit hlavnímu seznamu i archivu — stejně jako
+  u konverzace a profilu.
+- **Zpět z úpravy vrací profil, ne chat.** Chaty mají `PopUntilContentChange` (viz „Navigace"),
+  takže se dvoupanelová scéna nepřeskočí celá; kdyby tam bylo výchozí chování, zpět by odešlo
+  rovnou z profilu i z konverzace.
+- **Ověřeno bez zásahu do skupiny**: položka v menu u vlastníka, její nepřítomnost v soukromém
+  chatu, načtení názvu, popisu, fotky a všech práv a neaktivní Uložit, dokud se nic nezmění.
+  **Uložení mění skutečnou skupinu, takže se zkouší jen se souhlasem** — stejně jako u úpravy
+  vlastního profilu.
+
 ### Sdílená média v profilu
 
 Pod hlavičkou profilu jsou záložky: **Členové** (kde je server vydá), **Média**, **Soubory**

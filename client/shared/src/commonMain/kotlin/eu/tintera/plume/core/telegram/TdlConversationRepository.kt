@@ -1281,12 +1281,17 @@ internal suspend fun TdlClient.ownMemberStatus(chat: Chat): OwnMemberStatus? = w
 /** Postavení uživatele ve skupině; `when` bez `else`, takže nový stav v TDLib rozbije překlad. */
 private fun ChatMemberStatus.toOwn(): OwnMemberStatus = when (this) {
     is ChatMemberStatusCreator -> OwnMemberStatus.Creator(isMember = isMember)
-    is ChatMemberStatusAdministrator -> OwnMemberStatus.Admin(canPostMessages = rights.canPostMessages)
+    is ChatMemberStatusAdministrator -> OwnMemberStatus.Admin(
+        canPostMessages = rights.canPostMessages,
+        canChangeInfo = rights.canChangeInfo,
+        canRestrictMembers = rights.canRestrictMembers,
+    )
     is ChatMemberStatusMember -> OwnMemberStatus.Member
     is ChatMemberStatusRestricted -> OwnMemberStatus.Restricted(
         isMember = isMember,
         canSendMessages = permissions.canSendBasicMessages,
         content = permissions.toContentAccess(),
+        canChangeInfo = permissions.canChangeInfo,
     )
     is ChatMemberStatusLeft -> OwnMemberStatus.Left
     is ChatMemberStatusBanned -> OwnMemberStatus.Banned

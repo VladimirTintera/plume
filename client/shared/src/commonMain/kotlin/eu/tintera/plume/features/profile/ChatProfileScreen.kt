@@ -21,6 +21,8 @@ import eu.tintera.plume.resources.profile_copy_link
 import eu.tintera.plume.resources.profile_more
 import eu.tintera.plume.resources.logout_24dp
 import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.edit_24dp
+import eu.tintera.plume.resources.profile_edit
 import eu.tintera.plume.resources.block_24dp
 import eu.tintera.plume.resources.more_vert_24dp
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -191,6 +193,8 @@ fun ChatProfileScreen(
     onOpenMedia: (messageId: Long) -> Unit,
     /** Chat je smazaný nebo opuštěný — zavřít profil i konverzaci. */
     onChatGone: () -> Unit,
+    /** Úprava skupiny; nabídne se, jen když na ni uživatel má právo. */
+    onEdit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -256,6 +260,7 @@ fun ChatProfileScreen(
                         ProfileMenu(
                             profile = profile,
                             onCopyLink = viewModel::copyLink,
+                            onEdit = onEdit,
                             onSetBlocked = viewModel::setBlocked,
                             onDeleteOrLeave = viewModel::deleteOrLeave,
                         )
@@ -839,6 +844,7 @@ private val HEADER_AVATAR_SIZE = 112.dp
 private fun ProfileMenu(
     profile: ChatProfile,
     onCopyLink: () -> Unit,
+    onEdit: () -> Unit,
     onSetBlocked: (Boolean) -> Unit,
     onDeleteOrLeave: () -> Unit,
 ) {
@@ -847,7 +853,9 @@ private fun ProfileMenu(
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val canBlock = profile.userId != null
     val canDeleteOrLeave = profile.isPrivate || profile.isMember
-    if (profile.link == null && !canBlock && !canDeleteOrLeave) return
+    // Úprava se nabízí, jen když je aspoň jedno z práv — co uvnitř ukáže, rozhoduje obrazovka.
+    val canEdit = profile.editRights.any
+    if (profile.link == null && !canBlock && !canDeleteOrLeave && !canEdit) return
 
     Box {
         IconButton(onClick = { expanded = true }) {
@@ -858,6 +866,11 @@ private fun ProfileMenu(
             onDismiss = { expanded = false },
             groups = listOf(
                 listOfNotNull(
+                    if (canEdit) {
+                        MenuAction(stringResource(Res.string.profile_edit), Res.drawable.edit_24dp, onClick = onEdit)
+                    } else {
+                        null
+                    },
                     profile.link?.let { MenuAction(stringResource(Res.string.profile_copy_link), Res.drawable.link_24dp, onClick = onCopyLink) },
                     if (canBlock) {
                         MenuAction(

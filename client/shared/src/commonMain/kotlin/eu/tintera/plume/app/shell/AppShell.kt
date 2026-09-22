@@ -1,9 +1,12 @@
 package eu.tintera.plume.app.shell
 
 import eu.tintera.plume.features.settings.EditProfileScreen
+import eu.tintera.plume.core.navigation.ArchiveEditChatRoute
+import eu.tintera.plume.core.navigation.EditChatRoute
 import eu.tintera.plume.core.navigation.EditProfileRoute
 import eu.tintera.plume.features.conversation.ConversationSearchRequests
 import eu.tintera.plume.features.profile.ChatProfileScreen
+import eu.tintera.plume.features.profile.EditChatScreen
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.ui.LocalSavedMessagesChatId
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -410,6 +413,22 @@ private fun shellEntryProvider(
             },
             onOpenMedia = { messageId -> chatsStack.add(MediaRoute(route.chatId, messageId)) },
             onChatGone = { chatsStack.closeChat(route.chatId) },
+            onEdit = { if (chatsStack.lastOrNull() != EditChatRoute(route.chatId)) chatsStack.add(EditChatRoute(route.chatId)) },
+        )
+    }
+
+    // Úprava se vrší nad profil a je to taky detail panel — v dvoupanelu profil vpravo nahradí.
+    entry<EditChatRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
+        EditChatScreen(
+            viewModel = koinViewModel(key = "edit-chat-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+        )
+    }
+
+    entry<ArchiveEditChatRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
+        EditChatScreen(
+            viewModel = koinViewModel(key = "edit-chat-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
         )
     }
 
@@ -456,6 +475,11 @@ private fun shellEntryProvider(
             },
             onOpenMedia = { messageId -> chatsStack.add(MediaRoute(route.chatId, messageId)) },
             onChatGone = { chatsStack.closeChat(route.chatId) },
+            onEdit = {
+                if (chatsStack.lastOrNull() != ArchiveEditChatRoute(route.chatId)) {
+                    chatsStack.add(ArchiveEditChatRoute(route.chatId))
+                }
+            },
         )
     }
 
