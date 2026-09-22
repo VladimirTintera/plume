@@ -155,6 +155,18 @@
     <string name="conversation_search">Search in chat</string>
     <string name="conversation_search_position">%1$d of %2$d</string>
     <string name="conversation_search_none">No results</string>
+    <string name="conversation_selection_select">Select message</string>
+    <string name="conversation_selection_deselect">Deselect message</string>
+    <string name="conversation_selection_close">Leave selection</string>
+    <string name="conversation_selection_limit">You can select up to %1$d messages at once.</string>
+    <plurals name="conversation_selection_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
+    <plurals name="conversation_delete_selected_title">
+        <item quantity="one">Delete message?</item>
+        <item quantity="other">Delete %1$d messages?</item>
+    </plurals>
     <string name="conversation_search_older">Older result</string>
     <string name="conversation_search_newer">Newer result</string>
     <string name="conversation_search_clear">Clear</string>
@@ -297,10 +309,12 @@
     <string name="menu_favorite_remove">Remove from favourites</string>
     <string name="menu_pin">Pin</string>
     <string name="menu_select_text">Select text</string>
+    <string name="menu_select">Select</string>
     <string name="menu_unpin">Unpin</string>
     <string name="menu_delete">Delete</string>
     <string name="menu_forward">Forward</string>
     <string name="forward_title">Forward to</string>
+    <string name="forward_send">Forward (%1$d)</string>
     <string name="share_title">Share to</string>
     <string name="share_preparing">Preparing files…</string>
     <string name="share_failed_files">Some shared files couldn't be prepared</string>
@@ -321,6 +335,9 @@
     <string name="delete_message_for_self">The message will be deleted only for you. Others keep it.</string>
     <string name="delete_message_for_partner_named">Delete for %1$s too</string>
     <string name="delete_message_for_partner">Delete for the other side too</string>
+    <string name="delete_messages_choice">The messages will be deleted for you. The other side keeps them unless you tick deleting for both.</string>
+    <string name="delete_messages_for_all">The messages will disappear for everyone in the chat. There's no undo.</string>
+    <string name="delete_messages_for_self">The messages will be deleted only for you. Others keep them.</string>
     <string name="pin_message_title">Pin the message?</string>
     <string name="pin_scope_private">The message will be pinned at the top of the chat.</string>
     <string name="pin_scope_group">The message will be pinned at the top for everyone in the group.</string>

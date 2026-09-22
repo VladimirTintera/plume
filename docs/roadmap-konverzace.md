@@ -46,8 +46,8 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    (~~vložení bez dotazu „Povolit vložení?"~~ — hotovo, `UIPasteControl` nad polem). ~~Streamování~~ — hotovo na Androidu (`CLAUDE.md`,
    „Video"); iOS čeká na `AVAssetResourceLoaderDelegate`. Zbývá rychlost, ztlumení a obraz
    v obraze.
-3. ~~**Přeposílání zpráv**~~ — hotovo (položka v nabídce, výběr chatu, album celé). Zbývá
-   víc cílů najednou, výběr víc zpráv a kopie bez odesílatele.
+3. ~~**Přeposílání zpráv**~~ — hotovo (položka v nabídce, výběr chatu, album celé,
+   ~~víc cílů najednou~~ i ~~výběr víc zpráv~~). Zbývá kopie bez odesílatele.
 4. ~~**Otevírání dokumentů**~~ — hotovo (stažení s průběhem, `ACTION_VIEW` / `UIDocumentInteractionController`).
    Zbývá zrušení stahování, uložení do Souborů/Downloads a otevření audia (zatím se jen popisuje).
 5. **Odlehčení vzhledu.** Hotové: ~~zaoblení na konci bloku bublin~~, ~~čas se stavem doručení
@@ -190,7 +190,8 @@ takže zbytek přibude s tím, co bude umět:
 - ~~**Přeposlat**~~ — hotovo (výběr cílového chatu `ForwardRoute`, viz bod 3 nahoře).
 - **Upravit popisek média** (`editMessageCaption`) a **zprávu s ručním formátováním** —
   vstupní pole umí jen holý text, takže úprava se u nich zatím nenabízí.
-- **Vybrat víc zpráv** — hromadné mazání a přeposílání, znamená režim výběru v celé konverzaci.
+- ~~**Vybrat víc zpráv**~~ — hotovo: „Vybrat" v nabídce přepne konverzaci do režimu výběru,
+  vybrané jde zkopírovat, přeposlat i smazat naráz (`CLAUDE.md`, „Výběr víc zpráv").
 - ~~**Informace / odkaz na zprávu**~~ — hotovo: sheet s časem odeslání a úpravy, časem přečtení,
   seznamem zhlédnutí a odkazem ke zkopírování. Poučení v `CLAUDE.md`, „Informace o zprávě".
   Zbývá jen `getMessageStatistics` u příspěvků v kanálech — jiná data a vlastní obrazovka.

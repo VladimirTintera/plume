@@ -500,6 +500,8 @@ fun ConversationScreen(
         state.flight,
         state.messageMenu,
         state.typing,
+        // Jen KLÍČE výběru: práva k němu chodí po jednom a seznam bloků se jimi nemění.
+        state.selection?.keys,
     ) { conversationItems(state) }
 
     // Klíč položky není u odeslaných zpráv jejich id (viz `ConversationState.itemKeys`), takže
@@ -748,6 +750,12 @@ fun ConversationScreen(
         isBackEnabled = state.search != null,
         onBackCompleted = viewModel::closeSearch,
     )
+    // Zpět ukončí výběr, teprve další odejde z chatu — jako u hledání.
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = state.selection != null,
+        onBackCompleted = viewModel::closeSelection,
+    )
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
         isBackEnabled = previewAttachmentIndex != null,
@@ -791,6 +799,10 @@ fun ConversationScreen(
         contentWindowInsets = ScaffoldDefaults.contentWindowInsets
             .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
         topBar = topBar@{
+            state.selection?.let { selection ->
+                SelectionTopBar(selection = selection, onClose = viewModel::closeSelection)
+                return@topBar
+            }
             state.search?.let { search ->
                 InChatSearchTopBar(
                     initialQuery = search.query,
@@ -918,6 +930,16 @@ fun ConversationScreen(
         bottomBar = {
             // Horní hrana pole je spodní mez pro nabídku nad zprávou (viz `contentBottom`).
             Box(Modifier.onGloballyPositioned { contentBottom.value = it.boundsInWindow().top }) {
+            // Při výběru patří spodek akcím nad ním; rozepsaný text zůstává v konceptu.
+            state.selection?.let { selection ->
+                SelectionToolbar(
+                    selection = selection,
+                    onCopy = viewModel::copySelection,
+                    onForward = viewModel::forwardSelection,
+                    onDelete = viewModel::deleteSelection,
+                )
+                return@Box
+            }
             // Při hledání patří spodek šipkám mezi výsledky; rozepsaný text zůstává v konceptu.
             state.search?.let { search ->
                 InChatSearchNavigator(

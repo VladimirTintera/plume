@@ -117,6 +117,12 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
                  * ubezpečení na vyžádání: automaticky se odznak ukazuje jen u nejnovější zprávy.
                  */
                 onTap = MessageAction.ToggleReadReceipt.takeIf { message.isOutgoing },
+                /*
+                 * V režimu výběru nese každý blok, jestli je vybraný; mimo něj je to `null`
+                 * a rám výběr vůbec nekreslí. Klíč bloku je u alba klíč celého alba, takže
+                 * se vybírá album, ne jednotlivá fotka.
+                 */
+                selected = state.selection?.let { key in it.keys },
             )
 
             messageItem(
@@ -214,6 +220,7 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageM
     }
     add(MessageMenuAction.Info)
     add(if (isPinned) MessageMenuAction.Unpin else MessageMenuAction.Pin)
+    add(MessageMenuAction.Select)
     add(MessageMenuAction.Delete)
 }
 

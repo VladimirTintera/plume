@@ -156,6 +156,20 @@
     <string name="conversation_search">Hledat v chatu</string>
     <string name="conversation_search_position">%1$d z %2$d</string>
     <string name="conversation_search_none">Nic nenalezeno</string>
+    <string name="conversation_selection_select">Vybrat zprávu</string>
+    <string name="conversation_selection_deselect">Zrušit výběr zprávy</string>
+    <string name="conversation_selection_close">Ukončit výběr</string>
+    <string name="conversation_selection_limit">Naráz jde vybrat nejvýš %1$d zpráv.</string>
+    <plurals name="conversation_selection_count">
+        <item quantity="one">%1$d vybraná</item>
+        <item quantity="few">%1$d vybrané</item>
+        <item quantity="other">%1$d vybraných</item>
+    </plurals>
+    <plurals name="conversation_delete_selected_title">
+        <item quantity="one">Smazat zprávu?</item>
+        <item quantity="few">Smazat %1$d zprávy?</item>
+        <item quantity="other">Smazat %1$d zpráv?</item>
+    </plurals>
     <string name="conversation_search_older">Starší výsledek</string>
     <string name="conversation_search_newer">Novější výsledek</string>
     <string name="conversation_search_clear">Vymazat</string>
@@ -298,10 +312,12 @@
     <string name="menu_favorite_remove">Odebrat z oblíbených</string>
     <string name="menu_pin">Připnout</string>
     <string name="menu_select_text">Vybrat text</string>
+    <string name="menu_select">Vybrat</string>
     <string name="menu_unpin">Odepnout</string>
     <string name="menu_delete">Smazat</string>
     <string name="menu_forward">Přeposlat</string>
     <string name="forward_title">Přeposlat do</string>
+    <string name="forward_send">Přeposlat (%1$d)</string>
     <string name="share_title">Sdílet do</string>
     <string name="share_preparing">Připravuji soubory…</string>
     <string name="share_failed_files">Některé sdílené soubory se nepodařilo připravit</string>
@@ -322,6 +338,9 @@
     <string name="delete_message_for_self">Zpráva se smaže jen u tebe. Ostatním zůstane.</string>
     <string name="delete_message_for_partner_named">Smazat i u %1$s</string>
     <string name="delete_message_for_partner">Smazat i u protějšku</string>
+    <string name="delete_messages_choice">Zprávy se smažou u tebe. Protějšku zůstanou, dokud nezaškrtneš smazání u obou.</string>
+    <string name="delete_messages_for_all">Zprávy zmizí všem v chatu. Vrátit to nejde.</string>
+    <string name="delete_messages_for_self">Zprávy se smažou jen u tebe. Ostatním zůstanou.</string>
     <string name="pin_message_title">Připnout zprávu?</string>
     <string name="pin_scope_private">Zpráva se připne nahoru v chatu.</string>
     <string name="pin_scope_group">Zpráva se připne nahoru pro všechny ve skupině.</string>

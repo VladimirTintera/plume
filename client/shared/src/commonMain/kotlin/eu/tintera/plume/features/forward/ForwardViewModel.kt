@@ -41,16 +41,22 @@ class ForwardViewModel(
     private val _sending = MutableStateFlow(false)
     private val _error = MutableStateFlow<UiText?>(null)
 
+    /**
+     * Vybrané cíle. **Množina si drží pořadí výběru** (`Set.plus` vrací `LinkedHashSet`) — po
+     * odeslání se otevře ten, který uživatel vybral první, takže je vidět, že zpráva dorazila.
+     */
+    private val _selected = MutableStateFlow<Set<Long>>(emptySet())
+
     /** Hledání ve všech chatech, i v archivu — v načteném hlavním seznamu by archiv chyběl. */
     private val search = ChatSearch(chatRepository, viewModelScope)
 
     val state: StateFlow<ForwardState> = combine(
         combine(chatRepository.chats(), query, search.state) { list, text, found -> pickerChats(text, list, found) },
         query,
-        _sending,
+        combine(_sending, _selected, ::Pair),
         _error,
         chatRepository.savedMessagesChatId,
-    ) { picker, text, sending, error, saved ->
+    ) { picker, text, (sending, selected), error, saved ->
         ForwardState(
             query = text,
             loading = picker.loading,
@@ -58,6 +64,7 @@ class ForwardViewModel(
             // to není výjimka.
             chats = picker.chats,
             sending = sending,
+            selected = selected,
             error = error,
             savedMessagesChatId = saved,
         )
@@ -68,24 +75,39 @@ class ForwardViewModel(
         search.setQuery(text)
     }
 
-    /**
-     * Přepošle a ohlásí, kam — obrazovka pak cíl otevře, aby bylo vidět, že zpráva dorazila.
-     * Dokud odesílání běží, další ťuknutí nic neudělá; dvě přeposlání by jinak odešla obě.
-     */
-    fun forward(toChatId: Long, onDone: (chatId: Long) -> Unit) {
+    /** Ťuknutí na chat ho přidá mezi cíle, nebo ho z nich vyndá. Odesílá se až tlačítkem. */
+    fun toggle(chatId: Long) {
         if (_sending.value) return
+        _selected.update { if (chatId in it) it - chatId else it + chatId }
+    }
+
+    /**
+     * Přepošle do všech vybraných cílů a ohlásí ten PRVNÍ vybraný — obrazovka ho otevře, aby
+     * bylo vidět, že zpráva dorazila. Otevřít poslední nebo nic by bylo svévolné; první vybraný
+     * je ten, na který uživatel myslel nejdřív.
+     *
+     * Posílá se **postupně**, ne souběžně: pořadí zpráv v cílech tím zůstane dané a server
+     * nedostane deset přeposlání naráz. Selhání jednoho cíle ostatní nezastaví — co odešlo,
+     * odešlo, a chyba se ohlásí na konci.
+     */
+    fun send(onDone: (chatId: Long) -> Unit) {
+        val targets = _selected.value.toList()
+        if (targets.isEmpty() || _sending.value) return
         _sending.value = true
 
         viewModelScope.launch {
-            repository.forward(fromChatId, messageIds, toChatId)
-                .onSuccess {
-                    shareTargets.reportUsed(toChatId)
-                    onDone(toChatId)
-                }
-                .onFailure { failure ->
-                    _error.update { UiText(Res.string.forward_failed) }
-                    _sending.value = false
-                }
+            var failed = false
+            targets.forEach { target ->
+                repository.forward(fromChatId, messageIds, target)
+                    .onSuccess { shareTargets.reportUsed(target) }
+                    .onFailure { failed = true }
+            }
+            if (failed) {
+                _error.update { UiText(Res.string.forward_failed) }
+                _sending.value = false
+            } else {
+                onDone(targets.first())
+            }
         }
     }
 
@@ -99,6 +121,8 @@ data class ForwardState(
     val loading: Boolean = true,
     val chats: List<ChatSummary> = emptyList(),
     val sending: Boolean = false,
+    /** Vybrané cíle v pořadí výběru. */
+    val selected: Set<Long> = emptySet(),
     val error: UiText? = null,
     val savedMessagesChatId: Long? = null,
 )

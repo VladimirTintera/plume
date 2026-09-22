@@ -91,6 +91,10 @@ import eu.tintera.plume.features.conversation.items.MenuAnchor
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageItem
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.delete_messages_choice
+import eu.tintera.plume.resources.delete_messages_for_all
+import eu.tintera.plume.resources.delete_messages_for_self
+import eu.tintera.plume.resources.conversation_delete_selected_title
 import eu.tintera.plume.resources.add_reaction_24dp
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.conversation_delivery_failed
@@ -119,6 +123,7 @@ import eu.tintera.plume.resources.pin_scope_private
 import kotlin.math.roundToInt
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -747,14 +752,29 @@ fun MessageDeleteDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.delete_message_title)) },
+        title = {
+            // U výběru se počet do titulku vypíše, u jedné zprávy (i u alba) zůstává věta beze změny.
+            Text(
+                if (pending.count > 1) {
+                    pluralStringResource(Res.plurals.conversation_delete_selected_title, pending.count, pending.count)
+                } else {
+                    stringResource(Res.string.delete_message_title)
+                },
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Vyjmenované varianty místo plurálů: čeština i angličtina mění v těch větách
+                // víc než jedno slovo, takže „%1$d zpráv" by z nich udělalo kostrbatinu.
+                val many = pending.count > 1
                 Text(
                     stringResource(
                         when {
+                            choice && many -> Res.string.delete_messages_choice
                             choice -> Res.string.delete_message_choice
+                            pending.canDeleteForAll && many -> Res.string.delete_messages_for_all
                             pending.canDeleteForAll -> Res.string.delete_message_for_all
+                            many -> Res.string.delete_messages_for_self
                             else -> Res.string.delete_message_for_self
                         },
                     ),

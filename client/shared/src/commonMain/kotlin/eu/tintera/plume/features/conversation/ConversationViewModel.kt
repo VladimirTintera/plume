@@ -58,6 +58,7 @@ import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_selection_limit
 import eu.tintera.plume.resources.conversation_attachments_limit
 import eu.tintera.plume.resources.conversation_content_not_allowed
 import eu.tintera.plume.resources.conversation_gif_send_failed
@@ -1691,6 +1692,8 @@ class ConversationViewModel(
             MessageMenuAction.Pin -> requestPin(messageId)
             MessageMenuAction.Unpin -> unpinFromMenu(messageId)
             MessageMenuAction.Delete -> requestDelete(messageId)
+            MessageMenuAction.Select -> startSelection(messageId)
+            MessageAction.ToggleSelection -> toggleSelection(messageId)
             MessageMenuAction.ShareFile -> shareDocument(messageId)
             MessageAction.OpenMedia, is MessageAction.OpenStickerSet, is MessageAction.SearchHashtag,
             MessageMenuAction.SaveFileAs ->
@@ -1883,6 +1886,115 @@ class ConversationViewModel(
 
     fun consumeForwardRequest() {
         _state.update { it.copy(forwardRequest = null) }
+    }
+
+    /**
+     * Vstup do režimu výběru z nabídky nad zprávou — s tou zprávou rovnou vybranou.
+     *
+     * Nabídka se tím zavře: výběr je jiný režim celé konverzace, ne další akce nad jednou zprávou.
+     */
+    private fun startSelection(messageId: Long) {
+        _state.update { it.copy(messageMenu = null, selection = MessageSelection()) }
+        toggleSelection(messageId)
+    }
+
+    /**
+     * Přidá blok do výběru, nebo ho z něj vyndá. Poslední odebraný výběr ukončí — zůstat
+     * v režimu s nulou vybraných by byl stav, ve kterém nejde nic dělat a není jasné proč.
+     */
+    private fun toggleSelection(messageId: Long) {
+        val state = _state.value
+        val selection = state.selection ?: return
+        val key = state.blockKeyOf(messageId) ?: return
+
+        if (key in selection.keys) {
+            val keys = selection.keys - key
+            _state.update {
+                it.copy(
+                    selection = if (keys.isEmpty()) {
+                        null
+                    } else {
+                        selection.copy(keys = keys, rights = selection.rights - key, withText = selection.withText - key)
+                    },
+                )
+            }
+            return
+        }
+
+        if (selection.count >= MAX_SELECTED_MESSAGES) {
+            _state.update { it.copy(notice = UiText(Res.string.conversation_selection_limit, listOf(MAX_SELECTED_MESSAGES))) }
+            return
+        }
+
+        // Popisek alba nemusí být na ťuknuté fotce, takže se text hledá v celém bloku.
+        val hasText = state.albumMemberIds(messageId)
+            .mapNotNull { id -> state.messages.firstOrNull { it.id == id } }
+            .any { it.copyableText().isNotBlank() }
+        _state.update {
+            it.copy(
+                selection = selection.copy(
+                    keys = selection.keys + key,
+                    withText = if (hasText) selection.withText + key else selection.withText,
+                ),
+            )
+        }
+
+        // Práva se ptáme na každý vybraný blok zvlášť — dopředu pro celou historii by to byl
+        // dotaz na každou zprávu, a výběr má strop, takže jich nikdy nebude moc.
+        viewModelScope.launch {
+            val actions = repository.messageActions(chatId, messageId).getOrElse { MessageActions.Fallback }
+            _state.update { state ->
+                val current = state.selection ?: return@update state
+                // Než odpověď dorazila, mohl uživatel blok z výběru vyndat nebo výběr zavřít.
+                if (key !in current.keys) return@update state
+                state.copy(selection = current.copy(rights = current.rights + (key to actions)))
+            }
+        }
+    }
+
+    fun closeSelection() {
+        _state.update { it.copy(selection = null) }
+    }
+
+    /** Texty vybraných zpráv pod sebe, od nejstarší. Zprávy bez textu se vynechají. */
+    fun copySelection() {
+        val state = _state.value
+        val text = state.selectedMessageIds()
+            .mapNotNull { id -> state.messages.firstOrNull { it.id == id } }
+            .mapNotNull { it.copyableText().takeIf(String::isNotBlank) }
+            .joinToString(SELECTION_COPY_SEPARATOR)
+        if (text.isBlank()) return
+
+        closeSelection()
+        viewModelScope.launch { clipboard.copy(text) }
+    }
+
+    /** Výběr do přeposlání; cíl si vyžádá obrazovka, stejně jako u jedné zprávy. */
+    fun forwardSelection() {
+        val ids = _state.value.selectedMessageIds()
+        if (ids.isEmpty()) return
+        _state.update { it.copy(selection = null, forwardRequest = ids) }
+    }
+
+    /** Potvrzení smazání celého výběru. Práva jsou už načtená, takže se dialog zeptá rovnou. */
+    fun deleteSelection() {
+        val state = _state.value
+        val selection = state.selection ?: return
+        val ids = state.selectedMessageIds()
+        if (ids.isEmpty()) return
+
+        _state.update {
+            it.copy(
+                selection = null,
+                pendingDelete = PendingDelete(
+                    messageId = ids.first(),
+                    messageIds = ids,
+                    canDeleteForSelf = selection.canDeleteForSelf,
+                    canDeleteForAll = selection.canDeleteForAll,
+                    count = selection.count,
+                ),
+            )
+        }
     }
 
     fun cancelDelete() {
@@ -2382,7 +2494,53 @@ data class PendingDelete(
     val messageIds: List<Long> = listOf(messageId),
     val canDeleteForSelf: Boolean,
     val canDeleteForAll: Boolean,
+    /**
+     * Kolik zpráv to je z pohledu uživatele — u alba jedna, z výběru tolik, kolik jich vybral.
+     * Není to `messageIds.size`: album je v bublině jedna věc, i když je to pět zpráv.
+     */
+    val count: Int = 1,
 )
+
+/**
+ * Režim výběru víc zpráv; `null` = vypnutý.
+ *
+ * Vybírají se **bloky seznamu** ([keys], u alba klíč celého alba), ne jednotlivé zprávy —
+ * v konverzaci je album jedna věc a mazat nebo přeposílat půlku alba nedává smysl. Na id zpráv
+ * se klíče rozbalí až při akci (`albumMemberIds`), stejně jako u nabídky nad jednou zprávou.
+ *
+ * Práva od serveru se načítají pro každý vybraný blok zvlášť ([rights]) — z nich se teprve
+ * poskládá, co smí výběr JAKO CELEK. Dokud nedorazí všechna, akce se nenabízejí: tlačítko,
+ * které se po ťuknutí zeptá serveru a pak zhasne, je horší než tlačítko, které chvíli není.
+ */
+data class MessageSelection(
+    val keys: Set<Long> = emptySet(),
+    /** Práva vybraného bloku; klíč tu chybí, dokud odpověď nedorazí. */
+    val rights: Map<Long, MessageActions> = emptyMap(),
+    /** Vybrané bloky, ze kterých je co zkopírovat. Text zná konverzace, ne server. */
+    val withText: Set<Long> = emptySet(),
+) {
+    val count: Int get() = keys.size
+
+    /** Práva ještě nedorazila u všech vybraných. */
+    val loading: Boolean get() = keys.any { it !in rights }
+
+    private val ready: Boolean get() = keys.isNotEmpty() && !loading
+
+    /**
+     * Akce platí pro CELÝ výběr, takže se práva skládají přes `all`, ne `any`. Přeposlat půlku
+     * vybraného a o druhé mlčet by znamenalo, že uživatel neví, co odešlo.
+     */
+    val canForward: Boolean get() = ready && rights.values.all { it.canForward }
+
+    val canCopy: Boolean get() = ready && withText.isNotEmpty() && rights.values.all { it.canCopy }
+
+    val canDelete: Boolean get() = ready && rights.values.all { it.canDeleteForSelf || it.canDeleteForAll }
+
+    /** Smazat i ostatním jde, jen když to jde u všech vybraných. */
+    val canDeleteForAll: Boolean get() = ready && rights.values.all { it.canDeleteForAll }
+
+    val canDeleteForSelf: Boolean get() = ready && rights.values.all { it.canDeleteForSelf }
+}
 
 /** Zpráva čekající na potvrzení připnutí. Zvlášť od [MessageMenu] ze stejného důvodu jako [PendingDelete]. */
 data class PendingPin(
@@ -2408,6 +2566,15 @@ enum class PinScope {
  * Šest jako v Google Messages — na jeden řádek se vejdou i na úzkém telefonu vedle tlačítka „+".
  */
 private const val MAX_QUICK_REACTIONS = 6
+
+/**
+ * Strop výběru. `deleteMessages` i `forwardMessages` berou v TDLib nejvýš sto zpráv naráz, takže
+ * vyšší výběr by skončil chybou až u akce — a projít víc než sto zpráv ťuknutím stejně nikdo nechce.
+ */
+internal const val MAX_SELECTED_MESSAGES = 100
+
+/** Mezi zprávami ve schránce zůstane prázdný řádek — jinak by dlouhé zprávy splynuly v jednu. */
+private const val SELECTION_COPY_SEPARATOR = "\n\n"
 
 /**
  * Činnost v chatu pro konverzaci. [sender] je `null` v soukromém chatu (tvář nese [ChatInfo])
@@ -2472,6 +2639,8 @@ data class ConversationState(
     val documentDownloads: Map<Int, Float> = emptyMap(),
     /** Zprávy, které uživatel chce přeposlat; obrazovka na to otevře výběr cílového chatu. */
     val forwardRequest: List<Long>? = null,
+    /** Režim výběru víc zpráv; `null` = vypnutý (běžná konverzace). */
+    val selection: MessageSelection? = null,
     /** Přílohy vybrané k odeslání, čekající nad vstupním polem na popisek a odeslání. */
     val attachments: List<OutgoingAttachment> = emptyList(),
     /** Krátké potvrzení akce, která v konverzaci nic viditelného nezmění (snackbar). */
@@ -2546,6 +2715,33 @@ data class ConversationState(
 
     fun canSelfDestruct(attachmentCount: Int = attachments.size): Boolean =
         info != null && selfDestructAllowed(!info.isGroup, info.isSavedMessages, attachmentCount)
+
+    /**
+     * Klíč BLOKU, do kterého zpráva patří — u alba klíč celého alba, ne ťuknuté fotky.
+     * `null`, když zpráva v načteném okně není.
+     */
+    fun blockKeyOf(messageId: Long): Long? {
+        val message = messages.firstOrNull { it.id == messageId } ?: return null
+        val album = message.mediaAlbumId
+        // Blok nese klíč své NEJSTARŠÍ zprávy, stejně jako položka v seznamu (viz `conversationItems`).
+        val oldest = if (album == 0L) message else messages.filter { it.mediaAlbumId == album }.minBy { it.id }
+        return keyOf(oldest)
+    }
+
+    /**
+     * Id vybraných zpráv od nejstarší, i s ostatními zprávami vybraných alb.
+     *
+     * Vzestupně podle id: id zpráv jsou v chatu rostoucí, takže je to chronologické pořadí —
+     * a v něm se má kopírovat i přeposílat.
+     */
+    fun selectedMessageIds(): List<Long> {
+        val keys = selection?.keys.orEmpty()
+        if (keys.isEmpty()) return emptyList()
+        return messages.filter { keyOf(it) in keys }
+            .flatMap { albumMemberIds(it.id) }
+            .distinct()
+            .sorted()
+    }
 
     /** Id všech načtených zpráv alba, do kterého zpráva patří; u samostatné zprávy jen ona. */
     fun albumMemberIds(messageId: Long): List<Long> {

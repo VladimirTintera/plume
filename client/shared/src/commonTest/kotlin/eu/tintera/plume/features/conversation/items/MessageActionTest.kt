@@ -88,6 +88,7 @@ class MessageActionTest {
                 MessageMenuAction.Forward,
                 MessageMenuAction.Info,
                 MessageMenuAction.Pin,
+                MessageMenuAction.Select,
                 MessageMenuAction.Delete,
             ),
             menuActions(message(), isPinned = false),
@@ -161,13 +162,15 @@ class MessageActionTest {
         val items = menuActions(message(), isPinned = false)
         val shown = items.filter { it.presentation(menu(items, actions = MessageActions.Fallback)) != null }
         // Bez příznaků od serveru zbude jen to neškodné: odpověď, kopírování, výběr textu
-        // (což je kopírování po kouskách) a informace.
+        // (což je kopírování po kouskách), informace a vstup do výběru — ten na právech
+        // nestojí, co výběr dovolí, se zjistí až u jeho akcí.
         assertEquals(
             listOf(
                 MessageMenuAction.Reply,
                 MessageMenuAction.Copy,
                 MessageMenuAction.SelectText,
                 MessageMenuAction.Info,
+                MessageMenuAction.Select,
             ),
             shown,
         )
