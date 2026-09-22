@@ -31,6 +31,7 @@ import dev.g000sha256.tdl.dto.MessagePoll
 import dev.g000sha256.tdl.dto.MessageSelfDestructType
 import dev.g000sha256.tdl.dto.MessageSelfDestructTypeImmediately
 import dev.g000sha256.tdl.dto.MessageSelfDestructTypeTimer
+import dev.g000sha256.tdl.dto.MessageStakeDice
 import dev.g000sha256.tdl.dto.MessageSticker
 import dev.g000sha256.tdl.dto.MessageStory
 import dev.g000sha256.tdl.dto.MessageText
@@ -138,6 +139,7 @@ import eu.tintera.plume.resources.content_giveaway_winners
 import eu.tintera.plume.resources.content_group_call
 import eu.tintera.plume.resources.content_rich_message
 import eu.tintera.plume.resources.content_shared_chat
+import eu.tintera.plume.resources.content_stake_dice
 import eu.tintera.plume.resources.content_shared_users
 import eu.tintera.plume.resources.content_suggested_birthdate
 import eu.tintera.plume.resources.content_suggested_photo
@@ -251,6 +253,9 @@ private suspend fun MessageContent.describe(): String? = when (this) {
     is MessageVenue -> getString(Res.string.content_venue, venue.title)
     is MessageContact -> getString(Res.string.content_contact, "${contact.firstName} ${contact.lastName}".trim())
     is MessageGame -> getString(Res.string.content_game, game.title)
+    // Sázková kostka (TDLib 15): jako `MessageDice`, ale s vkladem v TON. Hodnotu ani vklad
+    // nevypisujeme — bez animace by z čísla nebylo poznat, že jde o hod.
+    is MessageStakeDice -> getString(Res.string.content_stake_dice)
     is MessageInvoice -> getString(Res.string.content_invoice, productInfo.title)
     is MessageStory -> getString(Res.string.content_story)
     is MessagePaidMedia -> caption.text.ifBlankGet { getString(Res.string.content_paid) }

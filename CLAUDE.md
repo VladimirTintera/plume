@@ -3559,7 +3559,25 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
 - **Nové typy TDLib se objevují tiše**: TDLib 15 přidal dárky, soutěže, boosty, skupinové
   hovory i články (`MessageRichMessage`, text se bere z bloků) a všechno padalo do „neumíme
   zobrazit". Při bumpu TDLib projít seznam podtypů `MessageContent` a `PushMessageContent`
-  (`unzip -l tdl-coroutines-api.jar | grep dto/Message`) proti `describe()` a `serviceText()`.
+  proti `describe()` a `serviceText()`.
+- **Podtypy se vyjmenují podle PŘEDKA, ne podle názvu.** `grep dto/Message` v seznamu tříd jich
+  najde 180 a většina `MessageContent` vůbec není (`MessageSender`, `MessageReplyTo`,
+  `MessageOrigin`…), takže se v tom skutečné mezery ztratí. Třídy se rozbalí z
+  `tdl-coroutines-api.jar` a proženou `javap`; `class … extends …MessageContent` jich nechá
+  105 a rozdíl proti tomu, co je vyjmenované v kódu, je pak přesný seznam nepokrytých typů:
+
+  ```bash
+  javap -cp . $(ls dev/g000sha256/tdl/dto/Message*.class | sed 's#.*/##;s#\.class##;s#^#dev.g000sha256.tdl.dto.#') \
+    | grep -E "class .* extends dev\.g000sha256\.tdl\.dto\.MessageContent"
+  ```
+- **Neznámé SERVISNÍ oznámení vypadá hůř než neznámý obsah.** `serviceText()` o něm neví, takže
+  se nekreslí jako poznámka na střed, ale jako bublina se jménem odesílatele a větou „neumíme
+  zobrazit" — v kanálu to mezi dvěma videi vypadá jako rozbitý příspěvek. Přesně takhle se
+  projevilo `MessageDirectMessagePriceChanged` (cena přímých zpráv kanálu, TDLib 15).
+- **Co je „for bots only", se schválně nepopisuje** (`MessagePassportDataReceived`,
+  `MessageWebAppDataReceived`, `MessagePaymentSuccessfulBot`). K uživatelskému účtu se to
+  nedostane, takže by to byla věta psaná naslepo; kdyby přece jen dorazilo, zapíše se to do logu
+  a podle logu tabulka roste.
 - **Neznámý typ se zapíše do logu** (`reportUnknownContent`, `w`, jednou za typ a proces), a tím
   do kontextu hlášení v Crashlytics. Bez toho se typ ze snímku „neumíme zobrazit" nedal zjistit.
   Název se bere z `toString()` (TDLib ho má jako řetězcový literál, R8 ho nepřejmenuje), obsah

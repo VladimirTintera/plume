@@ -440,6 +440,7 @@
     <string name="content_shared_users">Shared users</string>
     <string name="content_suggested_birthdate">Suggested birthday</string>
     <string name="content_suggested_photo">Suggested profile photo</string>
+    <string name="content_stake_dice">Dice with a stake</string>
     <string name="service_boost">The chat was boosted</string>
     <string name="service_checklist_tasks_added">Tasks were added to the checklist</string>
     <string name="service_checklist_tasks_done">Checklist tasks were updated</string>
@@ -453,6 +454,43 @@
     <string name="service_protected_content_off">Content protection turned off</string>
     <string name="service_protected_content_on">Chat content is now protected</string>
     <string name="service_video_chat_invite">Invitation to the video chat</string>
+    <string name="service_community_added">The chat was added to a community</string>
+    <string name="service_community_removed">The chat was removed from a community</string>
+    <string name="service_community_joined">Someone joined from a community</string>
+    <string name="service_direct_messages_on">Direct messages to the channel are on</string>
+    <string name="service_direct_messages_off">Direct messages to the channel are off</string>
+    <string name="service_paid_messages_free">Messages in the group are free again</string>
+    <string name="service_topic_closed">The topic was closed</string>
+    <string name="service_topic_reopened">The topic was reopened</string>
+    <string name="service_topic_hidden">The topic was hidden</string>
+    <string name="service_topic_unhidden">The topic is visible again</string>
+    <string name="service_protected_content_disable_requested">Someone asked to turn content protection off</string>
+    <string name="service_protected_content_disable_expired">The request to turn content protection off expired</string>
+    <string name="service_suggested_post_approved">A suggested post was approved</string>
+    <string name="service_suggested_post_declined">A suggested post was declined</string>
+    <string name="service_suggested_post_paid">Payment for a suggested post arrived</string>
+    <string name="service_suggested_post_refunded">Payment for a suggested post was refunded</string>
+    <string name="service_suggested_post_failed">A suggested post could not be approved, not enough funds</string>
+    <string name="service_gift_offer">An offer to buy a gift</string>
+    <string name="service_gift_offer_rejected">An offer to buy a gift was rejected</string>
+    <string name="service_gift_offer_expired">An offer to buy a gift expired</string>
+    <string name="service_bot_write_access">The bot is allowed to send messages</string>
+    <string name="service_bot_created">A new bot was created</string>
+    <string name="service_web_app_data">Data was sent to the bot</string>
+    <string name="service_passport_data">Telegram Passport data was sent</string>
+    <string name="service_payment_refunded">The payment was refunded</string>
+    <plurals name="service_direct_message_price">
+        <item quantity="one">A direct message now costs %1$d Star</item>
+        <item quantity="other">A direct message now costs %1$d Stars</item>
+    </plurals>
+    <plurals name="service_paid_message_price">
+        <item quantity="one">A message in the group now costs %1$d Star</item>
+        <item quantity="other">A message in the group now costs %1$d Stars</item>
+    </plurals>
+    <plurals name="service_paid_messages_refunded">
+        <item quantity="one">%1$d Star was refunded for messages</item>
+        <item quantity="other">%1$d Stars were refunded for messages</item>
+    </plurals>
     <string name="date_today">Today</string>
     <string name="date_yesterday">Yesterday</string>
     <string name="date_yesterday_short">yesterday</string>
