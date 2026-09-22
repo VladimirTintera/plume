@@ -1197,6 +1197,23 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
   které jsou už mezi výsledky (`globalOnly` — server vynechává jen chaty ze seznamu, ne všechny
   známé). Zprávy jsou `searchMessages(chatList = null)` přes hlavní seznam i archiv, stránkované
   `nextOffset` (prázdný = konec), duplicity na hranici stránek zahazuje `mergeFoundMessages`.
+- **Filtry hledání zpráv jsou čipy nad výsledky** (`MessageSearchFilters`, `MessageSearchFilter`):
+  druh chatu (Soukromé / Skupiny / Kanály) a období (týden, měsíc, rok, vlastní rozsah). Filtruje
+  **server** (`searchMessages` s `chatTypeFilter`, `minDate`/`maxDate`, převod `dateRange`, testy
+  `MessageSearchFilterTest`) — filtr nad načtenou stránkou by z padesáti výsledků nechal pár
+  a zbytek dotahoval naprázdno. Druh chatu zúží lokálně i sekce chatů; s obdobím se sekce chatů
+  schovají, chaty datum nemají.
+- **Změna jen filtru nehledá chaty znovu** — seznam by se při každém ťuknutí na čip přeskládal;
+  zopakují se jen zprávy. Filtr se nuluje se sbalením hledání, jako dotaz.
+- **Čipy, ne connected button group**: ta je na volbu z pevné sady, kde je vždycky něco vybrané,
+  a čtyři spojená tlačítka by vzala celou šířku. **Nabídka období je Expressive menu**
+  (`DropdownMenuPopup` + `DropdownMenuGroup`, položky s `checked`): vybrané období je v ní
+  zaškrtnuté a vlastní rozsah je samostatná skupina, která pod sebou ukazuje svá data.
+- **Výběr dat vrací půlnoc v UTC** — den se z ní vezme v UTC a začátek hledání je jeho půlnoc
+  v MÍSTNÍM pásmu; konec rozsahu je konec dne. Budoucí dny se nenabízejí.
+- **Ověřovat přes `adb` opatrně**: klávesa Esc (`keyevent 111`) hledání zavře a další ťuknutí
+  trefí seznam chatů — otevřený chat se tím označí jako přečtený. Klávesnice se schovává gestem
+  zpět, jen když je opravdu vidět (`dumpsys input_method | grep mInputShown`).
 - **Chaty a Globálně jsou sbalené na čtyři řádky** se „Zobrazit vše" — u krátkého dotazu jich
   jsou desítky a zprávy by skončily daleko dole.
 - **Nadpis sekce chatů je vždycky, když jsou chaty.** Dokud se ukazoval až s dalšími sekcemi,

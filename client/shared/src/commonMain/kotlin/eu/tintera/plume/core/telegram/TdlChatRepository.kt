@@ -1,5 +1,9 @@
 package eu.tintera.plume.core.telegram
 
+import kotlin.time.Clock
+import dev.g000sha256.tdl.dto.SearchMessagesChatTypeFilterChannel
+import dev.g000sha256.tdl.dto.SearchMessagesChatTypeFilterGroup
+import dev.g000sha256.tdl.dto.SearchMessagesChatTypeFilterPrivate
 import dev.g000sha256.tdl.dto.ChatJoinResultGuardBotApprovalRequired
 import dev.g000sha256.tdl.dto.ChatJoinResultDeclined
 import dev.g000sha256.tdl.dto.ChatJoinResultRequestSent
@@ -514,15 +518,22 @@ class TdlChatRepository(
     override suspend fun searchPublicChats(query: String): Result<List<ChatSummary>> =
         client.searchPublicChats(query = query).toResult().map { summariesFor(it.chatIds) }
 
-    override suspend fun searchMessages(query: String, offset: String): Result<FoundMessagesPage> =
-        client.searchMessages(
+    override suspend fun searchMessages(query: String, offset: String, filter: MessageSearchFilter): Result<FoundMessagesPage> {
+        val (minDate, maxDate) = filter.period.dateRange(Clock.System.now().epochSeconds)
+        return client.searchMessages(
             // `null` = hlavní seznam i archiv; tajné chaty `searchMessages` stejně neprochází.
             chatList = null,
             query = query,
             offset = offset,
             limit = MESSAGE_SEARCH_PAGE,
-            minDate = 0,
-            maxDate = 0,
+            chatTypeFilter = when (filter.chatKind) {
+                null -> null
+                ChatKind.Private -> SearchMessagesChatTypeFilterPrivate()
+                ChatKind.Group -> SearchMessagesChatTypeFilterGroup()
+                ChatKind.Channel -> SearchMessagesChatTypeFilterChannel()
+            },
+            minDate = minDate,
+            maxDate = maxDate,
         )
             .toResult()
             .map { found ->
@@ -542,6 +553,7 @@ class TdlChatRepository(
                     nextOffset = found.nextOffset.takeIf { it.isNotEmpty() },
                 )
             }
+    }
 
     // `searchChats` s prázdným dotazem vrací právě historii hledání — `searchRecentlyFoundChats`
     // prázdný dotaz nebere.

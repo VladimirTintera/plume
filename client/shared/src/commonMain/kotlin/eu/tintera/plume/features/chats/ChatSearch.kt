@@ -5,6 +5,7 @@ import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.FoundMessage
+import eu.tintera.plume.core.telegram.MessageSearchFilter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
@@ -45,6 +46,7 @@ class ChatSearch(
 
     private val query = MutableStateFlow("")
     private val suggestionsWanted = MutableStateFlow(false)
+    private val filter = MutableStateFlow(MessageSearchFilter())
 
     /** Zvedá se po vymazání historie — návrhy se přečtou znovu. */
     private val suggestionsVersion = MutableStateFlow(0)
@@ -57,13 +59,15 @@ class ChatSearch(
 
     init {
         scope.launch {
-            combine(query, suggestionsWanted, suggestionsVersion) { text, wanted, version -> Triple(text.trim(), wanted, version) }
+            combine(query, suggestionsWanted, suggestionsVersion, filter) { text, wanted, version, filter ->
+                SearchInput(text.trim(), wanted, version, filter)
+            }
                 .distinctUntilChanged()
                 // `collectLatest`: rozepsané hledání se dalším znakem zahodí, takže pomalá odpověď
                 // serveru na „ja" nepřepíše výsledky pro „jana".
-                .collectLatest { (text, wanted) ->
+                .collectLatest { input ->
                     moreMessages?.cancel()
-                    if (text.isEmpty()) suggest(wanted) else search(text)
+                    if (input.text.isEmpty()) suggest(input.suggestionsWanted) else search(input.text, input.filter)
                 }
         }
     }
@@ -79,7 +83,19 @@ class ChatSearch(
         )
     }
 
-    private suspend fun search(text: String) {
+    private suspend fun search(text: String, filter: MessageSearchFilter) {
+        /*
+         * Změnil se jen filtr zpráv: chaty pro tentýž dotaz zůstanou, jak jsou, a znovu se hledají
+         * jen zprávy. Hledat znovu i chaty by seznam při každém ťuknutí na čip přeskládalo.
+         */
+        val previous = _state.value
+        if (everywhere && previous.query == text && previous.filter != filter && !previous.searching) {
+            _state.update { it.copy(filter = filter, messages = emptyList(), messagesNextOffset = null, messagesLoading = true) }
+            val page = repository.searchMessages(text, filter = filter).logged("searchMessages")
+            _state.update { it.copy(messages = page?.messages.orEmpty(), messagesNextOffset = page?.nextOffset, messagesLoading = false) }
+            return
+        }
+
         // Krátká pauza: lokální hledání je rychlé, ale dotaz na server na každý znak ne.
         delay(TYPING_DEBOUNCE_MS)
 
@@ -89,8 +105,8 @@ class ChatSearch(
          * a „plume", tedy šum nad tím, co uživatel hledal.
          */
         if (everywhere && isHashtagQuery(text)) {
-            _state.value = ChatSearchState(query = text, messagesLoading = true)
-            val page = repository.searchMessages(text).logged("searchMessages")
+            _state.value = ChatSearchState(query = text, filter = filter, messagesLoading = true)
+            val page = repository.searchMessages(text, filter = filter).logged("searchMessages")
             _state.update {
                 it.copy(messages = page?.messages.orEmpty(), messagesNextOffset = page?.nextOffset, messagesLoading = false)
             }
@@ -100,6 +116,7 @@ class ChatSearch(
         val local = repository.searchChats(text).logged("searchChats").orEmpty()
         _state.value = ChatSearchState(
             query = text,
+            filter = filter,
             results = local,
             searching = true,
             messagesLoading = everywhere,
@@ -116,7 +133,7 @@ class ChatSearch(
                     _state.update { it.copy(global = global) }
                 }
                 launch {
-                    val page = repository.searchMessages(text).logged("searchMessages")
+                    val page = repository.searchMessages(text, filter = filter).logged("searchMessages")
                     _state.update {
                         it.copy(
                             messages = page?.messages.orEmpty(),
@@ -133,6 +150,11 @@ class ChatSearch(
         query.value = text
     }
 
+    /** Zúžení hledaných zpráv (druh chatu, období). Nový dotaz ho nemaže — platí, dokud se nezmění. */
+    fun setFilter(value: MessageSearchFilter) {
+        filter.value = value
+    }
+
     /** Hledání je otevřené a má pod prázdným dotazem ukázat návrhy. */
     fun setSuggestionsWanted(wanted: Boolean) {
         suggestionsWanted.value = wanted
@@ -146,10 +168,10 @@ class ChatSearch(
 
         _state.update { it.copy(messagesLoading = true) }
         moreMessages = scope.launch {
-            val page = repository.searchMessages(current.query, offset).logged("searchMessages")
+            val page = repository.searchMessages(current.query, offset, current.filter).logged("searchMessages")
             _state.update {
-                // Mezitím se změnil dotaz — stránka patří k jinému hledání.
-                if (it.query != current.query) return@update it
+                // Mezitím se změnil dotaz nebo filtr — stránka patří k jinému hledání.
+                if (it.query != current.query || it.filter != current.filter) return@update it
                 it.copy(
                     messages = mergeFoundMessages(it.messages, page?.messages.orEmpty()),
                     // Selhání stránkování zastaví: jinak by se na konci seznamu zkoušelo pořád dokola.
@@ -177,6 +199,8 @@ class ChatSearch(
     private fun <T> Result<T>.logged(what: String): T? =
         onFailure { logger.w(it) { "Hledání chatů ($what) selhalo." } }.getOrNull()
 
+    private data class SearchInput(val text: String, val suggestionsWanted: Boolean, val version: Int, val filter: MessageSearchFilter)
+
     private companion object {
         const val TYPING_DEBOUNCE_MS = 150L
     }
@@ -189,6 +213,8 @@ class ChatSearch(
  */
 data class ChatSearchState(
     val query: String = "",
+    /** Filtr, se kterým se hledaly [messages]. */
+    val filter: MessageSearchFilter = MessageSearchFilter(),
     val results: List<ChatSummary> = emptyList(),
     val searching: Boolean = false,
     val top: List<ChatSummary> = emptyList(),

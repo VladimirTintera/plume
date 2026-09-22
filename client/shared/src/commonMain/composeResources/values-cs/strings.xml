@@ -689,4 +689,16 @@
     <string name="profile_leave_group">Opustit skupinu</string>
     <string name="profile_leave_channel">Opustit kanál</string>
     <string name="profile_action_failed">Nepovedlo se to. Zkus to znovu.</string>
+    <string name="search_filter_private">Soukromé</string>
+    <string name="search_filter_groups">Skupiny</string>
+    <string name="search_filter_channels">Kanály</string>
+    <string name="search_filter_date">Období</string>
+    <string name="search_filter_any_time">Kdykoli</string>
+    <string name="search_filter_week">Poslední týden</string>
+    <string name="search_filter_month">Poslední měsíc</string>
+    <string name="search_filter_year">Poslední rok</string>
+    <string name="search_filter_custom">Vlastní rozsah…</string>
+    <string name="search_filter_range">%1$s – %2$s</string>
+    <string name="search_filter_apply">Použít</string>
+    <string name="search_filter_empty_hint">Zkus jiné slovo nebo uvolni filtry.</string>
 </resources>

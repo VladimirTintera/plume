@@ -89,7 +89,7 @@ interface ChatRepository {
      * Další stránka se chce s [FoundMessagesPage.nextOffset] z předchozí; prázdný offset je první
      * stránka.
      */
-    suspend fun searchMessages(query: String, offset: String = ""): Result<FoundMessagesPage>
+    suspend fun searchMessages(query: String, offset: String = "", filter: MessageSearchFilter = MessageSearchFilter()): Result<FoundMessagesPage>
 
     /** Naposledy nalezené chaty (nejvýš 50), nejnovější první. Historii vede TDLib. */
     suspend fun recentlyFoundChats(): Result<List<ChatSummary>>
