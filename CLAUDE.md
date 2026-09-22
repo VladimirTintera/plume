@@ -1197,7 +1197,7 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
   které jsou už mezi výsledky (`globalOnly` — server vynechává jen chaty ze seznamu, ne všechny
   známé). Zprávy jsou `searchMessages(chatList = null)` přes hlavní seznam i archiv, stránkované
   `nextOffset` (prázdný = konec), duplicity na hranici stránek zahazuje `mergeFoundMessages`.
-- **Filtry hledání zpráv jsou čipy nad výsledky** (`MessageSearchFilters`, `MessageSearchFilter`):
+- **Filtry hledání zpráv jsou nad výsledky** (`MessageSearchFilters`, `MessageSearchFilter`):
   druh chatu (Soukromé / Skupiny / Kanály) a období (týden, měsíc, rok, vlastní rozsah). Filtruje
   **server** (`searchMessages` s `chatTypeFilter`, `minDate`/`maxDate`, převod `dateRange`, testy
   `MessageSearchFilterTest`) — filtr nad načtenou stránkou by z padesáti výsledků nechal pár
@@ -1205,10 +1205,15 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
   schovají, chaty datum nemají.
 - **Změna jen filtru nehledá chaty znovu** — seznam by se při každém ťuknutí na čip přeskládal;
   zopakují se jen zprávy. Filtr se nuluje se sbalením hledání, jako dotaz.
-- **Čipy, ne connected button group**: ta je na volbu z pevné sady, kde je vždycky něco vybrané,
-  a čtyři spojená tlačítka by vzala celou šířku. **Nabídka období je Expressive menu**
-  (`DropdownMenuPopup` + `DropdownMenuGroup`, položky s `checked`): vybrané období je v ní
-  zaškrtnuté a vlastní rozsah je samostatná skupina, která pod sebou ukazuje svá data.
+- **Druh chatu je connected button group** (`ToggleButton` se spojenými tvary, vybraný plný
+  s fajfkou, jako záložky profilu); druhé ťuknutí výběr zruší — filtr smí být prázdný.
+  **Období je split button**: levá část období zapne a vypne a ukazuje které (poslední vybrané
+  si pamatuje), šipka otevře Expressive menu se zaškrtnutou volbou a vlastním rozsahem. „Kdykoli"
+  v nabídce není — to je vypnutí levé části. Nejdřív to byly `FilterChip`y; uživatel chtěl
+  Expressive komponenty.
+- **Na tlačítku krátký popisek** („Týden"), plný je v nabídce, a tlačítka mají užší odsazení
+  (12 dp). S „Poslední týden" a výchozím odsazením se řádek v češtině nevešel a šipka nabídky
+  skončila za okrajem — ověřuje se v češtině s vybraným druhem i obdobím, to je nejširší stav.
 - **Výběr dat vrací půlnoc v UTC** — den se z ní vezme v UTC a začátek hledání je jeho půlnoc
   v MÍSTNÍM pásmu; konec rozsahu je konec dne. Budoucí dny se nenabízejí.
 - **Ověřovat přes `adb` opatrně**: klávesa Esc (`keyevent 111`) hledání zavře a další ťuknutí
@@ -1289,6 +1294,9 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
   názvu.
 - **Chat se zakládá hned po přihlášení** (`createPrivateChat`, lokální). U účtu, který si nic
   neuložil, ho TDLib v databázi nemá a nešlo by ho otevřít ani do něj přeposlat.
+- **Záložka v avataru je `primary`, na kartě ve výběru proto dostává `backdrop`.** V paletě
+  se zvýšeným kontrastem je `primaryContainer` světlý jako `primary` a kolečko s kartou
+  splynulo; `Avatar` pak přes `accentOn` sáhne po barvě popředí té plochy.
 - **V hlavičce není „online"** — vlastní dostupnost v Uložených zprávách nic neříká.
 - **Zkratka konverzace a notifikace** (připomínka v Uložených zprávách) mají název
   „Uložené zprávy" a záložku (`bookmarkIcon`), ne jméno a fotku účtu.
@@ -2390,13 +2398,14 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   zvýraznění: vlnky vedené přes 4dp nároží v něm dělaly špičku. Hraje-li, čte se přes
   `derivedStateOf` — pozice se mění dvacetkrát za vteřinu a položka se má překreslit jen při
   spuštění a zastavení.
-- **Nabídka příloh není `DropdownMenu`** (`AttachButton`). M3 menu drží od okraje okna povinný
-  odstup 48 dp (`MenuVerticalMargin`, zahrnuto i do volby „spodkem ke kotvě"), a tlačítko
-  u spodku obrazovky v tom pásu leží — menu se proto posadilo k oknu, zhruba 45 dp nad tlačítko.
-  `offset` nepomůže, přičítá se ke kandidátům PŘED kontrolou. Vlastní `Popup` s pozicí nad
-  kotvou; vzhled z `MenuDefaults`, položky standardní `DropdownMenuItem`. **Totéž čeká každé
-  `DropdownMenu` u spodku obrazovky.** Poznalo se to změřením (`uiautomator dump`): spodek menu
-  byl přesně `výška okna − 48 dp`, ne horní hrana kotvy.
+- **Nabídka příloh má vlastní umístění** (`AttachButton`, `AboveAnchorStartPositionProvider`).
+  Výchozí umístění M3 menu drží od okraje okna povinný odstup 48 dp (`MenuVerticalMargin`,
+  zahrnuto i do volby „spodkem ke kotvě"), a tlačítko u spodku obrazovky v tom pásu leží — menu
+  se proto posadilo k oknu, zhruba 45 dp nad tlačítko. `offset` nepomůže, přičítá se ke
+  kandidátům PŘED kontrolou. Expressive `DropdownMenuPopup` bere vlastní
+  `DropdownMenuPopupPositionProvider` (s `transformOrigin` v rohu u tlačítka), takže vzhled je
+  tentýž jako u ostatních nabídek. **Totéž čeká každou nabídku u spodku obrazovky.** Poznalo se
+  to změřením (`uiautomator dump`): spodek menu byl přesně `výška okna − 48 dp`.
 - **Citace a psaní jsou JEDNA karta.** Dva samostatné kusy nad sebou dělaly z odpovědi cizí prvek
   vsunutý mezi konverzaci a vstup; ve společné kartě je vidět, že citace patří k tomu, co se
   právě píše. Citace (i hlavička úpravy) je **horní pruh karty v `tertiaryContainer`**
@@ -4406,6 +4415,12 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   výměnu obrazovky. Scope se bere z `LocalSharedTransitionScope`.
 - **Ikony = Material Symbols** jako vector drawables v `composeResources`, s vyplněnou i nevyplněnou
   variantou (vybraná položka — filtr v toolbaru — má vyplněnou).
+
+- **Nabídky jsou Expressive** (`ExpressiveMenu` v `core/ui`: `DropdownMenuPopup`
+  + `DropdownMenuGroup`), ne holé `DropdownMenu`. Položky jsou ve skupinách se společným
+  zaoblením krajních položek; **nevratná akce má skupinu vlastní a chybovou barvu**
+  (`MenuAction.destructive`), co k sobě patří, je v jedné. Nabídka s výběrem (období v hledání)
+  bere položky s `checked` — vybraná je zaškrtnutá.
 
 ### Typografie
 

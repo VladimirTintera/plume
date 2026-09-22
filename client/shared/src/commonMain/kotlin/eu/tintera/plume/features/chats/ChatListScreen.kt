@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.resources.saved_messages
 import eu.tintera.plume.resources.bookmark_24dp
 import eu.tintera.plume.core.ui.isSavedMessages
@@ -8,8 +10,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandHorizontally
@@ -500,9 +500,6 @@ private val ChatFilter.selectedIcon: DrawableResource
  *
  * Než se účet načte (nebo když se načíst nepodaří), je místo fotky ikona člověka — tlačítko
  * se nesmí objevit až později, menu by do té doby nebylo kde otevřít.
- */
-/**
- * Menu účtu v pilulce hledání: Uložené zprávy, Archiv, Nastavení.
  *
  * [archiveUnread] se ukazuje dvakrát, protože samotné menu je zavřené: číslem u položky Archiv
  * a tečkou na tlačítku menu, jinak by se o nepřečtených v archivu nikdo nedozvěděl. Tečka je
@@ -522,6 +519,33 @@ private fun AccountMenu(
     val label = stringResource(Res.string.chats_account)
     // Odznak je jen číslo — čtečka obrazovky potřebuje větu, ne „3".
     val unreadLabel = pluralStringResource(Res.plurals.chats_archive_unread, archiveUnread.chats, archiveUnread.chats)
+    /*
+     * Ztlumený archiv nese odznak v neutrální barvě: chaty tam nepřečtené jsou, ale nic si
+     * nežádá pozornost — obarvit je akcentem by bylo falešné volání.
+     */
+    val accented = archiveUnread.unmutedChats > 0
+    val archiveBadge: (@Composable () -> Unit)? = if (archiveUnread.chats == 0) null else {
+        {
+            Badge(
+                containerColor = if (accented) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHighest
+                },
+                contentColor = if (accented) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            ) {
+                Text(
+                    text = archiveUnread.chats.toString(),
+                    style = LocalTextStyle.current.tabularNumbers(),
+                    modifier = Modifier.semantics { contentDescription = unreadLabel },
+                )
+            }
+        }
+    }
     Box {
         IconButton(
             onClick = { open = true },
@@ -553,59 +577,23 @@ private fun AccountMenu(
                 }
             }
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(Res.string.saved_messages)) },
-                leadingIcon = { Icon(painterResource(Res.drawable.bookmark_24dp), contentDescription = null) },
-                onClick = {
-                    open = false
-                    onSavedMessages()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(Res.string.chats_archive)) },
-                leadingIcon = { Icon(painterResource(Res.drawable.archive_24dp), contentDescription = null) },
-                trailingIcon = {
-                    if (archiveUnread.chats > 0) {
-                        // Ztlumený archiv nese odznak v neutrální barvě: chaty tam nepřečtené jsou,
-                        // ale nic si nežádá pozornost — obarvit je akcentem by bylo falešné volání.
-                        val accented = archiveUnread.unmutedChats > 0
-                        Badge(
-                            containerColor = if (accented) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.surfaceContainerHighest
-                            },
-                            contentColor = if (accented) {
-                                MaterialTheme.colorScheme.onPrimary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        ) {
-                            Text(
-                                text = archiveUnread.chats.toString(),
-                                style = LocalTextStyle.current.tabularNumbers(),
-                                modifier = Modifier.semantics {
-                                    contentDescription = unreadLabel
-                                },
-                            )
-                        }
-                    }
-                },
-                onClick = {
-                    open = false
-                    onArchive()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(Res.string.nav_settings)) },
-                leadingIcon = { Icon(painterResource(Res.drawable.settings_24dp), contentDescription = null) },
-                onClick = {
-                    open = false
-                    onSettings()
-                },
-            )
-        }
+        // Kam se odtud jde: dvě místa v chatech, pak Nastavení — jiný druh cíle, vlastní skupina.
+        ExpressiveMenu(
+            expanded = open,
+            onDismiss = { open = false },
+            groups = listOf(
+                listOf(
+                    MenuAction(stringResource(Res.string.saved_messages), Res.drawable.bookmark_24dp, onClick = onSavedMessages),
+                    MenuAction(
+                        label = stringResource(Res.string.chats_archive),
+                        icon = Res.drawable.archive_24dp,
+                        trailing = archiveBadge,
+                        onClick = onArchive,
+                    ),
+                ),
+                listOf(MenuAction(stringResource(Res.string.nav_settings), Res.drawable.settings_24dp, onClick = onSettings)),
+            ),
+        )
     }
 }
 
