@@ -1,20 +1,6 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FloatingToolbarDefaults
-import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -22,10 +8,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.close_24dp
@@ -75,7 +59,6 @@ internal fun SelectionTopBar(selection: MessageSelection, onClose: () -> Unit) {
  * toolbar při každém ťuknutí přeskládal pod prstem; a zmizelá akce neřekne, že ji zrovna tenhle
  * výběr nedovoluje. Dokud práva nedorazí, jsou zašedlé všechny.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun SelectionToolbar(
     selection: MessageSelection,
@@ -83,46 +66,25 @@ internal fun SelectionToolbar(
     onForward: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .imePadding()
-            .height(SELECTION_TOOLBAR_HEIGHT)
-            .padding(bottom = FloatingToolbarDefaults.ScreenOffset),
-    ) {
-        AnimatedVisibility(
-            visible = selection.count > 0,
-            enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
-                scaleIn(MaterialTheme.motionScheme.defaultSpatialSpec(), initialScale = 0.8f),
-            exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) +
-                scaleOut(MaterialTheme.motionScheme.defaultSpatialSpec(), targetScale = 0.8f),
-        ) {
-            HorizontalFloatingToolbar(
-                expanded = true,
-                colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
-            ) {
-                ToolbarAction(
-                    icon = Res.drawable.content_copy_24dp,
-                    label = Res.string.menu_copy,
-                    enabled = selection.canCopy,
-                    onClick = onCopy,
-                )
-                ToolbarAction(
-                    icon = Res.drawable.forward_24dp,
-                    label = Res.string.menu_forward,
-                    enabled = selection.canForward,
-                    onClick = onForward,
-                )
-                ToolbarAction(
-                    icon = Res.drawable.delete_24dp,
-                    label = Res.string.menu_delete,
-                    enabled = selection.canDelete,
-                    onClick = onDelete,
-                )
-            }
-        }
+    ConversationFloatingBar(visible = selection.count > 0) {
+        ToolbarAction(
+            icon = Res.drawable.content_copy_24dp,
+            label = Res.string.menu_copy,
+            enabled = selection.canCopy,
+            onClick = onCopy,
+        )
+        ToolbarAction(
+            icon = Res.drawable.forward_24dp,
+            label = Res.string.menu_forward,
+            enabled = selection.canForward,
+            onClick = onForward,
+        )
+        ToolbarAction(
+            icon = Res.drawable.delete_24dp,
+            label = Res.string.menu_delete,
+            enabled = selection.canDelete,
+            onClick = onDelete,
+        )
     }
 }
 
@@ -147,8 +109,5 @@ private fun ToolbarAction(
         )
     }
 }
-
-/** Tolik místa si toolbar bere dole; stejně jako navigátor hledání, aby se spodek nehýbal. */
-private val SELECTION_TOOLBAR_HEIGHT = 80.dp
 
 private const val DISABLED_ALPHA = 0.38f

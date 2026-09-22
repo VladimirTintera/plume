@@ -1,11 +1,6 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -13,8 +8,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -28,8 +21,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FloatingToolbarDefaults
-import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
@@ -264,17 +255,11 @@ private val SEARCH_PILL_HEIGHT = 56.dp
 private val SENDER_CHIP_MAX_WIDTH = 160.dp
 
 /**
- * Místo vstupního pole při hledání: **plovoucí toolbar** s pozicí ve výsledcích a šipkami mezi
- * nimi. Nahoru = starší výsledek, dolů = novější — tak, jak leží v konverzaci nad sebou.
- *
- * **Plovoucí pilulka, ne pruh přes celou šířku.** `surfaceContainer` na ploše stránky je
- * v tmavém tématu rozdíl na hranici rozlišitelnosti, takže z celého navigátoru byly vidět jen
- * dvě šipky zavěšené v prázdnu. Sytá plovoucí plocha (`vibrantFloatingToolbarColors`) se od
- * pozadí odliší sama a je to tentýž prvek jako toolbar filtrů v seznamu chatů.
+ * Místo vstupního pole při hledání: **plovoucí lišta** (`ConversationFloatingBar`) s pozicí ve
+ * výsledcích a šipkami mezi nimi. Nahoru = starší výsledek, dolů = novější — tak, jak leží
+ * v konverzaci nad sebou.
  *
  * **Bez kritérií se neukazuje.** Prázdný dotaz nemá co počítat a šipky by byly jen zašedlé.
- * Plovoucí prvek smí naskočit, protože nemá v layoutu pevné místo — výšku drží `Box` kolem něj,
- * takže se seznam zpráv pod ním nepřeskládá.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -283,64 +268,63 @@ internal fun InChatSearchNavigator(
     onOlder: () -> Unit,
     onNewer: () -> Unit,
 ) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .imePadding()
-            .height(NAVIGATOR_HEIGHT)
-            .padding(bottom = FloatingToolbarDefaults.ScreenOffset),
-    ) {
-        AnimatedVisibility(
-            visible = search.hasCriteria,
-            enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
-                scaleIn(MaterialTheme.motionScheme.defaultSpatialSpec(), initialScale = 0.8f),
-            exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) +
-                scaleOut(MaterialTheme.motionScheme.defaultSpatialSpec(), targetScale = 0.8f),
+    ConversationFloatingBar(visible = search.hasCriteria) {
+        IconButton(onClick = onOlder, enabled = search.hasOlder && !search.loading) {
+            Icon(
+                painterResource(Res.drawable.keyboard_arrow_up_24dp),
+                contentDescription = stringResource(Res.string.conversation_search_older),
+            )
+        }
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                /*
+                 * `HorizontalFloatingToolbar` centruje na výšku jen Row se svým vlastním
+                 * leading/trailing obsahem; ten NÁŠ skládá do vnořeného `Row` BEZ
+                 * `verticalAlignment`, tedy s výchozím `Alignment.Top`. Výšku lišty určí 48dp
+                 * `IconButton`y a cokoli nižšího se přilepí k horní hraně — změřeno na zařízení:
+                 * „1 z 52" sedělo o 14 dp výš než šipky vedle něj. Každý nižší prvek v téhle
+                 * liště se proto musí vystředit sám.
+                 */
+                .align(Alignment.CenterVertically)
+                /*
+                 * „Nic nenalezeno" je širší než „3 z 128"; bez animace by lišta poskakovala.
+                 * Animuje se popisek, ne celá lišta: `animateContentSize` na toolbaru ho
+                 * `clipToBounds` ořízne i o stín a s výchozím `Alignment.TopStart` by se obsah
+                 * po dobu animace lepil doleva — tedy mimo střed, kvůli kterému tu je.
+                 */
+                .animateContentSize(
+                    animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                    alignment = Alignment.Center,
+                )
+                // Ať mezi indikátorem načítání a první pozicí lišta viditelně neposkočí.
+                .widthIn(min = STATUS_MIN_WIDTH)
+                .padding(horizontal = 12.dp),
         ) {
-            HorizontalFloatingToolbar(
-                expanded = true,
-                colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
-                // „Nic nenalezeno" je širší než „3 z 128"; bez animace by toolbar poskakoval.
-                modifier = Modifier.animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()),
-            ) {
-                IconButton(onClick = onOlder, enabled = search.hasOlder && !search.loading) {
-                    Icon(
-                        painterResource(Res.drawable.keyboard_arrow_up_24dp),
-                        contentDescription = stringResource(Res.string.conversation_search_older),
-                    )
-                }
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                ) {
-                    when {
-                        search.loading && search.results.isEmpty() ->
-                            LoadingIndicator(Modifier.size(24.dp), color = LocalContentColor.current)
-                        search.nothingFound -> Text(
-                            stringResource(Res.string.conversation_search_none),
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                        search.current != null -> Text(
-                            stringResource(Res.string.conversation_search_position, search.index + 1, search.count),
-                            style = MaterialTheme.typography.labelLarge.tabularNumbers(),
-                        )
-                    }
-                }
-                IconButton(onClick = onNewer, enabled = search.hasNewer) {
-                    Icon(
-                        painterResource(Res.drawable.keyboard_arrow_down_24dp),
-                        contentDescription = stringResource(Res.string.conversation_search_newer),
-                    )
-                }
+            when {
+                search.loading && search.results.isEmpty() ->
+                    LoadingIndicator(Modifier.size(24.dp), color = LocalContentColor.current)
+                search.nothingFound -> Text(
+                    stringResource(Res.string.conversation_search_none),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                search.current != null -> Text(
+                    stringResource(Res.string.conversation_search_position, search.index + 1, search.count),
+                    style = MaterialTheme.typography.labelLarge.tabularNumbers(),
+                )
             }
+        }
+        IconButton(onClick = onNewer, enabled = search.hasNewer) {
+            Icon(
+                painterResource(Res.drawable.keyboard_arrow_down_24dp),
+                contentDescription = stringResource(Res.string.conversation_search_newer),
+            )
         }
     }
 }
 
-/** Výška toolbaru (`FloatingToolbarDefaults.ContainerSize`) a jeho odstup od spodní hrany. */
-private val NAVIGATOR_HEIGHT = 80.dp
+/** Zhruba „12 z 128"; kratší popisek se v ní jen vystředí. */
+private val STATUS_MIN_WIDTH = 72.dp
 
 /**
  * Výběr člena skupiny pro hledání podle odesílatele: pole na jméno a seznam členů. Server u velké

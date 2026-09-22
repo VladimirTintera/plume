@@ -1971,6 +1971,22 @@ Lupa v hlavičce chatu přepne hlavičku na **vyhledávací pilulku** a místo v
 - **Toolbar se bez kritérií neukazuje.** Prázdný dotaz nemá co počítat a šipky by byly jen
   zašedlé. Plovoucí prvek smí naskočit, protože nemá v layoutu pevné místo: výšku drží `Box`
   kolem něj, takže se seznam zpráv pod ním nepřeskládá.
+- **Obsah plovoucí lišty se MUSÍ vystředit sám** (`Modifier.align(Alignment.CenterVertically)`).
+  `HorizontalFloatingToolbar` centruje na výšku jen Row, do kterého skládá svůj vlastní
+  `leadingContent` / `trailingContent`; ten NÁŠ obsah dostane vnořený `Row` BEZ
+  `verticalAlignment`, tedy s výchozím `Alignment.Top`. Výšku lišty určí 48dp `IconButton`y
+  a cokoli nižšího se přilepí k horní hraně — změřeno `uiautomator dump`: text „1 z 52" měl
+  střed o 14 dp výš než šipky vedle něj a celá lišta působila rozházeně. U výběru zpráv to
+  nebylo vidět, protože tam jsou všechny položky stejně vysoké `IconButton`y.
+- **`animateContentSize` patří na POPISEK, ne na celou lištu.** Na toolbaru ho vlastní
+  `clipToBounds` ořízne i o stín a s výchozím `Alignment.TopStart` se obsah po dobu animace
+  lepí doleva — tedy mimo střed, kvůli kterému je lišta v centrovaném `Box`u. Na popisku
+  s `alignment = Alignment.Center` se šířka mění od středu a lišta kolem něj jen povyroste.
+  Minimální šířka popisku (`STATUS_MIN_WIDTH`) pak zabrání poskočení mezi indikátorem
+  načítání a první pozicí.
+- **Lišta je jeden kus pro hledání i výběr zpráv** (`ConversationFloatingBar`). Dvě kopie
+  téhož `Box` + `AnimatedVisibility` + toolbaru se rozešly hned při prvním ladění odsazení,
+  a rozdílná výška slotu by znamenala, že se spodek obrazovky mezi režimy hýbe.
 - **Plocha konverzace při hledání USTOUPÍ, neposune se k bublinám** (`surfaceContainerLowest`).
   Výraznější tónování by šlo jen směrem k `surfaceContainerHigh` příchozí bubliny, tedy proti
   čitelnosti zpráv; takhle se rozdíl naopak o kousek zvětší a nálezy vyskočí. Je to proto vědomě
