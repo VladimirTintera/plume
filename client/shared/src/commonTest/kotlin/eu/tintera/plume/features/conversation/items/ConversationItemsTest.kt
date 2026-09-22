@@ -7,6 +7,7 @@ import eu.tintera.plume.core.telegram.SenderInfo
 
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.ForwardOrigin
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
@@ -35,6 +36,7 @@ class ConversationItemsTest {
         text: String = "zpráva $id",
         media: MessageMedia? = null,
         linkPreview: LinkPreview? = null,
+        forwardOrigin: ForwardOrigin? = null,
     ) = ChatMessage(
         id = id,
         isOutgoing = isOutgoing,
@@ -52,6 +54,7 @@ class ConversationItemsTest {
         timestamp = timestamp,
         isEdited = false,
         mediaAlbumId = album,
+        forwardOrigin = forwardOrigin,
     )
 
     private fun info(isGroup: Boolean = false, isChannel: Boolean = false) = ChatInfo(
@@ -371,6 +374,21 @@ class ConversationItemsTest {
     fun samolepkaJeBezBubliny() {
         assertIs<StickerMessageItem>(single(message(1, text = "", media = sticker)))
         assertIs<BubbleMessageItem>(single(message(1, text = "", media = sticker, replyToMessageId = 99)))
+    }
+
+    @Test
+    fun preposlanaSamolepkaAEmojiJsouVBubline() {
+        // Značka přeposlání je údaj navíc — obsah s údajem navíc je karta, jako fotka s popiskem.
+        val origin = ForwardOrigin.User(userId = 5, name = "Jana")
+        assertIs<BubbleMessageItem>(single(message(1, text = "", media = sticker, forwardOrigin = origin)))
+        assertIs<BubbleMessageItem>(single(message(1, text = "🙂", forwardOrigin = origin)))
+    }
+
+    @Test
+    fun preposlanaFotkaZustavaNaPlose() {
+        // Snímek nese značku v hlavičce vlastní karty, bublinu nepotřebuje.
+        val origin = ForwardOrigin.User(userId = 5, name = "Jana")
+        assertIs<MediaMessageItem>(single(message(1, text = "", media = photo, forwardOrigin = origin)))
     }
 
     @Test

@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.telegram.ForwardOrigin
+
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.features.conversation.MessageMenu
 import eu.tintera.plume.core.files.saveAsSupported
@@ -76,6 +78,12 @@ sealed interface MessageAction {
 
     /** Zmínka uživatele bez veřejného jména: soukromý chat s ním. */
     data class OpenUser(val userId: Long) : MessageAction
+
+    /**
+     * „Přeposláno od …": zdroj přeposlání. Příspěvek kanálu skočí na původní zprávu, uživatel
+     * otevře soukromý chat s ním; původ z téhož chatu skočí na místě, jako citace.
+     */
+    data class OpenForwardOrigin(val origin: ForwardOrigin) : MessageAction
 
     /**
      * Ťuknutí na tvář odesílatele ve skupině: jeho profil. Ze zprávy se najde soukromý chat

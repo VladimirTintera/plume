@@ -180,7 +180,10 @@ private fun messageItem(
     val message = frame.message
     val media = message.media
     // Popisek alba z pár emoji je pořád popisek pod fotkami, ne velké emoji bez bubliny.
-    val emojiCount = if (album != null || media != null || message.replyToMessageId != null) {
+    // Citace i značka přeposlání jsou údaj navíc a obsah s údajem navíc je karta: bublinu si
+    // vynutí, jako popisek u fotky (holý text vedle samolepky by od ní odplul).
+    val needsCard = message.replyToMessageId != null || message.forwardOrigin != null
+    val emojiCount = if (album != null || media != null || needsCard) {
         0
     } else {
         message.text.emojiClusterCount(MAX_LARGE_EMOJI)
@@ -191,7 +194,7 @@ private fun messageItem(
         showsBareMedia(message, album) -> MediaMessageItem(frame, album)
         preview != null && showsLinkPreviewCard(message) -> LinkPreviewMessageItem(frame, preview)
         (media is MessageMedia.Sticker || media is MessageMedia.AnimatedEmoji) &&
-            message.replyToMessageId == null -> StickerMessageItem(frame, media)
+            !needsCard -> StickerMessageItem(frame, media)
         else -> BubbleMessageItem(frame, album = album, quoted = quoted, partnerName = partnerName)
     }
 }

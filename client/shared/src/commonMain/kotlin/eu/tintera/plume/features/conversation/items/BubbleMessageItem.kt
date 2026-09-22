@@ -81,6 +81,7 @@ internal data class BubbleMessageItem(
     private fun MessageBodyScope.Content() {
         Column {
             SenderName(background = bubbleColor)
+            ForwardLabel()
 
             if (album != null) {
                 Album(members = album, accent = accent)

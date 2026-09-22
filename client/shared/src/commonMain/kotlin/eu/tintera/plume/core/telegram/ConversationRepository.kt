@@ -590,7 +590,35 @@ data class ChatMessage(
      * než odesílatel dovolil.
      */
     val selfDestructIn: Int? = null,
+    /** Odkud byla zpráva přeposlaná; `null` u zprávy, která přeposlaná není. */
+    val forwardOrigin: ForwardOrigin? = null,
 )
+
+/**
+ * Původ přeposlané zprávy — co ukáže „Přeposláno od …" nad obsahem a kam vede ťuknutí na něj.
+ *
+ * [name] je `null`, když se jméno zjistit nepodařilo (smazaný účet, chat, který TDLib nezná);
+ * značka pak řekne jen „Přeposlaná zpráva". Nepřeposlanou zprávu vydávat za nepřeposlanou by
+ * bylo horší než neznat odesílatele.
+ */
+sealed interface ForwardOrigin {
+    val name: String?
+
+    /** Od uživatele; ťuknutí otevře soukromý chat s ním. */
+    data class User(val userId: Long, override val name: String?) : ForwardOrigin
+
+    /**
+     * Od uživatele, který si v soukromí zakázal odkazovat na svůj účet při přeposílání. Server
+     * pošle jen jméno, takže ťuknutí nikam nevede.
+     */
+    data class Hidden(override val name: String?) : ForwardOrigin
+
+    /**
+     * Z kanálu nebo za anonymního správce skupiny. [messageId] je původní příspěvek (jen
+     * u kanálu), na který ťuknutí skočí; bez něj se otevře jen chat.
+     */
+    data class Chat(val chatId: Long, val messageId: Long?, override val name: String?) : ForwardOrigin
+}
 
 /**
  * Náhled odkazu pod textem zprávy.

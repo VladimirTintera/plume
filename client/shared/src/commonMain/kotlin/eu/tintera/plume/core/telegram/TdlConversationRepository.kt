@@ -39,6 +39,11 @@ import dev.g000sha256.tdl.dto.InputVideo
 import dev.g000sha256.tdl.dto.InputVoiceNote
 import dev.g000sha256.tdl.dto.Message
 import dev.g000sha256.tdl.dto.MessageInteractionInfo
+import dev.g000sha256.tdl.dto.MessageOrigin
+import dev.g000sha256.tdl.dto.MessageOriginChannel
+import dev.g000sha256.tdl.dto.MessageOriginChat
+import dev.g000sha256.tdl.dto.MessageOriginHiddenUser
+import dev.g000sha256.tdl.dto.MessageOriginUser
 import dev.g000sha256.tdl.dto.MessageSelfDestructType
 import dev.g000sha256.tdl.dto.MessageSelfDestructTypeImmediately
 import dev.g000sha256.tdl.dto.MessageSelfDestructTypeTimer
@@ -1013,7 +1018,37 @@ class TdlConversationRepository(
             selfDestructType = selfDestructType?.toSelfDestructType(),
             // Zlomky vteřiny nahoru: „0 s" by u běžícího odpočtu znamenalo, že už vypršel.
             selfDestructIn = selfDestructIn.takeIf { it > 0.0 }?.let { ceil(it).toInt() },
+            forwardOrigin = forwardInfo?.origin?.toForwardOrigin(),
         )
+    }
+
+    /**
+     * Původ přeposlané zprávy. Jméno jde z keše odesílatelů ([resolveSender]) — v kanálu, kam
+     * se přeposílá z pár zdrojů pořád dokola, je to jeden dotaz na zdroj, ne na zprávu.
+     *
+     * `when` je bez `else`: nový druh původu v novější TDLib rozbije překlad, místo aby se zpráva
+     * tiše přestala tvářit jako přeposlaná.
+     */
+    private suspend fun MessageOrigin.toForwardOrigin(): ForwardOrigin = when (this) {
+        is MessageOriginUser -> ForwardOrigin.User(senderUserId, resolveSender(senderUserId)?.title)
+        is MessageOriginHiddenUser -> ForwardOrigin.Hidden(senderName.ifBlank { null })
+        is MessageOriginChat -> ForwardOrigin.Chat(
+            chatId = senderChatId,
+            messageId = null,
+            name = withSignature(resolveSender(senderChatId)?.title, authorSignature),
+        )
+        is MessageOriginChannel -> ForwardOrigin.Chat(
+            chatId = chatId,
+            messageId = messageId.takeIf { it != 0L },
+            name = withSignature(resolveSender(chatId)?.title, authorSignature),
+        )
+    }
+
+    /** „Kanál (Jana)" — podpis autora příspěvku, když ho kanál přikládá. */
+    private fun withSignature(title: String?, signature: String): String? = when {
+        title == null -> signature.ifBlank { null }
+        signature.isBlank() -> title
+        else -> "$title ($signature)"
     }
 
     /**

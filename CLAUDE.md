@@ -2883,6 +2883,38 @@ stáhne a předá systému.
   celé stahování a hláška o výsledku zapadla pod závojem.
 - **Odesílaný soubor se otevřít nedá** — ukazuje průběh nahrávání a ještě není kde.
 
+### Přeposlaná zpráva
+
+Nad obsahem přeposlané zprávy stojí „Přeposláno od …" s šipkou (`ForwardLabel` v `MessageFrame.kt`,
+doména `ChatMessage.forwardOrigin` / `ForwardOrigin`). Ťuknutí vede ke zdroji: příspěvek kanálu
+otevře kanál se skokem na původní zprávu (`ChatTarget(chatId, messageId)`), uživatel soukromý chat.
+
+- **Původ jsou čtyři druhy a jen tři vedou někam** (`MessageOrigin*`). Skrytý uživatel
+  (`MessageOriginHiddenUser`) nese jen jméno — zakázal si v soukromí odkaz na účet — takže se
+  u něj značka nedá ťuknout. `when` je bez `else`: nový druh v novější TDLib rozbije překlad.
+- **Značka je součást téže karty jako obsah, ne text nad ní.** Přeposlání je údaj O ZPRÁVĚ;
+  volně nad holou fotkou (první verze) vypadala jako popisek něčeho jiného. V bublině je prvním
+  řádkem, u holého snímku horní díl karty v barvě bubliny (`ForwardHeader`, protějšek popisku
+  pod snímkem — `MediaWithCaption` má proto hlavičku, snímek a popisek se stejnou šířkou),
+  a u karty odkazu v horním dílu s textem.
+- **Přeposlaná samolepka a pár emoji si bublinu vynutí** (`needsCard` v `messageItem()`, testy
+  `ConversationItemsTest`), stejně jako odpověď. Pravidlo je obecné: **holý obsah jde na plochu
+  jen sám; jakmile nese údaj navíc (popisek, citace, přeposlání), je z něj karta.** Samostatný
+  štítek nad samolepkou (zkoušeno) byl třetí, vymyšlený tvar vedle bubliny a karty.
+- **Značka je u KAŽDÉ zprávy bloku**, ne jen u první jako jméno odesílatele. Přeposlané zprávy
+  téhož člověka bývají každá odjinud.
+- **Jméno zdroje jde z keše odesílatelů** (`resolveSender`, bere uživatele i chat). V kanálu,
+  který přeposílá z pár zdrojů pořád dokola, je to dotaz na zdroj, ne na zprávu. Neznámé jméno
+  (smazaný účet, chat, který TDLib nezná) = „Přeposlaná zpráva", ne značka pryč.
+- **Barva je barva popředí plochy, ztlumená; jméno nese řez.** Barva zdroje by se musela hlídat
+  proti každé ploše (bublina, zvýrazněná bublina, plocha konverzace pod holou fotkou), viz
+  `accentOn`. Jméno se do šablony vkládá přes zástupný znak, aby šlo zvýraznit řezem a pořadí
+  slov zůstalo na překladu.
+- **Značka má vlastní klikání, takže opakuje dlouhý stisk** (`combinedClickable` s
+  `requestMenu`) — jinak by nad ní nešla otevřít nabídka zprávy. Tatáž past jako u citace.
+- **Ověřuje se botem**: `forwardMessage` z chatu s botem do téhož chatu vyrobí přeposlanou zprávu
+  s původem „uživatel". Kanál jako zdroj bot bez přístupu ke kanálu nepřepošle.
+
 ### Přeposílání
 
 „Přeposlat" v nabídce nad zprávou otevře výběr cílového chatu (`ForwardRoute`, vlastní obrazovka);

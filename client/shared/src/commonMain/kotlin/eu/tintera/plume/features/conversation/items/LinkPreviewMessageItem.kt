@@ -100,12 +100,13 @@ internal data class LinkPreviewMessageItem(
         }
     }
 
-    /** Horní část: text zprávy v barvě bubliny. */
+    /** Horní část: značka přeposlání a text zprávy v barvě bubliny. */
     @Composable
     private fun MessageBodyScope.MessagePart() {
-        if (message.text.isBlank() && !message.isEdited) return
+        if (message.text.isBlank() && !message.isEdited && message.forwardOrigin == null) return
         Surface(color = bubbleColor, contentColor = onBubbleColor, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+                ForwardLabel()
                 if (message.text.isNotBlank()) MessageText(linkColor = accent)
                 EditedLabel(color = onBubbleColor, modifier = Modifier.align(Alignment.End))
             }
