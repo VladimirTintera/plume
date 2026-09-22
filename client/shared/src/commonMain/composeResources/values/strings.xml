@@ -684,8 +684,6 @@
     <string name="search_filter_private">Private</string>
     <string name="search_filter_groups">Groups</string>
     <string name="search_filter_channels">Channels</string>
-    <string name="search_filter_date">Date</string>
-    <string name="search_filter_any_time">Any time</string>
     <string name="search_filter_week">Past week</string>
     <string name="search_filter_month">Past month</string>
     <string name="search_filter_year">Past year</string>
@@ -693,4 +691,8 @@
     <string name="search_filter_range">%1$s – %2$s</string>
     <string name="search_filter_apply">Apply</string>
     <string name="search_filter_empty_hint">Try a different word, or loosen the filters.</string>
+    <string name="search_filter_choose_period">Choose period</string>
+    <string name="search_filter_week_short">Week</string>
+    <string name="search_filter_month_short">Month</string>
+    <string name="search_filter_year_short">Year</string>
 </resources>
