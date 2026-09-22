@@ -754,7 +754,32 @@ fun ConversationScreen(
         onBackCompleted = { previewAttachmentIndex = null },
     )
 
+    /*
+     * Plocha stránky při hledání USTOUPÍ o stupeň (`surfaceContainerLowest`): je to třetí signál
+     * režimu vedle pilulky v hlavičce a plovoucího toolbaru, a jediný, který je vidět i koutkem
+     * oka nad samotnými zprávami.
+     *
+     * **Ustupuje se OD bublin, ne k nim.** Posun opačným směrem (`surfaceContainerLow` a výš) je
+     * sice výraznější, ale míří k `surfaceContainerHigh` příchozí bubliny — plocha by se
+     * přiblížila tomu, co má nést, a zprávy by při hledání četly hůř než jindy. Takhle se rozdíl
+     * naopak o kousek zvětší a nálezy vyskočí. Je to proto jemné vědomě: silnější tónování
+     * v tomhle směru role nenabízejí.
+     */
+    val pageColor by animateColorAsState(
+        targetValue = if (state.search != null) {
+            MaterialTheme.colorScheme.surfaceContainerLowest
+        } else {
+            MaterialTheme.colorScheme.background
+        },
+        animationSpec = MaterialTheme.motionScheme.slowEffectsSpec<Color>(),
+        label = "conversation-page",
+    )
+
     Scaffold(
+        // Barva popředí se z plochy neodvozuje: `surfaceContainerLowest` mapování nemá a fallback
+        // by závisel na tom, co je zrovna v `LocalContentColor`.
+        containerColor = pageColor,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         modifier = Modifier.fillMaxSize().hazeSource(hazeState),
         /*
          * Spodní inset si řeší vstupní pole samo (`windowInsetsPadding` se `safeDrawing`).

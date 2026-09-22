@@ -1894,10 +1894,36 @@ se ukáže i bez nových zpráv, jakmile je uživatel o kus výš.
 
 ### Hledání v konverzaci
 
-Lupa v hlavičce chatu přepne hlavičku na pole a místo vstupního pole ukáže řádek „N z M" se
-šipkami (`InChatSearchTopBar`, `InChatSearchNavigator`). Stav je `ConversationState.search`
-(`InChatSearch`, čistá data a přechody, testy `InChatSearchTest`); `null` = zavřené.
+Lupa v hlavičce chatu přepne hlavičku na **vyhledávací pilulku** a místo vstupního pole ukáže
+**plovoucí toolbar** „N z M" se šipkami (`InChatSearchTopBar`, `InChatSearchNavigator`). Stav je
+`ConversationState.search` (`InChatSearch`, čistá data a přechody, testy `InChatSearchTest`);
+`null` = zavřené.
 
+- **Že se hledá, musí být poznat TVAREM, ne textem.** Hlavička i spodek byly dřív v rolích, které
+  na ploše stránky nejsou vidět: pole bylo `TextField` s průhledným kontejnerem i indikátorem,
+  tedy k nerozeznání od nadpisu chatu (jediná změna oproti klidovému stavu byl zmizelý avatar),
+  a navigátor byl pruh v `surfaceContainer`, což je v tmavém tématu rozdíl na hranici
+  rozlišitelnosti — z celého pruhu byly vidět jen dvě šipky zavěšené v prázdnu. S prázdným
+  dotazem tak na obrazovce nebyl JEDINÝ signál, že je aplikace v jiném režimu.
+- **Pilulka je tentýž prvek jako hledání v seznamu chatů.** Jeden jazyk pro hledání v celé
+  aplikaci; na rozloženém Foldu vypadá hlavička konverzace při hledání stejně jako hlavička
+  seznamu vedle ní.
+- **Pilulka nejde postavit na `TopAppBar`.** Ten titulek MĚŘÍ na celou šířku, ale UMÍSŤUJE ho
+  16 dp od kraje, takže by pilulka o ten kus přetekla za pravý okraj. Hlavička hledání je proto
+  vlastní řádek s ručními insety (`TopAppBarDefaults.windowInsets`) a výškou 64 dp — ta musí
+  lícovat s hlavičkou konverzace, se kterou se střídá.
+- **Pole v pilulce je `BasicTextField` s `DecorationBox`**, ze stejného důvodu jako vstupní pole
+  konverzace: `TextField` si bere minimální výšku 56 dp a odsazení 16 dp napevno, takže by se
+  vedle ikony do pilulky nevešel.
+- **Výběr člena stojí VEDLE pilulky, ne v ní.** Je to akce nad hledáním, ne součást dotazu —
+  a tři ikony uvnitř by na úzkém telefonu nenechaly místo na text.
+- **Toolbar se bez kritérií neukazuje.** Prázdný dotaz nemá co počítat a šipky by byly jen
+  zašedlé. Plovoucí prvek smí naskočit, protože nemá v layoutu pevné místo: výšku drží `Box`
+  kolem něj, takže se seznam zpráv pod ním nepřeskládá.
+- **Plocha konverzace při hledání USTOUPÍ, neposune se k bublinám** (`surfaceContainerLowest`).
+  Výraznější tónování by šlo jen směrem k `surfaceContainerHigh` příchozí bubliny, tedy proti
+  čitelnosti zpráv; takhle se rozdíl naopak o kousek zvětší a nálezy vyskočí. Je to proto vědomě
+  jemné — silnější posun v tomhle směru role nenabízejí.
 - **`searchChatMessages`, stránkované `nextFromMessageId`** (po 50). Další stránka se dotahuje,
   až k ní uživatel došipkuje — u „google" má dlouhý chat přes 1 600 výsledků.
 - **Každý výsledek je skok přes `jumpToMessage`**, tedy i okno v historii (viz „Okno
