@@ -5,6 +5,7 @@ import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ui.IosSquarePhoto
 import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.audio.AudioEngine
+import eu.tintera.plume.core.audio.EarSensor
 import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSaver
@@ -58,6 +59,8 @@ actual fun Module.platformModule() {
     factory { AudioRecorder() }
     // Nový na každou přehrávanou hlasovku.
     factory { AudioEngine() }
+    // Senzory u ucha: jeden na aplikaci, protože hraje nejvýš jedna hlasovka.
+    single { EarSensor() }
 
     // Application Support, stejně jako databáze TDLib: data aplikace, ne dokumenty uživatele.
     single { createSettingsDataStore(applicationSupportDirectory() + "/" + SETTINGS_FILE_NAME) }

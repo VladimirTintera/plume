@@ -164,6 +164,7 @@ fun appModule() = module {
             // Nový engine na každou hlasovku; platformní konstruktor dodá Koin (Android chce Context).
             newEngine = { get() },
             settings = get(),
+            earSensor = get(),
         )
     }
 

@@ -30,10 +30,16 @@ import platform.AVFAudio.AVAudioPCMFormatInt16
 import platform.AVFAudio.AVAudioPlayer
 import platform.AVFAudio.AVAudioPlayerDelegateProtocol
 import platform.AVFAudio.AVAudioSession
+import platform.AVFAudio.AVAudioSessionCategoryPlayAndRecord
 import platform.AVFAudio.AVAudioSessionCategoryPlayback
+import platform.AVFAudio.AVAudioSessionModeVoiceChat
+import platform.AVFAudio.AVAudioSessionPortBuiltInSpeaker
+import platform.AVFAudio.AVAudioSessionPortDescription
+import platform.AVFAudio.AVAudioSessionRecordPermissionGranted
 import platform.AVFAudio.AVAudioSessionInterruptionNotification
 import platform.AVFAudio.AVAudioSessionInterruptionTypeBegan
 import platform.AVFAudio.AVAudioSessionInterruptionTypeKey
+import platform.AVFAudio.currentRoute
 import platform.AVFAudio.setActive
 import platform.CoreAudioTypes.AudioStreamBasicDescription
 import platform.CoreAudioTypes.kAudioFormatOpus
@@ -68,6 +74,8 @@ actual class AudioEngine {
 
     private var speed = 1f
 
+    private var earpiece = false
+
     /** Delegáta AVAudioPlayer drží jen slabě — bez silné reference by dohrání nikdo nehlásil. */
     private val delegate = object : NSObject(), AVAudioPlayerDelegateProtocol {
         override fun audioPlayerDidFinishPlaying(player: AVAudioPlayer, successfully: Boolean) {
@@ -97,9 +105,7 @@ actual class AudioEngine {
     actual suspend fun load(path: String): Long {
         val playable = withContext(Dispatchers.IO) { playablePath(path) }
 
-        // Kategorie „přehrávání": zvuk hraje i s přepínačem ztlumení, jak se u hlasovky čeká.
-        AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayback, error = null)
-        AVAudioSession.sharedInstance().setActive(true, error = null)
+        applySession()
 
         val created = memScoped {
             val error = alloc<ObjCObjectVar<NSError?>>()
@@ -136,6 +142,58 @@ actual class AudioEngine {
         player?.rate = speed
     }
 
+    /**
+     * Přepnutí do sluchátka u ucha je na iOS **jen změna kategorie** — `AVAudioPlayer` se za
+     * relací přesměruje sám, takže se na rozdíl od Androidu nic nepřestavuje a nic neposkočí.
+     *
+     * **Do sluchátka vede jedině `playAndRecord`**, jiná kategorie na iOS výstup na sluchátko
+     * nemá. Ta ale sahá na mikrofon, takže by aktivace relace mohla vyvolat systémový dotaz na
+     * oprávnění — a ptát se na mikrofon jen proto, že si někdo dal telefon k uchu při POSLECHU,
+     * je špatně. Přepne se proto jen tehdy, když oprávnění UŽ JE (aplikace ho má z nahrávání
+     * hlasovek); jinak se hraje dál z reproduktoru, což je horší jen o kus pohodlí.
+     */
+    actual suspend fun setEarpiece(enabled: Boolean) {
+        if (enabled == earpiece) return
+        if (enabled && !microphoneGranted()) return
+        earpiece = enabled
+        applySession()
+        // Změna kategorie hlasitost přehrávače nechá, ale rychlost resetuje.
+        player?.takeIf { it.playing }?.rate = speed
+    }
+
+    /**
+     * Sluchátka poznáme z aktuální cesty zvuku: cokoli jiného než vestavěný reproduktor znamená,
+     * že si uživatel poslech někam vyvedl a přesměrovávat mu ho nemáme.
+     */
+    actual val headphonesConnected: Boolean
+        get() = AVAudioSession.sharedInstance().currentRoute.outputs
+            .filterIsInstance<AVAudioSessionPortDescription>()
+            .any { it.portType != AVAudioSessionPortBuiltInSpeaker }
+
+    /**
+     * Nastaví kategorii podle toho, kam se hraje.
+     *
+     * Playback: zvuk jde do reproduktoru a hraje i s přepínačem ztlumení, jak se u hlasovky čeká.
+     * PlayAndRecord s režimem `voiceChat` a bez `DefaultToSpeaker` míří do sluchátka u ucha.
+     */
+    private fun applySession() {
+        val session = AVAudioSession.sharedInstance()
+        if (earpiece) {
+            session.setCategory(
+                AVAudioSessionCategoryPlayAndRecord,
+                mode = AVAudioSessionModeVoiceChat,
+                options = 0u,
+                error = null,
+            )
+        } else {
+            session.setCategory(AVAudioSessionCategoryPlayback, error = null)
+        }
+        session.setActive(true, error = null)
+    }
+
+    private fun microphoneGranted(): Boolean =
+        AVAudioSession.sharedInstance().recordPermission == AVAudioSessionRecordPermissionGranted
+
     actual val positionMs: Long get() = ((player?.currentTime ?: 0.0) * 1000).toLong()
 
     actual var onCompleted: (() -> Unit)? = null
@@ -149,6 +207,11 @@ actual class AudioEngine {
         player?.stop()
         player?.delegate = null
         player = null
+        // Kategorii je potřeba vrátit, jinak by po hlasovce u ucha zůstala relace v `playAndRecord`.
+        if (earpiece) {
+            earpiece = false
+            AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayback, error = null)
+        }
     }
 }
 
