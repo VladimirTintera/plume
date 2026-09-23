@@ -1,5 +1,10 @@
 package eu.tintera.plume.core.ai
 
+// Prompt je text pro MODEL, ne pro uživatele: česká slova v literálech sem patří, do
+// composeResources ne. Nese to JMÉNO SOUBORU — `verifyNoHardcodedText` vypíná pravidlo
+// o diakritice souborům `…Prompt.kt` v `core/ai`, a jen jim; slot v UI hlídá i tady.
+// Nový prompt se proto musí jmenovat stejně. Proč to tak je: „Jazyky" v CLAUDE.md.
+
 /** Kolik návrhů odpovědi se nabídne. Tři se vejdou nad pole i na úzký telefon. */
 const val MAX_REPLY_SUGGESTIONS = 3
 
@@ -90,10 +95,6 @@ private fun replyLanguageInstruction(languageCode: String): String = when (langu
  *
  * Instrukce jmenuje „tykání/vykání" i anglický popis: samotné „be informal" model u češtiny
  * spolehlivě nepřeloží do správného tvaru slovesa.
- *
- * Česká slova v literálu jsou tedy nosná, ne opomenutí. `verifyNoHardcodedText` proto promptovým
- * souborům v `core.ai` vypíná pravidlo o diakritice — prompt nejde na obrazovku, ale do modelu.
- * Platí to jen tady: tentýž text kdekoli jinde kontrolu rozsvítí, a to je správně.
  */
 private fun formalityInstruction(languageCode: String): String = when (languageCode) {
     "cs" -> "address the other person the same way they address the user — informal \"tykání\" " +
