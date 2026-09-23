@@ -2053,14 +2053,24 @@ rozhoduje `embeddedMediaPickerAvailable()`.
 - **Motiv se předává výslovně** (`setThemeNightMode`): picker jinak jede podle systému, ale
   uživatel si v Nastavení může vynutit světlý nebo tmavý a galerie v opačném by vedle konverzace
   svítila. Akcent se nastaví jen v mezích, které API bere (jas 0,05–0,9, plné krytí).
-- **Znovuotevřená galerie neví, co už je vybrané.** Session je nová a `initialMediaSelection` chce
-  URI od pickeru, které s ní zanikly; fotky nad polem zůstanou, jen se v mřížce neukážou jako
-  zaškrtnuté. Dokud je sheet otevřený, rozejít se nemůžou — pruh je pod ním.
+- **Co už je vybrané, si pamatuje OBRAZOVKA, ne panel** (`EmbeddedMediaSelection`,
+  `rememberEmbeddedMediaSelection` v konverzaci). Panel se zavřením zahodí, takže bez toho začíná
+  každé otevření s prázdným výběrem — a tatáž fotka se dá vybrat podruhé, v albu je pak dvakrát.
+- **Zaškrtnutí se obnovuje PRŮNIKEM s přílohami nad polem**, ne jen z paměti. To je celá
+  synchronizace: co uživatel mezitím odebral křížkem nebo odeslal, z výběru vypadne samo a panel
+  to nemusí nijak sledovat. Průnik se počítá JEDNOU při otevření — během vybírání příloh přibývá
+  a přepočítávat by znamenalo měnit klíč stavu, tedy restartovat session uprostřed výběru.
+- **Past: `rememberEmbeddedPhotoPickerState` je saveable, takže `initialMediaSelection` samo
+  nestačí.** Při dalším otevření se obnoví ULOŽENÝ stav i s výběrem, který už neplatí — odebraná
+  fotka zůstala v mřížce zaškrtnutá (ověřeno na emulátoru). Množina obnovených položek se proto
+  předává i jako `inputs`, na kterých stav resetuje; mezi otevřeními se mění jen tehdy, když se
+  změnily přílohy, takže resetů to nepřidá.
 - **Knihovna je alpha** (`1.0.0-alpha02`) a API má `@ExperimentalPhotoPickerComposeApi`. Proto
   je za `expect`/`actual`: bez ní i bez systémové podpory funguje výběr příloh dál.
 - **Ověřeno na emulátoru** (API 36, extension 20): galerie v sheetu nad konverzací, výběr → fotka
-  nad polem, odznačení → fotka zmizí, zavření gestem zpět. Fallback na starším systému ověřený
-  není — je to dvojpodmínka, pod kterou se `actual` ani nezavolá.
+  nad polem, odznačení → fotka zmizí, zavření gestem zpět, zavření a znovuotevření → fotka je
+  pořád zaškrtnutá, po odeslání → zaškrtnutí zmizí. Fallback na starším systému ověřený není —
+  je to dvojpodmínka, pod kterou se `actual` ani nezavolá.
 
 ### Posílání příloh a alb
 

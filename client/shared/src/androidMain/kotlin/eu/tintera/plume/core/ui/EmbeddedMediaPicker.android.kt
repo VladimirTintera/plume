@@ -47,9 +47,26 @@ private val embeddedPickerSupported: Boolean
     get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
         SdkExtensions.getExtensionVersion(Build.VERSION_CODES.UPSIDE_DOWN_CAKE) >= REQUIRED_EXTENSION
 
+/**
+ * Co galerie vydala a co se z toho připravilo.
+ *
+ * Klíč je identifikátor od systémového výběru — jen ten umí picker vzít zpátky
+ * (`initialMediaSelection`); hodnota je cesta do cache, podle které přílohu zná konverzace.
+ * Odznačením položka vypadne ([EmbeddedMediaPicker]), zbytek se při dalším otevření prosítá
+ * podle toho, co je opravdu nad polem.
+ */
+private class PickedMedia : EmbeddedMediaSelection {
+    val paths = mutableMapOf<Uri, String>()
+}
+
+@Composable
+actual fun rememberEmbeddedMediaSelection(): EmbeddedMediaSelection = remember { PickedMedia() }
+
 @OptIn(ExperimentalPhotoPickerComposeApi::class)
 @Composable
 actual fun EmbeddedMediaPicker(
+    selection: EmbeddedMediaSelection,
+    pickedPaths: List<String>,
     allowPhotos: Boolean,
     allowVideos: Boolean,
     onPicked: (List<OutgoingAttachment>) -> Unit,
@@ -69,16 +86,35 @@ actual fun EmbeddedMediaPicker(
     val failed by rememberUpdatedState(onError)
     val done by rememberUpdatedState(onDone)
 
+    // Paměť výběru; drží ji obrazovka, takže přežije zavření panelu.
+    val prepared = (selection as? PickedMedia)?.paths ?: remember { mutableMapOf() }
+
     /*
-     * Co se z které položky galerie připravilo.
+     * Zaškrtnuté při otevření = co je z minulého výběru POŘÁD nad polem.
      *
-     * Odznačení přijde jako URI od pickeru, ale konverzace zná přílohy podle CESTY do cache —
-     * jinak by se odebíralo naslepo. Mapa žije s panelem: nová session začíná prázdná, protože
-     * picker o dřívějším výběru stejně neví.
+     * Průsečík s `pickedPaths` je celá synchronizace: přílohu odebranou křížkem nebo odeslanou
+     * nemusí panel nijak sledovat, prostě v dalším otevření chybí. Bez toho by zůstala v mřížce
+     * zaškrtnutá a odznačení by pak sahalo po příloze, která už není.
+     *
+     * Počítá se JEDNOU za otevření (`remember` bez klíče). Během vybírání `pickedPaths` roste
+     * a přepočítávat podle něj by znamenalo měnit i klíč stavu níž — tedy restartovat session
+     * uprostřed výběru.
      */
-    val prepared = remember { mutableMapOf<Uri, String>() }
+    val restored = remember {
+        val live = pickedPaths.toSet()
+        prepared.entries.retainAll { it.value in live }
+        prepared.keys.toSet()
+    }
 
     val state = rememberEmbeddedPhotoPickerState(
+        /*
+         * Klíč, na kterém stav resetuje. Bez něj se `initialMediaSelection` neuplatní: stav je
+         * saveable a při dalším otevření se obnoví ten uložený i s výběrem, který už neplatí —
+         * odebraná fotka pak zůstala v mřížce zaškrtnutá (ověřeno na emulátoru). Množina se mezi
+         * otevřeními mění jen tehdy, když se změnily přílohy, takže víc resetů to nepřidá.
+         */
+        restored,
+        initialMediaSelection = restored,
         onUriPermissionGranted = { uris ->
             if (uris.isNotEmpty()) {
                 scope.launch {

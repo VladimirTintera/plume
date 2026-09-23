@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.ui.EmbeddedMediaPicker
+import eu.tintera.plume.core.ui.EmbeddedMediaSelection
 import eu.tintera.plume.core.ui.UiText
 import kotlinx.coroutines.launch
 
@@ -38,6 +39,8 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun MediaPickerSheet(
+    selection: EmbeddedMediaSelection,
+    pickedPaths: List<String>,
     allowPhotos: Boolean,
     allowVideos: Boolean,
     onPicked: (List<OutgoingAttachment>) -> Unit,
@@ -88,6 +91,8 @@ internal fun MediaPickerSheet(
         Box(Modifier.fillMaxWidth().height(pickerHeight + sheetBottomInset())) {
             if (settled) {
                 EmbeddedMediaPicker(
+                    selection = selection,
+                    pickedPaths = pickedPaths,
                     allowPhotos = allowPhotos,
                     allowVideos = allowVideos,
                     onPicked = onPicked,

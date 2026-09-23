@@ -24,6 +24,21 @@ import eu.tintera.plume.core.telegram.OutgoingAttachment
 expect fun embeddedMediaPickerAvailable(): Boolean
 
 /**
+ * Co už uživatel v galerii vybral — paměť, která přežije zavření panelu.
+ *
+ * Bez ní začíná každé otevření s prázdným výběrem: fotky nad polem sice zůstanou, ale v mřížce
+ * nejsou zaškrtnuté, takže se dají vybrat podruhé a v albu je pak dvakrát. Obsah je platformní
+ * (na Androidu identifikátory od systémového výběru), proto je to jen značka bez členů.
+ *
+ * **Drží ji obrazovka, ne panel** ([rememberEmbeddedMediaSelection]) — panel se zavřením zahodí.
+ * S odchodem z konverzace zaniká i ona, což je správně: přílohy odejdou s ní.
+ */
+interface EmbeddedMediaSelection
+
+@Composable
+expect fun rememberEmbeddedMediaSelection(): EmbeddedMediaSelection
+
+/**
  * Vykreslí vestavěný výběr na místo, které dostane. Potřebuje **pevnou velikost** od volajícího:
  * na Androidu je to cizí okno (`SurfaceView`), které se s rodičem neposouvá a neumí prolínat.
  *
@@ -36,6 +51,15 @@ expect fun embeddedMediaPickerAvailable(): Boolean
  */
 @Composable
 expect fun EmbeddedMediaPicker(
+    /** Paměť výběru z minulého otevření ([EmbeddedMediaSelection]). */
+    selection: EmbeddedMediaSelection,
+    /**
+     * Cesty příloh, které právě čekají nad vstupním polem.
+     *
+     * Podle nich se obnoví zaškrtnutí v mřížce — a jen podle nich: co uživatel mezitím odebral
+     * křížkem nebo odeslal, z výběru vypadne samo, aniž by to panel musel sledovat.
+     */
+    pickedPaths: List<String>,
     /** Co chat přijme; zakázaný druh galerie vůbec nenabídne. Aspoň jedno musí být `true`. */
     allowPhotos: Boolean,
     allowVideos: Boolean,
