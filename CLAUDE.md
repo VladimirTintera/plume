@@ -302,6 +302,29 @@ tam se i stahuje model. Hranice je `core/ai` (`OnDeviceAi`).
   a nejnadějnější směr pro kvalitu češtiny. **Cesta k němu přes ML Kit ale nevede** (viz výš)
   a seznam modelů API nemá: `GenerativeModel` zná jen `getBaseModelName()` pro právě
   nakonfigurovanou variantu. Kdo na E4B chce, potřebuje vlastní runtime (LiteRT-LM).
+- **Na emulátoru se to vyzkoušet NEDÁ, ani v nejnovějším obrazu.** Android 17 (API 37,
+  `google_apis_playstore_ps16k`) balíček `com.google.android.aicore` nemá; starší obrazy taky ne.
+  **Řetězce „aicore" v `system.img` k ničemu neslouží jako důkaz** — `grep` jich najde desítky,
+  ale jsou to klientská rozhraní `com.google.android.apps.aicore.aidl.*`, která si nese Dialer,
+  autofill a detekce spamu. Rozhodne až `pm list packages` na běžícím systému.
+- **Doinstalovat AICore z telefonu JDE a stejně to nepomůže.** Je v `/data/app` a není privileged
+  (`flags=0x0`), takže `adb pull` tří split APK z Pixelu (128 MB) a `install-multiple` na emulátor
+  projde, **služba nastartuje a ML Kit se k ní připojí** (v logu `Start proc … for bound-service
+  AiCoreMultiUserService`). Pak ale přijde `606-FEATURE_NOT_FOUND: Feature 636 is not available`
+  a v logu `Failed to fetch manifest config from source`: AICore v emulátoru nemá model ani
+  hardware, na kterém by počítal. Sonda vrátila `status=Unsupported`, `countTokens=null`,
+  `generate` selhalo — tedy **aplikace se zachová správně a nic nespadne**, což je to jediné, co
+  se tím ověří.
+- **`Feature 636` versus `Feature -1` je rozdíl, který něco říká.** Tady si ML Kit číslo featury
+  odvodil správně a AICore ji nemá; u preview varianty na zařízení vyjde `-1`, tedy žádná. Je to
+  nezávislé potvrzení, že `-1` je mezera v `genai-prompt`, ne chybějící model.
+- **Detail k `info()`:** s doinstalovaným AICore vrátila `ModelInfo(name=null, tokenLimit=8192)`,
+  tedy NENULOVÝ objekt bez jména. Na UI se to neprojeví (rozhoduje `status`), ale kdo by se ptal
+  jen na `info() != null`, dostal by na nepodporovaném zařízení „model je".
+- **Co na emulátoru ověřit JDE:** chování bez modelu (že se sekce v Nastavení nenabídne a nic
+  nespadne — viz „Návrhy odpovědí"), vzhled podstrčeným stavem a čisté funkce testy. Na zařízení
+  zbývá kvalita výstupu, rychlost, limit tokenů a useknutí.
+
 ### Návrhy odpovědí
 
 Přijde zpráva, pole je prázdné → nad polem se ukážou až tři čipy s krátkou odpovědí. Ťuknutí ji
