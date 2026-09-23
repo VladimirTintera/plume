@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
@@ -154,17 +156,42 @@ internal data class BubbleMessageItem(
          * rozbalovač zmizel a nešlo by sbalit zpátky. Drží se proto, že se to stalo.
          */
         var overflowed by remember(message.id) { mutableStateOf(false) }
-        MessageText(
-            linkColor = accent,
-            maxLines = if (expanded) Int.MAX_VALUE else COLLAPSED_QUOTE_LINES,
-            bleedTop = if (atTop) MESSAGE_PADDING_V else QUOTE_EDGE_TIGHT,
-            // Dolů pás na okraj bubliny nesahá — pod ním stojí rozbalovač na její běžné ploše —,
-            // ale odsazení uvnitř má stejné jako nahoře.
-            bleedBottom = MESSAGE_PADDING_V,
-            onOverflow = { if (it) overflowed = true },
-            wholeTextQuote = true,
-        )
-        if (overflowed) QuoteExpander(expanded = expanded, onClick = { expanded = !expanded })
+        /*
+         * Rozbaluje a sbaluje i ŤUKNUTÍ NA SAMOTNOU CITACI, ne jen na rozbalovač — tak to dělá
+         * i oficiální klient a pruh tří řádků je mnohem větší cíl než jeden řádek popisku.
+         *
+         * Bez vlnky: viditelná odezva je samo rozbalení, a vlnka by se kreslila přes text
+         * v obdélníku, který se s pásem (ten jde od kraje bubliny) nekryje. Dlouhý stisk se
+         * opakuje, jinak by nad citací nešla otevřít nabídka nad zprávou. Odkazy uvnitř si
+         * ťuknutí berou samy, takže o ně tenhle obal nepřijde.
+         */
+        val toggle = { expanded = !expanded }
+        Box(
+            Modifier.then(
+                if (!overflowed) {
+                    Modifier
+                } else {
+                    Modifier.combinedClickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onLongClick = ::requestMenu,
+                        onClick = toggle,
+                    )
+                },
+            ),
+        ) {
+            MessageText(
+                linkColor = accent,
+                maxLines = if (expanded) Int.MAX_VALUE else COLLAPSED_QUOTE_LINES,
+                bleedTop = if (atTop) MESSAGE_PADDING_V else QUOTE_EDGE_TIGHT,
+                // Dolů pás na okraj bubliny nesahá — pod ním stojí rozbalovač na její běžné
+                // ploše —, ale odsazení uvnitř má stejné jako nahoře.
+                bleedBottom = MESSAGE_PADDING_V,
+                onOverflow = { if (it) overflowed = true },
+                wholeTextQuote = true,
+            )
+        }
+        if (overflowed) QuoteExpander(expanded = expanded, onClick = toggle)
     }
 }
 
@@ -200,7 +227,12 @@ private fun MessageBodyScope.QuoteExpander(expanded: Boolean, onClick: () -> Uni
             text = stringResource(
                 if (expanded) Res.string.conversation_quote_collapse else Res.string.conversation_quote_expand,
             ),
-            style = MaterialTheme.typography.labelLarge,
+            /*
+             * Zvýrazněný řez, ne jen barva: v ODCHOZÍ bublině je akcent barva bubliny, takže
+             * `accentOn` ustoupí barvě textu a rozbalovač by se od zprávy lišil jen šipkou.
+             * Tatáž úvaha jako u podtržení odkazů tam, kde barva splývá.
+             */
+            style = MaterialTheme.typography.labelLargeEmphasized,
             color = accent,
         )
         Icon(
