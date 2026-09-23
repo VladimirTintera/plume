@@ -17,6 +17,7 @@ import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.core.audio.VoiceRecorder
 import eu.tintera.plume.core.audio.VoiceRecording
+import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSharer
 import eu.tintera.plume.core.files.SaveAsLauncher
@@ -183,6 +184,9 @@ class ConversationViewModel(
      */
     val voicePlayback: StateFlow<VoicePlayback?> = voicePlayer.state
 
+    /** Zvolená rychlost přehrávání; jedna pro celou aplikaci, proto rovnou z přehrávače. */
+    val voiceSpeed: StateFlow<VoiceSpeed> = voicePlayer.speed
+
     private val _state = MutableStateFlow(ConversationState())
     val state: StateFlow<ConversationState> = _state.asStateFlow()
 
@@ -233,6 +237,13 @@ class ConversationViewModel(
     init {
         viewModelScope.launch {
             voicePlayer.errors.collect { message -> _state.update { it.copy(error = message) } }
+        }
+
+        // Dohraná hlasovka pustí další neposlechnutou; která to je, ví jedině konverzace.
+        viewModelScope.launch {
+            voicePlayer.completions.collect { finished ->
+                if (finished.chatId == chatId) playNextUnlistened(after = finished.messageId)
+            }
         }
 
         // Hledat z profilu: profil se zavře a hledání se otevře tady, v konverzaci.
@@ -1730,6 +1741,7 @@ class ConversationViewModel(
             MessageAction.OpenDocument -> openDocument(messageId)
             MessageAction.CancelUpload -> cancelUpload(messageId)
             MessageAction.ToggleVoice -> toggleVoice(messageId)
+            MessageAction.CycleVoiceSpeed -> voicePlayer.cycleSpeed()
             is MessageAction.SeekVoice -> seekVoice(messageId, action.fraction)
             MessageMenuAction.Edit -> startEdit(messageId)
             MessageMenuAction.Copy -> copyMessage(messageId)
@@ -2186,20 +2198,16 @@ class ConversationViewModel(
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         val voice = message.media as? MessageMedia.VoiceNote ?: return
 
-        voicePlayer.toggle(VoiceKey(chatId, messageId)) {
-            when (val file = fileRepository.file(voice.fileId).first { it is FileState.Ready || it is FileState.Failed }) {
-                is FileState.Ready -> file.path
-                is FileState.Failed -> error(file.message)
-                else -> error("Nedosažitelné")
-            }
-        }
+        voicePlayer.toggle(VoiceKey(chatId, messageId)) { voicePath(voice) }
+        if (!message.isOutgoing && !voice.isListened) reportListened(messageId)
+    }
 
-        if (!message.isOutgoing && !voice.isListened) {
-            markListened(messageId)
-            viewModelScope.launch {
-                repository.openContent(chatId, messageId).onFailure { failure ->
-                    logger.w(failure) { "Poslechnutí hlasovky se nepodařilo nahlásit." }
-                }
+    /** Označí hlasovku za poslechnutou lokálně i na serveru. */
+    private fun reportListened(messageId: Long) {
+        markListened(messageId)
+        viewModelScope.launch {
+            repository.openContent(chatId, messageId).onFailure { failure ->
+                logger.w(failure) { "Poslechnutí hlasovky se nepodařilo nahlásit." }
             }
         }
     }
@@ -2249,6 +2257,36 @@ class ConversationViewModel(
     private fun seekVoice(messageId: Long, fraction: Float) {
         voicePlayer.seek(VoiceKey(chatId, messageId), fraction)
     }
+
+    /**
+     * Po dohrání pustí NÁSLEDUJÍCÍ hlasovku, a jen když je příchozí a neposlechnutá.
+     *
+     * Řetězí se tím poslech dávky hlasovek, které někdo poslal za sebou — to je ten případ, kvůli
+     * kterému funkce existuje. Přeskakovat k neposlechnuté někde dál v historii by naopak
+     * překvapilo: uživatel si pustil jednu starou hlasovku a najednou mu hraje něco úplně jiného.
+     * Proto se bere jen ta nejbližší novější, a když poslechnutá je, řetěz končí.
+     *
+     * Vlastní odchozí hlasovku nikdo „neposlechl" v tomhle smyslu, takže na ní řetěz taky končí.
+     */
+    private fun playNextUnlistened(after: Long) {
+        val next = _state.value.messages
+            .filter { it.id > after && it.media is MessageMedia.VoiceNote }
+            .minByOrNull { it.id }
+            ?: return
+        val voice = next.media as? MessageMedia.VoiceNote ?: return
+        if (next.isOutgoing || voice.isListened) return
+
+        voicePlayer.play(VoiceKey(chatId, next.id)) { voicePath(voice) }
+        reportListened(next.id)
+    }
+
+    /** Počká na stažený soubor hlasovky; stahování začne až tímhle odběrem. */
+    private suspend fun voicePath(voice: MessageMedia.VoiceNote): String =
+        when (val file = fileRepository.file(voice.fileId).first { it is FileState.Ready || it is FileState.Failed }) {
+            is FileState.Ready -> file.path
+            is FileState.Failed -> error(file.message)
+            else -> error("Nedosažitelné")
+        }
 
     private fun markListened(messageId: Long) {
         _state.update { state ->

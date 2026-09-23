@@ -4,6 +4,7 @@ import eu.tintera.plume.core.ai.NoopOnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ui.IosSquarePhoto
 import eu.tintera.plume.core.ui.SquarePhoto
+import eu.tintera.plume.core.audio.AudioEngine
 import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSaver
@@ -55,6 +56,8 @@ actual fun Module.platformModule() {
     single<SquarePhoto> { IosSquarePhoto() }
     // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.
     factory { AudioRecorder() }
+    // Nový na každou přehrávanou hlasovku.
+    factory { AudioEngine() }
 
     // Application Support, stejně jako databáze TDLib: data aplikace, ne dokumenty uživatele.
     single { createSettingsDataStore(applicationSupportDirectory() + "/" + SETTINGS_FILE_NAME) }

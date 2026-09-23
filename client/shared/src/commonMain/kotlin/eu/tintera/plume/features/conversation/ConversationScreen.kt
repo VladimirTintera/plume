@@ -172,6 +172,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import eu.tintera.plume.core.audio.VoicePlayback
+import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.audio.rememberRecordPermission
 import eu.tintera.plume.core.settings.ExpressionMode
@@ -184,6 +185,7 @@ import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.strongestAccentOn
+import eu.tintera.plume.core.ui.tintedSurface
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.chatTitleKey
@@ -306,6 +308,7 @@ fun ConversationScreen(
     }
     // Čte se až v bublině hlasovky, takže změna pozice nepřekresluje celou obrazovku.
     val voicePlayback = viewModel.voicePlayback.collectAsStateWithLifecycle()
+    val voiceSpeed = viewModel.voiceSpeed.collectAsStateWithLifecycle()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     // Nahrávání se mění po 50 ms; obrazovka čte jen jestli běží, čas a úrovně až pruh nahrávání.
     val voiceRecordingState = viewModel.voiceRecording.collectAsStateWithLifecycle()
@@ -513,6 +516,7 @@ fun ConversationScreen(
             viewModel = viewModel,
             state = stateHolder,
             voicePlayback = voicePlayback,
+            voiceSpeed = voiceSpeed,
             contentTop = contentTop,
             onMenuAnchor = { menuAnchor = it },
             menuKey = menuKey,
@@ -1664,9 +1668,10 @@ private fun MessageInput(
             )
             val cardColor by animateColorAsState(
                 targetValue = if (isRecording) {
-                    MaterialTheme.colorScheme.primaryContainer
+                    // Hlas je v konverzaci terciární (viz tlačítko vedle), takže i karta při nahrávání.
+                    MaterialTheme.colorScheme.tertiaryContainer
                 } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
+                    composerCardColor()
                 },
                 animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
                 label = "composer-recording-color",
@@ -1915,6 +1920,7 @@ private fun MessageInput(
             val removableCaption = editing?.plainTextEdit() == PlainTextEdit.Caption
             val kind = when {
                 editing != null -> SendButtonKind.Save
+                isRecording -> SendButtonKind.SendVoice
                 showMic -> SendButtonKind.Mic
                 else -> SendButtonKind.Send
             }
@@ -1946,15 +1952,24 @@ private fun MessageInput(
             }
 
             /*
-             * Barva říká, jak silná akce to je. Mikrofon je klidový stav prázdného pole, takže
-             * tonální; odeslání i uložení úpravy jsou hlavní akce obrazovky, takže plná `primary`
-             * (jako odchozí bublina). Tlačítko tak „ožije", jakmile je co poslat. Víc barev by
-             * z něj udělalo semafor — barva by přestala znamenat důležitost.
+             * Barva říká, ČEHO se akce týká: text jde `primary` (jako odchozí bublina), hlas
+             * `tertiary`. Hlasovka je doplňková cesta vedle psaní, a terciární role je v M3
+             * přesně na to — tlačítko je pak stejně výrazné jako odeslání textu (obojí je plná
+             * role, ne tonální), jen se pozná, že udělá něco jiného.
+             *
+             * Dřív byl mikrofon tonální `secondaryContainer`, tedy „klidový stav prázdného pole".
+             * Jenže tím bylo tlačítko v prázdném poli to nejméně nápadné na obrazovce, přestože
+             * je to jediná akce, která se z prázdného pole dá udělat.
+             *
+             * Nahrávání a mikrofon mají barvu STEJNOU: mezi „můžu nahrát" a „nahrávám" rozhoduje
+             * tvar (sušenka ↔ dýchající SoftBurst), vlnka karty a pruh s časem. Přebarvit k tomu
+             * ještě tlačítko by byl čtvrtý signál pro jednu změnu.
              */
+            val voiceButton = kind == SendButtonKind.Mic || kind == SendButtonKind.SendVoice
             val colorSpec = MaterialTheme.motionScheme.slowEffectsSpec<Color>()
             val containerColor by animateColorAsState(
-                targetValue = if (kind == SendButtonKind.Mic) {
-                    MaterialTheme.colorScheme.secondaryContainer
+                targetValue = if (voiceButton) {
+                    MaterialTheme.colorScheme.tertiary
                 } else {
                     MaterialTheme.colorScheme.primary
                 },
@@ -1962,8 +1977,8 @@ private fun MessageInput(
                 label = "send-button-container",
             )
             val contentColor by animateColorAsState(
-                targetValue = if (kind == SendButtonKind.Mic) {
-                    MaterialTheme.colorScheme.onSecondaryContainer
+                targetValue = if (voiceButton) {
+                    MaterialTheme.colorScheme.onTertiary
                 } else {
                     MaterialTheme.colorScheme.onPrimary
                 },
@@ -2023,15 +2038,15 @@ private fun MessageInput(
                             when (shown) {
                                 SendButtonKind.Save -> Res.drawable.check_24dp
                                 SendButtonKind.Mic -> Res.drawable.mic_24dp
-                                SendButtonKind.Send -> Res.drawable.send_24dp
+                                SendButtonKind.Send, SendButtonKind.SendVoice -> Res.drawable.send_24dp
                             },
                         ),
                         contentDescription = stringResource(
-                            when {
-                                shown == SendButtonKind.Save -> Res.string.conversation_save_edit
-                                shown == SendButtonKind.Mic -> Res.string.conversation_record_voice
-                                isRecording -> Res.string.conversation_send_voice
-                                else -> Res.string.conversation_send
+                            when (shown) {
+                                SendButtonKind.Save -> Res.string.conversation_save_edit
+                                SendButtonKind.Mic -> Res.string.conversation_record_voice
+                                SendButtonKind.SendVoice -> Res.string.conversation_send_voice
+                                SendButtonKind.Send -> Res.string.conversation_send
                             },
                         ),
                         modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
@@ -2075,13 +2090,33 @@ private const val RECORDING_BREATH_ROTATION = 30f
  */
 @Composable
 private fun inputIconColor() = strongestAccentOn(
-    background = MaterialTheme.colorScheme.surfaceContainerHigh,
+    background = composerCardColor(),
     MaterialTheme.colorScheme.primary,
     MaterialTheme.colorScheme.onPrimaryContainer,
 )
 
-/** Co tlačítko u vstupního pole právě dělá. Změna mezi nimi se animuje. */
-private enum class SendButtonKind { Mic, Send, Save }
+/**
+ * Klidová barva karty vstupního pole: `surfaceContainerHigh` přitónovaná do `primaryContainer`.
+ *
+ * V neutrálních surface rolích byla karta jediná velká šedá plocha na obrazovce a od pozadí
+ * konverzace ji dělila jen světlost. S přitónováním nese barvu palety (a na Androidu tedy
+ * i tapety), ale zůstane pozadím — plný `primaryContainer` by ji posunul na světlost odchozí
+ * bubliny a pole by vypadalo jako rozepsaná zpráva. Viz [tintedSurface].
+ */
+@Composable
+private fun composerCardColor(): Color = tintedSurface(
+    surface = MaterialTheme.colorScheme.surfaceContainerHigh,
+    tint = MaterialTheme.colorScheme.primaryContainer,
+)
+
+/**
+ * Co tlačítko u vstupního pole právě dělá. Změna mezi nimi se animuje.
+ *
+ * [SendVoice] je vlastní hodnota, i když kreslí tutéž ikonu jako [Send]: odeslání hlasovky patří
+ * barevně k [Mic] (hlas = terciární), zatímco odeslání textu k `primary`. S jediným „Send" by se
+ * tlačítko při spuštění nahrávání přebarvilo z terciární na primary a zase zpátky.
+ */
+private enum class SendButtonKind { Mic, SendVoice, Send, Save }
 
 /**
  * Horní pruh karty nad vstupním polem (citace, úprava): tónovaná plocha přes celou šířku karty,
@@ -2277,6 +2312,7 @@ private class ScreenItemScope(
     private val viewModel: ConversationViewModel,
     private val state: State<ConversationState>,
     private val voicePlayback: State<VoicePlayback?>,
+    private val voiceSpeed: State<VoiceSpeed>,
     private val contentTop: State<Float?>,
     private val onMenuAnchor: (MenuAnchor) -> Unit,
     private val menuKey: State<Long?>,
@@ -2299,6 +2335,8 @@ private class ScreenItemScope(
 
     override fun voicePlayback(messageId: Long): VoicePlayback? =
         voicePlayback.value?.takeIf { it.key.messageId == messageId }
+
+    override fun voiceSpeed(): VoiceSpeed = voiceSpeed.value
 
     override fun documentProgress(fileId: Int): Float? = state.value.documentDownloads[fileId]
 

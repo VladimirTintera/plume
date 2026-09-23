@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.settings
 
 import eu.tintera.plume.core.ai.ModelVariant
+import eu.tintera.plume.core.audio.VoiceSpeed
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
@@ -111,6 +112,15 @@ interface AppSettings {
 
     /** Uloží variantu modelu. Neblokuje, jako [recordRecentEmoji]. */
     fun setOnDeviceAiVariant(variant: ModelVariant)
+
+    /**
+     * Rychlost přehrávání hlasovek. Platí pro celou aplikaci, ne pro jednu hlasovku: kdo poslouchá
+     * na 1,5×, chce tak poslouchat i tu další. Výchozí [VoiceSpeed.Normal].
+     */
+    val voiceSpeed: StateFlow<VoiceSpeed>
+
+    /** Uloží rychlost přehrávání hlasovek. Neblokuje, jako [recordRecentEmoji]. */
+    fun setVoiceSpeed(speed: VoiceSpeed)
 
     /**
      * `versionCode` aktualizace, jejíž kartu uživatel v seznamu chatů zavřel. Tatáž verze se
@@ -277,6 +287,16 @@ class DataStoreAppSettings(
         }
     }
 
+    override val voiceSpeed: StateFlow<VoiceSpeed> = value(VoiceSpeed.Normal) { preferences ->
+        VoiceSpeed.entries.firstOrNull { it.name == preferences[VOICE_SPEED] } ?: VoiceSpeed.Normal
+    }
+
+    override fun setVoiceSpeed(speed: VoiceSpeed) {
+        scope.launch {
+            edit { preferences -> preferences[VOICE_SPEED] = speed.name }
+        }
+    }
+
     override val dismissedUpdateVersionCode: StateFlow<Int?> = value(null) { preferences ->
         preferences[DISMISSED_UPDATE_VERSION_CODE]
     }
@@ -313,6 +333,7 @@ class DataStoreAppSettings(
         val REPLY_SUGGESTIONS_ENABLED = booleanPreferencesKey("reply_suggestions_enabled")
         val ON_DEVICE_AI_PREVIEW = booleanPreferencesKey("on_device_ai_preview")
         val ON_DEVICE_AI_FAST = booleanPreferencesKey("on_device_ai_fast")
+        val VOICE_SPEED = stringPreferencesKey("voice_speed")
         val DISMISSED_UPDATE_VERSION_CODE = intPreferencesKey("dismissed_update_version_code")
         const val EMOJI_SEPARATOR = " "
         const val TONE_ENTRY_SEPARATOR = ";"

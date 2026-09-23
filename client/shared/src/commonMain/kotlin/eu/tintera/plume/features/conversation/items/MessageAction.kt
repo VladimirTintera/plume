@@ -105,6 +105,9 @@ sealed interface MessageAction {
     data object CancelUpload : MessageAction
     data object ToggleVoice : MessageAction
     data class SeekVoice(val fraction: Float) : MessageAction
+
+    /** Přepne rychlost přehrávání na další v pořadí. Platí pro celou aplikaci, ne pro tuhle zprávu. */
+    data object CycleVoiceSpeed : MessageAction
 }
 
 /**

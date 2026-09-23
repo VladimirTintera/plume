@@ -147,6 +147,9 @@
     <string name="file_download_failed">Couldn't download the file.</string>
     <string name="file_unavailable">The file isn't available.</string>
     <string name="voice_playback_failed">Couldn't play the voice message.</string>
+    <string name="voice_speed_normal">1×</string>
+    <string name="voice_speed_fast">1.5×</string>
+    <string name="voice_speed_double">2×</string>
     <string name="conversation_unpin_failed">Couldn't unpin the message.</string>
     <string name="conversation_repin_failed">Couldn't pin the message back.</string>
     <string name="conversation_history_failed">Couldn't load the history.</string>

@@ -38,6 +38,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.audio.VoicePlayback
+import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.files.DocumentKind
 import eu.tintera.plume.core.files.FileSizeUnit
 import eu.tintera.plume.core.files.documentKind
@@ -313,8 +314,10 @@ internal fun MessageAttachment(
         is MessageMedia.VoiceNote -> VoiceNoteContent(
             voice = media,
             playback = voice.playback,
+            speed = voice.speed,
             onToggle = voice.onToggle,
             onSeek = voice.onSeek,
+            onCycleSpeed = voice.onCycleSpeed,
             accent = voice.accent,
             onAccent = voice.onAccent,
         )
@@ -447,13 +450,15 @@ private fun AnimatedEmojiImage(emoji: MessageMedia.AnimatedEmoji) {
 /** Co bublina potřebuje k hlasovce; u ostatních příloh se nepoužije. */
 internal class VoiceHandlers(
     val playback: () -> VoicePlayback?,
+    val speed: () -> VoiceSpeed,
     val onToggle: () -> Unit,
     val onSeek: (Float) -> Unit,
+    val onCycleSpeed: () -> Unit,
     val accent: Color,
     val onAccent: Color,
 ) {
     companion object {
-        val None = VoiceHandlers({ null }, {}, {}, Color.Unspecified, Color.Unspecified)
+        val None = VoiceHandlers({ null }, { VoiceSpeed.Normal }, {}, {}, {}, Color.Unspecified, Color.Unspecified)
     }
 }
 

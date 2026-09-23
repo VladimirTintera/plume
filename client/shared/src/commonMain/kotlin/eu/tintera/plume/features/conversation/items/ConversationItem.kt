@@ -15,6 +15,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.audio.VoicePlayback
+import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.SponsoredMessage
 import eu.tintera.plume.core.ui.localDate
@@ -61,6 +62,10 @@ internal interface ConversationItemScope {
     val timeReveal: () -> Float
 
     fun voicePlayback(messageId: Long): VoicePlayback?
+
+    /** Zvolená rychlost přehrávání hlasovek; jedna pro celou aplikaci. */
+    fun voiceSpeed(): VoiceSpeed
+
     fun documentProgress(fileId: Int): Float?
 
     /**

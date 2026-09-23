@@ -16,19 +16,28 @@ fun decodeWaveform(packed: ByteArray): List<Int> {
 }
 
 /**
- * Převzorkuje waveform na [bars] sloupců (průměrem, resp. opakováním) a znormuje do 0..1 podle
- * nejvyšší hodnoty. Telegram posílá kolem stovky hodnot; do bubliny se jich vejde méně.
+ * Převzorkuje waveform na [bars] sloupců (průměrem, resp. opakováním) a převede na 0..1 podle
+ * [WAVEFORM_MAX]. Telegram posílá kolem stovky hodnot; do bubliny se jich vejde méně.
+ *
+ * **Neškáluje se na špičku té konkrétní hlasovky.** Dřív se ano — každá se roztáhla tak, aby její
+ * nejhlasitější místo sáhlo na strop —, jenže tím měla každá hlasovka v konverzaci jinak vysoké
+ * sloupce: hlasitá vyšla jako souvislý blok u stropu, tichá jako členitý tvar, a z waveformu se
+ * nedalo přečíst nic než „tahle je jiná než ta nad ní". Hodnoty 0–31 od Telegramu jsou absolutní,
+ * takže stačí je vydělit stropem a hlasovky jsou porovnatelné mezi sebou.
+ *
+ * Na straně NAHRÁVÁNÍ se normalizuje dál ([encodeWaveform]): mikrofon vrací úroveň v měřítku,
+ * které si každá platforma určuje sama (Android `maxAmplitude`, iOS `averagePower` v dB), takže
+ * absolutní hodnota z něj nic neznamená — a nenormovaná tichá nahrávka by odešla jako čára.
  */
 fun resampleWaveform(values: List<Int>, bars: Int): List<Float> {
     if (bars <= 0) return emptyList()
     if (values.isEmpty()) return List(bars) { 0f }
-    val resampled = List(bars) { bar ->
+    return List(bars) { bar ->
         val start = bar * values.size / bars
         val end = maxOf(start + 1, (bar + 1) * values.size / bars)
-        values.subList(start, end.coerceAtMost(values.size)).average().toFloat()
+        val average = values.subList(start, end.coerceAtMost(values.size)).average().toFloat()
+        (average / WAVEFORM_MAX).coerceIn(0f, 1f)
     }
-    val peak = resampled.max()
-    return if (peak <= 0f) resampled.map { 0f } else resampled.map { it / peak }
 }
 
 /**
@@ -41,7 +50,7 @@ fun encodeWaveform(levels: List<Float>): ByteArray {
     val peak = values.maxOrNull()?.takeIf { it > 0f } ?: 1f
     val packed = ByteArray((WAVEFORM_VALUES * 5 + 7) / 8)
     values.forEachIndexed { index, level ->
-        val value = (level / peak * 31).toInt().coerceIn(0, 31)
+        val value = (level / peak * WAVEFORM_MAX).toInt().coerceIn(0, WAVEFORM_MAX.toInt())
         val bit = index * 5
         val byte = bit / 8
         val shifted = value shl (bit % 8)
@@ -62,3 +71,6 @@ private fun resampleLevels(levels: List<Float>, count: Int): List<Float> {
 
 /** Kolik hodnot waveformu posílají oficiální klienti. */
 const val WAVEFORM_VALUES = 100
+
+/** Nejvyšší hodnota waveformu; Telegram je posílá po 5 bitech, tedy 0–31. */
+const val WAVEFORM_MAX = 31f
