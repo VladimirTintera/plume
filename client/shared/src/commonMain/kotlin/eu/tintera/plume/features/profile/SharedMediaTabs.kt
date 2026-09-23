@@ -31,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -58,6 +59,10 @@ import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.photoKey
+import eu.tintera.plume.core.ui.LocalSharedElementClip
+import eu.tintera.plume.core.ui.LocalSharedMediaFlight
+import eu.tintera.plume.core.ui.rememberSharedElementClip
+import eu.tintera.plume.core.ui.sharedElementClipArea
 import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.LocalSavedMessagesChatId
@@ -112,20 +117,32 @@ internal fun SharedMediaGrid(
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(MEDIA_COLUMNS),
-        contentPadding = contentPadding,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-        modifier = modifier.fillMaxSize(),
+    /*
+     * Mřížka je zároveň hranicí, do které se ořezává fotka letící z prohlížeče zpátky (viz
+     * [SharedElementClip]) — bez toho by se dlaždice u horního okraje na konci letu nakreslila
+     * přes záložky a hlavičku profilu. A `LocalSharedMediaFlight` odlišuje klíč dlaždice od
+     * klíče bubliny v konverzaci, aby se ty dvě nespárovaly navzájem (viz `photoKey`).
+     */
+    val clip = rememberSharedElementClip()
+    CompositionLocalProvider(
+        LocalSharedMediaFlight provides true,
+        LocalSharedElementClip provides clip,
     ) {
-        itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
-            LoadMoreAtEnd(index, messages.size, onLoadMore)
-            MediaTile(message, shape = mediaTileShape(index, messages.size), onOpen = { onOpen(message.id) })
-        }
-        if (loading) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                TabLoading()
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(MEDIA_COLUMNS),
+            contentPadding = contentPadding,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = modifier.fillMaxSize().sharedElementClipArea(clip),
+        ) {
+            itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
+                LoadMoreAtEnd(index, messages.size, onLoadMore)
+                MediaTile(message, shape = mediaTileShape(index, messages.size), onOpen = { onOpen(message.id) })
+            }
+            if (loading) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    TabLoading()
+                }
             }
         }
     }
@@ -143,8 +160,9 @@ private fun MediaTile(message: ChatMessage, shape: Shape, onOpen: () -> Unit) {
         Modifier
             .aspectRatio(1f)
             .clip(shape)
-            // Tentýž klíč jako fotka v bublině: prohlížeč z dlaždice vyroste a při zavření se
-            // do ní vrátí. Konverzace pod profilem v tu chvíli složená není, o klíč se nepřou.
+            // Prohlížeč z dlaždice vyroste a při zavření se do ní vrátí. Klíč je JINÝ než
+            // u bubliny v konverzaci (`LocalSharedMediaFlight`): při otevření profilu a návratu
+            // z něj jsou obě strany složené naráz a se společným klíčem se spárovaly mezi sebou.
             .sharedNavElement(photoKey(message.id))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             .clickable(onClick = onOpen),

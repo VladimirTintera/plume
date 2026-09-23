@@ -116,7 +116,17 @@ data class MemberRightsRoute(val chatId: Long, val userId: Long, val admin: Bool
  * Nese jen id, ne obsah — média se dotahují z repository podle zprávy.
  */
 @Serializable
-data class MediaRoute(val chatId: Long, val messageId: Long) : Route
+data class MediaRoute(
+    val chatId: Long,
+    val messageId: Long,
+    /**
+     * Otevřel se prohlížeč z mřížky sdílených médií v profilu?
+     *
+     * Rozhoduje o klíči sdíleného prvku (viz `photoKey`): bublina v konverzaci a dlaždice
+     * v profilu jsou dvě různá místa téže fotky a se společným klíčem se spárovaly mezi sebou.
+     */
+    val fromSharedMedia: Boolean = false,
+) : Route
 
 /**
  * Výběr chatu, do kterého se přeposílá.
