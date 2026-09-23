@@ -5,6 +5,7 @@ import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ui.AndroidSquarePhoto
 import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.audio.AudioEngine
+import eu.tintera.plume.core.audio.EarSensor
 import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSaver
@@ -54,6 +55,8 @@ actual fun Module.platformModule() {
     factory { AudioRecorder(androidContext()) }
     // Nový na každou přehrávanou hlasovku; Context je kvůli audio focus.
     factory { AudioEngine(androidContext()) }
+    // Senzory u ucha: jeden na aplikaci, protože hraje nejvýš jedna hlasovka.
+    single { EarSensor(androidContext()) }
 
     // `filesDir`, ne cache: nastavení se nesmí ztratit, když systém uklízí místo.
     single { createSettingsDataStore(androidContext().filesDir.resolve(SETTINGS_FILE_NAME).absolutePath) }

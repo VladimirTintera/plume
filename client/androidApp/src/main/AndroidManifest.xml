@@ -7,10 +7,20 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Nahrávání hlasovek; ptá se až při prvním ťuknutí na mikrofon. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Hlasovka u ucha: přepnutí zvuku do sluchátka (MODIFY_AUDIO_SETTINGS) a zhasnutí displeje,
+         dokud je senzor přiblížení zakrytý (WAKE_LOCK). Obojí se uděluje při instalaci. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Uložení fotky a videa do galerie. Od Androidu 10 zapisuje MediaStore bez oprávnění. -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
+
+    <!-- Senzor přiblížení je jen pro hlasovku u ucha a tablety ho nemají; `required=false`, ať
+         aplikace kvůli němu nezmizí z Play pro zařízení, kde chybí. -->
+    <uses-feature
+        android:name="android.hardware.sensor.proximity"
+        android:required="false" />
 
     <!-- Predictive back. Při targetSdk 35+ ho systém zapíná sám a tenhle příznak ignoruje;
          je tu jako výslovné prohlášení a pojistka, kdyby targetSdk někdy klesl. Samotnou

@@ -3844,6 +3844,48 @@ tečka u neposlechnuté a u hrající čip rychlosti.
   sám, ale nikomu to neřekne — bez toho by hlasovka v UI dál „hrála" a posuvník by stál.
 - **Tažení po waveformu tiká po SLOUPCÍCH, ne po pixelech** (`haptics.tick()` při změně indexu
   sloupce). Odezva na každý pohyb prstu by byla souvislé bzučení.
+
+### Hlasovka u ucha
+
+Přiložení telefonu k uchu přepne hlasovku z reproduktoru do sluchátka a zhasne displej; oddálení
+ji vrátí zpátky. Sleduje se jen po dobu, kdy se HRAJE (`EarSensor`, startuje ho `VoicePlayer`).
+
+- **Samotné přiblížení NESTAČÍ** (`raisedToEar`, testy `EarDetectionTest`). Senzor hlásí „zakryto"
+  i telefonu položenému displejem dolů na stole — a tam by přepnutí znamenalo, že hlasovka ztichne
+  a nikdo neví proč. Přidává se proto sklon z akcelerometru: u ucha je telefon zhruba nastojato
+  (`|gravityZ| < 0,7 g`), na stole leží naplocho (přes 0,95 g).
+- **Bez údaje o sklonu se rozhoduje podle přiblížení.** `gravityZ` je výchozí nula, tedy
+  „nastojato"; zařízení bez akcelerometru tím spadne na samotné přiblížení, místo aby funkci
+  ztratilo.
+- **Se sluchátky se nepřepíná vůbec**, a čte se to při KAŽDÉ změně senzorů, ne jednou na začátku —
+  drát i Bluetooth se dají připojit uprostřed hlasovky.
+- **Na Androidu se kvůli tomu PŘESTAVUJE PŘEHRÁVAČ.** Do sluchátka se dostane jen zvuk
+  s `USAGE_VOICE_COMMUNICATION` a `MediaPlayer.setAudioAttributes` se smí volat jen PŘED
+  `prepare()`. Samotné `setCommunicationDevice` nestačí — to řídí komunikační zvuk, kdežto médium
+  by hrálo dál z reproduktoru. Přenáší se pozice i to, jestli se hraje, takže je to slyšet jako
+  zaváhání, ne jako skok na začátek.
+- **iOS přehrávač nepřestavuje**, stačí kategorie `AVAudioSession` — `AVAudioPlayer` se za relací
+  přesměruje sám. Změna kategorie ale RESETUJE `rate`, takže se rychlost zapisuje znovu.
+- **Do sluchátka vede na iOS jedině `playAndRecord`**, a ta sahá na mikrofon. Přepne se proto jen
+  tehdy, když je oprávnění k mikrofonu UŽ UDĚLENÉ (z nahrávání hlasovek); jinak se hraje dál
+  z reproduktoru. Ptát se na mikrofon proto, že si někdo dal telefon k uchu při POSLECHU, je
+  špatně — a je to horší než přijít o kus pohodlí.
+- **Komunikační režim je nastavení CELÉHO SYSTÉMU**, ne našeho přehrávače. Hlasovka pozastavená
+  u ucha ho proto nesmí nechat viset: pauza výstup vrací do reproduktoru (`returnToSpeaker`),
+  kdežto zastavení ne — tam si to uklidí `release()` sám.
+- **Dvě změny výstupu se nesmí potkat** (`routeMutex`). Ruka k uchu a zpátky umí poslat dvě hlášení
+  těsně po sobě a bez zámku by se druhé pustilo do přehrávače, který ta první právě uvolnila.
+- **Zhasínání displeje dělá PLATFORMA, ne naše pravidlo.** Android `PROXIMITY_SCREEN_OFF_WAKE_LOCK`
+  (bez časového limitu — limit by displej rozsvítil uprostřed poslechu), iOS
+  `isProximityMonitoringEnabled`. Systém zhasíná podle senzoru samotného, takže telefonu ležícímu
+  displejem dolů zhasne taky; to nevadí, protože leží displejem dolů a zvuk se stejně nepřepne.
+- **`isWakeLockLevelSupported` se musí zeptat předem**: `newWakeLock` s nepodporovanou úrovní
+  vyhodí výjimku až při `acquire()`.
+- **Senzor přiblížení je v manifestu `required="false"`.** Tablety ho nemají a aplikace by kvůli
+  němu z Play pro ně zmizela. iPad se pozná podle toho, že `proximityMonitoringEnabled = true`
+  zůstane `false`.
+- **Vlastní přepínač v Nastavení není.** Je to chování, které lidé znají odjinud a děje se jen
+  uprostřed přehrávání hlasovky; přidat ho, až o něj někdo řekne — stejná úvaha jako u haptiky.
 - **Tažení po waveformu `pointerInput` spotřebuje**, takže se na něm nerozjede swipe na odpověď.
   Posouvat jde jen vybranou hlasovku; u ostatních waveform gesta nemá.
 - **Poslechnuto = `openMessageContent`.** Ukáže se hned lokálně, potvrzení a poslechnutí našich

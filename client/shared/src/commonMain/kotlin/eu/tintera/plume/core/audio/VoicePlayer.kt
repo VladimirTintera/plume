@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
@@ -40,6 +42,18 @@ expect class AudioEngine {
 
     /** Rychlost přehrávání (1 = normální). Platí hned, i uprostřed hlasovky. */
     fun setSpeed(speed: Float)
+
+    /**
+     * Přepne zvuk do sluchátka u ucha (`true`), nebo zpátky do reproduktoru.
+     *
+     * `suspend`, protože Android kvůli tomu musí postavit `MediaPlayer` znovu — do sluchátka se
+     * dostane jen zvuk s `USAGE_VOICE_COMMUNICATION` a atributy jdou nastavit jen před `prepare()`.
+     * Na iOS stačí přepnout kategorii `AVAudioSession`, tam je to okamžité.
+     */
+    suspend fun setEarpiece(enabled: Boolean)
+
+    /** Jsou připojená sluchátka? Pak se do sluchátka u ucha nepřepíná — viz [raisedToEar]. */
+    val headphonesConnected: Boolean
 
     val positionMs: Long
 
@@ -95,11 +109,15 @@ data class VoicePlayback(
  *
  * **Rychlost drží přehrávač, ne obrazovka.** Je to volba přes celou aplikaci (další hlasovka se má
  * pustit toutéž rychlostí, i v jiném chatu) a přežívá restart, takže bydlí v [AppSettings].
+ *
+ * **Senzory u ucha sleduje jen po dobu, kdy se HRAJE** ([EarSensor]). Pauza je sundá taky: kdo si
+ * hlasovku pozastavil, ten ji u ucha nedrží, a zhasínající displej by mu jen překážel.
  */
 class VoicePlayer(
     private val scope: CoroutineScope,
     private val newEngine: () -> AudioEngine,
     private val settings: AppSettings,
+    private val earSensor: EarSensor,
 ) {
 
     private val _state = MutableStateFlow<VoicePlayback?>(null)
@@ -124,6 +142,14 @@ class VoicePlayer(
     private var loadJob: Job? = null
     private var tickJob: Job? = null
     private val logger = Logger.withTag("VoicePlayer")
+
+    /**
+     * Přesměrování výstupu je na Androidu přestavba přehrávače, takže se dvě nesmí potkat.
+     *
+     * Ruka u ucha a zpátky umí poslat dvě změny těsně po sobě; bez zámku by se druhá pustila do
+     * přehrávače, který ta první právě uvolnila.
+     */
+    private val routeMutex = Mutex()
 
     /**
      * Pustí hlasovku, nebo u té, která už je vybraná, přepne pauzu. [path] se volá jen při novém
@@ -197,6 +223,8 @@ class VoicePlayer(
     /** Zastaví přehrávání; s [chatId] jen tehdy, když hraje hlasovka z toho chatu. */
     fun stop(chatId: Long? = null) {
         if (chatId != null && _state.value?.key?.chatId != chatId) return
+        // Výstup vracet netřeba: `release()` níž systému komunikační režim sundá sám.
+        stopListeningForEar(returnToSpeaker = false)
         loadJob?.cancel()
         tickJob?.cancel()
         engine?.release()
@@ -204,7 +232,47 @@ class VoicePlayer(
         _state.value = null
     }
 
+    /**
+     * Začne sledovat, jestli si uživatel nedal telefon k uchu, a podle toho přepíná výstup.
+     *
+     * Rozhodnutí je čistá funkce [raisedToEar]; senzor jen hlásí, co měří. Sluchátka se čtou při
+     * KAŽDÉ změně, ne jednou na začátku — dají se připojit i uprostřed hlasovky.
+     */
+    private fun startListeningForEar() {
+        earSensor.start { sensors ->
+            val toEar = raisedToEar(sensors, headphonesConnected = engine?.headphonesConnected ?: false)
+            scope.launch {
+                routeMutex.withLock {
+                    // Mezitím mohla hlasovka skončit; přesměrovávat je pak co přestavovat.
+                    val current = engine ?: return@withLock
+                    runCatching { current.setEarpiece(toEar) }
+                        .onFailure { failure -> logger.w(failure) { "Výstup hlasovky nejde přepnout." } }
+                }
+            }
+        }
+    }
+
+    /**
+     * Přestane sledovat senzory.
+     *
+     * [returnToSpeaker] platí tam, kde přehrávač ŽIJE DÁL (pauza): komunikační režim je nastavení
+     * celého systému, takže ho hlasovka pozastavená u ucha nesmí nechat viset. Při zastavení se
+     * naopak vracet nemá co — přehrávač se hned uvolňuje a uklidí si to sám.
+     */
+    private fun stopListeningForEar(returnToSpeaker: Boolean) {
+        earSensor.stop()
+        if (!returnToSpeaker) return
+        val current = engine ?: return
+        scope.launch {
+            routeMutex.withLock {
+                runCatching { current.setEarpiece(false) }
+                    .onFailure { failure -> logger.w(failure) { "Výstup hlasovky nejde vrátit." } }
+            }
+        }
+    }
+
     private fun pause() {
+        stopListeningForEar(returnToSpeaker = true)
         engine?.pause()
         tickJob?.cancel()
         _state.update { it?.copy(playing = false, positionMs = engine?.positionMs ?: it.positionMs) }
@@ -213,6 +281,7 @@ class VoicePlayer(
     private fun resume() {
         val engine = engine ?: return
         engine.start()
+        startListeningForEar()
         _state.update { it?.copy(playing = true) }
         tickJob?.cancel()
         tickJob = scope.launch {
