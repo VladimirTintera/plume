@@ -153,6 +153,25 @@ internal fun showsLinkPreviewCard(message: ChatMessage): Boolean {
     return hasContent && message.media == null && message.replyToMessageId == null
 }
 
+/**
+ * Sbalí se citace na pár řádků a nabídne pod sebou rozbalovač?
+ *
+ * Telegram zná sbalitelnou citaci (`TextEntityTypeExpandableBlockQuote`) a ostatní klienti ji
+ * kreslí na pár řádků se „Zobrazit víc". Sbalit ji jde ale JEN tehdy, když je citace celý text
+ * zprávy: `maxLines` platí pro celý `Text`, takže by ořízl i větu pod citací — a rozdělit zprávu
+ * na víc `Text`ů nejde, protože zvýraznění hledání, spoilery i dlouhý stisk nad odkazem se
+ * počítají nad jedním layoutem. Sbalitelná citace uvnitř delší zprávy se proto kreslí celá.
+ */
+internal fun collapsesQuote(message: ChatMessage): Boolean {
+    val quote = message.entities.singleOrNull { it.type is MessageEntityType.Quote } ?: return false
+    return (quote.type as MessageEntityType.Quote).expandable &&
+        quote.offset == 0 &&
+        quote.offset + quote.length >= message.text.length
+}
+
+/** Na kolik řádků se sbalená citace ořízne. */
+internal const val COLLAPSED_QUOTE_LINES = 3
+
 /** Velký obrázek přes celou šířku karty; o velikosti rozhoduje odesílatel (`largePhoto`). */
 internal val LinkPreview.showsLargePhoto: Boolean get() = largePhoto && photo != null
 

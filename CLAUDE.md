@@ -2538,15 +2538,55 @@ to tu bylo, než vznikly `MessageEntity` a `RichText`.
   kreslí v `drawBehind` z `TextLayoutResult`, stejně jako pilulky zvýraznění. Blok jde napřed,
   pilulka na něj: hledané slovo musí být vidět i uvnitř citace.
 - **Plocha, ne proužek vlevo.** Proužek je jazyk M2 a v aplikaci už jednou ustoupil ploše
-  (náhled odkazu, citace nad odpovědí); barva je proto táž `insetColor` a **předává se zvenku**
-  ze stejného důvodu jako barva odkazu — počítá se proti ploše, na které zpráva leží.
-- **Blok přetéká za text do STRAN, svisle se drží mezi `lineTop` a `lineBottom`.** Odsadit text
-  zevnitř nejde: `ParagraphStyle` odsazení zprava nemá, takže by písmo doléhalo k okraji plochy.
-  Svisle naopak stačí meze řádku — je v nich i proklad, který dělá písmu odstup, a blok tím
-  nezasahuje do sousedních řádků.
-- **Sbalitelná citace se zatím kreslí celá** (`Quote.expandable`). Sbalení na pár řádků se
-  „Zobrazit víc" by znamenalo rozpad textu na víc `Text`ů a s ním přepočet zvýraznění, spoilerů
-  i dlouhého stisku nad odkazem; příznak se drží, aby se to dalo doplnit.
+  (náhled odkazu, citace nad odpovědí).
+- **Pás od kraje ke kraji, ne zaoblená plocha uvnitř.** Zaoblený obdélník odsazený od okraje
+  bubliny byl karta v kartě — přesně to, co už jednou musela opustit citace nad odpovědí
+  („subkartička v bublině") i náhled odkazu („bez spár, části uvnitř jsou rovné"). Náprava je
+  pokaždé stejná: **tvar nese vnější karta a díly uvnitř jsou rovné a přes celou šířku.** Pás
+  proto přetéká za text přesně o vnitřní odsazení bubliny, nemá vlastní zaoblení a na nároží ho
+  ořízne tvar bubliny.
+- **Tónuje se INKOUSTEM, ne container rolí.** `tertiaryContainer` (`insetColor`) uvnitř bubliny
+  byla druhá karta a na odchozí `primary` bublině navíc cizí barva. Podklad se proto odvozuje
+  z barvy popředí (`onBubbleColor` s alfou), stejně jako podklad kódu — ten má tutéž poznámku
+  o „cizím tělese" v `RichText` od začátku.
+- **Na okraj bubliny pás dosedne, jen když nad textem (pod ním) opravdu nic nestojí**
+  (`quoteBleedTop` / `quoteBleedBottom`, podává je bublina). `drawBehind` se na hranice textu
+  neořezává, takže uvnitř `RichText` se nedá poznat, jestli výš není značka přeposlání nebo
+  hlavička citované zprávy, přes jejichž šev pás přelézt nesmí. Bez toho zůstal nad citací přes
+  celou zprávu proužek barvy bubliny a vypadalo to jako lem.
+- **Odsazení, přesah i výška pásu berou TÁŽ čísla jako ostatní díly zprávy** (`MESSAGE_PADDING_H`
+  14 dp, `MESSAGE_PADDING_V` 8 dp v `MessageDimens.kt`; `RichText` je dostává parametrem, aby
+  `core/ui` neznalo rozměry bubliny). Bylo to opsané v pěti souborech — bublina, citace nad
+  odpovědí, popis webu — a u pásu musí sedět PŘESNĚ: do stran přetéká o vnitřní odsazení karty,
+  takže dosedne na její okraj, a svisle odsazuje text stejně jako díl nad ním.
+- **Citace přes CELÝ text zprávy se odsazuje `padding`em, ne odstavcem** (`quoteIndentAsPadding`).
+  Compose ellipsizovaný poslední řádek zalomí na plnou šířku a teprve pak ho posune o odsazení
+  odstavce: konec i s výpustkou přeteče za okraj, `Text` ho ořízne a sbalená citace pak končí
+  uprostřed slova a bez „…". S `padding`em se zalomí správně a výpustka je vidět. Uvozovky se
+  kreslí do žlábku, který tím vznikne, tak jako tak — `drawBehind` měří vnější box i s ním.
+- **Písmo citace je o kousek menší** (`QUOTE_FONT_SCALE`, 0,94 `em` — v `em`, aby platilo pro
+  každý styl). **Kurzíva ne:** projekt nemá kurzivní řez (v `composeResources/font/` jsou jen
+  přímé), takže by ji platforma dopočítala sklonem a u víceřádkové citace je to vidět.
+- **Odsazení textu uvnitř zprávy dělá `ParagraphStyle(textIndent)`, a stojí to prázdný řádek.** Odstavcový
+  styl nad rozsahem rozdělí text na odstavce na hranicích citace — a přilehlé `\n` tím přestanou
+  být zalomením a stanou se prázdným řádkem (odstavec končící `\n` má řádek navíc, stejně jako
+  odstavec začínající `\n`). U citace uvnitř delší zprávy je proto nad pásem i pod ním jedna
+  volná řádka. **Jinak to nejde**: odstranit ta `\n` z textu by rozhodilo offsety všech entit,
+  zvýraznění i spoilerů, a rozpad na víc `Text`ů zase jejich výpočet. Vypadá to jako vzduch kolem
+  citace, takže se to nechává; kdyby vadilo, cena za tichý tvar je zrušit odsazení.
+- **Odsazení se počítá z dp (`Dp.toSp()`), ne ze sp.** Lícuje s uvozovkami vedle sebe, ne
+  s velikostí písma; `toSp()` počítá s `fontScale`, takže výsledek sedí na dp v každém nastavení.
+- **Uvozovky se kreslí v `drawBehind` do žlábku, ne jako `InlineTextContent`.** Inline obsah se
+  musí vejít do řádku a posouval by první slovo; ve žlábku, který si citace stejně dělá
+  odsazením, nic neposouvá.
+- **Sbalitelná citace** (`Quote.expandable`) se ořízne na tři řádky a pod pásem dostane
+  rozbalovač na běžné ploše bubliny — citace je vrchní část zprávy, rozbalovač je ovládání k ní.
+  **Sbalí se jen citace, která je CELÝ text zprávy** (`collapsesQuote`, testy `MessageRowsTest`):
+  `maxLines` platí pro celý `Text`, takže by ořízl i větu pod citací, a rozdělit zprávu na víc
+  `Text`ů nejde (zvýraznění, spoilery a dlouhý stisk nad odkazem se počítají nad jedním layoutem).
+- **Že se text nevešel, se pozná až z layoutu** (`hasVisualOverflow` přes `onOverflow`) — a po
+  rozbalení se vejde vždycky. Kdyby se rozbalovač řídil jen aktuálním přetečením, po rozbalení by
+  zmizel a nešlo by sbalit zpátky; drží se proto příznak, že se to STALO.
 - **Při odesílání se entity dohledávají** (`getTextEntities`), jinak odkaz odejde jako mrtvý text —
   server si ho sám neoznačí. Když dohledání selže, zpráva stejně odejde.
 

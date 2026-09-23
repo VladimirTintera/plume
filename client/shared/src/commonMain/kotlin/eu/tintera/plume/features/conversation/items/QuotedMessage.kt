@@ -73,7 +73,7 @@ internal fun QuotedMessage(
         Modifier
     }
     if (!contained) {
-        Column(modifier.then(clickable).padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 8.dp)) {
+        Column(modifier.then(clickable).padding(horizontal = MESSAGE_PADDING_H, vertical = MESSAGE_PADDING_V)) {
             QuoteLines(message, partnerName, accent)
         }
         return

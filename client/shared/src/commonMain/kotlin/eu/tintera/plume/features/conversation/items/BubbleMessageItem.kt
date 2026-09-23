@@ -17,6 +17,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
+import eu.tintera.plume.features.conversation.COLLAPSED_QUOTE_LINES
+import eu.tintera.plume.features.conversation.collapsesQuote
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_quote_collapse
+import eu.tintera.plume.resources.conversation_quote_expand
+import eu.tintera.plume.resources.keyboard_arrow_down_24dp
+import eu.tintera.plume.resources.keyboard_arrow_up_24dp
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.senderColor
 
@@ -89,7 +109,7 @@ internal data class BubbleMessageItem(
                 message.media?.let { Attachment(media = it, accent = accent) }
             }
 
-            if (message.text.isNotBlank()) MessageText(linkColor = accent)
+            if (message.text.isNotBlank()) QuotableText()
 
             message.linkPreview?.let { preview ->
                 LinkPreviewCard(
@@ -105,7 +125,93 @@ internal data class BubbleMessageItem(
             EditedLabel(color = onBubbleColor, modifier = Modifier.align(Alignment.End))
         }
     }
+
+    /**
+     * Text zprávy — a když je celá sbalitelná citace, pás citace nahoře a rozbalovač pod ním.
+     *
+     * Pás dosedne na okraj bubliny jen tam, kde nad textem (pod ním) opravdu nic nestojí; jinak
+     * by přelezl přes šev hlavičky citované zprávy nebo přes značku přeposlání — `drawBehind` se
+     * na hranice textu neořezává (viz `RichText`).
+     */
+    @Composable
+    private fun MessageBodyScope.QuotableText() {
+        val atTop = quoted == null && album == null && message.media == null &&
+            message.forwardOrigin == null && (continuesAbove || message.senderName == null)
+        val collapses = remember(message.id, message.text, message.entities) { collapsesQuote(message) }
+        if (!collapses) {
+            MessageText(
+                linkColor = accent,
+                bleedTop = if (atTop) MESSAGE_PADDING_V else QUOTE_EDGE_TIGHT,
+                bleedBottom = if (message.linkPreview == null && !message.isEdited) contentBottom else QUOTE_EDGE_TIGHT,
+            )
+            return
+        }
+
+        var expanded by rememberSaveable(message.id) { mutableStateOf(false) }
+        /*
+         * Že se text nevešel, se pozná až z layoutu — a po rozbalení se vejde vždycky, takže by
+         * rozbalovač zmizel a nešlo by sbalit zpátky. Drží se proto, že se to stalo.
+         */
+        var overflowed by remember(message.id) { mutableStateOf(false) }
+        MessageText(
+            linkColor = accent,
+            maxLines = if (expanded) Int.MAX_VALUE else COLLAPSED_QUOTE_LINES,
+            bleedTop = if (atTop) MESSAGE_PADDING_V else QUOTE_EDGE_TIGHT,
+            // Dolů pás na okraj bubliny nesahá — pod ním stojí rozbalovač na její běžné ploše —,
+            // ale odsazení uvnitř má stejné jako nahoře.
+            bleedBottom = MESSAGE_PADDING_V,
+            onOverflow = { if (it) overflowed = true },
+            wholeTextQuote = true,
+        )
+        if (overflowed) QuoteExpander(expanded = expanded, onClick = { expanded = !expanded })
+    }
 }
+
+/**
+ * Rozbalovač sbalitelné citace: leží POD pásem, na běžné ploše bubliny — citace je vrchní část
+ * zprávy, tohle je ovládání k ní.
+ *
+ * Dlouhý stisk se opakuje: řádek má vlastní klikání, a bez toho by nad ním nešla otevřít nabídka
+ * nad zprávou (tatáž past jako u citace a značky přeposlání).
+ */
+@Composable
+private fun MessageBodyScope.QuoteExpander(expanded: Boolean, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .padding(top = 6.dp)
+            .clip(RoundedCornerShape(QUOTE_EXPANDER_CORNER))
+            .combinedClickable(onLongClick = ::requestMenu, onClick = onClick)
+            .padding(vertical = 2.dp),
+    ) {
+        Text(
+            text = stringResource(
+                if (expanded) Res.string.conversation_quote_collapse else Res.string.conversation_quote_expand,
+            ),
+            style = MaterialTheme.typography.labelLarge,
+            color = accent,
+        )
+        Icon(
+            painter = painterResource(
+                if (expanded) Res.drawable.keyboard_arrow_up_24dp else Res.drawable.keyboard_arrow_down_24dp,
+            ),
+            contentDescription = null,
+            tint = accent,
+            modifier = Modifier.size(QUOTE_EXPANDER_ICON),
+        )
+    }
+}
+
+/**
+ * Odsazení pásu tam, kde citace sice končí u kraje textu, ale nad ním (pod ním) něco stojí —
+ * jméno odesílatele, značka přeposlání, hlavička citované zprávy. Plné [MESSAGE_PADDING_V] by pás
+ * protáhlo pod jejich písmo: `drawBehind` se na hranice textu neořezává.
+ */
+private val QUOTE_EDGE_TIGHT = MESSAGE_PADDING_V / 2
+
+private val QUOTE_EXPANDER_CORNER = 6.dp
+
+private val QUOTE_EXPANDER_ICON = 18.dp
 
 /**
  * Karta odpovědi: [quote] nahoře v tónované ploše ([MessageBodyScope.insetColor]), [content] pod ní

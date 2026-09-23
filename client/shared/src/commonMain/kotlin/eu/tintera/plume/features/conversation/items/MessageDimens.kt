@@ -12,6 +12,18 @@ internal val BUBBLE_CORNER = 18.dp
 internal val BUBBLE_TIGHT = 4.dp
 
 /**
+ * Vnitřní odsazení dílů zprávy: 14 dp do stran, 8 dp nahoru a dolů.
+ *
+ * Jedna anatomie pro všechny karty konverzace — bublinu, citaci nad odpovědí, popis webu
+ * u náhledu odkazu i pás citace v textu. Bylo to opsané v pěti souborech a rozcházelo se to;
+ * u citace v textu navíc obě čísla musí sedět PŘESNĚ, protože pás dosedá na okraj bubliny
+ * (do stran) a jeho vnitřní odsazení má vypadat stejně jako u dílu nad ním a pod ním.
+ */
+internal val MESSAGE_PADDING_H = 14.dp
+
+internal val MESSAGE_PADDING_V = 8.dp
+
+/**
  * Šířka sloupce s časy, který se odkrývá tahem doleva. Vejde se do něj „00:00" s rezervou.
  */
 internal val TIME_COLUMN_WIDTH = 56.dp

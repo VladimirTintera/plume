@@ -105,7 +105,7 @@ internal data class LinkPreviewMessageItem(
     private fun MessageBodyScope.MessagePart() {
         if (message.text.isBlank() && !message.isEdited && message.forwardOrigin == null) return
         Surface(color = bubbleColor, contentColor = onBubbleColor, modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+            Column(Modifier.padding(horizontal = MESSAGE_PADDING_H, vertical = MESSAGE_PADDING_V)) {
                 ForwardLabel()
                 if (message.text.isNotBlank()) MessageText(linkColor = accent)
                 EditedLabel(color = onBubbleColor, modifier = Modifier.align(Alignment.End))
@@ -126,7 +126,12 @@ internal data class LinkPreviewMessageItem(
         ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = contentBottom + 2.dp),
+                modifier = Modifier.padding(
+                        start = MESSAGE_PADDING_H,
+                        end = MESSAGE_PADDING_H,
+                        top = MESSAGE_PADDING_V + 2.dp,
+                        bottom = contentBottom + 2.dp,
+                    ),
             ) {
                 PreviewInfo(
                     preview = preview,
