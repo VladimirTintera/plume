@@ -58,6 +58,10 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    Sekce je tím hotová celá.
 6. Drobnosti ze sekcí níž (zásobník, nabídka, entity, média, emoji).
 
+**Haptika se vede v [roadmap.md](roadmap.md#haptika)**, i když většina chybějících míst je
+právě tady (odeslání, reakce, výběr zpráv, nahrávání hlasovky, prahy tahů). Je to jeden slovník
+přes celou aplikaci a na dvou seznamech by se rozešel.
+
 ---
 
 ## Odlehčení vzhledu: co nepatří do bubliny
