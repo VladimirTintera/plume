@@ -192,11 +192,8 @@ fun AuthScreen(
                                 onSubmit = viewModel::submit,
                             )
 
-                            is AuthStage.WaitPassword -> SecretForm(
+                            is AuthStage.WaitPassword -> PasswordForm(
                                 value = input,
-                                label = Res.string.auth_input_password,
-                                keyboardType = KeyboardType.Password,
-                                isPassword = true,
                                 error = error,
                                 busy = busy,
                                 onValueChange = viewModel::onInputChange,
@@ -418,11 +415,8 @@ private fun CodeForm(
 }
 
 @Composable
-private fun SecretForm(
+private fun PasswordForm(
     value: String,
-    label: StringResource,
-    keyboardType: KeyboardType,
-    isPassword: Boolean,
     error: UiText?,
     busy: Boolean,
     onValueChange: (String) -> Unit,
@@ -433,13 +427,10 @@ private fun SecretForm(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        AuthTextField(
+        PasswordField(
             value = value,
-            onValueChange = onValueChange,
-            label = label,
-            keyboardType = keyboardType,
-            isPassword = isPassword,
             isError = error != null,
+            onValueChange = onValueChange,
             onSubmit = onSubmit,
         )
         FormError(error)

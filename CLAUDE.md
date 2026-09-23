@@ -795,6 +795,29 @@ Jedna obrazovka pro všechny fáze (`AuthScreen`), fáze se střídají v `Anima
   z SMS ověřený NENÍ** — je to jen deklarace `ContentType.SmsOtpCode`, doručit skutečnou SMS na
   emulátor nešlo.
 
+### Heslo dvoufázového ověření
+
+Tónovaný blok jako číslo, s okem na odkrytí (`PasswordField`).
+
+- **Odkrytí okem je to hlavní.** Cloud heslo se píše jednou za dlouho a naslepo; překlep se
+  pozná až z hlášky „Heslo nesedí" a uživatel ani potom neví, co vlastně napsal. Ikona
+  pojmenovává AKCI, ne stav: se skrytým heslem oko („zobrazit"), s odkrytým přeškrtnuté.
+- **Fokus a chybu nese rámeček kolem celého bloku, ne podtržení `TextField`u.** Indikátor je
+  široký jen jako pole, takže vedle oka končil v půlce karty a vypadal jako chyba vykreslení.
+  Barvu dává `authOutlineColor` — jedno místo pro políčka kódu i pro heslo, dvě kopie téhož
+  pravidla by se rozešly.
+- **Plovoucí label je pryč, zůstala nápověda v poli.** „Heslo" nad polem jen opakovalo nadpis
+  kroku — tatáž úvaha jako u dvojího slova „Země" v bloku s číslem.
+- **`ContentType.Password`**, protože cloud heslo bývá ve správci hesel; z celého přihlášení
+  se autofill hodí právě tady nejvíc.
+- **Autocorrect vypnutý**, jinak klávesnice udělá z hesla jiné slovo.
+- **Ověřeno na emulátoru** podstrčeným `AuthStage.WaitPassword` (na obrazovku se jinak nedá bez
+  odhlášení): skryté i odkryté heslo, přepnutí ikony, rámeček při fokusu, červený rámeček i věta
+  při chybě. Sonda se NECOMMITUJE. **Autofill ze správce hesel ověřený není** — je to jen
+  deklarace.
+- **Zapomenuté heslo je pořád slepá ulička**, viz `docs/roadmap.md`. Obnova přes e-mail je nový
+  krok automatu (`requestAuthenticationPasswordRecovery`), ne úprava pole.
+
 ### Výběr země a formát čísla
 
 **Seznam zemí ani formáty čísel se nedrží u nás** — dává je TDLib, a všechno „can be called

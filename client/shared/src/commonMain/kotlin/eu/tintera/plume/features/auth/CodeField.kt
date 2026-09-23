@@ -1,7 +1,6 @@
 package eu.tintera.plume.features.auth
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -120,20 +119,10 @@ internal fun CodeField(
  */
 @Composable
 private fun RowScope.CodeCell(digit: Char?, active: Boolean, isError: Boolean, height: Dp) {
-    val outline by animateColorAsState(
-        targetValue = when {
-            isError -> MaterialTheme.colorScheme.error
-            active -> MaterialTheme.colorScheme.primary
-            else -> Color.Transparent
-        },
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
-        label = "code-cell-outline",
-    )
-
     Surface(
         shape = CODE_CELL_SHAPE,
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        border = BorderStroke(CODE_CELL_OUTLINE, outline),
+        border = BorderStroke(AUTH_OUTLINE, authOutlineColor(isError = isError, active = active)),
         modifier = Modifier.weight(1f).height(height),
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -152,7 +141,7 @@ private fun RowScope.CodeCell(digit: Char?, active: Boolean, isError: Boolean, h
 
 private val CODE_CELL_MAX_HEIGHT = 64.dp
 private val CODE_CELL_GAP = 8.dp
-private val CODE_CELL_OUTLINE = 2.dp
+
 /**
  * Zaoblení v procentech kratší strany, ne v dp: pevných 16 dp ukrojí z políčka širokého 45 dp
  * (šest číslic na telefonu širokém 360 dp) skoro celou hranu a zbude z něj ovál. Takhle drží

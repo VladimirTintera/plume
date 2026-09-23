@@ -34,6 +34,8 @@
     <string name="auth_input_phone">Phone number</string>
     <string name="auth_input_code">Code</string>
     <string name="auth_input_password">Password</string>
+    <string name="auth_password_show">Show password</string>
+    <string name="auth_password_hide">Hide password</string>
     <string name="auth_error_generic">Something went wrong. Try again.</string>
     <string name="auth_error_qr">Couldn't get the QR code.</string>
     <string name="auth_error_email_unsupported">This account wants email verification, which we can't do yet. Try a number or a QR code.</string>
