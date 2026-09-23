@@ -34,6 +34,8 @@
     <string name="auth_input_phone">Telefonní číslo</string>
     <string name="auth_input_code">Kód</string>
     <string name="auth_input_password">Heslo</string>
+    <string name="auth_password_show">Zobrazit heslo</string>
+    <string name="auth_password_hide">Skrýt heslo</string>
     <string name="auth_error_generic">Něco se nepovedlo. Zkus to znovu.</string>
     <string name="auth_error_qr">QR kód se nepodařilo získat.</string>
     <string name="auth_error_email_unsupported">Tenhle účet chce ověření e-mailem a to zatím neumíme. Zkus číslo nebo QR kód.</string>

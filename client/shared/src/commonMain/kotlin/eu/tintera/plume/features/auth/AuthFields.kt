@@ -1,6 +1,10 @@
 package eu.tintera.plume.features.auth
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -18,8 +23,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -32,14 +46,20 @@ import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auth_country_choose
 import eu.tintera.plume.resources.auth_country_label
+import eu.tintera.plume.resources.auth_input_password
 import eu.tintera.plume.resources.auth_input_phone
+import eu.tintera.plume.resources.auth_password_hide
+import eu.tintera.plume.resources.auth_password_show
 import eu.tintera.plume.resources.keyboard_arrow_down_24dp
+import eu.tintera.plume.resources.visibility_24dp
+import eu.tintera.plume.resources.visibility_off_24dp
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Pole pro kód a heslo. Jedno místo, ať se dvě téměř stejná pole časem nerozejdou.
+ * Pole pro kód, který není číslo (slovo nebo fráze z SMS). Číselný kód má vlastní políčka,
+ * viz [CodeField], a heslo vlastní blok, viz [PasswordField].
  */
 @Composable
 internal fun AuthTextField(
@@ -72,8 +92,108 @@ internal fun AuthTextField(
 }
 
 /**
+ * Barva rámečku vstupu při přihlášení. Jedno místo pro políčka kódu i pro heslo — dvě kopie
+ * téhož pravidla by se rozešly a z jedné obrazovky by byly dva jazyky.
+ *
+ * Průhledná, dokud se nic neděje: rámeček kolem každého pole pořád je kresba navíc, která nic
+ * neříká.
+ */
+@Composable
+internal fun authOutlineColor(isError: Boolean, active: Boolean): Color = animateColorAsState(
+    targetValue = when {
+        isError -> MaterialTheme.colorScheme.error
+        active -> MaterialTheme.colorScheme.primary
+        else -> Color.Transparent
+    },
+    animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+    label = "auth-outline",
+).value
+
+/**
+ * Heslo dvoufázového ověření.
+ *
+ * **Tónovaný blok jako číslo, ne obrysové pole s plovoucím labelem.** Na jedné obrazovce nemají
+ * být dvě různá pojetí vstupu; label navíc jen opakoval nadpis kroku, stejně jako u země.
+ *
+ * **Odkrytí okem je to hlavní.** Cloud heslo se píše jednou za dlouho a naslepo, takže překlep
+ * se pozná až z hlášky „Heslo nesedí" — a uživatel ani potom neví, co vlastně napsal. Ikona
+ * pojmenovává AKCI, ne stav: se skrytým heslem je to oko („zobrazit"), s odkrytým přeškrtnuté.
+ */
+@Composable
+internal fun PasswordField(
+    value: String,
+    isError: Boolean,
+    onValueChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+) {
+    var revealed by rememberSaveable { mutableStateOf(false) }
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        // Fokus nese rámeček kolem celého bloku, ne podtržení `TextField`u: to je široké jen
+        // jako pole, takže vedle oka končilo v půlce karty a vypadalo jako chyba vykreslení.
+        border = BorderStroke(AUTH_OUTLINE, authOutlineColor(isError = isError, active = focused)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            TextField(
+                value = value,
+                onValueChange = onValueChange,
+                placeholder = { Text(stringResource(Res.string.auth_input_password)) },
+                singleLine = true,
+                isError = isError,
+                visualTransformation = if (revealed) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
+                // Heslo se neopravuje a nedoplňuje; klávesnice by z něj udělala jiné slovo.
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Go,
+                    autoCorrectEnabled = false,
+                ),
+                keyboardActions = KeyboardActions(onGo = { onSubmit() }),
+                textStyle = MaterialTheme.typography.headlineSmall,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    errorContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    errorIndicatorColor = Color.Transparent,
+                ),
+                interactionSource = interaction,
+                // Cloud heslo bývá ve správci hesel — tady se hodí nejvíc, protože se zadává
+                // jednou za dlouho.
+                modifier = Modifier.weight(1f).semantics { contentType = ContentType.Password },
+            )
+            IconButton(onClick = { revealed = !revealed }, modifier = Modifier.padding(end = 4.dp)) {
+                Icon(
+                    painterResource(
+                        if (revealed) Res.drawable.visibility_off_24dp else Res.drawable.visibility_24dp,
+                    ),
+                    contentDescription = stringResource(
+                        if (revealed) Res.string.auth_password_hide else Res.string.auth_password_show,
+                    ),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/**
  * Země a číslo jako **jeden blok**, ne dvě nesouvisející pole: předvolba bez země nic neznamená
  * a naopak. Stejný jazyk jako skupiny v Nastavení — nadpis a obsah drží pohromadě.
+ *
+ * **Fokus a chybu nese rámeček kolem celého bloku** ([authOutlineColor]), stejně jako u hesla
+ * a u políček kódu. Dřív to bylo podtržení `TextField`u, tedy čára široká jen jako pole
+ * a přilepená přesně na spodní hranu karty — vypadala jako lem, který tam něco zapomnělo,
+ * a přihlašovací obrazovka měla pro tutéž věc tři různé projevy.
  */
 @Composable
 internal fun PhoneField(
@@ -83,9 +203,13 @@ internal fun PhoneField(
     onPickCountry: () -> Unit,
     onSubmit: () -> Unit,
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(AUTH_OUTLINE, authOutlineColor(isError = isError, active = focused)),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.fillMaxWidth()) {
@@ -153,10 +277,14 @@ internal fun PhoneField(
                     keyboardActions = KeyboardActions(onGo = { onSubmit() }),
                     textStyle = MaterialTheme.typography.headlineSmall.tabularNumbers(),
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
-                        unfocusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
-                        errorContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        errorContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        errorIndicatorColor = Color.Transparent,
                     ),
+                    interactionSource = interaction,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -203,3 +331,6 @@ internal class PhoneOffsetMapping(
     override fun transformedToOriginal(offset: Int): Int =
         formatted.take(offset.coerceIn(0, formatted.length)).count { it.isDigit() }
 }
+
+/** Tloušťka rámečku vstupu při přihlášení — políčka kódu i heslo. */
+internal val AUTH_OUTLINE = 2.dp

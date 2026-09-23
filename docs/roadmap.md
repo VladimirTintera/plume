@@ -56,6 +56,13 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
 `ConversationRoute`, `ChatProfileRoute`, `MediaRoute`, `ForwardRoute`, `ShareRoute`, `NewChatRoute`
 (`core/navigation/Routes.kt`).
 
+- **Přihlášení: zapomenuté heslo je slepá ulička.** Kdo zapomene heslo dvoufázového ověření,
+  nemá z obrazovky kudy ven — jediné, co jde, je zkoušet dál. TDLib na to má
+  `requestAuthenticationPasswordRecovery` a `recoverAuthenticationPassword` (kód na obnovovací
+  e-mail) a `AuthorizationStateWaitPassword` nese `hasRecoveryEmailAddress`
+  i `recoveryEmailAddressPattern`, které zatím nepřenášíme. Je to nový krok automatu, ne
+  úprava pole; bez obnovovacího e-mailu zbývá jen smazání účtu, a i to se má říct nahlas.
+
 - ~~**Archiv**~~ — hotovo (seznam v menu účtu, archivace a vrácení z nabídky chatu i tahem do
   strany s „Vrátit", počet nepřečtených u vstupu, nastavení archivu). Poučení v `CLAUDE.md`,
   „Archiv". Zbývá:
