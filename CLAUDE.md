@@ -3859,9 +3859,15 @@ obsahu bývá zlomek zpráv.
   mizejících fotek vyjde prázdná i uprostřed chatu.
 - **Mizející a tajná média se vyřazují** stejně jako z listování v prohlížeči — trvalý přehled
   není místo pro obsah, který má po zhlédnutí zmizet.
-- **Dlaždice mřížky nese sdílený prvek `photoKey`** jako fotka v bublině — prohlížeč z ní vyroste
-  a při zavření se do ní vrátí. Konverzace pod profilem je v tu chvíli nesložená, takže se o klíč
-  nic nepře; na široké ploše sdílení vypíná `LocalTwoPane` jako všude.
+- **Dlaždice mřížky nese sdílený prvek, ale s JINÝM klíčem než bublina v konverzaci**
+  (`LocalSharedMediaFlight`, který podle `MediaRoute.fromSharedMedia` poskytuje i prohlížeč).
+  Prohlížeč z dlaždice vyroste a při zavření se do ní vrátí; na široké ploše sdílení vypíná
+  `LocalTwoPane` jako všude. **Se společným klíčem se ty dvě strany spárovaly mezi sebou** —
+  tady stávalo, že „konverzace pod profilem je nesložená, takže se o klíč nic nepře", jenže při
+  VÝMĚNĚ obrazovek jsou složené obě, a otevření profilu (i návrat z něj) je výměna jako každá
+  jiná. Fotka proto při každém otevření profilu přelétla přes celou obrazovku z bubliny na
+  dlaždici a zpátky. **Obecně: „druhá strana zrovna není složená" o sdíleném prvku nic neříká,
+  protože přechod je právě ten okamžik, kdy složené jsou obě.**
 - **Ťuknutí vede tam, kam z konverzace**: médium do prohlížeče (táž `MediaRoute`), soubor se
   stáhne a předá systému (včetně průběhu v řádku a druhého ťuknutí jako zrušení), odkaz do
   prohlížeče.
@@ -4175,6 +4181,27 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   prohlížeč zavře.
 - **Let z bubliny jede přes sdílený prvek** (`photoKey`), stejně jako avatar a název chatu.
   Na širokém rozvržení se nekoná: `LocalTwoPane` tam sdílení vypíná.
+- **Sdílený prvek se během letu kreslí v PŘEKRYVU nad celou aplikací, mimo ořezy rodičů** — tedy
+  i přes hlavičku obrazovky. Fotka, která v konverzaci zpola mizí pod hlavičkou, tak po návratu
+  z prohlížeče dosedla na místo, ale kreslila se PŘES hlavičku, a teprve na konci přechodu
+  (kdy kreslení převezme seznam) hlavička blikla přes ni — vypadalo to jako chyba vykreslení
+  a trvalo to víc než vteřinu, protože přechod běží dál i po dosednutí. Obrazovka proto řekne,
+  kde ji ořezává vlastní seznam (`SharedElementClip`, `sharedElementClipArea` na TÉŽE ploše,
+  která má `clipToBounds`), a `sharedNavElement` ten ořez použije i v překryvu
+  (`clipInOverlayDuringTransition`).
+- **Ořez se ale nesmí zapnout skokem**, jinak hned v prvním snímku ukrojí kus celoobrazovkové
+  fotky a odkryje pod ní hlavičku, která tam ještě nepatří. Otevřený ořez se proto nebere jako
+  nějaké velké číslo, ale jako **obal plochy a samotného prvku** — ten prvek z definice obsahuje
+  celý, takže na začátku neukrojí nic — a stahuje se na plochu toutéž pružinou jako let
+  (`sharedElementClipRect`, testy `SharedElementClipTest`). Fotka tím pod hlavičku podjede.
+- **Ořezává se jen strana, která PŘICHÁZÍ**, a to stačí: `sharedElement` kreslí v překryvu právě
+  prvek, který se stává viditelným. Při otevírání prohlížeče je to fotka v prohlížeči, a ta
+  žádnou plochu nedostává — skrytý proužek nad hlavičkou tam na okamžik probleskne, jenže fotka
+  se v té chvíli tak jako tak zvětšuje přes celou obrazovku, takže to není vidět. Vadí to jen
+  při návratu, kde prvek na svém místě ZŮSTANE stát.
+- **Průběh ořezu jde z `AnimatedVisibilityScope.transition`** (`animateFloat` nad
+  `EnterExitState`), ne z bounds prvku: `OverlayClip.getClipPath` dostane jen AKTUÁLNÍ hranice,
+  ne cílové, takže z nich není jak poznat, jak daleko let došel.
 
 ### GIFy
 

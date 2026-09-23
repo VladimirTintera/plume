@@ -12,6 +12,7 @@ import eu.tintera.plume.features.profile.EditChatScreen
 import eu.tintera.plume.features.profile.MemberRightsScreen
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.ui.LocalSavedMessagesChatId
+import eu.tintera.plume.core.ui.LocalSharedMediaFlight
 import eu.tintera.plume.core.telegram.ChatRepository
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
@@ -434,7 +435,10 @@ private fun shellEntryProvider(
             onOpenChat = { chatId ->
                 if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(chatId))
             },
-            onOpenMedia = { messageId -> chatsStack.add(MediaRoute(route.chatId, messageId)) },
+            // Z profilu letí fotka z mřížky sdílených médií, ne z bubliny — jiný klíč sdíleného prvku.
+            onOpenMedia = { messageId ->
+                chatsStack.add(MediaRoute(route.chatId, messageId, fromSharedMedia = true))
+            },
             onChatGone = { chatsStack.closeChat(route.chatId) },
             onEdit = { if (chatsStack.lastOrNull() != EditChatRoute(route.chatId)) chatsStack.add(EditChatRoute(route.chatId)) },
             onOpenMemberRights = { userId, admin ->
@@ -524,7 +528,10 @@ private fun shellEntryProvider(
                     chatsStack.add(ArchiveConversationRoute(chatId))
                 }
             },
-            onOpenMedia = { messageId -> chatsStack.add(MediaRoute(route.chatId, messageId)) },
+            // Z profilu letí fotka z mřížky sdílených médií, ne z bubliny — jiný klíč sdíleného prvku.
+            onOpenMedia = { messageId ->
+                chatsStack.add(MediaRoute(route.chatId, messageId, fromSharedMedia = true))
+            },
             onChatGone = { chatsStack.closeChat(route.chatId) },
             onEdit = {
                 if (chatsStack.lastOrNull() != ArchiveEditChatRoute(route.chatId)) {
@@ -543,19 +550,26 @@ private fun shellEntryProvider(
      * kde by panel vedle seznamu chatů neměl co dělat.
      */
     entry<MediaRoute> { route ->
-        MediaViewerScreen(
-            // Klíč musí rozlišovat zprávu ze stejného důvodu jako u konverzace:
-            // ViewModel se cachuje podle klíče a Koin u cachované instance
-            // ignoruje nové parametry.
-            viewModel = koinViewModel(
-                key = "media-${route.chatId}-${route.messageId}",
-                parameters = { parametersOf(route.chatId, route.messageId) },
-            ),
-            onBack = { chatsStack.pop(route) },
-            onForward = { messageId ->
-                chatsStack.add(ForwardRoute(route.chatId, listOf(messageId)))
-            },
-        )
+        /*
+         * Klíč sdíleného prvku fotky nese, ODKUD se letí: táž fotka je v bublině i v mřížce
+         * sdílených médií v profilu a se společným klíčem se ty dvě spárovaly mezi sebou —
+         * při otevření profilu fotka letěla přes celou obrazovku (viz `photoKey`).
+         */
+        CompositionLocalProvider(LocalSharedMediaFlight provides route.fromSharedMedia) {
+            MediaViewerScreen(
+                // Klíč musí rozlišovat zprávu ze stejného důvodu jako u konverzace:
+                // ViewModel se cachuje podle klíče a Koin u cachované instance
+                // ignoruje nové parametry.
+                viewModel = koinViewModel(
+                    key = "media-${route.chatId}-${route.messageId}",
+                    parameters = { parametersOf(route.chatId, route.messageId) },
+                ),
+                onBack = { chatsStack.pop(route) },
+                onForward = { messageId ->
+                    chatsStack.add(ForwardRoute(route.chatId, listOf(messageId)))
+                },
+            )
+        }
     }
 
     /*

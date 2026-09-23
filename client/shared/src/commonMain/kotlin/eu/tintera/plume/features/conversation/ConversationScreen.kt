@@ -5,6 +5,9 @@ import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.blur.hazeBlur
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.ui.avatarShape
+import eu.tintera.plume.core.ui.sharedElementClipArea
+import eu.tintera.plume.core.ui.rememberSharedElementClip
+import eu.tintera.plume.core.ui.LocalSharedElementClip
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.FilledTonalButton
@@ -134,6 +137,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
@@ -1283,6 +1287,8 @@ fun ConversationScreen(
         }
 
         val layoutDirection = LocalLayoutDirection.current
+        // Plocha, do které se v překryvu ořezává sdílený prvek letící sem z prohlížeče médií.
+        val listClip = rememberSharedElementClip()
         Box(
             Modifier
                 .fillMaxSize()
@@ -1323,6 +1329,9 @@ fun ConversationScreen(
                          * drží i odtaženou bublinu v jejím panelu.
                          */
                         .clipToBounds()
+                        // Kam ořezává seznam, tam se ořezává i fotka letící z prohlížeče zpátky
+                        // (viz `SharedElementClip`) — jinak by na konci letu ležela přes hlavičku.
+                        .sharedElementClipArea(listClip)
                         .hazeSource(listHaze)
                         .pointerInput(revealMax) {
                             detectTimeReveal(
@@ -1336,6 +1345,7 @@ fun ConversationScreen(
                             }
                         },
                 ) {
+                  CompositionLocalProvider(LocalSharedElementClip provides listClip) {
                   LazyColumn(
                     state = listState,
                     reverseLayout = true,
@@ -1360,6 +1370,7 @@ fun ConversationScreen(
                         with(item) { Content(itemScope) }
                     }
                 }
+                  }
                 }
             }
 
