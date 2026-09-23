@@ -210,9 +210,20 @@ val verifyNoHardcodedText = tasks.register("verifyNoHardcodedText") {
         val czech = Regex("""\"[^\"]*[áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][^\"]*\"""")
         // Řádky, kde text pro uživatele není: logy a vnitřní kontroly.
         val internal = Regex("""logger\.[dewiv]\b|Logger\.withTag|\brequire|\bcheck|\berror\(|Exception\(""")
+        // Prompt pro jazykový model taky text pro uživatele není — nejde na obrazovku, ale do
+        // modelu v telefonu. Česká slova v něm bývají POTŘEBA: bez výslovného „tykání/vykání"
+        // model kamarádovi vykal (viz „Návrhy odpovědí" v CLAUDE.md). Je to tedy stejná kategorie
+        // jako logy a vnitřní kontroly výš, a řeší se stejně — výjimkou, ne escape sekvencemi:
+        // ty jsou správně u DAT (tabulka diakritiky v `SearchHighlight.kt`), ale prompt je próza,
+        // která se ladí čtením, a „tyk\u00e1n\u00ed" uprostřed anglické věty se číst nedá.
+        // Výjimka je proto UŽŠÍ než ty stávající: vypíná JEN pravidlo o diakritice, a jen
+        // v souborech, které nenesou nic jiného než prompty. Slot v UI se hlídá i v nich
+        // (dvě pravidla jsou tu schválně) a prompt přesunutý jinam kontrolu rozsvítí.
+        val promptFile = Regex("""core/ai/[A-Za-z]+Prompt\.kt$""")
 
         val offenders = mutableListOf<String>()
         roots.flatMap { it.walkTopDown().filter { f -> f.extension == "kt" } }.forEach { file ->
+            val isPrompt = promptFile.containsMatchIn(file.invariantSeparatorsPath)
             val lines = file.readLines()
             var inBlockComment = false
             lines.forEachIndexed { index, raw ->
@@ -229,7 +240,7 @@ val verifyNoHardcodedText = tasks.register("verifyNoHardcodedText") {
 
                 // Prázdný literál žádný text nenese (`MessageBody(text = "")`).
                 val meaningful = line.replace("\"\"", "")
-                if (uiSlot.containsMatchIn(meaningful) || czech.containsMatchIn(meaningful)) {
+                if (uiSlot.containsMatchIn(meaningful) || (!isPrompt && czech.containsMatchIn(meaningful))) {
                     offenders += "${file.relativeTo(projectDir)}:${index + 1}: $line"
                 }
             }

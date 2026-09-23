@@ -90,6 +90,10 @@ private fun replyLanguageInstruction(languageCode: String): String = when (langu
  *
  * Instrukce jmenuje „tykání/vykání" i anglický popis: samotné „be informal" model u češtiny
  * spolehlivě nepřeloží do správného tvaru slovesa.
+ *
+ * Česká slova v literálu jsou tedy nosná, ne opomenutí. `verifyNoHardcodedText` proto promptovým
+ * souborům v `core.ai` vypíná pravidlo o diakritice — prompt nejde na obrazovku, ale do modelu.
+ * Platí to jen tady: tentýž text kdekoli jinde kontrolu rozsvítí, a to je správně.
  */
 private fun formalityInstruction(languageCode: String): String = when (languageCode) {
     "cs" -> "address the other person the same way they address the user — informal \"tykání\" " +

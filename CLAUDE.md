@@ -1105,6 +1105,16 @@ který uvidí uživatel.
   s jedním to dvakrát propadlo: slot v UI (`Text(`, `text =`, `contentDescription = …`) nesmí
   dostat literál vůbec a český text nesmí být nikde mimo komentáře, logy a vnitřní kontroly.
   Hledat jen podle diakritiky nestačí — „Odebrat soubor" ani „Video" tak nenajdeš.
+- **Prompt pro model je výjimka z JEDNOHO z těch dvou pravidel, ne z celé kontroly.** Instrukce
+  pro Gemini Nano musí jmenovat „tykání/vykání" česky (bez toho model kamarádovi vykal, viz
+  „Návrhy odpovědí"), takže promptové soubory v `core.ai` mají vypnuté pravidlo o diakritice —
+  pravidlo o slotu v UI v nich platí dál. Prompt nejde na obrazovku, ale do modelu; je to tedy
+  táž kategorie jako logy a vnitřní kontroly, které kontrola vynechává odjakživa. **Escape
+  sekvence jsou na DATA, ne na prózu:** tabulka diakritiky v `SearchHighlight.kt` se čte
+  strojem, kdežto prompt se ladí ČTENÍM a „tyk\u00e1n\u00ed" uprostřed anglické věty přečíst
+  nejde. Výjimka visí na JMÉNU souboru, ne na balíčku, a **ověřila se sondami, ne úvahou**:
+  český literál v `core/ai/OnDeviceAi.kt` i `Text("…")` uvnitř `ReplyPrompt.kt` kontrolu dál
+  rozsvítí, takže se dírou nestalo nic než to, co se jí stát mělo.
 - **Ověřuje se přepnutím jazyka aplikace**, ne celého systému:
   `adb shell cmd locale set-app-locales eu.tintera.plume --locales cs-CZ` (prázdná hodnota vrátí
   systémový). Restart aplikace stačí, emulátor rebootovat netřeba.
@@ -5331,6 +5341,12 @@ vkus toho, kdo zrovna píše obrazovku.
   (`UncompletedCoroutinesError`). Zelené `testAndroidHostTest` proto o iOS nic neříká.
   S `StandardTestDispatcher` jako `Main` si `runTest` převezme jeho plánovač a ViewModel jede
   na tomtéž virtuálním čase (viz `NewChatViewModelTest`).
+- **Blokové komentáře v Kotlinu se VNOŘUJÍ, takže `/*` uvnitř KDoc ho nechá neuzavřený.**
+  Cesta s hvězdičkou (`core/ai/` + `*Prompt.kt`) napsaná do KDoc otevře vnořený komentář,
+  závěrečné `*/` zavře jen ten a zbytek souboru zmizí v komentáři. Hlásí se to zavádějícím
+  „Unresolved reference" na symbol o desítky řádků níž a teprve pak „Unclosed comment" na konci
+  souboru — hledat se přitom musí v komentáři, kterého si nikdo nevšimne. Glob se do komentáře
+  proto nepíše.
 - **`androidResources { enable = true }`** v KMP modulu je povinné, jinak se composeResources nezabalí
   a čtení stringu spadne až za běhu na „No instrumentation registered!".
 - **iOS framework musí být `isStatic = true`** — TDLib je statická knihovna, jinak link padne na
