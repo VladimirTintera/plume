@@ -333,11 +333,19 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
 - **Výstup modelu se parsuje tolerantně** (`parseReplySuggestions`, testy `ReplyPromptTest`):
   model odrážky nedrží, očísluje je, obalí uvozovkami nebo přidá úvodní větu s dvojtečkou.
   Nikdy nevrátí prázdno kvůli formátu — když řádky rozpoznat nejdou, je návrhem celý text.
-- **Na zařízení bez AICore se nesmí nic stát a nestane.** Ověřeno na emulátoru s Androidem 16
-  bez balíčku `com.google.android.aicore`: `status` vrátí `Unsupported` (takže se ikona Shrnout
-  ani čipy nenabídnou), `countTokens` `null` a `generate` skončí výjimkou
-  `GenAiException [ErrorCode -101] AICore is either not installed or the installed version is
-  too low`. Žádný pád, v logu aplikace čisto.
+- **Na zařízení bez AICore se nesmí nic stát a nestane.** Ověřeno na TŘECH systémech —
+  Android 16, Android 9 (API 28, Play služby 21.45.15) a **Android 8 (API 26, tedy `minSdk`
+  projektu)** —, všude bez balíčku `com.google.android.aicore`. Pokaždé stejně: `status` vrátí
+  `Unsupported` (takže se ikona Shrnout ani čipy nenabídnou), `countTokens` `null` a `generate`
+  skončí VÝJIMKOU `GenAiException [ErrorCode -101] AICore is either not installed or the
+  installed version is too low`. Žádný pád, v logu aplikace čisto. Stáří systému ani verze Play
+  služeb na tom nic nemění.
+- **Ověřuje se to sondou, ne proklikáním.** Do Nastavení se bez přihlášení nedostaneš, takže se
+  do `startKoin` dočasně přidá volání `status`/`info`/`countTokens`/`generate` v `runCatching`
+  a výsledek se zaloguje. Sonda se NECOMMITUJE — postaví se z ní APK a zdroják se hned vrátí.
+- **Staré arm64 obrazy na Apple Silicon zamrzají.** Android 9 i 8 spadly na
+  „detected a hanging thread QEMU2 main loop", dokud emulátor nedostal
+  `-gpu swiftshader_indirect -cores 2`. Není to chyba aplikace a stojí to deset minut hledání.
 - **Chyba ale nemusí přijít jako výjimka.** Kde chybí systémová část (staré Play služby, ořezaný
   ROM), vyletí `Error` — `NoClassDefFoundError`, `UnsatisfiedLinkError`, `VerifyError` —, a ten
   `catch (Exception)` NECHYTÍ. `MlKitOnDeviceAi` proto chytá i `LinkageError`: aplikace nesmí
