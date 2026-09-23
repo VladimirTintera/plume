@@ -204,10 +204,17 @@ takže zbytek přibude s tím, co bude umět:
   seznamem zhlédnutí a odkazem ke zkopírování. Poučení v `CLAUDE.md`, „Informace o zprávě".
   Zbývá jen `getMessageStatistics` u příspěvků v kanálech — jiná data a vlastní obrazovka.
 
-**Rozostřený závoj** (Haze) je zatím jen pod nabídkou nad zprávou. Kandidáti na totéž:
-průsvitný pruh pod vstupním polem, pruh připnutých zpráv a plovoucí datum — plochy, pod které
-zajíždí obsah. Otevřené: respektovat systémové „omezit rozostření" (Android 16 QPR; jak se
-aplikaci hlásí, zatím nevíme) a změřit plynulost na slabším zařízení s Androidem 12.
+~~**Rozostřený závoj** i pod dalšími plochami~~ — hotovo: pruh pod vstupním polem, pruh
+připnutých zpráv i plovoucí datum jsou mléčné sklo (`Glass.kt`, poučení v `CLAUDE.md`, „Vzhled
+konverzace"). Zbývá:
+
+- **Změřit plynulost na zařízení**, hlavně na slabším s Androidem 12. Na emulátoru to nejde:
+  `dumpsys gfxinfo` hlásí 98 % zadrhnutých snímků i v seznamu chatů BEZ skla, takže se tím měří
+  hostitel, ne naše změna.
+- **Respektovat systémové „omezit rozostření"** (Android 16 QPR) — jak se to aplikaci hlásí,
+  zatím nevíme.
+- **Sklo i jinde**: hlavička konverzace a hlavička seznamu chatů jsou taky plochy, pod které
+  obsah zajíždí. Nejdřív ale ověřit cenu toho, co je hotové.
 
 ## C) Entity v textu (odkazy) — HOTOVO
 

@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.ui.platform.LocalHapticFeedback
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.blur.hazeBlur
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.ui.avatarShape
 import androidx.compose.foundation.layout.Spacer
@@ -746,6 +748,12 @@ fun ConversationScreen(
     // Nabídka nad zprávou je vrstva NAD Scaffoldem (viz `MessageMenuLayer`), proto obal.
     // Scaffold je zároveň to, co její závoj rozostří (`hazeSource`).
     val hazeState = rememberHazeState()
+    /*
+     * Zdroj pro mléčné sklo je JEN seznam zpráv (viz `glassStyle`). Kdyby to byl `hazeState`
+     * výš, rozostřovaly by se plochy samy sebou: pruh připnutých by nasál plovoucí datum a pás
+     * pod polem sám sebe.
+     */
+    val listHaze = rememberHazeState()
     Box(modifier) {
     // Zpět hledání zavře, z chatu se odchází až dalším. `NavigationBackHandler`, ne
     // `BackHandler` — ten by zabil predictive back.
@@ -981,6 +989,16 @@ fun ConversationScreen(
                 WriteAccess.Allowed, null -> Unit
             }
             MessageInput(
+                glass = Modifier.hazeBlur(
+                    input = HazeInput.Sources(listHaze),
+                    style = glassStyle(
+                        color = MaterialTheme.colorScheme.surface,
+                        alpha = GLASS_TINT_ALPHA,
+                        // Bez rozostření zůstane dřívější krycí pás; jinak by pod ním prosvítaly
+                        // zprávy a psaní by se v nich ztratilo.
+                        fallbackAlpha = INPUT_SCRIM_ALPHA,
+                    ),
+                ),
                 replyingTo = state.replyingTo,
                 partnerName = state.info?.title,
                 flight = state.flight,
@@ -1199,6 +1217,7 @@ fun ConversationScreen(
                          * drží i odtaženou bublinu v jejím panelu.
                          */
                         .clipToBounds()
+                        .hazeSource(listHaze)
                         .pointerInput(revealMax) {
                             detectTimeReveal(
                                 onEnd = { scope.launch { timeReveal.animateTo(0f, revealSpec) } },
@@ -1254,6 +1273,14 @@ fun ConversationScreen(
             ) {
                 FloatingDayBadge(
                     text = floatingDay,
+                    glass = Modifier.hazeBlur(
+                        input = HazeInput.Sources(listHaze),
+                        style = glassStyle(
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                            alpha = GLASS_TEXT_TINT_ALPHA,
+                            fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                        ),
+                    ),
                     modifier = Modifier.padding(top = 8.dp + pinnedHeight),
                 )
             }
@@ -1297,6 +1324,14 @@ fun ConversationScreen(
                     onOpen = { message -> viewModel.jumpToMessage(message.id, anchor = ScrollAnchor.Top) },
                     onUnpin = viewModel::unpin,
                     onShowAll = { allPinnedOpen = true },
+                    glass = Modifier.hazeBlur(
+                        input = HazeInput.Sources(listHaze),
+                        style = glassStyle(
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            alpha = GLASS_TEXT_TINT_ALPHA,
+                            fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                        ),
+                    ),
                 )
             }
 
@@ -1436,6 +1471,8 @@ private fun newMessagesLabel(count: Int): String =
 
 @Composable
 private fun MessageInput(
+    /** Mléčné sklo nad seznamem: pás je průhledný, barvu i rozostření nese sklo. */
+    glass: Modifier,
     replyingTo: ChatMessage?,
     partnerName: String?,
     flight: MessageFlight?,
@@ -1510,8 +1547,9 @@ private fun MessageInput(
      * dělá závoj: je vidět, že tam obsah je, ale nepřebíjí psaní.
      */
     Surface(
-        color = MaterialTheme.colorScheme.surface.copy(alpha = INPUT_SCRIM_ALPHA),
-        modifier = modifier,
+        color = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier = modifier.then(glass),
     ) {
         Row(
             Modifier
