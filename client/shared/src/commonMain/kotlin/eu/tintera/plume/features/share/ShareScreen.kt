@@ -30,10 +30,14 @@ import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.features.chats.ChatSearch
 import eu.tintera.plume.features.chats.pickerChats
 import eu.tintera.plume.core.ui.GROUP_CORNER
-import eu.tintera.plume.features.forward.ChatPicker
+import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
+import eu.tintera.plume.core.ui.GROUP_SPACING
+import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.PickerSection
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.attach_file_24dp
 import eu.tintera.plume.resources.description_24dp
+import eu.tintera.plume.resources.forward_search
 import eu.tintera.plume.resources.link_24dp
 import eu.tintera.plume.resources.share_files
 import eu.tintera.plume.resources.share_preparing
@@ -125,8 +129,9 @@ fun ShareScreen(
         title = stringResource(Res.string.share_title),
         query = state.query,
         onQueryChange = viewModel::onQueryChange,
+        searchPlaceholder = stringResource(Res.string.forward_search),
         loading = state.loading,
-        chats = state.chats,
+        sections = listOf(PickerSection(key = "chats", chats = state.chats)),
         enabled = content != null,
         onPick = { chatId ->
             viewModel.choose(chatId)
@@ -165,7 +170,9 @@ private fun SharedContentCard(content: SharedContent, modifier: Modifier = Modif
         shape = RoundedCornerShape(GROUP_CORNER),
         color = MaterialTheme.colorScheme.tertiaryContainer,
         contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        // Vodorovné odsazení dává seznam (karta je jeho první položka); mezeru pod sebou
+        // nese karta, takže bez sdíleného textu po ní nezbude prázdné místo.
+        modifier = modifier.fillMaxWidth().padding(bottom = GROUP_SPACING - GROUP_ITEM_SPACING),
     ) {
         Row(
             Modifier.padding(horizontal = 16.dp, vertical = 12.dp),

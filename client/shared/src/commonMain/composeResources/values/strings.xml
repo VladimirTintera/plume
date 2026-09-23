@@ -272,7 +272,8 @@
     <string name="presence_recently">last seen recently</string>
     <string name="presence_last_week">last seen within a week</string>
     <string name="presence_last_month">last seen within a month</string>
-    <string name="presence_offline">last seen %1$s</string>
+    <string name="presence_last_seen_at">last seen %1$s at %2$s</string>
+    <string name="presence_last_seen_on">last seen on %1$s</string>
     <string name="sponsored_recommended">Recommended</string>
     <string name="sponsored_sponsored">Sponsored</string>
     <string name="sponsored_open">Open</string>
@@ -495,6 +496,7 @@
         <item quantity="other">%1$d Stars were refunded for messages</item>
     </plurals>
     <string name="date_today">Today</string>
+    <string name="date_today_short">today</string>
     <string name="date_yesterday">Yesterday</string>
     <string name="date_yesterday_short">yesterday</string>
     <string name="date_short">%1$d/%2$d</string>
@@ -527,6 +529,13 @@
     <string name="day_long_5">Friday</string>
     <string name="day_long_6">Saturday</string>
     <string name="day_long_7">Sunday</string>
+    <string name="day_on_1">Monday</string>
+    <string name="day_on_2">Tuesday</string>
+    <string name="day_on_3">Wednesday</string>
+    <string name="day_on_4">Thursday</string>
+    <string name="day_on_5">Friday</string>
+    <string name="day_on_6">Saturday</string>
+    <string name="day_on_7">Sunday</string>
     <string name="notification_permission_title">Know about new messages</string>
     <string name="notification_permission_body">Without notifications you'll only find out about a new message when you open the app. You can turn them on or off any time in Settings.</string>
     <string name="notification_permission_enable">Turn on</string>
@@ -688,6 +697,7 @@
     <string name="new_chat_search">Search contacts or @username</string>
     <string name="new_chat_contacts">Contacts</string>
     <string name="new_chat_empty">No contacts</string>
+    <string name="new_chat_empty_text">Find someone by @username, or add a contact on your phone.</string>
     <string name="new_chat_load_failed">Couldn't load contacts</string>
     <string name="settings_section_notifications">Notifications</string>
     <string name="settings_section_notifications_summary">Alerts, previews and exceptions</string>
