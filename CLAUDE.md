@@ -292,7 +292,9 @@ tam se i stahuje model. Hranice je `core/ai` (`OnDeviceAi`).
   tedy žádné. Chybu spolkne a tiše použije stabilní model. Není to tedy chybějícím modelem
   ani naším voláním — je to mezera v `genai-prompt` (1.0.0-beta4 je nejnovější verze, další
   alfa ani beta na Google Maven není). Hypotéza „stačí preview stáhnout" je vyvrácená
-  pokusem.
+  pokusem. **Má to i kontrolní měření:** totéž shrnutí s VYPNUTÝM preview nechá v logu
+  nula výskytů `FEATURE_NOT_FOUND`, model se načte normálně. Bez té kontroly by to bylo
+  jen pozorování vedle sebe, ne příčina.
 - **Labs nabízí čtyři modely, „Správa AI modelů" ukazuje jediný balík „Fast + Full [TPU]".**
   Proto je rychlá varianta připravená okamžitě a nic se nestahuje: full i fast jsou TENTÝŽ
   balík.
