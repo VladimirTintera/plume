@@ -2658,6 +2658,14 @@ to tu bylo, než vznikly `MessageEntity` a `RichText`.
   **Sbalí se jen citace, která je CELÝ text zprávy** (`collapsesQuote`, testy `MessageRowsTest`):
   `maxLines` platí pro celý `Text`, takže by ořízl i větu pod citací, a rozdělit zprávu na víc
   `Text`ů nejde (zvýraznění, spoilery a dlouhý stisk nad odkazem se počítají nad jedním layoutem).
+- **Rozbaluje a sbaluje i ťuknutí na samotnou citaci**, ne jen na rozbalovač — tak to dělá
+  i oficiální klient a tři řádky jsou mnohem větší cíl než jeden řádek popisku. Bez vlnky:
+  odezva je samo rozbalení, a vlnka by se kreslila v obdélníku kolem textu, který se s pásem
+  (ten jde od kraje bubliny) nekryje. Dlouhý stisk se opakuje, jinak by nad citací nešla otevřít
+  nabídka nad zprávou.
+- **Popisek rozbalovače má zvýrazněný řez** (`labelLargeEmphasized`). V ODCHOZÍ bublině je akcent
+  barva bubliny, takže `accentOn` ustoupí barvě textu a rozbalovač by se od zprávy lišil jen
+  šipkou — tatáž úvaha jako u podtržení odkazů tam, kde barva splývá.
 - **Rozbalovač má nad sebou DVOJNÁSOBNÉ odsazení** (2 × `MESSAGE_PADDING_V`). Pás si svoje
   spodní odsazení kreslí POD posledním řádkem citace, takže první polovina padne na něj a teprve
   druhá je mezera, kterou je vidět; s jedním odsazením seděl rozbalovač na okraji pásu (změřeno:
