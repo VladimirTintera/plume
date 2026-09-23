@@ -114,6 +114,9 @@ kotlin {
             implementation(libs.firebase.crashlytics)
             // QR kód přihlášení. Na iOS ho generuje CoreImage, tam závislost netřeba.
             implementation(libs.zxing.core)
+            // Vestavěný výběr fotek (viz core/ui/EmbeddedMediaPicker). Kde ho systém nemá,
+            // zůstává klasický Photo Picker — knihovna se jen nezavolá.
+            implementation(libs.androidx.photopicker.compose)
             implementation(libs.media3.exoplayer)
             implementation(libs.media3.ui)
             implementation(libs.play.app.update)

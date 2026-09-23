@@ -2054,6 +2054,57 @@ s videi dohromady, dokumenty a audio jen se stejným typem). Konverzace je kresl
 - **Album na hraně načtené historie může být neúplné**; dotažením starší stránky se k němu zbytek
   připojí.
 
+### Vestavěná galerie (Android)
+
+Sponka → „Fotka nebo video" otevře na Androidu 14 se SDK Extensions 15 **galerii v sheetu nad
+vstupním polem** (`androidx.photopicker`, hranice `core/ui/EmbeddedMediaPicker.kt`), ne systémovou
+obrazovku výběru. Je při vybírání vidět, do jakého chatu se posílá, a vybrané fotky naskakují
+rovnou do pruhu nad polem. Kde vestavěný výběr není (starší Android, iOS), zůstává systémový —
+rozhoduje `embeddedMediaPickerAvailable()`.
+
+- **Soukromí zůstává systémové.** Galerii kreslí proces výběru fotek do `SurfaceView`
+  (`SurfaceControlViewHost`), aplikace dostane jen vybraná URI a nepotřebuje oprávnění ke
+  knihovně fotek — tedy totéž co u systémového výběru, jen bez odchodu z chatu.
+- **Volat se smí až od API 34 s extension 15**, ale knihovna má `minSdk 23`, takže překlad nic
+  nehlídá a pod tou hranicí by to spadlo za běhu. Podmínka je proto i uvnitř `actual`, ne jen
+  u volajícího.
+- **Přílohy chodí PRŮBĚŽNĚ, odznačení taky** (`onPicked` / `onUnpicked`), ne až na konci výběru.
+  Odznačená položka se hlásí jako URI od pickeru, ale konverzace zná přílohy podle CESTY do
+  cache — proto si `actual` drží mapu URI → cesta a `ConversationViewModel.removeAttachments`
+  bere cesty.
+- **Rozbalený stav se NEZAPÍNÁ.** `setPickerLaunchedInExpandedState(true)` (ani
+  `initialExpandedValue`) neznamená „ukaž celou galerii": picker se v něm přepne do VLASTNÍ
+  AKTIVITY — ověřeno na emulátoru, `mCurrentFocus` skočil na `com.google.android.photopicker`
+  a za sheetem zůstala plocha systému. Tím by z vestavěného výběru byl zase ten systémový.
+- **Picker se zapíná až po DOSEDNUTÍ sheetu.** `SurfaceView` má `setZOrderOnTop(true)` a s posunem
+  vrstvy se nehýbe — tatáž vlastnost, kvůli které video v prohlížeči jede do `TextureView`
+  a ne přes `PlayerView`. Během vjezdu sheetu by stál na místě a doskočil až na konci.
+- **Výška je podíl okna se stropem**, ne pevné číslo: nad sheetem musí zůstat kus konverzace,
+  jinak není poznat, kam se posílá — a to je celý smysl vestavěného výběru.
+- **Co chat nepřijme, se nenabízí** (`setMimeTypes` podle `ContentAccess`), stejné pravidlo jako
+  u sponky. Omezení se posílá, jen když se fotky a videa liší; jinak zůstává výchozí obojí.
+- **Motiv se předává výslovně** (`setThemeNightMode`): picker jinak jede podle systému, ale
+  uživatel si v Nastavení může vynutit světlý nebo tmavý a galerie v opačném by vedle konverzace
+  svítila. Akcent se nastaví jen v mezích, které API bere (jas 0,05–0,9, plné krytí).
+- **Co už je vybrané, si pamatuje OBRAZOVKA, ne panel** (`EmbeddedMediaSelection`,
+  `rememberEmbeddedMediaSelection` v konverzaci). Panel se zavřením zahodí, takže bez toho začíná
+  každé otevření s prázdným výběrem — a tatáž fotka se dá vybrat podruhé, v albu je pak dvakrát.
+- **Zaškrtnutí se obnovuje PRŮNIKEM s přílohami nad polem**, ne jen z paměti. To je celá
+  synchronizace: co uživatel mezitím odebral křížkem nebo odeslal, z výběru vypadne samo a panel
+  to nemusí nijak sledovat. Průnik se počítá JEDNOU při otevření — během vybírání příloh přibývá
+  a přepočítávat by znamenalo měnit klíč stavu, tedy restartovat session uprostřed výběru.
+- **Past: `rememberEmbeddedPhotoPickerState` je saveable, takže `initialMediaSelection` samo
+  nestačí.** Při dalším otevření se obnoví ULOŽENÝ stav i s výběrem, který už neplatí — odebraná
+  fotka zůstala v mřížce zaškrtnutá (ověřeno na emulátoru). Množina obnovených položek se proto
+  předává i jako `inputs`, na kterých stav resetuje; mezi otevřeními se mění jen tehdy, když se
+  změnily přílohy, takže resetů to nepřidá.
+- **Knihovna je alpha** (`1.0.0-alpha02`) a API má `@ExperimentalPhotoPickerComposeApi`. Proto
+  je za `expect`/`actual`: bez ní i bez systémové podpory funguje výběr příloh dál.
+- **Ověřeno na emulátoru** (API 36, extension 20): galerie v sheetu nad konverzací, výběr → fotka
+  nad polem, odznačení → fotka zmizí, zavření gestem zpět, zavření a znovuotevření → fotka je
+  pořád zaškrtnutá, po odeslání → zaškrtnutí zmizí. Fallback na starším systému ověřený není —
+  je to dvojpodmínka, pod kterou se `actual` ani nezavolá.
+
 ### Posílání příloh a alb
 
 Sponka ve vstupním poli nabídne Fotka nebo video / Soubor (výběr víc najednou, nejvýš 10). Vybrané přílohy
