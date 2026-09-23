@@ -51,4 +51,32 @@ class SummaryPromptTest {
         assertTrue("in Czech" in cs)
         assertTrue("language of the conversation" in de)
     }
+
+    @Test
+    fun delkaPrepisuPodleLimitu() {
+        assertEquals(MAX_TRANSCRIPT_CHARS, transcriptCharsFor(null))
+        assertEquals(MAX_TRANSCRIPT_CHARS, transcriptCharsFor(0))
+        assertEquals(9_600, transcriptCharsFor(4_000))
+        assertEquals(MAX_TRANSCRIPT_CHARS_CAP, transcriptCharsFor(100_000))
+    }
+
+    @Test
+    fun presahZmensiPrepisUmerne() {
+        // 12 000 tokenů do limitu 4 000: třetina, a ještě o desetinu míň.
+        assertEquals(2_700, shrunkTranscriptChars(9_000, tokens = 12_000, tokenLimit = 4_000))
+    }
+
+    @Test
+    fun zmenseniVzdyAsponOZnak() {
+        // Těsný přesah by úměrně vyšel na stejnou délku a smyčka by se točila naprázdno.
+        assertTrue(shrunkTranscriptChars(1_000, tokens = 4_001, tokenLimit = 4_000) < 1_000)
+    }
+
+    @Test
+    fun pocetZpravVePrepisu() {
+        val lines = (1..10).map { TranscriptLine("A", "zprava$it") }
+        assertEquals(10, keptLineCount(lines, maxChars = 10_000))
+        assertEquals(3, keptLineCount(lines, maxChars = 40))
+        assertEquals(0, keptLineCount(emptyList(), maxChars = 40))
+    }
 }

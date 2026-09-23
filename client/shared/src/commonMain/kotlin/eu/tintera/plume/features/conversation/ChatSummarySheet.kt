@@ -25,6 +25,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.core.ui.grouped
+import eu.tintera.plume.resources.summary_details_model
+import eu.tintera.plume.resources.summary_details_tokens
+import eu.tintera.plume.resources.summary_details_tokens_no_limit
+import eu.tintera.plume.resources.summary_details_trimmed
 import eu.tintera.plume.resources.summary_disclaimer
 import eu.tintera.plume.resources.summary_failed
 import eu.tintera.plume.resources.summary_model_missing
@@ -95,6 +100,7 @@ fun ChatSummarySheet(
                         Text(state.text.trim(), style = MaterialTheme.typography.bodyLarge)
                     }
                     if (!state.done) LoadingIndicator(Modifier.size(32.dp))
+                    SummaryDetailsLine(state.details)
                 }
                 ChatSummaryState.ModelMissing -> SummaryNote(Res.string.summary_model_missing)
                 ChatSummaryState.NothingToSummarize -> SummaryNote(Res.string.summary_nothing)
@@ -116,4 +122,28 @@ fun ChatSummarySheet(
 @Composable
 private fun SummaryNote(text: StringResource) {
     Text(stringResource(text), style = MaterialTheme.typography.bodyLarge)
+}
+
+/** Drobným písmem, který model psal a jak plný byl vstup — prototyp má ukázat, jak model funguje. */
+@Composable
+private fun SummaryDetailsLine(details: SummaryDetails) {
+    val parts = buildList {
+        details.modelName?.let { add(stringResource(Res.string.summary_details_model, it)) }
+        details.promptTokens?.let { tokens ->
+            add(
+                details.tokenLimit
+                    ?.let { stringResource(Res.string.summary_details_tokens, tokens.grouped(), it.grouped()) }
+                    ?: stringResource(Res.string.summary_details_tokens_no_limit, tokens.grouped()),
+            )
+        }
+        if (details.keptLines < details.totalLines) {
+            add(stringResource(Res.string.summary_details_trimmed, details.keptLines, details.totalLines))
+        }
+    }
+    if (parts.isEmpty()) return
+    Text(
+        parts.joinToString(" · "),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }

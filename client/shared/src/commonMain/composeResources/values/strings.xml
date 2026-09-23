@@ -907,4 +907,13 @@
     <string name="summary_failed">The summary could not be created.</string>
     <string name="summary_disclaimer">Generated on this device. It may be inaccurate.</string>
     <string name="summary_retry">Try again</string>
+    <string name="settings_on_device_ai_preview">Preview model version</string>
+    <string name="settings_on_device_ai_preview_summary">The newest version before its stable release. It may not exist for this device and downloads separately.</string>
+    <string name="settings_on_device_ai_fast">Faster variant</string>
+    <string name="settings_on_device_ai_fast_summary">Answers sooner but less accurately.</string>
+    <string name="settings_on_device_ai_token_limit">Input limit: %1$s tokens</string>
+    <string name="summary_details_model">Model: %1$s</string>
+    <string name="summary_details_tokens">Input: %1$s of %2$s tokens</string>
+    <string name="summary_details_tokens_no_limit">Input: %1$s tokens</string>
+    <string name="summary_details_trimmed">%1$d of %2$d messages fit</string>
 </resources>

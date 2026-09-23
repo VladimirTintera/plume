@@ -6,7 +6,10 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.TranscriptLine
+import eu.tintera.plume.core.ai.keptLineCount
+import eu.tintera.plume.core.ai.shrunkTranscriptChars
 import eu.tintera.plume.core.ai.summaryPrompt
+import eu.tintera.plume.core.ai.transcriptCharsFor
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.platformLanguageCode
@@ -17,6 +20,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -62,6 +66,19 @@ fun transcriptLines(messages: List<ChatMessage>, chatTitle: String, me: String):
         TranscriptLine(author, text)
     }
 
+/**
+ * Co je pod shrnutím vidět drobným písmem: který model psal a jak plný byl vstup. Prototyp má
+ * ukázat, jak model funguje, a bez toho by se nedalo poznat, jestli přepis musel být zkrácený.
+ */
+data class SummaryDetails(
+    val modelName: String?,
+    val promptTokens: Int?,
+    val tokenLimit: Int?,
+    /** Kolik zpráv z přepisu se do promptu vešlo; méně než celek znamená zkrácení. */
+    val keptLines: Int,
+    val totalLines: Int,
+)
+
 sealed interface ChatSummaryState {
     data object Idle : ChatSummaryState
 
@@ -69,7 +86,7 @@ sealed interface ChatSummaryState {
     data object Preparing : ChatSummaryState
 
     /** [done] = model domluvil; do té doby text přibývá. */
-    data class Text(val text: String, val done: Boolean) : ChatSummaryState
+    data class Text(val text: String, val done: Boolean, val details: SummaryDetails) : ChatSummaryState
 
     /** Model v zařízení ještě není — stahuje se v Nastavení. */
     data object ModelMissing : ChatSummaryState
@@ -85,17 +102,23 @@ sealed interface ChatSummaryState {
  * Samostatný ViewModel, ne kus `ConversationViewModel`: je to experimentální doplněk, který se
  * dá celý vyjmout, a zprávy dostane od obrazovky — ty už v paměti jsou.
  */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ChatSummaryViewModel(
     private val ai: OnDeviceAi,
-    settings: AppSettings,
+    private val settings: AppSettings,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("ChatSummary")
 
-    /** Nabídnout „Shrnout" jen se zapnutou volbou a na zařízení, které model má nebo mít může. */
+    /**
+     * Nabídnout „Shrnout" jen se zapnutou volbou a na zařízení, které model ve zvolené variantě
+     * má nebo mít může.
+     */
     val available: StateFlow<Boolean> = combine(
         settings.onDeviceAiEnabled,
-        flow { emit(ai.status() != OnDeviceAiStatus.Unsupported) },
+        settings.onDeviceAiVariant.flatMapLatest { variant ->
+            flow { emit(ai.status(variant) != OnDeviceAiStatus.Unsupported) }
+        },
     ) { enabled, supported -> enabled && supported }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
@@ -118,18 +141,48 @@ class ChatSummaryViewModel(
         }
         _state.value = ChatSummaryState.Preparing
         job = viewModelScope.launch {
-            if (ai.status() != OnDeviceAiStatus.Ready) {
+            val variant = settings.onDeviceAiVariant.value
+            if (ai.status(variant) != OnDeviceAiStatus.Ready) {
                 _state.value = ChatSummaryState.ModelMissing
                 return@launch
             }
-            val prompt = summaryPrompt(chatTitle, lines, platformLanguageCode)
+            val info = ai.info(variant)
+            val limit = info?.tokenLimit
+
+            /*
+             * Přepis se napřed odhadne podle limitu a pak se ověří počítáním tokenů. Když se
+             * nevejde, zkrátí se (zahazují se nejstarší zprávy) a počítá se znovu. Tři pokusy
+             * stačí: zmenšuje se úměrně přesahu. Když model tokeny spočítat neumí, jde se
+             * s odhadem a případný přesah ohlásí až generování.
+             */
+            var maxChars = transcriptCharsFor(limit)
+            var prompt = summaryPrompt(chatTitle, lines, platformLanguageCode, maxChars)
+            var tokens = ai.countTokens(variant, prompt)
+            repeat(MAX_FIT_ATTEMPTS) {
+                if (limit == null || tokens == null || tokens!! <= limit) return@repeat
+                maxChars = shrunkTranscriptChars(maxChars, tokens!!, limit)
+                prompt = summaryPrompt(chatTitle, lines, platformLanguageCode, maxChars)
+                tokens = ai.countTokens(variant, prompt)
+            }
+            val details = SummaryDetails(
+                modelName = info?.name,
+                promptTokens = tokens,
+                tokenLimit = limit,
+                keptLines = keptLineCount(lines, maxChars),
+                totalLines = lines.size,
+            )
+
             var last = ""
             try {
-                ai.generate(prompt).collect { text ->
+                ai.generate(variant, prompt).collect { text ->
                     last = text
-                    _state.value = ChatSummaryState.Text(text, done = false)
+                    _state.value = ChatSummaryState.Text(text, done = false, details = details)
                 }
-                _state.value = if (last.isBlank()) ChatSummaryState.Failed else ChatSummaryState.Text(last, done = true)
+                _state.value = if (last.isBlank()) {
+                    ChatSummaryState.Failed
+                } else {
+                    ChatSummaryState.Text(last, done = true, details = details)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -145,5 +198,9 @@ class ChatSummaryViewModel(
         job = null
         _state.value = ChatSummaryState.Idle
         _source.value = null
+    }
+
+    private companion object {
+        const val MAX_FIT_ATTEMPTS = 3
     }
 }

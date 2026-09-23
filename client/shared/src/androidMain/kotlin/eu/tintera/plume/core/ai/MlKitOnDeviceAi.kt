@@ -5,9 +5,13 @@ import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.prompt.Generation
 import com.google.mlkit.genai.prompt.GenerativeModel
+import com.google.mlkit.genai.prompt.ModelPreference
+import com.google.mlkit.genai.prompt.ModelReleaseStage
 import com.google.mlkit.genai.prompt.TextPart
 import com.google.mlkit.genai.prompt.generateContentRequest
 import com.google.mlkit.genai.prompt.generationConfig
+import com.google.mlkit.genai.prompt.modelConfig
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -19,17 +23,30 @@ import kotlinx.coroutines.flow.flow
  *   chybou — proto se volá jen z obrazovky.
  * - **Model drží a aktualizuje systém**, aplikace nic nebalí. Na zařízení bez AICore
  *   `checkStatus` vrátí `UNAVAILABLE`, nebo rovnou vyhodí — obojí je [OnDeviceAiStatus.Unsupported].
- * - **Klient je jeden na proces** a nezavírá se: `Generation.getClient` je levné volání, ale
- *   model se v AICore načítá při prvním požadavku a zavřením by se o to přišlo.
+ * - **Klient je jeden na variantu a proces** a nezavírá se: model se v AICore načítá při prvním
+ *   požadavku a zavřením by se o to přišlo. Variant jsou nejvýš čtyři.
+ * - **Varianta je `ModelConfig`** (`ModelReleaseStage` STABLE / PREVIEW, `ModelPreference`
+ *   FULL / FAST). Je to přání: na zařízení, kde preview není, hlásí `checkStatus` nedostupnost.
  */
 class MlKitOnDeviceAi : OnDeviceAi {
 
     private val logger = Logger.withTag("OnDeviceAi")
 
-    private val model: GenerativeModel by lazy { Generation.getClient(generationConfig { }) }
+    private val clients = ConcurrentHashMap<ModelVariant, GenerativeModel>()
 
-    override suspend fun status(): OnDeviceAiStatus = try {
-        when (model.checkStatus()) {
+    private fun client(variant: ModelVariant): GenerativeModel = clients.getOrPut(variant) {
+        Generation.getClient(
+            generationConfig {
+                modelConfig = modelConfig {
+                    releaseStage = if (variant.preview) ModelReleaseStage.PREVIEW else ModelReleaseStage.STABLE
+                    preference = if (variant.fast) ModelPreference.FAST else ModelPreference.FULL
+                }
+            },
+        )
+    }
+
+    override suspend fun status(variant: ModelVariant): OnDeviceAiStatus = try {
+        when (client(variant).checkStatus()) {
             FeatureStatus.AVAILABLE -> OnDeviceAiStatus.Ready
             FeatureStatus.DOWNLOADABLE -> OnDeviceAiStatus.Downloadable
             FeatureStatus.DOWNLOADING -> OnDeviceAiStatus.Downloading
@@ -39,22 +56,20 @@ class MlKitOnDeviceAi : OnDeviceAi {
         throw e
     } catch (e: Exception) {
         // Bez AICore to není chyba, jen zařízení, které model nemá.
-        logger.i(e) { "Gemini Nano není k dispozici" }
+        logger.i(e) { "Gemini Nano není k dispozici ($variant)" }
         OnDeviceAiStatus.Unsupported
     }
 
-    override suspend fun modelName(): String? = try {
-        model.getBaseModelName()
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        logger.i(e) { "Název modelu nejde zjistit" }
-        null
+    override suspend fun info(variant: ModelVariant): ModelInfo? {
+        val model = client(variant)
+        val name = quietly("base model name") { model.getBaseModelName() }
+        val limit = quietly("token limit") { model.getTokenLimit() }
+        return if (name == null && limit == null) null else ModelInfo(name, limit)
     }
 
-    override fun download(): Flow<ModelDownload> = flow {
+    override fun download(variant: ModelVariant): Flow<ModelDownload> = flow {
         var total: Long? = null
-        model.download().collect { status ->
+        client(variant).download().collect { status ->
             when (status) {
                 is DownloadStatus.DownloadStarted -> {
                     total = status.bytesToDownload
@@ -62,24 +77,38 @@ class MlKitOnDeviceAi : OnDeviceAi {
                 }
                 is DownloadStatus.DownloadProgress -> emit(ModelDownload(status.totalBytesDownloaded, total))
                 is DownloadStatus.DownloadFailed -> throw status.e
-                is DownloadStatus.DownloadCompleted -> logger.i { "Gemini Nano stažený" }
+                is DownloadStatus.DownloadCompleted -> logger.i { "Gemini Nano stažený ($variant)" }
             }
         }
     }
 
-    override fun generate(prompt: String): Flow<String> = flow {
-        val request = generateContentRequest(TextPart(prompt)) {
-            // Shrnutí má držet fakta, ne vymýšlet — nízká teplota.
-            temperature = 0.2f
-            maxOutputTokens = MAX_OUTPUT_TOKENS
-        }
+    override suspend fun countTokens(variant: ModelVariant, prompt: String): Int? =
+        quietly("token count") { client(variant).countTokens(request(prompt)).totalTokens }
+
+    override fun generate(variant: ModelVariant, prompt: String): Flow<String> = flow {
         // Stream vydává PŘÍRŮSTKY (tak je skládá i ukázka od Googlu), rozhraní slibuje celý text.
         val text = StringBuilder()
-        model.generateContentStream(request).collect { chunk ->
+        client(variant).generateContentStream(request(prompt)).collect { chunk ->
             val piece = chunk.candidates.firstOrNull()?.text ?: return@collect
             text.append(piece)
             emit(text.toString())
         }
+    }
+
+    private fun request(prompt: String) = generateContentRequest(TextPart(prompt)) {
+        // Shrnutí má držet fakta, ne vymýšlet — nízká teplota.
+        temperature = 0.2f
+        maxOutputTokens = MAX_OUTPUT_TOKENS
+    }
+
+    /** Doplňkové údaje: když je model neřekne, nic se neděje, jen se neukážou. */
+    private suspend fun <T> quietly(what: String, block: suspend () -> T): T? = try {
+        block()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        logger.i(e) { "Model neřekl údaj: $what" }
+        null
     }
 
     private companion object {

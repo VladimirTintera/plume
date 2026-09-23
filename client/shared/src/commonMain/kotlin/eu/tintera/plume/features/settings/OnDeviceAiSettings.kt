@@ -25,9 +25,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.settings_on_device_ai
@@ -38,6 +40,11 @@ import eu.tintera.plume.resources.settings_on_device_ai_downloadable
 import eu.tintera.plume.resources.settings_on_device_ai_downloading
 import eu.tintera.plume.resources.settings_on_device_ai_enable
 import eu.tintera.plume.resources.settings_on_device_ai_enable_summary
+import eu.tintera.plume.resources.settings_on_device_ai_fast
+import eu.tintera.plume.resources.settings_on_device_ai_fast_summary
+import eu.tintera.plume.resources.settings_on_device_ai_preview
+import eu.tintera.plume.resources.settings_on_device_ai_preview_summary
+import eu.tintera.plume.resources.settings_on_device_ai_token_limit
 import eu.tintera.plume.resources.settings_on_device_ai_ready
 import eu.tintera.plume.resources.settings_on_device_ai_ready_unnamed
 import eu.tintera.plume.resources.settings_on_device_ai_unsupported
@@ -47,7 +54,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 /** Stav modelu, jak ho ukazuje Nastavení. */
@@ -57,15 +66,18 @@ sealed interface OnDeviceModelState {
     data object Downloadable : OnDeviceModelState
     data class Downloading(val fraction: Float?) : OnDeviceModelState
     data object DownloadFailed : OnDeviceModelState
-    data class Ready(val name: String?) : OnDeviceModelState
+    data class Ready(val name: String?, val tokenLimit: Int?) : OnDeviceModelState
 }
 
 /**
- * Volba „Shrnutí chatu" a stažení modelu.
+ * Volba „Shrnutí chatu", varianta modelu a jeho stažení.
  *
  * Stahování běží v [appScope], ne ve `viewModelScope`: trvá minuty a odchod z Nastavení ho
  * nemá zrušit. Nová obrazovka se k běžícímu stahování připojí (`download()` ve stavu
  * `Downloading`), takže průběh ukáže znovu.
+ *
+ * Varianta je pro AICore jiný model: po její změně se stav čte znovu a preview nebo rychlá
+ * varianta se může chtít stáhnout zvlášť.
  */
 class OnDeviceAiSettingsViewModel(
     private val settings: AppSettings,
@@ -76,6 +88,7 @@ class OnDeviceAiSettingsViewModel(
     private val logger = Logger.withTag("OnDeviceAi")
 
     val enabled: StateFlow<Boolean> = settings.onDeviceAiEnabled
+    val variant: StateFlow<ModelVariant> = settings.onDeviceAiVariant
 
     private val _model = MutableStateFlow<OnDeviceModelState>(OnDeviceModelState.Checking)
     val model: StateFlow<OnDeviceModelState> = _model.asStateFlow()
@@ -83,40 +96,47 @@ class OnDeviceAiSettingsViewModel(
     private var download: Job? = null
 
     init {
-        refresh()
+        // Změna varianty = jiný model; rozběhnuté čtení stavu pro tu předchozí se zahodí.
+        viewModelScope.launch { variant.collectLatest { refresh(it) } }
     }
 
     fun setEnabled(on: Boolean) {
         settings.setOnDeviceAiEnabled(on)
     }
 
+    fun setPreview(on: Boolean) = settings.setOnDeviceAiVariant(variant.value.copy(preview = on))
+
+    fun setFast(on: Boolean) = settings.setOnDeviceAiVariant(variant.value.copy(fast = on))
+
     fun download() {
         if (download?.isActive == true) return
+        val target = variant.value
         _model.value = OnDeviceModelState.Downloading(null)
         download = appScope.launch {
             try {
-                ai.download().collect { progress -> _model.value = OnDeviceModelState.Downloading(progress.fraction) }
-                refresh()
+                ai.download(target).collect { progress ->
+                    if (variant.value == target) _model.value = OnDeviceModelState.Downloading(progress.fraction)
+                }
+                if (variant.value == target) refresh(target)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                logger.w(e) { "Model se nepodařilo stáhnout" }
-                _model.value = OnDeviceModelState.DownloadFailed
+                logger.w(e) { "Model se nepodařilo stáhnout ($target)" }
+                if (variant.value == target) _model.value = OnDeviceModelState.DownloadFailed
             }
         }
     }
 
-    private fun refresh() {
-        viewModelScope.launch {
-            _model.value = when (ai.status()) {
-                OnDeviceAiStatus.Unsupported -> OnDeviceModelState.Unsupported
-                OnDeviceAiStatus.Downloadable -> OnDeviceModelState.Downloadable
-                OnDeviceAiStatus.Downloading -> {
-                    download()
-                    return@launch
-                }
-                OnDeviceAiStatus.Ready -> OnDeviceModelState.Ready(ai.modelName())
+    private suspend fun refresh(variant: ModelVariant) {
+        _model.value = OnDeviceModelState.Checking
+        _model.value = when (ai.status(variant)) {
+            OnDeviceAiStatus.Unsupported -> OnDeviceModelState.Unsupported
+            OnDeviceAiStatus.Downloadable -> OnDeviceModelState.Downloadable
+            OnDeviceAiStatus.Downloading -> {
+                download()
+                return
             }
+            OnDeviceAiStatus.Ready -> ai.info(variant).let { OnDeviceModelState.Ready(it?.name, it?.tokenLimit) }
         }
     }
 }
@@ -131,6 +151,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
     val haptics = LocalHapticFeedback.current
     val enabled by viewModel.enabled.collectAsStateWithLifecycle()
     val model by viewModel.model.collectAsStateWithLifecycle()
+    val variant by viewModel.variant.collectAsStateWithLifecycle()
 
     SettingsGroup(Res.string.settings_on_device_ai) {
         ListItem(
@@ -149,6 +170,25 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
         )
 
         if (enabled) {
+            HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+            VariantSwitch(
+                title = Res.string.settings_on_device_ai_preview,
+                summary = Res.string.settings_on_device_ai_preview_summary,
+                checked = variant.preview,
+                onChange = { on ->
+                    haptics.toggle(on)
+                    viewModel.setPreview(on)
+                },
+            )
+            VariantSwitch(
+                title = Res.string.settings_on_device_ai_fast,
+                summary = Res.string.settings_on_device_ai_fast_summary,
+                checked = variant.fast,
+                onChange = { on ->
+                    haptics.toggle(on)
+                    viewModel.setFast(on)
+                },
+            )
             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -169,6 +209,13 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                (model as? OnDeviceModelState.Ready)?.tokenLimit?.let { limit ->
+                    Text(
+                        stringResource(Res.string.settings_on_device_ai_token_limit, limit.grouped()),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
 
                 when (val current = model) {
                     is OnDeviceModelState.Downloading -> {
@@ -188,4 +235,20 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
             }
         }
     }
+}
+
+@Composable
+private fun VariantSwitch(
+    title: StringResource,
+    summary: StringResource,
+    checked: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        headlineContent = { Text(stringResource(title)) },
+        supportingContent = { Text(stringResource(summary)) },
+        trailingContent = { Switch(checked = checked, onCheckedChange = null) },
+        modifier = Modifier.toggleable(value = checked, role = Role.Switch, onValueChange = onChange),
+    )
 }

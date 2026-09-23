@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.settings
 
+import eu.tintera.plume.core.ai.ModelVariant
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
@@ -92,6 +93,12 @@ interface AppSettings {
 
     /** Zapne/vypne funkce s modelem v zařízení. Neblokuje, jako [recordRecentEmoji]. */
     fun setOnDeviceAiEnabled(enabled: Boolean)
+
+    /** Která varianta modelu v zařízení (stabilní / preview, plná / rychlá). Výchozí stabilní plná. */
+    val onDeviceAiVariant: StateFlow<ModelVariant>
+
+    /** Uloží variantu modelu. Neblokuje, jako [recordRecentEmoji]. */
+    fun setOnDeviceAiVariant(variant: ModelVariant)
 
     /**
      * `versionCode` aktualizace, jejíž kartu uživatel v seznamu chatů zavřel. Tatáž verze se
@@ -232,6 +239,22 @@ class DataStoreAppSettings(
         }
     }
 
+    override val onDeviceAiVariant: StateFlow<ModelVariant> = value(ModelVariant()) { preferences ->
+        ModelVariant(
+            preview = preferences[ON_DEVICE_AI_PREVIEW] ?: false,
+            fast = preferences[ON_DEVICE_AI_FAST] ?: false,
+        )
+    }
+
+    override fun setOnDeviceAiVariant(variant: ModelVariant) {
+        scope.launch {
+            edit { preferences ->
+                preferences[ON_DEVICE_AI_PREVIEW] = variant.preview
+                preferences[ON_DEVICE_AI_FAST] = variant.fast
+            }
+        }
+    }
+
     override val dismissedUpdateVersionCode: StateFlow<Int?> = value(null) { preferences ->
         preferences[DISMISSED_UPDATE_VERSION_CODE]
     }
@@ -265,6 +288,8 @@ class DataStoreAppSettings(
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val SEPARATE_UNREAD_CHATS = booleanPreferencesKey("separate_unread_chats")
         val ON_DEVICE_AI_ENABLED = booleanPreferencesKey("on_device_ai_enabled")
+        val ON_DEVICE_AI_PREVIEW = booleanPreferencesKey("on_device_ai_preview")
+        val ON_DEVICE_AI_FAST = booleanPreferencesKey("on_device_ai_fast")
         val DISMISSED_UPDATE_VERSION_CODE = intPreferencesKey("dismissed_update_version_code")
         const val EMOJI_SEPARATOR = " "
         const val TONE_ENTRY_SEPARATOR = ";"

@@ -12,20 +12,26 @@ import kotlinx.coroutines.flow.emptyFlow
  * (Gemma přes LiteRT-LM, Apple Foundation Models na iOS) bez zásahu do obrazovek.
  *
  * Rozhraní, ne `expect class`: ViewModel se pak dá testovat s podstrčeným modelem.
+ *
+ * Každé volání bere [ModelVariant] — varianty jsou pro AICore různé modely, každá se stahuje
+ * zvlášť a má vlastní stav i limit.
  */
 interface OnDeviceAi {
 
     /** V jakém stavu je model. Levný dotaz na systém, nic nestahuje. */
-    suspend fun status(): OnDeviceAiStatus
+    suspend fun status(variant: ModelVariant): OnDeviceAiStatus
 
-    /** Název modelu, jak ho hlásí systém (u Gemini Nano i jeho verze). `null`, když není. */
-    suspend fun modelName(): String?
+    /** Název a limit vstupu; `null`, když model v zařízení není (limit zná až stažený model). */
+    suspend fun info(variant: ModelVariant): ModelInfo?
 
     /**
      * Stáhne model a hlásí průběh. Tok skončí po dokončení, selhání se vyhodí jako výjimka.
      * Volání ve stavu [OnDeviceAiStatus.Downloading] se připojí k běžícímu stahování.
      */
-    fun download(): Flow<ModelDownload>
+    fun download(variant: ModelVariant): Flow<ModelDownload>
+
+    /** Kolik tokenů zabere [prompt] na vstupu; `null`, když to model neumí říct. */
+    suspend fun countTokens(variant: ModelVariant, prompt: String): Int?
 
     /**
      * Vygeneruje odpověď na [prompt] a vydává ji postupně.
@@ -33,11 +39,23 @@ interface OnDeviceAi {
      * Každá hodnota je CELÝ dosavadní text, ne přírůstek — obrazovka ho jen vykreslí a nemusí
      * nic skládat.
      */
-    fun generate(prompt: String): Flow<String>
+    fun generate(variant: ModelVariant, prompt: String): Flow<String>
 }
 
+/**
+ * Kterou podobu modelu chceme. Obě volby jsou jen PŘÁNÍ — co opravdu běží, řekne [ModelInfo.name].
+ *
+ * @property preview nejnovější verze v předběžném vydání místo stabilní. Bývá jen na novějších
+ *   zařízeních a stahuje se zvlášť.
+ * @property fast rychlejší a méně přesná varianta místo plné.
+ */
+data class ModelVariant(val preview: Boolean = false, val fast: Boolean = false)
+
+/** Co o modelu víme. [tokenLimit] je strop VSTUPU v tokenech. */
+data class ModelInfo(val name: String?, val tokenLimit: Int?)
+
 enum class OnDeviceAiStatus {
-    /** Zařízení model nemá a mít nebude (bez AICore, nepodporovaný čip, iOS). */
+    /** Zařízení model (v téhle variantě) nemá a mít nebude (bez AICore, nepodporovaný čip, iOS). */
     Unsupported,
 
     /** Model jde stáhnout. */
@@ -58,8 +76,9 @@ data class ModelDownload(val downloadedBytes: Long, val totalBytes: Long?) {
 
 /** Platforma bez modelu v zařízení (zatím iOS). Funkce se pak v UI vůbec nenabízí. */
 object NoopOnDeviceAi : OnDeviceAi {
-    override suspend fun status() = OnDeviceAiStatus.Unsupported
-    override suspend fun modelName(): String? = null
-    override fun download(): Flow<ModelDownload> = emptyFlow()
-    override fun generate(prompt: String): Flow<String> = emptyFlow()
+    override suspend fun status(variant: ModelVariant) = OnDeviceAiStatus.Unsupported
+    override suspend fun info(variant: ModelVariant): ModelInfo? = null
+    override fun download(variant: ModelVariant): Flow<ModelDownload> = emptyFlow()
+    override suspend fun countTokens(variant: ModelVariant, prompt: String): Int? = null
+    override fun generate(variant: ModelVariant, prompt: String): Flow<String> = emptyFlow()
 }

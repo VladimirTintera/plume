@@ -240,9 +240,18 @@ tam se i stahuje model. Hranice je `core/ai` (`OnDeviceAi`).
 - **Hotová API ML Kitu (Summarization, Proofreading, Rewriting) češtinu NEUMÍ**, jazyk se u nich
   vybírá ze seznamu. Prompt API jazyk nevolí, proto prototyp stojí na něm.
 - **Instrukce promptu jsou anglicky, jazyk odpovědi výslovně podle aplikace** (`summaryPrompt`,
-  testy `SummaryPromptTest`). Přepis se ořezává ZEZAČÁTKU na 6 000 znaků — Nano bere zhruba
-  4 000 tokenů a shrnutí má říct, co se dělo naposledy.
+  testy `SummaryPromptTest`). Přepis se ořezává ZEZAČÁTKU — shrnutí má říct, co se dělo
+  naposledy.
 - **Stream Prompt API vydává PŘÍRŮSTKY**, `OnDeviceAi.generate` celý dosavadní text.
+- **Varianta modelu je `ModelConfig`** (`ModelReleaseStage` STABLE / PREVIEW, `ModelPreference`
+  FULL / FAST; dokumentace „Select a model"). Pro AICore je to JINÝ model: vlastní stav, vlastní
+  stažení, vlastní limit. Proto každé volání `OnDeviceAi` bere `ModelVariant` a klient je jeden
+  na variantu. Volba je přání — co opravdu běží, říká `getBaseModelName()`.
+- **Aplikace nevidí seznam modelů v telefonu ani je nespravuje** — to AICore nedovoluje. Kdo chce
+  vybírat konkrétní soubor modelu, potřebuje vlastní runtime (LiteRT-LM).
+- **Přepis se přizpůsobuje skutečnému limitu** (`getTokenLimit`, `countTokens`): napřed odhad
+  podle limitu (`transcriptCharsFor`, tři znaky na token), pak nejvýš třikrát zkrátit úměrně
+  přesahu (`shrunkTranscriptChars`). Pod shrnutím je model, tokeny a kolik zpráv se vešlo.
 - **Inferenci AICore pustí jen aplikaci v popředí** — z notifikace nebo úlohy to nepůjde.
 - **Stahování modelu běží v `appScope`**, odchod z Nastavení ho neruší; nová obrazovka se ve
   stavu `Downloading` k němu připojí voláním `download()`.
