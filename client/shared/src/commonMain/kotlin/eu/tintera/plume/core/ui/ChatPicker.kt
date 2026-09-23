@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -43,6 +44,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -50,9 +52,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.max
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.resources.Res
@@ -142,6 +146,16 @@ fun ChatPicker(
     header: @Composable () -> Unit = {},
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    /*
+     * Titulek se šipkou při scrollu dolů odjede a při scrollu nahoru se vrátí — stejně jako
+     * hlavička seznamu chatů. Přečte se jednou a pak jen ukusuje ze seznamu.
+     *
+     * **Pilulka hledání s ním NEODJÍŽDÍ**, i když v seznamu chatů ano. Tam je totiž pilulka
+     * sám ten bar a hlavní činnost je čtení seznamu; tady je hledání to hlavní — chatů jsou
+     * stovky a ten hledaný v první obrazovce většinou není. Zmizelé pole přesně ve chvíli,
+     * kdy ho uživatel potřebuje, je gesto navíc za nic.
+     */
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
     val errorText = error?.resolve()
     LaunchedEffect(errorText) {
@@ -152,7 +166,7 @@ fun ChatPicker(
     }
 
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         // I klávesnice, ne jen systémové lišty: podle spodního insetu staví Scaffold tlačítko
         // a snackbar, a vysunutá klávesnice by odesílací tlačítko schovala pod sebe.
         contentWindowInsets = WindowInsets.safeDrawing,
@@ -168,6 +182,13 @@ fun ChatPicker(
                         }
                     }
                 },
+                // Sbalený bar NEMĚNÍ barvu. Výchozí `surfaceContainer` nechal pod stavovou
+                // lištou tónovaný pruh přes celou šířku — přesně to, kvůli čemu z hlavičky
+                // seznamu chatů zmizel velký app bar.
+                colors = TopAppBarDefaults.topAppBarColors(
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface,
+                ),
+                scrollBehavior = scrollBehavior,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -206,12 +227,19 @@ fun ChatPicker(
             .only(WindowInsetsSides.Bottom)
             .asPaddingValues()
             .calculateBottomPadding()
+        /*
+         * Odjíždějící bar smrskne horní padding od Scaffoldu až na nulu, takže by pilulka
+         * skončila pod hodinami a ikonami stavové lišty. Drží se proto pod ní: níž než
+         * stavová lišta nesjede. Seznam začíná až pod pilulkou, takže pod lištu nic nejede
+         * a závoj (jako v seznamu chatů) tu potřeba není.
+         */
+        val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         Column(
             Modifier
                 .padding(
                     start = padding.calculateStartPadding(layoutDirection),
                     end = padding.calculateEndPadding(layoutDirection),
-                    top = padding.calculateTopPadding(),
+                    top = max(padding.calculateTopPadding(), statusBarTop),
                 )
                 .fillMaxSize(),
         ) {
@@ -222,12 +250,17 @@ fun ChatPicker(
                 onQueryChange = onQueryChange,
                 placeholder = searchPlaceholder,
                 clearDescription = stringResource(Res.string.chats_search_clear),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = PICKER_HORIZONTAL, vertical = 8.dp),
             )
 
-            header()
-
+            /*
+             * Co obrazovka k výběru dodává (volby přeposlání, karta „co se sdílí"), je OBSAH
+             * úlohy, ne chrome: patří do seznamu jako jeho první položka a se scrollem odjede.
+             * V načítání a v prázdném stavu žádný seznam není, takže se kreslí tady — vypadá
+             * to stejně a uživatel se o tom, co sdílí, nedočte jen tehdy, když nic nenašel.
+             */
             if (loading) {
+                Box(Modifier.padding(horizontal = PICKER_HORIZONTAL)) { header() }
                 Box(
                     Modifier.fillMaxSize().padding(bottom = bottomInset),
                     contentAlignment = Alignment.Center,
@@ -243,6 +276,7 @@ fun ChatPicker(
                 .filter { it.chats.isNotEmpty() }
 
             if (blocks.isEmpty() && !showSaved) {
+                Box(Modifier.padding(horizontal = PICKER_HORIZONTAL)) { header() }
                 // Tentýž prázdný stav jako u hledání v chatech a prázdného archivu.
                 IntroEmptyState(
                     icon = emptyIcon,
@@ -257,8 +291,8 @@ fun ChatPicker(
 
             LazyColumn(
                 contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
+                    start = PICKER_HORIZONTAL,
+                    end = PICKER_HORIZONTAL,
                     top = 8.dp,
                     // Tlačítko leží na seznamu, takže poslední chat musí jít doscrollovat nad ně —
                     // jinak zůstane jeho zaškrtávátko schované pod tlačítkem.
@@ -268,6 +302,9 @@ fun ChatPicker(
                 verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
                 modifier = Modifier.fillMaxSize(),
             ) {
+                // Mezeru pod sebou si hlavička nese sama — prázdná (přeposlání bez voleb,
+                // sdílení bez textu) nesmí nechat mezeru po ničem.
+                item(key = "picker-header") { header() }
                 if (showSaved && savedMessagesChatId != null) {
                     /*
                      * Uložené zprávy jsou samostatná karta nad seznamem, ne jeho první řádek.
@@ -461,6 +498,12 @@ private fun PickerRow(
         }
     }
 }
+
+/**
+ * Odstup obsahu od krajů. Jedna hodnota pro pilulku, řádky i hlavičku — ta leží jednou
+ * v seznamu (kde ji dává `contentPadding`) a jednou nad ním, a dvě konstanty by se rozešly.
+ */
+private val PICKER_HORIZONTAL = 16.dp
 
 /** Tvář chatu ve výběru — jako v seznamu chatů. */
 private val AVATAR_SIZE = 40.dp

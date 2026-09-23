@@ -1363,6 +1363,25 @@ Přeposílání, sdílení ze systému i zahájení nové konverzace kreslí ten
   vlastní `on*` — tatáž past jako u času a ikon u vybraného chatu v seznamu. Zelená u „online"
   navíc projde přes `accentOn`: `primary` na tónované kartě je v paletě se zvýšeným kontrastem
   k nerozeznání.
+- **Titulek se šipkou při scrollu odjede** (`enterAlwaysScrollBehavior`), jako hlavička seznamu
+  chatů. Přečte se jednou a pak jen ukusuje ze seznamu; nahoru se vrátí na první pohyb.
+- **Pilulka hledání s ním NEODJÍŽDÍ**, i když v seznamu chatů ano. Tam je pilulka sám ten bar
+  a hlavní činnost je čtení seznamu; tady je hledání to hlavní — chatů jsou stovky a ten
+  hledaný v první obrazovce většinou není. Zmizelé pole přesně ve chvíli, kdy ho uživatel
+  potřebuje, je gesto navíc za nic.
+- **Obsah hlavičky (`header`) je první POLOŽKA seznamu**, ne sourozenec nad ním. Volby
+  přeposlání a karta „co se sdílí" jsou obsah úlohy, ne chrome, takže mají se scrollem odjet —
+  a jako položka seznamu to dělají samy, bez další mechaniky. V načítání a v prázdném stavu
+  žádný seznam není, takže se kreslí nad ním; vypadá to stejně.
+- **Mezeru pod sebou nese hlavička, ne seznam.** Přeposlání bez voleb (server zakázal kopii)
+  a sdílení bez textu nekreslí nic, a mezera po ničem by vypadala jako chyba.
+- **Obsah se drží pod stavovou lištou** (`max(padding.top, statusBars.top)`). Odjíždějící bar
+  smrskne horní padding od Scaffoldu až na nulu, takže by pilulka skončila pod hodinami.
+  Seznam začíná až pod pilulkou, takže pod lištu nic nejede a **závoj jako v seznamu chatů tu
+  potřeba není** — tam pod ni chaty jezdí, protože tam odjíždí i pilulka.
+- **Sbalený bar NEMĚNÍ barvu** (`scrolledContainerColor = surface`). Výchozí `surfaceContainer`
+  nechal pod stavovou lištou tónovaný pruh přes celou šířku — přesně to, kvůli čemu z hlavičky
+  seznamu chatů zmizel velký app bar.
 
 ### Co položka ukazuje
 

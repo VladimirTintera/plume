@@ -25,6 +25,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ForwardCapabilities
 import eu.tintera.plume.core.telegram.ForwardOptions
 import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
+import eu.tintera.plume.core.ui.GROUP_SPACING
 import eu.tintera.plume.core.ui.PickerSection
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.check_24dp
@@ -107,7 +109,9 @@ private fun ForwardOptionsRow(
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            // Vodorovné odsazení dává seznam (volby jsou jeho první položka); mezeru pod sebou
+            // nese tenhle Row, takže bez voleb po ní nezbude prázdné místo.
+            modifier = Modifier.padding(bottom = GROUP_SPACING - GROUP_ITEM_SPACING),
         ) {
             OptionToggle(
                 checked = options.hideSender,

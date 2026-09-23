@@ -30,6 +30,8 @@ import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.features.chats.ChatSearch
 import eu.tintera.plume.features.chats.pickerChats
 import eu.tintera.plume.core.ui.GROUP_CORNER
+import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
+import eu.tintera.plume.core.ui.GROUP_SPACING
 import eu.tintera.plume.core.ui.ChatPicker
 import eu.tintera.plume.core.ui.PickerSection
 import eu.tintera.plume.resources.Res
@@ -168,7 +170,9 @@ private fun SharedContentCard(content: SharedContent, modifier: Modifier = Modif
         shape = RoundedCornerShape(GROUP_CORNER),
         color = MaterialTheme.colorScheme.tertiaryContainer,
         contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        // Vodorovné odsazení dává seznam (karta je jeho první položka); mezeru pod sebou
+        // nese karta, takže bez sdíleného textu po ní nezbude prázdné místo.
+        modifier = modifier.fillMaxWidth().padding(bottom = GROUP_SPACING - GROUP_ITEM_SPACING),
     ) {
         Row(
             Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
