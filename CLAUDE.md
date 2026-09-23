@@ -1289,6 +1289,14 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
 Uložené zprávy jsou v Telegramu **obyčejný soukromý chat s vlastním účtem** — id chatu je id
 uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
 
+- **Odchozí je tu VŠECHNO.** TDLib hlásí u přeposlané zprávy `isOutgoing = false` (napsal ji
+  někdo jiný), takže se kreslila jako příchozí — šedá bublina vlevo a bez odznaku doručení —,
+  zatímco vlastní fotky v témž chatu stály vpravo. Chat sám se sebou ale druhou stranu nemá;
+  `TdlConversationRepository.toChatMessage` proto bere `isOutgoing || chatId == myId()`
+  a odkud zpráva je, říká značka „Přeposláno od …". **Musí to sedět i se `sendState`** — ten se
+  plní „jen u odchozích", takže dokud se opravil jen `isOutgoing`, zpráva se přesunula doprava,
+  ale odznak doručení pod ní chyběl. Id vlastního účtu se drží per klient, jako keš odesílatelů:
+  po přihlášení jiného účtu je jiné.
 - **Vlastní název a záložka místo jména a fotky účtu** (`chatTitle`, `Avatar(isSavedMessages =
   true)`). Rozpoznává se podle `ChatRepository.savedMessagesChatId`, do UI jde přes
   `LocalSavedMessagesChatId` (poskytuje shell). **`Avatar` si to NEzjišťuje sám** — kreslí
