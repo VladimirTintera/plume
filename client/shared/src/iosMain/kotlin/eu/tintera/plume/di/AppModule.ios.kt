@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.ai.NoopOnDeviceAi
+import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ui.IosSquarePhoto
 import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.audio.AudioRecorder
@@ -27,6 +29,8 @@ import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 
 actual fun Module.platformModule() {
+    // Model v zařízení zatím jen na Androidu; Apple Foundation Models by musely přijít ze Swiftu.
+    single<OnDeviceAi> { NoopOnDeviceAi }
     single { TelegramPaths() }
     single<DatabaseKeyStore> { KeychainDatabaseKeyStore() }
     single { NotificationPermission() }

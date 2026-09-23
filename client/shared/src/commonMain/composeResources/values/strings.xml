@@ -879,4 +879,32 @@
     <string name="error_transfer_needs_password">Turn on two-step verification in Telegram first — without it, ownership can't be transferred.</string>
     <string name="error_transfer_too_fresh">The password or this device is too new. Telegram allows the transfer only after a while.</string>
     <string name="error_member_admin_forbidden">Only the owner can change this admin.</string>
+    <!-- Model v zařízení (core/ai) -->
+    <string name="settings_on_device_ai">On-device AI</string>
+    <string name="settings_on_device_ai_enable">Chat summaries (experimental)</string>
+    <string name="settings_on_device_ai_enable_summary">Summarizes a chat with a language model running on this phone. Messages never leave the device.</string>
+    <string name="settings_on_device_ai_checking">Checking the model…</string>
+    <string name="settings_on_device_ai_unsupported">This device has no on-device model (Gemini Nano).</string>
+    <string name="settings_on_device_ai_downloadable">The model needs to be downloaded first. It takes up gigabytes.</string>
+    <string name="settings_on_device_ai_download">Download model</string>
+    <string name="settings_on_device_ai_downloading">Downloading the model…</string>
+    <string name="settings_on_device_ai_download_failed">The model could not be downloaded.</string>
+    <string name="settings_on_device_ai_ready">Model ready: %1$s</string>
+    <string name="settings_on_device_ai_ready_unnamed">Model ready</string>
+    <string name="summary_action">Summarize</string>
+    <plurals name="summary_title_unread">
+        <item quantity="one">Summary of %1$d unread message</item>
+        <item quantity="other">Summary of %1$d unread messages</item>
+    </plurals>
+    <plurals name="summary_title_recent">
+        <item quantity="one">Summary of the last message</item>
+        <item quantity="other">Summary of the last %1$d messages</item>
+    </plurals>
+    <string name="summary_me">Me</string>
+    <string name="summary_preparing">Reading the conversation…</string>
+    <string name="summary_model_missing">The model is not downloaded yet. Download it in Settings → General.</string>
+    <string name="summary_nothing">There is nothing to summarize here.</string>
+    <string name="summary_failed">The summary could not be created.</string>
+    <string name="summary_disclaimer">Generated on this device. It may be inaccurate.</string>
+    <string name="summary_retry">Try again</string>
 </resources>

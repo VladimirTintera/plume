@@ -84,6 +84,16 @@ interface AppSettings {
     fun setSeparateUnreadChats(separate: Boolean)
 
     /**
+     * Experimentální funkce s jazykovým modelem v zařízení (shrnutí konverzace, viz `core/ai`).
+     *
+     * Výchozí je `false`: model má gigabajty a funkce je jen pro toho, kdo o ni stojí.
+     */
+    val onDeviceAiEnabled: StateFlow<Boolean>
+
+    /** Zapne/vypne funkce s modelem v zařízení. Neblokuje, jako [recordRecentEmoji]. */
+    fun setOnDeviceAiEnabled(enabled: Boolean)
+
+    /**
      * `versionCode` aktualizace, jejíž kartu uživatel v seznamu chatů zavřel. Tatáž verze se
      * znovu nenabízí, další vydaná ano — `versionCode` se zvedá při každém releasu.
      */
@@ -212,6 +222,16 @@ class DataStoreAppSettings(
         }
     }
 
+    override val onDeviceAiEnabled: StateFlow<Boolean> = value(false) { preferences ->
+        preferences[ON_DEVICE_AI_ENABLED] ?: false
+    }
+
+    override fun setOnDeviceAiEnabled(enabled: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[ON_DEVICE_AI_ENABLED] = enabled }
+        }
+    }
+
     override val dismissedUpdateVersionCode: StateFlow<Int?> = value(null) { preferences ->
         preferences[DISMISSED_UPDATE_VERSION_CODE]
     }
@@ -244,6 +264,7 @@ class DataStoreAppSettings(
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val SEPARATE_UNREAD_CHATS = booleanPreferencesKey("separate_unread_chats")
+        val ON_DEVICE_AI_ENABLED = booleanPreferencesKey("on_device_ai_enabled")
         val DISMISSED_UPDATE_VERSION_CODE = intPreferencesKey("dismissed_update_version_code")
         const val EMOJI_SEPARATOR = " "
         const val TONE_ENTRY_SEPARATOR = ";"

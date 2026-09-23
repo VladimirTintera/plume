@@ -224,6 +224,34 @@ jiného zařízení QR kódem. Hranice je `DeviceRepository` v `core/telegram`.
 - **Odkaz `tg://login` se z ťuknutí NEOTEVÍRÁ**, jen ze čtečky. Přihlašovací odkaz poslaný ve
   zprávě je typický podvod („naskenuj/otevři tohle"); oficiální klienti ho taky jen skenují.
 
+## AI v zařízení (prototyp)
+
+Experimentální „Shrnout" v hlavičce konverzace: shrnutí nepřečtených (jinak posledních 60 zpráv)
+jazykovým modelem v telefonu. Zapíná se v Nastavení → Obecné → AI v zařízení (výchozí vypnuto),
+tam se i stahuje model. Hranice je `core/ai` (`OnDeviceAi`).
+
+- **`core/ai` je hranice** jako `core/telegram`: `com.google.mlkit.genai.*` smí být jen
+  v `androidMain/core/ai` (`MlKitOnDeviceAi`). Model jde vyměnit (Gemma přes LiteRT-LM, Apple
+  Foundation Models ze Swiftu) bez zásahu do obrazovek. iOS je zatím `NoopOnDeviceAi`.
+- **AICore není API, je to systémová služba** s Gemini Nano; aplikace na ni sahá přes ML Kit
+  GenAI Prompt API (`com.google.mlkit:genai-prompt`, beta). Verze se bere z oficiální ukázky
+  `googlesamples/mlkit` (`android/genai`) — Google Maven se z cloudového sandboxu stáhnout nedá,
+  ukázka na GitHubu ano, a je to jediný spolehlivý zdroj přesného API.
+- **Hotová API ML Kitu (Summarization, Proofreading, Rewriting) češtinu NEUMÍ**, jazyk se u nich
+  vybírá ze seznamu. Prompt API jazyk nevolí, proto prototyp stojí na něm.
+- **Instrukce promptu jsou anglicky, jazyk odpovědi výslovně podle aplikace** (`summaryPrompt`,
+  testy `SummaryPromptTest`). Přepis se ořezává ZEZAČÁTKU na 6 000 znaků — Nano bere zhruba
+  4 000 tokenů a shrnutí má říct, co se dělo naposledy.
+- **Stream Prompt API vydává PŘÍRŮSTKY**, `OnDeviceAi.generate` celý dosavadní text.
+- **Inferenci AICore pustí jen aplikaci v popředí** — z notifikace nebo úlohy to nepůjde.
+- **Stahování modelu běží v `appScope`**, odchod z Nastavení ho neruší; nová obrazovka se ve
+  stavu `Downloading` k němu připojí voláním `download()`.
+- **Zprávy ke shrnutí dává obrazovka** (`summarySource` nad `state.messages`, testy
+  `ChatSummaryTest`), ne vlastní načítání historie — prototyp shrnuje to, co je načtené.
+- **Neověřeno na zařízení a nepřeloženo** — první verze vznikla v sandboxu bez přístupu ke
+  Google Maven. Kvalita češtiny u Gemini Nano je otevřená otázka; když nebude stačit, další krok
+  je Gemma 4 přes LiteRT-LM za stejným rozhraním.
+
 ## Aktualizace z obchodu
 
 Android nabízí novou verzi z Play kartou nahoře v seznamu chatů (`UpdateCard`) přes Play

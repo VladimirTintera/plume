@@ -893,4 +893,34 @@
     <string name="error_transfer_needs_password">Nejdřív si v Telegramu zapněte dvoufázové ověření; bez něj vlastnictví předat nejde.</string>
     <string name="error_transfer_too_fresh">Heslo nebo tohle zařízení je moc čerstvé. Telegram převod dovolí až s odstupem.</string>
     <string name="error_member_admin_forbidden">Tohohle správce může měnit jen vlastník.</string>
+    <!-- Model v zařízení (core/ai) -->
+    <string name="settings_on_device_ai">AI v zařízení</string>
+    <string name="settings_on_device_ai_enable">Shrnutí chatu (experimentální)</string>
+    <string name="settings_on_device_ai_enable_summary">Shrne konverzaci jazykovým modelem, který běží v telefonu. Zprávy zařízení neopustí.</string>
+    <string name="settings_on_device_ai_checking">Zjišťuji stav modelu…</string>
+    <string name="settings_on_device_ai_unsupported">Tohle zařízení model v zařízení (Gemini Nano) nemá.</string>
+    <string name="settings_on_device_ai_downloadable">Model je potřeba nejdřív stáhnout. Zabere gigabajty.</string>
+    <string name="settings_on_device_ai_download">Stáhnout model</string>
+    <string name="settings_on_device_ai_downloading">Stahuji model…</string>
+    <string name="settings_on_device_ai_download_failed">Model se nepodařilo stáhnout.</string>
+    <string name="settings_on_device_ai_ready">Model připravený: %1$s</string>
+    <string name="settings_on_device_ai_ready_unnamed">Model připravený</string>
+    <string name="summary_action">Shrnout</string>
+    <plurals name="summary_title_unread">
+        <item quantity="one">Shrnutí %1$d nepřečtené zprávy</item>
+        <item quantity="few">Shrnutí %1$d nepřečtených zpráv</item>
+        <item quantity="other">Shrnutí %1$d nepřečtených zpráv</item>
+    </plurals>
+    <plurals name="summary_title_recent">
+        <item quantity="one">Shrnutí poslední zprávy</item>
+        <item quantity="few">Shrnutí posledních %1$d zpráv</item>
+        <item quantity="other">Shrnutí posledních %1$d zpráv</item>
+    </plurals>
+    <string name="summary_me">Já</string>
+    <string name="summary_preparing">Čtu konverzaci…</string>
+    <string name="summary_model_missing">Model ještě není stažený. Stáhneš ho v Nastavení → Obecné.</string>
+    <string name="summary_nothing">Tady není co shrnout.</string>
+    <string name="summary_failed">Shrnutí se nepovedlo.</string>
+    <string name="summary_disclaimer">Vytvořeno v zařízení. Může být nepřesné.</string>
+    <string name="summary_retry">Zkusit znovu</string>
 </resources>

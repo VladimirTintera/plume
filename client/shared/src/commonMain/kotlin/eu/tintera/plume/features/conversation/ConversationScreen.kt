@@ -29,6 +29,10 @@ import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.animation.core.AnimationSpec
 import eu.tintera.plume.resources.conversation_search
 import eu.tintera.plume.resources.search_24dp
+import eu.tintera.plume.resources.summarize_24dp
+import eu.tintera.plume.resources.summary_action
+import eu.tintera.plume.resources.summary_me
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.NavigationEventInfo
@@ -272,6 +276,19 @@ fun ConversationScreen(
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
     val state by stateHolder
+
+    // Shrnutí modelem v zařízení (experimentální, viz `core/ai`). Vlastní ViewModel s klíčem
+    // podle chatu — stejná pojistka jako u konverzace samotné.
+    val summary: ChatSummaryViewModel = koinViewModel(key = "summary-${viewModel.chatId}")
+    val summaryAvailable by summary.available.collectAsStateWithLifecycle()
+    val summaryState by summary.state.collectAsStateWithLifecycle()
+    val summarySourceState by summary.source.collectAsStateWithLifecycle()
+    val summaryMe = stringResource(Res.string.summary_me)
+    val summaryTitle = state.info?.let { chatTitle(it.id, it.title) }
+        ?: stringResource(Res.string.conversation_fallback_title)
+    val startSummary = {
+        summary.summarize(summaryTitle, summarySource(state.messages, state.unreadBoundaryId), summaryMe)
+    }
     // Hledané slovo pro bubliny. Odvozené, aby text bublin překreslila jen změna dotazu, ne každá
     // změna stavu konverzace. Dotaz, ke kterému patří výsledky, ne rozepsaný.
     val searchHighlight = remember {
@@ -922,6 +939,14 @@ fun ConversationScreen(
                     }
                 },
                 actions = {
+                    if (summaryAvailable) {
+                        IconButton(onClick = startSummary) {
+                            Icon(
+                                painterResource(Res.drawable.summarize_24dp),
+                                contentDescription = stringResource(Res.string.summary_action),
+                            )
+                        }
+                    }
                     IconButton(onClick = viewModel::openSearch) {
                         Icon(
                             painterResource(Res.drawable.search_24dp),
@@ -1140,6 +1165,15 @@ fun ConversationScreen(
                     viewModel.sendSticker(sticker)
                 },
                 onDismiss = { openStickerSetId = null },
+            )
+        }
+
+        if (summaryState != ChatSummaryState.Idle) {
+            ChatSummarySheet(
+                state = summaryState,
+                source = summarySourceState,
+                onRetry = startSummary,
+                onDismiss = summary::dismiss,
             )
         }
 
