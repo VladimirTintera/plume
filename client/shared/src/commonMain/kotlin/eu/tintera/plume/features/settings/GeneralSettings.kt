@@ -28,9 +28,10 @@ import eu.tintera.plume.resources.settings_sign_out_body
 import eu.tintera.plume.resources.settings_sign_out_confirm
 import eu.tintera.plume.resources.settings_sign_out_title
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Sekce „Obecné": kdo je přihlášený a odhlášení. Stav notifikací je v sekci Notifikace.
+ * Sekce „Obecné": kdo je přihlášený, AI v zařízení a odhlášení. Stav notifikací je v sekci Notifikace.
  *
  * Je to obsah do sloupce sekce, ne celá obrazovka — hlavičku a scrollování drží
  * [SettingsSectionScreen].
@@ -82,6 +83,9 @@ fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit) {
             }
         }
     }
+
+    // Experimentální funkce s modelem v zařízení. Nad odhlášením, které má zůstat poslední.
+    OnDeviceAiSettings(viewModel = koinViewModel())
 
     // Destruktivní akce dostane error roli a potvrzení s konkrétním následkem.
     Button(

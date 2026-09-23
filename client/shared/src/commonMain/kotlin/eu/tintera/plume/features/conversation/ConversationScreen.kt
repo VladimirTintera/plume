@@ -29,6 +29,10 @@ import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.animation.core.AnimationSpec
 import eu.tintera.plume.resources.conversation_search
 import eu.tintera.plume.resources.search_24dp
+import eu.tintera.plume.resources.summarize_24dp
+import eu.tintera.plume.resources.summary_action
+import eu.tintera.plume.resources.summary_me
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.NavigationEventInfo
@@ -272,6 +276,29 @@ fun ConversationScreen(
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
     val state by stateHolder
+
+    // Shrnutí modelem v zařízení (experimentální, viz `core/ai`). Vlastní ViewModel s klíčem
+    // podle chatu — stejná pojistka jako u konverzace samotné.
+    val summary: ChatSummaryViewModel = koinViewModel(key = "summary-${viewModel.chatId}")
+    val summaryAvailable by summary.available.collectAsStateWithLifecycle()
+    val summaryState by summary.state.collectAsStateWithLifecycle()
+    val summarySourceState by summary.source.collectAsStateWithLifecycle()
+    val summaryMe = stringResource(Res.string.summary_me)
+    val summaryTitle = state.info?.let { chatTitle(it.id, it.title) }
+        ?: stringResource(Res.string.conversation_fallback_title)
+    // Návrhy odpovědi. Vlastní ViewModel jako shrnutí a klíčovaný chatem ze stejného důvodu.
+    val replies: ReplySuggestionsViewModel = koinViewModel(key = "replies-${viewModel.chatId}")
+    val repliesAvailable by replies.available.collectAsStateWithLifecycle()
+    val replySuggestions by replies.suggestions.collectAsStateWithLifecycle()
+    val startSummary = {
+        // Zdroj se čte až v korutině, PO dotažení historie — a ze stateHolderu, ne z `state`
+        // zachyceného při skládání: ten je z doby před dotažením a chyběly by v něm stránky.
+        summary.summarize(summaryTitle, summaryMe) {
+            viewModel.loadForSummary(SUMMARY_RECENT_MESSAGES)
+            val loaded = stateHolder.value
+            summarySource(loaded.messages, loaded.unreadBoundaryId)
+        }
+    }
     // Hledané slovo pro bubliny. Odvozené, aby text bublin překreslila jen změna dotazu, ne každá
     // změna stavu konverzace. Dotaz, ke kterému patří výsledky, ne rozepsaný.
     val searchHighlight = remember {
@@ -325,6 +352,24 @@ fun ConversationScreen(
      * kurzor. S holým řetězcem by zůstal na začátku textu.
      */
     var draft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
+
+    // Komu se má odpovědět, rozhoduje čisté pravidlo nad stavem (testy `ReplySuggestionsTest`).
+    val replyTarget = replySuggestionTarget(
+        messages = state.messages,
+        draft = draft.text,
+        editing = state.editing,
+        canWrite = state.canWrite,
+    )
+    val summaryTitleForReply = state.info?.let { chatTitle(it.id, it.title) }
+    LaunchedEffect(replyTarget, repliesAvailable, summaryTitleForReply) {
+        val title = summaryTitleForReply
+        if (repliesAvailable && replyTarget != null && title != null) {
+            replies.suggest(replyTarget, title, state.messages, summaryMe)
+        } else {
+            replies.clear()
+        }
+    }
+
 
     /** Poslední otevřená část výběru — uložená v nastavení, takže platí i po restartu aplikace. */
     val expressionMode by viewModel.expressionMode.collectAsStateWithLifecycle()
@@ -922,6 +967,14 @@ fun ConversationScreen(
                     }
                 },
                 actions = {
+                    if (summaryAvailable) {
+                        IconButton(onClick = startSummary) {
+                            Icon(
+                                painterResource(Res.drawable.summarize_24dp),
+                                contentDescription = stringResource(Res.string.summary_action),
+                            )
+                        }
+                    }
                     IconButton(onClick = viewModel::openSearch) {
                         Icon(
                             painterResource(Res.drawable.search_24dp),
@@ -989,6 +1042,17 @@ fun ConversationScreen(
                 }
                 WriteAccess.Allowed, null -> Unit
             }
+            Column {
+            ReplySuggestionChips(
+                suggestions = replySuggestions,
+                // Návrh se jen VLOŽÍ do pole; odeslání zůstává na uživateli. `onDraftChanged`
+                // musí jít taky — uloží koncept a ohlásí „píše…", jako by to napsal sám.
+                onPick = { suggestion ->
+                    draft = TextFieldValue(suggestion, selection = TextRange(suggestion.length))
+                    viewModel.onDraftChanged(suggestion)
+                    replies.consume()
+                },
+            )
             MessageInput(
                 glass = Modifier.hazeBlur(
                     input = HazeInput.Sources(listHaze),
@@ -1060,6 +1124,7 @@ fun ConversationScreen(
                 },
                 onKeyboardContentFailed = viewModel::reportError,
             )
+            }
             }
         },
         // Tlačítko dolů ve FAB slotu: Scaffold ho drží nad polem a snackbar pak nad ním.
@@ -1140,6 +1205,15 @@ fun ConversationScreen(
                     viewModel.sendSticker(sticker)
                 },
                 onDismiss = { openStickerSetId = null },
+            )
+        }
+
+        if (summaryState != ChatSummaryState.Idle) {
+            ChatSummarySheet(
+                state = summaryState,
+                source = summarySourceState,
+                onRetry = startSummary,
+                onDismiss = summary::dismiss,
             )
         }
 

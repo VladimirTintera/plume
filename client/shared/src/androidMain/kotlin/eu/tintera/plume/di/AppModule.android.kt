@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.ai.MlKitOnDeviceAi
+import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ui.AndroidSquarePhoto
 import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.audio.AudioRecorder
@@ -29,6 +31,8 @@ import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 
 actual fun Module.platformModule() {
+    // Gemini Nano v AICore. Jeden klient na proces — viz MlKitOnDeviceAi.
+    single<OnDeviceAi> { MlKitOnDeviceAi() }
     single { TelegramPaths(androidContext()) }
     single<DatabaseKeyStore> { KeystoreDatabaseKeyStore(androidContext()) }
     single { NotificationPermission(androidContext()) }

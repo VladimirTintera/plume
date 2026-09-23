@@ -670,6 +670,22 @@ class ConversationViewModel(
     }
 
     /**
+     * Dotáhne historii, aby mělo shrnutí co shrnovat.
+     *
+     * Hned po otevření chatu je načtená jediná stránka ([PAGE_SIZE]), takže bez tohohle kroku
+     * shrnutí „posledních [SUMMARY_RECENT_MESSAGES] zpráv" vezme jen ji — a výsledek by závisel
+     * na tom, kolik toho uživatel předtím odscrolloval. Nepřečtené se dotahují až za hranici,
+     * jinak stačí [count] zpráv.
+     *
+     * Strop stránek je nutný: v chatu s tisíci nepřečtenými by se jinak dotahovalo dlouho
+     * a do limitu vstupu se stejně vejde zlomek.
+     */
+    suspend fun loadForSummary(count: Int) {
+        val boundary = _state.value.unreadBoundaryId
+        loadUntil(MAX_SUMMARY_PAGES) { messages -> summaryHasEnough(messages, boundary, count) }
+    }
+
+    /**
      * Skočí na citovanou zprávu a krátce ji zvýrazní.
      *
      * Citace míří často na zprávu, která už je načtená — pak je skok okamžitý. Jinak se načte
@@ -2402,6 +2418,9 @@ private const val MAX_UNREAD_PAGES = 5
  * a stránku k novějším. Stejná jako výchozí `limit` v `ConversationRepository.history`.
  */
 private const val PAGE_SIZE = 30
+
+/** Kolik stránek nejvýš dotáhne [ConversationViewModel.loadForSummary]. */
+private const val MAX_SUMMARY_PAGES = 4
 
 /** Pauza v psaní, po které se v chatu hledá. Každý dotaz jde na server. */
 private const val SEARCH_DEBOUNCE_MS = 300L

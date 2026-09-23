@@ -224,6 +224,149 @@ jiného zařízení QR kódem. Hranice je `DeviceRepository` v `core/telegram`.
 - **Odkaz `tg://login` se z ťuknutí NEOTEVÍRÁ**, jen ze čtečky. Přihlašovací odkaz poslaný ve
   zprávě je typický podvod („naskenuj/otevři tohle"); oficiální klienti ho taky jen skenují.
 
+## AI v zařízení (prototyp)
+
+Experimentální „Shrnout" v hlavičce konverzace: shrnutí nepřečtených (jinak posledních 60 zpráv)
+jazykovým modelem v telefonu. Zapíná se v Nastavení → Obecné → AI v zařízení (výchozí vypnuto),
+tam se i stahuje model. Hranice je `core/ai` (`OnDeviceAi`).
+
+- **`core/ai` je hranice** jako `core/telegram`: `com.google.mlkit.genai.*` smí být jen
+  v `androidMain/core/ai` (`MlKitOnDeviceAi`). Model jde vyměnit (Gemma přes LiteRT-LM, Apple
+  Foundation Models ze Swiftu) bez zásahu do obrazovek. iOS je zatím `NoopOnDeviceAi`.
+- **AICore není API, je to systémová služba** s Gemini Nano; aplikace na ni sahá přes ML Kit
+  GenAI Prompt API (`com.google.mlkit:genai-prompt`, beta). Verze se bere z oficiální ukázky
+  `googlesamples/mlkit` (`android/genai`) — Google Maven se z cloudového sandboxu stáhnout nedá,
+  ukázka na GitHubu ano, a je to jediný spolehlivý zdroj přesného API.
+- **Hotová API ML Kitu (Summarization, Proofreading, Rewriting) češtinu NEUMÍ**, jazyk se u nich
+  vybírá ze seznamu. Prompt API jazyk nevolí, proto prototyp stojí na něm.
+- **Instrukce promptu jsou anglicky, jazyk odpovědi výslovně podle aplikace** (`summaryPrompt`,
+  testy `SummaryPromptTest`). Přepis se ořezává ZEZAČÁTKU — shrnutí má říct, co se dělo
+  naposledy.
+- **Stream Prompt API vydává PŘÍRŮSTKY**, `OnDeviceAi.generate` celý dosavadní text.
+- **Varianta modelu je `ModelConfig`** (`ModelReleaseStage` STABLE / PREVIEW, `ModelPreference`
+  FULL / FAST; dokumentace „Select a model"). Pro AICore je to JINÝ model: vlastní stav, vlastní
+  stažení, vlastní limit. Proto každé volání `OnDeviceAi` bere `ModelVariant` a klient je jeden
+  na variantu. Volba je přání — co opravdu běží, říká `getBaseModelName()`.
+- **Aplikace nevidí seznam modelů v telefonu ani je nespravuje** — to AICore nedovoluje. Kdo chce
+  vybírat konkrétní soubor modelu, potřebuje vlastní runtime (LiteRT-LM).
+- **Přepis se přizpůsobuje skutečnému limitu** (`getTokenLimit`, `countTokens`): napřed odhad
+  podle limitu (`transcriptCharsFor`, tři znaky na token), pak nejvýš třikrát zkrátit úměrně
+  přesahu (`shrunkTranscriptChars`). Pod shrnutím je model, tokeny a kolik zpráv se vešlo.
+- **Inferenci AICore pustí jen aplikaci v popředí** — z notifikace nebo úlohy to nepůjde.
+- **Stahování modelu běží v `appScope`**, odchod z Nastavení ho neruší; nová obrazovka se ve
+  stavu `Downloading` k němu připojí voláním `download()`.
+- **Zprávy ke shrnutí dává obrazovka** (`summarySource` nad `state.messages`, testy
+  `ChatSummaryTest`), ale historie se kvůli němu nejdřív DOTÁHNE
+  (`ConversationViewModel.loadForSummary`). Hned po otevření chatu je načtená jediná stránka,
+  takže „posledních 60 zpráv" bralo 30 — a kolik jich bude, záviselo na tom, kolik uživatel
+  odscrolloval. Kdy přestat dotahovat, je čistá funkce `summaryHasEnough`.
+- **Useknutý výstup se POZNÁ, neodhaduje se z délky** (`Candidate.FinishReason.MAX_TOKENS` →
+  `Generated.truncated`). Model přestane psát uprostřed a text vypadá jako hotový; patička
+  přitom hlásí VSTUP („583 z 8 192"), takže uživatele naopak uklidní, že se všechno vešlo.
+  Ověřeno na Pixelu 11 Pro Foldu: shrnutí dvanácti zpráv skončilo u šesté a podruhé u sedmé —
+  strop je v TOKENECH, takže kam text dosáhne, je pokaždé jinde. Kus streamu bez textu nese jen
+  `finishReason`, takže se nesmí přeskočit — jinak se useknutí ztratí právě na té zprávě, která
+  ho hlásí.
+- **Čeština spotřebuje víc tokenů než angličtina**, na kterou jsou výchozí hodnoty laděné; proto
+  `MAX_OUTPUT_TOKENS = 800`, ne 400. Není to „čím víc, tím líp" — platí se delším generováním
+  (na Foldu 12–35 s).
+- **Ověřeno na zařízení** (Pixel 11 Pro Fold, Android 17, AICore `thirdpartyexperimental`):
+  `nano-v4-full`, limit vstupu 8 192 tokenů, rychlejší varianta je opravdu jiný model
+  (`nano-v4-fast`) a je připravená hned. **Shrnutí funguje i v letovém režimu** — model počítá
+  v telefonu, nic se neposílá.
+- **Preview varianta se tiše chová jako stabilní.** `checkStatus` vrátí `AVAILABLE` (ne
+  `DOWNLOADABLE`) a `getBaseModelName()` dá totéž jméno co stabilní verze, takže přepínač
+  nedělá nic. Porovnáno na zařízení všemi čtyřmi kombinacemi: jméno určuje VÝHRADNĚ `fast`
+  (`nano-v4-full` / `nano-v4-fast`), `preview` na ně nemá vliv a limit je pořád 8 192.
+  Proto `previewSameAsStable` — jména se porovnají a pod přepínač se připíše, že se nepoužije.
+- **Preview model v zařízení JE a přes ML Kit se k němu stejně nedostaneme — a je vidět
+  proč.** V AICore Labs (`aicore.demo.labs.thirdparty.ThirdPartyLabsActivity`) jde vybrat
+  „Gemini Nano 4 Full [Preview, TPU]" a odpoví na prompt; `getBaseModelName()` se zapnutým
+  `preview` přesto vrací dál `nano-v4-full`, i po `force-stop`. **V logcatu je příčina:**
+  ```
+  GenAiProcessorKt: AICore failed with error type 3-PREPARATION_ERROR
+    and error code 606-FEATURE_NOT_FOUND: Feature -1 is not available.
+  GenAiProcessorKt: checkFeatureStatus failed
+  ```
+  ML Kit si konfiguraci překládá na číslo AICore „feature" a pro preview mu vyjde **-1**,
+  tedy žádné. Chybu spolkne a tiše použije stabilní model. Není to tedy chybějícím modelem
+  ani naším voláním — je to mezera v `genai-prompt` (1.0.0-beta4 je nejnovější verze, další
+  alfa ani beta na Google Maven není). Hypotéza „stačí preview stáhnout" je vyvrácená
+  pokusem. **Má to i kontrolní měření:** totéž shrnutí s VYPNUTÝM preview nechá v logu
+  nula výskytů `FEATURE_NOT_FOUND`, model se načte normálně. Bez té kontroly by to bylo
+  jen pozorování vedle sebe, ne příčina.
+- **Labs nabízí čtyři modely, „Správa AI modelů" ukazuje jediný balík „Fast + Full [TPU]".**
+  Proto je rychlá varianta připravená okamžitě a nic se nestahuje: full i fast jsou TENTÝŽ
+  balík.
+- **Preview Full je postavený na Gemma 4 E4B**, zatímco stabilní na E2B — tedy větší model
+  a nejnadějnější směr pro kvalitu češtiny. **Cesta k němu přes ML Kit ale nevede** (viz výš)
+  a seznam modelů API nemá: `GenerativeModel` zná jen `getBaseModelName()` pro právě
+  nakonfigurovanou variantu. Kdo na E4B chce, potřebuje vlastní runtime (LiteRT-LM).
+### Návrhy odpovědí
+
+Přijde zpráva, pole je prázdné → nad polem se ukážou až tři čipy s krátkou odpovědí. Ťuknutí ji
+**VLOŽÍ do pole, neodešle**: text píše model a uživatel se pod něj podepisuje. Vlastní vypínač
+v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto návrhy vyskočí samy).
+
+- **Čipy, ne bublina v konverzaci.** Průsvitná „duchová" bublina na místě, kde by odpověď byla,
+  vypadá jako odeslaná zpráva a jednou za čas by si někdo myslel, že už odešla. Tenhle vzor znají
+  lidé z Gmailu a Google Zpráv.
+- **Krátká odpověď je RYCHLÁ.** Inference 0,2–0,4 s (měřeno v logu AICore mezi
+  `CreateSessionWithSSV1` a `nativeUnload`), zatímco shrnutí 12–35 s. Rozdíl nedělá vstup, ale
+  délka VÝSTUPU — našeptávání je tedy použitelné, i když shrnutí působí pomalu.
+- **Poslední zpráva jde do promptu ZVLÁŠŤ a až za kontextem.** V jednom slepeném přepisu zanikne
+  a model odpovídá na rozhovor jako celek: do chatu plného zpráv o výletu přišlo „Dáme v sobotu
+  kafe?" a návrhy zněly „Jsem připraven." a „Dobré, pak se." Se zdůrazněnou poslední zprávou
+  („Reply to THIS message") a kontextem zkráceným z 10 na 6 zpráv přišlo „Neděle mi vyhovuje."
+- **Tykání/vykání se musí říct výslovně.** Bez instrukce model kamarádovi VYKAL („Co byste
+  předpokládali?"). Instrukce jmenuje „tykání" i „vykání" česky — samotné „be informal" model do
+  správného tvaru slovesa nepřeloží. Když z konverzace poznat nejde, tyká se: v Telegramu si lidé
+  tykají mnohem častěji a tykání cizímu je menší prohřešek než vykání kamarádovi.
+- **Jazyk se volí jinak než u shrnutí.** Shrnutí čte uživatel → jazyk aplikace. Návrh se ODEŠLE
+  protějšku → jazyk konverzace; jazyk aplikace je jen nápověda, protože jinak model sklouzne
+  (na nejednoznačný vstup odpověděl polsky).
+- **Návrh se dělá JEDNOU na zprávu** (`ReplySuggestionsViewModel` si drží id). Bez toho by se
+  inference pouštěla při každé změně stavu konverzace — přečtení, reakce, scroll.
+- **Kdy nabídnout, je čistá funkce** `replySuggestionTarget` (testy `ReplySuggestionsTest`):
+  poslední zpráva příchozí a neservisní, nic rozepsaného, neupravuje se, smí se psát. Vrací id
+  zprávy, ne `Boolean` — obrazovka podle něj pozná, že jde o jinou zprávu, a nemusí si pamatovat nic.
+- **Výstup modelu se parsuje tolerantně** (`parseReplySuggestions`, testy `ReplyPromptTest`):
+  model odrážky nedrží, očísluje je, obalí uvozovkami nebo přidá úvodní větu s dvojtečkou.
+  Nikdy nevrátí prázdno kvůli formátu — když řádky rozpoznat nejdou, je návrhem celý text.
+- **Na zařízení bez AICore se nesmí nic stát a nestane.** Ověřeno na TŘECH systémech —
+  Android 16, Android 9 (API 28, Play služby 21.45.15) a **Android 8 (API 26, tedy `minSdk`
+  projektu)** —, všude bez balíčku `com.google.android.aicore`. Pokaždé stejně: `status` vrátí
+  `Unsupported` (takže se ikona Shrnout ani čipy nenabídnou), `countTokens` `null` a `generate`
+  skončí VÝJIMKOU `GenAiException [ErrorCode -101] AICore is either not installed or the
+  installed version is too low`. Žádný pád, v logu aplikace čisto. Stáří systému ani verze Play
+  služeb na tom nic nemění.
+- **Na nepodporovaném zařízení se sekce v Nastavení VŮBEC NENABÍZÍ.** Dřív se vykreslila vždycky
+  a uživatel zapnul přepínač, aby se teprve pak dozvěděl „tohle zařízení model nemá" — nabídka
+  funkce, kterou nelze mít. Stejné pravidlo jako u filtrů seznamu chatů. Ptá se na VÝCHOZÍ
+  variantu, ne na zvolenou: preview nebo rychlá může chybět zvlášť a kvůli tomu by sekce zmizela
+  i tomu, kdo model má. Dokud stav nedorazí, taky se nekreslí — objevení ruší míň než zmizení.
+- **Ověřuje se to sondou, ne proklikáním.** Do Nastavení se bez přihlášení nedostaneš, takže se
+  do `startKoin` dočasně přidá volání `status`/`info`/`countTokens`/`generate` v `runCatching`
+  a výsledek se zaloguje. Sonda se NECOMMITUJE — postaví se z ní APK a zdroják se hned vrátí.
+- **Staré arm64 obrazy na Apple Silicon zamrzají.** Android 9 i 8 spadly na
+  „detected a hanging thread QEMU2 main loop", dokud emulátor nedostal
+  `-gpu swiftshader_indirect -cores 2`. Není to chyba aplikace a stojí to deset minut hledání.
+- **Chyba ale nemusí přijít jako výjimka.** Kde chybí systémová část (staré Play služby, ořezaný
+  ROM), vyletí `Error` — `NoClassDefFoundError`, `UnsatisfiedLinkError`, `VerifyError` —, a ten
+  `catch (Exception)` NECHYTÍ. `MlKitOnDeviceAi` proto chytá i `LinkageError`: aplikace nesmí
+  spadnout jen proto, že si někdo zapnul volitelnou funkci na starším telefonu.
+- **Zjišťování dostupnosti má `catch`, i když „nemůže" selhat.** `available` je `flow { … }`
+  v `stateIn(viewModelScope)`; cokoli, co by z něj vyletělo, shodí scope, tedy ViewModel celé
+  obrazovky. Nepodařilo se zjistit = nenabízet.
+- **Sloh je pořád slabina.** Tykání i věcnost sedí, ale mezi třemi návrhy bývá jeden nesmysl
+  („Ne, zítra mi je zajímavé."). To je limit modelu, ne promptu.
+
+- **Fakta model drží, sloh ne.** Na připraveném testu (ceny, číslo účtu, datum, jména) nevymyslel
+  nic — ale na skutečné konverzaci komolí tvary („telefon nebudou mít vibrace“), plete si, kdo co
+  řekl, občas propíše do textu instrukci („shrnutí konzultace **v češtině**“) a u pár zpráv nafoukne
+  zdvořilosti na plnohodnotné body. Když to nebude stačit, další krok je Gemma 4 přes LiteRT-LM
+  za stejným rozhraním.
+
 ## Aktualizace z obchodu
 
 Android nabízí novou verzi z Play kartou nahoře v seznamu chatů (`UpdateCard`) přes Play

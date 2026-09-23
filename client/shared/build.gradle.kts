@@ -119,6 +119,8 @@ kotlin {
             implementation(libs.play.app.update)
             // Čtečka QR kódů pro přihlášení jiného zařízení — viz core/ui/QrScanner.
             implementation(libs.play.code.scanner)
+            // Gemini Nano v zařízení. Jediné místo v projektu, kde smí být ML Kit GenAI — viz core/ai.
+            implementation(libs.mlkit.genai.prompt)
             // androidContext() v platformModule — Koin na Androidu potřebuje Context pro cestu k DB.
             implementation(libs.koin.android)
         }
