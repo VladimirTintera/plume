@@ -41,6 +41,10 @@ import dev.g000sha256.tdl.dto.ChatActionUploadingVideo
 import dev.g000sha256.tdl.dto.ChatActionUploadingVideoNote
 import dev.g000sha256.tdl.dto.ChatActionUploadingVoiceNote
 import dev.g000sha256.tdl.dto.ChatTypeSecret
+import dev.g000sha256.tdl.dto.BlockListMain
+import dev.g000sha256.tdl.dto.ChatActionBarReportAddBlock
+import dev.g000sha256.tdl.dto.ChatActionBarReportSpam
+import dev.g000sha256.tdl.dto.ReportChatResultOk
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
 import dev.g000sha256.tdl.dto.MessageSenderChat
@@ -566,6 +570,45 @@ class TdlChatRepository(
         return result.toResult().map { }
     }
 
+    override suspend fun spamActions(chatId: Long): Result<SpamActions> = runCatching {
+        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+        val userId = chat.blockableUserId()
+        SpamActions(
+            canBlock = userId != null,
+            // Blokovaného pozná jen `UserFullInfo`; `Chat` to nenese.
+            isBlocked = userId != null &&
+                client.getUserFullInfo(userId = userId).toResult().getOrNull()?.blockList != null,
+            canReport = chat.reportsSpamDirectly(),
+        )
+    }
+
+    override suspend fun setBlocked(chatId: Long, blocked: Boolean): Result<Unit> {
+        val chat = client.getChat(chatId = chatId).toResult().getOrNull()
+        val userId = chat?.blockableUserId()
+            ?: return Result.failure(IllegalStateException("V chatu $chatId není koho blokovat."))
+
+        // Blokuje se hlavní seznam (`BlockListMain`) — ten brání psát i volat; stories mají vlastní.
+        return client.setMessageSenderBlockList(
+            senderId = MessageSenderUser(userId = userId),
+            blockList = if (blocked) BlockListMain() else null,
+        ).toResult().map { }
+    }
+
+    /**
+     * `reportChat` je ve skutečnosti PRŮVODCE: server smí odpovědět, že chce volbu důvodu, text
+     * nebo konkrétní zprávy. Jedním krokem projde jen chat se spamovým action barem (viz
+     * [Chat.reportsSpamDirectly]), a právě podle toho se volba nabízí — takže jiná odpověď než
+     * [ReportChatResultOk] tu znamená, že nahlásit takhle nešlo, a musí jít vidět.
+     */
+    override suspend fun reportSpam(chatId: Long): Result<Unit> = client
+        .reportChat(chatId = chatId, optionId = ByteArray(0), messageIds = LongArray(0), text = "")
+        .toResult()
+        .mapCatching { result ->
+            if (result !is ReportChatResultOk) {
+                throw IllegalStateException("Nahlášení chatu $chatId chce průvodce: $result")
+            }
+        }
+
     override suspend fun searchChats(query: String, onServer: Boolean): Result<List<ChatSummary>> {
         val result = if (onServer) {
             client.searchChatsOnServer(query = query, limit = SEARCH_LIMIT)
@@ -925,6 +968,28 @@ internal fun DraftMessage.toChatDraft(): ChatDraft? {
 
 /** Pozice chatu v jedné složce. */
 private data class FolderPosition(val order: Long, val isPinned: Boolean)
+
+/**
+ * Koho v chatu jde zablokovat, nebo `null`, když nikoho.
+ *
+ * Jen soukromý a tajný chat s NĚKÝM JINÝM: ve skupině a kanálu se blokuje jinak (vyhození člena)
+ * a v Uložených zprávách by šlo o blokování sebe — to TDLib odmítne.
+ */
+private fun Chat.blockableUserId(): Long? = when (val type = type) {
+    is ChatTypePrivate -> type.userId
+    is ChatTypeSecret -> type.userId
+    else -> null
+}
+
+/**
+ * Jde chat nahlásit jako spam JEDNÍM voláním?
+ *
+ * Rozhoduje action bar, ne `canBeReported`: ten říká jen „tohle jde nahlásit", zatímco
+ * jednokrokové nahlášení s prázdnou volbou i seznamem zpráv slibuje dokumentace právě
+ * u spamového action baru. Pravidlo projektu je nenabízet akci, která skončí chybou od serveru.
+ */
+private fun Chat.reportsSpamDirectly(): Boolean =
+    actionBar is ChatActionBarReportSpam || actionBar is ChatActionBarReportAddBlock
 
 private fun ChatPosition.toFolderPosition() = FolderPosition(order = order, isPinned = isPinned)
 

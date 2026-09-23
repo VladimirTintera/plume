@@ -26,11 +26,14 @@ import eu.tintera.plume.core.ui.chatTitle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -39,13 +42,20 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.telegram.SpamActions
 import eu.tintera.plume.core.telegram.isPrivate
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.archive_24dp
+import eu.tintera.plume.resources.block_24dp
+import eu.tintera.plume.resources.chats_delete_block
+import eu.tintera.plume.resources.chats_delete_report
+import eu.tintera.plume.resources.profile_block
+import eu.tintera.plume.resources.profile_unblock
 import eu.tintera.plume.resources.chats_action_archive
 import eu.tintera.plume.resources.chats_action_unarchive
 import eu.tintera.plume.resources.unarchive_24dp
@@ -79,6 +89,8 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun ChatActionsSheet(
     chat: ChatSummary,
+    /** Co nabídnout proti spamu; `null`, dokud to nedorazí ze serveru — pak se nenabízí nic. */
+    spam: SpamActions?,
     onTogglePinned: () -> Unit,
     /** Ztlumení na dobu; `null` = navždy. */
     onMute: (Duration?) -> Unit,
@@ -86,6 +98,7 @@ fun ChatActionsSheet(
     onToggleUnread: () -> Unit,
     /** `null` = chat archivovat nejde (Uložené zprávy), položka se nenabídne. */
     onToggleArchived: (() -> Unit)?,
+    onSetBlocked: (Boolean) -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -184,6 +197,24 @@ fun ChatActionsSheet(
                 )
             }
 
+            /*
+             * Zablokovat, když má chat koho. Zjišťuje se to na dotaz, takže položka naskočí o kousek
+             * později než zbytek nabídky — objevení ruší míň než zmizení a chybějící stav nesmí
+             * nabídnout akci, kterou server odmítne.
+             *
+             * Bez potvrzovacího dialogu: blokování je vratné a „Vrátit" ve snackbaru je lepší než
+             * dialog, který před vratnou akcí jen zdržuje. (V profilu chatu dialog zůstává — tam se
+             * do blokování chodí vědomě a snackbar s „Vrátit" tam není odkud ukázat.)
+             */
+            if (spam?.canBlock == true) {
+                SheetActionRow(
+                    icon = Res.drawable.block_24dp,
+                    label = stringResource(if (spam.isBlocked) Res.string.profile_unblock else Res.string.profile_block),
+                    shape = RoundedCornerShape(4.dp),
+                    onClick = { onSetBlocked(!spam.isBlocked) },
+                )
+            }
+
             SheetActionRow(
                 icon = Res.drawable.delete_24dp,
                 // Ze skupiny se odchází, soukromý chat se maže. Jeden popisek pro obojí by lhal.
@@ -209,22 +240,42 @@ fun ChatActionsSheet(
 @Composable
 fun ChatDeleteDialog(
     chat: ChatSummary,
-    onConfirm: () -> Unit,
+    /** Co jde k mazání přibalit; `null` nebo bez práv = jen mazání, dialog je pak jako dřív. */
+    spam: SpamActions?,
+    onConfirm: (SpamCleanup) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    /*
+     * Volby jsou v potvrzení mazání, ne vedle něj: spam se řeší obojím naráz — kdo smaže chat
+     * a nezablokuje, dostane od bota zprávu znovu. Blokovaného už blokovat nenabízíme a nahlásit
+     * jde jen chat se spamovým action barem, takže u běžného chatu dialog zůstává jako dřív.
+     */
+    val canBlock = spam?.canBlock == true && !spam.isBlocked
+    val canReport = spam?.canReport == true
+    var block by rememberSaveable { mutableStateOf(false) }
+    var report by rememberSaveable { mutableStateOf(false) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(if (chat.isPrivate) Res.string.chats_delete_title else Res.string.chats_leave_title)) },
         text = {
-            Text(
-                stringResource(
-                    if (chat.isPrivate) Res.string.chats_delete_body else Res.string.chats_leave_body,
-                    chatTitle(chat.id, chat.title),
-                ),
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    stringResource(
+                        if (chat.isPrivate) Res.string.chats_delete_body else Res.string.chats_leave_body,
+                        chatTitle(chat.id, chat.title),
+                    ),
+                )
+                if (canBlock) {
+                    DeleteOption(Res.string.chats_delete_block, block) { block = it }
+                }
+                if (canReport) {
+                    DeleteOption(Res.string.chats_delete_report, report) { report = it }
+                }
+            }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            TextButton(onClick = { onConfirm(SpamCleanup(report = canReport && report, block = canBlock && block)) }) {
                 Text(
                     text = stringResource(if (chat.isPrivate) Res.string.common_delete else Res.string.chats_action_leave),
                     color = MaterialTheme.colorScheme.error,
@@ -235,6 +286,27 @@ fun ChatDeleteDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
+}
+
+/**
+ * Volba v potvrzení mazání.
+ *
+ * Klikání nese celý řádek a zaškrtávátko má `onCheckedChange = null`: do malého kolečka se nemá
+ * trefovat a čtečka obrazovky má číst jednu položku, ne dvě — stejné pravidlo jako u řádků
+ * v Nastavení.
+ */
+@Composable
+private fun DeleteOption(label: StringResource, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, role = Role.Checkbox, onValueChange = onCheckedChange),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Checkbox(checked = checked, onCheckedChange = null)
+        Text(stringResource(label), style = MaterialTheme.typography.bodyLarge)
+    }
 }
 
 /** Doby ztlumení v nabídce; `null` = navždy. Stejné jako v profilu chatu. */

@@ -1709,6 +1709,47 @@ Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečte
 - **`Card(onClick = …)` umí jen krátké ťuknutí.** Dlouhý stisk potřebuje `combinedClickable`,
   takže se z karty stal `Surface` s vlastním klikáním.
 
+### Blokování a nahlášení spamu
+
+Nabídka nad chatem má u soukromého chatu (i bota) „Zablokovat", a potvrzení smazání k tomu
+nabídne zaškrtávátka „Zablokovat taky" a „Nahlásit spam" — spam se řeší obojím naráz, protože
+kdo bota jen smaže, dostane od něj zprávu znovu.
+
+- **Blokování má JEDNU cestu, a je jí `ChatRepository`** (`setBlocked(chatId, …)` →
+  `setMessageSenderBlockList` s `BlockListMain`). Profil chatu ji volá taky; dřív měl vlastní
+  `ProfileRepository.setBlocked(userId, …)` a dvě cesty k témuž volání by se rozešly. Volající
+  má chatId, ne userId — rozbalení na `ChatTypePrivate`/`ChatTypeSecret` patří za hranici.
+- **Blokování chat NEMAŽE, a proto ho musí ohlásit snackbar.** V seznamu se po zablokování nic
+  viditelného nezmění; bez potvrzení to vypadá, že ťuknutí nic neudělalo. Snackbar má „Vrátit",
+  takže potvrzovací dialog před ním nemá co dělat — stejné pravidlo jako u archivace a odepnuté
+  zprávy. (V profilu chatu dialog zůstává: tam se do blokování chodí vědomě a snackbar s „Vrátit"
+  tam není odkud ukázat.)
+- **Stav blokování se čte až při otevření nabídky** (`spamActions`), jako práva u nabídky nad
+  zprávou: `ChatSummary` ho nenese a `getUserFullInfo` na každý chat v seznamu by byl dotaz za
+  položku. Dokud odpověď nedorazí, položka se nekreslí — objevení ruší míň než zmizení.
+  **Nezjištěno = nenabízet nic** (`SpamActions()`); akce, která skončí chybou od serveru, je
+  horší než žádná.
+- **`reportChat` NENÍ jedno volání, je to PRŮVODCE.** Vrací `ReportChatResult`: `Ok`, nebo
+  `OptionRequired` (volba důvodu), `TextRequired`, `MessagesRequired`. Jedním krokem (prázdné
+  `optionId` i `messageIds`) projde jen chat, kterému server dal spamový action bar
+  (`ChatActionBarReportSpam`, `ChatActionBarReportAddBlock`) — a právě podle NĚJ se volba
+  nabízí, ne podle `Chat.canBeReported`. Ten říká jen „tohle jde nahlásit" a u zbytku by
+  položka skončila požadavkem na volbu, kterou aplikace neumí zobrazit.
+- **Důsledek, se kterým se počítá:** u bota, kterému uživatel dal `/start`, action bar není,
+  takže se „Nahlásit spam" nenabídne. Není to chyba — je to tentýž případ jako filtry seznamu,
+  které nemají co odfiltrovat. Průvodce s volbou důvodu je úkol v roadmapě.
+- **Pořadí je nahlásit → zablokovat → smazat a na první chybě se ZASTAVÍ** (`cleanUpSpam`, testy
+  `SpamCleanupTest`). Nahlásit jde jen chat, který ještě existuje, takže mazání musí být
+  poslední; a kdyby se chat smazal i po selhaném blokování, bot by dál psal, uživatel by si
+  myslel, že je vyřízený — a chat, na kterém by šlo akci zopakovat, by byl pryč. Je to funkce
+  mimo ViewModel, protože uvnitř něj se pořadí kroků ani chování po chybě neotestuje.
+- **Zaškrtávátka jsou výchozí vypnutá** a blokovanému se „Zablokovat taky" nenabízí. Zablokovat
+  někoho omylem při mazání chatu je horší než ťuknutí navíc.
+- **Ověřeno na emulátoru** (chat s testovacím botem): položka v nabídce, zablokování se
+  snackbarem „Vrátit", překlopení popisku na „Odblokovat", odblokování a zaškrtávátko
+  v potvrzení mazání. **Skutečné smazání s volbami a nahlášení ověřené NENÍ** — nahlášení by
+  šlo moderátorům Telegramu na vlastního testovacího bota.
+
 ## Konverzace
 
 ### Bloky seznamu

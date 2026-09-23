@@ -117,6 +117,8 @@ import eu.tintera.plume.resources.chats_archive
 import eu.tintera.plume.resources.chats_archived
 import eu.tintera.plume.resources.chats_new
 import eu.tintera.plume.resources.chats_undo
+import eu.tintera.plume.resources.chats_blocked
+import eu.tintera.plume.resources.chats_unblocked
 import eu.tintera.plume.resources.chats_unarchived
 import eu.tintera.plume.resources.chats_draft_prefix
 import eu.tintera.plume.resources.chats_empty
@@ -642,9 +644,28 @@ internal fun ChatActionsHost(
         }
     }
 
+    /*
+     * Zablokování v seznamu nic vidět nezmění (chat zůstává), takže je snackbar jediné potvrzení,
+     * že se něco stalo — a zároveň nahrazuje potvrzovací dialog před vratnou akcí. Běží mimo efekt
+     * ze stejného důvodu jako u archivace.
+     */
+    LaunchedEffect(actions.blocked) {
+        val change = actions.blocked ?: return@LaunchedEffect
+        viewModel.consumeBlocked()
+        snackbarScope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = getString(if (change.blocked) Res.string.chats_blocked else Res.string.chats_unblocked),
+                actionLabel = getString(Res.string.chats_undo),
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) viewModel.undoBlock(change)
+        }
+    }
+
     actions.target?.let { chat ->
         ChatActionsSheet(
             chat = chat,
+            spam = actions.spam,
             onTogglePinned = { viewModel.togglePinned(chat) },
             onMute = { duration -> viewModel.mute(chat, duration) },
             onUnmute = { viewModel.unmute(chat) },
@@ -653,6 +674,7 @@ internal fun ChatActionsHost(
             onToggleArchived = if (chat.id == savedMessagesChatId) null else {
                 { viewModel.toggleArchived(chat) }
             },
+            onSetBlocked = { blocked -> viewModel.setBlocked(chat, blocked) },
             onDelete = { viewModel.askDelete(chat) },
             onDismiss = viewModel::hideActions,
         )
@@ -661,7 +683,8 @@ internal fun ChatActionsHost(
     actions.pendingDelete?.let { chat ->
         ChatDeleteDialog(
             chat = chat,
-            onConfirm = { viewModel.confirmDelete(chat) },
+            spam = actions.spam,
+            onConfirm = { cleanup -> viewModel.confirmDelete(chat, cleanup) },
             onDismiss = viewModel::cancelDelete,
         )
     }

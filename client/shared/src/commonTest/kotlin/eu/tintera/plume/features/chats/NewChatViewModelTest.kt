@@ -10,6 +10,7 @@ import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.FoundMessagesPage
 import eu.tintera.plume.core.telegram.MessageSearchFilter
+import eu.tintera.plume.core.telegram.SpamActions
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.InviteJoinResult
 import kotlinx.coroutines.flow.Flow
@@ -178,5 +179,11 @@ class NewChatViewModelTest {
             Result.success(Unit)
 
         override suspend fun deleteOrLeave(chatId: Long): Result<Unit> = Result.success(Unit)
+
+        override suspend fun spamActions(chatId: Long): Result<SpamActions> = Result.success(SpamActions())
+
+        override suspend fun setBlocked(chatId: Long, blocked: Boolean): Result<Unit> = Result.success(Unit)
+
+        override suspend fun reportSpam(chatId: Long): Result<Unit> = Result.success(Unit)
     }
 }

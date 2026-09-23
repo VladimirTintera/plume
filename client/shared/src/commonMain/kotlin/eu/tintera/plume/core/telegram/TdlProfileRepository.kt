@@ -1,6 +1,5 @@
 package eu.tintera.plume.core.telegram
 
-import dev.g000sha256.tdl.dto.BlockListMain
 import dev.g000sha256.tdl.dto.CanTransferOwnershipResultOk
 import dev.g000sha256.tdl.dto.CanTransferOwnershipResultPasswordNeeded
 import dev.g000sha256.tdl.dto.CanTransferOwnershipResultPasswordTooFresh
@@ -177,13 +176,6 @@ class TdlProfileRepository(
             .toResult().getOrThrow()
         Unit
     }
-
-    /** Blokuje se hlavní seznam (`BlockListMain`) — ten brání psát i volat; stories mají vlastní. */
-    override suspend fun setBlocked(userId: Long, blocked: Boolean): Result<Unit> =
-        client.setMessageSenderBlockList(
-            senderId = MessageSenderUser(userId = userId),
-            blockList = if (blocked) BlockListMain() else null,
-        ).toResult().map { }
 
     override suspend fun deleteOrLeave(profile: ChatProfile): Result<Unit> =
         if (profile.isPrivate) {

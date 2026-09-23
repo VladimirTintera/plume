@@ -19,9 +19,6 @@ interface ProfileRepository {
      */
     suspend fun members(chatId: Long): Result<List<ProfileMember>>
 
-    /** Zablokovat / odblokovat uživatele nebo bota (`setMessageSenderBlockList`). */
-    suspend fun setBlocked(userId: Long, blocked: Boolean): Result<Unit>
-
     /**
      * Soukromý chat smaže jen u nás (`deleteChatHistory`, `revoke = false`), ze skupiny a kanálu
      * odejde (`leaveChat`) — stejně jako „Smazat" v seznamu chatů, viz „Akce nad chatem".

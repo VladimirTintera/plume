@@ -15,6 +15,7 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.ConnectionState
+import eu.tintera.plume.core.telegram.SpamActions
 import eu.tintera.plume.core.telegram.AccountInfo
 import eu.tintera.plume.core.telegram.DeviceRepository
 import eu.tintera.plume.core.telegram.UnconfirmedDevice
@@ -232,6 +233,22 @@ class ChatsViewModel(
 
     fun showActions(chat: ChatSummary) {
         _actions.value = ChatActionsState(target = chat)
+
+        /*
+         * Blokování a nahlášení se zjišťují až tady, jako práva u nabídky nad zprávou: jsou to
+         * dotazy na server a ptát se dopředu by znamenalo dotaz na každý chat v seznamu kvůli
+         * nabídce, kterou uživatel skoro nikdy neotevře. Dokud odpověď nedorazí, položka se
+         * nekreslí — objevení ruší míň než zmizení.
+         */
+        viewModelScope.launch {
+            val spam = repository.spamActions(chat.id).getOrElse { failure ->
+                // Nezjištěno = nenabízet. Akce, která skončí chybou od serveru, je horší než žádná.
+                logger.w(failure) { "Volby proti spamu u chatu ${chat.id} se nepodařilo zjistit." }
+                SpamActions()
+            }
+            // Nabídka se mezitím mohla zavřít, nebo už patřit jinému chatu.
+            _actions.update { if (it.target?.id == chat.id) it.copy(spam = spam) else it }
+        }
     }
 
     fun hideActions() {
@@ -278,17 +295,54 @@ class ChatsViewModel(
         repository.setMarkedAsUnread(chat.id, !chat.hasUnread)
     }
 
-    /** Krok mezi „smazat" a smazáním — nevratnou akci musí uživatel potvrdit. */
+    /**
+     * Zablokuje protějšek, nebo blokování zruší.
+     *
+     * **Chat v seznamu zůstává** — blokování a mazání jsou dvě různé věci; kdo chce obojí, zapne
+     * si zablokování v potvrzení smazání ([confirmDelete]). Právě proto se to musí ohlásit
+     * snackbarem: v seznamu není nic, z čeho by se zablokování poznalo.
+     *
+     * Bez potvrzovacího dialogu: je to vratné a „Vrátit" ve snackbaru je lepší než dialog, který
+     * před vratnou akcí jen zdržuje (stejně jako u archivace a odepnutí zprávy).
+     */
+    fun setBlocked(chat: ChatSummary, blocked: Boolean) = run(chat.id, onSuccess = {
+        _actions.update { it.copy(blocked = BlockChange(chat.id, blocked)) }
+    }) {
+        repository.setBlocked(chat.id, blocked)
+    }
+
+    /** Snackbar s „Vrátit" už je vidět — nuluje se hned, jinak by se po otočení ukázal znovu. */
+    fun consumeBlocked() {
+        _actions.update { it.copy(blocked = null) }
+    }
+
+    /** „Vrátit" ve snackbaru. Oprava omylu, takže se na ni už další „Vrátit" nenabízí. */
+    fun undoBlock(change: BlockChange) = run(change.chatId) {
+        repository.setBlocked(change.chatId, !change.blocked)
+    }
+
+    /**
+     * Krok mezi „smazat" a smazáním — nevratnou akci musí uživatel potvrdit.
+     *
+     * Volby proti spamu se přenášejí z nabídky: jsou už zjištěné a dialog z ní vede, takže se
+     * nemusí načítat znovu.
+     */
     fun askDelete(chat: ChatSummary) {
-        _actions.value = ChatActionsState(pendingDelete = chat)
+        _actions.value = ChatActionsState(pendingDelete = chat, spam = _actions.value.spam)
     }
 
     fun cancelDelete() {
         _actions.value = _actions.value.copy(pendingDelete = null)
     }
 
-    fun confirmDelete(chat: ChatSummary) = run(chat.id) {
-        repository.deleteOrLeave(chat.id)
+    /** Vyřídí, co si uživatel v potvrzení zapnul — pořadí a chování po chybě drží [cleanUpSpam]. */
+    fun confirmDelete(chat: ChatSummary, cleanup: SpamCleanup = SpamCleanup()) = run(chat.id) {
+        cleanUpSpam(
+            cleanup = cleanup,
+            report = { repository.reportSpam(chat.id) },
+            block = { repository.setBlocked(chat.id, true) },
+            delete = { repository.deleteOrLeave(chat.id) },
+        )
     }
 
     fun dismissError() {
@@ -334,10 +388,20 @@ data class ChatActionsState(
     val error: UiText? = null,
     /** Jednorázová událost pro snackbar s „Vrátit" po archivaci nebo vrácení z archivu. */
     val archived: ArchiveChange? = null,
+    /** Jednorázová událost pro snackbar s „Vrátit" po zablokování nebo odblokování. */
+    val blocked: BlockChange? = null,
+    /**
+     * Co proti spamu nabídnout; `null`, dokud to nedorazí ze serveru (pak se nenabízí nic).
+     * Platí pro chat v [target], a po [askDelete] pro ten v [pendingDelete].
+     */
+    val spam: SpamActions? = null,
 )
 
 /** Chat se přesunul do archivu ([archived]), nebo z něj. */
 data class ArchiveChange(val chatId: Long, val archived: Boolean)
+
+/** Protějšek chatu se zablokoval ([blocked]), nebo odblokoval. */
+data class BlockChange(val chatId: Long, val blocked: Boolean)
 
 /** Nepřečteno = nepřečtené zprávy NEBO ruční příznak. Obojí se v seznamu chová stejně. */
 val ChatSummary.hasUnread: Boolean get() = unreadCount > 0 || isMarkedAsUnread
