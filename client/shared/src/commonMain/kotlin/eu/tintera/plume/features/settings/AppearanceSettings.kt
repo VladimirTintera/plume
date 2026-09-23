@@ -16,11 +16,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.app.root.presentation.supportsDynamicColor
 import eu.tintera.plume.core.settings.ThemeMode
+import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.brightness_medium_24dp
 import eu.tintera.plume.resources.dark_mode_24dp
@@ -47,6 +49,7 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 fun AppearanceSettings(viewModel: AppearanceViewModel) {
+    val haptics = LocalHapticFeedback.current
     val storedTheme by viewModel.themeMode.collectAsStateWithLifecycle()
     val storedDynamic by viewModel.dynamicColor.collectAsStateWithLifecycle()
     val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
@@ -86,7 +89,10 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
                 modifier = Modifier.toggleable(
                     value = dynamicColor,
                     role = Role.Switch,
-                    onValueChange = viewModel::setDynamicColor,
+                    onValueChange = { on ->
+                        haptics.toggle(on)
+                        viewModel.setDynamicColor(on)
+                    },
                 ),
             )
         }
@@ -101,7 +107,10 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
             modifier = Modifier.toggleable(
                 value = separateUnread,
                 role = Role.Switch,
-                onValueChange = viewModel::setSeparateUnreadChats,
+                onValueChange = { on ->
+                    haptics.toggle(on)
+                    viewModel.setSeparateUnreadChats(on)
+                },
             ),
         )
     }

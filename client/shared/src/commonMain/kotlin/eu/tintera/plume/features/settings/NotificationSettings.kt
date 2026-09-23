@@ -28,6 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -40,6 +41,7 @@ import eu.tintera.plume.core.telegram.ScopeSettings
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.resolve
+import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notification_channel_channels
 import eu.tintera.plume.resources.notification_channel_groups
@@ -244,6 +246,7 @@ private fun SwitchRow(
     summary: StringResource? = null,
     enabled: Boolean = true,
 ) {
+    val haptics = LocalHapticFeedback.current
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         headlineContent = { Text(stringResource(title)) },
@@ -253,7 +256,10 @@ private fun SwitchRow(
             value = checked,
             enabled = enabled,
             role = Role.Switch,
-            onValueChange = onChange,
+            onValueChange = { on ->
+                haptics.toggle(on)
+                onChange(on)
+            },
         ),
     )
 }

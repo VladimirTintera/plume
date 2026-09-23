@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.ui.platform.LocalHapticFeedback
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.ui.avatarShape
 import androidx.compose.foundation.layout.Spacer
@@ -7,6 +8,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.FilledTonalButton
 import eu.tintera.plume.core.telegram.ContentAccess
 import eu.tintera.plume.core.telegram.WriteAccess
+import eu.tintera.plume.core.ui.confirm
+import eu.tintera.plume.core.ui.reject
+import eu.tintera.plume.core.ui.tick
+import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.conversation_not_member
 import eu.tintera.plume.resources.conversation_write_restricted
 import eu.tintera.plume.resources.notifications_24dp
@@ -323,6 +328,7 @@ fun ConversationScreen(
     /** Sada otevřená ťuknutím na samolepku v konverzaci. */
     var openStickerSetId by rememberSaveable { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
 
     /*
      * Odkrývání časů tahem doleva.
@@ -340,6 +346,9 @@ fun ConversationScreen(
     // neúspěšná reakce nebo odeslání zmizely bez jediné stopy.
     LaunchedEffect(state.error) {
         val message = state.error ?: return@LaunchedEffect
+        // Chyba po akci uživatele je jediné místo, kde odezva hlásí NEúspěch — snackbar se dá
+        // přehlédnout, hlavně u odeslání, které mezitím vypadá jako hotové.
+        haptics.reject()
         snackbarHostState.showSnackbar(getString(message.resource, *message.args.toTypedArray()))
         viewModel.dismissError()
     }
@@ -939,8 +948,15 @@ fun ConversationScreen(
             state.search?.let { search ->
                 InChatSearchNavigator(
                     search = search,
-                    onOlder = viewModel::searchOlder,
-                    onNewer = viewModel::searchNewer,
+                    // Procházení po dílcích — tik, ne potvrzení: výsledků bývají stovky.
+                    onOlder = {
+                        haptics.tick()
+                        viewModel.searchOlder()
+                    },
+                    onNewer = {
+                        haptics.tick()
+                        viewModel.searchNewer()
+                    },
                 )
                 return@Box
             }
@@ -969,7 +985,12 @@ fun ConversationScreen(
                 partnerName = state.info?.title,
                 flight = state.flight,
                 onCancelReply = viewModel::clearReply,
-                onSend = viewModel::send,
+                // Odeslání je potvrzení akce; dosud ho doprovázel jen let bubliny. Hlásí se
+                // v okamžiku ťuknutí, ne po odpovědi serveru — odezva patří ke gestu.
+                onSend = { text ->
+                    haptics.confirm()
+                    viewModel.send(text)
+                },
                 onDraftChanged = viewModel::onDraftChanged,
                 editing = state.editing,
                 onCancelEdit = viewModel::cancelEdit,
@@ -982,14 +1003,24 @@ fun ConversationScreen(
                 onStartRecording = {
                     recordPermission.request { granted ->
                         if (granted) {
+                            // Nahrávání běží, dokud ho uživatel neukončí — přepnutý stav, ne
+                            // hotová akce. Odepřené oprávnění je naopak odmítnutí.
+                            haptics.toggle(on = true)
                             viewModel.startRecording()
                         } else {
+                            haptics.reject()
                             viewModel.reportError(UiText(Res.string.conversation_microphone_permission))
                         }
                     }
                 },
-                onCancelRecording = viewModel::cancelRecording,
-                onSendRecording = viewModel::sendRecording,
+                onCancelRecording = {
+                    haptics.reject()
+                    viewModel.cancelRecording()
+                },
+                onSendRecording = {
+                    haptics.confirm()
+                    viewModel.sendRecording()
+                },
                 onPickDocument = attachmentPicker::pickDocument,
                 attachments = state.attachments,
                 onRemoveAttachment = viewModel::removeAttachment,
@@ -1048,11 +1079,13 @@ fun ConversationScreen(
                 },
                 onPick = { sticker ->
                     stickerPickerOpen = false
+                    haptics.confirm()
                     viewModel.sendSticker(sticker)
                 },
                 chatId = viewModel.chatId,
                 onPickGif = { gif ->
                     stickerPickerOpen = false
+                    haptics.confirm()
                     viewModel.sendGif(gif)
                 },
                 onDismiss = { stickerPickerOpen = false },
@@ -1084,6 +1117,7 @@ fun ConversationScreen(
                 setId = setId,
                 onPick = { sticker ->
                     openStickerSetId = null
+                    haptics.confirm()
                     viewModel.sendSticker(sticker)
                 },
                 onDismiss = { openStickerSetId = null },
