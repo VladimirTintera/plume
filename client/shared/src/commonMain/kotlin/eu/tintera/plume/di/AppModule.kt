@@ -52,6 +52,7 @@ import eu.tintera.plume.features.conversation.StickerPickerViewModel
 import eu.tintera.plume.features.conversation.GifPickerViewModel
 import eu.tintera.plume.features.conversation.StickerSetViewModel
 import eu.tintera.plume.features.media.MediaViewerViewModel
+import eu.tintera.plume.features.share.ShareToChatViewModel
 import eu.tintera.plume.features.share.ShareViewModel
 import eu.tintera.plume.features.settings.AppearanceViewModel
 import eu.tintera.plume.features.settings.SettingsViewModel
@@ -267,6 +268,17 @@ fun appModule() = module {
     }
 
     viewModel { ShareViewModel(requests = get(), chatRepository = get()) }
+
+    // Potvrzení sdílení do jednoho chatu (Direct Share): chatId je z routy, tedy runtime parametr.
+    viewModel { parameters ->
+        ShareToChatViewModel(
+            chatId = parameters.get(),
+            requests = get(),
+            repository = get(),
+            shareTargets = get(),
+            appScope = get(named(APP_SCOPE)),
+        )
+    }
 
     // Zprávy k přeposlání jdou z routy, takže runtime parametry — stejně jako chatId konverzace.
     viewModel { parameters ->

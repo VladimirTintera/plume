@@ -52,15 +52,30 @@ class ShareRequests {
 
     /** Uživatel vybral chat. Obsah si vyzvedne jeho konverzace, až bude připravený. */
     fun choose(chatId: Long) {
-        current.update { it?.copy(targetChatId = chatId) }
+        current.update { it?.copy(targetChatId = chatId, awaitingConfirmation = false) }
     }
 
     /**
-     * Výběr chatu odešel bez volby — sdílení se zahodí. Když už chat vybraný je, obsah na něj
-     * čeká a zůstává.
+     * Chat je vybraný zvenčí (Direct Share), ale obsah ještě nikam nejde — čeká na obrazovce
+     * „Komu: …", kde uživatel vidí, co posílá, a teprve odtud ho odešle.
+     *
+     * Od [choose] se liší právě tím: vybraný chat ho z konverzace nesmí vyzvednout
+     * ([deliveries]), protože odesílá ta obrazovka sama.
+     */
+    fun confirm(chatId: Long) {
+        current.update { it?.copy(targetChatId = chatId, awaitingConfirmation = true) }
+    }
+
+    /**
+     * Obrazovka sdílení odešla, aniž by obsah někam poslala — sdílení se zahodí. Zůstává jen to,
+     * co už je na cestě do konverzace: tam výběr taky odchází (nahradí ho chat) a obsah na ni čeká.
+     *
+     * Obsah čekající na potvrzení ([confirm]) se zahazuje, i když chat vybraný má — odejít z té
+     * obrazovky znamená „nechci to poslat", a bez zahození by se sdílení vložilo do konverzace,
+     * kterou uživatel neotevřel.
      */
     fun abandon() {
-        current.update { it?.takeIf { content -> content.targetChatId != null } }
+        current.update { it?.takeIf { content -> content.targetChatId != null && !content.awaitingConfirmation } }
     }
 
     /**
@@ -69,7 +84,7 @@ class ShareRequests {
      */
     fun deliveries(chatId: Long): Flow<SharedContent> = current
         .filterNotNull()
-        .filter { it.targetChatId == chatId && it.attachments != null }
+        .filter { it.targetChatId == chatId && it.attachments != null && !it.awaitingConfirmation }
 
     /**
      * Vyřízeno. Porovnává se id: mezi vyzvednutím a vyřízením mohlo přijít nové sdílení
@@ -90,4 +105,9 @@ data class SharedContent(
     val failed: Int = 0,
     /** Vybraný chat; `null`, dokud se vybírá. */
     val targetChatId: Long? = null,
+    /**
+     * Chat je vybraný, ale obsah čeká na obrazovce „Komu: …" ([ShareRequests.confirm]), ne
+     * v konverzaci. Odesílá ta obrazovka, takže konverzace si ho vyzvednout nesmí.
+     */
+    val awaitingConfirmation: Boolean = false,
 )

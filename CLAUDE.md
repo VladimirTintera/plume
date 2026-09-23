@@ -4916,8 +4916,9 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   (`ShareTargets.reportUsed`, v rozsahu aplikace, název a profilovku si dohledá samo).
   Zkratky z dřívějška kategorii nemají a do nabídky se dostanou až při příští notifikaci nebo
   odeslání — ověřuje se `dumpsys shortcut` (`categories={…SHARE_TARGET}`).
-- **Sdílení přes zkratku nese `EXTRA_SHORTCUT_ID`** a výběr přeskočí: `ShareIntake` rovnou
-  `choose(chatId)` a otevře chat přes `ChatOpenRequests`.
+- **Sdílení přes zkratku nese `EXTRA_SHORTCUT_ID`** a výběr chatu přeskočí: fotka a video jdou
+  na potvrzovací obrazovku (viz „Direct Share" níž), zbytek rovnou do konverzace
+  (`ShareIntake`: `choose(chatId)` + `ChatOpenRequests`).
 - **Chat bez fotky má ve zkratce iniciálu** (`initialIcon`), jinak ukazoval systém prázdné
   kolečko — ve sdílení i ve velkém kruhu notifikace. Barvy ze systémové palety Material You
   (`system_accent1_100/900`): zkratka se kreslí mimo aplikaci, téma aplikace tam není. Paleta je
@@ -4931,6 +4932,50 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   citace nad vstupním polem nebo popis webu u náhledu odkazu. **Ikona říká druh** (sponka
   u souborů, řetěz u odkazu, stránka u textu), a dokud se soubory připravují, je místo ní
   indikátor — „Připravuji soubory…" je průběh, ne popis.
+
+### Direct Share: obrazovka „Komu: …"
+
+Sdílení fotky nebo videa na konkrétní chat ze systémové nabídky (Direct Share) neotevře rovnou
+konverzaci, ale **potvrzovací obrazovku** (`ShareToChatRoute`, `ShareToChatScreen`): hlavička
+„Komu: …" s tváří chatu, snímek velký uprostřed, popisek a odeslání. Vzor je Google Zprávy
+sdílející z Fotek.
+
+- **Jen fotky a videa.** Soubory, text a odkaz dál otevřou konverzaci a čekají nad polem
+  (`ShareIntake`): u odkazu není co ukazovat a pole na popisek by k němu byl krok navíc.
+- **Rozhoduje se z MIME typů, ne z připravených příloh** — příprava běží na pozadí a obrazovka
+  se má ukázat hned. Dokud soubory nejsou hotové, je místo snímku „Připravuji soubory…".
+- **Odesílá obrazovka, ne konverzace.** Sdílení je proto ve stavu `awaitingConfirmation`
+  (`ShareRequests.confirm`) a `deliveries` ho vynechává — jinak by si ho konverzace vyzvedla
+  nad vstupní pole a odešlo by dvakrát.
+- **Po odeslání se otevře konverzace**, jako u přeposílání: je vidět, že zpráva dorazila.
+  Odchod bez odeslání sdílení zahodí a vrátí do aplikace, ze které se sdílelo (tentýž
+  `closeShare` jako u výběru chatu).
+- **Past: `consume` zhasne `incoming`, takže vlastní úspěch vypadá jako „obsah zmizel".** Odběr,
+  který z prázdného `incoming` dělá „zavřít", proto musí vynechat vlastní odesílání — jinak
+  aplikace po odeslání skočí na plochu místo do chatu. Ověřeno na emulátoru: bez toho se to
+  stalo pokaždé. Stav se navíc nastavuje PŘED `consume`.
+- **Spoiler, mizení i „jako soubor" nabízí tentýž `AttachmentModeSheet`** jako nad vstupním
+  polem — jedno místo, kde se o způsobu odeslání rozhoduje, a platí i tytéž meze
+  (`selfDestructAllowed`: mizení jen u jediné fotky v soukromém chatu, v Uložených zprávách ne).
+- **Karta má rozměry SNÍMKU, ne plochy.** S obrázkem vepsaným do plochy (`ContentScale.Fit` ve
+  `fillMaxSize`) drží zaoblení i tlačítka plocha: rohy fotky zůstanou hranaté a ✕ visí kus vedle
+  ní. Rámeček se proto počítá z poměru stran přílohy (`aspectRatio`, u snímku na výšku
+  `matchHeightConstraintsFirst`).
+- **Pozadí je rozostřený snímek z `core/ui/MediaBackdrop.kt`**, sdílený s prohlížečem médií
+  i s jeho náhradou pro Android 11. Sdílená fotka je tu hlavní obsah stejně jako v galerii, takže
+  dvě různá pojetí téhož by se přela — a opsaný Haze styl by se rozešel na prvním doladění.
+- **Past: `Avatar(backdrop = …)` s barvou mimo schéma.** `contentColorFor` zná jen role, u vlastní
+  barvy vrátí `Unspecified` — a záložka Uložených zpráv se nakreslila černá na černém pozadí.
+  Kde roli nezná, rozhoduje `LocalContentColor`.
+- **Víc snímků je `HorizontalPager` s „N z M" v hlavičce**, ne mřížka: album se stejně posílá celé
+  a pruh miniatur by zdvojoval to, co umí swipe. ✕ ubírá snímek; odebrání posledního obrazovku
+  zavře, protože není co poslat.
+- **Ověřeno na emulátoru** (jedna fotka i dvě z Fotek): obrazovka, spoiler, mizení v chatu s botem
+  a jeho nepřítomnost v Uložených zprávách, popisek, odeslání s otevřením konverzace, ✕ s návratem
+  do zdrojové aplikace. **Přes `adb` jde poslat jen JEDNA příloha** — `EXTRA_STREAM` jako seznam
+  `am start` neumí (`--eu` je jedna hodnota) a `--grant-read-uri-permission` platí pro `data`
+  URI, ne pro extras: bez `-d <totéž URI>` aplikace soubor nepřečte, `getType` vrátí `null`
+  a sdílení se zachová jako u dokumentu. Víc fotek se musí proklikat z Fotek.
 
 ### iOS: rozšíření sdílení
 

@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
+import eu.tintera.plume.core.ui.MEDIA_CARD_CORNER
 import eu.tintera.plume.core.ui.MorphShape
 import eu.tintera.plume.core.ui.ShapeMorphs
 import eu.tintera.plume.core.ui.animateMorph
@@ -300,7 +301,7 @@ internal fun VideoPage(
     ) {
         // Zaoblení se ořezává v layoutu, ne ve vrstvě: nativní view s videem (UIKit) ořez
         // vrstvy nedostane. Na celé obrazovce je nulové, takže přechod se kreslí jen nad náhledem.
-        Box(Modifier.fillMaxSize().clip(RoundedCornerShape(CARD_CORNER * (1f - immersion())))) {
+        Box(Modifier.fillMaxSize().clip(RoundedCornerShape(MEDIA_CARD_CORNER * (1f - immersion())))) {
             // Náhled drží místo, dokud se video nestáhne; se sdíleným prvkem z bubliny.
             video.thumbnailFileId?.let { thumbnail ->
                 RemoteImage(

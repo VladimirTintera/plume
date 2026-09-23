@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.media
 
 import androidx.compose.ui.platform.LocalHapticFeedback
+import eu.tintera.plume.core.ui.MEDIA_CARD_CORNER
+import eu.tintera.plume.core.ui.ambientBlurStyle
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import androidx.compose.animation.AnimatedVisibility
@@ -90,7 +92,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.blur.HazeBlurStyle
-import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
@@ -580,15 +581,7 @@ private fun AmbientBackground(
     modifier: Modifier = Modifier,
 ) {
     val hazeState = rememberHazeState()
-    val scrim = MaterialTheme.colorScheme.scrim
-    val style = remember(scrim) {
-        HazeBlurStyle {
-            colorEffects(listOf(HazeColorEffect.tint(scrim.copy(alpha = AMBIENT_TINT_ALPHA))))
-            blurRadius(AMBIENT_BLUR_RADIUS)
-            noiseFactor(0f)
-            fallbackColorEffect(HazeColorEffect.tint(scrim.copy(alpha = AMBIENT_FALLBACK_ALPHA)))
-        }
-    }
+    val style = ambientBlurStyle()
     val current = pagerState.currentPage
 
     // Ořez je nutný: pozadí sousedů leží posunuté mimo plochu a na širokém rozvržení by vlevo
@@ -1115,7 +1108,7 @@ private fun ZoomableImage(
                     // Zaoblení nese vrstva, takže se s přiblížením zvětšuje spolu s fotkou.
                     // Na celé obrazovce mizí: fotka jde od kraje ke kraji.
                     clip = true
-                    this.shape = RoundedCornerShape(CARD_CORNER * (1f - immersion()))
+                    this.shape = RoundedCornerShape(MEDIA_CARD_CORNER * (1f - immersion()))
                 },
         ) {
             RemoteImage(
@@ -1182,9 +1175,6 @@ private val WIDE_PAGE_GAP = 24.dp
 /** Na celé obrazovce mezi fotkami při listování — jen černý pruh, aby na sebe nenalepily. */
 private val IMMERSIVE_PAGE_GAP = 16.dp
 
-/** Zaoblení karty v galerii (`shapes.large`); na celé obrazovce jde k nule. */
-internal val CARD_CORNER = 16.dp
-
 /** Ztmavení pod systémovými lištami na celé obrazovce; přechod sahá kus pod lištu. */
 private const val BAR_SHADE_ALPHA = 0.45f
 private val BAR_SHADE_EXTRA = 24.dp
@@ -1205,12 +1195,3 @@ private const val CHOSEN_ALPHA = 0.22f
 /** Datum pod jménem je druhotné. */
 private const val SECONDARY_ALPHA = 0.75f
 
-/**
- * Rozostření pozadí. Velký poloměr: z fotky má zbýt jen barevná nálada, ne tvary, které by
- * soupeřily s kartou nad ní.
- */
-private val AMBIENT_BLUR_RADIUS = 48.dp
-private const val AMBIENT_TINT_ALPHA = 0.45f
-
-/** Bez rozostření (Android 11 a starší) musí závoj fotku skoro schovat, jinak by rušila. */
-private const val AMBIENT_FALLBACK_ALPHA = 0.85f

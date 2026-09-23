@@ -326,6 +326,8 @@
     <string name="share_title">Share to</string>
     <string name="share_preparing">Preparing files…</string>
     <string name="share_failed_files">Some shared files couldn't be prepared</string>
+    <string name="share_to_recipient">To: %1$s</string>
+    <string name="share_to_caption">Add a caption</string>
     <string name="forward_search">Search chats</string>
     <string name="forward_empty">No chat matches the search.</string>
     <string name="forward_failed">The message could not be forwarded.</string>

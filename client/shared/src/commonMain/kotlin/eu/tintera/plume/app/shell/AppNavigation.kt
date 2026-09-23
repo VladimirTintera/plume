@@ -20,6 +20,7 @@ import eu.tintera.plume.core.navigation.SettingsRoute
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.navigation.SettingsSectionRoute
 import eu.tintera.plume.core.navigation.ShareRoute
+import eu.tintera.plume.core.navigation.ShareToChatRoute
 import eu.tintera.plume.core.navigation.TopLevelRoute
 
 /**
@@ -108,6 +109,19 @@ class AppNavigation internal constructor(
         if (stack(ChatsRoute).lastOrNull() == ShareRoute) return
         popToRoot(ChatsRoute)
         stack(ChatsRoute).add(ShareRoute)
+    }
+
+    /**
+     * Sdílení do chatu vybraného v systémové nabídce (Direct Share): potvrzovací obrazovka nad
+     * srovnaným zásobníkem Chatů, jako [openShare]. Po odeslání ji nahradí ta konverzace.
+     */
+    fun openShareTo(chatId: Long) {
+        selected.value = ChatsRoute
+        // Otevřená obrazovka zůstává, ze stejného důvodu jako u výběru: její odchod sdílení
+        // zahazuje, takže odebrat a vrátit by zahodilo právě ten nový obsah.
+        if (stack(ChatsRoute).lastOrNull() == ShareToChatRoute(chatId)) return
+        popToRoot(ChatsRoute)
+        stack(ChatsRoute).add(ShareToChatRoute(chatId))
     }
 
     /**

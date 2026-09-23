@@ -136,6 +136,15 @@ data class ForwardRoute(val fromChatId: Long, val messageIds: List<Long>) : Rout
 data object ShareRoute : Route
 
 /**
+ * Potvrzení sdílení do JEDNOHO chatu, vybraného už v systémové nabídce (Direct Share).
+ *
+ * Nese jen id chatu, sdílený obsah je jako u [ShareRoute] v `ShareRequests` — po zabití procesu
+ * se routa obnoví, obsah ne a obrazovka sama odejde.
+ */
+@Serializable
+data class ShareToChatRoute(val chatId: Long) : Route
+
+/**
  * Zahájení nové konverzace (výběr kontaktu nebo hledání).
  */
 @Serializable
@@ -175,6 +184,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
             subclass(ShareRoute::class, ShareRoute.serializer())
+            subclass(ShareToChatRoute::class, ShareToChatRoute.serializer())
             subclass(NewChatRoute::class, NewChatRoute.serializer())
         }
     }
