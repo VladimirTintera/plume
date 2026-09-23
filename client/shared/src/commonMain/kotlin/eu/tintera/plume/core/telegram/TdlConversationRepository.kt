@@ -115,6 +115,17 @@ class TdlConversationRepository(
      */
     private var sendersClient: TdlClient? = null
 
+    /**
+     * Id vlastního účtu — a tím i id chatu Uložených zpráv (je to soukromý chat se sebou).
+     *
+     * Drží se stejně jako keš odesílatelů, tedy jen pro klienta, pro kterého platí: po odhlášení
+     * a přihlášení jiného účtu je id jiné. `getMe` je lokální dotaz, takže tohle šetří jen
+     * opakování, ne síť.
+     */
+    private var myId: Long? = null
+    private var myIdClient: TdlClient? = null
+    private val myIdMutex = Mutex()
+
     override suspend fun history(
         chatId: Long,
         fromMessageId: Long,
@@ -1030,13 +1041,24 @@ class TdlConversationRepository(
         // řetězec, ze kterého vznikly.
         val body = captionBody()
 
+        /*
+         * V Uložených zprávách je odchozí VŠECHNO — je to chat sám se sebou, nikdo jiný do něj
+         * psát nemůže.
+         *
+         * TDLib u přeposlané zprávy hlásí `isOutgoing = false` (napsal ji někdo jiný), takže se
+         * kreslila jako příchozí: šedá bublina vlevo a bez odznaku doručení, zatímco vlastní
+         * fotky v témž chatu stály vpravo. Ostatní klienti mají v Uložených zprávách všechno
+         * na straně odesílatele a odkud zpráva pochází, říká značka „Přeposláno od …".
+         */
+        val outgoing = isOutgoing || chatId == myId()
+
         // Jméno a tvář mají smysl jen ve skupině a jen u cizích zpráv — jinde je to šum. Obojí
         // z jednoho dotazu (a z cache), ne ze dvou.
-        val sender = if (isGroup && !isOutgoing) resolveSender(senderId) else null
+        val sender = if (isGroup && !outgoing) resolveSender(senderId) else null
 
         return ChatMessage(
             id = id,
-            isOutgoing = isOutgoing,
+            isOutgoing = outgoing,
             senderName = sender?.title,
             senderAvatarFileId = sender?.avatarFileId,
             senderId = senderId,
@@ -1045,7 +1067,7 @@ class TdlConversationRepository(
             media = messageMedia(),
             linkPreview = linkPreview(),
             reactions = interactionInfo.toReactions(),
-            sendState = if (isOutgoing) sendingState.toSendState() else null,
+            sendState = if (outgoing) sendingState.toSendState() else null,
             // Odpovědi mimo tenhle chat (citace z jiné konverzace) se zatím nevykreslují —
             // náhled se skládá z načtené historie, která je vždy jen z jednoho chatu.
             replyToMessageId = (replyTo as? MessageReplyToMessage)
@@ -1230,6 +1252,14 @@ class TdlConversationRepository(
                     .distinct()
                     .mapNotNull { resolveSender(it) }
             }
+
+    private suspend fun myId(): Long? = myIdMutex.withLock {
+        if (myIdClient !== client) {
+            myId = null
+            myIdClient = client
+        }
+        myId ?: client.getMe().toResult().getOrNull()?.id?.also { myId = it }
+    }
 
     private suspend fun resolveSender(senderId: Long): SenderInfo? {
         if (senderId == 0L) return null
