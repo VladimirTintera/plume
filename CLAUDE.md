@@ -2516,8 +2516,23 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
 - **Ikony přílohy a výběru emoji stojí VEDLE `TextField`, ne v jeho `leadingIcon` / `trailingIcon`.**
   Sloty `TextField` centrují na výšku pole, takže s víceřádkovou zprávou ikony ujížděly doprostřed.
   V řádku se spodním zarovnáním drží u posledního řádku jako odesílací tlačítko; odsazení 4 dp je
-  (56 − 48) / 2, tedy střed jednořádkového pole. Barvu mají `primary` — výchozí
+  (56 − 48) / 2, tedy střed jednořádkového pole. Barvu mají akcentní — výchozí
   `onSurfaceVariant` byla na `surfaceContainerHigh` karty zašedlá a nečitelná.
+- **Akcent pro drobnou kresbu se VYBÍRÁ MĚŘENÍM, ne pevnou rolí** (`strongestAccentOn`
+  v `core/ui/AccentColor.kt`, testy `AccentColorTest`). `primary` natvrdo prošla prahem
+  čitelnosti a přesto vypadala rozmazaně: v Material You z tapety vyšla na kartě pole kontrast
+  5,2–5,3 : 1, zatímco placeholder vedle ní 5,2–7,6 a ostatní ikony v aplikaci přes 10. Ikona
+  je obrys s tahem 2 dp a její hrana proti kartě leží skoro celá v BARVĚ, ne ve světlosti
+  (modrý kanál 23 proti 241) — a chromatickou hranu vidí oko měkčeji než luminanční, takže se
+  tenká čára čte jako neostrá. `accentOn` na tohle nestačí: ten řeší, jestli akcent ZMIZÍ
+  (práh AA 4,5), tady jde o to, jak je vidět. Vybírá se proto z dvojice `primary` /
+  `onPrimaryContainer` ta, která má na té konkrétní ploše vyšší kontrast — pevná volba by
+  v paletě se zvýšeným kontrastem spadla do téže pasti obráceně (`onPrimaryContainer` je tam
+  v tmavém režimu TMAVÝ, viz `accentOn`). Naměřeno na emulátoru: 5,2 → 7,9 : 1.
+- **„Rozmazané" u ikony NEMUSÍ být render.** Změřeno ze snímku: hrana má jeden pixel
+  antialiasingu a podíl přechodových pixelů je stejný jako u šipky zpět, kterou nikdo za
+  rozmazanou nepovažuje. Než se sáhne na drawable (velikost, `<group>`, viewport), vyplatí se
+  změřit kontrast — dojem neostrosti dělá skoro vždycky barva.
 - **Pole je `BasicTextField` s `TextFieldDefaults.DecorationBox`, ne `TextField`.** `TextField`
   má vnitřní odsazení 16 dp napevno a vedle sponky (glyf má v 48dp tlačítku svých 12 dp) začínal
   text skoro 30 dp od ikony. Dekorace bere `contentPadding`: 4 dp u ikony, 16 dp u holé hrany

@@ -177,6 +177,7 @@ import eu.tintera.plume.core.telegram.SponsoredMessage
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.accentOn
+import eu.tintera.plume.core.ui.strongestAccentOn
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.chatTitleKey
@@ -1948,11 +1949,24 @@ private const val RECORDING_BREATH_ROTATION = 30f
  * Barva ikon v kartě vstupního pole (přílohy, emoji/samolepky).
  *
  * Výchozí `onSurfaceVariant` byla na `surfaceContainerHigh` karty zašedlá a špatně čitelná.
- * `primary` je to, čím M3 odlišuje ovládání od textu (placeholder zůstává šedý), a na kartě
- * má kontrast v obou režimech — role drží hierarchii, ne pevnou světlost.
+ * Akcent je to, čím M3 odlišuje ovládání od textu (placeholder zůstává šedý) — jen se nebere
+ * `primary` natvrdo, ale ten z akcentních rolí, který je na kartě nejlíp vidět
+ * ([strongestAccentOn]).
+ *
+ * Samotná `primary` totiž byla na kartě NEJSLABŠÍ prvek: v Material You z tapety vyšla olivová
+ * s kontrastem 5,3 : 1, zatímco placeholder vedle ní měl 7,6 a ostatní ikony v aplikaci přes 10.
+ * Obrysová ikona s tahem 2 dp se pak čte jako rozmazaná — viz [strongestAccentOn]. Srovnání
+ * s Google Zprávami sedí: tamní ikony u pole jsou taky akcent, ale o poznání tmavší.
+ *
+ * Plocha je cílová barva karty, ne ta právě animovaná: při nahrávání karta přebarvuje do
+ * `primaryContainer`, jenže tehdy je místo pole pruh nahrávání a ikony se nekreslí vůbec.
  */
 @Composable
-private fun inputIconColor() = MaterialTheme.colorScheme.primary
+private fun inputIconColor() = strongestAccentOn(
+    background = MaterialTheme.colorScheme.surfaceContainerHigh,
+    MaterialTheme.colorScheme.primary,
+    MaterialTheme.colorScheme.onPrimaryContainer,
+)
 
 /** Co tlačítko u vstupního pole právě dělá. Změna mezi nimi se animuje. */
 private enum class SendButtonKind { Mic, Send, Save }
