@@ -188,6 +188,7 @@ import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.chatTitleKey
 import eu.tintera.plume.core.ui.label
+import eu.tintera.plume.core.ui.embeddedMediaPickerAvailable
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.sharedFlight
@@ -343,6 +344,15 @@ fun ConversationScreen(
         onPicked = viewModel::addAttachments,
         onError = viewModel::reportError,
     )
+
+    /*
+     * Galerie se kreslí rovnou nad vstupním polem, kde ji systém umí vložit dovnitř aplikace
+     * (`EmbeddedMediaPicker`); jinde zůstává systémový výběr, tedy odchod na vlastní obrazovku.
+     * Rozhoduje se tady, aby o tom `AttachButton` nemusel vědět — nabídka je v obou případech
+     * stejná.
+     */
+    val embeddedMediaPicker = embeddedMediaPickerAvailable()
+    var mediaPickerOpen by rememberSaveable { mutableStateOf(false) }
 
     /**
      * Rozepsaný text vstupního pole. Drží se tady, ne v poli: výběr emoji do něj vkládá na pozici
@@ -1080,7 +1090,7 @@ fun ConversationScreen(
                 inputFill = state.inputFill,
                 onInputFilled = viewModel::consumeInputFill,
                 onOpenStickers = { stickerPickerOpen = true },
-                onPickMedia = attachmentPicker::pickMedia,
+                onPickMedia = { if (embeddedMediaPicker) mediaPickerOpen = true else attachmentPicker.pickMedia() },
                 isRecording = isRecording,
                 recording = { voiceRecordingState.value },
                 onStartRecording = {
@@ -1148,6 +1158,17 @@ fun ConversationScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         // Nabídka nad zprávou se kreslí až v bublině — viz `MessageMenuOverlay`.
+
+        if (mediaPickerOpen) {
+            MediaPickerSheet(
+                allowPhotos = state.content.photos,
+                allowVideos = state.content.videos,
+                onPicked = viewModel::addAttachments,
+                onUnpicked = viewModel::removeAttachments,
+                onError = viewModel::reportError,
+                onDismiss = { mediaPickerOpen = false },
+            )
+        }
 
         if (stickerPickerOpen) {
             StickerPickerSheet(

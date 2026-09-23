@@ -986,6 +986,18 @@ class ConversationViewModel(
         }
     }
 
+    /**
+     * Odebere přílohy podle CESTY — to je jediné, co o nich ví vestavěná galerie: odznačenou
+     * fotku hlásí jako soubor, ne jako pořadí nad polem (viz `EmbeddedMediaPicker`).
+     */
+    fun removeAttachments(paths: List<String>) {
+        if (paths.isEmpty()) return
+        val removed = paths.toSet()
+        _state.update { state ->
+            state.copy(attachments = state.attachments.filterNot { it.path in removed })
+        }
+    }
+
     fun setAttachmentMode(index: Int, mode: AttachmentMode) {
         val selfDestruct = mode is AttachmentMode.ViewOnce || mode is AttachmentMode.Timer
         // Volba se nenabízí tam, kde neprojde; kdyby sem přesto došla, zpráva by skončila chybou.
