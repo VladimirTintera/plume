@@ -279,14 +279,20 @@ tam se i stahuje model. Hranice je `core/ai` (`OnDeviceAi`).
   nedělá nic. Porovnáno na zařízení všemi čtyřmi kombinacemi: jméno určuje VÝHRADNĚ `fast`
   (`nano-v4-full` / `nano-v4-fast`), `preview` na ně nemá vliv a limit je pořád 8 192.
   Proto `previewSameAsStable` — jména se porovnají a pod přepínač se připíše, že se nepoužije.
-- **AICore preview varianty ZNÁ, jen je nemá stažené.** Jeho Labs
-  (`aicore.demo.labs.thirdparty.ThirdPartyLabsActivity`) nabízí čtyři modely — Full, Fast a obě
-  v `[Preview]` —, ale „Správa AI modelů" ukazuje jediný stažený balík **„Gemini Nano 4
-  Fast + Full [TPU]"**. Proto je rychlá varianta připravená okamžitě a nic se nestahuje: full
-  i fast jsou TENTÝŽ balík. **Preview Full je navíc postavený na Gemma 4 E4B**, zatímco
-  stabilní na E2B — tedy větší model, což je zatím nejnadějnější směr pro kvalitu češtiny.
-  Aplikace si ho ale vyžádat neumí: ML Kit seznam modelů nemá (`GenerativeModel` zná jen
-  `getBaseModelName()` pro právě nakonfigurovanou variantu) a o stažení preview si neřekne.
+- **Preview model v zařízení JE a přes ML Kit se k němu stejně nedostaneme.** Ověřeno
+  pokusem, ne úvahou: v AICore Labs
+  (`aicore.demo.labs.thirdparty.ThirdPartyLabsActivity`) se dá vybrat „Gemini Nano 4 Full
+  [Preview, TPU]", odpoví na prompt — a přesto `getBaseModelName()` se zapnutým `preview`
+  vrací dál `nano-v4-full`, i po `force-stop` aplikace. `ModelReleaseStage.PREVIEW` tedy
+  na tomhle zařízení **nemá žádný efekt**; není to chybějícím modelem. Hypotéza „stačí ho
+  stáhnout" je vyvrácená.
+- **Labs nabízí čtyři modely, „Správa AI modelů" ukazuje jediný balík „Fast + Full [TPU]".**
+  Proto je rychlá varianta připravená okamžitě a nic se nestahuje: full i fast jsou TENTÝŽ
+  balík.
+- **Preview Full je postavený na Gemma 4 E4B**, zatímco stabilní na E2B — tedy větší model
+  a nejnadějnější směr pro kvalitu češtiny. **Cesta k němu přes ML Kit ale nevede** (viz výš)
+  a seznam modelů API nemá: `GenerativeModel` zná jen `getBaseModelName()` pro právě
+  nakonfigurovanou variantu. Kdo na E4B chce, potřebuje vlastní runtime (LiteRT-LM).
 - **Fakta model drží, sloh ne.** Na připraveném testu (ceny, číslo účtu, datum, jména) nevymyslel
   nic — ale na skutečné konverzaci komolí tvary („telefon nebudou mít vibrace“), plete si, kdo co
   řekl, občas propíše do textu instrukci („shrnutí konzultace **v češtině**“) a u pár zpráv nafoukne
