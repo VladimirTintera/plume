@@ -38,6 +38,31 @@ fun accentOn(background: Color, accent: Color, fallback: Color): Color =
     if (contrastRatio(accent, background) >= MIN_ACCENT_CONTRAST) accent else fallback
 
 /**
+ * Akcent pro DROBNOU KRESBU na ploše [background] — z [candidates] ten, který je na ní nejlíp
+ * vidět.
+ *
+ * [accentOn] řeší jinou otázku: jestli akcent na ploše ZMIZÍ. Ikona sponky a výběru emoji u
+ * vstupního pole ale nezmizela — `primary` má na `surfaceContainerHigh` kontrast kolem 5, tedy
+ * nad prahem AA — a přesto vypadala rozmazaně. Změřeno na emulátoru: olivová #576417 na kartě
+ * #E5E8F1 dává 5,3 : 1, zatímco text hned vedle (`onSurfaceVariant`) má 7,6 a ostatní ikony
+ * v aplikaci přes 10. Obrysová ikona nese tah 2 dp a její hrana proti kartě leží skoro celá
+ * v barvě, ne ve světlosti (modrý kanál 23 proti 241) — a chromatickou hranu vidí oko měkčeji
+ * než luminanční. Práh „ještě čitelné" je na tohle málo; u kresby z tenkých tahů rozhoduje, jak
+ * je vidět, ne jestli.
+ *
+ * Nevybírá se proto pevná role, ale ta z dvojice, která na té konkrétní ploše vyhraje. Pevná
+ * volba by v jiné paletě spadla do stejné pasti obráceně: `onPrimaryContainer` je v paletě se
+ * zvýšeným kontrastem v tmavém režimu TMAVÝ (viz [accentOn]) a na tmavé kartě by byl horší než
+ * `primary`.
+ */
+fun strongestAccentOn(background: Color, accent: Color, alternative: Color): Color =
+    if (contrastRatio(alternative, background) > contrastRatio(accent, background)) {
+        alternative
+    } else {
+        accent
+    }
+
+/**
  * Plocha vloženého obsahu ([container]), která se od plochy pod ní ([background]) pozná — jinak
  * posunutá o kus k [toward], tedy k barvě popředí, kterou sama nese.
  *

@@ -97,6 +97,34 @@ class AccentColorTest {
         assertEquals(container, surfaceApart(bublina, container, toward = Color(0xFFD2E4FF)))
     }
 
+    /**
+     * Přesně ten případ ze zařízení: ikony u vstupního pole v Material You z tapety. `primary`
+     * na kartě projde prahem čitelnosti (5,3 : 1), a přesto je slabší než text vedle ní —
+     * vybrat se má `onPrimaryContainer`.
+     */
+    @Test
+    fun proDrobnouKresbuVyhrajeSilnejsiAkcent() {
+        val karta = Color(0xFFE5E8F1)
+        val primary = Color(0xFF576417)
+        val onPrimaryContainer = Color(0xFF181E00)
+
+        assertTrue(contrastRatio(primary, karta) >= 4.5f, "primary sám o sobě čitelný je")
+        assertEquals(onPrimaryContainer, strongestAccentOn(karta, primary, onPrimaryContainer))
+    }
+
+    /**
+     * Tmavý režim se zvýšeným kontrastem: tam je `onPrimaryContainer` TMAVÝ a na tmavé kartě by
+     * byl horší než `primary`. Proto se role nevybírá pevně, ale měřením.
+     */
+    @Test
+    fun naTmavePlosVyhrajeSvetlejsiRole() {
+        val karta = Color(0xFF2A2E35)
+        val primary = Color(0xFFBFD47A)
+        val onPrimaryContainer = Color(0xFF181E00)
+
+        assertEquals(primary, strongestAccentOn(karta, primary, onPrimaryContainer))
+    }
+
     /** Poloprůhledný akcent se posuzuje až složený na ploše, ne podle své vlastní barvy. */
     @Test
     fun pruhlednyAkcentSePosuzujeSlozeny() {
