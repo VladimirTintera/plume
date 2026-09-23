@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -35,6 +36,19 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.ParagraphStyle
+import androidx.compose.ui.text.style.TextIndent
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.em
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.format_quote_24dp
+import org.jetbrains.compose.resources.painterResource
 import eu.tintera.plume.core.telegram.MessageEntity
 import eu.tintera.plume.core.telegram.MessageEntityType
 
@@ -94,6 +108,37 @@ fun RichText(
      * obyčejným textem.
      */
     quoteBackground: Color = Color.Unspecified,
+    /**
+     * O kolik pás citace přesáhne za text nahoru a dolů, když sahá na PRVNÍ, respektive POSLEDNÍ
+     * řádek — tedy o vnitřní odsazení bubliny, aby dosedl na její okraj.
+     *
+     * Musí to podat volající: `drawBehind` se na hranice textu neořezává, takže uvnitř by se
+     * hádalo, jestli nad textem nestojí značka přeposlání nebo hlavička citované zprávy, přes
+     * jejichž šev pás přelézt nesmí.
+     */
+    quoteBleedTop: Dp = 0.dp,
+    quoteBleedBottom: Dp = 0.dp,
+    /**
+     * Geometrie pásu citace, kterou podává volající — ať je stejná jako u ostatních dílů zprávy
+     * (v konverzaci `MESSAGE_PADDING_H` / `MESSAGE_PADDING_V`).
+     *
+     * [quoteBleed] je přesah do stran: přesně vnitřní odsazení karty, takže pás dosedne na její
+     * okraj. [quotePadding] je svislé odsazení uvnitř pásu, kde citace nesahá na kraj textu.
+     */
+    quoteBleed: Dp = 0.dp,
+    quotePadding: Dp = 0.dp,
+    /** Sbalená citace se ořízne na pár řádků; zbytek ukáže rozbalovač pod ní. */
+    maxLines: Int = Int.MAX_VALUE,
+    /** Hlásí, jestli se text do [maxLines] nevešel — podle toho se nabízí rozbalovač. */
+    onOverflow: ((Boolean) -> Unit)? = null,
+    /**
+     * Citace je CELÝ text zprávy, takže se odsadí `padding`em celý `Text`, ne `ParagraphStyle`em.
+     *
+     * Odsazení odstavcem by se s ořezem na [maxLines] pralo: **Compose ellipsizovaný poslední
+     * řádek zalomí na plnou šířku a teprve pak ho posune o odsazení**, takže mu konec i s výpustkou
+     * přeteče za okraj a `Text` ho ořízne — poslední řádek pak končí uprostřed slova a bez „…".
+     */
+    quoteIndentAsPadding: Boolean = false,
 ) {
     /*
      * Spoilery se odkrývají po zprávě, ne po jednotlivých úsecích.
@@ -125,10 +170,19 @@ fun RichText(
         visibleHighlights(text, entities, highlights, spoilersRevealed)
     }
     val quotes = remember(text, entities) { quoteRanges(text, entities) }
-    val annotated = remember(text, entities, linkColor, contentColor, spoilersRevealed, visible, highlightColor) {
+    /*
+     * Uvozovky v levém žlábku citace. Kreslí se až v `drawBehind`, ne jako `InlineTextContent`:
+     * inline obsah by se musel vejít do řádku a posouval by první slovo, kdežto tady sedí
+     * v odsazení, které si citace stejně dělá.
+     */
+    val quoteIcon = if (quotes.isEmpty()) null else painterResource(Res.drawable.format_quote_24dp)
+    // Odsazení se počítá z dp, ne ze sp: lícuje s ikonou vedle sebe, ne s velikostí písma.
+    val quoteIndent = if (quoteIndentAsPadding) null else with(LocalDensity.current) { QUOTE_INDENT.toSp() }
+    val annotated = remember(text, entities, linkColor, contentColor, spoilersRevealed, visible, highlightColor, quoteIndent) {
         buildMessageText(
             text = text,
             entities = entities,
+            quoteIndent = quoteIndent,
             highlights = visible,
             highlightColor = highlightColor,
             linkColor = linkColor,
@@ -147,17 +201,34 @@ fun RichText(
     Text(
         text = annotated,
         style = style,
-        onTextLayout = { layout = it },
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
+        onTextLayout = {
+            layout = it
+            onOverflow?.invoke(it.hasVisualOverflow)
+        },
         modifier = modifier.drawBehind {
-            // Napřed blok citace, teprve na něm pilulka zvýraznění — hledané slovo musí být vidět
+            // Napřed pás citace, teprve na něm pilulka zvýraznění — hledané slovo musí být vidět
             // i uvnitř citace.
             if (quotes.isNotEmpty() && quoteBackground.isSpecified) {
-                layout?.let { drawQuoteBlocks(it, quotes, quoteBackground) }
+                layout?.let {
+                    drawQuoteBlocks(
+                        layout = it,
+                        ranges = quotes,
+                        color = quoteBackground,
+                        bleed = quoteBleed,
+                        padding = quotePadding,
+                        bleedTop = quoteBleedTop,
+                        bleedBottom = quoteBleedBottom,
+                        icon = quoteIcon,
+                        iconColor = contentColor.copy(alpha = QUOTE_ICON_ALPHA),
+                    )
+                }
             }
             if (visible.isNotEmpty() && highlightBackground.isSpecified) {
                 layout?.let { drawHighlightPills(it, visible, highlightBackground) }
             }
-        }.then(
+        }.padding(start = if (quoteIndentAsPadding && quotes.isNotEmpty()) QUOTE_INDENT else 0.dp).then(
             if (onLongClick == null) {
                 Modifier
             } else {
@@ -204,6 +275,8 @@ fun RichText(
 private fun buildMessageText(
     text: String,
     entities: List<MessageEntity>,
+    /** `null` = citace se odsazuje `padding`em celého textu, ne odstavcem. */
+    quoteIndent: TextUnit?,
     highlights: List<IntRange>,
     highlightColor: Color,
     linkColor: Color,
@@ -282,9 +355,24 @@ private fun buildMessageText(
                 end,
             )
 
-            // Citace se kreslí jako blok ZA textem (`drawQuoteBlocks`), ne stylem písma: podklad
-            // ve `SpanStyle` je hranatý obdélník po řádcích, ne jedna zaoblená plocha.
-            is MessageEntityType.Quote -> Unit
+            /*
+             * Citace se PODKLÁDÁ v `drawQuoteBlocks`, ne stylem písma — podklad ve `SpanStyle`
+             * je hranatý obdélník po řádcích. Ze stylu si bere jen odsazení: `ParagraphStyle`
+             * rozdělí text na odstavce přesně na hranicích citace a odsadí všechny její řádky.
+             *
+             * Odsazuje se jen zleva. `ParagraphStyle` odsazení zprava nemá, takže odstup od
+             * pravého okraje nese přesah pásu ([QUOTE_BLEED]) — viz `drawQuoteBlocks`.
+             */
+            is MessageEntityType.Quote -> {
+                addStyle(SpanStyle(fontSize = QUOTE_FONT_SCALE.em), start, end)
+                if (quoteIndent != null) {
+                    addStyle(
+                        ParagraphStyle(textIndent = TextIndent(firstLine = quoteIndent, restLine = quoteIndent)),
+                        start,
+                        end,
+                    )
+                }
+            }
 
             MessageEntityType.Spoiler -> if (spoilersRevealed) {
                 // Po odkrytí zůstane jen jemný podklad, aby bylo poznat, co bylo skryté.
@@ -322,38 +410,78 @@ private fun buildMessageText(
 }
 
 /**
- * Blok citace: tónovaná plocha za jejími řádky, přes celou šířku textu.
+ * Pás citace: tónovaný proužek za jejími řádky, od kraje bubliny ke kraji.
  *
- * **Plocha, ne proužek vlevo.** Proužek je jazyk M2 a v aplikaci už jednou ustoupil ploše
- * (náhled odkazu, citace nad odpovědí); plocha navíc odliší převzatý text i tam, kde je citace
- * jediný obsah zprávy.
+ * **Pás, ne zaoblená plocha uvnitř.** Zaoblený obdélník odsazený od okraje byl karta v kartě —
+ * tatáž chyba, kterou už jednou udělala citace nad odpovědí (subkartička v bublině) a náhled
+ * odkazu. Náprava je pokaždé stejná: tvar nese vnější karta a části uvnitř jsou rovné a přes
+ * celou šířku. Kde pás dosáhne na nároží bubliny, ořízne ho její tvar.
  *
- * Svisle se blok drží mezi `lineTop` a `lineBottom`, takže do sousedních řádků nezasahuje:
- * v těch mezích je i proklad řádku, a ten dělá písmu uvnitř bloku odstup. Do stran naopak
- * **přetéká za text** ([QUOTE_BLEED]) — jinak by písmo doléhalo přímo k okraji plochy a odsadit
- * ho zevnitř nejde, `ParagraphStyle` odsazení zprava nemá.
+ * **Plocha, ne proužek vlevo.** Proužek je jazyk M2; plocha navíc odliší převzatý text i tam,
+ * kde je citace jediný obsah zprávy.
+ *
+ * Svisle se pás drží mezi `lineTop` a `lineBottom`, takže do sousedních řádků nezasahuje:
+ * v těch mezích je i proklad řádku, a ten dělá písmu uvnitř odstup. Do stran přetéká
+ * o [QUOTE_BLEED] — jinak by písmo doléhalo přímo k okraji.
  */
-private fun DrawScope.drawQuoteBlocks(layout: TextLayoutResult, ranges: List<IntRange>, color: Color) {
-    val bleed = QUOTE_BLEED.toPx()
-    val radius = CornerRadius(QUOTE_RADIUS.toPx())
+private fun DrawScope.drawQuoteBlocks(
+    layout: TextLayoutResult,
+    ranges: List<IntRange>,
+    color: Color,
+    bleed: Dp,
+    padding: Dp,
+    bleedTop: Dp,
+    bleedBottom: Dp,
+    icon: Painter?,
+    iconColor: Color,
+) {
+    val bleedPx = bleed.toPx()
+    val paddingPx = padding.toPx()
+    val iconSize = QUOTE_ICON_SIZE.toPx()
     ranges.forEach { range ->
         val last = range.last.coerceAtMost(layout.layoutInput.text.length - 1)
         if (last < range.first) return@forEach
-        val top = layout.getLineTop(layout.getLineForOffset(range.first))
-        val bottom = layout.getLineBottom(layout.getLineForOffset(last))
-        drawRoundRect(
+        val firstLine = layout.getLineForOffset(range.first)
+        val lastLine = layout.getLineForOffset(last)
+        /*
+         * Pás má svislé odsazení, aby text nesedel na jeho hraně. Uvnitř zprávy ho vezme
+         * z prázdné řádky, kterou tam stejně nechává rozdělení na odstavce ([QUOTE_PADDING]) —
+         * z místa KOLEM pásu se tím stane místo UVNITŘ. Na kraji textu rozhoduje volající:
+         * u bubliny to je její vnitřní odsazení, takže pás dosedne na okraj.
+         */
+        val top = layout.getLineTop(firstLine) - if (firstLine == 0) bleedTop.toPx() else paddingPx
+        val bottom = layout.getLineBottom(lastLine) +
+            if (lastLine == layout.lineCount - 1) bleedBottom.toPx() else paddingPx
+        drawRect(
             color = color,
-            topLeft = Offset(-bleed, top),
-            size = Size(size.width + 2 * bleed, bottom - top),
-            cornerRadius = radius,
+            topLeft = Offset(-bleedPx, top),
+            size = Size(size.width + 2 * bleedPx, bottom - top),
         )
+        if (icon == null) return@forEach
+        val lineTop = layout.getLineTop(firstLine)
+        val y = lineTop + (layout.getLineBottom(firstLine) - lineTop - iconSize) / 2
+        translate(left = 0f, top = y) {
+            with(icon) { draw(Size(iconSize, iconSize), colorFilter = ColorFilter.tint(iconColor)) }
+        }
     }
 }
 
-/** O kolik blok citace přetéká za text do stran. Bublina má vnitřní odsazení 14 dp, vejde se. */
-private val QUOTE_BLEED = 6.dp
+/** Odsazení textu citace zleva; ve žlábku, který tím vznikne, stojí uvozovky. */
+private val QUOTE_INDENT = 20.dp
 
-private val QUOTE_RADIUS = 10.dp
+/**
+ * O kolik je písmo citace menší než okolní text.
+ *
+ * V `em`, ne v `sp`: platí pro každý styl, ve kterém se zpráva kreslí. Kurzíva by byla
+ * zřetelnější, jenže projekt kurzivní řez nemá (v `composeResources/font/` jsou jen přímé),
+ * takže by ji platforma dopočítala sklonem — a to je u víceřádkové citace vidět.
+ */
+private const val QUOTE_FONT_SCALE = 0.94f
+
+private val QUOTE_ICON_SIZE = 14.dp
+
+/** Uvozovky jsou značka, ne obsah — ustoupí textu, jako značka přeposlání. */
+private const val QUOTE_ICON_ALPHA = 0.45f
 
 /** Úseky citací, oříznuté do textu a bez prázdných — kreslí se za nimi blok. */
 internal fun quoteRanges(text: String, entities: List<MessageEntity>): List<IntRange> =

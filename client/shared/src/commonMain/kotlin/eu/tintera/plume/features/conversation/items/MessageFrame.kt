@@ -902,7 +902,7 @@ internal fun MessageBodyScope.PaddedColumn(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
-        Modifier.padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = contentBottom),
+        Modifier.padding(start = MESSAGE_PADDING_H, end = MESSAGE_PADDING_H, top = MESSAGE_PADDING_V, bottom = contentBottom),
         horizontalAlignment = horizontalAlignment,
         content = content,
     )
@@ -1014,12 +1014,15 @@ internal fun MessageBodyScope.ForwardLabel(modifier: Modifier = Modifier) {
 internal fun MessageBodyScope.ForwardHeader() {
     if (message.forwardOrigin == null) return
     Surface(color = bubbleColor, contentColor = onBubbleColor) {
-        ForwardLabel(Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 6.dp, bottom = 4.dp))
+        ForwardLabel(Modifier.fillMaxWidth().padding(start = MESSAGE_PADDING_H, end = MESSAGE_PADDING_H, top = 6.dp, bottom = 4.dp))
     }
 }
 
 /** Značka přeposlání je doplněk, ne obsah — ustoupí textu zprávy. */
 private const val FORWARD_LABEL_ALPHA = 0.78f
+
+/** Jak silně se tónuje pás citace v textu. Stejný řád jako podklad kódu (0,15). */
+private const val QUOTE_TINT_ALPHA = 0.1f
 
 /** Zástupný řetězec za jméno v šabloně „Přeposláno od %1$s"; ve jménech se nevyskytne. */
 private const val FORWARD_NAME_SLOT = "\u0001"
@@ -1036,6 +1039,17 @@ private const val FORWARD_NAME_SLOT = "\u0001"
 internal fun MessageBodyScope.MessageText(
     linkColor: Color,
     style: TextStyle = MaterialTheme.typography.bodyLarge,
+    /** Sbalená citace: kolik řádků je vidět, než se rozbalí. */
+    maxLines: Int = Int.MAX_VALUE,
+    /**
+     * O kolik smí pás citace přesáhnout na okraj bubliny. Nenulové jen tam, kde nad textem
+     * (pod ním) opravdu nic není — viz `RichText`.
+     */
+    bleedTop: Dp = 0.dp,
+    bleedBottom: Dp = 0.dp,
+    onOverflow: ((Boolean) -> Unit)? = null,
+    /** Citace je celý text zprávy — odsadí se `padding`em, viz `RichText`. */
+    wholeTextQuote: Boolean = false,
 ) {
     val query = items.searchHighlight()
     val highlights = remember(message.text, query) { query?.let { highlightRanges(message.text, it) }.orEmpty() }
@@ -1043,9 +1057,17 @@ internal fun MessageBodyScope.MessageText(
         highlights = highlights,
         highlightColor = bubbleColor,
         highlightBackground = onBubbleColor,
-        // Citace v textu je cizí vložený obsah — tatáž plocha jako citace nad odpovědí a popis
-        // webu u náhledu odkazu.
-        quoteBackground = insetColor,
+        // Citace v textu se tónuje Z INKOUSTU, ne container rolí: `tertiaryContainer` uvnitř
+        // bubliny byla druhá karta v kartě (a na odchozí `primary` bublině cizí barva). Stejná
+        // úvaha jako u podkladu kódu v `RichText`.
+        quoteBackground = onBubbleColor.copy(alpha = QUOTE_TINT_ALPHA),
+        quoteBleedTop = bleedTop,
+        quoteBleedBottom = bleedBottom,
+        quoteBleed = MESSAGE_PADDING_H,
+        quotePadding = MESSAGE_PADDING_V,
+        maxLines = maxLines,
+        onOverflow = onOverflow,
+        quoteIndentAsPadding = wholeTextQuote,
         text = message.text,
         entities = message.entities,
         style = style,

@@ -549,6 +549,8 @@
     <string name="conversation_fallback_title">Conversation</string>
     <string name="conversation_scroll_to_end">To the end of the conversation</string>
     <string name="conversation_edited">edited</string>
+    <string name="conversation_quote_expand">Show more</string>
+    <string name="conversation_quote_collapse">Show less</string>
     <string name="conversation_forwarded_from">Forwarded from %1$s</string>
     <string name="conversation_forwarded">Forwarded message</string>
     <string name="conversation_open_emoji">Emoji</string>

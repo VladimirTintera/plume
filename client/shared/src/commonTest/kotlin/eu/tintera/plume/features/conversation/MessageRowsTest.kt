@@ -2,6 +2,8 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.LinkPreview
+import eu.tintera.plume.core.telegram.MessageEntity
+import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MAX_AUTOPLAY_ANIMATION_BYTES
 import eu.tintera.plume.core.telegram.SendState
@@ -26,6 +28,7 @@ class MessageRowsTest {
         media: MessageMedia? = null,
         replyToMessageId: Long? = null,
         linkPreview: LinkPreview? = null,
+        entities: List<MessageEntity> = emptyList(),
     ) = ChatMessage(
         id = id,
         isOutgoing = isOutgoing,
@@ -33,7 +36,7 @@ class MessageRowsTest {
         senderAvatarFileId = null,
         senderId = 1L,
         text = text,
-        entities = emptyList(),
+        entities = entities,
         media = media,
         linkPreview = linkPreview,
         reactions = emptyList(),
@@ -360,5 +363,32 @@ class MessageRowsTest {
 
         // Ťuknutí na kteroukoli fotku alba hlásí odznak u celé položky.
         assertEquals(listOf(3L), readBadgeRows(rows, revealedMessageId = 4L).map { it.oldest.id })
+    }
+
+    private fun quote(offset: Int, length: Int, expandable: Boolean) =
+        MessageEntity(offset = offset, length = length, type = MessageEntityType.Quote(expandable = expandable))
+
+    @Test
+    fun sbalitelnaCitacePresCelouZpravuSeSbali() {
+        val text = "Převzatá věta."
+        assertTrue(collapsesQuote(message(1, text = text, entities = listOf(quote(0, text.length, expandable = true)))))
+    }
+
+    @Test
+    fun obycejnaCitaceSeNesbali() {
+        val text = "Převzatá věta."
+        assertFalse(collapsesQuote(message(1, text = text, entities = listOf(quote(0, text.length, expandable = false)))))
+    }
+
+    @Test
+    fun sbalitelnaCitaceUvnitrDelsiZpravySeNesbali() {
+        // `maxLines` platí pro celý text, takže by se ořízla i věta pod citací.
+        val text = "Citace.\nA moje věta pod ní."
+        assertFalse(collapsesQuote(message(1, text = text, entities = listOf(quote(0, 7, expandable = true)))))
+    }
+
+    @Test
+    fun zpravaBezCitaceSeNesbali() {
+        assertFalse(collapsesQuote(message(1, text = "Jen text.")))
     }
 }
