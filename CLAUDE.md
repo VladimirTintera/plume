@@ -1315,6 +1315,14 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
 
 `NewChatScreen` (`features/chats`), `NewChatRoute`, vstup FAB s tužkou v seznamu chatů.
 
+- **Je to tentýž `ChatPicker` jako přeposílání a sdílení** (viz „Jeden výběr chatu"). Vlastní
+  seznam tu byl a **při přestavbě výběru se na něj zapomnělo**: zůstal u `TextField`
+  s podtržením, holých `ListItem`ů na pozadí, `shapes.large` u karty Uložených zpráv, holého
+  textu místo prázdného stavu a bez spodního insetu, zatímco přeposílání už mluvilo jazykem
+  seznamu chatů. Dva vzhledy pro „seznam chatů k výběru" znamenaly, že uživatel poznává výběr
+  na každé obrazovce znovu.
+- **ViewModely zůstávají dva.** `NewChatViewModel` načítá kontakty, `ForwardViewModel` řeší
+  volby a odesílání — sdílí se vzhled, ne obsah.
 - **FAB je součástí plovoucího toolbaru** (viz „Filtry a plovoucí toolbar"). Při scrollu dolů se
   toolbar sbalí a zbude jen FAB, po zastavení zůstává sbalený až do dalšího scrollu nahoru.
 - **Kontakty jdou z `getContacts`** a pro každý se lokálně zavolá `createPrivateChat(userId, force = false)`
@@ -1323,8 +1331,38 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
 - **Uložené zprávy jsou i tady nahoře**, jako samostatná karta v `primaryContainer`.
 - **Vyhledávání kombinuje tři vrstvy:** lokální kontakty (filtrace podle jména), existující známé chaty
   z `searchChats` a veřejné Telegram uživatele / skupiny z `searchPublicChats` (podle `@username`).
+- **Prázdno má dvě podoby.** Bez dotazu „Žádné kontakty" s radou hledat podle `@jména`,
+  s dotazem „Nic nenalezeno" — dvě různé situace a rada dává smysl jen u té první.
+- **Načítání se hlásí, jen dokud nejsou kontakty.** Jinak by hledání pod prstem vyměnilo seznam
+  za kolečko při každém znaku.
 - **List panel na dvoupanelovém rozvržení:** Na tabletu / TwoPane nahradí levý panel stejně jako
   Archiv, po výběru kontaktu se zavře a v pravém panelu se otevře konverzace.
+
+### Jeden výběr chatu: `ChatPicker`
+
+Přeposílání, sdílení ze systému i zahájení nové konverzace kreslí tentýž seznam
+(`core/ui/ChatPicker.kt`): `SearchPill`, karta Uložených zpráv a bloky zaoblených řádků.
+
+- **Bydlí v `core/ui`, ne v `features/forward`.** Tam vznikl a sdílení si ho odtud importovalo;
+  nová konverzace (`features/chats`) by tím na balíčku přeposílání závisela. Stejná úvaha jako
+  u `GroupedList.kt` — mluví jím víc obrazovek než jedna.
+- **Obsah dávají SEKCE** (`PickerSection`): volitelný nadpis a chaty pod ním jako jeden blok.
+  Přeposílání a sdílení dávají jednu sekci bez nadpisu, nová konverzace tři (Kontakty / Chaty /
+  Globálně). Prázdné sekce se zahazují, jinak by po nich zbyl nadpis nad ničím — totéž pravidlo
+  jako u skupin v seznamu chatů.
+- **Klíč položky nese i klíč sekce.** Tentýž chat může být ve dvou sekcích a dva stejné klíče
+  `LazyColumn` shodí.
+- **Mezeru před blokem nese jeho první položka** (nadpis, nebo první řádek), ne
+  `verticalArrangement` — seznam o sousedech položky nic neví. Nad prvním blokem se nepřidává,
+  odstup od hlavičky dává `contentPadding`.
+- **Dostupnost pod jménem je volba obrazovky** (`showPresence`), ne vlastnost seznamu. Patří
+  tam, kde se vybírá ČLOVĚK; u přeposílání by „naposledy před hodinou" o cíli nic neříkalo
+  a řádky by kvůli tomu byly vyšší.
+- **Podtitul má vlastní barvu popředí** (`mutedContentColor`). `onSurfaceVariant` je počítaná na
+  `surface` role, takže na vybraném `secondaryContainer` i na kartě Uložených zpráv patří jejich
+  vlastní `on*` — tatáž past jako u času a ikon u vybraného chatu v seznamu. Zelená u „online"
+  navíc projde přes `accentOn`: `primary` na tónované kartě je v paletě se zvýšeným kontrastem
+  k nerozeznání.
 
 ### Co položka ukazuje
 
@@ -2958,7 +2996,8 @@ po odeslání se otevře cílový chat, takže je vidět, že zpráva dorazila.
 - **Album se přeposílá celé** (`albumMemberIds`, stejně jako mazání) — v bublině je to jedna věc
   a v cíli má albem zůstat. **Id musí být vzestupně**, jinak TDLib volání odmítne.
 - **Výběr je obrazovka, ne sheet.** Seznam chatů je dlouhý a listuje se v něm; sheet by navíc
-  při hledání zápasil s klávesnicí.
+  při hledání zápasil s klávesnicí. Kreslí ho `ChatPicker` z `core/ui`, společný se sdílením
+  i novou konverzací (viz „Jeden výběr chatu").
 - **Bez dotazu je ve výběru živý hlavní seznam, s dotazem výsledky `ChatSearch`** — ze všech
   chatů, i archivovaných (`pickerChats`, viz „Hledání chatů").
 - **Výběr vypadá jako seznam chatů, ne jako systémový dialog**: hledá se v `SearchPill`
@@ -4568,8 +4607,9 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   kolečko — ve sdílení i ve velkém kruhu notifikace. Barvy ze systémové palety Material You
   (`system_accent1_100/900`): zkratka se kreslí mimo aplikaci, téma aplikace tam není. Paleta je
   od Androidu 12, na starším zůstane ikona prázdná.
-- **Seznam s hledáním je společný s přeposíláním** (`ChatPicker`). Co se sdílí, jde do jeho
-  slotu `header` — tentýž, ve kterém má přeposílání volby; `ChatPicker` sám žádný podtitul nezná.
+- **Seznam s hledáním je společný s přeposíláním i novou konverzací** (`ChatPicker` v `core/ui`,
+  viz „Jeden výběr chatu"). Co se sdílí, jde do jeho slotu `header` — tentýž, ve kterém má
+  přeposílání volby; `ChatPicker` sám žádný podtitul nezná.
 - **Co se sdílí, je KARTA, ne řádek textu na pozadí** (`SharedContentCard`). Jako holý text to byl
   jediný prvek obrazovky, který nestál na ploše — a přitom je to to, podle čeho uživatel pozná,
   že posílá správnou věc. Role je `tertiaryContainer`: je to cizí vložený obsah, tedy totéž co

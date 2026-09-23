@@ -30,10 +30,12 @@ import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.features.chats.ChatSearch
 import eu.tintera.plume.features.chats.pickerChats
 import eu.tintera.plume.core.ui.GROUP_CORNER
-import eu.tintera.plume.features.forward.ChatPicker
+import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.PickerSection
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.attach_file_24dp
 import eu.tintera.plume.resources.description_24dp
+import eu.tintera.plume.resources.forward_search
 import eu.tintera.plume.resources.link_24dp
 import eu.tintera.plume.resources.share_files
 import eu.tintera.plume.resources.share_preparing
@@ -125,8 +127,9 @@ fun ShareScreen(
         title = stringResource(Res.string.share_title),
         query = state.query,
         onQueryChange = viewModel::onQueryChange,
+        searchPlaceholder = stringResource(Res.string.forward_search),
         loading = state.loading,
-        chats = state.chats,
+        sections = listOf(PickerSection(key = "chats", chats = state.chats)),
         enabled = content != null,
         onPick = { chatId ->
             viewModel.choose(chatId)

@@ -686,6 +686,7 @@
     <string name="new_chat_search">Search contacts or @username</string>
     <string name="new_chat_contacts">Contacts</string>
     <string name="new_chat_empty">No contacts</string>
+    <string name="new_chat_empty_text">Find someone by @username, or add a contact on your phone.</string>
     <string name="new_chat_load_failed">Couldn't load contacts</string>
     <string name="settings_section_notifications">Notifications</string>
     <string name="settings_section_notifications_summary">Alerts, previews and exceptions</string>
