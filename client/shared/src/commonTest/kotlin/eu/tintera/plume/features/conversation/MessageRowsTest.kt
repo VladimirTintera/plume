@@ -262,6 +262,7 @@ class MessageRowsTest {
         description = null,
         photo = photo,
         largePhoto = largePhoto,
+        showAboveText = false,
     )
 
     @Test
@@ -290,7 +291,15 @@ class MessageRowsTest {
 
     @Test
     fun prazdnyNahledKartaNeni() {
-        val empty = LinkPreview(url = "https://example.com", siteName = null, title = null, description = null, photo = null, largePhoto = false)
+        val empty = LinkPreview(
+            url = "https://example.com",
+            siteName = null,
+            title = null,
+            description = null,
+            photo = null,
+            largePhoto = false,
+            showAboveText = false,
+        )
 
         assertFalse(showsLinkPreviewCard(message(id = 1, text = "odkaz", linkPreview = empty)))
     }

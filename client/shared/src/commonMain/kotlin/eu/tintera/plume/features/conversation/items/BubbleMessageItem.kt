@@ -112,18 +112,25 @@ internal data class BubbleMessageItem(
                 message.media?.let { Attachment(media = it, accent = accent) }
             }
 
-            if (message.text.isNotBlank()) QuotableText()
-
-            message.linkPreview?.let { preview ->
-                LinkPreviewCard(
-                    preview = preview,
-                    accent = accent,
-                    // Ťuknutí jde stejnou cestou jako odkaz v textu, tedy přes ViewModel.
-                    onOpen = { act(MessageAction.OpenLink(preview.url)) },
-                    onLongClick = ::requestMenu,
-                    modifier = Modifier.padding(top = 6.dp),
-                )
+            // Náhled patří nad text, když si to přál odesílatel (`showAboveText`) — mezera
+            // pak jde na druhou stranu, ať karta nikdy nedoléhá k textu.
+            val preview = message.linkPreview
+            val previewCard: (@Composable (Modifier) -> Unit)? = preview?.let {
+                { modifier ->
+                    LinkPreviewCard(
+                        preview = preview,
+                        accent = accent,
+                        // Ťuknutí jde stejnou cestou jako odkaz v textu, tedy přes ViewModel.
+                        onOpen = { act(MessageAction.OpenLink(preview.url)) },
+                        onLongClick = ::requestMenu,
+                        modifier = modifier,
+                    )
+                }
             }
+
+            if (preview?.showAboveText == true) previewCard?.invoke(Modifier.padding(bottom = 6.dp))
+            if (message.text.isNotBlank()) QuotableText()
+            if (preview?.showAboveText != true) previewCard?.invoke(Modifier.padding(top = 6.dp))
 
             EditedLabel(color = onBubbleColor, modifier = Modifier.align(Alignment.End))
         }

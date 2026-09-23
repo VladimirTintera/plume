@@ -349,6 +349,7 @@ class ConversationItemsTest {
         description = null,
         photo = photo,
         largePhoto = large,
+        showAboveText = false,
     )
 
     private fun single(message: ChatMessage) = items(message).first()

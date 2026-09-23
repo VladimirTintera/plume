@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import androidx.compose.ui.unit.DpSize
 import eu.tintera.plume.features.conversation.showsLargePhoto
 import eu.tintera.plume.core.telegram.MessageMedia
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -79,43 +80,92 @@ internal data class LinkPreviewMessageItem(
                         fillWidth = true,
                     )
                     Column(Modifier.width(frameSize.width).clip(shape)) {
-                        MessagePart()
-                        RemoteImage(
-                            fileId = photo.fileId,
-                            thumbnailFileId = photo.thumbnailFileId,
-                            placeholder = photo.minithumbnail,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.size(frameSize).then(openLink()),
+                        CardParts(
+                            largePhoto = { LargePhoto(photo, frameSize) },
+                            thumbnail = null,
                         )
-                        InfoPart(thumbnail = null)
                     }
                 }
             } else {
                 Column(Modifier.width(IntrinsicSize.Max).clip(shape)) {
-                    MessagePart()
-                    InfoPart(thumbnail = photo)
+                    CardParts(largePhoto = null, thumbnail = photo)
                 }
             }
         }
     }
 
-    /** Horní část: značka přeposlání a text zprávy v barvě bubliny. */
+    /**
+     * Díly karty v pořadí, které si přál odesílatel.
+     *
+     * `showAboveText` znamená náhled NAD textem zprávy — a s ním se otáčí i to, který díl je
+     * poslední (spodní odsazení nese ten, pod kterým už nic není; počítá se s místem na čipy
+     * reakcí). **Značka přeposlání zůstává nahoře vždycky**: je to údaj o zprávě, ne o odkazu,
+     * a dole by vypadala jako popisek náhledu.
+     */
     @Composable
-    private fun MessageBodyScope.MessagePart() {
-        if (message.text.isBlank() && !message.isEdited && message.forwardOrigin == null) return
+    private fun MessageBodyScope.CardParts(
+        largePhoto: (@Composable () -> Unit)?,
+        thumbnail: MessageMedia.Photo?,
+    ) {
+        if (preview.showAboveText) {
+            ForwardPart()
+            largePhoto?.invoke()
+            InfoPart(thumbnail = thumbnail, last = false)
+            MessagePart(withForward = false, last = true)
+        } else {
+            MessagePart(withForward = true, last = false)
+            largePhoto?.invoke()
+            InfoPart(thumbnail = thumbnail, last = true)
+        }
+    }
+
+    @Composable
+    private fun MessageBodyScope.LargePhoto(photo: MessageMedia.Photo, frameSize: DpSize) {
+        RemoteImage(
+            fileId = photo.fileId,
+            thumbnailFileId = photo.thumbnailFileId,
+            placeholder = photo.minithumbnail,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.size(frameSize).then(openLink()),
+        )
+    }
+
+    /** Značka přeposlání jako samostatný díl — jen když náhled stojí nad textem. */
+    @Composable
+    private fun MessageBodyScope.ForwardPart() {
+        if (message.forwardOrigin == null) return
         Surface(color = bubbleColor, contentColor = onBubbleColor, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(horizontal = MESSAGE_PADDING_H, vertical = MESSAGE_PADDING_V)) {
                 ForwardLabel()
+            }
+        }
+    }
+
+    /** Text zprávy v barvě bubliny, se značkou přeposlání, když je díl první. */
+    @Composable
+    private fun MessageBodyScope.MessagePart(withForward: Boolean, last: Boolean) {
+        val forward = withForward && message.forwardOrigin != null
+        if (message.text.isBlank() && !message.isEdited && !forward) return
+        Surface(color = bubbleColor, contentColor = onBubbleColor, modifier = Modifier.fillMaxWidth()) {
+            Column(
+                Modifier.padding(
+                    start = MESSAGE_PADDING_H,
+                    end = MESSAGE_PADDING_H,
+                    top = MESSAGE_PADDING_V,
+                    bottom = if (last) contentBottom else MESSAGE_PADDING_V,
+                ),
+            ) {
+                if (forward) ForwardLabel()
                 if (message.text.isNotBlank()) MessageText(linkColor = accent)
                 EditedLabel(color = onBubbleColor, modifier = Modifier.align(Alignment.End))
             }
         }
     }
 
-    /** Spodní část: web, titulek a popis v tónované ploše, případně malý obrázek vpravo. */
+    /** Web, titulek a popis v tónované ploše, případně malý obrázek vpravo. */
     @Composable
-    private fun MessageBodyScope.InfoPart(thumbnail: MessageMedia.Photo?) {
+    private fun MessageBodyScope.InfoPart(thumbnail: MessageMedia.Photo?, last: Boolean) {
         val hasInfo = preview.siteName != null || preview.title != null || preview.description != null
         if (!hasInfo && thumbnail == null) return
         val colors = MaterialTheme.colorScheme
@@ -130,7 +180,7 @@ internal data class LinkPreviewMessageItem(
                         start = MESSAGE_PADDING_H,
                         end = MESSAGE_PADDING_H,
                         top = MESSAGE_PADDING_V + 2.dp,
-                        bottom = contentBottom + 2.dp,
+                        bottom = if (last) contentBottom + 2.dp else MESSAGE_PADDING_V + 2.dp,
                     ),
             ) {
                 PreviewInfo(
