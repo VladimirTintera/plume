@@ -910,6 +910,7 @@
     <string name="summary_retry">Try again</string>
     <string name="settings_on_device_ai_preview">Preview model version</string>
     <string name="settings_on_device_ai_preview_summary">The newest version before its stable release. It may not exist for this device and downloads separately.</string>
+    <string name="settings_on_device_ai_preview_same">The preview version is not used here — the stable model runs either way.</string>
     <string name="settings_on_device_ai_fast">Faster variant</string>
     <string name="settings_on_device_ai_fast_summary">Answers sooner but less accurately.</string>
     <string name="settings_on_device_ai_token_limit">Input limit: %1$s tokens</string>

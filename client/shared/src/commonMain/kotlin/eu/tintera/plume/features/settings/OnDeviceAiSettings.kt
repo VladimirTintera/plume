@@ -43,6 +43,7 @@ import eu.tintera.plume.resources.settings_on_device_ai_enable_summary
 import eu.tintera.plume.resources.settings_on_device_ai_fast
 import eu.tintera.plume.resources.settings_on_device_ai_fast_summary
 import eu.tintera.plume.resources.settings_on_device_ai_preview
+import eu.tintera.plume.resources.settings_on_device_ai_preview_same
 import eu.tintera.plume.resources.settings_on_device_ai_preview_summary
 import eu.tintera.plume.resources.settings_on_device_ai_token_limit
 import eu.tintera.plume.resources.settings_on_device_ai_ready
@@ -93,6 +94,10 @@ class OnDeviceAiSettingsViewModel(
     private val _model = MutableStateFlow<OnDeviceModelState>(OnDeviceModelState.Checking)
     val model: StateFlow<OnDeviceModelState> = _model.asStateFlow()
 
+    /** Preview varianta vrací tentýž model jako stabilní — přepínač tedy nic nezmění. */
+    private val _previewIsStable = MutableStateFlow(false)
+    val previewIsStable: StateFlow<Boolean> = _previewIsStable.asStateFlow()
+
     private var download: Job? = null
 
     init {
@@ -138,8 +143,46 @@ class OnDeviceAiSettingsViewModel(
             }
             OnDeviceAiStatus.Ready -> ai.info(variant).let { OnDeviceModelState.Ready(it?.name, it?.tokenLimit) }
         }
+        comparePreview(variant)
+    }
+
+    /**
+     * Porovná jméno modelu preview a stabilní varianty. Jen u připraveného modelu: u nestaženého
+     * jméno stejně nikdo neřekne. Selhání se polyká — je to doplňková informace, ne funkce.
+     */
+    private suspend fun comparePreview(variant: ModelVariant) {
+        if (_model.value !is OnDeviceModelState.Ready) {
+            _previewIsStable.value = false
+            return
+        }
+        _previewIsStable.value = try {
+            previewSameAsStable(
+                previewName = ai.info(variant.copy(preview = true))?.name,
+                stableName = ai.info(variant.copy(preview = false))?.name,
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.i(e) { "Nepovedlo se porovnat preview se stabilní variantou" }
+            false
+        }
     }
 }
+
+/**
+ * Vrací preview varianta tentýž model jako stabilní?
+ *
+ * Preview se nechová jako nedostupná funkce: `checkStatus` vrátí `AVAILABLE` (ne
+ * `DOWNLOADABLE`) a `getBaseModelName()` dá totéž jméno co stabilní verze. Ověřeno na
+ * Pixelu 11 Pro Foldu — AICore tam preview varianty ZNÁ a nabízí je ve svém Labs, ale stažený
+ * je jen balík „Fast + Full [TPU]“; ML Kit si o preview neřekne a tiše spadne na stabilní.
+ * Přepínač tedy nedělá nic a uživateli to nikdo neřekne, proto se jména porovnávají.
+ *
+ * Neznámé jméno (model se ještě nestáhl, AICore ho neřekl) NEZNAMENÁ shodu — tvrdit
+ * „preview tu není" na základě chybějícího údaje by bylo horší než mlčet.
+ */
+fun previewSameAsStable(previewName: String?, stableName: String?): Boolean =
+    previewName != null && previewName == stableName
 
 /**
  * Skupina „AI v zařízení" v sekci Obecné. Stav modelu se ukazuje, jen když je volba zapnutá —
@@ -152,6 +195,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
     val enabled by viewModel.enabled.collectAsStateWithLifecycle()
     val model by viewModel.model.collectAsStateWithLifecycle()
     val variant by viewModel.variant.collectAsStateWithLifecycle()
+    val previewIsStable by viewModel.previewIsStable.collectAsStateWithLifecycle()
 
     SettingsGroup(Res.string.settings_on_device_ai) {
         ListItem(
@@ -179,6 +223,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                     haptics.toggle(on)
                     viewModel.setPreview(on)
                 },
+                note = Res.string.settings_on_device_ai_preview_same.takeIf { previewIsStable },
             )
             VariantSwitch(
                 title = Res.string.settings_on_device_ai_fast,
@@ -243,11 +288,19 @@ private fun VariantSwitch(
     summary: StringResource,
     checked: Boolean,
     onChange: (Boolean) -> Unit,
+    note: StringResource? = null,
 ) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         headlineContent = { Text(stringResource(title)) },
-        supportingContent = { Text(stringResource(summary)) },
+        supportingContent = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(summary))
+                // Barva popředí ListItemu, ne onSurfaceVariant: ten je počítaný na surface
+                // role a řádek si barvy určuje sám (viz CLAUDE.md, „ListItem na tónované kartě").
+                note?.let { Text(stringResource(it), style = MaterialTheme.typography.labelLarge) }
+            }
+        },
         trailingContent = { Switch(checked = checked, onCheckedChange = null) },
         modifier = Modifier.toggleable(value = checked, role = Role.Switch, onValueChange = onChange),
     )
