@@ -14,9 +14,24 @@ class AudioFormatsTest {
     }
 
     @Test
-    fun waveformResamplesAndNormalizes() {
-        assertEquals(listOf(0.5f, 1f), resampleWaveform(listOf(1, 3, 4, 4), bars = 2))
+    fun waveformPrevzorkujeNaAbsolutniMeritko() {
+        // Průměry dvojic jsou 2 a 4; strop je 31, ne špička té hlasovky.
+        assertEquals(listOf(2f / 31f, 4f / 31f), resampleWaveform(listOf(1, 3, 4, 4), bars = 2))
         assertEquals(listOf(0f, 0f, 0f), resampleWaveform(emptyList(), bars = 3))
+    }
+
+    /**
+     * Tichá a hlasitá hlasovka se NESMÍ vykreslit stejně.
+     *
+     * Dokud se škálovalo na špičku, vyšly oba tyhle waveformy shodně (obojí `[0.5, 1]`) a každá
+     * hlasovka v konverzaci pak měla jinak vysoké sloupce podle toho, jak nahlas byla nahraná.
+     */
+    @Test
+    fun tichaHlasovkaNeniRoztazenaNaStrop() {
+        val hlasita = resampleWaveform(listOf(16, 31), bars = 2)
+        val ticha = resampleWaveform(listOf(2, 4), bars = 2)
+        assertEquals(1f, hlasita.last())
+        assertEquals(4f / 31f, ticha.last())
     }
 
     @Test

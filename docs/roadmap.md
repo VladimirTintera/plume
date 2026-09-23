@@ -245,15 +245,17 @@ a poučení z něj v `CLAUDE.md`, „Haptika". Odezvu dnes mají: prahy tahů (a
 zavírací tah v prohlížeči médií), dlouhý stisk odkazu, odeslání zprávy, samolepky i GIFu,
 start a konec nahrávání hlasovky i její zahození, reakce (pruh i plný výběr), přidání
 a odebrání z výběru zpráv, oblíbení samolepky, přepínače v Nastavení, v profilu (ztlumení),
-v nastavení archivu, v úpravě skupiny a v Zařízeních, skok mezi výsledky hledání v konverzaci
-a chyba po akci uživatele.
+v nastavení archivu, v úpravě skupiny a v Zařízeních, skok mezi výsledky hledání v konverzaci,
+tažení po waveformu hlasovky, přepnutí rychlosti přehrávání a chyba po akci uživatele.
 
 Vede se to tady, ne v [roadmap-konverzace.md](roadmap-konverzace.md): je to jeden slovník přes
 celou aplikaci a rozdělený na dvě místa by se rozešel. Zbývá:
 
-- **Procházení po dílcích** (`tick`): tažení po waveformu hlasovky a po posuvníku videa,
-  přeskočení stránky v prohlížeči médií, pruh rychlých reakcí. Je to jediná skupina, kde hrozí,
-  že odezva bude otravná — chce to ladit rukou na telefonu, ne od stolu.
+- **Procházení po dílcích** (`tick`): ~~tažení po waveformu hlasovky~~ — hotovo (tiká po
+  sloupcích, ne po pixelech) —, zbývá posuvník videa, přeskočení stránky v prohlížeči médií
+  a pruh rychlých reakcí. Je to jediná skupina, kde hrozí, že odezva bude otravná — chce to
+  ladit rukou na telefonu, ne od stolu. **Tažení po waveformu ověřené rukou NENÍ**, jen
+  z `dumpsys vibrator_manager`.
 - **Ověřit rukou na telefonu.** Emulátor nevibruje; z `dumpsys vibrator_manager` se pozná jen,
   že volání odešlo a které (ověřeno: odeslání 16, dlouhý stisk jediná 0, reakce 21,
   přepínač 21/22). Jestli dvě haptiky nejdou nepříjemně po sobě — třeba práh tahu a hned

@@ -85,6 +85,30 @@ fun surfaceApart(background: Color, container: Color, toward: Color): Color =
     }
 
 /**
+ * Plocha [surface] přitónovaná k [tint], aby nebyla jen šedá.
+ *
+ * Karta vstupního pole leží na ploše konverzace a v neutrálních surface rolích se od ní lišila
+ * jen světlostí — v Material You z tapety to byl šedý obdélník pod barevnými bublinami. Míchá se
+ * proto s container rolí: karta drží barvu palety (a tedy i tapety), ale zůstane zřetelně
+ * pozadím, ne bublinou.
+ *
+ * **Míchá se plocha, ne role.** Sáhnout rovnou po `primaryContainer` nejde: tu už nese karta při
+ * NAHRÁVÁNÍ (dnes `tertiaryContainer`, viz vstupní pole) a hlavně by se karta dostala na
+ * světlost odchozí bubliny, takže by pole vypadalo jako rozepsaná zpráva.
+ */
+fun tintedSurface(surface: Color, tint: Color, amount: Float = SURFACE_TINT): Color =
+    lerp(surface, tint, amount)
+
+/**
+ * O kolik se plocha přitónuje k barevné roli.
+ *
+ * Vyšlo z porovnání na emulátoru: při 0,3 má karta proti ploše konverzace pořád kontrast nad
+ * [MIN_SURFACE_CONTRAST] (je vidět, kde pole začíná) a text v ní zůstává nad AA, ale barva
+ * z palety je na ní znát. Víc už kartu posouvá k bublině.
+ */
+private const val SURFACE_TINT = 0.3f
+
+/**
  * Práh čitelnosti — WCAG AA pro běžný text.
  *
  * Akcenty v aplikaci nesou drobné písmo (jméno v citaci, název webu), takže mírnější práh pro

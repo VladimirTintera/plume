@@ -31,12 +31,18 @@ import platform.AVFAudio.AVAudioPlayer
 import platform.AVFAudio.AVAudioPlayerDelegateProtocol
 import platform.AVFAudio.AVAudioSession
 import platform.AVFAudio.AVAudioSessionCategoryPlayback
+import platform.AVFAudio.AVAudioSessionInterruptionNotification
+import platform.AVFAudio.AVAudioSessionInterruptionTypeBegan
+import platform.AVFAudio.AVAudioSessionInterruptionTypeKey
 import platform.AVFAudio.setActive
 import platform.CoreAudioTypes.AudioStreamBasicDescription
 import platform.CoreAudioTypes.kAudioFormatOpus
 import platform.Foundation.NSData
 import platform.Foundation.NSError
 import platform.Foundation.NSFileManager
+import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSNumber
+import platform.Foundation.NSOperationQueue
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSURL
 import platform.Foundation.create
@@ -56,15 +62,36 @@ import platform.posix.memcpy
  * Soubor, který Ogg není (např. MP3 přeposlané jako hlasovka), jde do `AVAudioPlayer` rovnou.
  */
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
-actual class AudioEngine actual constructor() {
+actual class AudioEngine {
 
     private var player: AVAudioPlayer? = null
+
+    private var speed = 1f
 
     /** Delegáta AVAudioPlayer drží jen slabě — bez silné reference by dohrání nikdo nehlásil. */
     private val delegate = object : NSObject(), AVAudioPlayerDelegateProtocol {
         override fun audioPlayerDidFinishPlaying(player: AVAudioPlayer, successfully: Boolean) {
             onCompleted?.invoke()
         }
+    }
+
+    /**
+     * Přerušení hovorem, budíkem nebo Sirim.
+     *
+     * `AVAudioPlayer` přehrávání při přerušení zastaví sám, ale nikomu to neřekne — bez tohohle
+     * pozorovatele by hlasovka v UI dál „hrála" a posuvník by stál. Notifikační centrum si
+     * pozorovatele drží jen slabě, proto silná reference a odhlášení v [release].
+     *
+     * Reaguje se jen na ZAČÁTEK přerušení: po hovoru se zvuk sám nerozezní, stejně jako na
+     * Androidu po návratu audio focus.
+     */
+    private val interruptionObserver = NSNotificationCenter.defaultCenter.addObserverForName(
+        name = AVAudioSessionInterruptionNotification,
+        `object` = AVAudioSession.sharedInstance(),
+        queue = NSOperationQueue.mainQueue,
+    ) { notification ->
+        val type = (notification?.userInfo?.get(AVAudioSessionInterruptionTypeKey) as? NSNumber)?.unsignedLongValue
+        if (type == AVAudioSessionInterruptionTypeBegan) onInterrupted?.invoke()
     }
 
     actual suspend fun load(path: String): Long {
@@ -81,13 +108,18 @@ actual class AudioEngine actual constructor() {
                 ?: error(error.value?.localizedDescription ?: "Zvuk nejde otevřít.")
         }
         created.delegate = delegate
+        // `enableRate` se MUSÍ nastavit před `prepareToPlay()`, jinak `rate` nic neudělá.
+        created.enableRate = true
         check(created.prepareToPlay()) { "Zvuk nejde připravit." }
+        created.rate = speed
         player = created
         return (created.duration * 1000).toLong()
     }
 
     actual fun start() {
         player?.play()
+        // `play()` rychlost resetuje na 1; nastavit ji jde až na hrajícím přehrávači.
+        player?.rate = speed
     }
 
     actual fun pause() {
@@ -98,12 +130,22 @@ actual class AudioEngine actual constructor() {
         player?.currentTime = positionMs / 1000.0
     }
 
+    actual fun setSpeed(speed: Float) {
+        this.speed = speed
+        // Na pozastaveném přehrávači zápis `rate` přehrávání nerozjede (na rozdíl od Androidu).
+        player?.rate = speed
+    }
+
     actual val positionMs: Long get() = ((player?.currentTime ?: 0.0) * 1000).toLong()
 
     actual var onCompleted: (() -> Unit)? = null
 
+    actual var onInterrupted: (() -> Unit)? = null
+
     actual fun release() {
         onCompleted = null
+        onInterrupted = null
+        NSNotificationCenter.defaultCenter.removeObserver(interruptionObserver)
         player?.stop()
         player?.delegate = null
         player = null

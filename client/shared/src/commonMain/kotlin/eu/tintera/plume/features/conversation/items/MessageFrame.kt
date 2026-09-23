@@ -1136,8 +1136,10 @@ internal fun MessageBodyScope.Attachment(
         fillWidth = fillWidth,
         voice = VoiceHandlers(
             playback = { items.voicePlayback(id) },
+            speed = { items.voiceSpeed() },
             onToggle = { act(MessageAction.ToggleVoice) },
             onSeek = { fraction -> act(MessageAction.SeekVoice(fraction)) },
+            onCycleSpeed = { act(MessageAction.CycleVoiceSpeed) },
             accent = accent,
             onAccent = if (message.isOutgoing) bubbleColor else MaterialTheme.colorScheme.onPrimary,
         ),

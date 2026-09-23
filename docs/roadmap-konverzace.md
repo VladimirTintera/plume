@@ -35,8 +35,10 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    5. ~~**Videa** ve výběru i v albu~~ — hotovo (bez překódování; přehrávání viz bod 2).
    6. ~~**Skryté a časované fotky (spoilery a sebedestrukce)**~~ — hotovo (viz sekce E níže).
 2. **Přehrávání videa a hlasovek.** ~~Hlasovky~~ — hotovo (přehrávání v bublině, waveform
-   s posunem, poslechnuto). U hlasovek zbývá rychlost přehrávání, automatické pokračování další
-   neposlechnutou, sluchátko u ucha a audio focus / přerušení hovorem. ~~Nahrávání~~ — hotovo
+   s posunem, poslechnuto, ~~rychlost 1×/1,5×/2×~~, ~~pokračování další neposlechnutou~~
+   i ~~audio focus a přerušení hovorem~~; `CLAUDE.md`, „Hlasovky"). U hlasovek zbývá **sluchátko
+   u ucha** (přiložení k uchu přepne zvuk do sluchátka a ztlumí displej — potřebuje senzor
+   přiblížení a přepnutí `AudioAttributes` / `AVAudioSession` za běhu). ~~Nahrávání~~ — hotovo
    (ťuknutím); chybí podržení se zamčením, náhled před odesláním a průběh nahrávání hlasovky.
    ~~Video~~ — hotovo v prohlížeči (Media3 / AVPlayer). ~~GIFy~~ — hotovo (hrají v bublině ve
    smyčce bez zvuku; `CLAUDE.md`, „GIFy"). ~~GIFy z klávesnice~~ — hotovo na Androidu (Gboard;

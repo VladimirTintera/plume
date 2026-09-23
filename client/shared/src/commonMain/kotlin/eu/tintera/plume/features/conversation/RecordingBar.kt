@@ -50,12 +50,12 @@ fun RecordingBar(
     modifier: Modifier = Modifier,
 ) {
     val current = recording()
-    // Karta pole je při nahrávání `primaryContainer`; v paletě se zvýšeným kontrastem na ní
-    // `primary` splyne (viz `accentOn`).
+    // Karta pole je při nahrávání `tertiaryContainer` (hlas je v aplikaci terciární, stejně jako
+    // tlačítko vedle); v paletě se zvýšeným kontrastem na ní `tertiary` splyne (viz `accentOn`).
     val barColor = accentOn(
-        background = MaterialTheme.colorScheme.primaryContainer,
-        accent = MaterialTheme.colorScheme.primary,
-        fallback = MaterialTheme.colorScheme.onPrimaryContainer,
+        background = MaterialTheme.colorScheme.tertiaryContainer,
+        accent = MaterialTheme.colorScheme.tertiary,
+        fallback = MaterialTheme.colorScheme.onTertiaryContainer,
     )
 
     Row(

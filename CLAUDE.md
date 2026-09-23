@@ -2774,9 +2774,27 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   samolepka sama ořezaná není, přišla by o rohy), sled tvarů končící zaoblenou hvězdou =
   uvítání prázdného stavu (placeholder detailu, jednou a pak stojí). Kde se stav nemění (avatary, položky seznamu, reakce), se tvary
   nepoužívají: kdyby se hýbalo všechno, přestalo by to cokoli znamenat.
-- **Barva odesílacího tlačítka říká, jak silná akce to je**: mikrofon tonální
-  (`secondaryContainer`), odeslání i uložení úpravy plná `primary`. Prolíná se spolu s morfem.
-  Tři různé barvy pro tři ikony by z tlačítka udělaly semafor.
+- **Barva odesílacího tlačítka říká, ČEHO se akce týká**: text `primary` (jako odchozí bublina),
+  hlas `tertiary`. Hlasovka je doplňková cesta vedle psaní a terciární role je v M3 přesně na to;
+  tlačítko je tak stejně výrazné jako odeslání textu (obojí plná role, ne tonální), jen se pozná,
+  že udělá něco jiného. Prolíná se spolu s morfem. Tři různé barvy pro tři ikony by z tlačítka
+  udělaly semafor, proto se drží dvojice.
+  - **Dřív byl mikrofon tonální `secondaryContainer`** („klidový stav prázdného pole"). Tím ale
+    bylo tlačítko v prázdném poli to nejméně nápadné na obrazovce, přestože je to jediná akce,
+    která se z prázdného pole dá udělat.
+  - **Mikrofon a odesílání hlasovky mají barvu STEJNOU.** Mezi „můžu nahrát" a „nahrávám"
+    rozhoduje tvar (sušenka ↔ dýchající SoftBurst), vlnka karty a pruh s časem; přebarvit k tomu
+    ještě tlačítko by byl čtvrtý signál pro jednu změnu. `SendButtonKind.SendVoice` je proto
+    vlastní hodnota, i když kreslí tutéž ikonu jako `Send` — s jediným „Send" by tlačítko při
+    spuštění nahrávání probliklo z terciární do `primary` a zpátky.
+  - **Karta pole se při nahrávání barví na `tertiaryContainer`**, ne `primaryContainer`: hlas je
+    v aplikaci terciární celý, včetně úrovní v pruhu nahrávání (`RecordingBar`).
+- **Karta vstupního pole je `surfaceContainerHigh` PŘITÓNOVANÁ do `primaryContainer`**
+  (`tintedSurface`, 30 %). V čistě neutrálních surface rolích to byla jediná velká šedá plocha
+  na obrazovce a od pozadí konverzace ji dělila jen světlost — v Material You z tapety obzvlášť.
+  Plný `primaryContainer` použít nejde: karta by se dostala na světlost odchozí bubliny a pole by
+  vypadalo jako rozepsaná zpráva. Barva ikon v kartě (`inputIconColor`) se měří proti TÉHLE ploše,
+  ne proti holé roli.
 - **Odesílací tlačítko je velikost medium (56 dp).** Je to přesně minimální výška jednořádkového
   `TextField`, takže se spodním zarovnáním řádku sedí na střed pole bez dopočítávaného odsazení
   a u víceřádkového textu zůstává u posledního řádku. Výchozí small (40 dp) sedělo o 8 dp níž
@@ -3775,19 +3793,57 @@ obsahu bývá zlomek zpráv.
 
 ## Hlasovky
 
-Přehrávají se přímo v bublině: tlačítko, waveform s průběhem (ťuknutí a tažení posouvá), čas
-a tečka u neposlechnuté.
+Přehrávají se přímo v bublině: tlačítko, waveform s průběhem (ťuknutí a tažení posouvá), čas,
+tečka u neposlechnuté a u hrající čip rychlosti.
 
 - **Hraje nejvýš jedna, pro celou aplikaci** (`VoicePlayer`, `single` v Koinu). Spuštění jiné
   tu předchozí zastaví. Zavření chatu hlasovku z něj zastaví (`onCleared`) — neměla by kde
   ukazovat průběh ani jak ji vypnout.
+- **Engine si `VoicePlayer` NEVYRÁBÍ, dostane továrnu** (`newEngine`). Android potřebuje ke zvuku
+  `Context` (audio focus) a `core/audio` ho nezná; dodá ho Koin jako `factory`, stejně jako
+  u `AudioRecorder`. Proto je `AudioEngine` `expect class` BEZ konstruktoru.
 - **Soubor se stahuje až při prvním přehrání.** Dopředu by to byla data za každou hlasovku
   v historii. Klíč je `chatId` + id zprávy — id zprávy je jedinečné jen v chatu.
 - **Pozice je samostatný tok, ne součást `ConversationState`**, a do bubliny jde jako lambda,
   která se čte až ve `VoiceNoteContent`. Mění se dvacetkrát za vteřinu (`POSITION_TICK_MS`);
   v kompozici obrazovky by překreslovala celou konverzaci.
 - **Waveform od Telegramu je po 5 bitech** (hodnoty 0–31, od nejnižšího bitu) — `decodeWaveform`,
-  testy v `AudioFormatsTest`. Do bubliny se převzorkuje na 40 sloupců a znormuje podle špičky.
+  testy v `AudioFormatsTest`. Do bubliny se převzorkuje na 40 sloupců a vydělí stropem 31.
+- **Waveform se NEŠKÁLUJE na špičku té konkrétní hlasovky.** Dřív ano — každá se roztáhla tak,
+  aby její nejhlasitější místo sáhlo na strop —, jenže tím měla každá hlasovka v konverzaci jinak
+  vysoké sloupce: hlasitá vyšla jako souvislý blok u stropu, tichá jako členitý tvar, a z waveformu
+  se nedalo přečíst nic než „tahle je jiná než ta nad ní". Hodnoty od Telegramu jsou absolutní,
+  takže stačí vydělit stropem. Hlídá to `tichaHlasovkaNeniRoztazenaNaStrop`: s normalizací vyjdou
+  tichá i hlasitá ukázka SHODNĚ, takže test bez ní projde a s ní ne.
+- **Na straně NAHRÁVÁNÍ se normalizuje dál** (`encodeWaveform`). Mikrofon vrací úroveň v měřítku,
+  které si každá platforma určuje sama (Android `maxAmplitude`, iOS `averagePower` v dB), takže
+  absolutní hodnota z něj nic neznamená a nenormovaná tichá nahrávka by odešla jako čára. Není to
+  tedy protimluv: normuje se tam, kde je měřítko naše, a nenormuje tam, kde je od serveru.
+- **Rychlost přehrávání je 1× / 1,5× / 2×** (`VoiceSpeed`), přepíná se čipem u času a platí pro
+  CELOU aplikaci (uloženo v `AppSettings.voiceSpeed`). Tři hodnoty, ne posuvník: mezi 1,25 a 1,3
+  nikdo nerozhoduje a ťuknutí musí vždycky někam dojít.
+- **Čip rychlosti je jen u hrající hlasovky.** V každé bublině by z něj byl další ovládací prvek,
+  a přitom se rychlost mění jednou za čas. Řádek s časem má šířku waveformu, takže se bublina
+  objevením čipu nepřeskládá.
+- **`MediaPlayer.playbackParams` na PAUZNUTÉM přehrávači přehrávání ROZJEDE.** Je to zdokumentované
+  chování, ne chyba. Rychlost se proto drží v poli a zapisuje se buď v `start()`, nebo za běhu —
+  jinak by přepnutí čipu u pozastavené hlasovky spustilo zvuk. Na iOS to neplatí, tam `rate` na
+  pauznutém přehrávači nic nespustí; zato se `enableRate` MUSÍ nastavit PŘED `prepareToPlay()`
+  a `play()` rychlost resetuje na 1, takže se zapisuje znovu hned po něm.
+- **Po dohrání se pustí DALŠÍ neposlechnutá** (`VoicePlayer.completions` → `playNextUnlistened`).
+  Bere se jen nejbližší novější hlasovka, a jen když je příchozí a neposlechnutá: řetězí se tím
+  dávka hlasovek poslaná za sebou, což je ten případ, kvůli kterému to existuje. Přeskakovat
+  k neposlechnuté někde dál v historii by překvapilo — uživatel si pustil jednu starou hlasovku
+  a najednou mu hraje něco jiného.
+- **Která je další, ví jedině konverzace**, ne přehrávač. `VoicePlayer` proto jen ohlásí, že
+  hlasovka DOHRÁLA (ne že ji zastavil uživatel), a `ConversationViewModel` vybere následující.
+- **Audio focus utne hudbu a hovor utne hlasovku.** Android `AUDIOFOCUS_GAIN_TRANSIENT` (ne
+  `MAY_DUCK` — řeč pod ztlumenou hudbou se neposlouchá), iOS `AVAudioSessionInterruptionNotification`.
+  **Po návratu focusu se NEPOKRAČUJE samo**: zvuk, který se rozezní bez ťuknutí, překvapí.
+- **Přerušení se musí promítnout do stavu** (`AudioEngine.onInterrupted`). Přehrávač se zastaví
+  sám, ale nikomu to neřekne — bez toho by hlasovka v UI dál „hrála" a posuvník by stál.
+- **Tažení po waveformu tiká po SLOUPCÍCH, ne po pixelech** (`haptics.tick()` při změně indexu
+  sloupce). Odezva na každý pohyb prstu by byla souvislé bzučení.
 - **Tažení po waveformu `pointerInput` spotřebuje**, takže se na něm nerozjede swipe na odpověď.
   Posouvat jde jen vybranou hlasovku; u ostatních waveform gesta nemá.
 - **Poslechnuto = `openMessageContent`.** Ukáže se hned lokálně, potvrzení a poslechnutí našich

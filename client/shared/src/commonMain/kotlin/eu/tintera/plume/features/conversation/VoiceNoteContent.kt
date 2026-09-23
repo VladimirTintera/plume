@@ -2,16 +2,20 @@ package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
@@ -29,24 +33,31 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.resampleWaveform
+import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.tabularNumbers
+import eu.tintera.plume.core.ui.tick
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_play_voice
 import eu.tintera.plume.resources.conversation_voice_progress
 import eu.tintera.plume.resources.media_pause
 import eu.tintera.plume.resources.pause_24dp
 import eu.tintera.plume.resources.play_arrow_24dp
+import eu.tintera.plume.resources.voice_speed_double
+import eu.tintera.plume.resources.voice_speed_fast
+import eu.tintera.plume.resources.voice_speed_normal
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -59,6 +70,9 @@ import org.jetbrains.compose.resources.stringResource
  *   pointerInput spotřebuje, takže se na waveformu nerozjede swipe na odpověď.
  * - **Tečka u času = neposlechnutá.** Telegram ji ukazuje u příchozí, dokud ji nepustíme, a u odchozí,
  *   dokud si ji nepustí protějšek.
+ * - **Čip rychlosti je jen u hrající hlasovky.** U ostatních by z něj byl další ovládací prvek
+ *   v každé bublině, a přitom se rychlost mění jednou za čas. Místo si drží i tak (šířka řádku
+ *   je daná waveformem), takže se bublina jeho objevením nepřeskládá.
  * - Barvy přicházejí zvenku ([accent] / [onAccent]) ze stejného důvodu jako u citace: v odchozí
  *   `primary` bublině by `primary` tlačítko zmizelo.
  */
@@ -67,14 +81,17 @@ import org.jetbrains.compose.resources.stringResource
 fun VoiceNoteContent(
     voice: MessageMedia.VoiceNote,
     playback: () -> VoicePlayback?,
+    speed: () -> VoiceSpeed,
     onToggle: () -> Unit,
     onSeek: (Float) -> Unit,
+    onCycleSpeed: () -> Unit,
     accent: Color,
     onAccent: Color,
     modifier: Modifier = Modifier,
 ) {
     val current = playback()
     val bars = remember(voice.waveform) { resampleWaveform(voice.waveform, VOICE_BARS) }
+    val haptics = LocalHapticFeedback.current
 
     Row(
         modifier,
@@ -120,8 +137,22 @@ fun VoiceNoteContent(
                     }
                     .pointerInput(active) {
                         if (!active) return@pointerInput
+                        // Tik po dílcích, jak prst přejíždí sloupce — ne na každý pixel pohybu.
+                        var tickedBar = -1
+                        fun at(x: Float): Float = (x / size.width).coerceIn(0f, 1f)
+                        fun tickAt(fraction: Float) {
+                            val bar = (fraction * VOICE_BARS).toInt().coerceIn(0, VOICE_BARS - 1)
+                            if (bar != tickedBar) {
+                                tickedBar = bar
+                                haptics.tick()
+                            }
+                        }
                         detectHorizontalDragGestures(
-                            onDragStart = { offset -> dragFraction = (offset.x / size.width).coerceIn(0f, 1f) },
+                            onDragStart = { offset ->
+                                val fraction = at(offset.x)
+                                dragFraction = fraction
+                                tickAt(fraction)
+                            },
                             onDragEnd = {
                                 dragFraction?.let(onSeek)
                                 dragFraction = null
@@ -129,12 +160,18 @@ fun VoiceNoteContent(
                             onDragCancel = { dragFraction = null },
                         ) { change, _ ->
                             change.consume()
-                            dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                            val fraction = at(change.position.x)
+                            dragFraction = fraction
+                            tickAt(fraction)
                         }
                     },
             )
 
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                Modifier.width(VOICE_WAVEFORM_WIDTH),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 val seconds = if (active) {
                     ((dragFraction?.let { it * current.durationMs } ?: current.positionMs.toFloat()) / 1000).toInt()
                 } else {
@@ -147,9 +184,46 @@ fun VoiceNoteContent(
                 if (!voice.isListened) {
                     Box(Modifier.size(6.dp).background(accent, CircleShape))
                 }
+                Spacer(Modifier.weight(1f))
+                if (active) {
+                    SpeedChip(speed = speed(), accent = accent, onAccent = onAccent, onClick = onCycleSpeed)
+                }
             }
         }
     }
+}
+
+/**
+ * Čip rychlosti u hrající hlasovky: ťuknutí přepne na další (1× → 1,5× → 2× → 1×).
+ *
+ * Jen tónovaný, ne plný akcent — hlavní ovládání je tlačítko přehrání a čip vedle času má být
+ * k dispozici, ne přitahovat pozornost. Číslice jsou `tnum`, jinak by „1×" a „1,5×" cukaly.
+ */
+@Composable
+private fun SpeedChip(speed: VoiceSpeed, accent: Color, onAccent: Color, onClick: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
+    val label = stringResource(
+        when (speed) {
+            VoiceSpeed.Normal -> Res.string.voice_speed_normal
+            VoiceSpeed.Fast -> Res.string.voice_speed_fast
+            VoiceSpeed.Double -> Res.string.voice_speed_double
+        },
+    )
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelMedium.tabularNumbers(),
+        color = onAccent,
+        modifier = Modifier
+            .clip(SPEED_CHIP_SHAPE)
+            .background(accent.copy(alpha = SPEED_CHIP_ALPHA))
+            .clickable {
+                // Přepnutí stavu, tedy `toggle` — jenže hodnoty jsou tři a „zapnuto" mezi nimi není.
+                haptics.tick()
+                onClick()
+            }
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .semantics { contentDescription = label },
+    )
 }
 
 /** Sloupce waveformu; přehraná část plnou barvou akcentu, zbytek průsvitnou. */
@@ -180,6 +254,11 @@ private fun Waveform(
 }
 
 private const val VOICE_BARS = 40
+
+private val SPEED_CHIP_SHAPE = RoundedCornerShape(8.dp)
+
+/** Jak sytý je podklad čipu. Plný akcent by z čipu udělal druhé tlačítko vedle přehrání. */
+private const val SPEED_CHIP_ALPHA = 0.85f
 private val VOICE_BUTTON_SIZE = 44.dp
 private val VOICE_WAVEFORM_WIDTH = 160.dp
 private val VOICE_WAVEFORM_HEIGHT = 28.dp

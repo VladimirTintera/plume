@@ -158,7 +158,14 @@ fun appModule() = module {
 
     // Jeden přehrávač hlasovek na aplikaci: hraje nejvýš jedna. Na hlavním vlákně, protože
     // systémové přehrávače se ovládají z něj.
-    single { VoicePlayer(scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)) }
+    single {
+        VoicePlayer(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            // Nový engine na každou hlasovku; platformní konstruktor dodá Koin (Android chce Context).
+            newEngine = { get() },
+            settings = get(),
+        )
+    }
 
     // Most mezi platformním vstupem (ťuknutí na notifikaci) a navigací.
     single { ChatOpenRequests() }
