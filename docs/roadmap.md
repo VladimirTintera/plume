@@ -134,6 +134,54 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
       a iOS rozšíření, které dnes chat vybírá samo — mohlo by jen předat obsah a výběr nechat
       aplikaci, pak by na obou platformách fungovalo sdílení stejně.
 
+## Haptika
+
+Hmatová odezva je dnes jen u gest a podržení: prah archivace tahem (`ChatListScreen`), prah
+odpovědi tahem (`MessageFrame`), dlouhý stisk odkazu (`RichText`) a podržení či oblíbení
+samolepky (`StickerPicker`, `StickerSetSheet`, `EmojiPicker`, `GifPicker`). Zbytek aplikace
+mlčí — a přitom odezva na to, co se ťuknutím STALO, je půlka toho, čím M3 Expressive působí
+živě. Vede se to tady, ne v [roadmap-konverzace.md](roadmap-konverzace.md): je to jeden
+slovník přes celou aplikaci a rozdělený na dvě místa by se rozešel.
+
+- **Nejdřív inventura, co dělá platforma sama.** `combinedClickable` z Foundation volá
+  `LongPress` samo (`Clickable.kt` v `compose.foundation`), takže dlouhý stisk zprávy, chatu
+  v seznamu i dlaždice vibruje bez našeho přičinění a ruční volání navíc by ho ZDVOJILO.
+  Vlastní haptiku potřebuje jen kód, který si gesto detekuje sám (`RichText` nad odkazem,
+  prahy tahů) — proto je `RichText` mezi místy výš a bublina ne.
+- **Slovník patří na jedno místo v `core/ui`**, ne `HapticFeedbackType` rozseté po obrazovkách —
+  stejná úvaha jako u `ShapeMorphs` a `AppMotion`. Význam má nést typ, ne vkus toho, kdo zrovna
+  píše obrazovku: prah gesta, potvrzení, odmítnutí, přepnutí, tik při procházení. **Jakmile
+  vibruje všechno, přestane cokoli znamenat** — totéž pravidlo jako u tvarů.
+- **Haptika patří k akci UŽIVATELE, ne k události od serveru.** Příchozí zpráva, dotažená
+  stránka historie ani změna stavu spojení nevibrují; od upozornění na cizí akci jsou notifikace.
+- **Kde chybí nejvíc**, v pořadí, jak často se to dělá:
+  - odeslání zprávy, samolepky a GIFu — potvrzení akce, kterou dnes doprovází jen let bubliny,
+  - přidání a odebrání reakce, procházení pruhu rychlých reakcí (`SegmentTick`),
+  - vstup do režimu výběru zpráv a každé přidání či odebrání z výběru (`ToggleOn` / `ToggleOff`),
+  - start a konec nahrávání hlasovky a její zahození košem,
+  - přepínače v Nastavení, v profilu chatu (ztlumení) a v nastavení archivu,
+  - prahy zbylých gest: odkrývání časů tahem, tah dolů v prohlížeči médií, přeskočení stránky
+    pageru, tažení po waveformu hlasovky a po posuvníku videa (`SegmentTick` po dílcích),
+  - skok na další výsledek hledání v konverzaci,
+  - odmítnutí a chyba (`Reject`): neúspěšné odeslání, akce zakázaná právy, prázdné potvrzení.
+- **iOS je hrubší, než se z výčtu typů zdá.** `CupertinoHapticFeedback` mapuje celou sadu na
+  čtyři generátory: `Confirm` / `Reject` → notification, `LongPress` / `ContextClick` → medium
+  impact, `GestureEnd` / `GestureThresholdActivate` / `ToggleOn` / `ToggleOff` / `VirtualKey` →
+  light impact, `SegmentTick` → selection, `TextHandleMove` → nic. Zapnutí a vypnutí přepínače
+  tedy na iPhonu nejde rozeznat; vybrat typ podle Androidu a spolehnout se, že to iOS odliší, nelze.
+- **Na Androidu část typů na starších verzích není.** `Confirm` / `Reject` jsou od API 30,
+  `ToggleOn` / `ToggleOff`, `GestureThresholdActivate` a `SegmentTick` od API 34, zatímco
+  `minSdk` je 26 — `HapticFeedbackConstantsCompat` je spustí jako náhradu, nebo neudělá nic.
+  Ověřovat tedy i na starším emulátoru, ne jen na nejnovějším.
+- **Vlastní přepínač v Nastavení zatím ne.** Vypnout hmatovou odezvu jde v systému (Android:
+  Zvuk a vibrace → Hmatová odezva; iOS: Zvuky a haptika) a `performHapticFeedback` to respektuje;
+  oficiální klient má vlastní přepínač, ale jen duplikuje systémový. Přidat, až o něj někdo řekne.
+- **Oprávnění `VIBRATE` potřeba není** — haptika přes view jde mimo `Vibrator`.
+- **Ověřit to jde jen na telefonu.** Emulátor nevibruje; z něj se dá nanejvýš zjistit, že volání
+  odešlo (`adb shell dumpsys vibrator_manager`, historie vibrací). Jak to sedí pod prstem —
+  hlavně jestli dvě haptiky nejdou hned po sobě (prah tahu a hned potvrzení akce) — se pozná
+  jedině rukou.
+
 ## Nastavení
 
 Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení), vpravo jejich obsah. Obecné drží kartu
