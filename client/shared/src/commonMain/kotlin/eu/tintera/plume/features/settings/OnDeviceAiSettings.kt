@@ -55,8 +55,12 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
@@ -99,6 +103,18 @@ class OnDeviceAiSettingsViewModel(
     /** Preview varianta vrací tentýž model jako stabilní — přepínač tedy nic nezmění. */
     private val _previewIsStable = MutableStateFlow(false)
     val previewIsStable: StateFlow<Boolean> = _previewIsStable.asStateFlow()
+
+    /**
+     * Umí to zařízení model vůbec? `null` = ještě nevíme.
+     *
+     * Ptá se na VÝCHOZÍ variantu, ne na tu zvolenou: preview nebo rychlá může chybět zvlášť,
+     * a kvůli tomu by celá sekce zmizela uživateli, který model má. Ze stejného důvodu je to
+     * samostatný tok a ne odvozenina z [model] — ten se při každé změně varianty vrací na
+     * `Checking` a sekce by problikávala.
+     */
+    val supported: StateFlow<Boolean?> = flow { emit(ai.status(ModelVariant()) != OnDeviceAiStatus.Unsupported) }
+        .catch { emit(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private var download: Job? = null
 
@@ -203,6 +219,17 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
     val variant by viewModel.variant.collectAsStateWithLifecycle()
     val previewIsStable by viewModel.previewIsStable.collectAsStateWithLifecycle()
     val replySuggestions by viewModel.replySuggestions.collectAsStateWithLifecycle()
+    val supported by viewModel.supported.collectAsStateWithLifecycle()
+
+    /*
+     * Na zařízení bez AICore se celá sekce NENABÍZÍ. Dřív se vykreslila vždycky a uživatel
+     * zapnul přepínač, aby se teprve pak dozvěděl „tohle zařízení model nemá" — nabídka funkce,
+     * kterou nelze mít. Stejné pravidlo jako u filtrů seznamu chatů, které nemají co odfiltrovat.
+     *
+     * Dokud stav nedorazí (`null`), taky se nekreslí: objevení sekce ruší míň než její zmizení,
+     * a je to totéž rozhodnutí jako u filtrů, které naběhnou až s načteným seznamem.
+     */
+    if (supported != true) return
 
     SettingsGroup(Res.string.settings_on_device_ai) {
         ListItem(

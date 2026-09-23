@@ -340,6 +340,11 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
   skončí VÝJIMKOU `GenAiException [ErrorCode -101] AICore is either not installed or the
   installed version is too low`. Žádný pád, v logu aplikace čisto. Stáří systému ani verze Play
   služeb na tom nic nemění.
+- **Na nepodporovaném zařízení se sekce v Nastavení VŮBEC NENABÍZÍ.** Dřív se vykreslila vždycky
+  a uživatel zapnul přepínač, aby se teprve pak dozvěděl „tohle zařízení model nemá" — nabídka
+  funkce, kterou nelze mít. Stejné pravidlo jako u filtrů seznamu chatů. Ptá se na VÝCHOZÍ
+  variantu, ne na zvolenou: preview nebo rychlá může chybět zvlášť a kvůli tomu by sekce zmizela
+  i tomu, kdo model má. Dokud stav nedorazí, taky se nekreslí — objevení ruší míň než zmizení.
 - **Ověřuje se to sondou, ne proklikáním.** Do Nastavení se bez přihlášení nedostaneš, takže se
   do `startKoin` dočasně přidá volání `status`/`info`/`countTokens`/`generate` v `runCatching`
   a výsledek se zaloguje. Sonda se NECOMMITUJE — postaví se z ní APK a zdroják se hned vrátí.
