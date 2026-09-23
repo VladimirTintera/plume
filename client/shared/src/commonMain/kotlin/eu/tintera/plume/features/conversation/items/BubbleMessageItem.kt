@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -179,10 +180,21 @@ private fun MessageBodyScope.QuoteExpander(expanded: Boolean, onClick: () -> Uni
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .padding(top = 6.dp)
+            /*
+             * Odsazení je DVOJNÁSOBNÉ, protože pás si svoje spodní odsazení kreslí POD posledním
+             * řádkem citace — první polovina tedy padne na něj a teprve druhá je mezera, kterou
+             * je vidět. S jedním [MESSAGE_PADDING_V] seděl rozbalovač pásu na okraji: nad textem
+             * 5,7 dp, pod ním 15,2 dp.
+             *
+             * Dotykové odsazení se od toho NEODEČÍTÁ: pod popiskem leží taky (a k němu ještě
+             * spodní odsazení bubliny), takže se tím obě mezery srovnají na 12 dp.
+             */
+            .padding(top = MESSAGE_PADDING_V * 2)
+            // Dotyková plocha je větší než text, ale popisek musí zůstat v jeho sloupci.
+            .offset(x = -EXPANDER_TOUCH_H)
             .clip(RoundedCornerShape(QUOTE_EXPANDER_CORNER))
             .combinedClickable(onLongClick = ::requestMenu, onClick = onClick)
-            .padding(vertical = 2.dp),
+            .padding(horizontal = EXPANDER_TOUCH_H, vertical = EXPANDER_TOUCH_V),
     ) {
         Text(
             text = stringResource(
@@ -210,6 +222,11 @@ private fun MessageBodyScope.QuoteExpander(expanded: Boolean, onClick: () -> Uni
 private val QUOTE_EDGE_TIGHT = MESSAGE_PADDING_V / 2
 
 private val QUOTE_EXPANDER_CORNER = 6.dp
+
+/** O kolik je dotyková plocha rozbalovače větší než jeho popisek. */
+private val EXPANDER_TOUCH_V = 4.dp
+
+private val EXPANDER_TOUCH_H = 6.dp
 
 private val QUOTE_EXPANDER_ICON = 18.dp
 

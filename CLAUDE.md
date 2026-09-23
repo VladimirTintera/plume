@@ -2584,6 +2584,11 @@ to tu bylo, než vznikly `MessageEntity` a `RichText`.
   **Sbalí se jen citace, která je CELÝ text zprávy** (`collapsesQuote`, testy `MessageRowsTest`):
   `maxLines` platí pro celý `Text`, takže by ořízl i větu pod citací, a rozdělit zprávu na víc
   `Text`ů nejde (zvýraznění, spoilery a dlouhý stisk nad odkazem se počítají nad jedním layoutem).
+- **Rozbalovač má nad sebou DVOJNÁSOBNÉ odsazení** (2 × `MESSAGE_PADDING_V`). Pás si svoje
+  spodní odsazení kreslí POD posledním řádkem citace, takže první polovina padne na něj a teprve
+  druhá je mezera, kterou je vidět; s jedním odsazením seděl rozbalovač na okraji pásu (změřeno:
+  5,7 dp nad popiskem, 15,2 dp pod ním). Dotykové odsazení se od toho neodečítá — leží i pod
+  popiskem, a k němu ještě spodní odsazení bubliny.
 - **Že se text nevešel, se pozná až z layoutu** (`hasVisualOverflow` přes `onOverflow`) — a po
   rozbalení se vejde vždycky. Kdyby se rozbalovač řídil jen aktuálním přetečením, po rozbalení by
   zmizel a nešlo by sbalit zpátky; drží se proto příznak, že se to STALO.
