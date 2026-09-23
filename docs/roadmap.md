@@ -32,6 +32,9 @@ Teď je prázdné.
 
 Android je napřed; tohle je, čím se to dorovnává.
 
+- **AI v zařízení není vůbec** (`NoopOnDeviceAi`), takže shrnutí chatu ani návrhy odpovědí na
+  iOS nejsou. Apple Foundation Models jsou k mání od iOS 26 a dají se zapojit za stávající
+  rozhraní `OnDeviceAi` — implementace musí přijít ze Swiftu, jako u hlásiče pádů.
 - **Notifikace** — napojené (APNs, rozšíření notifikací, texty, oprávnění, úklid přečtených
   a odznak; `CLAUDE.md`, „Notifikace na iOS (APNs)"). Zbývá:
   - **Certifikát APNs u Telegramu** (my.telegram.org) a Push Notifications v Apple Developer účtu.
@@ -133,6 +136,32 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
       s manifestem jako na iOS); co s Direct Share (tam je chat vybraný předem, čip nepotřebuje);
       a iOS rozšíření, které dnes chat vybírá samo — mohlo by jen předat obsah a výběr nechat
       aplikaci, pak by na obou platformách fungovalo sdílení stejně.
+
+## AI v zařízení
+
+Shrnutí chatu a návrhy odpovědí běží na Gemini Nano přes ML Kit Prompt API (Android). Poučení
+z prototypu je v `CLAUDE.md`, sekce „AI v zařízení"; sem patří, co zbývá.
+
+- **Sloh je slabina, fakta ne.** Čísla, jména a termíny model drží spolehlivě, ale komolí tvary
+  („telefon nebudou mít vibrace", „Pěče pod Sněžkou") a mezi třemi návrhy odpovědi bývá jeden
+  nesmysl. Prompt už vyladěný je; tohle je strop modelu, ne zadání.
+- **Nejnadějnější krok je větší model.** Preview varianta Gemini Nano běží na Gemma 4 **E4B**,
+  zatímco stabilní na E2B — jenže **přes ML Kit se k ní dostat nedá**: spočítá si `Feature -1`
+  a tiše použije stabilní (ověřeno i se staženým preview modelem, viz `CLAUDE.md`). Cesta vede
+  přes vlastní runtime **LiteRT-LM** za stávajícím rozhraním `OnDeviceAi`.
+- **Beta ML Kitu sledovat.** `1.0.0-beta4` je zatím nejnovější; novější verze může `Feature -1`
+  opravit a preview zpřístupnit bez vlastního runtime. Stojí za to to při bumpu zkusit znovu.
+- **Kešování kontextu a `warmup()` nejsou využité.** Prompt API je nabízí (`Caches`,
+  `CachedContext`, `isCachingFeatureAvailable`) a u opakovaného shrnování téhož chatu by mohly
+  ušetřit čas. Zatím netestované.
+- **Shrnutí bere jen to, co se vejde do jednoho promptu.** U chatu s tisíci nepřečtenými se
+  zkrátí na limit vstupu (8 192 tokenů) a zbytek se zahodí. Postupné shrnování po částech
+  („map-reduce") zatím není.
+- **Strop výstupu je kompromis.** `MAX_OUTPUT_TOKENS = 800` stačí na shrnutí několika desítek
+  zpráv; delší konverzace se useknou a UI to sice přizná, ale lépe by bylo shrnutí zkrátit
+  instrukcí než ho nechat uříznout uprostřed.
+
+---
 
 ## Haptika
 
