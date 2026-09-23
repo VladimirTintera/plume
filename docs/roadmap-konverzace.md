@@ -204,10 +204,19 @@ takže zbytek přibude s tím, co bude umět:
   seznamem zhlédnutí a odkazem ke zkopírování. Poučení v `CLAUDE.md`, „Informace o zprávě".
   Zbývá jen `getMessageStatistics` u příspěvků v kanálech — jiná data a vlastní obrazovka.
 
-**Rozostřený závoj** (Haze) je zatím jen pod nabídkou nad zprávou. Kandidáti na totéž:
-průsvitný pruh pod vstupním polem, pruh připnutých zpráv a plovoucí datum — plochy, pod které
-zajíždí obsah. Otevřené: respektovat systémové „omezit rozostření" (Android 16 QPR; jak se
-aplikaci hlásí, zatím nevíme) a změřit plynulost na slabším zařízení s Androidem 12.
+~~**Rozostřený závoj** i pod dalšími plochami~~ — hotovo: pruh pod vstupním polem, pruh
+připnutých zpráv i plovoucí datum jsou mléčné sklo (`Glass.kt`, poučení v `CLAUDE.md`, „Vzhled
+konverzace"). Zbývá:
+
+- ~~**Ověřit vzhled bez rozostření**~~ — ověřeno na emulátoru s Androidem 9 (API 28): pás pod
+  polem kryje jako dřív, plovoucí datum je úplně krycí a čitelné, závoj nabídky jen ztmavuje.
+- **Změřit plynulost na zařízení**, hlavně na slabším s Androidem 12. Na emulátoru to nejde:
+  `dumpsys gfxinfo` hlásí 98 % zadrhnutých snímků i v seznamu chatů BEZ skla, takže se tím měří
+  hostitel, ne naše změna.
+- **Respektovat systémové „omezit rozostření"** (Android 16 QPR) — jak se to aplikaci hlásí,
+  zatím nevíme.
+- **Sklo i jinde**: hlavička konverzace a hlavička seznamu chatů jsou taky plochy, pod které
+  obsah zajíždí. Nejdřív ale ověřit cenu toho, co je hotové.
 
 ## C) Entity v textu (odkazy) — HOTOVO
 
@@ -253,8 +262,9 @@ Co zbývá:
 - ~~**Uložení do galerie, sdílení a „Uložit jako…"** z prohlížeče~~ — hotovo (`MediaSaver`,
   `MediaSharer`, `rememberSaveAs`). Zbývá:
   - **Ověřit na iOS** (`PHPhotoLibrary` s dotazem na oprávnění, `UIActivityViewController`
-    i jako popover na iPadu) a na Androidu 9 a starším (`WRITE_EXTERNAL_STORAGE`, veřejný
-    adresář); vyzkoušené je jen Android 16.
+    i jako popover na iPadu). ~~Android 9 a starší~~ — ověřeno na emulátoru s API 28: přijde
+    dotaz na `WRITE_EXTERNAL_STORAGE`, soubor skončí v `/sdcard/Pictures/Plume/` pod jménem
+    `Plume_<datum>_<čas>.jpg` a zaregistruje se i v MediaStore (`bucket_display_name=Plume`).
   - ~~**Sdílet a Uložit jako… u souborů v konverzaci**~~ — hotovo (položky nabídky nad
     zprávou `ShareFile` a `SaveFileAs`). Ověřit na iOS, kde je jen Sdílet.
 - **Odpověď z prohlížeče.** Google Zprávy mají vlevo v dolní liště tlačítko odpovědi. U nás by

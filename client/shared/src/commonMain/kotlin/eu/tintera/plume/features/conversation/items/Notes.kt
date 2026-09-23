@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
@@ -120,21 +121,26 @@ internal fun TimeDivider(timestamp: Int, modifier: Modifier = Modifier) {
 @Composable
 internal fun FloatingDayBadge(
     text: String,
+    /** Mléčné sklo nad seznamem: plocha je průhledná, barvu i rozostření nese sklo. */
+    glass: Modifier = Modifier,
     modifier: Modifier = Modifier,
 ) {
+    val shape = RoundedCornerShape(BUBBLE_CORNER)
     Surface(
-        shape = RoundedCornerShape(BUBBLE_CORNER),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = shape,
+        color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         shadowElevation = 3.dp,
         modifier = modifier,
     ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-        )
+        Box(Modifier.clip(shape).then(glass)) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+        }
     }
 }
 

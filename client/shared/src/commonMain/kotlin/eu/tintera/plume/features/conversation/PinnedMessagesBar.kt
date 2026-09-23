@@ -37,6 +37,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -77,14 +78,18 @@ internal fun PinnedMessagesBar(
     onOpen: (ChatMessage) -> Unit,
     onUnpin: (ChatMessage) -> Unit,
     onShowAll: () -> Unit,
+    /** Mléčné sklo nad seznamem: plocha je průhledná, barvu i rozostření nese sklo. */
+    glass: Modifier = Modifier,
     modifier: Modifier = Modifier,
 ) {
     val current = messages.getOrNull(index) ?: return
     val multiple = messages.size > 1
 
+    val shape = RoundedCornerShape(PINNED_BAR_CORNER)
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(PINNED_BAR_CORNER),
+        color = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = shape,
         shadowElevation = 2.dp,
         modifier = modifier
             .fillMaxWidth()
@@ -92,6 +97,8 @@ internal fun PinnedMessagesBar(
     ) {
         Row(
             Modifier
+                .clip(shape)
+                .then(glass)
                 .clickable { onOpen(current) }
                 .heightIn(min = PINNED_BAR_HEIGHT)
                 .padding(start = 12.dp, end = 4.dp),

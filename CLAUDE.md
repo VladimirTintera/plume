@@ -2543,16 +2543,32 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   právě píše. Citace (i hlavička úpravy) je **horní pruh karty v `tertiaryContainer`**
   (`ComposerHeader`), stejně jako citace na kartě zprávy — ne subkartička v kartě. Pole uvnitř je proto průhledné — kontejner nese karta, ne ono, a dvě zaoblené
   plochy v sobě by vypadaly jako chyba.
-- **Pruh pod kartou má barvu POZADÍ, jen průsvitnou.** Zprávy pod něj zajíždějí, takže by se bez
-  něj pod kartou míchaly s textem; plná barva by zase vrátila ostrý předěl přes celou obrazovku,
-  kvůli kterému se `bottomBar` rušil. Průsvit dělá závoj: je vidět, že tam obsah je, ale nepřebíjí
-  psaní.
-
-### Formátování textu (entity)
-
-Telegram **markup neposílá**. Text zprávy je holý řetězec a formát je seznam rozsahů nad ním
-(`FormattedText.entities`). Kdo je zahodí, dostane neklikatelný odkaz a plochý text — přesně tak
-to tu bylo, než vznikly `MessageEntity` a `RichText`.
+- **Pruh pod kartou, pruh připnutých a plovoucí datum jsou MLÉČNÉ SKLO** (`Glass.kt`, tentýž Haze
+  jako závoj nabídky nad zprávou). Všechny tři plochy leží nad projíždějícím obsahem a dřív ho jen
+  zakrývaly barvou; rozostření dělá totéž čitelněji — je vidět, že pod nimi obsah pokračuje.
+  - **Zdrojem je JEN seznam zpráv, ne celý Scaffold** (vlastní `HazeState`). Závoj nabídky
+    rozostřuje Scaffold celý, protože je nad ním; tyhle plochy jsou ale jeho součástí, takže by
+    se rozostřovaly samy sebou — pruh připnutých by nasál plovoucí datum a pás pod polem sám sebe.
+  - **Barvu nese tint stylu, ne plocha.** Kdyby si ji plocha kreslila sama, překryla by rozostřený
+    obraz pod sebou; průhledná plocha s tintem dělá sklo. Tvar se proto ořezává zvlášť
+    (`clip(shape)` uvnitř `Surface`), jinak by sklo přeteklo přes zaoblení.
+  - **Krytí je dvojí.** Pás pod polem vlastní text nenese (karta pole má svoji plochu), takže kryje
+    0,72 a sklo je na něm znát. **Pruh připnutých a plovoucí datum text nesou a kryjí 0,88**: pod
+    nimi projede i tmavá fotka a písmo by se ve ztmavlém skle ztratilo — změřeno, při 0,72 mělo
+    „Včera" nad černým náhledem videa kontrast 2,85, tedy hluboko pod AA. Při 0,88 vyšel v tmavém
+    režimu nad světlou fotkou 5,89.
+  - **Poloměr 20 dp, víc než u závoje nabídky (12).** Tam jde o odsunutí celé konverzace do pozadí,
+    takže silné rozostření z ní udělá kaši; tady prosvítá pruh vysoký pár desítek dp a při malém
+    poloměru je pod ním text ještě čitelný — plocha pak vypadá jen zašpiněně.
+  - **Původní krycí pás měl 0,93 a rozostření pod ním nebylo vidět vůbec**: text zprávy končil na
+    jeho hraně, jako by ho něco ořízlo. Kdo sklo přidává, musí krytí snížit, jinak přidá jen cenu.
+  - **Fallback je ověřený na Androidu 9** (API 28, emulátor): pás pod polem kryje stejně jako
+    dřívější krycí plocha (prosvítá zhruba 7 %, tedy beze změny proti stavu před sklem), plovoucí
+    datum je úplně krycí a text na něm má kontrast 11,3. Závoj nabídky nad zprávou tam taky jen
+    ztmavuje, nerozostřuje.
+  - **Na emulátoru se plynulost změřit NEDÁ.** `dumpsys gfxinfo` hlásil 98 % zadrhnutých snímků
+    v konverzaci se sklem i v seznamu chatů BEZ něj — měří se tím hostitel pod tlakem paměti, ne
+    naše změna. Patří to na zařízení, a hlavně na slabší s Androidem 12.
 
 - **Offsety jsou v UTF-16 jednotkách**, tedy přesně v tom, čím indexuje Kotlin `String`. Žádný
   přepočet. Nesmí se ale míchat s počítáním shluků emoji (`emojiClusterCount`), které jde
@@ -5002,6 +5018,10 @@ vkus toho, kdo zrovna píše obrazovku.
   nebo neudělá nic. Ověřovat tedy i na starším emulátoru.
 - **Oprávnění `VIBRATE` potřeba není** (jde to přes view, ne přes `Vibrator`) a vlastní přepínač
   v Nastavení taky ne — vypnout odezvu jde v systému a `performHapticFeedback` to respektuje.
+- **Emulátor s Androidem 9 nemá vibrátor VŮBEC.** Obraz `google_apis_playstore;arm64-v8a` pro
+  API 28 nezaznamená ani dlouhý stisk launcheru (`dumpsys vibrator` má „Previous vibrations"
+  prázdné) — náhradu typů, které na starých verzích neexistují, tedy na něm ověřit nejde. Zbývá
+  na to skutečné staré zařízení; co se ověřit dá, je, že nic nespadne.
 - **Emulátor nevibruje, ale volání zaznamenává**: `adb shell dumpsys vibrator_manager` má sekci
   „Recent vibrations" a v ní `reason: performHapticFeedback(constant=N)`. Čísla jsou
   `HapticFeedbackConstants`: **0 = LONG_PRESS, 16 = CONFIRM, 17 = REJECT, 21 = TOGGLE_ON,

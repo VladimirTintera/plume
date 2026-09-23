@@ -154,9 +154,11 @@ celou aplikaci a rozdělený na dvě místa by se rozešel. Zbývá:
   že volání odešlo a které (ověřeno: odeslání 16, dlouhý stisk jediná 0, reakce 21,
   přepínač 21/22). Jestli dvě haptiky nejdou nepříjemně po sobě — třeba práh tahu a hned
   potvrzení akce — se od stolu zjistit nedá.
-- **Ověřit na starším emulátoru** (API 26–33), kde `Confirm`, `Reject`, `ToggleOn`/`ToggleOff`,
-  `GestureThresholdActivate` ani `SegmentTick` neexistují a `HapticFeedbackConstantsCompat` je
-  nahrazuje bližším typem, nebo neudělá nic.
+- **Ověřit na starém zařízení, ne na emulátoru** (API 26–33), kde `Confirm`, `Reject`,
+  `ToggleOn`/`ToggleOff`, `GestureThresholdActivate` ani `SegmentTick` neexistují
+  a `HapticFeedbackConstantsCompat` je nahrazuje bližším typem, nebo neudělá nic. **Emulátor
+  s Androidem 9 na to nestačí: nemá vibrátor vůbec** — nezaznamená ani dlouhý stisk launcheru.
+  Ověřené je jen to, že tam nic nespadne.
 - **iOS ověřit na zařízení.** Sada se tam mapuje na čtyři generátory, takže zapnutí a vypnutí
   přepínače od sebe uživatel nerozezná; jestli to vadí, se pozná až rukou.
 - **Vlastní přepínač v Nastavení** zatím ne — vypnout odezvu jde v systému. Přidat, až o něj
