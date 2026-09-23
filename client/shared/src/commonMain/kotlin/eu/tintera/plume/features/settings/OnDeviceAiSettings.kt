@@ -44,6 +44,8 @@ import eu.tintera.plume.resources.settings_on_device_ai_fast
 import eu.tintera.plume.resources.settings_on_device_ai_fast_summary
 import eu.tintera.plume.resources.settings_on_device_ai_preview
 import eu.tintera.plume.resources.settings_on_device_ai_preview_same
+import eu.tintera.plume.resources.settings_reply_suggestions
+import eu.tintera.plume.resources.settings_reply_suggestions_summary
 import eu.tintera.plume.resources.settings_on_device_ai_preview_summary
 import eu.tintera.plume.resources.settings_on_device_ai_token_limit
 import eu.tintera.plume.resources.settings_on_device_ai_ready
@@ -108,6 +110,10 @@ class OnDeviceAiSettingsViewModel(
     fun setEnabled(on: Boolean) {
         settings.setOnDeviceAiEnabled(on)
     }
+
+    val replySuggestions: StateFlow<Boolean> = settings.replySuggestionsEnabled
+
+    fun setReplySuggestions(on: Boolean) = settings.setReplySuggestionsEnabled(on)
 
     fun setPreview(on: Boolean) = settings.setOnDeviceAiVariant(variant.value.copy(preview = on))
 
@@ -196,6 +202,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
     val model by viewModel.model.collectAsStateWithLifecycle()
     val variant by viewModel.variant.collectAsStateWithLifecycle()
     val previewIsStable by viewModel.previewIsStable.collectAsStateWithLifecycle()
+    val replySuggestions by viewModel.replySuggestions.collectAsStateWithLifecycle()
 
     SettingsGroup(Res.string.settings_on_device_ai) {
         ListItem(
@@ -214,6 +221,21 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
         )
 
         if (enabled) {
+            HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+            /*
+             * Návrhy odpovědí mají vlastní vypínač, shrnutí ne. Není to nedůslednost: shrnutí
+             * se otevírá vědomě ťuknutím na ikonu, kdežto návrhy se objeví samy pod rozhovorem,
+             * takže o ně nemusí stát ani ten, kdo shrnutí používá rád.
+             */
+            VariantSwitch(
+                title = Res.string.settings_reply_suggestions,
+                summary = Res.string.settings_reply_suggestions_summary,
+                checked = replySuggestions,
+                onChange = { on ->
+                    haptics.toggle(on)
+                    viewModel.setReplySuggestions(on)
+                },
+            )
             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
             VariantSwitch(
                 title = Res.string.settings_on_device_ai_preview,

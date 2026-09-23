@@ -286,6 +286,10 @@ fun ConversationScreen(
     val summaryMe = stringResource(Res.string.summary_me)
     val summaryTitle = state.info?.let { chatTitle(it.id, it.title) }
         ?: stringResource(Res.string.conversation_fallback_title)
+    // Návrhy odpovědi. Vlastní ViewModel jako shrnutí a klíčovaný chatem ze stejného důvodu.
+    val replies: ReplySuggestionsViewModel = koinViewModel(key = "replies-${viewModel.chatId}")
+    val repliesAvailable by replies.available.collectAsStateWithLifecycle()
+    val replySuggestions by replies.suggestions.collectAsStateWithLifecycle()
     val startSummary = {
         // Zdroj se čte až v korutině, PO dotažení historie — a ze stateHolderu, ne z `state`
         // zachyceného při skládání: ten je z doby před dotažením a chyběly by v něm stránky.
@@ -348,6 +352,24 @@ fun ConversationScreen(
      * kurzor. S holým řetězcem by zůstal na začátku textu.
      */
     var draft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
+
+    // Komu se má odpovědět, rozhoduje čisté pravidlo nad stavem (testy `ReplySuggestionsTest`).
+    val replyTarget = replySuggestionTarget(
+        messages = state.messages,
+        draft = draft.text,
+        editing = state.editing,
+        canWrite = state.canWrite,
+    )
+    val summaryTitleForReply = state.info?.let { chatTitle(it.id, it.title) }
+    LaunchedEffect(replyTarget, repliesAvailable, summaryTitleForReply) {
+        val title = summaryTitleForReply
+        if (repliesAvailable && replyTarget != null && title != null) {
+            replies.suggest(replyTarget, title, state.messages, summaryMe)
+        } else {
+            replies.clear()
+        }
+    }
+
 
     /** Poslední otevřená část výběru — uložená v nastavení, takže platí i po restartu aplikace. */
     val expressionMode by viewModel.expressionMode.collectAsStateWithLifecycle()
@@ -1020,6 +1042,17 @@ fun ConversationScreen(
                 }
                 WriteAccess.Allowed, null -> Unit
             }
+            Column {
+            ReplySuggestionChips(
+                suggestions = replySuggestions,
+                // Návrh se jen VLOŽÍ do pole; odeslání zůstává na uživateli. `onDraftChanged`
+                // musí jít taky — uloží koncept a ohlásí „píše…", jako by to napsal sám.
+                onPick = { suggestion ->
+                    draft = TextFieldValue(suggestion, selection = TextRange(suggestion.length))
+                    viewModel.onDraftChanged(suggestion)
+                    replies.consume()
+                },
+            )
             MessageInput(
                 glass = Modifier.hazeBlur(
                     input = HazeInput.Sources(listHaze),
@@ -1091,6 +1124,7 @@ fun ConversationScreen(
                 },
                 onKeyboardContentFailed = viewModel::reportError,
             )
+            }
             }
         },
         // Tlačítko dolů ve FAB slotu: Scaffold ho drží nad polem a snackbar pak nad ním.

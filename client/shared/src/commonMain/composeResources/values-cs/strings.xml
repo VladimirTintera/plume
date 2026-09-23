@@ -895,8 +895,10 @@
     <string name="error_member_admin_forbidden">Tohohle správce může měnit jen vlastník.</string>
     <!-- Model v zařízení (core/ai) -->
     <string name="settings_on_device_ai">AI v zařízení</string>
-    <string name="settings_on_device_ai_enable">Shrnutí chatu (experimentální)</string>
-    <string name="settings_on_device_ai_enable_summary">Shrne konverzaci jazykovým modelem, který běží v telefonu. Zprávy zařízení neopustí.</string>
+    <string name="settings_on_device_ai_enable">Funkce s modelem v telefonu (experimentální)</string>
+    <string name="settings_on_device_ai_enable_summary">Shrnutí konverzace a návrhy odpovědí počítá jazykový model přímo v telefonu. Zprávy zařízení neopustí.</string>
+    <string name="settings_reply_suggestions">Návrhy odpovědí</string>
+    <string name="settings_reply_suggestions_summary">Nad vstupním polem se nabídnou krátké odpovědi, když přijde zpráva a nemáš nic rozepsaného.</string>
     <string name="settings_on_device_ai_checking">Zjišťuji stav modelu…</string>
     <string name="settings_on_device_ai_unsupported">Tohle zařízení model v zařízení (Gemini Nano) nemá.</string>
     <string name="settings_on_device_ai_downloadable">Model je potřeba nejdřív stáhnout. Zabere gigabajty.</string>

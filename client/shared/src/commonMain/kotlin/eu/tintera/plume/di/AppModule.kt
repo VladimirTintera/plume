@@ -58,6 +58,7 @@ import eu.tintera.plume.features.settings.SettingsViewModel
 import eu.tintera.plume.features.settings.NotificationSettingsViewModel
 import eu.tintera.plume.features.settings.OnDeviceAiSettingsViewModel
 import eu.tintera.plume.features.conversation.ChatSummaryViewModel
+import eu.tintera.plume.features.conversation.ReplySuggestionsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -201,6 +202,7 @@ fun appModule() = module {
     // Model v zařízení (core/ai). Stahování modelu běží v aplikačním rozsahu — trvá minuty.
     viewModel { OnDeviceAiSettingsViewModel(settings = get(), ai = get(), appScope = get(named(APP_SCOPE))) }
     viewModelOf(::ChatSummaryViewModel)
+    viewModelOf(::ReplySuggestionsViewModel)
 
     // chatId přichází z navigační routy, ne z grafu → runtime parametr. Druhý parametr je zpráva,
     // na kterou se po otevření skočí; bývá `null`, a podle typu by se spletl s chatId — proto index.

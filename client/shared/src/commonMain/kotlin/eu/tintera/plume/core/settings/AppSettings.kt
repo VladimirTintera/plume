@@ -94,6 +94,18 @@ interface AppSettings {
     /** Zapne/vypne funkce s modelem v zařízení. Neblokuje, jako [recordRecentEmoji]. */
     fun setOnDeviceAiEnabled(enabled: Boolean)
 
+    /**
+     * Nabízet návrhy odpovědi od modelu v zařízení.
+     *
+     * Vlastní volba vedle [onDeviceAiEnabled]: shrnutí se otevírá vědomě, kdežto návrhy vyskakují
+     * samy pod rozhovorem, takže o ně nemusí stát ani ten, kdo shrnutí používá rád.
+     * Výchozí `false`.
+     */
+    val replySuggestionsEnabled: StateFlow<Boolean>
+
+    /** Zapne/vypne návrhy odpovědi. Neblokuje, jako [recordRecentEmoji]. */
+    fun setReplySuggestionsEnabled(enabled: Boolean)
+
     /** Která varianta modelu v zařízení (stabilní / preview, plná / rychlá). Výchozí stabilní plná. */
     val onDeviceAiVariant: StateFlow<ModelVariant>
 
@@ -239,6 +251,16 @@ class DataStoreAppSettings(
         }
     }
 
+    override val replySuggestionsEnabled: StateFlow<Boolean> = value(false) { preferences ->
+        preferences[REPLY_SUGGESTIONS_ENABLED] ?: false
+    }
+
+    override fun setReplySuggestionsEnabled(enabled: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[REPLY_SUGGESTIONS_ENABLED] = enabled }
+        }
+    }
+
     override val onDeviceAiVariant: StateFlow<ModelVariant> = value(ModelVariant()) { preferences ->
         ModelVariant(
             preview = preferences[ON_DEVICE_AI_PREVIEW] ?: false,
@@ -288,6 +310,7 @@ class DataStoreAppSettings(
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val SEPARATE_UNREAD_CHATS = booleanPreferencesKey("separate_unread_chats")
         val ON_DEVICE_AI_ENABLED = booleanPreferencesKey("on_device_ai_enabled")
+        val REPLY_SUGGESTIONS_ENABLED = booleanPreferencesKey("reply_suggestions_enabled")
         val ON_DEVICE_AI_PREVIEW = booleanPreferencesKey("on_device_ai_preview")
         val ON_DEVICE_AI_FAST = booleanPreferencesKey("on_device_ai_fast")
         val DISMISSED_UPDATE_VERSION_CODE = intPreferencesKey("dismissed_update_version_code")

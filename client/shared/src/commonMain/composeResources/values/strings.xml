@@ -881,8 +881,10 @@
     <string name="error_member_admin_forbidden">Only the owner can change this admin.</string>
     <!-- Model v zařízení (core/ai) -->
     <string name="settings_on_device_ai">On-device AI</string>
-    <string name="settings_on_device_ai_enable">Chat summaries (experimental)</string>
-    <string name="settings_on_device_ai_enable_summary">Summarizes a chat with a language model running on this phone. Messages never leave the device.</string>
+    <string name="settings_on_device_ai_enable">On-device model features (experimental)</string>
+    <string name="settings_on_device_ai_enable_summary">Chat summaries and reply suggestions are computed by a language model running on this phone. Messages never leave the device.</string>
+    <string name="settings_reply_suggestions">Reply suggestions</string>
+    <string name="settings_reply_suggestions_summary">Short replies are offered above the input field when a message arrives and you have not started typing.</string>
     <string name="settings_on_device_ai_checking">Checking the model…</string>
     <string name="settings_on_device_ai_unsupported">This device has no on-device model (Gemini Nano).</string>
     <string name="settings_on_device_ai_downloadable">The model needs to be downloaded first. It takes up gigabytes.</string>

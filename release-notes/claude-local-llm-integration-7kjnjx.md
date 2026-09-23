@@ -1,3 +1,3 @@
 type: feat
-cs: Experimentální shrnutí chatu jazykovým modelem přímo v telefonu (Gemini Nano)
-en: Experimental chat summaries with a language model running on your phone (Gemini Nano)
+cs: Experimentální shrnutí chatu a návrhy odpovědí od modelu přímo v telefonu
+en: Experimental chat summaries and reply suggestions from a model on your phone
