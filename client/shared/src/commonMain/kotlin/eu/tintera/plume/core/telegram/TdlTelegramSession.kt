@@ -9,6 +9,17 @@ import dev.g000sha256.tdl.dto.AuthorizationStateClosed
 import dev.g000sha256.tdl.dto.AuthorizationStateClosing
 import dev.g000sha256.tdl.dto.AuthorizationStateLoggingOut
 import dev.g000sha256.tdl.dto.AuthorizationStateReady
+import dev.g000sha256.tdl.dto.AuthenticationCodeType
+import dev.g000sha256.tdl.dto.AuthenticationCodeTypeCall
+import dev.g000sha256.tdl.dto.AuthenticationCodeTypeFirebaseAndroid
+import dev.g000sha256.tdl.dto.AuthenticationCodeTypeFirebaseIos
+import dev.g000sha256.tdl.dto.AuthenticationCodeTypeFlashCall
+import dev.g000sha256.tdl.dto.AuthenticationCodeTypeFragment
+import dev.g000sha256.tdl.dto.AuthenticationCodeTypeMissedCall
+import dev.g000sha256.tdl.dto.AuthenticationCodeTypeSms
+import dev.g000sha256.tdl.dto.AuthenticationCodeTypeSmsPhrase
+import dev.g000sha256.tdl.dto.AuthenticationCodeTypeSmsWord
+import dev.g000sha256.tdl.dto.AuthenticationCodeTypeTelegramMessage
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitCode
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitEmailAddress
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitEmailCode
@@ -112,7 +123,7 @@ class TdlTelegramSession(
             is AuthorizationStateWaitTdlibParameters -> sendTdlibParameters()
 
             is AuthorizationStateWaitPhoneNumber -> _authStage.value = AuthStage.WaitPhoneNumber
-            is AuthorizationStateWaitCode -> _authStage.value = AuthStage.WaitCode
+            is AuthorizationStateWaitCode -> _authStage.value = AuthStage.WaitCode(state.codeInfo.type.toAuthCode())
             is AuthorizationStateWaitPassword ->
                 _authStage.value = AuthStage.WaitPassword(state.passwordHint.takeIf { it.isNotBlank() })
 
@@ -143,6 +154,30 @@ class TdlTelegramSession(
             is AuthorizationStateWaitPremiumPurchase -> _authStage.value = AuthStage.Failed(UiText(Res.string.auth_error_premium_required))
         }
     }
+
+    /**
+     * Podoba kódu pro UI. `when` je schválně bez `else`: `AuthenticationCodeType` je sealed, takže
+     * nový způsob doručení v novější TDLib rozbije překlad, místo aby tiše spadl na obyčejné pole.
+     *
+     * Délka se bere jen v rozumném rozsahu ([CODE_DIGITS]). Nesmyslná hodnota od serveru by
+     * znamenala nula políček, tedy pole, do kterého se nedá psát; mimo rozsah se proto vrátí
+     * `null` a zůstane obyčejné pole, které funguje vždycky.
+     */
+    private fun AuthenticationCodeType.toAuthCode(): AuthCode = when (this) {
+        is AuthenticationCodeTypeTelegramMessage -> AuthCode(digitsOrNull(length), CodeDelivery.TelegramApp)
+        is AuthenticationCodeTypeSms -> AuthCode(digitsOrNull(length), CodeDelivery.Sms)
+        is AuthenticationCodeTypeFirebaseAndroid -> AuthCode(digitsOrNull(length), CodeDelivery.Sms)
+        is AuthenticationCodeTypeFirebaseIos -> AuthCode(digitsOrNull(length), CodeDelivery.Sms)
+        is AuthenticationCodeTypeCall -> AuthCode(digitsOrNull(length), CodeDelivery.Call)
+        is AuthenticationCodeTypeMissedCall -> AuthCode(digitsOrNull(length), CodeDelivery.CallerNumber)
+        // Prozvonění nese vzor čísla, ne počet číslic — kolik jich uživatel opíše, dopředu nevíme.
+        is AuthenticationCodeTypeFlashCall -> AuthCode(digits = null, CodeDelivery.CallerNumber)
+        is AuthenticationCodeTypeFragment -> AuthCode(digitsOrNull(length), CodeDelivery.Fragment)
+        is AuthenticationCodeTypeSmsWord -> AuthCode(digits = null, CodeDelivery.Word)
+        is AuthenticationCodeTypeSmsPhrase -> AuthCode(digits = null, CodeDelivery.Phrase)
+    }
+
+    private fun digitsOrNull(length: Int): Int? = length.takeIf { it in CODE_DIGITS }
 
     private fun closingStage(): AuthStage =
         if (restartingLogin) AuthStage.Connecting else AuthStage.LoggingOut
@@ -421,6 +456,12 @@ class TdlTelegramSession(
 
         /** Kolik notifikací se drží v jedné skupině (chatu). */
         const val NOTIFICATION_GROUP_SIZE_MAX = 10L
+
+        /**
+         * Délky kódu, ze kterých se dá nakreslit řada políček. Telegram posílá pětimístné
+         * a šestimístné; horní mez je na to, aby se políčka vešla i na úzký telefon.
+         */
+        val CODE_DIGITS = 1..8
 
 
         const val WRONG_KEY_CODE = 401

@@ -58,7 +58,13 @@ internal fun AuthTextField(
         singleLine = true,
         isError = isError,
         visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = ImeAction.Go),
+        // Do kódu ani do hesla nemá klávesnice co opravovat — slovní kód by z „hokej" udělala
+        // „hokeje" a uživatel by nepoznal proč.
+        keyboardOptions = KeyboardOptions(
+            keyboardType = keyboardType,
+            imeAction = ImeAction.Go,
+            autoCorrectEnabled = false,
+        ),
         keyboardActions = KeyboardActions(onGo = { onSubmit() }),
         textStyle = MaterialTheme.typography.bodyLarge.tabularNumbers(),
         modifier = Modifier.fillMaxWidth(),

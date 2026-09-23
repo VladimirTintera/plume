@@ -31,6 +31,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,7 +44,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.core.telegram.AuthCode
 import eu.tintera.plume.core.telegram.AuthStage
+import eu.tintera.plume.core.telegram.CodeDelivery
 import eu.tintera.plume.core.ui.INTRO_ICON_SIZE
 import eu.tintera.plume.core.ui.IntroShape
 import eu.tintera.plume.core.ui.QrCode
@@ -64,7 +67,13 @@ import eu.tintera.plume.resources.auth_input_code
 import eu.tintera.plume.resources.auth_input_password
 import eu.tintera.plume.resources.auth_qr_content_description
 import eu.tintera.plume.resources.auth_sign_in_with_qr
-import eu.tintera.plume.resources.auth_support_code
+import eu.tintera.plume.resources.auth_support_code_app
+import eu.tintera.plume.resources.auth_support_code_call
+import eu.tintera.plume.resources.auth_support_code_caller
+import eu.tintera.plume.resources.auth_support_code_fragment
+import eu.tintera.plume.resources.auth_support_code_phrase
+import eu.tintera.plume.resources.auth_support_code_sms
+import eu.tintera.plume.resources.auth_support_code_word
 import eu.tintera.plume.resources.auth_support_logging_out
 import eu.tintera.plume.resources.auth_support_password_hint
 import eu.tintera.plume.resources.auth_support_phone
@@ -174,11 +183,9 @@ fun AuthScreen(
                                 onQrLogin = viewModel::startQrLogin,
                             )
 
-                            AuthStage.WaitCode -> SecretForm(
+                            is AuthStage.WaitCode -> CodeForm(
+                                code = current.code,
                                 value = input,
-                                label = Res.string.auth_input_code,
-                                keyboardType = KeyboardType.NumberPassword,
-                                isPassword = false,
                                 error = error,
                                 busy = busy,
                                 onValueChange = viewModel::onInputChange,
@@ -256,7 +263,7 @@ private fun AuthStage.phase(): AuthPhase = when (this) {
     AuthStage.WaitRegistration,
         -> AuthPhase.Number
 
-    AuthStage.WaitCode -> AuthPhase.Code
+    is AuthStage.WaitCode -> AuthPhase.Code
     is AuthStage.WaitPassword -> AuthPhase.Code
     is AuthStage.WaitQrConfirmation -> AuthPhase.Qr
     is AuthStage.Failed -> AuthPhase.Error
@@ -266,7 +273,7 @@ private fun AuthStage.phase(): AuthPhase = when (this) {
 private fun AuthStage.headline(): StringResource = when (this) {
     AuthStage.Connecting -> Res.string.auth_headline_connecting
     AuthStage.WaitPhoneNumber -> Res.string.auth_headline_phone
-    AuthStage.WaitCode -> Res.string.auth_headline_code
+    is AuthStage.WaitCode -> Res.string.auth_headline_code
     is AuthStage.WaitPassword -> Res.string.auth_headline_password
     is AuthStage.WaitQrConfirmation -> Res.string.auth_headline_qr
     AuthStage.WaitRegistration -> Res.string.auth_headline_registration
@@ -277,13 +284,27 @@ private fun AuthStage.headline(): StringResource = when (this) {
 
 private fun AuthStage.supportingText(): UiText? = when (this) {
     AuthStage.WaitPhoneNumber -> UiText(Res.string.auth_support_phone)
-    AuthStage.WaitCode -> UiText(Res.string.auth_support_code)
+    is AuthStage.WaitCode -> UiText(code.delivery.supportingText())
     is AuthStage.WaitPassword -> hint?.let { UiText(Res.string.auth_support_password_hint, it) }
     is AuthStage.WaitQrConfirmation -> UiText(Res.string.auth_support_qr)
     AuthStage.WaitRegistration -> UiText(Res.string.auth_support_registration)
     AuthStage.LoggingOut -> UiText(Res.string.auth_support_logging_out)
     is AuthStage.Failed -> message
     else -> null
+}
+
+/**
+ * Věta nad polem podle toho, kudy kód doopravdy přišel. Dokud tu stála jedna věta pro všechno
+ * („do jiného klienta nebo SMS"), byla polovinu času vedle — a přitom to TDLib pokaždé řekne.
+ */
+private fun CodeDelivery.supportingText(): StringResource = when (this) {
+    CodeDelivery.TelegramApp -> Res.string.auth_support_code_app
+    CodeDelivery.Sms -> Res.string.auth_support_code_sms
+    CodeDelivery.Call -> Res.string.auth_support_code_call
+    CodeDelivery.CallerNumber -> Res.string.auth_support_code_caller
+    CodeDelivery.Word -> Res.string.auth_support_code_word
+    CodeDelivery.Phrase -> Res.string.auth_support_code_phrase
+    CodeDelivery.Fragment -> Res.string.auth_support_code_fragment
 }
 
 /** Tlačítko „dál" je ve všech fázích stejné, takže jen jedno místo, kde se mění stav. */
@@ -342,6 +363,57 @@ private fun QrForm(
         TextButton(onClick = onUsePhoneNumber, enabled = !busy) {
             Text(stringResource(Res.string.auth_use_phone_number))
         }
+    }
+}
+
+/**
+ * Kód: políčko na číslici, kde délku známe, jinak obyčejné pole.
+ *
+ * **Hotový kód se odesílá sám.** Zadat ho je jediná věc, kterou na téhle obrazovce jde udělat,
+ * a poslední číslice to říká líp než další ťuknutí. Tlačítko přesto zůstává — bez něj by se po
+ * chybě, která s kódem nesouvisí (spadlé spojení), nedal tentýž kód poslat znovu: text se
+ * nezměnil, takže by se odeslání samo už nespustilo.
+ */
+@Composable
+private fun CodeForm(
+    code: AuthCode,
+    value: String,
+    error: UiText?,
+    busy: Boolean,
+    onValueChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+) {
+    val complete = code.digits == null || value.length == code.digits
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        if (code.digits == null) {
+            // Slovo ani fráze se do políček na číslice nevejdou a chtějí písmenkovou klávesnici.
+            AuthTextField(
+                value = value,
+                onValueChange = onValueChange,
+                label = Res.string.auth_input_code,
+                keyboardType = KeyboardType.Text,
+                isPassword = false,
+                isError = error != null,
+                onSubmit = onSubmit,
+            )
+        } else {
+            CodeField(
+                value = value,
+                digits = code.digits,
+                isError = error != null,
+                onValueChange = onValueChange,
+                onSubmit = onSubmit,
+            )
+            LaunchedEffect(value) { if (value.length == code.digits) onSubmit() }
+        }
+
+        FormError(error)
+        ContinueButton(enabled = value.isNotBlank() && complete, busy = busy, onClick = onSubmit)
     }
 }
 

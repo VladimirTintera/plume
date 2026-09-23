@@ -139,7 +139,7 @@ class AuthViewModel(
             _busy.value = true
             val result = when (stage.value) {
                 AuthStage.WaitPhoneNumber -> session.submitPhoneNumber(_phone.value.international)
-                AuthStage.WaitCode -> session.submitCode(value)
+                is AuthStage.WaitCode -> session.submitCode(value)
                 is AuthStage.WaitPassword -> session.submitPassword(value)
                 else -> Result.success(Unit)
             }

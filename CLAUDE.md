@@ -746,6 +746,55 @@ Jedna obrazovka pro všechny fáze (`AuthScreen`), fáze se střídají v `Anima
   podruhé a vypadalo by to jako zadrhnutí. Kód a heslo jsou taky jeden krok: mezi nimi se
   nepřechází tam a zpět.
 
+### Zadání kódu
+
+Číselný kód se píše do políček — jedno na číslici, počet podle toho, co hlásí server
+(`AuthCode`, `CodeField`). Hotový kód se odešle sám.
+
+- **Kódy nejsou pořád stejně dlouhé.** Z Telegramu chodí pětimístný, SMS a Fragment posílají
+  i šestimístné. Hádat se to ale nemusí: `AuthenticationCodeInfo.type` nese `length` u každého
+  přihlášení zvlášť, takže se nakreslí přesně tolik políček, kolik jich bude potřeba.
+- **A nemusí to být ani číslo.** `SmsWord` (jedno slovo), `SmsPhrase` (fráze) a `FlashCall`
+  (kód se čte z čísla volajícího) délku nemají; tam zůstane obyčejné pole s písmenkovou
+  klávesnicí. `when` nad `AuthenticationCodeType` je bez `else` — je sealed, takže nový způsob
+  doručení v novější TDLib rozbije překlad, místo aby tiše spadl na obyčejné pole.
+- **Délka od serveru se bere jen v rozumném rozsahu** (`CODE_DIGITS`). Nula by znamenala nula
+  políček, tedy pole, do kterého se nedá psát; mimo rozsah se spadne na obyčejné pole, které
+  funguje vždycky.
+- **Uvnitř je JEDNO pole, políčka jsou dekorace** (`decorationBox`), ne N samostatných
+  `TextField`ů. Řada polí znamená přehazovat fokus po každém úhozu, ručně řešit backspace přes
+  hranici políčka a hlavně přijít o vložení ze schránky i o autofill — celý kód by spadl do
+  prvního políčka.
+- **`innerTextField()` se MUSÍ složit, i když není vidět.** Nese rozvržení textu, bez kterého
+  pole nefunguje; je proto průhledné (barva textu i kurzoru) a leží pod políčky. Gesta a fokus
+  má na sobě kořen dekorace, ne vnitřní pole, takže ťuknutí kamkoli na řadu políček zabere.
+- **Číslice čte čtečka obrazovky z POLE, ne z políček** (`clearAndSetSemantics` na řadě).
+  Semantika pole je merging, takže bez toho by se do jeho popisu slily všechny `Text`y.
+- **Zaoblení je v procentech kratší strany, ne v dp.** Pevných 16 dp ukrojí z políčka širokého
+  45 dp (šest číslic na telefonu širokém 360 dp) skoro celou hranu a zbude ovál — ověřeno na
+  emulátoru zmenšeném na 720 × 1500. Z téhož důvodu klesá i výška (`codeCellHeight`, testy
+  `CodeEntryTest`): se stálými 64 dp z políček byly vysoké úzké pilulky.
+- **Hotový kód se odesílá sám, ale tlačítko zůstává.** Poslední číslice říká „jdeme na to" líp
+  než další ťuknutí. Bez tlačítka by ale po chybě, která s kódem nesouvisí (spadlé spojení),
+  nešlo poslat TENTÝŽ kód znovu: text se nezměnil, takže se odeslání samo už nespustí.
+- **Věta nad polem říká, kudy kód opravdu přišel** (`CodeDelivery`). Jedna věta pro všechno
+  („dorazil do jiného klienta nebo SMS") byla odhad — a přitom to TDLib pokaždé řekne.
+- **Fokus si pole bere samo.** Zadat kód je jediná věc, kterou na téhle obrazovce jde udělat.
+  Výjimka z pravidla „po ťuknutí na Upravit se pole samo nefokusuje": tam je psaní vsuvka,
+  tady je to celá obrazovka.
+- **Autocorrect je vypnutý u kódu i u hesla.** Slovní kód by klávesnice opravila na jiné slovo
+  a uživatel by nepoznal proč.
+- **Ověřuje se podstrčeným stavem, ne odhlášením.** Na přihlašovací obrazovku se jinak nedá
+  bez ztráty relace; v `AuthViewModel` se dočasně nahradí `stage` za
+  `MutableStateFlow(AuthStage.WaitCode(AuthCode(5, CodeDelivery.TelegramApp)))`, postaví se APK
+  a zdroják se hned vrátí — stejně jako u karty aktualizace. Odeslání kódu na přihlášené relaci
+  skončí chybou od serveru, takže se tou samou cestou ověří i chybový stav.
+- **Ověřeno na emulátoru**: pět i šest políček, doplňování zleva, rámeček u aktivního políčka,
+  vložení delšího textu se ořízne, plný kód se odešle sám a chyba obarví políčka i větu pod nimi;
+  slovní kód dostane obyčejné pole s písmenkovou klávesnicí a neodesílá se sám. **Autofill kódu
+  z SMS ověřený NENÍ** — je to jen deklarace `ContentType.SmsOtpCode`, doručit skutečnou SMS na
+  emulátor nešlo.
+
 ### Výběr země a formát čísla
 
 **Seznam zemí ani formáty čísel se nedrží u nás** — dává je TDLib, a všechno „can be called
