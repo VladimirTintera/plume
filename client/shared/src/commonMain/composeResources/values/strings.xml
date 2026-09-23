@@ -906,6 +906,7 @@
     <string name="summary_nothing">There is nothing to summarize here.</string>
     <string name="summary_failed">The summary could not be created.</string>
     <string name="summary_disclaimer">Generated on this device. It may be inaccurate.</string>
+    <string name="summary_truncated">The model ran out of room and stopped early, so the end of the conversation is missing.</string>
     <string name="summary_retry">Try again</string>
     <string name="settings_on_device_ai_preview">Preview model version</string>
     <string name="settings_on_device_ai_preview_summary">The newest version before its stable release. It may not exist for this device and downloads separately.</string>

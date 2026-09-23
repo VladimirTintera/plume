@@ -287,7 +287,13 @@ fun ConversationScreen(
     val summaryTitle = state.info?.let { chatTitle(it.id, it.title) }
         ?: stringResource(Res.string.conversation_fallback_title)
     val startSummary = {
-        summary.summarize(summaryTitle, summarySource(state.messages, state.unreadBoundaryId), summaryMe)
+        // Zdroj se čte až v korutině, PO dotažení historie — a ze stateHolderu, ne z `state`
+        // zachyceného při skládání: ten je z doby před dotažením a chyběly by v něm stránky.
+        summary.summarize(summaryTitle, summaryMe) {
+            viewModel.loadForSummary(SUMMARY_RECENT_MESSAGES)
+            val loaded = stateHolder.value
+            summarySource(loaded.messages, loaded.unreadBoundaryId)
+        }
     }
     // Hledané slovo pro bubliny. Odvozené, aby text bublin překreslila jen změna dotazu, ne každá
     // změna stavu konverzace. Dotaz, ke kterému patří výsledky, ne rozepsaný.

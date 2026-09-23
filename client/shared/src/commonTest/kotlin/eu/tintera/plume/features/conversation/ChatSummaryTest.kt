@@ -87,4 +87,40 @@ class ChatSummaryTest {
         )
         assertEquals(listOf(TranscriptLine("Petr", "zprava1"), TranscriptLine("Já", "zprava2")), lines)
     }
+
+    // --- kolik historie shrnutí potřebuje (summaryHasEnough) ---
+
+    @Test
+    fun prazdnySeznamSeVzdyDotahuje() {
+        assertFalse(summaryHasEnough(emptyList(), unreadBoundaryId = null, count = 60))
+        assertFalse(summaryHasEnough(emptyList(), unreadBoundaryId = 5L, count = 60))
+    }
+
+    @Test
+    fun bezNeprectenychSeCekaNaPocet() {
+        // Seznam jde od nejnovější; po jedné stránce (30) na 60 zpráv nestačí.
+        val page = (30 downTo 1).map { message(it.toLong()) }
+        assertFalse(summaryHasEnough(page, unreadBoundaryId = null, count = 60))
+        val two = (60 downTo 1).map { message(it.toLong()) }
+        assertTrue(summaryHasEnough(two, unreadBoundaryId = null, count = 60))
+    }
+
+    @Test
+    fun sNeprectenymiStaciDosahnoutZaHranici() {
+        val boundary = 10L
+        // Samé nepřečtené (id > hranice) — pod hranici se ještě nedosáhlo, dotahuj.
+        val unreadOnly = (20 downTo 11).map { message(it.toLong()) }
+        assertFalse(summaryHasEnough(unreadOnly, boundary, count = 60))
+        // Jakmile je načtená i hraniční zpráva, je hotovo — i když je zpráv míň než count.
+        val reaching = (20 downTo 10).map { message(it.toLong()) }
+        assertTrue(summaryHasEnough(reaching, boundary, count = 60))
+    }
+
+    @Test
+    fun hraniceMaPrednostPredPoctem() {
+        // Za hranicí je pár zpráv, ale count je vysoký: dotahovat se nemá, pod hranicí
+        // se stejně nic neshrnuje.
+        val messages = (9 downTo 3).map { message(it.toLong()) }
+        assertTrue(summaryHasEnough(messages, unreadBoundaryId = 5L, count = 60))
+    }
 }

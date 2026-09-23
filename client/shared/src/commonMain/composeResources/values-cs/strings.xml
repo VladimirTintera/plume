@@ -922,6 +922,7 @@
     <string name="summary_nothing">Tady není co shrnout.</string>
     <string name="summary_failed">Shrnutí se nepovedlo.</string>
     <string name="summary_disclaimer">Vytvořeno v zařízení. Může být nepřesné.</string>
+    <string name="summary_truncated">Modelu došlo místo a přestal psát dřív, takže konec konverzace ve shrnutí chybí.</string>
     <string name="summary_retry">Zkusit znovu</string>
     <string name="settings_on_device_ai_preview">Preview verze modelu</string>
     <string name="settings_on_device_ai_preview_summary">Nejnovější verze před stabilním vydáním. Pro tohle zařízení nemusí být a stahuje se zvlášť.</string>

@@ -3,6 +3,7 @@ package eu.tintera.plume.core.ai
 import co.touchlab.kermit.Logger
 import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.FeatureStatus
+import com.google.mlkit.genai.prompt.Candidate
 import com.google.mlkit.genai.prompt.Generation
 import com.google.mlkit.genai.prompt.GenerativeModel
 import com.google.mlkit.genai.prompt.ModelPreference
@@ -85,13 +86,22 @@ class MlKitOnDeviceAi : OnDeviceAi {
     override suspend fun countTokens(variant: ModelVariant, prompt: String): Int? =
         quietly("token count") { client(variant).countTokens(request(prompt)).totalTokens }
 
-    override fun generate(variant: ModelVariant, prompt: String): Flow<String> = flow {
+    override fun generate(variant: ModelVariant, prompt: String): Flow<Generated> = flow {
         // Stream vydává PŘÍRŮSTKY (tak je skládá i ukázka od Googlu), rozhraní slibuje celý text.
         val text = StringBuilder()
+        var truncated = false
         client(variant).generateContentStream(request(prompt)).collect { chunk ->
-            val piece = chunk.candidates.firstOrNull()?.text ?: return@collect
-            text.append(piece)
-            emit(text.toString())
+            val candidate = chunk.candidates.firstOrNull() ?: return@collect
+            /*
+             * MAX_TOKENS = modelu došel strop výstupu (MAX_OUTPUT_TOKENS), takže text končí,
+             * kde zrovna byl. Příznak se jen zvedá a nikdy neruší: chodí na posledním kusu
+             * a další už nepřijde.
+             */
+            if (candidate.finishReason == Candidate.FinishReason.MAX_TOKENS) truncated = true
+            // Kus BEZ textu nese jen finishReason, takže se nesmí přeskočit — jinak by se
+            // useknutí ztratilo právě u zprávy, která ho hlásí.
+            candidate.text?.let { text.append(it) }
+            emit(Generated(text.toString(), truncated))
         }
     }
 
@@ -112,6 +122,12 @@ class MlKitOnDeviceAi : OnDeviceAi {
     }
 
     private companion object {
-        const val MAX_OUTPUT_TOKENS = 400
+        /**
+         * Strop výstupu. Se 400 se shrnutí dvanácti zpráv usekávalo v půlce (ověřeno na
+         * Pixelu 11 Pro Foldu) — čeština zabere víc tokenů než angličtina, na kterou bývají
+         * výchozí hodnoty laděné. Platí se za to delším generováním, takže to není „čím víc,
+         * tím líp"; co se přesto nevejde, ohlásí [Generated.truncated].
+         */
+        const val MAX_OUTPUT_TOKENS = 800
     }
 }

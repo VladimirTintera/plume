@@ -3,6 +3,7 @@ package eu.tintera.plume.features.conversation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.ai.Generated
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.TranscriptLine
@@ -27,6 +28,21 @@ import kotlinx.coroutines.launch
 
 /** Kolik posledních zpráv se shrne, když v chatu nic nepřečteného není. */
 const val SUMMARY_RECENT_MESSAGES = 60
+
+/**
+ * Má shrnutí dost načtené historie, nebo se má dotáhnout další stránka?
+ *
+ * [messages] jde od NEJNOVĚJŠÍ (tak je drží konverzace), takže nejstarší načtená je poslední.
+ * S nepřečtenými stačí dosáhnout za hranici — co je pod ní, se stejně nešrnuje; bez nich se
+ * čeká na [count] zpráv. Prázdný seznam znamená „ještě nic nenačteno", tedy dotahovat.
+ *
+ * Vlastní funkce, ne podmínka v lambdě uvnitř ViewModelu: rozhoduje o tom, kolik toho shrnutí
+ * uvidí, a hraniční případy (prázdno, hranice přesně na nejstarší zprávě) se v lambdě neověří.
+ */
+fun summaryHasEnough(messages: List<ChatMessage>, unreadBoundaryId: Long?, count: Int): Boolean {
+    val oldest = messages.lastOrNull() ?: return false
+    return if (unreadBoundaryId != null) oldest.id <= unreadBoundaryId else messages.size >= count
+}
 
 /** Co se bude shrnovat: zprávy (chronologicky) a jestli jsou to nepřečtené. */
 data class SummarySource(val messages: List<ChatMessage>, val unread: Boolean)
@@ -85,8 +101,17 @@ sealed interface ChatSummaryState {
     /** Čeká se na první slovo — model se v AICore při prvním požadavku teprve načítá. */
     data object Preparing : ChatSummaryState
 
-    /** [done] = model domluvil; do té doby text přibývá. */
-    data class Text(val text: String, val done: Boolean, val details: SummaryDetails) : ChatSummaryState
+    /**
+     * [done] = model domluvil; do té doby text přibývá. [truncated] = nedomluvil, došel mu
+     * strop výstupu — text je platný, ale NEÚPLNÝ, a to se musí ukázat: jinak si uživatel
+     * přečte shrnutí poloviny zpráv jako shrnutí všech.
+     */
+    data class Text(
+        val text: String,
+        val done: Boolean,
+        val details: SummaryDetails,
+        val truncated: Boolean = false,
+    ) : ChatSummaryState
 
     /** Model v zařízení ještě není — stahuje se v Nastavení. */
     data object ModelMissing : ChatSummaryState
@@ -131,16 +156,23 @@ class ChatSummaryViewModel(
 
     private var job: Job? = null
 
-    fun summarize(chatTitle: String, source: SummarySource, me: String) {
+    /**
+     * [source] je `suspend`, protože se kvůli shrnutí dotahuje historie (viz
+     * `ConversationViewModel.loadForSummary`). Sheet se proto ukáže HNED jako „Připravuji" —
+     * kdyby se čekalo na zdroj, ťuknutí by chvíli nedělalo nic.
+     */
+    fun summarize(chatTitle: String, me: String, source: suspend () -> SummarySource) {
         job?.cancel()
-        _source.value = source
-        val lines = transcriptLines(source.messages, chatTitle, me)
-        if (lines.isEmpty()) {
-            _state.value = ChatSummaryState.NothingToSummarize
-            return
-        }
+        _source.value = null
         _state.value = ChatSummaryState.Preparing
         job = viewModelScope.launch {
+            val picked = source()
+            _source.value = picked
+            val lines = transcriptLines(picked.messages, chatTitle, me)
+            if (lines.isEmpty()) {
+                _state.value = ChatSummaryState.NothingToSummarize
+                return@launch
+            }
             val variant = settings.onDeviceAiVariant.value
             if (ai.status(variant) != OnDeviceAiStatus.Ready) {
                 _state.value = ChatSummaryState.ModelMissing
@@ -159,8 +191,9 @@ class ChatSummaryViewModel(
             var prompt = summaryPrompt(chatTitle, lines, platformLanguageCode, maxChars)
             var tokens = ai.countTokens(variant, prompt)
             repeat(MAX_FIT_ATTEMPTS) {
-                if (limit == null || tokens == null || tokens!! <= limit) return@repeat
-                maxChars = shrunkTranscriptChars(maxChars, tokens!!, limit)
+                val over = tokens
+                if (limit == null || over == null || over <= limit) return@repeat
+                maxChars = shrunkTranscriptChars(maxChars, over, limit)
                 prompt = summaryPrompt(chatTitle, lines, platformLanguageCode, maxChars)
                 tokens = ai.countTokens(variant, prompt)
             }
@@ -172,16 +205,27 @@ class ChatSummaryViewModel(
                 totalLines = lines.size,
             )
 
-            var last = ""
+            var last = Generated("")
             try {
-                ai.generate(variant, prompt).collect { text ->
-                    last = text
-                    _state.value = ChatSummaryState.Text(text, done = false, details = details)
+                ai.generate(variant, prompt).collect { chunk ->
+                    last = chunk
+                    _state.value = ChatSummaryState.Text(
+                        text = chunk.text,
+                        done = false,
+                        details = details,
+                        truncated = chunk.truncated,
+                    )
                 }
-                _state.value = if (last.isBlank()) {
+                _state.value = if (last.text.isBlank()) {
                     ChatSummaryState.Failed
                 } else {
-                    ChatSummaryState.Text(last, done = true, details = details)
+                    if (last.truncated) logger.i { "Model shrnutí nedopsal, došel mu strop výstupu" }
+                    ChatSummaryState.Text(
+                        text = last.text,
+                        done = true,
+                        details = details,
+                        truncated = last.truncated,
+                    )
                 }
             } catch (e: CancellationException) {
                 throw e

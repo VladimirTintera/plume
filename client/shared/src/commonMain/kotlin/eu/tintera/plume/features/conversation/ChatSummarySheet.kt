@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -36,6 +37,7 @@ import eu.tintera.plume.resources.summary_model_missing
 import eu.tintera.plume.resources.summary_nothing
 import eu.tintera.plume.resources.summary_preparing
 import eu.tintera.plume.resources.summary_retry
+import eu.tintera.plume.resources.summary_truncated
 import eu.tintera.plume.resources.summary_title_recent
 import eu.tintera.plume.resources.summary_title_unread
 import org.jetbrains.compose.resources.StringResource
@@ -66,6 +68,9 @@ fun ChatSummarySheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
+                // Bez toho poslední řádek (model a tokeny) zůstane pod navigačním pruhem
+                // a nejde ho dorolovat nad něj — přečte se až po rozbalení sheetu.
+                .navigationBarsPadding()
                 .padding(start = 24.dp, end = 24.dp, bottom = 24.dp)
                 .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()),
         ) {
@@ -100,6 +105,13 @@ fun ChatSummarySheet(
                         Text(state.text.trim(), style = MaterialTheme.typography.bodyLarge)
                     }
                     if (!state.done) LoadingIndicator(Modifier.size(32.dp))
+                    if (state.truncated) {
+                        Text(
+                            stringResource(Res.string.summary_truncated),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                     SummaryDetailsLine(state.details)
                 }
                 ChatSummaryState.ModelMissing -> SummaryNote(Res.string.summary_model_missing)

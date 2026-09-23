@@ -36,10 +36,10 @@ interface OnDeviceAi {
     /**
      * Vygeneruje odpověď na [prompt] a vydává ji postupně.
      *
-     * Každá hodnota je CELÝ dosavadní text, ne přírůstek — obrazovka ho jen vykreslí a nemusí
+     * Každá hodnota nese CELÝ dosavadní text, ne přírůstek — obrazovka ho jen vykreslí a nemusí
      * nic skládat.
      */
-    fun generate(variant: ModelVariant, prompt: String): Flow<String>
+    fun generate(variant: ModelVariant, prompt: String): Flow<Generated>
 }
 
 /**
@@ -50,6 +50,17 @@ interface OnDeviceAi {
  * @property fast rychlejší a méně přesná varianta místo plné.
  */
 data class ModelVariant(val preview: Boolean = false, val fast: Boolean = false)
+
+/**
+ * Kus generované odpovědi.
+ *
+ * [text] je celý dosavadní text. [truncated] znamená, že model NEDOMLUVIL: došel mu strop
+ * výstupu a text prostě končí, klidně uprostřed věty. Není to chyba — odpověď je platná, jen
+ * neúplná —, takže se nevyhazuje výjimka; uživateli to ale musí UI říct, jinak si useknuté
+ * shrnutí přečte jako úplné. Model to hlásí sám (ML Kit `Candidate.FinishReason.MAX_TOKENS`),
+ * nepoznává se to odhadem z délky textu.
+ */
+data class Generated(val text: String, val truncated: Boolean = false)
 
 /** Co o modelu víme. [tokenLimit] je strop VSTUPU v tokenech. */
 data class ModelInfo(val name: String?, val tokenLimit: Int?)
@@ -80,5 +91,5 @@ object NoopOnDeviceAi : OnDeviceAi {
     override suspend fun info(variant: ModelVariant): ModelInfo? = null
     override fun download(variant: ModelVariant): Flow<ModelDownload> = emptyFlow()
     override suspend fun countTokens(variant: ModelVariant, prompt: String): Int? = null
-    override fun generate(variant: ModelVariant, prompt: String): Flow<String> = emptyFlow()
+    override fun generate(variant: ModelVariant, prompt: String): Flow<Generated> = emptyFlow()
 }
