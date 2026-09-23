@@ -162,7 +162,49 @@ interface ChatRepository {
      * jiného, než uživatel od položky v seznamu čeká.
      */
     suspend fun deleteOrLeave(chatId: Long): Result<Unit>
+
+    /**
+     * Co jde s chatem udělat proti spamu — viz [SpamActions].
+     *
+     * Čte se až při otevření nabídky nad chatem, jako práva u nabídky nad zprávou: [ChatSummary]
+     * to nenese a zjišťovat to dopředu by znamenalo dotaz na každý chat v seznamu kvůli nabídce,
+     * kterou uživatel skoro nikdy neotevře.
+     */
+    suspend fun spamActions(chatId: Long): Result<SpamActions>
+
+    /**
+     * Zablokuje protějšek soukromého chatu, nebo blokování zruší (`setMessageSenderBlockList`).
+     *
+     * Blokovaný nenapíše ani nezavolá; u bota je to zároveň jeho zastavení. Chat v seznamu
+     * ZŮSTÁVÁ — blokování a mazání jsou dvě různé věci a nabídka je nabízí každou zvlášť.
+     */
+    suspend fun setBlocked(chatId: Long, blocked: Boolean): Result<Unit>
+
+    /**
+     * Nahlásí chat moderátorům Telegramu jako spam.
+     *
+     * Jedním voláním to jde jen u chatu, kterému server dal spamový action bar
+     * ([SpamActions.canReport]); jinde je `reportChat` průvodce s volbou důvodu, a ten aplikace
+     * nemá.
+     */
+    suspend fun reportSpam(chatId: Long): Result<Unit>
 }
+
+/**
+ * Co jde s chatem udělat proti spamu. Zjišťuje se na dotaz, ne v seznamu — viz
+ * [ChatRepository.spamActions].
+ *
+ * Výchozí hodnoty znamenají „nenabízet nic": když se stav zjistit nepodaří, nesmí se nabídnout
+ * akce, která skončí chybou od serveru.
+ */
+data class SpamActions(
+    /** Jen soukromý chat s někým jiným — u skupiny, kanálu ani Uložených zpráv není koho blokovat. */
+    val canBlock: Boolean = false,
+    /** Je protějšek právě zablokovaný? Podle toho nabídka nabídne zablokování, nebo odblokování. */
+    val isBlocked: Boolean = false,
+    /** Jde chat nahlásit jedním voláním, tedy bez průvodce s volbou důvodu? */
+    val canReport: Boolean = false,
+)
 
 sealed interface ChatListState {
 

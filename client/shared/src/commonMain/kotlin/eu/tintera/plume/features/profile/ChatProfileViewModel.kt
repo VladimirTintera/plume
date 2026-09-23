@@ -311,12 +311,18 @@ class ChatProfileViewModel(
         }
     }
 
-    /** Stav se po úspěchu přepíše lokálně — `UpdateUserFullInfo` profil neodebírá. */
+    /**
+     * Stav se po úspěchu přepíše lokálně — `UpdateUserFullInfo` profil neodebírá.
+     *
+     * Blokování vede přes [ChatRepository], ne přes profil: je to tatáž akce jako v nabídce nad
+     * chatem v seznamu a dvě cesty k `setMessageSenderBlockList` by se dřív nebo později rozešly.
+     */
     fun setBlocked(blocked: Boolean) {
         val profile = _state.value.profile ?: return
-        val userId = profile.userId ?: return
+        // Koho blokovat, si repository zjistí z chatu; tady jen hlídáme, že tenhle chat někoho má.
+        profile.userId ?: return
         viewModelScope.launch {
-            profiles.setBlocked(userId, blocked)
+            chats.setBlocked(chatId, blocked)
                 .onSuccess { _state.update { it.copy(profile = it.profile?.copy(isBlocked = blocked)) } }
                 .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.profile_action_failed)) } }
         }

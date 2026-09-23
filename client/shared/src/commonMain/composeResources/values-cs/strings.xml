@@ -92,6 +92,10 @@
     <string name="chats_archived">Chat je v archivu</string>
     <string name="chats_unarchived">Chat je zpátky mezi chaty</string>
     <string name="chats_undo">Vrátit</string>
+    <string name="chats_blocked">Zablokováno</string>
+    <string name="chats_unblocked">Blokování zrušeno</string>
+    <string name="chats_delete_block">Zablokovat taky</string>
+    <string name="chats_delete_report">Nahlásit spam</string>
     <plurals name="chats_archive_unread">
         <item quantity="one">%1$d nepřečtený chat v archivu</item>
         <item quantity="few">%1$d nepřečtené chaty v archivu</item>
