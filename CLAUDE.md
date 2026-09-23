@@ -279,13 +279,20 @@ tam se i stahuje model. Hranice je `core/ai` (`OnDeviceAi`).
   nedělá nic. Porovnáno na zařízení všemi čtyřmi kombinacemi: jméno určuje VÝHRADNĚ `fast`
   (`nano-v4-full` / `nano-v4-fast`), `preview` na ně nemá vliv a limit je pořád 8 192.
   Proto `previewSameAsStable` — jména se porovnají a pod přepínač se připíše, že se nepoužije.
-- **Preview model v zařízení JE a přes ML Kit se k němu stejně nedostaneme.** Ověřeno
-  pokusem, ne úvahou: v AICore Labs
-  (`aicore.demo.labs.thirdparty.ThirdPartyLabsActivity`) se dá vybrat „Gemini Nano 4 Full
-  [Preview, TPU]", odpoví na prompt — a přesto `getBaseModelName()` se zapnutým `preview`
-  vrací dál `nano-v4-full`, i po `force-stop` aplikace. `ModelReleaseStage.PREVIEW` tedy
-  na tomhle zařízení **nemá žádný efekt**; není to chybějícím modelem. Hypotéza „stačí ho
-  stáhnout" je vyvrácená.
+- **Preview model v zařízení JE a přes ML Kit se k němu stejně nedostaneme — a je vidět
+  proč.** V AICore Labs (`aicore.demo.labs.thirdparty.ThirdPartyLabsActivity`) jde vybrat
+  „Gemini Nano 4 Full [Preview, TPU]" a odpoví na prompt; `getBaseModelName()` se zapnutým
+  `preview` přesto vrací dál `nano-v4-full`, i po `force-stop`. **V logcatu je příčina:**
+  ```
+  GenAiProcessorKt: AICore failed with error type 3-PREPARATION_ERROR
+    and error code 606-FEATURE_NOT_FOUND: Feature -1 is not available.
+  GenAiProcessorKt: checkFeatureStatus failed
+  ```
+  ML Kit si konfiguraci překládá na číslo AICore „feature" a pro preview mu vyjde **-1**,
+  tedy žádné. Chybu spolkne a tiše použije stabilní model. Není to tedy chybějícím modelem
+  ani naším voláním — je to mezera v `genai-prompt` (1.0.0-beta4 je nejnovější verze, další
+  alfa ani beta na Google Maven není). Hypotéza „stačí preview stáhnout" je vyvrácená
+  pokusem.
 - **Labs nabízí čtyři modely, „Správa AI modelů" ukazuje jediný balík „Fast + Full [TPU]".**
   Proto je rychlá varianta připravená okamžitě a nic se nestahuje: full i fast jsou TENTÝŽ
   balík.
