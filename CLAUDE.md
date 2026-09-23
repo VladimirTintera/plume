@@ -2731,7 +2731,10 @@ Pod textem se zprávou s odkazem se kreslí náhled: web, titulek, popis a obrá
   `primary` bublině by `primary` zmizela.
 - **Ťuknutí jde přes `onLinkClick`** jako odkaz v textu; **dlouhý stisk se opakuje**, jinak by
   náhled nabídku nad zprávou spolkl.
-- **Náhled nad textem (`showAboveText`) se zatím ignoruje** — kreslí se vždycky pod ním.
+- **Náhled nad textem** (`showAboveText`) je přání odesílatele, jen se respektuje — jako velikost
+  obrázku. S ním se otáčí i to, který díl karty je poslední: **spodní odsazení nese ten, pod kterým
+  už nic není** (počítá se v něm s místem na čipy reakcí). **Značka přeposlání zůstává nahoře
+  vždycky** — je to údaj o zprávě, ne o odkazu, a pod náhledem by vypadala jako jeho popisek.
 - **Náhled jde z bubliny ven do vlastní karty** — viz „Náhled odkazu jako karta".
 
 ### Nabídka nad zprávou

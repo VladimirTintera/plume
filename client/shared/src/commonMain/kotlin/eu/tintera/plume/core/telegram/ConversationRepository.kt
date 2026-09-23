@@ -680,6 +680,11 @@ data class LinkPreview(
      * (Telegram mu to nabízí při psaní), takže se to jen respektuje.
      */
     val largePhoto: Boolean,
+    /**
+     * Náhled patří NAD text zprávy, ne pod něj. Rozhoduje odesílatel (Telegram mu to nabízí
+     * při psaní), takže se to jen respektuje — stejně jako [largePhoto].
+     */
+    val showAboveText: Boolean,
 )
 
 /**

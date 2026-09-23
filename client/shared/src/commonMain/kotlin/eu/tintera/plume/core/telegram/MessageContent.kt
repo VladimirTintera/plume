@@ -650,6 +650,7 @@ internal fun Message.linkPreview(): LinkPreview? {
         description = previewText(preview.description.text),
         photo = photo,
         largePhoto = preview.showLargeMedia,
+        showAboveText = preview.showAboveText,
     )
     if (result.siteName == null && result.title == null && result.description == null && photo == null) {
         return null

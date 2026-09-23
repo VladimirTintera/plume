@@ -121,7 +121,8 @@ Co z toho zůstalo:
   netrefila.
 - **`displayUrl` doménový `LinkPreview` pořád nenese.** Do doplňkového textu se dnes bere
   `siteName`; bez něj (a bez titulku i popisu) se kontejner nekreslí vůbec.
-- **Náhled nad textem (`showAboveText`) se dál ignoruje.**
+- ~~**Náhled nad textem** (`showAboveText`)~~ — hotovo, náhled se kreslí nad textem, když
+  si to odesílatel přál.
 
 ### 4. ~~Odkrývání časů tahem doleva~~ — HOTOVO
 
@@ -223,7 +224,8 @@ Co z toho zůstalo nedodělané:
   za textem z `TextLayoutResult` (`drawQuoteBlocks`), takže rozpad textu na víc `Text`ů nebyl
   potřeba. Zbývá **sbalení dlouhé `ExpandableBlockQuote`** se „Zobrazit víc" — na to už by rozpad
   potřeba byl, a s ním přepočet zvýraznění, spoilerů i dlouhého stisku nad odkazem.
-- **Náhled odkazu nad textem** (`showAboveText`) — náhled se zatím kreslí vždycky pod ním.
+- ~~**Náhled odkazu nad textem** (`showAboveText`)~~ — hotovo (`CLAUDE.md`, „Náhled odkazu
+  jako karta"); značka přeposlání zůstává nahoře i tak.
 - **Vlastní emoji** (`TextEntityTypeCustomEmoji`) jsou samolepky uvnitř textu; patří k médiím.
 
 ## D) Otevření média — HOTOVO pro fotky, video a dokumenty
