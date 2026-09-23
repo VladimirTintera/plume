@@ -32,6 +32,9 @@ Teď je prázdné.
 
 Android je napřed; tohle je, čím se to dorovnává.
 
+- **AI v zařízení není vůbec** (`NoopOnDeviceAi`), takže shrnutí chatu ani návrhy odpovědí na
+  iOS nejsou. Apple Foundation Models jsou k mání od iOS 26 a dají se zapojit za stávající
+  rozhraní `OnDeviceAi` — implementace musí přijít ze Swiftu, jako u hlásiče pádů.
 - **Notifikace** — napojené (APNs, rozšíření notifikací, texty, oprávnění, úklid přečtených
   a odznak; `CLAUDE.md`, „Notifikace na iOS (APNs)"). Zbývá:
   - **Certifikát APNs u Telegramu** (my.telegram.org) a Push Notifications v Apple Developer účtu.
@@ -154,6 +157,86 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
       s manifestem jako na iOS); co s Direct Share (tam je chat vybraný předem, čip nepotřebuje);
       a iOS rozšíření, které dnes chat vybírá samo — mohlo by jen předat obsah a výběr nechat
       aplikaci, pak by na obou platformách fungovalo sdílení stejně.
+
+## AI v zařízení
+
+Shrnutí chatu a návrhy odpovědí běží na Gemini Nano přes ML Kit Prompt API (Android). Poučení
+z prototypu je v `CLAUDE.md`, sekce „AI v zařízení"; sem patří, co zbývá.
+
+**Model se NEUČÍ a učit ho nejde.** Žádný fine-tuning ani doladění na uživatelových datech:
+balík spravuje systém a aplikace ho jen volá. Co API nabízí místo toho, je kešovaný kontext
+(`Caches`, níž) a system prompt — a hlavně personalizace na NAŠÍ straně: co si aplikace
+o uživateli pamatuje, vloží do promptu. Kdo čeká, že se model časem „naučí, jak uživatel píše",
+hledá něco, co tam není.
+
+**Pravidlo pro výběr featur: model drží fakta, ale drhne mu sloh.** Čísla, jména a termíny
+drží spolehlivě — na ověřovacím testu (ceny, číslo účtu, datum, jména) si nevymyslel nic —,
+zatímco věty komolí („telefon nebudou mít vibrace", „Pěče pod Sněžkou") a mezi třemi návrhy
+odpovědi bývá jeden nesmysl. **Prompt už vyladěný je; tohle je strop modelu, ne zadání.**
+Z toho plyne pořadí, ve kterém se vyplatí featury stavět:
+
+- **Klasifikace, extrakce a rozhodování jsou silná stránka** — výstupem je štítek, datum nebo
+  ano/ne, takže na slohu nezáleží a chyba se pozná.
+- **Úprava textu, který uživatel schválí, je únosná** — chybu vidí a opraví, než odešle.
+- **Generování textu k odeslání je ta nejslabší kategorie.** Shrnutí i našeptávání odpovědí
+  z ní obě jsou; zajímavé věci leží v první a zatím z ní nemáme nic.
+
+### Co zbývá u toho, co běží
+
+- **Nejnadějnější krok je větší model.** Preview varianta Gemini Nano běží na Gemma 4 **E4B**,
+  zatímco stabilní na E2B — jenže **přes ML Kit se k ní dostat nedá**: spočítá si `Feature -1`
+  a tiše použije stabilní (ověřeno i se staženým preview modelem, viz `CLAUDE.md`). Cesta vede
+  přes vlastní runtime **LiteRT-LM** za stávajícím rozhraním `OnDeviceAi`.
+- **Beta ML Kitu sledovat.** `1.0.0-beta4` je zatím nejnovější; novější verze může `Feature -1`
+  opravit a preview zpřístupnit bez vlastního runtime. Stojí za to to při bumpu zkusit znovu.
+- **Kešování kontextu a `warmup()` nejsou využité.** Prompt API je nabízí (`Caches`,
+  `CachedContext`, `isCachingFeatureAvailable`) a u opakovaného shrnování téhož chatu by mohly
+  ušetřit čas. Zatím netestované.
+- **Shrnutí bere jen to, co se vejde do jednoho promptu.** U chatu s tisíci nepřečtenými se
+  zkrátí na limit vstupu (8 192 tokenů) a zbytek se zahodí. Postupné shrnování po částech
+  („map-reduce") zatím není.
+- **Strop výstupu je kompromis.** `MAX_OUTPUT_TOKENS = 800` stačí na shrnutí několika desítek
+  zpráv; delší konverzace se useknou a UI to sice přizná, ale lépe by bylo shrnutí zkrátit
+  instrukcí než ho nechat uříznout uprostřed.
+
+### Co by šlo postavit
+
+Seřazené podle toho, jak sedí na pravidlo výš, ne podle nápaditosti. **Každá z nich má cenu,
+se kterou se musí počítat předem: inferenci pustí AICore jen aplikaci v POPŘEDÍ.** Z notifikace
+ani z úlohy na pozadí tedy nic z toho běžet nemůže — featura, která má vyhodnotit zprávu
+v okamžiku, kdy přijde, narazí na tohle, ne na model.
+
+- **Strukturovaný výstup jako první krok.** Prompt API umí vrátit rovnou instanci Kotlin třídy
+  (`GenerateTypedContentRequest<T>` s `outputClass`, `TypedCandidate<T>.response`), ne text.
+  Tím padá celá třída problémů, se kterou se dnes pereme: `parseReplySuggestions` je tolerantní
+  parser právě proto, že model nedrží formát odrážek. **A každá featura z té silné kategorie
+  na tom stojí** — datum, štítek i skóre chceme jako typ, ne jako větu. Zlepší tedy i to, co už
+  máme, takže má smysl začít tady.
+- **Detekce podvodných zpráv.** „Naskenuj tenhle QR a ověř si účet", falešná výhra, odkaz na
+  přihlášení. Nenápadné varování u zprávy. Je to klasifikace, tedy silná stránka, a **děje se to
+  celé v telefonu** — obsah zprávy nikam neodchází, což je u téhle featury podstatné. Navazuje
+  na pravidlo, které projekt už má (odkaz `tg://login` se z ťuknutí neotevírá, viz `CLAUDE.md`,
+  „Přihlášení QR kódem"). Pozor na to, že varování u legitimní zprávy je horší než žádné:
+  práh se musí nastavit tak, aby se raději mlčelo.
+- **Termín a úkol ze zprávy.** „Sraz v 15:00 na Černém Mostě" → nabídka přidat do kalendáře
+  nebo připomínku. Čistá extrakce a data model prokazatelně drží. Nabízí se jen tehdy, když si
+  je modelem jistý; nabídka u každé druhé zprávy by byla otrava.
+- **Triáž chatů.** Odznak „čeká na odpověď" vs. „jen informace" v seznamu chatů. Rozhodnutí
+  ano/ne nad krátkým textem je rychlé (0,2–0,4 s), ale **počítá se pro každý chat zvlášť**,
+  takže musí běžet nad načteným seznamem a výsledek se musí kešovat podle id zprávy.
+- **Štítky Uložených zpráv.** Témata Uložených zpráv (`SavedMessagesTopic`) a štítky od
+  Telegramu nemáme; automatické zatřídění by je nahradilo bez serverové podpory a je to zase
+  klasifikace.
+- **Přepsat před odesláním** („kratší", „zdvořileji", „bez překlepů"). Sloh drhne, ale uživatel
+  výsledek VIDÍ a rozhodne — chyba je levná, na rozdíl od našeptávání, kde se text podepisuje
+  naslepo. Patří do nabídky nad vstupním polem, ne do automatiky.
+- **Vysvětlit dlouhou cizí zprávu** („o co jde") — totéž co shrnutí, jen nad jednou zprávou,
+  takže se vejde do vstupu a sloh vadí míň, protože to čte jen uživatel.
+
+**Na překlad se Nano nehodí a nemá se používat.** ML Kit má vlastní offline Translation API,
+stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v kvalitě i v čase.
+
+---
 
 ## Haptika
 
