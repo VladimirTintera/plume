@@ -310,6 +310,50 @@ a scrollování" u duplicitního klíče po potvrzení odeslání).
 
 ---
 
+## Odesílání formátovaného textu
+
+**Zatím se nedělá**, jen ať se na to nezapomene.
+
+Vstupní pole posílá holý text. Entity se před odesláním jen *dohledávají*
+(`TdlConversationRepository.detectEntities` → `getTextEntities`), takže vzniknou jen ty, které
+jdou poznat z textu samotného: odkazy, zmínky, hashtagy, e-maily, telefony, příkazy botů.
+**Ruční formátování — tučné, kurzíva, spoiler, citace (i sbalitelná) — se z aplikace odeslat
+nedá.**
+
+Co z toho plyne dnes:
+
+- zpráva s ručním formátováním se **nenabízí k úpravě** (`plainTextEdit`), protože pole umí jen
+  holý text a úprava by formátování tiše smazala,
+- citaci umíme vykreslit, ale ne vytvořit — do vlastní bubliny se dostane jen přeposláním.
+
+Dvě cesty, různě velké:
+
+1. **Parsovat značky při odeslání** (`parseTextEntities`, lokální, umí MarkdownV2 i HTML):
+   `>` na začátku řádku citace, `**>` sbalitelná. Malá změna, ale parser je striktní — nepárová
+   značka vrátí chybu, takže se musí spolehlivě spadnout zpátky na holý text — a hlavně není nic
+   vidět, dokud se zpráva neodešle.
+2. **Formátování z výběru textu.** Nabídku nad výběrem si už přizpůsobujeme (odtud „Vložit GIF"),
+   takže Tučné / Kurzíva / Citace by do ní šly přidat. Potřebuje to ale model entit, který přežije
+   psaní uprostřed rozsahu, a vykreslení formátování přímo v poli.
+
+**Druhá cesta je nejspíš levnější, než byla, když pole vznikalo:** nový `BasicTextField` nad
+`TextFieldState` umí stylovat text přes `InputTransformation` / `OutputTransformation`, takže
+formátování v poli nemusí znamenat vlastní kreslení. Před odhadem to ověřit na verzi Compose,
+kterou projekt zrovna má.
+
+Přechod z `TextFieldValue` na `TextFieldState` by přinesl ještě dvě věci zadarmo:
+
+- **`Modifier.contentReceiver` místo obchvatu** přes `InterceptPlatformTextInput` u GIFů
+  z klávesnice (viz `CLAUDE.md`, „GIFy a samolepky z klávesnice") — ten existuje jen proto, že
+  `contentReceiver` s `TextFieldValue` nefunguje,
+- **úpravu zpráv s formátováním**, tedy konec omezení `plainTextEdit`.
+
+Pozor na to, co na `TextFieldValue` visí: ukládání konceptu a kurzor na konci vráceného konceptu
+(`CLAUDE.md`, „Koncept"). Offsety entit jsou v UTF-16 jednotkách, tedy v tom, čím indexuje
+Kotlin `String`.
+
+---
+
 ## Výběr samolepek a emoji
 
 Hotové: záložky Nedávné, Oblíbené, Trendy a sady se swipem; hledání samolepek i emoji; oblíbené;
