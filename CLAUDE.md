@@ -815,6 +815,12 @@ Tónovaný blok jako číslo, s okem na odkrytí (`PasswordField`).
   odhlášení): skryté i odkryté heslo, přepnutí ikony, rámeček při fokusu, červený rámeček i věta
   při chybě. Sonda se NECOMMITUJE. **Autofill ze správce hesel ověřený není** — je to jen
   deklarace.
+- **Jeden snímek není důkaz.** Po sjednocení bloku s číslem vyšel na jednom snímku horní řádek
+  karty tmavší než spodní (změřeno #DFDFE7 proti #F3F3FA) a vypadalo to jako šev, který přidal
+  rámeček. Tři opakovaná čerstvá spuštění ukázala kartu jednolitou — byl to přechodný stav fokusu
+  na klikacím řádku země, ne následek změny. **Ověřovací pokus, který má vyloučit regresi, se
+  musí zopakovat**, jinak se z jednoho vzorku vyrobí neexistující chyba (a stejně snadno se jí
+  dá přehlédnout skutečná).
 - **Zapomenuté heslo je pořád slepá ulička**, viz `docs/roadmap.md`. Obnova přes e-mail je nový
   krok automatu (`requestAuthenticationPasswordRecovery`), ne úprava pole.
 
@@ -830,6 +836,10 @@ before authorization":
 - `getPhoneNumberInfoSync(languageCode, prefix)` → z rozepsaného čísla pozná zemi a vrátí masku,
   ve které **`-` je očekávaná číslice**. Je to lokální dotaz, takže se smí volat při každém úhozu.
 
+- **Fokus a chybu nese rámeček kolem celého bloku** (`authOutlineColor`, sdílený s políčky kódu
+  a s heslem). Dřív to bylo podtržení `TextField`u: čára široká jen jako pole a přilepená přesně
+  na spodní hranu karty, takže vypadala jako lem, který tam něco zapomnělo — a přihlašovací
+  obrazovka měla pro tutéž věc tři různé projevy.
 - **Číslo má nápovědu, ne plovoucí label.** Label po vyplnění odskočí nahoru a text s ním
   klesne — číslo pak nelícovalo s předvolbou vedle, a ta label nemá a mít nemůže (je to volba,
   ne psané pole). Platí obecně: **pole, které stojí v řádku vedle textu bez labelu, label mít

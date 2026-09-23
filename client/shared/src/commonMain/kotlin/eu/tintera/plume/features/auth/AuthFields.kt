@@ -189,6 +189,11 @@ internal fun PasswordField(
 /**
  * Země a číslo jako **jeden blok**, ne dvě nesouvisející pole: předvolba bez země nic neznamená
  * a naopak. Stejný jazyk jako skupiny v Nastavení — nadpis a obsah drží pohromadě.
+ *
+ * **Fokus a chybu nese rámeček kolem celého bloku** ([authOutlineColor]), stejně jako u hesla
+ * a u políček kódu. Dřív to bylo podtržení `TextField`u, tedy čára široká jen jako pole
+ * a přilepená přesně na spodní hranu karty — vypadala jako lem, který tam něco zapomnělo,
+ * a přihlašovací obrazovka měla pro tutéž věc tři různé projevy.
  */
 @Composable
 internal fun PhoneField(
@@ -198,9 +203,13 @@ internal fun PhoneField(
     onPickCountry: () -> Unit,
     onSubmit: () -> Unit,
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(AUTH_OUTLINE, authOutlineColor(isError = isError, active = focused)),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.fillMaxWidth()) {
@@ -271,7 +280,11 @@ internal fun PhoneField(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
                         errorContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        errorIndicatorColor = Color.Transparent,
                     ),
+                    interactionSource = interaction,
                     modifier = Modifier.weight(1f),
                 )
             }

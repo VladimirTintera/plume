@@ -62,9 +62,6 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   e-mail) a `AuthorizationStateWaitPassword` nese `hasRecoveryEmailAddress`
   i `recoveryEmailAddressPattern`, které zatím nepřenášíme. Je to nový krok automatu, ne
   úprava pole; bez obnovovacího e-mailu zbývá jen smazání účtu, a i to se má říct nahlas.
-- **Přihlášení: číslo má jiný fokus než kód a heslo.** Blok s číslem nese podtržení `TextField`u,
-  zatímco políčka kódu i heslo mají rámeček kolem celé plochy (`authOutlineColor`). Podtržení
-  navíc končí přesně na spodní hraně karty. Sjednotit na rámeček.
 
 - ~~**Archiv**~~ — hotovo (seznam v menu účtu, archivace a vrácení z nabídky chatu i tahem do
   strany s „Vrátit", počet nepřečtených u vstupu, nastavení archivu). Poučení v `CLAUDE.md`,
