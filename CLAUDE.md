@@ -2562,6 +2562,10 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
     poloměru je pod ním text ještě čitelný — plocha pak vypadá jen zašpiněně.
   - **Původní krycí pás měl 0,93 a rozostření pod ním nebylo vidět vůbec**: text zprávy končil na
     jeho hraně, jako by ho něco ořízlo. Kdo sklo přidává, musí krytí snížit, jinak přidá jen cenu.
+  - **Fallback je ověřený na Androidu 9** (API 28, emulátor): pás pod polem kryje stejně jako
+    dřívější krycí plocha (prosvítá zhruba 7 %, tedy beze změny proti stavu před sklem), plovoucí
+    datum je úplně krycí a text na něm má kontrast 11,3. Závoj nabídky nad zprávou tam taky jen
+    ztmavuje, nerozostřuje.
   - **Na emulátoru se plynulost změřit NEDÁ.** `dumpsys gfxinfo` hlásil 98 % zadrhnutých snímků
     v konverzaci se sklem i v seznamu chatů BEZ něj — měří se tím hostitel pod tlakem paměti, ne
     naše změna. Patří to na zařízení, a hlavně na slabší s Androidem 12.
@@ -5014,6 +5018,10 @@ vkus toho, kdo zrovna píše obrazovku.
   nebo neudělá nic. Ověřovat tedy i na starším emulátoru.
 - **Oprávnění `VIBRATE` potřeba není** (jde to přes view, ne přes `Vibrator`) a vlastní přepínač
   v Nastavení taky ne — vypnout odezvu jde v systému a `performHapticFeedback` to respektuje.
+- **Emulátor s Androidem 9 nemá vibrátor VŮBEC.** Obraz `google_apis_playstore;arm64-v8a` pro
+  API 28 nezaznamená ani dlouhý stisk launcheru (`dumpsys vibrator` má „Previous vibrations"
+  prázdné) — náhradu typů, které na starých verzích neexistují, tedy na něm ověřit nejde. Zbývá
+  na to skutečné staré zařízení; co se ověřit dá, je, že nic nespadne.
 - **Emulátor nevibruje, ale volání zaznamenává**: `adb shell dumpsys vibrator_manager` má sekci
   „Recent vibrations" a v ní `reason: performHapticFeedback(constant=N)`. Čísla jsou
   `HapticFeedbackConstants`: **0 = LONG_PRESS, 16 = CONFIRM, 17 = REJECT, 21 = TOGGLE_ON,

@@ -208,6 +208,8 @@ takže zbytek přibude s tím, co bude umět:
 připnutých zpráv i plovoucí datum jsou mléčné sklo (`Glass.kt`, poučení v `CLAUDE.md`, „Vzhled
 konverzace"). Zbývá:
 
+- ~~**Ověřit vzhled bez rozostření**~~ — ověřeno na emulátoru s Androidem 9 (API 28): pás pod
+  polem kryje jako dřív, plovoucí datum je úplně krycí a čitelné, závoj nabídky jen ztmavuje.
 - **Změřit plynulost na zařízení**, hlavně na slabším s Androidem 12. Na emulátoru to nejde:
   `dumpsys gfxinfo` hlásí 98 % zadrhnutých snímků i v seznamu chatů BEZ skla, takže se tím měří
   hostitel, ne naše změna.
@@ -260,8 +262,9 @@ Co zbývá:
 - ~~**Uložení do galerie, sdílení a „Uložit jako…"** z prohlížeče~~ — hotovo (`MediaSaver`,
   `MediaSharer`, `rememberSaveAs`). Zbývá:
   - **Ověřit na iOS** (`PHPhotoLibrary` s dotazem na oprávnění, `UIActivityViewController`
-    i jako popover na iPadu) a na Androidu 9 a starším (`WRITE_EXTERNAL_STORAGE`, veřejný
-    adresář); vyzkoušené je jen Android 16.
+    i jako popover na iPadu). ~~Android 9 a starší~~ — ověřeno na emulátoru s API 28: přijde
+    dotaz na `WRITE_EXTERNAL_STORAGE`, soubor skončí v `/sdcard/Pictures/Plume/` pod jménem
+    `Plume_<datum>_<čas>.jpg` a zaregistruje se i v MediaStore (`bucket_display_name=Plume`).
   - ~~**Sdílet a Uložit jako… u souborů v konverzaci**~~ — hotovo (položky nabídky nad
     zprávou `ShareFile` a `SaveFileAs`). Ověřit na iOS, kde je jen Sdílet.
 - **Odpověď z prohlížeče.** Google Zprávy mají vlevo v dolní liště tlačítko odpovědi. U nás by
