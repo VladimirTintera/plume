@@ -40,9 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
@@ -295,7 +293,6 @@ private fun EmojiGrid(emojis: List<String>, cells: EmojiCells) {
 private fun EmojiCell(emoji: String, cells: EmojiCells) {
     val base = baseEmoji(emoji)
     val variants = skinToneVariants(base)
-    val haptics = LocalHapticFeedback.current
     var choosing by remember { mutableStateOf(false) }
     val indicator = MaterialTheme.colorScheme.onSurfaceVariant
 
@@ -305,12 +302,8 @@ private fun EmojiCell(emoji: String, cells: EmojiCells) {
             .clip(RoundedCornerShape(8.dp))
             .combinedClickable(
                 onClick = { cells.onPick(emoji) },
-                onLongClick = variants?.let {
-                    {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        choosing = true
-                    }
-                },
+                // Haptiku u dlouhého stisku dělá `combinedClickable` samo — viz `Haptics`.
+                onLongClick = variants?.let { { choosing = true } },
             )
             .drawBehind {
                 if (variants == null) return@drawBehind

@@ -67,6 +67,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -84,6 +85,7 @@ import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.hazeBlur
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
+import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.features.conversation.items.ConversationItemScope
 import eu.tintera.plume.features.conversation.items.Delivery
 import eu.tintera.plume.features.conversation.items.MenuCopy
@@ -178,6 +180,7 @@ internal fun MessageMenuLayer(
      * Poloha zprávy se čte každý snímek, dokud je nabídka vidět: když zmizí klávesnice, seznam se
      * posune a zpráva s ním. Nabídka tak vyjede i dosedne tam, kde zpráva doopravdy je.
      */
+    val haptics = LocalHapticFeedback.current
     // Klíč `messageId`: další nabídka nesmí ani na snímek použít polohu předchozí zprávy.
     var anchorRect by remember(menu?.messageId) { mutableStateOf(anchor.bounds()) }
     // Šířka, se kterou se zpráva skládala v seznamu; kopie se složí stejně (viz `MenuAnchor`).
@@ -445,7 +448,11 @@ internal fun MessageMenuLayer(
             )
             QuickReactions(
                 menu = shown.menu,
-                onPick = { emoji -> onAction(MessageAction.React(emoji)) },
+                // Reakce je přepnutí stavu, ne potvrzení: druhé ťuknutí ji sundá.
+                onPick = { emoji ->
+                    haptics.toggle(on = emoji !in shown.menu.chosenEmoji)
+                    onAction(MessageAction.React(emoji))
+                },
                 onMore = { expanded = true },
                 modifier = Modifier
                     // Pruh je široký, takže se zarovnává ke KRAJI obrazovky podle strany zprávy.
@@ -500,7 +507,10 @@ internal fun MessageMenuLayer(
                 emoji = shown.menu.emoji,
                 chosen = shown.menu.chosenEmoji,
                 gridHeight = sheet.height - SHEET_HANDLE_HEIGHT,
-                onPick = { emoji -> onAction(MessageAction.React(emoji)) },
+                onPick = { emoji ->
+                    haptics.toggle(on = emoji !in shown.menu.chosenEmoji)
+                    onAction(MessageAction.React(emoji))
+                },
                 onDismiss = { expanded = false },
             )
         }

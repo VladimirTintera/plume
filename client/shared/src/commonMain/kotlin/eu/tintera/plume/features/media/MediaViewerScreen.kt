@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.media
 
+import androidx.compose.ui.platform.LocalHapticFeedback
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import androidx.compose.animation.AnimatedVisibility
@@ -62,6 +63,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import eu.tintera.plume.core.ui.threshold
 import org.koin.compose.koinInject
 import eu.tintera.plume.core.telegram.RevealedSpoilers
 import androidx.compose.runtime.snapshotFlow
@@ -907,6 +909,9 @@ private fun ZoomableImage(
     cardBias: () -> Float = { 0f },
 ) {
     val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    // Práh zavíracího tahu se ohlásí jednou za gesto. Pole, ne stav: čte se v obsluze gesta.
+    var dismissArmed by remember { mutableStateOf(false) }
     val card = remember { CardGeometry() }
     val currentEngage by rememberUpdatedState(onEngage)
     val currentTap by rememberUpdatedState(onTap)
@@ -1015,6 +1020,14 @@ private fun ZoomableImage(
 
                             Gesture.Dismiss -> {
                                 scope.launch { dismissDrag.snapTo(dismissDrag.value + pan.y) }
+                                /*
+                                 * Práh se hlásí PŘI PŘEKROČENÍ, ne až po puštění: uživatel má
+                                 * vědět, že stačí pustit. `armed` drží, aby se ozval jednou —
+                                 * tatáž mechanika jako u archivace tahem v seznamu chatů.
+                                 */
+                                val past = abs(dismissDrag.value) > size.height * DISMISS_THRESHOLD
+                                if (past && !dismissArmed) haptics.threshold()
+                                dismissArmed = past
                                 event.changes.forEach { if (it.positionChanged()) it.consume() }
                             }
 
@@ -1023,6 +1036,7 @@ private fun ZoomableImage(
                     } while (event.changes.any { it.pressed })
 
                     if (gesture == Gesture.Dismiss) {
+                        dismissArmed = false
                         if (abs(dismissDrag.value) > size.height * DISMISS_THRESHOLD) {
                             onDismiss()
                         } else {

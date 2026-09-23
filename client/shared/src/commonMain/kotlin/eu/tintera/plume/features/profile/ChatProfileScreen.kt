@@ -1,7 +1,9 @@
 package eu.tintera.plume.features.profile
 
+import androidx.compose.ui.platform.LocalHapticFeedback
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
+import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.common_delete
 import eu.tintera.plume.resources.chats_leave_body
@@ -694,12 +696,18 @@ private fun ProfileHeader(
 
 @Composable
 private fun ProfileActions(muted: Boolean?, onToggleMute: () -> Unit, onSearch: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         if (muted != null) {
             ProfileAction(
                 icon = if (muted) Res.drawable.notifications_24dp else Res.drawable.notifications_off_24dp,
                 label = stringResource(if (muted) Res.string.profile_unmute else Res.string.profile_mute),
-                onClick = onToggleMute,
+                // Ztlumení je přepínač, i když vypadá jako dlaždice — Hledat vedle něj stav
+                // nemá a haptiku proto nedostane.
+                onClick = {
+                    haptics.toggle(on = !muted)
+                    onToggleMute()
+                },
                 checked = muted,
                 modifier = Modifier.weight(1f),
             )

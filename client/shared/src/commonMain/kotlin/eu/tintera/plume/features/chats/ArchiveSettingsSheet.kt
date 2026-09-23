@@ -15,9 +15,11 @@ import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ArchiveSettings
+import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_archive_keep
 import eu.tintera.plume.resources.chats_archive_keep_summary
@@ -90,11 +92,15 @@ private fun SwitchRow(
     checked: Boolean,
     onChange: (Boolean) -> Unit,
 ) {
+    val haptics = LocalHapticFeedback.current
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         headlineContent = { Text(stringResource(title)) },
         supportingContent = { Text(stringResource(summary)) },
         trailingContent = { Switch(checked = checked, onCheckedChange = null) },
-        modifier = Modifier.toggleable(value = checked, role = Role.Switch, onValueChange = onChange),
+        modifier = Modifier.toggleable(value = checked, role = Role.Switch, onValueChange = { on ->
+            haptics.toggle(on)
+            onChange(on)
+        }),
     )
 }

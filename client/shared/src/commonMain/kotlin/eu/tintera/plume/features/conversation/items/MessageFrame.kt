@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.threshold
+import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.profile_open
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.sharedNavElement
@@ -64,7 +66,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -549,7 +550,7 @@ private fun MessageFrame(
 
                             if (!armed && next >= threshold) {
                                 armed = true
-                                haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                haptics.threshold()
                             }
                         }
                     }
@@ -708,8 +709,16 @@ private fun MessageFrame(
                     .combinedClickable(
                         onClickLabel = label,
                         onLongClickLabel = label,
+                        /*
+                         * Přidání a odebrání z výběru se liší (na Androidu) — je to přepnutí
+                         * stavu, ne potvrzení akce. U dlouhého stisku se nic nepřidává:
+                         * `combinedClickable` si haptiku dělá sám a druhá by ji zdvojila.
+                         */
                         onLongClick = { scope.onAction(currentMessageId, MessageAction.ToggleSelection) },
-                        onClick = { scope.onAction(currentMessageId, MessageAction.ToggleSelection) },
+                        onClick = {
+                            haptics.toggle(on = !frame.selected)
+                            scope.onAction(currentMessageId, MessageAction.ToggleSelection)
+                        },
                     ),
             )
         }

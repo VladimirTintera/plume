@@ -4968,6 +4968,44 @@ OFL z Google Fonts, licence v `docs/licenses/`.
 generuje expressive paletu ze seed barvy přes materialkolor (`theme/ColorScheme.kt`). iOS build tedy
 není „Android bez barev", ale má vlastní konzistentní paletu.
 
+## Haptika
+
+Hmatová odezva má **jeden slovník v `core/ui/Haptics.kt`** — pět pojmenovaných rolí místo
+`HapticFeedbackType` rozsetého po obrazovkách: `threshold()` (gesto překročilo práh),
+`confirm()` (akce se povedla), `reject()` (nepovedla), `toggle(on)` (přepnutý stav) a `tick()`
+(procházení po dílcích). Stejná úvaha jako u `ShapeMorphs` a `AppMotion`: význam má nést typ, ne
+vkus toho, kdo zrovna píše obrazovku.
+
+- **Dlouhý stisk si `combinedClickable` dělá SÁM.** Ruční volání navíc odezvu ZDVOJÍ — změřeno
+  na emulátoru: dvě vibrace 9 ms po sobě, obě `constant=0`. Takhle to bylo na čtyřech místech
+  (podržení samolepky, GIFu, emoji a samolepky v sadě). `longPress()` patří jen tam, kde si
+  gesto detekujeme sami — dnes jediné místo je odkaz v textu (`RichText`).
+- **Odezva patří k akci UŽIVATELE, ne k události od serveru.** Příchozí zpráva, dotažená stránka
+  historie ani změna stavu spojení nevibrují; od upozornění na cizí akci jsou notifikace. Výjimka
+  potvrzuje pravidlo: chyba se hlásí `reject()`, protože přišla po akci, kterou uživatel udělal.
+- **Jakmile vibruje všechno, přestane cokoli znamenat** — totéž pravidlo jako u tvarů. Proto
+  **odkrývání časů tahem haptiku NEMÁ**: na rozdíl od archivace a odpovědi tahem tam žádný práh
+  „při puštění se něco stane" není, odkrytí je vidět hned a buzení při každém nahlédnutí by byl
+  jen šum.
+- **Potvrzení se hlásí při ŤUKNUTÍ, ne po odpovědi serveru.** Odezva patří ke gestu; kdyby čekala
+  na potvrzení odeslání, přišla by po stovkách milisekund a necítila by se jako reakce na stisk.
+- **iOS je hrubší, než se ze seznamu typů zdá.** `CupertinoHapticFeedback` mapuje celou sadu na
+  čtyři generátory: `confirm` a `reject` → notification, `longPress` → medium impact, `threshold`
+  i `toggle` → light impact, `tick` → selection. Zapnutí a vypnutí přepínače na iPhonu nejde
+  rozeznat — spolehnout se, že iOS odliší to, co Android, nelze.
+- **Na Androidu část typů na starších verzích není.** `Confirm` a `Reject` jsou od API 30,
+  `ToggleOn`, `ToggleOff`, `GestureThresholdActivate` a `SegmentTick` od API 34, zatímco `minSdk`
+  je 26; Compose je posílá přes `HapticFeedbackConstantsCompat`, který je nahradí bližším typem,
+  nebo neudělá nic. Ověřovat tedy i na starším emulátoru.
+- **Oprávnění `VIBRATE` potřeba není** (jde to přes view, ne přes `Vibrator`) a vlastní přepínač
+  v Nastavení taky ne — vypnout odezvu jde v systému a `performHapticFeedback` to respektuje.
+- **Emulátor nevibruje, ale volání zaznamenává**: `adb shell dumpsys vibrator_manager` má sekci
+  „Recent vibrations" a v ní `reason: performHapticFeedback(constant=N)`. Čísla jsou
+  `HapticFeedbackConstants`: **0 = LONG_PRESS, 16 = CONFIRM, 17 = REJECT, 21 = TOGGLE_ON,
+  22 = TOGGLE_OFF, 23 = GESTURE_THRESHOLD_ACTIVATE, 26 = SEGMENT_TICK.** Tím se dá ověřit, že
+  odezva odešla a která — **jak to sedí pod prstem (hlavně jestli dvě nejdou hned po sobě) se
+  pozná jedině rukou na telefonu.**
+
 ## Gotchas
 
 - **Test ViewModelu MUSÍ nastavit `Dispatchers.setMain`** (a v `@AfterTest` `resetMain`).

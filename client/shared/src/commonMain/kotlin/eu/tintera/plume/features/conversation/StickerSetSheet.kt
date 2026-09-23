@@ -28,7 +28,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -39,6 +38,7 @@ import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.telegram.StickerItem
 import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.telegram.StickerSetDetail
+import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.stickers_add_set
 import eu.tintera.plume.resources.stickers_count
@@ -175,12 +175,10 @@ fun StickerSetSheet(
                     onPick = { sticker ->
                         scope.launch { sheetState.hide() }.invokeOnCompletion { onPick(sticker) }
                     },
-                    onActivate = { sticker ->
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        activeStickerId = sticker.id
-                    },
+                    // Podržení si haptiku dělá `combinedClickable` samo — viz `Haptics`.
+                    onActivate = { sticker -> activeStickerId = sticker.id },
                     onToggleFavorite = { sticker ->
-                        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                        haptics.toggle(on = sticker.sendFileId !in current.favoriteFileIds)
                         viewModel.toggleFavorite(sticker)
                     },
                 )

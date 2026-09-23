@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,6 +57,7 @@ import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.rememberQrScanner
 import eu.tintera.plume.core.ui.resolve
+import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.features.settings.SettingsGroup
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.common_cancel
@@ -520,12 +522,16 @@ private fun SwitchRow(
     enabled: Boolean,
     onChange: (Boolean) -> Unit,
 ) {
+    val haptics = LocalHapticFeedback.current
     // Klikání nese celý řádek, přepínač má `onCheckedChange = null` — jako v sekci Vzhled.
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         headlineContent = { Text(stringResource(label)) },
         trailingContent = { Switch(checked = checked, onCheckedChange = null, enabled = enabled) },
-        modifier = Modifier.toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange),
+        modifier = Modifier.toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = { on ->
+            haptics.toggle(on)
+            onChange(on)
+        }),
     )
 }
 

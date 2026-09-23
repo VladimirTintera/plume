@@ -33,8 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -199,7 +197,6 @@ internal fun GifPanel(
     val saved by viewModel.saved.collectAsStateWithLifecycle()
     val results by viewModel.results.collectAsStateWithLifecycle()
     var searchText by rememberSaveable { mutableStateOf("") }
-    val haptics = LocalHapticFeedback.current
 
     /** Podržený uložený GIF — ukáže se u něj křížek na odebrání. Jen u jednoho, jako hvězdička u samolepek. */
     var activeSavedId by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -237,10 +234,8 @@ internal fun GifPanel(
                         gif = gif,
                         onPick = onPick,
                         active = gif.id == activeSavedId,
-                        onActivate = {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            activeSavedId = gif.id
-                        },
+                        // Podržení si haptiku dělá `combinedClickable` samo — viz `Haptics`.
+                        onActivate = { activeSavedId = gif.id },
                         onRemove = {
                             activeSavedId = null
                             viewModel.removeSaved(gif)
