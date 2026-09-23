@@ -6,6 +6,7 @@ import eu.tintera.plume.resources.date_day_month
 import eu.tintera.plume.resources.date_day_month_year
 import eu.tintera.plume.resources.date_short
 import eu.tintera.plume.resources.date_today
+import eu.tintera.plume.resources.date_today_short
 import eu.tintera.plume.resources.date_tomorrow
 import eu.tintera.plume.resources.date_upcoming_time
 import eu.tintera.plume.resources.date_yesterday
@@ -17,6 +18,13 @@ import eu.tintera.plume.resources.day_long_4
 import eu.tintera.plume.resources.day_long_5
 import eu.tintera.plume.resources.day_long_6
 import eu.tintera.plume.resources.day_long_7
+import eu.tintera.plume.resources.day_on_1
+import eu.tintera.plume.resources.day_on_2
+import eu.tintera.plume.resources.day_on_3
+import eu.tintera.plume.resources.day_on_4
+import eu.tintera.plume.resources.day_on_5
+import eu.tintera.plume.resources.day_on_6
+import eu.tintera.plume.resources.day_on_7
 import eu.tintera.plume.resources.day_short_1
 import eu.tintera.plume.resources.day_short_2
 import eu.tintera.plume.resources.day_short_3
@@ -36,6 +44,8 @@ import eu.tintera.plume.resources.month_6
 import eu.tintera.plume.resources.month_7
 import eu.tintera.plume.resources.month_8
 import eu.tintera.plume.resources.month_9
+import eu.tintera.plume.resources.presence_last_seen_at
+import eu.tintera.plume.resources.presence_last_seen_on
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlinx.datetime.DayOfWeek
@@ -72,6 +82,61 @@ fun Int.asRelativeTime(): String {
         days < 7 -> stringResource(moment.date.dayOfWeek.shortName())
         else -> stringResource(Res.string.date_short, moment.date.day, moment.date.month.number)
     }
+}
+
+/**
+ * „Naposledy viděn" — CELÁ VĚTA, ne jen čas vsazený do „naposledy %s".
+ *
+ * [asRelativeTime] je dělaný na SLOUPEC v seznamu chatů, kde čas stojí sám a zkratka dne se
+ * přečte jako zkratka. Uvnitř věty se z ní stane hláška „naposledy ne", u které to vypadá,
+ * že se text usekl. Datum a den se proto skládají jinak než tam.
+ *
+ * **Den nese předložku, protože v češtině není jedna** (`day_on_*`): „v pondělí", ale
+ * „ve středu". Kdyby se předložka lepila v kódu, jazyk by si ji neuhlídal — tentýž důvod,
+ * proč je pořadí dne a měsíce formátovací řetězec, ne slepenec.
+ *
+ * Starší než týden dostane datum bez času: hodina u něčeho, co bylo před měsícem, nic neříká.
+ */
+@Composable
+fun Int.asLastSeen(): String {
+    val zone = TimeZone.currentSystemDefault()
+    val date = Instant.fromEpochSeconds(toLong()).toLocalDateTime(zone).date
+    val today = Clock.System.now().toLocalDateTime(zone).date
+
+    val days = (today.toEpochDays() - date.toEpochDays()).toInt()
+
+    // Záporná hodnota znamená čas v budoucnosti — u posunutých hodin na zařízení se to stane.
+    val day = when {
+        days <= 0 -> stringResource(Res.string.date_today_short)
+        days == 1 -> stringResource(Res.string.date_yesterday_short)
+        days < 7 -> stringResource(date.dayOfWeek.onName())
+        date.year == today.year ->
+            return stringResource(
+                Res.string.presence_last_seen_on,
+                stringResource(Res.string.date_day_month, date.day, stringResource(date.month.name())),
+            )
+        else -> return stringResource(
+            Res.string.presence_last_seen_on,
+            stringResource(
+                Res.string.date_day_month_year,
+                date.day,
+                stringResource(date.month.name()),
+                date.year,
+            ),
+        )
+    }
+    return stringResource(Res.string.presence_last_seen_at, day, asTimeOfDay(zone))
+}
+
+/** Den s předložkou („v neděli", „on Sunday") — do věty, ne do sloupce. */
+private fun DayOfWeek.onName(): StringResource = when (this) {
+    DayOfWeek.MONDAY -> Res.string.day_on_1
+    DayOfWeek.TUESDAY -> Res.string.day_on_2
+    DayOfWeek.WEDNESDAY -> Res.string.day_on_3
+    DayOfWeek.THURSDAY -> Res.string.day_on_4
+    DayOfWeek.FRIDAY -> Res.string.day_on_5
+    DayOfWeek.SATURDAY -> Res.string.day_on_6
+    else -> Res.string.day_on_7
 }
 
 /**

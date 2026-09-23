@@ -1371,7 +1371,16 @@ Přeposílání, sdílení ze systému i zahájení nové konverzace kreslí ten
 - **Čas se s věkem zjednodušuje** (`asRelativeTime`): dnes hodiny, včera slovem, do týdne zkratka
   dne, pak datum. V seznamu jde o STÁŘÍ zprávy, ne o pořadí během dne — „14:32" u zprávy z loňska
   nic neřekne. V konverzaci se naopak vypisují jen hodiny, protože tam jdou zprávy chronologicky
-  za sebou. Tentýž formát používá i „naposledy viděn".
+  za sebou.
+- **„Naposledy viděn" má VLASTNÍ formát** (`asLastSeen`), ne tenhle. `asRelativeTime` je dělaný
+  na SLOUPEC, kde čas stojí sám a zkratka dne se přečte jako zkratka; uvnitř věty z ní byla
+  hláška **„naposledy ne"**, u které to vypadá, že se text usekl. `asLastSeen` proto skládá celou
+  větu: „naposledy dnes, 7:41", „naposledy v neděli, 11:45", „naposledy 18. listopadu 2025".
+- **Den nese předložku, protože v češtině není jedna** (`day_on_*`): „v pondělí", ale „ve středu".
+  Lepit ji v kódu by znamenalo, že si ji jazyk neuhlídá — tentýž důvod, proč je pořadí dne
+  a měsíce formátovací řetězec, ne slepenec.
+- **Starší než týden dostane datum bez času.** Hodina u něčeho, co bylo před měsícem, nic neříká;
+  rok se dopisuje, jen když nesedí s letoškem.
 - **Dostupnost se musí jednou přečíst, ne jen odebírat.** `updateUserStatus` chodí jen na ZMĚNU,
   takže bez počátečního `getUser` by zelená tečka naskočila až ve chvíli, kdy se protějšek odpojí
   a zase připojí. V soukromém chatu je `chatId` shodné s `userId`, takže není co dohledávat.

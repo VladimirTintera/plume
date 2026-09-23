@@ -275,7 +275,8 @@
     <string name="presence_recently">naposledy nedávno</string>
     <string name="presence_last_week">naposledy tento týden</string>
     <string name="presence_last_month">naposledy tento měsíc</string>
-    <string name="presence_offline">naposledy %1$s</string>
+    <string name="presence_last_seen_at">naposledy %1$s, %2$s</string>
+    <string name="presence_last_seen_on">naposledy %1$s</string>
     <string name="sponsored_recommended">Doporučeno</string>
     <string name="sponsored_sponsored">Sponzorováno</string>
     <string name="sponsored_open">Otevřít</string>
@@ -501,6 +502,7 @@
         <item quantity="other">Za zprávy se vrátilo %1$d hvězd</item>
     </plurals>
     <string name="date_today">Dnes</string>
+    <string name="date_today_short">dnes</string>
     <string name="date_yesterday">Včera</string>
     <string name="date_yesterday_short">včera</string>
     <string name="date_short">%1$d. %2$d.</string>
@@ -533,6 +535,13 @@
     <string name="day_long_5">Pátek</string>
     <string name="day_long_6">Sobota</string>
     <string name="day_long_7">Neděle</string>
+    <string name="day_on_1">v pondělí</string>
+    <string name="day_on_2">v úterý</string>
+    <string name="day_on_3">ve středu</string>
+    <string name="day_on_4">ve čtvrtek</string>
+    <string name="day_on_5">v pátek</string>
+    <string name="day_on_6">v sobotu</string>
+    <string name="day_on_7">v neděli</string>
     <string name="notification_permission_title">Vědět o nových zprávách</string>
     <string name="notification_permission_body">Bez notifikací se o nové zprávě dozvíš, až aplikaci otevřeš. Zapnout nebo vypnout je můžeš kdykoliv v Nastavení.</string>
     <string name="notification_permission_enable">Zapnout</string>

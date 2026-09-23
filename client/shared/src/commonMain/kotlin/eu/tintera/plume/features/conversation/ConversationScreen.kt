@@ -173,7 +173,6 @@ import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.asDayLabel
-import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.chatTitleKey
 import eu.tintera.plume.core.ui.label
@@ -236,11 +235,6 @@ import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.mic_24dp
 import eu.tintera.plume.resources.mood_24dp
 import eu.tintera.plume.resources.perm_media_24dp
-import eu.tintera.plume.resources.presence_last_month
-import eu.tintera.plume.resources.presence_last_week
-import eu.tintera.plume.resources.presence_offline
-import eu.tintera.plume.resources.presence_online
-import eu.tintera.plume.resources.presence_recently
 import eu.tintera.plume.resources.send_24dp
 import eu.tintera.plume.resources.sticky_note_2_24dp
 import kotlin.time.Clock
