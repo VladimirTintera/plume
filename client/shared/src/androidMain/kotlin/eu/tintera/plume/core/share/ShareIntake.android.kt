@@ -47,20 +47,29 @@ class ShareIntake(
 
         val limited = uris.take(PICK_LIMIT)
         val id = requests.start(text = text, hasFiles = limited.isNotEmpty())
+        val visual = limited.isNotEmpty() && limited.all { isVisual(context.contentResolver.getType(it)) }
 
         /*
-         * Direct Share: uživatel ťukl rovnou na chat v nabídce „Sdílet". Chat je tím vybraný,
-         * výběr se neukáže (shell ho otevírá jen pro sdílení bez chatu) a otevře se konverzace,
-         * která si obsah vyzvedne, až budou soubory připravené.
+         * Direct Share: uživatel ťukl rovnou na chat v nabídce „Sdílet", takže je chat vybraný
+         * a výběr se neukáže (shell ho otevírá jen pro sdílení bez chatu).
+         *
+         * **Fotky a videa jdou na potvrzovací obrazovku** („Komu: …" s náhledem, popiskem
+         * a volbou spoileru či mizení) — sdílený snímek je to jediné, co odejde, a než se pošle,
+         * má být vidět velký. **Ostatní obsah** (soubory, text, odkaz) rovnou otevře konverzaci
+         * a čeká nad vstupním polem jako dřív: u odkazu není co ukazovat a pole na popisek
+         * k němu je krok navíc.
          */
         chatIdFromShortcut(intent.getStringExtra(ShortcutManagerCompat.EXTRA_SHORTCUT_ID))?.let { chatId ->
-            requests.choose(chatId)
-            chatOpenRequests.request(chatId)
+            if (visual) {
+                requests.confirm(chatId)
+            } else {
+                requests.choose(chatId)
+                chatOpenRequests.request(chatId)
+            }
         }
 
         if (limited.isEmpty()) return true
 
-        val visual = limited.all { isVisual(context.contentResolver.getType(it)) }
         scope.launch {
             val results = limited
                 .map { uri ->

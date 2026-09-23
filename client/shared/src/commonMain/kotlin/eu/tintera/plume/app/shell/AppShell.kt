@@ -51,6 +51,7 @@ import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForwardRoute
 import eu.tintera.plume.core.navigation.ShareRoute
+import eu.tintera.plume.core.navigation.ShareToChatRoute
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.navigation.MediaRoute
@@ -69,6 +70,7 @@ import eu.tintera.plume.features.conversation.ConversationPlaceholder
 import eu.tintera.plume.features.conversation.ConversationScreen
 import eu.tintera.plume.features.forward.ForwardScreen
 import eu.tintera.plume.features.share.ShareScreen
+import eu.tintera.plume.features.share.ShareToChatScreen
 import eu.tintera.plume.features.media.MediaViewerScreen
 import org.koin.core.parameter.parametersOf
 import eu.tintera.plume.features.settings.SettingsScreen
@@ -134,6 +136,19 @@ fun AppShell(modifier: Modifier = Modifier) {
 
     LaunchedEffect(pendingShareId) {
         if (pendingShareId != null) navigation.openShare()
+    }
+
+    /*
+     * Direct Share: chat je vybraný už v systémové nabídce, takže se místo výběru otevře
+     * potvrzení („Komu: …" s náhledem a popiskem). Klíčem je id sdílení i chat — dvě sdílení
+     * po sobě do téhož chatu jsou tatáž obrazovka, do jiného ne.
+     */
+    val confirmShare = incomingShare?.takeIf { it.awaitingConfirmation }
+    val confirmShareKey = confirmShare?.let { it.id to it.targetChatId }
+
+    LaunchedEffect(confirmShareKey) {
+        val chatId = confirmShare?.targetChatId ?: return@LaunchedEffect
+        navigation.openShareTo(chatId)
     }
 
     ShellContent(
@@ -228,6 +243,7 @@ private fun ShellContent(
             val returnToCaller = rememberReturnToCaller()
             val closeShare = {
                 chatsStack.remove(ShareRoute)
+                chatsStack.removeAll { it is ShareToChatRoute }
                 returnToCaller()
             }
             val entryProvider = shellEntryProvider(
@@ -252,7 +268,11 @@ private fun ShellContent(
             NavDisplay(
                 entries = navigation.visibleSections.flatMap { entriesBySection.getValue(it) },
                 // Zpět z výběru pro sdílení je totéž co ✕ — vrátit uživatele, odkud sdílel.
-                onBack = { if (chatsStack.lastOrNull() == ShareRoute) closeShare() else navigation.goBack() },
+                onBack = {
+                    // Zpět ze sdílení je totéž co ✕ — vrátit uživatele tam, odkud sdílel.
+                    val share = chatsStack.lastOrNull().let { it == ShareRoute || it is ShareToChatRoute }
+                    if (share) closeShare() else navigation.goBack()
+                },
                 sceneStrategies = listOf(
                     // `shouldHandleSinglePaneLayout = wide`: na široké ploše nechá i jednopanelový stav
                     // řešit scaffold, takže „jen seznam" a „seznam + konverzace" jsou TÁŽ scéna a přechod
@@ -563,6 +583,26 @@ private fun shellEntryProvider(
      * Výběr chatu pro obsah sdílený ze systému. Po výběru ho nahradí vybraný chat a obsah čeká
      * nad vstupním polem; ✕ i zpět sdílení zahodí a vrátí uživatele do aplikace, ze které sdílel.
      */
+    /*
+     * Potvrzení sdílení do chatu vybraného v systémové nabídce (Direct Share). Po odeslání ho
+     * nahradí ta konverzace — je tím vidět, že zpráva dorazila, jako u přeposílání.
+     */
+    entry<ShareToChatRoute> { route ->
+        ShareToChatScreen(
+            viewModel = koinViewModel(
+                key = "share-to-chat-${'$'}{route.chatId}",
+                parameters = { parametersOf(route.chatId) },
+            ),
+            onClose = closeShare,
+            onSent = {
+                chatsStack.removeAll { it is ShareToChatRoute }
+                if (!chatsStack.isOpenConversation(route.chatId)) {
+                    chatsStack.add(ConversationRoute(route.chatId))
+                }
+            },
+        )
+    }
+
     entry<ShareRoute> {
         ShareScreen(
             viewModel = koinViewModel(),

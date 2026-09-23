@@ -71,6 +71,30 @@ class ShareRequestsTest {
     }
 
     @Test
+    fun potvrzovanySnimekSiKonverzaceNevyzvedne() = runBlocking {
+        // Direct Share: chat je vybraný, ale odesílá potvrzovací obrazovka. Kdyby si obsah vzala
+        // konverzace, naskočil by jí nad vstupní pole a odešel by dvakrát.
+        val requests = ShareRequests()
+        val id = requests.start(text = null, hasFiles = true)
+        requests.confirm(7)
+        requests.prepared(id, listOf(photo), failed = 0)
+
+        assertNull(withTimeoutOrNull(50) { requests.deliveries(7).first() })
+        assertEquals(listOf(photo), requests.incoming.value?.attachments)
+    }
+
+    @Test
+    fun odchodZPotvrzeniSdileniZahodi() {
+        // Odejít z obrazovky „Komu: …" znamená „nechci to poslat" — a bez zahození by se obsah
+        // vložil do konverzace, kterou uživatel neotevřel.
+        val requests = ShareRequests()
+        requests.start(text = "x", hasFiles = false)
+        requests.confirm(7)
+        requests.abandon()
+        assertNull(requests.incoming.value)
+    }
+
+    @Test
     fun odchodVyberuPoVolbeObsahNezahodi() {
         // Po výběru chatu výběr taky odchází (nahradí ho konverzace) — obsah na ni čeká.
         val requests = ShareRequests()

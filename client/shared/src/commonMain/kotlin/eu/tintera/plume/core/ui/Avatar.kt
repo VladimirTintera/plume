@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -15,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -61,7 +63,13 @@ fun Avatar(
 
     if (isSavedMessages) {
         val colors = MaterialTheme.colorScheme
-        val fill = accentOn(backdrop, colors.primary, colors.contentColorFor(backdrop))
+        /*
+         * `contentColorFor` zná jen role ze schématu; u vlastní barvy (tmavé pozadí prohlížeče
+         * nebo potvrzení sdílení) vrátí `Unspecified` — a záložka se pak nakreslila černá na
+         * černé. Kde roli nezná, rozhodne barva popředí, kterou plocha sama nastavila.
+         */
+        val onBackdrop = colors.contentColorFor(backdrop).takeOrElse { LocalContentColor.current }
+        val fill = accentOn(backdrop, colors.primary, onBackdrop)
         Surface(
             modifier = modifier.size(size),
             shape = shape,

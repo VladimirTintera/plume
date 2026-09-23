@@ -323,6 +323,8 @@
     <string name="share_title">Sdílet do</string>
     <string name="share_preparing">Připravuji soubory…</string>
     <string name="share_failed_files">Některé sdílené soubory se nepodařilo připravit</string>
+    <string name="share_to_recipient">Komu: %1$s</string>
+    <string name="share_to_caption">Přidejte popisek</string>
     <string name="forward_search">Hledat chat</string>
     <string name="forward_empty">Hledání neodpovídá žádný chat.</string>
     <string name="forward_failed">Zprávu se nepodařilo přeposlat.</string>
