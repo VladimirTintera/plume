@@ -20,7 +20,13 @@
     <string name="auth_headline_logging_out">Signing out</string>
     <string name="auth_headline_failed">That didn't work</string>
     <string name="auth_support_phone">We will send a confirmation code to this number.</string>
-    <string name="auth_support_code">The code arrived in another Telegram client or by SMS.</string>
+    <string name="auth_support_code_app">We sent the code to Telegram on your other signed-in device.</string>
+    <string name="auth_support_code_sms">We sent the code in a text message.</string>
+    <string name="auth_support_code_call">You will get a call that reads the code out.</string>
+    <string name="auth_support_code_caller">We will call and hang up right away. The code is the end of the number the call comes from.</string>
+    <string name="auth_support_code_word">The text message holds a single word, not a number. Type the whole word.</string>
+    <string name="auth_support_code_phrase">The text message holds a short phrase, not a number. Type the whole phrase.</string>
+    <string name="auth_support_code_fragment">The code is waiting at Fragment, where the number was bought.</string>
     <string name="auth_support_password_hint">Hint: %1$s</string>
     <string name="auth_support_qr">In Telegram on a signed-in device open Settings → Devices → Link Desktop Device and scan the code.</string>
     <string name="auth_support_registration">This number has no account yet. Create one in the official client.</string>

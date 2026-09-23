@@ -20,7 +20,13 @@
     <string name="auth_headline_logging_out">Odhlašuji</string>
     <string name="auth_headline_failed">Nepovedlo se</string>
     <string name="auth_support_phone">Na tohle číslo pošleme ověřovací kód.</string>
-    <string name="auth_support_code">Kód dorazil do jiného Telegram klienta nebo SMS.</string>
+    <string name="auth_support_code_app">Kód jsme poslali do Telegramu na tvém dalším přihlášeném zařízení.</string>
+    <string name="auth_support_code_sms">Kód jsme poslali v SMS.</string>
+    <string name="auth_support_code_call">Zavoláme ti a kód nadiktujeme.</string>
+    <string name="auth_support_code_caller">Zavoláme a hned zavěsíme. Kód je konec čísla, ze kterého hovor přijde.</string>
+    <string name="auth_support_code_word">V SMS není číslo, ale jedno slovo. Napiš ho celé.</string>
+    <string name="auth_support_code_phrase">V SMS není číslo, ale krátká fráze. Napiš ji celou.</string>
+    <string name="auth_support_code_fragment">Kód čeká na Fragmentu, kde se číslo koupilo.</string>
     <string name="auth_support_password_hint">Nápověda: %1$s</string>
     <string name="auth_support_qr">V Telegramu na přihlášeném zařízení otevři Nastavení → Zařízení → Připojit zařízení a naskenuj kód.</string>
     <string name="auth_support_registration">Tohle číslo zatím účet nemá. Založ si ho v oficiálním klientovi.</string>

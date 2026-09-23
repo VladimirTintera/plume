@@ -125,6 +125,49 @@ data class AccountInfo(
     val displayName: String get() = listOf(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
 }
 
+/**
+ * Podoba kódu, který server čeká. Doménový obraz TDLib `AuthenticationCodeInfo`.
+ *
+ * **Kódy nejsou pořád stejně dlouhé** — z Telegramu chodí pětimístný, SMS a Fragment posílají
+ * i šestimístné. Hádat se to ale nemusí: délku pošle TDLib u každého přihlášení zvlášť, takže
+ * se podle ní nakreslí přesně tolik políček, kolik jich bude potřeba.
+ *
+ * **A nemusí to být ani číslo.** Slovo a fráze z SMS a prozvonění mají [digits] `null` —
+ * tam zůstane obyčejné pole, protože do políček na číslice se slovo nevejde.
+ */
+data class AuthCode(
+    /** Počet číslic, nebo `null`, když kód číslo není. */
+    val digits: Int?,
+    val delivery: CodeDelivery,
+)
+
+/**
+ * Kudy kód dorazí. Rozhoduje o větě nad polem — dokud se nesledovalo, stála tam jedna věta
+ * pro všechny případy („do jiného klienta nebo SMS"), tedy odhad, který byl půlkrát vedle.
+ */
+enum class CodeDelivery {
+    /** Zpráva v Telegramu na jiném přihlášeném zařízení. */
+    TelegramApp,
+
+    /** SMS. Sem patří i Firebase varianty — to je pořád SMS, jen s ověřením zařízení navíc. */
+    Sms,
+
+    /** Hovor, ve kterém se kód nadiktuje. */
+    Call,
+
+    /** Zavoláme a zavěsíme: kód je konec čísla, ze kterého hovor přišel. */
+    CallerNumber,
+
+    /** V SMS je jedno slovo, ne číslo. */
+    Word,
+
+    /** V SMS je krátká fráze, ne číslo. */
+    Phrase,
+
+    /** Číslo koupené na Fragmentu — kód čeká tam. */
+    Fragment,
+}
+
 /** Fáze přihlašovacího automatu. Doménový obraz TDLib `AuthorizationState`. */
 sealed interface AuthStage {
 
@@ -133,7 +176,8 @@ sealed interface AuthStage {
 
     data object WaitPhoneNumber : AuthStage
 
-    data object WaitCode : AuthStage
+    /** Server čeká kód; jeho podobu nese [code], podle ní se kreslí políčka. */
+    data class WaitCode(val code: AuthCode) : AuthStage
 
     data class WaitPassword(val hint: String?) : AuthStage
 
