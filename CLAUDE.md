@@ -3886,6 +3886,32 @@ ji vrátí zpátky. Sleduje se jen po dobu, kdy se HRAJE (`EarSensor`, startuje 
   zůstane `false`.
 - **Vlastní přepínač v Nastavení není.** Je to chování, které lidé znají odjinud a děje se jen
   uprostřed přehrávání hlasovky; přidat ho, až o něj někdo řekne — stejná úvaha jako u haptiky.
+
+#### Jak to ověřit
+
+**Přiblížení se z počítače nasimulovat NEDÁ** — na skutečném zařízení `cmd sensorservice` umí jen
+`set-uid-state`, injekce hodnot tam není. Emulátor by ji uměl (`adb emu sensor set proximity 0`),
+jenže nemá sluchátko, takže by se ověřilo pravidlo, ne zvuk. Ověřuje se tedy rukou: pustit
+hlasovku a dát si telefon k uchu. Co se dá číst zvenku:
+
+- `dumpsys sensorservice | grep EarSensor` — při přehrávání musí přibýt `+` řádky pro akcelerometr
+  i proximity, po dohrání `-`.
+- `dumpsys power | grep voice-at-ear` — `ACQ` při spuštění, `REL` po dohrání.
+- `dumpsys audio | grep -oE 'communication device.*'` — u ucha `type:earpiece`, jinak `null`.
+  **`Mode owner` zůstane prázdný i při přepnutém výstupu**, takže se podle něj řídit nedá;
+  rozhoduje `communication device`.
+- Po dohrání musí být `Requested mode = MODE_NORMAL` a `communication device: null`.
+
+**Ověřeno na Pixelu 11 Pro Foldu (Android 17):** u ucha se `communication device` přepne na
+`earpiece` a po oddálení zpět na `null`, zámek `plume:voice-at-ear` drží přesně po dobu hlasovky
+(ACQ 22:04:14 → REL 22:04:29 u jedenáctivteřinové), po dohrání se oba senzory odhlásí a režim
+zvuku se vrátí na `MODE_NORMAL`. V logu nic z `AudioEngine`, `EarSensor` ani `VoicePlayer`.
+Zvuk skutečně přeskočí ze spodního reproduktoru do sluchátka.
+
+**Na Fold se debug build nedostane přes ten z Play** — liší se podpis i `versionCode`, takže
+`adb install -r` skončí na `INSTALL_FAILED_VERSION_DOWNGRADE` a s `-d` na neshodě podpisů. Musí
+se odinstalovat, což znamená nové přihlášení. Pro ověřování, které stačí na emulátoru, se to
+nevyplatí.
 - **Tažení po waveformu `pointerInput` spotřebuje**, takže se na něm nerozjede swipe na odpověď.
   Posouvat jde jen vybranou hlasovku; u ostatních waveform gesta nemá.
 - **Poslechnuto = `openMessageContent`.** Ukáže se hned lokálně, potvrzení a poslechnutí našich
