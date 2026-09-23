@@ -1148,6 +1148,13 @@ který uvidí uživatel.
   nejde. Výjimka visí na JMÉNU souboru, ne na balíčku, a **ověřila se sondami, ne úvahou**:
   český literál v `core/ai/OnDeviceAi.kt` i `Text("…")` uvnitř `ReplyPrompt.kt` kontrolu dál
   rozsvítí, takže se dírou nestalo nic než to, co se jí stát mělo.
+- **Že výjimka platí, říká hlavička KAŽDÉHO promptového souboru, stejnou větou.** Napřed to
+  stálo jen v KDoc `formalityInstruction` — tedy u jedné funkce v jednom ze dvou souborů, které
+  pravidlo řídí: `SummaryPrompt.kt` o vlastní výjimce mlčel a s přepsáním té funkce by z kódu
+  zmizela poslední stopa. Nese to totiž JMÉNO souboru, takže kdo zakládá třetí prompt, musí se
+  o konvenci dozvědět od souboru vedle; jinak mu kontrola spadne na hlášku o composeResources,
+  ze které důvod nepozná. Úplné zdůvodnění zůstává na jednom místě (komentář u kontroly
+  v `build.gradle.kts` a tenhle odstavec) — hlavička je ukazatel, ne druhá kopie pravidla.
 - **Ověřuje se přepnutím jazyka aplikace**, ne celého systému:
   `adb shell cmd locale set-app-locales eu.tintera.plume --locales cs-CZ` (prázdná hodnota vrátí
   systémový). Restart aplikace stačí, emulátor rebootovat netřeba.

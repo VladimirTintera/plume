@@ -1,5 +1,10 @@
 package eu.tintera.plume.core.ai
 
+// Prompt je text pro MODEL, ne pro uživatele: česká slova v literálech sem patří, do
+// composeResources ne. Nese to JMÉNO SOUBORU — `verifyNoHardcodedText` vypíná pravidlo
+// o diakritice souborům `…Prompt.kt` v `core/ai`, a jen jim; slot v UI hlídá i tady.
+// Nový prompt se proto musí jmenovat stejně. Proč to tak je: „Jazyky" v CLAUDE.md.
+
 /** Jedna zpráva pro shrnutí: kdo ji napsal a co v ní je. */
 data class TranscriptLine(val author: String, val text: String)
 
