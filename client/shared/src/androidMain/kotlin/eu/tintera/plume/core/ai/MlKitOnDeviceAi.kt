@@ -59,6 +59,16 @@ class MlKitOnDeviceAi : OnDeviceAi {
         // Bez AICore to není chyba, jen zařízení, které model nemá.
         logger.i(e) { "Gemini Nano není k dispozici ($variant)" }
         OnDeviceAiStatus.Unsupported
+    } catch (e: LinkageError) {
+        /*
+         * Na zařízení, kde chybí systémová část (staré Play služby, ořezaný ROM, chybějící
+         * nativní knihovna), nepřijde výjimka, ale ERROR — `NoClassDefFoundError`,
+         * `UnsatisfiedLinkError`, `VerifyError`. `catch (Exception)` ho NECHYTÍ a aplikace by
+         * spadla jen proto, že si někdo zapnul volitelnou funkci. Pro nás je to totéž co
+         * „zařízení model nemá".
+         */
+        logger.i(e) { "Gemini Nano nejde načíst ($variant)" }
+        OnDeviceAiStatus.Unsupported
     }
 
     override suspend fun info(variant: ModelVariant): ModelInfo? {
@@ -117,6 +127,10 @@ class MlKitOnDeviceAi : OnDeviceAi {
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
+        logger.i(e) { "Model neřekl údaj: $what" }
+        null
+    } catch (e: LinkageError) {
+        // Viz [status] — na zařízení bez systémové části chodí Error, ne výjimka.
         logger.i(e) { "Model neřekl údaj: $what" }
         null
     }

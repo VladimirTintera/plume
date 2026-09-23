@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
@@ -142,7 +143,10 @@ class ChatSummaryViewModel(
     val available: StateFlow<Boolean> = combine(
         settings.onDeviceAiEnabled,
         settings.onDeviceAiVariant.flatMapLatest { variant ->
-            flow { emit(ai.status(variant) != OnDeviceAiStatus.Unsupported) }
+            // `catch` je pojistka, ne ozdoba: kdyby ze zjišťování stavu cokoli vyletělo,
+            // shodilo by to celý `stateIn` scope, tedy ViewModel obrazovky — kvůli volitelné
+            // funkci. Nepodařilo se zjistit = nenabízet.
+            flow { emit(ai.status(variant) != OnDeviceAiStatus.Unsupported) }.catch { emit(false) }
         },
     ) { enabled, supported -> enabled && supported }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)

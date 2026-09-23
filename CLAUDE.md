@@ -333,6 +333,18 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
 - **Výstup modelu se parsuje tolerantně** (`parseReplySuggestions`, testy `ReplyPromptTest`):
   model odrážky nedrží, očísluje je, obalí uvozovkami nebo přidá úvodní větu s dvojtečkou.
   Nikdy nevrátí prázdno kvůli formátu — když řádky rozpoznat nejdou, je návrhem celý text.
+- **Na zařízení bez AICore se nesmí nic stát a nestane.** Ověřeno na emulátoru s Androidem 16
+  bez balíčku `com.google.android.aicore`: `status` vrátí `Unsupported` (takže se ikona Shrnout
+  ani čipy nenabídnou), `countTokens` `null` a `generate` skončí výjimkou
+  `GenAiException [ErrorCode -101] AICore is either not installed or the installed version is
+  too low`. Žádný pád, v logu aplikace čisto.
+- **Chyba ale nemusí přijít jako výjimka.** Kde chybí systémová část (staré Play služby, ořezaný
+  ROM), vyletí `Error` — `NoClassDefFoundError`, `UnsatisfiedLinkError`, `VerifyError` —, a ten
+  `catch (Exception)` NECHYTÍ. `MlKitOnDeviceAi` proto chytá i `LinkageError`: aplikace nesmí
+  spadnout jen proto, že si někdo zapnul volitelnou funkci na starším telefonu.
+- **Zjišťování dostupnosti má `catch`, i když „nemůže" selhat.** `available` je `flow { … }`
+  v `stateIn(viewModelScope)`; cokoli, co by z něj vyletělo, shodí scope, tedy ViewModel celé
+  obrazovky. Nepodařilo se zjistit = nenabízet.
 - **Sloh je pořád slabina.** Tykání i věcnost sedí, ale mezi třemi návrhy bývá jeden nesmysl
   („Ne, zítra mi je zajímavé."). To je limit modelu, ne promptu.
 
