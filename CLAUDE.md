@@ -256,10 +256,32 @@ tam se i stahuje model. Hranice je `core/ai` (`OnDeviceAi`).
 - **Stahování modelu běží v `appScope`**, odchod z Nastavení ho neruší; nová obrazovka se ve
   stavu `Downloading` k němu připojí voláním `download()`.
 - **Zprávy ke shrnutí dává obrazovka** (`summarySource` nad `state.messages`, testy
-  `ChatSummaryTest`), ne vlastní načítání historie — prototyp shrnuje to, co je načtené.
-- **Neověřeno na zařízení a nepřeloženo** — první verze vznikla v sandboxu bez přístupu ke
-  Google Maven. Kvalita češtiny u Gemini Nano je otevřená otázka; když nebude stačit, další krok
-  je Gemma 4 přes LiteRT-LM za stejným rozhraním.
+  `ChatSummaryTest`), ale historie se kvůli němu nejdřív DOTÁHNE
+  (`ConversationViewModel.loadForSummary`). Hned po otevření chatu je načtená jediná stránka,
+  takže „posledních 60 zpráv" bralo 30 — a kolik jich bude, záviselo na tom, kolik uživatel
+  odscrolloval. Kdy přestat dotahovat, je čistá funkce `summaryHasEnough`.
+- **Useknutý výstup se POZNÁ, neodhaduje se z délky** (`Candidate.FinishReason.MAX_TOKENS` →
+  `Generated.truncated`). Model přestane psát uprostřed a text vypadá jako hotový; patička
+  přitom hlásí VSTUP („583 z 8 192"), takže uživatele naopak uklidní, že se všechno vešlo.
+  Ověřeno na Pixelu 11 Pro Foldu: shrnutí dvanácti zpráv skončilo u šesté a podruhé u sedmé —
+  strop je v TOKENECH, takže kam text dosáhne, je pokaždé jinde. Kus streamu bez textu nese jen
+  `finishReason`, takže se nesmí přeskočit — jinak se useknutí ztratí právě na té zprávě, která
+  ho hlásí.
+- **Čeština spotřebuje víc tokenů než angličtina**, na kterou jsou výchozí hodnoty laděné; proto
+  `MAX_OUTPUT_TOKENS = 800`, ne 400. Není to „čím víc, tím líp" — platí se delším generováním
+  (na Foldu 12–35 s).
+- **Ověřeno na zařízení** (Pixel 11 Pro Fold, Android 17, AICore `thirdpartyexperimental`):
+  `nano-v4-full`, limit vstupu 8 192 tokenů, rychlejší varianta je opravdu jiný model
+  (`nano-v4-fast`) a je připravená hned. **Shrnutí funguje i v letovém režimu** — model počítá
+  v telefonu, nic se neposílá.
+- **Preview varianta se na tomhle zařízení tiše chová jako stabilní**: `checkStatus` nehlásí
+  nedostupnost, ale název modelu ani limit se nezmění. Přepínač tedy zdánlivě nedělá nic. Rozdíl
+  by šel poznat jedině porovnáním `getBaseModelName()` mezi variantami.
+- **Fakta model drží, sloh ne.** Na připraveném testu (ceny, číslo účtu, datum, jména) nevymyslel
+  nic — ale na skutečné konverzaci komolí tvary („telefon nebudou mít vibrace“), plete si, kdo co
+  řekl, občas propíše do textu instrukci („shrnutí konzultace **v češtině**“) a u pár zpráv nafoukne
+  zdvořilosti na plnohodnotné body. Když to nebude stačit, další krok je Gemma 4 přes LiteRT-LM
+  za stejným rozhraním.
 
 ## Aktualizace z obchodu
 
