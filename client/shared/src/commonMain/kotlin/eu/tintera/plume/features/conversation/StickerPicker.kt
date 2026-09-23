@@ -75,7 +75,6 @@ import eu.tintera.plume.core.ui.ShapeMorphs
 import eu.tintera.plume.core.ui.MorphShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -103,6 +102,7 @@ import eu.tintera.plume.core.telegram.TrendingStickerSet
 import eu.tintera.plume.core.ui.AnimatedSticker
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.emojiClusterCount
+import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.media_sticker
@@ -423,13 +423,12 @@ fun StickerPickerSheet(
     }
     val favoriteIds = state.favorites.orEmpty().map { it.sendFileId }.toSet()
     val toggleFavorite: (StickerItem) -> Unit = { sticker ->
-        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+        haptics.toggle(on = sticker.sendFileId !in favoriteIds)
         viewModel.toggleFavorite(sticker)
     }
-    val activate: (StickerItem) -> Unit = { sticker ->
-        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-        activeStickerId = sticker.id
-    }
+    // Podržení haptiku NEPOTŘEBUJE: `combinedClickable` ji u dlouhého stisku dělá samo
+    // a ruční volání navíc ji zdvojí (změřeno: dvě vibrace 9 ms po sobě).
+    val activate: (StickerItem) -> Unit = { sticker -> activeStickerId = sticker.id }
 
     TrendingSetSheetHost(setId = openSetId, onClose = { openSetId = null }, pick = pick)
 

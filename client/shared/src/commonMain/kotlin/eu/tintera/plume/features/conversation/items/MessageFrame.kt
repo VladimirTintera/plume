@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.threshold
 import eu.tintera.plume.resources.profile_open
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.sharedNavElement
@@ -64,7 +65,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -549,7 +549,7 @@ private fun MessageFrame(
 
                             if (!armed && next >= threshold) {
                                 armed = true
-                                haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                haptics.threshold()
                             }
                         }
                     }

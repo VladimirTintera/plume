@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -256,7 +255,7 @@ fun RichText(
 
                         if (released == null) {
                             suppressLinkClick[0] = true
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            haptics.longPress()
                             longClickHandler?.invoke()
                         }
                     }

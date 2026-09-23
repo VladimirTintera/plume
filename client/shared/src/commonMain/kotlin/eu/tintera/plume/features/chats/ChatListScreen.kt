@@ -2,6 +2,7 @@ package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
+import eu.tintera.plume.core.ui.threshold
 import eu.tintera.plume.resources.saved_messages
 import eu.tintera.plume.resources.bookmark_24dp
 import eu.tintera.plume.core.ui.isSavedMessages
@@ -72,7 +73,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -950,7 +950,7 @@ private fun SwipeToArchive(
                                 drag.snapTo(next)
                                 if (!armed && abs(next) >= threshold()) {
                                     armed = true
-                                    haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                    haptics.threshold()
                                 }
                             }
                         },
