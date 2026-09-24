@@ -4,6 +4,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +30,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.text.selection.SelectionState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -42,6 +46,7 @@ import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +67,8 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -69,6 +76,7 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -88,17 +96,14 @@ import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.features.conversation.items.ConversationItemScope
 import eu.tintera.plume.features.conversation.items.Delivery
-import eu.tintera.plume.features.conversation.items.MenuCopy
 import eu.tintera.plume.features.conversation.items.MenuAnchor
+import eu.tintera.plume.features.conversation.items.MenuCopy
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageItem
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.delete_messages_choice
-import eu.tintera.plume.resources.delete_messages_for_all
-import eu.tintera.plume.resources.delete_messages_for_self
-import eu.tintera.plume.resources.conversation_delete_selected_title
 import eu.tintera.plume.resources.add_reaction_24dp
 import eu.tintera.plume.resources.common_cancel
+import eu.tintera.plume.resources.conversation_delete_selected_title
 import eu.tintera.plume.resources.conversation_delivery_failed
 import eu.tintera.plume.resources.conversation_delivery_read
 import eu.tintera.plume.resources.conversation_delivery_sending
@@ -109,6 +114,9 @@ import eu.tintera.plume.resources.delete_message_for_partner
 import eu.tintera.plume.resources.delete_message_for_partner_named
 import eu.tintera.plume.resources.delete_message_for_self
 import eu.tintera.plume.resources.delete_message_title
+import eu.tintera.plume.resources.delete_messages_choice
+import eu.tintera.plume.resources.delete_messages_for_all
+import eu.tintera.plume.resources.delete_messages_for_self
 import eu.tintera.plume.resources.menu_delete
 import eu.tintera.plume.resources.menu_more_reactions
 import eu.tintera.plume.resources.menu_pin
@@ -270,13 +278,41 @@ internal fun MessageMenuLayer(
         }
         val showQuickRow = shown.menu.quickEmoji.isNotEmpty()
 
+        /*
+         * Označitelný text kopie. S označeným úryvkem se „Odpovědět" změní na „Citovat"
+         * a „Kopírovat" kopíruje jen úryvek (`MessageMenuAction.withSelection`).
+         *
+         * Jen tam, kde jde text kopírovat (`canCopy`): chráněný obsah nesmí ven ani po kouskách,
+         * a bez textu není co označit. Výběr se ptá přímo `SelectionState` (Compose 1.12) —
+         * `selectedTexts` je snapshot stav, takže nabídka se přejmenuje hned při tažení úchytu.
+         */
+        val message = shown.item.frame.message
+        val selectable = shown.menu.actions.canCopy && message.text.isNotBlank()
+        val selectionState = remember(shown.menu.messageId) { SelectionState() }
+        val selection by remember(selectionState, message.text) {
+            derivedStateOf { quoteSelection(selectionState.selectedTexts, message.text) }
+        }
+        // Zavřená nabídka výběr zahodí, jinak by úchyty doletěly se zprávou zpátky do seznamu.
+        LaunchedEffect(open) { if (!open) selectionState.clear() }
+        /*
+         * Během označování pruh reakcí ustoupí. Systémová lišta výběru (Kopírovat, Vybrat vše…)
+         * se kreslí nad označeným textem, tedy přesně přes pruh, a dvě plovoucí lišty přes sebe
+         * byly nečitelné. Reagovat uprostřed označování stejně nikdo nechce.
+         */
+        val selecting = selectionState.selectedTexts.isNotEmpty()
+        val quickRowAlpha by animateFloatAsState(
+            targetValue = if (selecting) 0f else 1f,
+            animationSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
+            label = "quick-row-selecting",
+        )
+
         // Položky, které se opravdu ukážou: kandidáti od bloku, které dovolil server. Z nich, ne
         // z kandidátů, se počítá i výška nabídky — dokud se brali kandidáti, visela nabídka nad
         // zprávou o položku (48 dp) výš za každého kandidáta, kterého server nedovolil.
         val menuItems = shown.menu.items.mapNotNull { action ->
-            action.presentation(shown.menu)?.let { look ->
+            action.presentation(shown.menu, selection)?.let { look ->
                 MenuItem(look.icon, stringResource(look.label), look.destructive) {
-                    itemScope.onAction(shown.menu.messageId, action)
+                    itemScope.onAction(shown.menu.messageId, action.withSelection(selection))
                 }
             }
         }
@@ -371,40 +407,79 @@ internal fun MessageMenuLayer(
                         }
                     },
             ) {
-                with(shown.item) {
-                    MenuCopy(
-                        scope = itemScope,
-                        // Stejná šířka jako v seznamu: obsah se zalomí stejně a návrat skončí bez
-                        // skoku. Posun i zmenšení se čtou až v layoutu a při kreslení.
-                        modifier = Modifier
-                            .layout { measurable, constraints ->
-                                /*
-                                 * Stejné omezení šířky jako v seznamu, ne šířka zprávy napevno.
-                                 * S šířkou zprávy jako stropem vyšlo všechno, co se řídí dostupnou
-                                 * šířkou, jinak — fotka s popiskem (podlaha 75 %) se v nabídce
-                                 * zúžila a po návratu skokem dorostla.
-                                 */
-                                val width = anchorRect.width.roundToInt()
-                                val placeable = measurable.measure(
-                                    constraints.copy(minWidth = 0, maxWidth = copyMaxWidth ?: width),
-                                )
-                                layout(width, placeable.height) {
-                                    placeable.place(if (shown.menu.isOutgoing) width - placeable.width else 0, 0)
-                                }
+                /*
+                 * Kopie dostává scope, který akce ZAHAZUJE: s označitelným textem na ni jdou
+                 * dotyky, a ťuknutí na fotku, odkaz nebo citaci by jinak z nabídky otevřelo
+                 * prohlížeč, web nebo skok. Nabídka o všem rozhoduje sama.
+                 */
+                val copyScope = remember(itemScope) { InertItemScope(itemScope) }
+                /*
+                 * Ťuknutí na kopii bez výběru nabídku zavře (jako dřív překryv); s výběrem ho
+                 * zruší SelectionContainer sám. Dlouhý stisk a tah patří výběru, ne zavírání.
+                 *
+                 * **Na spotřebování se neohlíží** — `SelectionContainer` si ťuknutí bere i bez
+                 * výběru, takže `waitForUpOrCancellation` by vrátil `null` a nabídka by nešla
+                 * zavřít ťuknutím na zprávu. Rozhoduje jen: byl výběr při dotyku, jak dlouho
+                 * prst ležel a jestli ujel.
+                 */
+                val closeOnTap = if (selectable && open) {
+                    Modifier.pointerInput(Unit) {
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                            val hadSelection = selectionState.selectedTexts.isNotEmpty()
+                            var moved = false
+                            var up: PointerInputChange? = null
+                            while (up == null) {
+                                val event = awaitPointerEvent(PointerEventPass.Final)
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) moved = true
+                                if (!change.pressed) up = change
                             }
-                            .wrapContentHeight(align = Alignment.Top, unbounded = true)
-                            .graphicsLayer {
-                                val current = scale()
-                                scaleX = current
-                                scaleY = current
-                                transformOrigin = TransformOrigin(if (shown.menu.isOutgoing) 1f else 0f, 0f)
-                            },
-                    )
+                            val released = up ?: return@awaitEachGesture
+                            val long = released.uptimeMillis - down.uptimeMillis >= viewConfiguration.longPressTimeoutMillis
+                            if (!hadSelection && !moved && !long) close()
+                        }
+                    }
+                } else {
+                    Modifier
+                }
+                MaybeSelectable(enabled = selectable, state = selectionState, modifier = closeOnTap) {
+                    with(shown.item) {
+                        MenuCopy(
+                            scope = copyScope,
+                            // Stejná šířka jako v seznamu: obsah se zalomí stejně a návrat skončí bez
+                            // skoku. Posun i zmenšení se čtou až v layoutu a při kreslení.
+                            modifier = Modifier
+                                .layout { measurable, constraints ->
+                                    /*
+                                     * Stejné omezení šířky jako v seznamu, ne šířka zprávy napevno.
+                                     * S šířkou zprávy jako stropem vyšlo všechno, co se řídí dostupnou
+                                     * šířkou, jinak — fotka s popiskem (podlaha 75 %) se v nabídce
+                                     * zúžila a po návratu skokem dorostla.
+                                     */
+                                    val width = anchorRect.width.roundToInt()
+                                    val placeable = measurable.measure(
+                                        constraints.copy(minWidth = 0, maxWidth = copyMaxWidth ?: width),
+                                    )
+                                    layout(width, placeable.height) {
+                                        placeable.place(if (shown.menu.isOutgoing) width - placeable.width else 0, 0)
+                                    }
+                                }
+                                .wrapContentHeight(align = Alignment.Top, unbounded = true)
+                                .graphicsLayer {
+                                    val current = scale()
+                                    scaleX = current
+                                    scaleY = current
+                                    transformOrigin = TransformOrigin(if (shown.menu.isOutgoing) 1f else 0f, 0f)
+                                },
+                        )
+                    }
                 }
             }
         }
-        // Kopie nemá gesta (odkaz ani fotka se z nabídky neotevírají); ťuknutí na ni zavírá.
-        if (open) {
+        // Kopie bez označitelného textu nemá gesta (odkaz ani fotka se z nabídky neotevírají);
+        // ťuknutí na ni zavírá. S textem si dotyky bere výběr, zavírání řeší `closeOnTap`.
+        if (open && !selectable) {
             Box(
                 Modifier
                     .offset { IntOffset(anchorLeftPx, (anchorTopPx + lift()).roundToInt()) }
@@ -450,17 +525,20 @@ internal fun MessageMenuLayer(
                 menu = shown.menu,
                 // Reakce je přepnutí stavu, ne potvrzení: druhé ťuknutí ji sundá.
                 onPick = { emoji ->
-                    haptics.toggle(on = emoji !in shown.menu.chosenEmoji)
-                    onAction(MessageAction.React(emoji))
+                    // Schovaný pruh (během označování) ťuknutí nebere.
+                    if (!selecting) {
+                        haptics.toggle(on = emoji !in shown.menu.chosenEmoji)
+                        onAction(MessageAction.React(emoji))
+                    }
                 },
-                onMore = { expanded = true },
+                onMore = { if (!selecting) expanded = true },
                 modifier = Modifier
                     // Pruh je široký, takže se zarovnává ke KRAJI obrazovky podle strany zprávy.
                     .align(if (shown.menu.isOutgoing) Alignment.TopEnd else Alignment.TopStart)
                     .offset { IntOffset(0, (quickY.toPx() + travel()).roundToInt()) }
                     .padding(horizontal = SCREEN_MARGIN)
                     .graphicsLayer {
-                        alpha = appear
+                        alpha = appear * quickRowAlpha
                         scaleX = 0.9f + 0.1f * appear
                         scaleY = 0.9f + 0.1f * appear
                     },
@@ -516,6 +594,47 @@ internal fun MessageMenuLayer(
         }
     }
 }
+
+/** Obalí obsah `SelectionContainer`em, jen když se v něm má dát označovat. */
+@Composable
+private fun MaybeSelectable(
+    enabled: Boolean,
+    state: SelectionState,
+    modifier: Modifier,
+    content: @Composable () -> Unit,
+) {
+    if (enabled) SelectionContainer(state = state, modifier = modifier, content = content) else content()
+}
+
+/** Scope kopie zprávy v nabídce: čte všechno jako seznam, ale akce nikam neposílá. */
+private class InertItemScope(scope: ConversationItemScope) : ConversationItemScope by scope {
+    override fun onAction(messageId: Long, action: MessageAction) = Unit
+}
+
+/**
+ * Úryvek k citaci z označeného textu kopie, nebo `null`, když citovat nejde.
+ *
+ * `SelectionContainer` vrací výběr po jednotlivých textech kopie — vedle textu zprávy je v ní
+ * i jméno odesílatele, značka přeposlání nebo hlavička citace. **Citovat jde jen text zprávy**
+ * (TDLib chce podřetězec citované zprávy), takže se bere nejdelší označený kus, který v textu
+ * zprávy opravdu je. Okrajové mezery se ořežou (úryvek zůstane podřetězcem) a délka se stáhne
+ * na [MAX_QUOTE_LENGTH] — i začátek výběru je platný úryvek.
+ */
+internal fun quoteSelection(selected: List<AnnotatedString>, messageText: String): String? =
+    selected.asSequence()
+        .map { it.text.trim() }
+        .filter { it.isNotEmpty() && messageText.contains(it) }
+        .maxByOrNull { it.length }
+        ?.take(MAX_QUOTE_LENGTH)
+        ?.trimEnd()
+        ?.takeIf { it.isNotEmpty() }
+
+/**
+ * Nejdelší citace, kterou server bere (`message_reply_quote_length_max`, dnes 1024). Pevně,
+ * ne dotazem: delší výběr se zkrátí na začátek, a kdyby server strop snížil, odpověď skončí
+ * chybou od serveru, ne ztrátou zprávy.
+ */
+internal const val MAX_QUOTE_LENGTH = 1024
 
 /** Co nabídka kreslí: otevřená nabídka, blok její zprávy a kde zpráva byla. */
 private data class ShownMenu(val menu: MessageMenu, val item: MessageItem, val anchor: Rect)

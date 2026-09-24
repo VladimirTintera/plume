@@ -366,6 +366,7 @@
     <string name="message_info_link_copied">Link copied</string>
     <string name="menu_sent_at_delivery">%1$s, %2$s · %3$s</string>
     <string name="menu_reply">Reply</string>
+    <string name="menu_quote">Quote</string>
     <string name="menu_edit">Edit</string>
     <string name="menu_copy">Copy</string>
     <string name="menu_favorite_add">Add to favourites</string>

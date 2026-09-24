@@ -3717,6 +3717,43 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   vlastní tlačítko by jen zdvojovalo, co platforma umí sama.
 - **„Vybrat text" stojí na stejném právu jako „Kopírovat"** (`canCopy`). Chráněný obsah nesmí
   ven ani po kouskách a bez textu není co vybírat; obojí hlídá test.
+
+#### Citace z nabídky
+
+Text **kopie zprávy v nabídce jde označit** (dlouhým stiskem na slovo, pak úchyty). S označeným
+úryvkem se „Odpovědět" přejmenuje na **„Citovat"** a odpověď pak míří jen na úryvek
+(`InputMessageReplyToMessage.quote`); „Kopírovat" zkopíruje jen úryvek. Tak to dělá i Telegram
+na iOS. Dlouhý stisk v SEZNAMU dál otevírá nabídku — o gesto se nedělí, výběr začíná až v kopii.
+
+- **Sledovat výběr jde veřejným API**: Compose 1.12 má `SelectionContainer(state = SelectionState)`
+  a `SelectionState.selectedTexts` je snapshot stav, takže nabídka se přejmenuje hned při tažení
+  úchytu (`derivedStateOf`). Ověřeno `javap` nad `foundation-desktop-1.12.0`, bez opt-inu.
+- **Položka se PŘEJMENUJE, nepřibývá** (`MessageMenuAction.presentation(menu, selection)`,
+  `withSelection`). Výška nabídky se počítá z ukázaných položek, takže položka navíc by nabídku
+  pod prstem natáhla; zašedlé položky jinde v nabídce nejsou.
+- **Citovat jde jen text TÉHLE zprávy** (`quoteSelection`, testy `QuoteSelectionTest`). Kopie
+  nese i jméno odesílatele, značku přeposlání a hlavičku citace nad odpovědí, a výběr přes ně
+  vrací víc kusů; bere se nejdelší kus, který v textu zprávy je. Označený úryvek z hlavičky
+  citace (text JINÉ zprávy) nechá „Odpovědět" být.
+- **Kopie dostává scope, který akce zahazuje** (`InertItemScope`). S označitelným textem na ni
+  jdou dotyky, a ťuknutí na fotku, odkaz nebo citaci by z nabídky otevřelo prohlížeč, web nebo skok.
+- **Zavírání ťuknutím se NESMÍ ptát na spotřebování.** `SelectionContainer` si ťuknutí bere i bez
+  výběru, takže s `waitForUpOrCancellation` nešla nabídka zavřít ťuknutím na zprávu (ověřeno na
+  emulátoru). Rozhoduje jen: byl výběr při dotyku, jak dlouho prst ležel, jestli ujel.
+- **Během označování pruh reakcí zmizí.** Systémová lišta výběru (Kopírovat, Vybrat vše, Přeložit)
+  se kreslí nad označeným textem, tedy přesně přes pruh reakcí.
+- **Označovat jde jen s `canCopy`** — chráněný obsah nesmí ven ani citací přes úryvek.
+- **Formátování úryvku se MUSÍ přenést** (`quoteInput`, testy `ReplyQuoteTest`). TDLib: tučné,
+  kurzíva, podtržení, přeškrtnutí, spoiler a vlastní emoji „must be kept in the quote". Repository
+  si proto přečte původní zprávu (`getMessage`, lokální), entity ořízne na úryvek a posune.
+  Odkazy, zmínky a kód do citace nepatří a odpadnou.
+- **`position` je jen odhad** („approximate" v dokumentaci TDLib); repository si místo dohledá
+  kolem něj, pak kdekoli. Úryvek, který v textu není, znamená odpověď na celou zprávu, ne chybu.
+- **Strop 1024 znaků** (`MAX_QUOTE_LENGTH`, server `message_reply_quote_length_max`): delší výběr
+  se zkrátí na začátek, i ten je platný úryvek.
+- **Ověřeno na emulátoru (Fold, složený) i na serveru**: Bot API u odeslané zprávy vrátilo
+  `quote: {text, position: 24, is_manual: true}`; odpověď bota s `reply_parameters.quote` se
+  nakreslila s úryvkem; koncept s citací přežil odchod z chatu.
 - **Schránka je vlastní `expect`/`actual`, ne Compose API.** `LocalClipboardManager` je zastaralý
   a jeho náhrada pracuje s `ClipEntry`, což je `expect class` bez společné továrny na text —
   v commonMain se prostě nedá vyrobit.
@@ -5252,6 +5289,14 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   šlo odeslat druhou zprávu se stejnou citací.
 - **V soukromém chatu nemá citace koho uvést.** `senderName` se vyplňuje jen ve skupinách, takže
   se jako záloha bere název chatu (`ChatInfo.title`).
+- **Citace části zprávy** (`ChatMessage.replyQuote`, `ConversationState.replyQuote`) se kreslí
+  místo začátku citované zprávy — nad odpovědí i v hlavičce nad polem. Bere se jen ruční citace
+  (`TextQuote.isManual`); automatickou server doplňuje u odpovědí z jiného chatu, ty se zahazují.
+  Citace je součást odpovědi i konceptu (`saveDraft(quote)`, `ChatInfo.draftReplyQuote`) a maže
+  se s odpovědí (`clearReply`). Jak vzniká, viz „Citace z nabídky".
+- **Vynucená odpověď bota může přebít koncept.** `restoreDraftReply` i vynucená odpověď nastavují
+  `replyingTo`, jen když je prázdné, a kdo doběhne dřív, vyhraje — koncept se čte asynchronně.
+  Při zkoušení citací v chatu s testovacím botem pozor na starou `force_reply`.
 
 ## Notifikace
 

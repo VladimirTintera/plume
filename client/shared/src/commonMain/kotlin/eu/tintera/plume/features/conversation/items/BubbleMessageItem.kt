@@ -79,6 +79,7 @@ internal data class BubbleMessageItem(
                     partnerName = partnerName,
                     onClick = message.replyToMessageId?.let { id -> { act(MessageAction.JumpTo(id)) } },
                     onLongClick = ::requestMenu,
+                    quoteText = message.replyQuote,
                     // Citace někoho ze skupiny nese jeho barvu, jako jméno nad jeho zprávou;
                     // jinak akcent tónované plochy. Obojí projde kontrolou proti té ploše —
                     // ve zvýrazněné zprávě se `tertiary` s `tertiaryContainer` může potkat

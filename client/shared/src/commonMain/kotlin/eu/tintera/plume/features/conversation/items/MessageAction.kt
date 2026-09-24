@@ -14,6 +14,7 @@ import eu.tintera.plume.resources.media_share
 import eu.tintera.plume.resources.share_24dp
 import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.flag_24dp
+import eu.tintera.plume.resources.format_quote_24dp
 import eu.tintera.plume.resources.forward_24dp
 import eu.tintera.plume.resources.info_24dp
 import eu.tintera.plume.resources.keep_off_24dp
@@ -25,6 +26,7 @@ import eu.tintera.plume.resources.menu_favorite_remove
 import eu.tintera.plume.resources.menu_forward
 import eu.tintera.plume.resources.menu_info
 import eu.tintera.plume.resources.menu_pin
+import eu.tintera.plume.resources.menu_quote
 import eu.tintera.plume.resources.menu_reply
 import eu.tintera.plume.resources.menu_report
 import eu.tintera.plume.resources.menu_select
@@ -71,6 +73,15 @@ sealed interface MessageAction {
 
     /** Tah doprava: odpověď. Totéž jako položka nabídky [MessageMenuAction.Reply]. */
     data object SwipeReply : MessageAction
+
+    /**
+     * Odpověď jen na úryvek zprávy — „Citovat" v nabídce, když je v kopii zprávy označený
+     * [text]. Vzniká z [MessageMenuAction.Reply] přes [MessageMenuAction.withSelection].
+     */
+    data class QuoteReply(val text: String) : MessageAction
+
+    /** Zkopírovat jen označený úryvek; vzniká z [MessageMenuAction.Copy]. */
+    data class CopyText(val text: String) : MessageAction
 
     data class JumpTo(val messageId: Long) : MessageAction
 
@@ -135,9 +146,31 @@ sealed interface MessageMenuAction : MessageAction {
     /** Jak položka vypadá; `null`, když se v otevřené nabídce [menu] nabízet nemá. */
     fun presentation(menu: MessageMenu): MenuPresentation?
 
+    /**
+     * Jak položka vypadá, když je v kopii zprávy v nabídce označený text ([selection], `null` =
+     * nic). Většině položek je výběr jedno.
+     *
+     * **Položka se mění, nepřibývá.** Výška nabídky se počítá z ukázaných položek, takže
+     * položka navíc by nabídku pod prstem natáhla — „Odpovědět" se proto s výběrem přejmenuje
+     * na „Citovat" (je to táž akce, jen s úryvkem).
+     */
+    fun presentation(menu: MessageMenu, selection: String?): MenuPresentation? = presentation(menu)
+
+    /** Co ťuknutí odešle, když je označený text; bez výběru položka sama. */
+    fun withSelection(selection: String?): MessageAction = this
+
     data object Reply : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
             MenuPresentation(Res.drawable.reply_24dp, Res.string.menu_reply).takeIf { menu.actions.canReply }
+
+        override fun presentation(menu: MessageMenu, selection: String?) =
+            if (selection == null) {
+                presentation(menu)
+            } else {
+                MenuPresentation(Res.drawable.format_quote_24dp, Res.string.menu_quote).takeIf { menu.actions.canReply }
+            }
+
+        override fun withSelection(selection: String?) = selection?.let(MessageAction::QuoteReply) ?: this
     }
 
     /** Kandidát jen tam, kde vstupní pole text nebo popisek upraví bez ztráty formátování. */
@@ -150,6 +183,9 @@ sealed interface MessageMenuAction : MessageAction {
     data object Copy : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
             MenuPresentation(Res.drawable.content_copy_24dp, Res.string.menu_copy).takeIf { menu.actions.canCopy }
+
+        // S označeným textem kopíruje jen ten — jako „Kopírovat" v systémové liště výběru.
+        override fun withSelection(selection: String?) = selection?.let(MessageAction::CopyText) ?: this
     }
 
     /**

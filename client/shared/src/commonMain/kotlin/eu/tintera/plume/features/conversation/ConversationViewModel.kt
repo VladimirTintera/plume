@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.telegram.ChatReplyMarkup
 import eu.tintera.plume.core.telegram.ReplyKeyboardButtonKind
 import eu.tintera.plume.core.telegram.UnsupportedKeyboardButton
@@ -347,7 +348,7 @@ class ConversationViewModel(
                     draftText = it
                     refreshLinkPreview(it)
                 }
-                info.draftReplyToMessageId?.let(::restoreDraftReply)
+                info.draftReplyToMessageId?.let { restoreDraftReply(it, info.draftReplyQuote) }
                 // Nalezená zpráva má přednost před nepřečtenými — kvůli ní chat otevřel.
                 if (initialMessageId != null) {
                     jumpToMessage(initialMessageId, fromSearch = true)
@@ -987,8 +988,8 @@ class ConversationViewModel(
             _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
             return
         }
-        sendMedia(Res.string.conversation_sticker_send_failed) { replyTo ->
-            repository.sendSticker(chatId, sticker, replyTo)
+        sendMedia(Res.string.conversation_sticker_send_failed) { replyTo, quote ->
+            repository.sendSticker(chatId, sticker, replyTo, quote)
         }
     }
 
@@ -998,8 +999,8 @@ class ConversationViewModel(
             _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
             return
         }
-        sendMedia(Res.string.conversation_gif_send_failed) { replyTo ->
-            repository.sendGif(chatId, gif, replyTo)
+        sendMedia(Res.string.conversation_gif_send_failed) { replyTo, quote ->
+            repository.sendGif(chatId, gif, replyTo, quote)
         }
     }
 
@@ -1013,8 +1014,8 @@ class ConversationViewModel(
             _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
             return
         }
-        sendMedia(Res.string.conversation_gif_send_failed) { replyTo ->
-            repository.sendAnimation(chatId, animation, replyTo)
+        sendMedia(Res.string.conversation_gif_send_failed) { replyTo, quote ->
+            repository.sendAnimation(chatId, animation, replyTo, quote)
         }
     }
 
@@ -1136,11 +1137,12 @@ class ConversationViewModel(
         resetLinkPreview()
 
         val replyTo = _state.value.replyingTo?.id
+        val quote = _state.value.replyQuote
         clearReply()
         _state.update { it.copy(attachments = emptyList()) }
 
         viewModelScope.launch {
-            repository.sendAttachments(chatId, attachments, caption, replyTo)
+            repository.sendAttachments(chatId, attachments, caption, replyTo, quote)
                 .onSuccess { pending ->
                     shareTargets.reportUsed(chatId)
                     _state.update { state ->
@@ -1197,12 +1199,16 @@ class ConversationViewModel(
         _state.update { it.copy(error = message) }
     }
 
-    private fun sendMedia(failureMessage: StringResource, send: suspend (replyTo: Long?) -> Result<ChatMessage>) {
+    private fun sendMedia(
+        failureMessage: StringResource,
+        send: suspend (replyTo: Long?, quote: ReplyQuote?) -> Result<ChatMessage>,
+    ) {
         val replyTo = _state.value.replyingTo?.id
+        val quote = _state.value.replyQuote
         clearReply()
 
         viewModelScope.launch {
-            send(replyTo)
+            send(replyTo, quote)
                 .onSuccess { pending ->
                     shareTargets.reportUsed(chatId)
                     // Potvrzení mohlo dorazit dřív než výsledek; `withMessage` to ošetří.
@@ -1246,6 +1252,7 @@ class ConversationViewModel(
         resetLinkPreview()
 
         val replyTo = _state.value.replyingTo?.id
+        val quote = _state.value.replyQuote
         // Rozepsaná odpověď se zruší hned, ne až po potvrzení — jinak by při pomalé síti šlo
         // odeslat druhou zprávu se stejnou citací.
         clearReply()
@@ -1256,7 +1263,7 @@ class ConversationViewModel(
         _state.update { it.copy(flight = flight) }
 
         viewModelScope.launch {
-            repository.send(chatId, trimmed, replyTo, linkPreview)
+            repository.send(chatId, trimmed, replyTo, linkPreview, quote)
                 // TDLib vrací rozepsanou zprávu okamžitě, takže bublina naskočí bez čekání
                 // na server. Skutečné id dorazí potvrzením a zprávu v seznamu nahradí.
                 .onSuccess { pending ->
@@ -1334,17 +1341,23 @@ class ConversationViewModel(
     private fun scheduleDraftSave() {
         val text = draftText
         val replyTo = _state.value.replyingTo?.id
+        val quote = _state.value.replyQuote
         val linkPreview = _state.value.linkPreviewOptions
 
         draftSave?.cancel()
         draftSave = appScope.launch {
             delay(DRAFT_SAVE_DELAY_MS)
-            saveDraft(text, replyTo, linkPreview)
+            saveDraft(text, replyTo, linkPreview, quote)
         }
     }
 
-    private suspend fun saveDraft(text: String, replyTo: Long?, linkPreview: LinkPreviewOptions? = null) {
-        repository.saveDraft(chatId, text, replyTo, linkPreview).onFailure { failure ->
+    private suspend fun saveDraft(
+        text: String,
+        replyTo: Long?,
+        linkPreview: LinkPreviewOptions? = null,
+        quote: ReplyQuote? = null,
+    ) {
+        repository.saveDraft(chatId, text, replyTo, linkPreview, quote).onFailure { failure ->
             logger.w(failure) { "Koncept se nepodařilo uložit." }
         }
     }
@@ -1353,13 +1366,13 @@ class ConversationViewModel(
      * Doplní citaci konceptu. Zprávu hledá v načtené historii, jinak si ji vyžádá — koncept
      * může odpovídat na cokoli.
      */
-    private fun restoreDraftReply(messageId: Long) {
+    private fun restoreDraftReply(messageId: Long, quote: ReplyQuote?) {
         viewModelScope.launch {
             val message = _state.value.messages.firstOrNull { it.id == messageId }
                 ?: repository.message(chatId, messageId).getOrNull()
                 ?: return@launch
             // Mezitím mohl uživatel začít odpovídat na něco jiného; to má přednost.
-            _state.update { if (it.replyingTo == null) it.copy(replyingTo = message) else it }
+            _state.update { if (it.replyingTo == null) it.copy(replyingTo = message, replyQuote = quote) else it }
         }
     }
 
@@ -1504,8 +1517,9 @@ class ConversationViewModel(
 
         val text = draftText
         val replyTo = _state.value.replyingTo?.id
+        val quote = _state.value.replyQuote
         val linkPreview = _state.value.linkPreviewOptions
-        appScope.launch { saveDraft(text, replyTo, linkPreview) }
+        appScope.launch { saveDraft(text, replyTo, linkPreview, quote) }
     }
 
     private fun reportTyping(typing: Boolean) {
@@ -1774,12 +1788,15 @@ class ConversationViewModel(
         }
     }
 
-    /** Nastaví zprávu, na kterou se odpovídá. Zobrazí se nad vstupním polem. */
-    private fun replyTo(messageId: Long) {
+    /**
+     * Nastaví zprávu, na kterou se odpovídá, případně jen její úryvek ([quote]). Zobrazí se nad
+     * vstupním polem.
+     */
+    private fun replyTo(messageId: Long, quote: ReplyQuote? = null) {
         // Swipe na odpověď se nabízí u každé zprávy; kde se psát nesmí, není kam odpovědět.
         if (!_state.value.canWrite) return
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        _state.update { it.copy(replyingTo = message, messageMenu = null) }
+        _state.update { it.copy(replyingTo = message, replyQuote = quote, messageMenu = null) }
         // Citace je součást konceptu — jen když už se něco píše, jinak není co ukládat.
         if (draftText.isNotBlank()) scheduleDraftSave()
     }
@@ -1794,8 +1811,21 @@ class ConversationViewModel(
         }
     }
 
+    /**
+     * „Citovat" z nabídky nad zprávou s označeným textem: odpověď jen na úryvek.
+     *
+     * Místo úryvku se hledá v textu zprávy; TDLib ho bere jen jako odhad a repository si přesné
+     * místo i formátování dohledá. Úryvek, který v textu není (nabídka ho neměla pustit), znamená
+     * obyčejnou odpověď na celou zprávu.
+     */
+    private fun quoteReply(messageId: Long, text: String) {
+        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+        val position = message.text.indexOf(text)
+        replyTo(messageId, quote = ReplyQuote(text, position).takeIf { position >= 0 })
+    }
+
     fun clearReply() {
-        _state.update { it.copy(replyingTo = null) }
+        _state.update { it.copy(replyingTo = null, replyQuote = null) }
         if (draftText.isNotBlank()) scheduleDraftSave()
     }
 
@@ -2024,6 +2054,8 @@ class ConversationViewModel(
             is MessageAction.SeekVoice -> seekVoice(messageId, action.fraction)
             MessageMenuAction.Edit -> startEdit(messageId)
             MessageMenuAction.Copy -> copyMessage(messageId)
+            is MessageAction.QuoteReply -> quoteReply(messageId, action.text)
+            is MessageAction.CopyText -> copyText(action.text)
             MessageMenuAction.ToggleFavoriteSticker -> toggleFavoriteSticker(messageId)
             MessageMenuAction.Forward -> requestForward(messageId)
             MessageMenuAction.Info -> showMessageInfo(messageId)
@@ -2127,7 +2159,12 @@ class ConversationViewModel(
      */
     private fun copyMessage(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        viewModelScope.launch { clipboard.copy(message.copyableText()) }
+        copyText(message.copyableText())
+    }
+
+    /** Zkopíruje text — celou zprávu, nebo úryvek označený v nabídce nad zprávou. */
+    private fun copyText(text: String) {
+        viewModelScope.launch { clipboard.copy(text) }
         closeMenus()
     }
 
@@ -2603,8 +2640,8 @@ class ConversationViewModel(
                 }
                 return@launch
             }
-            sendMedia(Res.string.conversation_voice_send_failed) { replyTo ->
-                repository.sendVoiceNote(chatId, recorded.path, recorded.durationSeconds, recorded.waveform, replyTo)
+            sendMedia(Res.string.conversation_voice_send_failed) { replyTo, quote ->
+                repository.sendVoiceNote(chatId, recorded.path, recorded.durationSeconds, recorded.waveform, replyTo, quote)
             }
         }
     }
@@ -3051,6 +3088,11 @@ data class ConversationState(
     val pendingPin: PendingPin? = null,
     /** Zpráva, na kterou se právě chystá odpověď. Zobrazuje se nad vstupním polem. */
     val replyingTo: ChatMessage? = null,
+    /**
+     * Citovaný úryvek [replyingTo], když se neodpovídá na celou zprávu (označený text
+     * v nabídce nad zprávou → „Citovat"). Bez [replyingTo] nemá smysl a maže se s ním.
+     */
+    val replyQuote: ReplyQuote? = null,
     /**
      * Citované zprávy, které nejsou v [messages] — doplněné jednotlivě.
      * Náhled odpovědi se hledá nejdřív v [messages], teprve pak tady.

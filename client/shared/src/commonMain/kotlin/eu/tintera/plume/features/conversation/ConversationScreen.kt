@@ -1165,6 +1165,7 @@ fun ConversationScreen(
                     ),
                 ),
                 replyingTo = state.replyingTo,
+                replyQuote = state.replyQuote?.text,
                 partnerName = state.info?.title,
                 flight = state.flight,
                 onCancelReply = viewModel::clearReply,
@@ -1717,6 +1718,8 @@ private fun MessageInput(
     /** Mléčné sklo nad seznamem: pás je průhledný, barvu i rozostření nese sklo. */
     glass: Modifier,
     replyingTo: ChatMessage?,
+    /** Citovaný úryvek [replyingTo], nebo `null` (odpověď na celou zprávu). */
+    replyQuote: String?,
     partnerName: String?,
     flight: MessageFlight?,
     onCancelReply: () -> Unit,
@@ -1888,6 +1891,7 @@ private fun MessageInput(
                             partnerName = partnerName,
                             accent = composerHeaderAccent(),
                             contained = false,
+                            quoteText = replyQuote,
                             modifier = Modifier.weight(1f),
                         )
                         IconButton(onClick = onCancelReply) {

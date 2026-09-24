@@ -382,39 +382,17 @@ Kotlin `String`.
 
 ---
 
-## Odpověď s citací části zprávy
+## ~~Odpověď s citací části zprávy~~ — HOTOVO
 
-**Zatím se nedělá.** Dnes se odpovídá vždycky na celou zprávu. Telegram umí odpovědět na
-vybranou část (`InputMessageReplyToMessage.quote` = `InputTextQuote(text, position)`) a nad
-odpovědí se pak ukáže jen ta část. **S odesíláním formátovaného textu to nesouvisí**: citace
-v odpovědi je vlastnost odpovědi, ne blok v textu (`BlockQuote`), a dá se postavit zvlášť.
+Text kopie zprávy v nabídce jde označit a „Odpovědět" se změní na „Citovat"; přijaté citace se
+kreslí s úryvkem (`CLAUDE.md`, „Citace z nabídky"). Zbývá:
 
-Nápad (2026-09-24): **text zprávy v nabídce nad zprávou je označitelný** a jakmile je něco
-vybrané, nabídka nabízí citaci. Tak to dělá i Telegram na iOS (náhled zprávy v kontextové
-nabídce jde označovat).
-
-- **Sledovat výběr jde.** Compose 1.12 má veřejné `SelectionContainer(state: SelectionState)`
-  a `SelectionState.selectedTexts` (seznam `AnnotatedString`), bez opt-inu; umí i `selectAll()`
-  a `clear()`. Ověřeno `javap` nad `foundation-desktop-1.12.0`, v kódu zatím nevyzkoušeno —
-  hlavně jestli je `selectedTexts` snapshot stav, na který jde reagovat.
-- **Položku neměnit na zašedlou, ale přejmenovat.** Výška nabídky se počítá z ukázaných
-  položek, takže přidaná položka by ji pod prstem natáhla. Místo toho „Odpovědět" s výběrem
-  zní „Citovat" (je to táž akce, jen s `quote`), a „Kopírovat" kopíruje jen výběr. Zašedlé
-  položky v nabídce jinde nejsou (pravidlo „co nejde, se nenabízí").
-- **`position` je PŘIBLIŽNÁ** („approximate quote position“ v dokumentaci TDLib), takže stačí
-  `indexOf` vybraného textu ve zprávě. Citace musí být podřetězec textu zprávy i s entitami;
-  strop délky posílá server (`message_reply_quote_length_max`).
-- **Rizika v nabídce:** kopie zprávy je u vysoké zprávy **zmenšená až na 0,6 a oříznutá**
-  (`placeMenuMessage`) — ověřit, že úchyty výběru sedí na zmenšené vrstvě a že jde vybírat jen
-  z viditelné části. Plovoucí lišta výběru (Kopírovat / Vybrat vše) se může překrýt s pruhem
-  reakcí. Odkazy a spoilery v `RichText` mají vlastní klikání a se `SelectionContainer` se můžou
-  prát (důvod, proč „Vybrat text" dnes otevírá sheet s holým textem).
-- **Záložní cesta, kdyby nabídka nešla:** tlačítko „Citovat" do sheetu „Vybrat text", povolené
-  podle výběru. O krok delší, ale bez zmenšení a ořezu.
-- **Druhá strana — kreslení:** přijatá odpověď s citací (`MessageReplyToMessage.quote`,
-  `TextQuote.isManual`) má nad sebou ukázat citovanou část, ne začátek celé zprávy; totéž
-  hlavička nad vstupním polem. Dnes se `quote` zahazuje.
-- Když se to udělá, sheet „Vybrat text" nejspíš přestane být potřeba.
+- **Citace uprostřed alba**: nabídka nad albem cituje jen zprávu s popiskem.
+- **Označení v kopii vysoké zprávy** zmenšené a oříznuté v nabídce (`placeMenuMessage`) ověřené
+  není — jde vybírat jen z viditelné části a úchyty na zmenšené vrstvě nikdo neviděl.
+- **Sheet „Vybrat text"** je teď skoro zbytečný (kopírovat úryvek jde přímo v nabídce). Zvážit,
+  jestli ho nevyhodit; zůstává pro zmenšené a oříznuté zprávy.
+- **iOS** — kód je společný, na simulátoru ověřené není (lišta výběru tam kreslí systém jinak).
 
 ---
 
