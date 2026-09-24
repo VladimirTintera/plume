@@ -299,7 +299,7 @@ fun AttachmentModeSheet(
 }
 
 @Composable
-private fun ModeOptionRow(
+internal fun ModeOptionRow(
     title: String,
     description: String,
     icon: DrawableResource,
