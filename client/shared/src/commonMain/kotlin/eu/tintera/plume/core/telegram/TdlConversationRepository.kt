@@ -18,6 +18,9 @@ import dev.g000sha256.tdl.dto.ChatMemberStatusRestricted
 import dev.g000sha256.tdl.dto.ChatPermissions
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
+import dev.g000sha256.tdl.dto.LinkPreviewOptions as TdlLinkPreviewOptions
+import dev.g000sha256.tdl.dto.TextEntityTypeTextUrl
+import dev.g000sha256.tdl.dto.TextEntityTypeUrl
 import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.InputAnimation
 import dev.g000sha256.tdl.dto.InputDocument
@@ -68,6 +71,7 @@ import dev.g000sha256.tdl.dto.SearchMessagesFilterPhotoAndVideo
 import dev.g000sha256.tdl.dto.SearchMessagesFilterUrl
 import dev.g000sha256.tdl.dto.SearchMessagesFilterPinned
 import dev.g000sha256.tdl.dto.TextEntity
+import dev.g000sha256.tdl.TdlThrowable
 import dev.g000sha256.tdl.toResult
 import kotlin.time.Clock
 import kotlinx.coroutines.async
@@ -562,7 +566,12 @@ class TdlConversationRepository(
      * kliknout. Když dohledání selže, zpráva stejně odejde — přijít o odkaz je lepší než
      * nepřijmout zprávu vůbec.
      */
-    override suspend fun send(chatId: Long, text: String, replyToMessageId: Long?): Result<ChatMessage> {
+    override suspend fun send(
+        chatId: Long,
+        text: String,
+        replyToMessageId: Long?,
+        linkPreview: LinkPreviewOptions?,
+    ): Result<ChatMessage> {
         val entities = detectEntities(text)
 
         return client.sendMessage(
@@ -574,7 +583,7 @@ class TdlConversationRepository(
             replyMarkup = null,
             inputMessageContent = InputMessageText(
                 text = FormattedText(text = text, entities = entities),
-                linkPreviewOptions = null,
+                linkPreviewOptions = linkPreview?.toTdl(),
                 clearDraft = true,
             ),
         )
@@ -886,7 +895,26 @@ class TdlConversationRepository(
                 emptyArray()
             }
 
-    override suspend fun saveDraft(chatId: Long, text: String, replyToMessageId: Long?): Result<Unit> =
+    override suspend fun linkPreview(text: String): Result<LinkPreview?> {
+        val formatted = FormattedText(text = text, entities = detectEntities(text))
+        if (formatted.entities.none { it.type is TextEntityTypeUrl || it.type is TextEntityTypeTextUrl }) {
+            return Result.success(null)
+        }
+        return client.getLinkPreview(text = formatted, linkPreviewOptions = null)
+            .toResult()
+            .map { it.toDomain() }
+            // 404 = „text nemá náhled" (stránka nic nevydala). To je odpověď, ne chyba.
+            .recoverCatching { failure ->
+                if (failure is TdlThrowable && failure.code == NOT_FOUND) null else throw failure
+            }
+    }
+
+    override suspend fun saveDraft(
+        chatId: Long,
+        text: String,
+        replyToMessageId: Long?,
+        linkPreview: LinkPreviewOptions?,
+    ): Result<Unit> =
         client.setChatDraftMessage(
             chatId = chatId,
             topicId = null,
@@ -898,7 +926,7 @@ class TdlConversationRepository(
                     // až při odeslání (viz `send`).
                     content = DraftMessageContentText(
                         text = FormattedText(text = it, entities = emptyArray()),
-                        linkPreviewOptions = null,
+                        linkPreviewOptions = linkPreview?.toTdl(),
                     ),
                     effectId = 0L,
                     suggestedPostInfo = null,
@@ -932,6 +960,8 @@ class TdlConversationRepository(
                     content = access.content,
                     draftReplyToMessageId = (chat.draftMessage?.replyTo as? InputMessageReplyToMessage)
                         ?.messageId,
+                    draftLinkPreview = (chat.draftMessage?.content as? DraftMessageContentText)
+                        ?.linkPreviewOptions?.toDomain(),
                 )
             }
 
@@ -1430,3 +1460,33 @@ private val ChatMessage.isLastingVisualMedia: Boolean
             photo?.isSecret != true &&
             video?.isSecret != true
     }
+
+/** `getLinkPreview` na text, ke kterému server náhled nemá. */
+private const val NOT_FOUND = 404
+
+/**
+ * Volba náhledu odkazu v podobě pro TDLib; výchozí volba je `null` (rozhoduje server).
+ * Vynucená velikost bez [LinkPreviewOptions.url] se odešle taky, TDLib ji pak jen ignoruje.
+ */
+private fun LinkPreviewOptions.toTdl(): TdlLinkPreviewOptions? =
+    takeUnless { it.isDefault }?.let {
+        TdlLinkPreviewOptions(
+            isDisabled = disabled,
+            url = url.orEmpty(),
+            forceSmallMedia = largeMedia == false,
+            forceLargeMedia = largeMedia == true,
+            showAboveText = aboveText,
+        )
+    }
+
+/** Volba uložená v konceptu zpátky v doménové podobě; adresa se nepřenáší (viz [LinkPreviewOptions.url]). */
+internal fun TdlLinkPreviewOptions.toDomain(): LinkPreviewOptions? =
+    LinkPreviewOptions(
+        disabled = isDisabled,
+        largeMedia = when {
+            forceLargeMedia -> true
+            forceSmallMedia -> false
+            else -> null
+        },
+        aboveText = showAboveText,
+    ).takeUnless { it.isDefault }

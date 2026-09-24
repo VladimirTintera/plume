@@ -31,6 +31,8 @@ import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ContentAccess
 import eu.tintera.plume.core.telegram.WriteAccess
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.LinkPreview
+import eu.tintera.plume.core.telegram.LinkPreviewOptions
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.ConnectionState
@@ -246,6 +248,9 @@ class ConversationViewModel(
     /** Odložené uložení konceptu; každá další úprava ho posune. */
     private var draftSave: Job? = null
 
+    /** Odložené zjištění náhledu odkazu v rozepsaném textu; každý úhoz ho posune. */
+    private var linkPreviewJob: Job? = null
+
     /** Běžící otevírání souborů podle `fileId`; druhé ťuknutí to čekání zruší. */
     private val documentJobs = mutableMapOf<Int, Job>()
 
@@ -304,9 +309,13 @@ class ConversationViewModel(
                             .takeIf { id -> info.unreadCount > 0 && id != 0L },
                         // Koncept z minula (nebo z jiného zařízení) se vrátí do pole.
                         inputFill = info.draftText?.let { text -> InputFill(text, onlyIfEmpty = true) },
+                        linkPreviewOptions = info.draftLinkPreview ?: LinkPreviewOptions(),
                     )
                 }
-                info.draftText?.let { draftText = it }
+                info.draftText?.let {
+                    draftText = it
+                    refreshLinkPreview(it)
+                }
                 info.draftReplyToMessageId?.let(::restoreDraftReply)
                 // Nalezená zpráva má přednost před nepřečtenými — kvůli ní chat otevřel.
                 if (initialMessageId != null) {
@@ -1012,6 +1021,8 @@ class ConversationViewModel(
         content.text?.let { shared ->
             val text = if (draftText.isBlank()) shared else draftText.trimEnd() + "\n" + shared
             _state.update { it.copy(inputFill = InputFill(text, onlyIfEmpty = false)) }
+            // Pole se vyplní bez `onDraftChanged`; sdílený odkaz je přitom typický případ náhledu.
+            refreshLinkPreview(text)
         }
         if (content.failed > 0) {
             _state.update { it.copy(notice = UiText(Res.string.share_failed_files)) }
@@ -1084,6 +1095,7 @@ class ConversationViewModel(
         draftSave?.cancel()
         draftSave = null
         draftText = ""
+        resetLinkPreview()
 
         val replyTo = _state.value.replyingTo?.id
         clearReply()
@@ -1192,6 +1204,9 @@ class ConversationViewModel(
         draftSave = null
         draftText = ""
 
+        val linkPreview = _state.value.linkPreviewOptions.forSending(shown = _state.value.linkPreview)
+        resetLinkPreview()
+
         val replyTo = _state.value.replyingTo?.id
         // Rozepsaná odpověď se zruší hned, ne až po potvrzení — jinak by při pomalé síti šlo
         // odeslat druhou zprávu se stejnou citací.
@@ -1203,7 +1218,7 @@ class ConversationViewModel(
         _state.update { it.copy(flight = flight) }
 
         viewModelScope.launch {
-            repository.send(chatId, trimmed, replyTo)
+            repository.send(chatId, trimmed, replyTo, linkPreview)
                 // TDLib vrací rozepsanou zprávu okamžitě, takže bublina naskočí bez čekání
                 // na server. Skutečné id dorazí potvrzením a zprávu v seznamu nahradí.
                 .onSuccess { pending ->
@@ -1252,6 +1267,7 @@ class ConversationViewModel(
 
         draftText = text
         scheduleDraftSave()
+        refreshLinkPreview(text)
 
         if (text.isBlank()) {
             if (typingSentAt == null) return
@@ -1275,16 +1291,17 @@ class ConversationViewModel(
     private fun scheduleDraftSave() {
         val text = draftText
         val replyTo = _state.value.replyingTo?.id
+        val linkPreview = _state.value.linkPreviewOptions
 
         draftSave?.cancel()
         draftSave = appScope.launch {
             delay(DRAFT_SAVE_DELAY_MS)
-            saveDraft(text, replyTo)
+            saveDraft(text, replyTo, linkPreview)
         }
     }
 
-    private suspend fun saveDraft(text: String, replyTo: Long?) {
-        repository.saveDraft(chatId, text, replyTo).onFailure { failure ->
+    private suspend fun saveDraft(text: String, replyTo: Long?, linkPreview: LinkPreviewOptions? = null) {
+        repository.saveDraft(chatId, text, replyTo, linkPreview).onFailure { failure ->
             logger.w(failure) { "Koncept se nepodařilo uložit." }
         }
     }
@@ -1301,6 +1318,48 @@ class ConversationViewModel(
             // Mezitím mohl uživatel začít odpovídat na něco jiného; to má přednost.
             _state.update { if (it.replyingTo == null) it.copy(replyingTo = message) else it }
         }
+    }
+
+    /**
+     * Zjistí náhled odkazu v rozepsaném textu, s pauzou po posledním úhozu
+     * ([LINK_PREVIEW_DELAY_MS]) — `getLinkPreview` jde na síť a TDLib ho žádá nevolat často.
+     *
+     * Prázdné pole zahodí náhled i volbu (i vypnutí): je to nová zpráva. Vypnutý náhled se
+     * nezjišťuje vůbec, dokud se pole nevyprázdní.
+     */
+    private fun refreshLinkPreview(text: String) {
+        linkPreviewJob?.cancel()
+        if (text.isBlank()) {
+            resetLinkPreview()
+            return
+        }
+        if (_state.value.linkPreviewOptions.disabled) return
+        linkPreviewJob = viewModelScope.launch {
+            delay(LINK_PREVIEW_DELAY_MS)
+            val preview = repository.linkPreview(text).getOrElse { failure ->
+                // Bez náhledu se dá psát i poslat dál; server si ho k odeslané zprávě vyrobí sám.
+                logger.w(failure) { "Náhled odkazu se nepodařilo zjistit." }
+                return@launch
+            }
+            _state.update {
+                it.copy(
+                    linkPreview = preview,
+                    linkPreviewOptions = it.linkPreviewOptions.forPreview(previous = it.linkPreview, next = preview),
+                )
+            }
+        }
+    }
+
+    private fun resetLinkPreview() {
+        linkPreviewJob?.cancel()
+        linkPreviewJob = null
+        _state.update { it.copy(linkPreview = null, linkPreviewOptions = LinkPreviewOptions()) }
+    }
+
+    /** Uživatel změnil volbu náhledu (velikost, poloha, ✕). Patří ke konceptu, ukládá se s ním. */
+    fun setLinkPreviewOptions(options: LinkPreviewOptions) {
+        _state.update { it.copy(linkPreviewOptions = options) }
+        scheduleDraftSave()
     }
 
     /** Obrazovka text do pole vložila. Bez toho by se po otočení vložil znovu, i smazaný. */
@@ -1402,7 +1461,8 @@ class ConversationViewModel(
 
         val text = draftText
         val replyTo = _state.value.replyingTo?.id
-        appScope.launch { saveDraft(text, replyTo) }
+        val linkPreview = _state.value.linkPreviewOptions
+        appScope.launch { saveDraft(text, replyTo, linkPreview) }
     }
 
     private fun reportTyping(typing: Boolean) {
@@ -2529,6 +2589,12 @@ private val TYPING_REPEAT = 5.seconds
 private const val DRAFT_SAVE_DELAY_MS = 1500L
 
 /**
+ * Pauza v psaní, po které se zjišťuje náhled odkazu. Kratší než ukládání konceptu: náhled má
+ * naskočit, než uživatel dopíše větu za odkazem, ale ne na každý znak adresy.
+ */
+private const val LINK_PREVIEW_DELAY_MS = 700L
+
+/**
  * Text, který má obrazovka vložit do vstupního pole.
  *
  * [onlyIfEmpty] u konceptu z TDLib: než dorazí, mohl uživatel začít psát a přepsat mu to by bylo
@@ -2838,6 +2904,10 @@ data class ConversationState(
     val unpinned: ChatMessage? = null,
     /** Zpráva, jejíž text se právě upravuje ve vstupním poli; `null` při běžném psaní. */
     val editing: ChatMessage? = null,
+    /** Náhled odkazu v rozepsaném textu, jak ho vrátil server; `null`, když text odkaz nemá. */
+    val linkPreview: LinkPreview? = null,
+    /** Co uživatel s náhledem udělal (vypnul, velikost, poloha). Patří ke konceptu. */
+    val linkPreviewOptions: LinkPreviewOptions = LinkPreviewOptions(),
     /** Zpráva krátce zvýrazněná po skoku na citaci; `null` většinu času. */
     val highlightedMessageId: Long? = null,
     /** Skok na nenačtenou zprávu, která se právě načítá (viz [PendingJump]). */

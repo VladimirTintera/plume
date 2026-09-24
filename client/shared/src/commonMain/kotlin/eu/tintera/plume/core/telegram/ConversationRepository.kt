@@ -186,9 +186,24 @@ interface ConversationRepository {
      * TDLib vrací zprávu hned, s dočasným id a stavem [SendState.Sending]; skutečné id přijde
      * až potvrzením v [sentMessageUpdates]. Díky tomu se dá bublina zobrazit bez čekání na server.
      *
-     * [replyToMessageId] je `null` u běžné zprávy.
+     * [replyToMessageId] je `null` u běžné zprávy. [linkPreview] je volba odesílatele pro náhled
+     * odkazu; `null` nechá rozhodnout server.
      */
-    suspend fun send(chatId: Long, text: String, replyToMessageId: Long?): Result<ChatMessage>
+    suspend fun send(
+        chatId: Long,
+        text: String,
+        replyToMessageId: Long?,
+        linkPreview: LinkPreviewOptions? = null,
+    ): Result<ChatMessage>
+
+    /**
+     * Náhled odkazu, jak by ho server připojil k [text], nebo `null`, když text odkaz nemá.
+     *
+     * **Na síť se jde, jen když text odkaz opravdu obsahuje** (lokální `getTextEntities`).
+     * `getLinkPreview` TDLib dokumentuje „do not call this function too often" a na text bez
+     * odkazu vrací 404 — volat ho při psaní na každou pauzu by byl dotaz za nic.
+     */
+    suspend fun linkPreview(text: String): Result<LinkPreview?>
 
     /**
      * Odešle samolepku. Stejně jako [send] vrací rozepsanou zprávu okamžitě.
@@ -314,7 +329,12 @@ interface ConversationRepository {
      * Prázdný [text] koncept **smaže** — i kdyby zbývala citace. Odpověď bez textu Telegram jako
      * koncept nedrží a ponechat ji by znamenalo koncept, který v seznamu nic neukazuje.
      */
-    suspend fun saveDraft(chatId: Long, text: String, replyToMessageId: Long?): Result<Unit>
+    suspend fun saveDraft(
+        chatId: Long,
+        text: String,
+        replyToMessageId: Long?,
+        linkPreview: LinkPreviewOptions? = null,
+    ): Result<Unit>
 
     /**
      * Zprávy s [query] v tomhle chatu, od nejnovější. Další stránka od [fromMessageId]
@@ -537,7 +557,31 @@ data class ChatInfo(
     val content: ContentAccess = ContentAccess.All,
     /** Zpráva, na kterou koncept odpovídá, nebo `null`. */
     val draftReplyToMessageId: Long?,
+    /** Volba náhledu odkazu uložená s konceptem, nebo `null` (rozhoduje server). */
+    val draftLinkPreview: LinkPreviewOptions? = null,
 )
+
+/**
+ * Jak má vypadat náhled odkazu v odesílané zprávě. Výchozí hodnota = nic nevybráno, rozhoduje
+ * server (`linkPreviewOptions = null`).
+ */
+data class LinkPreviewOptions(
+    /** Odeslat bez náhledu. */
+    val disabled: Boolean = false,
+    /** Velký obrázek (`true`), malý (`false`), nebo podle serveru (`null`). */
+    val largeMedia: Boolean? = null,
+    /** Náhled nad textem zprávy místo pod ním. */
+    val aboveText: Boolean = false,
+    /**
+     * Adresa odkazu, ke kterému volba patří. **Vynucená velikost bez ní neplatí** — TDLib
+     * `forceSmallMedia` i `forceLargeMedia` bez výslovné `url` ignoruje. Vyplňuje se až při
+     * odeslání z náhledu, který uživatel právě vidí; držet ji v rozepsané volbě by po přepsání
+     * odkazu v textu vynucovalo náhled toho starého.
+     */
+    val url: String? = null,
+) {
+    val isDefault: Boolean get() = copy(url = null) == LinkPreviewOptions()
+}
 
 /**
  * Zpráva v konverzaci.
@@ -685,6 +729,11 @@ data class LinkPreview(
      * při psaní), takže se to jen respektuje — stejně jako [largePhoto].
      */
     val showAboveText: Boolean,
+    /**
+     * Server má obrázek ve dvou velikostech, takže při psaní jde vybrat velký nebo malý
+     * (`hasLargeMedia`). U přijaté zprávy nic neznamená.
+     */
+    val canChangeSize: Boolean = false,
 )
 
 /**

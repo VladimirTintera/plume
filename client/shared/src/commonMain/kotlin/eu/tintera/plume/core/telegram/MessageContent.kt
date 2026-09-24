@@ -2,6 +2,7 @@ package eu.tintera.plume.core.telegram
 
 import dev.g000sha256.tdl.dto.File
 import dev.g000sha256.tdl.dto.FormattedText
+import dev.g000sha256.tdl.dto.LinkPreview as TdlLinkPreview
 import dev.g000sha256.tdl.dto.LinkPreviewTypeArticle
 import dev.g000sha256.tdl.dto.LinkPreviewTypeEmbeddedAnimationPlayer
 import dev.g000sha256.tdl.dto.LinkPreviewTypeEmbeddedVideoPlayer
@@ -631,8 +632,15 @@ internal fun Sticker.toMedia(): MessageMedia.Sticker {
  * neumíme vykreslit; náhled u nich zůstane textový. Zcela prázdný náhled se zahodí — rámeček
  * bez obsahu by vypadal jako chyba načítání.
  */
-internal fun Message.linkPreview(): LinkPreview? {
-    val preview = (content as? MessageText)?.linkPreview ?: return null
+internal fun Message.linkPreview(): LinkPreview? =
+    (content as? MessageText)?.linkPreview?.toDomain()
+
+/**
+ * Náhled od TDLib v doménové podobě. Společné pro přijatou zprávu i náhled při psaní
+ * (`getLinkPreview`), aby obojí vypadalo stejně a prázdný náhled se zahodil na jednom místě.
+ */
+internal fun TdlLinkPreview.toDomain(): LinkPreview? {
+    val preview = this
 
     val photo = when (val type = preview.type) {
         is LinkPreviewTypeArticle -> type.photo
@@ -651,6 +659,7 @@ internal fun Message.linkPreview(): LinkPreview? {
         photo = photo,
         largePhoto = preview.showLargeMedia,
         showAboveText = preview.showAboveText,
+        canChangeSize = preview.hasLargeMedia,
     )
     if (result.siteName == null && result.title == null && result.description == null && photo == null) {
         return null

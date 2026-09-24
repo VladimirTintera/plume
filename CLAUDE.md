@@ -2907,6 +2907,36 @@ text, tlačítko je fajfka a potvrzení volá `editMessageText`.
   a fajfka místo odeslání; klávesnici si uživatel vyvolá ťuknutím do pole. Dřív si pole fokus
   a klávesnici vyžádalo samo (uživatel si to nepřál).
 
+### Náhled odkazu při psaní
+
+Když rozepsaný text obsahuje odkaz, nad polem se po pauze v psaní ukáže náhled, jak ho připojí
+server (`LinkPreviewHeader`: web, titulek, malý obrázek). Ťuknutí nebo ikona voleb otevře
+`LinkPreviewOptionsSheet`: velký nebo malý obrázek, nad textem nebo pod ním, bez náhledu. ✕ náhled
+vypne. Pravidla jsou čisté funkce v `ComposerLinkPreview.kt` (testy `ComposerLinkPreviewTest`).
+
+- **`getLinkPreview` se volá, jen když text odkaz OPRAVDU má** (napřed lokální `getTextEntities`).
+  TDLib u něj píše „do not call this function too often" a na text bez odkazu vrací 404. Pauza
+  po posledním úhozu je 700 ms (`LINK_PREVIEW_DELAY_MS`). 404 je odpověď „náhled není", ne chyba.
+- **Vynucená velikost bez adresy NEPLATÍ.** `forceSmallMedia` a `forceLargeMedia` TDLib bez
+  výslovné `url` ignoruje. Adresa se proto doplní až při odeslání z náhledu, který uživatel
+  právě vidí (`forSending`). Držet ji ve volbě by po přepsání odkazu v textu vynucovalo náhled
+  toho starého. Ověřeno na emulátoru: YouTube, kde server volí velký obrázek, odešel s malým.
+- **Velikost se nabízí jen s `hasLargeMedia`** (`LinkPreview.canChangeSize`). Wikipedia ji nemá,
+  YouTube ano. Volba, která nic nezmění, se nekreslí.
+- **Jiný odkaz = volba znovu od začátku, kromě vypnutí** (`forPreview`). Vypnutí platí do
+  vyprázdnění pole nebo odeslání. Kdo náhled zavřel, nechce, aby se vrátil s dalším písmenem.
+- **Volba patří ke konceptu** (`DraftMessageContentText.linkPreviewOptions`) a po návratu do
+  chatu se vrátí (`ChatInfo.draftLinkPreview`). Obnovený koncept si náhled zjistí sám —
+  vyplnění pole z konceptu `onDraftChanged` nevolá. Totéž platí pro sdílený text.
+- **Při úpravě zprávy a s přílohami se náhled neukazuje.** `editMessageText` volbu zatím nenese
+  (úprava posílá `null`, tedy výchozí server), a text u příloh je popisek.
+- **Sheet je celý rozbalený** (`enabledValues = Hidden, Expanded`). Napůl rozbalený schoval
+  „Poslat bez náhledu" pod okraj — tatáž past jako u ostatních sheetů s víc volbami.
+- **`adb input text` s adresou se na emulátoru useká na tečce** („https://en.wikipedia"). Text pak
+  odkaz neobsahuje a náhled se správně neukáže. Adresa se píše po kouscích („en", „.",
+  „wikipedia"…). A s víc emulátory najednou `adb` bez `-s` odmítne všechno — v zsh se sériové
+  číslo nastavuje přes `ANDROID_SERIAL`, proměnná `ADB="adb -s …"` se na slova nerozdělí.
+
 ### Koncept (rozepsaná zpráva)
 
 Rozepsaný text se ukládá do TDLib (`setChatDraftMessage`), takže přežije odchod z chatu, je vidět

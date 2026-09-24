@@ -325,36 +325,16 @@ a scrollování" u duplicitního klíče po potvrzení odeslání).
 
 ---
 
-## Volby náhledu odkazu při psaní
+## ~~Volby náhledu odkazu při psaní~~ — HOTOVO
 
-**Zatím se nedělá**, jen ať se na to nezapomene. Navazuje na to, že se už respektuje
-`showAboveText` u přijaté zprávy — cizí volbu ctíme, vlastní nabídnout neumíme.
+Náhled nad polem, volby velikosti a polohy, vypnutí; volba se ukládá s konceptem. Poučení
+v `CLAUDE.md`, „Náhled odkazu při psaní". Co zbývá:
 
-Posíláme `InputMessageText(..., linkPreviewOptions = null)`, takže o náhledu rozhoduje celý
-server: jestli vůbec bude, jak velký obrázek a na které straně textu. Z aplikace se nedá ani
-vypnout. TDLib 15 na to má obojí, co je potřeba:
-
-- **`LinkPreviewOptions(isDisabled, url, forceSmallMedia, forceLargeMedia, showAboveText)`** —
-  posílá se v `InputMessageText` a nese ho i koncept (`setChatDraftMessage`), takže volba
-  přežije odchod z chatu.
-- **`getLinkPreview(text, options)`** — lokální dotaz, který vrátí náhled pro rozepsaný text.
-  Jde ho tedy ukázat ve vstupním poli DŘÍV, než se zpráva odešle.
-
-**Kam to patří v UI, už víme:** u přílohy máme tlačítko, které otevře `AttachmentModeSheet` —
-bottom sheet s volbami k tomu, co se odesílá (odeslat jako soubor, spoiler, mizení). Náhled
-odkazu je totéž o patro vedle: náhled nad polem jako další podoba `ComposerHeader` (vedle citace
-a úpravy) a u něj tlačítko, které otevře sheet s volbami — vypnout náhled, velký nebo malý
-obrázek, nad textem nebo pod ním. Sheet i jeho anatomie (sekce s popisky, vybraná položka
-s fajfkou) se tím dají převzít, ne vymýšlet znovu.
-
-Zbývá rozmyslet:
-
-- **Který odkaz**, když je jich v textu víc. Telegram bere první a dá se přepnout přes
-  `options.url`; v prvním kole stačí první.
-- **Kdy se náhled dotahuje.** `getLinkPreview` je lokální, ale volat ho na každý úhoz je zbytečné
-  — hodí se stejná pauza jako u „píše…" nebo u ukládání konceptu.
-- **Co s tím při úpravě zprávy.** `editMessageText` bere `linkPreviewOptions` taky, takže by se
-  volba dala měnit i dodatečně; dnes se u úpravy náhled neřeší vůbec.
+- **Který odkaz**, když je jich v textu víc. Dnes rozhoduje server (první odkaz); přepínat
+  jde přes `LinkPreviewOptions.url`.
+- **Volba při úpravě zprávy.** `editMessageText` bere `linkPreviewOptions` taky, dnes posílá
+  `null`. U zprávy, kterou odesílatel poslal bez náhledu, ho proto úprava nejspíš vrátí — ověřit.
+- **Náhled na iOS** ověřený není (kód je společný, sheet i hlavička jsou v commonMain).
 
 ---
 

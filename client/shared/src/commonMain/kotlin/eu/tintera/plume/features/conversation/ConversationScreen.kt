@@ -181,6 +181,14 @@ import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.audio.rememberRecordPermission
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.LinkPreview
+import androidx.compose.ui.layout.ContentScale
+import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.resources.link_preview_remove
+import eu.tintera.plume.resources.link_preview_options
+import eu.tintera.plume.resources.tune_24dp
+import eu.tintera.plume.resources.link_24dp
+import eu.tintera.plume.core.telegram.LinkPreviewOptions
 import eu.tintera.plume.core.ui.describe
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Presence
@@ -1128,6 +1136,14 @@ fun ConversationScreen(
                 onDraftChanged = viewModel::onDraftChanged,
                 editing = state.editing,
                 onCancelEdit = viewModel::cancelEdit,
+                linkPreview = composerLinkPreview(
+                    preview = state.linkPreview,
+                    options = state.linkPreviewOptions,
+                    editing = state.editing != null,
+                    hasAttachments = state.attachments.isNotEmpty(),
+                ),
+                linkPreviewOptions = state.linkPreviewOptions,
+                onLinkPreviewOptions = viewModel::setLinkPreviewOptions,
                 inputFill = state.inputFill,
                 onInputFilled = viewModel::consumeInputFill,
                 onOpenStickers = { stickerPickerOpen = true },
@@ -1655,6 +1671,10 @@ private fun MessageInput(
     /** Upravovaná zpráva; karta pak místo citace ukazuje, co se upravuje. */
     editing: ChatMessage?,
     onCancelEdit: () -> Unit,
+    /** Náhled odkazu v rozepsaném textu, pokud se má ukázat ([composerLinkPreview]). */
+    linkPreview: LinkPreview? = null,
+    linkPreviewOptions: LinkPreviewOptions = LinkPreviewOptions(),
+    onLinkPreviewOptions: (LinkPreviewOptions) -> Unit = {},
     /** Text, který se má jednou vložit do pole (koncept, úprava). */
     inputFill: InputFill?,
     onInputFilled: () -> Unit,
@@ -1709,6 +1729,17 @@ private fun MessageInput(
     // Nahoře, ne u pole: podle fokusu se ukazuje i návrh vložení ze schránky nad polem.
     val fieldInteraction = remember { MutableInteractionSource() }
     val fieldFocused by fieldInteraction.collectIsFocusedAsState()
+
+    var linkOptionsOpen by rememberSaveable { mutableStateOf(false) }
+    // Náhled, který zmizel (smazaný odkaz, odeslaná zpráva), si sheet nenechá otevřený.
+    if (linkOptionsOpen && linkPreview != null) {
+        LinkPreviewOptionsSheet(
+            preview = linkPreview,
+            options = linkPreviewOptions,
+            onChange = onLinkPreviewOptions,
+            onDismiss = { linkOptionsOpen = false },
+        )
+    }
 
     /*
      * Pruh má barvu POZADÍ, jen průsvitnou.
@@ -1809,6 +1840,27 @@ private fun MessageInput(
                             )
                         }
                     }
+                  }
+                  /*
+                   * Náhled odkazu je poslední pruh nad polem, nejblíž textu, ke kterému patří.
+                   * Mizí a objevuje se se svým místem — naskočí po pauze v psaní a skok by pole
+                   * pod prstem posunul.
+                   */
+                  AnimatedVisibility(
+                      visible = linkPreview != null,
+                      enter = fadeIn() + expandVertically(),
+                      exit = fadeOut() + shrinkVertically(),
+                  ) {
+                      // Při odjezdu je náhled už `null`; dobíhá se s posledním.
+                      var shown by remember { mutableStateOf(linkPreview) }
+                      if (linkPreview != null) shown = linkPreview
+                      shown?.let { preview ->
+                          LinkPreviewHeader(
+                              preview = preview,
+                              onOpenOptions = { linkOptionsOpen = true },
+                              onDismiss = { onLinkPreviewOptions(linkPreviewOptions.copy(disabled = true)) },
+                          )
+                      }
                   }
                   /*
                    * GIF nebo obrázek ve schránce: na iOS nabídne vložení systémovým tlačítkem,
@@ -2243,6 +2295,81 @@ private fun composerHeaderAccent(): Color = accentOn(
     accent = MaterialTheme.colorScheme.tertiary,
     fallback = MaterialTheme.colorScheme.onTertiaryContainer,
 )
+
+/**
+ * Náhled odkazu v rozepsané zprávě: web, titulek a malý obrázek, jak ho připojí server.
+ *
+ * Tentýž pruh jako citace a úprava ([ComposerHeader]) — říká, co odejde spolu s textem. Ťuknutí
+ * (i ikona voleb) otevře [LinkPreviewOptionsSheet], ✕ náhled vypne. Obrázek je vždycky malý
+ * čtvereček: jde o to poznat, JAKÝ náhled to je; velikost v odeslané zprávě ukazuje sheet.
+ */
+@Composable
+private fun LinkPreviewHeader(
+    preview: LinkPreview,
+    onOpenOptions: () -> Unit,
+    onDismiss: () -> Unit,
+) = ComposerHeader {
+    val accent = composerHeaderAccent()
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .weight(1f)
+            .clickable(onClick = onOpenOptions)
+            .padding(start = 14.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painterResource(Res.drawable.link_24dp),
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.padding(end = 4.dp).size(16.dp),
+                )
+                Text(
+                    text = preview.siteName ?: preview.title ?: preview.url,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = accent,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            // Druhý řádek jen tehdy, když řekne něco jiného než první.
+            (preview.title?.takeIf { preview.siteName != null } ?: preview.description)?.let { line ->
+                Text(
+                    text = line,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        preview.photo?.let { photo ->
+            RemoteImage(
+                fileId = photo.fileId,
+                thumbnailFileId = photo.thumbnailFileId,
+                placeholder = photo.minithumbnail,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.padding(start = 8.dp).size(LINK_HEADER_THUMBNAIL).clip(RoundedCornerShape(8.dp)),
+            )
+        }
+    }
+    IconButton(onClick = onOpenOptions) {
+        Icon(
+            painterResource(Res.drawable.tune_24dp),
+            contentDescription = stringResource(Res.string.link_preview_options),
+        )
+    }
+    IconButton(onClick = onDismiss) {
+        Icon(
+            painterResource(Res.drawable.close_24dp),
+            contentDescription = stringResource(Res.string.link_preview_remove),
+        )
+    }
+}
+
+/** Obrázek v pruhu náhledu odkazu — vejde se do výšky dvou řádků textu. */
+private val LINK_HEADER_THUMBNAIL = 36.dp
 
 /**
  * Hlavička karty při úpravě zprávy.
