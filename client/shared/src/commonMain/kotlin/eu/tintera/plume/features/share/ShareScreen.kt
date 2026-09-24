@@ -47,6 +47,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -88,9 +89,26 @@ class ShareViewModel(
         search.setQuery(text)
     }
 
+    /**
+     * Sdílení, které výběr ukazuje: poslední bez vybraného chatu. Direct Share, které přijde
+     * mezitím (už s chatem), sem nepatří — kvůli němu shell výběr nahrazuje, a jeho odchod ho
+     * proto zahodit nesmí.
+     */
+    private var shownId: Long? = requests.incoming.value?.takeIf { it.targetChatId == null }?.id
+
+    init {
+        viewModelScope.launch {
+            requests.incoming.collect { content ->
+                if (content != null && content.targetChatId == null) shownId = content.id
+            }
+        }
+    }
+
     fun choose(chatId: Long) = requests.choose(chatId)
 
-    fun abandon() = requests.abandon()
+    fun abandon() {
+        shownId?.let(requests::abandon)
+    }
 }
 
 data class ShareState(
