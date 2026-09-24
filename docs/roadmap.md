@@ -121,14 +121,14 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   i nahlásit~~, ~~průvodce nahlášením s volbou důvodu~~ (i zprávy z nabídky nad zprávou),
   ~~pruh nad konverzací u chatu od neznámého~~ — hotovo (`CLAUDE.md`, „Blokování a nahlášení
   spamu"). Zbývá:
-  - **„Vrátit mezi chaty" v pruhu** u automaticky archivovaného chatu (`canUnarchive`) — chce
-    `addChatToList` spolu s návratem upozornění na výchozí.
+  - ~~**„Vrátit mezi chaty" v pruhu**~~ — hotovo (`CLAUDE.md`, „Pruh nad konverzací").
+    **Zbývá ověřit na zařízení**, že se konverzace otevřená z archivu přestěhuje do hlavního
+    seznamu a chat se odtlumí; emulátor při zkoušce spadl a odhlásil se.
   - **Zbylé druhy pruhu nad chatem.** `ChatActionBar` má v TDLib 15 šest druhů a „akce, které
     musí jít z pruhu udělat" (dokumentace TDLib); Plume kreslí jen `ReportSpam`, `ReportAddBlock`
     a `AddContact`. Chybí:
-    - **Údaje o protějšku u `ReportAddBlock`** (`accountInfo`: měsíc a rok registrace, země
-      podle čísla, kdy naposledy změnil jméno a fotku). Telegram je posílá, když cizí napíše
-      poprvé, právě aby šel poznat spam nebo ukradený účet.
+    - ~~**Údaje o protějšku u `ReportAddBlock`**~~ — hotovo (`CounterpartAccount`). Česká
+      podoba řádků ověřená na zařízení není, jen anglická.
     - **Upozornění na emoji status** u `ReportSpam` / `ReportAddBlock` („must be shown"). Status
       jde koupit s Premium a dá se jím napodobit ověřovací odznak. Plume emoji statusy zatím
       nekreslí, takže riziko teď nehrozí; přijde spolu s nimi.

@@ -116,6 +116,7 @@ import eu.tintera.plume.features.chats.SpamCleanup
 import eu.tintera.plume.features.chats.cleanUpSpam
 import eu.tintera.plume.features.report.ReportFlow
 import eu.tintera.plume.resources.chats_blocked
+import eu.tintera.plume.resources.chats_unarchived
 import eu.tintera.plume.resources.spam_bar_contact_added
 import eu.tintera.plume.resources.spam_bar_failed
 import kotlinx.coroutines.flow.StateFlow
@@ -218,6 +219,15 @@ class ConversationViewModel(
      * obrazovka si ho vyzvedne, i kdyby zrovna nebyla složená.
      */
     val chatGone: StateFlow<Boolean> = _chatGone.asStateFlow()
+
+    private val _unarchived = MutableStateFlow(false)
+
+    /**
+     * Automaticky archivovaný chat se z pruhu vrátil mezi chaty. Obrazovka otevřená z archivu
+     * se tím přestěhuje do hlavního seznamu — v archivu už chat není. Stav ze stejného důvodu
+     * jako [chatGone].
+     */
+    val unarchived: StateFlow<Boolean> = _unarchived.asStateFlow()
 
     private val logger = Logger.withTag("Conversation")
 
@@ -2053,6 +2063,21 @@ class ConversationViewModel(
                 .onSuccess { _state.update { it.copy(notice = UiText(Res.string.spam_bar_contact_added)) } }
                 .onFailure { failure ->
                     logger.w(failure) { "Přidání do kontaktů z chatu $chatId selhalo." }
+                    _state.update { it.copy(error = failure.userMessage(Res.string.spam_bar_failed)) }
+                }
+        }
+    }
+
+    /** „Vrátit mezi chaty" z pruhu u chatu, který server archivoval sám. */
+    fun unarchiveFromSpamBar() {
+        viewModelScope.launch {
+            chatRepository.unarchiveFromSpamBar(chatId)
+                .onSuccess {
+                    _state.update { it.copy(notice = UiText(Res.string.chats_unarchived)) }
+                    _unarchived.value = true
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Vrácení chatu $chatId z archivu selhalo." }
                     _state.update { it.copy(error = failure.userMessage(Res.string.spam_bar_failed)) }
                 }
         }

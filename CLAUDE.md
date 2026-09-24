@@ -2075,6 +2075,35 @@ nad chatem (a totéž jako sheet v profilu, `DeleteChatOptions`) a **„Nahlási
   klient, jen dialogem. Smazaný chat konverzaci zavře (`chatGone`).
 - **Přidat kontakt bere jméno z účtu protějšku** a svoje číslo NEsdílí (`sharePhoneNumber =
   false`) — to je samostatné rozhodnutí o soukromí. ✕ zavře pruh napořád (`removeChatActionBar`).
+- **Nahlásit jde člověka JEN přes pruh.** `reportChat` pustí soukromý chat pouze s botem
+  (`UserManager::can_report_user`: `is_bot`), skupinu nikdy, supergroup a kanál jen nevlastníkovi.
+  Bez spamového pruhu u člověka nezbývá než zablokovat a smazat — a oficiální klient to má
+  stejně. **Past:** když TDLib pruh zná a spam v něm není, prázdný `reportChat` vrátí
+  `ReportChatResultOk` a NIC NEODEŠLE. Kdo by se ptal jen na výsledek, hlásil by úspěch.
+- **Pruh se neztrácí časem, ale akcí na účtu.** TDLib si ho zjistí sám, jakmile chat poprvé
+  vidí (`users.getFullUser` → `peerSettings`), a lokálně ho schová jen po nahlášení
+  a zablokování. Jinak ho zhasne server: odpověď, přidání kontaktu nebo křížek z KTERÉHOKOLI
+  klienta. Kdy ho server vůbec nastaví, dokumentované není.
+- **Automaticky archivovaný chat má v pruhu „Vrátit mezi chaty" MÍSTO „Nahlásit spam"**
+  (`canUnarchive`), jak to předepisuje dokumentace Telegramu. Nahlásit jde dál zaškrtávátkem
+  v sheetu Zablokovat. Vrácení jsou DVĚ volání souběžně (`unarchiveFromSpamBar`):
+  `addChatToList(ChatListMain)` a upozornění chatu na výchozí (`defaultChatNotificationSettings`,
+  sdílené s obnovením výjimky v Nastavení) — server chat při archivaci i ztlumil. Pruh si pak
+  TDLib upraví sám: nahlášení a blokování zmizí, přidání kontaktu zůstane.
+- **Konverzace otevřená z archivu se po vrácení PŘESTĚHUJE do hlavního seznamu**
+  (`moveConversationToMain`, testy `ChatsStackTest`), nezavře se. Zavřít by uživatele vyhodilo
+  z chatu, o který právě řekl, že stojí; nechat by znamenalo konverzaci vedle archivu, ve kterém
+  chat už není. Z hlavní větve se odebere i detail jiného chatu (profil, úprava) — jinak by zpět
+  z vráceného chatu vedlo do profilu toho předchozího.
+- **Údaje o protějšku jsou pod nadpisem pruhu** (`CounterpartAccount`, testy
+  `CounterpartAccountTest`): od kdy je na Telegramu, země podle čísla s vlajkou a kdy změnil
+  jméno a fotku. Chodí jen u `ReportAddBlock`, když cizí napíše poprvé. Neznámé hodnoty TDLib
+  posílá jako nulu nebo prázdný řetězec, takže se vynechají — a bez jediné se neukáže nic.
+  „Od března 2021" stojí na tvaru měsíce za dnem (`Month.name()`), protože po „od" je v češtině
+  stejný 2. pád; nový sloupec nominativů by byl na jedno místo.
+- **Vlajka je z kódu země, ne z tabulky** (`flagEmoji`): písmena se posunou na regionální
+  indikátory a písmo je složí. Název země překládá systém (`localizedCountryName`), jako při
+  přihlášení.
 - **Pruh a připnuté zprávy se měří spolu** (jeden `Column` s `onSizeChanged`), seznam se odsazuje
   o výšku obou. Spam stojí nad připnutou zprávou.
 - **Text a tlačítka pruhu jsou v jednom sloupci, křížek vedle.** V řádku s `IconButton` (48 dp)
@@ -2130,9 +2159,11 @@ i profil stojí na chatu, a ten po smazání není.
   profilu, podmenu smazání se zaškrtávátky „Block them too" a „Report — you'll pick a reason",
   sheet smazání v profilu, „Report" v nabídce nad zprávou; průvodce ukáže důvody od serveru
   („What is wrong with this bot?" / „…this message?") a zavření nic neodešle.
-- **Pruh nad konverzací se ověřoval PODSTRČENÝM stavem** (`spamBar` natvrdo
-  `SpamBar(true, true, true)`, necommituje se) — chat od cizího na testovacím účtu není. Vzhled
-  pruhu a sheet „Report spam?" ověřené jsou, **skutečné `UpdateChatActionBar` ne.**
+- **Pruh nad konverzací se ověřoval PODSTRČENÝM stavem** (`spamBar` v `ConversationViewModel`
+  pro chat s testovacím botem nahrazený pevným `SpamBar` i s `CounterpartAccount`, necommituje se)
+  — chat od cizího na testovacím účtu není. Vzhled pruhu, údaje o protějšku (anglicky) a sheet
+  „Report spam?" ověřené jsou, **skutečné `UpdateChatActionBar` ne.** Vrácení z archivu se na
+  archivovaném botovi ťuknout dá, jenže podstrčený pruh zůstává i po něm.
 - **Skutečné nahlášení, smazání s volbami a přidání kontaktu ověřené NEJSOU** — nahlášení by šlo
   moderátorům Telegramu na vlastního testovacího bota.
 

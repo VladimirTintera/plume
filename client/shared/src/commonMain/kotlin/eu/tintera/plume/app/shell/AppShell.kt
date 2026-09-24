@@ -519,6 +519,7 @@ private fun shellEntryProvider(
             onSearch = { query -> navigation.openSearch(query, keepConversation = false) },
             onOpenProfile = { chatsStack.add(ArchiveChatProfileRoute(route.chatId)) },
             onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(chatId)) },
+            onUnarchived = { chatsStack.moveConversationToMain(route.chatId) },
         )
     }
 

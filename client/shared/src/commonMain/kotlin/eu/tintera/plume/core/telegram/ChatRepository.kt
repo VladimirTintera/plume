@@ -211,6 +211,14 @@ interface ChatRepository {
     /** Zavře pruh nad konverzací napořád (`removeChatActionBar`). */
     suspend fun dismissSpamBar(chatId: Long): Result<Unit>
 
+    /**
+     * Vrátí automaticky archivovaný chat mezi chaty ([SpamBar.canUnarchive]). Podle TDLib to
+     * jsou DVĚ věci naráz: `addChatToList(ChatListMain)` a upozornění chatu zpátky na výchozí
+     * — server chat od neznámého při archivaci i ztlumil. Pruh si pak TDLib upraví sám
+     * (nahlášení a blokování z něj zmizí, přidání kontaktu zůstane).
+     */
+    suspend fun unarchiveFromSpamBar(chatId: Long): Result<Unit>
+
     /** Přidá protějšek soukromého chatu do kontaktů pod jménem, které má v Telegramu. */
     suspend fun addToContacts(chatId: Long): Result<Unit>
 }

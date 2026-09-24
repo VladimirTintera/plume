@@ -63,6 +63,9 @@ import dev.g000sha256.tdl.dto.UserStatusLastWeek
 import dev.g000sha256.tdl.dto.UserStatusOffline
 import dev.g000sha256.tdl.dto.UserStatusOnline
 import dev.g000sha256.tdl.dto.UserStatusRecently
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.async
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CoroutineScope
@@ -684,6 +687,21 @@ class TdlChatRepository(
         client.removeChatActionBar(chatId = chatId).toResult().map { }
 
     /**
+     * Obojí souběžně, jak to TDLib u `canUnarchive` předepisuje („simultaneously"). Selhání
+     * kteréhokoli je selhání celku; co prošlo, se nevrací — přesunutý chat se ztlumením by
+     * uživatel viděl a napravil, kdežto „vrácení" bez přesunu by vypadalo, že nic neudělalo.
+     */
+    override suspend fun unarchiveFromSpamBar(chatId: Long): Result<Unit> = coroutineScope {
+        val move = async { setArchived(chatId, archived = false) }
+        val unmute = async {
+            client.setChatNotificationSettings(chatId = chatId, notificationSettings = defaultChatNotificationSettings())
+                .toResult()
+                .map { }
+        }
+        listOf(move, unmute).awaitAll().firstOrNull { it.isFailure } ?: Result.success(Unit)
+    }
+
+    /**
      * Jméno se bere z účtu protějšku, ne od uživatele: pruh nabízí „přidat", ne „vyplnit
      * formulář". Telefon se posílá jen známý — neznámý smí být prázdný. Svoje číslo protějšku
      * nesdílíme (`sharePhoneNumber = false`); to je samostatné rozhodnutí o soukromí.
@@ -1088,12 +1106,27 @@ private fun Chat.reportsSpamDirectly(): Boolean =
     actionBar is ChatActionBarReportSpam || actionBar is ChatActionBarReportAddBlock
 
 /** Pruh proti spamu nad konverzací; `null` u pruhů, které aplikace nekreslí. */
-private fun Chat.spamBar(): SpamBar? = when (actionBar) {
-    is ChatActionBarReportSpam -> SpamBar(canReportSpam = true, canBlock = false, canAddContact = false)
+private fun Chat.spamBar(): SpamBar? = when (val bar = actionBar) {
+    is ChatActionBarReportSpam -> SpamBar(
+        canReportSpam = true,
+        canBlock = false,
+        canAddContact = false,
+        canUnarchive = bar.canUnarchive,
+    )
     is ChatActionBarReportAddBlock -> SpamBar(
         canReportSpam = true,
         canBlock = blockableUserId() != null,
         canAddContact = blockableUserId() != null,
+        canUnarchive = bar.canUnarchive,
+        account = bar.accountInfo?.let {
+            CounterpartAccount.of(
+                month = it.registrationMonth,
+                year = it.registrationYear,
+                phoneCountryCode = it.phoneNumberCountryCode,
+                nameChangedAt = it.lastNameChangeDate,
+                photoChangedAt = it.lastPhotoChangeDate,
+            )
+        },
     )
     is ChatActionBarAddContact -> SpamBar(canReportSpam = false, canBlock = false, canAddContact = true)
     else -> null

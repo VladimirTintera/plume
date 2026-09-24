@@ -289,6 +289,11 @@ fun ConversationScreen(
     onOpenProfile: () -> Unit,
     /** Profil jiného chatu nad konverzací — odesílatel ze skupiny, na jehož tvář se ťuklo. */
     onOpenUserProfile: (chatId: Long) -> Unit,
+    /**
+     * Chat se z pruhu vrátil z archivu mezi chaty. Jen konverzace otevřená Z ARCHIVU s tím
+     * něco dělá (přestěhuje se do hlavního seznamu); jinde se nic měnit nemusí.
+     */
+    onUnarchived: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
@@ -356,6 +361,8 @@ fun ConversationScreen(
 
     // Chat se z pruhu proti spamu smazal — konverzace nemá co ukazovat.
     LaunchedEffect(chatGone) { if (chatGone) onBack() }
+    val unarchived by viewModel.unarchived.collectAsStateWithLifecycle()
+    LaunchedEffect(unarchived) { if (unarchived) onUnarchived() }
 
     ReportHost(viewModel.reportFlow, snackbarHostState)
 
@@ -1485,6 +1492,7 @@ fun ConversationScreen(
                             onBlock = { spamBarAction = SpamBarAction.Block },
                             onReport = { spamBarAction = SpamBarAction.Report },
                             onAddContact = viewModel::addSpamBarContact,
+                            onUnarchive = viewModel::unarchiveFromSpamBar,
                             onDismiss = viewModel::dismissSpamBar,
                         )
                     }

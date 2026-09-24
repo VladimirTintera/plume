@@ -30,6 +30,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.SpamBar
+import eu.tintera.plume.core.telegram.CounterpartAccountLine
+import eu.tintera.plume.core.telegram.flagEmoji
+import eu.tintera.plume.core.telegram.localizedCountryName
+import eu.tintera.plume.core.ui.asDayLabel
+import eu.tintera.plume.core.ui.name
+import kotlinx.datetime.Month
+import eu.tintera.plume.resources.chats_action_unarchive
+import eu.tintera.plume.resources.spam_bar_registered
+import eu.tintera.plume.resources.spam_bar_phone_country
+import eu.tintera.plume.resources.spam_bar_name_changed
+import eu.tintera.plume.resources.spam_bar_photo_changed
 import eu.tintera.plume.features.chats.CleanupOptions
 import eu.tintera.plume.features.chats.CleanupToggle
 import eu.tintera.plume.resources.Res
@@ -61,6 +72,13 @@ import org.jetbrains.compose.resources.stringResource
  * Plave nad seznamem jako pruh připnutých, se stejným okrajem a zaoblením, a stojí nad ním —
  * spam je důležitější než připnutá zpráva. Zablokovat a Nahlásit jsou chybovou barvou: jsou to
  * akce PROTI protějšku a obě otevřou sheet s volbami, ne rovnou akci.
+ *
+ * **Chat, který server archivoval sám, nabízí místo nahlášení „Vrátit mezi chaty"**
+ * ([SpamBar.canUnarchive]) — tak to předepisuje dokumentace Telegramu. Nahlásit jde dál
+ * zaškrtávátkem v sheetu Zablokovat i z nabídky nad chatem.
+ *
+ * Pod nadpisem jsou údaje, které server o protějšku poslal ([SpamBar.account]): podle nich se
+ * pozná čerstvě založený nebo ukradený účet dřív, než uživatel na zprávu odpoví.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -69,6 +87,7 @@ internal fun SpamBarCard(
     onBlock: () -> Unit,
     onReport: () -> Unit,
     onAddContact: () -> Unit,
+    onUnarchive: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -89,6 +108,17 @@ internal fun SpamBarCard(
                     text = stringResource(Res.string.spam_bar_text),
                     style = MaterialTheme.typography.titleSmall,
                 )
+                bar.account?.let { account ->
+                    Column(Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        account.lines.forEach { line ->
+                            Text(
+                                text = line.text(),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.offset(x = (-12).dp),
@@ -97,7 +127,9 @@ internal fun SpamBarCard(
                     if (bar.canBlock) {
                         TextButton(onClick = onBlock, colors = destructive) { Text(stringResource(Res.string.profile_block)) }
                     }
-                    if (bar.canReportSpam) {
+                    if (bar.canUnarchive) {
+                        TextButton(onClick = onUnarchive) { Text(stringResource(Res.string.chats_action_unarchive)) }
+                    } else if (bar.canReportSpam) {
                         TextButton(onClick = onReport, colors = destructive) { Text(stringResource(Res.string.chats_delete_report)) }
                     }
                     if (bar.canAddContact) {
@@ -111,6 +143,22 @@ internal fun SpamBarCard(
             }
         }
     }
+}
+
+/** Jeden řádek údajů o protějšku. Země a měsíc jdou přes jazyk aplikace, jako jinde. */
+@Composable
+private fun CounterpartAccountLine.text(): String = when (this) {
+    is CounterpartAccountLine.Registered -> stringResource(
+        Res.string.spam_bar_registered,
+        stringResource(Month(month.month).name()),
+        month.year,
+    )
+    is CounterpartAccountLine.PhoneCountry -> stringResource(
+        Res.string.spam_bar_phone_country,
+        listOfNotNull(flagEmoji(code), localizedCountryName(code) ?: code).joinToString(" "),
+    )
+    is CounterpartAccountLine.NameChanged -> stringResource(Res.string.spam_bar_name_changed, at.asDayLabel())
+    is CounterpartAccountLine.PhotoChanged -> stringResource(Res.string.spam_bar_photo_changed, at.asDayLabel())
 }
 
 /** Co se z pruhu spouští: zablokování, nebo nahlášení spamu — a co k tomu přibalit. */

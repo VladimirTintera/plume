@@ -245,7 +245,8 @@ private fun DayOfWeek.longName(): StringResource = when (this) {
  * („5. února", ne „5. únor"), angličtina v základním. Proto je i samotné pořadí dne a měsíce
  * formátovací řetězec (`date_day_month`), ne slepenec tady v kódu.
  */
-private fun Month.name(): StringResource = when (this) {
+/** Název měsíce ve tvaru za dnem („5. února"), tedy i za „od" („od března 2021"). */
+internal fun Month.name(): StringResource = when (this) {
     Month.JANUARY -> Res.string.month_1
     Month.FEBRUARY -> Res.string.month_2
     Month.MARCH -> Res.string.month_3
