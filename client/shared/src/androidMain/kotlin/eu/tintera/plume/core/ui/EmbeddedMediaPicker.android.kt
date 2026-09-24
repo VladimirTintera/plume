@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.ext.SdkExtensions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -147,13 +148,6 @@ actual fun EmbeddedMediaPicker(
         },
     )
 
-    /*
-     * Rozbalený stav se NEZAPÍNÁ (`setPickerLaunchedInExpandedState`, `initialExpandedValue`).
-     * Zní to jako „ukaž celou galerii", ale picker se v něm přepne do VLASTNÍ AKTIVITY —
-     * ověřeno na emulátoru: `mCurrentFocus` skočil na `com.google.android.photopicker`
-     * a za sheetem zůstala plocha systému. Tím by z vestavěného výběru zase byl ten systémový,
-     * jen složitější cestou.
-     */
     val colors = MaterialTheme.colorScheme
     val dark = colors.surface.luminance() < 0.5f
     val accent = colors.primary
@@ -186,6 +180,19 @@ actual fun EmbeddedMediaPicker(
             }
             .build()
     }
+
+    /*
+     * Picker MUSÍ být rozbalený, jinak v něm nejde scrollovat. Sbalený stav je jen náhled pro
+     * sheet, který hostitel teprve táhne nahoru: bez záložek a se zakázaným scrollováním
+     * (`embeddedCollapsedModeScrollingEnabled=false` v logu pickeru; veřejné API ho zapnout
+     * neumí). Náš sheet je vždycky celý rozbalený, takže sbalený picker v něm byl mřížka,
+     * se kterou nešlo pohnout (hlášeno z Pixelu 11 Pro Foldu, zreprodukováno na emulátoru).
+     *
+     * Nastavuje se před startem session, takže se promítne do `setPickerLaunchedInExpandedState`;
+     * picker přitom zůstane vestavěný v sheetu (`mCurrentFocus` zůstává na naší aktivitě,
+     * ověřeno na emulátoru s API 37.2 rozloženém i složeném).
+     */
+    LaunchedEffect(state) { state.isExpanded = true }
 
     EmbeddedPhotoPicker(state = state, modifier = modifier, embeddedPhotoPickerFeatureInfo = info)
 }

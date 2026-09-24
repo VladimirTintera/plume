@@ -2366,10 +2366,23 @@ rozhoduje `embeddedMediaPickerAvailable()`.
   Odznačená položka se hlásí jako URI od pickeru, ale konverzace zná přílohy podle CESTY do
   cache — proto si `actual` drží mapu URI → cesta a `ConversationViewModel.removeAttachments`
   bere cesty.
-- **Rozbalený stav se NEZAPÍNÁ.** `setPickerLaunchedInExpandedState(true)` (ani
-  `initialExpandedValue`) neznamená „ukaž celou galerii": picker se v něm přepne do VLASTNÍ
-  AKTIVITY — ověřeno na emulátoru, `mCurrentFocus` skočil na `com.google.android.photopicker`
-  a za sheetem zůstala plocha systému. Tím by z vestavěného výběru byl zase ten systémový.
+- **Picker MUSÍ být rozbalený (`state.isExpanded = true`), jinak v něm nejde scrollovat.**
+  Sbalený stav je náhled pro sheet, který hostitel teprve táhne nahoru: bez záložek
+  Photos / Collections a se zakázaným scrollováním — v logu pickeru
+  `embeddedCollapsedModeScrollingEnabled=false`, a veřejné API ho zapnout neumí. Náš sheet je
+  vždycky celý rozbalený, takže sbalený picker v něm byl mřížka, se kterou nešlo pohnout
+  (hlášeno z Pixelu 11 Pro Foldu jako „zaseklý sheet"). Stav se nastaví před startem session,
+  takže se promítne do `setPickerLaunchedInExpandedState(true)`.
+- **Dřívější tvrzení, že rozbalený picker přejde do VLASTNÍ AKTIVITY, se nepotvrdilo.** Na
+  emulátoru s API 37.2 (profil Pixel 10 Pro Fold, rozložený i složený) zůstává `mCurrentFocus`
+  na `MainActivity` a picker kreslí dál do našeho sheetu — i po výběru, odznačení a opětovném
+  otevření. Kdyby se to na nějakém zařízení přesto dělo, pozná se to v logu pickeru podle
+  `embeddedPickerLaunchedInExpandedState=true` a `mCurrentFocus` na
+  `com.google.android.photopicker`; náhradní cesta je nastavit `isExpanded` až PO startu
+  session (pak jde přes `notifyPhotoPickerExpanded`).
+- **Co picker dostal za konfiguraci, je v logu** (`adb logcat | grep PhotopickerConfiguration`):
+  celé `EmbeddedPhotoPickerFeatureInfo` i odvozená konfigurace. Tudy se příčina našla — vzhled
+  (chybějící záložky) napovídal, ale rozhodl řádek `embeddedCollapsedModeScrollingEnabled`.
 - **Picker se zapíná až po DOSEDNUTÍ sheetu.** `SurfaceView` má `setZOrderOnTop(true)` a s posunem
   vrstvy se nehýbe — tatáž vlastnost, kvůli které video v prohlížeči jede do `TextureView`
   a ne přes `PlayerView`. Během vjezdu sheetu by stál na místě a doskočil až na konci.
