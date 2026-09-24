@@ -1,7 +1,9 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -12,25 +14,30 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetState
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -38,11 +45,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.ui.asDayLabel
+import eu.tintera.plume.core.ui.groupItemShape
+import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.features.conversation.items.describe
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.close_24dp
@@ -52,6 +64,7 @@ import eu.tintera.plume.resources.conversation_pinned_message
 import eu.tintera.plume.resources.conversation_pinned_message_numbered
 import eu.tintera.plume.resources.format_list_bulleted_24dp
 import eu.tintera.plume.resources.menu_unpin
+import eu.tintera.plume.resources.push_pin_filled_24dp
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
@@ -63,11 +76,14 @@ import org.jetbrains.compose.resources.stringResource
  * Kanály připnuté příspěvky většinou neodepínají, jen přidávají další, takže seznam přes tři řádky
  * visel nad konverzací jako trvalý blok. Ukazuje se proto jen jedna zpráva — na začátku
  * nejnovější — a ťuknutí na ni skočí a posune pruh na starší (dokola). Tak to dělá i oficiální
- * klient. Kolik jich je a kde v řadě stojíme, říká svislý ukazatel vlevo; celý seznam je za
- * ikonou vpravo v sheetu.
+ * klient. Kolik jich je a kde v řadě stojíme, říká titulek („Připnutá zpráva 3 z 5"); celý
+ * seznam je za ikonou vpravo v sheetu.
  *
- * Karta plave nad zprávami s okrajem, ne přes celou šířku: je to doplněk konverzace, ne kus
- * hlavičky, a zaoblená plocha s drobným stínem se od zpráv pod ní odlepí sama.
+ * **Plovoucí pilulka ze skla, ne karta s proužkem.** Svislý proužek vlevo (dílek na zprávu) byl
+ * jazyk M2 a v aplikaci už jednou ustoupil ploše (citace, náhled odkazu). Pruh je tvarem stejný
+ * jako plovoucí lišty konverzace — pilulka, která se od zpráv pod ní odlepí stínem a sklem. Vlevo
+ * je špendlík v sedmistranné sušence ([PinnedBadge]); ta se při přechodu na jinou připnutou
+ * pootočí, takže změnu je vidět i koutkem oka, bez čtení titulku.
  */
 @Composable
 internal fun PinnedMessagesBar(
@@ -85,26 +101,26 @@ internal fun PinnedMessagesBar(
     val current = messages.getOrNull(index) ?: return
     val multiple = messages.size > 1
 
-    val shape = RoundedCornerShape(PINNED_BAR_CORNER)
     Surface(
         color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = shape,
-        shadowElevation = 2.dp,
+        shape = CircleShape,
+        shadowElevation = 3.dp,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
         Row(
             Modifier
-                .clip(shape)
+                .clip(CircleShape)
                 .then(glass)
                 .clickable { onOpen(current) }
                 .heightIn(min = PINNED_BAR_HEIGHT)
-                .padding(start = 12.dp, end = 4.dp),
+                // Odznak stojí od kraje tak, aby jeho kruh byl soustředný se zaoblením pilulky.
+                .padding(start = PINNED_BADGE_INSET, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PinnedPositionIndicator(count = messages.size, index = index)
+            PinnedBadge(index = index)
 
             // Starší zpráva přijede shora — historií se jde nahoru. Skoková výměna textu by se
             // dala přehlédnout.
@@ -118,14 +134,14 @@ internal fun PinnedMessagesBar(
                     (slideInVertically { -sign * it / 2 } + fadeIn())
                         .togetherWith(slideOutVertically { sign * it / 2 } + fadeOut())
                 },
-                modifier = Modifier.weight(1f).padding(start = 10.dp),
+                modifier = Modifier.weight(1f).padding(start = 12.dp),
                 label = "pinned-message",
             ) { message ->
                 val number = messages.size - messages.indexOfFirst { it.id == message.id }
                 PinnedContent(
                     message = message,
                     title = if (multiple) {
-                        stringResource(Res.string.conversation_pinned_message_numbered, number)
+                        stringResource(Res.string.conversation_pinned_message_numbered, number, messages.size)
                     } else {
                         stringResource(Res.string.conversation_pinned_message)
                     },
@@ -148,9 +164,43 @@ internal fun PinnedMessagesBar(
                         modifier = Modifier.size(20.dp),
                     )
                 }
-                else -> Box(Modifier.width(8.dp))
+                else -> Box(Modifier.width(12.dp))
             }
         }
+    }
+}
+
+/**
+ * Špendlík v sedmistranné sušence. Sušenka se s každou další připnutou pootočí o jednu vlnku
+ * (starší po směru hodinových ručiček, novější proti), pružinou s přeskokem; špendlík stojí.
+ *
+ * Úhel je přímo funkce indexu, ne počítadlo kroků — při skoku o víc zpráv (odepnutí, scroll)
+ * se sušenka protočí o víc vlnek, a stav navíc se nedrží.
+ */
+@Composable
+private fun PinnedBadge(index: Int) {
+    val rotation by animateFloatAsState(
+        targetValue = index * PINNED_BADGE_STEP,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessLow),
+        label = "pinned-badge",
+    )
+    val container = MaterialTheme.colorScheme.primaryContainer
+    // Sedmistranná sušenka jinde v aplikaci nic neznamená (viz `ShapeMorphs`) a na rozdíl od
+    // kruhu je na ní otočení vidět.
+    val shape = MaterialShapes.Cookie7Sided.toShape()
+    Box(Modifier.size(PINNED_BADGE_SIZE), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .matchParentSize()
+                .graphicsLayer { rotationZ = rotation }
+                .background(container, shape),
+        )
+        Icon(
+            painterResource(Res.drawable.push_pin_filled_24dp),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 
@@ -164,13 +214,13 @@ private fun PinnedContent(message: ChatMessage, title: String) {
                 modifier = Modifier
                     .padding(end = 10.dp)
                     .size(PINNED_THUMBNAIL)
-                    .clip(RoundedCornerShape(6.dp)),
+                    .clip(RoundedCornerShape(10.dp)),
             )
         }
         Column {
             Text(
                 text = title,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelMediumEmphasized.tabularNumbers(),
                 color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
             )
@@ -180,41 +230,6 @@ private fun PinnedContent(message: ChatMessage, title: String) {
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
-/**
- * Svislý ukazatel pozice: jeden dílek na zprávu, nejnovější dole, zvýrazněná ta ukázaná.
- *
- * Víc než [INDICATOR_MAX_SEGMENTS] dílků by byly nerozeznatelné čárky, takže se u delší řady
- * ukazuje jen okno kolem aktuální zprávy a posouvá se s ní (jako v oficiálním klientu).
- */
-@Composable
-private fun PinnedPositionIndicator(count: Int, index: Int) {
-    val visible = count.coerceAtMost(INDICATOR_MAX_SEGMENTS)
-    // Okno nad řadou od nejnovější: aktuální zpráva se drží uvnitř, nejraději ne na kraji.
-    val windowStart = (index - (visible - 2)).coerceIn(0, (count - visible).coerceAtLeast(0))
-    val segment = (INDICATOR_HEIGHT - INDICATOR_GAP * (visible - 1)) / visible
-
-    Column(
-        Modifier.height(INDICATOR_HEIGHT).width(3.dp),
-        verticalArrangement = Arrangement.spacedBy(INDICATOR_GAP),
-    ) {
-        // Shora dolů od nejstarší v okně k nejnovější.
-        for (slot in visible - 1 downTo 0) {
-            val active = windowStart + slot == index
-            val color by animateColorAsState(
-                if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                MaterialTheme.motionScheme.defaultEffectsSpec(),
-            )
-            Box(
-                Modifier
-                    .width(3.dp)
-                    .height(segment)
-                    .clip(RoundedCornerShape(50))
-                    .background(color),
             )
         }
     }
@@ -248,16 +263,23 @@ internal fun PinnedMessagesSheet(
         Text(
             text = pluralStringResource(Res.plurals.conversation_pinned_count, messages.size, messages.size),
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 4.dp, bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 4.dp, bottom = 12.dp),
         )
-        LazyColumn(Modifier.padding(bottom = 8.dp)) {
-            items(messages, key = { it.id }) { message ->
+        // Blok zaoblených řádků jako seznam chatů, kontakty nebo odkazy v profilu — dřív to byly
+        // holé řádky na ploše sheetu, jiný vzhled pro tentýž „seznam věcí".
+        LazyColumn(
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+        ) {
+            itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
                 PinnedSheetRow(
                     message = message,
                     canUnpin = canUnpin,
                     onOpen = { hideThen { onOpen(message) } },
                     // Sheet zůstává otevřený: odepíná se často víc zpráv po sobě.
                     onUnpin = { onUnpin(message) },
+                    // Odepnutá zpráva odejde animací a sousedé si přeberou krajní zaoblení.
+                    modifier = Modifier.animateItem().clip(groupItemShape(index, messages.size)),
                 )
             }
         }
@@ -270,39 +292,44 @@ private fun PinnedSheetRow(
     canUnpin: Boolean,
     onOpen: () -> Unit,
     onUnpin: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = PINNED_BAR_HEIGHT)
-            .clickable(onClick = onOpen)
-            .padding(start = 24.dp, end = if (canUnpin) 12.dp else 24.dp, top = 6.dp, bottom = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // Špendlík u řádku není: připnuté jsou tu všechny, a nadpis sheetu to říká.
-        message.media.thumbnailFileId()?.let { fileId ->
-            RemoteImage(
-                fileId = fileId,
-                modifier = Modifier.padding(end = 12.dp).size(PINNED_THUMBNAIL).clip(RoundedCornerShape(6.dp)),
+    ListItem(
+        headlineContent = {
+            Text(
+                text = message.text.ifBlank { message.media.describe() }.replace('\n', ' '),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
-        }
-        Text(
-            text = message.text.ifBlank { message.media.describe() }.replace('\n', ' '),
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        if (canUnpin) {
-            IconButton(onClick = onUnpin) {
-                Icon(
-                    painterResource(Res.drawable.close_24dp),
-                    contentDescription = stringResource(Res.string.menu_unpin),
-                    modifier = Modifier.size(20.dp),
+        },
+        // Kdy zpráva padla — u kanálu s desítkami připnutých se podle toho orientuje nejlíp.
+        supportingContent = { Text(message.timestamp.asDayLabel(), maxLines = 1) },
+        // Špendlík u řádku není: připnuté jsou tu všechny, a nadpis sheetu to říká. Bez náhledu
+        // slot zůstane prázdný (`null`), jinak by si ListItem nechal odsazení pro nic.
+        leadingContent = message.media.thumbnailFileId()?.let { fileId ->
+            {
+                RemoteImage(
+                    fileId = fileId,
+                    modifier = Modifier.size(PINNED_SHEET_THUMBNAIL).clip(RoundedCornerShape(12.dp)),
                 )
             }
-        }
-    }
+        },
+        trailingContent = if (canUnpin) {
+            {
+                IconButton(onClick = onUnpin) {
+                    Icon(
+                        painterResource(Res.drawable.close_24dp),
+                        contentDescription = stringResource(Res.string.menu_unpin),
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+        } else {
+            null
+        },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        modifier = modifier.clickable(onClick = onOpen),
+    )
 }
 
 /**
@@ -340,9 +367,12 @@ internal fun pinnedForScroll(pinned: List<ChatMessage>, topVisibleMessageId: Lon
 internal fun pinnedIndex(messages: List<ChatMessage>, shownId: Long?): Int =
     messages.indexOfFirst { it.id == shownId }.coerceAtLeast(0)
 
-private val PINNED_BAR_HEIGHT = 52.dp
-private val PINNED_BAR_CORNER = 16.dp
+private val PINNED_BAR_HEIGHT = 56.dp
 private val PINNED_THUMBNAIL = 36.dp
-private val INDICATOR_HEIGHT = 36.dp
-private val INDICATOR_GAP = 2.dp
-private const val INDICATOR_MAX_SEGMENTS = 4
+private val PINNED_SHEET_THUMBNAIL = 48.dp
+private val PINNED_BADGE_SIZE = 40.dp
+/** (výška pilulky − odznak) / 2: kruh odznaku je soustředný s jejím zaoblením. */
+private val PINNED_BADGE_INSET = (PINNED_BAR_HEIGHT - PINNED_BADGE_SIZE) / 2
+
+/** O kolik se sušenka pootočí na jednu připnutou: jedna vlnka, takže přechod dosedne na týž obrys. */
+private const val PINNED_BADGE_STEP = 360f / 7

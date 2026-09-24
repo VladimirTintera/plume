@@ -30,6 +30,8 @@ import androidx.graphics.shapes.star
  * - [ShapeMorphs.Highlight] kruh ↔ dvanáctistranná sušenka: podbarvení podržené samolepky.
  * - [ShapeMorphs.Intro] kruh → čtyřlístek → pětiúhelník → zaoblená hvězda: uvítání prázdného
  *   stavu (detail bez otevřeného chatu). Jednou při zobrazení, pak tvar stojí.
+ * - `Cookie7Sided` (bez morfu): odznak připnutých zpráv; při přechodu na jinou připnutou se
+ *   pootočí (`PinnedBadge`).
  *
  * Tam, kde se stav nemění (avatary, položky seznamu, reakce), se morfy nepoužívají — kdyby se
  * hýbalo všechno, přestalo by to cokoli znamenat. Avatary mají jen STATICKÝ tvar podle druhu

@@ -638,10 +638,19 @@ fun ConversationScreen(
      * Při `reverseLayout` je nahoře POSLEDNÍ z viditelných položek. Bere se klíč, ne index —
      * ze stejného důvodu jako u hlášení přečtení. Položky bez číselného klíče (reklama, řádek
      * načítání) se přeskočí, protože k nim žádná zpráva není.
+     *
+     * **Počítá se jen to, co leží pod horním odsazením**, tedy pod pruhem připnutých zpráv.
+     * Položky pod pruhem (a pod hlavičkou) jsou pro seznam „viditelné", ale čtenář je nevidí —
+     * a pruh připnutých podle tohohle klíče volí zprávu. Skok z pruhu posadí připnutou těsně
+     * pod něj (`ScrollAnchor.Top`); dokud se počítala i předchozí připnutá schovaná nad ní,
+     * přeskočil pruh o jednu (3 → 1 místo 3 → 2). Offset roste v obráceném rozvržení odspodu,
+     * viz `scrollToAnchor`.
      */
     val topVisibleKey by remember(listState) {
         derivedStateOf {
-            listState.layoutInfo.visibleItemsInfo.lastOrNull { it.key is Long }?.key as? Long
+            val info = listState.layoutInfo
+            val contentTop = info.viewportEndOffset - info.afterContentPadding
+            info.visibleItemsInfo.lastOrNull { it.key is Long && it.offset < contentTop }?.key as? Long
         }
     }
 
