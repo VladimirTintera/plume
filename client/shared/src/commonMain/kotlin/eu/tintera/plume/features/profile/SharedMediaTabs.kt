@@ -20,6 +20,17 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.ui.platform.LocalLayoutDirection
+import eu.tintera.plume.core.ui.IntroEmptyState
+import eu.tintera.plume.core.ui.SearchPill
+import eu.tintera.plume.resources.chats_search_clear
+import eu.tintera.plume.resources.chats_search_empty_hint
+import eu.tintera.plume.resources.profile_members_hidden
+import eu.tintera.plume.resources.profile_members_search
+import eu.tintera.plume.resources.profile_members_search_empty
+import eu.tintera.plume.resources.search_off_24dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -352,27 +363,99 @@ private fun LinkRow(message: ChatMessage, url: String, onOpen: () -> Unit, modif
 private fun ChatMessage.sharedUrl(): String? =
     linkPreview?.url ?: entities.firstNotNullOfOrNull { (it.type as? MessageEntityType.Link)?.url }
 
+/** Pole hledání nad členy; [query] je jen výchozí text, dál ho drží pole samo. */
+internal class MemberSearch(val query: String, val onQueryChange: (String) -> Unit)
+
+/**
+ * Členové skupiny: bloky zaoblených řádků, stránkované a — u velké skupiny — s hledáním.
+ *
+ * **Pole hledání NEODJÍŽDÍ se seznamem**, stojí nad ním. Stejná úvaha jako u `ChatPicker`:
+ * u skupiny s tisíci členy je hledání to hlavní, a zmizet by mělo přesně ve chvíli, kdy ho
+ * uživatel po chvíli marného listování potřebuje.
+ */
 @Composable
 internal fun ProfileMembersList(
-    members: List<ProfileMember>?,
+    list: MemberList,
     contentPadding: PaddingValues,
     onOpen: (userId: Long) -> Unit,
     /** Dlouhý stisk: nabídka správy člena. Otevře se, jen když je co nabídnout. */
     onManage: (userId: Long) -> Unit,
+    onLoadMore: () -> Unit,
+    /** `null` = hledání se nenabízí (skupina se vejde na jednu stránku). */
+    search: MemberSearch?,
+    /** Skupina skrývá členy: server vydal jen správce a musí se to říct. */
+    hidden: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    if (members == null) {
-        Box(modifier.fillMaxSize().padding(contentPadding), contentAlignment = Alignment.Center) {
-            TabLoading()
+    val layoutDirection = LocalLayoutDirection.current
+    Column(modifier.fillMaxSize()) {
+        if (hidden) {
+            /*
+             * Bez vysvětlení vypadalo šestnáct lidí u skupiny s jedenácti tisíci členy jako
+             * nedotažený seznam. Tlačítko „zobrazit všechny" tu není čím nahradit — rozhodla
+             * o tom skupina, ne aplikace.
+             */
+            Text(
+                stringResource(Res.string.profile_members_hidden),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(
+                    start = contentPadding.calculateStartPadding(layoutDirection) + 4.dp,
+                    end = contentPadding.calculateEndPadding(layoutDirection) + 4.dp,
+                    top = contentPadding.calculateTopPadding(),
+                ),
+            )
         }
-        return
+        if (search != null) {
+            SearchPill(
+                initialQuery = search.query,
+                onQueryChange = search.onQueryChange,
+                placeholder = stringResource(Res.string.profile_members_search),
+                clearDescription = stringResource(Res.string.chats_search_clear),
+                modifier = Modifier.padding(
+                    start = contentPadding.calculateStartPadding(layoutDirection),
+                    end = contentPadding.calculateEndPadding(layoutDirection),
+                    top = contentPadding.calculateTopPadding(),
+                ),
+            )
+        }
+        val members = list.members
+        when {
+            members == null -> Box(
+                Modifier.fillMaxSize().padding(contentPadding),
+                contentAlignment = Alignment.Center,
+            ) { TabLoading() }
+
+            // Prázdno bez dotazu je skupina, jejíž členy server nevydal; tam není co radit.
+            members.isEmpty() && list.query.isNotEmpty() -> IntroEmptyState(
+                icon = Res.drawable.search_off_24dp,
+                title = stringResource(Res.string.profile_members_search_empty),
+                text = stringResource(Res.string.chats_search_empty_hint),
+                containerColor = Color.Transparent,
+                modifier = Modifier.fillMaxSize().padding(bottom = contentPadding.calculateBottomPadding()),
+            )
+
+            else -> MemberRows(list, members, contentPadding, onOpen, onManage, onLoadMore)
+        }
     }
+}
+
+@Composable
+private fun MemberRows(
+    list: MemberList,
+    members: List<ProfileMember>,
+    contentPadding: PaddingValues,
+    onOpen: (userId: Long) -> Unit,
+    onManage: (userId: Long) -> Unit,
+    onLoadMore: () -> Unit,
+) {
     LazyColumn(
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
-        modifier = modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize(),
     ) {
         itemsIndexed(members, key = { _, it -> it.sender.id }) { index, member ->
+            if (list.nextOffset != null) LoadMoreAtEnd(index, members.size, onLoadMore)
             /*
              * Ťuknutí otevře soukromý chat s členem (id chatu = id uživatele), takže avatar
              * a jméno letí do hlavičky konverzace týmiž klíči jako ze seznamu chatů. Kromě
@@ -422,6 +505,9 @@ internal fun ProfileMembersList(
                         onLongClick = { onManage(member.sender.id) },
                     ),
             )
+        }
+        if (list.loadingMore) {
+            item(key = MEMBERS_LOADING_KEY) { TabLoading() }
         }
     }
 }
@@ -546,6 +632,7 @@ private fun LoadMoreAtEnd(index: Int, count: Int, onLoadMore: () -> Unit) {
 private val FILE_ICON_SIZE = 44.dp
 private val FILE_ICON_CORNER = 8.dp
 private val MEMBER_AVATAR_SIZE = 40.dp
+private const val MEMBERS_LOADING_KEY = "members-loading"
 private val ROLE_ICON_SIZE = 14.dp
 private val MAX_TAG_WIDTH = 120.dp
 

@@ -239,6 +239,9 @@
     <string name="profile_tab_links">Odkazy</string>
     <string name="profile_tab_media">Média</string>
     <string name="profile_tab_members">Členové</string>
+    <string name="profile_members_search">Hledat členy</string>
+    <string name="profile_members_search_empty">Nikdo nenalezen</string>
+    <string name="profile_members_hidden">Skupina seznam členů skrývá, vidět jsou jen správci.</string>
     <string name="profile_unmute">Zapnout zvuk</string>
     <string name="profile_shared_file_meta">%1$s · %2$s</string>
     <string name="profile_shared_link">Odkaz</string>

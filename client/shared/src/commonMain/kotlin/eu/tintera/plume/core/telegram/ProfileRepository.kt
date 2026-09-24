@@ -14,10 +14,23 @@ interface ProfileRepository {
     suspend fun profile(chatId: Long): Result<ChatProfile>
 
     /**
-     * Členové skupiny s rolí, vlastník a správci napřed. Jen skupiny, kde je server vydá
-     * ([ChatProfile.canListMembers]); u velké skupiny jen prvních [MAX_PROFILE_MEMBERS].
+     * Jedna stránka členů skupiny s rolí. Jen skupiny, kde je server vydá
+     * ([ChatProfile.canListMembers]).
+     *
+     * Bez dotazu jsou na první stránce **vlastník a správci napřed**, pak nedávní členové; další
+     * stránky jsou už jen nedávní — a správce z nich volající musí vyřadit sám (`distinctBy`),
+     * protože server je v nedávných vrací taky. S [query] hledá server podle jména a uživatelského
+     * jména, v pořadí, které si určí sám.
+     *
+     * Stránkuje se jen supergroup (`getSupergroupMembers` s posunem). Základní skupina má nejvýš
+     * pár set členů a vydá je naráz, takže [MemberPage.nextOffset] je u ní vždycky `null`.
      */
-    suspend fun members(chatId: Long): Result<List<ProfileMember>>
+    suspend fun members(
+        chatId: Long,
+        query: String = "",
+        offset: Int = 0,
+        limit: Int = MEMBERS_PAGE_SIZE,
+    ): Result<MemberPage>
 
     /**
      * Soukromý chat smaže jen u nás (`deleteChatHistory`, `revoke = false`), ze skupiny a kanálu
@@ -166,6 +179,11 @@ data class ChatProfile(
     val memberCount: Int?,
     /** Server vydá seznam členů (skupina, ne kanál; supergroup se skrytými členy ne). */
     val canListMembers: Boolean,
+    /**
+     * Skupina má zapnuté „skrýt členy" a uživatel v ní není správce — server mu pak vydá jen
+     * správce, i při hledání. Velké veřejné skupiny to mívají zapnuté skoro vždycky.
+     */
+    val membersHidden: Boolean = false,
     /** Uživatel za soukromým chatem; `null` u skupiny a kanálu. */
     val userId: Long? = null,
     /** Uživatel nebo bot je zablokovaný. */
@@ -200,5 +218,19 @@ data class ProfileMember(
 
 enum class MemberRole { Owner, Admin, Member }
 
-/** Kolik členů profil ukáže; víc se nedá rozumně procházet a hledání má vlastní výběr. */
-const val MAX_PROFILE_MEMBERS = 200
+/**
+ * Stránka členů. [nextOffset] je posun pro další stránku; `null` = konec.
+ *
+ * **Posun se počítá ze SUROVÉ odpovědi serveru**, ne z [members]: smazané účty a kdo odešel se
+ * z výsledku vyřazují, a posun odvozený z vyfiltrovaného seznamu by stejné členy četl znovu.
+ */
+data class MemberPage(
+    val members: List<ProfileMember>,
+    val nextOffset: Int?,
+)
+
+/** Členů na stránku; víc se jich do první obrazovky stejně nevejde. */
+const val MEMBERS_PAGE_SIZE = 50
+
+/** Víc naráz server nevydá (`getSupergroupMembers` i `searchChatMembers`). */
+const val MAX_MEMBERS_REQUEST = 200
