@@ -382,6 +382,23 @@ Kotlin `String`.
 
 ---
 
+## Tlačítka botů
+
+~~**Tlačítka pod zprávou**~~ — hotovo: zpětné volání s odpovědí bota, odkaz s potvrzením,
+kopírování textu, uživatel, zašedlé tlačítko a barvy od bota (`CLAUDE.md`, „Tlačítka botů pod
+zprávou"). Zbývá:
+
+- **Druhy, které Plume zatím jen vysvětlí**: mini aplikace (`openWebApp` — WebView s předáním
+  dat), přihlášení na web přes Telegram (`getLoginUrlInfo` / `getLoginUrl`, dialog s doménou
+  a právem psát), inline dotaz do jiného chatu (`switchInline` — výběr chatu a vložení
+  `@bot dotaz` do pole), platba, hra a zpětné volání s heslem dvoufázového ověření.
+- **Vlastní klávesnice místo systémové** (`ReplyMarkupShowKeyboard`, třeba BotFather):
+  tlačítka posílají text, sdílejí číslo či polohu nebo vybírají chat; `ReplyMarkupRemoveKeyboard`
+  ji schová. Zasahuje do vstupního pole.
+- **Vynucená odpověď** (`ReplyMarkupForceReply`): pole se samo přepne na odpověď na zprávu bota.
+- **Vlastní emoji v popisku tlačítka** (`iconCustomEmojiId`) se nekreslí.
+- **Ověřit na iOS** — kód je společný, na simulátoru to nikdo neviděl.
+
 ## Výběr samolepek a emoji
 
 Hotové: záložky Nedávné, Oblíbené, Trendy a sady se swipem; hledání samolepek i emoji; oblíbené;

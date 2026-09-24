@@ -32,8 +32,29 @@ interface ConversationRepository {
     /** Id smazaných zpráv. */
     fun deletedMessages(chatId: Long): Flow<List<Long>>
 
-    /** Zprávy, jimž se změnil obsah (editace). */
+    /**
+     * Zprávy, jimž se změnil obsah (editace) — nebo jen tlačítka bota pod nimi: bot klávesnici
+     * přepisuje i beze změny textu (odpočet pokusů, další krok menu).
+     */
     fun editedMessages(chatId: Long): Flow<ChatMessage>
+
+    /**
+     * Ťuknutí na tlačítko bota se zpětným voláním ([BotButtonKind.Callback]).
+     *
+     * Tlačítko se určuje POZICÍ v klávesnici a data, která bot dostane, si repository dočte ze
+     * zprávy samo — do domény nepatří (jsou to bajty od bota) a klávesnice se mezi vykreslením
+     * a ťuknutím mohla změnit. Proto se kontroluje i [text]: když na tom místě už je jiné
+     * tlačítko, nepošle se nic.
+     *
+     * Bot odpovídá, jak chce: textem, upozorněním, odkazem, nebo nijak (jen přepíše zprávu).
+     */
+    suspend fun pressBotButton(
+        chatId: Long,
+        messageId: Long,
+        row: Int,
+        column: Int,
+        text: String,
+    ): Result<BotAnswer>
 
     /**
      * Id zpráv, jejichž obsah někdo otevřel — u hlasovky „poslechnuto". Chodí i pro naše
@@ -657,6 +678,61 @@ data class ChatMessage(
     val selfDestructIn: Int? = null,
     /** Odkud byla zpráva přeposlaná; `null` u zprávy, která přeposlaná není. */
     val forwardOrigin: ForwardOrigin? = null,
+    /** Tlačítka bota pod zprávou; `null` = žádná. */
+    val keyboard: BotKeyboard? = null,
+)
+
+/**
+ * Tlačítka bota pod zprávou (inline klávesnice), po řádcích.
+ *
+ * Vlastní klávesnice místo systémové (`ReplyMarkupShowKeyboard`) a vynucená odpověď sem
+ * nepatří — ty nejsou tlačítka zprávy, ale vstupního pole.
+ */
+data class BotKeyboard(val rows: List<List<BotButton>>)
+
+data class BotButton(
+    val text: String,
+    val kind: BotButtonKind,
+    val style: BotButtonStyle = BotButtonStyle.Default,
+)
+
+/** Co tlačítko udělá. Data zpětného volání tu nejsou — viz [ConversationRepository.pressBotButton]. */
+sealed interface BotButtonKind {
+    /** Zpětné volání botovi — kontrolní otázky, menu botů. */
+    data object Callback : BotButtonKind
+
+    /** Odkaz. Adresa na tlačítku vidět není, proto se odkaz mimo Telegram napřed potvrzuje. */
+    data class Url(val url: String) : BotButtonKind
+
+    data class CopyText(val text: String) : BotButtonKind
+
+    /** Uživatel, na kterého tlačítko ukazuje. */
+    data class User(val userId: Long) : BotButtonKind
+
+    /** Bot tlačítko vypnul; kreslí se zašedlé a ťuknout nejde. */
+    data object Disabled : BotButtonKind
+
+    /**
+     * Druh, který Plume zatím neumí. Tlačítko je VIDĚT a ťuknutí to vysvětlí — schované by
+     * z klávesnice bota vykouslo řádek a změnilo, co bot nabízí.
+     */
+    data class Unsupported(val feature: UnsupportedBotButton) : BotButtonKind
+}
+
+enum class UnsupportedBotButton { WebApp, LoginUrl, SwitchInline, Buy, Game, Password }
+
+/** Barva, kterou si bot pro tlačítko přeje (TDLib `ButtonStyle`). */
+enum class BotButtonStyle { Default, Primary, Success, Danger }
+
+/**
+ * Odpověď bota na zpětné volání. Všechno může být prázdné — bot často neodpoví nic a jen
+ * přepíše zprávu nad tlačítky.
+ */
+data class BotAnswer(
+    val text: String,
+    /** Bot si přeje upozornění, které se musí potvrdit, ne jen krátkou hlášku. */
+    val alert: Boolean,
+    val url: String,
 )
 
 /**
