@@ -303,7 +303,7 @@
     <string name="activity_other">up to something…</string>
     <string name="conversation_empty">No messages here yet.</string>
     <string name="conversation_pinned_message">Pinned message</string>
-    <string name="conversation_pinned_message_numbered">Pinned message #%1$d</string>
+    <string name="conversation_pinned_message_numbered">Pinned message %1$d of %2$d</string>
     <string name="conversation_all_pinned">All pinned messages</string>
     <string name="conversation_unpinned">Message unpinned</string>
     <string name="conversation_undo">Undo</string>

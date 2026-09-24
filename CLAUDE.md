@@ -2627,8 +2627,7 @@ za ikonou seznamu v sheetu (`PinnedMessagesSheet`), s odepínáním.
   Vyhledávání potřebuje zapnutou databázi zpráv (`useMessageDatabase = true`).
 - **Jedna, ne tři.** Kanály připnuté příspěvky neodepínají, jen přidávají další, takže tři
   řádky (dřívější podoba) visely nad konverzací jako trvalý blok, a s rozbalením „všech" to byla
-  půl obrazovky. Že jich je víc, říká svislý ukazatel vlevo (dílek na zprávu, u víc než čtyř
-  okno kolem aktuální) a titulek „Připnutá zpráva č. N" — tak to dělá i oficiální klient.
+  půl obrazovky. Že jich je víc a kde v řadě stojíme, říká titulek („Připnutá zpráva 3 z 5").
 - **„Poslední připnutá" = nejnovější ZPRÁVA, ne poslední připnutí.** Čas připnutí Telegram
   neposílá vůbec; pořadí je podle id zprávy a `getChatPinnedMessage` vrací taky tu s nejvyšším
   id. U kanálu, který připíná čerstvé příspěvky, je to totéž; připne-li někdo starou zprávu,
@@ -2638,6 +2637,11 @@ za ikonou seznamu v sheetu (`PinnedMessagesSheet`), s odepínáním.
   i jako orientace v historii, místo aby napořád visel na nejnovější. Nedrží se k tomu žádný
   stav; odvozuje se z klíče nejvyšší viditelné položky (ten už existoval kvůli plovoucímu datu),
   takže nová připnutá zpráva výběr nerozhodí.
+- **„Nejvyšší viditelná" = nejvyšší POD pruhem, ne pod hlavičkou** (`topVisibleKey` bere jen
+  položky pod horním odsazením seznamu). Seznam pod pruhem a hlavičkou pokračuje a pro
+  `LazyColumn` jsou i tam položky viditelné. Skok z pruhu posadí připnutou těsně pod pruh
+  a předchozí připnutá zůstala schovaná nad ní — pruh pak přeskočil o jednu (3 → 1 místo
+  3 → 2). Ověřeno na složeném Foldu se čtyřmi připnutými.
 - **Porovnává se STRIKTNĚ** (`it.id < top`). Připnutá, na kterou se právě skočilo, stojí nahoře
   viewportu; kdyby se počítala jako „nad", ukazoval by ji pruh dál a ťuknutí by vedlo pořád na
   ni — procházení by se zaseklo. Nad nejstarší připnutou se ukazuje ona sama, výš už žádná není.
@@ -2652,9 +2656,22 @@ za ikonou seznamu v sheetu (`PinnedMessagesSheet`), s odepínáním.
   křížek vedle jedné z mnoha svádí k domněnce, že zavře celý pruh.
 - **Sheet se po odepnutí nezavírá** (odepíná se často víc zpráv po sobě), po ťuknutí na řádek
   ano — napřed se schová, pak se skáče.
-- **Pruh je plovoucí karta** s okrajem, zaoblením a drobným stínem, ne plocha přes celou šířku:
-  zprávy pod ní zajíždějí a karta se od nich odlepí sama. Fotka, video a soubor s náhledem mají
-  v řádku čtvereček (nejmenší varianta, ostrou kvůli 36 dp nestahovat).
+- **Pruh je plovoucí pilulka z mléčného skla** (`CircleShape`, stín, `glassStyle`), ne karta se
+  svislým proužkem vlevo. Proužek (dílek na zprávu) byl jazyk M2 a v aplikaci už jednou ustoupil
+  ploše (citace, náhled odkazu); pilulka mluví stejně jako plovoucí lišty konverzace. Fotka,
+  video a soubor s náhledem mají v řádku čtvereček (nejmenší varianta, ostrou kvůli 36 dp
+  nestahovat).
+- **Vlevo je špendlík v sedmistranné sušence** (`PinnedBadge`, `primaryContainer`), soustředný
+  se zaoblením pilulky (odsazení = (výška − odznak) / 2). Při přechodu na jinou připnutou se
+  sušenka pootočí o jednu vlnku pružinou s přeskokem, špendlík stojí — změna je vidět koutkem
+  oka. Úhel je přímo `index × 360/7`, žádné počítadlo; po dosednutí má sušenka tentýž obrys.
+  `Cookie7Sided` jinde nic neznamená (viz `ShapeMorphs`).
+- **Krytí skla zůstává `GLASS_TEXT_TINT_ALPHA` (0,88)**, i když by pilulka s nižším vypadala víc
+  „skleně". Pruh nese text a v tmavém režimu nad světlou fotkou by s nižším krytím spadl pod AA
+  (viz „Vzhled konverzace", mléčné sklo). Rozostření je vidět nad fotkou nebo sytou bublinou.
+- **Sheet všech připnutých je blok zaoblených řádků** (`groupItemShape`, `surfaceContainerLowest`,
+  spára 2 dp), jako kontakty a odkazy v profilu; řádek je `ListItem` s náhledem, textem a dnem.
+  Dřív holé řádky na ploše sheetu — jiný vzhled pro tentýž „seznam věcí".
 - **Právo odepínat se zjišťuje jednou** (`canBePinned` první připnuté zprávy). Je v chatu jedno
   pro všechny zprávy; dotaz na každou by byl zbytečný. Bez práva křížek není.
 - **Odepnutá zpráva z pruhu zmizí hned**, potvrzení dorazí updatem. Při selhání se seznam přečte
