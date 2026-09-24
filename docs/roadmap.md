@@ -14,10 +14,7 @@ Sem patří to, co leží v pracovním adresáři a ztratilo by se při přeruš
 větev, ladicí kód k vyhození, nedopsané poučení. Právě tohle se ztrácí nejsnadněji, protože to
 není ani v kódu, ani v commitu.
 
-- **Stránkování a hledání členů velké skupiny** — větev `feat/profile-members-paging`
-  (commit `92717dd`, jen lokálně, bez PR). Hotové a ověřené sondou; čeká na ověření ve skutečné
-  velké skupině, do které se testovací účet dostal až s tlačítky botů (kontrola proti botům).
-  Pozor: velké veřejné skupiny mívají skryté členy a vydají jen správce.
+Teď je prázdné.
 
 ---
 
