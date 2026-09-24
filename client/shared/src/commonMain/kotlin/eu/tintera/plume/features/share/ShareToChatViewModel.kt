@@ -86,16 +86,42 @@ class ShareToChatViewModel(
         viewModelScope.launch {
             requests.incoming.collect { content ->
                 /*
-                 * Obsah zmizel (zabití procesu, nové sdílení jinam) — obrazovka nemá co potvrzovat.
+                 * Obsah zmizel (zabití procesu, zahozený) — obrazovka nemá co potvrzovat.
                  *
                  * Vlastní odeslání se sem NESMÍ započítat: vyřídí sdílení (`consume`), takže
                  * `incoming` zhasne i při úspěchu. Bez téhle podmínky obrazovka odešla jako
                  * „zavřít" a aplikace po odeslání skočila na plochu, místo do konverzace.
                  */
-                if (content == null || content.targetChatId != chatId) {
+                if (content == null) {
                     val ours = _state.value.sent || _state.value.sending
                     if (!ours) _state.update { it.copy(gone = true) }
                     return@collect
+                }
+                /*
+                 * Nové sdílení jinam (jiný chat, nebo výběr chatu) tuhle obrazovku NEZAVÍRÁ —
+                 * shell ji kvůli němu nahradí. Kdyby odešla sama, poslala by uživatele do
+                 * předchozí aplikace a nové sdílení by se neukázalo vůbec.
+                 */
+                if (content.targetChatId != chatId || !content.awaitingConfirmation) return@collect
+                if (content.id != _state.value.contentId) {
+                    /*
+                     * Nové sdílení do TÉHOŽ chatu: shell obrazovku nechává (je to tatáž routa),
+                     * takže se přenastaví na nový obsah. Rozdělaný popisek, režimy i odebrané
+                     * snímky patřily předchozímu sdílení — nové ho nahrazuje, jako všude jinde.
+                     */
+                    if (_state.value.sending) return@collect
+                    _state.update {
+                        ShareToChatState(
+                            chatId = chatId,
+                            contentId = content.id,
+                            chatTitle = it.chatTitle,
+                            avatarFileId = it.avatarFileId,
+                            kind = it.kind,
+                            isSavedMessages = it.isSavedMessages,
+                        )
+                    }
+                    caption = TextFieldValue()
+                    captionFilled = false
                 }
                 if (!captionFilled) {
                     content.text?.let { caption = TextFieldValue(it, TextRange(it.length)) }
@@ -200,7 +226,8 @@ class ShareToChatViewModel(
      * toho by jí tytéž přílohy naskočily nad vstupní pole podruhé.
      */
     fun send() {
-        val content = requests.incoming.value ?: return
+        // Jen sdílení, které obrazovka ukazuje — nové mohlo přijít těsně před ťuknutím.
+        val content = requests.incoming.value?.takeIf { it.id == _state.value.contentId } ?: return
         val attachments = _state.value.attachments ?: return
         if (_state.value.sending || attachments.isEmpty()) return
         _state.update { it.copy(sending = true) }
@@ -230,7 +257,7 @@ class ShareToChatViewModel(
 
     /** Obsah se zahodí; volá to obrazovka při odchodu bez odeslání, jako výběr chatu. */
     fun abandon() {
-        if (!_state.value.sent) requests.abandon()
+        if (!_state.value.sent) _state.value.contentId?.let(requests::abandon)
     }
 
     /** Chyba z galerie (fotku se nepodařilo připravit) — ukáže se jako hláška. */
@@ -241,6 +268,11 @@ class ShareToChatViewModel(
 
 data class ShareToChatState(
     val chatId: Long = 0,
+    /**
+     * Sdílení, které obrazovka ukazuje. Nové sdílení do téhož chatu ho vymění a obrazovka se
+     * s ním přenastaví; odchod zahazuje jen tohle, ne novější.
+     */
+    val contentId: Long? = null,
     val chatTitle: String = "",
     val avatarFileId: Int? = null,
     /** Tvar tváře v hlavičce — jako v seznamu chatů a v konverzaci. */

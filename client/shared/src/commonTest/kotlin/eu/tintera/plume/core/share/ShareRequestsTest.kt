@@ -1,13 +1,16 @@
 package eu.tintera.plume.core.share
 
 import eu.tintera.plume.core.telegram.OutgoingAttachment
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ShareRequestsTest {
 
@@ -65,8 +68,8 @@ class ShareRequestsTest {
     @Test
     fun zavrenyVyberSdileniZahodi() {
         val requests = ShareRequests()
-        requests.start(text = "x", hasFiles = false)
-        requests.abandon()
+        val id = requests.start(text = "x", hasFiles = false)
+        requests.abandon(id)
         assertNull(requests.incoming.value)
     }
 
@@ -88,9 +91,9 @@ class ShareRequestsTest {
         // Odejít z obrazovky „Komu: …" znamená „nechci to poslat" — a bez zahození by se obsah
         // vložil do konverzace, kterou uživatel neotevřel.
         val requests = ShareRequests()
-        requests.start(text = "x", hasFiles = false)
+        val id = requests.start(text = "x", hasFiles = false)
         requests.confirm(7)
-        requests.abandon()
+        requests.abandon(id)
         assertNull(requests.incoming.value)
     }
 
@@ -100,7 +103,40 @@ class ShareRequestsTest {
         val requests = ShareRequests()
         val id = requests.start(text = "x", hasFiles = false)
         requests.choose(7)
-        requests.abandon()
+        requests.abandon(id)
         assertEquals(id, requests.incoming.value?.id)
+    }
+
+    @Test
+    fun sdileniSChatemNemaMezistavBezChatu() = runBlocking {
+        // Direct Share: obsah vzniká rovnou s chatem. Dřív `start` a pak `confirm` — a otevřená
+        // obrazovka „Komu: …" mezitím viděla obsah bez chatu a odešla jako „obsah zmizel".
+        val requests = ShareRequests()
+        val seen = mutableListOf<SharedContent?>()
+        val watching = launch(Dispatchers.Unconfined) { requests.incoming.collect { seen += it } }
+        requests.start(text = null, hasFiles = true, target = ShareTarget(7, confirm = true))
+        watching.cancel()
+
+        val content = seen.filterNotNull().single()
+        assertEquals(7, content.targetChatId)
+        assertTrue(content.awaitingConfirmation)
+    }
+
+    @Test
+    fun odchodStareObrazovkyNoveSdileniNezahodi() {
+        // Opakované sdílení: kvůli novému obsahu shell starou obrazovku nahrazuje, a její odchod
+        // zahazuje JEN to, co ukazovala. Dřív zahodil to nové a nové sdílení se neukázalo vůbec.
+        val requests = ShareRequests()
+        val old = requests.start(text = null, hasFiles = true, target = ShareTarget(7, confirm = true))
+        val new = requests.start(text = null, hasFiles = true, target = ShareTarget(8, confirm = true))
+
+        requests.abandon(old)
+        assertEquals(new, requests.incoming.value?.id)
+
+        // Výběr chatu stejně: nový Direct Share jeho odchod nezahodí.
+        val chooser = requests.start(text = "x", hasFiles = false)
+        val direct = requests.start(text = null, hasFiles = true, target = ShareTarget(7, confirm = true))
+        requests.abandon(chooser)
+        assertEquals(direct, requests.incoming.value?.id)
     }
 }

@@ -255,8 +255,12 @@ class IosShareInbox(
         }
         manager.removeItemAtPath(directory, error = null)
 
-        val id = requests.start(text = manifest.text, hasFiles = moved.isNotEmpty())
-        requests.choose(manifest.chatId)
+        // Chat se zakládá rovnou s obsahem — viz `ShareRequests.start`.
+        val id = requests.start(
+            text = manifest.text,
+            hasFiles = moved.isNotEmpty(),
+            target = ShareTarget(manifest.chatId, confirm = false),
+        )
         chatOpenRequests.request(manifest.chatId)
         if (moved.isEmpty()) return
 

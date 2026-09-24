@@ -5576,6 +5576,38 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   Systémové gesto zpět jde přes `NavDisplay`, ne přes obrazovku; se zahazováním jen na šipce
   zůstalo po gestu sdílení viset a výběr by se po obnově aktivity otevřel znovu. `abandon()`
   nezahazuje obsah s vybraným chatem — i po výběru výběr odchází (nahradí ho konverzace).
+- **Opakované sdílení** (nové sdílení, zatímco výběr chatu nebo obrazovka „Komu: …" ještě
+  visí) dřív obrazovku zavřelo a nové sdílení se neukázalo vůbec. Příčiny byly tři a každá
+  stačila sama:
+  - **Mezistav bez chatu.** Obsah vznikal `start` a chat dostával až dalším voláním
+    (`confirm` / `choose`). Otevřená obrazovka „Komu: …" mezitím viděla obsah bez chatu, vzala
+    ho jako „obsah zmizel" a odešla přes `moveTaskToBack`. **Cíl se proto zakládá spolu
+    s obsahem** (`ShareRequests.start(target = ShareTarget(…))`) — na Androidu i v iOS rozšíření.
+  - **Odchod zahazoval cizí sdílení.** Kvůli novému sdílení shell starou obrazovku nahrazuje
+    (`popToRoot`), a její `onDispose` volal `abandon()` nad AKTUÁLNÍM obsahem — tedy nad tím
+    novým. **`abandon(id)` zahazuje jen sdílení, které obrazovka ukazovala**; výběr chatu si
+    pamatuje poslední sdílení bez chatu, „Komu: …" to svoje (`ShareToChatState.contentId`).
+  - **Nové sdílení do TÉHOŽ chatu se nepropsalo.** Shell obrazovku nechává (tatáž routa)
+    a ViewModel přebíral přílohy jen jednou (`if (attachments == null)`). Teď se s novým `id`
+    přenastaví celý stav a obsah obrazovky se skládá znovu (`key(state.contentId)`), jinak by
+    staré snímky z carouselu „odcházely" animací a galerie držela neplatné zaškrtnutí.
+  - Obrazovka „Komu: …" proto odchází sama (`gone`) už **jen když obsah zmizel úplně**; sdílení
+    jinam ji nechá být, nahradí ji shell.
+  - **Ověřeno na emulátoru** dvojicí `am start SEND` po sobě: tentýž chat (obrazovka zůstane,
+    ukáže nový snímek), jiný chat (Uložené zprávy), sdílení bez chatu nad „Komu: …" (výběr
+    chatu s novým obsahem), Direct Share nad výběrem chatu; pak odeslání a ✕ s návratem.
+  - **Na iOS simulátoru** sdílení po sobě do Notifikátora, Uložených zpráv a znovu Notifikátora
+    (pokaždé rovnou správný chat s novou fotkou a popiskem), ze studeného startu a odeslání.
+    **Ověřuje se zápisem do inboxu App Group, ne ťukáním v rozšíření**: složka
+    `share/inbox/<čas>-<uuid>/` s obrázkem a `manifest.json` (`{"chatId", "text", "items":
+    [{"file", "kind": "image"}]}`) zapsaným POSLEDNÍ, pak přepnout do jiné aplikace a Plume
+    spustit (`simctl launch`). Inbox se čte při návratu do popředí — `simctl openurl` nad běžící
+    aplikací ukáže jen systémový dialog a do pozadí ji nepošle, takže se nic nestane.
+  - **Seznam chatů v rozšíření se po otevření přeskládá** (dočte naposledy použité). Ťuknutí
+    podle souřadnic ze snímku tak trefilo jiný chat — skutečného člověka; fotka naštěstí jen
+    čekala nad polem. Proto zápis do inboxu, ne ťukání.
+- **Uložené zprávy v hlavičce „Komu: …" mají vlastní název**, ne jméno účtu, pod kterým je
+  vede TDLib — tatáž past jako u `chatTitle` jinde.
 - **Výběr má ✕, ne šipku zpět, a ✕ i gesto zpět vrací do aplikace, ze které se sdílelo**
   (`rememberReturnToCaller` → `moveTaskToBack`, `closeShare` v `AppShell`). Šipka slibovala
   návrat do Plume, kde by sdílený obsah zmizel bez stopy — bez volby chatu nemá kam jít.

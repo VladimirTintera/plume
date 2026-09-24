@@ -46,8 +46,14 @@ class ShareIntake(
         if (text.isNullOrBlank() && uris.isEmpty()) return true
 
         val limited = uris.take(PICK_LIMIT)
-        val id = requests.start(text = text, hasFiles = limited.isNotEmpty())
         val visual = limited.isNotEmpty() && limited.all { isVisual(context.contentResolver.getType(it)) }
+        val shortcutChat = chatIdFromShortcut(intent.getStringExtra(ShortcutManagerCompat.EXTRA_SHORTCUT_ID))
+        // Chat se zakládá rovnou s obsahem, ne dalším voláním — viz `ShareRequests.start`.
+        val id = requests.start(
+            text = text,
+            hasFiles = limited.isNotEmpty(),
+            target = shortcutChat?.let { ShareTarget(it, confirm = visual) },
+        )
 
         /*
          * Direct Share: uživatel ťukl rovnou na chat v nabídce „Sdílet", takže je chat vybraný
@@ -59,14 +65,7 @@ class ShareIntake(
          * a čeká nad vstupním polem jako dřív: u odkazu není co ukazovat a pole na popisek
          * k němu je krok navíc.
          */
-        chatIdFromShortcut(intent.getStringExtra(ShortcutManagerCompat.EXTRA_SHORTCUT_ID))?.let { chatId ->
-            if (visual) {
-                requests.confirm(chatId)
-            } else {
-                requests.choose(chatId)
-                chatOpenRequests.request(chatId)
-            }
-        }
+        if (shortcutChat != null && !visual) chatOpenRequests.request(shortcutChat)
 
         if (limited.isEmpty()) return true
 

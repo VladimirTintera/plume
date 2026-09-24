@@ -154,14 +154,8 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   aplikace". Zbývá:
   - ~~**Direct Share**~~ — hotovo. Na iOS jsou naposledy použité chaty nahoře v listu rozšíření;
     řádek kontaktů v systémové nabídce (darování `INSendMessageIntent`) zatím není.
-  - **Opakované sdílení do otevřené obrazovky „Komu: …" ji zavře.** Nové sdílení
-    (`ShareIntake.handle` → `ShareRequests.start`) nahradí obsah dřív, než ho `confirm` znovu
-    přiřadí chatu; `ShareToChatViewModel` na chvíli uvidí obsah bez `targetChatId`, vezme to jako
-    „obsah zmizel" (`gone`) a obrazovka odejde přes `moveTaskToBack` do předchozí aplikace —
-    nové sdílení se neukáže vůbec. Nalezeno 2026-09-24 na emulátoru (dvakrát `am start SEND`
-    se zkratkou chatu po sobě). Chce to buď založit obsah rovnou s chatem (`start` + `confirm`
-    atomicky), nebo aby obrazovka nové sdílení do téhož chatu převzala místo odchodu. Totéž
-    prověřit u výběru chatu (`ShareScreen`) a u sdílení do jiného chatu, než je otevřený.
+  - ~~**Opakované sdílení do otevřené obrazovky „Komu: …" ji zavře**~~ — opraveno (obsah
+    vzniká rovnou s chatem, obrazovka zahazuje jen své sdílení; `CLAUDE.md`, „Opakované sdílení").
   - ~~**iOS: Share Extension**~~ — hotovo (výběr chatu v rozšíření, App Group). Zbývá
     ověřit na zařízení (App Group v Developer účtu).
   - **Sdílení jako kontext místo samostatného výběru** (nápad k rozmyšlení, nahradil by

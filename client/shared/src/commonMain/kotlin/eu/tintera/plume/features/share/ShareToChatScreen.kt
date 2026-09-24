@@ -123,6 +123,7 @@ import eu.tintera.plume.resources.share_to_caption
 import eu.tintera.plume.resources.share_to_collapse_gallery
 import eu.tintera.plume.resources.share_to_expand_gallery
 import eu.tintera.plume.resources.keyboard_arrow_down_24dp
+import eu.tintera.plume.resources.saved_messages
 import eu.tintera.plume.resources.share_to_recipient
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -150,7 +151,6 @@ fun ShareToChatScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val attachments = state.attachments
 
     val close by rememberUpdatedState(onClose)
     val sent by rememberUpdatedState(onSent)
@@ -161,8 +161,29 @@ fun ShareToChatScreen(
      * Odchod BEZ odeslání sdílení zahodí — ať už ✕, systémovým gestem zpět (to jde přes
      * `NavDisplay`, ne přes obrazovku), nebo přepnutím sekce. Stejné pravidlo jako u výběru chatu:
      * bez toho by obsah zůstal viset a po obnově aktivity by obrazovka naskočila znovu.
+     * Zahazuje se jen sdílení, které obrazovka ukazuje (`ShareToChatViewModel.abandon`).
      */
     DisposableEffect(Unit) { onDispose { viewModel.abandon() } }
+
+    /*
+     * Nové sdílení do téhož chatu obrazovku přenastaví (shell ji nechává, je to tatáž routa).
+     * Carousel, galerie i odcházející snímky patřily předchozímu sdílení, takže se skládají
+     * znovu — jinak by staré snímky z carouselu „odcházely" animací a galerie by držela
+     * zaškrtnutí, které už neplatí.
+     */
+    key(state.contentId) {
+        ShareToChatContent(viewModel, onClose, modifier)
+    }
+}
+
+@Composable
+private fun ShareToChatContent(
+    viewModel: ShareToChatViewModel,
+    onClose: () -> Unit,
+    modifier: Modifier,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val attachments = state.attachments
 
     // Pozadí je tmavé v obou motivech, takže ikony lišt musí být světlé — jako v prohlížeči.
     DarkSystemBars()
@@ -438,7 +459,11 @@ private fun Recipient(
                 backdrop = Color.Black,
             )
             Text(
-                text = stringResource(Res.string.share_to_recipient, title),
+                // Uložené zprávy nesou v TDLib jméno vlastního účtu — „Komu: Jan Novák" u nich mátlo.
+                text = stringResource(
+                    Res.string.share_to_recipient,
+                    if (isSavedMessages) stringResource(Res.string.saved_messages) else title,
+                ),
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

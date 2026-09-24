@@ -32,13 +32,20 @@ class ShareRequests {
     /**
      * Přišlo sdílení. [hasFiles] = soubory se teprve připravují a přijdou v [prepared]; bez nich
      * je obsah hned hotový. Nové sdílení nahradí to předchozí, nevyřízené.
+     *
+     * **Cíl se zakládá SPOLU s obsahem** ([target]), ne dalším voláním. Mezi `start` a
+     * [choose] / [confirm] by na okamžik existoval obsah bez chatu: otevřená obrazovka „Komu: …"
+     * ho brala jako „obsah zmizel" a odešla do předchozí aplikace, a shell mezitím otevíral výběr
+     * chatu. Opakované sdílení tak zavřelo obrazovku a nové se neukázalo vůbec.
      */
-    fun start(text: String?, hasFiles: Boolean): Long {
+    fun start(text: String?, hasFiles: Boolean, target: ShareTarget? = null): Long {
         val id = nextId++
         current.value = SharedContent(
             id = id,
             text = text?.takeIf { it.isNotBlank() },
             attachments = if (hasFiles) null else emptyList(),
+            targetChatId = target?.chatId,
+            awaitingConfirmation = target?.confirm ?: false,
         )
         return id
     }
@@ -67,15 +74,22 @@ class ShareRequests {
     }
 
     /**
-     * Obrazovka sdílení odešla, aniž by obsah někam poslala — sdílení se zahodí. Zůstává jen to,
+     * Obrazovka sdílení odešla, aniž by obsah [id] někam poslala — sdílení se zahodí.
+     *
+     * **Jen to, které obrazovka ukazovala.** Když mezitím přišlo nové sdílení (a kvůli němu
+     * obrazovka odchází — shell ji nahrazuje), bez [id] by její odchod zahodil právě to nové. Zůstává jen to,
      * co už je na cestě do konverzace: tam výběr taky odchází (nahradí ho chat) a obsah na ni čeká.
      *
      * Obsah čekající na potvrzení ([confirm]) se zahazuje, i když chat vybraný má — odejít z té
      * obrazovky znamená „nechci to poslat", a bez zahození by se sdílení vložilo do konverzace,
      * kterou uživatel neotevřel.
      */
-    fun abandon() {
-        current.update { it?.takeIf { content -> content.targetChatId != null && !content.awaitingConfirmation } }
+    fun abandon(id: Long) {
+        current.update { content ->
+            val keep = content == null || content.id != id ||
+                (content.targetChatId != null && !content.awaitingConfirmation)
+            content.takeIf { keep }
+        }
     }
 
     /**
@@ -94,6 +108,13 @@ class ShareRequests {
         current.update { it?.takeIf { content -> content.id != id } }
     }
 }
+
+/** Kam sdílení míří už při příchodu: chat z Direct Share, nebo z iOS rozšíření. */
+data class ShareTarget(
+    val chatId: Long,
+    /** Obsah čeká na obrazovce „Komu: …" ([ShareRequests.confirm]), ne v konverzaci. */
+    val confirm: Boolean,
+)
 
 data class SharedContent(
     val id: Long,
