@@ -2,6 +2,22 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
+import dev.g000sha256.tdl.dto.InputTextQuote
+import dev.g000sha256.tdl.dto.InputMessageReplyTo
+import dev.g000sha256.tdl.dto.TextEntityTypeBold
+import dev.g000sha256.tdl.dto.TextEntityTypeItalic
+import dev.g000sha256.tdl.dto.TextEntityTypeUnderline
+import dev.g000sha256.tdl.dto.TextEntityTypeStrikethrough
+import dev.g000sha256.tdl.dto.TextEntityTypeSpoiler
+import dev.g000sha256.tdl.dto.TextEntityTypeCustomEmoji
+import dev.g000sha256.tdl.dto.MessageContent
+import dev.g000sha256.tdl.dto.MessagePhoto
+import dev.g000sha256.tdl.dto.MessageVideo
+import dev.g000sha256.tdl.dto.MessageAnimation
+import dev.g000sha256.tdl.dto.MessageDocument
+import dev.g000sha256.tdl.dto.MessageAudio
+import dev.g000sha256.tdl.dto.MessageVoiceNote
+import dev.g000sha256.tdl.dto.MessagePaidMedia
 import dev.g000sha256.tdl.dto.ReplyMarkupShowKeyboard
 import dev.g000sha256.tdl.dto.ReplyMarkupForceReply
 import dev.g000sha256.tdl.dto.ReplyMarkupRemoveKeyboard
@@ -600,11 +616,36 @@ class TdlConversationRepository(
      * kliknout. Když dohledání selže, zpráva stejně odejde — přijít o odkaz je lepší než
      * nepřijmout zprávu vůbec.
      */
+    /**
+     * Na co odpověď míří: celá zpráva, nebo úryvek z ní ([quote]).
+     *
+     * Formátování úryvku se bere z PŮVODNÍ zprávy (`getMessage` je lokální — zpráva, na kterou se
+     * odpovídá, je načtená). Když se úryvek nenajde nebo zprávu přečíst nejde, odpoví se na celou
+     * zprávu: to je pořád odpověď, kterou uživatel chtěl, jen bez zúžení.
+     * `pollOptionId` je prázdný řetězec, ne `null` — pole je v TDLib nenullovatelné.
+     */
+    private suspend fun replyInput(chatId: Long, messageId: Long?, quote: ReplyQuote?): InputMessageReplyTo? {
+        messageId ?: return null
+        val inputQuote = quote?.let {
+            val original = client.getMessage(chatId = chatId, messageId = messageId).toResult()
+                .getOrNull()?.content?.quotableText()
+            original?.let { text -> quoteInput(text, it) }
+                ?: null.also { logger.w { "Citovaný úryvek se ve zprávě $messageId nenašel, odpovídám na celou." } }
+        }
+        return InputMessageReplyToMessage(
+            messageId = messageId,
+            quote = inputQuote,
+            checklistTaskId = 0,
+            pollOptionId = "",
+        )
+    }
+
     override suspend fun send(
         chatId: Long,
         text: String,
         replyToMessageId: Long?,
         linkPreview: LinkPreviewOptions?,
+        quote: ReplyQuote?,
     ): Result<ChatMessage> {
         val entities = detectEntities(text)
 
@@ -612,7 +653,7 @@ class TdlConversationRepository(
             chatId = chatId,
             // Vlákna (fóra) fáze 2 neřeší — null znamená hlavní vlákno chatu.
             topicId = null,
-            replyTo = replyToMessageId?.let(::replyTo),
+            replyTo = replyInput(chatId, replyToMessageId, quote),
             options = null,
             replyMarkup = null,
             inputMessageContent = InputMessageText(
@@ -632,11 +673,12 @@ class TdlConversationRepository(
         durationSeconds: Int,
         waveform: ByteArray,
         replyToMessageId: Long?,
+        quote: ReplyQuote?,
     ): Result<ChatMessage> =
         client.sendMessage(
             chatId = chatId,
             topicId = null,
-            replyTo = replyToMessageId?.let(::replyTo),
+            replyTo = replyInput(chatId, replyToMessageId, quote),
             options = null,
             replyMarkup = null,
             inputMessageContent = InputMessageVoiceNote(
@@ -657,6 +699,7 @@ class TdlConversationRepository(
         attachments: List<OutgoingAttachment>,
         caption: String,
         replyToMessageId: Long?,
+        quote: ReplyQuote?,
     ): Result<List<ChatMessage>> {
         require(attachments.isNotEmpty()) { "Není co poslat." }
         val isGroup = isGroup(chatId)
@@ -671,7 +714,7 @@ class TdlConversationRepository(
             return client.sendMessage(
                 chatId = chatId,
                 topicId = null,
-                replyTo = replyToMessageId?.let(::replyTo),
+                replyTo = replyInput(chatId, replyToMessageId, quote),
                 options = null,
                 replyMarkup = null,
                 inputMessageContent = contents.single(),
@@ -683,7 +726,7 @@ class TdlConversationRepository(
         return client.sendMessageAlbum(
             chatId = chatId,
             topicId = null,
-            replyTo = replyToMessageId?.let(::replyTo),
+            replyTo = replyInput(chatId, replyToMessageId, quote),
             options = null,
             inputMessageContents = contents.toTypedArray(),
         )
@@ -759,13 +802,14 @@ class TdlConversationRepository(
         chatId: Long,
         sticker: StickerItem,
         replyToMessageId: Long?,
+        quote: ReplyQuote?,
     ): Result<ChatMessage> {
         val file = InputFileId(id = sticker.sendFileId)
 
         return client.sendMessage(
             chatId = chatId,
             topicId = null,
-            replyTo = replyToMessageId?.let(::replyTo),
+            replyTo = replyInput(chatId, replyToMessageId, quote),
             options = null,
             replyMarkup = null,
             inputMessageContent = InputMessageSticker(
@@ -792,11 +836,12 @@ class TdlConversationRepository(
         chatId: Long,
         animation: OutgoingAnimation,
         replyToMessageId: Long?,
+        quote: ReplyQuote?,
     ): Result<ChatMessage> =
         client.sendMessage(
             chatId = chatId,
             topicId = null,
-            replyTo = replyToMessageId?.let(::replyTo),
+            replyTo = replyInput(chatId, replyToMessageId, quote),
             options = null,
             replyMarkup = null,
             inputMessageContent = InputMessageAnimation(
@@ -818,12 +863,17 @@ class TdlConversationRepository(
             .toResult()
             .map { it.toChatMessage(isGroup(chatId)) }
 
-    override suspend fun sendGif(chatId: Long, gif: GifItem, replyToMessageId: Long?): Result<ChatMessage> {
+    override suspend fun sendGif(
+        chatId: Long,
+        gif: GifItem,
+        replyToMessageId: Long?,
+        quote: ReplyQuote?,
+    ): Result<ChatMessage> {
         val file = InputFileId(id = gif.animation.fileId)
         return client.sendMessage(
             chatId = chatId,
             topicId = null,
-            replyTo = replyToMessageId?.let(::replyTo),
+            replyTo = replyInput(chatId, replyToMessageId, quote),
             options = null,
             replyMarkup = null,
             inputMessageContent = InputMessageAnimation(
@@ -948,13 +998,14 @@ class TdlConversationRepository(
         text: String,
         replyToMessageId: Long?,
         linkPreview: LinkPreviewOptions?,
+        quote: ReplyQuote?,
     ): Result<Unit> =
         client.setChatDraftMessage(
             chatId = chatId,
             topicId = null,
             draftMessage = text.takeIf { it.isNotBlank() }?.let {
                 DraftMessage(
-                    replyTo = replyToMessageId?.let(::replyTo),
+                    replyTo = replyInput(chatId, replyToMessageId, quote),
                     date = Clock.System.now().epochSeconds.toInt(),
                     // Entity se tu nedohledávají: koncept je rozepsaný text, odkazy se označí
                     // až při odeslání (viz `send`).
@@ -994,6 +1045,9 @@ class TdlConversationRepository(
                     content = access.content,
                     draftReplyToMessageId = (chat.draftMessage?.replyTo as? InputMessageReplyToMessage)
                         ?.messageId,
+                    draftReplyQuote = (chat.draftMessage?.replyTo as? InputMessageReplyToMessage)
+                        ?.quote
+                        ?.let { ReplyQuote(text = it.text.text, position = it.position) },
                     draftLinkPreview = (chat.draftMessage?.content as? DraftMessageContentText)
                         ?.linkPreviewOptions?.toDomain(),
                 )
@@ -1138,6 +1192,14 @@ class TdlConversationRepository(
             replyToMessageId = (replyTo as? MessageReplyToMessage)
                 ?.takeIf { it.chatId == chatId }
                 ?.messageId,
+            // Citace ČÁSTI zprávy. Automatickou citaci (`isManual == false`, server ji doplní
+            // u odpovědi na zprávu z jiného chatu) nekreslíme jinak než celou zprávu.
+            replyQuote = (replyTo as? MessageReplyToMessage)
+                ?.takeIf { it.chatId == chatId }
+                ?.quote
+                ?.takeIf { it.isManual }
+                ?.text?.text
+                ?.takeIf { it.isNotEmpty() },
             isService = content.serviceText() != null,
             timestamp = date,
             isEdited = editDate > 0,
@@ -1175,7 +1237,7 @@ class TdlConversationRepository(
         client.sendMessage(
             chatId = chatId,
             topicId = null,
-            replyTo = replyToMessageId?.let(::replyTo),
+            replyTo = replyInput(chatId, replyToMessageId, quote = null),
             options = null,
             replyMarkup = null,
             inputMessageContent = InputMessageText(
@@ -1194,7 +1256,7 @@ class TdlConversationRepository(
         client.sendMessage(
             chatId = chatId,
             topicId = null,
-            replyTo = replyToMessageId?.let(::replyTo),
+            replyTo = replyInput(chatId, replyToMessageId, quote = null),
             options = null,
             replyMarkup = null,
             inputMessageContent = InputMessageContact(
@@ -1478,17 +1540,52 @@ private fun MessageSendingState?.toSendState(): SendState = when (this) {
 }
 
 /**
- * Odpověď na celou zprávu v tomhle chatu.
+ * Citace úryvku pro TDLib: kde úryvek v původním textu doopravdy začíná a jeho formátování.
  *
- * Citace části textu (označený úryvek) zatím neřešíme. `pollOptionId` je prázdný řetězec, ne
- * `null` — pole je v TDLib nenullovatelné a používá se jen u odpovědí na anketu.
+ * [ReplyQuote.position] je jen odhad (dohledává se kolem něj, pak kdekoli); úryvek, který
+ * v textu není, vrátí `null` — server by ho odmítl a odpověď bez citace je lepší než žádná.
+ *
+ * **Formátování se MUSÍ přenést.** TDLib: „Only Bold, Italic, Underline, Strikethrough, Spoiler,
+ * and CustomEmoji entities are allowed to be kept and must be kept in the quote." Entity se
+ * proto oříznou na úryvek a posunou na jeho začátek; ostatní druhy (odkazy, zmínky, kód…)
+ * odpadnou.
  */
-private fun replyTo(messageId: Long) = InputMessageReplyToMessage(
-    messageId = messageId,
-    quote = null,
-    checklistTaskId = 0,
-    pollOptionId = "",
-)
+internal fun quoteInput(original: FormattedText, quote: ReplyQuote): InputTextQuote? {
+    if (quote.text.isEmpty()) return null
+    val start = original.text.indexOf(quote.text, startIndex = quote.position.coerceAtLeast(0))
+        .takeIf { it >= 0 }
+        ?: original.text.indexOf(quote.text).takeIf { it >= 0 }
+        ?: return null
+    val end = start + quote.text.length
+    val entities = original.entities.mapNotNull { entity ->
+        val kept = when (entity.type) {
+            is TextEntityTypeBold, is TextEntityTypeItalic, is TextEntityTypeUnderline,
+            is TextEntityTypeStrikethrough, is TextEntityTypeSpoiler, is TextEntityTypeCustomEmoji,
+            -> true
+            else -> false
+        }
+        val from = maxOf(entity.offset, start)
+        val to = minOf(entity.offset + entity.length, end)
+        if (!kept || from >= to) null else TextEntity(offset = from - start, length = to - from, type = entity.type)
+    }
+    return InputTextQuote(text = FormattedText(text = quote.text, entities = entities.toTypedArray()), position = start)
+}
+
+/**
+ * Text zprávy, ze kterého jde citovat, i s formátováním — text nebo popisek přílohy. U druhů bez
+ * vlastního textu `null`: nabídka tam citaci nenabídne, protože kopie nemá co označit.
+ */
+private fun MessageContent.quotableText(): FormattedText? = when (this) {
+    is MessageText -> text
+    is MessagePhoto -> caption
+    is MessageVideo -> caption
+    is MessageAnimation -> caption
+    is MessageDocument -> caption
+    is MessageAudio -> caption
+    is MessageVoiceNote -> caption
+    is MessagePaidMedia -> caption
+    else -> null
+}
 
 private fun SelfDestructType.toTdl(): MessageSelfDestructType = when (this) {
     is SelfDestructType.Immediately -> MessageSelfDestructTypeImmediately()

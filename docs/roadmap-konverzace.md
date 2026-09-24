@@ -382,6 +382,20 @@ Kotlin `String`.
 
 ---
 
+## ~~Odpověď s citací části zprávy~~ — HOTOVO
+
+Text kopie zprávy v nabídce jde označit a „Odpovědět" se změní na „Citovat"; přijaté citace se
+kreslí s úryvkem (`CLAUDE.md`, „Citace z nabídky"). Zbývá:
+
+- **Citace uprostřed alba**: nabídka nad albem cituje jen zprávu s popiskem.
+- **Označení v kopii vysoké zprávy** zmenšené a oříznuté v nabídce (`placeMenuMessage`) ověřené
+  není — jde vybírat jen z viditelné části a úchyty na zmenšené vrstvě nikdo neviděl.
+- **Sheet „Vybrat text"** je teď skoro zbytečný (kopírovat úryvek jde přímo v nabídce). Zvážit,
+  jestli ho nevyhodit; zůstává pro zmenšené a oříznuté zprávy.
+- **iOS** — kód je společný, na simulátoru ověřené není (lišta výběru tam kreslí systém jinak).
+
+---
+
 ## Tlačítka botů
 
 ~~**Tlačítka pod zprávou**~~ — hotovo: zpětné volání s odpovědí bota, odkaz s potvrzením,

@@ -66,6 +66,11 @@ internal fun QuotedMessage(
      * a zaoblení, s odsazením bubliny a v přirozené šířce — plochu i šířku řeší karta.
      */
     contained: Boolean = true,
+    /**
+     * Citovaný úryvek, když odpověď necituje celou zprávu ([ChatMessage.replyQuote]); místo
+     * začátku zprávy se ukáže on.
+     */
+    quoteText: String? = null,
 ) {
     val clickable = if (onClick != null) {
         Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
@@ -74,7 +79,7 @@ internal fun QuotedMessage(
     }
     if (!contained) {
         Column(modifier.then(clickable).padding(horizontal = MESSAGE_PADDING_H, vertical = MESSAGE_PADDING_V)) {
-            QuoteLines(message, partnerName, accent)
+            QuoteLines(message, partnerName, accent, quoteText)
         }
         return
     }
@@ -96,7 +101,7 @@ internal fun QuotedMessage(
             .then(clickable)
     ) {
         Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
-            QuoteLines(message, partnerName, accent)
+            QuoteLines(message, partnerName, accent, quoteText)
         }
     }
 }
@@ -107,7 +112,7 @@ internal fun QuotedMessage(
  * stranách konverzace; stejně jako tužka u úpravy zprávy říká, k čemu se to vztahuje.
  */
 @Composable
-private fun QuoteLines(message: ChatMessage, partnerName: String?, accent: Color) {
+private fun QuoteLines(message: ChatMessage, partnerName: String?, accent: Color, quoteText: String?) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
             painterResource(Res.drawable.format_quote_24dp),
@@ -129,8 +134,9 @@ private fun QuoteLines(message: ChatMessage, partnerName: String?, accent: Color
         )
     }
     Text(
-        // U zprávy bez textu (samotná fotka) by citace byla prázdná.
-        text = message.text.ifBlank { message.media.describe() },
+        // Úryvek má přednost: citovala se jen ta část. U zprávy bez textu (samotná fotka) by
+        // citace byla prázdná, proto popis přílohy.
+        text = quoteText ?: message.text.ifBlank { message.media.describe() },
         style = MaterialTheme.typography.bodySmall,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis,

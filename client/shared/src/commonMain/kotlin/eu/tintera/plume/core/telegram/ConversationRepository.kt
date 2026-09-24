@@ -231,14 +231,16 @@ interface ConversationRepository {
      * TDLib vrací zprávu hned, s dočasným id a stavem [SendState.Sending]; skutečné id přijde
      * až potvrzením v [sentMessageUpdates]. Díky tomu se dá bublina zobrazit bez čekání na server.
      *
-     * [replyToMessageId] je `null` u běžné zprávy. [linkPreview] je volba odesílatele pro náhled
-     * odkazu; `null` nechá rozhodnout server.
+     * [replyToMessageId] je `null` u běžné zprávy, [quote] je úryvek citované zprávy (jen
+     * s [replyToMessageId]). [linkPreview] je volba odesílatele pro náhled odkazu; `null` nechá
+     * rozhodnout server.
      */
     suspend fun send(
         chatId: Long,
         text: String,
         replyToMessageId: Long?,
         linkPreview: LinkPreviewOptions? = null,
+        quote: ReplyQuote? = null,
     ): Result<ChatMessage>
 
     /**
@@ -255,19 +257,34 @@ interface ConversationRepository {
      *
      * Samolepka se zároveň zařadí mezi nedávné, aby byla ve výběru příště nahoře.
      */
-    suspend fun sendSticker(chatId: Long, sticker: StickerItem, replyToMessageId: Long?): Result<ChatMessage>
+    suspend fun sendSticker(
+        chatId: Long,
+        sticker: StickerItem,
+        replyToMessageId: Long?,
+        quote: ReplyQuote? = null,
+    ): Result<ChatMessage>
 
     /**
      * Odešle GIF (z klávesnice) jako animaci, ne jako fotku — z fotky by zbyl první snímek.
      * Skutečný GIF převede na MP4 server sám. Vrací rozepsanou zprávu hned jako [send].
      */
-    suspend fun sendAnimation(chatId: Long, animation: OutgoingAnimation, replyToMessageId: Long?): Result<ChatMessage>
+    suspend fun sendAnimation(
+        chatId: Long,
+        animation: OutgoingAnimation,
+        replyToMessageId: Long?,
+        quote: ReplyQuote? = null,
+    ): Result<ChatMessage>
 
     /**
      * Odešle GIF z výběru — soubor, který na serveru už je, takže se nic nenahrává. GIF se
      * zároveň zařadí na začátek uložených, jako samolepka mezi nedávné.
      */
-    suspend fun sendGif(chatId: Long, gif: GifItem, replyToMessageId: Long?): Result<ChatMessage>
+    suspend fun sendGif(
+        chatId: Long,
+        gif: GifItem,
+        replyToMessageId: Long?,
+        quote: ReplyQuote? = null,
+    ): Result<ChatMessage>
 
     /**
      * Odešle přílohy z disku zařízení, s popiskem. Jedna příloha jde jako obyčejná zpráva, víc jako
@@ -287,6 +304,7 @@ interface ConversationRepository {
         durationSeconds: Int,
         waveform: ByteArray,
         replyToMessageId: Long?,
+        quote: ReplyQuote? = null,
     ): Result<ChatMessage>
 
     suspend fun sendAttachments(
@@ -294,6 +312,7 @@ interface ConversationRepository {
         attachments: List<OutgoingAttachment>,
         caption: String,
         replyToMessageId: Long?,
+        quote: ReplyQuote? = null,
     ): Result<List<ChatMessage>>
 
     /**
@@ -379,6 +398,7 @@ interface ConversationRepository {
         text: String,
         replyToMessageId: Long?,
         linkPreview: LinkPreviewOptions? = null,
+        quote: ReplyQuote? = null,
     ): Result<Unit>
 
     /**
@@ -604,7 +624,19 @@ data class ChatInfo(
     val draftReplyToMessageId: Long?,
     /** Volba náhledu odkazu uložená s konceptem, nebo `null` (rozhoduje server). */
     val draftLinkPreview: LinkPreviewOptions? = null,
+    /** Citovaný úryvek odpovědi v konceptu, nebo `null` (odpověď na celou zprávu). */
+    val draftReplyQuote: ReplyQuote? = null,
 )
+
+/**
+ * Citace ČÁSTI zprávy v odpovědi: úryvek textu citované zprávy a kde v ní začíná.
+ *
+ * Nad odpovědí se pak ukáže jen úryvek, ne začátek celé zprávy. [text] musí být podřetězec
+ * textu citované zprávy; [position] je podle TDLib jen PŘIBLIŽNÁ („approximate quote position"),
+ * repository si přesné místo dohledá samo. Formátování úryvku (tučné, spoiler…) doplní
+ * repository z původní zprávy — TDLib chce, aby v citaci zůstalo.
+ */
+data class ReplyQuote(val text: String, val position: Int)
 
 /**
  * Jak má vypadat náhled odkazu v odesílané zprávě. Výchozí hodnota = nic nevybráno, rozhoduje
@@ -704,6 +736,11 @@ data class ChatMessage(
     val forwardOrigin: ForwardOrigin? = null,
     /** Tlačítka bota pod zprávou; `null` = žádná. */
     val keyboard: BotKeyboard? = null,
+    /**
+     * Citovaný úryvek, když odpověď necituje celou zprávu, ale jen její část; `null` jinak.
+     * Nad odpovědí se pak ukáže úryvek místo začátku citované zprávy.
+     */
+    val replyQuote: String? = null,
 )
 
 /**

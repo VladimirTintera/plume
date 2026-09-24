@@ -369,6 +369,7 @@
     <string name="message_info_link_copied">Odkaz zkopírován</string>
     <string name="menu_sent_at_delivery">%1$s, %2$s · %3$s</string>
     <string name="menu_reply">Odpovědět</string>
+    <string name="menu_quote">Citovat</string>
     <string name="menu_edit">Upravit</string>
     <string name="menu_copy">Kopírovat</string>
     <string name="menu_favorite_add">Přidat do oblíbených</string>
