@@ -268,8 +268,12 @@ private fun ShellContent(
                 SettingsRoute to rememberDecoratedNavEntries(settingsDisplayed, entryDecorators, entryProvider),
             )
 
+            val transitions = rememberNavTransitions()
             NavDisplay(
                 entries = navigation.visibleSections.flatMap { entriesBySection.getValue(it) },
+                transitionSpec = transitions.forward(),
+                popTransitionSpec = transitions.pop(),
+                predictivePopTransitionSpec = transitions.predictivePop(),
                 // Zpět z výběru pro sdílení je totéž co ✕ — vrátit uživatele, odkud sdílel.
                 onBack = {
                     // Zpět ze sdílení je totéž co ✕ — vrátit uživatele tam, odkud sdílel.
