@@ -73,6 +73,12 @@ sealed interface MessageAction {
     data object SwipeReply : MessageAction
 
     data class JumpTo(val messageId: Long) : MessageAction
+
+    /**
+     * Tlačítko bota pod zprávou, určené POZICÍ — co udělá, se dohledá ve zprávě. Data zpětného
+     * volání v doméně nejsou (viz `ConversationRepository.pressBotButton`).
+     */
+    data class PressBotButton(val row: Int, val column: Int) : MessageAction
     data class OpenLink(val url: String) : MessageAction
 
     /** `@jméno` v textu: najít veřejný chat a otevřít ho nad konverzací. */

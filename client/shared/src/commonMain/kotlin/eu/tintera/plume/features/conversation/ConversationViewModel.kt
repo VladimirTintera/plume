@@ -1,5 +1,16 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.BotButtonKind
+import eu.tintera.plume.core.telegram.UnsupportedBotButton
+import eu.tintera.plume.resources.bot_answer
+import eu.tintera.plume.resources.bot_button_failed
+import eu.tintera.plume.resources.bot_text_copied
+import eu.tintera.plume.resources.bot_unsupported_web_app
+import eu.tintera.plume.resources.bot_unsupported_login_url
+import eu.tintera.plume.resources.bot_unsupported_switch_inline
+import eu.tintera.plume.resources.bot_unsupported_buy
+import eu.tintera.plume.resources.bot_unsupported_game
+import eu.tintera.plume.resources.bot_unsupported_password
 import eu.tintera.plume.core.telegram.SenderInfo
 import eu.tintera.plume.core.telegram.ForwardOrigin
 import eu.tintera.plume.resources.invite_request_sent
@@ -1496,12 +1507,16 @@ class ConversationViewModel(
      *
      * Rozpoznání je lokální volání TDLib, takže běžný webový odkaz jde do prohlížeče bez prodlevy.
      */
-    private fun openLink(url: String) {
+    private fun openLink(url: String, confirmExternal: Boolean = false) {
         viewModelScope.launch {
             chatRepository.resolveLink(url)
                 .onSuccess { link ->
                     when (link) {
-                        null -> urlOpener.open(url)
+                        null -> if (confirmExternal) {
+                            _state.update { it.copy(confirmLink = url) }
+                        } else {
+                            urlOpener.open(url)
+                        }
                         is InternalLink.Chat ->
                             if (link.chatId != chatId) _state.update { it.copy(openChat = ChatTarget(link.chatId)) }
                         is InternalLink.Message -> when {
@@ -1516,6 +1531,66 @@ class ConversationViewModel(
                     val message = failure.reported(Res.string.conversation_link_failed)
                     _state.update { it.copy(error = message) }
                 }
+        }
+    }
+
+    /** Odkaz z tlačítka bota potvrzený v dialogu. */
+    fun openConfirmedLink() {
+        val url = _state.value.confirmLink ?: return
+        _state.update { it.copy(confirmLink = null) }
+        urlOpener.open(url)
+    }
+
+    fun dismissLink() = _state.update { it.copy(confirmLink = null) }
+
+    fun dismissBotAlert() = _state.update { it.copy(botAlert = null) }
+
+    /**
+     * Tlačítko bota pod zprávou.
+     *
+     * - **Odkaz mimo Telegram se napřed potvrzuje.** U odkazu v textu uživatel adresu vidí,
+     *   na tlačítku ne — popisek píše bot a „Ověřit účet" může vést kamkoli.
+     * - **Na odpověď bota se čeká jen u jednoho tlačítka naráz.** Druhé ťuknutí během čekání by
+     *   poslalo zpětné volání podruhé a u kontrolní otázky s jedním pokusem spálilo odpověď.
+     * - Co Plume neumí, se VYSVĚTLÍ, tlačítko nezmizí (viz [BotButtonKind.Unsupported]).
+     */
+    private fun pressBotButton(messageId: Long, row: Int, column: Int) {
+        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+        val button = message.keyboard?.rows?.getOrNull(row)?.getOrNull(column) ?: return
+        when (val kind = button.kind) {
+            BotButtonKind.Callback -> askBot(messageId, row, column, button.text)
+            is BotButtonKind.Url -> openLink(kind.url, confirmExternal = true)
+            is BotButtonKind.CopyText -> viewModelScope.launch {
+                clipboard.copy(kind.text)
+                _state.update { it.copy(notice = UiText(Res.string.bot_text_copied)) }
+            }
+            is BotButtonKind.User -> openMentioned { chatRepository.privateChat(kind.userId) }
+            BotButtonKind.Disabled -> Unit
+            is BotButtonKind.Unsupported -> _state.update { it.copy(notice = UiText(kind.feature.explanation())) }
+        }
+    }
+
+    private fun askBot(messageId: Long, row: Int, column: Int, text: String) {
+        if (_state.value.pressingBotButton != null) return
+        _state.update { it.copy(pressingBotButton = BotButtonRef(messageId, row, column)) }
+        viewModelScope.launch {
+            repository.pressBotButton(chatId, messageId, row, column, text)
+                .onSuccess { answer ->
+                    _state.update { state ->
+                        when {
+                            answer.text.isEmpty() -> state
+                            answer.alert -> state.copy(botAlert = answer.text)
+                            else -> state.copy(notice = UiText(Res.string.bot_answer, answer.text))
+                        }
+                    }
+                    // Hra nebo start jiného bota; odkaz od bota je stejně skrytý jako na tlačítku.
+                    if (answer.url.isNotEmpty()) openLink(answer.url, confirmExternal = true)
+                }
+                .onFailure { failure ->
+                    val message = failure.reported(Res.string.bot_button_failed)
+                    _state.update { it.copy(error = message) }
+                }
+            _state.update { it.copy(pressingBotButton = null) }
         }
     }
 
@@ -1842,6 +1917,7 @@ class ConversationViewModel(
             MessageAction.ToggleReadReceipt -> toggleReadReceipt(messageId)
             MessageAction.SwipeReply, MessageMenuAction.Reply -> replyTo(messageId)
             is MessageAction.JumpTo -> jumpToMessage(action.messageId)
+            is MessageAction.PressBotButton -> pressBotButton(messageId, action.row, action.column)
             is MessageAction.OpenLink -> openLink(action.url)
             is MessageAction.OpenMention -> openMentioned { chatRepository.chatByUsername(action.username) }
             is MessageAction.OpenUser -> openMentioned { chatRepository.privateChat(action.userId) }
@@ -2947,6 +3023,12 @@ data class ConversationState(
     val memberPicker: MemberPicker? = null,
     /** Náhled chatu z pozvánky; `null` = zavřený. */
     val invite: InviteSheetState? = null,
+    /** Odkaz z tlačítka bota, který čeká na potvrzení; `null` = žádný. */
+    val confirmLink: String? = null,
+    /** Upozornění od bota, které se musí potvrdit (`showAlert`); `null` = žádné. */
+    val botAlert: String? = null,
+    /** Tlačítko bota, na jehož odpověď se čeká; `null` = žádné. */
+    val pressingBotButton: BotButtonRef? = null,
     /** Jednorázová událost: otevřít sheet sady samolepek z odkazu `t.me/addstickers/…`. */
     val openStickerSet: Long? = null,
     /** Běží přidání ke skupině / kanálu ([ConversationViewModel.join]). */
@@ -3108,3 +3190,15 @@ data class ConversationState(
 
 /** Jak dlouho se čeká, než se stahování souboru vůbec rozběhne. */
 private val DOWNLOAD_START_TIMEOUT = 30.seconds
+
+/** Tlačítko bota určené pozicí v klávesnici zprávy. */
+data class BotButtonRef(val messageId: Long, val row: Int, val column: Int)
+
+private fun UnsupportedBotButton.explanation(): StringResource = when (this) {
+    UnsupportedBotButton.WebApp -> Res.string.bot_unsupported_web_app
+    UnsupportedBotButton.LoginUrl -> Res.string.bot_unsupported_login_url
+    UnsupportedBotButton.SwitchInline -> Res.string.bot_unsupported_switch_inline
+    UnsupportedBotButton.Buy -> Res.string.bot_unsupported_buy
+    UnsupportedBotButton.Game -> Res.string.bot_unsupported_game
+    UnsupportedBotButton.Password -> Res.string.bot_unsupported_password
+}

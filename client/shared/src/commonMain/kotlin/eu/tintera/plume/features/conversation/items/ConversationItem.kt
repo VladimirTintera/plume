@@ -112,6 +112,9 @@ internal interface ConversationItemScope {
      */
     fun isProfileFlight(messageId: Long): Boolean = false
 
+    /** Tlačítko bota u zprávy, na jehož odpověď se čeká (řádek, sloupec); `null` = žádné. */
+    fun pressingBotButton(messageId: Long): Pair<Int, Int>? = null
+
     /** Svislý posun položky při příjezdu po přeskoku (viz `JumpTransition`); čte se až při kreslení. */
     fun gatherShift(key: Any): Float = 0f
 

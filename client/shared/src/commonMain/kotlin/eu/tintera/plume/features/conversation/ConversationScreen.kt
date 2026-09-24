@@ -1283,6 +1283,14 @@ fun ConversationScreen(
             InviteSheet(invite = invite, onJoin = viewModel::joinInvite, onDismiss = viewModel::dismissInvite)
         }
 
+        state.confirmLink?.let { url ->
+            OpenLinkDialog(url = url, onOpen = viewModel::openConfirmedLink, onDismiss = viewModel::dismissLink)
+        }
+
+        state.botAlert?.let { text ->
+            BotAlertDialog(text = text, onDismiss = viewModel::dismissBotAlert)
+        }
+
         openStickerSetId?.let { setId ->
             StickerSetSheet(
                 setId = setId,
@@ -2554,6 +2562,9 @@ private class ScreenItemScope(
     private val profileFlight: MutableState<Long?>,
 ) : ConversationItemScope {
     override fun isProfileFlight(messageId: Long): Boolean = profileFlight.value == messageId
+
+    override fun pressingBotButton(messageId: Long): Pair<Int, Int>? =
+        state.value.pressingBotButton?.takeIf { it.messageId == messageId }?.let { it.row to it.column }
 
     override fun searchHighlight(): String? = searchHighlight.value
 

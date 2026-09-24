@@ -620,6 +620,24 @@ private fun MessageFrame(
              *
              * Odznak doručení do ní nepatří: stojí až za ní, ve sloupci.
              */
+            /*
+             * Tlačítka bota visí pod zprávou a jedou s ní i při tahu na odpověď. Do `MessageBox`
+             * nepatří: ten je ořezaný tvarem bubliny a kreslí ho i nabídka nad zprávou.
+             */
+            WithBotKeyboard(
+                keyboard = message.keyboard,
+                isOutgoing = message.isOutgoing,
+                maxWidthFraction = maxWidthFraction,
+                keyboardContent = {
+                    message.keyboard?.let { keyboard ->
+                        BotKeyboardView(
+                            keyboard = keyboard,
+                            pressing = scope.pressingBotButton(message.id),
+                            onPress = { row, column -> bodyScope.act(MessageAction.PressBotButton(row, column)) },
+                        )
+                    }
+                },
+            ) {
             MessageBox(
                 frame = frame,
                 bodyScope = bodyScope,
@@ -680,6 +698,7 @@ private fun MessageFrame(
                         .align(Alignment.CenterStart)
                         .offset(x = -REPLY_ICON_SLOT),
                 )
+            }
             }
 
             DeliveryBadge(

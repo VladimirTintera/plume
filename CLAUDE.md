@@ -3456,6 +3456,46 @@ všechny podoby (`t.me`, `telegram.me`, `tg://`) a my jen vybíráme, co umíme 
 - **Sada samolepek** (`t.me/addstickers/…`, `searchStickerSet`) otevře tentýž sheet jako ťuknutí
   na samolepku.
 
+### Tlačítka botů pod zprávou
+
+Inline klávesnice bota (`ReplyMarkupInlineKeyboard`) se kreslí pod zprávou jako blok zaoblených
+tlačítek (`BotKeyboardView`, `WithBotKeyboard` v `items/BotKeyboard.kt`; doména `BotKeyboard`
+v `ChatMessage.keyboard`). Dokud nebyla, nešlo projít kontrolou proti botům, kterou si velké
+skupiny dávají před vstup — odpověď napsaná textem se nepočítá, bot čeká na ťuknutí.
+
+- **Data zpětného volání do domény NEJDOU.** Jsou to bajty od bota a klávesnice se mezi
+  vykreslením a ťuknutím může změnit. Tlačítko se určuje POZICÍ (`MessageAction.PressBotButton`)
+  a repository si data dočte ze zprávy (`pressBotButton`), včetně kontroly, že na tom místě je
+  pořád tlačítko s tímtéž textem.
+- **Bot klávesnici přepisuje bez změny obsahu** (odpočet pokusů, další krok menu) — přijde jen
+  `UpdateMessageEdited`, ne `UpdateMessageContent`. `editedMessages` proto odebírá obojí.
+- **Na odpověď se čeká u jednoho tlačítka naráz** (`pressingBotButton`, na tlačítku se točí
+  indikátor). Druhé ťuknutí by zpětné volání poslalo podruhé a u kontrolní otázky s jediným
+  pokusem by spálilo odpověď.
+- **Odpověď bota má tři podoby** (`BotAnswer`): krátký text jako snackbar, upozornění
+  (`showAlert`) jako dialog, který se musí potvrdit, a odkaz. Prázdná odpověď je běžná — bot
+  jen přepíše zprávu.
+- **Odkaz mimo Telegram se napřed potvrzuje** (`OpenLinkDialog` s celou adresou). U odkazu
+  v textu uživatel adresu vidí, na tlačítku ne. Odkaz na Telegram (`resolveLink`) se otevře
+  rovnou, jako odkaz v textu.
+- **Co Plume neumí, je vidět a ťuknutí to vysvětlí** (`BotButtonKind.Unsupported`: mini
+  aplikace, přihlášení na web, inline dotaz, platba, hra, heslo). Schované tlačítko by
+  z klávesnice bota vykouslo řádek nebo jeho část a změnilo, co bot nabízí.
+- **Tlačítka jsou vysoká rovnou 48 dp.** S nižším je `Surface` dorovná na dotykovou velikost
+  PRŮHLEDNÝM okrajem a svislé mezery mezi řádky vyšly o 8 dp větší než vodorovné.
+- **Šířka klávesnice: aspoň jako zpráva, víc jen když potřebuje**, do stropu šířky zprávy —
+  vlastní `Layout`, ne `IntrinsicSize` (zpráva bývá fotka v `BoxWithConstraints`).
+- **Barvy od bota** (`ButtonStyle` v TDLib 15): výchozí tonální `secondaryContainer`, „primary"
+  `primary`, „danger" `errorContainer`, „success" `tertiaryContainer` — vlastní roli pro úspěch
+  M3 nemá.
+- **Ověřuje se testovacím botem přes Bot API**: `sendMessage` s `reply_markup.inline_keyboard`
+  (i `copy_text`, `style`), ťuknutí v aplikaci a `getUpdates` → `answerCallbackQuery` (s `text`,
+  `show_alert`). **`getUpdates` si update potvrdí až dalším voláním s `offset`** — skript, který
+  skončí hned po odpovědi, dostane příště TENTÝŽ callback znovu a `answerCallbackQuery` na něj
+  vrátí 400. Přepsání klávesnice se zkouší `editMessageReplyMarkup`.
+- **Ve skutečných skupinách na tlačítka neťukat** — antispamoví boti mají pod zprávami
+  „Skrýt" / „Za co?" a ťuknutí jedná jménem účtu.
+
 ### Profilovky ve skupině
 
 Ve skupině má cizí zpráva vlevo tvář odesílatele, aby se odesílatelé nerozlišovali jen jménem.

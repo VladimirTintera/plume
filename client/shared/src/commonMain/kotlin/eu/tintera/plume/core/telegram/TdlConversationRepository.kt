@@ -2,6 +2,22 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
+import dev.g000sha256.tdl.dto.ReplyMarkupInlineKeyboard
+import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeCallback
+import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeUrl
+import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeCopyText
+import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeUser
+import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeDisabled
+import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeWebApp
+import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeLoginUrl
+import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeSwitchInline
+import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeBuy
+import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeCallbackGame
+import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeCallbackWithPassword
+import dev.g000sha256.tdl.dto.ButtonStylePrimary
+import dev.g000sha256.tdl.dto.ButtonStyleSuccess
+import dev.g000sha256.tdl.dto.ButtonStyleDanger
+import dev.g000sha256.tdl.dto.CallbackQueryPayloadData
 import dev.g000sha256.tdl.dto.ChatActionCancel
 import dev.g000sha256.tdl.dto.ChatActionTyping
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
@@ -177,11 +193,14 @@ class TdlConversationRepository(
         client.openMessageContent(chatId = chatId, messageId = messageId).toResult().map { }
 
     override fun editedMessages(chatId: Long): Flow<ChatMessage> =
-        holder.updates { messageContentUpdates }
-            .filter { it.chatId == chatId }
-            .map { update ->
+        merge(
+            holder.updates { messageContentUpdates }.filter { it.chatId == chatId }.map { it.messageId },
+            // Tlačítka bota se mění i bez změny obsahu — a pak přijde jen tenhle update.
+            holder.updates { messageEditedUpdates }.filter { it.chatId == chatId }.map { it.messageId },
+        )
+            .map { messageId ->
                 // Update nese jen nový obsah, ne celou zprávu — zbytek se musí dočíst.
-                client.getMessage(chatId = chatId, messageId = update.messageId)
+                client.getMessage(chatId = chatId, messageId = messageId)
                     .toResult()
                     .map { it.toChatMessage(isGroup(chatId)) }
             }
@@ -1112,7 +1131,30 @@ class TdlConversationRepository(
             // Zlomky vteřiny nahoru: „0 s" by u běžícího odpočtu znamenalo, že už vypršel.
             selfDestructIn = selfDestructIn.takeIf { it > 0.0 }?.let { ceil(it).toInt() },
             forwardOrigin = forwardInfo?.origin?.toForwardOrigin(),
+            keyboard = (replyMarkup as? ReplyMarkupInlineKeyboard)?.toBotKeyboard(),
         )
+    }
+
+    override suspend fun pressBotButton(
+        chatId: Long,
+        messageId: Long,
+        row: Int,
+        column: Int,
+        text: String,
+    ): Result<BotAnswer> = runCatching {
+        val message = client.getMessage(chatId = chatId, messageId = messageId).toResult().getOrThrow()
+        val button = (message.replyMarkup as? ReplyMarkupInlineKeyboard)
+            ?.rows?.getOrNull(row)?.getOrNull(column)
+            ?.takeIf { it.text == text }
+            ?: error("Tlačítko se mezitím změnilo.")
+        val data = (button.type as? InlineKeyboardButtonTypeCallback)?.data
+            ?: error("Tlačítko nemá zpětné volání.")
+        val answer = client.getCallbackQueryAnswer(
+            chatId = chatId,
+            messageId = messageId,
+            payload = CallbackQueryPayloadData(data = data),
+        ).toResult().getOrThrow()
+        BotAnswer(text = answer.text.trim(), alert = answer.showAlert, url = answer.url.trim())
     }
 
     /**
@@ -1490,3 +1532,39 @@ internal fun TdlLinkPreviewOptions.toDomain(): LinkPreviewOptions? =
         },
         aboveText = showAboveText,
     ).takeUnless { it.isDefault }
+
+/**
+ * Inline klávesnice bota. Prázdné řádky se zahazují — v klávesnici by po nich zbyla mezera.
+ *
+ * `when` nad druhem tlačítka je bez `else`: nový druh v novější TDLib má rozbít překlad, ne se
+ * tiše nakreslit jako něco jiného.
+ */
+private fun ReplyMarkupInlineKeyboard.toBotKeyboard(): BotKeyboard? {
+    val rows = rows.map { row ->
+        row.filterNotNull().map { button ->
+            BotButton(
+                text = button.text,
+                kind = when (val type = button.type) {
+                    is InlineKeyboardButtonTypeCallback -> BotButtonKind.Callback
+                    is InlineKeyboardButtonTypeUrl -> BotButtonKind.Url(type.url)
+                    is InlineKeyboardButtonTypeCopyText -> BotButtonKind.CopyText(type.text)
+                    is InlineKeyboardButtonTypeUser -> BotButtonKind.User(type.userId)
+                    is InlineKeyboardButtonTypeDisabled -> BotButtonKind.Disabled
+                    is InlineKeyboardButtonTypeWebApp -> BotButtonKind.Unsupported(UnsupportedBotButton.WebApp)
+                    is InlineKeyboardButtonTypeLoginUrl -> BotButtonKind.Unsupported(UnsupportedBotButton.LoginUrl)
+                    is InlineKeyboardButtonTypeSwitchInline -> BotButtonKind.Unsupported(UnsupportedBotButton.SwitchInline)
+                    is InlineKeyboardButtonTypeBuy -> BotButtonKind.Unsupported(UnsupportedBotButton.Buy)
+                    is InlineKeyboardButtonTypeCallbackGame -> BotButtonKind.Unsupported(UnsupportedBotButton.Game)
+                    is InlineKeyboardButtonTypeCallbackWithPassword -> BotButtonKind.Unsupported(UnsupportedBotButton.Password)
+                },
+                style = when (button.style) {
+                    is ButtonStylePrimary -> BotButtonStyle.Primary
+                    is ButtonStyleSuccess -> BotButtonStyle.Success
+                    is ButtonStyleDanger -> BotButtonStyle.Danger
+                    else -> BotButtonStyle.Default
+                },
+            )
+        }
+    }.filter { it.isNotEmpty() }
+    return BotKeyboard(rows).takeIf { rows.isNotEmpty() }
+}
