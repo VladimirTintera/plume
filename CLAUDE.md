@@ -5565,6 +5565,16 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   - **Ověřeno na emulátoru** dvojicí `am start SEND` po sobě: tentýž chat (obrazovka zůstane,
     ukáže nový snímek), jiný chat (Uložené zprávy), sdílení bez chatu nad „Komu: …" (výběr
     chatu s novým obsahem), Direct Share nad výběrem chatu; pak odeslání a ✕ s návratem.
+  - **Na iOS simulátoru** sdílení po sobě do Notifikátora, Uložených zpráv a znovu Notifikátora
+    (pokaždé rovnou správný chat s novou fotkou a popiskem), ze studeného startu a odeslání.
+    **Ověřuje se zápisem do inboxu App Group, ne ťukáním v rozšíření**: složka
+    `share/inbox/<čas>-<uuid>/` s obrázkem a `manifest.json` (`{"chatId", "text", "items":
+    [{"file", "kind": "image"}]}`) zapsaným POSLEDNÍ, pak přepnout do jiné aplikace a Plume
+    spustit (`simctl launch`). Inbox se čte při návratu do popředí — `simctl openurl` nad běžící
+    aplikací ukáže jen systémový dialog a do pozadí ji nepošle, takže se nic nestane.
+  - **Seznam chatů v rozšíření se po otevření přeskládá** (dočte naposledy použité). Ťuknutí
+    podle souřadnic ze snímku tak trefilo jiný chat — skutečného člověka; fotka naštěstí jen
+    čekala nad polem. Proto zápis do inboxu, ne ťukání.
 - **Uložené zprávy v hlavičce „Komu: …" mají vlastní název**, ne jméno účtu, pod kterým je
   vede TDLib — tatáž past jako u `chatTitle` jinde.
 - **Výběr má ✕, ne šipku zpět, a ✕ i gesto zpět vrací do aplikace, ze které se sdílelo**
