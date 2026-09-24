@@ -63,6 +63,26 @@ fun strongestAccentOn(background: Color, accent: Color, alternative: Color): Col
     }
 
 /**
+ * Barva drobné kresby, která leží NA HRANĚ dvou ploch a musí se odlišit od obou — [preferred],
+ * dokud to zvládne, jinak z [alternatives] ta, jejíž horší kontrast vůči [backgrounds] je nejvyšší.
+ *
+ * Úchyty výběru textu v kopii zprávy visí pod řádkem přes spodní okraj bubliny: kus leží na
+ * bublině, kus na ploše konverzace. Výchozí `primary` je na odchozí `primary` bublině barva na
+ * barvě a úchyty vypadaly jako její výběžky. Pevná náhrada nevyjde v obou režimech: v tmavém
+ * je `primary` bublina světlá a plocha tmavá (vyhraje `inversePrimary`, střední tón), ve
+ * světlém je bublina střední a plocha světlá (vyhraje tmavý `onSurface`).
+ *
+ * Práh je [MIN_GRAPHIC_CONTRAST] (WCAG 1.4.11, netextový prvek), ne AA pro text — u příchozí
+ * bubliny by jinak `primary` prohrála s kontrastnějším `onSurface` a úchyty by zčernaly i tam,
+ * kde vidět jsou.
+ */
+fun distinctOnBoth(preferred: Color, alternatives: List<Color>, vararg backgrounds: Color): Color {
+    fun worst(color: Color) = backgrounds.minOf { contrastRatio(color, it) }
+    if (worst(preferred) >= MIN_GRAPHIC_CONTRAST) return preferred
+    return (listOf(preferred) + alternatives).maxBy(::worst)
+}
+
+/**
  * Plocha vloženého obsahu ([container]), která se od plochy pod ní ([background]) pozná — jinak
  * posunutá o kus k [toward], tedy k barvě popředí, kterou sama nese.
  *
@@ -117,6 +137,9 @@ private const val SURFACE_TINT = 0.3f
  * nemění — viz `AccentColorTest`.
  */
 private const val MIN_ACCENT_CONTRAST = 4.5f
+
+/** Kontrast netextového prvku (WCAG 1.4.11) — úchyty výběru, viz [distinctOnBoth]. */
+private const val MIN_GRAPHIC_CONTRAST = 3f
 
 /**
  * Odkdy jsou dvě plochy pod sebou k rozeznání. Text by potřeboval mnohem víc, ale tady jde jen

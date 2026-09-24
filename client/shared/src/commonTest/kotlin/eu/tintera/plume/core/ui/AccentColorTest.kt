@@ -137,4 +137,47 @@ class AccentColorTest {
             accentOn(plocha, accent = skoroPruhlednaBila, fallback = Color.Yellow),
         )
     }
+
+    /**
+     * Úchyty výběru u odchozí zprávy v tmavém režimu (tóny palety Expressive): bublina `primary`
+     * je světlá, plocha tmavá. `primary` splyne s bublinou, `onSurface` je jí moc blízko —
+     * vyhraje `inversePrimary`, střední tón, který se odliší od obou.
+     */
+    @Test
+    fun uchytyNaTmaveOdchoziBublineVezmouInversePrimary() {
+        val primary = Color(0xFFAAC7FF)
+        val plocha = Color(0xFF111318)
+        val inversePrimary = Color(0xFF415F91)
+        val onSurface = Color(0xFFE2E2E9)
+
+        assertEquals(
+            inversePrimary,
+            distinctOnBoth(primary, listOf(inversePrimary, onSurface), primary, plocha),
+        )
+    }
+
+    /** Totéž ve světlém režimu: bublina střední, plocha světlá — vyhraje tmavý `onSurface`. */
+    @Test
+    fun uchytyNaSvetleOdchoziBublineVezmouOnSurface() {
+        val primary = Color(0xFF415F91)
+        val plocha = Color(0xFFF9F9FF)
+        val inversePrimary = Color(0xFFAAC7FF)
+        val onSurface = Color(0xFF191C20)
+
+        assertEquals(
+            onSurface,
+            distinctOnBoth(primary, listOf(inversePrimary, onSurface), primary, plocha),
+        )
+    }
+
+    /** U příchozí bubliny `primary` vidět je, a tak zůstane, i když by jiná role měřila víc. */
+    @Test
+    fun uchytyNaPrichoziBublineZustanouPrimary() {
+        val primary = Color(0xFF415F91)
+        val bublina = Color(0xFFE7E8EE)
+        val plocha = Color(0xFFF9F9FF)
+        val onSurface = Color(0xFF191C20)
+
+        assertEquals(primary, distinctOnBoth(primary, listOf(onSurface), bublina, plocha))
+    }
 }

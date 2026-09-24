@@ -41,6 +41,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.TextSelectionColors
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -289,12 +290,7 @@ internal fun rememberMessageBodyScope(
      */
     val colors = MaterialTheme.colorScheme
     val emphasisSpec = MaterialTheme.motionScheme.slowEffectsSpec<Color>()
-    val targetBubble = when {
-        message.isOutgoing && frame.emphasized -> colors.tertiary
-        message.isOutgoing -> colors.primary
-        frame.emphasized -> colors.tertiaryContainer
-        else -> colors.surfaceContainerHigh
-    }
+    val targetBubble = bubbleColorFor(colors, message.isOutgoing, frame.emphasized)
     val targetOnBubble = when {
         message.isOutgoing && frame.emphasized -> colors.onTertiary
         message.isOutgoing -> colors.onPrimary
@@ -329,8 +325,8 @@ internal fun rememberMessageBodyScope(
      * Podklad výběru textu (označování v kopii zprávy v nabídce). Výchozí je `primary`
      * s průhledností — na odchozí `primary` bublině tedy barva na barvě a označený úsek nebyl
      * vidět. Stejné pravidlo jako u akcentu: `primary`, dokud je na bublině vidět, jinak barva
-     * popředí bubliny. Úchyty výběru to nemění: ty čte `SelectionContainer` kolem celé kopie
-     * a leží na ploše konverzace, ne na bublině.
+     * popředí bubliny. Úchyty výběru se tu jen převezmou: čte je `SelectionContainer` kolem
+     * celé kopie a barvu jim dává nabídka (`MessageMenu`, [distinctOnBoth]).
      */
     val selectionColor by animateColorAsState(
         targetValue = accentOn(background = targetBubble, accent = colors.primary, fallback = targetOnBubble),
@@ -959,6 +955,17 @@ internal fun MessageBodyScope.PaddedColumn(
         horizontalAlignment = horizontalAlignment,
         content = content,
     )
+}
+
+/**
+ * Barva bubliny podle strany a zvýraznění — cílová, bez animace. Potřebuje ji i nabídka nad
+ * zprávou: úchyty výběru se musí odlišit od bubliny, na jejímž okraji visí.
+ */
+internal fun bubbleColorFor(colors: ColorScheme, isOutgoing: Boolean, emphasized: Boolean): Color = when {
+    isOutgoing && emphasized -> colors.tertiary
+    isOutgoing -> colors.primary
+    emphasized -> colors.tertiaryContainer
+    else -> colors.surfaceContainerHigh
 }
 
 /** Bublina: pozadí ve tvaru a barvě podle strany a sousedů, obsah odsazený. */

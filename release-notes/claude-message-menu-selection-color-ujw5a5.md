@@ -1,3 +1,3 @@
 type: fix
-cs: Označený text ve vlastní zprávě je v nabídce nad zprávou vidět
-en: Selected text in your own messages is now visible in the message menu
+cs: Označený text i úchyty výběru jsou ve vlastní zprávě v nabídce vidět
+en: Selected text and selection handles are now visible in your own messages

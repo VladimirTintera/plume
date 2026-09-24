@@ -3747,9 +3747,15 @@ na iOS. Dlouhý stisk v SEZNAMU dál otevírá nabídku — o gesto se nedělí,
   `MessageBodyScope.selectionColors`). Výchozí podklad výběru je `primary` s alfou 0,4 — na
   odchozí `primary` bublině tedy barva na barvě a označený úsek nebyl vidět vůbec. Podklad si
   `BasicText` čte z `LocalTextSelectionColors` SÁM, v místě textu, takže ho jde podat až na
-  ploše, kde text leží; úchyty čte kontejner kolem celé kopie a leží na ploše konverzace, proto
-  zůstávají výchozí. Pravidlo je tatáž `accentOn` jako u akcentu: `primary`, dokud je na
-  bublině vidět, jinak barva popředí bubliny. **Každá nová plocha v barvě bubliny jde přes
+  ploše, kde text leží. Pravidlo je tatáž `accentOn` jako u akcentu: `primary`, dokud je na
+  bublině vidět, jinak barva popředí bubliny.
+- **Úchyty výběru nastavuje nabídka, kolem `SelectionContainer`** — čte je kontejner, ne text.
+  Visí přes spodní okraj bubliny, takže se musí odlišit od bubliny I od plochy konverzace
+  (`distinctOnBoth`, testy `AccentColorTest`): `primary`, dokud má proti oběma aspoň 3 : 1
+  (WCAG pro netextové prvky), jinak z `inversePrimary` / `onSurface` ta s lepším horším
+  kontrastem. Pevná náhrada nevyjde v obou režimech: u odchozí zprávy vyhraje v tmavém
+  `inversePrimary` (bublina světlá, plocha tmavá), ve světlém `onSurface`. Barvu bubliny
+  sdílí nabídka s rámem přes `bubbleColorFor`. **Každá nová plocha v barvě bubliny jde přes
   `BubbleSurface`**, ne přes holý `Surface(color = bubbleColor)` — jinak na ní výběr zmizí znovu.
 - **Formátování úryvku se MUSÍ přenést** (`quoteInput`, testy `ReplyQuoteTest`). TDLib: tučné,
   kurzíva, podtržení, přeškrtnutí, spoiler a vlastní emoji „must be kept in the quote". Repository
