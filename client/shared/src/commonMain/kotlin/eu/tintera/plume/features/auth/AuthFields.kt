@@ -110,7 +110,7 @@ internal fun authOutlineColor(isError: Boolean, active: Boolean): Color = animat
 ).value
 
 /**
- * Heslo dvoufázového ověření.
+ * Heslo dvoufázového ověření — to stávající i nové při obnově.
  *
  * **Tónovaný blok jako číslo, ne obrysové pole s plovoucím labelem.** Na jedné obrazovce nemají
  * být dvě různá pojetí vstupu; label navíc jen opakoval nadpis kroku, stejně jako u země.
@@ -118,6 +118,7 @@ internal fun authOutlineColor(isError: Boolean, active: Boolean): Color = animat
  * **Odkrytí okem je to hlavní.** Cloud heslo se píše jednou za dlouho a naslepo, takže překlep
  * se pozná až z hlášky „Heslo nesedí" — a uživatel ani potom neví, co vlastně napsal. Ikona
  * pojmenovává AKCI, ne stav: se skrytým heslem je to oko („zobrazit"), s odkrytým přeškrtnuté.
+ * U NOVÉHO hesla je to ještě důležitější: potvrzovací druhé pole nemáme, kontrolou je právě oko.
  */
 @Composable
 internal fun PasswordField(
@@ -125,16 +126,73 @@ internal fun PasswordField(
     isError: Boolean,
     onValueChange: (String) -> Unit,
     onSubmit: () -> Unit,
+    placeholder: StringResource = Res.string.auth_input_password,
+    // Nové heslo správce hesel nabídne vygenerovat a uložit; stávající doplnit.
+    contentType: ContentType = ContentType.Password,
+    imeAction: ImeAction = ImeAction.Go,
+    onNext: (() -> Unit)? = null,
 ) {
     var revealed by rememberSaveable { mutableStateOf(false) }
+    AuthBlockField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = placeholder,
+        isError = isError,
+        keyboardType = KeyboardType.Password,
+        contentType = contentType,
+        imeAction = imeAction,
+        onSubmit = onSubmit,
+        onNext = onNext,
+        visualTransformation = if (revealed) VisualTransformation.None else PasswordVisualTransformation(),
+    ) {
+        IconButton(onClick = { revealed = !revealed }, modifier = Modifier.padding(end = 4.dp)) {
+            Icon(
+                painterResource(
+                    if (revealed) Res.drawable.visibility_off_24dp else Res.drawable.visibility_24dp,
+                ),
+                contentDescription = stringResource(
+                    if (revealed) Res.string.auth_password_hide else Res.string.auth_password_show,
+                ),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/**
+ * Tónovaný blok s jedním polem — tentýž jazyk jako číslo a heslo, pro kód z e-mailu a nápovědu
+ * k novému heslu. Obrysové [AuthTextField] by na obrazovce, kde se oba vstupy střídají s heslem,
+ * byl druhý vzhled pro totéž.
+ *
+ * **Fokus a chybu nese rámeček kolem celého bloku**, ne podtržení `TextField`u: to je široké jen
+ * jako pole, takže vedle ikony končilo v půlce karty a vypadalo jako chyba vykreslení.
+ */
+@Composable
+internal fun AuthBlockField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: StringResource,
+    isError: Boolean,
+    keyboardType: KeyboardType,
+    onSubmit: () -> Unit,
+    contentType: ContentType? = null,
+    imeAction: ImeAction = ImeAction.Go,
+    /**
+     * „Další" na klávesnici. **Výchozí přesun fokusu nestačí, když má blok ikonu**: fokus skočí
+     * na ni (oko u hesla), ne do dalšího pole — ověřeno na emulátoru, nápověda pod novým heslem
+     * se tak psala naprázdno.
+     */
+    onNext: (() -> Unit)? = null,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    fieldModifier: Modifier = Modifier,
+    trailing: @Composable () -> Unit = {},
+) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
 
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        // Fokus nese rámeček kolem celého bloku, ne podtržení `TextField`u: to je široké jen
-        // jako pole, takže vedle oka končilo v půlce karty a vypadalo jako chyba vykreslení.
         border = BorderStroke(AUTH_OUTLINE, authOutlineColor(isError = isError, active = focused)),
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -142,21 +200,20 @@ internal fun PasswordField(
             TextField(
                 value = value,
                 onValueChange = onValueChange,
-                placeholder = { Text(stringResource(Res.string.auth_input_password)) },
+                placeholder = { Text(stringResource(placeholder)) },
                 singleLine = true,
                 isError = isError,
-                visualTransformation = if (revealed) {
-                    VisualTransformation.None
-                } else {
-                    PasswordVisualTransformation()
-                },
-                // Heslo se neopravuje a nedoplňuje; klávesnice by z něj udělala jiné slovo.
+                visualTransformation = visualTransformation,
+                // Heslo ani kód se neopravují a nedoplňují; klávesnice by z nich udělala jiné slovo.
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Go,
+                    keyboardType = keyboardType,
+                    imeAction = imeAction,
                     autoCorrectEnabled = false,
                 ),
-                keyboardActions = KeyboardActions(onGo = { onSubmit() }),
+                keyboardActions = KeyboardActions(
+                    onGo = { onSubmit() },
+                    onNext = onNext?.let { next -> { next() } },
+                ),
                 textStyle = MaterialTheme.typography.headlineSmall,
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
@@ -167,21 +224,11 @@ internal fun PasswordField(
                     errorIndicatorColor = Color.Transparent,
                 ),
                 interactionSource = interaction,
-                // Cloud heslo bývá ve správci hesel — tady se hodí nejvíc, protože se zadává
-                // jednou za dlouho.
-                modifier = Modifier.weight(1f).semantics { contentType = ContentType.Password },
+                modifier = fieldModifier
+                    .weight(1f)
+                    .semantics { contentType?.let { this.contentType = it } },
             )
-            IconButton(onClick = { revealed = !revealed }, modifier = Modifier.padding(end = 4.dp)) {
-                Icon(
-                    painterResource(
-                        if (revealed) Res.drawable.visibility_off_24dp else Res.drawable.visibility_24dp,
-                    ),
-                    contentDescription = stringResource(
-                        if (revealed) Res.string.auth_password_hide else Res.string.auth_password_show,
-                    ),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            trailing()
         }
     }
 }

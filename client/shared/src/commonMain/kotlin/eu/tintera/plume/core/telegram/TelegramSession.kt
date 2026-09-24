@@ -39,11 +39,28 @@ interface TelegramSession {
     /** Heslo dvoufázového ověření (cloud password), ne kód z SMS. */
     suspend fun submitPassword(password: String): Result<Unit>
 
+    /**
+     * Pošle kód na obnovu hesla na obnovovací e-mail. Jde jen v [AuthStage.WaitPassword]
+     * s [AuthStage.WaitPassword.canRecover]; kam kód odešel, ohlásí TDLib novým stavem
+     * ([AuthStage.WaitPassword.recoveryEmailPattern]).
+     */
+    suspend fun requestPasswordRecovery(): Result<Unit>
+
+    /**
+     * Ověří kód z e-mailu, ale ještě nic nemění. Samostatný krok proto, aby uživatel nové heslo
+     * vymýšlel až nad kódem, o kterém je jisté, že platí — jinak by se překlep v kódu ukázal
+     * až po napsání hesla a musel by ho psát znovu.
+     */
+    suspend fun checkPasswordRecoveryCode(code: String): Result<Unit>
+
+    /** Nastaví nové heslo kódem z e-mailu a tím přihlášení dokončí. [newHint] smí být prázdná. */
+    suspend fun recoverPassword(code: String, newPassword: String, newHint: String): Result<Unit>
+
     /** Přepne přihlášení do QR režimu — výsledkem je [AuthStage.WaitQrConfirmation] s odkazem. */
     suspend fun startQrLogin(): Result<Unit>
 
     /**
-     * Zahodí rozjeté QR přihlášení a vrátí automat na začátek, k zadání čísla.
+     * Zahodí rozjeté přihlášení (QR, kód, heslo) a vrátí automat na začátek, k zadání čísla.
      *
      * **Jinak se z QR režimu ven nedostaneme.** TDLib u `setAuthenticationPhoneNumber`
      * i `requestQrCodeAuthentication` vyjmenovává stavy, ve kterých se smí volat, a
@@ -179,7 +196,16 @@ sealed interface AuthStage {
     /** Server čeká kód; jeho podobu nese [code], podle ní se kreslí políčka. */
     data class WaitCode(val code: AuthCode) : AuthStage
 
-    data class WaitPassword(val hint: String?) : AuthStage
+    data class WaitPassword(
+        val hint: String?,
+        /** Účet má obnovovací e-mail, takže zapomenuté heslo jde obnovit kódem z něj. */
+        val canRecover: Boolean = false,
+        /**
+         * Maska e-mailu, kam odešel kód na obnovu („a***@g***.com"). **`null`, dokud se o obnovu
+         * nikdo neřekl** — TDLib ji posílá až v novém stavu po `requestAuthenticationPasswordRecovery`.
+         */
+        val recoveryEmailPattern: String? = null,
+    ) : AuthStage
 
     /** QR přihlášení: [link] se vykreslí jako QR kód a potvrdí se v už přihlášeném klientovi. */
     data class WaitQrConfirmation(val link: String) : AuthStage

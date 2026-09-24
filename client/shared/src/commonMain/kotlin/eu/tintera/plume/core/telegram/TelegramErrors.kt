@@ -24,6 +24,9 @@ import eu.tintera.plume.resources.error_phone_code_expired
 import eu.tintera.plume.resources.error_phone_code_invalid
 import eu.tintera.plume.resources.error_phone_number_invalid
 import eu.tintera.plume.resources.error_pin_limit
+import eu.tintera.plume.resources.error_recovery_code_expired
+import eu.tintera.plume.resources.error_recovery_code_invalid
+import eu.tintera.plume.resources.error_recovery_unavailable
 import eu.tintera.plume.resources.error_transfer_needs_password
 import eu.tintera.plume.resources.error_transfer_too_fresh
 import org.jetbrains.compose.resources.StringResource
@@ -83,6 +86,7 @@ fun Throwable.userMessage(fallback: StringResource): UiText {
         "Have not enough rights" -> Res.string.error_not_enough_rights
         // Správu členů smí správce jen v rozsahu vlastních práv; cizího správce vůbec.
         "Can't edit chat administrators" -> Res.string.error_member_admin_forbidden
+        "Invalid recovery code" -> Res.string.error_recovery_code_invalid
 
         // Konstanty od serveru. TDLib je nepřekládá, posílá je dál, jak přišly.
         "PINNED_DIALOGS_TOO_MUCH" -> Res.string.error_pin_limit
@@ -91,6 +95,11 @@ fun Throwable.userMessage(fallback: StringResource): UiText {
         "PHONE_CODE_INVALID" -> Res.string.error_phone_code_invalid
         "PHONE_CODE_EXPIRED" -> Res.string.error_phone_code_expired
         "PASSWORD_HASH_INVALID" -> Res.string.error_password_invalid
+        // Obnova hesla e-mailem. `CODE_INVALID` je obecná konstanta, ale jiný kód než ten
+        // z e-mailu se v přihlášení touhle cestou neposílá (SMS kód má `PHONE_CODE_INVALID`).
+        "CODE_INVALID" -> Res.string.error_recovery_code_invalid
+        "PASSWORD_RECOVERY_EXPIRED" -> Res.string.error_recovery_code_expired
+        "PASSWORD_RECOVERY_NA" -> Res.string.error_recovery_unavailable
         // Pozvánka do chatu (`checkChatInviteLink`): neplatný odkaz hlásí server jako vypršelý.
         "INVITE_HASH_EXPIRED", "INVITE_HASH_INVALID" -> Res.string.error_invite_invalid
         // Zařízení přihlášené teprve nedávno (asi 24 h) nesmí odhlašovat ostatní — ochrana

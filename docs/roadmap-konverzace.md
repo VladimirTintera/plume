@@ -233,8 +233,9 @@ Co z toho zůstalo nedodělané:
   chce vlastní rozmyšlení.
 - ~~**Citace v textu**~~ (`BlockQuote`, `ExpandableBlockQuote`) — hotovo: tónovaný blok kreslený
   za textem z `TextLayoutResult` (`drawQuoteBlocks`), takže rozpad textu na víc `Text`ů nebyl
-  potřeba. Zbývá **sbalení dlouhé `ExpandableBlockQuote`** se „Zobrazit víc" — na to už by rozpad
-  potřeba byl, a s ním přepočet zvýraznění, spoilerů i dlouhého stisku nad odkazem.
+  potřeba. ~~Sbalení dlouhé `ExpandableBlockQuote`~~ — hotovo, jen u citace přes celý text
+  zprávy (`collapsesQuote`); citace uprostřed delší zprávy se nesbaluje, na to by rozpad textu
+  potřeba byl.
 - ~~**Náhled odkazu nad textem** (`showAboveText`)~~ — hotovo (`CLAUDE.md`, „Náhled odkazu
   jako karta"); značka přeposlání zůstává nahoře i tak.
 - **Vlastní emoji** (`TextEntityTypeCustomEmoji`) jsou samolepky uvnitř textu; patří k médiím.

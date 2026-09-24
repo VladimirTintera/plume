@@ -59,12 +59,16 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
 `ConversationRoute`, `ChatProfileRoute`, `MediaRoute`, `ForwardRoute`, `ShareRoute`, `NewChatRoute`
 (`core/navigation/Routes.kt`).
 
-- **Přihlášení: zapomenuté heslo je slepá ulička.** Kdo zapomene heslo dvoufázového ověření,
-  nemá z obrazovky kudy ven — jediné, co jde, je zkoušet dál. TDLib na to má
-  `requestAuthenticationPasswordRecovery` a `recoverAuthenticationPassword` (kód na obnovovací
-  e-mail) a `AuthorizationStateWaitPassword` nese `hasRecoveryEmailAddress`
-  i `recoveryEmailAddressPattern`, které zatím nepřenášíme. Je to nový krok automatu, ne
-  úprava pole; bez obnovovacího e-mailu zbývá jen smazání účtu, a i to se má říct nahlas.
+- ~~**Přihlášení: zapomenuté heslo je slepá ulička.**~~ — hotovo (kód na obnovovací e-mail,
+  nové heslo s nápovědou, dialog u účtu bez e-mailu; `CLAUDE.md`, „Obnova hesla a cesta zpátky
+  k číslu"). Zbývá:
+  - **Ověřit se skutečným účtem** s heslem a obnovovacím e-mailem — zatím jen podstrčenou session.
+  - **Reset účtu bez obnovovacího e-mailu** (`deleteAccount` s prázdným heslem, provede se po
+    týdnu). Dnes dialog posílá do oficiální aplikace. Než se postaví: jak TDLib hlásí čekání
+    (server má `2FA_CONFIRM_WAIT_…`), v jakém stavu automat zůstane a co ukázat, když se uživatel
+    během týdne vrátí. Ověřit se to na testovacím účtu nedá.
+  - **Telegram Passport** (`hasPassportData`): jestli obnova hesla uložené údaje smaže a má se
+    to říct předem, ověřené není.
 
 - ~~**Archiv**~~ — hotovo (seznam v menu účtu, archivace a vrácení z nabídky chatu i tahem do
   strany s „Vrátit", počet nepřečtených u vstupu, nastavení archivu). Poučení v `CLAUDE.md`,
@@ -110,7 +114,7 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
 
   Na rozloženém Foldu by místo celoobrazovkového hledání sedělo `ExpandedDockedSearchBar`.
   Nastavení má pořád `LargeFlexibleTopAppBar` se stejnou vadou po sbalení jako měly Chaty.
-- ~~**Nová konverzace a kontakty.**~~ — hotovo (M3 Extended FAB s popiskem napojený na scroll,
+- ~~**Nová konverzace a kontakty.**~~ — hotovo (FAB v plovoucím toolbaru seznamu chatů,
   `NewChatRoute`, Uložené zprávy, kontakty z TDLib s dostupností, globální vyhledávání lidí podle
   @username; poučení v `CLAUDE.md`, „Nová konverzace").
 - **Ochrana před spamem.** ~~Zablokovat z nabídky nad chatem a při mazání rovnou zablokovat
@@ -124,9 +128,11 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   - ~~**Seznam blokovaných v Nastavení**~~ — hotovo (Obecné → Soukromí → Blokovaní). Zbývá
     zablokovat někoho ze seznamu kontaktů přímo odtud (oficiální klient má „Zablokovat uživatele").
 - **Přihlašovací obrazovka** — hotová (výběr země, formátování čísla, návrat z QR na číslo,
-  expressive přestavba; `CLAUDE.md`, „Přihlašovací obrazovka"). Zbývá:
-  - **Zpět na přihlašovací obrazovce ukončí aplikaci.** Přihlášení není v `NavDisplay`, takže
-    z kódu ani hesla nevede cesta zpátky k číslu jinak než dokončením nebo restartem.
+  expressive přestavba, ~~zpět z kódu a hesla k číslu~~; `CLAUDE.md`, „Přihlašovací obrazovka").
+  Zbývá:
+  - **Pole přihlášení jedou přes `StateFlow`**, a rychlý `adb input text` v nich na pomalém
+    emulátoru přeháže znaky. Na zařízení nepozorované; kdyby se ukázalo, patří text do Compose
+    stavu ve ViewModelu jako u úpravy profilu.
 - **Sdílení ze systému do aplikace.** ~~Android~~ — hotovo (text, odkaz, jeden i víc
   souborů; výběr chatu, obsah čeká nad vstupním polem). Poučení v `CLAUDE.md`, „Sdílení do
   aplikace". Zbývá:
@@ -289,8 +295,6 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
     (`confirmQrCodeAuthentication`) proti skutečnému kódu z Telegram Desktop / webu zatím nikdo
     neviděl. Na iOS se čtečka dá vyzkoušet jen na telefonu, simulátor kameru nemá.
   - **Připojení boti (Telegram Business)** v seznamu relací ani v kartě „Byli jste to vy?" nejsou.
-- **Sekce Obecné nemá skupiny.** Vzhled je má (`SettingsGroup`), Obecné zatím ne — až v něm budou
-  víc než tři položky, patří do skupin taky.
 - **Řádky sekcí nemají ikony.** Dva řádky se poznají i tak, s další sekcí to začne být znát;
   chybí k tomu Material Symbols v `composeResources`.
 
