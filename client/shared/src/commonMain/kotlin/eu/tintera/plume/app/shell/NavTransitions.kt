@@ -1,6 +1,16 @@
 package eu.tintera.plume.app.shell
 
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.animateDp
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.scene.SceneDecoratorStrategy
+import androidx.navigation3.scene.SceneDecoratorStrategyScope
+import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -61,7 +71,8 @@ internal class NavTransitions(
      * k jedničce skoro nedojde, a s lineárním zmenšením přes celou délku bylo v půlce tahu
      * sotva vidět (ověřeno na emulátoru). Zmizí až v poslední čtvrtině, tedy po puštění prstu;
      * přicházející se objeví hned na začátku tahu, aby kolem zmenšené obrazovky nebyla prázdná
-     * plocha.
+     * plocha. Zaoblené rohy k tomu přidává [PredictiveBackCorners] — přechod obsahu tvar
+     * neumí.
      */
     fun <T : Any> predictivePop(): AnimatedContentTransitionScope<Scene<T>>.(Int) -> ContentTransform =
         { edge ->
@@ -96,6 +107,59 @@ internal class NavTransitions(
     }
 }
 
+/**
+ * Zaoblené rohy odcházející scény, jako u systémového predictive back. Bez nich byla zmenšená
+ * obrazovka ostře useknutý obdélník a na stejně barevném pozadí seznamu pod ní se ztrácela.
+ *
+ * `ContentTransform` tvar neumí (má jen průhlednost, posun, měřítko a ořez na rozměr), takže
+ * rohy nese **dekorátor scény**: obalí obsah a ořízne ho podle stavu přechodu, ve kterém scéna
+ * je. Poloměr je animace TÉHOŽ přechodu (`transition.animateDp`), takže ho gesto posouvá spolu
+ * se zmenšením a po zrušeném tahu se vrátí na nulu.
+ *
+ * Rohy dostane i obrazovka odcházející tlačítkem (dopředu i zpět) — přechod neprozradí, jestli
+ * běží gestem. Tam ale obrazovka zmizí za 90 ms, dřív než rohy narostou na pár dp, takže to
+ * vidět není.
+ *
+ * Překryvné scény (dialogy) Nav3 dekorátorům nepodává vůbec.
+ */
+internal class PredictiveBackCorners<T : Any> : SceneDecoratorStrategy<T> {
+    override fun SceneDecoratorStrategyScope<T>.decorateScene(scene: Scene<T>): Scene<T> =
+        RoundedExitScene(scene)
+}
+
+/**
+ * Obal scény, který jen ořízne její obsah. Všechno ostatní patří obalené scéně — i klíč:
+ * `NavDisplay` rozlišuje scény podle třídy a klíče a třída je tu u všech stejná, takže klíč nese
+ * i třídu obalené scény, aby se jednopanelová scéna nepotkala s list-detail scénou o stejném klíči.
+ */
+private class RoundedExitScene<T : Any>(private val scene: Scene<T>) : Scene<T> {
+    override val key: Any = scene::class to scene.key
+    override val entries: List<NavEntry<T>> get() = scene.entries
+    override val previousEntries: List<NavEntry<T>> get() = scene.previousEntries
+    override val metadata: Map<String, Any> get() = scene.metadata
+    override val content: @Composable () -> Unit = {
+        Box(Modifier.roundedWhileExiting()) { scene.content() }
+    }
+
+    override fun equals(other: Any?): Boolean = other is RoundedExitScene<*> && other.scene == scene
+    override fun hashCode(): Int = scene.hashCode()
+    override fun toString(): String = "RoundedExitScene($scene)"
+}
+
+@Composable
+private fun Modifier.roundedWhileExiting(): Modifier {
+    val radius = LocalNavAnimatedContentScope.current.transition.animateDp(
+        transitionSpec = { tween(PREDICTIVE_SHRINK_MS, easing = LinearEasing) },
+        label = "exit-corners",
+    ) { if (it == EnterExitState.PostExit) PREDICTIVE_CORNER else 0.dp }
+    // Čte se až ve vrstvě: tah posouvá poloměr každý snímek a scéna se kvůli tomu nerekomponuje.
+    return graphicsLayer {
+        val r = radius.value
+        clip = r > 0.dp
+        if (clip) shape = RoundedCornerShape(r)
+    }
+}
+
 @Composable
 internal fun rememberNavTransitions(): NavTransitions {
     val shiftPx = with(LocalDensity.current) { SHIFT.roundToPx() }
@@ -116,3 +180,6 @@ private const val PREDICTIVE_ENTER_MS = 80
 private const val PREDICTIVE_FADE_DELAY_MS = 300
 private const val PREDICTIVE_SCALE = 0.9f
 private const val PREDICTIVE_DRIFT = 0.06f
+
+/** Rohy zmenšené obrazovky — `extraLarge` z tvarové škály M3, blízko rohům displeje telefonů. */
+private val PREDICTIVE_CORNER = 28.dp

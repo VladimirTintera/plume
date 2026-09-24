@@ -274,6 +274,7 @@ private fun ShellContent(
                 transitionSpec = transitions.forward(),
                 popTransitionSpec = transitions.pop(),
                 predictivePopTransitionSpec = transitions.predictivePop(),
+                sceneDecoratorStrategies = remember { listOf(PredictiveBackCorners()) },
                 // Zpět z výběru pro sdílení je totéž co ✕ — vrátit uživatele, odkud sdílel.
                 onBack = {
                     // Zpět ze sdílení je totéž co ✕ — vrátit uživatele tam, odkud sdílel.
