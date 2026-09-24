@@ -73,7 +73,7 @@ class TdlTelegramSession(
     private var started = false
 
     /**
-     * Běží restart přihlášení z QR zpátky na číslo (`destroy`). Zavřený klient se jinak hlásí
+     * Běží restart přihlášení zpátky na číslo (`destroy`) — z QR, kódu nebo hesla. Zavřený klient se jinak hlásí
      * jako [AuthStage.LoggingOut] („Odhlašuji"), což by tady lhalo — uživatel se odhlásit nemohl,
      * protože přihlášený nikdy nebyl.
      */
@@ -124,8 +124,11 @@ class TdlTelegramSession(
 
             is AuthorizationStateWaitPhoneNumber -> _authStage.value = AuthStage.WaitPhoneNumber
             is AuthorizationStateWaitCode -> _authStage.value = AuthStage.WaitCode(state.codeInfo.type.toAuthCode())
-            is AuthorizationStateWaitPassword ->
-                _authStage.value = AuthStage.WaitPassword(state.passwordHint.takeIf { it.isNotBlank() })
+            is AuthorizationStateWaitPassword -> _authStage.value = AuthStage.WaitPassword(
+                hint = state.passwordHint.takeIf { it.isNotBlank() },
+                canRecover = state.hasRecoveryEmailAddress,
+                recoveryEmailPattern = state.recoveryEmailAddressPattern.takeIf { it.isNotBlank() },
+            )
 
             is AuthorizationStateWaitOtherDeviceConfirmation ->
                 _authStage.value = AuthStage.WaitQrConfirmation(state.link)
@@ -366,6 +369,25 @@ class TdlTelegramSession(
             .toResult()
             .map { }
 
+    override suspend fun requestPasswordRecovery(): Result<Unit> =
+        client.requestAuthenticationPasswordRecovery()
+            .toResult()
+            .map { }
+
+    override suspend fun checkPasswordRecoveryCode(code: String): Result<Unit> =
+        client.checkAuthenticationPasswordRecoveryCode(recoveryCode = code)
+            .toResult()
+            .map { }
+
+    override suspend fun recoverPassword(code: String, newPassword: String, newHint: String): Result<Unit> =
+        client.recoverAuthenticationPassword(
+            recoveryCode = code,
+            newPassword = newPassword,
+            newHint = newHint,
+        )
+            .toResult()
+            .map { }
+
     override suspend fun startQrLogin(): Result<Unit> =
         client.requestQrCodeAuthentication(otherUserIds = LongArray(0))
             .toResult()
@@ -375,6 +397,9 @@ class TdlTelegramSession(
      * `destroy`, ne `logOut`: odhlašovat není co (účet ještě není) a `logOut` navíc chce funkční
      * připojení — právě to nemusí mít ten, kdo se z QR vrací kvůli tomu, že nemá čím kód
      * naskenovat. `destroy` funguje offline a smí se volat před autorizací.
+     *
+     * Totéž platí z kódu a z hesla: dokud heslo nesedí, server přihlášení nedokončil
+     * (`SESSION_PASSWORD_NEEDED`), takže mezi aktivními relacemi po `destroy` nic nezůstane.
      *
      * Zavřený klient se nahradí novým v `onClientClosed`; ten začne od `WaitTdlibParameters`
      * a sám dojde k zadání čísla.

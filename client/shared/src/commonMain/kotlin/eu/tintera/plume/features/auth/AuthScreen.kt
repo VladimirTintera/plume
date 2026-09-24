@@ -9,6 +9,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
@@ -41,9 +43,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.tintera.plume.core.telegram.AuthCode
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.CodeDelivery
@@ -53,7 +61,22 @@ import eu.tintera.plume.core.ui.QrCode
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.auth_back_to_password
+import eu.tintera.plume.resources.auth_change_number
 import eu.tintera.plume.resources.auth_continue
+import eu.tintera.plume.resources.auth_forgot_password
+import eu.tintera.plume.resources.auth_headline_new_password
+import eu.tintera.plume.resources.auth_headline_recovery
+import eu.tintera.plume.resources.auth_input_new_password
+import eu.tintera.plume.resources.auth_input_password_hint
+import eu.tintera.plume.resources.auth_input_recovery_code
+import eu.tintera.plume.resources.auth_recovery_resend
+import eu.tintera.plume.resources.auth_recovery_unavailable_ok
+import eu.tintera.plume.resources.auth_recovery_unavailable_text
+import eu.tintera.plume.resources.auth_recovery_unavailable_title
+import eu.tintera.plume.resources.auth_support_new_password
+import eu.tintera.plume.resources.auth_support_recovery_pending
+import eu.tintera.plume.resources.auth_support_recovery_sent
 import eu.tintera.plume.resources.auth_headline_code
 import eu.tintera.plume.resources.auth_headline_connecting
 import eu.tintera.plume.resources.auth_headline_failed
@@ -82,6 +105,7 @@ import eu.tintera.plume.resources.auth_support_registration
 import eu.tintera.plume.resources.auth_use_phone_number
 import eu.tintera.plume.resources.error_24dp
 import eu.tintera.plume.resources.forum_24dp
+import eu.tintera.plume.resources.mail_24dp
 import eu.tintera.plume.resources.qr_code_scanner_24dp
 import eu.tintera.plume.resources.schedule_24dp
 import eu.tintera.plume.resources.smartphone_24dp
@@ -112,8 +136,23 @@ fun AuthScreen(
     val error by viewModel.error.collectAsStateWithLifecycle()
     val phone by viewModel.phone.collectAsStateWithLifecycle()
     val countries by viewModel.countries.collectAsStateWithLifecycle()
+    val passwordStep by viewModel.passwordStep.collectAsStateWithLifecycle()
+    val hint by viewModel.hint.collectAsStateWithLifecycle()
+    val recoveryUnavailable by viewModel.recoveryUnavailable.collectAsStateWithLifecycle()
 
     var pickingCountry by rememberSaveable { mutableStateOf(false) }
+
+    // Krok hesla platí jen nad heslem; ViewModel ho při odchodu nuluje až z odběru, takže by
+    // na jeden snímek mohl viset nad jiným stavem.
+    val view = AuthView(stage, if (stage is AuthStage.WaitPassword) passwordStep else PasswordStep.Password)
+
+    // Přihlášení není v `NavDisplay`, takže zpět bez tohohle aplikaci zavřelo — i z kódu poslaného
+    // na špatné číslo. `NavigationBackHandler`, ne `BackHandler`: ten by zabil predictive back.
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = stage.canGoBack() && !busy,
+        onBackCompleted = viewModel::back,
+    )
 
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         Box(
@@ -132,10 +171,10 @@ fun AuthScreen(
             ) {
                 // Tvar se proanimuje při každé změně kroku — nad měnícím se obsahem by jinak
                 // stál jako obrázek, a přitom je to jediné, co drží souvislost mezi kroky.
-                IntroShape(replayKey = stage.phase()) {
+                IntroShape(replayKey = view.phase()) {
                     // Ikona říká, v jaké fázi přihlášení uživatel je. Vyměňuje se prolnutím,
                     // aby se tvar pod ní nehýbal.
-                    AnimatedContent(targetState = stage.phase().icon, label = "auth-icon") { icon ->
+                    AnimatedContent(targetState = view.phase().icon, label = "auth-icon") { icon ->
                         Icon(
                             painterResource(icon),
                             contentDescription = null,
@@ -146,22 +185,24 @@ fun AuthScreen(
                 }
 
                 AnimatedContent(
-                    targetState = stage,
+                    targetState = view,
                     transitionSpec = { phaseTransition() },
+                    contentKey = { it.key },
                     label = "auth-stage",
-                ) { current ->
+                ) { shown ->
+                    val current = shown.stage
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
-                            text = stringResource(current.headline()),
+                            text = stringResource(shown.headline()),
                             style = MaterialTheme.typography.displaySmall,
                             textAlign = TextAlign.Center,
                         )
 
-                        current.supportingText()?.let {
+                        shown.supportingText()?.let {
                             Text(
                                 text = it.resolve(),
                                 style = MaterialTheme.typography.bodyLarge,
@@ -190,15 +231,40 @@ fun AuthScreen(
                                 busy = busy,
                                 onValueChange = viewModel::onInputChange,
                                 onSubmit = viewModel::submit,
+                                onChangeNumber = viewModel::restartLogin,
                             )
 
-                            is AuthStage.WaitPassword -> PasswordForm(
-                                value = input,
-                                error = error,
-                                busy = busy,
-                                onValueChange = viewModel::onInputChange,
-                                onSubmit = viewModel::submit,
-                            )
+                            is AuthStage.WaitPassword -> when (shown.step) {
+                                PasswordStep.Password -> PasswordForm(
+                                    value = input,
+                                    error = error,
+                                    busy = busy,
+                                    onValueChange = viewModel::onInputChange,
+                                    onSubmit = viewModel::submit,
+                                    onForgot = viewModel::forgotPassword,
+                                    onChangeNumber = viewModel::restartLogin,
+                                )
+
+                                PasswordStep.RecoveryCode -> RecoveryCodeForm(
+                                    value = input,
+                                    error = error,
+                                    busy = busy,
+                                    onValueChange = viewModel::onInputChange,
+                                    onSubmit = viewModel::submit,
+                                    onResend = viewModel::forgotPassword,
+                                    onBack = viewModel::back,
+                                )
+
+                                PasswordStep.NewPassword -> NewPasswordForm(
+                                    password = input,
+                                    hint = hint,
+                                    error = error,
+                                    busy = busy,
+                                    onPasswordChange = viewModel::onInputChange,
+                                    onHintChange = viewModel::onHintChange,
+                                    onSubmit = viewModel::submit,
+                                )
+                            }
 
                             is AuthStage.WaitQrConfirmation -> QrForm(
                                 link = current.link,
@@ -215,6 +281,10 @@ fun AuthScreen(
                 }
             }
         }
+    }
+
+    if (recoveryUnavailable) {
+        RecoveryUnavailableDialog(onDismiss = viewModel::dismissRecoveryUnavailable)
     }
 
     if (pickingCountry) {
@@ -248,10 +318,25 @@ private fun phaseTransition() =
 private enum class AuthPhase(val icon: DrawableResource) {
     Number(Res.drawable.smartphone_24dp),
     Code(Res.drawable.schedule_24dp),
+    Recovery(Res.drawable.mail_24dp),
     Qr(Res.drawable.qr_code_scanner_24dp),
     Error(Res.drawable.error_24dp),
     Done(Res.drawable.forum_24dp),
 }
+
+/**
+ * Co obrazovka ukazuje: stav automatu a u hesla ještě krok obnovy, který TDLib nezná.
+ *
+ * [key] rozhoduje o animaci. U hesla je to jen krok: maska e-mailu, kterou TDLib pošle novým
+ * stavem těsně po žádosti o kód, je pořád tentýž krok — s celým stavem jako klíčem by obsah
+ * přijel podruhé ve chvíli, kdy ho uživatel začíná číst.
+ */
+private data class AuthView(val stage: AuthStage, val step: PasswordStep) {
+    val key: Any get() = if (stage is AuthStage.WaitPassword) step else stage
+}
+
+private fun AuthView.phase(): AuthPhase =
+    if (stage is AuthStage.WaitPassword && step != PasswordStep.Password) AuthPhase.Recovery else stage.phase()
 
 private fun AuthStage.phase(): AuthPhase = when (this) {
     AuthStage.Connecting,
@@ -265,6 +350,23 @@ private fun AuthStage.phase(): AuthPhase = when (this) {
     is AuthStage.WaitQrConfirmation -> AuthPhase.Qr
     is AuthStage.Failed -> AuthPhase.Error
     AuthStage.Ready -> AuthPhase.Done
+}
+
+private fun AuthView.headline(): StringResource = when {
+    stage !is AuthStage.WaitPassword -> stage.headline()
+    step == PasswordStep.RecoveryCode -> Res.string.auth_headline_recovery
+    step == PasswordStep.NewPassword -> Res.string.auth_headline_new_password
+    else -> stage.headline()
+}
+
+private fun AuthView.supportingText(): UiText? = when {
+    stage !is AuthStage.WaitPassword -> stage.supportingText()
+    step == PasswordStep.RecoveryCode -> stage.recoveryEmailPattern
+        ?.let { UiText(Res.string.auth_support_recovery_sent, it) }
+        // Maska dorazí novým stavem až po odeslání kódu; do té doby obecně.
+        ?: UiText(Res.string.auth_support_recovery_pending)
+    step == PasswordStep.NewPassword -> UiText(Res.string.auth_support_new_password)
+    else -> stage.supportingText()
 }
 
 private fun AuthStage.headline(): StringResource = when (this) {
@@ -379,6 +481,7 @@ private fun CodeForm(
     busy: Boolean,
     onValueChange: (String) -> Unit,
     onSubmit: () -> Unit,
+    onChangeNumber: () -> Unit,
 ) {
     val complete = code.digits == null || value.length == code.digits
 
@@ -411,6 +514,12 @@ private fun CodeForm(
 
         FormError(error)
         ContinueButton(enabled = value.isNotBlank() && complete, busy = busy, onClick = onSubmit)
+        // Kód poslaný na překlep v čísle nikdy nedorazí; bez tohohle se z kroku nedalo odejít.
+        SecondaryActions {
+            TextButton(onClick = onChangeNumber, enabled = !busy) {
+                Text(stringResource(Res.string.auth_change_number))
+            }
+        }
     }
 }
 
@@ -421,6 +530,8 @@ private fun PasswordForm(
     busy: Boolean,
     onValueChange: (String) -> Unit,
     onSubmit: () -> Unit,
+    onForgot: () -> Unit,
+    onChangeNumber: () -> Unit,
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -434,7 +545,133 @@ private fun PasswordForm(
             onSubmit = onSubmit,
         )
         FormError(error)
+        ContinueButton(enabled = value.isNotEmpty(), busy = busy, onClick = onSubmit)
+        /*
+         * Zapomenuté heslo bylo slepá ulička: zkoušet dál, nebo aplikaci odinstalovat. Nabízí se
+         * vždycky, i bez obnovovacího e-mailu — tam vysvětlí, co zbývá. Tlačítko, které by se
+         * u části účtů nekreslilo, by nechalo uživatele hledat cestu, která není.
+         */
+        SecondaryActions {
+            TextButton(onClick = onForgot, enabled = !busy) {
+                Text(stringResource(Res.string.auth_forgot_password))
+            }
+            TextButton(onClick = onChangeNumber, enabled = !busy) {
+                Text(stringResource(Res.string.auth_change_number))
+            }
+        }
+    }
+}
+
+/**
+ * Kód z obnovovacího e-mailu. Obyčejné pole, ne políčka na číslice jako u kódu z SMS: délku
+ * kódu z e-mailu TDLib neříká a hádat ji by znamenalo kreslit políčka, která nemusí sedět.
+ */
+@Composable
+private fun RecoveryCodeForm(
+    value: String,
+    error: UiText?,
+    busy: Boolean,
+    onValueChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+    onResend: () -> Unit,
+    onBack: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        AuthBlockField(
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = Res.string.auth_input_recovery_code,
+            isError = error != null,
+            keyboardType = KeyboardType.Number,
+            // Bez `contentType`: `SmsOtpCode` by autofill nabídl kód z SMS, a ten sem nepatří.
+            onSubmit = onSubmit,
+        )
+        FormError(error)
         ContinueButton(enabled = value.isNotBlank(), busy = busy, onClick = onSubmit)
+        SecondaryActions {
+            TextButton(onClick = onResend, enabled = !busy) {
+                Text(stringResource(Res.string.auth_recovery_resend))
+            }
+            TextButton(onClick = onBack, enabled = !busy) {
+                Text(stringResource(Res.string.auth_back_to_password))
+            }
+        }
+    }
+}
+
+/**
+ * Nové heslo a nápověda. Druhé pole na zopakování hesla tu není: kontrolou překlepu je oko
+ * v poli (viz [PasswordField]), a jedno pole navíc na telefonu s klávesnicí vytlačí tlačítko
+ * pod okraj.
+ */
+@Composable
+private fun NewPasswordForm(
+    password: String,
+    hint: String,
+    error: UiText?,
+    busy: Boolean,
+    onPasswordChange: (String) -> Unit,
+    onHintChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+) {
+    val hintFocus = remember { FocusRequester() }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        PasswordField(
+            value = password,
+            isError = error != null,
+            onValueChange = onPasswordChange,
+            onSubmit = onSubmit,
+            placeholder = Res.string.auth_input_new_password,
+            contentType = ContentType.NewPassword,
+            imeAction = ImeAction.Next,
+            onNext = { hintFocus.requestFocus() },
+        )
+        AuthBlockField(
+            value = hint,
+            onValueChange = onHintChange,
+            placeholder = Res.string.auth_input_password_hint,
+            isError = false,
+            keyboardType = KeyboardType.Text,
+            onSubmit = onSubmit,
+            fieldModifier = Modifier.focusRequester(hintFocus),
+        )
+        FormError(error)
+        ContinueButton(enabled = password.isNotEmpty(), busy = busy, onClick = onSubmit)
+    }
+}
+
+/**
+ * Účet bez obnovovacího e-mailu. Obnovit heslo odsud nejde a tvářit se jinak by bylo horší než
+ * slepá ulička; dialog aspoň řekne nahlas, co zbývá — vzpomenout si, nebo účet resetovat.
+ */
+@Composable
+private fun RecoveryUnavailableDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.auth_recovery_unavailable_title)) },
+        text = { Text(stringResource(Res.string.auth_recovery_unavailable_text)) },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.auth_recovery_unavailable_ok)) }
+        },
+    )
+}
+
+/** Vedlejší cesty pod tlačítkem „dál" — na střed a zalomené, v češtině se dvě vedle sebe nevejdou vždycky. */
+@Composable
+private fun SecondaryActions(content: @Composable () -> Unit) {
+    FlowRow(
+        horizontalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        content()
     }
 }
 

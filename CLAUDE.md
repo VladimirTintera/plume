@@ -923,8 +923,53 @@ Tónovaný blok jako číslo, s okem na odkrytí (`PasswordField`).
   na klikacím řádku země, ne následek změny. **Ověřovací pokus, který má vyloučit regresi, se
   musí zopakovat**, jinak se z jednoho vzorku vyrobí neexistující chyba (a stejně snadno se jí
   dá přehlédnout skutečná).
-- **Zapomenuté heslo je pořád slepá ulička**, viz `docs/roadmap.md`. Obnova přes e-mail je nový
-  krok automatu (`requestAuthenticationPasswordRecovery`), ne úprava pole.
+
+### Obnova hesla a cesta zpátky k číslu
+
+„Zapomenuté heslo?" pod heslem pošle kód na obnovovací e-mail, kód se ověří a pak se nastaví
+nové heslo s nepovinnou nápovědou (`PasswordStep` v `AuthViewModel`, testy `AuthViewModelTest`).
+Z kódu i hesla vede „Jiné číslo" a systémové zpět zpátky k číslu.
+
+- **Kroky obnovy drží ViewModel, ne automat.** TDLib zná jediný stav `WaitPassword`; kód
+  z e-mailu (`checkAuthenticationPasswordRecoveryCode`) i nové heslo
+  (`recoverAuthenticationPassword`) se volají nad ním. Při odchodu z `WaitPassword` se
+  rozdělaná obnova zahazuje.
+- **Maska e-mailu přijde NOVÝM STAVEM.** `recoveryEmailAddressPattern` je prázdný, dokud kód
+  neodešel; po `requestAuthenticationPasswordRecovery` pošle TDLib `WaitPassword` znovu, už s ní.
+  Obsah proto animuje podle klíče (`AuthView.key`: u hesla jen krok), jinak by přijel podruhé
+  ve chvíli, kdy ho uživatel začíná číst.
+- **Kód se ověřuje zvlášť, dřív než nové heslo.** Překlep v kódu by se jinak ukázal až po
+  vymyšlení hesla a uživatel by ho psal znovu. Zpět z nového hesla vrací kód vyplněný.
+- **Bez obnovovacího e-mailu se nic neposílá**, jen dialog řekne, co zbývá: vzpomenout si,
+  nebo účet resetovat v oficiální aplikaci. Server by na žádost odpověděl `PASSWORD_RECOVERY_NA`
+  a z obecné chyby by uživatel nepoznal, co dál. Tlačítko je u každého účtu — schované by
+  nechalo hledat cestu, která není.
+- **Reset účtu (`deleteAccount` s prázdným heslem) tu NENÍ.** Maže účet u všech kontaktů,
+  provede se po týdnu a na testovacím účtu se ověřit nedá. Viz `docs/roadmap.md`.
+- **Heslo se neořezává, kód ano.** Dřív se `trim()` dělal u všech kroků, takže heslo s mezerou
+  na konci nešlo zadat — a nové heslo nastavené odsud by rozbilo přihlášení jinde.
+- **Nápověda shodná s heslem se odmítne hned** (server by to udělal taky, ale obecnou chybou).
+- **Zpět k číslu je `restartLogin` (`destroy`), ne `setAuthenticationPhoneNumber`.** To TDLib
+  v kódu i heslu pustí, jenže automat by dál hlásil kód a obrazovka čísla by existovala jen
+  u nás. Dokud heslo nesedí, server přihlášení nedokončil (`SESSION_PASSWORD_NEEDED`), takže
+  po `destroy` nezůstane viset relace.
+- **Zpět je `NavigationBackHandler`**, jen v kódu, hesle a QR. Na čísle zpět aplikaci zavře jako
+  dřív — před číslem nic není. Uvnitř obnovy jde zpět o krok obnovy.
+- **„Další" v poli nového hesla fokus přesouvá RUČNĚ** (`onNext` → `FocusRequester` nápovědy).
+  Výchozí přesun skočil na tlačítko s okem a nápověda se psala naprázdno — ověřeno na emulátoru.
+  Totéž čeká každé pole s ikonou, za kterým je další pole.
+- **Kód z e-mailu je obyčejné pole, ne políčka** — délku TDLib neříká. `contentType` nemá:
+  `SmsOtpCode` by autofill nabídl kód z SMS.
+- **Ověřeno na emulátoru podstrčenou session** (testovací účet dvoufázové ověření nemá):
+  delegující `TelegramSession` s `WaitPassword` a odpověďmi pro kód, obnovu a restart, zapojená
+  jedním řádkem v `AuthViewModel`. **Nikdy ne přes skutečný `restartLogin`** — ten by přihlášený
+  účet na emulátoru zavřel. Sonda se NECOMMITUJE; odstraňuje se tím jedním řádkem, ne
+  `git checkout` souboru (ten vrátí i rozdělanou práci). **Skutečný kód z e-mailu a nastavení
+  nového hesla ověřené NEJSOU** — chce to účet s heslem a obnovovacím e-mailem.
+- **`adb input text` do pole nad `StateFlow` na pomalém emulátoru přeháže znaky** („abc" →
+  „bca"); po znaku s pauzou vyjde správně. Pole přihlášení jedou přes `StateFlow` odjakživa
+  (proti tomu varuje „Úprava profilu"); na zařízení se to zatím neprojevilo, ale při rychlém
+  psaní na slabém telefonu by mohlo.
 
 ### Výběr země a formát čísla
 
