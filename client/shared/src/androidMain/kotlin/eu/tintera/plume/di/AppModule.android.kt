@@ -38,7 +38,7 @@ actual fun Module.platformModule() {
     // Model v zařízení: Gemini Nano v AICore, nebo Gemma přes LiteRT-LM, podle volby uživatele
     // (RoutingOnDeviceAi). Obojí jednou na proces — klienti ML Kitu i engine LiteRT-LM jsou drahé.
     single<OnDeviceAi> {
-        RoutingOnDeviceAi(geminiNano = MlKitOnDeviceAi(), gemma = LiteRtOnDeviceAi(androidContext()))
+        RoutingOnDeviceAi(geminiNano = MlKitOnDeviceAi(), gemma = LiteRtOnDeviceAi(androidContext(), get()))
     }
     single { TelegramPaths(androidContext()) }
     single<DatabaseKeyStore> { KeystoreDatabaseKeyStore(androidContext()) }

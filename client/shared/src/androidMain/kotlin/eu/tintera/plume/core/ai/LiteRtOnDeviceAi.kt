@@ -10,6 +10,8 @@ import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.SamplerConfig
+import eu.tintera.plume.core.connectivity.NetworkKind
+import eu.tintera.plume.core.connectivity.NetworkMonitor
 import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -24,6 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.transformWhile
@@ -40,7 +43,8 @@ import kotlinx.coroutines.withContext
  *
  * - **Stahuje se do `.part` a přejmenovává až hotový.** Přítomnost výsledného souboru tedy
  *   znamená „kompletní model" a nic dalšího se kontrolovat nemusí. Přerušené stahování
- *   navazuje (`Range`) — u gigabajtů by začínat od nuly bylo nepoužitelné.
+ *   navazuje (`Range`) — u gigabajtů by začínat od nuly bylo nepoužitelné — a po výpadku
+ *   sítě naváže samo, když se připojení vrátí ([fetch]).
  * - **Engine je v paměti nejvýš jeden** a po [IDLE_UNLOAD_MS] bez použití se uvolní. Drží
  *   gigabajty RAM; nechat ho viset po jednom shrnutí by znamenalo, že systém dřív zabije
  *   aplikaci v pozadí. Načtení trvá do deseti sekund (dokumentace LiteRT-LM), proto se neuvolňuje
@@ -55,7 +59,10 @@ import kotlinx.coroutines.withContext
  *
  * Nenabízí se pod Androidem 12 ([MIN_SDK]), bez arm64 a pod [GemmaModel.minMemoryGb].
  */
-class LiteRtOnDeviceAi(private val context: Context) : OnDeviceAi {
+class LiteRtOnDeviceAi(
+    private val context: Context,
+    private val networkMonitor: NetworkMonitor,
+) : OnDeviceAi {
 
     private val logger = Logger.withTag("OnDeviceAi")
 
@@ -223,16 +230,49 @@ class LiteRtOnDeviceAi(private val context: Context) : OnDeviceAi {
         }
     }
 
+    /**
+     * Stáhne model a po výpadku sítě naváže SÁM, jakmile se připojení vrátí.
+     *
+     * Gigabajty se stahují minuty, a přejít z Wi-Fi na data nebo projet tunelem je za tu dobu
+     * běžné. Dokud výpadek končil hláškou „nepodařilo se stáhnout", musel se uživatel vrátit
+     * do Nastavení a ťuknout znovu, přestože se vlastně nic nepokazilo.
+     *
+     * Opakuje se jen chyba spojení ([IOException]). Odpověď serveru ([HttpStatusException])
+     * ani nedostatek místa se čekáním nespraví. Pokusů bez jediného nového bajtu je nejvýš
+     * [MAX_RETRIES_WITHOUT_PROGRESS] — server, který spojení pokaždé shodí, jinak nekončí.
+     *
+     * Selhání se tu NELOGUJE, loguje ho volající ([OnDeviceAiSettingsViewModel]), který ho
+     * dostane i od Gemini Nano. Ve dvou místech by v logu bylo dvakrát.
+     */
     private suspend fun fetch(model: GemmaModel, state: MutableStateFlow<DownloadState>) {
         try {
-            fetchFile(model) { progress -> state.value = DownloadState.Running(progress) }
+            var failures = 0
+            while (true) {
+                val before = model.partFile().length()
+                try {
+                    fetchFile(model) { progress -> state.value = DownloadState.Running(progress) }
+                    break
+                } catch (e: HttpStatusException) {
+                    throw e
+                } catch (e: IOException) {
+                    failures = if (model.partFile().length() > before) 1 else failures + 1
+                    if (failures > MAX_RETRIES_WITHOUT_PROGRESS) throw e
+                    logger.i { "Stahování přerušené (${e.message}), čekám na síť (${model.displayName})" }
+                    state.value = DownloadState.Running(
+                        ModelDownload(model.partFile().length(), model.sizeBytes, waitingForNetwork = true),
+                    )
+                    // Nejdřív síť, pak prodleva: po návratu sítě chvíli trvá, než opravdu vede
+                    // ven, a výpadek, o kterém systém ještě neví, se tím nepřepálí na pokusy.
+                    networkMonitor.status.first { it.kind != NetworkKind.None }
+                    delay(RETRY_DELAY_MS * failures)
+                }
+            }
             state.value = DownloadState.Done
             logger.i { "Model stažený (${model.displayName})" }
         } catch (e: CancellationException) {
             state.value = DownloadState.Failed(e)
             throw e
         } catch (e: Exception) {
-            logger.w(e) { "Model se nepodařilo stáhnout (${model.displayName})" }
             state.value = DownloadState.Failed(e)
         }
     }
@@ -258,8 +298,15 @@ class LiteRtOnDeviceAi(private val context: Context) : OnDeviceAi {
         }
         try {
             val code = connection.responseCode
+            if (code == HTTP_RANGE_NOT_SATISFIABLE && part.length() == model.sizeBytes) {
+                // `.part` je celý, jen se nestihl přejmenovat (proces zabitý mezi posledním
+                // zápisem a přejmenováním). Bez tohohle by každý další pokus skončil 416.
+                moveFinished(model)
+                onProgress(ModelDownload(model.sizeBytes, model.sizeBytes))
+                return@withContext
+            }
             if (code == HttpURLConnection.HTTP_OK) offset = 0L
-            else if (code != HttpURLConnection.HTTP_PARTIAL) throw IOException("HTTP $code for ${model.displayName}")
+            else if (code != HttpURLConnection.HTTP_PARTIAL) throw HttpStatusException(code, model)
 
             val remaining = connection.contentLengthLong.takeIf { it > 0 } ?: (model.sizeBytes - offset)
             val total = offset + remaining
@@ -288,11 +335,16 @@ class LiteRtOnDeviceAi(private val context: Context) : OnDeviceAi {
                 }
             }
             if (written != total) throw IOException("Incomplete download: $written of $total B")
-            if (!part.renameTo(model.file())) throw IOException("Cannot move ${part.name}")
+            moveFinished(model)
             onProgress(ModelDownload(total, total))
         } finally {
             connection.disconnect()
         }
+    }
+
+    /** Hotový `.part` přejmenuje na model. Není to chyba sítě, takže ne [IOException]. */
+    private fun moveFinished(model: GemmaModel) {
+        check(model.partFile().renameTo(model.file())) { "Cannot move ${model.partFile().name}" }
     }
 
     private fun deviceCanRun(model: GemmaModel): Boolean {
@@ -319,6 +371,10 @@ class LiteRtOnDeviceAi(private val context: Context) : OnDeviceAi {
         data class Failed(val error: Throwable) : DownloadState
     }
 
+    /** Server odpověděl jinak než daty. Čekáním na síť se to nespraví, takže se neopakuje. */
+    private class HttpStatusException(code: Int, model: GemmaModel) :
+        IOException("HTTP $code for ${model.displayName}")
+
     /** Vnitřní signál, že výstup dosáhl stropu; ven se nedostane. */
     private object OutputLimitReached : RuntimeException()
 
@@ -342,6 +398,14 @@ class LiteRtOnDeviceAi(private val context: Context) : OnDeviceAi {
         const val MAX_OUTPUT_CHARS = 4_000
 
         const val IDLE_UNLOAD_MS = 120_000L
+
+        /** Pokusy o navázání, během kterých nepřibyl ani bajt; pak se stahování vzdá. */
+        const val MAX_RETRIES_WITHOUT_PROGRESS = 5
+
+        /** Prodleva před dalším pokusem, násobená počtem pokusů bez pokroku. */
+        const val RETRY_DELAY_MS = 2_000L
+
+        const val HTTP_RANGE_NOT_SATISFIABLE = 416
 
         const val TIMEOUT_MS = 30_000
         const val BUFFER_BYTES = 256 * 1024

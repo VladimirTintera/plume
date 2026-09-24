@@ -941,8 +941,12 @@
     <string name="settings_ai_provider_nano_summary">Built into the phone (AICore). The system downloads and updates it.</string>
     <string name="settings_ai_provider_gemma">Gemma 4</string>
     <string name="settings_ai_provider_gemma_summary">An open model the app downloads itself. Runs on more phones and has a larger variant.</string>
-    <string name="settings_gemma_e2b_summary">Smaller and faster · 2.6 GB</string>
-    <string name="settings_gemma_e4b_summary">Larger and more accurate · 3.7 GB, needs 12 GB of memory</string>
+    <string name="settings_gemma_e2b_summary">Smaller and faster · %1$s</string>
+    <string name="settings_gemma_e4b_summary">Larger and more accurate · %1$s, needs 12 GB of memory</string>
     <string name="settings_on_device_ai_delete">Delete model</string>
+    <string name="settings_on_device_ai_downloadable_named">%1$s needs to be downloaded first (%2$s).</string>
+    <string name="settings_on_device_ai_download_progress">%1$s of %2$s</string>
+    <string name="settings_on_device_ai_waiting_for_network">Waiting for a connection, the download will resume on its own…</string>
+    <string name="settings_on_device_ai_resume">Resume download</string>
     <string name="settings_on_device_ai_not_enough_space">There is not enough free space on the phone for the model.</string>
 </resources>

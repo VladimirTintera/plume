@@ -183,16 +183,19 @@ Z toho plyne pořadí, ve kterém se vyplatí featury stavět:
 
 ### Co zbývá u toho, co běží
 
-- **Větší model: Gemma přes LiteRT-LM je zapojená, ale neověřená.** Preview varianta Gemini
-  Nano (Gemma 4 **E4B**) přes ML Kit nejde (`Feature -1`, viz `CLAUDE.md`), takže přibyl druhý
-  poskytovatel — Gemma 4 E2B / E4B, kterou si stáhne aplikace (`LiteRtOnDeviceAi`). Zbývá:
-  - **přeložit a vyzkoušet na Foldu**: stažení, načtení (GPU / CPU), shrnutí a návrhy, a hlavně
-    **porovnat češtinu E4B s Gemini Nano** — kvůli tomu to celé je,
-  - **ověřit, jestli Hugging Face model vydá bez přihlášení**; když ne, je potřeba přihlášení
-    k Hugging Face (Gallery na to má OAuth) nebo vlastní zrcadlo,
-  - **release build** — keep pravidla pro JNI LiteRT-LM a velikost APK s nativními knihovnami,
+- **Větší model: Gemma přes LiteRT-LM běží, ověřená na emulátoru (E2B na CPU).** Preview
+  varianta Gemini Nano (Gemma 4 **E4B**) přes ML Kit nejde (`Feature -1`, viz `CLAUDE.md`),
+  takže přibyl druhý poskytovatel — Gemma 4 E2B / E4B, kterou si stáhne aplikace
+  (`LiteRtOnDeviceAi`). Stažení, navázání po výpadku sítě, smazání, shrnutí, návrhy i release
+  build (s keep pravidlem) prošly. Zbývá:
+  - **vyzkoušet na Foldu E4B a GPU** a hlavně **porovnat češtinu E4B s Gemini Nano** — kvůli
+    tomu to celé je; E2B na emulátoru vyšla kvalitou zhruba jako Nano,
+  - **velikost APK**: nativní knihovny přidají ~25 MB na ABI každému, i kde se Gemma nenabídne
+    → Play Feature Delivery,
   - **stahování na pozadí** — dnes běží v procesu aplikace a při jeho zabití navazuje až při
-    dalším ťuknutí; na gigabajty by patřil WorkManager s notifikací průběhu.
+    dalším ťuknutí; na gigabajty by patřil WorkManager s notifikací průběhu,
+  - **desetinná tečka ve velikostech** (`formatFileSize` píše „2.4 GB" i v češtině) — týká se
+    celé aplikace, v nastavení modelu je jen nejvíc vidět.
 - **Beta ML Kitu sledovat.** `1.0.0-beta4` je zatím nejnovější; novější verze může `Feature -1`
   opravit a preview zpřístupnit bez vlastního runtime. Stojí za to to při bumpu zkusit znovu.
 - **Kešování kontextu a `warmup()` nejsou využité.** Prompt API je nabízí (`Caches`,

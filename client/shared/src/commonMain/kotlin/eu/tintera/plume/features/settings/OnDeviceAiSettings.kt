@@ -2,7 +2,6 @@ package eu.tintera.plume.features.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
@@ -14,8 +13,8 @@ import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,12 +30,15 @@ import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.GemmaModel
+import eu.tintera.plume.core.ai.ModelDownload
 import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.ai.NotEnoughSpaceException
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.files.formatFileSize
 import eu.tintera.plume.core.ui.grouped
+import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.settings_ai_provider_gemma
@@ -49,7 +51,12 @@ import eu.tintera.plume.resources.settings_on_device_ai
 import eu.tintera.plume.resources.settings_on_device_ai_delete
 import eu.tintera.plume.resources.settings_on_device_ai_not_enough_space
 import eu.tintera.plume.resources.settings_on_device_ai_checking
+import eu.tintera.plume.features.conversation.items.label
 import eu.tintera.plume.resources.settings_on_device_ai_download
+import eu.tintera.plume.resources.settings_on_device_ai_download_progress
+import eu.tintera.plume.resources.settings_on_device_ai_downloadable_named
+import eu.tintera.plume.resources.settings_on_device_ai_resume
+import eu.tintera.plume.resources.settings_on_device_ai_waiting_for_network
 import eu.tintera.plume.resources.settings_on_device_ai_download_failed
 import eu.tintera.plume.resources.settings_on_device_ai_downloadable
 import eu.tintera.plume.resources.settings_on_device_ai_downloading
@@ -87,7 +94,8 @@ sealed interface OnDeviceModelState {
     data object Checking : OnDeviceModelState
     data object Unsupported : OnDeviceModelState
     data object Downloadable : OnDeviceModelState
-    data class Downloading(val fraction: Float?) : OnDeviceModelState
+    /** [progress] je `null`, dokud stahování neohlásí první bajty. */
+    data class Downloading(val progress: ModelDownload?) : OnDeviceModelState
     data object DownloadFailed : OnDeviceModelState
     data object NotEnoughSpace : OnDeviceModelState
     data class Ready(val name: String?, val tokenLimit: Int?) : OnDeviceModelState
@@ -195,7 +203,7 @@ class OnDeviceAiSettingsViewModel(
         download = appScope.launch {
             try {
                 ai.download(target).collect { progress ->
-                    if (variant.value == target) _model.value = OnDeviceModelState.Downloading(progress.fraction)
+                    if (variant.value == target) _model.value = OnDeviceModelState.Downloading(progress)
                 }
                 if (variant.value == target) refresh(target)
             } catch (e: CancellationException) {
@@ -386,7 +394,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                     available.gemmaModels.forEach { gemma ->
                         ChoiceRow(
                             title = gemma.displayName,
-                            summary = stringResource(gemma.summary),
+                            summary = stringResource(gemma.summary, fileSizeText(gemma.sizeBytes)),
                             selected = variant.gemma == gemma,
                             onSelect = { viewModel.setGemmaModel(gemma) },
                         )
@@ -401,8 +409,25 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                 val status = when (val current = model) {
                     OnDeviceModelState.Checking -> stringResource(Res.string.settings_on_device_ai_checking)
                     OnDeviceModelState.Unsupported -> stringResource(Res.string.settings_on_device_ai_unsupported)
-                    OnDeviceModelState.Downloadable -> stringResource(Res.string.settings_on_device_ai_downloadable)
-                    is OnDeviceModelState.Downloading -> stringResource(Res.string.settings_on_device_ai_downloading)
+                    /*
+                     * U modelu, který stahuje aplikace, se jmenuje CO a KOLIK. „Zabere gigabajty"
+                     * stačí u systémového modelu, jehož velikost nám nikdo neřekne; tady ji víme
+                     * a pod 2,4 GB se uživatel podepisuje, ne pod „nějaké gigabajty".
+                     */
+                    OnDeviceModelState.Downloadable -> if (variant.appManaged) {
+                        stringResource(
+                            Res.string.settings_on_device_ai_downloadable_named,
+                            variant.gemma.displayName,
+                            fileSizeText(variant.gemma.sizeBytes),
+                        )
+                    } else {
+                        stringResource(Res.string.settings_on_device_ai_downloadable)
+                    }
+                    is OnDeviceModelState.Downloading -> if (current.progress?.waitingForNetwork == true) {
+                        stringResource(Res.string.settings_on_device_ai_waiting_for_network)
+                    } else {
+                        stringResource(Res.string.settings_on_device_ai_downloading)
+                    }
                     OnDeviceModelState.DownloadFailed -> stringResource(Res.string.settings_on_device_ai_download_failed)
                     OnDeviceModelState.NotEnoughSpace -> stringResource(Res.string.settings_on_device_ai_not_enough_space)
                     is OnDeviceModelState.Ready -> current.name
@@ -414,6 +439,23 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                /*
+                 * Kolik už je staženo: u gigabajtů trvá stahování minuty a samotná vlnka neřekne,
+                 * jestli to bude za chvíli, nebo za čtvrt hodiny.
+                 */
+                val progress = (model as? OnDeviceModelState.Downloading)?.progress
+                val total = progress?.totalBytes
+                if (progress != null && total != null && total > 0) {
+                    Text(
+                        stringResource(
+                            Res.string.settings_on_device_ai_download_progress,
+                            fileSizeText(progress.downloadedBytes),
+                            fileSizeText(total),
+                        ),
+                        style = MaterialTheme.typography.bodyMedium.tabularNumbers(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 (model as? OnDeviceModelState.Ready)?.tokenLimit?.let { limit ->
                     Text(
                         stringResource(Res.string.settings_on_device_ai_token_limit, limit.grouped()),
@@ -424,7 +466,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
 
                 when (val current = model) {
                     is OnDeviceModelState.Downloading -> {
-                        val fraction = current.fraction
+                        val fraction = current.progress?.fraction
                         if (fraction != null) {
                             LinearWavyProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
                         } else {
@@ -433,18 +475,28 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                     }
                     OnDeviceModelState.Downloadable, OnDeviceModelState.DownloadFailed, OnDeviceModelState.NotEnoughSpace ->
                         FilledTonalButton(onClick = viewModel::download) {
-                            Text(stringResource(Res.string.settings_on_device_ai_download))
+                            // Stažený kus se nezahazuje, takže po selhání tlačítko slibuje navázání.
+                            val resumes = model == OnDeviceModelState.DownloadFailed && variant.appManaged
+                            Text(
+                                stringResource(
+                                    if (resumes) Res.string.settings_on_device_ai_resume
+                                    else Res.string.settings_on_device_ai_download,
+                                ),
+                            )
                         }
                     /*
                      * Smazat jde jen model, který si stáhla aplikace. Systémový (AICore) patří
                      * telefonu a sdílí ho s ostatními aplikacemi; gigabajty Gemmy zabírají místo
                      * jen kvůli nám, a kdo funkci přestane používat, musí mít jak je vrátit.
                      */
+                    /*
+                     * Obrysové, ne textové tlačítko: `TextButton` nemá plochu a jeho vnitřní
+                     * odsazení odsunulo popisek od textu nad ním. Obrys lícuje s hranou jako
+                     * „Stáhnout model" na témže místě a vedle tónovaného tlačítka ustupuje.
+                     */
                     is OnDeviceModelState.Ready -> if (variant.appManaged) {
-                        Row {
-                            TextButton(onClick = viewModel::delete) {
-                                Text(stringResource(Res.string.settings_on_device_ai_delete))
-                            }
+                        OutlinedButton(onClick = viewModel::delete) {
+                            Text(stringResource(Res.string.settings_on_device_ai_delete))
                         }
                     }
                     else -> Unit
@@ -507,3 +559,10 @@ private val GemmaModel.summary: StringResource
         GemmaModel.E2B -> Res.string.settings_gemma_e2b_summary
         GemmaModel.E4B -> Res.string.settings_gemma_e4b_summary
     }
+
+/** Velikost s jednotkou, stejně jako u souborů v konverzaci. */
+@Composable
+private fun fileSizeText(bytes: Long): String {
+    val size = formatFileSize(bytes)
+    return stringResource(size.unit.label(), size.value)
+}

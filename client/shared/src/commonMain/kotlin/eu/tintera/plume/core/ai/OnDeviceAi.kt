@@ -153,8 +153,17 @@ enum class OnDeviceAiStatus {
     Ready,
 }
 
-/** Průběh stahování modelu. [totalBytes] je `null`, dokud ho systém neohlásí. */
-data class ModelDownload(val downloadedBytes: Long, val totalBytes: Long?) {
+/**
+ * Průběh stahování modelu. [totalBytes] je `null`, dokud ho systém neohlásí.
+ *
+ * @property waitingForNetwork stahování se přerušilo se sítí a naváže samo, až se připojení
+ *   vrátí. Pořád je to stahování, ne selhání: uživatel nemá nic dělat.
+ */
+data class ModelDownload(
+    val downloadedBytes: Long,
+    val totalBytes: Long?,
+    val waitingForNetwork: Boolean = false,
+) {
     val fraction: Float?
         get() = totalBytes?.takeIf { it > 0 }?.let { (downloadedBytes.toFloat() / it).coerceIn(0f, 1f) }
 }

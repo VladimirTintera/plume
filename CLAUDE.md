@@ -116,7 +116,16 @@ API, které aplikace z drtivé většiny nevolá.
   by se opsaná kopie tiše rozešla s tím, co knihovna opravdu potřebuje.
 - **Do `proguard-rules.pro` patří jen to, co se ověřeně rozbilo na zařízení.** Preventivní
   `-keep` vypne zkracování tam, kde nemusí, a zakonzervuje chybu, která se mezitím opravila
-  jinde. Zatím tam kromě atributů pro čitelné stack trace není nic.
+  jinde. Zatím tam kromě atributů pro čitelné stack trace je jediné pravidlo: LiteRT-LM.
+- **LiteRT-LM (Gemma) si keep pravidla NEPŘIBALUJE** — AAR `litertlm-android 0.11.0` nemá
+  `proguard.txt`, na rozdíl od TDLib wrapperu. Nativní strana přitom sahá do Kotlinu podle
+  jména: release build při prvním použití Gemmy spadl na `NoSuchMethodError …
+  SamplerConfig.getTopK()` a **SIGABRT** — nativní pád, tedy bez výjimky, kterou by šlo
+  chytit. Projevilo se to hned při OTEVŘENÍ CHATU: s příchozí poslední zprávou se sám rozběhne
+  návrh odpovědi. Proto `-keep class com.google.ai.edge.litertlm.** { *; }` na celý balíček,
+  ne výčet tříd — JNI hranici určuje knihovna a výčet by se při bumpu tiše rozešel. **Při
+  bumpu knihovny zkontrolovat, jestli už `proguard.txt` nese** (`unzip -l` na AAR); pak
+  pravidlo pryč. Ověřeno na emulátoru: bez pravidla pád, s ním shrnutí i návrhy.
 - **`isShrinkResources` zapnuté NENÍ.** Je to samostatný krok, který umí uklidit
   composeResources; zapínat ho spolu s minifikací by znamenalo nevědět, co z toho pád způsobilo.
 - **Chybějící keep pravidlo se při buildu nepozná, projeví se AŽ ZA BĚHU.** Release build se
@@ -260,21 +269,45 @@ tedy o poskytovatelích nemusí vědět nic.
   Přerušené stahování navazuje (`Range`). Před stahováním se kontroluje volné místo (velikost
   + 500 MB) a nedostatek má vlastní hlášku (`NotEnoughSpaceException`) — u gigabajtů je to
   nejčastější důvod selhání a jediný, se kterým uživatel může něco udělat.
+- **Po výpadku sítě stahování naváže SAMO** (`LiteRtOnDeviceAi.fetch` čeká na `NetworkMonitor`).
+  Stahuje se minuty a přechod z Wi-Fi na data je za tu dobu běžný; dokud výpadek končil
+  „nepodařilo se stáhnout", musel se uživatel vracet do Nastavení kvůli něčemu, co se vlastně
+  nepokazilo. Mezitím nastavení říká „Čekám na připojení" (`ModelDownload.waitingForNetwork`).
+  Opakuje se jen chyba spojení: odpověď serveru (`HttpStatusException`) ani plný disk čekáním
+  nespraví, a po pěti pokusech bez jediného nového bajtu se stahování vzdá. Po vypnutí
+  letového režimu přišel na emulátoru ještě DRUHÝ výpadek, jak se síť usazovala — i ten se
+  navázal, proto se čeká napřed na síť a teprve pak s prodlevou.
+- **Nastavení u Gemmy říká, CO a KOLIK se stáhne** („Gemma 4 E2B je potřeba nejdřív stáhnout
+  (2.4 GB)") a během stahování „164 MB z 2.4 GB". Samotné „zabere gigabajty" stačí u Nano, jehož
+  velikost nikdo neřekne; tady ji víme. Velikost jde přes `formatFileSize` jako u souborů
+  v chatu, takže je v GiB — katalog Gallery uvádí 2,6 GB v desítkových. Po selhání tlačítko
+  slibuje „Pokračovat ve stahování": stažený kus se nezahazuje.
 - **Stahovaný model jde smazat, systémový ne** (`ModelVariant.appManaged`, `OnDeviceAi.delete`).
 - **Engine je v paměti nejvýš jeden a po dvou minutách nečinnosti se uvolní** — drží gigabajty
   RAM. Načtení trvá až deset sekund, proto ne hned po odpovědi (návrhy chodí po sobě).
   **Generování je jedno po druhém** (zámek): dvě konverzace nad jedním enginem LiteRT-LM neslibuje.
 - **GPU, a když nejde, CPU.** GPU backend potřebuje `libOpenCL.so` — `uses-native-library`
-  v manifestu aplikace (`required=false`).
+  v manifestu aplikace (`required=false`). Na emulátoru GPU selže na OpenGL (`GL_INVALID_ENUM`
+  v `delegate_opengl.cc`) a CPU naskočí; na zařízení ověřené není, jestli se GPU chytí.
 - **LiteRT-LM v Kotlinu neumí počítat tokeny** (`countTokens` = `null`), takže se přepis jen
   odhaduje z limitu. Limit je velikost KV keše (8 192, stejně jako Gemini Nano) minus místo na
   odpověď — vstup i výstup se do keše musí vejít SPOLU. **Strop výstupu hlídá aplikace sama**
   (`MAX_OUTPUT_CHARS`, pak `Generated.truncated`); konfigurace konverzace žádný nemá.
-- **Neověřeno na zařízení a nepřeloženo** — vzniklo v sandboxu bez přístupu ke Google Maven
-  i Hugging Face. Otevřené: jestli je model na Hugging Face bez souhlasu s licencí (401/403
-  prototyp neumí a hlásí jako selhání stahování), keep pravidla R8 pro JNI LiteRT-LM
-  (release build proklikat), minSdk knihovny (`tools:overrideLibrary` v manifestu je pojistka)
-  a o kolik naroste APK nativními knihovnami.
+- **Hugging Face model vydá bez přihlášení** (ověřeno `curl -IL`: 302 na CDN, 200, velikost
+  sedí na bajt, `accept-ranges: bytes`). Licenční brána by se projevila 401/403 a tu prototyp
+  hlásí jako selhání stahování.
+- **Nativní knihovny přidají ~25 MB na ABI** (debug arm64 49,6 → 74,3 MB) a dostane je každý,
+  i na telefonu, kde se Gemma nikdy nenabídne. Pro prototyp únosné; před vydáním Play Feature
+  Delivery. Knihovna má minSdk 23 (projekt 26), `tools:overrideLibrary` potřeba není.
+- **Na emulátoru se Gemma vyzkoušet DÁ — na rozdíl od Gemini Nano.** Stačí AVD s 8 GB RAM
+  (`hw.ramSize=8192` v `config.ini`, jinak se E2B kvůli `minMemoryGb` nenabídne); hostitel
+  paměť bere až podle skutečné spotřeby, na Macu s 18 GB to po zastavení Gradle daemonů šlo.
+  Běží na CPU: shrnutí 32 zpráv zhruba za 40 s, proces drží ~3 GB a po dvou minutách
+  nečinnosti spadne na ~300 MB. E4B (12 GB) se na takový Mac nevejde. **Čeština proti Nano
+  a GPU se ověřují až na telefonu.**
+- **Kvalita E2B je podobná Nano, ne lepší**: fakta drží (data, ceny, číslo účtu), ale
+  propsala „v češtině" z instrukce, „Notifikator změnily" a v návrzích se objevil nesmysl
+  („Ne, chyba, nebudu přijímat."). Kvůli kvalitě je tu E4B.
 
 - **`core/ai` je hranice** jako `core/telegram`: `com.google.mlkit.genai.*`
   a `com.google.ai.edge.litertlm.*` smí být jen v `androidMain/core/ai`. Poskytovatelé jdou
