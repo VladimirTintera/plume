@@ -2415,8 +2415,13 @@ rozhoduje `embeddedMediaPickerAvailable()`.
   je za `expect`/`actual`: bez ní i bez systémové podpory funguje výběr příloh dál.
 - **Ověřeno na emulátoru** (API 36, extension 20): galerie v sheetu nad konverzací, výběr → fotka
   nad polem, odznačení → fotka zmizí, zavření gestem zpět, zavření a znovuotevření → fotka je
-  pořád zaškrtnutá, po odeslání → zaškrtnutí zmizí. Fallback na starším systému ověřený není —
-  je to dvojpodmínka, pod kterou se `actual` ani nezavolá.
+  pořád zaškrtnutá, po odeslání → zaškrtnutí zmizí.
+- **Fallback ověřený na Androidu 14 (SDK Extensions 7) a 13**: sponka otevře systémový výběr
+  (`PhotoPickerActivity`), vybrané fotky naskočí nad pole, a Direct Share se ukáže bez galerie.
+  Na Androidu 16 (Extensions 17) je vestavěná galerie v sheetu i v Direct Share jako na 17.
+  **Android 14 sám nestačí** — rozhoduje verze SDK Extensions, a obraz emulátoru API 34
+  (`google_apis_playstore` r14) má jen 7; skutečný telefon s Androidem 14 ji mívá vyšší díky
+  aktualizacím Play systému, takže tam galerie být může.
 
 ### Posílání příloh a alb
 
