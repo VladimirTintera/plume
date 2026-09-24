@@ -125,6 +125,11 @@ internal fun VideoPage(
     onTap: () -> Unit,
     /** Přepne na celou obrazovku (tlačítko přehrání v galerii). */
     onEngage: () -> Unit,
+    /**
+     * Smí se přehrávat rozestavěný soubor. U mizejícího média ne: odpočet začíná až se staženým
+     * souborem a video nesmí hrát dřív, než běží.
+     */
+    streaming: Boolean = true,
     hasSpoiler: Boolean = false,
     revealed: Boolean = true,
     onReveal: () -> Unit = {},
@@ -157,7 +162,7 @@ internal fun VideoPage(
      * platforma umí — na iOS zatím ne. Souvisle stažených bajtů (`downloadedPrefixSize`) se
      * čte z vlákna přehrávače, proto `MutableStateFlow`, ne Compose stav.
      */
-    val streamable = videoStreamingSupported && video.supportsStreaming
+    val streamable = streaming && videoStreamingSupported && video.supportsStreaming
     val downloading = file as? FileState.Downloading
     // Stažený úsek se čte z vlákna přehrávače, proto `MutableStateFlow`, ne Compose stav.
     val downloadedRange = remember(video.fileId) { MutableStateFlow(LongRange.EMPTY) }

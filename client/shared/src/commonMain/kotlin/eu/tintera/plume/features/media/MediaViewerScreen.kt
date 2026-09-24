@@ -402,6 +402,7 @@ private fun ViewerContent(
                 is MessageMedia.Video -> VideoPage(
                     video = media,
                     messageId = item.messageId,
+                    streaming = !state.isSelfDestruct,
                     caption = item.caption,
                     isCurrent = isCurrent,
                     immersive = immersive,

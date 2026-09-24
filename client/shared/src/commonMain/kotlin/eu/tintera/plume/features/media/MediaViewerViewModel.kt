@@ -33,6 +33,7 @@ import eu.tintera.plume.resources.media_saved_as
 import eu.tintera.plume.resources.media_share_failed
 import eu.tintera.plume.resources.media_saved
 import eu.tintera.plume.resources.media_unsupported
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -65,6 +66,8 @@ class MediaViewerViewModel(
     private val saver: MediaSaver,
     private val sharer: MediaSharer,
     private val timers: SelfDestructTimers,
+    /** Nahlášení zhlédnutého jednorázového média musí doběhnout i po zrušení [viewModelScope]. */
+    private val appScope: CoroutineScope,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("MediaViewer")
@@ -85,6 +88,12 @@ class MediaViewerViewModel(
 
     /** Otevřené mizející médium poslal sám uživatel: žádný odpočet ani spotřebování. */
     private var ownSelfDestruct = false
+
+    /**
+     * Jednorázové médium se stáhlo a uživatel ho viděl — TDLib se to dozví až při odchodu
+     * (`onCleared`), viz [awaitSelfDestructMedia].
+     */
+    private var viewOnceShown = false
 
     /** Zprávy, u kterých se podrobnosti (reakce, práva) už načítají nebo načetly. */
     private val detailsRequested = mutableSetOf<Long>()
@@ -165,25 +174,33 @@ class MediaViewerViewModel(
             // odesílateli ukázal „vypršelo", i když příjemce médium ještě neviděl.
             if (ownSelfDestruct) return
 
-            // Oznámit TDLib otevření obsahu — spustí serverový/lokální odpočet
+            if (!awaitSelfDestructMedia(initialMessage.media)) return
+
+            if (selfDestructType !is SelfDestructType.Timer) {
+                // Jednorázové zhlédnutí: TDLib po `openMessageContent` obsah hned zahodí i se
+                // soubory, takže se hlásí až při odchodu z prohlížeče.
+                viewOnceShown = true
+                return
+            }
+
+            // Oznámit TDLib otevření obsahu — spustí odpočet. Až teď, když je médium stažené:
+            // odpočet běží od otevření a čekání na síť by ukrojilo z doby, kterou odesílatel dal.
             repository.openContent(chatId, messageId)
 
-            if (selfDestructType is SelfDestructType.Timer) {
-                // Zbývající čas je od TDLib, ne délka časovače: odpočet mohl začít dřív (jiné
-                // zařízení, otevření před restartem). Po `openContent` ho TDLib už zná; dokud ne,
-                // platí hodnota z doby načtení a teprve pak plná délka.
-                val remaining = repository.message(chatId, messageId).getOrNull()?.selfDestructIn
-                    ?: initialMessage.selfDestructIn
-                    ?: selfDestructType.seconds
-                viewModelScope.launch {
-                    timers.observeRemainingSeconds(messageId, remaining)
-                        .collect { remaining ->
-                            _state.update { it.copy(remainingSeconds = remaining) }
-                            if (remaining <= 0) {
-                                _state.update { it.copy(closed = true) }
-                            }
+            // Zbývající čas je od TDLib, ne délka časovače: odpočet mohl začít dřív (jiné
+            // zařízení, otevření před restartem). Po `openContent` ho TDLib už zná; dokud ne,
+            // platí hodnota z doby načtení a teprve pak plná délka.
+            val remaining = repository.message(chatId, messageId).getOrNull()?.selfDestructIn
+                ?: initialMessage.selfDestructIn
+                ?: selfDestructType.seconds
+            viewModelScope.launch {
+                timers.observeRemainingSeconds(messageId, remaining)
+                    .collect { remaining ->
+                        _state.update { it.copy(remainingSeconds = remaining) }
+                        if (remaining <= 0) {
+                            _state.update { it.copy(closed = true) }
                         }
-                }
+                    }
             }
             return
         }
@@ -478,14 +495,48 @@ class MediaViewerViewModel(
         )
     }
 
+    /**
+     * Počká, až je mizející médium celé na disku — teprve pak smí začít odpočet.
+     *
+     * TDLib počítá odpočet od `openMessageContent`. Kdyby se volal hned při otevření prohlížeče,
+     * ukrojilo by stahování z doby, kterou dal odesílatel: u videa, kterému TDLib časovač
+     * prodlouží jen na délku + 1 s, se pak prohlížeč zavřel dřív, než video dohrálo. Oficiální
+     * klient mizející médium taky otevírá až stažené. Video se proto u mizejícího média ani
+     * nestreamuje (`VideoPage(streaming = false)`) — přehrávání a odpočet začnou naráz.
+     */
+    private suspend fun awaitSelfDestructMedia(media: MessageMedia): Boolean {
+        val fileId = when (media) {
+            is MessageMedia.Photo -> media.fullFileId
+            is MessageMedia.Video -> media.fileId
+            else -> return true
+        }
+        val file = files.file(fileId).first { it is FileState.Ready || it is FileState.Failed }
+        if (file is FileState.Failed) {
+            logger.w { "Mizející médium se nepodařilo stáhnout, odpočet se nespouští." }
+            return false
+        }
+        return true
+    }
+
     /** Uživatel zavírá prohlížeč (gestem, křížkem, tlačítkem Zpět). */
     fun onDismiss() {
         if (_state.value.isSelfDestruct && !ownSelfDestruct) {
             val type = _state.value.selfDestructType
             val remaining = _state.value.remainingSeconds ?: timers.remainingSeconds(messageId)
-            if (type is SelfDestructType.Immediately || type == null || (remaining != null && remaining <= 0)) {
+            // Jednorázové médium, které se ani nestáhlo, uživatel neviděl — nespotřebuje se.
+            if ((type !is SelfDestructType.Timer && viewOnceShown) || (remaining != null && remaining <= 0)) {
                 timers.markConsumed(messageId)
             }
+        }
+    }
+
+    override fun onCleared() {
+        // Jednorázové zhlédnutí se TDLib hlásí až teď: `openMessageContent` ho vyřídí okamžitě,
+        // smaže soubory a pošle vypršelý obsah — nahlášené při otevření by zmizelo uživateli
+        // pod rukama. `appScope`, protože `viewModelScope` je v tuhle chvíli zrušený.
+        if (viewOnceShown) {
+            timers.markConsumed(messageId)
+            appScope.launch { repository.openContent(chatId, messageId) }
         }
     }
 
