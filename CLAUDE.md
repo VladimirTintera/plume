@@ -5178,6 +5178,12 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   i ty ostatní.
 - **Prázdná nabídka není chyba.** V Uložených zprávách Telegram místo reakcí používá tagy a
   `getMessageAvailableReactions` vrátí prázdný seznam. Testovat reakce tam tedy nejde.
+- **Pořadí rychlých reakcí podle zvyku uživatele dodává Telegram, vlastní počítadlo NEPSAT.**
+  `getMessageAvailableReactions` vrací `topReactions` (nejčastěji používané, řadí server a drží
+  je napříč zařízeními), `recentReactions` a `popularReactions`; skládají se v tomhle pořadí bez
+  duplicit a pruh bere prvních šest (`MAX_QUICK_REACTIONS`). Přidání reakce posílá
+  `updateRecentReactions = true`, takže se i reakce z Plume propíše do „nedávných" všude.
+  Počítadlo v aplikaci by vidělo jen reakce z tohohle zařízení a s pořadím serveru by se přelo.
 - **`isBig = false`** — `true` je ta celoobrazovková animace; patří k vědomému gestu, ne ke
   každému ťuknutí na čip.
 - **Avatary v čipech NEJSOU.** Byly, a byla to slepá ulička: čip s profilovkami je široký, takže
