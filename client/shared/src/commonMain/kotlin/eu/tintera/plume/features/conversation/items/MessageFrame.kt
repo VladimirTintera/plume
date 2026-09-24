@@ -39,6 +39,9 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
+import androidx.compose.foundation.text.selection.TextSelectionColors
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -63,6 +66,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -227,6 +231,11 @@ internal class MessageBodyScope(
      */
     val insetColor: Color,
     /**
+     * Barvy výběru textu na ploše bubliny (viz [BubbleSurface]). Výchozí podklad výběru je
+     * `primary` s průhledností, a ten na odchozí `primary` bublině nebyl vidět vůbec.
+     */
+    val selectionColors: TextSelectionColors,
+    /**
      * Kolik místa si obsah nechá dole. Čip reakce leží PŘES dolní nároží — dolní půlka mu visí
      * ven, horní na zprávě —, takže se rezervuje jen ta horní půlka. Platí pro to, co je ve
      * zprávě poslední: bublinu, popisek pod holou fotkou i popis náhledu odkazu.
@@ -281,12 +290,7 @@ internal fun rememberMessageBodyScope(
      */
     val colors = MaterialTheme.colorScheme
     val emphasisSpec = MaterialTheme.motionScheme.slowEffectsSpec<Color>()
-    val targetBubble = when {
-        message.isOutgoing && frame.emphasized -> colors.tertiary
-        message.isOutgoing -> colors.primary
-        frame.emphasized -> colors.tertiaryContainer
-        else -> colors.surfaceContainerHigh
-    }
+    val targetBubble = bubbleColorFor(colors, message.isOutgoing, frame.emphasized)
     val targetOnBubble = when {
         message.isOutgoing && frame.emphasized -> colors.onTertiary
         message.isOutgoing -> colors.onPrimary
@@ -317,6 +321,22 @@ internal fun rememberMessageBodyScope(
         animationSpec = emphasisSpec,
         label = "bubble-accent",
     )
+    /*
+     * Podklad výběru textu (označování v kopii zprávy v nabídce). Výchozí je `primary`
+     * s průhledností — na odchozí `primary` bublině tedy barva na barvě a označený úsek nebyl
+     * vidět. Stejné pravidlo jako u akcentu: `primary`, dokud je na bublině vidět, jinak barva
+     * popředí bubliny. Úchyty výběru se tu jen převezmou: čte je `SelectionContainer` kolem
+     * celé kopie a barvu jim dává nabídka (`MessageMenu`, [distinctOnBoth]).
+     */
+    val selectionColor by animateColorAsState(
+        targetValue = accentOn(background = targetBubble, accent = colors.primary, fallback = targetOnBubble),
+        animationSpec = emphasisSpec,
+        label = "bubble-selection",
+    )
+    val selectionHandle = LocalTextSelectionColors.current.handleColor
+    val selectionColors = remember(selectionHandle, selectionColor) {
+        TextSelectionColors(handleColor = selectionHandle, backgroundColor = selectionColor.copy(alpha = SELECTION_BACKGROUND_ALPHA))
+    }
     /*
      * Plocha citace a popisu webu se počítá tady se zbytkem barev, ne v místě kreslení: rozhoduje
      * se z CÍLOVÉ barvy bubliny (z animované by se přepnula uprostřed přechodu) a výsledek se
@@ -387,7 +407,7 @@ internal fun rememberMessageBodyScope(
     // (viz `MessageBox`).
     val contentBottom = 8.dp
 
-    return remember(scope, frame, shape, bubbleColor, onBubbleColor, accent, insetColor, contentBottom) {
+    return remember(scope, frame, shape, bubbleColor, onBubbleColor, accent, insetColor, selectionColors, contentBottom) {
         MessageBodyScope(
             items = scope,
             frame = frame,
@@ -396,6 +416,7 @@ internal fun rememberMessageBodyScope(
             onBubbleColor = onBubbleColor,
             accent = accent,
             insetColor = insetColor,
+            selectionColors = selectionColors,
             contentBottom = contentBottom,
             anchor = anchor,
         )
@@ -936,11 +957,39 @@ internal fun MessageBodyScope.PaddedColumn(
     )
 }
 
+/**
+ * Barva bubliny podle strany a zvýraznění — cílová, bez animace. Potřebuje ji i nabídka nad
+ * zprávou: úchyty výběru se musí odlišit od bubliny, na jejímž okraji visí.
+ */
+internal fun bubbleColorFor(colors: ColorScheme, isOutgoing: Boolean, emphasized: Boolean): Color = when {
+    isOutgoing && emphasized -> colors.tertiary
+    isOutgoing -> colors.primary
+    emphasized -> colors.tertiaryContainer
+    else -> colors.surfaceContainerHigh
+}
+
 /** Bublina: pozadí ve tvaru a barvě podle strany a sousedů, obsah odsazený. */
 @Composable
 internal fun MessageBodyScope.Bubble(content: @Composable ColumnScope.() -> Unit) {
-    Surface(color = bubbleColor, contentColor = onBubbleColor, shape = shape) {
+    BubbleSurface(shape = shape) {
         PaddedColumn(content = content)
+    }
+}
+
+/**
+ * Plocha v barvě bubliny — celá bublina i její díly (popisek pod holou fotkou, text u karty
+ * náhledu odkazu, hlavička přeposlání). Kromě barvy popředí podává i barvy výběru textu, které
+ * k té ploše patří ([MessageBodyScope.selectionColors]); jinak by výběr převzal výchozí
+ * `primary`, na odchozí bublině neviditelný.
+ */
+@Composable
+internal fun MessageBodyScope.BubbleSurface(
+    modifier: Modifier = Modifier,
+    shape: Shape = RectangleShape,
+    content: @Composable () -> Unit,
+) {
+    Surface(modifier = modifier, shape = shape, color = bubbleColor, contentColor = onBubbleColor) {
+        CompositionLocalProvider(LocalTextSelectionColors provides selectionColors, content = content)
     }
 }
 
@@ -1041,7 +1090,7 @@ internal fun MessageBodyScope.ForwardLabel(modifier: Modifier = Modifier) {
 @Composable
 internal fun MessageBodyScope.ForwardHeader() {
     if (message.forwardOrigin == null) return
-    Surface(color = bubbleColor, contentColor = onBubbleColor) {
+    BubbleSurface {
         ForwardLabel(Modifier.fillMaxWidth().padding(start = MESSAGE_PADDING_H, end = MESSAGE_PADDING_H, top = 6.dp, bottom = 4.dp))
     }
 }
@@ -1051,6 +1100,9 @@ private const val FORWARD_LABEL_ALPHA = 0.78f
 
 /** Jak silně se tónuje pás citace v textu. Stejný řád jako podklad kódu (0,15). */
 private const val QUOTE_TINT_ALPHA = 0.1f
+
+/** Průhlednost podkladu výběru textu — stejná jako výchozí `TextSelectionColors` v Material 3. */
+private const val SELECTION_BACKGROUND_ALPHA = 0.4f
 
 /** Zástupný řetězec za jméno v šabloně „Přeposláno od %1$s"; ve jménech se nevyskytne. */
 private const val FORWARD_NAME_SLOT = "\u0001"

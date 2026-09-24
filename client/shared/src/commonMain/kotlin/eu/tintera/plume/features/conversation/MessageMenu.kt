@@ -30,8 +30,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.selection.SelectionState
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -44,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
@@ -93,8 +96,10 @@ import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.hazeBlur
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
+import eu.tintera.plume.core.ui.distinctOnBoth
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.features.conversation.items.ConversationItemScope
+import eu.tintera.plume.features.conversation.items.bubbleColorFor
 import eu.tintera.plume.features.conversation.items.Delivery
 import eu.tintera.plume.features.conversation.items.MenuAnchor
 import eu.tintera.plume.features.conversation.items.MenuCopy
@@ -443,7 +448,32 @@ internal fun MessageMenuLayer(
                 } else {
                     Modifier
                 }
-                MaybeSelectable(enabled = selectable, state = selectionState, modifier = closeOnTap) {
+                /*
+                 * Úchyty výběru visí přes spodní okraj bubliny: kus na ní, kus na ploše konverzace.
+                 * Výchozí `primary` na odchozí `primary` bublině splynul a úchyty vypadaly jako
+                 * její výběžky — barva se proto měří proti OBĚMA plochám ([distinctOnBoth]).
+                 * Podklad výběru si podává bublina sama (`BubbleSurface`).
+                 */
+                val colors = MaterialTheme.colorScheme
+                val bubble = bubbleColorFor(colors, shown.menu.isOutgoing, shown.item.frame.emphasized)
+                val handleColor = remember(colors, bubble) {
+                    distinctOnBoth(
+                        preferred = colors.primary,
+                        alternatives = listOf(colors.inversePrimary, colors.onSurface),
+                        bubble,
+                        colors.background,
+                    )
+                }
+                val baseSelectionColors = LocalTextSelectionColors.current
+                val selectionColors = remember(baseSelectionColors, handleColor) {
+                    TextSelectionColors(handleColor = handleColor, backgroundColor = baseSelectionColors.backgroundColor)
+                }
+                MaybeSelectable(
+                    enabled = selectable,
+                    state = selectionState,
+                    colors = selectionColors,
+                    modifier = closeOnTap,
+                ) {
                     with(shown.item) {
                         MenuCopy(
                             scope = copyScope,
@@ -600,10 +630,17 @@ internal fun MessageMenuLayer(
 private fun MaybeSelectable(
     enabled: Boolean,
     state: SelectionState,
+    colors: TextSelectionColors,
     modifier: Modifier,
     content: @Composable () -> Unit,
 ) {
-    if (enabled) SelectionContainer(state = state, modifier = modifier, content = content) else content()
+    if (enabled) {
+        CompositionLocalProvider(LocalTextSelectionColors provides colors) {
+            SelectionContainer(state = state, modifier = modifier, content = content)
+        }
+    } else {
+        content()
+    }
 }
 
 /** Scope kopie zprávy v nabídce: čte všechno jako seznam, ale akce nikam neposílá. */

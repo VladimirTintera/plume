@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
@@ -292,7 +293,12 @@ internal fun MessageBodyScope.QuotedBubble(
     Layout(
         contents = listOf(
             { CompositionLocalProvider(LocalContentColor provides onQuoteColor) { quote() } },
-            { CompositionLocalProvider(LocalContentColor provides onBubbleColor) { PaddedColumn(content = content) } },
+            {
+                CompositionLocalProvider(
+                    LocalContentColor provides onBubbleColor,
+                    LocalTextSelectionColors provides selectionColors,
+                ) { PaddedColumn(content = content) }
+            },
         ),
         modifier = Modifier.drawBehind {
             drawRect(quoteColor, size = Size(size.width, split[0]))
