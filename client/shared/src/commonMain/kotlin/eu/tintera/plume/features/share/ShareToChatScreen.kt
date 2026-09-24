@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.share
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
@@ -50,6 +51,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -62,6 +64,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.collapse
@@ -175,8 +178,27 @@ fun ShareToChatScreen(
      * obnovují až v subkompozici; se seznamem zachyceným v lambdě by po přidání fotky z galerie
      * přepočítal klíče s novým počtem nad starým seznamem (tatáž past jako v prohlížeči médií).
      */
-    val latestAttachments by rememberUpdatedState(attachments.orEmpty())
+    val shown = rememberShownAttachments(attachments.orEmpty())
+    val latestAttachments by rememberUpdatedState(shown.pages)
     val pagerState = rememberPagerState { latestAttachments.size }
+    val scope = rememberCoroutineScope()
+
+    /*
+     * Odebraný snímek dohrál odchod. Když je to zrovna zobrazená stránka, carousel napřed
+     * dojede na souseda (další, u posledního předchozí) a teprve pak neviditelná stránka zmizí —
+     * soused tak přijede tahem, místo aby na jejím místě naskočil. Pager drží pozici podle
+     * klíče, takže odebrání stránky, ze které se už odjelo, s ním nepohne.
+     */
+    val onLeft: (String) -> Unit = { path ->
+        scope.launch {
+            val pages = latestAttachments
+            val index = pages.indexOfFirst { it.path == path }
+            if (index >= 0 && index == pagerState.currentPage && pages.size > 1) {
+                pagerState.animateScrollToPage(if (index < pages.lastIndex) index + 1 else index - 1)
+            }
+            shown.remove(path)
+        }
+    }
 
     /*
      * Dobraná fotka se hned ukáže: pager přejede na konec dávky, kam se přidává. Bez toho by
@@ -249,11 +271,16 @@ fun ShareToChatScreen(
             },
         ) { page ->
             latestAttachments.getOrNull(page.index)?.let { attachment ->
+                // Stránky nejsou 1:1 s přílohami (odcházející snímek v nich ještě chvíli je),
+                // takže se index do ViewModelu hledá podle cesty.
+                val index = { attachments.orEmpty().indexOfFirst { it.path == attachment.path } }
                 SharedPhoto(
                     attachment = attachment,
                     canSelfDestruct = state.canSelfDestruct,
-                    onRemove = { viewModel.removeAttachment(page.index) },
-                    onSetMode = { viewModel.setMode(page.index, it) },
+                    leaving = shown.isLeaving(attachment.path),
+                    onLeft = { onLeft(attachment.path) },
+                    onRemove = { index().takeIf { it >= 0 }?.let(viewModel::removeAttachment) },
+                    onSetMode = { mode -> index().takeIf { it >= 0 }?.let { viewModel.setMode(it, mode) } },
                     reservedTop = headerHeight + MEDIA_PAGE_VERTICAL_GAP,
                     // Horní odsazení řádku s polem dělá mezeru samo.
                     reservedBottom = (maxHeight - captionTop).coerceAtLeast(0.dp),
@@ -272,8 +299,8 @@ fun ShareToChatScreen(
                     chatId = state.chatId,
                     isSavedMessages = state.isSavedMessages,
                     kind = state.kind,
-                    position = attachments
-                        ?.takeIf { it.size > 1 }
+                    position = latestAttachments
+                        .takeIf { it.size > 1 }
                         ?.let { stringResource(Res.string.media_position, pagerState.currentPage + 1, it.size) },
                     onClose = onClose,
                     onCollapseGallery = if (galleryShown && galleryExpanded) {
@@ -423,6 +450,9 @@ private fun Recipient(
 private fun SharedPhoto(
     attachment: OutgoingAttachment,
     canSelfDestruct: Boolean,
+    /** Snímek z dávky odebraný — karta se zmenší a zprůhlední, pak [onLeft]. */
+    leaving: Boolean,
+    onLeft: () -> Unit,
     onRemove: () -> Unit,
     onSetMode: (AttachmentMode) -> Unit,
     reservedTop: Dp,
@@ -443,6 +473,18 @@ private fun SharedPhoto(
         )
     }
 
+    /*
+     * Odebraný snímek nezmizí skokem: karta se stáhne a zprůhlední, a teprve pak ji carousel
+     * odebere. Effects spec, ne spatial — pružina by průhlednost přestřelila do bliknutí.
+     * Znovu zaškrtnutý snímek se během odchodu vrátí toutéž animací zpátky.
+     */
+    val left by rememberUpdatedState(onLeft)
+    val presence by animateFloatAsState(
+        targetValue = if (leaving) 0f else 1f,
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+        finishedListener = { if (it == 0f) left() },
+    )
+
     MediaPageLayout(
         aspectRatio = attachment.previewRatio ?: 1f,
         // Popisek se tu teprve píše, a to do pole pod kartou.
@@ -450,7 +492,12 @@ private fun SharedPhoto(
         reservedTop = reservedTop,
         reservedBottom = reservedBottom,
         cardBias = cardBias,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().graphicsLayer {
+            alpha = presence
+            val scale = LEAVING_SCALE + (1f - LEAVING_SCALE) * presence
+            scaleX = scale
+            scaleY = scale
+        },
     ) {
         Box(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().clip(RoundedCornerShape(MEDIA_CARD_CORNER))) {
@@ -628,6 +675,59 @@ private val AVATAR_SIZE = 32.dp
 private val BADGE_BUTTON = 40.dp
 private val BADGE_INSET = 8.dp
 /**
+ * Stránky carouselu: přílohy dávky a k nim snímky, které z ní právě odcházejí.
+ *
+ * Pager odebrání stránky animovat neumí — chybějící stránka prostě zmizí a soused naskočí na
+ * její místo. Odebraný snímek proto v carouselu chvíli zůstane (na svém dřívějším místě),
+ * dohraje odchod a teprve pak ho obrazovka odebere ([remove]). Znovu zaškrtnutý snímek
+ * z odcházejících vypadne a vrátí se.
+ */
+private class ShownAttachments {
+    private val leaving = LinkedHashMap<String, Pair<Int, OutgoingAttachment>>()
+    private var previous: List<OutgoingAttachment>? = null
+    private var version by mutableIntStateOf(0)
+    /** Stav, ne pole: po dohraném odchodu ([remove]) se musí obrazovka i pager překreslit. */
+    var pages: List<OutgoingAttachment> by mutableStateOf(emptyList())
+        private set
+
+    /** Volá se při každé změně dávky, v kompozici — odchod se musí zjistit dřív, než se vykreslí. */
+    fun update(current: List<OutgoingAttachment>) {
+        val now = current.mapTo(HashSet()) { it.path }
+        previous?.forEachIndexed { index, attachment ->
+            if (attachment.path !in now && attachment.path !in leaving) leaving[attachment.path] = index to attachment
+        }
+        now.forEach { leaving.remove(it) }
+        previous = current
+        rebuild(current)
+    }
+
+    fun isLeaving(path: String): Boolean {
+        version // čtení kvůli rekompozici
+        return path in leaving
+    }
+
+    fun remove(path: String) {
+        if (leaving.remove(path) != null) {
+            rebuild(previous.orEmpty())
+            version++
+        }
+    }
+
+    private fun rebuild(current: List<OutgoingAttachment>) {
+        pages = current.toMutableList().apply {
+            leaving.values.sortedBy { it.first }.forEach { (index, attachment) -> add(index.coerceAtMost(size), attachment) }
+        }
+    }
+}
+
+@Composable
+private fun rememberShownAttachments(current: List<OutgoingAttachment>): ShownAttachments {
+    val shown = remember { ShownAttachments() }
+    remember(current) { shown.update(current) }
+    return shown
+}
+
+/**
  * Galerie pod popiskem jako v Google Zprávách: panel se zaoblenými horními rohy a úchytem.
  *
  * **Sbalený jen vykukuje** — náhled mřížky, ve kterém jde vybírat, ale ne posouvat (tak se
@@ -732,6 +832,9 @@ private fun GalleryPanel(
         }
     }
 }
+
+/** Jak malá je karta odebraného snímku na konci odchodu. */
+private const val LEAVING_SCALE = 0.85f
 
 private val GALLERY_CORNER = 28.dp
 private val GALLERY_HANDLE_AREA = 36.dp

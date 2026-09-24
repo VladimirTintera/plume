@@ -5644,6 +5644,15 @@ sdílející z Fotek.
   com.android.providers.media.photopicker/media/<id MediaStore>`, takže MediaStore URI i URI
   zabalené v cestě Fotek Google jde převést. Ťuknutí na sdílenou fotku ji proto nepřidá podruhé
   a odznačení ji z dávky odebere.
+- **Odebraný snímek odchází animací, ne skokem** (`ShownAttachments`, `SharedPhoto(leaving)`).
+  Pager odebrání stránky animovat neumí — chybějící stránka zmizí a soused naskočí na její
+  místo. Odebraný snímek (odznačený v galerii i ✕) proto v carouselu chvíli zůstane: karta se
+  stáhne a zprůhlední, a byl-li zobrazený, carousel dojede na souseda (další, u posledního
+  předchozí); teprve pak stránka zmizí. Pager drží pozici podle klíče, takže odebrání stránky,
+  ze které už odjel, s ním nepohne. Stránky tím nejsou 1:1 s přílohami — index do ViewModelu
+  (✕, režim) se hledá podle cesty. Znovu zaškrtnutý snímek se během odchodu vrátí.
+- **Zpomalené animace pro snímky ukládej mimo `/sdcard`** (`/data/local/tmp`): PNG v `/sdcard`
+  MediaStore zaindexuje a objeví se v testované galerii.
 - **Hláška (snackbar) stojí nad polem**, ne u spodku — galerie je `SurfaceView` nad vším.
 - **Ověřeno na emulátoru** (jedna fotka i dvě z Fotek): obrazovka, spoiler, mizení v chatu s botem
   a jeho nepřítomnost v Uložených zprávách, popisek, odeslání s otevřením konverzace, ✕ s návratem
