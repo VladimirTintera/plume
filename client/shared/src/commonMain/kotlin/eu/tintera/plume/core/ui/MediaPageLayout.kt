@@ -1,4 +1,4 @@
-package eu.tintera.plume.features.media
+package eu.tintera.plume.core.ui
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -32,7 +32,7 @@ import kotlin.math.roundToInt
  * [card] dostane přesnou velikost vepsaného snímku; tvar a obsah si kreslí sám.
  */
 @Composable
-internal fun MediaPageLayout(
+fun MediaPageLayout(
     aspectRatio: Float,
     caption: String,
     modifier: Modifier = Modifier,
@@ -103,7 +103,7 @@ internal fun MediaPageLayout(
  * Kde ve stránce leží karta: vepsaná do místa mezi lištami a nad popiskem, svisle na středu
  * toho místa. Vodorovně je vycentrovaná; posun do strany (`cardBias`) přidává až umístění.
  */
-internal fun pageCardFrame(
+fun pageCardFrame(
     pageSize: IntSize,
     reservedTop: Int,
     reservedBottom: Int,
@@ -122,7 +122,7 @@ internal fun pageCardFrame(
  * Největší obdélník s poměrem stran [aspectRatio], který se vejde do [maxWidth] × [maxHeight].
  * Neznámý poměr (nula, záporný, NaN) se bere jako čtverec.
  */
-internal fun fitInto(maxWidth: Int, maxHeight: Int, aspectRatio: Float): IntSize {
+fun fitInto(maxWidth: Int, maxHeight: Int, aspectRatio: Float): IntSize {
     val ratio = aspectRatio.takeIf { it.isFinite() && it > 0f } ?: 1f
     if (maxWidth <= 0 || maxHeight <= 0) return IntSize.Zero
     return if (maxWidth.toFloat() / maxHeight > ratio) {
@@ -133,7 +133,7 @@ internal fun fitInto(maxWidth: Int, maxHeight: Int, aspectRatio: Float): IntSize
 }
 
 /** Poměr stran z metadat; neznámé rozměry jako čtverec. */
-internal fun aspectRatioOf(width: Int, height: Int): Float =
+fun aspectRatioOf(width: Int, height: Int): Float =
     if (width > 0 && height > 0) width.toFloat() / height else 1f
 
 /** Víc řádků by fotku stlačilo; celý text je v konverzaci. */

@@ -4379,7 +4379,12 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   už stáhla. V bublině by originál znamenal desítky megabajtů kvůli obrázku širokému pár set bodů.
 - **Prohlížeč nemá metadata list-detail scény**, takže ho scéna nepřevezme a `NavDisplay` ho
   vykreslí přes celou plochu i na širokém rozvržení.
-- **Ořez pozadí je nutný** (`clipToBounds` v `AmbientBackground`). Pozadí sousedů leží posunuté
+- **Pager, sousedé, strop šířky, přisouvání karty a jezdící pozadí jsou `core/ui/MediaCarousel`**,
+  vepsání karty mezi lišty je `core/ui/MediaPageLayout` — obojí sdílí prohlížeč s potvrzením
+  sdílení (Direct Share). Prohlížeč si do stránky dodává zoom, video a režim celé obrazovky
+  (`immersion`), nad carousel kreslí lišty a reakce. Všechno níž o sousedech, šířce a pozadí
+  platí pro obě obrazovky; **nová podoba „snímků vedle sebe" patří do carouselu, ne do obrazovky.**
+- **Ořez pozadí je nutný** (`clipToBounds` v pozadí `MediaCarousel`). Pozadí sousedů leží posunuté
   mimo plochu prohlížeče; bez ořezu prosvítalo vlevo (tehdy přes rail) nerozostřené — rozostření pokrývá
   jen plochu prohlížeče.
 - **Gesta patří FOTCE, ne bublině.** Kdyby ťuknutí odchytávala bublina, sebralo by ho i odkazům
@@ -5592,13 +5597,15 @@ sdílející z Fotek.
 - **Spoiler, mizení i „jako soubor" nabízí tentýž `AttachmentModeSheet`** jako nad vstupním
   polem — jedno místo, kde se o způsobu odeslání rozhoduje, a platí i tytéž meze
   (`selfDestructAllowed`: mizení jen u jediné fotky v soukromém chatu, v Uložených zprávách ne).
-- **Karta má rozměry SNÍMKU, ne plochy.** S obrázkem vepsaným do plochy (`ContentScale.Fit` ve
-  `fillMaxSize`) drží zaoblení i tlačítka plocha: rohy fotky zůstanou hranaté a ✕ visí kus vedle
-  ní. Rámeček se proto počítá z poměru stran přílohy (`aspectRatio`, u snímku na výšku
-  `matchHeightConstraintsFirst`).
-- **Pozadí je rozostřený snímek z `core/ui/MediaBackdrop.kt`**, sdílený s prohlížečem médií
-  i s jeho náhradou pro Android 11. Sdílená fotka je tu hlavní obsah stejně jako v galerii, takže
-  dvě různá pojetí téhož by se přela — a opsaný Haze styl by se rozešel na prvním doladění.
+- **Snímky kreslí TENTÝŽ `MediaCarousel` jako prohlížeč médií**: sousedé vykukují u okrajů,
+  rozostřené pozadí jede s tahem, karta se vepisuje přes `MediaPageLayout` mezi hlavičku a pole
+  na popisek (carousel jde přes celou obrazovku, `reservedBottom` je vzdálenost horní hrany
+  řádku s polem od spodku, takže s klávesnicí se karta zmenší). Obrazovka dodává jen obsah
+  karty (snímek, ✕, volba režimu) a pozadí stránky. **Dřív tu byl vlastní pager přes celou
+  šířku, vlastní rámeček karty a vlastní prolínané pozadí** — sdílel se jen styl rozostření,
+  a jakmile se doladil prohlížeč (sousedé, strop šířky), vypadalo sdílení jako jiná aplikace.
+- **Karta má rozměry SNÍMKU, ne plochy** — zaoblení i ✕ patří fotce. To teď zařizuje
+  `MediaPageLayout` z poměru stran přílohy.
 - **Past: `Avatar(backdrop = …)` s barvou mimo schéma.** `contentColorFor` zná jen role, u vlastní
   barvy vrátí `Unspecified` — a záložka Uložených zpráv se nakreslila černá na černém pozadí.
   Kde roli nezná, rozhoduje `LocalContentColor`.

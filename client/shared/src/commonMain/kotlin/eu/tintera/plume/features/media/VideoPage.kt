@@ -21,6 +21,8 @@ import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
 import eu.tintera.plume.core.ui.MEDIA_CARD_CORNER
+import eu.tintera.plume.core.ui.MediaPageLayout
+import eu.tintera.plume.core.ui.aspectRatioOf
 import eu.tintera.plume.core.ui.MorphShape
 import eu.tintera.plume.core.ui.ShapeMorphs
 import eu.tintera.plume.core.ui.animateMorph

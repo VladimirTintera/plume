@@ -1,6 +1,5 @@
 package eu.tintera.plume.features.share
 
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,18 +8,15 @@ import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
@@ -28,7 +24,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -64,11 +59,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -84,10 +80,6 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import coil3.compose.AsyncImage
-import dev.chrisbanes.haze.HazeInput
-import dev.chrisbanes.haze.blur.hazeBlur
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
 import eu.tintera.plume.core.telegram.AttachmentMode
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.ui.Avatar
@@ -97,7 +89,9 @@ import eu.tintera.plume.core.ui.EmbeddedMediaPicker
 import eu.tintera.plume.core.ui.embeddedMediaPickerAvailable
 import eu.tintera.plume.core.ui.rememberEmbeddedMediaSelection
 import eu.tintera.plume.core.ui.MEDIA_CARD_CORNER
-import eu.tintera.plume.core.ui.ambientBlurStyle
+import eu.tintera.plume.core.ui.MEDIA_PAGE_VERTICAL_GAP
+import eu.tintera.plume.core.ui.MediaCarousel
+import eu.tintera.plume.core.ui.MediaPageLayout
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.features.conversation.AttachmentModeSheet
@@ -130,11 +124,12 @@ import org.jetbrains.compose.resources.stringResource
  * dole popisek a odeslání. Bez téhle obrazovky se sdílený snímek objevil jako miniatura nad
  * vstupním polem konverzace — cíl byl tedy jasný, ale to, co uživatel posílá, bylo 120 dp velké.
  *
- * **Vzhled je jazyk prohlížeče médií**: rozostřený snímek jako pozadí ([ambientBlurStyle]),
- * zaoblená karta a bílé ovládání ([DarkSystemBars]). Sdílená fotka je tu hlavní obsah stejně
- * jako v galerii, takže by dvě různá pojetí téhož byla zbytečná.
+ * **Snímky kreslí TENTÝŽ [MediaCarousel] jako prohlížeč médií** — sousedé u okrajů, jezdící
+ * rozostřené pozadí, karta vepsaná mezi lišty — a nad ním leží vlastní hlavička, pole na popisek
+ * a galerie. Dřív tu byl vlastní pager, karta i pozadí: sdílelo se jen rozostření, a jakmile se
+ * doladil prohlížeč, vypadalo sdílení jako jiná aplikace. Bílé ovládání ([DarkSystemBars]) je
+ * tatáž výjimka z rolí motivu jako v prohlížeči.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ShareToChatScreen(
     viewModel: ShareToChatViewModel,
@@ -171,8 +166,13 @@ fun ShareToChatScreen(
         }
     }
 
-    val pagerState = rememberPagerState { attachments?.size ?: 0 }
-    val current = attachments?.getOrNull(pagerState.currentPage)
+    /*
+     * Počet stránek i klíč stránky čtou TÝŽ stav — pager leží v `BoxWithConstraints` a klíče se
+     * obnovují až v subkompozici; se seznamem zachyceným v lambdě by po přidání fotky z galerie
+     * přepočítal klíče s novým počtem nad starým seznamem (tatáž past jako v prohlížeči médií).
+     */
+    val latestAttachments by rememberUpdatedState(attachments.orEmpty())
+    val pagerState = rememberPagerState { latestAttachments.size }
 
     /*
      * Dobraná fotka se hned ukáže: pager přejede na konec dávky, kam se přidává. Bez toho by
@@ -194,7 +194,8 @@ fun ShareToChatScreen(
      */
     val galleryAvailable = embeddedMediaPickerAvailable()
     var galleryOpen by rememberSaveable { mutableStateOf(true) }
-    val imeVisible = WindowInsets.isImeVisible
+    // `WindowInsets.isImeVisible` je jen na Androidu; výška klávesnice funguje i na iOS.
+    val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     LaunchedEffect(imeVisible) { if (imeVisible) galleryOpen = false }
     val galleryShown = galleryAvailable && galleryOpen && !imeVisible && attachments != null
     val mediaSelection = rememberEmbeddedMediaSelection()
@@ -210,6 +211,8 @@ fun ShareToChatScreen(
     // Obsah galerie jede pod navigační lištu, jako v sheetu v konverzaci.
     val collapsedHeight = navigationBar + minOf(windowHeight * GALLERY_COLLAPSED_FRACTION, GALLERY_COLLAPSED_MAX)
     var headerHeight by remember { mutableStateOf(0.dp) }
+    // Kde začíná řádek s polem; pod ním už karta nesmí být.
+    var captionTop by remember { mutableStateOf(windowHeight) }
 
     // Zpět rozbalenou galerii nejdřív sbalí, teprve další zpět odchází — jako šipka v hlavičce.
     // `NavigationBackHandler`, ne `BackHandler`, ten by zabil predictive back.
@@ -223,7 +226,40 @@ fun ShareToChatScreen(
         // Rozbalená galerie sahá až pod hlavičku; ta zůstává vidět, ať je jasné, komu se vybírá.
         val expandedHeight = maxHeight - headerHeight
 
-        AmbientBackdrop(previewPath = current?.previewPath, modifier = Modifier.fillMaxSize())
+        /*
+         * Snímky jsou TENTÝŽ carousel jako v prohlížeči médií: sousedé vykukují u okrajů,
+         * rozostřené pozadí jede s tahem. Karta se vepisuje mezi hlavičku a pole na popisek
+         * (`MediaPageLayout`) — carousel sám jde přes celou obrazovku, lišty leží nad ním.
+         */
+        MediaCarousel(
+            pagerState = pagerState,
+            pageKey = { latestAttachments.getOrNull(it)?.path ?: it },
+            modifier = Modifier.fillMaxSize(),
+            backdrop = { index ->
+                latestAttachments.getOrNull(index)?.let { attachment ->
+                    AsyncImage(
+                        // Coil potřebuje schéma, holá cesta by se vyhodnotila jako relativní URI.
+                        model = "file://${attachment.previewPath}",
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            },
+        ) { page ->
+            latestAttachments.getOrNull(page.index)?.let { attachment ->
+                SharedPhoto(
+                    attachment = attachment,
+                    canSelfDestruct = state.canSelfDestruct,
+                    onRemove = { viewModel.removeAttachment(page.index) },
+                    onSetMode = { viewModel.setMode(page.index, it) },
+                    reservedTop = headerHeight + MEDIA_PAGE_VERTICAL_GAP,
+                    // Horní odsazení řádku s polem dělá mezeru samo.
+                    reservedBottom = (maxHeight - captionTop).coerceAtLeast(0.dp),
+                    cardBias = page.cardBias,
+                )
+            }
+        }
 
         // Ovládání leží na rozostřené fotce, takže bílá — role z `colorScheme` by ve světlém
         // motivu dala tmavý text na tmavé ploše. Tatáž výjimka jako v prohlížeči médií.
@@ -247,26 +283,12 @@ fun ShareToChatScreen(
                     modifier = Modifier.onSizeChanged { headerHeight = with(density) { it.height.toDp() } },
                 )
 
+                // Místo pro kartu; snímky samotné kreslí carousel pod touhle vrstvou.
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     if (attachments == null) {
                         // Soubory se ještě kopírují (velké video chvíli trvá) — obrazovka je
                         // vidět hned, ať je jasné, kam obsah míří.
                         Preparing()
-                    } else {
-                        HorizontalPager(
-                            state = pagerState,
-                            key = { attachments.getOrNull(it)?.path ?: it },
-                            modifier = Modifier.fillMaxSize(),
-                        ) { page ->
-                            attachments.getOrNull(page)?.let { attachment ->
-                                SharedPhoto(
-                                    attachment = attachment,
-                                    canSelfDestruct = state.canSelfDestruct,
-                                    onRemove = { viewModel.removeAttachment(page) },
-                                    onSetMode = { viewModel.setMode(page, it) },
-                                )
-                            }
-                        }
                     }
 
                     // Nad polem, ne u spodku obrazovky: galerii kreslí cizí okno (`SurfaceView`),
@@ -293,7 +315,8 @@ fun ShareToChatScreen(
                         null
                     },
                     // S galerií pod sebou spodní lišta pole nic neodsouvá — sahá k ní galerie.
-                    modifier = if (galleryShown) Modifier else Modifier.navigationBarsPadding().imePadding(),
+                    modifier = (if (galleryShown) Modifier else Modifier.navigationBarsPadding().imePadding())
+                        .onGloballyPositioned { captionTop = with(density) { it.positionInParent().y.toDp() } },
                 )
 
                 /*
@@ -397,13 +420,22 @@ private fun Recipient(
     }
 }
 
-/** Jeden sdílený snímek: karta jako v galerii, ✕ na odebrání a volba režimu. */
+/**
+ * Jeden sdílený snímek: karta v [MediaPageLayout] (tatáž jako v prohlížeči médií) a na ní ✕
+ * a volba způsobu odeslání.
+ *
+ * **Karta má rozměry SNÍMKU, ne stránky** — to zařídí `MediaPageLayout` z poměru stran. Dřív
+ * tu byl vlastní rámeček přes `aspectRatio`; teď je vepsání jedno pro obě obrazovky.
+ */
 @Composable
 private fun SharedPhoto(
     attachment: OutgoingAttachment,
     canSelfDestruct: Boolean,
     onRemove: () -> Unit,
     onSetMode: (AttachmentMode) -> Unit,
+    reservedTop: Dp,
+    reservedBottom: Dp,
+    cardBias: () -> Float,
 ) {
     val spoilerStyle = rememberSpoilerBlurStyle()
     var modeSheet by remember { mutableStateOf(false) }
@@ -419,33 +451,21 @@ private fun SharedPhoto(
         )
     }
 
-    Box(Modifier.fillMaxSize().padding(horizontal = PAGE_INSET, vertical = 8.dp), contentAlignment = Alignment.Center) {
-        /*
-         * Karta má rozměry SNÍMKU, ne plochy.
-         *
-         * S obrázkem vepsaným do plochy (`ContentScale.Fit` ve `fillMaxSize`) drží zaoblení
-         * i tlačítka plocha, takže rohy fotky zůstanou hranaté a ✕ visí kus vedle ní. Poměr
-         * stran je v připravené příloze, tak se z něj rámeček spočítá — u snímku na výšku se
-         * napřed vyčerpá výška, u snímku na šířku šířka.
-         */
-        val ratio = attachment.previewRatio
-        Box(
-            Modifier
-                .then(
-                    if (ratio != null) {
-                        Modifier.aspectRatio(ratio, matchHeightConstraintsFirst = ratio < 1f)
-                    } else {
-                        Modifier.fillMaxSize()
-                    },
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
+    MediaPageLayout(
+        aspectRatio = attachment.previewRatio ?: 1f,
+        // Popisek se tu teprve píše, a to do pole pod kartou.
+        caption = "",
+        reservedTop = reservedTop,
+        reservedBottom = reservedBottom,
+        cardBias = cardBias,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        Box(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().clip(RoundedCornerShape(MEDIA_CARD_CORNER))) {
                 AsyncImage(
-                    // Coil potřebuje schéma, holá cesta by se vyhodnotila jako relativní URI.
                     model = "file://${attachment.previewPath}",
                     contentDescription = null,
-                    // Rámeček už poměr stran drží, takže `Crop` jen dorovná zaokrouhlení a nic
+                    // Karta už poměr stran drží, takže `Crop` jen dorovná zaokrouhlení a nic
                     // neukrojí — sdílený snímek má být vidět CELÝ, je to to jediné, co odejde.
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize().spoilerBlur(
@@ -457,38 +477,38 @@ private fun SharedPhoto(
                 if (attachment.hasSpoiler) SpoilerOverlay(visible = true)
             }
 
-        FilledTonalIconButton(
-            onClick = onRemove,
-            modifier = Modifier.align(Alignment.TopEnd).padding(BADGE_INSET).size(BADGE_BUTTON),
-        ) {
-            Icon(
-                painterResource(Res.drawable.close_24dp),
-                contentDescription = stringResource(Res.string.attachment_remove_photo),
-                modifier = Modifier.size(20.dp),
-            )
-        }
-
-        // Spoiler, mizení i „jako soubor" nabízí tentýž sheet jako nad vstupním polem — jedno
-        // místo, kde se o způsobu odeslání rozhoduje.
-        val custom = attachment.mode !is AttachmentMode.Standard
-        FilledTonalIconButton(
-            onClick = { modeSheet = true },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(BADGE_INSET).size(BADGE_BUTTON),
-            colors = if (custom) {
-                IconButtonDefaults.filledTonalIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+            FilledTonalIconButton(
+                onClick = onRemove,
+                modifier = Modifier.align(Alignment.TopEnd).padding(BADGE_INSET).size(BADGE_BUTTON),
+            ) {
+                Icon(
+                    painterResource(Res.drawable.close_24dp),
+                    contentDescription = stringResource(Res.string.attachment_remove_photo),
+                    modifier = Modifier.size(20.dp),
                 )
-            } else {
-                IconButtonDefaults.filledTonalIconButtonColors()
-            },
-        ) {
-            Icon(
-                painterResource(getAttachmentModeIcon(attachment.mode, isVideo)),
-                contentDescription = stringResource(Res.string.attachment_mode_title),
-                modifier = Modifier.size(20.dp),
-            )
-        }
+            }
+
+            // Spoiler, mizení i „jako soubor" nabízí tentýž sheet jako nad vstupním polem — jedno
+            // místo, kde se o způsobu odeslání rozhoduje.
+            val custom = attachment.mode !is AttachmentMode.Standard
+            FilledTonalIconButton(
+                onClick = { modeSheet = true },
+                modifier = Modifier.align(Alignment.BottomEnd).padding(BADGE_INSET).size(BADGE_BUTTON),
+                colors = if (custom) {
+                    IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    )
+                } else {
+                    IconButtonDefaults.filledTonalIconButtonColors()
+                },
+            ) {
+                Icon(
+                    painterResource(getAttachmentModeIcon(attachment.mode, isVideo)),
+                    contentDescription = stringResource(Res.string.attachment_mode_title),
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
     }
 }
@@ -606,35 +626,6 @@ private fun CaptionBar(
     }
 }
 
-/**
- * Rozostřený snímek jako pozadí, jako v galerii.
- *
- * Prolíná se, ne skokem: při listování dávkou by výměna pozadí pod prstem vypadala jako
- * překreslení. Ořez je nutný ze stejného důvodu jako v prohlížeči — rozostření pokrývá jen
- * plochu obrazovky.
- */
-@Composable
-private fun BoxScope.AmbientBackdrop(previewPath: String?, modifier: Modifier = Modifier) {
-    val hazeState = rememberHazeState()
-    val style = ambientBlurStyle()
-
-    Box(modifier.clipToBounds().background(Color.Black)) {
-        Crossfade(previewPath, label = "share-backdrop") { path ->
-            if (path != null) {
-                Box(Modifier.fillMaxSize().hazeSource(hazeState)) {
-                    AsyncImage(
-                        model = "file://$path",
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-            }
-        }
-        Box(Modifier.fillMaxSize().hazeBlur(input = HazeInput.Sources(hazeState), style = style))
-    }
-}
-
 /** Poměr stran připraveného snímku; `null`, když ho platforma nezjistila. */
 private val OutgoingAttachment.previewRatio: Float?
     get() {
@@ -655,7 +646,6 @@ private val OutgoingAttachment.previewPath: String
 
 private val HEADER_HEIGHT = 64.dp
 private val AVATAR_SIZE = 32.dp
-private val PAGE_INSET = 16.dp
 private val BADGE_BUTTON = 40.dp
 private val BADGE_INSET = 8.dp
 /**
