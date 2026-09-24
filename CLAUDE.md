@@ -1345,6 +1345,24 @@ konverzace zmenší a odsune a pod ní se odkryje živý seznam. Nic se pro to n
 `android:enableOnBackInvokedCallback` systém při targetSdk 35+ ignoruje a je v manifestu jen
 jako výslovné prohlášení.
 
+**Přechody mezi obrazovkami jsou vlastní, ne výchozí z Nav3** (`NavTransitions.kt`, předané
+do `NavDisplay`). Výchozí přechod na Androidu je 700ms prolnutí obou obrazovek NARÁZ: obě jsou
+neprůhledné, takže v půlce jsou obě napůl průhledné přes sebe (nadpis „Nastavení" přes pilulku
+hledání) a vypadá to jako chyba vykreslení. Výchozí zpět gestem zmenšuje obrazovku na 70 %.
+
+- **Tlačítkem je to sdílená osa X (fade through):** odcházející zmizí za 90 ms, přicházející se
+  objeví až potom, obě se posunou o 30 dp ve směru navigace. Dvojí expozice nenastane nikdy.
+- **Gestem je to systémový vzor:** odcházející se zmenší na 90 % a popojede od hrany; zmenšení
+  dojede už v 60 % přechodu, protože průběh gesta k jedničce skoro nedojde a s lineárním
+  zmenšením přes celou délku nebylo v půlce tahu vidět nic.
+- **První snímek návratu je drahý a přechod to nezachrání.** `NavDisplay` kreslí jen horní
+  scénu, takže se seznam chatů při návratu skládá celý znovu; na emulátoru s debug buildem
+  trval první snímek i 200 ms. Fade through to schová líp než prolnutí, které skočilo doprostřed.
+- **Ověřuje se zpomalenými animacemi a sérií surových snímků** (`animator_duration_scale 20`,
+  `screencap /sdcard/N.raw` ve smyčce v jednom `adb shell`): PNG snímek trvá přes 400 ms a přechod
+  mine. Gesto zastavené v půlce jde přes `input motionevent DOWN/MOVE`, snímek, pak `UP`.
+  Emulátor gesto seekuje stejně jako telefon, plynulost se ale posuzuje na zařízení.
+
 **Past: obyčejný `BackHandler` predictive back zabije.** Kdo odchytí zpět bez
 `PredictiveBackHandler`/`NavigationBackHandler`, dostane jen hotové gesto bez průběhu, takže
 animace zmizí a nikde se neohlásí chybou. V aplikaci teď žádný `BackHandler` není a nemá
