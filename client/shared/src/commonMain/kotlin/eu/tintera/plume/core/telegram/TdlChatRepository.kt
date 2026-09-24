@@ -52,6 +52,8 @@ import dev.g000sha256.tdl.dto.ChatActionBarReportSpam
 import dev.g000sha256.tdl.dto.ReportChatResultOk
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
+import dev.g000sha256.tdl.dto.MessageSender
+import dev.g000sha256.tdl.dto.UserTypeBot
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.OptionValueBoolean
 import dev.g000sha256.tdl.dto.MessageSenderUser
@@ -593,12 +595,51 @@ class TdlChatRepository(
         val chat = client.getChat(chatId = chatId).toResult().getOrNull()
         val userId = chat?.blockableUserId()
             ?: return Result.failure(IllegalStateException("V chatu $chatId není koho blokovat."))
+        return setSenderBlocked(userId, blocked)
+    }
 
-        // Blokuje se hlavní seznam (`BlockListMain`) — ten brání psát i volat; stories mají vlastní.
-        return client.setMessageSenderBlockList(
-            senderId = MessageSenderUser(userId = userId),
+    // Blokuje se hlavní seznam (`BlockListMain`) — ten brání psát i volat; stories mají vlastní.
+    override suspend fun setSenderBlocked(senderId: Long, blocked: Boolean): Result<Unit> =
+        client.setMessageSenderBlockList(
+            senderId = senderId.toMessageSender(),
             blockList = if (blocked) BlockListMain() else null,
         ).toResult().map { }
+
+    /**
+     * Server vrací jen id odesílatelů; jména a fotky se dočítají lokálně (`getUser` / `getChat`
+     * TDLib zná, protože mu je server k seznamu poslal). Kdo se dočíst nedá, ze stránky vypadne —
+     * [BlockedSendersPage.totalCount] ale zůstává od serveru, aby stránkování nepřeskočilo zbytek.
+     */
+    override suspend fun blockedSenders(offset: Int, limit: Int): Result<BlockedSendersPage> = runCatching {
+        val page = client.getBlockedMessageSenders(blockList = BlockListMain(), offset = offset, limit = limit)
+            .toResult().getOrThrow()
+        BlockedSendersPage(
+            senders = page.senders.filterNotNull().mapNotNull { blockedSender(it) },
+            totalCount = page.totalCount,
+        )
+    }
+
+    private suspend fun blockedSender(sender: MessageSender): BlockedSender? = when (sender) {
+        is MessageSenderUser -> client.getUser(userId = sender.userId).toResult().getOrNull()?.let { user ->
+            BlockedSender(
+                id = user.id,
+                title = listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" "),
+                avatarFileId = user.profilePhoto?.small?.id,
+                kind = ChatKind.Private,
+                username = user.usernames?.activeUsernames?.firstOrNull(),
+                isBot = user.type is UserTypeBot,
+            )
+        }
+        is MessageSenderChat -> client.getChat(chatId = sender.chatId).toResult().getOrNull()?.let { chat ->
+            BlockedSender(
+                id = chat.id,
+                title = chat.title,
+                avatarFileId = chat.photo?.small?.id,
+                kind = chat.type.chatKind(),
+                username = null,
+                isBot = false,
+            )
+        }
     }
 
     /**
@@ -1057,6 +1098,10 @@ private fun Chat.spamBar(): SpamBar? = when (actionBar) {
     is ChatActionBarAddContact -> SpamBar(canReportSpam = false, canBlock = false, canAddContact = true)
     else -> null
 }
+
+/** Kladné id je uživatel, záporné chat — konvence [BlockedSender.id] a [SenderInfo.id]. */
+private fun Long.toMessageSender(): MessageSender =
+    if (this > 0) MessageSenderUser(userId = this) else MessageSenderChat(chatId = this)
 
 private fun ChatPosition.toFolderPosition() = FolderPosition(order = order, isPinned = isPinned)
 

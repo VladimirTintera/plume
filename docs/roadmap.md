@@ -121,8 +121,8 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
     `addChatToList` spolu s návratem upozornění na výchozí.
   - **Nahlásit z režimu výběru víc zpráv** (lišta výběru nemá „Nahlásit").
   - **Ověřit skutečný pruh (`UpdateChatActionBar`)** na chatu od cizího — zatím jen podstrčeným stavem.
-  - **Seznam blokovaných v Nastavení** (`getBlockedMessageSenders`): dnes se dá odblokovat jen
-    z chatu, který v seznamu zůstal — kdo ho smazal, nemá kde blokování zrušit.
+  - ~~**Seznam blokovaných v Nastavení**~~ — hotovo (Obecné → Soukromí → Blokovaní). Zbývá
+    zablokovat někoho ze seznamu kontaktů přímo odtud (oficiální klient má „Zablokovat uživatele").
 - **Přihlašovací obrazovka** — hotová (výběr země, formátování čísla, návrat z QR na číslo,
   expressive přestavba; `CLAUDE.md`, „Přihlašovací obrazovka"). Zbývá:
   - **Zpět na přihlašovací obrazovce ukončí aplikaci.** Přihlášení není v `NavDisplay`, takže

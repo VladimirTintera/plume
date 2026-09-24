@@ -181,6 +181,19 @@ interface ChatRepository {
     suspend fun setBlocked(chatId: Long, blocked: Boolean): Result<Unit>
 
     /**
+     * Stránka blokovaných odesílatelů (`getBlockedMessageSenders`, hlavní seznam blokování).
+     * Blokovat jde i chat (kanál, skupinu), ne jen člověka — proto odesílatel, ne uživatel.
+     */
+    suspend fun blockedSenders(offset: Int, limit: Int): Result<BlockedSendersPage>
+
+    /**
+     * Zablokuje odesílatele, nebo blokování zruší — podle [BlockedSender.id], tedy bez chatu.
+     * Seznam blokovaných nese i ty, se kterými uživatel chat smazal; [setBlocked] by na ně
+     * nedosáhl, protože stojí na chatu.
+     */
+    suspend fun setSenderBlocked(senderId: Long, blocked: Boolean): Result<Unit>
+
+    /**
      * Jeden krok nahlášení chatu moderátorům Telegramu (`reportChat`).
      *
      * Je to PRŮVODCE, ne jedno volání: na úvodní prázdný [ReportRequest] server odpoví, co chce
@@ -201,6 +214,23 @@ interface ChatRepository {
     /** Přidá protějšek soukromého chatu do kontaktů pod jménem, které má v Telegramu. */
     suspend fun addToContacts(chatId: Long): Result<Unit>
 }
+
+/**
+ * Zablokovaný odesílatel. [id] je id uživatele (kladné), nebo chatu (záporné) — stejná
+ * konvence jako odesílatel zprávy v [SenderInfo].
+ */
+data class BlockedSender(
+    val id: Long,
+    /** Prázdné u smazaného účtu — jméno pak dosadí UI. */
+    val title: String,
+    val avatarFileId: Int?,
+    val kind: ChatKind,
+    val username: String?,
+    val isBot: Boolean,
+)
+
+/** Stránka seznamu blokovaných; [totalCount] je počet v celém seznamu, ne na stránce. */
+data class BlockedSendersPage(val senders: List<BlockedSender>, val totalCount: Int)
 
 /**
  * Co jde s chatem udělat proti spamu. Zjišťuje se na dotaz, ne v seznamu — viz

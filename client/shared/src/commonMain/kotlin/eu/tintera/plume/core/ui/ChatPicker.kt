@@ -144,8 +144,12 @@ fun ChatPicker(
      * karta s tím, co se posílá.
      */
     header: @Composable () -> Unit = {},
+    /**
+     * Snackbar obrazovky. Výchozí stačí na chyby ([error]); vlastní dává ten, kdo potřebuje
+     * snackbar s akcí — seznam blokovaných nabízí po odblokování „Vrátit".
+     */
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
-    val snackbarHostState = remember { SnackbarHostState() }
     /*
      * Titulek se šipkou při scrollu dolů odjede a při scrollu nahoru se vrátí — stejně jako
      * hlavička seznamu chatů. Přečte se jednou a pak jen ukusuje ze seznamu.

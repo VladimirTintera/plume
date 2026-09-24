@@ -130,7 +130,7 @@
     <string name="settings_sign_out_body">Zprávy a stažené soubory se z tohohle zařízení smažou. Účet i chaty na ostatních zařízeních zůstanou beze změny.</string>
     <string name="settings_sign_out_confirm">Odhlásit</string>
     <string name="settings_section_general">Obecné</string>
-    <string name="settings_section_general_summary">Účet, profil, odhlášení</string>
+    <string name="settings_section_general_summary">Účet, profil, blokovaní, odhlášení</string>
     <string name="settings_section_appearance">Vzhled</string>
     <string name="settings_section_appearance_summary">Motiv, seznam chatů</string>
     <string name="settings_theme">Motiv</string>
@@ -985,4 +985,17 @@
     <string name="settings_on_device_ai_waiting_for_network">Čekám na připojení, stahování pak naváže samo…</string>
     <string name="settings_on_device_ai_resume">Pokračovat ve stahování</string>
     <string name="settings_on_device_ai_not_enough_space">V telefonu není dost volného místa na model.</string>
+    <string name="settings_privacy">Soukromí</string>
+    <string name="settings_blocked">Blokovaní</string>
+    <string name="settings_blocked_none">Nikoho nemáš zablokovaného</string>
+    <string name="settings_blocked_summary">Blokovaní lidé a chaty ti nemůžou psát ani volat.</string>
+    <string name="settings_blocked_search">Hledat v blokovaných</string>
+    <string name="settings_blocked_deleted">Smazaný účet</string>
+    <string name="settings_blocked_failed">Blokování se nepodařilo změnit</string>
+    <string name="settings_blocked_load_failed">Seznam se nepodařilo načíst</string>
+    <plurals name="settings_blocked_count">
+        <item quantity="one">%1$d účet</item>
+        <item quantity="few">%1$d účty</item>
+        <item quantity="other">%1$d účtů</item>
+    </plurals>
 </resources>

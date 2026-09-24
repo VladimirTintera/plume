@@ -31,13 +31,13 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Sekce „Obecné": kdo je přihlášený, AI v zařízení a odhlášení. Stav notifikací je v sekci Notifikace.
+ * Sekce „Obecné": kdo je přihlášený, blokovaní, AI v zařízení a odhlášení. Stav notifikací je v sekci Notifikace.
  *
  * Je to obsah do sloupce sekce, ne celá obrazovka — hlavičku a scrollování drží
  * [SettingsSectionScreen].
  */
 @Composable
-fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit) {
+fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onOpenBlocked: () -> Unit) {
     val account by viewModel.account.collectAsStateWithLifecycle()
     var confirmLogOut by rememberSaveable { mutableStateOf(false) }
 
@@ -83,6 +83,9 @@ fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit) {
             }
         }
     }
+
+    // Blokovaní. V Obecných, protože samostatná sekce Soukromí by měla jedinou položku.
+    BlockedSettings(viewModel = koinViewModel(), onOpen = onOpenBlocked)
 
     // Experimentální funkce s modelem v zařízení. Nad odhlášením, které má zůstat poslední.
     OnDeviceAiSettings(viewModel = koinViewModel())

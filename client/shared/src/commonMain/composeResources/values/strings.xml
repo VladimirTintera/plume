@@ -129,7 +129,7 @@
     <string name="settings_sign_out_body">Messages and downloaded files will be deleted from this device. Your account and your chats on other devices stay as they are.</string>
     <string name="settings_sign_out_confirm">Sign out</string>
     <string name="settings_section_general">General</string>
-    <string name="settings_section_general_summary">Account, profile, sign out</string>
+    <string name="settings_section_general_summary">Account, profile, blocked, sign out</string>
     <string name="settings_section_appearance">Appearance</string>
     <string name="settings_section_appearance_summary">Theme, chat list</string>
     <string name="settings_theme">Theme</string>
@@ -969,4 +969,16 @@
     <string name="settings_on_device_ai_waiting_for_network">Waiting for a connection, the download will resume on its own…</string>
     <string name="settings_on_device_ai_resume">Resume download</string>
     <string name="settings_on_device_ai_not_enough_space">There is not enough free space on the phone for the model.</string>
+    <string name="settings_privacy">Privacy</string>
+    <string name="settings_blocked">Blocked</string>
+    <string name="settings_blocked_none">Nobody is blocked</string>
+    <string name="settings_blocked_summary">Blocked users and chats can't message or call you.</string>
+    <string name="settings_blocked_search">Search blocked</string>
+    <string name="settings_blocked_deleted">Deleted account</string>
+    <string name="settings_blocked_failed">Couldn't change blocking</string>
+    <string name="settings_blocked_load_failed">Couldn't load the list</string>
+    <plurals name="settings_blocked_count">
+        <item quantity="one">%1$d account</item>
+        <item quantity="other">%1$d accounts</item>
+    </plurals>
 </resources>

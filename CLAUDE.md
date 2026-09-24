@@ -1992,6 +1992,50 @@ nad chatem (a totéž jako sheet v profilu, `DeleteChatOptions`) a **„Nahlási
 - **Text a tlačítka pruhu jsou v jednom sloupci, křížek vedle.** V řádku s `IconButton` (48 dp)
   zbyla mezi textem a tlačítky mezera a pruh vypadal rozpadle.
 
+#### Seznam blokovaných v Nastavení
+
+Obecné → Soukromí → Blokovaní (řádek s počtem, `BlockedSettings`) otevře obrazovku
+`BlockedSendersScreen` (`BlockedSendersRoute`, vrší se nad sekci jako úprava profilu). Je to
+JEDINÉ místo, kde jde zrušit blokování někoho, s kým uživatel chat smazal — nabídka nad chatem
+i profil stojí na chatu, a ten po smazání není.
+
+- **Je to tentýž `ChatPicker` jako kontakty, přeposílání a sdílení** — hlavička, `SearchPill`,
+  bloky zaoblených řádků, prázdný stav. **První verze byla sheet s holými `ListItem`y a tlačítkem
+  „Odblokovat" u každého řádku**: vedle kontaktů vypadala jako jiná aplikace a měla jiné
+  ovládání. Blokovaný se do výběru dostane jako `ChatSummary` (jméno, fotka, druh — zbytek jsou
+  výchozí hodnoty bez významu). **Obecně: seznam lidí nebo chatů patří do `ChatPicker`, i když
+  z něj nic nevybíráš.**
+- **Akce nad položkou jako všude jinde: ťuknutí otevře nabídku** (sheet s tváří, jménem
+  a „Odblokovat", tvarem jako nabídka nad chatem), vratná akce má snackbar s „Vrátit".
+  `ChatPicker` kvůli tomu bere vlastní `snackbarHostState` — výchozí umí jen chyby.
+- **Blokovaný je ODESÍLATEL, ne uživatel** (`getBlockedMessageSenders` vrací `MessageSender`):
+  blokovat jde i kanál nebo skupinu. `BlockedSender.id` drží konvenci odesílatele zprávy — kladné
+  id uživatel, záporné chat — a `setSenderBlocked` z něj skládá `MessageSender` zpátky.
+  `setBlocked(chatId)` z nabídky nad chatem jde přes tutéž funkci, takže cesta k
+  `setMessageSenderBlockList` zůstala jedna.
+- **Čte se celý seznam naráz** (`collectBlockedSenders`, stránky po 100, testy
+  `BlockedSendersStateTest`) — hledání je lokální a počet v Obecných má sedět. Server vrací jen
+  id, jména a fotky se dočítají lokálně; kdo se dočíst nedá, ze stránky vypadne, proto se
+  **konec pozná z `totalCount` od serveru, ne z délky stránky**. Tentýž odesílatel na dvou
+  stránkách zůstane jednou (dva stejné klíče by `LazyColumn` shodily) a selhaná stránka je
+  selhání celku — půlka seznamu by tvrdila, že zbytek blokovaný není.
+- **Odblokovaný zmizí ze seznamu hned a pozdější čtení ho tam nevrátí**, dokud uživatel nedá
+  „Vrátit" (`unblockedIds`, testy `BlockedSendersViewModelTest`). Na emulátoru zůstal odblokovaný
+  bot po novém přečtení v seznamu, zatímco počet v Obecných už seděl — příčina (odpověď serveru
+  těsně po změně?) zjištěná není, test proto hlídá chování, ne domněnku.
+- **Počet v Obecných se čte znovu při každém návratu** (`LifecycleResumeEffect`) — po odblokování
+  na obrazovce seznamu by jinak zůstal starý. Podtitul je počet ÚČTŮ („14 účtů"), ne
+  „14 zablokovaných": pod nadpisem „Blokovaní" by to slovo stálo dvakrát.
+- **Smazaný účet má v avataru iniciály „SÚ"** — `ChatPicker` je bere z názvu. Nehezké, ale
+  vlastní avatar kvůli jednomu druhu řádku by znamenal rozbít společný řádek výběru.
+- **Ověřeno na emulátoru** (česky): 14 blokovaných na skutečném účtu jen prohlížením, hledání
+  „sop" bez diakritiky, nabídka po ťuknutí zavřená bez akce; na testovacím botovi zablokovat
+  z nabídky nad chatem → v seznamu odblokovat (řádek zmizí, snackbar) → „Vrátit" (řádek zpátky)
+  → odblokovat → 14 účtů. **Ověřuj ťuknutím podle TEXTU z `uiautomator dump`, ne podle
+  souřadnic**: seznam chatů se na živém účtu přeskládá s každou zprávou a heads-up notifikace
+  zakryje tlačítko účtu — pevná souřadnice pak otevřela cizí konverzaci a označila zprávy jako
+  přečtené.
+
 #### Ověření
 
 - **Na emulátoru** (chat s testovacím botem, anglicky): „Report…" v nabídce nad chatem i v ⋮
