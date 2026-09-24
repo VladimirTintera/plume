@@ -136,7 +136,7 @@ class ShareToChatViewModel(
     }
 
     /**
-     * Fotky a videa dobrané z galerie pod popiskem. Jdou ZA sdílené — to, kvůli čemu uživatel
+     * Fotky a videa dobrané z galerie pod popiskem (nebo systémovým výběrem, kde galerie není). Jdou ZA sdílené — to, kvůli čemu uživatel
      * sdílel, zůstává první a v albu nahoře.
      *
      * Tatáž pravidla jako přílohy nad vstupním polem: strop alba a mizení jen u jediné fotky.

@@ -5626,7 +5626,14 @@ sdílející z Fotek.
 - **Galerie má DVĚ ukotvené polohy a zavřít nejde** — dole a nahoře pod hlavičkou. „Hotovo"
   v pickeru ji jen vrátí dolů. Jediné, čemu ustoupí, je klávesnice při psaní popisku (zabírá
   totéž místo); po jejím schování je galerie zpátky sama, takže ikona „přidat fotky" v poli
-  (první verze) nemá co dělat.
+  tam nemá co dělat.
+- **Kde vestavěná galerie není** (Android pod 14, nebo bez SDK Extensions 15), je v poli na
+  popisek ikona, která otevře **systémový výběr** (`rememberAttachmentPicker`) — jinak by šlo
+  poslat jen to, co přišlo sdílením. Vybrané jdou za sdílené stejně jako z galerie. Systémový
+  výběr fotky vydá pod vlastními URI, takže tu nejde poznat, že uživatel vybral sdílenou fotku
+  podruhé. Ověřeno na emulátoru s Androidem 14 (Extensions 7): ikona otevře
+  `PhotoPickerActivity`, vybraná fotka přibude a carousel na ni přejede; na Foldu s galerií
+  ikona není.
 - **Úchyt je úchyt, ne tlačítko.** Panel jede s prstem (výška sleduje tah, sevřená mezi obě
   polohy) a po puštění dosedne podle švihnutí, jinak podle toho, kam dojel (přes půl cesty
   nahoru). Ťuknutí prstem nedělá nic — první verze úchytem jen přepínala a uživatel správně

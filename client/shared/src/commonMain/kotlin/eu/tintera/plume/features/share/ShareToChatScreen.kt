@@ -95,6 +95,7 @@ import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.ui.DarkSystemBars
 import eu.tintera.plume.core.ui.EmbeddedMediaPicker
 import eu.tintera.plume.core.ui.embeddedMediaPickerAvailable
+import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.rememberEmbeddedMediaSelection
 import eu.tintera.plume.core.ui.MEDIA_CARD_CORNER
 import eu.tintera.plume.core.ui.MEDIA_PAGE_VERTICAL_GAP
@@ -116,6 +117,8 @@ import eu.tintera.plume.resources.conversation_send
 import eu.tintera.plume.resources.media_position
 import eu.tintera.plume.resources.send_24dp
 import eu.tintera.plume.resources.share_preparing
+import eu.tintera.plume.resources.perm_media_24dp
+import eu.tintera.plume.resources.share_to_add_media
 import eu.tintera.plume.resources.share_to_caption
 import eu.tintera.plume.resources.share_to_collapse_gallery
 import eu.tintera.plume.resources.share_to_expand_gallery
@@ -223,6 +226,16 @@ fun ShareToChatScreen(
     // `WindowInsets.isImeVisible` je jen na Androidu; výška klávesnice funguje i na iOS.
     val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val galleryShown = galleryAvailable && !imeVisible && attachments != null
+    /*
+     * Bez vestavěné galerie (Android pod 14, nebo 14 bez SDK Extensions 15) jde dávku doplnit
+     * systémovým výběrem z ikony v poli — jinak by šlo poslat jen to, co přišlo sdílením.
+     * Tamější fotky picker nevydá pod stejným identifikátorem jako sdílení, takže tu nejde
+     * poznat, že uživatel vybral tutéž fotku podruhé.
+     */
+    val systemPicker = rememberAttachmentPicker(
+        onPicked = viewModel::addAttachments,
+        onError = viewModel::reportError,
+    )
     val mediaSelection = rememberEmbeddedMediaSelection()
 
     var galleryExpanded by rememberSaveable { mutableStateOf(false) }
@@ -333,6 +346,7 @@ fun ShareToChatScreen(
                     enabled = !attachments.isNullOrEmpty() && !state.sending,
                     sending = state.sending,
                     onSend = viewModel::send,
+                    onAddMedia = if (!galleryAvailable && attachments != null) systemPicker::pickMedia else null,
                     // S galerií pod sebou spodní lišta pole nic neodsouvá — sahá k ní galerie.
                     modifier = (if (galleryShown) Modifier else Modifier.navigationBarsPadding().imePadding())
                         .onGloballyPositioned { captionTop = with(density) { it.positionInParent().y.toDp() } },
@@ -575,6 +589,8 @@ private fun CaptionBar(
     enabled: Boolean,
     sending: Boolean,
     onSend: () -> Unit,
+    /** Systémový výběr fotek; jen kde není galerie pod polem, jinak `null`. */
+    onAddMedia: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -591,6 +607,17 @@ private fun CaptionBar(
             modifier = Modifier.weight(1f),
         ) {
             Row(verticalAlignment = Alignment.Bottom) {
+                if (onAddMedia != null) {
+                    // 4 dp = (56 − 48) / 2: ikona sedí na středu jednořádkového pole a u víc řádků
+                    // zůstane u posledního, jako sponka ve vstupním poli konverzace.
+                    IconButton(onClick = onAddMedia, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)) {
+                        Icon(
+                            painterResource(Res.drawable.perm_media_24dp),
+                            contentDescription = stringResource(Res.string.share_to_add_media),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
                 val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
                 BasicTextField(
                     value = caption,
