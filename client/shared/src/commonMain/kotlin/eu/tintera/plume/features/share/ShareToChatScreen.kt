@@ -345,6 +345,8 @@ fun ShareToChatScreen(
                         EmbeddedMediaPicker(
                             selection = mediaSelection,
                             pickedPaths = attachments.orEmpty().map { it.path },
+                            // Sdílená fotka je v galerii taky — ťuknutí na ni ji nepřidá podruhé.
+                            sources = state.sources,
                             allowPhotos = true,
                             allowVideos = true,
                             expanded = galleryExpanded,

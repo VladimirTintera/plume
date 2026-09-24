@@ -107,6 +107,7 @@ class ShareToChatViewModel(
                     _state.update {
                         it.copy(
                             attachments = prepared,
+                            sources = content.sources,
                             // Co se nepodařilo připravit, se taky neposlalo — uživatel to má vědět.
                             notice = if (content.failed > 0) UiText(Res.string.share_failed_files) else it.notice,
                         )
@@ -259,6 +260,8 @@ data class ShareToChatState(
      * zaškrtnutá.
      */
     val removals: Int = 0,
+    /** Odkud přišly sdílené přílohy (cesta → URI); galerie podle toho sdílenou fotku nepřidá podruhé. */
+    val sources: Map<String, String> = emptyMap(),
 ) {
     /** Mizení jen u jediné fotky v soukromém chatu — tytéž meze jako nad vstupním polem. */
     val canSelfDestruct: Boolean

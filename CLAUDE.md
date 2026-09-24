@@ -5625,6 +5625,15 @@ sdílející z Fotek.
 - **Dobrané snímky jdou ZA sdílené** a pager na ně přejede. Odznačení v galerii obrazovku
   nezavírá ani u posledního snímku (je to oprava výběru), ✕ na posledním snímku ano. Po ✕ se
   galerie otevře znovu (`removals` jako klíč): zaškrtnutí si obnovuje jen při otevření.
+- **Sdílená fotka v galerii zaškrtnutá NENÍ a být nemůže.** MediaProvider předvýběr odmítne
+  („MediaQuery:PreSelection: … package does not have permission for the uri"): předvybrat jde
+  jen fotku, ke které aplikace dostala oprávnění PŘES PICKER, a sdílená přišla s oprávněním
+  k URI jiné aplikace. Obejít by to šlo jen oprávněním ke čtení celé knihovny fotek, a to kvůli
+  jednomu zaškrtnutí nestojí za to (a Play ho hlídá). Galerie ji ale pozná (`SharedContent.sources`,
+  `pickerUriFor`): picker drží místní fotky jako `content://media/picker/<uživatel>/
+  com.android.providers.media.photopicker/media/<id MediaStore>`, takže MediaStore URI i URI
+  zabalené v cestě Fotek Google jde převést. Ťuknutí na sdílenou fotku ji proto nepřidá podruhé
+  a odznačení ji z dávky odebere.
 - **Při psaní popisku galerie ustoupí klávesnici**, po „Hotovo" taky; zpátky ji vrátí ikona
   v poli. Hláška (snackbar) stojí nad polem, ne u spodku — galerie je `SurfaceView` nad vším.
 - **Ověřeno na emulátoru** (jedna fotka i dvě z Fotek): obrazovka, spoiler, mizení v chatu s botem

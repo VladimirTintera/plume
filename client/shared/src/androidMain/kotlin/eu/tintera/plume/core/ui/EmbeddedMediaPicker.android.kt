@@ -68,6 +68,7 @@ actual fun rememberEmbeddedMediaSelection(): EmbeddedMediaSelection = remember {
 actual fun EmbeddedMediaPicker(
     selection: EmbeddedMediaSelection,
     pickedPaths: List<String>,
+    sources: Map<String, String>,
     allowPhotos: Boolean,
     allowVideos: Boolean,
     expanded: Boolean,
@@ -105,6 +106,22 @@ actual fun EmbeddedMediaPicker(
     val restored = remember {
         val live = pickedPaths.toSet()
         prepared.entries.retainAll { it.value in live }
+        /*
+         * Sdílená fotka je v galerii taky. Zapíše se do `prepared` pod identifikátorem pickeru:
+         * když ji uživatel v mřížce ťukne, oprávnění se přeskočí (v dávce už je) a odznačení ji
+         * z dávky odebere přes cestu.
+         *
+         * Do předvýběru (`initialMediaSelection`) jde taky, ale MediaProvider ji ODMÍTNE —
+         * „package does not have permission for the uri": předvybrat jde jen fotku, ke které
+         * aplikace dostala oprávnění přes picker, a sdílená přišla s oprávněním k URI cizí
+         * aplikace. Zaškrtnutá se tedy neukáže; zaškrtne se, až ji uživatel ťukne. Kdyby sdílející
+         * aplikace poslala rovnou URI pickeru i s oprávněním, předvýběr projde.
+         */
+        for ((path, source) in sources) {
+            if (path !in live) continue
+            val pickerUri = pickerUriFor(Uri.parse(source)) ?: continue
+            if (pickerUri !in prepared) prepared[pickerUri] = path
+        }
         prepared.keys.toSet()
     }
 
@@ -203,6 +220,47 @@ actual fun EmbeddedMediaPicker(
 
     EmbeddedPhotoPicker(state = state, modifier = modifier, embeddedPhotoPickerFeatureInfo = info)
 }
+
+/**
+ * Identifikátor, pod kterým fotku zná výběr fotek, z URI, pod kterým ji sdílela jiná aplikace.
+ *
+ * Picker drží místní fotky jako `content://media/picker/<uživatel>/<poskytovatel>/media/<id>`,
+ * kde `<id>` je id v MediaStore (ověřeno logem pickeru: `mediaId=17` ↔ `…/images/media/17`).
+ * Sdílené URI bývá:
+ * - **už picker URI** (aplikace si fotku vybrala systémovým výběrem) — bere se, jak je,
+ * - **MediaStore** (`content://media/external/images/media/17`, Soubory, správci souborů),
+ * - **zabalené MediaStore URI** v cestě cizího poskytovatele — tak sdílí Fotky Google
+ *   (`…photos.contentprovider/-1/1/content%3A%2F%2Fmedia%2Fexternal%2F…/ORIGINAL/…`).
+ *
+ * Co z toho nejde vyčíst (soubor z cloudu, jiná aplikace), vrací `null` — galerie ho neoznačí,
+ * v dávce zůstane dál. Fotky z cloudu Google Fotek MediaStore id nemají, a tak se neoznačí.
+ */
+internal fun pickerUriFor(source: Uri): Uri? {
+    if (source.scheme != "content") return null
+    val segments = source.pathSegments
+    if (source.authority == MEDIA_AUTHORITY) {
+        if (segments.firstOrNull() == "picker") return source
+        // external / external_primary / svazek, pak images|video, media, id
+        val mediaAt = segments.indexOf("media")
+        val id = segments.getOrNull(mediaAt + 1)?.toLongOrNull()
+        if (mediaAt >= 2 && id != null && segments[mediaAt - 1] in MEDIA_KINDS) {
+            val user = android.os.Process.myUid() / PER_USER_RANGE
+            return Uri.parse("content://$MEDIA_AUTHORITY/picker/$user/$LOCAL_PICKER_PROVIDER/media/$id")
+        }
+        return null
+    }
+    // Cizí poskytovatel s MediaStore URI zabaleným v cestě (Fotky Google).
+    return segments.firstNotNullOfOrNull { segment ->
+        segment.takeIf { it.startsWith("content://$MEDIA_AUTHORITY/") }?.let { pickerUriFor(Uri.parse(it)) }
+    }
+}
+
+private const val MEDIA_AUTHORITY = "media"
+private val MEDIA_KINDS = setOf("images", "video")
+/** Poskytovatel místních fotek ve výběru fotek (AOSP `PickerUriResolver`). */
+private const val LOCAL_PICKER_PROVIDER = "com.android.providers.media.photopicker"
+/** `UserHandle.PER_USER_RANGE` — uid je uživatel × 100 000 + id aplikace; veřejně to API nemá. */
+private const val PER_USER_RANGE = 100_000
 
 /** Vestavěný výběr je v SDK Extensions 15 nad Androidem 14. */
 private const val REQUIRED_EXTENSION = 15
