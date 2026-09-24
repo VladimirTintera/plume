@@ -56,6 +56,7 @@ import eu.tintera.plume.features.share.ShareToChatViewModel
 import eu.tintera.plume.features.share.ShareViewModel
 import eu.tintera.plume.features.settings.AppearanceViewModel
 import eu.tintera.plume.features.settings.SettingsViewModel
+import eu.tintera.plume.features.settings.BlockedSendersViewModel
 import eu.tintera.plume.features.settings.NotificationSettingsViewModel
 import eu.tintera.plume.features.settings.OnDeviceAiSettingsViewModel
 import eu.tintera.plume.features.conversation.ChatSummaryViewModel
@@ -204,6 +205,7 @@ fun appModule() = module {
     viewModel { params -> GifPickerViewModel(chatId = params.get(), repository = get()) }
     viewModel { parameters -> StickerSetViewModel(setId = parameters.get(), repository = get()) }
     viewModelOf(::SettingsViewModel)
+    viewModelOf(::BlockedSendersViewModel)
     viewModelOf(::AppearanceViewModel)
     viewModelOf(::DevicesViewModel)
     viewModelOf(::NotificationSettingsViewModel)

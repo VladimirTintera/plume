@@ -14,6 +14,7 @@ import eu.tintera.plume.core.telegram.SpamActions
 import eu.tintera.plume.core.telegram.ReportRequest
 import eu.tintera.plume.core.telegram.ReportStep
 import eu.tintera.plume.core.telegram.SpamBar
+import eu.tintera.plume.core.telegram.BlockedSendersPage
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.InviteJoinResult
 import kotlinx.coroutines.flow.Flow
@@ -192,5 +193,8 @@ class NewChatViewModelTest {
         override fun spamBar(chatId: Long): Flow<SpamBar?> = flowOf(null)
         override suspend fun dismissSpamBar(chatId: Long): Result<Unit> = Result.success(Unit)
         override suspend fun addToContacts(chatId: Long): Result<Unit> = Result.success(Unit)
+        override suspend fun blockedSenders(offset: Int, limit: Int): Result<BlockedSendersPage> =
+            Result.success(BlockedSendersPage(emptyList(), 0))
+        override suspend fun setSenderBlocked(senderId: Long, blocked: Boolean): Result<Unit> = Result.success(Unit)
     }
 }

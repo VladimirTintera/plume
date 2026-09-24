@@ -1992,6 +1992,39 @@ nad chatem (a totéž jako sheet v profilu, `DeleteChatOptions`) a **„Nahlási
 - **Text a tlačítka pruhu jsou v jednom sloupci, křížek vedle.** V řádku s `IconButton` (48 dp)
   zbyla mezi textem a tlačítky mezera a pruh vypadal rozpadle.
 
+#### Seznam blokovaných v Nastavení
+
+Obecné → Soukromí → Blokovaní (`BlockedSettings`, `BlockedSendersViewModel`, testy
+`BlockedSendersStateTest`). Je to JEDINÉ místo, kde jde zrušit blokování někoho, s kým uživatel
+chat smazal — nabídka nad chatem i profil stojí na chatu, a ten po smazání není.
+
+- **Blokovaný je ODESÍLATEL, ne uživatel** (`getBlockedMessageSenders` vrací `MessageSender`):
+  blokovat jde i kanál nebo skupinu. `BlockedSender.id` drží konvenci odesílatele zprávy — kladné
+  id uživatel, záporné chat — a `setSenderBlocked` z něj skládá `MessageSender` zpátky.
+  `setBlocked(chatId)` z nabídky nad chatem jde přes tutéž funkci, takže cesta k
+  `setMessageSenderBlockList` zůstala jedna.
+- **Server vrací jen id, jména a fotky se dočítají lokálně** (`getUser` / `getChat`). Kdo se
+  dočíst nedá, ze stránky vypadne — proto se **konec pozná z `totalCount` od serveru, ne z délky
+  stránky**, a další stránka začíná na `offset + 100`, ne na počtu dočtených.
+- **Stránka, která nenavazuje, se zahodí** (`withPage` porovná offset) a tentýž odesílatel na
+  dvou stránkách zůstane jednou — seznam se mezi čteními posouvá a dva stejné klíče by
+  `LazyColumn` shodily.
+- **Seznam je sheet, ne obrazovka**, jako výjimky upozornění v sekci Notifikace: jedna akce na
+  řádek, a routa by kvůli ní znamenala chování zpět v dvoupanelu a vlastní hlavičku.
+- **Odblokovaný řádek ZŮSTÁVÁ** („Odblokováno" + „Zablokovat"). Zmizelý řádek by šel vrátit jen
+  snackbarem, a ten by pod modálním sheetem nebyl vidět. **Po zavření se seznam čte znovu** — co
+  blokování udělalo, ví jen server (stejná zásada jako u zařízení).
+- **Chyba je v sheetu, ne ve snackbaru**, ze stejného důvodu. Po chybě se nedotahuje další
+  stránka: položka s kolečkem by se už nikdy nezastavila.
+- **Smazaný účet dostane do avataru prázdný název**, ne „Smazaný účet" — iniciály „SÚ" by
+  vypadaly jako jméno. `Avatar` pak kreslí „?".
+- **Podtitul řádku v Nastavení je počet ÚČTŮ**, ne „14 zablokovaných": pod nadpisem „Blokovaní"
+  by to slovo stálo dvakrát.
+- **Ověřeno na emulátoru**: seznam 14 blokovaných na skutečném účtu (jen prohlížení), pak na
+  testovacím botovi celý cyklus — zablokovat z nabídky nad chatem (15 účtů), odblokovat v seznamu
+  („Odblokováno"), znovu zablokovat („Bot"), odblokovat a zavřít (14 účtů). **Stránkování přes
+  100 položek ověřené není** — účet jich tolik nemá; hlídá ho test nad stavem.
+
 #### Ověření
 
 - **Na emulátoru** (chat s testovacím botem, anglicky): „Report…" v nabídce nad chatem i v ⋮
