@@ -1355,6 +1355,16 @@ hledání) a vypadá to jako chyba vykreslení. Výchozí zpět gestem zmenšuje
 - **Gestem je to systémový vzor:** odcházející se zmenší na 90 % a popojede od hrany; zmenšení
   dojede už v 60 % přechodu, protože průběh gesta k jedničce skoro nedojde a s lineárním
   zmenšením přes celou délku nebylo v půlce tahu vidět nic.
+- **Délka přechodu gestem neřídí tah, jen dojezd po puštění prstu.** Tah jde po zlomcích
+  (`seekTo`), zbytek `NavDisplay` dojede sám v čase přechodu a rychlost prstu nebere v úvahu
+  (Nav3 1.1.1 i 1.2.0-alpha04, nastavit to nejde). Rychlé švihnutí se pouští u malého zlomku,
+  takže se přehraje skoro celý přechod: se 400 ms a mizením až v poslední čtvrtině obrazovka po
+  švihnutí stála a pak pomalu vybledla. Proto 240 ms a mizení hned za zmenšením.
+- **Seznam, který po puštění prstu „zešedne", se neobjevuje — to mizí Nastavení nad ním.**
+  Napůl průhledná horní vrstva se stejně barevným pozadím seznam zakryje. Vypadalo to jako
+  druhé objevování seznamu nebo přepnutí na přechod pro tlačítko; dočasný log ve specifikacích
+  ukázal, že se při dojezdu volá jen přechod pro gesto. Hádat ze snímků, KTERÁ vrstva se
+  prolíná, nejde — ověřuje se logem.
 - **Zaoblené rohy nese dekorátor scény, ne přechod** (`PredictiveBackCorners`,
   `sceneDecoratorStrategies`). `ContentTransform` tvar neumí; dekorátor obalí obsah scény
   a poloměr animuje nad TÝMŽ přechodem (`transition.animateDp` podle `EnterExitState`), takže
