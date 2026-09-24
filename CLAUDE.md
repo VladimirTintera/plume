@@ -1355,9 +1355,20 @@ hledání) a vypadá to jako chyba vykreslení. Výchozí zpět gestem zmenšuje
 - **Gestem je to systémový vzor:** odcházející se zmenší na 90 % a popojede od hrany; zmenšení
   dojede už v 60 % přechodu, protože průběh gesta k jedničce skoro nedojde a s lineárním
   zmenšením přes celou délku nebylo v půlce tahu vidět nic.
-- **První snímek návratu je drahý a přechod to nezachrání.** `NavDisplay` kreslí jen horní
-  scénu, takže se seznam chatů při návratu skládá celý znovu; na emulátoru s debug buildem
-  trval první snímek i 200 ms. Fade through to schová líp než prolnutí, které skočilo doprostřed.
+- **Zaoblené rohy nese dekorátor scény, ne přechod** (`PredictiveBackCorners`,
+  `sceneDecoratorStrategies`). `ContentTransform` tvar neumí; dekorátor obalí obsah scény
+  a poloměr animuje nad TÝMŽ přechodem (`transition.animateDp` podle `EnterExitState`), takže
+  ho gesto posouvá se zmenšením. Obal musí nést v klíči i třídu obalené scény: `NavDisplay`
+  rozlišuje scény podle třídy a klíče a třída obalu je u všech stejná.
+- **Seznam chatů se při návratu skládá celý znovu, data ale ne.** `NavDisplay` kreslí jen horní
+  scénu, takže kompozice seznamu pod Nastavením neexistuje; `ChatsViewModel` s načteným
+  seznamem i pozice scrollu (`SaveableStateHolder`) přitom zůstávají. Kompozici ve ViewModelu
+  držet nejde — kdyby vadila, cesta je nechat scénu pod Nastavením složenou (Nastavení jako
+  překryvná scéna), ne cachovat data.
+- **Plynulost se na emulátoru neměří.** Změřeno `gfxinfo framestats` v RELEASE buildu: návrat
+  z Nastavení měl snímky kolem 60 ms, jenže obyčejný scroll seznamu chatů 200–500 ms a GPU hlásilo
+  95. percentil 4950 ms. Pomalost skládání se od pomalosti emulátoru oddělit nedá; posuzuje se
+  na telefonu.
 - **Ověřuje se zpomalenými animacemi a sérií surových snímků** (`animator_duration_scale 20`,
   `screencap /sdcard/N.raw` ve smyčce v jednom `adb shell`): PNG snímek trvá přes 400 ms a přechod
   mine. Gesto zastavené v půlce jde přes `input motionevent DOWN/MOVE`, snímek, pak `UP`.
