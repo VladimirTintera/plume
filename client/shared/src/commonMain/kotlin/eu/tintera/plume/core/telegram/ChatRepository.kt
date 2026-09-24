@@ -181,13 +181,25 @@ interface ChatRepository {
     suspend fun setBlocked(chatId: Long, blocked: Boolean): Result<Unit>
 
     /**
-     * Nahlásí chat moderátorům Telegramu jako spam.
+     * Jeden krok nahlášení chatu moderátorům Telegramu (`reportChat`).
      *
-     * Jedním voláním to jde jen u chatu, kterému server dal spamový action bar
-     * ([SpamActions.canReport]); jinde je `reportChat` průvodce s volbou důvodu, a ten aplikace
-     * nemá.
+     * Je to PRŮVODCE, ne jedno volání: na úvodní prázdný [ReportRequest] server odpoví, co chce
+     * dál — volbu důvodu, text, nebo zprávy —, a teprve po posledním kroku vrátí
+     * [ReportStep.Done]. Jen chat se spamovým action barem ([SpamActions.reportsSpamDirectly])
+     * nahlásí jako spam hned úvodní požadavek.
      */
-    suspend fun reportSpam(chatId: Long): Result<Unit>
+    suspend fun report(chatId: Long, request: ReportRequest): Result<ReportStep>
+
+    /**
+     * Pruh proti spamu nad konverzací, živě (`UpdateChatActionBar`); `null` = žádný.
+     */
+    fun spamBar(chatId: Long): Flow<SpamBar?>
+
+    /** Zavře pruh nad konverzací napořád (`removeChatActionBar`). */
+    suspend fun dismissSpamBar(chatId: Long): Result<Unit>
+
+    /** Přidá protějšek soukromého chatu do kontaktů pod jménem, které má v Telegramu. */
+    suspend fun addToContacts(chatId: Long): Result<Unit>
 }
 
 /**
@@ -202,8 +214,13 @@ data class SpamActions(
     val canBlock: Boolean = false,
     /** Je protějšek právě zablokovaný? Podle toho nabídka nabídne zablokování, nebo odblokování. */
     val isBlocked: Boolean = false,
-    /** Jde chat nahlásit jedním voláním, tedy bez průvodce s volbou důvodu? */
+    /** Jde chat nahlásit moderátorům (`canBeReported`, nebo spamový action bar)? */
     val canReport: Boolean = false,
+    /**
+     * Nahlásí ho jako spam už úvodní požadavek, bez průvodce s volbou důvodu — chat má spamový
+     * action bar. Jinak se nahlášení ptá na důvod, a popisek to musí říct.
+     */
+    val reportsSpamDirectly: Boolean = false,
 )
 
 sealed interface ChatListState {

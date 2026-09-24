@@ -13,6 +13,7 @@ import eu.tintera.plume.resources.media_save_as
 import eu.tintera.plume.resources.media_share
 import eu.tintera.plume.resources.share_24dp
 import eu.tintera.plume.resources.edit_24dp
+import eu.tintera.plume.resources.flag_24dp
 import eu.tintera.plume.resources.forward_24dp
 import eu.tintera.plume.resources.info_24dp
 import eu.tintera.plume.resources.keep_off_24dp
@@ -25,6 +26,7 @@ import eu.tintera.plume.resources.menu_forward
 import eu.tintera.plume.resources.menu_info
 import eu.tintera.plume.resources.menu_pin
 import eu.tintera.plume.resources.menu_reply
+import eu.tintera.plume.resources.menu_report
 import eu.tintera.plume.resources.menu_select
 import eu.tintera.plume.resources.menu_select_text
 import eu.tintera.plume.resources.menu_unpin
@@ -215,6 +217,16 @@ sealed interface MessageMenuAction : MessageAction {
     data object Select : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
             MenuPresentation(Res.drawable.select_check_box_24dp, Res.string.menu_select)
+    }
+
+    /**
+     * Nahlásit zprávu moderátorům. Nabízí se VŽDY jako kandidát a rozhodne server
+     * (`canReportChat`) — vlastní zprávy ani zprávy v Uložených zprávách nahlásit nejde.
+     * Otevře průvodce s volbou důvodu, takže je to jednorázová akce jako „Informace".
+     */
+    data object Report : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.flag_24dp, Res.string.menu_report).takeIf { menu.actions.canReport }
     }
 
     /** Pro sebe, nebo pro všechny — rozhodne se až v potvrzovacím dialogu. */

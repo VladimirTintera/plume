@@ -107,6 +107,15 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import eu.tintera.plume.core.telegram.SpamBar
+import eu.tintera.plume.features.chats.SpamCleanup
+import eu.tintera.plume.features.chats.cleanUpSpam
+import eu.tintera.plume.features.report.ReportFlow
+import eu.tintera.plume.resources.chats_blocked
+import eu.tintera.plume.resources.spam_bar_contact_added
+import eu.tintera.plume.resources.spam_bar_failed
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.conflate
@@ -189,6 +198,24 @@ class ConversationViewModel(
 
     private val _state = MutableStateFlow(ConversationState())
     val state: StateFlow<ConversationState> = _state.asStateFlow()
+
+    /**
+     * Pruh proti spamu nad konverzací (chat od neznámého). Samostatný tok ze stejného důvodu
+     * jako [connection]: mění se zřídka a nezávisle na zprávách.
+     */
+    val spamBar: StateFlow<SpamBar?> = chatRepository.spamBar(chatId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Průvodce nahlášením — z nabídky nad zprávou i z pruhu proti spamu. */
+    val reportFlow = ReportFlow(viewModelScope, chatRepository::report)
+
+    private val _chatGone = MutableStateFlow(false)
+
+    /**
+     * Chat se z pruhu proti spamu smazal — obrazovka konverzaci zavře. Stav, ne událost:
+     * obrazovka si ho vyzvedne, i kdyby zrovna nebyla složená.
+     */
+    val chatGone: StateFlow<Boolean> = _chatGone.asStateFlow()
 
     private val logger = Logger.withTag("Conversation")
 
@@ -1765,6 +1792,7 @@ class ConversationViewModel(
             MessageMenuAction.Unpin -> unpinFromMenu(messageId)
             MessageMenuAction.Delete -> requestDelete(messageId)
             MessageMenuAction.Select -> startSelection(messageId)
+            MessageMenuAction.Report -> reportMessage(messageId)
             MessageAction.ToggleSelection -> toggleSelection(messageId)
             MessageMenuAction.ShareFile -> shareDocument(messageId)
             MessageAction.OpenMedia, is MessageAction.OpenStickerSet, is MessageAction.SearchHashtag,
@@ -1945,6 +1973,66 @@ class ConversationViewModel(
                     canDeleteForSelf = menu.actions.canDeleteForSelf,
                 ),
             )
+        }
+    }
+
+    /**
+     * „Nahlásit" z nabídky nad zprávou: průvodce s touhle zprávou (u alba s celým albem, jako
+     * u mazání). Server se pak zeptá na důvod — zprávy mu tím odpadne dodávat zvlášť.
+     */
+    private fun reportMessage(messageId: Long) {
+        val ids = _state.value.albumMemberIds(messageId)
+        closeMenus()
+        reportFlow.start(chatId, messageIds = ids)
+    }
+
+    /** Pruh proti spamu: přidat protějšek do kontaktů. Pruh pak zmizí sám (update od serveru). */
+    fun addSpamBarContact() {
+        viewModelScope.launch {
+            chatRepository.addToContacts(chatId)
+                .onSuccess { _state.update { it.copy(notice = UiText(Res.string.spam_bar_contact_added)) } }
+                .onFailure { failure ->
+                    logger.w(failure) { "Přidání do kontaktů z chatu $chatId selhalo." }
+                    _state.update { it.copy(error = failure.userMessage(Res.string.spam_bar_failed)) }
+                }
+        }
+    }
+
+    /** Zavře pruh proti spamu napořád. */
+    fun dismissSpamBar() {
+        viewModelScope.launch {
+            chatRepository.dismissSpamBar(chatId).onFailure { failure ->
+                logger.w(failure) { "Pruh proti spamu v chatu $chatId nejde zavřít." }
+                _state.update { it.copy(error = failure.userMessage(Res.string.spam_bar_failed)) }
+            }
+        }
+    }
+
+    /**
+     * Akce z pruhu proti spamu se vším, co si uživatel přibalil. Pořadí je nahlásit →
+     * zablokovat → smazat, jako u smazání v seznamu chatů ([cleanUpSpam]): nahlásit jde jen
+     * existující chat a po chybě blokování se nesmí smazat nic.
+     */
+    fun resolveSpamBar(cleanup: SpamBarCleanup) {
+        reportFlow.thenAfterReport(cleanup.report, chatId) {
+            cleanUpSpam(
+                cleanup = SpamCleanup(block = cleanup.block),
+                block = { chatRepository.setBlocked(chatId, true) },
+                delete = {
+                    if (cleanup.delete) {
+                        chatRepository.deleteOrLeave(chatId).onSuccess { _chatGone.value = true }
+                    } else {
+                        Result.success(Unit)
+                    }
+                },
+            ).onSuccess {
+                if (cleanup.block && !cleanup.delete) {
+                    _state.update { it.copy(notice = UiText(Res.string.chats_blocked)) }
+                }
+            }.onFailure { failure ->
+                logger.w(failure) { "Vyřízení spamu v chatu $chatId selhalo." }
+                _state.update { it.copy(error = failure.userMessage(Res.string.spam_bar_failed)) }
+            }
         }
     }
 

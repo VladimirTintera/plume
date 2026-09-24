@@ -19,7 +19,6 @@ class SpamCleanupTest {
 
     private suspend fun run(cleanup: SpamCleanup, recorder: Recorder): Result<Unit> = cleanUpSpam(
         cleanup = cleanup,
-        report = recorder.step("report"),
         block = recorder.step("block"),
         delete = recorder.step("delete"),
     )
@@ -31,15 +30,6 @@ class SpamCleanupTest {
 
         assertTrue(result.isSuccess)
         assertEquals(listOf("delete"), recorder.steps)
-    }
-
-    @Test
-    fun nahlasitAZablokovatJdouPredSmazanim() = runTest {
-        val recorder = Recorder()
-        val result = run(SpamCleanup(report = true, block = true), recorder)
-
-        assertTrue(result.isSuccess)
-        assertEquals(listOf("report", "block", "delete"), recorder.steps)
     }
 
     @Test
@@ -60,16 +50,6 @@ class SpamCleanupTest {
 
         assertTrue(result.isFailure)
         assertEquals(listOf("block"), recorder.steps)
-    }
-
-    @Test
-    fun selhaneNahlaseniZastaviIBlokovani() = runTest {
-        val recorder = Recorder().apply { failOn = "report" }
-
-        val result = run(SpamCleanup(report = true, block = true), recorder)
-
-        assertTrue(result.isFailure)
-        assertEquals(listOf("report"), recorder.steps)
     }
 
     @Test

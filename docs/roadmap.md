@@ -114,17 +114,13 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   `NewChatRoute`, Uložené zprávy, kontakty z TDLib s dostupností, globální vyhledávání lidí podle
   @username; poučení v `CLAUDE.md`, „Nová konverzace").
 - **Ochrana před spamem.** ~~Zablokovat z nabídky nad chatem a při mazání rovnou zablokovat
-  i nahlásit~~ — hotovo (`CLAUDE.md`, „Blokování a nahlášení spamu"). Zbývá:
-  - **Průvodce nahlášením s volbou důvodu.** `reportChat` umí odpovědět `OptionRequired` /
-    `TextRequired` / `MessagesRequired`; dnes se proto „Nahlásit spam" nabízí jen chatu se
-    spamovým action barem, tedy typicky jen do chvíle, než uživatel botovi odpoví. S průvodcem
-    (sheet se seznamem `ReportOption`, pak text) by šlo nahlásit i skupinu, kanál nebo
-    konkrétní zprávy (`messageProperties.canReportChat`).
-  - **Pruh nad konverzací u chatu od neznámého** (`ChatActionBar`): Blokovat / Nahlásit spam /
-    Přidat kontakt, a u automaticky archivovaného ještě „Vrátit mezi chaty" (`canUnarchive`).
-    Tím Telegram spam řeší primárně — nabídne se sám, jakmile bot napíše, místo aby ho uživatel
-    hledal v nabídce. Repository k tomu má skoro vše (`SpamActions`), chybí odběr
-    `UpdateChatActionBar` a `removeChatActionBar` po zavření pruhu.
+  i nahlásit~~, ~~průvodce nahlášením s volbou důvodu~~ (i zprávy z nabídky nad zprávou),
+  ~~pruh nad konverzací u chatu od neznámého~~ — hotovo (`CLAUDE.md`, „Blokování a nahlášení
+  spamu"). Zbývá:
+  - **„Vrátit mezi chaty" v pruhu** u automaticky archivovaného chatu (`canUnarchive`) — chce
+    `addChatToList` spolu s návratem upozornění na výchozí.
+  - **Nahlásit z režimu výběru víc zpráv** (lišta výběru nemá „Nahlásit").
+  - **Ověřit skutečný pruh (`UpdateChatActionBar`)** na chatu od cizího — zatím jen podstrčeným stavem.
   - **Seznam blokovaných v Nastavení** (`getBlockedMessageSenders`): dnes se dá odblokovat jen
     z chatu, který v seznamu zůstal — kdo ho smazal, nemá kde blokování zrušit.
 - **Přihlašovací obrazovka** — hotová (výběr země, formátování čísla, návrat z QR na číslo,

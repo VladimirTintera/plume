@@ -43,6 +43,11 @@ import dev.g000sha256.tdl.dto.ChatActionUploadingVoiceNote
 import dev.g000sha256.tdl.dto.ChatTypeSecret
 import dev.g000sha256.tdl.dto.BlockListMain
 import dev.g000sha256.tdl.dto.ChatActionBarReportAddBlock
+import dev.g000sha256.tdl.dto.ChatActionBarAddContact
+import dev.g000sha256.tdl.dto.ImportedContact
+import dev.g000sha256.tdl.dto.ReportChatResultMessagesRequired
+import dev.g000sha256.tdl.dto.ReportChatResultOptionRequired
+import dev.g000sha256.tdl.dto.ReportChatResultTextRequired
 import dev.g000sha256.tdl.dto.ChatActionBarReportSpam
 import dev.g000sha256.tdl.dto.ReportChatResultOk
 import dev.g000sha256.tdl.dto.DraftMessage
@@ -68,6 +73,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -578,7 +584,8 @@ class TdlChatRepository(
             // Blokovaného pozná jen `UserFullInfo`; `Chat` to nenese.
             isBlocked = userId != null &&
                 client.getUserFullInfo(userId = userId).toResult().getOrNull()?.blockList != null,
-            canReport = chat.reportsSpamDirectly(),
+            canReport = chat.canBeReported || chat.reportsSpamDirectly(),
+            reportsSpamDirectly = chat.reportsSpamDirectly(),
         )
     }
 
@@ -595,19 +602,67 @@ class TdlChatRepository(
     }
 
     /**
-     * `reportChat` je ve skutečnosti PRŮVODCE: server smí odpovědět, že chce volbu důvodu, text
-     * nebo konkrétní zprávy. Jedním krokem projde jen chat se spamovým action barem (viz
-     * [Chat.reportsSpamDirectly]), a právě podle toho se volba nabízí — takže jiná odpověď než
-     * [ReportChatResultOk] tu znamená, že nahlásit takhle nešlo, a musí jít vidět.
+     * `reportChat` je PRŮVODCE: server smí odpovědět, že chce volbu důvodu, text nebo konkrétní
+     * zprávy. Jedním krokem projde jen chat se spamovým action barem (viz
+     * [Chat.reportsSpamDirectly]); jinde vede odpověď do dalšího kroku průvodce.
      */
-    override suspend fun reportSpam(chatId: Long): Result<Unit> = client
-        .reportChat(chatId = chatId, optionId = ByteArray(0), messageIds = LongArray(0), text = "")
+    override suspend fun report(chatId: Long, request: ReportRequest): Result<ReportStep> = client
+        .reportChat(
+            chatId = chatId,
+            optionId = request.optionId?.bytes ?: ByteArray(0),
+            messageIds = request.messageIds.toLongArray(),
+            text = request.text,
+        )
         .toResult()
-        .mapCatching { result ->
-            if (result !is ReportChatResultOk) {
-                throw IllegalStateException("Nahlášení chatu $chatId chce průvodce: $result")
+        .map { result ->
+            // Bez `else`: nový krok v novější TDLib musí rozbít překlad, ne tiše skončit.
+            when (result) {
+                is ReportChatResultOk -> ReportStep.Done
+                is ReportChatResultOptionRequired -> ReportStep.ChooseOption(
+                    title = result.title,
+                    options = result.options.map { ReportOption(ReportOptionId(it.id), it.text) },
+                )
+                is ReportChatResultTextRequired -> ReportStep.EnterText(ReportOptionId(result.optionId), result.isOptional)
+                is ReportChatResultMessagesRequired -> ReportStep.NeedsMessages
             }
         }
+
+    /**
+     * Odběr stojí před prvním čtením (`onStart`), aby se změna mezi nimi neztratila. Update nese
+     * pruh sám, ale čte se znovu celý chat: kdo jde zablokovat, se pozná z typu chatu.
+     */
+    override fun spamBar(chatId: Long): Flow<SpamBar?> =
+        holder.updates { chatActionBarUpdates }
+            .filter { it.chatId == chatId }
+            .map { }
+            .onStart { emit(Unit) }
+            .map { client.getChat(chatId = chatId).toResult().getOrNull()?.spamBar() }
+            .distinctUntilChanged()
+
+    override suspend fun dismissSpamBar(chatId: Long): Result<Unit> =
+        client.removeChatActionBar(chatId = chatId).toResult().map { }
+
+    /**
+     * Jméno se bere z účtu protějšku, ne od uživatele: pruh nabízí „přidat", ne „vyplnit
+     * formulář". Telefon se posílá jen známý — neznámý smí být prázdný. Svoje číslo protějšku
+     * nesdílíme (`sharePhoneNumber = false`); to je samostatné rozhodnutí o soukromí.
+     */
+    override suspend fun addToContacts(chatId: Long): Result<Unit> = runCatching {
+        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+        val userId = chat.blockableUserId() ?: error("V chatu $chatId není koho přidat do kontaktů.")
+        val user = client.getUser(userId = userId).toResult().getOrThrow()
+        client.addContact(
+            userId = userId,
+            contact = ImportedContact(
+                phoneNumber = user.phoneNumber,
+                // TDLib chce aspoň jeden znak křestního jména; bez něj vezmeme příjmení.
+                firstName = user.firstName.ifBlank { user.lastName }.ifBlank { chat.title },
+                lastName = if (user.firstName.isBlank()) "" else user.lastName,
+                note = null,
+            ),
+            sharePhoneNumber = false,
+        ).toResult().getOrThrow()
+    }
 
     override suspend fun searchChats(query: String, onServer: Boolean): Result<List<ChatSummary>> {
         val result = if (onServer) {
@@ -990,6 +1045,18 @@ private fun Chat.blockableUserId(): Long? = when (val type = type) {
  */
 private fun Chat.reportsSpamDirectly(): Boolean =
     actionBar is ChatActionBarReportSpam || actionBar is ChatActionBarReportAddBlock
+
+/** Pruh proti spamu nad konverzací; `null` u pruhů, které aplikace nekreslí. */
+private fun Chat.spamBar(): SpamBar? = when (actionBar) {
+    is ChatActionBarReportSpam -> SpamBar(canReportSpam = true, canBlock = false, canAddContact = false)
+    is ChatActionBarReportAddBlock -> SpamBar(
+        canReportSpam = true,
+        canBlock = blockableUserId() != null,
+        canAddContact = blockableUserId() != null,
+    )
+    is ChatActionBarAddContact -> SpamBar(canReportSpam = false, canBlock = false, canAddContact = true)
+    else -> null
+}
 
 private fun ChatPosition.toFolderPosition() = FolderPosition(order = order, isPinned = isPinned)
 

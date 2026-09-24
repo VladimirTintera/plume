@@ -258,6 +258,8 @@ import eu.tintera.plume.resources.send_24dp
 import eu.tintera.plume.resources.sticky_note_2_24dp
 import kotlin.time.Clock
 import kotlinx.coroutines.flow.debounce
+import eu.tintera.plume.core.telegram.SpamBar
+import eu.tintera.plume.features.report.ReportHost
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
@@ -338,6 +340,33 @@ fun ConversationScreen(
     // Přechod na zprávu, ke které se nedá dojet (daleko, nebo nenačtená) — viz `JumpTransition`.
     val jumpTransition = remember { JumpTransition() }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val spamBar by viewModel.spamBar.collectAsStateWithLifecycle()
+    val chatGone by viewModel.chatGone.collectAsStateWithLifecycle()
+    /** Otevřený sheet z pruhu proti spamu; `null` = zavřený. */
+    var spamBarAction by rememberSaveable { mutableStateOf<SpamBarAction?>(null) }
+
+    // Chat se z pruhu proti spamu smazal — konverzace nemá co ukazovat.
+    LaunchedEffect(chatGone) { if (chatGone) onBack() }
+
+    ReportHost(viewModel.reportFlow, snackbarHostState)
+
+    // Pruh mezitím zmizel (přidán kontakt, zavřeno jinde) — sheet nemá čeho se týkat.
+    LaunchedEffect(spamBar) { if (spamBar == null) spamBarAction = null }
+    val openSpamBar = spamBar
+    val openSpamAction = spamBarAction
+    if (openSpamBar != null && openSpamAction != null) {
+        SpamBarSheet(
+            action = openSpamAction,
+            bar = openSpamBar,
+            title = state.info?.let { chatTitle(it.id, it.title) }.orEmpty(),
+            onConfirm = { cleanup ->
+                spamBarAction = null
+                viewModel.resolveSpamBar(cleanup)
+            },
+            onDismiss = { spamBarAction = null },
+        )
+    }
     var stickerPickerOpen by rememberSaveable { mutableStateOf(false) }
     var previewAttachmentIndex by rememberSaveable { mutableStateOf<Int?>(null) }
 
@@ -486,8 +515,9 @@ fun ConversationScreen(
     var lastSeenMessageId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     /**
-     * Změřená výška pruhu s připnutou zprávou; nula, když žádný není. Pruh plave nad seznamem
-     * (není v `topBar`), takže jeho výšku Scaffold nezná a měří se ručně.
+     * Změřená výška pruhů nad seznamem (proti spamu a s připnutou zprávou); nula, když žádný
+     * není. Pruhy plavou nad seznamem (nejsou v `topBar`), takže jejich výšku Scaffold nezná
+     * a měří se ručně.
      */
     var pinnedHeight by remember { mutableStateOf(0.dp) }
 
@@ -1416,39 +1446,65 @@ fun ConversationScreen(
             var allPinnedOpen by rememberSaveable { mutableStateOf(false) }
 
             val density = LocalDensity.current
-            AnimatedVisibility(
-                visible = state.pinned.isNotEmpty(),
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
-                modifier = Modifier
+            /*
+             * Pruh proti spamu a připnuté zprávy plavou nad seznamem spolu a měří se spolu: seznam
+             * se odsazuje o výšku obou. Spam stojí nahoře — je důležitější než připnutá zpráva.
+             */
+            Column(
+                Modifier
                     .align(Alignment.TopCenter)
                     .onSizeChanged { pinnedHeight = with(density) { it.height.toDp() } },
             ) {
-                // Při odjezdu se musí dál kreslit poslední zpráva, ne prázdný pruh.
-                val last = remember { arrayOf(emptyList<ChatMessage>()) }
-                if (state.pinned.isNotEmpty()) last[0] = state.pinned
-                val pinned = last[0]
+                // Při odjezdu se musí dál kreslit poslední pruh, ne nic (stejně jako u připnutých).
+                val lastSpamBar = remember { arrayOf<SpamBar?>(null) }
+                if (spamBar != null) lastSpamBar[0] = spamBar
+                AnimatedVisibility(
+                    visible = spamBar != null,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut(),
+                ) {
+                    lastSpamBar[0]?.let { bar ->
+                        SpamBarCard(
+                            bar = bar,
+                            onBlock = { spamBarAction = SpamBarAction.Block },
+                            onReport = { spamBarAction = SpamBarAction.Report },
+                            onAddContact = viewModel::addSpamBarContact,
+                            onDismiss = viewModel::dismissSpamBar,
+                        )
+                    }
+                }
+                AnimatedVisibility(
+                    visible = state.pinned.isNotEmpty(),
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut(),
+                ) {
+                    // Při odjezdu se musí dál kreslit poslední zpráva, ne prázdný pruh.
+                    val last = remember { arrayOf(emptyList<ChatMessage>()) }
+                    if (state.pinned.isNotEmpty()) last[0] = state.pinned
+                    val pinned = last[0]
 
-                PinnedMessagesBar(
-                    messages = pinned,
-                    index = pinnedIndex(pinned, pinnedForScroll(pinned, topVisibleKey)),
-                    canUnpin = state.canUnpin,
-                    // Ťuknutí skočí na ukázanou zprávu, a to KOTVOU NAHORU: zpráva pak stojí nad
-                    // viditelnou částí, takže pruh přejde na předchozí připnutou a další ťuknutí
-                    // vede o krok zpět. Se středem se nad cílem odkryje kus historie a pruh
-                    // přeskočí rovnou k nejstarší.
-                    onOpen = { message -> viewModel.jumpToMessage(message.id, anchor = ScrollAnchor.Top) },
-                    onUnpin = viewModel::unpin,
-                    onShowAll = { allPinnedOpen = true },
-                    glass = Modifier.hazeBlur(
-                        input = HazeInput.Sources(listHaze),
-                        style = glassStyle(
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            alpha = GLASS_TEXT_TINT_ALPHA,
-                            fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                    PinnedMessagesBar(
+                        messages = pinned,
+                        index = pinnedIndex(pinned, pinnedForScroll(pinned, topVisibleKey)),
+                        canUnpin = state.canUnpin,
+                        // Ťuknutí skočí na ukázanou zprávu, a to KOTVOU NAHORU: zpráva pak stojí nad
+                        // viditelnou částí, takže pruh přejde na předchozí připnutou a další ťuknutí
+                        // vede o krok zpět. Se středem se nad cílem odkryje kus historie a pruh
+                        // přeskočí rovnou k nejstarší.
+                        onOpen = { message -> viewModel.jumpToMessage(message.id, anchor = ScrollAnchor.Top) },
+                        onUnpin = viewModel::unpin,
+                        onShowAll = { allPinnedOpen = true },
+                        glass = Modifier.hazeBlur(
+                            input = HazeInput.Sources(listHaze),
+                            style = glassStyle(
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                alpha = GLASS_TEXT_TINT_ALPHA,
+                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                            ),
                         ),
-                    ),
-                )
+                    )
+                }
+
             }
 
             if (allPinnedOpen && state.pinned.isNotEmpty()) {

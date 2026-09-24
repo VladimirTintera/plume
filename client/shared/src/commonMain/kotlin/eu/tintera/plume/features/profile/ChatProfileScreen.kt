@@ -23,6 +23,13 @@ import eu.tintera.plume.resources.profile_copy_link
 import eu.tintera.plume.resources.profile_more
 import eu.tintera.plume.resources.logout_24dp
 import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.flag_24dp
+import eu.tintera.plume.resources.chats_action_report
+import eu.tintera.plume.resources.chats_delete_report
+import eu.tintera.plume.core.telegram.SpamActions
+import eu.tintera.plume.features.chats.ChatDeleteSheet
+import eu.tintera.plume.features.chats.SpamCleanup
+import eu.tintera.plume.features.report.ReportHost
 import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.profile_edit
 import eu.tintera.plume.resources.block_24dp
@@ -205,6 +212,7 @@ fun ChatProfileScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    ReportHost(viewModel.reportFlow, snackbarHostState)
     val currentOnOpenChat by rememberUpdatedState(onOpenChat)
 
     LaunchedEffect(state.openChat) {
@@ -305,7 +313,9 @@ fun ChatProfileScreen(
                             profile = profile,
                             onCopyLink = viewModel::copyLink,
                             onEdit = onEdit,
+                            spam = state.spam?.copy(isBlocked = profile.isBlocked),
                             onSetBlocked = viewModel::setBlocked,
+                            onReport = viewModel::report,
                             onDeleteOrLeave = viewModel::deleteOrLeave,
                         )
                     }
@@ -899,8 +909,11 @@ private fun ProfileMenu(
     profile: ChatProfile,
     onCopyLink: () -> Unit,
     onEdit: () -> Unit,
+    /** Co jde nahlásit a zablokovat; `null`, dokud to nedorazí. */
+    spam: SpamActions?,
     onSetBlocked: (Boolean) -> Unit,
-    onDeleteOrLeave: () -> Unit,
+    onReport: () -> Unit,
+    onDeleteOrLeave: (SpamCleanup) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var confirmBlock by rememberSaveable { mutableStateOf(false) }
@@ -909,7 +922,8 @@ private fun ProfileMenu(
     val canDeleteOrLeave = profile.isPrivate || profile.isMember
     // Úprava se nabízí, jen když je aspoň jedno z práv — co uvnitř ukáže, rozhoduje obrazovka.
     val canEdit = profile.editRights.any
-    if (profile.link == null && !canBlock && !canDeleteOrLeave && !canEdit) return
+    val canReport = spam?.canReport == true
+    if (profile.link == null && !canBlock && !canDeleteOrLeave && !canEdit && !canReport) return
 
     Box {
         IconButton(onClick = { expanded = true }) {
@@ -932,6 +946,19 @@ private fun ProfileMenu(
                             Res.drawable.block_24dp,
                             // Odblokovat je vratné a nic neodřízne — bez potvrzení.
                             onClick = { if (profile.isBlocked) onSetBlocked(false) else confirmBlock = true },
+                        )
+                    } else {
+                        null
+                    },
+                    // Nahlášení se ptá na důvod (průvodce), proto „…". Jen u spamového action
+                    // baru ho server vezme rovnou jako spam, a pak to popisek řekne.
+                    if (canReport) {
+                        MenuAction(
+                            stringResource(
+                                if (spam?.reportsSpamDirectly == true) Res.string.chats_delete_report else Res.string.chats_action_report,
+                            ),
+                            Res.drawable.flag_24dp,
+                            onClick = onReport,
                         )
                     } else {
                         null
@@ -976,25 +1003,20 @@ private fun ProfileMenu(
             dismissButton = { TextButton(onClick = { confirmBlock = false }) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
+    /*
+     * Smazání je sheet s podmenu, ne dialog — tentýž jako v nabídce nad chatem v seznamu, i se
+     * zablokováním a nahlášením. Dvě podoby téhož kroku by se rozešly.
+     */
     if (confirmDelete) {
-        AlertDialog(
-            onDismissRequest = { confirmDelete = false },
-            title = { Text(stringResource(if (profile.isPrivate) Res.string.chats_delete_title else Res.string.chats_leave_title)) },
-            text = {
-                Text(stringResource(if (profile.isPrivate) Res.string.chats_delete_body else Res.string.chats_leave_body, profile.title))
+        ChatDeleteSheet(
+            isPrivate = profile.isPrivate,
+            title = profile.title,
+            spam = spam,
+            onConfirm = { cleanup ->
+                confirmDelete = false
+                onDeleteOrLeave(cleanup)
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmDelete = false
-                    onDeleteOrLeave()
-                }) {
-                    Text(
-                        stringResource(if (profile.isPrivate) Res.string.common_delete else Res.string.chats_action_leave),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(Res.string.common_cancel)) } },
+            onDismiss = { confirmDelete = false },
         )
     }
 }
