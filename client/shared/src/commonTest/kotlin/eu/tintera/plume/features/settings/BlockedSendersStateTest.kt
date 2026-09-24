@@ -3,72 +3,78 @@ package eu.tintera.plume.features.settings
 import eu.tintera.plume.core.telegram.BlockedSender
 import eu.tintera.plume.core.telegram.BlockedSendersPage
 import eu.tintera.plume.core.telegram.ChatKind
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class BlockedSendersStateTest {
 
-    private fun sender(id: Long) = BlockedSender(
+    private fun sender(id: Long, title: String = "Odesílatel $id") = BlockedSender(
         id = id,
-        title = "Odesílatel $id",
+        title = title,
         avatarFileId = null,
         kind = ChatKind.Private,
         username = null,
         isBot = false,
     )
 
-    private fun page(vararg ids: Long, total: Int) = BlockedSendersPage(ids.map(::sender), total)
+    private fun page(vararg ids: Long, total: Int) = BlockedSendersPage(ids.map { sender(it) }, total)
 
     @Test
-    fun navazujiciStrankaSePripoji() {
-        val state = BlockedSendersState()
-            .withPage(0, page(1, 2, total = 150))
-            .withPage(BLOCKED_PAGE_SIZE, page(3, total = 150))
+    fun ctePoStrankachAzKeKonci() = runTest {
+        val offsets = mutableListOf<Int>()
+        val result = collectBlockedSenders { offset ->
+            offsets += offset
+            Result.success(if (offset == 0) page(1, 2, total = 150) else page(3, total = 150))
+        }
 
-        assertEquals(listOf(1L, 2L, 3L), state.senders.map { it.id })
-        assertEquals(2 * BLOCKED_PAGE_SIZE, state.nextOffset)
-        assertTrue(state.endReached)
+        assertEquals(listOf(1L, 2L, 3L), result.getOrThrow().map { it.id })
+        assertEquals(listOf(0, BLOCKED_PAGE_SIZE), offsets)
     }
 
-    /** Stránka ze seznamu, který se mezitím četl znovu od začátku, se nesmí vmíchat. */
+    /**
+     * Konec určuje počet od serveru, ne délka stránky: kdo se nedá dočíst, ze stránky vypadne,
+     * a podle délky stránky by čtení skončilo předčasně.
+     */
     @Test
-    fun nenavazujiciStrankaSeZahodi() {
-        val state = BlockedSendersState().withPage(BLOCKED_PAGE_SIZE, page(9, total = 150))
+    fun kratkaStrankaNeniKonec() = runTest {
+        var calls = 0
+        collectBlockedSenders { offset ->
+            calls++
+            Result.success(if (offset == 0) page(1, total = 150) else page(total = 150))
+        }
 
-        assertTrue(state.senders.isEmpty())
-        assertNull(state.totalCount)
+        assertEquals(2, calls)
     }
 
     /** Seznam se mezi čteními posunul — dva stejné klíče by `LazyColumn` shodily. */
     @Test
-    fun odesilatelNaDvouStrankachZustaneJednou() {
-        val state = BlockedSendersState()
-            .withPage(0, page(1, 2, total = 150))
-            .withPage(BLOCKED_PAGE_SIZE, page(2, 3, total = 150))
+    fun odesilatelNaDvouStrankachZustaneJednou() = runTest {
+        val result = collectBlockedSenders { offset ->
+            Result.success(if (offset == 0) page(1, 2, total = 150) else page(2, 3, total = 150))
+        }
 
-        assertEquals(listOf(1L, 2L, 3L), state.senders.map { it.id })
+        assertEquals(listOf(1L, 2L, 3L), result.getOrThrow().map { it.id })
     }
 
-    /**
-     * Konec určuje počet od serveru, ne počet dočtených: kdo se dočíst nedá, ze stránky vypadne,
-     * a podle délky stránky by stránkování skončilo předčasně.
-     */
+    /** Půlka seznamu by tvrdila, že zbytek blokovaný není. */
     @Test
-    fun konecPodleServeruNePodleDoctenych() {
-        val state = BlockedSendersState().withPage(0, page(1, total = 150))
+    fun selhanaStrankaJeSelhaniCelku() = runTest {
+        val result = collectBlockedSenders { offset ->
+            if (offset == 0) Result.success(page(1, total = 150)) else Result.failure(RuntimeException("síť"))
+        }
 
-        assertFalse(state.endReached)
+        assertTrue(result.isFailure)
     }
 
     @Test
-    fun pocetNeuvadiOdblokovane() {
-        val state = BlockedSendersState()
-            .withPage(0, page(1, 2, 3, total = 3))
-            .copy(unblocked = setOf(2L))
+    fun hledaBezOhleduNaDiakritikuAVelikostPismen() {
+        val state = BlockedSendersState(
+            senders = listOf(sender(1, "Šárka Nováková"), sender(2, "Petr")),
+            query = "sarka",
+        )
 
-        assertEquals(2, state.blockedCount)
+        assertEquals(listOf(1L), state.visible.map { it.id })
     }
 }

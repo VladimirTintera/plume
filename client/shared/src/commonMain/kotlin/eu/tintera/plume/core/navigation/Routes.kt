@@ -49,6 +49,13 @@ data class SettingsSectionRoute(val section: SettingsSection) : Route
 data object EditProfileRoute : Route
 
 /**
+ * Seznam blokovaných. Vrší se nad sekci Obecné stejně jako [EditProfileRoute]: na telefonu
+ * samostatná obrazovka, v dvoupanelu nahradí sekci vpravo a zpět vede do ní.
+ */
+@Serializable
+data object BlockedSendersRoute : Route
+
+/**
  * Archivované chaty. V list-detail rozvržení je to LIST panel scény archivu:
  * má vlastní detail panel [ArchiveConversationRoute], takže neovlivňuje otevřenou konverzaci
  * v hlavním seznamu.
@@ -182,6 +189,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(SettingsRoute::class, SettingsRoute.serializer())
             subclass(SettingsSectionRoute::class, SettingsSectionRoute.serializer())
             subclass(EditProfileRoute::class, EditProfileRoute.serializer())
+            subclass(BlockedSendersRoute::class, BlockedSendersRoute.serializer())
             subclass(ArchiveRoute::class, ArchiveRoute.serializer())
             subclass(ArchiveConversationRoute::class, ArchiveConversationRoute.serializer())
             subclass(ArchiveChatProfileRoute::class, ArchiveChatProfileRoute.serializer())

@@ -37,7 +37,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * [SettingsSectionScreen].
  */
 @Composable
-fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit) {
+fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onOpenBlocked: () -> Unit) {
     val account by viewModel.account.collectAsStateWithLifecycle()
     var confirmLogOut by rememberSaveable { mutableStateOf(false) }
 
@@ -85,7 +85,7 @@ fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit) {
     }
 
     // Blokovaní. V Obecných, protože samostatná sekce Soukromí by měla jedinou položku.
-    BlockedSettings(viewModel = koinViewModel())
+    BlockedSettings(viewModel = koinViewModel(), onOpen = onOpenBlocked)
 
     // Experimentální funkce s modelem v zařízení. Nad odhlášením, které má zůstat poslední.
     OnDeviceAiSettings(viewModel = koinViewModel())

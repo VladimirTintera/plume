@@ -1,3 +1,3 @@
 type: feat
-cs: Seznam blokovaných v Nastavení, i s odblokováním
-en: Blocked list in Settings, with unblocking
+cs: Seznam blokovaných v Nastavení, s hledáním a odblokováním
+en: Blocked list in Settings, with search and unblocking

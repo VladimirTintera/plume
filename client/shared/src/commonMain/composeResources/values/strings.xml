@@ -973,7 +973,7 @@
     <string name="settings_blocked">Blocked</string>
     <string name="settings_blocked_none">Nobody is blocked</string>
     <string name="settings_blocked_summary">Blocked users and chats can't message or call you.</string>
-    <string name="settings_blocked_unblocked">Unblocked</string>
+    <string name="settings_blocked_search">Search blocked</string>
     <string name="settings_blocked_deleted">Deleted account</string>
     <string name="settings_blocked_failed">Couldn't change blocking</string>
     <string name="settings_blocked_load_failed">Couldn't load the list</string>

@@ -989,7 +989,7 @@
     <string name="settings_blocked">Blokovaní</string>
     <string name="settings_blocked_none">Nikoho nemáš zablokovaného</string>
     <string name="settings_blocked_summary">Blokovaní lidé a chaty ti nemůžou psát ani volat.</string>
-    <string name="settings_blocked_unblocked">Odblokováno</string>
+    <string name="settings_blocked_search">Hledat v blokovaných</string>
     <string name="settings_blocked_deleted">Smazaný účet</string>
     <string name="settings_blocked_failed">Blokování se nepodařilo změnit</string>
     <string name="settings_blocked_load_failed">Seznam se nepodařilo načíst</string>

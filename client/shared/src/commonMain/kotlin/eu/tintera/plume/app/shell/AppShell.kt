@@ -6,6 +6,8 @@ import eu.tintera.plume.core.navigation.ArchiveMemberRightsRoute
 import eu.tintera.plume.core.navigation.MemberRightsRoute
 import eu.tintera.plume.core.navigation.EditChatRoute
 import eu.tintera.plume.core.navigation.EditProfileRoute
+import eu.tintera.plume.core.navigation.BlockedSendersRoute
+import eu.tintera.plume.features.settings.BlockedSendersScreen
 import eu.tintera.plume.features.conversation.ConversationSearchRequests
 import eu.tintera.plume.features.profile.ChatProfileScreen
 import eu.tintera.plume.features.profile.EditChatScreen
@@ -287,10 +289,14 @@ private fun ShellContent(
                          * oba dvoupanel, takže zpět z konverzace odešel rovnou z aplikace.
                          * V Nastavení je výchozí chování správné: sekce je v dvoupanelu
                          * otevřená vždycky, takže zpět vede ze Nastavení pryč, do Chatů.
-                         * Výjimka je úprava profilu nad sekcí: dvoupanel zůstává dvoupanelem,
-                         * takže by zpět přeskočilo i sekci pod ní a odešlo z Nastavení.
+                         * Výjimka je úprava profilu a seznam blokovaných nad sekcí: dvoupanel
+                         * zůstává dvoupanelem, takže by zpět přeskočilo i sekci pod ní a odešlo
+                         * z Nastavení.
                          */
-                        backNavigationBehavior = if (navigation.section == ChatsRoute || settingsStack.lastOrNull() == EditProfileRoute) {
+                        backNavigationBehavior = if (
+                            navigation.section == ChatsRoute ||
+                            settingsStack.lastOrNull().let { it == EditProfileRoute || it == BlockedSendersRoute }
+                        ) {
                             BackNavigationBehavior.PopUntilContentChange
                         } else {
                             BackNavigationBehavior.PopUntilScaffoldValueChange
@@ -635,8 +641,8 @@ private fun shellEntryProvider(
             // Otevření jiné sekce ji NAHRADÍ, nevrší se zásobník — stejně jako
             // u konverzací.
             onSectionClick = { section ->
-                // I s úpravou profilu, která se vrší nad sekci — jinak by zůstala pod novou sekcí.
-                settingsStack.removeAll { it is SettingsSectionRoute || it is EditProfileRoute }
+                // I s obrazovkami, které se vrší nad sekci — jinak by zůstaly pod novou sekcí.
+                settingsStack.removeAll { it is SettingsSectionRoute || it is EditProfileRoute || it is BlockedSendersRoute }
                 settingsStack.add(SettingsSectionRoute(section))
             },
             // Sem se chodí z menu účtu na každé šířce, takže šipka zpět do Chatů je vždycky.
@@ -657,6 +663,17 @@ private fun shellEntryProvider(
             section = route.section,
             onBack = if (wide) null else popSection,
             onEditProfile = { if (settingsStack.lastOrNull() != EditProfileRoute) settingsStack.add(EditProfileRoute) },
+            onOpenBlocked = { if (settingsStack.lastOrNull() != BlockedSendersRoute) settingsStack.add(BlockedSendersRoute) },
+        )
+    }
+
+    // Seznam blokovaných nad sekcí Obecné, jako úprava profilu.
+    entry<BlockedSendersRoute>(
+        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+    ) { route ->
+        BlockedSendersScreen(
+            viewModel = koinViewModel(),
+            onBack = { settingsStack.pop(route) },
         )
     }
 

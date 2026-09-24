@@ -2,208 +2,219 @@ package eu.tintera.plume.features.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.BlockedSender
+import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.ui.Avatar
-import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.PickerSection
+import eu.tintera.plume.core.ui.SheetActionRow
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.block_24dp
-import eu.tintera.plume.resources.profile_block
-import eu.tintera.plume.resources.profile_bot
+import eu.tintera.plume.resources.chats_undo
+import eu.tintera.plume.resources.chats_unblocked
 import eu.tintera.plume.resources.profile_unblock
+import eu.tintera.plume.resources.search_off_24dp
 import eu.tintera.plume.resources.settings_blocked
 import eu.tintera.plume.resources.settings_blocked_count
 import eu.tintera.plume.resources.settings_blocked_deleted
 import eu.tintera.plume.resources.settings_blocked_none
+import eu.tintera.plume.resources.settings_blocked_search
 import eu.tintera.plume.resources.settings_blocked_summary
-import eu.tintera.plume.resources.settings_blocked_unblocked
 import eu.tintera.plume.resources.settings_privacy
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Skupina „Soukromí" v Obecných: řádek s počtem blokovaných, který otevře jejich seznam.
+ * Skupina „Soukromí" v Obecných: řádek s počtem blokovaných, který otevře jejich seznam
+ * ([BlockedSendersScreen]).
  *
- * **Seznam je sheet, ne další obrazovka** — stejně jako výjimky upozornění v sekci Notifikace.
- * Je to pohled na jednu věc s jedinou akcí na řádek; obrazovka navíc by znamenala routu,
- * chování zpět v dvoupanelu a vlastní hlavičku kvůli seznamu, ze kterého se jen odblokovává.
+ * Počet se čte znovu při každém návratu na obrazovku — po odblokování v seznamu by jinak
+ * zůstal starý.
  */
 @Composable
-internal fun BlockedSettings(viewModel: BlockedSendersViewModel) {
+internal fun BlockedSettings(viewModel: BlockedSendersViewModel, onOpen: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var open by rememberSaveable { mutableStateOf(false) }
+    LifecycleResumeEffect(viewModel) {
+        viewModel.reload()
+        onPauseOrDispose {}
+    }
 
     SettingsGroup(Res.string.settings_privacy) {
-        val count = state.blockedCount
-        val error = state.error
+        val count = state.senders?.size
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { Icon(painterResource(Res.drawable.block_24dp), contentDescription = null) },
             headlineContent = { Text(stringResource(Res.string.settings_blocked)) },
             supportingContent = {
                 // Dokud počet nedorazí, řádek nic netvrdí — „nikoho" by mohla být lež.
-                when {
-                    error != null && count == null -> ErrorText(error)
-                    count == null -> Unit
-                    count == 0 -> Text(stringResource(Res.string.settings_blocked_none))
+                when (count) {
+                    null -> Unit
+                    0 -> Text(stringResource(Res.string.settings_blocked_none))
                     else -> Text(pluralStringResource(Res.plurals.settings_blocked_count, count, count))
                 }
             },
-            modifier = Modifier.clickable {
-                viewModel.dismissError()
-                open = true
-            },
-        )
-    }
-
-    if (open) {
-        BlockedSheet(
-            state = state,
-            onSetBlocked = viewModel::setBlocked,
-            onLoadMore = viewModel::loadMore,
-            onDismiss = {
-                open = false
-                // Odblokovaní v seznamu zůstávali kvůli „Zablokovat"; po zavření se čte, co platí.
-                viewModel.reload()
-            },
+            modifier = Modifier.clickable(onClick = onOpen),
         )
     }
 }
 
+/**
+ * Seznam blokovaných lidí a chatů.
+ *
+ * **Je to tentýž `ChatPicker` jako kontakty, přeposílání a sdílení** — hlavička, hledání, bloky
+ * zaoblených řádků, prázdný stav. První verze byla sheet se seznamem `ListItem`ů a tlačítkem
+ * „Odblokovat" u každého řádku: vedle kontaktů vypadala jako jiná aplikace a měla jiné ovládání.
+ * Akce nad položkou se tu dělá jako všude jinde — **ťuknutí otevře nabídku**, vratná akce má
+ * snackbar s „Vrátit".
+ */
 @Composable
-private fun BlockedSheet(
-    state: BlockedSendersState,
-    onSetBlocked: (BlockedSender, Boolean) -> Unit,
-    onLoadMore: () -> Unit,
-    onDismiss: () -> Unit,
+fun BlockedSendersScreen(
+    viewModel: BlockedSendersViewModel,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    // Rovnou celý: seznam bývá delší než půl obrazovky (stejně jako výjimky upozornění).
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column {
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = {
-                    Text(stringResource(Res.string.settings_blocked), style = MaterialTheme.typography.titleLarge)
-                },
-                supportingContent = { Text(stringResource(Res.string.settings_blocked_summary)) },
-            )
-            // Chyba je v sheetu, ne ve snackbaru: ten by pod modálním sheetem nebyl vidět.
-            state.error?.let { ErrorText(it, Modifier.padding(horizontal = 16.dp)) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    // Snackbar běží mimo efekt: vynulování události mění klíč efektu a zrušilo by ho
+    // (stejná past jako „Vrátit" u archivace v seznamu chatů).
+    val snackbarScope = rememberCoroutineScope()
 
-            when {
-                state.totalCount == null && state.loadingMore -> Box(
-                    Modifier.fillMaxWidth().padding(32.dp),
-                    contentAlignment = Alignment.Center,
-                ) { LoadingIndicator() }
-                state.senders.isEmpty() && state.totalCount != null -> Text(
-                    stringResource(Res.string.settings_blocked_none),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp),
-                )
-                else -> LazyColumn(Modifier.navigationBarsPadding()) {
-                    items(state.senders, key = { it.id }) { sender ->
-                        BlockedRow(
-                            sender = sender,
-                            unblocked = sender.id in state.unblocked,
-                            busy = sender.id in state.busy,
-                            onSetBlocked = { blocked -> onSetBlocked(sender, blocked) },
-                        )
-                    }
-                    // Po chybě se nedotahuje: položka by stála s kolečkem, které se nikdy nezastaví.
-                    if (state.totalCount != null && !state.endReached && state.error == null) {
-                        item(key = "more") {
-                            // Dotažení spouští kompozice téhle položky, ne `layoutInfo` — tak to
-                            // dělají i záložky sdíleného obsahu v profilu (viz `LoadMoreAtEnd`).
-                            LaunchedEffect(state.nextOffset) { onLoadMore() }
-                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                LoadingIndicator()
-                            }
-                        }
-                    }
-                }
-            }
+    LaunchedEffect(state.unblocked) {
+        val sender = state.unblocked ?: return@LaunchedEffect
+        viewModel.consumeUnblocked()
+        snackbarScope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = getString(Res.string.chats_unblocked),
+                actionLabel = getString(Res.string.chats_undo),
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) viewModel.undoUnblock(sender)
         }
     }
+
+    val deleted = stringResource(Res.string.settings_blocked_deleted)
+    val blankQuery = state.query.isBlank()
+    ChatPicker(
+        title = stringResource(Res.string.settings_blocked),
+        query = state.query,
+        onQueryChange = viewModel::onQueryChange,
+        searchPlaceholder = stringResource(Res.string.settings_blocked_search),
+        loading = state.senders == null,
+        sections = listOf(PickerSection(key = "blocked", chats = state.visible.map { it.toSummary(deleted) })),
+        enabled = true,
+        onPick = viewModel::openActions,
+        onBack = onBack,
+        snackbarHostState = snackbarHostState,
+        // Bez dotazu je prázdno „nikoho nemáš zablokovaného", s dotazem výchozí „nic nenalezeno".
+        emptyIcon = if (blankQuery) Res.drawable.block_24dp else Res.drawable.search_off_24dp,
+        emptyTitle = if (blankQuery) stringResource(Res.string.settings_blocked_none) else null,
+        emptyText = if (blankQuery) stringResource(Res.string.settings_blocked_summary) else null,
+        error = state.error,
+        onErrorShown = viewModel::consumeError,
+        modifier = modifier,
+    )
+
+    state.target?.let { sender ->
+        BlockedActionsSheet(
+            sender = sender,
+            title = sender.title.ifBlank { deleted },
+            onUnblock = { viewModel.unblock(sender) },
+            onDismiss = viewModel::dismissActions,
+        )
+    }
 }
 
+/**
+ * Nabídka nad blokovaným: kdo to je a „Odblokovat". Tentýž tvar jako nabídka nad chatem
+ * v seznamu (`ChatActionsSheet`) — jazyk akcí nad položkou je v aplikaci jeden.
+ */
 @Composable
-private fun BlockedRow(
+private fun BlockedActionsSheet(
     sender: BlockedSender,
-    unblocked: Boolean,
-    busy: Boolean,
-    onSetBlocked: (Boolean) -> Unit,
+    title: String,
+    onUnblock: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
-    val title = sender.title.ifBlank { stringResource(Res.string.settings_blocked_deleted) }
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        leadingContent = {
-            // Smazaný účet dostane prázdný název: iniciály ze „Smazaný účet" by vypadaly jako jméno.
+    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+        ) {
             Avatar(
                 chatId = sender.id,
-                title = sender.title,
+                title = title,
                 avatarFileId = sender.avatarFileId,
                 size = 40.dp,
                 shape = sender.kind.avatarShape(),
             )
-        },
-        headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        supportingContent = {
-            val subtitle = when {
-                unblocked -> stringResource(Res.string.settings_blocked_unblocked)
-                sender.isBot -> stringResource(Res.string.profile_bot)
-                else -> sender.username?.let { "@$it" }
-            }
-            subtitle?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-        },
-        trailingContent = {
-            // Odblokovaný řádek zůstává a nabízí vrátit to zpátky — „Vrátit" bez snackbaru.
-            TextButton(onClick = { onSetBlocked(unblocked) }, enabled = !busy) {
-                Text(stringResource(if (unblocked) Res.string.profile_block else Res.string.profile_unblock))
-            }
-        },
-    )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 16.dp),
+            )
+        }
+        Box(Modifier.padding(16.dp)) {
+            SheetActionRow(
+                icon = Res.drawable.block_24dp,
+                label = stringResource(Res.string.profile_unblock),
+                shape = RoundedCornerShape(20.dp),
+                onClick = onUnblock,
+            )
+        }
+    }
 }
 
-@Composable
-private fun ErrorText(text: UiText, modifier: Modifier = Modifier) {
-    Text(
-        stringResource(text.resource, *text.args.toTypedArray()),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.error,
-        modifier = modifier,
-    )
-}
+/**
+ * Blokovaný jako položka výběru chatu. `ChatPicker` kreslí `ChatSummary`; použije se z něj
+ * jméno, fotka a druh (tvar avataru), zbytek jsou výchozí hodnoty bez významu.
+ */
+private fun BlockedSender.toSummary(deletedTitle: String) = ChatSummary(
+    id = id,
+    title = title.ifBlank { deletedTitle },
+    unreadCount = 0,
+    lastMessagePreview = null,
+    isPinned = false,
+    order = 0,
+    avatarFileId = avatarFileId,
+    isMuted = false,
+    isMarkedAsUnread = false,
+    kind = kind,
+    lastMessageTimestamp = null,
+    presence = null,
+    activity = null,
+    draft = null,
+)
