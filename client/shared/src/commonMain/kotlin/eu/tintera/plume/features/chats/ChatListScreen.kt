@@ -992,15 +992,20 @@ private fun SwipeToArchive(
             },
         ),
     ) {
-        Box(
-            Modifier
-                .matchParentSize()
-                .clip(shape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = if (side == SwipeSide.End) Alignment.CenterEnd else Alignment.CenterStart,
-        ) {
-            // Bez tahu není co ukazovat; jinak by ikona prosvítala spárou mezi položkami.
-            if (side != SwipeSide.None) {
+        /*
+         * Bez tahu se podklad NEKRESLÍ VŮBEC, ani jeho plocha. Řádek nad ním má tentýž tvar,
+         * jenže vyhlazené hrany (zaoblení, okraje na zlomcích pixelu) jsou poloprůhledné a
+         * podklad jimi prosvítal: v tmavém tématu byl kolem každého chatu světlý lem
+         * `primaryContainer` na skoro černém `surfaceContainerLowest`.
+         */
+        if (side != SwipeSide.None) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .clip(shape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = if (side == SwipeSide.End) Alignment.CenterEnd else Alignment.CenterStart,
+            ) {
                 val icon = @Composable {
                     Icon(
                         painterResource(

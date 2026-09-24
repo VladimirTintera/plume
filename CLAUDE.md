@@ -1957,6 +1957,12 @@ snackbar s „Vrátit".
 - **Tvar bloku se počítá mimo řádek** (`groupItemShape`): tentýž tvar musí mít i podklad
   odkrývaný tahem, jinak pod zaoblenou položkou vykukují jeho hranaté rohy. `animateItem` zůstává
   na kořeni položky, tedy na tahu, ne na řádku uvnitř.
+- **Bez tahu se podklad nekreslí VŮBEC, ani jeho plocha.** Stejný tvar nestačí: vyhlazené hrany
+  řádku jsou poloprůhledné a barevný podklad pod nimi prosvítal jako světlý lem kolem každého
+  chatu, v tmavém tématu na skoro černém `surfaceContainerLowest` do očí bijící. Na emulátoru
+  (hustota 3,0) leží rovné hrany na celých pixelech a lem je vidět jen v zaoblených rozích; na
+  telefonu s necelou hustotou jde kolem celé karty. **Obecně: pod plochou, která má být krycí,
+  nesmí trvale ležet jiná barva stejného tvaru.** Ukáže se na každé vyhlazené hraně.
 - **Nastavení archivu je sheet z hlavičky archivu, ne pátá sekce Nastavení.** Jsou to dvě volby
   o tom, co se s archivem děje samo, a kdo je hledá, stojí zrovna v archivu.
 - **TDLib na změnu `ArchiveChatListSettings` NEPOSÍLÁ update**, takže sheet je jediný zdroj pravdy:
