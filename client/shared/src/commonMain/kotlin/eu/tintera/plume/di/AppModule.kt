@@ -311,6 +311,7 @@ fun appModule() = module {
             saver = get(),
             sharer = get(),
             timers = get(),
+            appScope = get(named(APP_SCOPE)),
         )
     }
 

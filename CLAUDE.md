@@ -4883,6 +4883,22 @@ za `MessageExpiredPhoto` / `MessageExpiredVideo`.
   prázdné.
 - **Mizející média nejsou v listování prohlížeče** (`visualMedia` je vyřazuje), nemají v něm
   reakce, sdílení ani uložení, a notifikace k nim nepřikládá obrázek — stejně jako ke spoileru.
+- **Časovač u videa NENÍ to, co nastavil odesílatel.** TDLib ho při přijetí prodlouží aspoň na
+  délku videa + 1 s (`ttl.ensure_at_least(get_message_content_duration(…) + 1)`
+  v `MessagesManager.cpp`), a `MessageSelfDestructTypeTimer` už nese prodlouženou hodnotu.
+  Video délky 6 s se 3s časovačem má v odznaku 7 s — to je správně, chyba to není. Délku
+  videa zapisuje do zprávy odesílatel.
+- **Odpočet začíná `openMessageContent`, a proto se volá až nad STAŽENÝM médiem**
+  (`awaitSelfDestructMedia`). Dřív se volal hned při otevření prohlížeče: stahování ukrojilo
+  z časovače (video 11 s, v prohlížeči se objevilo 7 s) a prohlížeč se zavřel dřív, než
+  video dohrálo — časovač má na délku videa rezervu jedné vteřiny. Mizející video se ze
+  stejného důvodu nestreamuje (`VideoPage(streaming = false)`): přehrávání a odpočet začnou
+  naráz a nic se neukáže dřív, než odpočet běží.
+- **Jednorázové zhlédnutí se hlásí až při ODCHODU z prohlížeče** (`onCleared`, `appScope`).
+  U `MessageSelfDestructTypeImmediately` TDLib po `openMessageContent` obsah vyřídí okamžitě
+  (`ttl_on_open` → `on_message_ttl_expired`): smaže soubory a pošle vypršelý obsah, na který
+  se prohlížeč zavírá. Nahlášené při otevření by médium zmizelo dřív, než se stáhlo. Co se
+  nestáhlo, uživatel neviděl — nespotřebuje se.
 
 ### Jak to ověřit
 
