@@ -5618,10 +5618,20 @@ sdílející z Fotek.
   ne. **Rozbalená vyjede PŘES snímek i pole až pod hlavičku**, nic nezmenšuje — první verze
   panel natahovala do sloupce a snímek se smrskl na známku. V hlavičce je pak místo ✕ šipka
   dolů, která panel sbalí; gesto zpět taky nejdřív sbalí (`NavigationBackHandler`).
+- **Galerie má DVĚ ukotvené polohy a zavřít nejde** — dole a nahoře pod hlavičkou. „Hotovo"
+  v pickeru ji jen vrátí dolů. Jediné, čemu ustoupí, je klávesnice při psaní popisku (zabírá
+  totéž místo); po jejím schování je galerie zpátky sama, takže ikona „přidat fotky" v poli
+  (první verze) nemá co dělat.
+- **Úchyt je úchyt, ne tlačítko.** Panel jede s prstem (výška sleduje tah, sevřená mezi obě
+  polohy) a po puštění dosedne podle švihnutí, jinak podle toho, kam dojel (přes půl cesty
+  nahoru). Ťuknutí prstem nedělá nic — první verze úchytem jen přepínala a uživatel správně
+  namítl, že úchyt, který nejde táhnout, je tlačítko převlečené za něco jiného. Čtečka obrazovky
+  tahat neumí, proto má úchyt rozbalení a sbalení jako akce (`semantics { expand / collapse }`).
 - **Tah se chytá jen na úchytu**, ne na mřížce — tu kreslí cizí okno (`SurfaceView`), které si
-  dotyky bere samo. Ťuknutí na úchyt přepíná sbaleno ↔ rozbaleno, tah dolů ze sbalené galerii
-  schová. Výška se animuje pružinou; obsah pickeru za panelem po dobu animace o kus zaostává
-  (picker se překresluje po `notifyResized`), po dosednutí sedí.
+  dotyky bere samo. Obsah pickeru za panelem při tahu a animaci o kus zaostává (picker se
+  překresluje po `notifyResized`), po dosednutí sedí.
+- **Tah se na emulátoru ověřuje `input motionevent DOWN/MOVE`, snímek, pak `UP`** — `input swipe`
+  je hotové gesto a mezistav s panelem pod prstem nezachytí.
 - **Dobrané snímky jdou ZA sdílené** a pager na ně přejede. Odznačení v galerii obrazovku
   nezavírá ani u posledního snímku (je to oprava výběru), ✕ na posledním snímku ano. Po ✕ se
   galerie otevře znovu (`removals` jako klíč): zaškrtnutí si obnovuje jen při otevření.
@@ -5634,11 +5644,13 @@ sdílející z Fotek.
   com.android.providers.media.photopicker/media/<id MediaStore>`, takže MediaStore URI i URI
   zabalené v cestě Fotek Google jde převést. Ťuknutí na sdílenou fotku ji proto nepřidá podruhé
   a odznačení ji z dávky odebere.
-- **Při psaní popisku galerie ustoupí klávesnici**, po „Hotovo" taky; zpátky ji vrátí ikona
-  v poli. Hláška (snackbar) stojí nad polem, ne u spodku — galerie je `SurfaceView` nad vším.
+- **Hláška (snackbar) stojí nad polem**, ne u spodku — galerie je `SurfaceView` nad vším.
 - **Ověřeno na emulátoru** (jedna fotka i dvě z Fotek): obrazovka, spoiler, mizení v chatu s botem
   a jeho nepřítomnost v Uložených zprávách, popisek, odeslání s otevřením konverzace, ✕ s návratem
-  do zdrojové aplikace. **Přes `adb` jde poslat jen JEDNA příloha** — `EXTRA_STREAM` jako seznam
+  do zdrojové aplikace. Galerie (profil Pixel 10 Pro Fold, API 37.2, rozložený i složený): výběr
+  ve sbalené, tah s panelem pod prstem a dosednutí do obou poloh, tah dolů ze spodní polohy
+  galerii nezavře, ťuknutí na úchyt nic nedělá, scroll v rozbalené, šipka i gesto zpět,
+  znovuotevření bez zdvojení a odeslání alba dvou snímků s popiskem. **Přes `adb` jde poslat jen JEDNA příloha** — `EXTRA_STREAM` jako seznam
   `am start` neumí (`--eu` je jedna hodnota) a `--grant-read-uri-permission` platí pro `data`
   URI, ne pro extras: bez `-d <totéž URI>` aplikace soubor nepřečte, `getType` vrátí `null`
   a sdílení se zachová jako u dokumentu. Víc fotek se musí proklikat z Fotek.

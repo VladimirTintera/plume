@@ -1,8 +1,8 @@
 package eu.tintera.plume.features.share
 
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -50,6 +50,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,12 +63,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.collapse
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.expand
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -80,6 +84,7 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.launch
 import eu.tintera.plume.core.telegram.AttachmentMode
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.ui.Avatar
@@ -108,11 +113,10 @@ import eu.tintera.plume.resources.conversation_send
 import eu.tintera.plume.resources.media_position
 import eu.tintera.plume.resources.send_24dp
 import eu.tintera.plume.resources.share_preparing
-import eu.tintera.plume.resources.share_to_add_media
 import eu.tintera.plume.resources.share_to_caption
 import eu.tintera.plume.resources.share_to_collapse_gallery
+import eu.tintera.plume.resources.share_to_expand_gallery
 import eu.tintera.plume.resources.keyboard_arrow_down_24dp
-import eu.tintera.plume.resources.perm_media_24dp
 import eu.tintera.plume.resources.share_to_recipient
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -188,19 +192,16 @@ fun ShareToChatScreen(
     /*
      * Galerie pod popiskem: vestavěný výběr fotek, přes který jde k dávce dobrat další snímky.
      *
-     * Při psaní popisku ustoupí klávesnici — obě by se o spodek obrazovky přetahovaly a fotka
-     * nahoře by se smrskla na proužek. Zpátky ji vrátí tlačítko v poli; totéž po „Hotovo"
-     * v galerii. Kde vestavěný výběr není (starší Android), obrazovka zůstává bez galerie.
+     * Je tu pořád, ve dvou polohách (dole a nahoře pod hlavičkou) — zavřít nejde. Jedinou
+     * výjimkou je klávesnice při psaní popisku: zabírá totéž místo, a obě naráz by snímek
+     * smrskly na proužek. Jakmile klávesnice zmizí, galerie je zpátky dole sama. Kde vestavěný
+     * výběr není (starší Android), obrazovka zůstává bez galerie.
      */
     val galleryAvailable = embeddedMediaPickerAvailable()
-    var galleryOpen by rememberSaveable { mutableStateOf(true) }
     // `WindowInsets.isImeVisible` je jen na Androidu; výška klávesnice funguje i na iOS.
     val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-    LaunchedEffect(imeVisible) { if (imeVisible) galleryOpen = false }
-    val galleryShown = galleryAvailable && galleryOpen && !imeVisible && attachments != null
+    val galleryShown = galleryAvailable && !imeVisible && attachments != null
     val mediaSelection = rememberEmbeddedMediaSelection()
-    val keyboard = LocalSoftwareKeyboardController.current
-    val focus = LocalFocusManager.current
 
     var galleryExpanded by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(galleryShown) { if (!galleryShown) galleryExpanded = false }
@@ -305,15 +306,6 @@ fun ShareToChatScreen(
                     enabled = !attachments.isNullOrEmpty() && !state.sending,
                     sending = state.sending,
                     onSend = viewModel::send,
-                    onOpenGallery = if (galleryAvailable && !galleryShown && attachments != null) {
-                        {
-                            focus.clearFocus()
-                            keyboard?.hide()
-                            galleryOpen = true
-                        }
-                    } else {
-                        null
-                    },
                     // S galerií pod sebou spodní lišta pole nic neodsouvá — sahá k ní galerie.
                     modifier = (if (galleryShown) Modifier else Modifier.navigationBarsPadding().imePadding())
                         .onGloballyPositioned { captionTop = with(density) { it.positionInParent().y.toDp() } },
@@ -328,15 +320,11 @@ fun ShareToChatScreen(
             }
 
             if (galleryShown) {
-                val height by animateDpAsState(
-                    targetValue = if (galleryExpanded) expandedHeight else collapsedHeight,
-                    animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-                )
                 GalleryPanel(
                     expanded = galleryExpanded,
                     onExpandedChange = { galleryExpanded = it },
-                    onDismiss = { galleryOpen = false },
-                    height = height,
+                    collapsedHeight = collapsedHeight,
+                    expandedHeight = expandedHeight,
                     modifier = Modifier.align(Alignment.BottomCenter),
                 ) { pickerModifier ->
                     // Po odebrání snímku ✕ se galerie otevře znovu: zaškrtnutí si obnovuje jen
@@ -353,7 +341,9 @@ fun ShareToChatScreen(
                             onPicked = viewModel::addAttachments,
                             onUnpicked = viewModel::removeAttachments,
                             onError = viewModel::reportError,
-                            onDone = { galleryOpen = false },
+                            // „Hotovo" galerii nezavírá, jen ji vrátí dolů — panel má dvě polohy
+                            // a zmizet nemá (vyjma klávesnice, viz výš).
+                            onDone = { galleryExpanded = false },
                             modifier = pickerModifier,
                         )
                     }
@@ -538,8 +528,6 @@ private fun CaptionBar(
     enabled: Boolean,
     sending: Boolean,
     onSend: () -> Unit,
-    /** Vrátí galerii pod pole; `null`, když je galerie vidět nebo tu žádná není. */
-    onOpenGallery: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -556,17 +544,6 @@ private fun CaptionBar(
             modifier = Modifier.weight(1f),
         ) {
             Row(verticalAlignment = Alignment.Bottom) {
-                if (onOpenGallery != null) {
-                    // 4 dp = (56 − 48) / 2: ikona sedí na středu jednořádkového pole a u víc řádků
-                    // zůstane u posledního, jako sponka ve vstupním poli konverzace.
-                    IconButton(onClick = onOpenGallery, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)) {
-                        Icon(
-                            painterResource(Res.drawable.perm_media_24dp),
-                            contentDescription = stringResource(Res.string.share_to_add_media),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
                 val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
                 BasicTextField(
                     value = caption,
@@ -654,9 +631,15 @@ private val BADGE_INSET = 8.dp
  * Galerie pod popiskem jako v Google Zprávách: panel se zaoblenými horními rohy a úchytem.
  *
  * **Sbalený jen vykukuje** — náhled mřížky, ve kterém jde vybírat, ale ne posouvat (tak se
- * vestavěný picker ve sbaleném stavu chová sám). Tahem za úchyt nahoru nebo ťuknutím na něj se
- * rozbalí přes většinu obrazovky a teprve pak se v něm listuje; tahem dolů se zase sbalí
- * a ze sbaleného zavře.
+ * vestavěný picker ve sbaleném stavu chová sám). Rozbalený sahá až pod hlavičku a listuje se
+ * v něm.
+ *
+ * **Úchyt je úchyt, ne tlačítko.** Panel jede s prstem (výška sleduje tah) a po puštění dosedne
+ * tam, kam patří: podle rychlosti švihnutí, a když žádné není, podle toho, kam ho uživatel
+ * dotáhl — přes půl cesty nahoře, jinak dole. **Polohy jsou jen dvě, zavřít tahem nejde**:
+ * galerie k obrazovce patří a nemá kam zmizet. Ťuknutí prstem nedělá nic;
+ * první verze úchytem jen přepínala, a úchyt, který nejde táhnout, je tlačítko převlečené za
+ * něco jiného. Čtečka obrazovky tahat neumí, proto má rozbalení a sbalení jako akci.
  *
  * **Tah se chytá jen na úchytu**, ne na mřížce: tu kreslí cizí okno (`SurfaceView`), které si
  * dotyky bere samo a k nám je nepustí.
@@ -665,40 +648,75 @@ private val BADGE_INSET = 8.dp
 private fun GalleryPanel(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
-    onDismiss: () -> Unit,
-    height: Dp,
+    collapsedHeight: Dp,
+    expandedHeight: Dp,
     modifier: Modifier = Modifier,
     picker: @Composable (Modifier) -> Unit,
 ) {
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
+    val spec = MaterialTheme.motionScheme.defaultSpatialSpec<Dp>()
+    val height = remember { Animatable(collapsedHeight, Dp.VectorConverter) }
+    var dragging by remember { mutableStateOf(false) }
     val expandedNow by rememberUpdatedState(expanded)
+
+    // Změna zvenku (šipka v hlavičce, gesto zpět, jiná velikost okna) panel dopraví na místo.
+    // Během tahu ne — tam výšku drží prst.
+    LaunchedEffect(expanded, collapsedHeight, expandedHeight) {
+        if (!dragging) height.animateTo(if (expanded) expandedHeight else collapsedHeight, spec)
+    }
+
+    fun settle(velocity: Float) {
+        val current = height.value
+        val fling = with(density) { GALLERY_FLING_VELOCITY.toPx() }
+        val expand = when {
+            velocity < -fling -> true
+            velocity > fling -> false
+            else -> current > (collapsedHeight + expandedHeight) / 2
+        }
+        onExpandedChange(expand)
+        scope.launch { height.animateTo(if (expand) expandedHeight else collapsedHeight, spec) }
+    }
+
+    val expandLabel = stringResource(Res.string.share_to_expand_gallery)
+    val collapseLabel = stringResource(Res.string.share_to_collapse_gallery)
     Surface(
         shape = RoundedCornerShape(topStart = GALLERY_CORNER, topEnd = GALLERY_CORNER),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        modifier = modifier.fillMaxWidth().height(height),
+        // Pružina přestřelí; záporná výška by layout shodila.
+        modifier = modifier.fillMaxWidth().height(height.value.coerceAtLeast(0.dp)),
     ) {
         Column {
-            var dragged by remember { mutableStateOf(0f) }
             Box(
                 Modifier
                     .fillMaxWidth()
                     .height(GALLERY_HANDLE_AREA)
-                    .clickable(
-                        onClickLabel = stringResource(Res.string.share_to_add_media),
-                        onClick = { onExpandedChange(!expandedNow) },
-                    )
+                    .semantics {
+                        // Jen pro čtečku obrazovky, dotyk přepínat nemá.
+                        if (expandedNow) {
+                            collapse { onExpandedChange(false); true }
+                        } else {
+                            expand { onExpandedChange(true); true }
+                        }
+                        customActions = listOf(
+                            CustomAccessibilityAction(if (expandedNow) collapseLabel else expandLabel) {
+                                onExpandedChange(!expandedNow)
+                                true
+                            },
+                        )
+                    }
                     .draggable(
                         orientation = Orientation.Vertical,
-                        state = rememberDraggableState { dragged += it },
-                        onDragStarted = { dragged = 0f },
+                        state = rememberDraggableState { delta ->
+                            val next = height.value - with(density) { delta.toDp() }
+                            // Mezi dvěma polohami, nikam dál.
+                            scope.launch { height.snapTo(next.coerceIn(collapsedHeight, expandedHeight)) }
+                        },
+                        onDragStarted = { dragging = true },
                         onDragStopped = { velocity ->
-                            val up = dragged < -GALLERY_DRAG_THRESHOLD || velocity < -GALLERY_FLING_VELOCITY
-                            val down = dragged > GALLERY_DRAG_THRESHOLD || velocity > GALLERY_FLING_VELOCITY
-                            when {
-                                up && !expandedNow -> onExpandedChange(true)
-                                down && expandedNow -> onExpandedChange(false)
-                                down -> onDismiss()
-                            }
+                            dragging = false
+                            settle(velocity)
                         },
                     ),
                 contentAlignment = Alignment.Center,
@@ -720,9 +738,8 @@ private val GALLERY_HANDLE_AREA = 36.dp
 /** Sbalená galerie jen vykukuje, jako ve vzoru z Google Zpráv — fotka nahoře zůstává hlavní. */
 private const val GALLERY_COLLAPSED_FRACTION = 0.28f
 private val GALLERY_COLLAPSED_MAX = 300.dp
-/** Tah za úchyt v pixelech a rychlost švihnutí v px/s, od kterých se panel přepne. */
-private const val GALLERY_DRAG_THRESHOLD = 48f
-private const val GALLERY_FLING_VELOCITY = 800f
+/** Rychlost švihnutí (za sekundu), od které rozhoduje směr, a ne to, kam panel dojel. */
+private val GALLERY_FLING_VELOCITY = 400.dp
 
 private val FIELD_CORNER = 28.dp
 private val SEND_BUTTON = 56.dp
