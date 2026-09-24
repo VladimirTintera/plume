@@ -4888,6 +4888,10 @@ za `MessageExpiredPhoto` / `MessageExpiredVideo`.
   v `MessagesManager.cpp`), a `MessageSelfDestructTypeTimer` už nese prodlouženou hodnotu.
   Video délky 6 s se 3s časovačem má v odznaku 7 s — to je správně, chyba to není. Délku
   videa zapisuje do zprávy odesílatel.
+- **A délku TDLib zaokrouhluje NAHORU** (`std::ceil(video->duration_)` v
+  `DocumentsManager.cpp`; server ji posílá s desetinami). Oficiální klient ji ukazuje
+  zaokrouhlenou dolů, takže u videa, které má u odesílatele „▶ 3s" (ve skutečnosti 3,x s),
+  vyjde u příjemce časovač 5 s: 4 + 1. Obě „sekundy navíc" jsou tedy od TDLib, ne od nás.
 - **Odpočet začíná `openMessageContent`, a proto se volá až nad STAŽENÝM médiem**
   (`awaitSelfDestructMedia`). Dřív se volal hned při otevření prohlížeče: stahování ukrojilo
   z časovače (video 11 s, v prohlížeči se objevilo 7 s) a prohlížeč se zavřel dřív, než
