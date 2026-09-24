@@ -204,9 +204,38 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
      Zmeškaný hovor pak přijde jako zpráva sám.
    - **Hovory ve skupině** (`MessageVideoChatStarted` a spol. už mají servisní text): pruh
      „Probíhá videochat" v hlavičce konverzace, jako oficiální klient.
-2. **Skutečné hovory přes tgcalls** (největší samostatný kus práce v projektu):
-   - **Přeložit tgcalls s WebRTC** pro Android (ABI) i iOS a napojit přes JNI / cinterop nebo
-     Swift. Počítat s desítkami MB na ABI navíc — stejná úvaha o Play Feature Delivery jako
+2. **Skutečné hovory** (největší samostatný kus práce v projektu). Přenos jde dvěma cestami:
+   - **A) Přeložit tgcalls s WebRTC** pro Android (ABI) i iOS a napojit přes JNI / cinterop
+     nebo Swift. Ověřená kompatibilita (tgcalls používají oficiální klienti), ale překlad
+     velkého C++ projektu na obě platformy.
+   - **B) Experiment: holé libwebrtc a vlastní tenká vrstva Telegramu.** tgcalls WebRTC
+     nepřepisuje, linkuje libwebrtc od Googlu a přidává nad ním jen to, co je specifické pro
+     Telegram (zjištěno čtením [zdrojáků](https://github.com/TelegramMessenger/tgcalls/tree/development/tgcalls)):
+     - **signalizace jako JSON**, ne SDP (`v2/Signaling.cpp`: `@type` `InitialSetup`,
+       `NegotiateChannels`, `Candidates`, `MediaState`), přenášená přes
+       `sendCallSignalingData`;
+     - **šifrování signalizace klíčem hovoru** (`v2/SignalingEncryption.cpp` →
+       `EncryptedConnection`) — tím se emoji k ověření vztahují i na DTLS fingerprinty média;
+     - **relay servery Telegramu** („reflector", `v2/ReflectorPort.cpp`,
+       `v2/MtProtoIceTransport.cpp`), které nejsou standardní TURN;
+     - **víc verzí protokolu vedle sebe** a vyjedná se společná (`CallProtocol.libraryVersions`):
+       `InstanceImpl` 2.7.7 a 5.0.0, `InstanceV2Impl` 7, 8, 9, 12, 13,
+       `InstanceV2ReferenceImpl` 10.0.0 a 11.0.0.
+
+     **`InstanceV2ReferenceImpl` (10.0.0 / 11.0.0) stojí na běžném `CreatePeerConnection`
+     s DTLS** a mezi JSON signalizací a SDP překládá (`SignalingTranslator`). Experiment by tedy
+     byl: hotové libwebrtc (Android `org.webrtc`, iOS `WebRTC.xcframework`), vlastní JSON
+     signalizace s jejím šifrováním a převodem na SDP, nabízet jen 10.0.0 a 11.0.0. Protokol
+     není nikde popsaný, jediná specifikace je zdroják tgcalls — a ten se s verzemi mění.
+     **Ověřit dřív, než se začne psát:**
+     - **Nabízejí oficiální klienti 10.0.0 / 11.0.0 pořád?** Jinak se s nimi náš klient
+       nedomluví. Pozná se z `CallProtocol` protějšku v `updateCall` / `CallStateReady`
+       (hovor z oficiálního klienta na účet s Plume stačí jen přijmout do stavu Ready).
+     - **Stačí bez reflectorů TURN servery, které dá TDLib** (`CallServerTypeWebrtc`
+       se jménem a heslem)? Když ne, musel by se napsat i reflector port.
+
+     **Velikost aplikace se volbou cesty nezmění** — většinu váhy nese samotné libwebrtc
+     (desítky MB na ABI), takže u obou cest platí stejná úvaha o Play Feature Delivery jako
      u LiteRT-LM.
    - **Platformní obálka:** Android `ConnectionService` (a foreground služba typu
      `phoneCall`/`microphone`/`camera`), iOS **CallKit** a **VoIP pushe přes PushKit** — bez
@@ -214,7 +243,10 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
      (VoIP push, který neohlásí hovor CallKitu, systém trestá ukončením aplikace).
    - **Obrazovka hovoru:** stav, emoji k ověření, ztlumit / reproduktor / kamera / zavěsit,
      obraz v obraze pro video. Oprávnění mikrofonu už máme (hlasovky), kamery ne.
-   - **Skupinové hovory** až potom — jiná signalizace a víc účastníků.
+   - **Skupinové hovory** až potom — jiná signalizace a víc účastníků. Tady je cesta přes holé
+     WebRTC realističtější než u hovoru ve dvou: prostředníkem je server Telegramu (SFU) a data
+     pro `joinGroupCall` jsou blízko běžnému WebRTC (ufrag, pwd, fingerprinty, SSRC v JSONu);
+     komunitní knihovny (pytgcalls / ntgcalls) to tak dělají.
    - Ověřování chce druhý účet nebo druhé zařízení; bot volat neumí.
 
 ## AI v zařízení
