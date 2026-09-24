@@ -569,10 +569,17 @@ private fun TabContent(
 ) {
     when (tab) {
         ProfileTab.Members -> ProfileMembersList(
-            members = state.members,
+            list = state.members,
             contentPadding = contentPadding,
             onOpen = viewModel::openMember,
             onManage = viewModel::openMemberActions,
+            onLoadMore = viewModel::loadMoreMembers,
+            hidden = state.profile?.membersHidden == true,
+            search = if (state.memberSearchAvailable) {
+                MemberSearch(query = state.memberQuery, onQueryChange = viewModel::searchMembers)
+            } else {
+                null
+            },
         )
 
         is ProfileTab.Shared -> {

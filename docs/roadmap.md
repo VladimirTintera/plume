@@ -14,10 +14,7 @@ Sem patří to, co leží v pracovním adresáři a ztratilo by se při přeruš
 větev, ladicí kód k vyhození, nedopsané poučení. Právě tohle se ztrácí nejsnadněji, protože to
 není ani v kódu, ani v commitu.
 
-- **Stránkování a hledání členů velké skupiny** — větev `feat/profile-members-paging`
-  (commit `92717dd`, jen lokálně, bez PR). Hotové a ověřené sondou; čeká na ověření ve skutečné
-  velké skupině, do které se testovací účet dostal až s tlačítky botů (kontrola proti botům).
-  Pozor: velké veřejné skupiny mívají skryté členy a vydají jen správce.
+Teď je prázdné.
 
 ---
 
@@ -95,7 +92,9 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
     pro uložení práv člena, omezení, vyhození, štítek a dokončený převod vlastnictví — ověřené
     je jen to, co skutečnou skupinu nemění (viz „Správa členů" v `CLAUDE.md`). Převod navíc
     vyžaduje zapnuté dvoufázové ověření, které testovací účet nemá.
-  - **Seznam členů velké skupiny** se stránkováním a hledáním; dnes prvních 200.
+  - ~~**Seznam členů velké skupiny**~~ — hotovo (stránky po 50, hledání, věta u skupiny se
+    skrytými členy; `CLAUDE.md`, „Členové velké skupiny"). **Zbývá ověřit ve skupině, kde členy
+    vidět jsou** — testovací účet v takové velké není; ověřené je to sondou s malou stránkou.
 - **Hledání.** ~~Chaty ve všech složkách (lokálně i na serveru), historie hledání a nejčastější
   lidé, totéž ve výběru pro přeposílání a sdílení~~ — hotovo (`ChatSearch`, poučení
   v `CLAUDE.md`, „Hledání chatů"). Zbývá, po krocích:

@@ -236,6 +236,9 @@
     <string name="profile_tab_links">Links</string>
     <string name="profile_tab_media">Media</string>
     <string name="profile_tab_members">Members</string>
+    <string name="profile_members_search">Search members</string>
+    <string name="profile_members_search_empty">No one found</string>
+    <string name="profile_members_hidden">This group hides its members. Only admins are listed.</string>
     <string name="profile_unmute">Unmute</string>
     <string name="profile_shared_file_meta">%1$s · %2$s</string>
     <string name="profile_shared_link">Link</string>

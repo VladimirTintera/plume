@@ -26,7 +26,8 @@ import eu.tintera.plume.features.report.ReportFlow
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.ProfileKind
-import eu.tintera.plume.core.telegram.ProfileMember
+import eu.tintera.plume.core.telegram.MEMBERS_PAGE_SIZE
+import eu.tintera.plume.core.telegram.MemberPage
 import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
@@ -57,6 +58,8 @@ import eu.tintera.plume.resources.document_download_failed
 import eu.tintera.plume.resources.document_open_failed
 import eu.tintera.plume.resources.profile_shared_failed
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withTimeoutOrNull
@@ -84,6 +87,10 @@ class ChatProfileViewModel(
     /** Běžící stahování podle `fileId`; druhé ťuknutí ho zruší. */
     private val documentJobs = mutableMapOf<Int, Job>()
 
+    /** První stránka členů (i hledání); nová ji ruší. */
+    private var membersJob: Job? = null
+    private var moreMembersJob: Job? = null
+
     private val _state = MutableStateFlow(ChatProfileState())
     val state: StateFlow<ChatProfileState> = _state.asStateFlow()
 
@@ -95,7 +102,7 @@ class ChatProfileViewModel(
             profiles.profile(chatId)
                 .onSuccess { profile ->
                     _state.update { it.copy(profile = profile, loading = false) }
-                    if (profile.canListMembers) loadMembers()
+                    if (profile.canListMembers) loadMembers(query = "")
                     if (profile.kind == ProfileKind.User) observePresence()
                 }
                 .onFailure { failure ->
@@ -243,14 +250,65 @@ class ChatProfileViewModel(
         }
     }
 
-    private fun loadMembers() {
-        viewModelScope.launch {
-            profiles.members(chatId)
-                .onSuccess { members -> _state.update { it.copy(members = members) } }
-                // Bez členů je profil pořád k užitku; hlásit to snackbarem by jen rušilo.
+    /**
+     * Hledání v záložce Členové. Text drží pole samo; sem jde kvůli dotazu na server, s pauzou,
+     * aby se neptalo na každé písmeno. Do té doby zůstávají předchozí výsledky — seznam by jinak
+     * při každém znaku problikl načítáním.
+     */
+    fun searchMembers(query: String) {
+        _state.update { it.copy(memberQuery = query) }
+        val search = query.trim()
+        if (search == _state.value.members.query && membersJob?.isActive != true) return
+        loadMembers(search, delayed = true)
+    }
+
+    /**
+     * První stránka členů (i po obnovení). Každé volání zruší předchozí, takže pomalá odpověď na
+     * „ja" nepřepíše výsledky pro „jana" — a s ní i rozdělané dotahování další stránky.
+     */
+    private fun loadMembers(query: String, delayed: Boolean = false, limit: Int = MEMBERS_PAGE_SIZE) {
+        moreMembersJob?.cancel()
+        membersJob?.cancel()
+        membersJob = viewModelScope.launch {
+            if (delayed) delay(MEMBER_SEARCH_DELAY)
+            val result = profiles.members(chatId, query, offset = 0, limit = limit)
+            // Repository chytá výjimky do `Result`, i zrušení; zrušený dotaz stav měnit nesmí.
+            ensureActive()
+            result
+                .onSuccess { page -> _state.update { it.copy(members = it.members.withFirstPage(query, page)) } }
+                // Bez členů je profil pořád k užitku; hlásit to snackbarem by jinak jen rušilo.
                 .onFailure { failure ->
                     logger.w(failure) { "Členy chatu se nepodařilo načíst." }
-                    _state.update { it.copy(members = emptyList()) }
+                    _state.update { it.copy(members = it.members.withFirstPage(query, MemberPage(emptyList(), null))) }
+                }
+        }
+    }
+
+    /** Další stránka; spouští ji seznam, když se doroluje ke konci. */
+    fun loadMoreMembers() {
+        val list = _state.value.members
+        val offset = list.nextOffset
+        if (!list.canLoadMore || offset == null) return
+        val query = list.query
+        _state.update { it.copy(members = it.members.copy(loadingMore = true)) }
+        moreMembersJob = viewModelScope.launch {
+            val result = profiles.members(chatId, query, offset = offset)
+            ensureActive()
+            result
+                .onSuccess { page ->
+                    val before = _state.value.members.members?.size
+                    _state.update { it.copy(members = it.members.withNextPage(query, offset, page)) }
+                    /*
+                     * Stránka bez nikoho nového (samé smazané účty, samí správci z první stránky)
+                     * seznam neprodlouží, a seznam, který se neprodloužil, si o další stránku
+                     * znovu neřekne. Dotahuje se proto hned tady.
+                     */
+                    val after = _state.value.members
+                    if (after.members?.size == before) loadMoreMembers()
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Další členy chatu se nepodařilo načíst." }
+                    _state.update { it.copy(members = it.members.withFailedPage(query, offset)) }
                 }
         }
     }
@@ -516,7 +574,7 @@ class ChatProfileViewModel(
             action()
                 .onSuccess {
                     _state.update { it.copy(error = success) }
-                    loadMembers()
+                    reloadMembers()
                 }
                 .onFailure { failure ->
                     _state.update { it.copy(error = failure.reported(Res.string.profile_action_failed)) }
@@ -524,15 +582,23 @@ class ChatProfileViewModel(
         }
     }
 
-    /** Po návratu z úpravy práv: role v seznamu se mohla změnit, a s ní i to, co sami smíme. */
+    /**
+     * Po návratu z úpravy práv: role v seznamu se mohla změnit, a s ní i to, co sami smíme.
+     *
+     * Čte se tolik členů, kolik už jich bylo vidět ([MemberList.reloadLimit]) — s jedinou stránkou
+     * by seznam pod člověkem, se kterým se zrovna něco dělalo, zmizel. A s dotazem, který je
+     * v poli, ne s tím, na který se naposledy odpovědělo: rozepsané hledání se tím nezahodí.
+     */
     fun reloadMembers() {
-        if (_state.value.profile?.canListMembers == true) loadMembers()
+        if (_state.value.profile?.canListMembers != true) return
+        val state = _state.value
+        loadMembers(state.memberQuery.trim(), limit = state.members.reloadLimit)
     }
 
     private fun reloadProfile() {
         viewModelScope.launch {
             profiles.profile(chatId).onSuccess { profile -> _state.update { it.copy(profile = profile) } }
-            loadMembers()
+            reloadMembers()
         }
     }
 
@@ -557,8 +623,10 @@ class ChatProfileViewModel(
 data class ChatProfileState(
     val profile: ChatProfile? = null,
     val loading: Boolean = true,
-    /** `null` = načítají se, prázdné = nejsou nebo je server nevydal. */
-    val members: List<ProfileMember>? = null,
+    /** Načtení členové; prázdné = nejsou, nenašli se, nebo je server nevydal. */
+    val members: MemberList = MemberList(),
+    /** Text v poli hledání členů — může předbíhat [MemberList.query], dokud server neodpoví. */
+    val memberQuery: String = "",
     val presence: Presence? = null,
     /** `null`, dokud chat repository nezná — tlačítko se pak nekreslí. */
     val muted: Boolean? = null,
@@ -609,6 +677,14 @@ data class ChatProfileState(
             }
         }
 
+    /**
+     * Hledání členů se nabízí jen tam, kde se nevejdou na jednu stránku — u skupiny o pár lidech
+     * by pole jen ubíralo místo. A ne ve skupině se skrytými členy: hledalo by jen mezi správci. Rozepsané hledání se ale neschová, ani kdyby se počet změnil.
+     */
+    val memberSearchAvailable: Boolean
+        get() = profile?.membersHidden != true &&
+            ((profile?.memberCount ?: 0) > MEMBERS_PAGE_SIZE || memberQuery.isNotEmpty())
+
     /** Zpráva z načtených záložek — pro otevření souboru nemusíme vědět, ze které je. */
     fun sharedMessage(messageId: Long): ChatMessage? =
         shared.values.firstNotNullOfOrNull { tab -> tab.messages.firstOrNull { it.id == messageId } }
@@ -629,6 +705,9 @@ data class SharedMediaTab(
     val loading: Boolean = false,
     val reachedEnd: Boolean = false,
 )
+
+/** Pauza v psaní, po které se hledání členů zeptá serveru. */
+private const val MEMBER_SEARCH_DELAY = 300L
 
 /** Na rozběh stahování se čeká jen chvíli; bez toho by mrtvé spojení nechalo kolečko točit se napořád. */
 private const val DOWNLOAD_START_TIMEOUT = 10_000L

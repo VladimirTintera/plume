@@ -4077,8 +4077,39 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
   (lokálně), aby byly klikatelné jako v bio (to je `FormattedText` rovnou). Bot bio nemá, bere se
   `botInfo.shortDescription`.
 - **Členové jen tam, kde je server vydá** (`canListMembers`: malá skupina vždy, supergroup podle
-  `canGetMembers`, kanál ne). Vlastník a správci napřed, nejvýš `MAX_PROFILE_MEMBERS`; smazané
-  účty (bez jména) a kdo odešel se vynechají. Ťuknutí na člena otevře soukromý chat.
+  `canGetMembers`, kanál ne). Smazané účty (bez jména) a kdo odešel se vynechají. Ťuknutí na
+  člena otevře soukromý chat.
+
+### Členové velké skupiny
+
+Záložka Členové se stránkuje po 50 (`MEMBERS_PAGE_SIZE`) a u skupiny, která se na stránku
+nevejde, má nad seznamem pole hledání (`MemberList`, testy `MemberListTest`).
+
+- **`searchChatMembers` stránkovat NEUMÍ** — nemá `offset`, jen `limit` do 200. Dřív se proto
+  ukazovalo prvních 200 a dál nic. Supergroup se čte `getSupergroupMembers` s filtrem
+  (`Recent`, s dotazem `Search`) a posunem; základní skupina má nejvýš pár set členů a vydá je
+  `searchChatMembers` naráz.
+- **Vlastník a správci napřed jen na první stránce bez dotazu** (samostatný dotaz s filtrem
+  `Administrators`). Setřídit celý seznam podle role nejde, další stránky přicházejí až potom.
+  Server správce vrací i mezi nedávnými, takže se **tentýž člověk na dvou stránkách drží jednou**
+  (`distinctBy`) — dva stejné klíče by `LazyColumn` shodily. Totéž hrozí, když se mezitím někdo
+  přidá a celá řada se posune o místo.
+- **Posun další stránky se počítá ze SUROVÉ odpovědi**, ne z vyfiltrovaného seznamu, a konec
+  z `totalCount`. Stránka, ze které po odfiltrování nezbyl nikdo nový, seznam neprodlouží —
+  a seznam, který se neprodloužil, si o další stránku sám neřekne; ViewModel ji proto dotáhne hned.
+- **Repository chytá do `Result` i zrušení korutiny** (`runCatching` chytí
+  `CancellationException`). Zrušené hledání by tím prošlo jako selhání a přepsalo výsledky
+  prázdnem — po návratu z repository proto `ensureActive()`.
+- **Skupina se skrytými členy vydá běžnému členovi JEN SPRÁVCE** (`hasHiddenMembers`), i při
+  hledání a i s `canGetMembers == true`. Velké veřejné skupiny to mívají zapnuté skoro vždycky
+  (Android Developers: 16 z 11 168, Kotlin Community: 22 z 6 840). Záložka to říká větou nad
+  seznamem (`ChatProfile.membersHidden`) a hledání se nenabízí; bez vysvětlení to vypadalo jako
+  nedotažený seznam. **Nečlenovi veřejné skupiny server taky vydá jen správce.**
+- **Ověřit to jde jen ve skupině, kde je účet ČLENEM a členy nevidí skryté** — a takovou
+  testovací účet nemá. Stránkování se proto ověřilo sondou (stránka po 3) na Android Developers:
+  šest stránek po sobě, konec podle `totalCount`, s i bez správců napřed. **Pozor na kontrolu
+  proti botům:** skupiny pouštějí nové členy až po ťuknutí na tlačítko pod zprávou od svého bota,
+  a Plume tlačítka botů zatím nekreslí — napsaná odpověď se nepočítá.
 - **Uložené zprávy profil nemají** — hlavička v nich není klikatelná.
 - **Počty se oddělují po tisících úzkou nezlomitelnou mezerou** (`Int.grouped()` v `core/ui`) —
   „10704668 odběratelů" se nedalo přečíst. Commonmain `NumberFormat` nemá; mezera je čitelná

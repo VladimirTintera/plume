@@ -6,6 +6,7 @@ import dev.g000sha256.tdl.dto.CanTransferOwnershipResultPasswordTooFresh
 import dev.g000sha256.tdl.dto.CanTransferOwnershipResultSessionTooFresh
 import dev.g000sha256.tdl.dto.Chat
 import dev.g000sha256.tdl.dto.ChatAdministratorRights
+import dev.g000sha256.tdl.dto.ChatMember
 import dev.g000sha256.tdl.dto.ChatMemberStatus
 import dev.g000sha256.tdl.dto.ChatMemberStatusMember
 import dev.g000sha256.tdl.dto.ChatMemberStatusRestricted
@@ -28,12 +29,16 @@ import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.InputChatPhotoStatic
 import dev.g000sha256.tdl.dto.InputFileLocal
 import dev.g000sha256.tdl.dto.MessageSenderUser
+import dev.g000sha256.tdl.dto.SupergroupMembersFilterAdministrators
+import dev.g000sha256.tdl.dto.SupergroupMembersFilterRecent
+import dev.g000sha256.tdl.dto.SupergroupMembersFilterSearch
 import dev.g000sha256.tdl.dto.UserTypeBot
 import dev.g000sha256.tdl.toResult
 
 /**
  * [ProfileRepository] nad TDLib: `getChat` + podrobnosti podle druhu chatu (`getUserFullInfo`,
- * `getBasicGroupFullInfo`, `getSupergroupFullInfo`) a `searchChatMembers`.
+ * `getBasicGroupFullInfo`, `getSupergroupFullInfo`), členy `getSupergroupMembers`
+ * (u základní skupiny `searchChatMembers`).
  */
 class TdlProfileRepository(
     private val holder: TelegramClientHolder,
@@ -87,6 +92,9 @@ class TdlProfileRepository(
                     memberCount = (full?.memberCount ?: group?.memberCount)?.takeIf { it > 0 },
                     // Kanál členy vydá jen správcům a skupina se skrytými členy vůbec.
                     canListMembers = !type.isChannel && full?.canGetMembers == true,
+                    // Skryté členy vidí jen správci; ostatním server vrací samé správce.
+                    membersHidden = full?.hasHiddenMembers == true &&
+                        client.ownMemberStatus(chat).let { it !is OwnMemberStatus.Creator && it !is OwnMemberStatus.Admin },
                     inviteLink = full?.inviteLink?.inviteLink?.takeIf { it.isNotBlank() },
                     isMember = client.ownMemberStatus(chat).isMember(),
                     editRights = chatEditRights(
@@ -203,32 +211,78 @@ class TdlProfileRepository(
         return FormattedText(text = text, entities = entities).toBody()
     }
 
-    override suspend fun members(chatId: Long): Result<List<ProfileMember>> =
-        client.searchChatMembers(chatId = chatId, query = "", limit = MAX_PROFILE_MEMBERS, filter = null)
-            .toResult()
-            .map { found ->
-                found.members.filterNotNull()
-                    .mapNotNull { member ->
-                        val userId = (member.memberId as? MessageSenderUser)?.userId ?: return@mapNotNull null
-                        val role = when (member.status) {
-                            is ChatMemberStatusCreator -> MemberRole.Owner
-                            is ChatMemberStatusAdministrator -> MemberRole.Admin
-                            // Kdo odešel nebo byl vyhozen, člen není.
-                            is ChatMemberStatusLeft, is ChatMemberStatusBanned -> return@mapNotNull null
-                            else -> MemberRole.Member
-                        }
-                        member(userId)?.let { (sender, isBot) ->
-                            ProfileMember(
-                                sender = sender,
-                                role = role,
-                                tag = member.tag.trim().ifEmpty { null },
-                                isBot = isBot,
-                            )
-                        }
-                    }
-                    // Vlastník a správci napřed; uvnitř role pořadí od serveru.
-                    .sortedBy { it.role.ordinal }
+    override suspend fun members(chatId: Long, query: String, offset: Int, limit: Int): Result<MemberPage> =
+        runCatching {
+            val search = query.trim()
+            val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+            val type = chat.type
+            if (type !is ChatTypeSupergroup) {
+                // Základní skupina vydá všechny naráz; stránkovat se nemá co.
+                val found = client.searchChatMembers(
+                    chatId = chatId,
+                    query = search,
+                    limit = MAX_MEMBERS_REQUEST,
+                    filter = null,
+                ).toResult().getOrThrow()
+                val members = found.members.filterNotNull().toProfileMembers()
+                return@runCatching MemberPage(
+                    members = if (search.isEmpty()) members.sortedBy { it.role.ordinal } else members,
+                    nextOffset = null,
+                )
             }
+
+            val page = client.getSupergroupMembers(
+                supergroupId = type.supergroupId,
+                filter = if (search.isEmpty()) SupergroupMembersFilterRecent() else SupergroupMembersFilterSearch(query = search),
+                offset = offset,
+                limit = limit.coerceIn(1, MAX_MEMBERS_REQUEST),
+            ).toResult().getOrThrow()
+            val raw = page.members.filterNotNull()
+            // Konec: prázdná stránka, nebo server říká, že víc jich není. Posun z SUROVÉ odpovědi.
+            val next = offset + raw.size
+            val nextOffset = next.takeIf { raw.isNotEmpty() && it < page.totalCount }
+
+            /*
+             * Vlastník a správci napřed, jen na první stránce bez dotazu. Nedávní je vracejí
+             * někde mezi ostatními; setřídit je nejde, protože další stránky přicházejí až potom.
+             * Selhání tohohle dotazu stránku nezahodí — správci se pak objeví mezi nedávnými.
+             */
+            val admins = if (offset == 0 && search.isEmpty()) {
+                client.getSupergroupMembers(
+                    supergroupId = type.supergroupId,
+                    filter = SupergroupMembersFilterAdministrators(),
+                    offset = 0,
+                    limit = MAX_MEMBERS_REQUEST,
+                ).toResult().getOrNull()?.members?.filterNotNull().orEmpty()
+                    .toProfileMembers()
+                    .sortedBy { it.role.ordinal }
+            } else {
+                emptyList()
+            }
+            MemberPage(
+                members = (admins + raw.toProfileMembers()).distinctBy { it.sender.id },
+                nextOffset = nextOffset,
+            )
+        }
+
+    private suspend fun List<ChatMember>.toProfileMembers(): List<ProfileMember> = mapNotNull { member ->
+        val userId = (member.memberId as? MessageSenderUser)?.userId ?: return@mapNotNull null
+        val role = when (member.status) {
+            is ChatMemberStatusCreator -> MemberRole.Owner
+            is ChatMemberStatusAdministrator -> MemberRole.Admin
+            // Kdo odešel nebo byl vyhozen, člen není.
+            is ChatMemberStatusLeft, is ChatMemberStatusBanned -> return@mapNotNull null
+            else -> MemberRole.Member
+        }
+        member(userId)?.let { (sender, isBot) ->
+            ProfileMember(
+                sender = sender,
+                role = role,
+                tag = member.tag.trim().ifEmpty { null },
+                isBot = isBot,
+            )
+        }
+    }
 
     /** Člen a jestli je to bot — obojí z jednoho `getUser`. */
     private suspend fun member(userId: Long): Pair<SenderInfo, Boolean>? {
