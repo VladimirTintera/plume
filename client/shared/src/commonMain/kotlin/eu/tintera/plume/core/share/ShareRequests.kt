@@ -44,9 +44,9 @@ class ShareRequests {
     }
 
     /** Soubory jsou v cache; [failed] se nepodařilo připravit a konverzace to ohlásí. */
-    fun prepared(id: Long, attachments: List<OutgoingAttachment>, failed: Int) {
+    fun prepared(id: Long, attachments: List<OutgoingAttachment>, failed: Int, sources: Map<String, String> = emptyMap()) {
         current.update { content ->
-            content?.takeIf { it.id == id }?.copy(attachments = attachments, failed = failed) ?: content
+            content?.takeIf { it.id == id }?.copy(attachments = attachments, failed = failed, sources = sources) ?: content
         }
     }
 
@@ -103,6 +103,11 @@ data class SharedContent(
     val attachments: List<OutgoingAttachment>?,
     /** Kolik souborů se nepodařilo připravit. */
     val failed: Int = 0,
+    /**
+     * Odkud která příloha přišla: cesta v cache → URI od sdílející aplikace. Galerie podle něj
+     * pozná sdílenou fotku mezi svými, takže ji po ťuknutí nepřidá podruhé (`EmbeddedMediaPicker`).
+     */
+    val sources: Map<String, String> = emptyMap(),
     /** Vybraný chat; `null`, dokud se vybírá. */
     val targetChatId: Long? = null,
     /**

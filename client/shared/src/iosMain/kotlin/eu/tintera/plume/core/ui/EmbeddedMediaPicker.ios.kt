@@ -25,8 +25,10 @@ actual fun rememberEmbeddedMediaSelection(): EmbeddedMediaSelection = NoSelectio
 actual fun EmbeddedMediaPicker(
     selection: EmbeddedMediaSelection,
     pickedPaths: List<String>,
+    sources: Map<String, String>,
     allowPhotos: Boolean,
     allowVideos: Boolean,
+    expanded: Boolean,
     onPicked: (List<OutgoingAttachment>) -> Unit,
     onUnpicked: (List<String>) -> Unit,
     onError: (UiText) -> Unit,

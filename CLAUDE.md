@@ -2366,10 +2366,29 @@ rozhoduje `embeddedMediaPickerAvailable()`.
   Odznačená položka se hlásí jako URI od pickeru, ale konverzace zná přílohy podle CESTY do
   cache — proto si `actual` drží mapu URI → cesta a `ConversationViewModel.removeAttachments`
   bere cesty.
-- **Rozbalený stav se NEZAPÍNÁ.** `setPickerLaunchedInExpandedState(true)` (ani
-  `initialExpandedValue`) neznamená „ukaž celou galerii": picker se v něm přepne do VLASTNÍ
-  AKTIVITY — ověřeno na emulátoru, `mCurrentFocus` skočil na `com.google.android.photopicker`
-  a za sheetem zůstala plocha systému. Tím by z vestavěného výběru byl zase ten systémový.
+- **Sbalený picker NEJDE POSOUVAT, takže sheet v konverzaci ho má vždycky rozbalený**
+  (`EmbeddedMediaPicker(expanded = true)` → `state.isExpanded`). Sbalený stav je náhled pro
+  panel, který hostitel teprve táhne nahoru: bez záložek Photos / Collections a se zakázaným
+  scrollováním — v logu pickeru `embeddedCollapsedModeScrollingEnabled=false`, a veřejné API ho
+  zapnout neumí. Náš sheet je celý rozbalený, takže sbalený picker v něm byl mřížka, se kterou
+  nešlo pohnout (hlášeno z Pixelu 11 Pro Foldu jako „zaseklý sheet"). Hodnota nastavená před
+  startem session se promítne do `setPickerLaunchedInExpandedState`, pozdější změna jde přes
+  `notifyPhotoPickerExpanded` — obojí funguje. Sbalený stav má smysl jen tam, kde panel jde
+  vytáhnout (Direct Share, viz níž).
+- **Obnovené zaškrtnutí picker při startu session ohlásí ZNOVU** (`onUriPermissionGranted`
+  s položkami z `initialMediaSelection`). Ty přílohy už nad polem jsou, takže by se přidaly
+  podruhé — po jediném výběru a znovuotevření galerie bylo v dávce „3 z 3". Co už je
+  připravené (klíč v mapě URI → cesta), se proto přeskočí.
+- **Dřívější tvrzení, že rozbalený picker přejde do VLASTNÍ AKTIVITY, se nepotvrdilo.** Na
+  emulátoru s API 37.2 (profil Pixel 10 Pro Fold, rozložený i složený) zůstává `mCurrentFocus`
+  na `MainActivity` a picker kreslí dál do našeho sheetu — i po výběru, odznačení a opětovném
+  otevření. Kdyby se to na nějakém zařízení přesto dělo, pozná se to v logu pickeru podle
+  `embeddedPickerLaunchedInExpandedState=true` a `mCurrentFocus` na
+  `com.google.android.photopicker`; náhradní cesta je nastavit `isExpanded` až PO startu
+  session (pak jde přes `notifyPhotoPickerExpanded`).
+- **Co picker dostal za konfiguraci, je v logu** (`adb logcat | grep PhotopickerConfiguration`):
+  celé `EmbeddedPhotoPickerFeatureInfo` i odvozená konfigurace. Tudy se příčina našla — vzhled
+  (chybějící záložky) napovídal, ale rozhodl řádek `embeddedCollapsedModeScrollingEnabled`.
 - **Picker se zapíná až po DOSEDNUTÍ sheetu.** `SurfaceView` má `setZOrderOnTop(true)` a s posunem
   vrstvy se nehýbe — tatáž vlastnost, kvůli které video v prohlížeči jede do `TextureView`
   a ne přes `PlayerView`. Během vjezdu sheetu by stál na místě a doskočil až na konci.
@@ -2396,8 +2415,13 @@ rozhoduje `embeddedMediaPickerAvailable()`.
   je za `expect`/`actual`: bez ní i bez systémové podpory funguje výběr příloh dál.
 - **Ověřeno na emulátoru** (API 36, extension 20): galerie v sheetu nad konverzací, výběr → fotka
   nad polem, odznačení → fotka zmizí, zavření gestem zpět, zavření a znovuotevření → fotka je
-  pořád zaškrtnutá, po odeslání → zaškrtnutí zmizí. Fallback na starším systému ověřený není —
-  je to dvojpodmínka, pod kterou se `actual` ani nezavolá.
+  pořád zaškrtnutá, po odeslání → zaškrtnutí zmizí.
+- **Fallback ověřený na Androidu 14 (SDK Extensions 7) a 13**: sponka otevře systémový výběr
+  (`PhotoPickerActivity`), vybrané fotky naskočí nad pole, a Direct Share se ukáže bez galerie.
+  Na Androidu 16 (Extensions 17) je vestavěná galerie v sheetu i v Direct Share jako na 17.
+  **Android 14 sám nestačí** — rozhoduje verze SDK Extensions, a obraz emulátoru API 34
+  (`google_apis_playstore` r14) má jen 7; skutečný telefon s Androidem 14 ji mívá vyšší díky
+  aktualizacím Play systému, takže tam galerie být může.
 
 ### Posílání příloh a alb
 
@@ -4360,7 +4384,12 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   už stáhla. V bublině by originál znamenal desítky megabajtů kvůli obrázku širokému pár set bodů.
 - **Prohlížeč nemá metadata list-detail scény**, takže ho scéna nepřevezme a `NavDisplay` ho
   vykreslí přes celou plochu i na širokém rozvržení.
-- **Ořez pozadí je nutný** (`clipToBounds` v `AmbientBackground`). Pozadí sousedů leží posunuté
+- **Pager, sousedé, strop šířky, přisouvání karty a jezdící pozadí jsou `core/ui/MediaCarousel`**,
+  vepsání karty mezi lišty je `core/ui/MediaPageLayout` — obojí sdílí prohlížeč s potvrzením
+  sdílení (Direct Share). Prohlížeč si do stránky dodává zoom, video a režim celé obrazovky
+  (`immersion`), nad carousel kreslí lišty a reakce. Všechno níž o sousedech, šířce a pozadí
+  platí pro obě obrazovky; **nová podoba „snímků vedle sebe" patří do carouselu, ne do obrazovky.**
+- **Ořez pozadí je nutný** (`clipToBounds` v pozadí `MediaCarousel`). Pozadí sousedů leží posunuté
   mimo plochu prohlížeče; bez ořezu prosvítalo vlevo (tehdy přes rail) nerozostřené — rozostření pokrývá
   jen plochu prohlížeče.
 - **Gesta patří FOTCE, ne bublině.** Kdyby ťuknutí odchytávala bublina, sebralo by ho i odkazům
@@ -5573,22 +5602,76 @@ sdílející z Fotek.
 - **Spoiler, mizení i „jako soubor" nabízí tentýž `AttachmentModeSheet`** jako nad vstupním
   polem — jedno místo, kde se o způsobu odeslání rozhoduje, a platí i tytéž meze
   (`selfDestructAllowed`: mizení jen u jediné fotky v soukromém chatu, v Uložených zprávách ne).
-- **Karta má rozměry SNÍMKU, ne plochy.** S obrázkem vepsaným do plochy (`ContentScale.Fit` ve
-  `fillMaxSize`) drží zaoblení i tlačítka plocha: rohy fotky zůstanou hranaté a ✕ visí kus vedle
-  ní. Rámeček se proto počítá z poměru stran přílohy (`aspectRatio`, u snímku na výšku
-  `matchHeightConstraintsFirst`).
-- **Pozadí je rozostřený snímek z `core/ui/MediaBackdrop.kt`**, sdílený s prohlížečem médií
-  i s jeho náhradou pro Android 11. Sdílená fotka je tu hlavní obsah stejně jako v galerii, takže
-  dvě různá pojetí téhož by se přela — a opsaný Haze styl by se rozešel na prvním doladění.
+- **Snímky kreslí TENTÝŽ `MediaCarousel` jako prohlížeč médií**: sousedé vykukují u okrajů,
+  rozostřené pozadí jede s tahem, karta se vepisuje přes `MediaPageLayout` mezi hlavičku a pole
+  na popisek (carousel jde přes celou obrazovku, `reservedBottom` je vzdálenost horní hrany
+  řádku s polem od spodku, takže s klávesnicí se karta zmenší). Obrazovka dodává jen obsah
+  karty (snímek, ✕, volba režimu) a pozadí stránky. **Dřív tu byl vlastní pager přes celou
+  šířku, vlastní rámeček karty a vlastní prolínané pozadí** — sdílel se jen styl rozostření,
+  a jakmile se doladil prohlížeč (sousedé, strop šířky), vypadalo sdílení jako jiná aplikace.
+- **Karta má rozměry SNÍMKU, ne plochy** — zaoblení i ✕ patří fotce. To teď zařizuje
+  `MediaPageLayout` z poměru stran přílohy.
 - **Past: `Avatar(backdrop = …)` s barvou mimo schéma.** `contentColorFor` zná jen role, u vlastní
   barvy vrátí `Unspecified` — a záložka Uložených zpráv se nakreslila černá na černém pozadí.
   Kde roli nezná, rozhoduje `LocalContentColor`.
 - **Víc snímků je `HorizontalPager` s „N z M" v hlavičce**, ne mřížka: album se stejně posílá celé
   a pruh miniatur by zdvojoval to, co umí swipe. ✕ ubírá snímek; odebrání posledního obrazovku
   zavře, protože není co poslat.
+- **Pod popiskem je galerie, přes kterou jde dávku doplnit** (`GalleryPanel` + tentýž
+  `EmbeddedMediaPicker` jako sheet v konverzaci), podle vzoru Google Zpráv. **Sbalená jen
+  vykukuje** a rozvržení s ní počítá (snímek nad ní je celý vidět); vybírat v ní jde, posouvat
+  ne. **Rozbalená vyjede PŘES snímek i pole až pod hlavičku**, nic nezmenšuje — první verze
+  panel natahovala do sloupce a snímek se smrskl na známku. V hlavičce je pak místo ✕ šipka
+  dolů, která panel sbalí; gesto zpět taky nejdřív sbalí (`NavigationBackHandler`).
+- **Galerie má DVĚ ukotvené polohy a zavřít nejde** — dole a nahoře pod hlavičkou. „Hotovo"
+  v pickeru ji jen vrátí dolů. Jediné, čemu ustoupí, je klávesnice při psaní popisku (zabírá
+  totéž místo); po jejím schování je galerie zpátky sama, takže ikona „přidat fotky" v poli
+  tam nemá co dělat.
+- **Kde vestavěná galerie není** (Android pod 14, nebo bez SDK Extensions 15), je v poli na
+  popisek ikona, která otevře **systémový výběr** (`rememberAttachmentPicker`) — jinak by šlo
+  poslat jen to, co přišlo sdílením. Vybrané jdou za sdílené stejně jako z galerie. Systémový
+  výběr fotky vydá pod vlastními URI, takže tu nejde poznat, že uživatel vybral sdílenou fotku
+  podruhé. Ověřeno na emulátoru s Androidem 14 (Extensions 7): ikona otevře
+  `PhotoPickerActivity`, vybraná fotka přibude a carousel na ni přejede; na Foldu s galerií
+  ikona není.
+- **Úchyt je úchyt, ne tlačítko.** Panel jede s prstem (výška sleduje tah, sevřená mezi obě
+  polohy) a po puštění dosedne podle švihnutí, jinak podle toho, kam dojel (přes půl cesty
+  nahoru). Ťuknutí prstem nedělá nic — první verze úchytem jen přepínala a uživatel správně
+  namítl, že úchyt, který nejde táhnout, je tlačítko převlečené za něco jiného. Čtečka obrazovky
+  tahat neumí, proto má úchyt rozbalení a sbalení jako akce (`semantics { expand / collapse }`).
+- **Tah se chytá jen na úchytu**, ne na mřížce — tu kreslí cizí okno (`SurfaceView`), které si
+  dotyky bere samo. Obsah pickeru za panelem při tahu a animaci o kus zaostává (picker se
+  překresluje po `notifyResized`), po dosednutí sedí.
+- **Tah se na emulátoru ověřuje `input motionevent DOWN/MOVE`, snímek, pak `UP`** — `input swipe`
+  je hotové gesto a mezistav s panelem pod prstem nezachytí.
+- **Dobrané snímky jdou ZA sdílené** a pager na ně přejede. Odznačení v galerii obrazovku
+  nezavírá ani u posledního snímku (je to oprava výběru), ✕ na posledním snímku ano. Po ✕ se
+  galerie otevře znovu (`removals` jako klíč): zaškrtnutí si obnovuje jen při otevření.
+- **Sdílená fotka v galerii zaškrtnutá NENÍ a být nemůže.** MediaProvider předvýběr odmítne
+  („MediaQuery:PreSelection: … package does not have permission for the uri"): předvybrat jde
+  jen fotku, ke které aplikace dostala oprávnění PŘES PICKER, a sdílená přišla s oprávněním
+  k URI jiné aplikace. Obejít by to šlo jen oprávněním ke čtení celé knihovny fotek, a to kvůli
+  jednomu zaškrtnutí nestojí za to (a Play ho hlídá). Galerie ji ale pozná (`SharedContent.sources`,
+  `pickerUriFor`): picker drží místní fotky jako `content://media/picker/<uživatel>/
+  com.android.providers.media.photopicker/media/<id MediaStore>`, takže MediaStore URI i URI
+  zabalené v cestě Fotek Google jde převést. Ťuknutí na sdílenou fotku ji proto nepřidá podruhé
+  a odznačení ji z dávky odebere.
+- **Odebraný snímek odchází animací, ne skokem** (`ShownAttachments`, `SharedPhoto(leaving)`).
+  Pager odebrání stránky animovat neumí — chybějící stránka zmizí a soused naskočí na její
+  místo. Odebraný snímek (odznačený v galerii i ✕) proto v carouselu chvíli zůstane: karta se
+  stáhne a zprůhlední, a byl-li zobrazený, carousel dojede na souseda (další, u posledního
+  předchozí); teprve pak stránka zmizí. Pager drží pozici podle klíče, takže odebrání stránky,
+  ze které už odjel, s ním nepohne. Stránky tím nejsou 1:1 s přílohami — index do ViewModelu
+  (✕, režim) se hledá podle cesty. Znovu zaškrtnutý snímek se během odchodu vrátí.
+- **Zpomalené animace pro snímky ukládej mimo `/sdcard`** (`/data/local/tmp`): PNG v `/sdcard`
+  MediaStore zaindexuje a objeví se v testované galerii.
+- **Hláška (snackbar) stojí nad polem**, ne u spodku — galerie je `SurfaceView` nad vším.
 - **Ověřeno na emulátoru** (jedna fotka i dvě z Fotek): obrazovka, spoiler, mizení v chatu s botem
   a jeho nepřítomnost v Uložených zprávách, popisek, odeslání s otevřením konverzace, ✕ s návratem
-  do zdrojové aplikace. **Přes `adb` jde poslat jen JEDNA příloha** — `EXTRA_STREAM` jako seznam
+  do zdrojové aplikace. Galerie (profil Pixel 10 Pro Fold, API 37.2, rozložený i složený): výběr
+  ve sbalené, tah s panelem pod prstem a dosednutí do obou poloh, tah dolů ze spodní polohy
+  galerii nezavře, ťuknutí na úchyt nic nedělá, scroll v rozbalené, šipka i gesto zpět,
+  znovuotevření bez zdvojení a odeslání alba dvou snímků s popiskem. **Přes `adb` jde poslat jen JEDNA příloha** — `EXTRA_STREAM` jako seznam
   `am start` neumí (`--eu` je jedna hodnota) a `--grant-read-uri-permission` platí pro `data`
   URI, ne pro extras: bez `-d <totéž URI>` aplikace soubor nepřečte, `getType` vrátí `null`
   a sdílení se zachová jako u dokumentu. Víc fotek se musí proklikat z Fotek.

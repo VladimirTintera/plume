@@ -376,6 +376,9 @@
     <string name="share_failed_files">Some shared files couldn't be prepared</string>
     <string name="share_to_recipient">To: %1$s</string>
     <string name="share_to_caption">Add a caption</string>
+    <string name="share_to_add_media">Add photos or videos</string>
+    <string name="share_to_collapse_gallery">Collapse gallery</string>
+    <string name="share_to_expand_gallery">Expand gallery</string>
     <string name="forward_search">Search chats</string>
     <string name="forward_empty">No chat matches the search.</string>
     <string name="forward_failed">The message could not be forwarded.</string>

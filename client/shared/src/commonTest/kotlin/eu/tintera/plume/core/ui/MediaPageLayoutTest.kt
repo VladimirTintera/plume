@@ -1,4 +1,4 @@
-package eu.tintera.plume.features.media
+package eu.tintera.plume.core.ui
 
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect

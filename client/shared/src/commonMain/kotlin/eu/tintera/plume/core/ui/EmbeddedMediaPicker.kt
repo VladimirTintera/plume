@@ -60,9 +60,25 @@ expect fun EmbeddedMediaPicker(
      * křížkem nebo odeslal, z výběru vypadne samo, aniž by to panel musel sledovat.
      */
     pickedPaths: List<String>,
+    /**
+     * Přílohy, které do dávky přišly odjinud (sdílení z jiné aplikace): cesta → původní URI.
+     *
+     * Sdílená fotka z Fotek je v mřížce taky. **Zaškrtnutá se neukáže** — systém předvybere jen
+     * fotku, ke které aplikace dostala oprávnění přes výběr fotek, a sdílenou odmítne. Galerie ji
+     * ale pozná: ťuknutí na ni ji nepřidá podruhé a odznačení ji z dávky odebere ([onUnpicked])
+     * jako kteroukoli jinou. Co galerie nezná (soubor z cizí aplikace), zůstane jen v dávce.
+     */
+    sources: Map<String, String> = emptyMap(),
     /** Co chat přijme; zakázaný druh galerie vůbec nenabídne. Aspoň jedno musí být `true`. */
     allowPhotos: Boolean,
     allowVideos: Boolean,
+    /**
+     * Rozbalená galerie: záložky, celá mřížka a scrollování. **Sbalená je jen náhled** — bez
+     * záložek a posouvat se v ní nedá (na Androidu to picker zakazuje sám a veřejné API to
+     * změnit neumí). Sbalenou má smysl ukázat jen v panelu, který jde vytáhnout nahoru;
+     * kde je galerie celá vidět (sheet v konverzaci), musí být rozbalená.
+     */
+    expanded: Boolean,
     onPicked: (List<OutgoingAttachment>) -> Unit,
     onUnpicked: (List<String>) -> Unit,
     onError: (UiText) -> Unit,

@@ -2,7 +2,10 @@ package eu.tintera.plume.features.media
 
 import androidx.compose.ui.platform.LocalHapticFeedback
 import eu.tintera.plume.core.ui.MEDIA_CARD_CORNER
-import eu.tintera.plume.core.ui.ambientBlurStyle
+import eu.tintera.plume.core.ui.MEDIA_PAGE_VERTICAL_GAP
+import eu.tintera.plume.core.ui.MediaCarousel
+import eu.tintera.plume.core.ui.MediaPageLayout
+import eu.tintera.plume.core.ui.aspectRatioOf
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import androidx.compose.animation.AnimatedVisibility
@@ -20,7 +23,6 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -36,7 +38,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -87,14 +88,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.blur.HazeBlurStyle
-import dev.chrisbanes.haze.blur.hazeBlur
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
 import eu.tintera.plume.core.files.rememberSaveAs
 import eu.tintera.plume.core.files.rememberSavePermission
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -358,33 +355,35 @@ private fun ViewerContent(
     val topInset = with(density) { WindowInsets.statusBars.getTop(this).toDp() } + TOP_BAR_HEIGHT
     val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() } + BOTTOM_BAR_HEIGHT
 
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        AmbientBackground(items, pagerState, immersion, Modifier.fillMaxSize().then(fadeWithDismiss))
-
-        // Na širokém displeji má stránka strop, jinak by sousedé leželi daleko za okrajem.
-        val galleryInset = max(PAGE_INSET.value, ((maxWidth - MAX_PAGE_WIDTH) / 2).value).dp
-        // Na širokém displeji je kolem karty místa dost a těsná mezera by z ní dělala stěnu.
-        val galleryGap = if (galleryInset > PAGE_INSET) WIDE_PAGE_GAP else PAGE_GAP
-        /*
-         * Na celé obrazovce má stránka celou šířku. Pager bere odsazení jen jako hodnotu, takže
-         * se tady čte v kompozici — přechod mezi režimy tím rekomponuje, ale jen po dobu animace.
-         */
-        val progress = immersion()
-        val pageInset = lerp(galleryInset, 0.dp, progress)
-        val pageGap = lerp(galleryGap, IMMERSIVE_PAGE_GAP, progress)
-
-        HorizontalPager(
-            state = pagerState,
-            key = { latestItems[it].messageId },
-            // Sousední stránky vykukují u okrajů.
-            contentPadding = PaddingValues(horizontal = pageInset),
-            pageSpacing = pageGap,
-            // Soused se skládá dopředu, ať při listování naskočí hned i s už staženým náhledem.
-            beyondViewportPageCount = 1,
+    Box(Modifier.fillMaxSize()) {
+        MediaCarousel(
+            pagerState = pagerState,
+            pageKey = { latestItems[it].messageId },
+            immersion = immersion,
+            backdropModifier = fadeWithDismiss,
             modifier = Modifier.fillMaxSize(),
-        ) { page ->
+            // Pozadí bere malý náhled, ne ostrou verzi: pod rozostřením detail nic nepřidá
+            // a náhled je na disku skoro vždycky, protože ho kreslila konverzace.
+            backdrop = { index ->
+                val fileId = when (val media = latestItems.getOrNull(index)?.media) {
+                    is MessageMedia.Photo -> media.thumbnailFileId ?: media.fileId
+                    is MessageMedia.Video -> media.thumbnailFileId
+                    else -> null
+                }
+                if (fileId != null) {
+                    RemoteImage(
+                        fileId = fileId,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        background = Color.Transparent,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            },
+        ) { carouselPage ->
+            val page = carouselPage.index
             val item = latestItems[page]
-            val isCurrent = page == pagerState.currentPage
+            val isCurrent = carouselPage.isCurrent
             val hasSpoiler = when (val m = item.media) {
                 is MessageMedia.Photo -> m.hasSpoiler
                 is MessageMedia.Video -> m.hasSpoiler
@@ -394,17 +393,11 @@ private fun ViewerContent(
             val onReveal = { revealedSpoilers.reveal(item.messageId) }
             // Karta leží mezi lištami; stránka sama jde přes celou výšku, aby přiblížená fotka
             // měla kam růst.
-            val captionAlpha = { 1f - abs(pagerState.getOffsetDistanceInPages(page)).coerceIn(0f, 1f) }
-            /*
-             * Karta užší než stránka (fotka na výšku, široký displej) by vycentrovaná ležela daleko
-             * od okraje a soused by nebyl vidět vůbec. Sousední karta se proto přisouvá k okraji
-             * blíž aktuální stránce — plynule s tahem, takže uprostřed obrazovky stojí vždy na středu.
-             */
-            // Na celé obrazovce se nepřisouvá: sousedé vidět nemají.
-            val cardBias = { (-pagerState.getOffsetDistanceInPages(page)).coerceIn(-1f, 1f) * (1f - immersion()) }
+            val captionAlpha = carouselPage.captionAlpha
+            val cardBias = carouselPage.cardBias
             val pageModifier = Modifier.fillMaxSize()
-            val reservedTop = topInset + PAGE_VERTICAL_GAP
-            val reservedBottom = bottomInset + PAGE_VERTICAL_GAP
+            val reservedTop = topInset + MEDIA_PAGE_VERTICAL_GAP
+            val reservedBottom = bottomInset + MEDIA_PAGE_VERTICAL_GAP
             when (val media = item.media) {
                 is MessageMedia.Video -> VideoPage(
                     video = media,
@@ -557,67 +550,6 @@ private fun SelfDestructTopBar(
                 )
             }
         }
-    }
-}
-
-/**
- * Rozostřené snímky přes celou obrazovku, které **jezdí s pagerem**.
- *
- * Kreslí se pozadí aktuální stránky i obou sousedů vedle sebe a posouvají se o tentýž zlomek
- * stránky jako karty (`currentPageOffsetFraction`, čtený až při kreslení). Pozadí se tak mění
- * spolu s tahem, ne skokem až po přeskočení na další stránku. Šev mezi dvěma pozadími změkčí
- * samo rozostření — Haze rozmazává složený obraz, ne každý snímek zvlášť.
- *
- * Bere se **malý náhled**, ne ostrá verze: pod rozostřením detail nic nepřidá a náhled je na
- * disku skoro vždycky, protože ho kreslila konverzace. Rozostřuje Haze jako závoj pod nabídkou
- * nad zprávou — ten má i náhradu pro Android 11 a starší, kde se kreslí jen tmavý závoj.
- */
-@Composable
-private fun AmbientBackground(
-    items: List<ViewerItem>,
-    pagerState: PagerState,
-    /** Na celé obrazovce rozostřené pozadí mizí do černé. */
-    immersion: () -> Float,
-    modifier: Modifier = Modifier,
-) {
-    val hazeState = rememberHazeState()
-    val style = ambientBlurStyle()
-    val current = pagerState.currentPage
-
-    // Ořez je nutný: pozadí sousedů leží posunuté mimo plochu a na širokém rozvržení by vlevo
-    // přes rail prosvítalo nerozostřené (rozostření pokrývá jen plochu prohlížeče).
-    Box(modifier.clipToBounds().background(Color.Black)) {
-        // Zmizelé pozadí se nekreslí vůbec — rozostření by jinak běželo pod černou dál.
-        if (immersion() >= 1f) return@Box
-        Box(Modifier.fillMaxSize().hazeSource(hazeState).graphicsLayer { alpha = 1f - immersion() }) {
-            for (page in (current - 1)..(current + 1)) {
-                val item = items.getOrNull(page) ?: continue
-                val fileId = when (val media = item.media) {
-                    is MessageMedia.Photo -> media.thumbnailFileId ?: media.fileId
-                    is MessageMedia.Video -> media.thumbnailFileId
-                    else -> null
-                } ?: continue
-                key(item.messageId) {
-                    RemoteImage(
-                        fileId = fileId,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        background = Color.Transparent,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                translationX = (page - pagerState.currentPage - pagerState.currentPageOffsetFraction) * size.width
-                            },
-                    )
-                }
-            }
-        }
-        Box(
-            Modifier
-                .fillMaxSize()
-                .graphicsLayer { alpha = 1f - immersion() }
-                .hazeBlur(input = HazeInput.Sources(hazeState), style = style),
-        )
     }
 }
 
@@ -1159,28 +1091,9 @@ private const val MAX_SCALE = 5f
 /** Kam skočí dvojité ťuknutí. */
 private const val DOUBLE_TAP_SCALE = 2.5f
 
-/**
- * Od kraje obrazovky ke kartě; sousední stránka vykukuje o [PAGE_INSET] − [PAGE_GAP] (24 dp).
- * Dost na to, aby bylo vidět, že vedle jsou další fotky; mezera mezi kartami jen oddělí.
- */
-private val PAGE_INSET = 32.dp
-private val PAGE_GAP = 8.dp
-
-/** Nejširší stránka. Širší displej (rozložený Fold, tablet) dostane po stranách víc souseda. */
-private val MAX_PAGE_WIDTH = 640.dp
-
-/** Mezera mezi kartami, když je stránka zastropovaná a místa je dost. */
-private val WIDE_PAGE_GAP = 24.dp
-
-/** Na celé obrazovce mezi fotkami při listování — jen černý pruh, aby na sebe nenalepily. */
-private val IMMERSIVE_PAGE_GAP = 16.dp
-
 /** Ztmavení pod systémovými lištami na celé obrazovce; přechod sahá kus pod lištu. */
 private const val BAR_SHADE_ALPHA = 0.45f
 private val BAR_SHADE_EXTRA = 24.dp
-
-/** Vzduch mezi kartou a lištami. */
-private val PAGE_VERTICAL_GAP = 8.dp
 
 private val TOP_BAR_HEIGHT = 64.dp
 private val BOTTOM_BAR_HEIGHT: Dp = 72.dp

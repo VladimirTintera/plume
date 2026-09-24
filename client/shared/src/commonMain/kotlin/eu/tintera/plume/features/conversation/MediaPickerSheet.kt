@@ -95,6 +95,8 @@ internal fun MediaPickerSheet(
                     pickedPaths = pickedPaths,
                     allowPhotos = allowPhotos,
                     allowVideos = allowVideos,
+                    // Sheet je celý rozbalený, takže galerie taky — sbalená by nešla posouvat.
+                    expanded = true,
                     onPicked = onPicked,
                     onUnpicked = onUnpicked,
                     onError = onError,

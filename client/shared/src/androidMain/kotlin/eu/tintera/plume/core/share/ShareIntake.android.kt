@@ -84,6 +84,9 @@ class ShareIntake(
             requests.prepared(
                 id = id,
                 attachments = results.mapNotNull { it.getOrNull() },
+                sources = results.withIndex()
+                    .mapNotNull { (index, result) -> result.getOrNull()?.let { it.path to limited[index].toString() } }
+                    .toMap(),
                 // Co se nevešlo pod strop alba, se taky neposlalo — uživatel to má vědět.
                 failed = results.count { it.isFailure } + (uris.size - limited.size),
             )
