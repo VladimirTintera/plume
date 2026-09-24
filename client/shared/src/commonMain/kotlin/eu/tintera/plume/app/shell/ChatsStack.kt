@@ -7,6 +7,10 @@ import eu.tintera.plume.core.navigation.ArchiveChatProfileRoute
 import eu.tintera.plume.core.navigation.ArchiveConversationRoute
 import eu.tintera.plume.core.navigation.ArchiveRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
+import eu.tintera.plume.core.navigation.MemberRightsRoute
+import eu.tintera.plume.core.navigation.EditChatRoute
+import eu.tintera.plume.core.navigation.ArchiveMemberRightsRoute
+import eu.tintera.plume.core.navigation.ArchiveEditChatRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.features.chats.ArchiveChange
@@ -66,6 +70,32 @@ internal fun MutableList<NavKey>.closeConversationOf(change: ArchiveChange) {
     } else {
         removeAll { (it as? ArchiveConversationRoute)?.chatId == change.chatId }
     }
+}
+
+/**
+ * Chat otevřený z archivu se vrátil mezi chaty (pruh nad konverzací u automaticky
+ * archivovaného chatu), takže se s ním PŘESTĚHUJE i konverzace: archivní větev se zavře
+ * a chat se otevře v hlavním seznamu. Zavřít ji jen jako u [closeConversationOf] by uživatele
+ * vyhodilo z chatu, kterému právě dal najevo, že o něj stojí; nechat ji v archivu by znamenalo
+ * konverzaci vedle seznamu, ve kterém chat už není.
+ *
+ * Konverzace otevřená v hlavním seznamu nahradí tu, která tam byla — stejně jako výběr chatu
+ * ze seznamu.
+ */
+internal fun MutableList<NavKey>.moveConversationToMain(chatId: Long) {
+    if (none { (it as? ArchiveConversationRoute)?.chatId == chatId }) return
+    removeAll {
+        when (it) {
+            // Celá archivní větev, i úpravy a práva členů nad profilem.
+            is ArchiveRoute, is ArchiveConversationRoute, is ArchiveChatProfileRoute,
+            is ArchiveEditChatRoute, is ArchiveMemberRightsRoute -> true
+            // Detail hlavního seznamu patřil jinému chatu; nový chat ho nahradí celý, jinak by
+            // zpět z něj vedlo do profilu toho předchozího.
+            is ConversationRoute, is ChatProfileRoute, is EditChatRoute, is MemberRightsRoute -> true
+            else -> false
+        }
+    }
+    add(ConversationRoute(chatId))
 }
 
 /**

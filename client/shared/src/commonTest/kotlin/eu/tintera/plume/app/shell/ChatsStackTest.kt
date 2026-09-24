@@ -3,6 +3,7 @@ package eu.tintera.plume.app.shell
 import androidx.navigation3.runtime.NavKey
 import eu.tintera.plume.core.navigation.ArchiveChatProfileRoute
 import eu.tintera.plume.core.navigation.ArchiveConversationRoute
+import eu.tintera.plume.core.navigation.ArchiveEditChatRoute
 import eu.tintera.plume.core.navigation.ArchiveRoute
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
@@ -111,6 +112,35 @@ class ChatsStackTest {
         val unarchiving = mutableListOf<NavKey>(ChatsRoute, mainChat, ArchiveRoute, archiveChat)
         unarchiving.closeConversationOf(ArchiveChange(chatId = 2, archived = false))
         assertEquals(listOf<NavKey>(ChatsRoute, mainChat, ArchiveRoute), unarchiving)
+    }
+
+    /** Vrácení z pruhu stěhuje konverzaci z archivu do hlavního seznamu, ne ji zavírá. */
+    @Test
+    fun vraceniZPruhuPrestehujeKonverzaciDoHlavnihoSeznamu() {
+        val stack = mutableListOf<NavKey>(
+            ChatsRoute,
+            ConversationRoute(chatId = 1),
+            ChatProfileRoute(chatId = 1),
+            ArchiveRoute,
+            ArchiveChatProfileRoute(chatId = 3),
+            ArchiveEditChatRoute(chatId = 3),
+            ArchiveConversationRoute(chatId = 2),
+        )
+
+        stack.moveConversationToMain(chatId = 2)
+
+        // Z archivu nezbylo nic a konverzace hlavního seznamu (i s profilem) je nahrazená.
+        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 2)), stack)
+    }
+
+    @Test
+    fun vraceniZPruhuMimoArchivNicNemeni() {
+        // Chat z archivu otevřený z hledání nebo notifikace stojí v hlavní větvi; tam není kam stěhovat.
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 2))
+
+        stack.moveConversationToMain(chatId = 2)
+
+        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 2)), stack)
     }
 
     @Test

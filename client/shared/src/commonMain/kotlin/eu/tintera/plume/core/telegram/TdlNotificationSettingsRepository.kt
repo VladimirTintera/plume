@@ -94,24 +94,7 @@ class TdlNotificationSettingsRepository(
     override suspend fun resetToDefault(chatId: Long): Result<Unit> =
         client.setChatNotificationSettings(
             chatId = chatId,
-            notificationSettings = ChatNotificationSettings(
-                useDefaultMuteFor = true,
-                muteFor = 0,
-                useDefaultSound = true,
-                soundId = 0,
-                useDefaultShowPreview = true,
-                showPreview = false,
-                useDefaultMuteStories = true,
-                muteStories = false,
-                useDefaultStorySound = true,
-                storySoundId = 0,
-                useDefaultShowStoryPoster = true,
-                showStoryPoster = false,
-                useDefaultDisablePinnedMessageNotifications = true,
-                disablePinnedMessageNotifications = false,
-                useDefaultDisableMentionNotifications = true,
-                disableMentionNotifications = false,
-            ),
+            notificationSettings = defaultChatNotificationSettings(),
         )
             .toResult()
             .map { }
@@ -234,3 +217,26 @@ class TdlNotificationSettingsRepository(
         const val CONTACT_JOINED_OPTION = "disable_contact_registered_notifications"
     }
 }
+
+/**
+ * Upozornění chatu celá podle rozsahu (všechna `useDefault*`), včetně zvuku. Sdílí ho obnovení
+ * výjimky v Nastavení i vrácení automaticky archivovaného chatu z pruhu nad konverzací.
+ */
+internal fun defaultChatNotificationSettings() = ChatNotificationSettings(
+    useDefaultMuteFor = true,
+    muteFor = 0,
+    useDefaultSound = true,
+    soundId = 0,
+    useDefaultShowPreview = true,
+    showPreview = false,
+    useDefaultMuteStories = true,
+    muteStories = false,
+    useDefaultStorySound = true,
+    storySoundId = 0,
+    useDefaultShowStoryPoster = true,
+    showStoryPoster = false,
+    useDefaultDisablePinnedMessageNotifications = true,
+    disablePinnedMessageNotifications = false,
+    useDefaultDisableMentionNotifications = true,
+    disableMentionNotifications = false,
+)

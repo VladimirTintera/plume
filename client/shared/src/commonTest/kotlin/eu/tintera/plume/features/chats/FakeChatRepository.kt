@@ -100,6 +100,7 @@ open class FakeChatRepository(
     override suspend fun report(chatId: Long, request: ReportRequest): Result<ReportStep> = Result.success(ReportStep.Done)
     override fun spamBar(chatId: Long): Flow<SpamBar?> = flowOf(null)
     override suspend fun dismissSpamBar(chatId: Long): Result<Unit> = Result.success(Unit)
+    override suspend fun unarchiveFromSpamBar(chatId: Long): Result<Unit> = Result.success(Unit)
     override suspend fun addToContacts(chatId: Long): Result<Unit> = Result.success(Unit)
     open override suspend fun blockedSenders(offset: Int, limit: Int): Result<BlockedSendersPage> =
         Result.success(BlockedSendersPage(emptyList(), 0))
