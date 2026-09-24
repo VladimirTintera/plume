@@ -8,6 +8,9 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.bot_alert_ok
 import eu.tintera.plume.resources.bot_link_open
 import eu.tintera.plume.resources.bot_link_title
+import eu.tintera.plume.resources.bot_share_phone_confirm
+import eu.tintera.plume.resources.bot_share_phone_text
+import eu.tintera.plume.resources.bot_share_phone_title
 import eu.tintera.plume.resources.common_cancel
 import org.jetbrains.compose.resources.stringResource
 
@@ -32,5 +35,20 @@ internal fun BotAlertDialog(text: String, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         text = { Text(text) },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.bot_alert_ok)) } },
+    )
+}
+
+/**
+ * Tlačítko bota chce telefonní číslo. Je to údaj o uživateli, takže se neposílá na jedno
+ * ťuknutí — dialog říká, co přesně bot dostane.
+ */
+@Composable
+internal fun SharePhoneDialog(onShare: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.bot_share_phone_title)) },
+        text = { Text(stringResource(Res.string.bot_share_phone_text)) },
+        confirmButton = { TextButton(onClick = onShare) { Text(stringResource(Res.string.bot_share_phone_confirm)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }

@@ -48,6 +48,30 @@ interface ConversationRepository {
      *
      * Bot odpovídá, jak chce: textem, upozorněním, odkazem, nebo nijak (jen přepíše zprávu).
      */
+    /**
+     * Vlastní klávesnice bota nebo vynucená odpověď, která v chatu právě platí; `null` = žádná.
+     *
+     * Patří CHATU, ne zprávě: TDLib drží, ze které zprávy se bere (`Chat.replyMarkupMessageId`),
+     * a změnu hlásí `UpdateChatReplyMarkup` — nová zpráva bota ji přepíše, jednorázová po použití
+     * zmizí. Odběr stojí před prvním čtením, aby se změna mezi nimi neztratila.
+     */
+    fun replyMarkup(chatId: Long): Flow<ChatReplyMarkup?>
+
+    /**
+     * Klávesnice nebo vynucená odpověď se použila a má zmizet. TDLib to po jednorázové klávesnici
+     * a po vynucené odpovědi výslovně chce (`deleteChatReplyMarkup`) — sám to neudělá.
+     */
+    suspend fun dismissReplyMarkup(chatId: Long, messageId: Long): Result<Unit>
+
+    /**
+     * Text z tlačítka vlastní klávesnice jako zpráva. **Rozepsaný koncept nemaže** — na rozdíl od
+     * [send] (`clearDraft`): ťuknutí na tlačítko není odeslání toho, co je v poli.
+     */
+    suspend fun sendKeyboardText(chatId: Long, text: String, replyToMessageId: Long?): Result<ChatMessage>
+
+    /** Vlastní telefonní číslo jako kontakt — tlačítko bota „sdílet číslo", po potvrzení. */
+    suspend fun shareOwnPhone(chatId: Long, replyToMessageId: Long?): Result<ChatMessage>
+
     suspend fun pressBotButton(
         chatId: Long,
         messageId: Long,
@@ -720,6 +744,51 @@ sealed interface BotButtonKind {
 }
 
 enum class UnsupportedBotButton { WebApp, LoginUrl, SwitchInline, Buy, Game, Password }
+
+/** Co bot chce od vstupního pole. */
+sealed interface ChatReplyMarkup {
+    /** Zpráva bota, ze které klávesnice nebo vynucená odpověď pochází. */
+    val messageId: Long
+
+    /** Nápověda do prázdného pole, kterou si bot přeje; prázdná = výchozí. */
+    val placeholder: String
+
+    /**
+     * Vlastní klávesnice (`ReplyMarkupShowKeyboard`) — tlačítka posílají text nebo žádají
+     * o sdílení. [oneTime] = po prvním použití zmizí.
+     */
+    data class Keyboard(
+        override val messageId: Long,
+        override val placeholder: String,
+        val rows: List<List<ReplyKeyboardButton>>,
+        val oneTime: Boolean,
+    ) : ChatReplyMarkup
+
+    /** Vynucená odpověď: pole se samo přepne na odpověď na tuhle zprávu. */
+    data class ForceReply(
+        override val messageId: Long,
+        override val placeholder: String,
+    ) : ChatReplyMarkup
+}
+
+data class ReplyKeyboardButton(
+    val text: String,
+    val kind: ReplyKeyboardButtonKind,
+    val style: BotButtonStyle = BotButtonStyle.Default,
+)
+
+sealed interface ReplyKeyboardButtonKind {
+    /** Pošle svůj text jako zprávu. */
+    data object Text : ReplyKeyboardButtonKind
+
+    /** Pošle vlastní telefonní číslo jako kontakt — po potvrzení, je to údaj o uživateli. */
+    data object PhoneNumber : ReplyKeyboardButtonKind
+
+    /** Druh, který Plume zatím neumí; tlačítko je vidět a ťuknutí to vysvětlí. */
+    data class Unsupported(val feature: UnsupportedKeyboardButton) : ReplyKeyboardButtonKind
+}
+
+enum class UnsupportedKeyboardButton { Location, Poll, Users, Chat, WebApp, ManagedBot }
 
 /** Barva, kterou si bot pro tlačítko přeje (TDLib `ButtonStyle`). */
 enum class BotButtonStyle { Default, Primary, Success, Danger }

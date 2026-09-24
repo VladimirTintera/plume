@@ -2674,6 +2674,10 @@ za ikonou seznamu v sheetu (`PinnedMessagesSheet`), s odepínáním.
   volba nemá smysl a připíná se rovnou. Soukromý chat připíná bez upozornění — protějšek uvidí
   servisní zprávu, oznámení navíc by byl šum.
 - **Odepnutí z nabídky jde stejnou cestou jako křížek v pruhu**, včetně „Vrátit".
+- **Totéž platí pro čtení textu hlášky.** Efekt u `notice` vynuloval událost a TEPRVE POTOM
+  četl text (`getString` je `suspend`) — restart efektu po vynulování to čtení zrušil a hláška
+  se ukázala, jen když byl text náhodou už načtený. Všechno, co se má po vynulování ještě
+  udělat, patří do `snackbarScope.launch`.
 - **Past: jednorázová událost ve stavu a `LaunchedEffect` klíčovaný tou událostí.** Když efekt
   událost hned vynuluje, změní tím vlastní klíč, restartuje se a zruší i to, co právě spustil.
   Snackbar „Vrátit" se tak neukázal nikdy. Snackbar proto běží v `rememberCoroutineScope`,
@@ -3495,6 +3499,39 @@ skupiny dávají před vstup — odpověď napsaná textem se nepočítá, bot �
   vrátí 400. Přepsání klávesnice se zkouší `editMessageReplyMarkup`.
 - **Ve skutečných skupinách na tlačítka neťukat** — antispamoví boti mají pod zprávami
   „Skrýt" / „Za co?" a ťuknutí jedná jménem účtu.
+
+### Vlastní klávesnice bota
+
+Klávesnice, kterou bot posílá místo systémové (`ReplyMarkupShowKeyboard`, třeba BotFather),
+a vynucená odpověď (`ReplyMarkupForceReply`). Kreslí je `ReplyKeyboardPanel` NAD vstupním
+polem; doména `ChatReplyMarkup`, zdroj `ConversationRepository.replyMarkup`.
+
+- **Nad polem, ne místo systémové klávesnice** (rozhodnutí uživatele). Výměna systémové
+  klávesnice za panel tak, aby pole neposkočilo, je nejkřehčí část Compose — tady se nic
+  nepřepíná a jde psát i ťukat zároveň. Cena je výška: strop (`MAX_HEIGHT`) s rolováním
+  a šipka, která panel sbalí. Sbalení se pamatuje pro jednu klávesnici (klíč je její zpráva).
+- **Klávesnice patří CHATU, ne zprávě.** Ze které zprávy se bere, drží TDLib
+  (`Chat.replyMarkupMessageId`) a mění ji `UpdateChatReplyMarkup` (nová zpráva bota, jiná
+  klávesnice, vynucená odpověď). Odběr stojí před prvním čtením.
+- **Jednorázová klávesnice se po použití SCHOVÁ, NEZMIZÍ.** Bot API: „the keyboard will still
+  be available … the user can press a special button to see it again". `deleteChatReplyMarkup`,
+  které TDLib po klientovi chce, update nepošle a klávesnice v chatu zůstává; panel se proto
+  po použití jen sbalí. Kdo čeká, že klávesnice zmizí, hledá chybu, která tam není.
+- **Text z tlačítka nemaže rozepsaný koncept** (`sendKeyboardText` s `clearDraft = false`).
+  Běžné odeslání (`send`) koncept maže, protože posílá obsah pole — tlačítko ne.
+- **Ve skupině jde text tlačítka jako odpověď** na zprávu s klávesnicí, jako u oficiálního
+  klienta; v soukromém chatu je citace šum.
+- **Sdílení čísla je za potvrzením** (`SharePhoneDialog`) — údaj o uživateli nejde odeslat na
+  jedno ťuknutí. Poloha, anketa, výběr lidí a chatů, mini aplikace a zakládání botů se jen
+  vysvětlí, jako u tlačítek pod zprávou.
+- **Vynucená odpověď přepne pole na odpověď sama, jednou na zprávu**, a jen když se zrovna
+  neupravuje ani neodpovídá jinam. Zpráva bota do seznamu dorazí klidně až po updatu, proto se
+  na ni chvíli čeká. Po odeslání odpovědi se odebere (`deleteChatReplyMarkup`).
+- **Nápověda do pole od bota** (`inputFieldPlaceholder`, `ConversationState.inputPlaceholder`,
+  testy `ReplyMarkupTest`) platí u vynucené odpovědi jen tehdy, když se odpovídá právě na ni.
+- **Ověřeno testovacím botem** (`sendMessage` s `reply_markup.keyboard`, `one_time_keyboard`,
+  `input_field_placeholder`, `request_contact`, `request_location`; pak `force_reply`).
+  **Odeslání čísla ověřené není**, jen dialog.
 
 ### Profilovky ve skupině
 
