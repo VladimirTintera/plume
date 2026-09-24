@@ -180,6 +180,43 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
       a iOS rozšíření, které dnes chat vybírá samo — mohlo by jen předat obsah a výběr nechat
       aplikaci, pak by na obou platformách fungovalo sdílení stejně.
 
+## Hovory
+
+Hovory nejsou vůbec. Zpráva o hovoru je v konverzaci bublina s holým „Hovor" / „Videohovor"
+(`MessageCall` v `MessageContent.kt`) a příchozí hovor (`updateCall`) aplikace neodebírá —
+kdo má jen Plume, o hovoru se nedozví.
+
+**TDLib umí jen signalizaci, ne přenos zvuku a obrazu.** Založení, přijetí, zavěšení
+(`createCall`, `acceptCall`, `discardCall`), stav přes `updateCall`, výměnu klíčů s emoji
+k ověření, seznam serverů a předávání signalizačních dat (`sendCallSignalingData`,
+`updateNewCallSignalingData`); totéž pro skupinové hovory a videochaty (`joinGroupCall`…).
+Média obstarává samostatná knihovna **tgcalls** (C++, nad WebRTC), kterou si přibalují všichni
+klienti včetně Telegram X na TDLib.
+
+Dá se to rozdělit na dva kroky, které na sobě nezávisí:
+
+1. **Hovory v historii a příchozí hovor bez přenosu** (malé, jen nad TDLib):
+   - **Zpráva o hovoru jako řádek, ne bublina s jedním slovem:** směr (odchozí/příchozí),
+     zmeškaný / odmítnutý / zrušený (`MessageCall.discardReason`), délka a video. Ťuknutí
+     zatím nic — nebo odkaz do oficiální aplikace.
+   - **Příchozí hovor ohlásit** (`updateCall` s `CallStateWaiting`/`Pending`): notifikace nebo
+     pruh „X ti volá — přijmout jde v oficiální aplikaci", ať hovor nepropadne bez stopy.
+     Zmeškaný hovor pak přijde jako zpráva sám.
+   - **Hovory ve skupině** (`MessageVideoChatStarted` a spol. už mají servisní text): pruh
+     „Probíhá videochat" v hlavičce konverzace, jako oficiální klient.
+2. **Skutečné hovory přes tgcalls** (největší samostatný kus práce v projektu):
+   - **Přeložit tgcalls s WebRTC** pro Android (ABI) i iOS a napojit přes JNI / cinterop nebo
+     Swift. Počítat s desítkami MB na ABI navíc — stejná úvaha o Play Feature Delivery jako
+     u LiteRT-LM.
+   - **Platformní obálka:** Android `ConnectionService` (a foreground služba typu
+     `phoneCall`/`microphone`/`camera`), iOS **CallKit** a **VoIP pushe přes PushKit** — bez
+     nich příchozí hovor nezazvoní na zamčeném telefonu, a Apple je aplikaci s hovory předepisuje
+     (VoIP push, který neohlásí hovor CallKitu, systém trestá ukončením aplikace).
+   - **Obrazovka hovoru:** stav, emoji k ověření, ztlumit / reproduktor / kamera / zavěsit,
+     obraz v obraze pro video. Oprávnění mikrofonu už máme (hlasovky), kamery ne.
+   - **Skupinové hovory** až potom — jiná signalizace a víc účastníků.
+   - Ověřování chce druhý účet nebo druhé zařízení; bot volat neumí.
+
 ## AI v zařízení
 
 Shrnutí chatu a návrhy odpovědí běží na Gemini Nano přes ML Kit Prompt API (Android). Poučení
