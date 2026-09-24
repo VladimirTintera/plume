@@ -193,9 +193,7 @@ Z toho plyne pořadí, ve kterém se vyplatí featury stavět:
   - **velikost APK**: nativní knihovny přidají ~25 MB na ABI každému, i kde se Gemma nenabídne
     → Play Feature Delivery,
   - **stahování na pozadí** — dnes běží v procesu aplikace a při jeho zabití navazuje až při
-    dalším ťuknutí; na gigabajty by patřil WorkManager s notifikací průběhu,
-  - **desetinná tečka ve velikostech** (`formatFileSize` píše „2.4 GB" i v češtině) — týká se
-    celé aplikace, v nastavení modelu je jen nejvíc vidět.
+    dalším ťuknutí; na gigabajty by patřil WorkManager s notifikací průběhu.
 - **Beta ML Kitu sledovat.** `1.0.0-beta4` je zatím nejnovější; novější verze může `Feature -1`
   opravit a preview zpřístupnit bez vlastního runtime. Stojí za to to při bumpu zkusit znovu.
 - **Kešování kontextu a `warmup()` nejsou využité.** Prompt API je nabízí (`Caches`,

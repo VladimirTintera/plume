@@ -36,7 +36,7 @@ import eu.tintera.plume.core.ai.NotEnoughSpaceException
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.AppSettings
-import eu.tintera.plume.core.files.formatFileSize
+import eu.tintera.plume.core.ui.fileSizeText
 import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.core.ui.toggle
@@ -51,7 +51,6 @@ import eu.tintera.plume.resources.settings_on_device_ai
 import eu.tintera.plume.resources.settings_on_device_ai_delete
 import eu.tintera.plume.resources.settings_on_device_ai_not_enough_space
 import eu.tintera.plume.resources.settings_on_device_ai_checking
-import eu.tintera.plume.features.conversation.items.label
 import eu.tintera.plume.resources.settings_on_device_ai_download
 import eu.tintera.plume.resources.settings_on_device_ai_download_progress
 import eu.tintera.plume.resources.settings_on_device_ai_downloadable_named
@@ -559,10 +558,3 @@ private val GemmaModel.summary: StringResource
         GemmaModel.E2B -> Res.string.settings_gemma_e2b_summary
         GemmaModel.E4B -> Res.string.settings_gemma_e4b_summary
     }
-
-/** Velikost s jednotkou, stejně jako u souborů v konverzaci. */
-@Composable
-private fun fileSizeText(bytes: Long): String {
-    val size = formatFileSize(bytes)
-    return stringResource(size.unit.label(), size.value)
-}

@@ -278,8 +278,8 @@ tedy o poskytovatelích nemusí vědět nic.
   letového režimu přišel na emulátoru ještě DRUHÝ výpadek, jak se síť usazovala — i ten se
   navázal, proto se čeká napřed na síť a teprve pak s prodlevou.
 - **Nastavení u Gemmy říká, CO a KOLIK se stáhne** („Gemma 4 E2B je potřeba nejdřív stáhnout
-  (2.4 GB)") a během stahování „164 MB z 2.4 GB". Samotné „zabere gigabajty" stačí u Nano, jehož
-  velikost nikdo neřekne; tady ji víme. Velikost jde přes `formatFileSize` jako u souborů
+  (2,4 GB)") a během stahování „164 MB z 2,4 GB". Samotné „zabere gigabajty" stačí u Nano, jehož
+  velikost nikdo neřekne; tady ji víme. Velikost jde přes `fileSizeText` jako u souborů
   v chatu, takže je v GiB — katalog Gallery uvádí 2,6 GB v desítkových. Po selhání tlačítko
   slibuje „Pokračovat ve stahování": stažený kus se nezahazuje.
 - **Stahovaný model jde smazat, systémový ne** (`ModelVariant.appManaged`, `OnDeviceAi.delete`).
@@ -3466,6 +3466,12 @@ stáhne a předá systému.
 - **Velikost se formátuje bez jednotky** (`formatFileSize`, testy v `FileSizeTest`); jednotku
   pojmenuje až UI z prostředků, protože pořadí čísla a zkratky se může lišit podle jazyka.
   Desetinné místo jen pod deset jednotek — „137,2 MB" je šum.
+- **Desetinný oddělovač patří jazyku, ne číslu.** `FileSize` nese celou část a desetiny ZVLÁŠŤ
+  a spojuje je až `fileSizeText` (`core/ui`) formátovacím řetězcem `decimal_number` — česky
+  čárka, anglicky tečka, stejně jako „1,5×" u rychlosti hlasovek. Dokud `formatFileSize`
+  vracel hotové „1.4", stála tečka i v české aplikaci — u souborů v chatu i v nastavení modelu
+  („2.4 GB"). **Text velikosti skládá jen `fileSizeText`**; dřív si ho skládaly tři obrazovky
+  a mapování jednotek bylo ve dvou kopiích.
 - **Android: `ACTION_VIEW` přes `FileProvider`.** Od Androidu 7 je `file://` URI mimo aplikaci
   zakázané (`FileUriExposedException`). Provider `${applicationId}.documents` vydává adresář
   `tdlib-files` (a `cache/outgoing` u čerstvě odeslaných příloh), ale **oprávnění se uděluje jen

@@ -345,6 +345,7 @@
     <string name="forward_failed">Zprávu se nepodařilo přeposlat.</string>
     <string name="forward_hide_sender">Skrýt odesílatele</string>
     <string name="forward_hide_captions">Skrýt popisky</string>
+    <string name="decimal_number">%1$s,%2$s</string>
     <string name="file_size_b">%1$s B</string>
     <string name="file_size_kb">%1$s kB</string>
     <string name="file_size_mb">%1$s MB</string>
