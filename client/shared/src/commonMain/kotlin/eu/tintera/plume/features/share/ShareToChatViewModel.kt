@@ -14,9 +14,14 @@ import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.features.conversation.MAX_ATTACHMENTS
+import eu.tintera.plume.features.conversation.dropForbiddenSelfDestruct
 import eu.tintera.plume.features.conversation.selfDestructAllowed
+import eu.tintera.plume.features.conversation.stageAttachments
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_attachments_limit
 import eu.tintera.plume.resources.conversation_attachments_send_failed
+import eu.tintera.plume.resources.conversation_self_destruct_album
 import eu.tintera.plume.resources.share_failed_files
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
@@ -126,7 +131,45 @@ class ShareToChatViewModel(
             _state.update { it.copy(gone = true) }
             return
         }
-        _state.update { it.copy(attachments = rest) }
+        _state.update { it.copy(attachments = rest, removals = it.removals + 1) }
+    }
+
+    /**
+     * Fotky a videa dobrané z galerie pod popiskem. Jdou ZA sdílené — to, kvůli čemu uživatel
+     * sdílel, zůstává první a v albu nahoře.
+     *
+     * Tatáž pravidla jako přílohy nad vstupním polem: strop alba a mizení jen u jediné fotky.
+     * Z mizející fotky se přidáním druhé stává album, takže se mizení viditelně zruší a ohlásí.
+     */
+    fun addAttachments(picked: List<OutgoingAttachment>) {
+        val current = _state.value.attachments ?: return
+        val staged = stageAttachments(current, picked)
+        val dropped = dropForbiddenSelfDestruct(
+            staged.attachments,
+            allowed = _state.value.copy(attachments = staged.attachments).canSelfDestruct,
+        )
+        _state.update {
+            it.copy(
+                attachments = dropped ?: staged.attachments,
+                notice = when {
+                    staged.overflow -> UiText(Res.string.conversation_attachments_limit, MAX_ATTACHMENTS)
+                    dropped != null -> UiText(Res.string.conversation_self_destruct_album)
+                    else -> it.notice
+                },
+            )
+        }
+    }
+
+    /**
+     * Odznačené v galerii. Obrazovka tím NEODCHÁZÍ ani u posledního snímku — na rozdíl od ✕ na
+     * snímku: odznačení je oprava výběru, ne rozhodnutí nic neposlat.
+     */
+    fun removeAttachments(paths: List<String>) {
+        if (paths.isEmpty()) return
+        val removed = paths.toSet()
+        _state.update { state ->
+            state.copy(attachments = state.attachments?.filterNot { it.path in removed })
+        }
     }
 
     fun setMode(index: Int, mode: AttachmentMode) {
@@ -189,6 +232,9 @@ class ShareToChatViewModel(
         if (!_state.value.sent) requests.abandon()
     }
 
+    /** Chyba z galerie (fotku se nepodařilo připravit) — ukáže se jako hláška. */
+    fun reportError(message: UiText) = _state.update { it.copy(notice = message) }
+
     fun consumeNotice() = _state.update { it.copy(notice = null) }
 }
 
@@ -207,6 +253,12 @@ data class ShareToChatState(
     /** Není co potvrzovat (obsah zmizel nebo ho uživatel odebral) — obrazovka odejde. */
     val gone: Boolean = false,
     val notice: UiText? = null,
+    /**
+     * Kolikrát uživatel snímek odebral ✕. Galerie si zaškrtnutí obnovuje jen při otevření,
+     * takže se podle tohohle počítadla otevře znovu — jinak by v ní odebraná fotka zůstala
+     * zaškrtnutá.
+     */
+    val removals: Int = 0,
 ) {
     /** Mizení jen u jediné fotky v soukromém chatu — tytéž meze jako nad vstupním polem. */
     val canSelfDestruct: Boolean

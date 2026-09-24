@@ -1,10 +1,22 @@
 package eu.tintera.plume.features.share
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -43,9 +55,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,12 +68,21 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import coil3.compose.AsyncImage
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.blur.hazeBlur
@@ -70,6 +93,9 @@ import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.ui.DarkSystemBars
+import eu.tintera.plume.core.ui.EmbeddedMediaPicker
+import eu.tintera.plume.core.ui.embeddedMediaPickerAvailable
+import eu.tintera.plume.core.ui.rememberEmbeddedMediaSelection
 import eu.tintera.plume.core.ui.MEDIA_CARD_CORNER
 import eu.tintera.plume.core.ui.ambientBlurStyle
 import eu.tintera.plume.core.ui.avatarShape
@@ -88,7 +114,11 @@ import eu.tintera.plume.resources.conversation_send
 import eu.tintera.plume.resources.media_position
 import eu.tintera.plume.resources.send_24dp
 import eu.tintera.plume.resources.share_preparing
+import eu.tintera.plume.resources.share_to_add_media
 import eu.tintera.plume.resources.share_to_caption
+import eu.tintera.plume.resources.share_to_collapse_gallery
+import eu.tintera.plume.resources.keyboard_arrow_down_24dp
+import eu.tintera.plume.resources.perm_media_24dp
 import eu.tintera.plume.resources.share_to_recipient
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -104,6 +134,7 @@ import org.jetbrains.compose.resources.stringResource
  * zaoblená karta a bílé ovládání ([DarkSystemBars]). Sdílená fotka je tu hlavní obsah stejně
  * jako v galerii, takže by dvě různá pojetí téhož byla zbytečná.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ShareToChatScreen(
     viewModel: ShareToChatViewModel,
@@ -143,7 +174,55 @@ fun ShareToChatScreen(
     val pagerState = rememberPagerState { attachments?.size ?: 0 }
     val current = attachments?.getOrNull(pagerState.currentPage)
 
-    Box(modifier.fillMaxSize().background(Color.Black)) {
+    /*
+     * Dobraná fotka se hned ukáže: pager přejede na konec dávky, kam se přidává. Bez toho by
+     * výběr v galerii nebyl nahoře nijak vidět, jen by přibylo „N z M".
+     */
+    var shownCount by remember { mutableStateOf(-1) }
+    LaunchedEffect(attachments?.size) {
+        val count = attachments?.size ?: return@LaunchedEffect
+        if (shownCount in 0 until count) pagerState.animateScrollToPage(count - 1)
+        shownCount = count
+    }
+
+    /*
+     * Galerie pod popiskem: vestavěný výběr fotek, přes který jde k dávce dobrat další snímky.
+     *
+     * Při psaní popisku ustoupí klávesnici — obě by se o spodek obrazovky přetahovaly a fotka
+     * nahoře by se smrskla na proužek. Zpátky ji vrátí tlačítko v poli; totéž po „Hotovo"
+     * v galerii. Kde vestavěný výběr není (starší Android), obrazovka zůstává bez galerie.
+     */
+    val galleryAvailable = embeddedMediaPickerAvailable()
+    var galleryOpen by rememberSaveable { mutableStateOf(true) }
+    val imeVisible = WindowInsets.isImeVisible
+    LaunchedEffect(imeVisible) { if (imeVisible) galleryOpen = false }
+    val galleryShown = galleryAvailable && galleryOpen && !imeVisible && attachments != null
+    val mediaSelection = rememberEmbeddedMediaSelection()
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focus = LocalFocusManager.current
+
+    var galleryExpanded by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(galleryShown) { if (!galleryShown) galleryExpanded = false }
+
+    val density = LocalDensity.current
+    val windowHeight = with(density) { LocalWindowInfo.current.containerSize.height.toDp() }
+    val navigationBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    // Obsah galerie jede pod navigační lištu, jako v sheetu v konverzaci.
+    val collapsedHeight = navigationBar + minOf(windowHeight * GALLERY_COLLAPSED_FRACTION, GALLERY_COLLAPSED_MAX)
+    var headerHeight by remember { mutableStateOf(0.dp) }
+
+    // Zpět rozbalenou galerii nejdřív sbalí, teprve další zpět odchází — jako šipka v hlavičce.
+    // `NavigationBackHandler`, ne `BackHandler`, ten by zabil predictive back.
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = galleryShown && galleryExpanded,
+        onBackCompleted = { galleryExpanded = false },
+    )
+
+    BoxWithConstraints(modifier.fillMaxSize().background(Color.Black)) {
+        // Rozbalená galerie sahá až pod hlavičku; ta zůstává vidět, ať je jasné, komu se vybírá.
+        val expandedHeight = maxHeight - headerHeight
+
         AmbientBackdrop(previewPath = current?.previewPath, modifier = Modifier.fillMaxSize())
 
         // Ovládání leží na rozostřené fotce, takže bílá — role z `colorScheme` by ve světlém
@@ -160,6 +239,12 @@ fun ShareToChatScreen(
                         ?.takeIf { it.size > 1 }
                         ?.let { stringResource(Res.string.media_position, pagerState.currentPage + 1, it.size) },
                     onClose = onClose,
+                    onCollapseGallery = if (galleryShown && galleryExpanded) {
+                        { galleryExpanded = false }
+                    } else {
+                        null
+                    },
+                    modifier = Modifier.onSizeChanged { headerHeight = with(density) { it.height.toDp() } },
                 )
 
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -183,6 +268,12 @@ fun ShareToChatScreen(
                             }
                         }
                     }
+
+                    // Nad polem, ne u spodku obrazovky: galerii kreslí cizí okno (`SurfaceView`),
+                    // které leží nad vším v naší vrstvě, a hláška pod ním by nebyla vidět.
+                    SnackbarHost(hostState = snackbar, modifier = Modifier.align(Alignment.BottomCenter)) {
+                        Snackbar(it)
+                    }
                 }
 
                 CaptionBar(
@@ -192,14 +283,58 @@ fun ShareToChatScreen(
                     enabled = !attachments.isNullOrEmpty() && !state.sending,
                     sending = state.sending,
                     onSend = viewModel::send,
+                    onOpenGallery = if (galleryAvailable && !galleryShown && attachments != null) {
+                        {
+                            focus.clearFocus()
+                            keyboard?.hide()
+                            galleryOpen = true
+                        }
+                    } else {
+                        null
+                    },
+                    // S galerií pod sebou spodní lišta pole nic neodsouvá — sahá k ní galerie.
+                    modifier = if (galleryShown) Modifier else Modifier.navigationBarsPadding().imePadding(),
                 )
+
+                /*
+                 * Sbalená galerie má v rozvržení vlastní místo — snímek nad ní i pole jsou vidět
+                 * celé. Rozbalená už místo nezabírá, jen vyjede PŘES snímek a pole až pod hlavičku
+                 * (tak to dělají Google Zprávy); zmenšovat snímek na proužek by nic nepřineslo.
+                 */
+                if (galleryShown) Spacer(Modifier.height(collapsedHeight))
+            }
+
+            if (galleryShown) {
+                val height by animateDpAsState(
+                    targetValue = if (galleryExpanded) expandedHeight else collapsedHeight,
+                    animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                )
+                GalleryPanel(
+                    expanded = galleryExpanded,
+                    onExpandedChange = { galleryExpanded = it },
+                    onDismiss = { galleryOpen = false },
+                    height = height,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                ) { pickerModifier ->
+                    // Po odebrání snímku ✕ se galerie otevře znovu: zaškrtnutí si obnovuje jen
+                    // při otevření a odebraná fotka by v ní jinak zůstala zaškrtnutá.
+                    key(state.removals) {
+                        EmbeddedMediaPicker(
+                            selection = mediaSelection,
+                            pickedPaths = attachments.orEmpty().map { it.path },
+                            allowPhotos = true,
+                            allowVideos = true,
+                            expanded = galleryExpanded,
+                            onPicked = viewModel::addAttachments,
+                            onUnpicked = viewModel::removeAttachments,
+                            onError = viewModel::reportError,
+                            onDone = { galleryOpen = false },
+                            modifier = pickerModifier,
+                        )
+                    }
+                }
             }
         }
-
-        SnackbarHost(
-            hostState = snackbar,
-            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().imePadding(),
-        ) { Snackbar(it) }
     }
 }
 
@@ -213,14 +348,26 @@ private fun Recipient(
     kind: ChatKind,
     position: String?,
     onClose: () -> Unit,
+    /** Rozbalená galerie: místo ✕ šipka dolů, která ji sbalí (jako v Google Zprávách). */
+    onCollapseGallery: (() -> Unit)?,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        Modifier.fillMaxWidth().statusBarsPadding().height(HEADER_HEIGHT).padding(horizontal = 4.dp),
+        modifier.fillMaxWidth().statusBarsPadding().height(HEADER_HEIGHT).padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        IconButton(onClick = onClose) {
-            Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+        if (onCollapseGallery != null) {
+            IconButton(onClick = onCollapseGallery) {
+                Icon(
+                    painterResource(Res.drawable.keyboard_arrow_down_24dp),
+                    contentDescription = stringResource(Res.string.share_to_collapse_gallery),
+                )
+            }
+        } else {
+            IconButton(onClick = onClose) {
+                Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+            }
         }
         if (title.isNotEmpty()) {
             Avatar(
@@ -369,12 +516,13 @@ private fun CaptionBar(
     enabled: Boolean,
     sending: Boolean,
     onSend: () -> Unit,
+    /** Vrátí galerii pod pole; `null`, když je galerie vidět nebo tu žádná není. */
+    onOpenGallery: (() -> Unit)?,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
-            .imePadding()
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -385,41 +533,54 @@ private fun CaptionBar(
             contentColor = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         ) {
-            val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-            BasicTextField(
-                value = caption,
-                onValueChange = onCaptionChange,
-                textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                maxLines = 4,
-                interactionSource = interaction,
-                keyboardOptions = KeyboardOptions(
-                    // Popisek jsou věty, ne jedno slovo — klávesnice má nabídnout velké písmeno sama.
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = ImeAction.Default,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-                decorationBox = { inner ->
-                    TextFieldDefaults.DecorationBox(
-                        value = caption.text,
-                        innerTextField = inner,
-                        enabled = true,
-                        singleLine = false,
-                        visualTransformation = VisualTransformation.None,
-                        interactionSource = interaction,
-                        placeholder = { Text(stringResource(Res.string.share_to_caption)) },
-                        colors = TextFieldDefaults.colors(
-                            // Kontejner i podtržení nese karta kolem; pole samo nekreslí nic.
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            disabledContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                        ),
-                        container = {},
-                    )
-                },
-            )
+            Row(verticalAlignment = Alignment.Bottom) {
+                if (onOpenGallery != null) {
+                    // 4 dp = (56 − 48) / 2: ikona sedí na středu jednořádkového pole a u víc řádků
+                    // zůstane u posledního, jako sponka ve vstupním poli konverzace.
+                    IconButton(onClick = onOpenGallery, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)) {
+                        Icon(
+                            painterResource(Res.drawable.perm_media_24dp),
+                            contentDescription = stringResource(Res.string.share_to_add_media),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+                val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                BasicTextField(
+                    value = caption,
+                    onValueChange = onCaptionChange,
+                    textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    maxLines = 4,
+                    interactionSource = interaction,
+                    keyboardOptions = KeyboardOptions(
+                        // Popisek jsou věty, ne jedno slovo — klávesnice má nabídnout velké písmeno sama.
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Default,
+                    ),
+                    modifier = Modifier.weight(1f),
+                    decorationBox = { inner ->
+                        TextFieldDefaults.DecorationBox(
+                            value = caption.text,
+                            innerTextField = inner,
+                            enabled = true,
+                            singleLine = false,
+                            visualTransformation = VisualTransformation.None,
+                            interactionSource = interaction,
+                            placeholder = { Text(stringResource(Res.string.share_to_caption)) },
+                            colors = TextFieldDefaults.colors(
+                                // Kontejner i podtržení nese karta kolem; pole samo nekreslí nic.
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                disabledContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                            ),
+                            container = {},
+                        )
+                    },
+                )
+            }
         }
 
         FilledIconButton(
@@ -497,5 +658,79 @@ private val AVATAR_SIZE = 32.dp
 private val PAGE_INSET = 16.dp
 private val BADGE_BUTTON = 40.dp
 private val BADGE_INSET = 8.dp
+/**
+ * Galerie pod popiskem jako v Google Zprávách: panel se zaoblenými horními rohy a úchytem.
+ *
+ * **Sbalený jen vykukuje** — náhled mřížky, ve kterém jde vybírat, ale ne posouvat (tak se
+ * vestavěný picker ve sbaleném stavu chová sám). Tahem za úchyt nahoru nebo ťuknutím na něj se
+ * rozbalí přes většinu obrazovky a teprve pak se v něm listuje; tahem dolů se zase sbalí
+ * a ze sbaleného zavře.
+ *
+ * **Tah se chytá jen na úchytu**, ne na mřížce: tu kreslí cizí okno (`SurfaceView`), které si
+ * dotyky bere samo a k nám je nepustí.
+ */
+@Composable
+private fun GalleryPanel(
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onDismiss: () -> Unit,
+    height: Dp,
+    modifier: Modifier = Modifier,
+    picker: @Composable (Modifier) -> Unit,
+) {
+    val expandedNow by rememberUpdatedState(expanded)
+    Surface(
+        shape = RoundedCornerShape(topStart = GALLERY_CORNER, topEnd = GALLERY_CORNER),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier = modifier.fillMaxWidth().height(height),
+    ) {
+        Column {
+            var dragged by remember { mutableStateOf(0f) }
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(GALLERY_HANDLE_AREA)
+                    .clickable(
+                        onClickLabel = stringResource(Res.string.share_to_add_media),
+                        onClick = { onExpandedChange(!expandedNow) },
+                    )
+                    .draggable(
+                        orientation = Orientation.Vertical,
+                        state = rememberDraggableState { dragged += it },
+                        onDragStarted = { dragged = 0f },
+                        onDragStopped = { velocity ->
+                            val up = dragged < -GALLERY_DRAG_THRESHOLD || velocity < -GALLERY_FLING_VELOCITY
+                            val down = dragged > GALLERY_DRAG_THRESHOLD || velocity > GALLERY_FLING_VELOCITY
+                            when {
+                                up && !expandedNow -> onExpandedChange(true)
+                                down && expandedNow -> onExpandedChange(false)
+                                down -> onDismiss()
+                            }
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    Modifier
+                        .size(width = 32.dp, height = 4.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)),
+                )
+            }
+            picker(Modifier.fillMaxWidth().weight(1f))
+        }
+    }
+}
+
+private val GALLERY_CORNER = 28.dp
+private val GALLERY_HANDLE_AREA = 36.dp
+/** Sbalená galerie jen vykukuje, jako ve vzoru z Google Zpráv — fotka nahoře zůstává hlavní. */
+private const val GALLERY_COLLAPSED_FRACTION = 0.28f
+private val GALLERY_COLLAPSED_MAX = 300.dp
+/** Tah za úchyt v pixelech a rychlost švihnutí v px/s, od kterých se panel přepne. */
+private const val GALLERY_DRAG_THRESHOLD = 48f
+private const val GALLERY_FLING_VELOCITY = 800f
+
 private val FIELD_CORNER = 28.dp
 private val SEND_BUTTON = 56.dp

@@ -27,6 +27,7 @@ actual fun EmbeddedMediaPicker(
     pickedPaths: List<String>,
     allowPhotos: Boolean,
     allowVideos: Boolean,
+    expanded: Boolean,
     onPicked: (List<OutgoingAttachment>) -> Unit,
     onUnpicked: (List<String>) -> Unit,
     onError: (UiText) -> Unit,

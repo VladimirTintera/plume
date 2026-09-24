@@ -1,3 +1,3 @@
-type: fix
-cs: Galerie v chatu jde znovu posouvat a ukazuje záložky Fotky a Kolekce
-en: The in-chat gallery scrolls again and shows the Photos and Collections tabs
+type: feat
+cs: Galerie pod popiskem při sdílení do chatu a opravené posouvání galerie v konverzaci
+en: A gallery below the caption when sharing to a chat, and the in-chat gallery scrolls again

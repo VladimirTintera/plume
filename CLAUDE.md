@@ -2366,13 +2366,19 @@ rozhoduje `embeddedMediaPickerAvailable()`.
   Odznačená položka se hlásí jako URI od pickeru, ale konverzace zná přílohy podle CESTY do
   cache — proto si `actual` drží mapu URI → cesta a `ConversationViewModel.removeAttachments`
   bere cesty.
-- **Picker MUSÍ být rozbalený (`state.isExpanded = true`), jinak v něm nejde scrollovat.**
-  Sbalený stav je náhled pro sheet, který hostitel teprve táhne nahoru: bez záložek
-  Photos / Collections a se zakázaným scrollováním — v logu pickeru
-  `embeddedCollapsedModeScrollingEnabled=false`, a veřejné API ho zapnout neumí. Náš sheet je
-  vždycky celý rozbalený, takže sbalený picker v něm byl mřížka, se kterou nešlo pohnout
-  (hlášeno z Pixelu 11 Pro Foldu jako „zaseklý sheet"). Stav se nastaví před startem session,
-  takže se promítne do `setPickerLaunchedInExpandedState(true)`.
+- **Sbalený picker NEJDE POSOUVAT, takže sheet v konverzaci ho má vždycky rozbalený**
+  (`EmbeddedMediaPicker(expanded = true)` → `state.isExpanded`). Sbalený stav je náhled pro
+  panel, který hostitel teprve táhne nahoru: bez záložek Photos / Collections a se zakázaným
+  scrollováním — v logu pickeru `embeddedCollapsedModeScrollingEnabled=false`, a veřejné API ho
+  zapnout neumí. Náš sheet je celý rozbalený, takže sbalený picker v něm byl mřížka, se kterou
+  nešlo pohnout (hlášeno z Pixelu 11 Pro Foldu jako „zaseklý sheet"). Hodnota nastavená před
+  startem session se promítne do `setPickerLaunchedInExpandedState`, pozdější změna jde přes
+  `notifyPhotoPickerExpanded` — obojí funguje. Sbalený stav má smysl jen tam, kde panel jde
+  vytáhnout (Direct Share, viz níž).
+- **Obnovené zaškrtnutí picker při startu session ohlásí ZNOVU** (`onUriPermissionGranted`
+  s položkami z `initialMediaSelection`). Ty přílohy už nad polem jsou, takže by se přidaly
+  podruhé — po jediném výběru a znovuotevření galerie bylo v dávce „3 z 3". Co už je
+  připravené (klíč v mapě URI → cesta), se proto přeskočí.
 - **Dřívější tvrzení, že rozbalený picker přejde do VLASTNÍ AKTIVITY, se nepotvrdilo.** Na
   emulátoru s API 37.2 (profil Pixel 10 Pro Fold, rozložený i složený) zůstává `mCurrentFocus`
   na `MainActivity` a picker kreslí dál do našeho sheetu — i po výběru, odznačení a opětovném
@@ -5599,6 +5605,21 @@ sdílející z Fotek.
 - **Víc snímků je `HorizontalPager` s „N z M" v hlavičce**, ne mřížka: album se stejně posílá celé
   a pruh miniatur by zdvojoval to, co umí swipe. ✕ ubírá snímek; odebrání posledního obrazovku
   zavře, protože není co poslat.
+- **Pod popiskem je galerie, přes kterou jde dávku doplnit** (`GalleryPanel` + tentýž
+  `EmbeddedMediaPicker` jako sheet v konverzaci), podle vzoru Google Zpráv. **Sbalená jen
+  vykukuje** a rozvržení s ní počítá (snímek nad ní je celý vidět); vybírat v ní jde, posouvat
+  ne. **Rozbalená vyjede PŘES snímek i pole až pod hlavičku**, nic nezmenšuje — první verze
+  panel natahovala do sloupce a snímek se smrskl na známku. V hlavičce je pak místo ✕ šipka
+  dolů, která panel sbalí; gesto zpět taky nejdřív sbalí (`NavigationBackHandler`).
+- **Tah se chytá jen na úchytu**, ne na mřížce — tu kreslí cizí okno (`SurfaceView`), které si
+  dotyky bere samo. Ťuknutí na úchyt přepíná sbaleno ↔ rozbaleno, tah dolů ze sbalené galerii
+  schová. Výška se animuje pružinou; obsah pickeru za panelem po dobu animace o kus zaostává
+  (picker se překresluje po `notifyResized`), po dosednutí sedí.
+- **Dobrané snímky jdou ZA sdílené** a pager na ně přejede. Odznačení v galerii obrazovku
+  nezavírá ani u posledního snímku (je to oprava výběru), ✕ na posledním snímku ano. Po ✕ se
+  galerie otevře znovu (`removals` jako klíč): zaškrtnutí si obnovuje jen při otevření.
+- **Při psaní popisku galerie ustoupí klávesnici**, po „Hotovo" taky; zpátky ji vrátí ikona
+  v poli. Hláška (snackbar) stojí nad polem, ne u spodku — galerie je `SurfaceView` nad vším.
 - **Ověřeno na emulátoru** (jedna fotka i dvě z Fotek): obrazovka, spoiler, mizení v chatu s botem
   a jeho nepřítomnost v Uložených zprávách, popisek, odeslání s otevřením konverzace, ✕ s návratem
   do zdrojové aplikace. **Přes `adb` jde poslat jen JEDNA příloha** — `EXTRA_STREAM` jako seznam

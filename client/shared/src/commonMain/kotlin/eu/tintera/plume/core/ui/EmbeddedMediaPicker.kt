@@ -63,6 +63,13 @@ expect fun EmbeddedMediaPicker(
     /** Co chat přijme; zakázaný druh galerie vůbec nenabídne. Aspoň jedno musí být `true`. */
     allowPhotos: Boolean,
     allowVideos: Boolean,
+    /**
+     * Rozbalená galerie: záložky, celá mřížka a scrollování. **Sbalená je jen náhled** — bez
+     * záložek a posouvat se v ní nedá (na Androidu to picker zakazuje sám a veřejné API to
+     * změnit neumí). Sbalenou má smysl ukázat jen v panelu, který jde vytáhnout nahoru;
+     * kde je galerie celá vidět (sheet v konverzaci), musí být rozbalená.
+     */
+    expanded: Boolean,
     onPicked: (List<OutgoingAttachment>) -> Unit,
     onUnpicked: (List<String>) -> Unit,
     onError: (UiText) -> Unit,

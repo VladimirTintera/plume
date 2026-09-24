@@ -70,6 +70,7 @@ actual fun EmbeddedMediaPicker(
     pickedPaths: List<String>,
     allowPhotos: Boolean,
     allowVideos: Boolean,
+    expanded: Boolean,
     onPicked: (List<OutgoingAttachment>) -> Unit,
     onUnpicked: (List<String>) -> Unit,
     onError: (UiText) -> Unit,
@@ -116,7 +117,14 @@ actual fun EmbeddedMediaPicker(
          */
         restored,
         initialMediaSelection = restored,
-        onUriPermissionGranted = { uris ->
+        onUriPermissionGranted = { granted ->
+            /*
+             * Obnovené zaškrtnutí (`initialMediaSelection`) picker při startu session ohlásí
+             * ZNOVU jako udělené oprávnění. Ty fotky už nad polem jsou, takže by se přidaly
+             * podruhé — v dávce pak byla tatáž fotka dvakrát (ověřeno na emulátoru, „3 z 3"
+             * po jediném výběru). Co už připravené je, se proto přeskočí.
+             */
+            val uris = granted.filterNot { it in prepared }
             if (uris.isNotEmpty()) {
                 scope.launch {
                     // Kopie a zmenšení jsou práce na disku a procesoru — mimo hlavní vlákno,
@@ -182,17 +190,16 @@ actual fun EmbeddedMediaPicker(
     }
 
     /*
-     * Picker MUSÍ být rozbalený, jinak v něm nejde scrollovat. Sbalený stav je jen náhled pro
-     * sheet, který hostitel teprve táhne nahoru: bez záložek a se zakázaným scrollováním
+     * Sbalený picker je jen náhled: bez záložek a se zakázaným scrollováním
      * (`embeddedCollapsedModeScrollingEnabled=false` v logu pickeru; veřejné API ho zapnout
-     * neumí). Náš sheet je vždycky celý rozbalený, takže sbalený picker v něm byl mřížka,
-     * se kterou nešlo pohnout (hlášeno z Pixelu 11 Pro Foldu, zreprodukováno na emulátoru).
+     * neumí). Sheet v konverzaci ho proto chce vždycky rozbalený — dokud nebyl, zůstala v něm
+     * mřížka, se kterou nešlo pohnout (hlášeno z Pixelu 11 Pro Foldu, zreprodukováno na emulátoru).
      *
-     * Nastavuje se před startem session, takže se promítne do `setPickerLaunchedInExpandedState`;
-     * picker přitom zůstane vestavěný v sheetu (`mCurrentFocus` zůstává na naší aktivitě,
-     * ověřeno na emulátoru s API 37.2 rozloženém i složeném).
+     * Před startem session se hodnota promítne do `setPickerLaunchedInExpandedState`, potom jde
+     * přes `notifyPhotoPickerExpanded`. Picker přitom zůstává vestavěný (`mCurrentFocus` zůstává
+     * na naší aktivitě, ověřeno na emulátoru s API 37.2 rozloženém i složeném).
      */
-    LaunchedEffect(state) { state.isExpanded = true }
+    LaunchedEffect(state, expanded) { state.isExpanded = expanded }
 
     EmbeddedPhotoPicker(state = state, modifier = modifier, embeddedPhotoPickerFeatureInfo = info)
 }
