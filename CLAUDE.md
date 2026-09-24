@@ -1397,24 +1397,28 @@ hledání) a vypadá to jako chyba vykreslení. Výchozí zpět gestem zmenšuje
 
 - **Tlačítkem je to sdílená osa X (fade through):** odcházející zmizí za 90 ms, přicházející se
   objeví až potom, obě se posunou o 30 dp ve směru navigace. Dvojí expozice nenastane nikdy.
-- **Gestem je to systémový vzor:** odcházející se zmenší na 90 % a popojede od hrany; zmenšení
-  dojede už v 60 % přechodu, protože průběh gesta k jedničce skoro nedojde a s lineárním
-  zmenšením přes celou délku nebylo v půlce tahu vidět nic.
+- **Gestem je to fade through podle specifikace Googlu** (návrhové zásady Androidu, „Predictive
+  back" → „Full screen surfaces"): odcházející 100 → 90 % a zmizí do 35 % tahu, přicházející
+  110 → 100 % a objevuje se od 35 %, křivka (0,1; 0,1; 0; 1). **Specifikace platí pro návrat
+  UVNITŘ aplikace**; systémový návrat mezi aktivitami (pod zmenšenou obrazovkou se odkrývá ta
+  předchozí) je jiný vzor a Google k němu čísla nezveřejňuje. Tím jsme začali a po švihnutí
+  obrazovka stála a pak pomalu vybledla — s fade through je odchod hotový v první třetině tahu.
+- **Průběh gesta je lineární a Google říká, že se tak přímo použít nemá.** Křivka proto jde na
+  zmenšení; s lineárním zmenšením nebylo v půlce tahu vidět nic, protože průběh k jedničce
+  skoro nedojde.
 - **Délka přechodu gestem neřídí tah, jen dojezd po puštění prstu.** Tah jde po zlomcích
   (`seekTo`), zbytek `NavDisplay` dojede sám v čase přechodu a rychlost prstu nebere v úvahu
   (Nav3 1.1.1 i 1.2.0-alpha04, nastavit to nejde). Rychlé švihnutí se pouští u malého zlomku,
-  takže se přehraje skoro celý přechod: se 400 ms a mizením až v poslední čtvrtině obrazovka po
-  švihnutí stála a pak pomalu vybledla. Proto 240 ms a mizení hned za zmenšením.
-- **Seznam, který po puštění prstu „zešedne", se neobjevuje — to mizí Nastavení nad ním.**
-  Napůl průhledná horní vrstva se stejně barevným pozadím seznam zakryje. Vypadalo to jako
-  druhé objevování seznamu nebo přepnutí na přechod pro tlačítko; dočasný log ve specifikacích
-  ukázal, že se při dojezdu volá jen přechod pro gesto. Hádat ze snímků, KTERÁ vrstva se
-  prolíná, nejde — ověřuje se logem.
+  takže se přehraje skoro celý přechod — proto krátkých 240 ms.
+- **Při dojezdu se volá jen přechod pro gesto, ne pro tlačítko** (ověřeno dočasným logem ve
+  specifikacích). Hádat ze snímků, KTERÁ vrstva se prolíná, nejde: napůl průhledná horní vrstva
+  se stejně barevným pozadím vypadá jako „šednoucí" spodní.
 - **Zaoblené rohy nese dekorátor scény, ne přechod** (`PredictiveBackCorners`,
   `sceneDecoratorStrategies`). `ContentTransform` tvar neumí; dekorátor obalí obsah scény
   a poloměr animuje nad TÝMŽ přechodem (`transition.animateDp` podle `EnterExitState`), takže
   ho gesto posouvá se zmenšením. Obal musí nést v klíči i třídu obalené scény: `NavDisplay`
-  rozlišuje scény podle třídy a klíče a třída obalu je u všech stejná.
+  rozlišuje scény podle třídy a klíče a třída obalu je u všech stejná. **U fade through jsou
+  rohy jen jemný detail** — zaoblená obrazovka je vidět do 35 % tahu, pod ní plocha stejné barvy.
 - **Seznam chatů se při návratu skládá celý znovu, data ale ne.** `NavDisplay` kreslí jen horní
   scénu, takže kompozice seznamu pod Nastavením neexistuje; `ChatsViewModel` s načteným
   seznamem i pozice scrollu (`SaveableStateHolder`) přitom zůstávají. Kompozici ve ViewModelu

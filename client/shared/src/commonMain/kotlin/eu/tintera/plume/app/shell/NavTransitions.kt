@@ -2,7 +2,6 @@ package eu.tintera.plume.app.shell
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterExitState
-import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.animateDp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,6 +13,7 @@ import androidx.navigation3.scene.SceneDecoratorStrategyScope
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.LinearEasing
@@ -21,8 +21,8 @@ import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -31,8 +31,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.scene.Scene
-import androidx.navigationevent.NavigationEvent
-import kotlin.math.roundToInt
 
 /**
  * Přechody mezi scénami `NavDisplay`: obrazovky na telefonu, a na široké ploše přechod mezi
@@ -63,45 +61,39 @@ internal class NavTransitions(
     }
 
     /**
-     * Zpět gestem. Průběh gesta posouvá přechod (`seekTo`), takže všechno jede lineárně
-     * a zlomek přechodu odpovídá tahu prstu.
+     * Zpět gestem, podle specifikace Googlu pro celou obrazovku (návrhové zásady Androidu,
+     * „Predictive back" → „Full screen surfaces"): **fade through se zmenšením**. Odcházející
+     * obrazovka jde ze 100 na 90 % a zmizí do 35 % průběhu, přicházející jde ze 110 na 100 %
+     * a objevuje se od 35 % — v tom bodě není vidět ani jedna. Křivka je (0,1; 0,1; 0; 1),
+     * podle Googlu shodná se systémovými animacemi. Zaoblené rohy přidává [PredictiveBackCorners]
+     * — přechod obsahu tvar neumí.
      *
-     * Odcházející obrazovka se zmenší na 90 % a popojede od hrany, ze které se táhne — jako
-     * systémový predictive back. Výchozí z Nav3 ji zmenšoval na 70 %, tedy o třetinu plochy,
-     * a přitom neprůhlednou až do konce. Zmenšení dojede už v 60 % přechodu: průběh gesta
-     * k jedničce skoro nedojde, a s lineárním zmenšením přes celou délku bylo v půlce tahu
-     * sotva vidět (ověřeno na emulátoru). Mizí až za zmenšením, tedy zpravidla po puštění
-     * prstu. Zaoblené rohy k tomu přidává [PredictiveBackCorners] — přechod obsahu tvar neumí.
+     * **Dřív se pod zmenšovanou obrazovkou odkrývala ta předchozí** (jako systémový návrat
+     * mezi aktivitami) a mizela až na konci. Po švihnutí tak obrazovka ještě chvíli stála a pak
+     * pomalu vybledla; s fade through je odchod hotový v první třetině tahu a po puštění prstu
+     * zbývá jen objevení nové obrazovky.
      *
-     * **Přicházející obrazovka se neobjevuje, je vidět od začátku** (`EnterTransition.None`);
-     * zakrývá ji jen zmenšovaná obrazovka nad ní. Hýbe se tak jediná vrstva a nic pod ní
-     * nemůže probliknout prázdnou plochou. Že seznam po puštění prstu „zešedne", není jeho
-     * objevování: to je mizící Nastavení NAD ním, jehož napůl průhledné pozadí seznam zakrývá.
-     * Přechod pro tlačítko se při dojezdu gesta nevolá (ověřeno logem).
+     * **Průběh gesta je lineární** (vzdálenost prstu od hrany) a Google výslovně říká, že se
+     * tak přímo použít nemá — proto křivka na zmenšení, ne `LinearEasing`. Průběh k jedničce
+     * skoro nedojde, takže s lineárním zmenšením nebylo v půlce tahu vidět nic.
      *
      * **Délka [PREDICTIVE_MS] tah vůbec neovlivňuje, určuje jen dojezd po puštění prstu.**
      * Během tahu jde přechod po zlomcích (`seekTo(progress)`), bez ohledu na milisekundy. Po
      * puštění ho `NavDisplay` dojede sám: zbytek přechodu v jeho vlastním čase, rychlost prstu
-     * nebere v úvahu a jiný dojezd nastavit nejde. Rychlé švihnutí se pouští u malého
-     * zlomku, takže se přehrála skoro celá délka; se 400 ms a mizením až v poslední čtvrtině
-     * obrazovka po švihnutí ještě třetinu vteřiny stála a pak pomalu vybledla. Proto je
-     * přechod krátký a mizení začíná hned za zmenšením.
+     * nebere v úvahu a jiný dojezd nastavit nejde. Přechod pro tlačítko se při dojezdu gesta
+     * nevolá (ověřeno logem).
      */
-    fun <T : Any> predictivePop(): AnimatedContentTransitionScope<Scene<T>>.(Int) -> ContentTransform = { edge ->
-        // Tah od levé hrany odsouvá obrazovku doprava a naopak.
-        val direction = if (edge == NavigationEvent.EDGE_RIGHT) -1 else 1
-        val enter = EnterTransition.None
-        val exit = scaleOut(tween(PREDICTIVE_SHRINK_MS, easing = LinearEasing), targetScale = PREDICTIVE_SCALE) +
-            slideOut(tween(PREDICTIVE_SHRINK_MS, easing = LinearEasing)) { size ->
-                IntOffset((size.width * PREDICTIVE_DRIFT * direction).roundToInt(), 0)
-            } +
-            fadeOut(
+    fun <T : Any> predictivePop(): AnimatedContentTransitionScope<Scene<T>>.(Int) -> ContentTransform = { _ ->
+        val enter = scaleIn(tween(PREDICTIVE_MS, easing = PredictiveBackEasing), initialScale = PREDICTIVE_ENTER_SCALE) +
+            fadeIn(
                 tween(
-                    durationMillis = PREDICTIVE_MS - PREDICTIVE_FADE_DELAY_MS,
-                    delayMillis = PREDICTIVE_FADE_DELAY_MS,
+                    durationMillis = PREDICTIVE_MS - PREDICTIVE_FADE_MS,
+                    delayMillis = PREDICTIVE_FADE_MS,
                     easing = LinearEasing,
                 ),
             )
+        val exit = scaleOut(tween(PREDICTIVE_MS, easing = PredictiveBackEasing), targetScale = PREDICTIVE_EXIT_SCALE) +
+            fadeOut(tween(PREDICTIVE_FADE_MS, easing = LinearEasing))
         enter togetherWith exit
     }
 
@@ -129,8 +121,11 @@ internal class NavTransitions(
  * se zmenšením a po zrušeném tahu se vrátí na nulu.
  *
  * Rohy dostane i obrazovka odcházející tlačítkem (dopředu i zpět) — přechod neprozradí, jestli
- * běží gestem. Tam ale obrazovka zmizí za 90 ms, dřív než rohy narostou na pár dp, takže to
- * vidět není.
+ * běží gestem. Tam ale obrazovka během nich mizí (za 90 ms), takže to skoro vidět není.
+ *
+ * **Při fade through jsou rohy jemný detail.** Zaoblená obrazovka je vidět jen do 35 % tahu
+ * a pod ní je plocha stejné barvy; u návratu mezi aktivitami, kde je rohy vidět víc, se pod
+ * zmenšenou obrazovkou odkrývá ta předchozí.
  *
  * Překryvné scény (dialogy) Nav3 dekorátorům nepodává vůbec.
  */
@@ -161,7 +156,8 @@ private class RoundedExitScene<T : Any>(private val scene: Scene<T>) : Scene<T> 
 @Composable
 private fun Modifier.roundedWhileExiting(): Modifier {
     val radius = LocalNavAnimatedContentScope.current.transition.animateDp(
-        transitionSpec = { tween(PREDICTIVE_SHRINK_MS, easing = LinearEasing) },
+        // Plný poloměr do chvíle, kdy obrazovka zmizí (35 % gesta); potom by nebyl vidět.
+        transitionSpec = { tween(PREDICTIVE_FADE_MS, easing = LinearEasing) },
         label = "exit-corners",
     ) { if (it == EnterExitState.PostExit) PREDICTIVE_CORNER else 0.dp }
     // Čte se až ve vrstvě: tah posouvá poloměr každý snímek a scéna se kvůli tomu nerekomponuje.
@@ -188,14 +184,16 @@ private const val FADE_IN_MS = 210
 
 /**
  * Celková délka přechodu gestem = nejdelší dojezd po puštění prstu (viz
- * [NavTransitions.predictivePop]). Rozdělení na zmenšení a mizení je v podílech, protože tah
- * přechodem posouvá po zlomcích.
+ * [NavTransitions.predictivePop]). Rozdělení je v podílech, protože tah přechodem posouvá po
+ * zlomcích: odchod do 35 %, příchod od 35 %, jak to uvádí specifikace Googlu.
  */
 private const val PREDICTIVE_MS = 240
-private const val PREDICTIVE_SHRINK_MS = PREDICTIVE_MS * 6 / 10
-private const val PREDICTIVE_FADE_DELAY_MS = PREDICTIVE_SHRINK_MS
-private const val PREDICTIVE_SCALE = 0.9f
-private const val PREDICTIVE_DRIFT = 0.06f
+private const val PREDICTIVE_FADE_MS = PREDICTIVE_MS * 35 / 100
+private const val PREDICTIVE_EXIT_SCALE = 0.9f
+private const val PREDICTIVE_ENTER_SCALE = 1.1f
+
+/** Křivka ze specifikace Googlu pro predictive back, „stejná jako u systémových animací". */
+private val PredictiveBackEasing = CubicBezierEasing(0.1f, 0.1f, 0f, 1f)
 
 /** Rohy zmenšené obrazovky — `extraLarge` z tvarové škály M3, blízko rohům displeje telefonů. */
 private val PREDICTIVE_CORNER = 28.dp
