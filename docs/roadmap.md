@@ -123,6 +123,22 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   spamu"). Zbývá:
   - **„Vrátit mezi chaty" v pruhu** u automaticky archivovaného chatu (`canUnarchive`) — chce
     `addChatToList` spolu s návratem upozornění na výchozí.
+  - **Zbylé druhy pruhu nad chatem.** `ChatActionBar` má v TDLib 15 šest druhů a „akce, které
+    musí jít z pruhu udělat" (dokumentace TDLib); Plume kreslí jen `ReportSpam`, `ReportAddBlock`
+    a `AddContact`. Chybí:
+    - **Údaje o protějšku u `ReportAddBlock`** (`accountInfo`: měsíc a rok registrace, země
+      podle čísla, kdy naposledy změnil jméno a fotku). Telegram je posílá, když cizí napíše
+      poprvé, právě aby šel poznat spam nebo ukradený účet.
+    - **Upozornění na emoji status** u `ReportSpam` / `ReportAddBlock` („must be shown"). Status
+      jde koupit s Premium a dá se jím napodobit ověřovací odznak. Plume emoji statusy zatím
+      nekreslí, takže riziko teď nehrozí; přijde spolu s nimi.
+    - **`SharePhoneNumber`** — vzájemný kontakt, kterému jde nasdílet vlastní číslo
+      (`sharePhoneNumber`).
+    - **`InviteMembers`** — čerstvě založená skupina, do které jde pozvat členy.
+    - **`JoinRequest`** — soukromý chat se správcem chatu, do kterého uživatel poslal žádost
+      o vstup (název chatu, kanál / skupina, kdy se žádalo).
+    - **Pruh firemního bota** (`UpdateChatBusinessBotManageBar`, jen účty s Telegram Business):
+      pozastavit bota v chatu a odkaz na jeho správu. Je to samostatný update, ne `ChatActionBar`.
   - **Nahlásit z režimu výběru víc zpráv** (lišta výběru nemá „Nahlásit").
   - **Ověřit skutečný pruh (`UpdateChatActionBar`)** na chatu od cizího — zatím jen podstrčeným stavem.
   - ~~**Seznam blokovaných v Nastavení**~~ — hotovo (Obecné → Soukromí → Blokovaní). Zbývá
