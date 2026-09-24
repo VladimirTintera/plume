@@ -60,6 +60,7 @@ class MessageActionTest {
         canPin = true,
         canForward = true,
         canSave = true,
+        canReport = true,
     )
 
     private fun menu(
@@ -89,6 +90,7 @@ class MessageActionTest {
                 MessageMenuAction.Info,
                 MessageMenuAction.Pin,
                 MessageMenuAction.Select,
+                MessageMenuAction.Report,
                 MessageMenuAction.Delete,
             ),
             menuActions(message(), isPinned = false),

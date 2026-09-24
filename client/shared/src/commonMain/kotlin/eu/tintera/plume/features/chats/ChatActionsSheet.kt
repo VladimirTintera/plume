@@ -20,26 +20,29 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import eu.tintera.plume.resources.chats_action_report
+import eu.tintera.plume.resources.flag_24dp
+import eu.tintera.plume.resources.logout_24dp
 import androidx.compose.animation.AnimatedVisibility
 import eu.tintera.plume.core.ui.SheetActionRow
 import eu.tintera.plume.core.ui.chatTitle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -52,7 +55,6 @@ import eu.tintera.plume.core.telegram.isPrivate
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.archive_24dp
 import eu.tintera.plume.resources.block_24dp
-import eu.tintera.plume.resources.chats_delete_block
 import eu.tintera.plume.resources.chats_delete_report
 import eu.tintera.plume.resources.profile_block
 import eu.tintera.plume.resources.profile_unblock
@@ -67,12 +69,6 @@ import eu.tintera.plume.resources.chats_action_mute
 import eu.tintera.plume.resources.chats_action_pin
 import eu.tintera.plume.resources.chats_action_unmute
 import eu.tintera.plume.resources.chats_action_unpin
-import eu.tintera.plume.resources.chats_delete_body
-import eu.tintera.plume.resources.chats_delete_title
-import eu.tintera.plume.resources.chats_leave_body
-import eu.tintera.plume.resources.chats_leave_title
-import eu.tintera.plume.resources.common_cancel
-import eu.tintera.plume.resources.common_delete
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.mark_chat_unread_24dp
 import eu.tintera.plume.resources.notifications_off_24dp
@@ -99,213 +95,213 @@ fun ChatActionsSheet(
     /** `null` = chat archivovat nejde (Uložené zprávy), položka se nenabídne. */
     onToggleArchived: (() -> Unit)?,
     onSetBlocked: (Boolean) -> Unit,
-    onDelete: () -> Unit,
+    /** Samostatné nahlášení (průvodce), bez mazání. */
+    onReport: () -> Unit,
+    /** Smazání potvrzené v podmenu, s volbami proti spamu. */
+    onDelete: (SpamCleanup) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    // Modální sheet začíná skrytý a rozjede se sám. Náhrada za `rememberModalBottomSheetState`,
-    // které je od Compose 1.12 zastaralé.
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    /*
+     * Celý, bez napůl rozbaleného stavu, a obsah scrollovatelný. Podmenu smazání se rozbaluje
+     * na KONCI nabídky; u polovičního sheetu by jeho tlačítko skončilo pod okrajem obrazovky
+     * (tatáž past jako u správy členů). Náhrada za `rememberModalBottomSheetState`, které je od
+     * Compose 1.12 zastaralé.
+     */
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
+    val scroll = rememberScrollState()
+    var deleteExpanded by rememberSaveable { mutableStateOf(false) }
+
+    /*
+     * Rozbalené podmenu smazání se dotáhne do pohledu. Sleduje se `maxValue`, protože podmenu
+     * roste animací — jednorázový posun na začátku by dojel jen kousek.
+     */
+    LaunchedEffect(deleteExpanded) {
+        if (deleteExpanded) snapshotFlow { scroll.maxValue }.collect { scroll.animateScrollTo(it) }
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Text(
-            text = chatTitle(chat.id, chat.title),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-        )
-
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            SheetActionRow(
-                icon = Res.drawable.push_pin_filled_24dp,
-                // Popisek říká, co se STANE, ne jaký je stav — jinak si uživatel musí domýšlet,
-                // jestli „Připnuto" je tvrzení, nebo tlačítko.
-                label = stringResource(if (chat.isPinned) Res.string.chats_action_unpin else Res.string.chats_action_pin),
-                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
-                onClick = onTogglePinned,
+        Column(Modifier.verticalScroll(scroll)) {
+            Text(
+                text = chatTitle(chat.id, chat.title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
             )
 
-            if (chat.isMuted) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
                 SheetActionRow(
-                    icon = Res.drawable.notifications_24dp,
-                    label = stringResource(Res.string.chats_action_unmute),
-                    shape = RoundedCornerShape(4.dp),
-                    onClick = onUnmute,
+                    icon = Res.drawable.push_pin_filled_24dp,
+                    // Popisek říká, co se STANE, ne jaký je stav — jinak si uživatel musí domýšlet,
+                    // jestli „Připnuto" je tvrzení, nebo tlačítko.
+                    label = stringResource(if (chat.isPinned) Res.string.chats_action_unpin else Res.string.chats_action_pin),
+                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
+                    onClick = onTogglePinned,
                 )
-            } else {
+
+                if (chat.isMuted) {
+                    SheetActionRow(
+                        icon = Res.drawable.notifications_24dp,
+                        label = stringResource(Res.string.chats_action_unmute),
+                        shape = RoundedCornerShape(4.dp),
+                        onClick = onUnmute,
+                    )
+                } else {
+                    /*
+                     * Doby ztlumení se rozbalí na místě, ne v dalším sheetu — jsou to varianty jedné
+                     * položky a nabídka pod prstem zůstane stejná. Dřív „Ztlumit" znamenalo navždy,
+                     * a na hodinu šlo chat ztlumit jen z notifikace.
+                     */
+                    var expanded by rememberSaveable { mutableStateOf(false) }
+                    val rotation by animateFloatAsState(
+                        targetValue = if (expanded) 180f else 0f,
+                        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                        label = "mute-expand",
+                    )
+                    SheetActionRow(
+                        icon = Res.drawable.notifications_off_24dp,
+                        label = stringResource(Res.string.chats_action_mute),
+                        shape = RoundedCornerShape(4.dp),
+                        onClick = { expanded = !expanded },
+                        trailing = {
+                            Icon(
+                                painterResource(Res.drawable.expand_more_24dp),
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = rotation },
+                            )
+                        },
+                    )
+                    AnimatedVisibility(
+                        visible = expanded,
+                        enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+                            fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                        exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                            fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            MUTE_OPTIONS.forEach { (label, duration) ->
+                                SheetActionRow(
+                                    icon = null,
+                                    label = stringResource(label),
+                                    shape = RoundedCornerShape(4.dp),
+                                    // Tónovaná plocha o stupeň níž: varianty patří k položce nad nimi.
+                                    color = MaterialTheme.colorScheme.surfaceContainer,
+                                    onClick = { onMute(duration) },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                SheetActionRow(
+                    icon = Res.drawable.mark_chat_unread_24dp,
+                    label = stringResource(if (chat.hasUnread) Res.string.chats_action_mark_read else Res.string.chats_action_mark_unread),
+                    shape = RoundedCornerShape(4.dp),
+                    onClick = onToggleUnread,
+                )
+
+                onToggleArchived?.let { onClick ->
+                    val archived = chat.folder == ChatFolder.Archive
+                    SheetActionRow(
+                        icon = if (archived) Res.drawable.unarchive_24dp else Res.drawable.archive_24dp,
+                        label = stringResource(if (archived) Res.string.chats_action_unarchive else Res.string.chats_action_archive),
+                        shape = RoundedCornerShape(4.dp),
+                        onClick = onClick,
+                    )
+                }
+
                 /*
-                 * Doby ztlumení se rozbalí na místě, ne v dalším sheetu — jsou to varianty jedné
-                 * položky a nabídka pod prstem zůstane stejná. Dřív „Ztlumit" znamenalo navždy,
-                 * a na hodinu šlo chat ztlumit jen z notifikace.
+                 * Zablokovat, když má chat koho. Zjišťuje se to na dotaz, takže položka naskočí o kousek
+                 * později než zbytek nabídky — objevení ruší míň než zmizení a chybějící stav nesmí
+                 * nabídnout akci, kterou server odmítne.
+                 *
+                 * Bez potvrzovacího dialogu: blokování je vratné a „Vrátit" ve snackbaru je lepší než
+                 * dialog, který před vratnou akcí jen zdržuje. (V profilu chatu dialog zůstává — tam se
+                 * do blokování chodí vědomě a snackbar s „Vrátit" tam není odkud ukázat.)
                  */
-                var expanded by rememberSaveable { mutableStateOf(false) }
-                val rotation by animateFloatAsState(
-                    targetValue = if (expanded) 180f else 0f,
+                if (spam?.canBlock == true) {
+                    SheetActionRow(
+                        icon = Res.drawable.block_24dp,
+                        label = stringResource(if (spam.isBlocked) Res.string.profile_unblock else Res.string.profile_block),
+                        shape = RoundedCornerShape(4.dp),
+                        onClick = { onSetBlocked(!spam.isBlocked) },
+                    )
+                }
+
+                /*
+                 * Nahlásit samostatně, bez mazání — hlavně pro skupiny a kanály, ze kterých se odejít
+                 * nechce. Popisek říká dopředu, jestli se průvodce zeptá na důvod.
+                 */
+                if (spam?.canReport == true) {
+                    SheetActionRow(
+                        icon = Res.drawable.flag_24dp,
+                        label = stringResource(
+                            if (spam.reportsSpamDirectly) Res.string.chats_delete_report else Res.string.chats_action_report,
+                        ),
+                        shape = RoundedCornerShape(4.dp),
+                        onClick = onReport,
+                    )
+                }
+
+                /*
+                 * Smazání se rozbalí na místě do podmenu s následkem, volbami proti spamu a tlačítkem,
+                 * které chat opravdu smaže. Dřív to byl dialog nad sheetem: zavřel nabídku, ze které
+                 * vyšel, a volby v něm stály mimo to, čeho se týkaly.
+                 */
+                val deleteRotation by animateFloatAsState(
+                    targetValue = if (deleteExpanded) 180f else 0f,
                     animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-                    label = "mute-expand",
+                    label = "delete-expand",
+                )
+                val deleteBottom by animateDpAsState(
+                    targetValue = if (deleteExpanded) 4.dp else 20.dp,
+                    animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                    label = "delete-corner",
                 )
                 SheetActionRow(
-                    icon = Res.drawable.notifications_off_24dp,
-                    label = stringResource(Res.string.chats_action_mute),
-                    shape = RoundedCornerShape(4.dp),
-                    onClick = { expanded = !expanded },
+                    icon = if (chat.isPrivate) Res.drawable.delete_24dp else Res.drawable.logout_24dp,
+                    // Ze skupiny se odchází, soukromý chat se maže. Jeden popisek pro obojí by lhal.
+                    label = stringResource(if (chat.isPrivate) Res.string.chats_action_delete else Res.string.chats_action_leave),
+                    // Pružina přestřelí; záporné zaoblení `RoundedCornerShape` odmítne.
+                    shape = RoundedCornerShape(
+                        topStart = 4.dp,
+                        topEnd = 4.dp,
+                        bottomStart = deleteBottom.coerceAtLeast(0.dp),
+                        bottomEnd = deleteBottom.coerceAtLeast(0.dp),
+                    ),
+                    // Jediná nevratná akce v nabídce — dostane chybovou barvu, aby se nespletla
+                    // s ostatními.
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    onClick = { deleteExpanded = !deleteExpanded },
                     trailing = {
                         Icon(
                             painterResource(Res.drawable.expand_more_24dp),
                             contentDescription = null,
-                            modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = rotation },
+                            modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = deleteRotation },
                         )
                     },
                 )
                 AnimatedVisibility(
-                    visible = expanded,
+                    visible = deleteExpanded,
                     enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) +
                         fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
                     exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
                         fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        MUTE_OPTIONS.forEach { (label, duration) ->
-                            SheetActionRow(
-                                icon = null,
-                                label = stringResource(label),
-                                shape = RoundedCornerShape(4.dp),
-                                // Tónovaná plocha o stupeň níž: varianty patří k položce nad nimi.
-                                color = MaterialTheme.colorScheme.surfaceContainer,
-                                onClick = { onMute(duration) },
-                            )
-                        }
-                    }
+                    DeleteChatOptions(
+                        isPrivate = chat.isPrivate,
+                        title = chatTitle(chat.id, chat.title),
+                        spam = spam,
+                        onConfirm = onDelete,
+                    )
                 }
             }
-
-            SheetActionRow(
-                icon = Res.drawable.mark_chat_unread_24dp,
-                label = stringResource(if (chat.hasUnread) Res.string.chats_action_mark_read else Res.string.chats_action_mark_unread),
-                shape = RoundedCornerShape(4.dp),
-                onClick = onToggleUnread,
-            )
-
-            onToggleArchived?.let { onClick ->
-                val archived = chat.folder == ChatFolder.Archive
-                SheetActionRow(
-                    icon = if (archived) Res.drawable.unarchive_24dp else Res.drawable.archive_24dp,
-                    label = stringResource(if (archived) Res.string.chats_action_unarchive else Res.string.chats_action_archive),
-                    shape = RoundedCornerShape(4.dp),
-                    onClick = onClick,
-                )
-            }
-
-            /*
-             * Zablokovat, když má chat koho. Zjišťuje se to na dotaz, takže položka naskočí o kousek
-             * později než zbytek nabídky — objevení ruší míň než zmizení a chybějící stav nesmí
-             * nabídnout akci, kterou server odmítne.
-             *
-             * Bez potvrzovacího dialogu: blokování je vratné a „Vrátit" ve snackbaru je lepší než
-             * dialog, který před vratnou akcí jen zdržuje. (V profilu chatu dialog zůstává — tam se
-             * do blokování chodí vědomě a snackbar s „Vrátit" tam není odkud ukázat.)
-             */
-            if (spam?.canBlock == true) {
-                SheetActionRow(
-                    icon = Res.drawable.block_24dp,
-                    label = stringResource(if (spam.isBlocked) Res.string.profile_unblock else Res.string.profile_block),
-                    shape = RoundedCornerShape(4.dp),
-                    onClick = { onSetBlocked(!spam.isBlocked) },
-                )
-            }
-
-            SheetActionRow(
-                icon = Res.drawable.delete_24dp,
-                // Ze skupiny se odchází, soukromý chat se maže. Jeden popisek pro obojí by lhal.
-                label = stringResource(if (chat.isPrivate) Res.string.chats_action_delete else Res.string.chats_action_leave),
-                shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp),
-                // Jediná nevratná akce v nabídce — dostane chybovou barvu, aby se nespletla
-                // s ostatními.
-                color = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                onClick = onDelete,
-            )
         }
-    }
-}
-
-/**
- * Potvrzení nevratné akce.
- *
- * Text pojmenovává **konkrétní následek**, ne obecné „opravdu?". U soukromého chatu se maže
- * historie jen u nás, ze skupiny se odchází — to jsou dvě různé věci a uživatel musí vědět,
- * kterou zrovna dělá.
- */
-@Composable
-fun ChatDeleteDialog(
-    chat: ChatSummary,
-    /** Co jde k mazání přibalit; `null` nebo bez práv = jen mazání, dialog je pak jako dřív. */
-    spam: SpamActions?,
-    onConfirm: (SpamCleanup) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    /*
-     * Volby jsou v potvrzení mazání, ne vedle něj: spam se řeší obojím naráz — kdo smaže chat
-     * a nezablokuje, dostane od bota zprávu znovu. Blokovaného už blokovat nenabízíme a nahlásit
-     * jde jen chat se spamovým action barem, takže u běžného chatu dialog zůstává jako dřív.
-     */
-    val canBlock = spam?.canBlock == true && !spam.isBlocked
-    val canReport = spam?.canReport == true
-    var block by rememberSaveable { mutableStateOf(false) }
-    var report by rememberSaveable { mutableStateOf(false) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(if (chat.isPrivate) Res.string.chats_delete_title else Res.string.chats_leave_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    stringResource(
-                        if (chat.isPrivate) Res.string.chats_delete_body else Res.string.chats_leave_body,
-                        chatTitle(chat.id, chat.title),
-                    ),
-                )
-                if (canBlock) {
-                    DeleteOption(Res.string.chats_delete_block, block) { block = it }
-                }
-                if (canReport) {
-                    DeleteOption(Res.string.chats_delete_report, report) { report = it }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(SpamCleanup(report = canReport && report, block = canBlock && block)) }) {
-                Text(
-                    text = stringResource(if (chat.isPrivate) Res.string.common_delete else Res.string.chats_action_leave),
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
-        },
-    )
-}
-
-/**
- * Volba v potvrzení mazání.
- *
- * Klikání nese celý řádek a zaškrtávátko má `onCheckedChange = null`: do malého kolečka se nemá
- * trefovat a čtečka obrazovky má číst jednu položku, ne dvě — stejné pravidlo jako u řádků
- * v Nastavení.
- */
-@Composable
-private fun DeleteOption(label: StringResource, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .toggleable(value = checked, role = Role.Checkbox, onValueChange = onCheckedChange),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Checkbox(checked = checked, onCheckedChange = null)
-        Text(stringResource(label), style = MaterialTheme.typography.bodyLarge)
     }
 }
 

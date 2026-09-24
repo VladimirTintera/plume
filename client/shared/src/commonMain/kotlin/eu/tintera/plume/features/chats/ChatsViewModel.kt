@@ -23,6 +23,7 @@ import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.update.AppUpdateState
 import eu.tintera.plume.core.update.AppUpdates
 import eu.tintera.plume.core.update.updateCard
+import eu.tintera.plume.features.report.ReportFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -60,6 +61,12 @@ class ChatsViewModel(
      * jestli obrazovka existuje. ViewModel tu nic nekešuje, jen přeposílá a spouští dotažení.
      */
     val state: StateFlow<ChatListState> = repository.chats(folder)
+
+    /**
+     * Průvodce nahlášením — z položky „Nahlásit…" v nabídce nad chatem i z mazání s volbou
+     * „nahlásit". Kreslí ho `ChatActionsHost`.
+     */
+    val reportFlow = ReportFlow(viewModelScope, repository::report)
 
     private val _filter = MutableStateFlow(
         savedState.get<String>(FILTER_KEY)?.let { name -> ChatFilter.entries.find { it.name == name } }
@@ -299,7 +306,7 @@ class ChatsViewModel(
      * Zablokuje protějšek, nebo blokování zruší.
      *
      * **Chat v seznamu zůstává** — blokování a mazání jsou dvě různé věci; kdo chce obojí, zapne
-     * si zablokování v potvrzení smazání ([confirmDelete]). Právě proto se to musí ohlásit
+     * si zablokování v podmenu smazání ([delete]). Právě proto se to musí ohlásit
      * snackbarem: v seznamu není nic, z čeho by se zablokování poznalo.
      *
      * Bez potvrzovacího dialogu: je to vratné a „Vrátit" ve snackbaru je lepší než dialog, který
@@ -321,28 +328,29 @@ class ChatsViewModel(
         repository.setBlocked(change.chatId, !change.blocked)
     }
 
+    /** Samostatné nahlášení z nabídky nad chatem, bez mazání. */
+    fun report(chat: ChatSummary) {
+        _actions.value = ChatActionsState()
+        reportFlow.start(chat.id)
+    }
+
     /**
-     * Krok mezi „smazat" a smazáním — nevratnou akci musí uživatel potvrdit.
-     *
-     * Volby proti spamu se přenášejí z nabídky: jsou už zjištěné a dialog z ní vede, takže se
-     * nemusí načítat znovu.
+     * Smazání z podmenu v nabídce — nevratnou akci uživatel potvrdil tím, že podmenu rozbalil
+     * a ťukl na tlačítko v něm. S volbou „nahlásit" se napřed projde průvodce a teprve jeho
+     * úspěch spustí zablokování a smazání; pořadí a chování po chybě drží [cleanUpSpam].
      */
-    fun askDelete(chat: ChatSummary) {
-        _actions.value = ChatActionsState(pendingDelete = chat, spam = _actions.value.spam)
-    }
-
-    fun cancelDelete() {
-        _actions.value = _actions.value.copy(pendingDelete = null)
-    }
-
-    /** Vyřídí, co si uživatel v potvrzení zapnul — pořadí a chování po chybě drží [cleanUpSpam]. */
-    fun confirmDelete(chat: ChatSummary, cleanup: SpamCleanup = SpamCleanup()) = run(chat.id) {
-        cleanUpSpam(
-            cleanup = cleanup,
-            report = { repository.reportSpam(chat.id) },
-            block = { repository.setBlocked(chat.id, true) },
-            delete = { repository.deleteOrLeave(chat.id) },
-        )
+    fun delete(chat: ChatSummary, cleanup: SpamCleanup = SpamCleanup()) {
+        _actions.value = ChatActionsState()
+        reportFlow.thenAfterReport(cleanup.report, chat.id) {
+            cleanUpSpam(
+                cleanup = cleanup,
+                block = { repository.setBlocked(chat.id, true) },
+                delete = { repository.deleteOrLeave(chat.id) },
+            ).onFailure { failure ->
+                logger.w(failure) { "Smazání chatu ${chat.id} selhalo." }
+                _actions.value = ChatActionsState(error = failure.userMessage(Res.string.chats_action_failed))
+            }
+        }
     }
 
     fun dismissError() {
@@ -377,23 +385,17 @@ class ChatsViewModel(
 }
 
 /**
- * Nabídka akcí nad jedním chatem.
- *
- * [target] je otevřený bottom sheet, [pendingDelete] potvrzovací dialog. Jsou to dva stavy,
- * ne jeden: mezi zavřením nabídky a potvrzením smazání nesmí zůstat nic otevřené.
+ * Nabídka akcí nad jedním chatem; [target] je otevřený bottom sheet. Smazání se potvrzuje
+ * v podmenu téhož sheetu, žádný další stav k tomu není.
  */
 data class ChatActionsState(
     val target: ChatSummary? = null,
-    val pendingDelete: ChatSummary? = null,
     val error: UiText? = null,
     /** Jednorázová událost pro snackbar s „Vrátit" po archivaci nebo vrácení z archivu. */
     val archived: ArchiveChange? = null,
     /** Jednorázová událost pro snackbar s „Vrátit" po zablokování nebo odblokování. */
     val blocked: BlockChange? = null,
-    /**
-     * Co proti spamu nabídnout; `null`, dokud to nedorazí ze serveru (pak se nenabízí nic).
-     * Platí pro chat v [target], a po [askDelete] pro ten v [pendingDelete].
-     */
+    /** Co proti spamu nabídnout chatu v [target]; `null`, dokud to nedorazí ze serveru. */
     val spam: SpamActions? = null,
 )
 

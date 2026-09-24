@@ -1,0 +1,190 @@
+package eu.tintera.plume.features.conversation
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.telegram.SpamBar
+import eu.tintera.plume.features.chats.CleanupOptions
+import eu.tintera.plume.features.chats.CleanupToggle
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.block_24dp
+import eu.tintera.plume.resources.chats_delete_block
+import eu.tintera.plume.resources.chats_delete_report
+import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.common_close
+import eu.tintera.plume.resources.flag_24dp
+import eu.tintera.plume.resources.profile_block
+import eu.tintera.plume.resources.profile_block_body
+import eu.tintera.plume.resources.profile_block_title
+import eu.tintera.plume.resources.spam_bar_add_contact
+import eu.tintera.plume.resources.spam_bar_text
+import eu.tintera.plume.resources.spam_report_body
+import eu.tintera.plume.resources.spam_report_confirm
+import eu.tintera.plume.resources.spam_report_delete
+import eu.tintera.plume.resources.spam_report_title
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+
+/**
+ * Pruh nad konverzací u chatu od někoho, kdo není v kontaktech (`ChatActionBar`).
+ *
+ * **Tím Telegram spam řeší primárně**: nabídne se sám, jakmile cizí napíše, místo aby ho
+ * uživatel hledal v nabídce nad chatem. Dokud tu nebyl, šlo spam nahlásit jen z potvrzení
+ * smazání v seznamu chatů — tedy tam, kde ho nikdo nečeká.
+ *
+ * Plave nad seznamem jako pruh připnutých, se stejným okrajem a zaoblením, a stojí nad ním —
+ * spam je důležitější než připnutá zpráva. Zablokovat a Nahlásit jsou chybovou barvou: jsou to
+ * akce PROTI protějšku a obě otevřou sheet s volbami, ne rovnou akci.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun SpamBarCard(
+    bar: SpamBar,
+    onBlock: () -> Unit,
+    onReport: () -> Unit,
+    onAddContact: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(20.dp),
+        shadowElevation = 2.dp,
+        modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+    ) {
+        /*
+         * Tlačítka jsou pod textem, ne pod řádkem s křížkem: `IconButton` má 48 dp a řádek s ním
+         * by mezi textem a tlačítky nechal mezeru, ve které pruh vypadal rozpadle. Tlačítka se
+         * posouvají o vnitřní odsazení `TextButton`, aby první popisek lícoval s textem.
+         */
+        Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)) {
+            Column(Modifier.weight(1f).padding(top = 10.dp)) {
+                Text(
+                    text = stringResource(Res.string.spam_bar_text),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.offset(x = (-12).dp),
+                ) {
+                    val destructive = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    if (bar.canBlock) {
+                        TextButton(onClick = onBlock, colors = destructive) { Text(stringResource(Res.string.profile_block)) }
+                    }
+                    if (bar.canReportSpam) {
+                        TextButton(onClick = onReport, colors = destructive) { Text(stringResource(Res.string.chats_delete_report)) }
+                    }
+                    if (bar.canAddContact) {
+                        TextButton(onClick = onAddContact) { Text(stringResource(Res.string.spam_bar_add_contact)) }
+                    }
+                }
+            }
+            // Zavření je napořád (`removeChatActionBar`) — pruh se nevrátí ani po restartu.
+            IconButton(onClick = onDismiss) {
+                Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+            }
+        }
+    }
+}
+
+/** Co se z pruhu spouští: zablokování, nebo nahlášení spamu — a co k tomu přibalit. */
+enum class SpamBarAction { Block, Report }
+
+/** Volby akce z pruhu; [delete] = chat po akci smazat. */
+data class SpamBarCleanup(val report: Boolean, val block: Boolean, val delete: Boolean)
+
+/**
+ * Sheet z pruhu: zablokovat, nebo nahlásit — a k tomu zaškrtávátka pro zbylé dvě věci. Spam se
+ * řeší všemi třemi naráz, a tak to dělá i oficiální klient (dialog „Zablokovat" s volbami
+ * „nahlásit spam" a „smazat chat"). Tady je to podmenu v sheetu, stejné jako mazání v nabídce
+ * nad chatem, ne dialog.
+ *
+ * Hlavní akce je zaškrtnutá napevno (je to tlačítko), zbylé jsou výchozí vypnuté.
+ */
+@Composable
+internal fun SpamBarSheet(
+    action: SpamBarAction,
+    bar: SpamBar,
+    title: String,
+    onConfirm: (SpamBarCleanup) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
+    var report by rememberSaveable { mutableStateOf(false) }
+    var block by rememberSaveable { mutableStateOf(false) }
+    var delete by rememberSaveable { mutableStateOf(false) }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
+            Text(
+                text = when (action) {
+                    SpamBarAction.Block -> stringResource(Res.string.profile_block_title, title)
+                    SpamBarAction.Report -> stringResource(Res.string.spam_report_title)
+                },
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(horizontal = 8.dp).padding(bottom = 16.dp),
+            )
+            CleanupOptions(
+                body = stringResource(
+                    when (action) {
+                        SpamBarAction.Block -> Res.string.profile_block_body
+                        SpamBarAction.Report -> Res.string.spam_report_body
+                    },
+                ),
+                toggles = listOfNotNull(
+                    CleanupToggle(stringResource(Res.string.chats_delete_report), report) { report = it }
+                        .takeIf { action == SpamBarAction.Block && bar.canReportSpam },
+                    CleanupToggle(stringResource(Res.string.chats_delete_block), block) { block = it }
+                        .takeIf { action == SpamBarAction.Report && bar.canBlock },
+                    CleanupToggle(stringResource(Res.string.spam_report_delete), delete) { delete = it },
+                ),
+                confirmLabel = stringResource(
+                    when (action) {
+                        SpamBarAction.Block -> Res.string.profile_block
+                        SpamBarAction.Report -> Res.string.spam_report_confirm
+                    },
+                ),
+                confirmIcon = if (action == SpamBarAction.Block) Res.drawable.block_24dp else Res.drawable.flag_24dp,
+                onConfirm = {
+                    onConfirm(
+                        SpamBarCleanup(
+                            report = action == SpamBarAction.Report || (report && bar.canReportSpam),
+                            block = action == SpamBarAction.Block || (block && bar.canBlock),
+                            delete = delete,
+                        ),
+                    )
+                },
+                roundTop = true,
+            )
+        }
+    }
+}

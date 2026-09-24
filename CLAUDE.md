@@ -1912,9 +1912,11 @@ Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečte
 
 ### Blokování a nahlášení spamu
 
-Nabídka nad chatem má u soukromého chatu (i bota) „Zablokovat", a potvrzení smazání k tomu
-nabídne zaškrtávátka „Zablokovat taky" a „Nahlásit spam" — spam se řeší obojím naráz, protože
-kdo bota jen smaže, dostane od něj zprávu znovu.
+Spam se řeší třemi věcmi naráz — nahlásit, zablokovat, smazat — a jde to ze tří míst:
+**pruh nad konverzací** u chatu od neznámého (`SpamBarCard`), **podmenu „Smazat"** v nabídce
+nad chatem (a totéž jako sheet v profilu, `DeleteChatOptions`) a **„Nahlásit"** samostatně
+(nabídka nad chatem, ⋮ v profilu, nabídka nad zprávou). Nahlášení je vždycky tentýž průvodce
+(`ReportFlow` + `ReportSheet`, testy `ReportFlowTest`).
 
 - **Blokování má JEDNU cestu, a je jí `ChatRepository`** (`setBlocked(chatId, …)` →
   `setMessageSenderBlockList` s `BlockListMain`). Profil chatu ji volá taky; dřív měl vlastní
@@ -1925,31 +1927,82 @@ kdo bota jen smaže, dostane od něj zprávu znovu.
   takže potvrzovací dialog před ním nemá co dělat — stejné pravidlo jako u archivace a odepnuté
   zprávy. (V profilu chatu dialog zůstává: tam se do blokování chodí vědomě a snackbar s „Vrátit"
   tam není odkud ukázat.)
-- **Stav blokování se čte až při otevření nabídky** (`spamActions`), jako práva u nabídky nad
-  zprávou: `ChatSummary` ho nenese a `getUserFullInfo` na každý chat v seznamu by byl dotaz za
-  položku. Dokud odpověď nedorazí, položka se nekreslí — objevení ruší míň než zmizení.
-  **Nezjištěno = nenabízet nic** (`SpamActions()`); akce, která skončí chybou od serveru, je
-  horší než žádná.
-- **`reportChat` NENÍ jedno volání, je to PRŮVODCE.** Vrací `ReportChatResult`: `Ok`, nebo
-  `OptionRequired` (volba důvodu), `TextRequired`, `MessagesRequired`. Jedním krokem (prázdné
-  `optionId` i `messageIds`) projde jen chat, kterému server dal spamový action bar
-  (`ChatActionBarReportSpam`, `ChatActionBarReportAddBlock`) — a právě podle NĚJ se volba
-  nabízí, ne podle `Chat.canBeReported`. Ten říká jen „tohle jde nahlásit" a u zbytku by
-  položka skončila požadavkem na volbu, kterou aplikace neumí zobrazit.
-- **Důsledek, se kterým se počítá:** u bota, kterému uživatel dal `/start`, action bar není,
-  takže se „Nahlásit spam" nenabídne. Není to chyba — je to tentýž případ jako filtry seznamu,
-  které nemají co odfiltrovat. Průvodce s volbou důvodu je úkol v roadmapě.
-- **Pořadí je nahlásit → zablokovat → smazat a na první chybě se ZASTAVÍ** (`cleanUpSpam`, testy
-  `SpamCleanupTest`). Nahlásit jde jen chat, který ještě existuje, takže mazání musí být
-  poslední; a kdyby se chat smazal i po selhaném blokování, bot by dál psal, uživatel by si
-  myslel, že je vyřízený — a chat, na kterém by šlo akci zopakovat, by byl pryč. Je to funkce
-  mimo ViewModel, protože uvnitř něj se pořadí kroků ani chování po chybě neotestuje.
+- **Stav blokování a nahlášení se čte až při otevření nabídky** (`spamActions`), jako práva
+  u nabídky nad zprávou: `ChatSummary` ho nenese a `getUserFullInfo` na každý chat v seznamu by
+  byl dotaz za položku. Dokud odpověď nedorazí, položka se nekreslí — objevení ruší míň než
+  zmizení. **Nezjištěno = nenabízet nic** (`SpamActions()`).
+
+#### Nahlášení je průvodce
+
+- **`reportChat` NENÍ jedno volání.** Vrací `ReportChatResult`: `Ok`, nebo `OptionRequired`
+  (volba důvodu), `TextRequired`, `MessagesRequired`. Jedním krokem (prázdné `optionId`
+  i `messageIds`) projde jen chat se spamovým action barem (`ChatActionBarReportSpam`,
+  `ChatActionBarReportAddBlock`); jinde je úvodní prázdný požadavek jen OTÁZKA — server vrátí
+  důvody a nic se nenahlásí. Díky tomu jde průvodce ověřit na emulátoru bez skutečného nahlášení.
+- **Dřív se proto „Nahlásit spam" nabízelo jen s action barem, a to byla ta chyba.** Action bar
+  zmizí, jakmile uživatel protějšku cokoli odpoví, a bez průvodce pak nahlásit nešlo nic — v potvrzení
+  mazání zbylo jen „Zablokovat taky". Teď se nabízí podle `Chat.canBeReported` NEBO action baru
+  (`SpamActions.canReport`) a jen popisek se liší: s action barem „Nahlásit spam" (hotovo jedním
+  ťuknutím), jinak „Nahlásit…" / „Nahlásit — vybereš důvod". Otázka po „Smazat" musí být
+  ohlášená dopředu, jinak by vyskočila nečekaně.
+- **Důvody i otázky píše server**, v jazyce účtu („What is wrong with this bot?", „Spam", „Scam
+  or fraud"…). Vlastní seznam by se rozešel s tím, co server přijme; aplikace jen kreslí.
+- **Nahlášení zprávy posílá `messageIds` v KAŽDÉM kroku**, ne jen v prvním (`ReportRequest`
+  drží všechno, co už uživatel vybral). U alba celé album, jako mazání. Nabízí se podle
+  `MessageProperties.canReportChat` — vlastní zprávy a Uložené zprávy ho nemají.
+- **`MessagesRequired` z nabídky nad chatem dodat nejde** — průvodce řekne, kudy vede cesta
+  (nabídka nad zprávou), místo slepé uličky.
+- **Zavřený průvodce nesmí ožít** odpovědí na krok, který byl na cestě (`generation`).
+- **`ReportFlow` je třída nad `CoroutineScope`, ne ViewModel.** Seznam chatů, profil
+  i konverzace ji mají každý ve svém ViewModelu a kreslí `ReportHost` (sheet + snackbar).
+  Server dostává jako funkci, takže se pořadí kroků testuje bez TDLib.
+
+#### Úklid spamu a pořadí
+
+- **Pořadí je nahlásit → zablokovat → smazat a na první chybě se ZASTAVÍ.** Nahlášení běží
+  průvodcem a teprve jeho úspěch spustí zbytek (`ReportFlow.thenAfterReport`); zablokovat →
+  smazat drží `cleanUpSpam` (testy `SpamCleanupTest`). Nahlásit jde jen chat, který ještě
+  existuje, takže mazání musí být poslední; zrušený průvodce nesmaže nic; a kdyby se chat smazal
+  i po selhaném blokování, bot by dál psal a chat, na kterém by šlo akci zopakovat, by byl pryč.
+- **Smazání je podmenu v sheetu, ne dialog** (`CleanupOptions`). Dialog nad sheetem zavřel
+  nabídku, ze které vyšel, a volby v něm stály mimo to, čeho se týkaly. Rozbalené „Smazat" nese
+  větu s následkem, zaškrtávátka a plné chybové tlačítko — potvrzením je rozbalení a ťuknutí na
+  tlačítko v něm, jako doby ztlumení pod „Ztlumit". Profil má z ⋮ totéž jako samostatný sheet
+  (`ChatDeleteSheet`), protože do obyčejného menu se podmenu rozbalit nedá.
+- **Sheet s podmenu je jen rozbalený (`Hidden, Expanded`) a scrolluje se, a podmenu se dotáhne
+  do pohledu** (`snapshotFlow { scroll.maxValue }`). Rozbaluje se na KONCI nabídky, takže
+  u polovičního sheetu by tlačítko smazání skončilo pod okrajem obrazovky.
 - **Zaškrtávátka jsou výchozí vypnutá** a blokovanému se „Zablokovat taky" nenabízí. Zablokovat
   někoho omylem při mazání chatu je horší než ťuknutí navíc.
-- **Ověřeno na emulátoru** (chat s testovacím botem): položka v nabídce, zablokování se
-  snackbarem „Vrátit", překlopení popisku na „Odblokovat", odblokování a zaškrtávátko
-  v potvrzení mazání. **Skutečné smazání s volbami a nahlášení ověřené NENÍ** — nahlášení by
-  šlo moderátorům Telegramu na vlastního testovacího bota.
+
+#### Pruh nad konverzací (`ChatActionBar`)
+
+- **Tím Telegram spam řeší primárně**: nabídne se sám, jakmile cizí napíše. Kreslí se jen
+  `ReportSpam` (Nahlásit spam), `ReportAddBlock` (Zablokovat, Nahlásit spam, Přidat kontakt)
+  a `AddContact`; pruhy pro sdílení čísla, pozvání a žádost o vstup ne (`SpamBar`).
+- **Živý přes `UpdateChatActionBar`**, odběr před prvním čtením; update nese pruh, ale čte se
+  celý chat — kdo jde zablokovat, se pozná z typu chatu.
+- **Zablokovat i Nahlásit otevřou sheet s volbami** (`SpamBarSheet`): hlavní akce je tlačítko,
+  zbylé dvě zaškrtávátka (zablokovat / nahlásit a „Smazat i chat"). Tak to dělá i oficiální
+  klient, jen dialogem. Smazaný chat konverzaci zavře (`chatGone`).
+- **Přidat kontakt bere jméno z účtu protějšku** a svoje číslo NEsdílí (`sharePhoneNumber =
+  false`) — to je samostatné rozhodnutí o soukromí. ✕ zavře pruh napořád (`removeChatActionBar`).
+- **Pruh a připnuté zprávy se měří spolu** (jeden `Column` s `onSizeChanged`), seznam se odsazuje
+  o výšku obou. Spam stojí nad připnutou zprávou.
+- **Text a tlačítka pruhu jsou v jednom sloupci, křížek vedle.** V řádku s `IconButton` (48 dp)
+  zbyla mezi textem a tlačítky mezera a pruh vypadal rozpadle.
+
+#### Ověření
+
+- **Na emulátoru** (chat s testovacím botem, anglicky): „Report…" v nabídce nad chatem i v ⋮
+  profilu, podmenu smazání se zaškrtávátky „Block them too" a „Report — you'll pick a reason",
+  sheet smazání v profilu, „Report" v nabídce nad zprávou; průvodce ukáže důvody od serveru
+  („What is wrong with this bot?" / „…this message?") a zavření nic neodešle.
+- **Pruh nad konverzací se ověřoval PODSTRČENÝM stavem** (`spamBar` natvrdo
+  `SpamBar(true, true, true)`, necommituje se) — chat od cizího na testovacím účtu není. Vzhled
+  pruhu a sheet „Report spam?" ověřené jsou, **skutečné `UpdateChatActionBar` ne.**
+- **Skutečné nahlášení, smazání s volbami a přidání kontaktu ověřené NEJSOU** — nahlášení by šlo
+  moderátorům Telegramu na vlastního testovacího bota.
 
 ## Konverzace
 

@@ -749,6 +749,8 @@ data class MessageActions(
     val canForward: Boolean,
     /** Uložení média do telefonu. Tatáž ochrana obsahu (`canBeSaved`) jako u kopírování. */
     val canSave: Boolean,
+    /** Nahlášení zprávy moderátorům (`canReportChat`) — průvodce `reportChat` s touhle zprávou. */
+    val canReport: Boolean = false,
 ) {
     companion object {
         /**

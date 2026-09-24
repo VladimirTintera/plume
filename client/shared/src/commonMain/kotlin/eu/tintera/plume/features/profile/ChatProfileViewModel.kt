@@ -19,6 +19,10 @@ import eu.tintera.plume.resources.member_rights_saved
 import eu.tintera.plume.resources.member_unrestricted
 import eu.tintera.plume.resources.member_transferred
 import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.telegram.SpamActions
+import eu.tintera.plume.features.chats.SpamCleanup
+import eu.tintera.plume.features.chats.cleanUpSpam
+import eu.tintera.plume.features.report.ReportFlow
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.ProfileKind
@@ -83,6 +87,9 @@ class ChatProfileViewModel(
     private val _state = MutableStateFlow(ChatProfileState())
     val state: StateFlow<ChatProfileState> = _state.asStateFlow()
 
+    /** Průvodce nahlášením — z položky „Nahlásit…" i z mazání s volbou „nahlásit". */
+    val reportFlow = ReportFlow(viewModelScope, chats::report)
+
     init {
         viewModelScope.launch {
             profiles.profile(chatId)
@@ -97,6 +104,15 @@ class ChatProfileViewModel(
         }
         viewModelScope.launch {
             chats.muted(chatId).collect { muted -> _state.update { it.copy(muted = muted) } }
+        }
+        viewModelScope.launch {
+            // Co jde nahlásit a zablokovat — pro položku „Nahlásit…" a podmenu smazání. Nezjištěno
+            // = nenabízet: akce, která skončí chybou od serveru, je horší než žádná.
+            val spam = chats.spamActions(chatId).getOrElse { failure ->
+                logger.w(failure) { "Volby proti spamu u chatu $chatId se nepodařilo zjistit." }
+                SpamActions()
+            }
+            _state.update { it.copy(spam = spam) }
         }
         viewModelScope.launch {
             /*
@@ -328,11 +344,23 @@ class ChatProfileViewModel(
         }
     }
 
-    /** Po úspěchu obrazovka zavře profil i konverzaci — chat už v seznamu není. */
-    fun deleteOrLeave() {
+    /** Nahlášení chatu z nabídky ⋮, bez mazání. */
+    fun report() {
+        reportFlow.start(chatId)
+    }
+
+    /**
+     * Smazání / odchod z podmenu, s volbami proti spamu — stejné pořadí a chování po chybě jako
+     * v seznamu chatů ([cleanUpSpam]). Po úspěchu obrazovka zavře profil i konverzaci.
+     */
+    fun deleteOrLeave(cleanup: SpamCleanup = SpamCleanup()) {
         val profile = _state.value.profile ?: return
-        viewModelScope.launch {
-            profiles.deleteOrLeave(profile)
+        reportFlow.thenAfterReport(cleanup.report, chatId) {
+            cleanUpSpam(
+                cleanup = cleanup,
+                block = { chats.setBlocked(chatId, true) },
+                delete = { profiles.deleteOrLeave(profile) },
+            )
                 .onSuccess { _state.update { it.copy(chatGone = true) } }
                 .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.profile_action_failed)) } }
         }
@@ -546,6 +574,8 @@ data class ChatProfileState(
     val error: UiText? = null,
     /** Jednorázová událost: chat je smazaný / opuštěný, profil i konverzace se zavřou. */
     val chatGone: Boolean = false,
+    /** Co jde nahlásit a zablokovat; `null`, dokud to nedorazí — pak se nenabízí nic. */
+    val spam: SpamActions? = null,
     /** Jednorázová událost: otevřít chat (člen skupiny). */
     val openChat: Long? = null,
     /** Jednorázová událost: otevřít prohlížeč médií na této zprávě. */

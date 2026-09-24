@@ -36,6 +36,11 @@ fun SheetActionRow(
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     enabled: Boolean = true,
     trailing: (@Composable () -> Unit)? = null,
+    /**
+     * Bez ikony nechat místo, aby popisek lícoval s položkami nad ním (varianty položky). Seznam,
+     * ve kterém ikonu nemá žádná položka, místo držet nemá — text by byl odsazený bez důvodu.
+     */
+    reserveIconSpace: Boolean = true,
 ) {
     Surface(
         onClick = onClick,
@@ -52,7 +57,7 @@ fun SheetActionRow(
         ) {
             if (icon != null) {
                 Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(20.dp))
-            } else {
+            } else if (reserveIconSpace) {
                 Spacer(Modifier.size(20.dp))
             }
             Text(text = label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))

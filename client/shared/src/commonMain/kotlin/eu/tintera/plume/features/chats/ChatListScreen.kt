@@ -94,6 +94,7 @@ import eu.tintera.plume.features.devices.UnconfirmedLoginCard
 import eu.tintera.plume.core.update.rememberStartUpdate
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatListState
+import eu.tintera.plume.features.report.ReportHost
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.ui.Avatar
@@ -606,7 +607,7 @@ private fun AccountMenu(
 }
 
 /**
- * Nabídka akcí po dlouhém stisku, potvrzení smazání a snackbary (chyba, „Vrátit" po archivaci).
+ * Nabídka akcí po dlouhém stisku, průvodce nahlášením a snackbary (chyba, „Vrátit" po archivaci).
  * Společné pro hlavní seznam i archiv — liší se jen tím, co archivace znamená, a to ví chat sám
  * ([ChatSummary.folder]).
  */
@@ -675,19 +676,13 @@ internal fun ChatActionsHost(
                 { viewModel.toggleArchived(chat) }
             },
             onSetBlocked = { blocked -> viewModel.setBlocked(chat, blocked) },
-            onDelete = { viewModel.askDelete(chat) },
+            onReport = { viewModel.report(chat) },
+            onDelete = { cleanup -> viewModel.delete(chat, cleanup) },
             onDismiss = viewModel::hideActions,
         )
     }
 
-    actions.pendingDelete?.let { chat ->
-        ChatDeleteDialog(
-            chat = chat,
-            spam = actions.spam,
-            onConfirm = { cleanup -> viewModel.confirmDelete(chat, cleanup) },
-            onDismiss = viewModel::cancelDelete,
-        )
-    }
+    ReportHost(viewModel.reportFlow, snackbarHostState)
 }
 
 /**

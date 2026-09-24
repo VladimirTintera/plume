@@ -11,6 +11,9 @@ import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.FoundMessagesPage
 import eu.tintera.plume.core.telegram.MessageSearchFilter
 import eu.tintera.plume.core.telegram.SpamActions
+import eu.tintera.plume.core.telegram.ReportRequest
+import eu.tintera.plume.core.telegram.ReportStep
+import eu.tintera.plume.core.telegram.SpamBar
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.InviteJoinResult
 import kotlinx.coroutines.flow.Flow
@@ -18,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -184,6 +188,9 @@ class NewChatViewModelTest {
 
         override suspend fun setBlocked(chatId: Long, blocked: Boolean): Result<Unit> = Result.success(Unit)
 
-        override suspend fun reportSpam(chatId: Long): Result<Unit> = Result.success(Unit)
+        override suspend fun report(chatId: Long, request: ReportRequest): Result<ReportStep> = Result.success(ReportStep.Done)
+        override fun spamBar(chatId: Long): Flow<SpamBar?> = flowOf(null)
+        override suspend fun dismissSpamBar(chatId: Long): Result<Unit> = Result.success(Unit)
+        override suspend fun addToContacts(chatId: Long): Result<Unit> = Result.success(Unit)
     }
 }

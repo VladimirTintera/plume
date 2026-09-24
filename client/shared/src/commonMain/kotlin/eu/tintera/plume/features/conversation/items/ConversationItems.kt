@@ -225,6 +225,7 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageM
     add(MessageMenuAction.Info)
     add(if (isPinned) MessageMenuAction.Unpin else MessageMenuAction.Pin)
     add(MessageMenuAction.Select)
+    add(MessageMenuAction.Report)
     add(MessageMenuAction.Delete)
 }
 
