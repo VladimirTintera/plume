@@ -1037,4 +1037,13 @@
     <string name="bot_unsupported_buy">Plume can't make payments yet.</string>
     <string name="bot_unsupported_game">Plume can't play games yet.</string>
     <string name="bot_unsupported_password">Plume can't handle buttons that ask for your password yet.</string>
+    <string name="bot_unsupported_location">Plume can't share your location yet.</string>
+    <string name="bot_unsupported_poll">Plume can't create polls yet.</string>
+    <string name="bot_unsupported_pick_chat">Plume can't share chats or people with bots yet.</string>
+    <string name="bot_unsupported_managed_bot">Plume can't create bots yet.</string>
+    <string name="bot_share_phone_title">Share your phone number?</string>
+    <string name="bot_share_phone_text">The bot will get your phone number and name.</string>
+    <string name="bot_share_phone_confirm">Share</string>
+    <string name="bot_keyboard_show">Show bot keyboard</string>
+    <string name="bot_keyboard_hide">Hide bot keyboard</string>
 </resources>

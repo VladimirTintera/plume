@@ -2,6 +2,20 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
+import dev.g000sha256.tdl.dto.ReplyMarkupShowKeyboard
+import dev.g000sha256.tdl.dto.ReplyMarkupForceReply
+import dev.g000sha256.tdl.dto.ReplyMarkupRemoveKeyboard
+import dev.g000sha256.tdl.dto.KeyboardButtonTypeText
+import dev.g000sha256.tdl.dto.KeyboardButtonTypeRequestPhoneNumber
+import dev.g000sha256.tdl.dto.KeyboardButtonTypeRequestLocation
+import dev.g000sha256.tdl.dto.KeyboardButtonTypeRequestPoll
+import dev.g000sha256.tdl.dto.KeyboardButtonTypeRequestUsers
+import dev.g000sha256.tdl.dto.KeyboardButtonTypeRequestChat
+import dev.g000sha256.tdl.dto.KeyboardButtonTypeWebApp
+import dev.g000sha256.tdl.dto.KeyboardButtonTypeRequestManagedBot
+import dev.g000sha256.tdl.dto.ButtonStyle
+import dev.g000sha256.tdl.dto.InputMessageContact
+import dev.g000sha256.tdl.dto.Contact
 import dev.g000sha256.tdl.dto.ReplyMarkupInlineKeyboard
 import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeCallback
 import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeUrl
@@ -93,6 +107,7 @@ import kotlin.time.Clock
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
@@ -1135,6 +1150,66 @@ class TdlConversationRepository(
         )
     }
 
+    override fun replyMarkup(chatId: Long): Flow<ChatReplyMarkup?> = flow {
+        val updates = holder.updates { chatReplyMarkupUpdates }
+            .filter { it.chatId == chatId }
+            .map { it.replyMarkupMessage?.toChatReplyMarkup() }
+        // Odběr napřed, pak první čtení — změna mezi nimi by se jinak ztratila.
+        emitAll(
+            updates.onStart {
+                val chat = client.getChat(chatId = chatId).toResult().getOrNull()
+                val messageId = chat?.replyMarkupMessageId?.takeIf { it != 0L }
+                emit(
+                    messageId?.let {
+                        client.getMessage(chatId = chatId, messageId = it).toResult().getOrNull()?.toChatReplyMarkup()
+                    },
+                )
+            },
+        )
+    }
+
+    override suspend fun dismissReplyMarkup(chatId: Long, messageId: Long): Result<Unit> =
+        client.deleteChatReplyMarkup(chatId = chatId, messageId = messageId).toResult().map { }
+
+    override suspend fun sendKeyboardText(chatId: Long, text: String, replyToMessageId: Long?): Result<ChatMessage> =
+        client.sendMessage(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyToMessageId?.let(::replyTo),
+            options = null,
+            replyMarkup = null,
+            inputMessageContent = InputMessageText(
+                // Text tlačítka je příkaz pro bota, ne zpráva s odkazy — entity se nedohledávají.
+                text = FormattedText(text = text, entities = emptyArray()),
+                linkPreviewOptions = null,
+                // Rozepsaný koncept zůstává: ťuknutí na tlačítko není odeslání pole.
+                clearDraft = false,
+            ),
+        )
+            .toResult()
+            .map { it.toChatMessage(isGroup(chatId)) }
+
+    override suspend fun shareOwnPhone(chatId: Long, replyToMessageId: Long?): Result<ChatMessage> = runCatching {
+        val me = client.getMe().toResult().getOrThrow()
+        client.sendMessage(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyToMessageId?.let(::replyTo),
+            options = null,
+            replyMarkup = null,
+            inputMessageContent = InputMessageContact(
+                contact = Contact(
+                    // TDLib posílá číslo bez „+"; tak se i vrací.
+                    phoneNumber = me.phoneNumber,
+                    firstName = me.firstName,
+                    lastName = me.lastName,
+                    vcard = "",
+                    userId = me.id,
+                ),
+            ),
+        ).toResult().getOrThrow().toChatMessage(isGroup(chatId))
+    }
+
     override suspend fun pressBotButton(
         chatId: Long,
         messageId: Long,
@@ -1557,14 +1632,55 @@ private fun ReplyMarkupInlineKeyboard.toBotKeyboard(): BotKeyboard? {
                     is InlineKeyboardButtonTypeCallbackGame -> BotButtonKind.Unsupported(UnsupportedBotButton.Game)
                     is InlineKeyboardButtonTypeCallbackWithPassword -> BotButtonKind.Unsupported(UnsupportedBotButton.Password)
                 },
-                style = when (button.style) {
-                    is ButtonStylePrimary -> BotButtonStyle.Primary
-                    is ButtonStyleSuccess -> BotButtonStyle.Success
-                    is ButtonStyleDanger -> BotButtonStyle.Danger
-                    else -> BotButtonStyle.Default
-                },
+                style = button.style.toBotButtonStyle(),
             )
         }
     }.filter { it.isNotEmpty() }
     return BotKeyboard(rows).takeIf { rows.isNotEmpty() }
+}
+
+/**
+ * Vlastní klávesnice nebo vynucená odpověď ze zprávy bota. Inline klávesnice sem nepatří (ta je
+ * u zprávy, viz [toBotKeyboard]) a „odebrat klávesnici" znamená žádnou.
+ */
+private fun Message.toChatReplyMarkup(): ChatReplyMarkup? = when (val markup = replyMarkup) {
+    is ReplyMarkupShowKeyboard -> {
+        val rows = markup.rows.map { row ->
+            row.filterNotNull().map { button ->
+                ReplyKeyboardButton(
+                    text = button.text,
+                    kind = when (button.type) {
+                        is KeyboardButtonTypeText -> ReplyKeyboardButtonKind.Text
+                        is KeyboardButtonTypeRequestPhoneNumber -> ReplyKeyboardButtonKind.PhoneNumber
+                        is KeyboardButtonTypeRequestLocation -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.Location)
+                        is KeyboardButtonTypeRequestPoll -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.Poll)
+                        is KeyboardButtonTypeRequestUsers -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.Users)
+                        is KeyboardButtonTypeRequestChat -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.Chat)
+                        is KeyboardButtonTypeWebApp -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.WebApp)
+                        is KeyboardButtonTypeRequestManagedBot -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.ManagedBot)
+                    },
+                    style = button.style.toBotButtonStyle(),
+                )
+            }
+        }.filter { it.isNotEmpty() }
+        if (rows.isEmpty()) {
+            null
+        } else {
+            ChatReplyMarkup.Keyboard(
+                messageId = id,
+                placeholder = markup.inputFieldPlaceholder.trim(),
+                rows = rows,
+                oneTime = markup.oneTime,
+            )
+        }
+    }
+    is ReplyMarkupForceReply -> ChatReplyMarkup.ForceReply(messageId = id, placeholder = markup.inputFieldPlaceholder.trim())
+    is ReplyMarkupRemoveKeyboard, is ReplyMarkupInlineKeyboard, null -> null
+}
+
+private fun ButtonStyle?.toBotButtonStyle(): BotButtonStyle = when (this) {
+    is ButtonStylePrimary -> BotButtonStyle.Primary
+    is ButtonStyleSuccess -> BotButtonStyle.Success
+    is ButtonStyleDanger -> BotButtonStyle.Danger
+    else -> BotButtonStyle.Default
 }

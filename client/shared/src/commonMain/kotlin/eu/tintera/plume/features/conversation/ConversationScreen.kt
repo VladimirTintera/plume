@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.ReplyKeyboardButtonKind
+import eu.tintera.plume.core.telegram.ChatReplyMarkup
 import androidx.compose.ui.platform.LocalHapticFeedback
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.blur.hazeBlur
@@ -470,11 +472,15 @@ fun ConversationScreen(
     val snackbarScope = rememberCoroutineScope()
 
     // Stejná past jako u `unpinned` níž: vynulování mění klíč efektu, takže snackbar běží mimo něj.
+    // I text se čte AŽ TAM: `getString` je `suspend`, a dokud se četl v těle efektu, restart po
+    // vynulování ho zrušil — hláška se ukázala, jen když byl text náhodou už načtený.
     LaunchedEffect(state.notice) {
         val notice = state.notice ?: return@LaunchedEffect
         viewModel.consumeNotice()
-        val text = getString(notice.resource, *notice.args.toTypedArray())
-        snackbarScope.launch { snackbarHostState.showSnackbar(text, duration = SnackbarDuration.Short) }
+        snackbarScope.launch {
+            val text = getString(notice.resource, *notice.args.toTypedArray())
+            snackbarHostState.showSnackbar(text, duration = SnackbarDuration.Short)
+        }
     }
 
     LaunchedEffect(state.unpinned) {
@@ -1119,6 +1125,25 @@ fun ConversationScreen(
                     replies.consume()
                 },
             )
+            // Vlastní klávesnice bota stojí NAD polem (viz `ReplyKeyboardPanel`); při úpravě
+            // zprávy ne — tlačítko by poslalo novou zprávu uprostřed opravy staré.
+            (state.replyMarkup as? ChatReplyMarkup.Keyboard)?.takeIf { state.editing == null }?.let { keyboard ->
+                var collapsed by rememberSaveable(keyboard.messageId) { mutableStateOf(false) }
+                ReplyKeyboardPanel(
+                    keyboard = keyboard,
+                    collapsed = collapsed,
+                    onToggle = { collapsed = !collapsed },
+                    onPress = { row, column ->
+                        haptics.confirm()
+                        // Jednorázová klávesnice se po použití SCHOVÁ, nezmizí (Bot API
+                        // `one_time_keyboard`) — šipkou jde vrátit. Vysvětlení u tlačítka, které
+                        // Plume neumí, použití není.
+                        val kind = keyboard.rows.getOrNull(row)?.getOrNull(column)?.kind
+                        if (keyboard.oneTime && kind !is ReplyKeyboardButtonKind.Unsupported) collapsed = true
+                        viewModel.pressReplyKeyboardButton(row, column)
+                    },
+                )
+            }
             MessageInput(
                 glass = Modifier.hazeBlur(
                     input = HazeInput.Sources(listHaze),
@@ -1143,6 +1168,7 @@ fun ConversationScreen(
                 onDraftChanged = viewModel::onDraftChanged,
                 editing = state.editing,
                 onCancelEdit = viewModel::cancelEdit,
+                placeholder = state.inputPlaceholder,
                 linkPreview = composerLinkPreview(
                     preview = state.linkPreview,
                     options = state.linkPreviewOptions,
@@ -1289,6 +1315,10 @@ fun ConversationScreen(
 
         state.botAlert?.let { text ->
             BotAlertDialog(text = text, onDismiss = viewModel::dismissBotAlert)
+        }
+
+        if (state.confirmSharePhone) {
+            SharePhoneDialog(onShare = viewModel::sharePhone, onDismiss = viewModel::dismissSharePhone)
         }
 
         openStickerSetId?.let { setId ->
@@ -1687,6 +1717,8 @@ private fun MessageInput(
     /** Upravovaná zpráva; karta pak místo citace ukazuje, co se upravuje. */
     editing: ChatMessage?,
     onCancelEdit: () -> Unit,
+    /** Nápověda do prázdného pole, kterou si přeje bot; `null` = výchozí. */
+    placeholder: String? = null,
     /** Náhled odkazu v rozepsaném textu, pokud se má ukázat ([composerLinkPreview]). */
     linkPreview: LinkPreview? = null,
     linkPreviewOptions: LinkPreviewOptions = LinkPreviewOptions(),
@@ -1987,7 +2019,18 @@ private fun MessageInput(
                             visualTransformation = VisualTransformation.None,
                             interactionSource = fieldInteraction,
                             // S přílohami je text jejich popisek.
-                            placeholder = { Text(stringResource(if (withAttachments) Res.string.conversation_input_caption else Res.string.conversation_input_message)) },
+                            // Nápověda od bota platí jen pro zprávu; popisek příloh je jiná věc.
+                            placeholder = {
+                                Text(
+                                    when {
+                                        withAttachments -> stringResource(Res.string.conversation_input_caption)
+                                        placeholder != null && editing == null -> placeholder
+                                        else -> stringResource(Res.string.conversation_input_message)
+                                    },
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
                             colors = fieldColors,
                             contentPadding = TextFieldDefaults.contentPaddingWithoutLabel(
                                 start = if (editing == null) FIELD_ICON_GAP else FIELD_EDGE_PADDING,

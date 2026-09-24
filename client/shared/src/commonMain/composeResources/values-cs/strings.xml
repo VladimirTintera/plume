@@ -1054,4 +1054,13 @@
     <string name="bot_unsupported_buy">Platby Plume zatím neumí.</string>
     <string name="bot_unsupported_game">Hry Plume zatím neumí.</string>
     <string name="bot_unsupported_password">Tlačítka, která chtějí heslo, Plume zatím neumí.</string>
+    <string name="bot_unsupported_location">Sdílení polohy Plume zatím neumí.</string>
+    <string name="bot_unsupported_poll">Ankety Plume zatím zakládat neumí.</string>
+    <string name="bot_unsupported_pick_chat">Sdílení chatů a lidí s botem Plume zatím neumí.</string>
+    <string name="bot_unsupported_managed_bot">Zakládání botů Plume zatím neumí.</string>
+    <string name="bot_share_phone_title">Sdílet telefonní číslo?</string>
+    <string name="bot_share_phone_text">Bot dostane tvoje telefonní číslo a jméno.</string>
+    <string name="bot_share_phone_confirm">Sdílet</string>
+    <string name="bot_keyboard_show">Ukázat klávesnici bota</string>
+    <string name="bot_keyboard_hide">Schovat klávesnici bota</string>
 </resources>

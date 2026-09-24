@@ -1,5 +1,12 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.ChatReplyMarkup
+import eu.tintera.plume.core.telegram.ReplyKeyboardButtonKind
+import eu.tintera.plume.core.telegram.UnsupportedKeyboardButton
+import eu.tintera.plume.resources.bot_unsupported_location
+import eu.tintera.plume.resources.bot_unsupported_poll
+import eu.tintera.plume.resources.bot_unsupported_pick_chat
+import eu.tintera.plume.resources.bot_unsupported_managed_bot
 import eu.tintera.plume.core.telegram.BotButtonKind
 import eu.tintera.plume.core.telegram.UnsupportedBotButton
 import eu.tintera.plume.resources.bot_answer
@@ -239,6 +246,9 @@ class ConversationViewModel(
      * jako [chatGone].
      */
     val unarchived: StateFlow<Boolean> = _unarchived.asStateFlow()
+
+    /** Vynucené odpovědi, na které se pole už přepnulo — jednou na zprávu. */
+    private val forceReplied = mutableSetOf<Long>()
 
     private val logger = Logger.withTag("Conversation")
 
@@ -837,6 +847,13 @@ class ConversationViewModel(
         }
 
         viewModelScope.launch {
+            repository.replyMarkup(chatId).collect { markup ->
+                _state.update { it.copy(replyMarkup = markup) }
+                if (markup is ChatReplyMarkup.ForceReply) applyForceReply(markup.messageId)
+            }
+        }
+
+        viewModelScope.launch {
             repository.editedMessages(chatId).collect { message ->
                 _state.update {
                     it.copy(
@@ -1244,6 +1261,11 @@ class ConversationViewModel(
                 // na server. Skutečné id dorazí potvrzením a zprávu v seznamu nahradí.
                 .onSuccess { pending ->
                     shareTargets.reportUsed(chatId)
+                    // Na vynucenou odpověď se odpovědělo; TDLib ji po klientovi chce odebrat.
+                    val force = _state.value.replyMarkup as? ChatReplyMarkup.ForceReply
+                    if (force != null && force.messageId == replyTo) {
+                        repository.dismissReplyMarkup(chatId, force.messageId)
+                    }
                     _state.update {
                         // Mezitím ji už mohlo dorazit i potvrzení — pak se dočasná verze do
                         // seznamu vracet nesmí (`withMessage`).
@@ -1678,6 +1700,78 @@ class ConversationViewModel(
     /** Obrazovka chat otevřela. Bez toho by se po otočení displeje otevřel znovu. */
     fun consumeOpenChat() {
         _state.update { it.copy(openChat = null) }
+    }
+
+    /**
+     * Vynucená odpověď: pole se samo přepne na odpověď na zprávu bota — jednou na zprávu, a jen
+     * když se zrovna neupravuje ani neodpovídá na něco jiného. Rozepsanou odpověď by jinak
+     * přepsala pod rukama.
+     *
+     * Zpráva bota do seznamu dorazí `newMessages`, klidně až po tomhle updatu, takže se na ni
+     * chvíli počká.
+     */
+    private fun applyForceReply(messageId: Long) {
+        if (!forceReplied.add(messageId)) return
+        viewModelScope.launch {
+            withTimeoutOrNull(FORCE_REPLY_WAIT) { _state.first { state -> state.messages.any { it.id == messageId } } }
+                ?: return@launch
+            val state = _state.value
+            if (state.editing == null && state.replyingTo == null) replyTo(messageId)
+        }
+    }
+
+    /**
+     * Tlačítko vlastní klávesnice bota.
+     *
+     * Ve skupině jde text jako ODPOVĚĎ na zprávu s klávesnicí — tak to dělá oficiální klient
+     * a bot mezi desítkami zpráv pozná, že patří jemu. V soukromém chatu je citace šum.
+     */
+    fun pressReplyKeyboardButton(row: Int, column: Int) {
+        val keyboard = _state.value.replyMarkup as? ChatReplyMarkup.Keyboard ?: return
+        val button = keyboard.rows.getOrNull(row)?.getOrNull(column) ?: return
+        when (val kind = button.kind) {
+            ReplyKeyboardButtonKind.Text -> viewModelScope.launch {
+                repository.sendKeyboardText(chatId, button.text, keyboard.replyTarget())
+                    .onSuccess { keyboardUsed(keyboard) }
+                    .onFailure { failure ->
+                        _state.update { it.copy(error = failure.reported(Res.string.conversation_send_failed)) }
+                    }
+            }
+            // Číslo je údaj o uživateli; odejde až po potvrzení.
+            ReplyKeyboardButtonKind.PhoneNumber -> _state.update { it.copy(confirmSharePhone = true) }
+            is ReplyKeyboardButtonKind.Unsupported ->
+                _state.update { it.copy(notice = UiText(kind.feature.explanation())) }
+        }
+    }
+
+    fun sharePhone() {
+        val keyboard = _state.value.replyMarkup as? ChatReplyMarkup.Keyboard
+        _state.update { it.copy(confirmSharePhone = false) }
+        viewModelScope.launch {
+            repository.shareOwnPhone(chatId, keyboard?.replyTarget())
+                .onSuccess { keyboard?.let(::keyboardUsed) }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.reported(Res.string.conversation_send_failed)) }
+                }
+        }
+    }
+
+    fun dismissSharePhone() = _state.update { it.copy(confirmSharePhone = false) }
+
+    private fun ChatReplyMarkup.replyTarget(): Long? = messageId.takeIf { _state.value.info?.isGroup == true }
+
+    /**
+     * Jednorázová klávesnice se po použití ohlásí TDLib (`deleteChatReplyMarkup`) — chce to po
+     * klientovi výslovně. Klávesnice tím NEZMIZÍ: podle Bot API se jen schová a zůstává
+     * dostupná, což dělá obrazovka sbalením panelu.
+     */
+    private fun keyboardUsed(keyboard: ChatReplyMarkup.Keyboard) {
+        if (!keyboard.oneTime) return
+        viewModelScope.launch {
+            repository.dismissReplyMarkup(chatId, keyboard.messageId).onFailure { failure ->
+                logger.w(failure) { "Jednorázovou klávesnici bota se nepodařilo odebrat." }
+            }
+        }
     }
 
     /** Nastaví zprávu, na kterou se odpovídá. Zobrazí se nad vstupním polem. */
@@ -3023,6 +3117,10 @@ data class ConversationState(
     val memberPicker: MemberPicker? = null,
     /** Náhled chatu z pozvánky; `null` = zavřený. */
     val invite: InviteSheetState? = null,
+    /** Vlastní klávesnice bota nebo vynucená odpověď v chatu; `null` = žádná. */
+    val replyMarkup: ChatReplyMarkup? = null,
+    /** Tlačítko bota chce sdílet telefonní číslo a čeká se na potvrzení. */
+    val confirmSharePhone: Boolean = false,
     /** Odkaz z tlačítka bota, který čeká na potvrzení; `null` = žádný. */
     val confirmLink: String? = null,
     /** Upozornění od bota, které se musí potvrdit (`showAlert`); `null` = žádné. */
@@ -3202,3 +3300,25 @@ private fun UnsupportedBotButton.explanation(): StringResource = when (this) {
     UnsupportedBotButton.Game -> Res.string.bot_unsupported_game
     UnsupportedBotButton.Password -> Res.string.bot_unsupported_password
 }
+
+/**
+ * Nápověda do prázdného pole, kterou si přeje bot; `null` = výchozí. U vynucené odpovědi jen
+ * tehdy, když se opravdu odpovídá na tu zprávu — jinak by nápověda mluvila o něčem jiném.
+ */
+val ConversationState.inputPlaceholder: String?
+    get() = when (val markup = replyMarkup) {
+        is ChatReplyMarkup.Keyboard -> markup.placeholder.ifEmpty { null }
+        is ChatReplyMarkup.ForceReply -> markup.placeholder.takeIf { it.isNotEmpty() && replyingTo?.id == markup.messageId }
+        null -> null
+    }
+
+private fun UnsupportedKeyboardButton.explanation(): StringResource = when (this) {
+    UnsupportedKeyboardButton.Location -> Res.string.bot_unsupported_location
+    UnsupportedKeyboardButton.Poll -> Res.string.bot_unsupported_poll
+    UnsupportedKeyboardButton.Users, UnsupportedKeyboardButton.Chat -> Res.string.bot_unsupported_pick_chat
+    UnsupportedKeyboardButton.WebApp -> Res.string.bot_unsupported_web_app
+    UnsupportedKeyboardButton.ManagedBot -> Res.string.bot_unsupported_managed_bot
+}
+
+/** Jak dlouho se po vynucené odpovědi čeká, než zpráva bota dorazí do seznamu. */
+private const val FORCE_REPLY_WAIT = 3_000L

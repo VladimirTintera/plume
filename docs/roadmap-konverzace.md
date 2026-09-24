@@ -392,10 +392,11 @@ zprávou"). Zbývá:
   dat), přihlášení na web přes Telegram (`getLoginUrlInfo` / `getLoginUrl`, dialog s doménou
   a právem psát), inline dotaz do jiného chatu (`switchInline` — výběr chatu a vložení
   `@bot dotaz` do pole), platba, hra a zpětné volání s heslem dvoufázového ověření.
-- **Vlastní klávesnice místo systémové** (`ReplyMarkupShowKeyboard`, třeba BotFather):
-  tlačítka posílají text, sdílejí číslo či polohu nebo vybírají chat; `ReplyMarkupRemoveKeyboard`
-  ji schová. Zasahuje do vstupního pole.
-- **Vynucená odpověď** (`ReplyMarkupForceReply`): pole se samo přepne na odpověď na zprávu bota.
+- ~~**Vlastní klávesnice** a **vynucená odpověď**~~ — hotovo, klávesnice nad polem
+  (`CLAUDE.md`, „Vlastní klávesnice bota"). Zbývá: tlačítka polohy, ankety, výběru lidí
+  a chatů (`shareUsersWithBot`, `shareChatWithBot`), mini aplikace a zakládání botů; ověřit
+  odeslání čísla; jednorázová klávesnice se po znovuotevření chatu ukáže rozbalená (TDLib
+  neříká, že už byla použitá).
 - **Vlastní emoji v popisku tlačítka** (`iconCustomEmojiId`) se nekreslí.
 - **Ověřit na iOS** — kód je společný, na simulátoru to nikdo neviděl.
 

@@ -29,7 +29,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import eu.tintera.plume.core.telegram.BotButton
 import eu.tintera.plume.core.telegram.BotButtonKind
 import eu.tintera.plume.core.telegram.BotButtonStyle
 import eu.tintera.plume.core.telegram.BotKeyboard
@@ -114,8 +113,11 @@ internal fun BotKeyboardView(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 buttons.forEachIndexed { column, button ->
-                    BotButtonView(
-                        button = button,
+                    BotKeyboardButton(
+                        text = button.text,
+                        style = button.style,
+                        icon = button.kind.cornerIcon(),
+                        enabled = button.kind != BotButtonKind.Disabled,
                         shape = botButtonShape(
                             row = row,
                             column = column,
@@ -132,17 +134,24 @@ internal fun BotKeyboardView(
     }
 }
 
+/**
+ * Jedno tlačítko bota — pod zprávou i ve vlastní klávesnici nad polem, ať vypadají stejně.
+ */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun BotButtonView(
-    button: BotButton,
+internal fun BotKeyboardButton(
+    text: String,
+    style: BotButtonStyle,
+    /** Co tlačítko udělá jinak než obvykle (odkaz, kopie…); `null` = nic zvláštního. */
+    icon: DrawableResource?,
+    enabled: Boolean,
     shape: RoundedCornerShape,
     pressing: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val disabled = button.kind == BotButtonKind.Disabled
-    val (container, content) = MaterialTheme.colorScheme.botButtonColors(button.style)
+    val disabled = !enabled
+    val (container, content) = MaterialTheme.colorScheme.botButtonColors(style)
     Surface(
         onClick = onClick,
         enabled = !disabled,
@@ -153,7 +162,7 @@ private fun BotButtonView(
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
-                button.text,
+                text,
                 style = MaterialTheme.typography.labelLarge,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
@@ -164,7 +173,7 @@ private fun BotButtonView(
                     .alpha(if (pressing) 0f else 1f),
             )
             if (pressing) LoadingIndicator(Modifier.size(PRESSING_INDICATOR_SIZE))
-            button.kind.cornerIcon()?.let { icon ->
+            icon?.let { icon ->
                 // Co tlačítko udělá jinak než zpětné volání (odkaz, kopie…), napoví ikona v rohu —
                 // jako u oficiálních klientů. Popisek píše bot a nemusí to říkat.
                 Icon(
@@ -203,13 +212,23 @@ private fun BotButtonKind.cornerIcon(): DrawableResource? = when (this) {
     BotButtonKind.Callback, BotButtonKind.Disabled -> null
 }
 
-/** Tvar tlačítka v bloku: velké zaoblení jen v dolních rozích celé klávesnice. */
-internal fun botButtonShape(row: Int, column: Int, rows: Int, columns: Int): RoundedCornerShape {
+/**
+ * Tvar tlačítka v bloku: velké zaoblení v rozích celé klávesnice. Pod zprávou jen v dolních —
+ * nahoře blok visí ze zprávy ([hangsFromMessage]); samostatná klávesnice nad polem má všechny.
+ */
+internal fun botButtonShape(
+    row: Int,
+    column: Int,
+    rows: Int,
+    columns: Int,
+    hangsFromMessage: Boolean = true,
+): RoundedCornerShape {
+    val firstRow = row == 0 && !hangsFromMessage
     val lastRow = row == rows - 1
     fun corner(outer: Boolean): Dp = if (outer) BUBBLE_CORNER else BUBBLE_TIGHT
     return RoundedCornerShape(
-        topStart = BUBBLE_TIGHT,
-        topEnd = BUBBLE_TIGHT,
+        topStart = corner(firstRow && column == 0),
+        topEnd = corner(firstRow && column == columns - 1),
         bottomStart = corner(lastRow && column == 0),
         bottomEnd = corner(lastRow && column == columns - 1),
     )
