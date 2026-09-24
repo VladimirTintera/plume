@@ -903,7 +903,7 @@
     <string name="settings_reply_suggestions">Reply suggestions</string>
     <string name="settings_reply_suggestions_summary">Short replies are offered above the input field when a message arrives and you have not started typing.</string>
     <string name="settings_on_device_ai_checking">Checking the model…</string>
-    <string name="settings_on_device_ai_unsupported">This device has no on-device model (Gemini Nano).</string>
+    <string name="settings_on_device_ai_unsupported">This device does not have the selected model.</string>
     <string name="settings_on_device_ai_downloadable">The model needs to be downloaded first. It takes up gigabytes.</string>
     <string name="settings_on_device_ai_download">Download model</string>
     <string name="settings_on_device_ai_downloading">Downloading the model…</string>
@@ -937,4 +937,12 @@
     <string name="summary_details_tokens">Input: %1$s of %2$s tokens</string>
     <string name="summary_details_tokens_no_limit">Input: %1$s tokens</string>
     <string name="summary_details_trimmed">%1$d of %2$d messages fit</string>
+    <string name="settings_ai_provider_nano">Gemini Nano</string>
+    <string name="settings_ai_provider_nano_summary">Built into the phone (AICore). The system downloads and updates it.</string>
+    <string name="settings_ai_provider_gemma">Gemma 4</string>
+    <string name="settings_ai_provider_gemma_summary">An open model the app downloads itself. Runs on more phones and has a larger variant.</string>
+    <string name="settings_gemma_e2b_summary">Smaller and faster · 2.6 GB</string>
+    <string name="settings_gemma_e4b_summary">Larger and more accurate · 3.7 GB, needs 12 GB of memory</string>
+    <string name="settings_on_device_ai_delete">Delete model</string>
+    <string name="settings_on_device_ai_not_enough_space">There is not enough free space on the phone for the model.</string>
 </resources>

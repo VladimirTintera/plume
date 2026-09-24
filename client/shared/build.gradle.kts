@@ -124,6 +124,8 @@ kotlin {
             implementation(libs.play.code.scanner)
             // Gemini Nano v zařízení. Jediné místo v projektu, kde smí být ML Kit GenAI — viz core/ai.
             implementation(libs.mlkit.genai.prompt)
+            // Gemma v zařízení (LiteRT-LM). Taky jen v core/ai.
+            implementation(libs.litertlm.android)
             // androidContext() v platformModule — Koin na Androidu potřebuje Context pro cestu k DB.
             implementation(libs.koin.android)
         }

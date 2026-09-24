@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -22,6 +23,10 @@
         android:name="android.hardware.sensor.proximity"
         android:required="false" />
 
+    <!-- LiteRT-LM (Gemma v zařízení) nemusí mít stejné minSdk jako aplikace. Na starších systémech
+         se Gemma vůbec nenabízí (LiteRtOnDeviceAi.MIN_SDK), takže knihovna se tam nenačte nikdy. -->
+    <uses-sdk tools:overrideLibrary="com.google.ai.edge.litertlm" />
+
     <!-- Predictive back. Při targetSdk 35+ ho systém zapíná sám a tenhle příznak ignoruje;
          je tu jako výslovné prohlášení a pojistka, kdyby targetSdk někdy klesl. Samotnou
          animaci uvnitř aplikace dělá NavDisplay přes androidx.navigationevent. -->
@@ -34,6 +39,11 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Plume">
+
+        <!-- GPU backend LiteRT-LM (Gemma v zařízení). Systémové knihovny, které aplikace smí
+             načíst, jen když si o ně řekne; `required=false`, protože kde nejsou, jede model na CPU. -->
+        <uses-native-library android:name="libvndksupport.so" android:required="false" />
+        <uses-native-library android:name="libOpenCL.so" android:required="false" />
 
         <activity
             android:name=".MainActivity"

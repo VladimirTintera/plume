@@ -1,7 +1,9 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.ai.LiteRtOnDeviceAi
 import eu.tintera.plume.core.ai.MlKitOnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAi
+import eu.tintera.plume.core.ai.RoutingOnDeviceAi
 import eu.tintera.plume.core.ui.AndroidSquarePhoto
 import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.audio.AudioEngine
@@ -33,8 +35,11 @@ import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 
 actual fun Module.platformModule() {
-    // Gemini Nano v AICore. Jeden klient na proces — viz MlKitOnDeviceAi.
-    single<OnDeviceAi> { MlKitOnDeviceAi() }
+    // Model v zařízení: Gemini Nano v AICore, nebo Gemma přes LiteRT-LM, podle volby uživatele
+    // (RoutingOnDeviceAi). Obojí jednou na proces — klienti ML Kitu i engine LiteRT-LM jsou drahé.
+    single<OnDeviceAi> {
+        RoutingOnDeviceAi(geminiNano = MlKitOnDeviceAi(), gemma = LiteRtOnDeviceAi(androidContext()))
+    }
     single { TelegramPaths(androidContext()) }
     single<DatabaseKeyStore> { KeystoreDatabaseKeyStore(androidContext()) }
     single { NotificationPermission(androidContext()) }

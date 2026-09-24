@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.settings
 
+import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.plume.core.ai.GemmaModel
 import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.audio.VoiceSpeed
 import androidx.datastore.core.DataStore
@@ -107,7 +109,10 @@ interface AppSettings {
     /** Zapne/vypne návrhy odpovědi. Neblokuje, jako [recordRecentEmoji]. */
     fun setReplySuggestionsEnabled(enabled: Boolean)
 
-    /** Která varianta modelu v zařízení (stabilní / preview, plná / rychlá). Výchozí stabilní plná. */
+    /**
+     * Kdo model počítá (Gemini Nano / Gemma) a jeho varianta. Platí pro CELOU aplikaci — každá
+     * funkce s modelem bere tuhle hodnotu. Výchozí Gemini Nano, stabilní plná.
+     */
     val onDeviceAiVariant: StateFlow<ModelVariant>
 
     /** Uloží variantu modelu. Neblokuje, jako [recordRecentEmoji]. */
@@ -271,18 +276,29 @@ class DataStoreAppSettings(
         }
     }
 
+    /*
+     * Poskytovatel a model Gemmy se ukládají NÁZVEM (výčty, viz „Nastavení aplikace").
+     * Chybějící poskytovatel je Gemini Nano: tak se aplikace chovala před tím, než šlo vybírat,
+     * a kdo si Nano zapnul, nemá po aktualizaci najednou stahovat gigabajty.
+     */
     override val onDeviceAiVariant: StateFlow<ModelVariant> = value(ModelVariant()) { preferences ->
         ModelVariant(
+            provider = AiProvider.entries.firstOrNull { it.name == preferences[ON_DEVICE_AI_PROVIDER] }
+                ?: AiProvider.GeminiNano,
             preview = preferences[ON_DEVICE_AI_PREVIEW] ?: false,
             fast = preferences[ON_DEVICE_AI_FAST] ?: false,
+            gemma = GemmaModel.entries.firstOrNull { it.name == preferences[ON_DEVICE_AI_GEMMA] }
+                ?: GemmaModel.E2B,
         )
     }
 
     override fun setOnDeviceAiVariant(variant: ModelVariant) {
         scope.launch {
             edit { preferences ->
+                preferences[ON_DEVICE_AI_PROVIDER] = variant.provider.name
                 preferences[ON_DEVICE_AI_PREVIEW] = variant.preview
                 preferences[ON_DEVICE_AI_FAST] = variant.fast
+                preferences[ON_DEVICE_AI_GEMMA] = variant.gemma.name
             }
         }
     }
@@ -333,6 +349,8 @@ class DataStoreAppSettings(
         val REPLY_SUGGESTIONS_ENABLED = booleanPreferencesKey("reply_suggestions_enabled")
         val ON_DEVICE_AI_PREVIEW = booleanPreferencesKey("on_device_ai_preview")
         val ON_DEVICE_AI_FAST = booleanPreferencesKey("on_device_ai_fast")
+        val ON_DEVICE_AI_PROVIDER = stringPreferencesKey("on_device_ai_provider")
+        val ON_DEVICE_AI_GEMMA = stringPreferencesKey("on_device_ai_gemma")
         val VOICE_SPEED = stringPreferencesKey("voice_speed")
         val DISMISSED_UPDATE_VERSION_CODE = intPreferencesKey("dismissed_update_version_code")
         const val EMOJI_SEPARATOR = " "

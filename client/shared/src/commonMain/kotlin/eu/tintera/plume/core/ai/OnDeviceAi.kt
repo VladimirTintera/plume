@@ -6,15 +6,17 @@ import kotlinx.coroutines.flow.emptyFlow
 /**
  * Jazykový model běžící v zařízení.
  *
- * Hranice stejně jako `core/telegram` nebo `core/logging`: na Androidu je za ní Gemini Nano
- * v AICore přes ML Kit Prompt API a `com.google.mlkit.genai.*` smí být importované jen
- * v `androidMain/core/ai`. Zbytek aplikace vidí tohle rozhraní, takže jde model vyměnit
- * (Gemma přes LiteRT-LM, Apple Foundation Models na iOS) bez zásahu do obrazovek.
+ * Hranice stejně jako `core/telegram` nebo `core/logging`: za ní jsou na Androidu DVA runtime —
+ * Gemini Nano v AICore přes ML Kit Prompt API (`com.google.mlkit.genai.*`) a Gemma přes
+ * LiteRT-LM (`com.google.ai.edge.litertlm.*`); obojí smí být importované jen v
+ * `androidMain/core/ai`. Který se použije, určuje [ModelVariant.provider] a rozhoduje o tom
+ * [RoutingOnDeviceAi] — volba platí pro celou aplikaci, každá funkce (shrnutí, návrhy
+ * odpovědí) jen předá variantu z nastavení.
  *
  * Rozhraní, ne `expect class`: ViewModel se pak dá testovat s podstrčeným modelem.
  *
- * Každé volání bere [ModelVariant] — varianty jsou pro AICore různé modely, každá se stahuje
- * zvlášť a má vlastní stav i limit.
+ * Každé volání bere [ModelVariant] — varianty jsou různé modely, každá se stahuje zvlášť a má
+ * vlastní stav i limit.
  */
 interface OnDeviceAi {
 
@@ -40,16 +42,88 @@ interface OnDeviceAi {
      * nic skládat.
      */
     fun generate(variant: ModelVariant, prompt: String): Flow<Generated>
+
+    /**
+     * Smaže stažený model a uvolní místo. Jen tam, kde model stahuje aplikace sama
+     * ([ModelVariant.appManaged]); systémový model (AICore) spravuje telefon a tohle je u něj
+     * no-op.
+     */
+    suspend fun delete(variant: ModelVariant) {}
 }
 
 /**
- * Kterou podobu modelu chceme. Obě volby jsou jen PŘÁNÍ — co opravdu běží, řekne [ModelInfo.name].
+ * Kterou podobu modelu chceme. Volby jsou PŘÁNÍ — co opravdu běží, řekne [ModelInfo.name].
  *
- * @property preview nejnovější verze v předběžném vydání místo stabilní. Bývá jen na novějších
- *   zařízeních a stahuje se zvlášť.
- * @property fast rychlejší a méně přesná varianta místo plné.
+ * @property provider který runtime model počítá. Platí pro celou aplikaci.
+ * @property preview (jen Gemini Nano) nejnovější verze v předběžném vydání místo stabilní.
+ *   Bývá jen na novějších zařízeních a stahuje se zvlášť.
+ * @property fast (jen Gemini Nano) rychlejší a méně přesná varianta místo plné.
+ * @property gemma (jen Gemma) který model si aplikace stáhne.
  */
-data class ModelVariant(val preview: Boolean = false, val fast: Boolean = false)
+data class ModelVariant(
+    val provider: AiProvider = AiProvider.GeminiNano,
+    val preview: Boolean = false,
+    val fast: Boolean = false,
+    val gemma: GemmaModel = GemmaModel.E2B,
+) {
+    /** Model stahuje a maže aplikace sama, ne systém. */
+    val appManaged: Boolean get() = provider == AiProvider.Gemma
+}
+
+/**
+ * Kdo model počítá.
+ *
+ * - [GeminiNano]: systémový model v AICore. Stahuje a aktualizuje ho telefon, aplikace nic
+ *   nebalí, ale je jen na některých zařízeních a ML Kit nepustí k větším variantám.
+ * - [Gemma]: otevřený model, který si stáhne aplikace (gigabajty) a počítá ho přes LiteRT-LM.
+ *   Běží na každém dost silném telefonu a jde vybrat i větší E4B.
+ */
+enum class AiProvider { GeminiNano, Gemma }
+
+/**
+ * Modely Gemma, které si aplikace umí stáhnout.
+ *
+ * Soubor, verze (commit na Hugging Face) i velikost jsou převzaté z katalogu Google AI Edge
+ * Gallery (`model_allowlists/1_0_19.json`). **Commit je součást adresy**, takže se stahuje
+ * pořád tentýž soubor, i když autor na Hugging Face nahraje novější — nová verze = nový řádek
+ * tady, vědomě. [minMemoryGb] je doporučení Gallery; pod ním se model nenabízí, protože by
+ * systém aplikaci při načítání zabil.
+ */
+enum class GemmaModel(
+    val displayName: String,
+    val repository: String,
+    val fileName: String,
+    val commit: String,
+    val sizeBytes: Long,
+    val minMemoryGb: Int,
+) {
+    E2B(
+        displayName = "Gemma 4 E2B",
+        repository = "litert-community/gemma-4-E2B-it-litert-lm",
+        fileName = "gemma-4-E2B-it.litertlm",
+        commit = "6e5c4f1e395deb959c494953478fa5cec4b8008f",
+        sizeBytes = 2_588_147_712,
+        minMemoryGb = 8,
+    ),
+    E4B(
+        displayName = "Gemma 4 E4B",
+        repository = "litert-community/gemma-4-E4B-it-litert-lm",
+        fileName = "gemma-4-E4B-it.litertlm",
+        commit = "28299f30ee4d43294517a4ac93abd6163412f07f",
+        sizeBytes = 3_659_530_240,
+        minMemoryGb = 12,
+    ),
+    ;
+
+    val downloadUrl: String
+        get() = "https://huggingface.co/$repository/resolve/$commit/$fileName?download=true"
+}
+
+/**
+ * Na model není v telefonu dost místa. Hlásí se ZVLÁŠŤ, ne jako obecné selhání stahování:
+ * u modelu o gigabajtech je to nejčastější důvod a uživatel s ním jako jediným může něco dělat.
+ */
+class NotEnoughSpaceException(val neededBytes: Long) : Exception("Not enough space: $neededBytes B")
 
 /**
  * Kus generované odpovědi.
@@ -66,7 +140,7 @@ data class Generated(val text: String, val truncated: Boolean = false)
 data class ModelInfo(val name: String?, val tokenLimit: Int?)
 
 enum class OnDeviceAiStatus {
-    /** Zařízení model (v téhle variantě) nemá a mít nebude (bez AICore, nepodporovaný čip, iOS). */
+    /** Zařízení model (v téhle variantě) nemá a mít nebude (bez AICore, málo paměti, iOS). */
     Unsupported,
 
     /** Model jde stáhnout. */
@@ -85,7 +159,7 @@ data class ModelDownload(val downloadedBytes: Long, val totalBytes: Long?) {
         get() = totalBytes?.takeIf { it > 0 }?.let { (downloadedBytes.toFloat() / it).coerceIn(0f, 1f) }
 }
 
-/** Platforma bez modelu v zařízení (zatím iOS). Funkce se pak v UI vůbec nenabízí. */
+/** Platforma (nebo runtime) bez modelu v zařízení. Funkce se pak v UI vůbec nenabízí. */
 object NoopOnDeviceAi : OnDeviceAi {
     override suspend fun status(variant: ModelVariant) = OnDeviceAiStatus.Unsupported
     override suspend fun info(variant: ModelVariant): ModelInfo? = null

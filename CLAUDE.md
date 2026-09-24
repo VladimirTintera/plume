@@ -230,9 +230,55 @@ Experimentální „Shrnout" v hlavičce konverzace: shrnutí nepřečtených (j
 jazykovým modelem v telefonu. Zapíná se v Nastavení → Obecné → AI v zařízení (výchozí vypnuto),
 tam se i stahuje model. Hranice je `core/ai` (`OnDeviceAi`).
 
-- **`core/ai` je hranice** jako `core/telegram`: `com.google.mlkit.genai.*` smí být jen
-  v `androidMain/core/ai` (`MlKitOnDeviceAi`). Model jde vyměnit (Gemma přes LiteRT-LM, Apple
-  Foundation Models ze Swiftu) bez zásahu do obrazovek. iOS je zatím `NoopOnDeviceAi`.
+### Dva poskytovatelé: Gemini Nano a Gemma
+
+Uživatel volí, KDO model počítá (`ModelVariant.provider`, `AiProvider`): **Gemini Nano** v AICore
+(ML Kit, `MlKitOnDeviceAi`), nebo **Gemma 4** přes LiteRT-LM (`LiteRtOnDeviceAi`), kterou si
+stáhne aplikace. Volba platí pro celou aplikaci — rozhoduje `RoutingOnDeviceAi` (testy
+`RoutingOnDeviceAiTest`) a každá funkce jen předá variantu z nastavení. Nová funkce s modelem
+tedy o poskytovatelích nemusí vědět nic.
+
+- **Poskytovatel je pole varianty, ne druhé rozhraní.** Funkce už variantu z nastavení braly
+  (`onDeviceAiVariant`); kdyby byl poskytovatel samostatná volba, musela by každá funkce řešit
+  dvě věci a jedna by na to zapomněla.
+- **Router variantu NORMALIZUJE** (`forGeminiNano`, `forGemma`). ML Kit drží klienta na
+  variantu v mapě, takže by jinak změna modelu Gemmy vyrobila druhého klienta téhož Nano.
+- **Katalog Gemmy (`GemmaModel`) je převzatý z Google AI Edge Gallery**
+  (`model_allowlists/1_0_19.json`): soubor, commit na Hugging Face, velikost a doporučená paměť.
+  **Commit je součást adresy**, takže se stahuje pořád tentýž soubor; nová verze = vědomá změna
+  katalogu. Verze knihovny (`litertlm-android 0.11.0`) je taky z Gallery — **tagy na GitHubu
+  LiteRT-LM (v0.9.0) s verzemi na Google Maven nesedí**, a API se proto ověřovalo proti kódu
+  Gallery, který se proti 0.11.0 překládá.
+- **Gemma se nenabízí pod Androidem 12, bez arm64 a pod `minMemoryGb`** (8 GB pro E2B, 12 GB
+  pro E4B; `totalMem` s 15% rezervou, výrobce udává víc, než jádro nechá). Pod tím by systém
+  aplikaci zabil při načítání modelu. Kde model nejde, je `Unsupported` a volba se vůbec neukáže.
+- **Uložená volba, kterou zařízení nesplní, se opraví** (`supportedVariant`, testy
+  `SupportedVariantTest`): Nano na telefonu bez AICore → Gemma, E4B s málo pamětí → E2B.
+  Chybějící uložený poskytovatel je Gemini Nano — tak se aplikace chovala dřív a kdo si ho
+  zapnul, nemá po aktualizaci stahovat gigabajty.
+- **Stahuje se do `.part` a přejmenovává až hotový**, takže přítomnost souboru = kompletní model.
+  Přerušené stahování navazuje (`Range`). Před stahováním se kontroluje volné místo (velikost
+  + 500 MB) a nedostatek má vlastní hlášku (`NotEnoughSpaceException`) — u gigabajtů je to
+  nejčastější důvod selhání a jediný, se kterým uživatel může něco udělat.
+- **Stahovaný model jde smazat, systémový ne** (`ModelVariant.appManaged`, `OnDeviceAi.delete`).
+- **Engine je v paměti nejvýš jeden a po dvou minutách nečinnosti se uvolní** — drží gigabajty
+  RAM. Načtení trvá až deset sekund, proto ne hned po odpovědi (návrhy chodí po sobě).
+  **Generování je jedno po druhém** (zámek): dvě konverzace nad jedním enginem LiteRT-LM neslibuje.
+- **GPU, a když nejde, CPU.** GPU backend potřebuje `libOpenCL.so` — `uses-native-library`
+  v manifestu aplikace (`required=false`).
+- **LiteRT-LM v Kotlinu neumí počítat tokeny** (`countTokens` = `null`), takže se přepis jen
+  odhaduje z limitu. Limit je velikost KV keše (8 192, stejně jako Gemini Nano) minus místo na
+  odpověď — vstup i výstup se do keše musí vejít SPOLU. **Strop výstupu hlídá aplikace sama**
+  (`MAX_OUTPUT_CHARS`, pak `Generated.truncated`); konfigurace konverzace žádný nemá.
+- **Neověřeno na zařízení a nepřeloženo** — vzniklo v sandboxu bez přístupu ke Google Maven
+  i Hugging Face. Otevřené: jestli je model na Hugging Face bez souhlasu s licencí (401/403
+  prototyp neumí a hlásí jako selhání stahování), keep pravidla R8 pro JNI LiteRT-LM
+  (release build proklikat), minSdk knihovny (`tools:overrideLibrary` v manifestu je pojistka)
+  a o kolik naroste APK nativními knihovnami.
+
+- **`core/ai` je hranice** jako `core/telegram`: `com.google.mlkit.genai.*`
+  a `com.google.ai.edge.litertlm.*` smí být jen v `androidMain/core/ai`. Poskytovatelé jdou
+  přidávat (Apple Foundation Models ze Swiftu) bez zásahu do obrazovek. iOS je zatím `NoopOnDeviceAi`.
 - **AICore není API, je to systémová služba** s Gemini Nano; aplikace na ni sahá přes ML Kit
   GenAI Prompt API (`com.google.mlkit:genai-prompt`, beta). Verze se bere z oficiální ukázky
   `googlesamples/mlkit` (`android/genai`) — Google Maven se z cloudového sandboxu stáhnout nedá,
