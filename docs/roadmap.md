@@ -183,10 +183,17 @@ Z toho plyne pořadí, ve kterém se vyplatí featury stavět:
 
 ### Co zbývá u toho, co běží
 
-- **Nejnadějnější krok je větší model.** Preview varianta Gemini Nano běží na Gemma 4 **E4B**,
-  zatímco stabilní na E2B — jenže **přes ML Kit se k ní dostat nedá**: spočítá si `Feature -1`
-  a tiše použije stabilní (ověřeno i se staženým preview modelem, viz `CLAUDE.md`). Cesta vede
-  přes vlastní runtime **LiteRT-LM** za stávajícím rozhraním `OnDeviceAi`.
+- **Větší model: Gemma přes LiteRT-LM běží, ověřená na emulátoru (E2B na CPU).** Preview
+  varianta Gemini Nano (Gemma 4 **E4B**) přes ML Kit nejde (`Feature -1`, viz `CLAUDE.md`),
+  takže přibyl druhý poskytovatel — Gemma 4 E2B / E4B, kterou si stáhne aplikace
+  (`LiteRtOnDeviceAi`). Stažení, navázání po výpadku sítě, smazání, shrnutí, návrhy i release
+  build (s keep pravidlem) prošly. Zbývá:
+  - **vyzkoušet na Foldu E4B a GPU** a hlavně **porovnat češtinu E4B s Gemini Nano** — kvůli
+    tomu to celé je; E2B na emulátoru vyšla kvalitou zhruba jako Nano,
+  - **velikost APK**: nativní knihovny přidají ~25 MB na ABI každému, i kde se Gemma nenabídne
+    → Play Feature Delivery,
+  - **stahování na pozadí** — dnes běží v procesu aplikace a při jeho zabití navazuje až při
+    dalším ťuknutí; na gigabajty by patřil WorkManager s notifikací průběhu.
 - **Beta ML Kitu sledovat.** `1.0.0-beta4` je zatím nejnovější; novější verze může `Feature -1`
   opravit a preview zpřístupnit bez vlastního runtime. Stojí za to to při bumpu zkusit znovu.
 - **Kešování kontextu a `warmup()` nejsou využité.** Prompt API je nabízí (`Caches`,

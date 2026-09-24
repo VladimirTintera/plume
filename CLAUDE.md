@@ -116,7 +116,16 @@ API, které aplikace z drtivé většiny nevolá.
   by se opsaná kopie tiše rozešla s tím, co knihovna opravdu potřebuje.
 - **Do `proguard-rules.pro` patří jen to, co se ověřeně rozbilo na zařízení.** Preventivní
   `-keep` vypne zkracování tam, kde nemusí, a zakonzervuje chybu, která se mezitím opravila
-  jinde. Zatím tam kromě atributů pro čitelné stack trace není nic.
+  jinde. Zatím tam kromě atributů pro čitelné stack trace je jediné pravidlo: LiteRT-LM.
+- **LiteRT-LM (Gemma) si keep pravidla NEPŘIBALUJE** — AAR `litertlm-android 0.11.0` nemá
+  `proguard.txt`, na rozdíl od TDLib wrapperu. Nativní strana přitom sahá do Kotlinu podle
+  jména: release build při prvním použití Gemmy spadl na `NoSuchMethodError …
+  SamplerConfig.getTopK()` a **SIGABRT** — nativní pád, tedy bez výjimky, kterou by šlo
+  chytit. Projevilo se to hned při OTEVŘENÍ CHATU: s příchozí poslední zprávou se sám rozběhne
+  návrh odpovědi. Proto `-keep class com.google.ai.edge.litertlm.** { *; }` na celý balíček,
+  ne výčet tříd — JNI hranici určuje knihovna a výčet by se při bumpu tiše rozešel. **Při
+  bumpu knihovny zkontrolovat, jestli už `proguard.txt` nese** (`unzip -l` na AAR); pak
+  pravidlo pryč. Ověřeno na emulátoru: bez pravidla pád, s ním shrnutí i návrhy.
 - **`isShrinkResources` zapnuté NENÍ.** Je to samostatný krok, který umí uklidit
   composeResources; zapínat ho spolu s minifikací by znamenalo nevědět, co z toho pád způsobilo.
 - **Chybějící keep pravidlo se při buildu nepozná, projeví se AŽ ZA BĚHU.** Release build se
@@ -230,9 +239,79 @@ Experimentální „Shrnout" v hlavičce konverzace: shrnutí nepřečtených (j
 jazykovým modelem v telefonu. Zapíná se v Nastavení → Obecné → AI v zařízení (výchozí vypnuto),
 tam se i stahuje model. Hranice je `core/ai` (`OnDeviceAi`).
 
-- **`core/ai` je hranice** jako `core/telegram`: `com.google.mlkit.genai.*` smí být jen
-  v `androidMain/core/ai` (`MlKitOnDeviceAi`). Model jde vyměnit (Gemma přes LiteRT-LM, Apple
-  Foundation Models ze Swiftu) bez zásahu do obrazovek. iOS je zatím `NoopOnDeviceAi`.
+### Dva poskytovatelé: Gemini Nano a Gemma
+
+Uživatel volí, KDO model počítá (`ModelVariant.provider`, `AiProvider`): **Gemini Nano** v AICore
+(ML Kit, `MlKitOnDeviceAi`), nebo **Gemma 4** přes LiteRT-LM (`LiteRtOnDeviceAi`), kterou si
+stáhne aplikace. Volba platí pro celou aplikaci — rozhoduje `RoutingOnDeviceAi` (testy
+`RoutingOnDeviceAiTest`) a každá funkce jen předá variantu z nastavení. Nová funkce s modelem
+tedy o poskytovatelích nemusí vědět nic.
+
+- **Poskytovatel je pole varianty, ne druhé rozhraní.** Funkce už variantu z nastavení braly
+  (`onDeviceAiVariant`); kdyby byl poskytovatel samostatná volba, musela by každá funkce řešit
+  dvě věci a jedna by na to zapomněla.
+- **Router variantu NORMALIZUJE** (`forGeminiNano`, `forGemma`). ML Kit drží klienta na
+  variantu v mapě, takže by jinak změna modelu Gemmy vyrobila druhého klienta téhož Nano.
+- **Katalog Gemmy (`GemmaModel`) je převzatý z Google AI Edge Gallery**
+  (`model_allowlists/1_0_19.json`): soubor, commit na Hugging Face, velikost a doporučená paměť.
+  **Commit je součást adresy**, takže se stahuje pořád tentýž soubor; nová verze = vědomá změna
+  katalogu. Verze knihovny (`litertlm-android 0.11.0`) je taky z Gallery — **tagy na GitHubu
+  LiteRT-LM (v0.9.0) s verzemi na Google Maven nesedí**, a API se proto ověřovalo proti kódu
+  Gallery, který se proti 0.11.0 překládá.
+- **Gemma se nenabízí pod Androidem 12, bez arm64 a pod `minMemoryGb`** (8 GB pro E2B, 12 GB
+  pro E4B; `totalMem` s 15% rezervou, výrobce udává víc, než jádro nechá). Pod tím by systém
+  aplikaci zabil při načítání modelu. Kde model nejde, je `Unsupported` a volba se vůbec neukáže.
+- **Uložená volba, kterou zařízení nesplní, se opraví** (`supportedVariant`, testy
+  `SupportedVariantTest`): Nano na telefonu bez AICore → Gemma, E4B s málo pamětí → E2B.
+  Chybějící uložený poskytovatel je Gemini Nano — tak se aplikace chovala dřív a kdo si ho
+  zapnul, nemá po aktualizaci stahovat gigabajty.
+- **Stahuje se do `.part` a přejmenovává až hotový**, takže přítomnost souboru = kompletní model.
+  Přerušené stahování navazuje (`Range`). Před stahováním se kontroluje volné místo (velikost
+  + 500 MB) a nedostatek má vlastní hlášku (`NotEnoughSpaceException`) — u gigabajtů je to
+  nejčastější důvod selhání a jediný, se kterým uživatel může něco udělat.
+- **Po výpadku sítě stahování naváže SAMO** (`LiteRtOnDeviceAi.fetch` čeká na `NetworkMonitor`).
+  Stahuje se minuty a přechod z Wi-Fi na data je za tu dobu běžný; dokud výpadek končil
+  „nepodařilo se stáhnout", musel se uživatel vracet do Nastavení kvůli něčemu, co se vlastně
+  nepokazilo. Mezitím nastavení říká „Čekám na připojení" (`ModelDownload.waitingForNetwork`).
+  Opakuje se jen chyba spojení: odpověď serveru (`HttpStatusException`) ani plný disk čekáním
+  nespraví, a po pěti pokusech bez jediného nového bajtu se stahování vzdá. Po vypnutí
+  letového režimu přišel na emulátoru ještě DRUHÝ výpadek, jak se síť usazovala — i ten se
+  navázal, proto se čeká napřed na síť a teprve pak s prodlevou.
+- **Nastavení u Gemmy říká, CO a KOLIK se stáhne** („Gemma 4 E2B je potřeba nejdřív stáhnout
+  (2,4 GB)") a během stahování „164 MB z 2,4 GB". Samotné „zabere gigabajty" stačí u Nano, jehož
+  velikost nikdo neřekne; tady ji víme. Velikost jde přes `fileSizeText` jako u souborů
+  v chatu, takže je v GiB — katalog Gallery uvádí 2,6 GB v desítkových. Po selhání tlačítko
+  slibuje „Pokračovat ve stahování": stažený kus se nezahazuje.
+- **Stahovaný model jde smazat, systémový ne** (`ModelVariant.appManaged`, `OnDeviceAi.delete`).
+- **Engine je v paměti nejvýš jeden a po dvou minutách nečinnosti se uvolní** — drží gigabajty
+  RAM. Načtení trvá až deset sekund, proto ne hned po odpovědi (návrhy chodí po sobě).
+  **Generování je jedno po druhém** (zámek): dvě konverzace nad jedním enginem LiteRT-LM neslibuje.
+- **GPU, a když nejde, CPU.** GPU backend potřebuje `libOpenCL.so` — `uses-native-library`
+  v manifestu aplikace (`required=false`). Na emulátoru GPU selže na OpenGL (`GL_INVALID_ENUM`
+  v `delegate_opengl.cc`) a CPU naskočí; na zařízení ověřené není, jestli se GPU chytí.
+- **LiteRT-LM v Kotlinu neumí počítat tokeny** (`countTokens` = `null`), takže se přepis jen
+  odhaduje z limitu. Limit je velikost KV keše (8 192, stejně jako Gemini Nano) minus místo na
+  odpověď — vstup i výstup se do keše musí vejít SPOLU. **Strop výstupu hlídá aplikace sama**
+  (`MAX_OUTPUT_CHARS`, pak `Generated.truncated`); konfigurace konverzace žádný nemá.
+- **Hugging Face model vydá bez přihlášení** (ověřeno `curl -IL`: 302 na CDN, 200, velikost
+  sedí na bajt, `accept-ranges: bytes`). Licenční brána by se projevila 401/403 a tu prototyp
+  hlásí jako selhání stahování.
+- **Nativní knihovny přidají ~25 MB na ABI** (debug arm64 49,6 → 74,3 MB) a dostane je každý,
+  i na telefonu, kde se Gemma nikdy nenabídne. Pro prototyp únosné; před vydáním Play Feature
+  Delivery. Knihovna má minSdk 23 (projekt 26), `tools:overrideLibrary` potřeba není.
+- **Na emulátoru se Gemma vyzkoušet DÁ — na rozdíl od Gemini Nano.** Stačí AVD s 8 GB RAM
+  (`hw.ramSize=8192` v `config.ini`, jinak se E2B kvůli `minMemoryGb` nenabídne); hostitel
+  paměť bere až podle skutečné spotřeby, na Macu s 18 GB to po zastavení Gradle daemonů šlo.
+  Běží na CPU: shrnutí 32 zpráv zhruba za 40 s, proces drží ~3 GB a po dvou minutách
+  nečinnosti spadne na ~300 MB. E4B (12 GB) se na takový Mac nevejde. **Čeština proti Nano
+  a GPU se ověřují až na telefonu.**
+- **Kvalita E2B je podobná Nano, ne lepší**: fakta drží (data, ceny, číslo účtu), ale
+  propsala „v češtině" z instrukce, „Notifikator změnily" a v návrzích se objevil nesmysl
+  („Ne, chyba, nebudu přijímat."). Kvůli kvalitě je tu E4B.
+
+- **`core/ai` je hranice** jako `core/telegram`: `com.google.mlkit.genai.*`
+  a `com.google.ai.edge.litertlm.*` smí být jen v `androidMain/core/ai`. Poskytovatelé jdou
+  přidávat (Apple Foundation Models ze Swiftu) bez zásahu do obrazovek. iOS je zatím `NoopOnDeviceAi`.
 - **AICore není API, je to systémová služba** s Gemini Nano; aplikace na ni sahá přes ML Kit
   GenAI Prompt API (`com.google.mlkit:genai-prompt`, beta). Verze se bere z oficiální ukázky
   `googlesamples/mlkit` (`android/genai`) — Google Maven se z cloudového sandboxu stáhnout nedá,
@@ -3387,6 +3466,12 @@ stáhne a předá systému.
 - **Velikost se formátuje bez jednotky** (`formatFileSize`, testy v `FileSizeTest`); jednotku
   pojmenuje až UI z prostředků, protože pořadí čísla a zkratky se může lišit podle jazyka.
   Desetinné místo jen pod deset jednotek — „137,2 MB" je šum.
+- **Desetinný oddělovač patří jazyku, ne číslu.** `FileSize` nese celou část a desetiny ZVLÁŠŤ
+  a spojuje je až `fileSizeText` (`core/ui`) formátovacím řetězcem `decimal_number` — česky
+  čárka, anglicky tečka, stejně jako „1,5×" u rychlosti hlasovek. Dokud `formatFileSize`
+  vracel hotové „1.4", stála tečka i v české aplikaci — u souborů v chatu i v nastavení modelu
+  („2.4 GB"). **Text velikosti skládá jen `fileSizeText`**; dřív si ho skládaly tři obrazovky
+  a mapování jednotek bylo ve dvou kopiích.
 - **Android: `ACTION_VIEW` přes `FileProvider`.** Od Androidu 7 je `file://` URI mimo aplikaci
   zakázané (`FileUriExposedException`). Provider `${applicationId}.documents` vydává adresář
   `tdlib-files` (a `cache/outgoing` u čerstvě odeslaných příloh), ale **oprávnění se uděluje jen

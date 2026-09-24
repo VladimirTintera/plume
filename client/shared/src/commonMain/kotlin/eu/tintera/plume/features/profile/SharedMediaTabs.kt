@@ -44,8 +44,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.files.DocumentKind
 import eu.tintera.plume.core.files.documentKind
-import eu.tintera.plume.core.files.FileSizeUnit
-import eu.tintera.plume.core.files.formatFileSize
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MemberRole
 import eu.tintera.plume.core.telegram.MessageEntityType
@@ -68,6 +66,7 @@ import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.LocalSavedMessagesChatId
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.chatTitleKey
+import eu.tintera.plume.core.ui.fileSizeText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.image_24dp
@@ -83,10 +82,6 @@ import eu.tintera.plume.resources.profile_shared_file_meta
 import eu.tintera.plume.resources.profile_shared_link
 import eu.tintera.plume.resources.profile_shared_media_video
 import eu.tintera.plume.resources.profile_shared_photo
-import eu.tintera.plume.resources.file_size_b
-import eu.tintera.plume.resources.file_size_gb
-import eu.tintera.plume.resources.file_size_kb
-import eu.tintera.plume.resources.file_size_mb
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -240,16 +235,7 @@ private fun FileRow(
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val size = formatFileSize(document.sizeBytes)
-    val unit = stringResource(
-        when (size.unit) {
-            FileSizeUnit.Bytes -> Res.string.file_size_b
-            FileSizeUnit.Kilobytes -> Res.string.file_size_kb
-            FileSizeUnit.Megabytes -> Res.string.file_size_mb
-            FileSizeUnit.Gigabytes -> Res.string.file_size_gb
-        },
-        size.value,
-    )
+    val unit = fileSizeText(document.sizeBytes)
     ListItem(
         headlineContent = { Text(document.fileName, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         // Oddělovač i pořadí patří překladu, ne slepenci v kódu.

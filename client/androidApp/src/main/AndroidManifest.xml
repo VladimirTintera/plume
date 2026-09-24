@@ -35,6 +35,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Plume">
 
+        <!-- GPU backend LiteRT-LM (Gemma v zařízení). Systémové knihovny, které aplikace smí
+             načíst, jen když si o ně řekne; `required=false`, protože kde nejsou, jede model na CPU. -->
+        <uses-native-library android:name="libvndksupport.so" android:required="false" />
+        <uses-native-library android:name="libOpenCL.so" android:required="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

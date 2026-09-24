@@ -216,7 +216,6 @@ import eu.tintera.plume.features.conversation.items.TIME_COLUMN_WIDTH
 import eu.tintera.plume.features.conversation.items.UnreadDividerItem
 import eu.tintera.plume.features.conversation.items.conversationItems
 import eu.tintera.plume.features.conversation.items.describe
-import eu.tintera.plume.features.conversation.items.label
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.arrow_downward_24dp

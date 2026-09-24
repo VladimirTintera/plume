@@ -40,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.files.DocumentKind
-import eu.tintera.plume.core.files.FileSizeUnit
 import eu.tintera.plume.core.files.documentKind
 import eu.tintera.plume.core.files.formatFileSize
 import eu.tintera.plume.core.files.opensInViewer
@@ -59,6 +58,7 @@ import eu.tintera.plume.resources.Res
 import androidx.compose.foundation.layout.Spacer
 import eu.tintera.plume.core.telegram.SelfDestructTimers
 import eu.tintera.plume.core.telegram.SelfDestructType
+import eu.tintera.plume.core.ui.fileSizeText
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.content_expired_photo
 import eu.tintera.plume.resources.content_expired_video
@@ -66,10 +66,6 @@ import eu.tintera.plume.resources.conversation_cancel_sending
 import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.image_24dp
 import eu.tintera.plume.resources.document_open
-import eu.tintera.plume.resources.file_size_b
-import eu.tintera.plume.resources.file_size_gb
-import eu.tintera.plume.resources.file_size_kb
-import eu.tintera.plume.resources.file_size_mb
 import eu.tintera.plume.resources.media_photo
 import eu.tintera.plume.resources.media_self_destruct_seconds
 import eu.tintera.plume.resources.media_sticker
@@ -77,7 +73,6 @@ import eu.tintera.plume.resources.media_video
 import eu.tintera.plume.resources.media_view_once
 import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.schedule_24dp
-import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -597,7 +592,7 @@ private fun DocumentContent(
                 overflow = TextOverflow.MiddleEllipsis,
             )
             Text(
-                text = stringResource(size.unit.label(), size.value),
+                text = fileSizeText(size),
                 style = MaterialTheme.typography.labelSmall,
             )
         }
@@ -686,14 +681,6 @@ private fun DownloadProgress(progress: Float, color: Color) {
 
 /** Náhled souboru je řádek, ne snímek — zaoblení bubliny by z něj udělalo kolečko. */
 private val DOCUMENT_THUMBNAIL_CORNER = 12.dp
-
-/** Jednotku velikosti pojmenuje až UI — v jiném jazyce se může lišit i pořadí čísla a zkratky. */
-internal fun FileSizeUnit.label(): StringResource = when (this) {
-    FileSizeUnit.Bytes -> Res.string.file_size_b
-    FileSizeUnit.Kilobytes -> Res.string.file_size_kb
-    FileSizeUnit.Megabytes -> Res.string.file_size_mb
-    FileSizeUnit.Gigabytes -> Res.string.file_size_gb
-}
 
 /** Kolečko s průběhem nahrávání přes přílohu. */
 private val UPLOAD_INDICATOR_SIZE = 48.dp
