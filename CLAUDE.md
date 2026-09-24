@@ -3743,6 +3743,14 @@ na iOS. Dlouhý stisk v SEZNAMU dál otevírá nabídku — o gesto se nedělí,
 - **Během označování pruh reakcí zmizí.** Systémová lišta výběru (Kopírovat, Vybrat vše, Přeložit)
   se kreslí nad označeným textem, tedy přesně přes pruh reakcí.
 - **Označovat jde jen s `canCopy`** — chráněný obsah nesmí ven ani citací přes úryvek.
+- **Barvy výběru podává plocha bubliny, ne `SelectionContainer`** (`BubbleSurface`,
+  `MessageBodyScope.selectionColors`). Výchozí podklad výběru je `primary` s alfou 0,4 — na
+  odchozí `primary` bublině tedy barva na barvě a označený úsek nebyl vidět vůbec. Podklad si
+  `BasicText` čte z `LocalTextSelectionColors` SÁM, v místě textu, takže ho jde podat až na
+  ploše, kde text leží; úchyty čte kontejner kolem celé kopie a leží na ploše konverzace, proto
+  zůstávají výchozí. Pravidlo je tatáž `accentOn` jako u akcentu: `primary`, dokud je na
+  bublině vidět, jinak barva popředí bubliny. **Každá nová plocha v barvě bubliny jde přes
+  `BubbleSurface`**, ne přes holý `Surface(color = bubbleColor)` — jinak na ní výběr zmizí znovu.
 - **Formátování úryvku se MUSÍ přenést** (`quoteInput`, testy `ReplyQuoteTest`). TDLib: tučné,
   kurzíva, podtržení, přeškrtnutí, spoiler a vlastní emoji „must be kept in the quote". Repository
   si proto přečte původní zprávu (`getMessage`, lokální), entity ořízne na úryvek a posune.

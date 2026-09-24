@@ -135,7 +135,7 @@ internal data class LinkPreviewMessageItem(
     @Composable
     private fun MessageBodyScope.ForwardPart() {
         if (message.forwardOrigin == null) return
-        Surface(color = bubbleColor, contentColor = onBubbleColor, modifier = Modifier.fillMaxWidth()) {
+        BubbleSurface(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(horizontal = MESSAGE_PADDING_H, vertical = MESSAGE_PADDING_V)) {
                 ForwardLabel()
             }
@@ -147,7 +147,7 @@ internal data class LinkPreviewMessageItem(
     private fun MessageBodyScope.MessagePart(withForward: Boolean, last: Boolean) {
         val forward = withForward && message.forwardOrigin != null
         if (message.text.isBlank() && !message.isEdited && !forward) return
-        Surface(color = bubbleColor, contentColor = onBubbleColor, modifier = Modifier.fillMaxWidth()) {
+        BubbleSurface(modifier = Modifier.fillMaxWidth()) {
             Column(
                 Modifier.padding(
                     start = MESSAGE_PADDING_H,

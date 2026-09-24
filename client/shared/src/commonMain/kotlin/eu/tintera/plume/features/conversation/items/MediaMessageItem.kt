@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
@@ -80,7 +79,7 @@ internal data class MediaMessageItem(
                 },
                 caption = {
                     if (hasCaption) {
-                        Surface(color = bubbleColor, contentColor = onBubbleColor) {
+                        BubbleSurface {
                             PaddedColumn {
                                 if (message.text.isNotBlank()) MessageText(linkColor = accent)
                                 EditedLabel(color = onBubbleColor, modifier = Modifier.align(Alignment.End))
