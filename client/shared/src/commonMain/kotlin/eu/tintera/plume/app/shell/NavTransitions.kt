@@ -2,6 +2,7 @@ package eu.tintera.plume.app.shell
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.animateDp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -69,29 +70,40 @@ internal class NavTransitions(
      * systémový predictive back. Výchozí z Nav3 ji zmenšoval na 70 %, tedy o třetinu plochy,
      * a přitom neprůhlednou až do konce. Zmenšení dojede už v 60 % přechodu: průběh gesta
      * k jedničce skoro nedojde, a s lineárním zmenšením přes celou délku bylo v půlce tahu
-     * sotva vidět (ověřeno na emulátoru). Zmizí až v poslední čtvrtině, tedy po puštění prstu;
-     * přicházející se objeví hned na začátku tahu, aby kolem zmenšené obrazovky nebyla prázdná
-     * plocha. Zaoblené rohy k tomu přidává [PredictiveBackCorners] — přechod obsahu tvar
-     * neumí.
+     * sotva vidět (ověřeno na emulátoru). Mizí až za zmenšením, tedy zpravidla po puštění
+     * prstu. Zaoblené rohy k tomu přidává [PredictiveBackCorners] — přechod obsahu tvar neumí.
+     *
+     * **Přicházející obrazovka se neobjevuje, je vidět od začátku** (`EnterTransition.None`);
+     * zakrývá ji jen zmenšovaná obrazovka nad ní. Hýbe se tak jediná vrstva a nic pod ní
+     * nemůže probliknout prázdnou plochou. Že seznam po puštění prstu „zešedne", není jeho
+     * objevování: to je mizící Nastavení NAD ním, jehož napůl průhledné pozadí seznam zakrývá.
+     * Přechod pro tlačítko se při dojezdu gesta nevolá (ověřeno logem).
+     *
+     * **Délka [PREDICTIVE_MS] tah vůbec neovlivňuje, určuje jen dojezd po puštění prstu.**
+     * Během tahu jde přechod po zlomcích (`seekTo(progress)`), bez ohledu na milisekundy. Po
+     * puštění ho `NavDisplay` dojede sám: zbytek přechodu v jeho vlastním čase, rychlost prstu
+     * nebere v úvahu a jiný dojezd nastavit nejde. Rychlé švihnutí se pouští u malého
+     * zlomku, takže se přehrála skoro celá délka; se 400 ms a mizením až v poslední čtvrtině
+     * obrazovka po švihnutí ještě třetinu vteřiny stála a pak pomalu vybledla. Proto je
+     * přechod krátký a mizení začíná hned za zmenšením.
      */
-    fun <T : Any> predictivePop(): AnimatedContentTransitionScope<Scene<T>>.(Int) -> ContentTransform =
-        { edge ->
-            // Tah od levé hrany odsouvá obrazovku doprava a naopak.
-            val direction = if (edge == NavigationEvent.EDGE_RIGHT) -1 else 1
-            val enter = fadeIn(tween(PREDICTIVE_ENTER_MS, easing = LinearEasing))
-            val exit = scaleOut(tween(PREDICTIVE_SHRINK_MS, easing = LinearEasing), targetScale = PREDICTIVE_SCALE) +
-                slideOut(tween(PREDICTIVE_SHRINK_MS, easing = LinearEasing)) { size ->
-                    IntOffset((size.width * PREDICTIVE_DRIFT * direction).roundToInt(), 0)
-                } +
-                fadeOut(
-                    tween(
-                        durationMillis = PREDICTIVE_MS - PREDICTIVE_FADE_DELAY_MS,
-                        delayMillis = PREDICTIVE_FADE_DELAY_MS,
-                        easing = LinearEasing,
-                    ),
-                )
-            enter togetherWith exit
-        }
+    fun <T : Any> predictivePop(): AnimatedContentTransitionScope<Scene<T>>.(Int) -> ContentTransform = { edge ->
+        // Tah od levé hrany odsouvá obrazovku doprava a naopak.
+        val direction = if (edge == NavigationEvent.EDGE_RIGHT) -1 else 1
+        val enter = EnterTransition.None
+        val exit = scaleOut(tween(PREDICTIVE_SHRINK_MS, easing = LinearEasing), targetScale = PREDICTIVE_SCALE) +
+            slideOut(tween(PREDICTIVE_SHRINK_MS, easing = LinearEasing)) { size ->
+                IntOffset((size.width * PREDICTIVE_DRIFT * direction).roundToInt(), 0)
+            } +
+            fadeOut(
+                tween(
+                    durationMillis = PREDICTIVE_MS - PREDICTIVE_FADE_DELAY_MS,
+                    delayMillis = PREDICTIVE_FADE_DELAY_MS,
+                    easing = LinearEasing,
+                ),
+            )
+        enter togetherWith exit
+    }
 
     private fun <T : Any> sharedAxis(
         scope: AnimatedContentTransitionScope<Scene<T>>,
@@ -174,10 +186,14 @@ private val SHIFT = 30.dp
 private const val FADE_OUT_MS = 90
 private const val FADE_IN_MS = 210
 
-private const val PREDICTIVE_MS = 400
-private const val PREDICTIVE_SHRINK_MS = 240
-private const val PREDICTIVE_ENTER_MS = 80
-private const val PREDICTIVE_FADE_DELAY_MS = 300
+/**
+ * Celková délka přechodu gestem = nejdelší dojezd po puštění prstu (viz
+ * [NavTransitions.predictivePop]). Rozdělení na zmenšení a mizení je v podílech, protože tah
+ * přechodem posouvá po zlomcích.
+ */
+private const val PREDICTIVE_MS = 240
+private const val PREDICTIVE_SHRINK_MS = PREDICTIVE_MS * 6 / 10
+private const val PREDICTIVE_FADE_DELAY_MS = PREDICTIVE_SHRINK_MS
 private const val PREDICTIVE_SCALE = 0.9f
 private const val PREDICTIVE_DRIFT = 0.06f
 
