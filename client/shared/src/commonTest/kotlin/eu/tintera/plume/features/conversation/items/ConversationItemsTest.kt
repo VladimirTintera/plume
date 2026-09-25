@@ -7,6 +7,7 @@ import eu.tintera.plume.core.telegram.SenderInfo
 
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.ExternalReply
 import eu.tintera.plume.core.telegram.ForwardOrigin
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -311,6 +312,21 @@ class ConversationItemsTest {
         assertEquals(1L, result[0].quoted?.id)
         assertEquals(99L, result[1].quoted?.id)
         assertNull(result[2].quoted)
+    }
+
+    @Test
+    fun odpovedZJinehoChatuNeseCitaciSama() {
+        // Citovaná zpráva je v jiném chatu, v historii téhle konverzace ji builder nenajde.
+        val external = ExternalReply(
+            quote = message(500, text = "z jiného chatu"),
+            target = ForwardOrigin.Chat(chatId = 7L, messageId = 500L, name = "Jiný chat"),
+        )
+        val result = items(
+            message(2).copy(externalReply = external),
+            message(1),
+        ).filterIsInstance<BubbleMessageItem>()
+        assertEquals("z jiného chatu", result[0].quoted?.text)
+        assertNull(result[1].quoted)
     }
 
     @Test

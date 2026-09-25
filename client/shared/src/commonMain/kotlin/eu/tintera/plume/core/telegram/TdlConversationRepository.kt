@@ -1325,8 +1325,8 @@ class TdlConversationRepository(
             linkPreview = linkPreview(),
             reactions = interactionInfo.toReactions(),
             sendState = if (outgoing) sendingState.toSendState() else null,
-            // Odpovědi mimo tenhle chat (citace z jiné konverzace) se zatím nevykreslují —
-            // náhled se skládá z načtené historie, která je vždy jen z jednoho chatu.
+            // Odpověď mimo tenhle chat nese `externalReply` — v načtené historii citovaná zpráva
+            // není, takže se na ni skákat nedá.
             replyToMessageId = (replyTo as? MessageReplyToMessage)
                 ?.takeIf { it.chatId == chatId }
                 ?.messageId,
@@ -1348,7 +1348,53 @@ class TdlConversationRepository(
             forwardOrigin = forwardInfo?.origin?.toForwardOrigin(),
             keyboard = (replyMarkup as? ReplyMarkupInlineKeyboard)?.toBotKeyboard(),
             poll = (content as? MessagePoll)?.toChatPoll(),
+            externalReply = (replyTo as? MessageReplyToMessage)
+                ?.takeIf { it.chatId != chatId }
+                ?.toExternalReply(),
         )
+    }
+
+    /**
+     * Zástupná citace zprávy z jiného chatu, složená z toho, co TDLib pošle rovnou v odpovědi.
+     *
+     * Kdo psal, říká [MessageReplyToMessage.origin]; bez něj (server ho u zprávy ze stejného
+     * účtu vynechá) aspoň název chatu. Text je automatický úryvek, který server k odpovědi
+     * z jiného chatu doplní sám (`quote`, `isManual == false`), a bez něj popis obsahu —
+     * „Fotka" je lepší než prázdná citace.
+     */
+    private suspend fun MessageReplyToMessage.toExternalReply(): ExternalReply {
+        val origin = origin?.toForwardOrigin()
+        val sourceChat = chatId.takeIf { it != 0L }
+        val name = origin?.name ?: sourceChat?.let { resolveSender(it)?.title }
+        val text = quote?.text?.text?.takeIf { it.isNotBlank() }
+            ?: content?.previewTextOrNull()
+            ?: ""
+        val quote = ChatMessage(
+            id = messageId,
+            isOutgoing = false,
+            senderName = name,
+            senderAvatarFileId = null,
+            // Podle odesílatele se ve skupině barví jméno citace; bez původu je to chat.
+            senderId = when (origin) {
+                is ForwardOrigin.User -> origin.userId
+                is ForwardOrigin.Chat -> origin.chatId
+                is ForwardOrigin.Hidden, null -> sourceChat ?: 0L
+            },
+            text = text,
+            entities = emptyList(),
+            media = null,
+            linkPreview = null,
+            reactions = emptyList(),
+            sendState = null,
+            replyToMessageId = null,
+            isService = false,
+            timestamp = originSendDate,
+            isEdited = false,
+        )
+        val target = sourceChat?.let {
+            ForwardOrigin.Chat(chatId = it, messageId = messageId.takeIf { id -> id != 0L }, name = name)
+        }
+        return ExternalReply(quote = quote, target = target)
     }
 
     override fun replyMarkup(chatId: Long): Flow<ChatReplyMarkup?> = flow {

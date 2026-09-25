@@ -784,7 +784,23 @@ data class ChatMessage(
      * Nad odpovědí se pak ukáže úryvek místo začátku citované zprávy.
      */
     val replyQuote: String? = null,
+    /**
+     * Odpověď na zprávu z JINÉHO chatu; `null` u odpovědi v rámci chatu (tu nese
+     * [replyToMessageId]) i u zprávy, která neodpovídá.
+     *
+     * Citovaná zpráva v načtené historii není a nebude, takže se citace nedá poskládat z ní.
+     * TDLib ale posílá obsah i původ citované zprávy přímo v odpovědi, takže se zástupná citace
+     * skládá tady, bez dotazu navíc.
+     */
+    val externalReply: ExternalReply? = null,
 )
+
+/**
+ * Citace zprávy z jiného chatu. [quote] je zástupná zpráva jen pro kreslení citace (jméno,
+ * text); [target] vede ťuknutím do chatu, kde citovaná zpráva je — `null`, když ho server
+ * neprozradil (soukromá skupina, do které uživatel nemá přístup).
+ */
+data class ExternalReply(val quote: ChatMessage, val target: ForwardOrigin.Chat?)
 
 /**
  * Tlačítka bota pod zprávou (inline klávesnice), po řádcích.

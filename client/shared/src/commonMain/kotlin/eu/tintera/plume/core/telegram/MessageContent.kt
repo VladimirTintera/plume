@@ -213,7 +213,13 @@ internal suspend fun Message.previewText(): String =
 internal suspend fun Message.notificationText(): String =
     previewTextOrNull() ?: getString(Res.string.notification_new_message)
 
-private suspend fun Message.previewTextOrNull(): String? = when (val content = this.content) {
+private suspend fun Message.previewTextOrNull(): String? = content.previewTextOrNull()
+
+/**
+ * Slovní podoba obsahu, i bez celé zprávy — odpověď na zprávu z jiného chatu nese jen obsah
+ * citované zprávy, ne zprávu samotnou.
+ */
+internal suspend fun MessageContent.previewTextOrNull(): String? = when (val content = this) {
     is MessageText -> content.text.text
     is MessagePhoto -> content.caption.text.ifBlankGet { getString(Res.string.media_photo) }
     is MessageVideo -> content.caption.text.ifBlankGet { getString(Res.string.media_video) }

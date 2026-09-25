@@ -5667,8 +5667,20 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   odpovídá skoro vždy na něco, co už je načtené, takže náhled si poskládá `ConversationViewModel`
   z vlastního seznamu a ušetří jedno volání na každou odpověď. Zbytek (odpověď na starou zprávu
   hluboko v historii) dotahuje `resolveMissingQuotes()` do `ConversationState.quotes`.
-- **Odpovědi mimo tenhle chat se zahazují** (`MessageReplyToMessage.chatId != chatId`) — náhled
-  se skládá z načtené historie, a ta je vždy jen z jednoho chatu.
+- **Odpověď na zprávu z JINÉHO chatu nese citaci sama** (`ChatMessage.externalReply`,
+  `toExternalReply`). Náhled se jinak skládá z načtené historie, která je vždy jen z jednoho
+  chatu, takže dřív se taková odpověď zahazovala a zpráva vypadala jako bez citace. TDLib ale
+  posílá v `MessageReplyToMessage` i `origin` a `content` citované zprávy — zástupná
+  `ChatMessage` se z nich poskládá bez dotazu navíc. Text je automatický úryvek serveru
+  (`quote` s `isManual == false`), bez něj popis obsahu (`MessageContent.previewTextOrNull`);
+  jméno z původu, bez něj název chatu.
+- **Ťuknutí na ni otevře ten druhý chat na citované zprávě** (`MessageAction.OpenForwardOrigin`,
+  tatáž cesta jako značka „Přeposláno od"), ne skok v téhle konverzaci. Nulové `chatId` =
+  chat, který server neprozradil; citace se pak kreslí, jen nikam nevede.
+- **Bot odpověď z jiného chatu nevyrobí** (musel by mít přístup k oběma chatům), takže se
+  ověřuje sondou: v `toChatMessage` dočasně sestavit `MessageReplyToMessage` (chat Uložené
+  zprávy, s `origin` a `content`, nebo jen s `quote`) pro text `#ext…` od testovacího bota.
+  Prochází tím převod i kreslení i navigace; necommituje se.
 - **`InputMessageReplyToMessage.pollOptionId` je nenullovatelný** — prázdný řetězec, ne `null`.
 - **Rozepsaná odpověď se ruší hned při odeslání**, ne až po potvrzení; jinak by při pomalé síti
   šlo odeslat druhou zprávu se stejnou citací.
