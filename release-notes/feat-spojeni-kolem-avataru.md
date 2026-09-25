@@ -1,3 +1,3 @@
 type: feat
-cs: Při výpadku spojení se tvá fotka zvlní a pole hledání řekne, co se děje
-en: When the connection drops, your photo turns wavy and the search field says why
+cs: Výpadek spojení poznáš podle zvlněné fotky, v chatu je u fotky tečka „online"
+en: A dropped connection shows as a wavy photo; chats show an online dot on the photo

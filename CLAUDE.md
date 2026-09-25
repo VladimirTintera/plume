@@ -1098,15 +1098,28 @@ chodit. Dokud se nesledovalo, vypadala nepřipojená aplikace úplně normálně
   tečka pro ostatní — dokud je aplikace na obrazovce, chodí s ní updaty rychleji.
 - **`ConnectionState` se smí použít jen jako popisek pro člověka**, říká to dokumentace u něj.
   Nic se z něj proto neodvozuje, jen se vypisuje.
-- **Stav je v hlavičce, ne ve vlastním pruhu**: v seznamu chatů zvlněná fotka účtu s prstencem
-  a text v nápovědě vyhledávací pilulky (viz „Hlavička: vyhledávací pilulka"), v konverzaci
-  nahrazuje podtitul. Kdo se dívá
-  na prázdný seznam, hledá vysvětlení nahoře. Stejně to řeší oficiální klient.
+- **Stav je v hlavičce, ne ve vlastním pruhu, a všude stejným znakem**: avatar se zvlní, naroste
+  a točí (`ConnectionIndicator` v `core/ui`). V seznamu chatů je to fotka účtu a text je
+  v nápovědě vyhledávací pilulky (viz „Hlavička: vyhledávací pilulka"); v konverzaci avatar
+  chatu v hlavičce, text jen pro čtečku (`stateDescription` řádku hlavičky). Kdo se dívá na
+  prázdný seznam, hledá vysvětlení nahoře.
 - **`Ready` se nehlásí.** V tom stavu aplikace stráví skoro celou dobu; „připojeno" je šum, zatímco
   „nepřipojeno" je jediná informace, která uživateli vysvětlí, proč mu nic nechodí. Proto
   `ConnectionState.label()` vrací u `Ready` `null`.
-- **V hlavičce konverzace má stav spojení přednost před dostupností.** Dokud spojení nestojí,
-  je dostupnost jen stará hodnota, kterou nemá co obnovit. „Píše…" v hlavičce není, viz níž.
+- **Hlavička konverzace: spojení nese avatar, dostupnost podtitul a tečka.** Dřív byl stav
+  spojení textem místo podtitulu; dvě podoby téhož stavu (text tady, zvlněná fotka v seznamu)
+  byly jen nekonzistence. Tečka „online" je tatáž jako v seznamu chatů (`OnlineDot`).
+  **Bez spojení se dostupnost schová** (podtitul i tečka): dokud spojení nestojí, je to jen
+  stará hodnota, kterou nemá co obnovit — a tečka by přeškrtla prstenec. „Píše…" v hlavičce
+  není, viz níž.
+  - **Avatar skupiny a kanálu se zvlní ze SVÉHO tvaru** (`ChatKind.avatarPolygon`, týž zdroj
+    jako `avatarShape`), ne z kruhu — skokem do kruhu by přeskočil. Při výpadku dostane `Avatar`
+    obdélníkový tvar (`isShaping`): ořezává se i vlastním tvarem, a vlnitý ořez by jinak zůstal
+    uvnitř sušenky. Úhel otáčení roste s průběhem morfu, jinak by se čtverec kanálu při zvlnění
+    skokem přetočil.
+  - **Řádek hlavičky ořezává** (tvar vlnky stisku), takže má kolem sebe rezervu
+    (`HEADER_RING_ROOM`) — bez ní byl zvětšený avatar vlevo useknutý. Avatar se tím posunul
+    o ~4 dp doprava.
 - **Ověřuje se to bez dozu** — chování je stejné: odejít z aplikace a vrátit se (v logu musí být
   „Návrat do popředí, obnovuji spojení"), zapnout a vypnout letový režim (`adb shell cmd
   connectivity airplane-mode enable`), otočit displej (v logu nesmí být NIC).
@@ -1604,8 +1617,8 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
   celou šířku byl přesně to, co vadilo na velkém baru.
 - **Plochu baru dává i `Modifier.background(surface)`.** `appBarContainerColor` bez scroll
   behavior v material3 1.5.0-alpha22 nenakreslil nic a chaty pod barem prosvítaly.
-- **Stav spojení nese fotka účtu a nápověda pilulky** (`ConnectionIndicator` v
-  `ConnectionRing.kt`), ne nadpis ani vlastní prvek. Skoro celou dobu není vidět nic; „Chaty"
+- **Stav spojení nese fotka účtu a nápověda pilulky** (`ConnectionIndicator` v `core/ui`,
+  sdílený s hlavičkou konverzace), ne nadpis ani vlastní prvek. Skoro celou dobu není vidět nic; „Chaty"
   v nadpisu jen opakovalo navigaci. Dřív to byla tonální pilulka s kolečkem na konci hledání —
   ukusovala místo nápovědě a vedle fotky působila jako cizí prvek. V rozbaleném hledání se stav
   neukazuje.

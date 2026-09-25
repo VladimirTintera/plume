@@ -32,9 +32,9 @@ import androidx.graphics.shapes.star
  *   stavu (detail bez otevřeného chatu). Jednou při zobrazení, pak tvar stojí.
  * - `Cookie7Sided` (bez morfu): odznak připnutých zpráv; při přechodu na jinou připnutou se
  *   pootočí (`PinnedBadge`).
- * - Kruh → vlnitý kruh (deset vlnek) s otáčením: výpadek spojení na fotce účtu
- *   (`ConnectionIndicator` v seznamu chatů). Jediná výjimka z pravidla o avatarech níž — tam
- *   se stav opravdu mění.
+ * - Tvar avataru → vlnitý kruh (deset vlnek) s otáčením: výpadek spojení (`ConnectionIndicator`,
+ *   fotka účtu v seznamu chatů a avatar v hlavičce konverzace). Jediná výjimka z pravidla
+ *   o avatarech níž — tam se stav opravdu mění.
  *
  * Tam, kde se stav nemění (avatary, položky seznamu, reakce), se morfy nepoužívají — kdyby se
  * hýbalo všechno, přestalo by to cokoli znamenat. Avatary mají jen STATICKÝ tvar podle druhu

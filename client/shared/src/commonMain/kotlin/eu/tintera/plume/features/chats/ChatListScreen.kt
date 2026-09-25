@@ -51,6 +51,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import eu.tintera.plume.core.ui.OnlineDot
+import eu.tintera.plume.core.ui.rememberConnectionIndicator
+import eu.tintera.plume.core.ui.rememberShownConnection
 import eu.tintera.plume.core.telegram.ConnectionState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBarDefaults
@@ -536,7 +539,7 @@ private fun AccountMenu(
     val accountLabel = stringResource(Res.string.chats_account)
     val connectionLabel = connection?.label()?.let { stringResource(it) }
     val label = if (connectionLabel == null) accountLabel else "$accountLabel, $connectionLabel"
-    val indicator = rememberConnectionIndicator(connection, ACCOUNT_AVATAR_SIZE)
+    val indicator = rememberConnectionIndicator(connection, ACCOUNT_AVATAR_SIZE, ACCOUNT_AVATAR_GROWN)
     // Odznak je jen číslo — čtečka obrazovky potřebuje větu, ne „3".
     val unreadLabel = pluralStringResource(Res.plurals.chats_archive_unread, archiveUnread.chats, archiveUnread.chats)
     /*
@@ -589,7 +592,7 @@ private fun AccountMenu(
                 Icon(painterResource(Res.drawable.person_24dp), contentDescription = null)
             }
         }
-        with(indicator) { Spacer(Modifier.size(RING_SIZE).ring()) }
+        with(indicator) { Spacer(Modifier.size(ACCOUNT_AVATAR_SIZE).ring()) }
         if (archiveUnread.unmutedChats > 0) {
             Box(Modifier.size(ACCOUNT_AVATAR_SIZE)) {
                 Box(
@@ -1147,16 +1150,7 @@ private fun ChatRow(
                 // Tečka sedí NA avataru, ne vedle jména: v seznamu se očima jede po levém
                 // sloupci, takže se dostupnost přečte spolu s tím, kdo to je.
                 if (chat.presence is Presence.Online) {
-                    Box(
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(ONLINE_DOT)
-                            // Obroučka barvou pozadí položky — bez ní tečka splyne s tmavým
-                            // avatarem a je z ní jen skvrna.
-                            .background(containerColor, CircleShape)
-                            .padding(2.dp)
-                            .background(MaterialTheme.colorScheme.primary, CircleShape),
-                    )
+                    OnlineDot(rim = containerColor, modifier = Modifier.align(Alignment.BottomEnd))
                 }
             }
 
@@ -1298,11 +1292,11 @@ private val TOP_ANCHOR_HEIGHT = 1.dp
 /** Avatar. Větší než výchozích 48 dp — v odlehčeném řádku nese hlavní váhu on, ne písmo. */
 private val AVATAR_SIZE = 52.dp
 
-/** Průměr zelené tečky i s obroučkou. */
-private val ONLINE_DOT = 14.dp
-
 /** Fotka účtu v pilulce — o kus menší než ikona, ať pilulku nevyboulí. */
 private val ACCOUNT_AVATAR_SIZE = 30.dp
+
+/** Fotka účtu při výpadku spojení: 38 dp + půl tahu prstence se vejde pod 40dp ořez `IconButton` i do pilulky. */
+private val ACCOUNT_AVATAR_GROWN = 38.dp
 
 /** Tečka „v archivu něco je" na fotce účtu, i s obroučkou. Menší než tečka dostupnosti — je jen signál, ne stav. */
 private val ACCOUNT_DOT = 10.dp
