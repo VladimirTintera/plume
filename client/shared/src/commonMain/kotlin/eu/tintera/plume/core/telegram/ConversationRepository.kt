@@ -1342,6 +1342,19 @@ sealed interface MessageMedia {
     ) : MessageMedia {
         val isLive: Boolean get() = liveUntil != 0L
     }
+
+    /**
+     * Záznam o hovoru (`MessageCall`): jak dopadl, jestli to byl videohovor a jak dlouho se
+     * mluvilo. Kreslí se jako řádek v bublině, ne jako holé „Hovor" — směr a zmeškání jsou
+     * jediné, co na té zprávě uživatele zajímá. Hovory samotné Plume neumí, ťuknutí tedy nikam
+     * nevede.
+     */
+    data class Call(
+        val outcome: CallOutcome,
+        val isVideo: Boolean,
+        /** Nula u hovoru, ve kterém se nemluvilo (zmeškaný, zrušený). */
+        val durationSeconds: Int,
+    ) : MessageMedia
 }
 
 /** Přístup k chatu, jak se mění za běhu — viz [ConversationRepository.accessUpdates]. */

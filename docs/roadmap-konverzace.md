@@ -455,8 +455,8 @@ snadno na to uživatel narazí.
   (`proximityAlertRadius`).
 - **Kontakt** (`MessageContact`) — karta se jménem a číslem, „Napsat" (`userId`), přidat
   do kontaktů.
-- **Hovory** (`MessageCall`) — jen „Hovor". TDLib nese směr, délku a důvod ukončení
-  (`duration`, `discardReason`) → „Zmeškaný hovor", „Odchozí · 3 min". Levné.
+- ~~**Hovory** (`MessageCall`)~~ — hotovo: řádek se směrem, zmeškáním a délkou
+  (`CLAUDE.md`, „Zpráva o hovoru").
 - **Kostka** (`MessageDice`) — dnes „🎲 6". Animace hodu jsou samolepky od serveru
   (`initialState` / `finalState`, `DiceStickers`), přehraje je `AnimatedSticker`.
 - **Placená média** (`MessagePaidMedia`) — rozmazaný náhled s cenou (`extendedMedia`), po

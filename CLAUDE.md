@@ -5350,6 +5350,26 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
 - **Když typ dostane přílohu s popiskem, `captionText()` pro něj musí vracet prázdno** — jinak
   se popisek v bublině objeví dvakrát. Platí pro video kolečko, hru a platbu.
 
+### Zpráva o hovoru
+
+`MessageCall` je příloha `MessageMedia.Call` a v bublině řádek jako u souboru: kolečko se
+šipkou směru, název („Zmeškaný hovor", „Odchozí videohovor") a délka (`CallRow`). Tentýž název
+nese náhled v seznamu chatů, citace i notifikace. Pravidlo je čistá funkce `callOutcome`
+(`CallRecord.kt`, testy `CallOutcomeTest`).
+
+- **Odchozí nevzatý i odmítnutý hovor je „zrušený"**, jako u oficiálních klientů; u příchozího
+  se zmeškaný a odmítnutý rozlišují. Spadlé spojení je normální hovor — mluvilo se.
+- **Směr zná jen zpráva, ne obsah** (`Message.isOutgoing`), proto je název v
+  `previewTextOrNull`, ne v `describe()` nad `MessageContent`.
+- **Chybová barva jen u zmeškaného a odmítnutého** — to jediné po uživateli něco chce. Obojí je
+  příchozí, tedy na světlé bublině; kontrast se přesto hlídá `accentOn`.
+- **Ťuknutí nikam nevede.** Hovory Plume neumí (viz `docs/roadmap.md`, „Hovory") a „zavolat
+  zpátky" by slibovalo něco, co se nestane; ťuknutí i dlouhý stisk dostane bublina.
+- **Ověřuje se sondou**: skutečné hovory jsou jen v chatech se skutečnými lidmi (otevření by
+  jim označilo zprávy jako přečtené) a bot volat neumí. Dočasně v `messageMedia` převést text
+  `#call:<CallOutcome>:video:<sekundy>` na `MessageMedia.Call` (a v `captionBody` na prázdný
+  text), zprávy poslat botem do Notifikátoru. Necommituje se.
+
 ## Emoji a samolepky
 
 - **Zpráva složená jen z emoji se kreslí velká a bez bubliny**, stejně jako samolepka. Bublina

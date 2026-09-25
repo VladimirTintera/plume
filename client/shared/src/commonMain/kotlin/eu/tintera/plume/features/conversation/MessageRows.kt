@@ -235,6 +235,7 @@ private val MessageMedia.carriesCaption: Boolean
         is MessageMedia.Sticker,
         is MessageMedia.AnimatedEmoji,
         is MessageMedia.Location,
+        is MessageMedia.Call,
         -> false
     }
 

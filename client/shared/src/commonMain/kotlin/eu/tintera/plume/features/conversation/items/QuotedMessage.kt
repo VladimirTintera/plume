@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.title
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_reply
@@ -157,6 +158,7 @@ internal fun MessageMedia?.describe(): String = when (this) {
     is MessageMedia.Animation -> stringResource(Res.string.content_gif)
     is MessageMedia.Document -> fileName
     is MessageMedia.Location -> title ?: stringResource(if (isLive) Res.string.content_live_location else Res.string.content_location)
+    is MessageMedia.Call -> stringResource(outcome.title(isVideo))
     null -> ""
 }
 

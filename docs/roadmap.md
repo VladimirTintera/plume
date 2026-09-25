@@ -196,9 +196,9 @@ klienti včetně Telegram X na TDLib.
 Dá se to rozdělit na dva kroky, které na sobě nezávisí:
 
 1. **Hovory v historii a příchozí hovor bez přenosu** (malé, jen nad TDLib):
-   - **Zpráva o hovoru jako řádek, ne bublina s jedním slovem:** směr (odchozí/příchozí),
-     zmeškaný / odmítnutý / zrušený (`MessageCall.discardReason`), délka a video. Ťuknutí
-     zatím nic — nebo odkaz do oficiální aplikace.
+   - ~~**Zpráva o hovoru jako řádek, ne bublina s jedním slovem**~~ — hotovo (směr, zmeškaný /
+     odmítnutý / zrušený, délka, video; `CLAUDE.md`, „Zpráva o hovoru"). Ťuknutí nevede nikam.
+     **Skutečný hovor v historii ověřený není** — jen sondou v chatu s botem.
    - **Příchozí hovor ohlásit** (`updateCall` s `CallStateWaiting`/`Pending`): notifikace nebo
      pruh „X ti volá — přijmout jde v oficiální aplikaci", ať hovor nepropadne bez stopy.
      Zmeškaný hovor pak přijde jako zpráva sám.
