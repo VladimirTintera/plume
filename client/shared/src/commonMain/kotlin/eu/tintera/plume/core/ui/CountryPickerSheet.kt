@@ -1,6 +1,5 @@
-package eu.tintera.plume.features.auth
+package eu.tintera.plume.core.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,6 +7,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -29,22 +29,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.Country
-import eu.tintera.plume.core.ui.foldDiacritics
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auth_country_choose
 import eu.tintera.plume.resources.auth_country_empty
+import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.auth_country_search
 import eu.tintera.plume.resources.search_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Výběr země pro předvolbu. Sheet, ne vlastní obrazovka: přihlášení žádnou navigaci nemá
- * a kvůli jednomu seznamu by se kolem něj musela stavět.
+ * Výběr země: předvolba při přihlášení a země, ze kterých se smí hlasovat v anketě kanálu.
+ * Sheet, ne vlastní obrazovka: přihlášení žádnou navigaci nemá a kvůli jednomu seznamu by se
+ * kolem něj musela stavět.
+ *
+ * **Jeden výběr pro obojí**, proto bydlí v `core/ui`, ne u přihlášení — formulář ankety by jinak
+ * závisel na balíčku přihlášení. S [multiSelect] se sheet po ťuknutí nezavírá, řádek místo
+ * předvolby nese fajfku a [canPick] zašedí země nad stropem (vybrané jdou odebrat vždycky).
  *
  * **Rovnou celý, bez napůl rozbaleného stavu.** Zemí je přes dvě stě, takže napůl rozbalený
  * sheet ukáže hrstku řádků a pole hledání schová pod okraj — tatáž past jako u výběru samolepek.
@@ -52,9 +58,13 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun CountryPickerSheet(
     countries: List<Country>,
-    selected: Country?,
+    selectedCodes: Set<String>,
     onPick: (Country) -> Unit,
     onDismiss: () -> Unit,
+    title: String = stringResource(Res.string.auth_country_choose),
+    supportingText: String? = null,
+    multiSelect: Boolean = false,
+    canPick: (Country) -> Boolean = { true },
 ) {
     val sheetState = rememberBottomSheetState(
         initialValue = SheetValue.Hidden,
@@ -71,10 +81,18 @@ fun CountryPickerSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth()) {
             Text(
-                stringResource(Res.string.auth_country_choose),
+                title,
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(horizontal = 24.dp),
             )
+            supportingText?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                )
+            }
 
             OutlinedTextField(
                 value = query,
@@ -105,9 +123,12 @@ fun CountryPickerSheet(
             } else {
                 LazyColumn(Modifier.fillMaxWidth().height(LIST_HEIGHT)) {
                     items(matches, key = { it.code }) { country ->
+                        val isSelected = country.code in selectedCodes
                         CountryRow(
                             country = country,
-                            isSelected = country.code == selected?.code,
+                            isSelected = isSelected,
+                            multiSelect = multiSelect,
+                            enabled = isSelected || canPick(country),
                             onClick = { onPick(country) },
                         )
                     }
@@ -118,35 +139,46 @@ fun CountryPickerSheet(
 }
 
 @Composable
-private fun CountryRow(country: Country, isSelected: Boolean, onClick: () -> Unit) {
+private fun CountryRow(country: Country, isSelected: Boolean, multiSelect: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    val contentColor = when {
+        isSelected -> MaterialTheme.colorScheme.onSecondaryContainer
+        enabled -> MaterialTheme.colorScheme.onSurface
+        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED_ALPHA)
+    }
     ListItem(
         headlineContent = { Text(country.name) },
         // Vlajka je emoji, ne obrázek — kreslí ji systémové písmo, takže se nic nestahuje
         // a nedrží se vlastní sada ikon pro dvě stě zemí.
         leadingContent = { Text(country.flagEmoji, style = MaterialTheme.typography.headlineSmall) },
         trailingContent = {
-            Text(
-                country.callingCode,
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (isSelected) {
-                    MaterialTheme.colorScheme.onSecondaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
+            when {
+                // V anketě jde o zemi, ne o předvolbu — ta by v řádku jen mátla.
+                multiSelect -> if (isSelected) Icon(painterResource(Res.drawable.check_24dp), contentDescription = null)
+                else -> Text(
+                    country.callingCode,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (isSelected) {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
         },
         // Popředí vybraného řádku se musí předat i ListItem — sám barví text `onSurface`, což
         // v tmavém tématu se zvýšeným kontrastem (světlý `secondaryContainer`) není vidět.
         colors = ListItemDefaults.colors(
             containerColor = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
-            contentColor = if (isSelected) {
-                MaterialTheme.colorScheme.onSecondaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
+            contentColor = contentColor,
         ),
-        // Klikání nese celý řádek, ne jen text — stejně jako řádky v Nastavení.
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        // Klikání nese celý řádek, ne jen text — stejně jako řádky v Nastavení. Čtečka obrazovky
+        // pozná výběr: jedna země jako přepínač, víc zemí jako zaškrtávátka.
+        modifier = Modifier.fillMaxWidth().selectable(
+            selected = isSelected,
+            enabled = enabled,
+            role = if (multiSelect) Role.Checkbox else Role.RadioButton,
+            onClick = onClick,
+        ),
     )
 }
 
@@ -171,3 +203,6 @@ internal fun List<Country>.matching(query: String): List<Country> {
 }
 
 private val LIST_HEIGHT = 420.dp
+
+/** Zašedlá země nad stropem výběru — průhlednost vypnutého obsahu podle M3. */
+private const val DISABLED_ALPHA = 0.38f

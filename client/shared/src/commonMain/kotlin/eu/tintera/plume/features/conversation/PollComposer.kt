@@ -57,6 +57,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.Country
+import eu.tintera.plume.core.telegram.DEFAULT_POLL_DESCRIPTION_MAX
+import eu.tintera.plume.core.telegram.POLL_MIN_CLOSE_AHEAD_SECONDS
+import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.core.telegram.MIN_POLL_ANSWERS
 import eu.tintera.plume.core.telegram.POLL_ANSWER_MAX
 import eu.tintera.plume.core.telegram.POLL_EXPLANATION_MAX
@@ -115,7 +119,42 @@ import eu.tintera.plume.resources.poll_duration_minutes
 import eu.tintera.plume.resources.poll_duration_hours
 import eu.tintera.plume.resources.poll_duration_days
 import eu.tintera.plume.resources.poll_duration_weeks
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerDialog
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.ui.text.TextStyle
+import eu.tintera.plume.core.telegram.flagEmoji
+import eu.tintera.plume.core.telegram.localizedCountryName
+import eu.tintera.plume.core.ui.CountryPickerSheet
+import eu.tintera.plume.core.ui.asUpcomingTime
+import eu.tintera.plume.resources.common_cancel
+import eu.tintera.plume.resources.poll_compose_close_invalid
+import eu.tintera.plume.resources.poll_compose_close_time
+import eu.tintera.plume.resources.poll_compose_countries
+import eu.tintera.plume.resources.poll_compose_countries_all
+import eu.tintera.plume.resources.poll_compose_countries_count
+import eu.tintera.plume.resources.poll_compose_countries_hint
+import eu.tintera.plume.resources.poll_compose_countries_title
+import eu.tintera.plume.resources.poll_compose_description
+import eu.tintera.plume.resources.poll_compose_members_only
+import eu.tintera.plume.resources.poll_compose_voters
+import eu.tintera.plume.resources.poll_duration_custom
+import eu.tintera.plume.resources.search_filter_apply
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -166,6 +205,10 @@ internal fun correctAfterRemoval(correct: Set<Int>, removed: Int): Set<Int> =
  * Hotová anketa z formuláře, nebo `null`, dokud se poslat nedá (tlačítko Odeslat je pak
  * zašedlé). Prázdná pole odpovědí se vynechají; [correct] jsou indexy POLÍ a přepočítají se na
  * indexy odpovědí, které opravdu odejdou.
+ *
+ * Konec ankety je buď doba ([openPeriodSeconds]), nebo čas ([closeDate]); čas, který mezitím
+ * vypršel nebo leží za stropem serveru ([closeDateValid]), formulář neodešle — server by ho
+ * odmítl až po odeslání.
  */
 internal fun pollDraftOf(
     question: String,
@@ -179,6 +222,14 @@ internal fun pollDraftOf(
     maxAnswers: Int,
     openPeriodSeconds: Int = 0,
     hideResultsUntilClose: Boolean = false,
+    description: String = "",
+    maxDescription: Int = DEFAULT_POLL_DESCRIPTION_MAX,
+    closeDate: Long = 0,
+    now: Long = 0,
+    maxOpenPeriodSeconds: Int = 0,
+    membersOnly: Boolean = false,
+    countryCodes: List<String> = emptyList(),
+    maxCountries: Int = 0,
 ): PollDraft? {
     val text = question.trim()
     if (text.isEmpty() || text.length > POLL_QUESTION_MAX) return null
@@ -200,6 +251,16 @@ internal fun pollDraftOf(
     val why = if (quiz) explanation.trim() else ""
     if (why.length > POLL_EXPLANATION_MAX || why.count { it == '\n' } > POLL_EXPLANATION_MAX_LINE_FEEDS) return null
 
+    val about = description.trim()
+    if (about.length > maxDescription) return null
+
+    if (closeDate > 0 && !closeDateValid(closeDate, now, maxOpenPeriodSeconds)) return null
+    // Doba i čas jsou dvě podoby téže volby; čas má přednost.
+    val period = if (closeDate > 0) 0 else openPeriodSeconds.coerceAtLeast(0)
+    val closes = closeDate > 0 || period > 0
+
+    if (countryCodes.size > maxCountries) return null
+
     return PollDraft(
         question = text,
         answers = filled.map { it.second },
@@ -208,10 +269,42 @@ internal fun pollDraftOf(
         shuffle = shuffle,
         correctAnswers = correctAnswers,
         explanation = why,
-        openPeriodSeconds = openPeriodSeconds.coerceAtLeast(0),
-        // Výsledky až po uzavření jen s dobou trvání — bez ní by je nikdo nikdy neviděl.
-        hideResultsUntilClose = hideResultsUntilClose && openPeriodSeconds > 0,
+        openPeriodSeconds = period,
+        closeDate = closeDate.coerceAtLeast(0),
+        // Výsledky až po uzavření jen s koncem ankety — bez něj by je nikdo nikdy neviděl.
+        hideResultsUntilClose = hideResultsUntilClose && closes,
+        description = about,
+        membersOnly = membersOnly,
+        countryCodes = countryCodes.distinct(),
     )
+}
+
+/**
+ * Smí anketa skončit v [closeDate]? Nejdřív za [POLL_MIN_CLOSE_AHEAD_SECONDS] od [now]
+ * a nejpozději za strop serveru; bez stropu (`0`) vlastní čas nejde vůbec.
+ */
+internal fun closeDateValid(closeDate: Long, now: Long, maxOpenPeriodSeconds: Int): Boolean =
+    maxOpenPeriodSeconds > 0 && closeDate - now in POLL_MIN_CLOSE_AHEAD_SECONDS..maxOpenPeriodSeconds.toLong()
+
+/**
+ * Čas uzavření z výběru data a času. Výběr data vrací **půlnoc vybraného dne v UTC**
+ * ([dateUtcMillis], viz filtry hledání) — den se z ní vezme v UTC a hodina s minutou platí
+ * v MÍSTNÍM pásmu [zone], protože tak je uživatel zadal.
+ */
+internal fun closeDateOf(dateUtcMillis: Long, hour: Int, minute: Int, zone: TimeZone): Long {
+    val day = Instant.fromEpochMilliseconds(dateUtcMillis).toLocalDateTime(TimeZone.UTC).date
+    return LocalDateTime(day, LocalTime(hour, minute)).toInstant(zone).epochSeconds
+}
+
+/**
+ * Dny, které výběr data nabídne: od dneška po den, kdy vyprší strop serveru — obojí v MÍSTNÍM
+ * pásmu. [utcTimeMillis] je půlnoc dne v UTC, jak ji výběr data posílá.
+ */
+internal fun closeDaySelectable(utcTimeMillis: Long, now: Long, maxOpenPeriodSeconds: Int, zone: TimeZone): Boolean {
+    val day = Instant.fromEpochMilliseconds(utcTimeMillis).toLocalDateTime(TimeZone.UTC).date
+    val first = Instant.fromEpochSeconds(now).toLocalDateTime(zone).date
+    val last = Instant.fromEpochSeconds(now + maxOpenPeriodSeconds).toLocalDateTime(zone).date
+    return day in first..last
 }
 
 /**
@@ -236,6 +329,13 @@ data class PollComposerStatus(
     val maxAnswers: Int = DEFAULT_MAX_ANSWERS,
     /** Nabízené doby trvání; prázdné = volba doby se nekreslí. */
     val durations: List<Int> = emptyList(),
+    /** Strop doby od serveru — i pro vlastní čas uzavření; `0` = konec se nastavit nedá. */
+    val maxOpenPeriodSeconds: Int = 0,
+    val maxDescription: Int = DEFAULT_POLL_DESCRIPTION_MAX,
+    /** Kolik zemí smí anketa v kanálu omezit; `0` = volba se nenabízí. */
+    val maxCountries: Int = 0,
+    /** Země pro výběr; načtou se až při prvním otevření výběru. */
+    val countries: List<Country> = emptyList(),
     /** Citovaná zpráva, když se anketou odpovídá; `null`, dokud se nenačte, nebo bez odpovědi. */
     val replyTo: ChatMessage? = null,
     /** Název chatu — citace ho ukáže v soukromém chatu, kde TDLib jméno odesílatele nevyplňuje. */
@@ -263,6 +363,8 @@ class PollComposerViewModel(
     replyToMessageId: Long?,
     private val replyQuote: ReplyQuote?,
     private val repository: ConversationRepository,
+    /** Jen kvůli seznamu zemí (`getCountries`) — tentýž, ze kterého bere přihlášení. */
+    private val session: TelegramSession,
 ) : ViewModel() {
 
     /** Odpověď, se kterou anketa odejde; `null` = bez odpovědi (nebo ji uživatel zahodil). */
@@ -280,9 +382,26 @@ class PollComposerViewModel(
     var correct by mutableStateOf(emptySet<Int>())
     var explanation by mutableStateOf("")
 
-    /** Za kolik sekund se anketa uzavře; `0` = bez omezení. */
+    var description by mutableStateOf("")
+
+    /** Za kolik sekund se anketa uzavře; `0` = bez omezení (nebo vlastní čas). */
     var openPeriod by mutableStateOf(0)
+        private set
+
+    /** Vlastní čas uzavření (unixový); `0` = podle [openPeriod]. */
+    var closeDate by mutableStateOf(0L)
+        private set
     var hideResults by mutableStateOf(false)
+
+    /**
+     * Teď, jak ho vidí formulář. Obnovuje ho obrazovka, dokud je nastavený vlastní čas — čas,
+     * který mezitím prošel, musí Odeslat zašednout, ne skončit chybou od serveru.
+     */
+    var now by mutableStateOf(currentEpochSeconds())
+
+    var membersOnly by mutableStateOf(false)
+    var countryCodes by mutableStateOf(emptyList<String>())
+        private set
 
     private val _status = MutableStateFlow(PollComposerStatus())
     val status: StateFlow<PollComposerStatus> = _status.asStateFlow()
@@ -297,6 +416,9 @@ class PollComposerViewModel(
                     chatTitle = info?.title,
                     maxAnswers = limits.maxAnswers,
                     durations = pollDurations(limits.maxOpenPeriodSeconds),
+                    maxOpenPeriodSeconds = limits.maxOpenPeriodSeconds,
+                    maxDescription = limits.maxDescription,
+                    maxCountries = limits.maxCountries,
                 )
             }
         }
@@ -322,7 +444,54 @@ class PollComposerViewModel(
             maxAnswers = _status.value.maxAnswers,
             openPeriodSeconds = openPeriod,
             hideResultsUntilClose = hideResults,
+            description = description,
+            maxDescription = _status.value.maxDescription,
+            closeDate = closeDate,
+            now = now,
+            maxOpenPeriodSeconds = _status.value.maxOpenPeriodSeconds,
+            // Omezení hlasujících jsou jen pro kanál; jinde se neposílají, ani kdyby zůstala
+            // nastavená.
+            membersOnly = membersOnly && _status.value.isChannel,
+            countryCodes = countryCodes.takeIf { _status.value.isChannel }.orEmpty(),
+            maxCountries = _status.value.maxCountries,
         )
+
+    /** Konec ankety podle doby; vlastní čas se tím zahodí. */
+    fun chooseOpenPeriod(seconds: Int) {
+        openPeriod = seconds
+        closeDate = 0
+        if (seconds == 0) hideResults = false
+    }
+
+    /** Konec ankety v konkrétní čas; doba se tím zahodí. */
+    fun chooseCloseDate(epochSeconds: Long) {
+        closeDate = epochSeconds
+        openPeriod = 0
+        now = currentEpochSeconds()
+    }
+
+    /** Vlastní čas uzavření, který formulář neodešle — prošel, nebo je za stropem serveru. */
+    val closeDateInvalid: Boolean
+        get() = closeDate > 0 && !closeDateValid(closeDate, now, _status.value.maxOpenPeriodSeconds)
+
+    /** Přidá nebo odebere zemi; nad strop serveru nic nepřidá. */
+    fun toggleCountry(code: String) {
+        countryCodes = when {
+            code in countryCodes -> countryCodes - code
+            countryCodes.size >= _status.value.maxCountries -> countryCodes
+            else -> countryCodes + code
+        }
+    }
+
+    /** Seznam zemí pro výběr — jednou, až ho uživatel poprvé otevře. */
+    fun loadCountries() {
+        if (_status.value.countries.isNotEmpty()) return
+        viewModelScope.launch {
+            session.countries()
+                .onSuccess { list -> _status.update { it.copy(countries = list) } }
+                .onFailure { logger.w(it) { "Seznam zemí pro anketu se nepodařilo načíst." } }
+        }
+    }
 
     fun setAnswer(index: Int, text: String) {
         if (index !in answers.indices) return
@@ -413,6 +582,18 @@ fun PollComposerScreen(
         LaunchedEffect(Unit) { onClose() }
     }
     val canSend = viewModel.draft != null && !status.sending
+    var pickingCloseDay by remember { mutableStateOf(false) }
+    var pickedCloseDay by remember { mutableStateOf<Long?>(null) }
+    var pickingCountries by remember { mutableStateOf(false) }
+
+    // Vlastní čas uzavření stárne i bez jediného úhozu: čas, který mezitím prošel, musí
+    // Odeslat zašednout a obarvit, dřív než by ho odmítl server.
+    LaunchedEffect(viewModel.closeDate) {
+        while (viewModel.closeDate > 0) {
+            viewModel.now = Clock.System.now().epochSeconds
+            delay(CLOSE_DATE_TICK_MS)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -478,14 +659,26 @@ fun PollComposerScreen(
                 }
             }
 
+            // Otázka a popis jsou jeden blok: popis patří k otázce, ne k odpovědím.
             item(key = "question") {
                 BlockField(
                     value = viewModel.question,
                     onValueChange = { viewModel.question = it.take(POLL_QUESTION_MAX + ANSWER_OVERFLOW_ALLOWANCE) },
                     label = stringResource(Res.string.poll_compose_question),
                     max = POLL_QUESTION_MAX,
-                    shape = groupItemShape(0, 1),
+                    shape = groupItemShape(0, 2),
                     singleLine = false,
+                )
+            }
+            item(key = "description") {
+                BlockField(
+                    value = viewModel.description,
+                    onValueChange = { viewModel.description = it.take(status.maxDescription + ANSWER_OVERFLOW_ALLOWANCE) },
+                    label = stringResource(Res.string.poll_compose_description),
+                    max = status.maxDescription,
+                    shape = groupItemShape(1, 2),
+                    singleLine = false,
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
 
@@ -539,8 +732,8 @@ fun PollComposerScreen(
                 if (viewModel.mode == PollComposerMode.Any) add(SettingRow.Quiz)
                 add(SettingRow.Shuffle)
                 if (status.durations.isNotEmpty()) add(SettingRow.Duration)
-                // Výsledky až po skončení mají smysl jen s dobou trvání.
-                if (viewModel.openPeriod > 0) add(SettingRow.HideResults)
+                // Výsledky až po skončení mají smysl jen s koncem ankety.
+                if (viewModel.openPeriod > 0 || viewModel.closeDate > 0) add(SettingRow.HideResults)
             }
             itemsIndexed(settings, key = { _, row -> "setting-$row" }) { index, row ->
                 val shape = groupItemShape(index, settings.size)
@@ -562,18 +755,31 @@ fun PollComposerScreen(
                         viewModel.shuffle = it
                     }
                     SettingRow.Duration -> DurationRow(
-                        selected = viewModel.openPeriod,
+                        selected = viewModel.openPeriod.takeIf { viewModel.closeDate == 0L },
+                        value = if (viewModel.closeDate > 0) viewModel.closeDate.asUpcomingTime() else durationLabel(viewModel.openPeriod),
+                        valueIsError = viewModel.closeDateInvalid,
                         options = status.durations,
                         shape = shape,
-                        onSelect = { seconds ->
-                            viewModel.openPeriod = seconds
-                            if (seconds == 0) viewModel.hideResults = false
-                        },
+                        onSelect = viewModel::chooseOpenPeriod,
+                        onCustom = { pickingCloseDay = true },
                     )
                     SettingRow.HideResults -> SwitchRow(stringResource(Res.string.poll_compose_hide_results), viewModel.hideResults, shape) {
                         haptics.toggle(it)
                         viewModel.hideResults = it
                     }
+                }
+            }
+            if (viewModel.closeDateInvalid) {
+                item(key = "close-invalid") {
+                    Text(
+                        text = stringResource(
+                            Res.string.poll_compose_close_invalid,
+                            (viewModel.now + status.maxOpenPeriodSeconds).asUpcomingTime(),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    )
                 }
             }
             if (status.isChannel) {
@@ -584,6 +790,33 @@ fun PollComposerScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
                     )
+                }
+            }
+
+            // Kdo smí hlasovat: obojí jen v kanálu („for channel chats only").
+            if (status.isChannel) {
+                val voterRows = buildList {
+                    add(VoterRow.MembersOnly)
+                    if (status.maxCountries > 0) add(VoterRow.Countries)
+                }
+                item(key = "voters-title") { SectionTitle(stringResource(Res.string.poll_compose_voters)) }
+                itemsIndexed(voterRows, key = { _, row -> "voters-$row" }) { index, row ->
+                    val shape = groupItemShape(index, voterRows.size)
+                    when (row) {
+                        VoterRow.MembersOnly -> SwitchRow(stringResource(Res.string.poll_compose_members_only), viewModel.membersOnly, shape) {
+                            haptics.toggle(it)
+                            viewModel.membersOnly = it
+                        }
+                        VoterRow.Countries -> ValueRow(
+                            label = stringResource(Res.string.poll_compose_countries),
+                            value = countriesLabel(viewModel.countryCodes),
+                            shape = shape,
+                            onClick = {
+                                viewModel.loadCountries()
+                                pickingCountries = true
+                            },
+                        )
+                    }
                 }
             }
 
@@ -604,9 +837,124 @@ fun PollComposerScreen(
             }
         }
     }
+
+    if (pickingCloseDay) {
+        CloseDayDialog(
+            now = viewModel.now,
+            maxOpenPeriodSeconds = status.maxOpenPeriodSeconds,
+            onPick = { day ->
+                pickingCloseDay = false
+                pickedCloseDay = day
+            },
+            onDismiss = { pickingCloseDay = false },
+        )
+    }
+    pickedCloseDay?.let { day ->
+        CloseTimeDialog(
+            // Nabídne se čas, který zbyl z dosavadní volby — jinak za hodinu od teď.
+            initial = viewModel.closeDate.takeIf { it > 0 } ?: (Clock.System.now().epochSeconds + HOUR),
+            onPick = { hour, minute ->
+                pickedCloseDay = null
+                viewModel.chooseCloseDate(closeDateOf(day, hour, minute, TimeZone.currentSystemDefault()))
+            },
+            onDismiss = { pickedCloseDay = null },
+        )
+    }
+    if (pickingCountries) {
+        CountryPickerSheet(
+            countries = status.countries,
+            selectedCodes = viewModel.countryCodes.toSet(),
+            onPick = { viewModel.toggleCountry(it.code) },
+            onDismiss = { pickingCountries = false },
+            title = stringResource(Res.string.poll_compose_countries_title),
+            supportingText = pluralStringResource(Res.plurals.poll_compose_countries_hint, status.maxCountries, status.maxCountries),
+            multiSelect = true,
+            canPick = { viewModel.countryCodes.size < status.maxCountries },
+        )
+    }
 }
 
 private enum class SettingRow { Anonymous, Multiple, Quiz, Shuffle, Duration, HideResults }
+
+private enum class VoterRow { MembersOnly, Countries }
+
+/** „Všechny", jedna země jménem s vlajkou, víc zemí počtem — do řádku se víc jmen nevejde. */
+@Composable
+private fun countriesLabel(codes: List<String>): String = when (codes.size) {
+    0 -> stringResource(Res.string.poll_compose_countries_all)
+    1 -> codes.single().let { code -> listOfNotNull(flagEmoji(code), localizedCountryName(code) ?: code).joinToString(" ") }
+    else -> pluralStringResource(Res.plurals.poll_compose_countries_count, codes.size, codes.size)
+}
+
+/**
+ * Den konce ankety: od dneška po den, kdy vyprší strop serveru. Výběr vrací půlnoc dne v UTC
+ * (viz [closeDateOf]).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CloseDayDialog(now: Long, maxOpenPeriodSeconds: Int, onPick: (Long) -> Unit, onDismiss: () -> Unit) {
+    val zone = TimeZone.currentSystemDefault()
+    val state = rememberDatePickerState(
+        selectableDates = remember(now, maxOpenPeriodSeconds) {
+            object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                    closeDaySelectable(utcTimeMillis, now, maxOpenPeriodSeconds, zone)
+            }
+        },
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                enabled = state.selectedDateMillis != null,
+                onClick = { state.selectedDateMillis?.let(onPick) },
+            ) { Text(stringResource(Res.string.search_filter_apply)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+    ) {
+        DatePicker(state = state)
+    }
+}
+
+/** Hodina konce ankety — v místním čase, jak ho uživatel zná. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CloseTimeDialog(initial: Long, onPick: (hour: Int, minute: Int) -> Unit, onDismiss: () -> Unit) {
+    val start = remember(initial) { Instant.fromEpochSeconds(initial).toLocalDateTime(TimeZone.currentSystemDefault()) }
+    val state = rememberTimePickerState(initialHour = start.hour, initialMinute = start.minute)
+    TimePickerDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.poll_compose_close_time)) },
+        confirmButton = {
+            TextButton(onClick = { onPick(state.hour, state.minute) }) { Text(stringResource(Res.string.search_filter_apply)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+    ) {
+        TimePicker(state = state)
+    }
+}
+
+/** Řádek s hodnotou vpravo; ťuknutí otevře výběr. */
+@Composable
+private fun ValueRow(label: String, value: String, shape: Shape, onClick: () -> Unit, valueIsError: Boolean = false) {
+    Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .clickable(onClick = onClick)
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        ) {
+            Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (valueIsError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
+}
 
 @Composable
 private fun SectionTitle(text: String) {
@@ -634,12 +982,14 @@ private fun BlockField(
     singleLine: Boolean,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
+    style: TextStyle = LocalTextStyle.current,
 ) {
     Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth()) {
         TextField(
             value = value,
             onValueChange = onValueChange,
-            placeholder = { Text(label) },
+            textStyle = style,
+            placeholder = { Text(label, style = style) },
             singleLine = singleLine,
             leadingIcon = leading,
             trailingIcon = trailing,
@@ -749,11 +1099,16 @@ private fun SwitchRow(label: String, checked: Boolean, shape: Shape, onChange: (
 /** Kdyby server strop nevydal. */
 private const val DEFAULT_MAX_ANSWERS = 10
 
+private fun currentEpochSeconds(): Long = Clock.System.now().epochSeconds
+
 /** O kolik se text smí dostat přes strop, než ho pole utne — aby šlo vložit a zkrátit. */
 private const val ANSWER_OVERFLOW_ALLOWANCE = 50
 
 /** Počítadlo se ukáže, až zbývá tolik znaků. */
 private const val COUNTER_FROM = 20
+
+/** Jak často se přepočítává, jestli vlastní čas uzavření ještě platí. */
+private const val CLOSE_DATE_TICK_MS = 15_000L
 
 /**
  * Citovaná zpráva nad otázkou, když se anketou odpovídá — tentýž prvek jako nad vstupním polem,
@@ -785,42 +1140,39 @@ private fun ReplyHeader(message: ChatMessage, partnerName: String?, quoteText: S
 
 /**
  * Doba trvání: řádek s vybranou hodnotou, ťuknutí otevře nabídku (Expressive, jako výběr
- * období v hledání). Vybraná doba má v nabídce fajfku.
+ * období v hledání). Vybraná doba má v nabídce fajfku; poslední položka otevře výběr data
+ * a času — [selected] je pak `null` a hodnota řádku je čas konce.
  */
 @Composable
-private fun DurationRow(selected: Int, options: List<Int>, shape: Shape, onSelect: (Int) -> Unit) {
+private fun DurationRow(
+    selected: Int?,
+    value: String,
+    valueIsError: Boolean,
+    options: List<Int>,
+    shape: Shape,
+    onSelect: (Int) -> Unit,
+    onCustom: () -> Unit,
+) {
     var expanded by remember { mutableStateOf(false) }
+    val check: @Composable () -> Unit = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) }
     Box {
-        Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth()) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clickable { expanded = true }
-                    .heightIn(min = 56.dp)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            ) {
-                Text(stringResource(Res.string.poll_compose_duration), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                Text(
-                    text = durationLabel(selected),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-        }
+        ValueRow(
+            // „Doba trvání: zítra 18:48" by nesedělo — s konkrétním časem jde o konec ankety.
+            label = stringResource(if (selected == null) Res.string.poll_compose_close_time else Res.string.poll_compose_duration),
+            value = value,
+            valueIsError = valueIsError,
+            shape = shape,
+            onClick = { expanded = true },
+        )
         ExpressiveMenu(
             expanded = expanded,
             onDismiss = { expanded = false },
             groups = listOf(
                 (listOf(0) + options).map { seconds ->
-                    MenuAction(
-                        label = durationLabel(seconds),
-                        trailing = if (seconds == selected) {
-                            { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) }
-                        } else {
-                            null
-                        },
-                    ) { onSelect(seconds) }
+                    MenuAction(label = durationLabel(seconds), trailing = check.takeIf { seconds == selected }) { onSelect(seconds) }
                 },
+                // Vlastní čas je jiný druh volby než doba — vlastní skupina.
+                listOf(MenuAction(label = stringResource(Res.string.poll_duration_custom), trailing = check.takeIf { selected == null }) { onCustom() }),
             ),
         )
     }

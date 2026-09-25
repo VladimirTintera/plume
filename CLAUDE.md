@@ -3552,10 +3552,29 @@ v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, 
   odpověď spotřebovala anketa, podle příchozí zprávy (`pollConsumesReply` — VLASTNÍ anketa ve
   stavu `Sending`, odpověď na tutéž zprávu; z jiného zařízení přijde už `Sent`). Odpověď se
   nezahazuje při OTEVŘENÍ formuláře — kdo ho zavře, má ji mít dál.
-- **Doba trvání je `openPeriod`, ne `closeDate`**: relativní doba nezávisí na hodinách telefonu.
-  Nabídka (5 minut až týden) se ořízne stropem serveru `poll_open_period_max` — na emulátoru
-  2 628 000 s, tedy měsíc; bez stropu se volba nekreslí. „Výsledky až po skončení"
-  (`hideResultsUntilCloses`) se nabízí jen s dobou — bez ní by je nikdo nikdy neviděl.
+- **Doba trvání je `openPeriod`, přesný čas `closeDate` — a jen jedno z nich.** Doba nezávisí
+  na hodinách telefonu, proto je výchozí; nabídka (5 minut až týden) se ořízne stropem serveru
+  `poll_open_period_max` — na emulátoru 2 628 000 s, tedy měsíc; bez stropu se volba nekreslí.
+  Poslední položka nabídky („Vybrat datum a čas…", vlastní skupina) otevře výběr data a pak
+  času; řádek se pak jmenuje „Konec ankety" — „Doba trvání: zítra 18:48" nesedělo.
+  „Výsledky až po skončení" (`hideResultsUntilCloses`) se nabízí jen s koncem ankety.
+- **Vlastní čas se hlídá PŘED odesláním** (`closeDateValid`, testy `PollComposerTest`):
+  nejdřív za 5 minut (`POLL_MIN_CLOSE_AHEAD_SECONDS` — těsný čas by během vyplňování vypršel),
+  nejpozději za strop serveru. Neplatný čas zůstane v řádku červeně s větou, dokdy smí anketa
+  skončit, a Odeslat zašedne. **Čas stárne i bez úhozu**, takže obrazovka `now` ve ViewModelu
+  obnovuje každých 15 s, dokud je vlastní čas nastavený.
+- **Výběr data vrací půlnoc v UTC, hodina platí v MÍSTNÍM pásmu** (`closeDateOf`,
+  `closeDaySelectable`). Tatáž past jako ve filtrech hledání. Strop 2 628 000 s je 30 dní
+  a 10 hodin, takže nejzazší čas přeskočí přes změnu letního času — zkontrolováno: 8:51 v září
+  → „25. října 17:51".
+- **Popis ankety** (`description`) je pole pod otázkou v jejím bloku; strop je
+  `message_caption_length_max` (1 024). Odkazy v něm se dohledávají `getTextEntities`, jako
+  u popisku přílohy — bez toho by odešly jako mrtvý text.
+- **Kdo smí hlasovat jen v kanálu** („for channel chats only"): `membersOnly` (v kanálu déle
+  než den) a `countryCodes`, nejvýš `poll_country_count_max` zemí (na emulátoru 12). Mimo kanál
+  se blok nekreslí a repository omezení neposílá, ani kdyby ve formuláři zůstala. Země vybírá
+  tentýž `CountryPickerSheet` jako přihlášení, v režimu víc zemí (fajfka místo předvolby, nad
+  stropem zašedlé) — proto se přestěhoval z `features/auth` do `core/ui`.
 - **Konec ankety je v podtitulu bubliny** („končí zítra 14:30", `asUpcomingTime`), jen dokud
   nenastal; pak server anketu uzavře a podtitul řekne „Konečné výsledky". Nepřepočítává se
   každou vteřinu — uzavření přijde updatem obsahu.
@@ -3566,8 +3585,10 @@ v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, 
   odešel, odpověď na vlastní kvíz v odchozí bublině (barvy správně / špatně tam ustoupí bílé
   a rozdíl nesou ikony), „Ukončit anketu" z nabídky s potvrzením, tlačítko bota s vynuceným
   kvízem, anketa jako odpověď s dobou 1 hodina (citace v bublině, „končí 08:30", odpověď nad
-  polem zmizela). **V kanálu a ve skupině zakládání ověřené NENÍ** — testovací zprávy do skutečných
-  skupin nepatří.
+  polem zmizela), popis s odkazem a vlastní čas konce („končí zítra 18:48"). **Blok „Kdo smí
+  hlasovat" jen podstrčeným `isChannel = true`** (sonda, necommituje se): výběr zemí, „2 země",
+  neplatný čas; odeslání s omezeními do kanálu ověřené NENÍ. **V kanálu a ve skupině zakládání
+  ověřené NENÍ** — testovací zprávy do skutečných skupin nepatří.
 - **Sheet se na snímku ukáže až po chvíli.** `screencap` hned po ťuknutí zachytí obrazovku bez
   něj a vypadá to, že tlačítko nefunguje; `uiautomator dump` už ho vidí.
 

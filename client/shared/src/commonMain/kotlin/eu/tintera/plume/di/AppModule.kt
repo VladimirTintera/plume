@@ -216,6 +216,7 @@ fun appModule() = module {
             replyToMessageId = parameters.values.getOrNull(2) as? Long,
             replyQuote = parameters.values.getOrNull(3) as? ReplyQuote,
             repository = get(),
+            session = get(),
         )
     }
     // Dvě `Long` za sebou: parametry se čtou INDEXEM, podle typu by se chatId s messageId zaměnily.

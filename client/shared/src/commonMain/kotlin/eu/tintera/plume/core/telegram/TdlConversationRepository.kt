@@ -1320,17 +1320,21 @@ class TdlConversationRepository(
                 options = poll.answers
                     .map { InputPollOption(text = FormattedText(text = it, entities = emptyArray()), media = null) }
                     .toTypedArray(),
-                description = null,
+                // Popis je jako popisek přílohy: odkazy a zmínky se dohledají, jinak by odešly
+                // jako mrtvý text.
+                description = poll.description.takeIf { it.isNotBlank() }
+                    ?.let { FormattedText(text = it, entities = detectEntities(it)) },
                 media = null,
                 // Neanonymní anketu server do kanálu nepustí.
                 isAnonymous = poll.anonymous || isChannel,
                 allowsMultipleAnswers = poll.multipleAnswers,
                 // Změnit hlas jde u ankety, u kvízu ne — odpověď na kvíz je odpověď, ne názor.
                 allowsRevoting = correct == null,
-                membersOnly = false,
-                countryCodes = emptyArray(),
+                // Omezení hlasujících jsou „for channel chats only"; jinde by je server odmítl.
+                membersOnly = poll.membersOnly && isChannel,
+                countryCodes = if (isChannel) poll.countryCodes.toTypedArray() else emptyArray(),
                 shuffleOptions = poll.shuffle,
-                hideResultsUntilCloses = poll.hideResultsUntilClose && poll.openPeriodSeconds > 0,
+                hideResultsUntilCloses = poll.hideResultsUntilClose && (poll.openPeriodSeconds > 0 || poll.closeDate > 0),
                 type = if (correct == null) {
                     InputPollTypeRegular(allowAddingOptions = false)
                 } else {
@@ -1341,8 +1345,9 @@ class TdlConversationRepository(
                         explanationMedia = null,
                     )
                 },
-                openPeriod = poll.openPeriodSeconds,
-                closeDate = 0,
+                // Doba a čas uzavření jsou dvě podoby téže volby; přednost má výslovný čas.
+                openPeriod = if (poll.closeDate > 0) 0 else poll.openPeriodSeconds,
+                closeDate = poll.closeDate.toInt(),
                 isClosed = false,
             ),
         ).toResult().getOrThrow().toChatMessage(isGroup(chatId))
@@ -1355,6 +1360,8 @@ class TdlConversationRepository(
             maxAnswers = option("poll_answer_count_max")?.takeIf { it >= MIN_POLL_ANSWERS }
                 ?: DEFAULT_POLL_ANSWER_COUNT_MAX,
             maxOpenPeriodSeconds = option("poll_open_period_max")?.coerceAtLeast(0) ?: 0,
+            maxDescription = option("message_caption_length_max")?.takeIf { it > 0 } ?: DEFAULT_POLL_DESCRIPTION_MAX,
+            maxCountries = option("poll_country_count_max")?.coerceAtLeast(0) ?: 0,
         )
         logger.d { "Meze ankety od serveru: $limits" }
         return limits

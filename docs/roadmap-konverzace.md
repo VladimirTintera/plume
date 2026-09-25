@@ -436,9 +436,8 @@ snadno na to uživatel narazí.
 - ~~**Ankety a kvízy**~~ — hotovo (hlasování, výsledky, kvíz s vysvětlením, zrušení hlasu,
   ukončení, kdo hlasoval; `CLAUDE.md`, „Ankety a kvízy"). Zbývá:
   - ~~**Zakládání anket**~~ — hotovo (sponka → Anketa, i tlačítko bota, jako odpověď, s dobou
-    trvání a „výsledky až po skončení"). Zbývá ověřit v kanálu a ve skupině. Nenabízí se popis
-    ankety, omezení na členy a země (`membersOnly`, `countryCodes` — jen kanály) ani přesný čas
-    uzavření místo doby (`closeDate`).
+    trvání nebo přesným časem konce, popisem, „výsledky až po skončení" a v kanálu omezením na
+    členy a země). Zbývá ověřit v kanálu (omezení hlasujících) a ve skupině.
   - **Média v anketě a v odpovědích** (`MessagePoll.media`, `PollOption.media`, TDLib 15)
     a **přidání odpovědi** (`canAddOption`, `addPollOption`) se zatím zahazují.
   - **Tváře posledních hlasujících** (`recentVoterIds`) u zápatí.

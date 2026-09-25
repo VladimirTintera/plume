@@ -140,15 +140,43 @@ data class PollDraft(
     val explanation: String = "",
     /** Za kolik sekund se anketa sama uzavře; `0` = neuzavře se sama. */
     val openPeriodSeconds: Int = 0,
-    /** Výsledky až po uzavření. Smysl má jen s [openPeriodSeconds] — jinak by je nikdo neviděl. */
+    /**
+     * Kdy se anketa sama uzavře (unixový čas); `0` = podle [openPeriodSeconds]. Obojí naráz
+     * formulář nepustí — jde o dvě podoby téže volby.
+     */
+    val closeDate: Long = 0,
+    /** Výsledky až po uzavření. Smysl má jen s koncem ankety — jinak by je nikdo neviděl. */
     val hideResultsUntilClose: Boolean = false,
+    /** Popis pod otázkou; prázdný = bez popisu. */
+    val description: String = "",
+    /** Hlasovat smí jen ten, kdo je v chatu déle než den (`membersOnly`, jen kanál). */
+    val membersOnly: Boolean = false,
+    /** Hlasovat smí jen lidé z těchto zemí (ISO 3166-1 alpha-2, jen kanál); prázdné = všichni. */
+    val countryCodes: List<String> = emptyList(),
 )
 
 /**
- * Meze pro novou anketu od serveru. [maxOpenPeriodSeconds] `0` = doba trvání se nastavit nedá
- * (server strop neposlal) — volba se pak nenabízí.
+ * Meze pro novou anketu od serveru. Nula u [maxOpenPeriodSeconds] a [maxCountries] = volba se
+ * nastavit nedá (server strop neposlal) a nenabízí se.
  */
-data class PollLimits(val maxAnswers: Int, val maxOpenPeriodSeconds: Int)
+data class PollLimits(
+    val maxAnswers: Int,
+    val maxOpenPeriodSeconds: Int,
+    /** Délka popisu (`message_caption_length_max`, bez Premium 1 024). */
+    val maxDescription: Int = DEFAULT_POLL_DESCRIPTION_MAX,
+    /** Kolik zemí smí anketa v kanálu omezit (`poll_country_count_max`). */
+    val maxCountries: Int = 0,
+)
+
+/** Kdyby server strop popisu nevydal — tolik bere popisek přílohy bez Premium. */
+const val DEFAULT_POLL_DESCRIPTION_MAX = 1024
+
+/**
+ * Nejkratší doba do uzavření u vlastního času. TDLib bere cokoli v budoucnosti, ale anketa, která
+ * se zavře, než ji kdo uvidí, je překlep — a formulář se chvíli vyplňuje, takže těsný čas by
+ * mezitím vypršel.
+ */
+const val POLL_MIN_CLOSE_AHEAD_SECONDS = 5 * 60
 
 /** Nejméně odpovědí. TDLib by vzal i jednu, ale anketa s jedinou možností nic nezjistí. */
 const val MIN_POLL_ANSWERS = 2

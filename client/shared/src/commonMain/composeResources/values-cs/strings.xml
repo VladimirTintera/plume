@@ -1157,4 +1157,23 @@
         <item quantity="other">%1$d týdnů</item>
     </plurals>
     <string name="poll_closes_at">končí %1$s</string>
+    <string name="poll_compose_description">Popis (nepovinný)</string>
+    <string name="poll_duration_custom">Vybrat datum a čas…</string>
+    <string name="poll_compose_close_time">Konec ankety</string>
+    <string name="poll_compose_close_invalid">Anketa může skončit nejdřív za 5 minut a nejpozději %1$s.</string>
+    <string name="poll_compose_voters">Kdo smí hlasovat</string>
+    <string name="poll_compose_members_only">Jen členové, kteří jsou v kanálu déle než den</string>
+    <string name="poll_compose_countries">Země</string>
+    <string name="poll_compose_countries_all">Všechny</string>
+    <plurals name="poll_compose_countries_count">
+        <item quantity="one">%1$d země</item>
+        <item quantity="few">%1$d země</item>
+        <item quantity="other">%1$d zemí</item>
+    </plurals>
+    <string name="poll_compose_countries_title">Hlasovat smí lidé z</string>
+    <plurals name="poll_compose_countries_hint">
+        <item quantity="one">Vyber nejvýš %1$d zemi. Bez výběru smí hlasovat všichni.</item>
+        <item quantity="few">Vyber nejvýš %1$d země. Bez výběru smí hlasovat všichni.</item>
+        <item quantity="other">Vyber nejvýš %1$d zemí. Bez výběru smí hlasovat všichni.</item>
+    </plurals>
 </resources>

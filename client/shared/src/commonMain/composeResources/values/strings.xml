@@ -1133,4 +1133,21 @@
         <item quantity="other">%1$d weeks</item>
     </plurals>
     <string name="poll_closes_at">ends %1$s</string>
+    <string name="poll_compose_description">Description (optional)</string>
+    <string name="poll_duration_custom">Pick date and time…</string>
+    <string name="poll_compose_close_time">Poll ends at</string>
+    <string name="poll_compose_close_invalid">The poll can end no sooner than in 5 minutes and no later than %1$s.</string>
+    <string name="poll_compose_voters">Who can vote</string>
+    <string name="poll_compose_members_only">Only members who joined over a day ago</string>
+    <string name="poll_compose_countries">Countries</string>
+    <string name="poll_compose_countries_all">All</string>
+    <plurals name="poll_compose_countries_count">
+        <item quantity="one">%1$d country</item>
+        <item quantity="other">%1$d countries</item>
+    </plurals>
+    <string name="poll_compose_countries_title">Who can vote from</string>
+    <plurals name="poll_compose_countries_hint">
+        <item quantity="one">Pick up to %1$d country. With none picked, anyone can vote.</item>
+        <item quantity="other">Pick up to %1$d countries. With none picked, anyone can vote.</item>
+    </plurals>
 </resources>
