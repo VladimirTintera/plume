@@ -2329,6 +2329,11 @@ Messages.
   s popiskem je rovný a ořezává karta.
   Náhled souboru v řádku si drží svých 12 dp — velké zaoblení bubliny by z 48dp čtverečku udělalo
   kolečko.
+- **Jméno odesílatele nad holým snímkem si nese odsazení i do stran** (`MESSAGE_PADDING_H`,
+  jako text v bublině). Celá zpráva je ořezaná tvarem bubliny (`MessageBox`, kvůli vlnce
+  zvýraznění a díře v závoji nabídky), takže jméno přilepené k levé hraně ukouslo zaoblené
+  nároží první písmeno („ilipHorky"). Totéž u karty náhledu odkazu. **Cokoli, co leží v rohu
+  zprávy bez bubliny, se musí odsadit o zaoblení** — ořez nekončí u snímku.
 - **Citace si bublinu vynutí.** Bez pozadí se ztratí, tentýž důvod, proč si ji drží i zpráva
   z pár emoji. Náhled odkazu má vlastní kartu (viz „Náhled odkazu jako karta").
 - **Soubor, hlasovka ani samolepkový popis na plochu nejdou.** Jsou to řádky s textem a ikonou,
@@ -3810,6 +3815,11 @@ Ve skupině má cizí zpráva vlevo tvář odesílatele, aby se odesílatelé ne
   odesílatelem, jinou stranou, jiným dnem nebo servisním oznámením.
 - **Kanál tvář nemá** (odesílatel = chat sám): u každého příspěvku by byla tatáž a nese ji
   hlavička.
+- **A nemá ani jméno nad příspěvkem.** Kanál je pro TDLib taky `ChatTypeSupergroup`, takže
+  `ChatInfo.isGroup` je u něj `true` — a jméno kanálu stálo nad každým příspěvkem, zatímco tvář
+  schovala jiná podmínka (odesílatel = chat). O jménu i tváři proto rozhoduje `isGroup`
+  v repository jako „skupina a NE kanál". Kdo se ptá na „skupinu", musí se rozhodnout, jestli
+  kanál myslí taky.
 - **Jméno i tvář jdou z jednoho `resolveSender`** (s cache), ne ze dvou dotazů.
 - **Tvář je mimo posouvaný `Box`** — při tažení na odpověď jede jen bublina.
 - **Zarovnaná ke spodní hraně bubliny.** U dlouhé zprávy by uprostřed nebylo poznat, kam patří.
