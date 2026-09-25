@@ -79,6 +79,9 @@ import eu.tintera.plume.resources.poll_explanation
 import eu.tintera.plume.resources.poll_kind_anonymous
 import eu.tintera.plume.resources.poll_kind_anonymous_quiz
 import eu.tintera.plume.resources.poll_kind_closed
+import eu.tintera.plume.resources.poll_closes_at
+import eu.tintera.plume.core.ui.asUpcomingTime
+import kotlin.time.Clock
 import eu.tintera.plume.resources.poll_kind_public
 import eu.tintera.plume.resources.poll_kind_quiz
 import eu.tintera.plume.resources.poll_multiple
@@ -236,12 +239,22 @@ private fun pollSubtitle(poll: ChatPoll): String {
             else -> Res.string.poll_kind_public
         },
     )
-    return if (poll.multipleAnswers) {
+    val withMultiple = if (poll.multipleAnswers) {
         stringResource(Res.string.poll_subtitle_joined, kind, stringResource(Res.string.poll_multiple))
     } else {
         kind
     }
+    // Konec jen dokud nenastal: po něm server anketu uzavře a podtitul řekne „Konečné výsledky".
+    // Čas se nepřepočítává každou vteřinu — hodina a den stačí a uzavření přijde updatem.
+    val closesAt = poll.closeDate.takeIf { it > nowSeconds() } ?: return withMultiple
+    return stringResource(
+        Res.string.poll_subtitle_joined,
+        withMultiple,
+        stringResource(Res.string.poll_closes_at, closesAt.toLong().asUpcomingTime()),
+    )
 }
+
+private fun nowSeconds(): Long = Clock.System.now().epochSeconds
 
 /**
  * Odpověď k hlasování: kolečko (jedna odpověď) nebo zaškrtávátko (víc) a text.

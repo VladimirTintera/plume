@@ -54,6 +54,7 @@ import eu.tintera.plume.features.conversation.StickerSetViewModel
 import eu.tintera.plume.features.conversation.PollVotersViewModel
 import eu.tintera.plume.features.conversation.PollComposerViewModel
 import eu.tintera.plume.core.telegram.PollComposerMode
+import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.features.media.MediaViewerViewModel
 import eu.tintera.plume.features.share.ShareToChatViewModel
 import eu.tintera.plume.features.share.ShareViewModel
@@ -208,9 +209,12 @@ fun appModule() = module {
     viewModel { params -> GifPickerViewModel(chatId = params.get(), repository = get()) }
     viewModel { parameters -> StickerSetViewModel(setId = parameters.get(), repository = get()) }
     viewModel { parameters ->
+        // Indexem: odpověď (`Long?`) by se podle typu zaměnila s chatId.
         PollComposerViewModel(
-            chatId = parameters.get(),
-            mode = parameters.getOrNull<PollComposerMode>() ?: PollComposerMode.Any,
+            chatId = parameters.values[0] as Long,
+            mode = parameters.values.getOrNull(1) as? PollComposerMode ?: PollComposerMode.Any,
+            replyToMessageId = parameters.values.getOrNull(2) as? Long,
+            replyQuote = parameters.values.getOrNull(3) as? ReplyQuote,
             repository = get(),
         )
     }

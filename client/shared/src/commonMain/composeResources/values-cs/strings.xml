@@ -1132,4 +1132,29 @@
     <string name="poll_compose_explanation_hint">Ukáže se po špatné odpovědi (nepovinné)</string>
     <string name="poll_compose_counter">%1$d/%2$d</string>
     <string name="poll_compose_send_failed">Anketu se nepodařilo odeslat.</string>
+    <string name="poll_compose_duration">Doba trvání</string>
+    <string name="poll_compose_hide_results">Výsledky až po skončení</string>
+    <string name="poll_compose_drop_reply">Poslat bez odpovědi</string>
+    <string name="poll_duration_none">Bez omezení</string>
+    <plurals name="poll_duration_minutes">
+        <item quantity="one">%1$d minuta</item>
+        <item quantity="few">%1$d minuty</item>
+        <item quantity="other">%1$d minut</item>
+    </plurals>
+    <plurals name="poll_duration_hours">
+        <item quantity="one">%1$d hodina</item>
+        <item quantity="few">%1$d hodiny</item>
+        <item quantity="other">%1$d hodin</item>
+    </plurals>
+    <plurals name="poll_duration_days">
+        <item quantity="one">%1$d den</item>
+        <item quantity="few">%1$d dny</item>
+        <item quantity="other">%1$d dní</item>
+    </plurals>
+    <plurals name="poll_duration_weeks">
+        <item quantity="one">%1$d týden</item>
+        <item quantity="few">%1$d týdny</item>
+        <item quantity="other">%1$d týdnů</item>
+    </plurals>
+    <string name="poll_closes_at">končí %1$s</string>
 </resources>

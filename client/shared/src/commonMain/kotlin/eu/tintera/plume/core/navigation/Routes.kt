@@ -153,6 +153,11 @@ data class PollComposerRoute(
     /** Tlačítko bota si vynutilo jen kvíz ([quizOnly]), nebo jen běžnou anketu ([regularOnly]). */
     val quizOnly: Boolean = false,
     val regularOnly: Boolean = false,
+    /** Anketa odejde jako odpověď na tuhle zprávu (rozepsaná odpověď v konverzaci). */
+    val replyToMessageId: Long? = null,
+    /** Citovaný úryvek té odpovědi; `null` = celá zpráva. */
+    val quoteText: String? = null,
+    val quotePosition: Int = 0,
 ) : Route
 
 /**

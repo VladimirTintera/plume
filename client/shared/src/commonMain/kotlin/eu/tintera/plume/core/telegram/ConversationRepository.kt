@@ -89,8 +89,8 @@ interface ConversationRepository {
         quote: ReplyQuote? = null,
     ): Result<ChatMessage>
 
-    /** Kolik odpovědí smí anketa mít (`poll_answer_count_max`). */
-    suspend fun pollAnswerCountMax(): Int
+    /** Meze nové ankety (`poll_answer_count_max`, `poll_open_period_max`). */
+    suspend fun pollLimits(): PollLimits
 
     /** Uzavře anketu; smí jen autor (nebo správce), pozná se podle `canBeEdited`. */
     suspend fun stopPoll(chatId: Long, messageId: Long): Result<Unit>

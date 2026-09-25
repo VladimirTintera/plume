@@ -299,7 +299,7 @@ fun ConversationScreen(
      */
     onUnarchived: () -> Unit = {},
     /** Sponka → Anketa (a tlačítko bota „vytvořit anketu"): formulář nové ankety nad konverzací. */
-    onCreatePoll: (PollComposerMode) -> Unit = {},
+    onCreatePoll: (PollComposerRequest) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
@@ -1220,7 +1220,9 @@ fun ConversationScreen(
                 },
                 onPickDocument = attachmentPicker::pickDocument,
                 // Anketa jde jen tam, kde to dovolí právo i druh chatu (`ContentAccess.polls`).
-                onCreatePoll = { onCreatePoll(PollComposerMode.Any) }.takeIf { state.content.polls },
+                onCreatePoll = {
+                    onCreatePoll(PollComposerRequest(PollComposerMode.Any, state.replyingTo?.id, state.replyQuote))
+                }.takeIf { state.content.polls },
                 attachments = state.attachments,
                 onRemoveAttachment = viewModel::removeAttachment,
                 onOpenAttachment = { index -> previewAttachmentIndex = index },
@@ -1394,7 +1396,7 @@ fun ConversationScreen(
         // efekt nezruší uprostřed (past „Vrátit" v CLAUDE.md se týká práce, která teprve běží).
         state.openPollComposer?.let { mode ->
             LaunchedEffect(mode) {
-                onCreatePoll(mode)
+                onCreatePoll(PollComposerRequest(mode, state.replyingTo?.id, state.replyQuote))
                 viewModel.consumeOpenPollComposer()
             }
         }

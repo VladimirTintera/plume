@@ -56,6 +56,8 @@ import eu.tintera.plume.core.navigation.ForwardRoute
 import eu.tintera.plume.core.navigation.PollComposerRoute
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.features.conversation.PollComposerScreen
+import eu.tintera.plume.features.conversation.PollComposerRequest
+import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.navigation.ShareRoute
 import eu.tintera.plume.core.navigation.ShareToChatRoute
 import eu.tintera.plume.core.share.ShareRequests
@@ -429,7 +431,7 @@ private fun shellEntryProvider(
             onSearch = { query -> navigation.openSearch(query, keepConversation = twoPane) },
             onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
             onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(chatId)) },
-            onCreatePoll = { mode -> chatsStack.add(pollComposerRoute(route.chatId, mode)) },
+            onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
         )
     }
 
@@ -524,7 +526,7 @@ private fun shellEntryProvider(
             onOpenProfile = { chatsStack.add(ArchiveChatProfileRoute(route.chatId)) },
             onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(chatId)) },
             onUnarchived = { chatsStack.moveConversationToMain(route.chatId) },
-            onCreatePoll = { mode -> chatsStack.add(pollComposerRoute(route.chatId, mode)) },
+            onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
         )
     }
 
@@ -602,7 +604,17 @@ private fun shellEntryProvider(
             else -> PollComposerMode.Any
         }
         PollComposerScreen(
-            viewModel = koinViewModel(key = "poll-composer-${route.chatId}-$mode", parameters = { parametersOf(route.chatId, mode) }),
+            viewModel = koinViewModel(
+                key = "poll-composer-${route.chatId}-$mode-${route.replyToMessageId}",
+                parameters = {
+                    parametersOf(
+                        route.chatId,
+                        mode,
+                        route.replyToMessageId,
+                        route.quoteText?.let { ReplyQuote(text = it, position = route.quotePosition) },
+                    )
+                },
+            ),
             onClose = { chatsStack.pop(route) },
         )
     }
@@ -768,9 +780,12 @@ private const val ARCHIVE_SCENE = "archive"
  */
 private const val SETTINGS_SCENE = "settings"
 
-private fun pollComposerRoute(chatId: Long, mode: PollComposerMode) = PollComposerRoute(
+private fun pollComposerRoute(chatId: Long, request: PollComposerRequest) = PollComposerRoute(
     chatId = chatId,
-    quizOnly = mode == PollComposerMode.QuizOnly,
-    regularOnly = mode == PollComposerMode.RegularOnly,
+    quizOnly = request.mode == PollComposerMode.QuizOnly,
+    regularOnly = request.mode == PollComposerMode.RegularOnly,
+    replyToMessageId = request.replyToMessageId,
+    quoteText = request.quote?.text,
+    quotePosition = request.quote?.position ?: 0,
 )
 

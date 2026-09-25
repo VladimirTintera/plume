@@ -846,6 +846,9 @@ class ConversationViewModel(
                     // dočasné id.
                     it.withMessage(message).copy(flight = it.flight.landingOn(message))
                 }
+                // Anketa se zakládá ve vlastním formuláři a rozepsanou odpověď si odnesla; tady
+                // se pozná, že odešla, a odpověď zmizí jako po odeslání textu.
+                if (_state.value.pollConsumesReply(message)) clearReply()
                 resolveMissingQuotes()
             }
         }
@@ -3440,3 +3443,20 @@ private fun UnsupportedKeyboardButton.explanation(): StringResource = when (this
 
 /** Jak dlouho se po vynucené odpovědi čeká, než zpráva bota dorazí do seznamu. */
 private const val FORCE_REPLY_WAIT = 3_000L
+
+/**
+ * Spotřebovala [message] rozepsanou odpověď? Ano, když je to VLASTNÍ anketa, která se právě
+ * odesílá (`Sending` — z jiného zařízení přijde už odeslaná) a odpovídá na tutéž zprávu.
+ *
+ * Formulář ankety je jiná obrazovka s vlastním ViewModelem a výsledek konverzaci nepředává;
+ * konverzace si ho pozná sama z příchozí zprávy. Odpověď se nezahazuje hned při otevření
+ * formuláře — kdo ho zavře, má ji mít dál.
+ */
+internal fun ConversationState.pollConsumesReply(message: ChatMessage): Boolean {
+    val reply = replyingTo ?: return false
+    return message.poll != null &&
+        message.isOutgoing &&
+        message.sendState == SendState.Sending &&
+        message.replyToMessageId == reply.id
+}
+

@@ -100,6 +100,21 @@ import eu.tintera.plume.resources.poll_compose_title
 import eu.tintera.plume.resources.poll_compose_title_quiz
 import eu.tintera.plume.resources.poll_compose_too_many
 import eu.tintera.plume.resources.radio_button_unchecked_24dp
+import androidx.compose.runtime.remember
+import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.ReplyQuote
+import eu.tintera.plume.core.ui.ExpressiveMenu
+import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.features.conversation.items.QuotedMessage
+import eu.tintera.plume.resources.check_24dp
+import eu.tintera.plume.resources.poll_compose_drop_reply
+import eu.tintera.plume.resources.poll_compose_duration
+import eu.tintera.plume.resources.poll_compose_hide_results
+import eu.tintera.plume.resources.poll_duration_none
+import eu.tintera.plume.resources.poll_duration_minutes
+import eu.tintera.plume.resources.poll_duration_hours
+import eu.tintera.plume.resources.poll_duration_days
+import eu.tintera.plume.resources.poll_duration_weeks
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -162,6 +177,8 @@ internal fun pollDraftOf(
     correct: Set<Int>,
     explanation: String,
     maxAnswers: Int,
+    openPeriodSeconds: Int = 0,
+    hideResultsUntilClose: Boolean = false,
 ): PollDraft? {
     val text = question.trim()
     if (text.isEmpty() || text.length > POLL_QUESTION_MAX) return null
@@ -191,14 +208,38 @@ internal fun pollDraftOf(
         shuffle = shuffle,
         correctAnswers = correctAnswers,
         explanation = why,
+        openPeriodSeconds = openPeriodSeconds.coerceAtLeast(0),
+        // Výsledky až po uzavření jen s dobou trvání — bez ní by je nikdo nikdy neviděl.
+        hideResultsUntilClose = hideResultsUntilClose && openPeriodSeconds > 0,
     )
 }
+
+/**
+ * Nabízené doby trvání ankety v sekundách, jen do stropu serveru ([maxOpenPeriodSeconds]).
+ * Bez stropu (`0`) se nenabízí žádná — volba doby se pak nekreslí.
+ */
+internal fun pollDurations(maxOpenPeriodSeconds: Int): List<Int> =
+    POLL_DURATION_PRESETS.filter { it <= maxOpenPeriodSeconds }
+
+private val POLL_DURATION_PRESETS = listOf(
+    5 * 60,
+    60 * 60,
+    24 * 60 * 60,
+    3 * 24 * 60 * 60,
+    7 * 24 * 60 * 60,
+)
 
 /** Stav odesílání formuláře; text polí je Compose stav přímo ve ViewModelu. */
 data class PollComposerStatus(
     /** V kanálu je anketa vždycky anonymní — přepínač se pak nekreslí. */
     val isChannel: Boolean = false,
     val maxAnswers: Int = DEFAULT_MAX_ANSWERS,
+    /** Nabízené doby trvání; prázdné = volba doby se nekreslí. */
+    val durations: List<Int> = emptyList(),
+    /** Citovaná zpráva, když se anketou odpovídá; `null`, dokud se nenačte, nebo bez odpovědi. */
+    val replyTo: ChatMessage? = null,
+    /** Název chatu — citace ho ukáže v soukromém chatu, kde TDLib jméno odesílatele nevyplňuje. */
+    val chatTitle: String? = null,
     val sending: Boolean = false,
     val sent: Boolean = false,
     val error: UiText? = null,
@@ -215,8 +256,18 @@ class PollComposerViewModel(
     private val chatId: Long,
     /** Vynucený druh od tlačítka bota; přepínač kvízu se pak nekreslí. */
     val mode: PollComposerMode,
+    /**
+     * Odpověď rozepsaná v konverzaci, když se formulář otevřel; anketa pak odejde jako odpověď.
+     * Konverzace ji po odeslání ankety zahodí sama (viz `pollConsumesReply`).
+     */
+    replyToMessageId: Long?,
+    private val replyQuote: ReplyQuote?,
     private val repository: ConversationRepository,
 ) : ViewModel() {
+
+    /** Odpověď, se kterou anketa odejde; `null` = bez odpovědi (nebo ji uživatel zahodil). */
+    var replyToMessageId by mutableStateOf(replyToMessageId)
+        private set
 
     var question by mutableStateOf("")
     val answers = mutableStateListOf("", "")
@@ -229,14 +280,32 @@ class PollComposerViewModel(
     var correct by mutableStateOf(emptySet<Int>())
     var explanation by mutableStateOf("")
 
+    /** Za kolik sekund se anketa uzavře; `0` = bez omezení. */
+    var openPeriod by mutableStateOf(0)
+    var hideResults by mutableStateOf(false)
+
     private val _status = MutableStateFlow(PollComposerStatus())
     val status: StateFlow<PollComposerStatus> = _status.asStateFlow()
 
     init {
         viewModelScope.launch {
-            val isChannel = repository.chatInfo(chatId).getOrNull()?.isChannel == true
-            val max = repository.pollAnswerCountMax()
-            _status.update { it.copy(isChannel = isChannel, maxAnswers = max) }
+            val info = repository.chatInfo(chatId).getOrNull()
+            val limits = repository.pollLimits()
+            _status.update {
+                it.copy(
+                    isChannel = info?.isChannel == true,
+                    chatTitle = info?.title,
+                    maxAnswers = limits.maxAnswers,
+                    durations = pollDurations(limits.maxOpenPeriodSeconds),
+                )
+            }
+        }
+        replyToMessageId?.let { id ->
+            viewModelScope.launch {
+                // Citovaná zpráva jen pro náhled nad otázkou; když ji načíst nejde, anketa
+                // odejde jako odpověď i tak — server zprávu zná.
+                repository.message(chatId, id).onSuccess { message -> _status.update { it.copy(replyTo = message) } }
+            }
         }
     }
 
@@ -251,6 +320,8 @@ class PollComposerViewModel(
             correct = correct,
             explanation = explanation,
             maxAnswers = _status.value.maxAnswers,
+            openPeriodSeconds = openPeriod,
+            hideResultsUntilClose = hideResults,
         )
 
     fun setAnswer(index: Int, text: String) {
@@ -284,12 +355,22 @@ class PollComposerViewModel(
         if (!on && correct.size > 1) correct = setOf(correct.min())
     }
 
+    /** Citovaný úryvek, když odpověď necituje celou zprávu. */
+    val replyQuoteText: String? get() = replyQuote?.text
+
+    /** Anketa odejde bez odpovědi; rozepsaná odpověď v konverzaci zůstane, jak byla. */
+    fun dropReply() {
+        replyToMessageId = null
+        _status.update { it.copy(replyTo = null) }
+    }
+
     fun send() {
         val draft = draft ?: return
         if (_status.value.sending) return
         _status.update { it.copy(sending = true, error = null) }
         viewModelScope.launch {
-            repository.sendPoll(chatId, draft, replyToMessageId = null)
+            val replyTo = replyToMessageId
+            repository.sendPoll(chatId, draft, replyToMessageId = replyTo, quote = replyQuote.takeIf { replyTo != null })
                 .onSuccess { _status.update { it.copy(sending = false, sent = true) } }
                 .onFailure { failure ->
                     logger.w(failure) { "Anketu se nepodařilo odeslat." }
@@ -386,6 +467,17 @@ fun PollComposerScreen(
                 }
             }
 
+            status.replyTo?.takeIf { viewModel.replyToMessageId != null }?.let { quoted ->
+                item(key = "reply") {
+                    ReplyHeader(
+                        message = quoted,
+                        partnerName = status.chatTitle,
+                        quoteText = viewModel.replyQuoteText,
+                        onDrop = viewModel::dropReply,
+                    )
+                }
+            }
+
             item(key = "question") {
                 BlockField(
                     value = viewModel.question,
@@ -446,6 +538,9 @@ fun PollComposerScreen(
                 add(SettingRow.Multiple)
                 if (viewModel.mode == PollComposerMode.Any) add(SettingRow.Quiz)
                 add(SettingRow.Shuffle)
+                if (status.durations.isNotEmpty()) add(SettingRow.Duration)
+                // Výsledky až po skončení mají smysl jen s dobou trvání.
+                if (viewModel.openPeriod > 0) add(SettingRow.HideResults)
             }
             itemsIndexed(settings, key = { _, row -> "setting-$row" }) { index, row ->
                 val shape = groupItemShape(index, settings.size)
@@ -465,6 +560,19 @@ fun PollComposerScreen(
                     SettingRow.Shuffle -> SwitchRow(stringResource(Res.string.poll_compose_shuffle), viewModel.shuffle, shape) {
                         haptics.toggle(it)
                         viewModel.shuffle = it
+                    }
+                    SettingRow.Duration -> DurationRow(
+                        selected = viewModel.openPeriod,
+                        options = status.durations,
+                        shape = shape,
+                        onSelect = { seconds ->
+                            viewModel.openPeriod = seconds
+                            if (seconds == 0) viewModel.hideResults = false
+                        },
+                    )
+                    SettingRow.HideResults -> SwitchRow(stringResource(Res.string.poll_compose_hide_results), viewModel.hideResults, shape) {
+                        haptics.toggle(it)
+                        viewModel.hideResults = it
                     }
                 }
             }
@@ -498,7 +606,7 @@ fun PollComposerScreen(
     }
 }
 
-private enum class SettingRow { Anonymous, Multiple, Quiz, Shuffle }
+private enum class SettingRow { Anonymous, Multiple, Quiz, Shuffle, Duration, HideResults }
 
 @Composable
 private fun SectionTitle(text: String) {
@@ -646,3 +754,100 @@ private const val ANSWER_OVERFLOW_ALLOWANCE = 50
 
 /** Počítadlo se ukáže, až zbývá tolik znaků. */
 private const val COUNTER_FROM = 20
+
+/**
+ * Citovaná zpráva nad otázkou, když se anketou odpovídá — tentýž prvek jako nad vstupním polem,
+ * v terciární ploše (cizí obsah). Křížek odpověď zahodí; anketa pak odejde samostatně.
+ */
+@Composable
+private fun ReplyHeader(message: ChatMessage, partnerName: String?, quoteText: String?, onDrop: () -> Unit) {
+    Surface(
+        shape = groupItemShape(0, 1),
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        modifier = Modifier.fillMaxWidth().padding(bottom = GROUP_SPACING),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            QuotedMessage(
+                message = message,
+                partnerName = partnerName,
+                accent = MaterialTheme.colorScheme.onTertiaryContainer,
+                contained = false,
+                quoteText = quoteText,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onDrop) {
+                Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.poll_compose_drop_reply))
+            }
+        }
+    }
+}
+
+/**
+ * Doba trvání: řádek s vybranou hodnotou, ťuknutí otevře nabídku (Expressive, jako výběr
+ * období v hledání). Vybraná doba má v nabídce fajfku.
+ */
+@Composable
+private fun DurationRow(selected: Int, options: List<Int>, shape: Shape, onSelect: (Int) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clickable { expanded = true }
+                    .heightIn(min = 56.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            ) {
+                Text(stringResource(Res.string.poll_compose_duration), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Text(
+                    text = durationLabel(selected),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+        ExpressiveMenu(
+            expanded = expanded,
+            onDismiss = { expanded = false },
+            groups = listOf(
+                (listOf(0) + options).map { seconds ->
+                    MenuAction(
+                        label = durationLabel(seconds),
+                        trailing = if (seconds == selected) {
+                            { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) }
+                        } else {
+                            null
+                        },
+                    ) { onSelect(seconds) }
+                },
+            ),
+        )
+    }
+}
+
+/** „Bez omezení", „5 minut", „1 hodina", „3 dny", „1 týden" — podle největší celé jednotky. */
+@Composable
+private fun durationLabel(seconds: Int): String = when {
+    seconds <= 0 -> stringResource(Res.string.poll_duration_none)
+    seconds % WEEK == 0 -> (seconds / WEEK).let { pluralStringResource(Res.plurals.poll_duration_weeks, it, it) }
+    seconds % DAY == 0 -> (seconds / DAY).let { pluralStringResource(Res.plurals.poll_duration_days, it, it) }
+    seconds % HOUR == 0 -> (seconds / HOUR).let { pluralStringResource(Res.plurals.poll_duration_hours, it, it) }
+    else -> (seconds / MINUTE).let { pluralStringResource(Res.plurals.poll_duration_minutes, it, it) }
+}
+
+private const val MINUTE = 60
+private const val HOUR = 60 * MINUTE
+private const val DAY = 24 * HOUR
+private const val WEEK = 7 * DAY
+
+/**
+ * Co konverzace předá formuláři: vynucený druh ankety (tlačítko bota) a rozepsanou odpověď.
+ * Odpověď se PŘEDÁVÁ, neodebírá: když uživatel formulář zavře, zůstane v konverzaci, jak byla.
+ */
+data class PollComposerRequest(
+    val mode: PollComposerMode,
+    val replyToMessageId: Long?,
+    val quote: ReplyQuote?,
+)
+

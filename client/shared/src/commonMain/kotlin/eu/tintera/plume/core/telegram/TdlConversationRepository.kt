@@ -1330,7 +1330,7 @@ class TdlConversationRepository(
                 membersOnly = false,
                 countryCodes = emptyArray(),
                 shuffleOptions = poll.shuffle,
-                hideResultsUntilCloses = false,
+                hideResultsUntilCloses = poll.hideResultsUntilClose && poll.openPeriodSeconds > 0,
                 type = if (correct == null) {
                     InputPollTypeRegular(allowAddingOptions = false)
                 } else {
@@ -1341,16 +1341,24 @@ class TdlConversationRepository(
                         explanationMedia = null,
                     )
                 },
-                openPeriod = 0,
+                openPeriod = poll.openPeriodSeconds,
                 closeDate = 0,
                 isClosed = false,
             ),
         ).toResult().getOrThrow().toChatMessage(isGroup(chatId))
     }
 
-    override suspend fun pollAnswerCountMax(): Int =
-        (client.getOption(name = "poll_answer_count_max").toResult().getOrNull() as? OptionValueInteger)
-            ?.value?.toInt()?.takeIf { it >= MIN_POLL_ANSWERS } ?: DEFAULT_POLL_ANSWER_COUNT_MAX
+    override suspend fun pollLimits(): PollLimits {
+        suspend fun option(name: String) =
+            (client.getOption(name = name).toResult().getOrNull() as? OptionValueInteger)?.value?.toInt()
+        val limits = PollLimits(
+            maxAnswers = option("poll_answer_count_max")?.takeIf { it >= MIN_POLL_ANSWERS }
+                ?: DEFAULT_POLL_ANSWER_COUNT_MAX,
+            maxOpenPeriodSeconds = option("poll_open_period_max")?.coerceAtLeast(0) ?: 0,
+        )
+        logger.d { "Meze ankety od serveru: $limits" }
+        return limits
+    }
 
     override suspend fun stopPoll(chatId: Long, messageId: Long): Result<Unit> =
         client.stopPoll(chatId = chatId, messageId = messageId, replyMarkup = null).toResult().map { }

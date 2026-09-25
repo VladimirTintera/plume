@@ -3546,13 +3546,27 @@ v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, 
   delší text a zkrátit ho; utnout ho hned by vložení tiše usekalo.
 - **V kanálu je anketa vždycky anonymní** — přepínač se nekreslí a repository pošle
   `isAnonymous = true` i tak (neanonymní server do kanálu nepustí).
+- **Odpověď anketou: formulář rozepsanou odpověď PŘEVEZME, konverzace ji pak zahodí sama.**
+  Routa nese `replyToMessageId` a citovaný úryvek, formulář ukáže citaci nad otázkou (křížek =
+  anketa odejde bez odpovědi). Výsledek se mezi obrazovkami nepředává: konverzace pozná, že
+  odpověď spotřebovala anketa, podle příchozí zprávy (`pollConsumesReply` — VLASTNÍ anketa ve
+  stavu `Sending`, odpověď na tutéž zprávu; z jiného zařízení přijde už `Sent`). Odpověď se
+  nezahazuje při OTEVŘENÍ formuláře — kdo ho zavře, má ji mít dál.
+- **Doba trvání je `openPeriod`, ne `closeDate`**: relativní doba nezávisí na hodinách telefonu.
+  Nabídka (5 minut až týden) se ořízne stropem serveru `poll_open_period_max` — na emulátoru
+  2 628 000 s, tedy měsíc; bez stropu se volba nekreslí. „Výsledky až po skončení"
+  (`hideResultsUntilCloses`) se nabízí jen s dobou — bez ní by je nikdo nikdy neviděl.
+- **Konec ankety je v podtitulu bubliny** („končí zítra 14:30", `asUpcomingTime`), jen dokud
+  nenastal; pak server anketu uzavře a podtitul řekne „Konečné výsledky". Nepřepočítává se
+  každou vteřinu — uzavření přijde updatem obsahu.
 - **Tlačítko bota „vytvořit anketu"** (`KeyboardButtonTypeRequestPoll`, třeba @QuizBot) otevře
   týž formulář; `forceQuiz` / `forceRegular` schová přepínač kvízu (`PollComposerMode`).
   Ověřuje se `sendMessage` s `reply_markup.keyboard[…].request_poll`.
 - **Ověřeno na emulátoru** v chatu s botem: kvíz se třemi odpověďmi, správnou a vysvětlením
   odešel, odpověď na vlastní kvíz v odchozí bublině (barvy správně / špatně tam ustoupí bílé
   a rozdíl nesou ikony), „Ukončit anketu" z nabídky s potvrzením, tlačítko bota s vynuceným
-  kvízem. **V kanálu a ve skupině zakládání ověřené NENÍ** — testovací zprávy do skutečných
+  kvízem, anketa jako odpověď s dobou 1 hodina (citace v bublině, „končí 08:30", odpověď nad
+  polem zmizela). **V kanálu a ve skupině zakládání ověřené NENÍ** — testovací zprávy do skutečných
   skupin nepatří.
 - **Sheet se na snímku ukáže až po chvíli.** `screencap` hned po ťuknutí zachytí obrazovku bez
   něj a vypadá to, že tlačítko nefunguje; `uiautomator dump` už ho vidí.

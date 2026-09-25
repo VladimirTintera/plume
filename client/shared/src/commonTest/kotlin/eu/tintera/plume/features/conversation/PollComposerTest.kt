@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.ChatPoll
 import eu.tintera.plume.core.telegram.PollChatKind
+import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.pollsAllowedIn
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -122,4 +125,80 @@ class PollComposerTest {
         assertFalse(pollsAllowedIn(PollChatKind.Private))
         assertFalse(pollsAllowedIn(PollChatKind.Secret))
     }
+
+    @Test
+    fun dobySeNabizejiJenDoStropuServeru() {
+        assertEquals(emptyList(), pollDurations(0))
+        assertEquals(listOf(300, 3600), pollDurations(3600))
+        assertEquals(5, pollDurations(Int.MAX_VALUE).size)
+    }
+
+    @Test
+    fun vysledkyAzPoSkonceniJenSDobou() {
+        val bez = pollDraftOf("Kam?", listOf("A", "B"), true, false, false, false, emptySet(), "", 10, hideResultsUntilClose = true)
+        assertEquals(false, bez?.hideResultsUntilClose)
+        val sDobou = pollDraftOf(
+            "Kam?", listOf("A", "B"), true, false, false, false, emptySet(), "", 10,
+            openPeriodSeconds = 3600,
+            hideResultsUntilClose = true,
+        )
+        assertEquals(3600, sDobou?.openPeriodSeconds)
+        assertEquals(true, sDobou?.hideResultsUntilClose)
+    }
+
+    // --- odpověď anketou ---
+
+    private fun message(id: Long, poll: Boolean = false, replyTo: Long? = null, sendState: SendState? = SendState.Sending) =
+        ChatMessage(
+            id = id,
+            isOutgoing = sendState != null,
+            senderName = null,
+            senderAvatarFileId = null,
+            senderId = 1L,
+            text = "Anketa: Kam?",
+            entities = emptyList(),
+            media = null,
+            linkPreview = null,
+            reactions = emptyList(),
+            sendState = sendState,
+            replyToMessageId = replyTo,
+            isService = false,
+            timestamp = 1,
+            isEdited = false,
+            poll = if (poll) {
+                ChatPoll(
+                    question = "Kam?",
+                    options = emptyList(),
+                    totalVoters = 0,
+                    isAnonymous = true,
+                    multipleAnswers = false,
+                    allowsRevoting = true,
+                    isClosed = false,
+                    canSeeResults = true,
+                    canGetVoters = false,
+                )
+            } else {
+                null
+            },
+        )
+
+    private val replying = ConversationState(replyingTo = message(7, sendState = null))
+
+    @Test
+    fun odeslanaAnketaSpotrebujeOdpoved() {
+        assertTrue(replying.pollConsumesReply(message(100, poll = true, replyTo = 7)))
+    }
+
+    @Test
+    fun jinaZpravaOdpovedNespotrebuje() {
+        // Text odpověď uklízí při odeslání sám; tady jde jen o anketu z formuláře.
+        assertFalse(replying.pollConsumesReply(message(100, poll = false, replyTo = 7)))
+        // Anketa jako odpověď na jinou zprávu.
+        assertFalse(replying.pollConsumesReply(message(100, poll = true, replyTo = 8)))
+        // Z jiného zařízení přijde už odeslaná — rozepsanou odpověď tady nechá být.
+        assertFalse(replying.pollConsumesReply(message(100, poll = true, replyTo = 7, sendState = SendState.Sent)))
+        // Bez rozepsané odpovědi není co spotřebovat.
+        assertFalse(ConversationState().pollConsumesReply(message(100, poll = true, replyTo = 7)))
+    }
 }
+

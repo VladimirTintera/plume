@@ -435,13 +435,13 @@ snadno na to uživatel narazí.
 
 - ~~**Ankety a kvízy**~~ — hotovo (hlasování, výsledky, kvíz s vysvětlením, zrušení hlasu,
   ukončení, kdo hlasoval; `CLAUDE.md`, „Ankety a kvízy"). Zbývá:
-  - ~~**Zakládání anket**~~ — hotovo (sponka → Anketa, i tlačítko bota). Zbývá ověřit v kanálu
-    a ve skupině; nabízí se zatím jen bez citace (odpověď na zprávu anketa nenese), bez limitu
-    doby a bez „výsledky až po skončení" (`openPeriod`, `closeDate`, `hideResultsUntilCloses`).
+  - ~~**Zakládání anket**~~ — hotovo (sponka → Anketa, i tlačítko bota, jako odpověď, s dobou
+    trvání a „výsledky až po skončení"). Zbývá ověřit v kanálu a ve skupině. Nenabízí se popis
+    ankety, omezení na členy a země (`membersOnly`, `countryCodes` — jen kanály) ani přesný čas
+    uzavření místo doby (`closeDate`).
   - **Média v anketě a v odpovědích** (`MessagePoll.media`, `PollOption.media`, TDLib 15)
     a **přidání odpovědi** (`canAddOption`, `addPollOption`) se zatím zahazují.
-  - **Tváře posledních hlasujících** (`recentVoterIds`) u zápatí a **odpočet do uzavření**
-    (`closeDate`).
+  - **Tváře posledních hlasujících** (`recentVoterIds`) u zápatí.
 - **Video kolečka** (`MessageVideoNote`) — čtvercový náhled s popiskem, nehraje. Mají hrát
   v bublině kulatě, bez zvuku samy a se zvukem po ťuknutí (jako hlasovka: `isViewed`,
   `openMessageContent`, přepis `speechRecognitionResult`).

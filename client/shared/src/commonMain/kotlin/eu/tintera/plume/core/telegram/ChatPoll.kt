@@ -138,7 +138,17 @@ data class PollDraft(
     /** Kvíz: indexy správných odpovědí v [answers]; `null` = běžná anketa. */
     val correctAnswers: Set<Int>? = null,
     val explanation: String = "",
+    /** Za kolik sekund se anketa sama uzavře; `0` = neuzavře se sama. */
+    val openPeriodSeconds: Int = 0,
+    /** Výsledky až po uzavření. Smysl má jen s [openPeriodSeconds] — jinak by je nikdo neviděl. */
+    val hideResultsUntilClose: Boolean = false,
 )
+
+/**
+ * Meze pro novou anketu od serveru. [maxOpenPeriodSeconds] `0` = doba trvání se nastavit nedá
+ * (server strop neposlal) — volba se pak nenabízí.
+ */
+data class PollLimits(val maxAnswers: Int, val maxOpenPeriodSeconds: Int)
 
 /** Nejméně odpovědí. TDLib by vzal i jednu, ale anketa s jedinou možností nic nezjistí. */
 const val MIN_POLL_ANSWERS = 2
