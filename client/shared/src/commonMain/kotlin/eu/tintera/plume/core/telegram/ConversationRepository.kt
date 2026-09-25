@@ -69,6 +69,35 @@ interface ConversationRepository {
      */
     suspend fun sendKeyboardText(chatId: Long, text: String, replyToMessageId: Long?): Result<ChatMessage>
 
+    /**
+     * Hlas v anketě. [answerIndexes] jsou pozice odpovědí v PŮVODNÍM pořadí
+     * ([PollAnswer.index]), ne v tom, v jakém se ukazují; prázdný seznam hlas zruší.
+     *
+     * Výsledek dorazí změnou obsahu zprávy ([editedMessages]) — napřed s `isBeingChosen`,
+     * po potvrzení se skutečnými počty. Lokálně se nepřepisuje nic.
+     */
+    suspend fun vote(chatId: Long, messageId: Long, answerIndexes: List<Int>): Result<Unit>
+
+    /**
+     * Odešle anketu nebo kvíz. V kanálu je anketa vždycky anonymní — neanonymní server do
+     * kanálu nepustí.
+     */
+    suspend fun sendPoll(
+        chatId: Long,
+        poll: PollDraft,
+        replyToMessageId: Long?,
+        quote: ReplyQuote? = null,
+    ): Result<ChatMessage>
+
+    /** Meze nové ankety (`poll_answer_count_max`, `poll_open_period_max`). */
+    suspend fun pollLimits(): PollLimits
+
+    /** Uzavře anketu; smí jen autor (nebo správce), pozná se podle `canBeEdited`. */
+    suspend fun stopPoll(chatId: Long, messageId: Long): Result<Unit>
+
+    /** Kdo hlasoval pro odpověď s [answerIndex] (v původním pořadí). */
+    suspend fun pollVoters(chatId: Long, messageId: Long, answerIndex: Int, offset: Int): Result<PollVotersPage>
+
     /** Vlastní telefonní číslo jako kontakt — tlačítko bota „sdílet číslo", po potvrzení. */
     suspend fun shareOwnPhone(chatId: Long, replyToMessageId: Long?): Result<ChatMessage>
 
@@ -736,6 +765,8 @@ data class ChatMessage(
     val forwardOrigin: ForwardOrigin? = null,
     /** Tlačítka bota pod zprávou; `null` = žádná. */
     val keyboard: BotKeyboard? = null,
+    /** Anketa nebo kvíz; [text] pak nese jen „Anketa: otázka" pro místa, kde se kreslit nedá. */
+    val poll: ChatPoll? = null,
     /**
      * Citovaný úryvek, když odpověď necituje celou zprávu, ale jen její část; `null` jinak.
      * Nad odpovědí se pak ukáže úryvek místo začátku citované zprávy.
@@ -821,11 +852,14 @@ sealed interface ReplyKeyboardButtonKind {
     /** Pošle vlastní telefonní číslo jako kontakt — po potvrzení, je to údaj o uživateli. */
     data object PhoneNumber : ReplyKeyboardButtonKind
 
+    /** Otevře formulář nové ankety; bot si smí vynutit kvíz, nebo běžnou anketu. */
+    data class Poll(val mode: PollComposerMode) : ReplyKeyboardButtonKind
+
     /** Druh, který Plume zatím neumí; tlačítko je vidět a ťuknutí to vysvětlí. */
     data class Unsupported(val feature: UnsupportedKeyboardButton) : ReplyKeyboardButtonKind
 }
 
-enum class UnsupportedKeyboardButton { Location, Poll, Users, Chat, WebApp, ManagedBot }
+enum class UnsupportedKeyboardButton { Location, Users, Chat, WebApp, ManagedBot }
 
 /** Barva, kterou si bot pro tlačítko přeje (TDLib `ButtonStyle`). */
 enum class BotButtonStyle { Default, Primary, Success, Danger }

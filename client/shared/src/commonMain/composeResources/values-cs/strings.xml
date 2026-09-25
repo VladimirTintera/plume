@@ -1056,7 +1056,6 @@
     <string name="bot_unsupported_game">Hry Plume zatím neumí.</string>
     <string name="bot_unsupported_password">Tlačítka, která chtějí heslo, Plume zatím neumí.</string>
     <string name="bot_unsupported_location">Sdílení polohy Plume zatím neumí.</string>
-    <string name="bot_unsupported_poll">Ankety Plume zatím zakládat neumí.</string>
     <string name="bot_unsupported_pick_chat">Sdílení chatů a lidí s botem Plume zatím neumí.</string>
     <string name="bot_unsupported_managed_bot">Zakládání botů Plume zatím neumí.</string>
     <string name="bot_share_phone_title">Sdílet telefonní číslo?</string>
@@ -1064,4 +1063,98 @@
     <string name="bot_share_phone_confirm">Sdílet</string>
     <string name="bot_keyboard_show">Ukázat klávesnici bota</string>
     <string name="bot_keyboard_hide">Schovat klávesnici bota</string>
+
+    <!-- Ankety a kvízy -->
+    <string name="poll_kind_public">Anketa</string>
+    <string name="poll_kind_anonymous">Anonymní anketa</string>
+    <string name="poll_kind_quiz">Kvíz</string>
+    <string name="poll_kind_anonymous_quiz">Anonymní kvíz</string>
+    <string name="poll_kind_closed">Konečné výsledky</string>
+    <string name="poll_multiple">víc odpovědí</string>
+    <string name="poll_subtitle_joined">%1$s · %2$s</string>
+    <plurals name="poll_votes">
+        <item quantity="one">%1$s hlas</item>
+        <item quantity="few">%1$s hlasy</item>
+        <item quantity="other">%1$s hlasů</item>
+    </plurals>
+    <plurals name="poll_answers">
+        <item quantity="one">%1$s odpověď</item>
+        <item quantity="few">%1$s odpovědi</item>
+        <item quantity="other">%1$s odpovědí</item>
+    </plurals>
+    <string name="poll_no_votes">Zatím nikdo nehlasoval</string>
+    <string name="poll_no_answers">Zatím nikdo neodpověděl</string>
+    <string name="poll_percent">%1$d %</string>
+    <string name="poll_vote_button">Hlasovat</string>
+    <string name="poll_show_voters">Kdo hlasoval</string>
+    <string name="poll_results_hidden">Výsledky uvidíš, až anketa skončí</string>
+    <string name="poll_restricted_membership">Hlasovat můžeš, až budeš ve skupině aspoň den</string>
+    <string name="poll_restricted_country">V tvé zemi se v téhle anketě hlasovat nedá</string>
+    <string name="poll_restricted_other">V téhle anketě hlasovat nemůžeš</string>
+    <string name="poll_answer_chosen">Tvoje volba</string>
+    <string name="poll_answer_correct">Správná odpověď</string>
+    <string name="poll_answer_wrong">Špatná odpověď</string>
+    <string name="poll_explanation">Vysvětlení</string>
+    <string name="menu_poll_retract">Zrušit hlas</string>
+    <string name="menu_poll_stop">Ukončit anketu</string>
+    <string name="poll_stop_title">Ukončit anketu?</string>
+    <string name="poll_stop_text">Hlasovat už nepůjde a všichni uvidí konečné výsledky. Vrátit se to nedá.</string>
+    <string name="poll_stop_confirm">Ukončit</string>
+    <string name="poll_vote_failed">Hlas se nepodařilo odeslat.</string>
+    <string name="poll_retract_failed">Hlas se nepodařilo zrušit.</string>
+    <string name="poll_stop_failed">Anketu se nepodařilo ukončit.</string>
+    <string name="poll_voters_title">Hlasy</string>
+    <string name="poll_voters_more">Zobrazit další</string>
+    <string name="poll_voters_failed">Kdo hlasoval, se nepodařilo načíst.</string>
+    <string name="conversation_attach_poll">Anketa</string>
+    <string name="poll_compose_title">Nová anketa</string>
+    <string name="poll_compose_title_quiz">Nový kvíz</string>
+    <string name="poll_compose_send">Odeslat</string>
+    <string name="poll_compose_question">Na co se chceš zeptat?</string>
+    <string name="poll_compose_answers">Odpovědi</string>
+    <string name="poll_compose_answer">Odpověď %1$d</string>
+    <string name="poll_compose_remove_answer">Odebrat odpověď</string>
+    <string name="poll_compose_mark_correct">Správná odpověď</string>
+    <plurals name="poll_compose_add_answer">
+        <item quantity="one">Přidat můžeš ještě %1$d odpověď</item>
+        <item quantity="few">Přidat můžeš ještě %1$d odpovědi</item>
+        <item quantity="other">Přidat můžeš ještě %1$d odpovědí</item>
+    </plurals>
+    <string name="poll_compose_too_many">Anketa může mít nejvýš %1$d odpovědí</string>
+    <string name="poll_compose_quiz_hint">Označ správnou odpověď</string>
+    <string name="poll_compose_settings">Volby</string>
+    <string name="poll_compose_anonymous">Anonymní hlasování</string>
+    <string name="poll_compose_anonymous_channel">Ankety v kanálech jsou vždycky anonymní.</string>
+    <string name="poll_compose_multiple">Víc odpovědí</string>
+    <string name="poll_compose_quiz">Kvíz</string>
+    <string name="poll_compose_shuffle">Zamíchat odpovědi</string>
+    <string name="poll_compose_explanation">Vysvětlení</string>
+    <string name="poll_compose_explanation_hint">Ukáže se po špatné odpovědi (nepovinné)</string>
+    <string name="poll_compose_counter">%1$d/%2$d</string>
+    <string name="poll_compose_send_failed">Anketu se nepodařilo odeslat.</string>
+    <string name="poll_compose_duration">Doba trvání</string>
+    <string name="poll_compose_hide_results">Výsledky až po skončení</string>
+    <string name="poll_compose_drop_reply">Poslat bez odpovědi</string>
+    <string name="poll_duration_none">Bez omezení</string>
+    <plurals name="poll_duration_minutes">
+        <item quantity="one">%1$d minuta</item>
+        <item quantity="few">%1$d minuty</item>
+        <item quantity="other">%1$d minut</item>
+    </plurals>
+    <plurals name="poll_duration_hours">
+        <item quantity="one">%1$d hodina</item>
+        <item quantity="few">%1$d hodiny</item>
+        <item quantity="other">%1$d hodin</item>
+    </plurals>
+    <plurals name="poll_duration_days">
+        <item quantity="one">%1$d den</item>
+        <item quantity="few">%1$d dny</item>
+        <item quantity="other">%1$d dní</item>
+    </plurals>
+    <plurals name="poll_duration_weeks">
+        <item quantity="one">%1$d týden</item>
+        <item quantity="few">%1$d týdny</item>
+        <item quantity="other">%1$d týdnů</item>
+    </plurals>
+    <string name="poll_closes_at">končí %1$s</string>
 </resources>

@@ -51,6 +51,10 @@ import eu.tintera.plume.features.conversation.ConversationViewModel
 import eu.tintera.plume.features.conversation.StickerPickerViewModel
 import eu.tintera.plume.features.conversation.GifPickerViewModel
 import eu.tintera.plume.features.conversation.StickerSetViewModel
+import eu.tintera.plume.features.conversation.PollVotersViewModel
+import eu.tintera.plume.features.conversation.PollComposerViewModel
+import eu.tintera.plume.core.telegram.PollComposerMode
+import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.features.media.MediaViewerViewModel
 import eu.tintera.plume.features.share.ShareToChatViewModel
 import eu.tintera.plume.features.share.ShareViewModel
@@ -204,6 +208,25 @@ fun appModule() = module {
     viewModelOf(::StickerPickerViewModel)
     viewModel { params -> GifPickerViewModel(chatId = params.get(), repository = get()) }
     viewModel { parameters -> StickerSetViewModel(setId = parameters.get(), repository = get()) }
+    viewModel { parameters ->
+        // Indexem: odpověď (`Long?`) by se podle typu zaměnila s chatId.
+        PollComposerViewModel(
+            chatId = parameters.values[0] as Long,
+            mode = parameters.values.getOrNull(1) as? PollComposerMode ?: PollComposerMode.Any,
+            replyToMessageId = parameters.values.getOrNull(2) as? Long,
+            replyQuote = parameters.values.getOrNull(3) as? ReplyQuote,
+            repository = get(),
+        )
+    }
+    // Dvě `Long` za sebou: parametry se čtou INDEXEM, podle typu by se chatId s messageId zaměnily.
+    viewModel { parameters ->
+        PollVotersViewModel(
+            chatId = parameters.values[0] as Long,
+            messageId = parameters.values[1] as Long,
+            answerIndexes = @Suppress("UNCHECKED_CAST") (parameters.values[2] as List<Int>),
+            repository = get(),
+        )
+    }
     viewModelOf(::SettingsViewModel)
     viewModelOf(::BlockedSendersViewModel)
     viewModelOf(::AppearanceViewModel)

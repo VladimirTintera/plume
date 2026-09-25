@@ -19,6 +19,10 @@ import eu.tintera.plume.resources.forward_24dp
 import eu.tintera.plume.resources.info_24dp
 import eu.tintera.plume.resources.keep_off_24dp
 import eu.tintera.plume.resources.menu_copy
+import eu.tintera.plume.resources.undo_24dp
+import eu.tintera.plume.resources.stop_circle_24dp
+import eu.tintera.plume.resources.menu_poll_stop
+import eu.tintera.plume.resources.menu_poll_retract
 import eu.tintera.plume.resources.menu_delete
 import eu.tintera.plume.resources.menu_edit
 import eu.tintera.plume.resources.menu_favorite_add
@@ -90,6 +94,15 @@ sealed interface MessageAction {
      * volání v doméně nejsou (viz `ConversationRepository.pressBotButton`).
      */
     data class PressBotButton(val row: Int, val column: Int) : MessageAction
+
+    /**
+     * Hlas v anketě. [answerIndexes] jsou indexy odpovědí v PŮVODNÍM pořadí
+     * ([eu.tintera.plume.core.telegram.PollAnswer.index]), ne v tom, v jakém se ukazují.
+     */
+    data class Vote(val answerIndexes: List<Int>) : MessageAction
+
+    /** Kdo v anketě jak hlasoval — sheet. */
+    data object ShowPollVoters : MessageAction
     data class OpenLink(val url: String) : MessageAction
 
     /** `@jméno` v textu: najít veřejný chat a otevřít ho nad konverzací. */
@@ -171,6 +184,24 @@ sealed interface MessageMenuAction : MessageAction {
             }
 
         override fun withSelection(selection: String?) = selection?.let(MessageAction::QuoteReply) ?: this
+    }
+
+    /**
+     * Vzít hlas v anketě zpátky. Kandidát jen tam, kde to anketa dovoluje (`ChatPoll.canRetract`)
+     * — rozhoduje o tom anketa sama, ne příznaky zprávy od serveru.
+     */
+    data object RetractVote : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) = MenuPresentation(Res.drawable.undo_24dp, Res.string.menu_poll_retract)
+    }
+
+    /**
+     * Ukončit anketu. Kandidát u otevřené ankety; smí to ten, komu server dovolí zprávu
+     * upravit — u ankety `canBeEdited` znamená právě „jde ukončit" (dokumentace `stopPoll`).
+     * Nevratné, takže s potvrzením.
+     */
+    data object StopPoll : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.stop_circle_24dp, Res.string.menu_poll_stop).takeIf { menu.actions.canEdit }
     }
 
     /** Kandidát jen tam, kde vstupní pole text nebo popisek upraví bez ztráty formátování. */

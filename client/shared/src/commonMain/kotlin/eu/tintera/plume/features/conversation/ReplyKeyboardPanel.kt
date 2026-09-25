@@ -36,6 +36,7 @@ import eu.tintera.plume.resources.keyboard_arrow_down_24dp
 import eu.tintera.plume.resources.keyboard_arrow_up_24dp
 import eu.tintera.plume.resources.open_in_new_24dp
 import eu.tintera.plume.resources.smartphone_24dp
+import eu.tintera.plume.resources.ballot_24dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -124,9 +125,10 @@ fun ReplyKeyboardPanel(
 private fun ReplyKeyboardButtonKind.icon(): DrawableResource? = when (this) {
     ReplyKeyboardButtonKind.Text -> null
     ReplyKeyboardButtonKind.PhoneNumber -> Res.drawable.smartphone_24dp
+    is ReplyKeyboardButtonKind.Poll -> Res.drawable.ballot_24dp
     is ReplyKeyboardButtonKind.Unsupported -> when (feature) {
         UnsupportedKeyboardButton.WebApp -> Res.drawable.open_in_new_24dp
-        UnsupportedKeyboardButton.Location, UnsupportedKeyboardButton.Poll, UnsupportedKeyboardButton.Users,
+        UnsupportedKeyboardButton.Location, UnsupportedKeyboardButton.Users,
         UnsupportedKeyboardButton.Chat, UnsupportedKeyboardButton.ManagedBot -> null
     }
 }

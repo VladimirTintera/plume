@@ -99,6 +99,7 @@ class StagedAttachmentsTest {
         documents = false,
         voiceNotes = false,
         stickers = false,
+        polls = false,
     )
 
     @Test

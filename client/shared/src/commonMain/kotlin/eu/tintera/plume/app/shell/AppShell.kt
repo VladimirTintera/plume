@@ -53,6 +53,11 @@ import eu.tintera.plume.core.navigation.ArchiveRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForwardRoute
+import eu.tintera.plume.core.navigation.PollComposerRoute
+import eu.tintera.plume.core.telegram.PollComposerMode
+import eu.tintera.plume.features.conversation.PollComposerScreen
+import eu.tintera.plume.features.conversation.PollComposerRequest
+import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.navigation.ShareRoute
 import eu.tintera.plume.core.navigation.ShareToChatRoute
 import eu.tintera.plume.core.share.ShareRequests
@@ -426,6 +431,7 @@ private fun shellEntryProvider(
             onSearch = { query -> navigation.openSearch(query, keepConversation = twoPane) },
             onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
             onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(chatId)) },
+            onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
         )
     }
 
@@ -520,6 +526,7 @@ private fun shellEntryProvider(
             onOpenProfile = { chatsStack.add(ArchiveChatProfileRoute(route.chatId)) },
             onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(chatId)) },
             onUnarchived = { chatsStack.moveConversationToMain(route.chatId) },
+            onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
         )
     }
 
@@ -589,6 +596,29 @@ private fun shellEntryProvider(
      * se cílový chat — uživatel tak skončí tam, kam zprávu poslal, a zpět ho
      * vrátí do původní konverzace.
      */
+    // Nová anketa. Po odeslání odejde — pod ní je konverzace, do které anketa přibyla.
+    entry<PollComposerRoute> { route ->
+        val mode = when {
+            route.quizOnly -> PollComposerMode.QuizOnly
+            route.regularOnly -> PollComposerMode.RegularOnly
+            else -> PollComposerMode.Any
+        }
+        PollComposerScreen(
+            viewModel = koinViewModel(
+                key = "poll-composer-${route.chatId}-$mode-${route.replyToMessageId}",
+                parameters = {
+                    parametersOf(
+                        route.chatId,
+                        mode,
+                        route.replyToMessageId,
+                        route.quoteText?.let { ReplyQuote(text = it, position = route.quotePosition) },
+                    )
+                },
+            ),
+            onClose = { chatsStack.pop(route) },
+        )
+    }
+
     entry<ForwardRoute> { route ->
         ForwardScreen(
             viewModel = koinViewModel(
@@ -749,3 +779,13 @@ private const val ARCHIVE_SCENE = "archive"
  * nebyla výměna scény, ale změna obsahu té stávající.
  */
 private const val SETTINGS_SCENE = "settings"
+
+private fun pollComposerRoute(chatId: Long, request: PollComposerRequest) = PollComposerRoute(
+    chatId = chatId,
+    quizOnly = request.mode == PollComposerMode.QuizOnly,
+    regularOnly = request.mode == PollComposerMode.RegularOnly,
+    replyToMessageId = request.replyToMessageId,
+    quoteText = request.quote?.text,
+    quotePosition = request.quote?.position ?: 0,
+)
+

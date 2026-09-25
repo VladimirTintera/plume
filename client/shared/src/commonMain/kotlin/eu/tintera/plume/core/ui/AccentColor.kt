@@ -76,7 +76,9 @@ fun strongestAccentOn(background: Color, accent: Color, alternative: Color): Col
  * bubliny by jinak `primary` prohrála s kontrastnějším `onSurface` a úchyty by zčernaly i tam,
  * kde vidět jsou.
  */
-fun distinctOnBoth(preferred: Color, alternatives: List<Color>, vararg backgrounds: Color): Color {
+// Seznam, ne `vararg`: `Color` je hodnotová třída a vararg s ní Kotlin nepřeloží („Prohibited
+// vararg parameter type") — tak se to jednou dostalo do `main`.
+fun distinctOnBoth(preferred: Color, alternatives: List<Color>, backgrounds: List<Color>): Color {
     fun worst(color: Color) = backgrounds.minOf { contrastRatio(color, it) }
     if (worst(preferred) >= MIN_GRAPHIC_CONTRAST) return preferred
     return (listOf(preferred) + alternatives).maxBy(::worst)

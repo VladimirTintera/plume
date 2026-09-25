@@ -460,8 +460,7 @@ internal fun MessageMenuLayer(
                     distinctOnBoth(
                         preferred = colors.primary,
                         alternatives = listOf(colors.inversePrimary, colors.onSurface),
-                        bubble,
-                        colors.background,
+                        backgrounds = listOf(bubble, colors.background),
                     )
                 }
                 val baseSelectionColors = LocalTextSelectionColors.current

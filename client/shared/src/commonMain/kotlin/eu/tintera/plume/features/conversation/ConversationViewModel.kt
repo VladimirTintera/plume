@@ -2,16 +2,19 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.telegram.ChatReplyMarkup
+import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.ReplyKeyboardButtonKind
 import eu.tintera.plume.core.telegram.UnsupportedKeyboardButton
 import eu.tintera.plume.resources.bot_unsupported_location
-import eu.tintera.plume.resources.bot_unsupported_poll
 import eu.tintera.plume.resources.bot_unsupported_pick_chat
 import eu.tintera.plume.resources.bot_unsupported_managed_bot
 import eu.tintera.plume.core.telegram.BotButtonKind
 import eu.tintera.plume.core.telegram.UnsupportedBotButton
 import eu.tintera.plume.resources.bot_answer
 import eu.tintera.plume.resources.bot_button_failed
+import eu.tintera.plume.resources.poll_retract_failed
+import eu.tintera.plume.resources.poll_stop_failed
+import eu.tintera.plume.resources.poll_vote_failed
 import eu.tintera.plume.resources.bot_text_copied
 import eu.tintera.plume.resources.bot_unsupported_web_app
 import eu.tintera.plume.resources.bot_unsupported_login_url
@@ -843,6 +846,9 @@ class ConversationViewModel(
                     // dočasné id.
                     it.withMessage(message).copy(flight = it.flight.landingOn(message))
                 }
+                // Anketa se zakládá ve vlastním formuláři a rozepsanou odpověď si odnesla; tady
+                // se pozná, že odešla, a odpověď zmizí jako po odeslání textu.
+                if (_state.value.pollConsumesReply(message)) clearReply()
                 resolveMissingQuotes()
             }
         }
@@ -1630,6 +1636,65 @@ class ConversationViewModel(
         }
     }
 
+    /**
+     * Hlas v anketě; prázdný seznam hlas zruší („Zrušit hlas" v nabídce).
+     *
+     * Nic se lokálně nepřepisuje: TDLib po `setPollAnswer` sám změní obsah zprávy — napřed
+     * s `isBeingChosen` (u odpovědi se točí indikátor), po potvrzení se skutečnými počty.
+     * Obojí dorazí přes [ConversationRepository.editedMessages] jako každá úprava.
+     */
+    private fun vote(messageId: Long, answerIndexes: List<Int>) {
+        val poll = _state.value.messages.firstOrNull { it.id == messageId }?.poll ?: return
+        // Hlas, který by server odmítl, se neposílá: uzavřená anketa, druhý hlas bez zrušení.
+        val allowed = if (answerIndexes.isEmpty()) poll.canRetract else poll.canVote
+        if (!allowed) return
+        viewModelScope.launch {
+            repository.vote(chatId, messageId, answerIndexes).onFailure { failure ->
+                val message = failure.reported(
+                    if (answerIndexes.isEmpty()) Res.string.poll_retract_failed else Res.string.poll_vote_failed,
+                )
+                _state.update { it.copy(error = message) }
+            }
+        }
+    }
+
+    fun cancelStopPoll() {
+        _state.update { it.copy(pendingStopPoll = null) }
+    }
+
+    /** Uzavření ankety se ukáže samo — TDLib změní obsah zprávy a výsledky se odkryjí. */
+    fun confirmStopPoll() {
+        val messageId = _state.value.pendingStopPoll ?: return
+        _state.update { it.copy(pendingStopPoll = null) }
+        viewModelScope.launch {
+            repository.stopPoll(chatId, messageId).onFailure { failure ->
+                _state.update { it.copy(error = failure.reported(Res.string.poll_stop_failed)) }
+            }
+        }
+    }
+
+    /** Obrazovka formulář ankety otevřela. */
+    fun consumeOpenPollComposer() {
+        _state.update { it.copy(openPollComposer = null) }
+    }
+
+    fun dismissPollVoters() {
+        _state.update { it.copy(pollVoters = null) }
+    }
+
+    /**
+     * Ťuknutí na hlasujícího: uživatel otevře soukromý chat, chat (anonymní správce, kanál)
+     * sám sebe. Id drží konvenci odesílatele — kladné uživatel, záporné chat.
+     */
+    fun openPollVoter(senderId: Long) {
+        _state.update { it.copy(pollVoters = null) }
+        if (senderId > 0) {
+            openMentioned { chatRepository.privateChat(senderId) }
+        } else if (senderId != chatId) {
+            _state.update { it.copy(openChat = ChatTarget(senderId)) }
+        }
+    }
+
     /** Přidat se přes pozvánku z náhledu. Po přidání se chat otevře. */
     fun joinInvite() {
         val invite = _state.value.invite?.takeUnless { it.joining } ?: return
@@ -1753,6 +1818,8 @@ class ConversationViewModel(
             }
             // Číslo je údaj o uživateli; odejde až po potvrzení.
             ReplyKeyboardButtonKind.PhoneNumber -> _state.update { it.copy(confirmSharePhone = true) }
+            // Formulář je obrazovka nad konverzací; otevírá ho obrazovka, ViewModel jen řekne jaký.
+            is ReplyKeyboardButtonKind.Poll -> _state.update { it.copy(openPollComposer = kind.mode) }
             is ReplyKeyboardButtonKind.Unsupported ->
                 _state.update { it.copy(notice = UiText(kind.feature.explanation())) }
         }
@@ -2042,6 +2109,13 @@ class ConversationViewModel(
             MessageAction.SwipeReply, MessageMenuAction.Reply -> replyTo(messageId)
             is MessageAction.JumpTo -> jumpToMessage(action.messageId)
             is MessageAction.PressBotButton -> pressBotButton(messageId, action.row, action.column)
+            is MessageAction.Vote -> vote(messageId, action.answerIndexes)
+            MessageAction.ShowPollVoters -> _state.update { it.copy(pollVoters = messageId) }
+            MessageMenuAction.RetractVote -> {
+                closeMenus()
+                vote(messageId, emptyList())
+            }
+            MessageMenuAction.StopPoll -> _state.update { it.copy(messageMenu = null, pendingStopPoll = messageId) }
             is MessageAction.OpenLink -> openLink(action.url)
             is MessageAction.OpenMention -> openMentioned { chatRepository.chatByUsername(action.username) }
             is MessageAction.OpenUser -> openMentioned { chatRepository.privateChat(action.userId) }
@@ -3169,6 +3243,12 @@ data class ConversationState(
     val botAlert: String? = null,
     /** Tlačítko bota, na jehož odpověď se čeká; `null` = žádné. */
     val pressingBotButton: BotButtonRef? = null,
+    /** Zpráva s anketou, jejíž hlasující ukazuje sheet; `null` = zavřený. */
+    val pollVoters: Long? = null,
+    /** Anketa, kterou uživatel chce ukončit a čeká se na potvrzení; `null` = žádná. */
+    val pendingStopPoll: Long? = null,
+    /** Jednorázová událost: tlačítko bota chce formulář nové ankety (v tomhle režimu). */
+    val openPollComposer: PollComposerMode? = null,
     /** Jednorázová událost: otevřít sheet sady samolepek z odkazu `t.me/addstickers/…`. */
     val openStickerSet: Long? = null,
     /** Běží přidání ke skupině / kanálu ([ConversationViewModel.join]). */
@@ -3356,7 +3436,6 @@ val ConversationState.inputPlaceholder: String?
 
 private fun UnsupportedKeyboardButton.explanation(): StringResource = when (this) {
     UnsupportedKeyboardButton.Location -> Res.string.bot_unsupported_location
-    UnsupportedKeyboardButton.Poll -> Res.string.bot_unsupported_poll
     UnsupportedKeyboardButton.Users, UnsupportedKeyboardButton.Chat -> Res.string.bot_unsupported_pick_chat
     UnsupportedKeyboardButton.WebApp -> Res.string.bot_unsupported_web_app
     UnsupportedKeyboardButton.ManagedBot -> Res.string.bot_unsupported_managed_bot
@@ -3364,3 +3443,20 @@ private fun UnsupportedKeyboardButton.explanation(): StringResource = when (this
 
 /** Jak dlouho se po vynucené odpovědi čeká, než zpráva bota dorazí do seznamu. */
 private const val FORCE_REPLY_WAIT = 3_000L
+
+/**
+ * Spotřebovala [message] rozepsanou odpověď? Ano, když je to VLASTNÍ anketa, která se právě
+ * odesílá (`Sending` — z jiného zařízení přijde už odeslaná) a odpovídá na tutéž zprávu.
+ *
+ * Formulář ankety je jiná obrazovka s vlastním ViewModelem a výsledek konverzaci nepředává;
+ * konverzace si ho pozná sama z příchozí zprávy. Odpověď se nezahazuje hned při otevření
+ * formuláře — kdo ho zavře, má ji mít dál.
+ */
+internal fun ConversationState.pollConsumesReply(message: ChatMessage): Boolean {
+    val reply = replyingTo ?: return false
+    return message.poll != null &&
+        message.isOutgoing &&
+        message.sendState == SendState.Sending &&
+        message.replyToMessageId == reply.id
+}
+

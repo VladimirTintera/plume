@@ -91,9 +91,14 @@ data class ContentAccess(
     val voiceNotes: Boolean,
     /** Samolepky, animovaná emoji a GIFy — TDLib je vede pod jedním `canSendOtherMessages`. */
     val stickers: Boolean,
+    /**
+     * Ankety. Kromě práva skupiny (`canSendPolls`) záleží i na DRUHU chatu — viz
+     * [pollsAllowedIn]; do soukromého chatu s člověkem anketa nejde.
+     */
+    val polls: Boolean,
 ) {
     /** Sponka má co nabídnout. Bez jediného dovoleného druhu se nekreslí vůbec. */
-    val anyAttachment: Boolean get() = photos || videos || documents
+    val anyAttachment: Boolean get() = photos || videos || documents || polls
 
     companion object {
         /** Nic se neomezuje: soukromý chat, správce, vlastník i neznámé postavení. */
@@ -103,6 +108,7 @@ data class ContentAccess(
             documents = true,
             voiceNotes = true,
             stickers = true,
+            polls = true,
         )
     }
 }
@@ -170,3 +176,18 @@ internal fun chatEditRights(
         if (status.isMember && !isChannel) ChatEditRights(canChangeInfo = status.canChangeInfo) else ChatEditRights()
     OwnMemberStatus.Left, OwnMemberStatus.Banned -> ChatEditRights()
 }
+
+/** Druh chatu z pohledu anket — viz [pollsAllowedIn]. */
+enum class PollChatKind { Group, Channel, Bot, SavedMessages, Private, Secret }
+
+/**
+ * Smí do chatu anketa? TDLib: *„Polls can't be sent to secret chats … Polls can be sent to
+ * a private chat only if the chat is a chat with a bot or the Saved Messages chat."* Do
+ * soukromého chatu s člověkem ji tedy server odmítne — a to až po odeslání, proto se tam
+ * vůbec nenabízí.
+ */
+fun pollsAllowedIn(kind: PollChatKind): Boolean = when (kind) {
+    PollChatKind.Group, PollChatKind.Channel, PollChatKind.Bot, PollChatKind.SavedMessages -> true
+    PollChatKind.Private, PollChatKind.Secret -> false
+}
+
