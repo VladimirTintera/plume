@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -7,8 +8,13 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
@@ -58,7 +64,9 @@ class MediaCarouselPage internal constructor(
  * - **rozostřené pozadí jezdí s tahem pod prstem** — kreslí se pozadí aktuální stránky i sousedů
  *   vedle sebe, posunutá o průběh pageru; šev mezi nimi změkčí rozostření samo,
  * - [immersion] (0 = galerie, 1 = celá obrazovka) sousedy i pozadí plynule schová — používá ho
- *   prohlížeč, sdílení ho nechává na nule.
+ *   prohlížeč, sdílení ho nechává na nule,
+ * - s [animateArrivals] stránka, která PŘIBYLA v datech, přijede ze své strany (viz
+ *   [PageArrivals]) — prohlížeč ukáže otevřenou fotku hned a sousedy dotahuje až pod ní.
  *
  * [pageKey] a počet stránek v [pagerState] musí číst TÝŽ stav (viz `MediaViewerScreen`): pager
  * leží v `BoxWithConstraints` a jeho klíče se obnovují až v subkompozici.
@@ -71,6 +79,7 @@ fun MediaCarousel(
     immersion: () -> Float = { 0f },
     /** Modifikátor jen pro pozadí — prohlížeč ho s ním zprůhledňuje při zavíracím tahu. */
     backdropModifier: Modifier = Modifier,
+    animateArrivals: Boolean = false,
     /** Pozadí stránky přes celou plochu (malý náhled stačí), nebo nic. */
     backdrop: @Composable (index: Int) -> Unit,
     page: @Composable (MediaCarouselPage) -> Unit,
@@ -90,6 +99,21 @@ fun MediaCarousel(
         val pageInset = lerp(galleryInset, 0.dp, progress)
         val pageGap = lerp(galleryGap, IMMERSIVE_PAGE_GAP, progress)
 
+        val arrivals = remember { PageArrivals() }
+        if (animateArrivals) {
+            // Stránky se skládají až v layoutu, tedy po SideEffectu: vidí už nový stav dat.
+            val keys = (0 until pagerState.pageCount).mapTo(HashSet()) { pageKey(it) }
+            SideEffect { arrivals.onKeys(keys) }
+            LaunchedEffect(keys) {
+                // Příchod patří jen stránkám složeným se změnou dat; co se složí později při
+                // listování, už je „známé" — jinak by přijížděla každá další fotka.
+                withFrameNanos {}
+                withFrameNanos {}
+                arrivals.settle()
+            }
+        }
+        val arrivalSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+
         HorizontalPager(
             state = pagerState,
             key = pageKey,
@@ -100,19 +124,65 @@ fun MediaCarousel(
             beyondViewportPageCount = 1,
             modifier = Modifier.fillMaxSize(),
         ) { index ->
-            page(
-                MediaCarouselPage(
-                    index = index,
-                    isCurrent = index == pagerState.currentPage,
-                    // Na celé obrazovce se nepřisouvá: sousedé vidět nemají.
-                    cardBias = {
-                        (-pagerState.getOffsetDistanceInPages(index)).coerceIn(-1f, 1f) * (1f - immersion())
-                    },
-                    captionAlpha = { 1f - abs(pagerState.getOffsetDistanceInPages(index)).coerceIn(0f, 1f) },
-                ),
-            )
+            val arrival = remember {
+                Animatable(if (animateArrivals && arrivals.isNew(pageKey(index))) 0f else 1f)
+            }
+            LaunchedEffect(arrival) { if (arrival.value < 1f) arrival.animateTo(1f, arrivalSpec) }
+            Box(
+                Modifier.fillMaxSize().graphicsLayer {
+                    val p = arrival.value
+                    if (p < 1f) {
+                        alpha = p.coerceIn(0f, 1f)
+                        // Přijíždí ze strany, na které leží. Čte se až tady: po rozšíření dat
+                        // přesune pager `currentPage` na otevřenou fotku až v layoutu.
+                        // Posun je přesně to, o co soused vykukuje: vyjíždí od okraje obrazovky.
+                        // O kus šířky stránky (první pokus) startoval hluboko za okrajem, vidět
+                        // byl jen konec pohybu a vypadalo to jako pouhé prolnutí.
+                        val side = if (index < pagerState.currentPage) -1f else 1f
+                        translationX = side * (1f - p) * (pageInset - pageGap).toPx()
+                    }
+                },
+                propagateMinConstraints = true,
+            ) {
+                page(
+                    MediaCarouselPage(
+                        index = index,
+                        isCurrent = index == pagerState.currentPage,
+                        // Na celé obrazovce se nepřisouvá: sousedé vidět nemají.
+                        cardBias = {
+                            (-pagerState.getOffsetDistanceInPages(index)).coerceIn(-1f, 1f) * (1f - immersion())
+                        },
+                        captionAlpha = { 1f - abs(pagerState.getOffsetDistanceInPages(index)).coerceIn(0f, 1f) },
+                    ),
+                )
+            }
         }
     }
+}
+
+/**
+ * Které stránky přibyly v datech, a mají proto přijet, místo aby naskočily.
+ *
+ * Nestačí „stránka se skládá poprvé": pager skládá stránky i při listování (soused dopředu)
+ * a ty by pak přijížděly při každém švihnutí. Přijede jen stránka, jejíž klíč v PŘEDCHOZÍM
+ * stavu dat nebyl a která se složila hned se změnou; po pár snímcích ([settle]) se nový stav
+ * bere jako známý. První stav dat se neanimuje nikdy — to je otevření obrazovky.
+ */
+private class PageArrivals {
+    private var known: Set<Any>? = null
+    private var previous: Set<Any>? = null
+
+    fun onKeys(keys: Set<Any>) {
+        if (keys == known) return
+        previous = known
+        known = keys
+    }
+
+    fun settle() {
+        previous = known
+    }
+
+    fun isNew(key: Any): Boolean = previous?.let { key !in it } == true
 }
 
 /**

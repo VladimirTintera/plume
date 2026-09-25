@@ -4872,6 +4872,18 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   mizejícím médiím). Pager drží stránku podle klíče, takže rozšíření výřezu kolem ní s ním
   nepohne; okraje jsou do té doby „dosažené", aby se listování nerozjelo od jediné fotky
   souběžně s výřezem. Ověřeno sérií surových snímků: fotka je vidět v každém snímku.
+- **Dotažení sousedé PŘIJEDOU, nenaskočí** (`MediaCarousel(animateArrivals = true)`,
+  `PageArrivals`). Otevřená fotka se zanimuje letem z bubliny a sousedé u okrajů by vedle ní
+  naskočili bleskem. Stránka, která přibyla v datech, vyjede od okraje obrazovky (posun přesně
+  o to, o co soused vykukuje) a prolne se. **Posun o kus šířky stránky nefungoval** — soused
+  startoval hluboko za okrajem a vidět byl jen konec pohybu, takže to vypadalo jako pouhé
+  prolnutí. **Pozor, pager skládá stránky i při listování** (soused dopředu): „skládá se
+  poprvé" proto nestačí, jinak by přijížděla každá další fotka při švihnutí. Přijede jen stránka,
+  jejíž klíč v předchozím stavu dat nebyl a která se složila hned se změnou; po dvou snímcích se
+  nový stav bere jako známý. Směr se čte až při kreslení — po rozšíření dat pager přesune
+  `currentPage` na otevřenou fotku až v layoutu. Sdílení (Direct Share) to nemá zapnuté, má
+  vlastní animace přidávání a odebírání. Ověřeno surovými snímky: soused se při otevření vysune
+  a prolne, při listování je hned celý.
 - **Počítadlo „N z M" se ptá jednou**, na otevřenou fotku (`getChatMessagePosition` +
   `getChatMessageCount`; TDLib počítá od nejnovější, tak se to obrací). Ostatní stránky se
   odvozují posunem indexu, protože načtený výřez je souvislý.

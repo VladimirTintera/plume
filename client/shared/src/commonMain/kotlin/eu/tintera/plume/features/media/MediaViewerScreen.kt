@@ -347,6 +347,8 @@ private fun ViewerContent(
             immersion = immersion,
             backdropModifier = fadeWithDismiss,
             modifier = Modifier.fillMaxSize(),
+            // Otevřená fotka je vidět hned, sousedé se dotahují až pod ní — nesmí naskočit.
+            animateArrivals = true,
             // Pozadí bere malý náhled, ne ostrou verzi: pod rozostřením detail nic nepřidá
             // a náhled je na disku skoro vždycky, protože ho kreslila konverzace.
             backdrop = { index ->
