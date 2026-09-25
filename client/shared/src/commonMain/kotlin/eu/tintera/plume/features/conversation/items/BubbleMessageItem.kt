@@ -196,7 +196,9 @@ internal fun MessageBodyScope.ReplyQuote(quote: ChatMessage, partnerName: String
     QuotedMessage(
         message = quote,
         partnerName = partnerName,
-        onClick = message.replyToMessageId?.let { id -> { act(MessageAction.JumpTo(id)) } },
+        // Citace z jiného chatu vede do toho chatu, stejně jako značka „Přeposláno od".
+        onClick = message.replyToMessageId?.let { id -> { act(MessageAction.JumpTo(id)) } }
+            ?: message.externalReply?.target?.let { target -> { act(MessageAction.OpenForwardOrigin(target)) } },
         onLongClick = ::requestMenu,
         quoteText = message.replyQuote,
         // Citace někoho ze skupiny nese jeho barvu, jako jméno nad jeho zprávou; jinak akcent

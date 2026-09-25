@@ -128,7 +128,10 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
             messageItem(
                 frame = frame,
                 album = row.members.takeIf { row.isAlbum },
-                quoted = message.replyToMessageId?.let { id -> byId[id] ?: state.quotes[id] },
+                // Odpověď na zprávu z jiného chatu nese zástupnou citaci sama — v historii téhle
+                // konverzace citovaná zpráva není.
+                quoted = message.replyToMessageId?.let { id -> byId[id] ?: state.quotes[id] }
+                    ?: message.externalReply?.quote,
                 // V soukromém chatu se jméno odesílatele u zpráv nevyplňuje, takže citace by
                 // neměla koho uvést.
                 partnerName = info?.title,

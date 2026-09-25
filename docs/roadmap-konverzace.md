@@ -472,9 +472,10 @@ snadno na to uživatel narazí.
 - **Komentáře u příspěvků kanálu** (`interactionInfo.replyInfo`: počet, tváře posledních) —
   „12 komentářů" pod příspěvkem a otevření diskuse (`getMessageThread`,
   `getMessageThreadHistory`, odpověď s `topicId`). Dnes se diskuse kanálu nedá otevřít vůbec.
-- **Odpověď na zprávu z jiného chatu** (`MessageReplyToMessage` s cizím `chatId`, `origin`,
-  `content`) se zahazuje — zpráva vypadá jako bez odpovědi. Citace se dá složit z `origin`
-  a `content` bez dalšího dotazu. **Odpověď na příběh** (`MessageReplyToStory`) taky.
+- ~~**Odpověď na zprávu z jiného chatu**~~ — hotovo (citace z `origin` a `content`, ťuknutí
+  otevře ten chat; `CLAUDE.md`, „Odpovědi"). **Ověřené jen sondou**, skutečnou odpověď
+  z jiného chatu zatím nikdo neviděl. Zbývá **odpověď na příběh** (`MessageReplyToStory`),
+  až budou příběhy, a náhled obrázku v citaci (dnes jen „Fotka").
 - **Citlivý a omezený obsah** (`restrictionInfo.hasSensitiveContent`, `restrictionReason`) —
   oficiální klienti médium rozmažou s „Zobrazit". Dnes se kreslí bez upozornění.
 - **„přes @bot"** (`viaBotUserId`) u zpráv poslaných inline botem, **podpis autora** v kanálu
