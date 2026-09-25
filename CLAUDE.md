@@ -1078,6 +1078,12 @@ chodit. Dokud se nesledovalo, vypadala nepřipojená aplikace úplně normálně
   všech spojení je horší než nedělat nic. Naopak přelezení mezi dvěma Wi-Fi je změna, kterou
   porovnání samotného typu nezachytí — proto `NetworkStatus` nese kromě typu i pořadové číslo,
   které se zvedá jen v `onAvailable` / `onLost`.
+- **Bez sítě při startu to musí monitor říct sám.** `registerDefaultNetworkCallback` se bez
+  sítě neozve vůbec, takže TDLib dostal výchozí `Other` z `ConnectionController` a aplikace
+  spuštěná v letovém režimu hlásila napořád „Připojování…". Monitor se proto před registrací
+  zeptá na `activeNetwork` a bez ní ohlásí `None`. iOS to nepotřebuje: `NWPathMonitor` se ozve
+  hned po startu i s nesplněnou cestou. Ověřuje se STUDENÝM startem v letovém režimu — zapnutí
+  letového režimu za běhu chodí přes `onLost` a chybu neukáže.
 - **Otočení displeje NENÍ odchod do pozadí.** `onStop` staré instance a `onStart` nové by jinak
   vypadaly jako návrat z pozadí a zbytečně shodily všechna spojení; pozná se to podle
   `isChangingConfigurations`.
@@ -1619,9 +1625,11 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
     z ořezu. Zvětšuje se jen `Avatar`, ne obal s tečkou.
   - **Prstenec říká, ŽE je problém, nápověda CO.** Samotný tvar by nerozlišil „Čekání na síť"
     (uživatel může něco udělat) od „Připojování" (stačí počkat).
-  - **Čekání na síť STOJÍ a prstenec je v `outline`**, připojování a aktualizace se TOČÍ
-    v `primary`. Bez sítě se na nic nečeká, rotace by lhala. Zastavení nechá tvar v úhlu, kde
-    byl — skok na nulu by byl vidět. Kontrast proti pilulce v tmavém motivu: `outline` 3,6 : 1,
+  - **Čekání na síť se točí POMALU (otáčka za 20 s) a prstenec je v `outline`**, připojování
+    a aktualizace za 9 s v `primary`. Úplné zastavení (první návrh: „bez sítě se na nic nečeká,
+    rotace by lhala") uživatel na emulátoru odmítl — stojící vlnka působila jako zamrzlá.
+    Rychlost se animuje ve stupních za vteřinu a úhel přibývá po snímcích (`withFrameNanos`),
+    takže přechod mezi stavy neškubne; smyčka běží jen při výpadku. Kontrast proti pilulce v tmavém motivu: `outline` 3,6 : 1,
     `primary` 9,7 : 1 (práh pro netextové prvky je 3 : 1).
   - **Nápověda se mění fade through, ne `Crossfade`.** Dva texty napůl průhledné přes sebe
     („Čekání na síť" přes „Připojování") se nedají přečíst — tatáž úvaha jako u přechodů

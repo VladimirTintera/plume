@@ -1,8 +1,6 @@
 package eu.tintera.plume.features.chats
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.MaterialShapes
@@ -13,6 +11,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -69,9 +69,11 @@ internal fun rememberShownConnection(state: ConnectionState): ConnectionState? {
  * **Prstenec je obrys fotky, ne rám kolem ní.** Mezera mezi fotkou a prstencem vypadala jako
  * díra; fotka proto místo zmenšení naroste až k prstenci ([GROWN_AVATAR_SCALE]).
  *
- * - **Připojování a aktualizace: točí se**, prstenec v `primary` — něco se děje, stačí počkat.
- * - **Čekání na síť: stojí**, prstenec v `outline`. Na nic se nečeká, dokud se síť nevrátí, takže
- *   by rotace lhala; tlumená barva říká „tady nic neběží", vlnka „a spojení není v pořádku".
+ * - **Připojování a aktualizace: otáčka za [CONNECTING_TURN_MS]**, prstenec v `primary` — něco
+ *   se děje, stačí počkat.
+ * - **Čekání na síť: otáčka za [WAITING_TURN_MS]**, prstenec v `outline`. Na nic se nečeká,
+ *   dokud se síť nevrátí; tlumená barva a pomalé točení to říkají, a přitom je pořád vidět, že
+ *   stav trvá. (Zkoušelo se i úplné zastavení — stojící vlnka působila jako zamrzlá.)
  *
  * **Točí se obrys, fotka ne** — obrys je ořez ve vrstvě ([clip]), obsah pod ním stojí.
  * Zvlnění, zvětšení fotky i prstenec jdou z JEDNOHO průběhu morfu, takže se nemůžou rozejít;
@@ -128,21 +130,32 @@ internal fun rememberConnectionIndicator(connection: ConnectionState?, avatarSiz
         animationSpec = morphSpring(),
         label = "connection-morph",
     )
-    val rotating = connection != null && connection != ConnectionState.WaitingForNetwork
-    val angle = remember { Animatable(0f) }
     /*
-     * Točí se, dokud se připojuje. Zastavení nechá tvar tam, kde je — skok zpátky na nulu by byl
-     * vidět; po návratu do kruhu na úhlu nezáleží. Úhel se drží v jedné otáčce, ať nepřeteče.
+     * Rychlost ve stupních za vteřinu, ne doba otáčky: mezi stavy se tak dá plynule přelít
+     * a otáčení při přechodu z čekání na síť do připojování neškubne.
      */
-    LaunchedEffect(rotating) {
-        if (!rotating) return@LaunchedEffect
-        angle.snapTo(angle.value % 360f)
+    val speed by animateFloatAsState(
+        targetValue = when (connection) {
+            null -> 0f
+            ConnectionState.WaitingForNetwork -> 360_000f / WAITING_TURN_MS
+            else -> 360_000f / CONNECTING_TURN_MS
+        },
+        animationSpec = tween(SPEED_CHANGE_MS),
+        label = "connection-speed",
+    )
+    val angle = remember { mutableFloatStateOf(0f) }
+    /*
+     * Úhel přibývá po snímcích podle rychlosti. Běží jen při výpadku — se spojením by si smyčka
+     * o snímky říkala pořád. Konec nechá tvar tam, kde je; při návratu do kruhu na úhlu nezáleží.
+     */
+    LaunchedEffect(connection != null) {
+        if (connection == null) return@LaunchedEffect
+        var last = -1L
         while (true) {
-            angle.animateTo(
-                targetValue = angle.value + 360f,
-                animationSpec = tween(ROTATION_MS, easing = LinearEasing),
-            )
-            angle.snapTo(angle.value % 360f)
+            withFrameNanos { now ->
+                if (last >= 0) angle.floatValue = (angle.floatValue + speed * (now - last) / 1e9f) % 360f
+                last = now
+            }
         }
     }
     /*
@@ -161,7 +174,7 @@ internal fun rememberConnectionIndicator(connection: ConnectionState?, avatarSiz
         label = "connection-ring-color",
     )
     return remember(progress, angle, color, avatarSize) {
-        ConnectionIndicator(progress, { angle.value }, color, avatarSize)
+        ConnectionIndicator(progress, { angle.floatValue }, color, avatarSize)
     }
 }
 
@@ -206,8 +219,13 @@ private class LastValue<T> {
 
 private const val CONNECTION_SHOW_DELAY_MS = 600L
 
-/** Jedna otáčka. Pomalu — je to čekání, ne práce, a rychlé točení vedle hledání ruší. */
-private const val ROTATION_MS = 9000
+/** Otáčka při připojování. Pomalu — je to čekání, ne práce, a rychlé točení vedle hledání ruší. */
+private const val CONNECTING_TURN_MS = 9000
+
+/** Otáčka při čekání na síť: víc než dvakrát pomalejší, aby se stavy daly rozeznat i bez textu. */
+private const val WAITING_TURN_MS = 20000
+
+private const val SPEED_CHANGE_MS = 600
 
 private const val WAVES = 10
 

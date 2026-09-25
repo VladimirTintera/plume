@@ -45,10 +45,17 @@ actual class NetworkMonitor(context: Context) {
         }
 
         /*
-         * Výchozí síť, ne všechny: TDLib zajímá ta, kterou by provoz opravdu šel. Callback se
-         * po registraci ozve sám, pokud nějaká síť je — proto se počáteční hodnota nečte zvlášť.
-         * Když žádná není, `onAvailable` nepřijde a první hodnotu vydá až připojení; do té doby
-         * si vystačí `ConnectionController` se svou výchozí.
+         * Bez sítě se callback po registraci NEOZVE (`onAvailable` nepřijde, `onLost` taky ne),
+         * takže to musí říct monitor sám. Dokud to tak nebylo, `ConnectionController` ohlásil
+         * TDLib svou výchozí `Other` a aplikace spuštěná v letovém režimu hlásila napořád
+         * „Připojování…" místo „Čekání na síť…". Ptá se PŘED registrací: kdyby se síť objevila
+         * mezi dotazem a odesláním, přepsala by pozdě odeslaná `None` její ohlášení.
+         */
+        if (manager.activeNetwork == null) trySend(NetworkStatus(NetworkKind.None, generation))
+
+        /*
+         * Výchozí síť, ne všechny: TDLib zajímá ta, kterou by provoz opravdu šel. Když nějaká je,
+         * callback se po registraci ozve sám.
          */
         manager.registerDefaultNetworkCallback(callback)
         awaitClose { manager.unregisterNetworkCallback(callback) }
