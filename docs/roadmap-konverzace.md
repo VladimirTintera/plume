@@ -422,3 +422,91 @@ sada ze samolepky v chatu; emoji vkládané do textu včetně nedávných. Zbýv
 - **Dvě různé pleti u emoji s více osobami** (👫 s různým odstínem každé osoby) — nabízí se jen
   stejný odstín pro všechny.
 - **Emoji novější než Unicode 15.0** — až je budou znát systémová písma podporovaných verzí.
+
+## Co TDLib umí a Plume zatím ne (audit září 2026)
+
+Prošlo se všech 105 podtypů `MessageContent` v `tdl-coroutines 15.0.0`, pole `Message`,
+entity textu a klávesnice botů proti tomu, co čte `core/telegram`. **Každý typ má aspoň
+pravdivý popis** (`describe()` / `serviceText()`), nic tedy nekončí jako „neumíme zobrazit" —
+ale řada věcí je jen řádek textu, a pole níž se zahazují úplně. Seřazeno podle toho, jak
+snadno na to uživatel narazí.
+
+**Obsah, který se dnes ukazuje jen jako řádek textu nebo nehybný náhled**
+
+- **Ankety a kvízy** (`MessagePoll`) — jen „Anketa: otázka". Hlasování (`setPollAnswer`),
+  výsledky v procentech, kvíz se správnou odpovědí a vysvětlením, zrušení hlasu, uzavření
+  (`stopPoll`), kdo hlasoval (`getPollVoters`). Ve skupinách a kanálech nejčastější chybějící typ.
+- **Video kolečka** (`MessageVideoNote`) — čtvercový náhled s popiskem, nehraje. Mají hrát
+  v bublině kulatě, bez zvuku samy a se zvukem po ťuknutí (jako hlasovka: `isViewed`,
+  `openMessageContent`, přepis `speechRecognitionResult`).
+- **Hudba** (`MessageAudio`) — jen popisek, nejde přehrát ani otevřít. Přehrávač s interpretem,
+  názvem a obalem alba (`albumCoverThumbnail`), navazování další skladby; `VoicePlayer` je
+  dobrý základ.
+- **Poloha, živá poloha a místo** (`MessageLocation` / `LiveLocation` / `Venue`) — statická
+  mapa jde od Telegramu (`getMapThumbnailFile`, bez klíče k mapám), ťuknutí do systémových map;
+  živá poloha se mění editacemi zprávy (`livePeriod`, `expiresIn`).
+- **Kontakt** (`MessageContact`) — karta se jménem a číslem, „Napsat" (`userId`), přidat
+  do kontaktů.
+- **Hovory** (`MessageCall`) — jen „Hovor". TDLib nese směr, délku a důvod ukončení
+  (`duration`, `discardReason`) → „Zmeškaný hovor", „Odchozí · 3 min". Levné.
+- **Kostka** (`MessageDice`) — dnes „🎲 6". Animace hodu jsou samolepky od serveru
+  (`initialState` / `finalState`, `DiceStickers`), přehraje je `AnimatedSticker`.
+- **Placená média** (`MessagePaidMedia`) — rozmazaný náhled s cenou (`extendedMedia`), po
+  zaplacení běžná fotka/video. V kanálech časté, placení hvězdami ale zatím nemáme.
+- **Sdílený příběh** (`MessageStory`), **dárky, soutěže, faktury, hry** — dnes text. Stojí na
+  stories a hvězdách, které aplikace nemá; zvážit aspoň kartu s náhledem.
+- **Článek** (`MessageRichMessage`) — jen holý text bloků.
+
+**Údaje o zprávě, které TDLib posílá a my zahazujeme**
+
+- **Zhlédnutí u příspěvků kanálu** (`interactionInfo.viewCount`, `forwardCount`). V kanálu
+  standard, u nás chybí úplně.
+- **Komentáře u příspěvků kanálu** (`interactionInfo.replyInfo`: počet, tváře posledních) —
+  „12 komentářů" pod příspěvkem a otevření diskuse (`getMessageThread`,
+  `getMessageThreadHistory`, odpověď s `topicId`). Dnes se diskuse kanálu nedá otevřít vůbec.
+- **Odpověď na zprávu z jiného chatu** (`MessageReplyToMessage` s cizím `chatId`, `origin`,
+  `content`) se zahazuje — zpráva vypadá jako bez odpovědi. Citace se dá složit z `origin`
+  a `content` bez dalšího dotazu. **Odpověď na příběh** (`MessageReplyToStory`) taky.
+- **Citlivý a omezený obsah** (`restrictionInfo.hasSensitiveContent`, `restrictionReason`) —
+  oficiální klienti médium rozmažou s „Zobrazit". Dnes se kreslí bez upozornění.
+- **„přes @bot"** (`viaBotUserId`) u zpráv poslaných inline botem, **podpis autora** v kanálu
+  (`authorSignature`), **štítek člena** (`senderTag`) a **boosty odesílatele** (`senderBoostCount`)
+  u jména.
+- **Efekty zprávy** (`effectId` → `getMessageEffect`) — animace (konfety, srdce) při prvním
+  zobrazení a značka u zprávy.
+- **Kontrola faktů** (`factCheck`) — poznámka pod zprávou v kanálu.
+- **Automatické mazání** (`autoDeleteIn`) — zpráva zmizí sama a nic to neoznačuje.
+
+**Entity v textu**
+
+- **Vlastní emoji** (`TextEntityTypeCustomEmoji`) — dnes náhradní znak; jsou skoro v každém
+  větším kanálu (i v názvech a reakcích).
+- **Příkaz bota** (`BotCommand`) — dnes záměrně bez akce, jenže oficiální klienti ťuknutím
+  příkaz pošlou; v chatu s botem je to hlavní ovládání.
+- **Čas v médiu** (`MediaTimestamp`, `hasTimestampedMedia`) — „1:23" v popisku videa má skočit
+  ve videu. **Datum a čas** (`DateTime`) — naformátovat v místním pásmu. Karta a cashtag
+  jsou okrajové.
+
+**Konverzace jako celek**
+
+- **Témata ve skupinách (fóra)** — `topicId` je všude `null`, takže skupina s tématy je jedna
+  promíchaná konverzace a odpověď padne do obecného tématu. Seznam témat, konverzace tématu,
+  psaní do tématu.
+- **Nepřečtené zmínky a reakce** (`Chat.unreadMentionCount`, `unreadReactionCount`) — tlačítka
+  „@" a „❤" nad tlačítkem dolů, skok na další (`searchChatMessages` s `SearchMessagesFilterUnreadMention`
+  / `UnreadReaction`), `readAllChatMentions`.
+- **Prázdný chat s botem** — popis „Co tento bot umí?" s obrázkem (`botInfo.description`,
+  `photo`, `animation`) a tlačítko **Start** (`sendBotStartMessage`, i s parametrem z odkazu
+  `t.me/bot?start=…`). Dnes prázdná konverzace a pole.
+- **Napovídání při psaní**: `@` členové skupiny, `/` příkazy bota (`getBotCommands`, tlačítko
+  nabídky bota `BotMenuButton`), inline boti (`@gif kočka` v poli), emoji podle slov.
+- **Naplánované zprávy a odeslání bez zvuku** (`schedulingState`, `getChatScheduledMessages`,
+  `disableNotification`) — podržení odesílacího tlačítka.
+- **Ověření, podvod, falešný účet** (`verificationStatus`: `isVerified`, `isScam`, `isFake`)
+  u jména v hlavičce a v profilu. Štítek „Podvod" je bezpečnostní věc, ne ozdoba.
+- **Emoji status** u jména, **časovač automatického mazání chatu** v hlavičce a jeho nastavení.
+- **Překlad zprávy** (`translateMessageText`) a **shrnutí od serveru** (`summarizeMessage`,
+  `summaryLanguageCode`) — vedle shrnutí v zařízení.
+- **Vědomě NE**: tapeta a téma chatu (`Chat.background`, `theme`) a barvy jmen podle profilu
+  (`accentColorId`) — aplikace má vlastní Material vzhled a `senderColor`; kdyby se přidávaly,
+  je to rozhodnutí o vzhledu, ne chybějící funkce.
