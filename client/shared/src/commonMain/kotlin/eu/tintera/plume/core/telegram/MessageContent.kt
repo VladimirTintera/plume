@@ -8,7 +8,19 @@ import dev.g000sha256.tdl.dto.LinkPreviewTypeEmbeddedAnimationPlayer
 import dev.g000sha256.tdl.dto.LinkPreviewTypeEmbeddedVideoPlayer
 import dev.g000sha256.tdl.dto.LinkPreviewTypePhoto
 import dev.g000sha256.tdl.dto.LinkPreviewTypeVideo
+import dev.g000sha256.tdl.dto.Document
 import dev.g000sha256.tdl.dto.Message
+import dev.g000sha256.tdl.dto.PollMedia
+import dev.g000sha256.tdl.dto.PollMediaAnimation
+import dev.g000sha256.tdl.dto.PollMediaAudio
+import dev.g000sha256.tdl.dto.PollMediaDocument
+import dev.g000sha256.tdl.dto.PollMediaLink
+import dev.g000sha256.tdl.dto.PollMediaLocation
+import dev.g000sha256.tdl.dto.PollMediaPhoto
+import dev.g000sha256.tdl.dto.PollMediaSticker
+import dev.g000sha256.tdl.dto.PollMediaVenue
+import dev.g000sha256.tdl.dto.PollMediaVideo
+import dev.g000sha256.tdl.dto.Video
 import dev.g000sha256.tdl.dto.MessageAnimatedEmoji
 import dev.g000sha256.tdl.dto.MessageAnimation
 import dev.g000sha256.tdl.dto.MessageAudio
@@ -532,31 +544,16 @@ internal suspend fun Message.messageMedia(): MessageMedia? = when (val content =
         selfDestructType = selfDestructType?.toSelfDestructType(),
     )
 
-    is MessageVideo -> MessageMedia.Video(
-        fileId = content.video.video.id,
-        // Náhled ve formátu MPEG-4 (animovaný) obrázek není; Coil ho neotevře.
-        thumbnailFileId = content.video.thumbnail?.takeIf { it.format !is ThumbnailFormatMpeg4 }?.file?.id,
-        width = content.video.width,
-        height = content.video.height,
-        durationSeconds = content.video.duration,
+    is MessageVideo -> content.video.toMedia(
         hasSpoiler = content.hasSpoiler,
         isSecret = content.isSecret,
         selfDestructType = selfDestructType?.toSelfDestructType(),
-        supportsStreaming = content.video.supportsStreaming,
-        minithumbnail = content.video.minithumbnail?.toDomain(),
     )
 
     is MessageAnimation -> content.animation.toMedia()
 
-    is MessageDocument -> MessageMedia.Document(
-        fileId = content.document.document.id,
+    is MessageDocument -> content.document.toMedia(
         fileName = content.document.fileName.ifBlankGet { getString(Res.string.content_file) },
-        mimeType = content.document.mimeType,
-        // `expectedSize` je známá i před stažením; `size` je nula, dokud soubor nedorazí.
-        sizeBytes = content.document.document.expectedSize,
-        thumbnailFileId = content.document.thumbnail.picture()?.file?.id,
-        thumbnailWidth = content.document.thumbnail.picture()?.width ?: 0,
-        thumbnailHeight = content.document.thumbnail.picture()?.height ?: 0,
     )
 
     is MessageAudio -> MessageMedia.Attachment(label = getString(Res.string.content_audio), thumbnailFileId = null)
@@ -594,6 +591,76 @@ internal suspend fun Message.messageMedia(): MessageMedia? = when (val content =
     else -> null
 }
 
+/** Video, jak ho kreslí bublina — sdílí to zpráva s videem i video v anketě. */
+private fun Video.toMedia(
+    hasSpoiler: Boolean = false,
+    isSecret: Boolean = false,
+    selfDestructType: SelfDestructType? = null,
+) = MessageMedia.Video(
+    fileId = video.id,
+    // Náhled ve formátu MPEG-4 (animovaný) obrázek není; Coil ho neotevře.
+    thumbnailFileId = thumbnail?.takeIf { it.format !is ThumbnailFormatMpeg4 }?.file?.id,
+    width = width,
+    height = height,
+    durationSeconds = duration,
+    hasSpoiler = hasSpoiler,
+    isSecret = isSecret,
+    selfDestructType = selfDestructType,
+    supportsStreaming = supportsStreaming,
+    minithumbnail = minithumbnail?.toDomain(),
+)
+
+/** Soubor; [fileName] podává volající, prázdný název se nahrazuje jinde podle místa. */
+private fun Document.toMedia(fileName: String = this.fileName) = MessageMedia.Document(
+    fileId = document.id,
+    fileName = fileName,
+    mimeType = mimeType,
+    // `expectedSize` je známá i před stažením; `size` je nula, dokud soubor nedorazí.
+    sizeBytes = document.expectedSize,
+    thumbnailFileId = thumbnail.picture()?.file?.id,
+    thumbnailWidth = thumbnail.picture()?.width ?: 0,
+    thumbnailHeight = thumbnail.picture()?.height ?: 0,
+)
+
+/**
+ * Příloha ankety nebo odpovědi (TDLib 15). Fotka, video, GIF, samolepka a soubor jsou tytéž
+ * [MessageMedia] jako u zprávy, takže je nakreslí tentýž kód; odkaz a místo vlastní tvar nemají.
+ *
+ * `when` bez `else`: nový druh v novější TDLib rozbije překlad, místo aby tiše zmizel.
+ */
+internal fun PollMedia.toAttachment(): PollAttachment? = when (this) {
+    is PollMediaPhoto -> photo.toMedia()?.let { PollAttachment.Media(it) }
+    is PollMediaVideo -> PollAttachment.Media(video.toMedia())
+    is PollMediaAnimation -> PollAttachment.Media(animation.toMedia())
+    is PollMediaSticker -> PollAttachment.Media(sticker.toMedia())
+    is PollMediaDocument -> PollAttachment.Media(document.toMedia())
+    is PollMediaAudio -> PollAttachment.Media(
+        MessageMedia.Attachment(
+            label = listOf(audio.performer, audio.title).filter { it.isNotBlank() }.joinToString(" – ")
+                .ifBlank { audio.fileName },
+            thumbnailFileId = audio.albumCoverThumbnail.picture()?.file?.id,
+            fileId = audio.audio.id,
+        ),
+    )
+    is PollMediaLink -> PollAttachment.Link(
+        url = url,
+        title = linkPreview?.let { previewText(it.title) ?: previewText(it.siteName) },
+        photo = linkPreview?.toDomain()?.photo,
+    )
+    is PollMediaLocation -> PollAttachment.Place(
+        title = null,
+        address = null,
+        latitude = location.latitude,
+        longitude = location.longitude,
+    )
+    is PollMediaVenue -> PollAttachment.Place(
+        title = previewText(venue.title),
+        address = previewText(venue.address),
+        latitude = venue.location.latitude,
+        longitude = venue.location.longitude,
+    )
+}
+
 /**
  * Anketa do domény. Odpovědi jdou v pořadí, v jakém se mají ukázat (`optionOrder`, prázdné =
  * původní), a každá si nese svůj PŮVODNÍ index — tím se hlasuje.
@@ -610,6 +677,7 @@ internal fun MessagePoll.toChatPoll(): ChatPoll {
             percentage = option.votePercentage.coerceIn(0, 100),
             isChosen = option.isChosen,
             isBeingChosen = option.isBeingChosen,
+            media = option.media?.toAttachment(),
         )
     }
     val order = poll.optionOrder.filter { it in all.indices }.distinct()
@@ -617,6 +685,7 @@ internal fun MessagePoll.toChatPoll(): ChatPoll {
     val description = description.toBody()
     return ChatPoll(
         question = poll.question.text,
+        media = media?.toAttachment(),
         description = description.text,
         descriptionEntities = description.entities,
         options = ordered,

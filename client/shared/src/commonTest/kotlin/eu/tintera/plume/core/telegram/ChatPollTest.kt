@@ -1,6 +1,11 @@
 package eu.tintera.plume.core.telegram
 
 import dev.g000sha256.tdl.dto.FormattedText
+import dev.g000sha256.tdl.dto.Location
+import dev.g000sha256.tdl.dto.PollMediaLink
+import dev.g000sha256.tdl.dto.PollMediaLocation
+import dev.g000sha256.tdl.dto.PollMediaVenue
+import dev.g000sha256.tdl.dto.Venue
 import dev.g000sha256.tdl.dto.MessagePoll
 import dev.g000sha256.tdl.dto.Poll
 import dev.g000sha256.tdl.dto.PollOption
@@ -198,5 +203,51 @@ class ChatPollTest {
         val poll = message(listOf(option("A")), closed = true).toChatPoll()
         assertEquals(PollRestriction.Closed, poll.restriction)
         assertTrue(poll.isClosed)
+    }
+
+    // --- přílohy ---
+
+    @Test
+    fun odkazMistoAPolohaMajiVlastniTvar() {
+        val link = PollMediaLink(url = "https://example.com", linkPreview = null).toAttachment()
+        assertEquals(PollAttachment.Link(url = "https://example.com", title = null, photo = null), link)
+
+        val venue = PollMediaVenue(
+            Venue(Location(50.0, 14.0, 0.0), title = "Náměstí", address = "Praha", provider = "", id = "", type = ""),
+        ).toAttachment() as PollAttachment.Place
+        assertEquals("Náměstí", venue.title)
+        assertEquals("Praha", venue.address)
+
+        // Holá poloha název nemá — nakreslí se jako „Poloha".
+        val place = PollMediaLocation(Location(50.7, 15.7, 0.0)).toAttachment() as PollAttachment.Place
+        assertNull(place.title)
+        assertEquals("https://maps.google.com/?q=50.7,15.7", place.mapUrl)
+    }
+
+    @Test
+    fun prilohaOdpovediZustavaUSveOdpovediIPoPrehazeni() {
+        val withLink = option("B").let {
+            PollOption(
+                id = it.id, text = it.text, media = PollMediaLink(url = "https://b.example", linkPreview = null),
+                voterCount = 0, votePercentage = 0, recentVoterIds = emptyArray(), isChosen = false,
+                isBeingChosen = false, author = null, additionDate = 0,
+            )
+        }
+        val poll = message(listOf(option("A"), withLink), order = intArrayOf(1, 0)).toChatPoll()
+        assertEquals("B", poll.options.first().text)
+        assertTrue(poll.options.first().media is PollAttachment.Link)
+        // Prohlížeč hledá přílohu podle PŮVODNÍHO indexu, ne podle pozice na obrazovce.
+        assertTrue(poll.attachmentAt(1) is PollAttachment.Link)
+        assertNull(poll.attachmentAt(0))
+        assertNull(poll.attachmentAt(POLL_QUESTION_MEDIA))
+    }
+
+    @Test
+    fun doProhlizeceJenFotkaAVideo() {
+        val photo = PollAttachment.Media(MessageMedia.Photo(fileId = 1, thumbnailFileId = null, fullFileId = 1, width = 1, height = 1))
+        val gif = PollAttachment.Media(MessageMedia.Animation(fileId = 2, thumbnailFileId = null, width = 1, height = 1, sizeBytes = 1))
+        assertEquals(photo.media, photo.viewable)
+        assertNull(gif.viewable)
+        assertNull(PollAttachment.Link("https://x", null, null).viewable)
     }
 }

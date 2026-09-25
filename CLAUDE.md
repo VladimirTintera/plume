@@ -3592,6 +3592,39 @@ v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, 
 - **Sheet se na snímku ukáže až po chvíli.** `screencap` hned po ťuknutí zachytí obrazovku bez
   něj a vypadá to, že tlačítko nefunguje; `uiautomator dump` už ho vidí.
 
+#### Média v anketě a v odpovědích
+
+Otázka i každá odpověď mohou nést přílohu (TDLib 15 `PollMedia`, doména `PollAttachment`).
+
+- **Fotka, video, GIF, samolepka a soubor jsou `MessageMedia`**, stejně jako příloha zprávy
+  (`PollMedia.toAttachment`). U otázky je proto kreslí tentýž `MessageAttachment` (rámeček podle
+  poměru stran, GIF hraje sám, let do prohlížeče); odpověď má 44dp čtvereček (`AnswerMedia`).
+  Odkaz a místo obdobu u zprávy nemají: řádek s ikonou, ťuknutí otevře web, respektive mapy
+  (`maps.google.com/?q=` — `geo:` iOS nezná).
+- **Náhled u odpovědi je samostatný cíl ťuknutí.** Řádek ťuknutím hlasuje; bez toho by nešla
+  fotka odpovědi prohlédnout, aniž by se pro ni hlasovalo. Co otevřít nejde (soubor, zvuk),
+  ťuknutí propustí řádku.
+- **Pod jedním id zprávy je obrázků víc, takže klíč letu nese i přílohu**
+  (`LocalPollMediaFlight` v `photoKey`, `MediaRoute.pollMedia`). Samotné id zprávy by spárovalo
+  fotku odpovědi s fotkou otázky. Index odpovědi je PŮVODNÍ (`PollAnswer.index`), otázka
+  `POLL_QUESTION_MEDIA`.
+- **Prohlížeč ukazuje přílohu ankety samotnou a bez akcí** (`loadPollMedia`). Reakce, sdílení,
+  přeposlání i smazání by šly na CELOU anketu — přeposlat fotku odpovědi by odeslalo anketu.
+  Popiskem je otázka, nebo text odpovědi.
+- **Formulář nabízí fotku a video** (ikona v poli otázky a u vyplněné odpovědi, systémový výběr).
+  GIF, samolepku, odkaz ani místo ne — TDLib je bere, ale formulář by kvůli nim potřeboval další
+  výběry. **Příloha odpovědi jen s textem**: prázdné pole se neposílá a příloha by zmizela
+  potichu; po vymazání textu se proto zahodí i ona. Přílohy patří TEXTU, ne pozici
+  (`afterRemoval`, testy `PollComposerTest`).
+- **Bot API to umí od verze 10.0** (`sendPoll` s `media`, `options[].media`; odkaz u odpovědi od
+  10.1), a tudy se ověřují druhy, které formulář nenabízí: místo u otázky, odkaz, poloha a GIF
+  u odpovědí, GIF u otázky a samolepka u odpovědi.
+- **Ověřeno na emulátoru** v chatu s botem: anketa s fotkou u otázky i u odpovědi odešla, fotka
+  otázky i náhled odpovědi se otevřou v prohlížeči (s popiskem, bez akcí), ťuknutí na náhled
+  nehlasuje, náhled je i ve výsledcích; od bota místo, odkaz s náhledem webu, poloha, GIF
+  (s ikonou přehrání u odpovědi, hrající u otázky) a samolepka. **Ťuknutí na odkaz a místo
+  (otevření webu a map) ověřené není** — jde toutéž cestou jako odkaz v textu.
+
 ### Tlačítka botů pod zprávou
 
 Inline klávesnice bota (`ReplyMarkupInlineKeyboard`) se kreslí pod zprávou jako blok zaoblených

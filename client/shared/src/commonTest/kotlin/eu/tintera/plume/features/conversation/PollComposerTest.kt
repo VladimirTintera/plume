@@ -2,6 +2,7 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatPoll
+import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.PollChatKind
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.pollsAllowedIn
@@ -302,6 +303,38 @@ class PollComposerTest {
         assertTrue(closeDaySelectable(day(LocalDate(2026, 10, 2)), now, week, zone))
         assertFalse(closeDaySelectable(day(LocalDate(2026, 9, 24)), now, week, zone))
         assertFalse(closeDaySelectable(day(LocalDate(2026, 10, 3)), now, week, zone))
+    }
+
+    // --- přílohy ---
+
+    private val photoA = OutgoingAttachment.Photo(path = "/a.jpg", width = 10, height = 10)
+    private val photoB = OutgoingAttachment.Photo(path = "/b.jpg", width = 10, height = 10)
+
+    @Test
+    fun prilohyOdpovediJdouSOdpovedmiKtereOdejdou() {
+        // Pole 1 je prázdné a vynechá se — příloha pole 2 patří druhé ODESLANÉ odpovědi.
+        val draft = assertNotNull(
+            pollDraftOf(
+                question = "Která?", answers = listOf("A", "", "C", ""), anonymous = true, multipleAnswers = false,
+                shuffle = false, quiz = false, correct = emptySet(), explanation = "", maxAnswers = 10,
+                media = photoA, answerMedia = mapOf(2 to photoB),
+            ),
+        )
+        assertEquals(listOf("A", "C"), draft.answers)
+        assertEquals(listOf(null, photoB), draft.answerMedia)
+        assertEquals(photoA, draft.media)
+    }
+
+    @Test
+    fun bezPrilohOdpovediJeSeznamPrazdny() {
+        assertEquals(emptyList(), draft()?.answerMedia)
+    }
+
+    @Test
+    fun prilohaPatriTextuIPoOdebraniPole() {
+        val media = mapOf(0 to photoA, 2 to photoB)
+        assertEquals(mapOf(0 to photoA, 1 to photoB), media.afterRemoval(1))
+        assertEquals(mapOf(1 to photoB), media.afterRemoval(0))
     }
 }
 

@@ -53,6 +53,7 @@ import eu.tintera.plume.features.conversation.GifPickerViewModel
 import eu.tintera.plume.features.conversation.StickerSetViewModel
 import eu.tintera.plume.features.conversation.PollVotersViewModel
 import eu.tintera.plume.features.conversation.PollComposerViewModel
+import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.features.media.MediaViewerViewModel
@@ -325,11 +326,13 @@ fun appModule() = module {
         )
     }
 
-    // Dva parametry z routy. `get()` bez indexu je bere podle pořadí, ve kterém přišly.
+    // Parametry z routy. `get()` bez indexu je bere podle pořadí, ve kterém přišly; třetí
+    // (příloha ankety) se čte indexem, protože u starších volání chybí.
     viewModel { parameters ->
         MediaViewerViewModel(
             chatId = parameters.get(),
             messageId = parameters.get(),
+            pollMedia = parameters.values.getOrNull(2) as? Int ?: NO_POLL_MEDIA,
             repository = get(),
             files = get(),
             saver = get(),

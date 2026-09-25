@@ -1150,4 +1150,6 @@
         <item quantity="one">Pick up to %1$d country. With none picked, anyone can vote.</item>
         <item quantity="other">Pick up to %1$d countries. With none picked, anyone can vote.</item>
     </plurals>
+    <string name="poll_compose_add_media">Add photo or video</string>
+    <string name="poll_compose_remove_media">Remove attachment</string>
 </resources>

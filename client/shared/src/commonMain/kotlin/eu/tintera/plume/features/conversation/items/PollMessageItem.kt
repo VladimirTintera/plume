@@ -152,6 +152,7 @@ private fun MessageBodyScope.PollContent(poll: ChatPoll) {
         SenderName(background = bubbleColor)
         ForwardLabel()
 
+        poll.media?.let { PollQuestionMedia(it) }
         Text(
             text = poll.question,
             style = MaterialTheme.typography.titleMedium,
@@ -311,6 +312,7 @@ private fun MessageBodyScope.VoteRow(
                 )
             }
         }
+        answer.media?.let { AnswerMedia(it, answer.index, Modifier.padding(start = 12.dp)) }
         Text(
             text = answer.text,
             style = MaterialTheme.typography.bodyLarge,
@@ -365,6 +367,7 @@ private fun MessageBodyScope.ResultRow(poll: ChatPoll, answer: PollAnswer, anima
                 textAlign = TextAlign.End,
                 modifier = Modifier.width(PERCENT_WIDTH),
             )
+            answer.media?.let { AnswerMedia(it, answer.index, Modifier.padding(start = 10.dp)) }
             Text(
                 text = answer.text,
                 style = MaterialTheme.typography.bodyLarge,

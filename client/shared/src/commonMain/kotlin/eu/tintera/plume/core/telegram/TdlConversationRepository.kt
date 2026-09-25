@@ -17,6 +17,9 @@ import dev.g000sha256.tdl.dto.UserTypeBot
 import dev.g000sha256.tdl.dto.OptionValueInteger
 import dev.g000sha256.tdl.dto.InputPollTypeRegular
 import dev.g000sha256.tdl.dto.InputPollTypeQuiz
+import dev.g000sha256.tdl.dto.InputPollMedia
+import dev.g000sha256.tdl.dto.InputPollMediaPhoto
+import dev.g000sha256.tdl.dto.InputPollMediaVideo
 import dev.g000sha256.tdl.dto.InputPollOption
 import dev.g000sha256.tdl.dto.InputMessagePoll
 import dev.g000sha256.tdl.dto.MessagePhoto
@@ -742,6 +745,40 @@ class TdlConversationRepository(
             .map { sent -> sent.messages.filterNotNull().map { it.toChatMessage(isGroup) } }
     }
 
+    /**
+     * Fotka nebo video do ankety. Soubor se nahrává stejně jako u zprávy (podle cesty); popisek
+     * příloha ankety nemá — „without caption" v dokumentaci TDLib.
+     */
+    private fun OutgoingAttachment.toPollMedia(): InputPollMedia? = when (this) {
+        is OutgoingAttachment.Photo -> InputPollMediaPhoto(
+            photo = InputPhoto(
+                photo = InputFileLocal(path = path),
+                thumbnail = null,
+                video = null,
+                addedStickerFileIds = intArrayOf(),
+                width = width,
+                height = height,
+            ),
+        )
+        is OutgoingAttachment.Video -> InputPollMediaVideo(
+            video = InputVideo(
+                video = InputFileLocal(path = path),
+                thumbnail = thumbnail?.let {
+                    InputThumbnail(thumbnail = InputFileLocal(path = it.path), width = it.width, height = it.height)
+                },
+                cover = null,
+                startTimestamp = 0,
+                addedStickerFileIds = intArrayOf(),
+                duration = durationSeconds,
+                width = width,
+                height = height,
+                supportsStreaming = streamable,
+            ),
+        )
+        // Formulář soubor nenabízí; kdyby se sem dostal, anketa odejde bez něj.
+        is OutgoingAttachment.Document -> null
+    }
+
     private fun OutgoingAttachment.toInputContent(caption: FormattedText?): InputMessageContent {
         val file = InputFileLocal(path = path)
         if (mode == AttachmentMode.AsFile || this is OutgoingAttachment.Document) {
@@ -1318,13 +1355,18 @@ class TdlConversationRepository(
             inputMessageContent = InputMessagePoll(
                 question = FormattedText(text = poll.question, entities = emptyArray()),
                 options = poll.answers
-                    .map { InputPollOption(text = FormattedText(text = it, entities = emptyArray()), media = null) }
+                    .mapIndexed { index, answer ->
+                        InputPollOption(
+                            text = FormattedText(text = answer, entities = emptyArray()),
+                            media = poll.answerMedia.getOrNull(index)?.toPollMedia(),
+                        )
+                    }
                     .toTypedArray(),
                 // Popis je jako popisek přílohy: odkazy a zmínky se dohledají, jinak by odešly
                 // jako mrtvý text.
                 description = poll.description.takeIf { it.isNotBlank() }
                     ?.let { FormattedText(text = it, entities = detectEntities(it)) },
-                media = null,
+                media = poll.media?.toPollMedia(),
                 // Neanonymní anketu server do kanálu nepustí.
                 isAnonymous = poll.anonymous || isChannel,
                 allowsMultipleAnswers = poll.multipleAnswers,

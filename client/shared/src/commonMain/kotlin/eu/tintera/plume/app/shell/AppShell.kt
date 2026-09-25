@@ -14,6 +14,7 @@ import eu.tintera.plume.features.profile.EditChatScreen
 import eu.tintera.plume.features.profile.MemberRightsScreen
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.ui.LocalSavedMessagesChatId
+import eu.tintera.plume.core.ui.LocalPollMediaFlight
 import eu.tintera.plume.core.ui.LocalSharedMediaFlight
 import eu.tintera.plume.core.telegram.ChatRepository
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -420,6 +421,9 @@ private fun shellEntryProvider(
             onOpenMedia = { messageId ->
                 chatsStack.add(MediaRoute(route.chatId, messageId))
             },
+            onOpenPollMedia = { messageId, index ->
+                chatsStack.add(MediaRoute(route.chatId, messageId, pollMedia = index))
+            },
             onForward = { messageIds ->
                 chatsStack.add(ForwardRoute(route.chatId, messageIds))
             },
@@ -514,6 +518,9 @@ private fun shellEntryProvider(
             onOpenMedia = { messageId ->
                 chatsStack.add(MediaRoute(route.chatId, messageId))
             },
+            onOpenPollMedia = { messageId, index ->
+                chatsStack.add(MediaRoute(route.chatId, messageId, pollMedia = index))
+            },
             onForward = { messageIds ->
                 chatsStack.add(ForwardRoute(route.chatId, messageIds))
             },
@@ -574,14 +581,17 @@ private fun shellEntryProvider(
          * sdílených médií v profilu a se společným klíčem se ty dvě spárovaly mezi sebou —
          * při otevření profilu fotka letěla přes celou obrazovku (viz `photoKey`).
          */
-        CompositionLocalProvider(LocalSharedMediaFlight provides route.fromSharedMedia) {
+        CompositionLocalProvider(
+            LocalSharedMediaFlight provides route.fromSharedMedia,
+            LocalPollMediaFlight provides route.pollMedia,
+        ) {
             MediaViewerScreen(
                 // Klíč musí rozlišovat zprávu ze stejného důvodu jako u konverzace:
                 // ViewModel se cachuje podle klíče a Koin u cachované instance
-                // ignoruje nové parametry.
+                // ignoruje nové parametry. U ankety i přílohu — obrázků je pod jedním id víc.
                 viewModel = koinViewModel(
-                    key = "media-${route.chatId}-${route.messageId}",
-                    parameters = { parametersOf(route.chatId, route.messageId) },
+                    key = "media-${route.chatId}-${route.messageId}-${route.pollMedia}",
+                    parameters = { parametersOf(route.chatId, route.messageId, route.pollMedia) },
                 ),
                 onBack = { chatsStack.pop(route) },
                 onForward = { messageId ->

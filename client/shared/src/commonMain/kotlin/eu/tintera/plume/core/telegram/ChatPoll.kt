@@ -13,6 +13,8 @@ package eu.tintera.plume.core.telegram
  */
 data class ChatPoll(
     val question: String,
+    /** Příloha u otázky (TDLib 15); kreslí se nad ní. */
+    val media: PollAttachment? = null,
     /** Popis pod otázkou (TDLib 15); prázdný je běžný stav. */
     val description: String = "",
     val descriptionEntities: List<MessageEntity> = emptyList(),
@@ -75,7 +77,46 @@ data class PollAnswer(
     val percentage: Int,
     val isChosen: Boolean,
     val isBeingChosen: Boolean = false,
+    /** Příloha odpovědi — v řádku malý náhled. */
+    val media: PollAttachment? = null,
 )
+
+/**
+ * Příloha ankety nebo odpovědi (`PollMedia`).
+ *
+ * Fotka, video, GIF, samolepka a soubor jsou [MessageMedia] jako u zprávy — nakreslí je tentýž
+ * kód a otevře tentýž prohlížeč. Odkaz a místo u zprávy obdobu nemají; kreslí se jako řádek
+ * a ťuknutí je otevře v prohlížeči, respektive v mapách.
+ */
+sealed interface PollAttachment {
+    data class Media(val media: MessageMedia) : PollAttachment
+
+    data class Link(val url: String, val title: String?, val photo: MessageMedia.Photo?) : PollAttachment
+
+    data class Place(
+        val title: String?,
+        val address: String?,
+        val latitude: Double,
+        val longitude: Double,
+    ) : PollAttachment {
+        /** Adresa, kterou otevřou mapy na Androidu i iOS — `geo:` iOS nezná. */
+        val mapUrl: String get() = "https://maps.google.com/?q=$latitude,$longitude"
+    }
+}
+
+/** Fotka nebo video, které jde otevřít v prohlížeči médií. */
+val PollAttachment.viewable: MessageMedia?
+    get() = ((this as? PollAttachment.Media)?.media)?.takeIf { it is MessageMedia.Photo || it is MessageMedia.Video }
+
+/** Příloha podle místa v anketě: [POLL_QUESTION_MEDIA] je otázka, jinak PŮVODNÍ index odpovědi. */
+fun ChatPoll.attachmentAt(index: Int): PollAttachment? =
+    if (index == POLL_QUESTION_MEDIA) media else options.firstOrNull { it.index == index }?.media
+
+/** Příloha otázky v adrese prohlížeče médií; odpovědi mají svůj PŮVODNÍ index (0…). */
+const val POLL_QUESTION_MEDIA = -1
+
+/** Prohlížeč médií neotevírá přílohu ankety, ale přílohu zprávy. */
+const val NO_POLL_MEDIA = -2
 
 /** Kvíz: správné odpovědi a vysvětlení. Obojí server vydá až po odpovědi. */
 data class PollQuiz(
@@ -153,6 +194,10 @@ data class PollDraft(
     val membersOnly: Boolean = false,
     /** Hlasovat smí jen lidé z těchto zemí (ISO 3166-1 alpha-2, jen kanál); prázdné = všichni. */
     val countryCodes: List<String> = emptyList(),
+    /** Fotka nebo video u otázky. */
+    val media: OutgoingAttachment? = null,
+    /** Fotka nebo video u odpovědí, ve stejném pořadí jako [answers]; `null` = bez přílohy. */
+    val answerMedia: List<OutgoingAttachment?> = emptyList(),
 )
 
 /**

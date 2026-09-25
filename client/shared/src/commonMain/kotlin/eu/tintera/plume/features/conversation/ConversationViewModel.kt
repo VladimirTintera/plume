@@ -2141,7 +2141,8 @@ class ConversationViewModel(
             MessageMenuAction.Report -> reportMessage(messageId)
             MessageAction.ToggleSelection -> toggleSelection(messageId)
             MessageMenuAction.ShareFile -> shareDocument(messageId)
-            MessageAction.OpenMedia, is MessageAction.OpenStickerSet, is MessageAction.SearchHashtag,
+            MessageAction.OpenMedia, is MessageAction.OpenPollMedia, is MessageAction.OpenStickerSet,
+            is MessageAction.SearchHashtag,
             MessageMenuAction.SaveFileAs ->
                 logger.w { "Akce $action patří obrazovce, do ViewModelu nemá chodit." }
         }

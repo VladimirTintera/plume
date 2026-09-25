@@ -438,8 +438,10 @@ snadno na to uživatel narazí.
   - ~~**Zakládání anket**~~ — hotovo (sponka → Anketa, i tlačítko bota, jako odpověď, s dobou
     trvání nebo přesným časem konce, popisem, „výsledky až po skončení" a v kanálu omezením na
     členy a země). Zbývá ověřit v kanálu (omezení hlasujících) a ve skupině.
-  - **Média v anketě a v odpovědích** (`MessagePoll.media`, `PollOption.media`, TDLib 15)
-    a **přidání odpovědi** (`canAddOption`, `addPollOption`) se zatím zahazují.
+  - ~~**Média v anketě a v odpovědích**~~ — hotovo (zobrazení všech druhů, otevření
+    v prohlížeči; formulář nabízí fotku a video). Zbývá GIF, samolepka, odkaz a místo ve
+    formuláři a média ve vysvětlení kvízu (`explanationMedia`).
+  - **Přidání odpovědi** (`canAddOption`, `addPollOption`) se zatím zahazuje.
   - **Tváře posledních hlasujících** (`recentVoterIds`) u zápatí.
 - **Video kolečka** (`MessageVideoNote`) — čtvercový náhled s popiskem, nehraje. Mají hrát
   v bublině kulatě, bez zvuku samy a se zvukem po ťuknutí (jako hlasovka: `isViewed`,

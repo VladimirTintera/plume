@@ -147,6 +147,20 @@ import eu.tintera.plume.resources.poll_compose_voters
 import eu.tintera.plume.resources.poll_duration_custom
 import eu.tintera.plume.resources.search_filter_apply
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import coil3.compose.AsyncImage
+import eu.tintera.plume.core.telegram.OutgoingAttachment
+import eu.tintera.plume.core.telegram.POLL_QUESTION_MEDIA
+import eu.tintera.plume.core.ui.rememberAttachmentPicker
+import eu.tintera.plume.resources.add_photo_alternate_24dp
+import eu.tintera.plume.resources.poll_compose_add_media
+import eu.tintera.plume.resources.poll_compose_remove_media
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -192,6 +206,16 @@ internal fun normalizedAnswers(answers: List<String>, max: Int): List<String> {
  * Správné odpovědi kvízu po odebrání pole [removed]: jeho index zmizí a vyšší se posunou —
  * správná odpověď musí zůstat u TÉHOŽ textu, ne na téže pozici.
  */
+internal fun <T> Map<Int, T>.afterRemoval(removed: Int): Map<Int, T> =
+    entries.mapNotNull { (index, value) ->
+        when {
+            index == removed -> null
+            index > removed -> (index - 1) to value
+            else -> index to value
+        }
+    }.toMap()
+
+/** Přílohy odpovědí po odebrání pole: jako u správných odpovědí patří TEXTU, ne pozici. */
 internal fun correctAfterRemoval(correct: Set<Int>, removed: Int): Set<Int> =
     correct.mapNotNull { index ->
         when {
@@ -230,6 +254,9 @@ internal fun pollDraftOf(
     membersOnly: Boolean = false,
     countryCodes: List<String> = emptyList(),
     maxCountries: Int = 0,
+    media: OutgoingAttachment? = null,
+    /** Přílohy odpovědí podle indexu POLE, jako [correct]. */
+    answerMedia: Map<Int, OutgoingAttachment> = emptyMap(),
 ): PollDraft? {
     val text = question.trim()
     if (text.isEmpty() || text.length > POLL_QUESTION_MAX) return null
@@ -276,6 +303,9 @@ internal fun pollDraftOf(
         description = about,
         membersOnly = membersOnly,
         countryCodes = countryCodes.distinct(),
+        media = media,
+        // Příloha prázdného pole neodejde: pole bez textu se vynechává, a s ním i ona.
+        answerMedia = filled.map { (field, _) -> answerMedia[field] }.takeIf { list -> list.any { it != null } }.orEmpty(),
     )
 }
 
@@ -403,6 +433,20 @@ class PollComposerViewModel(
     var countryCodes by mutableStateOf(emptyList<String>())
         private set
 
+    /** Fotka nebo video u otázky. */
+    var questionMedia by mutableStateOf<OutgoingAttachment?>(null)
+        private set
+
+    /** Přílohy odpovědí podle indexu POLE v [answers]. */
+    var answerMedia by mutableStateOf(emptyMap<Int, OutgoingAttachment>())
+        private set
+
+    /**
+     * Ke kterému poli se vybírá příloha: [POLL_QUESTION_MEDIA], nebo index odpovědi. Výběr je
+     * systémová obrazovka a výsledek přijde až po návratu, proto si pole pamatuje ViewModel.
+     */
+    private var mediaTarget = POLL_QUESTION_MEDIA
+
     private val _status = MutableStateFlow(PollComposerStatus())
     val status: StateFlow<PollComposerStatus> = _status.asStateFlow()
 
@@ -451,6 +495,8 @@ class PollComposerViewModel(
             maxOpenPeriodSeconds = _status.value.maxOpenPeriodSeconds,
             // Omezení hlasujících jsou jen pro kanál; jinde se neposílají, ani kdyby zůstala
             // nastavená.
+            media = questionMedia,
+            answerMedia = answerMedia,
             membersOnly = membersOnly && _status.value.isChannel,
             countryCodes = countryCodes.takeIf { _status.value.isChannel }.orEmpty(),
             maxCountries = _status.value.maxCountries,
@@ -473,6 +519,35 @@ class PollComposerViewModel(
     /** Vlastní čas uzavření, který formulář neodešle — prošel, nebo je za stropem serveru. */
     val closeDateInvalid: Boolean
         get() = closeDate > 0 && !closeDateValid(closeDate, now, _status.value.maxOpenPeriodSeconds)
+
+    /** Příští vybraná příloha patří poli [target] (otázka, nebo index odpovědi). */
+    fun pickMediaFor(target: Int) {
+        mediaTarget = target
+    }
+
+    /** Příloha z výběru; bere se první fotka nebo video, výběr jich vydá víc naráz. */
+    fun attachMedia(picked: List<OutgoingAttachment>) {
+        val media = picked.firstOrNull { it is OutgoingAttachment.Photo || it is OutgoingAttachment.Video } ?: return
+        val target = mediaTarget
+        when {
+            target == POLL_QUESTION_MEDIA -> questionMedia = media
+            // Pole mohlo mezitím zmizet nebo se vyprázdnit — příloha bez textu by neodešla.
+            answers.getOrNull(target)?.isNotBlank() == true -> answerMedia = answerMedia + (target to media)
+        }
+    }
+
+    fun removeQuestionMedia() {
+        questionMedia = null
+    }
+
+    fun removeAnswerMedia(index: Int) {
+        answerMedia = answerMedia - index
+    }
+
+    /** Soubor se nepodařilo připravit (výběr ho nezkopíroval, video nešlo přečíst). */
+    fun reportMediaError(message: UiText) {
+        _status.update { it.copy(error = message) }
+    }
 
     /** Přidá nebo odebere zemi; nad strop serveru nic nepřidá. */
     fun toggleCountry(code: String) {
@@ -497,7 +572,11 @@ class PollComposerViewModel(
         if (index !in answers.indices) return
         answers[index] = text.take(POLL_ANSWER_MAX + ANSWER_OVERFLOW_ALLOWANCE)
         // Vymazaná odpověď nemůže být správná — v kvízu by jinak zůstala označená prázdná.
-        if (text.isBlank()) correct = correct - index
+        // Ani nést přílohu: pole bez textu se neposílá a příloha by se ztratila potichu.
+        if (text.isBlank()) {
+            correct = correct - index
+            answerMedia = answerMedia - index
+        }
         normalize()
     }
 
@@ -505,6 +584,7 @@ class PollComposerViewModel(
         if (index !in answers.indices) return
         answers.removeAt(index)
         correct = correctAfterRemoval(correct, index)
+        answerMedia = answerMedia.afterRemoval(index)
         normalize()
     }
 
@@ -582,6 +662,11 @@ fun PollComposerScreen(
         LaunchedEffect(Unit) { onClose() }
     }
     val canSend = viewModel.draft != null && !status.sending
+    val mediaPicker = rememberAttachmentPicker(onPicked = viewModel::attachMedia, onError = viewModel::reportMediaError)
+    val pickMedia: (Int) -> Unit = { target ->
+        viewModel.pickMediaFor(target)
+        mediaPicker.pickMedia()
+    }
     var pickingCloseDay by remember { mutableStateOf(false) }
     var pickedCloseDay by remember { mutableStateOf<Long?>(null) }
     var pickingCountries by remember { mutableStateOf(false) }
@@ -668,6 +753,13 @@ fun PollComposerScreen(
                     max = POLL_QUESTION_MAX,
                     shape = groupItemShape(0, 2),
                     singleLine = false,
+                    trailing = {
+                        MediaSlot(
+                            media = viewModel.questionMedia,
+                            onAdd = { pickMedia(POLL_QUESTION_MEDIA) },
+                            onRemove = viewModel::removeQuestionMedia,
+                        )
+                    },
                 )
             }
             item(key = "description") {
@@ -694,6 +786,9 @@ fun PollComposerScreen(
                     multiple = viewModel.multipleAnswers,
                     correct = index in viewModel.correct,
                     removable = viewModel.answers.size > MIN_POLL_ANSWERS && answer.isNotBlank(),
+                    media = viewModel.answerMedia[index],
+                    onAddMedia = { pickMedia(index) },
+                    onRemoveMedia = { viewModel.removeAnswerMedia(index) },
                     onValueChange = { viewModel.setAnswer(index, it) },
                     onToggleCorrect = {
                         haptics.toggle(index !in viewModel.correct)
@@ -1031,6 +1126,9 @@ private fun AnswerField(
     multiple: Boolean,
     correct: Boolean,
     removable: Boolean,
+    media: OutgoingAttachment?,
+    onAddMedia: () -> Unit,
+    onRemoveMedia: () -> Unit,
     onValueChange: (String) -> Unit,
     onToggleCorrect: () -> Unit,
     onRemove: () -> Unit,
@@ -1063,19 +1161,73 @@ private fun AnswerField(
         } else {
             null
         },
-        trailing = if (removable) {
+        // Příloha jen u odpovědi s textem: prázdné pole se neposílá a příloha by se s ním ztratila.
+        trailing = if (removable || value.isNotBlank()) {
             {
-                IconButton(onClick = onRemove) {
-                    Icon(
-                        painterResource(Res.drawable.close_24dp),
-                        contentDescription = stringResource(Res.string.poll_compose_remove_answer),
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (value.isNotBlank()) MediaSlot(media = media, onAdd = onAddMedia, onRemove = onRemoveMedia)
+                    if (removable) {
+                        IconButton(onClick = onRemove) {
+                            Icon(
+                                painterResource(Res.drawable.close_24dp),
+                                contentDescription = stringResource(Res.string.poll_compose_remove_answer),
+                            )
+                        }
+                    }
                 }
             }
         } else {
             null
         },
     )
+}
+
+/**
+ * Příloha pole: bez ní ikona „přidat fotku", s ní náhled s křížkem v rohu. Ťuknutí na náhled
+ * přílohu odebere — jiná akce nad ním není a vybrat jinou jde po odebrání.
+ */
+@Composable
+private fun MediaSlot(media: OutgoingAttachment?, onAdd: () -> Unit, onRemove: () -> Unit) {
+    if (media == null) {
+        IconButton(onClick = onAdd) {
+            Icon(
+                painterResource(Res.drawable.add_photo_alternate_24dp),
+                contentDescription = stringResource(Res.string.poll_compose_add_media),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        return
+    }
+    val image = when (media) {
+        is OutgoingAttachment.Photo -> media.path
+        is OutgoingAttachment.Video -> media.thumbnail?.path
+        is OutgoingAttachment.Document -> null
+    }
+    val removeLabel = stringResource(Res.string.poll_compose_remove_media)
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 4.dp)
+            .size(MEDIA_SLOT)
+            .clip(RoundedCornerShape(MEDIA_SLOT_CORNER))
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .clickable(onClickLabel = removeLabel, onClick = onRemove)
+            .semantics { contentDescription = removeLabel },
+    ) {
+        image?.let {
+            AsyncImage(model = "file://$it", contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        }
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(2.dp)
+                .size(16.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = MEDIA_BADGE_SCRIM)),
+        ) {
+            Icon(painterResource(Res.drawable.close_24dp), contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+        }
+    }
 }
 
 /** Přepínač, který nese celý řádek (viz „Obrazovka nastavení"). */
@@ -1106,6 +1258,10 @@ private const val ANSWER_OVERFLOW_ALLOWANCE = 50
 
 /** Počítadlo se ukáže, až zbývá tolik znaků. */
 private const val COUNTER_FROM = 20
+
+private val MEDIA_SLOT = 40.dp
+private val MEDIA_SLOT_CORNER = 8.dp
+private const val MEDIA_BADGE_SCRIM = 0.55f
 
 /** Jak často se přepočítává, jestli vlastní čas uzavření ještě platí. */
 private const val CLOSE_DATE_TICK_MS = 15_000L

@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.navigation
 
+import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import androidx.navigation3.runtime.NavKey
 import androidx.savedstate.serialization.SavedStateConfiguration
 import kotlinx.serialization.Serializable
@@ -133,6 +134,11 @@ data class MediaRoute(
      * v profilu jsou dvě různá místa téže fotky a se společným klíčem se spárovaly mezi sebou.
      */
     val fromSharedMedia: Boolean = false,
+    /**
+     * Příloha ankety místo přílohy zprávy: `POLL_QUESTION_MEDIA` (otázka), nebo PŮVODNÍ index
+     * odpovědi; `NO_POLL_MEDIA` = běžná zpráva. Anketa nese víc obrázků pod jedním id zprávy.
+     */
+    val pollMedia: Int = NO_POLL_MEDIA,
 ) : Route
 
 /**

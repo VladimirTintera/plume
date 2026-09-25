@@ -1176,4 +1176,6 @@
         <item quantity="few">Vyber nejvýš %1$d země. Bez výběru smí hlasovat všichni.</item>
         <item quantity="other">Vyber nejvýš %1$d zemí. Bez výběru smí hlasovat všichni.</item>
     </plurals>
+    <string name="poll_compose_add_media">Přidat fotku nebo video</string>
+    <string name="poll_compose_remove_media">Odebrat přílohu</string>
 </resources>

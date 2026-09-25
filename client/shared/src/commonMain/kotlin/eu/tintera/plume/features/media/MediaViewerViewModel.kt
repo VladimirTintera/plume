@@ -15,6 +15,10 @@ import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
+import eu.tintera.plume.core.telegram.POLL_QUESTION_MEDIA
+import eu.tintera.plume.core.telegram.PollAttachment
+import eu.tintera.plume.core.telegram.attachmentAt
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.PhotoPosition
 import eu.tintera.plume.core.telegram.SelfDestructTimers
@@ -61,6 +65,11 @@ import org.jetbrains.compose.resources.StringResource
 class MediaViewerViewModel(
     private val chatId: Long,
     private val messageId: Long,
+    /**
+     * Příloha ankety (`POLL_QUESTION_MEDIA`, nebo PŮVODNÍ index odpovědi) místo přílohy zprávy;
+     * `NO_POLL_MEDIA` = běžná zpráva. Viz [loadPollMedia].
+     */
+    private val pollMedia: Int = NO_POLL_MEDIA,
     private val repository: ConversationRepository,
     private val files: FileRepository,
     private val saver: MediaSaver,
@@ -98,9 +107,11 @@ class MediaViewerViewModel(
     /** Zprávy, u kterých se podrobnosti (reakce, práva) už načítají nebo načetly. */
     private val detailsRequested = mutableSetOf<Long>()
 
+    private val isPollMedia: Boolean get() = pollMedia != NO_POLL_MEDIA
+
     init {
-        viewModelScope.launch { loadInitial() }
-        viewModelScope.launch {
+        viewModelScope.launch { if (isPollMedia) loadPollMedia() else loadInitial() }
+        if (!isPollMedia) viewModelScope.launch {
             repository.visualMediaPosition(chatId, messageId)
                 .onSuccess { position -> if (!single) _state.update { it.copy(initialPosition = position) } }
         }
@@ -119,7 +130,9 @@ class MediaViewerViewModel(
                 if (message.id == messageId && message.media == null && _state.value.isSelfDestruct) {
                     // Vypršela platnost v TDLib (MessageExpiredPhoto)
                     _state.update { it.copy(closed = true) }
-                } else {
+                } else if (!isPollMedia) {
+                    // U ankety je text zprávy „Anketa: otázka"; popiskem přílohy je otázka
+                    // nebo odpověď.
                     updateItem(message.id) { it.copy(caption = message.text) }
                 }
             }
@@ -220,6 +233,57 @@ class MediaViewerViewModel(
             .onFailure { loadSingle() }
     }
 
+    /**
+     * Příloha ankety: jediná stránka, bez listování a bez akcí. Fotky v anketě mezi fotkami chatu
+     * nejsou (`SearchMessagesFilterPhotoAndVideo` je nenajde), a pořadí „N z M" by se počítalo
+     * mezi fotkami, kam nepatří — stejně jako u souboru.
+     */
+    private suspend fun loadPollMedia() {
+        single = true
+        repository.message(chatId, messageId)
+            .onSuccess { message ->
+                val poll = message.poll
+                val media = poll?.attachmentAt(pollMedia)?.let { (it as? PollAttachment.Media)?.media }
+                val shown = when (media) {
+                    is MessageMedia.Photo, is MessageMedia.Video -> media
+                    is MessageMedia.Document -> media.asViewerMedia()
+                    else -> null
+                }
+                val caption = when {
+                    poll == null -> ""
+                    pollMedia == POLL_QUESTION_MEDIA -> poll.question
+                    else -> poll.options.firstOrNull { it.index == pollMedia }?.text.orEmpty()
+                }
+                val item = shown?.let {
+                    ViewerItem(
+                        messageId = message.id,
+                        media = it,
+                        caption = caption,
+                        isOutgoing = message.isOutgoing,
+                        senderName = message.senderName,
+                        timestamp = message.timestamp,
+                        fileName = (media as? MessageMedia.Document)?.fileName,
+                    )
+                }
+                _state.update {
+                    it.copy(
+                        items = listOfNotNull(item),
+                        initialPosition = null,
+                        reachedOldest = true,
+                        reachedNewest = true,
+                        loading = false,
+                        error = if (item == null) UiText(Res.string.media_unsupported) else null,
+                    )
+                }
+            }
+            .onFailure { failure ->
+                logger.w(failure) { "Příloha ankety $messageId/$pollMedia se nepodařila načíst." }
+                _state.update {
+                    it.copy(loading = false, error = failure.userMessage(Res.string.media_photo_load_failed))
+                }
+            }
+    }
+
     /** Záloha bez listování: jen otevřená zpráva, stejně jako před zavedením listování. */
     private suspend fun loadSingle() {
         repository.message(chatId, messageId)
@@ -263,6 +327,9 @@ class MediaViewerViewModel(
      * jednou za zprávu; selhání jednoho druhé nezahodí — bez reakcí jde pořád smazat a naopak.
      */
     private fun loadDetails(messageId: Long) {
+        // Reakce, sdílení, přeposlání i smazání by šly na CELOU anketu, ne na obrázek v ní —
+        // přeposlat fotku z odpovědi by odeslalo anketu a smazat by smazalo anketu.
+        if (isPollMedia) return
         if (!detailsRequested.add(messageId)) return
         viewModelScope.launch {
             val reactions = async { repository.availableReactions(chatId, messageId) }

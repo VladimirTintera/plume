@@ -284,6 +284,8 @@ fun ConversationScreen(
     onBack: () -> Unit,
     onOpenMedia: (messageId: Long) -> Unit,
     onForward: (messageIds: List<Long>) -> Unit,
+    /** Příloha ankety v prohlížeči; `index` viz [MessageAction.OpenPollMedia]. */
+    onOpenPollMedia: (messageId: Long, index: Int) -> Unit = { _, _ -> },
     /** Zmínka v textu: otevřít chat nad touhle konverzací. */
     /** Otevřít chat nad konverzací (zmínka, odkaz); s [messageId] se skočí na zprávu. */
     onOpenChat: (chatId: Long, messageId: Long?) -> Unit,
@@ -559,6 +561,7 @@ fun ConversationScreen(
     val contentTop = remember { mutableStateOf<Float?>(null) }
 
     val currentOnOpenMedia by rememberUpdatedState(onOpenMedia)
+    val currentOnOpenPollMedia by rememberUpdatedState(onOpenPollMedia)
     val currentOnSearch by rememberUpdatedState(onSearch)
     val currentOnOpenChat by rememberUpdatedState(onOpenChat)
 
@@ -594,6 +597,7 @@ fun ConversationScreen(
             menuKey = menuKey,
             timeReveal = { timeReveal.value },
             onOpenMedia = { currentOnOpenMedia(it) },
+            onOpenPollMedia = { messageId, index -> currentOnOpenPollMedia(messageId, index) },
             onOpenStickerSet = { openStickerSetId = it },
             onSearch = { currentOnSearch(it) },
             // Výběr umístění je aktivita systému, takže ho má obrazovka; ViewModel jen stáhne.
@@ -2646,6 +2650,7 @@ private class ScreenItemScope(
     private val menuKey: State<Long?>,
     override val timeReveal: () -> Float,
     private val onOpenMedia: (messageId: Long) -> Unit,
+    private val onOpenPollMedia: (messageId: Long, index: Int) -> Unit,
     private val onOpenStickerSet: (setId: Long) -> Unit,
     private val onSearch: (query: String) -> Unit,
     private val onSaveFileAs: (messageId: Long) -> Unit,
@@ -2690,6 +2695,7 @@ private class ScreenItemScope(
      */
     override fun onAction(messageId: Long, action: MessageAction) = when (action) {
         MessageAction.OpenMedia -> onOpenMedia(messageId)
+        is MessageAction.OpenPollMedia -> onOpenPollMedia(messageId, action.index)
         is MessageAction.OpenStickerSet -> onOpenStickerSet(action.setId)
         is MessageAction.SearchHashtag -> onSearch(action.tag)
         MessageMenuAction.SaveFileAs -> onSaveFileAs(messageId)

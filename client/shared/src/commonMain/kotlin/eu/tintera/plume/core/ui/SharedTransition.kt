@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.ui
 
+import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
+import eu.tintera.plume.core.telegram.POLL_QUESTION_MEDIA
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Spring
@@ -243,8 +245,21 @@ val LocalSharedMediaFlight = compositionLocalOf { false }
  * se otevřel.
  */
 @Composable
-fun photoKey(messageId: Long): String =
-    if (LocalSharedMediaFlight.current) "shared-media-photo-$messageId" else "photo-$messageId"
+fun photoKey(messageId: Long): String {
+    val base = if (LocalSharedMediaFlight.current) "shared-media-photo-$messageId" else "photo-$messageId"
+    val poll = LocalPollMediaFlight.current
+    return if (poll == NO_POLL_MEDIA) base else "$base-poll-$poll"
+}
+
+/**
+ * Která příloha ankety letí do prohlížeče: [POLL_QUESTION_MEDIA] otázka, jinak PŮVODNÍ index
+ * odpovědi; [NO_POLL_MEDIA] příloha zprávy.
+ *
+ * **Anketa nese víc obrázků pod JEDNÍM id zprávy** (otázka a každá odpověď), takže samotné id,
+ * které u zprávy stačí, by spárovalo fotku odpovědi s fotkou otázky. Poskytuje ho blok ankety
+ * a prohlížeč otevřený z něj (podle `MediaRoute`).
+ */
+val LocalPollMediaFlight = compositionLocalOf { NO_POLL_MEDIA }
 
 /**
  * Klíč páru náhled přílohy nad vstupem ↔ celoobrazovkový náhled.
