@@ -1,6 +1,16 @@
 package eu.tintera.plume.features.share
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import eu.tintera.plume.core.telegram.FileState
+import eu.tintera.plume.features.media.SystemBarShades
+import eu.tintera.plume.features.media.VideoPage
+import eu.tintera.plume.features.media.ZoomableMediaPage
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.background
@@ -97,7 +107,6 @@ import eu.tintera.plume.core.ui.EmbeddedMediaPicker
 import eu.tintera.plume.core.ui.embeddedMediaPickerAvailable
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.rememberEmbeddedMediaSelection
-import eu.tintera.plume.core.ui.MEDIA_CARD_CORNER
 import eu.tintera.plume.core.ui.MEDIA_PAGE_VERTICAL_GAP
 import eu.tintera.plume.core.ui.MediaCarousel
 import eu.tintera.plume.core.ui.MediaPageLayout
@@ -243,10 +252,42 @@ private fun ShareToChatContent(
      * smrskly na proužek. Jakmile klávesnice zmizí, galerie je zpátky dole sama. Kde vestavěný
      * výběr není (starší Android), obrazovka zůstává bez galerie.
      */
+    /*
+     * Celá obrazovka, jako v prohlížeči médií: ťuknutí na snímek schová hlavičku, pole i galerii,
+     * pozadí zčerná a snímek jde od kraje ke kraji — fotku jde přiblížit, video přehrát. Zpátky
+     * vede ťuknutí, tah dolů nebo gesto zpět. Dřív šlo sdílený snímek vidět jen jako kartu mezi
+     * lištami a zkontrolovat, co vlastně odchází, nešlo.
+     */
+    var immersive by rememberSaveable { mutableStateOf(false) }
+    val immersionState = animateFloatAsState(
+        targetValue = if (immersive) 1f else 0f,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "share-immersion",
+    )
+    // Pružina přestřelí; záporné odsazení nebo zaoblení by layout odmítl.
+    val immersion = { immersionState.value.coerceIn(0f, 1f) }
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    val enterImmersive = {
+        // Klávesnice by na celé obrazovce zůstala viset přes snímek.
+        keyboard?.hide()
+        focusManager.clearFocus()
+        immersive = true
+    }
+    // Zavírací tah na celé obrazovce; po návratu do galerie se karta vrátí na místo.
+    val dismissDrag = remember { Animatable(0f) }
+    LaunchedEffect(immersive) { if (!immersive) dismissDrag.animateTo(0f) }
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = immersive,
+        onBackCompleted = { immersive = false },
+    )
+
     val galleryAvailable = embeddedMediaPickerAvailable()
     // `WindowInsets.isImeVisible` je jen na Androidu; výška klávesnice funguje i na iOS.
     val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-    val galleryShown = galleryAvailable && !imeVisible && attachments != null
+    // Na celé obrazovce galerie ustoupí: je to cizí okno nad vším a snímek by zakryla.
+    val galleryShown = galleryAvailable && !imeVisible && attachments != null && !immersive
     /*
      * Bez vestavěné galerie (Android pod 14, nebo 14 bez SDK Extensions 15) jde dávku doplnit
      * systémovým výběrem z ikony v poli — jinak by šlo poslat jen to, co přišlo sdílením.
@@ -291,6 +332,7 @@ private fun ShareToChatContent(
         MediaCarousel(
             pagerState = pagerState,
             pageKey = { latestAttachments.getOrNull(it)?.path ?: it },
+            immersion = immersion,
             modifier = Modifier.fillMaxSize(),
             backdrop = { index ->
                 latestAttachments.getOrNull(index)?.let { attachment ->
@@ -315,6 +357,13 @@ private fun ShareToChatContent(
                     onLeft = { onLeft(attachment.path) },
                     onRemove = { index().takeIf { it >= 0 }?.let(viewModel::removeAttachment) },
                     onSetMode = { mode -> index().takeIf { it >= 0 }?.let { viewModel.setMode(it, mode) } },
+                    isCurrent = page.isCurrent,
+                    immersive = immersive,
+                    immersion = immersion,
+                    dismissDrag = dismissDrag,
+                    onToggleImmersive = { if (immersive) immersive = false else enterImmersive() },
+                    onEngage = enterImmersive,
+                    onLeaveImmersive = { immersive = false },
                     reservedTop = headerHeight + MEDIA_PAGE_VERTICAL_GAP,
                     // Horní odsazení řádku s polem dělá mezeru samo.
                     reservedBottom = (maxHeight - captionTop).coerceAtLeast(0.dp),
@@ -327,6 +376,11 @@ private fun ShareToChatContent(
         // motivu dala tmavý text na tmavé ploše. Tatáž výjimka jako v prohlížeči médií.
         CompositionLocalProvider(LocalContentColor provides Color.White) {
             Column(Modifier.fillMaxSize()) {
+                AnimatedVisibility(
+                    visible = !immersive,
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                ) {
                 Recipient(
                     title = state.chatTitle,
                     avatarFileId = state.avatarFileId,
@@ -344,6 +398,7 @@ private fun ShareToChatContent(
                     },
                     modifier = Modifier.onSizeChanged { headerHeight = with(density) { it.height.toDp() } },
                 )
+                }
 
                 // Místo pro kartu; snímky samotné kreslí carousel pod touhle vrstvou.
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -360,6 +415,19 @@ private fun ShareToChatContent(
                     }
                 }
 
+                /*
+                 * Pole na celé obrazovce zmizí (jen průhledností, takže do posledního snímku drží
+                 * místo). Kde začínalo, si obrazovka pamatuje dál — karta se při návratu vepíše
+                 * tam, odkud odjela.
+                 */
+                AnimatedVisibility(
+                    visible = !immersive,
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    modifier = Modifier.onGloballyPositioned {
+                        if (!immersive) captionTop = with(density) { it.positionInParent().y.toDp() }
+                    },
+                ) {
                 CaptionBar(
                     caption = viewModel.caption,
                     onCaptionChange = viewModel::onCaptionChange,
@@ -370,9 +438,9 @@ private fun ShareToChatContent(
                     onSend = viewModel::send,
                     onAddMedia = if (!galleryAvailable && attachments != null) systemPicker::pickMedia else null,
                     // S galerií pod sebou spodní lišta pole nic neodsouvá — sahá k ní galerie.
-                    modifier = (if (galleryShown) Modifier else Modifier.navigationBarsPadding().imePadding())
-                        .onGloballyPositioned { captionTop = with(density) { it.positionInParent().y.toDp() } },
+                    modifier = if (galleryShown) Modifier else Modifier.navigationBarsPadding().imePadding(),
                 )
+                }
 
                 /*
                  * Sbalená galerie má v rozvržení vlastní místo — snímek nad ní i pole jsou vidět
@@ -381,6 +449,9 @@ private fun ShareToChatContent(
                  */
                 if (galleryShown) Spacer(Modifier.height(collapsedHeight))
             }
+
+            // Na celé obrazovce ztmavené systémové lišty, jako v prohlížeči.
+            SystemBarShades(immersion, Modifier)
 
             if (galleryShown) {
                 GalleryPanel(
@@ -480,11 +551,16 @@ private fun Recipient(
 }
 
 /**
- * Jeden sdílený snímek: karta v [MediaPageLayout] (tatáž jako v prohlížeči médií) a na ní ✕
- * a volba způsobu odeslání.
+ * Jeden sdílený snímek: karta v carouselu a na ní ✕ a volba způsobu odeslání.
  *
- * **Karta má rozměry SNÍMKU, ne stránky** — to zařídí `MediaPageLayout` z poměru stran. Dřív
- * tu byl vlastní rámeček přes `aspectRatio`; teď je vepsání jedno pro obě obrazovky.
+ * **Stránky jsou TYTÉŽ jako v prohlížeči médií** ([ZoomableMediaPage], [VideoPage]), jen nakrmené
+ * souborem na disku místo zprávy. Ťuknutí proto i tady přepne na celou obrazovku, kde jde fotku
+ * přiblížit a video přehrát — dřív byla karta jen obrázek a uživatel si nemohl prohlédnout, co
+ * posílá. **Karta má rozměry SNÍMKU, ne stránky** — to zařídí `MediaPageLayout` z poměru stran.
+ *
+ * Spoiler je ve sdílení volba odesílatele, ne zakrytý cizí obsah: v galerii je snímek zakrytý
+ * (tak ho uvidí příjemce), na celé obrazovce odkrytý — prohlížet si vlastní fotku přes rozmazání
+ * nemá smysl.
  */
 @Composable
 private fun SharedPhoto(
@@ -495,6 +571,13 @@ private fun SharedPhoto(
     onLeft: () -> Unit,
     onRemove: () -> Unit,
     onSetMode: (AttachmentMode) -> Unit,
+    isCurrent: Boolean,
+    immersive: Boolean,
+    immersion: () -> Float,
+    dismissDrag: Animatable<Float, *>,
+    onToggleImmersive: () -> Unit,
+    onEngage: () -> Unit,
+    onLeaveImmersive: () -> Unit,
     reservedTop: Dp,
     reservedBottom: Dp,
     cardBias: () -> Float,
@@ -502,6 +585,7 @@ private fun SharedPhoto(
     val spoilerStyle = rememberSpoilerBlurStyle()
     var modeSheet by remember { mutableStateOf(false) }
     val isVideo = attachment is OutgoingAttachment.Video
+    val hidden = attachment.hasSpoiler && !immersive
 
     if (modeSheet) {
         AttachmentModeSheet(
@@ -524,70 +608,129 @@ private fun SharedPhoto(
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         finishedListener = { if (it == 0f) left() },
     )
+    val pageModifier = Modifier.fillMaxSize().graphicsLayer {
+        alpha = presence
+        val scale = LEAVING_SCALE + (1f - LEAVING_SCALE) * presence
+        scaleX = scale
+        scaleY = scale
+    }
+    // Na celé obrazovce vede svislý tah zpátky do galerie; v galerii nemá kam.
+    val onDismiss = onLeaveImmersive.takeIf { immersive }
 
-    MediaPageLayout(
-        aspectRatio = attachment.previewRatio ?: 1f,
-        // Popisek se tu teprve píše, a to do pole pod kartou.
-        caption = "",
-        reservedTop = reservedTop,
-        reservedBottom = reservedBottom,
-        cardBias = cardBias,
-        modifier = Modifier.fillMaxSize().graphicsLayer {
-            alpha = presence
-            val scale = LEAVING_SCALE + (1f - LEAVING_SCALE) * presence
-            scaleX = scale
-            scaleY = scale
-        },
-    ) {
-        Box(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxSize().clip(RoundedCornerShape(MEDIA_CARD_CORNER))) {
+    // ✕ a volba režimu patří galerii; na celé obrazovce by překážely snímku.
+    val badges: @Composable BoxScope.() -> Unit = {
+        AnimatedVisibility(
+            visible = !immersive,
+            enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+            exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            Box(Modifier.fillMaxSize()) {
+                FilledTonalIconButton(
+                    onClick = onRemove,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(BADGE_INSET).size(BADGE_BUTTON),
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.close_24dp),
+                        contentDescription = stringResource(Res.string.attachment_remove_photo),
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+
+                // Spoiler, mizení i „jako soubor" nabízí tentýž sheet jako nad vstupním polem —
+                // jedno místo, kde se o způsobu odeslání rozhoduje.
+                val custom = attachment.mode !is AttachmentMode.Standard
+                FilledTonalIconButton(
+                    onClick = { modeSheet = true },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(BADGE_INSET).size(BADGE_BUTTON),
+                    colors = if (custom) {
+                        IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                        )
+                    } else {
+                        IconButtonDefaults.filledTonalIconButtonColors()
+                    },
+                ) {
+                    Icon(
+                        painterResource(getAttachmentModeIcon(attachment.mode, isVideo)),
+                        contentDescription = stringResource(Res.string.attachment_mode_title),
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+        }
+    }
+
+    when (attachment) {
+        is OutgoingAttachment.Video -> VideoPage(
+            aspectRatio = attachment.previewRatio ?: 1f,
+            durationSeconds = attachment.durationSeconds,
+            // Popisek se tu teprve píše, a to do pole pod kartou.
+            caption = "",
+            isCurrent = isCurrent,
+            immersive = immersive,
+            immersion = immersion,
+            reservedTop = reservedTop,
+            reservedBottom = reservedBottom,
+            dismissDrag = dismissDrag,
+            onDismiss = onDismiss,
+            onTap = onToggleImmersive,
+            onEngage = onEngage,
+            // Soubor je celý na disku, nic se nestahuje.
+            source = { FileState.Ready(attachment.path) },
+            streamable = false,
+            requestFrom = {},
+            hasSpoiler = attachment.hasSpoiler,
+            // Zakrytý spoiler odkryje (a na celou obrazovku přepne) první ťuknutí.
+            revealed = immersive,
+            onReveal = onEngage,
+            modifier = pageModifier,
+            cardBias = cardBias,
+            overlay = badges,
+            thumbnail = {
                 AsyncImage(
                     model = "file://${attachment.previewPath}",
                     contentDescription = null,
-                    // Karta už poměr stran drží, takže `Crop` jen dorovná zaokrouhlení a nic
-                    // neukrojí — sdílený snímek má být vidět CELÝ, je to to jediné, co odejde.
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize().spoilerBlur(
                         hasSpoiler = attachment.hasSpoiler,
-                        revealed = false,
+                        revealed = !hidden,
                         style = spoilerStyle,
                     ),
                 )
-                if (attachment.hasSpoiler) SpoilerOverlay(visible = true)
-            }
+            },
+        )
 
-            FilledTonalIconButton(
-                onClick = onRemove,
-                modifier = Modifier.align(Alignment.TopEnd).padding(BADGE_INSET).size(BADGE_BUTTON),
-            ) {
-                Icon(
-                    painterResource(Res.drawable.close_24dp),
-                    contentDescription = stringResource(Res.string.attachment_remove_photo),
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-
-            // Spoiler, mizení i „jako soubor" nabízí tentýž sheet jako nad vstupním polem — jedno
-            // místo, kde se o způsobu odeslání rozhoduje.
-            val custom = attachment.mode !is AttachmentMode.Standard
-            FilledTonalIconButton(
-                onClick = { modeSheet = true },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(BADGE_INSET).size(BADGE_BUTTON),
-                colors = if (custom) {
-                    IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                    )
-                } else {
-                    IconButtonDefaults.filledTonalIconButtonColors()
-                },
-            ) {
-                Icon(
-                    painterResource(getAttachmentModeIcon(attachment.mode, isVideo)),
-                    contentDescription = stringResource(Res.string.attachment_mode_title),
-                    modifier = Modifier.size(20.dp),
-                )
-            }
+        else -> ZoomableMediaPage(
+            aspectRatio = attachment.previewRatio ?: 1f,
+            caption = "",
+            isCurrent = isCurrent,
+            immersive = immersive,
+            immersion = immersion,
+            reservedTop = reservedTop,
+            reservedBottom = reservedBottom,
+            dismissDrag = dismissDrag,
+            onDismiss = onDismiss,
+            onTap = onToggleImmersive,
+            onEngage = onEngage,
+            modifier = pageModifier,
+            cardBias = cardBias,
+            overlay = badges,
+        ) {
+            AsyncImage(
+                model = "file://${attachment.previewPath}",
+                contentDescription = null,
+                // Karta už poměr stran drží, takže `Crop` jen dorovná zaokrouhlení a nic
+                // neukrojí — sdílený snímek má být vidět CELÝ, je to to jediné, co odejde.
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().spoilerBlur(
+                    hasSpoiler = attachment.hasSpoiler,
+                    revealed = !hidden,
+                    style = spoilerStyle,
+                ),
+            )
+            if (attachment.hasSpoiler) SpoilerOverlay(visible = hidden)
         }
     }
 }
