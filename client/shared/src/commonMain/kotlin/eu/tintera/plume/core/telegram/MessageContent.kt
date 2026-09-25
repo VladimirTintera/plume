@@ -25,6 +25,13 @@ import dev.g000sha256.tdl.dto.MessageAnimatedEmoji
 import dev.g000sha256.tdl.dto.MessageAnimation
 import dev.g000sha256.tdl.dto.MessageAudio
 import dev.g000sha256.tdl.dto.MessageCall
+import dev.g000sha256.tdl.dto.CallDiscardReason
+import dev.g000sha256.tdl.dto.CallDiscardReasonDeclined
+import dev.g000sha256.tdl.dto.CallDiscardReasonDisconnected
+import dev.g000sha256.tdl.dto.CallDiscardReasonEmpty
+import dev.g000sha256.tdl.dto.CallDiscardReasonHungUp
+import dev.g000sha256.tdl.dto.CallDiscardReasonMissed
+import dev.g000sha256.tdl.dto.CallDiscardReasonUpgradeToGroupCall
 import dev.g000sha256.tdl.dto.MessageChecklist
 import dev.g000sha256.tdl.dto.MessageContact
 import dev.g000sha256.tdl.dto.MessageContent
@@ -166,7 +173,6 @@ import eu.tintera.plume.resources.content_stake_dice
 import eu.tintera.plume.resources.content_shared_users
 import eu.tintera.plume.resources.content_suggested_birthdate
 import eu.tintera.plume.resources.content_suggested_photo
-import eu.tintera.plume.resources.content_call
 import eu.tintera.plume.resources.content_checklist
 import eu.tintera.plume.resources.content_contact
 import eu.tintera.plume.resources.content_expired_photo
@@ -184,7 +190,6 @@ import eu.tintera.plume.resources.content_poll
 import eu.tintera.plume.resources.content_story
 import eu.tintera.plume.resources.content_unsupported
 import eu.tintera.plume.resources.content_venue
-import eu.tintera.plume.resources.content_video_call
 import eu.tintera.plume.resources.content_video_note
 import eu.tintera.plume.resources.conversation_voice_message
 import eu.tintera.plume.resources.media_photo
@@ -224,6 +229,8 @@ private suspend fun Message.previewTextOrNull(): String? = when (val content = t
     is MessageSticker -> content.sticker.emoji.ifBlankGet { getString(Res.string.media_sticker) }
     is MessageAnimatedEmoji -> content.emoji
     is MessageDice -> content.diceText()
+    // Směr a zmeškání zná jen zpráva (`isOutgoing`), obsah sám ne — proto tady, ne v `describe`.
+    is MessageCall -> getString(content.outcome(isOutgoing).title(content.isVideo))
     else -> content.describe()
 }
 
@@ -282,7 +289,6 @@ private suspend fun MessageContent.describe(): String? = when (this) {
     is MessageInvoice -> getString(Res.string.content_invoice, productInfo.title)
     is MessageStory -> getString(Res.string.content_story)
     is MessagePaidMedia -> caption.text.ifBlankGet { getString(Res.string.content_paid) }
-    is MessageCall -> getString(if (isVideo) Res.string.content_video_call else Res.string.content_call)
     is MessageGroupCall -> getString(Res.string.content_group_call)
     is MessageGiveaway -> getString(Res.string.content_giveaway)
     is MessageGiveawayWinners -> getString(Res.string.content_giveaway_winners)
@@ -434,6 +440,8 @@ internal suspend fun Message.captionBody(): MessageBody = when (val content = th
 
     // Typy, které mají v bublině vlastní přílohu s popiskem — text by ho zdvojil.
     is MessageVideoNote, is MessageGame, is MessageInvoice -> MessageBody.Empty
+    // Hovor je řádek s ikonou a názvem; text by ho zdvojil.
+    is MessageCall -> MessageBody.Empty
     // Mapa s názvem místa pod sebou; „Poloha" jako text by ji jen popisovala podruhé.
     is MessageLocation, is MessageLiveLocation, is MessageVenue -> MessageBody.Empty
     is MessagePaidMedia -> content.caption.toBody()
@@ -607,6 +615,12 @@ internal suspend fun Message.messageMedia(): MessageMedia? = when (val content =
         liveUntil = liveLocationUntil(sentAt = date, livePeriod = content.location.livePeriod),
     )
 
+    is MessageCall -> MessageMedia.Call(
+        outcome = content.outcome(isOutgoing),
+        isVideo = content.isVideo,
+        durationSeconds = content.duration,
+    )
+
     is MessageInvoice -> MessageMedia.Attachment(
         label = getString(Res.string.content_invoice, content.productInfo.title),
         thumbnailFileId = content.productInfo.photo?.sizes?.filterNotNull()
@@ -614,6 +628,23 @@ internal suspend fun Message.messageMedia(): MessageMedia? = when (val content =
     )
 
     else -> null
+}
+
+/**
+ * Jak hovor dopadl z pohledu uživatele. [isOutgoing] je z TDLib, ne přepsaný jako u Uložených
+ * zpráv — hovor sám se sebou neexistuje, takže tam nic nepřepisujeme.
+ */
+private fun MessageCall.outcome(isOutgoing: Boolean): CallOutcome =
+    callOutcome(isOutgoing = isOutgoing, end = discardReason.toCallEnd())
+
+private fun CallDiscardReason.toCallEnd(): CallEnd = when (this) {
+    is CallDiscardReasonMissed -> CallEnd.Missed
+    is CallDiscardReasonDeclined -> CallEnd.Declined
+    is CallDiscardReasonDisconnected -> CallEnd.Disconnected
+    is CallDiscardReasonHungUp -> CallEnd.HungUp
+    // Hovor přešel do skupinového — mluvilo se, jen jinde.
+    is CallDiscardReasonUpgradeToGroupCall -> CallEnd.HungUp
+    is CallDiscardReasonEmpty -> CallEnd.Unknown
 }
 
 /** Video, jak ho kreslí bublina — sdílí to zpráva s videem i video v anketě. */

@@ -313,6 +313,8 @@ internal fun MessageAttachment(
             accent = accent,
         )
 
+        is MessageMedia.Call -> CallRow(call = media, accent = accent)
+
         is MessageMedia.VoiceNote -> VoiceNoteContent(
             voice = media,
             playback = voice.playback,
