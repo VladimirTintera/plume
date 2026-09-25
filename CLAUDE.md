@@ -1092,8 +1092,9 @@ chodit. Dokud se nesledovalo, vypadala nepřipojená aplikace úplně normálně
   tečka pro ostatní — dokud je aplikace na obrazovce, chodí s ní updaty rychleji.
 - **`ConnectionState` se smí použít jen jako popisek pro člověka**, říká to dokumentace u něj.
   Nic se z něj proto neodvozuje, jen se vypisuje.
-- **Stav je v hlavičce, ne ve vlastním pruhu**: v seznamu chatů pilulka uvnitř vyhledávací
-  pilulky (viz „Hlavička: vyhledávací pilulka"), v konverzaci nahrazuje podtitul. Kdo se dívá
+- **Stav je v hlavičce, ne ve vlastním pruhu**: v seznamu chatů prstenec kolem fotky účtu
+  a text v nápovědě vyhledávací pilulky (viz „Hlavička: vyhledávací pilulka"), v konverzaci
+  nahrazuje podtitul. Kdo se dívá
   na prázdný seznam, hledá vysvětlení nahoře. Stejně to řeší oficiální klient.
 - **`Ready` se nehlásí.** V tom stavu aplikace stráví skoro celou dobu; „připojeno" je šum, zatímco
   „nepřipojeno" je jediná informace, která uživateli vysvětlí, proč mu nic nechodí. Proto
@@ -1597,9 +1598,27 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
   celou šířku byl přesně to, co vadilo na velkém baru.
 - **Plochu baru dává i `Modifier.background(surface)`.** `appBarContainerColor` bez scroll
   behavior v material3 1.5.0-alpha22 nenakreslil nic a chaty pod barem prosvítaly.
-- **Stav spojení je tonální pilulka na konci hledání** (`ConnectionPill`), ne nadpis. Skoro
-  celou dobu není vidět nic; „Chaty" v nadpisu jen opakovalo navigaci. V rozbaleném hledání se
-  neukazuje.
+- **Stav spojení je prstenec kolem fotky účtu a text v nápovědě pilulky** (`ConnectionRing`),
+  ne nadpis ani vlastní prvek. Skoro celou dobu není vidět nic; „Chaty" v nadpisu jen opakovalo
+  navigaci. Dřív to byla tonální pilulka s kolečkem na konci hledání — ukusovala místo nápovědě
+  a vedle fotky působila jako cizí prvek. V rozbaleném hledání se stav neukazuje.
+  - **Prstenec říká, ŽE je problém, nápověda CO.** Samotný prstenec by nerozlišil „Čekání na síť"
+    (uživatel může něco udělat) od „Připojování" (stačí počkat) a točící se kolečko kolem fotky
+    se čte jako „načítá se profil".
+  - **Čekání na síť je STOJÍCÍ vlnka v `outline`**, připojování a aktualizace obíhající vlnka
+    v `primary`. Bez sítě se na nic nečeká, rotace by lhala. Stojící vlnka potřebuje
+    `amplitude = { 1f }` a `waveSpeed = 0.dp` — výchozí amplituda je u plného průběhu nulová
+    a z vlnky by byl kruh.
+  - **Prstenec je mimo `IconButton`**, v boxu vedle něj: tlačítko ořezává obsah na 40dp kruh.
+    42 dp se vejde do 48dp slotu i do 56dp pilulky. Fotka se v něm zmenší na 0,85
+    (`graphicsLayer`, ne velikostí — ta by skládala avatar v každém snímku), jinak se o ni
+    vnitřní vlnky otírají.
+  - **Výpadek se ukáže až po 600 ms, návrat hned** (`rememberShownConnection`). Po každém návratu
+    z pozadí TDLib na zlomek vteřiny hlásí `Updating` a prstenec by při každém otevření aplikace
+    problikl. Na emulátoru se tím připojování po vypnutí letového režimu neukáže vůbec — vzhled
+    připojování se ověřuje podstrčeným stavem (`shownConnection = ConnectionState.Connecting`).
+  - **Čtečce obrazovky stav říká popis tlačítka účtu** („Účet, Čekání na síť…"); indikátor
+    má semantiku smazanou, jinak by hlásil jen „průběh".
 - **Hledá se ve všech známých chatech**, ne v načteném seznamu — viz „Hledání chatů" níž.
 
 ### Hledání chatů

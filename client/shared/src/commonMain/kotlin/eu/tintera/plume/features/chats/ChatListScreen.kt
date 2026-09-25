@@ -51,6 +51,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.graphicsLayer
+import eu.tintera.plume.core.telegram.ConnectionState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SnackbarDuration
@@ -193,6 +196,7 @@ fun ChatListScreen(
 ) {
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
+    val shownConnection = rememberShownConnection(connection)
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
     val updateCard by viewModel.updateCard.collectAsStateWithLifecycle()
     val unconfirmedLogin by viewModel.unconfirmedLogin.collectAsStateWithLifecycle()
@@ -257,7 +261,7 @@ fun ChatListScreen(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             ChatSearchBar(
-                connection = connection.label(),
+                connection = shownConnection?.label(),
                 search = search,
                 savedMessagesChatId = savedMessagesChatId,
                 scrollBehavior = scrollBehavior,
@@ -281,6 +285,7 @@ fun ChatListScreen(
                     AccountMenu(
                         account = account,
                         archiveUnread = archiveUnread,
+                        connection = shownConnection,
                         onSavedMessages = { viewModel.openSavedMessages(onChatClick) },
                         onArchive = onOpenArchive,
                         onSettings = onOpenSettings,
@@ -515,17 +520,29 @@ private val ChatFilter.selectedIcon: DrawableResource
  * ale jen od NEZTLUMENÝCH chatů — do archivu se ztlumené chaty ukládají, takže tečka od nich
  * by byla signál, který nikdy nezhasne. Číslo u položky počítá všechny; kdo menu otevřel, chce
  * vědět, kolik toho v archivu čeká.
+ *
+ * Bez spojení ([connection]) má fotka kolem sebe prstenec ([ConnectionRing]) a o kus se
+ * zmenší, aby se prstenec vešel do pilulky. Text stavu je v nápovědě pilulky; čtečce obrazovky
+ * ho říká i popis tlačítka, protože nápovědu čte jen u pole.
  */
 @Composable
 private fun AccountMenu(
     account: AccountInfo?,
     archiveUnread: ArchiveUnread,
+    connection: ConnectionState?,
     onSavedMessages: () -> Unit,
     onArchive: () -> Unit,
     onSettings: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
-    val label = stringResource(Res.string.chats_account)
+    val accountLabel = stringResource(Res.string.chats_account)
+    val connectionLabel = connection?.label()?.let { stringResource(it) }
+    val label = if (connectionLabel == null) accountLabel else "$accountLabel, $connectionLabel"
+    // Zmenšení fotky jde přes `graphicsLayer`: velikostí by animace skládala avatar v každém snímku.
+    val avatarScale by animateFloatAsState(
+        targetValue = if (connection == null) 1f else RINGED_AVATAR_SCALE,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+    )
     // Odznak je jen číslo — čtečka obrazovky potřebuje větu, ne „3".
     val unreadLabel = pluralStringResource(Res.plurals.chats_archive_unread, archiveUnread.chats, archiveUnread.chats)
     /*
@@ -555,12 +572,13 @@ private fun AccountMenu(
             }
         }
     }
-    Box {
+    Box(contentAlignment = Alignment.Center) {
+        ConnectionRing(connection)
         IconButton(
             onClick = { open = true },
             modifier = Modifier.semantics { contentDescription = label },
         ) {
-            Box {
+            Box(Modifier.graphicsLayer { scaleX = avatarScale; scaleY = avatarScale }) {
                 if (account != null) {
                     Avatar(
                         chatId = account.id,
@@ -1285,6 +1303,12 @@ private val ONLINE_DOT = 14.dp
 
 /** Fotka účtu v pilulce — o kus menší než ikona, ať pilulku nevyboulí. */
 private val ACCOUNT_AVATAR_SIZE = 30.dp
+
+/**
+ * Fotka účtu uvnitř prstence stavu spojení (30 → 25,5 dp). Prstenec je vlnitý a jeho vnitřní
+ * vlnky sahají dovnitř; bez zmenšení by se o fotku otíraly.
+ */
+private const val RINGED_AVATAR_SCALE = 0.85f
 
 /** Tečka „v archivu něco je" na fotce účtu, i s obroučkou. Menší než tečka dostupnosti — je jen signál, ne stav. */
 private val ACCOUNT_DOT = 10.dp
