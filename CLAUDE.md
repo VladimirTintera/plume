@@ -5549,6 +5549,16 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   duplicit a pruh bere prvních šest (`MAX_QUICK_REACTIONS`). Přidání reakce posílá
   `updateRecentReactions = true`, takže se i reakce z Plume propíše do „nedávných" všude.
   Počítadlo v aplikaci by vidělo jen reakce z tohohle zařízení a s pořadím serveru by se přelo.
+- **Pruh reakcí bere jen ÚMYSLNÉ ťuknutí** (`strayTapGuard` v `core/ui`, testy
+  `StrayTapGuardTest`) — v prohlížeči médií i nad zprávou. Srdíčko se dvakrát samo přidalo
+  fotce, aniž by uživatel o nabídce věděl. **`clickable` tah nezruší, dokud prst neopustí
+  tlačítko** (`waitForUpOrCancellation` ruší jen spotřebovanou událost nebo pohyb MIMO hranice,
+  rozšířené na 48 dp); nad seznamem pohyb spotřebuje scroll, jenže pruh reakcí nad sebou nic
+  scrollovatelného nemá — nedbalý švih začínající na srdíčku byl ťuknutí. Pojistka v
+  `PointerEventPass.Initial` spotřebuje dotyk, který ujel přes touch slop, šel víc prsty, nebo
+  začal do 500 ms od objevení pruhu (pruh vyskočil pod prstem: druhé ťuknutí na fotku, scroll po
+  omylem otevřené nabídce). **Který z případů to u uživatele byl, ověřené není** — pojistka
+  kryje všechny tři; ověřuje se na telefonu švihem přes pruh v prohlížeči.
 - **`isBig = false`** — `true` je ta celoobrazovková animace; patří k vědomému gestu, ne ke
   každému ťuknutí na čip.
 - **Avatary v čipech NEJSOU.** Byly, a byla to slepá ulička: čip s profilovkami je široký, takže
