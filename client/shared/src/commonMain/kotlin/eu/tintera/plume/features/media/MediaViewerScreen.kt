@@ -849,7 +849,7 @@ internal val ON_SCRIM = Color.White
 internal const val DISMISS_THRESHOLD = 0.18f
 
 /** Jak rychle při zavíracím tahu prosvítá obsah pod prohlížečem. */
-private const val DISMISS_FADE = 2.5f
+internal const val DISMISS_FADE = 2.5f
 
 /** Ztmavení pod systémovými lištami na celé obrazovce; přechod sahá kus pod lištu. */
 private const val BAR_SHADE_ALPHA = 0.45f

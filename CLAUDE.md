@@ -2577,6 +2577,14 @@ album. Bublina ukazuje průběh nahrávání.
   TDLib tím zastaví i nahrávání a pošle `UpdateDeleteMessages`, takže zpráva zmizí jako každá
   smazaná. U alba se ruší jen ťuknutá položka, zbytek odejde.
 - **Citace se spotřebuje** jako u textové zprávy; let ze vstupního pole se nekoná.
+- **Ťuknutí na přílohu nad polem otevře náhled přes celou obrazovku** (`StagedAttachmentPreview`):
+  karta mezi lištami (zpět a smazat nahoře, režim odeslání a Hotovo dole), ťuknutí lišty schová,
+  štípnutí a dvojité ťuknutí přibližují, video se přehraje, tah dolů náhled zavře. **Stránky
+  jsou tytéž jako v prohlížeči médií a na obrazovce „Komu: …"** (`ZoomableMediaPage`,
+  `VideoPage`, krmené souborem na disku). Dřív tu byl třetí, vlastní zoom přes
+  `detectTransformGestures` (bez přiblížení kolem prstů, bez dvojitého ťuknutí, posun bez mezí)
+  a video se jen ukázalo náhledem; rozcházel se s prohlížečem při každém doladění. Spoiler je
+  zakrytý jen s lištami, na celé obrazovce se dá zkontrolovat, co pod ním je.
 - **Při úpravě zprávy sponka není.**
 - **Video se nepřekódovává.** Server video nerozebírá, takže rozměry, délku a náhled (první
   snímek, JPEG do 320 px — víc TDLib nepřijme) čte platforma: Android `MediaMetadataRetriever`,
@@ -6056,7 +6064,8 @@ sdílející z Fotek.
   `ZoomableMediaPage` a obecná `VideoPage` (zdroj souboru, náhled a ovládání navíc jsou
   parametry) — jen nakrmené souborem na disku místo zprávy. Dokud byla gesta i přehrávání
   napevno spojené se zprávou, karta ve sdílení byla jen obrázek a zkontrolovat, co odchází,
-  nešlo. Na celé obrazovce je spoiler odkrytý (je to volba odesílatele, ne cizí obsah).
+  nešlo. Na celé obrazovce je spoiler odkrytý (je to volba odesílatele, ne cizí obsah). Tytéž
+  stránky nese i náhled přílohy nad vstupním polem (`StagedAttachmentPreview`).
 - **Galerie na celé obrazovce není složená** — `SurfaceView` leží nad vším a snímek by zakryla.
   Po návratu se session pickeru otevře znovu a zaškrtnutí obnoví z příloh jako po každém zavření.
 - **Chrome mizí jen průhledností (`AnimatedVisibility` s `fadeOut`) a jeho rozměry se po dobu
