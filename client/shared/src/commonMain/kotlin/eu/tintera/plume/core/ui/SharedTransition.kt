@@ -90,6 +90,25 @@ val LocalTwoPane = compositionLocalOf { false }
 class SharedElementClip {
     /** Hranice plochy v souřadnicích kořene kompozice; `null`, dokud se plocha nezměřila. */
     var bounds: Rect? = null
+
+    /**
+     * Pásy nahoře a dole, které obrazovka kreslí PŘES seznam (px) — v konverzaci pruh připnutých
+     * zpráv a vstupní pole. Seznam pod ně zajíždí, takže jeho vlastní hranice je nezahrnují:
+     * fotka letící na místo pod polem se v překryvu kreslila přes pole a na konci letu skočila
+     * za něj. Zapisuje je obrazovka po každé kompozici (výška pole se mění s klávesnicí).
+     */
+    var obscuredTop: Float = 0f
+    var obscuredBottom: Float = 0f
+
+    /** Část plochy, kterou je opravdu vidět; `null`, dokud se plocha nezměřila. */
+    fun visibleBounds(): Rect? = bounds?.let { visibleArea(it, obscuredTop, obscuredBottom) }
+}
+
+/** [area] bez pásů nahoře a dole; překrývají-li se pásy, zbyde čára, ne převrácený obdélník. */
+internal fun visibleArea(area: Rect, obscuredTop: Float, obscuredBottom: Float): Rect {
+    val top = area.top + obscuredTop.coerceAtLeast(0f)
+    val bottom = (area.bottom - obscuredBottom.coerceAtLeast(0f)).coerceAtLeast(top)
+    return Rect(area.left, top, area.right, bottom)
 }
 
 @Composable
@@ -168,7 +187,7 @@ private class ContentAreaClip(
         layoutDirection: LayoutDirection,
         density: Density,
     ): Path? {
-        val content = area.bounds ?: return null
+        val content = area.visibleBounds() ?: return null
         path.reset()
         path.addRect(sharedElementClipRect(content, bounds, settled.value))
         return path
