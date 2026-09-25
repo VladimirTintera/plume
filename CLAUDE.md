@@ -5350,6 +5350,26 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
 - **Když typ dostane přílohu s popiskem, `captionText()` pro něj musí vracet prázdno** — jinak
   se popisek v bublině objeví dvakrát. Platí pro video kolečko, hru a platbu.
 
+### Počty pod příspěvkem
+
+Pod příspěvkem kanálu je řádek se zhlédnutími, přeposláními a komentáři (`PostStatsRow`,
+doména `PostStats` v `ChatMessage.postStats`). Čísla jsou zkrácená („12 tis.", „1.2K";
+`compactCount`, testy `CompactCountTest`), čtečka obrazovky dostane přesná.
+
+- **Reakce a počty chodí JEDNÍM updatem** (`UpdateMessageInteractionInfo`), proto je z dřívějšího
+  `reactionUpdates` `interactionUpdates` a nese obojí (`MessageInteractions`). Dva odběry téhož
+  updatu by jen čekaly, až se rozejdou.
+- **Pod zprávou, ne v ní, a na protější straně než čipy reakcí.** Ty visí přes dolní nároží na
+  straně odesílatele, takže u příchozího příspěvku jsou počty vpravo. Barva patří ploše
+  konverzace, jako u odznaku doručení. Když řádek reakcí přesahuje bublinu, zarovnají se počty
+  k jeho konci — sloupec zprávy je široký podle něj.
+- **Komentáře jen v kanálu** (`PostStats.shownIn`, test `komentareJenVKanalu`). `replyInfo` má
+  i zpráva v diskusní skupině (odpovědi ve vláknu) a pod každou by stálo „0".
+- **Zaokrouhluje se DOLŮ.** 999 999 zhlédnutí není „1 mil."; příspěvek nemá ukazovat víc, než
+  kolik jich má.
+- **Mezera v „12 tis." je nezlomitelná** (`&#160;` v `strings.xml`), jinak by se jednotka mohla
+  odtrhnout na další řádek.
+
 ### Zpráva o hovoru
 
 `MessageCall` je příloha `MessageMedia.Call` a v bublině řádek jako u souboru: kolečko se

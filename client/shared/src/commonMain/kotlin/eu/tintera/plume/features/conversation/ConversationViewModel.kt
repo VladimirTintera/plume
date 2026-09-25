@@ -881,12 +881,12 @@ class ConversationViewModel(
         }
 
         viewModelScope.launch {
-            repository.reactionUpdates(chatId).collect { update ->
+            repository.interactionUpdates(chatId).collect { update ->
                 _state.update { state ->
                     state.copy(
                         messages = state.messages.map { message ->
                             if (message.id == update.messageId) {
-                                message.copy(reactions = update.reactions)
+                                message.copy(reactions = update.reactions, postStats = update.postStats)
                             } else {
                                 message
                             }
@@ -1969,7 +1969,7 @@ class ConversationViewModel(
      *
      * Stav se **mění lokálně hned**, ještě než dorazí potvrzení ze serveru — jinak by mezi ťuknutím
      * a odpovědí byla viditelná prodleva a gesto by působilo rozbitě. Když volání selže, změna se
-     * vrátí zpět. Server pak stejně pošle autoritativní stav přes `reactionUpdates`.
+     * vrátí zpět. Server pak stejně pošle autoritativní stav přes `interactionUpdates`.
      */
     private fun toggleReaction(messageId: Long, emoji: String) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return

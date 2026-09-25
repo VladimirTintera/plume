@@ -3,6 +3,7 @@ package eu.tintera.plume.features.conversation.items
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.key
+import eu.tintera.plume.core.telegram.PostStats
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.files.saveAsSupported
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -123,6 +124,7 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
                  * se vybírá album, ne jednotlivá fotka.
                  */
                 selected = state.selection?.let { key in it.keys },
+                postStats = message.postStats?.shownIn(isChannel = info?.isChannel == true),
             )
 
             messageItem(
@@ -277,3 +279,10 @@ private fun ChatMessage?.continues(older: ChatMessage): Boolean =
  * doleva a doprava podle toho, u které zrovna tvář je.
  */
 internal enum class SenderAvatar { None, Spacer, Shown }
+
+/**
+ * Počty tak, jak se v konverzaci ukážou. Komentáře jen v kanálu: `replyInfo` má i zpráva
+ * v diskusní skupině (počet odpovědí ve vláknu), a tam by pod každou zprávou stálo „0".
+ */
+internal fun PostStats.shownIn(isChannel: Boolean): PostStats? =
+    (if (isChannel) this else copy(comments = null)).takeUnless { it.isEmpty }

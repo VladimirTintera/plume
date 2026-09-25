@@ -118,8 +118,8 @@ interface ConversationRepository {
     /** Nahlásí, že uživatel obsah zprávy otevřel (pustil hlasovku). */
     suspend fun openContent(chatId: Long, messageId: Long): Result<Unit>
 
-    /** Reakce, které se u zprávy změnily. Klíč je `messageId`. */
-    fun reactionUpdates(chatId: Long): Flow<MessageReactions>
+    /** Reakce a počty příspěvku, které se u zprávy změnily. Klíč je `messageId`. */
+    fun interactionUpdates(chatId: Long): Flow<MessageInteractions>
 
     /**
      * Přidá nebo odebere reakci. TDLib má na to dvě samostatná volání, protože „přepnutí"
@@ -793,6 +793,8 @@ data class ChatMessage(
      * skládá tady, bez dotazu navíc.
      */
     val externalReply: ExternalReply? = null,
+    /** Zhlédnutí, přeposlání a komentáře; `null`, když zpráva žádné počty nenese. */
+    val postStats: PostStats? = null,
 )
 
 /**
@@ -1139,10 +1141,26 @@ sealed interface MessageReadState {
 const val REACTION_DETAIL_LIMIT = 50
 
 /** Kompletní sada reakcí jedné zprávy, jak dorazila updatem. */
-data class MessageReactions(
+/**
+ * Co se u zprávy mění samo, bez úpravy obsahu: reakce a počty příspěvku. TDLib obojí posílá
+ * jedním updatem (`UpdateMessageInteractionInfo`), proto jeden typ.
+ */
+data class MessageInteractions(
     val messageId: Long,
     val reactions: List<MessageReaction>,
+    val postStats: PostStats?,
 )
+
+/**
+ * Počty u příspěvku kanálu: zhlédnutí, přeposlání a komentáře.
+ *
+ * [comments] je `null`, když příspěvek diskusi nemá (kanál bez připojené skupiny); nula znamená
+ * diskusi bez komentářů. Server komentáře počítá i u zpráv v diskusní skupině samotné, takže
+ * o tom, jestli se ukážou, rozhoduje až konverzace podle druhu chatu.
+ */
+data class PostStats(val views: Int, val forwards: Int, val comments: Int?) {
+    val isEmpty: Boolean get() = views == 0 && forwards == 0 && comments == null
+}
 
 /** Výsledek odeslání zprávy, jak ho oznámí TDLib. */
 sealed interface SentMessageUpdate {

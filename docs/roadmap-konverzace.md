@@ -467,8 +467,9 @@ snadno na to uživatel narazí.
 
 **Údaje o zprávě, které TDLib posílá a my zahazujeme**
 
-- **Zhlédnutí u příspěvků kanálu** (`interactionInfo.viewCount`, `forwardCount`). V kanálu
-  standard, u nás chybí úplně.
+- ~~**Zhlédnutí u příspěvků kanálu**~~ — hotovo: zhlédnutí, přeposlání a počet komentářů pod
+  příspěvkem (`CLAUDE.md`, „Počty pod příspěvkem"). Počet komentářů ověřený na zařízení není
+  (testovací účet neodebírá kanál s diskusí).
 - **Komentáře u příspěvků kanálu** (`interactionInfo.replyInfo`: počet, tváře posledních) —
   „12 komentářů" pod příspěvkem a otevření diskuse (`getMessageThread`,
   `getMessageThreadHistory`, odpověď s `topicId`). Dnes se diskuse kanálu nedá otevřít vůbec.

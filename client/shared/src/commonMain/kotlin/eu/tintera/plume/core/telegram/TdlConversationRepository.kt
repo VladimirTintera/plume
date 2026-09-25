@@ -258,13 +258,14 @@ class TdlConversationRepository(
             .filter { it.isSuccess }
             .map { it.getOrThrow() }
 
-    override fun reactionUpdates(chatId: Long): Flow<MessageReactions> =
+    override fun interactionUpdates(chatId: Long): Flow<MessageInteractions> =
         holder.updates { messageInteractionInfoUpdates }
             .filter { it.chatId == chatId }
             .map { update ->
-                MessageReactions(
+                MessageInteractions(
                     messageId = update.messageId,
                     reactions = update.interactionInfo.toReactions(),
+                    postStats = update.interactionInfo.toPostStats(),
                 )
             }
 
@@ -1324,6 +1325,7 @@ class TdlConversationRepository(
             media = messageMedia(),
             linkPreview = linkPreview(),
             reactions = interactionInfo.toReactions(),
+            postStats = interactionInfo.toPostStats(),
             sendState = if (outgoing) sendingState.toSendState() else null,
             // Odpověď mimo tenhle chat nese `externalReply` — v načtené historii citovaná zpráva
             // není, takže se na ni skákat nedá.
@@ -1611,6 +1613,16 @@ class TdlConversationRepository(
      * Reakce z interaction info. Vlastní (placená) emoji se přeskočí — jsou to samolepky
      * a vykreslení řeší jiná vrstva; zahodit je je lepší než u zprávy neukázat žádnou reakci.
      */
+    /**
+     * Počty příspěvku. Zhlédnutí server počítá u příspěvků kanálu (i přeposlaných jinam),
+     * `replyInfo` má jen příspěvek kanálu s připojenou diskusí a zpráva v diskusní skupině.
+     */
+    private fun MessageInteractionInfo?.toPostStats(): PostStats? {
+        this ?: return null
+        return PostStats(views = viewCount, forwards = forwardCount, comments = replyInfo?.replyCount)
+            .takeUnless { it.isEmpty }
+    }
+
     private suspend fun MessageInteractionInfo?.toReactions(): List<MessageReaction> {
         val raw = this?.reactions?.reactions?.filterNotNull().orEmpty()
 
