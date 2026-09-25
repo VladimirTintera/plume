@@ -59,6 +59,7 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.ConnectionState
 import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.ThreadConversationRepository
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageActions
@@ -104,6 +105,7 @@ import eu.tintera.plume.resources.conversation_history_failed
 import eu.tintera.plume.resources.conversation_pin_failed
 import eu.tintera.plume.resources.conversation_join_failed
 import eu.tintera.plume.resources.conversation_mention_not_found
+import eu.tintera.plume.resources.comments_unavailable
 import eu.tintera.plume.resources.conversation_search_failed
 import eu.tintera.plume.resources.conversation_message_deleted
 import eu.tintera.plume.resources.conversation_quote_deleted
@@ -169,6 +171,12 @@ class ConversationViewModel(
     val chatId: Long,
     /** Zpráva, na kterou se po otevření skočí místo na první nepřečtenou (nalezená v hledání). */
     private val initialMessageId: Long?,
+    /**
+     * Vlákno komentářů: kořenová zpráva v diskusní skupině [chatId]; `null` u běžné konverzace.
+     * Rozdíly ve zdroji zpráv řeší [repository] (je to [ThreadConversationRepository]), tady jen
+     * to, co je vidět: hlavička a citace kořene.
+     */
+    private val threadRootId: Long? = null,
     private val repository: ConversationRepository,
     /**
      * Jen kvůli „píše…". Činnost v chatu už sleduje repository chatů — i s odpočtem, který ji zhasne,
@@ -229,7 +237,7 @@ class ConversationViewModel(
     /** Zvolená rychlost přehrávání; jedna pro celou aplikaci, proto rovnou z přehrávače. */
     val voiceSpeed: StateFlow<VoiceSpeed> = voicePlayer.speed
 
-    private val _state = MutableStateFlow(ConversationState())
+    private val _state = MutableStateFlow(ConversationState(threadRootId = threadRootId))
     val state: StateFlow<ConversationState> = _state.asStateFlow()
 
     /**
@@ -522,6 +530,8 @@ class ConversationViewModel(
 
     /** Lupa v hlavičce: hledání v chatu. */
     fun openSearch() {
+        // Hledání ve vlákně by hledalo v celé diskusní skupině (`searchChatMessages` bez tématu).
+        if (threadRootId != null) return
         if (_state.value.search == null) _state.update { it.copy(search = InChatSearch()) }
     }
 
@@ -881,12 +891,12 @@ class ConversationViewModel(
         }
 
         viewModelScope.launch {
-            repository.reactionUpdates(chatId).collect { update ->
+            repository.interactionUpdates(chatId).collect { update ->
                 _state.update { state ->
                     state.copy(
                         messages = state.messages.map { message ->
                             if (message.id == update.messageId) {
-                                message.copy(reactions = update.reactions)
+                                message.copy(reactions = update.reactions, postStats = update.postStats)
                             } else {
                                 message
                             }
@@ -1765,6 +1775,22 @@ class ConversationViewModel(
      * skokem na místě, jinde konverzací se skokem na ni (i v kanálu, kde uživatel není — ten
      * dostane „Přidat se").
      */
+    /**
+     * Komentáře k příspěvku kanálu: vlákno v připojené diskusní skupině. Kde to je, ví jen
+     * server (`getMessageThread`), navigace je věc obrazovky — jako u zmínky.
+     */
+    private fun openComments(messageId: Long) {
+        viewModelScope.launch {
+            repository.commentThread(chatId, messageId)
+                .onSuccess { thread ->
+                    _state.update { it.copy(openChat = ChatTarget(thread.chatId, threadId = thread.rootMessageId)) }
+                }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.reported(Res.string.comments_unavailable)) }
+                }
+        }
+    }
+
     private fun openForwardOrigin(origin: ForwardOrigin) {
         when (origin) {
             is ForwardOrigin.User -> openMentioned { chatRepository.privateChat(origin.userId) }
@@ -1969,7 +1995,7 @@ class ConversationViewModel(
      *
      * Stav se **mění lokálně hned**, ještě než dorazí potvrzení ze serveru — jinak by mezi ťuknutím
      * a odpovědí byla viditelná prodleva a gesto by působilo rozbitě. Když volání selže, změna se
-     * vrátí zpět. Server pak stejně pošle autoritativní stav přes `reactionUpdates`.
+     * vrátí zpět. Server pak stejně pošle autoritativní stav přes `interactionUpdates`.
      */
     private fun toggleReaction(messageId: Long, emoji: String) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
@@ -2141,6 +2167,7 @@ class ConversationViewModel(
             is MessageAction.OpenUser -> openMentioned { chatRepository.privateChat(action.userId) }
             is MessageAction.OpenSenderProfile -> openSenderProfile(action.userId)
             is MessageAction.OpenForwardOrigin -> openForwardOrigin(action.origin)
+            MessageAction.OpenComments -> openComments(messageId)
             MessageAction.OpenDocument -> openDocument(messageId)
             MessageAction.CancelUpload -> cancelUpload(messageId)
             MessageAction.ToggleVoice -> toggleVoice(messageId)
@@ -2988,7 +3015,12 @@ data class ScrollTarget(
 data class MemberPicker(val query: String = "", val members: List<SenderInfo> = emptyList(), val loading: Boolean = true)
 
 /** Chat k otevření nad konverzací; s [messageId] se v něm skočí na zprávu. */
-data class ChatTarget(val chatId: Long, val messageId: Long? = null)
+data class ChatTarget(
+    val chatId: Long,
+    val messageId: Long? = null,
+    /** Vlákno komentářů v [chatId] (kořenová zpráva); `null` = celý chat. */
+    val threadId: Long? = null,
+)
 
 /** Otevřený náhled pozvánky; [joining] = přidávání běží a tlačítko je neaktivní. */
 data class InviteSheetState(val link: String, val preview: InvitePreview, val joining: Boolean = false)
@@ -3166,6 +3198,8 @@ data class Typing(val activity: ChatActivity, val sender: SenderInfo?)
 
 data class ConversationState(
     val info: ChatInfo? = null,
+    /** Vlákno komentářů (kořenová zpráva); `null` u běžné konverzace. */
+    val threadRootId: Long? = null,
     /** Zpráva otevřená k výběru úryvku textu; `null` = sheet je zavřený. */
     val selectingText: ChatMessage? = null,
     /** Dostupnost protějšku pro podtitul hlavičky. `null` u skupin a kanálů. */

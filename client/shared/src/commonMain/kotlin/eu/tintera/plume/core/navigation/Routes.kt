@@ -68,7 +68,12 @@ data object ArchiveRoute : Route
  * Konverzace v archivu. V list-detail rozvržení je to detail panel scény archivu.
  */
 @Serializable
-data class ArchiveConversationRoute(val chatId: Long, val messageId: Long? = null) : Route
+data class ArchiveConversationRoute(
+    val chatId: Long,
+    val messageId: Long? = null,
+    /** Vlákno komentářů v diskusní skupině [chatId] (kořenová zpráva); `null` = celý chat. */
+    val threadId: Long? = null,
+) : Route
 
 /**
  * Profil chatu otevřený z archivní konverzace.
@@ -91,7 +96,15 @@ data class ArchiveMemberRightsRoute(val chatId: Long, val userId: Long, val admi
  * Výchozí `null` drží stará uložená zásobníková data čitelná.
  */
 @Serializable
-data class ConversationRoute(val chatId: Long, val messageId: Long? = null) : Route
+data class ConversationRoute(
+    val chatId: Long,
+    val messageId: Long? = null,
+    /**
+     * Vlákno komentářů k příspěvku kanálu: kořenová zpráva v diskusní skupině [chatId].
+     * `null` = celý chat. Komentáře jsou tak obyčejná konverzace skupiny, jen zúžená.
+     */
+    val threadId: Long? = null,
+) : Route
 
 /**
  * Profil chatu (ťuknutí na hlavičku konverzace). Detailový panel: na telefonu překryje konverzaci,

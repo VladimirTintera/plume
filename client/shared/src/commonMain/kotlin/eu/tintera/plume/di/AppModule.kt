@@ -50,6 +50,7 @@ import eu.tintera.plume.features.auth.AuthViewModel
 import eu.tintera.plume.features.chats.ChatsViewModel
 import eu.tintera.plume.features.chats.NewChatViewModel
 import eu.tintera.plume.features.conversation.ConversationViewModel
+import eu.tintera.plume.core.telegram.ThreadConversationRepository
 import eu.tintera.plume.features.conversation.StickerPickerViewModel
 import eu.tintera.plume.features.conversation.GifPickerViewModel
 import eu.tintera.plume.features.conversation.StickerSetViewModel
@@ -246,11 +247,17 @@ fun appModule() = module {
 
     // chatId přichází z navigační routy, ne z grafu → runtime parametr. Druhý parametr je zpráva,
     // na kterou se po otevření skočí; bývá `null`, a podle typu by se spletl s chatId — proto index.
+    // Třetí parametr je vlákno komentářů (kořenová zpráva); s ním dostane konverzace repository
+    // zúžené na vlákno.
     viewModel { parameters ->
+        val threadRootId = parameters.values.getOrNull(2) as Long?
         ConversationViewModel(
             chatId = parameters.get(),
             initialMessageId = parameters.values.getOrNull(1) as Long?,
-            repository = get(),
+            threadRootId = threadRootId,
+            repository = threadRootId
+                ?.let { ThreadConversationRepository(delegate = get(), rootMessageId = it) }
+                ?: get(),
             chatRepository = get(),
             stickerRepository = get(),
             settings = get(),

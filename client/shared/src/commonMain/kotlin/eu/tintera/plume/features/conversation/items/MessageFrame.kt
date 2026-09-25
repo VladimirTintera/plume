@@ -109,6 +109,7 @@ import eu.tintera.plume.resources.conversation_forwarded
 import eu.tintera.plume.resources.conversation_forwarded_from
 import eu.tintera.plume.resources.forward_24dp
 import eu.tintera.plume.core.telegram.ForwardOrigin
+import eu.tintera.plume.core.telegram.PostStats
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -158,6 +159,8 @@ internal data class MessageFrameData(
     val onTap: MessageAction?,
     /** Je blok vybraný? `null` = režim výběru neběží a rám ho vůbec nekreslí. */
     val selected: Boolean? = null,
+    /** Počty pod příspěvkem kanálu (viz [PostStatsRow]); `null` = zpráva žádné nemá. */
+    val postStats: PostStats? = null,
 ) {
     /**
      * Zpráva je zvýrazněná: jednorázově po skoku ([highlighted]), nebo trvale jako ukázaný
@@ -720,6 +723,23 @@ private fun MessageFrame(
                         .offset(x = -REPLY_ICON_SLOT),
                 )
             }
+            }
+
+            frame.postStats?.let { stats ->
+                PostFooter(
+                    stats = stats,
+                    isOutgoing = message.isOutgoing,
+                    onOpenComments = { bodyScope.act(MessageAction.OpenComments) },
+                    modifier = Modifier.align(
+                        when {
+                            // S čipem komentářů je řádek na straně zprávy — čip je to hlavní.
+                            stats.comments != null -> if (message.isOutgoing) Alignment.End else Alignment.Start
+                            // Samotné počty na protější straně než čipy reakcí, které visí přes
+                            // nároží na straně odesílatele.
+                            else -> if (message.isOutgoing) Alignment.Start else Alignment.End
+                        },
+                    ),
+                )
             }
 
             DeliveryBadge(

@@ -10,6 +10,7 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ExternalReply
 import eu.tintera.plume.core.telegram.ForwardOrigin
 import eu.tintera.plume.core.telegram.LinkPreview
+import eu.tintera.plume.core.telegram.PostStats
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.SponsoredMessage
@@ -327,6 +328,35 @@ class ConversationItemsTest {
         ).filterIsInstance<BubbleMessageItem>()
         assertEquals("z jiného chatu", result[0].quoted?.text)
         assertNull(result[1].quoted)
+    }
+
+    @Test
+    fun veVlaknuSeKorenNecituje() {
+        // Komentář odpovídá kořeni (příspěvku) — citace nad každým by jen opakovala příspěvek.
+        // Odpověď na jiný komentář citaci nese dál.
+        val result = items(
+            message(3, replyToMessageId = 2),
+            message(2, replyToMessageId = 1),
+            message(1),
+            state = ConversationState(threadRootId = 1L),
+        ).filterIsInstance<BubbleMessageItem>()
+        assertEquals(2L, result[0].quoted?.id)
+        assertNull(result[1].quoted)
+    }
+
+    @Test
+    fun komentareJenVKanalu() {
+        val stats = PostStats(views = 1200, forwards = 0, comments = 0)
+        val post = message(1).copy(postStats = stats)
+        assertEquals(stats, items(post, state = ConversationState(info = info(isChannel = true))).frames()[0].postStats)
+        // V diskusní skupině má `replyInfo` každá zpráva; komentáře tam nejsou, zhlédnutí ano.
+        assertEquals(
+            stats.copy(comments = null),
+            items(post, state = ConversationState(info = info(isGroup = true))).frames()[0].postStats,
+        )
+        // Bez zhlédnutí a bez komentářů není co ukázat.
+        val reply = message(2).copy(postStats = PostStats(views = 0, forwards = 0, comments = 3))
+        assertNull(items(reply, state = ConversationState(info = info(isGroup = true))).frames()[0].postStats)
     }
 
     @Test

@@ -5350,6 +5350,61 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
 - **Když typ dostane přílohu s popiskem, `captionText()` pro něj musí vracet prázdno** — jinak
   se popisek v bublině objeví dvakrát. Platí pro video kolečko, hru a platbu.
 
+### Počty pod příspěvkem
+
+Pod příspěvkem kanálu je řádek se zhlédnutími a přeposláními (`PostStatsRow`) a u příspěvku
+s diskusí před nimi čip komentářů (`CommentsChip`, obojí v `PostFooter`; doména `PostStats`
+v `ChatMessage.postStats`). Čísla jsou zkrácená („12 tis.", „1.2K";
+`compactCount`, testy `CompactCountTest`), čtečka obrazovky dostane přesná.
+
+- **Reakce a počty chodí JEDNÍM updatem** (`UpdateMessageInteractionInfo`), proto je z dřívějšího
+  `reactionUpdates` `interactionUpdates` a nese obojí (`MessageInteractions`). Dva odběry téhož
+  updatu by jen čekaly, až se rozejdou.
+- **Pod zprávou, ne v ní, a na protější straně než čipy reakcí.** Ty visí přes dolní nároží na
+  straně odesílatele, takže u příchozího příspěvku jsou počty vpravo. Barva patří ploše
+  konverzace, jako u odznaku doručení. Když řádek reakcí přesahuje bublinu, zarovnají se počty
+  k jeho konci — sloupec zprávy je široký podle něj.
+- **Komentáře jen v kanálu** (`PostStats.shownIn`, test `komentareJenVKanalu`). `replyInfo` má
+  i zpráva v diskusní skupině (odpovědi ve vláknu) a pod každou by stálo „0".
+- **Čip a počty jsou JEDEN řádek.** Dva řádky pod čipy reakcí (počty, pod nimi čip) příspěvek
+  natahovaly a mezi příspěvky vznikala díra. S čipem stojí řádek na straně zprávy, bez něj na
+  protější.
+- **Zaokrouhluje se DOLŮ.** 999 999 zhlédnutí není „1 mil."; příspěvek nemá ukazovat víc, než
+  kolik jich má.
+- **Mezera v „12 tis." je nezlomitelná** (`&#160;` v `strings.xml`), jinak by se jednotka mohla
+  odtrhnout na další řádek.
+
+### Komentáře (vlákno diskuse)
+
+Ťuknutí na čip komentářů otevře vlákno: `getMessageThread` řekne, kde je (diskusní skupina
+a kořenová zpráva), a otevře se `ConversationRoute(chatId = skupina, threadId = kořen)`.
+
+- **Komentáře NEJSOU v kanálu.** Jsou to zprávy v připojené diskusní skupině, které odpovídají
+  na kopii příspěvku (server ji tam při zveřejnění sám přepošle), nebo na jiný komentář.
+- **Vlákno je obyčejná konverzace skupiny za obalem** (`ThreadConversationRepository`,
+  delegace `by`). ViewModel konverzace o vláknu skoro neví: historie jde přes
+  `getMessageThreadHistory`, nové zprávy se filtrují podle `ChatMessage.threadId`
+  (`MessageTopicThread`), ostatní jde rovnou do skutečného repository. Druhá obrazovka pro
+  komentáře by znamenala zdvojit celou konverzaci.
+- **Odeslání bez citace odpovídá KOŘENI.** Zpráva bez odpovědi by skončila v hlavním chatu
+  skupiny, ne pod příspěvkem. Obal to doplní u všech `send*`.
+- **Kořen je nejstarší zpráva vlákna** a `getMessageThreadHistory` ho nevrací; obal ho přidá,
+  když přijde prázdná stránka (začátek vlákna), a stránka „od kořene" je vždycky prázdná.
+- **Citace kořene se nekreslí** (`state.threadRootId` v builderu, test
+  `veVlaknuSeKorenNecituje`) — odpovídá mu skoro každý komentář.
+- **Ve vlákně se vypíná, co patří chatu skupiny:** koncept (objevil by se v hlavním chatu),
+  „píše…" (viděla by ho celá skupina), připnuté zprávy, reklamy, nepřečtené (počet je za
+  skupinu), hledání (`searchChatMessages` bez tématu hledá v celé skupině), shrnutí, profil
+  z hlavičky a ankety (zakládá je obrazovka, která o vláknu neví).
+- **Hlavička: „Komentáře" a pod tím název skupiny**, bez sdílených prvků — vlákno je jiná
+  obrazovka než chat skupiny a klíč by se přetahoval s položkou v seznamu.
+- **Psát jde jen jako člen skupiny.** Nečlen vidí „Přidat se" (`writeAccess`). Skupina smí
+  psaní bez vstupu povolit (`Supergroup.joinToSendMessages == false`) a oficiální klient pak
+  komentovat nechá — to zatím neumíme.
+- **Ověřeno na emulátoru jen čtení** (kanál FilipHorky – zprávy, bez přidání se): čip, vlákno
+  s kořenem nahoře, zpět do kanálu. **Odeslání komentáře ověřené NENÍ** — veřejně by ho viděli
+  všichni čtenáři kanálu.
+
 ### Zpráva o hovoru
 
 `MessageCall` je příloha `MessageMedia.Call` a v bublině řádek jako u souboru: kolečko se

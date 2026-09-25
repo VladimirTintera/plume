@@ -3,6 +3,7 @@ package eu.tintera.plume.features.conversation.items
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.key
+import eu.tintera.plume.core.telegram.PostStats
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.files.saveAsSupported
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -123,6 +124,7 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
                  * se vybírá album, ne jednotlivá fotka.
                  */
                 selected = state.selection?.let { key in it.keys },
+                postStats = message.postStats?.shownIn(isChannel = info?.isChannel == true),
             )
 
             messageItem(
@@ -130,7 +132,11 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
                 album = row.members.takeIf { row.isAlbum },
                 // Odpověď na zprávu z jiného chatu nese zástupnou citaci sama — v historii téhle
                 // konverzace citovaná zpráva není.
-                quoted = message.replyToMessageId?.let { id -> byId[id] ?: state.quotes[id] }
+                // Ve vlákně komentářů odpovídá kořeni skoro každý komentář — citace příspěvku nad
+                // každým z nich by byla jen opakování toho, co stojí nahoře.
+                quoted = message.replyToMessageId
+                    ?.takeIf { it != state.threadRootId }
+                    ?.let { id -> byId[id] ?: state.quotes[id] }
                     ?: message.externalReply?.quote,
                 // V soukromém chatu se jméno odesílatele u zpráv nevyplňuje, takže citace by
                 // neměla koho uvést.
@@ -277,3 +283,10 @@ private fun ChatMessage?.continues(older: ChatMessage): Boolean =
  * doleva a doprava podle toho, u které zrovna tvář je.
  */
 internal enum class SenderAvatar { None, Spacer, Shown }
+
+/**
+ * Počty tak, jak se v konverzaci ukážou. Komentáře jen v kanálu: `replyInfo` má i zpráva
+ * v diskusní skupině (počet odpovědí ve vláknu), a tam by pod každou zprávou stálo „0".
+ */
+internal fun PostStats.shownIn(isChannel: Boolean): PostStats? =
+    (if (isChannel) this else copy(comments = null)).takeUnless { it.isEmpty }

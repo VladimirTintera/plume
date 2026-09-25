@@ -394,6 +394,17 @@
     <string name="forward_hide_sender">Hide sender name</string>
     <string name="forward_hide_captions">Hide captions</string>
     <string name="decimal_number">%1$s.%2$s</string>
+    <string name="count_thousands">%1$sK</string>
+    <string name="count_millions">%1$sM</string>
+    <string name="post_views">Views: %1$s</string>
+    <string name="post_forwards">Forwards: %1$s</string>
+    <string name="comments_title">Comments</string>
+    <string name="comments_unavailable">Couldn't open the comments</string>
+    <string name="post_comment_first">Leave a comment</string>
+    <plurals name="post_comments_count">
+        <item quantity="one">%1$s comment</item>
+        <item quantity="other">%1$s comments</item>
+    </plurals>
     <string name="file_size_b">%1$s B</string>
     <string name="file_size_kb">%1$s kB</string>
     <string name="file_size_mb">%1$s MB</string>

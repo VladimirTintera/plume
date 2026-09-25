@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.animation.core.AnimationSpec
 import eu.tintera.plume.resources.conversation_search
+import eu.tintera.plume.resources.comments_title
 import eu.tintera.plume.resources.search_24dp
 import eu.tintera.plume.resources.summarize_24dp
 import eu.tintera.plume.resources.summary_action
@@ -297,9 +298,11 @@ fun ConversationScreen(
     onForward: (messageIds: List<Long>) -> Unit,
     /** Příloha ankety v prohlížeči; `index` viz [MessageAction.OpenPollMedia]. */
     onOpenPollMedia: (messageId: Long, index: Int) -> Unit = { _, _ -> },
-    /** Zmínka v textu: otevřít chat nad touhle konverzací. */
-    /** Otevřít chat nad konverzací (zmínka, odkaz); s [messageId] se skočí na zprávu. */
-    onOpenChat: (chatId: Long, messageId: Long?) -> Unit,
+    /**
+     * Otevřít chat nad konverzací (zmínka, odkaz); s [messageId] se skočí na zprávu, s
+     * [threadId] se otevře jen vlákno komentářů.
+     */
+    onOpenChat: (chatId: Long, messageId: Long?, threadId: Long?) -> Unit,
     /** Hashtag v textu: hledání zpráv s tagem v seznamu chatů. */
     onSearch: (query: String) -> Unit,
     /** Ťuknutí na hlavičku: profil chatu. */
@@ -582,7 +585,7 @@ fun ConversationScreen(
     LaunchedEffect(state.openChat) {
         val target = state.openChat ?: return@LaunchedEffect
         viewModel.consumeOpenChat()
-        currentOnOpenChat(target.chatId, target.messageId)
+        currentOnOpenChat(target.chatId, target.messageId, target.threadId)
     }
     val currentOnOpenUserProfile by rememberUpdatedState(onOpenUserProfile)
     LaunchedEffect(state.openProfile) {
@@ -1004,7 +1007,8 @@ fun ConversationScreen(
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
                             .clickable(
-                                enabled = state.info?.isSavedMessages == false,
+                                // Vlákno komentářů vlastní profil nemá; profil skupiny by vedl pryč.
+                                enabled = state.info?.isSavedMessages == false && state.threadRootId == null,
                                 onClickLabel = profileLabel,
                                 onClick = onOpenProfile,
                             )
@@ -1024,8 +1028,16 @@ fun ConversationScreen(
                                     // Stejný tvar jako v seznamu, odkud avatar přiletěl. Při výpadku
                                     // ořezává indikátor — vlastní tvar by vlnky u skupiny schoval.
                                     shape = if (indicator.isShaping) RectangleShape else kind.avatarShape(),
+                                    // Vlákno komentářů je jiná obrazovka než chat skupiny; sdílený
+                                    // klíč by se přetahoval s její hlavičkou i s položkou v seznamu.
                                     modifier = Modifier
-                                        .sharedNavElement(chatAvatarKey(info.id))
+                                        .then(
+                                            if (state.threadRootId == null) {
+                                                Modifier.sharedNavElement(chatAvatarKey(info.id))
+                                            } else {
+                                                Modifier
+                                            },
+                                        )
                                         .then(with(indicator) { Modifier.avatar() }),
                                 )
                                 with(indicator) { Spacer(Modifier.matchParentSize().ring()) }
@@ -1042,13 +1054,17 @@ fun ConversationScreen(
                         }
                         Column {
                             Text(
-                                text = state.info?.let { chatTitle(it.id, it.title) }
-                                    ?: stringResource(Res.string.conversation_fallback_title),
+                                text = when {
+                                    state.threadRootId != null -> stringResource(Res.string.comments_title)
+                                    else -> state.info?.let { chatTitle(it.id, it.title) }
+                                        ?: stringResource(Res.string.conversation_fallback_title)
+                                },
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 // Klíč se dá jen když chat známe; než dorazí `info`, není s čím
                                 // párovat.
                                 modifier = state.info
+                                    ?.takeIf { state.threadRootId == null }
                                     ?.let { Modifier.sharedNavText(chatTitleKey(it.id)) }
                                     ?: Modifier,
                             )
@@ -1063,7 +1079,11 @@ fun ConversationScreen(
                              * (`TypingItem`), jako v Google Zprávách. Výšku hlavičky animuje
                              * `AnimatedContent`, jinak by název při objevení podtitulu poskočil.
                              */
-                            val subtitle = state.presence
+                            // Ve vlákně komentářů říká podtitul, ve které skupině se diskutuje.
+                            val threadSubtitle = state.info
+                                ?.takeIf { state.threadRootId != null }
+                                ?.let { HeaderSubtitle(it.title, accent = false) }
+                            val subtitle = threadSubtitle ?: state.presence
                                 ?.takeIf { shownConnection == null }
                                 // Vlastní dostupnost v Uložených zprávách nic neříká — byl bys
                                 // pořád „online", protože se na ně právě díváš.
@@ -1099,7 +1119,7 @@ fun ConversationScreen(
                     }
                 },
                 actions = {
-                    if (summaryAvailable) {
+                    if (summaryAvailable && state.threadRootId == null) {
                         IconButton(onClick = startSummary) {
                             Icon(
                                 painterResource(Res.drawable.summarize_24dp),
@@ -1107,11 +1127,14 @@ fun ConversationScreen(
                             )
                         }
                     }
-                    IconButton(onClick = viewModel::openSearch) {
-                        Icon(
-                            painterResource(Res.drawable.search_24dp),
-                            contentDescription = stringResource(Res.string.conversation_search),
-                        )
+                    // Hledání ve vlákně by hledalo v celé diskusní skupině.
+                    if (state.threadRootId == null) {
+                        IconButton(onClick = viewModel::openSearch) {
+                            Icon(
+                                painterResource(Res.drawable.search_24dp),
+                                contentDescription = stringResource(Res.string.conversation_search),
+                            )
+                        }
                     }
                 },
             )

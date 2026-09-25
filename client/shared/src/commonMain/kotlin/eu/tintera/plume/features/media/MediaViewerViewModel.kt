@@ -121,7 +121,7 @@ class MediaViewerViewModel(
             repository.chatInfo(chatId).onSuccess { info -> _state.update { it.copy(chatTitle = info.title) } }
         }
         viewModelScope.launch {
-            repository.reactionUpdates(chatId).collect { update ->
+            repository.interactionUpdates(chatId).collect { update ->
                 updateItem(update.messageId) { it.copy(reactions = update.reactions) }
             }
         }
@@ -365,7 +365,7 @@ class MediaViewerViewModel(
 
     /**
      * Přepne reakci. Jako v konverzaci se stav **mění lokálně hned** a při selhání vrátí;
-     * autoritativní stav stejně dorazí `reactionUpdates`.
+     * autoritativní stav stejně dorazí `interactionUpdates`.
      */
     fun toggleReaction(messageId: Long, emoji: String) {
         val item = _state.value.items.firstOrNull { it.messageId == messageId } ?: return

@@ -26,6 +26,18 @@ interface ConversationRepository {
      */
     suspend fun history(chatId: Long, fromMessageId: Long, limit: Int = 30, offset: Int = 0): Result<List<ChatMessage>>
 
+    /**
+     * Vlákno komentářů k příspěvku [messageId] kanálu [chatId] (`getMessageThread`). Selže
+     * u příspěvku, který diskusi nemá, nebo když ji server nevydá (soukromá skupina).
+     */
+    suspend fun commentThread(chatId: Long, messageId: Long): Result<CommentThread>
+
+    /**
+     * Stránka vlákna [threadId] v chatu [chatId]; parametry jako u [history]. Kořenová zpráva
+     * vlákna v ní NENÍ — tu si přidá [ThreadConversationRepository].
+     */
+    suspend fun threadHistory(chatId: Long, threadId: Long, fromMessageId: Long, limit: Int, offset: Int): Result<List<ChatMessage>>
+
     /** Nové zprávy v tomhle chatu, jak přicházejí. */
     fun newMessages(chatId: Long): Flow<ChatMessage>
 
@@ -118,8 +130,8 @@ interface ConversationRepository {
     /** Nahlásí, že uživatel obsah zprávy otevřel (pustil hlasovku). */
     suspend fun openContent(chatId: Long, messageId: Long): Result<Unit>
 
-    /** Reakce, které se u zprávy změnily. Klíč je `messageId`. */
-    fun reactionUpdates(chatId: Long): Flow<MessageReactions>
+    /** Reakce a počty příspěvku, které se u zprávy změnily. Klíč je `messageId`. */
+    fun interactionUpdates(chatId: Long): Flow<MessageInteractions>
 
     /**
      * Přidá nebo odebere reakci. TDLib má na to dvě samostatná volání, protože „přepnutí"
@@ -793,7 +805,21 @@ data class ChatMessage(
      * skládá tady, bez dotazu navíc.
      */
     val externalReply: ExternalReply? = null,
+    /** Zhlédnutí, přeposlání a komentáře; `null`, když zpráva žádné počty nenese. */
+    val postStats: PostStats? = null,
+    /**
+     * Vlákno, do kterého zpráva patří (`MessageTopicThread`) — u komentáře v diskusní skupině
+     * id kořenové zprávy; `null` mimo vlákno. Podle něj si vlákno komentářů bere nové zprávy.
+     */
+    val threadId: Long? = null,
 )
+
+/**
+ * Vlákno komentářů k příspěvku kanálu. Komentáře NEJSOU v kanálu: jsou to zprávy v připojené
+ * diskusní skupině ([chatId]), které odpovídají na kopii příspěvku ([rootMessageId]) — tu tam
+ * server při zveřejnění sám přepošle.
+ */
+data class CommentThread(val chatId: Long, val rootMessageId: Long)
 
 /**
  * Citace zprávy z jiného chatu. [quote] je zástupná zpráva jen pro kreslení citace (jméno,
@@ -1139,10 +1165,26 @@ sealed interface MessageReadState {
 const val REACTION_DETAIL_LIMIT = 50
 
 /** Kompletní sada reakcí jedné zprávy, jak dorazila updatem. */
-data class MessageReactions(
+/**
+ * Co se u zprávy mění samo, bez úpravy obsahu: reakce a počty příspěvku. TDLib obojí posílá
+ * jedním updatem (`UpdateMessageInteractionInfo`), proto jeden typ.
+ */
+data class MessageInteractions(
     val messageId: Long,
     val reactions: List<MessageReaction>,
+    val postStats: PostStats?,
 )
+
+/**
+ * Počty u příspěvku kanálu: zhlédnutí, přeposlání a komentáře.
+ *
+ * [comments] je `null`, když příspěvek diskusi nemá (kanál bez připojené skupiny); nula znamená
+ * diskusi bez komentářů. Server komentáře počítá i u zpráv v diskusní skupině samotné, takže
+ * o tom, jestli se ukážou, rozhoduje až konverzace podle druhu chatu.
+ */
+data class PostStats(val views: Int, val forwards: Int, val comments: Int?) {
+    val isEmpty: Boolean get() = views == 0 && forwards == 0 && comments == null
+}
 
 /** Výsledek odeslání zprávy, jak ho oznámí TDLib. */
 sealed interface SentMessageUpdate {

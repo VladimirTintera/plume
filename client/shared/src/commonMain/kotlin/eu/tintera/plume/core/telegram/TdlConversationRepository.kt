@@ -122,6 +122,7 @@ import dev.g000sha256.tdl.dto.MessageReadDateTooOld
 import dev.g000sha256.tdl.dto.MessageReadDateUnread
 import dev.g000sha256.tdl.dto.MessageReadDateUserPrivacyRestricted
 import dev.g000sha256.tdl.dto.MessageReplyToMessage
+import dev.g000sha256.tdl.dto.MessageTopicThread
 import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
@@ -223,6 +224,30 @@ class TdlConversationRepository(
             .map { messages -> messages.messages.filterNotNull().map { it.toChatMessage(isGroup) } }
     }
 
+    override suspend fun commentThread(chatId: Long, messageId: Long): Result<CommentThread> =
+        client.getMessageThread(chatId = chatId, messageId = messageId)
+            .toResult()
+            .map { CommentThread(chatId = it.chatId, rootMessageId = it.messageThreadId) }
+
+    override suspend fun threadHistory(
+        chatId: Long,
+        threadId: Long,
+        fromMessageId: Long,
+        limit: Int,
+        offset: Int,
+    ): Result<List<ChatMessage>> {
+        val isGroup = isGroup(chatId)
+        return client.getMessageThreadHistory(
+            chatId = chatId,
+            messageId = threadId,
+            fromMessageId = fromMessageId,
+            offset = offset,
+            limit = limit,
+        )
+            .toResult()
+            .map { messages -> messages.messages.filterNotNull().map { it.toChatMessage(isGroup) } }
+    }
+
     override fun newMessages(chatId: Long): Flow<ChatMessage> =
         holder.updates { newMessageUpdates }
             .filter { it.message.chatId == chatId }
@@ -258,13 +283,14 @@ class TdlConversationRepository(
             .filter { it.isSuccess }
             .map { it.getOrThrow() }
 
-    override fun reactionUpdates(chatId: Long): Flow<MessageReactions> =
+    override fun interactionUpdates(chatId: Long): Flow<MessageInteractions> =
         holder.updates { messageInteractionInfoUpdates }
             .filter { it.chatId == chatId }
             .map { update ->
-                MessageReactions(
+                MessageInteractions(
                     messageId = update.messageId,
                     reactions = update.interactionInfo.toReactions(),
+                    postStats = update.interactionInfo.toPostStats(),
                 )
             }
 
@@ -1324,6 +1350,8 @@ class TdlConversationRepository(
             media = messageMedia(),
             linkPreview = linkPreview(),
             reactions = interactionInfo.toReactions(),
+            postStats = interactionInfo.toPostStats(),
+            threadId = (topicId as? MessageTopicThread)?.messageThreadId,
             sendState = if (outgoing) sendingState.toSendState() else null,
             // Odpověď mimo tenhle chat nese `externalReply` — v načtené historii citovaná zpráva
             // není, takže se na ni skákat nedá.
@@ -1611,6 +1639,16 @@ class TdlConversationRepository(
      * Reakce z interaction info. Vlastní (placená) emoji se přeskočí — jsou to samolepky
      * a vykreslení řeší jiná vrstva; zahodit je je lepší než u zprávy neukázat žádnou reakci.
      */
+    /**
+     * Počty příspěvku. Zhlédnutí server počítá u příspěvků kanálu (i přeposlaných jinam),
+     * `replyInfo` má jen příspěvek kanálu s připojenou diskusí a zpráva v diskusní skupině.
+     */
+    private fun MessageInteractionInfo?.toPostStats(): PostStats? {
+        this ?: return null
+        return PostStats(views = viewCount, forwards = forwardCount, comments = replyInfo?.replyCount)
+            .takeUnless { it.isEmpty }
+    }
+
     private suspend fun MessageInteractionInfo?.toReactions(): List<MessageReaction> {
         val raw = this?.reactions?.reactions?.filterNotNull().orEmpty()
 
