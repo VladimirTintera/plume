@@ -194,11 +194,35 @@ data class PollDraft(
     val membersOnly: Boolean = false,
     /** Hlasovat smí jen lidé z těchto zemí (ISO 3166-1 alpha-2, jen kanál); prázdné = všichni. */
     val countryCodes: List<String> = emptyList(),
-    /** Fotka nebo video u otázky. */
-    val media: OutgoingAttachment? = null,
-    /** Fotka nebo video u odpovědí, ve stejném pořadí jako [answers]; `null` = bez přílohy. */
-    val answerMedia: List<OutgoingAttachment?> = emptyList(),
+    /** Příloha otázky; jen druhy, které otázka smí ([PollDraftMedia.allowedForQuestion]). */
+    val media: PollDraftMedia? = null,
+    /** Přílohy odpovědí, ve stejném pořadí jako [answers]; `null` = bez přílohy. */
+    val answerMedia: List<PollDraftMedia?> = emptyList(),
 )
+
+/**
+ * Příloha nové ankety nebo odpovědi.
+ *
+ * Fotka a video se nahrávají ze zařízení ([File]); GIF a samolepka jsou soubory, které na serveru
+ * už jsou (posílá se jejich id, jako z výběru v konverzaci); odkaz a místo jsou jen údaje.
+ */
+sealed interface PollDraftMedia {
+    data class File(val attachment: OutgoingAttachment) : PollDraftMedia
+    data class Gif(val animation: MessageMedia.Animation) : PollDraftMedia
+    data class Sticker(val sticker: StickerItem) : PollDraftMedia
+    data class Link(val url: String) : PollDraftMedia
+    data class Location(val place: Place) : PollDraftMedia
+
+    /**
+     * Smí druh stát u otázky? TDLib bere u otázky animaci, zvuk, soubor, polohu, fotku, místo
+     * a video — samolepku a odkaz jen u odpovědí. Server by jinak odmítl celou anketu.
+     */
+    val allowedForQuestion: Boolean
+        get() = when (this) {
+            is File, is Gif, is Location -> true
+            is Sticker, is Link -> false
+        }
+}
 
 /**
  * Meze pro novou anketu od serveru. Nula u [maxOpenPeriodSeconds] a [maxCountries] = volba se

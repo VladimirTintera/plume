@@ -1176,6 +1176,22 @@
         <item quantity="few">Vyber nejvýš %1$d země. Bez výběru smí hlasovat všichni.</item>
         <item quantity="other">Vyber nejvýš %1$d zemí. Bez výběru smí hlasovat všichni.</item>
     </plurals>
-    <string name="poll_compose_add_media">Přidat fotku nebo video</string>
+    <string name="poll_compose_add_media">Přidat přílohu</string>
     <string name="poll_compose_remove_media">Odebrat přílohu</string>
+    <string name="poll_media_photo">Fotka nebo video</string>
+    <string name="poll_media_gif">GIF</string>
+    <string name="poll_media_sticker">Samolepka</string>
+    <string name="poll_media_link">Odkaz</string>
+    <string name="poll_media_place">Místo</string>
+    <string name="poll_link_title">Odkaz u odpovědi</string>
+    <string name="poll_link_hint">priklad.cz</string>
+    <string name="poll_link_add">Přidat</string>
+    <string name="poll_place_title">Místo</string>
+    <string name="poll_place_search">Hledat místo</string>
+    <string name="poll_place_empty">Žádné místo nenalezeno</string>
+    <string name="poll_place_failed">Místa se nepodařilo vyhledat.</string>
+    <string name="poll_place_locating">Zjišťuji polohu…</string>
+    <string name="poll_place_no_location">Místa v okolí se hledají podle polohy zařízení. Bez ní je najít nejde.</string>
+    <string name="poll_place_mine">Moje poloha</string>
+    <string name="poll_place_mine_hint">Přibližná poloha tohoto zařízení</string>
 </resources>

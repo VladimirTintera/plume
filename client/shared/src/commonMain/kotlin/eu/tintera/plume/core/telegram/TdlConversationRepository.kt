@@ -18,6 +18,13 @@ import dev.g000sha256.tdl.dto.OptionValueInteger
 import dev.g000sha256.tdl.dto.InputPollTypeRegular
 import dev.g000sha256.tdl.dto.InputPollTypeQuiz
 import dev.g000sha256.tdl.dto.InputPollMedia
+import dev.g000sha256.tdl.dto.InputPollMediaAnimation
+import dev.g000sha256.tdl.dto.InputPollMediaLink
+import dev.g000sha256.tdl.dto.InputPollMediaLocation
+import dev.g000sha256.tdl.dto.InputPollMediaSticker
+import dev.g000sha256.tdl.dto.InputPollMediaVenue
+import dev.g000sha256.tdl.dto.Location
+import dev.g000sha256.tdl.dto.Venue
 import dev.g000sha256.tdl.dto.InputPollMediaPhoto
 import dev.g000sha256.tdl.dto.InputPollMediaVideo
 import dev.g000sha256.tdl.dto.InputPollOption
@@ -746,37 +753,73 @@ class TdlConversationRepository(
     }
 
     /**
-     * Fotka nebo video do ankety. Soubor se nahrává stejně jako u zprávy (podle cesty); popisek
-     * příloha ankety nemá — „without caption" v dokumentaci TDLib.
+     * Příloha do ankety. Fotka a video se nahrávají podle cesty, jako u zprávy; GIF a samolepka
+     * jsou soubory, které server už má (`InputFileId`). Popisek příloha ankety nemá — „without
+     * caption" v dokumentaci TDLib.
      */
-    private fun OutgoingAttachment.toPollMedia(): InputPollMedia? = when (this) {
-        is OutgoingAttachment.Photo -> InputPollMediaPhoto(
-            photo = InputPhoto(
-                photo = InputFileLocal(path = path),
+    private fun PollDraftMedia.toPollMedia(): InputPollMedia? = when (this) {
+        is PollDraftMedia.File -> when (val file = attachment) {
+            is OutgoingAttachment.Photo -> InputPollMediaPhoto(
+                photo = InputPhoto(
+                    photo = InputFileLocal(path = file.path),
+                    thumbnail = null,
+                    video = null,
+                    addedStickerFileIds = intArrayOf(),
+                    width = file.width,
+                    height = file.height,
+                ),
+            )
+            is OutgoingAttachment.Video -> InputPollMediaVideo(
+                video = InputVideo(
+                    video = InputFileLocal(path = file.path),
+                    thumbnail = file.thumbnail?.let {
+                        InputThumbnail(thumbnail = InputFileLocal(path = it.path), width = it.width, height = it.height)
+                    },
+                    cover = null,
+                    startTimestamp = 0,
+                    addedStickerFileIds = intArrayOf(),
+                    duration = file.durationSeconds,
+                    width = file.width,
+                    height = file.height,
+                    supportsStreaming = file.streamable,
+                ),
+            )
+            // Formulář soubor nenabízí; kdyby se sem dostal, anketa odejde bez něj.
+            is OutgoingAttachment.Document -> null
+        }
+        is PollDraftMedia.Gif -> InputPollMediaAnimation(
+            animation = InputAnimation(
+                animation = InputFileId(id = animation.fileId),
                 thumbnail = null,
-                video = null,
                 addedStickerFileIds = intArrayOf(),
-                width = width,
-                height = height,
+                duration = 0,
+                width = animation.width,
+                height = animation.height,
             ),
         )
-        is OutgoingAttachment.Video -> InputPollMediaVideo(
-            video = InputVideo(
-                video = InputFileLocal(path = path),
-                thumbnail = thumbnail?.let {
-                    InputThumbnail(thumbnail = InputFileLocal(path = it.path), width = it.width, height = it.height)
-                },
-                cover = null,
-                startTimestamp = 0,
-                addedStickerFileIds = intArrayOf(),
-                duration = durationSeconds,
-                width = width,
-                height = height,
-                supportsStreaming = streamable,
+        is PollDraftMedia.Sticker -> InputPollMediaSticker(
+            sticker = InputSticker(
+                sticker = InputFileId(id = sticker.sendFileId),
+                thumbnail = null,
+                width = sticker.preview.width,
+                height = sticker.preview.height,
             ),
         )
-        // Formulář soubor nenabízí; kdyby se sem dostal, anketa odejde bez něj.
-        is OutgoingAttachment.Document -> null
+        is PollDraftMedia.Link -> InputPollMediaLink(url = url)
+        is PollDraftMedia.Location -> if (place.id.isEmpty() && place.title.isBlank()) {
+            InputPollMediaLocation(location = Location(latitude = place.latitude, longitude = place.longitude, horizontalAccuracy = 0.0))
+        } else {
+            InputPollMediaVenue(
+                venue = Venue(
+                    location = Location(latitude = place.latitude, longitude = place.longitude, horizontalAccuracy = 0.0),
+                    title = place.title,
+                    address = place.address,
+                    provider = place.provider,
+                    id = place.id,
+                    type = place.type,
+                ),
+            )
+        }
     }
 
     private fun OutgoingAttachment.toInputContent(caption: FormattedText?): InputMessageContent {

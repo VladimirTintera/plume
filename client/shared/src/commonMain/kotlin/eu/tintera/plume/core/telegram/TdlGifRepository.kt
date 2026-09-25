@@ -3,17 +3,13 @@ package eu.tintera.plume.core.telegram
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.Animation
-import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.InlineQueryResultAnimation
 import dev.g000sha256.tdl.dto.InputFileId
-import dev.g000sha256.tdl.dto.OptionValueString
 import dev.g000sha256.tdl.dto.ThumbnailFormatMpeg4
 import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 /**
  * [GifRepository] nad TDLib.
@@ -29,12 +25,7 @@ class TdlGifRepository(
 
     private val client: TdlClient get() = holder.client
 
-    /**
-     * Id GIF bota, zjištěné jednou za klienta. Klíčem je instance klienta: po odhlášení je jiný
-     * a nový účet si bota najde znovu (`searchPublicChat` ho teprve zavede do databáze).
-     */
-    private var bot: Pair<TdlClient, Long>? = null
-    private val botLock = Mutex()
+    private val bot = InlineBot(holder, option = "animation_search_bot_username", fallback = DEFAULT_GIF_BOT)
 
     override fun savedGifs(): Flow<List<GifItem>> =
         holder.updates { savedAnimationsUpdates }
@@ -51,7 +42,7 @@ class TdlGifRepository(
             }
 
     override suspend fun search(chatId: Long, query: String, offset: String): Result<GifPage> {
-        val botUserId = gifBot().getOrElse { return Result.failure(it) }
+        val botUserId = bot.userId().getOrElse { return Result.failure(it) }
         return client.getInlineQueryResults(
             botUserId = botUserId,
             chatId = chatId,
@@ -76,25 +67,6 @@ class TdlGifRepository(
         client.removeSavedAnimation(animation = InputFileId(id = gif.animation.fileId))
             .toResult()
             .map { }
-
-    private suspend fun gifBot(): Result<Long> = botLock.withLock {
-        val current = client
-        bot?.takeIf { it.first === current }?.let { return@withLock Result.success(it.second) }
-
-        val username = current.getOption(name = "animation_search_bot_username")
-            .toResult()
-            .getOrNull()
-            .let { it as? OptionValueString }
-            ?.value
-            ?.takeIf { it.isNotBlank() }
-            ?: DEFAULT_GIF_BOT
-        current.searchPublicChat(username = username)
-            .toResult()
-            .mapCatching { chat ->
-                (chat.type as? ChatTypePrivate)?.userId ?: error("@$username není bot.")
-            }
-            .onSuccess { bot = current to it }
-    }
 
     private companion object {
         /** Kdyby server volbu neposlal. Tak se GIF bot jmenuje odjakživa. */

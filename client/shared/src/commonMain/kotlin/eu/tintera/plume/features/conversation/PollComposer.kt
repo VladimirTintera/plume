@@ -161,6 +161,33 @@ import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.resources.add_photo_alternate_24dp
 import eu.tintera.plume.resources.poll_compose_add_media
 import eu.tintera.plume.resources.poll_compose_remove_media
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import eu.tintera.plume.core.settings.ExpressionMode
+import eu.tintera.plume.core.location.GeoPoint
+import eu.tintera.plume.core.location.rememberDeviceLocation
+import eu.tintera.plume.core.telegram.PlaceRepository
+import eu.tintera.plume.core.telegram.PollDraftMedia
+import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.resources.gif_box_24dp
+import eu.tintera.plume.resources.image_24dp
+import eu.tintera.plume.resources.link_24dp
+import eu.tintera.plume.resources.location_on_24dp
+import eu.tintera.plume.resources.sticker_24dp
+import eu.tintera.plume.resources.poll_link_add
+import eu.tintera.plume.resources.poll_link_hint
+import eu.tintera.plume.resources.poll_link_title
+import eu.tintera.plume.resources.poll_media_gif
+import eu.tintera.plume.resources.poll_media_link
+import eu.tintera.plume.resources.poll_media_photo
+import eu.tintera.plume.resources.poll_media_place
+import eu.tintera.plume.resources.poll_media_sticker
+import kotlinx.coroutines.Job
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -254,9 +281,9 @@ internal fun pollDraftOf(
     membersOnly: Boolean = false,
     countryCodes: List<String> = emptyList(),
     maxCountries: Int = 0,
-    media: OutgoingAttachment? = null,
+    media: PollDraftMedia? = null,
     /** Přílohy odpovědí podle indexu POLE, jako [correct]. */
-    answerMedia: Map<Int, OutgoingAttachment> = emptyMap(),
+    answerMedia: Map<Int, PollDraftMedia> = emptyMap(),
 ): PollDraft? {
     val text = question.trim()
     if (text.isEmpty() || text.length > POLL_QUESTION_MAX) return null
@@ -287,6 +314,9 @@ internal fun pollDraftOf(
     val closes = closeDate > 0 || period > 0
 
     if (countryCodes.size > maxCountries) return null
+    // Samolepku a odkaz otázka nesmí — server by odmítl celou anketu. Formulář je u otázky
+    // nenabízí, tohle je pojistka.
+    if (media != null && !media.allowedForQuestion) return null
 
     return PollDraft(
         question = text,
@@ -338,6 +368,24 @@ internal fun closeDaySelectable(utcTimeMillis: Long, now: Long, maxOpenPeriodSec
 }
 
 /**
+ * Adresa odkazu u odpovědi, nebo `null`, když to adresa není. Bez schématu dostane `https://`
+ * (tak se odkazy píšou); jiné schéma než http(s) se nebere — `tg://` ani `javascript:` do
+ * ankety nepatří. Mezera uvnitř znamená, že jde o text, ne o adresu.
+ */
+internal fun pollLinkOf(text: String): String? {
+    val trimmed = text.trim()
+    if (trimmed.isEmpty() || trimmed.any { it.isWhitespace() }) return null
+    val schemeEnd = trimmed.indexOf("://")
+    val url = if (schemeEnd < 0) "https://$trimmed" else trimmed
+    val scheme = url.substringBefore("://").lowercase()
+    if (scheme != "http" && scheme != "https") return null
+    val host = url.substringAfter("://").substringBefore('/').substringBefore('?').substringBefore('#')
+    // Doména s tečkou a něčím před i za ní; „localhost" ani holé slovo adresou pro anketu nejsou.
+    if (!host.contains('.') || host.startsWith('.') || host.endsWith('.')) return null
+    return url
+}
+
+/**
  * Nabízené doby trvání ankety v sekundách, jen do stropu serveru ([maxOpenPeriodSeconds]).
  * Bez stropu (`0`) se nenabízí žádná — volba doby se pak nekreslí.
  */
@@ -383,7 +431,7 @@ data class PollComposerStatus(
  * aby rozepsaná anketa přežila otočení.
  */
 class PollComposerViewModel(
-    private val chatId: Long,
+    val chatId: Long,
     /** Vynucený druh od tlačítka bota; přepínač kvízu se pak nekreslí. */
     val mode: PollComposerMode,
     /**
@@ -395,6 +443,7 @@ class PollComposerViewModel(
     private val repository: ConversationRepository,
     /** Jen kvůli seznamu zemí (`getCountries`) — tentýž, ze kterého bere přihlášení. */
     private val session: TelegramSession,
+    private val placeRepository: PlaceRepository,
 ) : ViewModel() {
 
     /** Odpověď, se kterou anketa odejde; `null` = bez odpovědi (nebo ji uživatel zahodil). */
@@ -433,13 +482,17 @@ class PollComposerViewModel(
     var countryCodes by mutableStateOf(emptyList<String>())
         private set
 
-    /** Fotka nebo video u otázky. */
-    var questionMedia by mutableStateOf<OutgoingAttachment?>(null)
+    /** Příloha otázky. */
+    var questionMedia by mutableStateOf<PollDraftMedia?>(null)
         private set
 
     /** Přílohy odpovědí podle indexu POLE v [answers]. */
-    var answerMedia by mutableStateOf(emptyMap<Int, OutgoingAttachment>())
+    var answerMedia by mutableStateOf(emptyMap<Int, PollDraftMedia>())
         private set
+
+    private val _places = MutableStateFlow(PlaceSearch())
+    val places: StateFlow<PlaceSearch> = _places.asStateFlow()
+    private var placeJob: Job? = null
 
     /**
      * Ke kterému poli se vybírá příloha: [POLL_QUESTION_MEDIA], nebo index odpovědi. Výběr je
@@ -528,12 +581,48 @@ class PollComposerViewModel(
     /** Příloha z výběru; bere se první fotka nebo video, výběr jich vydá víc naráz. */
     fun attachMedia(picked: List<OutgoingAttachment>) {
         val media = picked.firstOrNull { it is OutgoingAttachment.Photo || it is OutgoingAttachment.Video } ?: return
+        setMedia(PollDraftMedia.File(media))
+    }
+
+    /** Příloha z kteréhokoli výběru (GIF, samolepka, odkaz, místo) pro pole z [pickMediaFor]. */
+    fun setMedia(media: PollDraftMedia) {
         val target = mediaTarget
         when {
-            target == POLL_QUESTION_MEDIA -> questionMedia = media
+            target == POLL_QUESTION_MEDIA -> if (media.allowedForQuestion) questionMedia = media
             // Pole mohlo mezitím zmizet nebo se vyprázdnit — příloha bez textu by neodešla.
             answers.getOrNull(target)?.isNotBlank() == true -> answerMedia = answerMedia + (target to media)
         }
+    }
+
+    /**
+     * Místa k dotazu, s pauzou po psaní a zrušením předchozího hledání — pomalá odpověď na
+     * „Praha" nesmí přepsat výsledky pro „Praha Hrad".
+     */
+    fun searchPlaces(query: String) {
+        placeJob?.cancel()
+        val text = query.trim()
+        val center = (_places.value.location as? PlaceLocation.Found)?.point
+        _places.update { it.copy(query = text, loading = center != null, failed = false) }
+        center ?: return
+        placeJob = viewModelScope.launch {
+            // Prázdný dotaz (místa v okolí) hned, psaní s pauzou.
+            if (text.isNotEmpty()) delay(PLACE_SEARCH_DELAY_MS)
+            placeRepository.search(chatId, text, center)
+                .onSuccess { found -> _places.update { it.copy(results = found, loading = false) } }
+                .onFailure { _places.update { it.copy(loading = false, failed = true) } }
+        }
+    }
+
+    /** Výběr místa se otevírá: poloha se zjišťuje znovu a výsledky z minula se zahodí. */
+    fun startPlaceSearch() {
+        placeJob?.cancel()
+        _places.value = PlaceSearch()
+    }
+
+    /** Poloha zařízení dorazila (nebo ne); hned se hledají místa v okolí. */
+    fun onPlaceLocation(point: GeoPoint?) {
+        _places.update { it.copy(location = point?.let { p -> PlaceLocation.Found(p) } ?: PlaceLocation.Unavailable) }
+        searchPlaces(_places.value.query)
     }
 
     fun removeQuestionMedia() {
@@ -663,9 +752,11 @@ fun PollComposerScreen(
     }
     val canSend = viewModel.draft != null && !status.sending
     val mediaPicker = rememberAttachmentPicker(onPicked = viewModel::attachMedia, onError = viewModel::reportMediaError)
-    val pickMedia: (Int) -> Unit = { target ->
+    /** Otevřený výběr přílohy (GIF, samolepka, odkaz, místo); fotku a video vybírá systém. */
+    var choosing by remember { mutableStateOf<PollMediaKind?>(null) }
+    val chooseMedia: (Int, PollMediaKind) -> Unit = { target, kind ->
         viewModel.pickMediaFor(target)
-        mediaPicker.pickMedia()
+        if (kind == PollMediaKind.PhotoOrVideo) mediaPicker.pickMedia() else choosing = kind
     }
     var pickingCloseDay by remember { mutableStateOf(false) }
     var pickedCloseDay by remember { mutableStateOf<Long?>(null) }
@@ -756,7 +847,8 @@ fun PollComposerScreen(
                     trailing = {
                         MediaSlot(
                             media = viewModel.questionMedia,
-                            onAdd = { pickMedia(POLL_QUESTION_MEDIA) },
+                            kinds = PollMediaKind.forQuestion,
+                            onChoose = { kind -> chooseMedia(POLL_QUESTION_MEDIA, kind) },
                             onRemove = viewModel::removeQuestionMedia,
                         )
                     },
@@ -787,7 +879,7 @@ fun PollComposerScreen(
                     correct = index in viewModel.correct,
                     removable = viewModel.answers.size > MIN_POLL_ANSWERS && answer.isNotBlank(),
                     media = viewModel.answerMedia[index],
-                    onAddMedia = { pickMedia(index) },
+                    onChooseMedia = { kind -> chooseMedia(index, kind) },
                     onRemoveMedia = { viewModel.removeAnswerMedia(index) },
                     onValueChange = { viewModel.setAnswer(index, it) },
                     onToggleCorrect = {
@@ -955,6 +1047,57 @@ fun PollComposerScreen(
             onDismiss = { pickedCloseDay = null },
         )
     }
+    when (choosing) {
+        null, PollMediaKind.PhotoOrVideo -> Unit
+        // Tentýž výběr jako v konverzaci, jen s jedinou částí: GIF a samolepka se tu nevkládají
+        // do zprávy, ale k otázce nebo odpovědi.
+        PollMediaKind.Gif, PollMediaKind.Sticker -> {
+            val mode = if (choosing == PollMediaKind.Gif) ExpressionMode.Gifs else ExpressionMode.Stickers
+            StickerPickerSheet(
+                mode = mode,
+                onModeChange = {},
+                stickersAvailable = true,
+                draft = TextFieldValue(),
+                onDraftEdit = {},
+                onPick = { sticker ->
+                    choosing = null
+                    viewModel.setMedia(PollDraftMedia.Sticker(sticker))
+                },
+                chatId = viewModel.chatId,
+                onPickGif = { gif ->
+                    choosing = null
+                    viewModel.setMedia(PollDraftMedia.Gif(gif.animation))
+                },
+                onDismiss = { choosing = null },
+                modes = listOf(mode),
+            )
+        }
+        PollMediaKind.Link -> PollLinkDialog(
+            onConfirm = { url ->
+                choosing = null
+                viewModel.setMedia(PollDraftMedia.Link(url))
+            },
+            onDismiss = { choosing = null },
+        )
+        PollMediaKind.Place -> {
+            val places by viewModel.places.collectAsStateWithLifecycle()
+            val location = rememberDeviceLocation()
+            LaunchedEffect(Unit) {
+                viewModel.startPlaceSearch()
+                location.request(viewModel::onPlaceLocation)
+            }
+            PlacePickerSheet(
+                search = places,
+                onQueryChange = viewModel::searchPlaces,
+                onPick = { place ->
+                    choosing = null
+                    viewModel.setMedia(PollDraftMedia.Location(place))
+                },
+                onDismiss = { choosing = null },
+            )
+        }
+    }
+
     if (pickingCountries) {
         CountryPickerSheet(
             countries = status.countries,
@@ -1126,8 +1269,8 @@ private fun AnswerField(
     multiple: Boolean,
     correct: Boolean,
     removable: Boolean,
-    media: OutgoingAttachment?,
-    onAddMedia: () -> Unit,
+    media: PollDraftMedia?,
+    onChooseMedia: (PollMediaKind) -> Unit,
     onRemoveMedia: () -> Unit,
     onValueChange: (String) -> Unit,
     onToggleCorrect: () -> Unit,
@@ -1165,7 +1308,9 @@ private fun AnswerField(
         trailing = if (removable || value.isNotBlank()) {
             {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (value.isNotBlank()) MediaSlot(media = media, onAdd = onAddMedia, onRemove = onRemoveMedia)
+                    if (value.isNotBlank()) {
+                        MediaSlot(media = media, kinds = PollMediaKind.entries, onChoose = onChooseMedia, onRemove = onRemoveMedia)
+                    }
                     if (removable) {
                         IconButton(onClick = onRemove) {
                             Icon(
@@ -1182,40 +1327,61 @@ private fun AnswerField(
     )
 }
 
+/** Druh přílohy v nabídce u pole. */
+internal enum class PollMediaKind {
+    PhotoOrVideo, Gif, Sticker, Link, Place;
+
+    companion object {
+        /** Co otázka smí (viz `PollDraftMedia.allowedForQuestion`) — samolepku a odkaz ne. */
+        val forQuestion = listOf(PhotoOrVideo, Gif, Place)
+    }
+}
+
 /**
- * Příloha pole: bez ní ikona „přidat fotku", s ní náhled s křížkem v rohu. Ťuknutí na náhled
- * přílohu odebere — jiná akce nad ním není a vybrat jinou jde po odebrání.
+ * Příloha pole: bez ní ikona, která otevře nabídku druhů, s ní náhled s křížkem v rohu. Ťuknutí
+ * na náhled přílohu odebere — jiná akce nad ním není a vybrat jinou jde po odebrání.
  */
 @Composable
-private fun MediaSlot(media: OutgoingAttachment?, onAdd: () -> Unit, onRemove: () -> Unit) {
+private fun MediaSlot(
+    media: PollDraftMedia?,
+    kinds: List<PollMediaKind>,
+    onChoose: (PollMediaKind) -> Unit,
+    onRemove: () -> Unit,
+) {
     if (media == null) {
-        IconButton(onClick = onAdd) {
-            Icon(
-                painterResource(Res.drawable.add_photo_alternate_24dp),
-                contentDescription = stringResource(Res.string.poll_compose_add_media),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        var open by remember { mutableStateOf(false) }
+        Box {
+            IconButton(onClick = { open = true }) {
+                Icon(
+                    painterResource(Res.drawable.add_photo_alternate_24dp),
+                    contentDescription = stringResource(Res.string.poll_compose_add_media),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            ExpressiveMenu(
+                expanded = open,
+                onDismiss = { open = false },
+                groups = listOf(
+                    kinds.map { kind ->
+                        MenuAction(label = stringResource(kind.label()), icon = kind.icon()) { onChoose(kind) }
+                    },
+                ),
             )
         }
         return
     }
-    val image = when (media) {
-        is OutgoingAttachment.Photo -> media.path
-        is OutgoingAttachment.Video -> media.thumbnail?.path
-        is OutgoingAttachment.Document -> null
-    }
     val removeLabel = stringResource(Res.string.poll_compose_remove_media)
     Box(
+        contentAlignment = Alignment.Center,
         modifier = Modifier
             .padding(horizontal = 4.dp)
             .size(MEDIA_SLOT)
             .clip(RoundedCornerShape(MEDIA_SLOT_CORNER))
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .background(if (media is PollDraftMedia.Sticker) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest)
             .clickable(onClickLabel = removeLabel, onClick = onRemove)
             .semantics { contentDescription = removeLabel },
     ) {
-        image?.let {
-            AsyncImage(model = "file://$it", contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-        }
+        MediaSlotPicture(media)
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
@@ -1228,6 +1394,83 @@ private fun MediaSlot(media: OutgoingAttachment?, onAdd: () -> Unit, onRemove: (
             Icon(painterResource(Res.drawable.close_24dp), contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
         }
     }
+}
+
+/** Obsah náhledu přílohy: obrázek, kde nějaký je, jinak ikona druhu. */
+@Composable
+private fun MediaSlotPicture(media: PollDraftMedia) {
+    val icon: @Composable (DrawableResource) -> Unit = { drawable ->
+        Icon(painterResource(drawable), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+    }
+    when (media) {
+        is PollDraftMedia.File -> {
+            val image = when (val file = media.attachment) {
+                is OutgoingAttachment.Photo -> file.path
+                is OutgoingAttachment.Video -> file.thumbnail?.path
+                is OutgoingAttachment.Document -> null
+            }
+            image?.let {
+                AsyncImage(model = "file://$it", contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            }
+        }
+        is PollDraftMedia.Gif -> media.animation.thumbnailFileId
+            ?.let { RemoteImage(fileId = it, modifier = Modifier.fillMaxSize()) }
+            ?: icon(Res.drawable.gif_box_24dp)
+        is PollDraftMedia.Sticker -> (media.sticker.preview.thumbnailFileId ?: media.sticker.preview.fileId)
+            ?.let {
+                RemoteImage(fileId = it, contentScale = ContentScale.Fit, background = Color.Transparent, modifier = Modifier.fillMaxSize())
+            }
+            ?: icon(Res.drawable.sticker_24dp)
+        is PollDraftMedia.Link -> icon(Res.drawable.link_24dp)
+        is PollDraftMedia.Location -> icon(Res.drawable.location_on_24dp)
+    }
+}
+
+private fun PollMediaKind.label(): StringResource = when (this) {
+    PollMediaKind.PhotoOrVideo -> Res.string.poll_media_photo
+    PollMediaKind.Gif -> Res.string.poll_media_gif
+    PollMediaKind.Sticker -> Res.string.poll_media_sticker
+    PollMediaKind.Link -> Res.string.poll_media_link
+    PollMediaKind.Place -> Res.string.poll_media_place
+}
+
+private fun PollMediaKind.icon(): DrawableResource = when (this) {
+    PollMediaKind.PhotoOrVideo -> Res.drawable.image_24dp
+    PollMediaKind.Gif -> Res.drawable.gif_box_24dp
+    PollMediaKind.Sticker -> Res.drawable.sticker_24dp
+    PollMediaKind.Link -> Res.drawable.link_24dp
+    PollMediaKind.Place -> Res.drawable.location_on_24dp
+}
+
+/**
+ * Odkaz u odpovědi. Přidat jde jen adresa, kterou [pollLinkOf] uzná — bez schématu dostane
+ * `https://`, jako když se odkaz píše do zprávy.
+ */
+@Composable
+private fun PollLinkDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+    var text by rememberSaveable { mutableStateOf("") }
+    val url = pollLinkOf(text)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.poll_link_title)) },
+        text = {
+            // Jako pole v ostatních dialozích (heslo při převodu vlastnictví, štítek člena).
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                placeholder = { Text(stringResource(Res.string.poll_link_hint)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(enabled = url != null, onClick = { url?.let(onConfirm) }) {
+                Text(stringResource(Res.string.poll_link_add))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+    )
 }
 
 /** Přepínač, který nese celý řádek (viz „Obrazovka nastavení"). */
@@ -1250,6 +1493,8 @@ private fun SwitchRow(label: String, checked: Boolean, shape: Shape, onChange: (
 
 /** Kdyby server strop nevydal. */
 private const val DEFAULT_MAX_ANSWERS = 10
+
+private const val PLACE_SEARCH_DELAY_MS = 400L
 
 private fun currentEpochSeconds(): Long = Clock.System.now().epochSeconds
 

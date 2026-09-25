@@ -439,8 +439,8 @@ snadno na to uživatel narazí.
     trvání nebo přesným časem konce, popisem, „výsledky až po skončení" a v kanálu omezením na
     členy a země). Zbývá ověřit v kanálu (omezení hlasujících) a ve skupině.
   - ~~**Média v anketě a v odpovědích**~~ — hotovo (zobrazení všech druhů, otevření
-    v prohlížeči; formulář nabízí fotku a video). Zbývá GIF, samolepka, odkaz a místo ve
-    formuláři a média ve vysvětlení kvízu (`explanationMedia`).
+    v prohlížeči; formulář nabízí fotku, video, GIF, samolepku, odkaz a místo). Zbývá média ve
+    vysvětlení kvízu (`explanationMedia`) a mapa u místa (teď řádek s ikonou).
   - **Přidání odpovědi** (`canAddOption`, `addPollOption`) se zatím zahazuje.
   - **Tváře posledních hlasujících** (`recentVoterIds`) u zápatí.
 - **Video kolečka** (`MessageVideoNote`) — čtvercový náhled s popiskem, nehraje. Mají hrát

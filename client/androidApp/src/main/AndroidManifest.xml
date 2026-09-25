@@ -16,6 +16,18 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
+    <!-- Přibližná poloha jen pro hledání míst v okolí u přílohy ankety; ptá se až tehdy.
+         Přesnou polohu vyhledání kavárny v okolí nepotřebuje. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Oprávnění k poloze by jinak udělalo z polohy povinný hardware a aplikace by zmizela
+         z Play pro zařízení bez něj; bez polohy se jen nenajdou místa v okolí. -->
+    <uses-feature
+        android:name="android.hardware.location"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.location.network"
+        android:required="false" />
+
     <!-- Senzor přiblížení je jen pro hlasovku u ucha a tablety ho nemají; `required=false`, ať
          aplikace kvůli němu nezmizí z Play pro zařízení, kde chybí. -->
     <uses-feature

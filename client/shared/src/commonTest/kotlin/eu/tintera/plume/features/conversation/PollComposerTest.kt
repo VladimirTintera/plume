@@ -3,6 +3,8 @@ package eu.tintera.plume.features.conversation
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatPoll
 import eu.tintera.plume.core.telegram.OutgoingAttachment
+import eu.tintera.plume.core.telegram.Place
+import eu.tintera.plume.core.telegram.PollDraftMedia
 import eu.tintera.plume.core.telegram.PollChatKind
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.pollsAllowedIn
@@ -307,8 +309,8 @@ class PollComposerTest {
 
     // --- přílohy ---
 
-    private val photoA = OutgoingAttachment.Photo(path = "/a.jpg", width = 10, height = 10)
-    private val photoB = OutgoingAttachment.Photo(path = "/b.jpg", width = 10, height = 10)
+    private val photoA = PollDraftMedia.File(OutgoingAttachment.Photo(path = "/a.jpg", width = 10, height = 10))
+    private val photoB = PollDraftMedia.File(OutgoingAttachment.Photo(path = "/b.jpg", width = 10, height = 10))
 
     @Test
     fun prilohyOdpovediJdouSOdpovedmiKtereOdejdou() {
@@ -335,6 +337,36 @@ class PollComposerTest {
         val media = mapOf(0 to photoA, 2 to photoB)
         assertEquals(mapOf(0 to photoA, 1 to photoB), media.afterRemoval(1))
         assertEquals(mapOf(1 to photoB), media.afterRemoval(0))
+    }
+
+    @Test
+    fun samolepkaAOdkazUOtazkyNeodejdou() {
+        val link = PollDraftMedia.Link("https://example.com")
+        val withQuestionLink = pollDraftOf(
+            question = "Která?", answers = listOf("A", "B"), anonymous = true, multipleAnswers = false,
+            shuffle = false, quiz = false, correct = emptySet(), explanation = "", maxAnswers = 10,
+            media = link,
+        )
+        assertNull(withQuestionLink)
+        // U odpovědi je odkaz v pořádku.
+        val withAnswerLink = pollDraftOf(
+            question = "Která?", answers = listOf("A", "B"), anonymous = true, multipleAnswers = false,
+            shuffle = false, quiz = false, correct = emptySet(), explanation = "", maxAnswers = 10,
+            answerMedia = mapOf(1 to link),
+        )
+        assertEquals(listOf(null, link), withAnswerLink?.answerMedia)
+        assertTrue(PollDraftMedia.Location(Place("Náměstí", "Praha", 50.0, 14.0)).allowedForQuestion)
+    }
+
+    @Test
+    fun odkazDostaneSchemaAJenWebovy() {
+        assertEquals("https://example.com", pollLinkOf(" example.com "))
+        assertEquals("http://example.com/a?b", pollLinkOf("http://example.com/a?b"))
+        assertNull(pollLinkOf("tg://resolve?domain=x"))
+        assertNull(pollLinkOf("javascript:alert(1)"))
+        assertNull(pollLinkOf("dva slova.cz"))
+        assertNull(pollLinkOf("localhost"))
+        assertNull(pollLinkOf(""))
     }
 }
 

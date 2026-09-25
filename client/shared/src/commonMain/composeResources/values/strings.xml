@@ -1150,6 +1150,22 @@
         <item quantity="one">Pick up to %1$d country. With none picked, anyone can vote.</item>
         <item quantity="other">Pick up to %1$d countries. With none picked, anyone can vote.</item>
     </plurals>
-    <string name="poll_compose_add_media">Add photo or video</string>
+    <string name="poll_compose_add_media">Add attachment</string>
     <string name="poll_compose_remove_media">Remove attachment</string>
+    <string name="poll_media_photo">Photo or video</string>
+    <string name="poll_media_gif">GIF</string>
+    <string name="poll_media_sticker">Sticker</string>
+    <string name="poll_media_link">Link</string>
+    <string name="poll_media_place">Place</string>
+    <string name="poll_link_title">Link for the answer</string>
+    <string name="poll_link_hint">example.com</string>
+    <string name="poll_link_add">Add</string>
+    <string name="poll_place_title">Place</string>
+    <string name="poll_place_search">Search for a place</string>
+    <string name="poll_place_empty">No places found</string>
+    <string name="poll_place_failed">Couldn't search for places.</string>
+    <string name="poll_place_locating">Finding your location…</string>
+    <string name="poll_place_no_location">Places nearby are found using your device's location. Without it, they can't be searched.</string>
+    <string name="poll_place_mine">My location</string>
+    <string name="poll_place_mine_hint">Approximate location of this device</string>
 </resources>

@@ -3611,19 +3611,40 @@ Otázka i každá odpověď mohou nést přílohu (TDLib 15 `PollMedia`, doména
 - **Prohlížeč ukazuje přílohu ankety samotnou a bez akcí** (`loadPollMedia`). Reakce, sdílení,
   přeposlání i smazání by šly na CELOU anketu — přeposlat fotku odpovědi by odeslalo anketu.
   Popiskem je otázka, nebo text odpovědi.
-- **Formulář nabízí fotku a video** (ikona v poli otázky a u vyplněné odpovědi, systémový výběr).
-  GIF, samolepku, odkaz ani místo ne — TDLib je bere, ale formulář by kvůli nim potřeboval další
-  výběry. **Příloha odpovědi jen s textem**: prázdné pole se neposílá a příloha by zmizela
-  potichu; po vymazání textu se proto zahodí i ona. Přílohy patří TEXTU, ne pozici
-  (`afterRemoval`, testy `PollComposerTest`).
+- **Formulář nabízí všechny druhy, které TDLib bere** — ikona v poli otevře nabídku: fotka nebo
+  video (systémový výběr), GIF a samolepka (tentýž `StickerPickerSheet` jako v konverzaci, jen
+  s jedinou částí — `modes`), odkaz (dialog, `pollLinkOf`: bez schématu `https://`, jen
+  http(s), doména s tečkou) a místo. **Otázka smí jen fotku, video, GIF a místo**
+  (`PollDraftMedia.allowedForQuestion`) — samolepku a odkaz TDLib u otázky nebere a server by
+  odmítl celou anketu; nabídka u otázky je proto kratší. GIF a samolepka se posílají jako
+  `InputFileId` souboru, který server už má. **Příloha odpovědi jen s textem**: prázdné pole se
+  neposílá a příloha by zmizela potichu; po vymazání textu se proto zahodí i ona. Přílohy patří
+  TEXTU, ne pozici (`afterRemoval`, testy `PollComposerTest`).
+- **Místa hledá inline bot, kterého jmenuje server** (`venue_search_bot_username`, `PlaceRepository`)
+  — pomocník `InlineBot` je společný s GIF botem. **Bez polohy uživatele bot nevrací nic
+  použitelného**: na „Staroměstské náměstí Praha" i na samotné „Praha" přišel supermarket
+  z amerického předměstí. Hledá se proto kolem polohy zařízení; prázdný dotaz vrací místa
+  v okolí a „Moje poloha" (holá `InputPollMediaLocation`) je vždycky první řádek.
+- **Poloha zařízení je nová hranice `core/location`** (`rememberDeviceLocation`): jen PŘIBLIŽNÁ
+  (`ACCESS_COARSE_LOCATION`, iOS kilometr) a až ve chvíli, kdy uživatel přidává místo. Android
+  `LocationManager` bez Play služeb (čerstvá poslední známá poloha, jinak jedno zjištění
+  s limitem 10 s), iOS `CLLocationManager` s delegátem drženým silnou referencí,
+  `NSLocationWhenInUseUsageDescription` v projektu. `uses-feature` polohy je `required=false`,
+  jinak by oprávnění udělalo z polohy povinný hardware a aplikace by zmizela z Play pro zařízení
+  bez ní. Bez polohy sheet řekne, proč místa najít nejde.
+- **`adb emu geo fix` polohu emulátoru nezměnil** (`dumpsys location` hlásí dál výchozí Mountain
+  View, `fused` i `gps`). Na ověření to stačí — výsledky jsou místa kolem té polohy —, jen se
+  nečekej Praha.
 - **Bot API to umí od verze 10.0** (`sendPoll` s `media`, `options[].media`; odkaz u odpovědi od
   10.1), a tudy se ověřují druhy, které formulář nenabízí: místo u otázky, odkaz, poloha a GIF
   u odpovědí, GIF u otázky a samolepka u odpovědi.
 - **Ověřeno na emulátoru** v chatu s botem: anketa s fotkou u otázky i u odpovědi odešla, fotka
   otázky i náhled odpovědi se otevřou v prohlížeči (s popiskem, bez akcí), ťuknutí na náhled
   nehlasuje, náhled je i ve výsledcích; od bota místo, odkaz s náhledem webu, poloha, GIF
-  (s ikonou přehrání u odpovědi, hrající u otázky) a samolepka. **Ťuknutí na odkaz a místo
-  (otevření webu a map) ověřené není** — jde toutéž cestou jako odkaz v textu.
+  (s ikonou přehrání u odpovědi, hrající u otázky) a samolepka. Z formuláře odešla anketa s místem
+  z hledání, odkazem (server doplní obrázek webu) a samolepkou u odpovědí a s GIFem u otázky
+  a „Moje poloha" u odpovědi; dotaz na přibližnou polohu se ukáže až při „Místo". **Ťuknutí na
+  odkaz a místo (otevření webu a map) ověřené není** — jde toutéž cestou jako odkaz v textu.
 
 ### Tlačítka botů pod zprávou
 

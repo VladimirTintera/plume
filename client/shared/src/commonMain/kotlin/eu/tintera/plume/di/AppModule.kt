@@ -28,6 +28,8 @@ import eu.tintera.plume.core.settings.DataStoreAppSettings
 import eu.tintera.plume.core.telegram.EmojiRepository
 import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.telegram.GifRepository
+import eu.tintera.plume.core.telegram.PlaceRepository
+import eu.tintera.plume.core.telegram.TdlPlaceRepository
 import eu.tintera.plume.core.telegram.TdlGifRepository
 import eu.tintera.plume.core.telegram.TdlEmojiRepository
 import eu.tintera.plume.core.telegram.TdlStickerRepository
@@ -155,6 +157,7 @@ fun appModule() = module {
     // Bezstavová — seznamy jsou toky nad updaty, drží se jen po dobu otevřeného výběru.
     single<StickerRepository> { TdlStickerRepository(holder = get()) }
     single<GifRepository> { TdlGifRepository(holder = get()) }
+    single<PlaceRepository> { TdlPlaceRepository(holder = get()) }
     single<EmojiRepository> { TdlEmojiRepository(holder = get()) }
 
     // Eagerně: nastavení se načte při startu, aby ho první obrazovka měla hned (viz AppSettings).
@@ -218,6 +221,7 @@ fun appModule() = module {
             replyQuote = parameters.values.getOrNull(3) as? ReplyQuote,
             repository = get(),
             session = get(),
+            placeRepository = get(),
         )
     }
     // Dvě `Long` za sebou: parametry se čtou INDEXEM, podle typu by se chatId s messageId zaměnily.
