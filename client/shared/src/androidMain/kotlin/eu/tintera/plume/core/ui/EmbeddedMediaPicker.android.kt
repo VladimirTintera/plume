@@ -11,6 +11,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
@@ -23,6 +25,8 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.attachment_prepare_failed
+import java.io.File
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -55,13 +59,23 @@ private val embeddedPickerSupported: Boolean
  * (`initialMediaSelection`); hodnota je cesta do cache, podle které přílohu zná konverzace.
  * Odznačením položka vypadne ([EmbeddedMediaPicker]), zbytek se při dalším otevření prosítá
  * podle toho, co je opravdu nad polem.
+ *
+ * [scope] patří obrazovce, ne panelu: v něm běží příprava, kterou zavření galerie nesmí zrušit
+ * (viz [EmbeddedMediaSelection]). [pending] je, co se právě kopíruje — odznačení takové položky
+ * ji jen vyškrtne a hotová kopie se pak zahodí, místo aby naskočila nad pole.
  */
-private class PickedMedia : EmbeddedMediaSelection {
+private class PickedMedia(val scope: CoroutineScope) : EmbeddedMediaSelection {
     val paths = mutableMapOf<Uri, String>()
+    val pending = mutableSetOf<Uri>()
+    var preparingCount by mutableIntStateOf(0)
+    override val preparing: Boolean get() = preparingCount > 0
 }
 
 @Composable
-actual fun rememberEmbeddedMediaSelection(): EmbeddedMediaSelection = remember { PickedMedia() }
+actual fun rememberEmbeddedMediaSelection(): EmbeddedMediaSelection {
+    val scope = rememberCoroutineScope()
+    return remember(scope) { PickedMedia(scope) }
+}
 
 @OptIn(ExperimentalPhotoPickerComposeApi::class)
 @Composable
@@ -83,14 +97,17 @@ actual fun EmbeddedMediaPicker(
     if (!embeddedPickerSupported) return
 
     val context = LocalContext.current.applicationContext
-    val scope = rememberCoroutineScope()
     val picked by rememberUpdatedState(onPicked)
     val unpicked by rememberUpdatedState(onUnpicked)
     val failed by rememberUpdatedState(onError)
     val done by rememberUpdatedState(onDone)
 
-    // Paměť výběru; drží ji obrazovka, takže přežije zavření panelu.
-    val prepared = (selection as? PickedMedia)?.paths ?: remember { mutableMapOf() }
+    // Paměť výběru i rozsah přípravy; drží je obrazovka, takže přežijí zavření panelu.
+    val media = selection as? PickedMedia ?: run {
+        val fallback = rememberCoroutineScope()
+        remember(fallback) { PickedMedia(fallback) }
+    }
+    val prepared = media.paths
 
     /*
      * Zaškrtnuté při otevření = co je z minulého výběru POŘÁD nad polem.
@@ -141,27 +158,53 @@ actual fun EmbeddedMediaPicker(
              * podruhé — v dávce pak byla tatáž fotka dvakrát (ověřeno na emulátoru, „3 z 3"
              * po jediném výběru). Co už připravené je, se proto přeskočí.
              */
-            val uris = granted.filterNot { it in prepared }
+            val uris = granted.filterNot { it in prepared || it in media.pending }
             if (uris.isNotEmpty()) {
-                scope.launch {
-                    // Kopie a zmenšení jsou práce na disku a procesoru — mimo hlavní vlákno,
-                    // souběžně; `awaitAll` drží pořadí výběru.
-                    val results = uris
-                        .map { uri -> async(Dispatchers.IO) { runCatching { prepareVisual(context, uri) } } }
-                        .awaitAll()
-                    results.forEachIndexed { index, result ->
-                        result.onSuccess { prepared[uris[index]] = it.path }
-                        result.onFailure {
-                            Logger.withTag("Attachments").w(it) { "Vybranou přílohu se nepodařilo připravit." }
+                media.pending += uris
+                media.preparingCount += uris.size
+                /*
+                 * V rozsahu OBRAZOVKY, ne panelu: kopie velkého videa trvá vteřiny a „Hotovo"
+                 * panel zavře dřív — v rozsahu panelu se příprava zrušila a video nad polem
+                 * nikdy nenaskočilo (ověřeno na emulátoru se 400MB videem).
+                 */
+                media.scope.launch {
+                    try {
+                        // Kopie a zmenšení jsou práce na disku a procesoru — mimo hlavní vlákno,
+                        // souběžně; `awaitAll` drží pořadí výběru.
+                        val results = uris
+                            .map { uri -> async(Dispatchers.IO) { runCatching { prepareVisual(context, uri) } } }
+                            .awaitAll()
+                        val ready = mutableListOf<OutgoingAttachment>()
+                        var failures = 0
+                        results.forEachIndexed { index, result ->
+                            val uri = uris[index]
+                            val stillPicked = media.pending.remove(uri)
+                            result.onSuccess { attachment ->
+                                if (stillPicked) {
+                                    prepared[uri] = attachment.path
+                                    ready += attachment
+                                } else {
+                                    // Odznačeno během kopírování — nad pole nepatří.
+                                    discardPrepared(attachment)
+                                }
+                            }
+                            result.onFailure {
+                                if (stillPicked) failures++
+                                Logger.withTag("Attachments").w(it) { "Vybranou přílohu se nepodařilo připravit." }
+                            }
                         }
+                        if (ready.isNotEmpty()) picked(ready)
+                        if (failures > 0) failed(UiText(Res.string.attachment_prepare_failed))
+                    } finally {
+                        media.pending -= uris.toSet()
+                        media.preparingCount -= uris.size
                     }
-                    val ready = results.mapNotNull { it.getOrNull() }
-                    if (ready.isNotEmpty()) picked(ready)
-                    if (ready.size < results.size) failed(UiText(Res.string.attachment_prepare_failed))
                 }
             }
         },
         onUriPermissionRevoked = { uris ->
+            // Co se ještě kopíruje, se jen vyškrtne; hotová kopie se pak zahodí.
+            media.pending -= uris.toSet()
             val paths = uris.mapNotNull { prepared.remove(it) }
             if (paths.isNotEmpty()) unpicked(paths)
         },
@@ -219,6 +262,11 @@ actual fun EmbeddedMediaPicker(
     LaunchedEffect(state, expanded) { state.isExpanded = expanded }
 
     EmbeddedPhotoPicker(state = state, modifier = modifier, embeddedPhotoPickerFeatureInfo = info)
+}
+
+/** Kopie přílohy, která už nikam nepůjde: celý její adresář v cache (i náhled videa). */
+private fun discardPrepared(attachment: OutgoingAttachment) {
+    File(attachment.path).parentFile?.deleteRecursively()
 }
 
 /**

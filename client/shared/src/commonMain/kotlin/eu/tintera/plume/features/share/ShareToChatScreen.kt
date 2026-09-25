@@ -363,8 +363,9 @@ private fun ShareToChatContent(
                 CaptionBar(
                     caption = viewModel.caption,
                     onCaptionChange = viewModel::onCaptionChange,
-                    // Dokud se soubory připravují, není co poslat.
-                    enabled = !attachments.isNullOrEmpty() && !state.sending,
+                    // Dokud se soubory připravují (i ty dobrané z galerie), není co poslat —
+                    // odeslání by dávku poslalo bez nich.
+                    enabled = !attachments.isNullOrEmpty() && !state.sending && !mediaSelection.preparing,
                     sending = state.sending,
                     onSend = viewModel::send,
                     onAddMedia = if (!galleryAvailable && attachments != null) systemPicker::pickMedia else null,
