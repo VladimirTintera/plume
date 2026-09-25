@@ -10,6 +10,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -108,7 +109,6 @@ import org.koin.compose.koinInject
  * - **Karta jako u fotky** ([MediaPageLayout]): video se zaoblením, posuvník na jejím spodku,
  *   popisek pod ní.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun VideoPage(
     video: MessageMedia.Video,
@@ -140,7 +140,98 @@ internal fun VideoPage(
 ) {
     val scope = rememberCoroutineScope()
     val repository = koinInject<FileRepository>()
+    VideoPage(
+        aspectRatio = aspectRatioOf(video.width, video.height),
+        durationSeconds = video.durationSeconds,
+        caption = caption,
+        isCurrent = isCurrent,
+        immersive = immersive,
+        immersion = immersion,
+        reservedTop = reservedTop,
+        reservedBottom = reservedBottom,
+        dismissDrag = dismissDrag,
+        onDismiss = onDismiss,
+        onTap = onTap,
+        onEngage = onEngage,
+        source = { started ->
+            produceState<FileState>(FileState.Pending, video.fileId, started) {
+                if (started) repository.file(video.fileId).collect { value = it }
+            }.value
+        },
+        /*
+         * Streamování: přehrát rozestavěný soubor, místo aby se čekalo na celý. Jde to, jen když
+         * má video index na začátku (`supportsStreaming` od serveru) a když to platforma umí —
+         * na iOS zatím ne.
+         */
+        streamable = streaming && videoStreamingSupported && video.supportsStreaming,
+        // Přehrávač si řekne o `moov` atom na konci souboru; bez přesunu stahování by na něj
+        // čekal marně.
+        requestFrom = { offset -> scope.launch { repository.downloadFrom(video.fileId, offset) } },
+        hasSpoiler = hasSpoiler,
+        revealed = revealed,
+        onReveal = onReveal,
+        modifier = modifier,
+        captionAlpha = captionAlpha,
+        cardBias = cardBias,
+        thumbnail = {
+            // Náhled drží místo, dokud se video nestáhne; se sdíleným prvkem z bubliny.
+            video.thumbnailFileId?.let { thumbnail ->
+                RemoteImage(
+                    fileId = thumbnail,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    background = Color.Transparent,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .sharedNavElement(photoKey(messageId))
+                        .spoilerBlur(hasSpoiler, revealed, spoilerStyle),
+                )
+            }
+        },
+    )
+}
+
+/**
+ * Přehrávání videa na stránce carouselu — co přehrát, dodá volající: video ze zprávy (stahuje
+ * se z TDLib, i streamováním) i sdílený soubor, který už na disku je ([file]). Dřív bylo
+ * přehrávání spojené se zprávou a sdílení video pustit neumělo.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun VideoPage(
+    aspectRatio: Float,
+    durationSeconds: Int,
+    caption: String,
+    isCurrent: Boolean,
+    immersive: Boolean,
+    immersion: () -> Float,
+    reservedTop: Dp,
+    reservedBottom: Dp,
+    dismissDrag: Animatable<Float, *>,
+    /** Svislý tah přes práh; `null` = svislý tah nic nedělá (viz [ZoomableMediaPage]). */
+    onDismiss: (() -> Unit)?,
+    onTap: () -> Unit,
+    onEngage: () -> Unit,
+    /** Stav souboru s videem; `started` říká, že se má začít stahovat. */
+    source: @Composable (started: Boolean) -> FileState,
+    /** Smí se přehrávat rozestavěný soubor ([FileState.Downloading]). */
+    streamable: Boolean,
+    /** Stahovat od daného bajtu — přehrávač chce index na konci souboru. */
+    requestFrom: (offset: Long) -> Unit,
+    /** Náhled přes celou kartu, dokud se video nepřehrává. */
+    thumbnail: @Composable () -> Unit,
+    hasSpoiler: Boolean = false,
+    revealed: Boolean = true,
+    onReveal: () -> Unit = {},
+    modifier: Modifier = Modifier,
+    captionAlpha: () -> Float = { 1f },
+    cardBias: () -> Float = { 0f },
+    /** Ovládání na kartě navíc (✕ a volba režimu ve sdílení); v galerii, na celé obrazovce ne. */
+    overlay: @Composable BoxScope.() -> Unit = {},
+) {
+    val scope = rememberCoroutineScope()
     val voicePlayer = koinInject<VoicePlayer>()
+    val currentDismiss by rememberUpdatedState(onDismiss)
 
     // Hraje (a stahuje se) jen vybraná stránka na celé obrazovce.
     val active = isCurrent && immersive
@@ -150,22 +241,12 @@ internal fun VideoPage(
     // Jednou spuštěné video stahuje dál, i když se odlistuje — rozstahované se nezahazuje.
     var started by remember { mutableStateOf(false) }
     LaunchedEffect(active) { if (active) started = true }
-    val file by produceState<FileState>(FileState.Pending, video.fileId, started) {
-        if (started) repository.file(video.fileId).collect { value = it }
-    }
+    val file = source(started)
     val path = (file as? FileState.Ready)?.path
 
-    /*
-     * Streamování: přehrát rozestavěný soubor, místo aby se čekalo na celý.
-     *
-     * Jde to, jen když má video index na začátku (`supportsStreaming` od serveru) a když to
-     * platforma umí — na iOS zatím ne. Souvisle stažených bajtů (`downloadedPrefixSize`) se
-     * čte z vlákna přehrávače, proto `MutableStateFlow`, ne Compose stav.
-     */
-    val streamable = streaming && videoStreamingSupported && video.supportsStreaming
     val downloading = file as? FileState.Downloading
-    // Stažený úsek se čte z vlákna přehrávače, proto `MutableStateFlow`, ne Compose stav.
-    val downloadedRange = remember(video.fileId) { MutableStateFlow(LongRange.EMPTY) }
+    // Souvisle stažený úsek se čte z vlákna přehrávače, proto `MutableStateFlow`, ne Compose stav.
+    val downloadedRange = remember { MutableStateFlow(LongRange.EMPTY) }
     downloadedRange.value = downloading?.downloaded ?: LongRange.EMPTY
     val streamPath = downloading?.path?.takeIf { streamable }
     val streamTotal = downloading?.totalSize ?: 0L
@@ -174,7 +255,7 @@ internal fun VideoPage(
     var loaded by remember { mutableStateOf(false) }
     var controlsVisible by remember { mutableStateOf(true) }
     var positionMs by remember { mutableLongStateOf(0L) }
-    var durationMs by remember { mutableLongStateOf(video.durationSeconds * 1000L) }
+    var durationMs by remember { mutableLongStateOf(durationSeconds * 1000L) }
     var playing by remember { mutableStateOf(false) }
     var ended by remember { mutableStateOf(false) }
     // Video se opravdu rozběhlo (ne jen načetlo): do té doby točí velký průběh uprostřed.
@@ -199,9 +280,7 @@ internal fun VideoPage(
                         path = streamPath,
                         totalSize = streamTotal,
                         downloaded = { downloadedRange.value },
-                        // Přehrávač si řekne o `moov` atom na konci souboru; bez přesunu
-                        // stahování by na něj čekal marně.
-                        requestFrom = { offset -> scope.launch { repository.downloadFrom(video.fileId, offset) } },
+                        requestFrom = requestFrom,
                     ),
                 )
                 loaded = true
@@ -249,7 +328,7 @@ internal fun VideoPage(
     val downloadVisible = immersive && hasPlayed && file is FileState.Downloading
 
     MediaPageLayout(
-        aspectRatio = aspectRatioOf(video.width, video.height),
+        aspectRatio = aspectRatio,
         caption = caption,
         reservedTop = reservedTop,
         reservedBottom = reservedBottom,
@@ -270,7 +349,7 @@ internal fun VideoPage(
                         if (vertical == null) {
                             travel += delta
                             if (travel.getDistance() > viewConfiguration.touchSlop) {
-                                vertical = abs(travel.y) > abs(travel.x) && event.changes.size == 1
+                                vertical = currentDismiss != null && abs(travel.y) > abs(travel.x) && event.changes.size == 1
                             }
                         }
                         if (vertical == true) {
@@ -280,8 +359,9 @@ internal fun VideoPage(
                     } while (event.changes.any { it.pressed })
 
                     if (vertical == true) {
-                        if (abs(dismissDrag.value) > size.height * DISMISS_THRESHOLD) {
-                            onDismiss()
+                        val dismiss = currentDismiss
+                        if (dismiss != null && abs(dismissDrag.value) > size.height * DISMISS_THRESHOLD) {
+                            dismiss()
                         } else {
                             scope.launch { dismissDrag.animateTo(0f) }
                         }
@@ -309,19 +389,7 @@ internal fun VideoPage(
         // Zaoblení se ořezává v layoutu, ne ve vrstvě: nativní view s videem (UIKit) ořez
         // vrstvy nedostane. Na celé obrazovce je nulové, takže přechod se kreslí jen nad náhledem.
         Box(Modifier.fillMaxSize().clip(RoundedCornerShape(MEDIA_CARD_CORNER * (1f - immersion())))) {
-            // Náhled drží místo, dokud se video nestáhne; se sdíleným prvkem z bubliny.
-            video.thumbnailFileId?.let { thumbnail ->
-                RemoteImage(
-                    fileId = thumbnail,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    background = Color.Transparent,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .sharedNavElement(photoKey(messageId))
-                        .spoilerBlur(hasSpoiler, revealed, spoilerStyle),
-                )
-            }
+            thumbnail()
             // V galerii jen náhled; povrch se složí až na celé obrazovce.
             if (loaded && immersive) {
                 VideoSurface(player, Modifier.fillMaxSize())
@@ -486,6 +554,8 @@ internal fun VideoPage(
                 expanded = downloadExpanded,
                 onToggle = { downloadExpanded = !downloadExpanded },
             )
+
+            overlay()
         }
     }
 }

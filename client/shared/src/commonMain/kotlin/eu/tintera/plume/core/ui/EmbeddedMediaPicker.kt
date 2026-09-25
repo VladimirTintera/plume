@@ -28,12 +28,20 @@ expect fun embeddedMediaPickerAvailable(): Boolean
  *
  * Bez ní začíná každé otevření s prázdným výběrem: fotky nad polem sice zůstanou, ale v mřížce
  * nejsou zaškrtnuté, takže se dají vybrat podruhé a v albu je pak dvakrát. Obsah je platformní
- * (na Androidu identifikátory od systémového výběru), proto je to jen značka bez členů.
+ * (na Androidu identifikátory od systémového výběru).
  *
  * **Drží ji obrazovka, ne panel** ([rememberEmbeddedMediaSelection]) — panel se zavřením zahodí.
  * S odchodem z konverzace zaniká i ona, což je správně: přílohy odejdou s ní.
+ *
+ * **V jejím rozsahu běží i příprava vybraných příloh.** Kopie velkého videa trvá vteřiny a panel
+ * se mezitím běžně zavře („Hotovo"); dokud příprava běžela v rozsahu panelu, zavření ji zrušilo
+ * a video se nad polem nikdy neobjevilo — bez hlášky. U fotky to nebylo vidět, ta je hotová
+ * dřív, než člověk ťukne.
  */
-interface EmbeddedMediaSelection
+interface EmbeddedMediaSelection {
+    /** Vybrané přílohy se ještě kopírují — obrazovka ukáže, že něco přijde. Stav Compose. */
+    val preparing: Boolean
+}
 
 @Composable
 expect fun rememberEmbeddedMediaSelection(): EmbeddedMediaSelection

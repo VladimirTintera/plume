@@ -237,6 +237,7 @@ import eu.tintera.plume.features.conversation.items.UnreadDividerItem
 import eu.tintera.plume.features.conversation.items.conversationItems
 import eu.tintera.plume.features.conversation.items.describe
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.share_preparing
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.arrow_downward_24dp
 import eu.tintera.plume.resources.attach_file_24dp
@@ -1263,6 +1264,7 @@ fun ConversationScreen(
                     onCreatePoll(PollComposerRequest(PollComposerMode.Any, state.replyingTo?.id, state.replyQuote))
                 }.takeIf { state.content.polls },
                 attachments = state.attachments,
+                attachmentsPreparing = mediaSelection.preparing,
                 onRemoveAttachment = viewModel::removeAttachment,
                 onOpenAttachment = { index -> previewAttachmentIndex = index },
                 onSetAttachmentMode = viewModel::setAttachmentMode,
@@ -1823,6 +1825,11 @@ private fun MessageInput(
     onSendRecording: () -> Unit,
     /** Přílohy čekající na odeslání; text pole je pak jejich popisek. */
     attachments: List<OutgoingAttachment>,
+    /**
+     * Vybrané přílohy se ještě kopírují (velké video trvá vteřiny). Bez ukazatele by se po
+     * zavření galerie chvíli nedělo nic a vypadalo by to, že výběr nezabral.
+     */
+    attachmentsPreparing: Boolean = false,
     onRemoveAttachment: (Int) -> Unit,
     onOpenAttachment: (Int) -> Unit = {},
     onSetAttachmentMode: (Int, AttachmentMode) -> Unit = { _, _ -> },
@@ -1948,6 +1955,13 @@ private fun MessageInput(
                 if (editing != null) {
                     EditingHeader(message = editing, onCancel = onCancelEdit)
                 } else {
+                  AnimatedVisibility(
+                      visible = attachmentsPreparing,
+                      enter = fadeIn() + expandVertically(),
+                      exit = fadeOut() + shrinkVertically(),
+                  ) {
+                      AttachmentsPreparing()
+                  }
                   StagedAttachmentsStrip(
                       attachments = attachments,
                       onRemove = onRemoveAttachment,
@@ -2203,7 +2217,8 @@ private fun MessageInput(
              * Při úpravě zprávy mikrofon není — hlasovka úprava není.
              */
             // Bez práva na hlasovky mikrofon není — tlačítko zůstane odesláním, jen neaktivním.
-            val showMic = !isRecording && editing == null && draft.text.isBlank() && !withAttachments && content.voiceNotes
+            val showMic = !isRecording && editing == null && draft.text.isBlank() && !withAttachments &&
+                !attachmentsPreparing && content.voiceNotes
 
             /*
              * Prázdný POPISEK je platná úprava — tím se popisek odebere —, takže tlačítko musí jít
@@ -2290,7 +2305,9 @@ private fun MessageInput(
                     }
                 },
                 // Přílohy jdou poslat i bez popisku a popisek jde i odebrat.
-                enabled = isRecording || showMic || draft.text.isNotBlank() || withAttachments || removableCaption,
+                enabled = (isRecording || showMic || draft.text.isNotBlank() || withAttachments || removableCaption) &&
+                    // Odeslání teď by poslalo zprávu bez videa, které se ještě kopíruje.
+                    !(kind == SendButtonKind.Send && attachmentsPreparing),
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = containerColor,
                     contentColor = contentColor,
@@ -2426,6 +2443,23 @@ private enum class SendButtonKind { Mic, SendVoice, Send, Save }
  * Horní pruh karty nad vstupním polem (citace, úprava): tónovaná plocha přes celou šířku karty,
  * stejně jako citace na kartě zprávy. Zaoblení nahoře nese karta, pruh je rovný.
  */
+/** Řádek nad polem, dokud se vybrané přílohy kopírují do cache. */
+@Composable
+private fun AttachmentsPreparing() {
+    Row(
+        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        LoadingIndicator(Modifier.size(32.dp))
+        Text(
+            text = stringResource(Res.string.share_preparing),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 @Composable
 private fun ComposerHeader(content: @Composable RowScope.() -> Unit) {
     Surface(

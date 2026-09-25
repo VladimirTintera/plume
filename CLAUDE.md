@@ -2458,6 +2458,16 @@ rozhoduje `embeddedMediaPickerAvailable()`.
 - **Volat se smí až od API 34 s extension 15**, ale knihovna má `minSdk 23`, takže překlad nic
   nehlídá a pod tou hranicí by to spadlo za běhu. Podmínka je proto i uvnitř `actual`, ne jen
   u volajícího.
+- **Příprava vybrané přílohy běží v rozsahu OBRAZOVKY, ne panelu** (`EmbeddedMediaSelection`,
+  `rememberEmbeddedMediaSelection` drží `CoroutineScope`). Kopie velkého videa do cache trvá
+  vteřiny a „Hotovo" panel zavře dřív; dokud běžela v `rememberCoroutineScope` panelu, zavření ji
+  zrušilo a video se nad polem nikdy neobjevilo — bez hlášky, protože zrušení není chyba.
+  U fotky to vidět nebylo, ta je hotová dřív, než člověk ťukne. Během přípravy je nad polem
+  „Připravuji soubory…" a odeslání čeká (poslalo by dávku bez videa); odznačení položky, která
+  se ještě kopíruje, hotovou kopii zahodí. **Ověřuje se velkým videem a rychlým „Hotovo"** —
+  malé video (screenrecord emulátoru má desítky kB) chybu neukáže. Velké video se vyrobí bez
+  kodéru: k malému MP4 se připojí box `free` o stovkách MB (délka + `free` + nuly), MediaStore
+  i přehrávač ho berou.
 - **Přílohy chodí PRŮBĚŽNĚ, odznačení taky** (`onPicked` / `onUnpicked`), ne až na konci výběru.
   Odznačená položka se hlásí jako URI od pickeru, ale konverzace zná přílohy podle CESTY do
   cache — proto si `actual` drží mapu URI → cesta a `ConversationViewModel.removeAttachments`
@@ -6040,6 +6050,18 @@ sdílející z Fotek.
 - **Past: `Avatar(backdrop = …)` s barvou mimo schéma.** `contentColorFor` zná jen role, u vlastní
   barvy vrátí `Unspecified` — a záložka Uložených zpráv se nakreslila černá na černém pozadí.
   Kde roli nezná, rozhoduje `LocalContentColor`.
+- **Ťuknutí na snímek přepne na celou obrazovku, jako v prohlížeči médií**: hlavička, pole
+  i galerie zmizí, fotka jde přiblížit (štípnutí, dvojité ťuknutí), video přehrát; zpátky vede
+  ťuknutí, tah dolů nebo gesto zpět. **Stránky jsou tytéž jako v prohlížeči** —
+  `ZoomableMediaPage` a obecná `VideoPage` (zdroj souboru, náhled a ovládání navíc jsou
+  parametry) — jen nakrmené souborem na disku místo zprávy. Dokud byla gesta i přehrávání
+  napevno spojené se zprávou, karta ve sdílení byla jen obrázek a zkontrolovat, co odchází,
+  nešlo. Na celé obrazovce je spoiler odkrytý (je to volba odesílatele, ne cizí obsah).
+- **Galerie na celé obrazovce není složená** — `SurfaceView` leží nad vším a snímek by zakryla.
+  Po návratu se session pickeru otevře znovu a zaškrtnutí obnoví z příloh jako po každém zavření.
+- **Chrome mizí jen průhledností (`AnimatedVisibility` s `fadeOut`) a jeho rozměry se po dobu
+  celé obrazovky NEměří znovu** (`headerHeight`, `captionTop`). Karta se při návratu vepíše
+  tam, odkud odjela; s přeměřením by v půlce přechodu poskočila.
 - **Víc snímků je `HorizontalPager` s „N z M" v hlavičce**, ne mřížka: album se stejně posílá celé
   a pruh miniatur by zdvojoval to, co umí swipe. ✕ ubírá snímek; odebrání posledního obrazovku
   zavře, protože není co poslat.

@@ -16,7 +16,9 @@ import eu.tintera.plume.core.telegram.OutgoingAttachment
 actual fun embeddedMediaPickerAvailable(): Boolean = false
 
 /** Paměť výběru bez výběru: obsah nemá odkud vzniknout. */
-private object NoSelection : EmbeddedMediaSelection
+private object NoSelection : EmbeddedMediaSelection {
+    override val preparing = false
+}
 
 @Composable
 actual fun rememberEmbeddedMediaSelection(): EmbeddedMediaSelection = NoSelection

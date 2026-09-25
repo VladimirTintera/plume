@@ -1,26 +1,16 @@
 package eu.tintera.plume.features.media
 
-import androidx.compose.ui.platform.LocalHapticFeedback
-import eu.tintera.plume.core.ui.MEDIA_CARD_CORNER
 import eu.tintera.plume.core.ui.MEDIA_PAGE_VERTICAL_GAP
 import eu.tintera.plume.core.ui.MediaCarousel
-import eu.tintera.plume.core.ui.MediaPageLayout
 import eu.tintera.plume.core.ui.aspectRatioOf
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.calculateCentroid
-import androidx.compose.foundation.gestures.calculatePan
-import androidx.compose.foundation.gestures.calculateZoom
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,7 +31,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
@@ -59,30 +48,22 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import eu.tintera.plume.core.ui.threshold
 import org.koin.compose.koinInject
 import eu.tintera.plume.core.telegram.RevealedSpoilers
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.boundsInParent
-import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -134,7 +115,6 @@ import eu.tintera.plume.resources.menu_forward
 import eu.tintera.plume.resources.menu_more_reactions
 import eu.tintera.plume.resources.sender_you
 import kotlin.math.abs
-import kotlin.math.max
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
@@ -562,7 +542,7 @@ private fun SelfDestructTopBar(
  * kus fotky.
  */
 @Composable
-private fun androidx.compose.foundation.layout.BoxScope.SystemBarShades(immersion: () -> Float, fade: Modifier) {
+internal fun androidx.compose.foundation.layout.BoxScope.SystemBarShades(immersion: () -> Float, fade: Modifier) {
     val density = LocalDensity.current
     val top = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
     val bottom = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
@@ -787,36 +767,17 @@ private fun CloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
-/** Kde leží karta se snímkem ve stránce. Mění se při layoutu, čte se jen v gestech — proto ne stav. */
-private class CardGeometry {
-    var bounds: Rect = Rect.Zero
-}
-
 /**
- * Fotka s přiblížením.
- *
- * Gesta jsou dvě a **každé má vlastní `pointerInput`**: tah a štípnutí, a ťuknutí (přepnutí
- * galerie a celé obrazovky, dvojité přiblížení). Obě sedí na celé stránce, ne na kartě —
- * štípnout jde i vedle úzké fotky. Štípnutí a dvojité ťuknutí přepnou na celou obrazovku
- * ([onEngage]); přiblížení v galerii nedává smysl, fotka by rostla přes lišty.
- *
- * Tah se nerozpoznává přes `detectTransformGestures`. Ten konzumuje pohyb v každém směru,
- * takže by fotka spolkla i vodorovný tah a pager nad ní by nešel posunout. Proto vlastní
- * rozhodnutí po překročení slopu: nepřiblížená fotka **vodorovný tah pustí pageru**, svislý
- * si nechá na zavření; přiblížená si nechá všechno (posun po fotce). Listovat se tedy dá jen
- * s fotkou v základní velikosti — posun po přiblížené fotce by se jinak pral s listováním.
- *
- * Posun i přiblížení se čtou **až v `graphicsLayer`**, takže se při gestu nic nerekomponuje;
- * překresluje se jen vrstva s obrázkem.
+ * Fotka ze zprávy s přiblížením: mechaniku nese [ZoomableMediaPage] (sdílená se sdílením do
+ * chatu), tady je jen to, co patří zprávě — ostrá verze s náhledem, sdílený prvek z bubliny
+ * a spoiler, který odkryje první ťuknutí.
  */
 @Composable
 private fun ZoomableImage(
     photo: MessageMedia.Photo,
     messageId: Long,
     caption: String,
-    /** Stránka, na které pager stojí. Odlistovaná fotka se vrací do základní velikosti. */
     isCurrent: Boolean,
-    /** Celá obrazovka; návrat do galerie vrací přiblížení na základní velikost. */
     immersive: Boolean,
     immersion: () -> Float,
     reservedTop: Dp,
@@ -824,7 +785,6 @@ private fun ZoomableImage(
     dismissDrag: Animatable<Float, *>,
     onDismiss: () -> Unit,
     onTap: () -> Unit,
-    /** Přiblížení gestem — přepne na celou obrazovku. */
     onEngage: () -> Unit,
     hasSpoiler: Boolean = false,
     revealed: Boolean = true,
@@ -834,243 +794,48 @@ private fun ZoomableImage(
     captionAlpha: () -> Float = { 1f },
     cardBias: () -> Float = { 0f },
 ) {
-    val scope = rememberCoroutineScope()
-    val haptics = LocalHapticFeedback.current
-    // Práh zavíracího tahu se ohlásí jednou za gesto. Pole, ne stav: čte se v obsluze gesta.
-    var dismissArmed by remember { mutableStateOf(false) }
-    val card = remember { CardGeometry() }
-    val currentEngage by rememberUpdatedState(onEngage)
-    val currentTap by rememberUpdatedState(onTap)
-
-    var scale by remember { mutableFloatStateOf(1f) }
-    var offsetX by remember { mutableFloatStateOf(0f) }
-    var offsetY by remember { mutableFloatStateOf(0f) }
-
-    // Sousední stránka zůstává složená; kdyby si přiblížení nechala, vrátil by se uživatel
-    // k fotce v půlce výřezu a nešlo by z ní listovat dál.
-    LaunchedEffect(isCurrent) {
-        if (!isCurrent) {
-            scale = 1f
-            offsetX = 0f
-            offsetY = 0f
-        }
-    }
-
-    // Galerie přiblížení nezná: fotka dosedne zpátky spolu s tím, jak se karta zmenšuje.
-    LaunchedEffect(immersive) {
-        if (!immersive && scale != 1f) {
-            val fromScale = scale
-            val fromX = offsetX
-            val fromY = offsetY
-            animate(0f, 1f) { progress, _ ->
-                scale = fromScale + (1f - fromScale) * progress
-                offsetX = fromX * (1f - progress)
-                offsetY = fromY * (1f - progress)
-            }
-        }
-    }
-
-    MediaPageLayout(
+    val hidden = hasSpoiler && !revealed
+    ZoomableMediaPage(
         aspectRatio = aspectRatioOf(photo.width, photo.height),
         caption = caption,
+        isCurrent = isCurrent,
+        immersive = immersive,
+        immersion = immersion,
         reservedTop = reservedTop,
         reservedBottom = reservedBottom,
-        immersion = immersion,
+        dismissDrag = dismissDrag,
+        onDismiss = onDismiss,
+        onTap = { if (hidden) onReveal() else onTap() },
+        onEngage = onEngage,
+        zoomable = !hidden,
+        modifier = modifier,
+        cardModifier = Modifier.sharedNavElement(photoKey(messageId)),
         captionAlpha = captionAlpha,
         cardBias = cardBias,
-        modifier = modifier
-            .pointerInput(Unit) {
-                /** Meze posunu: přiblížená fotka nesmí odjet tak, aby kraj stránky zůstal prázdný. */
-                fun clampOffset(x: Float, y: Float, forScale: Float): Offset {
-                    val maxX = max(0f, (card.bounds.width * forScale - size.width) / 2f)
-                    val maxY = max(0f, (card.bounds.height * forScale - size.height) / 2f)
-                    return Offset(x.coerceIn(-maxX, maxX), y.coerceIn(-maxY, maxY))
-                }
-
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    var gesture = Gesture.Undecided
-                    var travel = Offset.Zero
-
-                    do {
-                        val event = awaitPointerEvent()
-                        val fingers = event.changes.count { it.pressed }
-                        val pan = event.calculatePan()
-
-                        if (gesture == Gesture.Undecided) {
-                            travel += pan
-                            val pastSlop = travel.getDistance() > viewConfiguration.touchSlop
-                            gesture = when {
-                                // Dva prsty jsou štípnutí vždycky, i bez slopu.
-                                fingers > 1 -> Gesture.Transform
-                                !pastSlop -> Gesture.Undecided
-                                scale > 1f -> Gesture.Transform
-                                abs(travel.y) > abs(travel.x) -> Gesture.Dismiss
-                                // Vodorovně u nepřiblížené fotky: listování, patří pageru.
-                                else -> Gesture.Page
-                            }
-                        }
-
-                        when (gesture) {
-                            Gesture.Transform -> {
-                                // Štípnutí v galerii přepne na celou obrazovku; posun přiblížené
-                                // fotky se tam dá dělat jen na ní, takže se nic nemění.
-                                if (fingers > 1) currentEngage()
-                                val zoom = event.calculateZoom()
-                                val centroid = event.calculateCentroid(useCurrent = false)
-                                val next = (scale * zoom).coerceIn(1f, MAX_SCALE)
-
-                                if (centroid != Offset.Unspecified && !(next == 1f && scale == 1f)) {
-                                    /*
-                                     * Přiblížení kolem prstů, ne kolem středu.
-                                     *
-                                     * Bod pod prsty musí zůstat na místě, jinak fotka při
-                                     * štípnutí ujíždí a uživatel ji pak dohání posunem.
-                                     */
-                                    val relativeX = centroid.x - card.bounds.center.x
-                                    val relativeY = centroid.y - card.bounds.center.y
-                                    val factor = next / scale
-
-                                    val clamped = clampOffset(
-                                        x = relativeX - (relativeX - offsetX) * factor + pan.x,
-                                        y = relativeY - (relativeY - offsetY) * factor + pan.y,
-                                        forScale = next,
-                                    )
-
-                                    scale = next
-                                    offsetX = clamped.x
-                                    offsetY = clamped.y
-                                }
-                                event.changes.forEach { if (it.positionChanged()) it.consume() }
-                            }
-
-                            Gesture.Dismiss -> {
-                                scope.launch { dismissDrag.snapTo(dismissDrag.value + pan.y) }
-                                /*
-                                 * Práh se hlásí PŘI PŘEKROČENÍ, ne až po puštění: uživatel má
-                                 * vědět, že stačí pustit. `armed` drží, aby se ozval jednou —
-                                 * tatáž mechanika jako u archivace tahem v seznamu chatů.
-                                 */
-                                val past = abs(dismissDrag.value) > size.height * DISMISS_THRESHOLD
-                                if (past && !dismissArmed) haptics.threshold()
-                                dismissArmed = past
-                                event.changes.forEach { if (it.positionChanged()) it.consume() }
-                            }
-
-                            Gesture.Undecided, Gesture.Page -> Unit
-                        }
-                    } while (event.changes.any { it.pressed })
-
-                    if (gesture == Gesture.Dismiss) {
-                        dismissArmed = false
-                        if (abs(dismissDrag.value) > size.height * DISMISS_THRESHOLD) {
-                            onDismiss()
-                        } else {
-                            scope.launch { dismissDrag.animateTo(0f) }
-                        }
-                    }
-                }
-            }
-            .pointerInput(hasSpoiler, revealed) {
-                detectTapGestures(
-                    onTap = {
-                        if (hasSpoiler && !revealed) {
-                            onReveal()
-                        } else {
-                            currentTap()
-                        }
-                    },
-                    onDoubleTap = { tap ->
-                        if (hasSpoiler && !revealed) {
-                            onReveal()
-                        } else {
-                            currentEngage()
-                            val target = if (scale > 1f) 1f else DOUBLE_TAP_SCALE
-                            val relativeX = tap.x - card.bounds.center.x
-                            val relativeY = tap.y - card.bounds.center.y
-                            val factor = target / scale
-
-                            val destination = if (target == 1f) {
-                                Offset.Zero
-                            } else {
-                                val maxX = max(0f, (card.bounds.width * target - size.width) / 2f)
-                                val maxY = max(0f, (card.bounds.height * target - size.height) / 2f)
-                                Offset(
-                                    (relativeX - (relativeX - offsetX) * factor).coerceIn(-maxX, maxX),
-                                    (relativeY - (relativeY - offsetY) * factor).coerceIn(-maxY, maxY),
-                                )
-                            }
-
-                            val fromScale = scale
-                            val fromX = offsetX
-                            val fromY = offsetY
-
-                            scope.launch {
-                                // Jedna animace řídí všechny tři hodnoty, aby se posun
-                                // nerozešel s přiblížením a fotka po cestě neuhýbala.
-                                animate(0f, 1f) { progress, _ ->
-                                    scale = fromScale + (target - fromScale) * progress
-                                    offsetX = fromX + (destination.x - fromX) * progress
-                                    offsetY = fromY + (destination.y - fromY) * progress
-                                }
-                            }
-                        }
-                    },
-                )
-            }
-            // Zavírací tah posouvá kartu i s popiskem. Za gesty, aby souřadnice dotyku zůstaly
-            // v neposunuté stránce.
-            .graphicsLayer {
-                translationY = dismissDrag.value
-                // Při zavíracím tahu se stránka zmenšuje, takže je vidět, že odchází pryč.
-                val shrink = 1f - (abs(dismissDrag.value) / size.height).coerceIn(0f, 1f) * 0.2f
-                scaleX = shrink
-                scaleY = shrink
-            },
     ) {
-        Box(
+        RemoteImage(
+            // Ostrá verze; zmenšenina z bubliny slouží jako okamžitý náhled, než se dotáhne.
+            // Ta je skoro vždycky už na disku, protože ji kreslila konverzace.
+            fileId = photo.fullFileId,
+            thumbnailFileId = photo.fileId,
+            contentDescription = stringResource(Res.string.media_photo),
+            // Karta má poměr stran fotky, takže `Crop` nic neukrojí — jen zakryje zaokrouhlení.
+            // Soubor bez náhledu rozměry nemá a karta je čtverec; tam by `Crop` ukrojil kraje.
+            contentScale = if (photo.width > 0 && photo.height > 0) ContentScale.Crop else ContentScale.Fit,
+            background = Color.Transparent,
             modifier = Modifier
                 .fillMaxSize()
-                .onPlaced { card.bounds = it.boundsInParent() }
-                .sharedNavElement(photoKey(messageId))
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    translationX = offsetX
-                    translationY = offsetY
-                    // Zaoblení nese vrstva, takže se s přiblížením zvětšuje spolu s fotkou.
-                    // Na celé obrazovce mizí: fotka jde od kraje ke kraji.
-                    clip = true
-                    this.shape = RoundedCornerShape(MEDIA_CARD_CORNER * (1f - immersion()))
-                },
-        ) {
-            RemoteImage(
-                // Ostrá verze; zmenšenina z bubliny slouží jako okamžitý náhled, než se dotáhne.
-                // Ta je skoro vždycky už na disku, protože ji kreslila konverzace.
-                fileId = photo.fullFileId,
-                thumbnailFileId = photo.fileId,
-                contentDescription = stringResource(Res.string.media_photo),
-                // Karta má poměr stran fotky, takže `Crop` nic neukrojí — jen zakryje zaokrouhlení.
-                // Soubor bez náhledu rozměry nemá a karta je čtverec; tam by `Crop` ukrojil kraje.
-                contentScale = if (photo.width > 0 && photo.height > 0) ContentScale.Crop else ContentScale.Fit,
-                background = Color.Transparent,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .spoilerBlur(hasSpoiler, revealed, spoilerStyle),
-            )
+                .spoilerBlur(hasSpoiler, revealed, spoilerStyle),
+        )
 
-            if (hasSpoiler) {
-                SpoilerOverlay(
-                    visible = !revealed,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
+        if (hasSpoiler) {
+            SpoilerOverlay(
+                visible = !revealed,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 }
-
-/** Co právě dělá prst na fotce. Rozhoduje se jednou za gesto, po překročení slopu. */
-private enum class Gesture { Undecided, Transform, Dismiss, Page }
 
 /**
  * Barva ovládání nad fotkou.
@@ -1085,12 +850,6 @@ internal const val DISMISS_THRESHOLD = 0.18f
 
 /** Jak rychle při zavíracím tahu prosvítá obsah pod prohlížečem. */
 private const val DISMISS_FADE = 2.5f
-
-/** Strop přiblížení. Nad tím jsou z fotky jen pixely. */
-private const val MAX_SCALE = 5f
-
-/** Kam skočí dvojité ťuknutí. */
-private const val DOUBLE_TAP_SCALE = 2.5f
 
 /** Ztmavení pod systémovými lištami na celé obrazovce; přechod sahá kus pod lištu. */
 private const val BAR_SHADE_ALPHA = 0.45f
