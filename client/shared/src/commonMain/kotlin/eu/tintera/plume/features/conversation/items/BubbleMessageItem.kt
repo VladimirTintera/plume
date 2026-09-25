@@ -74,29 +74,7 @@ internal data class BubbleMessageItem(
          * zaoblená plocha v ploše, dvě vnořené karty.
          */
         QuotedBubble(
-            quote = {
-                QuotedMessage(
-                    message = quote,
-                    partnerName = partnerName,
-                    onClick = message.replyToMessageId?.let { id -> { act(MessageAction.JumpTo(id)) } },
-                    onLongClick = ::requestMenu,
-                    quoteText = message.replyQuote,
-                    // Citace někoho ze skupiny nese jeho barvu, jako jméno nad jeho zprávou;
-                    // jinak akcent tónované plochy. Obojí projde kontrolou proti té ploše —
-                    // ve zvýrazněné zprávě se `tertiary` s `tertiaryContainer` může potkat
-                    // na téže světlosti (viz accentOn).
-                    accent = accentOn(
-                        background = insetColor,
-                        accent = if (!quote.isOutgoing && quote.senderName != null) {
-                            senderColor(quote.senderId)
-                        } else {
-                            MaterialTheme.colorScheme.tertiary
-                        },
-                        fallback = MaterialTheme.colorScheme.onTertiaryContainer,
-                    ),
-                    contained = false,
-                )
-            },
+            quote = { ReplyQuote(quote, partnerName) },
             content = { Content() },
         )
     }
@@ -202,6 +180,34 @@ internal data class BubbleMessageItem(
         }
         if (overflowed) QuoteExpander(expanded = expanded, onClick = toggle)
     }
+}
+
+/**
+ * Citovaná zpráva nad odpovědí — horní díl karty [QuotedBubble]. Sdílí ji bublina i anketa.
+ * Ťuknutí skočí na citovanou zprávu, dlouhý stisk otevře nabídku (citace má vlastní klikání).
+ */
+@Composable
+internal fun MessageBodyScope.ReplyQuote(quote: ChatMessage, partnerName: String?) {
+    QuotedMessage(
+        message = quote,
+        partnerName = partnerName,
+        onClick = message.replyToMessageId?.let { id -> { act(MessageAction.JumpTo(id)) } },
+        onLongClick = ::requestMenu,
+        quoteText = message.replyQuote,
+        // Citace někoho ze skupiny nese jeho barvu, jako jméno nad jeho zprávou; jinak akcent
+        // tónované plochy. Obojí projde kontrolou proti té ploše — ve zvýrazněné zprávě se
+        // `tertiary` s `tertiaryContainer` může potkat na téže světlosti (viz accentOn).
+        accent = accentOn(
+            background = insetColor,
+            accent = if (!quote.isOutgoing && quote.senderName != null) {
+                senderColor(quote.senderId)
+            } else {
+                MaterialTheme.colorScheme.tertiary
+            },
+            fallback = MaterialTheme.colorScheme.onTertiaryContainer,
+        ),
+        contained = false,
+    )
 }
 
 /**

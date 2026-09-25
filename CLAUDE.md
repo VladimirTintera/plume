@@ -9,7 +9,7 @@ nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí
 
 Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (bez railu i navigační lišty, Nastavení z menu účtu), živý seznam chatů a archiv,
 konverzace (historie, živé zprávy, odesílání, přílohy a alba, hlasovky, samolepky a emoji, úprava,
-přeposílání, připnuté zprávy), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
+přeposílání, připnuté zprávy, ankety a kvízy), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
 Není: hlášení pádů z iOS. Notifikace na iOS (APNs) jsou napojené, ale čekají na certifikát APNs u Telegramu a ověření skutečným pushem.
@@ -3483,6 +3483,51 @@ všechny podoby (`t.me`, `telegram.me`, `tg://`) a my jen vybíráme, co umíme 
 - **Sada samolepek** (`t.me/addstickers/…`, `searchStickerSet`) otevře tentýž sheet jako ťuknutí
   na samolepku.
 
+### Ankety a kvízy
+
+Anketa se kreslí jako vlastní blok (`PollMessageItem`) nad doménovým `ChatPoll` (`ChatMessage.poll`,
+převod `MessagePoll.toChatPoll` v `MessageContent.kt`, pravidla a testy `ChatPollTest`): hlasování
+jednou odpovědí ťuknutím, víc odpověďmi přes „Hlasovat", výsledky s pruhy a procenty, u kvízu
+správná a vybraná špatná odpověď a vysvětlení. V nabídce „Zrušit hlas" a „Ukončit anketu",
+v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, testy `PollVotersTest`).
+
+- **Text zprávy zůstává „Anketa: otázka"** a blok ho jen nekreslí. Citace, připnutý pruh,
+  náhled v seznamu chatů i shrnutí tak mají popis zadarmo; kdyby byl text prázdný, musela by se
+  anketa doplnit do každého z nich zvlášť. Proto ale „Kopírovat" u ankety není (kopírovalo by
+  náš popis) a `plainTextEdit` ji vylučuje výslovně.
+- **U ankety `canBeEdited` NEZNAMENÁ „jde upravit"**, ale „jde ukončit" (dokumentace
+  `stopPoll`). Bez výjimky v `plainTextEdit` by se u vlastní ankety nabídlo „Upravit" a pole
+  by upravovalo text „Anketa: …" voláním, které server odmítne.
+- **Hlasuje se indexem v PŮVODNÍM pořadí**, ne v tom, jak se odpovědi ukazují. TDLib 15 posílá
+  `optionOrder` (zamíchané pořadí); `PollAnswer.index` nese původní pozici a `setPollAnswer`
+  i `getPollVoters` berou právě ji. Neplatné indexy v pořadí se zahodí a chybějící odpověď se
+  připojí na konec — ztracená odpověď by byla horší než jiné pořadí.
+- **Hlas se lokálně nepřepisuje.** Po `setPollAnswer` TDLib sám změní obsah zprávy
+  (`UpdateMessageContent` → `editedMessages`): napřed s `isBeingChosen` (u odpovědi se točí
+  indikátor), pak se skutečnými počty. **`UpdatePoll` je jen pro boty** — kdo na něj čeká,
+  nedočká se.
+- **Po hlasování jdou výsledky jen s `canSeeResults`.** Anketa si je může schovat do uzavření;
+  pak zůstane vidět vlastní volba a věta „Výsledky uvidíš, až anketa skončí".
+- **„Zrušit hlas" jen s `allowsRevoting`, u kvízu nikdy.** Rozhoduje o tom anketa sama
+  (`canRetract`), ne příznaky od serveru — proto je to kandidát bloku, ne právo z nabídky.
+- **Zakázaný řádek odpovědi NESMÍ mít `enabled = false`.** Vzal by s sebou i dlouhý stisk a nad
+  anketou, kde se hlasovat nedá, by nešla otevřít nabídka. Řádek je `combinedClickable` vždycky,
+  jen bez vlnky a s prázdným ťuknutím.
+- **Pruhy výsledků vyjedou od nuly jen tehdy, když se výsledky odkryly před očima** (hlas,
+  uzavření). Položka se při scrollu skládá znovu a pruhy by jinak jezdily při každém průletu.
+- **Šířka ankety je pevná** (nejvýš 360 dp), ne podle obsahu: krátké odpovědi by udělaly úzkou
+  bublinu, ve které rozdíl 30 a 40 % na pruhu nejde vidět.
+- **`PollVotersViewModel` čte parametry Koinu INDEXEM** — `chatId` a `messageId` jsou dvě `Long`
+  a podle typu by se zaměnily (tatáž past jako u `messageId` konverzace).
+- **Ověřuje se testovacím botem**: `sendPoll` do soukromého chatu projde (anketa, kvíz
+  s `correct_option_id` a `explanation`, `allows_multiple_answers`, `is_anonymous=false`),
+  a `stopPoll` botem ukáže uzavřenou anketu živě. Ověřeno na emulátoru (česky, světlý i tmavý
+  motiv): hlas jednou i víc odpověďmi, špatná odpověď na kvíz s vysvětlením, zrušení hlasu,
+  „Kdo hlasoval", uzavření. **„Ukončit anketu" z nabídky ověřené NENÍ** — Plume ankety zakládat
+  neumí, takže vlastní anketa na testovacím účtu není; stejně tak vzhled na odchozí bublině.
+- **Sheet se na snímku ukáže až po chvíli.** `screencap` hned po ťuknutí zachytí obrazovku bez
+  něj a vypadá to, že tlačítko nefunguje; `uiautomator dump` už ho vidí.
+
 ### Tlačítka botů pod zprávou
 
 Inline klávesnice bota (`ReplyMarkupInlineKeyboard`) se kreslí pod zprávou jako blok zaoblených
@@ -6261,6 +6306,11 @@ vkus toho, kdo zrovna píše obrazovku.
 
 ## Gotchas
 
+- **CI na pull requestech NIC NEPŘEKLÁDÁ** — kontroluje jen poznámky k vydání. Po #284 se `main`
+  nedal přeložit (`vararg` hodnotové třídy `Color`: „Prohibited vararg parameter type") a nikdo
+  si toho nevšiml, dokud další větev nestavěla. Před pushem proto aspoň
+  `./gradlew :client:androidApp:assembleDebug`; u parametru s hodnotovou třídou (`Color`, `Dp`)
+  seznam, ne `vararg`.
 - **Test ViewModelu MUSÍ nastavit `Dispatchers.setMain`** (a v `@AfterTest` `resetMain`).
   `viewModelScope` běží na `Dispatchers.Main`: na JVM žádný není a lifecycle vezme prázdný
   kontext, takže test projde, kdežto na iOS je `Main` skutečná hlavní fronta, kterou `runTest`

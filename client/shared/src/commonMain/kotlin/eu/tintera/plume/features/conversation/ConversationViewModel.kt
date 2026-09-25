@@ -12,6 +12,9 @@ import eu.tintera.plume.core.telegram.BotButtonKind
 import eu.tintera.plume.core.telegram.UnsupportedBotButton
 import eu.tintera.plume.resources.bot_answer
 import eu.tintera.plume.resources.bot_button_failed
+import eu.tintera.plume.resources.poll_retract_failed
+import eu.tintera.plume.resources.poll_stop_failed
+import eu.tintera.plume.resources.poll_vote_failed
 import eu.tintera.plume.resources.bot_text_copied
 import eu.tintera.plume.resources.bot_unsupported_web_app
 import eu.tintera.plume.resources.bot_unsupported_login_url
@@ -1630,6 +1633,60 @@ class ConversationViewModel(
         }
     }
 
+    /**
+     * Hlas v anketě; prázdný seznam hlas zruší („Zrušit hlas" v nabídce).
+     *
+     * Nic se lokálně nepřepisuje: TDLib po `setPollAnswer` sám změní obsah zprávy — napřed
+     * s `isBeingChosen` (u odpovědi se točí indikátor), po potvrzení se skutečnými počty.
+     * Obojí dorazí přes [ConversationRepository.editedMessages] jako každá úprava.
+     */
+    private fun vote(messageId: Long, answerIndexes: List<Int>) {
+        val poll = _state.value.messages.firstOrNull { it.id == messageId }?.poll ?: return
+        // Hlas, který by server odmítl, se neposílá: uzavřená anketa, druhý hlas bez zrušení.
+        val allowed = if (answerIndexes.isEmpty()) poll.canRetract else poll.canVote
+        if (!allowed) return
+        viewModelScope.launch {
+            repository.vote(chatId, messageId, answerIndexes).onFailure { failure ->
+                val message = failure.reported(
+                    if (answerIndexes.isEmpty()) Res.string.poll_retract_failed else Res.string.poll_vote_failed,
+                )
+                _state.update { it.copy(error = message) }
+            }
+        }
+    }
+
+    fun cancelStopPoll() {
+        _state.update { it.copy(pendingStopPoll = null) }
+    }
+
+    /** Uzavření ankety se ukáže samo — TDLib změní obsah zprávy a výsledky se odkryjí. */
+    fun confirmStopPoll() {
+        val messageId = _state.value.pendingStopPoll ?: return
+        _state.update { it.copy(pendingStopPoll = null) }
+        viewModelScope.launch {
+            repository.stopPoll(chatId, messageId).onFailure { failure ->
+                _state.update { it.copy(error = failure.reported(Res.string.poll_stop_failed)) }
+            }
+        }
+    }
+
+    fun dismissPollVoters() {
+        _state.update { it.copy(pollVoters = null) }
+    }
+
+    /**
+     * Ťuknutí na hlasujícího: uživatel otevře soukromý chat, chat (anonymní správce, kanál)
+     * sám sebe. Id drží konvenci odesílatele — kladné uživatel, záporné chat.
+     */
+    fun openPollVoter(senderId: Long) {
+        _state.update { it.copy(pollVoters = null) }
+        if (senderId > 0) {
+            openMentioned { chatRepository.privateChat(senderId) }
+        } else if (senderId != chatId) {
+            _state.update { it.copy(openChat = ChatTarget(senderId)) }
+        }
+    }
+
     /** Přidat se přes pozvánku z náhledu. Po přidání se chat otevře. */
     fun joinInvite() {
         val invite = _state.value.invite?.takeUnless { it.joining } ?: return
@@ -2042,6 +2099,13 @@ class ConversationViewModel(
             MessageAction.SwipeReply, MessageMenuAction.Reply -> replyTo(messageId)
             is MessageAction.JumpTo -> jumpToMessage(action.messageId)
             is MessageAction.PressBotButton -> pressBotButton(messageId, action.row, action.column)
+            is MessageAction.Vote -> vote(messageId, action.answerIndexes)
+            MessageAction.ShowPollVoters -> _state.update { it.copy(pollVoters = messageId) }
+            MessageMenuAction.RetractVote -> {
+                closeMenus()
+                vote(messageId, emptyList())
+            }
+            MessageMenuAction.StopPoll -> _state.update { it.copy(messageMenu = null, pendingStopPoll = messageId) }
             is MessageAction.OpenLink -> openLink(action.url)
             is MessageAction.OpenMention -> openMentioned { chatRepository.chatByUsername(action.username) }
             is MessageAction.OpenUser -> openMentioned { chatRepository.privateChat(action.userId) }
@@ -3169,6 +3233,10 @@ data class ConversationState(
     val botAlert: String? = null,
     /** Tlačítko bota, na jehož odpověď se čeká; `null` = žádné. */
     val pressingBotButton: BotButtonRef? = null,
+    /** Zpráva s anketou, jejíž hlasující ukazuje sheet; `null` = zavřený. */
+    val pollVoters: Long? = null,
+    /** Anketa, kterou uživatel chce ukončit a čeká se na potvrzení; `null` = žádná. */
+    val pendingStopPoll: Long? = null,
     /** Jednorázová událost: otevřít sheet sady samolepek z odkazu `t.me/addstickers/…`. */
     val openStickerSet: Long? = null,
     /** Běží přidání ke skupině / kanálu ([ConversationViewModel.join]). */

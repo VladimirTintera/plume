@@ -1047,4 +1047,45 @@
     <string name="bot_share_phone_confirm">Share</string>
     <string name="bot_keyboard_show">Show bot keyboard</string>
     <string name="bot_keyboard_hide">Hide bot keyboard</string>
+
+    <!-- Ankety a kvízy -->
+    <string name="poll_kind_public">Poll</string>
+    <string name="poll_kind_anonymous">Anonymous poll</string>
+    <string name="poll_kind_quiz">Quiz</string>
+    <string name="poll_kind_anonymous_quiz">Anonymous quiz</string>
+    <string name="poll_kind_closed">Final results</string>
+    <string name="poll_multiple">multiple answers</string>
+    <string name="poll_subtitle_joined">%1$s · %2$s</string>
+    <plurals name="poll_votes">
+        <item quantity="one">%1$s vote</item>
+        <item quantity="other">%1$s votes</item>
+    </plurals>
+    <plurals name="poll_answers">
+        <item quantity="one">%1$s answer</item>
+        <item quantity="other">%1$s answers</item>
+    </plurals>
+    <string name="poll_no_votes">No votes yet</string>
+    <string name="poll_no_answers">No answers yet</string>
+    <string name="poll_percent">%1$d%</string>
+    <string name="poll_vote_button">Vote</string>
+    <string name="poll_show_voters">View votes</string>
+    <string name="poll_results_hidden">Results will be shown when the poll ends</string>
+    <string name="poll_restricted_membership">You can vote once you've been a member for at least a day</string>
+    <string name="poll_restricted_country">Voting in this poll isn't available in your country</string>
+    <string name="poll_restricted_other">You can't vote in this poll</string>
+    <string name="poll_answer_chosen">Your choice</string>
+    <string name="poll_answer_correct">Correct answer</string>
+    <string name="poll_answer_wrong">Wrong answer</string>
+    <string name="poll_explanation">Explanation</string>
+    <string name="menu_poll_retract">Retract vote</string>
+    <string name="menu_poll_stop">Stop poll</string>
+    <string name="poll_stop_title">Stop the poll?</string>
+    <string name="poll_stop_text">No one will be able to vote anymore and everyone will see the final results. This can't be undone.</string>
+    <string name="poll_stop_confirm">Stop poll</string>
+    <string name="poll_vote_failed">Couldn't send your vote.</string>
+    <string name="poll_retract_failed">Couldn't retract your vote.</string>
+    <string name="poll_stop_failed">Couldn't stop the poll.</string>
+    <string name="poll_voters_title">Votes</string>
+    <string name="poll_voters_more">Show more</string>
+    <string name="poll_voters_failed">Couldn't load who voted.</string>
 </resources>

@@ -11,6 +11,7 @@ import dev.g000sha256.tdl.dto.TextEntityTypeStrikethrough
 import dev.g000sha256.tdl.dto.TextEntityTypeSpoiler
 import dev.g000sha256.tdl.dto.TextEntityTypeCustomEmoji
 import dev.g000sha256.tdl.dto.MessageContent
+import dev.g000sha256.tdl.dto.MessagePoll
 import dev.g000sha256.tdl.dto.MessagePhoto
 import dev.g000sha256.tdl.dto.MessageVideo
 import dev.g000sha256.tdl.dto.MessageAnimation
@@ -1209,6 +1210,7 @@ class TdlConversationRepository(
             selfDestructIn = selfDestructIn.takeIf { it > 0.0 }?.let { ceil(it).toInt() },
             forwardOrigin = forwardInfo?.origin?.toForwardOrigin(),
             keyboard = (replyMarkup as? ReplyMarkupInlineKeyboard)?.toBotKeyboard(),
+            poll = (content as? MessagePoll)?.toChatPoll(),
         )
     }
 
@@ -1270,6 +1272,34 @@ class TdlConversationRepository(
                 ),
             ),
         ).toResult().getOrThrow().toChatMessage(isGroup(chatId))
+    }
+
+    override suspend fun vote(chatId: Long, messageId: Long, answerIndexes: List<Int>): Result<Unit> =
+        client.setPollAnswer(chatId = chatId, messageId = messageId, optionIds = answerIndexes.toIntArray())
+            .toResult()
+            .map { }
+
+    override suspend fun stopPoll(chatId: Long, messageId: Long): Result<Unit> =
+        client.stopPoll(chatId = chatId, messageId = messageId, replyMarkup = null).toResult().map { }
+
+    override suspend fun pollVoters(
+        chatId: Long,
+        messageId: Long,
+        answerIndex: Int,
+        offset: Int,
+    ): Result<PollVotersPage> = runCatching {
+        val page = client.getPollVoters(
+            chatId = chatId,
+            messageId = messageId,
+            optionId = answerIndex,
+            offset = offset,
+            limit = POLL_VOTERS_PAGE,
+        ).toResult().getOrThrow()
+        PollVotersPage(
+            // Odesílatel, kterého TDLib nezná, ze seznamu vypadne — prázdný řádek by nic neřekl.
+            voters = page.voters.filterNotNull().mapNotNull { resolveSender(it.voterId.plainId()) },
+            total = page.totalCount,
+        )
     }
 
     override suspend fun pressBotButton(
@@ -1651,6 +1681,9 @@ private fun ChatMemberStatus.toOwn(): OwnMemberStatus = when (this) {
 
 /** Zpráv na stránku sdíleného obsahu. Mřížka jich na obrazovku vezme pár desítek. */
 private const val SHARED_MEDIA_PAGE = 50
+
+/** Kolik hlasujících se načte naráz; víc TDLib nevydá (strop je 50). */
+private const val POLL_VOTERS_PAGE = 50
 
 /** Filtr `searchChatMessages` pro druh sdíleného obsahu. */
 private fun SharedMediaKind.toFilter(): SearchMessagesFilter = when (this) {

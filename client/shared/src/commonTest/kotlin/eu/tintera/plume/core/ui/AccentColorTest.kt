@@ -152,7 +152,7 @@ class AccentColorTest {
 
         assertEquals(
             inversePrimary,
-            distinctOnBoth(primary, listOf(inversePrimary, onSurface), primary, plocha),
+            distinctOnBoth(primary, listOf(inversePrimary, onSurface), listOf(primary, plocha)),
         )
     }
 
@@ -166,7 +166,7 @@ class AccentColorTest {
 
         assertEquals(
             onSurface,
-            distinctOnBoth(primary, listOf(inversePrimary, onSurface), primary, plocha),
+            distinctOnBoth(primary, listOf(inversePrimary, onSurface), listOf(primary, plocha)),
         )
     }
 
@@ -178,6 +178,6 @@ class AccentColorTest {
         val plocha = Color(0xFFF9F9FF)
         val onSurface = Color(0xFF191C20)
 
-        assertEquals(primary, distinctOnBoth(primary, listOf(onSurface), bublina, plocha))
+        assertEquals(primary, distinctOnBoth(primary, listOf(onSurface), listOf(bublina, plocha)))
     }
 }

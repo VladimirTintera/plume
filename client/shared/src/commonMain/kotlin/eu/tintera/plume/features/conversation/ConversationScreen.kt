@@ -1368,6 +1368,22 @@ fun ConversationScreen(
             ReactionDetailsSheet(details = details, onDismiss = viewModel::dismissReactionDetails)
         }
 
+        state.pollVoters?.let { messageId ->
+            state.messages.firstOrNull { it.id == messageId }?.poll?.let { poll ->
+                PollVotersSheet(
+                    chatId = viewModel.chatId,
+                    messageId = messageId,
+                    poll = poll,
+                    onOpenVoter = viewModel::openPollVoter,
+                    onDismiss = viewModel::dismissPollVoters,
+                )
+            }
+        }
+
+        if (state.pendingStopPoll != null) {
+            StopPollDialog(onConfirm = viewModel::confirmStopPoll, onDismiss = viewModel::cancelStopPoll)
+        }
+
         state.pendingPin?.let { pending ->
             PinMessageDialog(
                 pending = pending,

@@ -29,6 +29,14 @@ import dev.g000sha256.tdl.dto.MessageLocation
 import dev.g000sha256.tdl.dto.MessagePaidMedia
 import dev.g000sha256.tdl.dto.MessagePhoto
 import dev.g000sha256.tdl.dto.MessagePoll
+import dev.g000sha256.tdl.dto.PollTypeQuiz
+import dev.g000sha256.tdl.dto.PollVoteRestrictionReason
+import dev.g000sha256.tdl.dto.PollVoteRestrictionReasonClosed
+import dev.g000sha256.tdl.dto.PollVoteRestrictionReasonCountryRestricted
+import dev.g000sha256.tdl.dto.PollVoteRestrictionReasonMembershipRequired
+import dev.g000sha256.tdl.dto.PollVoteRestrictionReasonOther
+import dev.g000sha256.tdl.dto.PollVoteRestrictionReasonScheduled
+import dev.g000sha256.tdl.dto.PollVoteRestrictionReasonYetUnsent
 import dev.g000sha256.tdl.dto.MessageSelfDestructType
 import dev.g000sha256.tdl.dto.MessageSelfDestructTypeImmediately
 import dev.g000sha256.tdl.dto.MessageSelfDestructTypeTimer
@@ -584,6 +592,61 @@ internal suspend fun Message.messageMedia(): MessageMedia? = when (val content =
     )
 
     else -> null
+}
+
+/**
+ * Anketa do domény. Odpovědi jdou v pořadí, v jakém se mají ukázat (`optionOrder`, prázdné =
+ * původní), a každá si nese svůj PŮVODNÍ index — tím se hlasuje.
+ *
+ * Neplatné indexy v `optionOrder` se zahodí a co v něm chybí, se připojí na konec: odpověď,
+ * která se kvůli nesouladu pořadí neukáže, by šla přehlédnout i při hlasování.
+ */
+internal fun MessagePoll.toChatPoll(): ChatPoll {
+    val all = poll.options.mapIndexed { index, option ->
+        PollAnswer(
+            index = index,
+            text = option.text.text,
+            voters = option.voterCount,
+            percentage = option.votePercentage.coerceIn(0, 100),
+            isChosen = option.isChosen,
+            isBeingChosen = option.isBeingChosen,
+        )
+    }
+    val order = poll.optionOrder.filter { it in all.indices }.distinct()
+    val ordered = order.map { all[it] } + all.filterIndexed { index, _ -> index !in order }
+    val description = description.toBody()
+    return ChatPoll(
+        question = poll.question.text,
+        description = description.text,
+        descriptionEntities = description.entities,
+        options = ordered,
+        totalVoters = poll.totalVoterCount,
+        isAnonymous = poll.isAnonymous,
+        multipleAnswers = poll.allowsMultipleAnswers,
+        allowsRevoting = poll.allowsRevoting,
+        isClosed = poll.isClosed,
+        closeDate = poll.closeDate,
+        canSeeResults = poll.canSeeResults,
+        canGetVoters = poll.canGetVoters,
+        quiz = (poll.type as? PollTypeQuiz)?.let { quiz ->
+            val explanation = quiz.explanation.toBody()
+            PollQuiz(
+                correct = quiz.correctOptionIds.toSet(),
+                explanation = explanation.text,
+                explanationEntities = explanation.entities,
+            )
+        },
+        restriction = poll.voteRestrictionReason?.toRestriction(),
+    )
+}
+
+/** `when` bez `else`: nový důvod v novější TDLib rozbije překlad, místo aby tiše zmizel. */
+private fun PollVoteRestrictionReason.toRestriction(): PollRestriction = when (this) {
+    is PollVoteRestrictionReasonClosed -> PollRestriction.Closed
+    is PollVoteRestrictionReasonMembershipRequired -> PollRestriction.MembershipRequired
+    is PollVoteRestrictionReasonCountryRestricted -> PollRestriction.CountryRestricted
+    is PollVoteRestrictionReasonScheduled, is PollVoteRestrictionReasonYetUnsent -> PollRestriction.NotSent
+    is PollVoteRestrictionReasonOther -> PollRestriction.Other
 }
 
 /**

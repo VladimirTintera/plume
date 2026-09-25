@@ -13,7 +13,7 @@ zprávy s odepínáním, formátování textu, klikatelné zmínky a hashtagy, n
 a video s prohlížečem (uložení, sdílení), alba a posílání příloh, soubory (otevření, sdílení,
 uložení), hlasovky (přehrávání i nahrávání), hledání v konverzaci, samolepky (i animované
 `.tgs`), animovaná emoji, výběr samolepek (sady, hledání, oblíbené, trendy) a emoji (hledání,
-nedávná, odstíny pleti), profilovky ve skupinách, sponzorované zprávy, stav doručení.
+nedávná, odstíny pleti), profilovky ve skupinách, ankety a kvízy, sponzorované zprávy, stav doručení.
 
 Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonTest`,
 `./gradlew :client:shared:testAndroidHostTest`).
@@ -433,9 +433,15 @@ snadno na to uživatel narazí.
 
 **Obsah, který se dnes ukazuje jen jako řádek textu nebo nehybný náhled**
 
-- **Ankety a kvízy** (`MessagePoll`) — jen „Anketa: otázka". Hlasování (`setPollAnswer`),
-  výsledky v procentech, kvíz se správnou odpovědí a vysvětlením, zrušení hlasu, uzavření
-  (`stopPoll`), kdo hlasoval (`getPollVoters`). Ve skupinách a kanálech nejčastější chybějící typ.
+- ~~**Ankety a kvízy**~~ — hotovo (hlasování, výsledky, kvíz s vysvětlením, zrušení hlasu,
+  ukončení, kdo hlasoval; `CLAUDE.md`, „Ankety a kvízy"). Zbývá:
+  - **Zakládání anket** (`InputMessagePoll`) — tlačítko bota „vytvořit anketu" dnes jen vysvětluje,
+    že to Plume neumí.
+  - **„Ukončit anketu" ověřit na vlastní anketě** — bez zakládání žádná na testovacím účtu není.
+  - **Média v anketě a v odpovědích** (`MessagePoll.media`, `PollOption.media`, TDLib 15)
+    a **přidání odpovědi** (`canAddOption`, `addPollOption`) se zatím zahazují.
+  - **Tváře posledních hlasujících** (`recentVoterIds`) u zápatí a **odpočet do uzavření**
+    (`closeDate`).
 - **Video kolečka** (`MessageVideoNote`) — čtvercový náhled s popiskem, nehraje. Mají hrát
   v bublině kulatě, bez zvuku samy a se zvukem po ťuknutí (jako hlasovka: `isViewed`,
   `openMessageContent`, přepis `speechRecognitionResult`).

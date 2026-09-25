@@ -198,7 +198,9 @@ internal enum class PlainTextEdit {
  * Text zprávy prázdný být nesmí: prázdnou zprávu server odmítne.
  */
 internal fun ChatMessage.plainTextEdit(): PlainTextEdit? {
-    if (isService) return null
+    // Text ankety je náš popis, ne obsah zprávy — a `canBeEdited` u ankety znamená „jde
+    // ukončit" (viz `stopPoll`), takže by „Upravit" slibovalo úpravu, kterou server odmítne.
+    if (isService || poll != null) return null
 
     val plain = entities.all { entity ->
         val type = entity.type as? MessageEntityType.Link ?: return@all false

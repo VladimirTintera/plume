@@ -69,6 +69,21 @@ interface ConversationRepository {
      */
     suspend fun sendKeyboardText(chatId: Long, text: String, replyToMessageId: Long?): Result<ChatMessage>
 
+    /**
+     * Hlas v anketě. [answerIndexes] jsou pozice odpovědí v PŮVODNÍM pořadí
+     * ([PollAnswer.index]), ne v tom, v jakém se ukazují; prázdný seznam hlas zruší.
+     *
+     * Výsledek dorazí změnou obsahu zprávy ([editedMessages]) — napřed s `isBeingChosen`,
+     * po potvrzení se skutečnými počty. Lokálně se nepřepisuje nic.
+     */
+    suspend fun vote(chatId: Long, messageId: Long, answerIndexes: List<Int>): Result<Unit>
+
+    /** Uzavře anketu; smí jen autor (nebo správce), pozná se podle `canBeEdited`. */
+    suspend fun stopPoll(chatId: Long, messageId: Long): Result<Unit>
+
+    /** Kdo hlasoval pro odpověď s [answerIndex] (v původním pořadí). */
+    suspend fun pollVoters(chatId: Long, messageId: Long, answerIndex: Int, offset: Int): Result<PollVotersPage>
+
     /** Vlastní telefonní číslo jako kontakt — tlačítko bota „sdílet číslo", po potvrzení. */
     suspend fun shareOwnPhone(chatId: Long, replyToMessageId: Long?): Result<ChatMessage>
 
@@ -736,6 +751,8 @@ data class ChatMessage(
     val forwardOrigin: ForwardOrigin? = null,
     /** Tlačítka bota pod zprávou; `null` = žádná. */
     val keyboard: BotKeyboard? = null,
+    /** Anketa nebo kvíz; [text] pak nese jen „Anketa: otázka" pro místa, kde se kreslit nedá. */
+    val poll: ChatPoll? = null,
     /**
      * Citovaný úryvek, když odpověď necituje celou zprávu, ale jen její část; `null` jinak.
      * Nad odpovědí se pak ukáže úryvek místo začátku citované zprávy.

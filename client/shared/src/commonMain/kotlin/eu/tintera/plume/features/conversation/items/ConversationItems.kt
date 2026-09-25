@@ -189,7 +189,9 @@ private fun messageItem(
         message.text.emojiClusterCount(MAX_LARGE_EMOJI)
     }
     val preview = message.linkPreview
+    val poll = message.poll
     return when {
+        poll != null -> PollMessageItem(frame, poll = poll, quoted = quoted, partnerName = partnerName)
         emojiCount > 0 -> LargeEmojiMessageItem(frame, emojiCount)
         showsBareMedia(message, album) -> MediaMessageItem(frame, album)
         preview != null && showsLinkPreviewCard(message) -> LinkPreviewMessageItem(frame, preview)
@@ -209,9 +211,12 @@ private fun messageItem(
  */
 internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageMenuAction> = buildList {
     add(MessageMenuAction.Reply)
+    val poll = message.poll
+    if (poll?.canRetract == true) add(MessageMenuAction.RetractVote)
     if (message.plainTextEdit() != null) add(MessageMenuAction.Edit)
-    // Bez textu není co kopírovat, i kdyby to server dovolil.
-    if (message.copyableText().isNotBlank()) {
+    // Bez textu není co kopírovat, i kdyby to server dovolil. Text ankety je jen náš popis
+    // („Anketa: otázka") pro citace a náhledy, ne obsah, který by stálo za to kopírovat.
+    if (poll == null && message.copyableText().isNotBlank()) {
         add(MessageMenuAction.Copy)
         add(MessageMenuAction.SelectText)
     }
@@ -224,6 +229,7 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageM
     }
     add(MessageMenuAction.Info)
     add(if (isPinned) MessageMenuAction.Unpin else MessageMenuAction.Pin)
+    if (poll != null && !poll.isClosed) add(MessageMenuAction.StopPoll)
     add(MessageMenuAction.Select)
     add(MessageMenuAction.Report)
     add(MessageMenuAction.Delete)
