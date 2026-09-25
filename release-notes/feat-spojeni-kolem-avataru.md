@@ -1,3 +1,3 @@
 type: feat
-cs: Výpadek spojení ukazuje vlnitý prstenec kolem tvé fotky a text v poli hledání
-en: A connection outage shows a wavy ring around your photo and a note in the search field
+cs: Při výpadku spojení se tvá fotka zvlní a pole hledání řekne, co se děje
+en: When the connection drops, your photo turns wavy and the search field says why

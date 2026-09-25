@@ -3,7 +3,13 @@ package eu.tintera.plume.features.chats
 import androidx.compose.ui.graphics.Shape
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.highlightRanges
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.SideEffect
 import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.resources.chats_search_empty_hint
@@ -181,10 +187,20 @@ internal fun ChatSearchBar(
              * Ve sbalené pilulce nese nápověda stav spojení (prstenec kolem fotky účtu ukazuje,
              * ŽE něco není v pořádku, text CO). Rozbalené hledání má nápovědu vždycky svoji —
              * uživatel se tam dívá na výsledky, ne na spojení.
+             *
+             * Výměna je fade through, ne `Crossfade`: dva texty na témže místě napůl průhledné
+             * přes sebe („Čekání na síť" přes „Připojování") se nedají přečíst a vypadají jako
+             * chyba vykreslení — tatáž úvaha jako u přechodů mezi obrazovkami.
              */
             placeholder = {
                 val hint = connection.takeUnless { expanded } ?: Res.string.chats_search
-                Crossfade(targetState = hint, animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec()) {
+                AnimatedContent(
+                    targetState = hint,
+                    transitionSpec = {
+                        fadeIn(tween(HINT_FADE_IN_MS, delayMillis = HINT_FADE_OUT_MS, easing = LinearOutSlowInEasing)) togetherWith
+                            fadeOut(tween(HINT_FADE_OUT_MS, easing = FastOutLinearInEasing))
+                    },
+                ) {
                     Text(
                         stringResource(it),
                         maxLines = 1,
@@ -678,3 +694,7 @@ internal fun snippetAround(text: String, query: String): String {
 
 /** Kolik znaků před nalezeným slovem zůstane ve výsledku vidět. */
 private const val SNIPPET_CONTEXT = 24
+
+/** Výměna nápovědy pilulky: stará zmizí, nová se objeví až potom (stejná čísla jako fade through obrazovek). */
+private const val HINT_FADE_OUT_MS = 90
+private const val HINT_FADE_IN_MS = 210
