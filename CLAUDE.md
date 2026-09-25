@@ -4994,6 +4994,15 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   kde ji ořezává vlastní seznam (`SharedElementClip`, `sharedElementClipArea` na TÉŽE ploše,
   která má `clipToBounds`), a `sharedNavElement` ten ořez použije i v překryvu
   (`clipInOverlayDuringTransition`).
+- **Ořezová plocha je VIDITELNÁ část seznamu, ne jeho hranice** (`SharedElementClip.obscuredTop`
+  / `obscuredBottom`, `visibleArea`, testy `VisibleAreaTest`). Seznam zajíždí pod vstupní pole
+  i pod pruh připnutých zpráv, takže jeho hranice sahají až ke spodku obrazovky: fotka ležící
+  zpola pod polem se při návratu z prohlížeče kreslila PŘES pole a na konci přechodu skočila za
+  něj — tatáž chyba jako u hlavičky, jen dole. Obrazovka proto po každé kompozici zapíše výšku
+  obou pásů (výška pole se mění s klávesnicí). Pod polem je sklo, takže po dosednutí je dole
+  vidět rozostřený kus fotky; to je nepatrný rozdíl proti skoku přes celé pole. Ověřeno pixelem
+  uprostřed karty pole během zpomaleného návratu: před opravou ho fotka od půlky letu přebarvila
+  až do konce přechodu, po opravě ani jednou.
 - **Ořez se ale nesmí zapnout skokem**, jinak hned v prvním snímku ukrojí kus celoobrazovkové
   fotky a odkryje pod ní hlavičku, která tam ještě nepatří. Otevřený ořez se proto nebere jako
   nějaké velké číslo, ale jako **obal plochy a samotného prvku** — ten prvek z definice obsahuje

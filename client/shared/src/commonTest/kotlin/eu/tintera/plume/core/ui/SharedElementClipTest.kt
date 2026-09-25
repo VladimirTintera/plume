@@ -53,3 +53,26 @@ class SharedElementClipTest {
         assertEquals(content, sharedElementClipRect(content, bubble, 1.4f))
     }
 }
+
+/** Viditelná část plochy: seznam bez pásů, které přes něj obrazovka kreslí (pruh nahoře, pole dole). */
+class VisibleAreaTest {
+    private val list = Rect(left = 0f, top = 300f, right = 1000f, bottom = 2000f)
+
+    @Test
+    fun odecteVstupniPoleIPruhNahore() {
+        assertEquals(Rect(0f, 420f, 1000f, 1750f), visibleArea(list, obscuredTop = 120f, obscuredBottom = 250f))
+    }
+
+    @Test
+    fun fotkaPodPolemSeNaKonciLetuOrizneOPole() {
+        // Fotka leží od 1600 do 2100 — zpola pod polem, které začíná na 1750.
+        val clip = sharedElementClipRect(visibleArea(list, 0f, 250f), Rect(20f, 1600f, 980f, 2100f), settled = 1f)
+        assertEquals(1750f, clip.bottom)
+    }
+
+    @Test
+    fun prekryvajiciSePasyNeprevratiObdelnik() {
+        val area = visibleArea(list, obscuredTop = 1500f, obscuredBottom = 1500f)
+        assertTrue(area.bottom >= area.top, "$area")
+    }
+}

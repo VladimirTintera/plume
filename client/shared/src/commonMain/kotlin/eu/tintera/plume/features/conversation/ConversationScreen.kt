@@ -151,6 +151,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -1485,6 +1486,15 @@ fun ConversationScreen(
         val layoutDirection = LocalLayoutDirection.current
         // Plocha, do které se v překryvu ořezává sdílený prvek letící sem z prohlížeče médií.
         val listClip = rememberSharedElementClip()
+        // Pruh připnutých a vstupní pole leží PŘES seznam — fotka letící pod ně se o ně ořízne.
+        val clipDensity = LocalDensity.current
+        val obscuredBottom = padding.calculateBottomPadding()
+        SideEffect {
+            with(clipDensity) {
+                listClip.obscuredTop = pinnedHeight.toPx()
+                listClip.obscuredBottom = obscuredBottom.toPx()
+            }
+        }
         Box(
             Modifier
                 .fillMaxSize()
