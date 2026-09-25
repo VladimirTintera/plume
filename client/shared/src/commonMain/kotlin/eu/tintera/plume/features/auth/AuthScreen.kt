@@ -52,6 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
+import eu.tintera.plume.core.ui.CountryPickerSheet
 import eu.tintera.plume.core.telegram.AuthCode
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.CodeDelivery
@@ -290,7 +291,7 @@ fun AuthScreen(
     if (pickingCountry) {
         CountryPickerSheet(
             countries = countries,
-            selected = phone.country,
+            selectedCodes = setOfNotNull(phone.country?.code),
             onPick = {
                 viewModel.selectCountry(it)
                 pickingCountry = false

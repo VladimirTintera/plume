@@ -17,6 +17,16 @@ import dev.g000sha256.tdl.dto.UserTypeBot
 import dev.g000sha256.tdl.dto.OptionValueInteger
 import dev.g000sha256.tdl.dto.InputPollTypeRegular
 import dev.g000sha256.tdl.dto.InputPollTypeQuiz
+import dev.g000sha256.tdl.dto.InputPollMedia
+import dev.g000sha256.tdl.dto.InputPollMediaAnimation
+import dev.g000sha256.tdl.dto.InputPollMediaLink
+import dev.g000sha256.tdl.dto.InputPollMediaLocation
+import dev.g000sha256.tdl.dto.InputPollMediaSticker
+import dev.g000sha256.tdl.dto.InputPollMediaVenue
+import dev.g000sha256.tdl.dto.Location
+import dev.g000sha256.tdl.dto.Venue
+import dev.g000sha256.tdl.dto.InputPollMediaPhoto
+import dev.g000sha256.tdl.dto.InputPollMediaVideo
 import dev.g000sha256.tdl.dto.InputPollOption
 import dev.g000sha256.tdl.dto.InputMessagePoll
 import dev.g000sha256.tdl.dto.MessagePhoto
@@ -79,6 +89,8 @@ import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.InputAnimation
 import dev.g000sha256.tdl.dto.InputDocument
 import dev.g000sha256.tdl.dto.InputFileId
+import dev.g000sha256.tdl.dto.InputMessageVenue
+import dev.g000sha256.tdl.dto.InputMessageLocation
 import dev.g000sha256.tdl.dto.InputFileLocal
 import dev.g000sha256.tdl.dto.InputMessageAnimation
 import dev.g000sha256.tdl.dto.InputMessageContent
@@ -742,6 +754,76 @@ class TdlConversationRepository(
             .map { sent -> sent.messages.filterNotNull().map { it.toChatMessage(isGroup) } }
     }
 
+    /**
+     * Příloha do ankety. Fotka a video se nahrávají podle cesty, jako u zprávy; GIF a samolepka
+     * jsou soubory, které server už má (`InputFileId`). Popisek příloha ankety nemá — „without
+     * caption" v dokumentaci TDLib.
+     */
+    private fun PollDraftMedia.toPollMedia(): InputPollMedia? = when (this) {
+        is PollDraftMedia.File -> when (val file = attachment) {
+            is OutgoingAttachment.Photo -> InputPollMediaPhoto(
+                photo = InputPhoto(
+                    photo = InputFileLocal(path = file.path),
+                    thumbnail = null,
+                    video = null,
+                    addedStickerFileIds = intArrayOf(),
+                    width = file.width,
+                    height = file.height,
+                ),
+            )
+            is OutgoingAttachment.Video -> InputPollMediaVideo(
+                video = InputVideo(
+                    video = InputFileLocal(path = file.path),
+                    thumbnail = file.thumbnail?.let {
+                        InputThumbnail(thumbnail = InputFileLocal(path = it.path), width = it.width, height = it.height)
+                    },
+                    cover = null,
+                    startTimestamp = 0,
+                    addedStickerFileIds = intArrayOf(),
+                    duration = file.durationSeconds,
+                    width = file.width,
+                    height = file.height,
+                    supportsStreaming = file.streamable,
+                ),
+            )
+            // Formulář soubor nenabízí; kdyby se sem dostal, anketa odejde bez něj.
+            is OutgoingAttachment.Document -> null
+        }
+        is PollDraftMedia.Gif -> InputPollMediaAnimation(
+            animation = InputAnimation(
+                animation = InputFileId(id = animation.fileId),
+                thumbnail = null,
+                addedStickerFileIds = intArrayOf(),
+                duration = 0,
+                width = animation.width,
+                height = animation.height,
+            ),
+        )
+        is PollDraftMedia.Sticker -> InputPollMediaSticker(
+            sticker = InputSticker(
+                sticker = InputFileId(id = sticker.sendFileId),
+                thumbnail = null,
+                width = sticker.preview.width,
+                height = sticker.preview.height,
+            ),
+        )
+        is PollDraftMedia.Link -> InputPollMediaLink(url = url)
+        is PollDraftMedia.Location -> if (place.id.isEmpty() && place.title.isBlank()) {
+            InputPollMediaLocation(location = Location(latitude = place.latitude, longitude = place.longitude, horizontalAccuracy = 0.0))
+        } else {
+            InputPollMediaVenue(
+                venue = Venue(
+                    location = Location(latitude = place.latitude, longitude = place.longitude, horizontalAccuracy = 0.0),
+                    title = place.title,
+                    address = place.address,
+                    provider = place.provider,
+                    id = place.id,
+                    type = place.type,
+                ),
+            )
+        }
+    }
+
     private fun OutgoingAttachment.toInputContent(caption: FormattedText?): InputMessageContent {
         val file = InputFileLocal(path = path)
         if (mode == AttachmentMode.AsFile || this is OutgoingAttachment.Document) {
@@ -870,6 +952,39 @@ class TdlConversationRepository(
         )
             .toResult()
             .map { it.toChatMessage(isGroup(chatId)) }
+
+    override suspend fun sendLocation(
+        chatId: Long,
+        place: Place,
+        replyToMessageId: Long?,
+        quote: ReplyQuote?,
+    ): Result<ChatMessage> {
+        val location = Location(latitude = place.latitude, longitude = place.longitude, horizontalAccuracy = 0.0)
+        val content = if (place.title.isBlank()) {
+            InputMessageLocation(location = location)
+        } else {
+            InputMessageVenue(
+                venue = Venue(
+                    location = location,
+                    title = place.title,
+                    address = place.address,
+                    provider = place.provider,
+                    id = place.id,
+                    type = place.type,
+                ),
+            )
+        }
+        return client.sendMessage(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyInput(chatId, replyToMessageId, quote),
+            options = null,
+            replyMarkup = null,
+            inputMessageContent = content,
+        )
+            .toResult()
+            .map { it.toChatMessage(isGroup(chatId)) }
+    }
 
     override suspend fun sendGif(
         chatId: Long,
@@ -1318,19 +1433,28 @@ class TdlConversationRepository(
             inputMessageContent = InputMessagePoll(
                 question = FormattedText(text = poll.question, entities = emptyArray()),
                 options = poll.answers
-                    .map { InputPollOption(text = FormattedText(text = it, entities = emptyArray()), media = null) }
+                    .mapIndexed { index, answer ->
+                        InputPollOption(
+                            text = FormattedText(text = answer, entities = emptyArray()),
+                            media = poll.answerMedia.getOrNull(index)?.toPollMedia(),
+                        )
+                    }
                     .toTypedArray(),
-                description = null,
-                media = null,
+                // Popis je jako popisek přílohy: odkazy a zmínky se dohledají, jinak by odešly
+                // jako mrtvý text.
+                description = poll.description.takeIf { it.isNotBlank() }
+                    ?.let { FormattedText(text = it, entities = detectEntities(it)) },
+                media = poll.media?.toPollMedia(),
                 // Neanonymní anketu server do kanálu nepustí.
                 isAnonymous = poll.anonymous || isChannel,
                 allowsMultipleAnswers = poll.multipleAnswers,
                 // Změnit hlas jde u ankety, u kvízu ne — odpověď na kvíz je odpověď, ne názor.
                 allowsRevoting = correct == null,
-                membersOnly = false,
-                countryCodes = emptyArray(),
+                // Omezení hlasujících jsou „for channel chats only"; jinde by je server odmítl.
+                membersOnly = poll.membersOnly && isChannel,
+                countryCodes = if (isChannel) poll.countryCodes.toTypedArray() else emptyArray(),
                 shuffleOptions = poll.shuffle,
-                hideResultsUntilCloses = poll.hideResultsUntilClose && poll.openPeriodSeconds > 0,
+                hideResultsUntilCloses = poll.hideResultsUntilClose && (poll.openPeriodSeconds > 0 || poll.closeDate > 0),
                 type = if (correct == null) {
                     InputPollTypeRegular(allowAddingOptions = false)
                 } else {
@@ -1341,8 +1465,9 @@ class TdlConversationRepository(
                         explanationMedia = null,
                     )
                 },
-                openPeriod = poll.openPeriodSeconds,
-                closeDate = 0,
+                // Doba a čas uzavření jsou dvě podoby téže volby; přednost má výslovný čas.
+                openPeriod = if (poll.closeDate > 0) 0 else poll.openPeriodSeconds,
+                closeDate = poll.closeDate.toInt(),
                 isClosed = false,
             ),
         ).toResult().getOrThrow().toChatMessage(isGroup(chatId))
@@ -1355,6 +1480,8 @@ class TdlConversationRepository(
             maxAnswers = option("poll_answer_count_max")?.takeIf { it >= MIN_POLL_ANSWERS }
                 ?: DEFAULT_POLL_ANSWER_COUNT_MAX,
             maxOpenPeriodSeconds = option("poll_open_period_max")?.coerceAtLeast(0) ?: 0,
+            maxDescription = option("message_caption_length_max")?.takeIf { it > 0 } ?: DEFAULT_POLL_DESCRIPTION_MAX,
+            maxCountries = option("poll_country_count_max")?.coerceAtLeast(0) ?: 0,
         )
         logger.d { "Meze ankety od serveru: $limits" }
         return limits

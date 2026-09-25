@@ -2,9 +2,17 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatPoll
+import eu.tintera.plume.core.telegram.OutgoingAttachment
+import eu.tintera.plume.core.telegram.Place
+import eu.tintera.plume.core.telegram.PollDraftMedia
 import eu.tintera.plume.core.telegram.PollChatKind
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.pollsAllowedIn
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.toInstant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -199,6 +207,166 @@ class PollComposerTest {
         assertFalse(replying.pollConsumesReply(message(100, poll = true, replyTo = 7, sendState = SendState.Sent)))
         // Bez rozepsané odpovědi není co spotřebovat.
         assertFalse(ConversationState().pollConsumesReply(message(100, poll = true, replyTo = 7)))
+    }
+
+    // --- popis, čas uzavření, kdo smí hlasovat ---
+
+    private val now = 1_800_000_000L
+    private val month = 2_628_000
+
+    private fun closing(closeDate: Long, openPeriod: Int = 0, hide: Boolean = false, maxOpen: Int = month) = pollDraftOf(
+        question = "Kam?",
+        answers = listOf("A", "B"),
+        anonymous = true,
+        multipleAnswers = false,
+        shuffle = false,
+        quiz = false,
+        correct = emptySet(),
+        explanation = "",
+        maxAnswers = 10,
+        openPeriodSeconds = openPeriod,
+        hideResultsUntilClose = hide,
+        closeDate = closeDate,
+        now = now,
+        maxOpenPeriodSeconds = maxOpen,
+    )
+
+    @Test
+    fun popisSeOrizneAHlidaSeJehoStrop() {
+        val base = { description: String, max: Int ->
+            pollDraftOf(
+                question = "Kam?", answers = listOf("A", "B"), anonymous = true, multipleAnswers = false,
+                shuffle = false, quiz = false, correct = emptySet(), explanation = "", maxAnswers = 10,
+                description = description, maxDescription = max,
+            )
+        }
+        assertEquals("Na víkend.", base("  Na víkend. \n", 1024)?.description)
+        assertNull(base("x".repeat(11), 10))
+        assertEquals("", base("", 10)?.description)
+    }
+
+    @Test
+    fun vlastniCasUzavreniMusiBytVBudoucnuAPodStropem() {
+        assertEquals(now + 3600, closing(now + 3600)?.closeDate)
+        // Za minutu je překlep, ne anketa — a formulář se chvíli vyplňuje.
+        assertNull(closing(now + 60))
+        assertNull(closing(now - 10))
+        // Za stropem serveru by ho server odmítl až po odeslání.
+        assertNull(closing(now + month + 1L))
+        // Bez stropu vlastní čas nejde vůbec.
+        assertNull(closing(now + 3600, maxOpen = 0))
+    }
+
+    @Test
+    fun casUzavreniMaPrednostPredDobou() {
+        val draft = assertNotNull(closing(now + 3600, openPeriod = 300))
+        assertEquals(0, draft.openPeriodSeconds)
+        assertEquals(now + 3600, draft.closeDate)
+    }
+
+    @Test
+    fun vysledkyAzPoSkonceniPlatiIsVlastnimCasem() {
+        assertTrue(assertNotNull(closing(now + 3600, hide = true)).hideResultsUntilClose)
+        assertFalse(assertNotNull(closing(0, hide = true)).hideResultsUntilClose)
+    }
+
+    @Test
+    fun zemiNejviceKolikDovoliServer() {
+        val base = { codes: List<String>, max: Int ->
+            pollDraftOf(
+                question = "Kam?", answers = listOf("A", "B"), anonymous = true, multipleAnswers = false,
+                shuffle = false, quiz = false, correct = emptySet(), explanation = "", maxAnswers = 10,
+                countryCodes = codes, maxCountries = max, membersOnly = true,
+            )
+        }
+        assertEquals(listOf("CZ", "SK"), base(listOf("CZ", "SK", "CZ"), 3)?.countryCodes)
+        assertTrue(base(emptyList(), 0)?.membersOnly == true)
+        assertNull(base(listOf("CZ", "SK", "PL"), 2))
+    }
+
+    @Test
+    fun denAHodinaSeSkladajiVMistnimPasmu() {
+        val prague = TimeZone.of("Europe/Prague")
+        // Výběr data vrací půlnoc dne v UTC; 14:30 platí v Praze (letní čas, UTC+2).
+        val day = LocalDate(2026, 10, 1).atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
+        val expected = LocalDateTime(2026, 10, 1, 14, 30).toInstant(prague).epochSeconds
+        assertEquals(expected, closeDateOf(day, 14, 30, prague))
+        assertEquals(1_790_857_800L, expected)
+    }
+
+    @Test
+    fun nabizejiSeDnyOdDneskaPoStrop() {
+        val zone = TimeZone.UTC
+        val today = LocalDate(2026, 9, 25)
+        val now = LocalDateTime(2026, 9, 25, 22, 0).toInstant(zone).epochSeconds
+        fun day(date: LocalDate) = date.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
+        val week = 7 * 24 * 3600
+        assertTrue(closeDaySelectable(day(today), now, week, zone))
+        assertTrue(closeDaySelectable(day(LocalDate(2026, 10, 2)), now, week, zone))
+        assertFalse(closeDaySelectable(day(LocalDate(2026, 9, 24)), now, week, zone))
+        assertFalse(closeDaySelectable(day(LocalDate(2026, 10, 3)), now, week, zone))
+    }
+
+    // --- přílohy ---
+
+    private val photoA = PollDraftMedia.File(OutgoingAttachment.Photo(path = "/a.jpg", width = 10, height = 10))
+    private val photoB = PollDraftMedia.File(OutgoingAttachment.Photo(path = "/b.jpg", width = 10, height = 10))
+
+    @Test
+    fun prilohyOdpovediJdouSOdpovedmiKtereOdejdou() {
+        // Pole 1 je prázdné a vynechá se — příloha pole 2 patří druhé ODESLANÉ odpovědi.
+        val draft = assertNotNull(
+            pollDraftOf(
+                question = "Která?", answers = listOf("A", "", "C", ""), anonymous = true, multipleAnswers = false,
+                shuffle = false, quiz = false, correct = emptySet(), explanation = "", maxAnswers = 10,
+                media = photoA, answerMedia = mapOf(2 to photoB),
+            ),
+        )
+        assertEquals(listOf("A", "C"), draft.answers)
+        assertEquals(listOf(null, photoB), draft.answerMedia)
+        assertEquals(photoA, draft.media)
+    }
+
+    @Test
+    fun bezPrilohOdpovediJeSeznamPrazdny() {
+        assertEquals(emptyList(), draft()?.answerMedia)
+    }
+
+    @Test
+    fun prilohaPatriTextuIPoOdebraniPole() {
+        val media = mapOf(0 to photoA, 2 to photoB)
+        assertEquals(mapOf(0 to photoA, 1 to photoB), media.afterRemoval(1))
+        assertEquals(mapOf(1 to photoB), media.afterRemoval(0))
+    }
+
+    @Test
+    fun samolepkaAOdkazUOtazkyNeodejdou() {
+        val link = PollDraftMedia.Link("https://example.com")
+        val withQuestionLink = pollDraftOf(
+            question = "Která?", answers = listOf("A", "B"), anonymous = true, multipleAnswers = false,
+            shuffle = false, quiz = false, correct = emptySet(), explanation = "", maxAnswers = 10,
+            media = link,
+        )
+        assertNull(withQuestionLink)
+        // U odpovědi je odkaz v pořádku.
+        val withAnswerLink = pollDraftOf(
+            question = "Která?", answers = listOf("A", "B"), anonymous = true, multipleAnswers = false,
+            shuffle = false, quiz = false, correct = emptySet(), explanation = "", maxAnswers = 10,
+            answerMedia = mapOf(1 to link),
+        )
+        assertEquals(listOf(null, link), withAnswerLink?.answerMedia)
+        assertTrue(PollDraftMedia.Location(Place("Náměstí", "Praha", 50.0, 14.0)).allowedForQuestion)
+    }
+
+    @Test
+    fun odkazDostaneSchemaAJenWebovy() {
+        assertEquals("https://example.com", pollLinkOf(" example.com "))
+        assertEquals("http://example.com/a?b", pollLinkOf("http://example.com/a?b"))
+        assertNull(pollLinkOf("tg://resolve?domain=x"))
+        assertNull(pollLinkOf("javascript:alert(1)"))
+        assertNull(pollLinkOf("dva slova.cz"))
+        assertNull(pollLinkOf("localhost"))
+        assertNull(pollLinkOf(""))
     }
 }
 

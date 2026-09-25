@@ -272,6 +272,7 @@
     <string name="conversation_sticker_send_failed">Couldn't send the sticker.</string>
     <string name="conversation_attachments_limit">You can send at most %1$d attachments at once.</string>
     <string name="conversation_gif_send_failed">Couldn't send the GIF.</string>
+    <string name="conversation_location_send_failed">Couldn't send the location.</string>
     <string name="conversation_content_not_allowed">This chat doesn't accept this kind of attachment.</string>
     <string name="conversation_self_destruct_album">Disappearing photos and videos can't be sent in an album — the attachments will be sent normally.</string>
     <string name="conversation_attachments_send_failed">Couldn't send the attachments.</string>
@@ -472,6 +473,9 @@
     <string name="content_checklist">Checklist: %1$s</string>
     <string name="content_location">Location</string>
     <string name="content_live_location">Live location</string>
+    <string name="location_live_until">Shared until %1$s</string>
+    <string name="location_live_ended">Sharing has ended</string>
+    <string name="media_map">Map</string>
     <string name="content_venue">Place: %1$s</string>
     <string name="content_contact">Contact: %1$s</string>
     <string name="content_game">Game: %1$s</string>
@@ -1088,6 +1092,8 @@
     <string name="poll_voters_more">Show more</string>
     <string name="poll_voters_failed">Couldn't load who voted.</string>
     <string name="conversation_attach_poll">Poll</string>
+    <string name="conversation_attach_location">Location</string>
+    <string name="conversation_location_title">Send location</string>
     <string name="poll_compose_title">New poll</string>
     <string name="poll_compose_title_quiz">New quiz</string>
     <string name="poll_compose_send">Send</string>
@@ -1133,4 +1139,39 @@
         <item quantity="other">%1$d weeks</item>
     </plurals>
     <string name="poll_closes_at">ends %1$s</string>
+    <string name="poll_compose_description">Description (optional)</string>
+    <string name="poll_duration_custom">Pick date and time…</string>
+    <string name="poll_compose_close_time">Poll ends at</string>
+    <string name="poll_compose_close_invalid">The poll can end no sooner than in 5 minutes and no later than %1$s.</string>
+    <string name="poll_compose_voters">Who can vote</string>
+    <string name="poll_compose_members_only">Only members who joined over a day ago</string>
+    <string name="poll_compose_countries">Countries</string>
+    <string name="poll_compose_countries_all">All</string>
+    <plurals name="poll_compose_countries_count">
+        <item quantity="one">%1$d country</item>
+        <item quantity="other">%1$d countries</item>
+    </plurals>
+    <string name="poll_compose_countries_title">Who can vote from</string>
+    <plurals name="poll_compose_countries_hint">
+        <item quantity="one">Pick up to %1$d country. With none picked, anyone can vote.</item>
+        <item quantity="other">Pick up to %1$d countries. With none picked, anyone can vote.</item>
+    </plurals>
+    <string name="poll_compose_add_media">Add attachment</string>
+    <string name="poll_compose_remove_media">Remove attachment</string>
+    <string name="poll_media_photo">Photo or video</string>
+    <string name="poll_media_gif">GIF</string>
+    <string name="poll_media_sticker">Sticker</string>
+    <string name="poll_media_link">Link</string>
+    <string name="poll_media_place">Place</string>
+    <string name="poll_link_title">Link for the answer</string>
+    <string name="poll_link_hint">example.com</string>
+    <string name="poll_link_add">Add</string>
+    <string name="poll_place_title">Place</string>
+    <string name="poll_place_search">Search for a place</string>
+    <string name="poll_place_empty">No places found</string>
+    <string name="poll_place_failed">Couldn't search for places.</string>
+    <string name="poll_place_locating">Finding your location…</string>
+    <string name="poll_place_no_location">Places nearby are found using your device's location. Without it, they can't be searched.</string>
+    <string name="poll_place_mine">My location</string>
+    <string name="poll_place_mine_hint">Approximate location of this device</string>
 </resources>

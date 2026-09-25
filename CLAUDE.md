@@ -2973,8 +2973,9 @@ Ztlumit / Zapnout zvuk, omezená skupina a chat, ve kterém uživatel není, vě
   nad zprávou se řídí `canBeReplied` od serveru jako dřív.
 - **Druhy obsahu mají vlastní pravidlo** (`ContentAccess`, `contentAccess` vedle `writeAccess`,
   testy `WriteAccessTest`). Skupina smí povolit text a zakázat fotky; co se poslat nesmí, se
-  nenabízí — sponka schová položku a bez jediné se nekreslí vůbec, mikrofon ustoupí odeslání,
-  výběr zůstane na emoji. **Obě pravidla se musí shodovat v tom, koho omezení míjejí:** správce
+  nenabízí — sponka schová položku, mikrofon ustoupí odeslání, výběr zůstane na emoji.
+  **Sponka ale nezmizí nikdy**, dokud jde psát: poloha je v TDLib „základní zpráva"
+  (`canSendBasicMessages` jako text), takže v ní zůstane aspoň „Poloha". **Obě pravidla se musí shodovat v tom, koho omezení míjejí:** správce
   a vlastník omezení nemají, členovi platí výchozí práva skupiny, omezenému členovi jeho vlastní.
 - **Neznámé postavení NEOMEZUJE nic**, stejně jako u psaní. Chybějící sponka odřízne uživatele
   od chatu víc než chyba po odeslání, která přijde jednou za čas.
@@ -2990,7 +2991,8 @@ Ztlumit / Zapnout zvuk, omezená skupina a chat, ve kterém uživatel není, vě
 - **Omezená skupina se bez druhého účtu nevyrobí.** Vlastník omezení nemá, takže vlastní
   testovací skupina pravidlo neprověří — ověřuje se podstrčeným `ContentAccess` v `chatAccess()`,
   jako vzhled karty aktualizace. Ověřeno na emulátoru: „jen fotky" nechá sponku s jedinou
-  položkou, smajlík místo samolepky a odeslání místo mikrofonu; „nic" sponku schová celou.
+  položkou, smajlík místo samolepky a odeslání místo mikrofonu; „nic" sponku schovávalo celou
+  (dnes v ní zůstane „Poloha", ověřené to s podstrčeným stavem znovu není).
 
 ### „Píše…" v konverzaci
 
@@ -3629,10 +3631,29 @@ v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, 
   odpověď spotřebovala anketa, podle příchozí zprávy (`pollConsumesReply` — VLASTNÍ anketa ve
   stavu `Sending`, odpověď na tutéž zprávu; z jiného zařízení přijde už `Sent`). Odpověď se
   nezahazuje při OTEVŘENÍ formuláře — kdo ho zavře, má ji mít dál.
-- **Doba trvání je `openPeriod`, ne `closeDate`**: relativní doba nezávisí na hodinách telefonu.
-  Nabídka (5 minut až týden) se ořízne stropem serveru `poll_open_period_max` — na emulátoru
-  2 628 000 s, tedy měsíc; bez stropu se volba nekreslí. „Výsledky až po skončení"
-  (`hideResultsUntilCloses`) se nabízí jen s dobou — bez ní by je nikdo nikdy neviděl.
+- **Doba trvání je `openPeriod`, přesný čas `closeDate` — a jen jedno z nich.** Doba nezávisí
+  na hodinách telefonu, proto je výchozí; nabídka (5 minut až týden) se ořízne stropem serveru
+  `poll_open_period_max` — na emulátoru 2 628 000 s, tedy měsíc; bez stropu se volba nekreslí.
+  Poslední položka nabídky („Vybrat datum a čas…", vlastní skupina) otevře výběr data a pak
+  času; řádek se pak jmenuje „Konec ankety" — „Doba trvání: zítra 18:48" nesedělo.
+  „Výsledky až po skončení" (`hideResultsUntilCloses`) se nabízí jen s koncem ankety.
+- **Vlastní čas se hlídá PŘED odesláním** (`closeDateValid`, testy `PollComposerTest`):
+  nejdřív za 5 minut (`POLL_MIN_CLOSE_AHEAD_SECONDS` — těsný čas by během vyplňování vypršel),
+  nejpozději za strop serveru. Neplatný čas zůstane v řádku červeně s větou, dokdy smí anketa
+  skončit, a Odeslat zašedne. **Čas stárne i bez úhozu**, takže obrazovka `now` ve ViewModelu
+  obnovuje každých 15 s, dokud je vlastní čas nastavený.
+- **Výběr data vrací půlnoc v UTC, hodina platí v MÍSTNÍM pásmu** (`closeDateOf`,
+  `closeDaySelectable`). Tatáž past jako ve filtrech hledání. Strop 2 628 000 s je 30 dní
+  a 10 hodin, takže nejzazší čas přeskočí přes změnu letního času — zkontrolováno: 8:51 v září
+  → „25. října 17:51".
+- **Popis ankety** (`description`) je pole pod otázkou v jejím bloku; strop je
+  `message_caption_length_max` (1 024). Odkazy v něm se dohledávají `getTextEntities`, jako
+  u popisku přílohy — bez toho by odešly jako mrtvý text.
+- **Kdo smí hlasovat jen v kanálu** („for channel chats only"): `membersOnly` (v kanálu déle
+  než den) a `countryCodes`, nejvýš `poll_country_count_max` zemí (na emulátoru 12). Mimo kanál
+  se blok nekreslí a repository omezení neposílá, ani kdyby ve formuláři zůstala. Země vybírá
+  tentýž `CountryPickerSheet` jako přihlášení, v režimu víc zemí (fajfka místo předvolby, nad
+  stropem zašedlé) — proto se přestěhoval z `features/auth` do `core/ui`.
 - **Konec ankety je v podtitulu bubliny** („končí zítra 14:30", `asUpcomingTime`), jen dokud
   nenastal; pak server anketu uzavře a podtitul řekne „Konečné výsledky". Nepřepočítává se
   každou vteřinu — uzavření přijde updatem obsahu.
@@ -3643,10 +3664,68 @@ v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, 
   odešel, odpověď na vlastní kvíz v odchozí bublině (barvy správně / špatně tam ustoupí bílé
   a rozdíl nesou ikony), „Ukončit anketu" z nabídky s potvrzením, tlačítko bota s vynuceným
   kvízem, anketa jako odpověď s dobou 1 hodina (citace v bublině, „končí 08:30", odpověď nad
-  polem zmizela). **V kanálu a ve skupině zakládání ověřené NENÍ** — testovací zprávy do skutečných
-  skupin nepatří.
+  polem zmizela), popis s odkazem a vlastní čas konce („končí zítra 18:48"). **Blok „Kdo smí
+  hlasovat" jen podstrčeným `isChannel = true`** (sonda, necommituje se): výběr zemí, „2 země",
+  neplatný čas; odeslání s omezeními do kanálu ověřené NENÍ. **V kanálu a ve skupině zakládání
+  ověřené NENÍ** — testovací zprávy do skutečných skupin nepatří.
 - **Sheet se na snímku ukáže až po chvíli.** `screencap` hned po ťuknutí zachytí obrazovku bez
   něj a vypadá to, že tlačítko nefunguje; `uiautomator dump` už ho vidí.
+
+#### Média v anketě a v odpovědích
+
+Otázka i každá odpověď mohou nést přílohu (TDLib 15 `PollMedia`, doména `PollAttachment`).
+
+- **Fotka, video, GIF, samolepka a soubor jsou `MessageMedia`**, stejně jako příloha zprávy
+  (`PollMedia.toAttachment`). U otázky je proto kreslí tentýž `MessageAttachment` (rámeček podle
+  poměru stran, GIF hraje sám, let do prohlížeče); odpověď má 44dp čtvereček (`AnswerMedia`).
+  **Místo je `MessageMedia.Location`, tedy mapa jako u zprávy s polohou** (viz „Poloha
+  a mapy"), u otázky s názvem a adresou pod ní, u odpovědi mapa ve čtverečku. Odkaz obdobu
+  u zprávy nemá: řádek s ikonou, ťuknutí otevře web.
+- **Náhled u odpovědi je samostatný cíl ťuknutí.** Řádek ťuknutím hlasuje; bez toho by nešla
+  fotka odpovědi prohlédnout, aniž by se pro ni hlasovalo. Co otevřít nejde (soubor, zvuk),
+  ťuknutí propustí řádku.
+- **Pod jedním id zprávy je obrázků víc, takže klíč letu nese i přílohu**
+  (`LocalPollMediaFlight` v `photoKey`, `MediaRoute.pollMedia`). Samotné id zprávy by spárovalo
+  fotku odpovědi s fotkou otázky. Index odpovědi je PŮVODNÍ (`PollAnswer.index`), otázka
+  `POLL_QUESTION_MEDIA`.
+- **Prohlížeč ukazuje přílohu ankety samotnou a bez akcí** (`loadPollMedia`). Reakce, sdílení,
+  přeposlání i smazání by šly na CELOU anketu — přeposlat fotku odpovědi by odeslalo anketu.
+  Popiskem je otázka, nebo text odpovědi.
+- **Formulář nabízí všechny druhy, které TDLib bere** — ikona v poli otevře nabídku: fotka nebo
+  video (systémový výběr), GIF a samolepka (tentýž `StickerPickerSheet` jako v konverzaci, jen
+  s jedinou částí — `modes`), odkaz (dialog, `pollLinkOf`: bez schématu `https://`, jen
+  http(s), doména s tečkou) a místo. **Otázka smí jen fotku, video, GIF a místo**
+  (`PollDraftMedia.allowedForQuestion`) — samolepku a odkaz TDLib u otázky nebere a server by
+  odmítl celou anketu; nabídka u otázky je proto kratší. GIF a samolepka se posílají jako
+  `InputFileId` souboru, který server už má. **Příloha odpovědi jen s textem**: prázdné pole se
+  neposílá a příloha by zmizela potichu; po vymazání textu se proto zahodí i ona. Přílohy patří
+  TEXTU, ne pozici (`afterRemoval`, testy `PollComposerTest`).
+- **Místa hledá inline bot, kterého jmenuje server** (`venue_search_bot_username`, `PlaceRepository`)
+  — pomocník `InlineBot` je společný s GIF botem. **Bez polohy uživatele bot nevrací nic
+  použitelného**: na „Staroměstské náměstí Praha" i na samotné „Praha" přišel supermarket
+  z amerického předměstí. Hledá se proto kolem polohy zařízení; prázdný dotaz vrací místa
+  v okolí a „Moje poloha" (holá `InputPollMediaLocation`) je vždycky první řádek.
+- **Poloha zařízení je nová hranice `core/location`** (`rememberDeviceLocation`): jen PŘIBLIŽNÁ
+  (`ACCESS_COARSE_LOCATION`, iOS kilometr) a až ve chvíli, kdy uživatel přidává místo. Android
+  `LocationManager` bez Play služeb (čerstvá poslední známá poloha, jinak jedno zjištění
+  s limitem 10 s), iOS `CLLocationManager` s delegátem drženým silnou referencí,
+  `NSLocationWhenInUseUsageDescription` v projektu. `uses-feature` polohy je `required=false`,
+  jinak by oprávnění udělalo z polohy povinný hardware a aplikace by zmizela z Play pro zařízení
+  bez ní. Bez polohy sheet řekne, proč místa najít nejde.
+- **`adb emu geo fix` polohu emulátoru nezměnil** (`dumpsys location` hlásí dál výchozí Mountain
+  View, `fused` i `gps`). Na ověření to stačí — výsledky jsou místa kolem té polohy —, jen se
+  nečekej Praha.
+- **Bot API to umí od verze 10.0** (`sendPoll` s `media`, `options[].media`; odkaz u odpovědi od
+  10.1), a tudy se ověřují druhy, které formulář nenabízí: místo u otázky, odkaz, poloha a GIF
+  u odpovědí, GIF u otázky a samolepka u odpovědi.
+- **Ověřeno na emulátoru** v chatu s botem: anketa s fotkou u otázky i u odpovědi odešla, fotka
+  otázky i náhled odpovědi se otevřou v prohlížeči (s popiskem, bez akcí), ťuknutí na náhled
+  nehlasuje, náhled je i ve výsledcích; od bota místo, odkaz s náhledem webu, poloha, GIF
+  (s ikonou přehrání u odpovědi, hrající u otázky) a samolepka. Z formuláře odešla anketa s místem
+  z hledání, odkazem (server doplní obrázek webu) a samolepkou u odpovědí a s GIFem u otázky
+  a „Moje poloha" u odpovědi; dotaz na přibližnou polohu se ukáže až při „Místo". Mapa u otázky
+  i u odpovědi otevře Google Mapy a ťuknutí na ni nehlasuje. **Ťuknutí na odkaz (otevření webu)
+  ověřené není** — jde toutéž cestou jako odkaz v textu.
 
 ### Tlačítka botů pod zprávou
 
@@ -4909,6 +4988,56 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
 - **Průběh ořezu jde z `AnimatedVisibilityScope.transition`** (`animateFloat` nad
   `EnterExitState`), ne z bounds prvku: `OverlayClip.getClipPath` dostane jen AKTUÁLNÍ hranice,
   ne cílové, takže z nich není jak poznat, jak daleko let došel.
+
+### Poloha a mapy
+
+Zpráva s polohou, místem (`MessageVenue`) a živou polohou je `MessageMedia.Location` a kreslí se
+**statickou mapou** se špendlíkem uprostřed (`StaticMap` v `core/ui`, `LocationMap`); tentýž
+kus kreslí místo v anketě i jeho náhled ve formuláři. Ťuknutí otevře mapy platformy.
+
+- **Mapu kreslí Telegram** (`getMapThumbnailFile` → `FileRepository.mapThumbnail`): PNG soubor
+  jako každý jiný, bez klíče k mapovému API a bez dotazu na cizí službu. Je to obrázek — neposouvá
+  se ani nepřibližuje; interaktivní mapa by chtěla mapové SDK (a klíč), které aplikace nemá.
+- **Mapa se žádá přesně na změřenou plochu** (`BoxWithConstraints`), v bodech zaokrouhlených na
+  8 a v hustotě displeje (`scale` 1–3). Meze TDLib (zoom 13–20, strana 16–1024) se hlídají
+  v `StaticMap` — mimo ně TDLib vrátí chybu, ne oříznutí. `fileId` výřezu si repository pamatuje
+  (mapa se skládá při každém návratu položky do seznamu) a zahazuje s výměnou klienta.
+- **Mapa jde na plochu bez bubliny jako fotka** (`showsBareMedia`), název a adresa místa pod ní
+  jsou karta v barvě bubliny (`LocationDetails`), jako popisek fotky. Šířka je STÁLÁ (280 dp,
+  poměr 0,6) — s názvem i bez něj, jinak by karta s popiskem vyšla širší než holá mapa vedle ní.
+  Text zprávy je prázdný (`captionBody`): „Poloha" pod mapou by ji jen popisovalo podruhé;
+  seznam chatů a citace dál píšou „Poloha" / název místa.
+- **Mapa je vždycky světlá**, i v tmavém motivu (tmavé dlaždice Telegram nemá). Špendlík proto
+  nebere `primary` natvrdo — v tmavém motivu je světlá — ale tmavší z `primary` / `inversePrimary`.
+- **Živá poloha je taky jen obrázek.** Posun chodí jako úprava zprávy, takže se mapa přestaví
+  sama; pod ní „Sdílí se do 14:21" / „Sdílení skončilo". Konec je `datum zprávy + livePeriod`
+  (`liveLocationUntil`, testy `LiveLocationTest`), ne `expiresIn` — ten TDLib změnou neposílá,
+  takže by zastaral. „Upraveno" se u živé polohy neukazuje, svítilo by pořád.
+- **Adresa map je platformní** (`mapsUrl` v `core/location`): Android Google Mapy přes https
+  (app link do aplikace Map), iOS `maps.apple.com`. `geo:` iOS nezná a na Androidu by neprošel
+  cestou odkazu z konverzace — ta umí jen adresy s `://`.
+- **Mapa má vlastní klikání, takže opakuje dlouhý stisk** — jinak by nad ní nešla otevřít
+  nabídka zprávy (tatáž past jako u fotky). Upravit polohu nejde (`carriesCaption` = false).
+- **Ověřuje se botem**: `sendLocation`, `sendVenue`, `sendLocation` s `live_period`, a anketa
+  s `media` typu `venue` / `location`. Ověřeno na emulátoru: všechny tři druhy zpráv, mapa
+  u otázky i odpovědi ankety, náhled ve formuláři, ťuknutí do Google Map (i bez hlasu u
+  odpovědi), dlouhý stisk s nabídkou. **Posun živé polohy ověřený není** (`editMessageLiveLocation`
+  botem by šel) a **iOS jen přeložené** — Apple Mapy se na simulátoru neotevíraly. Odeslání ze
+  sponky ověřené na emulátoru: místo i „Moje poloha" odešly a bot přes `getUpdates` dostal
+  `venue` (s `foursquare_id`) a holou `location`.
+- **Poslat polohu jde ze sponky** (`AttachButton` → „Poloha", `ConversationViewModel.sendLocation`).
+  Je to tentýž sheet jako místo v anketě (`PlacePickerHost` nad `PlaceSearcher` — hledání
+  kolem polohy zařízení, sdílí ho formulář ankety i konverzace): „Moje poloha" odejde jako
+  `InputMessageLocation`, místo z hledání jako `InputMessageVenue` i s id a typem od
+  poskytovatele (server ho pak vydá dál, Bot API ukázalo `foursquare_id`). Odchází hned, jako
+  samolepka: citaci spotřebuje, rozepsaný text nechá. **V konverzaci si pole hledání fokus
+  nebere** (`autoFocusSearch = false`) — hlavní akce je „Moje poloha" a klávesnice by schovala
+  místa v okolí; v anketě se místo hledá podle názvu, tam ano.
+- **Sdílení ŽIVÉ polohy tu není**: chtělo by běh na pozadí s polohou (foreground služba na
+  Androidu, `allowsBackgroundLocationUpdates` na iOS) a oprávnění k přesné poloze na pozadí —
+  jiná kategorie než jednorázová přibližná poloha.
+- **Na přetíženém emulátoru se první dlouhý stisk ztratí** („spent 2442ms processing
+  MotionEvent" v logu) a vypadá to jako chybějící nabídka. Zopakovat, než se hledá chyba.
 
 ### GIFy
 

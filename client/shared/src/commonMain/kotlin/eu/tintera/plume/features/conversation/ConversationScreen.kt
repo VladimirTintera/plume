@@ -245,6 +245,7 @@ import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.conversation_attach
+import eu.tintera.plume.resources.conversation_location_title
 import eu.tintera.plume.resources.conversation_attach_file
 import eu.tintera.plume.resources.conversation_attach_media
 import eu.tintera.plume.resources.conversation_cancel_edit
@@ -293,6 +294,8 @@ fun ConversationScreen(
     onBack: () -> Unit,
     onOpenMedia: (messageId: Long) -> Unit,
     onForward: (messageIds: List<Long>) -> Unit,
+    /** Příloha ankety v prohlížeči; `index` viz [MessageAction.OpenPollMedia]. */
+    onOpenPollMedia: (messageId: Long, index: Int) -> Unit = { _, _ -> },
     /** Zmínka v textu: otevřít chat nad touhle konverzací. */
     /** Otevřít chat nad konverzací (zmínka, odkaz); s [messageId] se skočí na zprávu. */
     onOpenChat: (chatId: Long, messageId: Long?) -> Unit,
@@ -399,6 +402,7 @@ fun ConversationScreen(
     }
     var stickerPickerOpen by rememberSaveable { mutableStateOf(false) }
     var previewAttachmentIndex by rememberSaveable { mutableStateOf<Int?>(null) }
+    var locationPickerOpen by rememberSaveable { mutableStateOf(false) }
 
     // Snackbar o odepnutí se skládá v efektu, kde `stringResource` volat nejde — text se proto
     // přečte tady v kompozici.
@@ -568,6 +572,7 @@ fun ConversationScreen(
     val contentTop = remember { mutableStateOf<Float?>(null) }
 
     val currentOnOpenMedia by rememberUpdatedState(onOpenMedia)
+    val currentOnOpenPollMedia by rememberUpdatedState(onOpenPollMedia)
     val currentOnSearch by rememberUpdatedState(onSearch)
     val currentOnOpenChat by rememberUpdatedState(onOpenChat)
 
@@ -603,6 +608,7 @@ fun ConversationScreen(
             menuKey = menuKey,
             timeReveal = { timeReveal.value },
             onOpenMedia = { currentOnOpenMedia(it) },
+            onOpenPollMedia = { messageId, index -> currentOnOpenPollMedia(messageId, index) },
             onOpenStickerSet = { openStickerSetId = it },
             onSearch = { currentOnSearch(it) },
             // Výběr umístění je aktivita systému, takže ho má obrazovka; ViewModel jen stáhne.
@@ -1263,6 +1269,8 @@ fun ConversationScreen(
                 onCreatePoll = {
                     onCreatePoll(PollComposerRequest(PollComposerMode.Any, state.replyingTo?.id, state.replyQuote))
                 }.takeIf { state.content.polls },
+                // Poloha je „základní zpráva" jako text: smí se všude, kde je vstupní pole.
+                onSendLocation = { locationPickerOpen = true },
                 attachments = state.attachments,
                 attachmentsPreparing = mediaSelection.preparing,
                 onRemoveAttachment = viewModel::removeAttachment,
@@ -1318,6 +1326,20 @@ fun ConversationScreen(
                 onUnpicked = viewModel::removeAttachments,
                 onError = viewModel::reportError,
                 onDismiss = { mediaPickerOpen = false },
+            )
+        }
+
+        if (locationPickerOpen) {
+            PlacePickerHost(
+                searcher = viewModel.places,
+                title = stringResource(Res.string.conversation_location_title),
+                onPick = { place ->
+                    locationPickerOpen = false
+                    haptics.confirm()
+                    viewModel.sendLocation(place)
+                },
+                onDismiss = { locationPickerOpen = false },
+                autoFocusSearch = false,
             )
         }
 
@@ -1817,6 +1839,8 @@ private fun MessageInput(
     onPickDocument: () -> Unit,
     /** Založit anketu; `null`, kde anketa nejde. */
     onCreatePoll: (() -> Unit)?,
+    /** Poslat polohu; `null`, kde nejde. */
+    onSendLocation: (() -> Unit)?,
     isRecording: Boolean,
     /** Čte se až v pruhu nahrávání — čas a úrovně se mění dvacetkrát za vteřinu. */
     recording: () -> VoiceRecording?,
@@ -2050,7 +2074,8 @@ private fun MessageInput(
              * Odsazení 4 dp je (56 − 48) / 2: tlačítko pak sedí na střed jednořádkového pole.
              */
             // Přílohy jen při psaní — k úpravě textové zprávy příloha nepatří.
-            if (editing == null && content.anyAttachment) {
+            // Poloha jde všude, kde se smí psát, takže sponka zůstává i ve skupině bez příloh.
+            if (editing == null && (content.anyAttachment || onSendLocation != null)) {
                 AttachButton(
                     onPickMedia = onPickMedia,
                     onPickDocument = onPickDocument,
@@ -2058,6 +2083,7 @@ private fun MessageInput(
                     canPickMedia = content.photos || content.videos,
                     canPickDocument = content.documents,
                     onCreatePoll = onCreatePoll,
+                    onSendLocation = onSendLocation,
                     contentColor = inputIconColor(),
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )
@@ -2731,6 +2757,7 @@ private class ScreenItemScope(
     private val menuKey: State<Long?>,
     override val timeReveal: () -> Float,
     private val onOpenMedia: (messageId: Long) -> Unit,
+    private val onOpenPollMedia: (messageId: Long, index: Int) -> Unit,
     private val onOpenStickerSet: (setId: Long) -> Unit,
     private val onSearch: (query: String) -> Unit,
     private val onSaveFileAs: (messageId: Long) -> Unit,
@@ -2775,6 +2802,7 @@ private class ScreenItemScope(
      */
     override fun onAction(messageId: Long, action: MessageAction) = when (action) {
         MessageAction.OpenMedia -> onOpenMedia(messageId)
+        is MessageAction.OpenPollMedia -> onOpenPollMedia(messageId, action.index)
         is MessageAction.OpenStickerSet -> onOpenStickerSet(action.setId)
         is MessageAction.SearchHashtag -> onSearch(action.tag)
         MessageMenuAction.SaveFileAs -> onSaveFileAs(messageId)

@@ -199,6 +199,20 @@ class MessageRowsTest {
     }
 
     @Test
+    fun mapaPolohyJdeNaPlochuJakoFotka() {
+        val location = MessageMedia.Location(50.08, 14.42, title = "Staroměstské náměstí", address = "Praha")
+        assertTrue(showsBareMedia(message(id = 1, media = location), album = null))
+        // Odpověď si bublinu drží i s mapou — citace se bez pozadí ztratí.
+        assertFalse(showsBareMedia(message(id = 1, media = location, replyToMessageId = 5L), album = null))
+    }
+
+    @Test
+    fun polohaSeNeupravujeJakoPopisek() {
+        // Poloha popisek nemá; „Upravit" by slibovalo úpravu, kterou server odmítne.
+        assertNull(message(id = 1, media = MessageMedia.Location(50.0, 14.0)).plainTextEdit())
+    }
+
+    @Test
     fun velkyGifSeSamNestahuje() {
         // Autoplay by bez ptaní snědl data; nad stropem se čeká na ťuknutí.
         assertTrue(animation().autoPlays)

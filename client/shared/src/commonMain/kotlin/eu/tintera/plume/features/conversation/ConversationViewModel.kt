@@ -67,6 +67,8 @@ import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.GifItem
 import eu.tintera.plume.core.telegram.OutgoingAnimation
+import eu.tintera.plume.core.telegram.Place
+import eu.tintera.plume.core.telegram.PlaceRepository
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.ReactionDetail
@@ -88,6 +90,7 @@ import eu.tintera.plume.resources.conversation_selection_limit
 import eu.tintera.plume.resources.conversation_attachments_limit
 import eu.tintera.plume.resources.conversation_content_not_allowed
 import eu.tintera.plume.resources.conversation_gif_send_failed
+import eu.tintera.plume.resources.conversation_location_send_failed
 import eu.tintera.plume.resources.conversation_self_destruct_album
 import eu.tintera.plume.resources.profile_mute_failed
 import eu.tintera.plume.resources.conversation_attachments_send_failed
@@ -199,7 +202,12 @@ class ConversationViewModel(
     connection: ConnectionRepository,
     /** „Otevři hledání" z profilu chatu (tlačítko Hledat). */
     private val searchRequests: ConversationSearchRequests,
+    /** Místa v okolí pro sponku → Poloha. */
+    placeRepository: PlaceRepository,
 ) : ViewModel() {
+
+    /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
+    val places = PlaceSearcher(viewModelScope, placeRepository, chatId)
 
     /**
      * Stav spojení. Samostatný tok, ne součást [ConversationState]: netýká se chatu, mění se
@@ -1007,6 +1015,18 @@ class ConversationViewModel(
         }
         sendMedia(Res.string.conversation_gif_send_failed) { replyTo, quote ->
             repository.sendGif(chatId, gif, replyTo, quote)
+        }
+    }
+
+    /**
+     * Odešle polohu (sponka → Poloha): vlastní polohu, nebo místo z hledání. Hned, bez čekání nad
+     * polem, jako samolepku — rozepsaný text zůstává a citace se spotřebuje. Poloha je v TDLib
+     * „základní zpráva" (`canSendBasicMessages`), takže platí totéž právo jako pro psaní.
+     */
+    fun sendLocation(place: Place) {
+        if (!_state.value.canWrite || _state.value.editing != null) return
+        sendMedia(Res.string.conversation_location_send_failed) { replyTo, quote ->
+            repository.sendLocation(chatId, place, replyTo, quote)
         }
     }
 
@@ -2141,7 +2161,8 @@ class ConversationViewModel(
             MessageMenuAction.Report -> reportMessage(messageId)
             MessageAction.ToggleSelection -> toggleSelection(messageId)
             MessageMenuAction.ShareFile -> shareDocument(messageId)
-            MessageAction.OpenMedia, is MessageAction.OpenStickerSet, is MessageAction.SearchHashtag,
+            MessageAction.OpenMedia, is MessageAction.OpenPollMedia, is MessageAction.OpenStickerSet,
+            is MessageAction.SearchHashtag,
             MessageMenuAction.SaveFileAs ->
                 logger.w { "Akce $action patří obrazovce, do ViewModelu nemá chodit." }
         }

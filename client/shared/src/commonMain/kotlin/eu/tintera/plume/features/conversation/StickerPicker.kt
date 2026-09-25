@@ -384,6 +384,11 @@ fun StickerPickerSheet(
     chatId: Long,
     onPickGif: (GifItem) -> Unit,
     onDismiss: () -> Unit,
+    /**
+     * Části, mezi kterými jde přepínat. Formulář ankety chce jen samolepku, nebo jen GIF —
+     * s jedinou částí se přepínač nekreslí.
+     */
+    modes: List<ExpressionMode> = ExpressionMode.entries,
 ) {
     val viewModel: StickerPickerViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -442,14 +447,14 @@ fun StickerPickerSheet(
          * tlačítkem a patří k témuž psaní. Přepínač jsou segmentová tlačítka — dvě rovnocenné
          * volby, ne záložky obsahu (ty má každá část vlastní).
          */
-        if (stickersAvailable) SingleChoiceSegmentedButtonRow(
+        if (stickersAvailable && modes.size > 1) SingleChoiceSegmentedButtonRow(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         ) {
-            ExpressionMode.entries.forEachIndexed { index, entry ->
+            modes.forEachIndexed { index, entry ->
                 SegmentedButton(
                     selected = mode == entry,
                     onClick = { onModeChange(entry) },
-                    shape = SegmentedButtonDefaults.itemShape(index, ExpressionMode.entries.size),
+                    shape = SegmentedButtonDefaults.itemShape(index, modes.size),
                 ) {
                     Text(
                         when (entry) {

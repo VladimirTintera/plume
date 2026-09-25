@@ -1233,10 +1233,11 @@ internal fun MessageBodyScope.Album(members: List<ChatMessage>, accent: Color, s
     )
 }
 
-/** Ťuknutí na samolepku otevře její sadu, na fotku a video prohlížeč. */
+/** Ťuknutí na samolepku otevře její sadu, na mapu mapy platformy, na fotku a video prohlížeč. */
 private fun MessageBodyScope.openMedia(media: MessageMedia) {
     when (media) {
         is MessageMedia.Sticker -> if (media.setId != 0L) act(MessageAction.OpenStickerSet(media.setId))
+        is MessageMedia.Location -> act(MessageAction.OpenLink(media.mapUrl))
         else -> act(MessageAction.OpenMedia)
     }
 }

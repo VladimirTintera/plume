@@ -28,6 +28,8 @@ import eu.tintera.plume.core.settings.DataStoreAppSettings
 import eu.tintera.plume.core.telegram.EmojiRepository
 import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.telegram.GifRepository
+import eu.tintera.plume.core.telegram.PlaceRepository
+import eu.tintera.plume.core.telegram.TdlPlaceRepository
 import eu.tintera.plume.core.telegram.TdlGifRepository
 import eu.tintera.plume.core.telegram.TdlEmojiRepository
 import eu.tintera.plume.core.telegram.TdlStickerRepository
@@ -53,6 +55,7 @@ import eu.tintera.plume.features.conversation.GifPickerViewModel
 import eu.tintera.plume.features.conversation.StickerSetViewModel
 import eu.tintera.plume.features.conversation.PollVotersViewModel
 import eu.tintera.plume.features.conversation.PollComposerViewModel
+import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.features.media.MediaViewerViewModel
@@ -154,6 +157,7 @@ fun appModule() = module {
     // Bezstavová — seznamy jsou toky nad updaty, drží se jen po dobu otevřeného výběru.
     single<StickerRepository> { TdlStickerRepository(holder = get()) }
     single<GifRepository> { TdlGifRepository(holder = get()) }
+    single<PlaceRepository> { TdlPlaceRepository(holder = get()) }
     single<EmojiRepository> { TdlEmojiRepository(holder = get()) }
 
     // Eagerně: nastavení se načte při startu, aby ho první obrazovka měla hned (viz AppSettings).
@@ -216,6 +220,8 @@ fun appModule() = module {
             replyToMessageId = parameters.values.getOrNull(2) as? Long,
             replyQuote = parameters.values.getOrNull(3) as? ReplyQuote,
             repository = get(),
+            session = get(),
+            placeRepository = get(),
         )
     }
     // Dvě `Long` za sebou: parametry se čtou INDEXEM, podle typu by se chatId s messageId zaměnily.
@@ -260,6 +266,7 @@ fun appModule() = module {
             shareTargets = get(),
             connection = get(),
             searchRequests = get(),
+            placeRepository = get(),
         )
     }
 
@@ -324,11 +331,13 @@ fun appModule() = module {
         )
     }
 
-    // Dva parametry z routy. `get()` bez indexu je bere podle pořadí, ve kterém přišly.
+    // Parametry z routy. `get()` bez indexu je bere podle pořadí, ve kterém přišly; třetí
+    // (příloha ankety) se čte indexem, protože u starších volání chybí.
     viewModel { parameters ->
         MediaViewerViewModel(
             chatId = parameters.get(),
             messageId = parameters.get(),
+            pollMedia = parameters.values.getOrNull(2) as? Int ?: NO_POLL_MEDIA,
             repository = get(),
             files = get(),
             saver = get(),

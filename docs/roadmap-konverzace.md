@@ -436,11 +436,12 @@ snadno na to uživatel narazí.
 - ~~**Ankety a kvízy**~~ — hotovo (hlasování, výsledky, kvíz s vysvětlením, zrušení hlasu,
   ukončení, kdo hlasoval; `CLAUDE.md`, „Ankety a kvízy"). Zbývá:
   - ~~**Zakládání anket**~~ — hotovo (sponka → Anketa, i tlačítko bota, jako odpověď, s dobou
-    trvání a „výsledky až po skončení"). Zbývá ověřit v kanálu a ve skupině. Nenabízí se popis
-    ankety, omezení na členy a země (`membersOnly`, `countryCodes` — jen kanály) ani přesný čas
-    uzavření místo doby (`closeDate`).
-  - **Média v anketě a v odpovědích** (`MessagePoll.media`, `PollOption.media`, TDLib 15)
-    a **přidání odpovědi** (`canAddOption`, `addPollOption`) se zatím zahazují.
+    trvání nebo přesným časem konce, popisem, „výsledky až po skončení" a v kanálu omezením na
+    členy a země). Zbývá ověřit v kanálu (omezení hlasujících) a ve skupině.
+  - ~~**Média v anketě a v odpovědích**~~ — hotovo (zobrazení všech druhů, otevření
+    v prohlížeči; formulář nabízí fotku, video, GIF, samolepku, odkaz a místo). Zbývá média ve
+    vysvětlení kvízu (`explanationMedia`).
+  - **Přidání odpovědi** (`canAddOption`, `addPollOption`) se zatím zahazuje.
   - **Tváře posledních hlasujících** (`recentVoterIds`) u zápatí.
 - **Video kolečka** (`MessageVideoNote`) — čtvercový náhled s popiskem, nehraje. Mají hrát
   v bublině kulatě, bez zvuku samy a se zvukem po ťuknutí (jako hlasovka: `isViewed`,
@@ -448,9 +449,10 @@ snadno na to uživatel narazí.
 - **Hudba** (`MessageAudio`) — jen popisek, nejde přehrát ani otevřít. Přehrávač s interpretem,
   názvem a obalem alba (`albumCoverThumbnail`), navazování další skladby; `VoicePlayer` je
   dobrý základ.
-- **Poloha, živá poloha a místo** (`MessageLocation` / `LiveLocation` / `Venue`) — statická
-  mapa jde od Telegramu (`getMapThumbnailFile`, bez klíče k mapám), ťuknutí do systémových map;
-  živá poloha se mění editacemi zprávy (`livePeriod`, `expiresIn`).
+- ~~**Poloha, živá poloha a místo**~~ — hotovo: statická mapa od Telegramu, ťuknutí do map
+  platformy, u živé polohy do kdy se sdílí, odeslání polohy nebo místa ze sponky. Zbývá
+  sdílení živé polohy (běh na pozadí), směr pohybu (`heading`) a upozornění na blízkost
+  (`proximityAlertRadius`).
 - **Kontakt** (`MessageContact`) — karta se jménem a číslem, „Napsat" (`userId`), přidat
   do kontaktů.
 - **Hovory** (`MessageCall`) — jen „Hovor". TDLib nese směr, délku a důvod ukončení

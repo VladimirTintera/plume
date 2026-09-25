@@ -130,6 +130,12 @@ sealed interface MessageAction {
     /** Fotka nebo video v prohlížeči. Navigace — vyřizuje ji obrazovka, ne ViewModel. */
     data object OpenMedia : MessageAction
 
+    /**
+     * Fotka nebo video z ankety v prohlížeči: [index] je `POLL_QUESTION_MEDIA` (otázka), nebo
+     * PŮVODNÍ index odpovědi. Navigace — vyřizuje ji obrazovka.
+     */
+    data class OpenPollMedia(val index: Int) : MessageAction
+
     /** Sada samolepky. Sheet nad obrazovkou — vyřizuje ji obrazovka, ne ViewModel. */
     data class OpenStickerSet(val setId: Long) : MessageAction
 

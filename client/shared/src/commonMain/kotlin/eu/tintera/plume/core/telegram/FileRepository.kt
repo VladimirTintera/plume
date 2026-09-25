@@ -42,7 +42,32 @@ interface FileRepository {
      * Typicky se tím skáče na konec pro `moov` atom (index bývá u videí na konci) a zpátky.
      */
     suspend fun downloadFrom(fileId: Int, offset: Long)
+
+    /**
+     * Statická mapa kolem polohy jako soubor — obrázek PNG, který dál jde přes [file] jako každý
+     * jiný. Vrací `fileId`, nebo `null`, když ji TDLib vydat odmítne.
+     *
+     * Mapu kreslí Telegram (`getMapThumbnailFile`), takže aplikace nepotřebuje klíč k žádnému
+     * mapovému API a nic se neposílá cizí službě. [map] je v bodech, ne v pixelech (viz [MapRequest]).
+     */
+    suspend fun mapThumbnail(map: MapRequest): Int?
 }
+
+/**
+ * Výřez mapy pro [FileRepository.mapThumbnail]. Meze jsou od TDLib: [zoom] 13–20, [width]
+ * a [height] 16–1024 bodů „před měřítkem", [scale] 1–3 (hustota displeje) a [chatId] chat,
+ * ve kterém se mapa ukáže (0 = neznámý). Kdo meze nedodrží, dostane chybu, ne oříznutí —
+ * proto je hlídá [StaticMap][eu.tintera.plume.core.ui.StaticMap], ne volající.
+ */
+data class MapRequest(
+    val latitude: Double,
+    val longitude: Double,
+    val zoom: Int,
+    val width: Int,
+    val height: Int,
+    val scale: Int,
+    val chatId: Long = 0,
+)
 
 sealed interface FileState {
 
