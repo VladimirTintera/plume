@@ -1056,7 +1056,6 @@
     <string name="bot_unsupported_game">Hry Plume zatím neumí.</string>
     <string name="bot_unsupported_password">Tlačítka, která chtějí heslo, Plume zatím neumí.</string>
     <string name="bot_unsupported_location">Sdílení polohy Plume zatím neumí.</string>
-    <string name="bot_unsupported_poll">Ankety Plume zatím zakládat neumí.</string>
     <string name="bot_unsupported_pick_chat">Sdílení chatů a lidí s botem Plume zatím neumí.</string>
     <string name="bot_unsupported_managed_bot">Zakládání botů Plume zatím neumí.</string>
     <string name="bot_share_phone_title">Sdílet telefonní číslo?</string>
@@ -1107,4 +1106,30 @@
     <string name="poll_voters_title">Hlasy</string>
     <string name="poll_voters_more">Zobrazit další</string>
     <string name="poll_voters_failed">Kdo hlasoval, se nepodařilo načíst.</string>
+    <string name="conversation_attach_poll">Anketa</string>
+    <string name="poll_compose_title">Nová anketa</string>
+    <string name="poll_compose_title_quiz">Nový kvíz</string>
+    <string name="poll_compose_send">Odeslat</string>
+    <string name="poll_compose_question">Na co se chceš zeptat?</string>
+    <string name="poll_compose_answers">Odpovědi</string>
+    <string name="poll_compose_answer">Odpověď %1$d</string>
+    <string name="poll_compose_remove_answer">Odebrat odpověď</string>
+    <string name="poll_compose_mark_correct">Správná odpověď</string>
+    <plurals name="poll_compose_add_answer">
+        <item quantity="one">Přidat můžeš ještě %1$d odpověď</item>
+        <item quantity="few">Přidat můžeš ještě %1$d odpovědi</item>
+        <item quantity="other">Přidat můžeš ještě %1$d odpovědí</item>
+    </plurals>
+    <string name="poll_compose_too_many">Anketa může mít nejvýš %1$d odpovědí</string>
+    <string name="poll_compose_quiz_hint">Označ správnou odpověď</string>
+    <string name="poll_compose_settings">Volby</string>
+    <string name="poll_compose_anonymous">Anonymní hlasování</string>
+    <string name="poll_compose_anonymous_channel">Ankety v kanálech jsou vždycky anonymní.</string>
+    <string name="poll_compose_multiple">Víc odpovědí</string>
+    <string name="poll_compose_quiz">Kvíz</string>
+    <string name="poll_compose_shuffle">Zamíchat odpovědi</string>
+    <string name="poll_compose_explanation">Vysvětlení</string>
+    <string name="poll_compose_explanation_hint">Ukáže se po špatné odpovědi (nepovinné)</string>
+    <string name="poll_compose_counter">%1$d/%2$d</string>
+    <string name="poll_compose_send_failed">Anketu se nepodařilo odeslat.</string>
 </resources>

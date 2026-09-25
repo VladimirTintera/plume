@@ -123,3 +123,40 @@ fun ChatPoll.quizMark(answer: PollAnswer): QuizMark? {
 
 /** Hlasující u jedné odpovědi; [total] je odhad serveru, [voters] co se zatím načetlo. */
 data class PollVotersPage(val voters: List<SenderInfo>, val total: Int)
+
+/**
+ * Anketa k odeslání ([ConversationRepository.sendPoll]). Platnost (délky, počet odpovědí,
+ * správná odpověď u kvízu) hlídá formulář; tohle už jsou hotová data.
+ */
+data class PollDraft(
+    val question: String,
+    val answers: List<String>,
+    val anonymous: Boolean,
+    val multipleAnswers: Boolean,
+    /** Odpovědi se každému ukážou v jiném pevném pořadí (`shuffleOptions`). */
+    val shuffle: Boolean,
+    /** Kvíz: indexy správných odpovědí v [answers]; `null` = běžná anketa. */
+    val correctAnswers: Set<Int>? = null,
+    val explanation: String = "",
+)
+
+/** Nejméně odpovědí. TDLib by vzal i jednu, ale anketa s jedinou možností nic nezjistí. */
+const val MIN_POLL_ANSWERS = 2
+
+/** Délka otázky (TDLib: 1–255 znaků, víc jen boti). */
+const val POLL_QUESTION_MAX = 255
+
+/** Délka odpovědi (TDLib: 1–100 znaků). */
+const val POLL_ANSWER_MAX = 100
+
+/** Vysvětlení kvízu (TDLib: 0–200 znaků a nejvýš dva konce řádku). */
+const val POLL_EXPLANATION_MAX = 200
+const val POLL_EXPLANATION_MAX_LINE_FEEDS = 2
+
+/**
+ * Co smí formulář nové ankety založit. Tlačítko bota „vytvořit anketu"
+ * (`KeyboardButtonTypeRequestPoll`) si může vynutit jen kvíz, nebo jen běžnou anketu —
+ * přepínač kvízu se pak nekreslí.
+ */
+enum class PollComposerMode { Any, RegularOnly, QuizOnly }
+

@@ -50,6 +50,7 @@ class WriteAccessTest {
         documents = false,
         voiceNotes = false,
         stickers = false,
+        polls = false,
     )
 
     @Test
@@ -155,5 +156,7 @@ class WriteAccessTest {
         assertEquals(false, jenText.copy(voiceNotes = true, stickers = true).anyAttachment)
         assertEquals(true, jenText.copy(documents = true).anyAttachment)
         assertEquals(true, jenText.copy(photos = true).anyAttachment)
+        // Anketa se zakládá ze sponky taky — sama ji oživí.
+        assertEquals(true, jenText.copy(polls = true).anyAttachment)
     }
 }

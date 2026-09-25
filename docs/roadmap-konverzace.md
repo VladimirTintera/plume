@@ -435,9 +435,9 @@ snadno na to uživatel narazí.
 
 - ~~**Ankety a kvízy**~~ — hotovo (hlasování, výsledky, kvíz s vysvětlením, zrušení hlasu,
   ukončení, kdo hlasoval; `CLAUDE.md`, „Ankety a kvízy"). Zbývá:
-  - **Zakládání anket** (`InputMessagePoll`) — tlačítko bota „vytvořit anketu" dnes jen vysvětluje,
-    že to Plume neumí.
-  - **„Ukončit anketu" ověřit na vlastní anketě** — bez zakládání žádná na testovacím účtu není.
+  - ~~**Zakládání anket**~~ — hotovo (sponka → Anketa, i tlačítko bota). Zbývá ověřit v kanálu
+    a ve skupině; nabízí se zatím jen bez citace (odpověď na zprávu anketa nenese), bez limitu
+    doby a bez „výsledky až po skončení" (`openPeriod`, `closeDate`, `hideResultsUntilCloses`).
   - **Média v anketě a v odpovědích** (`MessagePoll.media`, `PollOption.media`, TDLib 15)
     a **přidání odpovědi** (`canAddOption`, `addPollOption`) se zatím zahazují.
   - **Tváře posledních hlasujících** (`recentVoterIds`) u zápatí a **odpočet do uzavření**

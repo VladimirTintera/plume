@@ -78,6 +78,20 @@ interface ConversationRepository {
      */
     suspend fun vote(chatId: Long, messageId: Long, answerIndexes: List<Int>): Result<Unit>
 
+    /**
+     * Odešle anketu nebo kvíz. V kanálu je anketa vždycky anonymní — neanonymní server do
+     * kanálu nepustí.
+     */
+    suspend fun sendPoll(
+        chatId: Long,
+        poll: PollDraft,
+        replyToMessageId: Long?,
+        quote: ReplyQuote? = null,
+    ): Result<ChatMessage>
+
+    /** Kolik odpovědí smí anketa mít (`poll_answer_count_max`). */
+    suspend fun pollAnswerCountMax(): Int
+
     /** Uzavře anketu; smí jen autor (nebo správce), pozná se podle `canBeEdited`. */
     suspend fun stopPoll(chatId: Long, messageId: Long): Result<Unit>
 
@@ -838,11 +852,14 @@ sealed interface ReplyKeyboardButtonKind {
     /** Pošle vlastní telefonní číslo jako kontakt — po potvrzení, je to údaj o uživateli. */
     data object PhoneNumber : ReplyKeyboardButtonKind
 
+    /** Otevře formulář nové ankety; bot si smí vynutit kvíz, nebo běžnou anketu. */
+    data class Poll(val mode: PollComposerMode) : ReplyKeyboardButtonKind
+
     /** Druh, který Plume zatím neumí; tlačítko je vidět a ťuknutí to vysvětlí. */
     data class Unsupported(val feature: UnsupportedKeyboardButton) : ReplyKeyboardButtonKind
 }
 
-enum class UnsupportedKeyboardButton { Location, Poll, Users, Chat, WebApp, ManagedBot }
+enum class UnsupportedKeyboardButton { Location, Users, Chat, WebApp, ManagedBot }
 
 /** Barva, kterou si bot pro tlačítko přeje (TDLib `ButtonStyle`). */
 enum class BotButtonStyle { Default, Primary, Success, Danger }

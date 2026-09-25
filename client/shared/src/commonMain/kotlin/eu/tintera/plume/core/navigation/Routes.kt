@@ -144,6 +144,18 @@ data class MediaRoute(
 data class ForwardRoute(val fromChatId: Long, val messageIds: List<Long>) : Route
 
 /**
+ * Nová anketa do chatu. Bez metadat scény, jako výběr pro přeposílání: jde přes celou plochu
+ * z hlavního seznamu i z archivu a po odeslání odejde — pod ní je konverzace s novou anketou.
+ */
+@Serializable
+data class PollComposerRoute(
+    val chatId: Long,
+    /** Tlačítko bota si vynutilo jen kvíz ([quizOnly]), nebo jen běžnou anketu ([regularOnly]). */
+    val quizOnly: Boolean = false,
+    val regularOnly: Boolean = false,
+) : Route
+
+/**
  * Výběr chatu pro obsah sdílený do aplikace ze systému.
  *
  * Nenese nic — sdílený obsah (soubory v cache) je v `ShareRequests`, ne v zásobníku. Po zabití
@@ -201,6 +213,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(MemberRightsRoute::class, MemberRightsRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
+            subclass(PollComposerRoute::class, PollComposerRoute.serializer())
             subclass(ShareRoute::class, ShareRoute.serializer())
             subclass(ShareToChatRoute::class, ShareToChatRoute.serializer())
             subclass(NewChatRoute::class, NewChatRoute.serializer())

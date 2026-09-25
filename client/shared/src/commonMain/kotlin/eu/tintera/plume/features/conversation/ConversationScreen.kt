@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.PollComposerMode
+
 import eu.tintera.plume.core.telegram.ReplyKeyboardButtonKind
 import eu.tintera.plume.core.telegram.ChatReplyMarkup
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -296,6 +298,8 @@ fun ConversationScreen(
      * něco dělá (přestěhuje se do hlavního seznamu); jinde se nic měnit nemusí.
      */
     onUnarchived: () -> Unit = {},
+    /** Sponka → Anketa (a tlačítko bota „vytvořit anketu"): formulář nové ankety nad konverzací. */
+    onCreatePoll: (PollComposerMode) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
@@ -1215,6 +1219,8 @@ fun ConversationScreen(
                     viewModel.sendRecording()
                 },
                 onPickDocument = attachmentPicker::pickDocument,
+                // Anketa jde jen tam, kde to dovolí právo i druh chatu (`ContentAccess.polls`).
+                onCreatePoll = { onCreatePoll(PollComposerMode.Any) }.takeIf { state.content.polls },
                 attachments = state.attachments,
                 onRemoveAttachment = viewModel::removeAttachment,
                 onOpenAttachment = { index -> previewAttachmentIndex = index },
@@ -1382,6 +1388,15 @@ fun ConversationScreen(
 
         if (state.pendingStopPoll != null) {
             StopPollDialog(onConfirm = viewModel::confirmStopPoll, onDismiss = viewModel::cancelStopPoll)
+        }
+
+        // Jednorázová událost od tlačítka bota. Navigace je synchronní, takže vynulování potom
+        // efekt nezruší uprostřed (past „Vrátit" v CLAUDE.md se týká práce, která teprve běží).
+        state.openPollComposer?.let { mode ->
+            LaunchedEffect(mode) {
+                onCreatePoll(mode)
+                viewModel.consumeOpenPollComposer()
+            }
         }
 
         state.pendingPin?.let { pending ->
@@ -1757,6 +1772,8 @@ private fun MessageInput(
     onOpenStickers: () -> Unit,
     onPickMedia: () -> Unit,
     onPickDocument: () -> Unit,
+    /** Založit anketu; `null`, kde anketa nejde. */
+    onCreatePoll: (() -> Unit)?,
     isRecording: Boolean,
     /** Čte se až v pruhu nahrávání — čas a úrovně se mění dvacetkrát za vteřinu. */
     recording: () -> VoiceRecording?,
@@ -1985,6 +2002,7 @@ private fun MessageInput(
                     // Skupina může povolit fotky a zakázat soubory; nabídne se jen dovolené.
                     canPickMedia = content.photos || content.videos,
                     canPickDocument = content.documents,
+                    onCreatePoll = onCreatePoll,
                     contentColor = inputIconColor(),
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )

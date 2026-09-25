@@ -12,6 +12,13 @@ import dev.g000sha256.tdl.dto.TextEntityTypeSpoiler
 import dev.g000sha256.tdl.dto.TextEntityTypeCustomEmoji
 import dev.g000sha256.tdl.dto.MessageContent
 import dev.g000sha256.tdl.dto.MessagePoll
+import dev.g000sha256.tdl.dto.ChatTypeSecret
+import dev.g000sha256.tdl.dto.UserTypeBot
+import dev.g000sha256.tdl.dto.OptionValueInteger
+import dev.g000sha256.tdl.dto.InputPollTypeRegular
+import dev.g000sha256.tdl.dto.InputPollTypeQuiz
+import dev.g000sha256.tdl.dto.InputPollOption
+import dev.g000sha256.tdl.dto.InputMessagePoll
 import dev.g000sha256.tdl.dto.MessagePhoto
 import dev.g000sha256.tdl.dto.MessageVideo
 import dev.g000sha256.tdl.dto.MessageAnimation
@@ -1072,8 +1079,23 @@ class TdlConversationRepository(
                 status = status,
                 membersCanSend = chat.permissions.canSendBasicMessages,
             ),
-            content = contentAccess(status = status, groupDefaults = chat.permissions.toContentAccess()),
+            content = contentAccess(status = status, groupDefaults = chat.permissions.toContentAccess()).let {
+                // Právo skupiny nestačí: do soukromého chatu s člověkem anketa nejde vůbec.
+                it.copy(polls = it.polls && pollsAllowedIn(pollChatKind(chat)))
+            },
         )
+    }
+
+    /** Druh chatu pro [pollsAllowedIn]. Bot a Uložené zprávy se zjišťují lokálně. */
+    private suspend fun pollChatKind(chat: Chat): PollChatKind = when (val type = chat.type) {
+        is ChatTypeBasicGroup -> PollChatKind.Group
+        is ChatTypeSupergroup -> if (type.isChannel) PollChatKind.Channel else PollChatKind.Group
+        is ChatTypeSecret -> PollChatKind.Secret
+        is ChatTypePrivate -> when {
+            type.userId == client.getMe().toResult().getOrNull()?.id -> PollChatKind.SavedMessages
+            client.getUser(userId = type.userId).toResult().getOrNull()?.type is UserTypeBot -> PollChatKind.Bot
+            else -> PollChatKind.Private
+        }
     }
 
     override fun accessUpdates(chatId: Long): Flow<ChatAccess> = flow {
@@ -1278,6 +1300,57 @@ class TdlConversationRepository(
         client.setPollAnswer(chatId = chatId, messageId = messageId, optionIds = answerIndexes.toIntArray())
             .toResult()
             .map { }
+
+    override suspend fun sendPoll(
+        chatId: Long,
+        poll: PollDraft,
+        replyToMessageId: Long?,
+        quote: ReplyQuote?,
+    ): Result<ChatMessage> = runCatching {
+        val isChannel = (client.getChat(chatId).toResult().getOrNull()?.type as? ChatTypeSupergroup)?.isChannel == true
+        val correct = poll.correctAnswers
+        client.sendMessage(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyInput(chatId, replyToMessageId, quote),
+            options = null,
+            replyMarkup = null,
+            inputMessageContent = InputMessagePoll(
+                question = FormattedText(text = poll.question, entities = emptyArray()),
+                options = poll.answers
+                    .map { InputPollOption(text = FormattedText(text = it, entities = emptyArray()), media = null) }
+                    .toTypedArray(),
+                description = null,
+                media = null,
+                // Neanonymní anketu server do kanálu nepustí.
+                isAnonymous = poll.anonymous || isChannel,
+                allowsMultipleAnswers = poll.multipleAnswers,
+                // Změnit hlas jde u ankety, u kvízu ne — odpověď na kvíz je odpověď, ne názor.
+                allowsRevoting = correct == null,
+                membersOnly = false,
+                countryCodes = emptyArray(),
+                shuffleOptions = poll.shuffle,
+                hideResultsUntilCloses = false,
+                type = if (correct == null) {
+                    InputPollTypeRegular(allowAddingOptions = false)
+                } else {
+                    InputPollTypeQuiz(
+                        // TDLib chce rostoucí seznam.
+                        correctOptionIds = correct.sorted().toIntArray(),
+                        explanation = FormattedText(text = poll.explanation, entities = emptyArray()),
+                        explanationMedia = null,
+                    )
+                },
+                openPeriod = 0,
+                closeDate = 0,
+                isClosed = false,
+            ),
+        ).toResult().getOrThrow().toChatMessage(isGroup(chatId))
+    }
+
+    override suspend fun pollAnswerCountMax(): Int =
+        (client.getOption(name = "poll_answer_count_max").toResult().getOrNull() as? OptionValueInteger)
+            ?.value?.toInt()?.takeIf { it >= MIN_POLL_ANSWERS } ?: DEFAULT_POLL_ANSWER_COUNT_MAX
 
     override suspend fun stopPoll(chatId: Long, messageId: Long): Result<Unit> =
         client.stopPoll(chatId = chatId, messageId = messageId, replyMarkup = null).toResult().map { }
@@ -1635,8 +1708,8 @@ private const val MEMBER_SEARCH_LIMIT = 50
 private const val MAX_PINNED_PAGES = 5
 
 /**
- * Práva na druhy obsahu z `ChatPermissions`. Bere se jen to, co aplikace umí poslat — hudba,
- * video kolečka a ankety by tu byly mrtvá pole.
+ * Práva na druhy obsahu z `ChatPermissions`. Bere se jen to, co aplikace umí poslat — hudba
+ * a video kolečka by tu byla mrtvá pole.
  */
 private fun ChatPermissions.toContentAccess(): ContentAccess = ContentAccess(
     photos = canSendPhotos,
@@ -1644,6 +1717,7 @@ private fun ChatPermissions.toContentAccess(): ContentAccess = ContentAccess(
     documents = canSendDocuments,
     voiceNotes = canSendVoiceNotes,
     stickers = canSendOtherMessages,
+    polls = canSendPolls,
 )
 
 /**
@@ -1684,6 +1758,9 @@ private const val SHARED_MEDIA_PAGE = 50
 
 /** Kolik hlasujících se načte naráz; víc TDLib nevydá (strop je 50). */
 private const val POLL_VOTERS_PAGE = 50
+
+/** Když server strop počtu odpovědí nepošle; dlouho platná hodnota Telegramu. */
+private const val DEFAULT_POLL_ANSWER_COUNT_MAX = 10
 
 /** Filtr `searchChatMessages` pro druh sdíleného obsahu. */
 private fun SharedMediaKind.toFilter(): SearchMessagesFilter = when (this) {
@@ -1779,11 +1856,17 @@ private fun Message.toChatReplyMarkup(): ChatReplyMarkup? = when (val markup = r
             row.filterNotNull().map { button ->
                 ReplyKeyboardButton(
                     text = button.text,
-                    kind = when (button.type) {
+                    kind = when (val type = button.type) {
                         is KeyboardButtonTypeText -> ReplyKeyboardButtonKind.Text
                         is KeyboardButtonTypeRequestPhoneNumber -> ReplyKeyboardButtonKind.PhoneNumber
                         is KeyboardButtonTypeRequestLocation -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.Location)
-                        is KeyboardButtonTypeRequestPoll -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.Poll)
+                        is KeyboardButtonTypeRequestPoll -> ReplyKeyboardButtonKind.Poll(
+                            when {
+                                type.forceQuiz -> PollComposerMode.QuizOnly
+                                type.forceRegular -> PollComposerMode.RegularOnly
+                                else -> PollComposerMode.Any
+                            },
+                        )
                         is KeyboardButtonTypeRequestUsers -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.Users)
                         is KeyboardButtonTypeRequestChat -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.Chat)
                         is KeyboardButtonTypeWebApp -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.WebApp)

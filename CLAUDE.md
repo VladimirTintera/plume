@@ -3523,8 +3523,37 @@ v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, 
   s `correct_option_id` a `explanation`, `allows_multiple_answers`, `is_anonymous=false`),
   a `stopPoll` botem ukáže uzavřenou anketu živě. Ověřeno na emulátoru (česky, světlý i tmavý
   motiv): hlas jednou i víc odpověďmi, špatná odpověď na kvíz s vysvětlením, zrušení hlasu,
-  „Kdo hlasoval", uzavření. **„Ukončit anketu" z nabídky ověřené NENÍ** — Plume ankety zakládat
-  neumí, takže vlastní anketa na testovacím účtu není; stejně tak vzhled na odchozí bublině.
+  „Kdo hlasoval", uzavření.
+- **Zakládání je obrazovka `PollComposerRoute`** (sponka → Anketa), bez metadat scény jako
+  přeposílání: jde přes celou plochu z hlavního seznamu i archivu, zpět umí sám `NavDisplay`.
+  Pravidla formuláře jsou čisté funkce (`pollDraftOf`, `normalizedAnswers`,
+  `correctAfterRemoval`, testy `PollComposerTest`).
+- **Do soukromého chatu s ČLOVĚKEM anketa nejde** — TDLib: *„Polls can be sent to a private
+  chat only if the chat is a chat with a bot or the Saved Messages chat."* Server by ji odmítl
+  až po odeslání, proto o tom rozhoduje `ContentAccess.polls` (právo `canSendPolls` A druh
+  chatu, `pollsAllowedIn`) a sponka ji jinde nenabízí. Chat s botem je proto i místo, kde se
+  zakládání dá ověřit.
+- **`ContentAccess.polls` nemá výchozí hodnotu, a schválně.** S `= true` se starý test skupiny
+  „jen text" tiše změnil ve skupinu, kde se smí anketa, a sponka ožila. Každé místo, které práva
+  skládá, musí o anketě rozhodnout výslovně.
+- **Na konci odpovědí je vždycky jedno prázdné pole**, dokud se nedojde ke stropu — tlačítko
+  „Přidat odpověď" by bylo ťuknutí navíc u každé odpovědi. Strop počtu posílá server
+  (`poll_answer_count_max`, na emulátoru 12). Prázdné pole UPROSTŘED zůstává, odebírá se
+  křížkem; správná odpověď kvízu se po odebrání drží TEXTU, ne pozice.
+- **Kvíz v TDLib 15 smí mít víc správných odpovědí** (`correctOptionIds` je seznam) — nabízí se
+  s „Víc odpovědí" (zaškrtávátka místo koleček).
+- **Text se nad strop kousek pustí** (a Odeslat zašedne, počítadlo zčervená), aby šel vložit
+  delší text a zkrátit ho; utnout ho hned by vložení tiše usekalo.
+- **V kanálu je anketa vždycky anonymní** — přepínač se nekreslí a repository pošle
+  `isAnonymous = true` i tak (neanonymní server do kanálu nepustí).
+- **Tlačítko bota „vytvořit anketu"** (`KeyboardButtonTypeRequestPoll`, třeba @QuizBot) otevře
+  týž formulář; `forceQuiz` / `forceRegular` schová přepínač kvízu (`PollComposerMode`).
+  Ověřuje se `sendMessage` s `reply_markup.keyboard[…].request_poll`.
+- **Ověřeno na emulátoru** v chatu s botem: kvíz se třemi odpověďmi, správnou a vysvětlením
+  odešel, odpověď na vlastní kvíz v odchozí bublině (barvy správně / špatně tam ustoupí bílé
+  a rozdíl nesou ikony), „Ukončit anketu" z nabídky s potvrzením, tlačítko bota s vynuceným
+  kvízem. **V kanálu a ve skupině zakládání ověřené NENÍ** — testovací zprávy do skutečných
+  skupin nepatří.
 - **Sheet se na snímku ukáže až po chvíli.** `screencap` hned po ťuknutí zachytí obrazovku bez
   něj a vypadá to, že tlačítko nefunguje; `uiautomator dump` už ho vidí.
 

@@ -2,10 +2,10 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.telegram.ChatReplyMarkup
+import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.ReplyKeyboardButtonKind
 import eu.tintera.plume.core.telegram.UnsupportedKeyboardButton
 import eu.tintera.plume.resources.bot_unsupported_location
-import eu.tintera.plume.resources.bot_unsupported_poll
 import eu.tintera.plume.resources.bot_unsupported_pick_chat
 import eu.tintera.plume.resources.bot_unsupported_managed_bot
 import eu.tintera.plume.core.telegram.BotButtonKind
@@ -1670,6 +1670,11 @@ class ConversationViewModel(
         }
     }
 
+    /** Obrazovka formulář ankety otevřela. */
+    fun consumeOpenPollComposer() {
+        _state.update { it.copy(openPollComposer = null) }
+    }
+
     fun dismissPollVoters() {
         _state.update { it.copy(pollVoters = null) }
     }
@@ -1810,6 +1815,8 @@ class ConversationViewModel(
             }
             // Číslo je údaj o uživateli; odejde až po potvrzení.
             ReplyKeyboardButtonKind.PhoneNumber -> _state.update { it.copy(confirmSharePhone = true) }
+            // Formulář je obrazovka nad konverzací; otevírá ho obrazovka, ViewModel jen řekne jaký.
+            is ReplyKeyboardButtonKind.Poll -> _state.update { it.copy(openPollComposer = kind.mode) }
             is ReplyKeyboardButtonKind.Unsupported ->
                 _state.update { it.copy(notice = UiText(kind.feature.explanation())) }
         }
@@ -3237,6 +3244,8 @@ data class ConversationState(
     val pollVoters: Long? = null,
     /** Anketa, kterou uživatel chce ukončit a čeká se na potvrzení; `null` = žádná. */
     val pendingStopPoll: Long? = null,
+    /** Jednorázová událost: tlačítko bota chce formulář nové ankety (v tomhle režimu). */
+    val openPollComposer: PollComposerMode? = null,
     /** Jednorázová událost: otevřít sheet sady samolepek z odkazu `t.me/addstickers/…`. */
     val openStickerSet: Long? = null,
     /** Běží přidání ke skupině / kanálu ([ConversationViewModel.join]). */
@@ -3424,7 +3433,6 @@ val ConversationState.inputPlaceholder: String?
 
 private fun UnsupportedKeyboardButton.explanation(): StringResource = when (this) {
     UnsupportedKeyboardButton.Location -> Res.string.bot_unsupported_location
-    UnsupportedKeyboardButton.Poll -> Res.string.bot_unsupported_poll
     UnsupportedKeyboardButton.Users, UnsupportedKeyboardButton.Chat -> Res.string.bot_unsupported_pick_chat
     UnsupportedKeyboardButton.WebApp -> Res.string.bot_unsupported_web_app
     UnsupportedKeyboardButton.ManagedBot -> Res.string.bot_unsupported_managed_bot
