@@ -4865,6 +4865,25 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   tím Compose přepočítá klíče stránek (`NearestRangeKeyIndexMap`) s novým počtem nad starým
   seznamem — po dotažení fotek to v release padalo na „Index 22 out of bounds for length 22".
   Platí pro každý pager / lazy seznam uvnitř `SubcomposeLayout`, jehož počet je mimo něj.
+- **Otevřená fotka se ukáže HNED, výřez pro listování se dotáhne pod ní** (`loadInitial`).
+  Dokud se čekalo na `visualMedia` (`searchChatMessages`, v chatu se čtyřiceti fotkami stovky
+  ms), byl stav prázdný a kreslilo se načítání — fotka letící z bubliny neměla kam dosednout,
+  zmizela, bliklo kolečko a pak se objevila. Zpráva přitom byla načtená už na začátku (kvůli
+  mizejícím médiím). Pager drží stránku podle klíče, takže rozšíření výřezu kolem ní s ním
+  nepohne; okraje jsou do té doby „dosažené", aby se listování nerozjelo od jediné fotky
+  souběžně s výřezem. Ověřeno sérií surových snímků: fotka je vidět v každém snímku.
+- **Dotažení sousedé PŘIJEDOU, nenaskočí** (`MediaCarousel(animateArrivals = true)`,
+  `PageArrivals`). Otevřená fotka se zanimuje letem z bubliny a sousedé u okrajů by vedle ní
+  naskočili bleskem. Stránka, která přibyla v datech, vyjede od okraje obrazovky (posun přesně
+  o to, o co soused vykukuje) a prolne se. **Posun o kus šířky stránky nefungoval** — soused
+  startoval hluboko za okrajem a vidět byl jen konec pohybu, takže to vypadalo jako pouhé
+  prolnutí. **Pozor, pager skládá stránky i při listování** (soused dopředu): „skládá se
+  poprvé" proto nestačí, jinak by přijížděla každá další fotka při švihnutí. Přijede jen stránka,
+  jejíž klíč v předchozím stavu dat nebyl a která se složila hned se změnou; po dvou snímcích se
+  nový stav bere jako známý. Směr se čte až při kreslení — po rozšíření dat pager přesune
+  `currentPage` na otevřenou fotku až v layoutu. Sdílení (Direct Share) to nemá zapnuté, má
+  vlastní animace přidávání a odebírání. Ověřeno surovými snímky: soused se při otevření vysune
+  a prolne, při listování je hned celý.
 - **Počítadlo „N z M" se ptá jednou**, na otevřenou fotku (`getChatMessagePosition` +
   `getChatMessageCount`; TDLib počítá od nejnovější, tak se to obrací). Ostatní stránky se
   odvozují posunem indexu, protože načtený výřez je souvislý.
@@ -5559,6 +5578,19 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   začal do 500 ms od objevení pruhu (pruh vyskočil pod prstem: druhé ťuknutí na fotku, scroll po
   omylem otevřené nabídce). **Který z případů to u uživatele byl, ověřené není** — pojistka
   kryje všechny tři; ověřuje se na telefonu švihem přes pruh v prohlížeči.
+- **Blok `pointerInput` se NESPOUŠTÍ při složení, ale až s PRVNÍM dotykem**
+  (`SuspendingPointerInputModifierNodeImpl`: „Coroutine lazily launches when first event comes
+  in"). První verze pojistky si v něm zapisovala čas objevení pruhu — ve skutečnosti tedy čas
+  prvního dotyku, takže lhůta 500 ms spolkla KAŽDÉ první ťuknutí, i to po deseti vteřinách:
+  reakce z nabídky nad zprávou zabírala až na druhé ťuknutí. Test čisté funkce `isStrayTap` to
+  nechytil, modifier sám nezkoušel. Čas proto zapisuje `Modifier.Node` v `onAttach` a při změně
+  klíče (`update`). **Obecně: co se má měřit od objevení prvku, nepatří do `pointerInput`.**
+- **V prohlížeči pruh reakcí vyjede zdola, až prohlížeč dosedne** (přechod navigace i let fotky
+  hotové, `LocalNavAnimatedContentScope.transition` ve stavu `Visible`) a reakce jsou načtené.
+  Během letu by vyskočil tam, kam fotka teprve míří — a tam dopadá druhé ťuknutí dvojitého
+  ťuknutí. Vyjíždí jen poprvé; po celé obrazovce a mezi stránkami se jen prolne jako horní lišta.
+  Změřeno na emulátoru: fotka dosedne ~0,86 s po ťuknutí, přechod se ohlásí hotový až ~1,24 s
+  (dozní pružina), pruh vyjede s tím odstupem.
 - **`isBig = false`** — `true` je ta celoobrazovková animace; patří k vědomému gestu, ne ke
   každému ťuknutí na čip.
 - **Avatary v čipech NEJSOU.** Byly, a byla to slepá ulička: čip s profilovkami je široký, takže

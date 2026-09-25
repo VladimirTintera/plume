@@ -4,9 +4,12 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.SuspendingPointerInputModifierNode
+import androidx.compose.ui.node.DelegatingNode
+import androidx.compose.ui.node.ModifierNodeElement
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /**
@@ -36,24 +39,52 @@ internal val STRAY_TAP_GRACE: Duration = 500.milliseconds
  *
  * Běží v [PointerEventPass.Initial], tedy PŘED potomky: spotřebovaný dotyk k nim dorazí už
  * spotřebovaný. [key] je obsah pruhu (zpráva) — s jiným obsahem běží lhůta od začátku.
+ *
+ * **Okamžik objevení zapisuje uzel při připojení, ne blok `pointerInput`.** Ten Compose spouští
+ * až s PRVNÍM dotykem (`SuspendingPointerInputModifierNodeImpl`: „Coroutine lazily launches when
+ * first event comes in") — čas z něj tedy byl čas prvního dotyku a lhůta spolkla KAŽDÉ první
+ * ťuknutí, i to po deseti vteřinách. Reakce z nabídky nad zprávou zabírala až na druhé ťuknutí.
  */
-fun Modifier.strayTapGuard(key: Any?): Modifier = pointerInput(key) {
-    val shownAt = TimeSource.Monotonic.markNow()
-    val slop = viewConfiguration.touchSlop
-    awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-        val sinceShown = shownAt.elapsedNow()
-        var stray = isStrayTap(sinceShown, travel = 0f, slop = slop, pointers = 1)
-        if (stray) down.consume()
-        var travel = 0f
-        while (true) {
-            val event = awaitPointerEvent(PointerEventPass.Initial)
-            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-            travel = maxOf(travel, (change.position - down.position).getDistance())
-            val pointers = event.changes.count { it.pressed || it.previousPressed }
-            if (!stray) stray = isStrayTap(sinceShown, travel, slop, pointers)
-            if (stray) event.changes.forEach { it.consume() }
-            if (!change.pressed) break
-        }
+fun Modifier.strayTapGuard(key: Any?): Modifier = this then StrayTapGuardElement(key)
+
+private data class StrayTapGuardElement(val key: Any?) : ModifierNodeElement<StrayTapGuardNode>() {
+    override fun create() = StrayTapGuardNode()
+
+    // Volá se jen s jiným klíčem (element je data class): nový obsah pruhu = nová lhůta.
+    override fun update(node: StrayTapGuardNode) = node.restart()
+}
+
+private class StrayTapGuardNode : DelegatingNode() {
+    private var shownAt: TimeMark = TimeSource.Monotonic.markNow()
+
+    private val input = delegate(
+        SuspendingPointerInputModifierNode {
+            val slop = viewConfiguration.touchSlop
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                val sinceShown = shownAt.elapsedNow()
+                var stray = isStrayTap(sinceShown, travel = 0f, slop = slop, pointers = 1)
+                if (stray) down.consume()
+                var travel = 0f
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                    travel = maxOf(travel, (change.position - down.position).getDistance())
+                    val pointers = event.changes.count { it.pressed || it.previousPressed }
+                    if (!stray) stray = isStrayTap(sinceShown, travel, slop, pointers)
+                    if (stray) event.changes.forEach { it.consume() }
+                    if (!change.pressed) break
+                }
+            }
+        },
+    )
+
+    override fun onAttach() {
+        shownAt = TimeSource.Monotonic.markNow()
+    }
+
+    fun restart() {
+        shownAt = TimeSource.Monotonic.markNow()
+        input.resetPointerInputHandler()
     }
 }
