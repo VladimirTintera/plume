@@ -1,3 +1,3 @@
 type: fix
-cs: Reakce z nabídky i prohlížeče fotek zase zabere na první ťuknutí
-en: Reactions from the menu and photo viewer work on the first tap again
+cs: Reakce zase zaberou na první ťuknutí a fotka se otevírá bez probliknutí
+en: Reactions work on the first tap again and photos open without a flicker

@@ -218,6 +218,22 @@ class MediaViewerViewModel(
             return
         }
 
+        /*
+         * Otevřená fotka se ukáže HNED, sousedé pro listování se dotáhnou pod ní. Výřez jde
+         * přes `searchChatMessages`, a to trvá (v chatu se čtyřiceti fotkami stovky ms); dokud
+         * se čekalo na něj, neměla fotka letící z bubliny kam dosednout — zmizela, bliklo
+         * načítání a pak se objevila. Pager drží stránku podle klíče, takže když se výřez kolem
+         * ní rozšíří, zůstane na ní. Okraje jsou do té doby „dosažené", aby listování nezačalo
+         * dotahovat od jediné fotky souběžně s výřezem.
+         */
+        val initialItem = initialMessage?.toViewerItem()
+        if (initialItem != null) {
+            _state.update {
+                it.copy(items = listOf(initialItem), reachedOldest = true, reachedNewest = true, loading = false)
+            }
+            loadDetails(messageId)
+        }
+
         repository.visualMedia(chatId, messageId, older = PAGE_SIZE, newer = PAGE_SIZE)
             .onSuccess { messages ->
                 val items = messages.mapNotNull { it.toViewerItem() }
@@ -227,7 +243,9 @@ class MediaViewerViewModel(
                     loadSingle()
                     return
                 }
-                _state.update { it.copy(items = items, loading = false) }
+                _state.update {
+                    it.copy(items = items, reachedOldest = false, reachedNewest = false, loading = false)
+                }
                 loadDetails(messageId)
             }
             .onFailure { loadSingle() }

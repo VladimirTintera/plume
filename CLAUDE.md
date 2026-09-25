@@ -4865,6 +4865,13 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   tím Compose přepočítá klíče stránek (`NearestRangeKeyIndexMap`) s novým počtem nad starým
   seznamem — po dotažení fotek to v release padalo na „Index 22 out of bounds for length 22".
   Platí pro každý pager / lazy seznam uvnitř `SubcomposeLayout`, jehož počet je mimo něj.
+- **Otevřená fotka se ukáže HNED, výřez pro listování se dotáhne pod ní** (`loadInitial`).
+  Dokud se čekalo na `visualMedia` (`searchChatMessages`, v chatu se čtyřiceti fotkami stovky
+  ms), byl stav prázdný a kreslilo se načítání — fotka letící z bubliny neměla kam dosednout,
+  zmizela, bliklo kolečko a pak se objevila. Zpráva přitom byla načtená už na začátku (kvůli
+  mizejícím médiím). Pager drží stránku podle klíče, takže rozšíření výřezu kolem ní s ním
+  nepohne; okraje jsou do té doby „dosažené", aby se listování nerozjelo od jediné fotky
+  souběžně s výřezem. Ověřeno sérií surových snímků: fotka je vidět v každém snímku.
 - **Počítadlo „N z M" se ptá jednou**, na otevřenou fotku (`getChatMessagePosition` +
   `getChatMessageCount`; TDLib počítá od nejnovější, tak se to obrací). Ostatní stránky se
   odvozují posunem indexu, protože načtený výřez je souvislý.
