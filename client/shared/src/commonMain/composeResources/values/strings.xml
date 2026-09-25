@@ -272,6 +272,7 @@
     <string name="conversation_sticker_send_failed">Couldn't send the sticker.</string>
     <string name="conversation_attachments_limit">You can send at most %1$d attachments at once.</string>
     <string name="conversation_gif_send_failed">Couldn't send the GIF.</string>
+    <string name="conversation_location_send_failed">Couldn't send the location.</string>
     <string name="conversation_content_not_allowed">This chat doesn't accept this kind of attachment.</string>
     <string name="conversation_self_destruct_album">Disappearing photos and videos can't be sent in an album — the attachments will be sent normally.</string>
     <string name="conversation_attachments_send_failed">Couldn't send the attachments.</string>
@@ -1091,6 +1092,8 @@
     <string name="poll_voters_more">Show more</string>
     <string name="poll_voters_failed">Couldn't load who voted.</string>
     <string name="conversation_attach_poll">Poll</string>
+    <string name="conversation_attach_location">Location</string>
+    <string name="conversation_location_title">Send location</string>
     <string name="poll_compose_title">New poll</string>
     <string name="poll_compose_title_quiz">New quiz</string>
     <string name="poll_compose_send">Send</string>

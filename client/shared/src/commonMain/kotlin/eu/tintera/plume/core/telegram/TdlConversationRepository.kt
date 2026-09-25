@@ -89,6 +89,8 @@ import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.InputAnimation
 import dev.g000sha256.tdl.dto.InputDocument
 import dev.g000sha256.tdl.dto.InputFileId
+import dev.g000sha256.tdl.dto.InputMessageVenue
+import dev.g000sha256.tdl.dto.InputMessageLocation
 import dev.g000sha256.tdl.dto.InputFileLocal
 import dev.g000sha256.tdl.dto.InputMessageAnimation
 import dev.g000sha256.tdl.dto.InputMessageContent
@@ -950,6 +952,39 @@ class TdlConversationRepository(
         )
             .toResult()
             .map { it.toChatMessage(isGroup(chatId)) }
+
+    override suspend fun sendLocation(
+        chatId: Long,
+        place: Place,
+        replyToMessageId: Long?,
+        quote: ReplyQuote?,
+    ): Result<ChatMessage> {
+        val location = Location(latitude = place.latitude, longitude = place.longitude, horizontalAccuracy = 0.0)
+        val content = if (place.title.isBlank()) {
+            InputMessageLocation(location = location)
+        } else {
+            InputMessageVenue(
+                venue = Venue(
+                    location = location,
+                    title = place.title,
+                    address = place.address,
+                    provider = place.provider,
+                    id = place.id,
+                    type = place.type,
+                ),
+            )
+        }
+        return client.sendMessage(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyInput(chatId, replyToMessageId, quote),
+            options = null,
+            replyMarkup = null,
+            inputMessageContent = content,
+        )
+            .toResult()
+            .map { it.toChatMessage(isGroup(chatId)) }
+    }
 
     override suspend fun sendGif(
         chatId: Long,

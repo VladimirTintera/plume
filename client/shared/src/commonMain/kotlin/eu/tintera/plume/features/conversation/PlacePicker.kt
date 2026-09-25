@@ -32,6 +32,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.location.GeoPoint
+import eu.tintera.plume.core.location.rememberDeviceLocation
+import eu.tintera.plume.core.telegram.PlaceRepository
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import eu.tintera.plume.core.telegram.Place
 import androidx.compose.ui.graphics.Shape
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
@@ -48,7 +61,6 @@ import eu.tintera.plume.resources.poll_place_mine_hint
 import eu.tintera.plume.resources.poll_place_no_location
 import eu.tintera.plume.resources.my_location_24dp
 import eu.tintera.plume.resources.poll_place_search
-import eu.tintera.plume.resources.poll_place_title
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -71,19 +83,98 @@ sealed interface PlaceLocation {
 }
 
 /**
- * Výběr místa k odpovědi nebo otázce ankety: hledání podle názvu (inline bot míst), výsledky
- * jako blok zaoblených řádků — tentýž jazyk jako výběr chatu nebo země.
+ * Hledání míst kolem polohy zařízení — pro sheet [PlacePickerHost]. Sdílí ho formulář ankety
+ * (místo u otázky a odpovědi) a konverzace (sponka → Poloha).
  *
- * **Poloha zařízení se nezjišťuje.** Hledá se podle názvu, město se napíše do dotazu; oprávnění
- * k poloze kvůli jedné příloze ankety by byla cena, která za to nestojí.
+ * Třída nad [CoroutineScope], ne ViewModel: patří do ViewModelu té obrazovky, která sheet ukazuje.
+ */
+class PlaceSearcher(
+    private val scope: CoroutineScope,
+    private val repository: PlaceRepository,
+    private val chatId: Long,
+) {
+    private val _state = MutableStateFlow(PlaceSearch())
+    val state: StateFlow<PlaceSearch> = _state.asStateFlow()
+    private var job: Job? = null
+
+    /**
+     * Místa k dotazu, s pauzou po psaní a zrušením předchozího hledání — pomalá odpověď na
+     * „Praha" nesmí přepsat výsledky pro „Praha Hrad".
+     */
+    fun search(query: String) {
+        job?.cancel()
+        val text = query.trim()
+        val center = (_state.value.location as? PlaceLocation.Found)?.point
+        _state.update { it.copy(query = text, loading = center != null, failed = false) }
+        center ?: return
+        job = scope.launch {
+            // Prázdný dotaz (místa v okolí) hned, psaní s pauzou.
+            if (text.isNotEmpty()) delay(PLACE_SEARCH_DELAY_MS)
+            repository.search(chatId, text, center)
+                .onSuccess { found -> _state.update { it.copy(results = found, loading = false) } }
+                .onFailure { _state.update { it.copy(loading = false, failed = true) } }
+        }
+    }
+
+    /** Výběr místa se otevírá: poloha se zjišťuje znovu a výsledky z minula se zahodí. */
+    fun start() {
+        job?.cancel()
+        _state.value = PlaceSearch()
+    }
+
+    /** Poloha zařízení dorazila (nebo ne); hned se hledají místa v okolí. */
+    fun onLocation(point: GeoPoint?) {
+        _state.update { it.copy(location = point?.let { p -> PlaceLocation.Found(p) } ?: PlaceLocation.Unavailable) }
+        search(_state.value.query)
+    }
+}
+
+/**
+ * Sheet výběru místa i se zjištěním polohy: při otevření se [searcher] vynuluje a zeptá se na
+ * polohu zařízení (systém se na oprávnění zeptá až teď, ne při startu aplikace).
+ */
+@Composable
+internal fun PlacePickerHost(
+    searcher: PlaceSearcher,
+    title: String,
+    onPick: (Place) -> Unit,
+    onDismiss: () -> Unit,
+    /**
+     * Pole hledání si vezme fokus hned. V anketě ano — místo se tam hledá podle názvu; v konverzaci
+     * ne: hlavní akce je „Moje poloha" nahoře a klávesnice by schovala místa v okolí.
+     */
+    autoFocusSearch: Boolean = true,
+) {
+    val search by searcher.state.collectAsStateWithLifecycle()
+    val location = rememberDeviceLocation()
+    LaunchedEffect(Unit) {
+        searcher.start()
+        location.request(searcher::onLocation)
+    }
+    PlacePickerSheet(
+        search = search,
+        title = title,
+        onQueryChange = searcher::search,
+        onPick = onPick,
+        onDismiss = onDismiss,
+        autoFocusSearch = autoFocusSearch,
+    )
+}
+
+/**
+ * Výběr místa: nahoře vlastní poloha, pod ní místa v okolí a hledání podle názvu (inline bot
+ * míst, kolem polohy zařízení), výsledky jako blok zaoblených řádků — tentýž jazyk jako výběr
+ * chatu nebo země.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun PlacePickerSheet(
     search: PlaceSearch,
+    title: String,
     onQueryChange: (String) -> Unit,
     onPick: (Place) -> Unit,
     onDismiss: () -> Unit,
+    autoFocusSearch: Boolean = true,
 ) {
     // Rovnou celý: výsledky i pole se do napůl rozbaleného sheetu nevejdou (viz výběr země).
     val sheetState = rememberBottomSheetState(
@@ -93,7 +184,7 @@ internal fun PlacePickerSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth()) {
             Text(
-                stringResource(Res.string.poll_place_title),
+                title,
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(horizontal = 24.dp),
             )
@@ -102,7 +193,7 @@ internal fun PlacePickerSheet(
                 onQueryChange = onQueryChange,
                 placeholder = stringResource(Res.string.poll_place_search),
                 clearDescription = stringResource(Res.string.common_close),
-                autoFocus = true,
+                autoFocus = autoFocusSearch,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             )
             Box(Modifier.fillMaxWidth().height(LIST_HEIGHT), contentAlignment = Alignment.Center) {
@@ -187,3 +278,5 @@ private fun PlaceRow(title: String, subtitle: String, mine: Boolean, shape: Shap
 }
 
 private val LIST_HEIGHT = 420.dp
+
+private const val PLACE_SEARCH_DELAY_MS = 400L

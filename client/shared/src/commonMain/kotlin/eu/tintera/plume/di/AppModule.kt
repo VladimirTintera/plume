@@ -266,6 +266,7 @@ fun appModule() = module {
             shareTargets = get(),
             connection = get(),
             searchRequests = get(),
+            placeRepository = get(),
         )
     }
 

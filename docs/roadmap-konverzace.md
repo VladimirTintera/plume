@@ -450,8 +450,9 @@ snadno na to uživatel narazí.
   názvem a obalem alba (`albumCoverThumbnail`), navazování další skladby; `VoicePlayer` je
   dobrý základ.
 - ~~**Poloha, živá poloha a místo**~~ — hotovo: statická mapa od Telegramu, ťuknutí do map
-  platformy, u živé polohy do kdy se sdílí. Zbývá odesílání polohy (sponka) a sdílení živé
-  polohy, směr pohybu (`heading`) a upozornění na blízkost (`proximityAlertRadius`).
+  platformy, u živé polohy do kdy se sdílí, odeslání polohy nebo místa ze sponky. Zbývá
+  sdílení živé polohy (běh na pozadí), směr pohybu (`heading`) a upozornění na blízkost
+  (`proximityAlertRadius`).
 - **Kontakt** (`MessageContact`) — karta se jménem a číslem, „Napsat" (`userId`), přidat
   do kontaktů.
 - **Hovory** (`MessageCall`) — jen „Hovor". TDLib nese směr, délku a důvod ukončení

@@ -25,6 +25,8 @@ import eu.tintera.plume.resources.attach_file_24dp
 import eu.tintera.plume.resources.conversation_attach
 import eu.tintera.plume.resources.conversation_attach_file
 import eu.tintera.plume.resources.conversation_attach_poll
+import eu.tintera.plume.resources.conversation_attach_location
+import eu.tintera.plume.resources.location_on_24dp
 import eu.tintera.plume.resources.ballot_24dp
 import eu.tintera.plume.resources.conversation_attach_media
 import eu.tintera.plume.resources.description_24dp
@@ -33,7 +35,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Tlačítko příloh s nabídkou Fotka / Soubor / Anketa.
+ * Tlačítko příloh s nabídkou Fotka / Soubor / Anketa / Poloha.
  *
  * Dvě položky, ne rovnou výběr: Photo Picker ukazuje jen fotky a výběr dokumentu nemá náhledy, takže
  * jeden systémový výběr pro obojí by byl horší v obou případech. Klávesnice se zavře, než se
@@ -57,6 +59,8 @@ internal fun AttachButton(
     canPickDocument: Boolean = true,
     /** Založit anketu; `null`, kde anketa nejde (soukromý chat s člověkem, zakázané právo). */
     onCreatePoll: (() -> Unit)? = null,
+    /** Poslat polohu; `null`, kde nejde. */
+    onSendLocation: (() -> Unit)? = null,
     contentColor: Color,
     modifier: Modifier = Modifier,
 ) {
@@ -88,6 +92,9 @@ internal fun AttachButton(
                         .takeIf { canPickDocument },
                     onCreatePoll?.let { create ->
                         MenuAction(stringResource(Res.string.conversation_attach_poll), Res.drawable.ballot_24dp) { pick(create) }
+                    },
+                    onSendLocation?.let { send ->
+                        MenuAction(stringResource(Res.string.conversation_attach_location), Res.drawable.location_on_24dp) { pick(send) }
                     },
                 ),
             ),

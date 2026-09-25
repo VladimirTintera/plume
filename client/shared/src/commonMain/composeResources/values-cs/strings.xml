@@ -275,6 +275,7 @@
     <string name="conversation_sticker_send_failed">Samolepku se nepodařilo odeslat.</string>
     <string name="conversation_attachments_limit">Najednou jde poslat nejvýš %1$d příloh.</string>
     <string name="conversation_gif_send_failed">GIF se nepodařilo odeslat.</string>
+    <string name="conversation_location_send_failed">Polohu se nepodařilo odeslat.</string>
     <string name="conversation_content_not_allowed">Tenhle druh přílohy chat nepřijímá.</string>
     <string name="conversation_self_destruct_album">Mizející fotky a videa nejdou poslat v albu — přílohy odejdou normálně.</string>
     <string name="conversation_attachments_send_failed">Přílohy se nepodařilo odeslat.</string>
@@ -1110,6 +1111,8 @@
     <string name="poll_voters_more">Zobrazit další</string>
     <string name="poll_voters_failed">Kdo hlasoval, se nepodařilo načíst.</string>
     <string name="conversation_attach_poll">Anketa</string>
+    <string name="conversation_attach_location">Poloha</string>
+    <string name="conversation_location_title">Poslat polohu</string>
     <string name="poll_compose_title">Nová anketa</string>
     <string name="poll_compose_title_quiz">Nový kvíz</string>
     <string name="poll_compose_send">Odeslat</string>

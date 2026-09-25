@@ -2896,8 +2896,9 @@ Ztlumit / Zapnout zvuk, omezená skupina a chat, ve kterém uživatel není, vě
   nad zprávou se řídí `canBeReplied` od serveru jako dřív.
 - **Druhy obsahu mají vlastní pravidlo** (`ContentAccess`, `contentAccess` vedle `writeAccess`,
   testy `WriteAccessTest`). Skupina smí povolit text a zakázat fotky; co se poslat nesmí, se
-  nenabízí — sponka schová položku a bez jediné se nekreslí vůbec, mikrofon ustoupí odeslání,
-  výběr zůstane na emoji. **Obě pravidla se musí shodovat v tom, koho omezení míjejí:** správce
+  nenabízí — sponka schová položku, mikrofon ustoupí odeslání, výběr zůstane na emoji.
+  **Sponka ale nezmizí nikdy**, dokud jde psát: poloha je v TDLib „základní zpráva"
+  (`canSendBasicMessages` jako text), takže v ní zůstane aspoň „Poloha". **Obě pravidla se musí shodovat v tom, koho omezení míjejí:** správce
   a vlastník omezení nemají, členovi platí výchozí práva skupiny, omezenému členovi jeho vlastní.
 - **Neznámé postavení NEOMEZUJE nic**, stejně jako u psaní. Chybějící sponka odřízne uživatele
   od chatu víc než chyba po odeslání, která přijde jednou za čas.
@@ -2913,7 +2914,8 @@ Ztlumit / Zapnout zvuk, omezená skupina a chat, ve kterém uživatel není, vě
 - **Omezená skupina se bez druhého účtu nevyrobí.** Vlastník omezení nemá, takže vlastní
   testovací skupina pravidlo neprověří — ověřuje se podstrčeným `ContentAccess` v `chatAccess()`,
   jako vzhled karty aktualizace. Ověřeno na emulátoru: „jen fotky" nechá sponku s jedinou
-  položkou, smajlík místo samolepky a odeslání místo mikrofonu; „nic" sponku schová celou.
+  položkou, smajlík místo samolepky a odeslání místo mikrofonu; „nic" sponku schovávalo celou
+  (dnes v ní zůstane „Poloha", ověřené to s podstrčeným stavem znovu není).
 
 ### „Píše…" v konverzaci
 
@@ -4943,7 +4945,20 @@ kus kreslí místo v anketě i jeho náhled ve formuláři. Ťuknutí otevře ma
   s `media` typu `venue` / `location`. Ověřeno na emulátoru: všechny tři druhy zpráv, mapa
   u otázky i odpovědi ankety, náhled ve formuláři, ťuknutí do Google Map (i bez hlasu u
   odpovědi), dlouhý stisk s nabídkou. **Posun živé polohy ověřený není** (`editMessageLiveLocation`
-  botem by šel) a **iOS jen přeložené** — Apple Mapy se na simulátoru neotevíraly.
+  botem by šel) a **iOS jen přeložené** — Apple Mapy se na simulátoru neotevíraly. Odeslání ze
+  sponky ověřené na emulátoru: místo i „Moje poloha" odešly a bot přes `getUpdates` dostal
+  `venue` (s `foursquare_id`) a holou `location`.
+- **Poslat polohu jde ze sponky** (`AttachButton` → „Poloha", `ConversationViewModel.sendLocation`).
+  Je to tentýž sheet jako místo v anketě (`PlacePickerHost` nad `PlaceSearcher` — hledání
+  kolem polohy zařízení, sdílí ho formulář ankety i konverzace): „Moje poloha" odejde jako
+  `InputMessageLocation`, místo z hledání jako `InputMessageVenue` i s id a typem od
+  poskytovatele (server ho pak vydá dál, Bot API ukázalo `foursquare_id`). Odchází hned, jako
+  samolepka: citaci spotřebuje, rozepsaný text nechá. **V konverzaci si pole hledání fokus
+  nebere** (`autoFocusSearch = false`) — hlavní akce je „Moje poloha" a klávesnice by schovala
+  místa v okolí; v anketě se místo hledá podle názvu, tam ano.
+- **Sdílení ŽIVÉ polohy tu není**: chtělo by běh na pozadí s polohou (foreground služba na
+  Androidu, `allowsBackgroundLocationUpdates` na iOS) a oprávnění k přesné poloze na pozadí —
+  jiná kategorie než jednorázová přibližná poloha.
 - **Na přetíženém emulátoru se první dlouhý stisk ztratí** („spent 2442ms processing
   MotionEvent" v logu) a vypadá to jako chybějící nabídka. Zopakovat, než se hledá chyba.
 

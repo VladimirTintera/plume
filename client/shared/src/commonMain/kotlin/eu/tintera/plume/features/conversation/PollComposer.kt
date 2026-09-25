@@ -168,7 +168,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.location.GeoPoint
-import eu.tintera.plume.core.location.rememberDeviceLocation
 import eu.tintera.plume.core.telegram.PlaceRepository
 import eu.tintera.plume.core.telegram.PollDraftMedia
 import eu.tintera.plume.core.ui.RemoteImage
@@ -185,6 +184,7 @@ import eu.tintera.plume.resources.poll_media_gif
 import eu.tintera.plume.resources.poll_media_link
 import eu.tintera.plume.resources.poll_media_photo
 import eu.tintera.plume.resources.poll_media_place
+import eu.tintera.plume.resources.poll_place_title
 import eu.tintera.plume.resources.poll_media_sticker
 import kotlinx.coroutines.Job
 import org.jetbrains.compose.resources.DrawableResource
@@ -491,9 +491,8 @@ class PollComposerViewModel(
     var answerMedia by mutableStateOf(emptyMap<Int, PollDraftMedia>())
         private set
 
-    private val _places = MutableStateFlow(PlaceSearch())
-    val places: StateFlow<PlaceSearch> = _places.asStateFlow()
-    private var placeJob: Job? = null
+    /** Hledání místa k otázce nebo odpovědi (sheet „Místo"). */
+    val places = PlaceSearcher(viewModelScope, placeRepository, chatId)
 
     /**
      * Ke kterému poli se vybírá příloha: [POLL_QUESTION_MEDIA], nebo index odpovědi. Výběr je
@@ -593,37 +592,6 @@ class PollComposerViewModel(
             // Pole mohlo mezitím zmizet nebo se vyprázdnit — příloha bez textu by neodešla.
             answers.getOrNull(target)?.isNotBlank() == true -> answerMedia = answerMedia + (target to media)
         }
-    }
-
-    /**
-     * Místa k dotazu, s pauzou po psaní a zrušením předchozího hledání — pomalá odpověď na
-     * „Praha" nesmí přepsat výsledky pro „Praha Hrad".
-     */
-    fun searchPlaces(query: String) {
-        placeJob?.cancel()
-        val text = query.trim()
-        val center = (_places.value.location as? PlaceLocation.Found)?.point
-        _places.update { it.copy(query = text, loading = center != null, failed = false) }
-        center ?: return
-        placeJob = viewModelScope.launch {
-            // Prázdný dotaz (místa v okolí) hned, psaní s pauzou.
-            if (text.isNotEmpty()) delay(PLACE_SEARCH_DELAY_MS)
-            placeRepository.search(chatId, text, center)
-                .onSuccess { found -> _places.update { it.copy(results = found, loading = false) } }
-                .onFailure { _places.update { it.copy(loading = false, failed = true) } }
-        }
-    }
-
-    /** Výběr místa se otevírá: poloha se zjišťuje znovu a výsledky z minula se zahodí. */
-    fun startPlaceSearch() {
-        placeJob?.cancel()
-        _places.value = PlaceSearch()
-    }
-
-    /** Poloha zařízení dorazila (nebo ne); hned se hledají místa v okolí. */
-    fun onPlaceLocation(point: GeoPoint?) {
-        _places.update { it.copy(location = point?.let { p -> PlaceLocation.Found(p) } ?: PlaceLocation.Unavailable) }
-        searchPlaces(_places.value.query)
     }
 
     fun removeQuestionMedia() {
@@ -1081,15 +1049,9 @@ fun PollComposerScreen(
             onDismiss = { choosing = null },
         )
         PollMediaKind.Place -> {
-            val places by viewModel.places.collectAsStateWithLifecycle()
-            val location = rememberDeviceLocation()
-            LaunchedEffect(Unit) {
-                viewModel.startPlaceSearch()
-                location.request(viewModel::onPlaceLocation)
-            }
-            PlacePickerSheet(
-                search = places,
-                onQueryChange = viewModel::searchPlaces,
+            PlacePickerHost(
+                searcher = viewModel.places,
+                title = stringResource(Res.string.poll_place_title),
                 onPick = { place ->
                     choosing = null
                     viewModel.setMedia(PollDraftMedia.Location(place))
@@ -1494,8 +1456,6 @@ private fun SwitchRow(label: String, checked: Boolean, shape: Shape, onChange: (
 
 /** Kdyby server strop nevydal. */
 private const val DEFAULT_MAX_ANSWERS = 10
-
-private const val PLACE_SEARCH_DELAY_MS = 400L
 
 private fun currentEpochSeconds(): Long = Clock.System.now().epochSeconds
 

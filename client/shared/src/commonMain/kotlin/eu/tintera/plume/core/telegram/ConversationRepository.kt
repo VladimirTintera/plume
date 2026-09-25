@@ -305,6 +305,18 @@ interface ConversationRepository {
     ): Result<ChatMessage>
 
     /**
+     * Odešle polohu, nebo místo s názvem a adresou (`InputMessageVenue`), když [place] název má.
+     * Holá poloha („Moje poloha") jde jako `InputMessageLocation`. Vrací rozepsanou zprávu hned
+     * jako [send].
+     */
+    suspend fun sendLocation(
+        chatId: Long,
+        place: Place,
+        replyToMessageId: Long?,
+        quote: ReplyQuote? = null,
+    ): Result<ChatMessage>
+
+    /**
      * Odešle GIF z výběru — soubor, který na serveru už je, takže se nic nenahrává. GIF se
      * zároveň zařadí na začátek uložených, jako samolepka mezi nedávné.
      */
