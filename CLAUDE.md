@@ -1546,6 +1546,10 @@ testy v `ChatGroupsTest`). Nahradil spodní navigační lištu.
 - **Ikony bez popisků**, pět popisků by se na telefon nevešlo. Název nese tooltip po podržení
   a `contentDescription`. Vybraný filtr: `secondaryContainer` (výběr je navigační stav, stejná
   role jako vybraná položka navigace v M3) a tvar kruh → čtverec (`toggleableShapes`), takže se pozná i bez barvy.
+- **Nepřečtené mají zavřenou obálku (`mail`), ne `mark_chat_unread`.** Ta má v rohu tečku,
+  tedy přesně tvar notifikačního odznaku M3 (`Badge`), a na liště vypadala, že něco nepřečteného
+  čeká, i když nečekalo nic. Zavřená obálka = neotevřená zpráva, stejně jako v Gmailu. Ikona
+  s tečkou zůstává u AKCE „Označit jako nepřečtené" v nabídce nad chatem — ta tečku opravdu přidá.
 - **Přepnutí filtru skočí na vršek seznamu** — v obsluze ťuknutí, NE v `LaunchedEffect(filter)`:
   efekt by se spustil znovu při každém návratu seznamu do kompozice (z konverzace na telefonu)
   a seznam by pokaždé odjel nahoru.

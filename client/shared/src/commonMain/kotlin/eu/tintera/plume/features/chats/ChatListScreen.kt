@@ -164,8 +164,8 @@ import eu.tintera.plume.resources.forum_24dp
 import eu.tintera.plume.resources.forum_filled_24dp
 import eu.tintera.plume.resources.group_24dp
 import eu.tintera.plume.resources.group_filled_24dp
-import eu.tintera.plume.resources.mark_chat_unread_24dp
-import eu.tintera.plume.resources.mark_chat_unread_filled_24dp
+import eu.tintera.plume.resources.mail_24dp
+import eu.tintera.plume.resources.mail_filled_24dp
 import eu.tintera.plume.resources.nav_settings
 import eu.tintera.plume.resources.person_24dp
 import eu.tintera.plume.resources.person_filled_24dp
@@ -492,7 +492,7 @@ private val ChatFilter.label: StringResource
 private val ChatFilter.icon: DrawableResource
     get() = when (this) {
         ChatFilter.All -> Res.drawable.forum_24dp
-        ChatFilter.Unread -> Res.drawable.mark_chat_unread_24dp
+        ChatFilter.Unread -> Res.drawable.mail_24dp
         ChatFilter.Private -> Res.drawable.person_24dp
         ChatFilter.Groups -> Res.drawable.group_24dp
         ChatFilter.Channels -> Res.drawable.campaign_24dp
@@ -501,7 +501,7 @@ private val ChatFilter.icon: DrawableResource
 private val ChatFilter.selectedIcon: DrawableResource
     get() = when (this) {
         ChatFilter.All -> Res.drawable.forum_filled_24dp
-        ChatFilter.Unread -> Res.drawable.mark_chat_unread_filled_24dp
+        ChatFilter.Unread -> Res.drawable.mail_filled_24dp
         ChatFilter.Private -> Res.drawable.person_filled_24dp
         ChatFilter.Groups -> Res.drawable.group_filled_24dp
         ChatFilter.Channels -> Res.drawable.campaign_filled_24dp
