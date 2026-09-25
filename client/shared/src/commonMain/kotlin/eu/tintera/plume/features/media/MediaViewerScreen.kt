@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.core.ui.strayTapGuard
 import eu.tintera.plume.core.ui.MEDIA_PAGE_VERTICAL_GAP
 import eu.tintera.plume.core.ui.MediaCarousel
 import eu.tintera.plume.core.ui.aspectRatioOf
@@ -699,6 +700,9 @@ private fun ReactionBar(item: ViewerItem, emoji: List<String>, onReact: (String)
             .fillMaxWidth()
             .navigationBarsPadding()
             .height(BOTTOM_BAR_HEIGHT)
+            // Pruh je dole, kudy vede palec při listování a zavírání — nedbalý tah ani ťuknutí
+            // hned po otevření fotky reakci dát nesmí.
+            .strayTapGuard(item.messageId)
             .padding(horizontal = 12.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,

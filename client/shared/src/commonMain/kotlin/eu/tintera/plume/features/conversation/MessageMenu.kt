@@ -94,6 +94,7 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.hazeBlur
+import eu.tintera.plume.core.ui.strayTapGuard
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.distinctOnBoth
@@ -690,7 +691,9 @@ private fun QuickReactions(
         modifier = modifier.height(QUICK_ROW_HEIGHT),
     ) {
         Row(
-            Modifier.padding(horizontal = 6.dp),
+            // Nabídka se otevírá i omylem (palec chvíli stojí na zprávě) a pruh pak vyskočí pod
+            // prstem, který pokračuje ve scrollu — takový dotyk reakci dát nesmí.
+            Modifier.strayTapGuard(menu.messageId).padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
