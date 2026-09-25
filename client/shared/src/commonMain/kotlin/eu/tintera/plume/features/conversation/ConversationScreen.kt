@@ -81,6 +81,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import eu.tintera.plume.core.ui.avatarPolygon
+import eu.tintera.plume.core.ui.rememberShownConnection
+import eu.tintera.plume.core.ui.rememberConnectionIndicator
+import eu.tintera.plume.core.ui.OnlineDot
+import eu.tintera.plume.core.ui.RING_STROKE
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -964,6 +972,24 @@ fun ConversationScreen(
                     // Hlavička vede do profilu chatu — tak to znají uživatelé ze všech klientů.
                     // Uložené zprávy profil nemají (je to vlastní účet, nic k ukázání).
                     val profileLabel = stringResource(Res.string.profile_open)
+                    /*
+                     * Stav spojení nese avatar (zvlní se a točí), stejně jako fotka účtu
+                     * v seznamu chatů — ne text pod názvem. Čtečce obrazovky ho řekne popis
+                     * stavu hlavičky.
+                     */
+                    val shownConnection = rememberShownConnection(connection)
+                    val connectionLabel = shownConnection?.label()?.let { stringResource(it) }
+                    val kind = when {
+                        state.info?.isChannel == true -> ChatKind.Channel
+                        state.info?.isGroup == true -> ChatKind.Group
+                        else -> ChatKind.Private
+                    }
+                    val indicator = rememberConnectionIndicator(
+                        connection = shownConnection,
+                        avatarSize = HEADER_AVATAR,
+                        grownSize = HEADER_AVATAR_GROWN,
+                        base = kind.avatarPolygon(),
+                    )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -973,23 +999,38 @@ fun ConversationScreen(
                                 enabled = state.info?.isSavedMessages == false,
                                 onClickLabel = profileLabel,
                                 onClick = onOpenProfile,
-                            ),
+                            )
+                            .semantics { connectionLabel?.let { stateDescription = it } }
+                            // Místo pro zvětšený avatar s prstencem: řádek ořezává (tvar vlnky
+                            // stisku), takže bez rezervy by prstenec usekl vlevo i nahoře a dole.
+                            .padding(horizontal = HEADER_RING_ROOM, vertical = HEADER_RING_ROOM),
                     ) {
                         state.info?.let { info ->
-                            Avatar(
-                                chatId = info.id,
-                                title = info.title,
-                                avatarFileId = info.avatarFileId,
-                                size = 36.dp,
-                                isSavedMessages = info.isSavedMessages,
-                                // Stejný tvar jako v seznamu, odkud avatar přiletěl.
-                                shape = when {
-                                    info.isChannel -> ChatKind.Channel
-                                    info.isGroup -> ChatKind.Group
-                                    else -> ChatKind.Private
-                                }.avatarShape(),
-                                modifier = Modifier.sharedNavElement(chatAvatarKey(info.id)),
-                            )
+                            Box {
+                                Avatar(
+                                    chatId = info.id,
+                                    title = info.title,
+                                    avatarFileId = info.avatarFileId,
+                                    size = HEADER_AVATAR,
+                                    isSavedMessages = info.isSavedMessages,
+                                    // Stejný tvar jako v seznamu, odkud avatar přiletěl. Při výpadku
+                                    // ořezává indikátor — vlastní tvar by vlnky u skupiny schoval.
+                                    shape = if (indicator.isShaping) RectangleShape else kind.avatarShape(),
+                                    modifier = Modifier
+                                        .sharedNavElement(chatAvatarKey(info.id))
+                                        .then(with(indicator) { Modifier.avatar() }),
+                                )
+                                with(indicator) { Spacer(Modifier.matchParentSize().ring()) }
+                                // Jako v seznamu chatů. Bez spojení je dostupnost stará hodnota
+                                // a tečka by přeškrtla prstenec.
+                                if (shownConnection == null && state.presence is Presence.Online && !info.isSavedMessages) {
+                                    OnlineDot(
+                                        rim = MaterialTheme.colorScheme.surface,
+                                        size = HEADER_ONLINE_DOT,
+                                        modifier = Modifier.align(Alignment.BottomEnd),
+                                    )
+                                }
+                            }
                         }
                         Column {
                             Text(
@@ -1005,23 +1046,21 @@ fun ConversationScreen(
                             )
 
                             /*
-                             * Podtitul: stav spojení, jinak dostupnost.
+                             * Podtitul: dostupnost protějšku. Stav spojení tu NENÍ, ten nese avatar.
                              *
-                             * Nepřipojený klient je nade vším: dokud spojení nestojí, je „naposledy
-                             * viděn" jen stará hodnota, kterou nemá co obnovit — ukázat ji místo
-                             * vysvětlení, proč nic nechodí, by bylo zavádějící.
+                             * Bez spojení se ale dostupnost schová: dokud spojení nestojí, je
+                             * „naposledy viděn" jen stará hodnota, kterou nemá co obnovit.
                              *
                              * „Píše…" tu NENÍ: kreslí se v seznamu zpráv tam, kam zpráva naskočí
-                             * (`TypingItem`), jako v Google Zprávách. Skupina dostupnost nemá,
-                             * takže se podtitul objeví jen bez spojení; výšku hlavičky proto
-                             * animuje `AnimatedContent`, jinak by název poskočil.
+                             * (`TypingItem`), jako v Google Zprávách. Výšku hlavičky animuje
+                             * `AnimatedContent`, jinak by název při objevení podtitulu poskočil.
                              */
-                            val subtitle = connection.label()?.let { HeaderSubtitle(stringResource(it), accent = false) }
+                            val subtitle = state.presence
+                                ?.takeIf { shownConnection == null }
                                 // Vlastní dostupnost v Uložených zprávách nic neříká — byl bys
                                 // pořád „online", protože se na ně právě díváš.
-                                ?: state.presence?.takeUnless { state.info?.isSavedMessages == true }?.let {
-                                    HeaderSubtitle(it.describe(), accent = it is Presence.Online)
-                                }
+                                ?.takeUnless { state.info?.isSavedMessages == true }
+                                ?.let { HeaderSubtitle(it.describe(), accent = it is Presence.Online) }
                             val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
                             val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
 
@@ -2311,6 +2350,18 @@ private fun MessageInput(
 }
 
 /** Tvar karty vstupního pole; při nahrávání se z něj rozvlní [WavyShape]. */
+/** Avatar v hlavičce. */
+private val HEADER_AVATAR = 36.dp
+
+/** Avatar v hlavičce při výpadku spojení (viz `ConnectionIndicator`). */
+private val HEADER_AVATAR_GROWN = 42.dp
+
+/** Rezerva řádku hlavičky kolem avataru pro jeho zvětšení a půl tahu prstence. */
+private val HEADER_RING_ROOM = (HEADER_AVATAR_GROWN + RING_STROKE - HEADER_AVATAR) / 2
+
+/** Tečka dostupnosti na 36dp avataru — v seznamu chatů je 14 dp na 52dp. */
+private val HEADER_ONLINE_DOT = 11.dp
+
 private val ComposerShape = RoundedCornerShape(24.dp)
 
 /** Odsazení textu od ikony vedle pole — glyf má v 48dp tlačítku kolem sebe svých 12 dp. */

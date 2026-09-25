@@ -3,7 +3,13 @@ package eu.tintera.plume.features.chats
 import androidx.compose.ui.graphics.Shape
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.highlightRanges
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.SideEffect
 import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.resources.chats_search_empty_hint
@@ -47,10 +53,6 @@ import eu.tintera.plume.resources.chats_search_clear_recent
 import eu.tintera.plume.resources.chats_search_people
 import eu.tintera.plume.resources.chats_search_recent
 import androidx.compose.animation.core.animate
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -67,7 +69,6 @@ import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.AppBarWithSearch
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.ExpandedFullScreenSearchBar
 import androidx.compose.material3.Icon
@@ -78,7 +79,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarScrollBehavior
 import androidx.compose.material3.SearchBarValue
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
@@ -122,8 +122,9 @@ import org.jetbrains.compose.resources.stringResource
  * zpátky.** Odjetý bar by jinak schoval jediné vysvětlení, proč nic nechodí. Pás pod stavovou
  * lištou kreslí seznam chatů.
  *
- * **Stav spojení je pilulka UVNITŘ hledání** ([connection]), ne nadpis. Skoro celou dobu je
- * `null` a pak není vidět nic; nadpis „Chaty" by jen opakoval, co říká navigace.
+ * **Stav spojení je nápověda pilulky** ([connection]) a prstenec kolem fotky účtu (ten dodá
+ * [trailing]), ne nadpis ani vlastní prvek. Skoro celou dobu je `null` a pak je vidět jen
+ * „Hledat v chatech"; nadpis „Chaty" by jen opakoval, co říká navigace.
  *
  * **Hledá se ve všech známých chatech** ([ChatSearch]): i v archivu a v chatech, které
  * v žádném seznamu nejsou; pod nimi veřejné chaty a zprávy. Pod prázdným dotazem jsou
@@ -182,12 +183,30 @@ internal fun ChatSearchBar(
             searchBarState = searchBarState,
             onSearch = {},
             colors = colors.searchBarColors.inputFieldColors,
+            /*
+             * Ve sbalené pilulce nese nápověda stav spojení (prstenec kolem fotky účtu ukazuje,
+             * ŽE něco není v pořádku, text CO). Rozbalené hledání má nápovědu vždycky svoji —
+             * uživatel se tam dívá na výsledky, ne na spojení.
+             *
+             * Výměna je fade through, ne `Crossfade`: dva texty na témže místě napůl průhledné
+             * přes sebe („Čekání na síť" přes „Připojování") se nedají přečíst a vypadají jako
+             * chyba vykreslení — tatáž úvaha jako u přechodů mezi obrazovkami.
+             */
             placeholder = {
-                Text(
-                    stringResource(Res.string.chats_search),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                val hint = connection.takeUnless { expanded } ?: Res.string.chats_search
+                AnimatedContent(
+                    targetState = hint,
+                    transitionSpec = {
+                        fadeIn(tween(HINT_FADE_IN_MS, delayMillis = HINT_FADE_OUT_MS, easing = LinearOutSlowInEasing)) togetherWith
+                            fadeOut(tween(HINT_FADE_OUT_MS, easing = FastOutLinearInEasing))
+                    },
+                ) {
+                    Text(
+                        stringResource(it),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             },
             leadingIcon = {
                 if (expanded) {
@@ -210,10 +229,7 @@ internal fun ChatSearchBar(
                         )
                     }
                     // V rozbaleném hledání stav ani účet nepatří — uživatel se dívá na výsledky.
-                    !expanded -> Row(verticalAlignment = Alignment.CenterVertically) {
-                        ConnectionPill(connection)
-                        trailing()
-                    }
+                    !expanded -> trailing()
                 }
             },
         )
@@ -287,56 +303,6 @@ internal fun ChatSearchBar(
             onFilterChange = onFilterChange,
         )
     }
-}
-
-/**
- * Stav spojení jako tonální pilulka na konci hledání.
- *
- * Při odjezdu kreslí poslední známý text — v okamžiku skrytí je hodnota už `null` a
- * `AnimatedVisibility` by dobíhala s prázdnou pilulkou (tatáž past jako u pruhu připnutých).
- */
-@Composable
-private fun ConnectionPill(connection: StringResource?) {
-    val last = remember { LastValue<StringResource>() }
-    connection?.let { last.value = it }
-    val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-    val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
-
-    AnimatedVisibility(
-        visible = connection != null,
-        enter = fadeIn(effects) + scaleIn(spatial, initialScale = 0.8f),
-        exit = fadeOut(effects) + scaleOut(spatial, targetScale = 0.8f),
-    ) {
-        val label = last.value ?: return@AnimatedVisibility
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            modifier = Modifier.padding(end = 8.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.padding(start = 10.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(12.dp),
-                    strokeWidth = 1.5.dp,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-                Text(
-                    stringResource(label),
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                )
-            }
-        }
-    }
-}
-
-/** Obyčejné pole, ne stav — čte se jen při skládání obsahu, který se kvůli němu nepřekresluje. */
-private class LastValue<T> {
-    var value: T? = null
 }
 
 /**
@@ -728,3 +694,7 @@ internal fun snippetAround(text: String, query: String): String {
 
 /** Kolik znaků před nalezeným slovem zůstane ve výsledku vidět. */
 private const val SNIPPET_CONTEXT = 24
+
+/** Výměna nápovědy pilulky: stará zmizí, nová se objeví až potom (stejná čísla jako fade through obrazovek). */
+private const val HINT_FADE_OUT_MS = 90
+private const val HINT_FADE_IN_MS = 210

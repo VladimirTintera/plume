@@ -1078,6 +1078,12 @@ chodit. Dokud se nesledovalo, vypadala nepřipojená aplikace úplně normálně
   všech spojení je horší než nedělat nic. Naopak přelezení mezi dvěma Wi-Fi je změna, kterou
   porovnání samotného typu nezachytí — proto `NetworkStatus` nese kromě typu i pořadové číslo,
   které se zvedá jen v `onAvailable` / `onLost`.
+- **Bez sítě při startu to musí monitor říct sám.** `registerDefaultNetworkCallback` se bez
+  sítě neozve vůbec, takže TDLib dostal výchozí `Other` z `ConnectionController` a aplikace
+  spuštěná v letovém režimu hlásila napořád „Připojování…". Monitor se proto před registrací
+  zeptá na `activeNetwork` a bez ní ohlásí `None`. iOS to nepotřebuje: `NWPathMonitor` se ozve
+  hned po startu i s nesplněnou cestou. Ověřuje se STUDENÝM startem v letovém režimu — zapnutí
+  letového režimu za běhu chodí přes `onLost` a chybu neukáže.
 - **Otočení displeje NENÍ odchod do pozadí.** `onStop` staré instance a `onStart` nové by jinak
   vypadaly jako návrat z pozadí a zbytečně shodily všechna spojení; pozná se to podle
   `isChangingConfigurations`.
@@ -1092,14 +1098,28 @@ chodit. Dokud se nesledovalo, vypadala nepřipojená aplikace úplně normálně
   tečka pro ostatní — dokud je aplikace na obrazovce, chodí s ní updaty rychleji.
 - **`ConnectionState` se smí použít jen jako popisek pro člověka**, říká to dokumentace u něj.
   Nic se z něj proto neodvozuje, jen se vypisuje.
-- **Stav je v hlavičce, ne ve vlastním pruhu**: v seznamu chatů pilulka uvnitř vyhledávací
-  pilulky (viz „Hlavička: vyhledávací pilulka"), v konverzaci nahrazuje podtitul. Kdo se dívá
-  na prázdný seznam, hledá vysvětlení nahoře. Stejně to řeší oficiální klient.
+- **Stav je v hlavičce, ne ve vlastním pruhu, a všude stejným znakem**: avatar se zvlní, naroste
+  a točí (`ConnectionIndicator` v `core/ui`). V seznamu chatů je to fotka účtu a text je
+  v nápovědě vyhledávací pilulky (viz „Hlavička: vyhledávací pilulka"); v konverzaci avatar
+  chatu v hlavičce, text jen pro čtečku (`stateDescription` řádku hlavičky). Kdo se dívá na
+  prázdný seznam, hledá vysvětlení nahoře.
 - **`Ready` se nehlásí.** V tom stavu aplikace stráví skoro celou dobu; „připojeno" je šum, zatímco
   „nepřipojeno" je jediná informace, která uživateli vysvětlí, proč mu nic nechodí. Proto
   `ConnectionState.label()` vrací u `Ready` `null`.
-- **V hlavičce konverzace má stav spojení přednost před dostupností.** Dokud spojení nestojí,
-  je dostupnost jen stará hodnota, kterou nemá co obnovit. „Píše…" v hlavičce není, viz níž.
+- **Hlavička konverzace: spojení nese avatar, dostupnost podtitul a tečka.** Dřív byl stav
+  spojení textem místo podtitulu; dvě podoby téhož stavu (text tady, zvlněná fotka v seznamu)
+  byly jen nekonzistence. Tečka „online" je tatáž jako v seznamu chatů (`OnlineDot`).
+  **Bez spojení se dostupnost schová** (podtitul i tečka): dokud spojení nestojí, je to jen
+  stará hodnota, kterou nemá co obnovit — a tečka by přeškrtla prstenec. „Píše…" v hlavičce
+  není, viz níž.
+  - **Avatar skupiny a kanálu se zvlní ze SVÉHO tvaru** (`ChatKind.avatarPolygon`, týž zdroj
+    jako `avatarShape`), ne z kruhu — skokem do kruhu by přeskočil. Při výpadku dostane `Avatar`
+    obdélníkový tvar (`isShaping`): ořezává se i vlastním tvarem, a vlnitý ořez by jinak zůstal
+    uvnitř sušenky. Úhel otáčení roste s průběhem morfu, jinak by se čtverec kanálu při zvlnění
+    skokem přetočil.
+  - **Řádek hlavičky ořezává** (tvar vlnky stisku), takže má kolem sebe rezervu
+    (`HEADER_RING_ROOM`) — bez ní byl zvětšený avatar vlevo useknutý. Avatar se tím posunul
+    o ~4 dp doprava.
 - **Ověřuje se to bez dozu** — chování je stejné: odejít z aplikace a vrátit se (v logu musí být
   „Návrat do popředí, obnovuji spojení"), zapnout a vypnout letový režim (`adb shell cmd
   connectivity airplane-mode enable`), otočit displej (v logu nesmí být NIC).
@@ -1597,9 +1617,44 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
   celou šířku byl přesně to, co vadilo na velkém baru.
 - **Plochu baru dává i `Modifier.background(surface)`.** `appBarContainerColor` bez scroll
   behavior v material3 1.5.0-alpha22 nenakreslil nic a chaty pod barem prosvítaly.
-- **Stav spojení je tonální pilulka na konci hledání** (`ConnectionPill`), ne nadpis. Skoro
-  celou dobu není vidět nic; „Chaty" v nadpisu jen opakovalo navigaci. V rozbaleném hledání se
+- **Stav spojení nese fotka účtu a nápověda pilulky** (`ConnectionIndicator` v `core/ui`,
+  sdílený s hlavičkou konverzace), ne nadpis ani vlastní prvek. Skoro celou dobu není vidět nic; „Chaty"
+  v nadpisu jen opakovalo navigaci. Dřív to byla tonální pilulka s kolečkem na konci hledání —
+  ukusovala místo nápovědě a vedle fotky působila jako cizí prvek. V rozbaleném hledání se stav
   neukazuje.
+  - **Fotka naroste (30 → 38 dp), zvlní se, po jejím okraji vyjede vlnitý prstenec a obojí se
+    točí**; po obnovení spojení je fotka zase malý kruh. Prstenec je OBRYS fotky (tah leží napůl
+    přes její okraj), ne rám kolem ní. Dvě slepé uličky: `CircularWavyProgressIndicator` kolem
+    kulaté fotky (kruh v zubatém rámu nepůsobil jako celek) a zvlněná zmenšená fotka uvnitř
+    prstence — mezera mezi nimi vypadala jako díra. Pilulku zvětšení nerozšíří: slot tlačítka
+    má pevných 48 dp a 38 dp se vejde i pod 40dp ořez `IconButton`.
+  - **Točí se obrys, fotka ne.** Obrys je ořez ve vrstvě (`graphicsLayer { shape; clip }`),
+    obsah pod ním stojí; točit celou fotku by točilo i tvář. Zvlnění, zvětšení fotky i prstenec
+    jdou z JEDNOHO průběhu morfu (`morphSpring`), úhel se čte až při
+    kreslení — točení nic neskládá. `MorphShape` na to nestačí: otáčí jen spolu s průběhem.
+  - **Prstenec a tečka archivu jsou mimo `IconButton`**, ve vrstvách nad ním: tlačítko ořezává
+    obsah na 40dp kruh. Tečka je nad prstencem (jinak by ji přeškrtl) a zůstává v rohu
+    NEZVĚTŠENÉ fotky, takže na prstenci sedí jako odznak; zvětšovat ji s fotkou by ji vystrčilo
+    z ořezu. Zvětšuje se jen `Avatar`, ne obal s tečkou.
+  - **Prstenec říká, ŽE je problém, nápověda CO.** Samotný tvar by nerozlišil „Čekání na síť"
+    (uživatel může něco udělat) od „Připojování" (stačí počkat).
+  - **Čekání na síť se točí POMALU (otáčka za 20 s) a prstenec je v `outline`**, připojování
+    a aktualizace za 9 s v `primary`. Úplné zastavení (první návrh: „bez sítě se na nic nečeká,
+    rotace by lhala") uživatel na emulátoru odmítl — stojící vlnka působila jako zamrzlá.
+    Rychlost se animuje ve stupních za vteřinu a úhel přibývá po snímcích (`withFrameNanos`),
+    takže přechod mezi stavy neškubne; smyčka běží jen při výpadku. Kontrast proti pilulce v tmavém motivu: `outline` 3,6 : 1,
+    `primary` 9,7 : 1 (práh pro netextové prvky je 3 : 1).
+  - **Nápověda se mění fade through, ne `Crossfade`.** Dva texty napůl průhledné přes sebe
+    („Čekání na síť" přes „Připojování") se nedají přečíst — tatáž úvaha jako u přechodů
+    obrazovek, i s jejich čísly (90 / 210 ms).
+  - **Výpadek se ukáže až po 600 ms, návrat hned** (`rememberShownConnection`). Po každém návratu
+    z pozadí TDLib na zlomek vteřiny hlásí `Updating` a fotka by se při každém otevření aplikace
+    zavlnila. Na emulátoru se tím připojování po vypnutí letového režimu neukáže vůbec.
+  - **Vzhled se ověřuje podstrčeným stavem, i bez přihlášení**: v `App.kt` dočasně
+    `targetState = true` (shell se složí i nepřihlášený), v `ChatListScreen` pevný `AccountInfo`,
+    `ArchiveUnread(2, 1)` (tečka) a `produceState`, který střídá čekání na síť → připojování → `null` po 4 s. Tak jde použít
+    čerstvý emulátor, na kterém Plume přihlášená není. Necommituje se.
+  - **Čtečce obrazovky stav říká popis tlačítka účtu** („Účet, Čekání na síť…").
 - **Hledá se ve všech známých chatech**, ne v načteném seznamu — viz „Hledání chatů" níž.
 
 ### Hledání chatů

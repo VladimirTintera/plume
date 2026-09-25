@@ -1,6 +1,8 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
@@ -23,6 +25,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
+import androidx.graphics.shapes.RoundedPolygon
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.bookmark_filled_24dp
@@ -133,8 +136,35 @@ fun Avatar(
 @Composable
 fun ChatKind.avatarShape(): Shape = when (this) {
     ChatKind.Private -> CircleShape
-    ChatKind.Group -> MaterialShapes.Cookie4Sided.toShape()
-    ChatKind.Channel -> MaterialShapes.Square.toShape()
+    ChatKind.Group -> avatarPolygon().toShape()
+    ChatKind.Channel -> avatarPolygon().toShape()
+}
+
+/**
+ * Tentýž tvar jako [avatarShape], jako polygon — z něj se morfuje, když avatar mění stav
+ * (výpadek spojení, [rememberConnectionIndicator]). Jeden zdroj, aby morf začínal přesně
+ * v tvaru, který avatar má.
+ */
+fun ChatKind.avatarPolygon(): RoundedPolygon = when (this) {
+    ChatKind.Private -> MaterialShapes.Circle
+    ChatKind.Group -> MaterialShapes.Cookie4Sided
+    ChatKind.Channel -> MaterialShapes.Square
+}
+
+/**
+ * Tečka „je online" v pravém dolním rohu avataru — v seznamu chatů i v hlavičce konverzace.
+ * Obroučka má barvu plochy, na které avatar leží ([rim]): bez ní tečka na tmavé fotce splyne
+ * a je z ní jen skvrna. Na avataru, ne vedle jména: dostupnost se přečte spolu s tím, kdo to je.
+ */
+@Composable
+fun OnlineDot(rim: Color, modifier: Modifier = Modifier, size: Dp = 14.dp) {
+    Box(
+        modifier
+            .size(size)
+            .background(rim, CircleShape)
+            .padding(2.dp)
+            .background(MaterialTheme.colorScheme.primary, CircleShape),
+    )
 }
 
 /**
