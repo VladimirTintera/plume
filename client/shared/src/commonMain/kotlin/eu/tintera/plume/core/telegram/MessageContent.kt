@@ -434,6 +434,8 @@ internal suspend fun Message.captionBody(): MessageBody = when (val content = th
 
     // Typy, které mají v bublině vlastní přílohu s popiskem — text by ho zdvojil.
     is MessageVideoNote, is MessageGame, is MessageInvoice -> MessageBody.Empty
+    // Mapa s názvem místa pod sebou; „Poloha" jako text by ji jen popisovala podruhé.
+    is MessageLocation, is MessageLiveLocation, is MessageVenue -> MessageBody.Empty
     is MessagePaidMedia -> content.caption.toBody()
 
     /*
@@ -526,6 +528,16 @@ private fun String.withScheme(): String = if (contains("://")) this else "https:
  * bez něj by ze zprávy zbylo jen „hodil jsem kostkou" bez výsledku. Nula znamená, že server
  * výsledek ještě neposlal; dorazí updatem.
  */
+/**
+ * Konec sdílení živé polohy v sekundách od epochy. `livePeriod` se počítá od ODESLÁNÍ zprávy,
+ * ne od teď; `0x7FFFFFFF` je sdílení bez konce ([Long.MAX_VALUE]).
+ */
+internal fun liveLocationUntil(sentAt: Int, livePeriod: Int): Long =
+    if (livePeriod == LIVE_FOREVER) Long.MAX_VALUE else sentAt.toLong() + livePeriod
+
+/** `livePeriod` živé polohy sdílené bez konce. */
+private const val LIVE_FOREVER = 0x7FFFFFFF
+
 private fun MessageDice.diceText(): String = if (value > 0) "$emoji $value" else emoji
 
 /** Náhled, který jde nakreslit jako obrázek — animovaný MPEG-4 Coil neotevře. */
@@ -580,6 +592,19 @@ internal suspend fun Message.messageMedia(): MessageMedia? = when (val content =
         label = getString(Res.string.content_game, content.game.title),
         thumbnailFileId = content.game.photo.sizes.filterNotNull()
             .minByOrNull { it.width * it.height }?.photo?.id,
+    )
+
+    is MessageLocation -> MessageMedia.Location(content.location.latitude, content.location.longitude)
+    is MessageVenue -> MessageMedia.Location(
+        latitude = content.venue.location.latitude,
+        longitude = content.venue.location.longitude,
+        title = content.venue.title.ifBlank { null },
+        address = content.venue.address.ifBlank { null },
+    )
+    is MessageLiveLocation -> MessageMedia.Location(
+        latitude = content.location.location.latitude,
+        longitude = content.location.location.longitude,
+        liveUntil = liveLocationUntil(sentAt = date, livePeriod = content.location.livePeriod),
     )
 
     is MessageInvoice -> MessageMedia.Attachment(
@@ -647,17 +672,14 @@ internal fun PollMedia.toAttachment(): PollAttachment? = when (this) {
         title = linkPreview?.let { previewText(it.title) ?: previewText(it.siteName) },
         photo = linkPreview?.toDomain()?.photo,
     )
-    is PollMediaLocation -> PollAttachment.Place(
-        title = null,
-        address = null,
-        latitude = location.latitude,
-        longitude = location.longitude,
-    )
-    is PollMediaVenue -> PollAttachment.Place(
-        title = previewText(venue.title),
-        address = previewText(venue.address),
-        latitude = venue.location.latitude,
-        longitude = venue.location.longitude,
+    is PollMediaLocation -> PollAttachment.Media(MessageMedia.Location(location.latitude, location.longitude))
+    is PollMediaVenue -> PollAttachment.Media(
+        MessageMedia.Location(
+            latitude = venue.location.latitude,
+            longitude = venue.location.longitude,
+            title = previewText(venue.title),
+            address = previewText(venue.address),
+        ),
     )
 }
 

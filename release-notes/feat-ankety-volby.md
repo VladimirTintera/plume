@@ -1,3 +1,3 @@
 type: feat
-cs: Ankety: fotky, GIFy, samolepky, odkazy i místa, popis, přesný konec a kdo smí hlasovat
-en: Polls: photos, GIFs, stickers, links and places, a description, exact end and who can vote
+cs: Ankety s fotkami, GIFy, samolepkami, odkazy a místy, popisem a přesným koncem; mapa u polohy
+en: Polls with photos, GIFs, stickers, links and places, a description and exact end; location maps

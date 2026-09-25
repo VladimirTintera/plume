@@ -3,6 +3,7 @@ package eu.tintera.plume.core.telegram
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.File
+import dev.g000sha256.tdl.dto.Location
 import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -37,6 +38,13 @@ class TdlFileRepository(
     private val uploads = mutableMapOf<Int, MutableStateFlow<Float?>>()
     private val mutex = Mutex()
 
+    /**
+     * Mapy, o které už se žádalo. `getMapThumbnailFile` je lokální, ale mapa se skládá při každém
+     * návratu položky do seznamu; `fileId` je pro tentýž výřez pořád stejné. Čistí se
+     * s výměnou klienta — `fileId` platí jen v jedné databázi.
+     */
+    private val maps = mutableMapOf<MapRequest, Int>()
+
     /** Soubory, na které už request odešel — aby se stahování nespouštělo znovu při každém odběru. */
     private val requested = mutableSetOf<Int>()
 
@@ -54,6 +62,7 @@ class TdlFileRepository(
                     states.clear()
                     uploads.clear()
                     requested.clear()
+                    maps.clear()
                 }
             }
         }
@@ -102,6 +111,24 @@ class TdlFileRepository(
         )
             .toResult()
             .onFailure { failure -> logger.w { "downloadFile($fileId, offset=$offset) selhalo: ${failure.message}" } }
+    }
+
+    override suspend fun mapThumbnail(map: MapRequest): Int? {
+        mutex.withLock { maps[map] }?.let { return it }
+        return client.getMapThumbnailFile(
+            location = Location(latitude = map.latitude, longitude = map.longitude, horizontalAccuracy = 0.0),
+            zoom = map.zoom,
+            width = map.width,
+            height = map.height,
+            scale = map.scale,
+            chatId = map.chatId,
+        )
+            .toResult()
+            .onFailure { failure -> logger.w { "getMapThumbnailFile($map) selhalo: ${failure.message}" } }
+            .getOrNull()
+            ?.also { file -> publish(file) }
+            ?.id
+            ?.also { id -> mutex.withLock { maps[map] = id } }
     }
 
     private suspend fun request(fileId: Int) {

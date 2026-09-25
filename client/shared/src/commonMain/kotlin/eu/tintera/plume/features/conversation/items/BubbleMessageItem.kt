@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.MessageMedia
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -91,6 +92,9 @@ internal data class BubbleMessageItem(
             } else {
                 message.media?.let { Attachment(media = it, accent = accent) }
             }
+            (message.media as? MessageMedia.Location)?.takeIf { it.hasDetails }?.let {
+                LocationDetails(it, color = onBubbleColor, modifier = Modifier.padding(top = 6.dp))
+            }
 
             // Náhled patří nad text, když si to přál odesílatel (`showAboveText`) — mezera
             // pak jde na druhou stranu, ať karta nikdy nedoléhá k textu.
@@ -112,7 +116,8 @@ internal data class BubbleMessageItem(
             if (message.text.isNotBlank()) QuotableText()
             if (preview?.showAboveText != true) previewCard?.invoke(Modifier.padding(top = 6.dp))
 
-            EditedLabel(color = onBubbleColor, modifier = Modifier.align(Alignment.End))
+            // Živou polohu posouvá úprava zprávy; „upraveno" by u ní svítilo pořád.
+            if (!message.isLiveLocation) EditedLabel(color = onBubbleColor, modifier = Modifier.align(Alignment.End))
         }
     }
 

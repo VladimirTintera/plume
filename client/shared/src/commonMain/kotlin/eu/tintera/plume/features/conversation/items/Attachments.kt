@@ -234,6 +234,13 @@ internal fun MessageAttachment(
             ),
         )
         is MessageMedia.AnimatedEmoji -> AnimatedEmojiImage(media)
+        is MessageMedia.Location -> LocationMap(
+            location = media,
+            shape = pictureShape,
+            onOpen = onOpen,
+            onRequestMenu = onRequestMenu,
+            fillWidth = fillWidth,
+        )
         is MessageMedia.Animation -> BoxWithConstraints {
             // Stejný rámeček jako fotka a video: GIF na výšku se zúží, místo aby přišel o kraje.
             val frame = photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), fillWidth)

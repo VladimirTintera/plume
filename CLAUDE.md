@@ -3599,8 +3599,9 @@ Otázka i každá odpověď mohou nést přílohu (TDLib 15 `PollMedia`, doména
 - **Fotka, video, GIF, samolepka a soubor jsou `MessageMedia`**, stejně jako příloha zprávy
   (`PollMedia.toAttachment`). U otázky je proto kreslí tentýž `MessageAttachment` (rámeček podle
   poměru stran, GIF hraje sám, let do prohlížeče); odpověď má 44dp čtvereček (`AnswerMedia`).
-  Odkaz a místo obdobu u zprávy nemají: řádek s ikonou, ťuknutí otevře web, respektive mapy
-  (`maps.google.com/?q=` — `geo:` iOS nezná).
+  **Místo je `MessageMedia.Location`, tedy mapa jako u zprávy s polohou** (viz „Poloha
+  a mapy"), u otázky s názvem a adresou pod ní, u odpovědi mapa ve čtverečku. Odkaz obdobu
+  u zprávy nemá: řádek s ikonou, ťuknutí otevře web.
 - **Náhled u odpovědi je samostatný cíl ťuknutí.** Řádek ťuknutím hlasuje; bez toho by nešla
   fotka odpovědi prohlédnout, aniž by se pro ni hlasovalo. Co otevřít nejde (soubor, zvuk),
   ťuknutí propustí řádku.
@@ -3643,8 +3644,9 @@ Otázka i každá odpověď mohou nést přílohu (TDLib 15 `PollMedia`, doména
   nehlasuje, náhled je i ve výsledcích; od bota místo, odkaz s náhledem webu, poloha, GIF
   (s ikonou přehrání u odpovědi, hrající u otázky) a samolepka. Z formuláře odešla anketa s místem
   z hledání, odkazem (server doplní obrázek webu) a samolepkou u odpovědí a s GIFem u otázky
-  a „Moje poloha" u odpovědi; dotaz na přibližnou polohu se ukáže až při „Místo". **Ťuknutí na
-  odkaz a místo (otevření webu a map) ověřené není** — jde toutéž cestou jako odkaz v textu.
+  a „Moje poloha" u odpovědi; dotaz na přibližnou polohu se ukáže až při „Místo". Mapa u otázky
+  i u odpovědi otevře Google Mapy a ťuknutí na ni nehlasuje. **Ťuknutí na odkaz (otevření webu)
+  ověřené není** — jde toutéž cestou jako odkaz v textu.
 
 ### Tlačítka botů pod zprávou
 
@@ -4907,6 +4909,43 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
 - **Průběh ořezu jde z `AnimatedVisibilityScope.transition`** (`animateFloat` nad
   `EnterExitState`), ne z bounds prvku: `OverlayClip.getClipPath` dostane jen AKTUÁLNÍ hranice,
   ne cílové, takže z nich není jak poznat, jak daleko let došel.
+
+### Poloha a mapy
+
+Zpráva s polohou, místem (`MessageVenue`) a živou polohou je `MessageMedia.Location` a kreslí se
+**statickou mapou** se špendlíkem uprostřed (`StaticMap` v `core/ui`, `LocationMap`); tentýž
+kus kreslí místo v anketě i jeho náhled ve formuláři. Ťuknutí otevře mapy platformy.
+
+- **Mapu kreslí Telegram** (`getMapThumbnailFile` → `FileRepository.mapThumbnail`): PNG soubor
+  jako každý jiný, bez klíče k mapovému API a bez dotazu na cizí službu. Je to obrázek — neposouvá
+  se ani nepřibližuje; interaktivní mapa by chtěla mapové SDK (a klíč), které aplikace nemá.
+- **Mapa se žádá přesně na změřenou plochu** (`BoxWithConstraints`), v bodech zaokrouhlených na
+  8 a v hustotě displeje (`scale` 1–3). Meze TDLib (zoom 13–20, strana 16–1024) se hlídají
+  v `StaticMap` — mimo ně TDLib vrátí chybu, ne oříznutí. `fileId` výřezu si repository pamatuje
+  (mapa se skládá při každém návratu položky do seznamu) a zahazuje s výměnou klienta.
+- **Mapa jde na plochu bez bubliny jako fotka** (`showsBareMedia`), název a adresa místa pod ní
+  jsou karta v barvě bubliny (`LocationDetails`), jako popisek fotky. Šířka je STÁLÁ (280 dp,
+  poměr 0,6) — s názvem i bez něj, jinak by karta s popiskem vyšla širší než holá mapa vedle ní.
+  Text zprávy je prázdný (`captionBody`): „Poloha" pod mapou by ji jen popisovalo podruhé;
+  seznam chatů a citace dál píšou „Poloha" / název místa.
+- **Mapa je vždycky světlá**, i v tmavém motivu (tmavé dlaždice Telegram nemá). Špendlík proto
+  nebere `primary` natvrdo — v tmavém motivu je světlá — ale tmavší z `primary` / `inversePrimary`.
+- **Živá poloha je taky jen obrázek.** Posun chodí jako úprava zprávy, takže se mapa přestaví
+  sama; pod ní „Sdílí se do 14:21" / „Sdílení skončilo". Konec je `datum zprávy + livePeriod`
+  (`liveLocationUntil`, testy `LiveLocationTest`), ne `expiresIn` — ten TDLib změnou neposílá,
+  takže by zastaral. „Upraveno" se u živé polohy neukazuje, svítilo by pořád.
+- **Adresa map je platformní** (`mapsUrl` v `core/location`): Android Google Mapy přes https
+  (app link do aplikace Map), iOS `maps.apple.com`. `geo:` iOS nezná a na Androidu by neprošel
+  cestou odkazu z konverzace — ta umí jen adresy s `://`.
+- **Mapa má vlastní klikání, takže opakuje dlouhý stisk** — jinak by nad ní nešla otevřít
+  nabídka zprávy (tatáž past jako u fotky). Upravit polohu nejde (`carriesCaption` = false).
+- **Ověřuje se botem**: `sendLocation`, `sendVenue`, `sendLocation` s `live_period`, a anketa
+  s `media` typu `venue` / `location`. Ověřeno na emulátoru: všechny tři druhy zpráv, mapa
+  u otázky i odpovědi ankety, náhled ve formuláři, ťuknutí do Google Map (i bez hlasu u
+  odpovědi), dlouhý stisk s nabídkou. **Posun živé polohy ověřený není** (`editMessageLiveLocation`
+  botem by šel) a **iOS jen přeložené** — Apple Mapy se na simulátoru neotevíraly.
+- **Na přetíženém emulátoru se první dlouhý stisk ztratí** („spent 2442ms processing
+  MotionEvent" v logu) a vypadá to jako chybějící nabídka. Zopakovat, než se hledá chyba.
 
 ### GIFy
 

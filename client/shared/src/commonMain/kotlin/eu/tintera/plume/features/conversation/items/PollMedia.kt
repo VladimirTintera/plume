@@ -29,26 +29,24 @@ import eu.tintera.plume.core.telegram.PollAttachment
 import eu.tintera.plume.core.telegram.viewable
 import eu.tintera.plume.core.ui.LocalPollMediaFlight
 import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.ui.StaticMap
 import eu.tintera.plume.core.ui.photoKey
 import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.content_location
 import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.link_24dp
-import eu.tintera.plume.resources.location_on_24dp
 import eu.tintera.plume.resources.music_note_24dp
 import eu.tintera.plume.resources.play_arrow_24dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.resources.stringResource
 
 /*
  * Přílohy ankety (TDLib 15): u otázky velká, u odpovědi malý náhled v řádku.
  *
  * Fotka, video, GIF, samolepka a soubor jsou tytéž `MessageMedia` jako u zprávy, takže je
  * u otázky kreslí `MessageAttachment` — i s rámečkem podle poměru stran, GIFem, který hraje sám,
- * a letem do prohlížeče. Odkaz a místo tvar u zprávy nemají; jsou to řádky s ikonou, které
- * ťuknutí otevře v prohlížeči, respektive v mapách.
+ * a letem do prohlížeče; místo je mapa jako u zprávy s polohou ([LocationMap]). Odkaz tvar u zprávy
+ * nemá — je to řádek s ikonou, který ťuknutí otevře v prohlížeči.
  */
 
 /**
@@ -57,7 +55,8 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 internal fun MessageBodyScope.PollQuestionMedia(attachment: PollAttachment) {
-    Box(Modifier.fillMaxWidth().padding(bottom = 10.dp)) {
+    // Sloupec, ne Box: pod mapou stojí název místa.
+    Column(Modifier.fillMaxWidth().padding(bottom = 10.dp)) {
         when (attachment) {
             is PollAttachment.Media -> CompositionLocalProvider(LocalPollMediaFlight provides POLL_QUESTION_MEDIA) {
                 val media = attachment.media
@@ -65,8 +64,9 @@ internal fun MessageBodyScope.PollQuestionMedia(attachment: PollAttachment) {
                     media = media,
                     messageId = message.id,
                     onOpen = {
-                        when {
-                            media is MessageMedia.Sticker -> act(MessageAction.OpenStickerSet(media.setId))
+                        when (media) {
+                            is MessageMedia.Sticker -> act(MessageAction.OpenStickerSet(media.setId))
+                            is MessageMedia.Location -> act(MessageAction.OpenLink(media.mapUrl))
                             else -> act(MessageAction.OpenPollMedia(POLL_QUESTION_MEDIA))
                         }
                     },
@@ -76,6 +76,9 @@ internal fun MessageBodyScope.PollQuestionMedia(attachment: PollAttachment) {
                     // zúžené fotky zůstalo prázdné místo.
                     fillWidth = true,
                 )
+                (media as? MessageMedia.Location)?.takeIf { it.hasDetails }?.let {
+                    LocationDetails(it, color = onBubbleColor, modifier = Modifier.padding(top = 6.dp))
+                }
             }
 
             is PollAttachment.Link -> AttachmentLine(
@@ -84,18 +87,11 @@ internal fun MessageBodyScope.PollQuestionMedia(attachment: PollAttachment) {
                 subtitle = attachment.url.takeIf { attachment.title != null },
                 onClick = { act(MessageAction.OpenLink(attachment.url)) },
             )
-
-            is PollAttachment.Place -> AttachmentLine(
-                icon = Res.drawable.location_on_24dp,
-                title = attachment.title ?: stringResource(Res.string.content_location),
-                subtitle = attachment.address,
-                onClick = { act(MessageAction.OpenLink(attachment.mapUrl)) },
-            )
         }
     }
 }
 
-/** Odkaz nebo místo nad otázkou: ikona v tónovaném kolečku, název a pod ním adresa. */
+/** Odkaz nad otázkou: ikona v tónovaném kolečku, název a pod ním adresa. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MessageBodyScope.AttachmentLine(
@@ -146,7 +142,7 @@ private fun MessageBodyScope.AttachmentLine(
  * Náhled přílohy v řádku odpovědi.
  *
  * **Vlastní cíl ťuknutí.** Řádek odpovědi ťuknutím hlasuje; náhled fotky a videa otevře
- * prohlížeč, odkaz prohlížeč webu, místo mapy. Bez toho by nešlo odpověď s fotkou prohlédnout,
+ * prohlížeč, odkaz prohlížeč webu, mapa mapy platformy. Bez toho by nešlo odpověď s fotkou prohlédnout,
  * aniž by se pro ni hlasovalo. Co otevřít nejde (soubor, zvuk), ťuknutí propustí řádku.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -156,7 +152,7 @@ internal fun MessageBodyScope.AnswerMedia(attachment: PollAttachment, index: Int
     val action: MessageAction? = when {
         attachment.viewable != null -> MessageAction.OpenPollMedia(index)
         attachment is PollAttachment.Link -> MessageAction.OpenLink(attachment.url)
-        attachment is PollAttachment.Place -> MessageAction.OpenLink(attachment.mapUrl)
+        media is MessageMedia.Location -> MessageAction.OpenLink(media.mapUrl)
         media is MessageMedia.Sticker -> MessageAction.OpenStickerSet(media.setId)
         else -> null
     }
@@ -183,7 +179,7 @@ internal fun MessageBodyScope.AnswerMedia(attachment: PollAttachment, index: Int
                 attachment is PollAttachment.Link -> attachment.photo?.let { photo ->
                     RemoteImage(fileId = photo.thumbnailFileId ?: photo.fileId, modifier = Modifier.fillMaxSize())
                 } ?: Icon(painterResource(Res.drawable.link_24dp), contentDescription = null, tint = accent)
-                else -> Icon(painterResource(Res.drawable.location_on_24dp), contentDescription = null, tint = accent)
+                else -> Unit
             }
         }
     }
@@ -195,6 +191,11 @@ internal fun MessageBodyScope.AnswerMedia(attachment: PollAttachment, index: Int
  */
 @Composable
 private fun MessageBodyScope.AnswerMediaPicture(media: MessageMedia) {
+    if (media is MessageMedia.Location) {
+        // Ve čtverečku o velikosti ikony jsou vidět jen ulice kolem; víc řekne ťuknutí do map.
+        StaticMap(media.latitude, media.longitude, pinSize = 18.dp, modifier = Modifier.fillMaxSize())
+        return
+    }
     val picture: Int? = when (media) {
         is MessageMedia.Photo -> media.fileId
         is MessageMedia.Video -> media.thumbnailFileId

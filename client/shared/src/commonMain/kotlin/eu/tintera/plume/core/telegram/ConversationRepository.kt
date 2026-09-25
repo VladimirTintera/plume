@@ -1312,6 +1312,24 @@ sealed interface MessageMedia {
         val height: Int,
         val emoji: String,
     ) : MessageMedia
+
+    /**
+     * Poloha, místo (`MessageVenue`) nebo živá poloha. Kreslí se statickou mapou od Telegramu
+     * (`FileRepository.mapThumbnail`), ťuknutí otevře systémové mapy.
+     *
+     * [title] a [address] má jen místo. Živá poloha nese [liveUntil]: konec sdílení v sekundách
+     * od epochy, [Long.MAX_VALUE] u sdílení „navždy", `0` u obyčejné polohy. Počítá se z data
+     * zprávy a `livePeriod` — `expiresIn` TDLib změnou neposílá, takže by zastaral.
+     */
+    data class Location(
+        val latitude: Double,
+        val longitude: Double,
+        val title: String? = null,
+        val address: String? = null,
+        val liveUntil: Long = 0,
+    ) : MessageMedia {
+        val isLive: Boolean get() = liveUntil != 0L
+    }
 }
 
 /** Přístup k chatu, jak se mění za běhu — viz [ConversationRepository.accessUpdates]. */

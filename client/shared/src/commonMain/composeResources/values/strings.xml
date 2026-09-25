@@ -472,6 +472,9 @@
     <string name="content_checklist">Checklist: %1$s</string>
     <string name="content_location">Location</string>
     <string name="content_live_location">Live location</string>
+    <string name="location_live_until">Shared until %1$s</string>
+    <string name="location_live_ended">Sharing has ended</string>
+    <string name="media_map">Map</string>
     <string name="content_venue">Place: %1$s</string>
     <string name="content_contact">Contact: %1$s</string>
     <string name="content_game">Game: %1$s</string>

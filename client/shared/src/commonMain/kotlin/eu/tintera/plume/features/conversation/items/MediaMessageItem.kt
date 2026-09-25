@@ -14,9 +14,10 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.MessageMedia
 
 /**
- * Fotka, video nebo album přímo na ploše konverzace, bez bubliny (pravidlo: [showsBareMedia]).
+ * Fotka, video, album nebo mapa polohy přímo na ploše konverzace, bez bubliny (pravidlo: [showsBareMedia]).
  *
  * Bublina kolem snímku nemá co ohraničovat — je to obrázek sám o sobě. **Popisek ale na plochu
  * nepatří**: text bez pozadí by se ztratil, takže dostane kontejner v barvě bubliny.
@@ -43,7 +44,10 @@ internal data class MediaMessageItem(
 
     @Composable
     override fun MessageBodyScope.Body() {
-        val hasCaption = message.text.isNotBlank() || message.isEdited
+        val location = (message.media as? MessageMedia.Location)?.takeIf { it.hasDetails }
+        // Živou polohu posouvá úprava zprávy; „upraveno" by u ní svítilo pořád.
+        val edited = message.isEdited && !message.isLiveLocation
+        val hasCaption = message.text.isNotBlank() || edited || location != null
         // Přeposlaná fotka nese značku v hlavičce téže karty — patří k obsahu, ne vedle něj.
         val forwarded = message.forwardOrigin != null
         val isCard = hasCaption || forwarded
@@ -72,7 +76,8 @@ internal data class MediaMessageItem(
                                 accent = surfaceAccent,
                                 mediaShape = mediaShape,
                                 // Popisek má šířku fotky; s ním využije celou nabízenou šířku.
-                                fillWidth = hasCaption,
+                                // Mapa má šířku stálou — s názvem místa i bez něj stejně velká.
+                                fillWidth = hasCaption && it !is MessageMedia.Location,
                             )
                         }
                     }
@@ -81,8 +86,9 @@ internal data class MediaMessageItem(
                     if (hasCaption) {
                         BubbleSurface {
                             PaddedColumn {
+                                location?.let { LocationDetails(it, color = onBubbleColor) }
                                 if (message.text.isNotBlank()) MessageText(linkColor = accent)
-                                EditedLabel(color = onBubbleColor, modifier = Modifier.align(Alignment.End))
+                                if (edited) EditedLabel(color = onBubbleColor, modifier = Modifier.align(Alignment.End))
                             }
                         }
                     }

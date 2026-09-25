@@ -172,6 +172,7 @@ import eu.tintera.plume.core.location.rememberDeviceLocation
 import eu.tintera.plume.core.telegram.PlaceRepository
 import eu.tintera.plume.core.telegram.PollDraftMedia
 import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.ui.StaticMap
 import eu.tintera.plume.resources.gif_box_24dp
 import eu.tintera.plume.resources.image_24dp
 import eu.tintera.plume.resources.link_24dp
@@ -1422,7 +1423,7 @@ private fun MediaSlotPicture(media: PollDraftMedia) {
             }
             ?: icon(Res.drawable.sticker_24dp)
         is PollDraftMedia.Link -> icon(Res.drawable.link_24dp)
-        is PollDraftMedia.Location -> icon(Res.drawable.location_on_24dp)
+        is PollDraftMedia.Location -> StaticMap(media.place.latitude, media.place.longitude, pinSize = 18.dp, modifier = Modifier.fillMaxSize())
     }
 }
 

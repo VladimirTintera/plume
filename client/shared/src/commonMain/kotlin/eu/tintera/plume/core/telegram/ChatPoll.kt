@@ -85,23 +85,13 @@ data class PollAnswer(
  * Příloha ankety nebo odpovědi (`PollMedia`).
  *
  * Fotka, video, GIF, samolepka a soubor jsou [MessageMedia] jako u zprávy — nakreslí je tentýž
- * kód a otevře tentýž prohlížeč. Odkaz a místo u zprávy obdobu nemají; kreslí se jako řádek
- * a ťuknutí je otevře v prohlížeči, respektive v mapách.
+ * kód a otevře tentýž prohlížeč; místo je [MessageMedia.Location], tedy mapa jako u zprávy
+ * s polohou. Odkaz u zprávy obdobu nemá — kreslí se jako řádek a ťuknutí ho otevře v prohlížeči.
  */
 sealed interface PollAttachment {
     data class Media(val media: MessageMedia) : PollAttachment
 
     data class Link(val url: String, val title: String?, val photo: MessageMedia.Photo?) : PollAttachment
-
-    data class Place(
-        val title: String?,
-        val address: String?,
-        val latitude: Double,
-        val longitude: Double,
-    ) : PollAttachment {
-        /** Adresa, kterou otevřou mapy na Androidu i iOS — `geo:` iOS nezná. */
-        val mapUrl: String get() = "https://maps.google.com/?q=$latitude,$longitude"
-    }
 }
 
 /** Fotka nebo video, které jde otevřít v prohlížeči médií. */

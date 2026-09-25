@@ -475,6 +475,9 @@
     <string name="content_checklist">Seznam úkolů: %1$s</string>
     <string name="content_location">Poloha</string>
     <string name="content_live_location">Živá poloha</string>
+    <string name="location_live_until">Sdílí se do %1$s</string>
+    <string name="location_live_ended">Sdílení skončilo</string>
+    <string name="media_map">Mapa</string>
     <string name="content_venue">Místo: %1$s</string>
     <string name="content_contact">Kontakt: %1$s</string>
     <string name="content_game">Hra: %1$s</string>

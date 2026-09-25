@@ -214,14 +214,14 @@ class ChatPollTest {
 
         val venue = PollMediaVenue(
             Venue(Location(50.0, 14.0, 0.0), title = "Náměstí", address = "Praha", provider = "", id = "", type = ""),
-        ).toAttachment() as PollAttachment.Place
+        ).toAttachment().let { (it as PollAttachment.Media).media as MessageMedia.Location }
         assertEquals("Náměstí", venue.title)
         assertEquals("Praha", venue.address)
 
         // Holá poloha název nemá — nakreslí se jako „Poloha".
-        val place = PollMediaLocation(Location(50.7, 15.7, 0.0)).toAttachment() as PollAttachment.Place
-        assertNull(place.title)
-        assertEquals("https://maps.google.com/?q=50.7,15.7", place.mapUrl)
+        val place = PollMediaLocation(Location(50.7, 15.7, 0.0)).toAttachment()
+        assertEquals(PollAttachment.Media(MessageMedia.Location(50.7, 15.7)), place)
+        assertNull(place?.viewable)
     }
 
     @Test

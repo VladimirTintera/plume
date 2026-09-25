@@ -440,7 +440,7 @@ snadno na to uživatel narazí.
     členy a země). Zbývá ověřit v kanálu (omezení hlasujících) a ve skupině.
   - ~~**Média v anketě a v odpovědích**~~ — hotovo (zobrazení všech druhů, otevření
     v prohlížeči; formulář nabízí fotku, video, GIF, samolepku, odkaz a místo). Zbývá média ve
-    vysvětlení kvízu (`explanationMedia`) a mapa u místa (teď řádek s ikonou).
+    vysvětlení kvízu (`explanationMedia`).
   - **Přidání odpovědi** (`canAddOption`, `addPollOption`) se zatím zahazuje.
   - **Tváře posledních hlasujících** (`recentVoterIds`) u zápatí.
 - **Video kolečka** (`MessageVideoNote`) — čtvercový náhled s popiskem, nehraje. Mají hrát
@@ -449,9 +449,9 @@ snadno na to uživatel narazí.
 - **Hudba** (`MessageAudio`) — jen popisek, nejde přehrát ani otevřít. Přehrávač s interpretem,
   názvem a obalem alba (`albumCoverThumbnail`), navazování další skladby; `VoicePlayer` je
   dobrý základ.
-- **Poloha, živá poloha a místo** (`MessageLocation` / `LiveLocation` / `Venue`) — statická
-  mapa jde od Telegramu (`getMapThumbnailFile`, bez klíče k mapám), ťuknutí do systémových map;
-  živá poloha se mění editacemi zprávy (`livePeriod`, `expiresIn`).
+- ~~**Poloha, živá poloha a místo**~~ — hotovo: statická mapa od Telegramu, ťuknutí do map
+  platformy, u živé polohy do kdy se sdílí. Zbývá odesílání polohy (sponka) a sdílení živé
+  polohy, směr pohybu (`heading`) a upozornění na blízkost (`proximityAlertRadius`).
 - **Kontakt** (`MessageContact`) — karta se jménem a číslem, „Napsat" (`userId`), přidat
   do kontaktů.
 - **Hovory** (`MessageCall`) — jen „Hovor". TDLib nese směr, délku a důvod ukončení

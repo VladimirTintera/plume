@@ -117,7 +117,7 @@ internal fun groupAlbums(messages: List<ChatMessage>): List<MessageRow> {
 /**
  * Kreslí se příloha zprávy přímo na plochu konverzace, bez bubliny?
  *
- * Fotka a video jsou obrázek samy o sobě — bublina kolem nich nemá co ohraničovat a jen přidává
+ * Fotka, video a mapa polohy jsou obrázek samy o sobě — bublina kolem nich nemá co ohraničovat a jen přidává
  * rám, ze kterého konverzace ztěžkne. Stejně to dělá Google Messages. Popisek pod snímkem bublinu
  * naopak dostane vlastní: text na holé ploše by se ztratil.
  *
@@ -132,7 +132,8 @@ internal fun showsBareMedia(message: ChatMessage, album: List<ChatMessage>?): Bo
     if (message.replyToMessageId != null || message.linkPreview != null) return false
     val media = album?.map { it.media } ?: listOf(message.media)
     return media.isNotEmpty() && media.all {
-        it is MessageMedia.Photo || it is MessageMedia.Video || it is MessageMedia.Animation
+        it is MessageMedia.Photo || it is MessageMedia.Video || it is MessageMedia.Animation ||
+            it is MessageMedia.Location
     }
 }
 
@@ -233,6 +234,7 @@ private val MessageMedia.carriesCaption: Boolean
 
         is MessageMedia.Sticker,
         is MessageMedia.AnimatedEmoji,
+        is MessageMedia.Location,
         -> false
     }
 
