@@ -67,8 +67,9 @@ internal data class LinkPreviewMessageItem(
             // Karta se srovnává ke straně odesílatele, stejně jako holá fotka s popiskem.
             horizontalAlignment = if (message.isOutgoing) Alignment.End else Alignment.Start,
         ) {
-            // Karta jde až k hraně řádku jako ostatní bubliny, takže jméno si odsazení nese samo.
-            SenderName(Modifier.padding(bottom = 2.dp))
+            // Karta jde až k hraně řádku jako ostatní bubliny, takže jméno si odsazení nese samo —
+            // i do strany, jinak by první písmeno ukouslo zaoblené nároží ořezu zprávy.
+            SenderName(Modifier.padding(horizontal = MESSAGE_PADDING_H).padding(bottom = 2.dp))
 
             val photo = preview.photo
             if (preview.showsLargePhoto && photo != null) {

@@ -1315,8 +1315,13 @@ class TdlConversationRepository(
             .toResult()
             .map { }
 
+    /**
+     * Má u zpráv smysl jméno a tvář odesílatele? Jen ve skupině — kanál je pro TDLib taky
+     * supergroup (`ChatInfo.isGroup`), jenže píše jediný autor, sám kanál, a jeho jméno nad
+     * každým příspěvkem jen opakovalo hlavičku.
+     */
     private suspend fun isGroup(chatId: Long): Boolean =
-        chatInfo(chatId).map { it.isGroup }.getOrDefault(false)
+        chatInfo(chatId).map { it.isGroup && !it.isChannel }.getOrDefault(false)
 
     private suspend fun Message.toChatMessage(isGroup: Boolean): ChatMessage {
         val senderId = senderId.plainId()

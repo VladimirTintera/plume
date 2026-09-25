@@ -60,8 +60,9 @@ internal data class MediaMessageItem(
             // Karta se srovnává ke straně odesílatele.
             horizontalAlignment = if (message.isOutgoing) Alignment.End else Alignment.Start,
         ) {
-            // Nad holým snímkem si jméno musí odsazení přinést samo.
-            SenderName(Modifier.padding(bottom = 2.dp))
+            // Nad holým snímkem si jméno musí odsazení přinést samo — i do strany: zpráva je
+            // ořezaná tvarem bubliny a zaoblené nároží by jinak ukouslo první písmeno.
+            SenderName(Modifier.padding(horizontal = MESSAGE_PADDING_H).padding(bottom = 2.dp))
 
             MediaWithCaption(
                 modifier = if (isCard) Modifier.clip(shape) else Modifier,
