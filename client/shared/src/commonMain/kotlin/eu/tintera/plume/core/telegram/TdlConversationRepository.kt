@@ -1367,7 +1367,7 @@ class TdlConversationRepository(
         val sourceChat = chatId.takeIf { it != 0L }
         val name = origin?.name ?: sourceChat?.let { resolveSender(it)?.title }
         val text = quote?.text?.text?.takeIf { it.isNotBlank() }
-            ?: content?.previewTextOrNull()
+            ?: content?.previewTextOrNull(isOutgoing = false)
             ?: ""
         val quote = ChatMessage(
             id = messageId,
