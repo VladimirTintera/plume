@@ -5559,6 +5559,19 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   začal do 500 ms od objevení pruhu (pruh vyskočil pod prstem: druhé ťuknutí na fotku, scroll po
   omylem otevřené nabídce). **Který z případů to u uživatele byl, ověřené není** — pojistka
   kryje všechny tři; ověřuje se na telefonu švihem přes pruh v prohlížeči.
+- **Blok `pointerInput` se NESPOUŠTÍ při složení, ale až s PRVNÍM dotykem**
+  (`SuspendingPointerInputModifierNodeImpl`: „Coroutine lazily launches when first event comes
+  in"). První verze pojistky si v něm zapisovala čas objevení pruhu — ve skutečnosti tedy čas
+  prvního dotyku, takže lhůta 500 ms spolkla KAŽDÉ první ťuknutí, i to po deseti vteřinách:
+  reakce z nabídky nad zprávou zabírala až na druhé ťuknutí. Test čisté funkce `isStrayTap` to
+  nechytil, modifier sám nezkoušel. Čas proto zapisuje `Modifier.Node` v `onAttach` a při změně
+  klíče (`update`). **Obecně: co se má měřit od objevení prvku, nepatří do `pointerInput`.**
+- **V prohlížeči pruh reakcí vyjede zdola, až prohlížeč dosedne** (přechod navigace i let fotky
+  hotové, `LocalNavAnimatedContentScope.transition` ve stavu `Visible`) a reakce jsou načtené.
+  Během letu by vyskočil tam, kam fotka teprve míří — a tam dopadá druhé ťuknutí dvojitého
+  ťuknutí. Vyjíždí jen poprvé; po celé obrazovce a mezi stránkami se jen prolne jako horní lišta.
+  Změřeno na emulátoru: fotka dosedne ~0,86 s po ťuknutí, přechod se ohlásí hotový až ~1,24 s
+  (dozní pružina), pruh vyjede s tím odstupem.
 - **`isBig = false`** — `true` je ta celoobrazovková animace; patří k vědomému gestu, ne ke
   každému ťuknutí na čip.
 - **Avatary v čipech NEJSOU.** Byly, a byla to slepá ulička: čip s profilovkami je široký, takže

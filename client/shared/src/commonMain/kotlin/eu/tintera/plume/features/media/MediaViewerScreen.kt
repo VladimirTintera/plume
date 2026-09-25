@@ -7,10 +7,12 @@ import eu.tintera.plume.core.ui.aspectRatioOf
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -58,6 +60,8 @@ import androidx.compose.runtime.setValue
 import org.koin.compose.koinInject
 import eu.tintera.plume.core.telegram.RevealedSpoilers
 import androidx.compose.runtime.snapshotFlow
+import androidx.navigation3.ui.LocalNavAnimatedContentScope
+import kotlinx.coroutines.flow.first
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -468,10 +472,33 @@ private fun ViewerContent(
             )
         }
 
+        /*
+         * Pruh reakcí vyjede zdola, až prohlížeč dosedne (přechod na obrazovku i let fotky
+         * z bubliny doběhly) a reakce jsou načtené. Během letu by vyskočil na místě, kam fotka
+         * teprve míří — a právě tam dopadá druhé ťuknutí dvojitého ťuknutí na fotku. Vyjíždí jen
+         * poprvé; po návratu z celé obrazovky a mezi stránkami se jen prolne jako horní lišta.
+         */
+        val navTransition = LocalNavAnimatedContentScope.current.transition
+        var settled by remember { mutableStateOf(false) }
+        LaunchedEffect(navTransition) {
+            snapshotFlow {
+                navTransition.currentState == EnterExitState.Visible &&
+                    navTransition.targetState == EnterExitState.Visible
+            }.first { it }
+            settled = true
+        }
         val emoji = current?.let { state.availableReactions[it.messageId] }.orEmpty()
+        val reactionsVisible = settled && !immersive && current != null && emoji.isNotEmpty() && !state.isSelfDestruct
+        var reactionsArrived by remember { mutableStateOf(false) }
+        LaunchedEffect(reactionsVisible) { if (reactionsVisible) reactionsArrived = true }
+        val reactionsEnter = if (reactionsArrived) {
+            chromeEnter
+        } else {
+            slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it } + chromeEnter
+        }
         AnimatedVisibility(
-            visible = !immersive && current != null && emoji.isNotEmpty() && !state.isSelfDestruct,
-            enter = chromeEnter,
+            visible = reactionsVisible,
+            enter = reactionsEnter,
             exit = chromeExit,
             modifier = Modifier.align(Alignment.BottomCenter).then(fadeWithDismiss),
         ) {
