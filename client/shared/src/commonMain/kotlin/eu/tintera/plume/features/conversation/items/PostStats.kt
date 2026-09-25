@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -20,16 +23,19 @@ import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.forward_24dp
 import eu.tintera.plume.resources.mode_comment_24dp
-import eu.tintera.plume.resources.post_comments
+import eu.tintera.plume.resources.post_comment_first
+import eu.tintera.plume.resources.post_comments_count
 import eu.tintera.plume.resources.post_forwards
 import eu.tintera.plume.resources.post_views
 import eu.tintera.plume.resources.visibility_24dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Počty pod příspěvkem kanálu: zhlédnutí, přeposlání, komentáře.
+ * Počty pod příspěvkem kanálu: zhlédnutí a přeposlání. Komentáře mají vlastní čip
+ * ([CommentsChip]) — jdou otevřít, takže patří na cíl ťuknutí, ne do drobného řádku čísel.
  *
  * **Pod zprávou, ne v ní**, jako odznak doručení — a ze stejného důvodu barva patří PLOŠE
  * konverzace (`onSurfaceVariant`), ne bublině. Stojí na straně protější k čipům reakcí, které
@@ -37,14 +43,38 @@ import org.jetbrains.compose.resources.stringResource
  *
  * Čísla jsou zkrácená („12 tis."), protože kanály mívají statisíce odběratelů a přesné číslo
  * pod každým příspěvkem je šum. Čtečka obrazovky dostane přesná čísla celými větami.
- * Přeposlání a komentáře s nulou se nekreslí; zhlédnutí nula nemají (počítá se i autor).
+ * Přeposlání s nulou se nekreslí; zhlédnutí nula nemají (počítá se i autor).
  */
+/**
+ * Co stojí pod příspěvkem kanálu: čip komentářů (když má příspěvek diskusi) a vedle něj počty.
+ * **Jeden řádek, ne dva nad sebou**: pod čipy reakcí by každý další řádek příspěvek jen
+ * natahoval a mezi příspěvky vznikla díra.
+ */
+@Composable
+internal fun PostFooter(
+    stats: PostStats,
+    isOutgoing: Boolean,
+    onOpenComments: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val comments = stats.comments
+    if (comments == null) {
+        PostStatsRow(stats, modifier)
+        return
+    }
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        // Čip u zprávy, počty za ním — u odchozí zprávy zrcadlově.
+        if (isOutgoing) PostStatsRow(stats)
+        CommentsChip(count = comments, onClick = onOpenComments)
+        if (!isOutgoing) PostStatsRow(stats)
+    }
+}
+
 @Composable
 internal fun PostStatsRow(stats: PostStats, modifier: Modifier = Modifier) {
     val description = buildList {
         if (stats.views > 0) add(stringResource(Res.string.post_views, stats.views.grouped()))
         if (stats.forwards > 0) add(stringResource(Res.string.post_forwards, stats.forwards.grouped()))
-        stats.comments?.takeIf { it > 0 }?.let { add(stringResource(Res.string.post_comments, it.grouped())) }
     }.joinToString(", ")
     if (description.isEmpty()) return
 
@@ -57,8 +87,39 @@ internal fun PostStatsRow(stats: PostStats, modifier: Modifier = Modifier) {
     ) {
         if (stats.views > 0) Stat(Res.drawable.visibility_24dp, stats.views)
         if (stats.forwards > 0) Stat(Res.drawable.forward_24dp, stats.forwards)
-        stats.comments?.takeIf { it > 0 }?.let { Stat(Res.drawable.mode_comment_24dp, it) }
     }
+}
+
+/**
+ * Komentáře pod příspěvkem: ťuknutí otevře vlákno v diskusní skupině. S nulou vybízí
+ * („Komentovat"), jinak nese počet — jako tlačítko pod příspěvkem u oficiálních klientů.
+ *
+ * Čip (`AssistChip`), ne text: je to jediný prvek pod příspěvkem, který něco dělá, a musí to
+ * jít poznat. Stojí na straně bubliny, pod čipy reakcí.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun CommentsChip(count: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    AssistChip(
+        onClick = onClick,
+        label = {
+            Text(
+                text = if (count > 0) {
+                    pluralStringResource(Res.plurals.post_comments_count, count, compactCountText(count))
+                } else {
+                    stringResource(Res.string.post_comment_first)
+                },
+            )
+        },
+        leadingIcon = {
+            Icon(
+                painter = painterResource(Res.drawable.mode_comment_24dp),
+                contentDescription = null,
+                modifier = Modifier.size(AssistChipDefaults.IconSize),
+            )
+        },
+        modifier = modifier.padding(top = POST_STATS_GAP, start = POST_STATS_INSET, end = POST_STATS_INSET),
+    )
 }
 
 @Composable

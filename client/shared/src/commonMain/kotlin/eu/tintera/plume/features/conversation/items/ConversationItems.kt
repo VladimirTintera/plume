@@ -132,7 +132,11 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
                 album = row.members.takeIf { row.isAlbum },
                 // Odpověď na zprávu z jiného chatu nese zástupnou citaci sama — v historii téhle
                 // konverzace citovaná zpráva není.
-                quoted = message.replyToMessageId?.let { id -> byId[id] ?: state.quotes[id] }
+                // Ve vlákně komentářů odpovídá kořeni skoro každý komentář — citace příspěvku nad
+                // každým z nich by byla jen opakování toho, co stojí nahoře.
+                quoted = message.replyToMessageId
+                    ?.takeIf { it != state.threadRootId }
+                    ?.let { id -> byId[id] ?: state.quotes[id] }
                     ?: message.externalReply?.quote,
                 // V soukromém chatu se jméno odesílatele u zpráv nevyplňuje, takže citace by
                 // neměla koho uvést.

@@ -413,8 +413,8 @@ private fun shellEntryProvider(
             // té první — i se zprávami. Koin navíc u cachované instance ignoruje
             // nové `parameters`, takže se to neprojeví ani chybou, jen špatným obsahem.
             viewModel = koinViewModel(
-                key = "conversation-${route.chatId}-${route.messageId}",
-                parameters = { parametersOf(route.chatId, route.messageId) },
+                key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}",
+                parameters = { parametersOf(route.chatId, route.messageId, route.threadId) },
             ),
             // Odebírá SVOU položku, ne poslední — viz `pop`.
             onBack = { chatsStack.pop(route) },
@@ -429,8 +429,12 @@ private fun shellEntryProvider(
             },
             // Zmínka i odkaz otevře chat NAD touhle konverzací (ne místo ní), takže zpět vede sem.
             // Odkaz na zprávu nese její id a konverzace na ni po otevření skočí.
-            onOpenChat = { chatId, messageId ->
-                if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(chatId, messageId))
+            onOpenChat = { chatId, messageId, threadId ->
+                when {
+                    // Komentáře: vlákno diskusní skupiny nad kanálem, zpět vede do kanálu.
+                    threadId != null -> chatsStack.add(ConversationRoute(chatId, threadId = threadId))
+                    !chatsStack.isOpenConversation(chatId) -> chatsStack.add(ConversationRoute(chatId, messageId))
+                }
             },
             onSearch = { query -> navigation.openSearch(query, keepConversation = twoPane) },
             onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
@@ -511,8 +515,8 @@ private fun shellEntryProvider(
     entry<ArchiveConversationRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
         ConversationScreen(
             viewModel = koinViewModel(
-                key = "conversation-${route.chatId}-${route.messageId}",
-                parameters = { parametersOf(route.chatId, route.messageId) },
+                key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}",
+                parameters = { parametersOf(route.chatId, route.messageId, route.threadId) },
             ),
             onBack = { chatsStack.pop(route) },
             onOpenMedia = { messageId ->
@@ -524,9 +528,11 @@ private fun shellEntryProvider(
             onForward = { messageIds ->
                 chatsStack.add(ForwardRoute(route.chatId, messageIds))
             },
-            onOpenChat = { chatId, messageId ->
-                if (!chatsStack.isOpenArchiveConversation(chatId)) {
-                    chatsStack.add(ArchiveConversationRoute(chatId, messageId))
+            onOpenChat = { chatId, messageId, threadId ->
+                when {
+                    threadId != null -> chatsStack.add(ArchiveConversationRoute(chatId, threadId = threadId))
+                    !chatsStack.isOpenArchiveConversation(chatId) ->
+                        chatsStack.add(ArchiveConversationRoute(chatId, messageId))
                 }
             },
             onSearch = { query -> navigation.openSearch(query, keepConversation = false) },

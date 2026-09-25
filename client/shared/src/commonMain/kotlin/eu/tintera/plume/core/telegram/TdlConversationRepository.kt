@@ -122,6 +122,7 @@ import dev.g000sha256.tdl.dto.MessageReadDateTooOld
 import dev.g000sha256.tdl.dto.MessageReadDateUnread
 import dev.g000sha256.tdl.dto.MessageReadDateUserPrivacyRestricted
 import dev.g000sha256.tdl.dto.MessageReplyToMessage
+import dev.g000sha256.tdl.dto.MessageTopicThread
 import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
@@ -220,6 +221,30 @@ class TdlConversationRepository(
             .toResult()
             // Prvky pole jsou v Kotlin metadatech nullable, i když je Java signatura má jako
             // `Message[]` — TDLib do díry po nedostupné zprávě vloží null.
+            .map { messages -> messages.messages.filterNotNull().map { it.toChatMessage(isGroup) } }
+    }
+
+    override suspend fun commentThread(chatId: Long, messageId: Long): Result<CommentThread> =
+        client.getMessageThread(chatId = chatId, messageId = messageId)
+            .toResult()
+            .map { CommentThread(chatId = it.chatId, rootMessageId = it.messageThreadId) }
+
+    override suspend fun threadHistory(
+        chatId: Long,
+        threadId: Long,
+        fromMessageId: Long,
+        limit: Int,
+        offset: Int,
+    ): Result<List<ChatMessage>> {
+        val isGroup = isGroup(chatId)
+        return client.getMessageThreadHistory(
+            chatId = chatId,
+            messageId = threadId,
+            fromMessageId = fromMessageId,
+            offset = offset,
+            limit = limit,
+        )
+            .toResult()
             .map { messages -> messages.messages.filterNotNull().map { it.toChatMessage(isGroup) } }
     }
 
@@ -1326,6 +1351,7 @@ class TdlConversationRepository(
             linkPreview = linkPreview(),
             reactions = interactionInfo.toReactions(),
             postStats = interactionInfo.toPostStats(),
+            threadId = (topicId as? MessageTopicThread)?.messageThreadId,
             sendState = if (outgoing) sendingState.toSendState() else null,
             // Odpověď mimo tenhle chat nese `externalReply` — v načtené historii citovaná zpráva
             // není, takže se na ni skákat nedá.

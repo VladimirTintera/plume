@@ -26,6 +26,18 @@ interface ConversationRepository {
      */
     suspend fun history(chatId: Long, fromMessageId: Long, limit: Int = 30, offset: Int = 0): Result<List<ChatMessage>>
 
+    /**
+     * Vlákno komentářů k příspěvku [messageId] kanálu [chatId] (`getMessageThread`). Selže
+     * u příspěvku, který diskusi nemá, nebo když ji server nevydá (soukromá skupina).
+     */
+    suspend fun commentThread(chatId: Long, messageId: Long): Result<CommentThread>
+
+    /**
+     * Stránka vlákna [threadId] v chatu [chatId]; parametry jako u [history]. Kořenová zpráva
+     * vlákna v ní NENÍ — tu si přidá [ThreadConversationRepository].
+     */
+    suspend fun threadHistory(chatId: Long, threadId: Long, fromMessageId: Long, limit: Int, offset: Int): Result<List<ChatMessage>>
+
     /** Nové zprávy v tomhle chatu, jak přicházejí. */
     fun newMessages(chatId: Long): Flow<ChatMessage>
 
@@ -795,7 +807,19 @@ data class ChatMessage(
     val externalReply: ExternalReply? = null,
     /** Zhlédnutí, přeposlání a komentáře; `null`, když zpráva žádné počty nenese. */
     val postStats: PostStats? = null,
+    /**
+     * Vlákno, do kterého zpráva patří (`MessageTopicThread`) — u komentáře v diskusní skupině
+     * id kořenové zprávy; `null` mimo vlákno. Podle něj si vlákno komentářů bere nové zprávy.
+     */
+    val threadId: Long? = null,
 )
+
+/**
+ * Vlákno komentářů k příspěvku kanálu. Komentáře NEJSOU v kanálu: jsou to zprávy v připojené
+ * diskusní skupině ([chatId]), které odpovídají na kopii příspěvku ([rootMessageId]) — tu tam
+ * server při zveřejnění sám přepošle.
+ */
+data class CommentThread(val chatId: Long, val rootMessageId: Long)
 
 /**
  * Citace zprávy z jiného chatu. [quote] je zástupná zpráva jen pro kreslení citace (jméno,

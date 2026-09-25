@@ -401,7 +401,14 @@
     <string name="count_millions">%1$s&#160;mil.</string>
     <string name="post_views">Zhlédnutí: %1$s</string>
     <string name="post_forwards">Přeposláno: %1$s</string>
-    <string name="post_comments">Komentáře: %1$s</string>
+    <string name="comments_title">Komentáře</string>
+    <string name="comments_unavailable">Komentáře se nepodařilo otevřít</string>
+    <string name="post_comment_first">Komentovat</string>
+    <plurals name="post_comments_count">
+        <item quantity="one">%1$s komentář</item>
+        <item quantity="few">%1$s komentáře</item>
+        <item quantity="other">%1$s komentářů</item>
+    </plurals>
     <string name="file_size_b">%1$s B</string>
     <string name="file_size_kb">%1$s kB</string>
     <string name="file_size_mb">%1$s MB</string>

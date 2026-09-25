@@ -331,6 +331,20 @@ class ConversationItemsTest {
     }
 
     @Test
+    fun veVlaknuSeKorenNecituje() {
+        // Komentář odpovídá kořeni (příspěvku) — citace nad každým by jen opakovala příspěvek.
+        // Odpověď na jiný komentář citaci nese dál.
+        val result = items(
+            message(3, replyToMessageId = 2),
+            message(2, replyToMessageId = 1),
+            message(1),
+            state = ConversationState(threadRootId = 1L),
+        ).filterIsInstance<BubbleMessageItem>()
+        assertEquals(2L, result[0].quoted?.id)
+        assertNull(result[1].quoted)
+    }
+
+    @Test
     fun komentareJenVKanalu() {
         val stats = PostStats(views = 1200, forwards = 0, comments = 0)
         val post = message(1).copy(postStats = stats)

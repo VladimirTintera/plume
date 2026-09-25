@@ -117,6 +117,9 @@ sealed interface MessageAction {
      */
     data class OpenForwardOrigin(val origin: ForwardOrigin) : MessageAction
 
+    /** Komentáře pod příspěvkem kanálu: otevře vlákno v diskusní skupině. */
+    data object OpenComments : MessageAction
+
     /**
      * Ťuknutí na tvář odesílatele ve skupině: jeho profil. Ze zprávy se najde soukromý chat
      * (profil stojí na chatu, ne na uživateli), a tvář do profilu přiletí — viz

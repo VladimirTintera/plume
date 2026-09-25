@@ -1,3 +1,3 @@
 type: feat
-cs: Zhlédnutí, přeposlání a počet komentářů pod příspěvky v kanálech
-en: Views, forwards and comment counts under channel posts
+cs: Zhlédnutí pod příspěvky v kanálech a komentáře, které jdou otevřít
+en: Views under channel posts and comments you can open

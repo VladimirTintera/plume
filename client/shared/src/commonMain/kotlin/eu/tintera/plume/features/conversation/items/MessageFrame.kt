@@ -725,11 +725,20 @@ private fun MessageFrame(
             }
             }
 
-            // Na protější straně než čipy reakcí, které visí přes nároží na straně odesílatele.
             frame.postStats?.let { stats ->
-                PostStatsRow(
+                PostFooter(
                     stats = stats,
-                    modifier = Modifier.align(if (message.isOutgoing) Alignment.Start else Alignment.End),
+                    isOutgoing = message.isOutgoing,
+                    onOpenComments = { bodyScope.act(MessageAction.OpenComments) },
+                    modifier = Modifier.align(
+                        when {
+                            // S čipem komentářů je řádek na straně zprávy — čip je to hlavní.
+                            stats.comments != null -> if (message.isOutgoing) Alignment.End else Alignment.Start
+                            // Samotné počty na protější straně než čipy reakcí, které visí přes
+                            // nároží na straně odesílatele.
+                            else -> if (message.isOutgoing) Alignment.Start else Alignment.End
+                        },
+                    ),
                 )
             }
 
