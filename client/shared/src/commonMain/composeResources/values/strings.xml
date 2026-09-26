@@ -430,6 +430,7 @@
     <string name="count_thousands">%1$sK</string>
     <string name="count_millions">%1$sM</string>
     <string name="post_views">Views: %1$s</string>
+    <string name="post_author">Author: %1$s</string>
     <string name="post_forwards">Forwards: %1$s</string>
     <string name="comments_title">Comments</string>
     <string name="comments_unavailable">Couldn't open the comments</string>

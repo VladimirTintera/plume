@@ -758,9 +758,11 @@ private fun MessageFrame(
             }
             }
 
-            frame.postStats?.let { stats ->
+            // Podpis autora nese řádek pod příspěvkem i tam, kde počty nejsou.
+            (frame.postStats ?: PostStats(views = 0, forwards = 0, comments = null).takeIf { message.authorSignature != null })?.let { stats ->
                 PostFooter(
                     stats = stats,
+                    signature = message.authorSignature,
                     isOutgoing = message.isOutgoing,
                     onOpenComments = { bodyScope.act(MessageAction.OpenComments) },
                     modifier = Modifier.align(
@@ -1061,15 +1063,44 @@ internal fun MessageBodyScope.SenderName(
     background: Color = MaterialTheme.colorScheme.background,
 ) {
     if (continuesAbove) return
-    message.senderName?.let {
+    val name = message.senderName ?: return
+    val tag = message.senderTag
+    if (tag == null) {
         Text(
-            text = it,
+            text = name,
             style = MaterialTheme.typography.labelLarge,
             color = accentOn(background, senderColor(message.senderId), LocalContentColor.current),
             modifier = modifier,
         )
+        return
+    }
+    /*
+     * Štítek (vlastní štítek člena, u anonymního správce jeho podpis) stojí HNED za jménem,
+     * ztlumeně. Jméno má váhu BEZ vyplnění — s vyplněním by se dlouhé jméno a štítek dělily
+     * o místo napůl (tatáž past jako u jména a štítku ověření v seznamu chatů).
+     */
+    Row(modifier = modifier, verticalAlignment = Alignment.Bottom) {
+        Text(
+            text = name,
+            style = MaterialTheme.typography.labelLarge,
+            color = accentOn(background, senderColor(message.senderId), LocalContentColor.current),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        Text(
+            text = tag,
+            style = MaterialTheme.typography.labelMedium,
+            color = LocalContentColor.current.copy(alpha = SENDER_TAG_ALPHA),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 6.dp).weight(1f, fill = false),
+        )
     }
 }
+
+/** Štítek za jménem je ztlumený — doplňuje jméno, nesoutěží s ním. */
+private const val SENDER_TAG_ALPHA = 0.7f
 
 /**
  * Údaje o původu zprávy nad jejím obsahem: „Přeposláno od …" a „přes @bot". Dohromady proto, že
