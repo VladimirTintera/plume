@@ -238,7 +238,8 @@ Co z toho zůstalo nedodělané:
   potřeba byl.
 - ~~**Náhled odkazu nad textem** (`showAboveText`)~~ — hotovo (`CLAUDE.md`, „Náhled odkazu
   jako karta"); značka přeposlání zůstává nahoře i tak.
-- **Vlastní emoji** (`TextEntityTypeCustomEmoji`) jsou samolepky uvnitř textu; patří k médiím.
+- ~~**Vlastní emoji** (`TextEntityTypeCustomEmoji`)~~ — hotovo v textu zprávy (`CLAUDE.md`,
+  „Vlastní emoji v textu“).
 
 ## D) Otevření média — HOTOVO pro fotky, video a dokumenty
 
@@ -498,8 +499,11 @@ snadno na to uživatel narazí.
 
 **Entity v textu**
 
-- **Vlastní emoji** (`TextEntityTypeCustomEmoji`) — dnes náhradní znak; jsou skoro v každém
-  větším kanálu (i v názvech a reakcích).
+- ~~**Vlastní emoji v textu zprávy**~~ — hotovo (`CLAUDE.md`, „Vlastní emoji v textu“). Zbývá:
+  **reakce vlastním emoji** (`ReactionTypeCustomEmoji`, dnes se přeskakují), vlastní emoji
+  v náhledu seznamu chatů, v citaci a v notifikaci (tam je náhradní znak), emoji status u jména,
+  ikona tlačítka bota (`iconCustomEmojiId`) a **posílání** (jen s Premium, výběr vlastních emoji).
+  **Skutečná zpráva s vlastním emoji ověřená není** — bot je poslat nesmí (viz CLAUDE.md).
 - **Příkaz bota** (`BotCommand`) — dnes záměrně bez akce, jenže oficiální klienti ťuknutím
   příkaz pošlou; v chatu s botem je to hlavní ovládání.
 - **Čas v médiu** (`MediaTimestamp`, `hasTimestampedMedia`) — „1:23" v popisku videa má skočit

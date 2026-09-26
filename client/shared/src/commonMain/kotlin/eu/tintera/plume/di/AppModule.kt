@@ -27,6 +27,8 @@ import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.DataStoreAppSettings
 import eu.tintera.plume.core.telegram.EmojiRepository
 import eu.tintera.plume.core.telegram.StickerRepository
+import eu.tintera.plume.core.telegram.CustomEmojiRepository
+import eu.tintera.plume.core.telegram.TdlCustomEmojiRepository
 import eu.tintera.plume.core.telegram.GifRepository
 import eu.tintera.plume.core.telegram.PlaceRepository
 import eu.tintera.plume.core.telegram.TdlPlaceRepository
@@ -157,6 +159,7 @@ fun appModule() = module {
 
     // Bezstavová — seznamy jsou toky nad updaty, drží se jen po dobu otevřeného výběru.
     single<StickerRepository> { TdlStickerRepository(holder = get()) }
+    single<CustomEmojiRepository> { TdlCustomEmojiRepository(holder = get(), scope = get(named(APP_SCOPE))) }
     single<GifRepository> { TdlGifRepository(holder = get()) }
     single<PlaceRepository> { TdlPlaceRepository(holder = get()) }
     single<EmojiRepository> { TdlEmojiRepository(holder = get()) }

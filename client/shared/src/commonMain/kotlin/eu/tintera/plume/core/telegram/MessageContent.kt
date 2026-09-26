@@ -140,6 +140,7 @@ import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.dto.TextEntityTypeBlockQuote
 import dev.g000sha256.tdl.dto.TextEntityTypeBold
 import dev.g000sha256.tdl.dto.TextEntityTypeCode
+import dev.g000sha256.tdl.dto.TextEntityTypeCustomEmoji
 import dev.g000sha256.tdl.dto.TextEntityTypeEmailAddress
 import dev.g000sha256.tdl.dto.TextEntityTypeExpandableBlockQuote
 import dev.g000sha256.tdl.dto.TextEntityTypeHashtag
@@ -506,6 +507,7 @@ private fun TextEntity.toEntity(text: String): MessageEntity? {
         // Inline kód i celý blok skončí stejně; liší se jen tím, že blok stojí na vlastních řádcích.
         is TextEntityTypeCode, is TextEntityTypePre, is TextEntityTypePreCode -> MessageEntityType.Code
         is TextEntityTypeSpoiler -> MessageEntityType.Spoiler
+        is TextEntityTypeCustomEmoji -> MessageEntityType.CustomEmoji(type.customEmojiId)
         // Sbalitelná citace se zatím kreslí celá; příznak se drží kvůli „Zobrazit víc".
         is TextEntityTypeBlockQuote -> MessageEntityType.Quote(expandable = false)
         is TextEntityTypeExpandableBlockQuote -> MessageEntityType.Quote(expandable = true)

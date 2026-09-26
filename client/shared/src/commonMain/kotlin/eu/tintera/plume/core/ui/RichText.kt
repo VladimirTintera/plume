@@ -177,7 +177,16 @@ fun RichText(
     val quoteIcon = if (quotes.isEmpty()) null else painterResource(Res.drawable.format_quote_24dp)
     // Odsazení se počítá z dp, ne ze sp: lícuje s ikonou vedle sebe, ne s velikostí písma.
     val quoteIndent = if (quoteIndentAsPadding) null else with(LocalDensity.current) { QUOTE_INDENT.toSp() }
-    val annotated = remember(text, entities, linkColor, contentColor, spoilersRevealed, visible, highlightColor, quoteIndent) {
+    /*
+     * Vlastní emoji jako inline obsah. Úsek textu (náhradní emoji) zůstává v řetězci, jen se
+     * vykreslí obrázkem — offsety ostatních entit, zvýraznění i kopírování tím zůstanou platné.
+     * V zakrytém spoileru se nenahrazuje: obrázek by ho prozradil.
+     */
+    val customEmoji = remember(text, entities, spoilersRevealed) {
+        customEmojiRanges(text, entities, spoilersRevealed)
+    }
+    val inlineContent = remember(customEmoji) { customEmojiInlineContent(customEmoji.map { it.second }.toSet()) }
+    val annotated = remember(text, entities, linkColor, contentColor, spoilersRevealed, visible, highlightColor, quoteIndent, customEmoji) {
         buildMessageText(
             text = text,
             entities = entities,
@@ -194,12 +203,14 @@ fun RichText(
                 if (suppressLinkClick[0]) suppressLinkClick[0] = false else entityHandler(it)
             },
             onSpoilerClick = { spoilersRevealed = true },
+            customEmoji = customEmoji,
         )
     }
 
     Text(
         text = annotated,
         style = style,
+        inlineContent = inlineContent,
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
         onTextLayout = {
@@ -284,8 +295,13 @@ private fun buildMessageText(
     onLinkClick: (String) -> Unit,
     onEntityClick: (MessageEntityType) -> Unit,
     onSpoilerClick: () -> Unit,
+    customEmoji: List<Pair<IntRange, Long>>,
 ): AnnotatedString = buildAnnotatedString {
     append(text)
+
+    customEmoji.forEach { (range, id) ->
+        addStringAnnotation(INLINE_CONTENT_TAG, customEmojiKey(id), range.first, range.last + 1)
+    }
 
     entities.forEach { entity ->
         val start = entity.offset.coerceIn(0, text.length)
@@ -373,6 +389,9 @@ private fun buildMessageText(
                 }
             }
 
+            // Nahrazuje se inline obsahem, viz `customEmojiRanges`.
+            is MessageEntityType.CustomEmoji -> Unit
+
             MessageEntityType.Spoiler -> if (spoilersRevealed) {
                 // Po odkrytí zůstane jen jemný podklad, aby bylo poznat, co bylo skryté.
                 addStyle(
@@ -406,6 +425,32 @@ private fun buildMessageText(
     // Až ZA entitami, aby barva zvýraznění přebila styl pod ní (kód, odkaz). Podklad kreslí
     // `drawHighlightPills` — podklad ve `SpanStyle` zaoblit nejde.
     if (highlightColor.isSpecified) highlights.forEach { addStyle(SpanStyle(color = highlightColor), it.first, it.last + 1) }
+}
+
+/**
+ * Úseky textu, které se nahradí vlastním emoji, s jeho id.
+ *
+ * Mimo ty v zakrytém spoileru (obrázek by skryté prozradil) a mimo prázdné a neplatné rozsahy —
+ * inline obsah nad prázdným úsekem by `Text` nevykreslil a nad úsekem za koncem textu spadl.
+ */
+internal fun customEmojiRanges(
+    text: String,
+    entities: List<MessageEntity>,
+    spoilersRevealed: Boolean,
+): List<Pair<IntRange, Long>> {
+    val hidden = if (spoilersRevealed) {
+        emptyList()
+    } else {
+        entities.filter { it.type == MessageEntityType.Spoiler }.map { it.offset until it.offset + it.length }
+    }
+    return entities.mapNotNull { entity ->
+        val id = (entity.type as? MessageEntityType.CustomEmoji)?.id ?: return@mapNotNull null
+        val start = entity.offset.coerceIn(0, text.length)
+        val end = (entity.offset + entity.length).coerceIn(start, text.length)
+        if (start == end) return@mapNotNull null
+        if (hidden.any { start in it }) return@mapNotNull null
+        (start until end) to id
+    }
 }
 
 /**

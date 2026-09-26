@@ -74,6 +74,12 @@ sealed interface MessageEntityType {
     data object Spoiler : MessageEntityType
 
     /**
+     * Vlastní emoji: úsek textu (náhradní emoji) se nahradí obrázkem [id]. Offsety zůstávají
+     * nad původním textem, takže zvýraznění, spoilery i kopírování fungují beze změny.
+     */
+    data class CustomEmoji(val id: Long) : MessageEntityType
+
+    /**
      * Citace uvnitř textu — úsek, který pisatel odněkud převzal.
      *
      * Kreslí se jako tónovaný blok za textem, ne proužkem vlevo: stejnou řečí mluví citace nad
