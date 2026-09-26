@@ -8,7 +8,7 @@ import dev.g000sha256.tdl.dto.MessageSendOptions
 
 /** `null` = výchozí odeslání; TDLib pak nic nenastavuje. */
 internal fun SendOptions.toTdl(): MessageSendOptions? {
-    if (!silent && schedule == null) return null
+    if (!silent && schedule == null && effectId == 0L) return null
     return MessageSendOptions(
         suggestedPostInfo = null,
         disableNotification = silent,
@@ -18,7 +18,7 @@ internal fun SendOptions.toTdl(): MessageSendOptions? {
         paidMessageStarCount = 0,
         updateOrderOfInstalledStickerSets = false,
         schedulingState = schedule?.toTdl(),
-        effectId = 0,
+        effectId = effectId,
         sendingId = 0,
         onlyPreview = false,
     )

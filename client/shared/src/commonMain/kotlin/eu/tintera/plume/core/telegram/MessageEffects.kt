@@ -21,6 +21,7 @@ internal fun TdMessageEffect.toMessageEffect(): MessageEffect = when (val type =
         emoji = emoji,
         animationFileId = type.effectAnimation.takeIf { it.format is StickerFormatTgs }?.sticker?.id,
         premium = false,
+        needsPremium = isPremium,
     )
     is MessageEffectTypePremiumSticker -> MessageEffect(
         id = id,
@@ -28,5 +29,6 @@ internal fun TdMessageEffect.toMessageEffect(): MessageEffect = when (val type =
         // Prémiová animace samolepky je vždycky Lottie; formát si nese samolepka, ne ona.
         animationFileId = (type.sticker.fullType as? StickerFullTypeRegular)?.premiumAnimation?.id,
         premium = true,
+        needsPremium = isPremium,
     )
 }

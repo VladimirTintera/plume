@@ -63,6 +63,7 @@ import eu.tintera.plume.core.navigation.BotStartRequests
 import eu.tintera.plume.core.telegram.BotIntro
 import eu.tintera.plume.resources.conversation_bot_start_failed
 import eu.tintera.plume.core.telegram.MessageSchedule
+import eu.tintera.plume.core.telegram.MessageEffect
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.resources.conversation_scheduled_load_failed
 import eu.tintera.plume.resources.conversation_schedule_failed
@@ -1458,9 +1459,24 @@ class ConversationViewModel(
         }
     }
 
+    private val _effectChoices = MutableStateFlow<List<MessageEffect>?>(null)
+
+    /**
+     * Efekty nabídnuté ve výběru „Odeslat s efektem"; `null`, dokud se nenačtou. Čtou se až při
+     * otevření výběru ([loadEffects]) — každý efekt je dotaz a většina odeslání efekt nechce.
+     */
+    val effectChoices: StateFlow<List<MessageEffect>?> = _effectChoices.asStateFlow()
+
+    fun loadEffects() {
+        if (_effectChoices.value != null) return
+        viewModelScope.launch {
+            _effectChoices.value = repository.sendableEffects(chatRepository.availableEffectIds.value)
+        }
+    }
+
     /**
      * Odešle obsah pole. [options] přichází z nabídky nad odesílacím tlačítkem (bez zvuku,
-     * naplánovat); obyčejné ťuknutí posílá výchozí.
+     * naplánovat, s efektem); obyčejné ťuknutí posílá výchozí.
      */
     fun send(text: String, options: SendOptions = SendOptions()) {
         val trimmed = text.trim()

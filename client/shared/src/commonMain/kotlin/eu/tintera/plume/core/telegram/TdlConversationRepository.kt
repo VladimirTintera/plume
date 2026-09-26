@@ -1955,6 +1955,14 @@ class TdlConversationRepository(
         effect
     }
 
+    override suspend fun sendableEffects(ids: List<Long>): List<MessageEffect> {
+        val all = ids.mapNotNull { messageEffect(it) }
+        // Na Premium se ptá, jen když je co odfiltrovat — a pokaždé znovu, předplatné se mění.
+        val isPremium = all.none { it.needsPremium } ||
+            client.getMe().toResult().getOrNull()?.isPremium == true
+        return all.filter { isPremium || !it.needsPremium }
+    }
+
     private var effects: Pair<TdlClient, MutableMap<Long, MessageEffect?>>? = null
     private val effectsMutex = Mutex()
 

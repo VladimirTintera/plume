@@ -27,7 +27,7 @@ class SendMenuTest {
     @Test
     fun soukromyChatSeZnamouDostupnostiNabidneVse() {
         val offer = sendMenuOffer(ConversationState(info = info(), presence = Presence.Offline(wasOnline = 1)))
-        assertEquals(SendMenuOffer(silent = true, schedule = true, whenOnline = true), offer)
+        assertEquals(SendMenuOffer(silent = true, schedule = true, whenOnline = true, effects = true), offer)
     }
 
     @Test
@@ -40,6 +40,17 @@ class SendMenuTest {
         val offline = Presence.Offline(wasOnline = 1)
         assertFalse(sendMenuOffer(ConversationState(info = info(isGroup = true), presence = offline)).whenOnline)
         assertFalse(sendMenuOffer(ConversationState(info = info(isChannel = true), presence = offline)).whenOnline)
+    }
+
+    @Test
+    fun efektJenVSoukromemChatu() {
+        // Chat s botem je soukromý chat — efekt v něm projde (tudy se i ověřuje).
+        assertTrue(sendMenuOffer(ConversationState(info = info())).effects)
+        // TDLib efekt jinde nepřijme, v Uložených zprávách ho nemá kdo vidět.
+        assertFalse(sendMenuOffer(ConversationState(info = info(isGroup = true))).effects)
+        assertFalse(sendMenuOffer(ConversationState(info = info(isChannel = true))).effects)
+        assertFalse(sendMenuOffer(ConversationState(info = info(isSavedMessages = true))).effects)
+        assertFalse(sendMenuOffer(ConversationState(info = info(isGroup = true), threadRootId = 5)).effects)
     }
 
     @Test
