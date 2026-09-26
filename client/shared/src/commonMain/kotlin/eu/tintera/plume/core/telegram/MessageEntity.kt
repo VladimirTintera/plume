@@ -28,8 +28,8 @@ data class MessageEntity(
  * jen s jiným schématem.
  *
  * Typy, které neumíme dovést do konce, se sem **nemapují vůbec** a text po nich zůstane obyčejný.
- * Týká se to příkazů botů a cashtagů: obarvit je umíme, ale kliknutí by nemělo kam vést. Modrý
- * text, po kterém se nic nestane, je horší než text černý.
+ * Týká se to cashtagů: obarvit je umíme, ale kliknutí by nemělo kam vést. Modrý text, po kterém
+ * se nic nestane, je horší než text černý.
  */
 sealed interface MessageEntityType {
 

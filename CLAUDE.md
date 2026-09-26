@@ -3578,8 +3578,9 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   stisk tam dostane bublina a nabídka by se otevřela dvakrát.
 - **Odkaz bez schématu dostane `https://`.** TDLib označí za odkaz i holé `example.com`; Android
   by z toho udělal relativní URI a intent by nikam nevedl.
-- **Příkazy botů a cashtagy se schválně nemapují.** Obarvit je umíme, ale kliknutí by nemělo
-  kam vést — modrý text, po kterém se nic nestane, je horší než text černý.
+- **Cashtagy se schválně nemapují.** Obarvit je umíme, ale kliknutí by nemělo kam vést — modrý
+  text, po kterém se nic nestane, je horší než text černý. Ze stejného důvodu je příkaz bota
+  klikatelný jen tam, kam se smí psát (viz „Příkazy bota").
 - **Zmínka a hashtag vedou dovnitř aplikace, ne na adresu** (`MessageEntityType.Mention`,
   `MentionUser`, `Hashtag`; v `RichText` jako `LinkAnnotation.Clickable` s vlastní obsluhou
   `onEntityClick`, mimo `onLinkClick`). `@jméno` najde chat přes `searchPublicChat`, zmínka
