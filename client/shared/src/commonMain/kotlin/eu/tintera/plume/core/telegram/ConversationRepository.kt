@@ -893,6 +893,11 @@ data class ChatMessage(
      * NEPATŘÍ — je jen v seznamu naplánovaných ([ConversationRepository.scheduledMessages]).
      */
     val schedule: MessageSchedule? = null,
+    /**
+     * Čas v médiu ([MessageEntityType.MediaTimestamp]) míří na médium TÉHLE zprávy; `false` =
+     * na médium zprávy, na kterou odpovídá (`Message.hasTimestampedMedia`).
+     */
+    val hasTimestampedMedia: Boolean = false,
 )
 
 /**

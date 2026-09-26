@@ -62,6 +62,13 @@ sealed interface MessageEntityType {
      */
     data class BotCommand(val command: String) : MessageEntityType
 
+    /**
+     * Čas v médiu („1:23"): ťuknutí pustí video, hlasovku, skladbu nebo kolečko od [seconds].
+     * Médium je v téže zprávě, nebo ve zprávě, na kterou odpovídá
+     * ([ChatMessage.hasTimestampedMedia]).
+     */
+    data class MediaTimestamp(val seconds: Int) : MessageEntityType
+
     data object Bold : MessageEntityType
 
     data object Italic : MessageEntityType

@@ -421,6 +421,9 @@ private fun shellEntryProvider(
             onOpenMedia = { messageId ->
                 chatsStack.add(MediaRoute(route.chatId, messageId))
             },
+            onOpenMediaAt = { messageId, seconds ->
+                chatsStack.add(MediaRoute(route.chatId, messageId, startSeconds = seconds))
+            },
             onOpenPollMedia = { messageId, index ->
                 chatsStack.add(MediaRoute(route.chatId, messageId, pollMedia = index))
             },
@@ -522,6 +525,9 @@ private fun shellEntryProvider(
             onOpenMedia = { messageId ->
                 chatsStack.add(MediaRoute(route.chatId, messageId))
             },
+            onOpenMediaAt = { messageId, seconds ->
+                chatsStack.add(MediaRoute(route.chatId, messageId, startSeconds = seconds))
+            },
             onOpenPollMedia = { messageId, index ->
                 chatsStack.add(MediaRoute(route.chatId, messageId, pollMedia = index))
             },
@@ -603,6 +609,7 @@ private fun shellEntryProvider(
                 onForward = { messageId ->
                     chatsStack.add(ForwardRoute(route.chatId, listOf(messageId)))
                 },
+                startSeconds = route.startSeconds,
             )
         }
     }

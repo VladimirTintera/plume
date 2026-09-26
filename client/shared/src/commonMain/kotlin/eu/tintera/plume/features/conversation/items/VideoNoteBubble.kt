@@ -52,6 +52,8 @@ internal class VideoNoteHandlers(
     val onToggleSound: () -> Unit,
     /** Přehrávání se zvukem skončilo (dohrálo, nebo kolečko odjelo z obrazovky). */
     val onSoundEnded: () -> Unit,
+    /** Odkud hrát se zvukem — čas v médiu („1:23"); jinak od začátku. */
+    val soundFromMs: () -> Long = { 0L },
 ) {
     companion object {
         val None = VideoNoteHandlers({ false }, {}, {})
@@ -122,6 +124,8 @@ internal fun VideoNoteBubble(
             LaunchedEffect(player, path, sounding) {
                 // Přepnutí zvuku načte soubor znovu: se zvukem od začátku a bez smyčky.
                 player.load(path, loop = !sounding, muted = !sounding)
+                val from = if (sounding) handlers.soundFromMs() else 0L
+                if (from > 0) player.seekTo(from)
                 player.play()
                 progress = 0f
                 elapsedSeconds = 0

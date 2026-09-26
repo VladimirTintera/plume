@@ -339,6 +339,8 @@ fun ConversationScreen(
     viewModel: ConversationViewModel,
     onBack: () -> Unit,
     onOpenMedia: (messageId: Long) -> Unit,
+    /** Video od daného místa — čas v médiu („1:23" v textu). */
+    onOpenMediaAt: (messageId: Long, seconds: Int) -> Unit = { messageId, _ -> onOpenMedia(messageId) },
     onForward: (messageIds: List<Long>) -> Unit,
     /** Příloha ankety v prohlížeči; `index` viz [MessageAction.OpenPollMedia]. */
     onOpenPollMedia: (messageId: Long, index: Int) -> Unit = { _, _ -> },
@@ -629,6 +631,12 @@ fun ConversationScreen(
 
     // Chat ze zmínky nebo odkazu: ViewModel ho najde, navigace je věc obrazovky. Událost se
     // nuluje hned, jinak by se po otočení otevřel znovu.
+    val currentOnOpenMediaAt by rememberUpdatedState(onOpenMediaAt)
+    LaunchedEffect(state.openMediaAt) {
+        val target = state.openMediaAt ?: return@LaunchedEffect
+        viewModel.consumeOpenMediaAt()
+        currentOnOpenMediaAt(target.messageId, target.seconds)
+    }
     LaunchedEffect(state.openChat) {
         val target = state.openChat ?: return@LaunchedEffect
         viewModel.consumeOpenChat()
@@ -3238,6 +3246,8 @@ private class ScreenItemScope(
     override fun voiceSpeed(): VoiceSpeed = voiceSpeed.value
 
     override fun videoNoteSounding(messageId: Long): Boolean = state.value.soundingVideoNote == messageId
+
+    override fun videoNoteSoundFromMs(): Long = state.value.soundingVideoNoteFromMs
 
     override fun documentProgress(fileId: Int): Float? = state.value.documentDownloads[fileId]
 

@@ -168,11 +168,14 @@ class VoicePlayer(
             }
             return
         }
-        play(key, raiseToEar, path)
+        play(key, raiseToEar, path = path)
     }
 
-    /** Pustí hlasovku od začátku, ať byla vybraná, nebo ne. Tudy jde řetězení neposlechnutých. */
-    fun play(key: VoiceKey, raiseToEar: Boolean = true, path: suspend () -> String) {
+    /**
+     * Pustí hlasovku od začátku (nebo od [startMs] — čas v médiu), ať byla vybraná, nebo ne.
+     * Tudy jde řetězení neposlechnutých.
+     */
+    fun play(key: VoiceKey, raiseToEar: Boolean = true, startMs: Long = 0L, path: suspend () -> String) {
         stop()
         this.raiseToEar = raiseToEar
         _state.value = VoicePlayback(key)
@@ -194,8 +197,11 @@ class VoicePlayer(
                 // Hovor nebo budík hlasovku zastaví; přehrávač o tom sám neví, musí to jít do stavu.
                 prepared.onInterrupted = { pause() }
                 prepared.setSpeed(speed.value.rate)
+                // Čas za koncem (překlep v „1:23" u krátké hlasovky) by přehrávač zastavil hned.
+                val start = startMs.takeIf { it in 1 until duration } ?: 0L
+                if (start > 0) prepared.seekTo(start)
                 engine = prepared
-                _state.value = VoicePlayback(key, loading = false, durationMs = duration)
+                _state.value = VoicePlayback(key, loading = false, durationMs = duration, positionMs = start)
                 resume()
             } catch (cancelled: CancellationException) {
                 throw cancelled

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.core.navigation.NO_START
 import eu.tintera.plume.core.telegram.customEmojiIdOf
 import eu.tintera.plume.core.ui.CustomEmojiIcon
 import eu.tintera.plume.core.ui.strayTapGuard
@@ -146,6 +147,11 @@ fun MediaViewerScreen(
     onBack: () -> Unit,
     onForward: (messageId: Long) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Čas v médiu: otevřít rovnou na celé obrazovce a hrát od téhle vteřiny; `NO_START` = ne.
+     * Platí jen pro zprávu, se kterou se prohlížeč otevřel (`initialMessageId`).
+     */
+    startSeconds: Int = NO_START,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     // Podklad je tmavý v obou motivech, takže i ikony lišt musí být světlé.
@@ -225,6 +231,7 @@ fun MediaViewerScreen(
                     viewModel.onDismiss()
                     onBack()
                 },
+                startSeconds = startSeconds,
             )
         } else {
             // Bez fotek (chyba, načítání) není co rozostřit; zůstává tmavá plocha a cesta ven.
@@ -284,6 +291,7 @@ private fun ViewerContent(
     onShare: (messageId: Long) -> Unit,
     onSaveAs: ((messageId: Long) -> Unit)?,
     onDismiss: () -> Unit,
+    startSeconds: Int,
 ) {
     val items = state.items
     /*
@@ -311,7 +319,10 @@ private fun ViewerContent(
      *
      * Režim patří celému prohlížeči, ne stránce: listuje se v něm dál.
      */
-    var immersive by rememberSaveable(state.isSelfDestruct) { mutableStateOf(state.isSelfDestruct) }
+    // Čas v médiu otevírá video rovnou přehrávané — v galerii by ho uživatel musel pustit sám.
+    var immersive by rememberSaveable(state.isSelfDestruct) {
+        mutableStateOf(state.isSelfDestruct || startSeconds != NO_START)
+    }
     LaunchedEffect(state.isSelfDestruct) {
         if (state.isSelfDestruct) immersive = true
     }
@@ -391,6 +402,7 @@ private fun ViewerContent(
                 is MessageMedia.Video -> VideoPage(
                     video = media,
                     messageId = item.messageId,
+                    startMs = if (item.messageId == state.initialMessageId && startSeconds != NO_START) startSeconds * 1000L else 0L,
                     streaming = !state.isSelfDestruct,
                     caption = item.caption,
                     isCurrent = isCurrent,
