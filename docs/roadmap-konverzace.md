@@ -482,9 +482,8 @@ snadno na to uživatel narazí.
   až budou příběhy, a náhled obrázku v citaci (dnes jen „Fotka").
 - ~~**Citlivý obsah**~~ — hotovo: fotka, video i GIF rozostřené se štítkem „Citlivý obsah",
   odkrytí ťuknutím (`CLAUDE.md`, „Citlivý obsah"). Zbývá:
-  - **přepínač „Zobrazovat citlivý obsah"** v Nastavení (`setOption
-    ignore_sensitive_content_restrictions`, nabídnout jen s `can_ignore_sensitive_content_restrictions`);
-    volbu nastavenou jinde už aplikace respektuje,
+  - ~~**přepínač „Zobrazovat citlivý obsah"** v Nastavení~~ — hotovo (Obecné → Soukromí);
+    samotné přepnutí na účtu ověřené není, jen čtení volby,
   - citlivý **chat** (`Supergroup.restrictionInfo`, `User.restrictionInfo`) — oficiální klient
     varuje už při otevření kanálu,
   - náhled odkazu, náhled souboru a samolepka v citlivé zprávě zůstávají ostré,

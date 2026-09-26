@@ -84,8 +84,8 @@ fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onO
         }
     }
 
-    // Blokovaní. V Obecných, protože samostatná sekce Soukromí by měla jedinou položku.
-    BlockedSettings(viewModel = koinViewModel(), onOpen = onOpenBlocked)
+    // Soukromí: blokovaní a citlivý obsah. V Obecných, samostatná sekce by měla dvě položky.
+    PrivacySettings(blocked = koinViewModel(), sensitive = koinViewModel(), onOpenBlocked = onOpenBlocked)
 
     // Experimentální funkce s modelem v zařízení. Nad odhlášením, které má zůstat poslední.
     OnDeviceAiSettings(viewModel = koinViewModel())

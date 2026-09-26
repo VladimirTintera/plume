@@ -49,6 +49,10 @@ import eu.tintera.plume.resources.settings_blocked_none
 import eu.tintera.plume.resources.settings_blocked_search
 import eu.tintera.plume.resources.settings_blocked_summary
 import eu.tintera.plume.resources.settings_privacy
+import eu.tintera.plume.resources.settings_sensitive_content
+import eu.tintera.plume.resources.settings_sensitive_content_failed
+import eu.tintera.plume.resources.settings_sensitive_content_summary
+import eu.tintera.plume.resources.visibility_24dp
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
@@ -56,21 +60,36 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Skupina „Soukromí" v Obecných: řádek s počtem blokovaných, který otevře jejich seznam
- * ([BlockedSendersScreen]).
+ * Skupina „Soukromí" v Obecných: blokovaní a citlivý obsah. Samostatná sekce Soukromí by měla
+ * dvě položky, proto tady.
+ */
+@Composable
+internal fun PrivacySettings(
+    blocked: BlockedSendersViewModel,
+    sensitive: SensitiveContentViewModel,
+    onOpenBlocked: () -> Unit,
+) {
+    SettingsGroup(Res.string.settings_privacy) {
+        BlockedRow(blocked, onOpenBlocked)
+        SensitiveContentRow(sensitive)
+    }
+}
+
+/**
+ * Řádek s počtem blokovaných, který otevře jejich seznam ([BlockedSendersScreen]).
  *
  * Počet se čte znovu při každém návratu na obrazovku — po odblokování v seznamu by jinak
  * zůstal starý.
  */
 @Composable
-internal fun BlockedSettings(viewModel: BlockedSendersViewModel, onOpen: () -> Unit) {
+private fun BlockedRow(viewModel: BlockedSendersViewModel, onOpen: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LifecycleResumeEffect(viewModel) {
         viewModel.reload()
         onPauseOrDispose {}
     }
 
-    SettingsGroup(Res.string.settings_privacy) {
+    run {
         val count = state.senders?.size
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -87,6 +106,27 @@ internal fun BlockedSettings(viewModel: BlockedSendersViewModel, onOpen: () -> U
             modifier = Modifier.clickable(onClick = onOpen),
         )
     }
+}
+
+/**
+ * „Zobrazovat citlivý obsah": fotky a videa označená jako citlivá se ukážou bez rozostření.
+ * Kde volbu server změnit nedovolí, řádek není vůbec ([SensitiveContentState.show] `null`).
+ *
+ * Už načtené zprávy se nepřekreslí — příznak se čte při převodu zprávy; projeví se po návratu
+ * do chatu.
+ */
+@Composable
+private fun SensitiveContentRow(viewModel: SensitiveContentViewModel) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val show = state.show ?: return
+    SwitchRow(
+        title = Res.string.settings_sensitive_content,
+        summary = if (state.failed) Res.string.settings_sensitive_content_failed else Res.string.settings_sensitive_content_summary,
+        summaryIsError = state.failed,
+        checked = show,
+        onChange = viewModel::setShow,
+        icon = Res.drawable.visibility_24dp,
+    )
 }
 
 /**

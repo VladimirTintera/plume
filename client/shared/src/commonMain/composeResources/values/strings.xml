@@ -1059,6 +1059,9 @@
     <string name="settings_on_device_ai_resume">Resume download</string>
     <string name="settings_on_device_ai_not_enough_space">There is not enough free space on the phone for the model.</string>
     <string name="settings_privacy">Privacy</string>
+    <string name="settings_sensitive_content">Show sensitive content</string>
+    <string name="settings_sensitive_content_summary">Photos and videos marked as sensitive won’t be blurred. Applies to your account on all devices.</string>
+    <string name="settings_sensitive_content_failed">Couldn’t change the setting.</string>
     <string name="settings_blocked">Blocked</string>
     <string name="settings_blocked_none">Nobody is blocked</string>
     <string name="settings_blocked_summary">Blocked users and chats can't message or call you.</string>

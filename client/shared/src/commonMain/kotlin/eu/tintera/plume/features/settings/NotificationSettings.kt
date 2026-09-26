@@ -73,6 +73,7 @@ import eu.tintera.plume.resources.settings_notifications_off
 import eu.tintera.plume.resources.settings_notifications_on
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -239,18 +240,29 @@ private fun ScopeGroup(
 
 /** Řádek nese klikání celý, přepínač má `onClick = null` (viz „Obrazovka nastavení"). */
 @Composable
-private fun SwitchRow(
+internal fun SwitchRow(
     title: StringResource,
     checked: Boolean,
     onChange: (Boolean) -> Unit,
     summary: StringResource? = null,
     enabled: Boolean = true,
+    /** Podtitul je hláška o selhání — chybovou barvou. */
+    summaryIsError: Boolean = false,
+    icon: DrawableResource? = null,
 ) {
     val haptics = LocalHapticFeedback.current
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        leadingContent = icon?.let { { Icon(painterResource(it), contentDescription = null) } },
         headlineContent = { Text(stringResource(title)) },
-        supportingContent = summary?.let { { Text(stringResource(it)) } },
+        supportingContent = summary?.let {
+            {
+                Text(
+                    stringResource(it),
+                    color = if (summaryIsError) MaterialTheme.colorScheme.error else Color.Unspecified,
+                )
+            }
+        },
         trailingContent = { Switch(checked = checked, onCheckedChange = null, enabled = enabled) },
         modifier = Modifier.toggleable(
             value = checked,
