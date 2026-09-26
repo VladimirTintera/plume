@@ -458,8 +458,9 @@ snadno na to uživatel narazí.
   do kontaktů.
 - ~~**Hovory** (`MessageCall`)~~ — hotovo: řádek se směrem, zmeškáním a délkou
   (`CLAUDE.md`, „Zpráva o hovoru").
-- **Kostka** (`MessageDice`) — dnes „🎲 6". Animace hodu jsou samolepky od serveru
-  (`initialState` / `finalState`, `DiceStickers`), přehraje je `AnimatedSticker`.
+- ~~**Kostka** (`MessageDice`)~~ — hotovo: animace hodu od serveru, automat po vrstvách
+  (`CLAUDE.md`, „Hod kostkou"). Zbývá efekt výhry (`successAnimationFrameNumber`) a poslat
+  kostku z aplikace (samotné 🎲 dnes odejde jako text).
 - **Placená média** (`MessagePaidMedia`) — rozmazaný náhled s cenou (`extendedMedia`), po
   zaplacení běžná fotka/video. V kanálech časté, placení hvězdami ale zatím nemáme.
 - **Sdílený příběh** (`MessageStory`), **dárky, soutěže, faktury, hry** — dnes text. Stojí na

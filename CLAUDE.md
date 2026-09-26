@@ -5598,9 +5598,32 @@ nese náhled v seznamu chatů, citace i notifikace. Pravidlo je čistá funkce `
   je výměna obrázku za obrázek a bublina se při ní nepřeskládá.
 - **Kopírování animovaného emoji kopíruje jeho znak** (`copyableText`) — text je prázdný, ale
   dřív, jako textová zpráva, to šlo.
-- **Kostka (`MessageDice`) padala do téhož `else`.** Hozená hodnota je součástí animace, takže se
-  dopisuje číslem (`🎲 6`) — jinak by ze zprávy zbyl hod bez výsledku. Nula znamená, že server
-  výsledek ještě neposlal.
+- **Kostka (`MessageDice`) padala do téhož `else`.** Dnes je to animace (viz „Hod kostkou");
+  text „🎲 6" zůstává v náhledu, citaci, schránce a tam, kde animace není `.tgs`.
+
+### Hod kostkou
+
+Kostka, šipky, míč, koš, kuželky i automat (`MessageDice`) jsou příloha `MessageMedia.Dice`
+a kreslí se bez bubliny jako samolepka (`DiceImage` v `Attachments.kt`, převod `toDiceMedia`,
+testy `DiceMediaTest`).
+
+- **Animaci posílá Telegram, výsledek je v ní NAKRESLENÝ.** `finalState` končí snímkem s tím,
+  co padlo; `value` je jen číslo pro text. Proto se nekreslí žádné vlastní číslo navrch.
+- **Hraje jednou, ne ve smyčce** (`StickerPlayback.Once`). Ve smyčce by se házelo pořád dokola
+  a výsledek by byl vidět jen na okamžik. Hod z historie se ukáže rovnou posledním snímkem
+  (`LastFrame`); přehraje se jen ten, který přišel po otevření konverzace
+  (`claimDiceThrow`, stejná tolerance jako pružný příchod zprávy), a jen jednou — po
+  odscrollování a návratu je vidět výsledek. Kopie v nabídce nad zprávou nehází.
+- **Konec hodu se hlídá mimo kompozici** (`snapshotFlow { state.isAtEnd }`): průběh se mění
+  každý snímek a čtený v kompozici by ji skládal znovu.
+- **Automat je pět vrstev přes sebe** (pozadí, páka, tři válce) a hod skončil, až doběhnou
+  VŠECHNY — válce nekončí naráz. Když kterákoli vrstva není `.tgs`, zůstane text: chybějící
+  válec by ukázal jiný výsledek, než jaký padl.
+- **Bez výsledku (`value == 0`) se točí úvodní animace** (`initialState`) ve smyčce; na druhý
+  stav se nepadá. Nastane u vlastního hodu, dokud server výsledek nepošle — z aplikace se ale
+  kostka zatím poslat nedá, takže ověřené to není.
+- **Ověřuje se botem**: `sendDice` s `emoji=🎲` a `🎰` do otevřeného chatu (hod proběhne), pak
+  odejít a vrátit se (výsledek hned). Ověřeno na emulátoru.
 - **Strop jsou 3 emoji** (`MAX_LARGE_EMOJI`). Nad ním už nejde o gesto, ale o odstavec, a ve
   velké sazbě by zabral půl obrazovky. Míň emoji = větší: `displayLarge` / `Medium` / `Small`.
 - **Odpověď si bublinu drží**, i když je jen z emoji — citace bez pozadí se ztratí.

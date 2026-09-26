@@ -1422,6 +1422,27 @@ sealed interface MessageMedia {
         val emoji: String,
     ) : MessageMedia
 
+    /**
+     * Hod kostkou, šipkami, míčem nebo automatem (`MessageDice`).
+     *
+     * Hod je animace, kterou posílá Telegram, ne naše kresba: [layers] jsou soubory `.tgs`
+     * kreslené přes sebe. Kostka má jednu vrstvu, automat pět (pozadí, páka a tři válce),
+     * a výsledek je v nich už nakreslený — koncový snímek ukazuje, co padlo.
+     *
+     * [value] `0` = výsledek od serveru ještě nedorazil ([rolling]); vrstvy jsou pak úvodní
+     * animace, která se točí, dokud nepřijde výsledná.
+     */
+    data class Dice(
+        val emoji: String,
+        val value: Int,
+        val layers: List<Int>,
+    ) : MessageMedia {
+        val rolling: Boolean get() = value == 0
+
+        /** Hod slovy („🎲 6“) — pro citaci, schránku a všude, kde animace být nemůže. */
+        val label: String get() = if (rolling) emoji else "$emoji $value"
+    }
+
     data class Sticker(
         /** Soubor samolepky v jakémkoli formátu. Podle něj se samolepka posílá i dává do oblíbených. */
         val stickerFileId: Int,

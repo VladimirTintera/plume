@@ -1227,6 +1227,10 @@ internal fun MessageBodyScope.Attachment(
         accent = accent,
         mediaShape = mediaShape,
         fillWidth = fillWidth,
+        // Rozhoduje se jednou za život položky: po odscrollování a návratu už je vidět výsledek.
+        diceThrow = remember(frame.key) {
+            media is MessageMedia.Dice && items.claimDiceThrow(frame.key, message.timestamp)
+        },
         voice = VoiceHandlers(
             playback = { items.voicePlayback(id) },
             speed = { items.voiceSpeed() },

@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -75,6 +76,9 @@ import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.schedule_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.StickerPlayback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 
 /**
  * Příloha uvnitř bubliny.
@@ -105,6 +109,8 @@ internal fun MessageAttachment(
     mediaShape: Shape? = null,
     /** Fotka a video využijí celou nabízenou šířku (u fotky s popiskem, aby se popisek nelámal). */
     fillWidth: Boolean = false,
+    /** Hod kostkou proběhne před očima; jinak je vidět rovnou výsledek (viz [DiceImage]). */
+    diceThrow: Boolean = false,
 ) {
     val shape = RoundedCornerShape(12.dp)
     // Náhled souboru zůstává malý čtvereček bez ohledu na tvar bubliny — velké zaoblení bubliny
@@ -234,6 +240,7 @@ internal fun MessageAttachment(
             ),
         )
         is MessageMedia.AnimatedEmoji -> AnimatedEmojiImage(media)
+        is MessageMedia.Dice -> DiceImage(media, throwNow = diceThrow)
         is MessageMedia.Location -> LocationMap(
             location = media,
             shape = pictureShape,
@@ -453,6 +460,48 @@ private fun AnimatedEmojiImage(emoji: MessageMedia.AnimatedEmoji) {
             Text(text = emoji.emoji, style = MaterialTheme.typography.displayLarge)
         },
     )
+}
+
+/**
+ * Hod kostkou, šipkami, míčem nebo automatem.
+ *
+ * Vrstvy animace se kreslí přes sebe (automat jich má pět) a výsledek je v nich nakreslený:
+ * poslední snímek ukazuje, co padlo. Proto se hod z historie ukazuje rovnou posledním snímkem
+ * a přehraje se jen ten, který přišel před očima ([throwNow]) — a jen jednou; kdyby hrál ve
+ * smyčce jako samolepka, házelo by se pořád dokola a výsledek by byl vidět jen na okamžik.
+ *
+ * Dokud výsledek nedorazil (vlastní hod čeká na server), točí se úvodní animace ve smyčce.
+ * Hotovo je, až doběhnou VŠECHNY vrstvy — válce automatu nekončí naráz.
+ */
+@Composable
+private fun DiceImage(dice: MessageMedia.Dice, throwNow: Boolean) {
+    var thrown by remember { mutableStateOf(!throwNow) }
+    val finishedLayers = remember(dice.layers) { mutableSetOf<Int>() }
+    val playback = when {
+        dice.rolling -> StickerPlayback.Loop
+        thrown -> StickerPlayback.LastFrame
+        else -> StickerPlayback.Once
+    }
+    Box(Modifier.size(DICE_SIZE).semantics { contentDescription = dice.label }) {
+        dice.layers.forEachIndexed { index, fileId ->
+            key(fileId) {
+                AnimatedSticker(
+                    fileId = fileId,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    playback = playback,
+                    onFinished = {
+                        finishedLayers += fileId
+                        if (finishedLayers.size == dice.layers.size) thrown = true
+                    },
+                    placeholder = {
+                        // Znak drží místo jen pod spodní vrstvou; nad ní by se zdvojil.
+                        if (index == 0) Text(text = dice.emoji, style = MaterialTheme.typography.displayLarge)
+                    },
+                )
+            }
+        }
+    }
 }
 
 /** Co bublina potřebuje k hlasovce; u ostatních příloh se nepoužije. */
@@ -703,6 +752,9 @@ private val UPLOAD_INDICATOR_SIZE = 48.dp
  * znak v `displayLarge`, protože animace má kolem kresby vlastní vzduch.
  */
 private val ANIMATED_EMOJI_SIZE = 112.dp
+
+/** Hod je samolepka od Telegramu a kreslí se stejně velký jako ona. */
+private val DICE_SIZE = 160.dp
 
 /** Delší hrana samolepky. Telegram je kreslí zhruba takhle velké. */
 private val STICKER_SIZE = 160.dp

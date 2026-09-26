@@ -234,6 +234,7 @@ private val MessageMedia.carriesCaption: Boolean
 
         is MessageMedia.Sticker,
         is MessageMedia.AnimatedEmoji,
+        is MessageMedia.Dice,
         is MessageMedia.Location,
         is MessageMedia.Call,
         -> false
@@ -243,7 +244,12 @@ private val MessageMedia.carriesCaption: Boolean
  * Text zprávy pro schránku.
  *
  * Animované emoji má prázdný text (kreslí se jako příloha), ale zkopírovat se má pořád jeho znak —
- * dřív, když bylo textovou zprávou, to šlo.
+ * dřív, když bylo textovou zprávou, to šlo. Hod kostkou totéž, i s výsledkem.
  */
-internal fun ChatMessage.copyableText(): String =
-    text.ifBlank { (media as? MessageMedia.AnimatedEmoji)?.emoji.orEmpty() }
+internal fun ChatMessage.copyableText(): String = text.ifBlank {
+    when (val media = media) {
+        is MessageMedia.AnimatedEmoji -> media.emoji
+        is MessageMedia.Dice -> media.label
+        else -> ""
+    }
+}
