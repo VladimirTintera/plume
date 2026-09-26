@@ -153,8 +153,7 @@ Co z toho zůstalo:
   `ChatInfo.isChannel`.
 - **Detail je jedna stránka po padesáti řádcích.** Stránkování by znamenalo držet offset ve stavu
   sheetu; u příspěvku s tisíci reakcemi to stejně nikdo neprojde.
-- **Detail nejde filtrovat podle emoji.** Telegram to umí (`reactionType`), sheet ale ukazuje
-  všechny reakce pohromadě — jako v Google Messages.
+- ~~**Detail nejde filtrovat podle emoji.**~~ — hotovo (tlačítka nad seznamem, filtruje server).
 
 ### 6. ~~Ťuknutí na vlastní zprávu ukáže odznak přečtení~~ — HOTOVO
 

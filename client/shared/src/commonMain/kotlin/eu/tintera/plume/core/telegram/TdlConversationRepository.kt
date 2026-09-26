@@ -2113,14 +2113,15 @@ class TdlConversationRepository(
         )
     }
 
-    override suspend fun reactionDetails(chatId: Long, messageId: Long): Result<List<ReactionDetail>> {
+    override suspend fun reactionDetails(chatId: Long, messageId: Long, reaction: String?): Result<List<ReactionDetail>> {
         val added = client
             .getMessageAddedReactions(
                 chatId = chatId,
                 messageId = messageId,
-                // Bez filtru na typ: sheet ukazuje všechny reakce zprávy pohromadě, jak je
-                // Telegram vrací — od nejnovější.
-                reactionType = null,
+                // Filtruje SERVER: detail je jedna stránka, takže filtr nad ní by u příspěvku
+                // s tisíci reakcemi ukázal jen zlomek těch s vybraným emoji. Bez filtru všechny
+                // reakce pohromadě, od nejnovější.
+                reactionType = reaction?.toReactionType(),
                 offset = "",
                 limit = REACTION_DETAIL_LIMIT,
             )
