@@ -1199,7 +1199,9 @@ fun ConversationScreen(
                     }
                 },
                 actions = {
-                    if (summaryAvailable && state.threadRootId == null) {
+                    // Prázdný chat s botem je jeho profil — není co shrnout ani hledat.
+                    val botIntro = showsBotIntro(state)
+                    if (summaryAvailable && state.threadRootId == null && !botIntro) {
                         IconButton(onClick = startSummary) {
                             Icon(
                                 painterResource(Res.drawable.summarize_24dp),
@@ -1208,7 +1210,7 @@ fun ConversationScreen(
                         }
                     }
                     // Hledání ve vlákně by hledalo v celé diskusní skupině.
-                    if (state.threadRootId == null) {
+                    if (state.threadRootId == null && !botIntro) {
                         IconButton(onClick = viewModel::openSearch) {
                             Icon(
                                 painterResource(Res.drawable.search_24dp),
@@ -1666,8 +1668,12 @@ fun ConversationScreen(
                 state.messages.isEmpty() && state.loading ->
                     LoadingIndicator(Modifier.align(Alignment.Center))
 
-                state.messages.isEmpty() && state.botIntro?.hasContent == true ->
-                    BotIntroCard(state.botIntro ?: return@Box, Modifier.align(Alignment.Center))
+                showsBotIntro(state) -> BotIntroPage(
+                    intro = state.botIntro ?: return@Box,
+                    chatId = viewModel.chatId,
+                    title = state.info?.title.orEmpty(),
+                    avatarFileId = state.info?.avatarFileId,
+                )
 
                 state.messages.isEmpty() -> Text(
                     text = state.error?.resolve() ?: stringResource(Res.string.conversation_empty),

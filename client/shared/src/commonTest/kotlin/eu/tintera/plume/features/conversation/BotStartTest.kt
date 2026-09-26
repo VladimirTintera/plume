@@ -39,8 +39,10 @@ class BotStartTest {
     }
 
     @Test
-    fun kartaJenSObsahem() {
-        assertFalse(BotIntro(description = " ").hasContent)
-        assertTrue(bot.hasContent)
+    fun profilBotaJenVPrazdnemNactenemChatu() {
+        assertTrue(showsBotIntro(ConversationState(botIntro = bot, reachedStart = true)))
+        // Parametr z odkazu Start nabídne hned, profil až nad načtenou prázdnou historií.
+        assertFalse(showsBotIntro(ConversationState(botIntro = bot, botStartParameter = "x")))
+        assertFalse(showsBotIntro(ConversationState(botIntro = null, reachedStart = true)))
     }
 }

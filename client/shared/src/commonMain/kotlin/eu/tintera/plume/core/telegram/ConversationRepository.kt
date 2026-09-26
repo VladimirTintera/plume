@@ -897,15 +897,13 @@ data class ChatMessage(
 
 /**
  * Popis bota pro prázdný chat. [description] smí být prázdný, [photo] i [animation] chybět —
- * bez všeho se karta nekreslí, ale tlačítko Start zůstává (pozná se, že je to bot).
+ * profil bota se kreslí i tak (tvář a jméno), a tlačítko Start taky.
  */
 data class BotIntro(
     val description: String,
     val photo: MessageMedia.Photo? = null,
     val animation: MessageMedia.Animation? = null,
-) {
-    val hasContent: Boolean get() = description.isNotBlank() || photo != null || animation != null
-}
+)
 
 /** Kdy naplánovaná zpráva odejde. */
 sealed interface MessageSchedule {

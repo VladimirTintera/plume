@@ -3969,9 +3969,16 @@ které seznam otevře celý (`BotCommandsPanel`, doména `BotCommandItem`, pravi
 
 ### Spuštění bota
 
-Prázdný chat s botem ukazuje kartu „Co tento bot umí?" (`BotIntroCard`: obrázek nebo GIF od
-bota a popis, `BotInfo`) a místo vstupního pole tlačítko **Start** (`sendBotStartMessage`).
-Startovací odkaz `t.me/bot?start=…` pošle botovi parametr (`InternalLink.BotStart`).
+Prázdný chat s botem je jeho **profil** (`BotIntroPage`): velká tvář nahoře uprostřed, jméno,
+„Bot" a pod tím popis (`BotInfo`), obrázek nebo GIF od bota až pod textem. Místo vstupního pole
+je tlačítko **Start** (`sendBotStartMessage`). Startovací odkaz `t.me/bot?start=…` pošle botovi
+parametr (`InternalLink.BotStart`).
+
+- **Profil, ne karta uprostřed.** První verze byla karta „Co tento bot umí?" uprostřed prázdné
+  konverzace; uživatel chtěl, aby to vypadalo jako profil — tvář a jméno představí bota dřív
+  než text. Kreslí se i u bota bez popisu (`showsBotIntro`): tvář a jméno řeknou, s kým chat je.
+- **Hlavička nad profilem nenabízí hledání ani shrnutí** — v prázdném chatu není co hledat
+  a lupa nad profilem působila jako ovládání stránky.
 
 - **Kdy Start, je čistá funkce** `showsBotStart` (testy `BotStartTest`): chat s botem
   (`botIntro != null`) a buď čekající parametr z odkazu, nebo PRÁZDNÁ historie. Prázdnou
@@ -3987,9 +3994,9 @@ Startovací odkaz `t.me/bot?start=…` pošle botovi parametr (`InternalLink.Bot
 - **V chatu je „/start" bez parametru**, parametr dostane jen bot — TDLib zprávu takhle vrací.
 - **Popis je holý text**, odkazy v něm zatím nejsou klikatelné.
 - **Ověřeno na emulátoru**: startovací odkaz na testovacího bota (autostart, bot dostal
-  `/start hello`), prázdný chat s `@gif` (karta s popisem od serveru a Start — **nestisknuté**,
+  `/start hello`), prázdný chat s `@gif` (profil s popisem od serveru, bez lupy, a Start — **nestisknuté**,
   bot není náš) a tlačítko Start v chatu s testovacím botem přes sondu v `showsBotStart`
-  (bot dostal `/start`; sonda se necommituje). **Neověřeno**: obrázek a GIF v kartě (testovací
+  (bot dostal `/start`; sonda se necommituje). **Neověřeno**: obrázek a GIF v profilu (testovací
   bot je nemá — Bot API je nastavit neumí, jen BotFather), čekající parametr u nespuštěného
   bota, iOS (jen přeložené).
 

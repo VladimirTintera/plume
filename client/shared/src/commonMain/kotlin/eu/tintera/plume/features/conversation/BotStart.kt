@@ -13,5 +13,13 @@ package eu.tintera.plume.features.conversation
 internal fun showsBotStart(state: ConversationState): Boolean {
     if (state.botIntro == null) return false
     if (state.botStartParameter != null) return true
-    return state.messages.isEmpty() && state.reachedStart && !state.loading
+    return showsBotIntro(state)
 }
+
+/**
+ * Kreslit místo konverzace profil bota ([BotIntroPage])? Jen prázdný chat s botem — tentýž
+ * důkaz prázdnoty jako u Startu. Hlavička pak nenabízí hledání ani shrnutí: v prázdném chatu
+ * není co hledat a lupa nad profilem působila jako ovládání stránky.
+ */
+internal fun showsBotIntro(state: ConversationState): Boolean =
+    state.botIntro != null && state.messages.isEmpty() && state.reachedStart && !state.loading

@@ -284,7 +284,6 @@
     <string name="conversation_send_failed">Couldn't send the message.</string>
     <string name="conversation_bot_start">Start</string>
     <string name="conversation_bot_start_failed">Couldn't start the bot.</string>
-    <string name="conversation_bot_intro_title">What can this bot do?</string>
     <string name="conversation_send_silent">Send without sound</string>
     <string name="conversation_send_schedule">Schedule message…</string>
     <string name="conversation_send_when_online">Send when online</string>
