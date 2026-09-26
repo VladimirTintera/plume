@@ -5,6 +5,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -13,8 +17,10 @@ import io.github.alexzhirkevich.compottie.Compottie
 import io.github.alexzhirkevich.compottie.LottieComposition
 import io.github.alexzhirkevich.compottie.LottieCompositionCache
 import io.github.alexzhirkevich.compottie.LottieCompositionSpec
+import io.github.alexzhirkevich.compottie.animateLottieCompositionAsState
 import io.github.alexzhirkevich.compottie.rememberLottieComposition
 import io.github.alexzhirkevich.compottie.rememberLottiePainter
+import kotlinx.coroutines.flow.first
 import okio.FileSystem
 import okio.Path.Companion.toPath
 import okio.buffer
@@ -44,6 +50,10 @@ fun AnimatedSticker(
      * všechny by znamenalo desítky animací v jednom snímku; hraje se až tam, kde má smysl.
      */
     isPlaying: Boolean = true,
+    /** Jak animace běží; výchozí je smyčka (viz [StickerPlayback]). */
+    playback: StickerPlayback = StickerPlayback.Loop,
+    /** Doběhla animace hraná jednou ([StickerPlayback.Once]). */
+    onFinished: () -> Unit = {},
     placeholder: @Composable () -> Unit,
 ) {
     val path = (rememberFileState(fileId) as? FileState.Ready)?.path
@@ -59,17 +69,44 @@ fun AnimatedSticker(
             placeholder()
         } else {
             Image(
-                painter = rememberLottiePainter(
-                    composition = composition,
-                    isPlaying = isPlaying,
-                    iterations = Compottie.IterateForever,
-                ),
+                painter = when (playback) {
+                    StickerPlayback.Loop -> rememberLottiePainter(
+                        composition = composition,
+                        isPlaying = isPlaying,
+                        iterations = Compottie.IterateForever,
+                    )
+                    StickerPlayback.Once -> {
+                        val state = animateLottieCompositionAsState(composition, iterations = 1)
+                        val finished by rememberUpdatedState(onFinished)
+                        // Konec se hlídá mimo kompozici: průběh se mění každý snímek a čtený
+                        // v kompozici by ji s každým snímkem skládal znovu.
+                        LaunchedEffect(state) {
+                            snapshotFlow { state.isAtEnd }.first { it }
+                            finished()
+                        }
+                        rememberLottiePainter(composition = composition, progress = { state.progress })
+                    }
+                    StickerPlayback.LastFrame ->
+                        rememberLottiePainter(composition = composition, progress = { 1f })
+                },
                 contentDescription = contentDescription,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize(),
             )
         }
     }
+}
+
+/** Jak se animace samolepky přehrává. */
+enum class StickerPlayback {
+    /** Pořád dokola, jako samolepka v konverzaci. */
+    Loop,
+
+    /** Jednou a zůstane stát na posledním snímku — hod kostkou, který padl právě teď. */
+    Once,
+
+    /** Rovnou poslední snímek — hod kostkou z historie, u kterého je vidět jen výsledek. */
+    LastFrame,
 }
 
 /**

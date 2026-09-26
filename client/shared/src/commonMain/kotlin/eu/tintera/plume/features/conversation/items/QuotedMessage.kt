@@ -167,6 +167,7 @@ internal fun MessageMedia?.describe(): String = when (this) {
     // V citaci není kam kreslit obrázek, takže samolepka se popíše svým emoji.
     is MessageMedia.Sticker -> emoji.ifBlank { stringResource(Res.string.media_sticker) }
     is MessageMedia.AnimatedEmoji -> emoji
+    is MessageMedia.Dice -> label
     is MessageMedia.VoiceNote -> stringResource(Res.string.conversation_voice_message)
     is MessageMedia.Video -> stringResource(Res.string.media_video)
     is MessageMedia.Animation -> stringResource(Res.string.content_gif)

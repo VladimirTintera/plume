@@ -648,6 +648,9 @@ private fun MaybeSelectable(
 /** Scope kopie zprávy v nabídce: čte všechno jako seznam, ale akce nikam neposílá. */
 private class InertItemScope(scope: ConversationItemScope) : ConversationItemScope by scope {
     override fun onAction(messageId: Long, action: MessageAction) = Unit
+
+    // Hod v kopii neproběhne znovu, ukáže výsledek — házelo se v seznamu.
+    override fun claimDiceThrow(key: Long, timestamp: Int): Boolean = false
 }
 
 /**

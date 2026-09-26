@@ -93,6 +93,12 @@ internal interface ConversationItemScope {
      */
     fun claimArrival(key: Long, timestamp: Int): Boolean
 
+    /**
+     * Má hod kostkou s tímhle klíčem proběhnout před očima? Jen jednou a jen u hodu, který přišel
+     * (podle [timestamp]) až po otevření konverzace; z historie je vidět rovnou výsledek.
+     */
+    fun claimDiceThrow(key: Long, timestamp: Int): Boolean
+
     /** Jediná cesta akcí ze zprávy ven (viz [MessageAction]). */
     fun onAction(messageId: Long, action: MessageAction)
 
