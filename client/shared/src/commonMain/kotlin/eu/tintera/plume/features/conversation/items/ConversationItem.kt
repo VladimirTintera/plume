@@ -63,6 +63,9 @@ internal interface ConversationItemScope {
 
     fun voicePlayback(messageId: Long): VoicePlayback?
 
+    /** Hraje video kolečko téhle zprávy se zvukem? Nejvýš jedno v konverzaci. */
+    fun videoNoteSounding(messageId: Long): Boolean = false
+
     /** Zvolená rychlost přehrávání hlasovek; jedna pro celou aplikaci. */
     fun voiceSpeed(): VoiceSpeed
 

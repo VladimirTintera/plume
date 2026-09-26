@@ -3017,6 +3017,8 @@ private class ScreenItemScope(
 
     override fun voiceSpeed(): VoiceSpeed = voiceSpeed.value
 
+    override fun videoNoteSounding(messageId: Long): Boolean = state.value.soundingVideoNote == messageId
+
     override fun documentProgress(fileId: Int): Float? = state.value.documentDownloads[fileId]
 
     override fun contentTop(): Float? = contentTop.value

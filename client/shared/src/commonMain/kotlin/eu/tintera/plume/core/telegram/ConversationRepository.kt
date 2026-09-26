@@ -1364,6 +1364,24 @@ sealed interface MessageMedia {
     }
 
     /**
+     * Video kolečko (`MessageVideoNote`): čtvercové video bez okolí, kreslené v kruhu.
+     *
+     * Hraje samo ve smyčce a ztlumeně, jako GIF ([autoPlays] — stejný strop velikosti); zvuk až
+     * na ťuknutí, jako hlasovka. [isViewed] je obdoba „poslechnuto" u hlasovky: příchozí kolečko
+     * se po přehrání se zvukem hlásí jako zhlédnuté (`openMessageContent`).
+     */
+    data class VideoNote(
+        val fileId: Int,
+        val thumbnailFileId: Int?,
+        val durationSeconds: Int,
+        val sizeBytes: Long,
+        val isViewed: Boolean,
+        val minithumbnail: Minithumbnail? = null,
+    ) : MessageMedia {
+        val autoPlays: Boolean get() = sizeBytes in 1..MAX_AUTOPLAY_ANIMATION_BYTES
+    }
+
+    /**
      * Soubor: v bublině název a velikost, ťuknutí ho stáhne a otevře systémem.
      *
      * [mimeType] posílá odesílatel, takže se na něj nedá spoléhat — systém si typ často odvodí

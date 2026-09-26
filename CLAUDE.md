@@ -5207,6 +5207,38 @@ týmž přehrávačem jako video (`MessageMedia.Animation`, `AnimationBubble`).
   je přitom známá). Pozná se to podle toho, že **stejně selže i video v prohlížeči médií** —
   tedy cesta, která s GIFy nesouvisí. Ověřit jde vzhled, značka a přepínání pauzy.
 
+### Video kolečka
+
+`MessageVideoNote` je `MessageMedia.VideoNote` a kreslí se bez bubliny jako kolečko 200 dp
+(`VideoNoteBubble`, cesta přes `StickerMessageItem` — s citací nebo přeposláním v bublině).
+
+- **Samo hraje ve smyčce a potichu, jako GIF** — stejný přehrávač, stejný strop velikosti
+  (`autoPlays`), nad ním se nestahuje. Dole je délka s přeškrtnutým reproduktorem, jinak by
+  nebylo poznat, že ťuknutí pustí zvuk.
+- **Ťuknutí = zvuk od začátku, bez smyčky, s průběhem po obvodu**; další ťuknutí nebo dohrání
+  vrátí tichou smyčku. Přepnutí je nové `load` nad týmž přehrávačem (Media3 i AVPlayer to
+  snesou), takže video začne znovu od nuly.
+- **Se zvukem hraje jedno kolečko na konverzaci a rozhoduje ViewModel**
+  (`ConversationState.soundingVideoNote`), ne kolečko samo: ví i o hlasovkách. Kolečko se
+  zvukem zastaví hlasovku, hlasovka a nahrávání umlčí kolečko.
+- **Kolečko, které odjede z obrazovky, zvuk vrátí** (`onDispose` → `VideoNoteSoundEnded`).
+  Přehrávač odchází s kompozicí položky, takže by zmlklo tak jako tak — jen by ViewModel dál
+  věřil, že hraje, a po návratu by se kolečko samo rozeznělo.
+- **Audio focus drží jen kolečko se zvukem** — ztlumený přehrávač o něj nežádá (viz „GIFy"),
+  takže tichá smyčka nezastaví hudbu. Ověřeno `dumpsys audio`: focus stack je prázdný při
+  smyčce, `GAIN` od Plume jen se zvukem a po dohrání zase prázdný.
+- **Zhlédnutí se hlásí jako poslech hlasovky** (`openMessageContent` při prvním puštění se
+  zvukem, `isViewed`); potvrzení chodí týmž `contentOpenedUpdates`.
+- **Ověřuje se botem**: `sendVideoNote` s MP4. Bez ffmpeg se dá vyrobit na Macu: `adb shell
+  screenrecord --size 480x480` **při pohybu na obrazovce** (statickou obrazovku screenrecord
+  nezapíše — vyšlo video o 0,4 s) a zvuk z `say -o x.aiff`, spojené přes `AVMutableComposition`
+  + `AVAssetExportSession` v krátkém Swift skriptu. Nahrává se obrazovka emulátoru, takže jen
+  plocha nebo chat s botem, nic s kontakty.
+- **Ověřeno na emulátoru**: tichá smyčka, zvuk s průběhem a uplynulým časem, návrat po dohrání
+  i druhým ťuknutím, nabídka dlouhým stiskem. **Neověřeno**: zhlédnutí u odesílatele (bot ho
+  nevidí), souhra s hrající hlasovkou, přepis řeči (`speechRecognitionResult`) a iOS
+  (jen přeložené).
+
 ### GIFy a samolepky z klávesnice
 
 GIF vybraný v Gboardu **odchází hned** jako animace (`InputMessageAnimation`), jako samolepka

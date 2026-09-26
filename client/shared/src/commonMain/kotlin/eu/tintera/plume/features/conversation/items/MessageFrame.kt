@@ -1231,6 +1231,11 @@ internal fun MessageBodyScope.Attachment(
         diceThrow = remember(frame.key) {
             media is MessageMedia.Dice && items.claimDiceThrow(frame.key, message.timestamp)
         },
+        videoNote = VideoNoteHandlers(
+            sounding = { items.videoNoteSounding(id) },
+            onToggleSound = { act(MessageAction.ToggleVideoNoteSound) },
+            onSoundEnded = { act(MessageAction.VideoNoteSoundEnded) },
+        ),
         voice = VoiceHandlers(
             playback = { items.voicePlayback(id) },
             speed = { items.voiceSpeed() },

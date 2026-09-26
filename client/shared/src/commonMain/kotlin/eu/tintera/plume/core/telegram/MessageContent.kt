@@ -670,10 +670,13 @@ internal suspend fun Message.messageMedia(
 
     is MessageDice -> content.toDiceMedia()
 
-    // Kolečko s videem. Náhled je čtvercový, kulatý ořez by patřil k přehrávání, které neumíme.
-    is MessageVideoNote -> MessageMedia.Attachment(
-        label = getString(Res.string.content_video_note),
-        thumbnailFileId = content.videoNote.thumbnail?.file?.id,
+    is MessageVideoNote -> MessageMedia.VideoNote(
+        fileId = content.videoNote.video.id,
+        thumbnailFileId = content.videoNote.thumbnail.picture()?.file?.id,
+        durationSeconds = content.videoNote.duration,
+        sizeBytes = content.videoNote.video.expectedSize,
+        isViewed = content.isViewed,
+        minithumbnail = content.videoNote.minithumbnail?.toDomain(),
     )
 
     is MessageGame -> MessageMedia.Attachment(
