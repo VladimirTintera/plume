@@ -1,22 +1,26 @@
 package eu.tintera.plume.core.telegram
 
 /**
- * Co v chatu čeká na přečtení kromě zpráv samotných: zmínka (i odpověď na vlastní zprávu)
- * a reakce na vlastní zprávu. Obojí TDLib počítá zvlášť od nepřečtených zpráv — zmínka
- * uprostřed stovky zpráv ve skupině by se jinak ztratila.
+ * Co v chatu čeká na přečtení kromě zpráv samotných: zmínka (i odpověď na vlastní zprávu),
+ * reakce na vlastní zprávu a hlas ve vlastní anketě. Všechno TDLib počítá zvlášť od
+ * nepřečtených zpráv — zmínka uprostřed stovky zpráv ve skupině by se jinak ztratila.
  */
-enum class UnreadMarkKind { Mention, Reaction }
+enum class UnreadMarkKind { Mention, Reaction, PollVote }
 
-/** Počty nepřečtených zmínek a reakcí v chatu. */
-data class UnreadMarks(val mentions: Int = 0, val reactions: Int = 0) {
+/** Počty nepřečtených zmínek, reakcí a hlasů v chatu. */
+data class UnreadMarks(val mentions: Int = 0, val reactions: Int = 0, val pollVotes: Int = 0) {
     fun count(kind: UnreadMarkKind): Int = when (kind) {
         UnreadMarkKind.Mention -> mentions
         UnreadMarkKind.Reaction -> reactions
+        UnreadMarkKind.PollVote -> pollVotes
     }
 }
 
-/** Změna nepřečtených reakcí u jedné zprávy — přišla nová, nebo je přečetla obrazovka či jiné zařízení. */
-data class UnreadReactionChange(val messageId: Long, val hasUnread: Boolean)
+/**
+ * Změna nepřečtených reakcí nebo hlasů u jedné (vlastní) zprávy — přišly nové, nebo je přečetla
+ * obrazovka či jiné zařízení. Zmínky tu nejsou: příznak zmínky zpráva nenese, jen chat počet.
+ */
+data class UnreadMarkChange(val messageId: Long, val kind: UnreadMarkKind, val hasUnread: Boolean)
 
 /**
  * Nejstarší zpráva z výsledku hledání — skáče se od ní, jako u nepřečtených zpráv.

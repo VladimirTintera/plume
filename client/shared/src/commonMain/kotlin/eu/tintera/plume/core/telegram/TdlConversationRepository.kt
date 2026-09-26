@@ -141,6 +141,7 @@ import dev.g000sha256.tdl.dto.SearchMessagesFilterPhotoAndVideo
 import dev.g000sha256.tdl.dto.SearchMessagesFilterUrl
 import dev.g000sha256.tdl.dto.SearchMessagesFilterPinned
 import dev.g000sha256.tdl.dto.SearchMessagesFilterUnreadMention
+import dev.g000sha256.tdl.dto.SearchMessagesFilterUnreadPollVote
 import dev.g000sha256.tdl.dto.SearchMessagesFilterUnreadReaction
 import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.TdlThrowable
@@ -310,19 +311,30 @@ class TdlConversationRepository(
             holder.updates { messageMentionReadUpdates }.filter { it.chatId == chatId }.map { },
             holder.updates { chatUnreadReactionCountUpdates }.filter { it.chatId == chatId }.map { },
             holder.updates { messageUnreadReactionsUpdates }.filter { it.chatId == chatId }.map { },
+            holder.updates { chatUnreadPollVoteCountUpdates }.filter { it.chatId == chatId }.map { },
+            holder.updates { messageContainsUnreadPollVotesUpdates }.filter { it.chatId == chatId }.map { },
         )
             .onStart { emit(Unit) }
             .mapNotNull {
                 client.getChat(chatId = chatId).toResult().getOrNull()?.let { chat ->
-                    UnreadMarks(mentions = chat.unreadMentionCount, reactions = chat.unreadReactionCount)
+                    UnreadMarks(
+                        mentions = chat.unreadMentionCount,
+                        reactions = chat.unreadReactionCount,
+                        pollVotes = chat.unreadPollVoteCount,
+                    )
                 }
             }
             .distinctUntilChanged()
 
-    override fun unreadReactionChanges(chatId: Long): Flow<UnreadReactionChange> =
-        holder.updates { messageUnreadReactionsUpdates }
-            .filter { it.chatId == chatId }
-            .map { UnreadReactionChange(messageId = it.messageId, hasUnread = it.unreadReactions.isNotEmpty()) }
+    override fun unreadMarkChanges(chatId: Long): Flow<UnreadMarkChange> =
+        merge(
+            holder.updates { messageUnreadReactionsUpdates }
+                .filter { it.chatId == chatId }
+                .map { UnreadMarkChange(it.messageId, UnreadMarkKind.Reaction, hasUnread = it.unreadReactions.isNotEmpty()) },
+            holder.updates { messageContainsUnreadPollVotesUpdates }
+                .filter { it.chatId == chatId }
+                .map { UnreadMarkChange(it.messageId, UnreadMarkKind.PollVote, hasUnread = it.containsUnreadPollVotes) },
+        )
 
     override suspend fun oldestUnreadMark(chatId: Long, kind: UnreadMarkKind): Result<Long?> =
         client.searchChatMessages(
@@ -338,6 +350,7 @@ class TdlConversationRepository(
             filter = when (kind) {
                 UnreadMarkKind.Mention -> SearchMessagesFilterUnreadMention()
                 UnreadMarkKind.Reaction -> SearchMessagesFilterUnreadReaction()
+                UnreadMarkKind.PollVote -> SearchMessagesFilterUnreadPollVote()
             },
         )
             .toResult()
@@ -347,6 +360,7 @@ class TdlConversationRepository(
         when (kind) {
             UnreadMarkKind.Mention -> client.readAllChatMentions(chatId = chatId)
             UnreadMarkKind.Reaction -> client.readAllChatReactions(chatId = chatId)
+            UnreadMarkKind.PollVote -> client.readAllChatPollVotes(chatId = chatId)
         }
             .toResult()
             .map { }
@@ -1423,6 +1437,7 @@ class TdlConversationRepository(
             reactions = interactionInfo.toReactions(),
             postStats = interactionInfo.toPostStats(),
             hasUnreadReactions = unreadReactions.isNotEmpty(),
+            hasUnreadPollVotes = containsUnreadPollVotes,
             threadId = (topicId as? MessageTopicThread)?.messageThreadId,
             sendState = if (outgoing) sendingState.toSendState() else null,
             // Odpověď mimo tenhle chat nese `externalReply` — v načtené historii citovaná zpráva

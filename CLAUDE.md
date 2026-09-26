@@ -2850,12 +2850,13 @@ se ukáže i bez nových zpráv, jakmile je uživatel o kus výš.
 - **Zpráva, kterou okno neobsahuje, byla smazaná** — hláška „už není k dispozici" (u citace
   i u výsledku hledání vlastní věta). „Moc hluboko" už nenastane.
 
-### Nepřečtené zmínky a reakce
+### Nepřečtené zmínky, reakce a hlasy v anketě
 
-Nad tlačítkem dolů jsou tlačítka „@" (nepřečtené zmínky a odpovědi) a „❤" (nepřečtené reakce na
-vlastní zprávy) s počtem v odznaku (`UnreadMarkButton`); v seznamu chatů je u chatu odznak
-s ikonou vedle počtu nepřečtených (`UnreadBadges`). Počty drží TDLib (`Chat.unreadMentionCount`,
-`unreadReactionCount`), doména `UnreadMarks`, testy `UnreadMarksTest`.
+Nad tlačítkem dolů jsou tlačítka „@" (nepřečtené zmínky a odpovědi), „❤" (nepřečtené reakce na
+vlastní zprávy) a anketa (nové hlasy ve vlastní anketě, TDLib 15) s počtem v odznaku
+(`UnreadMarkButton`); v seznamu chatů je u chatu odznak s ikonou vedle počtu nepřečtených
+(`UnreadBadges`). Počty drží TDLib (`Chat.unreadMentionCount`, `unreadReactionCount`,
+`unreadPollVoteCount`), doména `UnreadMarks`, testy `UnreadMarksTest`.
 
 - **Ťuknutí skočí na NEJSTARŠÍ** (`searchChatMessages` s `SearchMessagesFilterUnreadMention`
   / `UnreadReaction`, `oldestOf`), jako skok na nepřečtené. Výsledky jsou od nejnovější, bere se
@@ -2867,12 +2868,17 @@ s ikonou vedle počtu nepřečtených (`UnreadBadges`). Počty drží TDLib (`Ch
   nezhaslo, ani když na zprávu uživatel doskočil. Vlastní zpráva se proto hlásí, když nese
   nepřečtené reakce (`ChatMessage.hasUnreadReactions` z `Message.unreadReactions`, živě přes
   `UpdateMessageUnreadReactions`; pravidlo `messagesToView`). Zhlédnutí je přečte — ověřeno.
-- **Počty chodí ČTYŘMI updaty**: `UpdateChatUnreadMentionCount`, `UpdateMessageMentionRead`,
-  `UpdateChatUnreadReactionCount` a `UpdateMessageUnreadReactions` (poslední dva nesou i počet).
+  **Totéž hlasy v anketě** (`ChatMessage.hasUnreadPollVotes` z `containsUnreadPollVotes`, živě
+  přes `UpdateMessageContainsUnreadPollVotes`); obě změny nese jeden tok `unreadMarkChanges`.
+  Že je zhlédnutí přečte, ověřené NENÍ — je to předpoklad podle reakcí.
+- **Počty chodí ŠESTI updaty**: `UpdateChatUnreadMentionCount`, `UpdateMessageMentionRead`,
+  `UpdateChatUnreadReactionCount`, `UpdateMessageUnreadReactions`,
+  `UpdateChatUnreadPollVoteCount` a `UpdateMessageContainsUnreadPollVotes` (updaty zpráv nesou
+  i počet).
   Konverzace si na každý z nich přečte chat znovu (`getChat` je lokální), seznam chatů bere
   počet přímo z updatu.
 - **Podržení nabídne „Označit vše jako přečtené"** (`readAllChatMentions` /
-  `readAllChatReactions`), jako u oficiálních klientů.
+  `readAllChatReactions` / `readAllChatPollVotes`), jako u oficiálních klientů.
 - **Ve vlákně komentářů tlačítka nejsou** — počty patří celé diskusní skupině a vedly by do
   zpráv mimo vlákno.
 - **Odznak v seznamu počet nenese** — jde o to, ŽE zmínka je; kolik, řekne konverzace.
@@ -2881,6 +2887,14 @@ s ikonou vedle počtu nepřečtených (`UnreadBadges`). Počty drží TDLib (`Ch
   s počtem, skok se zvýrazněním a zhasnutí, podržení a „Označit vše". **Skutečná zmínka ověřená
   NENÍ** (bot zmínku v soukromém chatu nevyrobí, ve skupině by šla cizím lidem); tlačítko „@"
   se ověřilo podstrčeným počtem — cesta je táž jako u reakcí, liší se jen filtr hledání.
+- **Hlas v anketě bot nevyrobí** (Bot API hlasovat neumí) a vlastní účet ve vlastní anketě
+  nepočítá. Tlačítko s anketou i odznak v seznamu se proto ověřily podstrčeným počtem pro chat
+  s testovacím botem; ťuknutí prošlo hledáním s `SearchMessagesFilterUnreadPollVote` bez chyby
+  (prázdný výsledek). **Skutečný nový hlas, skok na anketu a zhasnutí po zhlédnutí ověřené
+  NEJSOU** — chce to druhého člověka, který hlasuje v neanonymní anketě.
+- **Ťuk podle souřadnic ze STARÉHO dumpu otevřel cizí chat** — seznam se mezi dumpem a ťuknutím
+  přeskládal. Dump se dělá TĚSNĚ před ťuknutím a po něm se ověřuje název v hlavičce
+  (`uiautomator dump`), než se na obrazovce cokoli dalšího udělá.
 
 ### Hledání v konverzaci
 

@@ -937,11 +937,15 @@ class ConversationViewModel(
                 }
             }
             viewModelScope.launch {
-                repository.unreadReactionChanges(chatId).collect { change ->
+                repository.unreadMarkChanges(chatId).collect { change ->
                     _state.update { state ->
                         state.copy(
                             messages = state.messages.map { message ->
-                                if (message.id == change.messageId) message.copy(hasUnreadReactions = change.hasUnread) else message
+                                when {
+                                    message.id != change.messageId -> message
+                                    change.kind == UnreadMarkKind.PollVote -> message.copy(hasUnreadPollVotes = change.hasUnread)
+                                    else -> message.copy(hasUnreadReactions = change.hasUnread)
+                                }
                             },
                         )
                     }
@@ -3251,7 +3255,7 @@ data class Typing(val activity: ChatActivity, val sender: SenderInfo?)
  *
  * Cizí zprávy vždycky; album celé, protože je v seznamu jednou položkou s klíčem nejstarší
  * zprávy a ostatní fotky by jinak zůstaly v počtu nepřečtených napořád. Vlastní zprávu jen
- * tehdy, když nese nepřečtené reakce — přečte je právě zhlédnutí.
+ * tehdy, když nese nepřečtené reakce nebo hlasy v anketě — přečte je právě zhlédnutí.
  */
 internal fun ConversationState.messagesToView(visibleKeys: Set<Long>): List<Long> {
     val albums = messages
@@ -3260,7 +3264,10 @@ internal fun ConversationState.messagesToView(visibleKeys: Set<Long>): List<Long
         .filter { it != 0L }
         .toSet()
     return messages
-        .filter { (!it.isOutgoing || it.hasUnreadReactions) && (keyOf(it) in visibleKeys || it.mediaAlbumId in albums) }
+        .filter {
+            (!it.isOutgoing || it.hasUnreadReactions || it.hasUnreadPollVotes) &&
+                (keyOf(it) in visibleKeys || it.mediaAlbumId in albums)
+        }
         .map { it.id }
 }
 
