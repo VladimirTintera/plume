@@ -309,6 +309,13 @@ interface ConversationRepository {
     ): Result<ChatMessage>
 
     /**
+     * Efekty, se kterými jde zprávu poslat, v pořadí od serveru ([ids] z
+     * [ChatRepository.availableEffectIds]). Prémiové vynechá, když účet Premium nemá — odeslání
+     * by skončilo chybou. Efekt, který server nevydá, vypadne.
+     */
+    suspend fun sendableEffects(ids: List<Long>): List<MessageEffect>
+
+    /**
      * Po kolika sekundách se nové zprávy chatu samy mažou; 0 = nemažou. Živé přes
      * `UpdateChatMessageAutoDeleteTime` — mění se i z jiného zařízení nebo od protějšku.
      */
@@ -990,11 +997,13 @@ sealed interface MessageSchedule {
 
 /**
  * Jak zprávu odeslat: [silent] = protějšek nedostane zvuk ani vibraci (`disableNotification`),
- * [schedule] = neodejde hned, ale ve zvolený čas.
+ * [schedule] = neodejde hned, ale ve zvolený čas, [effectId] = efekt, který se nad zprávou
+ * přehraje (0 = žádný; jen v soukromém chatu, viz [MessageEffect]).
  */
 data class SendOptions(
     val silent: Boolean = false,
     val schedule: MessageSchedule? = null,
+    val effectId: Long = 0,
 )
 
 /**
@@ -1755,4 +1764,6 @@ data class MessageEffect(
     val emoji: String,
     val animationFileId: Int?,
     val premium: Boolean,
+    /** Poslat ho smí jen účet s Premium (`MessageEffect.isPremium`); zobrazit ho vidí každý. */
+    val needsPremium: Boolean = false,
 )

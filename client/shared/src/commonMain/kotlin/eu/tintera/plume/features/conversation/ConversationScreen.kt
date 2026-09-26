@@ -288,6 +288,8 @@ import eu.tintera.plume.features.conversation.items.UnreadDividerItem
 import eu.tintera.plume.features.conversation.items.conversationItems
 import eu.tintera.plume.features.conversation.items.describe
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.auto_awesome_24dp
+import eu.tintera.plume.resources.conversation_send_effect
 import eu.tintera.plume.resources.share_preparing
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.arrow_downward_24dp
@@ -492,6 +494,7 @@ fun ConversationScreen(
     var draft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
     // Plánování: napřed den, pak čas. Cíl je rozepsaná zpráva, nebo naplánovaná k přeplánování.
     var scheduleTarget by remember { mutableStateOf<ScheduleTarget?>(null) }
+    var effectPickerOpen by remember { mutableStateOf(false) }
     var scheduleDay by remember { mutableStateOf<Long?>(null) }
 
     // Komu se má odpovědět, rozhoduje čisté pravidlo nad stavem (testy `ReplySuggestionsTest`).
@@ -1432,6 +1435,10 @@ fun ConversationScreen(
                 },
                 sendMenu = sendMenuOffer(state),
                 onSchedule = { scheduleTarget = ScheduleTarget.Draft },
+                onPickEffect = {
+                    viewModel.loadEffects()
+                    effectPickerOpen = true
+                },
                 onOpenScheduled = viewModel::openScheduled.takeIf { state.hasScheduledMessages },
                 onDraftChanged = viewModel::onDraftChanged,
                 editing = state.editing,
@@ -1987,6 +1994,20 @@ fun ConversationScreen(
                 )
             }
 
+            if (effectPickerOpen) {
+                val effects by viewModel.effectChoices.collectAsStateWithLifecycle()
+                EffectPickerSheet(
+                    effects = effects,
+                    onPick = { effect ->
+                        effectPickerOpen = false
+                        haptics.confirm()
+                        viewModel.send(draft.text, SendOptions(effectId = effect.id))
+                        draft = TextFieldValue()
+                    },
+                    onDismiss = { effectPickerOpen = false },
+                )
+            }
+
             if (allPinnedOpen && state.pinned.isNotEmpty()) {
                 PinnedMessagesSheet(
                     messages = state.pinned,
@@ -2232,6 +2253,8 @@ private fun MessageInput(
     sendMenu: SendMenuOffer = SendMenuOffer(silent = false, schedule = false, whenOnline = false),
     /** „Naplánovat…" z nabídky; výběr času i odeslání řeší obrazovka, která drží text. */
     onSchedule: () -> Unit = {},
+    /** Podržení → „Odeslat s efektem…": otevře výběr efektu. */
+    onPickEffect: () -> Unit = {},
     /** Otevře seznam naplánovaných zpráv; `null`, když chat žádné nemá. */
     onOpenScheduled: (() -> Unit)? = null,
     /** Jen ruční úpravy textu — vyprázdnění po odeslání se nehlásí, o to se stará `onSend`. */
@@ -2860,6 +2883,10 @@ private fun MessageInput(
                                 onSend(draft.text, SendOptions(schedule = MessageSchedule.WhenOnline))
                                 onDraftValueChange(TextFieldValue())
                             }.takeIf { sendMenu.whenOnline },
+                            MenuAction(stringResource(Res.string.conversation_send_effect), Res.drawable.auto_awesome_24dp) {
+                                sendMenuOpen = false
+                                onPickEffect()
+                            }.takeIf { sendMenu.effects },
                         ),
                     ),
                 )

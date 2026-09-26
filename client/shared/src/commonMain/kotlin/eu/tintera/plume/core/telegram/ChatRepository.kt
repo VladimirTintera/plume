@@ -45,6 +45,13 @@ interface ChatRepository {
     val diceEmojis: StateFlow<List<String>>
 
     /**
+     * Efekty, se kterými jde poslat zprávu (nejdřív efekty reakcí, pak prémiových samolepek).
+     * Stejně jako [diceEmojis] je server pošle jednou po startu (`UpdateAvailableMessageEffects`),
+     * proto je drží eager repository chatů.
+     */
+    val availableEffectIds: StateFlow<List<Long>>
+
+    /**
      * Připraví chat Uložené zprávy k otevření a vrátí jeho id. TDLib ho zná, až když ho
      * vytvoří `createPrivateChat` — u účtu, který si nic neuložil, v databázi být nemusí.
      */

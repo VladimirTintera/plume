@@ -6070,11 +6070,23 @@ tolerance jako hod kostkou), a znovu po ťuknutí na značku. Převod `toMessage
   položkami mění.
 - **Animace je krátká (kolem vteřiny)**: snímek o půl vteřiny po ťuknutí už nic nezachytí
   a vypadá to, že ťuknutí nefunguje. Ověřuje se sérií `screencap` v jednom `adb shell`.
+- **Poslat s efektem jde z podržení odesílacího tlačítka** („Odeslat s efektem…" →
+  `EffectPickerSheet`, `SendOptions.effectId` → `MessageSendOptions.effectId`). Ťuknutí na efekt
+  zprávu rovnou pošle; v mřížce je jen emoji efektu, animace se ukáže nad odeslanou zprávou.
+- **Jen v soukromém chatu, i s botem** (`SendMenuOffer.effects`, testy `SendMenuTest`) — jinde
+  TDLib efekt nepřijme; v Uložených zprávách a ve vlákně komentářů se nenabízí.
+- **Seznam posílá server JEDNOU po startu** (`UpdateAvailableMessageEffects`: efekty reakcí,
+  pak prémiových samolepek), takže ho drží eager `ChatRepository.availableEffectIds`, jako
+  emoji kostek. Efekty se dočítají až při otevření výběru (`sendableEffects`, tentýž keš jako
+  u zpráv) — většina odeslání efekt nechce.
+- **Prémiové efekty se bez Premium nenabízejí** (`MessageEffect.needsPremium`), stejně jako
+  prémiové samolepky. Testovací účet jich dostane šest (👍 👎 ❤️ 🔥 🎉 💩).
 - **Ověřuje se botem**: `sendMessage` s `message_effect_id` (🔥 5104841245755180586,
   🎉 5046509860389126442, ❤️ 5159385139981059251) do chatu s testovacím botem. Ověřeno na
   emulátoru: značky, samočinné přehrání po příchodu, přehrání ťuknutím, kresba nad staršími
-  zprávami. **Neověřeno**: odchozí zpráva s efektem (Plume efekt poslat neumí), efekt prémiové
-  samolepky a iOS (jen přeložené).
+  zprávami. Odeslání s efektem: bot přes `getUpdates` dostal `effect_id`, u odchozí zprávy
+  vylétají konfety doleva do volného pruhu (zrcadlení sedí). **Neověřeno**: efekt prémiové
+  samolepky (testovací účet Premium nemá) a iOS (jen přeložené).
 
 ### Vlastní emoji v textu
 

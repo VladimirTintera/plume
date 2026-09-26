@@ -171,6 +171,9 @@ class TdlChatRepository(
     private val dice = MutableStateFlow<List<String>>(emptyList())
     override val diceEmojis: StateFlow<List<String>> = dice.asStateFlow()
 
+    private val effects = MutableStateFlow<List<Long>>(emptyList())
+    override val availableEffectIds: StateFlow<List<Long>> = effects.asStateFlow()
+
     /** Odpočty zhasnutí „píše…", jeden na chat. */
     private val activityTimers = mutableMapOf<Long, Job>()
 
@@ -212,6 +215,11 @@ class TdlChatRepository(
     private fun collectUpdates() {
         scope.launch {
             holder.updates { diceEmojisUpdates }.collect { update -> dice.value = update.emojis.toList() }
+        }
+        scope.launch {
+            holder.updates { availableMessageEffectsUpdates }.collect { update ->
+                effects.value = (update.reactionEffectIds.toList() + update.stickerEffectIds.toList()).distinct()
+            }
         }
 
         // Nový chat. Pozice může být prázdná (chat je znám, ale v žádné složce) — pak se neukáže.

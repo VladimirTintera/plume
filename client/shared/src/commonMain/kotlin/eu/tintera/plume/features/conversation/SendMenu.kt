@@ -17,8 +17,13 @@ internal data class SendMenuOffer(
      * Bot dostupnost nemá, u skryté („naposledy nedávno") server volbu odmítne.
      */
     val whenOnline: Boolean,
+    /**
+     * S efektem — jen v soukromém chatu (i s botem): TDLib efekt jinde nepřijme. V Uložených
+     * zprávách ho nemá kdo vidět a ve vlákně komentářů jde o skupinu.
+     */
+    val effects: Boolean = false,
 ) {
-    val any: Boolean get() = silent || schedule || whenOnline
+    val any: Boolean get() = silent || schedule || whenOnline || effects
 }
 
 internal fun sendMenuOffer(state: ConversationState): SendMenuOffer {
@@ -31,6 +36,7 @@ internal fun sendMenuOffer(state: ConversationState): SendMenuOffer {
         silent = !saved,
         schedule = schedule,
         whenOnline = schedule && privateChat && state.presence is Presence.Offline,
+        effects = schedule && privateChat,
     )
 }
 

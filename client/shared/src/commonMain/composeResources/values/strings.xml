@@ -287,6 +287,10 @@
     <string name="conversation_send_silent">Send without sound</string>
     <string name="conversation_send_schedule">Schedule message…</string>
     <string name="conversation_send_when_online">Send when online</string>
+    <string name="conversation_send_effect">Send with effect…</string>
+    <string name="effect_picker_title">Message effect</string>
+    <string name="effect_picker_hint">Plays over the message for everyone in the chat.</string>
+    <string name="effect_picker_empty">No effects available.</string>
     <string name="conversation_scheduled_notice">Message scheduled</string>
     <string name="conversation_schedule_failed">Couldn't schedule the message.</string>
     <string name="conversation_scheduled_load_failed">Couldn't load scheduled messages.</string>
