@@ -6669,10 +6669,16 @@ cesta je známá až po stažení a průběh chodí updaty. Překlad do jednoho 
   snímkem bez obrázku. U sdíleného prvku ze seznamu do konverzace to bylo vidět: avatar odletěl jako
   prázdný kruh a obrázek naskočil až na místě. Mapa se čte i zapisuje jen z kompozice, takže
   nepotřebuje zámek.
-- **Indikátor načítání obrázku roste s plochou** (`loadingIndicatorSize` v `RemoteImage`):
-  `ContainedLoadingIndicator`, 30 % kratší strany, nejvýš 64 dp; pod 24 dp (malé avatary) se
-  nekreslí. Pevných 24 dp bez kontejneru uprostřed velké fotky vypadalo jako chyba vykreslení,
-  ne načítání. Vzhled se ověřuje podstrčeným stavem (`Crossfade` s `null` a podmínka `true`).
+- **Stahování obrázku ukazuje lesk přes náhled, ne indikátor** (`loadingShimmer` v `RemoteImage`):
+  šikmý světlý pruh přejíždí přes rozmazaný náhled (nad fotkou bílý, na holé podložce v barvě
+  popředí), jen dokud se stahuje — stojící rozmazání tedy znamená, že se nic neděje. Dřív to
+  byl `ContainedLoadingIndicator` uprostřed: nad rozmazanou fotkou barevný disk, který k obrázku
+  nepatřil a vypadal jako nálepka. Na průhledné podložce bez náhledu (samolepka) se nekreslí
+  nic, pruh by přejížděl přes prázdno; pod 24 dp (malé avatary) taky ne.
+- **Lesk se ověřuje sondou a zpomalenými animacemi**: v `RemoteImage` dočasně `if (true)` místo
+  `current == null` a `shimmer` bez podmínky na `Downloading`, pak `animator_duration_scale 5`
+  a série `screencap`. V normální rychlosti snímek trefí pauzu mezi průjezdy a pruh „chybí".
+  Při krytí 0,28 byl na snímku sotva znát — slabý lesk na telefonu splyne s rozmazáním.
 - **Než dorazí jakýkoli soubor, kreslí se rozmazaný náhled ze zprávy** (`Minithumbnail`,
   parametr `placeholder` u `RemoteImage`). TDLib ho posílá přímo v datech fotky, videa, GIFu
   a dokumentu (JPEG kolem 40 px), takže je vidět v prvním snímku, bez stahování.
