@@ -517,7 +517,7 @@ snadno na to uživatel narazí.
   promíchaná konverzace a odpověď padne do obecného tématu. Seznam témat, konverzace tématu,
   psaní do tématu.
 - ~~**Nepřečtené zmínky a reakce**~~ — hotovo: tlačítka „@" a „❤" nad tlačítkem dolů, odznaky
-  v seznamu chatů, „Označit vše" podržením (`CLAUDE.md`, „Nepřečtené zmínky a reakce"). Zbývá:
+  v seznamu chatů, „Označit vše" podržením (`CLAUDE.md`, „Nepřečtené zmínky, reakce a hlasy v anketě"). Zbývá:
   **ověřit skutečnou zmínku ve skupině** a **skutečný nový hlas v anketě** (tlačítko s anketou je
   hotové, ověřené jen podstrčeným počtem) a zvýraznění, KDO reagoval (`UnreadReaction.senderId`).
 - **Prázdný chat s botem** — popis „Co tento bot umí?" s obrázkem (`botInfo.description`,
