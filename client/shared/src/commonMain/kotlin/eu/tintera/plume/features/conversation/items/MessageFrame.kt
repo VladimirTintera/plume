@@ -664,20 +664,30 @@ private fun MessageFrame(
              * Odznak doručení do ní nepatří: stojí až za ní, ve sloupci.
              */
             /*
-             * Tlačítka bota visí pod zprávou a jedou s ní i při tahu na odpověď. Do `MessageBox`
-             * nepatří: ten je ořezaný tvarem bubliny a kreslí ho i nabídka nad zprávou.
+             * Kontrola faktů a tlačítka bota visí pod zprávou a jedou s ní i při tahu na odpověď.
+             * Do `MessageBox` nepatří: ten je ořezaný tvarem bubliny a kreslí ho i nabídka nad
+             * zprávou — a pod holou fotkou žádná bublina, do které by se daly vložit, není.
              */
-            WithBotKeyboard(
-                keyboard = message.keyboard,
+            WithBelowMessage(
+                hasBelow = message.keyboard != null || message.factCheck != null,
                 isOutgoing = message.isOutgoing,
                 maxWidthFraction = maxWidthFraction,
-                keyboardContent = {
-                    message.keyboard?.let { keyboard ->
-                        BotKeyboardView(
-                            keyboard = keyboard,
-                            pressing = scope.pressingBotButton(message.id),
-                            onPress = { row, column -> bodyScope.act(MessageAction.PressBotButton(row, column)) },
-                        )
+                below = {
+                    Column(verticalArrangement = Arrangement.spacedBy(FACT_CHECK_GAP)) {
+                        message.factCheck?.let { check ->
+                            FactCheckCard(
+                                check = check,
+                                onLinkClick = { bodyScope.act(MessageAction.OpenLink(it)) },
+                                onLongClick = bodyScope::requestMenu,
+                            )
+                        }
+                        message.keyboard?.let { keyboard ->
+                            BotKeyboardView(
+                                keyboard = keyboard,
+                                pressing = scope.pressingBotButton(message.id),
+                                onPress = { row, column -> bodyScope.act(MessageAction.PressBotButton(row, column)) },
+                            )
+                        }
                     }
                 },
             ) {

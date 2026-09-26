@@ -431,6 +431,9 @@
     <string name="count_millions">%1$sM</string>
     <string name="post_views">Views: %1$s</string>
     <string name="post_author">Author: %1$s</string>
+    <string name="fact_check_title">Fact check</string>
+    <string name="fact_check_source">Added by independent fact-checkers.</string>
+    <string name="fact_check_country">Added by independent fact-checkers for %1$s.</string>
     <string name="post_forwards">Forwards: %1$s</string>
     <string name="comments_title">Comments</string>
     <string name="comments_unavailable">Couldn't open the comments</string>

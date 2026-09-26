@@ -45,9 +45,9 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * Zpráva a pod ní tlačítka bota, jako jeden kus.
+ * Zpráva a pod ní to, co k ní visí zespodu (kontrola faktů, tlačítka bota), jako jeden kus.
  *
- * **Tlačítka jsou aspoň tak široká jako zpráva, a jen když potřebují, širší** — do stropu šířky
+ * **Spodek je aspoň tak široký jako zpráva, a jen když potřebuje, širší** — do stropu šířky
  * zprávy ([maxWidthFraction]). Na šířku zprávy natvrdo by se u krátké otázky („Kolik je 2 + 3?")
  * nevešly ani popisky, přes celý řádek by zase tlačítka odtrhla od zprávy, ke které patří.
  * `IntrinsicSize` na to nejde použít: zpráva bývá fotka v `BoxWithConstraints` a ten intrinsické
@@ -56,18 +56,19 @@ import kotlin.math.min
  * Obojí se zarovnává ke straně odesílatele, jako zpráva sama.
  */
 @Composable
-internal fun WithBotKeyboard(
-    keyboard: BotKeyboard?,
+internal fun WithBelowMessage(
+    /** Visí pod zprávou něco? Bez toho se zpráva skládá sama, bez vlastního rozvržení. */
+    hasBelow: Boolean,
     isOutgoing: Boolean,
     maxWidthFraction: Float,
-    keyboardContent: @Composable () -> Unit,
+    below: @Composable () -> Unit,
     message: @Composable () -> Unit,
 ) {
-    if (keyboard == null) {
+    if (!hasBelow) {
         message()
         return
     }
-    Layout(contents = listOf(message, keyboardContent)) { (messages, keyboards), constraints ->
+    Layout(contents = listOf(message, below)) { (messages, keyboards), constraints ->
         val messagePlaceable = messages.first().measure(constraints)
         val maxWidth = if (constraints.hasBoundedWidth) {
             min((constraints.maxWidth * maxWidthFraction).toInt(), MAX_MESSAGE_WIDTH.roundToPx())
