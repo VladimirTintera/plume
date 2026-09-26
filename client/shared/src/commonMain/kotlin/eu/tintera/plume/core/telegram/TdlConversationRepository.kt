@@ -1674,6 +1674,11 @@ class TdlConversationRepository(
             autoDeleteAt = autoDeleteIn.takeIf { it > 0.0 }
                 ?.let { Clock.System.now().epochSeconds + ceil(it).toLong() },
             viaBot = viaBotUserId.takeIf { it != 0L }?.let { botUsername(it) },
+            // Ve skupině patří podpis (anonymní správce) k JMÉNU jako štítek; mimo skupinu je to
+            // podpis příspěvku kanálu. Soukromý chat podpis nenese.
+            authorSignature = authorSignature.ifBlank { null }?.takeIf { !isGroup },
+            senderTag = (senderTag.ifBlank { null } ?: authorSignature.ifBlank { null })
+                ?.takeIf { sender != null },
             effect = effectId.takeIf { it != 0L }?.let { messageEffect(it) },
             keyboard = (replyMarkup as? ReplyMarkupInlineKeyboard)?.toBotKeyboard(),
             poll = (content as? MessagePoll)?.toChatPoll(),

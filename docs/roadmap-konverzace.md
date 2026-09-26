@@ -490,8 +490,9 @@ snadno na to uživatel narazí.
     varuje už při otevření kanálu,
   - náhled odkazu, náhled souboru a samolepka v citlivé zprávě zůstávají ostré,
   - **omezený obsah** (`restrictionReason` bez citlivosti): věta od serveru místo obsahu.
-- ~~**„přes @bot"**~~ (`viaBotUserId`) — hotovo (`CLAUDE.md`, „Inline boti"). **Podpis autora**
-  v kanálu (`authorSignature`), **štítek člena** (`senderTag`) a **boosty odesílatele** (`senderBoostCount`)
+- ~~**„přes @bot"**~~ (`viaBotUserId`) — hotovo (`CLAUDE.md`, „Inline boti"). ~~**Podpis autora**
+  v kanálu (`authorSignature`) a **štítek člena** (`senderTag`)~~ — hotovo (`CLAUDE.md`, „Podpis
+  autora a štítek člena", ověřené jen sondou). Zbývají **boosty odesílatele** (`senderBoostCount`)
   u jména.
 - ~~**Efekty zprávy**~~ (`effectId` → `getMessageEffect`) — hotovo: značka vedle zprávy,
   animace po příchodu a ťuknutím (`CLAUDE.md`, „Efekty zprávy"). Zbývá:

@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.conversation.items
 
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.text.style.TextOverflow
+import eu.tintera.plume.resources.person_24dp
+import eu.tintera.plume.resources.post_author
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -56,23 +60,26 @@ internal fun PostFooter(
     isOutgoing: Boolean,
     onOpenComments: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Podpis autora příspěvku (kanál s podpisy); stojí v řádku před počty. */
+    signature: String? = null,
 ) {
     val comments = stats.comments
     if (comments == null) {
-        PostStatsRow(stats, modifier)
+        PostStatsRow(stats, modifier, signature)
         return
     }
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         // Čip u zprávy, počty za ním — u odchozí zprávy zrcadlově.
-        if (isOutgoing) PostStatsRow(stats)
+        if (isOutgoing) PostStatsRow(stats, signature = signature)
         CommentsChip(count = comments, onClick = onOpenComments)
-        if (!isOutgoing) PostStatsRow(stats)
+        if (!isOutgoing) PostStatsRow(stats, signature = signature)
     }
 }
 
 @Composable
-internal fun PostStatsRow(stats: PostStats, modifier: Modifier = Modifier) {
+internal fun PostStatsRow(stats: PostStats, modifier: Modifier = Modifier, signature: String? = null) {
     val description = buildList {
+        if (signature != null) add(stringResource(Res.string.post_author, signature))
         if (stats.views > 0) add(stringResource(Res.string.post_views, stats.views.grouped()))
         if (stats.forwards > 0) add(stringResource(Res.string.post_forwards, stats.forwards.grouped()))
     }.joinToString(", ")
@@ -85,6 +92,7 @@ internal fun PostStatsRow(stats: PostStats, modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.spacedBy(POST_STATS_SPACING),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (signature != null) Signature(signature)
         if (stats.views > 0) Stat(Res.drawable.visibility_24dp, stats.views)
         if (stats.forwards > 0) Stat(Res.drawable.forward_24dp, stats.forwards)
     }
@@ -121,6 +129,33 @@ internal fun CommentsChip(count: Int, onClick: () -> Unit, modifier: Modifier = 
         modifier = modifier.padding(top = POST_STATS_GAP, start = POST_STATS_INSET, end = POST_STATS_INSET),
     )
 }
+
+/**
+ * Podpis autora: ikona člověka a jméno, stejně drobně jako počty. Jméno se zkracuje — pod krátkým
+ * příspěvkem je řádek jen tak široký jako sloupec zprávy.
+ */
+@Composable
+private fun Signature(name: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        Icon(
+            painter = painterResource(Res.drawable.person_24dp),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(POST_STATS_ICON_SIZE),
+        )
+        Text(
+            text = name,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = SIGNATURE_MAX_WIDTH),
+        )
+    }
+}
+
+/** Nejdelší podpis v řádku; delší se zkrátí, aby počty vedle něj zůstaly vidět. */
+private val SIGNATURE_MAX_WIDTH = 160.dp
 
 @Composable
 private fun Stat(icon: DrawableResource, count: Int) {

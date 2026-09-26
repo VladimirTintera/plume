@@ -931,6 +931,16 @@ data class ChatMessage(
      * vidět jako drobné emoji a animace se přehraje nad ní (viz [MessageEffect]).
      */
     val effect: MessageEffect? = null,
+    /**
+     * Podpis autora příspěvku kanálu (`authorSignature`, kanál si podpisy zapíná); `null` jinde.
+     * Kreslí se v řádku pod příspěvkem, vedle počtů.
+     */
+    val authorSignature: String? = null,
+    /**
+     * Štítek odesílatele ve skupině za jménem: vlastní štítek člena (`senderTag`), u anonymního
+     * správce jeho podpis. `null` mimo skupinu a u vlastních zpráv — tam se nekreslí ani jméno.
+     */
+    val senderTag: String? = null,
     /** Tlačítka bota pod zprávou; `null` = žádná. */
     val keyboard: BotKeyboard? = null,
     /** Anketa nebo kvíz; [text] pak nese jen „Anketa: otázka" pro místa, kde se kreslit nedá. */

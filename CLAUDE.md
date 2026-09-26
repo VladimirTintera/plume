@@ -4171,6 +4171,27 @@ Ve skupině má cizí zpráva vlevo tvář odesílatele, aby se odesílatelé ne
 - **Tvář je mimo posouvaný `Box`** — při tažení na odpověď jede jen bublina.
 - **Zarovnaná ke spodní hraně bubliny.** U dlouhé zprávy by uprostřed nebylo poznat, kam patří.
 
+### Podpis autora a štítek člena
+
+Příspěvek kanálu s podpisy má v řádku pod sebou, před počty, ikonu člověka a jméno autora
+(`ChatMessage.authorSignature`, `PostStatsRow`). Ve skupině stojí za jménem odesílatele
+ztlumeně jeho štítek (`ChatMessage.senderTag`, `SenderName`).
+
+- **Podpis znamená dvě různé věci podle chatu.** V kanálu je to autor příspěvku a patří do
+  řádku pod příspěvkem; ve skupině ho nese anonymní správce (odesílatel = chat) a je to jeho
+  titul, takže patří k JMÉNU jako štítek. Rozhoduje převod zprávy podle `isGroup`, ne UI.
+- **Štítek člena je `Message.senderTag`** (TDLib 15; „custom title" správce ve stavu člena už
+  není, viz „Profil chatu"). Kreslí se jen tam, kde se kreslí jméno — tedy ve skupině, u cizí
+  zprávy a na začátku bloku.
+- **Jméno i štítek mají váhu BEZ vyplnění** a oba se zkracují: s vyplněním by si dlouhé jméno
+  a štítek rozdělily řádek napůl i tam, kde by se vešly celé.
+- **Řádek pod příspěvkem se kreslí i bez počtů, když je podpis** (prázdné `PostStats`).
+- **Podpis u přeposlané zprávy** („Kanál (Autor)") dělá `withSignature` odjinud, z původu.
+- **Ověřeno na emulátoru sondou** (necommituje se): zprávy od testovacího bota začínající
+  `#podpis` / `#stitek` převod dočasně obohatí o podpis a počty, resp. o jméno se štítkem
+  a jiného odesílatele (jinak by zpráva navázala na blok a jméno by se nekreslilo). Skutečný
+  kanál s podpisy ani skupina se štítky na testovacím účtu nejsou.
+
 ### Náhled odkazu
 
 Pod textem se zprávou s odkazem se kreslí náhled: web, titulek, popis a obrázek.
