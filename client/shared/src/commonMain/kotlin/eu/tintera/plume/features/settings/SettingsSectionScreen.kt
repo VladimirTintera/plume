@@ -82,6 +82,7 @@ fun SettingsSectionScreen(
                 SettingsSection.Notifications -> NotificationSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
                 SettingsSection.Appearance -> AppearanceSettings(viewModel = koinViewModel())
                 SettingsSection.Devices -> DevicesSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
+                SettingsSection.WhatsNew -> WhatsNewSettings()
             }
         }
     }
@@ -98,10 +99,17 @@ fun SettingsSectionScreen(
 internal fun SettingsGroup(
     title: StringResource,
     content: @Composable ColumnScope.() -> Unit,
+) = SettingsGroup(stringResource(title), content)
+
+/** Skupina s nadpisem, který není pevný text (verze a datum vydání v „Co je nového"). */
+@Composable
+internal fun SettingsGroup(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            stringResource(title),
+            title,
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(start = 16.dp),

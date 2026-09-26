@@ -198,6 +198,23 @@ fun Int.asDayLabel(): String {
 }
 
 /**
+ * Samotné datum, bez „dnes" a názvu dne — u údaje, který se čte jako záznam (vydání aplikace),
+ * ne jako pozice v konverzaci. Rok se dopisuje jen tehdy, když nesedí s letoškem.
+ */
+@Composable
+fun Int.asDate(): String {
+    val date = localDate()
+    val month = stringResource(date.month.name())
+    return if (date.year == localNowYear()) {
+        stringResource(Res.string.date_day_month, date.day, month)
+    } else {
+        stringResource(Res.string.date_day_month_year, date.day, month, date.year)
+    }
+}
+
+private fun localNowYear(): Int = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).year
+
+/**
  * Čas v BUDOUCNOSTI — konec ztlumení: dnes jen hodina, zítra slovem, jindy datum.
  *
  * [asDayLabel] je dělaný na minulost a budoucí den by vydával za „dnes".

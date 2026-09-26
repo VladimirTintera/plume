@@ -35,6 +35,8 @@ import eu.tintera.plume.resources.settings_section_general
 import eu.tintera.plume.resources.settings_section_general_summary
 import eu.tintera.plume.resources.settings_section_notifications
 import eu.tintera.plume.resources.settings_section_notifications_summary
+import eu.tintera.plume.resources.settings_section_whats_new
+import eu.tintera.plume.resources.settings_section_whats_new_summary
 import eu.tintera.plume.resources.settings_title
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
@@ -168,6 +170,7 @@ internal val SettingsSection.title: StringResource
         SettingsSection.Notifications -> Res.string.settings_section_notifications
         SettingsSection.Appearance -> Res.string.settings_section_appearance
         SettingsSection.Devices -> Res.string.settings_section_devices
+        SettingsSection.WhatsNew -> Res.string.settings_section_whats_new
     }
 
 /** Co v sekci je. Bez toho by ze seznamu dvou slov nebylo poznat, kde co hledat. */
@@ -177,6 +180,7 @@ private val SettingsSection.summary: StringResource
         SettingsSection.Notifications -> Res.string.settings_section_notifications_summary
         SettingsSection.Appearance -> Res.string.settings_section_appearance_summary
         SettingsSection.Devices -> Res.string.settings_section_devices_summary
+        SettingsSection.WhatsNew -> Res.string.settings_section_whats_new_summary
     }
 
 private val GROUP_CORNER = 20.dp

@@ -772,6 +772,16 @@
 
     <string name="settings_section_devices">Devices</string>
     <string name="settings_section_devices_summary">Where you're signed in, sign in with a QR code</string>
+    <string name="settings_section_whats_new">What's new</string>
+    <string name="settings_section_whats_new_summary">New features and fixes in each version</string>
+    <string name="changelog_release_title">Version %1$s · %2$s</string>
+    <string name="changelog_note_feature">New</string>
+    <string name="changelog_note_fix">Fix</string>
+    <string name="changelog_show_older">Show older versions</string>
+    <string name="changelog_empty">This build doesn't include the list of changes.</string>
+    <!-- Jazyk poznámek k vydání (cs/en). Z prostředků, aby se poznámky ukázaly v témže
+         jazyce, jaký Compose vybral pro zbytek obrazovky — i s jazykem nastaveným jen pro aplikaci. -->
+    <string name="changelog_note_language">en</string>
     <string name="error_fresh_session">For your security, other devices can be signed out only after this one has been signed in for about a day.</string>
     <string name="error_qr_login_expired">The QR code has expired. Scan the new one the other device is showing.</string>
     <string name="devices_link">Link a device with a QR code</string>

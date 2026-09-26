@@ -17,9 +17,11 @@ poznámky z tagu reprodukovatelné stejně jako verze.
     release_notes.py check <soubor>...                   – ověří formát a délku (PR check)
     release_notes.py play <prev-tag|""> <tag> <adresář>  – whatsnew-<locale> pro Google Play (PLAY_LANGS)
     release_notes.py markdown <prev-tag|""> <tag>        – sekce do popisu GitHub Release
+    release_notes.py bundle <soubor.kt>                  – historie vydání do aplikace (Co je nového)
 """
 
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -70,7 +72,9 @@ def parse(text, name):
 
 
 def git(*args):
-    return subprocess.run(["git", *args], check=True, capture_output=True, text=True).stdout
+    # Explicitně UTF-8: `text=True` by dekódoval kódováním systému a české znaky v poznámkách
+    # by se na stroji s jiným výchozím kódováním rozsypaly.
+    return subprocess.run(["git", *args], check=True, capture_output=True, encoding="utf-8").stdout
 
 
 def notes_between(prev, tag):
@@ -110,6 +114,75 @@ def play_text(notes, lang):
     return "\n".join(kept + [rest])
 
 
+TAG_PREFIX = "android-"
+# android-<versionName>-<versionCode>, u ručně vydané verze ještě `-manual`.
+TAG_VERSION = re.compile(r"^(\d+(?:\.\d+)*)-(\d+)(?:-.+)?$")
+
+
+def release_tags():
+    """Tagy vydání dosažitelné z HEAD, od nejstaršího.
+
+    Jen `--merged HEAD`: build ze starší větve nesmí slibovat verze, které v něm nejsou. Release
+    se staví přímo z tagu, takže aktuální vydání v seznamu je i se svými poznámkami.
+    """
+    tags = []
+    for tag in git("tag", "--merged", "HEAD", "-l", f"{TAG_PREFIX}*").splitlines():
+        match = TAG_VERSION.match(tag[len(TAG_PREFIX):])
+        if match:
+            version = match.group(1)
+            tags.append((tag, version, [int(part) for part in version.split(".")] + [int(match.group(2))]))
+    # Podle verze, ne abecedně (0.3.10 je po 0.3.9) — stejně jako `--sort=v:refname` v release.
+    return [(tag, version) for tag, version, _ in sorted(tags, key=lambda t: t[2])]
+
+
+def kotlin_string(value):
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"').replace("$", "\\$")
+    return f'"{escaped}"'
+
+
+def bundle(out_path):
+    """Kotlin se seznamem vydání od nejnovějšího — „Co je nového" v Nastavení.
+
+    Kotlin, ne resource: hodnota je dostupná synchronně na obou platformách a chyba v generátoru
+    spadne při překladu, ne za běhu. Vydání bez poznámek pro uživatele (jen `internal`) se vynechá.
+    """
+    tags = release_tags()
+    releases = []
+    for index, (tag, version) in enumerate(tags):
+        prev = tags[index - 1][0] if index else ""
+        notes = notes_between(prev, tag)
+        if not notes:
+            continue
+        seconds = git("log", "-1", "--format=%ct", tag).strip()
+        items = ",\n".join(
+            "            ChangelogNote(ChangelogNoteType.{}, cs = {}, en = {})".format(
+                note["type"].upper(), kotlin_string(note["cs"]), kotlin_string(note["en"])
+            )
+            for note in notes
+        )
+        releases.append(
+            "    ChangelogRelease(\n"
+            f"        version = {kotlin_string(version)},\n"
+            f"        date = {seconds},\n"
+            f"        notes = listOf(\n{items},\n        ),\n"
+            "    ),"
+        )
+
+    out = Path(out_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(
+        "// Generováno .github/scripts/release_notes.py z release-notes/ — needituj ručně.\n"
+        "package eu.tintera.plume.core.changelog\n"
+        "\n"
+        "internal val GENERATED_CHANGELOG: List<ChangelogRelease> = listOf(\n"
+        + "\n".join(reversed(releases))  # nejnovější vydání první
+        + "\n)\n",
+        encoding="utf-8",
+    )
+    print(f"bundle: {out} ({len(releases)} vydání z {len(tags)} tagů)")
+    return 0
+
+
 def main(argv):
     command = argv[1] if len(argv) > 1 else ""
     if command == "check" and len(argv) > 2:
@@ -147,6 +220,9 @@ def main(argv):
             print("\n".join(f"- {n[lang]}" for n in notes) or f"_{LOCALES[lang][2]}_")
             print()
         return 0
+
+    if command == "bundle" and len(argv) == 3:
+        return bundle(argv[2])
 
     print(__doc__, file=sys.stderr)
     return 2
