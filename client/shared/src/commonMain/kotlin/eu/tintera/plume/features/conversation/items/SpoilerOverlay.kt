@@ -21,6 +21,7 @@ import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.hazeBlur
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.media_sensitive
 import eu.tintera.plume.resources.media_spoiler
 import org.jetbrains.compose.resources.stringResource
 
@@ -55,7 +56,10 @@ internal fun Modifier.spoilerBlur(
 }
 
 /**
- * Odznak „Spoiler" nad skrytým médiem.
+ * Odznak „Spoiler" nad skrytým médiem, u citlivého obsahu „Citlivý obsah" ([sensitive]).
+ *
+ * Citlivé médium se skrývá toutéž cestou jako spoiler (viz `SensitiveContent`); liší se jen
+ * tím, co štítek říká — „spoiler" by u něj lhal o tom, proč je rozostřené.
  *
  * Samotné rozostření fotky nebo videa řeší [spoilerBlur] přímo na jejich obsahu,
  * tato vrstva zobrazuje pouze středový štítek s plynulým mizení při odhalení.
@@ -65,6 +69,7 @@ internal fun Modifier.spoilerBlur(
 internal fun SpoilerOverlay(
     visible: Boolean,
     modifier: Modifier = Modifier,
+    sensitive: Boolean = false,
 ) {
     AnimatedVisibility(
         visible = visible,
@@ -83,7 +88,7 @@ internal fun SpoilerOverlay(
                 modifier = Modifier.padding(8.dp),
             ) {
                 Text(
-                    text = stringResource(Res.string.media_spoiler),
+                    text = stringResource(if (sensitive) Res.string.media_sensitive else Res.string.media_spoiler),
                     style = MaterialTheme.typography.labelMedium,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 )

@@ -1353,7 +1353,7 @@ class TdlConversationRepository(
             senderId = senderId,
             text = body.text,
             entities = body.entities,
-            media = messageMedia(),
+            media = messageMedia(hideSensitive = client.hidesSensitive(this)),
             linkPreview = linkPreview(),
             reactions = interactionInfo.toReactions(),
             postStats = interactionInfo.toPostStats(),

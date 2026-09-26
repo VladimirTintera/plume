@@ -479,8 +479,15 @@ snadno na to uživatel narazí.
   otevře ten chat; `CLAUDE.md`, „Odpovědi"). **Ověřené jen sondou**, skutečnou odpověď
   z jiného chatu zatím nikdo neviděl. Zbývá **odpověď na příběh** (`MessageReplyToStory`),
   až budou příběhy, a náhled obrázku v citaci (dnes jen „Fotka").
-- **Citlivý a omezený obsah** (`restrictionInfo.hasSensitiveContent`, `restrictionReason`) —
-  oficiální klienti médium rozmažou s „Zobrazit". Dnes se kreslí bez upozornění.
+- ~~**Citlivý obsah**~~ — hotovo: fotka, video i GIF rozostřené se štítkem „Citlivý obsah",
+  odkrytí ťuknutím (`CLAUDE.md`, „Citlivý obsah"). Zbývá:
+  - **přepínač „Zobrazovat citlivý obsah"** v Nastavení (`setOption
+    ignore_sensitive_content_restrictions`, nabídnout jen s `can_ignore_sensitive_content_restrictions`);
+    volbu nastavenou jinde už aplikace respektuje,
+  - citlivý **chat** (`Supergroup.restrictionInfo`, `User.restrictionInfo`) — oficiální klient
+    varuje už při otevření kanálu,
+  - náhled odkazu, náhled souboru a samolepka v citlivé zprávě zůstávají ostré,
+  - **omezený obsah** (`restrictionReason` bez citlivosti): věta od serveru místo obsahu.
 - **„přes @bot"** (`viaBotUserId`) u zpráv poslaných inline botem, **podpis autora** v kanálu
   (`authorSignature`), **štítek člena** (`senderTag`) a **boosty odesílatele** (`senderBoostCount`)
   u jména.

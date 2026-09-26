@@ -182,6 +182,7 @@
     <string name="media_pause">Pozastavit</string>
     <string name="media_replay">Přehrát znovu</string>
     <string name="media_spoiler">Spoiler</string>
+    <string name="media_sensitive">Citlivý obsah</string>
     <string name="error_flood_wait_seconds">Moc rychle po sobě. Zkus to za %1$d s.</string>
     <string name="error_flood_wait_minutes">Moc rychle po sobě. Zkus to za %1$d min.</string>
     <string name="error_pin_limit">Víc chatů připnout nejde. Vyšší limit má Telegram Premium.</string>

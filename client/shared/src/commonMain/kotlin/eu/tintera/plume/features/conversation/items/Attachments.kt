@@ -181,7 +181,7 @@ internal fun MessageAttachment(
                                 modifier = Modifier.align(Alignment.Center),
                             )
                         } else if (media.hasSpoiler) {
-                            SpoilerOverlay(visible = !revealed)
+                            SpoilerOverlay(visible = !revealed, sensitive = media.isSensitive)
                         }
 
                         if (uploading) {
@@ -244,11 +244,15 @@ internal fun MessageAttachment(
         is MessageMedia.Animation -> BoxWithConstraints {
             // Stejný rámeček jako fotka a video: GIF na výšku se zúží, místo aby přišel o kraje.
             val frame = photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), fillWidth)
+            val revealedSpoilers = koinInject<RevealedSpoilers>()
+            val revealedIds by revealedSpoilers.revealed.collectAsState()
             AnimationBubble(
                 animation = media,
                 shape = pictureShape,
                 onRequestMenu = onRequestMenu,
                 modifier = Modifier.size(frame),
+                revealed = !media.hasSpoiler || messageId in revealedIds,
+                onReveal = { revealedSpoilers.reveal(messageId) },
             )
         }
 
@@ -523,7 +527,7 @@ internal fun VideoThumbnail(
             }
         }
         if (!isSelfDestruct && video.hasSpoiler) {
-            SpoilerOverlay(visible = !revealed)
+            SpoilerOverlay(visible = !revealed, sensitive = video.isSensitive)
         }
         if (!isSelfDestruct && revealed) {
             Surface(
