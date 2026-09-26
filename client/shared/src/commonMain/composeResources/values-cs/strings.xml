@@ -338,6 +338,8 @@
     <string name="conversation_discard_recording">Zahodit nahrávku</string>
     <string name="conversation_play_voice">Přehrát hlasovou zprávu</string>
     <string name="conversation_voice_progress">Průběh hlasové zprávy</string>
+    <string name="conversation_play_audio">Přehrát skladbu</string>
+    <string name="conversation_audio_progress">Průběh skladby</string>
     <string name="conversation_attachment_position">Příloha %1$d z %2$d</string>
     <string name="presence_recently">naposledy nedávno</string>
     <string name="presence_last_week">naposledy tento týden</string>

@@ -1403,6 +1403,34 @@ sealed interface MessageMedia {
     ) : MessageMedia
 
     /**
+     * Hudba nebo jiný zvuk (`MessageAudio`): přehrává se v bublině, tímtéž přehrávačem jako
+     * hlasovka — hraje tedy vždycky nejvýš jeden zvuk v aplikaci.
+     *
+     * [title] je název skladby, bez něj název souboru, bez obojího obecný popis; [performer]
+     * `null`, když ho soubor nenese. [coverFileId] je obal alba (náhled od serveru).
+     */
+    data class Audio(
+        val fileId: Int,
+        val title: String,
+        val performer: String?,
+        val fileName: String,
+        val mimeType: String,
+        val durationSeconds: Int,
+        val sizeBytes: Long,
+        val coverFileId: Int? = null,
+        val coverMinithumbnail: Minithumbnail? = null,
+    ) : MessageMedia {
+        /** Jako soubor — sdílení a „Uložit jako…" jdou stejnou cestou jako u dokumentu. */
+        fun asDocument(): Document = Document(
+            fileId = fileId,
+            fileName = fileName,
+            mimeType = mimeType,
+            sizeBytes = sizeBytes,
+            thumbnailFileId = null,
+        )
+    }
+
+    /**
      * Hlasovka: přehrává se přímo v bublině.
      *
      * [waveform] jsou hodnoty 0–31 rozbalené z Telegramu (viz `decodeWaveform`). [isListened]

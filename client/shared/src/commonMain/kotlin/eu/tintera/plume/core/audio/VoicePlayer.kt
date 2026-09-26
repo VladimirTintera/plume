@@ -98,7 +98,7 @@ data class VoicePlayback(
 }
 
 /**
- * Přehrávač hlasovek pro celou aplikaci — **hraje nejvýš jedna**. Spuštění jiné hlasovky tu
+ * Přehrávač hlasovek a hudby pro celou aplikaci — **hraje nejvýš jedna**. Spuštění jiné hlasovky tu
  * předchozí zastaví, stejně jako v Telegramu.
  *
  * Pozice se čte po [POSITION_TICK_MS] jen, když něco hraje; systémové přehrávače průběh samy
@@ -112,6 +112,8 @@ data class VoicePlayback(
  *
  * **Senzory u ucha sleduje jen po dobu, kdy se HRAJE** ([EarSensor]). Pauza je sundá taky: kdo si
  * hlasovku pozastavil, ten ji u ucha nedrží, a zhasínající displej by mu jen překážel.
+ * **Hudba u ucha nepřepíná vůbec** (`raiseToEar = false`): písnička do sluchátka nepatří
+ * a telefon v ruce při poslechu hudby by jen zhasínal displej.
  */
 class VoicePlayer(
     private val scope: CoroutineScope,
@@ -139,6 +141,7 @@ class VoicePlayer(
     val speed: StateFlow<VoiceSpeed> = settings.voiceSpeed
 
     private var engine: AudioEngine? = null
+    private var raiseToEar = true
     private var loadJob: Job? = null
     private var tickJob: Job? = null
     private val logger = Logger.withTag("VoicePlayer")
@@ -155,7 +158,7 @@ class VoicePlayer(
      * Pustí hlasovku, nebo u té, která už je vybraná, přepne pauzu. [path] se volá jen při novém
      * spuštění — stahování souboru tedy začne až tady.
      */
-    fun toggle(key: VoiceKey, path: suspend () -> String) {
+    fun toggle(key: VoiceKey, raiseToEar: Boolean = true, path: suspend () -> String) {
         val current = _state.value
         if (current?.key == key) {
             when {
@@ -165,12 +168,13 @@ class VoicePlayer(
             }
             return
         }
-        play(key, path)
+        play(key, raiseToEar, path)
     }
 
     /** Pustí hlasovku od začátku, ať byla vybraná, nebo ne. Tudy jde řetězení neposlechnutých. */
-    fun play(key: VoiceKey, path: suspend () -> String) {
+    fun play(key: VoiceKey, raiseToEar: Boolean = true, path: suspend () -> String) {
         stop()
+        this.raiseToEar = raiseToEar
         _state.value = VoicePlayback(key)
         loadJob = scope.launch {
             try {
@@ -239,6 +243,7 @@ class VoicePlayer(
      * KAŽDÉ změně, ne jednou na začátku — dají se připojit i uprostřed hlasovky.
      */
     private fun startListeningForEar() {
+        if (!raiseToEar) return
         earSensor.start { sensors ->
             val toEar = raisedToEar(sensors, headphonesConnected = engine?.headphonesConnected ?: false)
             scope.launch {

@@ -335,6 +335,8 @@
     <string name="conversation_discard_recording">Discard the recording</string>
     <string name="conversation_play_voice">Play the voice message</string>
     <string name="conversation_voice_progress">Voice message progress</string>
+    <string name="conversation_play_audio">Play the track</string>
+    <string name="conversation_audio_progress">Track progress</string>
     <string name="conversation_attachment_position">Attachment %1$d of %2$d</string>
     <string name="presence_recently">last seen recently</string>
     <string name="presence_last_week">last seen within a week</string>

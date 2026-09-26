@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -91,8 +92,6 @@ fun VoiceNoteContent(
 ) {
     val current = playback()
     val bars = remember(voice.waveform) { resampleWaveform(voice.waveform, VOICE_BARS) }
-    val haptics = LocalHapticFeedback.current
-
     Row(
         modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -131,40 +130,12 @@ fun VoiceNoteContent(
                     .width(VOICE_WAVEFORM_WIDTH)
                     .height(VOICE_WAVEFORM_HEIGHT)
                     .semantics { contentDescription = progressLabel }
-                    .pointerInput(active) {
-                        if (!active) return@pointerInput
-                        detectTapGestures { offset -> onSeek(offset.x / size.width) }
-                    }
-                    .pointerInput(active) {
-                        if (!active) return@pointerInput
-                        // Tik po dílcích, jak prst přejíždí sloupce — ne na každý pixel pohybu.
-                        var tickedBar = -1
-                        fun at(x: Float): Float = (x / size.width).coerceIn(0f, 1f)
-                        fun tickAt(fraction: Float) {
-                            val bar = (fraction * VOICE_BARS).toInt().coerceIn(0, VOICE_BARS - 1)
-                            if (bar != tickedBar) {
-                                tickedBar = bar
-                                haptics.tick()
-                            }
-                        }
-                        detectHorizontalDragGestures(
-                            onDragStart = { offset ->
-                                val fraction = at(offset.x)
-                                dragFraction = fraction
-                                tickAt(fraction)
-                            },
-                            onDragEnd = {
-                                dragFraction?.let(onSeek)
-                                dragFraction = null
-                            },
-                            onDragCancel = { dragFraction = null },
-                        ) { change, _ ->
-                            change.consume()
-                            val fraction = at(change.position.x)
-                            dragFraction = fraction
-                            tickAt(fraction)
-                        }
-                    },
+                    .seekGestures(
+                        active = active,
+                        steps = VOICE_BARS,
+                        onDrag = { dragFraction = it },
+                        onSeek = onSeek,
+                    ),
             )
 
             Row(
@@ -194,13 +165,67 @@ fun VoiceNoteContent(
 }
 
 /**
+ * Ťuknutí a tažení po průběhu posouvá přehrávání — u hlasovky po waveformu, u hudby po liště.
+ *
+ * Jen u vybraného zvuku ([active]); tažení `pointerInput` spotřebuje, takže se na průběhu
+ * nerozjede swipe na odpověď. Během tažení hlásí [onDrag] místo pod prstem (po puštění `null`)
+ * a tiká po [steps] dílcích, ne na každý pixel pohybu.
+ */
+internal fun Modifier.seekGestures(
+    active: Boolean,
+    steps: Int,
+    onDrag: (Float?) -> Unit,
+    onSeek: (Float) -> Unit,
+): Modifier = composed {
+    val haptics = LocalHapticFeedback.current
+    this
+        .pointerInput(active) {
+            if (!active) return@pointerInput
+            detectTapGestures { offset -> onSeek(offset.x / size.width) }
+        }
+        .pointerInput(active) {
+            if (!active) return@pointerInput
+            var tickedStep = -1
+            var dragFraction: Float? = null
+            fun at(x: Float): Float = (x / size.width).coerceIn(0f, 1f)
+            fun tickAt(fraction: Float) {
+                val step = (fraction * steps).toInt().coerceIn(0, steps - 1)
+                if (step != tickedStep) {
+                    tickedStep = step
+                    haptics.tick()
+                }
+            }
+            fun drag(fraction: Float) {
+                dragFraction = fraction
+                onDrag(fraction)
+                tickAt(fraction)
+            }
+            detectHorizontalDragGestures(
+                onDragStart = { offset -> drag(at(offset.x)) },
+                onDragEnd = {
+                    dragFraction?.let(onSeek)
+                    dragFraction = null
+                    onDrag(null)
+                },
+                onDragCancel = {
+                    dragFraction = null
+                    onDrag(null)
+                },
+            ) { change, _ ->
+                change.consume()
+                drag(at(change.position.x))
+            }
+        }
+}
+
+/**
  * Čip rychlosti u hrající hlasovky: ťuknutí přepne na další (1× → 1,5× → 2× → 1×).
  *
  * Jen tónovaný, ne plný akcent — hlavní ovládání je tlačítko přehrání a čip vedle času má být
  * k dispozici, ne přitahovat pozornost. Číslice jsou `tnum`, jinak by „1×" a „1,5×" cukaly.
  */
 @Composable
-private fun SpeedChip(speed: VoiceSpeed, accent: Color, onAccent: Color, onClick: () -> Unit) {
+internal fun SpeedChip(speed: VoiceSpeed, accent: Color, onAccent: Color, onClick: () -> Unit) {
     val haptics = LocalHapticFeedback.current
     val label = stringResource(
         when (speed) {

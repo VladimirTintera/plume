@@ -229,6 +229,7 @@ private val MessageMedia.carriesCaption: Boolean
         is MessageMedia.Animation,
         is MessageMedia.Document,
         is MessageMedia.VoiceNote,
+        is MessageMedia.Audio,
         is MessageMedia.Attachment,
         -> true
 

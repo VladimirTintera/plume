@@ -235,7 +235,10 @@ internal suspend fun MessageContent.previewTextOrNull(isOutgoing: Boolean): Stri
     is MessageVideo -> content.caption.text.ifBlankGet { getString(Res.string.media_video) }
     is MessageAnimation -> content.caption.text.ifBlankGet { getString(Res.string.content_gif) }
     is MessageDocument -> content.caption.text.ifBlankGet { getString(Res.string.content_file) }
-    is MessageAudio -> content.caption.text.ifBlankGet { getString(Res.string.content_audio) }
+    // Skladba se v náhledu pozná jménem — „Audio" u každé by v seznamu nic neřeklo.
+    is MessageAudio -> content.caption.text.ifBlank {
+        listOf(content.audio.performer, content.audio.title).filter { it.isNotBlank() }.joinToString(" – ")
+    }.ifBlankGet { getString(Res.string.content_audio) }
     is MessageVoiceNote -> content.caption.text.ifBlankGet { getString(Res.string.conversation_voice_message) }
     is MessageSticker -> content.sticker.emoji.ifBlankGet { getString(Res.string.media_sticker) }
     is MessageAnimatedEmoji -> content.emoji
@@ -654,7 +657,19 @@ internal suspend fun Message.messageMedia(
         fileName = content.document.fileName.ifBlankGet { getString(Res.string.content_file) },
     )
 
-    is MessageAudio -> MessageMedia.Attachment(label = getString(Res.string.content_audio), thumbnailFileId = null)
+    is MessageAudio -> content.audio.let { audio ->
+        MessageMedia.Audio(
+            fileId = audio.audio.id,
+            title = audio.title.ifBlank { audio.fileName }.ifBlankGet { getString(Res.string.content_audio) },
+            performer = audio.performer.ifBlank { null },
+            fileName = audio.fileName.ifBlank { audio.title }.ifBlankGet { getString(Res.string.content_audio) },
+            mimeType = audio.mimeType,
+            durationSeconds = audio.duration,
+            sizeBytes = audio.audio.expectedSize,
+            coverFileId = audio.albumCoverThumbnail.picture()?.file?.id,
+            coverMinithumbnail = audio.albumCoverMinithumbnail?.toDomain(),
+        )
+    }
     is MessageVoiceNote -> MessageMedia.VoiceNote(
         fileId = content.voiceNote.voice.id,
         durationSeconds = content.voiceNote.duration,
