@@ -1072,6 +1072,9 @@
     <string name="settings_on_device_ai_resume">Pokračovat ve stahování</string>
     <string name="settings_on_device_ai_not_enough_space">V telefonu není dost volného místa na model.</string>
     <string name="settings_privacy">Soukromí</string>
+    <string name="settings_sensitive_content">Zobrazovat citlivý obsah</string>
+    <string name="settings_sensitive_content_summary">Fotky a videa označené jako citlivé nebudou rozostřené. Platí pro účet na všech zařízeních.</string>
+    <string name="settings_sensitive_content_failed">Volbu se nepodařilo změnit.</string>
     <string name="settings_blocked">Blokovaní</string>
     <string name="settings_blocked_none">Nikoho nemáš zablokovaného</string>
     <string name="settings_blocked_summary">Blokovaní lidé a chaty ti nemůžou psát ani volat.</string>

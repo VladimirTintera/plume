@@ -5362,6 +5362,14 @@ rozostřené se štítkem „Citlivý obsah" a odkryje se ťuknutím (`Sensitive
   zpráva historie.
 - **Do notifikace citlivá fotka nejde nikdy**, ani s povolenou volbou: zamykací obrazovku
   vidí i ostatní.
+- **Přepínač „Zobrazovat citlivý obsah" je v Obecných → Soukromí** (`PrivacySettings`,
+  `SensitiveContentSettings`, testy `SensitiveContentViewModelTest`). Je to nastavení ÚČTU —
+  TDLib ho zapíše na server a platí na všech zařízeních, proto to podtitul říká. Nabízí se jen
+  s `can_ignore_sensitive_content_restrictions` (jinak TDLib zápis odmítne), přepínač se pohne
+  hned a po selhání se vrátí s větou pod sebou. Už převedené zprávy se nepřekreslí: příznak se
+  čte při převodu zprávy, projeví se po návratu do chatu.
+- **Přepínač se na testovacím účtu NEPŘEPÍNÁ bez souhlasu** — mění skutečný účet všude. Ověřeno
+  jen čtení: na emulátoru se ukázal zapnutý, protože ho účet má povolený z jiného klienta.
 - **GIF spoiler dřív NEUMĚL VŮBEC** (`MessageAnimation.hasSpoiler` se zahazoval) a hrál sám
   i schovaný. Skrytý GIF se teď nestahuje ani nepřehrává, dokud se neodkryje — pod rozostřením
   by se hýbal a prozradil, co skrývá.
