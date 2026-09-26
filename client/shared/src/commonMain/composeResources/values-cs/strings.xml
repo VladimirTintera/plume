@@ -1305,4 +1305,6 @@
     <string name="verification_fake">FALEŠNÝ</string>
     <string name="verification_scam_warning">Telegram tento účet označil jako podvod. Buď opatrný s penězi a osobními údaji.</string>
     <string name="verification_fake_warning">Telegram tento účet označil jako falešný. Může se vydávat za někoho jiného.</string>
+    <string name="message_effect">Efekt zprávy %1$s</string>
+    <string name="message_effect_play">Přehrát efekt znovu</string>
 </resources>

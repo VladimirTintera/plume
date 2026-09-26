@@ -3330,6 +3330,11 @@ private class ScreenItemScope(
     override fun claimDiceThrow(key: Long, timestamp: Int): Boolean =
         timestamp >= openedAt - ARRIVAL_TOLERANCE_SECONDS && diceThrown.add(key)
 
+    private val effectsPlayed = HashSet<Long>()
+
+    override fun claimEffect(key: Long, timestamp: Int): Boolean =
+        timestamp >= openedAt - ARRIVAL_TOLERANCE_SECONDS && effectsPlayed.add(key)
+
     /**
      * Navigace, sheet nad obrazovkou a systémový výběr umístění jsou věc obrazovky; všechno
      * ostatní jde do ViewModelu.

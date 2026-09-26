@@ -1674,6 +1674,7 @@ class TdlConversationRepository(
             autoDeleteAt = autoDeleteIn.takeIf { it > 0.0 }
                 ?.let { Clock.System.now().epochSeconds + ceil(it).toLong() },
             viaBot = viaBotUserId.takeIf { it != 0L }?.let { botUsername(it) },
+            effect = effectId.takeIf { it != 0L }?.let { messageEffect(it) },
             keyboard = (replyMarkup as? ReplyMarkupInlineKeyboard)?.toBotKeyboard(),
             poll = (content as? MessagePoll)?.toChatPoll(),
             externalReply = (replyTo as? MessageReplyToMessage)
@@ -1935,6 +1936,27 @@ class TdlConversationRepository(
 
     private var botUsernames: Pair<TdlClient, MutableMap<Long, String?>>? = null
     private val botUsernamesMutex = Mutex()
+
+    /**
+     * Efekt zprávy podle id. Efektů je pár desítek a v chatu se opakují, takže se pamatují —
+     * pro jednu instanci klienta: `fileId` animace platí jen v databázi, ze které přišel.
+     * Efekt, který server nevydá (zrušený, nedostupný), je `null` a zpráva se ukáže bez něj.
+     */
+    private suspend fun messageEffect(effectId: Long): MessageEffect? = effectsMutex.withLock {
+        val current = client
+        val cache = effects?.takeIf { it.first === current }?.second
+            ?: mutableMapOf<Long, MessageEffect?>().also { effects = current to it }
+        if (effectId in cache) return@withLock cache[effectId]
+        val effect = current.getMessageEffect(effectId = effectId).toResult()
+            .onFailure { logger.w(it) { "Efekt zprávy $effectId se nepodařilo načíst" } }
+            .getOrNull()
+            ?.toMessageEffect()
+        cache[effectId] = effect
+        effect
+    }
+
+    private var effects: Pair<TdlClient, MutableMap<Long, MessageEffect?>>? = null
+    private val effectsMutex = Mutex()
 
     private suspend fun MessageOrigin.toForwardOrigin(): ForwardOrigin = when (this) {
         is MessageOriginUser -> ForwardOrigin.User(senderUserId, resolveSender(senderUserId)?.title)

@@ -919,6 +919,11 @@ data class ChatMessage(
      * u zprávy napsané rovnou. U zprávy se ukazuje „přes @gif" a ťuknutí na něj dá bota do pole.
      */
     val viaBot: String? = null,
+    /**
+     * Efekt, se kterým zpráva odešla (konfety, srdce, oheň…); `null` = bez efektu. U zprávy je
+     * vidět jako drobné emoji a animace se přehraje nad ní (viz [MessageEffect]).
+     */
+    val effect: MessageEffect? = null,
     /** Tlačítka bota pod zprávou; `null` = žádná. */
     val keyboard: BotKeyboard? = null,
     /** Anketa nebo kvíz; [text] pak nese jen „Anketa: otázka" pro místa, kde se kreslit nedá. */
@@ -1735,3 +1740,19 @@ data class ChatAccess(
  * autoplay stáhl bez ptaní i desetimegabajtový soubor — nad ním se proto čeká na ťuknutí.
  */
 const val MAX_AUTOPLAY_ANIMATION_BYTES: Long = 5L * 1024 * 1024
+
+/**
+ * Efekt zprávy — animace, se kterou odesílatel zprávu poslal (`Message.effectId`).
+ *
+ * [emoji] je značka u zprávy; [animationFileId] je `.tgs`, který se přehraje nad ní. `null`, když
+ * animace není v `.tgs` (Compottie jiný formát neumí) — pak zůstane jen značka.
+ *
+ * [premium] = efekt je prémiová samolepka (její „prémiová animace"), ne efekt reakce. Kreslí se
+ * jinak velký: animace samolepky je navržená kolem samolepky, efekt reakce kolem malého emoji.
+ */
+data class MessageEffect(
+    val id: Long,
+    val emoji: String,
+    val animationFileId: Int?,
+    val premium: Boolean,
+)

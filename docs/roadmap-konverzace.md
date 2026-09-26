@@ -493,8 +493,12 @@ snadno na to uživatel narazí.
 - ~~**„přes @bot"**~~ (`viaBotUserId`) — hotovo (`CLAUDE.md`, „Inline boti"). **Podpis autora**
   v kanálu (`authorSignature`), **štítek člena** (`senderTag`) a **boosty odesílatele** (`senderBoostCount`)
   u jména.
-- **Efekty zprávy** (`effectId` → `getMessageEffect`) — animace (konfety, srdce) při prvním
-  zobrazení a značka u zprávy.
+- ~~**Efekty zprávy**~~ (`effectId` → `getMessageEffect`) — hotovo: značka vedle zprávy,
+  animace po příchodu a ťuknutím (`CLAUDE.md`, „Efekty zprávy"). Zbývá:
+  - **poslat zprávu s efektem** (podržení odesílacího tlačítka, `availableMessageEffectsUpdates`,
+    `sendMessage` s `effectId` — jen v soukromém chatu),
+  - přehrát efekt i u NEPŘEČTENÉ zprávy, která přišla před otevřením chatu (dnes jen ťuknutím),
+  - ověřit u odchozí zprávy (zrcadlení) a u efektu prémiové samolepky.
 - **Kontrola faktů** (`factCheck`) — poznámka pod zprávou v kanálu.
 - ~~**Automatické mazání** (`autoDeleteIn`)~~ — hotovo: čas smazání v „Informace", odznak chatu v hlavičce.
 

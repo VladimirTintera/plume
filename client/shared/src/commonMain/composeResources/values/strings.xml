@@ -1274,4 +1274,6 @@
     <string name="verification_fake">FAKE</string>
     <string name="verification_scam_warning">Telegram has flagged this account as a scam. Be careful with money and personal details.</string>
     <string name="verification_fake_warning">Telegram has flagged this account as fake. It may be impersonating someone else.</string>
+    <string name="message_effect">Message effect %1$s</string>
+    <string name="message_effect_play">Play the effect again</string>
 </resources>
