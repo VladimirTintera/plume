@@ -1199,6 +1199,7 @@ class TdlConversationRepository(
                         ?.let { ReplyQuote(text = it.text.text, position = it.position) },
                     draftLinkPreview = (chat.draftMessage?.content as? DraftMessageContentText)
                         ?.linkPreviewOptions?.toDomain(),
+                    verification = client.verificationOf(chat),
                 )
             }
 

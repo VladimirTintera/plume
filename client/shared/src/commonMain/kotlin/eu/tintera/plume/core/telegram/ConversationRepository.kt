@@ -679,6 +679,8 @@ data class ChatInfo(
     val draftLinkPreview: LinkPreviewOptions? = null,
     /** Citovaný úryvek odpovědi v konceptu, nebo `null` (odpověď na celou zprávu). */
     val draftReplyQuote: ReplyQuote? = null,
+    /** Ověřený, podvod, falešný (viz [Verification]) — štítek u jména v hlavičce. */
+    val verification: Verification? = null,
 )
 
 /**

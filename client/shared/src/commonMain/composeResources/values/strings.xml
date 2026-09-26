@@ -1193,4 +1193,9 @@
     <string name="poll_place_no_location">Places nearby are found using your device's location. Without it, they can't be searched.</string>
     <string name="poll_place_mine">My location</string>
     <string name="poll_place_mine_hint">Approximate location of this device</string>
+    <string name="verification_verified">Verified by Telegram</string>
+    <string name="verification_scam">SCAM</string>
+    <string name="verification_fake">FAKE</string>
+    <string name="verification_scam_warning">Telegram has flagged this account as a scam. Be careful with money and personal details.</string>
+    <string name="verification_fake_warning">Telegram has flagged this account as fake. It may be impersonating someone else.</string>
 </resources>

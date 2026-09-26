@@ -514,8 +514,10 @@ snadno na to uživatel narazí.
   nabídky bota `BotMenuButton`), inline boti (`@gif kočka` v poli), emoji podle slov.
 - **Naplánované zprávy a odeslání bez zvuku** (`schedulingState`, `getChatScheduledMessages`,
   `disableNotification`) — podržení odesílacího tlačítka.
-- **Ověření, podvod, falešný účet** (`verificationStatus`: `isVerified`, `isScam`, `isFake`)
-  u jména v hlavičce a v profilu. Štítek „Podvod" je bezpečnostní věc, ne ozdoba.
+- ~~**Ověření, podvod, falešný účet**~~ — hotovo: štítek u jména v seznamu chatů, v hlavičce
+  konverzace a v profilu, u podvodu a falešného s vysvětlením (`CLAUDE.md`, „Ověření a štítek
+  podvodu"). Zbývá značka ověření od bota (`botVerificationIconCustomEmojiId`, vlastní emoji)
+  a štítek u jména odesílatele ve skupině.
 - **Emoji status** u jména, **časovač automatického mazání chatu** v hlavičce a jeho nastavení.
 - **Překlad zprávy** (`translateMessageText`) a **shrnutí od serveru** (`summarizeMessage`,
   `summaryLanguageCode`) — vedle shrnutí v zařízení.

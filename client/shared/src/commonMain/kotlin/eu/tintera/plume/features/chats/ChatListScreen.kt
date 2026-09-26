@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.material3.LocalContentColor
+import eu.tintera.plume.core.ui.VerificationBadge
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.threshold
@@ -1167,19 +1169,36 @@ private fun ChatRow(
                             tint = secondaryColor,
                         )
                     }
-                    Text(
-                        text = chatTitle(chat.id, chat.title),
-                        // `bodyLarge` místo `titleMedium`: stejná velikost, ale běžný řez.
-                        // Polotučné jméno u KAŽDÉHO chatu znamená, že nevyčnívá žádný —
-                        // tučností se proto odlišuje jen nepřečtený, jako v Google Messages.
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = if (chat.hasUnread) FontWeight.SemiBold else null,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        // Plná váha: název roztlačí zbytek řádku doprava, takže čas sedí
-                        // na konci a nelepí se na jméno.
-                        modifier = Modifier.weight(1f).sharedNavText(chatTitleKey(chat.id)),
-                    )
+                    // Jméno a štítek ověření vyplní zbytek řádku, takže čas sedí na konci.
+                    // Jméno uvnitř má váhu BEZ vyplnění: dlouhé se zkrátí a štítek za ním
+                    // zůstane vidět, krátké nechá štítek hned za sebou.
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            text = chatTitle(chat.id, chat.title),
+                            // `bodyLarge` místo `titleMedium`: stejná velikost, ale běžný řez.
+                            // Polotučné jméno u KAŽDÉHO chatu znamená, že nevyčnívá žádný —
+                            // tučností se proto odlišuje jen nepřečtený, jako v Google Messages.
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = if (chat.hasUnread) FontWeight.SemiBold else null,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false).sharedNavText(chatTitleKey(chat.id)),
+                        )
+                        chat.verification?.let {
+                            VerificationBadge(
+                                verification = it,
+                                accent = accentOn(
+                                    background = containerColor,
+                                    accent = MaterialTheme.colorScheme.primary,
+                                    fallback = LocalContentColor.current,
+                                ),
+                            )
+                        }
+                    }
 
                     if (chat.isMuted) {
                         Icon(
