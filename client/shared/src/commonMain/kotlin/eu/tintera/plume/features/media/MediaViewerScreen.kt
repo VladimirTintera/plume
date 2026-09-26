@@ -99,6 +99,8 @@ import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.features.conversation.MessageDeleteDialog
 import eu.tintera.plume.features.conversation.ReactionPickerSheet
+import eu.tintera.plume.resources.menu_reply
+import eu.tintera.plume.resources.reply_24dp
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_reaction_24dp
 import eu.tintera.plume.resources.close_24dp
@@ -147,6 +149,12 @@ fun MediaViewerScreen(
     onBack: () -> Unit,
     onForward: (messageId: Long) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Odpovědět na zobrazenou zprávu: prohlížeč se zavře a odpověď se připraví v konverzaci pod
+     * ním. `null`, když pod prohlížečem konverzace toho chatu není (profil, anketa) — pak se
+     * tlačítko nekreslí, nebylo by kam se vrátit.
+     */
+    onReply: ((messageId: Long) -> Unit)? = null,
     /**
      * Čas v médiu: otevřít rovnou na celé obrazovce a hrát od téhle vteřiny; `NO_START` = ne.
      * Platí jen pro zprávu, se kterou se prohlížeč otevřel (`initialMessageId`).
@@ -211,6 +219,12 @@ fun MediaViewerScreen(
                 onReact = viewModel::toggleReaction,
                 onDelete = viewModel::requestDelete,
                 onForward = onForward,
+                onReply = onReply?.let { reply ->
+                    { messageId: Long ->
+                        viewModel.onDismiss()
+                        reply(messageId)
+                    }
+                },
                 onSave = { messageId ->
                     savePermission.request { granted ->
                         if (granted) viewModel.save(messageId) else viewModel.onSaveDenied()
@@ -287,6 +301,7 @@ private fun ViewerContent(
     onReact: (messageId: Long, emoji: String) -> Unit,
     onDelete: (messageId: Long) -> Unit,
     onForward: (messageId: Long) -> Unit,
+    onReply: ((messageId: Long) -> Unit)?,
     onSave: (messageId: Long) -> Unit,
     onShare: (messageId: Long) -> Unit,
     onSaveAs: ((messageId: Long) -> Unit)?,
@@ -504,7 +519,10 @@ private fun ViewerContent(
             settled = true
         }
         val emoji = current?.let { state.availableReactions[it.messageId] }.orEmpty()
-        val reactionsVisible = settled && !immersive && current != null && emoji.isNotEmpty() && !state.isSelfDestruct
+        // Odpovědět jde, jen když je kam (konverzace pod prohlížečem) a server to u zprávy dovolí.
+        val canReply = onReply != null && current != null && state.actions[current.messageId]?.canReply == true
+        val reactionsVisible = settled && !immersive && current != null && (emoji.isNotEmpty() || canReply) &&
+            !state.isSelfDestruct
         var reactionsArrived by remember { mutableStateOf(false) }
         LaunchedEffect(reactionsVisible) { if (reactionsVisible) reactionsArrived = true }
         val reactionsEnter = if (reactionsArrived) {
@@ -523,6 +541,11 @@ private fun ViewerContent(
                     item = current,
                     emoji = emoji,
                     onReact = { onReact(current.messageId, it) },
+                    onReply = if (canReply && onReply != null) {
+                        { onReply(current.messageId) }
+                    } else {
+                        null
+                    },
                 )
             }
         }
@@ -733,7 +756,13 @@ private fun BusyOr(busy: Boolean, content: @Composable () -> Unit) {
  * v konverzaci („1" je šum — že tam někdo je, říká už podsvícení).
  */
 @Composable
-private fun ReactionBar(item: ViewerItem, emoji: List<String>, onReact: (String) -> Unit) {
+private fun ReactionBar(
+    item: ViewerItem,
+    emoji: List<String>,
+    onReact: (String) -> Unit,
+    /** Odpovědět — na začátku lišty, jako v Google Zprávách; `null` = nekreslí se. */
+    onReply: (() -> Unit)?,
+) {
     var pickerOpen by remember { mutableStateOf(false) }
     val quick = emoji.take(QUICK_REACTIONS)
     val chosen = item.reactions.filter { it.isChosen }.map { it.emoji }.toSet()
@@ -750,6 +779,9 @@ private fun ReactionBar(item: ViewerItem, emoji: List<String>, onReact: (String)
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (onReply != null) {
+            ChromeIcon(Res.drawable.reply_24dp, stringResource(Res.string.menu_reply), onClick = onReply)
+        }
         quick.forEach { reaction ->
             val count = item.reactions.firstOrNull { it.emoji == reaction }?.count ?: 0
             Box {

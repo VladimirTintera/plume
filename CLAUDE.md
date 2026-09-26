@@ -5462,6 +5462,16 @@ jako tlačítko, název, interpret, lišta průběhu s posunem, čas a čip rych
 - **Ověřuje se dotazem na `MediaStore`**, ne pohledem do galerie: `adb shell "content query
   --uri content://media/external/images/media --projection _display_name:_size --where
   \"relative_path LIKE 'Pictures/Plume%'\""`. Velikost prozradí, jestli se uložila ostrá verze.
+- **Odpovědět jde přímo z prohlížeče** — šipka na začátku dolní lišty, jako v Google Zprávách.
+  Prohlížeč se zavře a v konverzaci pod ním je nad polem citace. Požadavek jde přes
+  `ConversationReplyRequests` — STAV, ne událost, jako hledání z profilu: konverzace se po
+  zavření prohlížeče teprve znovu skládá. **Nabízí se jen nad konverzací téhož chatu**
+  (`conversationBelow` v `AppShell`): z mřížky médií v profilu nebo z ankety by nebylo kam se
+  vrátit. Podle práva `canReply` stránky; lišta se kvůli odpovědi ukáže i bez reakcí
+  (Uložené zprávy je nemají).
+- **Fotka z prohlížeče nemusí být v načtené historii** — prohlížeč listuje médii celého chatu.
+  Odpověď si ji proto dočte (`repository.message`, lokálně); citace ji v seznamu mít nemusí.
+  Ověřeno na emulátoru odpovědí na fotku 31 ze 43: bot ji dostal s `reply_to_message` na ni.
 - **Reakce, přeposlání a smazání jsou přímo v prohlížeči.** Nabízené reakce a práva
   (`messageActions`) se načítají **pro stránku, na které uživatel stojí**, jednou za zprávu —
   stejný důvod jako u nabídky v konverzaci. Dokud nedorazí, akce se nekreslí. Smaže se jen

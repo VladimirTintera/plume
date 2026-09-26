@@ -270,9 +270,7 @@ Co zbývá:
     `Plume_<datum>_<čas>.jpg` a zaregistruje se i v MediaStore (`bucket_display_name=Plume`).
   - ~~**Sdílet a Uložit jako… u souborů v konverzaci**~~ — hotovo (položky nabídky nad
     zprávou `ShareFile` a `SaveFileAs`). Ověřit na iOS, kde je jen Sdílet.
-- **Odpověď z prohlížeče.** Google Zprávy mají vlevo v dolní liště tlačítko odpovědi. U nás by
-  muselo vrátit do konverzace s připravenou citací — konverzace je v zásobníku pod prohlížečem,
-  takže je potřeba cesta, jak jí požadavek předat (jako `ChatOpenRequests`).
+- ~~**Odpověď z prohlížeče**~~ — hotovo (šipka vlevo v dolní liště, `ConversationReplyRequests`).
 - **Přiblížení dvojitým ťuknutím a štípnutím po přestavbě na karty** je ověřené jen
   čtením kódu; `adb input` dvojité ťuknutí nestihne a štípnutí neumí.
 - **Samolepky `.webm`** (VP9 s průhledností) jsou pořád jen statický náhled — potřebují

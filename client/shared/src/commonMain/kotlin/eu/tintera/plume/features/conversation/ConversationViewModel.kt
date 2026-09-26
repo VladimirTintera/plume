@@ -242,6 +242,8 @@ class ConversationViewModel(
     placeRepository: PlaceRepository,
     /** Parametr ze startovacího odkazu bota, který čeká na tlačítko Start. */
     private val botStartRequests: BotStartRequests,
+    /** „Odpovědět" z prohlížeče médií. */
+    private val replyRequests: ConversationReplyRequests,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -391,6 +393,16 @@ class ConversationViewModel(
         viewModelScope.launch {
             voicePlayer.completions.collect { finished ->
                 if (finished.chatId == chatId) playNextUnlistened(after = finished.messageId)
+            }
+        }
+
+        // Odpovědět z prohlížeče médií: prohlížeč se zavře a odpověď se připraví tady.
+        viewModelScope.launch {
+            replyRequests.request.collect { request ->
+                if (request?.chatId == chatId) {
+                    replyRequests.consume(chatId)
+                    replyFromViewer(request.messageId)
+                }
             }
         }
 
@@ -2414,6 +2426,24 @@ class ConversationViewModel(
         _state.update { it.copy(replyingTo = message, replyQuote = quote, messageMenu = null) }
         // Citace je součást konceptu — jen když už se něco píše, jinak není co ukládat.
         if (draftText.isNotBlank()) scheduleDraftSave()
+    }
+
+    /**
+     * Odpověď z prohlížeče médií. Prohlížeč listuje fotkami celého chatu, takže zpráva nemusí být
+     * v načtené historii konverzace — pak se dočte (lokálně), citace ji nepotřebuje mít v seznamu.
+     */
+    private fun replyFromViewer(messageId: Long) {
+        if (!_state.value.canWrite) return
+        if (_state.value.messages.any { it.id == messageId }) {
+            replyTo(messageId)
+            return
+        }
+        viewModelScope.launch {
+            repository.message(chatId, messageId).onSuccess { message ->
+                _state.update { it.copy(replyingTo = message, replyQuote = null, messageMenu = null) }
+                if (draftText.isNotBlank()) scheduleDraftSave()
+            }
+        }
     }
 
     /** Ztlumit / zapnout zvuk kanálu z pruhu místo vstupního pole. Potvrzení přijde updatem. */
