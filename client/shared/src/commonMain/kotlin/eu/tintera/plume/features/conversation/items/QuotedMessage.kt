@@ -174,6 +174,7 @@ internal fun MessageMedia?.describe(): String = when (this) {
     is MessageMedia.Video -> stringResource(Res.string.media_video)
     is MessageMedia.Animation -> stringResource(Res.string.content_gif)
     is MessageMedia.VideoNote -> stringResource(Res.string.content_video_note)
+    is MessageMedia.Audio -> listOfNotNull(performer, title).joinToString(" – ")
     is MessageMedia.Document -> fileName
     is MessageMedia.Location -> title ?: stringResource(if (isLive) Res.string.content_live_location else Res.string.content_location)
     is MessageMedia.Call -> stringResource(outcome.title(isVideo))

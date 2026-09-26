@@ -232,8 +232,9 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageM
     }
     if (message.media is MessageMedia.Sticker) add(MessageMenuAction.ToggleFavoriteSticker)
     add(MessageMenuAction.Forward)
-    // Soubor, který není obrázek ani video, se do prohlížeče nedostane; ven jde odsud.
-    if (message.media is MessageMedia.Document) {
+    // Soubor, který není obrázek ani video, se do prohlížeče nedostane; ven jde odsud. Skladba
+    // je taky soubor — v bublině se jen přehrává.
+    if (message.media is MessageMedia.Document || message.media is MessageMedia.Audio) {
         add(MessageMenuAction.ShareFile)
         if (saveAsSupported) add(MessageMenuAction.SaveFileAs)
     }

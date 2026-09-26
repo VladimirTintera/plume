@@ -172,6 +172,25 @@ class MessageActionTest {
     }
 
     @Test
+    fun skladbaJdeSdiletJakoSoubor() {
+        val audio = MessageMedia.Audio(
+            fileId = 8,
+            title = "Pírko",
+            performer = "Plume Band",
+            fileName = "pirko.mp3",
+            mimeType = "audio/mpeg",
+            durationSeconds = 180,
+            sizeBytes = 4096,
+        )
+        assertTrue(MessageMenuAction.ShareFile in menuActions(message(text = "", media = audio), isPinned = false))
+        // Sdílení a uložení jdou cestou dokumentu — se jménem a typem souboru, ne názvem skladby.
+        val document = audio.asDocument()
+        assertEquals("pirko.mp3", document.fileName)
+        assertEquals("audio/mpeg", document.mimeType)
+        assertEquals(8, document.fileId)
+    }
+
+    @Test
     fun chranenySouborVenNesmi() {
         val protected = all.copy(canSave = false)
         val items = listOf(MessageMenuAction.ShareFile, MessageMenuAction.SaveFileAs)

@@ -447,9 +447,10 @@ snadno na to uživatel narazí.
 - ~~**Video kolečka** (`MessageVideoNote`)~~ — hotovo: kulatě bez bubliny, samy potichu ve
   smyčce, zvuk s průběhem po ťuknutí, zhlédnutí (`CLAUDE.md`, „Video kolečka"). Zbývá přepis
   řeči (`speechRecognitionResult`), **nahrávání kolečka** a ověřit zhlédnutí u odesílatele.
-- **Hudba** (`MessageAudio`) — jen popisek, nejde přehrát ani otevřít. Přehrávač s interpretem,
-  názvem a obalem alba (`albumCoverThumbnail`), navazování další skladby; `VoicePlayer` je
-  dobrý základ.
+- ~~**Hudba** (`MessageAudio`)~~ — hotovo: přehrávání v bublině s obalem, interpretem, posunem
+  a rychlostí, navazování další skladby, sdílení a uložení (`CLAUDE.md`, „Hudba"). Zbývá
+  ovládání z notifikace / zamykací obrazovky (hraje jen s otevřenou konverzací), přehrávání na
+  pozadí a hudba v prohlížeči médií profilu (záložka Hudba).
 - ~~**Poloha, živá poloha a místo**~~ — hotovo: statická mapa od Telegramu, ťuknutí do map
   platformy, u živé polohy do kdy se sdílí, odeslání polohy nebo místa ze sponky. Zbývá
   sdílení živé polohy (běh na pozadí), směr pohybu (`heading`) a upozornění na blízkost

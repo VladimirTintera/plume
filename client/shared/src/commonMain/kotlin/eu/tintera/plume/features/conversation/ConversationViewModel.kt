@@ -2756,7 +2756,11 @@ class ConversationViewModel(
         messageId: Long,
         use: suspend (path: String, document: MessageMedia.Document) -> Unit,
     ) {
-        val document = _state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Document ?: return
+        val document = when (val media = _state.value.messages.firstOrNull { it.id == messageId }?.media) {
+            is MessageMedia.Document -> media
+            is MessageMedia.Audio -> media.asDocument()
+            else -> return
+        }
 
         // Druhé ťuknutí během čekání ho zruší. Bez toho by se z rozbitého stahování (mrtvé spojení,
         // odpověď, která nedorazí) nedalo dostat ven — kolečko by se točilo napořád.
@@ -2813,6 +2817,11 @@ class ConversationViewModel(
      */
     private fun toggleVoice(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+        (message.media as? MessageMedia.Audio)?.let { audio ->
+            _state.update { it.copy(soundingVideoNote = null) }
+            voicePlayer.toggle(VoiceKey(chatId, messageId), raiseToEar = false) { filePath(audio.fileId) }
+            return
+        }
         val voice = message.media as? MessageMedia.VoiceNote ?: return
 
         // Zvuk hraje vždycky jen jeden: hlasovka umlčí kolečko a naopak.
@@ -2907,6 +2916,17 @@ class ConversationViewModel(
      * Vlastní odchozí hlasovku nikdo „neposlechl" v tomhle smyslu, takže na ní řetěz taky končí.
      */
     private fun playNextUnlistened(after: Long) {
+        // Skladby jdou jako playlist: po dohrání další novější skladba v chatu, poslechnutá
+        // nebo ne (u hudby „poslechnuto" neexistuje). Hlasovky se hudbou neřetězí a naopak.
+        val finished = _state.value.messages.firstOrNull { it.id == after }
+        if (finished?.media is MessageMedia.Audio) {
+            val next = _state.value.messages
+                .filter { it.id > after && it.media is MessageMedia.Audio }
+                .minByOrNull { it.id } ?: return
+            val audio = next.media as? MessageMedia.Audio ?: return
+            voicePlayer.play(VoiceKey(chatId, next.id), raiseToEar = false) { filePath(audio.fileId) }
+            return
+        }
         val next = _state.value.messages
             .filter { it.id > after && it.media is MessageMedia.VoiceNote }
             .minByOrNull { it.id }
@@ -2919,8 +2939,11 @@ class ConversationViewModel(
     }
 
     /** Počká na stažený soubor hlasovky; stahování začne až tímhle odběrem. */
-    private suspend fun voicePath(voice: MessageMedia.VoiceNote): String =
-        when (val file = fileRepository.file(voice.fileId).first { it is FileState.Ready || it is FileState.Failed }) {
+    private suspend fun voicePath(voice: MessageMedia.VoiceNote): String = filePath(voice.fileId)
+
+    /** Počká na stažený soubor; stahování začne až tímhle odběrem. */
+    private suspend fun filePath(fileId: Int): String =
+        when (val file = fileRepository.file(fileId).first { it is FileState.Ready || it is FileState.Failed }) {
             is FileState.Ready -> file.path
             is FileState.Failed -> error(file.message)
             else -> error("Nedosažitelné")

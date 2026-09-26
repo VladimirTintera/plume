@@ -4939,6 +4939,36 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
   spuštění nahrávání zastaví hrající hlasovku (nahrávala by se z reproduktoru).
 - **Odesílá se jako samolepka** (`sendMedia`): bez letu, rozepsaný text zůstává, citace se použije.
 
+## Hudba
+
+`MessageAudio` je `MessageMedia.Audio` a hraje přímo v bublině (`AudioContent`): obal alba
+jako tlačítko, název, interpret, lišta průběhu s posunem, čas a čip rychlosti.
+
+- **Hraje TENTÝŽ přehrávač jako hlasovky** (`VoicePlayer`, klíč `VoiceKey`, akce
+  `ToggleVoice`/`SeekVoice`). Zvuk je v aplikaci vždycky nejvýš jeden — skladba zastaví
+  hlasovku i kolečko se zvukem a naopak — a druhý přehrávač by to musel hlídat zvlášť.
+  `AudioEngine` hraje cokoli, co ne-Ogg: Android `MediaPlayer`, iOS `AVAudioPlayer` rovnou
+  (dekódování do WAV je jen pro Ogg/Opus).
+- **Hudba u ucha nepřepíná do sluchátka** (`raiseToEar = false`): senzory se vůbec nezapnou
+  (ověřeno `dumpsys sensorservice`), jinak by telefon v ruce při poslechu zhasínal displej.
+- **Po dohrání hraje další novější skladba v chatu** — playlist, bez ohledu na „poslechnuto",
+  které u hudby není. Hlasovky a skladby se mezi sebou neřetězí.
+- **Rychlost platí i pro hudbu** (jedna volba pro celou aplikaci, jako u hlasovek); u podcastů
+  se hodí, u písniček ji nikdo nezapne.
+- **Délku server znát nemusí** — Bot API ji u souboru bez metadat pošle jako nulu. „0:00" by
+  lhalo, takže se čas do spuštění neukazuje; skutečnou délku zjistí přehrávač.
+- **Sdílet a Uložit jako… jdou cestou souboru** (`Audio.asDocument()`, `withDocument`), se
+  jménem souboru, ne názvem skladby.
+- **Náhled v seznamu chatů je „Interpret – Název"**, ne „Audio" — u každé skladby stejné slovo
+  by nic neřeklo. Totéž v citaci.
+- **Android hraje s `CONTENT_TYPE_SPEECH` a přechodným audio focusem**, jako hlasovka. Pro hudbu
+  by seděl `MUSIC` a trvalý focus; rozdíl je v tom, jestli jiná hudební aplikace po skončení
+  sama naváže. Kdyby to vadilo, patří to do `audioAttributes` enginu podle druhu.
+- **Ověřuje se botem**: `sendAudio` s `title`, `performer` a `thumbnail` (obal). Zvuk se na Macu
+  vyrobí `say -o x.aiff "…"` a `afconvert -f m4af -d aac`. Ověřeno na emulátoru: obal i bez
+  obalu, přehrání s průběhem a čipem, navázání druhé skladby, sdílení, náhled v seznamu.
+  **Neověřeno**: iOS (jen přeložené), přerušení hovorem u hudby.
+
 ## Prohlížeč médií
 
 Ťuknutí na fotku nebo video v bublině je otevře přes celou obrazovku: u fotky štípnutí a dvojité

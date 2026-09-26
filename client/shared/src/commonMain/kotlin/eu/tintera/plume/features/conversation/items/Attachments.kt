@@ -52,6 +52,7 @@ import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.core.ui.photoKey
 import eu.tintera.plume.core.ui.rememberUploadProgress
 import eu.tintera.plume.core.ui.sharedNavElement
+import eu.tintera.plume.features.conversation.AudioContent
 import eu.tintera.plume.features.conversation.VoiceNoteContent
 import eu.tintera.plume.features.conversation.formatDuration
 import eu.tintera.plume.features.conversation.photoFrame
@@ -330,6 +331,17 @@ internal fun MessageAttachment(
         is MessageMedia.VideoNote -> VideoNoteBubble(note = media, handlers = videoNote, onRequestMenu = onRequestMenu)
 
         is MessageMedia.Contact -> ContactCard(contact = media, accent = accent, onWrite = onOpen)
+
+        is MessageMedia.Audio -> AudioContent(
+            audio = media,
+            playback = voice.playback,
+            speed = voice.speed,
+            onToggle = voice.onToggle,
+            onSeek = voice.onSeek,
+            onCycleSpeed = voice.onCycleSpeed,
+            accent = voice.accent,
+            onAccent = voice.onAccent,
+        )
 
         is MessageMedia.VoiceNote -> VoiceNoteContent(
             voice = media,
