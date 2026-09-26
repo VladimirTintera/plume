@@ -1191,6 +1191,10 @@
     <string name="poll_percent">%1$d %</string>
     <string name="poll_vote_button">Hlasovat</string>
     <string name="poll_show_voters">Kdo hlasoval</string>
+    <string name="poll_add_option">Přidat odpověď</string>
+    <string name="poll_add_option_title">Nová odpověď</string>
+    <string name="poll_add_option_confirm">Přidat</string>
+    <string name="poll_add_option_failed">Odpověď se nepodařilo přidat.</string>
     <string name="poll_results_hidden">Výsledky uvidíš, až anketa skončí</string>
     <string name="poll_restricted_membership">Hlasovat můžeš, až budeš ve skupině aspoň den</string>
     <string name="poll_restricted_country">V tvé zemi se v téhle anketě hlasovat nedá</string>

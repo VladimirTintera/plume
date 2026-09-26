@@ -868,6 +868,7 @@ internal fun MessagePoll.toChatPoll(): ChatPoll {
             )
         },
         restriction = poll.voteRestrictionReason?.toRestriction(),
+        canAddOption = canAddOption && !poll.isClosed,
     )
 }
 

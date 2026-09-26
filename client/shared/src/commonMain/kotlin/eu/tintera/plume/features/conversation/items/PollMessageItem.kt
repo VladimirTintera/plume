@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation.items
 
+import androidx.compose.foundation.layout.PaddingValues
+import eu.tintera.plume.resources.poll_add_option
+import eu.tintera.plume.resources.add_24dp
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
@@ -199,6 +202,24 @@ private fun MessageBodyScope.PollContent(poll: ChatPoll) {
                         },
                     )
                 }
+            }
+        }
+
+        // Vlastní odpověď jde přidat, jen když to anketa dovolí (rozhoduje server). Řádek sedí
+        // pod odpověďmi, kam nová přibude.
+        if (poll.canAddOption) {
+            TextButton(
+                onClick = { act(MessageAction.AddPollOption) },
+                colors = ButtonDefaults.textButtonColors(contentColor = accent),
+                contentPadding = PaddingValues(horizontal = 4.dp),
+                modifier = Modifier.padding(top = 4.dp),
+            ) {
+                Icon(
+                    painterResource(Res.drawable.add_24dp),
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = ButtonDefaults.IconSpacing).size(ButtonDefaults.IconSize),
+                )
+                Text(stringResource(Res.string.poll_add_option))
             }
         }
 

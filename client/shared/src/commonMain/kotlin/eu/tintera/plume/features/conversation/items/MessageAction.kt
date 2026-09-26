@@ -105,6 +105,9 @@ sealed interface MessageAction {
 
     /** Kdo v anketě jak hlasoval — sheet. */
     data object ShowPollVoters : MessageAction
+
+    /** „Přidat odpověď" pod anketou — dialog s polem. */
+    data object AddPollOption : MessageAction
     data class OpenLink(val url: String) : MessageAction
 
     /** `@jméno` v textu: najít veřejný chat a otevřít ho nad konverzací. */

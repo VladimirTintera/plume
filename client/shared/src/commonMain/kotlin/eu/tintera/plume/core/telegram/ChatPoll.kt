@@ -38,6 +38,11 @@ data class ChatPoll(
     val quiz: PollQuiz? = null,
     /** Proč uživatel hlasovat nemůže; `null` = může. */
     val restriction: PollRestriction? = null,
+    /**
+     * Smí uživatel přidat vlastní odpověď (`MessagePoll.canAddOption`, TDLib 15). Rozhoduje
+     * server: anketa to musí dovolit a odpovědí nesmí být plno.
+     */
+    val canAddOption: Boolean = false,
 ) {
     val hasVoted: Boolean get() = options.any { it.isChosen }
 
