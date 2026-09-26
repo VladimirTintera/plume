@@ -237,6 +237,7 @@ private val MessageMedia.carriesCaption: Boolean
         is MessageMedia.Dice,
         is MessageMedia.Location,
         is MessageMedia.Call,
+        is MessageMedia.Contact,
         -> false
     }
 
@@ -250,6 +251,8 @@ internal fun ChatMessage.copyableText(): String = text.ifBlank {
     when (val media = media) {
         is MessageMedia.AnimatedEmoji -> media.emoji
         is MessageMedia.Dice -> media.label
+        // Kontakt kopíruje jméno a číslo — to jediné, co z karty jde odnést jinam.
+        is MessageMedia.Contact -> listOf(media.name, media.phone).filter { it.isNotBlank() }.joinToString("\n")
         else -> ""
     }
 }

@@ -478,6 +478,8 @@ internal suspend fun Message.captionBody(): MessageBody = when (val content = th
     is MessageVideoNote, is MessageGame, is MessageInvoice -> MessageBody.Empty
     // Hovor je řádek s ikonou a názvem; text by ho zdvojil.
     is MessageCall -> MessageBody.Empty
+    // Kontakt je karta se jménem a číslem; „Kontakt: Jana" by ho zdvojil.
+    is MessageContact -> MessageBody.Empty
     // Mapa s názvem místa pod sebou; „Poloha" jako text by ji jen popisovala podruhé.
     is MessageLocation, is MessageLiveLocation, is MessageVenue -> MessageBody.Empty
     is MessagePaidMedia -> content.caption.toBody()
@@ -624,7 +626,11 @@ internal fun MessageSelfDestructType.toSelfDestructType(): SelfDestructType = wh
  * [hideSensitive] skryje fotku, video i GIF za rozostření jako spoiler (viz [SensitiveContent]);
  * rozhoduje o tom volající, protože k tomu potřebuje volbu z TDLib.
  */
-internal suspend fun Message.messageMedia(hideSensitive: Boolean = false): MessageMedia? = when (val content = this.content) {
+internal suspend fun Message.messageMedia(
+    hideSensitive: Boolean = false,
+    /** Profilovka sdíleného kontaktu (`MessageContact.userId`); `getUser` je na klientovi, ne tady. */
+    contactPhotoFileId: Int? = null,
+): MessageMedia? = when (val content = this.content) {
     is MessagePhoto -> content.photo.toMedia(
         hasSpoiler = content.hasSpoiler || hideSensitive,
         isSensitive = hideSensitive,
@@ -693,6 +699,13 @@ internal suspend fun Message.messageMedia(hideSensitive: Boolean = false): Messa
         outcome = content.outcome(isOutgoing),
         isVideo = content.isVideo,
         durationSeconds = content.duration,
+    )
+
+    is MessageContact -> MessageMedia.Contact(
+        name = "${content.contact.firstName} ${content.contact.lastName}".trim(),
+        phone = contactPhone(content.contact.phoneNumber),
+        userId = content.contact.userId.takeIf { it != 0L },
+        photoFileId = contactPhotoFileId,
     )
 
     is MessageInvoice -> MessageMedia.Attachment(
@@ -1004,3 +1017,13 @@ internal fun Photo.notificationImage(): File? {
 }
 
 private const val MAX_NOTIFICATION_EDGE = 800
+
+/**
+ * Číslo kontaktu, jak se ukazuje: s „+" na začátku. TDLib ho posílá, jak ho odesílatel uložil —
+ * mezinárodní bez plusu („420777…"), s plusem, nebo místní s mezerami. Plus se doplní jen
+ * číslu ze samých číslic; cokoli jiného zůstane, jak přišlo, protože nevíme, jak ho číst.
+ */
+internal fun contactPhone(raw: String): String {
+    val trimmed = raw.trim()
+    return if (trimmed.isNotEmpty() && trimmed.all { it.isDigit() }) "+$trimmed" else trimmed
+}

@@ -1486,6 +1486,19 @@ sealed interface MessageMedia {
         /** Nula u hovoru, ve kterém se nemluvilo (zmeškaný, zrušený). */
         val durationSeconds: Int,
     ) : MessageMedia
+
+    /**
+     * Sdílený kontakt (`MessageContact`): karta se jménem a číslem. [userId] je účet na
+     * Telegramu, kterému číslo patří — `null`, když na Telegramu není (pak nejde napsat,
+     * zbývá jen číslo). [photoFileId] je jeho profilovka, když ji TDLib zná.
+     */
+    data class Contact(
+        val name: String,
+        /** Číslo i s „+", jak se ukazuje. */
+        val phone: String,
+        val userId: Long?,
+        val photoFileId: Int? = null,
+    ) : MessageMedia
 }
 
 /** Přístup k chatu, jak se mění za běhu — viz [ConversationRepository.accessUpdates]. */

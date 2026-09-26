@@ -5558,6 +5558,24 @@ a kořenová zpráva), a otevře se `ConversationRoute(chatId = skupina, threadI
   s kořenem nahoře, zpět do kanálu. **Odeslání komentáře ověřené NENÍ** — veřejně by ho viděli
   všichni čtenáři kanálu.
 
+### Kontakt
+
+`MessageContact` je příloha `MessageMedia.Contact` a v bublině karta jako řádek souboru
+a hovoru: tvář, jméno, číslo a u kontaktu na Telegramu „Napsat zprávu" (soukromý chat přes
+`MessageAction.OpenUser`, `ContactCard`). Seznam chatů, citace i notifikace dál píšou
+„Kontakt: Jana".
+
+- **Tvář se dočítá lokálním `getUser`** při převodu zprávy (`contactPhotoFileId`) — TDLib
+  uživatele zná, když zná zprávu, která ho sdílí. Kontakt bez Telegramu (`userId` 0) má
+  iniciály ze jména.
+- **Číslo dostane „+", jen když je ze samých číslic** (`contactPhone`, testy
+  `ContactPhoneTest`). Místní číslo s mezerami zůstane, jak přišlo — plus by z něj udělal cizí.
+- **„Kopírovat" v nabídce kopíruje jméno a číslo** (`copyableText`); text zprávy je prázdný.
+- **„Přidat do kontaktů" zatím není** — mění adresář účtu. Až přibude, jen se souhlasem ověřit.
+- **Ověřuje se botem** (`sendContact`): fiktivní číslo dá kartu bez tlačítka; s `user_id`
+  vlastního účtu karta s fotkou a „Napsat zprávu" otevře Uložené zprávy. Zprávu s vlastním
+  číslem po ověření smazat (`deleteMessage`).
+
 ### Zpráva o hovoru
 
 `MessageCall` je příloha `MessageMedia.Call` a v bublině řádek jako u souboru: kolečko se

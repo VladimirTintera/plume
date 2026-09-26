@@ -12,6 +12,7 @@ import dev.g000sha256.tdl.dto.TextEntityTypeSpoiler
 import dev.g000sha256.tdl.dto.TextEntityTypeCustomEmoji
 import dev.g000sha256.tdl.dto.MessageContent
 import dev.g000sha256.tdl.dto.MessagePoll
+import dev.g000sha256.tdl.dto.MessageContact
 import dev.g000sha256.tdl.dto.ChatTypeSecret
 import dev.g000sha256.tdl.dto.UserTypeBot
 import dev.g000sha256.tdl.dto.OptionValueInteger
@@ -1464,7 +1465,13 @@ class TdlConversationRepository(
             senderId = senderId,
             text = body.text,
             entities = body.entities,
-            media = messageMedia(hideSensitive = client.hidesSensitive(this)),
+            media = messageMedia(
+                hideSensitive = client.hidesSensitive(this),
+                // Profilovka sdíleného kontaktu: `getUser` je lokální, TDLib uživatele zná, když
+                // zná zprávu, která ho sdílí.
+                contactPhotoFileId = (content as? MessageContact)?.contact?.userId?.takeIf { it != 0L }
+                    ?.let { client.getUser(userId = it).toResult().getOrNull()?.profilePhoto?.small?.id },
+            ),
             linkPreview = linkPreview(),
             reactions = interactionInfo.toReactions(),
             postStats = interactionInfo.toPostStats(),

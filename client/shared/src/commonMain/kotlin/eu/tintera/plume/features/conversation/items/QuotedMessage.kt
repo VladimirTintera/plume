@@ -34,6 +34,7 @@ import eu.tintera.plume.resources.conversation_voice_message
 import eu.tintera.plume.resources.media_photo
 import eu.tintera.plume.resources.media_sticker
 import eu.tintera.plume.resources.content_gif
+import eu.tintera.plume.resources.content_contact
 import eu.tintera.plume.resources.content_live_location
 import eu.tintera.plume.resources.content_location
 import eu.tintera.plume.resources.media_video
@@ -174,6 +175,7 @@ internal fun MessageMedia?.describe(): String = when (this) {
     is MessageMedia.Document -> fileName
     is MessageMedia.Location -> title ?: stringResource(if (isLive) Res.string.content_live_location else Res.string.content_location)
     is MessageMedia.Call -> stringResource(outcome.title(isVideo))
+    is MessageMedia.Contact -> stringResource(Res.string.content_contact, name.ifBlank { phone })
     null -> ""
 }
 
