@@ -93,6 +93,12 @@ internal interface ConversationItemScope {
      */
     fun claimArrival(key: Long, timestamp: Int): Boolean
 
+    /**
+     * Má hod kostkou s tímhle klíčem proběhnout před očima? Jen jednou a jen u hodu, který přišel
+     * (podle [timestamp]) až po otevření konverzace; z historie je vidět rovnou výsledek.
+     */
+    fun claimDiceThrow(key: Long, timestamp: Int): Boolean
+
     /** Jediná cesta akcí ze zprávy ven (viz [MessageAction]). */
     fun onAction(messageId: Long, action: MessageAction)
 
@@ -111,6 +117,12 @@ internal interface ConversationItemScope {
      * člověk má ve skupině tvář u každého bloku zpráv a o jeden klíč by se přetahovaly všechny.
      */
     fun isProfileFlight(messageId: Long): Boolean = false
+
+    /**
+     * Jde ťuknutím na `/příkaz` v textu poslat příkaz? Jen v chatu, do kterého se smí psát —
+     * jinde zůstane příkaz obyčejným textem. Čte se v kompozici textu.
+     */
+    fun canSendCommands(): Boolean = false
 
     /** Tlačítko bota u zprávy, na jehož odpověď se čeká (řádek, sloupec); `null` = žádné. */
     fun pressingBotButton(messageId: Long): Pair<Int, Int>? = null

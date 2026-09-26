@@ -2,6 +2,7 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.telegram.UnreadMarkKind
+import eu.tintera.plume.core.telegram.BotCommandItem
 import eu.tintera.plume.core.telegram.UnreadMarks
 import eu.tintera.plume.core.telegram.ChatReplyMarkup
 import eu.tintera.plume.core.telegram.PollComposerMode
@@ -323,6 +324,12 @@ class ConversationViewModel(
     init {
         viewModelScope.launch {
             voicePlayer.errors.collect { message -> _state.update { it.copy(error = message) } }
+        }
+
+        // Příkazy botů se čtou jednou při otevření; bot je mění zřídka a `getUserFullInfo` je
+        // po prvním dotazu lokální. Nezjištěné = žádné, napovídání se neukáže.
+        viewModelScope.launch {
+            repository.botCommands(chatId).onSuccess { commands -> _state.update { it.copy(botCommands = commands) } }
         }
 
         // Dohraná hlasovka pustí další neposlechnutou; která to je, ví jedině konverzace.
@@ -1413,6 +1420,8 @@ class ConversationViewModel(
         // Při úpravě v poli není koncept, ale text staré zprávy. Uložit ho jako koncept by přepsalo
         // ten odložený, a ohlašovat „píše…" kvůli opravě překlepu by protějšek mátlo.
         if (_state.value.editing != null) return
+        // Psaní zavře seznam příkazů otevřený tlačítkem; napovídání „/…" se řídí textem samo.
+        if (_state.value.commandsOpen) _state.update { it.copy(commandsOpen = false) }
 
         draftText = text
         scheduleDraftSave()
@@ -1934,6 +1943,28 @@ class ConversationViewModel(
         }
     }
 
+    /** Tlačítko příkazů u pole: otevře seznam, druhé ťuknutí ho zavře. */
+    fun toggleCommands() = _state.update { it.copy(commandsOpen = !it.commandsOpen) }
+
+    fun closeCommands() = _state.update { it.copy(commandsOpen = false) }
+
+    /**
+     * `/příkaz` ťuknutý v textu zprávy. Jde jako samostatná zpráva a **rozepsaný koncept nechá
+     * být** (`sendKeyboardText`, jako tlačítko vlastní klávesnice) — ťuknutí na příkaz v historii
+     * není odeslání toho, co je v poli. Kam se psát nesmí, tam se nepošle nic; příkaz se tam ani
+     * neukazuje jako klikatelný.
+     */
+    fun sendCommand(command: String) = sendBotCommand(command)
+
+    private fun sendBotCommand(command: String) {
+        if (!_state.value.canWrite) return
+        viewModelScope.launch {
+            repository.sendKeyboardText(chatId, command, replyToMessageId = null).onFailure { failure ->
+                _state.update { it.copy(error = failure.reported(Res.string.conversation_send_failed)) }
+            }
+        }
+    }
+
     fun sharePhone() {
         val keyboard = _state.value.replyMarkup as? ChatReplyMarkup.Keyboard
         _state.update { it.copy(confirmSharePhone = false) }
@@ -2219,6 +2250,7 @@ class ConversationViewModel(
             is MessageAction.OpenLink -> openLink(action.url)
             is MessageAction.OpenMention -> openMentioned { chatRepository.chatByUsername(action.username) }
             is MessageAction.OpenUser -> openMentioned { chatRepository.privateChat(action.userId) }
+            is MessageAction.SendBotCommand -> sendBotCommand(action.command)
             is MessageAction.OpenSenderProfile -> openSenderProfile(action.userId)
             is MessageAction.OpenForwardOrigin -> openForwardOrigin(action.origin)
             MessageAction.OpenComments -> openComments(messageId)
@@ -3370,6 +3402,10 @@ data class ConversationState(
     val invite: InviteSheetState? = null,
     /** Vlastní klávesnice bota nebo vynucená odpověď v chatu; `null` = žádná. */
     val replyMarkup: ChatReplyMarkup? = null,
+    /** Příkazy botů v chatu — napovídání po „/" a seznam z tlačítka u pole; prázdné = žádní boti. */
+    val botCommands: List<BotCommandItem> = emptyList(),
+    /** Seznam příkazů otevřený tlačítkem u pole (bez ohledu na to, co je v poli). */
+    val commandsOpen: Boolean = false,
     /** Tlačítko bota chce sdílet telefonní číslo a čeká se na potvrzení. */
     val confirmSharePhone: Boolean = false,
     /** Odkaz z tlačítka bota, který čeká na potvrzení; `null` = žádný. */

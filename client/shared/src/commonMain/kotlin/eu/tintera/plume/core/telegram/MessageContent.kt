@@ -8,6 +8,8 @@ import dev.g000sha256.tdl.dto.LinkPreviewTypeEmbeddedAnimationPlayer
 import dev.g000sha256.tdl.dto.LinkPreviewTypeEmbeddedVideoPlayer
 import dev.g000sha256.tdl.dto.LinkPreviewTypePhoto
 import dev.g000sha256.tdl.dto.LinkPreviewTypeVideo
+import dev.g000sha256.tdl.dto.DiceStickersRegular
+import dev.g000sha256.tdl.dto.DiceStickersSlotMachine
 import dev.g000sha256.tdl.dto.Document
 import dev.g000sha256.tdl.dto.Message
 import dev.g000sha256.tdl.dto.PollMedia
@@ -139,6 +141,7 @@ import dev.g000sha256.tdl.dto.StickerFormatWebp
 import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.dto.TextEntityTypeBlockQuote
 import dev.g000sha256.tdl.dto.TextEntityTypeBold
+import dev.g000sha256.tdl.dto.TextEntityTypeBotCommand
 import dev.g000sha256.tdl.dto.TextEntityTypeCode
 import dev.g000sha256.tdl.dto.TextEntityTypeCustomEmoji
 import dev.g000sha256.tdl.dto.TextEntityTypeEmailAddress
@@ -468,7 +471,8 @@ internal suspend fun Message.captionBody(): MessageBody = when (val content = th
     is MessageAnimatedEmoji ->
         if (content.animationFileId() != null) MessageBody.Empty else MessageBody(content.emoji)
 
-    is MessageDice -> MessageBody(content.diceText())
+    // Hod s animací je příloha a výsledek je v ní nakreslený; text by ho zdvojil.
+    is MessageDice -> if (content.toDiceMedia() != null) MessageBody.Empty else MessageBody(content.diceText())
 
     // Typy, které mají v bublině vlastní přílohu s popiskem — text by ho zdvojil.
     is MessageVideoNote, is MessageGame, is MessageInvoice -> MessageBody.Empty
@@ -525,6 +529,7 @@ private fun TextEntity.toEntity(text: String): MessageEntity? {
         is TextEntityTypeMention -> MessageEntityType.Mention(text.range(this).removePrefix("@"))
         is TextEntityTypeMentionName -> MessageEntityType.MentionUser(type.userId)
         is TextEntityTypeHashtag -> MessageEntityType.Hashtag(text.range(this))
+        is TextEntityTypeBotCommand -> MessageEntityType.BotCommand(text.range(this))
 
         is TextEntityTypeBold -> MessageEntityType.Bold
         is TextEntityTypeItalic -> MessageEntityType.Italic
@@ -583,6 +588,30 @@ private const val LIVE_FOREVER = 0x7FFFFFFF
 
 private fun MessageDice.diceText(): String = if (value > 0) "$emoji $value" else emoji
 
+/**
+ * Animace hodu, nebo `null` — pak zůstává text „🎲 6“.
+ *
+ * S výsledkem se bere koncová animace (`finalState`), bez něj úvodní. Automat se skládá z pěti
+ * vrstev a všechny musí být `.tgs`: bez kterékoli z nich by na obrázku chyběl válec, a hod by
+ * ukazoval jiný výsledek, než jaký padl. Koncová animace bez výsledku (nebo výsledek bez ní)
+ * nedává smysl, takže se na druhý stav nepadá — radši text.
+ */
+internal fun MessageDice.toDiceMedia(): MessageMedia.Dice? {
+    val stickers = (if (value > 0) finalState else initialState) ?: return null
+    val layers = when (stickers) {
+        is DiceStickersRegular -> listOf(stickers.sticker)
+        is DiceStickersSlotMachine -> listOf(
+            stickers.background,
+            stickers.lever,
+            stickers.leftReel,
+            stickers.centerReel,
+            stickers.rightReel,
+        )
+    }
+    if (layers.any { it.format !is StickerFormatTgs }) return null
+    return MessageMedia.Dice(emoji = emoji, value = value, layers = layers.map { it.sticker.id })
+}
+
 /** Náhled, který jde nakreslit jako obrázek — animovaný MPEG-4 Coil neotevře. */
 private fun Thumbnail?.picture(): Thumbnail? = this?.takeIf { it.format !is ThumbnailFormatMpeg4 }
 
@@ -638,6 +667,8 @@ internal suspend fun Message.messageMedia(
     is MessageAnimatedEmoji -> content.animationFileId()?.let { fileId ->
         MessageMedia.AnimatedEmoji(animationFileId = fileId, emoji = content.emoji)
     }
+
+    is MessageDice -> content.toDiceMedia()
 
     // Kolečko s videem. Náhled je čtvercový, kulatý ořez by patřil k přehrávání, které neumíme.
     is MessageVideoNote -> MessageMedia.Attachment(

@@ -459,8 +459,9 @@ snadno na to uživatel narazí.
   souhlasem) a **sdílet kontakt** ze sponky.
 - ~~**Hovory** (`MessageCall`)~~ — hotovo: řádek se směrem, zmeškáním a délkou
   (`CLAUDE.md`, „Zpráva o hovoru").
-- **Kostka** (`MessageDice`) — dnes „🎲 6". Animace hodu jsou samolepky od serveru
-  (`initialState` / `finalState`, `DiceStickers`), přehraje je `AnimatedSticker`.
+- ~~**Kostka** (`MessageDice`)~~ — hotovo: animace hodu od serveru, automat po vrstvách
+  (`CLAUDE.md`, „Hod kostkou"). Zbývá efekt výhry (`successAnimationFrameNumber`) a poslat
+  kostku z aplikace (samotné 🎲 dnes odejde jako text).
 - **Placená média** (`MessagePaidMedia`) — rozmazaný náhled s cenou (`extendedMedia`), po
   zaplacení běžná fotka/video. V kanálech časté, placení hvězdami ale zatím nemáme.
 - **Sdílený příběh** (`MessageStory`), **dárky, soutěže, faktury, hry** — dnes text. Stojí na
@@ -505,8 +506,7 @@ snadno na to uživatel narazí.
   mimo nabídnuté) a vlastní emoji ve výsledcích hledání zpráv (ukázka se ořezává, offsety by se
   musely posunout). V notifikaci zůstává náhradní znak záměrně. **Skutečná data od člověka
   ověřená nejsou** — bot nic z toho poslat nesmí (viz CLAUDE.md).
-- **Příkaz bota** (`BotCommand`) — dnes záměrně bez akce, jenže oficiální klienti ťuknutím
-  příkaz pošlou; v chatu s botem je to hlavní ovládání.
+- ~~**Příkaz bota** (`BotCommand`)~~ — hotovo: ťuknutí příkaz pošle (`CLAUDE.md`, „Příkazy bota“).
 - **Čas v médiu** (`MediaTimestamp`, `hasTimestampedMedia`) — „1:23" v popisku videa má skočit
   ve videu. **Datum a čas** (`DateTime`) — naformátovat v místním pásmu. Karta a cashtag
   jsou okrajové.
@@ -523,8 +523,10 @@ snadno na to uživatel narazí.
 - **Prázdný chat s botem** — popis „Co tento bot umí?" s obrázkem (`botInfo.description`,
   `photo`, `animation`) a tlačítko **Start** (`sendBotStartMessage`, i s parametrem z odkazu
   `t.me/bot?start=…`). Dnes prázdná konverzace a pole.
-- **Napovídání při psaní**: `@` členové skupiny, `/` příkazy bota (`getBotCommands`, tlačítko
-  nabídky bota `BotMenuButton`), inline boti (`@gif kočka` v poli), emoji podle slov.
+- **Napovídání při psaní**: ~~`/` příkazy bota~~ — hotovo i s tlačítkem seznamu příkazů
+  (`CLAUDE.md`, „Příkazy bota“; ve skupině ověřit příponu `@bot`). Zbývá `@` členové skupiny,
+  tlačítko nabídky bota s mini aplikací (`BotMenuButton`), inline boti (`@gif kočka` v poli)
+  a emoji podle slov.
 - **Naplánované zprávy a odeslání bez zvuku** (`schedulingState`, `getChatScheduledMessages`,
   `disableNotification`) — podržení odesílacího tlačítka.
 - ~~**Ověření, podvod, falešný účet**~~ — hotovo: štítek u jména v seznamu chatů, v hlavičce

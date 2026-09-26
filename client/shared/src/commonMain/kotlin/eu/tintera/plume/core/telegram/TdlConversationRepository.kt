@@ -69,6 +69,7 @@ import dev.g000sha256.tdl.dto.ButtonStyleDanger
 import dev.g000sha256.tdl.dto.CallbackQueryPayloadData
 import dev.g000sha256.tdl.dto.ChatActionCancel
 import dev.g000sha256.tdl.dto.ChatActionTyping
+import dev.g000sha256.tdl.dto.BotCommands
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
@@ -1283,6 +1284,37 @@ class TdlConversationRepository(
                 )
             }
 
+
+    override suspend fun botCommands(chatId: Long): Result<List<BotCommandItem>> = runCatching {
+        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+        // Bez `else`: nový druh chatu v novější TDLib má rozbít překlad, ne tiše přijít o příkazy.
+        when (val type = chat.type) {
+            is ChatTypePrivate -> client.getUserFullInfo(userId = type.userId).toResult().getOrNull()
+                ?.botInfo?.commands?.filterNotNull().orEmpty()
+                .map { BotCommandItem(it.command, it.description, botCommandText(it.command, null, inGroup = false)) }
+            // Tajný chat příkazy bota nemá — s botem tajný chat založit nejde.
+            is ChatTypeSecret -> emptyList()
+            is ChatTypeBasicGroup -> groupCommands(
+                client.getBasicGroupFullInfo(basicGroupId = type.basicGroupId).toResult().getOrNull()?.botCommands,
+            )
+            is ChatTypeSupergroup -> if (type.isChannel) {
+                emptyList()
+            } else {
+                groupCommands(
+                    client.getSupergroupFullInfo(supergroupId = type.supergroupId).toResult().getOrNull()?.botCommands,
+                )
+            }
+        }
+    }
+
+    /** Příkazy všech botů ve skupině, každý s jménem svého bota (viz [botCommandText]). */
+    private suspend fun groupCommands(bots: Array<BotCommands>?): List<BotCommandItem> =
+        bots.orEmpty().flatMap { bot ->
+            val username = client.getUser(userId = bot.botUserId).toResult().getOrNull()?.usernames?.editableUsername
+            bot.commands.filterNotNull().map {
+                BotCommandItem(it.command, it.description, botCommandText(it.command, username, inGroup = true))
+            }
+        }
 
     /**
      * Jestli se do chatu smí psát a jestli se k němu jde přidat.

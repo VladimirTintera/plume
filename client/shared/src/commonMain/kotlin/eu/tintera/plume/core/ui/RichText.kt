@@ -83,6 +83,12 @@ fun RichText(
      */
     onEntityClick: (MessageEntityType) -> Unit = {},
     /**
+     * Příkazy bota ([MessageEntityType.BotCommand]) jsou klikatelné a ťuknutí jde do
+     * [onEntityClick]. Jen tam, kde je komu příkaz poslat (bublina v konverzaci, do které se smí
+     * psát); jinde zůstanou obyčejným textem — modrý text, po kterém se nic nestane, je horší.
+     */
+    commandsClickable: Boolean = false,
+    /**
      * Dlouhý stisk NAD ODKAZEM. Mimo odkazy ho dostane rodič (bublina) sám.
      *
      * Odkaz je uvnitř `Text` samostatný `combinedClickable` bez `onLongClick`, a ten dlouhý stisk
@@ -186,10 +192,11 @@ fun RichText(
         customEmojiRanges(text, entities, spoilersRevealed)
     }
     val inlineContent = remember(customEmoji) { customEmojiInlineContent(customEmoji.map { it.second }.toSet()) }
-    val annotated = remember(text, entities, linkColor, contentColor, spoilersRevealed, visible, highlightColor, quoteIndent, customEmoji) {
+    val annotated = remember(text, entities, linkColor, contentColor, spoilersRevealed, visible, highlightColor, quoteIndent, customEmoji, commandsClickable) {
         buildMessageText(
             text = text,
             entities = entities,
+            commandsClickable = commandsClickable,
             quoteIndent = quoteIndent,
             highlights = visible,
             highlightColor = highlightColor,
@@ -285,6 +292,7 @@ fun RichText(
 private fun buildMessageText(
     text: String,
     entities: List<MessageEntity>,
+    commandsClickable: Boolean,
     /** `null` = citace se odsazuje `padding`em celého textu, ne odstavcem. */
     quoteIndent: TextUnit?,
     highlights: List<IntRange>,
@@ -332,7 +340,9 @@ private fun buildMessageText(
              * odchozí bublina: barva odkazu je tam barva textu (na `primary` jiná nejde), takže
              * bez podtržení by zmínka nebyla k poznání.
              */
-            is MessageEntityType.Mention, is MessageEntityType.MentionUser, is MessageEntityType.Hashtag -> addLink(
+            // Příkaz bota tam, kde není komu ho poslat, zůstane obyčejným textem.
+            is MessageEntityType.Mention, is MessageEntityType.MentionUser, is MessageEntityType.Hashtag,
+            is MessageEntityType.BotCommand -> if (type !is MessageEntityType.BotCommand || commandsClickable) addLink(
                 clickable = LinkAnnotation.Clickable(
                     tag = ENTITY_TAG,
                     styles = TextLinkStyles(

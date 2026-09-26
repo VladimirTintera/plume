@@ -127,6 +127,12 @@ sealed interface MessageAction {
      */
     data class OpenSenderProfile(val userId: Long) : MessageAction
 
+    /**
+     * `/příkaz` v textu: pošle se do chatu, jako u oficiálních klientů. Rozepsaný koncept se
+     * nemaže — ťuknutí na příkaz není odeslání toho, co je v poli.
+     */
+    data class SendBotCommand(val command: String) : MessageAction
+
     /** `#tag` v textu: hledání zpráv s tagem. Navigace — vyřizuje ji obrazovka, ne ViewModel. */
     data class SearchHashtag(val tag: String) : MessageAction
 
