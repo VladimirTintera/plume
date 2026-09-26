@@ -56,6 +56,12 @@ sealed interface MessageEntityType {
     /** `#tag` — vede na hledání zpráv s tím tagem. [tag] je i s mřížkou, tak se i hledá. */
     data class Hashtag(val tag: String) : MessageEntityType
 
+    /**
+     * Příkaz bota (`/start`, ve skupině i `/start@bot`) — ťuknutí ho pošle do chatu, jako
+     * u oficiálních klientů. [command] je celý text úseku i s lomítkem, tak se i posílá.
+     */
+    data class BotCommand(val command: String) : MessageEntityType
+
     data object Bold : MessageEntityType
 
     data object Italic : MessageEntityType

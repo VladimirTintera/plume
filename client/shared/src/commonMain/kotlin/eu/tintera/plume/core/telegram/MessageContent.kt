@@ -139,6 +139,7 @@ import dev.g000sha256.tdl.dto.StickerFormatWebp
 import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.dto.TextEntityTypeBlockQuote
 import dev.g000sha256.tdl.dto.TextEntityTypeBold
+import dev.g000sha256.tdl.dto.TextEntityTypeBotCommand
 import dev.g000sha256.tdl.dto.TextEntityTypeCode
 import dev.g000sha256.tdl.dto.TextEntityTypeCustomEmoji
 import dev.g000sha256.tdl.dto.TextEntityTypeEmailAddress
@@ -523,6 +524,7 @@ private fun TextEntity.toEntity(text: String): MessageEntity? {
         is TextEntityTypeMention -> MessageEntityType.Mention(text.range(this).removePrefix("@"))
         is TextEntityTypeMentionName -> MessageEntityType.MentionUser(type.userId)
         is TextEntityTypeHashtag -> MessageEntityType.Hashtag(text.range(this))
+        is TextEntityTypeBotCommand -> MessageEntityType.BotCommand(text.range(this))
 
         is TextEntityTypeBold -> MessageEntityType.Bold
         is TextEntityTypeItalic -> MessageEntityType.Italic

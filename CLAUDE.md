@@ -3878,6 +3878,38 @@ polem; doména `ChatReplyMarkup`, zdroj `ConversationRepository.replyMarkup`.
   `input_field_placeholder`, `request_contact`, `request_location`; pak `force_reply`).
   **Odeslání čísla ověřené není**, jen dialog.
 
+### Příkazy bota
+
+`/příkaz` v textu zprávy je klikatelný a ťuknutí ho pošle (`MessageEntityType.BotCommand`),
+po napsání „/" nad polem napovídá seznam příkazů a v chatu s botem je u pole tlačítko s robotem,
+které seznam otevře celý (`BotCommandsPanel`, doména `BotCommandItem`, pravidla
+`commandSuggestions` a `botCommandText`, testy `BotCommandsTest`).
+
+- **Příkazy se čtou z plných údajů** (`botCommands`): v soukromém chatu `UserFullInfo.botInfo
+  .commands`, ve skupině `BotCommands` všech botů z `BasicGroupFullInfo` / `SupergroupFullInfo`.
+  Kanál a chat s člověkem žádné — tlačítko se tam neukáže. Čtou se jednou při otevření chatu.
+- **Ve skupině se posílá `/příkaz@jmeno_bota`.** Botů tam může být víc a holý příkaz by dostali
+  všichni, nebo žádný (podle soukromí bota). Tak to dělají i oficiální klienti. Příkaz ťuknutý
+  v textu jde tak, jak v textu stojí.
+- **Příkaz v textu je klikatelný jen tam, kam se smí psát** (`ConversationItemScope
+  .canSendCommands`, `RichText(commandsClickable)`). Jinde — kanál bez práva psát, profil,
+  anketa — zůstane obyčejným textem: modrý text, po kterém se nic nestane, je horší.
+- **Ťuknutí na příkaz v textu nemaže koncept** (`sendKeyboardText`, jako tlačítko vlastní
+  klávesnice). Návrh z napovídání naopak pole vyprázdní i s konceptem — rozepsané „/st" byl ten
+  příkaz.
+- **Napovídání je jen pro text bez mezery** (`commandSuggestions`): po mezeře uživatel píše
+  argument nebo větu, která náhodou začíná lomítkem. Část za `@` se ignoruje.
+- **Nad polem, ne ve sheetu**, jako vlastní klávesnice bota: napovídání se mění s každým
+  písmenem a sheet by se o klávesnici přetahoval. Seznam z tlačítka zavře psaní i gesto zpět.
+- **Ikona je robot (`smart_toy`)** — oficiální klient má pilulku „Menu", jenže tři čárky se
+  v Material čtou jako navigační zásuvka.
+- **Ověřeno testovacím botem**: `setMyCommands` (tři příkazy), zpráva s příkazy v textu. Seznam
+  z tlačítka, napovídání po „/n", ťuknutí na návrh (pole prázdné) i na příkaz v textu — všechny
+  tři příkazy dorazily botovi (`getUpdates`). V Uložených zprávách tlačítko není. **Skupina
+  s botem ověřená není** (přípona `@bot`) — do skutečných skupin se testovací zprávy nepíšou.
+- **Tlačítko nabídky bota (`BotMenuButton`) je mini aplikace** a ta se zatím jen vysvětluje;
+  seznam příkazů ji nenahrazuje.
+
 ### Profilovky ve skupině
 
 Ve skupině má cizí zpráva vlevo tvář odesílatele, aby se odesílatelé nerozlišovali jen jménem.
