@@ -454,8 +454,9 @@ snadno na to uživatel narazí.
   platformy, u živé polohy do kdy se sdílí, odeslání polohy nebo místa ze sponky. Zbývá
   sdílení živé polohy (běh na pozadí), směr pohybu (`heading`) a upozornění na blízkost
   (`proximityAlertRadius`).
-- **Kontakt** (`MessageContact`) — karta se jménem a číslem, „Napsat" (`userId`), přidat
-  do kontaktů.
+- ~~**Kontakt** (`MessageContact`)~~ — hotovo: karta s tváří, jménem a číslem, „Napsat
+  zprávu" (`CLAUDE.md`, „Kontakt"). Zbývá **přidat do kontaktů** (mění adresář, ověřit jen se
+  souhlasem) a **sdílet kontakt** ze sponky.
 - ~~**Hovory** (`MessageCall`)~~ — hotovo: řádek se směrem, zmeškáním a délkou
   (`CLAUDE.md`, „Zpráva o hovoru").
 - **Kostka** (`MessageDice`) — dnes „🎲 6". Animace hodu jsou samolepky od serveru

@@ -319,6 +319,8 @@ internal fun MessageAttachment(
 
         is MessageMedia.Call -> CallRow(call = media, accent = accent)
 
+        is MessageMedia.Contact -> ContactCard(contact = media, accent = accent, onWrite = onOpen)
+
         is MessageMedia.VoiceNote -> VoiceNoteContent(
             voice = media,
             playback = voice.playback,

@@ -1258,6 +1258,8 @@ private fun MessageBodyScope.openMedia(media: MessageMedia) {
     when (media) {
         is MessageMedia.Sticker -> if (media.setId != 0L) act(MessageAction.OpenStickerSet(media.setId))
         is MessageMedia.Location -> act(MessageAction.OpenLink(media.mapUrl))
+        // „Napsat zprávu" u kontaktu na Telegramu: soukromý chat s ním.
+        is MessageMedia.Contact -> media.userId?.let { act(MessageAction.OpenUser(it)) }
         else -> act(MessageAction.OpenMedia)
     }
 }

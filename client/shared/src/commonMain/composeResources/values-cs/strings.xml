@@ -724,6 +724,7 @@
     <string name="conversation_unread_mark_failed">Další se nepodařilo najít</string>
     <string name="conversation_read_all_mentions">Označit všechny zmínky jako přečtené</string>
     <string name="conversation_read_all_reactions">Označit všechny reakce jako přečtené</string>
+    <string name="contact_write">Napsat zprávu</string>
     <string name="conversation_read_all_poll_votes">Označit všechny hlasy jako přečtené</string>
     <plurals name="conversation_unread_mentions">
         <item quantity="one">%1$d nepřečtená zmínka</item>

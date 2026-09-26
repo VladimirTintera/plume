@@ -236,6 +236,7 @@ private val MessageMedia.carriesCaption: Boolean
         is MessageMedia.AnimatedEmoji,
         is MessageMedia.Location,
         is MessageMedia.Call,
+        is MessageMedia.Contact,
         -> false
     }
 
@@ -246,4 +247,11 @@ private val MessageMedia.carriesCaption: Boolean
  * dřív, když bylo textovou zprávou, to šlo.
  */
 internal fun ChatMessage.copyableText(): String =
-    text.ifBlank { (media as? MessageMedia.AnimatedEmoji)?.emoji.orEmpty() }
+    text.ifBlank {
+        when (val media = media) {
+            is MessageMedia.AnimatedEmoji -> media.emoji
+            // Kontakt kopíruje jméno a číslo — to jediné, co z karty jde odnést jinam.
+            is MessageMedia.Contact -> listOf(media.name, media.phone).filter { it.isNotBlank() }.joinToString("\n")
+            else -> ""
+        }
+    }
