@@ -135,9 +135,12 @@ val LocalSharedElementClip = compositionLocalOf<SharedElementClip?> { null }
  * ne skokem, ale **spolu s letem** (viz [sharedElementClipRect]): na začátku, kdy je prvek ještě
  * na druhé obrazovce, neořezává nic, a dosedne přesně tam, kde ho ořezává seznam. Skokový ořez by
  * hned v prvním snímku ukrojil kus celoobrazovkové fotky.
+ *
+ * [zIndexInOverlay] řadí prvky v překryvu: co leží na jiném sdíleném prvku (tečka dostupnosti
+ * na avataru), musí mít vyšší, jinak ho letící avatar přikryje.
  */
 @Composable
-fun Modifier.sharedNavElement(key: String): Modifier {
+fun Modifier.sharedNavElement(key: String, zIndexInOverlay: Float = 0f): Modifier {
     val shared = LocalSharedTransitionScope.current ?: return this
     if (LocalTwoPane.current) return this
     val scope = LocalNavAnimatedContentScope.current
@@ -150,6 +153,7 @@ fun Modifier.sharedNavElement(key: String): Modifier {
                 sharedContentState = state,
                 animatedVisibilityScope = scope,
                 boundsTransform = { _, _ -> flightSpec },
+                zIndexInOverlay = zIndexInOverlay,
             )
         } else {
             // Kreslí se prvek, který se stává viditelným, takže jeho přechod jde PreEnter → Visible.
@@ -163,6 +167,7 @@ fun Modifier.sharedNavElement(key: String): Modifier {
                 sharedContentState = state,
                 animatedVisibilityScope = scope,
                 boundsTransform = { _, _ -> flightSpec },
+                zIndexInOverlay = zIndexInOverlay,
                 clipInOverlayDuringTransition = clip,
             )
         }
@@ -243,6 +248,14 @@ fun Modifier.sharedNavText(key: String): Modifier {
 fun chatAvatarKey(chatId: Long): String = "chat-avatar-$chatId"
 
 fun chatTitleKey(chatId: Long): String = "chat-title-$chatId"
+
+/**
+ * Tečka „je online" na avataru letí VLASTNÍM sdíleným prvkem, ne s avatarem. Avatar se sdílí
+ * sám (profil a tvář odesílatele tečku nemají), takže tečka mimo něj zůstávala na obrazovce:
+ * avatar odletěl bez ní a tečka se k němu přilepila, až dosedl. Obě strany mají tutéž pružinu,
+ * takže tečka drží roh avataru po celou dobu letu. Viz [OnlineDot].
+ */
+fun chatOnlineDotKey(chatId: Long): String = "chat-online-dot-$chatId"
 
 /**
  * Letí fotka z mřížky sdílených médií v profilu, ne z bubliny v konverzaci?

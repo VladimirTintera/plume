@@ -1161,7 +1161,7 @@ private fun ChatRow(
                 // Tečka sedí NA avataru, ne vedle jména: v seznamu se očima jede po levém
                 // sloupci, takže se dostupnost přečte spolu s tím, kdo to je.
                 if (chat.presence is Presence.Online) {
-                    OnlineDot(rim = containerColor, modifier = Modifier.align(Alignment.BottomEnd))
+                    OnlineDot(rim = containerColor, modifier = Modifier.align(Alignment.BottomEnd), chatId = chat.id)
                 }
             }
 
