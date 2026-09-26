@@ -5638,10 +5638,30 @@ testy `DiceMediaTest`).
   VŠECHNY — válce nekončí naráz. Když kterákoli vrstva není `.tgs`, zůstane text: chybějící
   válec by ukázal jiný výsledek, než jaký padl.
 - **Bez výsledku (`value == 0`) se točí úvodní animace** (`initialState`) ve smyčce; na druhý
-  stav se nepadá. Nastane u vlastního hodu, dokud server výsledek nepošle — z aplikace se ale
-  kostka zatím poslat nedá, takže ověřené to není.
+  stav se nepadá. Nastane u vlastního hodu, dokud server výsledek nepošle (ověřeno: odeslaná
+  kostka se chvíli točí, pak dopadne).
 - **Ověřuje se botem**: `sendDice` s `emoji=🎲` a `🎰` do otevřeného chatu (hod proběhne), pak
   odejít a vrátit se (výsledek hned). Ověřeno na emulátoru.
+
+#### Poslat hod
+
+- **Samotné emoji ze seznamu serveru odejde jako hod**, ne jako text (`diceEmojiFor`, testy
+  `DiceEmojiTest`; `InputMessageDice`). Tak to dělají oficiální klienti — žádné tlačítko navíc,
+  kdo pošle 🎲, hází. Seznam (🎲 🎯 🏀 ⚽ 🎳 🎰) posílá server v `UpdateDiceEmojis`.
+- **`UpdateDiceEmojis` chodí JEDNOU po startu klienta**, takže ho drží eager `ChatRepository`
+  (`diceEmojis`), ne konverzace — ta vzniká až s obrazovkou a update by minula. Prázdný seznam
+  (nic nedorazilo) = emoji odejde jako text, nic se nerozbije.
+- **Porovnává se bez U+FE0F a posílá se podoba od serveru.** Klávesnice dává „🎰️" i „🎰"
+  podle toho, odkud emoji vzala; ověřeno, že „🎰️" z pole dorazilo botovi jako hod.
+- **Hod je v právech „ostatní zprávy"** (`ContentAccess.stickers`). Kde se smí jen text, emoji
+  odejde jako text — hláška by tu byla horší, uživatel chtěl poslat zprávu.
+- **Neletí z pole** (`sendMedia`, jako samolepka): bublina by přiletěla jako text a na konci
+  se proměnila v kostku. Pole i koncept se vyprázdní jako u textu (`clearDraft = true`),
+  citace se spotřebuje.
+- **Ověřeno na emulátoru** v chatu s botem: 🎲 z pole (točí se, pak výsledek; bot dostal
+  `dice.value`), 🎰️ s výběrem varianty jako odpověď na hod (bot dostal `reply_to_message`).
+  Text do pole jde přes sdílení (`SEND` s `EXTRA_SHORTCUT_ID chat_<id bota>`) — emoji
+  `adb input text` nenapíše.
 - **Strop jsou 3 emoji** (`MAX_LARGE_EMOJI`). Nad ním už nejde o gesto, ale o odstavec, a ve
   velké sazbě by zabral půl obrazovky. Míň emoji = větší: `displayLarge` / `Medium` / `Small`.
 - **Odpověď si bublinu drží**, i když je jen z emoji — citace bez pozadí se ztratí.

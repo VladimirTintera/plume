@@ -96,6 +96,7 @@ import dev.g000sha256.tdl.dto.InputMessageLocation
 import dev.g000sha256.tdl.dto.InputFileLocal
 import dev.g000sha256.tdl.dto.InputMessageAnimation
 import dev.g000sha256.tdl.dto.InputMessageContent
+import dev.g000sha256.tdl.dto.InputMessageDice
 import dev.g000sha256.tdl.dto.InputMessageDocument
 import dev.g000sha256.tdl.dto.InputMessagePhoto
 import dev.g000sha256.tdl.dto.InputMessageReplyToMessage
@@ -792,6 +793,24 @@ class TdlConversationRepository(
             // TDLib vrací zprávu okamžitě, s dočasným id a stavem Pending.
             .map { it.toChatMessage(isGroup(chatId)) }
     }
+
+    override suspend fun sendDice(
+        chatId: Long,
+        emoji: String,
+        replyToMessageId: Long?,
+        quote: ReplyQuote?,
+    ): Result<ChatMessage> =
+        client.sendMessage(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyInput(chatId, replyToMessageId, quote),
+            options = null,
+            replyMarkup = null,
+            // Hod jde z pole jako text, takže koncept maže stejně jako odeslaný text.
+            inputMessageContent = InputMessageDice(emoji = emoji, clearDraft = true),
+        )
+            .toResult()
+            .map { it.toChatMessage(isGroup(chatId)) }
 
     override suspend fun sendVoiceNote(
         chatId: Long,

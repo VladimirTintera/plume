@@ -38,6 +38,13 @@ interface ChatRepository {
     val savedMessagesChatId: StateFlow<Long?>
 
     /**
+     * Emoji, které odejdou jako hod (kostka, šipky, míč…), když je zpráva složená jen z jednoho
+     * z nich. Seznam posílá server (`UpdateDiceEmojis`) hned po startu klienta a jen jednou,
+     * proto ho drží eager repository chatů, ne konverzace, která vzniká až s obrazovkou.
+     */
+    val diceEmojis: StateFlow<List<String>>
+
+    /**
      * Připraví chat Uložené zprávy k otevření a vrátí jeho id. TDLib ho zná, až když ho
      * vytvoří `createPrivateChat` — u účtu, který si nic neuložil, v databázi být nemusí.
      */
