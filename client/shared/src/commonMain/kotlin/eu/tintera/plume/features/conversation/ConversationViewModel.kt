@@ -32,6 +32,8 @@ import eu.tintera.plume.resources.conversation_link_failed
 import eu.tintera.plume.core.telegram.InvitePreview
 import eu.tintera.plume.core.telegram.InviteJoinResult
 import eu.tintera.plume.core.telegram.InternalLink
+import eu.tintera.plume.core.telegram.NameMention
+import eu.tintera.plume.core.telegram.MentionCandidate
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
@@ -328,6 +330,15 @@ class ConversationViewModel(
 
     /** Běžící inline dotaz; další úhoz ho zruší a pustí nový (s pauzou). */
     private var inlineJob: Job? = null
+
+    /** Běžící hledání členů ke zmínce; další úhoz ho zruší. */
+    private var mentionJob: Job? = null
+
+    /**
+     * Zmínky jménem vložené z napovídání a čekající na odeslání (viz [NameMention]). Pole je holý
+     * text, takže entitu s id uživatele nese tohle; s vyprázdněným polem nebo odesláním mizí.
+     */
+    private val nameMentions = mutableListOf<NameMention>()
 
     /** Poslední dotaz z pole — kvůli zopakování, až dorazí poloha. */
     private var inlineDraft: InlineQueryDraft? = null
@@ -1351,11 +1362,12 @@ class ConversationViewModel(
 
         val replyTo = _state.value.replyingTo?.id
         val quote = _state.value.replyQuote
+        val mentions = takeNameMentions()
         clearReply()
         _state.update { it.copy(attachments = emptyList()) }
 
         viewModelScope.launch {
-            repository.sendAttachments(chatId, attachments, caption, replyTo, quote, options)
+            repository.sendAttachments(chatId, attachments, caption, replyTo, quote, options, mentions)
                 .onSuccess { pending ->
                     shareTargets.reportUsed(chatId)
                     if (options.schedule != null) {
@@ -1490,11 +1502,12 @@ class ConversationViewModel(
         // Rozepsaná odpověď se zruší hned, ne až po potvrzení — jinak by při pomalé síti šlo
         // odeslat druhou zprávu se stejnou citací.
         clearReply()
+        val mentions = takeNameMentions()
 
         // Naplánovaná zpráva do konverzace nepatří: neletí, nepřidává se, jen se ohlásí.
         if (options.schedule != null) {
             viewModelScope.launch {
-                repository.send(chatId, trimmed, replyTo, linkPreview, quote, options)
+                repository.send(chatId, trimmed, replyTo, linkPreview, quote, options, mentions)
                     .onSuccess { _state.update { it.copy(notice = UiText(Res.string.conversation_scheduled_notice)) } }
                     .onFailure { failure ->
                         _state.update { it.copy(error = failure.reported(Res.string.conversation_schedule_failed)) }
@@ -1509,7 +1522,7 @@ class ConversationViewModel(
         _state.update { it.copy(flight = flight) }
 
         viewModelScope.launch {
-            repository.send(chatId, trimmed, replyTo, linkPreview, quote, options)
+            repository.send(chatId, trimmed, replyTo, linkPreview, quote, options, mentions)
                 // TDLib vrací rozepsanou zprávu okamžitě, takže bublina naskočí bez čekání
                 // na server. Skutečné id dorazí potvrzením a zprávu v seznamu nahradí.
                 .onSuccess { pending ->
@@ -1564,6 +1577,8 @@ class ConversationViewModel(
         if (_state.value.commandsOpen) _state.update { it.copy(commandsOpen = false) }
 
         draftText = text
+        // Vyprázdněné pole = zpráva, ke které zmínky patřily, je pryč.
+        if (text.isBlank()) nameMentions.clear()
         scheduleDraftSave()
         refreshLinkPreview(text)
 
@@ -2178,6 +2193,42 @@ class ConversationViewModel(
             }
         }
     }
+
+    /**
+     * Rozepsaná zmínka u kurzoru ([mentionQueryAt]); `null` = u kurzoru se zmínka nepíše.
+     *
+     * Jen ve skupině (v soukromém chatu je koho zmínit jen jeden, v kanálu nikdo nepíše) a mimo
+     * úpravu zprávy — úprava posílá holý text a zmínka jménem by z ní zmizela. Hledá se po krátké
+     * pauze a dalším písmenem se zahodí; dosavadní návrhy mezitím zůstávají, panel neproblikne.
+     */
+    fun mentionQuery(query: String?) {
+        mentionJob?.cancel()
+        val info = _state.value.info
+        val allowed = info != null && info.isGroup && !info.isChannel && _state.value.canWrite && _state.value.editing == null
+        if (query == null || !allowed) {
+            if (_state.value.mentionSuggestions != null) _state.update { it.copy(mentionSuggestions = null) }
+            return
+        }
+        mentionJob = viewModelScope.launch {
+            if (query.isNotEmpty()) delay(MENTION_QUERY_DELAY)
+            repository.mentionCandidates(chatId, query)
+                .onSuccess { found -> _state.update { it.copy(mentionSuggestions = MentionSuggestions(query, found)) } }
+                .onFailure { failure -> logger.i { "Členy ke zmínce se nepodařilo najít: ${failure.message}" } }
+        }
+    }
+
+    /**
+     * Vybraný člen z napovídání. Pole přepisuje obrazovka ([mentionInsertion]); tady se jen
+     * zapamatuje zmínka jménem — s uživatelským jménem odkaz vyrobí server sám.
+     */
+    fun mentionPicked(candidate: MentionCandidate) {
+        mentionJob?.cancel()
+        _state.update { it.copy(mentionSuggestions = null) }
+        if (candidate.username == null) nameMentions += NameMention(candidate.firstName, candidate.userId)
+    }
+
+    /** Zmínky jménem pro odesílanou zprávu; s odesláním se zapomenou. */
+    private fun takeNameMentions(): List<NameMention> = nameMentions.toList().also { nameMentions.clear() }
 
     /**
      * Rozepsaný text z pole jako dotaz na inline bota ([inlineQueryOf]); `null` = text dotaz není.
@@ -3411,6 +3462,12 @@ private val TYPING_REPEAT = 5.seconds
  */
 private val INLINE_QUERY_DELAY = 400.milliseconds
 
+/** Pauza v psaní, po které se hledají členové ke zmínce. Hledání je lokální, stačí krátká. */
+private val MENTION_QUERY_DELAY = 150.milliseconds
+
+/** Členové napovídaní ke zmínce, a ke kterému dotazu patří. */
+data class MentionSuggestions(val query: String, val candidates: List<MentionCandidate>)
+
 /**
  * Odstup ukládání konceptu od poslední úpravy.
  *
@@ -3802,6 +3859,8 @@ data class ConversationState(
     val commandsOpen: Boolean = false,
     /** Rozepsaný dotaz na inline bota (`@gif kočka`) a jeho výsledky; `null` = žádný. */
     val inline: InlineQueryState? = null,
+    /** Napovídání zmínky (`@ja`): členové k dotazu u kurzoru; `null` = nic se nenapovídá. */
+    val mentionSuggestions: MentionSuggestions? = null,
     /** Tlačítko bota chce sdílet telefonní číslo a čeká se na potvrzení. */
     val confirmSharePhone: Boolean = false,
     /** Odkaz z tlačítka bota, který čeká na potvrzení; `null` = žádný. */

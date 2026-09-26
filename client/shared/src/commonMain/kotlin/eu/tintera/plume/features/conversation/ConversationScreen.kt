@@ -179,6 +179,8 @@ import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.core.telegram.commandSuggestions
 import eu.tintera.plume.core.location.rememberDeviceLocation
 import eu.tintera.plume.core.telegram.inlineQueryOf
+import eu.tintera.plume.core.telegram.mentionInsertion
+import eu.tintera.plume.core.telegram.mentionQueryAt
 import eu.tintera.plume.resources.smart_toy_24dp
 import eu.tintera.plume.resources.conversation_bot_commands
 import androidx.compose.material3.LoadingIndicator
@@ -1362,6 +1364,24 @@ fun ConversationScreen(
             val inlineDraft = remember(draft.text, state.editing, state.attachments.isEmpty()) {
                 inlineQueryOf(draft.text).takeIf { state.editing == null && state.attachments.isEmpty() }
             }
+            // Zmínka (`@ja` u kurzoru): členové skupiny nad polem. Kurzor, ne celý text — zmínka se
+            // píše kdekoli ve větě. S rozepsaným dotazem na inline bota se nenapovídá, to je jiné „@".
+            val mentionQuery = remember(draft, inlineDraft) {
+                draft.takeIf { inlineDraft == null && it.selection.collapsed }
+                    ?.let { mentionQueryAt(it.text, it.selection.start) }
+            }
+            LaunchedEffect(mentionQuery?.query) { viewModel.mentionQuery(mentionQuery?.query) }
+            MentionSuggestionsPanel(
+                candidates = state.mentionSuggestions?.candidates.orEmpty(),
+                visible = mentionQuery != null,
+                onPick = { candidate ->
+                    val query = mentionQuery ?: return@MentionSuggestionsPanel
+                    val (text, cursor) = mentionInsertion(draft.text, draft.selection.start, query, candidate)
+                    draft = TextFieldValue(text, selection = TextRange(cursor))
+                    viewModel.mentionPicked(candidate)
+                    viewModel.onDraftChanged(text)
+                },
+            )
             LaunchedEffect(inlineDraft) { viewModel.inlineQuery(inlineDraft) }
             // Bot, který chce polohu, ji dostane přibližnou — dotaz na oprávnění přijde až u něj.
             val inlineLocation = rememberDeviceLocation()

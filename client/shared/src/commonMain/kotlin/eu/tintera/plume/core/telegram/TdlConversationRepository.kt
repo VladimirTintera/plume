@@ -150,6 +150,8 @@ import dev.g000sha256.tdl.dto.SearchMessagesFilterUnreadReaction
 import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.TdlThrowable
 import dev.g000sha256.tdl.toResult
+import dev.g000sha256.tdl.dto.ChatMembersFilterMention
+import dev.g000sha256.tdl.dto.TextEntityTypeMentionName
 import kotlin.time.Clock
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -780,8 +782,9 @@ class TdlConversationRepository(
         linkPreview: LinkPreviewOptions?,
         quote: ReplyQuote?,
         options: SendOptions,
+        mentions: List<NameMention>,
     ): Result<ChatMessage> {
-        val entities = detectEntities(text)
+        val entities = detectEntities(text, mentions)
 
         return client.sendMessage(
             chatId = chatId,
@@ -853,12 +856,13 @@ class TdlConversationRepository(
         replyToMessageId: Long?,
         quote: ReplyQuote?,
         options: SendOptions,
+        mentions: List<NameMention>,
     ): Result<List<ChatMessage>> {
         require(attachments.isNotEmpty()) { "Není co poslat." }
         val isGroup = isGroup(chatId)
         // Entity popisku se dohledávají jako u textu — jinak by odkaz v popisku odešel jako mrtvý text.
         val formattedCaption = caption.takeIf { it.isNotBlank() }
-            ?.let { FormattedText(text = it, entities = detectEntities(it)) }
+            ?.let { FormattedText(text = it, entities = detectEntities(it, mentions)) }
         val contents = attachments.mapIndexed { index, attachment ->
             attachment.toInputContent(caption = formattedCaption.takeIf { index == 0 })
         }
@@ -1297,14 +1301,23 @@ class TdlConversationRepository(
      * Bez toho by odkaz odešel jako mrtvý text: server si ho sám neoznačí. Když dohledání selže,
      * text odejde bez entit — přijít o odkaz je lepší než neodeslat vůbec.
      */
-    private suspend fun detectEntities(text: String): Array<TextEntity> =
-        client.getTextEntities(text)
+    private suspend fun detectEntities(text: String, mentions: List<NameMention> = emptyList()): Array<TextEntity> {
+        val detected = client.getTextEntities(text)
             .toResult()
-            .map { it.entities.filterNotNull().toTypedArray() }
+            .map { it.entities.filterNotNull() }
             .getOrElse { failure ->
                 logger.w(failure) { "Entity v odesílaném textu se nepodařilo dohledat." }
-                emptyArray()
+                emptyList()
             }
+        if (mentions.isEmpty()) return detected.toTypedArray()
+        // Zmínky jménem pole nenese — pamatuje si je ViewModel a tady se dohledají v textu.
+        val named = nameMentionEntities(
+            text = text,
+            mentions = mentions,
+            occupied = detected.map { it.offset until it.offset + it.length },
+        ).map { TextEntity(offset = it.offset, length = it.length, type = TextEntityTypeMentionName(userId = it.userId)) }
+        return (detected + named).sortedBy { it.offset }.toTypedArray()
+    }
 
     override fun hasScheduledMessages(chatId: Long): Flow<Boolean> =
         holder.updates { chatHasScheduledMessagesUpdates }
@@ -2073,6 +2086,37 @@ class TdlConversationRepository(
         resolveSender(senderId)?.let { Result.success(it) }
             ?: Result.failure(IllegalStateException("Odesílatel $senderId není známý"))
 
+    override suspend fun mentionCandidates(chatId: Long, query: String): Result<List<MentionCandidate>> {
+        val me = myId()
+        return client.searchChatMembers(
+            chatId = chatId,
+            query = query,
+            limit = MENTION_LIMIT,
+            // Jen ti, které jde v chatu zmínit; bez tématu (fóra zatím nejsou).
+            filter = ChatMembersFilterMention(topicId = null),
+        )
+            .toResult()
+            .map { found ->
+                found.members.filterNotNull()
+                    .mapNotNull { (it.memberId as? MessageSenderUser)?.userId }
+                    .distinct()
+                    .filter { it != me }
+                    .mapNotNull { userId ->
+                        val user = client.getUser(userId = userId).toResult().getOrNull() ?: return@mapNotNull null
+                        val name = listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" ")
+                        // Smazaný účet jméno nemá a zmínit ho nemá smysl.
+                        if (name.isBlank()) return@mapNotNull null
+                        MentionCandidate(
+                            userId = userId,
+                            name = name,
+                            firstName = user.firstName.ifBlank { name },
+                            username = user.usernames?.publicName(),
+                            avatarFileId = user.profilePhoto?.small?.id,
+                        )
+                    }
+            }
+    }
+
     override suspend fun searchMembers(chatId: Long, query: String): Result<List<SenderInfo>> =
         client.searchChatMembers(chatId = chatId, query = query, limit = MEMBER_SEARCH_LIMIT, filter = null)
             .toResult()
@@ -2223,6 +2267,9 @@ private const val UNREAD_MARKS_PAGE = 100
 
 /** Kolik členů vrátí jedno hledání pro filtr podle odesílatele; víc se na obrazovku nevejde. */
 private const val MEMBER_SEARCH_LIMIT = 50
+
+/** Kolik členů napovídá zmínka. Víc se do panelu nad polem stejně nevejde, dotaz se zpřesní psaním. */
+private const val MENTION_LIMIT = 20
 
 /** Strop stránek připnutých zpráv. Pět set připnutých v jednom chatu je víc než dost. */
 private const val MAX_PINNED_PAGES = 5

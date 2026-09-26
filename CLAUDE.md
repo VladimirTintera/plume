@@ -4110,6 +4110,37 @@ testy `InlineQueryTest`).
   do pole** (`am start -a android.intent.action.SEND … --es android.intent.extra.TEXT '@gif kočka'`),
   i s diakritikou. Pozor na id testovacího bota — viz „Na snímcích nesmí být skuteční lidé".
 
+### Napovídání zmínek
+
+Po `@` ve skupině napovídá nad polem členy (`MentionSuggestionsPanel`, doména `Mentions.kt`:
+`mentionQueryAt`, `mentionInsertion`, `nameMentionEntities`, testy `MentionsTest`). Ťuknutí
+vloží `@jmeno`, nebo u člena bez veřejného jména jeho křestní jméno se zmínkou (entita
+`TextEntityTypeMentionName`).
+
+- **Zmínka se hledá u KURZORU, ne na začátku textu** — píše se kdekoli ve větě. Zavináč musí
+  stát na začátku nebo po mezeře („jana@firma" zmínka není) a mezi ním a kurzorem jen písmena
+  (i s diakritikou, hledá se i podle jména), číslice a podtržítko. Samotné `@` nabídne členy
+  bez filtru. Rozepsaný dotaz na inline bota (`@gif kočka`) má přednost.
+- **Kdo jde zmínit, říká server** (`searchChatMembers` s `ChatMembersFilterMention`), ne seznam
+  členů — u skupiny se skrytými členy by seznam vydal jen správce. Vlastní účet se vynechá.
+- **Jen ve skupině a mimo úpravu zprávy.** V soukromém chatu je koho zmínit jen jeden, v kanálu
+  nikdo nepíše a úprava posílá holý text, ze kterého by zmínka jménem zmizela.
+- **Zmínka jménem žije ve ViewModelu, ne v poli** (`NameMention`, `nameMentions`). Pole je holý
+  text, takže entitu s id uživatele doplní až odeslání (`detectEntities(text, mentions)`):
+  jméno se v textu najde jako samostatné slovo mimo entity, které text už má, v pořadí vkládání.
+  Smazané nebo přepsané jméno se prostě nenajde. Vyprázdněné pole i odeslání je zapomenou;
+  koncept je nenese — po návratu do chatu zbyde jen text.
+- **Funguje i v popisku příloh** (`sendAttachments` bere zmínky taky).
+- **Ověřeno na emulátoru sondou**: účet na emulátoru v žádné skupině, kam smí psát, není (Kotlin
+  Community i Android Developers tam ukazují „Join"), takže se napovídání dočasně povolilo
+  v chatu s testovacím botem a vynutila se zmínka jménem. Panel po `@`, vložení jména s mezerou
+  a bot přes `getUpdates` dostal `text_mention` se svým id. **Ve skutečné skupině ověřené NENÍ**
+  (filtrování serverem, `@jmeno` u člena s uživatelským jménem); v soukromém chatu se bez sondy
+  nenapovídá nic.
+- **Id veřejné skupiny zjistí Bot API** (`getChat?chat_id=@jmeno`, bot nemusí být členem)
+  a otevře ji `am start … --el eu.tintera.plume.extra.CHAT_ID <id>` — bez ťukání v seznamu
+  chatů se skutečnými lidmi.
+
 ### Profilovky ve skupině
 
 Ve skupině má cizí zpráva vlevo tvář odesílatele, aby se odesílatelé nerozlišovali jen jménem.

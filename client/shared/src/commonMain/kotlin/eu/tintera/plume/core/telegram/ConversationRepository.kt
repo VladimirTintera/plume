@@ -305,6 +305,7 @@ interface ConversationRepository {
         linkPreview: LinkPreviewOptions? = null,
         quote: ReplyQuote? = null,
         options: SendOptions = SendOptions(),
+        mentions: List<NameMention> = emptyList(),
     ): Result<ChatMessage>
 
     /**
@@ -458,6 +459,7 @@ interface ConversationRepository {
         replyToMessageId: Long?,
         quote: ReplyQuote? = null,
         options: SendOptions = SendOptions(),
+        mentions: List<NameMention> = emptyList(),
     ): Result<List<ChatMessage>>
 
     /**
@@ -570,6 +572,12 @@ interface ConversationRepository {
      * proto se hledá podle [query], ne listuje.
      */
     suspend fun searchMembers(chatId: Long, query: String): Result<List<SenderInfo>>
+
+    /**
+     * Členové, které jde v chatu zmínit a jejichž jméno (nebo uživatelské jméno) začíná
+     * [query]; prázdný dotaz vrátí ty, se kterými se v chatu píše nejvíc. Vlastní účet ne.
+     */
+    suspend fun mentionCandidates(chatId: Long, query: String): Result<List<MentionCandidate>>
 
     /**
      * Jméno a fotka uživatele nebo chatu s tímhle id — pro tvář toho, kdo ve skupině píše.
