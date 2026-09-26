@@ -55,6 +55,11 @@ import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ContentAccess
 import eu.tintera.plume.core.telegram.diceEmojiFor
+import eu.tintera.plume.core.telegram.MessageSchedule
+import eu.tintera.plume.core.telegram.SendOptions
+import eu.tintera.plume.resources.conversation_scheduled_load_failed
+import eu.tintera.plume.resources.conversation_schedule_failed
+import eu.tintera.plume.resources.conversation_scheduled_notice
 import eu.tintera.plume.core.telegram.WriteAccess
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.LinkPreview
@@ -1036,6 +1041,16 @@ class ConversationViewModel(
         }
 
         viewModelScope.launch {
+            repository.hasScheduledMessages(chatId).collect { has ->
+                _state.update { it.copy(hasScheduledMessages = has) }
+                // Otevřený seznam se přečte znovu: naplánovaná zpráva mohla mezitím odejít.
+                if (_state.value.scheduledMessages != null) {
+                    if (has) loadScheduled() else _state.update { it.copy(scheduledMessages = null) }
+                }
+            }
+        }
+
+        viewModelScope.launch {
             repository.presenceUpdates(chatId).collect { presence ->
                 _state.update { it.copy(presence = presence) }
             }
@@ -1236,7 +1251,57 @@ class ConversationViewModel(
      * pole — přílohy z pole nevyletěly. Když odeslání selže, přílohy se vrátí nad pole, ať se nemusí
      * vybírat znovu.
      */
-    private fun sendAttachments(caption: String, attachments: List<OutgoingAttachment>) {
+    /** Otevře seznam naplánovaných zpráv. */
+    fun openScheduled() {
+        _state.update { it.copy(scheduledMessages = it.scheduledMessages ?: emptyList()) }
+        loadScheduled()
+    }
+
+    fun closeScheduled() {
+        _state.update { it.copy(scheduledMessages = null) }
+    }
+
+    private fun loadScheduled() {
+        viewModelScope.launch {
+            repository.scheduledMessages(chatId)
+                .onSuccess { list ->
+                    // Zavřený mezitím zůstane zavřený; prázdný se zavře sám.
+                    _state.update { state ->
+                        if (state.scheduledMessages == null) state
+                        else state.copy(scheduledMessages = list.takeIf { it.isNotEmpty() })
+                    }
+                }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.reported(Res.string.conversation_scheduled_load_failed)) }
+                }
+        }
+    }
+
+    /**
+     * Naplánovanou zprávu odešle hned ([schedule] `null`), nebo přeplánuje. Seznam se pak čte
+     * znovu — co se stalo, ví server; odeslaná zpráva dorazí do konverzace jako každá nová.
+     */
+    fun reschedule(messageId: Long, schedule: MessageSchedule?) {
+        viewModelScope.launch {
+            repository.reschedule(chatId, messageId, schedule)
+                .onSuccess { loadScheduled() }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.reported(Res.string.conversation_schedule_failed)) }
+                }
+        }
+    }
+
+    fun deleteScheduled(messageId: Long) {
+        viewModelScope.launch {
+            repository.deleteMessages(chatId, listOf(messageId), revoke = true)
+                .onSuccess { loadScheduled() }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.reported(Res.string.conversation_delete_failed)) }
+                }
+        }
+    }
+
+    private fun sendAttachments(caption: String, attachments: List<OutgoingAttachment>, options: SendOptions) {
         typingSentAt = null
         draftSave?.cancel()
         draftSave = null
@@ -1249,9 +1314,14 @@ class ConversationViewModel(
         _state.update { it.copy(attachments = emptyList()) }
 
         viewModelScope.launch {
-            repository.sendAttachments(chatId, attachments, caption, replyTo, quote)
+            repository.sendAttachments(chatId, attachments, caption, replyTo, quote, options)
                 .onSuccess { pending ->
                     shareTargets.reportUsed(chatId)
+                    if (options.schedule != null) {
+                        _state.update { it.copy(notice = UiText(Res.string.conversation_scheduled_notice)) }
+                        repository.saveDraft(chatId, "", null)
+                        return@onSuccess
+                    }
                     _state.update { state ->
                         // Potvrzení mohlo dorazit dřív než výsledek — viz `send`.
                         val fresh = pending.filterNot { it.id in state.itemKeys.values }
@@ -1327,13 +1397,17 @@ class ConversationViewModel(
         }
     }
 
-    fun send(text: String) {
+    /**
+     * Odešle obsah pole. [options] přichází z nabídky nad odesílacím tlačítkem (bez zvuku,
+     * naplánovat); obyčejné ťuknutí posílá výchozí.
+     */
+    fun send(text: String, options: SendOptions = SendOptions()) {
         val trimmed = text.trim()
 
         // S přílohami je text popisek a smí být prázdný. Úprava zprávy přílohy nemá.
         val attachments = _state.value.attachments
         if (attachments.isNotEmpty() && _state.value.editing == null) {
-            sendAttachments(trimmed, attachments)
+            sendAttachments(trimmed, attachments, options)
             return
         }
 
@@ -1358,7 +1432,7 @@ class ConversationViewModel(
         // Samotné 🎲 (🎯, 🏀, ⚽, 🎳, 🎰 — seznam posílá server) odejde jako hod, jako
         // u oficiálních klientů. Hod je v právech „ostatní zprávy", tedy totéž co samolepka;
         // kde se smí jen text, odejde emoji jako text. Neletí z pole — jako samolepka.
-        val dice = diceEmojiFor(trimmed, chatRepository.diceEmojis.value)
+        val dice = diceEmojiFor(trimmed, chatRepository.diceEmojis.value).takeIf { options == SendOptions() }
         if (dice != null && _state.value.content.stickers) {
             resetLinkPreview()
             sendMedia(Res.string.conversation_send_failed) { replyTo, quote ->
@@ -1367,7 +1441,7 @@ class ConversationViewModel(
             return
         }
 
-        val linkPreview =_state.value.linkPreviewOptions.forSending(shown = _state.value.linkPreview)
+        val linkPreview = _state.value.linkPreviewOptions.forSending(shown = _state.value.linkPreview)
         resetLinkPreview()
 
         val replyTo = _state.value.replyingTo?.id
@@ -1376,13 +1450,25 @@ class ConversationViewModel(
         // odeslat druhou zprávu se stejnou citací.
         clearReply()
 
+        // Naplánovaná zpráva do konverzace nepatří: neletí, nepřidává se, jen se ohlásí.
+        if (options.schedule != null) {
+            viewModelScope.launch {
+                repository.send(chatId, trimmed, replyTo, linkPreview, quote, options)
+                    .onSuccess { _state.update { it.copy(notice = UiText(Res.string.conversation_scheduled_notice)) } }
+                    .onFailure { failure ->
+                        _state.update { it.copy(error = failure.reported(Res.string.conversation_schedule_failed)) }
+                    }
+            }
+            return
+        }
+
         // Text „vyletí" ze vstupního pole do bubliny. Musí se zapamatovat hned při odeslání,
         // protože pole se vyprázdní dřív, než dorazí zpráva — a bez toho by nebylo co animovat.
         val flight = MessageFlight(id = ++flightCounter, text = trimmed, itemKey = null)
         _state.update { it.copy(flight = flight) }
 
         viewModelScope.launch {
-            repository.send(chatId, trimmed, replyTo, linkPreview, quote)
+            repository.send(chatId, trimmed, replyTo, linkPreview, quote, options)
                 // TDLib vrací rozepsanou zprávu okamžitě, takže bublina naskočí bez čekání
                 // na server. Skutečné id dorazí potvrzením a zprávu v seznamu nahradí.
                 .onSuccess { pending ->
@@ -3479,6 +3565,10 @@ data class ConversationState(
     val pressingBotButton: BotButtonRef? = null,
     /** Video kolečko, které hraje se zvukem; `null` = všechna hrají potichu (nebo vůbec). */
     val soundingVideoNote: Long? = null,
+    /** Má chat naplánované zprávy? Pak je u pole hodiny, které otevřou jejich seznam. */
+    val hasScheduledMessages: Boolean = false,
+    /** Otevřený seznam naplánovaných zpráv; `null` = zavřený. */
+    val scheduledMessages: List<ChatMessage>? = null,
     /** Zpráva s anketou, jejíž hlasující ukazuje sheet; `null` = zavřený. */
     val pollVoters: Long? = null,
     /** Anketa, kterou uživatel chce ukončit a čeká se na potvrzení; `null` = žádná. */

@@ -361,12 +361,8 @@ internal fun closeDateOf(dateUtcMillis: Long, hour: Int, minute: Int, zone: Time
  * Dny, které výběr data nabídne: od dneška po den, kdy vyprší strop serveru — obojí v MÍSTNÍM
  * pásmu. [utcTimeMillis] je půlnoc dne v UTC, jak ji výběr data posílá.
  */
-internal fun closeDaySelectable(utcTimeMillis: Long, now: Long, maxOpenPeriodSeconds: Int, zone: TimeZone): Boolean {
-    val day = Instant.fromEpochMilliseconds(utcTimeMillis).toLocalDateTime(TimeZone.UTC).date
-    val first = Instant.fromEpochSeconds(now).toLocalDateTime(zone).date
-    val last = Instant.fromEpochSeconds(now + maxOpenPeriodSeconds).toLocalDateTime(zone).date
-    return day in first..last
-}
+internal fun closeDaySelectable(utcTimeMillis: Long, now: Long, maxOpenPeriodSeconds: Int, zone: TimeZone): Boolean =
+    futureDaySelectable(utcTimeMillis, now, maxOpenPeriodSeconds.toLong(), zone)
 
 /**
  * Adresa odkazu u odpovědi, nebo `null`, když to adresa není. Bez schématu dostane `https://`
@@ -995,9 +991,9 @@ fun PollComposerScreen(
     }
 
     if (pickingCloseDay) {
-        CloseDayDialog(
+        FutureDayDialog(
             now = viewModel.now,
-            maxOpenPeriodSeconds = status.maxOpenPeriodSeconds,
+            maxAheadSeconds = status.maxOpenPeriodSeconds.toLong(),
             onPick = { day ->
                 pickingCloseDay = false
                 pickedCloseDay = day
@@ -1006,7 +1002,8 @@ fun PollComposerScreen(
         )
     }
     pickedCloseDay?.let { day ->
-        CloseTimeDialog(
+        TimeOfDayDialog(
+            title = stringResource(Res.string.poll_compose_close_time),
             // Nabídne se čas, který zbyl z dosavadní volby — jinak za hodinu od teď.
             initial = viewModel.closeDate.takeIf { it > 0 } ?: (Clock.System.now().epochSeconds + HOUR),
             onPick = { hour, minute ->
@@ -1085,54 +1082,6 @@ private fun countriesLabel(codes: List<String>): String = when (codes.size) {
     0 -> stringResource(Res.string.poll_compose_countries_all)
     1 -> codes.single().let { code -> listOfNotNull(flagEmoji(code), localizedCountryName(code) ?: code).joinToString(" ") }
     else -> pluralStringResource(Res.plurals.poll_compose_countries_count, codes.size, codes.size)
-}
-
-/**
- * Den konce ankety: od dneška po den, kdy vyprší strop serveru. Výběr vrací půlnoc dne v UTC
- * (viz [closeDateOf]).
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CloseDayDialog(now: Long, maxOpenPeriodSeconds: Int, onPick: (Long) -> Unit, onDismiss: () -> Unit) {
-    val zone = TimeZone.currentSystemDefault()
-    val state = rememberDatePickerState(
-        selectableDates = remember(now, maxOpenPeriodSeconds) {
-            object : SelectableDates {
-                override fun isSelectableDate(utcTimeMillis: Long): Boolean =
-                    closeDaySelectable(utcTimeMillis, now, maxOpenPeriodSeconds, zone)
-            }
-        },
-    )
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(
-                enabled = state.selectedDateMillis != null,
-                onClick = { state.selectedDateMillis?.let(onPick) },
-            ) { Text(stringResource(Res.string.search_filter_apply)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
-    ) {
-        DatePicker(state = state)
-    }
-}
-
-/** Hodina konce ankety — v místním čase, jak ho uživatel zná. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CloseTimeDialog(initial: Long, onPick: (hour: Int, minute: Int) -> Unit, onDismiss: () -> Unit) {
-    val start = remember(initial) { Instant.fromEpochSeconds(initial).toLocalDateTime(TimeZone.currentSystemDefault()) }
-    val state = rememberTimePickerState(initialHour = start.hour, initialMinute = start.minute)
-    TimePickerDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.poll_compose_close_time)) },
-        confirmButton = {
-            TextButton(onClick = { onPick(state.hour, state.minute) }) { Text(stringResource(Res.string.search_filter_apply)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
-    ) {
-        TimePicker(state = state)
-    }
 }
 
 /** Řádek s hodnotou vpravo; ťuknutí otevře výběr. */
