@@ -155,11 +155,15 @@ fun ChatKind.avatarPolygon(): RoundedPolygon = when (this) {
  * Tečka „je online" v pravém dolním rohu avataru — v seznamu chatů i v hlavičce konverzace.
  * Obroučka má barvu plochy, na které avatar leží ([rim]): bez ní tečka na tmavé fotce splyne
  * a je z ní jen skvrna. Na avataru, ne vedle jména: dostupnost se přečte spolu s tím, kdo to je.
+ *
+ * S [chatId] tečka letí spolu s avatarem mezi seznamem a hlavičkou konverzace
+ * ([chatOnlineDotKey]); nad avatarem v překryvu, jinak by ji přikryl.
  */
 @Composable
-fun OnlineDot(rim: Color, modifier: Modifier = Modifier, size: Dp = 14.dp) {
+fun OnlineDot(rim: Color, modifier: Modifier = Modifier, size: Dp = 14.dp, chatId: Long? = null) {
     Box(
         modifier
+            .then(chatId?.let { Modifier.sharedNavElement(chatOnlineDotKey(it), zIndexInOverlay = 1f) } ?: Modifier)
             .size(size)
             .background(rim, CircleShape)
             .padding(2.dp)

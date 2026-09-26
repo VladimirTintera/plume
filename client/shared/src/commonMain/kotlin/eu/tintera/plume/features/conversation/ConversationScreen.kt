@@ -124,6 +124,7 @@ import eu.tintera.plume.core.ui.avatarPolygon
 import eu.tintera.plume.core.ui.rememberShownConnection
 import eu.tintera.plume.core.ui.rememberConnectionIndicator
 import eu.tintera.plume.core.ui.OnlineDot
+import eu.tintera.plume.resources.presence_online
 import eu.tintera.plume.core.ui.RING_STROKE
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
@@ -1044,6 +1045,12 @@ fun ConversationScreen(
                      */
                     val shownConnection = rememberShownConnection(connection)
                     val connectionLabel = shownConnection?.label()?.let { stringResource(it) }
+                    // „Online" už v podtitulu není, nese ho jen tečka — čtečce ho proto řekne
+                    // popis stavu hlavičky, stejně jako výpadek spojení (ten má přednost: bez
+                    // spojení je dostupnost stará hodnota).
+                    val onlineLabel = stringResource(Res.string.presence_online)
+                        .takeIf { state.presence is Presence.Online && state.info?.isSavedMessages == false }
+                    val headerState = connectionLabel ?: onlineLabel
                     val kind = when {
                         state.info?.isChannel == true -> ChatKind.Channel
                         state.info?.isGroup == true -> ChatKind.Group
@@ -1066,7 +1073,7 @@ fun ConversationScreen(
                                 onClickLabel = profileLabel,
                                 onClick = onOpenProfile,
                             )
-                            .semantics { connectionLabel?.let { stateDescription = it } }
+                            .semantics { headerState?.let { stateDescription = it } }
                             // Místo pro zvětšený avatar s prstencem: řádek ořezává (tvar vlnky
                             // stisku), takže bez rezervy by prstenec usekl vlevo i nahoře a dole.
                             .padding(horizontal = HEADER_RING_ROOM, vertical = HEADER_RING_ROOM),
@@ -1102,6 +1109,9 @@ fun ConversationScreen(
                                         rim = MaterialTheme.colorScheme.surface,
                                         size = HEADER_ONLINE_DOT,
                                         modifier = Modifier.align(Alignment.BottomEnd),
+                                        // Letí s avatarem ze seznamu chatů; ve vlákně ne, stejně
+                                        // jako avatar.
+                                        chatId = info.id.takeIf { state.threadRootId == null },
                                     )
                                 }
                             }
@@ -1140,7 +1150,9 @@ fun ConversationScreen(
                             }
 
                             /*
-                             * Podtitul: dostupnost protějšku. Stav spojení tu NENÍ, ten nese avatar.
+                             * Podtitul: kdy byl protějšek naposledy vidět. Stav spojení tu NENÍ, ten
+                             * nese avatar — a „online" taky ne, to říká tečka na avataru. Dvakrát
+                             * totéž hned vedle sebe byl jen šum.
                              *
                              * Bez spojení se ale dostupnost schová: dokud spojení nestojí, je
                              * „naposledy viděn" jen stará hodnota, kterou nemá co obnovit.
@@ -1152,13 +1164,14 @@ fun ConversationScreen(
                             // Ve vlákně komentářů říká podtitul, ve které skupině se diskutuje.
                             val threadSubtitle = state.info
                                 ?.takeIf { state.threadRootId != null }
-                                ?.let { HeaderSubtitle(it.title, accent = false) }
+                                ?.let { HeaderSubtitle(it.title) }
                             val subtitle = threadSubtitle ?: state.presence
                                 ?.takeIf { shownConnection == null }
                                 // Vlastní dostupnost v Uložených zprávách nic neříká — byl bys
                                 // pořád „online", protože se na ně právě díváš.
                                 ?.takeUnless { state.info?.isSavedMessages == true }
-                                ?.let { HeaderSubtitle(it.describe(), accent = it is Presence.Online) }
+                                ?.takeUnless { it is Presence.Online }
+                                ?.let { HeaderSubtitle(it.describe()) }
                             val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
                             val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
 
@@ -1172,11 +1185,7 @@ fun ConversationScreen(
                                 Text(
                                     text = current.text,
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = if (current.accent) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                 )
                             }
@@ -3273,8 +3282,8 @@ private const val SPONSORED_VIEW_DEBOUNCE_MS = 1000L
  */
 private const val INPUT_SCRIM_ALPHA = 0.93f
 
-/** Řádek pod názvem chatu. [accent] = živá informace (online, píše…), jinak tlumeně. */
-private data class HeaderSubtitle(val text: String, val accent: Boolean)
+/** Řádek pod názvem chatu: naposledy viděn, nebo ve vlákně název skupiny. */
+private data class HeaderSubtitle(val text: String)
 
 /**
  * „Naposledy viděn" do hlavičky.

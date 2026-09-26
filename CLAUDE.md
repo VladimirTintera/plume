@@ -1106,9 +1106,11 @@ chodit. Dokud se nesledovalo, vypadala nepřipojená aplikace úplně normálně
 - **`Ready` se nehlásí.** V tom stavu aplikace stráví skoro celou dobu; „připojeno" je šum, zatímco
   „nepřipojeno" je jediná informace, která uživateli vysvětlí, proč mu nic nechodí. Proto
   `ConnectionState.label()` vrací u `Ready` `null`.
-- **Hlavička konverzace: spojení nese avatar, dostupnost podtitul a tečka.** Dřív byl stav
-  spojení textem místo podtitulu; dvě podoby téhož stavu (text tady, zvlněná fotka v seznamu)
-  byly jen nekonzistence. Tečka „online" je tatáž jako v seznamu chatů (`OnlineDot`).
+- **Hlavička konverzace: spojení nese avatar, „online" tečka, podtitul jen „naposledy…".** Dřív
+  byl stav spojení textem místo podtitulu; dvě podoby téhož stavu (text tady, zvlněná fotka
+  v seznamu) byly jen nekonzistence. Tečka „online" je tatáž jako v seznamu chatů (`OnlineDot`),
+  a proto **podtitul „online" nepíše** — tečka a slovo hned vedle sebe říkaly totéž dvakrát.
+  Podtitul zbyl na „naposledy viděn"; čtečce obrazovky „online" řekne popis stavu hlavičky.
   **Bez spojení se dostupnost schová** (podtitul i tečka): dokud spojení nestojí, je to jen
   stará hodnota, kterou nemá co obnovit — a tečka by přeškrtla prstenec. „Píše…" v hlavičce
   není, viz níž.
@@ -1361,6 +1363,19 @@ skrytí musí animovat i SLOT (`shrinkHorizontally`), ne jen posun, jinak obsah 
 obsahují id chatu, jinak by se při rychlém přepnutí spároval avatar jednoho chatu s druhým.
 Na rozdíl od letu odeslané zprávy se tu viditelnost neřídí ručně — obě strany jsou
 v `AnimatedContent` NavDisplaye, takže stačí `LocalNavAnimatedContentScope`.
+
+- **Tečka „online" letí VLASTNÍM sdíleným prvkem** (`chatOnlineDotKey`, `OnlineDot(chatId)`).
+  Sdílený byl jen avatar, tečka vedle něj zůstala v obsahu obrazovky: avatar odletěl do hlavičky
+  bez ní a tečka se k němu přilepila, až dosedl — problikla. Obalit sdíleným prvkem avatar
+  i s tečkou nejde, stejný klíč `chatAvatarKey` nese i profil a tvář odesílatele, které tečku
+  nemají, a obal by se do nich zmenšoval s avatarem pevné velikosti uvnitř. Obě strany mají
+  tutéž pružinu, takže tečka po celou dráhu drží roh avataru.
+- **Tečka musí mít v překryvu vyšší `zIndexInOverlay`** (`sharedNavElement(zIndexInOverlay)`).
+  Sdílené prvky se během letu kreslí v překryvu mimo pořadí rodičů; se stejným indexem by ji
+  letící avatar mohl přikrýt.
+- **Ověřeno na emulátoru sondou** (Notifikátor podstrčený jako online v seznamu i hlavičce,
+  necommituje se) a sérií surových snímků se zpomalenými animacemi, tam i zpět. Online
+  kontakt se neotevírá — přečetly by se mu zprávy.
 
 **Na široké ploše jsou dva panely vždycky** (kromě prázdného seznamu, viz „Archiv"), i bez otevřeného chatu — vpravo je pak
 `ConversationPlaceholder`. Dřív dostal seznam bez konverzace celou šířku (`singlePane`), takže
