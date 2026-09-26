@@ -699,6 +699,8 @@ data class ChatInfo(
     val draftReplyQuote: ReplyQuote? = null,
     /** Ověřený, podvod, falešný (viz [Verification]) — štítek u jména v hlavičce. */
     val verification: Verification? = null,
+    /** Vlastní emoji statusu za jménem v hlavičce (viz [statusEmojiId]), nebo `null`. */
+    val emojiStatus: Long? = null,
 )
 
 /**
@@ -866,6 +868,8 @@ data class BotButton(
     val text: String,
     val kind: BotButtonKind,
     val style: BotButtonStyle = BotButtonStyle.Default,
+    /** Vlastní emoji před popiskem, jak ho bot tlačítku dal (`iconCustomEmojiId`); `null` = žádné. */
+    val iconCustomEmojiId: Long? = null,
 )
 
 /** Co tlačítko udělá. Data zpětného volání tu nejsou — viz [ConversationRepository.pressBotButton]. */
@@ -923,6 +927,8 @@ data class ReplyKeyboardButton(
     val text: String,
     val kind: ReplyKeyboardButtonKind,
     val style: BotButtonStyle = BotButtonStyle.Default,
+    /** Vlastní emoji před popiskem (`iconCustomEmojiId`); `null` = žádné. */
+    val iconCustomEmojiId: Long? = null,
 )
 
 sealed interface ReplyKeyboardButtonKind {
@@ -1053,11 +1059,12 @@ class Minithumbnail(val jpeg: ByteArray, val width: Int, val height: Int) {
 /**
  * Reakce u zprávy.
  *
- * Zatím jen **standardní emoji**. Telegram umí i vlastní (placená) emoji, ta jsou ale samolepky —
- * vykreslují se jako stažitelný soubor a mají vlastní animaci, takže patří k médiím, ne sem.
- * Neznámé typy se prostě přeskočí, aby zbytek reakcí u zprávy nezmizel.
+ * Obyčejné i vlastní emoji; [emoji] je klíč reakce (viz [customEmojiReaction]), vlastní emoji
+ * se kreslí jako obrázek. Placená reakce (hvězdičky) se přeskočí, aby zbytek reakcí u zprávy
+ * nezmizel.
  */
 data class MessageReaction(
+    /** Klíč reakce — obyčejné emoji, nebo [customEmojiReaction]. */
     val emoji: String,
     val count: Int,
     /** `true`, když tuhle reakci dal přihlášený uživatel. */

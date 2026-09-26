@@ -243,6 +243,30 @@ internal suspend fun MessageContent.previewTextOrNull(isOutgoing: Boolean): Stri
 }
 
 /**
+ * Vlastní emoji v náhledu ([previewTextOrNull]) — rozsahy platí pro týž text, protože náhled
+ * bere text zprávy nebo popisek doslova. Spoilery jdou s nimi: emoji ve skrytém úseku má zůstat
+ * náhradním znakem, jako v bublině (`appendWithCustomEmoji`). Ostatní formátování náhled nenese.
+ *
+ * U popisku, který je prázdný, stojí v náhledu název typu („Fotka") — a prázdný popisek žádné
+ * entity nemá, takže se rozsahy s textem nerozejdou.
+ */
+internal fun MessageContent.previewEntities(): List<MessageEntity> {
+    val formatted = when (this) {
+        is MessageText -> text
+        is MessagePhoto -> caption
+        is MessageVideo -> caption
+        is MessageAnimation -> caption
+        is MessageDocument -> caption
+        is MessageAudio -> caption
+        is MessageVoiceNote -> caption
+        else -> return emptyList()
+    }
+    return formatted.toBody().entities.filter {
+        it.type is MessageEntityType.CustomEmoji || it.type == MessageEntityType.Spoiler
+    }
+}
+
+/**
  * Text notifikace z obsahu **rozšifrovaného z pushe** (`NotificationTypeNewPushMessage`).
  *
  * Push nese vlastní, chudší podobu obsahu než zpráva — TDLib ji vydá, když samotnou zprávu ještě

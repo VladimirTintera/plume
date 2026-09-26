@@ -54,6 +54,7 @@ import eu.tintera.plume.resources.profile_block
 import eu.tintera.plume.resources.profile_block_body
 import eu.tintera.plume.resources.profile_block_title
 import eu.tintera.plume.resources.spam_bar_add_contact
+import eu.tintera.plume.resources.spam_bar_emoji_status
 import eu.tintera.plume.resources.spam_bar_text
 import eu.tintera.plume.resources.spam_report_body
 import eu.tintera.plume.resources.spam_report_confirm
@@ -78,7 +79,8 @@ import org.jetbrains.compose.resources.stringResource
  * zaškrtávátkem v sheetu Zablokovat i z nabídky nad chatem.
  *
  * Pod nadpisem jsou údaje, které server o protějšku poslal ([SpamBar.account]): podle nich se
- * pozná čerstvě založený nebo ukradený účet dřív, než uživatel na zprávu odpoví.
+ * pozná čerstvě založený nebo ukradený účet dřív, než uživatel na zprávu odpoví. Nad nimi
+ * upozornění, že emoji status u jména nic neověřuje ([SpamBar.warnsEmojiStatus]).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -108,6 +110,14 @@ internal fun SpamBarCard(
                     text = stringResource(Res.string.spam_bar_text),
                     style = MaterialTheme.typography.titleSmall,
                 )
+                if (bar.warnsEmojiStatus) {
+                    Text(
+                        text = stringResource(Res.string.spam_bar_emoji_status),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
                 bar.account?.let { account ->
                     Column(Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         account.lines.forEach { line ->

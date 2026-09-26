@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.CustomEmojiIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -115,6 +116,7 @@ internal fun BotKeyboardView(
                 buttons.forEachIndexed { column, button ->
                     BotKeyboardButton(
                         text = button.text,
+                        emojiIcon = button.iconCustomEmojiId,
                         style = button.style,
                         icon = button.kind.cornerIcon(),
                         enabled = button.kind != BotButtonKind.Disabled,
@@ -141,6 +143,8 @@ internal fun BotKeyboardView(
 @Composable
 internal fun BotKeyboardButton(
     text: String,
+    /** Vlastní emoji před popiskem (`iconCustomEmojiId`); `null` = žádné. */
+    emojiIcon: Long?,
     style: BotButtonStyle,
     /** Co tlačítko udělá jinak než obvykle (odkaz, kopie…); `null` = nic zvláštního. */
     icon: DrawableResource?,
@@ -161,17 +165,26 @@ internal fun BotKeyboardButton(
         modifier = modifier.heightIn(min = BUTTON_MIN_HEIGHT),
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(
-                text,
-                style = MaterialTheme.typography.labelLarge,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(BUTTON_EMOJI_GAP),
                 modifier = Modifier
                     .padding(horizontal = BUTTON_PADDING_H, vertical = BUTTON_PADDING_V)
                     // Na odpověď bota se čeká: text drží místo, aby tlačítko nezměnilo šířku.
                     .alpha(if (pressing) 0f else 1f),
-            )
+            ) {
+                // Vlastní emoji před popiskem; jednobarevné má barvu popisku (`LocalContentColor`).
+                emojiIcon?.let { CustomEmojiIcon(it, size = BUTTON_EMOJI_SIZE) }
+                Text(
+                    text,
+                    style = MaterialTheme.typography.labelLarge,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    // Bez vyplnění: krátký popisek s ikonou zůstane na středu tlačítka.
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+            }
             if (pressing) LoadingIndicator(Modifier.size(PRESSING_INDICATOR_SIZE))
             icon?.let { icon ->
                 // Co tlačítko udělá jinak než zpětné volání (odkaz, kopie…), napoví ikona v rohu —
@@ -233,6 +246,10 @@ internal fun botButtonShape(
         bottomEnd = corner(lastRow && column == columns - 1),
     )
 }
+
+/** Vlastní emoji před popiskem tlačítka — o kus větší než písmo `labelLarge`. */
+private val BUTTON_EMOJI_SIZE = 18.dp
+private val BUTTON_EMOJI_GAP = 6.dp
 
 /** Stejný strop jako u zprávy samotné (`MessageBox`). */
 private val MAX_MESSAGE_WIDTH = 560.dp

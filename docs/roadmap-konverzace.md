@@ -412,7 +412,7 @@ zprávou"). Zbývá:
   a chatů (`shareUsersWithBot`, `shareChatWithBot`), mini aplikace a zakládání botů; ověřit
   odeslání čísla; jednorázová klávesnice se po znovuotevření chatu ukáže rozbalená (TDLib
   neříká, že už byla použitá).
-- **Vlastní emoji v popisku tlačítka** (`iconCustomEmojiId`) se nekreslí.
+- ~~**Vlastní emoji v popisku tlačítka** (`iconCustomEmojiId`)~~ — hotovo.
 - **Ověřit na iOS** — kód je společný, na simulátoru to nikdo neviděl.
 
 ## Výběr samolepek a emoji
@@ -499,11 +499,12 @@ snadno na to uživatel narazí.
 
 **Entity v textu**
 
-- ~~**Vlastní emoji v textu zprávy**~~ — hotovo (`CLAUDE.md`, „Vlastní emoji v textu“). Zbývá:
-  **reakce vlastním emoji** (`ReactionTypeCustomEmoji`, dnes se přeskakují), vlastní emoji
-  v náhledu seznamu chatů, v citaci a v notifikaci (tam je náhradní znak), emoji status u jména,
-  ikona tlačítka bota (`iconCustomEmojiId`) a **posílání** (jen s Premium, výběr vlastních emoji).
-  **Skutečná zpráva s vlastním emoji ověřená není** — bot je poslat nesmí (viz CLAUDE.md).
+- ~~**Vlastní emoji v textu zprávy**~~ a ~~**mimo text**~~ (reakce, emoji status u jména, náhled
+  v seznamu chatů, citace, ikona tlačítka bota) — hotovo (`CLAUDE.md`, „Vlastní emoji v textu“
+  a „Vlastní emoji mimo text“). Zbývá **posílání** (jen s Premium, výběr vlastních emoji a reakcí
+  mimo nabídnuté) a vlastní emoji ve výsledcích hledání zpráv (ukázka se ořezává, offsety by se
+  musely posunout). V notifikaci zůstává náhradní znak záměrně. **Skutečná data od člověka
+  ověřená nejsou** — bot nic z toho poslat nesmí (viz CLAUDE.md).
 - **Příkaz bota** (`BotCommand`) — dnes záměrně bez akce, jenže oficiální klienti ťuknutím
   příkaz pošlou; v chatu s botem je to hlavní ovládání.
 - **Čas v médiu** (`MediaTimestamp`, `hasTimestampedMedia`) — „1:23" v popisku videa má skočit
@@ -530,7 +531,7 @@ snadno na to uživatel narazí.
   konverzace a v profilu, u podvodu a falešného s vysvětlením (`CLAUDE.md`, „Ověření a štítek
   podvodu"). Zbývá značka ověření od bota (`botVerificationIconCustomEmojiId`, vlastní emoji)
   a štítek u jména odesílatele ve skupině.
-- **Emoji status** u jména, **časovač automatického mazání chatu** v hlavičce a jeho nastavení.
+- ~~**Emoji status** u jména~~ — hotovo. **Časovač automatického mazání chatu** v hlavičce a jeho nastavení.
 - **Překlad zprávy** (`translateMessageText`) a **shrnutí od serveru** (`summarizeMessage`,
   `summaryLanguageCode`) — vedle shrnutí v zařízení.
 - **Vědomě NE**: tapeta a téma chatu (`Chat.background`, `theme`) a barvy jmen podle profilu

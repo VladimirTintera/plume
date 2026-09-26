@@ -66,6 +66,11 @@ data class SpamBar(
      * nahlášení nabízí vrácení mezi chaty — viz [ChatRepository.unarchiveFromSpamBar].
      */
     val canUnarchive: Boolean = false,
+    /**
+     * Protějšek má emoji status a pruh musí říct, že status nic neověřuje — jde koupit
+     * s Premium a vypadá jako odznak u jména. Povinné podle dokumentace TDLib.
+     */
+    val warnsEmojiStatus: Boolean = false,
     /** Co server o protějšku prozradil, když napsal poprvé; `null` = nic. */
     val account: CounterpartAccount? = null,
 )

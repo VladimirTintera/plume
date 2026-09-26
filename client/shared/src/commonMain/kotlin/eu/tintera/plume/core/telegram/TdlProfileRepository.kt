@@ -54,6 +54,7 @@ class TdlProfileRepository(
             kind = ProfileKind.Group,
             photoFileId = chat.photo?.big?.id,
             photoThumbnailFileId = chat.photo?.small?.id,
+            emojiStatus = chat.emojiStatus.statusEmojiId(),
             usernames = emptyList(),
             about = "",
             aboutEntities = emptyList(),

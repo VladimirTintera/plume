@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.customEmojiIdOf
+import eu.tintera.plume.core.ui.CustomEmojiIcon
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -235,7 +237,12 @@ private fun ReactionChip(
                 // písmen, ale u emoji je nosná celá kresba, takže ve stejné velikosti působí menší.
                 // Výška řádku = velikost písma, zarovnaná na střed a oříznutá: jinak nese text nad
                 // kresbou rezervu řádku a emoji sedí v kolečku o kus níž.
-                Text(text = reaction.emoji, style = CENTERED_EMOJI)
+                val customId = customEmojiIdOf(reaction.emoji)
+                if (customId != null) {
+                    CustomEmojiIcon(customId, size = CUSTOM_EMOJI_CHIP_SIZE)
+                } else {
+                    Text(text = reaction.emoji, style = CENTERED_EMOJI)
+                }
             }
         }
 
@@ -283,6 +290,12 @@ private val REACTION_ELEVATION = 1.dp
 
 /** Kroužek, kterým se odliší vlastní reakce. */
 private val REACTION_SELECTED_RING = 1.5.dp
+
+/**
+ * Vlastní emoji v čipu. Větší než písmo obyčejného emoji ([CENTERED_EMOJI]): to je bez rezervy
+ * řádku, kdežto obrázek vlastního emoji má kolem kresby vlastní okraj.
+ */
+private val CUSTOM_EMOJI_CHIP_SIZE = 18.dp
 
 /** Emoji v čipu: výška řádku rovná písmu, na střed, bez rezervy nad kresbou. */
 private val CENTERED_EMOJI = TextStyle(
@@ -374,7 +387,12 @@ fun ReactionDetailsSheet(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
-                    Text(text = detail.emoji, fontSize = 20.sp)
+                    val customId = customEmojiIdOf(detail.emoji)
+                    if (customId != null) {
+                        CustomEmojiIcon(customId, size = 24.dp)
+                    } else {
+                        Text(text = detail.emoji, fontSize = 20.sp)
+                    }
                 }
             }
         }

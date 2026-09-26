@@ -2,6 +2,9 @@ package eu.tintera.plume.features.chats
 
 import androidx.compose.material3.LocalContentColor
 import eu.tintera.plume.core.ui.VerificationBadge
+import eu.tintera.plume.core.ui.EmojiStatusBadge
+import eu.tintera.plume.core.ui.appendWithCustomEmoji
+import eu.tintera.plume.core.ui.customEmojiInlineContent
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.threshold
@@ -1192,16 +1195,13 @@ private fun ChatRow(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false).sharedNavText(chatTitleKey(chat.id)),
                         )
-                        chat.verification?.let {
-                            VerificationBadge(
-                                verification = it,
-                                accent = accentOn(
-                                    background = containerColor,
-                                    accent = MaterialTheme.colorScheme.primary,
-                                    fallback = LocalContentColor.current,
-                                ),
-                            )
-                        }
+                        val badgeAccent = accentOn(
+                            background = containerColor,
+                            accent = MaterialTheme.colorScheme.primary,
+                            fallback = LocalContentColor.current,
+                        )
+                        chat.verification?.let { VerificationBadge(verification = it, accent = badgeAccent) }
+                        chat.emojiStatus?.let { EmojiStatusBadge(it, accent = badgeAccent) }
                     }
 
                     if (chat.isMuted) {
@@ -1242,20 +1242,28 @@ private fun ChatRow(
                  * řádku nevejde.
                  */
                 val draftLabelColor = accentOn(containerColor, MaterialTheme.colorScheme.tertiary, contentColor)
+                // Vlastní emoji v náhledu (a konceptu) jako obrázek, ne náhradní znak.
+                val customEmoji = mutableSetOf<Long>()
                 val subtitle: AnnotatedString? = chat.activity?.label()?.let { AnnotatedString(stringResource(it)) }
                     ?: chat.draft?.let { draft ->
                         buildAnnotatedString {
                             // Štítek jinou barvou než „píše…" (primary) — jde o náš text, ne o dění.
                             withStyle(SpanStyle(color = draftLabelColor)) { append(stringResource(Res.string.chats_draft_prefix)) }
-                            // Zalomení by v jednořádkovém náhledu useklo text hned na začátku.
-                            append(draft.text.replace('\n', ' '))
+                            // Zalomení by v jednořádkovém náhledu useklo text hned na začátku;
+                            // mezera je stejně dlouhá, takže offsety emoji sedí dál.
+                            customEmoji += appendWithCustomEmoji(draft.text.replace('\n', ' '), draft.entities)
                         }
                     }
-                    ?: chat.lastMessagePreview?.let(::AnnotatedString)
+                    ?: chat.lastMessagePreview?.let { preview ->
+                        buildAnnotatedString {
+                            customEmoji += appendWithCustomEmoji(preview, chat.lastMessagePreviewEntities)
+                        }
+                    }
 
                 subtitle?.let {
                     Text(
                         text = it,
+                        inlineContent = customEmojiInlineContent(customEmoji),
                         style = MaterialTheme.typography.bodyMedium,
                         // Nepřečtený náhled se odliší barvou, ne řezem: s polotučným názvem nad
                         // ním by byly na jednom řádku dvě úrovně tučnosti a blok by ztěžkl.

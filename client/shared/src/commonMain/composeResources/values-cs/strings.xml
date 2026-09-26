@@ -129,6 +129,7 @@
     <string name="report_messages_title">Vyber zprávy</string>
     <string name="report_messages_body">Telegram potřebuje vědět, které zprávy jsou problém. V chatu podrž zprávu a zvol Nahlásit.</string>
     <string name="spam_bar_text">Není mezi tvými kontakty</string>
+    <string name="spam_bar_emoji_status">Emoji za jménem je emoji status. Nastavit si ho může kdokoli s Telegram Premium — nic neověřuje.</string>
     <string name="spam_bar_add_contact">Přidat kontakt</string>
     <string name="spam_bar_registered">Na Telegramu od %1$s %2$d</string>
     <string name="spam_bar_phone_country">Telefonní číslo: %1$s</string>

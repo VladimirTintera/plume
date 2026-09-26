@@ -228,6 +228,7 @@ class TdlChatRepository(
                 edit(update.chatId) { current ->
                     current.copy(
                         lastMessagePreview = preview,
+                        lastMessagePreviewEntities = update.lastMessage?.content?.previewEntities().orEmpty(),
                         lastMessageTimestamp = update.lastMessage?.date,
                     )
                 }
@@ -314,6 +315,13 @@ class TdlChatRepository(
                 edit(supergroupChatId(update.supergroup.id)) {
                     it.copy(verification = update.supergroup.verificationStatus.toVerification())
                 }
+            }
+        }
+
+        // Emoji status za jménem. `Chat` ho nese sám, takže stačí jeden update na chat.
+        scope.launch {
+            holder.updates { chatEmojiStatusUpdates }.collect { update ->
+                edit(update.chatId) { it.copy(emojiStatus = update.emojiStatus.statusEmojiId()) }
             }
         }
 
@@ -1089,6 +1097,7 @@ private suspend fun Chat.toSummary(): ChatSummary {
         title = title,
         unreadCount = unreadCount,
         lastMessagePreview = lastMessage?.previewText(),
+        lastMessagePreviewEntities = lastMessage?.content?.previewEntities().orEmpty(),
         unreadMentionCount = unreadMentionCount,
         unreadReactionCount = unreadReactionCount,
         isPinned = false,
@@ -1103,6 +1112,7 @@ private suspend fun Chat.toSummary(): ChatSummary {
         presence = null,
         activity = null,
         draft = draftMessage?.toChatDraft(),
+        emojiStatus = emojiStatus.statusEmojiId(),
     )
 }
 
@@ -1113,9 +1123,15 @@ private suspend fun Chat.toSummary(): ChatSummary {
  * ale psát o nich „Koncept:" bez obsahu by nic neřeklo; zbude u nich náhled poslední zprávy.
  */
 internal fun DraftMessage.toChatDraft(): ChatDraft? {
-    val text = (content as? DraftMessageContentText)?.text?.text
-    if (text.isNullOrBlank()) return null
-    return ChatDraft(text = text, timestamp = date)
+    val formatted = (content as? DraftMessageContentText)?.text ?: return null
+    if (formatted.text.isBlank()) return null
+    return ChatDraft(
+        text = formatted.text,
+        timestamp = date,
+        entities = formatted.toBody().entities.filter {
+            it.type is MessageEntityType.CustomEmoji || it.type == MessageEntityType.Spoiler
+        },
+    )
 }
 
 /** Pozice chatu v jedné složce. */
@@ -1143,6 +1159,13 @@ private fun Chat.blockableUserId(): Long? = when (val type = type) {
 private fun Chat.reportsSpamDirectly(): Boolean =
     actionBar is ChatActionBarReportSpam || actionBar is ChatActionBarReportAddBlock
 
+/**
+ * Soukromý chat s cizím, který má emoji status — pruh spamu pak MUSÍ upozornit, že status nic
+ * nepotvrzuje (dokumentace `chatActionBarReportSpam` / `ReportAddBlock`: „a notice about emoji
+ * status usage must be shown"). Status jde koupit s Premium a vypadá jako odznak u jména.
+ */
+private fun Chat.warnsEmojiStatus(): Boolean = blockableUserId() != null && emojiStatus.statusEmojiId() != null
+
 /** Pruh proti spamu nad konverzací; `null` u pruhů, které aplikace nekreslí. */
 private fun Chat.spamBar(): SpamBar? = when (val bar = actionBar) {
     is ChatActionBarReportSpam -> SpamBar(
@@ -1150,12 +1173,14 @@ private fun Chat.spamBar(): SpamBar? = when (val bar = actionBar) {
         canBlock = false,
         canAddContact = false,
         canUnarchive = bar.canUnarchive,
+        warnsEmojiStatus = warnsEmojiStatus(),
     )
     is ChatActionBarReportAddBlock -> SpamBar(
         canReportSpam = true,
         canBlock = blockableUserId() != null,
         canAddContact = blockableUserId() != null,
         canUnarchive = bar.canUnarchive,
+        warnsEmojiStatus = warnsEmojiStatus(),
         account = bar.accountInfo?.let {
             CounterpartAccount.of(
                 month = it.registrationMonth,
