@@ -49,6 +49,10 @@ import org.jetbrains.compose.resources.stringResource
  * snědl data. Nad stropem zůstane náhled se symbolem přehrání a čeká na ťuknutí.
  *
  * Ťuknutí na hrající GIF ho pozastaví, další pustí — jinak by nešel zastavit vůbec.
+ *
+ * **Skrytý GIF (spoiler, citlivý obsah) se nestahuje ani nehraje, dokud ho uživatel
+ * neodkryje** ([revealed]): pod rozostřením by se hýbal a prozradil, co skrývá. Dokud spoiler
+ * u GIFu nebyl vůbec, hrál sám i ten, který odesílatel schoval.
  */
 @Composable
 internal fun AnimationBubble(
@@ -56,12 +60,16 @@ internal fun AnimationBubble(
     shape: Shape,
     onRequestMenu: () -> Unit,
     modifier: Modifier = Modifier,
+    revealed: Boolean = true,
+    onReveal: () -> Unit = {},
 ) {
     // Stahování se spustí odběrem souboru, takže se u velkého GIFu čeká na ťuknutí.
     var requested by remember(animation.fileId) { mutableStateOf(animation.autoPlays) }
     var paused by remember(animation.fileId) { mutableStateOf(false) }
+    val hidden = animation.hasSpoiler && !revealed
+    val spoilerStyle = rememberSpoilerBlurStyle()
 
-    val fileState = rememberFileState(animation.fileId.takeIf { requested })
+    val fileState = rememberFileState(animation.fileId.takeIf { requested && !hidden })
     val path = (fileState as? FileState.Ready)?.path
 
     Box(
@@ -70,7 +78,11 @@ internal fun AnimationBubble(
             // Dlouhý stisk se opakuje — potomek s vlastním klikáním ho k bublině nepustí.
             .combinedClickable(
                 onClick = {
-                    if (path == null) requested = true else paused = !paused
+                    when {
+                        hidden -> onReveal()
+                        path == null -> requested = true
+                        else -> paused = !paused
+                    }
                 },
                 onLongClick = onRequestMenu,
             ),
@@ -83,7 +95,9 @@ internal fun AnimationBubble(
                 fileId = thumbnail,
                 placeholder = animation.minithumbnail,
                 contentDescription = stringResource(Res.string.content_gif),
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .spoilerBlur(hidden, revealed = false, spoilerStyle),
             )
         }
 
@@ -95,7 +109,7 @@ internal fun AnimationBubble(
         }
 
         // Symbol přehrání jen dokud GIF neběží: u hrajícího by překážel obrazu.
-        if (path == null || paused) {
+        if (!hidden && (path == null || paused)) {
             Surface(
                 shape = RoundedCornerShape(percent = 50),
                 color = Color.Black.copy(alpha = BADGE_ALPHA),
@@ -108,6 +122,8 @@ internal fun AnimationBubble(
                 )
             }
         }
+
+        if (animation.hasSpoiler) SpoilerOverlay(visible = hidden, sensitive = animation.isSensitive)
 
         // Značka „GIF" v rohu, jako v ostatních klientech — jinak vypadá GIF jako němé video.
         Surface(

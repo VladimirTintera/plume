@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.profile
 
+import org.koin.compose.koinInject
+import eu.tintera.plume.features.conversation.items.spoilerBlur
+import eu.tintera.plume.features.conversation.items.rememberSpoilerBlurStyle
+import eu.tintera.plume.core.telegram.RevealedSpoilers
+import androidx.compose.runtime.collectAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -25,6 +30,9 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.ui.platform.LocalLayoutDirection
 import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.core.ui.SearchPill
+import eu.tintera.plume.resources.media_spoiler
+import eu.tintera.plume.resources.media_sensitive
+import eu.tintera.plume.resources.visibility_off_24dp
 import eu.tintera.plume.resources.chats_search_clear
 import eu.tintera.plume.resources.chats_search_empty_hint
 import eu.tintera.plume.resources.profile_members_hidden
@@ -154,13 +162,26 @@ internal fun SharedMediaGrid(
     }
 }
 
-/** Dlaždice mřížky: čtverec s náhledem, u videa symbol přehrání. */
+/**
+ * Dlaždice mřížky: čtverec s náhledem, u videa symbol přehrání.
+ *
+ * **Skryté médium (spoiler, citlivý obsah) je rozostřené i tady**, dokud ho uživatel neodkryl
+ * — dřív tu byl ostrý každý spoiler. Odkrývá se jako v konverzaci: první ťuknutí odkryje,
+ * druhé otevře. Prohlížeč totiž médium, na které se ťuklo, odkrývá sám (z konverzace je to už
+ * druhé ťuknutí), takže otevření rovnou by ho ukázalo bez varování. Štítek se do dlaždice
+ * nevejde, skrytí nese přeškrtnuté oko.
+ */
 @Composable
 private fun MediaTile(message: ChatMessage, shape: Shape, onOpen: () -> Unit) {
     val photo = message.media as? MessageMedia.Photo
     val video = message.media as? MessageMedia.Video
     val fileId = photo?.fileId ?: video?.thumbnailFileId
     val thumbnailFileId = photo?.thumbnailFileId ?: video?.thumbnailFileId
+    val hasSpoiler = photo?.hasSpoiler == true || video?.hasSpoiler == true
+    val revealedSpoilers = koinInject<RevealedSpoilers>()
+    val revealedIds by revealedSpoilers.revealed.collectAsState()
+    val hidden = hasSpoiler && message.id !in revealedIds
+    val spoilerStyle = rememberSpoilerBlurStyle()
 
     Box(
         Modifier
@@ -171,7 +192,7 @@ private fun MediaTile(message: ChatMessage, shape: Shape, onOpen: () -> Unit) {
             // z něj jsou obě strany složené naráz a se společným klíčem se spárovaly mezi sebou.
             .sharedNavElement(photoKey(message.id))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .clickable(onClick = onOpen),
+            .clickable(onClick = { if (hidden) revealedSpoilers.reveal(message.id) else onOpen() }),
     ) {
         if (fileId != null) {
             RemoteImage(
@@ -181,13 +202,29 @@ private fun MediaTile(message: ChatMessage, shape: Shape, onOpen: () -> Unit) {
                 contentDescription = stringResource(
                     if (video != null) Res.string.profile_shared_media_video else Res.string.profile_shared_photo,
                 ),
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .spoilerBlur(hidden, revealed = false, spoilerStyle),
             )
         } else {
             // Video bez náhledu (server ho nedal) — prázdná plocha by vypadala jako chyba.
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Icon(painterResource(Res.drawable.image_24dp), contentDescription = null)
             }
+        }
+        if (hidden) {
+            Icon(
+                painterResource(Res.drawable.visibility_off_24dp),
+                contentDescription = stringResource(
+                    if (photo?.isSensitive == true || video?.isSensitive == true) {
+                        Res.string.media_sensitive
+                    } else {
+                        Res.string.media_spoiler
+                    },
+                ),
+                tint = Color.White,
+                modifier = Modifier.align(Alignment.Center),
+            )
         }
         if (video != null) {
             Surface(

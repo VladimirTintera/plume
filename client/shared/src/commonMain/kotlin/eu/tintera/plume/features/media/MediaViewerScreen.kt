@@ -865,6 +865,7 @@ private fun ZoomableImage(
             SpoilerOverlay(
                 visible = !revealed,
                 modifier = Modifier.fillMaxSize(),
+                sensitive = photo.isSensitive,
             )
         }
     }

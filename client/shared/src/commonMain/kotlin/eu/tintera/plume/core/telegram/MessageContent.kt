@@ -563,21 +563,31 @@ internal fun MessageSelfDestructType.toSelfDestructType(): SelfDestructType = wh
     is MessageSelfDestructTypeTimer -> SelfDestructType.Timer(selfDestructTime)
 }
 
-/** Příloha zprávy, nebo `null` u čistě textové. */
-internal suspend fun Message.messageMedia(): MessageMedia? = when (val content = this.content) {
+/**
+ * Příloha zprávy, nebo `null` u čistě textové.
+ *
+ * [hideSensitive] skryje fotku, video i GIF za rozostření jako spoiler (viz [SensitiveContent]);
+ * rozhoduje o tom volající, protože k tomu potřebuje volbu z TDLib.
+ */
+internal suspend fun Message.messageMedia(hideSensitive: Boolean = false): MessageMedia? = when (val content = this.content) {
     is MessagePhoto -> content.photo.toMedia(
-        hasSpoiler = content.hasSpoiler,
+        hasSpoiler = content.hasSpoiler || hideSensitive,
+        isSensitive = hideSensitive,
         isSecret = content.isSecret,
         selfDestructType = selfDestructType?.toSelfDestructType(),
     )
 
     is MessageVideo -> content.video.toMedia(
-        hasSpoiler = content.hasSpoiler,
+        hasSpoiler = content.hasSpoiler || hideSensitive,
+        isSensitive = hideSensitive,
         isSecret = content.isSecret,
         selfDestructType = selfDestructType?.toSelfDestructType(),
     )
 
-    is MessageAnimation -> content.animation.toMedia()
+    is MessageAnimation -> content.animation.toMedia().copy(
+        hasSpoiler = content.hasSpoiler || hideSensitive,
+        isSensitive = hideSensitive,
+    )
 
     is MessageDocument -> content.document.toMedia(
         fileName = content.document.fileName.ifBlankGet { getString(Res.string.content_file) },
@@ -657,6 +667,7 @@ private fun CallDiscardReason.toCallEnd(): CallEnd = when (this) {
 /** Video, jak ho kreslí bublina — sdílí to zpráva s videem i video v anketě. */
 private fun Video.toMedia(
     hasSpoiler: Boolean = false,
+    isSensitive: Boolean = false,
     isSecret: Boolean = false,
     selfDestructType: SelfDestructType? = null,
 ) = MessageMedia.Video(
@@ -667,6 +678,7 @@ private fun Video.toMedia(
     height = height,
     durationSeconds = duration,
     hasSpoiler = hasSpoiler,
+    isSensitive = isSensitive,
     isSecret = isSecret,
     selfDestructType = selfDestructType,
     supportsStreaming = supportsStreaming,
@@ -879,6 +891,7 @@ internal fun previewText(raw: String): String? =
  */
 private fun Photo.toMedia(
     hasSpoiler: Boolean = false,
+    isSensitive: Boolean = false,
     isSecret: Boolean = false,
     selfDestructType: SelfDestructType? = null,
 ): MessageMedia.Photo? {
@@ -904,6 +917,7 @@ private fun Photo.toMedia(
         width = display.width,
         height = display.height,
         hasSpoiler = hasSpoiler,
+        isSensitive = isSensitive,
         isSecret = isSecret,
         selfDestructType = selfDestructType,
         minithumbnail = minithumbnail?.toDomain(),

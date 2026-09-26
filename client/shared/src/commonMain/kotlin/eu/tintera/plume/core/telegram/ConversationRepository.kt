@@ -1246,6 +1246,8 @@ sealed interface MessageMedia {
         val width: Int,
         val height: Int,
         val hasSpoiler: Boolean = false,
+        /** Skryté kvůli citlivému obsahu, ne volbou odesílatele — viz [SensitiveContent]. */
+        val isSensitive: Boolean = false,
         val isSecret: Boolean = false,
         val selfDestructType: SelfDestructType? = null,
         val minithumbnail: Minithumbnail? = null,
@@ -1264,6 +1266,8 @@ sealed interface MessageMedia {
         val height: Int,
         val durationSeconds: Int,
         val hasSpoiler: Boolean = false,
+        /** Skryté kvůli citlivému obsahu, ne volbou odesílatele — viz [SensitiveContent]. */
+        val isSensitive: Boolean = false,
         val isSecret: Boolean = false,
         val selfDestructType: SelfDestructType? = null,
         /**
@@ -1295,6 +1299,10 @@ sealed interface MessageMedia {
         val height: Int,
         val sizeBytes: Long,
         val minithumbnail: Minithumbnail? = null,
+        /** Skrytý do ťuknutí, stejně jako fotka se spoilerem — a do té doby NEHRAJE. */
+        val hasSpoiler: Boolean = false,
+        /** Skrytý kvůli citlivému obsahu, ne volbou odesílatele — viz [SensitiveContent]. */
+        val isSensitive: Boolean = false,
     ) : MessageMedia {
         /** Pustí se samo, nebo až na ťuknutí. */
         val autoPlays: Boolean get() = sizeBytes in 1..MAX_AUTOPLAY_ANIMATION_BYTES

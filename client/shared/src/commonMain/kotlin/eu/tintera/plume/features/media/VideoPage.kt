@@ -168,6 +168,7 @@ internal fun VideoPage(
         // čekal marně.
         requestFrom = { offset -> scope.launch { repository.downloadFrom(video.fileId, offset) } },
         hasSpoiler = hasSpoiler,
+        sensitive = video.isSensitive,
         revealed = revealed,
         onReveal = onReveal,
         modifier = modifier,
@@ -221,6 +222,8 @@ internal fun VideoPage(
     /** Náhled přes celou kartu, dokud se video nepřehrává. */
     thumbnail: @Composable () -> Unit,
     hasSpoiler: Boolean = false,
+    /** Skryté kvůli citlivému obsahu — mění jen štítek (viz `SpoilerOverlay`). */
+    sensitive: Boolean = false,
     revealed: Boolean = true,
     onReveal: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -454,6 +457,7 @@ internal fun VideoPage(
                 SpoilerOverlay(
                     visible = !revealed,
                     modifier = Modifier.fillMaxSize(),
+                    sensitive = sensitive,
                 )
             }
 

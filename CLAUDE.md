@@ -5287,6 +5287,36 @@ za `MessageExpiredPhoto` / `MessageExpiredVideo`.
   se prohlížeč zavírá. Nahlášené při otevření by médium zmizelo dřív, než se stáhlo. Co se
   nestáhlo, uživatel neviděl — nespotřebuje se.
 
+### Citlivý obsah
+
+Médium, které server označil jako citlivé (`Message.restrictionInfo.hasSensitiveContent`), je
+rozostřené se štítkem „Citlivý obsah" a odkryje se ťuknutím (`SensitiveContent`, testy
+`SensitiveContentTest`).
+
+- **Je to spoiler s jiným štítkem.** Převod nastaví `hasSpoiler` a navíc `isSensitive`, takže
+  rozostření, odkrývání (`RevealedSpoilers`), prohlížeč i notifikace jdou toutéž cestou;
+  `isSensitive` mění jen text štítku. Dvě samostatná skrývání by se rozešla při prvním doladění.
+- **Volbu uživatele hlídá aplikace, TDLib ne.** Kdo si citlivý obsah v Telegramu povolil, má
+  `ignore_sensitive_content_restrictions = true`, ale `hasSensitiveContent` přichází dál
+  (`get_restriction_info_object` v `RestrictionReason.cpp` na volbu nesahá — přečteno ve zdroji
+  TDLib). Na volbu se ptá jen zpráva, která příznak má (`TdlClient.hidesSensitive`), ne každá
+  zpráva historie.
+- **Do notifikace citlivá fotka nejde nikdy**, ani s povolenou volbou: zamykací obrazovku
+  vidí i ostatní.
+- **GIF spoiler dřív NEUMĚL VŮBEC** (`MessageAnimation.hasSpoiler` se zahazoval) a hrál sám
+  i schovaný. Skrytý GIF se teď nestahuje ani nepřehrává, dokud se neodkryje — pod rozostřením
+  by se hýbal a prozradil, co skrývá.
+- **Mřížka médií v profilu spoiler taky neznala** a ukazovala ho ostře. Skrytá dlaždice je
+  rozostřená s přeškrtnutým okem a **první ťuknutí jen odkryje**, jako v konverzaci. Otevřít
+  rovnou nejde: prohlížeč médium, na které se ťuklo, odkrývá sám (z konverzace je to druhé
+  ťuknutí), takže by ho z mřížky ukázal bez varování.
+- **Ověřeno na emulátoru podstrčeným příznakem** (sonda: popisek `#citlive` od testovacího bota,
+  necommituje se): fotka, video i GIF v konverzaci, odkrytí GIFu s přehráním, mřížka v profilu.
+  Skutečná citlivá zpráva ověřená není. **Ruční GIF z Pythonu Telegram nepoznal** a poslal ho
+  jako soubor; animaci vyrobí `sendAnimation` s němým MP4 (`screenrecord` z emulátoru). Ten ale
+  nahrává obrazovku i se jmény kontaktů — testovací zprávy se proto po ověření mažou
+  (`deleteMessage` botem).
+
 ### Jak to ověřit
 
 **Přes testovacího bota jde ověřit jen ODESÍLACÍ strana.** Bot API mizející média posílat neumí

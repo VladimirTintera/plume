@@ -202,10 +202,14 @@ class TdlNotificationRepository(
             is NotificationTypeNewMessage -> {
                 val sender = resolveSender(type.message.senderId)
                 val message = type.message
-                // Fotka pod spoilerem nebo mizející se do notifikace nedává: obojí má být
-                // vidět až na výslovné ťuknutí, ne na zamykací obrazovce.
+                // Fotka pod spoilerem, mizející nebo citlivá se do notifikace nedává: má být
+                // vidět až na výslovné ťuknutí, ne na zamykací obrazovce. Citlivá ani tehdy,
+                // když si ji uživatel v Telegramu povolil — zamykací obrazovku vidí i jiní.
                 val shownPhoto = (message.content as? MessagePhoto)
-                    ?.takeIf { type.showPreview && !it.hasSpoiler && !it.isSecret && message.selfDestructType == null }
+                    ?.takeIf {
+                        type.showPreview && !it.hasSpoiler && !it.isSecret && message.selfDestructType == null &&
+                            message.restrictionInfo?.hasSensitiveContent != true
+                    }
                 NotificationContent(
                     messageId = message.id,
                     senderName = sender?.name,

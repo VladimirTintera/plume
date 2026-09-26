@@ -164,7 +164,7 @@ private fun AlbumTile(
                         .spoilerBlur(media.hasSpoiler, revealed, spoilerStyle),
                 )
                 if (media.hasSpoiler) {
-                    SpoilerOverlay(visible = !revealed)
+                    SpoilerOverlay(visible = !revealed, sensitive = media.isSensitive)
                 }
                 // Každá dlaždice nahrává sama za sebe, takže má i vlastní zrušení.
                 if (uploading) {
