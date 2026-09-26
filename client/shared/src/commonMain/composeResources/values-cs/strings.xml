@@ -788,6 +788,16 @@
 
     <string name="settings_section_devices">Zařízení</string>
     <string name="settings_section_devices_summary">Kde jste přihlášeni, přihlášení QR kódem</string>
+    <string name="settings_section_whats_new">Co je nového</string>
+    <string name="settings_section_whats_new_summary">Novinky a opravy v jednotlivých verzích</string>
+    <string name="changelog_release_title">Verze %1$s · %2$s</string>
+    <string name="changelog_note_feature">Novinka</string>
+    <string name="changelog_note_fix">Oprava</string>
+    <string name="changelog_show_older">Zobrazit starší verze</string>
+    <string name="changelog_empty">Tahle sestava seznam novinek nemá.</string>
+    <!-- Jazyk poznámek k vydání (cs/en). Z prostředků, aby se poznámky ukázaly v témže
+         jazyce, jaký Compose vybral pro zbytek obrazovky — i s jazykem nastaveným jen pro aplikaci. -->
+    <string name="changelog_note_language">cs</string>
     <string name="error_fresh_session">Kvůli bezpečnosti jde ostatní zařízení odhlásit, až bude tohle přihlášené zhruba den.</string>
     <string name="error_qr_login_expired">Platnost QR kódu vypršela. Naskenujte nový, který ukazuje druhé zařízení.</string>
     <string name="devices_link">Přihlásit zařízení QR kódem</string>

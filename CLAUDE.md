@@ -13,7 +13,7 @@ přeposílání, připnuté zprávy, ankety a kvízy), prohlížeč médií s fo
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
 Není: hlášení pádů z iOS. Notifikace na iOS (APNs) jsou napojené, ale čekají na certifikát APNs u Telegramu a ověření skutečným pushem.
-Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné, Notifikace, Vzhled a Zařízení; vědomě
+Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné, Notifikace, Vzhled, Zařízení a Co je nového; vědomě
 nastavitelné je téma aplikace (motiv a barvy z tapety), vyčlenění nepřečtených chatů do vlastního
 bloku a upozornění po rozsazích (soukromé chaty / skupiny / kanály) s výjimkami.
 Rozpracovaný detail chatu má vlastní seznam:
@@ -585,6 +585,35 @@ na klon: `git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"
   odmítne celý upload. Úplně nový jazyk = řádek v `LOCALES`, klíč v každé poznámce, záznam
   v `play/listing/` — a do `PLAY_LANGS` až PO jeho nahrání.
 - GitHub Release dostane celý seznam v obou jazycích (bez ořezu) nad technickým changelogem.
+
+### „Co je nového" v aplikaci (`core/changelog`)
+
+Pátá sekce Nastavení (`WhatsNewSettings`) ukazuje tytéž poznámky po vydáních, od nejnovějšího.
+Po aktualizaci nic nevyskakuje — novinky jsou tam, kdo je hledá (převzato z mlogu, bez jeho
+`WhatsNewGate`).
+
+- **Poznámky se zapékají při buildu**: gradle task `:client:shared:generateChangelog` pustí
+  `release_notes.py bundle` a vygeneruje `GeneratedChangelog.kt` do
+  `build/generated/changelog/kotlin`, který je zdrojovým adresářem `commonMain`. **Tentýž skript
+  jako pro Play** — dvě kopie pravidel (co je `internal`, rozsah mezi tagy) by se rozešly.
+- **Kotlin, ne compose resource**: seznam je dostupný synchronně a chyba generátoru spadne při
+  překladu. Vygenerovaný soubor leží v `build/`, takže ho `verifyNoHardcodedText` nečte.
+- **Jen tagy `--merged HEAD`**: build ze starší větve nesmí ukazovat verze, které v něm nejsou.
+  Release se staví z tagu, takže aktuální vydání v seznamu je; tagy se řadí podle verze a `-manual`
+  projde. Vydání jen s `internal` poznámkami se vynechá.
+- **Task je schválně nikdy up-to-date** (vstupem jsou i tagy) a trvá asi 2 s; překlad se přeskočí,
+  když vyjde stejný obsah. **Bez pythonu nebo gitu build nespadne**: zapíše se prázdný seznam
+  (sekce pak řekne, že sestava novinky nemá) a důvod se zaloguje. CI klonuje s `fetch-depth: 0`,
+  bez tagů by seznam byl prázdný.
+- **Jazyk poznámky se bere z prostředků** (`changelog_note_language` = `cs`/`en`), ne z locale.
+  Poznámka tak vždycky sedí s jazykem, který Compose vybral pro zbytek obrazovky, i s jazykem
+  nastaveným jen pro aplikaci — a funguje stejně na iOS, kde `NSLocale.currentLocale` jde za
+  regionem systému (viz „Výběr země a formát čísla").
+- **Vydání po deseti s „Zobrazit starší verze"**: sekce je sloupec, ne lazy seznam, a celá
+  historie má stovky řádků.
+- **Novinku od opravy odliší tvar ikony** (raketa, brouk), čtečce obrazovky slovo v popisu ikony.
+- **Ověřeno na emulátoru** (anglicky i česky přes `set-app-locales`, stránkování, přežití změny
+  jazyka). Na iOS jen přeložené a slinkované.
 
 ## Struktura modulů
 

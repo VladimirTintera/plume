@@ -9,6 +9,65 @@ plugins {
     alias(libs.plugins.buildConfig)
 }
 
+/**
+ * Zapeče poznámky k vydání z `release-notes/` do aplikace — „Co je nového" v Nastavení
+ * (`core/changelog`). Generuje je `.github/scripts/release_notes.py bundle`, tedy **tentýž skript**,
+ * který skládá text pro Google Play; dvě kopie pravidel by se rozešly.
+ *
+ * - **Kotlin, ne compose resource**: seznam je dostupný synchronně na obou platformách a chyba
+ *   v generátoru spadne při překladu, ne za běhu.
+ * - **Nikdy up-to-date**: vstupem jsou i git tagy, ne jen soubory, takže kontrola vstupů by lhala.
+ *   Generování trvá pár vteřin a překlad se přeskočí, když vyjde stejný obsah.
+ * - **Bez pythonu nebo gitu se build nesmí rozbít** (cizí stroj, mělký klon): zapíše se prázdný
+ *   seznam a sekce řekne, že novinky v téhle sestavě nejsou. Důvod se loguje — tichý fallback by
+ *   vypadal jako „žádná vydání".
+ *
+ * MUSÍ být deklarovaný PŘED blokem `kotlin { }`, který ho přidává do `commonMain`: top-level `val`
+ * se v `.kts` inicializují v pořadí deklarace (stejná past jako `releaseKeystoreFile`).
+ */
+val generateChangelog = tasks.register("generateChangelog") {
+    description = "Zapeče poznámky z release-notes/ do aplikace (core/changelog)."
+    // Konfigurační keš neunese odkaz na skript uvnitř `doLast` — cesty se vytáhnou už tady.
+    val script = rootProject.file(".github/scripts/release_notes.py")
+    val repoDir = rootProject.projectDir
+    val outputDir = layout.buildDirectory.dir("generated/changelog/kotlin")
+    outputs.dir(outputDir)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val target = outputDir.get().file("eu/tintera/plume/core/changelog/GeneratedChangelog.kt").asFile
+        target.parentFile.mkdirs()
+        val failure = if (!script.exists()) {
+            "chybí ${script.name}"
+        } else {
+            runCatching {
+                val process = ProcessBuilder("python3", script.absolutePath, "bundle", target.absolutePath)
+                    .directory(repoDir)
+                    .redirectErrorStream(true)
+                    .start()
+                val output = process.inputStream.bufferedReader().readText().trim()
+                if (process.waitFor() == 0) {
+                    logger.info(output)
+                    null
+                } else {
+                    "exit ${process.exitValue()}: $output"
+                }
+            }.getOrElse { it.message ?: it.toString() }
+        }
+        if (failure != null) {
+            logger.lifecycle("generateChangelog: poznámky k vydání se nezapekly ($failure)")
+            target.writeText(
+                """
+                // Fallback: build neměl python nebo git, poznámky se nezapekly.
+                package eu.tintera.plume.core.changelog
+
+                internal val GENERATED_CHANGELOG: List<ChangelogRelease> = emptyList()
+                """.trimIndent() + "\n"
+            )
+        }
+    }
+}
+
 kotlin {
     jvmToolchain(17)
 
@@ -58,6 +117,11 @@ kotlin {
         // source set a ne prosté iosMain.
         val nonDynamicThemeMain by creating {
             dependsOn(commonMain.get())
+        }
+
+        commonMain {
+            // „Co je nového" v Nastavení — poznámky z release-notes/ zapečené při buildu.
+            kotlin.srcDir(generateChangelog)
         }
 
         commonMain.dependencies {
