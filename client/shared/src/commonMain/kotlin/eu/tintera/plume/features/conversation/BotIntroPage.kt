@@ -1,5 +1,14 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import eu.tintera.plume.core.telegram.ConnectionState
+import eu.tintera.plume.core.ui.OnlineDot
+import eu.tintera.plume.core.ui.rememberConnectionIndicator
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -31,7 +40,11 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * Prázdný chat s botem jako jeho profil: velká tvář nahoře uprostřed, jméno, „Bot" a pod tím
- * popis. Obrázek nebo GIF, který si bot k popisu nastavil, je až pod textem — představí ho
+ * popis.
+ *
+ * **Tvář je tu jediná** — hlavička nad profilem svůj avatar schová, takže to, co nesl, přebírá
+ * tahle: tečku „online" a při výpadku spojení zvlnění s prstencem ([connection], tentýž
+ * `ConnectionIndicator` jako v hlavičce a v seznamu chatů). Popis stavu dostane čtečka. Obrázek nebo GIF, který si bot k popisu nastavil, je až pod textem — představí ho
  * tvář a jméno, obrázek je doplněk.
  *
  * Kreslí se místo holého „Zatím tu nic není" i u bota BEZ popisu: tvář a jméno řeknou, s kým
@@ -44,8 +57,18 @@ internal fun BotIntroPage(
     chatId: Long,
     title: String,
     avatarFileId: Int?,
+    /** Výpadek spojení, jak ho ukazuje hlavička (`rememberShownConnection`); `null` = v pořádku. */
+    connection: ConnectionState?,
+    /** Popis výpadku pro čtečku; `null` = v pořádku. */
+    connectionLabel: String?,
+    online: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val indicator = rememberConnectionIndicator(
+        connection = connection,
+        avatarSize = AVATAR_SIZE,
+        grownSize = AVATAR_GROWN,
+    )
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -54,8 +77,35 @@ internal fun BotIntroPage(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 32.dp, vertical = 32.dp),
     ) {
-        Avatar(chatId = chatId, title = title, avatarFileId = avatarFileId, size = AVATAR_SIZE)
-        Spacer(Modifier.height(12.dp))
+        // Místo na zvětšenou tvář s prstencem, ať výpadek nepohne textem pod ní.
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(AVATAR_GROWN + RING_ROOM)
+                .semantics { connectionLabel?.let { stateDescription = it } },
+        ) {
+            Box {
+                Avatar(
+                    chatId = chatId,
+                    title = title,
+                    avatarFileId = avatarFileId,
+                    size = AVATAR_SIZE,
+                    // Při výpadku ořezává indikátor — vlastní kruh by vlnky schoval.
+                    shape = if (indicator.isShaping) RectangleShape else CircleShape,
+                    modifier = with(indicator) { Modifier.avatar() },
+                )
+                with(indicator) { Spacer(Modifier.matchParentSize().ring()) }
+                // Bez spojení je dostupnost stará hodnota a tečka by přeškrtla prstenec.
+                if (connection == null && online) {
+                    OnlineDot(
+                        rim = MaterialTheme.colorScheme.surface,
+                        size = ONLINE_DOT,
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(end = 6.dp, bottom = 6.dp),
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(4.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.headlineSmall,
@@ -101,6 +151,14 @@ private fun ratio(width: Int, height: Int): Float =
     if (width > 0 && height > 0) (width.toFloat() / height).coerceIn(0.5f, 3f) else 16f / 9f
 
 private val AVATAR_SIZE = 112.dp
+
+/** Tvář při výpadku spojení — naroste jako malá v hlavičce (36 → 42 dp), úměrně. */
+private val AVATAR_GROWN = 128.dp
+
+/** Rezerva kolem zvětšené tváře na prstenec. */
+private val RING_ROOM = 8.dp
+
+private val ONLINE_DOT = 24.dp
 private val TEXT_MAX_WIDTH = 480.dp
 private val MEDIA_MAX_WIDTH = 360.dp
 private val MEDIA_SHAPE = RoundedCornerShape(24.dp)

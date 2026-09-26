@@ -3979,6 +3979,11 @@ parametr (`InternalLink.BotStart`).
   než text. Kreslí se i u bota bez popisu (`showsBotIntro`): tvář a jméno řeknou, s kým chat je.
 - **Hlavička nad profilem nenabízí hledání ani shrnutí** — v prázdném chatu není co hledat
   a lupa nad profilem působila jako ovládání stránky.
+- **Tvář je nad profilem jediná**: hlavička avatar schová (`AnimatedVisibility`, po Startu se
+  vrátí) a velká tvář převezme, co nesl — tečku „online" a při výpadku zvlnění s prstencem
+  (tentýž `rememberConnectionIndicator`, větší rozměry; popis stavu pro čtečku). Mezera mezi
+  avatarem a jménem v hlavičce je proto odsazení AVATARU, ne `spacedBy` řádku — schovaný avatar
+  by jinak nechal před jménem díru. Ověřeno letovým režimem.
 
 - **Kdy Start, je čistá funkce** `showsBotStart` (testy `BotStartTest`): chat s botem
   (`botIntro != null`) a buď čekající parametr z odkazu, nebo PRÁZDNÁ historie. Prázdnou
