@@ -76,10 +76,13 @@ import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.done_all_24dp
 import eu.tintera.plume.resources.alternate_email_24dp
 import eu.tintera.plume.resources.favorite_filled_24dp
+import eu.tintera.plume.resources.ballot_24dp
 import eu.tintera.plume.resources.conversation_unread_mentions
 import eu.tintera.plume.resources.conversation_unread_reactions
 import eu.tintera.plume.resources.conversation_read_all_mentions
 import eu.tintera.plume.resources.conversation_read_all_reactions
+import eu.tintera.plume.resources.conversation_read_all_poll_votes
+import eu.tintera.plume.resources.conversation_unread_poll_votes
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.VisualTransformation
 import eu.tintera.plume.features.conversation.items.WavyShape
@@ -1372,6 +1375,12 @@ fun ConversationScreen(
                 onClick = viewModel::jumpToUnreadMark,
                 onReadAll = viewModel::readAllMarks,
             )
+            UnreadMarkButton(
+                kind = UnreadMarkKind.PollVote,
+                count = state.unreadMarks.pollVotes,
+                onClick = viewModel::jumpToUnreadMark,
+                onReadAll = viewModel::readAllMarks,
+            )
             ScrollToBottomButton(
                 // V okně v historii vede dolů i od spodní hrany — nejnovější zprávy nejsou načtené.
                 visible = farFromBottom || pendingNewMessages > 0 || !state.reachedEnd,
@@ -1915,11 +1924,13 @@ private fun UnreadMarkButton(
         val label = when (kind) {
             UnreadMarkKind.Mention -> pluralStringResource(Res.plurals.conversation_unread_mentions, shown[0], shown[0])
             UnreadMarkKind.Reaction -> pluralStringResource(Res.plurals.conversation_unread_reactions, shown[0], shown[0])
+            UnreadMarkKind.PollVote -> pluralStringResource(Res.plurals.conversation_unread_poll_votes, shown[0], shown[0])
         }
         val readAllLabel = stringResource(
             when (kind) {
                 UnreadMarkKind.Mention -> Res.string.conversation_read_all_mentions
                 UnreadMarkKind.Reaction -> Res.string.conversation_read_all_reactions
+                UnreadMarkKind.PollVote -> Res.string.conversation_read_all_poll_votes
             },
         )
 
@@ -1961,6 +1972,7 @@ private fun UnreadMarkButton(
                                 when (kind) {
                                     UnreadMarkKind.Mention -> Res.drawable.alternate_email_24dp
                                     UnreadMarkKind.Reaction -> Res.drawable.favorite_filled_24dp
+                                    UnreadMarkKind.PollVote -> Res.drawable.ballot_24dp
                                 },
                             ),
                             contentDescription = null,

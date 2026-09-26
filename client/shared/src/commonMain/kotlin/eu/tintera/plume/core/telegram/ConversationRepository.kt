@@ -138,8 +138,11 @@ interface ConversationRepository {
      */
     fun unreadMarks(chatId: Long): Flow<UnreadMarks>
 
-    /** Změny příznaku nepřečtených reakcí u zpráv ([ChatMessage.hasUnreadReactions]). */
-    fun unreadReactionChanges(chatId: Long): Flow<UnreadReactionChange>
+    /**
+     * Změny příznaku nepřečtených reakcí a hlasů u zpráv ([ChatMessage.hasUnreadReactions],
+     * [ChatMessage.hasUnreadPollVotes]).
+     */
+    fun unreadMarkChanges(chatId: Long): Flow<UnreadMarkChange>
 
     /**
      * Nejstarší nepřečtená zmínka nebo zpráva s nepřečtenou reakcí; `null`, když žádná není.
@@ -835,6 +838,8 @@ data class ChatMessage(
      * napořád a tlačítko „❤" by nezhaslo.
      */
     val hasUnreadReactions: Boolean = false,
+    /** Vlastní anketa s hlasy, které uživatel ještě neviděl (`containsUnreadPollVotes`). */
+    val hasUnreadPollVotes: Boolean = false,
     /**
      * Vlákno, do kterého zpráva patří (`MessageTopicThread`) — u komentáře v diskusní skupině
      * id kořenové zprávy; `null` mimo vlákno. Podle něj si vlákno komentářů bere nové zprávy.

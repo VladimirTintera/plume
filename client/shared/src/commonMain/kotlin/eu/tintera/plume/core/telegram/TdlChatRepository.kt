@@ -268,6 +268,13 @@ class TdlChatRepository(
         }
 
         scope.launch {
+            merge(
+                holder.updates { chatUnreadPollVoteCountUpdates }.map { it.chatId to it.unreadPollVoteCount },
+                holder.updates { messageContainsUnreadPollVotesUpdates }.map { it.chatId to it.unreadPollVoteCount },
+            ).collect { (chatId, count) -> edit(chatId) { it.copy(unreadPollVoteCount = count) } }
+        }
+
+        scope.launch {
             holder.updates { chatTitleUpdates }.collect { update ->
                 edit(update.chatId) { it.copy(title = update.title) }
             }
@@ -1100,6 +1107,7 @@ private suspend fun Chat.toSummary(): ChatSummary {
         lastMessagePreviewEntities = lastMessage?.content?.previewEntities().orEmpty(),
         unreadMentionCount = unreadMentionCount,
         unreadReactionCount = unreadReactionCount,
+        unreadPollVoteCount = unreadPollVoteCount,
         isPinned = false,
         order = 0L,
         avatarFileId = photo?.small?.id,

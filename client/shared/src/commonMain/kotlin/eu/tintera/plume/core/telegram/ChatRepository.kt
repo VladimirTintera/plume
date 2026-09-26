@@ -350,6 +350,8 @@ data class ChatSummary(
     val unreadMentionCount: Int = 0,
     /** Nepřečtené reakce na vlastní zprávy — odznak „❤" vedle počtu. */
     val unreadReactionCount: Int = 0,
+    /** Nepřečtené hlasy ve vlastních anketách — odznak s anketou vedle počtu. */
+    val unreadPollVoteCount: Int = 0,
     val isPinned: Boolean,
     val order: Long,
     /** Složka, ze které položka pochází — podle ní se nabízí archivace, nebo vrácení z archivu. */

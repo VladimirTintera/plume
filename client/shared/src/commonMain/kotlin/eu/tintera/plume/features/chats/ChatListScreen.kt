@@ -13,6 +13,8 @@ import eu.tintera.plume.resources.bookmark_24dp
 import eu.tintera.plume.resources.favorite_filled_24dp
 import eu.tintera.plume.resources.alternate_email_24dp
 import eu.tintera.plume.resources.chats_unread_reaction
+import eu.tintera.plume.resources.ballot_24dp
+import eu.tintera.plume.resources.chats_unread_poll_vote
 import eu.tintera.plume.resources.chats_unread_mention
 import eu.tintera.plume.core.ui.isSavedMessages
 import eu.tintera.plume.core.ui.chatTitle
@@ -1294,11 +1296,14 @@ private fun ChatRow(
  */
 @Composable
 private fun UnreadBadges(chat: ChatSummary) {
-    if (chat.unreadReactionCount == 0 && chat.unreadMentionCount == 0 && chat.unreadCount == 0) return
+    if (chat.unreadPollVoteCount == 0 && chat.unreadReactionCount == 0 && chat.unreadMentionCount == 0 && chat.unreadCount == 0) return
     Row(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (chat.unreadPollVoteCount > 0) {
+            IconBadge(Res.drawable.ballot_24dp, stringResource(Res.string.chats_unread_poll_vote))
+        }
         if (chat.unreadReactionCount > 0) {
             IconBadge(Res.drawable.favorite_filled_24dp, stringResource(Res.string.chats_unread_reaction))
         }

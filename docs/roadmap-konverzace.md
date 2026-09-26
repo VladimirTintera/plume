@@ -518,8 +518,8 @@ snadno na to uživatel narazí.
   psaní do tématu.
 - ~~**Nepřečtené zmínky a reakce**~~ — hotovo: tlačítka „@" a „❤" nad tlačítkem dolů, odznaky
   v seznamu chatů, „Označit vše" podržením (`CLAUDE.md`, „Nepřečtené zmínky a reakce"). Zbývá:
-  **ověřit skutečnou zmínku ve skupině**, **nepřečtené hlasy v anketě** (`unreadPollVoteCount`,
-  `SearchMessagesFilterUnreadPollVote`, TDLib 15) a zvýraznění, KDO reagoval (`UnreadReaction.senderId`).
+  **ověřit skutečnou zmínku ve skupině** a **skutečný nový hlas v anketě** (tlačítko s anketou je
+  hotové, ověřené jen podstrčeným počtem) a zvýraznění, KDO reagoval (`UnreadReaction.senderId`).
 - **Prázdný chat s botem** — popis „Co tento bot umí?" s obrázkem (`botInfo.description`,
   `photo`, `animation`) a tlačítko **Start** (`sendBotStartMessage`, i s parametrem z odkazu
   `t.me/bot?start=…`). Dnes prázdná konverzace a pole.

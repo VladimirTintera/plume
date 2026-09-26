@@ -85,6 +85,7 @@
     <string name="chats_muted">Ztlumeno</string>
     <string name="chats_unread_mention">Nepřečtená zmínka</string>
     <string name="chats_unread_reaction">Nepřečtená reakce</string>
+    <string name="chats_unread_poll_vote">Nové hlasy v anketě</string>
     <string name="chats_draft_prefix">Koncept: </string>
     <string name="chats_load_failed">Seznam chatů se nepodařilo načíst.</string>
     <string name="chats_action_failed">Akci se nepodařilo provést.</string>
@@ -723,6 +724,7 @@
     <string name="conversation_unread_mark_failed">Další se nepodařilo najít</string>
     <string name="conversation_read_all_mentions">Označit všechny zmínky jako přečtené</string>
     <string name="conversation_read_all_reactions">Označit všechny reakce jako přečtené</string>
+    <string name="conversation_read_all_poll_votes">Označit všechny hlasy jako přečtené</string>
     <plurals name="conversation_unread_mentions">
         <item quantity="one">%1$d nepřečtená zmínka</item>
         <item quantity="few">%1$d nepřečtené zmínky</item>
@@ -732,6 +734,11 @@
         <item quantity="one">%1$d nepřečtená reakce</item>
         <item quantity="few">%1$d nepřečtené reakce</item>
         <item quantity="other">%1$d nepřečtených reakcí</item>
+    </plurals>
+    <plurals name="conversation_unread_poll_votes">
+        <item quantity="one">%1$d nový hlas v anketě</item>
+        <item quantity="few">%1$d nové hlasy v anketě</item>
+        <item quantity="other">%1$d nových hlasů v anketě</item>
     </plurals>
     <plurals name="conversation_new_messages">
         <item quantity="one">%1$d nová zpráva</item>
