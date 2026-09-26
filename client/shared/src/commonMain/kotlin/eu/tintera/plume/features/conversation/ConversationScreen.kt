@@ -9,6 +9,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.PointerEventPass
 import kotlinx.coroutines.withTimeoutOrNull
+import eu.tintera.plume.core.ui.AutoDeleteBadge
 import eu.tintera.plume.core.ui.longPress
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.MessageSchedule
@@ -1170,6 +1171,11 @@ fun ConversationScreen(
                                 state.info?.emojiStatus
                                     ?.takeIf { state.threadRootId == null }
                                     ?.let { EmojiStatusBadge(it) }
+                                // Automatické mazání: co se tu napíše, samo zmizí. Ve vlákně
+                                // komentářů by patřilo celé skupině, ne vláknu.
+                                state.autoDeleteTime
+                                    .takeIf { it > 0 && state.threadRootId == null }
+                                    ?.let { AutoDeleteBadge(it) }
                             }
 
                             /*

@@ -14,6 +14,12 @@ interface ProfileRepository {
     suspend fun profile(chatId: Long): Result<ChatProfile>
 
     /**
+     * Nastaví automatické mazání NOVÝCH zpráv chatu po [seconds] (`setChatMessageAutoDeleteTime`),
+     * 0 = vypnout. Platí pro všechny v chatu; do chatu přibude servisní zpráva.
+     */
+    suspend fun setAutoDeleteTime(chatId: Long, seconds: Int): Result<Unit>
+
+    /**
      * Jedna stránka členů skupiny s rolí. Jen skupiny, kde je server vydá
      * ([ChatProfile.canListMembers]).
      *
@@ -198,6 +204,13 @@ data class ChatProfile(
     val verification: Verification? = null,
     /** Vlastní emoji statusu za jménem (viz [statusEmojiId]), nebo `null`. */
     val emojiStatus: Long? = null,
+    /** Po kolika sekundách se nové zprávy chatu samy mažou; 0 = nemažou. */
+    val autoDeleteTime: Int = 0,
+    /**
+     * Smí uživatel automatické mazání měnit? V soukromém chatu ano (i s botem), ve skupině
+     * a kanálu jen s právem měnit údaje chatu — tak ho vyžaduje `setChatMessageAutoDeleteTime`.
+     */
+    val canSetAutoDelete: Boolean = false,
 ) {
     /** Odkaz ke sdílení: veřejné jméno, jinak pozvánka; `null` = není co sdílet. */
     val link: String?

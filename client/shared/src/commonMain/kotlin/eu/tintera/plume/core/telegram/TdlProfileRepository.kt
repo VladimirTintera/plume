@@ -46,6 +46,11 @@ class TdlProfileRepository(
 
     private val client: TdlClient get() = holder.client
 
+    override suspend fun setAutoDeleteTime(chatId: Long, seconds: Int): Result<Unit> =
+        client.setChatMessageAutoDeleteTime(chatId = chatId, messageAutoDeleteTime = seconds)
+            .toResult()
+            .map { }
+
     override suspend fun profile(chatId: Long): Result<ChatProfile> = runCatching {
         val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
         val base = ChatProfile(
@@ -55,6 +60,7 @@ class TdlProfileRepository(
             photoFileId = chat.photo?.big?.id,
             photoThumbnailFileId = chat.photo?.small?.id,
             emojiStatus = chat.emojiStatus.statusEmojiId(),
+            autoDeleteTime = chat.messageAutoDeleteTime,
             usernames = emptyList(),
             about = "",
             aboutEntities = emptyList(),
@@ -63,7 +69,7 @@ class TdlProfileRepository(
             canListMembers = false,
         )
         // Bez `else`: nový druh chatu v novější TDLib má rozbít překlad, ne tiše skončit jako skupina.
-        when (val type = chat.type) {
+        val profile = when (val type = chat.type) {
             is ChatTypePrivate -> userProfile(base, type.userId)
             is ChatTypeSecret -> userProfile(base, type.userId)
 
@@ -107,6 +113,14 @@ class TdlProfileRepository(
                 )
             }
         }
+        profile.copy(
+            canSetAutoDelete = when (chat.type) {
+                // Uložené zprávy nikdo jiný nečte a tajný chat má vlastní časovač zpráv.
+                is ChatTypePrivate -> profile.kind != ProfileKind.SavedMessages
+                is ChatTypeSecret -> false
+                is ChatTypeBasicGroup, is ChatTypeSupergroup -> profile.editRights.canChangeInfo
+            },
+        )
     }
 
     private suspend fun userProfile(base: ChatProfile, userId: Long): ChatProfile {

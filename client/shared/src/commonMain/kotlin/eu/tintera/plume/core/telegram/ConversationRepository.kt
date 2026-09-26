@@ -309,6 +309,12 @@ interface ConversationRepository {
     ): Result<ChatMessage>
 
     /**
+     * Po kolika sekundách se nové zprávy chatu samy mažou; 0 = nemažou. Živé přes
+     * `UpdateChatMessageAutoDeleteTime` — mění se i z jiného zařízení nebo od protějšku.
+     */
+    fun autoDeleteTime(chatId: Long): Flow<Int>
+
+    /**
      * Má chat naplánované zprávy? Živé — `UpdateChatHasScheduledMessages` přijde i tehdy, když
      * naplánovaná zpráva odejde nebo se naplánuje z jiného zařízení.
      */
@@ -903,6 +909,11 @@ data class ChatMessage(
     val selfDestructIn: Int? = null,
     /** Odkud byla zpráva přeposlaná; `null` u zprávy, která přeposlaná není. */
     val forwardOrigin: ForwardOrigin? = null,
+    /**
+     * Kdy zprávu smaže automatické mazání chatu (epoch sekundy); `null` = nesmaže. TDLib posílá
+     * zbývající čas, ten se při převodu přepočte na okamžik, aby se nepočítal od doby načtení.
+     */
+    val autoDeleteAt: Long? = null,
     /**
      * Jméno inline bota, přes kterého zpráva odešla (`@gif kočka` → „gif", bez zavináče); `null`
      * u zprávy napsané rovnou. U zprávy se ukazuje „přes @gif" a ťuknutí na něj dá bota do pole.

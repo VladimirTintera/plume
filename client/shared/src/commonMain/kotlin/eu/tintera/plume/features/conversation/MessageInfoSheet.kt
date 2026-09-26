@@ -28,8 +28,10 @@ import eu.tintera.plume.core.telegram.MessageReadState
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
+import eu.tintera.plume.core.ui.asUpcomingTime
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.menu_sent_at
+import eu.tintera.plume.resources.message_info_auto_delete
 import eu.tintera.plume.resources.message_info_edited
 import eu.tintera.plume.resources.message_info_link
 import eu.tintera.plume.resources.message_info_read
@@ -86,6 +88,11 @@ fun MessageInfoSheet(
 
             info.editedAt?.let { edited ->
                 InfoRow(stringResource(Res.string.message_info_edited), edited.fullTime())
+            }
+
+            // Kdy zprávu smaže automatické mazání chatu — jinak zmizí bez varování.
+            sheet.message.autoDeleteAt?.let { at ->
+                InfoRow(stringResource(Res.string.message_info_auto_delete), at.asUpcomingTime())
             }
 
             /*

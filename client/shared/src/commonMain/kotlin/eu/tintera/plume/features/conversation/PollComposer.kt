@@ -69,6 +69,7 @@ import eu.tintera.plume.core.telegram.POLL_QUESTION_MAX
 import eu.tintera.plume.core.telegram.PollDraft
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.userMessage
+import eu.tintera.plume.core.ui.durationText
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.GROUP_SPACING
 import eu.tintera.plume.core.ui.UiText
@@ -115,10 +116,6 @@ import eu.tintera.plume.resources.poll_compose_drop_reply
 import eu.tintera.plume.resources.poll_compose_duration
 import eu.tintera.plume.resources.poll_compose_hide_results
 import eu.tintera.plume.resources.poll_duration_none
-import eu.tintera.plume.resources.poll_duration_minutes
-import eu.tintera.plume.resources.poll_duration_hours
-import eu.tintera.plume.resources.poll_duration_days
-import eu.tintera.plume.resources.poll_duration_weeks
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.LocalTextStyle
@@ -1489,20 +1486,12 @@ private fun DurationRow(
     }
 }
 
-/** „Bez omezení", „5 minut", „1 hodina", „3 dny", „1 týden" — podle největší celé jednotky. */
+/** „Bez omezení", jinak délka v největší celé jednotce ([durationText]). */
 @Composable
-private fun durationLabel(seconds: Int): String = when {
-    seconds <= 0 -> stringResource(Res.string.poll_duration_none)
-    seconds % WEEK == 0 -> (seconds / WEEK).let { pluralStringResource(Res.plurals.poll_duration_weeks, it, it) }
-    seconds % DAY == 0 -> (seconds / DAY).let { pluralStringResource(Res.plurals.poll_duration_days, it, it) }
-    seconds % HOUR == 0 -> (seconds / HOUR).let { pluralStringResource(Res.plurals.poll_duration_hours, it, it) }
-    else -> (seconds / MINUTE).let { pluralStringResource(Res.plurals.poll_duration_minutes, it, it) }
-}
+private fun durationLabel(seconds: Int): String =
+    if (seconds <= 0) stringResource(Res.string.poll_duration_none) else durationText(seconds)
 
-private const val MINUTE = 60
-private const val HOUR = 60 * MINUTE
-private const val DAY = 24 * HOUR
-private const val WEEK = 7 * DAY
+private const val HOUR = 60 * 60
 
 /**
  * Co konverzace předá formuláři: vynucený druh ankety (tlačítko bota) a rozepsanou odpověď.

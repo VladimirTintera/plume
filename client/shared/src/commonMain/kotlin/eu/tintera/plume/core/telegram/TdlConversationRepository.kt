@@ -1319,6 +1319,16 @@ class TdlConversationRepository(
         return (detected + named).sortedBy { it.offset }.toTypedArray()
     }
 
+    override fun autoDeleteTime(chatId: Long): Flow<Int> =
+        holder.updates { chatMessageAutoDeleteTimeUpdates }
+            .filter { it.chatId == chatId }
+            .map { it.messageAutoDeleteTime }
+            // Odběr stojí dřív než první čtení, aby se změna mezi nimi neztratila.
+            .onStart {
+                client.getChat(chatId = chatId).toResult().getOrNull()?.let { emit(it.messageAutoDeleteTime) }
+            }
+            .distinctUntilChanged()
+
     override fun hasScheduledMessages(chatId: Long): Flow<Boolean> =
         holder.updates { chatHasScheduledMessagesUpdates }
             .filter { it.chatId == chatId }
@@ -1661,6 +1671,8 @@ class TdlConversationRepository(
             // Zlomky vteřiny nahoru: „0 s" by u běžícího odpočtu znamenalo, že už vypršel.
             selfDestructIn = selfDestructIn.takeIf { it > 0.0 }?.let { ceil(it).toInt() },
             forwardOrigin = forwardInfo?.origin?.toForwardOrigin(),
+            autoDeleteAt = autoDeleteIn.takeIf { it > 0.0 }
+                ?.let { Clock.System.now().epochSeconds + ceil(it).toLong() },
             viaBot = viaBotUserId.takeIf { it != 0L }?.let { botUsername(it) },
             keyboard = (replyMarkup as? ReplyMarkupInlineKeyboard)?.toBotKeyboard(),
             poll = (content as? MessagePoll)?.toChatPoll(),

@@ -57,6 +57,7 @@ import kotlin.time.Duration
 import eu.tintera.plume.resources.document_download_failed
 import eu.tintera.plume.resources.document_open_failed
 import eu.tintera.plume.resources.profile_shared_failed
+import eu.tintera.plume.resources.auto_delete_failed
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -326,6 +327,28 @@ class ChatProfileViewModel(
             chats.setMuted(chatId, !muted).onFailure { failure ->
                 _state.update { it.copy(error = failure.reported(Res.string.profile_mute_failed)) }
             }
+        }
+    }
+
+    fun openAutoDeleteSheet() = _state.update { it.copy(autoDeleteSheet = true) }
+
+    fun closeAutoDeleteSheet() = _state.update { it.copy(autoDeleteSheet = false) }
+
+    /**
+     * Nastaví automatické mazání (0 = vypnout). Sheet se zavře hned; stav v profilu se přepíše až
+     * po potvrzení serveru — do chatu přibude servisní zpráva a na tom se nic předbíhat nemá.
+     */
+    fun setAutoDelete(seconds: Int) {
+        _state.update { it.copy(autoDeleteSheet = false) }
+        if (seconds == _state.value.profile?.autoDeleteTime) return
+        viewModelScope.launch {
+            profiles.setAutoDeleteTime(chatId, seconds)
+                .onSuccess {
+                    _state.update { state -> state.copy(profile = state.profile?.copy(autoDeleteTime = seconds)) }
+                }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.reported(Res.string.auto_delete_failed)) }
+                }
         }
     }
 
@@ -633,6 +656,8 @@ data class ChatProfileState(
     /** Upozornění chatu i s tím, co přebírá z výchozího nastavení; `null` = řádek se nekreslí. */
     val notifications: ChatNotificationPrefs? = null,
     val notificationSheet: Boolean = false,
+    /** Otevřený výběr doby automatického mazání. */
+    val autoDeleteSheet: Boolean = false,
     /** `null`, dokud počty nedorazí; teprve podle nich se vykreslí záložky. */
     val counts: SharedMediaCounts? = null,
     /** Načtený obsah záložek; chybějící klíč = záložka se ještě neukázala. */

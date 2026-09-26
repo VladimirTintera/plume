@@ -496,7 +496,7 @@ snadno na to uživatel narazí.
 - **Efekty zprávy** (`effectId` → `getMessageEffect`) — animace (konfety, srdce) při prvním
   zobrazení a značka u zprávy.
 - **Kontrola faktů** (`factCheck`) — poznámka pod zprávou v kanálu.
-- **Automatické mazání** (`autoDeleteIn`) — zpráva zmizí sama a nic to neoznačuje.
+- ~~**Automatické mazání** (`autoDeleteIn`)~~ — hotovo: čas smazání v „Informace", odznak chatu v hlavičce.
 
 **Entity v textu**
 
@@ -539,7 +539,10 @@ snadno na to uživatel narazí.
   konverzace a v profilu, u podvodu a falešného s vysvětlením (`CLAUDE.md`, „Ověření a štítek
   podvodu"). Zbývá značka ověření od bota (`botVerificationIconCustomEmojiId`, vlastní emoji)
   a štítek u jména odesílatele ve skupině.
-- ~~**Emoji status** u jména~~ — hotovo. **Časovač automatického mazání chatu** v hlavičce a jeho nastavení.
+- ~~**Emoji status** u jména~~ — hotovo. ~~**Časovač automatického mazání chatu**~~ — hotovo
+  (odznak v hlavičce, nastavení v profilu, „Smaže se" v Informace; `CLAUDE.md`, „Automatické
+  mazání zpráv"). Zbývá výchozí doba pro nové chaty (`setDefaultMessageAutoDeleteTime`,
+  Nastavení → Soukromí) a ověřit ve skupině se správcovskými právy.
 - ~~**Překlad zprávy**~~ (`translateMessageText`) — hotovo, sheet z nabídky nad zprávou
   (`CLAUDE.md`, „Překlad zprávy"). Zbývá volba cílového jazyka, překlad celého chatu
   (`UpdateChatIsTranslatable`, Premium) a skrýt „Přeložit" u zprávy, která už je v jazyce
