@@ -54,6 +54,7 @@ import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ContentAccess
+import eu.tintera.plume.core.telegram.diceEmojiFor
 import eu.tintera.plume.core.telegram.WriteAccess
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.LinkPreview
@@ -1354,7 +1355,19 @@ class ConversationViewModel(
         draftSave = null
         draftText = ""
 
-        val linkPreview = _state.value.linkPreviewOptions.forSending(shown = _state.value.linkPreview)
+        // Samotné 🎲 (🎯, 🏀, ⚽, 🎳, 🎰 — seznam posílá server) odejde jako hod, jako
+        // u oficiálních klientů. Hod je v právech „ostatní zprávy", tedy totéž co samolepka;
+        // kde se smí jen text, odejde emoji jako text. Neletí z pole — jako samolepka.
+        val dice = diceEmojiFor(trimmed, chatRepository.diceEmojis.value)
+        if (dice != null && _state.value.content.stickers) {
+            resetLinkPreview()
+            sendMedia(Res.string.conversation_send_failed) { replyTo, quote ->
+                repository.sendDice(chatId, dice, replyTo, quote)
+            }
+            return
+        }
+
+        val linkPreview =_state.value.linkPreviewOptions.forSending(shown = _state.value.linkPreview)
         resetLinkPreview()
 
         val replyTo = _state.value.replyingTo?.id

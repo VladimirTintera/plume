@@ -32,6 +32,8 @@ open class FakeChatRepository(
 ) : ChatRepository {
     override val savedMessagesChatId: StateFlow<Long?> = MutableStateFlow(999L)
 
+    override val diceEmojis: StateFlow<List<String>> = MutableStateFlow(emptyList())
+
     override fun chats(folder: ChatFolder): StateFlow<ChatListState> =
         MutableStateFlow(ChatListState.Ready(emptyList(), canLoadMore = false))
 

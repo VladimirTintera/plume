@@ -86,6 +86,13 @@ class ThreadConversationRepository(
         quote: ReplyQuote?,
     ): Result<ChatMessage> = delegate.send(chatId, text, reply(replyToMessageId), linkPreview, quote)
 
+    override suspend fun sendDice(
+        chatId: Long,
+        emoji: String,
+        replyToMessageId: Long?,
+        quote: ReplyQuote?,
+    ): Result<ChatMessage> = delegate.sendDice(chatId, emoji, reply(replyToMessageId), quote)
+
     override suspend fun sendSticker(
         chatId: Long,
         sticker: StickerItem,

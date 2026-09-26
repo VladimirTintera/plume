@@ -315,6 +315,17 @@ interface ConversationRepository {
     suspend fun linkPreview(text: String): Result<LinkPreview?>
 
     /**
+     * Hodí kostkou (nebo šipkami, míčem, automatem — podle [emoji] z [ChatRepository.diceEmojis]).
+     * Výsledek určí server; rozepsaná zpráva ho ještě nemá a točí se úvodní animace.
+     */
+    suspend fun sendDice(
+        chatId: Long,
+        emoji: String,
+        replyToMessageId: Long?,
+        quote: ReplyQuote? = null,
+    ): Result<ChatMessage>
+
+    /**
      * Odešle samolepku. Stejně jako [send] vrací rozepsanou zprávu okamžitě.
      *
      * Samolepka se zároveň zařadí mezi nedávné, aby byla ve výběru příště nahoře.
