@@ -176,7 +176,8 @@ interface ConversationRepository {
      * reakcemi seznam nikdo neprojde a stránkovat ho by znamenalo držet offset ve stavu sheetu;
      * až to bude potřeba, přibude sem parametr.
      */
-    suspend fun reactionDetails(chatId: Long, messageId: Long): Result<List<ReactionDetail>>
+    /** Kdo a čím reagoval; [reaction] zúží výsledek na jednu reakci (filtruje server). */
+    suspend fun reactionDetails(chatId: Long, messageId: Long, reaction: String? = null): Result<List<ReactionDetail>>
 
     /**
      * Podrobnosti o zprávě pro sheet „Informace" — viz [MessageInfo].

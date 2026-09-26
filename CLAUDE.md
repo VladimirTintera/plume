@@ -6489,6 +6489,12 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   proto v kanálu nedá ťuknout a nemá ani vlnku: čip, po kterém přijde chyba, je horší než čip,
   který nic nedělá. Rozhoduje o tom `ChatInfo.isChannel`, ne odpověď serveru — ta by přišla až po
   ťuknutí.
+- **Detail jde filtrovat podle reakce** — nad seznamem spojená skupina přepínacích tlačítek
+  „Vše N" a každá reakce s počtem (`ReactionFilter`, tentýž prvek jako druh chatu ve filtrech
+  hledání). Jen s víc druhy reakcí; vybrané je vždycky právě jedno. **Filtruje server**
+  (`reactionType` v `getMessageAddedReactions`): filtr nad jedinou stránkou by u příspěvku
+  s tisíci reakcemi ukázal zlomek. Počty jsou ze zprávy v okamžiku otevření. Při přepnutí
+  zůstává starý seznam, dokud nedorazí nový — indikátor by sheet smrštil a zase natáhl.
 - **Detail je jedna stránka** (`REACTION_DETAIL_LIMIT`, 50 řádků). U příspěvku s tisíci reakcemi
   ho nikdo neprojde a stránkování by znamenalo držet offset ve stavu sheetu.
 

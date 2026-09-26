@@ -1,5 +1,11 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.reactions_filter_all
+import eu.tintera.plume.core.ui.grouped
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ToggleButton
 import eu.tintera.plume.core.telegram.customEmojiIdOf
 import eu.tintera.plume.core.ui.CustomEmojiIcon
 import androidx.compose.animation.AnimatedVisibility
@@ -335,6 +341,7 @@ internal val REACTION_ROW_HEIGHT = REACTION_CHIP_SIZE + REACTION_BADGE_ROOM + RE
 fun ReactionDetailsSheet(
     details: ReactionDetails,
     onDismiss: () -> Unit,
+    onFilter: (String?) -> Unit = {},
 ) {
     // Modální sheet začíná skrytý a rozjede se sám. Náhrada za `rememberModalBottomSheetState`,
     // které je od Compose 1.12 zastaralé.
@@ -346,6 +353,11 @@ fun ReactionDetailsSheet(
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 4.dp),
         )
+
+        // Filtr má smysl až s víc druhy reakcí; s jedním by „Vše" a to emoji ukazovaly totéž.
+        if (details.counts.size > 1) {
+            ReactionFilter(counts = details.counts, filter = details.filter, onFilter = onFilter)
+        }
 
         if (details.loading) {
             Box(
@@ -393,6 +405,57 @@ fun ReactionDetailsSheet(
                     } else {
                         Text(text = detail.emoji, fontSize = 20.sp)
                     }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Filtr detailu reakcí: „Vše" a každá reakce s počtem, jako spojená skupina přepínacích
+ * tlačítek (tentýž prvek jako druh chatu ve filtrech hledání zpráv). Vybrané je vždycky právě
+ * jedno — prázdný filtr tu nedává smysl, „nic" je „Vše". Řádek se posouvá do strany: reakcí
+ * bývá u příspěvků i deset.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ReactionFilter(counts: List<MessageReaction>, filter: String?, onFilter: (String?) -> Unit) {
+    val options = listOf<MessageReaction?>(null) + counts
+    val total = counts.sumOf { it.count }
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        options.forEachIndexed { index, reaction ->
+            val key = reaction?.emoji
+            ToggleButton(
+                checked = filter == key,
+                onCheckedChange = { onFilter(key) },
+                shapes = when (index) {
+                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                },
+                contentPadding = PaddingValues(horizontal = 14.dp),
+            ) {
+                if (reaction == null) {
+                    Text(stringResource(Res.string.reactions_filter_all, total.grouped()))
+                } else {
+                    val customId = customEmojiIdOf(reaction.emoji)
+                    if (customId != null) {
+                        CustomEmojiIcon(customId, size = 20.dp)
+                    } else {
+                        Text(text = reaction.emoji, fontSize = 18.sp)
+                    }
+                    Text(
+                        text = reaction.count.grouped(),
+                        style = MaterialTheme.typography.labelLarge.tabularNumbers(),
+                        modifier = Modifier.padding(start = 6.dp),
+                    )
                 }
             }
         }

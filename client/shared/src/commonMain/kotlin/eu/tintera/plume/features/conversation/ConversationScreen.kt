@@ -1684,7 +1684,11 @@ fun ConversationScreen(
         }
 
         state.reactionDetails?.let { details ->
-            ReactionDetailsSheet(details = details, onDismiss = viewModel::dismissReactionDetails)
+            ReactionDetailsSheet(
+                details = details,
+                onFilter = viewModel::filterReactionDetails,
+                onDismiss = viewModel::dismissReactionDetails,
+            )
         }
 
         state.pollVoters?.let { messageId ->

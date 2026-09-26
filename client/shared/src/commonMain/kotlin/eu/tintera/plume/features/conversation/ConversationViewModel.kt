@@ -2668,14 +2668,29 @@ class ConversationViewModel(
      * s otevřením detailu.
      */
     private fun showReactionDetails(messageId: Long) {
-        _state.update { it.copy(reactionDetails = ReactionDetails(messageId = messageId)) }
+        val counts = _state.value.messages.firstOrNull { it.id == messageId }?.reactions.orEmpty()
+        _state.update { it.copy(reactionDetails = ReactionDetails(messageId = messageId, counts = counts)) }
+        loadReactionDetails(messageId, filter = null)
+    }
 
+    /**
+     * Zúží detail na jednu reakci ([emoji]), `null` vrátí všechny. Dosavadní seznam zůstává, dokud
+     * nedorazí nový — výměna za indikátor by sheet pod prstem smrštila a zase natáhla.
+     */
+    fun filterReactionDetails(emoji: String?) {
+        val open = _state.value.reactionDetails ?: return
+        if (open.filter == emoji) return
+        _state.update { it.copy(reactionDetails = open.copy(filter = emoji)) }
+        loadReactionDetails(open.messageId, emoji)
+    }
+
+    private fun loadReactionDetails(messageId: Long, filter: String?) {
         viewModelScope.launch {
-            repository.reactionDetails(chatId, messageId)
+            repository.reactionDetails(chatId, messageId, filter)
                 .onSuccess { details ->
                     _state.update { state ->
-                        // Mezitím mohl uživatel sheet zavřít nebo otevřít u jiné zprávy.
-                        val open = state.reactionDetails?.takeIf { it.messageId == messageId }
+                        // Mezitím mohl uživatel sheet zavřít, otevřít u jiné zprávy nebo přepnout filtr.
+                        val open = state.reactionDetails?.takeIf { it.messageId == messageId && it.filter == filter }
                             ?: return@update state
                         state.copy(reactionDetails = open.copy(loading = false, items = details))
                     }
@@ -3697,6 +3712,10 @@ data class ReactionDetails(
     val messageId: Long,
     val loading: Boolean = true,
     val items: List<ReactionDetail> = emptyList(),
+    /** Reakce zprávy s počty, jak byly při otevření — podle nich jsou tlačítka filtru. */
+    val counts: List<MessageReaction> = emptyList(),
+    /** Vybraný filtr (klíč reakce); `null` = všechny. */
+    val filter: String? = null,
 )
 
 /**
