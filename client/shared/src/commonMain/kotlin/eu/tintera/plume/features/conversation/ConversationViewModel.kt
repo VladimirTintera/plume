@@ -172,6 +172,15 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.compose.resources.StringResource
+import eu.tintera.plume.core.telegram.InlineBotInfo
+import eu.tintera.plume.core.telegram.InlineQueryDraft
+import eu.tintera.plume.core.telegram.InlineQueryState
+import eu.tintera.plume.core.telegram.InlineResult
+import eu.tintera.plume.core.telegram.InlineResultsButton
+import eu.tintera.plume.core.location.GeoPoint
+import kotlin.time.Duration.Companion.milliseconds
+import eu.tintera.plume.core.telegram.inlineQueryOf
+import eu.tintera.plume.resources.conversation_via_bot_draft_busy
 
 /**
  * Stav a stránkování jedné konverzace.
@@ -316,6 +325,21 @@ class ConversationViewModel(
 
     /** Odložené zjištění náhledu odkazu v rozepsaném textu; každý úhoz ho posune. */
     private var linkPreviewJob: Job? = null
+
+    /** Běžící inline dotaz; další úhoz ho zruší a pustí nový (s pauzou). */
+    private var inlineJob: Job? = null
+
+    /** Poslední dotaz z pole — kvůli zopakování, až dorazí poloha. */
+    private var inlineDraft: InlineQueryDraft? = null
+
+    /** Poloha pro boty, kteří o ni stojí ([InlineBotInfo.needLocation]); zjišťuje ji obrazovka. */
+    private var inlineLocation: GeoPoint? = null
+
+    /**
+     * Boti, kteří na inline dotaz odpověděli „neumím" — dál se jich s každým písmenem neptáme.
+     * Jen po dobu konverzace: bot si inline režim může zapnout.
+     */
+    private val notInlineBots = mutableSetOf<Long>()
 
     /** Běžící otevírání souborů podle `fileId`; druhé ťuknutí to čekání zruší. */
     private val documentJobs = mutableMapOf<Int, Job>()
@@ -2155,6 +2179,125 @@ class ConversationViewModel(
         }
     }
 
+    /**
+     * Rozepsaný text z pole jako dotaz na inline bota ([inlineQueryOf]); `null` = text dotaz není.
+     *
+     * Volá ho obrazovka při každé změně pole — i té, která jde mimo [onDraftChanged] (vrácený
+     * koncept, „přes @bot" ťuknuté u zprávy). Dotaz jde po pauze v psaní ([INLINE_QUERY_DELAY]):
+     * bot odpovídá ze serveru a dotaz na každé písmeno by ho zahltil. Předchozí výsledky mezitím
+     * zůstávají vidět ([InlineQueryState.withQuery]).
+     *
+     * Kde se psát nesmí nebo se upravuje zpráva, se nic neptá — výsledek by nebylo kam poslat.
+     */
+    fun inlineQuery(draft: InlineQueryDraft?) {
+        if (draft == inlineDraft) return
+        inlineDraft = draft
+        inlineJob?.cancel()
+        if (draft == null || !_state.value.canWrite || _state.value.editing != null) {
+            if (_state.value.inline != null) _state.update { it.copy(inline = null) }
+            return
+        }
+        inlineJob = viewModelScope.launch {
+            delay(INLINE_QUERY_DELAY)
+            val bot = repository.inlineBot(draft.username).getOrNull()?.takeIf { it.userId !in notInlineBots }
+            if (bot == null) {
+                _state.update { it.copy(inline = null) }
+                return@launch
+            }
+            _state.update { state ->
+                val current = state.inline?.takeIf { it.bot.userId == bot.userId }
+                state.copy(inline = current?.withQuery(draft.query) ?: InlineQueryState(bot, draft.query))
+            }
+            loadInlinePage(bot, draft.query, offset = "")
+        }
+    }
+
+    /**
+     * „přes @bot" ťuknuté u zprávy: do pole se dá `@bot `, a výsledky se tím rovnou načtou.
+     *
+     * Rozepsanou zprávu to NEPŘEPÍŠE — ťuknutí na značku není důvod přijít o text. Přepíše se jen
+     * prázdné pole nebo jiný rozepsaný dotaz na bota; jinak hláška, proč se nic nestalo.
+     */
+    private fun useInlineBot(username: String) {
+        if (!_state.value.canWrite || _state.value.editing != null) return
+        if (draftText.isNotBlank() && inlineQueryOf(draftText) == null) {
+            _state.update { it.copy(notice = UiText(Res.string.conversation_via_bot_draft_busy)) }
+            return
+        }
+        // Dotaz, ne text pro čtenáře: `@bot ` a mezera, za kterou se píše.
+        val query = "@$username "
+        _state.update { it.copy(inputFill = InputFill(query, onlyIfEmpty = false)) }
+        onDraftChanged(query)
+    }
+
+    /** Další stránka výsledků — dotáhne ji panel, když dojede na konec. */
+    fun loadMoreInline() {
+        val inline = _state.value.inline?.takeIf { it.canLoadMore } ?: return
+        _state.update { it.copy(inline = inline.copy(loading = true)) }
+        inlineJob = viewModelScope.launch { loadInlinePage(inline.bot, inline.query, inline.nextOffset) }
+    }
+
+    private suspend fun loadInlinePage(bot: InlineBotInfo, query: String, offset: String) {
+        val location = inlineLocation.takeIf { bot.needLocation }
+        repository.inlineResults(bot.userId, chatId, query, offset, location)
+            .onSuccess { page ->
+                _state.update { state ->
+                    state.copy(inline = state.inline?.withPage(query, page, append = offset.isNotEmpty()))
+                }
+            }
+            .onFailure { failure ->
+                // Bot, který inline dotazy neumí, odpoví chybou — to není selhání, jen „tohle
+                // není inline bot". Panel se schová, jako by `@jméno` byla obyčejná zmínka.
+                logger.i { "Inline dotaz na @${bot.username} selhal: ${failure.message}" }
+                // Jediné znění, podle kterého jde „neumím" poznat (ověřeno `strings libtdjsonjava.so`).
+                if (failure.message?.contains("doesn't support inline queries") == true) notInlineBots += bot.userId
+                _state.update { state ->
+                    val inline = state.inline ?: return@update state
+                    if (inline.resultsQuery == null) state.copy(inline = null) else state.copy(inline = inline.withFailure(query))
+                }
+            }
+    }
+
+    /** Poloha pro bota, který o ni stojí. Dotaz se s ní zopakuje. */
+    fun setInlineLocation(location: GeoPoint?) {
+        if (location == null || location == inlineLocation) return
+        inlineLocation = location
+        val draft = inlineDraft ?: return
+        inlineDraft = null
+        inlineQuery(draft)
+    }
+
+    /**
+     * Odešle výsledek inline dotazu. Rozepsaný dotaz v poli tím byl spotřebovaný — pole vyprázdní
+     * obrazovka (přes [onDraftChanged], takže se smaže i koncept), citace se spotřebuje jako
+     * u samolepky. Odchází hned, bez letu z pole.
+     */
+    fun sendInlineResult(result: InlineResult) {
+        val inline = _state.value.inline ?: return
+        if (!_state.value.canWrite || _state.value.editing != null) return
+        inlineJob?.cancel()
+        inlineDraft = null
+        _state.update { it.copy(inline = null) }
+        sendMedia(Res.string.conversation_send_failed) { replyTo, quote ->
+            repository.sendInlineResult(chatId, inline.queryId, result.id, replyTo, quote)
+        }
+    }
+
+    /**
+     * Tlačítko nad výsledky. „Nastavit u bota" otevře chat s botem a rovnou ho spustí s parametrem
+     * od bota — tak to dělají oficiální klienti (Bot API `switch_pm`); mini aplikaci Plume neumí.
+     */
+    fun pressInlineButton() {
+        val inline = _state.value.inline ?: return
+        when (val button = inline.button) {
+            is InlineResultsButton.StartBot ->
+                openBotStart(InternalLink.BotStart(inline.bot.userId, button.parameter, autostart = true))
+            is InlineResultsButton.WebApp ->
+                _state.update { it.copy(notice = UiText(Res.string.bot_unsupported_web_app)) }
+            null -> Unit
+        }
+    }
+
     fun sharePhone() {
         val keyboard = _state.value.replyMarkup as? ChatReplyMarkup.Keyboard
         _state.update { it.copy(confirmSharePhone = false) }
@@ -2441,6 +2584,7 @@ class ConversationViewModel(
             is MessageAction.OpenMention -> openMentioned { chatRepository.chatByUsername(action.username) }
             is MessageAction.OpenUser -> openMentioned { chatRepository.privateChat(action.userId) }
             is MessageAction.SendBotCommand -> sendBotCommand(action.command)
+            is MessageAction.UseInlineBot -> useInlineBot(action.username)
             is MessageAction.OpenSenderProfile -> openSenderProfile(action.userId)
             is MessageAction.OpenForwardOrigin -> openForwardOrigin(action.origin)
             MessageAction.OpenComments -> openComments(messageId)
@@ -3262,6 +3406,12 @@ private fun MessageFlight?.landingOn(message: ChatMessage): MessageFlight? = whe
 private val TYPING_REPEAT = 5.seconds
 
 /**
+ * Pauza v psaní, po které jde inline dotaz na bota. Kratší než u náhledu odkazu: výsledky se
+ * ukazují průběžně a čekání je znát, delší by dotaz na každé písmeno jen oddálilo.
+ */
+private val INLINE_QUERY_DELAY = 400.milliseconds
+
+/**
  * Odstup ukládání konceptu od poslední úpravy.
  *
  * Koncept se propisuje na server a do ostatních zařízení, takže ne na každý úhoz. Při odchodu
@@ -3650,6 +3800,8 @@ data class ConversationState(
     val botCommands: List<BotCommandItem> = emptyList(),
     /** Seznam příkazů otevřený tlačítkem u pole (bez ohledu na to, co je v poli). */
     val commandsOpen: Boolean = false,
+    /** Rozepsaný dotaz na inline bota (`@gif kočka`) a jeho výsledky; `null` = žádný. */
+    val inline: InlineQueryState? = null,
     /** Tlačítko bota chce sdílet telefonní číslo a čeká se na potvrzení. */
     val confirmSharePhone: Boolean = false,
     /** Odkaz z tlačítka bota, který čeká na potvrzení; `null` = žádný. */

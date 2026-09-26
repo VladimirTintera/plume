@@ -150,7 +150,7 @@ private fun MessageBodyScope.PollContent(poll: ChatPoll) {
 
     Column(Modifier.widthIn(max = POLL_MAX_WIDTH).fillMaxWidth()) {
         SenderName(background = bubbleColor)
-        ForwardLabel()
+        OriginLabel()
 
         poll.media?.let { PollQuestionMedia(it) }
         Text(

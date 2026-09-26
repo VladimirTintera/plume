@@ -697,6 +697,8 @@
     <string name="conversation_quote_collapse">Zobrazit méně</string>
     <string name="conversation_forwarded_from">Přeposláno od %1$s</string>
     <string name="conversation_forwarded">Přeposlaná zpráva</string>
+    <string name="conversation_via_bot">přes %1$s</string>
+    <string name="conversation_via_bot_draft_busy">Nejdřív dopiš nebo smaž rozepsanou zprávu.</string>
     <string name="conversation_open_emoji">Emoji</string>
     <string name="conversation_open_stickers">Samolepky</string>
     <string name="conversation_attach_media">Fotka nebo video</string>

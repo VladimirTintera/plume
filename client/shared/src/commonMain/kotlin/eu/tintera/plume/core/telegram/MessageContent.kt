@@ -618,7 +618,7 @@ internal fun MessageDice.toDiceMedia(): MessageMedia.Dice? {
 }
 
 /** Náhled, který jde nakreslit jako obrázek — animovaný MPEG-4 Coil neotevře. */
-private fun Thumbnail?.picture(): Thumbnail? = this?.takeIf { it.format !is ThumbnailFormatMpeg4 }
+internal fun Thumbnail?.picture(): Thumbnail? = this?.takeIf { it.format !is ThumbnailFormatMpeg4 }
 
 internal fun MessageSelfDestructType.toSelfDestructType(): SelfDestructType = when (this) {
     is MessageSelfDestructTypeImmediately -> SelfDestructType.Immediately

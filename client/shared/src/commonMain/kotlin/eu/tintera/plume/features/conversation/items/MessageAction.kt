@@ -133,6 +133,12 @@ sealed interface MessageAction {
      */
     data class SendBotCommand(val command: String) : MessageAction
 
+    /**
+     * „přes @bot" u zprávy: bot se dá do pole (`@gif `), aby šel poslat další výsledek. [username]
+     * je bez zavináče.
+     */
+    data class UseInlineBot(val username: String) : MessageAction
+
     /** `#tag` v textu: hledání zpráv s tagem. Navigace — vyřizuje ji obrazovka, ne ViewModel. */
     data class SearchHashtag(val tag: String) : MessageAction
 

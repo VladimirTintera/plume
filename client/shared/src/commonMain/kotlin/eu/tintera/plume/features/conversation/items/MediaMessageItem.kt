@@ -49,7 +49,7 @@ internal data class MediaMessageItem(
         val edited = message.isEdited && !message.isLiveLocation
         val hasCaption = message.text.isNotBlank() || edited || location != null
         // Přeposlaná fotka nese značku v hlavičce téže karty — patří k obsahu, ne vedle něj.
-        val forwarded = message.forwardOrigin != null
+        val forwarded = message.hasOriginLabel
         val isCard = hasCaption || forwarded
         // Snímek leží na ploše, takže jeho akcent (průběh, ikony) patří k ní, ne k bublině.
         val surfaceAccent = if (message.isOutgoing) LocalContentColor.current else MaterialTheme.colorScheme.primary
@@ -66,7 +66,7 @@ internal data class MediaMessageItem(
 
             MediaWithCaption(
                 modifier = if (isCard) Modifier.clip(shape) else Modifier,
-                header = { if (forwarded) ForwardHeader() },
+                header = { if (forwarded) OriginHeader() },
                 media = {
                     if (album != null) {
                         Album(members = album, accent = surfaceAccent, shape = mediaShape)

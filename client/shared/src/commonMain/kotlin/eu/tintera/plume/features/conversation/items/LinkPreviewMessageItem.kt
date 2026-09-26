@@ -135,10 +135,10 @@ internal data class LinkPreviewMessageItem(
     /** Značka přeposlání jako samostatný díl — jen když náhled stojí nad textem. */
     @Composable
     private fun MessageBodyScope.ForwardPart() {
-        if (message.forwardOrigin == null) return
+        if (!message.hasOriginLabel) return
         BubbleSurface(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(horizontal = MESSAGE_PADDING_H, vertical = MESSAGE_PADDING_V)) {
-                ForwardLabel()
+                OriginLabel()
             }
         }
     }
@@ -146,7 +146,7 @@ internal data class LinkPreviewMessageItem(
     /** Text zprávy v barvě bubliny, se značkou přeposlání, když je díl první. */
     @Composable
     private fun MessageBodyScope.MessagePart(withForward: Boolean, last: Boolean) {
-        val forward = withForward && message.forwardOrigin != null
+        val forward = withForward && message.hasOriginLabel
         if (message.text.isBlank() && !message.isEdited && !forward) return
         BubbleSurface(modifier = Modifier.fillMaxWidth()) {
             Column(
@@ -157,7 +157,7 @@ internal data class LinkPreviewMessageItem(
                     bottom = if (last) contentBottom else MESSAGE_PADDING_V,
                 ),
             ) {
-                if (forward) ForwardLabel()
+                if (forward) OriginLabel()
                 if (message.text.isNotBlank()) MessageText(linkColor = accent)
                 EditedLabel(color = onBubbleColor, modifier = Modifier.align(Alignment.End))
             }

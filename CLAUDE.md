@@ -4031,6 +4031,56 @@ parametr (`InternalLink.BotStart`).
   bot je nemá — Bot API je nastavit neumí, jen BotFather), čekající parametr u nespuštěného
   bota, iOS (jen přeložené).
 
+### Inline boti
+
+`@bot dotaz` na začátku pole (`@gif kočka`, `@wiki Praha`, `@pic cat`) ukáže nad polem výsledky
+bota; ťuknutí výsledek pošle a u zprávy pak stojí „přes @bot" (`InlineResultsPanel`, doména
+`InlineQuery.kt`, převod `InlineResultsMapping.kt`, pravidla `inlineQueryOf` a `InlineQueryState`,
+testy `InlineQueryTest`).
+
+- **Dotaz se pozná podle TVARU textu, ne podle bota**: zavináč na začátku, jméno a MEZERA. Do
+  mezery může jít o zmínku; jestli `@jméno` je bot, se zjistí až dotazem (`inlineBot`,
+  `searchPublicChat` + `getUser`, pamatuje se pro instanci klienta).
+- **Jestli bot inline dotazy umí, TDLib 15 neřekne** — `userTypeBot` nemá `is_inline`
+  (v knihovně ten řetězec je, ve wrapperu 15.0.0 pole ne). Pozná se to až odpovědí: chyba
+  „Bot doesn't support inline queries" (ověřeno `strings libtdjsonjava.so`) panel schová a bot
+  se do konce konverzace už neptá (`notInlineBots`). Ověřeno na `@BotFather`.
+- **Dotaz jde po pauze 400 ms** a další písmeno ho zruší. Předchozí výsledky mezitím zůstávají
+  vidět — stránka patří dotazu, na který se čeká, a stránka pro starý dotaz se zahodí
+  (`InlineQueryState.withPage`), tentýž vzor jako výsledky GIFů.
+- **Pole se čte v obrazovce, ne v `onDraftChanged`** (`LaunchedEffect(inlineQueryOf(draft.text))`).
+  Text se do pole dostává i mimo psaní — vrácený koncept, sdílení, ťuknutí na „přes @bot" —
+  a dotaz musí zareagovat na všechno z toho.
+- **Posílá se `sendInlineQueryResultMessage` (queryId + id výsledku), ne obsah.** Zprávu
+  si připravil bot a může se od náhledu lišit (článek odejde jako odkaz s náhledem webu).
+  Proto i GIF z `@gif` odchází s „přes @gif" — na rozdíl od výběru GIFů, který stejného bota
+  jen používá k hledání a posílá soubor.
+- **Nad polem, ne ve sheetu**, jako napovídání příkazů: výsledky se mění s každým písmenem
+  a klávesnice musí zůstat. Mřížka pro GIFy, fotky, obaly videí a samolepky; řádky přes celou
+  šířku pro článek, soubor, hudbu, kontakt, místo a hru. Rozhoduje se po výsledcích — jeden bot
+  vrací obojí. GIF buňka je tatáž jako ve výběru GIFů (`GifCell`), samolepka `StickerPreview`.
+- **Tlačítko nad výsledky** (`InlineQueryResultsButton`): „nastavit u bota" otevře chat s botem
+  a spustí ho s parametrem (`openBotStart` s `autostart`), mini aplikace jen vysvětlí, že ji
+  Plume neumí (`@pic` má „Create image with Alice AI").
+- **Bot s `needLocation` dostane přibližnou polohu** (`rememberDeviceLocation`); o oprávnění se
+  žádá až u takového bota.
+- **„přes @bot" je údaj o původu, stejně jako přeposlání** (`OriginLabel`, `OriginHeader`,
+  `hasOriginLabel` v `MessageFrame.kt`): holý obsah s ním je karta, GIF od `@gif` má značku
+  v hlavičce téže karty. Jméno bota se dohledává `getUser` (lokální, pamatuje se). Ťuknutí na
+  značku dá `@bot ` do pole (`MessageAction.UseInlineBot`) — ale **rozepsanou zprávu
+  nepřepíše**, to jen ohlásí; přepíše prázdné pole nebo jiný dotaz na bota.
+- **Nápověda bota** (`inlineQueryPlaceholder`, „Search GIFs") je první řádek panelu, dokud je
+  dotaz prázdný — do pole ji dát nejde, nápověda pole se ukazuje jen v prázdném poli.
+- **Ověřeno na emulátoru** (Uložené zprávy): `@gif kočka` (mřížka hrajících GIFů, odeslání,
+  „via @gif"), ťuknutí na „via @gif" (`@gif ` v poli, nápověda a populární), `@wiki Prague`
+  (řádky, odeslání jako karta odkazu s „via @wiki"), `@pic cat` (fotky a tlačítko mini
+  aplikace), `@BotFather x` (bez panelu). **Neověřeno**: tlačítko „nastavit u bota" (žádný
+  z vyzkoušených botů ho neposlal), bot s polohou, video a samolepky ve výsledcích, ve skupině
+  a iOS (jen přeložené).
+- **`chat_<id>` v `EXTRA_SHORTCUT_ID` se sdíleným textem je nejrychlejší cesta, jak dostat dotaz
+  do pole** (`am start -a android.intent.action.SEND … --es android.intent.extra.TEXT '@gif kočka'`),
+  i s diakritikou. Pozor na id testovacího bota — viz „Na snímcích nesmí být skuteční lidé".
+
 ### Profilovky ve skupině
 
 Ve skupině má cizí zpráva vlevo tvář odesílatele, aby se odesílatelé nerozlišovali jen jménem.

@@ -191,7 +191,7 @@ private fun messageItem(
     // Popisek alba z pár emoji je pořád popisek pod fotkami, ne velké emoji bez bubliny.
     // Citace i značka přeposlání jsou údaj navíc a obsah s údajem navíc je karta: bublinu si
     // vynutí, jako popisek u fotky (holý text vedle samolepky by od ní odplul).
-    val needsCard = message.replyToMessageId != null || message.forwardOrigin != null
+    val needsCard = message.replyToMessageId != null || message.hasOriginLabel
     val emojiCount = if (album != null || media != null || needsCard) {
         0
     } else {

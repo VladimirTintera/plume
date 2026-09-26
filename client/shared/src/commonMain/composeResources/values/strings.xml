@@ -690,6 +690,8 @@
     <string name="conversation_quote_collapse">Show less</string>
     <string name="conversation_forwarded_from">Forwarded from %1$s</string>
     <string name="conversation_forwarded">Forwarded message</string>
+    <string name="conversation_via_bot">via %1$s</string>
+    <string name="conversation_via_bot_draft_busy">Finish or clear the message you're typing first.</string>
     <string name="conversation_open_emoji">Emoji</string>
     <string name="conversation_open_stickers">Stickers</string>
     <string name="conversation_attach_media">Photo or video</string>

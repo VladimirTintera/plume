@@ -85,7 +85,7 @@ internal data class BubbleMessageItem(
     private fun MessageBodyScope.Content() {
         Column {
             SenderName(background = bubbleColor)
-            ForwardLabel()
+            OriginLabel()
 
             if (album != null) {
                 Album(members = album, accent = accent)
@@ -131,7 +131,7 @@ internal data class BubbleMessageItem(
     @Composable
     private fun MessageBodyScope.QuotableText() {
         val atTop = quoted == null && album == null && message.media == null &&
-            message.forwardOrigin == null && (continuesAbove || message.senderName == null)
+            !message.hasOriginLabel && (continuesAbove || message.senderName == null)
         val collapses = remember(message.id, message.text, message.entities) { collapsesQuote(message) }
         if (!collapses) {
             MessageText(
