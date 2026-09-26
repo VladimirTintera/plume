@@ -284,6 +284,24 @@ class TdlChatRepository(
         }
 
         /*
+         * Ověření a štítek podvodu. Nese je uživatel a supergroupa, ne chat, takže se mapují na
+         * chat zvlášť: soukromý chat má id uživatele, supergroupa (skupina i kanál) id
+         * odvozené z jejího. U cizích uživatelů `edit` chat nenajde a nic se nestane.
+         */
+        scope.launch {
+            holder.updates { userUpdates }.collect { update ->
+                edit(update.user.id) { it.copy(verification = update.user.verificationStatus.toVerification()) }
+            }
+        }
+        scope.launch {
+            holder.updates { supergroupUpdates }.collect { update ->
+                edit(supergroupChatId(update.supergroup.id)) {
+                    it.copy(verification = update.supergroup.verificationStatus.toVerification())
+                }
+            }
+        }
+
+        /*
          * „Píše…" a spol.
          *
          * Vlastní činnost se zahazuje — v seznamu by vypadalo divně, že chat hlásí psaní,
@@ -807,7 +825,8 @@ class TdlChatRepository(
         when (val chat = client.getChat(id)) {
             is TdlResult.Success -> {
                 upsert(chat.result)
-                chat.result.toSummary().inFolderOf(chat.result.positions.toFolderPositions())
+                val summary = mutex.withLock { known[id] } ?: chat.result.toSummary()
+                summary.inFolderOf(chat.result.positions.toFolderPositions())
             }
             is TdlResult.Failure -> {
                 logger.w { "getChat($id) selhalo: ${chat.code} ${chat.message}" }
@@ -884,7 +903,7 @@ class TdlChatRepository(
                 }
             }
         }
-        val summaries = chats.map { it.toSummary().withPresence() }
+        val summaries = chats.map { it.toSummary().withPresence().copy(verification = client.verificationOf(it)) }
 
         mutex.withLock {
             summaries.forEach { known[it.id] = it.keepingLiveState(known[it.id]) }
@@ -897,7 +916,7 @@ class TdlChatRepository(
     }
 
     private suspend fun upsert(chat: Chat) {
-        val summary = chat.toSummary()
+        val summary = chat.toSummary().copy(verification = client.verificationOf(chat))
         mutex.withLock {
             known[summary.id] = summary.keepingLiveState(known[summary.id])
             positions[chat.id] = chat.positions.toFolderPositions()
@@ -951,6 +970,7 @@ class TdlChatRepository(
         if (previous == null) this else copy(
             presence = presence ?: previous.presence,
             activity = activity ?: previous.activity,
+            verification = verification ?: previous.verification,
         )
 
     /**

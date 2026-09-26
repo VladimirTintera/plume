@@ -88,6 +88,7 @@ class TdlProfileRepository(
                 val full = client.getSupergroupFullInfo(supergroupId = type.supergroupId).toResult().getOrNull()
                 base.withAbout(describe(full?.description.orEmpty())).copy(
                     kind = if (type.isChannel) ProfileKind.Channel else ProfileKind.Group,
+                    verification = group?.verificationStatus.toVerification(),
                     usernames = group?.usernames?.activeUsernames?.toList().orEmpty(),
                     memberCount = (full?.memberCount ?: group?.memberCount)?.takeIf { it > 0 },
                     // Kanál členy vydá jen správcům a skupina se skrytými členy vůbec.
@@ -127,6 +128,7 @@ class TdlProfileRepository(
             phone = user.phoneNumber.takeIf { it.isNotBlank() }?.let { "+$it" },
             userId = userId,
             isBlocked = full?.blockList != null,
+            verification = user.verificationStatus.toVerification(),
         )
     }
 

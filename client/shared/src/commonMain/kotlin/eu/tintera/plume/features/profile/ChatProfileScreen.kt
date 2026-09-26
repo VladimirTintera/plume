@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.verification_fake_warning
+import eu.tintera.plume.resources.verification_scam_warning
+import eu.tintera.plume.resources.verification_verified
+import eu.tintera.plume.core.telegram.Verification
+import eu.tintera.plume.core.ui.VerificationBadge
 import androidx.compose.ui.platform.LocalHapticFeedback
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
@@ -707,6 +712,44 @@ private fun ProfileHeader(
         }
         subtitle?.let {
             Text(it, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        profile.verification?.let { ProfileVerification(it) }
+    }
+}
+
+/**
+ * Ověření v profilu: štítek a u podvodu a falešného účtu i věta, CO to znamená. V seznamu
+ * a v hlavičce na vysvětlení není místo; tady ano, a kdo účet zkoumá, je právě tady.
+ */
+@Composable
+private fun ProfileVerification(verification: Verification) {
+    val warning = when (verification) {
+        Verification.Verified -> null
+        Verification.Scam -> Res.string.verification_scam_warning
+        Verification.Fake -> Res.string.verification_fake_warning
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.padding(top = 8.dp, start = 24.dp, end = 24.dp),
+    ) {
+        if (warning == null) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                VerificationBadge(verification)
+                Text(
+                    stringResource(Res.string.verification_verified),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            VerificationBadge(verification)
+            Text(
+                stringResource(warning),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }

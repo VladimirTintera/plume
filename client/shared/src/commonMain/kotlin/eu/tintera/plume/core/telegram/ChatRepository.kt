@@ -372,6 +372,11 @@ data class ChatSummary(
      * vrací, hledá hlavně to, co tam nechal nedopsané.
      */
     val draft: ChatDraft?,
+    /**
+     * Ověřený, podvod, falešný (viz [Verification]); `null` u běžného účtu. `Chat` od TDLib ho
+     * nenese — je na uživateli a supergroupě, dočítá se zvlášť a mění updatem.
+     */
+    val verification: Verification? = null,
 )
 
 /**

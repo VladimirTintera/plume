@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.VerificationBadge
 import eu.tintera.plume.core.telegram.PollComposerMode
 
 import eu.tintera.plume.core.telegram.ReplyKeyboardButtonKind
@@ -1053,21 +1054,34 @@ fun ConversationScreen(
                             }
                         }
                         Column {
-                            Text(
-                                text = when {
-                                    state.threadRootId != null -> stringResource(Res.string.comments_title)
-                                    else -> state.info?.let { chatTitle(it.id, it.title) }
-                                        ?: stringResource(Res.string.conversation_fallback_title)
-                                },
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                // Klíč se dá jen když chat známe; než dorazí `info`, není s čím
-                                // párovat.
-                                modifier = state.info
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Text(
+                                    text = when {
+                                        state.threadRootId != null -> stringResource(Res.string.comments_title)
+                                        else -> state.info?.let { chatTitle(it.id, it.title) }
+                                            ?: stringResource(Res.string.conversation_fallback_title)
+                                    },
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    // Klíč se dá jen když chat známe; než dorazí `info`, není s čím
+                                    // párovat. Váha bez vyplnění: dlouhý název se zkrátí, štítek
+                                    // za ním zůstane vidět.
+                                    modifier = Modifier.weight(1f, fill = false).then(
+                                        state.info
+                                            ?.takeIf { state.threadRootId == null }
+                                            ?.let { Modifier.sharedNavText(chatTitleKey(it.id)) }
+                                            ?: Modifier,
+                                    ),
+                                )
+                                // Podvod a falešný účet musí být vidět tam, kde se píše — ve
+                                // vlákně komentářů je hlavička o skupině, ne o účtu.
+                                state.info?.verification
                                     ?.takeIf { state.threadRootId == null }
-                                    ?.let { Modifier.sharedNavText(chatTitleKey(it.id)) }
-                                    ?: Modifier,
-                            )
+                                    ?.let { VerificationBadge(it) }
+                            }
 
                             /*
                              * Podtitul: dostupnost protějšku. Stav spojení tu NENÍ, ten nese avatar.

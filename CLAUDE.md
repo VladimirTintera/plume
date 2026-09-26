@@ -1581,6 +1581,33 @@ testy v `ChatGroupsTest`). Nahradil spodní navigační lištu.
   filtru a „Tomuhle filtru žádný chat neodpovídá"), ne „Zatím tu nic není" — chaty jsou, jen ne
   tyhle. Stejný prázdný stav jako archiv a placeholder detailu.
 
+### Ověření a štítek podvodu
+
+Za jménem chatu je fajfka ověřeného účtu, nebo štítek „PODVOD" / „FALEŠNÝ" (`VerificationBadge`
+v `core/ui`, doména `Verification`, pravidlo `verificationOf`, testy `VerificationTest`) —
+v seznamu chatů, v hlavičce konverzace a v profilu, kde u podvodu a falešného stojí i věta, co
+to znamená.
+
+- **Podvod a falešný mají přednost před ověřením.** Ověření by uklidnilo přesně tam, kde má
+  uživatel zbystřit.
+- **Podvod je slovo, ne ikona**, v chybové barvě a s obrysem místo plné plochy. Vykřičník by se
+  četl jako „nepovedlo se"; plná chybová plocha by v řádku přebila všechno ostatní.
+- **`Chat` ověření nenese** — je na `User` (soukromý a tajný chat) a `Supergroup` (skupina
+  i kanál), základní skupina ho nemá. Dočítá se lokálním `getUser` / `getSupergroup`
+  (`TdlClient.verificationOf`, jedno místo pro seznam i hlavičku) a živě ho mění `UpdateUser`
+  a `UpdateSupergroup`. Supergroupa se na chat převádí konvencí TDLib (`supergroupChatId`).
+- **Přežívá přepsání chatu** (`keepingLiveState`), stejně jako dostupnost — `UpdateNewChat` by
+  ho jinak smazal.
+- **Jméno v seznamu je ve vlastním řádku s váhou, uvnitř s váhou BEZ vyplnění.** První verze
+  dala jménu `weight(1f, fill = false)` a za štítek mezeru s `weight(1f)` — obě váhy si místo
+  rozdělily napůl, takže se každé delší jméno zkrátilo v půlce řádku a čas nesl skok. Totéž
+  čeká každý prvek, který má stát HNED za textem proměnlivé délky a přitom nechat zbytek
+  řádku jiným.
+- **Ověřeno na emulátoru**: fajfka u chatu Telegram v seznamu; štítek podvodu v seznamu,
+  hlavičce i profilu **jen podstrčeným stavem** (sonda v `verificationOf`, `UpdateUser`
+  a profilu pro testovacího bota — chat s botem má id BOTA, číslo před dvojtečkou v tokenu,
+  ne `chat_id` z Bot API). Skutečný účet označený jako podvod testovací účet nezná.
+
 ### Tvar avataru podle druhu chatu
 
 Člověk kruh, skupina čtyřlaločná sušenka (`MaterialShapes.Cookie4Sided`), kanál zaoblený čtverec
