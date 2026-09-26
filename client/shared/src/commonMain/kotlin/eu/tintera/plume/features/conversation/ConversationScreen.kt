@@ -105,6 +105,8 @@ import eu.tintera.plume.resources.conversation_read_all_poll_votes
 import eu.tintera.plume.resources.conversation_unread_poll_votes
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.VisualTransformation
+import eu.tintera.plume.features.conversation.items.ARRIVAL_TOLERANCE_SECONDS
+import eu.tintera.plume.features.conversation.items.effectAutoplays
 import eu.tintera.plume.features.conversation.items.WavyShape
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -3359,8 +3361,13 @@ private class ScreenItemScope(
 
     private val effectsPlayed = HashSet<Long>()
 
-    override fun claimEffect(key: Long, timestamp: Int): Boolean =
-        timestamp >= openedAt - ARRIVAL_TOLERANCE_SECONDS && effectsPlayed.add(key)
+    override fun claimEffect(key: Long, message: ChatMessage, unreadBoundary: Long?): Boolean =
+        effectAutoplays(message.timestamp, openedAt, message.isOutgoing, message.id, unreadBoundary) &&
+            effectsPlayed.add(key)
+
+    private val unreadBoundaryState = derivedStateOf { state.value.unreadBoundaryId }
+
+    override fun unreadBoundary(): Long? = unreadBoundaryState.value
 
     /**
      * Navigace, sheet nad obrazovkou a systémový výběr umístění jsou věc obrazovky; všechno
@@ -3433,9 +3440,6 @@ private data class HeaderSubtitle(val text: String)
  * „naposledy nedávno" a přesný čas nedostaneme. Proto se nikde nedopočítává nic přesnějšího,
  * než co server dal — vymyslet minutu, kterou neznáme, by bylo horší než neurčitost.
  */
-
-/** Hodiny serveru a telefonu se můžou o chvilku lišit; o tolik starší zpráva je ještě příchod. */
-private const val ARRIVAL_TOLERANCE_SECONDS = 5
 
 /**
  * Místo vstupního pole ve skupině nebo kanálu, kde uživatel není (otevřeno z globálního hledání),

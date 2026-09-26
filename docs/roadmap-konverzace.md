@@ -497,7 +497,7 @@ snadno na to uživatel narazí.
   animace po příchodu a ťuknutím (`CLAUDE.md`, „Efekty zprávy"). Zbývá:
   - ~~**poslat zprávu s efektem**~~ — hotovo (podržení odesílacího tlačítka → „Odeslat
     s efektem…"). Zbývá náhled animace ve výběru a prémiové efekty s Premium,
-  - přehrát efekt i u NEPŘEČTENÉ zprávy, která přišla před otevřením chatu (dnes jen ťuknutím),
+  - ~~přehrát efekt i u NEPŘEČTENÉ zprávy~~ — hotovo,
   - ověřit u efektu prémiové samolepky (odchozí zpráva ověřená).
 - **Kontrola faktů** (`factCheck`) — poznámka pod zprávou v kanálu.
 - ~~**Automatické mazání** (`autoDeleteIn`)~~ — hotovo: čas smazání v „Informace", odznak chatu v hlavičce.

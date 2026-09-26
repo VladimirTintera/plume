@@ -124,6 +124,25 @@ internal fun EffectMark(
     }
 }
 
+/**
+ * Přehraje se efekt zprávy sám? U zprávy, která přišla po otevření chatu ([openedAt] s tolerancí
+ * na hodiny serveru), a u PŘÍCHOZÍ zprávy za hranicí nepřečtených — tu uživatel ještě neviděl,
+ * takže efekt, se kterým ji odesílatel poslal, má vidět taky. Tak to dělají i oficiální klienti.
+ * Přečtená historie efekt nepřehrává, jen značku; hranice je `null`, když chat nepřečtené neměl.
+ */
+internal fun effectAutoplays(
+    timestamp: Int,
+    openedAt: Long,
+    isOutgoing: Boolean,
+    messageId: Long,
+    unreadBoundary: Long?,
+): Boolean =
+    timestamp >= openedAt - ARRIVAL_TOLERANCE_SECONDS ||
+        (!isOutgoing && unreadBoundary != null && messageId > unreadBoundary)
+
+/** O kolik starší zpráva ještě platí za „právě přišlou" — hodiny serveru a telefonu se liší. */
+internal const val ARRIVAL_TOLERANCE_SECONDS = 5
+
 /** Kolečko se značkou efektu. */
 internal val EFFECT_MARK_SIZE = 24.dp
 

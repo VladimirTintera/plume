@@ -208,9 +208,11 @@ internal interface MessageItem : ConversationItem {
         ).arrival(frame, scope).gathered(frame.key, scope)
         val effect = frame.message.effect
         val effectPlayback = remember { EffectPlayback() }
-        // Efekt hraje sám jen u zprávy, která přišla po otevření konverzace, a jen jednou.
-        LaunchedEffect(frame.key, effect?.id) {
-            if (effect?.animationFileId != null && scope.claimEffect(frame.key, frame.message.timestamp)) {
+        // Efekt hraje sám jen jednou: u zprávy, která přišla po otevření, nebo u nepřečtené.
+        // Hranice nepřečtených dorazí až po prvních zprávách, proto je v klíči.
+        val unreadBoundary = scope.unreadBoundary()
+        LaunchedEffect(frame.key, effect?.id, unreadBoundary) {
+            if (effect?.animationFileId != null && scope.claimEffect(frame.key, frame.message, unreadBoundary)) {
                 effectPlayback.play()
             }
         }

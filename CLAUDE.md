@@ -6051,9 +6051,17 @@ testy `DiceMediaTest`).
 Zpráva poslaná s efektem (`Message.effectId`: oheň, konfety, srdce…) má na volné straně vedle
 spodku bubliny kolečko s emoji efektu (`EffectMark` v `items/MessageEffect.kt`) a animace se nad
 ní přehraje: sama jednou u zprávy, která přišla po otevření chatu (`claimEffect`, stejná
-tolerance jako hod kostkou), a znovu po ťuknutí na značku. Převod `toMessageEffect`, doména
+tolerance jako hod kostkou) nebo je NEPŘEČTENÁ, a znovu po ťuknutí na značku. Převod
+`toMessageEffect`, doména
 `MessageEffect` v `ChatMessage.effect`.
 
+- **Nepřečtená příchozí zpráva efekt přehraje taky** (`effectAutoplays`, testy
+  `EffectAutoplayTest`): kdo ji ještě neviděl, má vidět i efekt, se kterým přišla — tak to dělají
+  oficiální klienti. Rozhoduje hranice nepřečtených zachycená při otevření (`unreadBoundaryId`),
+  vlastní zpráva se nepočítá. **Hranice dorazí až po prvních zprávách**, proto je v klíči
+  `LaunchedEffect` položky; do položky jde přes `derivedStateOf` (`unreadBoundary()`), jinak by
+  čtení stavu překreslovalo všechny zprávy s každou změnou konverzace. Efekt u nejnovější zprávy
+  zčásti zajede pod vstupní pole — to leží nad seznamem.
 - **Efekt se dočítá při převodu zprávy** (`getMessageEffect`, pamatuje se pro instanci klienta),
   jako jméno inline bota. Efektů je pár desítek a opakují se; `fileId` animace platí jen v jedné
   databázi.
