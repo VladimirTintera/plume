@@ -941,6 +941,11 @@ data class ChatMessage(
      * správce jeho podpis. `null` mimo skupinu a u vlastních zpráv — tam se nekreslí ani jméno.
      */
     val senderTag: String? = null,
+    /**
+     * Kolikrát odesílatel boostuje skupinu (`senderBoostCount`); u jména se ukáže blesk s počtem.
+     * 0 mimo skupinu, u vlastních zpráv a u toho, kdo neboostuje.
+     */
+    val senderBoostCount: Int = 0,
     /** Kontrola faktů pod příspěvkem (`Message.factCheck`); `null` = žádná. */
     val factCheck: FactCheck? = null,
     /** Tlačítka bota pod zprávou; `null` = žádná. */

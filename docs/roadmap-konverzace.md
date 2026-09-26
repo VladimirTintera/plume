@@ -492,8 +492,8 @@ snadno na to uživatel narazí.
   - **omezený obsah** (`restrictionReason` bez citlivosti): věta od serveru místo obsahu.
 - ~~**„přes @bot"**~~ (`viaBotUserId`) — hotovo (`CLAUDE.md`, „Inline boti"). ~~**Podpis autora**
   v kanálu (`authorSignature`) a **štítek člena** (`senderTag`)~~ — hotovo (`CLAUDE.md`, „Podpis
-  autora a štítek člena", ověřené jen sondou). Zbývají **boosty odesílatele** (`senderBoostCount`)
-  u jména.
+  autora a štítek člena", ověřené jen sondou). ~~**Boosty odesílatele**~~ (`senderBoostCount`)
+  — hotovo, blesk s počtem u jména (ověřené jen sondou).
 - ~~**Efekty zprávy**~~ (`effectId` → `getMessageEffect`) — hotovo: značka vedle zprávy,
   animace po příchodu a ťuknutím (`CLAUDE.md`, „Efekty zprávy"). Zbývá:
   - ~~**poslat zprávu s efektem**~~ — hotovo (podržení odesílacího tlačítka → „Odeslat

@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.tabularNumbers
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import eu.tintera.plume.resources.bolt_filled_24dp
+import eu.tintera.plume.resources.sender_boosts
 import eu.tintera.plume.core.ui.threshold
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.profile_open
@@ -1074,38 +1079,71 @@ internal fun MessageBodyScope.SenderName(
 ) {
     if (continuesAbove) return
     val name = message.senderName ?: return
+    val nameColor = accentOn(background, senderColor(message.senderId), LocalContentColor.current)
     val tag = message.senderTag
-    if (tag == null) {
+    val boosts = message.senderBoostCount
+    if (tag == null && boosts == 0) {
         Text(
             text = name,
             style = MaterialTheme.typography.labelLarge,
-            color = accentOn(background, senderColor(message.senderId), LocalContentColor.current),
+            color = nameColor,
             modifier = modifier,
         )
         return
     }
     /*
-     * Štítek (vlastní štítek člena, u anonymního správce jeho podpis) stojí HNED za jménem,
-     * ztlumeně. Jméno má váhu BEZ vyplnění — s vyplněním by se dlouhé jméno a štítek dělily
-     * o místo napůl (tatáž past jako u jména a štítku ověření v seznamu chatů).
+     * Za jménem blesk boostu (odesílatel skupinu podporuje) a štítek (vlastní štítek člena,
+     * u anonymního správce jeho podpis), ztlumeně. Jméno i štítek mají váhu BEZ vyplnění —
+     * s vyplněním by se dlouhé jméno a štítek dělily o místo napůl (tatáž past jako u jména
+     * a štítku ověření v seznamu chatů). Blesk se nezkracuje.
      */
-    Row(modifier = modifier, verticalAlignment = Alignment.Bottom) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = name,
             style = MaterialTheme.typography.labelLarge,
-            color = accentOn(background, senderColor(message.senderId), LocalContentColor.current),
+            color = nameColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f, fill = false),
         )
-        Text(
-            text = tag,
-            style = MaterialTheme.typography.labelMedium,
-            color = LocalContentColor.current.copy(alpha = SENDER_TAG_ALPHA),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 6.dp).weight(1f, fill = false),
+        if (boosts > 0) SenderBoosts(boosts, nameColor)
+        if (tag != null) {
+            Text(
+                text = tag,
+                style = MaterialTheme.typography.labelMedium,
+                color = LocalContentColor.current.copy(alpha = SENDER_TAG_ALPHA),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 6.dp).weight(1f, fill = false),
+            )
+        }
+    }
+}
+
+/**
+ * Blesk boostu v barvě jména, s počtem jen od dvou — „1" by u každého boostujícího opakovalo,
+ * co říká samotný blesk (stejně jako počet u čipu reakce).
+ */
+@Composable
+private fun SenderBoosts(count: Int, color: Color) {
+    val description = stringResource(Res.string.sender_boosts, count)
+    Row(
+        modifier = Modifier.padding(start = 3.dp).semantics { contentDescription = description },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(Res.drawable.bolt_filled_24dp),
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(14.dp),
         )
+        if (count > 1) {
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.labelSmall.tabularNumbers(),
+                color = color,
+            )
+        }
     }
 }
 

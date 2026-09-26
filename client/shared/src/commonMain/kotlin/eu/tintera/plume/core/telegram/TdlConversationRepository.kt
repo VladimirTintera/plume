@@ -1681,6 +1681,7 @@ class TdlConversationRepository(
             authorSignature = authorSignature.ifBlank { null }?.takeIf { !isGroup },
             senderTag = (senderTag.ifBlank { null } ?: authorSignature.ifBlank { null })
                 ?.takeIf { sender != null },
+            senderBoostCount = senderBoostCount.takeIf { sender != null } ?: 0,
             effect = effectId.takeIf { it != 0L }?.let { messageEffect(it) },
             factCheck = factCheck?.let { check ->
                 val body = check.text.toBody()

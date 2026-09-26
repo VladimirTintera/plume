@@ -4185,10 +4185,14 @@ ztlumeně jeho štítek (`ChatMessage.senderTag`, `SenderName`).
   zprávy a na začátku bloku.
 - **Jméno i štítek mají váhu BEZ vyplnění** a oba se zkracují: s vyplněním by si dlouhé jméno
   a štítek rozdělily řádek napůl i tam, kde by se vešly celé.
+- **Boosty odesílatele** (`Message.senderBoostCount`, `ChatMessage.senderBoostCount`): mezi
+  jménem a štítkem blesk v barvě jména, počet až od dvou — „1" by opakovalo, co říká samotný
+  blesk (jako počet u čipu reakce). Blesk se nezkracuje; čtečka obrazovky dostane „Boosty
+  skupině: N". Jen ve skupině a u cizí zprávy, jako jméno.
 - **Řádek pod příspěvkem se kreslí i bez počtů, když je podpis** (prázdné `PostStats`).
 - **Podpis u přeposlané zprávy** („Kanál (Autor)") dělá `withSignature` odjinud, z původu.
 - **Ověřeno na emulátoru sondou** (necommituje se): zprávy od testovacího bota začínající
-  `#podpis` / `#stitek` převod dočasně obohatí o podpis a počty, resp. o jméno se štítkem
+  `#podpis` / `#stitek` / `#boost` převod dočasně obohatí o podpis a počty, resp. o jméno se štítkem
   a jiného odesílatele (jinak by zpráva navázala na blok a jméno by se nekreslilo). Skutečný
   kanál s podpisy ani skupina se štítky na testovacím účtu nejsou.
 
