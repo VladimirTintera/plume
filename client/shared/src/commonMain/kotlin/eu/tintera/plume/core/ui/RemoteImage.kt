@@ -1,10 +1,14 @@
 package eu.tintera.plume.core.ui
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -14,10 +18,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.layout
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -25,8 +30,6 @@ import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.Minithumbnail
 import kotlinx.coroutines.flow.flowOf
-import kotlin.math.min
-import kotlin.math.roundToInt
 import org.koin.compose.koinInject
 
 /**
@@ -77,12 +80,14 @@ fun RemoteImage(
     ) {
         Crossfade(targetState = path, label = "remote-image") { current ->
             if (current == null) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                // Průběh se schválně nezobrazuje číselně — u náhledů by to byl neklid.
+                val shimmer = state is FileState.Downloading && (placeholder != null || background.alpha > 0f)
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .then(if (shimmer) Modifier.loadingShimmer(onPhoto = placeholder != null) else Modifier),
+                ) {
                     if (placeholder != null) BlurredPlaceholder(placeholder, contentScale)
-                    // Průběh se schválně nezobrazuje číselně — u náhledů by to byl neklid.
-                    if (state is FileState.Downloading) {
-                        ContainedLoadingIndicator(Modifier.loadingIndicatorSize())
-                    }
                 }
             } else {
                 AsyncImage(
@@ -120,22 +125,64 @@ private fun BlurredPlaceholder(placeholder: Minithumbnail, contentScale: Content
 private val PLACEHOLDER_BLUR = 16.dp
 
 /**
- * Velikost indikátoru podle plochy obrázku: [INDICATOR_FRACTION] kratší strany, nejvýš
- * [MAX_INDICATOR]. Pevných 24 dp bylo uprostřed velké fotky tak malých, že to vypadalo jako
- * chyba vykreslení, ne načítání. Pod [MIN_INDICATOR] (malý avatar) se nekreslí vůbec — tam
- * stačí podložka a tečka by byla jen šum.
+ * Světlý pruh, který šikmo přejíždí přes načítaný obrázek.
+ *
+ * **Místo indikátoru, ne vedle něj.** Nad rozmazaným náhledem byl `ContainedLoadingIndicator`
+ * — barevný disk, který k obrázku nepatřil a vypadal jako nálepka. Rozmazání samo říká „tady
+ * bude obrázek", jen nepozná, jestli se ještě něco děje; pruh to dodá, aniž by přes fotku
+ * ležel cizí prvek. Kreslí se jen během stahování, takže stojící rozmazání = nic se nestahuje.
+ *
+ * Nad fotkou je pruh bílý (stejné pravidlo jako ovládání v prohlížeči médií), na holé podložce
+ * v barvě popředí plochy — bílá by v tmavém motivu svítila. Na průhledné podložce bez náhledu
+ * (samolepka) se nekreslí vůbec: pruh by tam přejížděl přes prázdno jako světlý obdélník.
+ *
+ * Průběh se čte až při kreslení, animace nic nerekomponuje. Pod [MIN_SHIMMER] (malý avatar)
+ * se nekreslí — seznam plný blikajících teček by byl jen šum.
  */
-private fun Modifier.loadingIndicatorSize() = layout { measurable, constraints ->
-    val available = min(constraints.maxWidth, constraints.maxHeight)
-    val side = (available * INDICATOR_FRACTION).roundToInt().coerceAtMost(MAX_INDICATOR.roundToPx())
-    if (side < MIN_INDICATOR.roundToPx()) return@layout layout(0, 0) {}
-    val placeable = measurable.measure(Constraints.fixed(side, side))
-    layout(side, side) { placeable.place(0, 0) }
+@Composable
+private fun Modifier.loadingShimmer(onPhoto: Boolean): Modifier {
+    val highlight = if (onPhoto) {
+        Color.White.copy(alpha = SHIMMER_ON_PHOTO_ALPHA)
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = SHIMMER_ON_SURFACE_ALPHA)
+    }
+    val progress = rememberInfiniteTransition(label = "image-shimmer").animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            keyframes {
+                durationMillis = SHIMMER_PERIOD_MS
+                0f at 0
+                1f at SHIMMER_SWEEP_MS using FastOutSlowInEasing
+            },
+        ),
+        label = "image-shimmer-progress",
+    )
+    return drawWithContent {
+        drawContent()
+        if (size.minDimension < MIN_SHIMMER.toPx()) return@drawWithContent
+        // Pás je široký podle kratší strany, sklon dává posun konce gradientu dolů. Dráha začíná
+        // i končí celým pásem mimo plochu, jinak by na krajích naskakoval a mizel.
+        val band = size.minDimension * SHIMMER_BAND_FRACTION
+        val slant = size.height * SHIMMER_SLANT
+        val x = -band - slant + progress.value * (size.width + 2 * band + slant)
+        drawRect(
+            Brush.linearGradient(
+                colors = listOf(Color.Transparent, highlight, Color.Transparent),
+                start = Offset(x, 0f),
+                end = Offset(x + 2 * band, band * SHIMMER_SLANT * 2),
+            ),
+        )
+    }
 }
 
-private const val INDICATOR_FRACTION = 0.3f
-private val MAX_INDICATOR = 64.dp
-private val MIN_INDICATOR = 24.dp
+private const val SHIMMER_ON_PHOTO_ALPHA = 0.45f
+private const val SHIMMER_ON_SURFACE_ALPHA = 0.1f
+private const val SHIMMER_PERIOD_MS = 1600
+private const val SHIMMER_SWEEP_MS = 1100
+private const val SHIMMER_BAND_FRACTION = 0.5f
+private const val SHIMMER_SLANT = 0.4f
+private val MIN_SHIMMER = 24.dp
 
 /**
  * Stav souboru, nebo [FileState.Pending] když id není.
