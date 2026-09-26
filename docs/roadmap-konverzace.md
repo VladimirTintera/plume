@@ -526,8 +526,9 @@ snadno na to uživatel narazí.
   i parametr ze startovacího odkazu (`CLAUDE.md`, „Spuštění bota"). Zbývá klikatelné odkazy
   v popisu, ověřit obrázek a GIF od bota a startovací odkaz do skupiny (`t.me/bot?startgroup=…`).
 - **Napovídání při psaní**: ~~`/` příkazy bota~~ — hotovo i s tlačítkem seznamu příkazů
-  (`CLAUDE.md`, „Příkazy bota“; ve skupině ověřit příponu `@bot`). Zbývá `@` členové skupiny,
-  tlačítko nabídky bota s mini aplikací (`BotMenuButton`) a emoji podle slov. ~~Inline boti
+  (`CLAUDE.md`, „Příkazy bota“; ve skupině ověřit příponu `@bot`). ~~`@` členové skupiny~~ —
+  hotovo i se zmínkou jménem (`CLAUDE.md`, „Napovídání zmínek"; ve skutečné skupině ověřit).
+  Zbývá tlačítko nabídky bota s mini aplikací (`BotMenuButton`) a emoji podle slov. ~~Inline boti
   (`@gif kočka` v poli)~~ — hotovo i s „přes @bot" u zprávy (`CLAUDE.md`, „Inline boti"); zbývá
   ověřit tlačítko „nastavit u bota", bota s polohou a inline bota ve skupině.
 - ~~**Naplánované zprávy a odeslání bez zvuku**~~ — hotovo: podržení odesílacího tlačítka,

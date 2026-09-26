@@ -86,7 +86,8 @@ class ThreadConversationRepository(
         linkPreview: LinkPreviewOptions?,
         quote: ReplyQuote?,
         options: SendOptions,
-    ): Result<ChatMessage> = delegate.send(chatId, text, reply(replyToMessageId), linkPreview, quote, options)
+        mentions: List<NameMention>,
+    ): Result<ChatMessage> = delegate.send(chatId, text, reply(replyToMessageId), linkPreview, quote, options, mentions)
 
     /**
      * Naplánované zprávy patří celé skupině, ne vláknu — ukazovat je v komentářích by míchalo
@@ -154,8 +155,9 @@ class ThreadConversationRepository(
         replyToMessageId: Long?,
         quote: ReplyQuote?,
         options: SendOptions,
+        mentions: List<NameMention>,
     ): Result<List<ChatMessage>> =
-        delegate.sendAttachments(chatId, attachments, caption, reply(replyToMessageId), quote, options)
+        delegate.sendAttachments(chatId, attachments, caption, reply(replyToMessageId), quote, options, mentions)
 
     override suspend fun sendPoll(
         chatId: Long,
