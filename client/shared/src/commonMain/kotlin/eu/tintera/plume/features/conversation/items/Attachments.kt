@@ -97,6 +97,7 @@ internal fun MessageAttachment(
     uploading: Boolean = false,
     onCancelUpload: () -> Unit = {},
     voice: VoiceHandlers = VoiceHandlers.None,
+    videoNote: VideoNoteHandlers = VideoNoteHandlers.None,
     /** Průběh stahování souboru, který uživatel otevírá; `null`, když se nestahuje. */
     documentProgress: (fileId: Int) -> Float? = { null },
     onOpenDocument: () -> Unit = {},
@@ -325,6 +326,8 @@ internal fun MessageAttachment(
         )
 
         is MessageMedia.Call -> CallRow(call = media, accent = accent)
+
+        is MessageMedia.VideoNote -> VideoNoteBubble(note = media, handlers = videoNote, onRequestMenu = onRequestMenu)
 
         is MessageMedia.Contact -> ContactCard(contact = media, accent = accent, onWrite = onOpen)
 

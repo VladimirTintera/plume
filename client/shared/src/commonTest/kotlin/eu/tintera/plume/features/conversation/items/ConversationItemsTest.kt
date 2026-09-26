@@ -424,6 +424,16 @@ class ConversationItemsTest {
     }
 
     @Test
+    fun videoKoleckoJeBezBubliny() {
+        val note = MessageMedia.VideoNote(
+            fileId = 1, thumbnailFileId = null, durationSeconds = 5, sizeBytes = 1000, isViewed = false,
+        )
+        assertIs<StickerMessageItem>(single(message(1, text = "", media = note)))
+        // Citace se bez pozadí ztratí, stejně jako u samolepky.
+        assertIs<BubbleMessageItem>(single(message(1, text = "", media = note, replyToMessageId = 99)))
+    }
+
+    @Test
     fun preposlanaSamolepkaAEmojiJsouVBubline() {
         // Značka přeposlání je údaj navíc — obsah s údajem navíc je karta, jako fotka s popiskem.
         val origin = ForwardOrigin.User(userId = 5, name = "Jana")

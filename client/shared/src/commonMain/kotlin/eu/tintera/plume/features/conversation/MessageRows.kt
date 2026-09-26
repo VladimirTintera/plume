@@ -238,6 +238,7 @@ private val MessageMedia.carriesCaption: Boolean
         is MessageMedia.Location,
         is MessageMedia.Call,
         is MessageMedia.Contact,
+        is MessageMedia.VideoNote,
         -> false
     }
 

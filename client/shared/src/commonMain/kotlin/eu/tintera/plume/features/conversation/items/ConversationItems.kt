@@ -204,7 +204,8 @@ private fun messageItem(
         emojiCount > 0 -> LargeEmojiMessageItem(frame, emojiCount)
         showsBareMedia(message, album) -> MediaMessageItem(frame, album)
         preview != null && showsLinkPreviewCard(message) -> LinkPreviewMessageItem(frame, preview)
-        (media is MessageMedia.Sticker || media is MessageMedia.AnimatedEmoji || media is MessageMedia.Dice) &&
+        (media is MessageMedia.Sticker || media is MessageMedia.AnimatedEmoji || media is MessageMedia.Dice ||
+            media is MessageMedia.VideoNote) &&
             !needsCard -> StickerMessageItem(frame, media)
         else -> BubbleMessageItem(frame, album = album, quoted = quoted, partnerName = partnerName)
     }

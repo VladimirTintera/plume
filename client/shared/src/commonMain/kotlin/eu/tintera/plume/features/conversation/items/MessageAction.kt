@@ -151,6 +151,12 @@ sealed interface MessageAction {
     data object OpenDocument : MessageAction
     data object CancelUpload : MessageAction
     data object ToggleVoice : MessageAction
+
+    /** Ťuknutí na video kolečko: pustí ho se zvukem od začátku, podruhé zvuk vypne. */
+    data object ToggleVideoNoteSound : MessageAction
+
+    /** Kolečko se zvukem dohrálo nebo odjelo z obrazovky. */
+    data object VideoNoteSoundEnded : MessageAction
     data class SeekVoice(val fraction: Float) : MessageAction
 
     /** Přepne rychlost přehrávání na další v pořadí. Platí pro celou aplikaci, ne pro tuhle zprávu. */

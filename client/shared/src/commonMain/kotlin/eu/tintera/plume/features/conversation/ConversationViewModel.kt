@@ -2270,6 +2270,10 @@ class ConversationViewModel(
             MessageAction.OpenDocument -> openDocument(messageId)
             MessageAction.CancelUpload -> cancelUpload(messageId)
             MessageAction.ToggleVoice -> toggleVoice(messageId)
+            MessageAction.ToggleVideoNoteSound -> toggleVideoNoteSound(messageId)
+            MessageAction.VideoNoteSoundEnded -> _state.update {
+                if (it.soundingVideoNote == messageId) it.copy(soundingVideoNote = null) else it
+            }
             MessageAction.CycleVoiceSpeed -> voicePlayer.cycleSpeed()
             is MessageAction.SeekVoice -> seekVoice(messageId, action.fraction)
             MessageMenuAction.Edit -> startEdit(messageId)
@@ -2811,8 +2815,28 @@ class ConversationViewModel(
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         val voice = message.media as? MessageMedia.VoiceNote ?: return
 
+        // Zvuk hraje vždycky jen jeden: hlasovka umlčí kolečko a naopak.
+        _state.update { it.copy(soundingVideoNote = null) }
         voicePlayer.toggle(VoiceKey(chatId, messageId)) { voicePath(voice) }
         if (!message.isOutgoing && !voice.isListened) reportListened(messageId)
+    }
+
+    /**
+     * Pustí video kolečko se zvukem, nebo ho vrátí do tiché smyčky.
+     *
+     * Kolečko se zvukem je jedno na konverzaci a hrající hlasovka se zastaví. Příchozí
+     * nezhlédnuté se nahlásí jako zhlédnuté — protějšek to vidí stejně jako u hlasovky.
+     */
+    private fun toggleVideoNoteSound(messageId: Long) {
+        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+        val note = message.media as? MessageMedia.VideoNote ?: return
+        if (_state.value.soundingVideoNote == messageId) {
+            _state.update { it.copy(soundingVideoNote = null) }
+            return
+        }
+        voicePlayer.stop()
+        _state.update { it.copy(soundingVideoNote = messageId) }
+        if (!message.isOutgoing && !note.isViewed) reportListened(messageId)
     }
 
     /** Označí hlasovku za poslechnutou lokálně i na serveru. */
@@ -2820,7 +2844,7 @@ class ConversationViewModel(
         markListened(messageId)
         viewModelScope.launch {
             repository.openContent(chatId, messageId).onFailure { failure ->
-                logger.w(failure) { "Poslechnutí hlasovky se nepodařilo nahlásit." }
+                logger.w(failure) { "Poslechnutí hlasovky nebo kolečka se nepodařilo nahlásit." }
             }
         }
     }
@@ -2835,6 +2859,7 @@ class ConversationViewModel(
             return
         }
         voicePlayer.stop()
+        _state.update { it.copy(soundingVideoNote = null) }
         voiceRecorder.start().onFailure {
             _state.update { it.copy(error = UiText(Res.string.conversation_recording_start_failed)) }
         }
@@ -2905,11 +2930,13 @@ class ConversationViewModel(
         _state.update { state ->
             state.copy(
                 messages = state.messages.map { message ->
-                    val voice = message.media as? MessageMedia.VoiceNote
-                    if (message.id == messageId && voice != null && !voice.isListened) {
-                        message.copy(media = voice.copy(isListened = true))
-                    } else {
-                        message
+                    if (message.id != messageId) return@map message
+                    when (val media = message.media) {
+                        is MessageMedia.VoiceNote ->
+                            if (media.isListened) message else message.copy(media = media.copy(isListened = true))
+                        is MessageMedia.VideoNote ->
+                            if (media.isViewed) message else message.copy(media = media.copy(isViewed = true))
+                        else -> message
                     }
                 },
             )
@@ -3427,6 +3454,8 @@ data class ConversationState(
     val botAlert: String? = null,
     /** Tlačítko bota, na jehož odpověď se čeká; `null` = žádné. */
     val pressingBotButton: BotButtonRef? = null,
+    /** Video kolečko, které hraje se zvukem; `null` = všechna hrají potichu (nebo vůbec). */
+    val soundingVideoNote: Long? = null,
     /** Zpráva s anketou, jejíž hlasující ukazuje sheet; `null` = zavřený. */
     val pollVoters: Long? = null,
     /** Anketa, kterou uživatel chce ukončit a čeká se na potvrzení; `null` = žádná. */

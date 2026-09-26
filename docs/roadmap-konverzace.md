@@ -444,9 +444,9 @@ snadno na to uživatel narazí.
     vysvětlení kvízu (`explanationMedia`).
   - **Přidání odpovědi** (`canAddOption`, `addPollOption`) se zatím zahazuje.
   - **Tváře posledních hlasujících** (`recentVoterIds`) u zápatí.
-- **Video kolečka** (`MessageVideoNote`) — čtvercový náhled s popiskem, nehraje. Mají hrát
-  v bublině kulatě, bez zvuku samy a se zvukem po ťuknutí (jako hlasovka: `isViewed`,
-  `openMessageContent`, přepis `speechRecognitionResult`).
+- ~~**Video kolečka** (`MessageVideoNote`)~~ — hotovo: kulatě bez bubliny, samy potichu ve
+  smyčce, zvuk s průběhem po ťuknutí, zhlédnutí (`CLAUDE.md`, „Video kolečka"). Zbývá přepis
+  řeči (`speechRecognitionResult`), **nahrávání kolečka** a ověřit zhlédnutí u odesílatele.
 - **Hudba** (`MessageAudio`) — jen popisek, nejde přehrát ani otevřít. Přehrávač s interpretem,
   názvem a obalem alba (`albumCoverThumbnail`), navazování další skladby; `VoicePlayer` je
   dobrý základ.
