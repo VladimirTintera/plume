@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.telegram
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
@@ -84,7 +85,14 @@ class ThreadConversationRepository(
         replyToMessageId: Long?,
         linkPreview: LinkPreviewOptions?,
         quote: ReplyQuote?,
-    ): Result<ChatMessage> = delegate.send(chatId, text, reply(replyToMessageId), linkPreview, quote)
+        options: SendOptions,
+    ): Result<ChatMessage> = delegate.send(chatId, text, reply(replyToMessageId), linkPreview, quote, options)
+
+    /**
+     * Naplánované zprávy patří celé skupině, ne vláknu — ukazovat je v komentářích by míchalo
+     * cizí. Plánovat se ve vlákně proto nenabízí (viz `ConversationState.canSchedule`).
+     */
+    override fun hasScheduledMessages(chatId: Long): Flow<Boolean> = flowOf(false)
 
     override suspend fun sendDice(
         chatId: Long,
@@ -137,8 +145,9 @@ class ThreadConversationRepository(
         caption: String,
         replyToMessageId: Long?,
         quote: ReplyQuote?,
+        options: SendOptions,
     ): Result<List<ChatMessage>> =
-        delegate.sendAttachments(chatId, attachments, caption, reply(replyToMessageId), quote)
+        delegate.sendAttachments(chatId, attachments, caption, reply(replyToMessageId), quote, options)
 
     override suspend fun sendPoll(
         chatId: Long,

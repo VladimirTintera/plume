@@ -83,7 +83,7 @@ internal fun AttachButton(
         ExpressiveMenu(
             expanded = expanded,
             onDismiss = { expanded = false },
-            popupPositionProvider = remember { AboveAnchorStartPositionProvider() },
+            popupPositionProvider = remember { MenuAbovePositionProvider(alignEnd = false) },
             groups = listOf(
                 listOfNotNull(
                     MenuAction(stringResource(Res.string.conversation_attach_media), Res.drawable.perm_media_24dp) { pick(onPickMedia) }
@@ -103,10 +103,11 @@ internal fun AttachButton(
 }
 
 /**
- * Nabídka spodkem nad kotvu, levou hranou u její levé hrany; nevejde-li se nad ni, pod ni.
- * Vodorovně se drží uvnitř okna. [transformOrigin] je roh u tlačítka — z něj nabídka vyroste.
+ * Nabídka spodkem nad kotvu, začátkem u jejího začátku (s [alignEnd] koncem u konce — pro
+ * tlačítko u pravého okraje); nevejde-li se nad ni, pod ni. Vodorovně se drží uvnitř okna.
+ * [transformOrigin] je roh u tlačítka — z něj nabídka vyroste.
  */
-private class AboveAnchorStartPositionProvider : DropdownMenuPopupPositionProvider {
+internal class MenuAbovePositionProvider(private val alignEnd: Boolean) : DropdownMenuPopupPositionProvider {
     override var transformOrigin: TransformOrigin = TransformOrigin(0f, 1f)
         private set
 
@@ -116,7 +117,8 @@ private class AboveAnchorStartPositionProvider : DropdownMenuPopupPositionProvid
         layoutDirection: LayoutDirection,
         popupContentSize: IntSize,
     ): IntOffset {
-        val start = if (layoutDirection == LayoutDirection.Ltr) {
+        val leftAligned = (layoutDirection == LayoutDirection.Ltr) != alignEnd
+        val start = if (leftAligned) {
             anchorBounds.left
         } else {
             anchorBounds.right - popupContentSize.width
@@ -124,7 +126,7 @@ private class AboveAnchorStartPositionProvider : DropdownMenuPopupPositionProvid
         val x = start.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
         val above = anchorBounds.top - popupContentSize.height
         val placedAbove = above >= 0
-        val originX = if (layoutDirection == LayoutDirection.Ltr) 0f else 1f
+        val originX = if (leftAligned) 0f else 1f
         transformOrigin = TransformOrigin(originX, if (placedAbove) 1f else 0f)
         return IntOffset(x, if (placedAbove) above else anchorBounds.bottom)
     }

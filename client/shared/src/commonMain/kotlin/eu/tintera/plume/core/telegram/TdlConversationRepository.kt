@@ -259,7 +259,8 @@ class TdlConversationRepository(
 
     override fun newMessages(chatId: Long): Flow<ChatMessage> =
         holder.updates { newMessageUpdates }
-            .filter { it.message.chatId == chatId }
+            // Naplánovaná zpráva do historie nepatří; až odejde, přijde znovu jako běžná.
+            .filter { it.message.chatId == chatId && it.message.schedulingState == null }
             .map { it.message.toChatMessage(isGroup(chatId)) }
 
     override fun deletedMessages(chatId: Long): Flow<List<Long>> =
@@ -289,7 +290,8 @@ class TdlConversationRepository(
                     .toResult()
                     .map { it.toChatMessage(isGroup(chatId)) }
             }
-            .filter { it.isSuccess }
+            // Přeplánování je úprava zprávy — naplánovaná by se tudy vmíchala do historie.
+            .filter { it.isSuccess && it.getOrNull()?.schedule == null }
             .map { it.getOrThrow() }
 
     override fun interactionUpdates(chatId: Long): Flow<MessageInteractions> =
@@ -713,7 +715,9 @@ class TdlConversationRepository(
 
     override fun sentMessageUpdates(chatId: Long): Flow<SentMessageUpdate> = merge(
         holder.updates { messageSendSucceededUpdates }
-            .filter { it.message.chatId == chatId }
+            // Potvrzení NAPLÁNOVANÉ zprávy (odešla na server, ale čeká na svůj čas) do historie
+            // nepatří — `withSentMessage` by ji do seznamu vložil.
+            .filter { it.message.chatId == chatId && it.message.schedulingState == null }
             .map { update ->
                 SentMessageUpdate.Succeeded(
                     oldMessageId = update.oldMessageId,
@@ -721,7 +725,7 @@ class TdlConversationRepository(
                 )
             },
         holder.updates { messageSendFailedUpdates }
-            .filter { it.message.chatId == chatId }
+            .filter { it.message.chatId == chatId && it.message.schedulingState == null }
             .map { update ->
                 SentMessageUpdate.Failed(
                     oldMessageId = update.oldMessageId,
@@ -773,6 +777,7 @@ class TdlConversationRepository(
         replyToMessageId: Long?,
         linkPreview: LinkPreviewOptions?,
         quote: ReplyQuote?,
+        options: SendOptions,
     ): Result<ChatMessage> {
         val entities = detectEntities(text)
 
@@ -781,7 +786,7 @@ class TdlConversationRepository(
             // Vlákna (fóra) fáze 2 neřeší — null znamená hlavní vlákno chatu.
             topicId = null,
             replyTo = replyInput(chatId, replyToMessageId, quote),
-            options = null,
+            options = options.toTdl(),
             replyMarkup = null,
             inputMessageContent = InputMessageText(
                 text = FormattedText(text = text, entities = entities),
@@ -845,6 +850,7 @@ class TdlConversationRepository(
         caption: String,
         replyToMessageId: Long?,
         quote: ReplyQuote?,
+        options: SendOptions,
     ): Result<List<ChatMessage>> {
         require(attachments.isNotEmpty()) { "Není co poslat." }
         val isGroup = isGroup(chatId)
@@ -860,7 +866,7 @@ class TdlConversationRepository(
                 chatId = chatId,
                 topicId = null,
                 replyTo = replyInput(chatId, replyToMessageId, quote),
-                options = null,
+                options = options.toTdl(),
                 replyMarkup = null,
                 inputMessageContent = contents.single(),
             )
@@ -872,7 +878,7 @@ class TdlConversationRepository(
             chatId = chatId,
             topicId = null,
             replyTo = replyInput(chatId, replyToMessageId, quote),
-            options = null,
+            options = options.toTdl(),
             inputMessageContents = contents.toTypedArray(),
         )
             .toResult()
@@ -1227,6 +1233,35 @@ class TdlConversationRepository(
                 emptyArray()
             }
 
+    override fun hasScheduledMessages(chatId: Long): Flow<Boolean> =
+        holder.updates { chatHasScheduledMessagesUpdates }
+            .filter { it.chatId == chatId }
+            .map { it.hasScheduledMessages }
+            // Odběr stojí dřív než první čtení, aby se změna mezi nimi neztratila.
+            .onStart {
+                client.getChat(chatId = chatId).toResult().getOrNull()?.let { emit(it.hasScheduledMessages) }
+            }
+            .distinctUntilChanged()
+
+    override suspend fun scheduledMessages(chatId: Long): Result<List<ChatMessage>> {
+        val isGroup = isGroup(chatId)
+        return client.getChatScheduledMessages(chatId = chatId)
+            .toResult()
+            .map { messages ->
+                messages.messages.filterNotNull()
+                    .map { it.toChatMessage(isGroup) }
+                    // „Až bude online" nemá čas, patří na začátek — odejde nejdřív, jak to jde.
+                    .sortedBy { (it.schedule as? MessageSchedule.At)?.epochSeconds ?: 0L }
+            }
+    }
+
+    override suspend fun reschedule(chatId: Long, messageId: Long, schedule: MessageSchedule?): Result<Unit> =
+        client.editMessageSchedulingState(
+            chatId = chatId,
+            messageId = messageId,
+            schedulingState = schedule?.toTdl(),
+        ).toResult().map { }
+
     override suspend fun linkPreview(text: String): Result<LinkPreview?> {
         val formatted = FormattedText(text = text, entities = detectEntities(text))
         if (formatted.entities.none { it.type is TextEntityTypeUrl || it.type is TextEntityTypeTextUrl }) {
@@ -1497,6 +1532,7 @@ class TdlConversationRepository(
             hasUnreadReactions = unreadReactions.isNotEmpty(),
             hasUnreadPollVotes = containsUnreadPollVotes,
             threadId = (topicId as? MessageTopicThread)?.messageThreadId,
+            schedule = schedulingState?.toSchedule(),
             sendState = if (outgoing) sendingState.toSendState() else null,
             // Odpověď mimo tenhle chat nese `externalReply` — v načtené historii citovaná zpráva
             // není, takže se na ni skákat nedá.

@@ -3107,6 +3107,48 @@ naopak vidí, že píšeme my.
 - **Chyba se jen loguje.** V kanálu bez práva psát `sendChatAction` selže; snackbar kvůli
   „píše…" by uživatele jen obtěžoval.
 
+### Naplánované zprávy a odeslání bez zvuku
+
+Podržení odesílacího tlačítka nabídne **Odeslat bez zvuku**, **Naplánovat zprávu…** a v soukromém
+chatu **Odeslat, až bude online** (`SendOptions`, `MessageSchedule`; co se nabídne, je čistá
+funkce `sendMenuOffer`, testy `SendMenuTest`). Naplánované zprávy má chat v seznamu za hodinami
+u pole (`ScheduledMessagesSheet`): odeslat hned, změnit čas, smazat.
+
+- **Naplánovaná zpráva do historie NEPATŘÍ — a tři cesty ji tam vmíchají**, když se nehlídají:
+  `UpdateNewMessage` (naplánovaná přijde jako nová zpráva), `UpdateMessageSendSucceeded`
+  (potvrzení odeslání na server — `withSentMessage` ji do seznamu vloží) a úprava zprávy
+  (přeplánování je `editMessageSchedulingState`, tedy `UpdateMessageEdited` — `merge` ji vloží
+  taky). Repository proto filtruje `schedulingState != null` na všech třech. Až zpráva v čase
+  odejde, přijde znovu jako běžná, s novým id.
+- **Že chat naplánované zprávy má, hlásí TDLib** (`Chat.hasScheduledMessages`,
+  `UpdateChatHasScheduledMessages`) — i když zpráva odejde nebo se naplánuje z jiného zařízení.
+  Podle toho jsou hodiny u pole; seznam se čte až při otevření (`getChatScheduledMessages`)
+  a po každé akci znovu. Prázdný se zavře sám.
+- **„Odeslat hned" je přeplánování na `null`**, ne nové odeslání — zpráva odejde tak, jak byla
+  naplánovaná, i s odpovědí a přílohami.
+- **Tlačítko odeslání `onLongClick` nemá** (material3 1.12 ho u `IconButton` nenabízí), takže
+  dlouhý stisk hlídá `longPressInstead` v `Initial` a po něm **spotřebuje zbytek gesta** —
+  jinak by puštění prstu zprávu zároveň odeslalo.
+- **„Až bude online" jen se ZNÁMOU dostupností** (`Presence.Offline`). TDLib: „the user's
+  online status must be known". Bot dostupnost nemá, skrytou („naposledy nedávno") server
+  odmítne, a online protějšek ji nepotřebuje.
+- **Ve vlákně komentářů se neplánuje** (`hasScheduledMessages` tam vrací `false`): naplánované
+  patří celé skupině a v komentářích by se míchaly cizí.
+- **Čas: napřed den, pak hodina** (`FutureDayDialog`, `TimeOfDayDialog` — vytažené z formuláře
+  ankety, sdílí je oba). Dnešek je předvybraný a čas za hodinu od teď, protože se nejčastěji
+  plánuje „na později dnes". **Nejdřív za minutu, nejpozději za rok** (`scheduleValid`); čas
+  vybraný na minuty by jinak mohl minout dřív, než odejde. Neplatný čas nechá text v poli.
+- **Naplánovaná zpráva neletí z pole** a do seznamu se nepřidává; místo toho snackbar
+  „Zpráva je naplánovaná" — jinak by po odeslání nebylo vidět nic.
+- **Past s časovým výběrem přes `adb`**: po ťuknutí na hodinu se ciferník přepíná na minuty
+  animací a ťuknutí během ní se ztratí — mezi ťuknutími pauza aspoň vteřinu.
+- **Ověřeno na emulátoru v chatu s botem**: nabídka nad tlačítkem (bez „až bude online" — bot),
+  naplánování s ikonou hodin a snackbarem, seznam („zítra 18:55"), odeslat hned (bot zprávu
+  dostal, v historii jednou), **automatické odeslání v čase** (17:55 — bot dostal, hodiny
+  zmizely), změna času („pondělí 18:56"), smazání, odmítnutí času, který už minul, a odeslání
+  bez zvuku (bot zprávu dostal; jestli bez zvuku, Bot API neprozradí). **Neověřeno**: „až bude
+  online" (chce člověka se známou dostupností), naplánované přílohy, iOS (jen přeložené).
+
 ### Úprava zprávy
 
 „Upravit" v nabídce nad zprávou přepne vstupní pole do úpravy: karta místo citace ukazuje původní

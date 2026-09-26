@@ -303,7 +303,20 @@ interface ConversationRepository {
         replyToMessageId: Long?,
         linkPreview: LinkPreviewOptions? = null,
         quote: ReplyQuote? = null,
+        options: SendOptions = SendOptions(),
     ): Result<ChatMessage>
+
+    /**
+     * Má chat naplánované zprávy? Živé — `UpdateChatHasScheduledMessages` přijde i tehdy, když
+     * naplánovaná zpráva odejde nebo se naplánuje z jiného zařízení.
+     */
+    fun hasScheduledMessages(chatId: Long): Flow<Boolean>
+
+    /** Naplánované zprávy chatu, od nejdřív odcházející. */
+    suspend fun scheduledMessages(chatId: Long): Result<List<ChatMessage>>
+
+    /** Změní, kdy naplánovaná zpráva odejde; `null` = odeslat hned. */
+    suspend fun reschedule(chatId: Long, messageId: Long, schedule: MessageSchedule?): Result<Unit>
 
     /**
      * Náhled odkazu, jak by ho server připojil k [text], nebo `null`, když text odkaz nemá.
@@ -398,6 +411,7 @@ interface ConversationRepository {
         caption: String,
         replyToMessageId: Long?,
         quote: ReplyQuote? = null,
+        options: SendOptions = SendOptions(),
     ): Result<List<ChatMessage>>
 
     /**
@@ -862,6 +876,29 @@ data class ChatMessage(
      * id kořenové zprávy; `null` mimo vlákno. Podle něj si vlákno komentářů bere nové zprávy.
      */
     val threadId: Long? = null,
+    /**
+     * Naplánovaná zpráva: kdy odejde. `null` u běžné zprávy. Naplánovaná zpráva do historie
+     * NEPATŘÍ — je jen v seznamu naplánovaných ([ConversationRepository.scheduledMessages]).
+     */
+    val schedule: MessageSchedule? = null,
+)
+
+/** Kdy naplánovaná zpráva odejde. */
+sealed interface MessageSchedule {
+    /** V daný okamžik (sekundy od epochy). */
+    data class At(val epochSeconds: Long) : MessageSchedule
+
+    /** Jakmile bude protějšek online (jen soukromý chat, `MessageSchedulingStateSendWhenOnline`). */
+    data object WhenOnline : MessageSchedule
+}
+
+/**
+ * Jak zprávu odeslat: [silent] = protějšek nedostane zvuk ani vibraci (`disableNotification`),
+ * [schedule] = neodejde hned, ale ve zvolený čas.
+ */
+data class SendOptions(
+    val silent: Boolean = false,
+    val schedule: MessageSchedule? = null,
 )
 
 /**

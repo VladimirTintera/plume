@@ -528,8 +528,10 @@ snadno na to uživatel narazí.
   (`CLAUDE.md`, „Příkazy bota“; ve skupině ověřit příponu `@bot`). Zbývá `@` členové skupiny,
   tlačítko nabídky bota s mini aplikací (`BotMenuButton`), inline boti (`@gif kočka` v poli)
   a emoji podle slov.
-- **Naplánované zprávy a odeslání bez zvuku** (`schedulingState`, `getChatScheduledMessages`,
-  `disableNotification`) — podržení odesílacího tlačítka.
+- ~~**Naplánované zprávy a odeslání bez zvuku**~~ — hotovo: podržení odesílacího tlačítka,
+  seznam naplánovaných za hodinami u pole (`CLAUDE.md`, „Naplánované zprávy"). Zbývá plánování
+  hlasovky, samolepky a ankety (jdou jinou cestou než pole), opakované připomínky
+  (`repeatPeriod`, jen s Premium) a ověřit „až bude online" s člověkem.
 - ~~**Ověření, podvod, falešný účet**~~ — hotovo: štítek u jména v seznamu chatů, v hlavičce
   konverzace a v profilu, u podvodu a falešného s vysvětlením (`CLAUDE.md`, „Ověření a štítek
   podvodu"). Zbývá značka ověření od bota (`botVerificationIconCustomEmojiId`, vlastní emoji)

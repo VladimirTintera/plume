@@ -1,5 +1,23 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.conversation_schedule_time
+import eu.tintera.plume.resources.conversation_schedule_past
+import kotlinx.datetime.TimeZone
+import androidx.compose.ui.composed
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
+import kotlinx.coroutines.withTimeoutOrNull
+import eu.tintera.plume.core.ui.longPress
+import eu.tintera.plume.core.telegram.SendOptions
+import eu.tintera.plume.core.telegram.MessageSchedule
+import eu.tintera.plume.resources.conversation_send_silent
+import eu.tintera.plume.resources.conversation_send_schedule
+import eu.tintera.plume.resources.conversation_send_when_online
+import eu.tintera.plume.resources.schedule_send_24dp
+import eu.tintera.plume.resources.online_prediction_24dp
+import eu.tintera.plume.resources.schedule_24dp
+import eu.tintera.plume.resources.conversation_scheduled_open
 import eu.tintera.plume.core.ui.VerificationBadge
 import eu.tintera.plume.core.ui.EmojiStatusBadge
 import eu.tintera.plume.core.telegram.PollComposerMode
@@ -463,6 +481,9 @@ fun ConversationScreen(
      * kurzor. S holým řetězcem by zůstal na začátku textu.
      */
     var draft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
+    // Plánování: napřed den, pak čas. Cíl je rozepsaná zpráva, nebo naplánovaná k přeplánování.
+    var scheduleTarget by remember { mutableStateOf<ScheduleTarget?>(null) }
+    var scheduleDay by remember { mutableStateOf<Long?>(null) }
 
     // Komu se má odpovědět, rozhoduje čisté pravidlo nad stavem (testy `ReplySuggestionsTest`).
     val replyTarget = replySuggestionTarget(
@@ -1310,10 +1331,13 @@ fun ConversationScreen(
                 onCancelReply = viewModel::clearReply,
                 // Odeslání je potvrzení akce; dosud ho doprovázel jen let bubliny. Hlásí se
                 // v okamžiku ťuknutí, ne po odpovědi serveru — odezva patří ke gestu.
-                onSend = { text ->
+                onSend = { text, options ->
                     haptics.confirm()
-                    viewModel.send(text)
+                    viewModel.send(text, options)
                 },
+                sendMenu = sendMenuOffer(state),
+                onSchedule = { scheduleTarget = ScheduleTarget.Draft },
+                onOpenScheduled = viewModel::openScheduled.takeIf { state.hasScheduledMessages },
                 onDraftChanged = viewModel::onDraftChanged,
                 editing = state.editing,
                 onCancelEdit = viewModel::cancelEdit,
@@ -1796,6 +1820,57 @@ fun ConversationScreen(
 
             }
 
+            state.scheduledMessages?.let { scheduled ->
+                ScheduledMessagesSheet(
+                    messages = scheduled,
+                    onSendNow = { message -> viewModel.reschedule(message.id, null) },
+                    onReschedule = { message -> scheduleTarget = ScheduleTarget.Existing(message.id) },
+                    onDelete = { message -> viewModel.deleteScheduled(message.id) },
+                    onDismiss = viewModel::closeScheduled,
+                )
+            }
+
+            if (scheduleTarget != null && scheduleDay == null) {
+                FutureDayDialog(
+                    now = Clock.System.now().epochSeconds,
+                    maxAheadSeconds = MAX_SCHEDULE_AHEAD_SECONDS,
+                    onPick = { day -> scheduleDay = day },
+                    onDismiss = { scheduleTarget = null },
+                )
+            }
+            val target = scheduleTarget
+            val day = scheduleDay
+            if (target != null && day != null) {
+                TimeOfDayDialog(
+                    title = stringResource(Res.string.conversation_schedule_time),
+                    // Nabídne se za hodinu od teď — nejčastěji se plánuje „na později dnes".
+                    initial = Clock.System.now().epochSeconds + SCHEDULE_DEFAULT_AHEAD_SECONDS,
+                    onPick = { hour, minute ->
+                        scheduleTarget = null
+                        scheduleDay = null
+                        val at = closeDateOf(day, hour, minute, TimeZone.currentSystemDefault())
+                        if (!scheduleValid(at, Clock.System.now().epochSeconds)) {
+                            haptics.reject()
+                            viewModel.reportError(UiText(Res.string.conversation_schedule_past))
+                            return@TimeOfDayDialog
+                        }
+                        val schedule = MessageSchedule.At(at)
+                        when (target) {
+                            ScheduleTarget.Draft -> {
+                                haptics.confirm()
+                                viewModel.send(draft.text, SendOptions(schedule = schedule))
+                                draft = TextFieldValue()
+                            }
+                            is ScheduleTarget.Existing -> viewModel.reschedule(target.messageId, schedule)
+                        }
+                    },
+                    onDismiss = {
+                        scheduleTarget = null
+                        scheduleDay = null
+                    },
+                )
+            }
+
             if (allPinnedOpen && state.pinned.isNotEmpty()) {
                 PinnedMessagesSheet(
                     messages = state.pinned,
@@ -2036,7 +2111,13 @@ private fun MessageInput(
     partnerName: String?,
     flight: MessageFlight?,
     onCancelReply: () -> Unit,
-    onSend: (String) -> Unit,
+    onSend: (String, SendOptions) -> Unit,
+    /** Co nabídne podržení odesílacího tlačítka ([sendMenuOffer]). */
+    sendMenu: SendMenuOffer = SendMenuOffer(silent = false, schedule = false, whenOnline = false),
+    /** „Naplánovat…" z nabídky; výběr času i odeslání řeší obrazovka, která drží text. */
+    onSchedule: () -> Unit = {},
+    /** Otevře seznam naplánovaných zpráv; `null`, když chat žádné nemá. */
+    onOpenScheduled: (() -> Unit)? = null,
     /** Jen ruční úpravy textu — vyprázdnění po odeslání se nehlásí, o to se stará `onSend`. */
     onDraftChanged: (String) -> Unit,
     /** Upravovaná zpráva; karta pak místo citace ukazuje, co se upravuje. */
@@ -2367,7 +2448,7 @@ private fun MessageInput(
                     ),
                     keyboardActions = KeyboardActions(
                         onSend = {
-                            onSend(draft.text)
+                            onSend(draft.text, SendOptions())
                             onDraftValueChange(TextFieldValue())
                         },
                     ),
@@ -2431,6 +2512,20 @@ private fun MessageInput(
                     )
                 }
             }
+            }
+            // Naplánované zprávy: hodiny u pole, dokud nějaké čekají — do historie nepatří,
+            // takže jinak by o nich nebylo vidět nic.
+            if (editing == null && onOpenScheduled != null) {
+                IconButton(
+                    onClick = onOpenScheduled,
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
+                    modifier = Modifier.padding(bottom = 4.dp),
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.schedule_24dp),
+                        contentDescription = stringResource(Res.string.conversation_scheduled_open),
+                    )
+                }
             }
             IconButton(
                 onClick = {
@@ -2552,74 +2647,106 @@ private fun MessageInput(
                 label = "send-button-content",
             )
 
-            FilledIconButton(
-                onClick = {
-                    when {
-                        isRecording -> onSendRecording()
-                        showMic -> onStartRecording()
-                        else -> {
-                            onSend(draft.text)
-                            onDraftValueChange(TextFieldValue())
+            var sendMenuOpen by remember { mutableStateOf(false) }
+            Box {
+                FilledIconButton(
+                    onClick = {
+                        when {
+                            isRecording -> onSendRecording()
+                            showMic -> onStartRecording()
+                            else -> {
+                                onSend(draft.text, SendOptions())
+                                onDraftValueChange(TextFieldValue())
+                            }
                         }
-                    }
-                },
-                // Přílohy jdou poslat i bez popisku a popisek jde i odebrat.
-                enabled = (isRecording || showMic || draft.text.isNotBlank() || withAttachments || removableCaption) &&
-                    // Odeslání teď by poslalo zprávu bez videa, které se ještě kopíruje.
-                    !(kind == SendButtonKind.Send && attachmentsPreparing),
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = containerColor,
-                    contentColor = contentColor,
-                ),
-                // Kruh (odeslání) se při stisku mění podle M3 Expressive na zaoblený čtverec.
-                // Sušenka a tvary během přechodu stisk nemění: mezi obecnými tvary IconButton
-                // neanimuje a skok by vypadal jako chyba.
-                shapes = if (breathing > 0f) {
-                    val shape = MorphShape(ShapeMorphs.Live, breathing, rotation = RECORDING_BREATH_ROTATION)
-                    IconButtonShapes(shape = shape, pressedShape = shape)
-                } else if (morphProgress > 0f) {
-                    val shape = MorphShape(ShapeMorphs.Rest, morphProgress, rotation = ShapeMorphs.REST_ROTATION)
-                    IconButtonShapes(shape = shape, pressedShape = shape)
-                } else {
-                    IconButtonDefaults.shapes(
-                        shape = IconButtonDefaults.mediumRoundShape,
-                        pressedShape = IconButtonDefaults.mediumPressedShape,
-                    )
-                },
-                modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
-            ) {
-                // Ikona jede stejnou pružinou jako tvar — rychlejší by se vyměnila dřív, než je
-                // morf vůbec vidět.
-                val iconScale = morphSpring<Float>()
-                val iconFade = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-                AnimatedContent(
-                    targetState = kind,
-                    transitionSpec = {
-                        (scaleIn(iconScale, initialScale = 0.4f) + fadeIn(iconFade))
-                            .togetherWith(scaleOut(iconScale, targetScale = 0.4f) + fadeOut(iconFade))
                     },
-                    label = "send-button-icon",
-                ) { shown ->
-                    // Při úpravě fajfka: nic se neposílá, jen potvrzuje změna.
-                    Icon(
-                        painterResource(
-                            when (shown) {
-                                SendButtonKind.Save -> Res.drawable.check_24dp
-                                SendButtonKind.Mic -> Res.drawable.mic_24dp
-                                SendButtonKind.Send, SendButtonKind.SendVoice -> Res.drawable.send_24dp
-                            },
-                        ),
-                        contentDescription = stringResource(
-                            when (shown) {
-                                SendButtonKind.Save -> Res.string.conversation_save_edit
-                                SendButtonKind.Mic -> Res.string.conversation_record_voice
-                                SendButtonKind.SendVoice -> Res.string.conversation_send_voice
-                                SendButtonKind.Send -> Res.string.conversation_send
-                            },
-                        ),
-                        modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
-                    )
+                    // Přílohy jdou poslat i bez popisku a popisek jde i odebrat.
+                    enabled = (isRecording || showMic || draft.text.isNotBlank() || withAttachments || removableCaption) &&
+                        // Odeslání teď by poslalo zprávu bez videa, které se ještě kopíruje.
+                        !(kind == SendButtonKind.Send && attachmentsPreparing),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                    ),
+                    // Kruh (odeslání) se při stisku mění podle M3 Expressive na zaoblený čtverec.
+                    // Sušenka a tvary během přechodu stisk nemění: mezi obecnými tvary IconButton
+                    // neanimuje a skok by vypadal jako chyba.
+                    shapes = if (breathing > 0f) {
+                        val shape = MorphShape(ShapeMorphs.Live, breathing, rotation = RECORDING_BREATH_ROTATION)
+                        IconButtonShapes(shape = shape, pressedShape = shape)
+                    } else if (morphProgress > 0f) {
+                        val shape = MorphShape(ShapeMorphs.Rest, morphProgress, rotation = ShapeMorphs.REST_ROTATION)
+                        IconButtonShapes(shape = shape, pressedShape = shape)
+                    } else {
+                        IconButtonDefaults.shapes(
+                            shape = IconButtonDefaults.mediumRoundShape,
+                            pressedShape = IconButtonDefaults.mediumPressedShape,
+                        )
+                    },
+                    modifier = Modifier
+                        .size(IconButtonDefaults.mediumContainerSize())
+                        // Podržení nabídne odeslat bez zvuku a naplánovat — jen u hotové zprávy.
+                        .longPressInstead(enabled = kind == SendButtonKind.Send && sendMenu.any && !attachmentsPreparing) {
+                            keyboard?.hide()
+                            sendMenuOpen = true
+                        },
+                ) {
+                    // Ikona jede stejnou pružinou jako tvar — rychlejší by se vyměnila dřív, než je
+                    // morf vůbec vidět.
+                    val iconScale = morphSpring<Float>()
+                    val iconFade = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+                    AnimatedContent(
+                        targetState = kind,
+                        transitionSpec = {
+                            (scaleIn(iconScale, initialScale = 0.4f) + fadeIn(iconFade))
+                                .togetherWith(scaleOut(iconScale, targetScale = 0.4f) + fadeOut(iconFade))
+                        },
+                        label = "send-button-icon",
+                    ) { shown ->
+                        // Při úpravě fajfka: nic se neposílá, jen potvrzuje změna.
+                        Icon(
+                            painterResource(
+                                when (shown) {
+                                    SendButtonKind.Save -> Res.drawable.check_24dp
+                                    SendButtonKind.Mic -> Res.drawable.mic_24dp
+                                    SendButtonKind.Send, SendButtonKind.SendVoice -> Res.drawable.send_24dp
+                                },
+                            ),
+                            contentDescription = stringResource(
+                                when (shown) {
+                                    SendButtonKind.Save -> Res.string.conversation_save_edit
+                                    SendButtonKind.Mic -> Res.string.conversation_record_voice
+                                    SendButtonKind.SendVoice -> Res.string.conversation_send_voice
+                                    SendButtonKind.Send -> Res.string.conversation_send
+                                },
+                            ),
+                            modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
+                        )
+                    }
                 }
+                ExpressiveMenu(
+                    expanded = sendMenuOpen,
+                    onDismiss = { sendMenuOpen = false },
+                    popupPositionProvider = remember { MenuAbovePositionProvider(alignEnd = true) },
+                    groups = listOf(
+                        listOfNotNull(
+                            MenuAction(stringResource(Res.string.conversation_send_silent), Res.drawable.notifications_off_24dp) {
+                                sendMenuOpen = false
+                                onSend(draft.text, SendOptions(silent = true))
+                                onDraftValueChange(TextFieldValue())
+                            }.takeIf { sendMenu.silent },
+                            MenuAction(stringResource(Res.string.conversation_send_schedule), Res.drawable.schedule_send_24dp) {
+                                sendMenuOpen = false
+                                onSchedule()
+                            }.takeIf { sendMenu.schedule },
+                            MenuAction(stringResource(Res.string.conversation_send_when_online), Res.drawable.online_prediction_24dp) {
+                                sendMenuOpen = false
+                                onSend(draft.text, SendOptions(schedule = MessageSchedule.WhenOnline))
+                                onDraftValueChange(TextFieldValue())
+                            }.takeIf { sendMenu.whenOnline },
+                        ),
+                    ),
+                )
             }
         }
     }
@@ -2697,6 +2824,52 @@ private fun composerCardColor(): Color = tintedSurface(
  * tlačítko při spuštění nahrávání přebarvilo z terciární na primary a zase zpátky.
  */
 private enum class SendButtonKind { Mic, SendVoice, Send, Save }
+
+/** Co se plánuje: rozepsaná zpráva z pole, nebo už naplánovaná, které se mění čas. */
+private sealed interface ScheduleTarget {
+    data object Draft : ScheduleTarget
+    data class Existing(val messageId: Long) : ScheduleTarget
+}
+
+/** Výchozí čas ve výběru hodiny při plánování: za hodinu od teď. */
+private const val SCHEDULE_DEFAULT_AHEAD_SECONDS = 60L * 60
+
+/**
+ * Dlouhý stisk místo ťuknutí. `IconButton` `onLongClick` nemá, takže se gesto pozoruje
+ * v `Initial` (dřív než tlačítko): po `longPressTimeout` s prstem na místě zavolá
+ * [onLongPress] a **zbytek gesta spotřebuje** — puštění prstu pak tlačítko neodešle.
+ * Krátké ťuknutí projde beze změny.
+ */
+private fun Modifier.longPressInstead(enabled: Boolean, onLongPress: () -> Unit): Modifier = composed {
+    val haptics = LocalHapticFeedback.current
+    val action by rememberUpdatedState(onLongPress)
+    if (!enabled) {
+        this
+    } else {
+        pointerInput(Unit) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                // `null` = vypršel čas a prst je pořád dole na místě.
+                val released = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                    while (true) {
+                        val change = awaitPointerEvent(PointerEventPass.Initial)
+                            .changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) break
+                        if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) break
+                    }
+                }
+                if (released != null) return@awaitEachGesture
+                haptics.longPress()
+                action()
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    event.changes.forEach { it.consume() }
+                    if (event.changes.none { it.pressed }) break
+                }
+            }
+        }
+    }
+}
 
 /**
  * Horní pruh karty nad vstupním polem (citace, úprava): tónovaná plocha přes celou šířku karty,
