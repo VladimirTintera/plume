@@ -4,6 +4,7 @@ import eu.tintera.plume.resources.verification_fake_warning
 import eu.tintera.plume.resources.verification_scam_warning
 import eu.tintera.plume.resources.verification_verified
 import eu.tintera.plume.core.telegram.Verification
+import eu.tintera.plume.core.ui.durationText
 import eu.tintera.plume.core.ui.VerificationBadge
 import eu.tintera.plume.core.ui.EmojiStatusBadge
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -181,6 +182,8 @@ import eu.tintera.plume.resources.profile_unmute
 import eu.tintera.plume.resources.profile_username
 import eu.tintera.plume.resources.profile_username_value
 import eu.tintera.plume.resources.search_24dp
+import eu.tintera.plume.resources.auto_delete_title
+import eu.tintera.plume.resources.auto_delete_off
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
@@ -352,15 +355,27 @@ fun ChatProfileScreen(
                 )
                 ProfileActions(muted = state.muted, onToggleMute = viewModel::toggleMute, onSearch = onSearch)
                 val notifications = state.notifications
-                if (profile.usernames.isNotEmpty() || profile.phone != null || profile.about.isNotBlank() || notifications != null) {
+                val showsAutoDelete = profile.canSetAutoDelete || profile.autoDeleteTime > 0
+                if (profile.usernames.isNotEmpty() || profile.phone != null || profile.about.isNotBlank() ||
+                    notifications != null || showsAutoDelete
+                ) {
                     ProfileInfo(
                         profile,
                         notifications = notifications,
                         onLinkClick = viewModel::openLink,
                         onOpenNotifications = viewModel::openNotificationSheet,
+                        onOpenAutoDelete = viewModel::openAutoDeleteSheet.takeIf { profile.canSetAutoDelete },
                     )
                 }
             }
+        }
+
+        if (state.autoDeleteSheet) {
+            AutoDeleteSheet(
+                current = profile.autoDeleteTime,
+                onSelect = viewModel::setAutoDelete,
+                onDismiss = viewModel::closeAutoDeleteSheet,
+            )
         }
 
         val notifications = state.notifications
@@ -884,6 +899,8 @@ private fun ProfileInfo(
     notifications: ChatNotificationPrefs?,
     onLinkClick: (String) -> Unit,
     onOpenNotifications: () -> Unit,
+    /** `null` = mazání měnit nesmí; řádek se pak jen ukáže, když je zapnuté. */
+    onOpenAutoDelete: (() -> Unit)?,
 ) {
     val rows = buildList<@Composable (Shape) -> Unit> {
         profile.usernames.firstOrNull()?.let { username ->
@@ -915,6 +932,23 @@ private fun ProfileInfo(
                         // Bio i popis skupiny můžou nést citaci; řádek stojí na
                         // `surfaceContainerLowest`, takže blok musí být o stupeň výš.
                         quoteBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    )
+                }
+            }
+        }
+        // Automatické mazání je nastavení chatu jako upozornění, takže stojí u nich — před nimi,
+        // protože se týká všech v chatu, upozornění jen mě.
+        if (onOpenAutoDelete != null || profile.autoDeleteTime > 0) {
+            add { shape ->
+                InfoRow(
+                    label = stringResource(Res.string.auto_delete_title),
+                    shape = shape,
+                    onClick = onOpenAutoDelete,
+                ) {
+                    Text(
+                        text = profile.autoDeleteTime.takeIf { it > 0 }?.let { durationText(it) }
+                            ?: stringResource(Res.string.auto_delete_off),
+                        style = MaterialTheme.typography.bodyLarge,
                     )
                 }
             }

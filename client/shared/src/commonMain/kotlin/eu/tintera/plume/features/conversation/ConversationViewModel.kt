@@ -381,6 +381,11 @@ class ConversationViewModel(
             repository.botCommands(chatId).onSuccess { commands -> _state.update { it.copy(botCommands = commands) } }
         }
 
+        // Automatické mazání se ukazuje v hlavičce; mění se i z jiného zařízení nebo od protějšku.
+        viewModelScope.launch {
+            repository.autoDeleteTime(chatId).collect { seconds -> _state.update { it.copy(autoDeleteTime = seconds) } }
+        }
+
         // Dohraná hlasovka pustí další neposlechnutou; která to je, ví jedině konverzace.
         viewModelScope.launch {
             voicePlayer.completions.collect { finished ->
@@ -3917,6 +3922,8 @@ data class ConversationState(
     val botCommands: List<BotCommandItem> = emptyList(),
     /** Seznam příkazů otevřený tlačítkem u pole (bez ohledu na to, co je v poli). */
     val commandsOpen: Boolean = false,
+    /** Po kolika sekundách se nové zprávy chatu samy mažou; 0 = nemažou (odznak v hlavičce). */
+    val autoDeleteTime: Int = 0,
     /** Rozepsaný dotaz na inline bota (`@gif kočka`) a jeho výsledky; `null` = žádný. */
     val inline: InlineQueryState? = null,
     /** Napovídání zmínky (`@ja`): členové k dotazu u kurzoru; `null` = nic se nenapovídá. */

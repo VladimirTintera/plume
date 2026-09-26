@@ -68,6 +68,7 @@ import dev.g000sha256.tdl.dto.MessageVideoChatEnded
 import dev.g000sha256.tdl.dto.MessageVideoChatScheduled
 import dev.g000sha256.tdl.dto.MessageVideoChatStarted
 import dev.g000sha256.tdl.dto.MessageWebAppDataSent
+import eu.tintera.plume.core.ui.durationString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.service_bot_created
 import eu.tintera.plume.resources.service_bot_write_access
@@ -111,7 +112,7 @@ import eu.tintera.plume.resources.service_poll_option_deleted
 import eu.tintera.plume.resources.service_protected_content_off
 import eu.tintera.plume.resources.service_protected_content_on
 import eu.tintera.plume.resources.service_video_chat_invite
-import eu.tintera.plume.resources.service_auto_delete_on
+import eu.tintera.plume.resources.auto_delete_summary
 import eu.tintera.plume.resources.service_background_changed
 import eu.tintera.plume.resources.service_channel_created
 import eu.tintera.plume.resources.service_contact_joined
@@ -164,9 +165,10 @@ internal suspend fun MessageContent.serviceText(): String? = when (this) {
     is MessageChatSetTheme -> getString(Res.string.service_theme_changed)
     is MessageChatSetBackground -> getString(Res.string.service_background_changed)
 
+    // S délkou: „Zprávy se budou samy mazat" neřeklo, za jak dlouho.
     is MessageChatSetMessageAutoDeleteTime -> when (messageAutoDeleteTime) {
         0 -> getString(Res.string.service_auto_delete_off)
-        else -> getString(Res.string.service_auto_delete_on)
+        else -> getString(Res.string.auto_delete_summary, durationString(messageAutoDeleteTime))
     }
 
     is MessageBasicGroupChatCreate -> getString(Res.string.service_group_created, title)

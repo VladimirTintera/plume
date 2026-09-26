@@ -4404,6 +4404,34 @@ na iOS. Dlouhý stisk v SEZNAMU dál otevírá nabídku — o gesto se nedělí,
   dumpem a stiskem posune — pak se místo nabídky otevře prohlížeč. Poloha se bere těsně před
   stiskem a mimo řádek s odkazem.
 
+### Automatické mazání zpráv
+
+Chat může mít nastavené, že nové zprávy po době samy zmizí (`Chat.messageAutoDeleteTime`).
+Hlavička konverzace to ukazuje odznakem s hodinami za názvem (`AutoDeleteBadge`, „⏱ 1 d"),
+„Informace" u zprávy říkají, kdy se smaže (`ChatMessage.autoDeleteAt`), a v profilu chatu je
+řádek s výběrem doby (`AutoDeleteSheet`, `setChatMessageAutoDeleteTime`).
+
+- **Doba je živá** (`autoDeleteTime` nad `UpdateChatMessageAutoDeleteTime`, odběr před prvním
+  čtením) — mění ji i protějšek nebo jiné zařízení.
+- **`autoDeleteIn` je zbývající čas, převádí se na okamžik** při převodu zprávy. Zbývající
+  sekundy by se počítaly od doby načtení a v „Informace" by lhaly.
+- **Budoucí čas jde přes `asUpcomingTime`**, ne `asDayLabel` (ten je na minulost).
+- **Kdo smí měnit**: soukromý chat (i s botem) ano, Uložené zprávy a tajný chat ne (tajný má
+  vlastní časovač zpráv), skupina a kanál jen s právem měnit údaje chatu (`canChangeInfo`),
+  jak to vyžaduje TDLib. Kdo měnit nesmí, vidí řádek jen při zapnutém mazání, bez klikání.
+- **Nabízí se vypnuto, den, týden a měsíc** — jako oficiální klienti. **Měsíc je 31 dní**
+  (2 678 400 s), tak ho Telegram posílá; jiná doba nastavená jinde se do výběru zařadí
+  (`autoDeleteOptions`, testy `AutoDeleteOptionsTest`).
+- **Délka se píše jedním formátovačem** (`durationText` / `durationString` / `durationShortText`
+  v `core/ui/Durations.kt`, testy `DurationUnitTest`), sdíleným s dobou ankety. Servisní zpráva
+  proto říká i dobu („Automatické mazání zpráv: 1 den"), dřív jen „Zprávy se budou samy mazat".
+- **Věta s „po" by v češtině chtěla 6. pád** („po 1 dni"), plurály jsou ale v 1. pádu — texty
+  jsou proto s dvojtečkou („…: 1 den").
+- **Ověřeno na emulátoru** v chatu s testovacím botem (česky): řádek v profilu, sheet, nastavení
+  1 dne (odznak v hlavičce, servisní zpráva s dobou), „Smaže se: zítra 20:54" u nové zprávy
+  a vypnutí (odznak zmizel, servisní zpráva „vypnuto"). **Skupina a kanál ověřené nejsou**
+  (práva správce), **iOS jen přeložené**.
+
 ### Výběr víc zpráv
 
 Položka „Vybrat" v nabídce nad zprávou přepne konverzaci do režimu výběru: hlavička ukazuje ✕
