@@ -434,6 +434,9 @@
     <string name="count_millions">%1$s&#160;mil.</string>
     <string name="post_views">Zhlédnutí: %1$s</string>
     <string name="post_author">Autor: %1$s</string>
+    <string name="fact_check_title">Kontrola faktů</string>
+    <string name="fact_check_source">Doplnili nezávislí ověřovatelé faktů.</string>
+    <string name="fact_check_country">Doplnili nezávislí ověřovatelé faktů pro zemi %1$s.</string>
     <string name="post_forwards">Přeposláno: %1$s</string>
     <string name="comments_title">Komentáře</string>
     <string name="comments_unavailable">Komentáře se nepodařilo otevřít</string>

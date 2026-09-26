@@ -3931,7 +3931,7 @@ Otázka i každá odpověď mohou nést přílohu (TDLib 15 `PollMedia`, doména
 ### Tlačítka botů pod zprávou
 
 Inline klávesnice bota (`ReplyMarkupInlineKeyboard`) se kreslí pod zprávou jako blok zaoblených
-tlačítek (`BotKeyboardView`, `WithBotKeyboard` v `items/BotKeyboard.kt`; doména `BotKeyboard`
+tlačítek (`BotKeyboardView`, `WithBelowMessage` v `items/BotKeyboard.kt`; doména `BotKeyboard`
 v `ChatMessage.keyboard`). Dokud nebyla, nešlo projít kontrolou proti botům, kterou si velké
 skupiny dávají před vstup — odpověď napsaná textem se nepočítá, bot čeká na ťuknutí.
 
@@ -4191,6 +4191,24 @@ ztlumeně jeho štítek (`ChatMessage.senderTag`, `SenderName`).
   `#podpis` / `#stitek` převod dočasně obohatí o podpis a počty, resp. o jméno se štítkem
   a jiného odesílatele (jinak by zpráva navázala na blok a jméno by se nekreslilo). Skutečný
   kanál s podpisy ani skupina se štítky na testovacím účtu nejsou.
+
+### Kontrola faktů
+
+Příspěvek, ke kterému server přidal poznámku nezávislých ověřovatelů (`Message.factCheck`), má
+pod sebou kartu „Kontrola faktů": ikona s nadpisem, text poznámky s odkazy a věta, že ji
+doplnili ověřovatelé (se zemí, pro kterou platí). `ChatMessage.factCheck`, `FactCheckCard`.
+
+- **Karta visí pod zprávou, ne v bublině** — přes `WithBelowMessage` (dřív `WithBotKeyboard`),
+  stejně jako tlačítka bota, a nad nimi. Pod holou fotkou žádná bublina není, a karta tak
+  vypadá stejně u textu, fotky i alba; šířku má aspoň jako zpráva.
+- **Terciární role**, jako popis webu u náhledu odkazu: je to cizí vložený obsah, ne slovo
+  autora. Věta o ověřovatelích je nutná — bez ní by se poznámka dala číst jako dodatek kanálu.
+- **Poznámku server přidává a mění až po zveřejnění** a přijde jen `UpdateMessageFactCheck`;
+  `editedMessages` ho proto odebírá vedle úprav obsahu.
+- **Přidávat kontroly faktů (`setMessageFactCheck`) smí jen ověřovatelé** — v aplikaci to není.
+- **Ověřeno na emulátoru sondou** (necommituje se): zprávy od testovacího bota s `#fakta`
+  převod dočasně obohatí o poznámku s odkazem a zemí; karta pod textem i pod fotkou s popiskem.
+  Skutečný příspěvek s kontrolou faktů testovací účet nezná.
 
 ### Náhled odkazu
 

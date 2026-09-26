@@ -287,6 +287,8 @@ class TdlConversationRepository(
             holder.updates { messageContentUpdates }.filter { it.chatId == chatId }.map { it.messageId },
             // Tlačítka bota se mění i bez změny obsahu — a pak přijde jen tenhle update.
             holder.updates { messageEditedUpdates }.filter { it.chatId == chatId }.map { it.messageId },
+            // Kontrolu faktů server přidává (a mění) až po zveřejnění — a přijde jen tenhle update.
+            holder.updates { messageFactCheckUpdates }.filter { it.chatId == chatId }.map { it.messageId },
         )
             .map { messageId ->
                 // Update nese jen nový obsah, ne celou zprávu — zbytek se musí dočíst.
@@ -1680,6 +1682,11 @@ class TdlConversationRepository(
             senderTag = (senderTag.ifBlank { null } ?: authorSignature.ifBlank { null })
                 ?.takeIf { sender != null },
             effect = effectId.takeIf { it != 0L }?.let { messageEffect(it) },
+            factCheck = factCheck?.let { check ->
+                val body = check.text.toBody()
+                FactCheck(body.text, body.entities, check.countryCode.ifBlank { null })
+                    .takeIf { it.text.isNotBlank() }
+            },
             keyboard = (replyMarkup as? ReplyMarkupInlineKeyboard)?.toBotKeyboard(),
             poll = (content as? MessagePoll)?.toChatPoll(),
             externalReply = (replyTo as? MessageReplyToMessage)

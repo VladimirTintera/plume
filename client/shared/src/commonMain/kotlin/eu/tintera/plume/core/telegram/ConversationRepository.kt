@@ -941,6 +941,8 @@ data class ChatMessage(
      * správce jeho podpis. `null` mimo skupinu a u vlastních zpráv — tam se nekreslí ani jméno.
      */
     val senderTag: String? = null,
+    /** Kontrola faktů pod příspěvkem (`Message.factCheck`); `null` = žádná. */
+    val factCheck: FactCheck? = null,
     /** Tlačítka bota pod zprávou; `null` = žádná. */
     val keyboard: BotKeyboard? = null,
     /** Anketa nebo kvíz; [text] pak nese jen „Anketa: otázka" pro místa, kde se kreslit nedá. */
@@ -1776,4 +1778,15 @@ data class MessageEffect(
     val premium: Boolean,
     /** Poslat ho smí jen účet s Premium (`MessageEffect.isPremium`); zobrazit ho vidí každý. */
     val needsPremium: Boolean = false,
+)
+
+/**
+ * Kontrola faktů u příspěvku: poznámka nezávislých ověřovatelů, kterou server přidává
+ * k zavádějícím příspěvkům (`FactCheck`). [countryCode] je země, pro kterou poznámka platí
+ * (ISO 3166-1 alpha-2); `null`, když ji server neuvedl.
+ */
+data class FactCheck(
+    val text: String,
+    val entities: List<MessageEntity>,
+    val countryCode: String?,
 )

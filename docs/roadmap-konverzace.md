@@ -500,7 +500,7 @@ snadno na to uživatel narazí.
     s efektem…"). Zbývá náhled animace ve výběru a prémiové efekty s Premium,
   - ~~přehrát efekt i u NEPŘEČTENÉ zprávy~~ — hotovo,
   - ověřit u efektu prémiové samolepky (odchozí zpráva ověřená).
-- **Kontrola faktů** (`factCheck`) — poznámka pod zprávou v kanálu.
+- ~~**Kontrola faktů** (`factCheck`)~~ — hotovo: karta pod příspěvkem (`CLAUDE.md`, „Kontrola faktů"), ověřená jen sondou.
 - ~~**Automatické mazání** (`autoDeleteIn`)~~ — hotovo: čas smazání v „Informace", odznak chatu v hlavičce.
 
 **Entity v textu**
