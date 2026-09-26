@@ -106,10 +106,18 @@ internal interface ConversationItemScope {
     fun claimDiceThrow(key: Long, timestamp: Int): Boolean
 
     /**
-     * Má efekt zprávy s tímhle klíčem proběhnout sám? Jen jednou a jen u zprávy, která přišla
-     * (podle [timestamp]) až po otevření konverzace; z historie se přehraje ťuknutím na značku.
+     * Má efekt zprávy s tímhle klíčem proběhnout sám? Jen jednou, a to u zprávy, která přišla
+     * až po otevření konverzace, nebo u NEPŘEČTENÉ příchozí ([effectAutoplays]). Z přečtené
+     * historie se přehraje ťuknutím na značku.
      */
-    fun claimEffect(key: Long, timestamp: Int): Boolean = false
+    fun claimEffect(key: Long, message: ChatMessage, unreadBoundary: Long?): Boolean = false
+
+    /**
+     * Hranice nepřečtených zachycená při otevření chatu (`unreadBoundaryId`); dorazí až po
+     * prvních zprávách. Čte se v kompozici, takže obrazovka ji podává přes `derivedStateOf` —
+     * položka se překreslí jen tehdy, když se hranice objeví, ne s každou změnou konverzace.
+     */
+    fun unreadBoundary(): Long? = null
 
     /** Jediná cesta akcí ze zprávy ven (viz [MessageAction]). */
     fun onAction(messageId: Long, action: MessageAction)
