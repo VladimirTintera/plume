@@ -1168,6 +1168,10 @@
     <string name="poll_percent">%1$d%</string>
     <string name="poll_vote_button">Vote</string>
     <string name="poll_show_voters">View votes</string>
+    <string name="poll_add_option">Add an answer</string>
+    <string name="poll_add_option_title">New answer</string>
+    <string name="poll_add_option_confirm">Add</string>
+    <string name="poll_add_option_failed">Couldn't add the answer.</string>
     <string name="poll_results_hidden">Results will be shown when the poll ends</string>
     <string name="poll_restricted_membership">You can vote once you've been a member for at least a day</string>
     <string name="poll_restricted_country">Voting in this poll isn't available in your country</string>

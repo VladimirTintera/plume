@@ -8,6 +8,7 @@ import eu.tintera.plume.core.telegram.ChatReplyMarkup
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.ReplyKeyboardButtonKind
 import eu.tintera.plume.core.telegram.UnsupportedKeyboardButton
+import eu.tintera.plume.resources.poll_add_option_failed
 import eu.tintera.plume.resources.bot_unsupported_location
 import eu.tintera.plume.resources.bot_unsupported_pick_chat
 import eu.tintera.plume.resources.bot_unsupported_managed_bot
@@ -2446,6 +2447,23 @@ class ConversationViewModel(
         }
     }
 
+    /** Přidá do ankety odpověď z dialogu. Nová odpověď přijde úpravou obsahu zprávy. */
+    fun addPollOption(text: String) {
+        val messageId = _state.value.addingPollOption ?: return
+        val trimmed = text.trim()
+        _state.update { it.copy(addingPollOption = null) }
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            repository.addPollOption(chatId, messageId, trimmed).onFailure { failure ->
+                _state.update { it.copy(error = failure.reported(Res.string.poll_add_option_failed)) }
+            }
+        }
+    }
+
+    fun dismissAddPollOption() {
+        _state.update { it.copy(addingPollOption = null) }
+    }
+
     /** Ztlumit / zapnout zvuk kanálu z pruhu místo vstupního pole. Potvrzení přijde updatem. */
     fun toggleMute() {
         val muted = _state.value.muted ?: return
@@ -2738,6 +2756,7 @@ class ConversationViewModel(
             is MessageAction.PressBotButton -> pressBotButton(messageId, action.row, action.column)
             is MessageAction.Vote -> vote(messageId, action.answerIndexes)
             MessageAction.ShowPollVoters -> _state.update { it.copy(pollVoters = messageId) }
+            MessageAction.AddPollOption -> _state.update { it.copy(addingPollOption = messageId) }
             MessageMenuAction.RetractVote -> {
                 closeMenus()
                 vote(messageId, emptyList())
@@ -4019,6 +4038,8 @@ data class ConversationState(
     val scheduledMessages: List<ChatMessage>? = null,
     /** Zpráva s anketou, jejíž hlasující ukazuje sheet; `null` = zavřený. */
     val pollVoters: Long? = null,
+    /** Zpráva s anketou, do které se přidává odpověď (dialog); `null` = zavřený. */
+    val addingPollOption: Long? = null,
     /** Anketa, kterou uživatel chce ukončit a čeká se na potvrzení; `null` = žádná. */
     val pendingStopPoll: Long? = null,
     /** Jednorázová událost: tlačítko bota chce formulář nové ankety (v tomhle režimu). */

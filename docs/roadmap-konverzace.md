@@ -438,7 +438,8 @@ snadno na to uživatel narazí.
   - ~~**Média v anketě a v odpovědích**~~ — hotovo (zobrazení všech druhů, otevření
     v prohlížeči; formulář nabízí fotku, video, GIF, samolepku, odkaz a místo). Zbývá média ve
     vysvětlení kvízu (`explanationMedia`).
-  - **Přidání odpovědi** (`canAddOption`, `addPollOption`) se zatím zahazuje.
+  - ~~**Přidání odpovědi**~~ — hotovo (`canAddOption`, `addPollOption`, dialog pod odpověďmi).
+    Zbývá ověřit ve skupině a přidání odpovědi s médiem (formulář nabízí jen text).
   - **Tváře posledních hlasujících** (`recentVoterIds`) u zápatí.
 - ~~**Video kolečka** (`MessageVideoNote`)~~ — hotovo: kulatě bez bubliny, samy potichu ve
   smyčce, zvuk s průběhem po ťuknutí, zhlédnutí (`CLAUDE.md`, „Video kolečka"). Zbývá přepis

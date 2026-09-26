@@ -1878,6 +1878,13 @@ class TdlConversationRepository(
     override suspend fun stopPoll(chatId: Long, messageId: Long): Result<Unit> =
         client.stopPoll(chatId = chatId, messageId = messageId, replyMarkup = null).toResult().map { }
 
+    override suspend fun addPollOption(chatId: Long, messageId: Long, text: String): Result<Unit> =
+        client.addPollOption(
+            chatId = chatId,
+            messageId = messageId,
+            option = InputPollOption(text = FormattedText(text = text, entities = emptyArray()), media = null),
+        ).toResult().map { }
+
     override suspend fun pollVoters(
         chatId: Long,
         messageId: Long,

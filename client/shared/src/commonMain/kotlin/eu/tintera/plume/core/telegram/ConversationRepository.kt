@@ -108,6 +108,12 @@ interface ConversationRepository {
     /** Uzavře anketu; smí jen autor (nebo správce), pozná se podle `canBeEdited`. */
     suspend fun stopPoll(chatId: Long, messageId: Long): Result<Unit>
 
+    /**
+     * Přidá do ankety vlastní odpověď ([ChatPoll.canAddOption]). Novou odpověď přinese úprava
+     * obsahu zprávy (`editedMessages`), jako hlas.
+     */
+    suspend fun addPollOption(chatId: Long, messageId: Long, text: String): Result<Unit>
+
     /** Kdo hlasoval pro odpověď s [answerIndex] (v původním pořadí). */
     suspend fun pollVoters(chatId: Long, messageId: Long, answerIndex: Int, offset: Int): Result<PollVotersPage>
 

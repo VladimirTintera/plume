@@ -1691,6 +1691,10 @@ fun ConversationScreen(
             )
         }
 
+        if (state.addingPollOption != null) {
+            AddPollOptionDialog(onConfirm = viewModel::addPollOption, onDismiss = viewModel::dismissAddPollOption)
+        }
+
         state.pollVoters?.let { messageId ->
             state.messages.firstOrNull { it.id == messageId }?.poll?.let { poll ->
                 PollVotersSheet(

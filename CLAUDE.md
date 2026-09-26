@@ -3804,6 +3804,13 @@ v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, 
   a `stopPoll` botem ukáže uzavřenou anketu živě. Ověřeno na emulátoru (česky, světlý i tmavý
   motiv): hlas jednou i víc odpověďmi, špatná odpověď na kvíz s vysvětlením, zrušení hlasu,
   „Kdo hlasoval", uzavření.
+- **Přidat odpověď do cizí ankety jde, když to server dovolí** (`Poll.canAddOption`, tlačítko
+  „Přidat odpověď“ pod odpověďmi → `AddPollOptionDialog` → `addPollOption`). Právo nese anketa
+  sama (autor ho zapnul a účet smí), aplikace nic nedopočítává — jen u uzavřené ankety tlačítko
+  schová, i kdyby příznak zůstal. Nová odpověď se lokálně nepřidává: přijde úpravou obsahu
+  zprávy jako hlas, a server k ní pošle servisní zprávu. Strop délky je týž jako ve formuláři
+  (`POLL_ANSWER_MAX`). Ověřuje se `sendPoll` botem s `allow_adding_options=true`
+  a `is_anonymous=false`; `getUpdates` pak ukáže `added_by_user` a `poll_option_added`.
 - **Zakládání je obrazovka `PollComposerRoute`** (sponka → Anketa), bez metadat scény jako
   přeposílání: jde přes celou plochu z hlavního seznamu i archivu, zpět umí sám `NavDisplay`.
   Pravidla formuláře jsou čisté funkce (`pollDraftOf`, `normalizedAnswers`,
