@@ -228,9 +228,8 @@ otevřít. Poučení je v `CLAUDE.md`, sekce „Formátování textu (entity)". 
 
 Co z toho zůstalo nedodělané:
 
-- ~~**Zmínky a hashtagy**~~ — hotovo (poučení v `CLAUDE.md`, „Formátování textu"). **Příkazy
-  botů** (`/start`) a cashtagy se dál nemapují — příkaz by ťuknutím odeslal zprávu botovi a to
-  chce vlastní rozmyšlení.
+- ~~**Zmínky a hashtagy**~~ — hotovo (poučení v `CLAUDE.md`, „Formátování textu"). Příkazy
+  botů taky (viz „Příkaz bota" níž); nemapují se jen cashtagy.
 - ~~**Citace v textu**~~ (`BlockQuote`, `ExpandableBlockQuote`) — hotovo: tónovaný blok kreslený
   za textem z `TextLayoutResult` (`drawQuoteBlocks`), takže rozpad textu na víc `Text`ů nebyl
   potřeba. ~~Sbalení dlouhé `ExpandableBlockQuote`~~ — hotovo, jen u citace přes celý text

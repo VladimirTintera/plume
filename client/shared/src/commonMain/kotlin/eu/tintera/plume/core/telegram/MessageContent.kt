@@ -519,7 +519,7 @@ internal fun FormattedText.toBody(): MessageBody =
  * Převod jedné entity z TDLib.
  *
  * `null` znamená „tenhle typ zatím nevykreslujeme" — text po něm zůstane obyčejný. Přeskakují se
- * příkazy botů a cashtagy: obarvit je umíme, ale kliknutí by nemělo kam vést.
+ * cashtagy: obarvit je umíme, ale kliknutí by nemělo kam vést.
  * Viz [MessageEntityType].
  */
 private fun TextEntity.toEntity(text: String): MessageEntity? {
