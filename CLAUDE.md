@@ -5616,6 +5616,54 @@ emoji. Kreslí se jako inline obsah `RichText` (`CustomEmojiImage`, `customEmoji
   zpráva jen z vlastních emoji ve velké sazbě, obarvení v tmavém motivu (podstrčené `tinted`).
   **Skutečná zpráva od člověka ověřená není.**
 
+### Vlastní emoji mimo text
+
+Reakce, emoji status za jménem, náhled v seznamu chatů, citace a ikona tlačítka bota. Všechno
+jde přes tentýž `CustomEmojiImage`; samostatně stojící emoji je `CustomEmojiIcon`, emoji
+v obyčejném `Text` (náhled, citace) `appendWithCustomEmoji` + `customEmojiInlineContent`.
+
+- **Reakce vlastním emoji jsou řetězcový KLÍČ, ne nový typ** (`customEmojiReaction`,
+  `customEmojiIdOf`, testy `ReactionKeyTest`). Reakce jdou jako `String` přes celou cestu —
+  nabídka, optimistické přepnutí, prohlížeč médií, klíče v mřížce výběru — a všude jsou jen
+  porovnávaným klíčem. Vědět o nich musí jen hranice TDLib (`toReactionKey` / `toReactionType`,
+  `when` bez `else`) a kreslení; typ by měnil celou cestu kvůli dvěma koncům.
+- **Nabídka reakcí vynechá `needsPremium`**, když účet Premium nemá — ťuknutí by skončilo chybou.
+  `getMe` se volá, jen když taková reakce v nabídce je.
+- **Náhradní znak reakce ani ikona tlačítka nenesou** (jen id), takže než obrázek dorazí, je
+  místo prázdné. V textu drží místo náhradní znak.
+- **Emoji status nese `Chat.emojiStatus`** a mění ho `UpdateChatEmojiStatus` — na rozdíl od
+  ověření se na uživatele ani supergroupu ptát nemusí (`statusEmojiId`, testy
+  `EmojiStatusTest`). Prošlý status se nekreslí i bez updatu: chat z databáze ho nese dávno
+  prošlý. Vylepšený dárek se kreslí svým modelem (`modelCustomEmojiId`). Jednobarevný status má
+  barvu akcentu, ne textu (`EmojiStatusBadge`), na vybraném chatu přes `accentOn`.
+- **Kdo kreslí emoji statusy, musí v pruhu spamu upozornit, že status nic neověřuje**
+  (`SpamBar.warnsEmojiStatus`). Dokumentace `chatActionBarReportSpam` / `ReportAddBlock`:
+  „a notice about emoji status usage must be shown" — status jde koupit s Premium a u jména
+  vypadá jako odznak. Proto přišlo upozornění v TÉMŽE PR jako statusy, ne později.
+- **Jméno v profilu je v řádku se statusem, a kde hlavička končí, hlásí ŘÁDEK.** `onPlaced`
+  na textu uvnitř řádku by dal pozici vůči řádku, ne vůči hlavičce — a lišta by ukázala název
+  v nesprávnou chvíli.
+- **Náhled v seznamu nese jen vlastní emoji a spoilery** (`previewEntities`,
+  `ChatSummary.lastMessagePreviewEntities`, `ChatDraft.entities`). Rozsahy sedí, protože náhled
+  bere text zprávy nebo popisek doslova; prázdný popisek („Fotka") entity nemá. Offsety se za
+  prefixem „Koncept: " posunou samy (`appendWithCustomEmoji`, testy `AppendWithCustomEmojiTest`).
+- **Citace kreslí vlastní emoji jen u celé zprávy.** Ruční úryvek entity nenese a offsety
+  zprávy by do něj ukazovaly jinam.
+- **V notifikaci zůstává náhradní znak** — notifikaci kreslí systém a vlastní obrázek do textu
+  nevloží. Není to chyba, náhradní emoji je přesně to, co odesílatel k obrázku zvolil.
+- **Bot nic z toho nevyrobí**: vlastní emoji v textu zahodí (viz výš), reakci vlastním emoji
+  odmítne (`REACTION_INVALID`) a `icon_custom_emoji_id` Bot API sice vrátí v odpovědi, ale do
+  zprávy se nedostane (TDLib hlásí `iconCustomEmojiId = 0`) — smí ho jen bot s Fragment jménem
+  nebo majitelem s Premium. Ověřuje se proto sondou: vlastní emoji v `FormattedText.toBody`,
+  reakce v `toReactions` a `availableReactions`, status v `toSummary` / `chatInfo` / `profile`
+  a ikona v `toBotKeyboard`, vše pro chat s testovacím botem. Necommituje se.
+- **Ověřeno na emulátoru sondou**: status v seznamu, hlavičce a profilu; vlastní emoji
+  v náhledu, v citaci nad polem, v čipu reakce (i vybrané s počtem), v pruhu rychlých reakcí
+  a ve výběru; ikona na tlačítku bota; upozornění na status v pruhu spamu (česky, podstrčeným
+  pruhem). **Skutečná data od člověka ověřená nejsou**, stejně jako
+  přidání reakce vlastním emoji (bez Premium ji server nabídne jen tam, kde ji chat povolil)
+  a detail reakcí s vlastním emoji (kreslí ho tentýž `CustomEmojiIcon` jako čip).
+
 ## Výběr samolepek
 
 Tlačítko se samolepkou ve vstupním poli otevře bottom sheet: záložky Nedávné, Oblíbené
@@ -5771,9 +5819,9 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   byla viditelná prodleva. Při selhání se změna vrátí; autoritativní stav stejně dorazí přes
   `reactionUpdates` (`UpdateMessageInteractionInfo`).
 - **Reakce, která klesne na nulu, ze seznamu zmizí.** Čip s nulou vypadá jako chyba.
-- **Jen standardní emoji.** Vlastní (placená) emoji jsou samolepky — stahují se jako soubor a mají
-  vlastní animaci, takže patří k médiím. Neznámé typy se přeskočí, aby u zprávy nezmizely
-  i ty ostatní.
+- **Obyčejná i vlastní emoji, placená (hvězdičky) ne.** Vlastní emoji se kreslí jako obrázek
+  (`CustomEmojiIcon`), viz „Vlastní emoji mimo text". Placená reakce se přeskočí, aby u zprávy
+  nezmizely ty ostatní.
 - **Prázdná nabídka není chyba.** V Uložených zprávách Telegram místo reakcí používá tagy a
   `getMessageAvailableReactions` vrátí prázdný seznam. Testovat reakce tam tedy nejde.
 - **Pořadí rychlých reakcí podle zvyku uživatele dodává Telegram, vlastní počítadlo NEPSAT.**

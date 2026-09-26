@@ -131,9 +131,8 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
     a `AddContact`. Chybí:
     - ~~**Údaje o protějšku u `ReportAddBlock`**~~ — hotovo (`CounterpartAccount`). Česká
       podoba řádků ověřená na zařízení není, jen anglická.
-    - **Upozornění na emoji status** u `ReportSpam` / `ReportAddBlock` („must be shown"). Status
-      jde koupit s Premium a dá se jím napodobit ověřovací odznak. Plume emoji statusy zatím
-      nekreslí, takže riziko teď nehrozí; přijde spolu s nimi.
+    - ~~**Upozornění na emoji status** u `ReportSpam` / `ReportAddBlock`~~ — hotovo spolu
+      s emoji statusy (`SpamBar.warnsEmojiStatus`), ověřené podstrčeným pruhem.
     - **`SharePhoneNumber`** — vzájemný kontakt, kterému jde nasdílet vlastní číslo
       (`sharePhoneNumber`).
     - **`InviteMembers`** — čerstvě založená skupina, do které jde pozvat členy.

@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.core.telegram.customEmojiIdOf
+import eu.tintera.plume.core.ui.CustomEmojiIcon
 import eu.tintera.plume.core.ui.strayTapGuard
 import eu.tintera.plume.core.ui.MEDIA_PAGE_VERTICAL_GAP
 import eu.tintera.plume.core.ui.MediaCarousel
@@ -746,8 +748,13 @@ private fun ReactionBar(item: ViewerItem, emoji: List<String>, onReact: (String)
                     modifier = Modifier.size(REACTION_SIZE),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        // Mimo typografickou škálu schválně, jako v pruhu reakcí v konverzaci.
-                        Text(text = reaction, fontSize = 24.sp)
+                        val customId = customEmojiIdOf(reaction)
+                        if (customId != null) {
+                            CustomEmojiIcon(customId, size = 28.dp)
+                        } else {
+                            // Mimo typografickou škálu schválně, jako v pruhu reakcí v konverzaci.
+                            Text(text = reaction, fontSize = 24.sp)
+                        }
                     }
                 }
                 if (count > 1) {

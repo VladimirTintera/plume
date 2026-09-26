@@ -100,6 +100,7 @@ fun ReplyKeyboardPanel(
                         buttons.forEachIndexed { column, button ->
                             BotKeyboardButton(
                                 text = button.text,
+                                emojiIcon = button.iconCustomEmojiId,
                                 style = button.style,
                                 icon = button.kind.icon(),
                                 enabled = true,

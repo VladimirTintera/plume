@@ -196,6 +196,8 @@ data class ChatProfile(
     val editRights: ChatEditRights = ChatEditRights(),
     /** Ověřený, podvod, falešný (viz [Verification]); `null` u běžného účtu a základní skupiny. */
     val verification: Verification? = null,
+    /** Vlastní emoji statusu za jménem (viz [statusEmojiId]), nebo `null`. */
+    val emojiStatus: Long? = null,
 ) {
     /** Odkaz ke sdílení: veřejné jméno, jinak pozvánka; `null` = není co sdílet. */
     val link: String?

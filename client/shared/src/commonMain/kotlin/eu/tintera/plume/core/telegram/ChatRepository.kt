@@ -344,6 +344,8 @@ data class ChatSummary(
     val title: String,
     val unreadCount: Int,
     val lastMessagePreview: String?,
+    /** Vlastní emoji (a spoilery) v [lastMessagePreview]; offsety platí pro jeho text. */
+    val lastMessagePreviewEntities: List<MessageEntity> = emptyList(),
     /** Nepřečtené zmínky (i odpovědi na vlastní zprávy) — odznak „@" vedle počtu. */
     val unreadMentionCount: Int = 0,
     /** Nepřečtené reakce na vlastní zprávy — odznak „❤" vedle počtu. */
@@ -381,6 +383,8 @@ data class ChatSummary(
      * nenese — je na uživateli a supergroupě, dočítá se zvlášť a mění updatem.
      */
     val verification: Verification? = null,
+    /** Vlastní emoji statusu za jménem (viz [statusEmojiId]), nebo `null`. */
+    val emojiStatus: Long? = null,
 )
 
 /**
@@ -396,6 +400,8 @@ data class ChatDraft(
     val text: String,
     /** Unixový čas uložení konceptu. */
     val timestamp: Int,
+    /** Vlastní emoji (a spoilery) v [text] — koncept je smí nést, když ho psal jiný klient. */
+    val entities: List<MessageEntity> = emptyList(),
 )
 
 /**

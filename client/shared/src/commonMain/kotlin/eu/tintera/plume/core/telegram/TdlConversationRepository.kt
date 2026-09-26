@@ -131,7 +131,10 @@ import dev.g000sha256.tdl.dto.MessageSendingStateFailed
 import dev.g000sha256.tdl.dto.MessageSendingStatePending
 import dev.g000sha256.tdl.dto.MessageSourceChatHistory
 import dev.g000sha256.tdl.dto.MessageText
+import dev.g000sha256.tdl.dto.ReactionType
+import dev.g000sha256.tdl.dto.ReactionTypeCustomEmoji
 import dev.g000sha256.tdl.dto.ReactionTypeEmoji
+import dev.g000sha256.tdl.dto.ReactionTypePaid
 import dev.g000sha256.tdl.dto.SearchMessagesFilter
 import dev.g000sha256.tdl.dto.SearchMessagesFilterDocument
 import dev.g000sha256.tdl.dto.SearchMessagesFilterPhotoAndVideo
@@ -354,7 +357,7 @@ class TdlConversationRepository(
         emoji: String,
         add: Boolean,
     ): Result<Unit> {
-        val type = ReactionTypeEmoji(emoji = emoji)
+        val type = emoji.toReactionType()
 
         return if (add) {
             client.addMessageReaction(
@@ -383,11 +386,18 @@ class TdlConversationRepository(
         )
             .toResult()
             .map { available ->
+                // Reakce vlastním emoji může chtít Premium (`needsPremium`) — bez něj by
+                // ťuknutí skončilo chybou, takže se takové nenabízí. Ptá se jen tehdy, když
+                // nějaká taková v nabídce je; `getMe` je lokální.
+                val all = (available.topReactions + available.recentReactions + available.popularReactions)
+                    .filterNotNull()
+                val isPremium = all.none { it.needsPremium } ||
+                    client.getMe().toResult().getOrNull()?.isPremium == true
+
                 // Pořadí schválně: nejdřív doporučené, pak nedávno použité, pak populární.
                 // Duplicity se odstraní, ale první výskyt si drží pozici.
-                (available.topReactions + available.recentReactions + available.popularReactions)
-                    .filterNotNull()
-                    .mapNotNull { (it.type as? ReactionTypeEmoji)?.emoji }
+                all.filter { isPremium || !it.needsPremium }
+                    .mapNotNull { it.type.toReactionKey() }
                     .distinct()
             }
 
@@ -1254,6 +1264,7 @@ class TdlConversationRepository(
                     draftLinkPreview = (chat.draftMessage?.content as? DraftMessageContentText)
                         ?.linkPreviewOptions?.toDomain(),
                     verification = client.verificationOf(chat),
+                    emojiStatus = chat.emojiStatus.statusEmojiId(),
                 )
             }
 
@@ -1697,8 +1708,8 @@ class TdlConversationRepository(
     }
 
     /**
-     * Reakce z interaction info. Vlastní (placená) emoji se přeskočí — jsou to samolepky
-     * a vykreslení řeší jiná vrstva; zahodit je je lepší než u zprávy neukázat žádnou reakci.
+     * Reakce z interaction info. Placená reakce (hvězdičky, `ReactionTypePaid`) se přeskočí —
+     * zahodit ji je lepší než u zprávy neukázat žádnou reakci.
      */
     /**
      * Počty příspěvku. Zhlédnutí server počítá u příspěvků kanálu (i přeposlaných jinam),
@@ -1714,7 +1725,7 @@ class TdlConversationRepository(
         val raw = this?.reactions?.reactions?.filterNotNull().orEmpty()
 
         return raw.mapNotNull { reaction ->
-            val emoji = (reaction.type as? ReactionTypeEmoji)?.emoji ?: return@mapNotNull null
+            val emoji = reaction.type.toReactionKey() ?: return@mapNotNull null
 
             // Odesílatelé se tady neřeší vůbec: čip nese jen emoji a počet. Kdo reagoval, se
             // dozví až sheet s detailem (`reactionDetails`), a ten se ptá na vyžádání.
@@ -1823,7 +1834,7 @@ class TdlConversationRepository(
             .getOrElse { return Result.failure(it) }
 
         val details = added.reactions.mapNotNull { reaction ->
-            val emoji = (reaction.type as? ReactionTypeEmoji)?.emoji ?: return@mapNotNull null
+            val emoji = reaction.type.toReactionKey() ?: return@mapNotNull null
             val sender = resolveSender(reaction.senderId.plainId()) ?: return@mapNotNull null
 
             ReactionDetail(sender = sender, emoji = emoji, isOwn = reaction.isOutgoing)
@@ -2123,6 +2134,8 @@ private fun ReplyMarkupInlineKeyboard.toBotKeyboard(): BotKeyboard? {
                     is InlineKeyboardButtonTypeCallbackWithPassword -> BotButtonKind.Unsupported(UnsupportedBotButton.Password)
                 },
                 style = button.style.toBotButtonStyle(),
+                // Nula = tlačítko ikonu nemá.
+                iconCustomEmojiId = button.iconCustomEmojiId.takeIf { it != 0L },
             )
         }
     }.filter { it.isNotEmpty() }
@@ -2156,6 +2169,7 @@ private fun Message.toChatReplyMarkup(): ChatReplyMarkup? = when (val markup = r
                         is KeyboardButtonTypeRequestManagedBot -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.ManagedBot)
                     },
                     style = button.style.toBotButtonStyle(),
+                    iconCustomEmojiId = button.iconCustomEmojiId.takeIf { it != 0L },
                 )
             }
         }.filter { it.isNotEmpty() }
@@ -2180,3 +2194,17 @@ private fun ButtonStyle?.toBotButtonStyle(): BotButtonStyle = when (this) {
     is ButtonStyleDanger -> BotButtonStyle.Danger
     else -> BotButtonStyle.Default
 }
+
+/**
+ * Klíč reakce (viz [customEmojiReaction]). Placená reakce (hvězdičky) klíč nemá — neumíme ji
+ * ukázat ani dát, a `when` bez `else` zařídí, že nový druh reakce v novější TDLib rozbije
+ * překlad, místo aby tiše zmizel.
+ */
+private fun ReactionType.toReactionKey(): String? = when (this) {
+    is ReactionTypeEmoji -> emoji
+    is ReactionTypeCustomEmoji -> customEmojiReaction(customEmojiId)
+    is ReactionTypePaid -> null
+}
+
+private fun String.toReactionType(): ReactionType =
+    customEmojiIdOf(this)?.let { ReactionTypeCustomEmoji(customEmojiId = it) } ?: ReactionTypeEmoji(emoji = this)

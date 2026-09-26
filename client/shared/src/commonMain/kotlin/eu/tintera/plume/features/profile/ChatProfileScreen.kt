@@ -5,6 +5,7 @@ import eu.tintera.plume.resources.verification_scam_warning
 import eu.tintera.plume.resources.verification_verified
 import eu.tintera.plume.core.telegram.Verification
 import eu.tintera.plume.core.ui.VerificationBadge
+import eu.tintera.plume.core.ui.EmojiStatusBadge
 import androidx.compose.ui.platform.LocalHapticFeedback
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
@@ -694,15 +695,24 @@ private fun ProfileHeader(
                     transformOrigin = TransformOrigin(0.5f, 1f)
                 },
         )
-        Text(
-            text = profile.title,
-            style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center,
+        // Řádek se jménem a statusem; kde končí, hlásí řádek, ne text — text v něm má pozici
+        // vůči řádku, ne vůči hlavičce.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
             modifier = Modifier
                 .padding(top = 8.dp)
-                .sharedNavText(chatTitleKey(profile.chatId))
                 .onPlaced { onTitlePlaced((it.positionInParent().y + it.size.height).roundToInt()) },
-        )
+        ) {
+            Text(
+                text = profile.title,
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center,
+                // Váha bez vyplnění: dlouhé jméno se zalomí, status za ním zůstane vidět.
+                modifier = Modifier.weight(1f, fill = false).sharedNavText(chatTitleKey(profile.chatId)),
+            )
+            profile.emojiStatus?.let { EmojiStatusBadge(it, size = PROFILE_EMOJI_STATUS_SIZE) }
+        }
         val subtitle = when (profile.kind) {
             ProfileKind.User -> state.presence?.describe()
             ProfileKind.Bot -> stringResource(Res.string.profile_bot)
@@ -721,6 +731,9 @@ private fun ProfileHeader(
  * Ověření v profilu: štítek a u podvodu a falešného účtu i věta, CO to znamená. V seznamu
  * a v hlavičce na vysvětlení není místo; tady ano, a kdo účet zkoumá, je právě tady.
  */
+/** Status za velkým jménem profilu — velký jako jeho písmo (`headlineMedium`). */
+private val PROFILE_EMOJI_STATUS_SIZE = 28.dp
+
 @Composable
 private fun ProfileVerification(verification: Verification) {
     val warning = when (verification) {

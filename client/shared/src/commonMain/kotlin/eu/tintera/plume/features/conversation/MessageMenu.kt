@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.customEmojiIdOf
+import eu.tintera.plume.core.ui.CustomEmojiIcon
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -711,14 +713,7 @@ private fun QuickReactions(
                     },
                     modifier = Modifier.size(QUICK_EMOJI_SIZE),
                 ) {
-                    Text(
-                        text = emoji,
-                        // Mimo typografickou škálu schválně: u emoji je nosná celá kresba,
-                        // ne výška písmen, takže ve velikosti role působí menší.
-                        fontSize = 24.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().padding(top = 7.dp),
-                    )
+                    ReactionOption(emoji)
                 }
             }
 
@@ -794,20 +789,39 @@ internal fun ReactionPickerSheet(
                         },
                         modifier = Modifier.size(QUICK_EMOJI_SIZE),
                     ) {
-                        Text(
-                            text = item,
-                            // Mimo typografickou škálu schválně: u emoji je nosná celá kresba,
-                            // ne výška písmen, takže ve velikosti role působí menší.
-                            fontSize = 24.sp,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth().padding(top = 7.dp),
-                        )
+                        ReactionOption(item)
                     }
                 }
             }
         }
     }
 }
+
+/**
+ * Jedna reakce v pruhu rychlých reakcí a ve výběru: obyčejné emoji písmem, vlastní obrázkem
+ * uprostřed kolečka.
+ */
+@Composable
+private fun ReactionOption(reaction: String) {
+    val customId = customEmojiIdOf(reaction)
+    if (customId != null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CustomEmojiIcon(customId, size = CUSTOM_REACTION_OPTION_SIZE)
+        }
+    } else {
+        Text(
+            text = reaction,
+            // Mimo typografickou škálu schválně: u emoji je nosná celá kresba,
+            // ne výška písmen, takže ve velikosti role působí menší.
+            fontSize = 24.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = 7.dp),
+        )
+    }
+}
+
+/** Vlastní emoji v pruhu a výběru reakcí — velké jako glyf 24sp emoji i s jeho okrajem. */
+private val CUSTOM_REACTION_OPTION_SIZE = 28.dp
 
 /** Nabídka akcí. Položky přibývají, jak je postupně umíme — mrtvé se sem nedávají. */
 @Composable

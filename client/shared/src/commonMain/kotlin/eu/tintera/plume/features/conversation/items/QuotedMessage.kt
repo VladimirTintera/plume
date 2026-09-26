@@ -18,11 +18,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.title
+import eu.tintera.plume.core.ui.appendWithCustomEmoji
+import eu.tintera.plume.core.ui.customEmojiInlineContent
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_reply
@@ -136,10 +140,20 @@ private fun QuoteLines(message: ChatMessage, partnerName: String?, accent: Color
             overflow = TextOverflow.Ellipsis,
         )
     }
+    // Úryvek má přednost: citovala se jen ta část. U zprávy bez textu (samotná fotka) by
+    // citace byla prázdná, proto popis přílohy. Vlastní emoji se kreslí jen u celé zprávy —
+    // úryvek entity nenese a offsety zprávy by do něj ukazovaly jinam.
+    val customEmoji = mutableSetOf<Long>()
+    val text = when {
+        quoteText != null -> AnnotatedString(quoteText)
+        message.text.isNotBlank() -> buildAnnotatedString {
+            customEmoji += appendWithCustomEmoji(message.text, message.entities)
+        }
+        else -> AnnotatedString(message.media.describe())
+    }
     Text(
-        // Úryvek má přednost: citovala se jen ta část. U zprávy bez textu (samotná fotka) by
-        // citace byla prázdná, proto popis přílohy.
-        text = quoteText ?: message.text.ifBlank { message.media.describe() },
+        text = text,
+        inlineContent = customEmojiInlineContent(customEmoji),
         style = MaterialTheme.typography.bodySmall,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis,

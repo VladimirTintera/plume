@@ -129,6 +129,7 @@
     <string name="report_messages_title">Choose the messages</string>
     <string name="report_messages_body">Telegram needs to know which messages are the problem. Long-press a message in the chat and choose Report.</string>
     <string name="spam_bar_text">Not in your contacts</string>
+    <string name="spam_bar_emoji_status">The emoji next to the name is an emoji status. Anyone with Telegram Premium can set one — it doesn’t verify anything.</string>
     <string name="spam_bar_add_contact">Add contact</string>
     <string name="spam_bar_registered">On Telegram since %1$s %2$d</string>
     <string name="spam_bar_phone_country">Phone number: %1$s</string>

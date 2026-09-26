@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.VerificationBadge
+import eu.tintera.plume.core.ui.EmojiStatusBadge
 import eu.tintera.plume.core.telegram.PollComposerMode
 
 import eu.tintera.plume.core.telegram.ReplyKeyboardButtonKind
@@ -1097,6 +1098,9 @@ fun ConversationScreen(
                                 state.info?.verification
                                     ?.takeIf { state.threadRootId == null }
                                     ?.let { VerificationBadge(it) }
+                                state.info?.emojiStatus
+                                    ?.takeIf { state.threadRootId == null }
+                                    ?.let { EmojiStatusBadge(it) }
                             }
 
                             /*
