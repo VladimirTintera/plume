@@ -8,6 +8,7 @@ import eu.tintera.plume.core.navigation.EditChatRoute
 import eu.tintera.plume.core.navigation.EditProfileRoute
 import eu.tintera.plume.core.navigation.BlockedSendersRoute
 import eu.tintera.plume.features.settings.BlockedSendersScreen
+import eu.tintera.plume.features.conversation.ConversationReplyRequests
 import eu.tintera.plume.features.conversation.ConversationSearchRequests
 import eu.tintera.plume.features.profile.ChatProfileScreen
 import eu.tintera.plume.features.profile.EditChatScreen
@@ -53,6 +54,7 @@ import eu.tintera.plume.core.navigation.ArchiveConversationRoute
 import eu.tintera.plume.core.navigation.ArchiveRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
+import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import eu.tintera.plume.core.navigation.ForwardRoute
 import eu.tintera.plume.core.navigation.PollComposerRoute
 import eu.tintera.plume.core.telegram.PollComposerMode
@@ -588,6 +590,7 @@ private fun shellEntryProvider(
      * kde by panel vedle seznamu chatů neměl co dělat.
      */
     entry<MediaRoute> { route ->
+        val replyRequests = koinInject<ConversationReplyRequests>()
         /*
          * Klíč sdíleného prvku fotky nese, ODKUD se letí: táž fotka je v bublině i v mřížce
          * sdílených médií v profilu a se společným klíčem se ty dvě spárovaly mezi sebou —
@@ -608,6 +611,14 @@ private fun shellEntryProvider(
                 onBack = { chatsStack.pop(route) },
                 onForward = { messageId ->
                     chatsStack.add(ForwardRoute(route.chatId, listOf(messageId)))
+                },
+                // Odpovědět jde jen tehdy, když prohlížeč leží přímo nad konverzací téhož chatu:
+                // z profilu (mřížka médií) nebo ankety by nebylo kam se vrátit.
+                onReply = conversationBelow(chatsStack, route)?.let { chatId ->
+                    { messageId: Long ->
+                        replyRequests.request(chatId, messageId)
+                        chatsStack.pop(route)
+                    }
                 },
                 startSeconds = route.startSeconds,
             )
@@ -812,3 +823,18 @@ private fun pollComposerRoute(chatId: Long, request: PollComposerRequest) = Poll
     quotePosition = request.quote?.position ?: 0,
 )
 
+
+/**
+ * Chat konverzace, která leží v zásobníku přímo pod prohlížečem [route], je-li to konverzace
+ * téhož chatu (hlavní seznam i archiv); jinak `null`. Pod prohlížečem otevřeným z profilu leží
+ * profil a odpověď by neměla kam dopadnout.
+ */
+private fun conversationBelow(stack: List<NavKey>, route: MediaRoute): Long? {
+    val index = stack.lastIndexOf(route)
+    val chatId = when (val below = stack.getOrNull(index - 1)) {
+        is ConversationRoute -> below.chatId
+        is ArchiveConversationRoute -> below.chatId
+        else -> null
+    }
+    return chatId?.takeIf { it == route.chatId && !route.fromSharedMedia && route.pollMedia == NO_POLL_MEDIA }
+}
