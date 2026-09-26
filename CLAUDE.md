@@ -6046,6 +6046,36 @@ testy `DiceMediaTest`).
   `labelLarge` míří na výšku písmen, ale u emoji je nosná celá kresba, takže ve stejné velikosti
   působí menší než číslo vedle ní.
 
+### Efekty zprávy
+
+Zpráva poslaná s efektem (`Message.effectId`: oheň, konfety, srdce…) má na volné straně vedle
+spodku bubliny kolečko s emoji efektu (`EffectMark` v `items/MessageEffect.kt`) a animace se nad
+ní přehraje: sama jednou u zprávy, která přišla po otevření chatu (`claimEffect`, stejná
+tolerance jako hod kostkou), a znovu po ťuknutí na značku. Převod `toMessageEffect`, doména
+`MessageEffect` v `ChatMessage.effect`.
+
+- **Efekt se dočítá při převodu zprávy** (`getMessageEffect`, pamatuje se pro instanci klienta),
+  jako jméno inline bota. Efektů je pár desítek a opakují se; `fileId` animace platí jen v jedné
+  databázi.
+- **Druhy jsou dva a animaci nese každý jinde**: efekt reakce `effectAnimation`, prémiová
+  samolepka `premiumAnimation` své samolepky. `when` bez `else`.
+- **Značka vedle zprávy, ne pod ní**: zpráva s efektem není vyšší a animace vybuchne z volného
+  pruhu. Animace je dítě značky, které hlásí nulovou velikost, takže nic nepřeskládá.
+- **Plátno animace je navržené pro ODCHOZÍ zprávu**: zdroj výbuchu leží asi ve ¾ šířky
+  (`EFFECT_SOURCE_X`) a výbuch letí doleva. Na značku se kotví ten bod, ne střed plátna —
+  vystředěný oheň stál o ~50 dp vedle značky. U příchozí zprávy se animace zrcadlí; bez zrcadlení
+  letěla srdce doleva přes bubliny (ověřeno obojí na emulátoru).
+- **Dokud efekt hraje, má položka `zIndex(1f)`.** Animace přesahuje zprávu a starší zprávy se
+  v `LazyColumn` kreslí po ní — přikryly by ji. `zIndex` na kořeni položky pořadí kreslení mezi
+  položkami mění.
+- **Animace je krátká (kolem vteřiny)**: snímek o půl vteřiny po ťuknutí už nic nezachytí
+  a vypadá to, že ťuknutí nefunguje. Ověřuje se sérií `screencap` v jednom `adb shell`.
+- **Ověřuje se botem**: `sendMessage` s `message_effect_id` (🔥 5104841245755180586,
+  🎉 5046509860389126442, ❤️ 5159385139981059251) do chatu s testovacím botem. Ověřeno na
+  emulátoru: značky, samočinné přehrání po příchodu, přehrání ťuknutím, kresba nad staršími
+  zprávami. **Neověřeno**: odchozí zpráva s efektem (Plume efekt poslat neumí), efekt prémiové
+  samolepky a iOS (jen přeložené).
+
 ### Vlastní emoji v textu
 
 Vlastní emoji (`TextEntityTypeCustomEmoji`) je samolepka, která v textu stojí místo náhradního

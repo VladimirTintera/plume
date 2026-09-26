@@ -105,6 +105,12 @@ internal interface ConversationItemScope {
      */
     fun claimDiceThrow(key: Long, timestamp: Int): Boolean
 
+    /**
+     * Má efekt zprávy s tímhle klíčem proběhnout sám? Jen jednou a jen u zprávy, která přišla
+     * (podle [timestamp]) až po otevření konverzace; z historie se přehraje ťuknutím na značku.
+     */
+    fun claimEffect(key: Long, timestamp: Int): Boolean = false
+
     /** Jediná cesta akcí ze zprávy ven (viz [MessageAction]). */
     fun onAction(messageId: Long, action: MessageAction)
 

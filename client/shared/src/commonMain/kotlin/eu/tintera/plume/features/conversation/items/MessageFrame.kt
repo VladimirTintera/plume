@@ -62,6 +62,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Rect
@@ -205,8 +206,21 @@ internal interface MessageItem : ConversationItem {
         val modifier = Modifier.animateItem(
             fadeInSpec = if (frame.flight != null) null else spring(stiffness = Spring.StiffnessMediumLow),
         ).arrival(frame, scope).gathered(frame.key, scope)
-        RevealingTime(frame.message.timestamp, scope.timeReveal, modifier) {
-            MessageFrame(frame, scope, maxWidthFraction) { Body() }
+        val effect = frame.message.effect
+        val effectPlayback = remember { EffectPlayback() }
+        // Efekt hraje sám jen u zprávy, která přišla po otevření konverzace, a jen jednou.
+        LaunchedEffect(frame.key, effect?.id) {
+            if (effect?.animationFileId != null && scope.claimEffect(frame.key, frame.message.timestamp)) {
+                effectPlayback.play()
+            }
+        }
+        RevealingTime(
+            frame.message.timestamp,
+            scope.timeReveal,
+            // Animace přesahuje zprávu; starší zprávy se kreslí po ní a přikryly by ji.
+            modifier.zIndex(if (effectPlayback.playing) 1f else 0f),
+        ) {
+            MessageFrame(frame, scope, maxWidthFraction, effectPlayback) { Body() }
         }
     }
 }
@@ -441,6 +455,7 @@ private fun MessageFrame(
     frame: MessageFrameData,
     scope: ConversationItemScope,
     maxWidthFraction: Float,
+    effectPlayback: EffectPlayback,
     body: @Composable MessageBodyScope.() -> Unit,
 ) {
     val message = frame.message
@@ -724,6 +739,20 @@ private fun MessageFrame(
                         .align(Alignment.CenterStart)
                         .offset(x = -REPLY_ICON_SLOT),
                 )
+
+                // Značka efektu na volné straně zprávy, u spodku (viz [EffectMark]).
+                message.effect?.let { effect ->
+                    EffectMark(
+                        effect = effect,
+                        playback = effectPlayback,
+                        isOutgoing = message.isOutgoing,
+                        modifier = Modifier
+                            .align(if (message.isOutgoing) Alignment.BottomStart else Alignment.BottomEnd)
+                            .offset(
+                                x = (EFFECT_MARK_SIZE + EFFECT_MARK_GAP) * (if (message.isOutgoing) -1 else 1),
+                            ),
+                    )
+                }
             }
             }
 
