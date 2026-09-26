@@ -2746,6 +2746,17 @@ a nad ni nakreslí předěl „Nepřečtené zprávy".
 - **Hranice se zachytí JEDNOU při otevření** (`lastReadInboxMessageId` z `getChat`) a už se nemění.
   Kdyby se posouvala podle toho, co se právě označilo za přečtené, předěl by uživateli utíkal pod
   rukama — a je to jediné místo, podle kterého pozná, kde přestal.
+- **První nepřečtená je nejstarší PŘÍCHOZÍ zpráva za hranicí, ne nejstarší zpráva za ní**
+  (`firstUnreadId`, testy `UnreadBoundaryTest`). Hranice je poslední přečtená PŘÍCHOZÍ, takže
+  vlastní odpověď napsaná po ní má vyšší id. Předěl i skok to dřív braly jako „nad hranicí =
+  nepřečtené": předěl chtěl staršího souseda s id ≤ hranici, a když jím byla vlastní odpověď,
+  **neukázal se vůbec**; skok mířil na vlastní zprávu. Běžný případ — odepsal jsem, druhý
+  odpověděl —, takže předěl chyběl právě tam, kde se čte nejčastěji.
+- **V chatu s testovacím botem nepřečtený stav vyrobit NEJDE, když má účet otevřený Notifikátor
+  jinde** (telefon): zprávu od bota přečte to druhé zařízení, v logu je notifikace „odložené=true"
+  a pak zmizí bez „Zobrazuji", a chat v seznamu odznak nemá. Předěl i efekt nepřečtené se proto
+  ověřují sondou, která v chatu s botem nastaví `unreadBoundaryId` na id zvolené zprávy (podle
+  textu) a zavolá `loadUntilUnread()`. Necommituje se.
 - **`unreadCount` je potřeba vedle ukazatele.** Z `lastReadInboxMessageId` samotného se nepřečtené
   odvodit nedají: v chatu, kde poslední zprávu napsal uživatel, je ukazatel starší než ta zpráva,
   a přesto není co číst.
@@ -6060,7 +6071,10 @@ tolerance jako hod kostkou) nebo je NEPŘEČTENÁ, a znovu po ťuknutí na znač
   oficiální klienti. Rozhoduje hranice nepřečtených zachycená při otevření (`unreadBoundaryId`),
   vlastní zpráva se nepočítá. **Hranice dorazí až po prvních zprávách**, proto je v klíči
   `LaunchedEffect` položky; do položky jde přes `derivedStateOf` (`unreadBoundary()`), jinak by
-  čtení stavu překreslovalo všechny zprávy s každou změnou konverzace. Efekt u nejnovější zprávy
+  čtení stavu překreslovalo všechny zprávy s každou změnou konverzace. Ověřeno sondou hranice
+  (viz „Skok na první nepřečtenou"): obě nepřečtené zprávy s 🔥 zahořely po otevření chatu.
+  Ověření bez sondy v #325 nic nedokazovalo — chat otevřený do pěti vteřin po zprávě spadl pod
+  toleranci příchodu, ne pod nepřečtené. Efekt u nejnovější zprávy
   zčásti zajede pod vstupní pole — to leží nad seznamem.
 - **Efekt se dočítá při převodu zprávy** (`getMessageEffect`, pamatuje se pro instanci klienta),
   jako jméno inline bota. Efektů je pár desítek a opakují se; `fileId` animace platí jen v jedné

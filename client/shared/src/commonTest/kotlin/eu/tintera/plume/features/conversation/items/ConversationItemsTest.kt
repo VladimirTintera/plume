@@ -156,6 +156,19 @@ class ConversationItemsTest {
     }
 
     @Test
+    fun predelNeprectenychPreskociVlastniOdpoved() {
+        // Hranice je poslední přečtená PŘÍCHOZÍ; vlastní odpověď po ní (m2) má vyšší id, ale
+        // nepřečtená není. Předěl patří nad m3 — dřív se neukázal vůbec.
+        val result = items(
+            message(3),
+            message(2, isOutgoing = true),
+            message(1),
+            state = ConversationState(unreadBoundaryId = 1L),
+        )
+        assertEquals(listOf("m3", "unread", "m2", "m1", "day"), result.kinds())
+    }
+
+    @Test
     fun predelNeprectenychNadNejstarsiNactenouNeni() {
         // Hranice je starší než všechno načtené: nevíme, kde nepřečtené začínají.
         val result = items(message(3), message(2), state = ConversationState(unreadBoundaryId = 1L))
