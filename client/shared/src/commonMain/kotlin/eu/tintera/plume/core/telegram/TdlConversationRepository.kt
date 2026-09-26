@@ -1339,6 +1339,25 @@ class TdlConversationRepository(
             }
 
 
+    override suspend fun botIntro(chatId: Long): Result<BotIntro?> = runCatching {
+        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+        val userId = (chat.type as? ChatTypePrivate)?.userId ?: return@runCatching null
+        val user = client.getUser(userId = userId).toResult().getOrThrow()
+        if (user.type !is UserTypeBot) return@runCatching null
+        val info = client.getUserFullInfo(userId = userId).toResult().getOrNull()?.botInfo
+        BotIntro(
+            description = info?.description.orEmpty(),
+            photo = info?.photo?.toIntroPicture(),
+            animation = info?.animation?.toMedia(),
+        )
+    }
+
+    override suspend fun startBot(chatId: Long, parameter: String): Result<ChatMessage> =
+        // Soukromý chat s botem má id rovné id bota.
+        client.sendBotStartMessage(botUserId = chatId, chatId = chatId, parameter = parameter)
+            .toResult()
+            .map { it.toChatMessage(isGroup = false) }
+
     override suspend fun botCommands(chatId: Long): Result<List<BotCommandItem>> = runCatching {
         val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
         // Bez `else`: nový druh chatu v novější TDLib má rozbít překlad, ne tiše přijít o příkazy.

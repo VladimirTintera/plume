@@ -977,6 +977,9 @@ internal fun previewText(raw: String): String? =
  * Do bubliny se bere největší varianta do [MAX_DISPLAY_EDGE]; originál by u fotky z foťáku znamenal
  * desítky megabajtů kvůli obrázku širokému pár set bodů.
  */
+/** Obrázek do karty bota; bere se stejně jako fotka ve zprávě. */
+internal fun Photo.toIntroPicture(): MessageMedia.Photo? = toMedia()
+
 private fun Photo.toMedia(
     hasSpoiler: Boolean = false,
     isSensitive: Boolean = false,

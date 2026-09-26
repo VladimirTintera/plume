@@ -17,6 +17,7 @@ import eu.tintera.plume.core.telegram.TdlDeviceRepository
 import eu.tintera.plume.features.devices.DevicesViewModel
 import eu.tintera.plume.features.conversation.ConversationSearchRequests
 import eu.tintera.plume.core.navigation.ChatOpenRequests
+import eu.tintera.plume.core.navigation.BotStartRequests
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.ChatFolder
@@ -186,6 +187,7 @@ fun appModule() = module {
 
     // Most mezi platformním vstupem (ťuknutí na notifikaci) a navigací.
     single { ChatOpenRequests() }
+    single { BotStartRequests() }
     single { ConversationSearchRequests() }
     single { RevealedSpoilers() }
     single { SelfDestructTimers() }
@@ -282,6 +284,7 @@ fun appModule() = module {
             connection = get(),
             searchRequests = get(),
             placeRepository = get(),
+            botStartRequests = get(),
         )
     }
 

@@ -20,6 +20,13 @@ sealed interface InternalLink {
 
     /** Sada samolepek (`t.me/addstickers/…`). */
     data class StickerSet(val setId: Long) : InternalLink
+
+    /**
+     * Spuštění bota s parametrem (`t.me/bot?start=…`). [autostart] = pustit hned, bez tlačítka
+     * Start (`InternalLinkTypeBotStart.autostart`); jinak chat nabídne Start a parametr pošle
+     * až ono.
+     */
+    data class BotStart(val chatId: Long, val parameter: String, val autostart: Boolean) : InternalLink
 }
 
 /** Co o chatu řekne pozvánka, než se do něj uživatel přidá (`checkChatInviteLink`). */

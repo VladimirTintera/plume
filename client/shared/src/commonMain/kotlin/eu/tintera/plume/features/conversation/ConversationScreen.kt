@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.conversation_bot_start
 import eu.tintera.plume.resources.conversation_schedule_time
 import eu.tintera.plume.resources.conversation_schedule_past
 import kotlinx.datetime.TimeZone
@@ -1064,7 +1065,6 @@ fun ConversationScreen(
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
                             .clickable(
@@ -1078,8 +1078,18 @@ fun ConversationScreen(
                             // stisku), takže bez rezervy by prstenec usekl vlevo i nahoře a dole.
                             .padding(horizontal = HEADER_RING_ROOM, vertical = HEADER_RING_ROOM),
                     ) {
+                        // Nad profilem bota je jeho tvář velká uprostřed obrazovky a nese i tečku
+                        // a výpadek spojení (`BotIntroPage`); v hlavičce by byla podruhé.
+                        val headerAvatar = !showsBotIntro(state)
                         state.info?.let { info ->
-                            Box {
+                          AnimatedVisibility(
+                              visible = headerAvatar,
+                              enter = fadeIn() + expandHorizontally(),
+                              exit = fadeOut() + shrinkHorizontally(),
+                          ) {
+                            // Mezera ke jménu je součást avataru, ne řádku: schovaný avatar
+                            // by jinak nechal před jménem díru.
+                            Box(Modifier.padding(end = 12.dp)) {
                                 Avatar(
                                     chatId = info.id,
                                     title = info.title,
@@ -1115,6 +1125,7 @@ fun ConversationScreen(
                                     )
                                 }
                             }
+                          }
                         }
                         Column {
                             Row(
@@ -1198,7 +1209,9 @@ fun ConversationScreen(
                     }
                 },
                 actions = {
-                    if (summaryAvailable && state.threadRootId == null) {
+                    // Prázdný chat s botem je jeho profil — není co shrnout ani hledat.
+                    val botIntro = showsBotIntro(state)
+                    if (summaryAvailable && state.threadRootId == null && !botIntro) {
                         IconButton(onClick = startSummary) {
                             Icon(
                                 painterResource(Res.drawable.summarize_24dp),
@@ -1207,7 +1220,7 @@ fun ConversationScreen(
                         }
                     }
                     // Hledání ve vlákně by hledalo v celé diskusní skupině.
-                    if (state.threadRootId == null) {
+                    if (state.threadRootId == null && !botIntro) {
                         IconButton(onClick = viewModel::openSearch) {
                             Icon(
                                 painterResource(Res.drawable.search_24dp),
@@ -1258,6 +1271,18 @@ fun ConversationScreen(
             }
             if (state.info?.canJoin == true) {
                 JoinBar(joining = state.joining, onJoin = viewModel::join)
+                return@Box
+            }
+            // Nespuštěný bot (nebo čekající parametr z odkazu): Start místo pole.
+            if (showsBotStart(state)) {
+                JoinBar(
+                    joining = state.startingBot,
+                    onJoin = {
+                        haptics.confirm()
+                        viewModel.startBot()
+                    },
+                    label = Res.string.conversation_bot_start,
+                )
                 return@Box
             }
             // Kde se psát nesmí, pole by skončilo chybou až po odeslání. Kanál aspoň nabídne ztlumení.
@@ -1652,6 +1677,19 @@ fun ConversationScreen(
             when {
                 state.messages.isEmpty() && state.loading ->
                     LoadingIndicator(Modifier.align(Alignment.Center))
+
+                showsBotIntro(state) -> {
+                    val shownConnection = rememberShownConnection(connection)
+                    BotIntroPage(
+                        intro = state.botIntro ?: return@Box,
+                        chatId = viewModel.chatId,
+                        title = state.info?.title.orEmpty(),
+                        avatarFileId = state.info?.avatarFileId,
+                        connection = shownConnection,
+                        connectionLabel = shownConnection?.label()?.let { stringResource(it) },
+                        online = state.presence is Presence.Online,
+                    )
+                }
 
                 state.messages.isEmpty() -> Text(
                     text = state.error?.resolve() ?: stringResource(Res.string.conversation_empty),
@@ -3297,11 +3335,12 @@ private data class HeaderSubtitle(val text: String)
 private const val ARRIVAL_TOLERANCE_SECONDS = 5
 
 /**
- * Místo vstupního pole ve skupině nebo kanálu, kde uživatel není (otevřeno z globálního hledání).
- * Plné tlačítko přes šířku — je to jediná akce, kterou tu jde udělat.
+ * Místo vstupního pole ve skupině nebo kanálu, kde uživatel není (otevřeno z globálního hledání),
+ * a u nespuštěného bota se Start ([label]). Plné tlačítko přes šířku — je to jediná akce,
+ * kterou tu jde udělat.
  */
 @Composable
-private fun JoinBar(joining: Boolean, onJoin: () -> Unit) {
+private fun JoinBar(joining: Boolean, onJoin: () -> Unit, label: StringResource = Res.string.conversation_join) {
     Box(
         Modifier
             .fillMaxWidth()
@@ -3314,7 +3353,7 @@ private fun JoinBar(joining: Boolean, onJoin: () -> Unit) {
             enabled = !joining,
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
         ) {
-            Text(stringResource(Res.string.conversation_join))
+            Text(stringResource(label))
         }
     }
 }

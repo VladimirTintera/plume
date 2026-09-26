@@ -10,6 +10,7 @@ import dev.g000sha256.tdl.dto.ChatJoinResultRequestSent
 import dev.g000sha256.tdl.dto.ChatJoinResultSuccess
 import dev.g000sha256.tdl.dto.InviteLinkChatTypeChannel
 import dev.g000sha256.tdl.dto.InternalLinkTypeStickerSet
+import dev.g000sha256.tdl.dto.InternalLinkTypeBotStart
 import dev.g000sha256.tdl.dto.InternalLinkTypeChatInvite
 import dev.g000sha256.tdl.dto.InternalLinkTypeMessage
 import dev.g000sha256.tdl.dto.InternalLinkTypePublicChat
@@ -566,6 +567,11 @@ class TdlChatRepository(
                             ),
                         )
                     }
+                }
+
+            is InternalLinkTypeBotStart ->
+                client.searchPublicChat(username = type.botUsername).toResult().map { chat ->
+                    InternalLink.BotStart(chat.id, type.startParameter, type.autostart)
                 }
 
             is InternalLinkTypeStickerSet ->

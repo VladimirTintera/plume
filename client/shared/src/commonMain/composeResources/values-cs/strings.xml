@@ -285,6 +285,8 @@
     <string name="conversation_self_destruct_album">Mizející fotky a videa nejdou poslat v albu — přílohy odejdou normálně.</string>
     <string name="conversation_attachments_send_failed">Přílohy se nepodařilo odeslat.</string>
     <string name="conversation_send_failed">Zprávu se nepodařilo odeslat.</string>
+    <string name="conversation_bot_start">Spustit</string>
+    <string name="conversation_bot_start_failed">Bota se nepodařilo spustit.</string>
     <string name="conversation_send_silent">Odeslat bez zvuku</string>
     <string name="conversation_send_schedule">Naplánovat zprávu…</string>
     <string name="conversation_send_when_online">Odeslat, až bude online</string>
