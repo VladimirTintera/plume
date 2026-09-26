@@ -456,6 +456,12 @@ interface ConversationRepository {
     suspend fun chatInfo(chatId: Long): Result<ChatInfo>
 
     /**
+     * Příkazy botů v chatu (`/start`…) pro napovídání a seznam příkazů. V soukromém chatu
+     * příkazy toho bota, ve skupině všech botů v ní; kanál a chat s člověkem žádné.
+     */
+    suspend fun botCommands(chatId: Long): Result<List<BotCommandItem>>
+
+    /**
      * Změny toho, jestli se do chatu smí psát a jestli se k němu jde přidat (správce změní
      * práva, uživatel se přidá nebo odejde). Soukromý chat nic nevydá — tam se píše vždycky.
      */

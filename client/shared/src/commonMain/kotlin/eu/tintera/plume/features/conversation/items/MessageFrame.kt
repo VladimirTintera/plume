@@ -1178,9 +1178,11 @@ internal fun MessageBodyScope.MessageText(
                 is MessageEntityType.Mention -> act(MessageAction.OpenMention(type.username))
                 is MessageEntityType.MentionUser -> act(MessageAction.OpenUser(type.userId))
                 is MessageEntityType.Hashtag -> act(MessageAction.SearchHashtag(type.tag))
+                is MessageEntityType.BotCommand -> act(MessageAction.SendBotCommand(type.command))
                 else -> Unit
             }
         },
+        commandsClickable = items.canSendCommands(),
         onLongClick = ::requestMenu,
     )
 }

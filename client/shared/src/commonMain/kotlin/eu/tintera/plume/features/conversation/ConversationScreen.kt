@@ -156,6 +156,9 @@ import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import eu.tintera.plume.core.telegram.commandSuggestions
+import eu.tintera.plume.resources.smart_toy_24dp
+import eu.tintera.plume.resources.conversation_bot_commands
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -622,6 +625,8 @@ fun ConversationScreen(
     val profileFlight = rememberSaveable { mutableStateOf<Long?>(null) }
     val saveAs = rememberSaveAs()
     val currentSaveAs by rememberUpdatedState(saveAs)
+    // Příkaz z textu se pošle jen tam, kam se smí psát; jinak zůstane obyčejným textem.
+    val canSendCommands = remember(stateHolder) { derivedStateOf { stateHolder.value.canWrite } }
     val itemScope = remember(viewModel) {
         ScreenItemScope(
             viewModel = viewModel,
@@ -641,6 +646,7 @@ fun ConversationScreen(
             jumpTransition = jumpTransition,
             searchHighlight = searchHighlight,
             profileFlight = profileFlight,
+            canSendCommands = canSendCommands,
         )
     }
 
@@ -938,6 +944,12 @@ fun ConversationScreen(
         state = rememberNavigationEventState(NavigationEventInfo.None),
         isBackEnabled = state.selection != null,
         onBackCompleted = viewModel::closeSelection,
+    )
+    // Otevřený seznam příkazů zavře zpět dřív, než se odejde z chatu.
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = state.commandsOpen,
+        onBackCompleted = viewModel::closeCommands,
     )
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
@@ -1264,6 +1276,22 @@ fun ConversationScreen(
                     },
                 )
             }
+            // Příkazy botů: napovídání podle rozepsaného „/…", nebo celý seznam z tlačítka u pole.
+            val typedCommands = commandSuggestions(draft.text, state.botCommands)
+            BotCommandsPanel(
+                commands = typedCommands ?: state.botCommands.takeIf { state.commandsOpen }.orEmpty(),
+                visible = state.editing == null && (typedCommands != null || state.commandsOpen),
+                onPick = { command ->
+                    haptics.confirm()
+                    // Rozepsané „/st" byl ten příkaz — pole se vyprázdní a koncept s ním.
+                    if (typedCommands != null) {
+                        draft = TextFieldValue()
+                        viewModel.onDraftChanged("")
+                    }
+                    viewModel.closeCommands()
+                    viewModel.sendCommand(command.text)
+                },
+            )
             MessageInput(
                 glass = Modifier.hazeBlur(
                     input = HazeInput.Sources(listHaze),
@@ -1332,6 +1360,7 @@ fun ConversationScreen(
                 }.takeIf { state.content.polls },
                 // Poloha je „základní zpráva" jako text: smí se všude, kde je vstupní pole.
                 onSendLocation = { locationPickerOpen = true },
+                onToggleCommands = viewModel::toggleCommands.takeIf { state.botCommands.isNotEmpty() },
                 attachments = state.attachments,
                 attachmentsPreparing = mediaSelection.preparing,
                 onRemoveAttachment = viewModel::removeAttachment,
@@ -2029,6 +2058,8 @@ private fun MessageInput(
     onCreatePoll: (() -> Unit)?,
     /** Poslat polohu; `null`, kde nejde. */
     onSendLocation: (() -> Unit)?,
+    /** Seznam příkazů botů; `null` v chatu bez botů s příkazy. */
+    onToggleCommands: (() -> Unit)?,
     isRecording: Boolean,
     /** Čte se až v pruhu nahrávání — čas a úrovně se mění dvacetkrát za vteřinu. */
     recording: () -> VoiceRecording?,
@@ -2263,6 +2294,19 @@ private fun MessageInput(
              */
             // Přílohy jen při psaní — k úpravě textové zprávy příloha nepatří.
             // Poloha jde všude, kde se smí psát, takže sponka zůstává i ve skupině bez příloh.
+            // Příkazy bota: v chatu s botem je to hlavní ovládání, jako „Menu" u oficiálních klientů.
+            if (editing == null && onToggleCommands != null) {
+                IconButton(
+                    onClick = onToggleCommands,
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
+                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.smart_toy_24dp),
+                        contentDescription = stringResource(Res.string.conversation_bot_commands),
+                    )
+                }
+            }
             if (editing == null && (content.anyAttachment || onSendLocation != null)) {
                 AttachButton(
                     onPickMedia = onPickMedia,
@@ -2273,7 +2317,8 @@ private fun MessageInput(
                     onCreatePoll = onCreatePoll,
                     onSendLocation = onSendLocation,
                     contentColor = inputIconColor(),
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                    // Za tlačítkem příkazů bez odsazení: glyfy mají kolem sebe vzduch samy.
+                    modifier = Modifier.padding(start = if (onToggleCommands != null) 0.dp else 4.dp, bottom = 4.dp),
                 )
             }
             Box(Modifier.weight(1f)) {
@@ -2952,6 +2997,7 @@ private class ScreenItemScope(
     private val jumpTransition: JumpTransition,
     private val searchHighlight: State<String?>,
     private val profileFlight: MutableState<Long?>,
+    private val canSendCommands: State<Boolean>,
 ) : ConversationItemScope {
     override fun isProfileFlight(messageId: Long): Boolean = profileFlight.value == messageId
 
@@ -2959,6 +3005,8 @@ private class ScreenItemScope(
         state.value.pressingBotButton?.takeIf { it.messageId == messageId }?.let { it.row to it.column }
 
     override fun searchHighlight(): String? = searchHighlight.value
+
+    override fun canSendCommands(): Boolean = canSendCommands.value
 
     override fun gatherShift(key: Any): Float = jumpTransition.shiftOf(key)
 

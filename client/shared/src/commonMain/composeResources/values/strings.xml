@@ -714,6 +714,7 @@
     <string name="conversation_unread_mark_failed">Couldn't find the next one</string>
     <string name="conversation_read_all_mentions">Mark all mentions as read</string>
     <string name="conversation_read_all_reactions">Mark all reactions as read</string>
+    <string name="conversation_bot_commands">Bot commands</string>
     <string name="conversation_read_all_poll_votes">Mark all poll votes as read</string>
     <plurals name="conversation_unread_mentions">
         <item quantity="one">%1$d unread mention</item>

@@ -112,6 +112,12 @@ internal interface ConversationItemScope {
      */
     fun isProfileFlight(messageId: Long): Boolean = false
 
+    /**
+     * Jde ťuknutím na `/příkaz` v textu poslat příkaz? Jen v chatu, do kterého se smí psát —
+     * jinde zůstane příkaz obyčejným textem. Čte se v kompozici textu.
+     */
+    fun canSendCommands(): Boolean = false
+
     /** Tlačítko bota u zprávy, na jehož odpověď se čeká (řádek, sloupec); `null` = žádné. */
     fun pressingBotButton(messageId: Long): Pair<Int, Int>? = null
 
