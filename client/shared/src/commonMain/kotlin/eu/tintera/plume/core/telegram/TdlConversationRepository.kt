@@ -137,6 +137,8 @@ import dev.g000sha256.tdl.dto.SearchMessagesFilterDocument
 import dev.g000sha256.tdl.dto.SearchMessagesFilterPhotoAndVideo
 import dev.g000sha256.tdl.dto.SearchMessagesFilterUrl
 import dev.g000sha256.tdl.dto.SearchMessagesFilterPinned
+import dev.g000sha256.tdl.dto.SearchMessagesFilterUnreadMention
+import dev.g000sha256.tdl.dto.SearchMessagesFilterUnreadReaction
 import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.TdlThrowable
 import dev.g000sha256.tdl.toResult
@@ -293,6 +295,58 @@ class TdlConversationRepository(
                     postStats = update.interactionInfo.toPostStats(),
                 )
             }
+
+    /**
+     * Každá změna přečte počty znovu z chatu (`getChat` je lokální). Počty chodí čtyřmi updaty —
+     * dva nesou jen počet, dva zprávu i počet — a skládat je by znamenalo držet stav, který TDLib
+     * drží sám. Odběr stojí před prvním čtením.
+     */
+    override fun unreadMarks(chatId: Long): Flow<UnreadMarks> =
+        merge(
+            holder.updates { chatUnreadMentionCountUpdates }.filter { it.chatId == chatId }.map { },
+            holder.updates { messageMentionReadUpdates }.filter { it.chatId == chatId }.map { },
+            holder.updates { chatUnreadReactionCountUpdates }.filter { it.chatId == chatId }.map { },
+            holder.updates { messageUnreadReactionsUpdates }.filter { it.chatId == chatId }.map { },
+        )
+            .onStart { emit(Unit) }
+            .mapNotNull {
+                client.getChat(chatId = chatId).toResult().getOrNull()?.let { chat ->
+                    UnreadMarks(mentions = chat.unreadMentionCount, reactions = chat.unreadReactionCount)
+                }
+            }
+            .distinctUntilChanged()
+
+    override fun unreadReactionChanges(chatId: Long): Flow<UnreadReactionChange> =
+        holder.updates { messageUnreadReactionsUpdates }
+            .filter { it.chatId == chatId }
+            .map { UnreadReactionChange(messageId = it.messageId, hasUnread = it.unreadReactions.isNotEmpty()) }
+
+    override suspend fun oldestUnreadMark(chatId: Long, kind: UnreadMarkKind): Result<Long?> =
+        client.searchChatMessages(
+            chatId = chatId,
+            topicId = null,
+            query = "",
+            senderId = null,
+            fromMessageId = 0L,
+            offset = 0,
+            // Stovka pokryje každý běžný případ; kdyby jich bylo víc, skočí se na nejstarší z nich
+            // a po jejím přečtení na další.
+            limit = UNREAD_MARKS_PAGE,
+            filter = when (kind) {
+                UnreadMarkKind.Mention -> SearchMessagesFilterUnreadMention()
+                UnreadMarkKind.Reaction -> SearchMessagesFilterUnreadReaction()
+            },
+        )
+            .toResult()
+            .map { found -> oldestOf(found.messages.filterNotNull().map { it.id }) }
+
+    override suspend fun readAllMarks(chatId: Long, kind: UnreadMarkKind): Result<Unit> =
+        when (kind) {
+            UnreadMarkKind.Mention -> client.readAllChatMentions(chatId = chatId)
+            UnreadMarkKind.Reaction -> client.readAllChatReactions(chatId = chatId)
+        }
+            .toResult()
+            .map { }
 
     override suspend fun setReaction(
         chatId: Long,
@@ -1357,6 +1411,7 @@ class TdlConversationRepository(
             linkPreview = linkPreview(),
             reactions = interactionInfo.toReactions(),
             postStats = interactionInfo.toPostStats(),
+            hasUnreadReactions = unreadReactions.isNotEmpty(),
             threadId = (topicId as? MessageTopicThread)?.messageThreadId,
             sendState = if (outgoing) sendingState.toSendState() else null,
             // Odpověď mimo tenhle chat nese `externalReply` — v načtené historii citovaná zpráva
@@ -1925,6 +1980,9 @@ private const val PINNED_PAGE_SIZE = 100
 
 /** Výsledků hledání v chatu na stránku; další se dotahují, až k nim uživatel došipkuje. */
 private const val IN_CHAT_SEARCH_PAGE = 50
+
+/** Kolik nepřečtených zmínek nebo reakcí se načte, než se z nich vybere nejstarší. */
+private const val UNREAD_MARKS_PAGE = 100
 
 /** Kolik členů vrátí jedno hledání pro filtr podle odesílatele; víc se na obrazovku nevejde. */
 private const val MEMBER_SEARCH_LIMIT = 50

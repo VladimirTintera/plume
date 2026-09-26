@@ -83,6 +83,8 @@
     <string name="chats_search_show_less">Zobrazit méně</string>
     <string name="chats_section_pinned">Připnuto</string>
     <string name="chats_muted">Ztlumeno</string>
+    <string name="chats_unread_mention">Nepřečtená zmínka</string>
+    <string name="chats_unread_reaction">Nepřečtená reakce</string>
     <string name="chats_draft_prefix">Koncept: </string>
     <string name="chats_load_failed">Seznam chatů se nepodařilo načíst.</string>
     <string name="chats_action_failed">Akci se nepodařilo provést.</string>
@@ -716,6 +718,19 @@
         <item quantity="one">%1$d soubor</item>
         <item quantity="few">%1$d soubory</item>
         <item quantity="other">%1$d souborů</item>
+    </plurals>
+    <string name="conversation_unread_mark_failed">Další se nepodařilo najít</string>
+    <string name="conversation_read_all_mentions">Označit všechny zmínky jako přečtené</string>
+    <string name="conversation_read_all_reactions">Označit všechny reakce jako přečtené</string>
+    <plurals name="conversation_unread_mentions">
+        <item quantity="one">%1$d nepřečtená zmínka</item>
+        <item quantity="few">%1$d nepřečtené zmínky</item>
+        <item quantity="other">%1$d nepřečtených zmínek</item>
+    </plurals>
+    <plurals name="conversation_unread_reactions">
+        <item quantity="one">%1$d nepřečtená reakce</item>
+        <item quantity="few">%1$d nepřečtené reakce</item>
+        <item quantity="other">%1$d nepřečtených reakcí</item>
     </plurals>
     <plurals name="conversation_new_messages">
         <item quantity="one">%1$d nová zpráva</item>

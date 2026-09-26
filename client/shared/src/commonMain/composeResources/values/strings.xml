@@ -83,6 +83,8 @@
     <string name="chats_search_show_less">Show less</string>
     <string name="chats_section_pinned">Pinned</string>
     <string name="chats_muted">Muted</string>
+    <string name="chats_unread_mention">Unread mention</string>
+    <string name="chats_unread_reaction">Unread reaction</string>
     <string name="chats_draft_prefix">Draft: </string>
     <string name="chats_load_failed">Couldn't load the chat list.</string>
     <string name="chats_action_failed">Couldn't do that.</string>
@@ -706,6 +708,17 @@
     <plurals name="share_files">
         <item quantity="one">%1$d file</item>
         <item quantity="other">%1$d files</item>
+    </plurals>
+    <string name="conversation_unread_mark_failed">Couldn't find the next one</string>
+    <string name="conversation_read_all_mentions">Mark all mentions as read</string>
+    <string name="conversation_read_all_reactions">Mark all reactions as read</string>
+    <plurals name="conversation_unread_mentions">
+        <item quantity="one">%1$d unread mention</item>
+        <item quantity="other">%1$d unread mentions</item>
+    </plurals>
+    <plurals name="conversation_unread_reactions">
+        <item quantity="one">%1$d unread reaction</item>
+        <item quantity="other">%1$d unread reactions</item>
     </plurals>
     <plurals name="conversation_new_messages">
         <item quantity="one">%1$d new message</item>

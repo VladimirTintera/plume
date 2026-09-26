@@ -7,6 +7,10 @@ import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.threshold
 import eu.tintera.plume.resources.saved_messages
 import eu.tintera.plume.resources.bookmark_24dp
+import eu.tintera.plume.resources.favorite_filled_24dp
+import eu.tintera.plume.resources.alternate_email_24dp
+import eu.tintera.plume.resources.chats_unread_reaction
+import eu.tintera.plume.resources.chats_unread_mention
 import eu.tintera.plume.core.ui.isSavedMessages
 import eu.tintera.plume.core.ui.chatTitle
 import androidx.compose.runtime.getValue
@@ -1268,18 +1272,54 @@ private fun ChatRow(
                 }
             }
 
-            if (chat.unreadCount > 0) {
-                // `Badge` je ve výchozím stavu chybově červený. Nepřečtená zpráva ale není
-                // chyba — v odlehčeném seznamu byla ta červená jediná sytá barva na obrazovce
-                // a přebíjela všechno ostatní.
-                Badge(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ) {
-                    Text(chat.unreadCount.toString(), style = LocalTextStyle.current.tabularNumbers())
-                }
+            UnreadBadges(chat)
+        }
+    }
+}
+
+/**
+ * Odznaky vpravo v řádku: reakce, zmínka, počet nepřečtených — v tomhle pořadí, počet u kraje.
+ *
+ * Zmínka a reakce mají vlastní odznak, protože se v počtu ztratí: „@" ve skupině se stovkou
+ * nepřečtených je to jediné, kvůli čemu ji uživatel otevře. Číslo nenesou (kolik jich je, řekne
+ * tlačítko v konverzaci) — jde o to, ŽE nějaké jsou.
+ */
+@Composable
+private fun UnreadBadges(chat: ChatSummary) {
+    if (chat.unreadReactionCount == 0 && chat.unreadMentionCount == 0 && chat.unreadCount == 0) return
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (chat.unreadReactionCount > 0) {
+            IconBadge(Res.drawable.favorite_filled_24dp, stringResource(Res.string.chats_unread_reaction))
+        }
+        if (chat.unreadMentionCount > 0) {
+            IconBadge(Res.drawable.alternate_email_24dp, stringResource(Res.string.chats_unread_mention))
+        }
+        if (chat.unreadCount > 0) {
+            // `Badge` je ve výchozím stavu chybově červený. Nepřečtená zpráva ale není
+            // chyba — v odlehčeném seznamu byla ta červená jediná sytá barva na obrazovce
+            // a přebíjela všechno ostatní.
+            Badge(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ) {
+                Text(chat.unreadCount.toString(), style = LocalTextStyle.current.tabularNumbers())
             }
         }
+    }
+}
+
+/** Kulatý odznak s ikonou, velký jako odznak s jednou číslicí. */
+@Composable
+private fun IconBadge(icon: DrawableResource, description: String) {
+    Badge(
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        modifier = Modifier.semantics { contentDescription = description },
+    ) {
+        Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(12.dp))
     }
 }
 
