@@ -4379,6 +4379,31 @@ na iOS. Dlouhý stisk v SEZNAMU dál otevírá nabídku — o gesto se nedělí,
   už zpracovává; předběhnout server by znamenalo riskovat, že zpráva zmizí z obrazovky a na
   serveru zůstane.
 
+### Překlad zprávy
+
+„Přeložit" v nabídce nad zprávou otevře sheet s překladem do jazyka aplikace
+(`translateMessageText`, `TranslationSheet`, `MessageMenuAction.Translate`).
+
+- **Sheet, ne náhrada textu v bublině**, jako u oficiálního Android klienta. Překlad je
+  jednorázové nahlédnutí; v bublině by se musel pamatovat u každé zprávy a přežít úpravu.
+- **Stojí na témže právu jako kopírování** (`canCopy`): bez textu není co překládat a chráněný
+  obsah ven nesmí ani jinou řečí. Anketa ho nemá (její text je náš popis).
+- **Cílový jazyk je `platformLanguageCode`** — tentýž zdroj jako jazyk pro TDLib, tedy i jazyk
+  nastavený jen pro aplikaci. Název jazyka dává systém (`localizedLanguageName`, jako
+  `localizedCountryName`).
+- **`translateMessageText` má v TDLib 15 čtvrtý parametr `tone`**; prázdný = výchozí.
+  Bez Premium přijde prostý text, s ním i formátování.
+- **Odkazy, zmínky a hashtagy se v překladu nekreslí jako klikací** — sheet nemá konverzaci,
+  kam by vedly. Zůstane jen formátování.
+- **Kopírování sheet zavře a potvrdí snackbarem** — pod modálním sheetem by vidět nebyl.
+- **Server překládá doslova i značky**: literální `**tučně**` v anglické zprávě vrátil jako
+  `<b>tučně</b>`. Je to vlastnost překladu, ne chyba vykreslení.
+- **Ověřeno na emulátoru** (aplikace přepnutá do češtiny, anglická zpráva od testovacího bota):
+  položka v nabídce, načítání, překlad, kopírování se snackbarem. **iOS jen přeložené.**
+- **Dlouhý stisk přes `adb` podle polohy z dumpu se může trefit do odkazu**, když se seznam mezi
+  dumpem a stiskem posune — pak se místo nabídky otevře prohlížeč. Poloha se bere těsně před
+  stiskem a mimo řádek s odkazem.
+
 ### Výběr víc zpráv
 
 Položka „Vybrat" v nabídce nad zprávou přepne konverzaci do režimu výběru: hlavička ukazuje ✕

@@ -45,3 +45,9 @@ expect val platformLanguageCode: String
  * se systémovou i aplikační češtinou.
  */
 expect fun localizedCountryName(code: String): String?
+
+/**
+ * Název jazyka podle kódu ISO 639 (`en`, `cs`) v jazyce zařízení, s velkým počátečním písmenem
+ * („Angličtina"), nebo `null`, když ho systém nezná. Data dává systém, jako u [localizedCountryName].
+ */
+expect fun localizedLanguageName(code: String): String?

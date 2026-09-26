@@ -1656,6 +1656,14 @@ fun ConversationScreen(
             )
         }
 
+        state.translation?.let { sheet ->
+            TranslationSheet(
+                sheet = sheet,
+                onCopy = viewModel::copyTranslation,
+                onDismiss = viewModel::dismissTranslation,
+            )
+        }
+
         state.selectingText?.let { message ->
             SelectTextSheet(message = message, onDismiss = viewModel::dismissTextSelection)
         }

@@ -86,6 +86,7 @@ class MessageActionTest {
                 MessageMenuAction.Edit,
                 MessageMenuAction.Copy,
                 MessageMenuAction.SelectText,
+                MessageMenuAction.Translate,
                 MessageMenuAction.Forward,
                 MessageMenuAction.Info,
                 MessageMenuAction.Pin,
@@ -203,13 +204,15 @@ class MessageActionTest {
         val items = menuActions(message(), isPinned = false)
         val shown = items.filter { it.presentation(menu(items, actions = MessageActions.Fallback)) != null }
         // Bez příznaků od serveru zbude jen to neškodné: odpověď, kopírování, výběr textu
-        // (což je kopírování po kouskách), informace a vstup do výběru — ten na právech
-        // nestojí, co výběr dovolí, se zjistí až u jeho akcí.
+        // (což je kopírování po kouskách), překlad (text ven jinou řečí — stojí na témže právu),
+        // informace a vstup do výběru — ten na právech nestojí, co výběr dovolí, se zjistí až
+        // u jeho akcí.
         assertEquals(
             listOf(
                 MessageMenuAction.Reply,
                 MessageMenuAction.Copy,
                 MessageMenuAction.SelectText,
+                MessageMenuAction.Translate,
                 MessageMenuAction.Info,
                 MessageMenuAction.Select,
             ),
@@ -232,11 +235,14 @@ class MessageActionTest {
         // Bez textu není co vybírat — stejná podmínka jako u kopírování.
         val bezTextu = menuActions(message(text = ""), isPinned = false)
         assertTrue(MessageMenuAction.Copy !in bezTextu && MessageMenuAction.SelectText !in bezTextu)
+        assertTrue(MessageMenuAction.Translate !in bezTextu)
 
         // A chráněný obsah ven nesmí ani po kouskách: obojí stojí na `canCopy`.
         val items = menuActions(message(), isPinned = false)
         val chraneny = menu(items, actions = MessageActions.Fallback.copy(canCopy = false))
         assertNull(MessageMenuAction.Copy.presentation(chraneny))
         assertNull(MessageMenuAction.SelectText.presentation(chraneny))
+        // Překlad by chráněný text vynesl jinou řečí.
+        assertNull(MessageMenuAction.Translate.presentation(chraneny))
     }
 }

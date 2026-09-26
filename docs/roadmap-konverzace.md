@@ -540,7 +540,10 @@ snadno na to uživatel narazí.
   podvodu"). Zbývá značka ověření od bota (`botVerificationIconCustomEmojiId`, vlastní emoji)
   a štítek u jména odesílatele ve skupině.
 - ~~**Emoji status** u jména~~ — hotovo. **Časovač automatického mazání chatu** v hlavičce a jeho nastavení.
-- **Překlad zprávy** (`translateMessageText`) a **shrnutí od serveru** (`summarizeMessage`,
+- ~~**Překlad zprávy**~~ (`translateMessageText`) — hotovo, sheet z nabídky nad zprávou
+  (`CLAUDE.md`, „Překlad zprávy"). Zbývá volba cílového jazyka, překlad celého chatu
+  (`UpdateChatIsTranslatable`, Premium) a skrýt „Přeložit" u zprávy, která už je v jazyce
+  aplikace (chce to rozpoznání jazyka v zařízení). **Shrnutí od serveru** (`summarizeMessage`,
   `summaryLanguageCode`) — vedle shrnutí v zařízení.
 - **Vědomě NE**: tapeta a téma chatu (`Chat.background`, `theme`) a barvy jmen podle profilu
   (`accentColorId`) — aplikace má vlastní Material vzhled a `senderColor`; kdyby se přidávaly,

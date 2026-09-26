@@ -400,6 +400,12 @@
     <string name="menu_favorite_remove">Odebrat z oblíbených</string>
     <string name="menu_pin">Připnout</string>
     <string name="menu_select_text">Vybrat text</string>
+    <string name="menu_translate">Přeložit</string>
+    <string name="translation_title">Překlad</string>
+    <string name="translation_to">Do jazyka: %1$s</string>
+    <string name="translation_failed">Zprávu se nepodařilo přeložit</string>
+    <string name="translation_copy">Kopírovat překlad</string>
+    <string name="translation_copied">Překlad zkopírován</string>
     <string name="menu_select">Vybrat</string>
     <string name="menu_unpin">Odepnout</string>
     <string name="menu_delete">Smazat</string>

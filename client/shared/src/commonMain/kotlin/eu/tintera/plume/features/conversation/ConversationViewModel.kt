@@ -32,6 +32,8 @@ import eu.tintera.plume.resources.conversation_link_failed
 import eu.tintera.plume.core.telegram.InvitePreview
 import eu.tintera.plume.core.telegram.InviteJoinResult
 import eu.tintera.plume.core.telegram.InternalLink
+import eu.tintera.plume.core.telegram.platformLanguageCode
+import eu.tintera.plume.core.telegram.MessageBody
 import eu.tintera.plume.core.telegram.NameMention
 import eu.tintera.plume.core.telegram.MentionCandidate
 import androidx.lifecycle.ViewModel
@@ -183,6 +185,7 @@ import eu.tintera.plume.core.location.GeoPoint
 import kotlin.time.Duration.Companion.milliseconds
 import eu.tintera.plume.core.telegram.inlineQueryOf
 import eu.tintera.plume.resources.conversation_via_bot_draft_busy
+import eu.tintera.plume.resources.translation_copied
 
 /**
  * Stav a stránkování jedné konverzace.
@@ -2536,6 +2539,49 @@ class ConversationViewModel(
     }
 
     /**
+     * Přeloží text zprávy do jazyka aplikace ([platformLanguageCode]) a ukáže ho v sheetu.
+     *
+     * Sheet se otevře hned s načítáním — překlad jde přes server a trvá. Selhání zůstane v sheetu
+     * jako věta, ne snackbar: pod modálním sheetem by snackbar nebyl vidět.
+     */
+    private fun showTranslation(messageId: Long) {
+        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+        val language = platformLanguageCode
+        _state.update { it.copy(messageMenu = null, translation = TranslationSheet(message, language)) }
+
+        viewModelScope.launch {
+            val result = repository.translateMessage(chatId, messageId, language)
+            _state.update { state ->
+                // Mezitím mohl uživatel sheet zavřít nebo otevřít u jiné zprávy.
+                val open = state.translation?.takeIf { it.message.id == messageId } ?: return@update state
+                state.copy(
+                    translation = result.fold(
+                        onSuccess = { open.copy(body = it) },
+                        onFailure = { failure ->
+                            logger.w(failure) { "Zprávu se nepodařilo přeložit." }
+                            open.copy(failed = true)
+                        },
+                    ),
+                )
+            }
+        }
+    }
+
+    fun dismissTranslation() {
+        _state.update { it.copy(translation = null) }
+    }
+
+    /**
+     * Zkopíruje překlad a sheet zavře. Potvrzení jde snackbarem až po zavření — pod modálním
+     * sheetem by vidět nebylo (stejně jako u odkazu v „Informace").
+     */
+    fun copyTranslation() {
+        val text = _state.value.translation?.body?.text ?: return
+        viewModelScope.launch { clipboard.copy(text) }
+        _state.update { it.copy(translation = null, notice = UiText(Res.string.translation_copied)) }
+    }
+
+    /**
      * Odkaz na zprávu do schránky.
      *
      * Sheet se přitom zavře. Jednak je tím skopírování hotová věc — kdo si o odkaz řekl, ten ho
@@ -2656,6 +2702,7 @@ class ConversationViewModel(
             MessageMenuAction.ToggleFavoriteSticker -> toggleFavoriteSticker(messageId)
             MessageMenuAction.Forward -> requestForward(messageId)
             MessageMenuAction.Info -> showMessageInfo(messageId)
+            MessageMenuAction.Translate -> showTranslation(messageId)
             MessageMenuAction.SelectText -> selectText(messageId)
             MessageMenuAction.Pin -> requestPin(messageId)
             MessageMenuAction.Unpin -> unpinFromMenu(messageId)
@@ -3578,6 +3625,17 @@ data class MessageInfoSheet(
 )
 
 /**
+ * Otevřený překlad zprávy do jazyka [languageCode]. [body] je `null`, dokud překlad nedorazí;
+ * [failed] = server ho nevydal.
+ */
+data class TranslationSheet(
+    val message: ChatMessage,
+    val languageCode: String,
+    val body: MessageBody? = null,
+    val failed: Boolean = false,
+)
+
+/**
  * Otevřený detail reakcí: kdo a čím reagoval.
  *
  * Načítá se až při otevření — čip u zprávy nese jen emoji a počet, takže jména a profilovky
@@ -3812,6 +3870,8 @@ data class ConversationState(
     val reactionDetails: ReactionDetails? = null,
     /** Otevřené informace o zprávě; `null`, když je sheet zavřený. */
     val messageInfo: MessageInfoSheet? = null,
+    /** Otevřený překlad zprávy; `null`, když je sheet zavřený. */
+    val translation: TranslationSheet? = null,
     /**
      * Zpráva, u které si uživatel ťuknutím vyžádal odznak přečtení; `null`, když žádná.
      *
