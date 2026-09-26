@@ -5585,6 +5585,37 @@ nese náhled v seznamu chatů, citace i notifikace. Pravidlo je čistá funkce `
   `labelLarge` míří na výšku písmen, ale u emoji je nosná celá kresba, takže ve stejné velikosti
   působí menší než číslo vedle ní.
 
+### Vlastní emoji v textu
+
+Vlastní emoji (`TextEntityTypeCustomEmoji`) je samolepka, která v textu stojí místo náhradního
+emoji. Kreslí se jako inline obsah `RichText` (`CustomEmojiImage`, `customEmojiRanges`, testy
+`CustomEmojiRangesTest`), data dává `CustomEmojiRepository` nad `getCustomEmojiStickers`.
+
+- **Náhradní znak v řetězci ZŮSTÁVÁ**, jen se místo něj vykreslí obrázek. Inline obsah se
+  připojuje anotací nad UŽ PŘIPOJENÝM úsekem (`addStringAnnotation` se značkou
+  `INLINE_CONTENT_TAG`), ne `appendInlineContent` — ten by text přestavěl a posunul offsety
+  všech entit, zvýraznění hledání i spoilerů. Značka je v Compose `internal`, a proto opsaná;
+  `appendInlineContent` ji přidává přesně takhle.
+- **Placeholder je čtverec 1,2 em** na střed řádku; než obrázek dorazí (a když ho server
+  nevydá), kreslí se v něm náhradní emoji, takže se výměnou nic nepřeskládá.
+- **V zakrytém spoileru se nenahrazuje** — obrázek by prozradil, co je skryté.
+- **Dotazy se slučují do dávky** (16 ms, nejvýš 200 id na volání) a výsledek se pamatuje po
+  dobu života klienta; `fileId` platí v jedné databázi, takže se po odhlášení zahazuje.
+  Nevydané emoji se zapomene, ať se o něj příště řekne znovu.
+- **`needsRepainting` = obarvit barvou textu** (`tinted`, `SrcIn` nad vlastní vrstvou) — na
+  odchozí bublině by jednobarevné emoji jinak splynulo.
+- **Formáty jako u samolepky**: `.tgs` hraje (Compottie), `.webp` a rastrový náhled jsou obrázek,
+  `.webm` zůstane náhledem, bez náhledu náhradním znakem.
+- **Zpráva s vlastním emoji nejde upravit** — `plainTextEdit` bere každou entitu kromě odkazu
+  jako ruční formátování, které by úprava smazala.
+- **Bot vlastní emoji poslat nesmí** (Bot API je bez placeného uživatelského jména na Fragmentu
+  potichu zahodí, v odpovědi pak `entities` chybí). Ověřuje se proto sondou: skutečná id vydá
+  Bot API `getStickerSet` (sady `RestrictedEmoji`, `StatusEmoji`) a dočasně se přidají jako
+  entity textu od testovacího bota v `FormattedText.toBody`. Necommituje se.
+- **Ověřeno na emulátoru sondou**: animovaný `.tgs` uprostřed textu, emoji na konci řádku,
+  zpráva jen z vlastních emoji ve velké sazbě, obarvení v tmavém motivu (podstrčené `tinted`).
+  **Skutečná zpráva od člověka ověřená není.**
+
 ## Výběr samolepek
 
 Tlačítko se samolepkou ve vstupním poli otevře bottom sheet: záložky Nedávné, Oblíbené
