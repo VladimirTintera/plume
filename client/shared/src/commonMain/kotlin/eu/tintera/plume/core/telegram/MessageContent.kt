@@ -150,6 +150,7 @@ import dev.g000sha256.tdl.dto.TextEntityTypeHashtag
 import dev.g000sha256.tdl.dto.TextEntityTypeItalic
 import dev.g000sha256.tdl.dto.TextEntityTypeMention
 import dev.g000sha256.tdl.dto.TextEntityTypeMentionName
+import dev.g000sha256.tdl.dto.TextEntityTypeMediaTimestamp
 import dev.g000sha256.tdl.dto.TextEntityTypePhoneNumber
 import dev.g000sha256.tdl.dto.TextEntityTypePre
 import dev.g000sha256.tdl.dto.TextEntityTypePreCode
@@ -533,6 +534,7 @@ private fun TextEntity.toEntity(text: String): MessageEntity? {
         is TextEntityTypeMentionName -> MessageEntityType.MentionUser(type.userId)
         is TextEntityTypeHashtag -> MessageEntityType.Hashtag(text.range(this))
         is TextEntityTypeBotCommand -> MessageEntityType.BotCommand(text.range(this))
+        is TextEntityTypeMediaTimestamp -> MessageEntityType.MediaTimestamp(type.mediaTimestamp)
 
         is TextEntityTypeBold -> MessageEntityType.Bold
         is TextEntityTypeItalic -> MessageEntityType.Italic

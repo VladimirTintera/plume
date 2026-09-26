@@ -155,6 +155,12 @@ sealed interface MessageAction {
     /** Ťuknutí na video kolečko: pustí ho se zvukem od začátku, podruhé zvuk vypne. */
     data object ToggleVideoNoteSound : MessageAction
 
+    /**
+     * Ťuknutí na čas v textu („1:23"): pustit médium od [seconds] — video v prohlížeči,
+     * hlasovku, skladbu nebo kolečko přímo v chatu (viz [MessageEntityType.MediaTimestamp]).
+     */
+    data class PlayMediaAt(val seconds: Int) : MessageAction
+
     /** Kolečko se zvukem dohrálo nebo odjelo z obrazovky. */
     data object VideoNoteSoundEnded : MessageAction
     data class SeekVoice(val fraction: Float) : MessageAction

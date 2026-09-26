@@ -2049,6 +2049,42 @@ class ConversationViewModel(
     }
 
     /** Obrazovka chat otevřela. Bez toho by se po otočení displeje otevřel znovu. */
+    /**
+     * Čas v médiu („1:23"). Médium je v téže zprávě, nebo ve zprávě, na kterou odpovídá
+     * (`hasTimestampedMedia`) — tak to definuje TDLib. Video se otevře v prohlížeči od toho
+     * místa (navigace je věc obrazovky, proto stav [ConversationState.openMediaAt]); hlasovka,
+     * skladba a kolečko hrají v chatu, jako po ťuknutí na ně.
+     */
+    private fun playMediaAt(messageId: Long, seconds: Int) {
+        val state = _state.value
+        val message = state.messages.firstOrNull { it.id == messageId } ?: return
+        val target = timestampTarget(message, state.messages, state.quotes) ?: return
+        val startMs = seconds * 1000L
+        when (val media = target.media) {
+            is MessageMedia.Video -> _state.update { it.copy(openMediaAt = MediaAt(target.id, seconds)) }
+            is MessageMedia.VoiceNote -> {
+                _state.update { it.copy(soundingVideoNote = null) }
+                voicePlayer.play(VoiceKey(chatId, target.id), startMs = startMs) { voicePath(media) }
+                if (!target.isOutgoing && !media.isListened) reportListened(target.id)
+            }
+            is MessageMedia.Audio -> {
+                _state.update { it.copy(soundingVideoNote = null) }
+                voicePlayer.play(VoiceKey(chatId, target.id), raiseToEar = false, startMs = startMs) { filePath(media.fileId) }
+            }
+            is MessageMedia.VideoNote -> {
+                voicePlayer.stop()
+                _state.update { it.copy(soundingVideoNote = target.id, soundingVideoNoteFromMs = startMs) }
+                if (!target.isOutgoing && !media.isViewed) reportListened(target.id)
+            }
+            // Video v náhledu odkazu (YouTube…) v aplikaci nepřehráváme; čas nemá kam vést.
+            else -> Unit
+        }
+    }
+
+    fun consumeOpenMediaAt() {
+        _state.update { it.copy(openMediaAt = null) }
+    }
+
     fun consumeOpenChat() {
         _state.update { it.copy(openChat = null) }
     }
@@ -2412,6 +2448,7 @@ class ConversationViewModel(
             MessageAction.CancelUpload -> cancelUpload(messageId)
             MessageAction.ToggleVoice -> toggleVoice(messageId)
             MessageAction.ToggleVideoNoteSound -> toggleVideoNoteSound(messageId)
+            is MessageAction.PlayMediaAt -> playMediaAt(messageId, action.seconds)
             MessageAction.VideoNoteSoundEnded -> _state.update {
                 if (it.soundingVideoNote == messageId) it.copy(soundingVideoNote = null) else it
             }
@@ -2985,7 +3022,7 @@ class ConversationViewModel(
             return
         }
         voicePlayer.stop()
-        _state.update { it.copy(soundingVideoNote = messageId) }
+        _state.update { it.copy(soundingVideoNote = messageId, soundingVideoNoteFromMs = 0L) }
         if (!message.isOutgoing && !note.isViewed) reportListened(messageId)
     }
 
@@ -3312,6 +3349,9 @@ data class ChatTarget(
     val threadId: Long? = null,
 )
 
+/** Video k otevření v prohlížeči od [seconds] (čas v médiu). */
+data class MediaAt(val messageId: Long, val seconds: Int)
+
 /** Otevřený náhled pozvánky; [joining] = přidávání běží a tlačítko je neaktivní. */
 data class InviteSheetState(val link: String, val preview: InvitePreview, val joining: Boolean = false)
 
@@ -3620,6 +3660,10 @@ data class ConversationState(
     val pressingBotButton: BotButtonRef? = null,
     /** Video kolečko, které hraje se zvukem; `null` = všechna hrají potichu (nebo vůbec). */
     val soundingVideoNote: Long? = null,
+    /** Odkud kolečko se zvukem hraje (čas v médiu, viz [MessageAction.PlayMediaAt]); jinak nula. */
+    val soundingVideoNoteFromMs: Long = 0L,
+    /** Video otevřít v prohlížeči od daného místa (čas v médiu); `null` = nic. */
+    val openMediaAt: MediaAt? = null,
     /** Popis bota; `null` = chat není s botem (a Start se nenabízí). */
     val botIntro: BotIntro? = null,
     /** Parametr ze startovacího odkazu, který čeká na Start ([BotStartRequests]). */

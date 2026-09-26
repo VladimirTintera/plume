@@ -1179,10 +1179,12 @@ internal fun MessageBodyScope.MessageText(
                 is MessageEntityType.MentionUser -> act(MessageAction.OpenUser(type.userId))
                 is MessageEntityType.Hashtag -> act(MessageAction.SearchHashtag(type.tag))
                 is MessageEntityType.BotCommand -> act(MessageAction.SendBotCommand(type.command))
+                is MessageEntityType.MediaTimestamp -> act(MessageAction.PlayMediaAt(type.seconds))
                 else -> Unit
             }
         },
         commandsClickable = items.canSendCommands(),
+        timestampsClickable = true,
         onLongClick = ::requestMenu,
     )
 }
@@ -1235,6 +1237,7 @@ internal fun MessageBodyScope.Attachment(
             sounding = { items.videoNoteSounding(id) },
             onToggleSound = { act(MessageAction.ToggleVideoNoteSound) },
             onSoundEnded = { act(MessageAction.VideoNoteSoundEnded) },
+            soundFromMs = { items.videoNoteSoundFromMs() },
         ),
         voice = VoiceHandlers(
             playback = { items.voicePlayback(id) },

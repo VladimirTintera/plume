@@ -152,7 +152,15 @@ data class MediaRoute(
      * odpovědi; `NO_POLL_MEDIA` = běžná zpráva. Anketa nese víc obrázků pod jedním id zprávy.
      */
     val pollMedia: Int = NO_POLL_MEDIA,
+    /**
+     * Čas v médiu („1:23" v textu): video se otevře rovnou na celé obrazovce a hraje od téhle
+     * vteřiny. `NO_START` = běžné otevření do galerie.
+     */
+    val startSeconds: Int = NO_START,
 ) : Route
+
+/** [MediaRoute.startSeconds] bez času v médiu. */
+const val NO_START = -1
 
 /**
  * Výběr chatu, do kterého se přeposílá.

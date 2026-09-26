@@ -508,9 +508,11 @@ snadno na to uživatel narazí.
   musely posunout). V notifikaci zůstává náhradní znak záměrně. **Skutečná data od člověka
   ověřená nejsou** — bot nic z toho poslat nesmí (viz CLAUDE.md).
 - ~~**Příkaz bota** (`BotCommand`)~~ — hotovo: ťuknutí příkaz pošle (`CLAUDE.md`, „Příkazy bota“).
-- **Čas v médiu** (`MediaTimestamp`, `hasTimestampedMedia`) — „1:23" v popisku videa má skočit
-  ve videu. **Datum a čas** (`DateTime`) — naformátovat v místním pásmu. Karta a cashtag
-  jsou okrajové.
+- ~~**Čas v médiu**~~ — hotovo: „1:23" pustí video, hlasovku, skladbu i kolečko od toho místa,
+  v téže zprávě i v odpovědi (`CLAUDE.md`, „Čas v médiu"). Zbývá video v náhledu odkazu.
+- **Datum a čas** (`DateTime`) — naformátovat v místním pásmu. Pozor: oficiální klienti text
+  entity NAHRAZUJÍ, což posune offsety všech ostatních entit — samostatný kus práce. Karta
+  a cashtag jsou okrajové.
 
 **Konverzace jako celek**
 

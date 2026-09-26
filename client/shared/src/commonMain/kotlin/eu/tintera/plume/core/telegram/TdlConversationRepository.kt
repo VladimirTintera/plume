@@ -1552,6 +1552,7 @@ class TdlConversationRepository(
             hasUnreadPollVotes = containsUnreadPollVotes,
             threadId = (topicId as? MessageTopicThread)?.messageThreadId,
             schedule = schedulingState?.toSchedule(),
+            hasTimestampedMedia = hasTimestampedMedia,
             sendState = if (outgoing) sendingState.toSendState() else null,
             // Odpověď mimo tenhle chat nese `externalReply` — v načtené historii citovaná zpráva
             // není, takže se na ni skákat nedá.

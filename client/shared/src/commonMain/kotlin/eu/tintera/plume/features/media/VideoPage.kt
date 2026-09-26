@@ -113,6 +113,8 @@ import org.koin.compose.koinInject
 internal fun VideoPage(
     video: MessageMedia.Video,
     messageId: Long,
+    /** Čas v médiu: po načtení skočit sem (ms); nula = od začátku. */
+    startMs: Long = 0L,
     caption: String,
     isCurrent: Boolean,
     immersive: Boolean,
@@ -141,6 +143,7 @@ internal fun VideoPage(
     val scope = rememberCoroutineScope()
     val repository = koinInject<FileRepository>()
     VideoPage(
+        startMs = startMs,
         aspectRatio = aspectRatioOf(video.width, video.height),
         durationSeconds = video.durationSeconds,
         caption = caption,
@@ -231,6 +234,8 @@ internal fun VideoPage(
     cardBias: () -> Float = { 0f },
     /** Ovládání na kartě navíc (✕ a volba režimu ve sdílení); v galerii, na celé obrazovce ne. */
     overlay: @Composable BoxScope.() -> Unit = {},
+    /** Po načtení skočit sem (ms) — čas v médiu; nula = od začátku. */
+    startMs: Long = 0L,
 ) {
     val scope = rememberCoroutineScope()
     val voicePlayer = koinInject<VoicePlayer>()
@@ -274,6 +279,7 @@ internal fun VideoPage(
             // Hotový soubor má přednost: jednodušší cesta a nic se na něj nečeká.
             path != null -> {
                 player.load(path)
+                if (startMs > 0) player.seekTo(startMs)
                 loaded = true
             }
             // Streamovat se dá, teprve až je na disku začátek souboru s indexem.
@@ -286,6 +292,7 @@ internal fun VideoPage(
                         requestFrom = requestFrom,
                     ),
                 )
+                if (startMs > 0) player.seekTo(startMs)
                 loaded = true
             }
         }

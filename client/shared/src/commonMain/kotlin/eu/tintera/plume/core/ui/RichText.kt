@@ -89,6 +89,11 @@ fun RichText(
      */
     commandsClickable: Boolean = false,
     /**
+     * Jde ťuknutím na „1:23" pustit médium od toho místa? Jen v konverzaci — jinde (bio,
+     * popis) by čas vedl nikam a zůstane obyčejným textem.
+     */
+    timestampsClickable: Boolean = false,
+    /**
      * Dlouhý stisk NAD ODKAZEM. Mimo odkazy ho dostane rodič (bublina) sám.
      *
      * Odkaz je uvnitř `Text` samostatný `combinedClickable` bez `onLongClick`, a ten dlouhý stisk
@@ -192,11 +197,12 @@ fun RichText(
         customEmojiRanges(text, entities, spoilersRevealed)
     }
     val inlineContent = remember(customEmoji) { customEmojiInlineContent(customEmoji.map { it.second }.toSet()) }
-    val annotated = remember(text, entities, linkColor, contentColor, spoilersRevealed, visible, highlightColor, quoteIndent, customEmoji, commandsClickable) {
+    val annotated = remember(text, entities, linkColor, contentColor, spoilersRevealed, visible, highlightColor, quoteIndent, customEmoji, commandsClickable, timestampsClickable) {
         buildMessageText(
             text = text,
             entities = entities,
             commandsClickable = commandsClickable,
+            timestampsClickable = timestampsClickable,
             quoteIndent = quoteIndent,
             highlights = visible,
             highlightColor = highlightColor,
@@ -293,6 +299,7 @@ private fun buildMessageText(
     text: String,
     entities: List<MessageEntity>,
     commandsClickable: Boolean,
+    timestampsClickable: Boolean,
     /** `null` = citace se odsazuje `padding`em celého textu, ne odstavcem. */
     quoteIndent: TextUnit?,
     highlights: List<IntRange>,
@@ -342,7 +349,13 @@ private fun buildMessageText(
              */
             // Příkaz bota tam, kde není komu ho poslat, zůstane obyčejným textem.
             is MessageEntityType.Mention, is MessageEntityType.MentionUser, is MessageEntityType.Hashtag,
-            is MessageEntityType.BotCommand -> if (type !is MessageEntityType.BotCommand || commandsClickable) addLink(
+            is MessageEntityType.BotCommand, is MessageEntityType.MediaTimestamp -> if (
+                when (type) {
+                    is MessageEntityType.BotCommand -> commandsClickable
+                    is MessageEntityType.MediaTimestamp -> timestampsClickable
+                    else -> true
+                }
+            ) addLink(
                 clickable = LinkAnnotation.Clickable(
                     tag = ENTITY_TAG,
                     styles = TextLinkStyles(

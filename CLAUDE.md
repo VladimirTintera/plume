@@ -3697,6 +3697,31 @@ všechny podoby (`t.me`, `telegram.me`, `tg://`) a my jen vybíráme, co umíme 
 - **Sada samolepek** (`t.me/addstickers/…`, `searchStickerSet`) otevře tentýž sheet jako ťuknutí
   na samolepku.
 
+### Čas v médiu
+
+„1:23" v textu (`TextEntityTypeMediaTimestamp` → `MessageEntityType.MediaTimestamp`) pustí
+médium od toho místa: video v prohlížeči, hlasovku, skladbu a kolečko přímo v chatu
+(`MessageAction.PlayMediaAt`, `ConversationViewModel.playMediaAt`).
+
+- **Kam čas míří, říká TDLib**: médium téže zprávy (popisek videa), nebo zprávy, na kterou
+  odpovídá (`Message.hasTimestampedMedia` = `false`). Pravidlo je čistá funkce
+  `timestampTarget` (testy `MediaTimestampTest`); citovaná zpráva mimo načtenou historii se
+  bere z dotažených citací.
+- **Entitu vyrábí TDLib i u příchozích zpráv sám** — bot poslal holý text „Tady 0:02" jako
+  odpověď na video a entita v něm byla. Server ji neposílá, takže se Bot API ověřit dá.
+- **Video se otevře rovnou na celé obrazovce a hraje** (`MediaRoute.startSeconds`,
+  `NO_START` = běžné otevření). V galerii by ho uživatel musel pustit sám a čas by nic neudělal.
+  Přeskočí se hned po načtení (`seekTo` v `VideoPage`), u streamovaného videa taky.
+- **Hlasovka a skladba jdou přes `VoicePlayer.play(startMs = …)`**; čas za koncem (překlep
+  u krátké hlasovky) se ignoruje, jinak by přehrávač hned skončil. Kolečko se zvukem si start
+  bere z `ConversationState.soundingVideoNoteFromMs`.
+- **Klikatelný je čas jen v konverzaci** (`RichText(timestampsClickable)`), jinde (bio, popis)
+  zůstane textem — vedl by nikam.
+- **Video v náhledu odkazu (YouTube) čas nepustí** — v aplikaci ho nepřehráváme.
+- **Ověřeno na emulátoru botem**: popisek videa, odpověď na video (prohlížeč na celé obrazovce
+  od 0:02), odpověď na skladbu, na hlasovku (m4a přes `sendVoice`) a na kolečko — vše hraje
+  od 0:02. **Neověřeno**: iOS (jen přeložené).
+
 ### Ankety a kvízy
 
 Anketa se kreslí jako vlastní blok (`PollMessageItem`) nad doménovým `ChatPoll` (`ChatMessage.poll`,
