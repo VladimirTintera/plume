@@ -42,6 +42,8 @@ import eu.tintera.plume.resources.select_check_box_24dp
 import eu.tintera.plume.resources.star_24dp
 import eu.tintera.plume.resources.text_select_24dp
 import eu.tintera.plume.resources.star_filled_24dp
+import eu.tintera.plume.resources.translate_24dp
+import eu.tintera.plume.resources.menu_translate
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 
@@ -263,6 +265,16 @@ sealed interface MessageMenuAction : MessageAction {
     data object SelectText : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
             MenuPresentation(Res.drawable.text_select_24dp, Res.string.menu_select_text).takeIf { menu.actions.canCopy }
+    }
+
+    /**
+     * Přeložit text zprávy do jazyka aplikace. Kandidát za stejných podmínek jako [Copy]: bez
+     * textu není co překládat a chráněný obsah ven nesmí ani v jiném jazyce. Otevře sheet — je to
+     * jednorázová akce jako „Informace", ne podnabídka.
+     */
+    data object Translate : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.translate_24dp, Res.string.menu_translate).takeIf { menu.actions.canCopy }
     }
 
     /** Kandidát jen u samolepky. Jestli už v oblíbených je, se zjistí při otevření nabídky. */

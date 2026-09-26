@@ -229,6 +229,7 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageM
     if (poll == null && message.copyableText().isNotBlank()) {
         add(MessageMenuAction.Copy)
         add(MessageMenuAction.SelectText)
+        add(MessageMenuAction.Translate)
     }
     if (message.media is MessageMedia.Sticker) add(MessageMenuAction.ToggleFavoriteSticker)
     add(MessageMenuAction.Forward)

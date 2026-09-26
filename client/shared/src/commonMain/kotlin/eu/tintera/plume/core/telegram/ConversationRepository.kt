@@ -580,6 +580,12 @@ interface ConversationRepository {
     suspend fun mentionCandidates(chatId: Long, query: String): Result<List<MentionCandidate>>
 
     /**
+     * Text (nebo popisek) zprávy přeložený do jazyka [languageCode] (`translateMessageText`).
+     * Překládá server; bez Premium přijde prostý text, s ním i s formátováním.
+     */
+    suspend fun translateMessage(chatId: Long, messageId: Long, languageCode: String): Result<MessageBody>
+
+    /**
      * Jméno a fotka uživatele nebo chatu s tímhle id — pro tvář toho, kdo ve skupině píše.
      * Z keše odesílatelů, takže opakované „píše…" téhož člověka se na nic neptá.
      */

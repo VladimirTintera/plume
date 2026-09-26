@@ -397,6 +397,12 @@
     <string name="menu_favorite_remove">Remove from favourites</string>
     <string name="menu_pin">Pin</string>
     <string name="menu_select_text">Select text</string>
+    <string name="menu_translate">Translate</string>
+    <string name="translation_title">Translation</string>
+    <string name="translation_to">To %1$s</string>
+    <string name="translation_failed">The message could not be translated</string>
+    <string name="translation_copy">Copy translation</string>
+    <string name="translation_copied">Translation copied</string>
     <string name="menu_select">Select</string>
     <string name="menu_unpin">Unpin</string>
     <string name="menu_delete">Delete</string>

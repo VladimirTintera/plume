@@ -503,7 +503,7 @@ internal suspend fun Message.captionBody(): MessageBody = when (val content = th
  * Drží se pohromadě proto, aby se ty dvě věci nemohly rozejít — entity bez svého textu jsou
  * jen dvojice čísel a špatně spárované ukazují jinam, než by měly.
  */
-internal data class MessageBody(
+data class MessageBody(
     val text: String,
     val entities: List<MessageEntity> = emptyList(),
 ) {

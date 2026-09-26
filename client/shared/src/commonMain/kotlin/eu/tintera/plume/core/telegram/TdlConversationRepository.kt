@@ -2086,6 +2086,17 @@ class TdlConversationRepository(
         resolveSender(senderId)?.let { Result.success(it) }
             ?: Result.failure(IllegalStateException("Odesílatel $senderId není známý"))
 
+    override suspend fun translateMessage(chatId: Long, messageId: Long, languageCode: String): Result<MessageBody> =
+        client.translateMessageText(
+            chatId = chatId,
+            messageId = messageId,
+            toLanguageCode = languageCode,
+            // Prázdný = výchozí tón překladu; volbu tónu aplikace nenabízí.
+            tone = "",
+        )
+            .toResult()
+            .map { it.toBody() }
+
     override suspend fun mentionCandidates(chatId: Long, query: String): Result<List<MentionCandidate>> {
         val me = myId()
         return client.searchChatMembers(

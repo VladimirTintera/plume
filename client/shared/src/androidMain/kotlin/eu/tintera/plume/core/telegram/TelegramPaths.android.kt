@@ -40,3 +40,9 @@ actual fun localizedCountryName(code: String): String? =
     runCatching { Locale.Builder().setRegion(code).build().getDisplayCountry(Locale.getDefault()) }
         .getOrNull()
         ?.takeIf { it.isNotBlank() && !it.equals(code, ignoreCase = true) }
+
+actual fun localizedLanguageName(code: String): String? =
+    runCatching { Locale.forLanguageTag(code).getDisplayLanguage(Locale.getDefault()) }
+        .getOrNull()
+        ?.takeIf { it.isNotBlank() && !it.equals(code, ignoreCase = true) }
+        ?.replaceFirstChar { it.titlecase(Locale.getDefault()) }
