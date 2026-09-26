@@ -511,9 +511,10 @@ snadno na to uživatel narazí.
 - **Témata ve skupinách (fóra)** — `topicId` je všude `null`, takže skupina s tématy je jedna
   promíchaná konverzace a odpověď padne do obecného tématu. Seznam témat, konverzace tématu,
   psaní do tématu.
-- **Nepřečtené zmínky a reakce** (`Chat.unreadMentionCount`, `unreadReactionCount`) — tlačítka
-  „@" a „❤" nad tlačítkem dolů, skok na další (`searchChatMessages` s `SearchMessagesFilterUnreadMention`
-  / `UnreadReaction`), `readAllChatMentions`.
+- ~~**Nepřečtené zmínky a reakce**~~ — hotovo: tlačítka „@" a „❤" nad tlačítkem dolů, odznaky
+  v seznamu chatů, „Označit vše" podržením (`CLAUDE.md`, „Nepřečtené zmínky a reakce"). Zbývá:
+  **ověřit skutečnou zmínku ve skupině**, **nepřečtené hlasy v anketě** (`unreadPollVoteCount`,
+  `SearchMessagesFilterUnreadPollVote`, TDLib 15) a zvýraznění, KDO reagoval (`UnreadReaction.senderId`).
 - **Prázdný chat s botem** — popis „Co tento bot umí?" s obrázkem (`botInfo.description`,
   `photo`, `animation`) a tlačítko **Start** (`sendBotStartMessage`, i s parametrem z odkazu
   `t.me/bot?start=…`). Dnes prázdná konverzace a pole.

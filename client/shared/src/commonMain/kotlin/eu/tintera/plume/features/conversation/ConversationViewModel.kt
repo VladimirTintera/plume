@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ReplyQuote
+import eu.tintera.plume.core.telegram.UnreadMarkKind
+import eu.tintera.plume.core.telegram.UnreadMarks
 import eu.tintera.plume.core.telegram.ChatReplyMarkup
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.ReplyKeyboardButtonKind
@@ -117,6 +119,7 @@ import eu.tintera.plume.resources.conversation_repin_failed
 import eu.tintera.plume.resources.conversation_send_failed
 import eu.tintera.plume.resources.conversation_sticker_send_failed
 import eu.tintera.plume.resources.conversation_unpin_failed
+import eu.tintera.plume.resources.conversation_unread_mark_failed
 import eu.tintera.plume.resources.conversation_voice_send_failed
 import eu.tintera.plume.resources.document_download_failed
 import eu.tintera.plume.resources.document_open_failed
@@ -725,6 +728,42 @@ class ConversationViewModel(
         }
     }
 
+    /** Běžící hledání nejstarší zmínky nebo reakce; druhé ťuknutí mezitím nic nespustí. */
+    private var markJob: Job? = null
+
+    /**
+     * Tlačítko „@" nebo „❤": skok na nejstarší nepřečtenou zmínku, nebo vlastní zprávu
+     * s nepřečtenou reakcí.
+     *
+     * Cíl se hned hlásí jako zhlédnutý, nečeká se, až ho obrazovka ohlásí sama. Jinak by další
+     * ťuknutí během pár set milisekund našlo TUTÉŽ zprávu a tlačítko by nevedlo dál. Přečte se
+     * tím i historie po ni — stejně jako kdyby na ni uživatel doroloval.
+     */
+    fun jumpToUnreadMark(kind: UnreadMarkKind) {
+        if (markJob?.isActive == true) return
+        markJob = viewModelScope.launch {
+            repository.oldestUnreadMark(chatId, kind).fold(
+                onSuccess = { messageId ->
+                    messageId ?: return@fold
+                    jumpToMessage(messageId, fromSearch = true)
+                    repository.markRead(chatId, listOf(messageId))
+                },
+                onFailure = { failure ->
+                    _state.update { it.copy(error = failure.reported(Res.string.conversation_unread_mark_failed)) }
+                },
+            )
+        }
+    }
+
+    /** Podržení tlačítka „@" nebo „❤" → „Označit vše jako přečtené". */
+    fun readAllMarks(kind: UnreadMarkKind) {
+        viewModelScope.launch {
+            repository.readAllMarks(chatId, kind).onFailure { failure ->
+                _state.update { it.copy(error = failure.reported(Res.string.conversation_unread_mark_failed)) }
+            }
+        }
+    }
+
     /**
      * Dotáhne historii tak daleko, aby v ní byla hranice nepřečtených, a pak na ni skočí.
      *
@@ -886,6 +925,26 @@ class ConversationViewModel(
                         // Upravená připnutá zpráva se musí přepsat i v pruhu, jinak by ukazoval starý text.
                         pinned = it.pinned.map { pinned -> if (pinned.id == message.id) message else pinned },
                     )
+                }
+            }
+        }
+
+        // Počty jsou za celý chat; ve vlákně komentářů by vedly do zpráv mimo něj.
+        if (threadRootId == null) {
+            viewModelScope.launch {
+                repository.unreadMarks(chatId).collect { marks ->
+                    _state.update { it.copy(unreadMarks = marks) }
+                }
+            }
+            viewModelScope.launch {
+                repository.unreadReactionChanges(chatId).collect { change ->
+                    _state.update { state ->
+                        state.copy(
+                            messages = state.messages.map { message ->
+                                if (message.id == change.messageId) message.copy(hasUnreadReactions = change.hasUnread) else message
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -1976,16 +2035,7 @@ class ConversationViewModel(
         if (messageIds.isEmpty()) return
 
         // Obrazovka posílá klíče položek, ne id — u odeslaných zpráv se liší.
-        val visible = messageIds.toSet()
-        val state = _state.value
-        val shown = state.messages.filter { state.keyOf(it) in visible }
-        // Album je jedna položka s klíčem nejstarší zprávy; za přečtené se hlásí celé, jinak by
-        // ostatní fotky alba zůstaly v počtu nepřečtených napořád.
-        val albums = shown.map { it.mediaAlbumId }.filter { it != 0L }.toSet()
-        val incoming = state.messages
-            .filter { !it.isOutgoing && (state.keyOf(it) in visible || it.mediaAlbumId in albums) }
-            .map { it.id }
-
+        val incoming = _state.value.messagesToView(messageIds.toSet())
         if (incoming.isEmpty()) return
         viewModelScope.launch { repository.markRead(chatId, incoming) }
     }
@@ -3196,10 +3246,33 @@ private const val SELECTION_COPY_SEPARATOR = "\n\n"
  */
 data class Typing(val activity: ChatActivity, val sender: SenderInfo?)
 
+/**
+ * Které zprávy z viditelných položek ([visibleKeys] jsou KLÍČE, ne id) se hlásí jako zhlédnuté.
+ *
+ * Cizí zprávy vždycky; album celé, protože je v seznamu jednou položkou s klíčem nejstarší
+ * zprávy a ostatní fotky by jinak zůstaly v počtu nepřečtených napořád. Vlastní zprávu jen
+ * tehdy, když nese nepřečtené reakce — přečte je právě zhlédnutí.
+ */
+internal fun ConversationState.messagesToView(visibleKeys: Set<Long>): List<Long> {
+    val albums = messages
+        .filter { keyOf(it) in visibleKeys }
+        .map { it.mediaAlbumId }
+        .filter { it != 0L }
+        .toSet()
+    return messages
+        .filter { (!it.isOutgoing || it.hasUnreadReactions) && (keyOf(it) in visibleKeys || it.mediaAlbumId in albums) }
+        .map { it.id }
+}
+
 data class ConversationState(
     val info: ChatInfo? = null,
     /** Vlákno komentářů (kořenová zpráva); `null` u běžné konverzace. */
     val threadRootId: Long? = null,
+    /**
+     * Nepřečtené zmínky a reakce v chatu — tlačítka „@" a „❤" nad tlačítkem dolů. Ve vlákně
+     * komentářů zůstávají nulové: počty patří celé diskusní skupině.
+     */
+    val unreadMarks: UnreadMarks = UnreadMarks(),
     /** Zpráva otevřená k výběru úryvku textu; `null` = sheet je zavřený. */
     val selectingText: ChatMessage? = null,
     /** Dostupnost protějšku pro podtitul hlavičky. `null` u skupin a kanálů. */

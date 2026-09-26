@@ -78,6 +78,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -248,6 +249,21 @@ class TdlChatRepository(
             holder.updates { chatReadInboxUpdates }.collect { update ->
                 edit(update.chatId) { it.copy(unreadCount = update.unreadCount) }
             }
+        }
+
+        // Zmínky a reakce: dva updaty nesou jen počet, dva i zprávu, o kterou jde.
+        scope.launch {
+            merge(
+                holder.updates { chatUnreadMentionCountUpdates }.map { it.chatId to it.unreadMentionCount },
+                holder.updates { messageMentionReadUpdates }.map { it.chatId to it.unreadMentionCount },
+            ).collect { (chatId, count) -> edit(chatId) { it.copy(unreadMentionCount = count) } }
+        }
+
+        scope.launch {
+            merge(
+                holder.updates { chatUnreadReactionCountUpdates }.map { it.chatId to it.unreadReactionCount },
+                holder.updates { messageUnreadReactionsUpdates }.map { it.chatId to it.unreadReactionCount },
+            ).collect { (chatId, count) -> edit(chatId) { it.copy(unreadReactionCount = count) } }
         }
 
         scope.launch {
@@ -1073,6 +1089,8 @@ private suspend fun Chat.toSummary(): ChatSummary {
         title = title,
         unreadCount = unreadCount,
         lastMessagePreview = lastMessage?.previewText(),
+        unreadMentionCount = unreadMentionCount,
+        unreadReactionCount = unreadReactionCount,
         isPinned = false,
         order = 0L,
         avatarFileId = photo?.small?.id,

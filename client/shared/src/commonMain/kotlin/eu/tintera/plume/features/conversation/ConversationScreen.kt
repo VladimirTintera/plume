@@ -64,6 +64,21 @@ import eu.tintera.plume.core.ui.ClipboardPasteSuggestion
 import eu.tintera.plume.core.ui.KeyboardContent
 import eu.tintera.plume.core.ui.KeyboardContentReceiver
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.ui.semantics.contentDescription
+import eu.tintera.plume.core.ui.ExpressiveMenu
+import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.tabularNumbers
+import eu.tintera.plume.resources.done_all_24dp
+import eu.tintera.plume.resources.alternate_email_24dp
+import eu.tintera.plume.resources.favorite_filled_24dp
+import eu.tintera.plume.resources.conversation_unread_mentions
+import eu.tintera.plume.resources.conversation_unread_reactions
+import eu.tintera.plume.resources.conversation_read_all_mentions
+import eu.tintera.plume.resources.conversation_read_all_reactions
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.VisualTransformation
 import eu.tintera.plume.features.conversation.items.WavyShape
@@ -196,6 +211,7 @@ import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.audio.rememberRecordPermission
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.UnreadMarkKind
 import eu.tintera.plume.core.telegram.LinkPreview
 import androidx.compose.ui.layout.ContentScale
 import eu.tintera.plume.core.ui.RemoteImage
@@ -1337,6 +1353,21 @@ fun ConversationScreen(
         // a ťuknutí o kousek vedle by místo skoku dolů spustilo nahrávání.
         floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // Zmínky a reakce nad tlačítkem dolů: jsou vidět, i když je uživatel dole — zmínka
+            // bývá hluboko v nepřečtené historii a tlačítko dolů o ní nic neřekne.
+            UnreadMarkButton(
+                kind = UnreadMarkKind.Mention,
+                count = state.unreadMarks.mentions,
+                onClick = viewModel::jumpToUnreadMark,
+                onReadAll = viewModel::readAllMarks,
+            )
+            UnreadMarkButton(
+                kind = UnreadMarkKind.Reaction,
+                count = state.unreadMarks.reactions,
+                onClick = viewModel::jumpToUnreadMark,
+                onReadAll = viewModel::readAllMarks,
+            )
             ScrollToBottomButton(
                 // V okně v historii vede dolů i od spodní hrany — nejnovější zprávy nejsou načtené.
                 visible = farFromBottom || pendingNewMessages > 0 || !state.reachedEnd,
@@ -1349,6 +1380,7 @@ fun ConversationScreen(
                     }
                 },
             )
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
@@ -1847,6 +1879,99 @@ private fun ScrollToBottomButton(
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * Tlačítko „@" (nepřečtené zmínky) nebo „❤" (nepřečtené reakce na vlastní zprávy) s počtem.
+ *
+ * Ťuknutí skočí na nejstarší, podržení nabídne „Označit vše jako přečtené" — tak to mají
+ * i oficiální klienti. Vzhledem je to sourozenec tlačítka dolů: stejný kruh, stejná role,
+ * počet nese odznak v rohu, aby se kruh netáhl do šířky.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun UnreadMarkButton(
+    kind: UnreadMarkKind,
+    count: Int,
+    onClick: (UnreadMarkKind) -> Unit,
+    onReadAll: (UnreadMarkKind) -> Unit,
+) {
+    // Při zmizení se musí dál kreslit poslední nenulový počet, ne nula (viz tlačítko dolů).
+    val shown = remember { intArrayOf(count) }
+    if (count > 0) shown[0] = count
+
+    AnimatedVisibility(
+        visible = count > 0,
+        enter = scaleIn() + fadeIn(),
+        exit = scaleOut() + fadeOut(),
+    ) {
+        var menuOpen by remember { mutableStateOf(false) }
+        val label = when (kind) {
+            UnreadMarkKind.Mention -> pluralStringResource(Res.plurals.conversation_unread_mentions, shown[0], shown[0])
+            UnreadMarkKind.Reaction -> pluralStringResource(Res.plurals.conversation_unread_reactions, shown[0], shown[0])
+        }
+        val readAllLabel = stringResource(
+            when (kind) {
+                UnreadMarkKind.Mention -> Res.string.conversation_read_all_mentions
+                UnreadMarkKind.Reaction -> Res.string.conversation_read_all_reactions
+            },
+        )
+
+        // Mezera pod tlačítkem je v obsahu, ne ve `spacedBy` sloupce: skryté tlačítko by jinak
+        // nechalo nad tlačítkem dolů prázdné místo.
+        Box(Modifier.padding(bottom = 10.dp)) {
+            BadgedBox(
+                badge = {
+                    Badge(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ) {
+                        Text(shown[0].toString(), style = LocalTextStyle.current.tabularNumbers())
+                    }
+                },
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    shadowElevation = 4.dp,
+                ) {
+                    // Klikání uvnitř `Surface`: ten ořezává obsah tvarem, takže vlnka zůstane
+                    // v kruhu, a stín, který by `clip` zvenku uřízl, zůstane celý.
+                    Box(
+                        Modifier
+                            .size(SCROLL_DOWN_BUTTON_SIZE)
+                            .combinedClickable(
+                                onClickLabel = label,
+                                onLongClickLabel = readAllLabel,
+                                onLongClick = { menuOpen = true },
+                                onClick = { onClick(kind) },
+                            )
+                            .semantics { contentDescription = label },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painterResource(
+                                when (kind) {
+                                    UnreadMarkKind.Mention -> Res.drawable.alternate_email_24dp
+                                    UnreadMarkKind.Reaction -> Res.drawable.favorite_filled_24dp
+                                },
+                            ),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+            }
+            ExpressiveMenu(
+                expanded = menuOpen,
+                onDismiss = { menuOpen = false },
+                groups = listOf(
+                    listOf(MenuAction(label = readAllLabel, icon = Res.drawable.done_all_24dp) { onReadAll(kind) }),
+                ),
+            )
         }
     }
 }

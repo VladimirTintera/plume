@@ -134,6 +134,24 @@ interface ConversationRepository {
     fun interactionUpdates(chatId: Long): Flow<MessageInteractions>
 
     /**
+     * Počty nepřečtených zmínek a reakcí v chatu, živě. Na tlačítka „@" a „❤" nad tlačítkem dolů.
+     */
+    fun unreadMarks(chatId: Long): Flow<UnreadMarks>
+
+    /** Změny příznaku nepřečtených reakcí u zpráv ([ChatMessage.hasUnreadReactions]). */
+    fun unreadReactionChanges(chatId: Long): Flow<UnreadReactionChange>
+
+    /**
+     * Nejstarší nepřečtená zmínka nebo zpráva s nepřečtenou reakcí; `null`, když žádná není.
+     * Skáče se od nejstarší, jako u nepřečtených zpráv: přečtení skokem ji odebere a další
+     * ťuknutí vede na následující.
+     */
+    suspend fun oldestUnreadMark(chatId: Long, kind: UnreadMarkKind): Result<Long?>
+
+    /** Označí všechny zmínky, nebo všechny reakce v chatu za přečtené. */
+    suspend fun readAllMarks(chatId: Long, kind: UnreadMarkKind): Result<Unit>
+
+    /**
      * Přidá nebo odebere reakci. TDLib má na to dvě samostatná volání, protože „přepnutí"
      * na jeho úrovni neexistuje — stav si musí pamatovat klient.
      */
@@ -809,6 +827,12 @@ data class ChatMessage(
     val externalReply: ExternalReply? = null,
     /** Zhlédnutí, přeposlání a komentáře; `null`, když zpráva žádné počty nenese. */
     val postStats: PostStats? = null,
+    /**
+     * Vlastní zpráva nese reakce, které jsme ještě neviděli. Taková zpráva se hlásí jako
+     * zhlédnutá (`viewMessages`), i když je odchozí — jinak by reakce na ni zůstaly nepřečtené
+     * napořád a tlačítko „❤" by nezhaslo.
+     */
+    val hasUnreadReactions: Boolean = false,
     /**
      * Vlákno, do kterého zpráva patří (`MessageTopicThread`) — u komentáře v diskusní skupině
      * id kořenové zprávy; `null` mimo vlákno. Podle něj si vlákno komentářů bere nové zprávy.
