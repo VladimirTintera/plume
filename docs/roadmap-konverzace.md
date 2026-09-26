@@ -521,9 +521,9 @@ snadno na to uživatel narazí.
   v seznamu chatů, „Označit vše" podržením (`CLAUDE.md`, „Nepřečtené zmínky, reakce a hlasy v anketě"). Zbývá:
   **ověřit skutečnou zmínku ve skupině** a **skutečný nový hlas v anketě** (tlačítko s anketou je
   hotové, ověřené jen podstrčeným počtem) a zvýraznění, KDO reagoval (`UnreadReaction.senderId`).
-- **Prázdný chat s botem** — popis „Co tento bot umí?" s obrázkem (`botInfo.description`,
-  `photo`, `animation`) a tlačítko **Start** (`sendBotStartMessage`, i s parametrem z odkazu
-  `t.me/bot?start=…`). Dnes prázdná konverzace a pole.
+- ~~**Prázdný chat s botem**~~ — hotovo: karta „Co tento bot umí?", tlačítko Start i parametr
+  ze startovacího odkazu (`CLAUDE.md`, „Spuštění bota"). Zbývá klikatelné odkazy v popisu,
+  ověřit obrázek a GIF v kartě a startovací odkaz do skupiny (`t.me/bot?startgroup=…`).
 - **Napovídání při psaní**: ~~`/` příkazy bota~~ — hotovo i s tlačítkem seznamu příkazů
   (`CLAUDE.md`, „Příkazy bota“; ve skupině ověřit příponu `@bot`). Zbývá `@` členové skupiny,
   tlačítko nabídky bota s mini aplikací (`BotMenuButton`), inline boti (`@gif kočka` v poli)

@@ -55,6 +55,9 @@ import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ContentAccess
 import eu.tintera.plume.core.telegram.diceEmojiFor
+import eu.tintera.plume.core.navigation.BotStartRequests
+import eu.tintera.plume.core.telegram.BotIntro
+import eu.tintera.plume.resources.conversation_bot_start_failed
 import eu.tintera.plume.core.telegram.MessageSchedule
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.resources.conversation_scheduled_load_failed
@@ -222,6 +225,8 @@ class ConversationViewModel(
     private val searchRequests: ConversationSearchRequests,
     /** Místa v okolí pro sponku → Poloha. */
     placeRepository: PlaceRepository,
+    /** Parametr ze startovacího odkazu bota, který čeká na tlačítko Start. */
+    private val botStartRequests: BotStartRequests,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -1040,6 +1045,18 @@ class ConversationViewModel(
             chatRepository.muted(chatId).collect { muted -> _state.update { it.copy(muted = muted) } }
         }
 
+        // Chat s botem: popis do prázdného chatu a tlačítko Start. Ve vlákně komentářů bot není.
+        if (threadRootId == null) {
+            viewModelScope.launch {
+                repository.botIntro(chatId).onSuccess { intro -> _state.update { it.copy(botIntro = intro) } }
+            }
+            viewModelScope.launch {
+                botStartRequests.parameter(chatId).collect { parameter ->
+                    _state.update { it.copy(botStartParameter = parameter) }
+                }
+            }
+        }
+
         viewModelScope.launch {
             repository.hasScheduledMessages(chatId).collect { has ->
                 _state.update { it.copy(hasScheduledMessages = has) }
@@ -1768,11 +1785,49 @@ class ConversationViewModel(
                         }
                         is InternalLink.Invite -> _state.update { it.copy(invite = InviteSheetState(link.link, link.preview)) }
                         is InternalLink.StickerSet -> _state.update { it.copy(openStickerSet = link.setId) }
+                        is InternalLink.BotStart -> openBotStart(link)
                     }
                 }
                 .onFailure { failure ->
                     val message = failure.reported(Res.string.conversation_link_failed)
                     _state.update { it.copy(error = message) }
+                }
+        }
+    }
+
+    /**
+     * Startovací odkaz bota. S `autostart` se bot spustí hned, jinak se parametr odloží
+     * ([BotStartRequests]) a chat bota nabídne Start — parametr píše odkaz, ne uživatel, a co
+     * bot s ním udělá, se uživatel dozví až po ťuknutí.
+     */
+    private fun openBotStart(link: InternalLink.BotStart) {
+        if (link.autostart) {
+            viewModelScope.launch {
+                repository.startBot(link.chatId, link.parameter).onFailure { failure ->
+                    _state.update { it.copy(error = failure.reported(Res.string.conversation_bot_start_failed)) }
+                }
+            }
+        } else {
+            botStartRequests.request(link.chatId, link.parameter)
+        }
+        if (link.chatId != chatId) _state.update { it.copy(openChat = ChatTarget(link.chatId)) }
+    }
+
+    /** Tlačítko Start: pošle „/start" s parametrem z odkazu, bez odkazu prázdný. */
+    fun startBot() {
+        if (_state.value.startingBot) return
+        val parameter = _state.value.botStartParameter.orEmpty()
+        _state.update { it.copy(startingBot = true) }
+        viewModelScope.launch {
+            repository.startBot(chatId, parameter)
+                .onSuccess { pending ->
+                    botStartRequests.consume(chatId)
+                    _state.update { it.withMessage(pending).copy(startingBot = false) }
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(startingBot = false, error = failure.reported(Res.string.conversation_bot_start_failed))
+                    }
                 }
         }
     }
@@ -3565,6 +3620,12 @@ data class ConversationState(
     val pressingBotButton: BotButtonRef? = null,
     /** Video kolečko, které hraje se zvukem; `null` = všechna hrají potichu (nebo vůbec). */
     val soundingVideoNote: Long? = null,
+    /** Popis bota; `null` = chat není s botem (a Start se nenabízí). */
+    val botIntro: BotIntro? = null,
+    /** Parametr ze startovacího odkazu, který čeká na Start ([BotStartRequests]). */
+    val botStartParameter: String? = null,
+    /** Start odešel a čeká se na odpověď — tlačítko je neaktivní. */
+    val startingBot: Boolean = false,
     /** Má chat naplánované zprávy? Pak je u pole hodiny, které otevřou jejich seznam. */
     val hasScheduledMessages: Boolean = false,
     /** Otevřený seznam naplánovaných zpráv; `null` = zavřený. */

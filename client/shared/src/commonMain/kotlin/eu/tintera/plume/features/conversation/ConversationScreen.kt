@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.conversation_bot_start
 import eu.tintera.plume.resources.conversation_schedule_time
 import eu.tintera.plume.resources.conversation_schedule_past
 import kotlinx.datetime.TimeZone
@@ -1260,6 +1261,18 @@ fun ConversationScreen(
                 JoinBar(joining = state.joining, onJoin = viewModel::join)
                 return@Box
             }
+            // Nespuštěný bot (nebo čekající parametr z odkazu): Start místo pole.
+            if (showsBotStart(state)) {
+                JoinBar(
+                    joining = state.startingBot,
+                    onJoin = {
+                        haptics.confirm()
+                        viewModel.startBot()
+                    },
+                    label = Res.string.conversation_bot_start,
+                )
+                return@Box
+            }
             // Kde se psát nesmí, pole by skončilo chybou až po odeslání. Kanál aspoň nabídne ztlumení.
             when (state.info?.writeAccess) {
                 WriteAccess.ChannelReadOnly -> {
@@ -1652,6 +1665,9 @@ fun ConversationScreen(
             when {
                 state.messages.isEmpty() && state.loading ->
                     LoadingIndicator(Modifier.align(Alignment.Center))
+
+                state.messages.isEmpty() && state.botIntro?.hasContent == true ->
+                    BotIntroCard(state.botIntro ?: return@Box, Modifier.align(Alignment.Center))
 
                 state.messages.isEmpty() -> Text(
                     text = state.error?.resolve() ?: stringResource(Res.string.conversation_empty),
@@ -3297,11 +3313,12 @@ private data class HeaderSubtitle(val text: String)
 private const val ARRIVAL_TOLERANCE_SECONDS = 5
 
 /**
- * Místo vstupního pole ve skupině nebo kanálu, kde uživatel není (otevřeno z globálního hledání).
- * Plné tlačítko přes šířku — je to jediná akce, kterou tu jde udělat.
+ * Místo vstupního pole ve skupině nebo kanálu, kde uživatel není (otevřeno z globálního hledání),
+ * a u nespuštěného bota se Start ([label]). Plné tlačítko přes šířku — je to jediná akce,
+ * kterou tu jde udělat.
  */
 @Composable
-private fun JoinBar(joining: Boolean, onJoin: () -> Unit) {
+private fun JoinBar(joining: Boolean, onJoin: () -> Unit, label: StringResource = Res.string.conversation_join) {
     Box(
         Modifier
             .fillMaxWidth()
@@ -3314,7 +3331,7 @@ private fun JoinBar(joining: Boolean, onJoin: () -> Unit) {
             enabled = !joining,
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
         ) {
-            Text(stringResource(Res.string.conversation_join))
+            Text(stringResource(label))
         }
     }
 }

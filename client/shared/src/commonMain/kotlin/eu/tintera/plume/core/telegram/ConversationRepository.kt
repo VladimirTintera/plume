@@ -312,6 +312,18 @@ interface ConversationRepository {
      */
     fun hasScheduledMessages(chatId: Long): Flow<Boolean>
 
+    /**
+     * Co bot o sobě říká v prázdném chatu („Co tento bot umí?"). `null`, když chat není
+     * soukromý chat s botem — podle toho obrazovka pozná, že má nabízet tlačítko Start.
+     */
+    suspend fun botIntro(chatId: Long): Result<BotIntro?>
+
+    /**
+     * Spustí bota (`sendBotStartMessage`) — v chatu se objeví „/start" a bot dostane [parameter]
+     * (prázdný bez odkazu). Jako ostatní odesílání vrací rozepsanou zprávu hned.
+     */
+    suspend fun startBot(chatId: Long, parameter: String): Result<ChatMessage>
+
     /** Naplánované zprávy chatu, od nejdřív odcházející. */
     suspend fun scheduledMessages(chatId: Long): Result<List<ChatMessage>>
 
@@ -882,6 +894,18 @@ data class ChatMessage(
      */
     val schedule: MessageSchedule? = null,
 )
+
+/**
+ * Popis bota pro prázdný chat. [description] smí být prázdný, [photo] i [animation] chybět —
+ * bez všeho se karta nekreslí, ale tlačítko Start zůstává (pozná se, že je to bot).
+ */
+data class BotIntro(
+    val description: String,
+    val photo: MessageMedia.Photo? = null,
+    val animation: MessageMedia.Animation? = null,
+) {
+    val hasContent: Boolean get() = description.isNotBlank() || photo != null || animation != null
+}
 
 /** Kdy naplánovaná zpráva odejde. */
 sealed interface MessageSchedule {
