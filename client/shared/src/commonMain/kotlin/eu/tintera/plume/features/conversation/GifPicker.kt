@@ -297,7 +297,7 @@ private fun GifMessage(text: String) {
  */
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
-private fun GifCell(
+internal fun GifCell(
     gif: GifItem,
     onPick: (GifItem) -> Unit,
     active: Boolean = false,

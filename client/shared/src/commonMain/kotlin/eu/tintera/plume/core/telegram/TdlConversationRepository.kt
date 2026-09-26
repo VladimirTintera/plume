@@ -15,6 +15,7 @@ import dev.g000sha256.tdl.dto.MessagePoll
 import dev.g000sha256.tdl.dto.MessageContact
 import dev.g000sha256.tdl.dto.ChatTypeSecret
 import dev.g000sha256.tdl.dto.UserTypeBot
+import dev.g000sha256.tdl.dto.Usernames
 import dev.g000sha256.tdl.dto.OptionValueInteger
 import dev.g000sha256.tdl.dto.InputPollTypeRegular
 import dev.g000sha256.tdl.dto.InputPollTypeQuiz
@@ -165,6 +166,7 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.math.ceil
+import eu.tintera.plume.core.location.GeoPoint
 
 /**
  * Konverzace nad TDLib.
@@ -1153,6 +1155,77 @@ class TdlConversationRepository(
             }
     }
 
+    /**
+     * Inline boti podle jména, pro JEDNU instanci klienta (po odhlášení je nový účet jiný).
+     * Dotaz jde při každé pauze v psaní a `searchPublicChat` na neznámé jméno jde na server;
+     * bez keše by se tentýž bot hledal znovu s každým písmenem dotazu.
+     */
+    private var inlineBots: Pair<TdlClient, MutableMap<String, InlineBotInfo?>>? = null
+
+    override suspend fun inlineBot(username: String): Result<InlineBotInfo?> {
+        val current = client
+        val cache = inlineBots?.takeIf { it.first === current }?.second
+            ?: mutableMapOf<String, InlineBotInfo?>().also { inlineBots = current to it }
+        val key = username.lowercase()
+        if (key in cache) return Result.success(cache[key])
+        return current.searchPublicChat(username = username)
+            .toResult()
+            .mapCatching { chat ->
+                val userId = (chat.type as? ChatTypePrivate)?.userId ?: return@mapCatching null
+                val user = current.getUser(userId = userId).toResult().getOrThrow()
+                val bot = user.type as? UserTypeBot ?: return@mapCatching null
+                InlineBotInfo(
+                    userId = userId,
+                    username = user.usernames?.publicName() ?: username,
+                    placeholder = bot.inlineQueryPlaceholder,
+                    needLocation = bot.needLocation,
+                )
+            }
+            // Neexistující jméno je taky odpověď („bot to není") a pamatuje se stejně.
+            .recover { failure ->
+                logger.i { "@$username se jako bot nenašel: ${failure.message}" }
+                null
+            }
+            .onSuccess { cache[key] = it }
+    }
+
+    override suspend fun inlineResults(
+        botUserId: Long,
+        chatId: Long,
+        query: String,
+        offset: String,
+        location: GeoPoint?,
+    ): Result<InlineResultsPage> =
+        client.getInlineQueryResults(
+            botUserId = botUserId,
+            chatId = chatId,
+            userLocation = location?.let { Location(latitude = it.latitude, longitude = it.longitude, horizontalAccuracy = 0.0) },
+            query = query,
+            offset = offset,
+        )
+            .toResult()
+            .map { it.toPage() }
+
+    override suspend fun sendInlineResult(
+        chatId: Long,
+        queryId: Long,
+        resultId: String,
+        replyToMessageId: Long?,
+        quote: ReplyQuote?,
+    ): Result<ChatMessage> =
+        client.sendInlineQueryResultMessage(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyInput(chatId, replyToMessageId, quote),
+            options = null,
+            queryId = queryId,
+            resultId = resultId,
+            // „přes @bot" u zprávy nechává i oficiální klient; skrýt ho jde jen u pár botů od Telegramu.
+            hideViaBot = false,
+        )
+            .toResult()
+            .map { it.toChatMessage(isGroup(chatId)) }
+
     override suspend fun sendTyping(chatId: Long, typing: Boolean): Result<Unit> =
         client.sendChatAction(
             chatId = chatId,
@@ -1575,6 +1648,7 @@ class TdlConversationRepository(
             // Zlomky vteřiny nahoru: „0 s" by u běžícího odpočtu znamenalo, že už vypršel.
             selfDestructIn = selfDestructIn.takeIf { it > 0.0 }?.let { ceil(it).toInt() },
             forwardOrigin = forwardInfo?.origin?.toForwardOrigin(),
+            viaBot = viaBotUserId.takeIf { it != 0L }?.let { botUsername(it) },
             keyboard = (replyMarkup as? ReplyMarkupInlineKeyboard)?.toBotKeyboard(),
             poll = (content as? MessagePoll)?.toChatPoll(),
             externalReply = (replyTo as? MessageReplyToMessage)
@@ -1814,6 +1888,29 @@ class TdlConversationRepository(
      * `when` je bez `else`: nový druh původu v novější TDLib rozbije překlad, místo aby se zpráva
      * tiše přestala tvářit jako přeposlaná.
      */
+    /**
+     * Veřejné jméno inline bota u zprávy „přes @bot". Lokální dotaz, ale v historii se tentýž
+     * bot opakuje u každé zprávy, takže se pamatuje — pro jednu instanci klienta, jako odesílatelé.
+     * Bot bez veřejného jména (nemělo by nastat) = `null`, a značka se neukáže.
+     */
+    private suspend fun botUsername(userId: Long): String? = botUsernamesMutex.withLock {
+        val current = client
+        val cache = botUsernames?.takeIf { it.first === current }?.second
+            ?: mutableMapOf<Long, String?>().also { botUsernames = current to it }
+        if (userId in cache) return@withLock cache[userId]
+        val username = current.getUser(userId = userId).toResult().getOrNull()
+            ?.usernames?.publicName()
+        cache[userId] = username
+        username
+    }
+
+    /** Jméno, pod kterým bot vystupuje: upravitelné, jinak první aktivní (sběratelské). */
+    private fun Usernames.publicName(): String? =
+        editableUsername.ifBlank { null } ?: activeUsernames.firstOrNull { !it.isNullOrBlank() }
+
+    private var botUsernames: Pair<TdlClient, MutableMap<Long, String?>>? = null
+    private val botUsernamesMutex = Mutex()
+
     private suspend fun MessageOrigin.toForwardOrigin(): ForwardOrigin = when (this) {
         is MessageOriginUser -> ForwardOrigin.User(senderUserId, resolveSender(senderUserId)?.title)
         is MessageOriginHiddenUser -> ForwardOrigin.Hidden(senderName.ifBlank { null })

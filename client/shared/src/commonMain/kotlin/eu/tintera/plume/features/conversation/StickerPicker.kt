@@ -975,7 +975,7 @@ private fun StickerTabIcon(tab: StickerTab) {
  * se samolepka rozběhne na místě, bez probliknutí. Statická `.webp` nemá co přehrát a zůstane stát.
  */
 @Composable
-private fun StickerPreview(
+internal fun StickerPreview(
     sticker: MessageMedia.Sticker,
     playing: Boolean,
     modifier: Modifier = Modifier,

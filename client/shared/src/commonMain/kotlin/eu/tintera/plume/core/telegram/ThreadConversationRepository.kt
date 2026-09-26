@@ -129,6 +129,14 @@ class ThreadConversationRepository(
         quote: ReplyQuote?,
     ): Result<ChatMessage> = delegate.sendGif(chatId, gif, reply(replyToMessageId), quote)
 
+    override suspend fun sendInlineResult(
+        chatId: Long,
+        queryId: Long,
+        resultId: String,
+        replyToMessageId: Long?,
+        quote: ReplyQuote?,
+    ): Result<ChatMessage> = delegate.sendInlineResult(chatId, queryId, resultId, reply(replyToMessageId), quote)
+
     override suspend fun sendVoiceNote(
         chatId: Long,
         path: String,

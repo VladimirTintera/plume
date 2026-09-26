@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.location.GeoPoint
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -392,6 +393,39 @@ interface ConversationRepository {
     suspend fun sendGif(
         chatId: Long,
         gif: GifItem,
+        replyToMessageId: Long?,
+        quote: ReplyQuote? = null,
+    ): Result<ChatMessage>
+
+    /**
+     * Inline bot podle jména z pole (`@gif`), nebo `null`, když takový účet botem není.
+     *
+     * Jestli bot inline dotazy UMÍ, se tu nezjistí — TDLib 15 příznak `is_inline` v `userTypeBot`
+     * nenese. Pozná se to až odpovědí na dotaz ([inlineResults] selže).
+     */
+    suspend fun inlineBot(username: String): Result<InlineBotInfo?>
+
+    /**
+     * Jedna stránka výsledků inline dotazu. [offset] je [InlineResultsPage.nextOffset] předchozí
+     * stránky, na začátku prázdný. [chatId] chce bot vědět, kam se píše; [location] jen botům,
+     * kteří o ni stojí ([InlineBotInfo.needLocation]).
+     */
+    suspend fun inlineResults(
+        botUserId: Long,
+        chatId: Long,
+        query: String,
+        offset: String,
+        location: GeoPoint?,
+    ): Result<InlineResultsPage>
+
+    /**
+     * Odešle výsledek inline dotazu (`sendInlineQueryResultMessage`). Obsah zprávy si připravil
+     * bot a u zprávy bude „přes @bot". Jako ostatní odesílání vrací rozepsanou zprávu hned.
+     */
+    suspend fun sendInlineResult(
+        chatId: Long,
+        queryId: Long,
+        resultId: String,
         replyToMessageId: Long?,
         quote: ReplyQuote? = null,
     ): Result<ChatMessage>
@@ -855,6 +889,11 @@ data class ChatMessage(
     val selfDestructIn: Int? = null,
     /** Odkud byla zpráva přeposlaná; `null` u zprávy, která přeposlaná není. */
     val forwardOrigin: ForwardOrigin? = null,
+    /**
+     * Jméno inline bota, přes kterého zpráva odešla (`@gif kočka` → „gif", bez zavináče); `null`
+     * u zprávy napsané rovnou. U zprávy se ukazuje „přes @gif" a ťuknutí na něj dá bota do pole.
+     */
+    val viaBot: String? = null,
     /** Tlačítka bota pod zprávou; `null` = žádná. */
     val keyboard: BotKeyboard? = null,
     /** Anketa nebo kvíz; [text] pak nese jen „Anketa: otázka" pro místa, kde se kreslit nedá. */

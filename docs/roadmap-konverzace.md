@@ -491,8 +491,8 @@ snadno na to uživatel narazí.
     varuje už při otevření kanálu,
   - náhled odkazu, náhled souboru a samolepka v citlivé zprávě zůstávají ostré,
   - **omezený obsah** (`restrictionReason` bez citlivosti): věta od serveru místo obsahu.
-- **„přes @bot"** (`viaBotUserId`) u zpráv poslaných inline botem, **podpis autora** v kanálu
-  (`authorSignature`), **štítek člena** (`senderTag`) a **boosty odesílatele** (`senderBoostCount`)
+- ~~**„přes @bot"**~~ (`viaBotUserId`) — hotovo (`CLAUDE.md`, „Inline boti"). **Podpis autora**
+  v kanálu (`authorSignature`), **štítek člena** (`senderTag`) a **boosty odesílatele** (`senderBoostCount`)
   u jména.
 - **Efekty zprávy** (`effectId` → `getMessageEffect`) — animace (konfety, srdce) při prvním
   zobrazení a značka u zprávy.
@@ -528,8 +528,9 @@ snadno na to uživatel narazí.
   v popisu, ověřit obrázek a GIF od bota a startovací odkaz do skupiny (`t.me/bot?startgroup=…`).
 - **Napovídání při psaní**: ~~`/` příkazy bota~~ — hotovo i s tlačítkem seznamu příkazů
   (`CLAUDE.md`, „Příkazy bota“; ve skupině ověřit příponu `@bot`). Zbývá `@` členové skupiny,
-  tlačítko nabídky bota s mini aplikací (`BotMenuButton`), inline boti (`@gif kočka` v poli)
-  a emoji podle slov.
+  tlačítko nabídky bota s mini aplikací (`BotMenuButton`) a emoji podle slov. ~~Inline boti
+  (`@gif kočka` v poli)~~ — hotovo i s „přes @bot" u zprávy (`CLAUDE.md`, „Inline boti"); zbývá
+  ověřit tlačítko „nastavit u bota", bota s polohou a inline bota ve skupině.
 - ~~**Naplánované zprávy a odeslání bez zvuku**~~ — hotovo: podržení odesílacího tlačítka,
   seznam naplánovaných za hodinami u pole (`CLAUDE.md`, „Naplánované zprávy"). Zbývá plánování
   hlasovky, samolepky a ankety (jdou jinou cestou než pole), opakované připomínky

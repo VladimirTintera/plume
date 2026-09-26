@@ -177,6 +177,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.core.telegram.commandSuggestions
+import eu.tintera.plume.core.location.rememberDeviceLocation
+import eu.tintera.plume.core.telegram.inlineQueryOf
 import eu.tintera.plume.resources.smart_toy_24dp
 import eu.tintera.plume.resources.conversation_bot_commands
 import androidx.compose.material3.LoadingIndicator
@@ -1354,6 +1356,31 @@ fun ConversationScreen(
                     viewModel.closeCommands()
                     viewModel.sendCommand(command.text)
                 },
+            )
+            // Inline bot (`@gif kočka`): výsledky nad polem. S přílohami je text popisek a při úpravě
+            // text staré zprávy — ani jedno není dotaz na bota.
+            val inlineDraft = remember(draft.text, state.editing, state.attachments.isEmpty()) {
+                inlineQueryOf(draft.text).takeIf { state.editing == null && state.attachments.isEmpty() }
+            }
+            LaunchedEffect(inlineDraft) { viewModel.inlineQuery(inlineDraft) }
+            // Bot, který chce polohu, ji dostane přibližnou — dotaz na oprávnění přijde až u něj.
+            val inlineLocation = rememberDeviceLocation()
+            val locationBot = state.inline?.bot?.takeIf { it.needLocation }?.userId
+            LaunchedEffect(locationBot) {
+                if (locationBot != null) inlineLocation.request(viewModel::setInlineLocation)
+            }
+            InlineResultsPanel(
+                inline = state.inline,
+                visible = inlineDraft != null,
+                onPick = { result ->
+                    haptics.confirm()
+                    viewModel.sendInlineResult(result)
+                    // Dotaz v poli byl ten výsledek — pole se vyprázdní a koncept s ním.
+                    draft = TextFieldValue()
+                    viewModel.onDraftChanged("")
+                },
+                onButton = viewModel::pressInlineButton,
+                onLoadMore = viewModel::loadMoreInline,
             )
             MessageInput(
                 glass = Modifier.hazeBlur(

@@ -108,6 +108,8 @@ import eu.tintera.plume.resources.conversation_edited
 import eu.tintera.plume.resources.conversation_forwarded
 import eu.tintera.plume.resources.conversation_forwarded_from
 import eu.tintera.plume.resources.forward_24dp
+import eu.tintera.plume.resources.smart_toy_24dp
+import eu.tintera.plume.resources.conversation_via_bot
 import eu.tintera.plume.core.telegram.ForwardOrigin
 import eu.tintera.plume.core.telegram.PostStats
 import androidx.compose.ui.text.AnnotatedString
@@ -1039,6 +1041,22 @@ internal fun MessageBodyScope.SenderName(
 }
 
 /**
+ * Údaje o původu zprávy nad jejím obsahem: „Přeposláno od …" a „přes @bot". Dohromady proto, že
+ * obojí je údaj O ZPRÁVĚ a stojí na témže místě — pro přeposlání i pro inline bota platí, že
+ * obsah s údajem navíc je karta (viz [hasOriginLabel]).
+ */
+@Composable
+internal fun MessageBodyScope.OriginLabel(modifier: Modifier = Modifier) {
+    val origin = message.forwardOrigin
+    val viaBot = message.viaBot
+    if (origin == null && viaBot == null) return
+    Column(modifier) {
+        origin?.let { ForwardLabel(it) }
+        viaBot?.let { ViaBotLabel(it) }
+    }
+}
+
+/**
  * „Přeposláno od …" nad obsahem přeposlané zprávy. Na rozdíl od jména odesílatele u KAŽDÉ
  * zprávy bloku — přeposlané zprávy téhož člověka bývají každá odjinud.
  *
@@ -1050,8 +1068,7 @@ internal fun MessageBodyScope.SenderName(
  * opakovaného dlouhého stisku nad značkou spolklo nabídku zprávy (stejná past jako u citace).
  */
 @Composable
-internal fun MessageBodyScope.ForwardLabel(modifier: Modifier = Modifier) {
-    val origin = message.forwardOrigin ?: return
+private fun MessageBodyScope.ForwardLabel(origin: ForwardOrigin) {
     val color = LocalContentColor.current.copy(alpha = FORWARD_LABEL_ALPHA)
     val name = origin.name
     val template = stringResource(Res.string.conversation_forwarded_from, FORWARD_NAME_SLOT)
@@ -1072,7 +1089,7 @@ internal fun MessageBodyScope.ForwardLabel(modifier: Modifier = Modifier) {
     val clickable = origin !is ForwardOrigin.Hidden
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
+        modifier = Modifier
             .then(
                 if (clickable) {
                     Modifier.combinedClickable(
@@ -1103,17 +1120,65 @@ internal fun MessageBodyScope.ForwardLabel(modifier: Modifier = Modifier) {
 }
 
 /**
- * Hlavička holého snímku: značka přeposlání v barvě bubliny, jako horní díl karty, jejíž spodní
- * díl je popisek. Přeposlání je údaj O ZPRÁVĚ, takže patří do téhož balíku jako obsah — volně
- * nad fotkou vypadala značka jako popisek něčeho jiného.
+ * „přes @gif" u zprávy poslané přes inline bota. Ťuknutí dá bota do pole
+ * ([MessageAction.UseInlineBot]) — jako u oficiálních klientů je to nejrychlejší cesta, jak
+ * poslat další výsledek od téhož bota.
+ *
+ * Stejná ztlumená barva jako značka přeposlání; jméno bota nese řez.
  */
 @Composable
-internal fun MessageBodyScope.ForwardHeader() {
-    if (message.forwardOrigin == null) return
-    BubbleSurface {
-        ForwardLabel(Modifier.fillMaxWidth().padding(start = MESSAGE_PADDING_H, end = MESSAGE_PADDING_H, top = 6.dp, bottom = 4.dp))
+private fun MessageBodyScope.ViaBotLabel(username: String) {
+    val color = LocalContentColor.current.copy(alpha = FORWARD_LABEL_ALPHA)
+    val template = stringResource(Res.string.conversation_via_bot, FORWARD_NAME_SLOT)
+    val text = remember(username, template) {
+        val start = template.indexOf(FORWARD_NAME_SLOT)
+        buildAnnotatedString {
+            append(template.substring(0, start))
+            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append("@$username") }
+            append(template.substring(start + FORWARD_NAME_SLOT.length))
+        }
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .combinedClickable(
+                onClick = { act(MessageAction.UseInlineBot(username)) },
+                onLongClick = ::requestMenu,
+            )
+            .padding(vertical = 2.dp),
+    ) {
+        Icon(
+            painter = painterResource(Res.drawable.smart_toy_24dp),
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(14.dp),
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
+
+/**
+ * Hlavička holého snímku: údaje o původu v barvě bubliny, jako horní díl karty, jejíž spodní
+ * díl je popisek. Přeposlání i „přes @bot" jsou údaj O ZPRÁVĚ, takže patří do téhož balíku jako
+ * obsah — volně nad fotkou vypadala značka jako popisek něčeho jiného.
+ */
+@Composable
+internal fun MessageBodyScope.OriginHeader() {
+    if (!message.hasOriginLabel) return
+    BubbleSurface {
+        OriginLabel(Modifier.fillMaxWidth().padding(start = MESSAGE_PADDING_H, end = MESSAGE_PADDING_H, top = 6.dp, bottom = 4.dp))
+    }
+}
+
+/** Nese zpráva údaj o původu (přeposlání, inline bot)? Obsah s ním je karta, ne holý obsah. */
+internal val ChatMessage.hasOriginLabel: Boolean get() = forwardOrigin != null || viaBot != null
 
 /** Značka přeposlání je doplněk, ne obsah — ustoupí textu zprávy. */
 private const val FORWARD_LABEL_ALPHA = 0.78f
