@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.features.conversation.firstUnreadId
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.key
@@ -42,6 +43,9 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
 
     val readBadgeKeys = readBadgeRows(rows, state.readReceiptFor).mapTo(HashSet()) { state.keyOf(it.oldest) }
 
+    // Předěl nepřečtených stojí nad první nepřečtenou PŘÍCHOZÍ zprávou (viz [firstUnreadId]).
+    val firstUnread = firstUnreadId(state.messages, state.unreadBoundaryId)
+
     val info = state.info
     val items = ArrayList<ConversationItem>(state.sponsored.size + rows.size + rows.size / 4 + 2)
     val usedDayKeys = HashSet<String>()
@@ -78,9 +82,7 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
          * Hranici nepřečtených drží ViewModel z okamžiku otevření chatu, takže se předěl
          * neposouvá, jak se zprávy postupně označují za přečtené.
          */
-        val startsUnread = state.unreadBoundaryId?.let { boundary ->
-            row.oldest.id > boundary && olderRow != null && olderRow.newest.id <= boundary
-        } == true
+        val startsUnread = firstUnread != null && row.messages.any { it.id == firstUnread }
 
         items += if (message.isService) {
             ServiceMessageItem(key = key, message = message)

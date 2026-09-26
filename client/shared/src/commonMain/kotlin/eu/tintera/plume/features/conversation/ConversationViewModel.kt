@@ -848,9 +848,9 @@ class ConversationViewModel(
             loadAround(boundary, requireTarget = false)
         if (!loaded) return
 
-        // Seznam jde od nejnovější, takže první nepřečtená je ta POSLEDNÍ nad hranicí.
-        val firstUnread = _state.value.messages.lastOrNull { it.id > boundary } ?: return
-        _state.update { it.copy(scrollTarget = ScrollTarget(firstUnread.id, ScrollAnchor.Top)) }
+        // První nepřečtená je nejstarší PŘÍCHOZÍ nad hranicí — vlastní odpověď nepřečtená není.
+        val firstUnread = firstUnreadId(_state.value.messages, boundary) ?: return
+        _state.update { it.copy(scrollTarget = ScrollTarget(firstUnread, ScrollAnchor.Top)) }
     }
 
     /**
