@@ -3250,8 +3250,9 @@ u pole (`ScheduledMessagesSheet`): odeslat hned, změnit čas, smazat.
   `ExpressiveMenu` volá NEJDŘÍV `onDismiss` a teprve pak svou akci**, takže obnovení v `onDismiss`
   proběhlo i při volbě „Naplánovat" (hlasovka vyšla o výběr času delší). O obnovení se proto
   rozhoduje až po zavření nabídky (`LaunchedEffect(sendMenuOpen)`), kdy už akce proběhla.
-- **Anketa naplánovaná jako odpověď nechá odpověď v konverzaci viset.** Konverzace ji zahazuje
-  podle příchozí vlastní ankety (`pollConsumesReply`), jenže naplánovaná do historie nepřijde.
+- **Anketa naplánovaná jako odpověď odpověď nad polem spotřebuje**, stejně jako odeslaná —
+  ohlásí to formulář (viz „Ankety a kvízy", odpověď anketou). Ověřeno na emulátoru: odpověď
+  zmizela a „Odeslat hned" z naplánovaných poslalo anketu s `reply_to_message` (Bot API).
 - **Ověřeno na emulátoru v chatu s botem**: nabídka nad nahrávanou hlasovkou, zastavený čas
   během nabídky, naplánování a „Odeslat hned" (bot dostal hlasovku dlouhou jen o nahraný čas),
   zavření nabídky a nahrávání dál, bez zvuku; anketa naplánovaná z formuláře v seznamu
@@ -3936,12 +3937,14 @@ v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, 
   delší text a zkrátit ho; utnout ho hned by vložení tiše usekalo.
 - **V kanálu je anketa vždycky anonymní** — přepínač se nekreslí a repository pošle
   `isAnonymous = true` i tak (neanonymní server do kanálu nepustí).
-- **Odpověď anketou: formulář rozepsanou odpověď PŘEVEZME, konverzace ji pak zahodí sama.**
-  Routa nese `replyToMessageId` a citovaný úryvek, formulář ukáže citaci nad otázkou (křížek =
-  anketa odejde bez odpovědi). Výsledek se mezi obrazovkami nepředává: konverzace pozná, že
-  odpověď spotřebovala anketa, podle příchozí zprávy (`pollConsumesReply` — VLASTNÍ anketa ve
-  stavu `Sending`, odpověď na tutéž zprávu; z jiného zařízení přijde už `Sent`). Odpověď se
-  nezahazuje při OTEVŘENÍ formuláře — kdo ho zavře, má ji mít dál.
+- **Odpověď anketou: formulář rozepsanou odpověď PŘEVEZME a po odeslání ji ohlásí jako
+  spotřebovanou.** Routa nese `replyToMessageId` a citovaný úryvek, formulář ukáže citaci nad
+  otázkou (křížek = anketa odejde bez odpovědi). Po úspěšném odeslání zavolá
+  `ConversationReplyRequests.replySent` — STAV, jako požadavek odpovědi z prohlížeče — a
+  konverzace odpověď zahodí, když pořád míří na tutéž zprávu (`replyConsumedBy`). **Dřív to
+  konverzace poznávala z příchozí zprávy** (vlastní anketa ve stavu `Sending`), jenže
+  NAPLÁNOVANÁ anketa do historie nepřijde (viz „Naplánované zprávy") a odpověď nad polem pak
+  visela. Odpověď se nezahazuje při OTEVŘENÍ formuláře — kdo ho zavře, má ji mít dál.
 - **Doba trvání je `openPeriod`, přesný čas `closeDate` — a jen jedno z nich.** Doba nezávisí
   na hodinách telefonu, proto je výchozí; nabídka (5 minut až týden) se ořízne stropem serveru
   `poll_open_period_max` — na emulátoru 2 628 000 s, tedy měsíc; bez stropu se volba nekreslí.

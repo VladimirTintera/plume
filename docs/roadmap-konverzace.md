@@ -542,8 +542,8 @@ snadno na to uživatel narazí.
 - ~~**Naplánované zprávy a odeslání bez zvuku**~~ — hotovo: podržení odesílacího tlačítka,
   seznam naplánovaných za hodinami u pole (`CLAUDE.md`, „Naplánované zprávy"). ~~Plánování
   hlasovky a ankety~~ — hotovo. Zbývá plánování samolepky (podržení ve výběru už rozhýbe
-  samolepku, chce vlastní gesto), anketa naplánovaná jako odpověď (odpověď v konverzaci zůstane
-  viset), opakované připomínky
+  samolepku, chce vlastní gesto), ~~anketa naplánovaná jako odpověď~~ (hotovo — formulář
+  odpověď ohlásí jako spotřebovanou), opakované připomínky
   (`repeatPeriod`, jen s Premium) a ověřit „až bude online" s člověkem.
 - ~~**Ověření, podvod, falešný účet**~~ — hotovo: štítek u jména v seznamu chatů, v hlavičce
   konverzace a v profilu, u podvodu a falešného s vysvětlením (`CLAUDE.md`, „Ověření a štítek

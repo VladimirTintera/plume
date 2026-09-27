@@ -27,4 +27,21 @@ class ConversationReplyRequests {
     fun consume(chatId: Long) {
         pending.value?.takeIf { it.chatId == chatId }?.let { pending.compareAndSet(it, null) }
     }
+
+    private val sentReplies = MutableStateFlow<ReplyRequest?>(null)
+
+    /**
+     * Odpověď na [ReplyRequest.messageId] odešla z JINÉ obrazovky (formulář ankety) a konverzace
+     * ji má zahodit. Formulář to hlásí sám po úspěšném odeslání: konverzace by to z příchozí
+     * zprávy nepoznala u naplánované ankety, ta do historie nepřijde.
+     */
+    val sent: StateFlow<ReplyRequest?> = sentReplies.asStateFlow()
+
+    fun replySent(chatId: Long, messageId: Long) {
+        sentReplies.value = ReplyRequest(chatId, messageId)
+    }
+
+    fun consumeSent(chatId: Long) {
+        sentReplies.value?.takeIf { it.chatId == chatId }?.let { sentReplies.compareAndSet(it, null) }
+    }
 }

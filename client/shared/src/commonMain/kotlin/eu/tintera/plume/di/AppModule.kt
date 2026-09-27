@@ -240,6 +240,7 @@ fun appModule() = module {
             repository = get(),
             session = get(),
             placeRepository = get(),
+            replyRequests = get(),
         )
     }
     // Dvě `Long` za sebou: parametry se čtou INDEXEM, podle typu by se chatId s messageId zaměnily.
