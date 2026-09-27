@@ -2,8 +2,11 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.telegram.MessageMedia
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class ContactPickerTest {
 
@@ -27,6 +30,23 @@ class ContactPickerTest {
     @Test
     fun samotneMezeryJsouPrazdnyDotaz() {
         assertEquals(contacts, ContactPicker(contacts = contacts, query = "   ").shown)
+    }
+
+    private val me = MessageMedia.Contact(name = "Já", phone = "+420111222333", userId = 99)
+
+    @Test
+    fun vlastniKontaktBezDotazu() {
+        assertTrue(ContactPicker(contacts = contacts, me = me).showsMe)
+    }
+
+    @Test
+    fun vlastniKontaktSePriHledaniSchova() {
+        assertFalse(ContactPicker(contacts = contacts, me = me, query = "no").showsMe)
+    }
+
+    @Test
+    fun vlastniKontaktJenKdyzSeNacetl() {
+        assertFalse(ContactPicker(contacts = contacts).showsMe)
     }
 
     private fun contact(id: Long, title: String) = ChatSummary(

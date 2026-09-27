@@ -455,8 +455,8 @@ snadno na to uživatel narazí.
   (`proximityAlertRadius`).
 - ~~**Kontakt** (`MessageContact`)~~ — hotovo: karta s tváří, jménem a číslem, „Napsat
   zprávu" (`CLAUDE.md`, „Kontakt"). Zbývá **přidat do kontaktů** (mění adresář, ověřit jen se
-  souhlasem) a ~~**sdílet kontakt** ze sponky~~ (hotovo, s potvrzením čísla). Zbývá sdílet vlastní
-  kontakt (dnes jen kontakty účtu).
+  souhlasem) a ~~**sdílet kontakt** ze sponky~~ (hotovo, s potvrzením čísla). ~~Sdílet vlastní
+  kontakt~~ — hotovo (karta „Můj kontakt" nad kontakty).
 - ~~**Hovory** (`MessageCall`)~~ — hotovo: řádek se směrem, zmeškáním a délkou
   (`CLAUDE.md`, „Zpráva o hovoru").
 - ~~**Kostka** (`MessageDice`)~~ — hotovo: animace hodu od serveru, automat po vrstvách

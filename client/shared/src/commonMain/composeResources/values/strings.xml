@@ -1198,6 +1198,7 @@
     <string name="conversation_contact_title">Share a contact</string>
     <string name="conversation_contact_search">Search contacts</string>
     <string name="conversation_contact_none">No contacts</string>
+    <string name="conversation_contact_me">My contact</string>
     <string name="conversation_contact_confirm_title">Send contact?</string>
     <string name="conversation_contact_confirm_body">The contact %1$s with the number %2$s will be sent to this chat.</string>
     <string name="conversation_contact_send">Send</string>

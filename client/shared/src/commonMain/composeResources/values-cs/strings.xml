@@ -1221,6 +1221,7 @@
     <string name="conversation_contact_title">Sdílet kontakt</string>
     <string name="conversation_contact_search">Hledat v kontaktech</string>
     <string name="conversation_contact_none">Žádné kontakty</string>
+    <string name="conversation_contact_me">Můj kontakt</string>
     <string name="conversation_contact_confirm_title">Poslat kontakt?</string>
     <string name="conversation_contact_confirm_body">Do chatu odejde kontakt %1$s s číslem %2$s.</string>
     <string name="conversation_contact_send">Poslat</string>
