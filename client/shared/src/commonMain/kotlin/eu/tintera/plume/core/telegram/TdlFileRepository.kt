@@ -92,6 +92,14 @@ class TdlFileRepository(
         request(fileId)
     }
 
+    override suspend fun cancelDownload(fileId: Int) {
+        mutex.withLock { requested.remove(fileId) }
+        logger.d { "Ruším stahování souboru $fileId" }
+        client.cancelDownloadFile(fileId = fileId, onlyIfPending = false)
+            .toResult()
+            .onFailure { failure -> logger.w { "cancelDownloadFile($fileId) selhalo: ${failure.message}" } }
+    }
+
     /**
      * Přesune stahování na [offset]. Používá to streamování videa, když si přehrávač řekne
      * o data mimo souvisle stažený úsek — typicky o `moov` atom na konci souboru.

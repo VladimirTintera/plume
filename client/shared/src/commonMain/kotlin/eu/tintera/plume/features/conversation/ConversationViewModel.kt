@@ -3357,6 +3357,8 @@ class ConversationViewModel(
         // odpověď, která nedorazí) nedalo dostat ven — kolečko by se točilo napořád.
         documentJobs.remove(document.fileId)?.let { running ->
             running.cancel()
+            // Zrušit i stahování v TDLib — jinak by soubor tekl dál a potichu se dostáhl.
+            viewModelScope.launch { fileRepository.cancelDownload(document.fileId) }
             _state.update { it.copy(documentDownloads = it.documentDownloads - document.fileId) }
             return
         }

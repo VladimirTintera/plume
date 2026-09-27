@@ -237,6 +237,8 @@ class ChatProfileViewModel(
 
         documentJobs.remove(document.fileId)?.let { running ->
             running.cancel()
+            // Zrušit i stahování v TDLib — jinak by soubor tekl dál a potichu se dostáhl.
+            viewModelScope.launch { files.cancelDownload(document.fileId) }
             _state.update { it.copy(documentDownloads = it.documentDownloads - document.fileId) }
             return
         }

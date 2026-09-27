@@ -34,6 +34,15 @@ interface FileRepository {
     suspend fun retryDownload(fileId: Int)
 
     /**
+     * Zastaví stahování, které si vyžádal uživatel, a zapomene, že se o soubor žádalo — další
+     * odběr [file] nebo [retryDownload] ho spustí znovu a TDLib naváže na stažený kus.
+     *
+     * Zrušit jen čekání v aplikaci nestačí: TDLib by soubor stahoval dál, data by tekla a soubor
+     * by se potichu dostáhl, i když uživatel řekl ne.
+     */
+    suspend fun cancelDownload(fileId: Int)
+
+    /**
      * Přesune stahování na [offset] — pro streamování, když si přehrávač řekne o data, která
      * ještě nedorazila.
      *
