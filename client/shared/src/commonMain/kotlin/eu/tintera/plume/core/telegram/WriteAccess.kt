@@ -30,6 +30,8 @@ internal sealed interface OwnMemberStatus {
         val canPromoteMembers: Boolean = false,
         /** Právo měnit vlastní štítky členů (`setChatMemberTag`). */
         val canManageTags: Boolean = false,
+        /** Právo přidávat členy (a tím i boty). */
+        val canInviteUsers: Boolean = false,
     ) : OwnMemberStatus
     data object Member : OwnMemberStatus
     data class Restricted(
@@ -38,6 +40,7 @@ internal sealed interface OwnMemberStatus {
         /** Vlastní práva omezeného člena na jednotlivé druhy obsahu. */
         val content: ContentAccess,
         val canChangeInfo: Boolean = false,
+        val canInviteUsers: Boolean = false,
     ) : OwnMemberStatus
     data object Left : OwnMemberStatus
     data object Banned : OwnMemberStatus
@@ -191,3 +194,22 @@ fun pollsAllowedIn(kind: PollChatKind): Boolean = when (kind) {
     PollChatKind.Private, PollChatKind.Secret -> false
 }
 
+/**
+ * Smí uživatel do skupiny přidat bota (`t.me/bot?startgroup=…`)? Čistá funkce kvůli testům
+ * (`BotInGroupTest`).
+ *
+ * - Vlastník vždycky, dokud ve skupině je.
+ * - Správce s právem zvát; když odkaz chce bota jako správce ([asAdmin]), musí mít právo
+ *   jmenovat správce — jinak by server přidání odmítl až po výběru skupiny.
+ * - Běžný člen podle výchozích práv skupiny ([membersCanInvite]), omezený podle svých;
+ *   správcem nejmenuje nikdo z nich.
+ */
+internal fun canAddBot(status: OwnMemberStatus?, membersCanInvite: Boolean, asAdmin: Boolean): Boolean =
+    when (status) {
+        null -> false
+        is OwnMemberStatus.Creator -> status.isMember
+        is OwnMemberStatus.Admin -> if (asAdmin) status.canPromoteMembers else status.canInviteUsers
+        OwnMemberStatus.Member -> !asAdmin && membersCanInvite
+        is OwnMemberStatus.Restricted -> !asAdmin && status.isMember && status.canInviteUsers
+        OwnMemberStatus.Left, OwnMemberStatus.Banned -> false
+    }

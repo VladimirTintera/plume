@@ -13,6 +13,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import eu.tintera.plume.core.ui.rememberAfterKeyboardHidden
 import eu.tintera.plume.core.ui.AutoDeleteBadge
 import eu.tintera.plume.core.ui.longPress
+import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.MessageSchedule
 import eu.tintera.plume.resources.conversation_send_silent
@@ -386,6 +387,8 @@ fun ConversationScreen(
     onUnarchived: () -> Unit = {},
     /** Sponka → Anketa (a tlačítko bota „vytvořit anketu"): formulář nové ankety nad konverzací. */
     onCreatePoll: (PollComposerRequest) -> Unit = {},
+    /** Odkaz `t.me/bot?startgroup=…`: výběr skupiny, do které bota přidat. */
+    onAddBotToGroup: (InternalLink.BotStartInGroup) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
@@ -694,6 +697,12 @@ fun ConversationScreen(
         val target = state.openChat ?: return@LaunchedEffect
         viewModel.consumeOpenChat()
         currentOnOpenChat(target.chatId, target.messageId, target.threadId)
+    }
+    val currentOnAddBotToGroup by rememberUpdatedState(onAddBotToGroup)
+    LaunchedEffect(state.addBotToGroup) {
+        val link = state.addBotToGroup ?: return@LaunchedEffect
+        viewModel.consumeAddBotToGroup()
+        currentOnAddBotToGroup(link)
     }
     val currentOnOpenUserProfile by rememberUpdatedState(onOpenUserProfile)
     LaunchedEffect(state.openProfile) {

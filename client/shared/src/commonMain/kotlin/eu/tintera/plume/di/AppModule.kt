@@ -56,6 +56,7 @@ import eu.tintera.plume.core.telegram.TelegramClientHolder
 import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.features.auth.AuthViewModel
 import eu.tintera.plume.features.chats.ChatsViewModel
+import eu.tintera.plume.features.chats.AddBotToGroupViewModel
 import eu.tintera.plume.features.chats.NewChatViewModel
 import eu.tintera.plume.features.conversation.ConversationViewModel
 import eu.tintera.plume.core.telegram.ThreadConversationRepository
@@ -377,4 +378,15 @@ fun appModule() = module {
     }
 
     viewModelOf(::NewChatViewModel)
+
+    // Odkaz, bot a jestli chce správce jdou z routy; indexem, `get()` by bral podle typu.
+    viewModel { parameters ->
+        AddBotToGroupViewModel(
+            url = parameters.values[0] as String,
+            botChatId = parameters.values[1] as Long,
+            asAdmin = parameters.values[2] as Boolean,
+            chatRepository = get(),
+            conversationRepository = get(),
+        )
+    }
 }

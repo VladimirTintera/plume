@@ -1970,6 +1970,8 @@ class ConversationViewModel(
                         is InternalLink.Invite -> _state.update { it.copy(invite = InviteSheetState(link.link, link.preview)) }
                         is InternalLink.StickerSet -> _state.update { it.copy(openStickerSet = link.setId) }
                         is InternalLink.BotStart -> openBotStart(link)
+                        // Skupinu vybírá obrazovka výběru; přidání se potvrzuje až tam.
+                        is InternalLink.BotStartInGroup -> _state.update { it.copy(addBotToGroup = link) }
                     }
                 }
                 .onFailure { failure ->
@@ -2271,6 +2273,10 @@ class ConversationViewModel(
 
     fun consumeOpenChat() {
         _state.update { it.copy(openChat = null) }
+    }
+
+    fun consumeAddBotToGroup() {
+        _state.update { it.copy(addBotToGroup = null) }
     }
 
     /**
@@ -4150,6 +4156,8 @@ data class ConversationState(
     val search: InChatSearch? = null,
     /** Jednorázová událost: otevřít chat ze zmínky nebo odkazu, případně se skokem na zprávu. */
     val openChat: ChatTarget? = null,
+    /** Jednorázová událost: odkaz `t.me/bot?startgroup=…` — otevřít výběr skupiny. */
+    val addBotToGroup: InternalLink.BotStartInGroup? = null,
     /** Jednorázová událost: otevřít profil chatu (odesílatele ze skupiny). */
     val openProfile: Long? = null,
     /** Výběr člena pro hledání podle odesílatele; `null` = zavřený. */

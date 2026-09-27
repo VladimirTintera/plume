@@ -1433,4 +1433,14 @@
     <string name="settings_default_auto_delete">Automatické mazání v nových chatech</string>
     <string name="settings_default_auto_delete_failed">Nepodařilo se změnit, zkus to znovu</string>
     <string name="settings_default_auto_delete_explanation">Zprávy v každém chatu, který odteď založíš, po zvolené době zmizí všem. Chaty, které už máš, se nezmění.</string>
+    <string name="bot_add_group_title">Přidat do skupiny</string>
+    <string name="bot_add_group_search">Hledat skupiny</string>
+    <string name="bot_add_group_empty_title">Není kam ho přidat</string>
+    <string name="bot_add_group_empty_text">Bota jde přidat jen do skupiny, kam smíš zvát členy.</string>
+    <string name="bot_add_group_empty_text_admin">Bot chce být správcem. Přidat ho jde jen do skupiny, kde smíš jmenovat správce.</string>
+    <string name="bot_add_group_confirm_title">Přidat %1$s do skupiny %2$s?</string>
+    <string name="bot_add_group_confirm_text">Bot uvidí zprávy ve skupině, podle toho, jak je nastavený.</string>
+    <string name="bot_add_group_confirm_text_admin">Bot se stane správcem s právy, o která požádal, a uvidí zprávy ve skupině.</string>
+    <string name="bot_add_group_confirm">Přidat</string>
+    <string name="bot_add_group_failed">Bota se do skupiny nepodařilo přidat.</string>
 </resources>
