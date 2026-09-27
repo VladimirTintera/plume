@@ -842,12 +842,13 @@ class TdlConversationRepository(
         waveform: ByteArray,
         replyToMessageId: Long?,
         quote: ReplyQuote?,
+        options: SendOptions,
     ): Result<ChatMessage> =
         client.sendMessage(
             chatId = chatId,
             topicId = null,
             replyTo = replyInput(chatId, replyToMessageId, quote),
-            options = null,
+            options = options.toTdl(),
             replyMarkup = null,
             inputMessageContent = InputMessageVoiceNote(
                 voiceNote = InputVoiceNote(
@@ -1885,6 +1886,7 @@ class TdlConversationRepository(
         poll: PollDraft,
         replyToMessageId: Long?,
         quote: ReplyQuote?,
+        options: SendOptions,
     ): Result<ChatMessage> = runCatching {
         val isChannel = (client.getChat(chatId).toResult().getOrNull()?.type as? ChatTypeSupergroup)?.isChannel == true
         val correct = poll.correctAnswers
@@ -1892,7 +1894,7 @@ class TdlConversationRepository(
             chatId = chatId,
             topicId = null,
             replyTo = replyInput(chatId, replyToMessageId, quote),
-            options = null,
+            options = options.toTdl(),
             replyMarkup = null,
             inputMessageContent = InputMessagePoll(
                 question = FormattedText(text = poll.question, entities = emptyArray()),

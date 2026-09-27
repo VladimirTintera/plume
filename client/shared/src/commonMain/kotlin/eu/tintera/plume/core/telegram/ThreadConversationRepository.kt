@@ -186,8 +186,9 @@ class ThreadConversationRepository(
         waveform: ByteArray,
         replyToMessageId: Long?,
         quote: ReplyQuote?,
+        options: SendOptions,
     ): Result<ChatMessage> =
-        delegate.sendVoiceNote(chatId, path, durationSeconds, waveform, reply(replyToMessageId), quote)
+        delegate.sendVoiceNote(chatId, path, durationSeconds, waveform, reply(replyToMessageId), quote, options)
 
     override suspend fun sendAttachments(
         chatId: Long,
@@ -205,7 +206,8 @@ class ThreadConversationRepository(
         poll: PollDraft,
         replyToMessageId: Long?,
         quote: ReplyQuote?,
-    ): Result<ChatMessage> = delegate.sendPoll(chatId, poll, reply(replyToMessageId), quote)
+        options: SendOptions,
+    ): Result<ChatMessage> = delegate.sendPoll(chatId, poll, reply(replyToMessageId), quote, options)
 
     override suspend fun sendKeyboardText(chatId: Long, text: String, replyToMessageId: Long?): Result<ChatMessage> =
         delegate.sendKeyboardText(chatId, text, reply(replyToMessageId))

@@ -1550,10 +1550,13 @@ fun ConversationScreen(
                     haptics.reject()
                     viewModel.cancelRecording()
                 },
-                onSendRecording = {
+                onSendRecording = { options ->
                     haptics.confirm()
-                    viewModel.sendRecording()
+                    viewModel.sendRecording(options)
                 },
+                // Nabídka nad hlasovkou nahrávání pozastaví, zavření bez volby ho obnoví.
+                onVoiceMenu = { open -> if (open) viewModel.pauseRecording() else viewModel.resumeRecording() },
+                onScheduleRecording = { scheduleTarget = ScheduleTarget.Voice },
                 onPickDocument = attachmentPicker::pickDocument,
                 // Anketa jde jen tam, kde to dovolí právo i druh chatu (`ContentAccess.polls`).
                 onCreatePoll = {
@@ -2096,7 +2099,11 @@ fun ConversationScreen(
                     now = Clock.System.now().epochSeconds,
                     maxAheadSeconds = MAX_SCHEDULE_AHEAD_SECONDS,
                     onPick = { day -> scheduleDay = day },
-                    onDismiss = { scheduleTarget = null },
+                    onDismiss = {
+                        // Hlasovka čekala pozastavená; bez času se nahrává dál.
+                        if (scheduleTarget == ScheduleTarget.Voice) viewModel.resumeRecording()
+                        scheduleTarget = null
+                    },
                 )
             }
             val target = scheduleTarget
@@ -2113,6 +2120,7 @@ fun ConversationScreen(
                         if (!scheduleValid(at, Clock.System.now().epochSeconds)) {
                             haptics.reject()
                             viewModel.reportError(UiText(Res.string.conversation_schedule_past))
+                            if (target == ScheduleTarget.Voice) viewModel.resumeRecording()
                             return@TimeOfDayDialog
                         }
                         val schedule = MessageSchedule.At(at)
@@ -2122,10 +2130,15 @@ fun ConversationScreen(
                                 viewModel.send(draft.text, SendOptions(schedule = schedule))
                                 draft = TextFieldValue()
                             }
+                            ScheduleTarget.Voice -> {
+                                haptics.confirm()
+                                viewModel.sendRecording(SendOptions(schedule = schedule))
+                            }
                             is ScheduleTarget.Existing -> viewModel.reschedule(target.messageId, schedule)
                         }
                     },
                     onDismiss = {
+                        if (scheduleTarget == ScheduleTarget.Voice) viewModel.resumeRecording()
                         scheduleTarget = null
                         scheduleDay = null
                     },
@@ -2424,7 +2437,11 @@ private fun MessageInput(
     recording: () -> VoiceRecording?,
     onStartRecording: () -> Unit,
     onCancelRecording: () -> Unit,
-    onSendRecording: () -> Unit,
+    onSendRecording: (SendOptions) -> Unit,
+    /** Nabídka odeslání nad hlasovkou se otevřela (`true`) nebo zavřela bez volby (`false`). */
+    onVoiceMenu: (open: Boolean) -> Unit = {},
+    /** „Naplánovat…" nad hlasovkou; výběr času řeší obrazovka, nahrávání je mezitím pozastavené. */
+    onScheduleRecording: () -> Unit = {},
     /** Přílohy čekající na odeslání; text pole je pak jejich popisek. */
     attachments: List<OutgoingAttachment>,
     /**
@@ -2929,6 +2946,20 @@ private fun MessageInput(
             )
 
             var sendMenuOpen by remember { mutableStateOf(false) }
+            // Nabídka otevřená nad hlasovkou: volby jdou na nahrávku, ne na text pole.
+            var voiceMenu by remember { mutableStateOf(false) }
+            var voiceChosen by remember { mutableStateOf(false) }
+            // Položka nabídky volá NEJDŘÍV zavření a teprve pak svoji akci, takže o obnovení
+            // nahrávání se rozhoduje až po zavření: bez volby se nahrává dál, s volbou ne.
+            LaunchedEffect(sendMenuOpen) {
+                if (!sendMenuOpen && voiceMenu) {
+                    if (!voiceChosen) onVoiceMenu(false)
+                    voiceMenu = false
+                    voiceChosen = false
+                }
+            }
+            // Efekt jde vybrat jen k textu — výběr efektu posílá obsah pole.
+            val voiceSendMenu = sendMenu.copy(effects = false)
             // Kruh (odeslání) se při stisku mění podle M3 Expressive na zaoblený čtverec.
             // Sušenka a tvary během přechodu stisk nemění: mezi obecnými tvary IconButton
             // neanimuje a skok by vypadal jako chyba.
@@ -2948,7 +2979,7 @@ private fun MessageInput(
                 FilledIconButton(
                     onClick = {
                         when {
-                            isRecording -> onSendRecording()
+                            isRecording -> onSendRecording(SendOptions())
                             showMic -> onStartRecording()
                             else -> {
                                 onSend(draft.text, SendOptions())
@@ -2969,9 +3000,15 @@ private fun MessageInput(
                         .size(IconButtonDefaults.mediumContainerSize())
                         // Klidový tvar; stisk ho na chvíli zhranatí, a to při letu fotky nehraje roli.
                         .occludesSharedElements(buttonShapes.shape)
-                        // Podržení nabídne odeslat bez zvuku a naplánovat — jen u hotové zprávy.
-                        .longPressInstead(enabled = kind == SendButtonKind.Send && sendMenu.any && !attachmentsPreparing) {
+                        // Podržení nabídne odeslat bez zvuku a naplánovat — u hotové zprávy
+                        // i u nahrávané hlasovky.
+                        .longPressInstead(
+                            enabled = (kind == SendButtonKind.Send && sendMenu.any && !attachmentsPreparing) ||
+                                (kind == SendButtonKind.SendVoice && voiceSendMenu.any),
+                        ) {
                             keyboard?.hide()
+                            voiceMenu = kind == SendButtonKind.SendVoice
+                            if (voiceMenu) onVoiceMenu(true)
                             sendMenuOpen = true
                         },
                 ) {
@@ -3008,12 +3045,31 @@ private fun MessageInput(
                         )
                     }
                 }
+                val offer = if (voiceMenu) voiceSendMenu else sendMenu
                 ExpressiveMenu(
                     expanded = sendMenuOpen,
                     onDismiss = { sendMenuOpen = false },
                     popupPositionProvider = remember { MenuAbovePositionProvider(alignEnd = true) },
                     groups = listOf(
-                        listOfNotNull(
+                        if (voiceMenu) {
+                            listOfNotNull(
+                                MenuAction(stringResource(Res.string.conversation_send_silent), Res.drawable.notifications_off_24dp) {
+                                    voiceChosen = true
+                                    sendMenuOpen = false
+                                    onSendRecording(SendOptions(silent = true))
+                                }.takeIf { offer.silent },
+                                MenuAction(stringResource(Res.string.conversation_send_schedule), Res.drawable.schedule_send_24dp) {
+                                    voiceChosen = true
+                                    sendMenuOpen = false
+                                    onScheduleRecording()
+                                }.takeIf { offer.schedule },
+                                MenuAction(stringResource(Res.string.conversation_send_when_online), Res.drawable.online_prediction_24dp) {
+                                    voiceChosen = true
+                                    sendMenuOpen = false
+                                    onSendRecording(SendOptions(schedule = MessageSchedule.WhenOnline))
+                                }.takeIf { offer.whenOnline },
+                            )
+                        } else listOfNotNull(
                             MenuAction(stringResource(Res.string.conversation_send_silent), Res.drawable.notifications_off_24dp) {
                                 sendMenuOpen = false
                                 onSend(draft.text, SendOptions(silent = true))
@@ -3116,6 +3172,9 @@ private enum class SendButtonKind { Mic, SendVoice, Send, Save }
 /** Co se plánuje: rozepsaná zpráva z pole, nebo už naplánovaná, které se mění čas. */
 private sealed interface ScheduleTarget {
     data object Draft : ScheduleTarget
+
+    /** Nahrávaná hlasovka, po dobu výběru času pozastavená. */
+    data object Voice : ScheduleTarget
     data class Existing(val messageId: Long) : ScheduleTarget
 }
 
@@ -3128,7 +3187,7 @@ private const val SCHEDULE_DEFAULT_AHEAD_SECONDS = 60L * 60
  * [onLongPress] a **zbytek gesta spotřebuje** — puštění prstu pak tlačítko neodešle.
  * Krátké ťuknutí projde beze změny.
  */
-private fun Modifier.longPressInstead(enabled: Boolean, onLongPress: () -> Unit): Modifier = composed {
+internal fun Modifier.longPressInstead(enabled: Boolean, onLongPress: () -> Unit): Modifier = composed {
     val haptics = LocalHapticFeedback.current
     val action by rememberUpdatedState(onLongPress)
     if (!enabled) {

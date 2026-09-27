@@ -100,6 +100,7 @@ interface ConversationRepository {
         poll: PollDraft,
         replyToMessageId: Long?,
         quote: ReplyQuote? = null,
+        options: SendOptions = SendOptions(),
     ): Result<ChatMessage>
 
     /** Meze nové ankety (`poll_answer_count_max`, `poll_open_period_max`). */
@@ -487,6 +488,7 @@ interface ConversationRepository {
         waveform: ByteArray,
         replyToMessageId: Long?,
         quote: ReplyQuote? = null,
+        options: SendOptions = SendOptions(),
     ): Result<ChatMessage>
 
     suspend fun sendAttachments(

@@ -85,6 +85,27 @@ fun opusPacketSamples(packet: ByteArray): Int {
 }
 
 /**
+ * Spojí nahrávku z víc úseků (pozastavené nahrávání) do jednoho Oggu.
+ *
+ * `MediaRecorder` s výstupem Ogg/Opus pauzu nedodrží: na emulátoru kódoval i během ní
+ * a hlasovka pozastavená na tři vteřiny výběru času měla 32 s. Nahrává se proto po úsecích
+ * a zvukové pakety se tady skládají za sebe. [preSkip] se bere z prvního úseku — na začátku
+ * dalších úseků zbyde zahřívací kousek dekodéru, jednotky milisekund.
+ */
+fun joinOggOpus(segments: List<ByteArray>): ByteArray {
+    require(segments.isNotEmpty()) { "Žádný úsek." }
+    val streams = segments.map { parseOggOpus(it) }
+    val first = streams.first()
+    // `parseOggOpus` hlavičku a tagy odřízne, zbývá jen zvuk.
+    val audio = streams.flatMap { it.packets }
+    val samples = audio.firstOrNull()?.let(::opusPacketSamples) ?: DEFAULT_SAMPLES_PER_PACKET
+    return oggOpusFile(audio, channels = first.channels, preSkip = first.preSkip, samplesPerPacket = samples)
+}
+
+/** 20 ms při 48 kHz — rámec, který Android i iOS kodér používají. */
+private const val DEFAULT_SAMPLES_PER_PACKET = 960
+
+/**
  * Zabalí Opus pakety do Ogg — formát, ve kterém hlasovku chce Telegram. iOS umí Opus zakódovat,
  * ale ne do Oggu, takže kontejner se skládá tady.
  *

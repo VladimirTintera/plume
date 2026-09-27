@@ -1553,6 +1553,7 @@ class ConversationViewModel(
 
     private fun sendMedia(
         failureMessage: StringResource,
+        scheduled: Boolean = false,
         send: suspend (replyTo: Long?, quote: ReplyQuote?) -> Result<ChatMessage>,
     ) {
         val replyTo = _state.value.replyingTo?.id
@@ -1563,11 +1564,18 @@ class ConversationViewModel(
             send(replyTo, quote)
                 .onSuccess { pending ->
                     shareTargets.reportUsed(chatId)
+                    // Naplánovaná do konverzace nepatří, jen se ohlásí — jako naplánovaný text.
+                    if (scheduled) {
+                        _state.update { it.copy(notice = UiText(Res.string.conversation_scheduled_notice)) }
+                        return@onSuccess
+                    }
                     // Potvrzení mohlo dorazit dřív než výsledek; `withMessage` to ošetří.
                     _state.update { it.withMessage(pending) }
                 }
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(failureMessage)) }
+                    _state.update {
+                        it.copy(error = failure.reported(if (scheduled) Res.string.conversation_schedule_failed else failureMessage))
+                    }
                 }
         }
     }
@@ -3514,10 +3522,23 @@ class ConversationViewModel(
     }
 
     /**
+     * Pozastaví nahrávání po dobu nabídky odeslání a výběru času. Jinak by se do hlasovky
+     * nahrálo, jak uživatel vybírá — a šustění na konci by se z ní nedalo dostat.
+     */
+    fun pauseRecording() {
+        voiceRecorder.pause()
+    }
+
+    /** Nabídka se zavřela bez volby — nahrává se dál. */
+    fun resumeRecording() {
+        voiceRecorder.resume()
+    }
+
+    /**
      * Ukončí nahrávání a hlasovku odešle — jako samolepka: bez letu ze vstupního pole, rozepsaný
      * text zůstává, citace se spotřebuje. Příliš krátká nahrávka se zahodí s vysvětlením.
      */
-    fun sendRecording() {
+    fun sendRecording(options: SendOptions = SendOptions()) {
         // Dvojí ťuknutí na odeslání: druhé by našlo nahrávání už ukončené a hlásilo nesmysl.
         if (voiceRecorder.state.value == null) return
         viewModelScope.launch {
@@ -3530,8 +3551,10 @@ class ConversationViewModel(
                 }
                 return@launch
             }
-            sendMedia(Res.string.conversation_voice_send_failed) { replyTo, quote ->
-                repository.sendVoiceNote(chatId, recorded.path, recorded.durationSeconds, recorded.waveform, replyTo, quote)
+            sendMedia(Res.string.conversation_voice_send_failed, scheduled = options.schedule != null) { replyTo, quote ->
+                repository.sendVoiceNote(
+                    chatId, recorded.path, recorded.durationSeconds, recorded.waveform, replyTo, quote, options,
+                )
             }
         }
     }
