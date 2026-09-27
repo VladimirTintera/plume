@@ -45,6 +45,8 @@ import dev.g000sha256.tdl.dto.ChatTypeSecret
 import dev.g000sha256.tdl.dto.BlockListMain
 import dev.g000sha256.tdl.dto.ChatActionBarReportAddBlock
 import dev.g000sha256.tdl.dto.ChatActionBarAddContact
+import dev.g000sha256.tdl.dto.ChatActionBarJoinRequest
+import dev.g000sha256.tdl.dto.ChatActionBarSharePhoneNumber
 import dev.g000sha256.tdl.dto.ImportedContact
 import dev.g000sha256.tdl.dto.ReportChatResultMessagesRequired
 import dev.g000sha256.tdl.dto.ReportChatResultOptionRequired
@@ -745,16 +747,23 @@ class TdlChatRepository(
      * Odběr stojí před prvním čtením (`onStart`), aby se změna mezi nimi neztratila. Update nese
      * pruh sám, ale čte se znovu celý chat: kdo jde zablokovat, se pozná z typu chatu.
      */
-    override fun spamBar(chatId: Long): Flow<SpamBar?> =
+    override fun chatBar(chatId: Long): Flow<ChatBar?> =
         holder.updates { chatActionBarUpdates }
             .filter { it.chatId == chatId }
             .map { }
             .onStart { emit(Unit) }
-            .map { client.getChat(chatId = chatId).toResult().getOrNull()?.spamBar() }
+            .map { client.getChat(chatId = chatId).toResult().getOrNull()?.chatBar() }
             .distinctUntilChanged()
 
-    override suspend fun dismissSpamBar(chatId: Long): Result<Unit> =
+    override suspend fun dismissChatBar(chatId: Long): Result<Unit> =
         client.removeChatActionBar(chatId = chatId).toResult().map { }
+
+    /** Pruh zmizí sám — TDLib ho po nasdílení odebere a pošle `UpdateChatActionBar`. */
+    override suspend fun sharePhoneNumber(chatId: Long): Result<Unit> = runCatching {
+        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+        val userId = chat.blockableUserId() ?: error("V chatu $chatId není komu číslo nasdílet.")
+        client.sharePhoneNumber(userId = userId).toResult().getOrThrow()
+    }
 
     /**
      * Obojí souběžně, jak to TDLib u `canUnarchive` předepisuje („simultaneously"). Selhání
@@ -1213,8 +1222,14 @@ private fun Chat.reportsSpamDirectly(): Boolean =
  */
 private fun Chat.warnsEmojiStatus(): Boolean = blockableUserId() != null && emojiStatus.statusEmojiId() != null
 
-/** Pruh proti spamu nad konverzací; `null` u pruhů, které aplikace nekreslí. */
-private fun Chat.spamBar(): SpamBar? = when (val bar = actionBar) {
+/** Pruh nad konverzací; `null` u pruhů, které aplikace nekreslí. */
+private fun Chat.chatBar(): ChatBar? = when (val bar = actionBar) {
+    is ChatActionBarSharePhoneNumber -> SharePhoneBar
+    is ChatActionBarJoinRequest -> JoinRequestBar(
+        chatTitle = bar.title,
+        isChannel = bar.isChannel,
+        requestDate = bar.requestDate,
+    )
     is ChatActionBarReportSpam -> SpamBar(
         canReportSpam = true,
         canBlock = false,

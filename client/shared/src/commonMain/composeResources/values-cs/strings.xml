@@ -1421,4 +1421,13 @@
     </plurals>
     <string name="verification_by_bot">Ověřeno botem</string>
     <string name="verification_by_bot_named">Ověřil %1$s</string>
+    <string name="chat_bar_share_phone_hint">Tenhle kontakt tvoje telefonní číslo nevidí.</string>
+    <string name="chat_bar_share_phone">Sdílet moje číslo</string>
+    <string name="chat_bar_share_phone_title">Sdílet číslo?</string>
+    <string name="chat_bar_share_phone_text">%1$s uvidí tvoje telefonní číslo.</string>
+    <string name="chat_bar_share_phone_confirm">Sdílet</string>
+    <string name="chat_bar_phone_shared">Číslo je nasdílené</string>
+    <string name="chat_bar_join_request_group">Tuhle zprávu dostáváš jako odpověď na žádost o vstup do skupiny „%1$s“.</string>
+    <string name="chat_bar_join_request_channel">Tuhle zprávu dostáváš jako odpověď na žádost o vstup do kanálu „%1$s“.</string>
+    <string name="chat_bar_join_request_date">Žádost odeslána: %1$s</string>
 </resources>

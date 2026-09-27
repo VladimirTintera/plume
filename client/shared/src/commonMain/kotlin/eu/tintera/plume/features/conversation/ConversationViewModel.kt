@@ -109,6 +109,7 @@ import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.chat_bar_phone_shared
 import eu.tintera.plume.resources.paid_media_unsupported
 import eu.tintera.plume.resources.conversation_selection_limit
 import eu.tintera.plume.resources.conversation_attachments_limit
@@ -162,7 +163,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
-import eu.tintera.plume.core.telegram.SpamBar
+import eu.tintera.plume.core.telegram.ChatBar
+import eu.tintera.plume.core.telegram.SharePhoneBar
 import eu.tintera.plume.features.chats.SpamCleanup
 import eu.tintera.plume.features.chats.cleanUpSpam
 import eu.tintera.plume.features.report.ReportFlow
@@ -279,10 +281,10 @@ class ConversationViewModel(
     val state: StateFlow<ConversationState> = _state.asStateFlow()
 
     /**
-     * Pruh proti spamu nad konverzací (chat od neznámého). Samostatný tok ze stejného důvodu
-     * jako [connection]: mění se zřídka a nezávisle na zprávách.
+     * Pruh nad konverzací (spam od neznámého, nasdílení čísla, žádost o vstup). Samostatný tok
+     * ze stejného důvodu jako [connection]: mění se zřídka a nezávisle na zprávách.
      */
-    val spamBar: StateFlow<SpamBar?> = chatRepository.spamBar(chatId)
+    val chatBar: StateFlow<ChatBar?> = chatRepository.chatBar(chatId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Průvodce nahlášením — z nabídky nad zprávou i z pruhu proti spamu. */
@@ -3097,10 +3099,22 @@ class ConversationViewModel(
         }
     }
 
-    /** Zavře pruh proti spamu napořád. */
-    fun dismissSpamBar() {
+    /** Nasdílí vlastní číslo protějšku (pruh [SharePhoneBar], po potvrzení dialogem). */
+    fun sharePhoneNumber() {
         viewModelScope.launch {
-            chatRepository.dismissSpamBar(chatId).onFailure { failure ->
+            chatRepository.sharePhoneNumber(chatId)
+                .onSuccess { _state.update { it.copy(notice = UiText(Res.string.chat_bar_phone_shared)) } }
+                .onFailure { failure ->
+                    logger.w(failure) { "Nasdílení čísla v chatu $chatId selhalo." }
+                    _state.update { it.copy(error = failure.userMessage(Res.string.spam_bar_failed)) }
+                }
+        }
+    }
+
+    /** Zavře pruh nad konverzací napořád. */
+    fun dismissChatBar() {
+        viewModelScope.launch {
+            chatRepository.dismissChatBar(chatId).onFailure { failure ->
                 logger.w(failure) { "Pruh proti spamu v chatu $chatId nejde zavřít." }
                 _state.update { it.copy(error = failure.userMessage(Res.string.spam_bar_failed)) }
             }

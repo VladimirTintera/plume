@@ -48,11 +48,35 @@ sealed interface ReportStep {
 }
 
 /**
- * Pruh nad konverzací, který server dává chatu od neznámého (`ChatActionBar`). Je to hlavní
- * cesta, kterou Telegram spam řeší: nabídne se sám, jakmile někdo cizí napíše.
+ * Pruh nad konverzací (`ChatActionBar`): nabídka, kterou server dává chatu sám od sebe.
  *
- * Nese jen druhy, které aplikace umí. Pruhy pro sdílení čísla, pozvání členů nebo žádost
- * o vstup se nekreslí vůbec — `null` z [ChatRepository.spamBar].
+ * Nese jen druhy, které aplikace umí; ostatní (pozvání členů do čerstvé skupiny, pruh
+ * firemního bota) jsou `null` z [ChatRepository.chatBar].
+ */
+sealed interface ChatBar
+
+/**
+ * Vzájemný kontakt nevidí vlastní číslo uživatele a pruh nabízí mu ho nasdílet
+ * (`ChatActionBarSharePhoneNumber` → `sharePhoneNumber`). Odchází osobní údaj, takže se
+ * potvrzuje dialogem.
+ */
+data object SharePhoneBar : ChatBar
+
+/**
+ * Soukromý chat se správcem skupiny nebo kanálu, do kterého uživatel poslal žádost o vstup
+ * (`ChatActionBarJoinRequest`). Pruh jen vysvětluje, proč píše někdo cizí — jinak by zpráva od
+ * správce vypadala jako spam.
+ */
+data class JoinRequestBar(
+    val chatTitle: String,
+    val isChannel: Boolean,
+    /** Kdy žádost odešla (Unix čas). */
+    val requestDate: Int,
+) : ChatBar
+
+/**
+ * Pruh proti spamu u chatu od neznámého. Je to hlavní cesta, kterou Telegram spam řeší:
+ * nabídne se sám, jakmile někdo cizí napíše.
  */
 data class SpamBar(
     /** Nahlásit spam jedním voláním, bez průvodce. */
@@ -73,7 +97,7 @@ data class SpamBar(
     val warnsEmojiStatus: Boolean = false,
     /** Co server o protějšku prozradil, když napsal poprvé; `null` = nic. */
     val account: CounterpartAccount? = null,
-)
+) : ChatBar
 
 /**
  * Údaje o cizím účtu, který napsal poprvé (`AccountInfo` u `ChatActionBarReportAddBlock`).

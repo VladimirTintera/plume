@@ -348,6 +348,9 @@ import eu.tintera.plume.resources.sticky_note_2_24dp
 import kotlin.time.Clock
 import kotlinx.coroutines.flow.debounce
 import eu.tintera.plume.core.telegram.SpamBar
+import eu.tintera.plume.core.telegram.ChatBar
+import eu.tintera.plume.core.telegram.JoinRequestBar
+import eu.tintera.plume.core.telegram.SharePhoneBar
 import eu.tintera.plume.features.report.ReportHost
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
@@ -458,7 +461,20 @@ fun ConversationScreen(
     val jumpTransition = remember { JumpTransition() }
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val spamBar by viewModel.spamBar.collectAsStateWithLifecycle()
+    val chatBar by viewModel.chatBar.collectAsStateWithLifecycle()
+    val spamBar = chatBar as? SpamBar
+    var confirmSharePhone by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(chatBar) { if (chatBar !is SharePhoneBar) confirmSharePhone = false }
+    if (confirmSharePhone) {
+        ContactSharePhoneDialog(
+            name = state.info?.title.orEmpty(),
+            onConfirm = {
+                confirmSharePhone = false
+                viewModel.sharePhoneNumber()
+            },
+            onDismiss = { confirmSharePhone = false },
+        )
+    }
     val chatGone by viewModel.chatGone.collectAsStateWithLifecycle()
     /** Otevřený sheet z pruhu proti spamu; `null` = zavřený. */
     var spamBarAction by rememberSaveable { mutableStateOf<SpamBarAction?>(null) }
@@ -2005,22 +2021,29 @@ fun ConversationScreen(
                     .onSizeChanged { pinnedHeight = with(density) { it.height.toDp() } },
             ) {
                 // Při odjezdu se musí dál kreslit poslední pruh, ne nic (stejně jako u připnutých).
-                val lastSpamBar = remember { arrayOf<SpamBar?>(null) }
-                if (spamBar != null) lastSpamBar[0] = spamBar
+                // Při odjezdu se kreslí poslední pruh — stav je v tu chvíli už prázdný.
+                val lastChatBar = remember { arrayOf<ChatBar?>(null) }
+                if (chatBar != null) lastChatBar[0] = chatBar
                 AnimatedVisibility(
-                    visible = spamBar != null,
+                    visible = chatBar != null,
                     enter = expandVertically() + fadeIn(),
                     exit = shrinkVertically() + fadeOut(),
                 ) {
-                    lastSpamBar[0]?.let { bar ->
-                        SpamBarCard(
+                    when (val bar = lastChatBar[0]) {
+                        is SpamBar -> SpamBarCard(
                             bar = bar,
                             onBlock = { spamBarAction = SpamBarAction.Block },
                             onReport = { spamBarAction = SpamBarAction.Report },
                             onAddContact = viewModel::addSpamBarContact,
                             onUnarchive = viewModel::unarchiveFromSpamBar,
-                            onDismiss = viewModel::dismissSpamBar,
+                            onDismiss = viewModel::dismissChatBar,
                         )
+                        SharePhoneBar, is JoinRequestBar -> ChatNoticeBarCard(
+                            bar = bar,
+                            onSharePhone = { confirmSharePhone = true },
+                            onDismiss = viewModel::dismissChatBar,
+                        )
+                        null -> Unit
                     }
                 }
                 AnimatedVisibility(
