@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.contact_page_24dp
+import eu.tintera.plume.resources.conversation_attach_contact
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.DropdownMenuPopupPositionProvider
 import androidx.compose.material3.Icon
@@ -61,6 +63,8 @@ internal fun AttachButton(
     onCreatePoll: (() -> Unit)? = null,
     /** Poslat polohu; `null`, kde nejde. */
     onSendLocation: (() -> Unit)? = null,
+    /** Poslat kontakt; `null`, kde nejde. */
+    onShareContact: (() -> Unit)? = null,
     contentColor: Color,
     modifier: Modifier = Modifier,
 ) {
@@ -95,6 +99,9 @@ internal fun AttachButton(
                     },
                     onSendLocation?.let { send ->
                         MenuAction(stringResource(Res.string.conversation_attach_location), Res.drawable.location_on_24dp) { pick(send) }
+                    },
+                    onShareContact?.let { share ->
+                        MenuAction(stringResource(Res.string.conversation_attach_contact), Res.drawable.contact_page_24dp) { pick(share) }
                     },
                 ),
             ),

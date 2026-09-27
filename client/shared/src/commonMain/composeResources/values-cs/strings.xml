@@ -1217,6 +1217,16 @@
     <string name="conversation_attach_poll">Anketa</string>
     <string name="conversation_attach_location">Poloha</string>
     <string name="conversation_location_title">Poslat polohu</string>
+    <string name="conversation_attach_contact">Kontakt</string>
+    <string name="conversation_contact_title">Sdílet kontakt</string>
+    <string name="conversation_contact_search">Hledat v kontaktech</string>
+    <string name="conversation_contact_none">Žádné kontakty</string>
+    <string name="conversation_contact_confirm_title">Poslat kontakt?</string>
+    <string name="conversation_contact_confirm_body">Do chatu odejde kontakt %1$s s číslem %2$s.</string>
+    <string name="conversation_contact_send">Poslat</string>
+    <string name="conversation_contact_load_failed">Kontakty se nepodařilo načíst.</string>
+    <string name="conversation_contact_no_phone">Tenhle kontakt skrývá své číslo, takže ho sdílet nejde.</string>
+    <string name="conversation_contact_send_failed">Kontakt se nepodařilo odeslat.</string>
     <string name="poll_compose_title">Nová anketa</string>
     <string name="poll_compose_title_quiz">Nový kvíz</string>
     <string name="poll_compose_send">Odeslat</string>

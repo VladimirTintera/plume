@@ -6007,6 +6007,16 @@ a hovoru: tvář, jméno, číslo a u kontaktu na Telegramu „Napsat zprávu" (
   `ContactPhoneTest`). Místní číslo s mezerami zůstane, jak přišlo — plus by z něj udělal cizí.
 - **„Kopírovat" v nabídce kopíruje jméno a číslo** (`copyableText`); text zprávy je prázdný.
 - **„Přidat do kontaktů" zatím není** — mění adresář účtu. Až přibude, jen se souhlasem ověřit.
+- **Poslat kontakt jde ze sponky** („Kontakt" → `ContactPickerSheet` → `ContactConfirmDialog`
+  → `sendContact`). Seznam je `ChatRepository.contacts()`, filtruje se lokálně podle jména
+  (`ContactPicker.shown`, testy `ContactPickerTest`). **Odeslání se potvrzuje dialogem se jménem
+  a ČÍSLEM** (`contactCard`, lokální `getUser`): odchází cizí telefonní číslo a ťuknutí vedle
+  v seznamu by poslalo jiné. Kontakt, který číslo skrývá (prázdné `phoneNumber`), poslat nejde
+  a řekne to hláška. Posílá se i `userId`, takže u příjemce funguje „Napsat zprávu".
+  Nabízí se tam, kde poloha — TDLib kontakt řadí k „základním zprávám" jako text.
+- **Sheet je jen rozbalený** (`enabledValues = Hidden, Expanded`); napůl rozbalený nechal seznam
+  kontaktů pod spodním okrajem. Ověřeno odesláním do Uložených zpráv — ne botovi, cizí číslo
+  nemá odcházet nikam mimo vlastní účet.
 - **Ověřuje se botem** (`sendContact`): fiktivní číslo dá kartu bez tlačítka; s `user_id`
   vlastního účtu karta s fotkou a „Napsat zprávu" otevře Uložené zprávy. Zprávu s vlastním
   číslem po ověření smazat (`deleteMessage`).

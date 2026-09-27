@@ -1194,6 +1194,16 @@
     <string name="conversation_attach_poll">Poll</string>
     <string name="conversation_attach_location">Location</string>
     <string name="conversation_location_title">Send location</string>
+    <string name="conversation_attach_contact">Contact</string>
+    <string name="conversation_contact_title">Share a contact</string>
+    <string name="conversation_contact_search">Search contacts</string>
+    <string name="conversation_contact_none">No contacts</string>
+    <string name="conversation_contact_confirm_title">Send contact?</string>
+    <string name="conversation_contact_confirm_body">The contact %1$s with the number %2$s will be sent to this chat.</string>
+    <string name="conversation_contact_send">Send</string>
+    <string name="conversation_contact_load_failed">Couldn't load contacts.</string>
+    <string name="conversation_contact_no_phone">This contact hides their phone number, so it can't be shared.</string>
+    <string name="conversation_contact_send_failed">Couldn't send the contact.</string>
     <string name="poll_compose_title">New poll</string>
     <string name="poll_compose_title_quiz">New quiz</string>
     <string name="poll_compose_send">Send</string>
