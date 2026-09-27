@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.SwipeDirection
+import eu.tintera.plume.core.ui.detectHorizontalSwipe
 import eu.tintera.plume.core.ui.VerificationBadge
 import eu.tintera.plume.core.ui.tabularNumbers
 import androidx.compose.ui.semantics.semantics
@@ -24,10 +26,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
-import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -78,7 +76,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -561,15 +558,12 @@ private fun MessageFrame(
             /*
              * Tažení do strany = odpověď.
              *
-             * Vlastní detektor, ne `draggable` ani `detectHorizontalDragGestures`. Ten druhý
-             * konzumuje hned od prvního pixelu a rozbil by svislý scroll seznamu; `draggable`
-             * je po slopu **směrově agnostický** a vezme si i tah DOLEVA, který patří odkrývání
-             * časů nad seznamem. Tenhle detektor rozhodne jednou za gesto: doprava spotřebuje
-             * (odpověď), doleva nespotřebuje nic a nechá gesto propadnout rodiči.
-             *
-             * Nespotřebovaný pohyb `awaitHorizontalTouchSlopOrCancellation` nezahodí — počítá
-             * slop dál, takže si ho může vzít seznam. Stejný vzor jako vlastní detektor
-             * v prohlížeči médií.
+             * Rozhoduje sdílený [detectHorizontalSwipe]: tah si vezme až po dvojnásobku touch
+             * slopu a jen když jde výrazně víc doprava než svisle. Dřív to byl
+             * `awaitHorizontalTouchSlopOrCancellation`, který se ptá JEN na vodorovnou složku
+             * a jen na jeden slop — a bublina je potomek seznamu, takže dotyk dostane dřív než
+             * on. Palec jde na začátku scrollu obloukem do strany, a místo scrollu se zakládala
+             * odpověď. Doleva se tah nebere a propadne odkrývání časů nad seznamem.
              *
              * Táhne se **doprava u obou stran konverzace**. Zrcadlit směr podle odesílatele by
              * znamenalo, že uživatel musí před každým gestem přemýšlet, čí zpráva to je.
@@ -579,22 +573,9 @@ private fun MessageFrame(
              */
             .then(if (frame.selected != null) Modifier else Modifier
             .pointerInput(Unit) {
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-
-                    var startOffset = 0f
-                    val claimed = awaitHorizontalTouchSlopOrCancellation(down.id) { change, overSlop ->
-                        if (overSlop > 0f) {
-                            change.consume()
-                            startOffset = overSlop
-                        }
-                    } ?: return@awaitEachGesture
-
-                    coroutineScope.launch { drag.snapTo(startOffset.coerceIn(0f, maxDrag)) }
-
-                    val finished = horizontalDrag(claimed.id) { change ->
-                        val delta = change.positionChange().x
-                        change.consume()
+                detectHorizontalSwipe(
+                    direction = SwipeDirection.Right,
+                    onDrag = { delta ->
                         coroutineScope.launch {
                             // Za prahem klade tah odpor — jinak by šla bublina odtáhnout přes půl
                             // obrazovky a nebylo by poznat, že se dál nic nestane.
@@ -607,17 +588,18 @@ private fun MessageFrame(
                                 haptics.threshold()
                             }
                         }
-                    }
-
-                    coroutineScope.launch {
-                        // Odpověď odchází při PUŠTĚNÍ, ne při překročení prahu. Kdo si to rozmyslí,
-                        // vrátí prst zpátky a nic se nestane. Zrušené gesto (přerušení systémem)
-                        // bublinu jen vrátí.
-                        if (finished && armed && drag.value >= threshold) scope.onAction(currentMessageId, MessageAction.SwipeReply)
-                        armed = false
-                        drag.animateTo(0f, returnSpec)
-                    }
-                }
+                    },
+                    onEnd = { released ->
+                        coroutineScope.launch {
+                            // Odpověď odchází při PUŠTĚNÍ, ne při překročení prahu. Kdo si to
+                            // rozmyslí, vrátí prst zpátky a nic se nestane. Zrušené gesto
+                            // (přerušení systémem) bublinu jen vrátí.
+                            if (released && armed && drag.value >= threshold) scope.onAction(currentMessageId, MessageAction.SwipeReply)
+                            armed = false
+                            drag.animateTo(0f, returnSpec)
+                        }
+                    },
+                )
             }),
         horizontalArrangement = if (message.isOutgoing) Arrangement.End else Arrangement.Start,
         // Tvář sedí u spodní hrany bubliny — u dlouhé zprávy by uprostřed nebylo poznat, ke které
@@ -1535,12 +1517,13 @@ private val REACTION_OVERHANG = REACTION_ROW_HEIGHT - REACTION_ON_BUBBLE
  * Jak daleko se musí zpráva odtáhnout, aby se z gesta stala odpověď.
  *
  * Dost na to, aby to nešlo udělat omylem při scrollu, ale ne tolik, aby se palec musel
- * překládat.
+ * překládat. Bublina jede s prstem od položení (posun nasbíraný při rozhodování se
+ * nezahazuje), takže tohle je celá dráha prstu.
  */
-private val REPLY_THRESHOLD = 56.dp
+private val REPLY_THRESHOLD = 64.dp
 
 /** Kam až se dá zpráva odtáhnout. Za prahem už jen kus navíc, aby gesto mělo doraz. */
-private val REPLY_MAX_DRAG = 76.dp
+private val REPLY_MAX_DRAG = 84.dp
 
 /** Jak moc se tah za prahem brzdí. */
 private const val DRAG_RESISTANCE = 0.3f
