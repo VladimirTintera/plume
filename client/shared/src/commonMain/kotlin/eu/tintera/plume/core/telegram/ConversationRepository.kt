@@ -982,6 +982,11 @@ data class ChatMessage(
     /** Anketa nebo kvíz; [text] pak nese jen „Anketa: otázka" pro místa, kde se kreslit nedá. */
     val poll: ChatPoll? = null,
     /**
+     * Obsah server tady nedovolí ukázat (omezení podle země nebo platformy); [text] pak nese
+     * důvod od serveru a příloha ani náhled nejsou. Viz `restricted`.
+     */
+    val isRestricted: Boolean = false,
+    /**
      * Citovaný úryvek, když odpověď necituje celou zprávu, ale jen její část; `null` jinak.
      * Nad odpovědí se pak ukáže úryvek místo začátku citované zprávy.
      */

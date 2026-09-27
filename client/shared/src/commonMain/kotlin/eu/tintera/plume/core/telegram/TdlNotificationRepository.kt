@@ -208,7 +208,7 @@ class TdlNotificationRepository(
                 val shownPhoto = (message.content as? MessagePhoto)
                     ?.takeIf {
                         type.showPreview && !it.hasSpoiler && !it.isSecret && message.selfDestructType == null &&
-                            message.restrictionInfo?.hasSensitiveContent != true
+                            message.restrictionInfo?.hasSensitiveContent != true && message.restrictionText == null
                     }
                 NotificationContent(
                     messageId = message.id,

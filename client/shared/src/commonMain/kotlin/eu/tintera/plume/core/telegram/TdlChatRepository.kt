@@ -244,7 +244,7 @@ class TdlChatRepository(
                 edit(update.chatId) { current ->
                     current.copy(
                         lastMessagePreview = preview,
-                        lastMessagePreviewEntities = update.lastMessage?.content?.previewEntities().orEmpty(),
+                        lastMessagePreviewEntities = update.lastMessage?.previewEntities().orEmpty(),
                         lastMessageTimestamp = update.lastMessage?.date,
                     )
                 }
@@ -1143,7 +1143,7 @@ private suspend fun Chat.toSummary(): ChatSummary {
         title = title,
         unreadCount = unreadCount,
         lastMessagePreview = lastMessage?.previewText(),
-        lastMessagePreviewEntities = lastMessage?.content?.previewEntities().orEmpty(),
+        lastMessagePreviewEntities = lastMessage?.previewEntities().orEmpty(),
         unreadMentionCount = unreadMentionCount,
         unreadReactionCount = unreadReactionCount,
         unreadPollVoteCount = unreadPollVoteCount,
