@@ -3811,6 +3811,12 @@ v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, 
   zprávy jako hlas, a server k ní pošle servisní zprávu. Strop délky je týž jako ve formuláři
   (`POLL_ANSWER_MAX`). Ověřuje se `sendPoll` botem s `allow_adding_options=true`
   a `is_anonymous=false`; `getUpdates` pak ukáže `added_by_user` a `poll_option_added`.
+- **V zápatí jsou tváře posledních hlasujících** (`Poll.recentVoterIds` → `ChatPoll.recentVoters`,
+  nejvýš `MAX_RECENT_VOTERS` = 3, přes sebe, nejnovější navrchu, s lemem v barvě bubliny).
+  Server je posílá jen u neanonymní ankety. Jména a fotky dohledává repository z keše
+  odesílatelů (`resolveSender`) při převodu zprávy — `toChatPoll` je čistá a nechává je prázdné.
+  Čtečce obrazovky nic neříkají: kdo hlasoval, je v „Kdo hlasoval". Víc tváří než vlastní jeden
+  účet nevyrobí — přes sebe se ověřovaly sondou, která seznam doplnila botem a iniciálami.
 - **Zakládání je obrazovka `PollComposerRoute`** (sponka → Anketa), bez metadat scény jako
   přeposílání: jde přes celou plochu z hlavního seznamu i archivu, zpět umí sám `NavDisplay`.
   Pravidla formuláře jsou čisté funkce (`pollDraftOf`, `normalizedAnswers`,

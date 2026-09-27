@@ -1689,7 +1689,12 @@ class TdlConversationRepository(
                     .takeIf { it.text.isNotBlank() }
             },
             keyboard = (replyMarkup as? ReplyMarkupInlineKeyboard)?.toBotKeyboard(),
-            poll = (content as? MessagePoll)?.toChatPoll(),
+            poll = (content as? MessagePoll)?.let { poll ->
+                poll.toChatPoll().copy(
+                    recentVoters = poll.poll.recentVoterIds.take(MAX_RECENT_VOTERS)
+                        .mapNotNull { resolveSender(it.plainId()) },
+                )
+            },
             externalReply = (replyTo as? MessageReplyToMessage)
                 ?.takeIf { it.chatId != chatId }
                 ?.toExternalReply(),

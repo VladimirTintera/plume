@@ -440,7 +440,8 @@ snadno na to uživatel narazí.
     vysvětlení kvízu (`explanationMedia`).
   - ~~**Přidání odpovědi**~~ — hotovo (`canAddOption`, `addPollOption`, dialog pod odpověďmi).
     Zbývá ověřit ve skupině a přidání odpovědi s médiem (formulář nabízí jen text).
-  - **Tváře posledních hlasujících** (`recentVoterIds`) u zápatí.
+  - ~~**Tváře posledních hlasujících**~~ — hotovo (`recentVoterIds`, až tři přes sebe v zápatí).
+    Zbývá ověřit se skutečnými hlasy víc lidí (testovací účet hlasuje jen sám za sebe).
 - ~~**Video kolečka** (`MessageVideoNote`)~~ — hotovo: kulatě bez bubliny, samy potichu ve
   smyčce, zvuk s průběhem po ťuknutí, zhlédnutí (`CLAUDE.md`, „Video kolečka"). Zbývá přepis
   řeči (`speechRecognitionResult`), **nahrávání kolečka** a ověřit zhlédnutí u odesílatele.

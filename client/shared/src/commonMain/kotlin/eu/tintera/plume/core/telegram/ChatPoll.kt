@@ -43,6 +43,11 @@ data class ChatPoll(
      * server: anketa to musí dovolit a odpovědí nesmí být plno.
      */
     val canAddOption: Boolean = false,
+    /**
+     * Kdo hlasoval naposledy (`Poll.recentVoterIds`), nejvýš [MAX_RECENT_VOTERS]. Server je
+     * posílá jen u neanonymní ankety; dohledává je repository, `toChatPoll` je nechává prázdné.
+     */
+    val recentVoters: List<SenderInfo> = emptyList(),
 ) {
     val hasVoted: Boolean get() = options.any { it.isChosen }
 
@@ -112,6 +117,9 @@ const val POLL_QUESTION_MEDIA = -1
 
 /** Prohlížeč médií neotevírá přílohu ankety, ale přílohu zprávy. */
 const val NO_POLL_MEDIA = -2
+
+/** Kolik tváří posledních hlasujících ukazuje zápatí; víc by v něm ukrojilo z počtu hlasů. */
+const val MAX_RECENT_VOTERS = 3
 
 /** Kvíz: správné odpovědi a vysvětlení. Obojí server vydá až po odpovědi. */
 data class PollQuiz(
