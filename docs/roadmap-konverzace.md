@@ -330,8 +330,8 @@ v `CLAUDE.md`, „Náhled odkazu při psaní". Co zbývá:
 
 - **Který odkaz**, když je jich v textu víc. Dnes rozhoduje server (první odkaz); přepínat
   jde přes `LinkPreviewOptions.url`.
-- **Volba při úpravě zprávy.** `editMessageText` bere `linkPreviewOptions` taky, dnes posílá
-  `null`. U zprávy, kterou odesílatel poslal bez náhledu, ho proto úprava nejspíš vrátí — ověřit.
+- ~~**Volba při úpravě zprávy**~~ — hotovo: úprava volbu z původní zprávy přenáší (ověřeno,
+  s `null` se náhled vracel). Zbývá volbu při úpravě i MĚNIT (náhled nad polem při úpravě není).
 - **Náhled na iOS** ověřený není (kód je společný, sheet i hlavička jsou v commonMain).
 
 ---

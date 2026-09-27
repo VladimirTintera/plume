@@ -1336,7 +1336,12 @@ class TdlConversationRepository(
             replyMarkup = null,
             inputMessageContent = InputMessageText(
                 text = FormattedText(text = text, entities = detectEntities(text)),
-                linkPreviewOptions = null,
+                // Volba náhledu se přenáší z původní zprávy. S `null` platí výchozí volba serveru,
+                // takže úprava zprávy poslané BEZ náhledu náhled vrátila (ověřeno Bot API).
+                linkPreviewOptions = currentContent(chatId, messageId)
+                    .let { it as? MessageText }
+                    ?.linkPreviewOptions
+                    ?.keptFor(text),
                 // Úprava s konceptem chatu nesouvisí; smazat ho by uživateli vzalo rozepsaný text.
                 clearDraft = false,
             ),
@@ -1350,11 +1355,16 @@ class TdlConversationRepository(
             messageId = messageId,
             replyMarkup = null,
             caption = FormattedText(text = caption, entities = detectEntities(caption)),
-            // Popisek nad médiem aplikace nekreslí ani neposílá, takže ho ani úprava nezavádí.
-            showCaptionAboveMedia = false,
+            // Popisek nad médiem aplikace nekreslí, jen ho přenáší — nastavit ho mohl jiný klient
+            // a úprava popisku by ho jinak tiše vrátila pod médium.
+            showCaptionAboveMedia = currentContent(chatId, messageId).showsCaptionAboveMedia(),
         )
             .toResult()
             .map { }
+
+    /** Obsah zprávy, jak ho zná lokální databáze; `null`, když ji TDLib nevydá. */
+    private suspend fun currentContent(chatId: Long, messageId: Long): MessageContent? =
+        client.getMessage(chatId = chatId, messageId = messageId).toResult().getOrNull()?.content
 
     /**
      * Odkazy, zmínky a spol. v textu, který uživatel napsal.
@@ -2643,3 +2653,30 @@ private fun ReactionType.toReactionKey(): String? = when (this) {
 
 private fun String.toReactionType(): ReactionType =
     customEmojiIdOf(this)?.let { ReactionTypeCustomEmoji(customEmojiId = it) } ?: ReactionTypeEmoji(emoji = this)
+
+/**
+ * Volba náhledu odkazu pro upravený [text]. Vypnutí, velikost i poloha zůstávají; vynucená
+ * adresa jen tehdy, když odkaz v textu pořád je — jinak by náhled patřil odkazu, který
+ * uživatel právě smazal.
+ */
+internal fun TdlLinkPreviewOptions.keptFor(text: String): TdlLinkPreviewOptions =
+    if (url.isBlank() || text.contains(url)) {
+        this
+    } else {
+        TdlLinkPreviewOptions(
+            isDisabled = isDisabled,
+            url = "",
+            forceSmallMedia = forceSmallMedia,
+            forceLargeMedia = forceLargeMedia,
+            showAboveText = showAboveText,
+        )
+    }
+
+/** Stojí popisek téhle přílohy nad médiem? Jen fotka, video, GIF a placené médium to umí. */
+internal fun MessageContent?.showsCaptionAboveMedia(): Boolean = when (this) {
+    is MessagePhoto -> showCaptionAboveMedia
+    is MessageVideo -> showCaptionAboveMedia
+    is MessageAnimation -> showCaptionAboveMedia
+    is MessagePaidMedia -> showCaptionAboveMedia
+    else -> false
+}
