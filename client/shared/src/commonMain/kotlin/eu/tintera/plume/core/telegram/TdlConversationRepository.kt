@@ -140,6 +140,7 @@ import dev.g000sha256.tdl.dto.ReactionTypeCustomEmoji
 import dev.g000sha256.tdl.dto.ReactionTypeEmoji
 import dev.g000sha256.tdl.dto.ReactionTypePaid
 import dev.g000sha256.tdl.dto.SearchMessagesFilter
+import dev.g000sha256.tdl.dto.SearchMessagesFilterAudio
 import dev.g000sha256.tdl.dto.SearchMessagesFilterDocument
 import dev.g000sha256.tdl.dto.SearchMessagesFilterPhotoAndVideo
 import dev.g000sha256.tdl.dto.SearchMessagesFilterUrl
@@ -702,6 +703,7 @@ class TdlConversationRepository(
                 media = counts.getValue(SharedMediaKind.Media),
                 files = counts.getValue(SharedMediaKind.Files),
                 links = counts.getValue(SharedMediaKind.Links),
+                music = counts.getValue(SharedMediaKind.Music),
             )
         }
     }
@@ -2465,6 +2467,7 @@ private const val DEFAULT_POLL_ANSWER_COUNT_MAX = 10
 private fun SharedMediaKind.toFilter(): SearchMessagesFilter = when (this) {
     SharedMediaKind.Media -> SearchMessagesFilterPhotoAndVideo()
     SharedMediaKind.Files -> SearchMessagesFilterDocument()
+    SharedMediaKind.Music -> SearchMessagesFilterAudio()
     SharedMediaKind.Links -> SearchMessagesFilterUrl()
 }
 

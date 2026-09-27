@@ -1771,6 +1771,9 @@ enum class SharedMediaKind {
     /** Soubory poslané jako dokument. */
     Files,
 
+    /** Skladby (`MessageAudio`); hlasovky mezi ně nepatří — ty jsou řeč, ne hudba. */
+    Music,
+
     /** Zprávy s odkazem — filtruje je server, ne my. */
     Links,
 }
@@ -1782,15 +1785,16 @@ enum class SharedMediaKind {
 data class SharedMediaPage(val messages: List<ChatMessage>, val reachedEnd: Boolean)
 
 /** Kolik čeho v chatu je; podle toho profil řádek ukáže, nebo ne. */
-data class SharedMediaCounts(val media: Int, val files: Int, val links: Int) {
+data class SharedMediaCounts(val media: Int, val files: Int, val links: Int, val music: Int = 0) {
     fun of(kind: SharedMediaKind): Int = when (kind) {
         SharedMediaKind.Media -> media
         SharedMediaKind.Files -> files
+        SharedMediaKind.Music -> music
         SharedMediaKind.Links -> links
     }
 
     companion object {
-        val Empty = SharedMediaCounts(media = 0, files = 0, links = 0)
+        val Empty = SharedMediaCounts(media = 0, files = 0, links = 0, music = 0)
     }
 }
 

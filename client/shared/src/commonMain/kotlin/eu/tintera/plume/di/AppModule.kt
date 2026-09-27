@@ -303,6 +303,7 @@ fun appModule() = module {
             notificationSettings = get(),
             notificationPermission = get(),
             clipboard = get(),
+            voicePlayer = get(),
         )
     }
 
