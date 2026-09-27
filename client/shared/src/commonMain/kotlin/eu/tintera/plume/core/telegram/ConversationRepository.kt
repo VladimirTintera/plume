@@ -1403,9 +1403,18 @@ data class MessageInteractions(
  * diskusi bez komentářů. Server komentáře počítá i u zpráv v diskusní skupině samotné, takže
  * o tom, jestli se ukážou, rozhoduje až konverzace podle druhu chatu.
  */
-data class PostStats(val views: Int, val forwards: Int, val comments: Int?) {
+data class PostStats(
+    val views: Int,
+    val forwards: Int,
+    val comments: Int?,
+    /** Kdo komentoval naposledy (`MessageReplyInfo.recentReplierIds`), nejvýš [MAX_RECENT_COMMENTERS]. */
+    val commenters: List<SenderInfo> = emptyList(),
+) {
     val isEmpty: Boolean get() = views == 0 && forwards == 0 && comments == null
 }
+
+/** Kolik tváří posledních komentujících ukazuje čip komentářů. */
+const val MAX_RECENT_COMMENTERS = 3
 
 /** Výsledek odeslání zprávy, jak ho oznámí TDLib. */
 sealed interface SentMessageUpdate {
