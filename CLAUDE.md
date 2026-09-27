@@ -5333,6 +5333,16 @@ jako tlačítko, název, interpret, lišta průběhu s posunem, čas a čip rych
   se hodí, u písniček ji nikdo nezapne.
 - **Délku server znát nemusí** — Bot API ji u souboru bez metadat pošle jako nulu. „0:00" by
   lhalo, takže se čas do spuštění neukazuje; skutečnou délku zjistí přehrávač.
+- **V profilu je záložka Hudba** (`SharedMediaKind.Music`, `SearchMessagesFilterAudio`;
+  `SharedMusicList`). Ťuknutí skladbu pustí přímo tam — TÝŽ `VoicePlayer` (profil ho dostane
+  z Koinu, `ChatProfileViewModel.toggleMusic`), takže konverzace pod profilem ukazuje průběh,
+  po dohrání naváže další skladba a odchod z konverzace zvuk zastaví jako dřív. U hrající
+  skladby je místo délky „0:02 / 0:04". Hlasovky do Hudby nepatří (jiný filtr).
+- **Metadata skladby nejspíš drží TDLib pro SOUBOR, ne pro zprávu** (domněnka, neověřená).
+  V chatu s botem jsou nejspíš dvě zprávy s tímtéž souborem a jiným názvem; profil po
+  instalaci ukázal u obou „Pírko nad vodou" s obalem, po restartu „Pírko s časem" bez obalu —
+  a bubliny v konverzaci pak totéž co profil. Seznam tedy chybu nemá; kdo ověřuje hudbu, ať
+  bere RŮZNÉ soubory.
 - **Sdílet a Uložit jako… jdou cestou souboru** (`Audio.asDocument()`, `withDocument`), se
   jménem souboru, ne názvem skladby.
 - **Náhled v seznamu chatů je „Interpret – Název"**, ne „Audio" — u každé skladby stejné slovo

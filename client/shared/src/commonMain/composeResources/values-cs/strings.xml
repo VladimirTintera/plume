@@ -244,6 +244,9 @@
     <string name="profile_tab_links">Odkazy</string>
     <string name="profile_tab_media">Média</string>
     <string name="profile_tab_members">Členové</string>
+    <string name="profile_tab_music">Hudba</string>
+    <string name="profile_shared_music_play">Přehrát</string>
+    <string name="profile_shared_music_pause">Pozastavit</string>
     <string name="profile_members_search">Hledat členy</string>
     <string name="profile_members_search_empty">Nikdo nenalezen</string>
     <string name="profile_members_hidden">Skupina seznam členů skrývá, vidět jsou jen správci.</string>

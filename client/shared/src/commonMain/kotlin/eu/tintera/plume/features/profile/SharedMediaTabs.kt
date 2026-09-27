@@ -1,5 +1,14 @@
 package eu.tintera.plume.features.profile
 
+import androidx.compose.material3.LocalTextStyle
+import eu.tintera.plume.resources.profile_shared_music_play
+import eu.tintera.plume.resources.profile_shared_music_pause
+import eu.tintera.plume.resources.music_note_24dp
+import eu.tintera.plume.resources.pause_24dp
+import eu.tintera.plume.core.ui.tabularNumbers
+import eu.tintera.plume.features.conversation.formatDuration
+import eu.tintera.plume.core.audio.VoiceKey
+import eu.tintera.plume.core.audio.VoicePlayback
 import org.koin.compose.koinInject
 import eu.tintera.plume.features.conversation.items.spoilerBlur
 import eu.tintera.plume.features.conversation.items.rememberSpoilerBlurStyle
@@ -271,6 +280,105 @@ internal fun SharedFilesList(
         }
         if (loading) item { TabLoading() }
     }
+}
+
+/**
+ * Záložka Hudba: skladby chatu pod sebou. Ťuknutí skladbu pustí přímo tady, bez odchodu do
+ * konverzace — hraje týž přehrávač jako bublina, takže konverzace pod profilem ukazuje průběh
+ * a po dohrání naváže další skladba. U hrající je místo délky uplynulý čas.
+ */
+@Composable
+internal fun SharedMusicList(
+    messages: List<ChatMessage>,
+    loading: Boolean,
+    playback: VoicePlayback?,
+    chatId: Long,
+    contentPadding: PaddingValues,
+    onToggle: (messageId: Long) -> Unit,
+    onLoadMore: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(
+        contentPadding = contentPadding,
+        verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+        modifier = modifier.fillMaxSize(),
+    ) {
+        itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
+            LoadMoreAtEnd(index, messages.size, onLoadMore)
+            val audio = message.media as? MessageMedia.Audio ?: return@itemsIndexed
+            val current = playback?.takeIf { it.key == VoiceKey(chatId, message.id) }
+            MusicRow(
+                message = message,
+                audio = audio,
+                playback = current,
+                onToggle = { onToggle(message.id) },
+                modifier = Modifier.animateItem().clip(groupItemShape(index, messages.size)),
+            )
+        }
+        if (loading) item { TabLoading() }
+    }
+}
+
+/** Řádek skladby: obal (nebo nota) s tlačítkem, název a pod ním interpret s délkou. */
+@Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private fun MusicRow(
+    message: ChatMessage,
+    audio: MessageMedia.Audio,
+    playback: VoicePlayback?,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val playing = playback?.playing == true
+    val time = when {
+        playback != null && playback.durationMs > 0 ->
+            "${formatDuration((playback.positionMs / 1000).toInt())} / ${formatDuration((playback.durationMs / 1000).toInt())}"
+        // Délku server znát nemusí (Bot API ji u souboru bez metadat pošle jako nulu).
+        audio.durationSeconds > 0 -> formatDuration(audio.durationSeconds)
+        else -> null
+    }
+    val meta = listOfNotNull(audio.performer?.ifBlank { null }, time, message.timestamp.asDayLabel())
+        .joinToString(" · ")
+    val actionLabel = stringResource(if (playing) Res.string.profile_shared_music_pause else Res.string.profile_shared_music_play)
+    ListItem(
+        headlineContent = {
+            Text(audio.title.ifBlank { audio.fileName }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        },
+        supportingContent = {
+            Text(meta, style = LocalTextStyle.current.tabularNumbers(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        },
+        leadingContent = {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(FILE_ICON_SIZE)
+                    .clip(RoundedCornerShape(FILE_ICON_CORNER))
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+            ) {
+                audio.coverFileId?.let { cover ->
+                    RemoteImage(fileId = cover, modifier = Modifier.fillMaxSize())
+                    // Tlačítko musí být vidět i na světlém obalu.
+                    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = COVER_SCRIM_ALPHA)))
+                }
+                when {
+                    playback?.loading == true && !playing -> CircularWavyProgressIndicator(Modifier.size(24.dp))
+                    else -> Icon(
+                        painterResource(
+                            when {
+                                playing -> Res.drawable.pause_24dp
+                                playback != null || audio.coverFileId != null -> Res.drawable.play_arrow_24dp
+                                else -> Res.drawable.music_note_24dp
+                            },
+                        ),
+                        contentDescription = null,
+                        tint = if (audio.coverFileId != null) Color.White else MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+            }
+        },
+        colors = rowColors(),
+        modifier = modifier.clickable(onClickLabel = actionLabel, onClick = onToggle),
+    )
 }
 
 /** Řádek souboru: náhled nebo ikona podle druhu, název a pod ním velikost s datem. */
@@ -668,6 +776,9 @@ private fun LoadMoreAtEnd(index: Int, count: Int, onLoadMore: () -> Unit) {
 
 private val FILE_ICON_SIZE = 44.dp
 private val FILE_ICON_CORNER = 8.dp
+
+/** Ztmavení obalu pod tlačítkem přehrání. */
+private const val COVER_SCRIM_ALPHA = 0.35f
 private val MEMBER_AVATAR_SIZE = 40.dp
 private const val MEMBERS_LOADING_KEY = "members-loading"
 private val ROLE_ICON_SIZE = 14.dp

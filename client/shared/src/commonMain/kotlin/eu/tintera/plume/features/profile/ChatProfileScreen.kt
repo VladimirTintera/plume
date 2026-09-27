@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.profile_tab_music
+import eu.tintera.plume.resources.music_note_24dp
 import eu.tintera.plume.resources.verification_fake_warning
 import eu.tintera.plume.resources.verification_scam_warning
 import eu.tintera.plume.resources.verification_verified
@@ -625,6 +627,19 @@ private fun TabContent(
                     onLoadMore = { viewModel.loadMoreShared(tab.kind) },
                 )
 
+                SharedMediaKind.Music -> {
+                    val playback by viewModel.playback.collectAsStateWithLifecycle()
+                    SharedMusicList(
+                        messages = messages,
+                        loading = loading,
+                        playback = playback,
+                        chatId = state.profile?.chatId ?: 0L,
+                        contentPadding = contentPadding,
+                        onToggle = viewModel::toggleMusic,
+                        onLoadMore = { viewModel.loadMoreShared(tab.kind) },
+                    )
+                }
+
                 SharedMediaKind.Links -> SharedLinksList(
                     messages = messages,
                     loading = loading,
@@ -650,6 +665,7 @@ private fun ProfileTab.icon(): DrawableResource = when (this) {
     is ProfileTab.Shared -> when (kind) {
         SharedMediaKind.Media -> Res.drawable.perm_media_filled_24dp
         SharedMediaKind.Files -> Res.drawable.description_filled_24dp
+        SharedMediaKind.Music -> Res.drawable.music_note_24dp
         SharedMediaKind.Links -> Res.drawable.link_24dp
     }
 }
@@ -662,6 +678,7 @@ private fun ProfileTab.label(): StringResource = when (this) {
     is ProfileTab.Shared -> when (kind) {
         SharedMediaKind.Media -> Res.string.profile_tab_media
         SharedMediaKind.Files -> Res.string.profile_tab_files
+        SharedMediaKind.Music -> Res.string.profile_tab_music
         SharedMediaKind.Links -> Res.string.profile_tab_links
     }
 }

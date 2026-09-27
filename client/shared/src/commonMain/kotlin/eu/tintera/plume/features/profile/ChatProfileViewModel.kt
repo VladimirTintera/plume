@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.audio.VoiceKey
+import eu.tintera.plume.core.audio.VoicePlayback
+import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.resources.profile_action_failed
 import eu.tintera.plume.resources.profile_link_copied
 import eu.tintera.plume.core.ui.TextClipboard
@@ -81,6 +84,7 @@ class ChatProfileViewModel(
     private val notificationSettings: NotificationSettingsRepository,
     private val notificationPermission: NotificationPermission,
     private val clipboard: TextClipboard,
+    private val voicePlayer: VoicePlayer,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Profile")
@@ -203,6 +207,25 @@ class ChatProfileViewModel(
 
     fun consumeOpenMedia() {
         _state.update { it.copy(openMedia = null) }
+    }
+
+    /** Co právě hraje — tentýž přehrávač jako v konverzaci, zvuk je v aplikaci jen jeden. */
+    val playback: StateFlow<VoicePlayback?> = voicePlayer.state
+
+    /**
+     * Skladba ze záložky Hudba: pustí ji, nebo pozastaví. Hraje TENTÝŽ `VoicePlayer` jako
+     * v konverzaci pod profilem, takže tam je vidět průběh a po dohrání naváže další skladba.
+     * U ucha nepřepíná do sluchátka, jako hudba v bublině.
+     */
+    fun toggleMusic(messageId: Long) {
+        val audio = _state.value.sharedMessage(messageId)?.media as? MessageMedia.Audio ?: return
+        voicePlayer.toggle(VoiceKey(chatId, messageId), raiseToEar = false) {
+            when (val file = files.file(audio.fileId).first { it is FileState.Ready || it is FileState.Failed }) {
+                is FileState.Ready -> file.path
+                is FileState.Failed -> error(file.message)
+                else -> error("Nedosažitelné")
+            }
+        }
     }
 
     /**
