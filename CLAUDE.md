@@ -2084,7 +2084,7 @@ snackbar s „Vrátit".
 - **Archivace tahem jde na OBĚ strany a obě dělají totéž.** Druhá akce v seznamu není, takže by
   si uživatel musel pamatovat směr pro nic. Nepotvrzuje se — snackbar „Vrátit" je tentýž jako
   u archivace z nabídky. Uložené zprávy tah nemají, stejně jako nemají položku v nabídce.
-- **`SwipeToDismissBox` se na tohle NEHODÍ a je pryč** (pravidla v `ArchiveSwipeGesture.kt`,
+- **`SwipeToDismissBox` se na tohle NEHODÍ a je pryč** (prah v `ArchiveSwipeGesture.kt`,
   testy `ArchiveSwipeGestureTest`). Byl „hodně moc citlivý": při scrollování seznamu odlétaly
   chaty do archivu. Dvě příčiny, ani jedna se zvenku vypnout nedá:
   - **Stojí na `draggable`, které si tah vezme po obyčejném touch slopu a je směrově
@@ -2094,8 +2094,8 @@ snackbar s „Vrátit".
     rychlejší než 125 dp/s jako dokončený BEZ OHLEDU NA TO, kam došel; `positionalThreshold`
     (výchozích 56 dp) se v tu chvíli vůbec nepočítá. Zvedat práh je proti tomuhle k ničemu —
     škubnutí prstem archivovalo, ať byl jakkoli vysoko.
-- **Vlastní detektor rozhodne jednou za gesto** (`archiveSwipeDecision`, stejný vzor jako
-  `detectTimeReveal` v konverzaci): rozhoduje se až po DVOJNÁSOBKU touch slopu a jen když je
+- **Vlastní detektor rozhodne jednou za gesto** (`detectHorizontalSwipe`, sdílený s odkrýváním
+  časů a odpovědí tahem v konverzaci, viz „Jeden detektor tahu do strany"): rozhoduje se až po DVOJNÁSOBKU touch slopu a jen když je
   vodorovná složka aspoň dvakrát větší než svislá; do té doby nic nespotřebovává, takže si
   šikmý tah vezme seznam. Archivuje se při PUŠTĚNÍ po `archiveSwipeThreshold` (40 % šířky
   řádku, nejvýš 160 dp), rychlost se nepočítá vůbec. Prah ohlásí haptika, jako u odpovědi
@@ -4969,13 +4969,10 @@ data jediné místo, kde se dá přečíst.
   najednou, včetně sponzorované karty — ta jen nemá co ukázat.
 - **Bublina si proto nesmí vzít každý vodorovný tah.** `draggable` je po slopu směrově agnostický:
   vezme si i tah doleva, nikam ho nepromítne (posun je `coerceIn(0f, maxDrag)`) a rodiči už ho
-  nepustí. Tah doleva se tím tiše zahazoval. Odpověď swipem proto jede na **vlastním detektoru**,
-  který rozhodne jednou za gesto: doprava spotřebuje, doleva nespotřebuje nic.
-- **Nespotřebovaný pohyb se neztratí.** `awaitHorizontalTouchSlopOrCancellation` po nespotřebování
-  počítá slop dál, takže gesto propadne k detektoru nad seznamem. Jakmile si ho vezme on, další
-  událost přijde jako spotřebovaná a detektor bubliny sám skončí.
-- **Svislý scroll má přednost a detektor se rozhoduje pomalu** (`detectTimeReveal`, pravidlo
-  `timeRevealDecision`, testy `TimeRevealGestureTest`). Seznam je potomek, dostane událost dřív
+  nepustí. Tah doleva se tím tiše zahazoval. Odpověď swipem proto bere jen tah DOPRAVA
+  (`SwipeDirection.Right`), odkrývání jen doleva; opačný směr nespotřebují a propadne dál.
+- **Svislý scroll má přednost a detektor se rozhoduje pomalu** (`detectHorizontalSwipe`, viz
+  „Jeden detektor tahu do strany"). Seznam je potomek, dostane událost dřív
   a jeho spotřebování detektor rodiče zruší — jenže s `detectHorizontalDragGestures` stačilo, aby
   prst ujel doleva o jeden touch slop dřív než nahoru, a palec levé ruky jde na začátku tahu
   obloukem doleva: na telefonu se místo scrollu vysouvaly časy. Teď si tah odkrývání vezme až po
@@ -5000,9 +4997,13 @@ data jediné místo, kde se dá přečíst.
 Tažení zprávy doprava otevře odpověď. Je to nejčastější akce nad zprávou a přes nabídku by na ni
 vedly dva kroky.
 
-- **`draggable` s vodorovnou orientací, ne `detectHorizontalDragGestures`.** Ten konzumuje od
-  prvního pixelu a rozbil by svislý scroll seznamu. S `draggable` rozhodne o směru až první pohyb
-  za slop, takže si `LazyColumn` svislé tahy nechá.
+- **Při scrollu se zakládala odpověď** — bublina si tah brala přes
+  `awaitHorizontalTouchSlopOrCancellation`, tedy po JEDNOM touch slopu a jen podle vodorovné
+  složky. Bublina je potomek seznamu a dostane dotyk dřív než on, takže u šikmého tahu vyhrála
+  ona. Teď jede na sdíleném `detectHorizontalSwipe` (viz „Jeden detektor tahu do strany").
+- **Bublina jede s prstem od položení** (první `onDrag` nese celý posun z rozhodování), takže
+  práh `REPLY_THRESHOLD` (64 dp) je celá dráha prstu. Dřív bublina začínala až za slopem
+  a prst ušel slop + 56 dp — práh se zvedl, aby dráha zůstala stejná.
 - **Táhne se doprava u OBOU stran konverzace.** Zrcadlit směr podle odesílatele by znamenalo,
   že uživatel musí před každým gestem přemýšlet, čí zpráva to je. Odchozí bublina se přitom kusem
   vysune za pravý okraj — tak to dělá Telegram i WhatsApp.
@@ -5019,6 +5020,23 @@ vedly dva kroky.
 - **Vlevo od bubliny u obou stran**: tam vzniká mezera, když se táhne doprava.
 - **U kraje obrazovky vyhrává systémové gesto zpět.** Bublina má odsazení 12 dp, takže se
   s ním u příchozích zpráv kousek překrývá. Nedá se s tím nic dělat a stejné to je i v Telegramu.
+
+### Jeden detektor tahu do strany
+
+Odkrývání časů, odpověď tahem i archivace v seznamu chatů jsou tah do strany nad svislým
+seznamem a mají JEDNO pravidlo (`detectHorizontalSwipe` a `horizontalSwipeDecision`
+v `core/ui/HorizontalSwipe.kt`, testy `HorizontalSwipeTest`). Dřív to byly tři kopie a dvě
+z nich se opravily, zatímco třetí (odpověď) zůstala citlivá — přesně to, čemu má jedno místo
+bránit.
+
+- **Rozhoduje se až po DVOJNÁSOBKU touch slopu a jen u tahu aspoň 2× víc do strany než svisle**
+  (~27°), jen ve zvoleném směru (`SwipeDirection`). Svislý scroll má práh kratší, takže šikmý
+  tah si seznam vezme dřív, než se tu o čemkoli rozhodne.
+- **Spotřebování se hlídá i ve fázi `Final`.** Položka seznamu (bublina, řádek chatu) dostává
+  události ve fázi `Main` DŘÍV než seznam, takže rozjetý scroll ve `Main` nevidí; ve `Final`
+  už ano. Stejně to dělá `awaitTouchSlopOrCancellation` z Compose.
+- **Plynulost a to, jestli to pod palcem sedí, se posuzuje na telefonu** — emulátor s `input
+  swipe` ověří jen směr a pořadí rozhodnutí.
 
 ## Profil chatu
 

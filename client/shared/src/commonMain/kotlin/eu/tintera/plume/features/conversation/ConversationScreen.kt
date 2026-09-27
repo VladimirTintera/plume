@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.SwipeDirection
+import eu.tintera.plume.core.ui.detectHorizontalSwipe
 import androidx.compose.ui.text.intl.Locale
 import eu.tintera.plume.resources.conversation_bot_start
 import eu.tintera.plume.resources.conversation_schedule_time
@@ -1940,7 +1942,7 @@ fun ConversationScreen(
                  * Bublina si bere jen tah doprava (odpověď) a doleva nic nespotřebuje, takže
                  * gesto propadne sem. Svislý scroll má přednost: seznam je potomek, dostane
                  * události dřív a jeho spotřebování tenhle detektor zruší — a detektor se
-                 * rozhoduje až po delším a výrazně vodorovném pohybu (`timeRevealDecision`).
+                 * rozhoduje až po delším a výrazně vodorovném pohybu (`detectHorizontalSwipe`).
                  */
                 else -> Box(
                     Modifier
@@ -1957,7 +1959,8 @@ fun ConversationScreen(
                         .sharedElementClipArea(listClip)
                         .hazeSource(listHaze)
                         .pointerInput(revealMax) {
-                            detectTimeReveal(
+                            detectHorizontalSwipe(
+                                direction = SwipeDirection.Left,
                                 onEnd = { scope.launch { timeReveal.animateTo(0f, revealSpec) } },
                             ) { delta ->
                                 scope.launch {

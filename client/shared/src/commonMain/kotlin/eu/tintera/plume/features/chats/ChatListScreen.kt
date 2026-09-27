@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.SwipeDirection
+import eu.tintera.plume.core.ui.detectHorizontalSwipe
 import androidx.compose.material3.LocalContentColor
 import eu.tintera.plume.core.ui.VerificationBadge
 import eu.tintera.plume.core.ui.EmojiStatusBadge
@@ -939,7 +941,7 @@ private fun groupItemShape(firstInGroup: Boolean, lastInGroup: Boolean, selected
  * obyčejném touch slopu a je přitom směrově agnostické — palec jde na začátku scrollu obloukem do
  * strany, takže seznamu gesto sebral a chaty odlétaly do archivu při obyčejném scrollování.
  * A archivoval i ZKRATKOU PŘES RYCHLOST: tah rychlejší než 125 dp/s bral jako dokončený bez
- * ohledu na to, kam došel, a vypnout to zvenku nejde. Tady rozhoduje [archiveSwipeDecision]
+ * ohledu na to, kam došel, a vypnout to zvenku nejde. Tady rozhoduje [detectHorizontalSwipe]
  * (výrazně vodorovný tah, dvojnásobek slopu) a [archiveSwipeThreshold] (kus šířky řádku);
  * rychlost se nepočítá vůbec.
  *
@@ -993,7 +995,8 @@ private fun SwipeToArchive(
                 Modifier.pointerInput(Unit) {
                     val maxDrag = { size.width.toFloat() }
                     val threshold = { archiveSwipeThreshold(size.width.toFloat(), thresholdCap) }
-                    detectArchiveSwipe(
+                    detectHorizontalSwipe(
+                        direction = SwipeDirection.Either,
                         onDrag = { delta ->
                             coroutineScope.launch {
                                 val next = (drag.value + delta).coerceIn(-maxDrag(), maxDrag())
