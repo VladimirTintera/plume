@@ -134,6 +134,8 @@ import dev.g000sha256.tdl.dto.MessageSendingState
 import dev.g000sha256.tdl.dto.MessageSendingStateFailed
 import dev.g000sha256.tdl.dto.MessageSendingStatePending
 import dev.g000sha256.tdl.dto.MessageSourceChatHistory
+import dev.g000sha256.tdl.dto.MessageSourceMessageThreadHistory
+import dev.g000sha256.tdl.dto.MessageThreadInfo
 import dev.g000sha256.tdl.dto.MessageText
 import dev.g000sha256.tdl.dto.ReactionType
 import dev.g000sha256.tdl.dto.ReactionTypeCustomEmoji
@@ -241,7 +243,14 @@ class TdlConversationRepository(
     override suspend fun commentThread(chatId: Long, messageId: Long): Result<CommentThread> =
         client.getMessageThread(chatId = chatId, messageId = messageId)
             .toResult()
-            .map { CommentThread(chatId = it.chatId, rootMessageId = it.messageThreadId) }
+            .map { it.toCommentThread() }
+
+    private fun MessageThreadInfo.toCommentThread() = CommentThread(
+        chatId = chatId,
+        rootMessageId = messageThreadId,
+        lastReadMessageId = replyInfo?.lastReadInboxMessageId ?: 0L,
+        unreadCount = unreadMessageCount,
+    )
 
     override suspend fun threadHistory(
         chatId: Long,
@@ -1290,6 +1299,16 @@ class TdlConversationRepository(
             source = MessageSourceChatHistory(),
             // `forceRead = true`: bez toho TDLib označí za přečtené jen to, o čem si myslí,
             // že to uživatel opravdu viděl na obrazovce. My mu to tvrdíme sami.
+            forceRead = true,
+        )
+            .toResult()
+            .map { }
+
+    override suspend fun markThreadRead(chatId: Long, messageIds: List<Long>): Result<Unit> =
+        client.viewMessages(
+            chatId = chatId,
+            messageIds = messageIds.toLongArray(),
+            source = MessageSourceMessageThreadHistory(),
             forceRead = true,
         )
             .toResult()

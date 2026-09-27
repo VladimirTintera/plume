@@ -478,7 +478,7 @@ snadno na to uživatel narazí.
   vlákno v diskusní skupině (`CLAUDE.md`, „Komentáře"). Zbývá: **odeslání komentáře ověřit**
   (veřejné, jen se souhlasem), komentovat bez vstupu do skupiny (`joinToSendMessages`), ~~tváře
   posledních komentujících (`recentReplierIds`)~~ — hotovo, hledání a koncept ve vlákně (`topicId`),
-  skok na první nepřečtený komentář (`MessageThreadInfo.unreadMessageCount`).
+  ~~skok na první nepřečtený komentář~~ — hotovo (`CLAUDE.md`, „Komentáře").
 - ~~**Odpověď na zprávu z jiného chatu**~~ — hotovo (citace z `origin` a `content`, ťuknutí
   otevře ten chat; `CLAUDE.md`, „Odpovědi"). **Ověřené jen sondou**, skutečnou odpověď
   z jiného chatu zatím nikdo neviděl. Zbývá **odpověď na příběh** (`MessageReplyToStory`),

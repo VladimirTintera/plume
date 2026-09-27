@@ -548,6 +548,13 @@ interface ConversationRepository {
     suspend fun markRead(chatId: Long, messageIds: List<Long>): Result<Unit>
 
     /**
+     * Totéž co [markRead], jen ve vlákně komentářů. Server přečtení vlákna vede zvlášť a posune
+     * ho jen se zdrojem `MessageSourceMessageThreadHistory` — jinak by se příště skákalo na
+     * tentýž „první nepřečtený" komentář znovu.
+     */
+    suspend fun markThreadRead(chatId: Long, messageIds: List<Long>): Result<Unit> = markRead(chatId, messageIds)
+
+    /**
      * Řekne TDLib, že se uživatel na chat dívá.
      *
      * Není to jen informace navíc: u otevřeného chatu TDLib **odloží notifikaci aspoň o vteřinu**
@@ -1074,7 +1081,14 @@ data class SendOptions(
  * diskusní skupině ([chatId]), které odpovídají na kopii příspěvku ([rootMessageId]) — tu tam
  * server při zveřejnění sám přepošle.
  */
-data class CommentThread(val chatId: Long, val rootMessageId: Long)
+data class CommentThread(
+    val chatId: Long,
+    val rootMessageId: Long,
+    /** Poslední přečtený komentář vlákna (`MessageReplyInfo.lastReadInboxMessageId`), 0 = žádný. */
+    val lastReadMessageId: Long = 0,
+    /** Nepřečtené komentáře; počet chatu je za celou diskusní skupinu, tenhle jen za vlákno. */
+    val unreadCount: Int = 0,
+)
 
 /**
  * Citace zprávy z jiného chatu. [quote] je zástupná zpráva jen pro kreslení citace (jméno,

@@ -6185,9 +6185,27 @@ a kořenová zpráva), a otevře se `ConversationRoute(chatId = skupina, threadI
 - **Citace kořene se nekreslí** (`state.threadRootId` v builderu, test
   `veVlaknuSeKorenNecituje`) — odpovídá mu skoro každý komentář.
 - **Ve vlákně se vypíná, co patří chatu skupiny:** koncept (objevil by se v hlavním chatu),
-  „píše…" (viděla by ho celá skupina), připnuté zprávy, reklamy, nepřečtené (počet je za
+  „píše…" (viděla by ho celá skupina), připnuté zprávy, reklamy, počty zmínek a reakcí (jsou za
   skupinu), hledání (`searchChatMessages` bez tématu hledá v celé skupině), shrnutí, profil
   z hlavičky a ankety (zakládá je obrazovka, která o vláknu neví).
+- **Nepřečtené komentáře jsou vlákna, ne skupiny**: otevření skočí na první nepřečtený
+  s předělem nad ním, jako v chatu. Počet dá `getMessageThread` (`unreadMessageCount`),
+  vlákno ho podstrčí do `chatInfo` místo počtu skupiny (`ThreadConversationRepository`).
+- **Hranici přečtení vlákna server NEPOSÍLÁ, i když pole na ni má.**
+  `MessageReplyInfo.lastReadInboxMessageId` vrátil po přečtení šesti ze třinácti komentářů
+  NEJNOVĚJŠÍ komentář, zatímco `unreadMessageCount` správně klesl na sedm (ověřeno na
+  emulátoru). Hranice se proto dopočítá z počtu: N-tý nejnovější cizí komentář je první
+  nepřečtený (`threadReadBoundary`, testy `ThreadReadBoundaryTest`). Nula znamená nikdy
+  neotevřené vlákno — nepřečtené je všechno pod kořenem a historie se kvůli tomu nečte.
+- **Přečtení ve vlákně jde se zdrojem `MessageSourceMessageThreadHistory`**
+  (`markThreadRead`). S `MessageSourceChatHistory` se čte chat skupiny a přečtení vlákna na
+  serveru stojí. **Server ho vede jako nejvyšší přečtené id**: nahlášení nejnovějšího komentáře
+  přečte celé vlákno.
+- **Přečtení se hlásí až po skoku na nepřečtené** (`heldReads` v `ConversationViewModel`,
+  platí pro každý chat). Konverzace se otevírá u nejnovějších zpráv a ty byly vidět déle než
+  odpočet hlášení (400 ms), než se historie dotáhla — ve vlákně, kde se tahá ze serveru,
+  pokaždé, takže se vlákno přečetlo celé dřív, než na něj uživatel pohlédl. Podržené hlášení
+  po skoku propadne; když se neskáče, odejde.
 - **Hlavička: „Komentáře" a pod tím název skupiny**, bez sdílených prvků — vlákno je jiná
   obrazovka než chat skupiny a klíč by se přetahoval s položkou v seznamu.
 - **Psát jde jen jako člen skupiny.** Nečlen vidí „Přidat se" (`writeAccess`). Skupina smí
