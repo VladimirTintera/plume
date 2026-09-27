@@ -1180,13 +1180,14 @@ class TdlConversationRepository(
         gif: GifItem,
         replyToMessageId: Long?,
         quote: ReplyQuote?,
+        options: SendOptions,
     ): Result<ChatMessage> {
         val file = InputFileId(id = gif.animation.fileId)
         return client.sendMessage(
             chatId = chatId,
             topicId = null,
             replyTo = replyInput(chatId, replyToMessageId, quote),
-            options = null,
+            options = options.toTdl(),
             replyMarkup = null,
             inputMessageContent = InputMessageAnimation(
                 animation = InputAnimation(

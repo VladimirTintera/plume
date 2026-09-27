@@ -3257,12 +3257,19 @@ u pole (`ScheduledMessagesSheet`): odeslat hned, změnit čas, smazat.
   během nabídky, naplánování a „Odeslat hned" (bot dostal hlasovku dlouhou jen o nahraný čas),
   zavření nabídky a nahrávání dál, bez zvuku; anketa naplánovaná z formuláře v seznamu
   naplánovaných. iOS jen přeložené.
-- **Samolepka má volby odeslání u PODRŽENÉ samolepky**, ne na podržení (`StickerCell`,
-  `SendMenuChoice`): podržení samolepku rozhýbe a druhé gesto nad ní by se s tím pralo. Tlačítko
+- **Samolepka a GIF mají volby odeslání u PODRŽENÉ buňky**, ne na podržení (`StickerCell`,
+  `GifCell`, společné `SendOptionsButton`, `SendMenuChoice`): podržení samolepku rozhýbe a druhé gesto nad ní by se s tím pralo. Tlačítko
   je v protějším rohu než hvězdička oblíbených a nabídne totéž co odesílací tlačítko bez efektu
   (bez zvuku, naplánovat, až bude online). Nabízí ho jen výběr v konverzaci — sada otevřená
   z historie a formulář ankety `sendMenu` nepředávají. Ověřeno na emulátoru v chatu s botem:
-  naplánovaná samolepka v seznamu naplánovaných, „Odeslat hned" (bot ji dostal) a bez zvuku.
+  naplánovaná samolepka v seznamu naplánovaných, „Odeslat hned" (bot ji dostal) a bez zvuku;
+  naplánovaný GIF a „Odeslat hned" (bot dostal animaci).
+- **Podržet jde každý GIF, ne jen uložený.** Dřív podržení znamenalo jen „odebrat z uložených",
+  takže nalezený GIF podržet nešel. Teď podržený GIF (klíč položky, uložený bývá i mezi
+  populárními) ukáže tlačítko voleb a jen uložený navíc křížek.
+- **Pozor při ověřování přes `adb`: ťuknutí do mřížky GIFů GIF rovnou pošle.** Zpráva zavřela
+  sheet a další ťuknutí skriptu šla do seznamu chatů. Pole hledání se proto hledá dumpem až
+  po otevření sheetu, ne podle souřadnic z předchozího snímku.
 - **`StickerPickerSheet` je `internal`** — s parametrem interního `SendMenuOffer` by veřejná
   funkce neprošla překladem (`EXPOSED_PARAMETER_TYPE`).
 

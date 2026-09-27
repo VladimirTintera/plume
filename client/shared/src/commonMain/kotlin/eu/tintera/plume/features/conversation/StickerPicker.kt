@@ -398,9 +398,10 @@ internal fun StickerPickerSheet(
      * s jedinou částí se přepínač nekreslí.
      */
     modes: List<ExpressionMode> = ExpressionMode.entries,
-    /** Volby odeslání u podržené samolepky; `null` = samolepka jde jen poslat ťuknutím. */
+    /** Volby odeslání u podržené samolepky a GIFu; `null` = jde jen poslat ťuknutím. */
     sendMenu: SendMenuOffer? = null,
     onPickWith: (StickerItem, SendMenuChoice) -> Unit = { _, _ -> },
+    onPickGifWith: (GifItem, SendMenuChoice) -> Unit = { _, _ -> },
 ) {
     val viewModel: StickerPickerViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -497,6 +498,10 @@ internal fun StickerPickerSheet(
                 chatId = chatId,
                 // Jako u samolepky: nejdřív sheet schovat, pak poslat.
                 onPick = { gif -> scope.launch { sheetState.hide() }.invokeOnCompletion { onPickGif(gif) } },
+                sendMenu = sendMenu,
+                onPickWith = { gif, choice ->
+                    scope.launch { sheetState.hide() }.invokeOnCompletion { onPickGifWith(gif, choice) }
+                },
             )
             return@ModalBottomSheet
         }
@@ -812,44 +817,12 @@ internal fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Mo
 
         StickerPreview(sticker.preview, playing = active, modifier = Modifier.fillMaxSize().padding(6.dp))
 
-        val sendMenu = cells.sendMenu?.takeIf { it.silent || it.schedule || it.whenOnline }
-        if (active && sendMenu != null) {
-            Box(Modifier.align(Alignment.TopStart).padding(2.dp)) {
-                var menuOpen by remember { mutableStateOf(false) }
-                Surface(
-                    onClick = { menuOpen = true },
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(FAVORITE_BUTTON_SIZE),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            painterResource(Res.drawable.schedule_send_24dp),
-                            contentDescription = stringResource(Res.string.conversation_send_options),
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
-                }
-                ExpressiveMenu(
-                    expanded = menuOpen,
-                    onDismiss = { menuOpen = false },
-                    groups = listOf(
-                        listOfNotNull(
-                            MenuAction(stringResource(Res.string.conversation_send_silent), Res.drawable.notifications_off_24dp) {
-                                menuOpen = false
-                                cells.onPickWith(sticker, SendMenuChoice.Silent)
-                            }.takeIf { sendMenu.silent },
-                            MenuAction(stringResource(Res.string.conversation_send_schedule), Res.drawable.schedule_send_24dp) {
-                                menuOpen = false
-                                cells.onPickWith(sticker, SendMenuChoice.Schedule)
-                            }.takeIf { sendMenu.schedule },
-                            MenuAction(stringResource(Res.string.conversation_send_when_online), Res.drawable.online_prediction_24dp) {
-                                menuOpen = false
-                                cells.onPickWith(sticker, SendMenuChoice.WhenOnline)
-                            }.takeIf { sendMenu.whenOnline },
-                        ),
-                    ),
+        if (active) {
+            cells.sendMenu?.let { offer ->
+                SendOptionsButton(
+                    offer = offer,
+                    onChoice = { choice -> cells.onPickWith(sticker, choice) },
+                    modifier = Modifier.align(Alignment.TopStart).padding(2.dp),
                 )
             }
         }
@@ -872,6 +845,57 @@ internal fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Mo
                 }
             }
         }
+    }
+}
+
+/**
+ * Kulaté tlačítko s nabídkou voleb odeslání (bez zvuku, naplánovat, až bude online) u podržené
+ * samolepky nebo GIFu. Nic, když [offer] žádnou z nich nedovolí.
+ */
+@Composable
+internal fun SendOptionsButton(
+    offer: SendMenuOffer,
+    onChoice: (SendMenuChoice) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (!(offer.silent || offer.schedule || offer.whenOnline)) return
+    Box(modifier) {
+        var menuOpen by remember { mutableStateOf(false) }
+        Surface(
+            onClick = { menuOpen = true },
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.size(FAVORITE_BUTTON_SIZE),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    painterResource(Res.drawable.schedule_send_24dp),
+                    contentDescription = stringResource(Res.string.conversation_send_options),
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
+        ExpressiveMenu(
+            expanded = menuOpen,
+            onDismiss = { menuOpen = false },
+            groups = listOf(
+                listOfNotNull(
+                    MenuAction(stringResource(Res.string.conversation_send_silent), Res.drawable.notifications_off_24dp) {
+                        menuOpen = false
+                        onChoice(SendMenuChoice.Silent)
+                    }.takeIf { offer.silent },
+                    MenuAction(stringResource(Res.string.conversation_send_schedule), Res.drawable.schedule_send_24dp) {
+                        menuOpen = false
+                        onChoice(SendMenuChoice.Schedule)
+                    }.takeIf { offer.schedule },
+                    MenuAction(stringResource(Res.string.conversation_send_when_online), Res.drawable.online_prediction_24dp) {
+                        menuOpen = false
+                        onChoice(SendMenuChoice.WhenOnline)
+                    }.takeIf { offer.whenOnline },
+                ),
+            ),
+        )
     }
 }
 

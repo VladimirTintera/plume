@@ -16,6 +16,7 @@ import eu.tintera.plume.core.ui.longPress
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.MessageSchedule
+import eu.tintera.plume.core.telegram.GifItem
 import eu.tintera.plume.core.telegram.StickerItem
 import eu.tintera.plume.resources.conversation_send_silent
 import eu.tintera.plume.resources.conversation_send_schedule
@@ -1731,6 +1732,20 @@ fun ConversationScreen(
                     haptics.confirm()
                     viewModel.sendGif(gif)
                 },
+                onPickGifWith = { gif, choice ->
+                    stickerPickerOpen = false
+                    when (choice) {
+                        SendMenuChoice.Silent -> {
+                            haptics.confirm()
+                            viewModel.sendGif(gif, SendOptions(silent = true))
+                        }
+                        SendMenuChoice.WhenOnline -> {
+                            haptics.confirm()
+                            viewModel.sendGif(gif, SendOptions(schedule = MessageSchedule.WhenOnline))
+                        }
+                        SendMenuChoice.Schedule -> scheduleTarget = ScheduleTarget.Gif(gif)
+                    }
+                },
                 onDismiss = { stickerPickerOpen = false },
             )
         }
@@ -2164,6 +2179,10 @@ fun ConversationScreen(
                             is ScheduleTarget.Sticker -> {
                                 haptics.confirm()
                                 viewModel.sendSticker(target.sticker, SendOptions(schedule = schedule))
+                            }
+                            is ScheduleTarget.Gif -> {
+                                haptics.confirm()
+                                viewModel.sendGif(target.gif, SendOptions(schedule = schedule))
                             }
                         }
                     },
@@ -3214,6 +3233,9 @@ private sealed interface ScheduleTarget {
 
     /** Samolepka z výběru, naplánovaná z nabídky u podržené samolepky. */
     data class Sticker(val sticker: StickerItem) : ScheduleTarget
+
+    /** GIF z výběru, naplánovaný z nabídky u podrženého GIFu. */
+    data class Gif(val gif: GifItem) : ScheduleTarget
 }
 
 /** Výchozí čas ve výběru hodiny při plánování: za hodinu od teď. */

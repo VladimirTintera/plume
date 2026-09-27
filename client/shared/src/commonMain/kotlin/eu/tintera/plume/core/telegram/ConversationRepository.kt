@@ -430,13 +430,15 @@ interface ConversationRepository {
 
     /**
      * Odešle GIF z výběru — soubor, který na serveru už je, takže se nic nenahrává. GIF se
-     * zároveň zařadí na začátek uložených, jako samolepka mezi nedávné.
+     * zároveň zařadí na začátek uložených, jako samolepka mezi nedávné. [options] jako
+     * u [sendSticker].
      */
     suspend fun sendGif(
         chatId: Long,
         gif: GifItem,
         replyToMessageId: Long?,
         quote: ReplyQuote? = null,
+        options: SendOptions = SendOptions(),
     ): Result<ChatMessage>
 
     /**
