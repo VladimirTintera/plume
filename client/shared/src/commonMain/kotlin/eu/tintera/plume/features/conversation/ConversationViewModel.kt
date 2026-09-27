@@ -109,6 +109,7 @@ import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.paid_media_unsupported
 import eu.tintera.plume.resources.conversation_selection_limit
 import eu.tintera.plume.resources.conversation_attachments_limit
 import eu.tintera.plume.resources.conversation_content_not_allowed
@@ -2847,6 +2848,7 @@ class ConversationViewModel(
             MessageAction.OpenComments -> openComments(messageId)
             MessageAction.OpenDocument -> openDocument(messageId)
             MessageAction.CancelUpload -> cancelUpload(messageId)
+            MessageAction.ExplainPaidMedia -> _state.update { it.copy(notice = UiText(Res.string.paid_media_unsupported)) }
             MessageAction.ToggleVoice -> toggleVoice(messageId)
             MessageAction.ToggleVideoNoteSound -> toggleVideoNoteSound(messageId)
             is MessageAction.PlayMediaAt -> playMediaAt(messageId, action.seconds)

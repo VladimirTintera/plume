@@ -1470,6 +1470,8 @@ private fun MessageBodyScope.openMedia(media: MessageMedia) {
         is MessageMedia.Location -> act(MessageAction.OpenLink(media.mapUrl))
         // „Napsat zprávu" u kontaktu na Telegramu: soukromý chat s ním.
         is MessageMedia.Contact -> media.userId?.let { act(MessageAction.OpenUser(it)) }
+        // Nezaplacené médium do prohlížeče nemůže — soubor server nevydá. Aspoň vysvětlení.
+        is MessageMedia.PaidMedia -> act(MessageAction.ExplainPaidMedia)
         else -> act(MessageAction.OpenMedia)
     }
 }

@@ -48,6 +48,9 @@ import dev.g000sha256.tdl.dto.MessageInvoice
 import dev.g000sha256.tdl.dto.MessageLiveLocation
 import dev.g000sha256.tdl.dto.MessageLocation
 import dev.g000sha256.tdl.dto.MessagePaidMedia
+import dev.g000sha256.tdl.dto.PaidMediaPreview
+import dev.g000sha256.tdl.dto.PaidMediaVideo
+import dev.g000sha256.tdl.dto.PaidMediaPhoto
 import dev.g000sha256.tdl.dto.MessagePhoto
 import dev.g000sha256.tdl.dto.MessagePoll
 import dev.g000sha256.tdl.dto.PollTypeQuiz
@@ -663,6 +666,36 @@ internal fun MessageSelfDestructType.toSelfDestructType(): SelfDestructType = wh
 }
 
 /**
+ * Placené médium v doménové podobě.
+ *
+ * **Zaplacené je obyčejná fotka nebo video** (`PaidMediaPhoto` / `PaidMediaVideo`), a tak se
+ * i kreslí — i s prohlížečem a reakcemi. Nezaplacené (`PaidMediaPreview`) je jen náhled s cenou.
+ * Z víc položek se ukazuje PRVNÍ: album zaplacených médií v jedné zprávě neumíme kreslit jako
+ * mřížku (alba jsou jinak víc zpráv) a u nezaplaceného stačí počet.
+ */
+internal fun MessagePaidMedia.toPaidMedia(hideSensitive: Boolean): MessageMedia? {
+    val items = media.filterNotNull()
+    val first = items.firstOrNull() ?: return null
+    val locked = items.any { it !is PaidMediaPhoto && it !is PaidMediaVideo }
+    if (!locked) {
+        return when (first) {
+            is PaidMediaPhoto -> first.photo.toMedia(hasSpoiler = hideSensitive, isSensitive = hideSensitive)
+            is PaidMediaVideo -> first.video.toMedia(hasSpoiler = hideSensitive, isSensitive = hideSensitive)
+            else -> null
+        }
+    }
+    val preview = first as? PaidMediaPreview
+    return MessageMedia.PaidMedia(
+        starCount = starCount,
+        itemCount = items.size,
+        width = preview?.width ?: 0,
+        height = preview?.height ?: 0,
+        durationSeconds = preview?.duration ?: 0,
+        minithumbnail = preview?.minithumbnail?.toDomain(),
+    )
+}
+
+/**
  * Příloha citované zprávy z JINÉHO chatu (`MessageReplyToMessage.content`) — jen kvůli náhledu
  * v citaci. Celý převod ([messageMedia]) stojí na `Message`, kterou odtud nemáme; náhled stačí
  * u druhů, které obrázek nesou. Citlivost cizího chatu nevíme, spoiler ano.
@@ -704,6 +737,8 @@ internal suspend fun Message.messageMedia(
         hasSpoiler = content.hasSpoiler || hideSensitive,
         isSensitive = hideSensitive,
     )
+
+    is MessagePaidMedia -> content.toPaidMedia(hideSensitive)
 
     is MessageDocument -> content.document.toMedia(
         fileName = content.document.fileName.ifBlankGet { getString(Res.string.content_file) },

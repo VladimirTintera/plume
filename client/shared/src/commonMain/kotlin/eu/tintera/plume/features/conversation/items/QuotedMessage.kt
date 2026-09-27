@@ -42,6 +42,7 @@ import eu.tintera.plume.resources.media_sticker
 import eu.tintera.plume.resources.content_gif
 import eu.tintera.plume.resources.content_video_note
 import eu.tintera.plume.resources.content_contact
+import eu.tintera.plume.resources.content_paid
 import eu.tintera.plume.resources.content_live_location
 import eu.tintera.plume.resources.content_location
 import eu.tintera.plume.resources.media_video
@@ -212,6 +213,8 @@ internal fun MessageMedia?.quoteThumbnail(): QuoteThumbnail? = when (this) {
     is MessageMedia.Sticker -> (thumbnailFileId ?: fileId)?.takeUnless { isSensitive }
         ?.let { QuoteThumbnail(it, null, transparent = true) }
     is MessageMedia.Attachment -> thumbnailFileId?.let { QuoteThumbnail(it, null) }
+    // Nezaplacené médium: jen rozmazaný náhled, soubor server nevydá.
+    is MessageMedia.PaidMedia -> minithumbnail?.let { QuoteThumbnail(null, it, hidden = true) }
     is MessageMedia.AnimatedEmoji, is MessageMedia.Dice, is MessageMedia.VoiceNote,
     is MessageMedia.Location, is MessageMedia.Call, is MessageMedia.Contact, null -> null
 }
@@ -280,6 +283,7 @@ internal fun MessageMedia?.describe(): String = when (this) {
     is MessageMedia.Location -> title ?: stringResource(if (isLive) Res.string.content_live_location else Res.string.content_location)
     is MessageMedia.Call -> stringResource(outcome.title(isVideo))
     is MessageMedia.Contact -> stringResource(Res.string.content_contact, name.ifBlank { phone })
+    is MessageMedia.PaidMedia -> stringResource(Res.string.content_paid)
     null -> ""
 }
 
