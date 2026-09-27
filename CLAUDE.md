@@ -6189,6 +6189,33 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
 - **Když typ dostane přílohu s popiskem, `captionText()` pro něj musí vracet prázdno** — jinak
   se popisek v bublině objeví dvakrát. Platí pro video kolečko, hru a platbu.
 
+### Článek
+
+`MessageRichMessage` (TDLib 15) je článek ze stromu bloků — nadpisy, odstavce, seznamy,
+citace, kód, tabulky, média. V bublině je to **jeden text s entitami**, které bublina už umí
+(`toRichBody` v `core/telegram/RichMessageBody.kt`, testy `RichMessageBodyTest`): nadpis tučně
+s volným řádkem nad sebou, odrážky, čísla a zaškrtávátka (☑/☐), citace jako pás, kód, odkazy,
+zmínky, hashtagy, příkazy, spoiler, vlastní emoji, datum.
+
+- **Text, ne vlastní sazba bloků.** Druhá sazba vedle bubliny by znamenala zdvojit, co text
+  umí: hledání se zvýrazněním, kopírování, výběr textu a citace z nabídky, spoilery. Rozložený
+  do textu to všechno funguje beze změny.
+- **Offsety se počítají z délky `StringBuilder`u** (UTF-16, jako všude) a entita se zapisuje
+  až po napsání obsahu. Proto se nic nesmí z textu MAZAT zpětně: blok za odrážkou seznamu první
+  verze přitahovala smazáním `\n` a posunula tím všechny entity za ním. Teď `continueLine`
+  zakáže nový řádek předem.
+- **Média se nekreslí, ale nezmizí**: „[Fotka]" kurzívou a popisek. Potichu vypadlá fotka by
+  z článku udělala něco jiného, než co autor poslal.
+- **Stav zaškrtávátka nese `isChecked`** — Kotlin getter booleanu, takže `javap | grep get` ho
+  mine a vypadá to, že wrapper stav nemá.
+- **Náhled v seznamu chatů zůstává holý text** (`plainText`, spoiler vynechá).
+- **„Upravit" u vlastního článku se nabídnout může** (`plainTextEdit` článek od textu nerozezná)
+  a server `editMessageText` odmítne; poslat článek jde jen s Premium, takže se to zatím netýká.
+- **Ověřuje se botem**: `sendRichMessage` s `rich_message.markdown` (Bot API 10). Ověřeno na
+  emulátoru anglicky: nadpisy, formátování, spoiler, seznamy i zaškrtávátka, citace s podpisem,
+  kód, oddělovač, tabulka a klikatelné `/help`, `@BotFather`, `#vylet`. **Neověřeno**: médium
+  v článku, sbalitelná citace, iOS (jen přeložené).
+
 ### Počty pod příspěvkem
 
 Pod příspěvkem kanálu je řádek se zhlédnutími a přeposláními (`PostStatsRow`) a u příspěvku
