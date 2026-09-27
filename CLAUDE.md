@@ -4077,7 +4077,12 @@ parametr (`InternalLink.BotStart`).
   tlačítka (tak to dělají i oficiální klienti). Tlačítko s čekajícím parametrem se tedy ukáže
   jen u bota, se kterým se ještě nepsalo.
 - **V chatu je „/start" bez parametru**, parametr dostane jen bot — TDLib zprávu takhle vrací.
-- **Popis je holý text**, odkazy v něm zatím nejsou klikatelné.
+- **Odkazy, zmínky, hashtagy a příkazy v popisu jsou klikatelné** (`BotIntro.descriptionEntities`).
+  Bot popis nastavuje jako holý text, entity dohledává TDLib lokálně (`getTextEntities`), jako
+  u popisu skupiny v profilu. Ťuknutí jde TOUŽ cestou jako v textu zprávy (`MessageAction` přes
+  scope obrazovky): `/help` z popisu odejde botovi, `@jméno` otevře chat nad konverzací. Ověřeno
+  popisem nastaveným testovacímu botovi (`setMyDescription`) a sondou v `showsBotIntro`
+  (necommituje se); popis se po ověření vrátil.
 - **Ověřeno na emulátoru**: startovací odkaz na testovacího bota (autostart, bot dostal
   `/start hello`), prázdný chat s `@gif` (profil s popisem od serveru, bez lupy, a Start — **nestisknuté**,
   bot není náš) a tlačítko Start v chatu s testovacím botem přes sondu v `showsBotStart`

@@ -527,8 +527,8 @@ snadno na to uživatel narazí.
   **ověřit skutečnou zmínku ve skupině** a **skutečný nový hlas v anketě** (tlačítko s anketou je
   hotové, ověřené jen podstrčeným počtem) a zvýraznění, KDO reagoval (`UnreadReaction.senderId`).
 - ~~**Prázdný chat s botem**~~ — hotovo: profil bota (tvář, jméno, popis), tlačítko Start
-  i parametr ze startovacího odkazu (`CLAUDE.md`, „Spuštění bota"). Zbývá klikatelné odkazy
-  v popisu, ověřit obrázek a GIF od bota a startovací odkaz do skupiny (`t.me/bot?startgroup=…`).
+  i parametr ze startovacího odkazu (`CLAUDE.md`, „Spuštění bota"). ~~Klikatelné odkazy
+  v popisu~~ — hotovo. Zbývá ověřit obrázek a GIF od bota a startovací odkaz do skupiny (`t.me/bot?startgroup=…`).
 - **Napovídání při psaní**: ~~`/` příkazy bota~~ — hotovo i s tlačítkem seznamu příkazů
   (`CLAUDE.md`, „Příkazy bota“; ve skupině ověřit příponu `@bot`). ~~`@` členové skupiny~~ —
   hotovo i se zmínkou jménem (`CLAUDE.md`, „Napovídání zmínek"; ve skutečné skupině ověřit).
