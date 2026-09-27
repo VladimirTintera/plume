@@ -6702,6 +6702,21 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   (`TextQuote.isManual`); automatickou server doplňuje u odpovědí z jiného chatu, ty se zahazují.
   Citace je součást odpovědi i konceptu (`saveDraft(quote)`, `ChatInfo.draftReplyQuote`) a maže
   se s odpovědí (`clearReply`). Jak vzniká, viz „Citace z nabídky".
+- **Citace nese náhled přílohy** (`quoteThumbnail` v `QuotedMessage.kt`, testy
+  `QuoteThumbnailTest`): fotka, video, GIF, kolečko (kulaté), obal skladby, samolepka a soubor
+  s náhledem — v bublině odpovědi i nad vstupním polem, vlevo od jména. Bere se nejmenší
+  varianta; do čtverečku 36 dp se ostrá verze stahovat nemá.
+- **Spoiler a citlivý obsah mají v citaci JEN rozmazaný náhled** (`BlurredThumbnail`, nic se
+  nestahuje). `RemoteImage` by si ostrou verzi stáhl a po chvíli prolnul — citace by pak
+  prozradila, co bublina nad ní schovává. **Mizející a tajné médium náhled nemá vůbec**: citace
+  žije v konverzaci déle než médium samo.
+- **Odpověď z jiného chatu náhled má taky** (`MessageContent.replyMedia`): fotka, video, GIF
+  a samolepka z `MessageReplyToMessage.content`. Celý převod `messageMedia` stojí na `Message`,
+  kterou tam nemáme; citlivost cizího chatu neznáme, spoiler ano.
+- **Ověřeno na emulátoru** botem (`sendPhoto`, pak `sendMessage` s `reply_parameters`): náhled
+  u odpovědi na fotku, rozmazaný u odpovědi na spoiler, náhled nad polem po tahu na odpověď.
+  Kolečko, samolepka, obal skladby a odpověď z jiného chatu jsou pokryté testem, **na zařízení
+  ověřené nejsou**; iOS jen přeložené.
 - **Vynucená odpověď bota může přebít koncept.** `restoreDraftReply` i vynucená odpověď nastavují
   `replyingTo`, jen když je prázdné, a kdo doběhne dřív, vyhraje — koncept se čte asynchronně.
   Při zkoušení citací v chatu s testovacím botem pozor na starou `force_reply`.

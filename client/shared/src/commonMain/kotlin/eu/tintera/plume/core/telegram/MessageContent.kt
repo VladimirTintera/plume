@@ -658,6 +658,19 @@ internal fun MessageSelfDestructType.toSelfDestructType(): SelfDestructType = wh
 }
 
 /**
+ * Příloha citované zprávy z JINÉHO chatu (`MessageReplyToMessage.content`) — jen kvůli náhledu
+ * v citaci. Celý převod ([messageMedia]) stojí na `Message`, kterou odtud nemáme; náhled stačí
+ * u druhů, které obrázek nesou. Citlivost cizího chatu nevíme, spoiler ano.
+ */
+internal fun MessageContent.replyMedia(): MessageMedia? = when (this) {
+    is MessagePhoto -> photo.toMedia(hasSpoiler = hasSpoiler, isSensitive = false, isSecret = isSecret, selfDestructType = null)
+    is MessageVideo -> video.toMedia(hasSpoiler = hasSpoiler, isSensitive = false, isSecret = isSecret, selfDestructType = null)
+    is MessageAnimation -> animation.toMedia().copy(hasSpoiler = hasSpoiler)
+    is MessageSticker -> sticker.toMedia()
+    else -> null
+}
+
+/**
  * Příloha zprávy, nebo `null` u čistě textové.
  *
  * [hideSensitive] skryje fotku, video i GIF za rozostření jako spoiler (viz [SensitiveContent]);

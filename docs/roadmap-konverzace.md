@@ -482,7 +482,7 @@ snadno na to uživatel narazí.
 - ~~**Odpověď na zprávu z jiného chatu**~~ — hotovo (citace z `origin` a `content`, ťuknutí
   otevře ten chat; `CLAUDE.md`, „Odpovědi"). **Ověřené jen sondou**, skutečnou odpověď
   z jiného chatu zatím nikdo neviděl. Zbývá **odpověď na příběh** (`MessageReplyToStory`),
-  až budou příběhy, a náhled obrázku v citaci (dnes jen „Fotka").
+  až budou příběhy. ~~Náhled obrázku v citaci~~ — hotovo (i u odpovědi z jiného chatu).
 - ~~**Citlivý obsah**~~ — hotovo: fotka, video i GIF rozostřené se štítkem „Citlivý obsah",
   odkrytí ťuknutím (`CLAUDE.md`, „Citlivý obsah"). Zbývá:
   - ~~**přepínač „Zobrazovat citlivý obsah"** v Nastavení~~ — hotovo (Obecné → Soukromí);
