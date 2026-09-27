@@ -381,6 +381,26 @@ class ConversationViewModel(
      */
     private val chatOpened = appScope.launch { repository.openChat(chatId) }
 
+    /**
+     * Přečtení viditelných zpráv, se kterým se čeká, než se ví, kam konverzace po otevření skočí
+     * (`null` = nečeká se).
+     *
+     * Chat se otevírá u nejnovějších zpráv a skok na první nepřečtenou přijde, až se historie
+     * dotáhne. Dokud byly nejnovější zprávy vidět déle než odpočet hlášení (400 ms), nahlásily se
+     * jako přečtené — a server posunul hranici až na konec. Ve vlákně komentářů, kde se historie
+     * tahá ze serveru, to tak dopadlo pokaždé: příští otevření už nemělo kam skočit, přestože
+     * počet nepřečtených zůstal.
+     */
+    // Deklarace MUSÍ stát před `init`: ten může hlášení pustit ještě během konstrukce.
+    private var heldReads: List<Long>? = emptyList()
+
+    /** Pustí hlášení přečtení; když se skákalo, podržené (nejnovější zprávy) propadne. */
+    private fun releaseReads(jumped: Boolean) {
+        val held = heldReads ?: return
+        heldReads = null
+        if (!jumped) markRead(held)
+    }
+
     init {
         viewModelScope.launch {
             voicePlayer.errors.collect { message -> _state.update { it.copy(error = message) } }
@@ -455,11 +475,12 @@ class ConversationViewModel(
                 info.draftReplyToMessageId?.let { restoreDraftReply(it, info.draftReplyQuote) }
                 // Nalezená zpráva má přednost před nepřečtenými — kvůli ní chat otevřel.
                 if (initialMessageId != null) {
+                    releaseReads(jumped = false)
                     jumpToMessage(initialMessageId, fromSearch = true)
                 } else {
-                    loadUntilUnread()
+                    releaseReads(jumped = loadUntilUnread())
                 }
-            }
+            }.onFailure { releaseReads(jumped = false) }
             draftRestored.complete(Unit)
         }
 
@@ -858,19 +879,20 @@ class ConversationViewModel(
      * zůstane souvislý až k přítomnosti. Kdo má nepřečtených stovky, dostane okno kolem hranice
      * ([loadAround]) a k novějším se dostránkuje.
      */
-    private suspend fun loadUntilUnread() {
-        val boundary = _state.value.unreadBoundaryId ?: return
+    private suspend fun loadUntilUnread(): Boolean {
+        val boundary = _state.value.unreadBoundaryId ?: return false
 
         // Hranice je načtená, jakmile máme aspoň jednu zprávu z přečtené části. Bez ní se předěl
         // stejně nevykreslí, takže skok nemá kam mířit.
         val loaded = loadUntil(MAX_UNREAD_PAGES) { messages -> messages.any { it.id <= boundary } } ||
             // Hranice je poslední přečtená zpráva a mohla být smazaná — okno je dobré i bez ní.
             loadAround(boundary, requireTarget = false)
-        if (!loaded) return
+        if (!loaded) return false
 
         // První nepřečtená je nejstarší PŘÍCHOZÍ nad hranicí — vlastní odpověď nepřečtená není.
-        val firstUnread = firstUnreadId(_state.value.messages, boundary) ?: return
+        val firstUnread = firstUnreadId(_state.value.messages, boundary) ?: return false
         _state.update { it.copy(scrollTarget = ScrollTarget(firstUnread, ScrollAnchor.Top)) }
+        return true
     }
 
     /**
@@ -2602,6 +2624,10 @@ class ConversationViewModel(
      */
     fun markRead(messageIds: List<Long>) {
         if (messageIds.isEmpty()) return
+        if (heldReads != null) {
+            heldReads = messageIds
+            return
+        }
 
         // Obrazovka posílá klíče položek, ne id — u odeslaných zpráv se liší.
         val incoming = _state.value.messagesToView(messageIds.toSet())

@@ -20,7 +20,8 @@ import kotlinx.coroutines.flow.map
  *   na konec historie, když už starší komentáře nejsou.
  * - **Koncept, „píše…", připnuté zprávy, reklamy a ankety se vypínají.** Všechno z toho patří chatu
  *   skupiny, ne vláknu: koncept by se objevil v hlavním chatu skupiny a „píše…" by viděli všichni
- *   v ní. Nepřečtené se taky nepočítají — počet chatu je za celou skupinu.
+ *   v ní. Počet nepřečtených chatu je za celou skupinu, takže ho nahradí počet a hranice
+ *   přečtení VLÁKNA (`getMessageThread`) — otevření pak skočí na první nepřečtený komentář.
  */
 class ThreadConversationRepository(
     private val delegate: ConversationRepository,
@@ -39,17 +40,50 @@ class ThreadConversationRepository(
     override fun newMessages(chatId: Long): Flow<ChatMessage> =
         delegate.newMessages(chatId).filter { it.threadId == rootMessageId }
 
-    override suspend fun chatInfo(chatId: Long): Result<ChatInfo> =
-        delegate.chatInfo(chatId).map { info ->
+    override suspend fun chatInfo(chatId: Long): Result<ChatInfo> {
+        // Bez údajů o vlákně se nepřečtené neukazují vůbec — hranice skupiny by do vlákna nepatřila.
+        val thread = delegate.commentThread(chatId, rootMessageId).getOrNull()
+        return delegate.chatInfo(chatId).map { info ->
             info.copy(
                 content = info.content.withoutPolls(),
-                unreadCount = 0,
+                lastReadInboxMessageId = thread?.let { readBoundary(chatId, it) } ?: 0L,
+                unreadCount = thread?.unreadCount ?: 0,
                 draftText = null,
                 draftReplyToMessageId = null,
                 draftLinkPreview = null,
                 draftReplyQuote = null,
             )
         }
+    }
+
+    /**
+     * Poslední přečtený komentář, odvozený z POČTU nepřečtených, ne z hranice od serveru.
+     *
+     * `MessageReplyInfo.lastReadInboxMessageId` u vlákna hranici nenese: po přečtení prvních šesti
+     * ze třinácti komentářů vrátil server jako „poslední přečtený" NEJNOVĚJŠÍ komentář, přestože
+     * `unreadMessageCount` správně klesl na sedm (ověřeno na emulátoru). Hranice se proto dopočítá
+     * z nejnovějších komentářů ([threadReadBoundary]). Vlákno, které uživatel ještě neotevřel,
+     * hranici nemá (0) a přečtený je v něm jen kořen — tam se historie číst nemusí.
+     */
+    private suspend fun readBoundary(chatId: Long, thread: CommentThread): Long? {
+        if (thread.unreadCount <= 0) return null
+        if (thread.lastReadMessageId == 0L) return rootMessageId
+        val loaded = mutableListOf<ChatMessage>()
+        repeat(MAX_BOUNDARY_PAGES) {
+            val from = loaded.lastOrNull()?.id ?: 0L
+            val page = delegate.threadHistory(chatId, rootMessageId, from, BOUNDARY_PAGE_SIZE, 0).getOrNull()
+                ?: return null
+            val fresh = page.filter { message -> loaded.none { it.id == message.id } }
+            loaded += fresh
+            val reachedStart = fresh.isEmpty()
+            threadReadBoundary(loaded, thread.unreadCount, reachedStart, rootMessageId)?.let { return it }
+            if (reachedStart) return null
+        }
+        return null
+    }
+
+    override suspend fun markRead(chatId: Long, messageIds: List<Long>): Result<Unit> =
+        delegate.markThreadRead(chatId, messageIds)
 
     override fun accessUpdates(chatId: Long): Flow<ChatAccess> =
         delegate.accessUpdates(chatId).map { it.copy(content = it.content.withoutPolls()) }
@@ -181,3 +215,32 @@ class ThreadConversationRepository(
 
     private fun reply(replyToMessageId: Long?): Long = replyToMessageId ?: rootMessageId
 }
+
+/**
+ * Hranice přečtení vlákna z [unreadCount] nejnovějších příchozích komentářů ([newestFirst] od
+ * nejnovějšího): vrací id těsně pod prvním nepřečteným, takže se nad ním nakreslí předěl
+ * a skok míří na něj. Vlastní komentáře se nepočítají — nepřečtené jsou jen cizí.
+ *
+ * Když historie skončila dřív, než se napočítaly všechny, jsou nepřečtené všechny a hranicí je
+ * kořen ([reachedStart]). Jinak `null` = načtené zprávy nestačí.
+ */
+internal fun threadReadBoundary(
+    newestFirst: List<ChatMessage>,
+    unreadCount: Int,
+    reachedStart: Boolean,
+    rootMessageId: Long,
+): Long? {
+    if (unreadCount <= 0) return null
+    var counted = 0
+    for (message in newestFirst) {
+        // Nad kořenem už žádný komentář není.
+        if (message.id == rootMessageId) return rootMessageId
+        if (message.isOutgoing) continue
+        counted++
+        if (counted == unreadCount) return message.id - 1
+    }
+    return if (reachedStart) rootMessageId else null
+}
+
+private const val BOUNDARY_PAGE_SIZE = 100
+private const val MAX_BOUNDARY_PAGES = 5
