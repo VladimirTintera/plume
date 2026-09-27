@@ -151,6 +151,14 @@ import dev.g000sha256.tdl.dto.TextEntityTypeItalic
 import dev.g000sha256.tdl.dto.TextEntityTypeMention
 import dev.g000sha256.tdl.dto.TextEntityTypeMentionName
 import dev.g000sha256.tdl.dto.TextEntityTypeMediaTimestamp
+import dev.g000sha256.tdl.dto.TextEntityTypeDateTime
+import dev.g000sha256.tdl.dto.DateTimeFormattingType
+import dev.g000sha256.tdl.dto.DateTimeFormattingTypeAbsolute
+import dev.g000sha256.tdl.dto.DateTimeFormattingTypeRelative
+import dev.g000sha256.tdl.dto.DateTimePartPrecision
+import dev.g000sha256.tdl.dto.DateTimePartPrecisionLong
+import dev.g000sha256.tdl.dto.DateTimePartPrecisionNone
+import dev.g000sha256.tdl.dto.DateTimePartPrecisionShort
 import dev.g000sha256.tdl.dto.TextEntityTypePhoneNumber
 import dev.g000sha256.tdl.dto.TextEntityTypePre
 import dev.g000sha256.tdl.dto.TextEntityTypePreCode
@@ -535,6 +543,10 @@ private fun TextEntity.toEntity(text: String): MessageEntity? {
         is TextEntityTypeHashtag -> MessageEntityType.Hashtag(text.range(this))
         is TextEntityTypeBotCommand -> MessageEntityType.BotCommand(text.range(this))
         is TextEntityTypeMediaTimestamp -> MessageEntityType.MediaTimestamp(type.mediaTimestamp)
+        // Bez formátu má text zůstat, jak ho pisatel napsal.
+        is TextEntityTypeDateTime -> type.formattingType?.let {
+            MessageEntityType.DateTime(unixTime = type.unixTime.toLong(), format = it.toFormat())
+        }
 
         is TextEntityTypeBold -> MessageEntityType.Bold
         is TextEntityTypeItalic -> MessageEntityType.Italic
@@ -552,6 +564,21 @@ private fun TextEntity.toEntity(text: String): MessageEntity? {
     }
 
     return mapped?.let { MessageEntity(offset = offset, length = length, type = it) }
+}
+
+private fun DateTimeFormattingType.toFormat(): DateTimeFormat = when (this) {
+    is DateTimeFormattingTypeRelative -> DateTimeFormat.Relative
+    is DateTimeFormattingTypeAbsolute -> DateTimeFormat.Absolute(
+        time = timePrecision.toPrecision(),
+        date = datePrecision.toPrecision(),
+        dayOfWeek = showDayOfWeek,
+    )
+}
+
+private fun DateTimePartPrecision.toPrecision(): DateTimePrecision = when (this) {
+    is DateTimePartPrecisionNone -> DateTimePrecision.None
+    is DateTimePartPrecisionShort -> DateTimePrecision.Short
+    is DateTimePartPrecisionLong -> DateTimePrecision.Long
 }
 
 /**
