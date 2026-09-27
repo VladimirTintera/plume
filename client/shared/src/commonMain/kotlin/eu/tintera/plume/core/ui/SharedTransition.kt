@@ -18,7 +18,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.lerp
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
@@ -27,6 +32,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 
@@ -204,7 +210,19 @@ val LocalSharedElementClip = compositionLocalOf<SharedElementClip?> { null }
  * na avataru), musí mít vyšší, jinak ho letící avatar přikryje.
  */
 @Composable
-fun Modifier.sharedNavElement(key: String, zIndexInOverlay: Float = 0f): Modifier {
+fun Modifier.sharedNavElement(
+    key: String,
+    zIndexInOverlay: Float = 0f,
+    /**
+     * Tvar, do kterého se prvek ořezává. **Musí se předat, i když ho ořezává už rodič:** během
+     * letu se prvek kreslí v překryvu, mimo rodiče, a ořez nad ním se neuplatní. Fotka se proto
+     * z prohlížeče vracela do bubliny s hranatými rohy a zaoblila se až po dosednutí. Tvar
+     * přidaný sem letí s prvkem a jeho rohy se během letu přelijí z [flightFromCorner].
+     */
+    shape: Shape? = null,
+    /** Zaoblení druhé strany páru, ze kterého se rohy přelévají do [shape]. */
+    flightFromCorner: Dp = MEDIA_CARD_CORNER,
+): Modifier {
     val shared = LocalSharedTransitionScope.current ?: return this
     if (LocalTwoPane.current) return this
     val scope = LocalNavAnimatedContentScope.current
@@ -212,7 +230,13 @@ fun Modifier.sharedNavElement(key: String, zIndexInOverlay: Float = 0f): Modifie
 
     return with(shared) {
         val state = rememberSharedContentState(key = key)
-        if (area == null) {
+        // Kreslí se prvek, který se stává viditelným, takže jeho přechod jde PreEnter → Visible.
+        // Táž pružina jako let, aby ořez i rohy dosedly ve stejnou chvíli jako prvek sám.
+        val settled = scope.transition.animateFloat(
+            transitionSpec = { clipSpec },
+            label = "shared-element-clip",
+        ) { if (it == EnterExitState.Visible) 1f else 0f }
+        val element = if (area == null) {
             this@sharedNavElement.sharedElement(
                 sharedContentState = state,
                 animatedVisibilityScope = scope,
@@ -220,12 +244,6 @@ fun Modifier.sharedNavElement(key: String, zIndexInOverlay: Float = 0f): Modifie
                 zIndexInOverlay = zIndexInOverlay,
             )
         } else {
-            // Kreslí se prvek, který se stává viditelným, takže jeho přechod jde PreEnter → Visible.
-            // Táž pružina jako let, aby ořez dosedl ve stejnou chvíli jako prvek sám.
-            val settled = scope.transition.animateFloat(
-                transitionSpec = { clipSpec },
-                label = "shared-element-clip",
-            ) { if (it == EnterExitState.Visible) 1f else 0f }
             val clip = remember(area, settled) { ContentAreaClip(area, settled) }
             this@sharedNavElement.sharedElement(
                 sharedContentState = state,
@@ -235,7 +253,36 @@ fun Modifier.sharedNavElement(key: String, zIndexInOverlay: Float = 0f): Modifie
                 clipInOverlayDuringTransition = clip,
             )
         }
+        if (shape == null) {
+            element
+        } else {
+            // Ve vrstvě, ne `Modifier.clip`: průběh se mění každý snímek a čte se až tady,
+            // takže let nic nerekomponuje.
+            element.graphicsLayer {
+                val progress = if (isTransitionActive && state.isMatchFound) settled.value else 1f
+                this.shape = flightShape(shape, flightFromCorner.toPx(), progress, size, this)
+                this.clip = true
+            }
+        }
     }
+}
+
+/**
+ * Tvar letícího prvku: rohy se přelévají z [fromCornerPx] (druhá strana páru) do [target].
+ *
+ * Umí jen tvary s rohy ([CornerBasedShape] — bublina, dlaždice, karta); jiný tvar platí rovnou
+ * cílový. Rohy se počítají v px z velikosti prvku, protože ta se během letu mění.
+ */
+internal fun flightShape(target: Shape, fromCornerPx: Float, progress: Float, size: Size, density: Density): Shape {
+    if (progress >= 1f || target !is CornerBasedShape) return target
+    val t = progress.coerceIn(0f, 1f)
+    fun corner(size0: CornerSize) = CornerSize(fromCornerPx + (size0.toPx(size, density) - fromCornerPx) * t)
+    return RoundedCornerShape(
+        topStart = corner(target.topStart),
+        topEnd = corner(target.topEnd),
+        bottomEnd = corner(target.bottomEnd),
+        bottomStart = corner(target.bottomStart),
+    )
 }
 
 private val clipSpec = spring<Float>(

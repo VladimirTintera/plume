@@ -158,7 +158,7 @@ internal fun MessageBodyScope.AnswerMedia(attachment: PollAttachment, index: Int
     }
     val shape = RoundedCornerShape(ATTACHMENT_CORNER)
     CompositionLocalProvider(LocalPollMediaFlight provides index) {
-        val flight = if (attachment.viewable != null) Modifier.sharedNavElement(photoKey(message.id)) else Modifier
+        val flight = if (attachment.viewable != null) Modifier.sharedNavElement(photoKey(message.id), shape = shape) else Modifier
         Box(
             contentAlignment = Alignment.Center,
             modifier = modifier
