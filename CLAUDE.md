@@ -3812,7 +3812,8 @@ v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, 
   (`POLL_ANSWER_MAX`). Ověřuje se `sendPoll` botem s `allow_adding_options=true`
   a `is_anonymous=false`; `getUpdates` pak ukáže `added_by_user` a `poll_option_added`.
 - **V zápatí jsou tváře posledních hlasujících** (`Poll.recentVoterIds` → `ChatPoll.recentVoters`,
-  nejvýš `MAX_RECENT_VOTERS` = 3, přes sebe, nejnovější navrchu, s lemem v barvě bubliny).
+  nejvýš `MAX_RECENT_VOTERS` = 3, přes sebe, nejnovější navrchu, s lemem v barvě bubliny;
+  `FaceStack` v `core/ui`, společný s čipem komentářů).
   Server je posílá jen u neanonymní ankety. Jména a fotky dohledává repository z keše
   odesílatelů (`resolveSender`) při převodu zprávy — `toChatPoll` je čistá a nechává je prázdné.
   Čtečce obrazovky nic neříkají: kdo hlasoval, je v „Kdo hlasoval". Víc tváří než vlastní jeden
@@ -5977,6 +5978,12 @@ a kořenová zpráva), a otevře se `ConversationRoute(chatId = skupina, threadI
 - **Psát jde jen jako člen skupiny.** Nečlen vidí „Přidat se" (`writeAccess`). Skupina smí
   psaní bez vstupu povolit (`Supergroup.joinToSendMessages == false`) a oficiální klient pak
   komentovat nechá — to zatím neumíme.
+- **Čip nese tváře posledních komentujících místo ikony** (`MessageReplyInfo.recentReplierIds` →
+  `PostStats.commenters`, nejvýš `MAX_RECENT_COMMENTERS` = 3, jména z keše odesílatelů). Kreslí je
+  tentýž `FaceStack` (`core/ui`) jako tváře hlasujících v anketě — dvě kopie hromádky by se
+  rozešly hned při prvním doladění. Lem má barvu plochy konverzace (`surface`): čip je bez
+  výplně, leží přímo na ní. Bez komentujících (nový příspěvek) zůstává ikona. Ověřeno na
+  kanálu FilipHorky – zprávy jen prohlížením.
 - **Ověřeno na emulátoru jen čtení** (kanál FilipHorky – zprávy, bez přidání se): čip, vlákno
   s kořenem nahoře, zpět do kanálu. **Odeslání komentáře ověřené NENÍ** — veřejně by ho viděli
   všichni čtenáři kanálu.

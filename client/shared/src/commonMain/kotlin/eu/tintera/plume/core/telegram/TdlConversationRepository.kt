@@ -2021,10 +2021,15 @@ class TdlConversationRepository(
      * Počty příspěvku. Zhlédnutí server počítá u příspěvků kanálu (i přeposlaných jinam),
      * `replyInfo` má jen příspěvek kanálu s připojenou diskusí a zpráva v diskusní skupině.
      */
-    private fun MessageInteractionInfo?.toPostStats(): PostStats? {
+    private suspend fun MessageInteractionInfo?.toPostStats(): PostStats? {
         this ?: return null
-        return PostStats(views = viewCount, forwards = forwardCount, comments = replyInfo?.replyCount)
-            .takeUnless { it.isEmpty }
+        return PostStats(
+            views = viewCount,
+            forwards = forwardCount,
+            comments = replyInfo?.replyCount,
+            commenters = replyInfo?.recentReplierIds.orEmpty().take(MAX_RECENT_COMMENTERS)
+                .mapNotNull { resolveSender(it.plainId()) },
+        ).takeUnless { it.isEmpty }
     }
 
     private suspend fun MessageInteractionInfo?.toReactions(): List<MessageReaction> {

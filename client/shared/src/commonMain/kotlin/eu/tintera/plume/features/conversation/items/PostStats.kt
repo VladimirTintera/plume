@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.FaceStack
+import eu.tintera.plume.core.telegram.SenderInfo
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.text.style.TextOverflow
 import eu.tintera.plume.resources.person_24dp
@@ -71,7 +73,7 @@ internal fun PostFooter(
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         // Čip u zprávy, počty za ním — u odchozí zprávy zrcadlově.
         if (isOutgoing) PostStatsRow(stats, signature = signature)
-        CommentsChip(count = comments, onClick = onOpenComments)
+        CommentsChip(count = comments, commenters = stats.commenters, onClick = onOpenComments)
         if (!isOutgoing) PostStatsRow(stats, signature = signature)
     }
 }
@@ -107,7 +109,12 @@ internal fun PostStatsRow(stats: PostStats, modifier: Modifier = Modifier, signa
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun CommentsChip(count: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun CommentsChip(
+    count: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    commenters: List<SenderInfo> = emptyList(),
+) {
     AssistChip(
         onClick = onClick,
         label = {
@@ -119,12 +126,18 @@ internal fun CommentsChip(count: Int, onClick: () -> Unit, modifier: Modifier = 
                 },
             )
         },
+        // Tváře posledních komentujících místo ikony: říkají totéž („tady se diskutuje")
+        // a navíc kdo. Lem má barvu plochy konverzace, na které čip bez výplně leží.
         leadingIcon = {
-            Icon(
-                painter = painterResource(Res.drawable.mode_comment_24dp),
-                contentDescription = null,
-                modifier = Modifier.size(AssistChipDefaults.IconSize),
-            )
+            if (commenters.isNotEmpty()) {
+                FaceStack(commenters, ringColor = MaterialTheme.colorScheme.surface, size = COMMENTER_SIZE)
+            } else {
+                Icon(
+                    painter = painterResource(Res.drawable.mode_comment_24dp),
+                    contentDescription = null,
+                    modifier = Modifier.size(AssistChipDefaults.IconSize),
+                )
+            }
         },
         modifier = modifier.padding(top = POST_STATS_GAP, start = POST_STATS_INSET, end = POST_STATS_INSET),
     )
@@ -184,3 +197,6 @@ private val POST_STATS_GAP = 2.dp
 private val POST_STATS_INSET = 4.dp
 
 private val POST_STATS_SPACING = 10.dp
+
+/** Tvář komentujícího v čipu: o kus větší než ikona, a přitom se vejde do výšky čipu s lemem. */
+private val COMMENTER_SIZE = 20.dp

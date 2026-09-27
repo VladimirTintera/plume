@@ -1,9 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
 import androidx.compose.foundation.layout.PaddingValues
-import eu.tintera.plume.core.ui.Avatar
-import eu.tintera.plume.core.telegram.SenderInfo
-import androidx.compose.ui.zIndex
+import eu.tintera.plume.core.ui.FaceStack
 import eu.tintera.plume.resources.poll_add_option
 import eu.tintera.plume.resources.add_24dp
 import androidx.compose.animation.animateContentSize
@@ -509,7 +507,7 @@ private fun MessageBodyScope.Footer(poll: ChatPoll, muted: Color) {
             .then(if (showVoters) Modifier.heightIn(min = FOOTER_MIN_HEIGHT) else Modifier),
     ) {
         if (poll.recentVoters.isNotEmpty()) {
-            RecentVoters(poll.recentVoters)
+            FaceStack(poll.recentVoters, ringColor = bubbleColor)
             Spacer(Modifier.width(8.dp))
         }
         Text(
@@ -536,36 +534,6 @@ private fun MessageBodyScope.Footer(poll: ChatPoll, muted: Color) {
     }
 }
 
-/**
- * Tváře posledních hlasujících, přes sebe jako v oficiálních klientech. Nejnovější leží navrchu
- * a každou obtáčí lem v barvě bubliny, aby se od sousední oddělila. Čtečce obrazovky nic
- * neříkají — kdo hlasoval, je v „Kdo hlasoval"; tady jde jen o to, že anketa žije.
- */
-@Composable
-private fun MessageBodyScope.RecentVoters(voters: List<SenderInfo>) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(-VOTER_OVERLAP),
-        modifier = Modifier.clearAndSetSemantics { },
-    ) {
-        voters.forEachIndexed { index, voter ->
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .zIndex((voters.size - index).toFloat())
-                    .size(VOTER_AVATAR + VOTER_RING * 2)
-                    .background(bubbleColor, CircleShape),
-            ) {
-                Avatar(
-                    chatId = voter.id,
-                    title = voter.title,
-                    avatarFileId = voter.avatarFileId,
-                    size = VOTER_AVATAR,
-                )
-            }
-        }
-    }
-}
-
 private fun ChatPoll.restrictionText(): StringResource? = when (restriction) {
     // Uzavřená anketa to říká podtitulem, neodeslaná nic neříká — obojí je vidět jinak.
     null, PollRestriction.Closed, PollRestriction.NotSent -> null
@@ -580,9 +548,6 @@ private val IntSetSaver = listSaver<Set<Int>, Int>(save = { it.sorted() }, resto
 private val POLL_MAX_WIDTH = 360.dp
 private val ANSWER_MIN_HEIGHT = 44.dp
 private val ANSWER_SPACING = 2.dp
-private val VOTER_AVATAR = 20.dp
-private val VOTER_RING = 1.5.dp
-private val VOTER_OVERLAP = 6.dp
 private val ANSWER_CORNER = 12.dp
 private val ANSWER_ICON = 24.dp
 private val RESULT_ICON = 20.dp
