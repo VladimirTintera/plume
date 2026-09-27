@@ -34,6 +34,9 @@ import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.sharedElementClipArea
 import eu.tintera.plume.core.ui.rememberSharedElementClip
 import eu.tintera.plume.core.ui.LocalSharedElementClip
+import eu.tintera.plume.core.ui.LocalSharedElementOcclusion
+import eu.tintera.plume.core.ui.occludesSharedElements
+import eu.tintera.plume.core.ui.sharedElementOcclusionBand
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.FilledTonalButton
@@ -972,6 +975,9 @@ fun ConversationScreen(
      * pod polem sám sebe.
      */
     val listHaze = rememberHazeState()
+    // Plocha, do které se v překryvu ořezává sdílený prvek letící sem z prohlížeče médií.
+    // Tvary, pod které zajede, hlásí vstupní pole — proto už tady, nad Scaffoldem.
+    val listClip = rememberSharedElementClip()
     Box(modifier) {
     // Zpět hledání zavře, z chatu se odchází až dalším. `NavigationBackHandler`, ne
     // `BackHandler` — ten by zabil predictive back.
@@ -1413,8 +1419,10 @@ fun ConversationScreen(
                 onButton = viewModel::pressInlineButton,
                 onLoadMore = viewModel::loadMoreInline,
             )
+            // Fotka letící z prohlížeče zajede pod kartu pole a tlačítko, ne jen za čáru nad nimi.
+            CompositionLocalProvider(LocalSharedElementOcclusion provides listClip) {
             MessageInput(
-                glass = Modifier.hazeBlur(
+                glass = Modifier.sharedElementOcclusionBand().hazeBlur(
                     input = HazeInput.Sources(listHaze),
                     style = glassStyle(
                         color = MaterialTheme.colorScheme.surface,
@@ -1511,6 +1519,7 @@ fun ConversationScreen(
                 },
                 onKeyboardContentFailed = viewModel::reportError,
             )
+            }
             }
             }
         },
@@ -1761,8 +1770,6 @@ fun ConversationScreen(
         }
 
         val layoutDirection = LocalLayoutDirection.current
-        // Plocha, do které se v překryvu ořezává sdílený prvek letící sem z prohlížeče médií.
-        val listClip = rememberSharedElementClip()
         // Pruh připnutých a vstupní pole leží PŘES seznam — fotka letící pod ně se o ně ořízne.
         val clipDensity = LocalDensity.current
         val obscuredBottom = padding.calculateBottomPadding()
@@ -2438,14 +2445,15 @@ private fun MessageInput(
                 animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
                 label = "composer-recording-color",
             )
+            val cardShape = if (recordingWave > 0f) {
+                WavyShape(ComposerShape, progress = recordingWave, phase = 0f)
+            } else {
+                ComposerShape
+            }
             Surface(
-                shape = if (recordingWave > 0f) {
-                    WavyShape(ComposerShape, progress = recordingWave, phase = 0f)
-                } else {
-                    ComposerShape
-                },
+                shape = cardShape,
                 color = cardColor,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).occludesSharedElements(cardShape),
             ) {
               Column {
                 // Úprava má přednost před citací: odpověď se při ní neruší, jen se na chvíli schová.
@@ -2822,6 +2830,21 @@ private fun MessageInput(
             )
 
             var sendMenuOpen by remember { mutableStateOf(false) }
+            // Kruh (odeslání) se při stisku mění podle M3 Expressive na zaoblený čtverec.
+            // Sušenka a tvary během přechodu stisk nemění: mezi obecnými tvary IconButton
+            // neanimuje a skok by vypadal jako chyba.
+            val buttonShapes = if (breathing > 0f) {
+                val shape = MorphShape(ShapeMorphs.Live, breathing, rotation = RECORDING_BREATH_ROTATION)
+                IconButtonShapes(shape = shape, pressedShape = shape)
+            } else if (morphProgress > 0f) {
+                val shape = MorphShape(ShapeMorphs.Rest, morphProgress, rotation = ShapeMorphs.REST_ROTATION)
+                IconButtonShapes(shape = shape, pressedShape = shape)
+            } else {
+                IconButtonDefaults.shapes(
+                    shape = IconButtonDefaults.mediumRoundShape,
+                    pressedShape = IconButtonDefaults.mediumPressedShape,
+                )
+            }
             Box {
                 FilledIconButton(
                     onClick = {
@@ -2842,23 +2865,11 @@ private fun MessageInput(
                         containerColor = containerColor,
                         contentColor = contentColor,
                     ),
-                    // Kruh (odeslání) se při stisku mění podle M3 Expressive na zaoblený čtverec.
-                    // Sušenka a tvary během přechodu stisk nemění: mezi obecnými tvary IconButton
-                    // neanimuje a skok by vypadal jako chyba.
-                    shapes = if (breathing > 0f) {
-                        val shape = MorphShape(ShapeMorphs.Live, breathing, rotation = RECORDING_BREATH_ROTATION)
-                        IconButtonShapes(shape = shape, pressedShape = shape)
-                    } else if (morphProgress > 0f) {
-                        val shape = MorphShape(ShapeMorphs.Rest, morphProgress, rotation = ShapeMorphs.REST_ROTATION)
-                        IconButtonShapes(shape = shape, pressedShape = shape)
-                    } else {
-                        IconButtonDefaults.shapes(
-                            shape = IconButtonDefaults.mediumRoundShape,
-                            pressedShape = IconButtonDefaults.mediumPressedShape,
-                        )
-                    },
+                    shapes = buttonShapes,
                     modifier = Modifier
                         .size(IconButtonDefaults.mediumContainerSize())
+                        // Klidový tvar; stisk ho na chvíli zhranatí, a to při letu fotky nehraje roli.
+                        .occludesSharedElements(buttonShapes.shape)
                         // Podržení nabídne odeslat bez zvuku a naplánovat — jen u hotové zprávy.
                         .longPressInstead(enabled = kind == SendButtonKind.Send && sendMenu.any && !attachmentsPreparing) {
                             keyboard?.hide()

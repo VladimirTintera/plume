@@ -8,6 +8,8 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
@@ -17,6 +19,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathOperation
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -100,8 +106,66 @@ class SharedElementClip {
     var obscuredTop: Float = 0f
     var obscuredBottom: Float = 0f
 
+    /**
+     * Průhledný pás dole, přes který fotka smí letět (sklo pod vstupním polem), a tvary v něm,
+     * které ji zakrývají (karta pole, tlačítko odeslání). Viz [sharedElementOcclusionBand].
+     *
+     * Dokud se ořezávalo rovnou čarou u horní hrany pásu, fotka letící na místo zpola pod polem
+     * se v půlce letu useknula nad kartou a vypadalo to, že do pole zalézá. S pásem a tvary
+     * zajede POD kartu, jako by ji karta přikryla — tak, jak v klidu leží i seznam.
+     */
+    var band: Rect? = null
+    internal val occluders = mutableListOf<Occluder>()
+
     /** Část plochy, kterou je opravdu vidět; `null`, dokud se plocha nezměřila. */
     fun visibleBounds(): Rect? = bounds?.let { visibleArea(it, obscuredTop, obscuredBottom) }
+
+    /**
+     * Pás, přes který se smí letět, jen když leží hned pod viditelnou plochou. Nad polem můžou
+     * být panely (návrhy odpovědí, klávesnice bota) a přes ty se letět nesmí — fotka by pak byla
+     * vidět nad nimi i pod nimi zároveň. Tehdy platí ořez rovnou čarou jako dřív.
+     */
+    internal fun openBand(visible: Rect): Rect? {
+        val band = band ?: return null
+        if (occluders.none { it.bounds != null }) return null
+        return band.takeIf { it.top <= visible.bottom + 1f }
+    }
+}
+
+/** Tvar, který v pásu [SharedElementClip.band] přikrývá letící prvek. */
+@Stable
+internal class Occluder {
+    var bounds: Rect? = null
+    var shape: Shape = RectangleShape
+}
+
+/**
+ * [SharedElementClip] pro prvky PŘES seznam, které se o letící fotku mají ořezávat svým tvarem
+ * ([sharedElementOcclusionBand], [occludesSharedElements]). Zvlášť od [LocalSharedElementClip],
+ * protože ten mění chování [sharedNavElement] pod sebou — a ve vstupním poli se nic nevrací.
+ */
+val LocalSharedElementOcclusion = compositionLocalOf<SharedElementClip?> { null }
+
+/** Pás, přes který letící fotka smí zajet (viz [SharedElementClip.band]). */
+@Composable
+fun Modifier.sharedElementOcclusionBand(): Modifier {
+    val clip = LocalSharedElementOcclusion.current ?: return this
+    DisposableEffect(clip) { onDispose { clip.band = null } }
+    return onGloballyPositioned { clip.band = it.boundsInRoot() }
+}
+
+/** Prvek v pásu, pod který letící fotka zajede — kreslí se jako by ležel nad ní. */
+@Composable
+fun Modifier.occludesSharedElements(shape: Shape): Modifier {
+    val clip = LocalSharedElementOcclusion.current ?: return this
+    val occluder = remember(clip) { Occluder() }
+    // Tvar se mění (morf tlačítka, vlnka karty při nahrávání); ořez si ho čte při kreslení.
+    SideEffect { occluder.shape = shape }
+    DisposableEffect(clip, occluder) {
+        clip.occluders += occluder
+        onDispose { clip.occluders -= occluder }
+    }
+    return onGloballyPositioned { occluder.bounds = it.boundsInRoot() }
 }
 
 /** [area] bez pásů nahoře a dole; překrývají-li se pásy, zbyde čára, ne převrácený obdélník. */
@@ -183,8 +247,10 @@ private class ContentAreaClip(
     private val area: SharedElementClip,
     private val settled: State<Float>,
 ) : SharedTransitionScope.OverlayClip {
-    // Tentýž objekt, jak doporučuje dokumentace — `getClipPath` běží při každém snímku letu.
+    // Tytéž objekty, jak doporučuje dokumentace — `getClipPath` běží při každém snímku letu.
     private val path = Path()
+    private val cuts = Path()
+    private val shape = Path()
 
     override fun getClipPath(
         sharedContentState: SharedTransitionScope.SharedContentState,
@@ -192,12 +258,47 @@ private class ContentAreaClip(
         layoutDirection: LayoutDirection,
         density: Density,
     ): Path? {
-        val content = area.visibleBounds() ?: return null
+        val visible = area.visibleBounds() ?: return null
+        val band = area.openBand(visible)
         path.reset()
-        path.addRect(sharedElementClipRect(content, bounds, settled.value))
+        if (band == null) {
+            path.addRect(sharedElementClipRect(visible, bounds, settled.value))
+            return path
+        }
+
+        /*
+         * Pás pod polem je průhledný, takže se ořez rozšíří až na jeho spodek a vyříznou se z něj
+         * jen tvary, které fotku přikrývají, a všechno pod nimi (navigační lišta). Výřezy se
+         * přidávají se stejným průběhem jako ořez: na začátku letu je fotka ještě v prohlížeči
+         * a díra ve tvaru pole by v ní byla vidět dřív, než pole samo. Proto platí jen pod čarou,
+         * která s letem stoupá od spodku k hraně pásu.
+         */
+        val extended = visible.copy(bottom = maxOf(visible.bottom, band.bottom))
+        val clipRect = sharedElementClipRect(extended, bounds, settled.value)
+        path.addRect(clipRect)
+
+        cuts.reset()
+        var shapesBottom = band.top
+        for (occluder in area.occluders) {
+            val at = occluder.bounds ?: continue
+            shape.reset()
+            shape.addOutline(occluder.shape.createOutline(at.size, layoutDirection, density))
+            shape.translate(at.topLeft)
+            cuts.op(cuts, shape, PathOperation.Union)
+            shapesBottom = maxOf(shapesBottom, at.bottom)
+        }
+        cuts.addRect(Rect(band.left, shapesBottom, band.right, band.bottom))
+
+        val line = lerpFloat(clipRect.bottom, band.top, settled.value.coerceIn(0f, 1f))
+        shape.reset()
+        shape.addRect(Rect(clipRect.left, line, clipRect.right, clipRect.bottom))
+        cuts.op(cuts, shape, PathOperation.Intersect)
+        path.op(path, cuts, PathOperation.Difference)
         return path
     }
 }
+
+private fun lerpFloat(start: Float, stop: Float, fraction: Float) = start + (stop - start) * fraction
 
 /**
  * Ořez prvku v překryvu: od „neořezává nic" (`settled` = 0) k ploše obrazovky (`settled` = 1).

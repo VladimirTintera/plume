@@ -5528,6 +5528,21 @@ jako tlačítko, název, interpret, lišta průběhu s posunem, čas a čip rych
   vidět rozostřený kus fotky; to je nepatrný rozdíl proti skoku přes celé pole. Ověřeno pixelem
   uprostřed karty pole během zpomaleného návratu: před opravou ho fotka od půlky letu přebarvila
   až do konce přechodu, po opravě ani jednou.
+- **Dole se ale neořezává rovnou čarou, fotka zajede POD kartu pole** (`SharedElementClip.band`,
+  `occludesSharedElements`, `openBand`). Čára u horní hrany pásu useknula fotku v půlce letu nad
+  kartou a vypadalo to, že do pole zalézá (hlášeno videem). Pás pod polem je průhledné sklo,
+  takže se ořez rozšíří až na jeho spodek a vyřízne se z něj jen to, co fotku opravdu přikrývá:
+  tvar karty, tvar tlačítka (i sušenka a vlnka při nahrávání — ořez si tvar čte při kreslení)
+  a všechno pod nimi. Výřezy rostou s letem od spodku, jinak by na začátku, dokud fotka ještě
+  stojí v prohlížeči, byla v ní vidět díra ve tvaru pole.
+  - **Jen když pás leží hned pod seznamem.** Nad polem můžou být panely (návrhy odpovědí,
+    klávesnice bota) a přes ty se letět nesmí; pak platí čára jako dřív. Totéž, když místo pole
+    stojí jiná lišta (výběr, hledání, „Přidat se") — ta tvary nehlásí.
+  - **Odscrollovat konverzaci, aby fotka dosedla celá, NENÍ řešení** (zkoušeno, uživatel
+    odmítl): návrat z prohlížeče nemá měnit místo, kde uživatel čte.
+  - V proužcích skla kolem karty letí fotka ostrá a po dosednutí ji převezme rozostřený seznam.
+    Je to pár dp a pod kartou mizí tak jako tak, skok vidět není. Ověřeno sérií surových snímků
+    se zpomalenými animacemi.
 - **Ořez se ale nesmí zapnout skokem**, jinak hned v prvním snímku ukrojí kus celoobrazovkové
   fotky a odkryje pod ní hlavičku, která tam ještě nepatří. Otevřený ořez se proto nebere jako
   nějaké velké číslo, ale jako **obal plochy a samotného prvku** — ten prvek z definice obsahuje
