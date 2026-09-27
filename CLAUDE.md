@@ -4585,6 +4585,13 @@ Hlavička konverzace to ukazuje odznakem s hodinami za názvem (`AutoDeleteBadge
   proto říká i dobu („Automatické mazání zpráv: 1 den"), dřív jen „Zprávy se budou samy mazat".
 - **Věta s „po" by v češtině chtěla 6. pád** („po 1 dni"), plurály jsou ale v 1. pádu — texty
   jsou proto s dvojtečkou („…: 1 den").
+- **Výchozí doba pro NOVÉ chaty je v Nastavení → Obecné → Soukromí** (`DefaultAutoDeleteSettings`
+  nad `get`/`setDefaultMessageAutoDeleteTime`, `DefaultAutoDeleteViewModel`, testy
+  `DefaultAutoDeleteViewModelTest`). Tentýž `AutoDeleteSheet` jako v profilu, jen s větou, že se
+  týká chatů založených odteď — existující chaty nemění, a bez té věty by se to dalo čekat. Je
+  to nastavení ÚČTU jako citlivý obsah: volba se pohne hned, po selhání se vrátí s větou pod
+  řádkem, a dokud doba nedorazí, řádek se nekreslí. Stejná volba se nezapisuje. **Zápis mění
+  skutečný účet, takže se ověřuje jen čtení a otevření výběru** (zavřít gestem zpět).
 - **Ověřeno na emulátoru** v chatu s testovacím botem (česky): řádek v profilu, sheet, nastavení
   1 dne (odznak v hlavičce, servisní zpráva s dobou), „Smaže se: zítra 20:54" u nové zprávy
   a vypnutí (odznak zmizel, servisní zpráva „vypnuto"). **Skupina a kanál ověřené nejsou**

@@ -1385,4 +1385,7 @@
     <string name="chat_bar_join_request_group">You’re getting this message in reply to your request to join the group “%1$s”.</string>
     <string name="chat_bar_join_request_channel">You’re getting this message in reply to your request to join the channel “%1$s”.</string>
     <string name="chat_bar_join_request_date">Request sent: %1$s</string>
+    <string name="settings_default_auto_delete">Auto-delete in new chats</string>
+    <string name="settings_default_auto_delete_failed">Couldn’t change it, try again</string>
+    <string name="settings_default_auto_delete_explanation">Messages in every chat you start from now on will disappear for everyone after this time. Chats you already have aren’t affected.</string>
 </resources>

@@ -550,8 +550,8 @@ snadno na to uživatel narazí.
   (hotovo, ověřené jen sondou).
 - ~~**Emoji status** u jména~~ — hotovo. ~~**Časovač automatického mazání chatu**~~ — hotovo
   (odznak v hlavičce, nastavení v profilu, „Smaže se" v Informace; `CLAUDE.md`, „Automatické
-  mazání zpráv"). Zbývá výchozí doba pro nové chaty (`setDefaultMessageAutoDeleteTime`,
-  Nastavení → Soukromí) a ověřit ve skupině se správcovskými právy.
+  mazání zpráv"). ~~Výchozí doba pro nové chaty~~ — hotovo (Nastavení → Obecné → Soukromí;
+  samotný zápis ověřený není, mění účet). Zbývá ověřit ve skupině se správcovskými právy.
 - ~~**Překlad zprávy**~~ (`translateMessageText`) — hotovo, sheet z nabídky nad zprávou
   (`CLAUDE.md`, „Překlad zprávy"). Zbývá volba cílového jazyka, překlad celého chatu
   (`UpdateChatIsTranslatable`, Premium) a skrýt „Přeložit" u zprávy, která už je v jazyce

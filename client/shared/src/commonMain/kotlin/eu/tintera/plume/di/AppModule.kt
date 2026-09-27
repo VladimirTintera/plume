@@ -11,6 +11,8 @@ import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.DeviceRepository
 import eu.tintera.plume.core.telegram.NotificationSettingsRepository
 import eu.tintera.plume.core.telegram.SensitiveContentSettings
+import eu.tintera.plume.core.telegram.DefaultAutoDeleteSettings
+import eu.tintera.plume.core.telegram.TdlDefaultAutoDeleteSettings
 import eu.tintera.plume.core.telegram.TdlSensitiveContentSettings
 import eu.tintera.plume.core.telegram.TdlNotificationSettingsRepository
 import eu.tintera.plume.core.telegram.TdlDeviceRepository
@@ -72,6 +74,7 @@ import eu.tintera.plume.features.settings.AppearanceViewModel
 import eu.tintera.plume.features.settings.SettingsViewModel
 import eu.tintera.plume.features.settings.BlockedSendersViewModel
 import eu.tintera.plume.features.settings.SensitiveContentViewModel
+import eu.tintera.plume.features.settings.DefaultAutoDeleteViewModel
 import eu.tintera.plume.features.settings.NotificationSettingsViewModel
 import eu.tintera.plume.features.settings.OnDeviceAiSettingsViewModel
 import eu.tintera.plume.features.conversation.ChatSummaryViewModel
@@ -197,6 +200,7 @@ fun appModule() = module {
     single<ProfileRepository> { TdlProfileRepository(holder = get()) }
     single<NotificationSettingsRepository> { TdlNotificationSettingsRepository(holder = get()) }
     single<SensitiveContentSettings> { TdlSensitiveContentSettings(holder = get()) }
+    single<DefaultAutoDeleteSettings> { TdlDefaultAutoDeleteSettings(holder = get()) }
     single<AccountRepository> { TdlAccountRepository(holder = get()) }
     // Eager: nepotvrzené přihlášení TDLib ohlásí hned po startu (viz TdlDeviceRepository).
     single<DeviceRepository>(createdAtStart = true) {
@@ -249,6 +253,7 @@ fun appModule() = module {
     viewModelOf(::SettingsViewModel)
     viewModelOf(::BlockedSendersViewModel)
     viewModelOf(::SensitiveContentViewModel)
+    viewModelOf(::DefaultAutoDeleteViewModel)
     viewModelOf(::AppearanceViewModel)
     viewModelOf(::DevicesViewModel)
     viewModelOf(::NotificationSettingsViewModel)
