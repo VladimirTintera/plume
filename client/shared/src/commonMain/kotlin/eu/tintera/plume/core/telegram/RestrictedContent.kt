@@ -7,6 +7,7 @@ import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSecret
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.Message
+import dev.g000sha256.tdl.dto.RestrictionInfo
 import dev.g000sha256.tdl.toResult
 
 /**
@@ -40,14 +41,17 @@ internal fun ChatMessage.restricted(reason: String): ChatMessage = copy(
 )
 
 /**
- * Proč server celý chat tady nedovolí ukázat (kanál nebo účet omezený v zemi či na platformě),
- * nebo `null`. `Chat` omezení nenese — je na `User` (soukromý a tajný chat) a `Supergroup`
- * (skupina i kanál), stejně jako ověření (viz [verificationOf]); základní skupina ho nemá.
- * Dotazy jsou lokální.
+ * Omezení celého chatu (kanál nebo účet), nebo `null`. `Chat` ho nenese — je na `User`
+ * (soukromý a tajný chat) a `Supergroup` (skupina i kanál), stejně jako ověření (viz
+ * [verificationOf]); základní skupina ho nemá. Dotazy jsou lokální.
  */
-internal suspend fun TdlClient.restrictionOf(chat: Chat): String? = when (val type = chat.type) {
+internal suspend fun TdlClient.restrictionInfoOf(chat: Chat): RestrictionInfo? = when (val type = chat.type) {
     is ChatTypePrivate -> getUser(userId = type.userId).toResult().getOrNull()?.restrictionInfo
     is ChatTypeSecret -> getUser(userId = type.userId).toResult().getOrNull()?.restrictionInfo
     is ChatTypeSupergroup -> getSupergroup(supergroupId = type.supergroupId).toResult().getOrNull()?.restrictionInfo
     is ChatTypeBasicGroup -> null
-}?.restrictionReason?.takeIf { it.isNotBlank() }
+}
+
+/** Proč server celý chat tady nedovolí ukázat, nebo `null` (viz [restrictionInfoOf]). */
+internal val RestrictionInfo.reasonText: String?
+    get() = restrictionReason.takeIf { it.isNotBlank() }

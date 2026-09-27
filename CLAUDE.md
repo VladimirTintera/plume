@@ -5952,6 +5952,19 @@ rozostřené se štítkem „Citlivý obsah" a odkryje se ťuknutím (`Sensitive
   rozostřená s přeškrtnutým okem a **první ťuknutí jen odkryje**, jako v konverzaci. Otevřít
   rovnou nejde: prohlížeč médium, na které se ťuklo, odkrývá sám (z konverzace je to druhé
   ťuknutí), takže by ho z mřížky ukázal bez varování.
+- **Citlivý může být i CELÝ chat** (`User` / `Supergroup.restrictionInfo.hasSensitiveContent`,
+  `ChatInfo.sensitive`): konverzace napřed ukáže varování („Citlivý obsah" s tlačítkem „Přesto
+  zobrazit") a obsah až po potvrzení, jako oficiální klient. Rozhoduje tatáž volba účtu jako
+  u zpráv (`hidesSensitive(restriction)`) — kdo si citlivý obsah povolil, varování nedostane.
+- **Potvrzení platí pro jedno otevření chatu** (`rememberSaveable` podle chatu, přežije otočení),
+  ne napořád: „napořád" je volba účtu v Obecných → Soukromí, a druhá, místní verze téže volby by
+  se s ní rozešla.
+- **Varování a omezený chat se řídí JEDNOU podmínkou** (`chatHidden` v `ConversationScreen`):
+  obsah, pole, lupa a shrnutí v hlavičce i pruh připnutých. Dokud to byly podmínky zvlášť,
+  pruh připnutých u omezeného chatu zapomněl a obsah prozradil. Seznam se pod varováním
+  neskládá, takže se nic nehlásí jako přečtené.
+- **Testovací účet má citlivý obsah povolený**, takže skutečný citlivý kanál by varování
+  neukázal — ověřuje se sondou, která `ChatInfo.sensitive` nastaví chatu s testovacím botem.
 - **Ověřeno na emulátoru podstrčeným příznakem** (sonda: popisek `#citlive` od testovacího bota,
   necommituje se): fotka, video i GIF v konverzaci, odkrytí GIFu s přehráním, mřížka v profilu.
   Skutečná citlivá zpráva ověřená není. **Ruční GIF z Pythonu Telegram nepoznal** a poslal ho

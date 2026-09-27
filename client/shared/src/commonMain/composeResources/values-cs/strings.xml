@@ -1405,4 +1405,7 @@
     <string name="weekday_in_text_6">sobota</string>
     <string name="weekday_in_text_7">neděle</string>
     <string name="conversation_chat_restricted">Tenhle chat tu není dostupný</string>
+    <string name="conversation_chat_sensitive_title">Citlivý obsah</string>
+    <string name="conversation_chat_sensitive_text">Tenhle chat může obsahovat obsah, který není vhodný pro každého.</string>
+    <string name="conversation_chat_sensitive_show">Přesto zobrazit</string>
 </resources>
