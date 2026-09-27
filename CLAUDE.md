@@ -5615,6 +5615,16 @@ kus kreslí místo v anketě i jeho náhled ve formuláři. Ťuknutí otevře ma
   sama; pod ní „Sdílí se do 14:21" / „Sdílení skončilo". Konec je `datum zprávy + livePeriod`
   (`liveLocationUntil`, testy `LiveLocationTest`), ne `expiresIn` — ten TDLib změnou neposílá,
   takže by zastaral. „Upraveno" se u živé polohy neukazuje, svítilo by pořád.
+- **Známý směr pohybu (`LiveLocation.heading`, 1–360 po směru hodin od severu) je šipka místo
+  špendlíku** (`StaticMap(heading)`, ikona `navigation`), na bílém kolečku — mapa je vždycky
+  světlá, ale park nebo voda pod šipkou ne. Špendlík ukazuje místo hrotem, šipka středem, takže
+  se neposouvá. Jen dokud se sdílí: u skončené polohy by směr tvrdil, že se někdo pořád hýbe.
+- **Jestli se ještě sdílí, rozhoduje `rememberLiveSharing`, ne porovnání při složení.**
+  Zastavené sdílení (`stopMessageLiveLocation`) přijde úpravou s `livePeriod` zkráceným na
+  okamžik zastavení, takže konec padne do téže vteřiny jako složení a „už skončilo" vyšlo
+  naprázdno — pod mapou zůstalo „Sdílí se do 14:08". Teď se jednou počká (`delay`) na konec
+  a mapa i text se přepnou samy, i u polohy, která vyprší před očima. **Hodiny emulátoru jdou
+  proti Macu klidně o 40 s pozadu** — na konec se čeká podle `adb shell date`.
 - **Adresa map je platformní** (`mapsUrl` v `core/location`): Android Google Mapy přes https
   (app link do aplikace Map), iOS `maps.apple.com`. `geo:` iOS nezná a na Androidu by neprošel
   cestou odkazu z konverzace — ta umí jen adresy s `://`.

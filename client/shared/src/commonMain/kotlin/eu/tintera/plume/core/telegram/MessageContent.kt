@@ -718,6 +718,7 @@ internal suspend fun Message.messageMedia(
         latitude = content.location.location.latitude,
         longitude = content.location.location.longitude,
         liveUntil = liveLocationUntil(sentAt = date, livePeriod = content.location.livePeriod),
+        heading = content.location.heading.takeIf { it in 1..360 } ?: 0,
     )
 
     is MessageCall -> MessageMedia.Call(

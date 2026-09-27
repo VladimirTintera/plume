@@ -452,8 +452,8 @@ snadno na to uživatel narazí.
   pozadí. ~~Hudba v profilu (záložka Hudba)~~ — hotovo.
 - ~~**Poloha, živá poloha a místo**~~ — hotovo: statická mapa od Telegramu, ťuknutí do map
   platformy, u živé polohy do kdy se sdílí, odeslání polohy nebo místa ze sponky. Zbývá
-  sdílení živé polohy (běh na pozadí), směr pohybu (`heading`) a upozornění na blízkost
-  (`proximityAlertRadius`).
+  sdílení živé polohy (běh na pozadí) a upozornění na blízkost (`proximityAlertRadius` — má
+  smysl až s vlastním sdílením). ~~Směr pohybu (`heading`)~~ — hotovo (šipka místo špendlíku).
 - ~~**Kontakt** (`MessageContact`)~~ — hotovo: karta s tváří, jménem a číslem, „Napsat
   zprávu" (`CLAUDE.md`, „Kontakt"). Zbývá **přidat do kontaktů** (mění adresář, ověřit jen se
   souhlasem) a ~~**sdílet kontakt** ze sponky~~ (hotovo, s potvrzením čísla). ~~Sdílet vlastní

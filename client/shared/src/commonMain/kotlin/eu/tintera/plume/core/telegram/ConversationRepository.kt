@@ -1733,6 +1733,8 @@ sealed interface MessageMedia {
         val title: String? = null,
         val address: String? = null,
         val liveUntil: Long = 0,
+        /** Směr pohybu živé polohy ve stupních od severu po směru hodin (1–360), 0 = neznámý. */
+        val heading: Int = 0,
     ) : MessageMedia {
         val isLive: Boolean get() = liveUntil != 0L
     }
