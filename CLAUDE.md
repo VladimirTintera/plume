@@ -1807,6 +1807,12 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
   „Obšlehl"; se zvýrazněním jen přes `ignoreCase` by nalezená zpráva neměla zvýrazněné nic.
   Tabulka diakritiky je v escape sekvencích — `verifyNoHardcodedText` hlídá diakritiku
   v literálech a oslabovat ho kvůli datům nestojí za to.
+- **U nalezené zprávy je, kdo ji napsal** („Jana: …", u vlastní „Vy: …";
+  `FoundMessage.senderName`). Jméno jen ve SKUPINĚ — v soukromém chatu a kanálu ho říká název
+  chatu; anonymní správce (odesílatel je skupina sama) jméno nemá. Dohledává se lokálně
+  (`getUser` / `getChat`) při převodu stránky. Zvýraznění dotazu se posouvá o délku prefixu.
+- **`adb input text` do pilulky hledání na zatíženém emulátoru ZTRÁCÍ první znaky**
+  („kotlin" → „tlin"). Psát po znaku s pauzou, a před ťuknutím na výsledek ověřit dotaz dumpem.
 - **Ukázka zprávy začíná kousek před nalezeným slovem** (`snippetAround`, „…" na začátku).
   Ve dvou řádcích by slovo z konce dlouhé zprávy bylo za výpustkou a řádek by nevysvětlil,
   proč se našel. Slovo jen v adrese skrytého odkazu vidět nebude — text ji nenese.
