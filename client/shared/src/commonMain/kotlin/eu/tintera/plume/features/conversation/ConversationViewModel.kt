@@ -336,6 +336,12 @@ class ConversationViewModel(
     /** Koncept odložený po dobu úpravy zprávy; po ní se vrátí do pole. */
     private var draftBeforeEdit = ""
 
+    /**
+     * Náhled odkazu konceptu, odložený s ním. Úprava má vlastní náhled a volbu (z upravované
+     * zprávy), a kdyby je nepřepsala, odešla by upravená zpráva s volbou rozepsaného konceptu.
+     */
+    private var linkPreviewBeforeEdit = LinkPreviewStash()
+
     /** Odložené uložení konceptu; každá další úprava ho posune. */
     private var draftSave: Job? = null
 
@@ -1738,7 +1744,11 @@ class ConversationViewModel(
     fun onDraftChanged(text: String) {
         // Při úpravě v poli není koncept, ale text staré zprávy. Uložit ho jako koncept by přepsalo
         // ten odložený, a ohlašovat „píše…" kvůli opravě překlepu by protějšek mátlo.
-        if (_state.value.editing != null) return
+        _state.value.editing?.let { editing ->
+            // Náhled odkazu ale patří i k úpravě textu: upravená zpráva odejde s ním.
+            if (editing.plainTextEdit() == PlainTextEdit.Text) refreshLinkPreview(text)
+            return
+        }
         // Psaní zavře seznam příkazů otevřený tlačítkem; napovídání „/…" se řídí textem samo.
         if (_state.value.commandsOpen) _state.update { it.copy(commandsOpen = false) }
 
@@ -1816,7 +1826,12 @@ class ConversationViewModel(
         linkPreviewJob?.cancel()
         linkPreviewText = text
         if (text.isBlank()) {
-            resetLinkPreview()
+            // Vymazaný text úpravy není nová zpráva: volba upravované zprávy platí dál.
+            if (_state.value.editing != null) {
+                _state.update { it.copy(linkPreview = null, linkPreviewLinks = emptyList()) }
+            } else {
+                resetLinkPreview()
+            }
             return
         }
         if (_state.value.linkPreviewOptions.disabled) return
@@ -1856,7 +1871,8 @@ class ConversationViewModel(
     fun setLinkPreviewOptions(options: LinkPreviewOptions) {
         val linkChanged = options.url != _state.value.linkPreviewOptions.url
         _state.update { it.copy(linkPreviewOptions = options) }
-        scheduleDraftSave()
+        // Při úpravě volba patří upravované zprávě, ne konceptu.
+        if (_state.value.editing == null) scheduleDraftSave()
         if (linkChanged) refreshLinkPreview(linkPreviewText, delayMs = 0)
     }
 
@@ -1873,16 +1889,33 @@ class ConversationViewModel(
      */
     private fun startEdit(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        // Přepnutí z jedné úpravy do druhé nesmí přepsat odložený koncept textem první úpravy.
-        if (_state.value.editing == null) draftBeforeEdit = draftText
+        enterEdit(message, message.text, message.linkPreviewOptions ?: LinkPreviewOptions())
+    }
 
+    /**
+     * Pole v úpravě [target] s textem [text] a volbou náhledu [linkOptions]. Náhled se zjistí
+     * hned — text se do pole vkládá bez `onDraftChanged` a na pauzu v psaní není proč čekat.
+     */
+    private fun enterEdit(target: ChatMessage, text: String, linkOptions: LinkPreviewOptions) {
+        // Přepnutí z jedné úpravy do druhé nesmí přepsat odložený koncept textem první úpravy.
+        if (_state.value.editing == null) {
+            draftBeforeEdit = draftText
+            linkPreviewBeforeEdit = _state.value.let {
+                LinkPreviewStash(it.linkPreview, it.linkPreviewLinks, it.linkPreviewOptions)
+            }
+        }
+        linkPreviewJob?.cancel()
         _state.update {
             it.copy(
-                editing = message,
+                editing = target,
                 messageMenu = null,
-                inputFill = InputFill(message.text, onlyIfEmpty = false),
+                inputFill = InputFill(text, onlyIfEmpty = false),
+                linkPreview = null,
+                linkPreviewLinks = emptyList(),
+                linkPreviewOptions = linkOptions,
             )
         }
+        if (target.plainTextEdit() == PlainTextEdit.Text) refreshLinkPreview(text, delayMs = 0)
     }
 
     /** Zruší úpravu a vrátí do pole odložený koncept. */
@@ -1893,8 +1926,17 @@ class ConversationViewModel(
 
     private fun leaveEdit() {
         draftText = draftBeforeEdit
+        linkPreviewJob?.cancel()
+        linkPreviewText = draftBeforeEdit
+        val stash = linkPreviewBeforeEdit
         _state.update {
-            it.copy(editing = null, inputFill = InputFill(draftBeforeEdit, onlyIfEmpty = false))
+            it.copy(
+                editing = null,
+                inputFill = InputFill(draftBeforeEdit, onlyIfEmpty = false),
+                linkPreview = stash.preview,
+                linkPreviewLinks = stash.links,
+                linkPreviewOptions = stash.options,
+            )
         }
     }
 
@@ -1913,24 +1955,22 @@ class ConversationViewModel(
         val kind = target.plainTextEdit() ?: return
         if (kind == PlainTextEdit.Text && text.isEmpty()) return
 
+        val linkOptions = _state.value.linkPreviewOptions
+        val linkPreview = linkOptions.forEdit(text, shown = _state.value.linkPreview)
         leaveEdit()
         // Beze změny není co posílat; server by vrátil chybu „zpráva se nezměnila".
-        if (text == target.text.trim()) return
+        val optionsChanged = kind == PlainTextEdit.Text &&
+            linkOptions != (target.linkPreviewOptions ?: LinkPreviewOptions())
+        if (text == target.text.trim() && !optionsChanged) return
 
         viewModelScope.launch {
             val edited = when (kind) {
-                PlainTextEdit.Text -> repository.editText(chatId, target.id, text)
+                PlainTextEdit.Text -> repository.editText(chatId, target.id, text, linkPreview)
                 PlainTextEdit.Caption -> repository.editCaption(chatId, target.id, text)
             }
             edited.onFailure { failure ->
-                if (_state.value.editing == null) draftBeforeEdit = draftText
-                _state.update {
-                    it.copy(
-                        error = failure.reported(Res.string.conversation_edit_failed),
-                        editing = target,
-                        inputFill = InputFill(text, onlyIfEmpty = false),
-                    )
-                }
+                _state.update { it.copy(error = failure.reported(Res.string.conversation_edit_failed)) }
+                enterEdit(target, text, linkOptions)
             }
         }
     }
@@ -4467,3 +4507,10 @@ data class ContactPicker(
     val shown: List<ChatSummary>
         get() = query.trim().let { q -> if (q.isEmpty()) contacts else contacts.filter { it.title.contains(q, ignoreCase = true) } }
 }
+
+/** Náhled odkazu konceptu, odložený po dobu úpravy zprávy ([ConversationViewModel]). */
+private data class LinkPreviewStash(
+    val preview: LinkPreview? = null,
+    val links: List<String> = emptyList(),
+    val options: LinkPreviewOptions = LinkPreviewOptions(),
+)

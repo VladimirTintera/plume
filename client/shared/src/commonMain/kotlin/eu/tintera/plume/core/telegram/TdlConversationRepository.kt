@@ -1329,19 +1329,21 @@ class TdlConversationRepository(
             .map { }
             .onFailure { logger.w(it) { "Zavření chatu se nepodařilo ohlásit." } }
 
-    override suspend fun editText(chatId: Long, messageId: Long, text: String): Result<Unit> =
+    override suspend fun editText(
+        chatId: Long,
+        messageId: Long,
+        text: String,
+        linkPreview: LinkPreviewOptions?,
+    ): Result<Unit> =
         client.editMessageText(
             chatId = chatId,
             messageId = messageId,
             replyMarkup = null,
             inputMessageContent = InputMessageText(
                 text = FormattedText(text = text, entities = detectEntities(text)),
-                // Volba náhledu se přenáší z původní zprávy. S `null` platí výchozí volba serveru,
-                // takže úprava zprávy poslané BEZ náhledu náhled vrátila (ověřeno Bot API).
-                linkPreviewOptions = currentContent(chatId, messageId)
-                    .let { it as? MessageText }
-                    ?.linkPreviewOptions
-                    ?.keptFor(text),
+                // Volbu přebírá úprava z původní zprávy (`forEdit`). S `null` platí výchozí volba
+                // serveru, takže úprava zprávy poslané BEZ náhledu by náhled vrátila (ověřeno Bot API).
+                linkPreviewOptions = linkPreview?.toTdl(),
                 // Úprava s konceptem chatu nesouvisí; smazat ho by uživateli vzalo rozepsaný text.
                 clearDraft = false,
             ),
@@ -1737,6 +1739,7 @@ class TdlConversationRepository(
                     ?.let { client.getUser(userId = it).toResult().getOrNull()?.profilePhoto?.small?.id },
             ),
             linkPreview = linkPreview(hideSensitive),
+            linkPreviewOptions = (content as? MessageText)?.linkPreviewOptions?.toDomain(),
             reactions = interactionInfo.toReactions(),
             postStats = interactionInfo.toPostStats(),
             hasUnreadReactions = unreadReactions.isNotEmpty(),
@@ -2668,24 +2671,6 @@ private fun ReactionType.toReactionKey(): String? = when (this) {
 
 private fun String.toReactionType(): ReactionType =
     customEmojiIdOf(this)?.let { ReactionTypeCustomEmoji(customEmojiId = it) } ?: ReactionTypeEmoji(emoji = this)
-
-/**
- * Volba náhledu odkazu pro upravený [text]. Vypnutí, velikost i poloha zůstávají; vynucená
- * adresa jen tehdy, když odkaz v textu pořád je — jinak by náhled patřil odkazu, který
- * uživatel právě smazal.
- */
-internal fun TdlLinkPreviewOptions.keptFor(text: String): TdlLinkPreviewOptions =
-    if (url.isBlank() || text.contains(url)) {
-        this
-    } else {
-        TdlLinkPreviewOptions(
-            isDisabled = isDisabled,
-            url = "",
-            forceSmallMedia = forceSmallMedia,
-            forceLargeMedia = forceLargeMedia,
-            showAboveText = showAboveText,
-        )
-    }
 
 /** Stojí popisek téhle přílohy nad médiem? Jen fotka, video, GIF a placené médium to umí. */
 internal fun MessageContent?.showsCaptionAboveMedia(): Boolean = when (this) {

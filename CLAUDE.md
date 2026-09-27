@@ -3335,14 +3335,23 @@ vypne. Pravidla jsou čisté funkce v `ComposerLinkPreview.kt` (testy `ComposerL
 - **Volba patří ke konceptu** (`DraftMessageContentText.linkPreviewOptions`) a po návratu do
   chatu se vrátí (`ChatInfo.draftLinkPreview`). Obnovený koncept si náhled zjistí sám —
   vyplnění pole z konceptu `onDraftChanged` nevolá. Totéž platí pro sdílený text.
-- **Při úpravě zprávy a s přílohami se náhled neukazuje**, a text u příloh je popisek.
-- **Úprava volbu náhledu PŘENÁŠÍ z původní zprávy** (`MessageText.linkPreviewOptions`,
-  `keptFor`, testy `EditOptionsTest`). S `null` platí výchozí volba serveru, takže úprava zprávy
-  poslané BEZ náhledu náhled vrátila — ověřeno Bot API: po úpravě s `null` přišlo místo
-  `is_disabled` náhled Wikipedie, s přenesenou volbou zůstal vypnutý. Vynucená adresa se
-  přenese jen tehdy, když odkaz v upraveném textu pořád je. Ze stejného důvodu úprava popisku
-  přenáší `showCaptionAboveMedia` (dřív natvrdo `false`, takže popisek nad médiem nastavený
-  jiným klientem úprava tiše vrátila pod médium).
+- **S přílohami a při úpravě POPISKU se náhled neukazuje** (`composerLinkPreview`): text
+  u příloh je popisek a `editMessageCaption` náhled nenese.
+- **Úprava textu zprávy volbu náhledu PŘEBÍRÁ a jde ji měnit** (`ChatMessage.linkPreviewOptions`,
+  `enterEdit`, `forEdit`, testy `ComposerLinkPreviewTest`). Nad polem je při úpravě tatáž
+  hlavička náhledu a tentýž sheet jako při psaní. S výchozí volbou (`null`) by úprava zprávy
+  poslané BEZ náhledu náhled vrátila — ověřeno Bot API: s `null` přišel náhled Wikipedie,
+  s převzatou volbou zůstal `is_disabled`. Adresa se odešle jen tehdy, když odkaz v upraveném
+  textu pořád je (i kdyby se odeslalo dřív, než dorazí náhled upraveného textu). Změna jen
+  volby, bez změny textu, je taky úprava. Ze stejného důvodu úprava popisku přenáší
+  `showCaptionAboveMedia` (dřív natvrdo `false`, takže popisek nad médiem nastavený jiným
+  klientem úprava tiše vrátila pod médium).
+- **Náhled konceptu se po dobu úpravy ODKLÁDÁ s ním** (`LinkPreviewStash`), stejně jako text
+  konceptu. Stav náhledu je jeden pro pole, takže bez toho by upravená zpráva odešla s volbou
+  rozepsaného konceptu a koncept se po úpravě vrátil s volbou upravené zprávy. Volba změněná
+  při úpravě se do konceptu neukládá. Vymazaný text úpravy volbu nezahodí — není to nová zpráva.
+- **Hlavička náhledu stála v bloku kresleném jen mimo úpravu** (spolu s citací a přílohami),
+  takže při úpravě chyběla, i když ViewModel náhled měl. Teď je za ním.
 - **Při ověřování úpravy přes `adb` se dlouhý stisk NESMÍ trefit do odkazu**: na přetíženém
   emulátoru dopadl jako ťuknutí a otevřel se Chrome — a další ťuknutí skriptu šla do něj.
   Stisk mířit na slovo před odkazem a po něm zkontrolovat `mCurrentFocus`.

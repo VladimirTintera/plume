@@ -6,6 +6,7 @@ import dev.g000sha256.tdl.dto.FormattedText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 
 class EditOptionsTest {
 
@@ -13,16 +14,17 @@ class EditOptionsTest {
         LinkPreviewOptions(isDisabled = disabled, url = url, forceSmallMedia = small, forceLargeMedia = false, showAboveText = true)
 
     @Test
-    fun vypnutyNahledZustaneVypnuty() {
-        assertEquals(options(disabled = true), options(disabled = true).keptFor("Viz example.com, opraveno"))
-    }
-
-    @Test
-    fun vynucenaAdresaZustaneJenSOdkazemVTextu() {
-        val forced = options(url = "https://example.com", small = true)
-        assertEquals(forced, forced.keptFor("Viz https://example.com"))
-        // Odkaz z textu zmizel: velikost a poloha zůstanou, adresa ne.
-        assertEquals(options(small = true), forced.keptFor("Viz https://jinde.cz"))
+    fun volbaZpravyPrejdeDoDomenyIsAdresou() {
+        assertEquals(
+            eu.tintera.plume.core.telegram.LinkPreviewOptions(disabled = true, aboveText = true),
+            options(disabled = true).toDomain(),
+        )
+        assertEquals(
+            eu.tintera.plume.core.telegram.LinkPreviewOptions(largeMedia = false, aboveText = true, url = "https://example.com"),
+            options(url = "https://example.com", small = true).toDomain(),
+        )
+        // Výchozí volba = nic nevybráno.
+        assertNull(LinkPreviewOptions(false, "", false, false, false).toDomain())
     }
 
     @Test

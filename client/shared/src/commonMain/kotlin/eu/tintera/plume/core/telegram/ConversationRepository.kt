@@ -507,8 +507,11 @@ interface ConversationRepository {
      *
      * Výsledek se do konverzace dostane updatem (`editedMessages`), stejně jako cizí úpravy —
      * návratová hodnota se proto nevrací. Entity se dohledávají jako při odeslání.
+     *
+     * [linkPreview] je volba náhledu upravené zprávy, jak ji úprava převzala z původní
+     * ([ChatMessage.linkPreviewOptions]) a případně změnila; `null` = výchozí volba serveru.
      */
-    suspend fun editText(chatId: Long, messageId: Long, text: String): Result<Unit>
+    suspend fun editText(chatId: Long, messageId: Long, text: String, linkPreview: LinkPreviewOptions?): Result<Unit>
 
     /**
      * Upraví popisek přílohy. Je to JINÉ volání než [editText] — úprava textu by popisek nezměnila
@@ -928,6 +931,11 @@ data class ChatMessage(
     val media: MessageMedia?,
     /** Náhled prvního odkazu v textu, jak ho server připravil. `null` u zpráv bez něj. */
     val linkPreview: LinkPreview?,
+    /**
+     * S jakou volbou náhledu zpráva odešla (vypnutý, velikost, poloha, odkaz); `null` = výchozí.
+     * Úprava ji přebírá — s výchozí volbou by se zprávě poslané bez náhledu náhled vrátil.
+     */
+    val linkPreviewOptions: LinkPreviewOptions? = null,
     val reactions: List<MessageReaction>,
     /**
      * Stav odeslání. `null` u příchozích zpráv — tam nedává smysl.
