@@ -396,6 +396,23 @@ interface ConversationRepository {
     ): Result<ChatMessage>
 
     /**
+     * Karta kontaktu, jak by odešla: jméno a číslo uživatele [userId] (lokální `getUser`).
+     * Číslo je prázdné, když ho uživatel skrývá — takový kontakt poslat nejde.
+     */
+    suspend fun contactCard(userId: Long): Result<MessageMedia.Contact>
+
+    /**
+     * Pošle kontakt [userId] (`InputMessageContact`): jméno a číslo z účtu, s id uživatele, takže
+     * u příjemce jde rovnou „Napsat zprávu". Vrací rozepsanou zprávu hned jako [send].
+     */
+    suspend fun sendContact(
+        chatId: Long,
+        userId: Long,
+        replyToMessageId: Long?,
+        quote: ReplyQuote?,
+    ): Result<ChatMessage>
+
+    /**
      * Odešle polohu, nebo místo s názvem a adresou (`InputMessageVenue`), když [place] název má.
      * Holá poloha („Moje poloha") jde jako `InputMessageLocation`. Vrací rozepsanou zprávu hned
      * jako [send].

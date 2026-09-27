@@ -123,6 +123,13 @@ class ThreadConversationRepository(
         quote: ReplyQuote?,
     ): Result<ChatMessage> = delegate.sendLocation(chatId, place, reply(replyToMessageId), quote)
 
+    override suspend fun sendContact(
+        chatId: Long,
+        userId: Long,
+        replyToMessageId: Long?,
+        quote: ReplyQuote?,
+    ): Result<ChatMessage> = delegate.sendContact(chatId, userId, reply(replyToMessageId), quote)
+
     override suspend fun sendGif(
         chatId: Long,
         gif: GifItem,

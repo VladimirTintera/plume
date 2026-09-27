@@ -1092,6 +1092,43 @@ class TdlConversationRepository(
             .toResult()
             .map { it.toChatMessage(isGroup(chatId)) }
 
+    override suspend fun contactCard(userId: Long): Result<MessageMedia.Contact> = runCatching {
+        val user = client.getUser(userId = userId).toResult().getOrThrow()
+        MessageMedia.Contact(
+            name = listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" "),
+            phone = user.phoneNumber.takeIf { it.isNotBlank() }?.let(::contactPhone).orEmpty(),
+            userId = userId,
+            photoFileId = user.profilePhoto?.small?.id,
+        )
+    }
+
+    override suspend fun sendContact(
+        chatId: Long,
+        userId: Long,
+        replyToMessageId: Long?,
+        quote: ReplyQuote?,
+    ): Result<ChatMessage> {
+        val user = client.getUser(userId = userId).toResult().getOrElse { return Result.failure(it) }
+        return client.sendMessage(
+            chatId = chatId,
+            topicId = null,
+            replyTo = replyInput(chatId, replyToMessageId, quote),
+            options = null,
+            replyMarkup = null,
+            inputMessageContent = InputMessageContact(
+                contact = Contact(
+                    phoneNumber = user.phoneNumber,
+                    firstName = user.firstName,
+                    lastName = user.lastName,
+                    vcard = "",
+                    userId = userId,
+                ),
+            ),
+        )
+            .toResult()
+            .map { it.toChatMessage(isGroup(chatId)) }
+    }
+
     override suspend fun sendLocation(
         chatId: Long,
         place: Place,

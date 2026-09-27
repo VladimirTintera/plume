@@ -1488,6 +1488,8 @@ fun ConversationScreen(
                 }.takeIf { state.content.polls },
                 // Poloha je „základní zpráva" jako text: smí se všude, kde je vstupní pole.
                 onSendLocation = { locationPickerOpen = true },
+                // Kontakt je taky „základní zpráva" (TDLib ho řadí k textu), jako poloha.
+                onShareContact = viewModel::openContactPicker,
                 onToggleCommands = viewModel::toggleCommands.takeIf { state.botCommands.isNotEmpty() },
                 attachments = state.attachments,
                 attachmentsPreparing = mediaSelection.preparing,
@@ -1566,6 +1568,26 @@ fun ConversationScreen(
                 onUnpicked = viewModel::removeAttachments,
                 onError = viewModel::reportError,
                 onDismiss = { mediaPickerOpen = false },
+            )
+        }
+
+        state.contactPicker?.let { picker ->
+            ContactPickerSheet(
+                picker = picker,
+                onQueryChange = viewModel::searchContacts,
+                onPick = viewModel::pickContact,
+                onDismiss = viewModel::dismissContactPicker,
+            )
+        }
+
+        state.pendingContact?.let { contact ->
+            ContactConfirmDialog(
+                contact = contact,
+                onConfirm = {
+                    haptics.confirm()
+                    viewModel.confirmContact()
+                },
+                onDismiss = viewModel::cancelContact,
             )
         }
 
@@ -2289,6 +2311,7 @@ private fun MessageInput(
     onCreatePoll: (() -> Unit)?,
     /** Poslat polohu; `null`, kde nejde. */
     onSendLocation: (() -> Unit)?,
+    onShareContact: (() -> Unit)?,
     /** Seznam příkazů botů; `null` v chatu bez botů s příkazy. */
     onToggleCommands: (() -> Unit)?,
     isRecording: Boolean,
@@ -2547,6 +2570,7 @@ private fun MessageInput(
                     canPickDocument = content.documents,
                     onCreatePoll = onCreatePoll,
                     onSendLocation = onSendLocation,
+                    onShareContact = onShareContact,
                     contentColor = inputIconColor(),
                     // Za tlačítkem příkazů bez odsazení: glyfy mají kolem sebe vzduch samy.
                     modifier = Modifier.padding(start = if (onToggleCommands != null) 0.dp else 4.dp, bottom = 4.dp),

@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.conversation_contact_send_failed
+import eu.tintera.plume.resources.conversation_contact_no_phone
+import eu.tintera.plume.resources.conversation_contact_load_failed
+import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.telegram.UnreadMarkKind
 import eu.tintera.plume.core.telegram.BotCommandItem
@@ -1197,6 +1201,72 @@ class ConversationViewModel(
         if (!_state.value.canWrite || _state.value.editing != null) return
         sendMedia(Res.string.conversation_location_send_failed) { replyTo, quote ->
             repository.sendLocation(chatId, place, replyTo, quote)
+        }
+    }
+
+    /**
+     * Sponka → Kontakt: sheet se seznamem kontaktů. Kontakty se čtou při otevření — sheet se
+     * otevírá jednou za čas a seznam by jinak ležel v paměti každé konverzace.
+     */
+    fun openContactPicker() {
+        _state.update { it.copy(contactPicker = ContactPicker(loading = true)) }
+        viewModelScope.launch {
+            chatRepository.contacts()
+                .onSuccess { contacts ->
+                    _state.update { state ->
+                        state.copy(contactPicker = state.contactPicker?.copy(loading = false, contacts = contacts))
+                    }
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(contactPicker = null, error = failure.reported(Res.string.conversation_contact_load_failed))
+                    }
+                }
+        }
+    }
+
+    fun searchContacts(query: String) {
+        _state.update { state -> state.copy(contactPicker = state.contactPicker?.copy(query = query)) }
+    }
+
+    fun dismissContactPicker() {
+        _state.update { it.copy(contactPicker = null) }
+    }
+
+    /**
+     * Vybraný kontakt se neposílá hned: dialog ukáže jméno a ČÍSLO, které odejde. Posílá se cizí
+     * telefonní číslo a uživatel má vidět přesně co. Kontakt se skrytým číslem poslat nejde.
+     */
+    fun pickContact(userId: Long) {
+        _state.update { it.copy(contactPicker = null) }
+        viewModelScope.launch {
+            repository.contactCard(userId)
+                .onSuccess { card ->
+                    _state.update {
+                        if (card.phone.isBlank()) {
+                            it.copy(notice = UiText(Res.string.conversation_contact_no_phone))
+                        } else {
+                            it.copy(pendingContact = card)
+                        }
+                    }
+                }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.reported(Res.string.conversation_contact_send_failed)) }
+                }
+        }
+    }
+
+    fun cancelContact() {
+        _state.update { it.copy(pendingContact = null) }
+    }
+
+    /** Kontakt odchází hned, jako poloha: citaci spotřebuje, rozepsaný text nechá. */
+    fun confirmContact() {
+        val userId = _state.value.pendingContact?.userId ?: return
+        _state.update { it.copy(pendingContact = null) }
+        if (!_state.value.canWrite || _state.value.editing != null) return
+        sendMedia(Res.string.conversation_contact_send_failed) { replyTo, quote ->
+            repository.sendContact(chatId, userId, replyTo, quote)
         }
     }
 
@@ -4042,6 +4112,10 @@ data class ConversationState(
     val addingPollOption: Long? = null,
     /** Anketa, kterou uživatel chce ukončit a čeká se na potvrzení; `null` = žádná. */
     val pendingStopPoll: Long? = null,
+    /** Sheet výběru kontaktu ze sponky; `null` = zavřený. */
+    val contactPicker: ContactPicker? = null,
+    /** Kontakt, který čeká na potvrzení odeslání (jméno a číslo); `null` = žádný. */
+    val pendingContact: MessageMedia.Contact? = null,
     /** Jednorázová událost: tlačítko bota chce formulář nové ankety (v tomhle režimu). */
     val openPollComposer: PollComposerMode? = null,
     /** Jednorázová událost: otevřít sheet sady samolepek z odkazu `t.me/addstickers/…`. */
@@ -4255,3 +4329,13 @@ internal fun ConversationState.pollConsumesReply(message: ChatMessage): Boolean 
         message.replyToMessageId == reply.id
 }
 
+
+/** Výběr kontaktu ke sdílení; filtruje se lokálně podle jména, kontaktů bývají desítky. */
+data class ContactPicker(
+    val loading: Boolean = false,
+    val contacts: List<ChatSummary> = emptyList(),
+    val query: String = "",
+) {
+    val shown: List<ChatSummary>
+        get() = query.trim().let { q -> if (q.isEmpty()) contacts else contacts.filter { it.title.contains(q, ignoreCase = true) } }
+}
