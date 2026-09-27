@@ -3960,6 +3960,11 @@ Otázka i každá odpověď mohou nést přílohu (TDLib 15 `PollMedia`, doména
 - **Náhled u odpovědi je samostatný cíl ťuknutí.** Řádek ťuknutím hlasuje; bez toho by nešla
   fotka odpovědi prohlédnout, aniž by se pro ni hlasovalo. Co otevřít nejde (soubor, zvuk),
   ťuknutí propustí řádku.
+- **Příloha vysvětlení kvízu** (TDLib 15 `explanationMedia`, `PollQuiz.explanationMedia`) je
+  pod vysvětlením, stejně velká jako příloha otázky (`PollQuestionMedia(slot = …)`), a stejně
+  jako vysvětlení až po odpovědi. Do prohlížeče letí pod vlastním místem
+  `POLL_EXPLANATION_MEDIA` (−3; −2 je `NO_POLL_MEDIA`), popiskem je text vysvětlení. Bot API
+  ji pošle (`sendPoll` s `explanation_media`), formulář ji zatím nenabízí.
 - **Pod jedním id zprávy je obrázků víc, takže klíč letu nese i přílohu**
   (`LocalPollMediaFlight` v `photoKey`, `MediaRoute.pollMedia`). Samotné id zprávy by spárovalo
   fotku odpovědi s fotkou otázky. Index odpovědi je PŮVODNÍ (`PollAnswer.index`), otázka

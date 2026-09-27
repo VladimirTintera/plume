@@ -108,12 +108,21 @@ sealed interface PollAttachment {
 val PollAttachment.viewable: MessageMedia?
     get() = ((this as? PollAttachment.Media)?.media)?.takeIf { it is MessageMedia.Photo || it is MessageMedia.Video }
 
-/** Příloha podle místa v anketě: [POLL_QUESTION_MEDIA] je otázka, jinak PŮVODNÍ index odpovědi. */
-fun ChatPoll.attachmentAt(index: Int): PollAttachment? =
-    if (index == POLL_QUESTION_MEDIA) media else options.firstOrNull { it.index == index }?.media
+/**
+ * Příloha podle místa v anketě: [POLL_QUESTION_MEDIA] je otázka, [POLL_EXPLANATION_MEDIA]
+ * vysvětlení kvízu, jinak PŮVODNÍ index odpovědi.
+ */
+fun ChatPoll.attachmentAt(index: Int): PollAttachment? = when (index) {
+    POLL_QUESTION_MEDIA -> media
+    POLL_EXPLANATION_MEDIA -> quiz?.explanationMedia
+    else -> options.firstOrNull { it.index == index }?.media
+}
 
 /** Příloha otázky v adrese prohlížeče médií; odpovědi mají svůj PŮVODNÍ index (0…). */
 const val POLL_QUESTION_MEDIA = -1
+
+/** Příloha vysvětlení kvízu v adrese prohlížeče médií. */
+const val POLL_EXPLANATION_MEDIA = -3
 
 /** Prohlížeč médií neotevírá přílohu ankety, ale přílohu zprávy. */
 const val NO_POLL_MEDIA = -2
@@ -127,6 +136,8 @@ data class PollQuiz(
     val correct: Set<Int>,
     val explanation: String = "",
     val explanationEntities: List<MessageEntity> = emptyList(),
+    /** Příloha vysvětlení (TDLib 15 `explanationMedia`), taky až po odpovědi. */
+    val explanationMedia: PollAttachment? = null,
 )
 
 /** Proč hlasovat nejde. */

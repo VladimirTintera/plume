@@ -24,6 +24,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.POLL_EXPLANATION_MEDIA
 import eu.tintera.plume.core.telegram.POLL_QUESTION_MEDIA
 import eu.tintera.plume.core.telegram.PollAttachment
 import eu.tintera.plume.core.telegram.viewable
@@ -50,15 +51,20 @@ import org.jetbrains.compose.resources.painterResource
  */
 
 /**
- * Příloha nad otázkou. Klíč letu nese [LocalPollMediaFlight]: pod jedním id zprávy je v anketě
- * obrázků víc (viz `photoKey`).
+ * Velká příloha ankety — nad otázkou ([POLL_QUESTION_MEDIA]) a pod vysvětlením kvízu
+ * ([POLL_EXPLANATION_MEDIA], [slot]). Klíč letu nese [LocalPollMediaFlight]: pod jedním id zprávy
+ * je v anketě obrázků víc (viz `photoKey`).
  */
 @Composable
-internal fun MessageBodyScope.PollQuestionMedia(attachment: PollAttachment) {
+internal fun MessageBodyScope.PollQuestionMedia(
+    attachment: PollAttachment,
+    slot: Int = POLL_QUESTION_MEDIA,
+    modifier: Modifier = Modifier.padding(bottom = 10.dp),
+) {
     // Sloupec, ne Box: pod mapou stojí název místa.
-    Column(Modifier.fillMaxWidth().padding(bottom = 10.dp)) {
+    Column(modifier.fillMaxWidth()) {
         when (attachment) {
-            is PollAttachment.Media -> CompositionLocalProvider(LocalPollMediaFlight provides POLL_QUESTION_MEDIA) {
+            is PollAttachment.Media -> CompositionLocalProvider(LocalPollMediaFlight provides slot) {
                 val media = attachment.media
                 MessageAttachment(
                     media = media,
@@ -67,7 +73,7 @@ internal fun MessageBodyScope.PollQuestionMedia(attachment: PollAttachment) {
                         when (media) {
                             is MessageMedia.Sticker -> act(MessageAction.OpenStickerSet(media.setId))
                             is MessageMedia.Location -> act(MessageAction.OpenLink(media.mapUrl))
-                            else -> act(MessageAction.OpenPollMedia(POLL_QUESTION_MEDIA))
+                            else -> act(MessageAction.OpenPollMedia(slot))
                         }
                     },
                     onRequestMenu = ::requestMenu,

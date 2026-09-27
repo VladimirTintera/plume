@@ -951,6 +951,7 @@ internal fun MessagePoll.toChatPoll(): ChatPoll {
                 correct = quiz.correctOptionIds.toSet(),
                 explanation = explanation.text,
                 explanationEntities = explanation.entities,
+                explanationMedia = quiz.explanationMedia?.toAttachment(),
             )
         },
         restriction = poll.voteRestrictionReason?.toRestriction(),

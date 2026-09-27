@@ -16,6 +16,7 @@ import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
+import eu.tintera.plume.core.telegram.POLL_EXPLANATION_MEDIA
 import eu.tintera.plume.core.telegram.POLL_QUESTION_MEDIA
 import eu.tintera.plume.core.telegram.PollAttachment
 import eu.tintera.plume.core.telegram.attachmentAt
@@ -270,6 +271,7 @@ class MediaViewerViewModel(
                 val caption = when {
                     poll == null -> ""
                     pollMedia == POLL_QUESTION_MEDIA -> poll.question
+                    pollMedia == POLL_EXPLANATION_MEDIA -> poll.quiz?.explanation.orEmpty()
                     else -> poll.options.firstOrNull { it.index == pollMedia }?.text.orEmpty()
                 }
                 val item = shown?.let {

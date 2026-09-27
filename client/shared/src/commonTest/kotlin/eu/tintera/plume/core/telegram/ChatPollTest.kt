@@ -199,6 +199,19 @@ class ChatPollTest {
     }
 
     @Test
+    fun prilohaVysvetleniJeVlastniMistoVAnkete() {
+        val link = PollMediaLink(url = "https://example.com", linkPreview = null)
+        val quiz = PollTypeQuiz(correctOptionIds = intArrayOf(0), explanation = text("Protože."), explanationMedia = link)
+        val poll = message(listOf(option("A", chosen = true), option("B")), quiz = quiz).toChatPoll()
+        val expected = PollAttachment.Link(url = "https://example.com", title = null, photo = null)
+        assertEquals(expected, poll.quiz?.explanationMedia)
+        assertEquals(expected, poll.attachmentAt(POLL_EXPLANATION_MEDIA))
+        // Otázka ani odpovědi přílohu nemají — vysvětlení se s nimi nesmí splést.
+        assertNull(poll.attachmentAt(POLL_QUESTION_MEDIA))
+        assertNull(poll.attachmentAt(0))
+    }
+
+    @Test
     fun uzavrenaAnketaNeseDuvod() {
         val poll = message(listOf(option("A")), closed = true).toChatPoll()
         assertEquals(PollRestriction.Closed, poll.restriction)
