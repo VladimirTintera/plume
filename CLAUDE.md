@@ -2189,6 +2189,12 @@ nad chatem (a totéž jako sheet v profilu, `DeleteChatOptions`) a **„Nahlási
   `MessageProperties.canReportChat` — vlastní zprávy a Uložené zprávy ho nemají.
 - **`MessagesRequired` z nabídky nad chatem dodat nejde** — průvodce řekne, kudy vede cesta
   (nabídka nad zprávou), místo slepé uličky.
+- **Nahlásit jde i celý výběr víc zpráv** (vlajka v liště výběru, `MessageSelection.canReport`,
+  `reportSelection`): tentýž průvodce s ids všech vybraných, jen když server dovolí nahlásit
+  KAŽDOU z nich — stejné skládání práv přes `all` jako u přeposlání a mazání. Pozor, že
+  `canReportChat` rozhoduje server: v chatu s botem ho má i VLASTNÍ zpráva (ověřeno — s `/help`
+  ve výběru vlajka nezšedla), takže „vlastní zprávy nahlásit nejde" platí jen tam, kde to
+  server řekne. Vlajka stojí před košem: spam se nejdřív nahlásí, pak maže.
 - **Zavřený průvodce nesmí ožít** odpovědí na krok, který byl na cestě (`generation`).
 - **`ReportFlow` je třída nad `CoroutineScope`, ne ViewModel.** Seznam chatů, profil
   i konverzace ji mají každý ve svém ViewModelu a kreslí `ReportHost` (sheet + snackbar).

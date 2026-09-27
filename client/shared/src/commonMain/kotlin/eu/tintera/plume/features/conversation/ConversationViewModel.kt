@@ -3233,6 +3233,17 @@ class ConversationViewModel(
         _state.update { it.copy(selection = null, forwardRequest = ids) }
     }
 
+    /**
+     * Nahlásit celý výběr moderátorům: tentýž průvodce jako u jedné zprávy, jen s víc zprávami.
+     * Server se zeptá na důvod; zavření průvodce nic neodešle.
+     */
+    fun reportSelection() {
+        val ids = _state.value.selectedMessageIds()
+        if (ids.isEmpty() || _state.value.selection?.canReport != true) return
+        _state.update { it.copy(selection = null) }
+        reportFlow.start(chatId, messageIds = ids)
+    }
+
     /** Potvrzení smazání celého výběru. Práva jsou už načtená, takže se dialog zeptá rovnou. */
     fun deleteSelection() {
         val state = _state.value
@@ -3908,6 +3919,9 @@ data class MessageSelection(
     val canCopy: Boolean get() = ready && withText.isNotEmpty() && rights.values.all { it.canCopy }
 
     val canDelete: Boolean get() = ready && rights.values.all { it.canDeleteForSelf || it.canDeleteForAll }
+
+    /** Nahlásit jde jen výběr, u kterého server nahlášení dovolí VŠEM zprávám (`canReportChat`). */
+    val canReport: Boolean get() = ready && rights.values.all { it.canReport }
 
     /** Smazat i ostatním jde, jen když to jde u všech vybraných. */
     val canDeleteForAll: Boolean get() = ready && rights.values.all { it.canDeleteForAll }

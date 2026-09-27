@@ -1278,6 +1278,7 @@ fun ConversationScreen(
                     selection = selection,
                     onCopy = viewModel::copySelection,
                     onForward = viewModel::forwardSelection,
+                    onReport = viewModel::reportSelection,
                     onDelete = viewModel::deleteSelection,
                 )
                 return@Box

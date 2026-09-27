@@ -40,6 +40,7 @@ class MessageSelectionTest {
         canCopy: Boolean = true,
         canDeleteForSelf: Boolean = true,
         canDeleteForAll: Boolean = true,
+        canReport: Boolean = false,
     ) = MessageActions(
         canReply = true,
         canCopy = canCopy,
@@ -49,6 +50,7 @@ class MessageSelectionTest {
         canPin = false,
         canForward = canForward,
         canSave = true,
+        canReport = canReport,
     )
 
     /** Seznam jde od nejnovější, jako v konverzaci. */
@@ -76,6 +78,23 @@ class MessageSelectionTest {
         assertFalse(selection.loading)
         assertFalse(selection.canForward)
         assertTrue(selection.canCopy)
+    }
+
+    @Test
+    fun nahlasitJdeJenKdyzToJdeUVsech() {
+        // Akce platí pro celý výběr: zpráva, kterou server nahlásit nedovolí, zakáže i ostatní.
+        val all = MessageSelection(
+            keys = setOf(1L, 2L),
+            rights = mapOf(1L to rights(canReport = true), 2L to rights(canReport = true)),
+        )
+        val mixed = MessageSelection(
+            keys = setOf(1L, 2L),
+            rights = mapOf(1L to rights(canReport = true), 2L to rights(canReport = false)),
+        )
+        val loading = MessageSelection(keys = setOf(1L, 2L), rights = mapOf(1L to rights(canReport = true)))
+        assertTrue(all.canReport)
+        assertFalse(mixed.canReport)
+        assertFalse(loading.canReport)
     }
 
     @Test
