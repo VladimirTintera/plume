@@ -6014,6 +6014,10 @@ a hovoru: tvář, jméno, číslo a u kontaktu na Telegramu „Napsat zprávu" (
   v seznamu by poslalo jiné. Kontakt, který číslo skrývá (prázdné `phoneNumber`), poslat nejde
   a řekne to hláška. Posílá se i `userId`, takže u příjemce funguje „Napsat zprávu".
   Nabízí se tam, kde poloha — TDLib kontakt řadí k „základním zprávám" jako text.
+- **Nad kontakty je karta „Můj kontakt"** (`ContactPicker.me`, `primaryContainer` jako Uložené
+  zprávy ve výběru chatu): vlastní číslo je to, co se posílá nejčastěji. Vlastní účet se bere
+  z `savedMessagesChatId` (id Uložených zpráv je id uživatele) a jde toutéž cestou, i s dialogem
+  s číslem. Při hledání se karta schová (`showsMe`) — hledá se v kontaktech, ne v sobě.
 - **Sheet je jen rozbalený** (`enabledValues = Hidden, Expanded`); napůl rozbalený nechal seznam
   kontaktů pod spodním okrajem. Ověřeno odesláním do Uložených zpráv — ne botovi, cizí číslo
   nemá odcházet nikam mimo vlastní účet.

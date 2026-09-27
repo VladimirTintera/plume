@@ -1211,10 +1211,15 @@ class ConversationViewModel(
     fun openContactPicker() {
         _state.update { it.copy(contactPicker = ContactPicker(loading = true)) }
         viewModelScope.launch {
+            // Vlastní účet: Uložené zprávy jsou chat s ním, id chatu je id uživatele. Kdo nemá
+            // číslo vidět (nikdy by nemělo nastat), řádek nedostane.
+            val me = chatRepository.savedMessagesChatId.value
+                ?.let { repository.contactCard(it).getOrNull() }
+                ?.takeIf { it.phone.isNotBlank() }
             chatRepository.contacts()
                 .onSuccess { contacts ->
                     _state.update { state ->
-                        state.copy(contactPicker = state.contactPicker?.copy(loading = false, contacts = contacts))
+                        state.copy(contactPicker = state.contactPicker?.copy(loading = false, contacts = contacts, me = me))
                     }
                 }
                 .onFailure { failure ->
@@ -4335,7 +4340,12 @@ data class ContactPicker(
     val loading: Boolean = false,
     val contacts: List<ChatSummary> = emptyList(),
     val query: String = "",
+    /** Vlastní účet — řádek „Můj kontakt" nad kontakty; `null`, dokud se nenačte. */
+    val me: MessageMedia.Contact? = null,
 ) {
+    /** Vlastní kontakt se nabízí jen bez dotazu: hledá se v kontaktech, ne v sobě. */
+    val showsMe: Boolean get() = me != null && query.isBlank()
+
     val shown: List<ChatSummary>
         get() = query.trim().let { q -> if (q.isEmpty()) contacts else contacts.filter { it.title.contains(q, ignoreCase = true) } }
 }

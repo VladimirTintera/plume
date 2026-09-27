@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.conversation_contact_me
+import eu.tintera.plume.core.ui.GROUP_SPACING
+import eu.tintera.plume.core.ui.GROUP_CORNER
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -79,7 +83,7 @@ internal fun ContactPickerSheet(
             val shown = picker.shown
             when {
                 picker.loading -> LoadingIndicator(Modifier.align(Alignment.Center))
-                shown.isEmpty() -> Text(
+                shown.isEmpty() && !picker.showsMe -> Text(
                     text = stringResource(Res.string.conversation_contact_none),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -89,6 +93,36 @@ internal fun ContactPickerSheet(
                     verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
                 ) {
+                    // Vlastní číslo je nejčastější, co se posílá — samostatná karta nad
+                    // kontakty, jako Uložené zprávy ve výběru chatu, ne první řádek bloku.
+                    picker.me?.takeIf { picker.showsMe }?.let { me ->
+                        item(key = ME_KEY) {
+                            val onCard = MaterialTheme.colorScheme.onPrimaryContainer
+                            ListItem(
+                                headlineContent = { Text(stringResource(Res.string.conversation_contact_me)) },
+                                supportingContent = { Text(me.phone) },
+                                leadingContent = {
+                                    Avatar(
+                                        chatId = me.userId ?: 0L,
+                                        title = me.name,
+                                        avatarFileId = me.photoFileId,
+                                        size = 40.dp,
+                                        backdrop = MaterialTheme.colorScheme.primaryContainer,
+                                    )
+                                },
+                                colors = ListItemDefaults.colors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = onCard,
+                                    supportingContentColor = onCard,
+                                ),
+                                modifier = Modifier
+                                    .animateItem()
+                                    .padding(bottom = GROUP_SPACING - GROUP_ITEM_SPACING)
+                                    .clip(RoundedCornerShape(GROUP_CORNER))
+                                    .clickable { me.userId?.let(onPick) },
+                            )
+                        }
+                    }
                     itemsIndexed(shown, key = { _, contact -> contact.id }) { index, contact ->
                         ListItem(
                             headlineContent = { Text(contact.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -126,3 +160,6 @@ internal fun ContactConfirmDialog(contact: MessageMedia.Contact, onConfirm: () -
 }
 
 private val LIST_HEIGHT = 420.dp
+
+/** Klíč karty vlastního kontaktu; id chatů jsou nenulová, záporný klíč se s nimi nesrazí. */
+private const val ME_KEY = -1L
