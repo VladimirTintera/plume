@@ -13,7 +13,7 @@ import eu.tintera.plume.core.telegram.MessageSearchFilter
 import eu.tintera.plume.core.telegram.SpamActions
 import eu.tintera.plume.core.telegram.ReportRequest
 import eu.tintera.plume.core.telegram.ReportStep
-import eu.tintera.plume.core.telegram.SpamBar
+import eu.tintera.plume.core.telegram.ChatBar
 import eu.tintera.plume.core.telegram.BlockedSendersPage
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.InviteJoinResult
@@ -101,8 +101,9 @@ open class FakeChatRepository(
     override suspend fun setBlocked(chatId: Long, blocked: Boolean): Result<Unit> = Result.success(Unit)
 
     override suspend fun report(chatId: Long, request: ReportRequest): Result<ReportStep> = Result.success(ReportStep.Done)
-    override fun spamBar(chatId: Long): Flow<SpamBar?> = flowOf(null)
-    override suspend fun dismissSpamBar(chatId: Long): Result<Unit> = Result.success(Unit)
+    override fun chatBar(chatId: Long): Flow<ChatBar?> = flowOf(null)
+    override suspend fun dismissChatBar(chatId: Long): Result<Unit> = Result.success(Unit)
+    override suspend fun sharePhoneNumber(chatId: Long): Result<Unit> = Result.success(Unit)
     override suspend fun unarchiveFromSpamBar(chatId: Long): Result<Unit> = Result.success(Unit)
     override suspend fun addToContacts(chatId: Long): Result<Unit> = Result.success(Unit)
     open override suspend fun blockedSenders(offset: Int, limit: Int): Result<BlockedSendersPage> =

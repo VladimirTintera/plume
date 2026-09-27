@@ -1376,4 +1376,13 @@
     </plurals>
     <string name="verification_by_bot">Verified by a bot</string>
     <string name="verification_by_bot_named">Verified by %1$s</string>
+    <string name="chat_bar_share_phone_hint">This contact can’t see your phone number.</string>
+    <string name="chat_bar_share_phone">Share my number</string>
+    <string name="chat_bar_share_phone_title">Share your number?</string>
+    <string name="chat_bar_share_phone_text">%1$s will see your phone number.</string>
+    <string name="chat_bar_share_phone_confirm">Share</string>
+    <string name="chat_bar_phone_shared">Phone number shared</string>
+    <string name="chat_bar_join_request_group">You’re getting this message in reply to your request to join the group “%1$s”.</string>
+    <string name="chat_bar_join_request_channel">You’re getting this message in reply to your request to join the channel “%1$s”.</string>
+    <string name="chat_bar_join_request_date">Request sent: %1$s</string>
 </resources>

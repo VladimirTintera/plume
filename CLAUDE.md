@@ -2272,6 +2272,14 @@ nad chatem (a totéž jako sheet v profilu, `DeleteChatOptions`) a **„Nahlási
   přihlášení.
 - **Pruh a připnuté zprávy se měří spolu** (jeden `Column` s `onSizeChanged`), seznam se odsazuje
   o výšku obou. Spam stojí nad připnutou zprávou.
+- **Pruh nad konverzací je obecný `ChatBar`, ne jen spam** (`ChatRepository.chatBar`):
+  `SpamBar` (spam, blokování, kontakt), `SharePhoneBar` (vzájemný kontakt nevidí vlastní číslo
+  → `sharePhoneNumber`, po potvrzení dialogem — odchází osobní údaj) a `JoinRequestBar`
+  (správce skupiny nebo kanálu, kam uživatel žádal o vstup — jinak by zpráva od něj vypadala
+  jako spam). Nespamové pruhy kreslí `ChatNoticeBarCard` týmž tvarem; křížek je u všech
+  `removeChatActionBar`. Pozvání členů (`InviteMembers`) zatím není, chce vlastní výběr.
+- **Den z `asDayLabel` nepatří doprostřed věty** — je nadpisový („Včera"). U žádosti o vstup
+  stojí proto na vlastním řádku za dvojtečkou („Žádost odeslána: Včera").
 - **Text a tlačítka pruhu jsou v jednom sloupci, křížek vedle.** V řádku s `IconButton` (48 dp)
   zbyla mezi textem a tlačítky mezera a pruh vypadal rozpadle.
 

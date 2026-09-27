@@ -218,12 +218,15 @@ interface ChatRepository {
     suspend fun report(chatId: Long, request: ReportRequest): Result<ReportStep>
 
     /**
-     * Pruh proti spamu nad konverzací, živě (`UpdateChatActionBar`); `null` = žádný.
+     * Pruh nad konverzací, živě (`UpdateChatActionBar`); `null` = žádný (viz [ChatBar]).
      */
-    fun spamBar(chatId: Long): Flow<SpamBar?>
+    fun chatBar(chatId: Long): Flow<ChatBar?>
 
     /** Zavře pruh nad konverzací napořád (`removeChatActionBar`). */
-    suspend fun dismissSpamBar(chatId: Long): Result<Unit>
+    suspend fun dismissChatBar(chatId: Long): Result<Unit>
+
+    /** Nasdílí vlastní telefonní číslo protějšku, který ho nevidí ([SharePhoneBar]). */
+    suspend fun sharePhoneNumber(chatId: Long): Result<Unit>
 
     /**
      * Vrátí automaticky archivovaný chat mezi chaty ([SpamBar.canUnarchive]). Podle TDLib to
