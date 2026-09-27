@@ -69,6 +69,13 @@ sealed interface MessageEntityType {
      */
     data class MediaTimestamp(val seconds: Int) : MessageEntityType
 
+    /**
+     * Datum a čas, které se mají ukázat v místním pásmu a v jazyce aplikace, ne tak, jak je
+     * pisatel napsal („zítra v 18:00" u něj je jiný okamžik než u čtenáře v jiném pásmu).
+     * [unixTime] je okamžik, [format] podoba; text úseku je jen náhradní, kdyby formát chyběl.
+     */
+    data class DateTime(val unixTime: Long, val format: DateTimeFormat) : MessageEntityType
+
     data object Bold : MessageEntityType
 
     data object Italic : MessageEntityType
@@ -104,3 +111,20 @@ sealed interface MessageEntityType {
      */
     data class Quote(val expandable: Boolean) : MessageEntityType
 }
+
+/** Podoba data a času v textu ([MessageEntityType.DateTime]). */
+sealed interface DateTimeFormat {
+
+    /** Vůči teď: „za 5 minut", „před 2 dny". */
+    data object Relative : DateTimeFormat
+
+    /** Pevné datum a čas s danou podrobností každé části a případně s dnem v týdnu. */
+    data class Absolute(
+        val time: DateTimePrecision,
+        val date: DateTimePrecision,
+        val dayOfWeek: Boolean,
+    ) : DateTimeFormat
+}
+
+/** Podrobnost části data nebo času: vynechat, krátce („17. 3. 22", „22:45"), dlouze („17. března 2022", „22:45:00"). */
+enum class DateTimePrecision { None, Short, Long }

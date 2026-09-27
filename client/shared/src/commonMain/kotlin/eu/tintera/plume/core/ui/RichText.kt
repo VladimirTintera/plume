@@ -19,6 +19,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -196,8 +201,34 @@ fun RichText(
     val customEmoji = remember(text, entities, spoilersRevealed) {
         customEmojiRanges(text, entities, spoilersRevealed)
     }
-    val inlineContent = remember(customEmoji) { customEmojiInlineContent(customEmoji.map { it.second }.toSet()) }
-    val annotated = remember(text, entities, linkColor, contentColor, spoilersRevealed, visible, highlightColor, quoteIndent, customEmoji, commandsClickable, timestampsClickable) {
+    /*
+     * Datum a čas ([MessageEntityType.DateTime]) stejnou cestou: text pisatele zůstává v řetězci
+     * a místo něj se vykreslí datum v místním pásmu. Nahradit ho v řetězci by posunulo offsety
+     * všech entit za ním, zvýraznění hledání i spoilerů — inline obsah je nechá být. Šířku
+     * placeholderu dává změřený text, protože inline obsah se do řádku vejde jen ve své velikosti.
+     */
+    val dates = remember(text, entities, spoilersRevealed) { dateTimeRanges(text, entities, spoilersRevealed) }
+    val dateTexts = dates.mapIndexed { index, (_, date) -> key(index, date) { dateTimeText(date.unixTime, date.format) } }
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val dateContent = remember(dateTexts, style, contentColor, density) {
+        dateTexts.mapIndexed { index, formatted ->
+            val size = measurer.measure(formatted, style, softWrap = false, maxLines = 1).size
+            dateTimeKey(index) to InlineTextContent(
+                with(density) {
+                    Placeholder(
+                        width = size.width.toSp(),
+                        height = size.height.toSp(),
+                        placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter,
+                    )
+                },
+            ) { Text(formatted, style = style, color = contentColor, maxLines = 1, softWrap = false) }
+        }.toMap()
+    }
+    val inlineContent = remember(customEmoji, dateContent) {
+        customEmojiInlineContent(customEmoji.map { it.second }.toSet()) + dateContent
+    }
+    val annotated = remember(text, entities, linkColor, contentColor, spoilersRevealed, visible, highlightColor, quoteIndent, customEmoji, dates, commandsClickable, timestampsClickable) {
         buildMessageText(
             text = text,
             entities = entities,
@@ -217,6 +248,7 @@ fun RichText(
             },
             onSpoilerClick = { spoilersRevealed = true },
             customEmoji = customEmoji,
+            dates = dates.mapIndexed { index, (range, _) -> range to dateTimeKey(index) },
         )
     }
 
@@ -311,11 +343,15 @@ private fun buildMessageText(
     onEntityClick: (MessageEntityType) -> Unit,
     onSpoilerClick: () -> Unit,
     customEmoji: List<Pair<IntRange, Long>>,
+    dates: List<Pair<IntRange, String>>,
 ): AnnotatedString = buildAnnotatedString {
     append(text)
 
     customEmoji.forEach { (range, id) ->
         addStringAnnotation(INLINE_CONTENT_TAG, customEmojiKey(id), range.first, range.last + 1)
+    }
+    dates.forEach { (range, key) ->
+        addStringAnnotation(INLINE_CONTENT_TAG, key, range.first, range.last + 1)
     }
 
     entities.forEach { entity ->
@@ -412,8 +448,8 @@ private fun buildMessageText(
                 }
             }
 
-            // Nahrazuje se inline obsahem, viz `customEmojiRanges`.
-            is MessageEntityType.CustomEmoji -> Unit
+            // Nahrazuje se inline obsahem, viz `customEmojiRanges` a `dateTimeRanges`.
+            is MessageEntityType.CustomEmoji, is MessageEntityType.DateTime -> Unit
 
             MessageEntityType.Spoiler -> if (spoilersRevealed) {
                 // Po odkrytí zůstane jen jemný podklad, aby bylo poznat, co bylo skryté.
@@ -460,21 +496,44 @@ internal fun customEmojiRanges(
     text: String,
     entities: List<MessageEntity>,
     spoilersRevealed: Boolean,
-): List<Pair<IntRange, Long>> {
+): List<Pair<IntRange, Long>> = inlineRanges(text, entities, spoilersRevealed) {
+    (it as? MessageEntityType.CustomEmoji)?.id
+}
+
+/**
+ * Úseky textu, místo kterých se ukáže datum a čas v místním pásmu — se stejnými výjimkami jako
+ * vlastní emoji: v zakrytém spoileru ne (datum by skryté prozradilo) a prázdné úseky ne.
+ */
+internal fun dateTimeRanges(
+    text: String,
+    entities: List<MessageEntity>,
+    spoilersRevealed: Boolean,
+): List<Pair<IntRange, MessageEntityType.DateTime>> = inlineRanges(text, entities, spoilersRevealed) {
+    it as? MessageEntityType.DateTime
+}
+
+private inline fun <T : Any> inlineRanges(
+    text: String,
+    entities: List<MessageEntity>,
+    spoilersRevealed: Boolean,
+    select: (MessageEntityType) -> T?,
+): List<Pair<IntRange, T>> {
     val hidden = if (spoilersRevealed) {
         emptyList()
     } else {
         entities.filter { it.type == MessageEntityType.Spoiler }.map { it.offset until it.offset + it.length }
     }
     return entities.mapNotNull { entity ->
-        val id = (entity.type as? MessageEntityType.CustomEmoji)?.id ?: return@mapNotNull null
+        val value = select(entity.type) ?: return@mapNotNull null
         val start = entity.offset.coerceIn(0, text.length)
         val end = (entity.offset + entity.length).coerceIn(start, text.length)
         if (start == end) return@mapNotNull null
         if (hidden.any { start in it }) return@mapNotNull null
-        (start until end) to id
+        (start until end) to value
     }
 }
+
+private fun dateTimeKey(index: Int): String = "date-time:$index"
 
 /**
  * Pás citace: tónovaný proužek za jejími řádky, od kraje bubliny ke kraji.

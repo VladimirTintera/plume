@@ -3782,6 +3782,34 @@ médium od toho místa: video v prohlížeči, hlasovku, skladbu a kolečko př�
   od 0:02), odpověď na skladbu, na hlasovku (m4a přes `sendVoice`) a na kolečko — vše hraje
   od 0:02. **Neověřeno**: iOS (jen přeložené).
 
+### Datum a čas v textu
+
+Datum a čas, které pisatel označil (`TextEntityTypeDateTime` → `MessageEntityType.DateTime`),
+se ukazují v místním pásmu a v jazyce aplikace: „středa 30. září 2026 14:23", „30. 9. 2026",
+„před 2 hodinami" (`dateTimeText` v `core/ui/DateTimeText.kt`, testy `RelativeTimeTest`).
+
+- **Text se v řetězci NENAHRAZUJE, kreslí se místo něj inline obsah** (`dateTimeRanges`
+  v `RichText`), stejně jako vlastní emoji. Oficiální klienti text entity nahrazují, a to by
+  posunulo offsety všech entit za ní, zvýraznění hledání i spoilerů. Inline obsah se do řádku
+  vejde jen ve své velikosti, takže se formátovaný text změří (`rememberTextMeasurer`)
+  a placeholder dostane jeho šířku. Datum se tím nezalomí uprostřed — přejde na další řádek celé.
+- **Formátuje se v kompozici, ne při převodu zprávy**: jazyk se může změnit a relativní čas
+  stárne. Počítá se vůči okamžiku složení, po vteřinách se nepřepočítává.
+- **Relativní čas se zaokrouhluje, ne ořezává** (`relativeTime`): s ořezem vyšly 1 h 59 min
+  jako „před 1 hodinou" — a hodiny telefonu o pár vteřin pozadu z „před 2 hodinami" udělaly
+  hodinu. Co se zaokrouhlí na celou vyšší jednotku, přejde do ní („1 hodina", ne „60 minut").
+  Česky jsou „za" a „před" vlastní plurály (`relative_in_*`, `relative_ago_*`): po „za" je
+  4. pád, po „před" 7. — tvary délky (`duration_*`) jsou v 1. pádu a nehodí se.
+- **Den v týdnu uprostřed věty má vlastní řetězce** (`weekday_in_text_*`). `day_long_*` jsou
+  nadpisy předělů s velkým písmenem; česky se ve větě píše malým, anglicky velkým, takže
+  `lowercase()` nestačí.
+- **Bez formátu** (`formattingType == null`) zůstává text pisatele — tak to chce TDLib.
+- **Kopírování, citace a náhled v seznamu chatů berou text pisatele**, ne formátované datum.
+- **Ověřuje se botem**: Bot API umí entitu `date_time` s `unix_time` a `date_time_format`
+  (`r` relativní, `w` den v týdnu, `d`/`D` krátké/dlouhé datum, `t`/`T` krátký/dlouhý čas).
+  Offsety jsou v UTF-16 — s ručně spočítaným offsetem nahradí entita i sousední znak. Ověřeno
+  na emulátoru anglicky i česky. **iOS jen přeložené.**
+
 ### Ankety a kvízy
 
 Anketa se kreslí jako vlastní blok (`PollMessageItem`) nad doménovým `ChatPoll` (`ChatMessage.poll`,

@@ -1335,4 +1335,73 @@
     <string name="verification_fake_warning">Telegram tento účet označil jako falešný. Může se vydávat za někoho jiného.</string>
     <string name="message_effect">Efekt zprávy %1$s</string>
     <string name="message_effect_play">Přehrát efekt znovu</string>
+    <string name="date_numeric">%1$d. %2$d. %3$d</string>
+    <string name="date_weekday_date">%1$s %2$s</string>
+    <plurals name="relative_in_seconds">
+        <item quantity="one">za %1$d sekundu</item>
+        <item quantity="few">za %1$d sekundy</item>
+        <item quantity="other">za %1$d sekund</item>
+    </plurals>
+    <plurals name="relative_ago_seconds">
+        <item quantity="one">před %1$d sekundou</item>
+        <item quantity="few">před %1$d sekundami</item>
+        <item quantity="other">před %1$d sekundami</item>
+    </plurals>
+    <plurals name="relative_in_minutes">
+        <item quantity="one">za %1$d minutu</item>
+        <item quantity="few">za %1$d minuty</item>
+        <item quantity="other">za %1$d minut</item>
+    </plurals>
+    <plurals name="relative_ago_minutes">
+        <item quantity="one">před %1$d minutou</item>
+        <item quantity="few">před %1$d minutami</item>
+        <item quantity="other">před %1$d minutami</item>
+    </plurals>
+    <plurals name="relative_in_hours">
+        <item quantity="one">za %1$d hodinu</item>
+        <item quantity="few">za %1$d hodiny</item>
+        <item quantity="other">za %1$d hodin</item>
+    </plurals>
+    <plurals name="relative_ago_hours">
+        <item quantity="one">před %1$d hodinou</item>
+        <item quantity="few">před %1$d hodinami</item>
+        <item quantity="other">před %1$d hodinami</item>
+    </plurals>
+    <plurals name="relative_in_days">
+        <item quantity="one">za %1$d den</item>
+        <item quantity="few">za %1$d dny</item>
+        <item quantity="other">za %1$d dní</item>
+    </plurals>
+    <plurals name="relative_ago_days">
+        <item quantity="one">před %1$d dnem</item>
+        <item quantity="few">před %1$d dny</item>
+        <item quantity="other">před %1$d dny</item>
+    </plurals>
+    <plurals name="relative_in_months">
+        <item quantity="one">za %1$d měsíc</item>
+        <item quantity="few">za %1$d měsíce</item>
+        <item quantity="other">za %1$d měsíců</item>
+    </plurals>
+    <plurals name="relative_ago_months">
+        <item quantity="one">před %1$d měsícem</item>
+        <item quantity="few">před %1$d měsíci</item>
+        <item quantity="other">před %1$d měsíci</item>
+    </plurals>
+    <plurals name="relative_in_years">
+        <item quantity="one">za %1$d rok</item>
+        <item quantity="few">za %1$d roky</item>
+        <item quantity="other">za %1$d let</item>
+    </plurals>
+    <plurals name="relative_ago_years">
+        <item quantity="one">před %1$d rokem</item>
+        <item quantity="few">před %1$d lety</item>
+        <item quantity="other">před %1$d lety</item>
+    </plurals>
+    <string name="weekday_in_text_1">pondělí</string>
+    <string name="weekday_in_text_2">úterý</string>
+    <string name="weekday_in_text_3">středa</string>
+    <string name="weekday_in_text_4">čtvrtek</string>
+    <string name="weekday_in_text_5">pátek</string>
+    <string name="weekday_in_text_6">sobota</string>
+    <string name="weekday_in_text_7">neděle</string>
 </resources>
