@@ -337,9 +337,11 @@ private fun PinnedSheetRow(
  * varianta; ostrou verzi kvůli němu stahovat nemá smysl.
  */
 private fun MessageMedia?.thumbnailFileId(): Int? = when (this) {
-    is MessageMedia.Photo -> thumbnailFileId ?: fileId
-    is MessageMedia.Video -> thumbnailFileId
-    is MessageMedia.Document -> thumbnailFileId
+    // Spoiler, citlivé a mizející médium v pruhu náhled nemá: pruh visí nad konverzací pořád
+    // a ukázal by ostře, co bublina schovává.
+    is MessageMedia.Photo -> (thumbnailFileId ?: fileId).takeUnless { hasSpoiler || isSecret || selfDestructType != null }
+    is MessageMedia.Video -> thumbnailFileId.takeUnless { hasSpoiler || isSecret || selfDestructType != null }
+    is MessageMedia.Document -> thumbnailFileId.takeUnless { isSensitive }
     else -> null
 }
 

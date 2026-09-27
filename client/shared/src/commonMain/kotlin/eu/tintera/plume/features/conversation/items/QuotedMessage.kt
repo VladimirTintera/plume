@@ -204,11 +204,13 @@ internal fun MessageMedia?.quoteThumbnail(): QuoteThumbnail? = when (this) {
     is MessageMedia.VideoNote ->
         if (thumbnailFileId == null && minithumbnail == null) null
         else QuoteThumbnail(thumbnailFileId, minithumbnail, round = true)
-    is MessageMedia.Document -> thumbnailFileId?.let { QuoteThumbnail(it, null) }
+    // Citlivý soubor a samolepka rozmazaný náhled nemají — nezbývá než žádný.
+    is MessageMedia.Document -> thumbnailFileId?.takeUnless { isSensitive }?.let { QuoteThumbnail(it, null) }
     is MessageMedia.Audio ->
         if (coverFileId == null && coverMinithumbnail == null) null
         else QuoteThumbnail(coverFileId, coverMinithumbnail)
-    is MessageMedia.Sticker -> (thumbnailFileId ?: fileId)?.let { QuoteThumbnail(it, null, transparent = true) }
+    is MessageMedia.Sticker -> (thumbnailFileId ?: fileId)?.takeUnless { isSensitive }
+        ?.let { QuoteThumbnail(it, null, transparent = true) }
     is MessageMedia.Attachment -> thumbnailFileId?.let { QuoteThumbnail(it, null) }
     is MessageMedia.AnimatedEmoji, is MessageMedia.Dice, is MessageMedia.VoiceNote,
     is MessageMedia.Location, is MessageMedia.Call, is MessageMedia.Contact, null -> null

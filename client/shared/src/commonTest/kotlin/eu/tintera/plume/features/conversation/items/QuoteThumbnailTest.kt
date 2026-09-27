@@ -70,4 +70,18 @@ class QuoteThumbnailTest {
         assertNull(MessageMedia.VoiceNote(fileId = 1, durationSeconds = 3, waveform = emptyList(), isListened = false).quoteThumbnail())
         assertNull(null.quoteThumbnail())
     }
+
+    @Test
+    fun citlivySouborASamolepkaNahledNemaji() {
+        val document = MessageMedia.Document(
+            fileId = 1, fileName = "a.jpg", mimeType = "image/jpeg", sizeBytes = 5, thumbnailFileId = 7, isSensitive = true,
+        )
+        assertNull(document.quoteThumbnail())
+        val sticker = MessageMedia.Sticker(
+            stickerFileId = 1, setId = 0, fileId = 2, animationFileId = null, thumbnailFileId = 3,
+            width = 512, height = 512, emoji = "🙂", isSensitive = true,
+        )
+        assertNull(sticker.quoteThumbnail())
+        assertEquals(QuoteThumbnail(fileId = 3, placeholder = null, transparent = true), sticker.copy(isSensitive = false).quoteThumbnail())
+    }
 }

@@ -707,7 +707,7 @@ internal suspend fun Message.messageMedia(
 
     is MessageDocument -> content.document.toMedia(
         fileName = content.document.fileName.ifBlankGet { getString(Res.string.content_file) },
-    )
+    ).copy(isSensitive = hideSensitive)
 
     is MessageAudio -> content.audio.let { audio ->
         MessageMedia.Audio(
@@ -728,7 +728,7 @@ internal suspend fun Message.messageMedia(
         waveform = decodeWaveform(content.voiceNote.waveform),
         isListened = content.isListened,
     )
-    is MessageSticker -> content.sticker.toMedia()
+    is MessageSticker -> content.sticker.toMedia().copy(isSensitive = hideSensitive)
 
     // O textu a příloze rozhoduje jedna funkce, `animationFileId` — obě větve se nesmí rozejít.
     is MessageAnimatedEmoji -> content.animationFileId()?.let { fileId ->
@@ -978,8 +978,12 @@ internal fun Sticker.toMedia(): MessageMedia.Sticker {
  * neumíme vykreslit; náhled u nich zůstane textový. Zcela prázdný náhled se zahodí — rámeček
  * bez obsahu by vypadal jako chyba načítání.
  */
-internal fun Message.linkPreview(): LinkPreview? =
-    (content as? MessageText)?.linkPreview?.toDomain()
+internal fun Message.linkPreview(hideSensitive: Boolean = false): LinkPreview? =
+    (content as? MessageText)?.linkPreview?.toDomain()?.let { preview ->
+        // Obrázek citlivé zprávy se skrývá jako fotka se spoilerem — jinak by ho náhled odkazu
+        // ukázal ostrý, zatímco stejná fotka poslaná přímo je rozostřená.
+        if (hideSensitive) preview.copy(photo = preview.photo?.copy(hasSpoiler = true, isSensitive = true)) else preview
+    }
 
 /**
  * Náhled od TDLib v doménové podobě. Společné pro přijatou zprávu i náhled při psaní

@@ -109,6 +109,7 @@ internal data class BubbleMessageItem(
                         onOpen = { act(MessageAction.OpenLink(preview.url)) },
                         onLongClick = ::requestMenu,
                         modifier = modifier,
+                        messageId = message.id,
                     )
                 }
             }
