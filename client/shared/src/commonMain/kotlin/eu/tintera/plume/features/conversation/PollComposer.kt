@@ -441,7 +441,7 @@ class PollComposerViewModel(
     val mode: PollComposerMode,
     /**
      * Odpověď rozepsaná v konverzaci, když se formulář otevřel; anketa pak odejde jako odpověď.
-     * Konverzace ji po odeslání ankety zahodí sama (viz `pollConsumesReply`).
+     * Po odeslání ji formulář ohlásí konverzaci jako spotřebovanou ([replyRequests]).
      */
     replyToMessageId: Long?,
     private val replyQuote: ReplyQuote?,
@@ -449,6 +449,7 @@ class PollComposerViewModel(
     /** Jen kvůli seznamu zemí (`getCountries`) — tentýž, ze kterého bere přihlášení. */
     private val session: TelegramSession,
     private val placeRepository: PlaceRepository,
+    private val replyRequests: ConversationReplyRequests,
 ) : ViewModel() {
 
     /** Odpověď, se kterou anketa odejde; `null` = bez odpovědi (nebo ji uživatel zahodil). */
@@ -684,7 +685,12 @@ class PollComposerViewModel(
         viewModelScope.launch {
             val replyTo = replyToMessageId
             repository.sendPoll(chatId, draft, replyToMessageId = replyTo, quote = replyQuote.takeIf { replyTo != null }, options = options)
-                .onSuccess { _status.update { it.copy(sending = false, sent = true) } }
+                .onSuccess {
+                    // I naplánovaná: ta do historie nepřijde, takže konverzace by jinak nepoznala,
+                    // že odpověď odešla, a nechala by ji nad polem viset.
+                    replyTo?.let { replyRequests.replySent(chatId, it) }
+                    _status.update { it.copy(sending = false, sent = true) }
+                }
                 .onFailure { failure ->
                     logger.w(failure) { "Anketu se nepodařilo odeslat." }
                     _status.update { it.copy(sending = false, error = failure.userMessage(Res.string.poll_compose_send_failed)) }

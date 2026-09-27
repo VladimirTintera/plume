@@ -194,19 +194,25 @@ class PollComposerTest {
 
     @Test
     fun odeslanaAnketaSpotrebujeOdpoved() {
-        assertTrue(replying.pollConsumesReply(message(100, poll = true, replyTo = 7)))
+        assertTrue(replying.replyConsumedBy(ReplyRequest(chatId = 1, messageId = 7)))
     }
 
     @Test
-    fun jinaZpravaOdpovedNespotrebuje() {
-        // Text odpověď uklízí při odeslání sám; tady jde jen o anketu z formuláře.
-        assertFalse(replying.pollConsumesReply(message(100, poll = false, replyTo = 7)))
-        // Anketa jako odpověď na jinou zprávu.
-        assertFalse(replying.pollConsumesReply(message(100, poll = true, replyTo = 8)))
-        // Z jiného zařízení přijde už odeslaná — rozepsanou odpověď tady nechá být.
-        assertFalse(replying.pollConsumesReply(message(100, poll = true, replyTo = 7, sendState = SendState.Sent)))
+    fun odpovedNaJinouZpravuZustava() {
+        // Mezitím uživatel začal odpovídat jinam.
+        assertFalse(replying.replyConsumedBy(ReplyRequest(chatId = 1, messageId = 8)))
         // Bez rozepsané odpovědi není co spotřebovat.
-        assertFalse(ConversationState().pollConsumesReply(message(100, poll = true, replyTo = 7)))
+        assertFalse(ConversationState().replyConsumedBy(ReplyRequest(chatId = 1, messageId = 7)))
+    }
+
+    @Test
+    fun hlaseniOdeslaneOdpovediVyzvedneJenJehoChat() {
+        val requests = ConversationReplyRequests()
+        requests.replySent(chatId = 1, messageId = 7)
+        requests.consumeSent(chatId = 2)
+        assertEquals(ReplyRequest(1, 7), requests.sent.value)
+        requests.consumeSent(chatId = 1)
+        assertEquals(null, requests.sent.value)
     }
 
     // --- popis, čas uzavření, kdo smí hlasovat ---

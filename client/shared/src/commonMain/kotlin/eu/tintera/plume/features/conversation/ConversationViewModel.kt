@@ -434,6 +434,17 @@ class ConversationViewModel(
             }
         }
 
+        // Anketa se zakládá ve vlastním formuláři a rozepsanou odpověď si odnesla; formulář
+        // ohlásí, že odešla (i naplánovaná), a odpověď zmizí jako po odeslání textu.
+        viewModelScope.launch {
+            replyRequests.sent.collect { sent ->
+                if (sent?.chatId == chatId) {
+                    replyRequests.consumeSent(chatId)
+                    if (_state.value.replyConsumedBy(sent)) clearReply()
+                }
+            }
+        }
+
         // Hledat z profilu: profil se zavře a hledání se otevře tady, v konverzaci.
         viewModelScope.launch {
             searchRequests.chatId.collect { requested ->
@@ -1007,9 +1018,6 @@ class ConversationViewModel(
                     // dočasné id.
                     it.withMessage(message).copy(flight = it.flight.landingOn(message))
                 }
-                // Anketa se zakládá ve vlastním formuláři a rozepsanou odpověď si odnesla; tady
-                // se pozná, že odešla, a odpověď zmizí jako po odeslání textu.
-                if (_state.value.pollConsumesReply(message)) clearReply()
                 resolveMissingQuotes()
             }
         }
@@ -4408,20 +4416,13 @@ private fun UnsupportedKeyboardButton.explanation(): StringResource = when (this
 private const val FORCE_REPLY_WAIT = 3_000L
 
 /**
- * Spotřebovala [message] rozepsanou odpověď? Ano, když je to VLASTNÍ anketa, která se právě
- * odesílá (`Sending` — z jiného zařízení přijde už odeslaná) a odpovídá na tutéž zprávu.
+ * Spotřebovala odpověď odeslaná jinde ([sent], formulář ankety) tu rozepsanou tady? Jen když
+ * se odpovídá pořád na tutéž zprávu — mezitím mohl uživatel začít odpovídat jinam.
  *
- * Formulář ankety je jiná obrazovka s vlastním ViewModelem a výsledek konverzaci nepředává;
- * konverzace si ho pozná sama z příchozí zprávy. Odpověď se nezahazuje hned při otevření
- * formuláře — kdo ho zavře, má ji mít dál.
+ * Odpověď se nezahazuje hned při otevření formuláře — kdo ho zavře, má ji mít dál.
  */
-internal fun ConversationState.pollConsumesReply(message: ChatMessage): Boolean {
-    val reply = replyingTo ?: return false
-    return message.poll != null &&
-        message.isOutgoing &&
-        message.sendState == SendState.Sending &&
-        message.replyToMessageId == reply.id
-}
+internal fun ConversationState.replyConsumedBy(sent: ReplyRequest): Boolean =
+    replyingTo?.id == sent.messageId
 
 
 /** Výběr kontaktu ke sdílení; filtruje se lokálně podle jména, kontaktů bývají desítky. */
