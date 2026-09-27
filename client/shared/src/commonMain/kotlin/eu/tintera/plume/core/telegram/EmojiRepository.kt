@@ -10,4 +10,10 @@ interface EmojiRepository {
 
     /** Emoji k zadanému textu (hledá se podle začátků slov). Prázdné, když nic nesedí. */
     suspend fun searchEmojis(text: String, languageCodes: List<String>): List<String>
+
+    /**
+     * Emoji, jejichž klíčové slovo je PŘESNĚ [word] („srdce" → ❤️). Na rozdíl od [searchEmojis]
+     * nehledá podle začátků — návrhy při psaní by jinak vyskakovaly u každého druhého slova.
+     */
+    suspend fun keywordEmojis(word: String, languageCodes: List<String>): List<String>
 }

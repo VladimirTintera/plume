@@ -6337,6 +6337,27 @@ v obyčejném `Text` (náhled, citace) `appendWithCustomEmoji` + `customEmojiInl
   přidání reakce vlastním emoji (bez Premium ji server nabídne jen tam, kde ji chat povolil)
   a detail reakcí s vlastním emoji (kreslí ho tentýž `CustomEmojiIcon` jako čip).
 
+### Emoji podle slov
+
+Napsané slovo, ke kterému má TDLib klíčové slovo („srdce", „heart"), nabídne nad polem pilulku
+s emoji (`EmojiSuggestionsPanel`, `EmojiSuggestionsViewModel`, pravidla `emojiWordAt`
+a `emojiReplacement`, testy `EmojiSuggestionsTest`). Ťuknutí dosadí emoji MÍSTO slova a zařadí
+ho mezi nedávná.
+
+- **Přesná shoda, ne začátek** (`getKeywordEmojis`, `EmojiRepository.keywordEmojis`).
+  `searchEmojis` hledá podle začátků a panel by vyskakoval u každého druhého slova.
+- **Slovo u KURZORU, jen písmena, aspoň dva znaky, a celé** — kurzor uprostřed slova nic
+  nenabídne. Za `@`, `#`, `/` a v adrese (`.`, `:`) to slovo není. S dotazem na inline bota,
+  zmínkou nebo příkazem se nenabízí: to napovídání má nad polem přednost.
+- **Jazyk zařízení a angličtina**, jako hledání ve výběru emoji; výsledky se zúží na katalog
+  a dostanou zvolený odstín pleti.
+- **Panel nad polem drží poslední sadu ve STAVU, ne v obyčejném poli.** Napovídání zmínek mělo
+  `remember { arrayOf(…) }` a zápis do pole kompozici nevyvolá: obsah uvnitř
+  `AnimatedVisibility` zůstal u první sady — po „hear" → „heart" dál 👂 🙉, přestože
+  ViewModel už vracel srdce (ověřeno sondou v logu). Opraveno v obou panelech.
+- **Ověřeno na emulátoru** v Uložených zprávách jen psaním: „heart" anglicky i „srdce" česky,
+  přechod „hear" → „heart", ťuknutí dosadí emoji. Nic se neodeslalo.
+
 ## Výběr samolepek
 
 Tlačítko se samolepkou ve vstupním poli otevře bottom sheet: záložky Nedávné, Oblíbené

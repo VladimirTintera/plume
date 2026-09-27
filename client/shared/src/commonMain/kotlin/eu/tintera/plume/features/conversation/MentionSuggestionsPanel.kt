@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,8 +44,10 @@ internal fun MentionSuggestionsPanel(
     modifier: Modifier = Modifier,
 ) {
     // Při odjezdu se kreslí poslední seznam, ne prázdno (stejně jako pruh připnutých).
-    val last = remember { arrayOf(candidates) }
-    if (candidates.isNotEmpty()) last[0] = candidates
+    // Stav, ne obyčejné pole: zápis do pole kompozici nevyvolá a obsah uvnitř
+    // `AnimatedVisibility` by zůstal u první sady (po „hear" → „heart" dál 👂 🙉).
+    val last = remember { mutableStateOf(candidates) }
+    if (candidates.isNotEmpty()) last.value = candidates
 
     AnimatedVisibility(
         visible = visible && candidates.isNotEmpty(),
@@ -59,7 +62,7 @@ internal fun MentionSuggestionsPanel(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
         ) {
             LazyColumn(Modifier.heightIn(max = MAX_HEIGHT).padding(vertical = 4.dp)) {
-                items(last[0], key = { it.userId }) { candidate ->
+                items(last.value, key = { it.userId }) { candidate ->
                     ListItem(
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         leadingContent = {

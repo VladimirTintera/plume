@@ -18,4 +18,13 @@ class TdlEmojiRepository(
                 logger.w(failure) { "Emoji se nepodařilo vyhledat." }
                 emptyList()
             }
+
+    override suspend fun keywordEmojis(word: String, languageCodes: List<String>): List<String> =
+        holder.client.getKeywordEmojis(text = word, inputLanguageCodes = languageCodes.toTypedArray())
+            .toResult()
+            .map { result -> result.emojis.filterNotNull().distinct() }
+            .getOrElse { failure ->
+                logger.w(failure) { "Emoji ke slovu se nepodařilo dohledat." }
+                emptyList()
+            }
 }
