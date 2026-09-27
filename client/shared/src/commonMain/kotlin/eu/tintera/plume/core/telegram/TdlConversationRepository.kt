@@ -1746,7 +1746,7 @@ class TdlConversationRepository(
             externalReply = (replyTo as? MessageReplyToMessage)
                 ?.takeIf { it.chatId != chatId }
                 ?.toExternalReply(),
-        )
+        ).let { message -> restrictionText?.let(message::restricted) ?: message }
     }
 
     /**

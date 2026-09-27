@@ -231,7 +231,12 @@ internal suspend fun Message.previewText(): String =
 internal suspend fun Message.notificationText(): String =
     previewTextOrNull() ?: getString(Res.string.notification_new_message)
 
-private suspend fun Message.previewTextOrNull(): String? = content.previewTextOrNull(isOutgoing)
+// Omezená zpráva má místo obsahu důvod — i v náhledu a v notifikaci, jinak by tam obsah prosákl.
+private suspend fun Message.previewTextOrNull(): String? = restrictionText ?: content.previewTextOrNull(isOutgoing)
+
+/** Entity náhledu v seznamu chatů; omezená zpráva má místo obsahu důvod, a ten entity nenese. */
+internal fun Message.previewEntities(): List<MessageEntity> =
+    if (restrictionText != null) emptyList() else content.previewEntities()
 
 /**
  * Slovní podoba obsahu, i bez celé zprávy — odpověď na zprávu z jiného chatu nese jen obsah

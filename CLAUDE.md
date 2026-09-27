@@ -5959,6 +5959,29 @@ rozostřené se štítkem „Citlivý obsah" a odkryje se ťuknutím (`Sensitive
   nahrává obrazovku i se jmény kontaktů — testovací zprávy se proto po ověření mažou
   (`deleteMessage` botem).
 
+### Omezený obsah
+
+Zpráva, kterou server v téhle zemi nebo na téhle platformě nedovolí ukázat
+(`Message.restrictionInfo.restrictionReason`), má v bublině místo obsahu důvod od serveru
+s ikonou zákazu (`restrictionText`, `ChatMessage.restricted`, `RestrictedNote`, testy
+`RestrictedContentTest`).
+
+- **Je to jiná věc než citlivý obsah.** TDLib (`get_restriction_info_object`) plní
+  `restrictionReason` JEN důvodem, který citlivý není; citlivost hlásí zvlášť
+  `hasSensitiveContent` a ten se odkrývá ťuknutím. Omezený obsah odkrýt nejde — ani v prohlížeči,
+  ani v náhledu, ani v citaci.
+- **Důvod je věta od serveru a vypisuje se.** Pravidlo „text z TDLib se uživateli nevypisuje"
+  platí pro chybové hlášky; tohle je obsah, který dokumentace popisuje jako „human-readable
+  description", a oficiální klienti ho ukazují taky.
+- **Zahazuje se všechno, co by obsah prozradilo nebo nabízelo akci nad ním**: příloha, entity,
+  náhled odkazu, anketa, tlačítka bota, kontrola faktů. Odesílatel, čas a reakce zůstávají.
+- **Náhled v seznamu chatů a notifikace nesou důvod taky** (`previewTextOrNull`,
+  `Message.previewEntities`), jinak by obsah prosákl tam; fotka se do notifikace nepřikládá.
+- **Ikona a ztlumená barva jsou nutné**: holý text v bublině by se četl jako zpráva odesílatele.
+- **Ověřeno na emulátoru sondou** (text `#omezeno` od testovacího bota převod dočasně vydával
+  za omezený; necommituje se): fotka s popiskem i text s odkazem ukázaly jen důvod. Skutečně
+  omezenou zprávu testovací účet nezná, náhled v seznamu a notifikace ověřené nejsou.
+
 ### Jak to ověřit
 
 **Přes testovacího bota jde ověřit jen ODESÍLACÍ strana.** Bot API mizející média posílat neumí

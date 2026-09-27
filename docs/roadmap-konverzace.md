@@ -490,7 +490,8 @@ snadno na to uživatel narazí.
   - citlivý **chat** (`Supergroup.restrictionInfo`, `User.restrictionInfo`) — oficiální klient
     varuje už při otevření kanálu,
   - náhled odkazu, náhled souboru a samolepka v citlivé zprávě zůstávají ostré,
-  - **omezený obsah** (`restrictionReason` bez citlivosti): věta od serveru místo obsahu.
+  - ~~**omezený obsah** (`restrictionReason` bez citlivosti): věta od serveru místo obsahu~~ — hotovo
+    (`CLAUDE.md`, „Omezený obsah"). Zbývá omezený CHAT (`User` / `Supergroup.restrictionInfo`).
 - ~~**„přes @bot"**~~ (`viaBotUserId`) — hotovo (`CLAUDE.md`, „Inline boti"). ~~**Podpis autora**
   v kanálu (`authorSignature`) a **štítek člena** (`senderTag`)~~ — hotovo (`CLAUDE.md`, „Podpis
   autora a štítek člena", ověřené jen sondou). ~~**Boosty odesílatele**~~ (`senderBoostCount`)

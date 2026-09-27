@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import eu.tintera.plume.features.conversation.COLLAPSED_QUOTE_LINES
 import eu.tintera.plume.features.conversation.collapsesQuote
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.block_24dp
 import eu.tintera.plume.resources.conversation_quote_collapse
 import eu.tintera.plume.resources.conversation_quote_expand
 import eu.tintera.plume.resources.keyboard_arrow_down_24dp
@@ -113,11 +114,38 @@ internal data class BubbleMessageItem(
             }
 
             if (preview?.showAboveText == true) previewCard?.invoke(Modifier.padding(bottom = 6.dp))
-            if (message.text.isNotBlank()) QuotableText()
+            when {
+                message.isRestricted -> RestrictedNote()
+                message.text.isNotBlank() -> QuotableText()
+            }
             if (preview?.showAboveText != true) previewCard?.invoke(Modifier.padding(top = 6.dp))
 
             // Živou polohu posouvá úprava zprávy; „upraveno" by u ní svítilo pořád.
             if (!message.isLiveLocation) EditedLabel(color = onBubbleColor, modifier = Modifier.align(Alignment.End))
+        }
+    }
+
+    /**
+     * Důvod, proč server obsah tady nedovolí ukázat. Ikona a ztlumená barva říkají, že to NEPSAL
+     * odesílatel — holý text v bublině by se četl jako jeho zpráva.
+     */
+    @Composable
+    private fun MessageBodyScope.RestrictedNote() {
+        Row(
+            Modifier.padding(horizontal = MESSAGE_PADDING_H, vertical = MESSAGE_PADDING_V),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painterResource(Res.drawable.block_24dp),
+                contentDescription = null,
+                tint = onBubbleColor.copy(alpha = RESTRICTED_ALPHA),
+                modifier = Modifier.padding(end = 8.dp).size(18.dp),
+            )
+            Text(
+                text = message.text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = onBubbleColor.copy(alpha = RESTRICTED_ALPHA),
+            )
         }
     }
 
@@ -330,3 +358,6 @@ internal fun MessageBodyScope.QuotedBubble(
         }
     }
 }
+
+/** Ztlumení důvodu omezení — pořád nad AA, jen ustoupí vlastnímu textu zpráv. */
+private const val RESTRICTED_ALPHA = 0.8f
