@@ -1677,6 +1677,7 @@ class TdlConversationRepository(
         // Jméno a tvář mají smysl jen ve skupině a jen u cizích zpráv — jinde je to šum. Obojí
         // z jednoho dotazu (a z cache), ne ze dvou.
         val sender = if (isGroup && !outgoing) resolveSender(senderId) else null
+        val hideSensitive = client.hidesSensitive(this)
 
         return ChatMessage(
             id = id,
@@ -1688,13 +1689,13 @@ class TdlConversationRepository(
             text = body.text,
             entities = body.entities,
             media = messageMedia(
-                hideSensitive = client.hidesSensitive(this),
+                hideSensitive = hideSensitive,
                 // Profilovka sdíleného kontaktu: `getUser` je lokální, TDLib uživatele zná, když
                 // zná zprávu, která ho sdílí.
                 contactPhotoFileId = (content as? MessageContact)?.contact?.userId?.takeIf { it != 0L }
                     ?.let { client.getUser(userId = it).toResult().getOrNull()?.profilePhoto?.small?.id },
             ),
-            linkPreview = linkPreview(),
+            linkPreview = linkPreview(hideSensitive),
             reactions = interactionInfo.toReactions(),
             postStats = interactionInfo.toPostStats(),
             hasUnreadReactions = unreadReactions.isNotEmpty(),

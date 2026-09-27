@@ -234,6 +234,8 @@ internal fun MessageAttachment(
 
         is MessageMedia.Sticker -> StickerImage(
             sticker = media,
+            messageId = messageId,
+            onRequestMenu = onRequestMenu,
             /*
              * Ťuknutí otevře sadu. Bez vlnky: samolepka je průhledný tvar bez bubliny a obdélníková
              * vlnka přes něj by vypadala jako chyba. Dlouhý stisk se musí zopakovat — potomek
@@ -322,6 +324,7 @@ internal fun MessageAttachment(
         }
 
         is MessageMedia.Document -> DocumentContent(
+            messageId = messageId,
             document = media,
             progress = documentProgress(media.fileId),
             uploading = uploading,
@@ -413,7 +416,12 @@ internal fun UploadIndicator(fileId: Int, onCancel: () -> Unit, modifier: Modifi
  * statický náhled. `.webm` zatím zůstává jen náhledem.
  */
 @Composable
-private fun StickerImage(sticker: MessageMedia.Sticker, modifier: Modifier = Modifier) {
+private fun StickerImage(
+    sticker: MessageMedia.Sticker,
+    modifier: Modifier = Modifier,
+    messageId: Long = 0L,
+    onRequestMenu: (() -> Unit)? = null,
+) {
     val description = sticker.emoji.ifBlank { stringResource(Res.string.media_sticker) }
     val staticFileId = sticker.fileId ?: sticker.thumbnailFileId
 
@@ -454,15 +462,23 @@ private fun StickerImage(sticker: MessageMedia.Sticker, modifier: Modifier = Mod
     }
 
     val animation = sticker.animationFileId
-    if (animation != null) {
-        AnimatedSticker(
-            fileId = animation,
-            contentDescription = description,
-            modifier = size,
-            placeholder = still,
-        )
-    } else {
-        Box(size) { still() }
+    // Citlivá samolepka: rozostřená se štítkem, první ťuknutí ji odkryje, další otevře sadu.
+    SensitiveBox(
+        messageId = messageId,
+        hidden = sticker.isSensitive,
+        onLongClick = onRequestMenu,
+        coveredShape = RoundedCornerShape(STICKER_COVER_CORNER),
+    ) { blur ->
+        if (animation != null) {
+            AnimatedSticker(
+                fileId = animation,
+                contentDescription = description,
+                modifier = size.then(blur),
+                placeholder = still,
+            )
+        } else {
+            Box(size.then(blur)) { still() }
+        }
     }
 }
 
@@ -654,6 +670,7 @@ internal fun VideoThumbnail(
 @Composable
 private fun DocumentContent(
     document: MessageMedia.Document,
+    messageId: Long,
     progress: Float?,
     uploading: Boolean,
     onCancelUpload: () -> Unit,
@@ -682,11 +699,21 @@ private fun DocumentContent(
         Box(contentAlignment = Alignment.Center) {
             when {
                 uploading -> UploadIndicator(fileId = document.fileId, onCancel = onCancelUpload)
-                document.thumbnailFileId != null -> DocumentThumbnail(
-                    thumbnailFileId = document.thumbnailFileId,
-                    kind = kind,
-                    progress = progress,
-                )
+                // Citlivý náhled je rozostřený, bez štítku (na 48 dp se nevejde); ťuknutí na něj
+                // ho odkryje, ťuknutí na název soubor otevře.
+                document.thumbnailFileId != null -> SensitiveBox(
+                    messageId = messageId,
+                    hidden = document.isSensitive,
+                    label = false,
+                    onLongClick = onRequestMenu,
+                ) { blur ->
+                    DocumentThumbnail(
+                        thumbnailFileId = document.thumbnailFileId,
+                        kind = kind,
+                        progress = progress,
+                        modifier = blur,
+                    )
+                }
                 else -> DocumentIcon(kind = kind, progress = progress, accent = accent)
             }
         }
@@ -714,9 +741,9 @@ private fun DocumentContent(
  * náhled stejně jako u nahrávání: bílá na závoji, protože akcent bubliny by na fotce zanikl.
  */
 @Composable
-private fun DocumentThumbnail(thumbnailFileId: Int, kind: DocumentKind, progress: Float?) {
+private fun DocumentThumbnail(thumbnailFileId: Int, kind: DocumentKind, progress: Float?, modifier: Modifier = Modifier) {
     Box(
-        Modifier.size(UPLOAD_INDICATOR_SIZE).clip(RoundedCornerShape(DOCUMENT_THUMBNAIL_CORNER)),
+        modifier.size(UPLOAD_INDICATOR_SIZE).clip(RoundedCornerShape(DOCUMENT_THUMBNAIL_CORNER)),
         contentAlignment = Alignment.Center,
     ) {
         RemoteImage(
@@ -880,3 +907,6 @@ internal fun ExpiredMediaRow(
         }
     }
 }
+
+/** Zaoblení rozostřené citlivé samolepky — viz `SensitiveBox.coveredShape`. */
+private val STICKER_COVER_CORNER = 24.dp

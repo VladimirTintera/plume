@@ -1616,6 +1616,8 @@ sealed interface MessageMedia {
          */
         val thumbnailWidth: Int = 0,
         val thumbnailHeight: Int = 0,
+        /** Náhled skrytý kvůli citlivému obsahu — viz [SensitiveContent]. */
+        val isSensitive: Boolean = false,
     ) : MessageMedia
 
     /**
@@ -1732,6 +1734,8 @@ sealed interface MessageMedia {
         val width: Int,
         val height: Int,
         val emoji: String,
+        /** Skrytá kvůli citlivému obsahu, odkryje se ťuknutím — viz [SensitiveContent]. */
+        val isSensitive: Boolean = false,
     ) : MessageMedia
 
     /**

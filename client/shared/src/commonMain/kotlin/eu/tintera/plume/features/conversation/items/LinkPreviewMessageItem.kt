@@ -122,13 +122,12 @@ internal data class LinkPreviewMessageItem(
 
     @Composable
     private fun MessageBodyScope.LargePhoto(photo: MessageMedia.Photo, frameSize: DpSize) {
-        RemoteImage(
-            fileId = photo.fileId,
-            thumbnailFileId = photo.thumbnailFileId,
-            placeholder = photo.minithumbnail,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.size(frameSize).then(openLink()),
+        LinkPreviewImage(
+            photo = photo,
+            messageId = message.id,
+            onLongClick = ::requestMenu,
+            modifier = Modifier.size(frameSize),
+            imageModifier = openLink(),
         )
     }
 
@@ -190,12 +189,11 @@ internal data class LinkPreviewMessageItem(
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 thumbnail?.let { photo ->
-                    RemoteImage(
-                        fileId = photo.fileId,
-                        thumbnailFileId = photo.thumbnailFileId,
-                        placeholder = photo.minithumbnail,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
+                    LinkPreviewImage(
+                        photo = photo,
+                        messageId = message.id,
+                        label = false,
+                        onLongClick = ::requestMenu,
                         modifier = Modifier.size(LINK_PREVIEW_THUMBNAIL).clip(RoundedCornerShape(12.dp)),
                     )
                 }

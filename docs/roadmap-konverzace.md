@@ -489,7 +489,7 @@ snadno na to uživatel narazí.
     samotné přepnutí na účtu ověřené není, jen čtení volby,
   - ~~citlivý **chat** (`Supergroup.restrictionInfo`, `User.restrictionInfo`) — oficiální klient
     varuje už při otevření kanálu~~ — hotovo (varování s „Přesto zobrazit"),
-  - náhled odkazu, náhled souboru a samolepka v citlivé zprávě zůstávají ostré,
+  - ~~náhled odkazu, náhled souboru a samolepka v citlivé zprávě zůstávají ostré~~ — hotovo,
   - ~~**omezený obsah** (`restrictionReason` bez citlivosti): věta od serveru místo obsahu~~ — hotovo
     (`CLAUDE.md`, „Omezený obsah"). ~~Omezený CHAT~~ (`User` / `Supergroup.restrictionInfo`) — hotovo.
 - ~~**„přes @bot"**~~ (`viaBotUserId`) — hotovo (`CLAUDE.md`, „Inline boti"). ~~**Podpis autora**

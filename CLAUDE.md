@@ -5952,6 +5952,24 @@ rozostřené se štítkem „Citlivý obsah" a odkryje se ťuknutím (`Sensitive
   rozostřená s přeškrtnutým okem a **první ťuknutí jen odkryje**, jako v konverzaci. Otevřít
   rovnou nejde: prohlížeč médium, na které se ťuklo, odkrývá sám (z konverzace je to druhé
   ťuknutí), takže by ho z mřížky ukázal bez varování.
+- **Skrývá se VŠECHNO, co citlivá zpráva ukazuje jako obrázek**, ne jen fotka, video a GIF:
+  samolepka, náhled souboru a obrázek náhledu odkazu. Jde to jednou cestou (`SensitiveBox`
+  v `SpoilerOverlay.kt`): rozostření, štítek (u malých náhledů bez něj) a odkrytí prvním
+  ťuknutím přes `RevealedSpoilers`, tedy pro celou zprávu naráz. Obrázek náhledu odkazu je
+  `MessageMedia.Photo` se `hasSpoiler`/`isSensitive` (`linkPreview(hideSensitive)`),
+  samolepka a soubor mají vlastní `isSensitive`.
+- **Ťuknutí bere VRSTVA NAD obsahem, ne obal kolem něj.** Samolepka otevírá sadu, obrázek
+  náhledu odkaz a potomek dostává dotyk dřív než rodič — skrytá samolepka by se místo odkrytí
+  otevřela. Poslední potomek v `Box` je na řadě první, proto průhledná vrstva nad obsahem, jen
+  dokud je skrytý. Dlouhý stisk se opakuje kvůli nabídce nad zprávou.
+- **Rozostřená samolepka se ořezává do zaoblení** (`coveredShape`): je průhledná a závoj
+  rozostření pokryl celý její obdélník — hranatý šedý čtverec. Odkrytá se neořezává.
+- **Náhled v citaci i v pruhu připnutých respektuje skrytí taky** (`quoteThumbnail`,
+  `PinnedMessagesBar.thumbnailFileId`). Pruh připnutých dřív ukazoval ostrý náhled i u fotky se
+  spoilerem — visí nad konverzací pořád, takže to byl nejviditelnější únik.
+- **Sonda „všechny zprávy od čísla N" v soukromém chatu s botem NEFUNGUJE podle čísel z Bot
+  API.** Bot má v soukromém chatu vlastní číslování zpráv, jiné než náš účet, takže podmínka
+  `id > (N shl 20)` chytila i staré zprávy. Spolehlivé je `date` (čas odeslání).
 - **Citlivý může být i CELÝ chat** (`User` / `Supergroup.restrictionInfo.hasSensitiveContent`,
   `ChatInfo.sensitive`): konverzace napřed ukáže varování („Citlivý obsah" s tlačítkem „Přesto
   zobrazit") a obsah až po potvrzení, jako oficiální klient. Rozhoduje tatáž volba účtu jako
