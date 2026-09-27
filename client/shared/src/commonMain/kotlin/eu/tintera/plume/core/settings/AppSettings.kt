@@ -135,6 +135,15 @@ interface AppSettings {
 
     /** Zapamatuje zavřenou kartu aktualizace. Neblokuje, jako [recordRecentEmoji]. */
     fun dismissUpdate(versionCode: Int)
+
+    /**
+     * Do jakého jazyka se překládají zprávy; `null` = jazyk aplikace (výchozí). Platí pro celou
+     * aplikaci, ne pro jeden chat: kdo si jednou vybere angličtinu, čte v ní i další překlady.
+     */
+    val translationLanguage: StateFlow<String?>
+
+    /** Uloží jazyk překladu, `null` ho vrátí na jazyk aplikace. Neblokuje. */
+    fun setTranslationLanguage(code: String?)
 }
 
 /** Kolik nedávných emoji se drží. Zhruba pět řádků mřížky na telefonu. */
@@ -323,6 +332,18 @@ class DataStoreAppSettings(
         }
     }
 
+    override val translationLanguage: StateFlow<String?> = value(null) { preferences ->
+        preferences[TRANSLATION_LANGUAGE]
+    }
+
+    override fun setTranslationLanguage(code: String?) {
+        scope.launch {
+            edit { preferences ->
+                if (code == null) preferences.remove(TRANSLATION_LANGUAGE) else preferences[TRANSLATION_LANGUAGE] = code
+            }
+        }
+    }
+
     /** `základ:varianta` oddělené středníkem. Ani dvojtečka, ani středník v žádném emoji nejsou. */
     private fun String.decodeTones(): Map<String, String> =
         split(TONE_ENTRY_SEPARATOR)
@@ -353,6 +374,7 @@ class DataStoreAppSettings(
         val ON_DEVICE_AI_GEMMA = stringPreferencesKey("on_device_ai_gemma")
         val VOICE_SPEED = stringPreferencesKey("voice_speed")
         val DISMISSED_UPDATE_VERSION_CODE = intPreferencesKey("dismissed_update_version_code")
+        val TRANSLATION_LANGUAGE = stringPreferencesKey("translation_language")
         const val EMOJI_SEPARATOR = " "
         const val TONE_ENTRY_SEPARATOR = ";"
         const val TONE_PAIR_SEPARATOR = ":"

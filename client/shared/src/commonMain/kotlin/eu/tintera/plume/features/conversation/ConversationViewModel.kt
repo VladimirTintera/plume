@@ -2800,21 +2800,39 @@ class ConversationViewModel(
     }
 
     /**
-     * Přeloží text zprávy do jazyka aplikace ([platformLanguageCode]) a ukáže ho v sheetu.
+     * Přeloží text zprávy do zvoleného jazyka ([AppSettings.translationLanguage], jinak jazyk
+     * aplikace, [platformLanguageCode]) a ukáže ho v sheetu.
      *
      * Sheet se otevře hned s načítáním — překlad jde přes server a trvá. Selhání zůstane v sheetu
      * jako věta, ne snackbar: pod modálním sheetem by snackbar nebyl vidět.
      */
     private fun showTranslation(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        val language = platformLanguageCode
-        _state.update { it.copy(messageMenu = null, translation = TranslationSheet(message, language)) }
+        _state.update { it.copy(messageMenu = null) }
+        translate(message, settings.translationLanguage.value ?: normalizedLanguageCode(platformLanguageCode))
+    }
+
+    /**
+     * Přeloží otevřenou zprávu do jiného jazyka a jazyk si zapamatuje pro další překlady. Jazyk
+     * aplikace se neukládá jako kód, ale jako „výchozí" (`null`) — po změně jazyka aplikace se
+     * pak překládá do nového.
+     */
+    fun changeTranslationLanguage(code: String) {
+        val open = _state.value.translation ?: return
+        settings.setTranslationLanguage(code.takeUnless { it == normalizedLanguageCode(platformLanguageCode) })
+        translate(open.message, code)
+    }
+
+    private fun translate(message: ChatMessage, language: String) {
+        _state.update { it.copy(translation = TranslationSheet(message, language)) }
 
         viewModelScope.launch {
-            val result = repository.translateMessage(chatId, messageId, language)
+            val result = repository.translateMessage(chatId, message.id, language)
             _state.update { state ->
-                // Mezitím mohl uživatel sheet zavřít nebo otevřít u jiné zprávy.
-                val open = state.translation?.takeIf { it.message.id == messageId } ?: return@update state
+                // Mezitím mohl uživatel sheet zavřít, otevřít u jiné zprávy nebo vybrat jiný jazyk.
+                val open = state.translation
+                    ?.takeIf { it.message.id == message.id && it.languageCode == language }
+                    ?: return@update state
                 state.copy(
                     translation = result.fold(
                         onSuccess = { open.copy(body = it) },

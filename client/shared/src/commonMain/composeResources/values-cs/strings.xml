@@ -411,6 +411,9 @@
     <string name="menu_translate">Přeložit</string>
     <string name="translation_title">Překlad</string>
     <string name="translation_to">Do jazyka: %1$s</string>
+    <string name="translation_change_language">Změnit jazyk</string>
+    <string name="translation_language_title">Přeložit do</string>
+    <string name="translation_language_search">Hledat jazyk</string>
     <string name="translation_failed">Zprávu se nepodařilo přeložit</string>
     <string name="translation_copy">Kopírovat překlad</string>
     <string name="translation_copied">Překlad zkopírován</string>

@@ -5,7 +5,7 @@ import platform.Foundation.NSApplicationSupportDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSLocale
 import platform.Foundation.NSLocaleCountryCode
-import platform.Foundation.NSLocaleLanguageCode
+import platform.Foundation.NSLocaleIdentifier
 import platform.Foundation.preferredLanguages
 import platform.Foundation.NSURL
 import platform.Foundation.NSURLIsExcludedFromBackupKey
@@ -83,7 +83,7 @@ actual fun localizedCountryName(code: String): String? =
 /** Stejný zdroj jazyka jako [localizedCountryName] — viz výš, proč ne `currentLocale`. */
 actual fun localizedLanguageName(code: String): String? =
     NSLocale(localeIdentifier = platformLanguageCode)
-        .displayNameForKey(NSLocaleLanguageCode, code)
+        .displayNameForKey(NSLocaleIdentifier, code.replace('-', '_'))
         ?.takeIf { it.isNotBlank() && !it.equals(code, ignoreCase = true) }
         ?.replaceFirstChar { it.uppercaseChar() }
 

@@ -47,7 +47,9 @@ expect val platformLanguageCode: String
 expect fun localizedCountryName(code: String): String?
 
 /**
- * Název jazyka podle kódu ISO 639 (`en`, `cs`) v jazyce zařízení, s velkým počátečním písmenem
- * („Angličtina"), nebo `null`, když ho systém nezná. Data dává systém, jako u [localizedCountryName].
+ * Název jazyka podle kódu BCP 47 (`en`, `cs`, `zh-TW`) v jazyce zařízení, s velkým počátečním
+ * písmenem („Angličtina"), nebo `null`, když ho systém nezná. Data dává systém, jako
+ * u [localizedCountryName]. Písmo nebo region se připíše („Čínština (Tchaj-wan)") — jinak by
+ * čínština pro Čínu a pro Tchaj-wan měly v nabídce jazyků překladu tentýž název.
  */
 expect fun localizedLanguageName(code: String): String?

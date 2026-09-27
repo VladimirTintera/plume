@@ -4630,9 +4630,23 @@ na iOS. Dlouhý stisk v SEZNAMU dál otevírá nabídku — o gesto se nedělí,
   jednorázové nahlédnutí; v bublině by se musel pamatovat u každé zprávy a přežít úpravu.
 - **Stojí na témže právu jako kopírování** (`canCopy`): bez textu není co překládat a chráněný
   obsah ven nesmí ani jinou řečí. Anketa ho nemá (její text je náš popis).
-- **Cílový jazyk je `platformLanguageCode`** — tentýž zdroj jako jazyk pro TDLib, tedy i jazyk
-  nastavený jen pro aplikaci. Název jazyka dává systém (`localizedLanguageName`, jako
+- **Výchozí cílový jazyk je `platformLanguageCode`** — tentýž zdroj jako jazyk pro TDLib, tedy
+  i jazyk nastavený jen pro aplikaci. Název jazyka dává systém (`localizedLanguageName`, jako
   `localizedCountryName`).
+- **Jiný jazyk jde vybrat ťuknutím na „Do jazyka: …"** (`TranslationLanguageSheet`, seznam
+  a řazení `translationLanguageOptions`, testy `TranslationLanguagesTest`) a platí pro celou
+  aplikaci (`AppSettings.translationLanguage`). **Jazyk aplikace se neukládá kódem, ale jako
+  `null`**: po přepnutí jazyka aplikace se pak překládá do nového, ne do toho, který v ní byl
+  kdysi. Nahoře seznamu je jazyk aplikace, pak ostatní abecedně; hledá se bez diakritiky.
+- **Výběr je sheet NAD sheetem překladu**, jako detail sady nad výběrem samolepek: gesto zpět
+  zavře jen výběr. Obsah vyměněný uvnitř jednoho sheetu by zpět zavřelo celé.
+- **Seznam jazyků drží aplikace, TDLib ho lokálně nekontroluje** (v knihovně žádný není) —
+  je z dokumentace `translateText`, bez aliasů (`iw`, `in`, `ji`); Java u hebrejštiny
+  a indonéštiny vrací právě ty zastaralé kódy, proto `normalizedLanguageCode`.
+- **Čínština podle regionu (`zh-CN`, `zh-TW`), ne podle písma.** `getDisplayName` pojmenuje
+  `zh-Hant` „Čínština (han (tradiční))"; `zh-TW` je „Čínština (Tchaj-wan)" a server ho bere
+  (ověřeno: přišla tradiční znaková sada). `localizedLanguageName` proto bere celý kód i s regionem
+  (`getDisplayName`, na iOS `NSLocaleIdentifier`), ne jen jazyk.
 - **`translateMessageText` má v TDLib 15 čtvrtý parametr `tone`**; prázdný = výchozí.
   Bez Premium přijde prostý text, s ním i formátování.
 - **Odkazy, zmínky a hashtagy se v překladu nekreslí jako klikací** — sheet nemá konverzaci,
@@ -4641,7 +4655,9 @@ na iOS. Dlouhý stisk v SEZNAMU dál otevírá nabídku — o gesto se nedělí,
 - **Server překládá doslova i značky**: literální `**tučně**` v anglické zprávě vrátil jako
   `<b>tučně</b>`. Je to vlastnost překladu, ne chyba vykreslení.
 - **Ověřeno na emulátoru** (aplikace přepnutá do češtiny, anglická zpráva od testovacího bota):
-  položka v nabídce, načítání, překlad, kopírování se snackbarem. **iOS jen přeložené.**
+  položka v nabídce, načítání, překlad, kopírování se snackbarem; výběr jazyka s hledáním
+  („cin"), překlad do čínštiny (Tchaj-wan), zapamatování po znovuotevření, zpět zavře jen výběr,
+  a po volbě češtiny a přepnutí aplikace do angličtiny „To English". **iOS jen přeložené.**
 - **Dlouhý stisk přes `adb` podle polohy z dumpu se může trefit do odkazu**, když se seznam mezi
   dumpem a stiskem posune — pak se místo nabídky otevře prohlížeč. Poloha se bere těsně před
   stiskem a mimo řádek s odkazem.

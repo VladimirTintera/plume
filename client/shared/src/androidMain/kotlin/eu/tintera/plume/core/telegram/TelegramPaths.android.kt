@@ -42,7 +42,7 @@ actual fun localizedCountryName(code: String): String? =
         ?.takeIf { it.isNotBlank() && !it.equals(code, ignoreCase = true) }
 
 actual fun localizedLanguageName(code: String): String? =
-    runCatching { Locale.forLanguageTag(code).getDisplayLanguage(Locale.getDefault()) }
+    runCatching { Locale.forLanguageTag(code).getDisplayName(Locale.getDefault()) }
         .getOrNull()
         ?.takeIf { it.isNotBlank() && !it.equals(code, ignoreCase = true) }
         ?.replaceFirstChar { it.titlecase(Locale.getDefault()) }

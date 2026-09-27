@@ -1817,6 +1817,7 @@ fun ConversationScreen(
             TranslationSheet(
                 sheet = sheet,
                 onCopy = viewModel::copyTranslation,
+                onLanguageChange = viewModel::changeTranslationLanguage,
                 onDismiss = viewModel::dismissTranslation,
             )
         }
