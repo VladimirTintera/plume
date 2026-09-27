@@ -3323,8 +3323,17 @@ vypne. Pravidla jsou čisté funkce v `ComposerLinkPreview.kt` (testy `ComposerL
 - **Volba patří ke konceptu** (`DraftMessageContentText.linkPreviewOptions`) a po návratu do
   chatu se vrátí (`ChatInfo.draftLinkPreview`). Obnovený koncept si náhled zjistí sám —
   vyplnění pole z konceptu `onDraftChanged` nevolá. Totéž platí pro sdílený text.
-- **Při úpravě zprávy a s přílohami se náhled neukazuje.** `editMessageText` volbu zatím nenese
-  (úprava posílá `null`, tedy výchozí server), a text u příloh je popisek.
+- **Při úpravě zprávy a s přílohami se náhled neukazuje**, a text u příloh je popisek.
+- **Úprava volbu náhledu PŘENÁŠÍ z původní zprávy** (`MessageText.linkPreviewOptions`,
+  `keptFor`, testy `EditOptionsTest`). S `null` platí výchozí volba serveru, takže úprava zprávy
+  poslané BEZ náhledu náhled vrátila — ověřeno Bot API: po úpravě s `null` přišlo místo
+  `is_disabled` náhled Wikipedie, s přenesenou volbou zůstal vypnutý. Vynucená adresa se
+  přenese jen tehdy, když odkaz v upraveném textu pořád je. Ze stejného důvodu úprava popisku
+  přenáší `showCaptionAboveMedia` (dřív natvrdo `false`, takže popisek nad médiem nastavený
+  jiným klientem úprava tiše vrátila pod médium).
+- **Při ověřování úpravy přes `adb` se dlouhý stisk NESMÍ trefit do odkazu**: na přetíženém
+  emulátoru dopadl jako ťuknutí a otevřel se Chrome — a další ťuknutí skriptu šla do něj.
+  Stisk mířit na slovo před odkazem a po něm zkontrolovat `mCurrentFocus`.
 - **Sheet je celý rozbalený** (`enabledValues = Hidden, Expanded`). Napůl rozbalený schoval
   „Poslat bez náhledu" pod okraj — tatáž past jako u ostatních sheetů s víc volbami.
 - **`adb input text` s adresou se na emulátoru useká na tečce** („https://en.wikipedia"). Text pak
