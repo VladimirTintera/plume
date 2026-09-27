@@ -828,12 +828,18 @@ class TdlChatRepository(
                 val chats = summariesFor(messages.map { it.chatId }.distinct().toLongArray()).associateBy { it.id }
                 FoundMessagesPage(
                     messages = messages.mapNotNull { message ->
+                        val chat = chats[message.chatId] ?: return@mapNotNull null
                         FoundMessage(
-                            chat = chats[message.chatId] ?: return@mapNotNull null,
+                            chat = chat,
                             messageId = message.id,
                             text = message.previewText(),
                             date = message.date,
                             isOutgoing = message.isOutgoing,
+                            senderName = if (chat.kind == ChatKind.Group && !message.isOutgoing) {
+                                foundSenderName(message.senderId, message.chatId)
+                            } else {
+                                null
+                            },
                         )
                     },
                     // Prázdný `nextOffset` je u TDLib konec výsledků.
@@ -841,6 +847,18 @@ class TdlChatRepository(
                 )
             }
     }
+
+    /**
+     * Jméno odesílatele nalezené zprávy ve skupině. Lokální dotaz — TDLib odesílatele zná, když
+     * zná zprávu. Anonymní správce (odesílatel je skupina sama) jméno nemá: název chatu už řádek
+     * nese.
+     */
+    private suspend fun foundSenderName(sender: MessageSender, chatId: Long): String? = when (sender) {
+        is MessageSenderUser -> client.getUser(userId = sender.userId).toResult().getOrNull()
+            ?.let { user -> listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" ") }
+        is MessageSenderChat -> sender.chatId.takeIf { it != chatId }
+            ?.let { client.getChat(chatId = it).toResult().getOrNull()?.title }
+    }?.ifBlank { null }
 
     // `searchChats` s prázdným dotazem vrací právě historii hledání — `searchRecentlyFoundChats`
     // prázdný dotaz nebere.

@@ -101,7 +101,7 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   1. ~~**Globální hledání a zprávy**~~ — hotovo (sekce Globálně a Zprávy, skok na nalezenou
      zprávu, „Přidat se" u veřejného chatu). Zbývá:
      - ~~**Filtry hledání zpráv**~~ — hotovo (čipy druhu chatu a období nad výsledky).
-     - **Jméno odesílatele u nalezené zprávy ve skupině**; dnes je vidět jen chat.
+     - ~~**Jméno odesílatele u nalezené zprávy ve skupině**~~ — hotovo („Jana: …", „Vy: …").
      - ~~**Kanál po „Přidat se" pořád nabízí vstupní pole**~~ — hotovo: kanál bez práva
        publikovat má místo pole Ztlumit (`CLAUDE.md`, „Práva psát").
   2. ~~**Klikatelné zmínky a hashtagy v textu**~~ — hotovo (`@jméno` otevře chat, `#tag`

@@ -305,6 +305,12 @@ data class FoundMessage(
     /** Unixový čas. */
     val date: Int,
     val isOutgoing: Boolean,
+    /**
+     * Kdo zprávu ve SKUPINĚ napsal — v soukromém chatu a kanálu je to jasné z chatu, takže `null`.
+     * U vlastní zprávy taky `null`, tu pozná [isOutgoing]; u anonymního správce (odesílatel je
+     * skupina sama) taky.
+     */
+    val senderName: String? = null,
 )
 
 /**

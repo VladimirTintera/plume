@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.resources.sender_you
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.graphics.Shape
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.highlightRanges
@@ -507,11 +509,21 @@ private fun MessageResultRow(
     highlight: SpanStyle,
     onClick: () -> Unit,
 ) {
-    val text = remember(found.text, query, highlight) {
+    // Kdo zprávu napsal, jako v seznamu zpráv oficiálních klientů: ve skupině jméno, u vlastní
+    // zprávy „Vy". Kanál ani soukromý chat jméno nepotřebují — odesílatele říká název chatu.
+    val sender = found.senderName
+        ?: stringResource(Res.string.sender_you).takeIf { found.isOutgoing && found.chat.kind != ChatKind.Channel }
+    val senderColor = MaterialTheme.colorScheme.onSurface
+    val text = remember(found.text, query, highlight, sender, senderColor) {
         val snippet = snippetAround(found.text.replace('\n', ' '), query)
         buildAnnotatedString {
+            sender?.let {
+                withStyle(SpanStyle(color = senderColor)) { append(it) }
+                append(": ")
+            }
+            val start = length
             append(snippet)
-            highlightRanges(snippet, query).forEach { addStyle(highlight, it.first, it.last + 1) }
+            highlightRanges(snippet, query).forEach { addStyle(highlight, start + it.first, start + it.last + 1) }
         }
     }
     ListItem(
