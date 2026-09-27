@@ -491,7 +491,7 @@ snadno na to uživatel narazí.
     varuje už při otevření kanálu,
   - náhled odkazu, náhled souboru a samolepka v citlivé zprávě zůstávají ostré,
   - ~~**omezený obsah** (`restrictionReason` bez citlivosti): věta od serveru místo obsahu~~ — hotovo
-    (`CLAUDE.md`, „Omezený obsah"). Zbývá omezený CHAT (`User` / `Supergroup.restrictionInfo`).
+    (`CLAUDE.md`, „Omezený obsah"). ~~Omezený CHAT~~ (`User` / `Supergroup.restrictionInfo`) — hotovo.
 - ~~**„přes @bot"**~~ (`viaBotUserId`) — hotovo (`CLAUDE.md`, „Inline boti"). ~~**Podpis autora**
   v kanálu (`authorSignature`) a **štítek člena** (`senderTag`)~~ — hotovo (`CLAUDE.md`, „Podpis
   autora a štítek člena", ověřené jen sondou). ~~**Boosty odesílatele**~~ (`senderBoostCount`)

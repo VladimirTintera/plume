@@ -5978,8 +5978,19 @@ s ikonou zákazu (`restrictionText`, `ChatMessage.restricted`, `RestrictedNote`,
 - **Náhled v seznamu chatů a notifikace nesou důvod taky** (`previewTextOrNull`,
   `Message.previewEntities`), jinak by obsah prosákl tam; fotka se do notifikace nepřikládá.
 - **Ikona a ztlumená barva jsou nutné**: holý text v bublině by se četl jako zpráva odesílatele.
+- **Omezený může být i CELÝ chat** (`ChatInfo.restriction`, `restrictionOf`): kanál nebo účet
+  zablokovaný v zemi. `Chat` omezení nenese — je na `User` a `Supergroup`, stejně jako ověření;
+  základní skupina ho nemá. Konverzace pak místo zpráv ukáže prázdný stav s ikonou zákazu
+  a důvodem, bez vstupního pole, bez hledání a shrnutí v hlavičce.
+- **Pruh připnutých zpráv se u omezeného chatu schovává taky** — první verze ho nechala a nad
+  prázdným stavem visela připnutá zpráva i s obsahem, tedy přesně to, co omezení skrývá.
+  Pruh proti spamu zůstává: zablokovat a nahlásit dává smysl i u omezeného účtu.
+- **Prázdný stav stojí PŘED načítáním.** Historie se načte tak jako tak, jen se neukáže;
+  točící se indikátor by sliboval, že zprávy přijdou.
 - **Ověřeno na emulátoru sondou** (text `#omezeno` od testovacího bota převod dočasně vydával
-  za omezený; necommituje se): fotka s popiskem i text s odkazem ukázaly jen důvod. Skutečně
+  za omezený; necommituje se): fotka s popiskem i text s odkazem ukázaly jen důvod. Omezený
+  chat sondou v `chatInfo` (chat s testovacím botem): prázdný stav s důvodem, bez pole
+  a připnutých. Skutečně
   omezenou zprávu testovací účet nezná, náhled v seznamu a notifikace ověřené nejsou.
 
 ### Jak to ověřit

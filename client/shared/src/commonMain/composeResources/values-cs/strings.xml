@@ -1404,4 +1404,5 @@
     <string name="weekday_in_text_5">pátek</string>
     <string name="weekday_in_text_6">sobota</string>
     <string name="weekday_in_text_7">neděle</string>
+    <string name="conversation_chat_restricted">Tenhle chat tu není dostupný</string>
 </resources>
