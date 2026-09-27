@@ -330,8 +330,9 @@ v `CLAUDE.md`, „Náhled odkazu při psaní". Co zbývá:
 
 - ~~**Který odkaz**, když je jich v textu víc.~~ — hotovo: sekce „Odkaz" v sheetu voleb
   (`CLAUDE.md`, „Náhled odkazu při psaní").
-- ~~**Volba při úpravě zprávy**~~ — hotovo: úprava volbu z původní zprávy přenáší (ověřeno,
-  s `null` se náhled vracel). Zbývá volbu při úpravě i MĚNIT (náhled nad polem při úpravě není).
+- ~~**Volba při úpravě zprávy**~~ — hotovo: úprava volbu z původní zprávy přebírá a jde ji
+  i měnit (hlavička náhledu a sheet jako při psaní). Zapnout náhled zpět u zprávy poslané
+  bez něj při úpravě nejde — stejně jako při psaní ho ✕ vypne do vyprázdnění pole.
 - **Náhled na iOS** ověřený není (kód je společný, sheet i hlavička jsou v commonMain).
 
 ---

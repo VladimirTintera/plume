@@ -1531,7 +1531,7 @@ fun ConversationScreen(
                 linkPreview = composerLinkPreview(
                     preview = state.linkPreview,
                     options = state.linkPreviewOptions,
-                    editing = state.editing != null,
+                    editingCaption = state.editing?.plainTextEdit() == PlainTextEdit.Caption,
                     hasAttachments = state.attachments.isNotEmpty(),
                 ),
                 linkPreviewLinks = state.linkPreviewLinks,
@@ -2624,10 +2624,11 @@ private fun MessageInput(
                         }
                     }
                   }
+                }
                   /*
                    * Náhled odkazu je poslední pruh nad polem, nejblíž textu, ke kterému patří.
                    * Mizí a objevuje se se svým místem — naskočí po pauze v psaní a skok by pole
-                   * pod prstem posunul.
+                   * pod prstem posunul. Patří i k úpravě textu: upravená zpráva odejde s ním.
                    */
                   AnimatedVisibility(
                       visible = linkPreview != null,
@@ -2645,6 +2646,7 @@ private fun MessageInput(
                           )
                       }
                   }
+                if (editing == null) {
                   /*
                    * GIF nebo obrázek ve schránce: na iOS nabídne vložení systémovým tlačítkem,
                    * které se na povolení neptá (viz `ClipboardPasteSuggestion`). Jen s fokusem

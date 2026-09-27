@@ -23,13 +23,13 @@ class ComposerLinkPreviewTest {
     private val links = listOf("https://a.cz", "https://b.cz")
 
     @Test
-    fun hlavickaJenUObycejneZpravy() {
+    fun hlavickaNeniUPopiskuAPriloh() {
         val p = preview()
         val none = LinkPreviewOptions()
-        assertEquals(p, composerLinkPreview(p, none, editing = false, hasAttachments = false))
-        assertNull(composerLinkPreview(p, none, editing = true, hasAttachments = false))
-        assertNull(composerLinkPreview(p, none, editing = false, hasAttachments = true))
-        assertNull(composerLinkPreview(p, LinkPreviewOptions(disabled = true), editing = false, hasAttachments = false))
+        assertEquals(p, composerLinkPreview(p, none, editingCaption = false, hasAttachments = false))
+        assertNull(composerLinkPreview(p, none, editingCaption = true, hasAttachments = false))
+        assertNull(composerLinkPreview(p, none, editingCaption = false, hasAttachments = true))
+        assertNull(composerLinkPreview(p, LinkPreviewOptions(disabled = true), editingCaption = false, hasAttachments = false))
     }
 
     @Test
@@ -69,6 +69,18 @@ class ComposerLinkPreviewTest {
         // Bez ukázaného náhledu se velikost nevynucuje; poloha adresu nepotřebuje.
         assertNull(LinkPreviewOptions(largeMedia = true).forSending(null))
         assertEquals(LinkPreviewOptions(aboveText = true), LinkPreviewOptions(largeMedia = true, aboveText = true).forSending(null))
+    }
+
+    @Test
+    fun upravaPrevezmeVolbuZpravy() {
+        // Zpráva poslaná bez náhledu zůstane bez náhledu i po úpravě.
+        assertEquals(LinkPreviewOptions(disabled = true), LinkPreviewOptions(disabled = true).forEdit("Viz a.cz, opraveno", null))
+        // Vynucená velikost s adresou platí i dřív, než dorazí náhled upraveného textu.
+        val forced = LinkPreviewOptions(largeMedia = false, aboveText = true, url = "https://a.cz")
+        assertEquals(forced, forced.forEdit("Viz https://a.cz", null))
+        // Odkaz z textu zmizel: adresa jde pryč, a s ní i velikost, kterou by TDLib stejně ignoroval.
+        assertEquals(LinkPreviewOptions(aboveText = true), forced.forEdit("Viz https://b.cz", null))
+        assertNull(LinkPreviewOptions().forEdit("Viz a.cz", null))
     }
 
     @Test

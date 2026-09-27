@@ -6,16 +6,16 @@ import eu.tintera.plume.core.telegram.LinkPreviewOptions
 /**
  * Náhled odkazu nad vstupním polem, nebo `null`, když se nemá ukázat.
  *
- * Jen u obyčejné zprávy: při úpravě (volba se přenáší z původní zprávy a měnit ji zatím nejde) a s přílohami (text
- * je jejich popisek a náhled se k němu nepřipojí) by hlavička slibovala něco, co neodejde.
- * Vypnutý náhled se neukazuje — ✕ je slib, že tam nebude.
+ * Při psaní i při úpravě textu zprávy. Ne při úpravě POPISKU (`editMessageCaption` náhled nenese)
+ * a ne s přílohami (text je jejich popisek a náhled se k němu nepřipojí) — hlavička by slibovala
+ * něco, co neodejde. Vypnutý náhled se neukazuje — ✕ je slib, že tam nebude.
  */
 fun composerLinkPreview(
     preview: LinkPreview?,
     options: LinkPreviewOptions,
-    editing: Boolean,
+    editingCaption: Boolean,
     hasAttachments: Boolean,
-): LinkPreview? = preview.takeIf { !options.disabled && !editing && !hasAttachments }
+): LinkPreview? = preview.takeIf { !options.disabled && !editingCaption && !hasAttachments }
 
 /**
  * Volba po příchodu nového náhledu.
@@ -54,9 +54,19 @@ fun LinkPreviewOptions.forPreview(
 fun LinkPreviewOptions.forSending(shown: LinkPreview?): LinkPreviewOptions? = when {
     disabled -> LinkPreviewOptions(disabled = true)
     isDefault -> null
-    shown == null -> copy(largeMedia = null).takeUnless { it.isDefault }
+    // S adresou velikost platí i bez náhledu; bez ní by ji TDLib stejně ignoroval.
+    shown == null -> if (url != null) this else copy(largeMedia = null).takeUnless { it.isDefault }
     else -> copy(url = shown.url)
 }
+
+/**
+ * Volba náhledu upravené zprávy. Vychází z volby, se kterou zpráva odešla, a z toho, co s ní
+ * uživatel při úpravě udělal. Odkaz, který z upraveného textu zmizel, se zahodí — náhled by
+ * jinak patřil něčemu, co zpráva už neobsahuje. Kontroluje se to i tady, ne jen v
+ * [forPreview]: úprava odeslaná dřív, než dorazí náhled, by jinak nesla starou adresu.
+ */
+fun LinkPreviewOptions.forEdit(text: String, shown: LinkPreview?): LinkPreviewOptions? =
+    (if (url != null && !text.contains(url)) copy(url = null) else this).forSending(shown)
 
 /**
  * Odkaz, ke kterému náhled právě patří: vybraný, jinak první v textu. Podle toho se v sheetu
