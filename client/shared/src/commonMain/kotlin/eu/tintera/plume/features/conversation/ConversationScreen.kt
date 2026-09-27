@@ -1774,6 +1774,7 @@ fun ConversationScreen(
                         connection = shownConnection,
                         connectionLabel = shownConnection?.label()?.let { stringResource(it) },
                         online = state.presence is Presence.Online,
+                        onAction = { itemScope.onAction(0L, it) },
                     )
                 }
 

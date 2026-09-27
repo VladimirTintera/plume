@@ -1006,6 +1006,8 @@ data class ChatMessage(
  */
 data class BotIntro(
     val description: String,
+    /** Odkazy, zmínky a příkazy v popisu — bot posílá holý text, dohledává je TDLib. */
+    val descriptionEntities: List<MessageEntity> = emptyList(),
     val photo: MessageMedia.Photo? = null,
     val animation: MessageMedia.Animation? = null,
 )

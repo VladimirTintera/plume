@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.features.conversation.items.MessageAction
+import eu.tintera.plume.core.ui.RichText
+import eu.tintera.plume.core.telegram.MessageEntityType
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -62,6 +65,8 @@ internal fun BotIntroPage(
     /** Popis výpadku pro čtečku; `null` = v pořádku. */
     connectionLabel: String?,
     online: Boolean,
+    /** Ťuknutí na odkaz, zmínku, hashtag nebo příkaz v popisu — tytéž akce jako v textu zprávy. */
+    onAction: (MessageAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val indicator = rememberConnectionIndicator(
@@ -118,11 +123,25 @@ internal fun BotIntroPage(
         )
         if (intro.description.isNotBlank()) {
             Spacer(Modifier.height(12.dp))
-            Text(
+            RichText(
                 text = intro.description,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
+                entities = intro.descriptionEntities,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                ),
+                onLinkClick = { onAction(MessageAction.OpenLink(it)) },
+                onEntityClick = { type ->
+                    when (type) {
+                        is MessageEntityType.Mention -> onAction(MessageAction.OpenMention(type.username))
+                        is MessageEntityType.MentionUser -> onAction(MessageAction.OpenUser(type.userId))
+                        is MessageEntityType.Hashtag -> onAction(MessageAction.SearchHashtag(type.tag))
+                        is MessageEntityType.BotCommand -> onAction(MessageAction.SendBotCommand(type.command))
+                        else -> Unit
+                    }
+                },
+                // Chat s botem, do kterého se smí psát — příkaz z popisu („/help") má kam odejít.
+                commandsClickable = true,
                 modifier = Modifier.widthIn(max = TEXT_MAX_WIDTH),
             )
         }

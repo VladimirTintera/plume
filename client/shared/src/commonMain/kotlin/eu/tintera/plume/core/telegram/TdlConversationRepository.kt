@@ -1443,8 +1443,16 @@ class TdlConversationRepository(
         val user = client.getUser(userId = userId).toResult().getOrThrow()
         if (user.type !is UserTypeBot) return@runCatching null
         val info = client.getUserFullInfo(userId = userId).toResult().getOrNull()?.botInfo
+        // Popis bot nastavuje jako holý text; odkazy, zmínky a příkazy v něm dohledá TDLib
+        // lokálně (`getTextEntities`), stejně jako u popisu skupiny v profilu.
+        val description = info?.description.orEmpty()
+        val entities = description.takeIf { it.isNotBlank() }
+            ?.let { client.getTextEntities(text = it).toResult().getOrNull()?.entities }
+            ?: emptyArray()
+        val body = FormattedText(text = description, entities = entities).toBody()
         BotIntro(
-            description = info?.description.orEmpty(),
+            description = body.text,
+            descriptionEntities = body.entities,
             photo = info?.photo?.toIntroPicture(),
             animation = info?.animation?.toMedia(),
         )
