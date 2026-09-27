@@ -1214,15 +1214,15 @@ class ConversationViewModel(
      * zavírá. Rozepsaný text zůstává: samolepka ho nenahrazuje, jen se odeslala mezi tím.
      * Citace se spotřebuje stejně jako u textu.
      */
-    fun sendSticker(sticker: StickerItem) {
+    fun sendSticker(sticker: StickerItem, options: SendOptions = SendOptions()) {
         // Výběr samolepek se bez práva neotevře, ale sada jde otevřít i ťuknutím na samolepku
         // v historii — a z ní se posílá taky. Hláška je lepší než chyba od serveru.
         if (!_state.value.content.stickers) {
             _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
             return
         }
-        sendMedia(Res.string.conversation_sticker_send_failed) { replyTo, quote ->
-            repository.sendSticker(chatId, sticker, replyTo, quote)
+        sendMedia(Res.string.conversation_sticker_send_failed, scheduled = options.schedule != null) { replyTo, quote ->
+            repository.sendSticker(chatId, sticker, replyTo, quote, options)
         }
     }
 

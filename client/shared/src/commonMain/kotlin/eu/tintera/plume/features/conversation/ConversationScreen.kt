@@ -16,6 +16,7 @@ import eu.tintera.plume.core.ui.longPress
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.MessageSchedule
+import eu.tintera.plume.core.telegram.StickerItem
 import eu.tintera.plume.resources.conversation_send_silent
 import eu.tintera.plume.resources.conversation_send_schedule
 import eu.tintera.plume.resources.conversation_send_when_online
@@ -1709,6 +1710,21 @@ fun ConversationScreen(
                     haptics.confirm()
                     viewModel.sendSticker(sticker)
                 },
+                sendMenu = sendMenuOffer(state).copy(effects = false),
+                onPickWith = { sticker, choice ->
+                    stickerPickerOpen = false
+                    when (choice) {
+                        SendMenuChoice.Silent -> {
+                            haptics.confirm()
+                            viewModel.sendSticker(sticker, SendOptions(silent = true))
+                        }
+                        SendMenuChoice.WhenOnline -> {
+                            haptics.confirm()
+                            viewModel.sendSticker(sticker, SendOptions(schedule = MessageSchedule.WhenOnline))
+                        }
+                        SendMenuChoice.Schedule -> scheduleTarget = ScheduleTarget.Sticker(sticker)
+                    }
+                },
                 chatId = viewModel.chatId,
                 onPickGif = { gif ->
                     stickerPickerOpen = false
@@ -2145,6 +2161,10 @@ fun ConversationScreen(
                                 viewModel.sendRecording(SendOptions(schedule = schedule))
                             }
                             is ScheduleTarget.Existing -> viewModel.reschedule(target.messageId, schedule)
+                            is ScheduleTarget.Sticker -> {
+                                haptics.confirm()
+                                viewModel.sendSticker(target.sticker, SendOptions(schedule = schedule))
+                            }
                         }
                     },
                     onDismiss = {
@@ -3191,6 +3211,9 @@ private sealed interface ScheduleTarget {
     /** Nahrávaná hlasovka, po dobu výběru času pozastavená. */
     data object Voice : ScheduleTarget
     data class Existing(val messageId: Long) : ScheduleTarget
+
+    /** Samolepka z výběru, naplánovaná z nabídky u podržené samolepky. */
+    data class Sticker(val sticker: StickerItem) : ScheduleTarget
 }
 
 /** Výchozí čas ve výběru hodiny při plánování: za hodinu od teď. */

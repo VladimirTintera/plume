@@ -141,7 +141,8 @@ class ThreadConversationRepository(
         sticker: StickerItem,
         replyToMessageId: Long?,
         quote: ReplyQuote?,
-    ): Result<ChatMessage> = delegate.sendSticker(chatId, sticker, reply(replyToMessageId), quote)
+        options: SendOptions,
+    ): Result<ChatMessage> = delegate.sendSticker(chatId, sticker, reply(replyToMessageId), quote, options)
 
     override suspend fun sendAnimation(
         chatId: Long,
