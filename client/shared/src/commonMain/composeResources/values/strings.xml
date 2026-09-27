@@ -408,6 +408,9 @@
     <string name="menu_translate">Translate</string>
     <string name="translation_title">Translation</string>
     <string name="translation_to">To %1$s</string>
+    <string name="translation_change_language">Change language</string>
+    <string name="translation_language_title">Translate to</string>
+    <string name="translation_language_search">Search languages</string>
     <string name="translation_failed">The message could not be translated</string>
     <string name="translation_copy">Copy translation</string>
     <string name="translation_copied">Translation copied</string>
