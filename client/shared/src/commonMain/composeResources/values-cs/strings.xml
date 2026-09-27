@@ -1419,4 +1419,6 @@
         <item quantity="few">%1$d položky</item>
         <item quantity="other">%1$d položek</item>
     </plurals>
+    <string name="verification_by_bot">Ověřeno botem</string>
+    <string name="verification_by_bot_named">Ověřil %1$s</string>
 </resources>

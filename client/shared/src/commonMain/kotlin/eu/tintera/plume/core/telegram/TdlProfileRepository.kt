@@ -34,6 +34,7 @@ import dev.g000sha256.tdl.dto.SupergroupMembersFilterRecent
 import dev.g000sha256.tdl.dto.SupergroupMembersFilterSearch
 import dev.g000sha256.tdl.dto.UserTypeBot
 import dev.g000sha256.tdl.toResult
+import dev.g000sha256.tdl.dto.BotVerification
 
 /**
  * [ProfileRepository] nad TDLib: `getChat` + podrobnosti podle druhu chatu (`getUserFullInfo`,
@@ -96,6 +97,7 @@ class TdlProfileRepository(
                 base.withAbout(describe(full?.description.orEmpty())).copy(
                     kind = if (type.isChannel) ProfileKind.Channel else ProfileKind.Group,
                     verification = group?.verificationStatus.toVerification(),
+                    botVerification = botVerificationNote(full?.botVerification),
                     usernames = group?.usernames?.activeUsernames?.toList().orEmpty(),
                     memberCount = (full?.memberCount ?: group?.memberCount)?.takeIf { it > 0 },
                     // Kanál členy vydá jen správcům a skupina se skrytými členy vůbec.
@@ -144,6 +146,19 @@ class TdlProfileRepository(
             userId = userId,
             isBlocked = full?.blockList != null,
             verification = user.verificationStatus.toVerification(),
+            botVerification = botVerificationNote(full?.botVerification),
+        )
+    }
+
+    /** Ověření od bota pro profil; jméno bota je lokální dotaz (TDLib ho zná s plnými údaji). */
+    private suspend fun botVerificationNote(verification: BotVerification?): BotVerificationNote? {
+        verification ?: return null
+        val bot = client.getUser(userId = verification.botUserId).toResult().getOrNull()
+        val name = bot?.usernames?.activeUsernames?.firstOrNull()?.let { "@$it" }
+            ?: listOf(bot?.firstName, bot?.lastName).filterNot { it.isNullOrBlank() }.joinToString(" ")
+        return BotVerificationNote(
+            description = verification.customDescription.text.takeIf { it.isNotBlank() },
+            botName = name,
         )
     }
 

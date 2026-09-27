@@ -1374,4 +1374,6 @@
         <item quantity="one">%1$d item</item>
         <item quantity="other">%1$d items</item>
     </plurals>
+    <string name="verification_by_bot">Verified by a bot</string>
+    <string name="verification_by_bot_named">Verified by %1$s</string>
 </resources>

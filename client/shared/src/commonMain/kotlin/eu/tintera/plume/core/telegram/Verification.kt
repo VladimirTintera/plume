@@ -17,21 +17,45 @@ import dev.g000sha256.tdl.dto.VerificationStatus
  * co mu ublíží. Proto mají přednost před ověřením — kdyby měl účet obojí, ověření by uklidnilo
  * přesně tam, kde má uživatel zbystřit.
  *
- * Značka ověření od bota (`botVerificationIconCustomEmojiId`) sem nepatří: je to vlastní emoji
- * a to aplikace zatím nekreslí.
+ * **Ověřit může i bot** (`botVerificationIconCustomEmojiId`): organizace s vlastním ověřovacím
+ * botem dá účtu svou značku — vlastní emoji. Je to ověření jako každé jiné a stojí vedle
+ * fajfky Telegramu, ne místo ní; u podvodu a falešného účtu se nekreslí, ze stejného důvodu
+ * jako fajfka.
  */
-enum class Verification { Verified, Scam, Fake }
+sealed interface Verification {
+    data object Scam : Verification
+
+    data object Fake : Verification
+
+    /**
+     * Ověřený účet: [official] fajfkou Telegramu, [botIconEmojiId] značkou od ověřovacího bota.
+     * Aspoň jedno z toho platí vždycky — neověřený účet je `null`, ne `Verified`.
+     */
+    data class Verified(val official: Boolean = true, val botIconEmojiId: Long? = null) : Verification
+}
 
 /** Pravidlo přednosti; čistá funkce kvůli testům (`VerificationTest`). */
-fun verificationOf(isVerified: Boolean, isScam: Boolean, isFake: Boolean): Verification? = when {
+fun verificationOf(
+    isVerified: Boolean,
+    isScam: Boolean,
+    isFake: Boolean,
+    botIconEmojiId: Long = 0L,
+): Verification? = when {
     isScam -> Verification.Scam
     isFake -> Verification.Fake
-    isVerified -> Verification.Verified
+    isVerified || botIconEmojiId != 0L ->
+        Verification.Verified(official = isVerified, botIconEmojiId = botIconEmojiId.takeIf { it != 0L })
     else -> null
 }
 
-internal fun VerificationStatus?.toVerification(): Verification? =
-    this?.let { verificationOf(isVerified = it.isVerified, isScam = it.isScam, isFake = it.isFake) }
+internal fun VerificationStatus?.toVerification(): Verification? = this?.let {
+    verificationOf(
+        isVerified = it.isVerified,
+        isScam = it.isScam,
+        isFake = it.isFake,
+        botIconEmojiId = it.botVerificationIconCustomEmojiId,
+    )
+}
 
 /**
  * Id chatu supergroupy (skupiny i kanálu) z id supergroupy — konvence TDLib, kterou nese

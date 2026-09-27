@@ -21,7 +21,25 @@ class VerificationTest {
 
     @Test
     fun overeny() {
-        assertEquals(Verification.Verified, verificationOf(isVerified = true, isScam = false, isFake = false))
+        assertEquals(Verification.Verified(), verificationOf(isVerified = true, isScam = false, isFake = false))
+    }
+
+    @Test
+    fun overenyBotemNeseZnackuVedleFajfky() {
+        assertEquals(
+            Verification.Verified(official = false, botIconEmojiId = 42L),
+            verificationOf(isVerified = false, isScam = false, isFake = false, botIconEmojiId = 42L),
+        )
+        assertEquals(
+            Verification.Verified(official = true, botIconEmojiId = 42L),
+            verificationOf(isVerified = true, isScam = false, isFake = false, botIconEmojiId = 42L),
+        )
+    }
+
+    @Test
+    fun podvodMaPrednostIPredOverenimOdBota() {
+        // Značka od bota by u podvodníka uklidnila stejně jako fajfka.
+        assertEquals(Verification.Scam, verificationOf(isVerified = false, isScam = true, isFake = false, botIconEmojiId = 42L))
     }
 
     @Test
