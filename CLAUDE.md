@@ -5519,6 +5519,18 @@ jako tlačítko, název, interpret, lišta průběhu s posunem, čas a čip rych
   kde ji ořezává vlastní seznam (`SharedElementClip`, `sharedElementClipArea` na TÉŽE ploše,
   která má `clipToBounds`), a `sharedNavElement` ten ořez použije i v překryvu
   (`clipInOverlayDuringTransition`).
+- **Tvar fotky se musí předat i SDÍLENÉMU PRVKU, ne jen rodiči** (`sharedNavElement(shape = …)`,
+  `flightShape`, testy `FlightShapeTest`). Ze stejného důvodu jako ořez výš: v překryvu se
+  neuplatní nic, co leží nad prvkem. Bublina, náhled videa, dlaždice alba, odpověď ankety i mřížka
+  v profilu měly `.clip(tvar)` PŘED `sharedNavElement`, takže se fotka z prohlížeče vracela
+  s hranatými rohy a zaoblila se až po dosednutí; prohlížeč má zaoblení uvnitř, a proto bylo
+  otevírání v pořádku. Rohy se během letu přelévají z karty prohlížeče (`flightFromCorner`) do
+  tvaru cíle — jen při spárovaném přechodu, jinak platí cílový tvar. Průběh se čte ve vrstvě,
+  let nic nerekomponuje.
+  - **Dlaždice alba zaobluje mřížka, ne dlaždice** — tvar pro let jí proto počítá
+    `albumTileShape` (testy `AlbumTileShapeTest`): rohy mřížky jen tam, kam dlaždice sahá.
+  - Ověřeno sérií surových snímků se zpomalenými animacemi: samostatná fotka tam i zpátky
+    a pravá dlaždice alba (zaoblená jen vpravo).
 - **Ořezová plocha je VIDITELNÁ část seznamu, ne jeho hranice** (`SharedElementClip.obscuredTop`
   / `obscuredBottom`, `visibleArea`, testy `VisibleAreaTest`). Seznam zajíždí pod vstupní pole
   i pod pruh připnutých zpráv, takže jeho hranice sahají až ke spodku obrazovky: fotka ležící

@@ -187,7 +187,11 @@ internal fun VideoPage(
                     background = Color.Transparent,
                     modifier = Modifier
                         .fillMaxSize()
-                        .sharedNavElement(photoKey(messageId))
+                        // Týž tvar jako karta kolem (viz níž); ta se během letu neuplatní.
+                        .sharedNavElement(
+                            photoKey(messageId),
+                            shape = RoundedCornerShape(MEDIA_CARD_CORNER * (1f - immersion())),
+                        )
                         .spoilerBlur(hasSpoiler, revealed, spoilerStyle),
                 )
             }

@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -21,17 +23,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.koin.compose.koinInject
-import eu.tintera.plume.core.telegram.RevealedSpoilers
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.RevealedSpoilers
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.label
@@ -41,6 +43,7 @@ import eu.tintera.plume.features.conversation.MAX_PHOTO_HEIGHT
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.media_photo
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 
 /**
  * Obsah alba v bublině.
@@ -83,13 +86,15 @@ internal fun AlbumContent(
         return
     }
 
+    // Zaoblení nese celá mřížka, ne jednotlivé dlaždice: uvnitř jsou jen tenké spáry.
+    val gridShape = shape ?: RoundedCornerShape(12.dp)
+    val rowSizes = albumRowSizes(members.size)
     Column(
-        // Zaoblení nese celá mřížka, ne jednotlivé dlaždice: uvnitř jsou jen tenké spáry.
-        Modifier.clip(shape ?: RoundedCornerShape(12.dp)),
+        Modifier.clip(gridShape),
         verticalArrangement = Arrangement.spacedBy(ALBUM_GAP),
     ) {
         var start = 0
-        albumRowSizes(members.size).forEach { size ->
+        rowSizes.forEachIndexed { rowIndex, size ->
             val rowMembers = members.subList(start, start + size)
             start += size
 
@@ -104,9 +109,18 @@ internal fun AlbumContent(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(ALBUM_GAP)) {
-                    rowMembers.forEach { member ->
+                    rowMembers.forEachIndexed { index, member ->
                         AlbumTile(
                             member = member,
+                            // Tvar dlaždice letí s fotkou do prohlížeče a zpátky; ořez mřížky
+                            // se v překryvu neuplatní (viz `sharedNavElement`).
+                            shape = albumTileShape(
+                                grid = gridShape,
+                                top = rowIndex == 0,
+                                bottom = rowIndex == rowSizes.lastIndex,
+                                start = index == 0,
+                                end = index == rowMembers.lastIndex,
+                            ),
                             onOpen = { onOpen(member.id) },
                             onRequestMenu = onRequestMenu,
                             onCancelUpload = { onCancelUpload(member.id) },
@@ -127,6 +141,7 @@ internal fun AlbumContent(
 @OptIn(ExperimentalFoundationApi::class)
 private fun AlbumTile(
     member: ChatMessage,
+    shape: Shape,
     onOpen: () -> Unit,
     onRequestMenu: () -> Unit,
     onCancelUpload: () -> Unit,
@@ -160,7 +175,7 @@ private fun AlbumTile(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
-                        .sharedNavElement(photoKey(member.id))
+                        .sharedNavElement(photoKey(member.id), shape = shape)
                         .spoilerBlur(media.hasSpoiler, revealed, spoilerStyle),
                 )
                 if (media.hasSpoiler) {
@@ -187,6 +202,7 @@ private fun AlbumTile(
                 uploading = uploading,
                 onCancelUpload = onCancelUpload,
                 revealed = revealed,
+                shape = shape,
                 modifier = modifier.combinedClickable(
                     onClick = {
                         if (media.hasSpoiler && !revealed) {
@@ -280,3 +296,20 @@ private val ALBUM_GAP = 2.dp
 
 /** Strop výšky řádku alba s víc fotkami — dvě čtvercové fotky na širokém displeji by byly obří. */
 private val ALBUM_TILE_MAX_HEIGHT = 200.dp
+
+/**
+ * Tvar dlaždice alba: rohy mřížky tam, kde dlaždice sahá do rohu, jinak rovné hrany.
+ *
+ * V albu ořezává mřížka, ne dlaždice — jenže sdílený prvek se během letu kreslí mimo rodiče
+ * a bez vlastního tvaru se fotka z rohu mřížky vracela z prohlížeče hranatá.
+ */
+internal fun albumTileShape(grid: Shape, top: Boolean, bottom: Boolean, start: Boolean, end: Boolean): Shape {
+    if (grid !is CornerBasedShape) return RectangleShape
+    val none = CornerSize(0)
+    return grid.copy(
+        topStart = if (top && start) grid.topStart else none,
+        topEnd = if (top && end) grid.topEnd else none,
+        bottomEnd = if (bottom && end) grid.bottomEnd else none,
+        bottomStart = if (bottom && start) grid.bottomStart else none,
+    )
+}

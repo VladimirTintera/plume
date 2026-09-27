@@ -149,7 +149,7 @@ internal fun MessageAttachment(
                         modifier = Modifier
                             .size(frame)
                             .clip(pictureShape)
-                            .sharedNavElement(photoKey(messageId))
+                            .sharedNavElement(photoKey(messageId), shape = pictureShape)
                             /*
                              * Gesta patří FOTCE, ne celé bublině.
                              *
@@ -294,6 +294,7 @@ internal fun MessageAttachment(
                         onCancelUpload = onCancelUpload,
                         revealed = revealed,
                         isSelfDestruct = isSelfDestruct,
+                        shape = pictureShape,
                         modifier = Modifier
                             .size(frame)
                             .clip(pictureShape)
@@ -552,6 +553,8 @@ internal fun VideoThumbnail(
     modifier: Modifier = Modifier,
     revealed: Boolean = true,
     isSelfDestruct: Boolean = false,
+    /** Tvar, do kterého náhled ořezává volající — letí s ním do prohlížeče a zpátky. */
+    shape: Shape? = null,
 ) {
     val spoilerStyle = rememberSpoilerBlurStyle()
     val shouldBlur = isSelfDestruct || (video.hasSpoiler && !revealed)
@@ -564,7 +567,7 @@ internal fun VideoThumbnail(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .sharedNavElement(photoKey(messageId))
+                    .sharedNavElement(photoKey(messageId), shape = shape)
                     .spoilerBlur(shouldBlur, revealed = false, spoilerStyle),
             )
         }
