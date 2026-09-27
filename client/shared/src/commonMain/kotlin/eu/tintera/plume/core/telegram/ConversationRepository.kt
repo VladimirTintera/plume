@@ -832,6 +832,11 @@ data class ChatInfo(
     val verification: Verification? = null,
     /** Vlastní emoji statusu za jménem v hlavičce (viz [statusEmojiId]), nebo `null`. */
     val emojiStatus: Long? = null,
+    /**
+     * Proč server celý chat tady nedovolí ukázat (omezení podle země nebo platformy), nebo `null`.
+     * Konverzace pak místo zpráv a pole ukáže jen tenhle důvod.
+     */
+    val restriction: String? = null,
 )
 
 /**

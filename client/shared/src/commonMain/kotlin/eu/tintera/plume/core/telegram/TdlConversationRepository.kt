@@ -1472,6 +1472,7 @@ class TdlConversationRepository(
                         ?.linkPreviewOptions?.toDomain(),
                     verification = client.verificationOf(chat),
                     emojiStatus = chat.emojiStatus.statusEmojiId(),
+                    restriction = client.restrictionOf(chat),
                 )
             }
 

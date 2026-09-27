@@ -294,6 +294,9 @@ import eu.tintera.plume.features.conversation.items.UnreadDividerItem
 import eu.tintera.plume.features.conversation.items.conversationItems
 import eu.tintera.plume.features.conversation.items.describe
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_chat_restricted
+import eu.tintera.plume.resources.block_24dp
+import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.resources.auto_awesome_24dp
 import eu.tintera.plume.resources.conversation_send_effect
 import eu.tintera.plume.resources.share_preparing
@@ -1244,7 +1247,8 @@ fun ConversationScreen(
                 },
                 actions = {
                     // Prázdný chat s botem je jeho profil — není co shrnout ani hledat.
-                    val botIntro = showsBotIntro(state)
+                    // Omezený chat nemá co ukázat, tedy ani co shrnout nebo hledat.
+                    val botIntro = showsBotIntro(state) || state.info?.restriction != null
                     if (summaryAvailable && state.threadRootId == null && !botIntro) {
                         IconButton(onClick = startSummary) {
                             Icon(
@@ -1304,6 +1308,8 @@ fun ConversationScreen(
                 )
                 return@Box
             }
+            // Omezený chat: do chatu, který se nedá ukázat, se ani psát nedá.
+            if (state.info?.restriction != null) return@Box
             if (state.info?.canJoin == true) {
                 JoinBar(joining = state.joining, onJoin = viewModel::join)
                 return@Box
@@ -1817,6 +1823,18 @@ fun ConversationScreen(
                 .onGloballyPositioned { contentTop.value = it.boundsInWindow().top },
         ) {
             when {
+                /*
+                 * Omezený celý chat: místo zpráv jen důvod od serveru. Stojí PŘED načítáním —
+                 * historie se sice načte, ale ukazovat se nesmí, a točící se indikátor by
+                 * sliboval, že přijde.
+                 */
+                state.info?.restriction != null -> IntroEmptyState(
+                    icon = Res.drawable.block_24dp,
+                    title = stringResource(Res.string.conversation_chat_restricted),
+                    text = state.info?.restriction.orEmpty(),
+                    modifier = Modifier.fillMaxSize(),
+                )
+
                 state.messages.isEmpty() && state.loading ->
                     LoadingIndicator(Modifier.align(Alignment.Center))
 
@@ -1977,7 +1995,8 @@ fun ConversationScreen(
                     }
                 }
                 AnimatedVisibility(
-                    visible = state.pinned.isNotEmpty(),
+                    // Omezený chat: připnutá zpráva by ukázala obsah, který se ukázat nesmí.
+                    visible = state.pinned.isNotEmpty() && state.info?.restriction == null,
                     enter = expandVertically() + fadeIn(),
                     exit = shrinkVertically() + fadeOut(),
                 ) {
