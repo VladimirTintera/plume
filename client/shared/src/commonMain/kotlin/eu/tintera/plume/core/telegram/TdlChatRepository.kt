@@ -1,6 +1,8 @@
 package eu.tintera.plume.core.telegram
 
 import kotlin.time.Clock
+import dev.g000sha256.tdl.dto.ChatMemberStatusAdministrator
+import dev.g000sha256.tdl.dto.InternalLinkTypeBotStartInGroup
 import dev.g000sha256.tdl.dto.SearchMessagesChatTypeFilterChannel
 import dev.g000sha256.tdl.dto.SearchMessagesChatTypeFilterGroup
 import dev.g000sha256.tdl.dto.SearchMessagesChatTypeFilterPrivate
@@ -584,6 +586,11 @@ class TdlChatRepository(
                     InternalLink.BotStart(chat.id, type.startParameter, type.autostart)
                 }
 
+            is InternalLinkTypeBotStartInGroup ->
+                client.searchPublicChat(username = type.botUsername).toResult().map { chat ->
+                    InternalLink.BotStartInGroup(url, chat.id, asAdmin = type.administratorRights != null)
+                }
+
             is InternalLinkTypeStickerSet ->
                 client.searchStickerSet(name = type.stickerSetName, ignoreCache = false).toResult()
                     .map { InternalLink.StickerSet(it.id) }
@@ -612,6 +619,48 @@ class TdlChatRepository(
 
     override suspend fun privateChat(userId: Long): Result<Long> =
         client.createPrivateChat(userId = userId, force = false).toResult().map { it.id }
+
+    override suspend fun groupsForBot(asAdmin: Boolean): List<ChatSummary> {
+        // Pořadí jako v seznamu chatů: hlavní seznam, pak archiv.
+        val listed = listOf(ChatFolder.Main, ChatFolder.Archive)
+            .flatMap { folder -> (lists.getValue(folder).value as? ChatListState.Ready)?.chats.orEmpty() }
+            .distinctBy { it.id }
+            .filter { it.kind == ChatKind.Group }
+        return listed.filter { summary ->
+            val chat = client.getChat(chatId = summary.id).toResult().getOrNull() ?: return@filter false
+            canAddBot(
+                status = client.ownMemberStatus(chat),
+                membersCanInvite = chat.permissions.canInviteUsers,
+                asAdmin = asAdmin,
+            )
+        }
+    }
+
+    override suspend fun addBotToGroup(url: String, groupChatId: Long): Result<Unit> = runCatching {
+        val link = client.getInternalLinkType(link = url).toResult().getOrThrow() as? InternalLinkTypeBotStartInGroup
+            ?: error("Odkaz nepřidává bota do skupiny.")
+        val bot = client.searchPublicChat(username = link.botUsername).toResult().getOrThrow()
+        val botUserId = (bot.type as? ChatTypePrivate)?.userId ?: error("Odkaz nevede na bota.")
+        val rights = link.administratorRights
+        if (rights != null) {
+            // V základní skupině jmenovat jde jen člena; supergroupa bota přidá rovnou se jmenováním.
+            val basicGroup = client.getChat(chatId = groupChatId).toResult().getOrThrow().type is ChatTypeBasicGroup
+            if (basicGroup) {
+                client.addChatMember(chatId = groupChatId, userId = botUserId, forwardLimit = 0).toResult().getOrThrow()
+            }
+            // Práva přesně z odkazu: bot si o ně řekl a uživatel je v potvrzení viděl jako „správce".
+            client.setChatMemberStatus(
+                chatId = groupChatId,
+                memberId = MessageSenderUser(userId = botUserId),
+                status = ChatMemberStatusAdministrator(canBeEdited = true, rights = rights),
+            ).toResult().getOrThrow()
+        } else {
+            client.addChatMember(chatId = groupChatId, userId = botUserId, forwardLimit = 0).toResult().getOrThrow()
+        }
+        client.sendBotStartMessage(botUserId = botUserId, chatId = groupChatId, parameter = link.startParameter)
+            .toResult().getOrThrow()
+        Unit
+    }
 
     override suspend fun contacts(): Result<List<ChatSummary>> =
         client.getContacts().toResult().map { users ->

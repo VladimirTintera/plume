@@ -171,6 +171,13 @@ const val NO_START = -1
 data class ForwardRoute(val fromChatId: Long, val messageIds: List<Long>) : Route
 
 /**
+ * Výběr skupiny, do které přidat bota ze startovacího odkazu (`t.me/bot?startgroup=…`). Bez
+ * metadat scény, jako přeposílání; po přidání ho nahradí konverzace skupiny.
+ */
+@Serializable
+data class AddBotToGroupRoute(val url: String, val botChatId: Long, val asAdmin: Boolean) : Route
+
+/**
  * Nová anketa do chatu. Bez metadat scény, jako výběr pro přeposílání: jde přes celou plochu
  * z hlavního seznamu i z archivu a po odeslání odejde — pod ní je konverzace s novou anketou.
  */
@@ -246,6 +253,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
             subclass(PollComposerRoute::class, PollComposerRoute.serializer())
+            subclass(AddBotToGroupRoute::class, AddBotToGroupRoute.serializer())
             subclass(ShareRoute::class, ShareRoute.serializer())
             subclass(ShareToChatRoute::class, ShareToChatRoute.serializer())
             subclass(NewChatRoute::class, NewChatRoute.serializer())

@@ -83,6 +83,18 @@ interface ChatRepository {
     suspend fun contacts(): Result<List<ChatSummary>>
 
     /**
+     * Skupiny ze seznamu chatů (i archivu), do kterých smí uživatel přidat bota ([canAddBot]);
+     * s [asAdmin] jen ty, kde ho smí i jmenovat správcem.
+     */
+    suspend fun groupsForBot(asAdmin: Boolean): List<ChatSummary>
+
+    /**
+     * Přidá bota ze startovacího odkazu do skupiny [groupChatId] — jako správce s právy z odkazu,
+     * když je odkaz chce — a spustí ho tam s parametrem (`sendBotStartMessage`).
+     */
+    suspend fun addBotToGroup(url: String, groupChatId: Long): Result<Unit>
+
+    /**
      * Chaty podle názvu a uživatelského jména, ze VŠECH známých — i archivované a chaty mimo
      * složky, na rozdíl od filtru nad [chats]. Bez [onServer] se hledá jen v lokální databázi
      * (okamžitě), s ním se ptá serveru, který zná i chaty, jež lokálně ještě nejsou.

@@ -54,6 +54,10 @@ open class FakeChatRepository(
 
     override suspend fun contacts(): Result<List<ChatSummary>> = contactsResult
 
+    override suspend fun groupsForBot(asAdmin: Boolean): List<ChatSummary> = emptyList()
+
+    override suspend fun addBotToGroup(url: String, groupChatId: Long): Result<Unit> = Result.success(Unit)
+
     override suspend fun searchChats(query: String, onServer: Boolean): Result<List<ChatSummary>> =
         Result.success(emptyList())
 

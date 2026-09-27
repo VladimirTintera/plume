@@ -27,6 +27,13 @@ sealed interface InternalLink {
      * až ono.
      */
     data class BotStart(val chatId: Long, val parameter: String, val autostart: Boolean) : InternalLink
+
+    /**
+     * Přidání bota do skupiny (`t.me/bot?startgroup=…`). Skupinu vybírá uživatel; [asAdmin] =
+     * bot chce být rovnou správcem (odkaz nese práva, `administratorRights`). Odkaz ([url]) se
+     * nese celý: práva i parametr si při přidání přečte znovu hranice TDLib ([ChatRepository.addBotToGroup]).
+     */
+    data class BotStartInGroup(val url: String, val botChatId: Long, val asAdmin: Boolean) : InternalLink
 }
 
 /** Co o chatu řekne pozvánka, než se do něj uživatel přidá (`checkChatInviteLink`). */

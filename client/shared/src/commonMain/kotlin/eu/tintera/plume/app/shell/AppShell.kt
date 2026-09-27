@@ -1,6 +1,7 @@
 package eu.tintera.plume.app.shell
 
 import eu.tintera.plume.features.settings.EditProfileScreen
+import eu.tintera.plume.core.navigation.AddBotToGroupRoute
 import eu.tintera.plume.core.navigation.ArchiveEditChatRoute
 import eu.tintera.plume.core.navigation.ArchiveMemberRightsRoute
 import eu.tintera.plume.core.navigation.MemberRightsRoute
@@ -76,6 +77,7 @@ import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.features.chats.ArchiveScreen
 import eu.tintera.plume.features.chats.ChatListScreen
+import eu.tintera.plume.features.chats.AddBotToGroupScreen
 import eu.tintera.plume.features.chats.NewChatScreen
 import eu.tintera.plume.features.conversation.ConversationPlaceholder
 import eu.tintera.plume.features.conversation.ConversationScreen
@@ -445,6 +447,7 @@ private fun shellEntryProvider(
             onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
             onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(chatId)) },
             onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
+            onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
         )
     }
 
@@ -548,6 +551,7 @@ private fun shellEntryProvider(
             onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(chatId)) },
             onUnarchived = { chatsStack.moveConversationToMain(route.chatId) },
             onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
+            onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
         )
     }
 
@@ -650,6 +654,25 @@ private fun shellEntryProvider(
                 },
             ),
             onClose = { chatsStack.pop(route) },
+        )
+    }
+
+    /*
+     * Výběr skupiny pro bota ze startovacího odkazu (`t.me/bot?startgroup=…`). Po přidání ho
+     * nahradí skupina, kde bot právě odpověděl — jako u přeposílání.
+     */
+    entry<AddBotToGroupRoute> { route ->
+        AddBotToGroupScreen(
+            viewModel = koinViewModel(
+                key = "add-bot-${route.url}-${route.asAdmin}",
+                parameters = { parametersOf(route.url, route.botChatId, route.asAdmin) },
+            ),
+            onBack = { chatsStack.pop(route) },
+            onAdded = { chatId ->
+                if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
+                    chatsStack.add(ConversationRoute(chatId))
+                }
+            },
         )
     }
 

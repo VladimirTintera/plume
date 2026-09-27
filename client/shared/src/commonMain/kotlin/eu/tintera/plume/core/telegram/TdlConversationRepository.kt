@@ -2467,6 +2467,7 @@ private fun ChatMemberStatus.toOwn(): OwnMemberStatus = when (this) {
         canRestrictMembers = rights.canRestrictMembers,
         canPromoteMembers = rights.canPromoteMembers,
         canManageTags = rights.canManageTags,
+        canInviteUsers = rights.canInviteUsers,
     )
     is ChatMemberStatusMember -> OwnMemberStatus.Member
     is ChatMemberStatusRestricted -> OwnMemberStatus.Restricted(
@@ -2474,6 +2475,7 @@ private fun ChatMemberStatus.toOwn(): OwnMemberStatus = when (this) {
         canSendMessages = permissions.canSendBasicMessages,
         content = permissions.toContentAccess(),
         canChangeInfo = permissions.canChangeInfo,
+        canInviteUsers = permissions.canInviteUsers,
     )
     is ChatMemberStatusLeft -> OwnMemberStatus.Left
     is ChatMemberStatusBanned -> OwnMemberStatus.Banned

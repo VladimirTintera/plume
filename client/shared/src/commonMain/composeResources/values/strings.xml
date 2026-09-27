@@ -1388,4 +1388,14 @@
     <string name="settings_default_auto_delete">Auto-delete in new chats</string>
     <string name="settings_default_auto_delete_failed">Couldn’t change it, try again</string>
     <string name="settings_default_auto_delete_explanation">Messages in every chat you start from now on will disappear for everyone after this time. Chats you already have aren’t affected.</string>
+    <string name="bot_add_group_title">Add to group</string>
+    <string name="bot_add_group_search">Search groups</string>
+    <string name="bot_add_group_empty_title">No group to add it to</string>
+    <string name="bot_add_group_empty_text">You can add bots only to groups where you may invite members.</string>
+    <string name="bot_add_group_empty_text_admin">The bot wants to be an admin. You can add it only to groups where you may appoint admins.</string>
+    <string name="bot_add_group_confirm_title">Add %1$s to %2$s?</string>
+    <string name="bot_add_group_confirm_text">The bot will see messages in the group, depending on its settings.</string>
+    <string name="bot_add_group_confirm_text_admin">The bot will become an admin with the rights it asked for, and will see messages in the group.</string>
+    <string name="bot_add_group_confirm">Add</string>
+    <string name="bot_add_group_failed">Couldn’t add the bot to the group.</string>
 </resources>

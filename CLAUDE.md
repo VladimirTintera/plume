@@ -4191,6 +4191,27 @@ parametr (`InternalLink.BotStart`).
   bot je nemá — Bot API je nastavit neumí, jen BotFather), čekající parametr u nespuštěného
   bota, iOS (jen přeložené).
 
+#### Přidání bota do skupiny
+
+Odkaz `t.me/bot?startgroup=…` (`InternalLink.BotStartInGroup`) otevře výběr skupiny
+(`AddBotToGroupRoute`, `AddBotToGroupScreen` nad `ChatPicker`) a po potvrzení bota přidá
+a pošle mu `/start` s parametrem (`ChatRepository.addBotToGroup`). Pak se otevře skupina.
+
+- **Nabízí se jen skupina, kam bota přidat JDE** (`canAddBot`, testy `BotInGroupTest`):
+  vlastník vždy, správce s právem zvát (a s `&admin=…` s právem jmenovat správce), člen jen
+  když skupina členům zvát dovolí, a nikdy jako správce. Seznam, ve kterém by většina skupin
+  skončila chybou od serveru, je horší než kratší seznam — na emulátoru z něj zmizely velké
+  skupiny, kde účet jen čte, a s `&admin=` i skupina, kde účet správce jmenovat nesmí.
+- **Skupiny se berou z načtených seznamů** (hlavní a archiv). Archiv se načítá až při otevření,
+  takže archivovaná skupina ve výběru chybí, dokud ho uživatel neotevřel.
+- **Práva správce jsou přesně ta z odkazu** (`administratorRights`); potvrzení to říká vlastní
+  větou. V ZÁKLADNÍ skupině jde jmenovat jen člena, takže se bot napřed přidá
+  (`addChatMember`) a pak jmenuje; supergroupa ho přidá rovnou `setChatMemberStatus`.
+- **Přidání se potvrzuje dialogem** — bot tím dostane přístup ke zprávám skupiny.
+- **Ověřeno na emulátoru jen po potvrzovací dialog** (zprávou od testovacího bota s oběma
+  odkazy, anglicky i česky, zrušení i zpět). **Samotné přidání a `/start` ve skupině ověřené
+  NEJSOU** — do skutečných skupin se bez souhlasu nic nepřidává.
+
 ### Inline boti
 
 `@bot dotaz` na začátku pole (`@gif kočka`, `@wiki Praha`, `@pic cat`) ukáže nad polem výsledky
