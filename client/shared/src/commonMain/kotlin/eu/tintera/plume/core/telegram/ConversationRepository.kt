@@ -970,6 +970,11 @@ data class ChatMessage(
      * 0 mimo skupinu, u vlastních zpráv a u toho, kdo neboostuje.
      */
     val senderBoostCount: Int = 0,
+    /**
+     * Ověření odesílatele ve skupině (`verificationStatus` uživatele, u kanálu jako odesílatele
+     * supergroupy); vyplněné za stejných podmínek jako [senderName].
+     */
+    val senderVerification: Verification? = null,
     /** Kontrola faktů pod příspěvkem (`Message.factCheck`); `null` = žádná. */
     val factCheck: FactCheck? = null,
     /** Tlačítka bota pod zprávou; `null` = žádná. */
@@ -1354,6 +1359,8 @@ data class SenderInfo(
     val id: Long,
     val title: String,
     val avatarFileId: Int?,
+    /** Ověření, podvod nebo falešný účet — značka u jména odesílatele ve skupině. */
+    val verification: Verification? = null,
 )
 
 /**

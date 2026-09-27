@@ -1647,6 +1647,13 @@ to znamená.
   rozdělily napůl, takže se každé delší jméno zkrátilo v půlce řádku a čas nesl skok. Totéž
   čeká každý prvek, který má stát HNED za textem proměnlivé délky a přitom nechat zbytek
   řádku jiným.
+- **Značka je i u jména odesílatele ve skupině** (`ChatMessage.senderVerification`), hned za
+  jménem, před bleskem boostů a štítkem člena. Podvodník ve skupině by jinak vypadal jako
+  kdokoli jiný. Nese ji `SenderInfo.verification` z keše odesílatelů (`resolveSender`:
+  `verificationStatus` uživatele, u kanálu jako odesílatele `verificationOf(chat)`), takže
+  dotaz navíc nestojí. Fajfka má akcent ověřený proti ploše (`accentOn`), menší než v seznamu
+  (14 dp, jméno je `labelLarge`). Ověřeno sondou (zprávy od bota s `#over1–3` dostaly jméno
+  a značku; necommituje se) — skutečný podvodník ve skupině na testovacím účtu není.
 - **Ověřeno na emulátoru**: fajfka u chatu Telegram v seznamu; štítek podvodu v seznamu,
   hlavičce i profilu **jen podstrčeným stavem** (sonda v `verificationOf`, `UpdateUser`
   a profilu pro testovacího bota — chat s botem má id BOTA, číslo před dvojtečkou v tokenu,

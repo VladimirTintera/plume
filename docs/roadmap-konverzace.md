@@ -543,7 +543,7 @@ snadno na to uživatel narazí.
 - ~~**Ověření, podvod, falešný účet**~~ — hotovo: štítek u jména v seznamu chatů, v hlavičce
   konverzace a v profilu, u podvodu a falešného s vysvětlením (`CLAUDE.md`, „Ověření a štítek
   podvodu"). Zbývá značka ověření od bota (`botVerificationIconCustomEmojiId`, vlastní emoji)
-  a štítek u jména odesílatele ve skupině.
+  a ~~štítek u jména odesílatele ve skupině~~ (hotovo, ověřené jen sondou).
 - ~~**Emoji status** u jména~~ — hotovo. ~~**Časovač automatického mazání chatu**~~ — hotovo
   (odznak v hlavičce, nastavení v profilu, „Smaže se" v Informace; `CLAUDE.md`, „Automatické
   mazání zpráv"). Zbývá výchozí doba pro nové chaty (`setDefaultMessageAutoDeleteTime`,
