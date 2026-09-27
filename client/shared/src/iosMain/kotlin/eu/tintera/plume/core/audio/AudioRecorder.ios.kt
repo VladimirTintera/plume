@@ -133,6 +133,14 @@ actual class AudioRecorder {
         }
     }
 
+    actual fun pause() {
+        recorder?.pause()
+    }
+
+    actual fun resume() {
+        recorder?.record()
+    }
+
     actual fun cancel() {
         recorder?.stop()
         recorder?.deleteRecording()

@@ -3241,6 +3241,22 @@ u pole (`ScheduledMessagesSheet`): odeslat hned, změnit čas, smazat.
   zmizely), změna času („pondělí 18:56"), smazání, odmítnutí času, který už minul, a odeslání
   bez zvuku (bot zprávu dostal; jestli bez zvuku, Bot API neprozradí). **Neověřeno**: „až bude
   online" (chce člověka se známou dostupností), naplánované přílohy, iOS (jen přeložené).
+- **Hlasovka a anketa jdou naplánovat taky** — podržením odesílacího tlačítka během nahrávání
+  a podržením „Odeslat" ve formuláři ankety (bez zvuku, naplánovat, u hlasovky i „až bude
+  online"; efekt jen u textu, výběr efektu posílá obsah pole). Naplánovaná hlasovka se do
+  konverzace nepřidává, jen ohlásí (`sendMedia(scheduled = true)`), jako text.
+- **Nahrávání je po dobu nabídky a výběru času POZASTAVENÉ** (`VoiceRecorder.pause`), jinak by
+  se do hlasovky nahrálo šustění při vybírání. Zavření bez volby nahrávání obnoví — ale **položka
+  `ExpressiveMenu` volá NEJDŘÍV `onDismiss` a teprve pak svou akci**, takže obnovení v `onDismiss`
+  proběhlo i při volbě „Naplánovat" (hlasovka vyšla o výběr času delší). O obnovení se proto
+  rozhoduje až po zavření nabídky (`LaunchedEffect(sendMenuOpen)`), kdy už akce proběhla.
+- **Anketa naplánovaná jako odpověď nechá odpověď v konverzaci viset.** Konverzace ji zahazuje
+  podle příchozí vlastní ankety (`pollConsumesReply`), jenže naplánovaná do historie nepřijde.
+- **Ověřeno na emulátoru v chatu s botem**: nabídka nad nahrávanou hlasovkou, zastavený čas
+  během nabídky, naplánování a „Odeslat hned" (bot dostal hlasovku dlouhou jen o nahraný čas),
+  zavření nabídky a nahrávání dál, bez zvuku; anketa naplánovaná z formuláře v seznamu
+  naplánovaných. **Samolepka naplánovat nejde** (podržení ve výběru rozhýbe samolepku), iOS jen
+  přeložené.
 
 ### Úprava zprávy
 
@@ -5390,6 +5406,13 @@ pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací t
 - **Oprávnění až při prvním ťuknutí na mikrofon** (`rememberRecordPermission`). Android
   `RECORD_AUDIO` za běhu, iOS `NSMicrophoneUsageDescription` v Info.plist — bez klíče iOS aplikaci
   při přístupu k mikrofonu ukončí.
+- **`MediaRecorder` s výstupem Ogg/Opus pauzu NEDODRŽÍ.** `pause()` projde bez chyby a čas
+  v aplikaci stojí, jenže kodér jede dál: hlasovka pozastavená na výběr času měla 1 590
+  souvislých paketů po 20 ms, tedy 32 s místo tří (spočítáno rozebráním Oggu staženého přes
+  Bot API; délku pak hlásil i server). Android proto pozastavuje UKONČENÍM úseku a obnovuje novým
+  souborem; na konci se zvukové pakety úseků složí do jednoho Oggu (`joinOggOpus`, test
+  `useckyNahravkySeSpojiZaSebe`). M4A (Android 9 a starší) spojovat neumí a zůstává u
+  `MediaRecorder.pause` — ověřené není. iOS `AVAudioRecorder.pause` / `record` (PCM do CAF).
 - **Nahrávač je `factory`, ne `single`** — patří obrazovce. Odchod z chatu nahrávku zahodí,
   spuštění nahrávání zastaví hrající hlasovku (nahrávala by se z reproduktoru).
 - **Odesílá se jako samolepka** (`sendMedia`): bez letu, rozepsaný text zůstává, citace se použije.

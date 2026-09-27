@@ -540,8 +540,10 @@ snadno na to uživatel narazí.
   (`@gif kočka` v poli)~~ — hotovo i s „přes @bot" u zprávy (`CLAUDE.md`, „Inline boti"); zbývá
   ověřit tlačítko „nastavit u bota", bota s polohou a inline bota ve skupině.
 - ~~**Naplánované zprávy a odeslání bez zvuku**~~ — hotovo: podržení odesílacího tlačítka,
-  seznam naplánovaných za hodinami u pole (`CLAUDE.md`, „Naplánované zprávy"). Zbývá plánování
-  hlasovky, samolepky a ankety (jdou jinou cestou než pole), opakované připomínky
+  seznam naplánovaných za hodinami u pole (`CLAUDE.md`, „Naplánované zprávy"). ~~Plánování
+  hlasovky a ankety~~ — hotovo. Zbývá plánování samolepky (podržení ve výběru už rozhýbe
+  samolepku, chce vlastní gesto), anketa naplánovaná jako odpověď (odpověď v konverzaci zůstane
+  viset), opakované připomínky
   (`repeatPeriod`, jen s Premium) a ověřit „až bude online" s člověkem.
 - ~~**Ověření, podvod, falešný účet**~~ — hotovo: štítek u jména v seznamu chatů, v hlavičce
   konverzace a v profilu, u podvodu a falešného s vysvětlením (`CLAUDE.md`, „Ověření a štítek

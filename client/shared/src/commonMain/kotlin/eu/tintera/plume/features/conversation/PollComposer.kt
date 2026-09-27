@@ -73,7 +73,16 @@ import eu.tintera.plume.core.ui.durationText
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.GROUP_SPACING
 import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.schedule_send_24dp
+import eu.tintera.plume.resources.notifications_off_24dp
+import eu.tintera.plume.resources.conversation_schedule_past
+import eu.tintera.plume.resources.conversation_schedule_time
+import eu.tintera.plume.resources.conversation_send_schedule
+import eu.tintera.plume.resources.conversation_send_silent
+import eu.tintera.plume.core.telegram.MessageSchedule
+import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.ui.confirm
+import eu.tintera.plume.core.ui.reject
 import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.toggle
@@ -398,6 +407,8 @@ private val POLL_DURATION_PRESETS = listOf(
 data class PollComposerStatus(
     /** V kanálu je anketa vždycky anonymní — přepínač se pak nekreslí. */
     val isChannel: Boolean = false,
+    /** V Uložených zprávách nemá „bez zvuku" komu ušetřit zvuk. */
+    val isSavedMessages: Boolean = false,
     val maxAnswers: Int = DEFAULT_MAX_ANSWERS,
     /** Nabízené doby trvání; prázdné = volba doby se nekreslí. */
     val durations: List<Int> = emptyList(),
@@ -503,6 +514,7 @@ class PollComposerViewModel(
             _status.update {
                 it.copy(
                     isChannel = info?.isChannel == true,
+                    isSavedMessages = info?.isSavedMessages == true,
                     chatTitle = info?.title,
                     maxAnswers = limits.maxAnswers,
                     durations = pollDurations(limits.maxOpenPeriodSeconds),
@@ -595,8 +607,8 @@ class PollComposerViewModel(
         answerMedia = answerMedia - index
     }
 
-    /** Soubor se nepodařilo připravit (výběr ho nezkopíroval, video nešlo přečíst). */
-    fun reportMediaError(message: UiText) {
+    /** Soubor se nepodařilo připravit (výběr ho nezkopíroval, video nešlo přečíst), čas už minul. */
+    fun reportError(message: UiText) {
         _status.update { it.copy(error = message) }
     }
 
@@ -664,13 +676,14 @@ class PollComposerViewModel(
         _status.update { it.copy(replyTo = null) }
     }
 
-    fun send() {
+    /** [options] z nabídky nad Odeslat (bez zvuku, naplánovat); ťuknutí posílá výchozí. */
+    fun send(options: SendOptions = SendOptions()) {
         val draft = draft ?: return
         if (_status.value.sending) return
         _status.update { it.copy(sending = true, error = null) }
         viewModelScope.launch {
             val replyTo = replyToMessageId
-            repository.sendPoll(chatId, draft, replyToMessageId = replyTo, quote = replyQuote.takeIf { replyTo != null })
+            repository.sendPoll(chatId, draft, replyToMessageId = replyTo, quote = replyQuote.takeIf { replyTo != null }, options = options)
                 .onSuccess { _status.update { it.copy(sending = false, sent = true) } }
                 .onFailure { failure ->
                     logger.w(failure) { "Anketu se nepodařilo odeslat." }
@@ -713,7 +726,7 @@ fun PollComposerScreen(
         LaunchedEffect(Unit) { onClose() }
     }
     val canSend = viewModel.draft != null && !status.sending
-    val mediaPicker = rememberAttachmentPicker(onPicked = viewModel::attachMedia, onError = viewModel::reportMediaError)
+    val mediaPicker = rememberAttachmentPicker(onPicked = viewModel::attachMedia, onError = viewModel::reportError)
     /** Otevřený výběr přílohy (GIF, samolepka, odkaz, místo); fotku a video vybírá systém. */
     var choosing by remember { mutableStateOf<PollMediaKind?>(null) }
     val chooseMedia: (Int, PollMediaKind) -> Unit = { target, kind ->
@@ -723,6 +736,10 @@ fun PollComposerScreen(
     var pickingCloseDay by remember { mutableStateOf(false) }
     var pickedCloseDay by remember { mutableStateOf<Long?>(null) }
     var pickingCountries by remember { mutableStateOf(false) }
+    var sendMenuOpen by remember { mutableStateOf(false) }
+    // Naplánování ankety: napřed den, pak čas — tytéž dialogy jako u zprávy.
+    var pickingScheduleDay by remember { mutableStateOf(false) }
+    var pickedScheduleDay by remember { mutableStateOf<Long?>(null) }
 
     // Vlastní čas uzavření stárne i bez jediného úhozu: čas, který mezitím prošel, musí
     // Odeslat zašednout a obarvit, dřív než by ho odmítl server.
@@ -748,14 +765,36 @@ fun PollComposerScreen(
                     if (status.sending) {
                         LoadingIndicator(Modifier.padding(end = 16.dp).size(32.dp))
                     } else {
-                        Button(
-                            onClick = {
-                                haptics.confirm()
-                                viewModel.send()
-                            },
-                            enabled = canSend,
-                            modifier = Modifier.padding(end = 12.dp),
-                        ) { Text(stringResource(Res.string.poll_compose_send)) }
+                        Box {
+                            Button(
+                                onClick = {
+                                    haptics.confirm()
+                                    viewModel.send()
+                                },
+                                enabled = canSend,
+                                // Podržení nabídne odeslat bez zvuku a naplánovat, jako u zprávy.
+                                modifier = Modifier
+                                    .padding(end = 12.dp)
+                                    .longPressInstead(enabled = canSend) { sendMenuOpen = true },
+                            ) { Text(stringResource(Res.string.poll_compose_send)) }
+                            ExpressiveMenu(
+                                expanded = sendMenuOpen,
+                                onDismiss = { sendMenuOpen = false },
+                                groups = listOf(
+                                    listOfNotNull(
+                                        MenuAction(stringResource(Res.string.conversation_send_silent), Res.drawable.notifications_off_24dp) {
+                                            sendMenuOpen = false
+                                            haptics.confirm()
+                                            viewModel.send(SendOptions(silent = true))
+                                        }.takeIf { !status.isSavedMessages },
+                                        MenuAction(stringResource(Res.string.conversation_send_schedule), Res.drawable.schedule_send_24dp) {
+                                            sendMenuOpen = false
+                                            pickingScheduleDay = true
+                                        },
+                                    ),
+                                ),
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(scrolledContainerColor = MaterialTheme.colorScheme.surface),
@@ -1008,6 +1047,35 @@ fun PollComposerScreen(
                 viewModel.chooseCloseDate(closeDateOf(day, hour, minute, TimeZone.currentSystemDefault()))
             },
             onDismiss = { pickedCloseDay = null },
+        )
+    }
+    if (pickingScheduleDay) {
+        FutureDayDialog(
+            now = Clock.System.now().epochSeconds,
+            maxAheadSeconds = MAX_SCHEDULE_AHEAD_SECONDS,
+            onPick = { day ->
+                pickingScheduleDay = false
+                pickedScheduleDay = day
+            },
+            onDismiss = { pickingScheduleDay = false },
+        )
+    }
+    pickedScheduleDay?.let { day ->
+        TimeOfDayDialog(
+            title = stringResource(Res.string.conversation_schedule_time),
+            initial = Clock.System.now().epochSeconds + HOUR,
+            onPick = { hour, minute ->
+                pickedScheduleDay = null
+                val at = closeDateOf(day, hour, minute, TimeZone.currentSystemDefault())
+                if (!scheduleValid(at, Clock.System.now().epochSeconds)) {
+                    haptics.reject()
+                    viewModel.reportError(UiText(Res.string.conversation_schedule_past))
+                    return@TimeOfDayDialog
+                }
+                haptics.confirm()
+                viewModel.send(SendOptions(schedule = MessageSchedule.At(at)))
+            },
+            onDismiss = { pickedScheduleDay = null },
         )
     }
     when (choosing) {

@@ -15,6 +15,8 @@ import eu.tintera.plume.core.ui.OUTGOING_DIRECTORY
 import java.io.File
 import java.util.UUID
 import kotlin.math.sqrt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Android: `MediaRecorder`.
@@ -26,13 +28,32 @@ import kotlin.math.sqrt
 actual class AudioRecorder(private val context: Context) {
 
     private var recorder: MediaRecorder? = null
-    private var file: File? = null
+
+    /** Složka nahrávky; úseky i výsledný soubor jsou v ní. */
+    private var folder: File? = null
+
+    /** Hotové úseky Ogg/Opus, pořadím nahrávání (viz [pause]). */
+    private val segments = mutableListOf<File>()
+
+    private val opus get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
 
     actual fun start() {
-        val opus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-        val target = File(context.cacheDir, "$OUTGOING_DIRECTORY/${UUID.randomUUID()}/voice.${if (opus) "ogg" else "m4a"}")
-        target.parentFile?.mkdirs()
+        val target = File(context.cacheDir, "$OUTGOING_DIRECTORY/${UUID.randomUUID()}")
+        target.mkdirs()
+        folder = target
+        segments.clear()
+        try {
+            recorder = startSegment()
+        } catch (failure: Throwable) {
+            target.deleteRecursively()
+            folder = null
+            throw failure
+        }
+    }
 
+    /** Založí nahrávání do dalšího souboru ve složce. */
+    private fun startSegment(): MediaRecorder {
+        val target = File(folder ?: error("Nic se nenahrává."), "voice-${segments.size}.${if (opus) "ogg" else "m4a"}")
         val created = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             MediaRecorder(context)
         } else {
@@ -61,29 +82,81 @@ actual class AudioRecorder(private val context: Context) {
             target.delete()
             throw failure
         }
-        recorder = created
-        file = target
+        segments += target
+        return created
     }
 
     /** `maxAmplitude` je špička od posledního čtení; odmocnina zvedne tiché úrovně, ať je řeč vidět. */
     actual val level: Float
         get() = recorder?.let { sqrt(it.maxAmplitude / 32767f).coerceIn(0f, 1f) } ?: 0f
 
-    actual suspend fun stop(): String {
-        val active = recorder ?: error("Nic se nenahrává.")
-        val target = file ?: error("Nic se nenahrává.")
+    /**
+     * Ogg/Opus se pozastavuje UKONČENÍM úseku, ne `MediaRecorder.pause`. Ten s výstupem Ogg
+     * pauzu nedodržel — na emulátoru kódoval dál a hlasovka pozastavená na výběr času měla
+     * místo tří vteřin dvaatřicet. Úseky spojí [stop] ([joinOggOpus]). M4A (Android 9 a starší)
+     * se spojovat neumí, tam zůstává `pause`.
+     */
+    actual fun pause() {
+        val active = recorder ?: return
+        if (!opus) {
+            active.pause()
+            return
+        }
         recorder = null
-        file = null
+        finishSegment(active)
+    }
+
+    actual fun resume() {
+        if (!opus) {
+            recorder?.resume()
+            return
+        }
+        if (recorder == null) recorder = startSegment()
+    }
+
+    /** Ukončí úsek; prázdný (pauza hned po obnovení) `stop` odmítne a úsek se zahodí. */
+    private fun finishSegment(active: MediaRecorder) {
         try {
-            // Po příliš krátkém nahrávání `stop` vyhodí výjimku — soubor pak nic nenese.
             active.stop()
         } catch (failure: RuntimeException) {
-            target.delete()
-            throw failure
+            segments.removeLastOrNull()?.delete()
         } finally {
             active.release()
         }
-        return target.absolutePath
+    }
+
+    actual suspend fun stop(): String {
+        val target = folder ?: error("Nic se nenahrává.")
+        recorder?.let { active ->
+            recorder = null
+            if (opus) {
+                finishSegment(active)
+            } else {
+                try {
+                    // Po příliš krátkém nahrávání `stop` vyhodí výjimku — soubor pak nic nenese.
+                    active.stop()
+                } catch (failure: RuntimeException) {
+                    target.deleteRecursively()
+                    throw failure
+                } finally {
+                    active.release()
+                }
+            }
+        }
+        folder = null
+        val parts = segments.toList()
+        segments.clear()
+        if (parts.isEmpty()) {
+            target.deleteRecursively()
+            error("Nahrávka je prázdná.")
+        }
+        if (parts.size == 1) return parts.single().absolutePath
+        return withContext(Dispatchers.IO) {
+            val joined = File(target, "voice.ogg")
+            joined.writeBytes(joinOggOpus(parts.map { it.readBytes() }))
+            parts.forEach { it.delete() }
+            joined.absolutePath
+        }
     }
 
     actual fun cancel() {
@@ -91,9 +164,10 @@ actual class AudioRecorder(private val context: Context) {
             runCatching { active.stop() }
             active.release()
         }
-        file?.parentFile?.deleteRecursively()
+        folder?.deleteRecursively()
         recorder = null
-        file = null
+        folder = null
+        segments.clear()
     }
 }
 

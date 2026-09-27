@@ -78,6 +78,30 @@ class AudioFormatsTest {
         assertEquals(0x765E7680.toInt() xor -1, oggCrc("123456789".encodeToByteArray()))
     }
 
+    /** Pozastavené nahrávání na Androidu: úseky se skládají za sebe, hlavička je z prvního. */
+    @Test
+    fun useckyNahravkySeSpojiZaSebe() {
+        // TOC 0xF8 = CELT, plné pásmo, 20 ms: 960 vzorků na paket.
+        val first = List(30) { index -> byteArrayOf(0xF8.toByte(), index.toByte()) }
+        val second = List(20) { index -> byteArrayOf(0xF8.toByte(), (100 + index).toByte()) }
+        val joined = joinOggOpus(
+            listOf(
+                oggOpusFile(first, channels = 1, preSkip = 312, samplesPerPacket = 960),
+                oggOpusFile(second, channels = 1, preSkip = 120, samplesPerPacket = 960),
+            ),
+        )
+
+        val stream = parseOggOpus(joined)
+        assertEquals(312, stream.preSkip)
+        assertEquals(first.size + second.size, stream.packets.size)
+        (first + second).zip(stream.packets).forEach { (expected, actual) -> assertContentEquals(expected, actual) }
+
+        // Délku čtou přehrávače z granule poslední stránky: 50 paketů po 20 ms, žádná mezera.
+        val lastPage = joined.lastIndexOf("OggS")
+        val granule = (0 until 8).sumOf { (joined[lastPage + 6 + it].toLong() and 0xFF) shl (8 * it) }
+        assertEquals(312L + 50 * 960, granule)
+    }
+
     @Test
     fun oggWriterRoundTrip() {
         val packets = List(120) { index -> ByteArray(index % 300 + 1) { index.toByte() } }
@@ -124,4 +148,12 @@ class AudioFormatsTest {
         header[26] = lacing.size.toByte()
         return header + lacing.toByteArray() + packets.fold(ByteArray(0)) { acc, p -> acc + p }
     }
+}
+
+private fun ByteArray.lastIndexOf(marker: String): Int {
+    val bytes = marker.encodeToByteArray()
+    for (start in size - bytes.size downTo 0) {
+        if (bytes.indices.all { this[start + it] == bytes[it] }) return start
+    }
+    return -1
 }

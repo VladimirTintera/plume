@@ -31,6 +31,11 @@ expect class AudioRecorder {
 
     /** Zahodí rozpracovanou nahrávku i se souborem. */
     fun cancel()
+
+    /** Pozastaví nahrávání; soubor zůstává rozpracovaný a [resume] na něj naváže. */
+    fun pause()
+
+    fun resume()
 }
 
 /** Oprávnění k mikrofonu. [request] se nejdřív zeptá systému; výsledek dostane v callbacku. */
@@ -64,7 +69,11 @@ class VoiceRecorder(private val recorder: AudioRecorder, private val scope: Coro
 
     private var tickJob: Job? = null
     private val levels = mutableListOf<Float>()
+
+    /** Začátek běžícího úseku; s pauzami se nahraný čas přičítá do [recordedMs]. */
     private var startedAt: TimeSource.Monotonic.ValueTimeMark? = null
+    private var recordedMs = 0L
+    private var paused = false
     private val logger = Logger.withTag("VoiceRecorder")
 
     fun start(): Result<Unit> {
@@ -72,19 +81,10 @@ class VoiceRecorder(private val recorder: AudioRecorder, private val scope: Coro
         return runCatching { recorder.start() }
             .onSuccess {
                 levels.clear()
-                val mark = TimeSource.Monotonic.markNow()
-                startedAt = mark
+                recordedMs = 0
+                startedAt = TimeSource.Monotonic.markNow()
                 _state.value = VoiceRecording(elapsedMs = 0, recentLevels = emptyList())
-                tickJob = scope.launch {
-                    while (isActive) {
-                        delay(LEVEL_TICK_MS)
-                        levels += recorder.level
-                        _state.value = VoiceRecording(
-                            elapsedMs = mark.elapsedNow().inWholeMilliseconds,
-                            recentLevels = levels.takeLast(RECENT_LEVELS),
-                        )
-                    }
-                }
+                tick()
             }
             .onFailure { failure ->
                 logger.w(failure) { "Nahrávání nejde spustit." }
@@ -92,10 +92,54 @@ class VoiceRecorder(private val recorder: AudioRecorder, private val scope: Coro
             }
     }
 
+    /**
+     * Pozastaví nahrávání — třeba po dobu nabídky odeslání a výběru času, kdy by se jinak do
+     * hlasovky nahrálo šustění při vybírání. Čas pauzy se do délky nepočítá a úrovně se nesbírají.
+     */
+    fun pause() {
+        val mark = startedAt ?: return
+        if (paused) return
+        runCatching { recorder.pause() }
+            .onFailure { failure ->
+                logger.w(failure) { "Nahrávání nejde pozastavit." }
+                return
+            }
+        recordedMs += mark.elapsedNow().inWholeMilliseconds
+        paused = true
+        tickJob?.cancel()
+        tickJob = null
+    }
+
+    /** Naváže na pozastavené nahrávání. */
+    fun resume() {
+        if (startedAt == null || !paused) return
+        runCatching { recorder.resume() }
+            .onFailure { failure -> logger.w(failure) { "Nahrávání nejde obnovit." } }
+        paused = false
+        startedAt = TimeSource.Monotonic.markNow()
+        tick()
+    }
+
+    private fun elapsedMs(): Long =
+        recordedMs + (startedAt?.takeUnless { paused }?.elapsedNow()?.inWholeMilliseconds ?: 0L)
+
+    private fun tick() {
+        tickJob = scope.launch {
+            while (isActive) {
+                delay(LEVEL_TICK_MS)
+                levels += recorder.level
+                _state.value = VoiceRecording(
+                    elapsedMs = elapsedMs(),
+                    recentLevels = levels.takeLast(RECENT_LEVELS),
+                )
+            }
+        }
+    }
+
     /** Ukončí nahrávání. `null`, když nic neběželo, nahrávka je moc krátká, nebo selhala. */
     suspend fun finish(): RecordedVoice? {
-        val mark = startedAt ?: return null
-        val elapsed = mark.elapsedNow().inWholeMilliseconds
+        if (startedAt == null) return null
+        val elapsed = elapsedMs()
         reset()
 
         if (elapsed < MIN_DURATION_MS) {
@@ -124,6 +168,8 @@ class VoiceRecorder(private val recorder: AudioRecorder, private val scope: Coro
         tickJob?.cancel()
         tickJob = null
         startedAt = null
+        recordedMs = 0
+        paused = false
         _state.value = null
     }
 }
