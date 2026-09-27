@@ -18,6 +18,8 @@ import eu.tintera.plume.resources.conversation_selection_close
 import eu.tintera.plume.resources.conversation_selection_count
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.forward_24dp
+import eu.tintera.plume.resources.menu_report
+import eu.tintera.plume.resources.flag_24dp
 import eu.tintera.plume.resources.menu_copy
 import eu.tintera.plume.resources.menu_delete
 import eu.tintera.plume.resources.menu_forward
@@ -53,7 +55,7 @@ internal fun SelectionTopBar(selection: MessageSelection, onClose: () -> Unit) {
 }
 
 /**
- * Akce nad výběrem místo vstupního pole — kopírovat, přeposlat, smazat.
+ * Akce nad výběrem místo vstupního pole — kopírovat, přeposlat, nahlásit, smazat.
  *
  * **Tlačítka nemizí, jen zšednou.** Práva se u každé vybrané zprávy načítají zvlášť, takže by se
  * toolbar při každém ťuknutí přeskládal pod prstem; a zmizelá akce neřekne, že ji zrovna tenhle
@@ -64,6 +66,7 @@ internal fun SelectionToolbar(
     selection: MessageSelection,
     onCopy: () -> Unit,
     onForward: () -> Unit,
+    onReport: () -> Unit,
     onDelete: () -> Unit,
 ) {
     ConversationFloatingBar(visible = selection.count > 0) {
@@ -78,6 +81,13 @@ internal fun SelectionToolbar(
             label = Res.string.menu_forward,
             enabled = selection.canForward,
             onClick = onForward,
+        )
+        // Před smazáním: spam se nejdřív nahlásí, pak maže — jako v úklidu spamu u chatu.
+        ToolbarAction(
+            icon = Res.drawable.flag_24dp,
+            label = Res.string.menu_report,
+            enabled = selection.canReport,
+            onClick = onReport,
         )
         ToolbarAction(
             icon = Res.drawable.delete_24dp,
