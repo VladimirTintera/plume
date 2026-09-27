@@ -90,6 +90,7 @@ import androidx.compose.ui.unit.toSize
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
+import eu.tintera.plume.core.telegram.NewReaction
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.RichText
@@ -167,6 +168,11 @@ internal data class MessageFrameData(
     val selected: Boolean? = null,
     /** Počty pod příspěvkem kanálu (viz [PostStatsRow]); `null` = zpráva žádné nemá. */
     val postStats: PostStats? = null,
+    /**
+     * U nepřečtené reakce ukázat i KDO reagoval — jen ve skupině. V soukromém chatu je to vždycky
+     * protějšek, takže jméno by jen opakovalo hlavičku; zvýrazněný čip stačí.
+     */
+    val namesReactors: Boolean = false,
 ) {
     /**
      * Zpráva je zvýrazněná: jednorázově po skoku ([highlighted]), nebo trvale jako ukázaný
@@ -867,6 +873,8 @@ internal fun MessageBox(
     maxWidthFraction: Float = 1f,
     /** Reakce, které se mají kreslit — viz [heldReactions]. */
     reactions: List<MessageReaction> = frame.message.reactions,
+    /** Nepřečtené reakce ke zvýraznění; kopie v nabídce je nezvýrazňuje (viz [ReactionRow]). */
+    newReactions: List<NewReaction> = frame.message.newReactions,
     extra: @Composable BoxScope.() -> Unit = {},
 ) {
     val message = frame.message
@@ -926,6 +934,11 @@ internal fun MessageBox(
         ReactionRow(
             reactions = reactions,
             onOpenDetails = onReactionClick,
+            newReactions = newReactions,
+            namesReactors = frame.namesReactors,
+            // Popisek jde do volného pruhu, tedy na stranu od kraje obrazovky: u odchozí zprávy
+            // vlevo od čipů.
+            reactorsAtStart = message.isOutgoing,
             modifier = Modifier
                 .align(if (message.isOutgoing) Alignment.BottomEnd else Alignment.BottomStart)
                 // Kolečko lícuje s hranou bubliny, jako v Google Zprávách: řádek má kolem sebe
@@ -975,6 +988,8 @@ internal fun MessageItem.MenuCopy(scope: ConversationItemScope, modifier: Modifi
         // Kopie ukazuje reakce z okamžiku otevření: výběr reakce nabídku hned zavře a kopie letí
         // zpátky — nová reakce patří až zprávě v seznamu, kde ji je vidět naskočit.
         reactions = heldReactions(frame.message.reactions, hold = true),
+        // Zvýraznění patří zprávě v seznamu; kopie by ho přehrála podruhé.
+        newReactions = emptyList(),
     )
 }
 

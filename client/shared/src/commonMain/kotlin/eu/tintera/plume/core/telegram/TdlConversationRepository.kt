@@ -2,6 +2,7 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
+import dev.g000sha256.tdl.dto.UnreadReaction
 import dev.g000sha256.tdl.dto.InputTextQuote
 import dev.g000sha256.tdl.dto.InputMessageReplyTo
 import dev.g000sha256.tdl.dto.TextEntityTypeBold
@@ -351,7 +352,14 @@ class TdlConversationRepository(
         merge(
             holder.updates { messageUnreadReactionsUpdates }
                 .filter { it.chatId == chatId }
-                .map { UnreadMarkChange(it.messageId, UnreadMarkKind.Reaction, hasUnread = it.unreadReactions.isNotEmpty()) },
+                .map {
+                    UnreadMarkChange(
+                        messageId = it.messageId,
+                        kind = UnreadMarkKind.Reaction,
+                        hasUnread = it.unreadReactions.isNotEmpty(),
+                        reactions = it.unreadReactions.toNewReactions(),
+                    )
+                },
             holder.updates { messageContainsUnreadPollVotesUpdates }
                 .filter { it.chatId == chatId }
                 .map { UnreadMarkChange(it.messageId, UnreadMarkKind.PollVote, hasUnread = it.containsUnreadPollVotes) },
@@ -1745,6 +1753,7 @@ class TdlConversationRepository(
             reactions = interactionInfo.toReactions(),
             postStats = interactionInfo.toPostStats(),
             hasUnreadReactions = unreadReactions.isNotEmpty(),
+            newReactions = unreadReactions.toNewReactions(),
             hasUnreadPollVotes = containsUnreadPollVotes,
             threadId = (topicId as? MessageTopicThread)?.messageThreadId,
             schedule = schedulingState?.toSchedule(),
@@ -2316,6 +2325,14 @@ class TdlConversationRepository(
             myIdClient = client
         }
         myId ?: client.getMe().toResult().getOrNull()?.id?.also { myId = it }
+    }
+
+    /**
+     * Nepřečtené reakce v doménové podobě, s odesílatelem z keše. Placená reakce klíč nemá
+     * (`toReactionKey`) a vypadne, stejně jako v čipech.
+     */
+    private suspend fun Array<UnreadReaction>.toNewReactions(): List<NewReaction> = mapNotNull { reaction ->
+        reaction.type.toReactionKey()?.let { key -> NewReaction(key, resolveSender(reaction.senderId.plainId())) }
     }
 
     private suspend fun resolveSender(senderId: Long): SenderInfo? {

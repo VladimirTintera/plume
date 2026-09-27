@@ -112,6 +112,7 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
                 highlighted = state.highlightedMessageId?.let(row::contains) == true,
                 searchFocused = state.search?.current?.let(row::contains) == true,
                 reactionsOpenable = info?.isChannel != true,
+                namesReactors = info?.isGroup == true && !info.isChannel,
                 flight = state.flight?.takeIf { it.itemKey == key },
                 menu = state.messageMenu?.takeIf { it.messageId == message.id },
                 menuActions = menuActions(row.primary, isPinned = state.pinned.any { row.contains(it.id) }),

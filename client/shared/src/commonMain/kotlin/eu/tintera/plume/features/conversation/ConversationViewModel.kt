@@ -1068,7 +1068,7 @@ class ConversationViewModel(
                                 when {
                                     message.id != change.messageId -> message
                                     change.kind == UnreadMarkKind.PollVote -> message.copy(hasUnreadPollVotes = change.hasUnread)
-                                    else -> message.copy(hasUnreadReactions = change.hasUnread)
+                                    else -> message.copy(hasUnreadReactions = change.hasUnread, newReactions = change.reactions)
                                 }
                             },
                         )

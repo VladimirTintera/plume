@@ -6954,6 +6954,23 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   zůstává starý seznam, dokud nedorazí nový — indikátor by sheet smrštil a zase natáhl.
 - **Detail je jedna stránka** (`REACTION_DETAIL_LIMIT`, 50 řádků). U příspěvku s tisíci reakcemi
   ho nikdo neprojde a stránkování by znamenalo držet offset ve stavu sheetu.
+- **Nepřečtená reakce na vlastní zprávu se zvýrazní, jakmile je zpráva vidět** (`NewReaction`,
+  `ChatMessage.newReactions` z `Message.unreadReactions`, živě přes `unreadMarkChanges`): čip
+  dvakrát povyskočí (`NEW_REACTION_PULSE_SCALE`) a ve skupině vedle čipů na pár vteřin vyjede
+  pilulka s tvářemi a jmény těch, kdo reagovali (`ReactorsLabel`, „Jana, Petr a 2 další").
+  V soukromém chatu jméno nic nepřidá — reagovat mohl jen protějšek.
+- **Zvýraznění se musí PODRŽET** (`rememberReactionHighlight`, 4 s). Zobrazená zpráva se hlásí
+  jako zhlédnutá po 400 ms, TDLib reakce přečte a `newReactions` zmizí — bez podržení by
+  zvýraznění zhaslo dřív, než si ho kdo všimne. Stav patří složené položce, takže po
+  odscrollování a návratu je reakce přečtená a nic nepulzuje.
+- **Pilulka místo v rozvržení nezabírá** (`layout` s nulovou velikostí): sloupec zprávy se
+  roztahuje podle řádku reakcí, a popisek v něm by bublinu na pár vteřin rozšířil a posunul.
+  Leží přes spodní okraj zprávy vedle čipů, stejně jako čip.
+- **Ověřuje se botem**: vlastní zpráva do chatu s botem, `setMessageReaction` botem (změna emoji
+  je nová nepřečtená), pak chat otevřít. Pulz jde vidět jen zpomaleně
+  (`animator_duration_scale 5`) a změřením plochy emoji ve snímcích. Jména se kreslí jen ve
+  skupině, takže se v chatu s botem ukážou jen sondou (`namesReactors = true`, necommituje se);
+  **ve skutečné skupině ověřená nejsou**.
 
 ## Odpovědi (reply)
 

@@ -1,13 +1,5 @@
 package eu.tintera.plume.features.conversation
 
-import eu.tintera.plume.resources.reactions_filter_all
-import eu.tintera.plume.core.ui.grouped
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.ButtonGroupDefaults
-import androidx.compose.material3.ToggleButton
-import eu.tintera.plume.core.telegram.customEmojiIdOf
-import eu.tintera.plume.core.ui.CustomEmojiIcon
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -24,22 +16,27 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,17 +51,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import eu.tintera.plume.core.telegram.MessageReaction
+import eu.tintera.plume.core.telegram.NewReaction
+import eu.tintera.plume.core.telegram.SenderInfo
+import eu.tintera.plume.core.telegram.customEmojiIdOf
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.CustomEmojiIcon
+import eu.tintera.plume.core.ui.FaceStack
+import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.reactions_filter_all
+import eu.tintera.plume.resources.reactions_new_others
 import eu.tintera.plume.resources.reactions_title
 import eu.tintera.plume.resources.reactions_you
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -83,7 +91,14 @@ fun ReactionRow(
     /** `null` tam, kde detail není k dispozici — pak čip nereaguje na ťuknutí a nemá ani vlnku. */
     onOpenDetails: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    /** Nepřečtené reakce na vlastní zprávu — viz [rememberReactionHighlight]. */
+    newReactions: List<NewReaction> = emptyList(),
+    /** Ukázat u zvýraznění i KDO reagoval (jen ve skupině). */
+    namesReactors: Boolean = false,
+    /** Popisek s tím, kdo reagoval, stojí před čipy (u odchozí zprávy), jinak za nimi. */
+    reactorsAtStart: Boolean = true,
 ) {
+    val highlight = rememberReactionHighlight(newReactions)
     /*
      * Čipy NABĚHNOU a odejdou zvětšením. Při odebrání poslední reakce se musí dál kreslit ta
      * poslední, jinak by `AnimatedVisibility` dobíhala s prázdným řádkem (stejná past jako
@@ -94,22 +109,113 @@ fun ReactionRow(
     val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
     val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
 
+    Box(modifier) {
+        AnimatedVisibility(
+            visible = reactions.isNotEmpty(),
+            enter = scaleIn(
+                spring(dampingRatio = CHIP_POP_DAMPING, stiffness = Spring.StiffnessMedium),
+                initialScale = 0f,
+            ) + fadeIn(effects),
+            exit = scaleOut(spatial, targetScale = 0.4f) + fadeOut(effects),
+            label = "reaction-row",
+        ) {
+            ReactionChips(shown, onOpenDetails, highlighted = highlight.map { it.key }.toSet())
+        }
+        ReactorsLabel(
+            senders = if (namesReactors) highlight.mapNotNull { it.sender }.distinctBy { it.id } else emptyList(),
+            atStart = reactorsAtStart,
+            modifier = Modifier.align(if (reactorsAtStart) Alignment.CenterStart else Alignment.CenterEnd),
+        )
+    }
+}
+
+/**
+ * Nepřečtené reakce ke zvýraznění, podržené na [REACTOR_HIGHLIGHT_MS].
+ *
+ * Podržet je nutné: zobrazená zpráva se jako zhlédnutá hlásí po 400 ms a TDLib pak reakce
+ * přečte (`newReactions` zmizí) — bez podržení by zvýraznění zhaslo dřív, než si ho kdo všimne.
+ * Stav patří složené položce: po odscrollování a návratu je reakce přečtená a nezvýrazní se.
+ */
+@Composable
+private fun rememberReactionHighlight(newReactions: List<NewReaction>): List<NewReaction> {
+    var held by remember { mutableStateOf<List<NewReaction>>(emptyList()) }
+    LaunchedEffect(newReactions) {
+        if (newReactions.isNotEmpty()) held = newReactions
+    }
+    LaunchedEffect(held) {
+        if (held.isEmpty()) return@LaunchedEffect
+        delay(REACTOR_HIGHLIGHT_MS)
+        held = emptyList()
+    }
+    return held
+}
+
+/**
+ * Kdo právě reagoval: tváře a jména v pilulce vedle čipů. Jen dočasně, se zvýrazněním.
+ *
+ * **Místo v rozvržení nezabírá** (měří se bez omezení, hlásí nulovou velikost a kreslí se přes
+ * spodní okraj zprávy vedle čipů, jako čip sám). Řádek reakcí je široký, jak potřebuje, a sloupec
+ * zprávy se podle něj roztáhne — popisek v něm by zprávu na pár vteřin rozšířil a bublina by
+ * uskočila.
+ */
+@Composable
+private fun ReactorsLabel(senders: List<SenderInfo>, atStart: Boolean, modifier: Modifier = Modifier) {
+    var shown by remember { mutableStateOf(senders) }
+    if (senders.isNotEmpty()) shown = senders
+    val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
     AnimatedVisibility(
-        visible = reactions.isNotEmpty(),
-        modifier = modifier,
-        enter = scaleIn(
-            spring(dampingRatio = CHIP_POP_DAMPING, stiffness = Spring.StiffnessMedium),
-            initialScale = 0f,
-        ) + fadeIn(effects),
-        exit = scaleOut(spatial, targetScale = 0.4f) + fadeOut(effects),
-        label = "reaction-row",
+        visible = senders.isNotEmpty(),
+        enter = scaleIn(spatial, initialScale = 0.6f) + fadeIn(effects),
+        exit = scaleOut(spatial, targetScale = 0.6f) + fadeOut(effects),
+        label = "reactors",
+        modifier = modifier.layout { measurable, constraints ->
+            val placeable = measurable.measure(constraints.copy(minWidth = 0, maxWidth = Constraints.Infinity, minHeight = 0))
+            val gap = REACTOR_LABEL_GAP.roundToPx()
+            layout(0, 0) {
+                placeable.place(
+                    x = if (atStart) -placeable.width - gap else gap,
+                    y = -placeable.height / 2,
+                )
+            }
+        },
     ) {
-        ReactionChips(shown, onOpenDetails)
+        val names = shown.take(REACTOR_NAMES_SHOWN).joinToString(", ") { it.title }
+        val others = shown.size - REACTOR_NAMES_SHOWN
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shadowElevation = REACTION_ELEVATION,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(start = 4.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
+            ) {
+                FaceStack(
+                    faces = shown.take(REACTOR_FACES_SHOWN),
+                    ringColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    size = REACTOR_FACE_SIZE,
+                )
+                Text(
+                    text = if (others > 0) stringResource(Res.string.reactions_new_others, names, others) else names,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = REACTOR_LABEL_MAX_WIDTH),
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun ReactionChips(reactions: List<MessageReaction>, onOpenDetails: (() -> Unit)?) {
+private fun ReactionChips(
+    reactions: List<MessageReaction>,
+    onOpenDetails: (() -> Unit)?,
+    highlighted: Set<String> = emptySet(),
+) {
     /*
      * Nový čip v už viditelném řádku naskočí sám; čipy, které tu byly při prvním složení
      * (zpráva přijela při scrollu), se nezvětšují.
@@ -134,7 +240,7 @@ private fun ReactionChips(reactions: List<MessageReaction>, onOpenDetails: (() -
                 val spec = spring<Float>(dampingRatio = CHIP_POP_DAMPING, stiffness = Spring.StiffnessMedium)
                 LaunchedEffect(Unit) { appear.animateTo(1f, spec) }
                 Box(Modifier.graphicsLayer { scaleX = appear.value; scaleY = appear.value }) {
-                    ReactionChip(reaction = reaction, onClick = onOpenDetails)
+                    ReactionChip(reaction = reaction, onClick = onOpenDetails, highlighted = reaction.emoji in highlighted)
                 }
             }
         }
@@ -161,6 +267,8 @@ private fun ReactionChips(reactions: List<MessageReaction>, onOpenDetails: (() -
 private fun ReactionChip(
     reaction: MessageReaction,
     onClick: (() -> Unit)?,
+    /** Nepřečtená reakce: čip dvakrát výrazněji povyskočí, jakmile ji uživatel uvidí. */
+    highlighted: Boolean = false,
 ) {
     val chosen = reaction.isChosen
 
@@ -210,6 +318,13 @@ private fun ReactionChip(
         shownCount = reaction.count
         pulse.animateTo(REACTION_PULSE_SCALE, pulseSpec)
         pulse.animateTo(1f, pulseSpec)
+    }
+    LaunchedEffect(highlighted) {
+        if (!highlighted) return@LaunchedEffect
+        repeat(2) {
+            pulse.animateTo(NEW_REACTION_PULSE_SCALE, pulseSpec)
+            pulse.animateTo(1f, pulseSpec)
+        }
     }
 
     Box(Modifier.graphicsLayer { scaleX = scale * pulse.value; scaleY = scale * pulse.value }) {
@@ -277,6 +392,18 @@ private val REACTION_CHIP_SIZE = 30.dp
 
 /** Kolik místa si čip nechá nahoře a vpravo na odznak s počtem. */
 internal val REACTION_BADGE_ROOM = 7.dp
+
+/** Jak dlouho zůstane nepřečtená reakce zvýrazněná (a popisek s tím, kdo reagoval). */
+private const val REACTOR_HIGHLIGHT_MS = 4_000L
+
+/** Povyskočení čipu nepřečtené reakce — výraznější než při změně počtu. */
+private const val NEW_REACTION_PULSE_SCALE = 1.3f
+
+private const val REACTOR_NAMES_SHOWN = 2
+private const val REACTOR_FACES_SHOWN = 3
+private val REACTOR_FACE_SIZE = 20.dp
+private val REACTOR_LABEL_GAP = 6.dp
+private val REACTOR_LABEL_MAX_WIDTH = 180.dp
 
 /**
  * Tlumení pružiny náběhu čipu. Víc přeskoku než běžný spatial spec (0,6–0,78): náběh reakce je

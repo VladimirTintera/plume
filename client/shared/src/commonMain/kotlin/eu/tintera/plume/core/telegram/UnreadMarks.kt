@@ -20,7 +20,20 @@ data class UnreadMarks(val mentions: Int = 0, val reactions: Int = 0, val pollVo
  * Změna nepřečtených reakcí nebo hlasů u jedné (vlastní) zprávy — přišly nové, nebo je přečetla
  * obrazovka či jiné zařízení. Zmínky tu nejsou: příznak zmínky zpráva nenese, jen chat počet.
  */
-data class UnreadMarkChange(val messageId: Long, val kind: UnreadMarkKind, val hasUnread: Boolean)
+data class UnreadMarkChange(
+    val messageId: Long,
+    val kind: UnreadMarkKind,
+    val hasUnread: Boolean,
+    /** U reakcí: které nepřečtené reakce zpráva nese a kdo je dal ([ChatMessage.newReactions]). */
+    val reactions: List<NewReaction> = emptyList(),
+)
+
+/**
+ * Nepřečtená reakce na vlastní zprávu: kterou (klíč jako [MessageReaction.emoji]) a kdo ji dal
+ * (`UnreadReaction.senderId`). `null` odesílatel = TDLib ho nevydal; reakce se pak jen zvýrazní,
+ * bez jména.
+ */
+data class NewReaction(val key: String, val sender: SenderInfo?)
 
 /**
  * Nejstarší zpráva z výsledku hledání — skáče se od ní, jako u nepřečtených zpráv.
