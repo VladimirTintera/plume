@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.VerificationBadge
 import eu.tintera.plume.core.ui.tabularNumbers
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -1082,7 +1083,8 @@ internal fun MessageBodyScope.SenderName(
     val nameColor = accentOn(background, senderColor(message.senderId), LocalContentColor.current)
     val tag = message.senderTag
     val boosts = message.senderBoostCount
-    if (tag == null && boosts == 0) {
+    val verification = message.senderVerification
+    if (tag == null && boosts == 0 && verification == null) {
         Text(
             text = name,
             style = MaterialTheme.typography.labelLarge,
@@ -1106,6 +1108,16 @@ internal fun MessageBodyScope.SenderName(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f, fill = false),
         )
+        // Hned za jménem, jako v seznamu chatů a v hlavičce: podvodník ve skupině je jinak
+        // k nerozeznání od kohokoli jiného. Fajfka nese akcent plochy, štítek podvodu svou barvu.
+        verification?.let {
+            VerificationBadge(
+                verification = it,
+                accent = accentOn(background, MaterialTheme.colorScheme.primary, LocalContentColor.current),
+                iconSize = SENDER_BADGE_SIZE,
+                modifier = Modifier.padding(start = 4.dp),
+            )
+        }
         if (boosts > 0) SenderBoosts(boosts, nameColor)
         if (tag != null) {
             Text(
@@ -1119,6 +1131,9 @@ internal fun MessageBodyScope.SenderName(
         }
     }
 }
+
+/** Fajfka ověření u jména: o kus menší než v seznamu chatů, jméno je tu `labelLarge`. */
+private val SENDER_BADGE_SIZE = 14.dp
 
 /**
  * Blesk boostu v barvě jména, s počtem jen od dvou — „1" by u každého boostujícího opakovalo,

@@ -1678,6 +1678,7 @@ class TdlConversationRepository(
             isOutgoing = outgoing,
             senderName = sender?.title,
             senderAvatarFileId = sender?.avatarFileId,
+            senderVerification = sender?.verification,
             senderId = senderId,
             text = body.text,
             entities = body.entities,
@@ -2288,6 +2289,7 @@ class TdlConversationRepository(
                 id = senderId,
                 title = name,
                 avatarFileId = user.profilePhoto?.small?.id,
+                verification = user.verificationStatus.toVerification(),
             )
         } else {
             // Odesílatel může být kanál (MessageSenderChat), ne uživatel — getUser pak selže.
@@ -2296,6 +2298,7 @@ class TdlConversationRepository(
                 id = senderId,
                 title = chat.title,
                 avatarFileId = chat.photo?.small?.id,
+                verification = client.verificationOf(chat),
             )
         }
 
