@@ -562,6 +562,7 @@
     <string name="attachment_done">Hotovo</string>
     <string name="link_preview_title">Náhled odkazu</string>
     <string name="link_preview_options">Volby náhledu odkazu</string>
+    <string name="link_preview_section_link">Odkaz</string>
     <string name="link_preview_section_media">Obrázek</string>
     <string name="link_preview_large">Velký obrázek</string>
     <string name="link_preview_large_desc">Přes celou šířku zprávy</string>

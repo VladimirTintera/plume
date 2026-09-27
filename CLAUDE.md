@@ -3313,9 +3313,21 @@ vypne. Pravidla jsou čisté funkce v `ComposerLinkPreview.kt` (testy `ComposerL
   TDLib u něj píše „do not call this function too often" a na text bez odkazu vrací 404. Pauza
   po posledním úhozu je 700 ms (`LINK_PREVIEW_DELAY_MS`). 404 je odpověď „náhled není", ne chyba.
 - **Vynucená velikost bez adresy NEPLATÍ.** `forceSmallMedia` a `forceLargeMedia` TDLib bez
-  výslovné `url` ignoruje. Adresa se proto doplní až při odeslání z náhledu, který uživatel
-  právě vidí (`forSending`). Držet ji ve volbě by po přepsání odkazu v textu vynucovalo náhled
-  toho starého. Ověřeno na emulátoru: YouTube, kde server volí velký obrázek, odešel s malým.
+  výslovné `url` ignoruje. Adresa se proto doplní při odeslání z náhledu, který uživatel
+  právě vidí (`forSending`). Ověřeno na emulátoru: YouTube, kde server volí velký obrázek,
+  odešel s malým.
+- **S víc odkazy v textu jde vybrat, ke kterému náhled patří** (sekce „Odkaz" v sheetu,
+  `LinkPreviewOptions.url`, `selectedLink`, testy `ComposerLinkPreviewTest`). Odkazy vrací
+  repository spolu s náhledem (`TextLinkPreview.links`) v podobě, jak stojí v textu — holé
+  `example.com` zůstane holé a jde zpátky do `getLinkPreview` jako `url`. Označený řádek se
+  porovnává s odkazem z textu, ne s `LinkPreview.url`: ta od serveru bývá upravená (`https://`,
+  lomítko). **Výběr platí, jen dokud odkaz v textu stojí** (`forPreview(links)`): po jeho smazání
+  by zpráva odešla s náhledem něčeho, co v ní už není. Výběr jiného odkazu se ptá hned, bez pauzy
+  na psaní, a uloží se s konceptem (`toDomain` adresu přenáší). Ověřeno Bot API: druhý odkaz
+  s malým obrázkem přišel jako `url` YouTube s `prefer_small_media`.
+- **Text vložený sdílením je koncept jako napsaný** (`receiveShared` zapíše `draftText`). Pole
+  se vyplní bez `onDraftChanged`, takže ho ViewModel neznal — a první uložení konceptu (tady
+  změna volby náhledu) zapsalo prázdný koncept: sdílený text po odchodu z chatu zmizel.
 - **Velikost se nabízí jen s `hasLargeMedia`** (`LinkPreview.canChangeSize`). Wikipedia ji nemá,
   YouTube ano. Volba, která nic nezmění, se nekreslí.
 - **Jiný odkaz = volba znovu od začátku, kromě vypnutí** (`forPreview`). Vypnutí platí do

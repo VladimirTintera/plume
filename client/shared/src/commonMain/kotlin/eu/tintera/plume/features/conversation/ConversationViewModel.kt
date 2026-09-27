@@ -342,6 +342,12 @@ class ConversationViewModel(
     /** Odložené zjištění náhledu odkazu v rozepsaném textu; každý úhoz ho posune. */
     private var linkPreviewJob: Job? = null
 
+    /**
+     * Text, ke kterému se náhled naposledy zjišťoval. Nemusí být [draftText]: pole vyplněné
+     * sdílením nebo konceptem `onDraftChanged` nevolá, a výběr odkazu se ptá právě k tomuhle.
+     */
+    private var linkPreviewText = ""
+
     /** Běžící inline dotaz; další úhoz ho zruší a pustí nový (s pauzou). */
     private var inlineJob: Job? = null
 
@@ -1364,7 +1370,14 @@ class ConversationViewModel(
         content.text?.let { shared ->
             val text = if (draftText.isBlank()) shared else draftText.trimEnd() + "\n" + shared
             _state.update { it.copy(inputFill = InputFill(text, onlyIfEmpty = false)) }
-            // Pole se vyplní bez `onDraftChanged`; sdílený odkaz je přitom typický případ náhledu.
+            /*
+             * Pole se vyplní bez `onDraftChanged`, takže se text zapisuje sám: jinak by ho
+             * ViewModel neznal a první uložení konceptu (třeba po změně volby náhledu) by
+             * zapsalo prázdný koncept — sdílený text by po odchodu z chatu zmizel.
+             */
+            draftText = text
+            scheduleDraftSave()
+            // Sdílený odkaz je přitom typický případ náhledu.
             refreshLinkPreview(text)
         }
         if (content.failed > 0) {
@@ -1799,24 +1812,30 @@ class ConversationViewModel(
      * Prázdné pole zahodí náhled i volbu (i vypnutí): je to nová zpráva. Vypnutý náhled se
      * nezjišťuje vůbec, dokud se pole nevyprázdní.
      */
-    private fun refreshLinkPreview(text: String) {
+    private fun refreshLinkPreview(text: String, delayMs: Long = LINK_PREVIEW_DELAY_MS) {
         linkPreviewJob?.cancel()
+        linkPreviewText = text
         if (text.isBlank()) {
             resetLinkPreview()
             return
         }
         if (_state.value.linkPreviewOptions.disabled) return
         linkPreviewJob = viewModelScope.launch {
-            delay(LINK_PREVIEW_DELAY_MS)
-            val preview = repository.linkPreview(text).getOrElse { failure ->
+            delay(delayMs)
+            val result = repository.linkPreview(text, _state.value.linkPreviewOptions.url).getOrElse { failure ->
                 // Bez náhledu se dá psát i poslat dál; server si ho k odeslané zprávě vyrobí sám.
                 logger.w(failure) { "Náhled odkazu se nepodařilo zjistit." }
                 return@launch
             }
             _state.update {
                 it.copy(
-                    linkPreview = preview,
-                    linkPreviewOptions = it.linkPreviewOptions.forPreview(previous = it.linkPreview, next = preview),
+                    linkPreview = result.preview,
+                    linkPreviewLinks = result.links,
+                    linkPreviewOptions = it.linkPreviewOptions.forPreview(
+                        previous = it.linkPreview,
+                        next = result.preview,
+                        links = result.links,
+                    ),
                 )
             }
         }
@@ -1825,13 +1844,20 @@ class ConversationViewModel(
     private fun resetLinkPreview() {
         linkPreviewJob?.cancel()
         linkPreviewJob = null
-        _state.update { it.copy(linkPreview = null, linkPreviewOptions = LinkPreviewOptions()) }
+        _state.update {
+            it.copy(linkPreview = null, linkPreviewLinks = emptyList(), linkPreviewOptions = LinkPreviewOptions())
+        }
     }
 
-    /** Uživatel změnil volbu náhledu (velikost, poloha, ✕). Patří ke konceptu, ukládá se s ním. */
+    /**
+     * Uživatel změnil volbu náhledu (odkaz, velikost, poloha, ✕). Patří ke konceptu, ukládá se
+     * s ním. Jiný odkaz chce nový náhled hned — ťuknutí není psaní, na pauzu se nečeká.
+     */
     fun setLinkPreviewOptions(options: LinkPreviewOptions) {
+        val linkChanged = options.url != _state.value.linkPreviewOptions.url
         _state.update { it.copy(linkPreviewOptions = options) }
         scheduleDraftSave()
+        if (linkChanged) refreshLinkPreview(linkPreviewText, delayMs = 0)
     }
 
     /** Obrazovka text do pole vložila. Bez toho by se po otočení vložil znovu, i smazaný. */
@@ -4154,7 +4180,9 @@ data class ConversationState(
     val editing: ChatMessage? = null,
     /** Náhled odkazu v rozepsaném textu, jak ho vrátil server; `null`, když text odkaz nemá. */
     val linkPreview: LinkPreview? = null,
-    /** Co uživatel s náhledem udělal (vypnul, velikost, poloha). Patří ke konceptu. */
+    /** Odkazy v rozepsaném textu, jak stojí za sebou; víc než jeden = jde vybrat, ke kterému náhled. */
+    val linkPreviewLinks: List<String> = emptyList(),
+    /** Co uživatel s náhledem udělal (vybral odkaz, vypnul, velikost, poloha). Patří ke konceptu. */
     val linkPreviewOptions: LinkPreviewOptions = LinkPreviewOptions(),
     /** Zpráva krátce zvýrazněná po skoku na citaci; `null` většinu času. */
     val highlightedMessageId: Long? = null,

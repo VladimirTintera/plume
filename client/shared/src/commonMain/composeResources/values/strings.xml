@@ -558,6 +558,7 @@
     <string name="attachment_done">Done</string>
     <string name="link_preview_title">Link preview</string>
     <string name="link_preview_options">Link preview options</string>
+    <string name="link_preview_section_link">Link</string>
     <string name="link_preview_section_media">Image</string>
     <string name="link_preview_large">Large image</string>
     <string name="link_preview_large_desc">Across the whole width of the message</string>
