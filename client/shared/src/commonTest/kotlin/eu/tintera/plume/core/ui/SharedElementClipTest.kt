@@ -75,4 +75,19 @@ class VisibleAreaTest {
         val area = visibleArea(list, obscuredTop = 1500f, obscuredBottom = 1500f)
         assertTrue(area.bottom >= area.top, "$area")
     }
+
+    @Test
+    fun pasPodPolemSeOteviraJenPrimoPodSeznamem() {
+        val clip = SharedElementClip()
+        val visible = visibleArea(list, 0f, 250f)
+        // Bez pásu a bez změřeného tvaru v něm platí ořez rovnou čarou.
+        assertEquals(null, clip.openBand(visible))
+        clip.band = Rect(0f, 1750f, 1000f, 2000f)
+        assertEquals(null, clip.openBand(visible))
+        clip.occluders += Occluder().apply { bounds = Rect(24f, 1770f, 880f, 1960f) }
+        assertEquals(clip.band, clip.openBand(visible))
+        // Nad polem je panel (návrhy odpovědí): přes něj se letět nesmí.
+        clip.band = Rect(0f, 1850f, 1000f, 2000f)
+        assertEquals(null, clip.openBand(visible))
+    }
 }
