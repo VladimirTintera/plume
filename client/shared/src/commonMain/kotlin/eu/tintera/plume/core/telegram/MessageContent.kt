@@ -503,6 +503,17 @@ internal suspend fun Message.captionBody(): MessageBody = when (val content = th
     // Mapa s názvem místa pod sebou; „Poloha" jako text by ji jen popisovala podruhé.
     is MessageLocation, is MessageLiveLocation, is MessageVenue -> MessageBody.Empty
     is MessagePaidMedia -> content.caption.toBody()
+    // Článek jako text s formátováním; ze samých obrázků je prázdný, pak zůstane náš popis.
+    is MessageRichMessage -> content.message.blocks
+        .toRichBody(
+            RichMediaLabels(
+                photo = getString(Res.string.media_photo),
+                video = getString(Res.string.media_video),
+                gif = getString(Res.string.content_gif),
+            ),
+        )
+        .takeIf { it.text.isNotBlank() }
+        ?: MessageBody(previewText())
 
     /*
      * Zbytek nemá vlastní text, jen náš popis — a ten žádné entity nenese.
@@ -574,7 +585,7 @@ private fun TextEntity.toEntity(text: String): MessageEntity? {
     return mapped?.let { MessageEntity(offset = offset, length = length, type = it) }
 }
 
-private fun DateTimeFormattingType.toFormat(): DateTimeFormat = when (this) {
+internal fun DateTimeFormattingType.toFormat(): DateTimeFormat = when (this) {
     is DateTimeFormattingTypeRelative -> DateTimeFormat.Relative
     is DateTimeFormattingTypeAbsolute -> DateTimeFormat.Absolute(
         time = timePrecision.toPrecision(),

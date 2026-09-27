@@ -467,7 +467,7 @@ snadno na to uživatel narazí.
   „Placená média"). Zbývá odemknutí za hvězdy (placení nemáme) a mřížka víc zaplacených položek.
 - **Sdílený příběh** (`MessageStory`), **dárky, soutěže, faktury, hry** — dnes text. Stojí na
   stories a hvězdách, které aplikace nemá; zvážit aspoň kartu s náhledem.
-- **Článek** (`MessageRichMessage`) — jen holý text bloků.
+- ~~**Článek** (`MessageRichMessage`)~~ — hotovo jako text s formátováním (`CLAUDE.md`, „Článek"). Zbývá kreslit média článku (dnes „[Fotka]" s popiskem), sbalitelné bloky a posílání článků (jen s Premium).
 
 **Údaje o zprávě, které TDLib posílá a my zahazujeme**
 
