@@ -59,6 +59,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatPoll
+import eu.tintera.plume.core.telegram.PollQuiz
+import eu.tintera.plume.core.telegram.POLL_EXPLANATION_MEDIA
 import eu.tintera.plume.core.telegram.PollAnswer
 import eu.tintera.plume.core.telegram.PollRestriction
 import eu.tintera.plume.core.telegram.QuizMark
@@ -459,11 +461,20 @@ private fun MessageBodyScope.VoteButton(enabled: Boolean, haptics: HapticFeedbac
 /**
  * Vysvětlení kvízu — server ho vydá až po odpovědi. Řádek s žárovkou, žádná vložená karta:
  * plocha v ploše bubliny je jazyk, kterého se aplikace vzdala (citace, náhled odkazu).
+ * Příloha vysvětlení (TDLib 15) je pod ním, stejně velká jako příloha otázky.
  */
 @Composable
 private fun MessageBodyScope.Explanation(poll: ChatPoll) {
     val quiz = poll.quiz ?: return
-    if (!poll.showsResults || quiz.explanation.isBlank()) return
+    if (!poll.showsResults) return
+    if (quiz.explanation.isNotBlank()) ExplanationText(quiz)
+    quiz.explanationMedia?.let {
+        PollQuestionMedia(it, slot = POLL_EXPLANATION_MEDIA, modifier = Modifier.padding(top = 10.dp))
+    }
+}
+
+@Composable
+private fun MessageBodyScope.ExplanationText(quiz: PollQuiz) {
     val label = stringResource(Res.string.poll_explanation)
     Row(modifier = Modifier.padding(top = 10.dp)) {
         Icon(
