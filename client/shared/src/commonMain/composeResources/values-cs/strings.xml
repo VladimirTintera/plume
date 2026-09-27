@@ -730,6 +730,7 @@
     <string name="conversation_attach_file">Soubor</string>
     <string name="conversation_placeholder_title">Žádný chat není otevřený</string>
     <string name="conversation_pick_chat">Vyber chat vlevo.</string>
+    <string name="reactions_new_others">%1$s a %2$d další</string>
     <string name="reactions_title">Reakce</string>
     <string name="reactions_filter_all">Vše %1$s</string>
     <string name="reactions_you">Vy</string>

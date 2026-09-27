@@ -1054,6 +1054,11 @@ data class ChatMessage(
      * napořád a tlačítko „❤" by nezhaslo.
      */
     val hasUnreadReactions: Boolean = false,
+    /**
+     * Které reakce jsou nepřečtené a kdo je dal. Konverzace podle nich při zobrazení zvýrazní
+     * čip a ve skupině ukáže, kdo reagoval — příznak [hasUnreadReactions] sám to neřekne.
+     */
+    val newReactions: List<NewReaction> = emptyList(),
     /** Vlastní anketa s hlasy, které uživatel ještě neviděl (`containsUnreadPollVotes`). */
     val hasUnreadPollVotes: Boolean = false,
     /**

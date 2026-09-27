@@ -529,7 +529,8 @@ snadno na to uživatel narazí.
 - ~~**Nepřečtené zmínky a reakce**~~ — hotovo: tlačítka „@" a „❤" nad tlačítkem dolů, odznaky
   v seznamu chatů, „Označit vše" podržením (`CLAUDE.md`, „Nepřečtené zmínky, reakce a hlasy v anketě"). Zbývá:
   **ověřit skutečnou zmínku ve skupině** a **skutečný nový hlas v anketě** (tlačítko s anketou je
-  hotové, ověřené jen podstrčeným počtem) a zvýraznění, KDO reagoval (`UnreadReaction.senderId`).
+  hotové, ověřené jen podstrčeným počtem). ~~Zvýraznění, KDO reagoval~~ — hotovo (`CLAUDE.md`,
+  „Reakce"); jména ve skutečné skupině ověřená nejsou.
 - ~~**Prázdný chat s botem**~~ — hotovo: profil bota (tvář, jméno, popis), tlačítko Start
   i parametr ze startovacího odkazu (`CLAUDE.md`, „Spuštění bota"). ~~Klikatelné odkazy
   v popisu~~ — hotovo. ~~Startovací odkaz do skupiny (`t.me/bot?startgroup=…`)~~ — hotovo (výběr skupiny a potvrzení; samotné přidání ověřené není, chce testovací skupinu). Zbývá ověřit obrázek a GIF od bota.
