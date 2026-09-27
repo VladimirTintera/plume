@@ -1654,6 +1654,17 @@ to znamená.
   dotaz navíc nestojí. Fajfka má akcent ověřený proti ploše (`accentOn`), menší než v seznamu
   (14 dp, jméno je `labelLarge`). Ověřeno sondou (zprávy od bota s `#over1–3` dostaly jméno
   a značku; necommituje se) — skutečný podvodník ve skupině na testovacím účtu není.
+- **Ověřit účet může i bot** (`VerificationStatus.botVerificationIconCustomEmojiId`): značka
+  organizace jako vlastní emoji, v seznamu, hlavičce, u jména odesílatele i v profilu, VEDLE
+  fajfky Telegramu (`Verification.Verified(official, botIconEmojiId)` — z výčtu je proto
+  uzavřená hierarchie). U podvodu a falešného účtu se nekreslí, ze stejného důvodu jako fajfka.
+- **V profilu jsou to DVA řádky**: fajfka s „Ověřeno Telegramem" a pod ní značka od bota
+  s důvodem ověření (`UserFullInfo` / `SupergroupFullInfo.botVerification.customDescription`),
+  bez důvodu „Ověřil @bot". Na jednom řádku stála značka od bota vedle „Ověřeno Telegramem",
+  jako by ji udělil Telegram.
+- **Ověřovací bot musí být schválený Telegramem** — testovací bot značku přidělit nemůže, takže
+  se ověřuje sondou (`verificationOf(chat)` a profil pro chat s testovacím botem, skutečné id
+  vlastního emoji z `getStickerSet` sady `StatusEmoji`). Necommituje se.
 - **Ověřeno na emulátoru**: fajfka u chatu Telegram v seznamu; štítek podvodu v seznamu,
   hlavičce i profilu **jen podstrčeným stavem** (sonda v `verificationOf`, `UpdateUser`
   a profilu pro testovacího bota — chat s botem má id BOTA, číslo před dvojtečkou v tokenu,

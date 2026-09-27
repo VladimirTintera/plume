@@ -6,6 +6,9 @@ import eu.tintera.plume.resources.verification_fake_warning
 import eu.tintera.plume.resources.verification_scam_warning
 import eu.tintera.plume.resources.verification_verified
 import eu.tintera.plume.core.telegram.Verification
+import eu.tintera.plume.resources.verification_by_bot
+import eu.tintera.plume.resources.verification_by_bot_named
+import eu.tintera.plume.core.telegram.BotVerificationNote
 import eu.tintera.plume.core.ui.durationText
 import eu.tintera.plume.core.ui.VerificationBadge
 import eu.tintera.plume.core.ui.EmojiStatusBadge
@@ -755,7 +758,7 @@ private fun ProfileHeader(
         subtitle?.let {
             Text(it, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        profile.verification?.let { ProfileVerification(it) }
+        profile.verification?.let { ProfileVerification(it, profile.botVerification) }
     }
 }
 
@@ -767,30 +770,49 @@ private fun ProfileHeader(
 private val PROFILE_EMOJI_STATUS_SIZE = 28.dp
 
 @Composable
-private fun ProfileVerification(verification: Verification) {
-    val warning = when (verification) {
-        Verification.Verified -> null
-        Verification.Scam -> Res.string.verification_scam_warning
-        Verification.Fake -> Res.string.verification_fake_warning
+private fun VerifiedLine(badge: Verification, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        VerificationBadge(badge)
+        Text(
+            text,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
     }
+}
+
+@Composable
+private fun ProfileVerification(verification: Verification, botVerification: BotVerificationNote?) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.padding(top = 8.dp, start = 24.dp, end = 24.dp),
     ) {
-        if (warning == null) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                VerificationBadge(verification)
-                Text(
-                    stringResource(Res.string.verification_verified),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+        if (verification is Verification.Verified) {
+            /*
+             * Dva řádky, každý se svou značkou: fajfka Telegramu a značka ověřovacího bota
+             * s tím, kdo a proč ověřil. Na jednom řádku by značka od bota stála vedle věty
+             * „Ověřeno Telegramem", jako by ji udělil Telegram.
+             */
+            if (verification.official) {
+                VerifiedLine(Verification.Verified(), stringResource(Res.string.verification_verified))
+            }
+            val bot = verification.botIconEmojiId
+            if (bot != null) {
+                VerifiedLine(
+                    Verification.Verified(official = false, botIconEmojiId = bot),
+                    botVerification?.let { it.description ?: stringResource(Res.string.verification_by_bot_named, it.botName) }
+                        ?: stringResource(Res.string.verification_by_bot),
                 )
             }
         } else {
             VerificationBadge(verification)
             Text(
-                stringResource(warning),
+                stringResource(
+                    if (verification == Verification.Scam) Res.string.verification_scam_warning
+                    else Res.string.verification_fake_warning,
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.error,
                 textAlign = TextAlign.Center,

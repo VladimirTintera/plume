@@ -202,6 +202,8 @@ data class ChatProfile(
     val editRights: ChatEditRights = ChatEditRights(),
     /** Ověřený, podvod, falešný (viz [Verification]); `null` u běžného účtu a základní skupiny. */
     val verification: Verification? = null,
+    /** Kdo účet ověřil jako ověřovací bot a proč; `null` bez ověření od bota. */
+    val botVerification: BotVerificationNote? = null,
     /** Vlastní emoji statusu za jménem (viz [statusEmojiId]), nebo `null`. */
     val emojiStatus: Long? = null,
     /** Po kolika sekundách se nové zprávy chatu samy mažou; 0 = nemažou. */
@@ -251,3 +253,9 @@ const val MEMBERS_PAGE_SIZE = 50
 
 /** Víc naráz server nevydá (`getSupergroupMembers` i `searchChatMembers`). */
 const val MAX_MEMBERS_REQUEST = 200
+
+/**
+ * Ověření od bota v profilu: [description] je důvod, který bot k ověření napsal (může chybět),
+ * [botName] jméno ověřovacího bota pro větu „Ověřil …", když důvod není.
+ */
+data class BotVerificationNote(val description: String?, val botName: String)
