@@ -76,6 +76,7 @@ import eu.tintera.plume.features.settings.NotificationSettingsViewModel
 import eu.tintera.plume.features.settings.OnDeviceAiSettingsViewModel
 import eu.tintera.plume.features.conversation.ChatSummaryViewModel
 import eu.tintera.plume.features.conversation.ReplySuggestionsViewModel
+import eu.tintera.plume.features.conversation.EmojiSuggestionsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -256,6 +257,7 @@ fun appModule() = module {
     viewModel { OnDeviceAiSettingsViewModel(settings = get(), ai = get(), appScope = get(named(APP_SCOPE))) }
     viewModelOf(::ChatSummaryViewModel)
     viewModelOf(::ReplySuggestionsViewModel)
+    viewModelOf(::EmojiSuggestionsViewModel)
 
     // chatId přichází z navigační routy, ne z grafu → runtime parametr. Druhý parametr je zpráva,
     // na kterou se po otevření skočí; bývá `null`, a podle typu by se spletl s chatId — proto index.

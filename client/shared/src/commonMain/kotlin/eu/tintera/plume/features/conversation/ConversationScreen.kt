@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.ui.text.intl.Locale
 import eu.tintera.plume.resources.conversation_bot_start
 import eu.tintera.plume.resources.conversation_schedule_time
 import eu.tintera.plume.resources.conversation_schedule_past
@@ -392,6 +393,10 @@ fun ConversationScreen(
     val replies: ReplySuggestionsViewModel = koinViewModel(key = "replies-${viewModel.chatId}")
     val repliesAvailable by replies.available.collectAsStateWithLifecycle()
     val replySuggestions by replies.suggestions.collectAsStateWithLifecycle()
+    // Emoji k rozepsanému slovu. Jazyk zařízení a angličtina, jako hledání ve výběru emoji.
+    val emojiWords: EmojiSuggestionsViewModel = koinViewModel(key = "emoji-words-${viewModel.chatId}")
+    val emojiSuggestions by emojiWords.suggestions.collectAsStateWithLifecycle()
+    val emojiLanguages = remember { listOf(Locale.current.language, "en").distinct() }
     val startSummary = {
         // Zdroj se čte až v korutině, PO dotažení historie — a ze stateHolderu, ne z `state`
         // zachyceného při skládání: ten je z doby před dotažením a chyběly by v něm stránky.
@@ -1397,6 +1402,27 @@ fun ConversationScreen(
                     val (text, cursor) = mentionInsertion(draft.text, draft.selection.start, query, candidate)
                     draft = TextFieldValue(text, selection = TextRange(cursor))
                     viewModel.mentionPicked(candidate)
+                    viewModel.onDraftChanged(text)
+                },
+            )
+            // Emoji ke slovu u kurzoru. Ne vedle jiného napovídání — dotaz na inline bota a zmínka
+            // mají nad polem přednost a dva panely nad sebou by pole odsunuly.
+            val emojiWord = remember(draft, inlineDraft, mentionQuery, typedCommands) {
+                draft.takeIf {
+                    inlineDraft == null && mentionQuery == null && typedCommands == null && it.selection.collapsed
+                }?.let { emojiWordAt(it.text, it.selection.start) }
+            }
+            LaunchedEffect(emojiWord?.word) { emojiWords.lookup(emojiWord?.word, emojiLanguages) }
+            val shownEmojis = emojiSuggestions?.takeIf { it.word == emojiWord?.word }?.emojis.orEmpty()
+            EmojiSuggestionsPanel(
+                emojis = shownEmojis,
+                visible = emojiWord != null,
+                onPick = { emoji ->
+                    val word = emojiWord ?: return@EmojiSuggestionsPanel
+                    haptics.confirm()
+                    val (text, cursor) = emojiReplacement(draft.text, word, emoji)
+                    draft = TextFieldValue(text, selection = TextRange(cursor))
+                    emojiWords.picked(emoji)
                     viewModel.onDraftChanged(text)
                 },
             )
