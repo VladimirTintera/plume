@@ -9,6 +9,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.ContentScale
+import eu.tintera.plume.core.telegram.Minithumbnail
+import eu.tintera.plume.core.ui.BlurredThumbnail
+import eu.tintera.plume.core.ui.RemoteImage
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -87,9 +93,13 @@ internal fun QuotedMessage(
         Modifier
     }
     if (!contained) {
-        Column(modifier.then(clickable).padding(horizontal = MESSAGE_PADDING_H, vertical = MESSAGE_PADDING_V)) {
-            QuoteLines(message, partnerName, accent, quoteText)
-        }
+        QuoteContent(
+            message,
+            partnerName,
+            accent,
+            quoteText,
+            modifier.then(clickable).padding(horizontal = MESSAGE_PADDING_H, vertical = MESSAGE_PADDING_V),
+        )
         return
     }
 
@@ -109,10 +119,99 @@ internal fun QuotedMessage(
             .background(accent.copy(alpha = QUOTE_CONTAINER_ALPHA))
             .then(clickable)
     ) {
-        Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
-            QuoteLines(message, partnerName, accent, quoteText)
-        }
+        QuoteContent(message, partnerName, accent, quoteText, Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
     }
+}
+
+/** Náhled přílohy vlevo (když nějaký je) a vedle něj kdo a co. */
+@Composable
+private fun QuoteContent(
+    message: ChatMessage,
+    partnerName: String?,
+    accent: Color,
+    quoteText: String?,
+    modifier: Modifier,
+) {
+    val thumbnail = message.media.quoteThumbnail()
+    if (thumbnail == null) {
+        Column(modifier) { QuoteLines(message, partnerName, accent, quoteText) }
+        return
+    }
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        QuoteThumbnailImage(thumbnail, Modifier.padding(end = 8.dp).size(QUOTE_THUMBNAIL_SIZE))
+        Column { QuoteLines(message, partnerName, accent, quoteText) }
+    }
+}
+
+@Composable
+private fun QuoteThumbnailImage(thumbnail: QuoteThumbnail, modifier: Modifier) {
+    val shape: Shape = if (thumbnail.round) CircleShape else RoundedCornerShape(QUOTE_THUMBNAIL_CORNER)
+    val clipped = modifier.clip(shape)
+    when {
+        thumbnail.hidden -> thumbnail.placeholder?.let { BlurredThumbnail(it, clipped) }
+        thumbnail.fileId != null -> RemoteImage(
+            fileId = thumbnail.fileId,
+            modifier = if (thumbnail.transparent) modifier else clipped,
+            contentScale = if (thumbnail.transparent) ContentScale.Fit else ContentScale.Crop,
+            background = if (thumbnail.transparent) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest,
+            placeholder = thumbnail.placeholder,
+        )
+        else -> thumbnail.placeholder?.let { BlurredThumbnail(it, clipped) }
+    }
+}
+
+/**
+ * Obrázek do citace: co se nakreslí vlevo od jména, aby odpověď na fotku nebyla jen „Fotka".
+ *
+ * [fileId] je nejmenší varianta — do čtverečku 36 dp se ostrá verze stahovat nemá.
+ * [hidden] = spoiler nebo citlivý obsah: kreslí se JEN rozmazaný [placeholder], nic se
+ * nestahuje, jinak by citace prozradila, co bublina nad ní schovává.
+ */
+internal data class QuoteThumbnail(
+    val fileId: Int?,
+    val placeholder: Minithumbnail?,
+    val hidden: Boolean = false,
+    /** Video kolečko je i v citaci kolečko. */
+    val round: Boolean = false,
+    /** Samolepka: průhledná, bez ořezu a podložky. */
+    val transparent: Boolean = false,
+)
+
+/**
+ * Náhled citované přílohy, nebo `null`, když není co ukázat.
+ *
+ * **Mizející a tajné médium náhled nemá** — ani rozmazaný: citace žije v konverzaci déle než
+ * médium samo a náhled by z něj po vypršení zůstal. Skrytému (spoiler, citlivý) zbyde rozmazání,
+ * a bez rozmazaného náhledu nic — prázdný čtvereček by nic neřekl.
+ */
+internal fun MessageMedia?.quoteThumbnail(): QuoteThumbnail? = when (this) {
+    is MessageMedia.Photo -> when {
+        isSecret || selfDestructType != null -> null
+        hasSpoiler || isSensitive -> minithumbnail?.let { QuoteThumbnail(null, it, hidden = true) }
+        else -> QuoteThumbnail(thumbnailFileId ?: fileId, minithumbnail)
+    }
+    is MessageMedia.Video -> when {
+        isSecret || selfDestructType != null -> null
+        hasSpoiler || isSensitive -> minithumbnail?.let { QuoteThumbnail(null, it, hidden = true) }
+        thumbnailFileId == null && minithumbnail == null -> null
+        else -> QuoteThumbnail(thumbnailFileId, minithumbnail)
+    }
+    is MessageMedia.Animation -> when {
+        hasSpoiler || isSensitive -> minithumbnail?.let { QuoteThumbnail(null, it, hidden = true) }
+        thumbnailFileId == null && minithumbnail == null -> null
+        else -> QuoteThumbnail(thumbnailFileId, minithumbnail)
+    }
+    is MessageMedia.VideoNote ->
+        if (thumbnailFileId == null && minithumbnail == null) null
+        else QuoteThumbnail(thumbnailFileId, minithumbnail, round = true)
+    is MessageMedia.Document -> thumbnailFileId?.let { QuoteThumbnail(it, null) }
+    is MessageMedia.Audio ->
+        if (coverFileId == null && coverMinithumbnail == null) null
+        else QuoteThumbnail(coverFileId, coverMinithumbnail)
+    is MessageMedia.Sticker -> (thumbnailFileId ?: fileId)?.let { QuoteThumbnail(it, null, transparent = true) }
+    is MessageMedia.Attachment -> thumbnailFileId?.let { QuoteThumbnail(it, null) }
+    is MessageMedia.AnimatedEmoji, is MessageMedia.Dice, is MessageMedia.VoiceNote,
+    is MessageMedia.Location, is MessageMedia.Call, is MessageMedia.Contact, null -> null
 }
 
 /**
@@ -166,7 +265,7 @@ private fun QuoteLines(message: ChatMessage, partnerName: String?, accent: Color
 internal fun MessageMedia?.describe(): String = when (this) {
     is MessageMedia.Photo -> stringResource(Res.string.media_photo)
     is MessageMedia.Attachment -> label
-    // V citaci není kam kreslit obrázek, takže samolepka se popíše svým emoji.
+    // Vedle náhledu samolepky stojí její emoji (bez náhledu je to jediné, co o ní víme).
     is MessageMedia.Sticker -> emoji.ifBlank { stringResource(Res.string.media_sticker) }
     is MessageMedia.AnimatedEmoji -> emoji
     is MessageMedia.Dice -> label
@@ -181,6 +280,12 @@ internal fun MessageMedia?.describe(): String = when (this) {
     is MessageMedia.Contact -> stringResource(Res.string.content_contact, name.ifBlank { phone })
     null -> ""
 }
+
+/** Náhled přílohy v citaci — zhruba výška jména a řádku textu. */
+private val QUOTE_THUMBNAIL_SIZE = 36.dp
+
+/** Menší než zaoblení kontejneru citace, ve kterém náhled leží. */
+private val QUOTE_THUMBNAIL_CORNER = 6.dp
 
 /** Ikona citace před jménem — o kus menší než písmo jména, aby jméno zůstalo hlavní. */
 private val QUOTE_ICON_SIZE = 16.dp

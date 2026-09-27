@@ -103,6 +103,17 @@ fun RemoteImage(
 }
 
 /**
+ * Jen rozmazaný náhled ze zprávy, BEZ stahování — pro obsah, který má zůstat skrytý (spoiler
+ * v citaci). [RemoteImage] by si stáhl i ostrou verzi a po chvíli ji prolnul.
+ */
+@Composable
+fun BlurredThumbnail(placeholder: Minithumbnail, modifier: Modifier = Modifier) {
+    Box(modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
+        BlurredPlaceholder(placeholder, ContentScale.Crop)
+    }
+}
+
+/**
  * Rozmazaný náhled ze zprávy přes celou plochu.
  *
  * **`Modifier.blur`, ne Haze.** Obojí rozostří vlastní obsah na Androidu 12+ i na iOS, jenže na

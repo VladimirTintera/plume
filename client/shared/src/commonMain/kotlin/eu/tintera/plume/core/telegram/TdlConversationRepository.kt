@@ -1777,7 +1777,7 @@ class TdlConversationRepository(
             },
             text = text,
             entities = emptyList(),
-            media = null,
+            media = content?.replyMedia(),
             linkPreview = null,
             reactions = emptyList(),
             sendState = null,
