@@ -8,7 +8,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -29,6 +30,8 @@ import eu.tintera.plume.resources.location_live_ended
 import eu.tintera.plume.resources.location_live_until
 import eu.tintera.plume.resources.media_map
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -51,11 +54,15 @@ internal fun LocationMap(
     onRequestMenu: () -> Unit,
     fillWidth: Boolean = false,
 ) {
+    // Směr má smysl jen u polohy, která se ještě sdílí; u skončené by ukazoval, kam se kdo
+    // kdysi hýbal, a vypadal by jako živý.
+    val sharing = rememberLiveSharing(location)
     BoxWithConstraints {
         val width = if (fillWidth) maxWidth else min(maxWidth, MAP_WIDTH)
         StaticMap(
             latitude = location.latitude,
             longitude = location.longitude,
+            heading = if (sharing) location.heading else 0,
             contentDescription = stringResource(Res.string.media_map),
             modifier = Modifier
                 .size(width, width * MAP_ASPECT)
@@ -77,19 +84,39 @@ internal val ChatMessage.isLiveLocation: Boolean
 internal val MessageMedia.Location.hasDetails: Boolean get() = title != null || address != null || isLive
 
 /**
- * Název a adresa místa pod mapou; u živé polohy do kdy se sdílí.
+ * Sdílí se živá poloha ještě? Nepočítá se po vteřinách, jen se jednou počká na konec — odpočet
+ * by kvůli jednomu řádku překresloval konverzaci.
  *
- * Konec sdílení se počítá při složení, ne průběžně: skončené sdílení se ukáže při dalším
- * překreslení zprávy. Odpočet po vteřinách by kvůli jednomu řádku překresloval konverzaci.
+ * **Jednorázové porovnání při složení NESTAČÍ.** Zastavené sdílení přijde úpravou zprávy
+ * s dobou zkrácenou právě na okamžik zastavení, takže konec leží ve stejné vteřině jako
+ * složení a porovnání „už skončilo" vyšlo naprázdno: pod mapou zůstalo „Sdílí se do 14:08"
+ * a nad ní šipka směru, jako by se pořád sdílelo.
  */
+@Composable
+internal fun rememberLiveSharing(location: MessageMedia.Location): Boolean {
+    if (!location.isLive) return false
+    val until = location.liveUntil
+    val sharing by produceState(initialValue = until > Clock.System.now().epochSeconds, until) {
+        val left = until - Clock.System.now().epochSeconds
+        if (left > 0 && until != Long.MAX_VALUE) {
+            delay(left.seconds)
+            value = false
+        } else {
+            value = left > 0
+        }
+    }
+    return sharing
+}
+
+/** Název a adresa místa pod mapou; u živé polohy do kdy se sdílí. */
 @Composable
 internal fun LocationDetails(location: MessageMedia.Location, color: Color, modifier: Modifier = Modifier) {
     val title = location.title ?: if (location.isLive) stringResource(Res.string.content_live_location) else null
+    val sharing = rememberLiveSharing(location)
     val subtitle = when {
         !location.isLive -> location.address
         location.liveUntil == Long.MAX_VALUE -> null
-        location.liveUntil <= remember(location) { Clock.System.now().epochSeconds } ->
-            stringResource(Res.string.location_live_ended)
+        !sharing -> stringResource(Res.string.location_live_ended)
         else -> stringResource(Res.string.location_live_until, location.liveUntil.asUpcomingTime())
     }
     Column(modifier) {
