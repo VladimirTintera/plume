@@ -113,6 +113,11 @@ internal fun MessageAttachment(
     fillWidth: Boolean = false,
     /** Hod kostkou proběhne před očima; jinak je vidět rovnou výsledek (viz [DiceImage]). */
     diceThrow: Boolean = false,
+    /**
+     * Výhru hodu oslaví konfety — jen u VLASTNÍHO hodu, který proběhl před očima; server snímek
+     * výhry posílá právě kvůli odeslanému hodu (viz [DiceImage]).
+     */
+    diceCelebrate: Boolean = false,
 ) {
     val shape = RoundedCornerShape(12.dp)
     // Náhled souboru zůstává malý čtvereček bez ohledu na tvar bubliny — velké zaoblení bubliny
@@ -242,7 +247,7 @@ internal fun MessageAttachment(
             ),
         )
         is MessageMedia.AnimatedEmoji -> AnimatedEmojiImage(media)
-        is MessageMedia.Dice -> DiceImage(media, throwNow = diceThrow)
+        is MessageMedia.Dice -> DiceImage(media, throwNow = diceThrow, celebrate = diceCelebrate, seed = messageId)
         is MessageMedia.Location -> LocationMap(
             location = media,
             shape = pictureShape,
@@ -492,7 +497,7 @@ private fun AnimatedEmojiImage(emoji: MessageMedia.AnimatedEmoji) {
  * Hotovo je, až doběhnou VŠECHNY vrstvy — válce automatu nekončí naráz.
  */
 @Composable
-private fun DiceImage(dice: MessageMedia.Dice, throwNow: Boolean) {
+private fun DiceImage(dice: MessageMedia.Dice, throwNow: Boolean, celebrate: Boolean, seed: Long) {
     var thrown by remember { mutableStateOf(!throwNow) }
     val finishedLayers = remember(dice.layers) { mutableSetOf<Int>() }
     val playback = when {
@@ -500,6 +505,11 @@ private fun DiceImage(dice: MessageMedia.Dice, throwNow: Boolean) {
         thrown -> StickerPlayback.LastFrame
         else -> StickerPlayback.Once
     }
+    // Oslava výhry na snímku, který poslal server (míč propadne košem, šipka zasáhne střed).
+    // U automatu se hlásí poslední vrstva — pravý válec, ten dotočí poslední.
+    var celebrating by remember { mutableStateOf(false) }
+    val raise = LocalRaiseItem.current
+    val winFrame = dice.successFrame.takeIf { celebrate && it > 0 } ?: 0
     Box(Modifier.size(DICE_SIZE).semantics { contentDescription = dice.label }) {
         dice.layers.forEachIndexed { index, fileId ->
             key(fileId) {
@@ -512,12 +522,27 @@ private fun DiceImage(dice: MessageMedia.Dice, throwNow: Boolean) {
                         finishedLayers += fileId
                         if (finishedLayers.size == dice.layers.size) thrown = true
                     },
+                    markerFrame = if (index == dice.layers.lastIndex) winFrame else 0,
+                    onMarker = {
+                        celebrating = true
+                        raise(true)
+                    },
                     placeholder = {
                         // Znak drží místo jen pod spodní vrstvou; nad ní by se zdvojil.
                         if (index == 0) Text(text = dice.emoji, style = MaterialTheme.typography.displayLarge)
                     },
                 )
             }
+        }
+        if (celebrating) {
+            DiceConfetti(
+                seed = seed,
+                onFinished = {
+                    celebrating = false
+                    raise(false)
+                },
+                modifier = Modifier.align(Alignment.Center),
+            )
         }
     }
 }

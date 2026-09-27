@@ -222,13 +222,18 @@ internal interface MessageItem : ConversationItem {
                 effectPlayback.play()
             }
         }
+        // Konfety výhry u kostky přesahují zprávu stejně jako efekt; položka se kvůli nim zvedne.
+        var raised by remember { mutableStateOf(false) }
+        val raise = remember { { up: Boolean -> raised = up } }
         RevealingTime(
             frame.message.timestamp,
             scope.timeReveal,
             // Animace přesahuje zprávu; starší zprávy se kreslí po ní a přikryly by ji.
-            modifier.zIndex(if (effectPlayback.playing) 1f else 0f),
+            modifier.zIndex(if (effectPlayback.playing || raised) 1f else 0f),
         ) {
-            MessageFrame(frame, scope, maxWidthFraction, effectPlayback) { Body() }
+            CompositionLocalProvider(LocalRaiseItem provides raise) {
+                MessageFrame(frame, scope, maxWidthFraction, effectPlayback) { Body() }
+            }
         }
     }
 }
@@ -1423,6 +1428,7 @@ internal fun MessageBodyScope.Attachment(
         diceThrow = remember(frame.key) {
             media is MessageMedia.Dice && items.claimDiceThrow(frame.key, message.timestamp)
         },
+        diceCelebrate = message.isOutgoing,
         videoNote = VideoNoteHandlers(
             sounding = { items.videoNoteSounding(id) },
             onToggleSound = { act(MessageAction.ToggleVideoNoteSound) },
