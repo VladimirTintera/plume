@@ -111,6 +111,15 @@ import eu.tintera.plume.resources.menu_favorite_remove
 import eu.tintera.plume.resources.schedule_24dp
 import eu.tintera.plume.resources.search_24dp
 import eu.tintera.plume.resources.star_24dp
+import eu.tintera.plume.resources.conversation_send_when_online
+import eu.tintera.plume.resources.conversation_send_schedule
+import eu.tintera.plume.resources.conversation_send_silent
+import eu.tintera.plume.resources.conversation_send_options
+import eu.tintera.plume.resources.online_prediction_24dp
+import eu.tintera.plume.resources.notifications_off_24dp
+import eu.tintera.plume.resources.schedule_send_24dp
+import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.resources.star_filled_24dp
 import eu.tintera.plume.resources.stickers_add
 import eu.tintera.plume.resources.stickers_added
@@ -368,7 +377,7 @@ sealed interface StickerSearchState {
  */
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
-fun StickerPickerSheet(
+internal fun StickerPickerSheet(
     mode: ExpressionMode,
     onModeChange: (ExpressionMode) -> Unit,
     /**
@@ -389,6 +398,9 @@ fun StickerPickerSheet(
      * s jedinou částí se přepínač nekreslí.
      */
     modes: List<ExpressionMode> = ExpressionMode.entries,
+    /** Volby odeslání u podržené samolepky; `null` = samolepka jde jen poslat ťuknutím. */
+    sendMenu: SendMenuOffer? = null,
+    onPickWith: (StickerItem, SendMenuChoice) -> Unit = { _, _ -> },
 ) {
     val viewModel: StickerPickerViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -425,6 +437,9 @@ fun StickerPickerSheet(
         // Nejdřív sheet schovat, pak poslat: zmizení bez animace by vypadalo jako pád,
         // a zpráva se tak objeví až nad zavřeným sheetem.
         scope.launch { sheetState.hide() }.invokeOnCompletion { onPick(sticker) }
+    }
+    val pickWith: (StickerItem, SendMenuChoice) -> Unit = { sticker, choice ->
+        scope.launch { sheetState.hide() }.invokeOnCompletion { onPickWith(sticker, choice) }
     }
     val favoriteIds = state.favorites.orEmpty().map { it.sendFileId }.toSet()
     val toggleFavorite: (StickerItem) -> Unit = { sticker ->
@@ -505,7 +520,7 @@ fun StickerPickerSheet(
             Box(Modifier.fillMaxWidth().height(STICKER_TAB_ROW_HEIGHT + STICKER_PICKER_HEIGHT + sheetBottomInset())) {
                 StickerSearchResults(
                     search = search,
-                    cells = StickerCells(activeStickerId, favoriteIds, pick, activate, toggleFavorite),
+                    cells = StickerCells(activeStickerId, favoriteIds, pick, activate, toggleFavorite, sendMenu, pickWith),
                 )
             }
             return@ModalBottomSheet
@@ -548,7 +563,7 @@ fun StickerPickerSheet(
             StickerPage(
                 tab = tab,
                 stickers = state.stickersOf(tab),
-                cells = StickerCells(activeStickerId, favoriteIds, pick, activate, toggleFavorite),
+                cells = StickerCells(activeStickerId, favoriteIds, pick, activate, toggleFavorite, sendMenu, pickWith),
             )
         }
     }
@@ -733,6 +748,9 @@ internal class StickerCells(
     val onPick: (StickerItem) -> Unit,
     val onActivate: (StickerItem) -> Unit,
     val onToggleFavorite: (StickerItem) -> Unit,
+    /** Co nabídne tlačítko odeslání u podržené samolepky; `null` = tlačítko není (sada, anketa). */
+    val sendMenu: SendMenuOffer? = null,
+    val onPickWith: (StickerItem, SendMenuChoice) -> Unit = { _, _ -> },
 )
 
 /**
@@ -741,6 +759,10 @@ internal class StickerCells(
  * U podržené samolepky se v rohu objeví **hvězdička oblíbených**. Jen u ní: hvězdička u každé
  * buňky by zaplevelila mřížku a ťuknutí vedle ní by samolepku omylem poslalo. Podržení je
  * zároveň „prohlížím si tuhle", takže nabídnout k ní akci dává smysl.
+ *
+ * V protějším rohu je z téhož důvodu **tlačítko odeslání s volbami** (bez zvuku, naplánovat,
+ * až bude online) — u textu je to podržení odesílacího tlačítka, jenže podržení samolepky ji
+ * rozhýbe. Druhé gesto nad samolepkou by se s tím pralo; tlačítko u podržené ne.
  */
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
@@ -789,6 +811,48 @@ internal fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Mo
         )
 
         StickerPreview(sticker.preview, playing = active, modifier = Modifier.fillMaxSize().padding(6.dp))
+
+        val sendMenu = cells.sendMenu?.takeIf { it.silent || it.schedule || it.whenOnline }
+        if (active && sendMenu != null) {
+            Box(Modifier.align(Alignment.TopStart).padding(2.dp)) {
+                var menuOpen by remember { mutableStateOf(false) }
+                Surface(
+                    onClick = { menuOpen = true },
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(FAVORITE_BUTTON_SIZE),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            painterResource(Res.drawable.schedule_send_24dp),
+                            contentDescription = stringResource(Res.string.conversation_send_options),
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                }
+                ExpressiveMenu(
+                    expanded = menuOpen,
+                    onDismiss = { menuOpen = false },
+                    groups = listOf(
+                        listOfNotNull(
+                            MenuAction(stringResource(Res.string.conversation_send_silent), Res.drawable.notifications_off_24dp) {
+                                menuOpen = false
+                                cells.onPickWith(sticker, SendMenuChoice.Silent)
+                            }.takeIf { sendMenu.silent },
+                            MenuAction(stringResource(Res.string.conversation_send_schedule), Res.drawable.schedule_send_24dp) {
+                                menuOpen = false
+                                cells.onPickWith(sticker, SendMenuChoice.Schedule)
+                            }.takeIf { sendMenu.schedule },
+                            MenuAction(stringResource(Res.string.conversation_send_when_online), Res.drawable.online_prediction_24dp) {
+                                menuOpen = false
+                                cells.onPickWith(sticker, SendMenuChoice.WhenOnline)
+                            }.takeIf { sendMenu.whenOnline },
+                        ),
+                    ),
+                )
+            }
+        }
 
         if (active) {
             val favorite = sticker.sendFileId in cells.favoriteFileIds

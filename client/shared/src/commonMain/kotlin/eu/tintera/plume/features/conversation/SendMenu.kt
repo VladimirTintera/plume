@@ -26,6 +26,9 @@ internal data class SendMenuOffer(
     val any: Boolean get() = silent || schedule || whenOnline || effects
 }
 
+/** Volba z nabídky odeslání mimo vstupní pole (podržená samolepka ve výběru). */
+internal enum class SendMenuChoice { Silent, Schedule, WhenOnline }
+
 internal fun sendMenuOffer(state: ConversationState): SendMenuOffer {
     if (state.editing != null) return SendMenuOffer(silent = false, schedule = false, whenOnline = false)
     val info = state.info

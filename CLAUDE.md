@@ -3256,8 +3256,15 @@ u pole (`ScheduledMessagesSheet`): odeslat hned, změnit čas, smazat.
 - **Ověřeno na emulátoru v chatu s botem**: nabídka nad nahrávanou hlasovkou, zastavený čas
   během nabídky, naplánování a „Odeslat hned" (bot dostal hlasovku dlouhou jen o nahraný čas),
   zavření nabídky a nahrávání dál, bez zvuku; anketa naplánovaná z formuláře v seznamu
-  naplánovaných. **Samolepka naplánovat nejde** (podržení ve výběru rozhýbe samolepku), iOS jen
-  přeložené.
+  naplánovaných. iOS jen přeložené.
+- **Samolepka má volby odeslání u PODRŽENÉ samolepky**, ne na podržení (`StickerCell`,
+  `SendMenuChoice`): podržení samolepku rozhýbe a druhé gesto nad ní by se s tím pralo. Tlačítko
+  je v protějším rohu než hvězdička oblíbených a nabídne totéž co odesílací tlačítko bez efektu
+  (bez zvuku, naplánovat, až bude online). Nabízí ho jen výběr v konverzaci — sada otevřená
+  z historie a formulář ankety `sendMenu` nepředávají. Ověřeno na emulátoru v chatu s botem:
+  naplánovaná samolepka v seznamu naplánovaných, „Odeslat hned" (bot ji dostal) a bez zvuku.
+- **`StickerPickerSheet` je `internal`** — s parametrem interního `SendMenuOffer` by veřejná
+  funkce neprošla překladem (`EXPOSED_PARAMETER_TYPE`).
 
 ### Úprava zprávy
 
@@ -7914,6 +7921,10 @@ vkus toho, kdo zrovna píše obrazovku.
 
 ## Gotchas
 
+- **„JDK home directory does not exist" s cestou do `actions-runner` = zastaralá konfigurační
+  keš**, ne chyba v projektu. Keš si pamatuje cestu k toolchainu z doby, kdy na Macu běžel
+  GitHub runner; po jeho smazání build padá dřív, než se dostane ke kódu. Pomůže
+  `./gradlew --stop` a `rm -rf .gradle/configuration-cache`.
 - **CI na pull requestech NIC NEPŘEKLÁDÁ** — kontroluje jen poznámky k vydání. Po #284 se `main`
   nedal přeložit (`vararg` hodnotové třídy `Color`: „Prohibited vararg parameter type") a nikdo
   si toho nevšiml, dokud další větev nestavěla. Před pushem proto aspoň

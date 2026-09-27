@@ -377,13 +377,15 @@ interface ConversationRepository {
     /**
      * Odešle samolepku. Stejně jako [send] vrací rozepsanou zprávu okamžitě.
      *
-     * Samolepka se zároveň zařadí mezi nedávné, aby byla ve výběru příště nahoře.
+     * Samolepka se zároveň zařadí mezi nedávné, aby byla ve výběru příště nahoře. [options]
+     * přichází z nabídky u podržené samolepky (bez zvuku, naplánovat).
      */
     suspend fun sendSticker(
         chatId: Long,
         sticker: StickerItem,
         replyToMessageId: Long?,
         quote: ReplyQuote? = null,
+        options: SendOptions = SendOptions(),
     ): Result<ChatMessage>
 
     /**

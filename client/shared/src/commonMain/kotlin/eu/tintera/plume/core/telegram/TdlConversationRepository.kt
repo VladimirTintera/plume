@@ -1044,6 +1044,7 @@ class TdlConversationRepository(
         sticker: StickerItem,
         replyToMessageId: Long?,
         quote: ReplyQuote?,
+        options: SendOptions,
     ): Result<ChatMessage> {
         val file = InputFileId(id = sticker.sendFileId)
 
@@ -1051,7 +1052,7 @@ class TdlConversationRepository(
             chatId = chatId,
             topicId = null,
             replyTo = replyInput(chatId, replyToMessageId, quote),
-            options = null,
+            options = options.toTdl(),
             replyMarkup = null,
             inputMessageContent = InputMessageSticker(
                 sticker = InputSticker(
