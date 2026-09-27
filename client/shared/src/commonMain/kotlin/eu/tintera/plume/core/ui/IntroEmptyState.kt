@@ -44,6 +44,8 @@ fun IntroEmptyState(
     modifier: Modifier = Modifier,
     /** Plocha pod stavem. Výchozí `surface` sedí na konverzaci a seznam; hledání má vlastní. */
     containerColor: Color = MaterialTheme.colorScheme.surface,
+    /** Tlačítko pod textem, když stav nabízí cestu dál (varování před citlivým chatem). */
+    action: (@Composable () -> Unit)? = null,
 ) {
     val textReveal = remember { Animatable(0f) }
 
@@ -87,6 +89,7 @@ fun IntroEmptyState(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
+                    if (action != null) Box(Modifier.padding(top = 16.dp)) { action() }
                 }
             }
         }

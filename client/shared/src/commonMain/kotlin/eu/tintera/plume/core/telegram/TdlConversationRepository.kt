@@ -1446,6 +1446,7 @@ class TdlConversationRepository(
             .toResult()
             .map { chat ->
                 val access = chatAccess(chat)
+                val restriction = client.restrictionInfoOf(chat)
                 ChatInfo(
                     id = chat.id,
                     title = chat.title,
@@ -1472,7 +1473,8 @@ class TdlConversationRepository(
                         ?.linkPreviewOptions?.toDomain(),
                     verification = client.verificationOf(chat),
                     emojiStatus = chat.emojiStatus.statusEmojiId(),
-                    restriction = client.restrictionOf(chat),
+                    restriction = restriction?.reasonText,
+                    sensitive = client.hidesSensitive(restriction),
                 )
             }
 

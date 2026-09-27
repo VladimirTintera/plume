@@ -294,6 +294,10 @@ import eu.tintera.plume.features.conversation.items.UnreadDividerItem
 import eu.tintera.plume.features.conversation.items.conversationItems
 import eu.tintera.plume.features.conversation.items.describe
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_chat_sensitive_show
+import eu.tintera.plume.resources.conversation_chat_sensitive_text
+import eu.tintera.plume.resources.conversation_chat_sensitive_title
+import eu.tintera.plume.resources.visibility_off_24dp
 import eu.tintera.plume.resources.conversation_chat_restricted
 import eu.tintera.plume.resources.block_24dp
 import eu.tintera.plume.core.ui.IntroEmptyState
@@ -382,6 +386,17 @@ fun ConversationScreen(
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
     val state by stateHolder
+
+    /*
+     * Chat, jehož obsah se neukazuje: omezený (odkrýt nejde), nebo citlivý a uživatel ještě
+     * neřekl „přesto zobrazit". Podle toho se řídí obsah, pole, hlavička i pruh připnutých —
+     * jedna podmínka, ať některé z nich obsah neprozradí (tak to udělal pruh připnutých).
+     * Potvrzení platí pro tohle otevření chatu (i po otočení), ne napořád: napořád je volba
+     * v Nastavení → Soukromí.
+     */
+    var sensitiveAccepted by rememberSaveable(viewModel.chatId) { mutableStateOf(false) }
+    val sensitiveWarning = state.info?.sensitive == true && !sensitiveAccepted
+    val chatHidden = state.info?.restriction != null || sensitiveWarning
 
     // Shrnutí modelem v zařízení (experimentální, viz `core/ai`). Vlastní ViewModel s klíčem
     // podle chatu — stejná pojistka jako u konverzace samotné.
@@ -1248,7 +1263,7 @@ fun ConversationScreen(
                 actions = {
                     // Prázdný chat s botem je jeho profil — není co shrnout ani hledat.
                     // Omezený chat nemá co ukázat, tedy ani co shrnout nebo hledat.
-                    val botIntro = showsBotIntro(state) || state.info?.restriction != null
+                    val botIntro = showsBotIntro(state) || chatHidden
                     if (summaryAvailable && state.threadRootId == null && !botIntro) {
                         IconButton(onClick = startSummary) {
                             Icon(
@@ -1309,7 +1324,7 @@ fun ConversationScreen(
                 return@Box
             }
             // Omezený chat: do chatu, který se nedá ukázat, se ani psát nedá.
-            if (state.info?.restriction != null) return@Box
+            if (chatHidden) return@Box
             if (state.info?.canJoin == true) {
                 JoinBar(joining = state.joining, onJoin = viewModel::join)
                 return@Box
@@ -1835,6 +1850,19 @@ fun ConversationScreen(
                     modifier = Modifier.fillMaxSize(),
                 )
 
+                // Citlivý chat: napřed varování, obsah až po výslovném „přesto zobrazit".
+                sensitiveWarning -> IntroEmptyState(
+                    icon = Res.drawable.visibility_off_24dp,
+                    title = stringResource(Res.string.conversation_chat_sensitive_title),
+                    text = stringResource(Res.string.conversation_chat_sensitive_text),
+                    modifier = Modifier.fillMaxSize(),
+                    action = {
+                        FilledTonalButton(onClick = { sensitiveAccepted = true }) {
+                            Text(stringResource(Res.string.conversation_chat_sensitive_show))
+                        }
+                    },
+                )
+
                 state.messages.isEmpty() && state.loading ->
                     LoadingIndicator(Modifier.align(Alignment.Center))
 
@@ -1996,7 +2024,7 @@ fun ConversationScreen(
                 }
                 AnimatedVisibility(
                     // Omezený chat: připnutá zpráva by ukázala obsah, který se ukázat nesmí.
-                    visible = state.pinned.isNotEmpty() && state.info?.restriction == null,
+                    visible = state.pinned.isNotEmpty() && !chatHidden,
                     enter = expandVertically() + fadeIn(),
                     exit = shrinkVertically() + fadeOut(),
                 ) {

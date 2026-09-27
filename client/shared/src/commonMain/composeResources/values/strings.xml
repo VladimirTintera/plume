@@ -1362,4 +1362,7 @@
     <string name="weekday_in_text_6">Saturday</string>
     <string name="weekday_in_text_7">Sunday</string>
     <string name="conversation_chat_restricted">This chat isn't available</string>
+    <string name="conversation_chat_sensitive_title">Sensitive content</string>
+    <string name="conversation_chat_sensitive_text">This chat may contain content that isn’t suitable for everyone.</string>
+    <string name="conversation_chat_sensitive_show">Show anyway</string>
 </resources>

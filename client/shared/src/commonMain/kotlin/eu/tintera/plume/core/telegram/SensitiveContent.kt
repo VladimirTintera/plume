@@ -3,6 +3,7 @@ package eu.tintera.plume.core.telegram
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.Message
 import dev.g000sha256.tdl.dto.OptionValueBoolean
+import dev.g000sha256.tdl.dto.RestrictionInfo
 import dev.g000sha256.tdl.toResult
 
 /**
@@ -31,9 +32,19 @@ internal fun hidesSensitive(hasSensitiveContent: Boolean, ignoresRestrictions: B
  * Jestli se má médium zprávy skrýt. Na volbu se ptá jen u zprávy, která citlivý obsah má —
  * u historie o padesáti zprávách by to jinak byl dotaz za každou. Nezjištěná volba = skrýt.
  */
-internal suspend fun TdlClient.hidesSensitive(message: Message): Boolean {
-    if (message.restrictionInfo?.hasSensitiveContent != true) return false
-    val ignores = (getOption(name = SensitiveContent.IGNORE_OPTION).toResult().getOrNull() as? OptionValueBoolean)
-        ?.value == true
-    return hidesSensitive(hasSensitiveContent = true, ignoresRestrictions = ignores)
-}
+internal suspend fun TdlClient.hidesSensitive(message: Message): Boolean =
+    hidesSensitive(message.restrictionInfo)
+
+/**
+ * Jestli se má před citlivým CHATEM (kanál, účet) napřed varovat — oficiální klient to dělá už
+ * při otevření. Stejná volba jako u zpráv: kdo si citlivý obsah povolil, varování nedostane.
+ */
+internal suspend fun TdlClient.hidesSensitive(restriction: RestrictionInfo?): Boolean =
+    // Na volbu se ptá jen u citlivého obsahu — u historie o padesáti zprávách by to jinak byl
+    // dotaz za každou.
+    restriction?.hasSensitiveContent == true &&
+        hidesSensitive(hasSensitiveContent = true, ignoresRestrictions = ignoresSensitive())
+
+/** Povolil si uživatel citlivý obsah? Nezjištěná volba = nepovolil (skrýt). */
+private suspend fun TdlClient.ignoresSensitive(): Boolean =
+    (getOption(name = SensitiveContent.IGNORE_OPTION).toResult().getOrNull() as? OptionValueBoolean)?.value == true

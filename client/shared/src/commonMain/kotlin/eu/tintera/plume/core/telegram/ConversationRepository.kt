@@ -837,6 +837,11 @@ data class ChatInfo(
      * Konverzace pak místo zpráv a pole ukáže jen tenhle důvod.
      */
     val restriction: String? = null,
+    /**
+     * Chat je označený jako citlivý a uživatel si citlivý obsah nepovolil: konverzace napřed
+     * varuje a obsah ukáže až na „přesto zobrazit".
+     */
+    val sensitive: Boolean = false,
 )
 
 /**
