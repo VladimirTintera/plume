@@ -1408,4 +1408,15 @@
     <string name="conversation_chat_sensitive_title">Citlivý obsah</string>
     <string name="conversation_chat_sensitive_text">Tenhle chat může obsahovat obsah, který není vhodný pro každého.</string>
     <string name="conversation_chat_sensitive_show">Přesto zobrazit</string>
+    <string name="paid_media_unsupported">Placený obsah zatím Plume odemknout neumí — otevři ho v oficiální aplikaci.</string>
+    <plurals name="paid_media_price">
+        <item quantity="one">Placený obsah za %1$s hvězdu</item>
+        <item quantity="few">Placený obsah za %1$s hvězdy</item>
+        <item quantity="other">Placený obsah za %1$s hvězd</item>
+    </plurals>
+    <plurals name="paid_media_items">
+        <item quantity="one">%1$d položka</item>
+        <item quantity="few">%1$d položky</item>
+        <item quantity="other">%1$d položek</item>
+    </plurals>
 </resources>

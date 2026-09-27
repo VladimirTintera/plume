@@ -1365,4 +1365,13 @@
     <string name="conversation_chat_sensitive_title">Sensitive content</string>
     <string name="conversation_chat_sensitive_text">This chat may contain content that isn’t suitable for everyone.</string>
     <string name="conversation_chat_sensitive_show">Show anyway</string>
+    <string name="paid_media_unsupported">Plume can’t unlock paid content yet — open it in the official app.</string>
+    <plurals name="paid_media_price">
+        <item quantity="one">Paid content for %1$s star</item>
+        <item quantity="other">Paid content for %1$s stars</item>
+    </plurals>
+    <plurals name="paid_media_items">
+        <item quantity="one">%1$d item</item>
+        <item quantity="other">%1$d items</item>
+    </plurals>
 </resources>

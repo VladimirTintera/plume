@@ -57,6 +57,13 @@ import eu.tintera.plume.features.conversation.VoiceNoteContent
 import eu.tintera.plume.features.conversation.formatDuration
 import eu.tintera.plume.features.conversation.photoFrame
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.core.ui.BlurredThumbnail
+import eu.tintera.plume.core.ui.tabularNumbers
+import eu.tintera.plume.core.ui.grouped
+import eu.tintera.plume.resources.star_filled_24dp
+import eu.tintera.plume.resources.paid_media_items
+import eu.tintera.plume.resources.paid_media_price
+import org.jetbrains.compose.resources.pluralStringResource
 import androidx.compose.foundation.layout.Spacer
 import eu.tintera.plume.core.telegram.SelfDestructTimers
 import eu.tintera.plume.core.telegram.SelfDestructType
@@ -208,6 +215,13 @@ internal fun MessageAttachment(
                 }
             }
         }
+
+        is MessageMedia.PaidMedia -> PaidMediaPreview(
+            media = media,
+            shape = pictureShape,
+            fillWidth = fillWidth,
+            modifier = Modifier.combinedClickable(onClick = onOpen, onLongClick = onRequestMenu),
+        )
 
         is MessageMedia.Attachment -> Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -910,3 +924,78 @@ internal fun ExpiredMediaRow(
 
 /** Zaoblení rozostřené citlivé samolepky — viz `SensitiveBox.coveredShape`. */
 private val STICKER_COVER_CORNER = 24.dp
+
+/**
+ * Nezaplacené placené médium: rozmazaný náhled od serveru, uprostřed cena v hvězdách, v rohu
+ * počet položek nebo délka videa. Rámeček podle poměru stran jako u fotky ([photoFrame]).
+ *
+ * **Rozmazání je jediné, co server dá** — soubor se vydá až po zaplacení, takže tu není co
+ * stahovat ani co odkrývat. Ťuknutí vysvětlí, že odemknout to Plume zatím neumí.
+ */
+@Composable
+private fun PaidMediaPreview(
+    media: MessageMedia.PaidMedia,
+    shape: Shape,
+    fillWidth: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val description = pluralStringResource(
+        Res.plurals.paid_media_price,
+        media.starCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+        media.starCount.toInt().grouped(),
+    )
+    BoxWithConstraints {
+        val ratio = if (media.width > 0 && media.height > 0) media.width.toFloat() / media.height else 1f
+        val frame = photoFrame(maxWidth, ratio, fillWidth)
+        Box(
+            modifier
+                .size(frame)
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .semantics { contentDescription = description },
+            contentAlignment = Alignment.Center,
+        ) {
+            media.minithumbnail?.let { BlurredThumbnail(it, Modifier.fillMaxSize()) }
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
+                contentColor = Color.White,
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.star_filled_24dp),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        text = media.starCount.toInt().grouped(),
+                        style = MaterialTheme.typography.labelLarge.tabularNumbers(),
+                    )
+                }
+            }
+            val corner = when {
+                media.itemCount > 1 -> pluralStringResource(Res.plurals.paid_media_items, media.itemCount, media.itemCount)
+                media.durationSeconds > 0 -> formatDuration(media.durationSeconds)
+                else -> null
+            }
+            corner?.let {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
+                    contentColor = Color.White,
+                    modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
+                ) {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.labelMedium.tabularNumbers(),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
+            }
+        }
+    }
+}

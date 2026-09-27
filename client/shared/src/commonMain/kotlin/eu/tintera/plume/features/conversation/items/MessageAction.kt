@@ -160,6 +160,9 @@ sealed interface MessageAction {
     data class OpenStickerSet(val setId: Long) : MessageAction
 
     data object OpenDocument : MessageAction
+
+    /** Ťuknutí na nezaplacené placené médium: vysvětlit, že odemknout ho Plume neumí. */
+    data object ExplainPaidMedia : MessageAction
     data object CancelUpload : MessageAction
     data object ToggleVoice : MessageAction
 

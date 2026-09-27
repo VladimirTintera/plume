@@ -133,7 +133,7 @@ internal fun showsBareMedia(message: ChatMessage, album: List<ChatMessage>?): Bo
     val media = album?.map { it.media } ?: listOf(message.media)
     return media.isNotEmpty() && media.all {
         it is MessageMedia.Photo || it is MessageMedia.Video || it is MessageMedia.Animation ||
-            it is MessageMedia.Location
+            it is MessageMedia.Location || it is MessageMedia.PaidMedia
     }
 }
 
@@ -240,6 +240,8 @@ private val MessageMedia.carriesCaption: Boolean
         is MessageMedia.Call,
         is MessageMedia.Contact,
         is MessageMedia.VideoNote,
+        // Popisek placeného média jde upravit jen prodejci, a to ověřené není.
+        is MessageMedia.PaidMedia,
         -> false
     }
 

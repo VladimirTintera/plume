@@ -6158,6 +6158,25 @@ a kořenová zpráva), a otevře se `ConversationRoute(chatId = skupina, threadI
   s kořenem nahoře, zpět do kanálu. **Odeslání komentáře ověřené NENÍ** — veřejně by ho viděli
   všichni čtenáři kanálu.
 
+### Placená média
+
+`MessagePaidMedia` (fotka nebo video za hvězdy, častá v kanálech) je `MessageMedia.PaidMedia`:
+holé médium s rozmazaným náhledem, cenou s hvězdou uprostřed a v rohu počtem položek nebo
+délkou videa (`PaidMediaPreview` v `Attachments.kt`, převod `toPaidMedia`, testy `PaidMediaTest`).
+
+- **Server před zaplacením vydá jen náhled** (`PaidMediaPreview`: rozměry, délka, minithumbnail),
+  ne soubor. Rozmazání je tedy všechno, co je; nestahuje se nic a nic se neodkrývá.
+- **Zaplacené médium je obyčejná fotka nebo video** (`PaidMediaPhoto` / `PaidMediaVideo` →
+  `Photo` / `Video`), i s prohlížečem a reakcemi — týká se i prodejce, který vidí vlastní
+  příspěvek odemčený. Z víc položek se ukazuje PRVNÍ: album je jinak víc zpráv a mřížka v jedné
+  zprávě by byla vlastní cesta.
+- **Odemknout (koupit za hvězdy) Plume neumí**, ťuknutí to řekne snackbarem
+  (`MessageAction.ExplainPaidMedia`) místo prohlížeče, který by neměl co ukázat.
+- **Bot placené médium do soukromého chatu pošle** (`sendPaidMedia` se `star_count`), takže se
+  to ověřuje bez kanálu. Ověřeno na emulátoru česky: fotka s popiskem (25 hvězd), album dvou
+  fotek („2 položky"), ťuknutí s vysvětlením. **Neověřeno**: zaplacené médium (zaplatit nejde),
+  video, iOS (jen přeložené).
+
 ### Kontakt
 
 `MessageContact` je příloha `MessageMedia.Contact` a v bublině karta jako řádek souboru

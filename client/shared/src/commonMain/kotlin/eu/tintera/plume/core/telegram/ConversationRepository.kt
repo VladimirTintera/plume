@@ -1649,6 +1649,25 @@ sealed interface MessageMedia {
     }
 
     /**
+     * Placené médium (`MessagePaidMedia`), které ještě nikdo nezaplatil: server pošle jen
+     * rozměry, délku videa a rozmazaný náhled, ne soubor. Kreslí se rozmazaně s cenou
+     * v hvězdách; odemknout (koupit za hvězdy) Plume zatím neumí.
+     *
+     * Zaplacené médium — i vlastní příspěvek kanálu, který ho prodává — se převádí na obyčejnou
+     * [Photo] nebo [Video], protože je z něj už prostě fotka nebo video.
+     */
+    data class PaidMedia(
+        val starCount: Long,
+        /** Kolik položek se prodává naráz (album). */
+        val itemCount: Int,
+        val width: Int,
+        val height: Int,
+        /** Délka první položky, je-li to video; `0` u fotky. */
+        val durationSeconds: Int,
+        val minithumbnail: Minithumbnail? = null,
+    ) : MessageMedia
+
+    /**
      * Hlasovka: přehrává se přímo v bublině.
      *
      * [waveform] jsou hodnoty 0–31 rozbalené z Telegramu (viz `decodeWaveform`). [isListened]
