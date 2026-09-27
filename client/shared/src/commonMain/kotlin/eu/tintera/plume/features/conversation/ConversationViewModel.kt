@@ -1227,13 +1227,13 @@ class ConversationViewModel(
     }
 
     /** Odešle GIF z výběru. Stejné právo a stejné chování jako [sendSticker]. */
-    fun sendGif(gif: GifItem) {
+    fun sendGif(gif: GifItem, options: SendOptions = SendOptions()) {
         if (!_state.value.content.stickers) {
             _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
             return
         }
-        sendMedia(Res.string.conversation_gif_send_failed) { replyTo, quote ->
-            repository.sendGif(chatId, gif, replyTo, quote)
+        sendMedia(Res.string.conversation_gif_send_failed, scheduled = options.schedule != null) { replyTo, quote ->
+            repository.sendGif(chatId, gif, replyTo, quote, options)
         }
     }
 

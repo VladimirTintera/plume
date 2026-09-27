@@ -543,7 +543,7 @@ snadno na to uživatel narazí.
 - ~~**Naplánované zprávy a odeslání bez zvuku**~~ — hotovo: podržení odesílacího tlačítka,
   seznam naplánovaných za hodinami u pole (`CLAUDE.md`, „Naplánované zprávy"). ~~Plánování
   hlasovky a ankety~~ — hotovo. ~~Plánování samolepky~~ — hotovo (tlačítko u podržené
-  samolepky ve výběru; GIF ho zatím nemá), ~~anketa naplánovaná jako odpověď~~ (hotovo — formulář
+  samolepky i GIFu ve výběru), ~~anketa naplánovaná jako odpověď~~ (hotovo — formulář
   odpověď ohlásí jako spotřebovanou), opakované připomínky
   (`repeatPeriod`, jen s Premium) a ověřit „až bude online" s člověkem.
 - ~~**Ověření, podvod, falešný účet**~~ — hotovo: štítek u jména v seznamu chatů, v hlavičce

@@ -170,7 +170,8 @@ class ThreadConversationRepository(
         gif: GifItem,
         replyToMessageId: Long?,
         quote: ReplyQuote?,
-    ): Result<ChatMessage> = delegate.sendGif(chatId, gif, reply(replyToMessageId), quote)
+        options: SendOptions,
+    ): Result<ChatMessage> = delegate.sendGif(chatId, gif, reply(replyToMessageId), quote, options)
 
     override suspend fun sendInlineResult(
         chatId: Long,

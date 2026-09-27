@@ -192,14 +192,20 @@ class GifPickerViewModel(
 internal fun GifPanel(
     chatId: Long,
     onPick: (GifItem) -> Unit,
+    /** Volby odeslání u podrženého GIFu; `null` = jde jen poslat ťuknutím. */
+    sendMenu: SendMenuOffer? = null,
+    onPickWith: (GifItem, SendMenuChoice) -> Unit = { _, _ -> },
 ) {
     val viewModel: GifPickerViewModel = koinViewModel(key = "gifs-$chatId") { parametersOf(chatId) }
     val saved by viewModel.saved.collectAsStateWithLifecycle()
     val results by viewModel.results.collectAsStateWithLifecycle()
     var searchText by rememberSaveable { mutableStateOf("") }
 
-    /** Podržený uložený GIF — ukáže se u něj křížek na odebrání. Jen u jednoho, jako hvězdička u samolepek. */
-    var activeSavedId by rememberSaveable { mutableStateOf<Int?>(null) }
+    /**
+     * Podržený GIF (klíč položky, uložený GIF bývá i mezi populárními). Jen jeden, jako
+     * u samolepek: ukáže se u něj tlačítko voleb odeslání a u uloženého i křížek na odebrání.
+     */
+    var activeKey by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) { viewModel.search(searchText) }
 
@@ -230,23 +236,35 @@ internal fun GifPanel(
             if (savedGifs.isNotEmpty()) {
                 gifHeader(savedTitle)
                 itemsIndexed(savedGifs, key = { _, gif -> "saved-${gif.id}" }) { _, gif ->
+                    val key = "saved-${gif.id}"
                     GifCell(
                         gif = gif,
                         onPick = onPick,
-                        active = gif.id == activeSavedId,
+                        active = key == activeKey,
                         // Podržení si haptiku dělá `combinedClickable` samo — viz `Haptics`.
-                        onActivate = { activeSavedId = gif.id },
+                        onActivate = { activeKey = key },
                         onRemove = {
-                            activeSavedId = null
+                            activeKey = null
                             viewModel.removeSaved(gif)
                         },
+                        sendMenu = sendMenu,
+                        onPickWith = onPickWith,
                     )
                 }
                 if (results.gifs.isNotEmpty()) gifHeader(trendingTitle)
             }
             // Klíč nese sekci: uložený GIF bývá i mezi populárními.
             itemsIndexed(results.gifs, key = { _, gif -> "found-${gif.id}" }) { index, gif ->
-                GifCell(gif = gif, onPick = onPick)
+                val key = "found-${gif.id}"
+                GifCell(
+                    gif = gif,
+                    onPick = onPick,
+                    active = key == activeKey,
+                    // Nalezený GIF odebrat nejde; podržení je tu jen kvůli volbám odeslání.
+                    onActivate = { activeKey = key }.takeIf { sendMenu != null },
+                    sendMenu = sendMenu,
+                    onPickWith = onPickWith,
+                )
                 LoadMoreAtEnd(index, results.gifs.size, viewModel::loadMore)
             }
             if (results.loading && results.gifs.isNotEmpty()) {
@@ -290,7 +308,8 @@ private fun GifMessage(text: String) {
 }
 
 /**
- * Jeden GIF v mřížce: ťuknutí ho pošle. U uloženého podržení nabídne odebrání ([onRemove]).
+ * Jeden GIF v mřížce: ťuknutí ho pošle. Podržení ukáže tlačítko voleb odeslání ([sendMenu],
+ * jako u samolepky) a u uloženého i odebrání ([onRemove]).
  *
  * Buňka má pevnou výšku a GIF se do ní ořízne — v řádku by se jinak buňky rozjely podle poměru
  * stran. Velký GIF se sám nestahuje (stejné pravidlo jako v konverzaci), zůstane náhled.
@@ -302,7 +321,9 @@ internal fun GifCell(
     onPick: (GifItem) -> Unit,
     active: Boolean = false,
     onActivate: (() -> Unit)? = null,
-    onRemove: () -> Unit = {},
+    onRemove: (() -> Unit)? = null,
+    sendMenu: SendMenuOffer? = null,
+    onPickWith: (GifItem, SendMenuChoice) -> Unit = { _, _ -> },
 ) {
     val animation = gif.animation
     val fileState = rememberFileState(animation.fileId.takeIf { animation.autoPlays })
@@ -336,7 +357,14 @@ internal fun GifCell(
             VideoSurface(player, Modifier.coverAspect(animation.width, animation.height))
         }
 
-        if (active) {
+        if (active && sendMenu != null) {
+            SendOptionsButton(
+                offer = sendMenu,
+                onChoice = { choice -> onPickWith(gif, choice) },
+                modifier = Modifier.align(Alignment.TopStart).padding(4.dp),
+            )
+        }
+        if (active && onRemove != null) {
             Surface(
                 onClick = onRemove,
                 shape = CircleShape,
