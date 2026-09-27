@@ -1694,6 +1694,11 @@ sealed interface MessageMedia {
         val emoji: String,
         val value: Int,
         val layers: List<Int>,
+        /**
+         * Snímek animace, po kterém má vybuchnout oslava výhry (koš, gól, zásah středu, jackpot);
+         * `0` = hod nic nevyhrál. Posílá ho server (`successAnimationFrameNumber`).
+         */
+        val successFrame: Int = 0,
     ) : MessageMedia {
         val rolling: Boolean get() = value == 0
 

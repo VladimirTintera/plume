@@ -614,7 +614,12 @@ internal fun MessageDice.toDiceMedia(): MessageMedia.Dice? {
         )
     }
     if (layers.any { it.format !is StickerFormatTgs }) return null
-    return MessageMedia.Dice(emoji = emoji, value = value, layers = layers.map { it.sticker.id })
+    return MessageMedia.Dice(
+        emoji = emoji,
+        value = value,
+        layers = layers.map { it.sticker.id },
+        successFrame = successAnimationFrameNumber.takeIf { value > 0 } ?: 0,
+    )
 }
 
 /** Náhled, který jde nakreslit jako obrázek — animovaný MPEG-4 Coil neotevře. */

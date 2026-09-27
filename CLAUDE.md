@@ -6148,6 +6148,20 @@ testy `DiceMediaTest`).
 - **Ověřuje se botem**: `sendDice` s `emoji=🎲` a `🎰` do otevřeného chatu (hod proběhne), pak
   odejít a vrátit se (výsledek hned). Ověřeno na emulátoru.
 
+- **Výhru oslaví konfety** (`DiceConfetti`, `MessageMedia.Dice.successFrame` ze
+  `successAnimationFrameNumber`). Vyletí na snímku, který poslal server — když míč propadne
+  sítí, šipka zasáhne střed — ne až po dohrání: `AnimatedSticker` umí ohlásit snímek
+  (`markerFrame`, snímek = `lerp(startFrame, endFrame, progress)`), u automatu poslední
+  vrstva (pravý válec dotočí poslední). **Jen u VLASTNÍHO hodu, který proběhl před očima** —
+  server snímek výhry posílá kvůli odeslanému hodu (TDLib: „on updateMessageSendSucceeded"),
+  oficiální klienti cizí výhru neslaví. Konfety se kreslí v Compose (barvy z tématu, náhoda
+  se semínkem id zprávy), bez velikosti v layoutu; položka se po dobu oslavy zvedne
+  (`LocalRaiseItem`, `zIndex` jako u efektu zprávy).
+- **Ověřuje se hodem ⚽ v chatu s botem** (gól je hodnota 3–5, tedy asi tři hody z pěti; text
+  do pole přes sdílení, `SEND` s `EXTRA_SHORTCUT_ID chat_<id bota>`) a sérií surových snímků
+  (`screencap` do `/data/local/tmp` ve smyčce v jednom `adb shell`, aspoň 70 — hod trvá přes
+  tři vteřiny). Hodnotu hodu řekne `getUpdates`.
+
 #### Poslat hod
 
 - **Samotné emoji ze seznamu serveru odejde jako hod**, ne jako text (`diceEmojiFor`, testy

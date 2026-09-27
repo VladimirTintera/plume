@@ -54,6 +54,12 @@ fun AnimatedSticker(
     playback: StickerPlayback = StickerPlayback.Loop,
     /** Doběhla animace hraná jednou ([StickerPlayback.Once]). */
     onFinished: () -> Unit = {},
+    /**
+     * Snímek, na kterém se u přehrání [StickerPlayback.Once] zavolá [onMarker] — třeba chvíle,
+     * kdy hozený míč propadne košem. `0` = nic se nehlásí.
+     */
+    markerFrame: Int = 0,
+    onMarker: () -> Unit = {},
     placeholder: @Composable () -> Unit,
 ) {
     val path = (rememberFileState(fileId) as? FileState.Ready)?.path
@@ -83,6 +89,17 @@ fun AnimatedSticker(
                         LaunchedEffect(state) {
                             snapshotFlow { state.isAtEnd }.first { it }
                             finished()
+                        }
+                        val marker by rememberUpdatedState(onMarker)
+                        if (markerFrame > 0) {
+                            LaunchedEffect(state, markerFrame) {
+                                snapshotFlow {
+                                    val frame = composition.startFrame +
+                                        (composition.endFrame - composition.startFrame) * state.progress
+                                    frame >= composition.startFrame + markerFrame || state.isAtEnd
+                                }.first { it }
+                                marker()
+                            }
                         }
                         rememberLottiePainter(composition = composition, progress = { state.progress })
                     }
