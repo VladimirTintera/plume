@@ -4655,6 +4655,12 @@ stáhne a předá systému.
   pamatuje, na co už request odešel, aby ho scroll nespouštěl při každém odběru; kdyby ale
   předchozí stahování skončilo v půli (spadlé spojení, TDLib soubor uvolnil), zůstal by ten stav
   viset a další ťuknutí by nedělalo nic. Výslovný pokyn uživatele tu paměť obchází.
+- **Druhé ťuknutí stahování ZRUŠÍ i v TDLib** (`FileRepository.cancelDownload` →
+  `cancelDownloadFile`), v konverzaci i v záložce Soubory profilu. Dřív se rušilo jen čekání
+  v aplikaci: kolečko zmizelo, ale TDLib stahoval dál a soubor se potichu dostáhl. Zrušení
+  zapomene i to, že se o soubor žádalo, takže další ťuknutí naváže na stažený kus. Ověřeno
+  47MB souborem od bota: zrušeno ve 4. vteřině na 12,3 MB, po 20 s pořád 12,3 MB
+  (`getFile` … `stahuje=false`); bez zrušení je soubor na emulátoru celý za 15 s.
 - **iOS: `UIDocumentInteractionController`** (náhled, a z něj i sdílení). Kontroler i delegát se
   musí držet silnou referencí, dokud je náhled na obrazovce — stejná past jako u výběru příloh.
   Bez náhledu pro daný typ se ukáže nabídka „Otevřít v…".
