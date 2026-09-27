@@ -36,6 +36,7 @@ import eu.tintera.plume.resources.link_preview_large
 import eu.tintera.plume.resources.link_preview_large_desc
 import eu.tintera.plume.resources.link_preview_remove
 import eu.tintera.plume.resources.link_preview_remove_desc
+import eu.tintera.plume.resources.link_preview_section_link
 import eu.tintera.plume.resources.link_preview_section_media
 import eu.tintera.plume.resources.link_preview_section_position
 import eu.tintera.plume.resources.link_preview_small
@@ -53,6 +54,10 @@ import org.jetbrains.compose.resources.stringResource
  * **Výběr sheet nezavírá**, na rozdíl od režimu přílohy. Velikost a poloha jsou dvě nezávislé
  * volby a kdo mění obě, by sheet otevíral dvakrát. Zavře ho jen „Bez náhledu".
  *
+ * **Odkaz se vybírá jen z víc než jednoho** ([links]) a jako první sekce: na něm závisí, co
+ * ukazují ostatní (jiný web může mít obrázek jen v jedné velikosti). Výběr sheet taky nezavírá —
+ * titulek nahoře se přepíše, až dorazí náhled vybraného odkazu.
+ *
  * Velikost se nabízí jen tam, kde ji server umí ([LinkPreview.canChangeSize]) a náhled obrázek
  * má; jinak by volba nic nezměnila. Nevybraná velikost ukazuje jako zvolenou tu, kterou vybral
  * server — prázdný výběr by vypadal jako chyba.
@@ -61,6 +66,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun LinkPreviewOptionsSheet(
     preview: LinkPreview,
+    links: List<String>,
     options: LinkPreviewOptions,
     onChange: (LinkPreviewOptions) -> Unit,
     onDismiss: () -> Unit,
@@ -95,6 +101,22 @@ fun LinkPreviewOptionsSheet(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(bottom = 16.dp),
             )
+
+            if (links.size > 1) {
+                val selected = options.selectedLink(links)
+                Section(Res.string.link_preview_section_link) {
+                    links.forEachIndexed { index, link ->
+                        ModeOptionRow(
+                            title = linkHost(link),
+                            description = link,
+                            icon = Res.drawable.link_24dp,
+                            selected = link == selected,
+                            shape = groupShape(index, links.size),
+                            onClick = { onChange(options.copy(url = link)) },
+                        )
+                    }
+                }
+            }
 
             if (preview.canChangeSize && preview.photo != null) {
                 Section(Res.string.link_preview_section_media) {
@@ -168,6 +190,13 @@ private fun Section(title: StringResource, content: @Composable () -> Unit) {
         content()
     }
     Spacer(Modifier.height(16.dp))
+}
+
+/** Tvar řádku ve skupině: velké zaoblení jen na krajích bloku, jako [GroupTop] a [GroupBottom]. */
+private fun groupShape(index: Int, count: Int): RoundedCornerShape {
+    val top = if (index == 0) 20.dp else 4.dp
+    val bottom = if (index == count - 1) 20.dp else 4.dp
+    return RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)
 }
 
 private val GroupTop = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp)

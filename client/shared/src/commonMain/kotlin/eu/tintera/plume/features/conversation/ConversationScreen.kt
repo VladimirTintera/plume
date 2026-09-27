@@ -1534,6 +1534,7 @@ fun ConversationScreen(
                     editing = state.editing != null,
                     hasAttachments = state.attachments.isNotEmpty(),
                 ),
+                linkPreviewLinks = state.linkPreviewLinks,
                 linkPreviewOptions = state.linkPreviewOptions,
                 onLinkPreviewOptions = viewModel::setLinkPreviewOptions,
                 inputFill = state.inputFill,
@@ -2426,6 +2427,8 @@ private fun MessageInput(
     placeholder: String? = null,
     /** Náhled odkazu v rozepsaném textu, pokud se má ukázat ([composerLinkPreview]). */
     linkPreview: LinkPreview? = null,
+    /** Odkazy v rozepsaném textu; s víc než jedním nabídne sheet, ke kterému náhled patří. */
+    linkPreviewLinks: List<String> = emptyList(),
     linkPreviewOptions: LinkPreviewOptions = LinkPreviewOptions(),
     onLinkPreviewOptions: (LinkPreviewOptions) -> Unit = {},
     /** Text, který se má jednou vložit do pole (koncept, úprava). */
@@ -2505,6 +2508,7 @@ private fun MessageInput(
     if (linkOptionsOpen && linkPreview != null) {
         LinkPreviewOptionsSheet(
             preview = linkPreview,
+            links = linkPreviewLinks,
             options = linkPreviewOptions,
             onChange = onLinkPreviewOptions,
             onDismiss = { linkOptionsOpen = false },

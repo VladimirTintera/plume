@@ -328,8 +328,8 @@ a scrollování" u duplicitního klíče po potvrzení odeslání).
 Náhled nad polem, volby velikosti a polohy, vypnutí; volba se ukládá s konceptem. Poučení
 v `CLAUDE.md`, „Náhled odkazu při psaní". Co zbývá:
 
-- **Který odkaz**, když je jich v textu víc. Dnes rozhoduje server (první odkaz); přepínat
-  jde přes `LinkPreviewOptions.url`.
+- ~~**Který odkaz**, když je jich v textu víc.~~ — hotovo: sekce „Odkaz" v sheetu voleb
+  (`CLAUDE.md`, „Náhled odkazu při psaní").
 - ~~**Volba při úpravě zprávy**~~ — hotovo: úprava volbu z původní zprávy přenáší (ověřeno,
   s `null` se náhled vracel). Zbývá volbu při úpravě i MĚNIT (náhled nad polem při úpravě není).
 - **Náhled na iOS** ověřený není (kód je společný, sheet i hlavička jsou v commonMain).

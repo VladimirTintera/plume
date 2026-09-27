@@ -354,13 +354,14 @@ interface ConversationRepository {
     suspend fun reschedule(chatId: Long, messageId: Long, schedule: MessageSchedule?): Result<Unit>
 
     /**
-     * Náhled odkazu, jak by ho server připojil k [text], nebo `null`, když text odkaz nemá.
+     * Odkazy v [text] a náhled, jak by ho server připojil — k odkazu [url], je-li mezi nimi,
+     * jinak k prvnímu.
      *
      * **Na síť se jde, jen když text odkaz opravdu obsahuje** (lokální `getTextEntities`).
      * `getLinkPreview` TDLib dokumentuje „do not call this function too often" a na text bez
      * odkazu vrací 404 — volat ho při psaní na každou pauzu by byl dotaz za nic.
      */
-    suspend fun linkPreview(text: String): Result<LinkPreview?>
+    suspend fun linkPreview(text: String, url: String? = null): Result<TextLinkPreview>
 
     /**
      * Hodí kostkou (nebo šipkami, míčem, automatem — podle [emoji] z [ChatRepository.diceEmojis]).
@@ -864,6 +865,17 @@ data class ChatInfo(
 data class ReplyQuote(val text: String, val position: Int)
 
 /**
+ * Odkazy v rozepsaném textu a náhled jednoho z nich.
+ *
+ * [links] jsou v pořadí, v jakém stojí v textu, bez opakování — tak, jak je text píše (holé
+ * `example.com` zůstane holé), protože přesně tahle podoba jde zpátky jako [LinkPreviewOptions.url].
+ */
+data class TextLinkPreview(
+    val links: List<String>,
+    val preview: LinkPreview?,
+)
+
+/**
  * Jak má vypadat náhled odkazu v odesílané zprávě. Výchozí hodnota = nic nevybráno, rozhoduje
  * server (`linkPreviewOptions = null`).
  */
@@ -875,14 +887,17 @@ data class LinkPreviewOptions(
     /** Náhled nad textem zprávy místo pod ním. */
     val aboveText: Boolean = false,
     /**
-     * Adresa odkazu, ke kterému volba patří. **Vynucená velikost bez ní neplatí** — TDLib
-     * `forceSmallMedia` i `forceLargeMedia` bez výslovné `url` ignoruje. Vyplňuje se až při
-     * odeslání z náhledu, který uživatel právě vidí; držet ji v rozepsané volbě by po přepsání
-     * odkazu v textu vynucovalo náhled toho starého.
+     * Odkaz, ke kterému se náhled připojí; `null` = první v textu (rozhoduje server).
+     *
+     * Při psaní ho nastavuje jen VÝBĚR odkazu v sheetu a platí, dokud odkaz v textu stojí —
+     * obrazovka ho zahodí, jakmile z textu zmizí ([TextLinkPreview.links]), jinak by se zpráva
+     * odeslala s náhledem odkazu, který v ní už není. **Vynucená velikost bez adresy neplatí**
+     * (TDLib `forceSmallMedia` i `forceLargeMedia` bez výslovné `url` ignoruje), takže ji při
+     * odeslání doplní náhled, který uživatel právě vidí.
      */
     val url: String? = null,
 ) {
-    val isDefault: Boolean get() = copy(url = null) == LinkPreviewOptions()
+    val isDefault: Boolean get() = this == LinkPreviewOptions()
 }
 
 /**

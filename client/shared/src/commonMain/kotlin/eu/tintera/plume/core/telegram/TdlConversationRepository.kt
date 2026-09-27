@@ -1429,18 +1429,29 @@ class TdlConversationRepository(
             schedulingState = schedule?.toTdl(),
         ).toResult().map { }
 
-    override suspend fun linkPreview(text: String): Result<LinkPreview?> {
+    override suspend fun linkPreview(text: String, url: String?): Result<TextLinkPreview> {
         val formatted = FormattedText(text = text, entities = detectEntities(text))
-        if (formatted.entities.none { it.type is TextEntityTypeUrl || it.type is TextEntityTypeTextUrl }) {
-            return Result.success(null)
-        }
-        return client.getLinkPreview(text = formatted, linkPreviewOptions = null)
+        val links = formatted.entities.mapNotNull { entity ->
+            when (val type = entity.type) {
+                is TextEntityTypeUrl -> text.substring(entity.offset, entity.offset + entity.length)
+                is TextEntityTypeTextUrl -> type.url
+                else -> null
+            }
+        }.distinct()
+        if (links.isEmpty()) return Result.success(TextLinkPreview(links = emptyList(), preview = null))
+        // Odkaz, který v textu už není, by dal náhled něčeho, co zpráva neobsahuje.
+        val chosen = url?.takeIf { it in links }
+        return client.getLinkPreview(
+            text = formatted,
+            linkPreviewOptions = chosen?.let { LinkPreviewOptions(url = it).toTdl() },
+        )
             .toResult()
             .map { it.toDomain() }
             // 404 = „text nemá náhled" (stránka nic nevydala). To je odpověď, ne chyba.
             .recoverCatching { failure ->
                 if (failure is TdlThrowable && failure.code == NOT_FOUND) null else throw failure
             }
+            .map { TextLinkPreview(links = links, preview = it) }
     }
 
     override suspend fun saveDraft(
@@ -2542,10 +2553,14 @@ private fun LinkPreviewOptions.toTdl(): TdlLinkPreviewOptions? =
         )
     }
 
-/** Volba uložená v konceptu zpátky v doménové podobě; adresa se nepřenáší (viz [LinkPreviewOptions.url]). */
+/**
+ * Volba uložená v konceptu zpátky v doménové podobě. Adresa vybraného odkazu se přenáší taky;
+ * jestli v textu pořád stojí, ověří až první náhled ([LinkPreviewOptions.url]).
+ */
 internal fun TdlLinkPreviewOptions.toDomain(): LinkPreviewOptions? =
     LinkPreviewOptions(
         disabled = isDisabled,
+        url = url.takeIf { it.isNotEmpty() },
         largeMedia = when {
             forceLargeMedia -> true
             forceSmallMedia -> false

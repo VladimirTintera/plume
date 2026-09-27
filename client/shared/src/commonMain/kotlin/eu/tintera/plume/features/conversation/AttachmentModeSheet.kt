@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import eu.tintera.plume.core.telegram.AttachmentMode
@@ -366,6 +367,9 @@ private fun ModeOptionRowContent(
             )
             Text(
                 text = description,
+                // Celá adresa u výběru odkazu umí být dlouhá; dva řádky stačí k rozlišení.
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodySmall,
                 color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
             )
