@@ -37,6 +37,13 @@ import eu.tintera.plume.core.ui.PickerSection
 import eu.tintera.plume.core.ui.SheetActionRow
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.settings_default_auto_delete_explanation
+import eu.tintera.plume.resources.settings_default_auto_delete_failed
+import eu.tintera.plume.resources.settings_default_auto_delete
+import eu.tintera.plume.resources.auto_delete_off
+import eu.tintera.plume.resources.timer_24dp
+import eu.tintera.plume.core.ui.durationText
+import eu.tintera.plume.features.profile.AutoDeleteSheet
 import eu.tintera.plume.resources.block_24dp
 import eu.tintera.plume.resources.chats_undo
 import eu.tintera.plume.resources.chats_unblocked
@@ -67,11 +74,49 @@ import org.jetbrains.compose.resources.stringResource
 internal fun PrivacySettings(
     blocked: BlockedSendersViewModel,
     sensitive: SensitiveContentViewModel,
+    autoDelete: DefaultAutoDeleteViewModel,
     onOpenBlocked: () -> Unit,
 ) {
     SettingsGroup(Res.string.settings_privacy) {
         BlockedRow(blocked, onOpenBlocked)
+        DefaultAutoDeleteRow(autoDelete)
         SensitiveContentRow(sensitive)
+    }
+}
+
+/**
+ * „Automatické mazání v nových chatech": doba, která se nastaví v každém NOVĚ založeném chatu.
+ * Výběr je tentýž sheet jako v profilu chatu, jen s větou o nových chatech — na chaty, které
+ * už existují, volba nesahá, a bez té věty by se to dalo čekat.
+ */
+@Composable
+private fun DefaultAutoDeleteRow(viewModel: DefaultAutoDeleteViewModel) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    // Dokud doba nedorazí, řádek nic netvrdí — „vypnuto" by mohla být lež.
+    val seconds = state.seconds ?: return
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        leadingContent = { Icon(painterResource(Res.drawable.timer_24dp), contentDescription = null) },
+        headlineContent = { Text(stringResource(Res.string.settings_default_auto_delete)) },
+        supportingContent = {
+            when {
+                state.failed -> Text(
+                    stringResource(Res.string.settings_default_auto_delete_failed),
+                    color = MaterialTheme.colorScheme.error,
+                )
+                seconds == 0 -> Text(stringResource(Res.string.auto_delete_off))
+                else -> Text(durationText(seconds))
+            }
+        },
+        modifier = Modifier.clickable(onClick = viewModel::openChooser),
+    )
+    if (state.choosing) {
+        AutoDeleteSheet(
+            current = seconds,
+            onSelect = viewModel::choose,
+            onDismiss = viewModel::closeChooser,
+            explanation = stringResource(Res.string.settings_default_auto_delete_explanation),
+        )
     }
 }
 

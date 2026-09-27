@@ -38,6 +38,8 @@ internal fun AutoDeleteSheet(
     current: Int,
     onSelect: (Int) -> Unit,
     onDismiss: () -> Unit,
+    /** Věta s následkem; výchozí mluví o tomhle chatu, v Nastavení o nových chatech. */
+    explanation: String = stringResource(Res.string.auto_delete_explanation),
 ) {
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
     val options = autoDeleteOptions(current)
@@ -49,7 +51,7 @@ internal fun AutoDeleteSheet(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
         )
         Text(
-            text = stringResource(Res.string.auto_delete_explanation),
+            text = explanation,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),

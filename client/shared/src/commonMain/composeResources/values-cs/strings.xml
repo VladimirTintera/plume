@@ -1430,4 +1430,7 @@
     <string name="chat_bar_join_request_group">Tuhle zprávu dostáváš jako odpověď na žádost o vstup do skupiny „%1$s“.</string>
     <string name="chat_bar_join_request_channel">Tuhle zprávu dostáváš jako odpověď na žádost o vstup do kanálu „%1$s“.</string>
     <string name="chat_bar_join_request_date">Žádost odeslána: %1$s</string>
+    <string name="settings_default_auto_delete">Automatické mazání v nových chatech</string>
+    <string name="settings_default_auto_delete_failed">Nepodařilo se změnit, zkus to znovu</string>
+    <string name="settings_default_auto_delete_explanation">Zprávy v každém chatu, který odteď založíš, po zvolené době zmizí všem. Chaty, které už máš, se nezmění.</string>
 </resources>
