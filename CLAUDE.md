@@ -3577,6 +3577,20 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   `DropdownMenuPopupPositionProvider` (s `transformOrigin` v rohu u tlačítka), takže vzhled je
   tentýž jako u ostatních nabídek. **Totéž čeká každou nabídku u spodku obrazovky.** Poznalo se
   to změřením (`uiautomator dump`): spodek menu byl přesně `výška okna − 48 dp`.
+- **Nabídka sponky si nebere fokus** (`PopupProperties(focusable = false)`), jinak klávesnice
+  zmizela bleskem a konverzace skočila dolů. Popup je na Androidu samostatné okno; fokusovatelné
+  převzalo fokus od pole, systém klávesnici schoval — a animaci insetů dostává okno, které
+  klávesnici řídí, tedy už okno nabídky. Hlavní okno dostalo rovnou konečné insety. Poznalo se
+  to z `dumpsys window | grep mCurrentFocus` (`Pop-Up Window`) a snímků těsně po sobě. Klávesnice
+  teď zůstane a nabídka stojí nad sponkou.
+  - **Nefokusovatelné okno nedostane zpět**, proto `NavigationBackHandler` (první zpět zavře
+    klávesnici, druhé nabídku). **A zavírá se už DOTYKEM mimo sebe — i na sponce**, takže klik
+    po puštění ji otevřel znovu; klik do půl vteřiny po zavření se proto bere jako zavření.
+  - **Sheet po volbě položky je zase další okno** a otevřený hned utrhl klávesnici stejně —
+    konverzace nad sheetem skočila. `rememberAfterKeyboardHidden` (`core/ui`) klávesnici schová
+    a akci pustí, až insety `ime` dojdou k nule (nejvýš 600 ms). Totéž tlačítko emoji. Na
+    emulátoru dojede klávesnice za ~320 ms; zbytek prodlevy u emoji je skládání sheetu.
+  - **Na iOS ověřené není** (jen přeložené).
 - **Citace a psaní jsou JEDNA karta.** Dva samostatné kusy nad sebou dělaly z odpovědi cizí prvek
   vsunutý mezi konverzaci a vstup; ve společné kartě je vidět, že citace patří k tomu, co se
   právě píše. Citace (i hlavička úpravy) je **horní pruh karty v `tertiaryContainer`**

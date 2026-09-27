@@ -15,13 +15,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.window.PopupProperties
+import androidx.navigationevent.NavigationEventInfo
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.rememberAfterKeyboardHidden
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.attach_file_24dp
 import eu.tintera.plume.resources.conversation_attach
@@ -41,7 +48,8 @@ import org.jetbrains.compose.resources.stringResource
  *
  * Dvě položky, ne rovnou výběr: Photo Picker ukazuje jen fotky a výběr dokumentu nemá náhledy, takže
  * jeden systémový výběr pro obojí by byl horší v obou případech. Klávesnice se zavře, než se
- * otevře systémový výběr — jinak by po návratu vyskočila přes bublinu s nahráváním.
+ * otevře systémový výběr — jinak by po návratu vyskočila přes bublinu s nahráváním — a výběr se
+ * otevře až po jejím sjetí ([rememberAfterKeyboardHidden]).
  *
  * Co skupina zakazuje, se nenabízí ([canPickMedia], [canPickDocument]). Bez jediné položky se
  * tlačítko nekreslí vůbec — o to se stará volající (`ContentAccess.anyAttachment`), protože
@@ -51,6 +59,13 @@ import org.jetbrains.compose.resources.stringResource
  * drží od okraje okna povinný odstup 48 dp (`MenuVerticalMargin`) a tlačítko u spodku obrazovky
  * v tom pásu leží — „spodkem k tlačítku" tím neprošlo a menu se posadilo k oknu, viditelně nad
  * tlačítko s mezerou. Vzhled je jinak tatáž Expressive nabídka jako všude ([ExpressiveMenu]).
+ *
+ * **Nabídka si nebere fokus** (`PopupProperties(focusable = false)`). Popup je na Androidu
+ * samostatné okno; fokusovatelné okno převzalo fokus od pole a systém klávesnici schoval — jenže
+ * animaci insetů dostává okno, které klávesnici řídí, a to už bylo okno nabídky. Hlavní okno
+ * dostalo rovnou konečné insety a celá konverzace skokem spadla dolů. Teď klávesnice zůstane,
+ * nabídka vyroste nad sponkou a zavírá se až s volbou položky, animovaně.
+ * Nefokusovatelné okno nedostane zpět, proto [NavigationBackHandler].
  */
 @Composable
 internal fun AttachButton(
@@ -69,16 +84,27 @@ internal fun AttachButton(
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val keyboard = LocalSoftwareKeyboardController.current
+    // Kdy se nabídka naposledy zavřela; obyčejné pole, ne stav — nic se podle něj nekreslí.
+    val dismissedAt = remember { arrayOfNulls<TimeMark>(1) }
+    // Sheet i systémový výběr jsou další okno; otevřené hned by klávesnici utrhly skokem.
+    val afterKeyboardHidden = rememberAfterKeyboardHidden()
 
-    fun pick(action: () -> Unit) {
-        keyboard?.hide()
-        action()
-    }
+    fun pick(action: () -> Unit) = afterKeyboardHidden(action)
+
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = expanded,
+        onBackCompleted = { expanded = false },
+    )
 
     Box(modifier) {
         IconButton(
-            onClick = { expanded = true },
+            onClick = {
+                // Nefokusovatelná nabídka se zavře už DOTYKEM mimo sebe — i na sponce — a klik
+                // po puštění by ji hned otevřel znovu. Druhé ťuknutí na sponku má nabídku zavřít.
+                val justDismissed = dismissedAt[0]?.let { it.elapsedNow() < REOPEN_GUARD } == true
+                expanded = !expanded && !justDismissed
+            },
             colors = IconButtonDefaults.iconButtonColors(contentColor = contentColor),
         ) {
             Icon(painterResource(Res.drawable.attach_file_24dp), contentDescription = stringResource(Res.string.conversation_attach))
@@ -86,8 +112,12 @@ internal fun AttachButton(
 
         ExpressiveMenu(
             expanded = expanded,
-            onDismiss = { expanded = false },
+            onDismiss = {
+                expanded = false
+                dismissedAt[0] = TimeSource.Monotonic.markNow()
+            },
             popupPositionProvider = remember { MenuAbovePositionProvider(alignEnd = false) },
+            properties = remember { PopupProperties(focusable = false) },
             groups = listOf(
                 listOfNotNull(
                     MenuAction(stringResource(Res.string.conversation_attach_media), Res.drawable.perm_media_24dp) { pick(onPickMedia) }
@@ -108,6 +138,9 @@ internal fun AttachButton(
         )
     }
 }
+
+/** Klik na sponku tak brzy po zavření nabídky patří k témuž ťuknutí, které ji zavřelo. */
+private val REOPEN_GUARD = 500.milliseconds
 
 /**
  * Nabídka spodkem nad kotvu, začátkem u jejího začátku (s [alignEnd] koncem u konce — pro

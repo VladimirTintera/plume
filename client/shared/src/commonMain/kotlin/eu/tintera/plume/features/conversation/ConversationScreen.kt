@@ -10,6 +10,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.PointerEventPass
 import kotlinx.coroutines.withTimeoutOrNull
+import eu.tintera.plume.core.ui.rememberAfterKeyboardHidden
 import eu.tintera.plume.core.ui.AutoDeleteBadge
 import eu.tintera.plume.core.ui.longPress
 import eu.tintera.plume.core.telegram.SendOptions
@@ -2445,6 +2446,7 @@ private fun MessageInput(
     // Úprava zprávy přílohy schová — odeslání by je stejně neposlalo.
     val withAttachments = attachments.isNotEmpty() && editing == null
     val keyboard = LocalSoftwareKeyboardController.current
+    val afterKeyboardHidden = rememberAfterKeyboardHidden()
     // Nahoře, ne u pole: podle fokusu se ukazuje i návrh vložení ze schránky nad polem.
     val fieldInteraction = remember { MutableInteractionSource() }
     val fieldFocused by fieldInteraction.collectIsFocusedAsState()
@@ -2785,9 +2787,9 @@ private fun MessageInput(
             }
             IconButton(
                 onClick = {
-                    // Sheet a klávesnice by se jinak přetahovaly o spodek obrazovky.
-                    keyboard?.hide()
-                    onOpenStickers()
+                    // Sheet a klávesnice by se jinak přetahovaly o spodek obrazovky; sheet je
+                    // další okno, takže otevřený hned by klávesnici utrhl skokem.
+                    afterKeyboardHidden(onOpenStickers)
                 },
                 colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
                 modifier = Modifier.padding(end = 4.dp, bottom = 4.dp),

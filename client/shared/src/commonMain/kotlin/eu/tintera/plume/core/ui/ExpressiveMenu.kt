@@ -14,6 +14,7 @@ import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.window.PopupProperties
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
@@ -41,6 +42,9 @@ class MenuAction(
  *
  * Prázdné skupiny se zahazují, takže volající může skupinu poskládat z podmíněných položek
  * a nemusí hlídat, jestli v ní něco zbylo. Nabídka zavře sebe sama před akcí ([onDismiss]).
+ *
+ * [properties] jsou výchozí M3 (nabídka si bere fokus). Nabídka nad vstupním polem je
+ * nefokusovatelná — viz `AttachButton`.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -50,9 +54,15 @@ fun ExpressiveMenu(
     groups: List<List<MenuAction>>,
     popupPositionProvider: DropdownMenuPopupPositionProvider =
         MenuDefaults.rememberDropdownMenuPopupPositionProvider(MenuAnchorPosition.Below),
+    properties: PopupProperties = PopupProperties(focusable = true),
 ) {
     val shown = groups.filter { it.isNotEmpty() }
-    DropdownMenuPopup(expanded = expanded, onDismissRequest = onDismiss, popupPositionProvider = popupPositionProvider) {
+    DropdownMenuPopup(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        popupPositionProvider = popupPositionProvider,
+        properties = properties,
+    ) {
         shown.forEachIndexed { groupIndex, group ->
             if (groupIndex > 0) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
             DropdownMenuGroup(shapes = MenuDefaults.groupShape(groupIndex, shown.size)) {
