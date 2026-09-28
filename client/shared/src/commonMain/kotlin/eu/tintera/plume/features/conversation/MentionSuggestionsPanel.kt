@@ -1,10 +1,5 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -15,7 +10,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -32,7 +26,7 @@ import eu.tintera.plume.core.ui.Avatar
  * Napovídání zmínky nad vstupním polem: členové skupiny k rozepsanému `@…` u kurzoru.
  *
  * **Tentýž panel jako napovídání příkazů** ([BotCommandsPanel]) a výsledky inline bota — nad
- * polem, se stropem výšky; mění se s každým písmenem a klávesnice musí zůstat otevřená.
+ * polem, se stropem výšky, a plave, takže konverzace pod ním neposkakuje ([FloatingSuggestion]); mění se s každým písmenem a klávesnice musí zůstat otevřená.
  * Řádek nese tvář, jméno a `@uživatelské jméno`, když ho člen má: podle něj se pozná, jestli se
  * vloží `@jmeno`, nebo zmínka jménem.
  */
@@ -41,7 +35,8 @@ internal fun MentionSuggestionsPanel(
     candidates: List<MentionCandidate>,
     visible: Boolean,
     onPick: (MentionCandidate) -> Unit,
-    modifier: Modifier = Modifier,
+    /** Mléčné sklo nad seznamem zpráv (viz [FloatingSuggestion]). */
+    glass: Modifier = Modifier,
 ) {
     // Při odjezdu se kreslí poslední seznam, ne prázdno (stejně jako pruh připnutých).
     // Stav, ne obyčejné pole: zápis do pole kompozici nevyvolá a obsah uvnitř
@@ -49,18 +44,12 @@ internal fun MentionSuggestionsPanel(
     val last = remember { mutableStateOf(candidates) }
     if (candidates.isNotEmpty()) last.value = candidates
 
-    AnimatedVisibility(
+    FloatingSuggestion(
         visible = visible && candidates.isNotEmpty(),
-        enter = expandVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeIn(),
-        exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(),
-        modifier = modifier,
+        shape = RoundedCornerShape(PANEL_CORNER),
+        glass = glass,
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        Surface(
-            shape = RoundedCornerShape(PANEL_CORNER),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            shadowElevation = 2.dp,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-        ) {
             LazyColumn(Modifier.heightIn(max = MAX_HEIGHT).padding(vertical = 4.dp)) {
                 items(last.value, key = { it.userId }) { candidate ->
                     ListItem(
@@ -83,7 +72,6 @@ internal fun MentionSuggestionsPanel(
                     )
                 }
             }
-        }
     }
 }
 

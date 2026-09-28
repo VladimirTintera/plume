@@ -1,10 +1,5 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -32,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
@@ -65,7 +61,7 @@ import org.jetbrains.compose.resources.stringResource
  *
  * **Nad polem, ne ve sheetu** — ze stejného důvodu jako napovídání příkazů ([BotCommandsPanel]):
  * výsledky se mění s každým písmenem dotazu a klávesnice musí zůstat otevřená. Proto i stejný
- * tvar a strop výšky.
+ * tvar, strop výšky a plovoucí vrstva ([FloatingSuggestion]), pod kterou konverzace neposkakuje.
  *
  * Obrázkové výsledky (GIF, fotka, obal videa, samolepka) jdou do mřížky, ostatní (článek, soubor,
  * kontakt, místo…) jsou řádky přes celou šířku. Jeden bot může vrátit obojí, takže se to
@@ -82,27 +78,22 @@ internal fun InlineResultsPanel(
     onPick: (InlineResult) -> Unit,
     onButton: () -> Unit,
     onLoadMore: () -> Unit,
-    modifier: Modifier = Modifier,
+    /** Mléčné sklo nad seznamem zpráv (viz [FloatingSuggestion]). */
+    glass: Modifier = Modifier,
 ) {
-    // Při odjezdu se kreslí poslední stav, ne prázdno (stejně jako pruh připnutých).
-    val last = remember { arrayOf(inline) }
-    if (inline != null) last[0] = inline
-    val shown = last[0]
+    // Při odjezdu se kreslí poslední stav, ne prázdno (stejně jako pruh připnutých). Stav, ne
+    // obyčejné pole — zápis do pole by obsah uvnitř `AnimatedVisibility` nepřekreslil.
+    val last = remember { mutableStateOf(inline) }
+    if (inline != null) last.value = inline
 
     val hasContent = inline != null && (inline.results.isNotEmpty() || inline.button != null || inline.loading)
-    AnimatedVisibility(
+    FloatingSuggestion(
         visible = visible && hasContent,
-        enter = expandVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeIn(),
-        exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(),
-        modifier = modifier,
+        shape = RoundedCornerShape(PANEL_CORNER),
+        glass = glass,
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        if (shown == null) return@AnimatedVisibility
-        Surface(
-            shape = RoundedCornerShape(PANEL_CORNER),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            shadowElevation = 2.dp,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-        ) {
+        val shown = last.value ?: return@FloatingSuggestion
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(CELL),
                 modifier = Modifier.heightIn(max = MAX_HEIGHT),
@@ -145,7 +136,6 @@ internal fun InlineResultsPanel(
                     }
                 }
             }
-        }
     }
 }
 

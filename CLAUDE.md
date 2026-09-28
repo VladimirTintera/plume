@@ -4399,6 +4399,32 @@ testy `InlineQueryTest`).
   do pole** (`am start -a android.intent.action.SEND … --es android.intent.extra.TEXT '@gif kočka'`),
   i s diakritikou. Pozor na id testovacího bota — viz „Na snímcích nesmí být skuteční lidé".
 
+### Plovoucí napovídání nad polem
+
+Emoji ke slovu, příkazy bota, zmínky a výsledky inline bota PLAVOU nad vstupním polem
+(`FloatingSuggestion`, `floatAbove`) s mléčným sklem jako pruh připnutých, a místo v rozvržení
+nezabírají.
+
+- **Pole je `bottomBar` a seznam zpráv se odsazuje o jeho výšku.** Dokud napovídání stála v jeho
+  sloupci, každé objevení, zmizení i změna výšky (další písmeno zúží seznam příkazů) zvedly
+  a spustily celou konverzaci — oči při psaní skákaly za ní.
+- **`floatAbove` nahlásí nulovou výšku a obsah posadí nad své místo.** Obsah mimo hranice rodiče
+  Compose kreslí i nechá ťukat, dokud nic neořezává (ověřeno ťuknutím na emoji i příkaz).
+  Vrstva stojí v `bottomBar` těsně nad polem, u textu, ke kterému patří.
+- **Vyrůstá zvětšením od pole, ne rozbalením do výšky** — to by u plovoucího prvku vypadalo,
+  jako by se pod ním něco odsouvalo.
+- **Tlačítko dolů a zmínky (FAB slot) na tu chvíli ustoupí** (`suggestionsFloating`): Scaffold
+  je staví nad `bottomBar`, tedy přesně přes plovoucí vrstvu.
+- **V rozvržení zůstávají klávesnice bota a návrhy odpovědí.** Klávesnice bota je trvalá
+  a zakryla by otázku bota, na kterou se odpovídá; návrhy odpovědí naskočí po příchozí zprávě
+  a plovoucí by zakryly právě ji. Uvnitř karty pole (citace, náhled odkazu, lišta formátování)
+  zůstává karta jedním celkem a roste.
+- **Panely s posledním stavem pro odjezd ho drží ve STAVU** (`mutableStateOf`), ne v poli —
+  u příkazů zůstával po „/n" → „/ne" celý seznam (tatáž past jako u emoji).
+- **Ověřeno na emulátoru** (Fold složený, chat s botem): příkazy z tlačítka i po „/s" (seznam se
+  zúžil, konverzace se nepohnula), ťuknutí poslalo `/stav`, `@gif cat` a „heart" s dosazením
+  emoji. Zmínky ověřené nejsou (jen ve skupině), iOS jen přeložené.
+
 ### Napovídání zmínek
 
 Po `@` ve skupině napovídá nad polem členy (`MentionSuggestionsPanel`, doména `Mentions.kt`:
@@ -6808,14 +6834,8 @@ ho mezi nedávná.
   `remember { arrayOf(…) }` a zápis do pole kompozici nevyvolá: obsah uvnitř
   `AnimatedVisibility` zůstal u první sady — po „hear" → „heart" dál 👂 🙉, přestože
   ViewModel už vracel srdce (ověřeno sondou v logu). Opraveno v obou panelech.
-- **Pilulka PLAVE nad polem a místo v rozvržení nezabírá** (`floatAbove`: nulová výška, obsah
-  posazený nad své místo), pod ní je mléčné sklo nad seznamem jako u pruhu připnutých. Dokud
-  stála ve sloupci `bottomBar`, měnila jeho výšku — a o tu se odsazuje seznam zpráv, takže se
-  s každým slovem, ke kterému emoji jsou, celá konverzace zvedla a zase spadla a oči při psaní
-  skákaly za ní. **Obsah mimo hranice rodiče Compose kreslí i nechá ťukat**, dokud nic neořezává;
-  ověřeno ťuknutím na emoji. Stojí proto v `bottomBar` až těsně nad polem (inline výsledky, které
-  jsou mezi, se s ní vylučují). Ostatní napovídání (zmínky, příkazy, klávesnice bota) seznam
-  posouvají dál — jsou vyšší a objevují se vědomě, ne u každého slova.
+- **Pilulka PLAVE nad polem a místo v rozvržení nezabírá** — viz „Plovoucí napovídání nad
+  polem" (Konverzace).
 - **Ověřeno na emulátoru** v Uložených zprávách jen psaním: „heart" anglicky i „srdce" česky,
   přechod „hear" → „heart", ťuknutí dosadí emoji. Nic se neodeslalo.
 

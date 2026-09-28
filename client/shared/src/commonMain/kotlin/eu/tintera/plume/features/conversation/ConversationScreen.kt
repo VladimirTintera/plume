@@ -683,6 +683,8 @@ fun ConversationScreen(
 
     /** Horní hrana vstupního pole v okně; nabídka nad zprávou pod ni nesmí. */
     val contentBottom = remember { mutableStateOf<Float?>(null) }
+    // Plave-li nad polem napovídání (příkazy, zmínky, emoji, inline bot), schová se FAB slot.
+    var suggestionsFloating by remember { mutableStateOf(false) }
 
     /** Horní hrana seznamu (spodek hlavičky) v okně; nabídka nad zprávou nad ni nesmí. */
     val contentTop = remember { mutableStateOf<Float?>(null) }
@@ -1422,20 +1424,6 @@ fun ConversationScreen(
             }
             // Příkazy botů: napovídání podle rozepsaného „/…", nebo celý seznam z tlačítka u pole.
             val typedCommands = commandSuggestions(draft.text, state.botCommands)
-            BotCommandsPanel(
-                commands = typedCommands ?: state.botCommands.takeIf { state.commandsOpen }.orEmpty(),
-                visible = state.editing == null && (typedCommands != null || state.commandsOpen),
-                onPick = { command ->
-                    haptics.confirm()
-                    // Rozepsané „/st" byl ten příkaz — pole se vyprázdní a koncept s ním.
-                    if (typedCommands != null) {
-                        draft = TextFieldValue()
-                        viewModel.onDraftChanged(composer.composed)
-                    }
-                    viewModel.closeCommands()
-                    viewModel.sendCommand(command.text)
-                },
-            )
             // Inline bot (`@gif kočka`): výsledky nad polem. S přílohami je text popisek a při úpravě
             // text staré zprávy — ani jedno není dotaz na bota.
             val inlineDraft = remember(draft.text, state.editing, state.attachments.isEmpty()) {
@@ -1448,17 +1436,6 @@ fun ConversationScreen(
                     ?.let { mentionQueryAt(it.text, it.selection.start) }
             }
             LaunchedEffect(mentionQuery?.query) { viewModel.mentionQuery(mentionQuery?.query) }
-            MentionSuggestionsPanel(
-                candidates = state.mentionSuggestions?.candidates.orEmpty(),
-                visible = mentionQuery != null,
-                onPick = { candidate ->
-                    val query = mentionQuery ?: return@MentionSuggestionsPanel
-                    val (text, cursor) = mentionInsertion(draft.text, draft.selection.start, query, candidate)
-                    draft = TextFieldValue(text, selection = TextRange(cursor))
-                    viewModel.mentionPicked(candidate)
-                    viewModel.onDraftChanged(composer.composed)
-                },
-            )
             // Emoji ke slovu u kurzoru. Ne vedle jiného napovídání — dotaz na inline bota a zmínka
             // mají nad polem přednost a emoji plovoucí přes jejich panel by ho zakryla.
             val emojiWord = remember(draft, inlineDraft, mentionQuery, typedCommands) {
@@ -1475,42 +1452,84 @@ fun ConversationScreen(
             LaunchedEffect(locationBot) {
                 if (locationBot != null) inlineLocation.request(viewModel::setInlineLocation)
             }
-            InlineResultsPanel(
-                inline = state.inline,
-                visible = inlineDraft != null,
-                onPick = { result ->
-                    haptics.confirm()
-                    viewModel.sendInlineResult(result)
-                    // Dotaz v poli byl ten výsledek — pole se vyprázdní a koncept s ním.
-                    draft = TextFieldValue()
-                    viewModel.onDraftChanged(composer.composed)
-                },
-                onButton = viewModel::pressInlineButton,
-                onLoadMore = viewModel::loadMoreInline,
-            )
-            // Návrhy emoji PLAVOU nad polem a místo nezabírají (viz `EmojiSuggestionsPanel`), takže
-            // stojí až těsně nad ním: objevují se skoro u každého slova a konverzace pod nimi
-            // nesmí poskakovat. Inline výsledky nad polem v tu chvíli nejsou (vylučují se).
-            EmojiSuggestionsPanel(
-                emojis = shownEmojis,
-                visible = emojiWord != null,
-                onPick = { emoji ->
-                    val word = emojiWord ?: return@EmojiSuggestionsPanel
-                    haptics.confirm()
-                    val (text, cursor) = emojiReplacement(draft.text, word, emoji)
-                    draft = TextFieldValue(text, selection = TextRange(cursor))
-                    emojiWords.picked(emoji)
-                    viewModel.onDraftChanged(composer.composed)
-                },
-                glass = Modifier.hazeBlur(
-                    input = HazeInput.Sources(listHaze),
-                    style = glassStyle(
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        alpha = GLASS_TEXT_TINT_ALPHA,
-                        fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                    ),
+            /*
+             * Napovídání při psaní PLAVE nad polem a místo v rozvržení nezabírá (viz
+             * `FloatingSuggestion`): mění se s každým písmenem a konverzace pod ním nesmí
+             * poskakovat. Stojí těsně nad polem, u textu, ke kterému patří. Návrhy odpovědi
+             * a klávesnice bota výš zůstávají v rozvržení — viz `ReplySuggestionChips`.
+             */
+            val suggestionGlass = Modifier.hazeBlur(
+                input = HazeInput.Sources(listHaze),
+                style = glassStyle(
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    alpha = GLASS_TEXT_TINT_ALPHA,
+                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
                 ),
             )
+            val commandsShown = state.editing == null && (typedCommands != null || state.commandsOpen)
+            // Plovoucí napovídání leží tam, kde jinak stojí tlačítko dolů a zmínky — ty se
+            // mezitím schovají, jinak by visely přes seznam příkazů nebo přes emoji.
+            val floatingShown = (commandsShown && state.botCommands.isNotEmpty()) ||
+                (mentionQuery != null && state.mentionSuggestions?.candidates.orEmpty().isNotEmpty()) ||
+                (emojiWord != null && shownEmojis.isNotEmpty()) ||
+                inlineDraft != null
+            SideEffect { suggestionsFloating = floatingShown }
+            Column(Modifier.floatAbove()) {
+                BotCommandsPanel(
+                    commands = typedCommands ?: state.botCommands.takeIf { state.commandsOpen }.orEmpty(),
+                    visible = commandsShown,
+                    onPick = { command ->
+                        haptics.confirm()
+                        // Rozepsané „/st" byl ten příkaz — pole se vyprázdní a koncept s ním.
+                        if (typedCommands != null) {
+                            draft = TextFieldValue()
+                            viewModel.onDraftChanged(composer.composed)
+                        }
+                        viewModel.closeCommands()
+                        viewModel.sendCommand(command.text)
+                    },
+                    glass = suggestionGlass,
+                )
+                MentionSuggestionsPanel(
+                    candidates = state.mentionSuggestions?.candidates.orEmpty(),
+                    visible = mentionQuery != null,
+                    onPick = { candidate ->
+                        val query = mentionQuery ?: return@MentionSuggestionsPanel
+                        val (text, cursor) = mentionInsertion(draft.text, draft.selection.start, query, candidate)
+                        draft = TextFieldValue(text, selection = TextRange(cursor))
+                        viewModel.mentionPicked(candidate)
+                        viewModel.onDraftChanged(composer.composed)
+                    },
+                    glass = suggestionGlass,
+                )
+                EmojiSuggestionsPanel(
+                    emojis = shownEmojis,
+                    visible = emojiWord != null,
+                    onPick = { emoji ->
+                        val word = emojiWord ?: return@EmojiSuggestionsPanel
+                        haptics.confirm()
+                        val (text, cursor) = emojiReplacement(draft.text, word, emoji)
+                        draft = TextFieldValue(text, selection = TextRange(cursor))
+                        emojiWords.picked(emoji)
+                        viewModel.onDraftChanged(composer.composed)
+                    },
+                    glass = suggestionGlass,
+                )
+                InlineResultsPanel(
+                    inline = state.inline,
+                    visible = inlineDraft != null,
+                    onPick = { result ->
+                        haptics.confirm()
+                        viewModel.sendInlineResult(result)
+                        // Dotaz v poli byl ten výsledek — pole se vyprázdní a koncept s ním.
+                        draft = TextFieldValue()
+                        viewModel.onDraftChanged(composer.composed)
+                    },
+                    onButton = viewModel::pressInlineButton,
+                    onLoadMore = viewModel::loadMoreInline,
+                    glass = suggestionGlass,
+                )
+            }
             // Fotka letící z prohlížeče zajede pod kartu pole a tlačítko, ne jen za čáru nad nimi.
             CompositionLocalProvider(LocalSharedElementOcclusion provides listClip) {
             MessageInput(
@@ -1623,6 +1642,13 @@ fun ConversationScreen(
         // a ťuknutí o kousek vedle by místo skoku dolů spustilo nahrávání.
         floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
+            // Nad polem zrovna plave napovídání (viz `FloatingSuggestion`) — tlačítka by visela
+            // přes něj, takže na tu chvíli ustoupí.
+            AnimatedVisibility(
+                visible = !suggestionsFloating,
+                enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()),
+                exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+            ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
             // Zmínky a reakce nad tlačítkem dolů: jsou vidět, i když je uživatel dole — zmínka
             // bývá hluboko v nepřečtené historii a tlačítko dolů o ní nic neřekne.
@@ -1656,6 +1682,7 @@ fun ConversationScreen(
                     }
                 },
             )
+            }
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
