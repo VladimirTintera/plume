@@ -1,15 +1,6 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.foundation.text.contextmenu.modifier.appendTextContextMenuComponents
 import eu.tintera.plume.core.telegram.ComposedText
-import eu.tintera.plume.resources.format_bold
-import eu.tintera.plume.resources.format_italic
-import eu.tintera.plume.resources.format_underline
-import eu.tintera.plume.resources.format_strikethrough
-import eu.tintera.plume.resources.format_spoiler
-import eu.tintera.plume.resources.format_code
-import eu.tintera.plume.resources.format_quote
-import eu.tintera.plume.resources.format_clear
 import eu.tintera.plume.core.ui.SwipeDirection
 import eu.tintera.plume.core.ui.detectHorizontalSwipe
 import androidx.compose.ui.text.intl.Locale
@@ -2545,16 +2536,6 @@ private fun MessageInput(
     modifier: Modifier = Modifier,
 ) {
     var draft by composer
-    val formatLabels = FormatMenuLabels(
-        bold = stringResource(Res.string.format_bold),
-        italic = stringResource(Res.string.format_italic),
-        underline = stringResource(Res.string.format_underline),
-        strikethrough = stringResource(Res.string.format_strikethrough),
-        spoiler = stringResource(Res.string.format_spoiler),
-        code = stringResource(Res.string.format_code),
-        quote = stringResource(Res.string.format_quote),
-        clear = stringResource(Res.string.format_clear),
-    )
     val formatting = FormattingTransformation(
         formats = composer.formats,
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -2824,11 +2805,7 @@ private fun MessageInput(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .defaultMinSize(minHeight = TextFieldDefaults.MinHeight)
-                        // „Tučné", „Kurzíva"… nad výběrem (viz `formatItems`).
-                        .appendTextContextMenuComponents {
-                            formatItems(composer, formatLabels) { onDraftChanged(composer.composed) }
-                        },
+                        .defaultMinSize(minHeight = TextFieldDefaults.MinHeight),
                     visualTransformation = formatting,
                     textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
@@ -2941,6 +2918,18 @@ private fun MessageInput(
                         Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = stringResource(Res.string.conversation_open_stickers))
                 }
             }
+                }
+                /*
+                 * Lišta formátování, dokud je v poli označený text (viz `FormattingBar`). POD
+                 * polem, ne nad ním: systémová lišta výběru (Vyjmout, Kopírovat…) se kreslí nad
+                 * výběrem a lištu nad polem by přikryla. Vyjíždí se svým místem, jako náhled odkazu.
+                 */
+                AnimatedVisibility(
+                    visible = fieldFocused && !isRecording && !draft.selection.collapsed,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
+                ) {
+                    FormattingBar(composer = composer, onChanged = { onDraftChanged(composer.composed) })
                 }
               }
             }

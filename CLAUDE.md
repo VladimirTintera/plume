@@ -3337,8 +3337,9 @@ text, tlačítko je fajfka a potvrzení volá `editMessageText`.
 
 ### Formátování při psaní
 
-Označený text v poli jde naformátovat z kontextové nabídky výběru: Tučné, Kurzíva, Podtržené,
-Přeškrtnuté, Spoiler, Kód, Citace a Bez formátování (`formatItems` v `ComposerDraft.kt`). Odejde
+Dokud je v poli označený text, vyjede pod ním lišta s ikonami: Tučné, Kurzíva, Podtržené,
+Přeškrtnuté, Spoiler, Kód, Citace a Bez formátování (`FormattingBar`); použitý formát má
+tlačítko zapnuté. Odejde
 se zprávou, uloží se s konceptem a vrátí se do pole při úpravě zprávy. Model a pravidla jsou čisté
 funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
 
@@ -3358,13 +3359,19 @@ funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
   `TextFieldState.textStyles`), ale jen nad `TextFieldState`, experimentálně a s významem
   schovaným ve `SpanStyle`. Přechod pole na `TextFieldState` by znamenal přepsat desítky míst
   kolem konceptu; vlastní model je menší a testovatelný bez Compose.
-- **`item` kontextové nabídky NENÍ ve společném kódu**, jen v platformních sadách (Android bere
-  navíc drawable ikonu) — proto `expect fun menuItem` v `core/ui`. Na iOS je `item` ještě
-  experimentální (`ExperimentalFoundationApi`), na Androidu ne.
-- **Na Androidu jsou položky v přetečení plovoucí lišty výběru (⋮)** a seznam se roluje; ze
-  zobrazené lišty se po „Select all" přeskládají položky (Bold a Italic se vejdou mezi hlavní).
-  Poslední položka na okraji rolovaného seznamu (Spoiler, Quote) se ťuknutím netrefí, dokud se
-  seznam neodroluje — při ověřování přes `adb` tedy napřed odrolovat.
+- **Lišta, ne položky v kontextové nabídce výběru** (tak to bylo napřed). Ikony u vlastních
+  položek nabídka výběru na telefonu NEZOBRAZÍ: na Androidu ji kreslí `ActionMode`
+  (`AndroidTextContextMenuToolbarProvider`) a `leadingIcon` z `TextContextMenuItem` zahodí —
+  ikony kreslí jen rozbalovací nabídka pro myš; na iOS ji kreslí systém (`UIEditMenu`), ať
+  `item` bere composable ikonu, nebo ne. Položky navíc skončily v přetečení (⋮) a nešlo z nich
+  poznat, co už na výběru je.
+- **Lišta je POD textem, ne nad ním.** Systémová lišta výběru (Vyjmout, Kopírovat…) se kreslí
+  nad výběrem a lištu nad polem přikryla — ověřeno na emulátoru, vidět zbyla jen ikona citace.
+- **Zapnuté tlačítko je `primary`**, ne `secondaryContainer` jako u filtrů seznamu chatů: karta
+  pole je přitónovaná do `primaryContainer` a světlý kontejner na ní skoro nebyl vidět.
+- **Na úzkém displeji se řada posouvá do strany.** Minimální dotyková plocha 48 dp zůstává
+  i u menšího kontejneru (`minimumInteractiveComponentSize`), takže zmenšení tlačítek nepomůže;
+  na složeném Foldu se osm tlačítek vedle odesílacího nevejde a „Bez formátování" ujíždí.
 - **Citace jde po celých řádcích** (`toggled` roztáhne výběr), ostatní klienti ji kreslí jako blok.
   **Kód přes víc řádků je blok kódu** (`pre`), v řádku kód v řádku — jedna položka nabídky.
   „Kód" i „Citace" přepínají RODINU (`TextFormat.family`): blok kódu i sbalitelná citace se jimi
@@ -3380,10 +3387,10 @@ funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
   „píše…" ani nezjišťuje náhled) a úprava zprávy, která mění jen formát, se odešle.
 - **Spoiler se v poli neskrývá**, jen má podklad — pisatel musí vidět, co píše. Citace má v poli
   tónovaný podklad, ne pás přes celou šířku (ten se kreslí z layoutu zprávy).
-- **Ověřeno na emulátoru** (anglicky): tučné z nabídky v poli i v odeslané bublině, úprava
+- **Ověřeno na emulátoru** (anglicky, Fold složený): tučné v poli i v odeslané bublině, úprava
   tučné zprávy s přidanou kurzívou („edited", tučné zůstalo), koncept s tučným po zabití
-  aplikace, kód (bot dostal entitu `code`). **Citace a spoiler odeslané NEJSOU** — ověřování
-  přerušila jiná session na sdíleném emulátoru. iOS jen přeložené.
+  aplikace; bot přes Bot API dostal `code`, `bold` + `spoiler` a `blockquote` (roztažený na
+  celý řádek). iOS jen přeložené.
 
 ### Náhled odkazu při psaní
 

@@ -339,12 +339,12 @@ v `CLAUDE.md`, „Náhled odkazu při psaní". Co zbývá:
 
 ## ~~Odesílání formátovaného textu~~ — HOTOVO
 
-Tučné, kurzíva, podtržení, přeškrtnutí, spoiler, kód a citace z kontextové nabídky výběru
-v poli; formátování jde se zprávou, s konceptem i s úpravou (formátované zprávy se tím dají
+Tučné, kurzíva, podtržení, přeškrtnutí, spoiler, kód a citace z lišty s ikonami, která
+vyjede pod polem s označeným textem; formátování jde se zprávou, s konceptem i s úpravou (formátované zprávy se tím dají
 upravovat). Poučení v `CLAUDE.md`, „Formátování při psaní". Zbývá:
 
-- **Ověřit na zařízení citaci a spoiler** (odeslání přerušila jiná session na sdíleném emulátoru)
-  a **iOS** (jen přeložené; nabídka výběru tam kreslí systém).
+- **Ověřit iOS** (jen přeložené) — hlavně jestli lištu pod polem nepřekryje systémová nabídka
+  výběru nebo návrhy klávesnice.
 - **Odkaz s vlastním popiskem** („Odkaz…" nad výběrem, dialog s adresou) — dokud není, zprávu
   s takovým odkazem nejde upravit.
 - **Psaní s formátem bez výběru** (zapnout tučné a psát dál) — dnes se formátuje jen výběr.

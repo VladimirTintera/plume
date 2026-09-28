@@ -1,6 +1,5 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.foundation.text.contextmenu.builder.TextContextMenuBuilderScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -26,9 +25,9 @@ import eu.tintera.plume.core.telegram.FormatSpan
 import eu.tintera.plume.core.telegram.TextFormat
 import eu.tintera.plume.core.telegram.afterEdit
 import eu.tintera.plume.core.telegram.cleared
+import eu.tintera.plume.core.telegram.covers
 import eu.tintera.plume.core.telegram.toggled
 import eu.tintera.plume.core.telegram.within
-import eu.tintera.plume.core.ui.menuItem
 import kotlin.reflect.KProperty
 
 /**
@@ -64,6 +63,10 @@ internal class ComposerDraft(value: TextFieldValue = TextFieldValue(), formats: 
         value = TextFieldValue(text, selection = TextRange(text.length))
         this.formats = formats.within(text.length)
     }
+
+    /** Je výběr celý v [format]? Podle toho je tlačítko v liště formátování zapnuté. */
+    fun isApplied(format: TextFormat): Boolean =
+        !value.selection.collapsed && formats.covers(format, value.selection.min, value.selection.max)
 
     fun toggle(format: TextFormat) {
         if (value.selection.collapsed) return
@@ -152,60 +155,6 @@ internal class FormattingTransformation(
 
     override fun hashCode(): Int = (formats.hashCode() * 31 + contentColor.hashCode()) * 31 + accentColor.hashCode()
 }
-
-/** Popisky položek formátování v kontextové nabídce pole (texty z prostředků). */
-internal class FormatMenuLabels(
-    val bold: String,
-    val italic: String,
-    val underline: String,
-    val strikethrough: String,
-    val spoiler: String,
-    val code: String,
-    val quote: String,
-    val clear: String,
-)
-
-/**
- * Položky formátování v kontextové nabídce pole nad VÝBĚREM — „Tučné", „Kurzíva"… Bez výběru
- * není co formátovat, nabídka zůstane systémová. Položka přepíná: nad tučným výběrem tučné sundá.
- *
- * Kontextová nabídka, ne lišta nad polem: formátuje se jednou za čas a lišta by ubírala místo
- * zprávám pokaždé. Stejně to dělají oficiální klienti (Android v přetečení plovoucí lišty výběru).
- */
-internal fun TextContextMenuBuilderScope.formatItems(
-    composer: ComposerDraft,
-    labels: FormatMenuLabels,
-    onChanged: () -> Unit,
-) {
-    if (composer.value.selection.collapsed) return
-    separator()
-    listOf(
-        TextFormat.Bold to labels.bold,
-        TextFormat.Italic to labels.italic,
-        TextFormat.Underline to labels.underline,
-        TextFormat.Strikethrough to labels.strikethrough,
-        TextFormat.Spoiler to labels.spoiler,
-        TextFormat.Code to labels.code,
-        TextFormat.Quote to labels.quote,
-    ).forEach { (format, label) ->
-        menuItem(key = FormatMenuKey(format), label = label) {
-            composer.toggle(format)
-            onChanged()
-            close()
-        }
-    }
-    if (composer.selectionFormatted) {
-        menuItem(key = ClearFormatMenuKey, label = labels.clear) {
-            composer.clearSelection()
-            onChanged()
-            close()
-        }
-    }
-}
-
-private data class FormatMenuKey(val format: TextFormat)
-
-private object ClearFormatMenuKey
 
 /** Podklad spoileru v poli — výraznější než kód, aby se ty dva nepletly i bez strojového písma. */
 private const val SPOILER_FIELD_ALPHA = 0.22f
