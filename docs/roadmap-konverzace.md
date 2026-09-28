@@ -439,7 +439,7 @@ snadno na to uživatel narazí.
     členy a země). Zbývá ověřit v kanálu (omezení hlasujících) a ve skupině.
   - ~~**Média v anketě a v odpovědích**~~ — hotovo (zobrazení všech druhů, otevření
     v prohlížeči; formulář nabízí fotku, video, GIF, samolepku, odkaz a místo). ~~Média ve
-    vysvětlení kvízu (`explanationMedia`)~~ — hotovo (zobrazení); zbývá je nabídnout ve formuláři.
+    vysvětlení kvízu (`explanationMedia`)~~ — hotovo (zobrazení i formulář).
   - ~~**Přidání odpovědi**~~ — hotovo (`canAddOption`, `addPollOption`, dialog pod odpověďmi).
     Zbývá ověřit ve skupině a přidání odpovědi s médiem (formulář nabízí jen text).
   - ~~**Tváře posledních hlasujících**~~ — hotovo (`recentVoterIds`, až tři přes sebe v zápatí).

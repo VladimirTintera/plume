@@ -193,6 +193,11 @@ data class PollDraft(
     /** Kvíz: indexy správných odpovědí v [answers]; `null` = běžná anketa. */
     val correctAnswers: Set<Int>? = null,
     val explanation: String = "",
+    /**
+     * Příloha vysvětlení kvízu; jen druhy, které smí i otázka ([PollDraftMedia.allowedForQuestion]).
+     * Mimo kvíz se neposílá.
+     */
+    val explanationMedia: PollDraftMedia? = null,
     /** Za kolik sekund se anketa sama uzavře; `0` = neuzavře se sama. */
     val openPeriodSeconds: Int = 0,
     /**
@@ -230,6 +235,7 @@ sealed interface PollDraftMedia {
     /**
      * Smí druh stát u otázky? TDLib bere u otázky animaci, zvuk, soubor, polohu, fotku, místo
      * a video — samolepku a odkaz jen u odpovědí. Server by jinak odmítl celou anketu.
+     * Stejnou sadu bere i vysvětlení kvízu (`InputPollTypeQuiz.explanationMedia`).
      */
     val allowedForQuestion: Boolean
         get() = when (this) {

@@ -4046,7 +4046,14 @@ Otázka i každá odpověď mohou nést přílohu (TDLib 15 `PollMedia`, doména
   pod vysvětlením, stejně velká jako příloha otázky (`PollQuestionMedia(slot = …)`), a stejně
   jako vysvětlení až po odpovědi. Do prohlížeče letí pod vlastním místem
   `POLL_EXPLANATION_MEDIA` (−3; −2 je `NO_POLL_MEDIA`), popiskem je text vysvětlení. Bot API
-  ji pošle (`sendPoll` s `explanation_media`), formulář ji zatím nenabízí.
+  ji pošle (`sendPoll` s `explanation_media`).
+- **Formulář ji nabízí ikonou v poli vysvětlení**, se stejnou nabídkou jako u otázky: TDLib
+  bere u vysvětlení tutéž sadu (animace, zvuk, soubor, poloha, fotka, místo, video), samolepku
+  a odkaz ne — pravidlo je tedy `allowedForQuestion` a pojistka v `pollDraftOf`. Výběr jde přes
+  `mediaTarget = POLL_EXPLANATION_MEDIA`. **Mimo kvíz se neposílá** (`explanationMedia.takeIf
+  { quiz }`), ale ve formuláři zůstane: přepnutí na anketu a zpět ji nemá zahodit. Ověřeno na
+  emulátoru kvízem s fotkou u vysvětlení v chatu s botem: Bot API ukázalo
+  `explanation_media.photo` a po špatné odpovědi je fotka pod vysvětlením.
 - **Pod jedním id zprávy je obrázků víc, takže klíč letu nese i přílohu**
   (`LocalPollMediaFlight` v `photoKey`, `MediaRoute.pollMedia`). Samotné id zprávy by spárovalo
   fotku odpovědi s fotkou otázky. Index odpovědi je PŮVODNÍ (`PollAnswer.index`), otázka
