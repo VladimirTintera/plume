@@ -24,6 +24,9 @@ enum class TextFormat {
 
     /** Citace, kterou ostatní klienti sbalují na pár řádků. */
     ExpandableQuote,
+
+    /** Odkaz s vlastním popiskem: text je popisek, adresu nese [FormatSpan.url]. */
+    Link,
     ;
 
     /**
@@ -39,8 +42,11 @@ enum class TextFormat {
         }
 }
 
-/** Formátovaný úsek `[start, end)` rozepsaného textu, v UTF-16 jednotkách jako `String`. */
-data class FormatSpan(val format: TextFormat, val start: Int, val end: Int)
+/**
+ * Formátovaný úsek `[start, end)` rozepsaného textu, v UTF-16 jednotkách jako `String`.
+ * [url] je adresa odkazu ([TextFormat.Link]); u ostatních formátů `null`.
+ */
+data class FormatSpan(val format: TextFormat, val start: Int, val end: Int, val url: String? = null)
 
 /**
  * Rozepsaný text i s ručním formátováním — to, co vstupní pole odešle, uloží jako koncept
@@ -80,7 +86,8 @@ data class ComposedText(val text: String, val formats: List<FormatSpan> = emptyL
  * u něj. Bez kurzoru se bere nejdelší společný začátek.
  *
  * Text vložený přesně na konec rozsahu do něj patří (píše se dál tučně), na začátek ne. Text
- * napsaný přes celý rozsah si ho nechá — přepsané tučné slovo zůstane tučné.
+ * napsaný přes celý rozsah si ho nechá — přepsané tučné slovo zůstane tučné. **Odkaz se psaním
+ * na konci neprodlužuje**: slovo napsané za odkaz je další slovo věty, ne kus popisku.
  */
 fun List<FormatSpan>.afterEdit(old: String, new: String, cursor: Int? = null): List<FormatSpan> {
     if (isEmpty() || old == new) return this
@@ -106,7 +113,7 @@ fun List<FormatSpan>.afterEdit(old: String, new: String, cursor: Int? = null): L
         }
         val end = when {
             span.end < from -> span.end
-            span.end == from -> if (insertion) span.end + inserted else span.end
+            span.end == from -> if (insertion && span.format != TextFormat.Link) span.end + inserted else span.end
             span.end <= to -> from + inserted
             else -> span.end + delta
         }
@@ -157,6 +164,41 @@ fun List<FormatSpan>.toggled(format: TextFormat, start: Int, end: Int, text: Str
     return (removed(format.family, from, to) + FormatSpan(added, from, to)).merged()
 }
 
+/**
+ * Nastaví na `[start, end)` odkaz na [url]; `null` odkaz z úseku sundá. Odkaz, který výběr
+ * protíná, se rozdělí — kus mimo výběr si adresu nechá.
+ */
+fun List<FormatSpan>.linked(start: Int, end: Int, url: String?): List<FormatSpan> {
+    if (start >= end) return this
+    val without = removed(TextFormat.Link, start, end)
+    return if (url == null) without else (without + FormatSpan(TextFormat.Link, start, end, url)).merged()
+}
+
+/** Adresa odkazu, který pokrývá celý úsek `[start, end)`, nebo `null`. */
+fun List<FormatSpan>.linkAt(start: Int, end: Int): String? =
+    firstOrNull { it.format == TextFormat.Link && it.start <= start && it.end >= end && start < end }?.url
+
+/**
+ * Adresa pro odkaz s popiskem z toho, co uživatel napsal, nebo `null`, když to adresa není.
+ *
+ * Bez schématu se doplní `https://` (napíše se `example.com`). Jinak se berou `http(s)`,
+ * `tg://` (odkazy do Telegramu) a `mailto:`; `javascript:` a podobné ne — odkaz se po ťuknutí
+ * otevírá u příjemce. Web musí mít doménu s tečkou, holé slovo adresa není.
+ */
+fun linkTargetOf(text: String): String? {
+    val trimmed = text.trim()
+    if (trimmed.isEmpty() || trimmed.any { it.isWhitespace() }) return null
+    val lower = trimmed.lowercase()
+    if (lower.startsWith("mailto:")) return trimmed.takeIf { '@' in it }
+    if (lower.startsWith("tg://")) return trimmed.takeIf { it.length > 5 }
+    val url = if ("://" in trimmed) trimmed else "https://$trimmed"
+    val scheme = url.substringBefore("://").lowercase()
+    if (scheme != "http" && scheme != "https") return null
+    val host = url.substringAfter("://").substringBefore('/').substringBefore('?').substringBefore('#')
+    if (!host.contains('.') || host.startsWith('.') || host.endsWith('.')) return null
+    return url
+}
+
 /** Sundá z `[start, end)` všechno formátování („Bez formátování"). */
 fun List<FormatSpan>.cleared(start: Int, end: Int): List<FormatSpan> {
     if (start >= end) return this
@@ -178,9 +220,12 @@ private fun List<FormatSpan>.removed(family: TextFormat, start: Int, end: Int): 
         }
     }
 
-/** Spojí překrývající se a navazující rozsahy téhož druhu do jednoho. */
+/**
+ * Spojí překrývající se a navazující rozsahy téhož druhu do jednoho. Odkazy jen se stejnou
+ * adresou — dva sousední odkazy jinam jsou dva odkazy.
+ */
 private fun List<FormatSpan>.merged(): List<FormatSpan> =
-    groupBy { it.format }.flatMap { (_, spans) ->
+    groupBy { it.format to it.url }.flatMap { (_, spans) ->
         spans.sortedBy { it.start }.fold(mutableListOf<FormatSpan>()) { acc, span ->
             val last = acc.lastOrNull()
             if (last != null && span.start <= last.end) {
@@ -205,8 +250,8 @@ private fun String.lineBounds(start: Int, end: Int): Pair<Int, Int> {
  * a úprava by ho tiše smazala.
  *
  * Co se při odeslání dohledá znovu (odkaz psaný v textu, zmínka `@jméno`, hashtag, příkaz bota,
- * čas v médiu), pole nést nemusí. Odkaz s vlastním popiskem, zmínka jménem, vlastní emoji, datum
- * a blok kódu s jazykem ale z textu poznat nejdou.
+ * čas v médiu), pole nést nemusí. Odkaz s vlastním popiskem nese pole samo ([TextFormat.Link]).
+ * Zmínka jménem, vlastní emoji, datum a blok kódu s jazykem ale z textu poznat nejdou.
  */
 fun composedFormatsOf(text: String, entities: List<MessageEntity>): List<FormatSpan>? =
     formatsOf(text, entities, strict = true)
@@ -235,10 +280,15 @@ private fun formatsOf(text: String, entities: List<MessageEntity>, strict: Boole
                 else -> TextFormat.Code
             }
             is MessageEntityType.Quote -> if (type.expandable) TextFormat.ExpandableQuote else TextFormat.Quote
-            // Odkaz psaný přímo v textu (`example.com` → `https://example.com`) se dohledá znovu,
-            // odkaz s popiskem („klikni sem") ne.
+            // Odkaz psaný přímo v textu (`example.com` → `https://example.com`) se dohledá znovu;
+            // odkaz s popiskem („klikni sem") nese pole samo.
             is MessageEntityType.Link ->
-                if (!strict || type.url.endsWith(text.substring(start, end), ignoreCase = true)) null else return null
+                if (type.url.endsWith(text.substring(start, end), ignoreCase = true)) {
+                    null
+                } else {
+                    if (end > start) spans += FormatSpan(TextFormat.Link, start, end, type.url)
+                    null
+                }
             is MessageEntityType.Mention,
             is MessageEntityType.Hashtag,
             is MessageEntityType.BotCommand,

@@ -135,10 +135,17 @@ class MessageActionTest {
     }
 
     @Test
-    fun odkazSPopiskemUpravuVylucuje() {
-        // Adresu za popiskem pole nenese, úprava by z odkazu udělala holý text.
+    fun odkazSPopiskemUpravuDovoli() {
+        // Adresu za popiskem nese pole jako formát odkazu.
         val link = MessageEntity(offset = 0, length = 4, type = MessageEntityType.Link("https://example.com"))
-        assertFalse(MessageMenuAction.Edit in menuActions(message(entities = listOf(link)), isPinned = false))
+        assertTrue(MessageMenuAction.Edit in menuActions(message(entities = listOf(link)), isPinned = false))
+    }
+
+    @Test
+    fun zminkaJmenemUpravuVylucuje() {
+        // Id uživatele za jménem pole nenese, úprava by ze zmínky udělala holý text.
+        val mention = MessageEntity(offset = 0, length = 4, type = MessageEntityType.MentionUser(42))
+        assertFalse(MessageMenuAction.Edit in menuActions(message(entities = listOf(mention)), isPinned = false))
     }
 
     @Test

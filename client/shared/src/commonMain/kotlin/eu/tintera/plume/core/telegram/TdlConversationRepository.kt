@@ -1399,15 +1399,18 @@ class TdlConversationRepository(
      * ([formats]) na dohledání nezávisí a odejde vždycky.
      *
      * **V kódu se nic nedohledává.** Kód nesmí obsahovat jiné entity (TDLib je z něj vyhodí)
-     * a adresa napsaná do kódu má zůstat kódem, ne odkazem.
+     * a adresa napsaná do kódu má zůstat kódem, ne odkazem. **V odkazu s popiskem taky ne**:
+     * adresa napsaná jako popisek by se jinak stala druhým odkazem přes tentýž text.
      */
     private suspend fun detectEntities(
         text: String,
         mentions: List<NameMention> = emptyList(),
         formats: List<FormatSpan> = emptyList(),
     ): Array<TextEntity> {
-        val code = formats.filter { it.format.family == TextFormat.Code }.map { it.start until it.end }
-        fun inCode(offset: Int, length: Int) = code.any { offset < it.last + 1 && offset + length > it.first }
+        // Úseky, do kterých dohledané entity nesmí: kód a odkaz s popiskem.
+        val sealedRanges = formats.filter { it.format.family == TextFormat.Code || it.format == TextFormat.Link }
+            .map { it.start until it.end }
+        fun inSealed(offset: Int, length: Int) = sealedRanges.any { offset < it.last + 1 && offset + length > it.first }
         val detected = client.getTextEntities(text)
             .toResult()
             .map { it.entities.filterNotNull() }
@@ -1415,14 +1418,14 @@ class TdlConversationRepository(
                 logger.w(failure) { "Entity v odesílaném textu se nepodařilo dohledat." }
                 emptyList()
             }
-            .filterNot { inCode(it.offset, it.length) }
+            .filterNot { inSealed(it.offset, it.length) }
         // Zmínky jménem pole nenese — pamatuje si je ViewModel a tady se dohledají v textu.
         val named = if (mentions.isEmpty()) emptyList() else nameMentionEntities(
             text = text,
             mentions = mentions,
             occupied = detected.map { it.offset until it.offset + it.length },
         )
-            .filterNot { inCode(it.offset, it.length) }
+            .filterNot { inSealed(it.offset, it.length) }
             .map { TextEntity(offset = it.offset, length = it.length, type = TextEntityTypeMentionName(userId = it.userId)) }
         return (detected + named + formats.toTdl(text)).sortedBy { it.offset }.toTypedArray()
     }
@@ -2735,12 +2738,14 @@ internal fun MessageContent?.showsCaptionAboveMedia(): Boolean = when (this) {
  * zprávu odmítl kvůli jednomu špatnému offsetu.
  */
 internal fun List<FormatSpan>.toTdl(text: String): List<TextEntity> = mapNotNull { span ->
+    // Odkaz bez adresy by server odmítl i s celou zprávou.
+    if (span.format == TextFormat.Link && span.url.isNullOrEmpty()) return@mapNotNull null
     val start = span.start.coerceIn(0, text.length)
     val end = span.end.coerceIn(start, text.length)
-    if (end > start) TextEntity(offset = start, length = end - start, type = span.format.toTdl()) else null
+    if (end > start) TextEntity(offset = start, length = end - start, type = span.toTdl()) else null
 }
 
-private fun TextFormat.toTdl(): TextEntityType = when (this) {
+private fun FormatSpan.toTdl(): TextEntityType = when (format) {
     TextFormat.Bold -> TextEntityTypeBold()
     TextFormat.Italic -> TextEntityTypeItalic()
     TextFormat.Underline -> TextEntityTypeUnderline()
@@ -2750,4 +2755,5 @@ private fun TextFormat.toTdl(): TextEntityType = when (this) {
     TextFormat.CodeBlock -> TextEntityTypePre()
     TextFormat.Quote -> TextEntityTypeBlockQuote()
     TextFormat.ExpandableQuote -> TextEntityTypeExpandableBlockQuote()
+    TextFormat.Link -> TextEntityTypeTextUrl(url = url.orEmpty())
 }

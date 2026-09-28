@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ComposedText
+import eu.tintera.plume.core.telegram.linkAt
 import eu.tintera.plume.core.ui.SwipeDirection
 import eu.tintera.plume.core.ui.detectHorizontalSwipe
 import androidx.compose.ui.text.intl.Locale
@@ -2536,6 +2537,22 @@ private fun MessageInput(
     modifier: Modifier = Modifier,
 ) {
     var draft by composer
+    /*
+     * Úsek, ke kterému se právě zadává adresa odkazu. Zachycený při ťuknutí na „Odkaz": dialog
+     * vezme poli fokus a výběr by se na něj nedal spolehnout.
+     */
+    var linkTarget by rememberSaveable { mutableStateOf<List<Int>?>(null) }
+    linkTarget?.let { (start, end) ->
+        LinkDialog(
+            current = composer.formats.linkAt(start, end),
+            onConfirm = { url ->
+                composer.link(start, end, url)
+                onDraftChanged(composer.composed)
+                linkTarget = null
+            },
+            onDismiss = { linkTarget = null },
+        )
+    }
     val formatting = FormattingTransformation(
         formats = composer.formats,
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -2929,7 +2946,11 @@ private fun MessageInput(
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                 ) {
-                    FormattingBar(composer = composer, onChanged = { onDraftChanged(composer.composed) })
+                    FormattingBar(
+                        composer = composer,
+                        onChanged = { onDraftChanged(composer.composed) },
+                        onLink = { draft.selection.let { linkTarget = listOf(it.min, it.max) } },
+                    )
                 }
               }
             }

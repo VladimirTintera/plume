@@ -1,5 +1,21 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.KeyboardType
+import eu.tintera.plume.core.telegram.linkTargetOf
+import eu.tintera.plume.resources.common_cancel
+import eu.tintera.plume.resources.format_link
+import eu.tintera.plume.resources.format_link_hint
+import eu.tintera.plume.resources.format_link_remove
+import eu.tintera.plume.resources.format_link_save
+import eu.tintera.plume.resources.link_24dp
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -64,34 +80,34 @@ import org.jetbrains.compose.resources.stringResource
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun FormattingBar(composer: ComposerDraft, onChanged: () -> Unit, modifier: Modifier = Modifier) {
+internal fun FormattingBar(
+    composer: ComposerDraft,
+    onChanged: () -> Unit,
+    /** „Odkaz": dialog s adresou pro výběr. Drží ho obrazovka — lišta s otevřením dialogu zmizí. */
+    onLink: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val haptics = LocalHapticFeedback.current
     Row(
         modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        FORMAT_BUTTONS.forEach { (format, icon, label) ->
-            val applied = composer.isApplied(format)
-            Labelled(stringResource(label)) { text ->
-                IconToggleButton(
-                    checked = applied,
-                    onCheckedChange = {
-                        composer.toggle(format)
-                        haptics.toggle(!applied)
-                        onChanged()
-                    },
-                    shapes = IconButtonDefaults.toggleableShapes(),
-                    // Plná `primary`, ne `secondaryContainer` jako u filtrů seznamu chatů: karta pole
-                    // je přitónovaná do `primaryContainer` a světlý kontejner na ní zanikal.
-                    colors = IconButtonDefaults.iconToggleButtonColors(
-                        checkedContainerColor = MaterialTheme.colorScheme.primary,
-                        checkedContentColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
-                ) {
-                    Icon(painterResource(icon), contentDescription = text)
-                }
+        // Odkaz hned za písmem: na úzkém displeji se řada posouvá, a odkaz se hledá častěji
+        // než spoiler nebo kód na jejím konci.
+        FORMAT_BUTTONS.take(4).forEach { FormatToggle(composer, it, onChanged) }
+        // Odkaz je přepínač jen na pohled: zapnutý = výběr už odkazuje, ťuknutí otevře dialog
+        // (adresu jde změnit i odebrat), ne vypnutí naslepo.
+        Labelled(stringResource(Res.string.format_link)) { text ->
+            IconToggleButton(
+                checked = composer.selectionLink != null,
+                onCheckedChange = { onLink() },
+                shapes = IconButtonDefaults.toggleableShapes(),
+                colors = toggleColors(),
+            ) {
+                Icon(painterResource(Res.drawable.link_24dp), contentDescription = text)
             }
         }
+        FORMAT_BUTTONS.drop(4).forEach { FormatToggle(composer, it, onChanged) }
         // „Bez formátování" je akce, ne stav — obyčejné tlačítko, zašedlé, když není co sundat.
         Labelled(stringResource(Res.string.format_clear)) { text ->
             IconButton(
@@ -107,6 +123,42 @@ internal fun FormattingBar(composer: ComposerDraft, onChanged: () -> Unit, modif
         }
     }
 }
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun FormatToggle(
+    composer: ComposerDraft,
+    button: Triple<TextFormat, DrawableResource, StringResource>,
+    onChanged: () -> Unit,
+) {
+    val (format, icon, label) = button
+    val haptics = LocalHapticFeedback.current
+    val applied = composer.isApplied(format)
+    Labelled(stringResource(label)) { text ->
+        IconToggleButton(
+            checked = applied,
+            onCheckedChange = {
+                composer.toggle(format)
+                haptics.toggle(!applied)
+                onChanged()
+            },
+            shapes = IconButtonDefaults.toggleableShapes(),
+            colors = toggleColors(),
+        ) {
+            Icon(painterResource(icon), contentDescription = text)
+        }
+    }
+}
+
+/**
+ * Plná `primary`, ne `secondaryContainer` jako u filtrů seznamu chatů: karta pole je přitónovaná
+ * do `primaryContainer` a světlý kontejner na ní zanikal.
+ */
+@Composable
+private fun toggleColors() = IconButtonDefaults.iconToggleButtonColors(
+    checkedContainerColor = MaterialTheme.colorScheme.primary,
+    checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -129,3 +181,41 @@ private val FORMAT_BUTTONS: List<Triple<TextFormat, DrawableResource, StringReso
     Triple(TextFormat.Code, Res.drawable.code_24dp, Res.string.format_code),
     Triple(TextFormat.Quote, Res.drawable.format_quote_24dp, Res.string.format_quote),
 )
+
+/**
+ * Adresa odkazu s popiskem. [current] je adresa, na kterou výběr už odkazuje — pak jde změnit
+ * i odebrat. Uložit jde jen platnou adresu ([linkTargetOf]); bez schématu se doplní `https://`.
+ */
+@Composable
+internal fun LinkDialog(current: String?, onConfirm: (String?) -> Unit, onDismiss: () -> Unit) {
+    var text by rememberSaveable { mutableStateOf(current.orEmpty()) }
+    val url = linkTargetOf(text)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.format_link)) },
+        text = {
+            // Jako pole v ostatních dialozích (odkaz v anketě, štítek člena).
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                placeholder = { Text(stringResource(Res.string.format_link_hint)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(enabled = url != null, onClick = { url?.let(onConfirm) }) {
+                Text(stringResource(Res.string.format_link_save))
+            }
+        },
+        dismissButton = {
+            Row {
+                if (current != null) {
+                    TextButton(onClick = { onConfirm(null) }) { Text(stringResource(Res.string.format_link_remove)) }
+                }
+                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+            }
+        },
+    )
+}
