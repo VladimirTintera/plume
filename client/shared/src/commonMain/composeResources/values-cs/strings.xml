@@ -296,7 +296,7 @@
     <string name="conversation_send_when_online">Odeslat, až bude online</string>
     <string name="conversation_send_effect">Odeslat s efektem…</string>
     <string name="effect_picker_title">Efekt zprávy</string>
-    <string name="effect_picker_hint">Přehraje se nad zprávou u všech v chatu.</string>
+    <string name="effect_picker_hint">Přehraje se nad zprávou u všech v chatu. Podržením ho uvidíš.</string>
     <string name="effect_picker_empty">Žádné efekty nejsou k dispozici.</string>
     <string name="conversation_scheduled_notice">Zpráva je naplánovaná</string>
     <string name="conversation_schedule_failed">Zprávu se nepodařilo naplánovat.</string>

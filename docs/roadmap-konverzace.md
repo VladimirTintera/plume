@@ -500,7 +500,7 @@ snadno na to uživatel narazí.
 - ~~**Efekty zprávy**~~ (`effectId` → `getMessageEffect`) — hotovo: značka vedle zprávy,
   animace po příchodu a ťuknutím (`CLAUDE.md`, „Efekty zprávy"). Zbývá:
   - ~~**poslat zprávu s efektem**~~ — hotovo (podržení odesílacího tlačítka → „Odeslat
-    s efektem…"). Zbývá náhled animace ve výběru a prémiové efekty s Premium,
+    s efektem…"). ~~Náhled animace ve výběru~~ — hotovo (podržením). Zbývá prémiové efekty s Premium,
   - ~~přehrát efekt i u NEPŘEČTENÉ zprávy~~ — hotovo,
   - ověřit u efektu prémiové samolepky (odchozí zpráva ověřená).
 - ~~**Kontrola faktů** (`factCheck`)~~ — hotovo: karta pod příspěvkem (`CLAUDE.md`, „Kontrola faktů"), ověřená jen sondou.
