@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.resources.profile_tab_music
+import eu.tintera.plume.resources.profile_search_files
+import eu.tintera.plume.resources.profile_search_links
+import eu.tintera.plume.resources.profile_search_music
 import eu.tintera.plume.resources.music_note_24dp
 import eu.tintera.plume.resources.verification_fake_warning
 import eu.tintera.plume.resources.verification_scam_warning
@@ -608,7 +611,19 @@ private fun TabContent(
             },
         )
 
-        is ProfileTab.Shared -> {
+        is ProfileTab.Shared -> SharedTabFrame(
+            search = if (state.sharedSearchAvailable(tab.kind)) {
+                SharedSearch(
+                    query = state.sharedQueries[tab.kind].orEmpty(),
+                    placeholder = stringResource(tab.kind.searchPlaceholder()),
+                    onQueryChange = { viewModel.searchShared(tab.kind, it) },
+                )
+            } else {
+                null
+            },
+            nothingFound = state.shared[tab.kind]?.let { it.query.isNotEmpty() && it.messages.isEmpty() && !it.loading } == true,
+            contentPadding = contentPadding,
+        ) {
             val data = state.shared[tab.kind]
             val messages = data?.messages.orEmpty()
             val loading = data?.loading != false
@@ -653,6 +668,13 @@ private fun TabContent(
             }
         }
     }
+}
+
+/** Nápověda v poli hledání záložky; média hledání nemají (viz [offersSharedSearch]). */
+private fun SharedMediaKind.searchPlaceholder(): StringResource = when (this) {
+    SharedMediaKind.Media, SharedMediaKind.Files -> Res.string.profile_search_files
+    SharedMediaKind.Music -> Res.string.profile_search_music
+    SharedMediaKind.Links -> Res.string.profile_search_links
 }
 
 /** Klíč stránky pageru; podle indexu by se stránkám po změně záložek rozsypal scroll. */

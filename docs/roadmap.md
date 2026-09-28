@@ -79,8 +79,8 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
 - ~~**Detail chatu / profil.**~~ — hotovo (ťuknutí na hlavičku: fotka, jméno, ztlumení, hledání,
   údaje, členové skupiny; `CLAUDE.md`, „Profil chatu"). Zbývá:
   - ~~**Sdílená média**~~ — hotovo (záložky Členové / Média / Soubory / Odkazy s dotahováním
-    stránek; `CLAUDE.md`, „Sdílená média v profilu"). Zbývá: filtry hledání uvnitř záložky
-    a velký náhled u souborů.
+    stránek; `CLAUDE.md`, „Sdílená média v profilu"). ~~Hledání uvnitř záložky~~ — hotovo
+    (soubory, odkazy, hudba). Zbývá velký náhled u souborů.
   - ~~**Akce navíc**~~ — hotovo: kopírovat odkaz (i pozvánku pro správce), zablokovat, smazat
     chat / opustit skupinu či kanál (⋮ v liště) a ~~**upravit skupinu**~~ (název, popis, fotka,
     práva členů; `CLAUDE.md`, „Úprava skupiny") a ~~**správa jednotlivých členů**~~ (dlouhý
@@ -112,7 +112,8 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   3. ~~**Hledání v konverzaci**~~ — hotovo (lupa v hlavičce, šipky mezi výsledky, viz
      `CLAUDE.md`, „Hledání v konverzaci"). Hledané slovo je v bublinách zvýrazněné.
      Ve skupině jde hledat i podle člena (čip v hlavičce hledání).
-  4. **Filtry obsahu** (média, soubory, odkazy), hlavně pro profil chatu.
+  4. ~~**Filtry obsahu** (média, soubory, odkazy), hlavně pro profil chatu~~ — hotovo (záložky
+     profilu s hledáním). Zbývá hledání médií podle popisku, kdyby o něj byl zájem.
 
   Na rozloženém Foldu by místo celoobrazovkového hledání sedělo `ExpandedDockedSearchBar`.
 - ~~**Nová konverzace a kontakty.**~~ — hotovo (FAB v plovoucím toolbaru seznamu chatů,
