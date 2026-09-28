@@ -17,7 +17,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.dp
 
@@ -30,11 +29,11 @@ import androidx.compose.ui.unit.dp
  * výšky (další písmeno zúží seznam příkazů) zvedly a spustily celou konverzaci a oči při psaní
  * skákaly za ní. Teď leží přes konec seznamu jako nabídka.
  *
- * **Sklo je TMAVÉ v obou motivech** (`scrim` s [FLOATING_SUGGESTION_TINT_ALPHA], světlé popředí
- * [FloatingSuggestionColors]). Světlé sklo v barvě plochy (první verze, jako pruh připnutých)
- * od zpráv pod sebou odlišovalo jen rozostření a ve světlém motivu se s bublinami slévalo; tmavá
- * vrstva se přečte jako nabídka nad konverzací, ne jako její část. Pod ní je pořád vidět, že
- * zprávy pokračují.
+ * **Sklo je v INVERZNÍ roli, jako snackbar** (`inverseSurface` s
+ * [FLOATING_SUGGESTION_TINT_ALPHA], popředí [FloatingSuggestionColors]): ve světlém motivu tmavé,
+ * v tmavém světlé. Je to dočasný prvek nad obsahem a má od něj vystoupit v obou motivech. Světlé
+ * sklo v barvě plochy (první verze) se ve světlém motivu slévalo s bublinami; natvrdo tmavé
+ * (druhá verze) by se stejně slilo s tmavou konverzací.
  *
  * Vyrůstá od pole ([origin]) zvětšením, ne rozbalením do výšky — rozbalení by u plovoucího
  * prvku vypadalo, jako by se pod ním něco odsouvalo.
@@ -81,25 +80,18 @@ internal fun Modifier.floatAbove(): Modifier = layout { measurable, constraints 
 }
 
 /**
- * Popředí na tmavém skle [FloatingSuggestion].
- *
- * **Natvrdo světlé, ne role ze schématu** — sklo je tmavé v obou motivech, a role typu
- * `onSurface` nebo `inverseOnSurface` se s motivem překlápějí. Tatáž výjimka jako bílé ovládání
- * v prohlížeči médií.
+ * Popředí na skle [FloatingSuggestion] — inverzní role, jako snackbar.
  */
 internal object FloatingSuggestionColors {
-    val content = Color.White
-    val muted = Color.White.copy(alpha = 0.72f)
+    val content: Color
+        @Composable get() = MaterialTheme.colorScheme.inverseOnSurface
 
-    /**
-     * Akcent (text příkazu): SVĚTLEJŠÍ z `primary` / `inversePrimary`. Ve světlém motivu je
-     * světlá `inversePrimary`, v tmavém `primary` — pevná volba by v jednom z nich na tmavém
-     * skle zmizela.
-     */
+    val muted: Color
+        @Composable get() = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.72f)
+
+    /** Akcent (text příkazu, indikátor): `inversePrimary`, stejně jako akce snackbaru. */
     val accent: Color
-        @Composable get() = MaterialTheme.colorScheme.run {
-            if (primary.luminance() >= inversePrimary.luminance()) primary else inversePrimary
-        }
+        @Composable get() = MaterialTheme.colorScheme.inversePrimary
 
     /** `ListItem` si text barví sám (`onSurface`), barva popředí se mu musí předat. */
     @Composable

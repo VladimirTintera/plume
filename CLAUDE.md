@@ -4402,7 +4402,8 @@ testy `InlineQueryTest`).
 ### Plovoucí napovídání nad polem
 
 Emoji ke slovu, příkazy bota, zmínky a výsledky inline bota PLAVOU nad vstupním polem
-(`FloatingSuggestion`, `floatAbove`) na TMAVÉM skle, a místo v rozvržení nezabírají.
+(`FloatingSuggestion`, `floatAbove`) na skle v inverzní roli jako snackbar, a místo v rozvržení
+nezabírají.
 
 - **Pole je `bottomBar` a seznam zpráv se odsazuje o jeho výšku.** Dokud napovídání stála v jeho
   sloupci, každé objevení, zmizení i změna výšky (další písmeno zúží seznam příkazů) zvedly
@@ -4412,11 +4413,16 @@ Emoji ke slovu, příkazy bota, zmínky a výsledky inline bota PLAVOU nad vstup
   Vrstva stojí v `bottomBar` těsně nad polem, u textu, ke kterému patří.
 - **Vyrůstá zvětšením od pole, ne rozbalením do výšky** — to by u plovoucího prvku vypadalo,
   jako by se pod ním něco odsouvalo.
-- **Sklo je tmavé v obou motivech, jako scrim** (`scrim`, `FLOATING_SUGGESTION_TINT_ALPHA` 0,66),
-  s natvrdo světlým popředím (`FloatingSuggestionColors`). Světlé sklo v barvě plochy (první
-  verze, jako pruh připnutých) se ve světlém motivu slévalo s bublinami pod sebou. Akcent (text
-  příkazu) je SVĚTLEJŠÍ z `primary` / `inversePrimary` — pevná role by v jednom motivu zmizela.
+- **Sklo je v INVERZNÍ roli, jako snackbar** (`inverseSurface`, popředí `inverseOnSurface`,
+  akcent `inversePrimary`; `FloatingSuggestionColors`): ve světlém motivu tmavé, v tmavém světlé.
+  Je to dočasný prvek nad obsahem a má od něj vystoupit v OBOU motivech — M3 na to inverzní role
+  má. Dvě slepé uličky: světlé sklo v barvě plochy (jako pruh připnutých) se ve světlém motivu
+  slévalo s bublinami, natvrdo tmavé (`scrim` s bílým textem) by se slilo s tmavou konverzací.
   `ListItem` popředí nedědí, barvy se mu předávají (`FloatingSuggestionColors.listItem()`).
+- **Krytí 0,8, víc než u ostatních skel** (`FLOATING_SUGGESTION_TINT_ALPHA`): inverzní plocha nese
+  text opačné světlosti než obsah pod ní. `inverseSurface` je světlejší než černá, takže s 0,66
+  (hodnota z tmavého `scrim`) by bílé písmo nad bílou fotkou spadlo pod 4 : 1; s 0,8 vyjde v obou
+  motivech nejhůř kolem 6,5 : 1 (výpočet, ne měření).
 - **Tlačítko dolů a zmínky (FAB slot) na tu chvíli ustoupí** (`suggestionsFloating`): Scaffold
   je staví nad `bottomBar`, tedy přesně přes plovoucí vrstvu.
 - **V rozvržení zůstávají klávesnice bota a návrhy odpovědí.** Klávesnice bota je trvalá
@@ -4427,7 +4433,8 @@ Emoji ke slovu, příkazy bota, zmínky a výsledky inline bota PLAVOU nad vstup
   u příkazů zůstával po „/n" → „/ne" celý seznam (tatáž past jako u emoji).
 - **Ověřeno na emulátoru** (Fold složený, chat s botem): příkazy z tlačítka i po „/s" (seznam se
   zúžil, konverzace se nepohnula), ťuknutí poslalo `/stav`, `@gif cat` a „heart" s dosazením
-  emoji. Zmínky ověřené nejsou (jen ve skupině), iOS jen přeložené.
+  emoji; inverzní sklo ve světlém i tmavém motivu (`cmd uimode night yes`). Zmínky ověřené nejsou
+  (jen ve skupině), iOS jen přeložené.
 
 ### Napovídání zmínek
 

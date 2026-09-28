@@ -131,7 +131,7 @@ internal fun InlineResultsPanel(
                 if (shown.loading) {
                     item(key = "loading", span = { GridItemSpan(maxLineSpan) }) {
                         Box(Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
-                            LoadingIndicator()
+                            LoadingIndicator(color = FloatingSuggestionColors.accent)
                         }
                     }
                 }
