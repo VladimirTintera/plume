@@ -37,6 +37,7 @@ import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.chats_search_section_chats
 import eu.tintera.plume.resources.chats_search_section_global
 import eu.tintera.plume.resources.chats_search_section_messages
+import eu.tintera.plume.resources.search_source_public
 import eu.tintera.plume.resources.chats_search_show_all
 import eu.tintera.plume.resources.chats_search_show_less
 import androidx.compose.foundation.layout.Column
@@ -365,7 +366,12 @@ private fun SearchResults(
     Column(Modifier.fillMaxSize()) {
         // Čipy nad výsledky, ne jako položka seznamu: filtr musí zůstat po ruce i odscrollovaný.
         // Hashtag hledá jen zprávy, druh chatu se tam nabízí taky; období dává smysl vždycky.
-        MessageSearchFilters(filter = search.filter, onChange = onFilterChange)
+        // U hashtagu nejdřív odkud (vlastní chaty / veřejné příspěvky); veřejné příspěvky druh
+        // chatu ani období neberou, takže s nimi filtry nejsou.
+        if (isHashtagQuery(trimmed)) HashtagSourceToggle(filter = search.filter, onChange = onFilterChange)
+        if (!searchesPublicPosts(trimmed, search.filter)) {
+            MessageSearchFilters(filter = search.filter, onChange = onFilterChange)
+        }
         if (nothing) {
             if (settled || emptyShown) {
                 // Stejný prázdný stav jako placeholder detailu a prázdný archiv. Spodek je nad
@@ -468,7 +474,13 @@ private fun SearchResults(
             }
 
             if (messages.isNotEmpty()) {
-                item(key = "messages-header") { SectionHeader(stringResource(Res.string.chats_search_section_messages)) }
+                item(key = "messages-header") {
+                    SectionHeader(
+                        stringResource(
+                            if (searchesPublicPosts(trimmed, filter)) Res.string.search_source_public else Res.string.chats_search_section_messages,
+                        ),
+                    )
+                }
                 items(messages, key = { "message-${it.chat.id}-${it.messageId}" }) { found ->
                     MessageResultRow(
                         found = found,

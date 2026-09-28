@@ -91,7 +91,7 @@ class ChatSearch(
         val previous = _state.value
         if (everywhere && previous.query == text && previous.filter != filter && !previous.searching) {
             _state.update { it.copy(filter = filter, messages = emptyList(), messagesNextOffset = null, messagesLoading = true) }
-            val page = repository.searchMessages(text, filter = filter).logged("searchMessages")
+            val page = messagePage(text, "", filter)
             _state.update { it.copy(messages = page?.messages.orEmpty(), messagesNextOffset = page?.nextOffset, messagesLoading = false) }
             return
         }
@@ -106,7 +106,7 @@ class ChatSearch(
          */
         if (everywhere && isHashtagQuery(text)) {
             _state.value = ChatSearchState(query = text, filter = filter, messagesLoading = true)
-            val page = repository.searchMessages(text, filter = filter).logged("searchMessages")
+            val page = messagePage(text, "", filter)
             _state.update {
                 it.copy(messages = page?.messages.orEmpty(), messagesNextOffset = page?.nextOffset, messagesLoading = false)
             }
@@ -133,7 +133,7 @@ class ChatSearch(
                     _state.update { it.copy(global = global) }
                 }
                 launch {
-                    val page = repository.searchMessages(text, filter = filter).logged("searchMessages")
+                    val page = messagePage(text, "", filter)
                     _state.update {
                         it.copy(
                             messages = page?.messages.orEmpty(),
@@ -145,6 +145,14 @@ class ChatSearch(
             }
         }
     }
+
+    /** Stránka zpráv: z vlastních chatů, nebo u hashtagu s [MessageSearchFilter.publicPosts] veřejné příspěvky. */
+    private suspend fun messagePage(text: String, offset: String, filter: MessageSearchFilter) =
+        if (searchesPublicPosts(text, filter)) {
+            repository.searchPublicPosts(text, offset).logged("searchPublicPosts")
+        } else {
+            repository.searchMessages(text, offset, filter).logged("searchMessages")
+        }
 
     fun setQuery(text: String) {
         query.value = text
@@ -168,7 +176,7 @@ class ChatSearch(
 
         _state.update { it.copy(messagesLoading = true) }
         moreMessages = scope.launch {
-            val page = repository.searchMessages(current.query, offset, current.filter).logged("searchMessages")
+            val page = messagePage(current.query, offset, current.filter)
             _state.update {
                 // Mezitím se změnil dotaz nebo filtr — stránka patří k jinému hledání.
                 if (it.query != current.query || it.filter != current.filter) return@update it
@@ -237,6 +245,10 @@ data class ChatSearchState(
     /** Hledání pro [query] doběhlo celé — prázdný výsledek teď znamená „nic nenalezeno". */
     val settled: Boolean get() = !searching && !messagesLoading
 }
+
+/** Hledají se veřejné příspěvky kanálů? Jen u hashtagu — obyčejný dotaz je API nebere. */
+fun searchesPublicPosts(text: String, filter: MessageSearchFilter): Boolean =
+    filter.publicPosts && isHashtagQuery(text)
 
 /** Dotaz je hashtag (`#tag`, jedno slovo) — hledají se jen zprávy. */
 fun isHashtagQuery(text: String): Boolean {

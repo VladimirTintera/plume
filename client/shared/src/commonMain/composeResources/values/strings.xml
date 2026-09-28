@@ -1010,6 +1010,8 @@
     <string name="profile_leave_group">Leave group</string>
     <string name="profile_leave_channel">Leave channel</string>
     <string name="profile_action_failed">That didn't work. Try again.</string>
+    <string name="search_source_chats">Your chats</string>
+    <string name="search_source_public">Public posts</string>
     <string name="search_filter_private">Private</string>
     <string name="search_filter_groups">Groups</string>
     <string name="search_filter_channels">Channels</string>

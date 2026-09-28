@@ -117,6 +117,9 @@ interface ChatRepository {
      */
     suspend fun searchMessages(query: String, offset: String = "", filter: MessageSearchFilter = MessageSearchFilter()): Result<FoundMessagesPage>
 
+    /** Veřejné příspěvky kanálů s hashtagem [tag] (i s `#`), stránkované jako [searchMessages]. */
+    suspend fun searchPublicPosts(tag: String, offset: String = ""): Result<FoundMessagesPage>
+
     /** Naposledy nalezené chaty (nejvýš 50), nejnovější první. Historii vede TDLib. */
     suspend fun recentlyFoundChats(): Result<List<ChatSummary>>
 

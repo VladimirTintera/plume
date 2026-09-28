@@ -67,6 +67,9 @@ open class FakeChatRepository(
     override suspend fun searchMessages(query: String, offset: String, filter: MessageSearchFilter): Result<FoundMessagesPage> =
         Result.success(FoundMessagesPage(emptyList(), null))
 
+    override suspend fun searchPublicPosts(tag: String, offset: String): Result<FoundMessagesPage> =
+        Result.success(FoundMessagesPage(emptyList(), null))
+
     override suspend fun recentlyFoundChats(): Result<List<ChatSummary>> = Result.success(emptyList())
 
     override suspend fun addRecentlyFound(chatId: Long): Result<Unit> = Result.success(Unit)

@@ -11,7 +11,14 @@ data class MessageSearchFilter(
     val chatKind: ChatKind? = null,
     /** Jen zprávy z období; `null` = kdykoli. */
     val period: SearchPeriod? = null,
+    /**
+     * U hashtagového dotazu veřejné příspěvky kanálů místo zpráv z vlastních chatů
+     * (`searchPublicMessagesByTag`). Druh chatu ani období se na ně nevztahují — jsou to vždycky
+     * kanály a období API nebere —, proto s nimi UI ty dva filtry schová.
+     */
+    val publicPosts: Boolean = false,
 ) {
+    /** Zužuje filtr výsledky? Volba veřejných příspěvků nic nezužuje, jen mění zdroj. */
     val isEmpty: Boolean get() = chatKind == null && period == null
 }
 

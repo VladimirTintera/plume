@@ -3844,6 +3844,17 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
 - **Hashtagový dotaz hledá jen zprávy** (`isHashtagQuery`). Hledání chatů i veřejných chatů
   mřížku zahodí, takže „#plume" vracelo kanály „Plumex" a „plume" — šum nad tím, co uživatel
   hledal.
+- **U hashtagu jde přepnout na veřejné příspěvky kanálů** (`HashtagSourceToggle` nad výsledky,
+  `MessageSearchFilter.publicPosts`, `searchPublicMessagesByTag`; pravidlo `searchesPublicPosts`,
+  testy `ChatSearchTest`). **Přepínač, ne druhá sekce pod zprávami**: obě jsou stránkované
+  a sekce pod nekonečnými zprávami by se k vlastní další stránce nedostala. Volba jede ve
+  filtru, protože filtr už teče celou cestou (`onFilterChange`), nuluje se se sbalením hledání
+  a stránka se k němu přiřazuje. **Druh chatu a období se s veřejnými příspěvky schovají
+  a vynulují** — jsou to vždycky kanály a období API nebere; zůstat skryté ve filtru by nesměly,
+  prázdný výsledek by radil „změň filtr", který není vidět. **Obsah je, co vrátí server**:
+  u `#telegram` i `#kotlin` na emulátoru převážně spamové kanály — tak to vidí i oficiální
+  klienti. Ověřeno: přepnutí oběma směry, dotahování stránek; otevření kanálu z výsledku
+  nezkoušeno (jde toutéž cestou jako nalezená zpráva).
 - **Zmínka a hashtag nejsou podtržené — kromě odchozí bubliny.** Podtržení patří adresám, které
   z aplikace odvedou. V odchozí bublině je ale barva odkazu barva textu (na `primary` jiná
   nejde), takže tam se podtrhávají, jinak by nebyly k poznání (`linkColor == overlayColor`).

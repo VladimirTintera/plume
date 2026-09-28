@@ -107,8 +107,8 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   2. ~~**Klikatelné zmínky a hashtagy v textu**~~ — hotovo (`@jméno` otevře chat, `#tag`
      hledání zpráv). Odkazy na Telegram (chat, zpráva, pozvánka, sada samolepek) se otevírají
      v aplikaci (`CLAUDE.md`, „Odkazy na Telegram"); zbývající druhy (boti se `start`,
-     proxy, sdílené složky, přihlašovací kódy…) jdou dál do prohlížeče. Zbývá **veřejné příspěvky s tagem**
-     (`searchPublicMessagesByTag`) jako další sekce u hashtagového dotazu.
+     proxy, sdílené složky, přihlašovací kódy…) jdou dál do prohlížeče. ~~**Veřejné příspěvky
+     s tagem**~~ — hotovo (přepínač „Vaše chaty / Veřejné příspěvky" u hashtagu).
   3. ~~**Hledání v konverzaci**~~ — hotovo (lupa v hlavičce, šipky mezi výsledky, viz
      `CLAUDE.md`, „Hledání v konverzaci"). Hledané slovo je v bublinách zvýrazněné.
      Ve skupině jde hledat i podle člena (čip v hlavičce hledání).
