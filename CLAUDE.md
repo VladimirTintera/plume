@@ -1279,6 +1279,12 @@ se z telefonu nedalo chodit zpět bez `BackHandler`, který v téhle aplikaci za
   patří `on*Container` (čas a ikony u vybraného chatu).
 - **Pozor na názvy barev `ListItemDefaults.colors`**: `contentColor` (ne `headlineColor`)
   a `supportingContentColor` (ne `supportingColor`). Hádaný název se pozná až překladem.
+  Totéž ikona: `leadingContentColor`, ne `leadingIconColor` — ta patří STARÉMU přetížení
+  s `headlineColor`, a v jednom volání se obě sady míchat nedají.
+- **Sekce mají ikony** (`SettingsSection.icon`), v barvě popisu — na vybraném řádku tedy
+  `onSecondaryContainer`, ne `onSurfaceVariant`. Ikona je dekorace (`contentDescription = null`),
+  název stojí hned vedle. „Co je nového" má megafon, ne raketu: raketou se uvnitř sekce značí
+  novinka u jedné poznámky.
 
 ### Úprava profilu
 

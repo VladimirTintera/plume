@@ -383,8 +383,7 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
     (`confirmQrCodeAuthentication`) proti skutečnému kódu z Telegram Desktop / webu zatím nikdo
     neviděl. Na iOS se čtečka dá vyzkoušet jen na telefonu, simulátor kameru nemá.
   - **Připojení boti (Telegram Business)** v seznamu relací ani v kartě „Byli jste to vy?" nejsou.
-- **Řádky sekcí nemají ikony.** Dva řádky se poznají i tak, s další sekcí to začne být znát;
-  chybí k tomu Material Symbols v `composeResources`.
+- ~~**Řádky sekcí nemají ikony.**~~ — hotovo (`SettingsSection.icon`).
 
 ## Aktualizace z obchodu
 
