@@ -198,7 +198,7 @@ takže zbytek přibude s tím, co bude umět:
 - ~~**Přeposlat**~~ — hotovo (výběr cílového chatu `ForwardRoute`, viz bod 3 nahoře).
 - ~~**Upravit popisek média**~~ — hotovo (`editMessageCaption`; popisek jde přidat, změnit
   i odebrat, viz `CLAUDE.md`, „Úprava zprávy"). ~~Zprávu s ručním formátováním~~ — hotovo
-  (pole formátování nese); dál ne zprávu s odkazem s popiskem, zmínkou jménem nebo vlastním emoji.
+  (pole formátování i odkaz s popiskem nese); dál ne zprávu se zmínkou jménem nebo vlastním emoji.
   Zbývá ověřit popisek ALBA (nabídka míří na zprávu s popiskem) a u hlasovky.
 - ~~**Vybrat víc zpráv**~~ — hotovo: „Vybrat" v nabídce přepne konverzaci do režimu výběru,
   vybrané jde zkopírovat, přeposlat i smazat naráz (`CLAUDE.md`, „Výběr víc zpráv").
@@ -339,14 +339,12 @@ v `CLAUDE.md`, „Náhled odkazu při psaní". Co zbývá:
 
 ## ~~Odesílání formátovaného textu~~ — HOTOVO
 
-Tučné, kurzíva, podtržení, přeškrtnutí, spoiler, kód a citace z lišty s ikonami, která
+Tučné, kurzíva, podtržení, přeškrtnutí, odkaz s popiskem, spoiler, kód a citace z lišty s ikonami, která
 vyjede pod polem s označeným textem; formátování jde se zprávou, s konceptem i s úpravou (formátované zprávy se tím dají
 upravovat). Poučení v `CLAUDE.md`, „Formátování při psaní". Zbývá:
 
 - **Ověřit iOS** (jen přeložené) — hlavně jestli lištu pod polem nepřekryje systémová nabídka
   výběru nebo návrhy klávesnice.
-- **Odkaz s vlastním popiskem** („Odkaz…" nad výběrem, dialog s adresou) — dokud není, zprávu
-  s takovým odkazem nejde upravit.
 - **Psaní s formátem bez výběru** (zapnout tučné a psát dál) — dnes se formátuje jen výběr.
 - **Sbalitelná citace** z nabídky (dnes se jen přenáší z upravované zprávy) a **jazyk bloku kódu**.
 - **`Modifier.contentReceiver`** místo obchvatu přes `InterceptPlatformTextInput` u GIFů

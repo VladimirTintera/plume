@@ -748,6 +748,10 @@
     <string name="format_spoiler">Spoiler</string>
     <string name="format_code">Code</string>
     <string name="format_quote">Quote</string>
+    <string name="format_link">Link</string>
+    <string name="format_link_hint">Address, e.g. example.com</string>
+    <string name="format_link_save">Save</string>
+    <string name="format_link_remove">Remove link</string>
     <string name="format_clear">Clear formatting</string>
     <string name="paste_gif">Paste GIF</string>
     <string name="paste_image">Paste image</string>

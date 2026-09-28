@@ -755,6 +755,10 @@
     <string name="format_spoiler">Spoiler</string>
     <string name="format_code">Kód</string>
     <string name="format_quote">Citace</string>
+    <string name="format_link">Odkaz</string>
+    <string name="format_link_hint">Adresa, třeba example.com</string>
+    <string name="format_link_save">Uložit</string>
+    <string name="format_link_remove">Odebrat odkaz</string>
     <string name="format_clear">Bez formátování</string>
     <string name="paste_gif">Vložit GIF</string>
     <string name="paste_image">Vložit obrázek</string>

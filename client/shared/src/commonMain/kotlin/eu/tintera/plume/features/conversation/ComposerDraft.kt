@@ -26,6 +26,8 @@ import eu.tintera.plume.core.telegram.TextFormat
 import eu.tintera.plume.core.telegram.afterEdit
 import eu.tintera.plume.core.telegram.cleared
 import eu.tintera.plume.core.telegram.covers
+import eu.tintera.plume.core.telegram.linkAt
+import eu.tintera.plume.core.telegram.linked
 import eu.tintera.plume.core.telegram.toggled
 import eu.tintera.plume.core.telegram.within
 import kotlin.reflect.KProperty
@@ -80,6 +82,15 @@ internal class ComposerDraft(value: TextFieldValue = TextFieldValue(), formats: 
             return !selection.collapsed && formats.any { it.start < selection.max && it.end > selection.min }
         }
 
+    /** Adresa odkazu na celém výběru, nebo `null` — podle toho dialog odkazu nabídne úpravu. */
+    val selectionLink: String?
+        get() = value.selection.let { formats.linkAt(it.min, it.max) }
+
+    /** Odkaz na [url] přes úsek `[start, end)`; `null` ho sundá. */
+    fun link(start: Int, end: Int, url: String?) {
+        formats = formats.linked(start, end, url)
+    }
+
     fun clearSelection() {
         if (value.selection.collapsed) return
         formats = formats.cleared(value.selection.min, value.selection.max)
@@ -90,22 +101,33 @@ internal class ComposerDraft(value: TextFieldValue = TextFieldValue(), formats: 
     operator fun setValue(thisRef: Any?, property: KProperty<*>, newValue: TextFieldValue) = update(newValue)
 
     companion object {
+        private const val RECORD = "\u001E"
+        private const val FIELD = "\u001F"
+
         val Saver: Saver<ComposerDraft, Any> = listSaver(
             save = { draft ->
                 listOf(
                     draft.value.text,
                     draft.value.selection.start,
                     draft.value.selection.end,
-                    draft.formats.joinToString(";") { "${it.format.name}:${it.start}:${it.end}" },
+                    // Oddělovače mimo tisknutelné znaky: adresa odkazu obsahuje „:" i „;".
+                    draft.formats.joinToString(RECORD) {
+                        listOf(it.format.name, it.start, it.end, it.url.orEmpty()).joinToString(FIELD)
+                    },
                 )
             },
             restore = { saved ->
                 ComposerDraft(
                     value = TextFieldValue(saved[0] as String, TextRange(saved[1] as Int, saved[2] as Int)),
-                    formats = (saved[3] as String).split(';').filter { it.isNotEmpty() }.mapNotNull { entry ->
-                        val (name, start, end) = entry.split(':').takeIf { it.size == 3 } ?: return@mapNotNull null
-                        val format = TextFormat.entries.firstOrNull { it.name == name } ?: return@mapNotNull null
-                        FormatSpan(format, start.toIntOrNull() ?: return@mapNotNull null, end.toIntOrNull() ?: return@mapNotNull null)
+                    formats = (saved[3] as String).split(RECORD).filter { it.isNotEmpty() }.mapNotNull { entry ->
+                        val fields = entry.split(FIELD).takeIf { it.size == 4 } ?: return@mapNotNull null
+                        val format = TextFormat.entries.firstOrNull { it.name == fields[0] } ?: return@mapNotNull null
+                        FormatSpan(
+                            format = format,
+                            start = fields[1].toIntOrNull() ?: return@mapNotNull null,
+                            end = fields[2].toIntOrNull() ?: return@mapNotNull null,
+                            url = fields[3].ifEmpty { null },
+                        )
                     },
                 )
             },
@@ -146,6 +168,8 @@ internal class FormattingTransformation(
         TextFormat.Code, TextFormat.CodeBlock ->
             SpanStyle(fontFamily = FontFamily.Monospace, background = contentColor.copy(alpha = CODE_FIELD_ALPHA))
         TextFormat.Quote, TextFormat.ExpandableQuote -> SpanStyle(background = accentColor.copy(alpha = QUOTE_FIELD_ALPHA))
+        // Jako odkaz ve zprávě: akcent a podtržení (podtržení nese odlišení i tam, kde barva splývá).
+        TextFormat.Link -> SpanStyle(color = accentColor, textDecoration = TextDecoration.Underline)
     }
 
     // `VisualTransformation` pole porovnává, aby nepřepočítávalo text při každé kompozici.

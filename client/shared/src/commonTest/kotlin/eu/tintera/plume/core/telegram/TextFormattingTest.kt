@@ -159,7 +159,6 @@ class TextFormattingTest {
     @Test
     fun coPoleNeuneseToUpravuZakaze() {
         val text = "klikni sem"
-        assertNull(composedFormatsOf(text, listOf(MessageEntity(0, 10, MessageEntityType.Link("https://x.cz")))))
         assertNull(composedFormatsOf(text, listOf(MessageEntity(0, 6, MessageEntityType.MentionUser(1)))))
         assertNull(composedFormatsOf(text, listOf(MessageEntity(0, 6, MessageEntityType.Code(true, "kotlin")))))
         // Blok bez jazyka pole unese.
@@ -167,5 +166,52 @@ class TextFormattingTest {
             listOf(FormatSpan(CodeBlock, 0, 6)),
             composedFormatsOf(text, listOf(MessageEntity(0, 6, MessageEntityType.Code(block = true)))),
         )
+    }
+
+    @Test
+    fun odkazSPopiskemPoleUnese() {
+        val text = "klikni sem"
+        assertEquals(
+            listOf(FormatSpan(TextFormat.Link, 0, 10, "https://x.cz")),
+            composedFormatsOf(text, listOf(MessageEntity(0, 10, MessageEntityType.Link("https://x.cz")))),
+        )
+    }
+
+    @Test
+    fun odkazNaVyberu() {
+        val spans = emptyList<FormatSpan>().linked(0, 6, "https://x.cz")
+        assertEquals(listOf(FormatSpan(TextFormat.Link, 0, 6, "https://x.cz")), spans)
+        assertEquals("https://x.cz", spans.linkAt(1, 4))
+        assertNull(spans.linkAt(4, 8))
+        // Jiná adresa přes kus odkazu ho rozdělí; sousední odkazy jinam se nespojí.
+        assertEquals(
+            listOf(FormatSpan(TextFormat.Link, 0, 3, "https://x.cz"), FormatSpan(TextFormat.Link, 3, 6, "https://y.cz")),
+            spans.linked(3, 6, "https://y.cz"),
+        )
+        // `null` odkaz sundá.
+        assertEquals(emptyList(), spans.linked(0, 6, null))
+    }
+
+    @Test
+    fun odkazSePsanimNaKonciNeprodluzuje() {
+        val spans = listOf(FormatSpan(TextFormat.Link, 0, 4, "https://x.cz"))
+        assertEquals(spans, spans.afterEdit("tady", "tady je", cursor = 7))
+        // Uvnitř popisku ano.
+        assertEquals(
+            listOf(FormatSpan(TextFormat.Link, 0, 5, "https://x.cz")),
+            spans.afterEdit("tady", "taady", cursor = 2),
+        )
+    }
+
+    @Test
+    fun adresaOdkazu() {
+        assertEquals("https://example.com", linkTargetOf("example.com"))
+        assertEquals("http://example.com/a?b", linkTargetOf(" http://example.com/a?b "))
+        assertEquals("tg://resolve?domain=durov", linkTargetOf("tg://resolve?domain=durov"))
+        assertEquals("mailto:jana@example.com", linkTargetOf("mailto:jana@example.com"))
+        assertNull(linkTargetOf("javascript:alert(1)"))
+        assertNull(linkTargetOf("ahoj"))
+        assertNull(linkTargetOf("example .com"))
+        assertNull(linkTargetOf(""))
     }
 }

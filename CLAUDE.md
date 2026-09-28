@@ -3296,10 +3296,10 @@ u pole (`ScheduledMessagesSheet`): odeslat hned, změnit čas, smazat.
 text, tlačítko je fajfka a potvrzení volá `editMessageText`.
 
 - **Nenabízí se u zpráv, jejichž obsah pole neunese** (`composerEdit`, `composedFormatsOf`).
-  Ruční formátování (tučné, kurzíva, podtržení, přeškrtnutí, spoiler, kód, citace) pole nese
-  (viz „Formátování při psaní"); odkazy psané v textu, `@jméno`, hashtagy, příkazy a čas v médiu
-  se při uložení dohledají znovu. Odkaz s vlastním popiskem, zmínka jménem, vlastní emoji, datum
-  a blok kódu s jazykem by úprava tiše smazala — u nich „Upravit" není. Automatický odkaz se
+  Ruční formátování (tučné, kurzíva, podtržení, přeškrtnutí, spoiler, kód, citace) i odkaz
+  s vlastním popiskem pole nese (viz „Formátování při psaní"); odkazy psané v textu, `@jméno`,
+  hashtagy, příkazy a čas v médiu se při uložení dohledají znovu. Zmínka jménem, vlastní emoji,
+  datum a blok kódu s jazykem by úprava tiše smazala — u nich „Upravit" není. Automatický odkaz se
   pozná tak, že jeho text v adrese opravdu stojí.
 - **Popisek přílohy je JINÉ volání** (`editMessageCaption` vedle `editMessageText`), takže
   pravidlo neříká jen „jde to", ale i CO se upravuje (`ComposerEdit.Text` / `Caption`). Jedno
@@ -3338,7 +3338,7 @@ text, tlačítko je fajfka a potvrzení volá `editMessageText`.
 ### Formátování při psaní
 
 Dokud je v poli označený text, vyjede pod ním lišta s ikonami: Tučné, Kurzíva, Podtržené,
-Přeškrtnuté, Spoiler, Kód, Citace a Bez formátování (`FormattingBar`); použitý formát má
+Přeškrtnuté, Odkaz, Spoiler, Kód, Citace a Bez formátování (`FormattingBar`); použitý formát má
 tlačítko zapnuté. Odejde
 se zprávou, uloží se s konceptem a vrátí se do pole při úpravě zprávy. Model a pravidla jsou čisté
 funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
@@ -3381,6 +3381,15 @@ funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
 - **Doménový `MessageEntityType.Code` nese `block` a `language`** — kvůli úpravě: bez nich by se
   blok kódu vrátil jako kód v řádku a jazyk bloku by úprava smazala (u bloku s jazykem se proto
   „Upravit" nenabízí).
+- **Odkaz s popiskem je formát s adresou** (`TextFormat.Link`, `FormatSpan.url` →
+  `TextEntityTypeTextUrl`). „Odkaz" v liště otevře dialog s adresou (`LinkDialog`,
+  `linkTargetOf`: bez schématu `https://`, jinak jen `http(s)`, `tg://` a `mailto:`). Dialog
+  drží obrazovka, ne lišta, a úsek se zachytí při ťuknutí: dialog vezme poli fokus a lišta
+  s ním zmizí i se svým stavem. **Odkaz se psaním na konci neprodlužuje** (na rozdíl od tučného)
+  a sousední odkazy na různé adresy se nespojí. V odkazu se nic nedohledává — adresa napsaná jako
+  popisek by jinak byla druhým odkazem přes tentýž text. Tlačítko stojí hned za písmem: na
+  složeném Foldu by jako osmé ujelo za okraj. Uložený stav pole odděluje pole znaky `\u001E`
+  a `\u001F`, protože adresa obsahuje „:" i „;".
 - **Koncept nese formátování** (`saveDraft(formats)`, obnova `draftFormatsOf`). Na rozdíl od
   úpravy se koncept nevzdává: z konceptu jiného klienta s vlastním emoji se vrátí aspoň tučné.
 - **Změna jen formátování je změna**: uloží koncept (`onDraftChanged` bez změny textu neohlašuje
@@ -3390,7 +3399,8 @@ funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
 - **Ověřeno na emulátoru** (anglicky, Fold složený): tučné v poli i v odeslané bublině, úprava
   tučné zprávy s přidanou kurzívou („edited", tučné zůstalo), koncept s tučným po zabití
   aplikace; bot přes Bot API dostal `code`, `bold` + `spoiler` a `blockquote` (roztažený na
-  celý řádek). iOS jen přeložené.
+  celý řádek) a `text_link` z dialogu; úprava zprávy s odkazem ho vrátí do pole a dialog nabídne
+  změnu i odebrání. iOS jen přeložené.
 
 ### Náhled odkazu při psaní
 
