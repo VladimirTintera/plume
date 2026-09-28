@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -15,7 +16,9 @@ import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,6 +36,9 @@ import eu.tintera.plume.core.telegram.BlockedSender
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.GROUP_CORNER
+import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
+import eu.tintera.plume.core.ui.GROUP_SPACING
 import eu.tintera.plume.core.ui.PickerSection
 import eu.tintera.plume.core.ui.SheetActionRow
 import eu.tintera.plume.core.ui.avatarShape
@@ -44,7 +50,18 @@ import eu.tintera.plume.resources.auto_delete_off
 import eu.tintera.plume.resources.timer_24dp
 import eu.tintera.plume.core.ui.durationText
 import eu.tintera.plume.features.profile.AutoDeleteSheet
+import eu.tintera.plume.resources.add_24dp
 import eu.tintera.plume.resources.block_24dp
+import eu.tintera.plume.resources.chats_search_section_chats
+import eu.tintera.plume.resources.common_cancel
+import eu.tintera.plume.resources.new_chat_contacts
+import eu.tintera.plume.resources.new_chat_empty
+import eu.tintera.plume.resources.person_24dp
+import eu.tintera.plume.resources.profile_block
+import eu.tintera.plume.resources.profile_block_title
+import eu.tintera.plume.resources.settings_block_body
+import eu.tintera.plume.resources.settings_block_search
+import eu.tintera.plume.resources.settings_block_user
 import eu.tintera.plume.resources.chats_undo
 import eu.tintera.plume.resources.chats_unblocked
 import eu.tintera.plume.resources.profile_unblock
@@ -187,9 +204,14 @@ private fun SensitiveContentRow(viewModel: SensitiveContentViewModel) {
 fun BlockedSendersScreen(
     viewModel: BlockedSendersViewModel,
     onBack: () -> Unit,
+    /** „Zablokovat uživatele" — výběr ([BlockSenderScreen]), který se vrší nad seznam. */
+    onBlockUser: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // Seznam se čte při každém složení: obrazovka pod výběrem k zablokování složená není, takže
+    // návrat z něj ji složí znovu — a zablokovaný v ní má být hned vidět.
+    LaunchedEffect(viewModel) { viewModel.reload() }
     val snackbarHostState = remember { SnackbarHostState() }
     // Snackbar běží mimo efekt: vynulování události mění klíč efektu a zrušilo by ho
     // (stejná past jako „Vrátit" u archivace v seznamu chatů).
@@ -227,6 +249,7 @@ fun BlockedSendersScreen(
         emptyText = if (blankQuery) stringResource(Res.string.settings_blocked_summary) else null,
         error = state.error,
         onErrorShown = viewModel::consumeError,
+        header = { BlockUserRow(onClick = onBlockUser) },
         modifier = modifier,
     )
 
@@ -236,6 +259,85 @@ fun BlockedSendersScreen(
             title = sender.title.ifBlank { deleted },
             onUnblock = { viewModel.unblock(sender) },
             onDismiss = viewModel::dismissActions,
+        )
+    }
+}
+
+/**
+ * „Zablokovat uživatele" nad seznamem. Je to akce, ne položka seznamu, proto samostatný blok
+ * s ikonou v akcentu; stojí nad seznamem i v prázdném stavu, kdy je to jediné, co tu jde dělat.
+ */
+@Composable
+private fun BlockUserRow(onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(GROUP_CORNER),
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = GROUP_SPACING - GROUP_ITEM_SPACING),
+    ) {
+        ListItem(
+            colors = ListItemDefaults.colors(
+                containerColor = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.primary,
+                leadingContentColor = MaterialTheme.colorScheme.primary,
+            ),
+            leadingContent = { Icon(painterResource(Res.drawable.add_24dp), contentDescription = null) },
+            headlineContent = { Text(stringResource(Res.string.settings_block_user)) },
+            modifier = Modifier.clickable(onClick = onClick),
+        )
+    }
+}
+
+/**
+ * Výběr, koho zablokovat: kontakty, a při hledání i ostatní známé chaty. Tentýž `ChatPicker`
+ * jako seznam blokovaných a nová konverzace. **Zablokování se potvrzuje dialogem**, jako
+ * v profilu: ťuknutí vedle v dlouhém seznamu kontaktů by jinak zablokovalo někoho jiného
+ * a „Vrátit" ve snackbaru tu není kde ukázat — obrazovka po zablokování odchází.
+ */
+@Composable
+fun BlockSenderScreen(
+    viewModel: BlockSenderViewModel,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    if (state.done) {
+        // Jednorázově: obrazovka odchází a seznam blokovaných pod ní se přečte znovu.
+        LaunchedEffect(Unit) { onBack() }
+    }
+    val blankQuery = state.query.isBlank()
+    ChatPicker(
+        title = stringResource(Res.string.settings_block_user),
+        query = state.query,
+        onQueryChange = viewModel::onQueryChange,
+        searchPlaceholder = stringResource(Res.string.settings_block_search),
+        loading = state.loading && state.contacts.isEmpty(),
+        sections = listOf(
+            PickerSection(key = "contacts", chats = state.contacts, title = stringResource(Res.string.new_chat_contacts)),
+            PickerSection(key = "others", chats = state.others, title = stringResource(Res.string.chats_search_section_chats)),
+        ),
+        enabled = !state.blocking,
+        onPick = viewModel::choose,
+        onBack = onBack,
+        emptyIcon = if (blankQuery) Res.drawable.person_24dp else Res.drawable.search_off_24dp,
+        emptyTitle = if (blankQuery) stringResource(Res.string.new_chat_empty) else null,
+        error = state.error,
+        onErrorShown = viewModel::consumeError,
+        modifier = modifier,
+    )
+
+    state.pending?.let { chat ->
+        AlertDialog(
+            onDismissRequest = viewModel::cancel,
+            title = { Text(stringResource(Res.string.profile_block_title, chat.title)) },
+            text = { Text(stringResource(Res.string.settings_block_body)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::confirm) {
+                    Text(stringResource(Res.string.profile_block), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = viewModel::cancel) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
 }

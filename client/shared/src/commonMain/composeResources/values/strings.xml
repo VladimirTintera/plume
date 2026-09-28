@@ -1131,6 +1131,9 @@
     <string name="settings_blocked_deleted">Deleted account</string>
     <string name="settings_blocked_failed">Couldn't change blocking</string>
     <string name="settings_blocked_load_failed">Couldn't load the list</string>
+    <string name="settings_block_user">Block a user</string>
+    <string name="settings_block_search">Search contacts and chats</string>
+    <string name="settings_block_body">They won't be able to message or call you. You can unblock them any time in Blocked.</string>
     <plurals name="settings_blocked_count">
         <item quantity="one">%1$d account</item>
         <item quantity="other">%1$d accounts</item>

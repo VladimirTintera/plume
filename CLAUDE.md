@@ -2325,6 +2325,17 @@ i profil stojí na chatu, a ten po smazání není.
   „14 zablokovaných": pod nadpisem „Blokovaní" by to slovo stálo dvakrát.
 - **Smazaný účet má v avataru iniciály „SÚ"** — `ChatPicker` je bere z názvu. Nehezké, ale
   vlastní avatar kvůli jednomu druhu řádku by znamenal rozbít společný řádek výběru.
+- **„Zablokovat uživatele" je blok nad seznamem** (`header` výběru), výběr je další obrazovka
+  (`BlockSenderRoute`, `BlockSenderScreen`) nad seznamem blokovaných: kontakty a při hledání
+  ostatní známé chaty (`blockCandidates`, testy `BlockCandidatesTest`). **Jen soukromé chaty**
+  (lidé a boti), bez Uložených zpráv a bez už blokovaných — kanál nebo skupinu jde zablokovat
+  jako odesílatele u její zprávy, jako položka seznamu by slibovala něco, co blokování neumí.
+- **Zablokování z výběru se potvrzuje dialogem**, přestože nabídka nad chatem má jen snackbar
+  s „Vrátit": obrazovka po zablokování odchází, takže snackbar není kde ukázat, a ťuknutí vedle
+  v dlouhém seznamu kontaktů by zablokovalo někoho jiného. Stejně jako v profilu.
+- **Seznam blokovaných se čte při KAŽDÉM složení** (`LaunchedEffect`), ne v `init` ViewModelu.
+  Pod výběrem k zablokování složený není (NavDisplay kreslí jen horní scénu), takže návrat ho
+  složí znovu a nově zablokovaný je v něm hned; řádek v Obecných čte počet sám při návratu.
 - **Ověřeno na emulátoru** (česky): 14 blokovaných na skutečném účtu jen prohlížením, hledání
   „sop" bez diakritiky, nabídka po ťuknutí zavřená bez akce; na testovacím botovi zablokovat
   z nabídky nad chatem → v seznamu odblokovat (řádek zmizí, snackbar) → „Vrátit" (řádek zpátky)
