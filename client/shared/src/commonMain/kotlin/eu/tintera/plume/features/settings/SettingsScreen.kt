@@ -11,8 +11,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -25,9 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.campaign_24dp
-import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.devices_24dp
 import eu.tintera.plume.resources.notifications_24dp
 import eu.tintera.plume.resources.palette_24dp
@@ -63,30 +59,19 @@ fun SettingsScreen(
     /** Šipka zpět do Chatů. Nastavení se otevírají z menu účtu, jiná cesta zpět není. */
     onBack: (() -> Unit)? = null,
 ) {
+    val scrollBehavior = settingsScrollBehavior()
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.settingsScroll(scrollBehavior),
         topBar = {
-            LargeFlexibleTopAppBar(
-                title = { Text(stringResource(Res.string.settings_title)) },
-                navigationIcon = {
-                    if (onBack != null) {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                painterResource(Res.drawable.arrow_back_24dp),
-                                contentDescription = stringResource(Res.string.common_back),
-                            )
-                        }
-                    }
-                },
-            )
+            SettingsTopBar(title = stringResource(Res.string.settings_title), onBack = onBack, scrollBehavior = scrollBehavior)
         },
     ) { padding ->
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .settingsContentPadding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = settingsContentBottom(padding, 8.dp)),
             // Rozestup uvnitř bloku, stejný jazyk jako seznam chatů: ze sekcí je jeden blok
             // se společným zaoblením, ne řada samostatných karet.
             verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),

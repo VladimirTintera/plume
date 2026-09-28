@@ -1281,6 +1281,15 @@ se z telefonu nedalo chodit zpět bez `BackHandler`, který v téhle aplikaci za
   a `supportingContentColor` (ne `supportingColor`). Hádaný název se pozná až překladem.
   Totéž ikona: `leadingContentColor`, ne `leadingIconColor` — ta patří STARÉMU přetížení
   s `headlineColor`, a v jednom volání se obě sady míchat nedají.
+- **Velký nadpis se na jednom panelu sbaluje, v dvoupanelu ne** (`SettingsTopBar`,
+  `settingsScrollBehavior`, podle `LocalTwoPane`). `LargeFlexibleTopAppBar` byl bez scroll
+  behavior, takže se nesbaloval vůbec a na telefonu trvale bral sedminu výšky. Sbalený je 64dp
+  lišta a **barvu nemění** (`scrolledContainerColor = surface`) — tónovaný pruh přes celou šířku
+  je důvod, proč seznam chatů velký bar opustil. V dvoupanelu by se sekce vpravo sbalila, zatímco
+  krátký seznam sekcí vlevo zůstal velký: dvě hlavičky různé výšky vedle sebe.
+- **Spodní inset patří do scrollovaného obsahu, ne na kontejner** (`settingsContentPadding`,
+  `settingsContentBottom`). S paddingem ze Scaffoldu na sloupci končila dlouhá sekce ostrou
+  hranou nad navigační lištou — tentýž vzor jako seznam chatů a výběr chatu.
 - **Sekce mají ikony** (`SettingsSection.icon`), v barvě popisu — na vybraném řádku tedy
   `onSecondaryContainer`, ne `onSurfaceVariant`. Ikona je dekorace (`contentDescription = null`),
   název stojí hned vedle. „Co je nového" má megafon, ne raketu: raketou se uvnitř sekce značí

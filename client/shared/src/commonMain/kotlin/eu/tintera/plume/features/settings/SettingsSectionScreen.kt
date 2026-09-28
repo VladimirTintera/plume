@@ -9,9 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -24,10 +21,7 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.features.devices.DevicesSettings
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.arrow_back_24dp
-import eu.tintera.plume.resources.common_back
 import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -48,31 +42,20 @@ fun SettingsSectionScreen(
 ) {
     // Hlášky sekcí (odhlášené zařízení, výsledek QR přihlášení, neuložené nastavení notifikací).
     val snackbarHostState = remember { SnackbarHostState() }
+    val scrollBehavior = settingsScrollBehavior()
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.settingsScroll(scrollBehavior),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            LargeFlexibleTopAppBar(
-                title = { Text(stringResource(section.title)) },
-                navigationIcon = {
-                    if (onBack != null) {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                painterResource(Res.drawable.arrow_back_24dp),
-                                contentDescription = stringResource(Res.string.common_back),
-                            )
-                        }
-                    }
-                },
-            )
+            SettingsTopBar(title = stringResource(section.title), onBack = onBack, scrollBehavior = scrollBehavior)
         },
     ) { padding ->
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .settingsContentPadding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = settingsContentBottom(padding, 8.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Jen jedna větev se skládá, takže vznikne právě jeden ViewModel — ten druhý
