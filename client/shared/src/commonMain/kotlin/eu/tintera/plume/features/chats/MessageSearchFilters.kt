@@ -64,6 +64,8 @@ import eu.tintera.plume.resources.search_filter_year_short
 import eu.tintera.plume.resources.search_filter_month_short
 import eu.tintera.plume.resources.search_filter_week_short
 import eu.tintera.plume.resources.search_filter_year
+import eu.tintera.plume.resources.search_source_chats
+import eu.tintera.plume.resources.search_source_public
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
@@ -262,6 +264,50 @@ private fun Long.shortDate(): String {
     val date: LocalDate = Instant.fromEpochSeconds(this).toLocalDateTime(TimeZone.currentSystemDefault()).date
     return stringResource(Res.string.date_short, date.day, date.month.ordinal + 1)
 }
+
+/**
+ * U hashtagu odkud: vlastní chaty, nebo veřejné příspěvky kanálů (`searchPublicMessagesByTag`).
+ *
+ * Tentýž prvek jako druh chatu — connected button group —, jen vybrané je vždycky právě jedno:
+ * je to volba zdroje, ne filtr, který jde vypnout. Přepínač místo dvou sekcí pod sebou: obě jsou
+ * stránkované a jedna by se k druhé nedostala, dokud by se nedotáhla celá.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun HashtagSourceToggle(filter: MessageSearchFilter, onChange: (MessageSearchFilter) -> Unit) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        SOURCES.forEachIndexed { index, (public, label) ->
+            val selected = filter.publicPosts == public
+            ToggleButton(
+                checked = selected,
+                // Druh chatu a období se na veřejné příspěvky nevztahují a UI je schová — zůstat
+                // v filtru nesmí, jinak by prázdný výsledek radil „zkus změnit filtr", který není vidět.
+                onCheckedChange = {
+                    if (!selected) onChange(if (public) MessageSearchFilter(publicPosts = true) else filter.copy(publicPosts = false))
+                },
+                shapes = if (index == 0) ButtonGroupDefaults.connectedLeadingButtonShapes() else ButtonGroupDefaults.connectedTrailingButtonShapes(),
+                modifier = Modifier.weight(1f).semantics { this.selected = selected },
+            ) {
+                AnimatedVisibility(visible = selected) {
+                    Icon(
+                        painterResource(Res.drawable.check_24dp),
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = ButtonDefaults.IconSpacing).size(ButtonDefaults.IconSize),
+                    )
+                }
+                Text(stringResource(label), maxLines = 1)
+            }
+        }
+    }
+}
+
+private val SOURCES: List<Pair<Boolean, StringResource>> = listOf(
+    false to Res.string.search_source_chats,
+    true to Res.string.search_source_public,
+)
 
 private val KIND_CHIPS: List<Pair<ChatKind, StringResource>> = listOf(
     ChatKind.Private to Res.string.search_filter_private,

@@ -1028,6 +1028,8 @@
     <string name="profile_leave_group">Opustit skupinu</string>
     <string name="profile_leave_channel">Opustit kanál</string>
     <string name="profile_action_failed">Nepovedlo se to. Zkus to znovu.</string>
+    <string name="search_source_chats">Vaše chaty</string>
+    <string name="search_source_public">Veřejné příspěvky</string>
     <string name="search_filter_private">Soukromé</string>
     <string name="search_filter_groups">Skupiny</string>
     <string name="search_filter_channels">Kanály</string>

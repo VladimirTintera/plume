@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.ui.highlightRanges
+import eu.tintera.plume.core.telegram.MessageSearchFilter
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary
@@ -117,6 +118,17 @@ class ChatSearchTest {
     }
 
     /** Další stránka zpráv nesmí zopakovat zprávu z hranice předchozí; stejné id v jiném chatu je jiná zpráva. */
+    @Test
+    fun verejnePrispevkyJenUHashtagu() {
+        val public = MessageSearchFilter(publicPosts = true)
+        assertTrue(searchesPublicPosts("#plume", public))
+        // Obyčejný dotaz veřejné příspěvky nehledá, ani se zapnutou volbou.
+        assertFalse(searchesPublicPosts("plume", public))
+        assertFalse(searchesPublicPosts("#plume", MessageSearchFilter()))
+        // Volba zdroje filtr nezužuje — prázdný výsledek neradí „změň filtr".
+        assertTrue(public.isEmpty)
+    }
+
     @Test
     fun strankyZpravBezDuplicit() {
         val merged = mergeFoundMessages(

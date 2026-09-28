@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.telegram
 
 import kotlin.time.Clock
+import dev.g000sha256.tdl.dto.FoundMessages
 import dev.g000sha256.tdl.dto.ChatMemberStatusAdministrator
 import dev.g000sha256.tdl.dto.InternalLinkTypeBotStartInGroup
 import dev.g000sha256.tdl.dto.SearchMessagesChatTypeFilterChannel
@@ -881,29 +882,40 @@ class TdlChatRepository(
             maxDate = maxDate,
         )
             .toResult()
-            .map { found ->
-                val messages = found.messages.filterNotNull()
-                val chats = summariesFor(messages.map { it.chatId }.distinct().toLongArray()).associateBy { it.id }
-                FoundMessagesPage(
-                    messages = messages.mapNotNull { message ->
-                        val chat = chats[message.chatId] ?: return@mapNotNull null
-                        FoundMessage(
-                            chat = chat,
-                            messageId = message.id,
-                            text = message.previewText(),
-                            date = message.date,
-                            isOutgoing = message.isOutgoing,
-                            senderName = if (chat.kind == ChatKind.Group && !message.isOutgoing) {
-                                foundSenderName(message.senderId, message.chatId)
-                            } else {
-                                null
-                            },
-                        )
+            .map { it.toPage() }
+    }
+
+    override suspend fun searchPublicPosts(tag: String, offset: String): Result<FoundMessagesPage> =
+        client.searchPublicMessagesByTag(tag = tag, offset = offset, limit = MESSAGE_SEARCH_PAGE)
+            .toResult()
+            .map { it.toPage() }
+
+    /**
+     * Stránka nalezených zpráv. Chaty se dočtou ([summariesFor]) — u veřejných příspěvků jde
+     * o kanály, které uživatel nesleduje a TDLib je zná jen díky téhle odpovědi.
+     */
+    private suspend fun FoundMessages.toPage(): FoundMessagesPage {
+        val found = messages.filterNotNull()
+        val chats = summariesFor(found.map { it.chatId }.distinct().toLongArray()).associateBy { it.id }
+        return FoundMessagesPage(
+            messages = found.mapNotNull { message ->
+                val chat = chats[message.chatId] ?: return@mapNotNull null
+                FoundMessage(
+                    chat = chat,
+                    messageId = message.id,
+                    text = message.previewText(),
+                    date = message.date,
+                    isOutgoing = message.isOutgoing,
+                    senderName = if (chat.kind == ChatKind.Group && !message.isOutgoing) {
+                        foundSenderName(message.senderId, message.chatId)
+                    } else {
+                        null
                     },
-                    // Prázdný `nextOffset` je u TDLib konec výsledků.
-                    nextOffset = found.nextOffset.takeIf { it.isNotEmpty() },
                 )
-            }
+            },
+            // Prázdný `nextOffset` je u TDLib konec výsledků.
+            nextOffset = nextOffset.takeIf { it.isNotEmpty() },
+        )
     }
 
     /**
