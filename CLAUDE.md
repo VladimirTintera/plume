@@ -7524,6 +7524,20 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
 - **Sdílený text rozepsaný koncept DOPLNÍ, nepřepíše**, a vkládá se až po obnovení konceptu
   z TDLib (`draftRestored`) — koncept jde jen do prázdného pole, takže sdílení před ním by ho
   vytlačilo.
+- **Koncept a sdílený text přijdou do pole HNED PO SOBĚ, takže obrazovka nuluje jen to vložení,
+  které provedla** (`consumeInputFill(fill)`, porovnává instanci). Bezpodmínečné vynulování
+  smazalo sdílený text dřív, než ho obrazovka uviděla: pole zůstalo prázdné, ViewModel ho přitom
+  vedl jako koncept a uložil do TDLib — a další sdílení ho připojilo podruhé. Vyvolat se to na
+  emulátoru nepodařilo, oprava stojí na čtení kódu; ověřené je, že koncept + sdílený odkaz vyjdou
+  jako dva řádky.
+- **U sdílení TEXTU se `ClipData` nečte** (`ShareIntake.streams`). Chrome ke sdílenému odkazu
+  přikládá do `ClipData` obrázek náhledu stránky (`text/uri-list`, favicon nebo `og:image`) jen
+  kvůli náhledu v systémové nabídce. Dokud se `ClipData` bral jako záloha za `EXTRA_STREAM`, byl
+  z odkazu „1 soubor": výběr chatu ho tak hlásil, Direct Share otevřel „Komu: …" s logem webu
+  a odešla fotka s odkazem jako popiskem, bez náhledu odkazu. Skutečný soubor nese `EXTRA_STREAM`
+  (systém ho do `ClipData` jen zrcadlí) a typ intentu pak není `text/*`. **`adb shell am start`
+  `ClipData` nastavit neumí**, takže sdílení ze skutečného Chrome se ověřuje v Chrome (menu →
+  Share…); v logu je vidět `clip={text/uri-list … {U(content)}}` u `START … act=SEND`.
 - **Odchod výběru bez volby chatu sdílení zahodí**, a to v `onDispose` obrazovky, ne na šipce.
   Systémové gesto zpět jde přes `NavDisplay`, ne přes obrazovku; se zahazováním jen na šipce
   zůstalo po gestu sdílení viset a výběr by se po obnově aktivity otevřel znovu. `abandon()`

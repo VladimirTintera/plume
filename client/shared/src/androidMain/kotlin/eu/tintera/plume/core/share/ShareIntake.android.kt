@@ -93,7 +93,16 @@ class ShareIntake(
         return true
     }
 
-    /** URI sdílených souborů: `EXTRA_STREAM` (jeden i víc), záložně `ClipData`. */
+    /**
+     * URI sdílených souborů: `EXTRA_STREAM` (jeden i víc), záložně `ClipData`.
+     *
+     * **U sdílení textu se `ClipData` nečte.** Chrome ke sdílenému odkazu přikládá do `ClipData`
+     * obrázek náhledu stránky (favicon nebo `og:image`) — jen pro náhled v systémové nabídce
+     * „Sdílet", ne jako obsah. Brát ho za soubor znamenalo, že z odkazu byla fotka s odkazem jako
+     * popiskem: výběr hlásil „1 soubor", Direct Share otevřel obrazovku „Komu: …" s logem webu
+     * a text čekal, až se obrázek zkopíruje. Skutečný soubor nese `EXTRA_STREAM` (systém ho do
+     * `ClipData` jen zrcadlí) a typ intentu pak textový není.
+     */
     private fun streams(intent: Intent): List<Uri> {
         val extra = if (intent.action == Intent.ACTION_SEND_MULTIPLE) {
             IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java).orEmpty()
@@ -101,6 +110,7 @@ class ShareIntake(
             listOfNotNull(IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java))
         }
         if (extra.isNotEmpty()) return extra
+        if (intent.type?.startsWith("text/") == true) return emptyList()
         val clip = intent.clipData ?: return emptyList()
         return (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri }
     }

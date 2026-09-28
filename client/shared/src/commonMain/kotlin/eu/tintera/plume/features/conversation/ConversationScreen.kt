@@ -2482,7 +2482,7 @@ private fun MessageInput(
     onLinkPreviewOptions: (LinkPreviewOptions) -> Unit = {},
     /** Text, který se má jednou vložit do pole (koncept, úprava). */
     inputFill: InputFill?,
-    onInputFilled: () -> Unit,
+    onInputFilled: (InputFill) -> Unit,
     onOpenStickers: () -> Unit,
     onPickMedia: () -> Unit,
     onPickDocument: () -> Unit,
@@ -2541,7 +2541,7 @@ private fun MessageInput(
         if (!fill.onlyIfEmpty || draft.text.isEmpty()) {
             onDraftValueChange(TextFieldValue(fill.text, selection = TextRange(fill.text.length)))
         }
-        onInputFilled()
+        onInputFilled(fill)
     }
 
     // Úprava zprávy přílohy schová — odeslání by je stejně neposlalo.
