@@ -1,0 +1,384 @@
+package eu.tintera.plume.features.forum
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Badge
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.core.telegram.ChatKind
+import eu.tintera.plume.core.telegram.ForumTopic
+import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.ExpressiveMenu
+import eu.tintera.plume.core.ui.ForumTopicIcon
+import eu.tintera.plume.core.ui.IntroEmptyState
+import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.accentOn
+import eu.tintera.plume.core.ui.appendWithCustomEmoji
+import eu.tintera.plume.core.ui.asRelativeTime
+import eu.tintera.plume.core.ui.avatarShape
+import eu.tintera.plume.core.ui.chatAvatarKey
+import eu.tintera.plume.core.ui.chatTitleKey
+import eu.tintera.plume.core.ui.customEmojiInlineContent
+import eu.tintera.plume.core.ui.groupItemShape
+import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
+import eu.tintera.plume.core.ui.resolve
+import eu.tintera.plume.core.ui.sharedNavElement
+import eu.tintera.plume.core.ui.sharedNavText
+import eu.tintera.plume.core.ui.tabularNumbers
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.alternate_email_24dp
+import eu.tintera.plume.resources.arrow_back_24dp
+import eu.tintera.plume.resources.chats_draft_prefix
+import eu.tintera.plume.resources.chats_muted
+import eu.tintera.plume.resources.chats_section_pinned
+import eu.tintera.plume.resources.chats_unread_mention
+import eu.tintera.plume.resources.chats_unread_reaction
+import eu.tintera.plume.resources.common_back
+import eu.tintera.plume.resources.favorite_filled_24dp
+import eu.tintera.plume.resources.forum_24dp
+import eu.tintera.plume.resources.forum_topic_closed
+import eu.tintera.plume.resources.forum_topics_empty
+import eu.tintera.plume.resources.forum_topics_empty_title
+import eu.tintera.plume.resources.forum_topics_subtitle
+import eu.tintera.plume.resources.forum_view_as_messages
+import eu.tintera.plume.resources.format_list_bulleted_24dp
+import eu.tintera.plume.resources.lock_24dp
+import eu.tintera.plume.resources.more_vert_24dp
+import eu.tintera.plume.resources.notifications_off_24dp
+import eu.tintera.plume.resources.profile_more
+import eu.tintera.plume.resources.profile_open
+import eu.tintera.plume.resources.push_pin_filled_24dp
+import eu.tintera.plume.resources.sender_you
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+
+/**
+ * Seznam témat skupiny s tématy. Řádky mluví jazykem seznamu chatů: blok zaoblených řádků,
+ * tučný název jen u nepřečteného, pod ním kdo naposledy psal a co, vpravo čas a odznaky.
+ *
+ * Ikona tématu (`ForumTopicIcon`) stojí na místě avataru. Hlavička nese fotku a název skupiny
+ * — letí sem ze seznamu chatů stejně jako do konverzace, a ťuknutí na ni otevře profil skupiny.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun ForumTopicsScreen(
+    viewModel: ForumTopicsViewModel,
+    onBack: () -> Unit,
+    onOpenTopic: (topicId: Int) -> Unit,
+    onOpenProfile: () -> Unit,
+    /** Celá skupina jako jedna konverzace, jak ji znají klienti bez témat. */
+    onViewAsMessages: () -> Unit,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(onClickLabel = stringResource(Res.string.profile_open), onClick = onOpenProfile)
+                            .padding(4.dp),
+                    ) {
+                        state.info?.let { info ->
+                            Avatar(
+                                chatId = info.id,
+                                title = info.title,
+                                avatarFileId = info.avatarFileId,
+                                size = HEADER_AVATAR,
+                                shape = ChatKind.Group.avatarShape(),
+                                modifier = Modifier.padding(end = 12.dp).sharedNavElement(chatAvatarKey(info.id)),
+                            )
+                            Column {
+                                Text(
+                                    text = info.title,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.sharedNavText(chatTitleKey(info.id)),
+                                )
+                                Text(
+                                    text = stringResource(Res.string.forum_topics_subtitle),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                )
+                            }
+                        }
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                    }
+                },
+                actions = {
+                    var expanded by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { expanded = true }) {
+                            Icon(painterResource(Res.drawable.more_vert_24dp), contentDescription = stringResource(Res.string.profile_more))
+                        }
+                        ExpressiveMenu(
+                            expanded = expanded,
+                            onDismiss = { expanded = false },
+                            groups = listOf(
+                                listOf(
+                                    MenuAction(
+                                        stringResource(Res.string.forum_view_as_messages),
+                                        Res.drawable.format_list_bulleted_24dp,
+                                        onClick = {
+                                            expanded = false
+                                            onViewAsMessages()
+                                        },
+                                    ),
+                                ),
+                            ),
+                        )
+                    }
+                },
+                // Sbalený bar barvu nemění — tónovaný pruh přes celou šířku je to, co z hlavičky
+                // seznamu chatů vyhnalo velký bar.
+                colors = TopAppBarDefaults.topAppBarColors(scrolledContainerColor = MaterialTheme.colorScheme.surface),
+            )
+        },
+        // Spodek si bere seznam (`contentPadding`): témata jedou pod navigační lištu.
+        contentWindowInsets = WindowInsets(0),
+    ) { padding ->
+        val bottom = WindowInsets.navigationBars.only(WindowInsetsSides.Bottom).asPaddingValues()
+        when {
+            state.loading && state.topics.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                LoadingIndicator()
+            }
+            state.topics.isEmpty() -> IntroEmptyState(
+                icon = Res.drawable.forum_24dp,
+                title = stringResource(Res.string.forum_topics_empty_title),
+                text = state.error?.resolve() ?: stringResource(Res.string.forum_topics_empty),
+                modifier = Modifier.padding(padding),
+            )
+            else -> LazyColumn(
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = padding.calculateTopPadding() + 8.dp,
+                    bottom = bottom.calculateBottomPadding() + 16.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                itemsIndexed(state.topics, key = { _, topic -> topic.id }) { index, topic ->
+                    TopicRow(
+                        topic = topic,
+                        shape = groupItemShape(index, state.topics.size),
+                        onClick = { onOpenTopic(topic.id) },
+                        modifier = Modifier.animateItem(),
+                    )
+                    // Dotažení další stránky, když se seznam blíží ke konci. Skládání položky je
+                    // spolehlivější než `layoutInfo` (viz „Sdílená média v profilu").
+                    if (index >= state.topics.size - LOAD_MORE_THRESHOLD && state.next != null) {
+                        LaunchedEffect(state.topics.size) { viewModel.loadMore() }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TopicRow(
+    topic: ForumTopic,
+    shape: androidx.compose.ui.graphics.Shape,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
+    val secondaryColor = MaterialTheme.colorScheme.onSurfaceVariant
+    Surface(
+        shape = shape,
+        color = containerColor,
+        modifier = modifier.fillMaxWidth().clip(shape).clickable(onClick = onClick),
+    ) {
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            ForumTopicIcon(icon = topic.icon, name = topic.name, isGeneral = topic.isGeneral, size = ICON_SIZE)
+            Column(Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (topic.isPinned) {
+                        SmallIcon(Res.drawable.push_pin_filled_24dp, stringResource(Res.string.chats_section_pinned))
+                    }
+                    // Název a ikony za ním vyplní zbytek řádku, takže čas sedí na konci. Název
+                    // uvnitř má váhu BEZ vyplnění — se dvěma vahami vedle sebe (název a mezera)
+                    // si řádek rozdělily napůl a čas visel uprostřed.
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            text = topic.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = if (topic.hasUnread) FontWeight.SemiBold else null,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        // Uzavřené téma: psát do něj smí jen správci — zámek to řekne dřív, než se otevře.
+                        if (topic.isClosed) {
+                            SmallIcon(Res.drawable.lock_24dp, stringResource(Res.string.forum_topic_closed))
+                        }
+                        if (topic.isMuted) {
+                            SmallIcon(Res.drawable.notifications_off_24dp, stringResource(Res.string.chats_muted))
+                        }
+                    }
+                    listOfNotNull(topic.lastMessage?.timestamp, topic.draft?.timestamp).maxOrNull()?.let { timestamp ->
+                        Text(
+                            text = timestamp.asRelativeTime(),
+                            style = MaterialTheme.typography.labelMedium.tabularNumbers(),
+                            color = if (topic.hasUnread) MaterialTheme.colorScheme.primary else secondaryColor,
+                            maxLines = 1,
+                        )
+                    }
+                }
+                TopicPreview(topic, containerColor)
+            }
+            TopicBadges(topic)
+        }
+    }
+}
+
+/**
+ * Koncept > poslední zpráva. U zprávy kdo psal: téma má víc pisatelů, a bez jména by náhled
+ * nepoznal, jestli odpověděl ten, na koho se čeká.
+ */
+@Composable
+private fun TopicPreview(topic: ForumTopic, containerColor: androidx.compose.ui.graphics.Color) {
+    val contentColor = MaterialTheme.colorScheme.onSurface
+    val draftLabelColor = accentOn(containerColor, MaterialTheme.colorScheme.tertiary, contentColor)
+    val you = stringResource(Res.string.sender_you)
+    val draftPrefix = stringResource(Res.string.chats_draft_prefix)
+    val customEmoji = mutableSetOf<Long>()
+    val text: AnnotatedString = topic.draft?.let { draft ->
+        buildAnnotatedString {
+            withStyle(SpanStyle(color = draftLabelColor)) { append(draftPrefix) }
+            customEmoji += appendWithCustomEmoji(draft.text.replace('\n', ' '), draft.entities)
+        }
+    } ?: topic.lastMessage?.let { message ->
+        buildAnnotatedString {
+            val sender = if (message.isOutgoing) you else message.senderName
+            sender?.let { withStyle(SpanStyle(color = contentColor)) { append("$it: ") } }
+            customEmoji += appendWithCustomEmoji(message.text.replace('\n', ' '), message.entities)
+        }
+    } ?: return
+    Text(
+        text = text,
+        inlineContent = customEmojiInlineContent(customEmoji),
+        style = MaterialTheme.typography.bodyMedium,
+        color = if (topic.hasUnread) contentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+/** Odznaky jako v seznamu chatů: reakce, zmínka, počet — počet u kraje. */
+@Composable
+private fun TopicBadges(topic: ForumTopic) {
+    if (topic.unreadReactionCount == 0 && topic.unreadMentionCount == 0 && topic.unreadCount == 0) return
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (topic.unreadReactionCount > 0) {
+            IconBadge(Res.drawable.favorite_filled_24dp, stringResource(Res.string.chats_unread_reaction))
+        }
+        if (topic.unreadMentionCount > 0) {
+            IconBadge(Res.drawable.alternate_email_24dp, stringResource(Res.string.chats_unread_mention))
+        }
+        if (topic.unreadCount > 0) {
+            // Ztlumené téma má odznak neutrální — sytý by volal kvůli něčemu, co uživatel ztišil.
+            Badge(
+                containerColor = if (topic.isMuted) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.primary,
+                contentColor = if (topic.isMuted) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onPrimary,
+            ) {
+                Text(topic.unreadCount.toString(), style = LocalTextStyle.current.tabularNumbers())
+            }
+        }
+    }
+}
+
+@Composable
+private fun IconBadge(icon: DrawableResource, description: String) {
+    Badge(
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        modifier = Modifier.semantics { contentDescription = description },
+    ) {
+        Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(12.dp))
+    }
+}
+
+@Composable
+private fun SmallIcon(icon: DrawableResource, description: String) {
+    Icon(
+        painterResource(icon),
+        contentDescription = description,
+        modifier = Modifier.size(14.dp),
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/** Stejně jako avatar v hlavičce konverzace — hlavička témat je tatáž plocha. */
+private val HEADER_AVATAR = 36.dp
+
+/** Ikona tématu; menší než avatar chatu, v řádku nese váhu název. */
+private val ICON_SIZE = 44.dp
+
+private const val LOAD_MORE_THRESHOLD = 5

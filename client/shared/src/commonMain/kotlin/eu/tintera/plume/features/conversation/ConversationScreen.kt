@@ -56,6 +56,7 @@ import eu.tintera.plume.core.ui.reject
 import eu.tintera.plume.core.ui.tick
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.conversation_not_member
+import eu.tintera.plume.resources.conversation_topic_closed
 import eu.tintera.plume.resources.conversation_write_restricted
 import eu.tintera.plume.resources.notifications_24dp
 import eu.tintera.plume.resources.notifications_off_24dp
@@ -271,6 +272,7 @@ import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.SponsoredMessage
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.ForumTopicIcon
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.strongestAccentOn
@@ -1164,7 +1166,18 @@ fun ConversationScreen(
                         // Nad profilem bota je jeho tvář velká uprostřed obrazovky a nese i tečku
                         // a výpadek spojení (`BotIntroPage`); v hlavičce by byla podruhé.
                         val headerAvatar = !showsBotIntro(state)
-                        state.info?.let { info ->
+                        // Téma: jeho ikona místo fotky skupiny. Nic neletí — seznam témat je
+                        // jiná obrazovka a fotka skupiny v ní v řádku není.
+                        state.info?.topic?.let { topic ->
+                            ForumTopicIcon(
+                                icon = topic.icon,
+                                name = topic.name,
+                                isGeneral = topic.isGeneral,
+                                size = HEADER_AVATAR,
+                                modifier = Modifier.padding(end = 12.dp),
+                            )
+                        }
+                        state.info?.takeIf { it.topic == null }?.let { info ->
                           AnimatedVisibility(
                               visible = headerAvatar,
                               enter = fadeIn() + expandHorizontally(),
@@ -1218,6 +1231,7 @@ fun ConversationScreen(
                                 Text(
                                     text = when {
                                         state.threadRootId != null -> stringResource(Res.string.comments_title)
+                                        state.info?.topic != null -> state.info?.topic?.name.orEmpty()
                                         else -> state.info?.let { chatTitle(it.id, it.title) }
                                             ?: stringResource(Res.string.conversation_fallback_title)
                                     },
@@ -1228,7 +1242,7 @@ fun ConversationScreen(
                                     // za ním zůstane vidět.
                                     modifier = Modifier.weight(1f, fill = false).then(
                                         state.info
-                                            ?.takeIf { state.threadRootId == null }
+                                            ?.takeIf { !state.narrowed }
                                             ?.let { Modifier.sharedNavText(chatTitleKey(it.id)) }
                                             ?: Modifier,
                                     ),
@@ -1236,15 +1250,15 @@ fun ConversationScreen(
                                 // Podvod a falešný účet musí být vidět tam, kde se píše — ve
                                 // vlákně komentářů je hlavička o skupině, ne o účtu.
                                 state.info?.verification
-                                    ?.takeIf { state.threadRootId == null }
+                                    ?.takeIf { !state.narrowed }
                                     ?.let { VerificationBadge(it) }
                                 state.info?.emojiStatus
-                                    ?.takeIf { state.threadRootId == null }
+                                    ?.takeIf { !state.narrowed }
                                     ?.let { EmojiStatusBadge(it) }
                                 // Automatické mazání: co se tu napíše, samo zmizí. Ve vlákně
                                 // komentářů by patřilo celé skupině, ne vláknu.
                                 state.autoDeleteTime
-                                    .takeIf { it > 0 && state.threadRootId == null }
+                                    .takeIf { it > 0 && !state.narrowed }
                                     ?.let { AutoDeleteBadge(it) }
                             }
 
@@ -1260,9 +1274,9 @@ fun ConversationScreen(
                              * (`TypingItem`), jako v Google Zprávách. Výšku hlavičky animuje
                              * `AnimatedContent`, jinak by název při objevení podtitulu poskočil.
                              */
-                            // Ve vlákně komentářů říká podtitul, ve které skupině se diskutuje.
+                            // Ve vlákně komentářů a v tématu říká podtitul, ve které skupině se diskutuje.
                             val threadSubtitle = state.info
-                                ?.takeIf { state.threadRootId != null }
+                                ?.takeIf { state.narrowed }
                                 ?.let { HeaderSubtitle(it.title) }
                             val subtitle = threadSubtitle ?: state.presence
                                 ?.takeIf { shownConnection == null }
@@ -1389,6 +1403,10 @@ fun ConversationScreen(
                 }
                 WriteAccess.NotMember -> {
                     ReadOnlyNote(Res.string.conversation_not_member)
+                    return@Box
+                }
+                WriteAccess.TopicClosed -> {
+                    ReadOnlyNote(Res.string.conversation_topic_closed)
                     return@Box
                 }
                 WriteAccess.Allowed, null -> Unit

@@ -12,6 +12,8 @@ import eu.tintera.plume.core.navigation.EditChatRoute
 import eu.tintera.plume.core.navigation.ArchiveMemberRightsRoute
 import eu.tintera.plume.core.navigation.ArchiveEditChatRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
+import eu.tintera.plume.core.navigation.ArchiveForumTopicsRoute
+import eu.tintera.plume.core.navigation.ForumTopicsRoute
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.features.chats.ArchiveChange
 
@@ -45,8 +47,9 @@ internal fun List<NavKey>.shownChatFolder(): ChatFolder =
  * (viz `nothingToPick` v `AppShell`).
  */
 internal fun List<NavKey>.hasOpenConversation(folder: ChatFolder): Boolean = when (folder) {
-    ChatFolder.Main -> any { it is ConversationRoute }
-    ChatFolder.Archive -> any { it is ArchiveConversationRoute }
+    // Seznam témat stojí na místě konverzace (skupina s tématy se otevírá jím).
+    ChatFolder.Main -> any { it is ConversationRoute || it is ForumTopicsRoute }
+    ChatFolder.Archive -> any { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute }
 }
 
 /**
@@ -55,7 +58,10 @@ internal fun List<NavKey>.hasOpenConversation(folder: ChatFolder): Boolean = whe
  * se tím vrátí i s tím, co v něm bylo otevřené.
  */
 internal fun MutableList<NavKey>.closeArchive() {
-    removeAll { it is ArchiveRoute || it is ArchiveConversationRoute || it is ArchiveChatProfileRoute }
+    removeAll {
+        it is ArchiveRoute || it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute ||
+            it is ArchiveChatProfileRoute
+    }
 }
 
 /**
@@ -66,9 +72,14 @@ internal fun MutableList<NavKey>.closeArchive() {
  */
 internal fun MutableList<NavKey>.closeConversationOf(change: ArchiveChange) {
     if (change.archived) {
-        removeAll { (it as? ConversationRoute)?.chatId == change.chatId }
+        removeAll {
+            (it as? ConversationRoute)?.chatId == change.chatId || (it as? ForumTopicsRoute)?.chatId == change.chatId
+        }
     } else {
-        removeAll { (it as? ArchiveConversationRoute)?.chatId == change.chatId }
+        removeAll {
+            (it as? ArchiveConversationRoute)?.chatId == change.chatId ||
+                (it as? ArchiveForumTopicsRoute)?.chatId == change.chatId
+        }
     }
 }
 
@@ -87,11 +98,11 @@ internal fun MutableList<NavKey>.moveConversationToMain(chatId: Long) {
     removeAll {
         when (it) {
             // Celá archivní větev, i úpravy a práva členů nad profilem.
-            is ArchiveRoute, is ArchiveConversationRoute, is ArchiveChatProfileRoute,
+            is ArchiveRoute, is ArchiveConversationRoute, is ArchiveForumTopicsRoute, is ArchiveChatProfileRoute,
             is ArchiveEditChatRoute, is ArchiveMemberRightsRoute -> true
             // Detail hlavního seznamu patřil jinému chatu; nový chat ho nahradí celý, jinak by
             // zpět z něj vedlo do profilu toho předchozího.
-            is ConversationRoute, is ChatProfileRoute, is EditChatRoute, is MemberRightsRoute -> true
+            is ConversationRoute, is ForumTopicsRoute, is ChatProfileRoute, is EditChatRoute, is MemberRightsRoute -> true
             else -> false
         }
     }
@@ -108,6 +119,8 @@ internal fun MutableList<NavKey>.closeChat(chatId: Long) {
         when (it) {
             is ConversationRoute -> it.chatId == chatId
             is ArchiveConversationRoute -> it.chatId == chatId
+            is ForumTopicsRoute -> it.chatId == chatId
+            is ArchiveForumTopicsRoute -> it.chatId == chatId
             is ChatProfileRoute -> it.chatId == chatId
             is ArchiveChatProfileRoute -> it.chatId == chatId
             is MediaRoute -> it.chatId == chatId

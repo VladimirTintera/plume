@@ -219,6 +219,11 @@ class ConversationViewModel(
      * to, co je vidět: hlavička a citace kořene.
      */
     private val threadRootId: Long? = null,
+    /**
+     * Téma skupiny s tématy; `null` u běžné konverzace. Zdroj zpráv zužuje [repository]
+     * (`inForumTopic`), tady jen to, co je vidět: hlavička a plánování.
+     */
+    private val forumTopicId: Int? = null,
     private val repository: ConversationRepository,
     /**
      * Jen kvůli „píše…". Činnost v chatu už sleduje repository chatů — i s odpočtem, který ji zhasne,
@@ -284,7 +289,7 @@ class ConversationViewModel(
     /** Zvolená rychlost přehrávání; jedna pro celou aplikaci, proto rovnou z přehrávače. */
     val voiceSpeed: StateFlow<VoiceSpeed> = voicePlayer.speed
 
-    private val _state = MutableStateFlow(ConversationState(threadRootId = threadRootId))
+    private val _state = MutableStateFlow(ConversationState(threadRootId = threadRootId, forumTopicId = forumTopicId))
     val state: StateFlow<ConversationState> = _state.asStateFlow()
 
     /**
@@ -4184,6 +4189,8 @@ data class ConversationState(
     val info: ChatInfo? = null,
     /** Vlákno komentářů (kořenová zpráva); `null` u běžné konverzace. */
     val threadRootId: Long? = null,
+    /** Téma skupiny s tématy; `null` u běžné konverzace. */
+    val forumTopicId: Int? = null,
     /**
      * Nepřečtené zmínky a reakce v chatu — tlačítka „@" a „❤" nad tlačítkem dolů. Ve vlákně
      * komentářů zůstávají nulové: počty patří celé diskusní skupině.
@@ -4366,6 +4373,9 @@ data class ConversationState(
     val window: Int = 0,
     val error: UiText? = null,
 ) {
+    /** Konverzace zúžená na část chatu (vlákno komentářů, téma): hlavička patří jí, ne chatu. */
+    val narrowed: Boolean get() = threadRootId != null || forumTopicId != null
+
     /**
      * Jestli se u připravené přílohy smí nabídnout mizení — pro [attachmentCount] příloh.
      * Pravidlo je [selfDestructAllowed]; dokud hlavička chatu nedorazí, nesmí se nic.

@@ -160,3 +160,32 @@ class WriteAccessTest {
         assertEquals(true, jenText.copy(polls = true).anyAttachment)
     }
 }
+
+class TopicWriteAccessTest {
+
+    @Test
+    fun otevreneTemaNemeniNic() {
+        assertEquals(WriteAccess.Allowed, topicWriteAccess(WriteAccess.Allowed, OwnMemberStatus.Member, topicClosed = false))
+        assertEquals(WriteAccess.Restricted, topicWriteAccess(WriteAccess.Restricted, OwnMemberStatus.Member, topicClosed = false))
+    }
+
+    @Test
+    fun doUzavrenehoPiseJenVlastnikASpravceTemat() {
+        assertEquals(WriteAccess.TopicClosed, topicWriteAccess(WriteAccess.Allowed, OwnMemberStatus.Member, topicClosed = true))
+        assertEquals(
+            WriteAccess.TopicClosed,
+            topicWriteAccess(WriteAccess.Allowed, OwnMemberStatus.Admin(canPostMessages = false), topicClosed = true),
+        )
+        assertEquals(
+            WriteAccess.Allowed,
+            topicWriteAccess(WriteAccess.Allowed, OwnMemberStatus.Admin(canPostMessages = false, canManageTopics = true), topicClosed = true),
+        )
+        assertEquals(WriteAccess.Allowed, topicWriteAccess(WriteAccess.Allowed, OwnMemberStatus.Creator(isMember = true), topicClosed = true))
+    }
+
+    @Test
+    fun duvodZeSkupinyMaPrednost() {
+        // Kdo ve skupině není, se to má dozvědět — ne že je téma uzavřené.
+        assertEquals(WriteAccess.NotMember, topicWriteAccess(WriteAccess.NotMember, OwnMemberStatus.Left, topicClosed = true))
+    }
+}

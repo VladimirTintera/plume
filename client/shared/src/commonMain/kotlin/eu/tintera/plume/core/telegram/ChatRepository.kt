@@ -425,6 +425,11 @@ data class ChatSummary(
     val verification: Verification? = null,
     /** Vlastní emoji statusu za jménem (viz [statusEmojiId]), nebo `null`. */
     val emojiStatus: Long? = null,
+    /**
+     * Skupina s tématy (fórum): ťuknutí otevře seznam témat, ne konverzaci. Nese ho supergroupa,
+     * ne `Chat`, a správce ho může za běhu zapnout i vypnout (`UpdateSupergroup`).
+     */
+    val isForum: Boolean = false,
 )
 
 /**

@@ -4,6 +4,7 @@ import eu.tintera.plume.features.settings.EditProfileViewModel
 import eu.tintera.plume.core.telegram.TdlAccountRepository
 import eu.tintera.plume.core.telegram.AccountRepository
 import eu.tintera.plume.features.profile.ChatProfileViewModel
+import eu.tintera.plume.features.forum.ForumTopicsViewModel
 import eu.tintera.plume.features.profile.EditChatViewModel
 import eu.tintera.plume.features.profile.MemberRightsViewModel
 import eu.tintera.plume.core.telegram.TdlProfileRepository
@@ -49,6 +50,8 @@ import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.notifications.NotificationActions
 import eu.tintera.plume.core.telegram.TdlChatRepository
 import eu.tintera.plume.core.telegram.TdlConversationRepository
+import eu.tintera.plume.core.telegram.TdlForumRepository
+import eu.tintera.plume.core.telegram.ForumRepository
 import eu.tintera.plume.core.telegram.TdlFileRepository
 import eu.tintera.plume.core.telegram.TdlNotificationRepository
 import eu.tintera.plume.core.telegram.TdlTelegramSession
@@ -136,6 +139,7 @@ fun appModule() = module {
     // Bezstavová — na rozdíl od seznamu chatů nemusí vznikat dopředu, stránkovací stav
     // drží ConversationViewModel.
     single<ConversationRepository> { TdlConversationRepository(holder = get()) }
+    single<ForumRepository> { TdlForumRepository(holder = get()) }
 
     // Odpověď z notifikace. Nad ConversationRepository, ne v něm: jde o pořadí kroků (odeslat,
     // dočkat se potvrzení, pak teprve přečíst), ne o další volání TDLib.
@@ -286,13 +290,17 @@ fun appModule() = module {
     // zúžené na vlákno.
     viewModel { parameters ->
         val threadRootId = parameters.values.getOrNull(2) as Long?
+        val forumTopicId = parameters.values.getOrNull(3) as Int?
         ConversationViewModel(
             chatId = parameters.get(),
             initialMessageId = parameters.values.getOrNull(1) as Long?,
             threadRootId = threadRootId,
-            repository = threadRootId
-                ?.let { ThreadConversationRepository(delegate = get(), rootMessageId = it) }
-                ?: get(),
+            forumTopicId = forumTopicId,
+            repository = when {
+                threadRootId != null -> ThreadConversationRepository(delegate = get(), rootMessageId = threadRootId)
+                forumTopicId != null -> get<ConversationRepository>().inForumTopic(forumTopicId)
+                else -> get()
+            },
             chatRepository = get(),
             stickerRepository = get(),
             settings = get(),
@@ -313,6 +321,10 @@ fun appModule() = module {
             botStartRequests = get(),
             replyRequests = get(),
         )
+    }
+
+    viewModel { parameters ->
+        ForumTopicsViewModel(chatId = parameters.get(), forums = get(), conversations = get())
     }
 
     viewModel { parameters ->

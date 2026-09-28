@@ -196,6 +196,8 @@ fun ChatListScreen(
     viewModel: ChatsViewModel,
     selectedChatId: Long?,
     onChatClick: (Long) -> Unit,
+    /** Skupina s tématy: otevře se seznam témat, ne konverzace. */
+    onForumClick: (Long) -> Unit,
     /** Nalezená zpráva: otevřít její chat a skočit na ni. */
     onMessageClick: (chatId: Long, messageId: Long) -> Unit,
     /** Dotaz, se kterým otevřít hledání (hashtag z konverzace); po otevření [onSearchRequestHandled]. */
@@ -284,7 +286,9 @@ fun ChatListScreen(
                 onChatClick = { chatId ->
                     viewModel.search.recordFound(chatId)
                     scrollToChat = chatId
-                    onChatClick(chatId)
+                    // Výsledky hledání jsou položky seznamu, takže vědí, jestli je chat fórum.
+                    val forum = with(search) { results + top + recent + global }.any { it.id == chatId && it.isForum }
+                    if (forum) onForumClick(chatId) else onChatClick(chatId)
                 },
                 onMessageClick = { chatId, messageId ->
                     scrollToChat = chatId
@@ -318,6 +322,7 @@ fun ChatListScreen(
                 viewModel = viewModel,
                 selectedChatId = selectedChatId,
                 onChatClick = onChatClick,
+                onForumClick = onForumClick,
                 padding = padding,
                 scrollToChat = scrollToChat,
                 onScrolledToChat = { scrollToChat = null },
@@ -732,6 +737,7 @@ internal fun ChatListContent(
     viewModel: ChatsViewModel,
     selectedChatId: Long?,
     onChatClick: (Long) -> Unit,
+    onForumClick: (Long) -> Unit,
     padding: PaddingValues,
     empty: @Composable BoxScope.() -> Unit,
     scrollToChat: Long? = null,
@@ -890,7 +896,7 @@ internal fun ChatListContent(
                                 chat = chat,
                                 selected = chat.id == selectedChatId,
                                 shape = shape,
-                                onClick = { onChatClick(chat.id) },
+                                onClick = { if (chat.isForum) onForumClick(chat.id) else onChatClick(chat.id) },
                                 onLongClick = { viewModel.showActions(chat) },
                             )
                         }

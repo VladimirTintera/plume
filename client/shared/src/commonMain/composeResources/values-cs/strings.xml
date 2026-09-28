@@ -275,6 +275,7 @@
     <string name="conversation_join">Přidat se</string>
     <string name="conversation_write_restricted">Správci v téhle skupině psaní omezili.</string>
     <string name="conversation_not_member">V tomhle chatu už nejste.</string>
+    <string name="conversation_topic_closed">Téma je uzavřené. Psát do něj můžou jen správci.</string>
     <string name="conversation_join_failed">Přidat se nepodařilo.</string>
     <string name="conversation_link_failed">Odkaz se nepodařilo otevřít.</string>
     <string name="invite_request">Požádat o přijetí</string>
@@ -1467,4 +1468,10 @@
     <string name="bot_add_group_confirm_text_admin">Bot se stane správcem s právy, o která požádal, a uvidí zprávy ve skupině.</string>
     <string name="bot_add_group_confirm">Přidat</string>
     <string name="bot_add_group_failed">Bota se do skupiny nepodařilo přidat.</string>
+    <string name="forum_topics_subtitle">Témata</string>
+    <string name="forum_topics_load_failed">Témata se nepodařilo načíst.</string>
+    <string name="forum_view_as_messages">Zobrazit jako zprávy</string>
+    <string name="forum_topics_empty_title">Zatím žádná témata</string>
+    <string name="forum_topics_empty">V téhle skupině ještě nikdo téma nezaložil.</string>
+    <string name="forum_topic_closed">Uzavřené</string>
 </resources>

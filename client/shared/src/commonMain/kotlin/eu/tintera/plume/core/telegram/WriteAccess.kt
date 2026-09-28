@@ -15,6 +15,9 @@ enum class WriteAccess {
 
     /** Uživatel ve skupině nebo kanálu není (odešel, byl vyhozen, skupina se převedla). */
     NotMember,
+
+    /** Uzavřené téma ve skupině s tématy — psát do něj smí jen vlastník a správce témat. */
+    TopicClosed,
 }
 
 /** Postavení uživatele ve skupině nebo kanálu, zúžené na to, co z něj aplikace potřebuje. */
@@ -32,6 +35,8 @@ internal sealed interface OwnMemberStatus {
         val canManageTags: Boolean = false,
         /** Právo přidávat členy (a tím i boty). */
         val canInviteUsers: Boolean = false,
+        /** Právo spravovat témata — mimo jiné psát do uzavřeného tématu. */
+        val canManageTopics: Boolean = false,
     ) : OwnMemberStatus
     data object Member : OwnMemberStatus
     data class Restricted(
@@ -75,6 +80,19 @@ internal fun writeAccess(isChannel: Boolean, status: OwnMemberStatus?, membersCa
             else -> WriteAccess.Restricted
         }
         OwnMemberStatus.Left, OwnMemberStatus.Banned -> WriteAccess.NotMember
+    }
+
+/**
+ * Psaní do tématu: uzavřené téma přebíjí všechno kromě vlastníka a správce s právem spravovat
+ * témata (tak to hlídá server). Kdo psát nesmí z jiného důvodu (není členem, je omezený), dostane
+ * ten důvod — ten se řeší dřív než téma.
+ */
+internal fun topicWriteAccess(chatAccess: WriteAccess, status: OwnMemberStatus?, topicClosed: Boolean): WriteAccess =
+    when {
+        chatAccess != WriteAccess.Allowed || !topicClosed -> chatAccess
+        status is OwnMemberStatus.Creator -> WriteAccess.Allowed
+        status is OwnMemberStatus.Admin && status.canManageTopics -> WriteAccess.Allowed
+        else -> WriteAccess.TopicClosed
     }
 
 /**

@@ -133,6 +133,11 @@ import dev.g000sha256.tdl.dto.MessageReadDateUnread
 import dev.g000sha256.tdl.dto.MessageReadDateUserPrivacyRestricted
 import dev.g000sha256.tdl.dto.MessageReplyToMessage
 import dev.g000sha256.tdl.dto.MessageTopicThread
+import dev.g000sha256.tdl.dto.MessageTopic
+import dev.g000sha256.tdl.dto.MessageTopicForum
+import dev.g000sha256.tdl.dto.MessageSourceForumTopicHistory
+import dev.g000sha256.tdl.dto.ForumTopic as TdlForumTopic
+import kotlinx.coroutines.flow.flowOf
 import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
@@ -187,7 +192,30 @@ import eu.tintera.plume.core.location.GeoPoint
  */
 class TdlConversationRepository(
     private val holder: TelegramClientHolder,
+    /**
+     * Téma skupiny s tématy, na které je konverzace zúžená (viz [inForumTopic]), nebo `null`.
+     *
+     * **Zúžení je parametr, ne obal** jako u vlákna komentářů: téma se TDLib předává v každém
+     * odeslání, konceptu, „píše…" i hledání (`topicId`), a obal by musel přepsat přes dvacet
+     * metod jen kvůli jednomu argumentu.
+     */
+    private val forumTopicId: Int? = null,
 ) : ConversationRepository {
+
+    /** Téma pro volání TDLib; `null` = celý chat. */
+    private val topic: MessageTopic? = forumTopicId?.let { MessageTopicForum(forumTopicId = it) }
+
+    override fun inForumTopic(topicId: Int): ConversationRepository =
+        TdlConversationRepository(holder = holder, forumTopicId = topicId)
+
+    /** Téma, jak ho TDLib zná teď — počty, hranice přečtení a koncept jsou jeho, ne skupiny. */
+    private suspend fun forumTopic(chatId: Long): TdlForumTopic? = forumTopicId?.let {
+        client.getForumTopic(chatId = chatId, forumTopicId = it).toResult().getOrNull()
+    }
+
+    /** Patří zpráva do konverzace? V tématu jen zprávy tématu, jinak všechny. */
+    private fun inScope(message: Message): Boolean =
+        forumTopicId == null || (message.topicId as? MessageTopicForum)?.forumTopicId == forumTopicId
 
 
     private val logger = Logger.withTag("Conversation")
@@ -227,6 +255,18 @@ class TdlConversationRepository(
         offset: Int,
     ): Result<List<ChatMessage>> {
         val isGroup = isGroup(chatId)
+
+        if (forumTopicId != null) {
+            return client.getForumTopicHistory(
+                chatId = chatId,
+                forumTopicId = forumTopicId,
+                fromMessageId = fromMessageId,
+                offset = offset,
+                limit = limit,
+            )
+                .toResult()
+                .map { messages -> messages.messages.filterNotNull().map { it.toChatMessage(isGroup) } }
+        }
 
         return client.getChatHistory(
             chatId = chatId,
@@ -280,7 +320,7 @@ class TdlConversationRepository(
     override fun newMessages(chatId: Long): Flow<ChatMessage> =
         holder.updates { newMessageUpdates }
             // Naplánovaná zpráva do historie nepatří; až odejde, přijde znovu jako běžná.
-            .filter { it.message.chatId == chatId && it.message.schedulingState == null }
+            .filter { it.message.chatId == chatId && it.message.schedulingState == null && inScope(it.message) }
             .map { it.message.toChatMessage(isGroup(chatId)) }
 
     override fun deletedMessages(chatId: Long): Flow<List<Long>> =
@@ -340,9 +380,19 @@ class TdlConversationRepository(
             holder.updates { messageUnreadReactionsUpdates }.filter { it.chatId == chatId }.map { },
             holder.updates { chatUnreadPollVoteCountUpdates }.filter { it.chatId == chatId }.map { },
             holder.updates { messageContainsUnreadPollVotesUpdates }.filter { it.chatId == chatId }.map { },
+            holder.updates { forumTopicUpdates }.filter { it.chatId == chatId && it.forumTopicId == forumTopicId }.map { },
         )
             .onStart { emit(Unit) }
             .mapNotNull {
+                if (forumTopicId != null) {
+                    return@mapNotNull forumTopic(chatId)?.let { topic ->
+                        UnreadMarks(
+                            mentions = topic.unreadMentionCount,
+                            reactions = topic.unreadReactionCount,
+                            pollVotes = topic.unreadPollVoteCount,
+                        )
+                    }
+                }
                 client.getChat(chatId = chatId).toResult().getOrNull()?.let { chat ->
                     UnreadMarks(
                         mentions = chat.unreadMentionCount,
@@ -373,7 +423,7 @@ class TdlConversationRepository(
     override suspend fun oldestUnreadMark(chatId: Long, kind: UnreadMarkKind): Result<Long?> =
         client.searchChatMessages(
             chatId = chatId,
-            topicId = null,
+            topicId = topic,
             query = "",
             senderId = null,
             fromMessageId = 0L,
@@ -391,7 +441,15 @@ class TdlConversationRepository(
             .map { found -> oldestOf(found.messages.filterNotNull().map { it.id }) }
 
     override suspend fun readAllMarks(chatId: Long, kind: UnreadMarkKind): Result<Unit> =
-        when (kind) {
+        if (forumTopicId != null) {
+            when (kind) {
+                UnreadMarkKind.Mention -> client.readAllForumTopicMentions(chatId = chatId, forumTopicId = forumTopicId)
+                UnreadMarkKind.Reaction -> client.readAllForumTopicReactions(chatId = chatId, forumTopicId = forumTopicId)
+                UnreadMarkKind.PollVote -> client.readAllForumTopicPollVotes(chatId = chatId, forumTopicId = forumTopicId)
+            }
+                .toResult()
+                .map { }
+        } else when (kind) {
             UnreadMarkKind.Mention -> client.readAllChatMentions(chatId = chatId)
             UnreadMarkKind.Reaction -> client.readAllChatReactions(chatId = chatId)
             UnreadMarkKind.PollVote -> client.readAllChatPollVotes(chatId = chatId)
@@ -505,7 +563,7 @@ class TdlConversationRepository(
     ): Result<ChatSearchPage> =
         client.searchChatMessages(
             chatId = chatId,
-            topicId = null,
+            topicId = topic,
             query = query,
             senderId = senderUserId?.let { MessageSenderUser(userId = it) },
             fromMessageId = fromMessageId,
@@ -532,7 +590,7 @@ class TdlConversationRepository(
         do {
             val page = client.searchChatMessages(
                 chatId = chatId,
-                topicId = null,
+                topicId = topic,
                 query = "",
                 senderId = null,
                 fromMessageId = from,
@@ -848,7 +906,7 @@ class TdlConversationRepository(
         return client.sendMessage(
             chatId = chatId,
             // Vlákna (fóra) fáze 2 neřeší — null znamená hlavní vlákno chatu.
-            topicId = null,
+            topicId = topic,
             replyTo = replyInput(chatId, replyToMessageId, quote),
             options = options.toTdl(),
             replyMarkup = null,
@@ -871,7 +929,7 @@ class TdlConversationRepository(
     ): Result<ChatMessage> =
         client.sendMessage(
             chatId = chatId,
-            topicId = null,
+            topicId = topic,
             replyTo = replyInput(chatId, replyToMessageId, quote),
             options = null,
             replyMarkup = null,
@@ -892,7 +950,7 @@ class TdlConversationRepository(
     ): Result<ChatMessage> =
         client.sendMessage(
             chatId = chatId,
-            topicId = null,
+            topicId = topic,
             replyTo = replyInput(chatId, replyToMessageId, quote),
             options = options.toTdl(),
             replyMarkup = null,
@@ -931,7 +989,7 @@ class TdlConversationRepository(
         if (contents.size == 1) {
             return client.sendMessage(
                 chatId = chatId,
-                topicId = null,
+                topicId = topic,
                 replyTo = replyInput(chatId, replyToMessageId, quote),
                 options = options.toTdl(),
                 replyMarkup = null,
@@ -943,7 +1001,7 @@ class TdlConversationRepository(
 
         return client.sendMessageAlbum(
             chatId = chatId,
-            topicId = null,
+            topicId = topic,
             replyTo = replyInput(chatId, replyToMessageId, quote),
             options = options.toTdl(),
             inputMessageContents = contents.toTypedArray(),
@@ -1097,7 +1155,7 @@ class TdlConversationRepository(
 
         return client.sendMessage(
             chatId = chatId,
-            topicId = null,
+            topicId = topic,
             replyTo = replyInput(chatId, replyToMessageId, quote),
             options = options.toTdl(),
             replyMarkup = null,
@@ -1129,7 +1187,7 @@ class TdlConversationRepository(
     ): Result<ChatMessage> =
         client.sendMessage(
             chatId = chatId,
-            topicId = null,
+            topicId = topic,
             replyTo = replyInput(chatId, replyToMessageId, quote),
             options = null,
             replyMarkup = null,
@@ -1171,7 +1229,7 @@ class TdlConversationRepository(
         val user = client.getUser(userId = userId).toResult().getOrElse { return Result.failure(it) }
         return client.sendMessage(
             chatId = chatId,
-            topicId = null,
+            topicId = topic,
             replyTo = replyInput(chatId, replyToMessageId, quote),
             options = null,
             replyMarkup = null,
@@ -1212,7 +1270,7 @@ class TdlConversationRepository(
         }
         return client.sendMessage(
             chatId = chatId,
-            topicId = null,
+            topicId = topic,
             replyTo = replyInput(chatId, replyToMessageId, quote),
             options = null,
             replyMarkup = null,
@@ -1232,7 +1290,7 @@ class TdlConversationRepository(
         val file = InputFileId(id = gif.animation.fileId)
         return client.sendMessage(
             chatId = chatId,
-            topicId = null,
+            topicId = topic,
             replyTo = replyInput(chatId, replyToMessageId, quote),
             options = options.toTdl(),
             replyMarkup = null,
@@ -1319,7 +1377,7 @@ class TdlConversationRepository(
     ): Result<ChatMessage> =
         client.sendInlineQueryResultMessage(
             chatId = chatId,
-            topicId = null,
+            topicId = topic,
             replyTo = replyInput(chatId, replyToMessageId, quote),
             options = null,
             queryId = queryId,
@@ -1334,7 +1392,7 @@ class TdlConversationRepository(
         client.sendChatAction(
             chatId = chatId,
             // Vlákna (fóra) zatím neřešíme, stejně jako u odesílání.
-            topicId = null,
+            topicId = topic,
             // Prázdný řetězec = obyčejný účet, ne firemní připojení. Parametr je nenullovatelný.
             businessConnectionId = "",
             action = if (typing) ChatActionTyping() else ChatActionCancel(),
@@ -1346,7 +1404,9 @@ class TdlConversationRepository(
         client.viewMessages(
             chatId = chatId,
             messageIds = messageIds.toLongArray(),
-            source = MessageSourceChatHistory(),
+            // V tématu se čte téma; se zdrojem historie chatu by se přečtení tématu nepohnulo
+            // (tatáž past jako u vlákna komentářů).
+            source = if (forumTopicId != null) MessageSourceForumTopicHistory() else MessageSourceChatHistory(),
             // `forceRead = true`: bez toho TDLib označí za přečtené jen to, o čem si myslí,
             // že to uživatel opravdu viděl na obrazovce. My mu to tvrdíme sami.
             forceRead = true,
@@ -1473,7 +1533,8 @@ class TdlConversationRepository(
             .distinctUntilChanged()
 
     override fun hasScheduledMessages(chatId: Long): Flow<Boolean> =
-        holder.updates { chatHasScheduledMessagesUpdates }
+        // Naplánované zprávy patří celé skupině; v tématu by se míchaly cizí (jako ve vlákně).
+        if (forumTopicId != null) flowOf(false) else holder.updates { chatHasScheduledMessagesUpdates }
             .filter { it.chatId == chatId }
             .map { it.hasScheduledMessages }
             // Odběr stojí dřív než první čtení, aby se změna mezi nimi neztratila.
@@ -1536,7 +1597,7 @@ class TdlConversationRepository(
     ): Result<Unit> =
         client.setChatDraftMessage(
             chatId = chatId,
-            topicId = null,
+            topicId = topic,
             draftMessage = text.takeIf { it.isNotBlank() }?.let {
                 DraftMessage(
                     replyTo = replyInput(chatId, replyToMessageId, quote),
@@ -1560,39 +1621,51 @@ class TdlConversationRepository(
         client.getChat(chatId)
             .toResult()
             .map { chat ->
-                val access = chatAccess(chat)
+                val forumTopic = forumTopic(chat.id)
+                val access = chatAccess(chat, forumTopic)
                 val restriction = client.restrictionInfoOf(chat)
+                // V tématu koncept tématu; koncept skupiny do něj nepatří.
+                val draftMessage = if (forumTopicId != null) forumTopic?.draftMessage else chat.draftMessage
                 ChatInfo(
                     id = chat.id,
                     title = chat.title,
                     avatarFileId = chat.photo?.small?.id,
                     lastReadOutboxMessageId = chat.lastReadOutboxMessageId,
-                    lastReadInboxMessageId = chat.lastReadInboxMessageId,
-                    unreadCount = chat.unreadCount,
+                    lastReadInboxMessageId = forumTopic?.lastReadInboxMessageId ?: chat.lastReadInboxMessageId,
+                    unreadCount = forumTopic?.unreadCount ?: chat.unreadCount,
                     isGroup = chat.type is ChatTypeBasicGroup || chat.type is ChatTypeSupergroup,
                     isChannel = (chat.type as? ChatTypeSupergroup)?.isChannel == true,
                     // Uložené zprávy jsou soukromý chat s vlastním účtem. `getMe` je lokální,
                     // po přihlášení ho TDLib zná bez dotazu na server.
                     isSavedMessages = (chat.type as? ChatTypePrivate)?.userId
                         ?.let { it == client.getMe().toResult().getOrNull()?.id } == true,
-                    draftText = chat.draftMessage?.toChatDraft()?.text,
-                    draftFormats = (chat.draftMessage?.content as? DraftMessageContentText)?.text
+                    draftText = draftMessage?.toChatDraft()?.text,
+                    draftFormats = (draftMessage?.content as? DraftMessageContentText)?.text
                         ?.let { draft -> draft.toBody().let { draftFormatsOf(it.text, it.entities) } }
                         .orEmpty(),
                     canJoin = access.canJoin,
                     writeAccess = access.writeAccess,
                     content = access.content,
-                    draftReplyToMessageId = (chat.draftMessage?.replyTo as? InputMessageReplyToMessage)
+                    draftReplyToMessageId = (draftMessage?.replyTo as? InputMessageReplyToMessage)
                         ?.messageId,
-                    draftReplyQuote = (chat.draftMessage?.replyTo as? InputMessageReplyToMessage)
+                    draftReplyQuote = (draftMessage?.replyTo as? InputMessageReplyToMessage)
                         ?.quote
                         ?.let { ReplyQuote(text = it.text.text, position = it.position) },
-                    draftLinkPreview = (chat.draftMessage?.content as? DraftMessageContentText)
+                    draftLinkPreview = (draftMessage?.content as? DraftMessageContentText)
                         ?.linkPreviewOptions?.toDomain(),
                     verification = client.verificationOf(chat),
                     emojiStatus = chat.emojiStatus.statusEmojiId(),
                     restriction = restriction?.reasonText,
                     sensitive = client.hidesSensitive(restriction),
+                    topic = forumTopic?.info?.let {
+                        TopicHeader(
+                            id = it.forumTopicId,
+                            name = it.name,
+                            icon = it.icon.toDomain(),
+                            isGeneral = it.isGeneral,
+                            isClosed = it.isClosed,
+                        )
+                    },
                 )
             }
 
@@ -1662,19 +1735,21 @@ class TdlConversationRepository(
      * postavení zjistit nejde, psaní se NEBLOKUJE: pole navíc skončí nanejvýš chybou po odeslání,
      * chybějící pole by uživatele od chatu odřízlo.
      */
-    private suspend fun chatAccess(chat: Chat): ChatAccess {
+    private suspend fun chatAccess(chat: Chat, forumTopic: TdlForumTopic? = null): ChatAccess {
         val status = client.ownMemberStatus(chat)
         val supergroup = chat.type as? ChatTypeSupergroup
+        val chatWrite = writeAccess(
+            isChannel = supergroup?.isChannel == true,
+            status = status,
+            membersCanSend = chat.permissions.canSendBasicMessages,
+        )
         return ChatAccess(
             canJoin = supergroup != null && status == OwnMemberStatus.Left,
-            writeAccess = writeAccess(
-                isChannel = supergroup?.isChannel == true,
-                status = status,
-                membersCanSend = chat.permissions.canSendBasicMessages,
-            ),
+            writeAccess = topicWriteAccess(chatWrite, status, topicClosed = forumTopic?.info?.isClosed == true),
             content = contentAccess(status = status, groupDefaults = chat.permissions.toContentAccess()).let {
                 // Právo skupiny nestačí: do soukromého chatu s člověkem anketa nejde vůbec.
-                it.copy(polls = it.polls && pollsAllowedIn(pollChatKind(chat)))
+                // V tématu anketa nejde: zakládá ji obrazovka, která o tématu neví.
+                it.copy(polls = it.polls && forumTopicId == null && pollsAllowedIn(pollChatKind(chat)))
             },
         )
     }
@@ -1701,9 +1776,13 @@ class TdlConversationRepository(
                 holder.updates { chatPermissionsUpdates }.filter { it.chatId == chatId }.map { },
                 holder.updates { supergroupUpdates }.filter { it.supergroup.id == supergroupId }.map { },
                 holder.updates { basicGroupUpdates }.filter { it.basicGroup.id == basicGroupId }.map { },
+                // Uzavření a otevření tématu.
+                holder.updates { forumTopicInfoUpdates }
+                    .filter { it.info.chatId == chatId && it.info.forumTopicId == forumTopicId }
+                    .map { },
             )
                 // Update skupiny chodí i kvůli počtu členů; čte se znovu a pustí dál jen změna.
-                .mapNotNull { client.getChat(chatId).toResult().getOrNull()?.let { chatAccess(it) } }
+                .mapNotNull { client.getChat(chatId).toResult().getOrNull()?.let { chatAccess(it, forumTopic(chatId)) } }
                 .distinctUntilChanged(),
         )
     }
@@ -1727,7 +1806,7 @@ class TdlConversationRepository(
         client.joinChat(chatId = chatId).toResult().map { }
 
     override suspend fun sponsoredMessages(chatId: Long): Result<List<SponsoredMessage>> =
-        client.getChatSponsoredMessages(chatId = chatId)
+        if (forumTopicId != null) Result.success(emptyList()) else client.getChatSponsoredMessages(chatId = chatId)
             .toResult()
             .map { sponsored ->
                 sponsored.messages.filterNotNull().map { message ->
@@ -1940,7 +2019,7 @@ class TdlConversationRepository(
     override suspend fun sendKeyboardText(chatId: Long, text: String, replyToMessageId: Long?): Result<ChatMessage> =
         client.sendMessage(
             chatId = chatId,
-            topicId = null,
+            topicId = topic,
             replyTo = replyInput(chatId, replyToMessageId, quote = null),
             options = null,
             replyMarkup = null,
@@ -1959,7 +2038,7 @@ class TdlConversationRepository(
         val me = client.getMe().toResult().getOrThrow()
         client.sendMessage(
             chatId = chatId,
-            topicId = null,
+            topicId = topic,
             replyTo = replyInput(chatId, replyToMessageId, quote = null),
             options = null,
             replyMarkup = null,
@@ -1992,7 +2071,7 @@ class TdlConversationRepository(
         val correct = poll.correctAnswers
         client.sendMessage(
             chatId = chatId,
-            topicId = null,
+            topicId = topic,
             replyTo = replyInput(chatId, replyToMessageId, quote),
             options = options.toTdl(),
             replyMarkup = null,
@@ -2350,7 +2429,7 @@ class TdlConversationRepository(
             query = query,
             limit = MENTION_LIMIT,
             // Jen ti, které jde v chatu zmínit; bez tématu (fóra zatím nejsou).
-            filter = ChatMembersFilterMention(topicId = null),
+            filter = ChatMembersFilterMention(topicId = topic),
         )
             .toResult()
             .map { found ->
@@ -2576,6 +2655,7 @@ private fun ChatMemberStatus.toOwn(): OwnMemberStatus = when (this) {
         canPromoteMembers = rights.canPromoteMembers,
         canManageTags = rights.canManageTags,
         canInviteUsers = rights.canInviteUsers,
+        canManageTopics = rights.canManageTopics,
     )
     is ChatMemberStatusMember -> OwnMemberStatus.Member
     is ChatMemberStatusRestricted -> OwnMemberStatus.Restricted(

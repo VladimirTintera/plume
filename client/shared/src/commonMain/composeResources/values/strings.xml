@@ -272,6 +272,7 @@
     <string name="conversation_join">Join</string>
     <string name="conversation_write_restricted">Admins have restricted sending messages in this group.</string>
     <string name="conversation_not_member">You are no longer in this chat.</string>
+    <string name="conversation_topic_closed">This topic is closed. Only admins can post in it.</string>
     <string name="conversation_join_failed">Couldn't join.</string>
     <string name="conversation_link_failed">Couldn't open this link.</string>
     <string name="invite_request">Request to join</string>
@@ -1422,4 +1423,10 @@
     <string name="bot_add_group_confirm_text_admin">The bot will become an admin with the rights it asked for, and will see messages in the group.</string>
     <string name="bot_add_group_confirm">Add</string>
     <string name="bot_add_group_failed">Couldn’t add the bot to the group.</string>
+    <string name="forum_topics_subtitle">Topics</string>
+    <string name="forum_topics_load_failed">Couldn't load the topics.</string>
+    <string name="forum_view_as_messages">View as messages</string>
+    <string name="forum_topics_empty_title">No topics yet</string>
+    <string name="forum_topics_empty">Nobody has started a topic in this group yet.</string>
+    <string name="forum_topic_closed">Closed</string>
 </resources>
