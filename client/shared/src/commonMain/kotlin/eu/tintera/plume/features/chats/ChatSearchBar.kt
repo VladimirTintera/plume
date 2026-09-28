@@ -143,7 +143,7 @@ internal fun ChatSearchBar(
     onQueryChange: (String) -> Unit,
     onExpandedChange: (Boolean) -> Unit,
     onChatClick: (Long) -> Unit,
-    onMessageClick: (chatId: Long, messageId: Long) -> Unit,
+    onMessageClick: (chatId: Long, messageId: Long, topicId: Int?) -> Unit,
     onLoadMoreMessages: () -> Unit,
     onClearRecent: () -> Unit,
     onFilterChange: (MessageSearchFilter) -> Unit,
@@ -297,9 +297,9 @@ internal fun ChatSearchBar(
                 collapse()
                 onChatClick(chatId)
             },
-            onMessageClick = { chatId, messageId ->
+            onMessageClick = { chatId, messageId, topicId ->
                 collapse()
-                onMessageClick(chatId, messageId)
+                onMessageClick(chatId, messageId, topicId)
             },
             onLoadMoreMessages = onLoadMoreMessages,
             onClearRecent = onClearRecent,
@@ -322,7 +322,7 @@ private fun SearchResults(
     search: ChatSearchState,
     savedMessagesChatId: Long?,
     onPick: (Long) -> Unit,
-    onMessageClick: (chatId: Long, messageId: Long) -> Unit,
+    onMessageClick: (chatId: Long, messageId: Long, topicId: Int?) -> Unit,
     onLoadMoreMessages: () -> Unit,
     onClearRecent: () -> Unit,
     onFilterChange: (MessageSearchFilter) -> Unit,
@@ -486,7 +486,7 @@ private fun SearchResults(
                         found = found,
                         query = trimmed,
                         highlight = highlight,
-                        onClick = { onMessageClickLatest(found.chat.id, found.messageId) },
+                        onClick = { onMessageClickLatest(found.chat.id, found.messageId, found.topicId) },
                     )
                 }
             }

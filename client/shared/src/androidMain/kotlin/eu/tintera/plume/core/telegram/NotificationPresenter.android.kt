@@ -137,6 +137,10 @@ actual class NotificationPresenter(
             conversation.canReply = newest.canReply
             conversation.canMute = newest.canMute
             conversation.channel = newest.channel
+            // Téma nejnovější zprávy: ťuknutí i odpověď míří tam, kam se uživatel právě dívá.
+            // Z pushe téma nepřijde (`null` = celá skupina), a staré téma se nedrží: zpráva
+            // z jiného tématu by jinak otevřela to předchozí.
+            conversation.topicId = newest.topicId
 
             val added = batch
                 .filter { line -> conversation.lines.none { it.notificationId == line.notificationId } }
@@ -316,7 +320,7 @@ actual class NotificationPresenter(
                     // klient: bez citace by nebylo poznat, komu z více lidí se odpovídá.
                     // V soukromém chatu je to jasné a citace by byla šum.
                     val quoted = if (isGroup) conversation.lines.lastOrNull { !it.isOwn && it.messageId != null }?.messageId else null
-                    replyAction(groupId, conversation.chatId, quoted)?.let(::addAction)
+                    replyAction(groupId, conversation.chatId, quoted, conversation.topicId)?.let(::addAction)
                 }
                 // Pořadí akcí: odpověď, přečtení, ztlumení — od nejčastější. Android jich ukáže
                 // nejvýš tři, víc jich tedy být nesmí.
@@ -334,6 +338,7 @@ actual class NotificationPresenter(
                     context = context,
                     notificationId = groupId,
                     chatId = conversation.chatId,
+                    topicId = conversation.topicId,
                 ),
             )
             .build()
@@ -395,8 +400,14 @@ actual class NotificationPresenter(
      * příjemce dostal prázdné výsledky. Sémantika `REPLY` a `showsUserInterface = false` říkají
      * hodinkám a Android Auto, že jde o odpověď bez otevření aplikace.
      */
-    private suspend fun replyAction(groupId: Int, chatId: Long, replyToMessageId: Long?): NotificationCompat.Action? {
-        val intent = NotificationIntents.reply(context, groupId = groupId, chatId = chatId, replyToMessageId = replyToMessageId)
+    private suspend fun replyAction(groupId: Int, chatId: Long, replyToMessageId: Long?, topicId: Int?): NotificationCompat.Action? {
+        val intent = NotificationIntents.reply(
+            context,
+            groupId = groupId,
+            chatId = chatId,
+            replyToMessageId = replyToMessageId,
+            topicId = topicId,
+        )
         val label = getString(Res.string.notification_reply)
         val input = RemoteInput.Builder(NotificationIntents.KEY_REPLY_TEXT)
             .setLabel(label)
@@ -583,6 +594,8 @@ actual class NotificationPresenter(
         var canMute: Boolean = true,
         /** Systémový kanál; TDLib drží zmínky v jiné skupině než běžné zprávy téhož chatu. */
         var channel: NotificationChannelKind = NotificationChannelKind.Private,
+        /** Téma nejnovější zprávy ve skupině s tématy; `null` = celý chat. */
+        var topicId: Int? = null,
     )
 
     /** Jedna zpráva v notifikaci. [notificationId] je `null` u řádku převzatého po restartu. */

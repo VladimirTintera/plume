@@ -1137,6 +1137,8 @@ class ConversationViewModel(
              * zůstane bez tváře: vědět, ŽE někdo píše, je důležitější než kdo.
              */
             chatRepository.typing(chatId)
+                // V tématu jen psaní v něm; ve skupině jako celku píše kdokoli kdekoli.
+                .map { typing -> typing?.takeIf { forumTopicId == null || it.topicId == forumTopicId } }
                 .map { typing ->
                     typing?.let {
                         Typing(
@@ -2072,10 +2074,13 @@ class ConversationViewModel(
                             urlOpener.open(url)
                         }
                         is InternalLink.Chat ->
-                            if (link.chatId != chatId) _state.update { it.copy(openChat = ChatTarget(link.chatId)) }
+                            if (link.chatId != chatId) openTarget(ChatTarget(link.chatId))
                         is InternalLink.Message -> when {
-                            link.chatId == chatId -> link.messageId?.let { jumpToMessage(it, fromSearch = true) }
-                            else -> _state.update { it.copy(openChat = ChatTarget(link.chatId, link.messageId)) }
+                            // Tentýž chat, a v tématu jen totéž téma — zpráva z jiného tématu
+                            // v téhle historii není, skok by skončil „už není k dispozici".
+                            link.chatId == chatId && (forumTopicId == null || link.topicId == forumTopicId) ->
+                                link.messageId?.let { jumpToMessage(it, fromSearch = true) }
+                            else -> openTarget(ChatTarget(link.chatId, link.messageId, topicId = link.topicId))
                         }
                         is InternalLink.Invite -> _state.update { it.copy(invite = InviteSheetState(link.link, link.preview)) }
                         is InternalLink.StickerSet -> _state.update { it.copy(openStickerSet = link.setId) }
@@ -2106,7 +2111,7 @@ class ConversationViewModel(
         } else {
             botStartRequests.request(link.chatId, link.parameter)
         }
-        if (link.chatId != chatId) _state.update { it.copy(openChat = ChatTarget(link.chatId)) }
+        if (link.chatId != chatId) openTarget(ChatTarget(link.chatId))
     }
 
     /** Tlačítko Start: pošle „/start" s parametrem z odkazu, bez odkazu prázdný. */
@@ -2243,7 +2248,7 @@ class ConversationViewModel(
         if (senderId > 0) {
             openMentioned { chatRepository.privateChat(senderId) }
         } else if (senderId != chatId) {
-            _state.update { it.copy(openChat = ChatTarget(senderId)) }
+            openTarget(ChatTarget(senderId))
         }
     }
 
@@ -2254,11 +2259,13 @@ class ConversationViewModel(
         viewModelScope.launch {
             chatRepository.joinByInvite(invite.link)
                 .onSuccess { result ->
-                    _state.update {
-                        when (result) {
-                            is InviteJoinResult.Joined -> it.copy(invite = null, openChat = ChatTarget(result.chatId))
-                            InviteJoinResult.Requested -> it.copy(invite = null, notice = UiText(Res.string.invite_request_sent))
+                    when (result) {
+                        is InviteJoinResult.Joined -> {
+                            _state.update { it.copy(invite = null) }
+                            openTarget(ChatTarget(result.chatId))
                         }
+                        InviteJoinResult.Requested ->
+                            _state.update { it.copy(invite = null, notice = UiText(Res.string.invite_request_sent)) }
                     }
                 }
                 .onFailure { failure ->
@@ -2284,11 +2291,24 @@ class ConversationViewModel(
     private fun openMentioned(resolve: suspend () -> Result<Long>) {
         viewModelScope.launch {
             resolve()
-                .onSuccess { target -> if (target != chatId) _state.update { it.copy(openChat = ChatTarget(target)) } }
+                .onSuccess { target -> if (target != chatId) openTarget(ChatTarget(target)) }
                 .onFailure { failure ->
                     val message = failure.reported(Res.string.conversation_mention_not_found)
                     _state.update { it.copy(error = message) }
                 }
+        }
+    }
+
+    /**
+     * Chat k otevření nad konverzací. Skupina s tématy bez určeného tématu a zprávy se otevře
+     * seznamem témat, jako ze seznamu chatů — zmínka `@skupina` i odkaz `t.me/skupina` by jinak
+     * vedly do promíchané konverzace celé skupiny. Zjištění je lokální dotaz.
+     */
+    private fun openTarget(target: ChatTarget) {
+        viewModelScope.launch {
+            val forum = target.messageId == null && target.threadId == null && target.topicId == null &&
+                chatRepository.isForum(target.chatId)
+            _state.update { it.copy(openChat = target.copy(forum = forum)) }
         }
     }
 
@@ -2317,7 +2337,7 @@ class ConversationViewModel(
         when (origin) {
             is ForwardOrigin.User -> openMentioned { chatRepository.privateChat(origin.userId) }
             is ForwardOrigin.Chat -> when {
-                origin.chatId != chatId -> _state.update { it.copy(openChat = ChatTarget(origin.chatId, origin.messageId)) }
+                origin.chatId != chatId -> openTarget(ChatTarget(origin.chatId, origin.messageId))
                 else -> origin.messageId?.let { jumpToMessage(it) }
             }
             // Skrytý účet server neprozradí, značka se u něj nedá ťuknout.
@@ -3967,6 +3987,13 @@ data class ChatTarget(
     val messageId: Long? = null,
     /** Vlákno komentářů v [chatId] (kořenová zpráva); `null` = celý chat. */
     val threadId: Long? = null,
+    /** Téma skupiny s tématy; `null` = celý chat. */
+    val topicId: Int? = null,
+    /**
+     * Skupina s tématy bez určeného tématu ani zprávy: otevře se seznam témat, ne konverzace —
+     * stejně jako ze seznamu chatů. Zjišťuje ViewModel ([ConversationViewModel.openTarget]).
+     */
+    val forum: Boolean = false,
 )
 
 /** Video k otevření v prohlížeči od [seconds] (čas v médiu). */

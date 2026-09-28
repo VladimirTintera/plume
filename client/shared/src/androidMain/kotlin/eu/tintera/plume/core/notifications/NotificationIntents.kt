@@ -16,6 +16,9 @@ object NotificationIntents {
 
     const val EXTRA_CHAT_ID = "eu.tintera.plume.extra.CHAT_ID"
 
+    /** Téma skupiny s tématy, které má notifikace otevřít; chybí = celý chat. */
+    const val EXTRA_TOPIC_ID = "eu.tintera.plume.extra.TOPIC_ID"
+
     const val EXTRA_GROUP_ID = "eu.tintera.plume.extra.NOTIFICATION_GROUP_ID"
 
     /** Citovaná zpráva odpovědi z notifikace; chybí = bez citace. */
@@ -42,7 +45,7 @@ object NotificationIntents {
      * Potřebuje ho zkratka konverzace (`ShortcutInfo`), která na rozdíl od notifikace nechce
      * `PendingIntent`. **Musí mít nastavenou akci** — bez ní `pushDynamicShortcut` vyhodí výjimku.
      */
-    fun chatIntent(context: Context, chatId: Long): Intent? {
+    fun chatIntent(context: Context, chatId: Long, topicId: Int? = null): Intent? {
         val component = context.packageManager
             .getLaunchIntentForPackage(context.packageName)
             ?.component
@@ -51,13 +54,14 @@ object NotificationIntents {
         return Intent(Intent.ACTION_VIEW)
             .setComponent(component)
             .putExtra(EXTRA_CHAT_ID, chatId)
+            .apply { topicId?.let { putExtra(EXTRA_TOPIC_ID, it) } }
             // Běžící aplikace dostane intent do `onNewIntent` (launchMode singleTask v manifestu)
             // místo toho, aby se activity složila znovu a ztratila stav.
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 
-    fun openChat(context: Context, notificationId: Int, chatId: Long): PendingIntent? {
-        val intent = chatIntent(context, chatId) ?: return null
+    fun openChat(context: Context, notificationId: Int, chatId: Long, topicId: Int? = null): PendingIntent? {
+        val intent = chatIntent(context, chatId, topicId) ?: return null
 
         return PendingIntent.getActivity(
             context,
@@ -81,11 +85,14 @@ object NotificationIntents {
      * ne třídou — `:client:shared` ho nezná, stejně jako `MainActivity`. Broadcast s balíčkem
      * je explicitní a dorazí i příjemci deklarovanému v manifestu.
      */
-    fun reply(context: Context, groupId: Int, chatId: Long, replyToMessageId: Long?): PendingIntent {
+    fun reply(context: Context, groupId: Int, chatId: Long, replyToMessageId: Long?, topicId: Int? = null): PendingIntent {
         val intent = Intent(ACTION_REPLY)
             .setPackage(context.packageName)
             .putExtra(EXTRA_CHAT_ID, chatId)
             .putExtra(EXTRA_GROUP_ID, groupId)
+            // Bez tématu by odpověď ve skupině s tématy skončila v obecném tématu. Extras se
+            // přepíšou každým překreslením, jinak by u odpovědi zůstalo téma předchozí zprávy.
+            .apply { if (topicId != null) putExtra(EXTRA_TOPIC_ID, topicId) else removeExtra(EXTRA_TOPIC_ID) }
             // UPDATE_CURRENT přepíše extras při každém překreslení, takže cituje vždy tu
             // nejnovější zprávu, kterou má uživatel před očima.
             .apply { replyToMessageId?.let { putExtra(EXTRA_REPLY_TO_MESSAGE_ID, it) } }

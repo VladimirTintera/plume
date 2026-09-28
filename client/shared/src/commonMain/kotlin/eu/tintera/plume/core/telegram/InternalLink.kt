@@ -13,7 +13,12 @@ sealed interface InternalLink {
      * Odkaz na zprávu. [messageId] je `null`, když chat otevřít jde, ale zprávu samotnou server
      * nevydal (smazaná, soukromý chat bez přístupu ke starší historii) — otevře se aspoň chat.
      */
-    data class Message(val chatId: Long, val messageId: Long?) : InternalLink
+    data class Message(
+        val chatId: Long,
+        val messageId: Long?,
+        /** Téma skupiny s tématy, ve kterém zpráva je; `null` mimo témata. */
+        val topicId: Int? = null,
+    ) : InternalLink
 
     /** Pozvánka do chatu, ve kterém uživatel není. Nejdřív náhled, přidává se až na potvrzení. */
     data class Invite(val link: String, val preview: InvitePreview) : InternalLink

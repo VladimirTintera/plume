@@ -61,6 +61,7 @@ import dev.g000sha256.tdl.dto.DraftMessageContentText
 import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.UserTypeBot
 import dev.g000sha256.tdl.dto.MessageSenderChat
+import dev.g000sha256.tdl.dto.MessageTopicForum
 import dev.g000sha256.tdl.dto.OptionValueBoolean
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.TopChatCategoryUsers
@@ -145,7 +146,7 @@ class TdlChatRepository(
      * chatů stačí „píše…"); konverzace ve skupině potřebuje i tvář. Zhasíná se spolu s činností
      * v [all], takže tu stará hodnota může zůstat — bez činnosti se nečte.
      */
-    private val activitySenders = MutableStateFlow<Map<Long, Long>>(emptyMap())
+    private val activitySenders = MutableStateFlow<Map<Long, ActivitySource>>(emptyMap())
 
     private val _archiveUnread = MutableStateFlow(ArchiveUnread())
 
@@ -157,7 +158,9 @@ class TdlChatRepository(
         combine(
             all.map { it[chatId]?.activity }.distinctUntilChanged(),
             activitySenders.map { it[chatId] }.distinctUntilChanged(),
-        ) { activity, sender -> if (activity != null && sender != null) ChatTyping(activity, sender) else null }
+        ) { activity, source ->
+            if (activity != null && source != null) ChatTyping(activity, source.senderId, source.topicId) else null
+        }
             .distinctUntilChanged()
 
     /** Složky, u kterých TDLib ohlásil, že další chaty už nejsou. */
@@ -374,7 +377,8 @@ class TdlChatRepository(
                         is MessageSenderUser -> id.userId
                         is MessageSenderChat -> id.chatId
                     }
-                    activitySenders.update { it + (update.chatId to sender) }
+                    val topicId = (update.topicId as? MessageTopicForum)?.forumTopicId
+                    activitySenders.update { it + (update.chatId to ActivitySource(sender, topicId)) }
                 }
                 edit(update.chatId) { it.copy(activity = activity) }
 
@@ -561,7 +565,13 @@ class TdlChatRepository(
                 client.getMessageLinkInfo(url = type.url).toResult().mapCatching { info ->
                     // Nula = chat není k dispozici vůbec (soukromý, uživatel v něm není).
                     check(info.chatId != 0L) { "Chat z odkazu na zprávu není dostupný." }
-                    InternalLink.Message(info.chatId, info.message?.id)
+                    InternalLink.Message(
+                        chatId = info.chatId,
+                        messageId = info.message?.id,
+                        // Téma nese odkaz (`t.me/c/…/téma/zpráva`), jinak zpráva sama.
+                        topicId = (info.topicId as? MessageTopicForum)?.forumTopicId
+                            ?: (info.message?.topicId as? MessageTopicForum)?.forumTopicId,
+                    )
                 }
 
             is InternalLinkTypeChatInvite ->
@@ -623,6 +633,11 @@ class TdlChatRepository(
 
     override suspend fun privateChat(userId: Long): Result<Long> =
         client.createPrivateChat(userId = userId, force = false).toResult().map { it.id }
+
+    override suspend fun isForum(chatId: Long): Boolean =
+        mutex.withLock { known[chatId]?.isForum }
+            ?: client.getChat(chatId = chatId).toResult().getOrNull()?.let { client.isForum(it) }
+            ?: false
 
     override suspend fun groupsForBot(asAdmin: Boolean): List<ChatSummary> {
         // Pořadí jako v seznamu chatů: hlavní seznam, pak archiv.
@@ -914,6 +929,7 @@ class TdlChatRepository(
                     } else {
                         null
                     },
+                    topicId = (message.topicId as? MessageTopicForum)?.forumTopicId,
                 )
             },
             // Prázdný `nextOffset` je u TDLib konec výsledků.
@@ -1391,3 +1407,6 @@ internal fun ChatType.chatKind(): ChatKind = when (this) {
     is ChatTypeBasicGroup -> ChatKind.Group
     is ChatTypePrivate, is ChatTypeSecret -> ChatKind.Private
 }
+
+/** Kdo v chatu naposledy něco dělal, a v jakém tématu (skupina s tématy). */
+private data class ActivitySource(val senderId: Long, val topicId: Int?)

@@ -498,10 +498,9 @@ snadno na to uživatel narazí.
 **Konverzace jako celek**
 
 - ~~**Témata ve skupinách (fóra)**~~ — hotovo: seznam témat místo konverzace, konverzace tématu,
-  psaní do tématu, „Zobrazit jako zprávy" (`CLAUDE.md`, „Témata ve skupinách"). Zbývá: **zakládání,
-  úprava, uzavření a připnutí tématu** (správce), **upozornění po tématech**, **„píše…" jen
-  z tématu** (teď hlásí celou skupinu), **notifikace, odkaz a hledání vedou do tématu** (teď do celé
-  skupiny), **hledání témat podle názvu**, **psaní do tématu ověřené na zařízení** (skupina
+  psaní do tématu, „Zobrazit jako zprávy", cesty do tématu z notifikace, odkazu, hledání a zmínky, „píše…" jen z tématu (`CLAUDE.md`, „Témata ve skupinách"). Zbývá: **zakládání,
+  úprava, uzavření a připnutí tématu** (správce), **upozornění po tématech**, **téma
+  v notifikaci na iOS**, **hledání témat podle názvu**, **psaní do tématu ověřené na zařízení** (skupina
   s tématy, kam smí účet psát, na testovacím účtu není) a **dvoupanel na širokém displeji**.
 - ~~**Nepřečtené zmínky a reakce**~~ — hotovo: tlačítka „@" a „❤" nad tlačítkem dolů, odznaky
   v seznamu chatů, „Označit vše" podržením (`CLAUDE.md`, „Nepřečtené zmínky, reakce a hlasy v anketě"). Zbývá:

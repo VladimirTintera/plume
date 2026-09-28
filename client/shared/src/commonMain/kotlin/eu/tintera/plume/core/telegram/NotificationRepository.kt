@@ -112,6 +112,12 @@ data class ChatNotification(
     val canMute: Boolean = true,
     /** Systémový kanál, kterým notifikace půjde (Android). Viz [notificationChannelFor]. */
     val channel: NotificationChannelKind = NotificationChannelKind.Private,
+    /**
+     * Téma skupiny s tématy, ve kterém zpráva je; ťuknutí na notifikaci ho otevře. `null` mimo
+     * fórum — a u notifikace z pushe: push téma nenese, takže ta otevře skupinu celou, dokud ji
+     * nenahradí skutečná notifikace.
+     */
+    val topicId: Int? = null,
 )
 
 /**

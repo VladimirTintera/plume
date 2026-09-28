@@ -15,6 +15,7 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
+import eu.tintera.plume.core.navigation.ForumTopicsRoute
 import eu.tintera.plume.core.navigation.NavSavedStateConfiguration
 import eu.tintera.plume.core.navigation.SettingsRoute
 import eu.tintera.plume.core.navigation.SettingsSection
@@ -91,11 +92,16 @@ class AppNavigation internal constructor(
     /**
      * Otevření chatu zvenčí (notifikace). Zásobník Chatů se srovná na seznam s tou konverzací:
      * zpět z ní musí vést na seznam, ne do toho, co bylo otevřené předtím.
+     *
+     * S [topicId] se pod konverzaci tématu vloží seznam témat skupiny, takže zpět z tématu vede
+     * do skupiny, jako když se do něj uživatel proklikal sám.
      */
-    fun openChat(chatId: Long) {
+    fun openChat(chatId: Long, topicId: Int? = null) {
         selected.value = ChatsRoute
         popToRoot(ChatsRoute)
-        stack(ChatsRoute).add(ConversationRoute(chatId))
+        val chats = stack(ChatsRoute)
+        if (topicId != null) chats.add(ForumTopicsRoute(chatId))
+        chats.add(ConversationRoute(chatId, topicId = topicId))
     }
 
     /**

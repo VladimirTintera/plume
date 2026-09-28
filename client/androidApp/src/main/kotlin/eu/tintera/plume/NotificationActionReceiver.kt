@@ -44,7 +44,8 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     ?.trim()
                 if (text.isNullOrEmpty()) return
                 val replyTo = intent.longExtra(NotificationIntents.EXTRA_REPLY_TO_MESSAGE_ID)
-                runAsync { reply(context.applicationContext, koin, chatId, groupId, text, replyTo) }
+                val topicId = intent.intExtra(NotificationIntents.EXTRA_TOPIC_ID)
+                runAsync { reply(context.applicationContext, koin, chatId, groupId, text, replyTo, topicId) }
             }
 
             NotificationIntents.ACTION_MARK_READ -> {
@@ -75,14 +76,22 @@ class NotificationActionReceiver : BroadcastReceiver() {
         }
     }
 
-    private suspend fun reply(context: Context, koin: Koin, chatId: Long, groupId: Int, text: String, replyTo: Long?) {
+    private suspend fun reply(
+        context: Context,
+        koin: Koin,
+        chatId: Long,
+        groupId: Int,
+        text: String,
+        replyTo: Long?,
+        topicId: Int?,
+    ) {
         val presenter = koin.get<NotificationPresenter>()
         val actions = koin.get<NotificationActions>()
         val started = TimeSource.Monotonic.markNow()
         // Hned: dokud se notifikace nepřekreslí, točí se v ní kolečko.
         presenter.showReply(groupId, text)
 
-        val reply = actions.send(chatId, text, replyTo, READY_TIMEOUT).getOrElse {
+        val reply = actions.send(chatId, text, replyTo, READY_TIMEOUT, topicId).getOrElse {
             presenter.showReplyFailed(groupId, text)
             return
         }
@@ -97,6 +106,8 @@ class NotificationActionReceiver : BroadcastReceiver() {
     }
 
     private fun Intent.longExtra(key: String): Long? = getLongExtra(key, 0L).takeIf { it != 0L }
+
+    private fun Intent.intExtra(key: String): Int? = if (hasExtra(key)) getIntExtra(key, 0) else null
 
     private companion object {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
