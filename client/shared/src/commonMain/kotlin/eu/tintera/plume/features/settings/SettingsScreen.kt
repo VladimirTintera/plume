@@ -26,7 +26,12 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
+import eu.tintera.plume.resources.campaign_24dp
 import eu.tintera.plume.resources.common_back
+import eu.tintera.plume.resources.devices_24dp
+import eu.tintera.plume.resources.notifications_24dp
+import eu.tintera.plume.resources.palette_24dp
+import eu.tintera.plume.resources.settings_24dp
 import eu.tintera.plume.resources.settings_section_appearance
 import eu.tintera.plume.resources.settings_section_appearance_summary
 import eu.tintera.plume.resources.settings_section_devices
@@ -38,6 +43,7 @@ import eu.tintera.plume.resources.settings_section_notifications_summary
 import eu.tintera.plume.resources.settings_section_whats_new
 import eu.tintera.plume.resources.settings_section_whats_new_summary
 import eu.tintera.plume.resources.settings_title
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -153,7 +159,10 @@ private fun SectionRow(
             containerColor = containerColor,
             contentColor = contentColor,
             supportingContentColor = supportingColor,
+            leadingContentColor = supportingColor,
         ),
+        // Ikona je dekorace: co sekce je, říká název vedle ní, takže čtečce nic nepřidá.
+        leadingContent = { Icon(painterResource(section.icon), contentDescription = null) },
         headlineContent = { Text(stringResource(section.title)) },
         supportingContent = { Text(stringResource(section.summary)) },
         modifier = Modifier
@@ -171,6 +180,19 @@ internal val SettingsSection.title: StringResource
         SettingsSection.Appearance -> Res.string.settings_section_appearance
         SettingsSection.Devices -> Res.string.settings_section_devices
         SettingsSection.WhatsNew -> Res.string.settings_section_whats_new
+    }
+
+/**
+ * Ikona sekce. S pěti řádky už se seznam nečte jen podle slov — ikona se najde koutkem oka.
+ * „Co je nového" má megafon, ne raketu: raketa uvnitř sekce značí novinku u jedné poznámky.
+ */
+private val SettingsSection.icon: DrawableResource
+    get() = when (this) {
+        SettingsSection.General -> Res.drawable.settings_24dp
+        SettingsSection.Notifications -> Res.drawable.notifications_24dp
+        SettingsSection.Appearance -> Res.drawable.palette_24dp
+        SettingsSection.Devices -> Res.drawable.devices_24dp
+        SettingsSection.WhatsNew -> Res.drawable.campaign_24dp
     }
 
 /** Co v sekci je. Bez toho by ze seznamu dvou slov nebylo poznat, kde co hledat. */
