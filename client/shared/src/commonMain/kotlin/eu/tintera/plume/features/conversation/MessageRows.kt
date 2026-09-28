@@ -2,6 +2,10 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.MAX_AUTOPLAY_ANIMATION_BYTES
+import eu.tintera.plume.core.files.opensInViewer
+import eu.tintera.plume.core.files.documentKind
+import eu.tintera.plume.core.files.DocumentKind
 import eu.tintera.plume.core.telegram.composedFormatsOf
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -131,12 +135,42 @@ internal fun groupAlbums(messages: List<ChatMessage>): List<MessageRow> {
  */
 internal fun showsBareMedia(message: ChatMessage, album: List<ChatMessage>?): Boolean {
     if (message.replyToMessageId != null || message.linkPreview != null) return false
+    // Obrázek nebo video poslané jako soubor jde na plochu jen samo — album souborů je seznam.
+    if (album == null && (message.media as? MessageMedia.Document)?.showsLargePreview == true) return true
     val media = album?.map { it.media } ?: listOf(message.media)
     return media.isNotEmpty() && media.all {
         it is MessageMedia.Photo || it is MessageMedia.Video || it is MessageMedia.Animation ||
             it is MessageMedia.Location || it is MessageMedia.PaidMedia
     }
 }
+
+/**
+ * Kreslí se soubor jako VELKÝ náhled — snímek jako fotka, pod ním název a velikost — místo
+ * řádku s ikonou?
+ *
+ * Jen obrázek a video ([documentKind]) s náhledem od serveru: rozměry souboru TDLib u dokumentu
+ * nedává, takže rámeček stojí na poměru stran náhledu, a bez něj by nebylo co kreslit. HEIC
+ * náhled nemá (ověřeno botem), zůstává tedy řádkem. **Citlivý soubor taky** — řádek ho umí
+ * rozostřit a odkrýt ([SensitiveBox]); velký náhled by ho ukázal dřív, než o to kdo požádal.
+ */
+internal val MessageMedia.Document.showsLargePreview: Boolean
+    get() = !isSensitive && thumbnailFileId != null && thumbnailWidth > 0 && thumbnailHeight > 0 &&
+        documentKind(fileName, mimeType) != DocumentKind.Other
+
+/**
+ * Stáhne se u velkého náhledu i SOUBOR, aby snímek nebyl rozmazaný?
+ *
+ * Náhled od serveru má do 320 px a ve snímku přes většinu bubliny je vidět, že je malý. Originál
+ * se ale stahuje sám, bez ťuknutí — proto jen obrázek, který umí nakreslit prohlížeč
+ * ([opensInViewer], tedy i Coil v bublině), a jen do stropu ([MAX_DOCUMENT_PREVIEW_BYTES],
+ * stejný jako u GIFů). Video, velký obrázek a formát, který neumíme, zůstanou u náhledu.
+ */
+internal val MessageMedia.Document.loadsOriginalPreview: Boolean
+    get() = showsLargePreview && documentKind(fileName, mimeType) == DocumentKind.Image &&
+        sizeBytes in 1..MAX_DOCUMENT_PREVIEW_BYTES && opensInViewer(fileName, mimeType)
+
+/** Strop souboru, který se kvůli velkému náhledu stáhne sám — stejný jako u GIFů. */
+internal const val MAX_DOCUMENT_PREVIEW_BYTES = MAX_AUTOPLAY_ANIMATION_BYTES
 
 /**
  * Kreslí se náhled odkazu jako **karta ze dvou částí** — nahoře text zprávy v barvě bubliny,

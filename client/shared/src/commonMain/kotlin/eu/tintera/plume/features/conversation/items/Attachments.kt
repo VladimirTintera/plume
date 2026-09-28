@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.features.conversation.loadsOriginalPreview
+import eu.tintera.plume.features.conversation.showsLargePreview
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -337,7 +339,20 @@ internal fun MessageAttachment(
             }
         }
 
-        is MessageMedia.Document -> DocumentContent(
+        // Obrázek nebo video jako soubor, s náhledem, na ploše bez bubliny: velký snímek jako fotka.
+        is MessageMedia.Document -> if (mediaShape != null && media.showsLargePreview) {
+            LargeDocumentPreview(
+                document = media,
+                messageId = messageId,
+                progress = documentProgress(media.fileId),
+                uploading = uploading,
+                onCancelUpload = onCancelUpload,
+                onOpen = if (opensInViewer(media.fileName, media.mimeType)) onOpen else onOpenDocument,
+                onRequestMenu = onRequestMenu,
+                shape = pictureShape,
+                fillWidth = fillWidth,
+            )
+        } else DocumentContent(
             messageId = messageId,
             document = media,
             progress = documentProgress(media.fileId),
@@ -744,6 +759,97 @@ private fun DocumentContent(
                 style = MaterialTheme.typography.labelSmall,
             )
         }
+    }
+}
+
+/**
+ * Obrázek nebo video poslané jako soubor, VELKÉ — jako fotka, rámečkem podle poměru stran náhledu
+ * ([photoFrame]). Název a velikost jsou pod snímkem v popisku (`MediaMessageItem`).
+ *
+ * Kreslí se originál, když se smí stáhnout sám ([loadsOriginalPreview]), jinak náhled od serveru;
+ * ten je malý, ale rozmazaný snímek je pořád víc než ikona v řádku. U videa je uprostřed symbol
+ * přehrání, jako u videa poslaného jako video. Ťuknutí otevře prohlížeč, a co ten neumí, systém —
+ * pak se nad snímkem točí průběh stahování, bíle na závoji jako u nahrávání.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun LargeDocumentPreview(
+    document: MessageMedia.Document,
+    messageId: Long,
+    progress: Float?,
+    uploading: Boolean,
+    onCancelUpload: () -> Unit,
+    onOpen: () -> Unit,
+    onRequestMenu: () -> Unit,
+    shape: Shape,
+    fillWidth: Boolean,
+) {
+    val thumbnail = document.thumbnailFileId ?: return
+    val kind = remember(document.fileName, document.mimeType) { documentKind(document.fileName, document.mimeType) }
+    val inViewer = remember(document.fileName, document.mimeType) { opensInViewer(document.fileName, document.mimeType) }
+    BoxWithConstraints {
+        val frame = photoFrame(maxWidth, document.thumbnailWidth.toFloat() / document.thumbnailHeight.toFloat(), fillWidth)
+        Box(
+            Modifier
+                .size(frame)
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                // Z náhledu vyroste prohlížeč, stejně jako z fotky; co jde systému, neletí nikam.
+                .then(if (inViewer) Modifier.sharedNavElement(photoKey(messageId), shape = shape) else Modifier)
+                .combinedClickable(
+                    enabled = !uploading,
+                    onClick = onOpen,
+                    onLongClick = onRequestMenu,
+                    onClickLabel = stringResource(Res.string.document_open),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            RemoteImage(
+                fileId = if (document.loadsOriginalPreview) document.fileId else thumbnail,
+                thumbnailFileId = thumbnail.takeIf { document.loadsOriginalPreview },
+                contentDescription = document.fileName,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            when {
+                uploading -> UploadIndicator(fileId = document.fileId, onCancel = onCancelUpload)
+                progress != null -> Box(
+                    Modifier.size(UPLOAD_INDICATOR_SIZE).clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    DownloadProgress(progress = progress, color = Color.White)
+                }
+                kind == DocumentKind.Video -> Box(
+                    Modifier.size(UPLOAD_INDICATOR_SIZE).clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.play_arrow_24dp),
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Název a velikost souboru pod velkým náhledem ([LargeDocumentPreview]), v barvě [color]. */
+@Composable
+internal fun DocumentCaption(document: MessageMedia.Document, color: Color) {
+    val size = remember(document.sizeBytes) { formatFileSize(document.sizeBytes) }
+    Column {
+        Text(
+            text = document.fileName,
+            style = MaterialTheme.typography.bodyMedium,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.MiddleEllipsis,
+        )
+        Text(text = fileSizeText(size), style = MaterialTheme.typography.labelSmall, color = color.copy(alpha = 0.8f))
     }
 }
 

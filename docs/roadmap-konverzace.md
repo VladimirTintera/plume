@@ -255,13 +255,12 @@ Co zbývá:
   - **Ověřit na iOS**, že HEIC, WebM a MKV opravdu jdou systému a ostatní do prohlížeče.
     Seznam nepodporovaných formátů (`viewerUnsupportedFormats`) je zatím z dokumentace, ne
     z pokusu.
-  - **Velký náhled v bublině** jako u fotky (`photoFrame`), pod ním řádek s názvem
-    a velikostí. **Rozměry TDLib u dokumentu nedává**, poměr stran se bere z náhledu
-    (`Thumbnail.width` / `height`). Náhled má do 320 px, ve velké bublině bude rozmazaný;
-    originál bývá desítky MB. Stahovat ho automaticky jen pod nějakým stropem, jinak až na
-    ťuknutí, s průběhem přes náhled jako u videa.
+  - ~~**Velký náhled v bublině**~~ — hotovo (`CLAUDE.md`, „Velký náhled souboru"). Zbývá:
+    obrázek nad 5 MB zůstává u rozmazaného náhledu (originál až na ťuknutí), a **velký obrázek
+    bez náhledu od serveru** (u 13 i 22 MB ho server nevyrobil) je dál řádek.
   - **HEIC náhled nemá**, takže je v řádku jen ikona obrázku. Vlastní náhled by znamenal
-    stáhnout celý soubor (fotka z iPhonu má jednotky MB) — až s velkým náhledem výš.
+    stáhnout celý soubor (fotka z iPhonu má jednotky MB); rámeček by pak chtěl rozměry, které
+    TDLib u dokumentu nedává.
 - ~~**Uložení do galerie, sdílení a „Uložit jako…"** z prohlížeče~~ — hotovo (`MediaSaver`,
   `MediaSharer`, `rememberSaveAs`). Zbývá:
   - **Ověřit na iOS** (`PHPhotoLibrary` s dotazem na oprávnění, `UIActivityViewController`

@@ -17,7 +17,8 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
 
 /**
- * Fotka, video, album nebo mapa polohy přímo na ploše konverzace, bez bubliny (pravidlo: [showsBareMedia]).
+ * Fotka, video, album, mapa polohy nebo obrázek poslaný jako soubor přímo na ploše konverzace, bez
+ * bubliny (pravidlo: [showsBareMedia]).
  *
  * Bublina kolem snímku nemá co ohraničovat — je to obrázek sám o sobě. **Popisek ale na plochu
  * nepatří**: text bez pozadí by se ztratil, takže dostane kontejner v barvě bubliny.
@@ -45,9 +46,12 @@ internal data class MediaMessageItem(
     @Composable
     override fun MessageBodyScope.Body() {
         val location = (message.media as? MessageMedia.Location)?.takeIf { it.hasDetails }
+        // Soubor s velkým náhledem má pod snímkem vždycky název a velikost — bez nich by vypadal
+        // jako fotka a nebylo by poznat, že ťuknutí otevře soubor.
+        val document = if (album == null) message.media as? MessageMedia.Document else null
         // Živou polohu posouvá úprava zprávy; „upraveno" by u ní svítilo pořád.
         val edited = message.isEdited && !message.isLiveLocation
-        val hasCaption = message.text.isNotBlank() || edited || location != null
+        val hasCaption = message.text.isNotBlank() || edited || location != null || document != null
         // Přeposlaná fotka nese značku v hlavičce téže karty — patří k obsahu, ne vedle něj.
         val forwarded = message.hasOriginLabel
         val isCard = hasCaption || forwarded
@@ -78,7 +82,13 @@ internal data class MediaMessageItem(
                                 mediaShape = mediaShape,
                                 // Popisek má šířku fotky; s ním využije celou nabízenou šířku.
                                 // Mapa má šířku stálou — s názvem místa i bez něj stejně velká.
-                                fillWidth = hasCaption && it !is MessageMedia.Location,
+                                // Soubor jen s textem zprávy: řádek s názvem má každý, a kvůli
+                                // němu by se roztahoval každý náhled.
+                                fillWidth = when (it) {
+                                    is MessageMedia.Location -> false
+                                    is MessageMedia.Document -> message.text.isNotBlank()
+                                    else -> hasCaption
+                                },
                             )
                         }
                     }
@@ -88,6 +98,7 @@ internal data class MediaMessageItem(
                         BubbleSurface {
                             PaddedColumn {
                                 location?.let { LocationDetails(it, color = onBubbleColor) }
+                                document?.let { DocumentCaption(it, color = onBubbleColor) }
                                 if (message.text.isNotBlank()) MessageText(linkColor = accent)
                                 if (edited) EditedLabel(color = onBubbleColor, modifier = Modifier.align(Alignment.End))
                             }
