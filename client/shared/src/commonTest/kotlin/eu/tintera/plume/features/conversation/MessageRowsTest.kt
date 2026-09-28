@@ -231,6 +231,54 @@ class MessageRowsTest {
         assertFalse(showsBareMedia(message(id = 1, media = document()), album = null))
     }
 
+    private fun imageFile(
+        fileName: String = "fotka.jpg",
+        sizeBytes: Long = 900_000,
+        thumbnail: Boolean = true,
+        isSensitive: Boolean = false,
+    ) = MessageMedia.Document(
+        fileId = 1,
+        fileName = fileName,
+        mimeType = "",
+        sizeBytes = sizeBytes,
+        thumbnailFileId = if (thumbnail) 2 else null,
+        thumbnailWidth = if (thumbnail) 320 else 0,
+        thumbnailHeight = if (thumbnail) 240 else 0,
+        isSensitive = isSensitive,
+    )
+
+    @Test
+    fun obrazekJakoSouborJdeNaPlochuVelky() {
+        assertTrue(imageFile().showsLargePreview)
+        assertTrue(imageFile(fileName = "klip.mp4").showsLargePreview)
+        assertTrue(showsBareMedia(message(id = 1, media = imageFile()), album = null))
+        // I s textem zprávy — ten je popiskem pod názvem souboru.
+        assertTrue(showsBareMedia(message(id = 1, text = "ahoj", media = imageFile()), album = null))
+    }
+
+    @Test
+    fun velkyNahledJenSNahledemAObrazkem() {
+        // Bez náhledu (HEIC ho od serveru nedostane) není co kreslit.
+        assertFalse(imageFile(fileName = "fotka.heic", thumbnail = false).showsLargePreview)
+        // PDF s náhledem je pořád dokument — ikona a název o něm řeknou víc.
+        assertFalse(imageFile(fileName = "smlouva.pdf").showsLargePreview)
+        // Citlivý soubor rozostří a odkryje řádek.
+        assertFalse(imageFile(isSensitive = true).showsLargePreview)
+        // Album souborů je seznam, ne mřížka.
+        val members = listOf(message(id = 1, media = imageFile()), message(id = 2, media = imageFile()))
+        assertFalse(showsBareMedia(members.first(), album = members))
+    }
+
+    @Test
+    fun originalSeStahujeJenMalyObrazek() {
+        assertTrue(imageFile().loadsOriginalPreview)
+        assertFalse(imageFile(sizeBytes = MAX_DOCUMENT_PREVIEW_BYTES + 1).loadsOriginalPreview)
+        // Neznámá velikost se nestahuje, stejně jako u GIFů.
+        assertFalse(imageFile(sizeBytes = 0).loadsOriginalPreview)
+        // Video zůstává u náhledu.
+        assertFalse(imageFile(fileName = "klip.mp4").loadsOriginalPreview)
+    }
+
     @Test
     fun textovaZpravaSiBublinuDrzi() {
         assertFalse(showsBareMedia(message(id = 1, text = "ahoj"), album = null))

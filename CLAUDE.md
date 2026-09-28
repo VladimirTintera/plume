@@ -4976,7 +4976,22 @@ stáhne a předá systému.
   Bez náhledu pro daný typ se ukáže nabídka „Otevřít v…".
 - **Když soubor nemá čím otevřít, musí to jít vidět.** `FileOpener.open` vrací `false`
   a konverzace na to má snackbar; jinak by ťuknutí vypadalo, že nic neudělalo.
-- **Obrázek a video poslané jako soubor mají v řádku náhled** místo ikony (`DocumentThumbnail`),
+- **Obrázek a video poslané jako soubor s náhledem jsou VELKÉ, jako fotka** (`LargeDocumentPreview`,
+  pravidlo `showsLargePreview` / `loadsOriginalPreview`, testy `MessageRowsTest`). Jdou na plochu
+  bez bubliny (`showsBareMedia`), rámeček podle poměru stran náhledu (`photoFrame`; rozměry souboru
+  TDLib u dokumentu nedává) a pod snímkem je vždycky název a velikost (`DocumentCaption`) — bez
+  nich by soubor vypadal jako fotka. Ťuknutí otevře prohlížeč (s letem snímku), co ten neumí,
+  systém s průběhem přes snímek; nabídka nad zprávou zůstává (Sdílet, Uložit jako…).
+  - **Originál se stáhne sám jen u obrázku do 5 MB** (strop GIFů), který umí prohlížeč — jinak
+    zůstane náhled od serveru (do 320 px), video vždycky. Ověřeno: 223 kB ostrý originál, 6,2 MB
+    náhled, video se symbolem přehrání.
+  - **Server náhled nevyrobí vždycky**: HEIC nikdy, a botem poslaný JPEG o 13 a 22 MB taky ne
+    (6,2 MB ano). Bez náhledu zůstává řádek s ikonou — není z čeho vzít poměr stran.
+  - **Citlivý soubor a album souborů zůstávají řádky.** Řádek umí rozostřit a odkrýt; album
+    souborů je seznam, ne mřížka.
+  - **S textem zprávy snímek využije celou šířku a ořízne se na střed**, jako fotka s popiskem
+    (`fillWidth`); jen s řádkem názvu ne — ten má každý soubor a roztahoval by každý náhled.
+- **Obrázek a video poslané jako soubor BEZ velkého náhledu mají v řádku náhled** místo ikony (`DocumentThumbnail`),
   video navíc symbol přehrání; bez náhledu aspoň ikonu podle druhu (`documentKind`, testy
   `DocumentKindTest`). Druh rozhoduje **přípona před `mimeType`** — ten posílá odesílatel
   a bývá `application/octet-stream` — a obojí se porovnává se seznamem formátů, ne s prefixem
