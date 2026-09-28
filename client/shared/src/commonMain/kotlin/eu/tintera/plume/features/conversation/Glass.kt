@@ -63,5 +63,15 @@ internal const val GLASS_TINT_ALPHA = 0.72f
  */
 internal const val GLASS_TEXT_TINT_ALPHA = 0.88f
 
+/**
+ * Krytí skla plovoucího napovídání nad polem (`FloatingSuggestion`), barva `inverseSurface`.
+ *
+ * Víc než u ostatních skel, protože inverzní plocha nese text opačné světlosti než to, co pod ní
+ * projede: ve světlém motivu světlé písmo nad bílou fotkou, v tmavém tmavé nad černou. S 0,8 vyjde
+ * v obou nejhůř kolem 6,5 : 1; s 0,66 (dřívější tmavé sklo z `scrim`) by `inverseSurface`, která
+ * je světlejší než černá, nad bílou fotkou spadla pod 4 : 1.
+ */
+internal const val FLOATING_SUGGESTION_TINT_ALPHA = 0.8f
+
 /** Bez rozostření (Android 11 a starší) plocha kryje úplně — jinak by pod ní text prosvítal. */
 internal const val GLASS_FALLBACK_ALPHA = 1f
