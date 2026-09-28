@@ -298,6 +298,12 @@ interface ConversationRepository {
     suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage>
 
     /**
+     * Skladby v chatu hned před [messageId] a hned za ní — playlist hudby, který musí jít dál
+     * i bez otevřené konverzace (přehrávání na pozadí, další skladba z notifikace).
+     */
+    suspend fun musicNeighbors(chatId: Long, messageId: Long): Result<MusicNeighbors>
+
+    /**
      * Odešle zprávu a **okamžitě vrátí její rozepsanou podobu**.
      *
      * TDLib vrací zprávu hned, s dočasným id a stavem [SendState.Sending]; skutečné id přijde
@@ -1954,3 +1960,6 @@ data class FactCheck(
     val entities: List<MessageEntity>,
     val countryCode: String?,
 )
+
+/** Sousední skladby v chatu; `null`, kde už žádná není. */
+data class MusicNeighbors(val previous: ChatMessage?, val next: ChatMessage?)

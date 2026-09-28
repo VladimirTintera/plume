@@ -11,6 +11,11 @@
          dokud je senzor přiblížení zakrytý (WAKE_LOCK). Obojí se uděluje při instalaci. -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Hudba na pozadí: služba v popředí s MediaSession (MusicPlaybackService). Typ
+         mediaPlayback se od Androidu 14 musí vyjmenovat zvlášť a Play ho chce vysvětlit
+         v deklaraci služeb v popředí. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <!-- Uložení fotky a videa do galerie. Od Androidu 10 zapisuje MediaStore bez oprávnění. -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
@@ -129,6 +134,18 @@
                 <action android:name="eu.tintera.plume.action.NOTIFICATION_MUTE" />
             </intent-filter>
         </receiver>
+
+        <!-- Hudba na pozadí (Media3). Exportovaná, protože se k relaci připojují systémové
+             ovladače — notifikace, zamykací obrazovka, sluchátka, hodinky. Třída je v :client:shared. -->
+        <service
+            android:name="eu.tintera.plume.core.audio.MusicPlaybackService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
 
         <!-- Bez google-services.json se služba nikdy nespustí, protože Firebase se
              neinicializuje; deklarace tedy nevadí ani v buildu bez pushe. -->

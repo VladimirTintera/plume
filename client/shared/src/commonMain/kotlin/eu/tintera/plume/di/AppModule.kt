@@ -88,6 +88,7 @@ import kotlinx.coroutines.SupervisorJob
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.viewModel
 import eu.tintera.plume.core.audio.VoicePlayer
+import eu.tintera.plume.core.audio.MusicQueue
 import eu.tintera.plume.features.forward.ForwardViewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
@@ -192,6 +193,17 @@ fun appModule() = module {
         )
     }
 
+    // Hudba: fronta skladeb a systémové ovládání. Na týchž vláknech jako přehrávač — spoléhá na
+    // to, že konec skladby a spuštění další uvidí ve stejném pořadí, v jakém se staly.
+    single {
+        MusicQueue(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            player = get(),
+            conversations = get(),
+            files = get(),
+        )
+    }
+
     // Most mezi platformním vstupem (ťuknutí na notifikaci) a navigací.
     single { ChatOpenRequests() }
     single { BotStartRequests() }
@@ -289,6 +301,7 @@ fun appModule() = module {
             clipboard = get(),
             fileRepository = get(),
             voicePlayer = get(),
+            musicQueue = get(),
             audioRecorder = get(),
             fileOpener = get(),
             sharer = get(),
@@ -315,6 +328,7 @@ fun appModule() = module {
             notificationPermission = get(),
             clipboard = get(),
             voicePlayer = get(),
+            musicQueue = get(),
         )
     }
 

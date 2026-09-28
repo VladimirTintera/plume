@@ -54,6 +54,7 @@ import eu.tintera.plume.core.audio.MIN_DURATION_MS
 import eu.tintera.plume.core.audio.VoiceKey
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoicePlayer
+import eu.tintera.plume.core.audio.MusicQueue
 import eu.tintera.plume.core.audio.VoiceRecorder
 import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.audio.VoiceSpeed
@@ -238,6 +239,7 @@ class ConversationViewModel(
     /** Jen kvůli hlasovkám: soubor se stáhne až při prvním přehrání. */
     private val fileRepository: FileRepository,
     private val voicePlayer: VoicePlayer,
+    private val musicQueue: MusicQueue,
     private val fileOpener: FileOpener,
     private val sharer: MediaSharer,
     /** Obsah sdílený ze systému, pro který uživatel vybral tenhle chat. */
@@ -2017,7 +2019,8 @@ class ConversationViewModel(
         }
 
         // Hlasovka z chatu, který se zavřel, nemá kde ukazovat průběh ani jak se zastavit.
-        voicePlayer.stop(chatId)
+        // Hudba hraje dál — ovládá se z notifikace a zamykací obrazovky (MusicQueue).
+        voicePlayer.stop(chatId, keepMusic = true)
         // Rozpracovaná nahrávka se při odchodu zahazuje — neposílat nic, co uživatel neodeslal.
         voiceRecorder.cancel()
 
@@ -2357,7 +2360,7 @@ class ConversationViewModel(
             }
             is MessageMedia.Audio -> {
                 _state.update { it.copy(soundingVideoNote = null) }
-                voicePlayer.play(VoiceKey(chatId, target.id), raiseToEar = false, startMs = startMs) { filePath(media.fileId) }
+                musicQueue.play(chatId, target.id, media, startMs)
             }
             is MessageMedia.VideoNote -> {
                 voicePlayer.stop()
@@ -3588,7 +3591,7 @@ class ConversationViewModel(
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         (message.media as? MessageMedia.Audio)?.let { audio ->
             _state.update { it.copy(soundingVideoNote = null) }
-            voicePlayer.toggle(VoiceKey(chatId, messageId), raiseToEar = false) { filePath(audio.fileId) }
+            musicQueue.toggle(chatId, messageId, audio)
             return
         }
         val voice = message.media as? MessageMedia.VoiceNote ?: return
@@ -3700,17 +3703,9 @@ class ConversationViewModel(
      * Vlastní odchozí hlasovku nikdo „neposlechl" v tomhle smyslu, takže na ní řetěz taky končí.
      */
     private fun playNextUnlistened(after: Long) {
-        // Skladby jdou jako playlist: po dohrání další novější skladba v chatu, poslechnutá
-        // nebo ne (u hudby „poslechnuto" neexistuje). Hlasovky se hudbou neřetězí a naopak.
+        // Skladby řetězí MusicQueue (hrají i bez konverzace); hlasovky se hudbou neřetězí.
         val finished = _state.value.messages.firstOrNull { it.id == after }
-        if (finished?.media is MessageMedia.Audio) {
-            val next = _state.value.messages
-                .filter { it.id > after && it.media is MessageMedia.Audio }
-                .minByOrNull { it.id } ?: return
-            val audio = next.media as? MessageMedia.Audio ?: return
-            voicePlayer.play(VoiceKey(chatId, next.id), raiseToEar = false) { filePath(audio.fileId) }
-            return
-        }
+        if (finished?.media is MessageMedia.Audio) return
         val next = _state.value.messages
             .filter { it.id > after && it.media is MessageMedia.VoiceNote }
             .minByOrNull { it.id }

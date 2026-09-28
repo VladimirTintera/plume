@@ -5701,18 +5701,82 @@ jako tlačítko, název, interpret, lišta průběhu s posunem, čas a čip rych
   hlasovku i kolečko se zvukem a naopak — a druhý přehrávač by to musel hlídat zvlášť.
   `AudioEngine` hraje cokoli, co ne-Ogg: Android `MediaPlayer`, iOS `AVAudioPlayer` rovnou
   (dekódování do WAV je jen pro Ogg/Opus).
-- **Hudba u ucha nepřepíná do sluchátka** (`raiseToEar = false`): senzory se vůbec nezapnou
-  (ověřeno `dumpsys sensorservice`), jinak by telefon v ruce při poslechu zhasínal displej.
+- **Hudba u ucha nepřepíná do sluchátka** (`VoicePlayer.play(music = true)`): senzory se vůbec
+  nezapnou (ověřeno `dumpsys sensorservice`), jinak by telefon v ruce při poslechu zhasínal displej.
 - **Po dohrání hraje další novější skladba v chatu** — playlist, bez ohledu na „poslechnuto",
   které u hudby není. Hlasovky a skladby se mezi sebou neřetězí.
+
+### Hudba na pozadí
+
+Skladba hraje dál i po odchodu z konverzace a z aplikace. Ovládá se z notifikace, zamykací
+obrazovky, sluchátek a hodinek. Na Androidu přes Media3 MediaSession, na iOS přes
+`MPNowPlayingInfoCenter` a `MPRemoteCommandCenter`.
+
+- **Fronta skladeb je `MusicQueue` (`core/audio`), ne ViewModel konverzace.** Dokud byla
+  v konverzaci, musela hudba s odchodem z ní skončit: bez obrazovky nebylo komu říct, co hraje
+  dál. Sousední skladby se proto hledají v chatu (`ConversationRepository.musicNeighbors`,
+  `SearchMessagesFilterAudio`), ne v načtené historii. Konverzace i záložka Hudba v profilu
+  pouštějí skladby přes ni. `onCleared` konverzace zastavuje jen hlasovku
+  (`stop(chatId, keepMusic = true)`).
+- **`searchChatMessages` s `offset = -1` novější zprávu NEVRÁTÍ, jen tu samotnou.** Ověřeno
+  logem od téže zprávy: `-1` vrátilo [skladba, starší, starší], `-2` vrátilo
+  [novější, skladba, starší, starší]. Novější soused tak chyběl, v notifikaci nebylo „další"
+  a po dohrání nic nenavázalo. Stejný vzor `-newer` má i `visualMedia` a vrací o jednu
+  novější fotku míň. Tam to nevadí, protože se dotahuje po stránkách.
+- **Zvuk hraje dál `VoicePlayer`, ne ExoPlayer.** Přehrávač je jeden pro hlasovky i hudbu
+  a druhý by se s ním musel domlouvat, kdo zrovna hraje. Media3 dostane `SimpleBasePlayer`
+  (`MusicSessionPlayer`), který nic nepřehrává. Jen popíše stav fronty a předá povely.
+  **Playlist má nejvýš tři položky** (předchozí, hrající, další), takže Media3 sám rozhodne,
+  jestli „předchozí" skočí na začátek skladby (po třech vteřinách), nebo na skladbu před ní.
+  iOS to dělá ručně stejně.
+- **Mezi dvěma skladbami nesmí stav hudby ani na okamžik zmizet** (`Current.advancing`).
+  `VoicePlayer` po dohrání vynuluje stav, a než se najde a stáhne další skladba, je prázdný.
+  Kdyby se to promítlo do relace, Media3 by stáhl notifikaci i službu z popředí. Z pozadí by
+  ji systém znovu spustit nedovolil a hudba by skončila po první skladbě. Proto `onFinished`
+  u `VoicePlayer.play`: volá se SYNCHRONNĚ ještě před vynulováním stavu. `completions` doběhnou
+  až v korutině, takže by fronta prázdný stav viděla dřív, než se dozví proč.
+- **Skladba, kterou zastavilo něco jiného** (hlasovka, video, nahrávání), z fronty odchází.
+  Pozná se to podle stavu přehrávače bez příznaku `advancing`.
+- **Služba (`MusicPlaybackService`) je v `:client:shared`, deklarace v manifestu vstupního bodu.**
+  Spouští ji `MusicControls` obyčejným `startService`: hudba začíná ťuknutím, tedy s aplikací
+  v popředí. Do popředí ji přepíná a zase z něj pouští Media3 podle stavu přehrávače. Relaci
+  vytvořenou ve službě je potřeba přidat ručně (`addSession`), jinak notifikace nevznikne,
+  dokud se nepřipojí cizí ovladač. Po konci hudby se služba ukončí sama.
+- **Bez služby by hudba na pozadí přestala hrát** — aplikace v keši se do pár vteřin zmrazí
+  (viz „Notifikace"), i s přehrávačem.
+- **`FOREGROUND_SERVICE_MEDIA_PLAYBACK` chce Play vysvětlit** v deklaraci služeb v popředí
+  (Play Console → Obsah aplikace). Bez ní neprojde další release, ne build.
+- **Hudba má jiný audio focus než hlasovka** (`AudioEngine.load(music = true)`): trvalý
+  `GAIN` a `CONTENT_TYPE_MUSIC`, takže jiná hudební aplikace se zastaví a sama nenaváže.
+  Ztišení kvůli navigaci (`CAN_DUCK`) hudbu nezastaví, udělá ho systém. Vytažená sluchátka
+  (`ACTION_AUDIO_BECOMING_NOISY`) hudbu pozastaví, jinak by se rozezněla z reproduktoru.
+- **Ťuknutí na přehrávač v notifikaci otevře chat, ze kterého skladba hraje**
+  (`setSessionActivity` s `NotificationIntents.chatIntent`).
+- **iOS: `UIBackgroundModes: audio`** v Info.plist, kategorie relace je Playback
+  (`AudioEngine`). Systém si pozici dopočítává z posledního hlášení, a proto
+  `NowPlayingControls` hlásí pozici při každé změně a za přehrávání každých pět vteřin.
+  Posun v bublině by se na zamykací obrazovce jinak neukázal.
+- **Ověřeno na emulátoru** (Android 17, dvě skladby od bota v chatu s Notifikátorem):
+  - skladba hraje dál na ploše (`isForeground=true`, `types=0x2`, šablona MediaStyle);
+  - druhá skladba sama naváže a po poslední se relace i služba ukončí;
+  - pauza a „další" z přehrávače v rychlém nastavení;
+  - poslední skladba nemá „další";
+  - obal, název a interpret jsou v přehrávači;
+  - ťuknutí na přehrávač otevře chat.
+  
+  **Stav relace je v logu** (`adb logcat | grep "onSessionPlaybackStateChanged.*tintera"`).
+  V `dumpsys media_session` se hledá podle `packages=`, ne `package=`.
+
+  **Neověřeno**: zamykací obrazovka (emulátor nemá zámek), sluchátka a vytažení kabelu,
+  přerušení hovorem a celý iOS (jen přeložené).
 - **Rychlost platí i pro hudbu** (jedna volba pro celou aplikaci, jako u hlasovek); u podcastů
   se hodí, u písniček ji nikdo nezapne.
 - **Délku server znát nemusí** — Bot API ji u souboru bez metadat pošle jako nulu. „0:00" by
   lhalo, takže se čas do spuštění neukazuje; skutečnou délku zjistí přehrávač.
 - **V profilu je záložka Hudba** (`SharedMediaKind.Music`, `SearchMessagesFilterAudio`;
   `SharedMusicList`). Ťuknutí skladbu pustí přímo tam — TÝŽ `VoicePlayer` (profil ho dostane
-  z Koinu, `ChatProfileViewModel.toggleMusic`), takže konverzace pod profilem ukazuje průběh,
-  po dohrání naváže další skladba a odchod z konverzace zvuk zastaví jako dřív. U hrající
+  z Koinu, `ChatProfileViewModel.toggleMusic` přes `MusicQueue`), takže konverzace pod
+  profilem ukazuje průběh a po dohrání naváže další skladba. U hrající
   skladby je místo délky „0:02 / 0:04". Hlasovky do Hudby nepatří (jiný filtr).
 - **Metadata skladby nejspíš drží TDLib pro SOUBOR, ne pro zprávu** (domněnka, neověřená).
   V chatu s botem jsou nejspíš dvě zprávy s tímtéž souborem a jiným názvem; profil po
@@ -5723,9 +5787,6 @@ jako tlačítko, název, interpret, lišta průběhu s posunem, čas a čip rych
   jménem souboru, ne názvem skladby.
 - **Náhled v seznamu chatů je „Interpret – Název"**, ne „Audio" — u každé skladby stejné slovo
   by nic neřeklo. Totéž v citaci.
-- **Android hraje s `CONTENT_TYPE_SPEECH` a přechodným audio focusem**, jako hlasovka. Pro hudbu
-  by seděl `MUSIC` a trvalý focus; rozdíl je v tom, jestli jiná hudební aplikace po skončení
-  sama naváže. Kdyby to vadilo, patří to do `audioAttributes` enginu podle druhu.
 - **Ověřuje se botem**: `sendAudio` s `title`, `performer` a `thumbnail` (obal). Zvuk se na Macu
   vyrobí `say -o x.aiff "…"` a `afconvert -f m4af -d aac`. Ověřeno na emulátoru: obal i bez
   obalu, přehrání s průběhem a čipem, navázání druhé skladby, sdílení, náhled v seznamu.

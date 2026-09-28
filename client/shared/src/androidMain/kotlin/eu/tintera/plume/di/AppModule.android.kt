@@ -7,6 +7,7 @@ import eu.tintera.plume.core.ai.RoutingOnDeviceAi
 import eu.tintera.plume.core.ui.AndroidSquarePhoto
 import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.audio.AudioEngine
+import eu.tintera.plume.core.audio.MusicControls
 import eu.tintera.plume.core.audio.EarSensor
 import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.files.FileOpener
@@ -62,6 +63,10 @@ actual fun Module.platformModule() {
     factory { AudioEngine(androidContext()) }
     // Senzory u ucha: jeden na aplikaci, protože hraje nejvýš jedna hlasovka.
     single { EarSensor(androidContext()) }
+    // Hudba na pozadí: spustí službu s MediaSession, když začne hrát skladba.
+    single(createdAtStart = true) {
+        MusicControls(androidContext(), queue = get(), scope = get(named(APP_SCOPE))).also { it.start() }
+    }
 
     // `filesDir`, ne cache: nastavení se nesmí ztratit, když systém uklízí místo.
     single { createSettingsDataStore(androidContext().filesDir.resolve(SETTINGS_FILE_NAME).absolutePath) }

@@ -1,12 +1,16 @@
 package eu.tintera.plume.core.audio
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Build
+import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +22,7 @@ import kotlinx.coroutines.withContext
  * `prepare()` čte hlavičku souboru z disku, proto mimo hlavní vlákno. Atributy říkají systému, že
  * jde o řeč — hlasitost se řídí médii, ne vyzváněním.
  */
-actual class AudioEngine(context: Context) {
+actual class AudioEngine(private val context: Context) {
 
     private val audioManager = context.getSystemService<AudioManager>()
     private val logger = Logger.withTag("AudioEngine")
@@ -52,6 +56,9 @@ actual class AudioEngine(context: Context) {
     /** Poslední známá pozice; po dobu přestavby přehrávače není koho se zeptat. */
     private var lastPosition = 0L
 
+    /** Hudba, ne hlasovka — jiné atributy, jiný audio focus a pauza po vytažení sluchátek. */
+    private var music = false
+
     /**
      * Audio focus: hlasovka na chvíli utne hudbu, a když o zvuk přijdeme my (hovor, budík, jiná
      * aplikace), přehrávání se pozastaví.
@@ -64,22 +71,47 @@ actual class AudioEngine(context: Context) {
         when (change) {
             AudioManager.AUDIOFOCUS_LOSS,
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK,
-            -> player?.takeIf { it.isPlaying }?.let {
-                it.pause()
-                onInterrupted?.invoke()
-            }
+            -> interrupt()
+            // Hudbu pod navigací nebo zvukem notifikace systém ztiší sám (od API 26); řeč pod
+            // ztlumeným hlášením se neposlouchá, tu je lepší zastavit.
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> if (!music) interrupt()
         }
     }
 
-    /** `AudioFocusRequest` je od API 26, tedy od `minSdk` projektu — starší cesta tu není potřeba. */
-    private val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
-        .setAudioAttributes(attributesFor(earpiece = false))
-        .setOnAudioFocusChangeListener(focusListener)
-        .build()
+    /**
+     * Audio focus: hlasovka si ho bere jen na chvíli (`GAIN_TRANSIENT`) a hudbě jiné aplikace
+     * se po ní vrátí; hudba si ho bere natrvalo (`GAIN`), jako každý přehrávač hudby — jiná
+     * hudební aplikace se tím zastaví a sama nenaváže. Sestavuje se v [load], až je jasné co.
+     * `AudioFocusRequest` je od API 26, tedy od `minSdk` projektu.
+     */
+    private var focusRequest: AudioFocusRequest? = null
 
-    actual suspend fun load(path: String): Long {
+    /**
+     * Vytažená sluchátka hudbu zastaví (`ACTION_AUDIO_BECOMING_NOISY`), jinak by se po vytržení
+     * kabelu rozezněla z reproduktoru. U hlasovky ne — ta hraje z reproduktoru běžně.
+     */
+    private val noisyReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) = interrupt()
+    }
+    private var noisyRegistered = false
+
+    private fun interrupt() {
+        player?.takeIf { it.isPlaying }?.let {
+            it.pause()
+            abandonFocus()
+            onInterrupted?.invoke()
+        }
+    }
+
+    actual suspend fun load(path: String, music: Boolean): Long {
         this.path = path
+        this.music = music
+        focusRequest = AudioFocusRequest.Builder(
+            if (music) AudioManager.AUDIOFOCUS_GAIN else AudioManager.AUDIOFOCUS_GAIN_TRANSIENT,
+        )
+            .setAudioAttributes(attributesFor(earpiece = false, music = music))
+            .setOnAudioFocusChangeListener(focusListener)
+            .build()
         val created = buildPlayer(path)
         player = created
         return created.duration.toLong()
@@ -185,7 +217,7 @@ actual class AudioEngine(context: Context) {
     }
 
     private suspend fun buildPlayer(source: String): MediaPlayer {
-        val created = MediaPlayer().apply { setAudioAttributes(attributesFor(earpiece)) }
+        val created = MediaPlayer().apply { setAudioAttributes(attributesFor(earpiece, music)) }
         try {
             withContext(Dispatchers.IO) {
                 created.setDataSource(source)
@@ -237,11 +269,24 @@ actual class AudioEngine(context: Context) {
     }
 
     private fun requestFocus() {
-        audioManager?.requestAudioFocus(focusRequest)
+        focusRequest?.let { audioManager?.requestAudioFocus(it) }
+        if (music && !noisyRegistered) {
+            ContextCompat.registerReceiver(
+                context,
+                noisyReceiver,
+                IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
+            noisyRegistered = true
+        }
     }
 
     private fun abandonFocus() {
-        audioManager?.abandonAudioFocusRequest(focusRequest)
+        focusRequest?.let { audioManager?.abandonAudioFocusRequest(it) }
+        if (noisyRegistered) {
+            context.unregisterReceiver(noisyReceiver)
+            noisyRegistered = false
+        }
     }
 }
 
@@ -252,9 +297,9 @@ actual class AudioEngine(context: Context) {
  * jediná cesta do sluchátka u ucha a řídí se hlasitostí hovoru — přesně jak to uživatel čeká,
  * když si telefon přiloží k uchu.
  */
-private fun attributesFor(earpiece: Boolean): AudioAttributes = AudioAttributes.Builder()
+private fun attributesFor(earpiece: Boolean, music: Boolean): AudioAttributes = AudioAttributes.Builder()
     .setUsage(if (earpiece) AudioAttributes.USAGE_VOICE_COMMUNICATION else AudioAttributes.USAGE_MEDIA)
-    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+    .setContentType(if (music) AudioAttributes.CONTENT_TYPE_MUSIC else AudioAttributes.CONTENT_TYPE_SPEECH)
     .build()
 
 /** Výstupy, u kterých nemá smysl přepínat do sluchátka telefonu. */
