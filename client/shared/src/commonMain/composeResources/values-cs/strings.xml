@@ -747,6 +747,15 @@
     <string name="stickers_tab_gifs">GIFy</string>
     <string name="clipboard_has_gif">GIF ve schránce</string>
     <string name="clipboard_has_image">Obrázek ve schránce</string>
+    <!-- Formátování výběru v kontextové nabídce vstupního pole. -->
+    <string name="format_bold">Tučné</string>
+    <string name="format_italic">Kurzíva</string>
+    <string name="format_underline">Podtržené</string>
+    <string name="format_strikethrough">Přeškrtnuté</string>
+    <string name="format_spoiler">Spoiler</string>
+    <string name="format_code">Kód</string>
+    <string name="format_quote">Citace</string>
+    <string name="format_clear">Bez formátování</string>
     <string name="paste_gif">Vložit GIF</string>
     <string name="paste_image">Vložit obrázek</string>
     <string name="gifs_search">Hledat GIFy</string>

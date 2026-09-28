@@ -6,6 +6,10 @@ import eu.tintera.plume.resources.conversation_contact_load_failed
 import eu.tintera.plume.core.telegram.PollDraftMedia
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ReplyQuote
+import eu.tintera.plume.core.telegram.ComposedText
+import eu.tintera.plume.core.telegram.FormatSpan
+import eu.tintera.plume.core.telegram.composedFormatsOf
+import eu.tintera.plume.core.telegram.within
 import eu.tintera.plume.core.telegram.UnreadMarkKind
 import eu.tintera.plume.core.telegram.BotCommandItem
 import eu.tintera.plume.core.telegram.UnreadMarks
@@ -325,8 +329,11 @@ class ConversationViewModel(
      */
     private var typingSentAt: TimeMark? = null
 
-    /** Poslední text z pole, jak ho hlásí obrazovka. Kvůli ukládání konceptu. */
-    private var draftText = ""
+    /**
+     * Poslední text z pole i s ručním formátováním, jak ho hlásí obrazovka. Kvůli ukládání
+     * konceptu.
+     */
+    private var draft = ComposedText("")
 
     /**
      * Koncept z TDLib je vyřízený (vrácený do pole, nebo žádný není). Sdílený text se vkládá až
@@ -334,8 +341,8 @@ class ConversationViewModel(
      */
     private val draftRestored = CompletableDeferred<Unit>()
 
-    /** Koncept odložený po dobu úpravy zprávy; po ní se vrátí do pole. */
-    private var draftBeforeEdit = ""
+    /** Koncept odložený po dobu úpravy zprávy; po ní se vrátí do pole i s formátováním. */
+    private var draftBeforeEdit = ComposedText("")
 
     /**
      * Náhled odkazu konceptu, odložený s ním. Úprava má vlastní náhled a volbu (z upravované
@@ -350,7 +357,7 @@ class ConversationViewModel(
     private var linkPreviewJob: Job? = null
 
     /**
-     * Text, ke kterému se náhled naposledy zjišťoval. Nemusí být [draftText]: pole vyplněné
+     * Text, ke kterému se náhled naposledy zjišťoval. Nemusí být [draft]: pole vyplněné
      * sdílením nebo konceptem `onDraftChanged` nevolá, a výběr odkazu se ptá právě k tomuhle.
      */
     private var linkPreviewText = ""
@@ -488,12 +495,14 @@ class ConversationViewModel(
                         unreadBoundaryId = info.lastReadInboxMessageId
                             .takeIf { id -> info.unreadCount > 0 && id != 0L },
                         // Koncept z minula (nebo z jiného zařízení) se vrátí do pole.
-                        inputFill = info.draftText?.let { text -> InputFill(text, onlyIfEmpty = true) },
+                        inputFill = info.draftText?.let { text ->
+                            InputFill(text, onlyIfEmpty = true, formats = info.draftFormats)
+                        },
                         linkPreviewOptions = info.draftLinkPreview ?: LinkPreviewOptions(),
                     )
                 }
                 info.draftText?.let {
-                    draftText = it
+                    draft = ComposedText(it, info.draftFormats)
                     refreshLinkPreview(it)
                 }
                 info.draftReplyToMessageId?.let { restoreDraftReply(it, info.draftReplyQuote) }
@@ -1375,14 +1384,16 @@ class ConversationViewModel(
         shareRequests.consume(content.id)
         content.attachments?.takeIf { it.isNotEmpty() }?.let(::addAttachments)
         content.text?.let { shared ->
-            val text = if (draftText.isBlank()) shared else draftText.trimEnd() + "\n" + shared
-            _state.update { it.copy(inputFill = InputFill(text, onlyIfEmpty = false)) }
+            val text = if (draft.text.isBlank()) shared else draft.text.trimEnd() + "\n" + shared
+            // Formátování konceptu platí dál — sdílený text se připojuje až za něj.
+            val formats = if (draft.text.isBlank()) emptyList() else draft.formats.within(text.length)
+            _state.update { it.copy(inputFill = InputFill(text, onlyIfEmpty = false, formats = formats)) }
             /*
              * Pole se vyplní bez `onDraftChanged`, takže se text zapisuje sám: jinak by ho
              * ViewModel neznal a první uložení konceptu (třeba po změně volby náhledu) by
              * zapsalo prázdný koncept — sdílený text by po odchodu z chatu zmizel.
              */
-            draftText = text
+            draft = ComposedText(text, formats)
             scheduleDraftSave()
             // Sdílený odkaz je přitom typický případ náhledu.
             refreshLinkPreview(text)
@@ -1503,11 +1514,11 @@ class ConversationViewModel(
         }
     }
 
-    private fun sendAttachments(caption: String, attachments: List<OutgoingAttachment>, options: SendOptions) {
+    private fun sendAttachments(caption: ComposedText, attachments: List<OutgoingAttachment>, options: SendOptions) {
         typingSentAt = null
         draftSave?.cancel()
         draftSave = null
-        draftText = ""
+        draft = ComposedText("")
         resetLinkPreview()
 
         val replyTo = _state.value.replyingTo?.id
@@ -1517,7 +1528,7 @@ class ConversationViewModel(
         _state.update { it.copy(attachments = emptyList()) }
 
         viewModelScope.launch {
-            repository.sendAttachments(chatId, attachments, caption, replyTo, quote, options, mentions)
+            repository.sendAttachments(chatId, attachments, caption.text, replyTo, quote, options, mentions, caption.formats)
                 .onSuccess { pending ->
                     shareTargets.reportUsed(chatId)
                     if (options.schedule != null) {
@@ -1627,20 +1638,21 @@ class ConversationViewModel(
      * Odešle obsah pole. [options] přichází z nabídky nad odesílacím tlačítkem (bez zvuku,
      * naplánovat, s efektem); obyčejné ťuknutí posílá výchozí.
      */
-    fun send(text: String, options: SendOptions = SendOptions()) {
-        val trimmed = text.trim()
+    fun send(text: ComposedText, options: SendOptions = SendOptions()) {
+        val composed = text.trimmed()
+        val trimmed = composed.text
 
         // S přílohami je text popisek a smí být prázdný. Úprava zprávy přílohy nemá.
         val attachments = _state.value.attachments
         if (attachments.isNotEmpty() && _state.value.editing == null) {
-            sendAttachments(trimmed, attachments, options)
+            sendAttachments(composed, attachments, options)
             return
         }
 
         // Úprava se řeší dřív než prázdné pole: prázdný POPISEK je platná úprava (odebere ho),
         // takže o tom rozhoduje `sendEdit` podle toho, co se vlastně upravuje.
         _state.value.editing?.let { target ->
-            sendEdit(target, trimmed)
+            sendEdit(target, composed)
             return
         }
 
@@ -1653,7 +1665,7 @@ class ConversationViewModel(
         // se starým textem, takže se musí zahodit; obrazovka pole vyprázdní bez `onDraftChanged`.
         draftSave?.cancel()
         draftSave = null
-        draftText = ""
+        draft = ComposedText("")
 
         // Samotné 🎲 (🎯, 🏀, ⚽, 🎳, 🎰 — seznam posílá server) odejde jako hod, jako
         // u oficiálních klientů. Hod je v právech „ostatní zprávy", tedy totéž co samolepka;
@@ -1680,7 +1692,7 @@ class ConversationViewModel(
         // Naplánovaná zpráva do konverzace nepatří: neletí, nepřidává se, jen se ohlásí.
         if (options.schedule != null) {
             viewModelScope.launch {
-                repository.send(chatId, trimmed, replyTo, linkPreview, quote, options, mentions)
+                repository.send(chatId, trimmed, replyTo, linkPreview, quote, options, mentions, composed.formats)
                     .onSuccess { _state.update { it.copy(notice = UiText(Res.string.conversation_scheduled_notice)) } }
                     .onFailure { failure ->
                         _state.update { it.copy(error = failure.reported(Res.string.conversation_schedule_failed)) }
@@ -1695,7 +1707,7 @@ class ConversationViewModel(
         _state.update { it.copy(flight = flight) }
 
         viewModelScope.launch {
-            repository.send(chatId, trimmed, replyTo, linkPreview, quote, options, mentions)
+            repository.send(chatId, trimmed, replyTo, linkPreview, quote, options, mentions, composed.formats)
                 // TDLib vrací rozepsanou zprávu okamžitě, takže bublina naskočí bez čekání
                 // na server. Skutečné id dorazí potvrzením a zprávu v seznamu nahradí.
                 .onSuccess { pending ->
@@ -1742,24 +1754,27 @@ class ConversationViewModel(
      * nejvýš jednou za [TYPING_REPEAT], ne na každý úhoz. Vymazání celého textu psaní výslovně
      * ukončí: kdo si to rozmyslel, nemá protějšku ještě pět vteřin „psát".
      */
-    fun onDraftChanged(text: String) {
+    fun onDraftChanged(text: ComposedText) {
         // Při úpravě v poli není koncept, ale text staré zprávy. Uložit ho jako koncept by přepsalo
         // ten odložený, a ohlašovat „píše…" kvůli opravě překlepu by protějšek mátlo.
         _state.value.editing?.let { editing ->
             // Náhled odkazu ale patří i k úpravě textu: upravená zpráva odejde s ním.
-            if (editing.plainTextEdit() == PlainTextEdit.Text) refreshLinkPreview(text)
+            if (editing.composerEdit() == ComposerEdit.Text) refreshLinkPreview(text.text)
             return
         }
         // Psaní zavře seznam příkazů otevřený tlačítkem; napovídání „/…" se řídí textem samo.
         if (_state.value.commandsOpen) _state.update { it.copy(commandsOpen = false) }
 
-        draftText = text
+        val textChanged = text.text != draft.text
+        draft = text
         // Vyprázdněné pole = zpráva, ke které zmínky patřily, je pryč.
-        if (text.isBlank()) nameMentions.clear()
+        if (text.text.isBlank()) nameMentions.clear()
         scheduleDraftSave()
-        refreshLinkPreview(text)
+        // Změna jen formátování („Tučné" nad výběrem) není psaní: náhled ani „píše…" se nemění.
+        if (!textChanged) return
+        refreshLinkPreview(text.text)
 
-        if (text.isBlank()) {
+        if (text.text.isBlank()) {
             if (typingSentAt == null) return
             typingSentAt = null
             reportTyping(false)
@@ -1779,7 +1794,7 @@ class ConversationViewModel(
      * Hodnoty se berou **teď**, na hlavním vlákně — úloha běží v `appScope` mimo něj.
      */
     private fun scheduleDraftSave() {
-        val text = draftText
+        val text = draft
         val replyTo = _state.value.replyingTo?.id
         val quote = _state.value.replyQuote
         val linkPreview = _state.value.linkPreviewOptions
@@ -1792,12 +1807,12 @@ class ConversationViewModel(
     }
 
     private suspend fun saveDraft(
-        text: String,
+        text: ComposedText,
         replyTo: Long?,
         linkPreview: LinkPreviewOptions? = null,
         quote: ReplyQuote? = null,
     ) {
-        repository.saveDraft(chatId, text, replyTo, linkPreview, quote).onFailure { failure ->
+        repository.saveDraft(chatId, text.text, replyTo, linkPreview, quote, text.formats).onFailure { failure ->
             logger.w(failure) { "Koncept se nepodařilo uložit." }
         }
     }
@@ -1899,17 +1914,18 @@ class ConversationViewModel(
      */
     private fun startEdit(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        enterEdit(message, message.text, message.linkPreviewOptions ?: LinkPreviewOptions())
+        val formats = composedFormatsOf(message.text, message.entities) ?: return
+        enterEdit(message, ComposedText(message.text, formats), message.linkPreviewOptions ?: LinkPreviewOptions())
     }
 
     /**
      * Pole v úpravě [target] s textem [text] a volbou náhledu [linkOptions]. Náhled se zjistí
      * hned — text se do pole vkládá bez `onDraftChanged` a na pauzu v psaní není proč čekat.
      */
-    private fun enterEdit(target: ChatMessage, text: String, linkOptions: LinkPreviewOptions) {
+    private fun enterEdit(target: ChatMessage, text: ComposedText, linkOptions: LinkPreviewOptions) {
         // Přepnutí z jedné úpravy do druhé nesmí přepsat odložený koncept textem první úpravy.
         if (_state.value.editing == null) {
-            draftBeforeEdit = draftText
+            draftBeforeEdit = draft
             linkPreviewBeforeEdit = _state.value.let {
                 LinkPreviewStash(it.linkPreview, it.linkPreviewLinks, it.linkPreviewOptions)
             }
@@ -1919,13 +1935,13 @@ class ConversationViewModel(
             it.copy(
                 editing = target,
                 messageMenu = null,
-                inputFill = InputFill(text, onlyIfEmpty = false),
+                inputFill = InputFill(text.text, onlyIfEmpty = false, formats = text.formats),
                 linkPreview = null,
                 linkPreviewLinks = emptyList(),
                 linkPreviewOptions = linkOptions,
             )
         }
-        if (target.plainTextEdit() == PlainTextEdit.Text) refreshLinkPreview(text, delayMs = 0)
+        if (target.composerEdit() == ComposerEdit.Text) refreshLinkPreview(text.text, delayMs = 0)
     }
 
     /** Zruší úpravu a vrátí do pole odložený koncept. */
@@ -1935,14 +1951,14 @@ class ConversationViewModel(
     }
 
     private fun leaveEdit() {
-        draftText = draftBeforeEdit
+        draft = draftBeforeEdit
         linkPreviewJob?.cancel()
-        linkPreviewText = draftBeforeEdit
+        linkPreviewText = draftBeforeEdit.text
         val stash = linkPreviewBeforeEdit
         _state.update {
             it.copy(
                 editing = null,
-                inputFill = InputFill(draftBeforeEdit, onlyIfEmpty = false),
+                inputFill = InputFill(draftBeforeEdit.text, onlyIfEmpty = false, formats = draftBeforeEdit.formats),
                 linkPreview = stash.preview,
                 linkPreviewLinks = stash.links,
                 linkPreviewOptions = stash.options,
@@ -1961,22 +1977,24 @@ class ConversationViewModel(
      * popisek nezměnila. Prázdný popisek se tím odebere, kdežto prázdný text by zprávu jen nechal,
      * jak je — server ji odmítne a uživatel by o obsah přišel.
      */
-    private fun sendEdit(target: ChatMessage, text: String) {
-        val kind = target.plainTextEdit() ?: return
-        if (kind == PlainTextEdit.Text && text.isEmpty()) return
+    private fun sendEdit(target: ChatMessage, text: ComposedText) {
+        val kind = target.composerEdit() ?: return
+        if (kind == ComposerEdit.Text && text.text.isEmpty()) return
 
         val linkOptions = _state.value.linkPreviewOptions
-        val linkPreview = linkOptions.forEdit(text, shown = _state.value.linkPreview)
+        val linkPreview = linkOptions.forEdit(text.text, shown = _state.value.linkPreview)
         leaveEdit()
-        // Beze změny není co posílat; server by vrátil chybu „zpráva se nezměnila".
-        val optionsChanged = kind == PlainTextEdit.Text &&
+        // Beze změny není co posílat; server by vrátil chybu „zpráva se nezměnila". Změna jen
+        // formátování (tučné slovo) je ale změna.
+        val optionsChanged = kind == ComposerEdit.Text &&
             linkOptions != (target.linkPreviewOptions ?: LinkPreviewOptions())
-        if (text == target.text.trim() && !optionsChanged) return
+        val original = ComposedText(target.text, composedFormatsOf(target.text, target.entities).orEmpty()).trimmed()
+        if (text == original && !optionsChanged) return
 
         viewModelScope.launch {
             val edited = when (kind) {
-                PlainTextEdit.Text -> repository.editText(chatId, target.id, text, linkPreview)
-                PlainTextEdit.Caption -> repository.editCaption(chatId, target.id, text)
+                ComposerEdit.Text -> repository.editText(chatId, target.id, text.text, linkPreview, text.formats)
+                ComposerEdit.Caption -> repository.editCaption(chatId, target.id, text.text, text.formats)
             }
             edited.onFailure { failure ->
                 _state.update { it.copy(error = failure.reported(Res.string.conversation_edit_failed)) }
@@ -2007,7 +2025,7 @@ class ConversationViewModel(
         if (!pending.isActive) return
         pending.cancel()
 
-        val text = draftText
+        val text = draft
         val replyTo = _state.value.replyingTo?.id
         val quote = _state.value.replyQuote
         val linkPreview = _state.value.linkPreviewOptions
@@ -2506,14 +2524,14 @@ class ConversationViewModel(
      */
     private fun useInlineBot(username: String) {
         if (!_state.value.canWrite || _state.value.editing != null) return
-        if (draftText.isNotBlank() && inlineQueryOf(draftText) == null) {
+        if (draft.text.isNotBlank() && inlineQueryOf(draft.text) == null) {
             _state.update { it.copy(notice = UiText(Res.string.conversation_via_bot_draft_busy)) }
             return
         }
         // Dotaz, ne text pro čtenáře: `@bot ` a mezera, za kterou se píše.
         val query = "@$username "
         _state.update { it.copy(inputFill = InputFill(query, onlyIfEmpty = false)) }
-        onDraftChanged(query)
+        onDraftChanged(ComposedText(query))
     }
 
     /** Další stránka výsledků — dotáhne ji panel, když dojede na konec. */
@@ -2624,7 +2642,7 @@ class ConversationViewModel(
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         _state.update { it.copy(replyingTo = message, replyQuote = quote, messageMenu = null) }
         // Citace je součást konceptu — jen když už se něco píše, jinak není co ukládat.
-        if (draftText.isNotBlank()) scheduleDraftSave()
+        if (draft.text.isNotBlank()) scheduleDraftSave()
     }
 
     /**
@@ -2640,7 +2658,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             repository.message(chatId, messageId).onSuccess { message ->
                 _state.update { it.copy(replyingTo = message, replyQuote = null, messageMenu = null) }
-                if (draftText.isNotBlank()) scheduleDraftSave()
+                if (draft.text.isNotBlank()) scheduleDraftSave()
             }
         }
     }
@@ -2687,7 +2705,7 @@ class ConversationViewModel(
 
     fun clearReply() {
         _state.update { it.copy(replyingTo = null, replyQuote = null) }
-        if (draftText.isNotBlank()) scheduleDraftSave()
+        if (draft.text.isNotBlank()) scheduleDraftSave()
     }
 
     /**
@@ -3884,6 +3902,8 @@ private const val LINK_PREVIEW_DELAY_MS = 700L
 data class InputFill(
     val text: String,
     val onlyIfEmpty: Boolean,
+    /** Ruční formátování [text] (koncept, upravovaná zpráva). */
+    val formats: List<FormatSpan> = emptyList(),
 )
 
 /** Doba, po kterou se drží klíč sdíleného prvku po přistání v bublině. */

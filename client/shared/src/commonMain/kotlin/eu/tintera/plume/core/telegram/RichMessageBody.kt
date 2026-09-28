@@ -131,11 +131,11 @@ private class RichWriter(private val labels: RichMediaLabels) {
             is PageBlockSectionHeading -> heading(block.text, indent)
             is PageBlockKicker -> line(indent) { styled(MessageEntityType.Bold) { rich(block.kicker) } }
             is PageBlockParagraph -> line(indent) { rich(block.text) }
-            is PageBlockPreformatted -> line(indent) { styled(MessageEntityType.Code) { rich(block.text) } }
+            is PageBlockPreformatted -> line(indent) { styled(MessageEntityType.Code(block = true)) { rich(block.text) } }
             is PageBlockFooter -> line(indent) { styled(MessageEntityType.Italic) { rich(block.footer) } }
             is PageBlockThinking -> line(indent) { styled(MessageEntityType.Italic) { rich(block.text) } }
             is PageBlockAuthorDate -> line(indent) { styled(MessageEntityType.Italic) { rich(block.author) } }
-            is PageBlockMathematicalExpression -> line(indent) { styled(MessageEntityType.Code) { text.append(block.expression) } }
+            is PageBlockMathematicalExpression -> line(indent) { styled(MessageEntityType.Code()) { text.append(block.expression) } }
             is PageBlockDivider -> line(indent) { text.append(DIVIDER) }
             is PageBlockList -> block.items.forEach { item ->
                 val bullet = when {
@@ -269,7 +269,7 @@ private class RichWriter(private val labels: RichMediaLabels) {
             is RichTextItalic -> styled(MessageEntityType.Italic) { rich(richText.text) }
             is RichTextUnderline -> styled(MessageEntityType.Underline) { rich(richText.text) }
             is RichTextStrikethrough -> styled(MessageEntityType.Strikethrough) { rich(richText.text) }
-            is RichTextFixed -> styled(MessageEntityType.Code) { rich(richText.text) }
+            is RichTextFixed -> styled(MessageEntityType.Code()) { rich(richText.text) }
             is RichTextSpoiler -> styled(MessageEntityType.Spoiler) { rich(richText.text) }
             is RichTextUrl -> styled(MessageEntityType.Link(richText.url.withSchemeIfMissing())) { rich(richText.text) }
             is RichTextEmailAddress -> styled(MessageEntityType.Link("mailto:${richText.emailAddress}")) { rich(richText.text) }
@@ -298,7 +298,7 @@ private class RichWriter(private val labels: RichMediaLabels) {
                     styled(MessageEntityType.DateTime(richText.unixTime.toLong(), format)) { rich(richText.text) }
                 }
             }
-            is RichTextMathematicalExpression -> styled(MessageEntityType.Code) { text.append(richText.expression) }
+            is RichTextMathematicalExpression -> styled(MessageEntityType.Code()) { text.append(richText.expression) }
             is RichTextMarked -> rich(richText.text)
             is RichTextSubscript -> rich(richText.text)
             is RichTextSuperscript -> rich(richText.text)

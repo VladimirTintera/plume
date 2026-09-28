@@ -121,17 +121,24 @@ class MessageActionTest {
     }
 
     @Test
-    fun rucniFormatovaniVylucujeIUpravuPopisku() {
+    fun rucniFormatovaniPopiskuUpravuDovoli() {
+        // Pole formátování nese, takže tučné v popisku úprava nesmaže.
         val bold = MessageEntity(offset = 0, length = 4, type = MessageEntityType.Bold)
         val items = menuActions(message(text = "tučný popisek", media = photo, entities = listOf(bold)), isPinned = false)
-        assertFalse(MessageMenuAction.Edit in items)
+        assertTrue(MessageMenuAction.Edit in items)
     }
 
     @Test
-    fun citaceVTextuUpravuVylucuje() {
-        // Pole umí jen holý text, takže by úprava citaci smazala.
+    fun citaceVTextuUpravuDovoli() {
         val quote = MessageEntity(offset = 0, length = 4, type = MessageEntityType.Quote(expandable = false))
-        assertFalse(MessageMenuAction.Edit in menuActions(message(entities = listOf(quote)), isPinned = false))
+        assertTrue(MessageMenuAction.Edit in menuActions(message(entities = listOf(quote)), isPinned = false))
+    }
+
+    @Test
+    fun odkazSPopiskemUpravuVylucuje() {
+        // Adresu za popiskem pole nenese, úprava by z odkazu udělala holý text.
+        val link = MessageEntity(offset = 0, length = 4, type = MessageEntityType.Link("https://example.com"))
+        assertFalse(MessageMenuAction.Edit in menuActions(message(entities = listOf(link)), isPinned = false))
     }
 
     @Test
@@ -141,9 +148,9 @@ class MessageActionTest {
     }
 
     @Test
-    fun rucniFormatovaniUpravuVylucuje() {
+    fun rucniFormatovaniUpravuDovoli() {
         val bold = MessageEntity(offset = 0, length = 4, type = MessageEntityType.Bold)
-        assertFalse(MessageMenuAction.Edit in menuActions(message(entities = listOf(bold)), isPinned = false))
+        assertTrue(MessageMenuAction.Edit in menuActions(message(entities = listOf(bold)), isPinned = false))
     }
 
     @Test

@@ -14,7 +14,7 @@ import eu.tintera.plume.core.ui.isSameDayAs
 import eu.tintera.plume.features.conversation.ConversationState
 import eu.tintera.plume.features.conversation.copyableText
 import eu.tintera.plume.features.conversation.groupAlbums
-import eu.tintera.plume.features.conversation.plainTextEdit
+import eu.tintera.plume.features.conversation.composerEdit
 import eu.tintera.plume.features.conversation.readBadgeRows
 import eu.tintera.plume.features.conversation.showsLinkPreviewCard
 import eu.tintera.plume.features.conversation.showsBareMedia
@@ -226,7 +226,7 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageM
     add(MessageMenuAction.Reply)
     val poll = message.poll
     if (poll?.canRetract == true) add(MessageMenuAction.RetractVote)
-    if (message.plainTextEdit() != null) add(MessageMenuAction.Edit)
+    if (message.composerEdit() != null) add(MessageMenuAction.Edit)
     // Bez textu není co kopírovat, i kdyby to server dovolil. Text ankety je jen náš popis
     // („Anketa: otázka") pro citace a náhledy, ne obsah, který by stálo za to kopírovat.
     if (poll == null && message.copyableText().isNotBlank()) {

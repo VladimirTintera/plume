@@ -305,7 +305,8 @@ interface ConversationRepository {
      *
      * [replyToMessageId] je `null` u běžné zprávy, [quote] je úryvek citované zprávy (jen
      * s [replyToMessageId]). [linkPreview] je volba odesílatele pro náhled odkazu; `null` nechá
-     * rozhodnout server.
+     * rozhodnout server. [formats] je ruční formátování z pole (tučné, citace…); odkazy a zmínky
+     * se dohledají v textu samy.
      */
     suspend fun send(
         chatId: Long,
@@ -315,6 +316,7 @@ interface ConversationRepository {
         quote: ReplyQuote? = null,
         options: SendOptions = SendOptions(),
         mentions: List<NameMention> = emptyList(),
+        formats: List<FormatSpan> = emptyList(),
     ): Result<ChatMessage>
 
     /**
@@ -505,6 +507,7 @@ interface ConversationRepository {
         quote: ReplyQuote? = null,
         options: SendOptions = SendOptions(),
         mentions: List<NameMention> = emptyList(),
+        formats: List<FormatSpan> = emptyList(),
     ): Result<List<ChatMessage>>
 
     /**
@@ -515,8 +518,15 @@ interface ConversationRepository {
      *
      * [linkPreview] je volba náhledu upravené zprávy, jak ji úprava převzala z původní
      * ([ChatMessage.linkPreviewOptions]) a případně změnila; `null` = výchozí volba serveru.
+     * [formats] je ruční formátování, jak ho úprava převzala ([composedFormatsOf]) a změnila.
      */
-    suspend fun editText(chatId: Long, messageId: Long, text: String, linkPreview: LinkPreviewOptions?): Result<Unit>
+    suspend fun editText(
+        chatId: Long,
+        messageId: Long,
+        text: String,
+        linkPreview: LinkPreviewOptions?,
+        formats: List<FormatSpan> = emptyList(),
+    ): Result<Unit>
 
     /**
      * Upraví popisek přílohy. Je to JINÉ volání než [editText] — úprava textu by popisek nezměnila
@@ -525,7 +535,12 @@ interface ConversationRepository {
      * Prázdný [caption] popisek odebere; to je v Telegramu platná úprava, na rozdíl od prázdného
      * textu zprávy.
      */
-    suspend fun editCaption(chatId: Long, messageId: Long, caption: String): Result<Unit>
+    suspend fun editCaption(
+        chatId: Long,
+        messageId: Long,
+        caption: String,
+        formats: List<FormatSpan> = emptyList(),
+    ): Result<Unit>
 
     /**
      * Potvrzení nebo selhání odeslané zprávy.
@@ -600,6 +615,7 @@ interface ConversationRepository {
      *
      * Prázdný [text] koncept **smaže** — i kdyby zbývala citace. Odpověď bez textu Telegram jako
      * koncept nedrží a ponechat ji by znamenalo koncept, který v seznamu nic neukazuje.
+     * Ruční formátování ([formats]) koncept nese, aby se vrátilo do pole i na jiném zařízení.
      */
     suspend fun saveDraft(
         chatId: Long,
@@ -607,6 +623,7 @@ interface ConversationRepository {
         replyToMessageId: Long?,
         linkPreview: LinkPreviewOptions? = null,
         quote: ReplyQuote? = null,
+        formats: List<FormatSpan> = emptyList(),
     ): Result<Unit>
 
     /**
@@ -824,6 +841,8 @@ data class ChatInfo(
     val isSavedMessages: Boolean,
     /** Rozepsaný text z minula (i z jiného zařízení), nebo `null`. */
     val draftText: String?,
+    /** Ruční formátování [draftText] (tučné, citace…), jak ho koncept nese. */
+    val draftFormats: List<FormatSpan> = emptyList(),
     /**
      * Uživatel ve skupině nebo kanálu není a přidat se může — chat otevřel z globálního hledání.
      * Místo vstupního pole je pak tlačítko „Přidat se": psát do cizí skupiny nejde a v kanálu

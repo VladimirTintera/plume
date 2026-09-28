@@ -84,8 +84,12 @@ sealed interface MessageEntityType {
 
     data object Strikethrough : MessageEntityType
 
-    /** Kód — inline i blok. Rozdíl je jen v tom, že blok bývá na vlastních řádcích. */
-    data object Code : MessageEntityType
+    /**
+     * Kód — inline i blok ([block], `pre`). Kreslí se stejně; rozdíl se drží kvůli úpravě zprávy,
+     * aby blok kódu neodešel zpátky jako kód v řádku. [language] je jazyk bloku (`pre` s jazykem),
+     * prázdný bez něj.
+     */
+    data class Code(val block: Boolean = false, val language: String = "") : MessageEntityType
 
     /**
      * Skrytý text. Odkrývá se ťuknutím, do té doby musí být **opravdu nečitelný** — obarvit ho

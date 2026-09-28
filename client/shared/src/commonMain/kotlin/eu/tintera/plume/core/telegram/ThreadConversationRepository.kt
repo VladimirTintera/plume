@@ -100,6 +100,7 @@ class ThreadConversationRepository(
         replyToMessageId: Long?,
         linkPreview: LinkPreviewOptions?,
         quote: ReplyQuote?,
+        formats: List<FormatSpan>,
     ): Result<Unit> = Result.success(Unit)
 
     override suspend fun sendTyping(chatId: Long, typing: Boolean): Result<Unit> = Result.success(Unit)
@@ -121,7 +122,9 @@ class ThreadConversationRepository(
         quote: ReplyQuote?,
         options: SendOptions,
         mentions: List<NameMention>,
-    ): Result<ChatMessage> = delegate.send(chatId, text, reply(replyToMessageId), linkPreview, quote, options, mentions)
+        formats: List<FormatSpan>,
+    ): Result<ChatMessage> =
+        delegate.send(chatId, text, reply(replyToMessageId), linkPreview, quote, options, mentions, formats)
 
     /**
      * Naplánované zprávy patří celé skupině, ne vláknu — ukazovat je v komentářích by míchalo
@@ -200,8 +203,9 @@ class ThreadConversationRepository(
         quote: ReplyQuote?,
         options: SendOptions,
         mentions: List<NameMention>,
+        formats: List<FormatSpan>,
     ): Result<List<ChatMessage>> =
-        delegate.sendAttachments(chatId, attachments, caption, reply(replyToMessageId), quote, options, mentions)
+        delegate.sendAttachments(chatId, attachments, caption, reply(replyToMessageId), quote, options, mentions, formats)
 
     override suspend fun sendPoll(
         chatId: Long,

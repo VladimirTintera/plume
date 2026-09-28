@@ -209,7 +209,7 @@ class MessageRowsTest {
     @Test
     fun polohaSeNeupravujeJakoPopisek() {
         // Poloha popisek nemá; „Upravit" by slibovalo úpravu, kterou server odmítne.
-        assertNull(message(id = 1, media = MessageMedia.Location(50.0, 14.0)).plainTextEdit())
+        assertNull(message(id = 1, media = MessageMedia.Location(50.0, 14.0)).composerEdit())
     }
 
     @Test
