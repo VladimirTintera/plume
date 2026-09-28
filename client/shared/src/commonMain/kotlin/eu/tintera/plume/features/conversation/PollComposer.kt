@@ -65,6 +65,7 @@ import eu.tintera.plume.core.telegram.MIN_POLL_ANSWERS
 import eu.tintera.plume.core.telegram.POLL_ANSWER_MAX
 import eu.tintera.plume.core.telegram.POLL_EXPLANATION_MAX
 import eu.tintera.plume.core.telegram.POLL_EXPLANATION_MAX_LINE_FEEDS
+import eu.tintera.plume.core.telegram.POLL_EXPLANATION_MEDIA
 import eu.tintera.plume.core.telegram.POLL_QUESTION_MAX
 import eu.tintera.plume.core.telegram.PollDraft
 import eu.tintera.plume.core.telegram.PollComposerMode
@@ -291,6 +292,8 @@ internal fun pollDraftOf(
     media: PollDraftMedia? = null,
     /** Přílohy odpovědí podle indexu POLE, jako [correct]. */
     answerMedia: Map<Int, PollDraftMedia> = emptyMap(),
+    /** Příloha vysvětlení; bere se jen u kvízu, jako vysvětlení samo. */
+    explanationMedia: PollDraftMedia? = null,
 ): PollDraft? {
     val text = question.trim()
     if (text.isEmpty() || text.length > POLL_QUESTION_MAX) return null
@@ -324,6 +327,8 @@ internal fun pollDraftOf(
     // Samolepku a odkaz otázka nesmí — server by odmítl celou anketu. Formulář je u otázky
     // nenabízí, tohle je pojistka.
     if (media != null && !media.allowedForQuestion) return null
+    val whyMedia = explanationMedia.takeIf { quiz }
+    if (whyMedia != null && !whyMedia.allowedForQuestion) return null
 
     return PollDraft(
         question = text,
@@ -333,6 +338,7 @@ internal fun pollDraftOf(
         shuffle = shuffle,
         correctAnswers = correctAnswers,
         explanation = why,
+        explanationMedia = whyMedia,
         openPeriodSeconds = period,
         closeDate = closeDate.coerceAtLeast(0),
         // Výsledky až po uzavření jen s koncem ankety — bez něj by je nikdo nikdy neviděl.
@@ -496,11 +502,16 @@ class PollComposerViewModel(
     var answerMedia by mutableStateOf(emptyMap<Int, PollDraftMedia>())
         private set
 
+    /** Příloha vysvětlení kvízu; s přepnutím na anketu se neposílá, ale zůstane pro návrat. */
+    var explanationMedia by mutableStateOf<PollDraftMedia?>(null)
+        private set
+
     /** Hledání místa k otázce nebo odpovědi (sheet „Místo"). */
     val places = PlaceSearcher(viewModelScope, placeRepository, chatId)
 
     /**
-     * Ke kterému poli se vybírá příloha: [POLL_QUESTION_MEDIA], nebo index odpovědi. Výběr je
+     * Ke kterému poli se vybírá příloha: [POLL_QUESTION_MEDIA], [POLL_EXPLANATION_MEDIA], nebo
+     * index odpovědi. Výběr je
      * systémová obrazovka a výsledek přijde až po návratu, proto si pole pamatuje ViewModel.
      */
     private var mediaTarget = POLL_QUESTION_MEDIA
@@ -556,6 +567,7 @@ class PollComposerViewModel(
             // nastavená.
             media = questionMedia,
             answerMedia = answerMedia,
+            explanationMedia = explanationMedia,
             membersOnly = membersOnly && _status.value.isChannel,
             countryCodes = countryCodes.takeIf { _status.value.isChannel }.orEmpty(),
             maxCountries = _status.value.maxCountries,
@@ -595,6 +607,7 @@ class PollComposerViewModel(
         val target = mediaTarget
         when {
             target == POLL_QUESTION_MEDIA -> if (media.allowedForQuestion) questionMedia = media
+            target == POLL_EXPLANATION_MEDIA -> if (media.allowedForQuestion) explanationMedia = media
             // Pole mohlo mezitím zmizet nebo se vyprázdnit — příloha bez textu by neodešla.
             answers.getOrNull(target)?.isNotBlank() == true -> answerMedia = answerMedia + (target to media)
         }
@@ -602,6 +615,10 @@ class PollComposerViewModel(
 
     fun removeQuestionMedia() {
         questionMedia = null
+    }
+
+    fun removeExplanationMedia() {
+        explanationMedia = null
     }
 
     fun removeAnswerMedia(index: Int) {
@@ -1025,6 +1042,14 @@ fun PollComposerScreen(
                             max = POLL_EXPLANATION_MAX,
                             shape = groupItemShape(0, 1),
                             singleLine = false,
+                            trailing = {
+                                MediaSlot(
+                                    media = viewModel.explanationMedia,
+                                    kinds = PollMediaKind.forQuestion,
+                                    onChoose = { kind -> chooseMedia(POLL_EXPLANATION_MEDIA, kind) },
+                                    onRemove = viewModel::removeExplanationMedia,
+                                )
+                            },
                         )
                     }
                 }
@@ -1315,7 +1340,10 @@ internal enum class PollMediaKind {
     PhotoOrVideo, Gif, Sticker, Link, Place;
 
     companion object {
-        /** Co otázka smí (viz `PollDraftMedia.allowedForQuestion`) — samolepku a odkaz ne. */
+        /**
+         * Co otázka a vysvětlení kvízu smí (viz `PollDraftMedia.allowedForQuestion`) — samolepku
+         * a odkaz ne.
+         */
         val forQuestion = listOf(PhotoOrVideo, Gif, Place)
     }
 }

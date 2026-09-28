@@ -1963,7 +1963,7 @@ class TdlConversationRepository(
                         // TDLib chce rostoucí seznam.
                         correctOptionIds = correct.sorted().toIntArray(),
                         explanation = FormattedText(text = poll.explanation, entities = emptyArray()),
-                        explanationMedia = null,
+                        explanationMedia = poll.explanationMedia?.toPollMedia(),
                     )
                 },
                 // Doba a čas uzavření jsou dvě podoby téže volby; přednost má výslovný čas.

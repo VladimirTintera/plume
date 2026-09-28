@@ -365,6 +365,20 @@ class PollComposerTest {
     }
 
     @Test
+    fun prilohaVysvetleniJenUKvizuABezOdkazu() {
+        fun withExplanationMedia(quiz: Boolean, media: PollDraftMedia) = pollDraftOf(
+            question = "Která?", answers = listOf("A", "B"), anonymous = true, multipleAnswers = false,
+            shuffle = false, quiz = quiz, correct = setOf(0), explanation = "Protože.", maxAnswers = 10,
+            explanationMedia = media,
+        )
+        assertEquals(photoA, withExplanationMedia(quiz = true, media = photoA)?.explanationMedia)
+        // Mimo kvíz vysvětlení není, a s ním ani jeho příloha.
+        assertNull(withExplanationMedia(quiz = false, media = photoA)?.explanationMedia)
+        // Odkaz TDLib u vysvětlení nebere, stejně jako u otázky.
+        assertNull(withExplanationMedia(quiz = true, media = PollDraftMedia.Link("https://example.com")))
+    }
+
+    @Test
     fun odkazDostaneSchemaAJenWebovy() {
         assertEquals("https://example.com", pollLinkOf(" example.com "))
         assertEquals("http://example.com/a?b", pollLinkOf("http://example.com/a?b"))
