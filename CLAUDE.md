@@ -6624,6 +6624,12 @@ tolerance jako hod kostkou) nebo je NEPŘEČTENÁ, a znovu po ťuknutí na znač
 - **Poslat s efektem jde z podržení odesílacího tlačítka** („Odeslat s efektem…" →
   `EffectPickerSheet`, `SendOptions.effectId` → `MessageSendOptions.effectId`). Ťuknutí na efekt
   zprávu rovnou pošle; v mřížce je jen emoji efektu, animace se ukáže nad odeslanou zprávou.
+- **Podržení efektu ve výběru ho přehraje** (náhled), ťuknutí dál rovnou posílá. Animace je
+  tatáž `EffectAnimation` jako u značky zprávy (kotvená zdrojem výbuchu, jako u ODCHOZÍ zprávy)
+  a leží nad CELÝM sheetem, ne v políčku: mřížka ořezává ve směru scrollu a výbuch nad políčkem
+  by uřízla. Kotví se ve středu podrženého políčka (`localPositionOf` vůči sheetu). Sheet sám
+  ořezává svou plochu, takže co vyletí nad jeho horní hranu, vidět není — konfety u krátkého
+  sheetu dosáhnou jen k nadpisu, a to na náhled stačí.
 - **Jen v soukromém chatu, i s botem** (`SendMenuOffer.effects`, testy `SendMenuTest`) — jinde
   TDLib efekt nepřijme; v Uložených zprávách a ve vlákně komentářů se nenabízí.
 - **Seznam posílá server JEDNOU po startu** (`UpdateAvailableMessageEffects`: efekty reakcí,

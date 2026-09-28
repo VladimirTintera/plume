@@ -75,33 +75,12 @@ internal fun EffectMark(
     val playLabel = stringResource(Res.string.message_effect_play)
     Box(modifier.size(EFFECT_MARK_SIZE), contentAlignment = Alignment.Center) {
         /*
-         * Animace je DÍTĚ značky, ale do layoutu nezasahuje: měří se na svou velikost a hlásí
-         * nulovou, takže zprávu nezvětší.
-         *
-         * **Zdroj výbuchu NENÍ ve středu plátna.** Animace je navržená pro odchozí zprávu:
-         * zdroj leží asi ve třech čtvrtinách šířky a výbuch letí doleva přes konverzaci. Na
-         * značku se proto kotví ten bod, ne střed, a u příchozí zprávy (značka vpravo od
-         * bubliny) se animace zrcadlí, aby mířila od bubliny, ne přes ni. Nahoru přes sousední
-         * zprávy efekt letí tak jako tak — i v oficiálních klientech.
+         * Animace je DÍTĚ značky, ale do layoutu nezasahuje ([EffectAnimation] se měří na nulu),
+         * takže zprávu nezvětší. Nahoru přes sousední zprávy efekt letí tak jako tak — i
+         * v oficiálních klientech.
          */
-        if (playback.playing && effect.animationFileId != null) {
-            key(playback.run) {
-                AnimatedSticker(
-                    fileId = effect.animationFileId,
-                    contentDescription = null,
-                    playback = StickerPlayback.Once,
-                    onFinished = playback::finished,
-                    placeholder = {},
-                    modifier = Modifier
-                        .layout { measurable, _ ->
-                            val size = (if (effect.premium) PREMIUM_EFFECT_SIZE else EFFECT_SIZE).roundToPx()
-                            val placeable = measurable.measure(Constraints.fixed(size, size))
-                            val sourceX = (size * (if (isOutgoing) EFFECT_SOURCE_X else 1f - EFFECT_SOURCE_X)).toInt()
-                            layout(0, 0) { placeable.place(-sourceX, -size / 2) }
-                        }
-                        .graphicsLayer { if (!isOutgoing) scaleX = -1f },
-                )
-            }
+        if (playback.playing) {
+            EffectAnimation(effect = effect, run = playback.run, isOutgoing = isOutgoing, onFinished = playback::finished)
         }
         Surface(
             shape = CircleShape,
@@ -121,6 +100,42 @@ internal fun EffectMark(
                 Text(effect.emoji, style = TextStyle(fontSize = 13.sp, lineHeight = 13.sp))
             }
         }
+    }
+}
+
+/**
+ * Animace efektu kotvená ZDROJEM výbuchu v místě, kde stojí (plochu nezabírá, měří se na nulu).
+ * Sdílí ji značka u zprávy a náhled ve výběru efektů; [run] složí animaci znovu od začátku.
+ *
+ * **Zdroj výbuchu NENÍ ve středu plátna.** Animace je navržená pro odchozí zprávu: zdroj leží asi
+ * ve třech čtvrtinách šířky a výbuch letí doleva. Na místo se proto kotví ten bod, ne střed,
+ * a u příchozí zprávy ([isOutgoing] `false`) se animace zrcadlí, aby mířila od bubliny, ne přes ni.
+ */
+@Composable
+internal fun EffectAnimation(
+    effect: MessageEffect,
+    run: Int,
+    isOutgoing: Boolean,
+    onFinished: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val fileId = effect.animationFileId ?: return
+    key(run) {
+        AnimatedSticker(
+            fileId = fileId,
+            contentDescription = null,
+            playback = StickerPlayback.Once,
+            onFinished = onFinished,
+            placeholder = {},
+            modifier = modifier
+                .layout { measurable, _ ->
+                    val size = (if (effect.premium) PREMIUM_EFFECT_SIZE else EFFECT_SIZE).roundToPx()
+                    val placeable = measurable.measure(Constraints.fixed(size, size))
+                    val sourceX = (size * (if (isOutgoing) EFFECT_SOURCE_X else 1f - EFFECT_SOURCE_X)).toInt()
+                    layout(0, 0) { placeable.place(-sourceX, -size / 2) }
+                }
+                .graphicsLayer { if (!isOutgoing) scaleX = -1f },
+        )
     }
 }
 
