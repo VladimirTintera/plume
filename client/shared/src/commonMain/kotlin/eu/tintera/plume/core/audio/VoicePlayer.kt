@@ -31,8 +31,12 @@ import eu.tintera.plume.resources.voice_playback_failed
  * z Koinu jako `factory` — stejně jako `AudioRecorder`.
  */
 expect class AudioEngine {
-    /** Připraví soubor k přehrání a vrátí jeho délku v milisekundách. Může trvat (dekódování). */
-    suspend fun load(path: String): Long
+    /**
+     * Připraví soubor k přehrání a vrátí jeho délku v milisekundách. Může trvat (dekódování).
+     *
+     * [music] = skladba, ne hlasovka: na Androidu jiné atributy zvuku a trvalý audio focus.
+     */
+    suspend fun load(path: String, music: Boolean = false): Long
 
     fun start()
 
@@ -88,6 +92,8 @@ data class VoiceKey(val chatId: Long, val messageId: Long)
 
 data class VoicePlayback(
     val key: VoiceKey,
+    /** Skladba, ne hlasovka: hraje i bez otevřené konverzace a ovládá se ze systému ([MusicQueue]). */
+    val music: Boolean = false,
     /** Soubor se stahuje nebo dekóduje; ještě nehraje. */
     val loading: Boolean = true,
     val playing: Boolean = false,
@@ -112,8 +118,11 @@ data class VoicePlayback(
  *
  * **Senzory u ucha sleduje jen po dobu, kdy se HRAJE** ([EarSensor]). Pauza je sundá taky: kdo si
  * hlasovku pozastavil, ten ji u ucha nedrží, a zhasínající displej by mu jen překážel.
- * **Hudba u ucha nepřepíná vůbec** (`raiseToEar = false`): písnička do sluchátka nepatří
+ * **Hudba u ucha nepřepíná vůbec** (`music = true`): písnička do sluchátka nepatří
  * a telefon v ruce při poslechu hudby by jen zhasínal displej.
+ *
+ * **Hudbu sem posílá [MusicQueue], ne obrazovka** — ta drží frontu a systémové ovládání, protože
+ * skladba hraje dál i po odchodu z konverzace.
  */
 class VoicePlayer(
     private val scope: CoroutineScope,
@@ -158,7 +167,7 @@ class VoicePlayer(
      * Pustí hlasovku, nebo u té, která už je vybraná, přepne pauzu. [path] se volá jen při novém
      * spuštění — stahování souboru tedy začne až tady.
      */
-    fun toggle(key: VoiceKey, raiseToEar: Boolean = true, path: suspend () -> String) {
+    fun toggle(key: VoiceKey, music: Boolean = false, path: suspend () -> String) {
         val current = _state.value
         if (current?.key == key) {
             when {
@@ -168,29 +177,41 @@ class VoicePlayer(
             }
             return
         }
-        play(key, raiseToEar, path = path)
+        play(key, music, path = path)
     }
 
     /**
      * Pustí hlasovku od začátku (nebo od [startMs] — čas v médiu), ať byla vybraná, nebo ne.
      * Tudy jde řetězení neposlechnutých.
      */
-    fun play(key: VoiceKey, raiseToEar: Boolean = true, startMs: Long = 0L, path: suspend () -> String) {
+    fun play(
+        key: VoiceKey,
+        music: Boolean = false,
+        startMs: Long = 0L,
+        /**
+         * Zavolá se po dohrání, SYNCHRONNĚ a ještě před vynulováním stavu — na rozdíl od
+         * [completions], které doběhnou až v korutině. [MusicQueue] tak ví, že přehrávání končí
+         * kvůli další skladbě, dřív, než uvidí prázdný stav.
+         */
+        onFinished: (() -> Unit)? = null,
+        path: suspend () -> String,
+    ) {
         stop()
-        this.raiseToEar = raiseToEar
-        _state.value = VoicePlayback(key)
+        this.raiseToEar = !music
+        _state.value = VoicePlayback(key, music = music)
         loadJob = scope.launch {
             try {
                 val file = path()
                 val prepared = newEngine()
                 val duration = try {
-                    prepared.load(file)
+                    prepared.load(file, music)
                 } catch (failure: Throwable) {
                     prepared.release()
                     throw failure
                 }
                 prepared.onCompleted = {
                     // Dohráno není zastaveno: stav se uklidí jako vždy, ale ještě se to ohlásí ven.
+                    onFinished?.invoke()
                     stop()
                     _completions.tryEmit(key)
                 }
@@ -201,7 +222,7 @@ class VoicePlayer(
                 val start = startMs.takeIf { it in 1 until duration } ?: 0L
                 if (start > 0) prepared.seekTo(start)
                 engine = prepared
-                _state.value = VoicePlayback(key, loading = false, durationMs = duration, positionMs = start)
+                _state.value = VoicePlayback(key, music = music, loading = false, durationMs = duration, positionMs = start)
                 resume()
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -216,8 +237,14 @@ class VoicePlayer(
     /** Posun v právě vybrané hlasovce. Jiné hlasovky se to netýká. */
     fun seek(key: VoiceKey, fraction: Float) {
         val current = _state.value?.takeIf { it.key == key && !it.loading } ?: return
+        seekTo(key, (current.durationMs * fraction.coerceIn(0f, 1f)).toLong())
+    }
+
+    /** Posun na čas v milisekundách — systémové ovládání (notifikace, zamykací obrazovka). */
+    fun seekTo(key: VoiceKey, positionMs: Long) {
+        val current = _state.value?.takeIf { it.key == key && !it.loading } ?: return
         val engine = engine ?: return
-        val position = (current.durationMs * fraction.coerceIn(0f, 1f)).toLong()
+        val position = positionMs.coerceIn(0L, current.durationMs)
         engine.seekTo(position)
         _state.value = current.copy(positionMs = position)
     }
@@ -230,9 +257,15 @@ class VoicePlayer(
         return next
     }
 
-    /** Zastaví přehrávání; s [chatId] jen tehdy, když hraje hlasovka z toho chatu. */
-    fun stop(chatId: Long? = null) {
+    /**
+     * Zastaví přehrávání; s [chatId] jen tehdy, když hraje hlasovka z toho chatu.
+     *
+     * [keepMusic]: hudba se nezastaví — odchod z konverzace ji nechá hrát dál, hlasovku ne
+     * (neměla by kde ukazovat průběh a nahrávala by se do cizí obrazovky).
+     */
+    fun stop(chatId: Long? = null, keepMusic: Boolean = false) {
         if (chatId != null && _state.value?.key?.chatId != chatId) return
+        if (keepMusic && _state.value?.music == true) return
         // Výstup vracet netřeba: `release()` níž systému komunikační režim sundá sám.
         stopListeningForEar(returnToSpeaker = false)
         loadJob?.cancel()
@@ -282,14 +315,14 @@ class VoicePlayer(
         }
     }
 
-    private fun pause() {
+    fun pause() {
         stopListeningForEar(returnToSpeaker = true)
         engine?.pause()
         tickJob?.cancel()
         _state.update { it?.copy(playing = false, positionMs = engine?.positionMs ?: it.positionMs) }
     }
 
-    private fun resume() {
+    fun resume() {
         val engine = engine ?: return
         engine.start()
         startListeningForEar()

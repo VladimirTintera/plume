@@ -102,7 +102,8 @@ actual class AudioEngine {
         if (type == AVAudioSessionInterruptionTypeBegan) onInterrupted?.invoke()
     }
 
-    actual suspend fun load(path: String): Long {
+    /** Hudba i hlasovka hrají v kategorii Playback; na pozadí hraje díky `UIBackgroundModes: audio`. */
+    actual suspend fun load(path: String, music: Boolean): Long {
         val playable = withContext(Dispatchers.IO) { playablePath(path) }
 
         applySession()

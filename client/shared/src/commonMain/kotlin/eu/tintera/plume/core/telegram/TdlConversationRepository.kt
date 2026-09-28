@@ -736,6 +736,38 @@ class TdlConversationRepository(
             .map { it.count }
             .getOrDefault(0)
 
+    /**
+     * Hledáním s filtrem, jako [visualMedia]: jedno volání vrátí skladbu, novější (záporný
+     * `offset`) i starší. Hlasovky filtr nebere, ty jsou `VoiceNote`.
+     *
+     * **`offset = -1` NOVĚJŠÍ zprávu nepřinese**, jen tu samotnou — ověřeno logem: od téže
+     * zprávy dal `-1` [skladba, starší, starší] a `-2` [novější, skladba, starší, starší].
+     * Proto `-2`; zpráva sama se ve výsledku odfiltruje podle id.
+     */
+    override suspend fun musicNeighbors(chatId: Long, messageId: Long): Result<MusicNeighbors> {
+        val isGroup = isGroup(chatId)
+        return client.searchChatMessages(
+            chatId = chatId,
+            topicId = null,
+            query = "",
+            senderId = null,
+            fromMessageId = messageId,
+            offset = -2,
+            limit = 4,
+            filter = SearchMessagesFilterAudio(),
+        )
+            .toResult()
+            .map { found ->
+                val tracks = found.messages.filterNotNull()
+                    .map { it.toChatMessage(isGroup) }
+                    .filter { it.media is MessageMedia.Audio }
+                MusicNeighbors(
+                    previous = tracks.filter { it.id < messageId }.maxByOrNull { it.id },
+                    next = tracks.filter { it.id > messageId }.minByOrNull { it.id },
+                )
+            }
+    }
+
     override suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage> {
         val isGroup = isGroup(chatId)
         return client.getMessage(chatId = chatId, messageId = messageId)

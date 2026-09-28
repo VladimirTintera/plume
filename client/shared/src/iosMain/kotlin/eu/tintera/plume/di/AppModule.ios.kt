@@ -6,6 +6,7 @@ import eu.tintera.plume.core.ui.IosSquarePhoto
 import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.audio.AudioEngine
 import eu.tintera.plume.core.audio.EarSensor
+import eu.tintera.plume.core.audio.NowPlayingControls
 import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSaver
@@ -27,6 +28,9 @@ import eu.tintera.plume.core.telegram.TelegramPaths
 import eu.tintera.plume.core.update.AppUpdates
 import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.core.ui.TextClipboard
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Dispatchers
 import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 
@@ -61,6 +65,11 @@ actual fun Module.platformModule() {
     factory { AudioEngine() }
     // Senzory u ucha: jeden na aplikaci, protože hraje nejvýš jedna hlasovka.
     single { EarSensor() }
+    // Hudba na zamykací obrazovce a v Ovládacím centru. Na hlavním vlákně — z něj chodí povely
+    // systému a z něj se ovládá přehrávač.
+    single(createdAtStart = true) {
+        NowPlayingControls(queue = get(), scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)).also { it.start() }
+    }
 
     // Application Support, stejně jako databáze TDLib: data aplikace, ne dokumenty uživatele.
     single { createSettingsDataStore(applicationSupportDirectory() + "/" + SETTINGS_FILE_NAME) }

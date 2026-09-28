@@ -183,6 +183,8 @@ kotlin {
             implementation(libs.androidx.photopicker.compose)
             implementation(libs.media3.exoplayer)
             implementation(libs.media3.ui)
+            // Hudba na pozadí: MediaSession, notifikace s ovládáním a služba v popředí.
+            implementation(libs.media3.session)
             implementation(libs.play.app.update)
             // Čtečka QR kódů pro přihlášení jiného zařízení — viz core/ui/QrScanner.
             implementation(libs.play.code.scanner)

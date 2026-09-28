@@ -420,9 +420,11 @@ snadno na to uživatel narazí.
   smyčce, zvuk s průběhem po ťuknutí, zhlédnutí (`CLAUDE.md`, „Video kolečka"). Zbývá přepis
   řeči (`speechRecognitionResult`), **nahrávání kolečka** a ověřit zhlédnutí u odesílatele.
 - ~~**Hudba** (`MessageAudio`)~~ — hotovo: přehrávání v bublině s obalem, interpretem, posunem
-  a rychlostí, navazování další skladby, sdílení a uložení (`CLAUDE.md`, „Hudba"). Zbývá
-  ovládání z notifikace / zamykací obrazovky (hraje jen s otevřenou konverzací), přehrávání na
-  pozadí. ~~Hudba v profilu (záložka Hudba)~~ — hotovo.
+  a rychlostí, navazování další skladby, sdílení a uložení (`CLAUDE.md`, „Hudba"). ~~Hudba
+  v profilu (záložka Hudba)~~ — hotovo. ~~Ovládání z notifikace / zamykací obrazovky, přehrávání
+  na pozadí~~ — hotovo (`MusicQueue`, Media3 MediaSession, na iOS Now Playing). Zbývá ověřit
+  iOS a zamykací obrazovku na telefonu. Hlasovky se na pozadí nepřehrávají, s odchodem
+  z konverzace dál končí.
 - ~~**Poloha, živá poloha a místo**~~ — hotovo: statická mapa od Telegramu, ťuknutí do map
   platformy, u živé polohy do kdy se sdílí, odeslání polohy nebo místa ze sponky. Zbývá
   sdílení živé polohy (běh na pozadí) a upozornění na blízkost (`proximityAlertRadius` — má
