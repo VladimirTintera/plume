@@ -1991,11 +1991,11 @@ class TdlConversationRepository(
     override suspend fun stopPoll(chatId: Long, messageId: Long): Result<Unit> =
         client.stopPoll(chatId = chatId, messageId = messageId, replyMarkup = null).toResult().map { }
 
-    override suspend fun addPollOption(chatId: Long, messageId: Long, text: String): Result<Unit> =
+    override suspend fun addPollOption(chatId: Long, messageId: Long, text: String, media: PollDraftMedia?): Result<Unit> =
         client.addPollOption(
             chatId = chatId,
             messageId = messageId,
-            option = InputPollOption(text = FormattedText(text = text, entities = emptyArray()), media = null),
+            option = InputPollOption(text = FormattedText(text = text, entities = emptyArray()), media = media?.toPollMedia()),
         ).toResult().map { }
 
     override suspend fun pollVoters(

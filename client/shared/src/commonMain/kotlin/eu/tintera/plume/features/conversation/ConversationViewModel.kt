@@ -3,6 +3,7 @@ package eu.tintera.plume.features.conversation
 import eu.tintera.plume.resources.conversation_contact_send_failed
 import eu.tintera.plume.resources.conversation_contact_no_phone
 import eu.tintera.plume.resources.conversation_contact_load_failed
+import eu.tintera.plume.core.telegram.PollDraftMedia
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.telegram.UnreadMarkKind
@@ -2636,13 +2637,13 @@ class ConversationViewModel(
     }
 
     /** Přidá do ankety odpověď z dialogu. Nová odpověď přijde úpravou obsahu zprávy. */
-    fun addPollOption(text: String) {
+    fun addPollOption(text: String, media: PollDraftMedia?) {
         val messageId = _state.value.addingPollOption ?: return
         val trimmed = text.trim()
         _state.update { it.copy(addingPollOption = null) }
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
-            repository.addPollOption(chatId, messageId, trimmed).onFailure { failure ->
+            repository.addPollOption(chatId, messageId, trimmed, media).onFailure { failure ->
                 _state.update { it.copy(error = failure.reported(Res.string.poll_add_option_failed)) }
             }
         }

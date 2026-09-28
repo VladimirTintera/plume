@@ -441,7 +441,8 @@ snadno na to uživatel narazí.
     v prohlížeči; formulář nabízí fotku, video, GIF, samolepku, odkaz a místo). ~~Média ve
     vysvětlení kvízu (`explanationMedia`)~~ — hotovo (zobrazení i formulář).
   - ~~**Přidání odpovědi**~~ — hotovo (`canAddOption`, `addPollOption`, dialog pod odpověďmi).
-    Zbývá ověřit ve skupině a přidání odpovědi s médiem (formulář nabízí jen text).
+    ~~Přidání odpovědi s médiem~~ — hotovo (tatáž nabídka příloh jako ve formuláři). Zbývá
+    ověřit ve skupině.
   - ~~**Tváře posledních hlasujících**~~ — hotovo (`recentVoterIds`, až tři přes sebe v zápatí).
     Zbývá ověřit se skutečnými hlasy víc lidí (testovací účet hlasuje jen sám za sebe).
 - ~~**Video kolečka** (`MessageVideoNote`)~~ — hotovo: kulatě bez bubliny, samy potichu ve

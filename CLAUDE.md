@@ -3969,6 +3969,13 @@ v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, 
   zprávy jako hlas, a server k ní pošle servisní zprávu. Strop délky je týž jako ve formuláři
   (`POLL_ANSWER_MAX`). Ověřuje se `sendPoll` botem s `allow_adding_options=true`
   a `is_anonymous=false`; `getUpdates` pak ukáže `added_by_user` a `poll_option_added`.
+- **Přidaná odpověď smí nést přílohu** — tatáž ikona a nabídka jako u odpovědi ve formuláři
+  (`MediaSlot`, výběr GIFu, samolepky, odkazu a místa je společný `PollMediaChooser`), TDLib
+  u `addPollOption` bere tytéž druhy. Příloha žije jen v dialogu (přežít otočení nemusí).
+  **Výběry se otevírají NAD dialogem**: sheet i systémový výběr fotek jsou vlastní okna
+  přidaná později, takže leží nahoře a po výběru se vrací do dialogu. Ověřeno samolepkou:
+  sheet nad dialogem, náhled v poli, odpověď s kachnou v anketě a Bot API ukázalo
+  `options[].media.sticker`.
 - **V zápatí jsou tváře posledních hlasujících** (`Poll.recentVoterIds` → `ChatPoll.recentVoters`,
   nejvýš `MAX_RECENT_VOTERS` = 3, přes sebe, nejnovější navrchu, s lemem v barvě bubliny;
   `FaceStack` v `core/ui`, společný s čipem komentářů).
@@ -8013,6 +8020,10 @@ vkus toho, kdo zrovna píše obrazovku.
   keš**, ne chyba v projektu. Keš si pamatuje cestu k toolchainu z doby, kdy na Macu běžel
   GitHub runner; po jeho smazání build padá dřív, než se dostane ke kódu. Pomůže
   `./gradlew --stop` a `rm -rf .gradle/configuration-cache`.
+- **Neexistující úloha Gradle shodí CELÉ volání, i úlohy před ní.** `assembleDebug
+  :client:shared:neexistujici -q | grep "^e:"` nevypíše nic (chyba je „Task … not found", ne
+  `e:`) a APK zůstane STARÉ — na emulátoru pak chybí právě přidaná změna a vypadá to jako chyba
+  v kódu. Po sestavení k ověření kontrolovat čas APK nebo `BUILD SUCCESSFUL`.
 - **CI na pull requestech NIC NEPŘEKLÁDÁ** — kontroluje jen poznámky k vydání. Po #284 se `main`
   nedal přeložit (`vararg` hodnotové třídy `Color`: „Prohibited vararg parameter type") a nikdo
   si toho nevšiml, dokud další větev nestavěla. Před pushem proto aspoň
