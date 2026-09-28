@@ -1835,7 +1835,13 @@ fun ConversationScreen(
         }
 
         if (state.addingPollOption != null) {
-            AddPollOptionDialog(onConfirm = viewModel::addPollOption, onDismiss = viewModel::dismissAddPollOption)
+            AddPollOptionDialog(
+                chatId = viewModel.chatId,
+                places = viewModel.places,
+                onConfirm = viewModel::addPollOption,
+                onError = viewModel::reportError,
+                onDismiss = viewModel::dismissAddPollOption,
+            )
         }
 
         state.pollVoters?.let { messageId ->

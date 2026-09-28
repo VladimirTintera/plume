@@ -1109,49 +1109,17 @@ fun PollComposerScreen(
             onDismiss = { pickedScheduleDay = null },
         )
     }
-    when (choosing) {
-        null, PollMediaKind.PhotoOrVideo -> Unit
-        // Tentýž výběr jako v konverzaci, jen s jedinou částí: GIF a samolepka se tu nevkládají
-        // do zprávy, ale k otázce nebo odpovědi.
-        PollMediaKind.Gif, PollMediaKind.Sticker -> {
-            val mode = if (choosing == PollMediaKind.Gif) ExpressionMode.Gifs else ExpressionMode.Stickers
-            StickerPickerSheet(
-                mode = mode,
-                onModeChange = {},
-                stickersAvailable = true,
-                draft = TextFieldValue(),
-                onDraftEdit = {},
-                onPick = { sticker ->
-                    choosing = null
-                    viewModel.setMedia(PollDraftMedia.Sticker(sticker))
-                },
-                chatId = viewModel.chatId,
-                onPickGif = { gif ->
-                    choosing = null
-                    viewModel.setMedia(PollDraftMedia.Gif(gif.animation))
-                },
-                onDismiss = { choosing = null },
-                modes = listOf(mode),
-            )
-        }
-        PollMediaKind.Link -> PollLinkDialog(
-            onConfirm = { url ->
+    choosing?.let { kind ->
+        PollMediaChooser(
+            kind = kind,
+            chatId = viewModel.chatId,
+            places = viewModel.places,
+            onChosen = { media ->
                 choosing = null
-                viewModel.setMedia(PollDraftMedia.Link(url))
+                viewModel.setMedia(media)
             },
             onDismiss = { choosing = null },
         )
-        PollMediaKind.Place -> {
-            PlacePickerHost(
-                searcher = viewModel.places,
-                title = stringResource(Res.string.poll_place_title),
-                onPick = { place ->
-                    choosing = null
-                    viewModel.setMedia(PollDraftMedia.Location(place))
-                },
-                onDismiss = { choosing = null },
-            )
-        }
     }
 
     if (pickingCountries) {
@@ -1335,6 +1303,47 @@ private fun AnswerField(
     )
 }
 
+/**
+ * Výběr přílohy k otázce nebo odpovědi pro druhy, které nevybírá systém: GIF a samolepka (tentýž
+ * výběr jako v konverzaci, jen s jedinou částí — tady se nevkládají do zprávy), odkaz a místo.
+ * Fotku a video vybírá systémový výběr ([PollMediaKind.PhotoOrVideo] tu nic nekreslí). Sdílí ho
+ * formulář ankety a přidání odpovědi do cizí ankety.
+ */
+@Composable
+internal fun PollMediaChooser(
+    kind: PollMediaKind,
+    chatId: Long,
+    places: PlaceSearcher,
+    onChosen: (PollDraftMedia) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    when (kind) {
+        PollMediaKind.PhotoOrVideo -> Unit
+        PollMediaKind.Gif, PollMediaKind.Sticker -> {
+            val mode = if (kind == PollMediaKind.Gif) ExpressionMode.Gifs else ExpressionMode.Stickers
+            StickerPickerSheet(
+                mode = mode,
+                onModeChange = {},
+                stickersAvailable = true,
+                draft = TextFieldValue(),
+                onDraftEdit = {},
+                onPick = { sticker -> onChosen(PollDraftMedia.Sticker(sticker)) },
+                chatId = chatId,
+                onPickGif = { gif -> onChosen(PollDraftMedia.Gif(gif.animation)) },
+                onDismiss = onDismiss,
+                modes = listOf(mode),
+            )
+        }
+        PollMediaKind.Link -> PollLinkDialog(onConfirm = { url -> onChosen(PollDraftMedia.Link(url)) }, onDismiss = onDismiss)
+        PollMediaKind.Place -> PlacePickerHost(
+            searcher = places,
+            title = stringResource(Res.string.poll_place_title),
+            onPick = { place -> onChosen(PollDraftMedia.Location(place)) },
+            onDismiss = onDismiss,
+        )
+    }
+}
+
 /** Druh přílohy v nabídce u pole. */
 internal enum class PollMediaKind {
     PhotoOrVideo, Gif, Sticker, Link, Place;
@@ -1353,7 +1362,7 @@ internal enum class PollMediaKind {
  * na náhled přílohu odebere — jiná akce nad ním není a vybrat jinou jde po odebrání.
  */
 @Composable
-private fun MediaSlot(
+internal fun MediaSlot(
     media: PollDraftMedia?,
     kinds: List<PollMediaKind>,
     onChoose: (PollMediaKind) -> Unit,
