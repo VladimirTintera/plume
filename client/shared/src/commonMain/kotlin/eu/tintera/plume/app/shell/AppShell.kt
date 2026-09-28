@@ -7,7 +7,9 @@ import eu.tintera.plume.core.navigation.ArchiveMemberRightsRoute
 import eu.tintera.plume.core.navigation.MemberRightsRoute
 import eu.tintera.plume.core.navigation.EditChatRoute
 import eu.tintera.plume.core.navigation.EditProfileRoute
+import eu.tintera.plume.core.navigation.BlockSenderRoute
 import eu.tintera.plume.core.navigation.BlockedSendersRoute
+import eu.tintera.plume.features.settings.BlockSenderScreen
 import eu.tintera.plume.features.settings.BlockedSendersScreen
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
 import eu.tintera.plume.features.conversation.ConversationSearchRequests
@@ -310,7 +312,7 @@ private fun ShellContent(
                          */
                         backNavigationBehavior = if (
                             navigation.section == ChatsRoute ||
-                            settingsStack.lastOrNull().let { it == EditProfileRoute || it == BlockedSendersRoute }
+                            settingsStack.lastOrNull().let { it == EditProfileRoute || it == BlockedSendersRoute || it == BlockSenderRoute }
                         ) {
                             BackNavigationBehavior.PopUntilContentChange
                         } else {
@@ -735,7 +737,9 @@ private fun shellEntryProvider(
             // u konverzací.
             onSectionClick = { section ->
                 // I s obrazovkami, které se vrší nad sekci — jinak by zůstaly pod novou sekcí.
-                settingsStack.removeAll { it is SettingsSectionRoute || it is EditProfileRoute || it is BlockedSendersRoute }
+                settingsStack.removeAll {
+                    it is SettingsSectionRoute || it is EditProfileRoute || it is BlockedSendersRoute || it is BlockSenderRoute
+                }
                 settingsStack.add(SettingsSectionRoute(section))
             },
             // Sem se chodí z menu účtu na každé šířce, takže šipka zpět do Chatů je vždycky.
@@ -765,6 +769,17 @@ private fun shellEntryProvider(
         metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
     ) { route ->
         BlockedSendersScreen(
+            viewModel = koinViewModel(),
+            onBack = { settingsStack.pop(route) },
+            onBlockUser = { if (settingsStack.lastOrNull() != BlockSenderRoute) settingsStack.add(BlockSenderRoute) },
+        )
+    }
+
+    // Výběr k zablokování nad seznamem blokovaných; po zablokování se vrací do něj.
+    entry<BlockSenderRoute>(
+        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+    ) { route ->
+        BlockSenderScreen(
             viewModel = koinViewModel(),
             onBack = { settingsStack.pop(route) },
         )

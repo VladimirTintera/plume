@@ -47,6 +47,7 @@ class BlockedSendersViewModelTest {
     fun odblokovanySeNevratiAniSeZastaralouOdpovedi() = runTest {
         val server = StaleServer(listOf(sender(1), sender(2)))
         val viewModel = BlockedSendersViewModel(server)
+        viewModel.reload()
         advanceUntilIdle()
 
         viewModel.unblock(sender(1))
@@ -61,6 +62,7 @@ class BlockedSendersViewModelTest {
     fun vratitOdesilateleVratiDoSeznamu() = runTest {
         val server = StaleServer(listOf(sender(1), sender(2)))
         val viewModel = BlockedSendersViewModel(server)
+        viewModel.reload()
         advanceUntilIdle()
 
         viewModel.unblock(sender(1))

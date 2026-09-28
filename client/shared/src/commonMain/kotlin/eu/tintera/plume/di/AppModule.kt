@@ -73,6 +73,7 @@ import eu.tintera.plume.features.share.ShareToChatViewModel
 import eu.tintera.plume.features.share.ShareViewModel
 import eu.tintera.plume.features.settings.AppearanceViewModel
 import eu.tintera.plume.features.settings.SettingsViewModel
+import eu.tintera.plume.features.settings.BlockSenderViewModel
 import eu.tintera.plume.features.settings.BlockedSendersViewModel
 import eu.tintera.plume.features.settings.SensitiveContentViewModel
 import eu.tintera.plume.features.settings.DefaultAutoDeleteViewModel
@@ -254,6 +255,7 @@ fun appModule() = module {
     }
     viewModelOf(::SettingsViewModel)
     viewModelOf(::BlockedSendersViewModel)
+    viewModelOf(::BlockSenderViewModel)
     viewModelOf(::SensitiveContentViewModel)
     viewModelOf(::DefaultAutoDeleteViewModel)
     viewModelOf(::AppearanceViewModel)

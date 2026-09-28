@@ -88,9 +88,8 @@ class BlockedSendersViewModel(private val chats: ChatRepository) : ViewModel() {
      */
     private val unblockedIds = mutableSetOf<Long>()
 
-    init {
-        reload()
-    }
+    // Seznam se nečte v `init`: obě místa, která ho ukazují (řádek v Obecných, seznam
+    // blokovaných), ho čtou samy při zobrazení — a v init by se tak četl dvakrát.
 
     /**
      * Seznam znovu od serveru. Volá se i po každém (od)blokování: co změna udělala, ví jen

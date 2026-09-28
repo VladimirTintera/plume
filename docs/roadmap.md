@@ -142,8 +142,8 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
       pozastavit bota v chatu a odkaz na jeho správu. Je to samostatný update, ne `ChatActionBar`.
   - ~~**Nahlásit z režimu výběru víc zpráv**~~ — hotovo (vlajka v liště výběru).
   - **Ověřit skutečný pruh (`UpdateChatActionBar`)** na chatu od cizího — zatím jen podstrčeným stavem.
-  - ~~**Seznam blokovaných v Nastavení**~~ — hotovo (Obecné → Soukromí → Blokovaní). Zbývá
-    zablokovat někoho ze seznamu kontaktů přímo odtud (oficiální klient má „Zablokovat uživatele").
+  - ~~**Seznam blokovaných v Nastavení**~~ — hotovo (Obecné → Soukromí → Blokovaní), ~~i se
+    „Zablokovat uživatele"~~ (kontakty a známé soukromé chaty, s potvrzením).
 - **Přihlašovací obrazovka** — hotová (výběr země, formátování čísla, návrat z QR na číslo,
   expressive přestavba, ~~zpět z kódu a hesla k číslu~~; `CLAUDE.md`, „Přihlašovací obrazovka").
   Zbývá:

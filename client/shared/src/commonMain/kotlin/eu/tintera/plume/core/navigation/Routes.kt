@@ -56,6 +56,10 @@ data object EditProfileRoute : Route
 @Serializable
 data object BlockedSendersRoute : Route
 
+/** Výběr, koho zablokovat. Vrší se nad seznam blokovaných a po zablokování se vrací do něj. */
+@Serializable
+data object BlockSenderRoute : Route
+
 /**
  * Archivované chaty. V list-detail rozvržení je to LIST panel scény archivu:
  * má vlastní detail panel [ArchiveConversationRoute], takže neovlivňuje otevřenou konverzaci
@@ -241,6 +245,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(SettingsSectionRoute::class, SettingsSectionRoute.serializer())
             subclass(EditProfileRoute::class, EditProfileRoute.serializer())
             subclass(BlockedSendersRoute::class, BlockedSendersRoute.serializer())
+            subclass(BlockSenderRoute::class, BlockSenderRoute.serializer())
             subclass(ArchiveRoute::class, ArchiveRoute.serializer())
             subclass(ArchiveConversationRoute::class, ArchiveConversationRoute.serializer())
             subclass(ArchiveChatProfileRoute::class, ArchiveChatProfileRoute.serializer())
