@@ -1892,9 +1892,18 @@ class ConversationViewModel(
         if (linkChanged) refreshLinkPreview(linkPreviewText, delayMs = 0)
     }
 
-    /** Obrazovka text do pole vložila. Bez toho by se po otočení vložil znovu, i smazaný. */
-    fun consumeInputFill() {
-        _state.update { it.copy(inputFill = null) }
+    /**
+     * Obrazovka text [fill] do pole vložila. Bez toho by se po otočení vložil znovu, i smazaný.
+     *
+     * **Nuluje se jen TEN text, který obrazovka vložila**, ne jakýkoli. Při otevření chatu jdou
+     * dva hned po sobě — koncept z TDLib a za ním sdílený odkaz — a obrazovka vyřizuje ten první,
+     * zatímco ve stavu už čeká druhý. Bezpodmínečné vynulování ho smazalo dřív, než ho obrazovka
+     * uviděla: pole zůstalo prázdné, ViewModel přitom text vedl jako koncept, uložil ho do TDLib
+     * a další sdílení ho připojilo k novému — odkaz se objevil až napodruhé, a to dvakrát.
+     * Porovnává se instance: dvě vložení téhož textu jsou pořád dvě vložení.
+     */
+    fun consumeInputFill(fill: InputFill) {
+        _state.update { if (it.inputFill === fill) it.copy(inputFill = null) else it }
     }
 
     /**

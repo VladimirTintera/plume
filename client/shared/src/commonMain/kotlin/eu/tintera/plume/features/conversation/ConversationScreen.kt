@@ -2487,7 +2487,7 @@ private fun MessageInput(
     onLinkPreviewOptions: (LinkPreviewOptions) -> Unit = {},
     /** Text, který se má jednou vložit do pole (koncept, úprava). */
     inputFill: InputFill?,
-    onInputFilled: () -> Unit,
+    onInputFilled: (InputFill) -> Unit,
     onOpenStickers: () -> Unit,
     onPickMedia: () -> Unit,
     onPickDocument: () -> Unit,
@@ -2549,7 +2549,7 @@ private fun MessageInput(
     LaunchedEffect(inputFill) {
         val fill = inputFill ?: return@LaunchedEffect
         if (!fill.onlyIfEmpty || draft.text.isEmpty()) composer.fill(fill.text, fill.formats)
-        onInputFilled()
+        onInputFilled(fill)
     }
 
     // Úprava zprávy přílohy schová — odeslání by je stejně neposlalo.
