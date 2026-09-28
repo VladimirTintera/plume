@@ -2,6 +2,7 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.composedFormatsOf
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
@@ -177,7 +178,7 @@ internal const val COLLAPSED_QUOTE_LINES = 3
 internal val LinkPreview.showsLargePhoto: Boolean get() = largePhoto && photo != null
 
 /** Co z té zprávy vstupní pole upravuje — a tím i které volání TDLib úpravu uloží. */
-internal enum class PlainTextEdit {
+internal enum class ComposerEdit {
     /** Text zprávy (`editMessageText`). */
     Text,
 
@@ -188,31 +189,23 @@ internal enum class PlainTextEdit {
 /**
  * Dá se zpráva upravit ve vstupním poli, aniž by přišla o formátování? A co se tím vlastně mění?
  *
- * Pole umí jen holý text. Odkazy, zmínky a spol. se při odeslání úpravy dohledají znovu, ale
- * **ruční formátování** (tučné, kurzíva, spoiler, odkaz s vlastním popiskem) by úprava tiše smazala.
- * Takovou zprávu radši upravit nenabídneme — položka, která rozbije obsah, je horší než žádná.
- *
- * Odkaz se pozná jako automatický, když jeho text v adrese opravdu stojí (`example.com` →
- * `https://example.com`). U odkazu s popiskem („klikni sem") to neplatí.
+ * Pole nese text a ruční formátování (tučné, kurzívu, spoiler, kód, citace — [composedFormatsOf]);
+ * odkazy, zmínky a hashtagy se při odeslání úpravy dohledají znovu. Co z textu poznat nejde a pole
+ * nést neumí (odkaz s vlastním popiskem, zmínka jménem, vlastní emoji, blok kódu s jazykem), by
+ * úprava tiše smazala — takovou zprávu radši upravit nenabídneme. Položka, která rozbije obsah, je
+ * horší než žádná.
  *
  * **U přílohy se nabízí i prázdný popisek** — tím se popisek přidá, a smazáním zase odebere.
  * Text zprávy prázdný být nesmí: prázdnou zprávu server odmítne.
  */
-internal fun ChatMessage.plainTextEdit(): PlainTextEdit? {
+internal fun ChatMessage.composerEdit(): ComposerEdit? {
     // Text ankety je náš popis, ne obsah zprávy — a `canBeEdited` u ankety znamená „jde
     // ukončit" (viz `stopPoll`), takže by „Upravit" slibovalo úpravu, kterou server odmítne.
     if (isService || poll != null) return null
+    if (composedFormatsOf(text, entities) == null) return null
 
-    val plain = entities.all { entity ->
-        val type = entity.type as? MessageEntityType.Link ?: return@all false
-        val start = entity.offset.coerceIn(0, text.length)
-        val end = (entity.offset + entity.length).coerceIn(start, text.length)
-        type.url.endsWith(text.substring(start, end), ignoreCase = true)
-    }
-    if (!plain) return null
-
-    val media = media ?: return PlainTextEdit.Text.takeIf { text.isNotBlank() }
-    return PlainTextEdit.Caption.takeIf { media.carriesCaption }
+    val media = media ?: return ComposerEdit.Text.takeIf { text.isNotBlank() }
+    return ComposerEdit.Caption.takeIf { media.carriesCaption }
 }
 
 /**

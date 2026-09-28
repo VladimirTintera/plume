@@ -3295,12 +3295,14 @@ u pole (`ScheduledMessagesSheet`): odeslat hned, změnit čas, smazat.
 „Upravit" v nabídce nad zprávou přepne vstupní pole do úpravy: karta místo citace ukazuje původní
 text, tlačítko je fajfka a potvrzení volá `editMessageText`.
 
-- **Nenabízí se u zpráv s ručním formátováním** (`plainTextEdit`). Pole umí jen holý
-  text — tučné, kurzíva, spoiler nebo odkaz s vlastním popiskem by úprava tiše smazala.
-  Automatické odkazy se poznají tak, že jejich text v adrese opravdu stojí; ty se při uložení
-  dohledají znovu (`getTextEntities`, stejně jako při odeslání).
+- **Nenabízí se u zpráv, jejichž obsah pole neunese** (`composerEdit`, `composedFormatsOf`).
+  Ruční formátování (tučné, kurzíva, podtržení, přeškrtnutí, spoiler, kód, citace) pole nese
+  (viz „Formátování při psaní"); odkazy psané v textu, `@jméno`, hashtagy, příkazy a čas v médiu
+  se při uložení dohledají znovu. Odkaz s vlastním popiskem, zmínka jménem, vlastní emoji, datum
+  a blok kódu s jazykem by úprava tiše smazala — u nich „Upravit" není. Automatický odkaz se
+  pozná tak, že jeho text v adrese opravdu stojí.
 - **Popisek přílohy je JINÉ volání** (`editMessageCaption` vedle `editMessageText`), takže
-  pravidlo neříká jen „jde to", ale i CO se upravuje (`PlainTextEdit.Text` / `Caption`). Jedno
+  pravidlo neříká jen „jde to", ale i CO se upravuje (`ComposerEdit.Text` / `Caption`). Jedno
   volání za druhé zaměnit nejde: úprava textu by popisek nezměnila a naopak.
 - **Popisek jde i přidat a odebrat.** „Upravit" se proto u přílohy nabízí i bez popisku (jinak
   by ho k fotce nešlo doplnit) a prázdné pole je platná úprava, která popisek smaže — odesílací
@@ -3332,6 +3334,56 @@ text, tlačítko je fajfka a potvrzení volá `editMessageText`.
 - **Po „Upravit" se pole samo nefokusuje.** Že se něco stalo, ukazuje karta s původním textem
   a fajfka místo odeslání; klávesnici si uživatel vyvolá ťuknutím do pole. Dřív si pole fokus
   a klávesnici vyžádalo samo (uživatel si to nepřál).
+
+### Formátování při psaní
+
+Označený text v poli jde naformátovat z kontextové nabídky výběru: Tučné, Kurzíva, Podtržené,
+Přeškrtnuté, Spoiler, Kód, Citace a Bez formátování (`formatItems` v `ComposerDraft.kt`). Odejde
+se zprávou, uloží se s konceptem a vrátí se do pole při úpravě zprávy. Model a pravidla jsou čisté
+funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
+
+- **`TextFieldValue` formátování NEUNESE.** `BasicTextField(TextFieldValue)` sice bere
+  `AnnotatedString`, ale `EditingBuffer` z Compose po každé úpravě vrací
+  `AnnotatedString(toString())` — styly zmizí s prvním úhozem (ověřeno ve zdrojích ui-text 1.12).
+  Rozsahy proto vede `ComposerDraft` zvlášť a pole je jen kreslí (`FormattingTransformation`,
+  `OffsetMapping.Identity`).
+- **Rozsahy se posouvají z ROZDÍLU textu** (`afterEdit`): společný začátek a konec, mezi nimi
+  jeden nahrazený úsek. Nejednoznačný rozdíl („a" za „a") rozhodne kurzor po úpravě. Na konec
+  rozsahu se píše dál ve formátu, na začátek ne; přepsaný formátovaný výběr formát drží.
+- **Každá změna textu jde přes `ComposerDraft.update`** — obrazovka s ním pracuje jako s
+  `TextFieldValue` přes delegát (`var draft by composer`), takže emoji z výběru, zmínka, návrh
+  odpovědi i vyprázdnění po odeslání rozsahy posunou samy. Nové místo, které do pole píše, na
+  formátování myslet nemusí; kdyby psalo mimo delegát, rozsahy by ujely.
+- **Compose 1.12 má vlastní sledované styly** (`TextFieldBuffer.addStyle` → `TrackedRange`,
+  `TextFieldState.textStyles`), ale jen nad `TextFieldState`, experimentálně a s významem
+  schovaným ve `SpanStyle`. Přechod pole na `TextFieldState` by znamenal přepsat desítky míst
+  kolem konceptu; vlastní model je menší a testovatelný bez Compose.
+- **`item` kontextové nabídky NENÍ ve společném kódu**, jen v platformních sadách (Android bere
+  navíc drawable ikonu) — proto `expect fun menuItem` v `core/ui`. Na iOS je `item` ještě
+  experimentální (`ExperimentalFoundationApi`), na Androidu ne.
+- **Na Androidu jsou položky v přetečení plovoucí lišty výběru (⋮)** a seznam se roluje; ze
+  zobrazené lišty se po „Select all" přeskládají položky (Bold a Italic se vejdou mezi hlavní).
+  Poslední položka na okraji rolovaného seznamu (Spoiler, Quote) se ťuknutím netrefí, dokud se
+  seznam neodroluje — při ověřování přes `adb` tedy napřed odrolovat.
+- **Citace jde po celých řádcích** (`toggled` roztáhne výběr), ostatní klienti ji kreslí jako blok.
+  **Kód přes víc řádků je blok kódu** (`pre`), v řádku kód v řádku — jedna položka nabídky.
+  „Kód" i „Citace" přepínají RODINU (`TextFormat.family`): blok kódu i sbalitelná citace se jimi
+  vypnou, citace se nevnoří.
+- **V kódu se nic nedohledává** (`detectEntities`): kód nesmí obsahovat jiné entity. Tučné
+  a kurzívu uvnitř kódu TDLib při odeslání sám zahodí bez chyby (ověřeno: bot dostal jen `code`).
+- **Doménový `MessageEntityType.Code` nese `block` a `language`** — kvůli úpravě: bez nich by se
+  blok kódu vrátil jako kód v řádku a jazyk bloku by úprava smazala (u bloku s jazykem se proto
+  „Upravit" nenabízí).
+- **Koncept nese formátování** (`saveDraft(formats)`, obnova `draftFormatsOf`). Na rozdíl od
+  úpravy se koncept nevzdává: z konceptu jiného klienta s vlastním emoji se vrátí aspoň tučné.
+- **Změna jen formátování je změna**: uloží koncept (`onDraftChanged` bez změny textu neohlašuje
+  „píše…" ani nezjišťuje náhled) a úprava zprávy, která mění jen formát, se odešle.
+- **Spoiler se v poli neskrývá**, jen má podklad — pisatel musí vidět, co píše. Citace má v poli
+  tónovaný podklad, ne pás přes celou šířku (ten se kreslí z layoutu zprávy).
+- **Ověřeno na emulátoru** (anglicky): tučné z nabídky v poli i v odeslané bublině, úprava
+  tučné zprávy s přidanou kurzívou („edited", tučné zůstalo), koncept s tučným po zabití
+  aplikace, kód (bot dostal entitu `code`). **Citace a spoiler odeslané NEJSOU** — ověřování
+  přerušila jiná session na sdíleném emulátoru. iOS jen přeložené.
 
 ### Náhled odkazu při psaní
 
@@ -3932,9 +3984,9 @@ v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, 
 - **Text zprávy zůstává „Anketa: otázka"** a blok ho jen nekreslí. Citace, připnutý pruh,
   náhled v seznamu chatů i shrnutí tak mají popis zadarmo; kdyby byl text prázdný, musela by se
   anketa doplnit do každého z nich zvlášť. Proto ale „Kopírovat" u ankety není (kopírovalo by
-  náš popis) a `plainTextEdit` ji vylučuje výslovně.
+  náš popis) a `composerEdit` ji vylučuje výslovně.
 - **U ankety `canBeEdited` NEZNAMENÁ „jde upravit"**, ale „jde ukončit" (dokumentace
-  `stopPoll`). Bez výjimky v `plainTextEdit` by se u vlastní ankety nabídlo „Upravit" a pole
+  `stopPoll`). Bez výjimky v `composerEdit` by se u vlastní ankety nabídlo „Upravit" a pole
   by upravovalo text „Anketa: …" voláním, které server odmítne.
 - **Hlasuje se indexem v PŮVODNÍM pořadí**, ne v tom, jak se odpovědi ukazují. TDLib 15 posílá
   `optionOrder` (zamíchané pořadí); `PollAnswer.index` nese původní pozici a `setPollAnswer`
@@ -6318,7 +6370,7 @@ zmínky, hashtagy, příkazy, spoiler, vlastní emoji, datum.
 - **Stav zaškrtávátka nese `isChecked`** — Kotlin getter booleanu, takže `javap | grep get` ho
   mine a vypadá to, že wrapper stav nemá.
 - **Náhled v seznamu chatů zůstává holý text** (`plainText`, spoiler vynechá).
-- **„Upravit" u vlastního článku se nabídnout může** (`plainTextEdit` článek od textu nerozezná)
+- **„Upravit" u vlastního článku se nabídnout může** (`composerEdit` článek od textu nerozezná)
   a server `editMessageText` odmítne; poslat článek jde jen s Premium, takže se to zatím netýká.
 - **Ověřuje se botem**: `sendRichMessage` s `rich_message.markdown` (Bot API 10). Ověřeno na
   emulátoru anglicky: nadpisy, formátování, spoiler, seznamy i zaškrtávátka, citace s podpisem,
@@ -6673,8 +6725,8 @@ emoji. Kreslí se jako inline obsah `RichText` (`CustomEmojiImage`, `customEmoji
   odchozí bublině by jednobarevné emoji jinak splynulo.
 - **Formáty jako u samolepky**: `.tgs` hraje (Compottie), `.webp` a rastrový náhled jsou obrázek,
   `.webm` zůstane náhledem, bez náhledu náhradním znakem.
-- **Zpráva s vlastním emoji nejde upravit** — `plainTextEdit` bere každou entitu kromě odkazu
-  jako ruční formátování, které by úprava smazala.
+- **Zpráva s vlastním emoji nejde upravit** — vlastní emoji pole nenese (`composedFormatsOf`),
+  takže by ho úprava smazala.
 - **Bot vlastní emoji poslat nesmí** (Bot API je bez placeného uživatelského jména na Fragmentu
   potichu zahodí, v odpovědi pak `entities` chybí). Ověřuje se proto sondou: skutečná id vydá
   Bot API `getStickerSet` (sady `RestrictedEmoji`, `StatusEmoji`) a dočasně se přidají jako

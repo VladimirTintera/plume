@@ -11,6 +11,11 @@ import dev.g000sha256.tdl.dto.TextEntityTypeUnderline
 import dev.g000sha256.tdl.dto.TextEntityTypeStrikethrough
 import dev.g000sha256.tdl.dto.TextEntityTypeSpoiler
 import dev.g000sha256.tdl.dto.TextEntityTypeCustomEmoji
+import dev.g000sha256.tdl.dto.TextEntityType
+import dev.g000sha256.tdl.dto.TextEntityTypeCode
+import dev.g000sha256.tdl.dto.TextEntityTypePre
+import dev.g000sha256.tdl.dto.TextEntityTypeBlockQuote
+import dev.g000sha256.tdl.dto.TextEntityTypeExpandableBlockQuote
 import dev.g000sha256.tdl.dto.MessageContent
 import dev.g000sha256.tdl.dto.MessagePoll
 import dev.g000sha256.tdl.dto.MessageContact
@@ -804,8 +809,9 @@ class TdlConversationRepository(
         quote: ReplyQuote?,
         options: SendOptions,
         mentions: List<NameMention>,
+        formats: List<FormatSpan>,
     ): Result<ChatMessage> {
-        val entities = detectEntities(text, mentions)
+        val entities = detectEntities(text, mentions, formats)
 
         return client.sendMessage(
             chatId = chatId,
@@ -879,12 +885,13 @@ class TdlConversationRepository(
         quote: ReplyQuote?,
         options: SendOptions,
         mentions: List<NameMention>,
+        formats: List<FormatSpan>,
     ): Result<List<ChatMessage>> {
         require(attachments.isNotEmpty()) { "Není co poslat." }
         val isGroup = isGroup(chatId)
         // Entity popisku se dohledávají jako u textu — jinak by odkaz v popisku odešel jako mrtvý text.
         val formattedCaption = caption.takeIf { it.isNotBlank() }
-            ?.let { FormattedText(text = it, entities = detectEntities(it, mentions)) }
+            ?.let { FormattedText(text = it, entities = detectEntities(it, mentions, formats)) }
         val contents = attachments.mapIndexed { index, attachment ->
             attachment.toInputContent(caption = formattedCaption.takeIf { index == 0 })
         }
@@ -1344,13 +1351,14 @@ class TdlConversationRepository(
         messageId: Long,
         text: String,
         linkPreview: LinkPreviewOptions?,
+        formats: List<FormatSpan>,
     ): Result<Unit> =
         client.editMessageText(
             chatId = chatId,
             messageId = messageId,
             replyMarkup = null,
             inputMessageContent = InputMessageText(
-                text = FormattedText(text = text, entities = detectEntities(text)),
+                text = FormattedText(text = text, entities = detectEntities(text, formats = formats)),
                 // Volbu přebírá úprava z původní zprávy (`forEdit`). S `null` platí výchozí volba
                 // serveru, takže úprava zprávy poslané BEZ náhledu by náhled vrátila (ověřeno Bot API).
                 linkPreviewOptions = linkPreview?.toTdl(),
@@ -1361,12 +1369,17 @@ class TdlConversationRepository(
             .toResult()
             .map { }
 
-    override suspend fun editCaption(chatId: Long, messageId: Long, caption: String): Result<Unit> =
+    override suspend fun editCaption(
+        chatId: Long,
+        messageId: Long,
+        caption: String,
+        formats: List<FormatSpan>,
+    ): Result<Unit> =
         client.editMessageCaption(
             chatId = chatId,
             messageId = messageId,
             replyMarkup = null,
-            caption = FormattedText(text = caption, entities = detectEntities(caption)),
+            caption = FormattedText(text = caption, entities = detectEntities(caption, formats = formats)),
             // Popisek nad médiem aplikace nekreslí, jen ho přenáší — nastavit ho mohl jiný klient
             // a úprava popisku by ho jinak tiše vrátila pod médium.
             showCaptionAboveMedia = currentContent(chatId, messageId).showsCaptionAboveMedia(),
@@ -1379,12 +1392,22 @@ class TdlConversationRepository(
         client.getMessage(chatId = chatId, messageId = messageId).toResult().getOrNull()?.content
 
     /**
-     * Odkazy, zmínky a spol. v textu, který uživatel napsal.
+     * Odkazy, zmínky a spol. v textu, který uživatel napsal, a k nim ruční formátování z pole.
      *
      * Bez toho by odkaz odešel jako mrtvý text: server si ho sám neoznačí. Když dohledání selže,
-     * text odejde bez entit — přijít o odkaz je lepší než neodeslat vůbec.
+     * text odejde bez nich — přijít o odkaz je lepší než neodeslat vůbec. Ruční formátování
+     * ([formats]) na dohledání nezávisí a odejde vždycky.
+     *
+     * **V kódu se nic nedohledává.** Kód nesmí obsahovat jiné entity (TDLib je z něj vyhodí)
+     * a adresa napsaná do kódu má zůstat kódem, ne odkazem.
      */
-    private suspend fun detectEntities(text: String, mentions: List<NameMention> = emptyList()): Array<TextEntity> {
+    private suspend fun detectEntities(
+        text: String,
+        mentions: List<NameMention> = emptyList(),
+        formats: List<FormatSpan> = emptyList(),
+    ): Array<TextEntity> {
+        val code = formats.filter { it.format.family == TextFormat.Code }.map { it.start until it.end }
+        fun inCode(offset: Int, length: Int) = code.any { offset < it.last + 1 && offset + length > it.first }
         val detected = client.getTextEntities(text)
             .toResult()
             .map { it.entities.filterNotNull() }
@@ -1392,14 +1415,16 @@ class TdlConversationRepository(
                 logger.w(failure) { "Entity v odesílaném textu se nepodařilo dohledat." }
                 emptyList()
             }
-        if (mentions.isEmpty()) return detected.toTypedArray()
+            .filterNot { inCode(it.offset, it.length) }
         // Zmínky jménem pole nenese — pamatuje si je ViewModel a tady se dohledají v textu.
-        val named = nameMentionEntities(
+        val named = if (mentions.isEmpty()) emptyList() else nameMentionEntities(
             text = text,
             mentions = mentions,
             occupied = detected.map { it.offset until it.offset + it.length },
-        ).map { TextEntity(offset = it.offset, length = it.length, type = TextEntityTypeMentionName(userId = it.userId)) }
-        return (detected + named).sortedBy { it.offset }.toTypedArray()
+        )
+            .filterNot { inCode(it.offset, it.length) }
+            .map { TextEntity(offset = it.offset, length = it.length, type = TextEntityTypeMentionName(userId = it.userId)) }
+        return (detected + named + formats.toTdl(text)).sortedBy { it.offset }.toTypedArray()
     }
 
     override fun autoDeleteTime(chatId: Long): Flow<Int> =
@@ -1472,6 +1497,7 @@ class TdlConversationRepository(
         replyToMessageId: Long?,
         linkPreview: LinkPreviewOptions?,
         quote: ReplyQuote?,
+        formats: List<FormatSpan>,
     ): Result<Unit> =
         client.setChatDraftMessage(
             chatId = chatId,
@@ -1480,10 +1506,11 @@ class TdlConversationRepository(
                 DraftMessage(
                     replyTo = replyInput(chatId, replyToMessageId, quote),
                     date = Clock.System.now().epochSeconds.toInt(),
-                    // Entity se tu nedohledávají: koncept je rozepsaný text, odkazy se označí
-                    // až při odeslání (viz `send`).
+                    // Odkazy a zmínky se tu nedohledávají: koncept je rozepsaný text, označí se
+                    // až při odeslání (viz `send`). Ruční formátování ale z textu poznat nejde,
+                    // takže ho koncept nese — jinak by se po návratu do chatu ztratilo.
                     content = DraftMessageContentText(
-                        text = FormattedText(text = it, entities = emptyArray()),
+                        text = FormattedText(text = it, entities = formats.toTdl(it).toTypedArray()),
                         linkPreviewOptions = linkPreview?.toTdl(),
                     ),
                     effectId = 0L,
@@ -1514,6 +1541,9 @@ class TdlConversationRepository(
                     isSavedMessages = (chat.type as? ChatTypePrivate)?.userId
                         ?.let { it == client.getMe().toResult().getOrNull()?.id } == true,
                     draftText = chat.draftMessage?.toChatDraft()?.text,
+                    draftFormats = (chat.draftMessage?.content as? DraftMessageContentText)?.text
+                        ?.let { draft -> draft.toBody().let { draftFormatsOf(it.text, it.entities) } }
+                        .orEmpty(),
                     canJoin = access.canJoin,
                     writeAccess = access.writeAccess,
                     content = access.content,
@@ -2698,4 +2728,26 @@ internal fun MessageContent?.showsCaptionAboveMedia(): Boolean = when (this) {
     is MessageAnimation -> showCaptionAboveMedia
     is MessagePaidMedia -> showCaptionAboveMedia
     else -> false
+}
+
+/**
+ * Ruční formátování z pole jako entity TDLib. Rozsahy mimo text se ořežou — server by celou
+ * zprávu odmítl kvůli jednomu špatnému offsetu.
+ */
+internal fun List<FormatSpan>.toTdl(text: String): List<TextEntity> = mapNotNull { span ->
+    val start = span.start.coerceIn(0, text.length)
+    val end = span.end.coerceIn(start, text.length)
+    if (end > start) TextEntity(offset = start, length = end - start, type = span.format.toTdl()) else null
+}
+
+private fun TextFormat.toTdl(): TextEntityType = when (this) {
+    TextFormat.Bold -> TextEntityTypeBold()
+    TextFormat.Italic -> TextEntityTypeItalic()
+    TextFormat.Underline -> TextEntityTypeUnderline()
+    TextFormat.Strikethrough -> TextEntityTypeStrikethrough()
+    TextFormat.Spoiler -> TextEntityTypeSpoiler()
+    TextFormat.Code -> TextEntityTypeCode()
+    TextFormat.CodeBlock -> TextEntityTypePre()
+    TextFormat.Quote -> TextEntityTypeBlockQuote()
+    TextFormat.ExpandableQuote -> TextEntityTypeExpandableBlockQuote()
 }

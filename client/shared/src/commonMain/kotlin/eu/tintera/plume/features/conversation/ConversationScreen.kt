@@ -1,5 +1,15 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.text.contextmenu.modifier.appendTextContextMenuComponents
+import eu.tintera.plume.core.telegram.ComposedText
+import eu.tintera.plume.resources.format_bold
+import eu.tintera.plume.resources.format_italic
+import eu.tintera.plume.resources.format_underline
+import eu.tintera.plume.resources.format_strikethrough
+import eu.tintera.plume.resources.format_spoiler
+import eu.tintera.plume.resources.format_code
+import eu.tintera.plume.resources.format_quote
+import eu.tintera.plume.resources.format_clear
 import eu.tintera.plume.core.ui.SwipeDirection
 import eu.tintera.plume.core.ui.detectHorizontalSwipe
 import androidx.compose.ui.text.intl.Locale
@@ -541,9 +551,11 @@ fun ConversationScreen(
      * kurzoru a maže z něj, zatímco pole samo je pod sheetem.
      *
      * `TextFieldValue`, ne `String`: u vráceného konceptu i u vloženého emoji je potřeba nastavit
-     * kurzor. S holým řetězcem by zůstal na začátku textu.
+     * kurzor. S holým řetězcem by zůstal na začátku textu. Ruční formátování nese [ComposerDraft]
+     * vedle textu a posouvá ho s každou změnou, která jde přes `draft = …`.
      */
-    var draft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
+    val composer = rememberComposerDraft()
+    var draft by composer
     // Plánování: napřed den, pak čas. Cíl je rozepsaná zpráva, nebo naplánovaná k přeplánování.
     var scheduleTarget by remember { mutableStateOf<ScheduleTarget?>(null) }
     var effectPickerOpen by remember { mutableStateOf(false) }
@@ -1394,7 +1406,7 @@ fun ConversationScreen(
                 // musí jít taky — uloží koncept a ohlásí „píše…", jako by to napsal sám.
                 onPick = { suggestion ->
                     draft = TextFieldValue(suggestion, selection = TextRange(suggestion.length))
-                    viewModel.onDraftChanged(suggestion)
+                    viewModel.onDraftChanged(composer.composed)
                     replies.consume()
                 },
             )
@@ -1427,7 +1439,7 @@ fun ConversationScreen(
                     // Rozepsané „/st" byl ten příkaz — pole se vyprázdní a koncept s ním.
                     if (typedCommands != null) {
                         draft = TextFieldValue()
-                        viewModel.onDraftChanged("")
+                        viewModel.onDraftChanged(composer.composed)
                     }
                     viewModel.closeCommands()
                     viewModel.sendCommand(command.text)
@@ -1453,7 +1465,7 @@ fun ConversationScreen(
                     val (text, cursor) = mentionInsertion(draft.text, draft.selection.start, query, candidate)
                     draft = TextFieldValue(text, selection = TextRange(cursor))
                     viewModel.mentionPicked(candidate)
-                    viewModel.onDraftChanged(text)
+                    viewModel.onDraftChanged(composer.composed)
                 },
             )
             // Emoji ke slovu u kurzoru. Ne vedle jiného napovídání — dotaz na inline bota a zmínka
@@ -1474,7 +1486,7 @@ fun ConversationScreen(
                     val (text, cursor) = emojiReplacement(draft.text, word, emoji)
                     draft = TextFieldValue(text, selection = TextRange(cursor))
                     emojiWords.picked(emoji)
-                    viewModel.onDraftChanged(text)
+                    viewModel.onDraftChanged(composer.composed)
                 },
             )
             LaunchedEffect(inlineDraft) { viewModel.inlineQuery(inlineDraft) }
@@ -1492,7 +1504,7 @@ fun ConversationScreen(
                     viewModel.sendInlineResult(result)
                     // Dotaz v poli byl ten výsledek — pole se vyprázdní a koncept s ním.
                     draft = TextFieldValue()
-                    viewModel.onDraftChanged("")
+                    viewModel.onDraftChanged(composer.composed)
                 },
                 onButton = viewModel::pressInlineButton,
                 onLoadMore = viewModel::loadMoreInline,
@@ -1535,7 +1547,7 @@ fun ConversationScreen(
                 linkPreview = composerLinkPreview(
                     preview = state.linkPreview,
                     options = state.linkPreviewOptions,
-                    editingCaption = state.editing?.plainTextEdit() == PlainTextEdit.Caption,
+                    editingCaption = state.editing?.composerEdit() == ComposerEdit.Caption,
                     hasAttachments = state.attachments.isNotEmpty(),
                 ),
                 linkPreviewLinks = state.linkPreviewLinks,
@@ -1590,8 +1602,7 @@ fun ConversationScreen(
                 selfDestructAllowed = state.canSelfDestruct(attachmentCount = 1),
                 previewAttachmentIndex = previewAttachmentIndex,
                 expressionMode = expressionMode,
-                draft = draft,
-                onDraftValueChange = { draft = it },
+                composer = composer,
                 onKeyboardContent = { received ->
                     when (received) {
                         // GIF odchází hned, jako samolepka; obrázek čeká nad polem jako z výběru.
@@ -1706,7 +1717,7 @@ fun ConversationScreen(
                 // Úprava z výběru emoji je psaní jako každé jiné: ukládá koncept i hlásí „píše…".
                 onDraftEdit = {
                     draft = it
-                    viewModel.onDraftChanged(it.text)
+                    viewModel.onDraftChanged(composer.composed)
                 },
                 onPick = { sticker ->
                     stickerPickerOpen = false
@@ -2178,7 +2189,7 @@ fun ConversationScreen(
                         when (target) {
                             ScheduleTarget.Draft -> {
                                 haptics.confirm()
-                                viewModel.send(draft.text, SendOptions(schedule = schedule))
+                                viewModel.send(composer.composed, SendOptions(schedule = schedule))
                                 draft = TextFieldValue()
                             }
                             ScheduleTarget.Voice -> {
@@ -2211,7 +2222,7 @@ fun ConversationScreen(
                     onPick = { effect ->
                         effectPickerOpen = false
                         haptics.confirm()
-                        viewModel.send(draft.text, SendOptions(effectId = effect.id))
+                        viewModel.send(composer.composed, SendOptions(effectId = effect.id))
                         draft = TextFieldValue()
                     },
                     onDismiss = { effectPickerOpen = false },
@@ -2458,7 +2469,7 @@ private fun MessageInput(
     partnerName: String?,
     flight: MessageFlight?,
     onCancelReply: () -> Unit,
-    onSend: (String, SendOptions) -> Unit,
+    onSend: (ComposedText, SendOptions) -> Unit,
     /** Co nabídne podržení odesílacího tlačítka ([sendMenuOffer]). */
     sendMenu: SendMenuOffer = SendMenuOffer(silent = false, schedule = false, whenOnline = false),
     /** „Naplánovat…" z nabídky; výběr času i odeslání řeší obrazovka, která drží text. */
@@ -2467,8 +2478,11 @@ private fun MessageInput(
     onPickEffect: () -> Unit = {},
     /** Otevře seznam naplánovaných zpráv; `null`, když chat žádné nemá. */
     onOpenScheduled: (() -> Unit)? = null,
-    /** Jen ruční úpravy textu — vyprázdnění po odeslání se nehlásí, o to se stará `onSend`. */
-    onDraftChanged: (String) -> Unit,
+    /**
+     * Jen ruční úpravy textu a formátování — vyprázdnění po odeslání se nehlásí, o to se stará
+     * `onSend`.
+     */
+    onDraftChanged: (ComposedText) -> Unit,
     /** Upravovaná zpráva; karta pak místo citace ukazuje, co se upravuje. */
     editing: ChatMessage?,
     onCancelEdit: () -> Unit,
@@ -2518,9 +2532,8 @@ private fun MessageInput(
     previewAttachmentIndex: Int? = null,
     /** Ikona tlačítka výběru ukazuje, čím se výběr otevře — emoji, nebo samolepkami. */
     expressionMode: ExpressionMode,
-    /** Rozepsaný text; drží ho obrazovka, protože do něj vkládá i výběr emoji. */
-    draft: TextFieldValue,
-    onDraftValueChange: (TextFieldValue) -> Unit,
+    /** Rozepsaný text i s formátováním; drží ho obrazovka, protože do něj vkládá i výběr emoji. */
+    composer: ComposerDraft,
     /**
      * Které druhy obsahu chat přijme. Co se poslat nesmí, se nenabízí: sponka schová položku
      * (a bez jediné i sama sebe), mikrofon ustoupí odeslání, samolepky zůstanou na emoji.
@@ -2531,6 +2544,22 @@ private fun MessageInput(
     onKeyboardContentFailed: (UiText) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    var draft by composer
+    val formatLabels = FormatMenuLabels(
+        bold = stringResource(Res.string.format_bold),
+        italic = stringResource(Res.string.format_italic),
+        underline = stringResource(Res.string.format_underline),
+        strikethrough = stringResource(Res.string.format_strikethrough),
+        spoiler = stringResource(Res.string.format_spoiler),
+        code = stringResource(Res.string.format_code),
+        quote = stringResource(Res.string.format_quote),
+        clear = stringResource(Res.string.format_clear),
+    )
+    val formatting = FormattingTransformation(
+        formats = composer.formats,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        accentColor = MaterialTheme.colorScheme.primary,
+    )
 
     /*
      * Vložení textu zvenku. Koncept z minula jde JEN do prázdného pole — než ho TDLib vydá, mohl
@@ -2538,9 +2567,7 @@ private fun MessageInput(
      */
     LaunchedEffect(inputFill) {
         val fill = inputFill ?: return@LaunchedEffect
-        if (!fill.onlyIfEmpty || draft.text.isEmpty()) {
-            onDraftValueChange(TextFieldValue(fill.text, selection = TextRange(fill.text.length)))
-        }
+        if (!fill.onlyIfEmpty || draft.text.isEmpty()) composer.fill(fill.text, fill.formats)
         onInputFilled()
     }
 
@@ -2791,13 +2818,18 @@ private fun MessageInput(
                     value = draft,
                     onValueChange = {
                         val changed = it.text != draft.text
-                        onDraftValueChange(it)
+                        draft = it
                         // Pohyb kurzoru nebo výběr taky volá `onValueChange`; psaní to není.
-                        if (changed) onDraftChanged(it.text)
+                        if (changed) onDraftChanged(composer.composed)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .defaultMinSize(minHeight = TextFieldDefaults.MinHeight),
+                        .defaultMinSize(minHeight = TextFieldDefaults.MinHeight)
+                        // „Tučné", „Kurzíva"… nad výběrem (viz `formatItems`).
+                        .appendTextContextMenuComponents {
+                            formatItems(composer, formatLabels) { onDraftChanged(composer.composed) }
+                        },
+                    visualTransformation = formatting,
                     textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     maxLines = 6,
@@ -2810,8 +2842,8 @@ private fun MessageInput(
                     ),
                     keyboardActions = KeyboardActions(
                         onSend = {
-                            onSend(draft.text, SendOptions())
-                            onDraftValueChange(TextFieldValue())
+                            onSend(composer.composed, SendOptions())
+                            draft = TextFieldValue()
                         },
                     ),
                     decorationBox = { innerTextField ->
@@ -2940,7 +2972,7 @@ private fun MessageInput(
              * Prázdný POPISEK je platná úprava — tím se popisek odebere —, takže tlačítko musí jít
              * zmáčknout i s prázdným polem. U textu zprávy ne: prázdnou zprávu server odmítne.
              */
-            val removableCaption = editing?.plainTextEdit() == PlainTextEdit.Caption
+            val removableCaption = editing?.composerEdit() == ComposerEdit.Caption
             val kind = when {
                 editing != null -> SendButtonKind.Save
                 isRecording -> SendButtonKind.SendVoice
@@ -3046,8 +3078,8 @@ private fun MessageInput(
                             isRecording -> onSendRecording(SendOptions())
                             showMic -> onStartRecording()
                             else -> {
-                                onSend(draft.text, SendOptions())
-                                onDraftValueChange(TextFieldValue())
+                                onSend(composer.composed, SendOptions())
+                                draft = TextFieldValue()
                             }
                         }
                     },
@@ -3136,8 +3168,8 @@ private fun MessageInput(
                         } else listOfNotNull(
                             MenuAction(stringResource(Res.string.conversation_send_silent), Res.drawable.notifications_off_24dp) {
                                 sendMenuOpen = false
-                                onSend(draft.text, SendOptions(silent = true))
-                                onDraftValueChange(TextFieldValue())
+                                onSend(composer.composed, SendOptions(silent = true))
+                                draft = TextFieldValue()
                             }.takeIf { sendMenu.silent },
                             MenuAction(stringResource(Res.string.conversation_send_schedule), Res.drawable.schedule_send_24dp) {
                                 sendMenuOpen = false
@@ -3145,8 +3177,8 @@ private fun MessageInput(
                             }.takeIf { sendMenu.schedule },
                             MenuAction(stringResource(Res.string.conversation_send_when_online), Res.drawable.online_prediction_24dp) {
                                 sendMenuOpen = false
-                                onSend(draft.text, SendOptions(schedule = MessageSchedule.WhenOnline))
-                                onDraftValueChange(TextFieldValue())
+                                onSend(composer.composed, SendOptions(schedule = MessageSchedule.WhenOnline))
+                                draft = TextFieldValue()
                             }.takeIf { sendMenu.whenOnline },
                             MenuAction(stringResource(Res.string.conversation_send_effect), Res.drawable.auto_awesome_24dp) {
                                 sendMenuOpen = false
@@ -3426,7 +3458,7 @@ private val LINK_HEADER_THUMBNAIL = 36.dp
 @Composable
 private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit) = ComposerHeader {
     val accent = composerHeaderAccent()
-    val caption = message.plainTextEdit() == PlainTextEdit.Caption
+    val caption = message.composerEdit() == ComposerEdit.Caption
     Column(Modifier.weight(1f).padding(start = 14.dp, top = 8.dp, bottom = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(

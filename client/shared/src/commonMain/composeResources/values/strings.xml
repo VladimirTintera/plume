@@ -740,6 +740,15 @@
     <string name="stickers_tab_gifs">GIFs</string>
     <string name="clipboard_has_gif">GIF in clipboard</string>
     <string name="clipboard_has_image">Image in clipboard</string>
+    <!-- Formátování výběru v kontextové nabídce vstupního pole. -->
+    <string name="format_bold">Bold</string>
+    <string name="format_italic">Italic</string>
+    <string name="format_underline">Underline</string>
+    <string name="format_strikethrough">Strikethrough</string>
+    <string name="format_spoiler">Spoiler</string>
+    <string name="format_code">Monospace</string>
+    <string name="format_quote">Quote</string>
+    <string name="format_clear">Clear formatting</string>
     <string name="paste_gif">Paste GIF</string>
     <string name="paste_image">Paste image</string>
     <string name="gifs_search">Search GIFs</string>

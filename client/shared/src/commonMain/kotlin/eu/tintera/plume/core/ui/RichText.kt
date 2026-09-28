@@ -420,7 +420,7 @@ private fun buildMessageText(
 
             // Podklad pod kódem se odvozuje z barvy textu, ne ze `surface` role — v odchozí
             // bublině je pozadí `primary` a světlý obdélník by z kódu udělal cizí těleso.
-            MessageEntityType.Code -> addStyle(
+            is MessageEntityType.Code -> addStyle(
                 SpanStyle(
                     fontFamily = FontFamily.Monospace,
                     background = overlayColor.copy(alpha = CODE_BACKGROUND_ALPHA),

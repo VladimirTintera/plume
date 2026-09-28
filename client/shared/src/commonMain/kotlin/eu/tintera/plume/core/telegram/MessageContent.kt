@@ -571,8 +571,10 @@ private fun TextEntity.toEntity(text: String): MessageEntity? {
         is TextEntityTypeItalic -> MessageEntityType.Italic
         is TextEntityTypeUnderline -> MessageEntityType.Underline
         is TextEntityTypeStrikethrough -> MessageEntityType.Strikethrough
-        // Inline kód i celý blok skončí stejně; liší se jen tím, že blok stojí na vlastních řádcích.
-        is TextEntityTypeCode, is TextEntityTypePre, is TextEntityTypePreCode -> MessageEntityType.Code
+        // Inline kód i celý blok se kreslí stejně; blok stojí na vlastních řádcích.
+        is TextEntityTypeCode -> MessageEntityType.Code()
+        is TextEntityTypePre -> MessageEntityType.Code(block = true)
+        is TextEntityTypePreCode -> MessageEntityType.Code(block = true, language = type.language)
         is TextEntityTypeSpoiler -> MessageEntityType.Spoiler
         is TextEntityTypeCustomEmoji -> MessageEntityType.CustomEmoji(type.customEmojiId)
         // Sbalitelná citace se zatím kreslí celá; příznak se drží kvůli „Zobrazit víc".
