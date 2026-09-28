@@ -63,5 +63,13 @@ internal const val GLASS_TINT_ALPHA = 0.72f
  */
 internal const val GLASS_TEXT_TINT_ALPHA = 0.88f
 
+/**
+ * Krytí TMAVÉHO skla plovoucího napovídání nad polem (`FloatingSuggestion`), barva `scrim`.
+ *
+ * Nese světlý text, takže musí vydržet i nad bílou fotkou: s 0,66 vyjde podklad nejhůř kolem
+ * #575757 a bílé písmo na něm má kontrast přes 7 : 1. Víc a sklo přestane být sklem.
+ */
+internal const val FLOATING_SUGGESTION_TINT_ALPHA = 0.66f
+
 /** Bez rozostření (Android 11 a starší) plocha kryje úplně — jinak by pod ní text prosvítal. */
 internal const val GLASS_FALLBACK_ALPHA = 1f

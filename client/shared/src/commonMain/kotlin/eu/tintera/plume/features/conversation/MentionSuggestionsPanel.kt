@@ -53,7 +53,7 @@ internal fun MentionSuggestionsPanel(
             LazyColumn(Modifier.heightIn(max = MAX_HEIGHT).padding(vertical = 4.dp)) {
                 items(last.value, key = { it.userId }) { candidate ->
                     ListItem(
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        colors = FloatingSuggestionColors.listItem(),
                         leadingContent = {
                             Avatar(
                                 chatId = candidate.userId,

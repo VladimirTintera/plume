@@ -7,6 +7,8 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ListItemColors
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -15,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.dp
 
@@ -25,8 +28,13 @@ import androidx.compose.ui.unit.dp
  * **Místo v rozvržení nezabírá** ([floatAbove]). Pole je `bottomBar` a seznam zpráv se odsazuje
  * o jeho výšku; dokud tahle napovídání stála v jeho sloupci, každé objevení, zmizení i změna
  * výšky (další písmeno zúží seznam příkazů) zvedly a spustily celou konverzaci a oči při psaní
- * skákaly za ní. Teď leží přes konec seznamu jako nabídka a pod nimi je mléčné sklo ([glass])
- * jako u pruhu připnutých: je vidět, že zprávy pokračují, a text na nich zůstává čitelný.
+ * skákaly za ní. Teď leží přes konec seznamu jako nabídka.
+ *
+ * **Sklo je TMAVÉ v obou motivech** (`scrim` s [FLOATING_SUGGESTION_TINT_ALPHA], světlé popředí
+ * [FloatingSuggestionColors]). Světlé sklo v barvě plochy (první verze, jako pruh připnutých)
+ * od zpráv pod sebou odlišovalo jen rozostření a ve světlém motivu se s bublinami slévalo; tmavá
+ * vrstva se přečte jako nabídka nad konverzací, ne jako její část. Pod ní je pořád vidět, že
+ * zprávy pokračují.
  *
  * Vyrůstá od pole ([origin]) zvětšením, ne rozbalením do výšky — rozbalení by u plovoucího
  * prvku vypadalo, jako by se pod ním něco odsouvalo.
@@ -52,7 +60,7 @@ internal fun FloatingSuggestion(
         Surface(
             shape = shape,
             color = Color.Transparent,
-            contentColor = MaterialTheme.colorScheme.onSurface,
+            contentColor = FloatingSuggestionColors.content,
             shadowElevation = 3.dp,
             modifier = modifier.padding(horizontal = 8.dp, vertical = 6.dp),
         ) {
@@ -70,4 +78,36 @@ internal fun FloatingSuggestion(
 internal fun Modifier.floatAbove(): Modifier = layout { measurable, constraints ->
     val placeable = measurable.measure(constraints.copy(minHeight = 0))
     layout(placeable.width, 0) { placeable.place(0, -placeable.height) }
+}
+
+/**
+ * Popředí na tmavém skle [FloatingSuggestion].
+ *
+ * **Natvrdo světlé, ne role ze schématu** — sklo je tmavé v obou motivech, a role typu
+ * `onSurface` nebo `inverseOnSurface` se s motivem překlápějí. Tatáž výjimka jako bílé ovládání
+ * v prohlížeči médií.
+ */
+internal object FloatingSuggestionColors {
+    val content = Color.White
+    val muted = Color.White.copy(alpha = 0.72f)
+
+    /**
+     * Akcent (text příkazu): SVĚTLEJŠÍ z `primary` / `inversePrimary`. Ve světlém motivu je
+     * světlá `inversePrimary`, v tmavém `primary` — pevná volba by v jednom z nich na tmavém
+     * skle zmizela.
+     */
+    val accent: Color
+        @Composable get() = MaterialTheme.colorScheme.run {
+            if (primary.luminance() >= inversePrimary.luminance()) primary else inversePrimary
+        }
+
+    /** `ListItem` si text barví sám (`onSurface`), barva popředí se mu musí předat. */
+    @Composable
+    fun listItem(): ListItemColors = ListItemDefaults.colors(
+        containerColor = Color.Transparent,
+        contentColor = content,
+        supportingContentColor = muted,
+        leadingContentColor = content,
+        trailingContentColor = content,
+    )
 }

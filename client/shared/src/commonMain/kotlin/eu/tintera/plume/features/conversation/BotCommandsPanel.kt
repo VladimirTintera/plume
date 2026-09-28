@@ -57,12 +57,12 @@ internal fun BotCommandsPanel(
                 // Ve skupině může mít stejný příkaz víc botů; klíč je proto celý posílaný text.
                 items(last.value, key = { it.text }) { command ->
                     ListItem(
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        colors = FloatingSuggestionColors.listItem(),
                         headlineContent = {
                             Text(
                                 command.text,
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.primary,
+                                color = FloatingSuggestionColors.accent,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )

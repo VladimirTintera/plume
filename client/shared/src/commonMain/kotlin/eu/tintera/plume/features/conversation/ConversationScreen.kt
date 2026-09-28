@@ -1460,9 +1460,10 @@ fun ConversationScreen(
              */
             val suggestionGlass = Modifier.hazeBlur(
                 input = HazeInput.Sources(listHaze),
+                // Tmavé sklo v obou motivech, jako scrim (viz `FloatingSuggestion`).
                 style = glassStyle(
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    alpha = GLASS_TEXT_TINT_ALPHA,
+                    color = MaterialTheme.colorScheme.scrim,
+                    alpha = FLOATING_SUGGESTION_TINT_ALPHA,
                     fallbackAlpha = GLASS_FALLBACK_ALPHA,
                 ),
             )

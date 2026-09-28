@@ -105,7 +105,7 @@ internal fun InlineResultsPanel(
                         Text(
                             text = shown.bot.placeholder,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = FloatingSuggestionColors.muted,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         )
                     }
@@ -184,7 +184,7 @@ private fun InlineResultItem(result: InlineResult, onPick: (InlineResult) -> Uni
         }
 
         is InlineResult.Row -> ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            colors = FloatingSuggestionColors.listItem(),
             leadingContent = {
                 Box(
                     Modifier.size(ROW_THUMBNAIL).clip(RoundedCornerShape(CELL_CORNER)),

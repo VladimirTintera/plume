@@ -4402,8 +4402,7 @@ testy `InlineQueryTest`).
 ### Plovoucí napovídání nad polem
 
 Emoji ke slovu, příkazy bota, zmínky a výsledky inline bota PLAVOU nad vstupním polem
-(`FloatingSuggestion`, `floatAbove`) s mléčným sklem jako pruh připnutých, a místo v rozvržení
-nezabírají.
+(`FloatingSuggestion`, `floatAbove`) na TMAVÉM skle, a místo v rozvržení nezabírají.
 
 - **Pole je `bottomBar` a seznam zpráv se odsazuje o jeho výšku.** Dokud napovídání stála v jeho
   sloupci, každé objevení, zmizení i změna výšky (další písmeno zúží seznam příkazů) zvedly
@@ -4413,6 +4412,11 @@ nezabírají.
   Vrstva stojí v `bottomBar` těsně nad polem, u textu, ke kterému patří.
 - **Vyrůstá zvětšením od pole, ne rozbalením do výšky** — to by u plovoucího prvku vypadalo,
   jako by se pod ním něco odsouvalo.
+- **Sklo je tmavé v obou motivech, jako scrim** (`scrim`, `FLOATING_SUGGESTION_TINT_ALPHA` 0,66),
+  s natvrdo světlým popředím (`FloatingSuggestionColors`). Světlé sklo v barvě plochy (první
+  verze, jako pruh připnutých) se ve světlém motivu slévalo s bublinami pod sebou. Akcent (text
+  příkazu) je SVĚTLEJŠÍ z `primary` / `inversePrimary` — pevná role by v jednom motivu zmizela.
+  `ListItem` popředí nedědí, barvy se mu předávají (`FloatingSuggestionColors.listItem()`).
 - **Tlačítko dolů a zmínky (FAB slot) na tu chvíli ustoupí** (`suggestionsFloating`): Scaffold
   je staví nad `bottomBar`, tedy přesně přes plovoucí vrstvu.
 - **V rozvržení zůstávají klávesnice bota a návrhy odpovědí.** Klávesnice bota je trvalá
