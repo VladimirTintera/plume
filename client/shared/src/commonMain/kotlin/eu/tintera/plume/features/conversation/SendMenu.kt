@@ -33,7 +33,8 @@ internal fun sendMenuOffer(state: ConversationState): SendMenuOffer {
     if (state.editing != null) return SendMenuOffer(silent = false, schedule = false, whenOnline = false)
     val info = state.info
     val saved = info?.isSavedMessages == true
-    val schedule = state.threadRootId == null
+    // Naplánované zprávy patří celé skupině; ve vlákně ani v tématu by nebylo kde je ukázat.
+    val schedule = state.threadRootId == null && state.forumTopicId == null
     val privateChat = info != null && !info.isGroup && !info.isChannel && !saved
     return SendMenuOffer(
         silent = !saved,

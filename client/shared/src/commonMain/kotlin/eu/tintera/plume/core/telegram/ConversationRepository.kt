@@ -16,6 +16,12 @@ import kotlinx.coroutines.flow.Flow
 interface ConversationRepository {
 
     /**
+     * Konverzace zúžená na jedno téma skupiny s tématy: historie, nové zprávy, přečtení, koncept,
+     * „píše…" i odeslání patří tématu. Výchozí implementace (testy, podvrhy) zužovat neumí.
+     */
+    fun inForumTopic(topicId: Int): ConversationRepository = this
+
+    /**
      * Načte [limit] zpráv **starších** než [fromMessageId] (i ji samu, když existuje).
      *
      * `fromMessageId = 0` znamená „od nejnovější". Prázdný výsledek znamená konec historie —
@@ -885,6 +891,11 @@ data class ChatInfo(
      * varuje a obsah ukáže až na „přesto zobrazit".
      */
     val sensitive: Boolean = false,
+    /**
+     * Téma, do kterého je konverzace zúžená (skupina s tématy), nebo `null`. Hlavička pak ukazuje
+     * téma, ne skupinu; nepřečtené, koncept a právo psát jsou tématu, ne celé skupiny.
+     */
+    val topic: TopicHeader? = null,
 )
 
 /**

@@ -77,7 +77,13 @@ data class ArchiveConversationRoute(
     val messageId: Long? = null,
     /** Vlákno komentářů v diskusní skupině [chatId] (kořenová zpráva); `null` = celý chat. */
     val threadId: Long? = null,
+    /** Téma skupiny s tématy (viz [ForumTopicsRoute]); `null` = celý chat. */
+    val topicId: Int? = null,
 ) : Route
+
+/** Témata skupiny otevřené z archivu — obdoba [ForumTopicsRoute] v archivní větvi. */
+@Serializable
+data class ArchiveForumTopicsRoute(val chatId: Long) : Route
 
 /**
  * Profil chatu otevřený z archivní konverzace.
@@ -108,7 +114,17 @@ data class ConversationRoute(
      * `null` = celý chat. Komentáře jsou tak obyčejná konverzace skupiny, jen zúžená.
      */
     val threadId: Long? = null,
+    /** Téma skupiny s tématy (viz [ForumTopicsRoute]); `null` = celý chat. */
+    val topicId: Int? = null,
 ) : Route
+
+/**
+ * Seznam témat skupiny s tématy (fórum). Ťuknutí na takovou skupinu v seznamu chatů otevře
+ * tohle místo konverzace; téma se pak otevře jako [ConversationRoute] s `topicId` nad ním.
+ * Detailový panel jako konverzace: na širokém rozvržení stojí vpravo vedle seznamu chatů.
+ */
+@Serializable
+data class ForumTopicsRoute(val chatId: Long) : Route
 
 /**
  * Profil chatu (ťuknutí na hlavičku konverzace). Detailový panel: na telefonu překryje konverzaci,
@@ -248,6 +264,8 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(BlockSenderRoute::class, BlockSenderRoute.serializer())
             subclass(ArchiveRoute::class, ArchiveRoute.serializer())
             subclass(ArchiveConversationRoute::class, ArchiveConversationRoute.serializer())
+            subclass(ArchiveForumTopicsRoute::class, ArchiveForumTopicsRoute.serializer())
+            subclass(ForumTopicsRoute::class, ForumTopicsRoute.serializer())
             subclass(ArchiveChatProfileRoute::class, ArchiveChatProfileRoute.serializer())
             subclass(ArchiveEditChatRoute::class, ArchiveEditChatRoute.serializer())
             subclass(ArchiveMemberRightsRoute::class, ArchiveMemberRightsRoute.serializer())

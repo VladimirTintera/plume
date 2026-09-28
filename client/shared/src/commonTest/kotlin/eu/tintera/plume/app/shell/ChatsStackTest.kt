@@ -8,6 +8,8 @@ import eu.tintera.plume.core.navigation.ArchiveRoute
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
+import eu.tintera.plume.core.navigation.ArchiveForumTopicsRoute
+import eu.tintera.plume.core.navigation.ForumTopicsRoute
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.features.chats.ArchiveChange
@@ -172,5 +174,48 @@ class ChatsStackTest {
         stack.closeChat(1)
 
         assertEquals(listOf<NavKey>(ChatsRoute, ChatProfileRoute(chatId = 2), ConversationRoute(chatId = 2), ArchiveRoute), stack)
+    }
+
+    @Test
+    fun seznamTematJeOtevrenaKonverzaceSveVetve() {
+        // Nad prázdným archivem se podle toho rozhoduje, jestli zůstane dvoupanel.
+        val main = listOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 1), ArchiveRoute)
+        assertTrue(main.hasOpenConversation(ChatFolder.Main))
+        assertFalse(main.hasOpenConversation(ChatFolder.Archive))
+
+        val archive = listOf<NavKey>(ChatsRoute, ArchiveRoute, ArchiveForumTopicsRoute(chatId = 1))
+        assertTrue(archive.hasOpenConversation(ChatFolder.Archive))
+    }
+
+    @Test
+    fun zavreniArchivuOdeberTemaIKonverzaciTematu() {
+        val stack = mutableListOf<NavKey>(
+            ChatsRoute,
+            ArchiveRoute,
+            ArchiveForumTopicsRoute(chatId = 2),
+            ArchiveConversationRoute(chatId = 2, topicId = 7),
+        )
+
+        stack.closeArchive()
+
+        assertEquals(listOf<NavKey>(ChatsRoute), stack)
+    }
+
+    @Test
+    fun zavreniChatuOdeberITemata() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 1), ConversationRoute(chatId = 1, topicId = 3))
+
+        stack.closeChat(1)
+
+        assertEquals(listOf<NavKey>(ChatsRoute), stack)
+    }
+
+    @Test
+    fun archivaceForaZavreJehoTemata() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 1), ConversationRoute(chatId = 1, topicId = 3))
+
+        stack.closeConversationOf(ArchiveChange(chatId = 1, archived = true))
+
+        assertEquals(listOf<NavKey>(ChatsRoute), stack)
     }
 }

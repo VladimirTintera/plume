@@ -57,6 +57,9 @@ import eu.tintera.plume.core.navigation.ArchiveConversationRoute
 import eu.tintera.plume.core.navigation.ArchiveRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
+import eu.tintera.plume.core.navigation.ForumTopicsRoute
+import eu.tintera.plume.core.navigation.ArchiveForumTopicsRoute
+import eu.tintera.plume.features.forum.ForumTopicsScreen
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import eu.tintera.plume.core.navigation.ForwardRoute
 import eu.tintera.plume.core.navigation.PollComposerRoute
@@ -347,9 +350,10 @@ private fun shellEntryProvider(
     ) {
         ChatListScreen(
             viewModel = koinViewModel(),
-            selectedChatId = chatsStack.filterIsInstance<ConversationRoute>()
-                .lastOrNull()?.chatId,
+            selectedChatId = chatsStack.lastOrNull { it is ConversationRoute || it is ForumTopicsRoute }
+                ?.let { (it as? ConversationRoute)?.chatId ?: (it as ForumTopicsRoute).chatId },
             onChatClick = { chatId -> chatsStack.openConversation(chatId) },
+            onForumClick = { chatId -> chatsStack.openForum(chatId) },
             onMessageClick = { chatId, messageId -> chatsStack.openConversation(chatId, messageId) },
             searchRequest = navigation.searchRequest,
             onSearchRequestHandled = navigation::consumeSearchRequest,
@@ -383,9 +387,10 @@ private fun shellEntryProvider(
                 key = "chats-archive",
                 parameters = { parametersOf(ChatFolder.Archive) },
             ),
-            selectedChatId = chatsStack.filterIsInstance<ArchiveConversationRoute>()
-                .lastOrNull()?.chatId,
+            selectedChatId = chatsStack.lastOrNull { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute }
+                ?.let { (it as? ArchiveConversationRoute)?.chatId ?: (it as ArchiveForumTopicsRoute).chatId },
             onChatClick = { chatId -> chatsStack.openArchiveConversation(chatId) },
+            onForumClick = { chatId -> chatsStack.openArchiveForum(chatId) },
             onBack = chatsStack::closeArchive,
             onChatArchived = chatsStack::closeConversationOf,
             modifier = Modifier.listPaneInsets(twoPane),
@@ -419,8 +424,8 @@ private fun shellEntryProvider(
             // té první — i se zprávami. Koin navíc u cachované instance ignoruje
             // nové `parameters`, takže se to neprojeví ani chybou, jen špatným obsahem.
             viewModel = koinViewModel(
-                key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}",
-                parameters = { parametersOf(route.chatId, route.messageId, route.threadId) },
+                key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}",
+                parameters = { parametersOf(route.chatId, route.messageId, route.threadId, route.topicId) },
             ),
             // Odebírá SVOU položku, ne poslední — viz `pop`.
             onBack = { chatsStack.pop(route) },
@@ -450,6 +455,38 @@ private fun shellEntryProvider(
             onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(chatId)) },
             onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
             onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
+        )
+    }
+
+    /*
+     * Témata skupiny s tématy stojí na místě konverzace (detail panel); téma se otevře jako
+     * konverzace NAD nimi, takže zpět vede do seznamu témat.
+     */
+    entry<ForumTopicsRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
+        ForumTopicsScreen(
+            viewModel = koinViewModel(key = "forum-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+            onOpenTopic = { topicId ->
+                if ((chatsStack.lastOrNull() as? ConversationRoute)?.topicId != topicId) {
+                    chatsStack.add(ConversationRoute(route.chatId, topicId = topicId))
+                }
+            },
+            onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
+            onViewAsMessages = { chatsStack.add(ConversationRoute(route.chatId)) },
+        )
+    }
+
+    entry<ArchiveForumTopicsRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
+        ForumTopicsScreen(
+            viewModel = koinViewModel(key = "forum-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+            onOpenTopic = { topicId ->
+                if ((chatsStack.lastOrNull() as? ArchiveConversationRoute)?.topicId != topicId) {
+                    chatsStack.add(ArchiveConversationRoute(route.chatId, topicId = topicId))
+                }
+            },
+            onOpenProfile = { chatsStack.add(ArchiveChatProfileRoute(route.chatId)) },
+            onViewAsMessages = { chatsStack.add(ArchiveConversationRoute(route.chatId)) },
         )
     }
 
@@ -525,8 +562,8 @@ private fun shellEntryProvider(
     entry<ArchiveConversationRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
         ConversationScreen(
             viewModel = koinViewModel(
-                key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}",
-                parameters = { parametersOf(route.chatId, route.messageId, route.threadId) },
+                key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}",
+                parameters = { parametersOf(route.chatId, route.messageId, route.threadId, route.topicId) },
             ),
             onBack = { chatsStack.pop(route) },
             onOpenMedia = { messageId ->
@@ -808,8 +845,14 @@ private fun List<NavKey>.isOpenConversation(chatId: Long): Boolean =
  * jako sekce v Nastavení.
  */
 private fun MutableList<NavKey>.openConversation(chatId: Long, messageId: Long? = null) {
-    removeAll { it is ConversationRoute }
+    removeAll { it is ConversationRoute || it is ForumTopicsRoute }
     add(ConversationRoute(chatId, messageId))
+}
+
+/** Skupina s tématy: místo konverzace seznam témat, jinak totéž co [openConversation]. */
+private fun MutableList<NavKey>.openForum(chatId: Long) {
+    removeAll { it is ConversationRoute || it is ForumTopicsRoute }
+    add(ForumTopicsRoute(chatId))
 }
 
 /** Totéž co [isOpenConversation], ale pro větev archivu. */
@@ -821,8 +864,14 @@ private fun List<NavKey>.isOpenArchiveConversation(chatId: Long): Boolean =
  * takže chat otevřený z hlavního seznamu zůstane, kde byl.
  */
 private fun MutableList<NavKey>.openArchiveConversation(chatId: Long, messageId: Long? = null) {
-    removeAll { it is ArchiveConversationRoute }
+    removeAll { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute }
     add(ArchiveConversationRoute(chatId, messageId))
+}
+
+/** Totéž co [openForum], ale pro větev archivu. */
+private fun MutableList<NavKey>.openArchiveForum(chatId: Long) {
+    removeAll { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute }
+    add(ArchiveForumTopicsRoute(chatId))
 }
 
 /**

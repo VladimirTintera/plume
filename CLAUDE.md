@@ -9,7 +9,7 @@ nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí
 
 Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (bez railu i navigační lišty, Nastavení z menu účtu), živý seznam chatů a archiv,
 konverzace (historie, živé zprávy, odesílání, přílohy a alba, hlasovky, samolepky a emoji, úprava,
-přeposílání, připnuté zprávy, ankety a kvízy), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
+přeposílání, připnuté zprávy, ankety a kvízy, témata ve skupinách), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
 Není: hlášení pádů z iOS. Notifikace na iOS (APNs) jsou napojené, ale čekají na certifikát APNs u Telegramu a ověření skutečným pushem.
@@ -6605,6 +6605,54 @@ a kořenová zpráva), a otevře se `ConversationRoute(chatId = skupina, threadI
 - **Ověřeno na emulátoru jen čtení** (kanál FilipHorky – zprávy, bez přidání se): čip, vlákno
   s kořenem nahoře, zpět do kanálu. **Odeslání komentáře ověřené NENÍ** — veřejně by ho viděli
   všichni čtenáři kanálu.
+
+### Témata ve skupinách
+
+Skupina s tématy (fórum, `Supergroup.isForum`) se z seznamu chatů, archivu i výsledků hledání
+otevírá **seznamem témat** (`ForumTopicsRoute` / `ArchiveForumTopicsRoute`, `ForumTopicsScreen`),
+téma pak jako konverzace (`ConversationRoute(topicId)`). Hranice: `ForumRepository`
+(`TdlForumRepository`) a `TdlConversationRepository(forumTopicId)`; pravidla seznamu jsou čisté
+funkce v `ForumTopics.kt` (testy `ForumTopicsTest`).
+
+- **Zúžení na téma je PARAMETR repository, ne obal** jako u vlákna komentářů
+  (`ConversationRepository.inForumTopic`). Téma se TDLib předává v každém odeslání, konceptu,
+  „píše…", hledání i připnutých (`topicId = MessageTopicForum`); obal by musel přepsat přes dvacet
+  metod kvůli jednomu argumentu. Historie jde přes `getForumTopicHistory`, nové zprávy se filtrují
+  podle `Message.topicId`, přečtení se hlásí se zdrojem `MessageSourceForumTopicHistory` (jinak se
+  přečtení tématu nepohne — tatáž past jako u vlákna), počty nepřečtených, hranice přečtení,
+  koncept a „Označit vše" (`readAllForumTopic*`) jsou tématu (`getForumTopic`).
+- **O tom, že je chat fórum, ví položka seznamu** (`ChatSummary.isForum`, dočítá se lokálním
+  `getSupergroup` spolu s ověřením a mění ho `UpdateSupergroup`). Proto se seznam témat otevírá
+  jen odtud; notifikace, odkazy a zmínky vedou do celé skupiny jako zprávy. Z téhož důvodu vedou
+  do celé skupiny i globální výsledky hledání mimo známé chaty.
+- **Seznam témat je detailový panel, ne druhý list panel.** Stojí vpravo na místě konverzace
+  a téma se vrší nad něj; list panel by chtěl vlastní scénu i vlastní profil a úpravy (jako archiv).
+  `openConversation` / `openForum` nahrazují konverzaci i seznam témat — výběr jiného chatu je
+  výměna obojího.
+- **Změna tématu nese jen id** (`topicChanges` z `UpdateForumTopic`, `UpdateForumTopicInfo`
+  a nových zpráv s `MessageTopicForum`) a téma se čte znovu — stejný vzor jako připnuté zprávy.
+  Téma, které ještě není načtené, se tím PŘIDÁ (nové téma, zpráva hluboko v seznamu), a dočtená
+  stránka pak NEPŘEPÍŠE novější verzi z updatu (`withPage`). Téma, které se dočíst nedá, bylo
+  smazané; skryté obecné téma se nekreslí (`isHidden`).
+- **Pořadí je `ForumTopic.order` sestupně**, připnutá témata ho mají vyšší — nic se nepřeskládává
+  ručně, jako u chatů.
+- **Uzavřené téma = `WriteAccess.TopicClosed`** (`topicWriteAccess`, testy `TopicWriteAccessTest`):
+  psát smí vlastník a správce s `canManageTopics`; důvod ze skupiny (není členem, omezený) má
+  přednost. Mění se živě (`accessUpdates` odebírá i `UpdateForumTopicInfo`).
+- **V tématu se neplánuje a nezakládá anketa** — naplánované zprávy patří skupině a formulář
+  ankety o tématu neví (skončila by v obecném tématu). Reklamy se v tématu nekreslí.
+- **Ikona tématu** (`ForumTopicIcon` v `core/ui`): vlastní emoji, jinak bublina v barvě od serveru
+  s písmenem (barva písma podle jasu — na žluté by bílé zmizelo), obecné téma `#`. Tvar je
+  bublina, ne kruh ani sušenka: tvary avatarů nesou druh chatu a téma není ani jeden.
+- **V hlavičce tématu nic neletí** (`ConversationState.narrowed`): ikona tématu v řádku seznamu
+  chatů není. Letí fotka a název skupiny ze seznamu chatů do hlavičky seznamu témat.
+- **Past s vahami v řádku podruhé**: název tématu s `weight(1f, fill = false)` a `Spacer`
+  s `weight(1f)` si řádek rozdělily napůl a čas visel uprostřed (viz „Ověření a štítek podvodu").
+- **Ověřeno na emulátoru jen čtením** na veřejné Kotlin Community (@kotlin_lang, účet v ní není —
+  místo pole „Join", na který se neťuká): seznam témat s ikonami z vlastních emoji, odesílatel
+  v náhledu, stránkování, konverzace tématu (hlavička, připnuté zprávy tématu 6 proti 86 ve
+  skupině), „Zobrazit jako zprávy" a zpět. **Psaní do tématu, uzavřené téma, přečtení
+  a dvoupanel ověřené NEJSOU** — skupinu s tématy, kam smí psát, testovací účet nemá.
 
 ### Placená média
 

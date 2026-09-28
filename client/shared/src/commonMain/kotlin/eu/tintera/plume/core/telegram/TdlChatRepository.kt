@@ -341,7 +341,10 @@ class TdlChatRepository(
         scope.launch {
             holder.updates { supergroupUpdates }.collect { update ->
                 edit(supergroupChatId(update.supergroup.id)) {
-                    it.copy(verification = update.supergroup.verificationStatus.toVerification())
+                    it.copy(
+                        verification = update.supergroup.verificationStatus.toVerification(),
+                        isForum = update.supergroup.isForum,
+                    )
                 }
             }
         }
@@ -1043,7 +1046,7 @@ class TdlChatRepository(
                 }
             }
         }
-        val summaries = chats.map { it.toSummary().withPresence().copy(verification = client.verificationOf(it)) }
+        val summaries = chats.map { it.fullSummary().withPresence() }
 
         mutex.withLock {
             summaries.forEach { known[it.id] = it.keepingLiveState(known[it.id]) }
@@ -1056,7 +1059,7 @@ class TdlChatRepository(
     }
 
     private suspend fun upsert(chat: Chat) {
-        val summary = chat.toSummary().copy(verification = client.verificationOf(chat))
+        val summary = chat.fullSummary()
         mutex.withLock {
             known[summary.id] = summary.keepingLiveState(known[summary.id])
             positions[chat.id] = chat.positions.toFolderPositions()
@@ -1106,6 +1109,10 @@ class TdlChatRepository(
      * každá nová zpráva (`UpdateNewChat` při dotažení další stránky, seed z databáze) by zhasla
      * zelenou tečku i „píše…", protože obojí by se vrátilo na `null`.
      */
+    /** Položka i s tím, co `Chat` nenese a dočítá se lokálně: ověření a to, jestli je to fórum. */
+    private suspend fun Chat.fullSummary(): ChatSummary =
+        toSummary().copy(verification = client.verificationOf(this), isForum = client.isForum(this))
+
     private fun ChatSummary.keepingLiveState(previous: ChatSummary?): ChatSummary =
         if (previous == null) this else copy(
             presence = presence ?: previous.presence,

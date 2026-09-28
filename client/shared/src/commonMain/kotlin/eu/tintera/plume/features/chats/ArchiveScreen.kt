@@ -40,6 +40,7 @@ fun ArchiveScreen(
     viewModel: ChatsViewModel,
     selectedChatId: Long?,
     onChatClick: (Long) -> Unit,
+    onForumClick: (Long) -> Unit,
     onBack: () -> Unit,
     onChatArchived: ((ArchiveChange) -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -97,6 +98,7 @@ fun ArchiveScreen(
             viewModel = viewModel,
             selectedChatId = selectedChatId,
             onChatClick = onChatClick,
+            onForumClick = onForumClick,
             padding = padding,
             // Stejný prázdný stav jako placeholder detailu vedle — na široké ploše stojí oba
             // vedle sebe a dva různé vzhledy pro „tady nic není" by se přely.
