@@ -115,7 +115,6 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   4. **Filtry obsahu** (média, soubory, odkazy), hlavně pro profil chatu.
 
   Na rozloženém Foldu by místo celoobrazovkového hledání sedělo `ExpandedDockedSearchBar`.
-  Nastavení má pořád `LargeFlexibleTopAppBar` se stejnou vadou po sbalení jako měly Chaty.
 - ~~**Nová konverzace a kontakty.**~~ — hotovo (FAB v plovoucím toolbaru seznamu chatů,
   `NewChatRoute`, Uložené zprávy, kontakty z TDLib s dostupností, globální vyhledávání lidí podle
   @username; poučení v `CLAUDE.md`, „Nová konverzace").
