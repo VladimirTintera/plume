@@ -744,12 +744,13 @@ class TdlConversationRepository(
         chatId: Long,
         kind: SharedMediaKind,
         fromMessageId: Long,
+        query: String,
     ): Result<SharedMediaPage> {
         val isGroup = isGroup(chatId)
         return client.searchChatMessages(
             chatId = chatId,
             topicId = null,
-            query = "",
+            query = query,
             senderId = null,
             fromMessageId = fromMessageId,
             offset = 0,
@@ -764,7 +765,11 @@ class TdlConversationRepository(
                     .filter { kind != SharedMediaKind.Media || it.isLastingVisualMedia }
                 // Konec se pozná JEN podle toho, že server nevrátil nic. Počet po filtrování
                 // na to nestačí: stránka samých mizejících fotek vyjde prázdná uprostřed chatu.
-                SharedMediaPage(messages = messages, reachedEnd = found.messages.isEmpty())
+                SharedMediaPage(
+                    messages = messages,
+                    reachedEnd = found.messages.isEmpty(),
+                    nextFromMessageId = found.messages.lastOrNull()?.id ?: 0,
+                )
             }
     }
 

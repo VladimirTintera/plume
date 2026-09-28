@@ -290,12 +290,14 @@ interface ConversationRepository {
      * Stránka sdíleného obsahu od nejnovější dozadu.
      *
      * [fromMessageId] `0` začíná u nejnovější, jinak se pokračuje od poslední načtené (ta sama
-     * ve výsledku není). Konec se pozná prázdnou stránkou.
+     * ve výsledku není). Konec se pozná prázdnou stránkou. [query] zúží výsledky na zprávy,
+     * v jejichž textu, popisku, názvu souboru nebo skladby slovo je — hledá server.
      */
     suspend fun sharedMedia(
         chatId: Long,
         kind: SharedMediaKind,
         fromMessageId: Long = 0,
+        query: String = "",
     ): Result<SharedMediaPage>
 
     /** Počty pro všechny druhy naráz; profil podle nich schová prázdné řádky. */
@@ -1912,7 +1914,16 @@ enum class SharedMediaKind {
  * Stránka sdíleného obsahu. [reachedEnd] pozná jen prázdná odpověď, stejně jako konec historie —
  * TDLib žádný příznak „jsi na konci" nedává.
  */
-data class SharedMediaPage(val messages: List<ChatMessage>, val reachedEnd: Boolean)
+data class SharedMediaPage(
+    val messages: List<ChatMessage>,
+    val reachedEnd: Boolean,
+    /**
+     * Odkud číst další stránku: poslední zpráva, kterou server VRÁTIL, ne poslední ukázaná.
+     * Stránka samých mizejících fotek je po odfiltrování prázdná, a pokračovat od poslední
+     * ukázané by vrátilo tutéž stránku znovu.
+     */
+    val nextFromMessageId: Long = messages.lastOrNull()?.id ?: 0,
+)
 
 /** Kolik čeho v chatu je; podle toho profil řádek ukáže, nebo ne. */
 data class SharedMediaCounts(val media: Int, val files: Int, val links: Int, val music: Int = 0) {

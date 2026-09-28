@@ -5515,6 +5515,21 @@ obsahu bývá zlomek zpráv.
 - **Titulek „null" posílá server doslova** (u `share.google/…` a podobných). `ifBlank` ho
   nechytil a stál v záložce Odkazy i v bublině; texty náhledu jdou proto přes `previewText`
   (`MessageContent.kt`, testy `LinkPreviewTextTest`), který ho zahodí jako prázdný.
+- **Soubory, odkazy a hudba mají nad seznamem pole hledání** (`SharedTabFrame`, `searchShared`,
+  pravidlo `offersSharedSearch`, přechody `SharedMediaTab`, testy `SharedMediaTabTest`). Hledá
+  server: `searchChatMessages` s dotazem a TÍMŽ filtrem jako záložka — název souboru, titulek
+  skladby, text zprávy s odkazem. **Média hledání nemají**: fotka se dá najít jen podle popisku,
+  který většina nemá, a „Nic nenalezeno" nad mřížkou plnou fotek by vypadalo jako chyba.
+  **Pole je až od devíti položek** (`SHARED_SEARCH_MIN_COUNT`) — nad třemi soubory by jen
+  ubíralo místo; rozepsané hledání se neschová. Pauza 300 ms a zrušení předchozího dotazu jako
+  u členů; **stránka patří dotazu i místu** (`withNextPage` porovná dotaz a `nextFromMessageId`),
+  jinak by pomalá stránka ze starého hledání vmíchala cizí výsledky.
+- **Další stránka se čte od poslední VRÁCENÉ zprávy, ne od poslední ukázané**
+  (`SharedMediaPage.nextFromMessageId`). Stránka samých mizejících fotek je po odfiltrování
+  prázdná; pokračovat od poslední ukázané by vrátilo tutéž stránku a dotahování by se zaseklo.
+- **Ověřeno na emulátoru** v chatu s Notifikátorem: „klip" v Souborech našel `klip.mp4`,
+  nesmysl ukázal „Nic nenalezeno", ✕ vrátil celý seznam, „meet" v Odkazech našel zprávu podle
+  textu, Hudba s pár skladbami pole nemá.
 - **`mailto:` se v adrese neukazuje** (`displayUrl`, testy `SharedMediaTest`). Filtr odkazů bere
   i e-maily a schéma u nich nic neříká; `https` od `tg` odlišit potřeba je, takže se zahazuje
   jen ono.

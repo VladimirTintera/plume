@@ -249,6 +249,9 @@
     <string name="profile_shared_music_pause">Pozastavit</string>
     <string name="profile_members_search">Hledat členy</string>
     <string name="profile_members_search_empty">Nikdo nenalezen</string>
+    <string name="profile_search_files">Hledat v souborech</string>
+    <string name="profile_search_links">Hledat v odkazech</string>
+    <string name="profile_search_music">Hledat v hudbě</string>
     <string name="profile_members_hidden">Skupina seznam členů skrývá, vidět jsou jen správci.</string>
     <string name="profile_unmute">Zapnout zvuk</string>
     <string name="profile_shared_file_meta">%1$s · %2$s</string>

@@ -97,6 +97,12 @@ class ChatProfileViewModel(
     private var membersJob: Job? = null
     private var moreMembersJob: Job? = null
 
+    /** Rozběhnuté čtení první stránky po záložkách; nové hledání to předchozí zruší. */
+    private val sharedJobs = mutableMapOf<SharedMediaKind, Job>()
+
+    /** Rozběhnuté dotahování další stránky po záložkách; nové hledání ho zruší taky. */
+    private val moreSharedJobs = mutableMapOf<SharedMediaKind, Job>()
+
     private val _state = MutableStateFlow(ChatProfileState())
     val state: StateFlow<ChatProfileState> = _state.asStateFlow()
 
@@ -155,49 +161,77 @@ class ChatProfileViewModel(
      * a dotazovat se dopředu na všechny by znamenalo tři dotazy za každé otevření profilu.
      */
     fun loadShared(kind: SharedMediaKind) {
-        val tab = _state.value.shared[kind]
-        if (tab != null) return
-        _state.update { it.copy(shared = it.shared + (kind to SharedMediaTab(loading = true))) }
-        fetchShared(kind, fromMessageId = 0)
+        if (_state.value.shared[kind] != null) return
+        loadFirstShared(kind, query = "")
+    }
+
+    /**
+     * Hledání v záložce. Text drží pole samo; sem jde kvůli dotazu na server, s pauzou, aby se
+     * neptalo na každé písmeno. Do té doby zůstávají předchozí výsledky — seznam by jinak při
+     * každém znaku problikl načítáním. Totéž co hledání členů.
+     */
+    fun searchShared(kind: SharedMediaKind, query: String) {
+        _state.update { it.copy(sharedQueries = it.sharedQueries + (kind to query)) }
+        val search = query.trim()
+        if (search == _state.value.shared[kind]?.query && sharedJobs[kind]?.isActive != true) return
+        loadFirstShared(kind, search, delayed = true)
+    }
+
+    /**
+     * První stránka pro [query]. Zruší rozběhnuté čtení téže záložky — i dotahování další
+     * stránky předchozího dotazu —, takže pomalá odpověď na „fak" nepřepíše „faktura".
+     */
+    private fun loadFirstShared(kind: SharedMediaKind, query: String, delayed: Boolean = false) {
+        moreSharedJobs[kind]?.cancel()
+        sharedJobs[kind]?.cancel()
+        if (_state.value.shared[kind] == null) {
+            _state.update { it.copy(shared = it.shared + (kind to SharedMediaTab(loading = true))) }
+        }
+        sharedJobs[kind] = viewModelScope.launch {
+            if (delayed) delay(SHARED_SEARCH_DELAY)
+            val result = conversations.sharedMedia(chatId, kind, query = query)
+            // Repository chytá výjimky do `Result`, i zrušení; zrušený dotaz stav měnit nesmí.
+            ensureActive()
+            result
+                .onSuccess { page ->
+                    _state.update { state ->
+                        val current = state.shared[kind] ?: SharedMediaTab()
+                        state.copy(shared = state.shared + (kind to current.withFirstPage(query, page)))
+                    }
+                }
+                .onFailure { failure -> sharedFailed(kind, query, failure) }
+        }
     }
 
     /** Další stránka; spouští ji seznam, když se dorolovalo ke konci. */
     fun loadMoreShared(kind: SharedMediaKind) {
         val tab = _state.value.shared[kind] ?: return
-        if (tab.loading || tab.reachedEnd || tab.messages.isEmpty()) return
+        if (!tab.canLoadMore) return
+        val query = tab.query
+        val from = tab.nextFromMessageId
         _state.update { it.copy(shared = it.shared + (kind to tab.copy(loading = true))) }
-        fetchShared(kind, fromMessageId = tab.messages.last().id)
-    }
-
-    private fun fetchShared(kind: SharedMediaKind, fromMessageId: Long) {
-        viewModelScope.launch {
-            conversations.sharedMedia(chatId, kind, fromMessageId)
+        moreSharedJobs[kind] = viewModelScope.launch {
+            val result = conversations.sharedMedia(chatId, kind, fromMessageId = from, query = query)
+            ensureActive()
+            result
                 .onSuccess { page ->
                     _state.update { state ->
-                        val current = state.shared[kind] ?: SharedMediaTab()
-                        // Stránka může po odfiltrování mizejících médií dorazit prázdná, aniž by
-                        // to byl konec — proto se na konec ptá `reachedEnd` od repository.
-                        state.copy(
-                            shared = state.shared + (
-                                kind to current.copy(
-                                    messages = current.messages + page.messages,
-                                    loading = false,
-                                    reachedEnd = page.reachedEnd,
-                                )
-                                ),
-                        )
+                        val current = state.shared[kind] ?: return@update state
+                        state.copy(shared = state.shared + (kind to current.withNextPage(query, from, page)))
                     }
                 }
-                .onFailure { failure ->
-                    logger.w(failure) { "Sdílený obsah se nepodařilo načíst." }
-                    _state.update { state ->
-                        val current = state.shared[kind] ?: SharedMediaTab()
-                        state.copy(
-                            shared = state.shared + (kind to current.copy(loading = false, reachedEnd = true)),
-                            error = failure.reported(Res.string.profile_shared_failed),
-                        )
-                    }
-                }
+                .onFailure { failure -> sharedFailed(kind, query, failure) }
+        }
+    }
+
+    private fun sharedFailed(kind: SharedMediaKind, query: String, failure: Throwable) {
+        logger.w(failure) { "Sdílený obsah se nepodařilo načíst." }
+        _state.update { state ->
+            val current = state.shared[kind] ?: SharedMediaTab(query = query)
+            state.copy(
+                shared = state.shared + (kind to current.withFailedPage(query)),
+                error = failure.reported(Res.string.profile_shared_failed),
+            )
         }
     }
 
@@ -682,6 +716,8 @@ data class ChatProfileState(
     val counts: SharedMediaCounts? = null,
     /** Načtený obsah záložek; chybějící klíč = záložka se ještě neukázala. */
     val shared: Map<SharedMediaKind, SharedMediaTab> = emptyMap(),
+    /** Text v poli hledání záložky — může předbíhat [SharedMediaTab.query], dokud server neodpoví. */
+    val sharedQueries: Map<SharedMediaKind, String> = emptyMap(),
     /** Průběh stahování souboru podle `fileId`, dokud se neotevře. */
     val documentDownloads: Map<Int, Float> = emptyMap(),
     val error: UiText? = null,
@@ -730,6 +766,10 @@ data class ChatProfileState(
         get() = profile?.membersHidden != true &&
             ((profile?.memberCount ?: 0) > MEMBERS_PAGE_SIZE || memberQuery.isNotEmpty())
 
+    /** Nabídnout nad záložkou [kind] hledání? Viz [offersSharedSearch]. */
+    fun sharedSearchAvailable(kind: SharedMediaKind): Boolean =
+        offersSharedSearch(kind, counts?.of(kind) ?: 0, sharedQueries[kind].orEmpty())
+
     /** Zpráva z načtených záložek — pro otevření souboru nemusíme vědět, ze které je. */
     fun sharedMessage(messageId: Long): ChatMessage? =
         shared.values.firstNotNullOfOrNull { tab -> tab.messages.firstOrNull { it.id == messageId } }
@@ -744,15 +784,11 @@ sealed interface ProfileTab {
     data class Shared(val kind: SharedMediaKind) : ProfileTab
 }
 
-/** Stav jedné záložky sdíleného obsahu. */
-data class SharedMediaTab(
-    val messages: List<ChatMessage> = emptyList(),
-    val loading: Boolean = false,
-    val reachedEnd: Boolean = false,
-)
-
 /** Pauza v psaní, po které se hledání členů zeptá serveru. */
 private const val MEMBER_SEARCH_DELAY = 300L
+
+/** Pauza v psaní, po které se hledání v záložce sdíleného obsahu zeptá serveru. */
+private const val SHARED_SEARCH_DELAY = 300L
 
 /** Na rozběh stahování se čeká jen chvíli; bez toho by mrtvé spojení nechalo kolečko točit se napořád. */
 private const val DOWNLOAD_START_TIMEOUT = 10_000L

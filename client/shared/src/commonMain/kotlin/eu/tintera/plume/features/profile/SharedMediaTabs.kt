@@ -43,6 +43,7 @@ import eu.tintera.plume.resources.media_spoiler
 import eu.tintera.plume.resources.media_sensitive
 import eu.tintera.plume.resources.visibility_off_24dp
 import eu.tintera.plume.resources.chats_search_clear
+import eu.tintera.plume.resources.chats_search_empty
 import eu.tintera.plume.resources.chats_search_empty_hint
 import eu.tintera.plume.resources.profile_members_hidden
 import eu.tintera.plume.resources.profile_members_search
@@ -507,6 +508,53 @@ private fun LinkRow(message: ChatMessage, url: String, onOpen: () -> Unit, modif
  */
 private fun ChatMessage.sharedUrl(): String? =
     linkPreview?.url ?: entities.firstNotNullOfOrNull { (it.type as? MessageEntityType.Link)?.url }
+
+/** Pole hledání nad záložkou sdíleného obsahu; [query] je jen výchozí text, dál ho drží pole samo. */
+internal class SharedSearch(val query: String, val placeholder: String, val onQueryChange: (String) -> Unit)
+
+/**
+ * Záložka sdíleného obsahu s hledáním nad seznamem.
+ *
+ * **Pole hledání NEODJÍŽDÍ se seznamem**, stejně jako u členů: kdo v záložce hledá, hledá proto,
+ * že listování nestačí. [nothingFound] ukáže prázdný stav místo seznamu — jen k dotazu, na který
+ * server odpověděl, jinak by při psaní dalšího znaku problikával.
+ */
+@Composable
+internal fun SharedTabFrame(
+    search: SharedSearch?,
+    nothingFound: Boolean,
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val layoutDirection = LocalLayoutDirection.current
+    Column(modifier.fillMaxSize()) {
+        if (search != null) {
+            SearchPill(
+                initialQuery = search.query,
+                onQueryChange = search.onQueryChange,
+                placeholder = search.placeholder,
+                clearDescription = stringResource(Res.string.chats_search_clear),
+                modifier = Modifier.padding(
+                    start = contentPadding.calculateStartPadding(layoutDirection),
+                    end = contentPadding.calculateEndPadding(layoutDirection),
+                    top = contentPadding.calculateTopPadding(),
+                ),
+            )
+        }
+        if (nothingFound) {
+            IntroEmptyState(
+                icon = Res.drawable.search_off_24dp,
+                title = stringResource(Res.string.chats_search_empty),
+                text = stringResource(Res.string.chats_search_empty_hint),
+                containerColor = Color.Transparent,
+                modifier = Modifier.fillMaxSize().padding(bottom = contentPadding.calculateBottomPadding()),
+            )
+        } else {
+            content()
+        }
+    }
+}
 
 /** Pole hledání nad členy; [query] je jen výchozí text, dál ho drží pole samo. */
 internal class MemberSearch(val query: String, val onQueryChange: (String) -> Unit)

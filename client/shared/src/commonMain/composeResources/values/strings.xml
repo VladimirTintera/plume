@@ -246,6 +246,9 @@
     <string name="profile_shared_music_pause">Pause</string>
     <string name="profile_members_search">Search members</string>
     <string name="profile_members_search_empty">No one found</string>
+    <string name="profile_search_files">Search files</string>
+    <string name="profile_search_links">Search links</string>
+    <string name="profile_search_music">Search music</string>
     <string name="profile_members_hidden">This group hides its members. Only admins are listed.</string>
     <string name="profile_unmute">Unmute</string>
     <string name="profile_shared_file_meta">%1$s · %2$s</string>
