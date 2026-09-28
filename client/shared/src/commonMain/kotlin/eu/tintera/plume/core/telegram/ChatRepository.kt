@@ -77,6 +77,12 @@ interface ChatRepository {
     suspend fun privateChat(userId: Long): Result<Long>
 
     /**
+     * Je chat skupina s tématy? Otevírá se pak seznamem témat, ne konverzací. Lokální dotaz;
+     * chat, který TDLib nezná, fórum není. Výchozí `false` pro podvrhy v testech.
+     */
+    suspend fun isForum(chatId: Long): Boolean = false
+
+    /**
      * Kontakty uživatele seřazené podle jména, s dostupností protějšku.
      * Pro každý kontakt zajistí privátní chat (lokálně v TDLib).
      */
@@ -329,6 +335,8 @@ data class FoundMessage(
      * skupina sama) taky.
      */
     val senderName: String? = null,
+    /** Téma skupiny s tématy, ve kterém zpráva je — otevře se v něm, ne v celé skupině. */
+    val topicId: Int? = null,
 )
 
 /**
@@ -472,9 +480,11 @@ sealed interface Presence {
 
 /**
  * Činnost v chatu i s tím, kdo ji dělá. [senderId] je id uživatele, u anonymního správce nebo
- * kanálu id chatu — ve skupině podle něj konverzace kreslí tvář toho, kdo píše.
+ * kanálu id chatu — ve skupině podle něj konverzace kreslí tvář toho, kdo píše. [topicId] je
+ * téma skupiny s tématy, ve kterém se píše (`null` mimo témata) — konverzace tématu ukazuje jen
+ * psaní v něm.
  */
-data class ChatTyping(val activity: ChatActivity, val senderId: Long)
+data class ChatTyping(val activity: ChatActivity, val senderId: Long, val topicId: Int? = null)
 
 /**
  * Činnost v chatu („píše…").

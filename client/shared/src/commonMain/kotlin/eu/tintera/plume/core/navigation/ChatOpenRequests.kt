@@ -14,19 +14,23 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 class ChatOpenRequests {
 
-    private val pending = MutableStateFlow<Long?>(null)
+    private val pending = MutableStateFlow<ChatOpenRequest?>(null)
 
-    val chatId: StateFlow<Long?> = pending.asStateFlow()
+    val request: StateFlow<ChatOpenRequest?> = pending.asStateFlow()
 
-    fun request(chatId: Long) {
-        pending.value = chatId
+    /** [topicId]: téma skupiny s tématy, které se má otevřít místo celé skupiny. */
+    fun request(chatId: Long, topicId: Int? = null) {
+        pending.value = ChatOpenRequest(chatId, topicId)
     }
 
     /**
      * Vyřízeno. Porovnává se s hodnotou, kterou volající opravdu otevřel — mezi vyzvednutím
      * a vyřízením mohl přijít požadavek na jiný chat a ten by se zahodil nepřečtený.
      */
-    fun consume(chatId: Long) {
-        pending.compareAndSet(chatId, null)
+    fun consume(request: ChatOpenRequest) {
+        pending.compareAndSet(request, null)
     }
 }
+
+/** Co se má otevřít: chat, u skupiny s tématy případně rovnou jedno téma. */
+data class ChatOpenRequest(val chatId: Long, val topicId: Int? = null)

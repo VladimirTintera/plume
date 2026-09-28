@@ -134,12 +134,12 @@ fun AppShell(modifier: Modifier = Modifier) {
      * do Nastavení, což s notifikací nemá nic společného.
      */
     val chatOpenRequests = koinInject<ChatOpenRequests>()
-    val requestedChatId by chatOpenRequests.chatId.collectAsStateWithLifecycle()
+    val openRequest by chatOpenRequests.request.collectAsStateWithLifecycle()
 
-    LaunchedEffect(requestedChatId) {
-        val chatId = requestedChatId ?: return@LaunchedEffect
-        navigation.openChat(chatId)
-        chatOpenRequests.consume(chatId)
+    LaunchedEffect(openRequest) {
+        val request = openRequest ?: return@LaunchedEffect
+        navigation.openChat(request.chatId, request.topicId)
+        chatOpenRequests.consume(request)
     }
 
     /*
@@ -354,7 +354,7 @@ private fun shellEntryProvider(
                 ?.let { (it as? ConversationRoute)?.chatId ?: (it as ForumTopicsRoute).chatId },
             onChatClick = { chatId -> chatsStack.openConversation(chatId) },
             onForumClick = { chatId -> chatsStack.openForum(chatId) },
-            onMessageClick = { chatId, messageId -> chatsStack.openConversation(chatId, messageId) },
+            onMessageClick = { chatId, messageId, topicId -> chatsStack.openFoundMessage(chatId, messageId, topicId) },
             searchRequest = navigation.searchRequest,
             onSearchRequestHandled = navigation::consumeSearchRequest,
             onOpenArchive = {
@@ -443,13 +443,9 @@ private fun shellEntryProvider(
             },
             // Zmínka i odkaz otevře chat NAD touhle konverzací (ne místo ní), takže zpět vede sem.
             // Odkaz na zprávu nese její id a konverzace na ni po otevření skočí.
-            onOpenChat = { chatId, messageId, threadId ->
-                when {
-                    // Komentáře: vlákno diskusní skupiny nad kanálem, zpět vede do kanálu.
-                    threadId != null -> chatsStack.add(ConversationRoute(chatId, threadId = threadId))
-                    !chatsStack.isOpenConversation(chatId) -> chatsStack.add(ConversationRoute(chatId, messageId))
-                }
-            },
+            // Komentáře jsou vlákno diskusní skupiny nad kanálem, téma jde rovnou do tématu
+            // a skupina s tématy do seznamu témat (`openTarget`).
+            onOpenChat = { target -> chatsStack.openTarget(target, archive = false) },
             onSearch = { query -> navigation.openSearch(query, keepConversation = twoPane) },
             onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
             onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(chatId)) },
@@ -578,13 +574,7 @@ private fun shellEntryProvider(
             onForward = { messageIds ->
                 chatsStack.add(ForwardRoute(route.chatId, messageIds))
             },
-            onOpenChat = { chatId, messageId, threadId ->
-                when {
-                    threadId != null -> chatsStack.add(ArchiveConversationRoute(chatId, threadId = threadId))
-                    !chatsStack.isOpenArchiveConversation(chatId) ->
-                        chatsStack.add(ArchiveConversationRoute(chatId, messageId))
-                }
-            },
+            onOpenChat = { target -> chatsStack.openTarget(target, archive = true) },
             onSearch = { query -> navigation.openSearch(query, keepConversation = false) },
             onOpenProfile = { chatsStack.add(ArchiveChatProfileRoute(route.chatId)) },
             onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(chatId)) },

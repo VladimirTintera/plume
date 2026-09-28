@@ -199,7 +199,7 @@ fun ChatListScreen(
     /** Skupina s tématy: otevře se seznam témat, ne konverzace. */
     onForumClick: (Long) -> Unit,
     /** Nalezená zpráva: otevřít její chat a skočit na ni. */
-    onMessageClick: (chatId: Long, messageId: Long) -> Unit,
+    onMessageClick: (chatId: Long, messageId: Long, topicId: Int?) -> Unit,
     /** Dotaz, se kterým otevřít hledání (hashtag z konverzace); po otevření [onSearchRequestHandled]. */
     searchRequest: String?,
     onSearchRequestHandled: () -> Unit,
@@ -290,9 +290,9 @@ fun ChatListScreen(
                     val forum = with(search) { results + top + recent + global }.any { it.id == chatId && it.isForum }
                     if (forum) onForumClick(chatId) else onChatClick(chatId)
                 },
-                onMessageClick = { chatId, messageId ->
+                onMessageClick = { chatId, messageId, topicId ->
                     scrollToChat = chatId
-                    onMessageClick(chatId, messageId)
+                    onMessageClick(chatId, messageId, topicId)
                 },
                 onLoadMoreMessages = viewModel.search::loadMoreMessages,
                 onClearRecent = viewModel.search::clearRecent,

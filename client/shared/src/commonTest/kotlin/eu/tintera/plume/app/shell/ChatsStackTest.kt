@@ -13,6 +13,7 @@ import eu.tintera.plume.core.navigation.ForumTopicsRoute
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.features.chats.ArchiveChange
+import eu.tintera.plume.features.conversation.ChatTarget
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -217,5 +218,113 @@ class ChatsStackTest {
         stack.closeConversationOf(ArchiveChange(chatId = 1, archived = true))
 
         assertEquals(listOf<NavKey>(ChatsRoute), stack)
+    }
+
+    @Test
+    fun odkazNaTemaOtevreTemaNadKonverzaci() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1))
+
+        stack.openTarget(ChatTarget(chatId = 2, messageId = 50, topicId = 7), archive = false)
+
+        assertEquals(
+            listOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1), ConversationRoute(chatId = 2, messageId = 50, topicId = 7)),
+            stack,
+        )
+    }
+
+    @Test
+    fun odkazDoOtevrenehoTematuHoNezdvoji() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 2), ConversationRoute(chatId = 2, topicId = 7))
+
+        stack.openTarget(ChatTarget(chatId = 2, messageId = 50, topicId = 7), archive = false)
+
+        assertEquals(3, stack.size)
+    }
+
+    @Test
+    fun odkazDoJinehoTematuTeheSkupinyHoPrida() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 2), ConversationRoute(chatId = 2, topicId = 7))
+
+        stack.openTarget(ChatTarget(chatId = 2, topicId = 8), archive = false)
+
+        assertEquals(ConversationRoute(chatId = 2, topicId = 8), stack.last())
+    }
+
+    @Test
+    fun skupinaSTematyBezTematuOtevreSeznamTemat() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1))
+
+        stack.openTarget(ChatTarget(chatId = 2, forum = true), archive = false)
+        stack.openTarget(ChatTarget(chatId = 2, forum = true), archive = false)
+
+        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1), ForumTopicsRoute(chatId = 2)), stack)
+    }
+
+    @Test
+    fun obycejnyChatSeNezdvoji() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1))
+
+        stack.openTarget(ChatTarget(chatId = 1), archive = false)
+
+        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1)), stack)
+    }
+
+    @Test
+    fun zTematuVedeOdkazDoCeleSkupiny() {
+        // Téma téže skupiny není „otevřený chat": zpráva mimo téma se musí otevřít.
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 2, topicId = 7))
+
+        stack.openTarget(ChatTarget(chatId = 2, messageId = 50), archive = false)
+
+        assertEquals(ConversationRoute(chatId = 2, messageId = 50), stack.last())
+    }
+
+    @Test
+    fun vlaknoKomentaruSeOteviraVzdy() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1))
+
+        stack.openTarget(ChatTarget(chatId = 3, threadId = 9), archive = false)
+
+        assertEquals(ConversationRoute(chatId = 3, threadId = 9), stack.last())
+    }
+
+    @Test
+    fun vArchivuSeOteviraArchivniVetev() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(chatId = 1))
+
+        stack.openTarget(ChatTarget(chatId = 2, topicId = 7), archive = true)
+        stack.openTarget(ChatTarget(chatId = 4, forum = true), archive = true)
+
+        assertEquals(
+            listOf<NavKey>(
+                ChatsRoute,
+                ArchiveRoute,
+                ArchiveConversationRoute(chatId = 1),
+                ArchiveConversationRoute(chatId = 2, topicId = 7),
+                ArchiveForumTopicsRoute(chatId = 4),
+            ),
+            stack,
+        )
+    }
+
+    @Test
+    fun nalezenaZpravaVTematuMaPodSebouSeznamTemat() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 1), ConversationRoute(chatId = 1, topicId = 3))
+
+        stack.openFoundMessage(chatId = 2, messageId = 50, topicId = 7)
+
+        assertEquals(
+            listOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 2), ConversationRoute(chatId = 2, messageId = 50, topicId = 7)),
+            stack,
+        )
+    }
+
+    @Test
+    fun nalezenaZpravaMimoTemaNahradiKonverzaci() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1))
+
+        stack.openFoundMessage(chatId = 2, messageId = 50, topicId = null)
+
+        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 2, messageId = 50)), stack)
     }
 }

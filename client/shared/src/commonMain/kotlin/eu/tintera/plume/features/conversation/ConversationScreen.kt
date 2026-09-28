@@ -378,10 +378,10 @@ fun ConversationScreen(
     /** Příloha ankety v prohlížeči; `index` viz [MessageAction.OpenPollMedia]. */
     onOpenPollMedia: (messageId: Long, index: Int) -> Unit = { _, _ -> },
     /**
-     * Otevřít chat nad konverzací (zmínka, odkaz); s [messageId] se skočí na zprávu, s
-     * [threadId] se otevře jen vlákno komentářů.
+     * Otevřít chat nad konverzací (zmínka, odkaz, komentáře); kam přesně — zpráva, vlákno,
+     * téma, seznam témat —, říká [ChatTarget].
      */
-    onOpenChat: (chatId: Long, messageId: Long?, threadId: Long?) -> Unit,
+    onOpenChat: (ChatTarget) -> Unit,
     /** Hashtag v textu: hledání zpráv s tagem v seznamu chatů. */
     onSearch: (query: String) -> Unit,
     /** Ťuknutí na hlavičku: profil chatu. */
@@ -708,7 +708,7 @@ fun ConversationScreen(
     LaunchedEffect(state.openChat) {
         val target = state.openChat ?: return@LaunchedEffect
         viewModel.consumeOpenChat()
-        currentOnOpenChat(target.chatId, target.messageId, target.threadId)
+        currentOnOpenChat(target)
     }
     val currentOnAddBotToGroup by rememberUpdatedState(onAddBotToGroup)
     LaunchedEffect(state.addBotToGroup) {

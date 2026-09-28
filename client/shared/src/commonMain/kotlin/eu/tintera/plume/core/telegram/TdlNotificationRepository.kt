@@ -16,6 +16,7 @@ import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.Notification
 import dev.g000sha256.tdl.dto.NotificationGroupTypeMentions
 import dev.g000sha256.tdl.dto.NotificationGroupTypeMessages
+import dev.g000sha256.tdl.dto.MessageTopicForum
 import dev.g000sha256.tdl.dto.NotificationTypeNewMessage
 import dev.g000sha256.tdl.dto.NotificationTypeNewPushMessage
 import dev.g000sha256.tdl.dto.PushMessageContentPhoto
@@ -182,6 +183,7 @@ class TdlNotificationRepository(
                 canReply = canReply,
                 canMute = canMute,
                 channel = channel,
+                topicId = content.topicId,
             )
         }
 
@@ -219,6 +221,7 @@ class TdlNotificationRepository(
                     text = if (type.showPreview) message.notificationText() else getString(Res.string.notification_new_message),
                     image = shownPhoto?.photo?.notificationImage(),
                     imageCaption = shownPhoto?.caption?.text?.takeIf { it.isNotBlank() },
+                    topicId = (message.topicId as? MessageTopicForum)?.forumTopicId,
                 )
             }
 
@@ -353,6 +356,8 @@ class TdlNotificationRepository(
         /** Fotka ze zprávy, nebo `null`, když žádná není nebo se ukázat nesmí. */
         val image: File? = null,
         val imageCaption: String? = null,
+        /** Téma skupiny s tématy; z pushe ho neznáme. */
+        val topicId: Int? = null,
     )
 
     private companion object {

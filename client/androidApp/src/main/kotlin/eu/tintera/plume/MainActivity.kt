@@ -57,11 +57,15 @@ class MainActivity : ComponentActivity() {
         val chatId = intent.getLongExtra(NotificationIntents.EXTRA_CHAT_ID, NO_CHAT)
         if (chatId == NO_CHAT) return
 
-        chatOpenRequests.request(chatId)
+        val topicId = NotificationIntents.EXTRA_TOPIC_ID
+            .takeIf { intent.hasExtra(it) }
+            ?.let { intent.getIntExtra(it, 0) }
+        chatOpenRequests.request(chatId, topicId)
 
         // Jednorázové: po otočení displeje se `onCreate` spustí znovu nad týmž intentem a chat
         // by se otevřel podruhé — i kdyby se mezitím uživatel proklikal jinam.
         intent.removeExtra(NotificationIntents.EXTRA_CHAT_ID)
+        intent.removeExtra(NotificationIntents.EXTRA_TOPIC_ID)
     }
 
     private companion object {

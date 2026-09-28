@@ -40,16 +40,25 @@ class NotificationActions(
      *
      * [replyToMessageId] je citovaná zpráva — ve skupině nejnovější z notifikace, jinak `null`.
      *
+     * [topicId] je téma skupiny s tématy — bez něj by odpověď skončila v obecném tématu.
+     *
      * Na přihlášení se čeká nejvýš [timeout].
      */
-    suspend fun send(chatId: Long, text: String, replyToMessageId: Long?, timeout: Duration): Result<PendingReply> {
+    suspend fun send(
+        chatId: Long,
+        text: String,
+        replyToMessageId: Long?,
+        timeout: Duration,
+        topicId: Int? = null,
+    ): Result<PendingReply> {
         if (!awaitReady(timeout)) return Result.failure(IllegalStateException("TDLib není přihlášený do $timeout."))
 
         // Nejnovější zpráva PŘED odesláním: po něm by jí byla naše odpověď, a přečtení vlastní
         // zprávy nic neoznačí.
         val readUpTo = newestMessageId(chatId)
 
-        return conversations.send(chatId = chatId, text = text, replyToMessageId = replyToMessageId)
+        val target = topicId?.let { conversations.inForumTopic(it) } ?: conversations
+        return target.send(chatId = chatId, text = text, replyToMessageId = replyToMessageId)
             .map { PendingReply(chatId = chatId, messageId = it.id, readUpTo = readUpTo) }
             .onFailure { logger.w(it) { "Odpověď z notifikace se nepodařilo odeslat." } }
     }

@@ -6622,9 +6622,9 @@ funkce v `ForumTopics.kt` (testy `ForumTopicsTest`).
   přečtení tématu nepohne — tatáž past jako u vlákna), počty nepřečtených, hranice přečtení,
   koncept a „Označit vše" (`readAllForumTopic*`) jsou tématu (`getForumTopic`).
 - **O tom, že je chat fórum, ví položka seznamu** (`ChatSummary.isForum`, dočítá se lokálním
-  `getSupergroup` spolu s ověřením a mění ho `UpdateSupergroup`). Proto se seznam témat otevírá
-  jen odtud; notifikace, odkazy a zmínky vedou do celé skupiny jako zprávy. Z téhož důvodu vedou
-  do celé skupiny i globální výsledky hledání mimo známé chaty.
+  `getSupergroup` spolu s ověřením a mění ho `UpdateSupergroup`). Kdo položku seznamu nemá
+  (zmínka, odkaz, globální výsledek hledání), ptá se `ChatRepository.isForum` — lokálně, TDLib
+  supergroupu zná, když zná chat.
 - **Seznam témat je detailový panel, ne druhý list panel.** Stojí vpravo na místě konverzace
   a téma se vrší nad něj; list panel by chtěl vlastní scénu i vlastní profil a úpravy (jako archiv).
   `openConversation` / `openForum` nahrazují konverzaci i seznam témat — výběr jiného chatu je
@@ -6653,6 +6653,42 @@ funkce v `ForumTopics.kt` (testy `ForumTopicsTest`).
   v náhledu, stránkování, konverzace tématu (hlavička, připnuté zprávy tématu 6 proti 86 ve
   skupině), „Zobrazit jako zprávy" a zpět. **Psaní do tématu, uzavřené téma, přečtení
   a dvoupanel ověřené NEJSOU** — skupinu s tématy, kam smí psát, testovací účet nemá.
+
+#### Cesty do tématu
+
+Notifikace, odkaz na zprávu, výsledek hledání i zmínka vedou do tématu, ne do celé skupiny.
+Kam cíl míří, nese `ChatTarget` (`topicId`, `forum`) a kam ho zásobník uloží, rozhoduje čistá
+funkce `openTarget` (`ChatsStack.kt`, testy `ChatsStackTest`).
+
+- **Téma zprávy nese `Message.topicId`** (`MessageTopicForum`), odkaz `MessageLinkInfo.topicId`.
+  **Holý odkaz `t.me/skupina/123` téma NENESE** — takový vydá „Informace" u zprávy
+  (`getMessageLink` bez `inMessageThread`). Proto se bere i `topicId` zprávy, kterou odkaz vydá.
+- **Odkaz a zmínka otevřou cíl NAD konverzací, bez seznamu témat pod ním**: zpět vede tam, kde
+  uživatel na odkaz ťukl, ne do cizí skupiny. Skupina s tématy bez tématu (zmínka, `t.me/skupina`)
+  otevře seznam témat — celá skupina jako zprávy je jen volba v něm.
+- **Notifikace a výsledek hledání naopak seznam témat POD téma vloží** (`AppNavigation.openChat`,
+  `openFoundMessage`): zásobník se tu skládá od seznamu chatů a zpět má vést tam, kam by vedl
+  z tématu otevřeného ručně.
+- **Téma téže skupiny není „otevřený chat"** — dřív stačila shoda `chatId` a odkaz na zprávu
+  mimo téma z tématu téže skupiny nedělal nic. Otevřený je jen celý chat (bez tématu a vlákna);
+  skok na místě jen tam, kde zpráva patří do právě otevřeného tématu.
+- **Notifikace nese téma NEJNOVĚJŠÍ zprávy** (`ChatNotification.topicId` → `EXTRA_TOPIC_ID`).
+  Skupina notifikací TDLib je jedna na chat, ne na téma, takže víc témat v jedné notifikaci otevře
+  to poslední. **Z pushe téma nepřijde** (`NotificationTypeNewPushMessage` ho nemá) — dočasná
+  notifikace otevře celou skupinu, dokud ji nenahradí skutečná. Staré téma se nedrží: zpráva
+  z jiného tématu by jinak otevřela to předchozí.
+- **Odpověď z notifikace jde do tématu** (`NotificationActions.send(topicId)` přes
+  `inForumTopic`) — bez něj by skončila v obecném tématu.
+- **`ChatOpenRequests` nese dvojici chat + téma** (`ChatOpenRequest`), stále jako stav.
+- **„Píše…" v tématu jen z tématu** (`ChatTyping.topicId` z `UpdateChatAction.topicId`).
+  Ověřené NENÍ — v tématu, kde by někdo psal, účet není.
+- **iOS téma z notifikace nemá**: APNs push od Telegramu téma v `custom` nepopisuje a skutečný
+  push ověřený není; ťuknutí otevře skupinu.
+- **Ověřeno na emulátoru** (Kotlin Community jen čtením): holý odkaz na zprávu v tématu poslaný
+  botem otevřel „Kotlin Releases" se skokem na zprávu a zpět vedl do chatu s botem; zmínka
+  `@kotlin_lang` otevřela seznam témat; intent notifikace s `EXTRA_TOPIC_ID` otevřel téma,
+  zpět seznam témat, zpět seznam chatů. **Skutečná notifikace z tématu a odpověď z ní ověřené
+  NEJSOU** — chce to zprávu v tématu skupiny, kde účet je.
 
 ### Placená média
 
