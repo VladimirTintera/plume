@@ -1460,7 +1460,7 @@ fun ConversationScreen(
                 },
             )
             // Emoji ke slovu u kurzoru. Ne vedle jiného napovídání — dotaz na inline bota a zmínka
-            // mají nad polem přednost a dva panely nad sebou by pole odsunuly.
+            // mají nad polem přednost a emoji plovoucí přes jejich panel by ho zakryla.
             val emojiWord = remember(draft, inlineDraft, mentionQuery, typedCommands) {
                 draft.takeIf {
                     inlineDraft == null && mentionQuery == null && typedCommands == null && it.selection.collapsed
@@ -1468,18 +1468,6 @@ fun ConversationScreen(
             }
             LaunchedEffect(emojiWord?.word) { emojiWords.lookup(emojiWord?.word, emojiLanguages) }
             val shownEmojis = emojiSuggestions?.takeIf { it.word == emojiWord?.word }?.emojis.orEmpty()
-            EmojiSuggestionsPanel(
-                emojis = shownEmojis,
-                visible = emojiWord != null,
-                onPick = { emoji ->
-                    val word = emojiWord ?: return@EmojiSuggestionsPanel
-                    haptics.confirm()
-                    val (text, cursor) = emojiReplacement(draft.text, word, emoji)
-                    draft = TextFieldValue(text, selection = TextRange(cursor))
-                    emojiWords.picked(emoji)
-                    viewModel.onDraftChanged(composer.composed)
-                },
-            )
             LaunchedEffect(inlineDraft) { viewModel.inlineQuery(inlineDraft) }
             // Bot, který chce polohu, ji dostane přibližnou — dotaz na oprávnění přijde až u něj.
             val inlineLocation = rememberDeviceLocation()
@@ -1499,6 +1487,29 @@ fun ConversationScreen(
                 },
                 onButton = viewModel::pressInlineButton,
                 onLoadMore = viewModel::loadMoreInline,
+            )
+            // Návrhy emoji PLAVOU nad polem a místo nezabírají (viz `EmojiSuggestionsPanel`), takže
+            // stojí až těsně nad ním: objevují se skoro u každého slova a konverzace pod nimi
+            // nesmí poskakovat. Inline výsledky nad polem v tu chvíli nejsou (vylučují se).
+            EmojiSuggestionsPanel(
+                emojis = shownEmojis,
+                visible = emojiWord != null,
+                onPick = { emoji ->
+                    val word = emojiWord ?: return@EmojiSuggestionsPanel
+                    haptics.confirm()
+                    val (text, cursor) = emojiReplacement(draft.text, word, emoji)
+                    draft = TextFieldValue(text, selection = TextRange(cursor))
+                    emojiWords.picked(emoji)
+                    viewModel.onDraftChanged(composer.composed)
+                },
+                glass = Modifier.hazeBlur(
+                    input = HazeInput.Sources(listHaze),
+                    style = glassStyle(
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        alpha = GLASS_TEXT_TINT_ALPHA,
+                        fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                    ),
+                ),
             )
             // Fotka letící z prohlížeče zajede pod kartu pole a tlačítko, ne jen za čáru nad nimi.
             CompositionLocalProvider(LocalSharedElementOcclusion provides listClip) {

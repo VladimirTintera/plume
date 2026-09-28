@@ -6808,6 +6808,14 @@ ho mezi nedávná.
   `remember { arrayOf(…) }` a zápis do pole kompozici nevyvolá: obsah uvnitř
   `AnimatedVisibility` zůstal u první sady — po „hear" → „heart" dál 👂 🙉, přestože
   ViewModel už vracel srdce (ověřeno sondou v logu). Opraveno v obou panelech.
+- **Pilulka PLAVE nad polem a místo v rozvržení nezabírá** (`floatAbove`: nulová výška, obsah
+  posazený nad své místo), pod ní je mléčné sklo nad seznamem jako u pruhu připnutých. Dokud
+  stála ve sloupci `bottomBar`, měnila jeho výšku — a o tu se odsazuje seznam zpráv, takže se
+  s každým slovem, ke kterému emoji jsou, celá konverzace zvedla a zase spadla a oči při psaní
+  skákaly za ní. **Obsah mimo hranice rodiče Compose kreslí i nechá ťukat**, dokud nic neořezává;
+  ověřeno ťuknutím na emoji. Stojí proto v `bottomBar` až těsně nad polem (inline výsledky, které
+  jsou mezi, se s ní vylučují). Ostatní napovídání (zmínky, příkazy, klávesnice bota) seznam
+  posouvají dál — jsou vyšší a objevují se vědomě, ne u každého slova.
 - **Ověřeno na emulátoru** v Uložených zprávách jen psaním: „heart" anglicky i „srdce" česky,
   přechod „hear" → „heart", ťuknutí dosadí emoji. Nic se neodeslalo.
 
