@@ -247,8 +247,13 @@ class TdlProfileRepository(
     }
 
     override suspend fun profilePhotos(chatId: Long): Result<List<ProfilePhoto>> = runCatching {
-        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
-        val photos = when (val type = chat.type) {
+        // Kladné id bez chatu je uživatel, se kterým chat TDLib (zatím) nezná — třeba vlastní
+        // účet, kdyby se Uložené zprávy nezaložily. Soukromý chat má id uživatele.
+        val chat = client.getChat(chatId = chatId).toResult().getOrElse { failure ->
+            if (chatId > 0) null else throw failure
+        }
+        val photos = when (val type = chat?.type) {
+            null -> userPhotos(chatId)
             is ChatTypePrivate -> userPhotos(type.userId)
             is ChatTypeSecret -> userPhotos(type.userId)
             is ChatTypeBasicGroup -> groupPhotos(

@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.resources.profile_photos_open
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -95,7 +99,13 @@ import org.jetbrains.compose.resources.stringResource
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun EditProfileScreen(viewModel: EditProfileViewModel, onBack: () -> Unit, modifier: Modifier = Modifier) {
+fun EditProfileScreen(
+    viewModel: EditProfileViewModel,
+    onBack: () -> Unit,
+    /** Ťuknutí na fotku: historie vlastních profilových fotek v prohlížeči (id účtu = id chatu). */
+    onOpenPhotos: (userId: Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val currentOnBack by rememberUpdatedState(onBack)
@@ -178,6 +188,14 @@ fun EditProfileScreen(viewModel: EditProfileViewModel, onBack: () -> Unit, modif
                     title = listOf(viewModel.firstName, viewModel.lastName).joinToString(" ").trim(),
                     avatarFileId = profile.photoFileId ?: profile.photoThumbnailFileId,
                     size = AVATAR_SIZE,
+                    modifier = Modifier
+                        // Ořez před klikáním, jinak by vlnka přetekla z kruhu do čtverce.
+                        .clip(CircleShape)
+                        .clickable(
+                            enabled = profile.photoFileId != null && !viewModel.photoBusy,
+                            onClickLabel = stringResource(Res.string.profile_photos_open),
+                            onClick = { onOpenPhotos(profile.id) },
+                        ),
                 )
                 // Nahrávání fotky trvá: kolečko přes avatar, jako průběh nahrávání přílohy.
                 if (viewModel.photoBusy) CircularWavyProgressIndicator(Modifier.size(AVATAR_SIZE))

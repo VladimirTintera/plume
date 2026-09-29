@@ -643,7 +643,8 @@ private fun shellEntryProvider(
                     key = "media-${route.chatId}-${route.messageId}-${route.pollMedia}-${route.profilePhotos}",
                     parameters = { parametersOf(route.chatId, route.messageId, route.pollMedia, route.profilePhotos) },
                 ),
-                onBack = { chatsStack.pop(route) },
+                // Profilovky vlastního účtu se otevírají z Nastavení, všechno ostatní z Chatů.
+                onBack = { chatsStack.pop(route) || settingsStack.pop(route) },
                 onForward = { messageId ->
                     chatsStack.add(ForwardRoute(route.chatId, listOf(messageId)))
                 },
@@ -821,6 +822,8 @@ private fun shellEntryProvider(
         EditProfileScreen(
             viewModel = koinViewModel(),
             onBack = { settingsStack.pop(route) },
+            // Prohlížeč se vrší nad Nastavení; zavírá se z toho zásobníku, ve kterém leží.
+            onOpenPhotos = { userId -> settingsStack.add(MediaRoute(userId, messageId = 0L, profilePhotos = true)) },
         )
     }
 }

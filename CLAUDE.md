@@ -5500,10 +5500,16 @@ testy `MemberManagementTest`).
   konverzace (`chatAvatarKey`); druhý klíč na tomtéž prvku by se s ním pral. Prohlížeč se
   otevře běžným přechodem.
 - **Bez fotky (iniciály) se na avatar ťuknout nedá** a Uložené zprávy profil nemají.
+- **Vlastní profilovky se otevírají z úpravy profilu** (Nastavení → Obecné → Upravit profil,
+  ťuknutí na fotku). Id účtu je id chatu Uložených zpráv, takže `profilePhotos` nic navíc
+  nepotřebuje; kladné id bez známého chatu vezme rovnou jako uživatele.
+- **Prohlížeč pak leží v zásobníku NASTAVENÍ, ne Chatů** — a zavírá se z toho, ve kterém leží
+  (`chatsStack.pop(route) || settingsStack.pop(route)`). Dokud šlo zavírání jen přes zásobník
+  Chatů, ✕ by v Nastavení nedělalo nic; systémové zpět to nepotřebuje, bere vybranou sekci.
 - **Ověřeno na emulátoru** (česky): člověk se třemi fotkami („3 z 3", listování ke staršímu
   datu), kanál s jednou fotkou („1 z 1"), uložení do galerie (`Pictures/Plume`, jméno podle
-  data přidání). **Animovaná profilovka ani skupina s několika změnami fotky ověřené nejsou**;
-  profilovky vlastního účtu (z Nastavení) zatím nejdou otevřít vůbec.
+  data přidání), vlastní profilovky z úpravy profilu („3 z 3", ✕ i zpět vrací do úpravy
+  profilu). **Animovaná profilovka ani skupina s několika změnami fotky ověřené nejsou.**
 
 ### Sdílená média v profilu
 
