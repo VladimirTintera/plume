@@ -1,5 +1,17 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.unfold_less_24dp
+import eu.tintera.plume.resources.format_quote_expandable
+import eu.tintera.plume.resources.format_code_language_hint
+import eu.tintera.plume.resources.format_code_language
+import eu.tintera.plume.core.telegram.codeLanguageOf
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
@@ -86,6 +98,8 @@ internal fun FormattingBar(
     onChanged: () -> Unit,
     /** „Odkaz": dialog s adresou pro výběr. Drží ho obrazovka — lišta s otevřením dialogu zmizí. */
     onLink: () -> Unit,
+    /** Jazyk bloku kódu u kurzoru: dialog, ze stejného důvodu jako odkaz na obrazovce. */
+    onCodeLanguage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val haptics = LocalHapticFeedback.current
@@ -110,7 +124,47 @@ internal fun FormattingBar(
                 Icon(painterResource(Res.drawable.link_24dp), contentDescription = text)
             }
         }
-        FORMAT_BUTTONS.drop(4).forEach { FormatToggle(composer, it, onChanged) }
+        FORMAT_BUTTONS.drop(4).forEach { button ->
+            FormatToggle(composer, button, onChanged)
+            // Doplňky formátu hned za ním, jen když je kurzor nebo výběr v bloku kódu či citaci:
+            // jinde by nabízely něco, co nemá na čem být.
+            when (button.first) {
+                TextFormat.Code -> AnimatedVisibility(
+                    visible = composer.codeBlock != null,
+                    enter = fadeIn() + expandHorizontally(),
+                    exit = fadeOut() + shrinkHorizontally(),
+                ) {
+                    // Popisek je jazyk sám („kotlin"): ikona by neřekla, co je nastavené.
+                    Labelled(stringResource(Res.string.format_code_language)) { text ->
+                        TextButton(onClick = onCodeLanguage, modifier = Modifier.semantics { contentDescription = text }) {
+                            Text(composer.codeBlock?.language ?: text)
+                        }
+                    }
+                }
+                TextFormat.Quote -> AnimatedVisibility(
+                    visible = composer.quote != null,
+                    enter = fadeIn() + expandHorizontally(),
+                    exit = fadeOut() + shrinkHorizontally(),
+                ) {
+                    val expandable = composer.quote?.format == TextFormat.ExpandableQuote
+                    Labelled(stringResource(Res.string.format_quote_expandable)) { text ->
+                        IconToggleButton(
+                            checked = expandable,
+                            onCheckedChange = {
+                                composer.toggleExpandableQuote()
+                                haptics.toggle(!expandable)
+                                onChanged()
+                            },
+                            shapes = IconButtonDefaults.toggleableShapes(),
+                            colors = toggleColors(),
+                        ) {
+                            Icon(painterResource(Res.drawable.unfold_less_24dp), contentDescription = text)
+                        }
+                    }
+                }
+                else -> Unit
+            }
+        }
         // „Bez formátování" je akce, ne stav — obyčejné tlačítko, zašedlé, když není co sundat.
         Labelled(stringResource(Res.string.format_clear)) { text ->
             IconButton(
@@ -184,6 +238,39 @@ private val FORMAT_BUTTONS: List<Triple<TextFormat, DrawableResource, StringReso
     Triple(TextFormat.Code, Res.drawable.code_24dp, Res.string.format_code),
     Triple(TextFormat.Quote, Res.drawable.format_quote_24dp, Res.string.format_quote),
 )
+
+/**
+ * Jazyk bloku kódu ([current] je ten nastavený). Prázdné pole jazyk sundá; uložit jde jen jedno
+ * slovo ([codeLanguageOf]).
+ */
+@Composable
+internal fun CodeLanguageDialog(current: String?, onConfirm: (String?) -> Unit, onDismiss: () -> Unit) {
+    var text by rememberSaveable { mutableStateOf(current.orEmpty()) }
+    val language = codeLanguageOf(text)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.format_code_language)) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                placeholder = { Text(stringResource(Res.string.format_code_language_hint)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            // Prázdné = bez jazyka, to jde uložit taky; mezera uprostřed ne.
+            TextButton(enabled = text.isBlank() || language != null, onClick = { onConfirm(language) }) {
+                Text(stringResource(Res.string.format_link_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+        },
+    )
+}
 
 /**
  * Adresa odkazu s popiskem. [current] je adresa, na kterou výběr už odkazuje — pak jde změnit

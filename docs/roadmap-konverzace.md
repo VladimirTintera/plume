@@ -345,7 +345,7 @@ upravovat). Poučení v `CLAUDE.md`, „Formátování při psaní". Zbývá:
 - **Ověřit iOS** (jen přeložené) — hlavně jestli lištu pod polem nepřekryje systémová nabídka
   výběru nebo návrhy klávesnice.
 - ~~**Psaní s formátem bez výběru**~~ — hotovo: ikona „Aa" v poli otevře lištu, formát platí pro další psaní (`CLAUDE.md`, „Formátování při psaní").
-- **Sbalitelná citace** z nabídky (dnes se jen přenáší z upravované zprávy) a **jazyk bloku kódu**.
+- ~~**Sbalitelná citace** z lišty a **jazyk bloku kódu**~~ — hotovo (`CLAUDE.md`, „Formátování při psaní").
 - **`Modifier.contentReceiver`** místo obchvatu přes `InterceptPlatformTextInput` u GIFů
   z klávesnice by chtěl pole nad `TextFieldState`; formátování na to nepotřebovalo čekat
   (vlastní rozsahy nad `TextFieldValue`), takže přechod zůstává samostatný úkol.

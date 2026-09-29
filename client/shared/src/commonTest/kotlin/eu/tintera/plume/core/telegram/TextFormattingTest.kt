@@ -236,12 +236,60 @@ class TextFormattingTest {
     fun coPoleNeuneseToUpravuZakaze() {
         val text = "klikni sem"
         assertNull(composedFormatsOf(text, listOf(MessageEntity(0, 6, MessageEntityType.MentionUser(1)))))
-        assertNull(composedFormatsOf(text, listOf(MessageEntity(0, 6, MessageEntityType.Code(true, "kotlin")))))
         // Blok bez jazyka pole unese.
         assertEquals(
             listOf(FormatSpan(CodeBlock, 0, 6)),
             composedFormatsOf(text, listOf(MessageEntity(0, 6, MessageEntityType.Code(block = true)))),
         )
+    }
+
+    @Test
+    fun jazykBlokuKoduPoleUnese() {
+        // Dřív úpravu zakázal — pole jazyk neneslo a úprava by ho smazala.
+        val text = "val x"
+        assertEquals(
+            listOf(FormatSpan(CodeBlock, 0, 5, language = "kotlin")),
+            composedFormatsOf(text, listOf(MessageEntity(0, 5, MessageEntityType.Code(true, "kotlin")))),
+        )
+    }
+
+    @Test
+    fun jazykSeNastaviASunduBlokuUKurzoru() {
+        val block = FormatSpan(CodeBlock, 2, 8)
+        val spans = listOf(FormatSpan(Bold, 0, 1), block)
+        assertEquals(block, spans.codeBlockAt(5, 5))
+        assertEquals(block, spans.codeBlockAt(8, 8))
+        assertNull(spans.codeBlockAt(1, 1))
+        val withKotlin = spans.withLanguage(block, "kotlin")
+        assertEquals(listOf(FormatSpan(Bold, 0, 1), FormatSpan(CodeBlock, 2, 8, language = "kotlin")), withKotlin)
+        assertEquals(spans, withKotlin.withLanguage(withKotlin[1], null))
+    }
+
+    @Test
+    fun jazykJeJednoSlovo() {
+        assertEquals("kotlin", codeLanguageOf("  kotlin "))
+        assertEquals("c++", codeLanguageOf("c++"))
+        assertNull(codeLanguageOf(""))
+        assertNull(codeLanguageOf("objective c"))
+        assertNull(codeLanguageOf("x".repeat(33)))
+    }
+
+    @Test
+    fun blokySRuznymJazykemSeNespoji() {
+        // Merge spojuje jen stejné rozsahy — sousední bloky v jiném jazyce jsou dva bloky.
+        val spans = listOf(FormatSpan(CodeBlock, 0, 3, language = "kotlin"), FormatSpan(CodeBlock, 3, 6, language = "swift"))
+        assertEquals(spans, spans.afterEdit("abcdef", "abcdef"))
+        assertEquals(2, spans.toggled(Bold, 0, 6, "abcdef").count { it.format == CodeBlock })
+    }
+
+    @Test
+    fun citaceSePrepinaNaSbalitelnouAZpet() {
+        val quote = FormatSpan(Quote, 0, 10)
+        val spans = listOf(quote)
+        assertEquals(quote, spans.quoteAt(4, 4))
+        val expandable = spans.toggledExpandable(quote)
+        assertEquals(listOf(FormatSpan(ExpandableQuote, 0, 10)), expandable)
+        assertEquals(spans, expandable.toggledExpandable(expandable.single()))
     }
 
     @Test

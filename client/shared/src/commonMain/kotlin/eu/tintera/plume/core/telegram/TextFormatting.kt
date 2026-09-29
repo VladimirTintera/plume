@@ -44,9 +44,16 @@ enum class TextFormat {
 
 /**
  * Formátovaný úsek `[start, end)` rozepsaného textu, v UTF-16 jednotkách jako `String`.
- * [url] je adresa odkazu ([TextFormat.Link]); u ostatních formátů `null`.
+ * [url] je adresa odkazu ([TextFormat.Link]), [language] jazyk bloku kódu
+ * ([TextFormat.CodeBlock], `pre` s jazykem); u ostatních formátů `null`.
  */
-data class FormatSpan(val format: TextFormat, val start: Int, val end: Int, val url: String? = null)
+data class FormatSpan(
+    val format: TextFormat,
+    val start: Int,
+    val end: Int,
+    val url: String? = null,
+    val language: String? = null,
+)
 
 /**
  * Rozepsaný text i s ručním formátováním — to, co vstupní pole odešle, uloží jako koncept
@@ -269,6 +276,44 @@ fun List<FormatSpan>.typed(start: Int, end: Int, pending: PendingFormats, text: 
     return result
 }
 
+/**
+ * Blok kódu, ve kterém leží úsek `[start, end)` (kurzor, když `start == end`), nebo `null`.
+ * Podle něj lišta nabídne jazyk bloku.
+ */
+fun List<FormatSpan>.codeBlockAt(start: Int, end: Int): FormatSpan? =
+    firstOrNull { it.format == TextFormat.CodeBlock && it.start <= start && it.end >= end }
+
+/** Nastaví bloku kódu [block] jazyk; `null` ho sundá. Ostatní rozsahy zůstanou. */
+fun List<FormatSpan>.withLanguage(block: FormatSpan, language: String?): List<FormatSpan> =
+    map { if (it == block) it.copy(language = language) else it }
+
+/**
+ * Jazyk bloku kódu z toho, co uživatel napsal, nebo `null` = bez jazyka. Jedno slovo bez mezer,
+ * jak ho píšou ostatní klienti za ` ``` ` (`kotlin`, `c++`, `objective-c`); delší text by
+ * zvýrazňování kódu u příjemce stejně nepoznalo.
+ */
+fun codeLanguageOf(text: String): String? =
+    text.trim().takeIf { it.isNotEmpty() && it.length <= MAX_CODE_LANGUAGE && it.none(Char::isWhitespace) }
+
+/** Delší jazyk nikdo nepíše; strop brání tomu, aby se do entity dostal celý odstavec. */
+private const val MAX_CODE_LANGUAGE = 32
+
+/**
+ * Citace (i sbalitelná), ve které leží úsek `[start, end)` nebo kurzor, nebo `null`. Podle ní
+ * lišta nabídne sbalitelnou citaci.
+ */
+fun List<FormatSpan>.quoteAt(start: Int, end: Int): FormatSpan? =
+    firstOrNull { it.format.family == TextFormat.Quote && it.start <= start && it.end >= end }
+
+/**
+ * Přepne citaci [quote] mezi obyčejnou a sbalitelnou — ostatní klienti sbalitelnou ukazují
+ * na pár řádků se „Zobrazit víc". Je to tatáž citace, mění se jen druh, rozsah zůstává.
+ */
+fun List<FormatSpan>.toggledExpandable(quote: FormatSpan): List<FormatSpan> {
+    val format = if (quote.format == TextFormat.ExpandableQuote) TextFormat.Quote else TextFormat.ExpandableQuote
+    return map { if (it == quote) it.copy(format = format) else it }
+}
+
 /** Sundá z `[start, end)` všechno formátování („Bez formátování"). */
 fun List<FormatSpan>.cleared(start: Int, end: Int): List<FormatSpan> {
     if (start >= end) return this
@@ -295,7 +340,7 @@ private fun List<FormatSpan>.removed(family: TextFormat, start: Int, end: Int): 
  * adresou — dva sousední odkazy jinam jsou dva odkazy.
  */
 private fun List<FormatSpan>.merged(): List<FormatSpan> =
-    groupBy { it.format to it.url }.flatMap { (_, spans) ->
+    groupBy { Triple(it.format, it.url, it.language) }.flatMap { (_, spans) ->
         spans.sortedBy { it.start }.fold(mutableListOf<FormatSpan>()) { acc, span ->
             val last = acc.lastOrNull()
             if (last != null && span.start <= last.end) {
@@ -320,8 +365,9 @@ private fun String.lineBounds(start: Int, end: Int): Pair<Int, Int> {
  * a úprava by ho tiše smazala.
  *
  * Co se při odeslání dohledá znovu (odkaz psaný v textu, zmínka `@jméno`, hashtag, příkaz bota,
- * čas v médiu), pole nést nemusí. Odkaz s vlastním popiskem nese pole samo ([TextFormat.Link]).
- * Zmínka jménem, vlastní emoji, datum a blok kódu s jazykem ale z textu poznat nejdou.
+ * čas v médiu), pole nést nemusí. Odkaz s vlastním popiskem nese pole samo ([TextFormat.Link]),
+ * stejně jako jazyk bloku kódu ([FormatSpan.language]). Zmínka jménem, vlastní emoji a datum
+ * ale z textu poznat nejdou.
  */
 fun composedFormatsOf(text: String, entities: List<MessageEntity>): List<FormatSpan>? =
     formatsOf(text, entities, strict = true)
@@ -345,7 +391,10 @@ private fun formatsOf(text: String, entities: List<MessageEntity>, strict: Boole
             MessageEntityType.Strikethrough -> TextFormat.Strikethrough
             MessageEntityType.Spoiler -> TextFormat.Spoiler
             is MessageEntityType.Code -> when {
-                type.language.isNotEmpty() && strict -> return null
+                type.block && type.language.isNotEmpty() -> {
+                    if (end > start) spans += FormatSpan(TextFormat.CodeBlock, start, end, language = type.language)
+                    null
+                }
                 type.block -> TextFormat.CodeBlock
                 else -> TextFormat.Code
             }

@@ -24,6 +24,10 @@ import eu.tintera.plume.core.telegram.ComposedText
 import eu.tintera.plume.core.telegram.FormatSpan
 import eu.tintera.plume.core.telegram.PendingFormats
 import eu.tintera.plume.core.telegram.clearedPending
+import eu.tintera.plume.core.telegram.codeBlockAt
+import eu.tintera.plume.core.telegram.quoteAt
+import eu.tintera.plume.core.telegram.toggledExpandable
+import eu.tintera.plume.core.telegram.withLanguage
 import eu.tintera.plume.core.telegram.toggledPending
 import eu.tintera.plume.core.telegram.typed
 import eu.tintera.plume.core.telegram.typingAt
@@ -150,6 +154,25 @@ internal class ComposerDraft(value: TextFieldValue = TextFieldValue(), formats: 
             }
         }
 
+    /** Blok kódu u výběru nebo kurzoru — lišta mu nabídne jazyk. */
+    val codeBlock: FormatSpan?
+        get() = value.selection.let { formats.codeBlockAt(it.min, it.max) }
+
+    /** Citace u výběru nebo kurzoru — lišta ji nabídne přepnout na sbalitelnou. */
+    val quote: FormatSpan?
+        get() = value.selection.let { formats.quoteAt(it.min, it.max) }
+
+    /** Jazyk bloku kódu, který leží na `[start, end)`; `null` ho sundá. */
+    fun setCodeLanguage(start: Int, end: Int, language: String?) {
+        val block = formats.codeBlockAt(start, end) ?: return
+        formats = formats.withLanguage(block, language)
+    }
+
+    fun toggleExpandableQuote() {
+        val quote = quote ?: return
+        formats = formats.toggledExpandable(quote)
+    }
+
     /** Adresa odkazu na celém výběru, nebo `null` — podle toho dialog odkazu nabídne úpravu. */
     val selectionLink: String?
         get() = value.selection.let { formats.linkAt(it.min, it.max) }
@@ -183,7 +206,7 @@ internal class ComposerDraft(value: TextFieldValue = TextFieldValue(), formats: 
                     draft.value.selection.end,
                     // Oddělovače mimo tisknutelné znaky: adresa odkazu obsahuje „:" i „;".
                     draft.formats.joinToString(RECORD) {
-                        listOf(it.format.name, it.start, it.end, it.url.orEmpty()).joinToString(FIELD)
+                        listOf(it.format.name, it.start, it.end, it.url.orEmpty(), it.language.orEmpty()).joinToString(FIELD)
                     },
                 )
             },
@@ -191,13 +214,15 @@ internal class ComposerDraft(value: TextFieldValue = TextFieldValue(), formats: 
                 ComposerDraft(
                     value = TextFieldValue(saved[0] as String, TextRange(saved[1] as Int, saved[2] as Int)),
                     formats = (saved[3] as String).split(RECORD).filter { it.isNotEmpty() }.mapNotNull { entry ->
-                        val fields = entry.split(FIELD).takeIf { it.size == 4 } ?: return@mapNotNull null
+                        // Čtyři pole ukládala verze před jazykem bloku kódu.
+                        val fields = entry.split(FIELD).takeIf { it.size == 4 || it.size == 5 } ?: return@mapNotNull null
                         val format = TextFormat.entries.firstOrNull { it.name == fields[0] } ?: return@mapNotNull null
                         FormatSpan(
                             format = format,
                             start = fields[1].toIntOrNull() ?: return@mapNotNull null,
                             end = fields[2].toIntOrNull() ?: return@mapNotNull null,
                             url = fields[3].ifEmpty { null },
+                            language = fields.getOrNull(4)?.ifEmpty { null },
                         )
                     },
                 )

@@ -3305,10 +3305,10 @@ u pole (`ScheduledMessagesSheet`): odeslat hned, změnit čas, smazat.
 text, tlačítko je fajfka a potvrzení volá `editMessageText`.
 
 - **Nenabízí se u zpráv, jejichž obsah pole neunese** (`composerEdit`, `composedFormatsOf`).
-  Ruční formátování (tučné, kurzíva, podtržení, přeškrtnutí, spoiler, kód, citace) i odkaz
-  s vlastním popiskem pole nese (viz „Formátování při psaní"); odkazy psané v textu, `@jméno`,
-  hashtagy, příkazy a čas v médiu se při uložení dohledají znovu. Zmínka jménem, vlastní emoji,
-  datum a blok kódu s jazykem by úprava tiše smazala — u nich „Upravit" není. Automatický odkaz se
+  Ruční formátování (tučné, kurzíva, podtržení, přeškrtnutí, spoiler, kód i blok kódu s jazykem,
+  citace i sbalitelná) i odkaz s vlastním popiskem pole nese (viz „Formátování při psaní");
+  odkazy psané v textu, `@jméno`, hashtagy, příkazy a čas v médiu se při uložení dohledají znovu.
+  Zmínka jménem, vlastní emoji a datum by úprava tiše smazala — u nich „Upravit" není. Automatický odkaz se
   pozná tak, že jeho text v adrese opravdu stojí.
 - **Popisek přílohy je JINÉ volání** (`editMessageCaption` vedle `editMessageText`), takže
   pravidlo neříká jen „jde to", ale i CO se upravuje (`ComposerEdit.Text` / `Caption`). Jedno
@@ -3408,8 +3408,17 @@ funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
 - **V kódu se nic nedohledává** (`detectEntities`): kód nesmí obsahovat jiné entity. Tučné
   a kurzívu uvnitř kódu TDLib při odeslání sám zahodí bez chyby (ověřeno: bot dostal jen `code`).
 - **Doménový `MessageEntityType.Code` nese `block` a `language`** — kvůli úpravě: bez nich by se
-  blok kódu vrátil jako kód v řádku a jazyk bloku by úprava smazala (u bloku s jazykem se proto
-  „Upravit" nenabízí).
+  blok kódu vrátil jako kód v řádku a jazyk bloku by úprava smazala.
+- **Jazyk bloku kódu nese `FormatSpan.language`** a odchází jako `preCode` (bez jazyka `pre`,
+  prázdný jazyk je jako žádný). Tlačítko s jazykem („Jazyk kódu", popiskem je jazyk sám, třeba
+  „kotlin") se v liště objeví hned za Kódem, jen když kurzor nebo výběr leží v bloku kódu
+  (`codeBlockAt`); dialog drží obrazovka ze stejného důvodu jako dialog odkazu. Jazyk je jedno
+  slovo bez mezer do 32 znaků (`codeLanguageOf`), prázdné pole ho sundá. Rozsahy se spojují jen
+  se stejným jazykem (`merged`), takže sousední bloky v různých jazycích zůstanou dva. Uložený
+  stav pole má páté pole pro jazyk; stav se čtyřmi poli (starší verze) se čte dál.
+- **Sbalitelná citace je přepínač za Citací** (`unfold_less`, jen když kurzor nebo výběr leží
+  v citaci, `quoteAt`). Mění jen druh citace (`toggledExpandable`), rozsah zůstává — obyčejnou
+  a sbalitelnou TDLib stejně nedovolí vnořit.
 - **Odkaz s popiskem je formát s adresou** (`TextFormat.Link`, `FormatSpan.url` →
   `TextEntityTypeTextUrl`). „Odkaz" v liště otevře dialog s adresou (`LinkDialog`,
   `linkTargetOf`: bez schématu `https://`, jinak jen `http(s)`, `tg://` a `mailto:`). Dialog
