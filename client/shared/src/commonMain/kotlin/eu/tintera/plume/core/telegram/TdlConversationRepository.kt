@@ -1952,7 +1952,7 @@ class TdlConversationRepository(
                 ?.takeIf { it.isManual }
                 ?.text?.text
                 ?.takeIf { it.isNotEmpty() },
-            isService = content.serviceText() != null,
+            isService = content.serviceText(isChannelPost) != null,
             timestamp = date,
             isEdited = editDate > 0,
             mediaAlbumId = mediaAlbumId,
@@ -2001,7 +2001,8 @@ class TdlConversationRepository(
         val sourceChat = chatId.takeIf { it != 0L }
         val name = origin?.name ?: sourceChat?.let { resolveSender(it)?.title }
         val text = quote?.text?.text?.takeIf { it.isNotBlank() }
-            ?: content?.previewTextOrNull(isOutgoing = false)
+            // Obsah z jiného chatu nese jen `origin`; příspěvek kanálu se pozná z něj.
+            ?: content?.previewTextOrNull(isOutgoing = false, isChannelPost = this.origin is MessageOriginChannel)
             ?: ""
         val quote = ChatMessage(
             id = messageId,

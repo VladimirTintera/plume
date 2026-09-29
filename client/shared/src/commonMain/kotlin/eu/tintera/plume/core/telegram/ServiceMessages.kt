@@ -136,6 +136,7 @@ import eu.tintera.plume.resources.service_video_chat_ended
 import eu.tintera.plume.resources.service_video_chat_scheduled
 import eu.tintera.plume.resources.service_video_chat_started
 import org.jetbrains.compose.resources.PluralStringResource
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.getPluralString
 import org.jetbrains.compose.resources.getString
 
@@ -152,8 +153,12 @@ import org.jetbrains.compose.resources.getString
  *
  * `null` pro obyčejný obsah je zároveň odpověď na otázku „je tohle servisní zpráva?" — jedno
  * místo rozhoduje o textu i o způsobu vykreslení, takže se ty dva nemůžou rozejít.
+ *
+ * [isChannelPost] je `Message.isChannelPost` zprávy, které obsah patří. Sám obsah někdy neřekne,
+ * jestli jde o kanál, nebo o skupinu (viz [supergroupCreatedText]); výchozí hodnotu parametr
+ * schválně nemá, ať se na to žádné volající místo nezapomene zeptat.
  */
-internal suspend fun MessageContent.serviceText(): String? = when (this) {
+internal suspend fun MessageContent.serviceText(isChannelPost: Boolean): String? = when (this) {
     is MessageChatAddMembers -> getString(Res.string.service_members_added)
     is MessageChatJoinByLink -> getString(Res.string.service_joined_by_link)
     is MessageChatJoinByRequest -> getString(Res.string.service_join_approved)
@@ -172,7 +177,7 @@ internal suspend fun MessageContent.serviceText(): String? = when (this) {
     }
 
     is MessageBasicGroupChatCreate -> getString(Res.string.service_group_created, title)
-    is MessageSupergroupChatCreate -> getString(Res.string.service_channel_created, title)
+    is MessageSupergroupChatCreate -> getString(supergroupCreatedText(isChannelPost), title)
     // Převod na supergrupu se uživateli jeví jako jedna a tatáž skupina, takže nemá cenu
     // vysvětlovat, co se změnilo pod kapotou.
     is MessageChatUpgradeTo -> getString(Res.string.service_group_upgraded)
@@ -280,6 +285,17 @@ internal suspend fun MessageContent.serviceText(): String? = when (this) {
      */
     else -> null
 }
+
+/**
+ * Věta o založení supergroupy — tedy skupiny, NEBO kanálu.
+ *
+ * TDLib posílá `MessageSupergroupChatCreate` pro obojí („a newly created supergroup or channel")
+ * a obsah sám druh nenese. Dokud tu natvrdo stál kanál, hlásila každá nově založená skupina
+ * „Kanál „X“ vytvořen" — v konverzaci i v náhledu v seznamu chatů. Rozliší to až zpráva:
+ * v kanálu je každý příspěvek, i servisní, `isChannelPost`.
+ */
+internal fun supergroupCreatedText(isChannelPost: Boolean): StringResource =
+    if (isChannelPost) Res.string.service_channel_created else Res.string.service_group_created
 
 /**
  * Věta s počtem hvězd.

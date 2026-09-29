@@ -236,7 +236,8 @@ internal suspend fun Message.notificationText(): String =
     previewTextOrNull() ?: getString(Res.string.notification_new_message)
 
 // Omezená zpráva má místo obsahu důvod — i v náhledu a v notifikaci, jinak by tam obsah prosákl.
-private suspend fun Message.previewTextOrNull(): String? = restrictionText ?: content.previewTextOrNull(isOutgoing)
+private suspend fun Message.previewTextOrNull(): String? =
+    restrictionText ?: content.previewTextOrNull(isOutgoing = isOutgoing, isChannelPost = isChannelPost)
 
 /** Entity náhledu v seznamu chatů; omezená zpráva má místo obsahu důvod, a ten entity nenese. */
 internal fun Message.previewEntities(): List<MessageEntity> =
@@ -246,8 +247,9 @@ internal fun Message.previewEntities(): List<MessageEntity> =
  * Slovní podoba obsahu, i bez celé zprávy — odpověď na zprávu z jiného chatu nese jen obsah
  * citované zprávy, ne zprávu samotnou. [isOutgoing] je směr zprávy, které obsah patří (podle
  * něj se jmenuje zpráva o hovoru); u citace z jiného chatu ho neznáme a je `false`.
+ * [isChannelPost] je `Message.isChannelPost` téže zprávy (kanál, nebo skupina, viz [serviceText]).
  */
-internal suspend fun MessageContent.previewTextOrNull(isOutgoing: Boolean): String? = when (val content = this) {
+internal suspend fun MessageContent.previewTextOrNull(isOutgoing: Boolean, isChannelPost: Boolean): String? = when (val content = this) {
     is MessageText -> content.text.text
     is MessagePhoto -> content.caption.text.ifBlankGet { getString(Res.string.media_photo) }
     is MessageVideo -> content.caption.text.ifBlankGet { getString(Res.string.media_video) }
@@ -263,7 +265,7 @@ internal suspend fun MessageContent.previewTextOrNull(isOutgoing: Boolean): Stri
     is MessageDice -> content.diceText()
     // Směr a zmeškání zná jen zpráva (`isOutgoing`), obsah sám ne — proto tady, ne v `describe`.
     is MessageCall -> getString(content.outcome(isOutgoing).title(content.isVideo))
-    else -> content.describe()
+    else -> content.describe(isChannelPost)
 }
 
 /**
@@ -330,7 +332,7 @@ internal suspend fun PushMessageContent.previewText(): String = when (this) {
  * takže se anketa, poloha i systémové oznámení tvářily stejně — a hlavně to vypadalo jako chyba
  * načítání, ne jako „tohle zatím neumíme".
  */
-private suspend fun MessageContent.describe(): String? = when (this) {
+private suspend fun MessageContent.describe(isChannelPost: Boolean): String? = when (this) {
     is MessageVideoNote -> getString(Res.string.content_video_note)
     is MessagePoll -> getString(Res.string.content_poll, poll.question.text)
     is MessageChecklist -> getString(Res.string.content_checklist, list.title.text)
@@ -371,7 +373,7 @@ private suspend fun MessageContent.describe(): String? = when (this) {
 
     // Systémová oznámení mají vlastní formulace i vykreslení. `null` = typ neumíme popsat
     // a jakou větou to říct, rozhodne volající (v aplikaci jinou než v notifikaci).
-    else -> serviceText() ?: run {
+    else -> serviceText(isChannelPost) ?: run {
         reportUnknownContent(this)
         null
     }
