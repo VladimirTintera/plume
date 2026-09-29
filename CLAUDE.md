@@ -3441,7 +3441,15 @@ funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
   změnu i odebrání. Formát bez výběru (česky, Pixel 9):
   „Aa" otevře lištu, zapnuté tučné platí pro napsané „XY", vypnuté pro „zz" za ním; odkaz je
   bez výběru zašedlý. Formátovaná zpráva psaná bez výběru se přes Bot API neověřovala — odeslání
-  jde stejnou cestou rozsahů. iOS jen přeložené.
+  jde stejnou cestou rozsahů. Jazyk bloku kódu a sbalitelná citace (česky, Pixel 9): tlačítko
+  jazyka se objeví za Kódem až nad blokem kódu, po uložení ukazuje „kotlin"; přepínač sbalitelné
+  citace se objeví za Citací až v citaci; bot přes Bot API dostal `pre` s `language: kotlin`
+  a `expandable_blockquote`. iOS jen přeložené.
+- **Dva řádky na emulátoru jdou hardwarovým Enterem** (`adb shell input keyevent 66`) — vloží nový
+  řádek, kdežto Enter softwarové klávesnice odesílá (`ImeAction.Send`). Rozepsaný koncept se dá
+  při zkoušce odložit do schránky (`input keycombination 113 29`, pak `113 52`) a vrátit
+  (`113 50`); Gboard ale při vložení do prázdného pole přidá na začátek mezeru, takže se po
+  vrácení musí porovnat text (`uiautomator dump`) a mezera smazat.
 
 ### Náhled odkazu při psaní
 
