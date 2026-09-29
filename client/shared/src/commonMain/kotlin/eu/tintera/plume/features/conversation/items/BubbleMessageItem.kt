@@ -174,7 +174,12 @@ internal data class BubbleMessageItem(
         var expanded by rememberSaveable(message.id) { mutableStateOf(false) }
         /*
          * Že se text nevešel, se pozná až z layoutu — a po rozbalení se vejde vždycky, takže by
-         * rozbalovač zmizel a nešlo by sbalit zpátky. Drží se proto, že se to stalo.
+         * rozbalovač zmizel a nešlo by sbalit zpátky. Rozbalená citace proto drží, co bylo.
+         *
+         * **Sbalená bere POSLEDNÍ měření, ne kterékoli.** Čerstvě odeslaná zpráva se poprvé měří
+         * v jiné šířce (přilétá z pole) a to měření přetečení nahlásí i u jednoho řádku. Dokud se
+         * příznak jen zapínal, zůstalo u krátké citace „Zobrazit víc" viset, dokud se chat
+         * neotevřel znovu.
          */
         var overflowed by remember(message.id) { mutableStateOf(false) }
         /*
@@ -208,7 +213,7 @@ internal data class BubbleMessageItem(
                 // Dolů pás na okraj bubliny nesahá — pod ním stojí rozbalovač na její běžné
                 // ploše —, ale odsazení uvnitř má stejné jako nahoře.
                 bleedBottom = MESSAGE_PADDING_V,
-                onOverflow = { if (it) overflowed = true },
+                onOverflow = { if (!expanded) overflowed = it },
                 wholeTextQuote = true,
             )
         }

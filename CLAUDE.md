@@ -3973,7 +3973,15 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   popiskem, a k němu ještě spodní odsazení bubliny.
 - **Že se text nevešel, se pozná až z layoutu** (`hasVisualOverflow` přes `onOverflow`) — a po
   rozbalení se vejde vždycky. Kdyby se rozbalovač řídil jen aktuálním přetečením, po rozbalení by
-  zmizel a nešlo by sbalit zpátky; drží se proto příznak, že se to STALO.
+  zmizel a nešlo by sbalit zpátky; ROZBALENÁ citace proto drží, co bylo.
+- **Sbalená citace ale bere POSLEDNÍ měření, ne kterékoli.** Čerstvě odeslaná zpráva se poprvé
+  měří v jiné šířce (přilétá z pole) a to měření přetečení nahlásí i u jednoho řádku. Dokud se
+  příznak jen zapínal („stalo se to"), zůstalo u krátké sbalitelné citace „Zobrazit víc" viset,
+  dokud se chat neotevřel znovu. **Obecně: příznak odvozený z layoutu, který se jen zapíná,
+  zakonzervuje i měření, které platilo jeden snímek.** Ověřeno dočasným logem v `onTextLayout`:
+  „Kratka citace" se při odeslání změřila v omezení 195 px místo 232 a ohlásila přetečení výšky,
+  všechna další měření ne. Na emulátoru pak s opravou krátká citace po odeslání rozbalovač nemá,
+  dlouhá (od bota) ho má a rozbalí se i sbalí.
 - **Při odesílání se entity dohledávají** (`getTextEntities`), jinak odkaz odejde jako mrtvý text —
   server si ho sám neoznačí. Když dohledání selže, zpráva stejně odejde.
 
