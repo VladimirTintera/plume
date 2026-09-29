@@ -346,6 +346,9 @@ upravovat). Poučení v `CLAUDE.md`, „Formátování při psaní". Zbývá:
   výběru nebo návrhy klávesnice.
 - ~~**Psaní s formátem bez výběru**~~ — hotovo: ikona „Aa" v poli otevře lištu, formát platí pro další psaní (`CLAUDE.md`, „Formátování při psaní").
 - ~~**Sbalitelná citace** z lišty a **jazyk bloku kódu**~~ — hotovo (`CLAUDE.md`, „Formátování při psaní").
+- **Jednořádková sbalitelná citace ukázala hned po odeslání „Zobrazit víc"**, i když nebylo co
+  rozbalit; po znovuotevření chatu rozbalovač zmizel. Příčina zjištěná není — nejspíš příznak
+  přetečení z prvního měření bubliny, který se drží, i když se text pak vejde.
 - **`Modifier.contentReceiver`** místo obchvatu přes `InterceptPlatformTextInput` u GIFů
   z klávesnice by chtěl pole nad `TextFieldState`; formátování na to nepotřebovalo čekat
   (vlastní rozsahy nad `TextFieldValue`), takže přechod zůstává samostatný úkol.
