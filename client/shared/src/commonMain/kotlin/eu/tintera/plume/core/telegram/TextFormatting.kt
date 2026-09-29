@@ -199,6 +199,76 @@ fun linkTargetOf(text: String): String? {
     return url
 }
 
+/**
+ * Formát zapnutý nebo vypnutý u kurzoru bez výběru — „zapnout tučné a psát dál".
+ *
+ * Platí pro text napsaný PŘÍMO na [cursor] ([typed]). Dál už se o nic starat nemusí: text psaný
+ * na konec rozsahu do něj patří ([afterEdit]), takže napsané tučné slovo pokračuje tučně samo
+ * a text napsaný bez formátu za ním zůstane bez něj. Přesun kurzoru čekající změny zahodí —
+ * patří místu, kde uživatel formát přepnul.
+ *
+ * [on] a [off] jsou RODINY ([TextFormat.family]), jako u přepínání na výběru.
+ */
+data class PendingFormats(
+    val cursor: Int,
+    val on: Set<TextFormat> = emptySet(),
+    val off: Set<TextFormat> = emptySet(),
+)
+
+/**
+ * Rodiny formátů, ve kterých by pokračoval text napsaný na [cursor] ([afterEdit]): rozsah začíná
+ * před kurzorem a končí na něm nebo za ním. Odkaz se psaním neprodlužuje, takže mezi nimi není.
+ */
+fun List<FormatSpan>.continuingAt(cursor: Int): Set<TextFormat> =
+    filter { it.format != TextFormat.Link && it.start < cursor && it.end >= cursor }
+        .mapTo(mutableSetOf()) { it.format.family }
+
+/** Rodiny, ve kterých se na [cursor] bude psát: co pokračuje, změněné čekajícími formáty. */
+fun List<FormatSpan>.typingAt(cursor: Int, pending: PendingFormats?): Set<TextFormat> {
+    val active = continuingAt(cursor).toMutableSet()
+    if (pending != null && pending.cursor == cursor) {
+        active -= pending.off
+        active += pending.on
+    }
+    return active
+}
+
+/**
+ * Přepne [format] pro psaní na [cursor]. Čekající změny z jiného místa se zahodí. Vypnutí
+ * formátu, ve kterém by se psalo dál, se pamatuje jako [PendingFormats.off]; zapnutí nového
+ * jako [PendingFormats.on]; druhé ťuknutí vrátí původní stav.
+ */
+fun List<FormatSpan>.toggledPending(format: TextFormat, cursor: Int, pending: PendingFormats?): PendingFormats {
+    val family = format.family
+    val base = pending?.takeIf { it.cursor == cursor } ?: PendingFormats(cursor)
+    val continuing = family in continuingAt(cursor)
+    val active = family in typingAt(cursor, base)
+    return when {
+        active && continuing -> base.copy(off = base.off + family)
+        active -> base.copy(on = base.on - family)
+        continuing -> base.copy(off = base.off - family)
+        else -> base.copy(on = base.on + family)
+    }
+}
+
+/** „Bez formátování" u kurzoru: psát dál bez čehokoli, co by jinak pokračovalo. */
+fun List<FormatSpan>.clearedPending(cursor: Int): PendingFormats = PendingFormats(cursor, off = continuingAt(cursor))
+
+/**
+ * Použije čekající formáty na text napsaný na `[start, end)`. Kód přes víc řádků je blok kódu,
+ * stejně jako u výběru ([toggled]).
+ */
+fun List<FormatSpan>.typed(start: Int, end: Int, pending: PendingFormats, text: String): List<FormatSpan> {
+    if (start >= end) return this
+    var result = this
+    pending.off.forEach { family -> result = result.removed(family, start, end) }
+    pending.on.forEach { family ->
+        val format = if (family == TextFormat.Code && '\n' in text.substring(start, end)) TextFormat.CodeBlock else family
+        result = (result.removed(family, start, end) + FormatSpan(format, start, end)).merged()
+    }
+    return result
+}
+
 /** Sundá z `[start, end)` všechno formátování („Bez formátování"). */
 fun List<FormatSpan>.cleared(start: Int, end: Int): List<FormatSpan> {
     if (start >= end) return this

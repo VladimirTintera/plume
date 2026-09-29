@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.material3.IconToggleButton
+import eu.tintera.plume.resources.format_open
+import eu.tintera.plume.resources.text_format_24dp
 import eu.tintera.plume.core.telegram.ComposedText
 import eu.tintera.plume.core.telegram.linkAt
 import eu.tintera.plume.core.ui.SwipeDirection
@@ -2647,6 +2650,9 @@ private fun MessageInput(
     // Nahoře, ne u pole: podle fokusu se ukazuje i návrh vložení ze schránky nad polem.
     val fieldInteraction = remember { MutableInteractionSource() }
     val fieldFocused by fieldInteraction.collectIsFocusedAsState()
+    // Lišta formátování bez výběru (ikona „Aa"). S odchodem z pole se zavře.
+    var formattingOpen by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(fieldFocused) { if (!fieldFocused) formattingOpen = false }
 
     var linkOptionsOpen by rememberSaveable { mutableStateOf(false) }
     // Náhled, který zmizel (smazaný odkaz, odeslaná zpráva), si sheet nenechá otevřený.
@@ -2986,6 +2992,29 @@ private fun MessageInput(
                     )
                 }
             }
+            /*
+             * „Aa": lišta formátování i bez označeného textu — zapnout tučné a psát dál. Jen při
+             * psaní (pole má fokus); jinak by v kartě pole byla ikona navíc pro všechny, i pro
+             * toho, kdo formátování nepoužívá. S výběrem vyjede lišta sama, ikona je pak zapnutá.
+             */
+            AnimatedVisibility(
+                visible = fieldFocused && !isRecording,
+                enter = fadeIn() + expandHorizontally(),
+                exit = fadeOut() + shrinkHorizontally(),
+                modifier = Modifier.padding(bottom = 4.dp),
+            ) {
+                IconToggleButton(
+                    checked = formattingOpen || !draft.selection.collapsed,
+                    onCheckedChange = { formattingOpen = !formattingOpen },
+                    colors = IconButtonDefaults.iconToggleButtonColors(
+                        contentColor = inputIconColor(),
+                        checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                        checkedContainerColor = MaterialTheme.colorScheme.primary,
+                    ),
+                ) {
+                    Icon(painterResource(Res.drawable.text_format_24dp), contentDescription = stringResource(Res.string.format_open))
+                }
+            }
             IconButton(
                 onClick = {
                     // Sheet a klávesnice by se jinak přetahovaly o spodek obrazovky; sheet je
@@ -3008,12 +3037,13 @@ private fun MessageInput(
             }
                 }
                 /*
-                 * Lišta formátování, dokud je v poli označený text (viz `FormattingBar`). POD
-                 * polem, ne nad ním: systémová lišta výběru (Vyjmout, Kopírovat…) se kreslí nad
-                 * výběrem a lištu nad polem by přikryla. Vyjíždí se svým místem, jako náhled odkazu.
+                 * Lišta formátování, dokud je v poli označený text, nebo ji otevřela ikona „Aa"
+                 * (viz `FormattingBar`). POD polem, ne nad ním: systémová lišta výběru (Vyjmout,
+                 * Kopírovat…) se kreslí nad výběrem a lištu nad polem by přikryla. Vyjíždí se
+                 * svým místem, jako náhled odkazu.
                  */
                 AnimatedVisibility(
-                    visible = fieldFocused && !isRecording && !draft.selection.collapsed,
+                    visible = fieldFocused && !isRecording && (formattingOpen || !draft.selection.collapsed),
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                 ) {

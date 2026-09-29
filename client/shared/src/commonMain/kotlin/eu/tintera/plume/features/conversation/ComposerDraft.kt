@@ -22,6 +22,11 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import eu.tintera.plume.core.telegram.ComposedText
 import eu.tintera.plume.core.telegram.FormatSpan
+import eu.tintera.plume.core.telegram.PendingFormats
+import eu.tintera.plume.core.telegram.clearedPending
+import eu.tintera.plume.core.telegram.toggledPending
+import eu.tintera.plume.core.telegram.typed
+import eu.tintera.plume.core.telegram.typingAt
 import eu.tintera.plume.core.telegram.TextFormat
 import eu.tintera.plume.core.telegram.afterEdit
 import eu.tintera.plume.core.telegram.cleared
@@ -50,36 +55,99 @@ internal class ComposerDraft(value: TextFieldValue = TextFieldValue(), formats: 
     var formats by mutableStateOf(formats)
         private set
 
+    /**
+     * Formát přepnutý u kurzoru bez výběru ([PendingFormats]) — platí pro text napsaný právě
+     * tam. Neukládá se: po otočení nebo návratu do chatu stojí kurzor jinde.
+     */
+    var pending by mutableStateOf<PendingFormats?>(null)
+        private set
+
     /** Co pole odešle, uloží jako koncept, nebo pošle jako úpravu. */
     val composed: ComposedText get() = ComposedText(value.text, formats)
 
     fun update(new: TextFieldValue) {
-        if (new.text != value.text) {
-            formats = formats.afterEdit(value.text, new.text, cursor = new.selection.end.takeIf { new.selection.collapsed })
+        val old = value
+        if (new.text != old.text) {
+            var next = formats.afterEdit(old.text, new.text, cursor = new.selection.end.takeIf { new.selection.collapsed })
+            insertedAtPending(old, new)?.let { (start, end) -> next = next.typed(start, end, pending!!, new.text) }
+            formats = next
+            // Jednou napsaný text formát nese a psaním dál pokračuje sám (`afterEdit`).
+            pending = null
+        } else if (new.selection != old.selection) {
+            // Kurzor jinde: čekající formát patřil místu, kde se přepnul.
+            pending = null
         }
         value = new
+    }
+
+    /**
+     * Úsek `[start, end)`, který se napsal přesně na kurzor s čekajícím formátem, nebo `null`.
+     * Jen čisté vložení: oprava slova klávesnicí nebo vložení jinam čekající formát nepoužije.
+     */
+    private fun insertedAtPending(old: TextFieldValue, new: TextFieldValue): Pair<Int, Int>? {
+        val at = pending?.cursor ?: return null
+        if (!old.selection.collapsed || old.selection.start != at || !new.selection.collapsed) return null
+        val added = new.text.length - old.text.length
+        if (added <= 0 || new.selection.end != at + added) return null
+        if (!new.text.startsWith(old.text.take(at)) || !new.text.endsWith(old.text.drop(at))) return null
+        return at to at + added
     }
 
     /** Text zvenku (koncept, upravovaná zpráva) i s jeho formátováním; kurzor na konec. */
     fun fill(text: String, formats: List<FormatSpan>) {
         value = TextFieldValue(text, selection = TextRange(text.length))
         this.formats = formats.within(text.length)
+        pending = null
     }
 
-    /** Je výběr celý v [format]? Podle toho je tlačítko v liště formátování zapnuté. */
-    fun isApplied(format: TextFormat): Boolean =
-        !value.selection.collapsed && formats.covers(format, value.selection.min, value.selection.max)
+    /**
+     * Je [format] zapnutý? S výběrem: je v něm celý výběr. Bez výběru: bude v něm text napsaný
+     * na kurzoru ([typingAt]). Podle toho je tlačítko v liště formátování zapnuté.
+     */
+    fun isApplied(format: TextFormat): Boolean {
+        val selection = value.selection
+        return if (selection.collapsed) {
+            format.family in formats.typingAt(selection.start, pending)
+        } else {
+            formats.covers(format, selection.min, selection.max)
+        }
+    }
 
+    /**
+     * Přepne [format] na výběru, nebo bez výběru pro další psaní ([PendingFormats]).
+     *
+     * **Citace bez výběru jde na celý řádek s kurzorem**, stejně jako na výběru — je to blok přes
+     * řádky, ne styl písma. Jen na prázdném řádku čeká na psaní jako ostatní formáty.
+     */
     fun toggle(format: TextFormat) {
-        if (value.selection.collapsed) return
-        formats = formats.toggled(format, value.selection.min, value.selection.max, value.text)
+        val selection = value.selection
+        if (!selection.collapsed) {
+            formats = formats.toggled(format, selection.min, selection.max, value.text)
+            return
+        }
+        val cursor = selection.start
+        val onEmptyLine = (cursor == 0 || value.text[cursor - 1] == '\n') &&
+            (cursor == value.text.length || value.text[cursor] == '\n')
+        if (format.family == TextFormat.Quote && !onEmptyLine) {
+            formats = formats.toggled(format, cursor, cursor, value.text)
+            pending = null
+        } else {
+            pending = formats.toggledPending(format, cursor, pending)
+        }
     }
 
-    /** Má výběr aspoň kus nějakého formátování? Podle toho se nabízí „Bez formátování". */
+    /**
+     * Je co sundat? S výběrem: má výběr aspoň kus formátování. Bez výběru: psalo by se v nějakém
+     * formátu. Podle toho se nabízí „Bez formátování".
+     */
     val selectionFormatted: Boolean
         get() {
             val selection = value.selection
-            return !selection.collapsed && formats.any { it.start < selection.max && it.end > selection.min }
+            return if (selection.collapsed) {
+                formats.typingAt(selection.start, pending).isNotEmpty()
+            } else {
+                formats.any { it.start < selection.max && it.end > selection.min }
+            }
         }
 
     /** Adresa odkazu na celém výběru, nebo `null` — podle toho dialog odkazu nabídne úpravu. */
@@ -92,7 +160,10 @@ internal class ComposerDraft(value: TextFieldValue = TextFieldValue(), formats: 
     }
 
     fun clearSelection() {
-        if (value.selection.collapsed) return
+        if (value.selection.collapsed) {
+            pending = formats.clearedPending(value.selection.start)
+            return
+        }
         formats = formats.cleared(value.selection.min, value.selection.max)
     }
 

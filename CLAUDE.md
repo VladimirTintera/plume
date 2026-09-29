@@ -3368,6 +3368,26 @@ funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
   `TextFieldState.textStyles`), ale jen nad `TextFieldState`, experimentálně a s významem
   schovaným ve `SpanStyle`. Přechod pole na `TextFieldState` by znamenal přepsat desítky míst
   kolem konceptu; vlastní model je menší a testovatelný bez Compose.
+- **Bez výběru lištu otevře ikona „Aa" v kartě pole** (jen když má pole fokus; s odchodem
+  z pole se lišta zavře) a formát platí pro další psaní od kurzoru — „zapnout tučné a psát dál".
+  Stav je `PendingFormats` v `ComposerDraft` (pravidla `toggledPending`, `typingAt`, `typed`,
+  testy `TextFormattingTest`).
+  - **Čekající formát je jednorázový** a použije se jen na text napsaný přesně na kurzor. Dál
+    pokračuje sám: text psaný na konec rozsahu do něj patří (`afterEdit`), takže napsané tučné
+    slovo pokračuje tučně a text napsaný s vypnutým tučným za ním zůstane bez něj. Nic se tedy
+    nemusí hlídat při každém úhozu.
+  - **Vypnutí uprostřed tučného slova ho rozdělí** — napsaný kus z rozsahu vypadne (`removed`)
+    a další psaní už za ním pokračuje netučně.
+  - **Přesun kurzoru čekající formát zahodí**; patří místu, kde se přepnul. Oprava slova
+    klávesnicí nebo vložení jinam ho nepoužije (`insertedAtPending` bere jen čisté vložení
+    na kurzor).
+  - **Tlačítko ukazuje, jak se bude psát** (`typingAt`): zapnuté i u kurzoru na konci tučného
+    slova, kde by se psalo tučně i bez ťuknutí. „Bez formátování" vypne všechno, co by pokračovalo.
+  - **Citace bez výběru jde na řádek s kurzorem**, ne na další psaní — je to blok přes řádky.
+    Jen na prázdném řádku čeká na psaní jako ostatní. **Odkaz bez výběru zašedne**: potřebuje
+    popisek.
+  - **Ikona je „Aa", ne čtvrté trvalé tlačítko v kartě** — objeví se jen při psaní, jinak by
+    ukusovala místo i tomu, kdo formátování nepoužívá.
 - **Lišta, ne položky v kontextové nabídce výběru** (tak to bylo napřed). Ikony u vlastních
   položek nabídka výběru na telefonu NEZOBRAZÍ: na Androidu ji kreslí `ActionMode`
   (`AndroidTextContextMenuToolbarProvider`) a `leadingIcon` z `TextContextMenuItem` zahodí —
@@ -3409,7 +3429,10 @@ funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
   tučné zprávy s přidanou kurzívou („edited", tučné zůstalo), koncept s tučným po zabití
   aplikace; bot přes Bot API dostal `code`, `bold` + `spoiler` a `blockquote` (roztažený na
   celý řádek) a `text_link` z dialogu; úprava zprávy s odkazem ho vrátí do pole a dialog nabídne
-  změnu i odebrání. iOS jen přeložené.
+  změnu i odebrání. Formát bez výběru (česky, Pixel 9):
+  „Aa" otevře lištu, zapnuté tučné platí pro napsané „XY", vypnuté pro „zz" za ním; odkaz je
+  bez výběru zašedlý. Formátovaná zpráva psaná bez výběru se přes Bot API neověřovala — odeslání
+  jde stejnou cestou rozsahů. iOS jen přeložené.
 
 ### Náhled odkazu při psaní
 
