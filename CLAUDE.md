@@ -6692,6 +6692,13 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
 - **V servisních zprávách se nevypisují jména.** TDLib dává jen id uživatelů a jméno by znamenalo
   dotaz navíc na každou takovou zprávu, často na někoho, kdo v chatu už dávno není. Bezejmenná
   formulace („Do skupiny přibyli členové") je vždycky pravdivá a nic nestojí.
+- **`MessageSupergroupChatCreate` chodí pro skupinu I kanál** („a newly created supergroup or
+  channel") a obsah druh nenese — dokud tam natvrdo stál kanál, hlásila každá nová skupina
+  „Kanál „X“ vytvořen". Rozlišuje `Message.isChannelPost` (`supergroupCreatedText`, testy
+  `SupergroupCreatedTest`), a proto ho `serviceText`, `describe` i `previewTextOrNull` berou
+  parametrem BEZ výchozí hodnoty. Citace z jiného chatu zprávu nemá, bere ho z `origin`
+  (`MessageOriginChannel`). Ověřeno sondou nad první zprávou (id `1 shl 20`) třinácti supergroup
+  na emulátoru: `isChannelPost` sedělo s `ChatTypeSupergroup.isChannel` pokaždé.
 - **`MessageUnsupported` znamená, že klient je starší než server.** Doslovný název typu by
   uživateli neřekl nic, takže dostane stejnou větu jako ostatní neznámé typy.
 - **Notifikace „neumíme zobrazit" neříká nikdy** (`notificationText`): typ, který neumíme
