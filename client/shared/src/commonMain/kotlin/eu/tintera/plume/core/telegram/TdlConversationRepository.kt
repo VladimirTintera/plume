@@ -111,11 +111,13 @@ import dev.g000sha256.tdl.dto.InputMessageReplyToMessage
 import dev.g000sha256.tdl.dto.InputMessageSticker
 import dev.g000sha256.tdl.dto.InputMessageText
 import dev.g000sha256.tdl.dto.InputMessageVideo
+import dev.g000sha256.tdl.dto.InputMessageVideoNote
 import dev.g000sha256.tdl.dto.InputMessageVoiceNote
 import dev.g000sha256.tdl.dto.InputPhoto
 import dev.g000sha256.tdl.dto.InputSticker
 import dev.g000sha256.tdl.dto.InputThumbnail
 import dev.g000sha256.tdl.dto.InputVideo
+import dev.g000sha256.tdl.dto.InputVideoNote
 import dev.g000sha256.tdl.dto.InputVoiceNote
 import dev.g000sha256.tdl.dto.Message
 import dev.g000sha256.tdl.dto.MessageInteractionInfo
@@ -967,6 +969,34 @@ class TdlConversationRepository(
                     waveform = waveform,
                 ),
                 caption = null,
+                selfDestructType = null,
+            ),
+        )
+            .toResult()
+            .map { it.toChatMessage(isGroup(chatId)) }
+
+    override suspend fun sendVideoNote(
+        chatId: Long,
+        videoNote: OutgoingVideoNote,
+        replyToMessageId: Long?,
+        quote: ReplyQuote?,
+        options: SendOptions,
+    ): Result<ChatMessage> =
+        client.sendMessage(
+            chatId = chatId,
+            topicId = topic,
+            replyTo = replyInput(chatId, replyToMessageId, quote),
+            options = options.toTdl(),
+            replyMarkup = null,
+            inputMessageContent = InputMessageVideoNote(
+                videoNote = InputVideoNote(
+                    videoNote = InputFileLocal(path = videoNote.path),
+                    thumbnail = videoNote.thumbnail?.let {
+                        InputThumbnail(thumbnail = InputFileLocal(path = it.path), width = it.width, height = it.height)
+                    },
+                    duration = videoNote.durationSeconds,
+                    length = videoNote.length,
+                ),
                 selfDestructType = null,
             ),
         )
@@ -2628,13 +2658,14 @@ private const val MAX_PINNED_PAGES = 5
 
 /**
  * Práva na druhy obsahu z `ChatPermissions`. Bere se jen to, co aplikace umí poslat — hudba
- * a video kolečka by tu byla mrtvá pole.
+ * by tu byla mrtvé pole.
  */
 private fun ChatPermissions.toContentAccess(): ContentAccess = ContentAccess(
     photos = canSendPhotos,
     videos = canSendVideos,
     documents = canSendDocuments,
     voiceNotes = canSendVoiceNotes,
+    videoNotes = canSendVideoNotes,
     stickers = canSendOtherMessages,
     polls = canSendPolls,
 )

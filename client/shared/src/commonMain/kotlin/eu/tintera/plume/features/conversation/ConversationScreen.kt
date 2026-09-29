@@ -1,5 +1,25 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.runtime.DisposableEffect
+import eu.tintera.plume.core.ui.threshold
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import eu.tintera.plume.core.camera.rememberVideoNoteCamera
+import eu.tintera.plume.core.camera.rememberVideoNotePermission
+import eu.tintera.plume.core.settings.RecordMode
+import eu.tintera.plume.resources.conversation_camera_permission
+import eu.tintera.plume.resources.conversation_record_hint_video_note
+import eu.tintera.plume.resources.conversation_record_hint_voice
+import eu.tintera.plume.resources.conversation_record_video_note
+import eu.tintera.plume.resources.conversation_send_video_note
+import eu.tintera.plume.resources.videocam_24dp
 import eu.tintera.plume.core.telegram.codeBlockAt
 import androidx.compose.material3.IconToggleButton
 import eu.tintera.plume.resources.format_open
@@ -454,8 +474,24 @@ fun ConversationScreen(
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     // Nahrávání se mění po 50 ms; obrazovka čte jen jestli běží, čas a úrovně až pruh nahrávání.
     val voiceRecordingState = viewModel.voiceRecording.collectAsStateWithLifecycle()
-    val isRecording by remember { derivedStateOf { voiceRecordingState.value != null } }
+    val videoRecordingState = viewModel.videoRecording.collectAsStateWithLifecycle()
+    val isRecording by remember {
+        derivedStateOf { voiceRecordingState.value != null || videoRecordingState.value != null }
+    }
+    val isVideoRecording by remember { derivedStateOf { videoRecordingState.value != null } }
+    val recordGesture = remember { RecordGestureState() }
     val recordPermission = rememberRecordPermission()
+    val videoNotePermission = rememberVideoNotePermission()
+    val preferredRecordMode by viewModel.recordMode.collectAsStateWithLifecycle()
+    // Kamera žije s obrazovkou, ViewModel si ji jen půjčuje (viz `CaptureSlot`).
+    val videoNoteCamera = rememberVideoNoteCamera()
+    DisposableEffect(videoNoteCamera) {
+        videoNoteCamera?.let(viewModel::attachCamera)
+        onDispose { videoNoteCamera?.let(viewModel::detachCamera) }
+    }
+    // Kolečko jen tam, kde ho chat dovolí A kde je čím ho natočit.
+    val videoNotesAllowed = state.content.videoNotes && videoNoteCamera != null
+    val recordMode = recordModeFor(preferredRecordMode, state.content.voiceNotes, videoNotesAllowed)
 
     // Výběr cílového chatu je vlastní obrazovka, takže požadavek z nabídky se předá navigaci.
     val forwardRequest = state.forwardRequest
@@ -1617,19 +1653,38 @@ fun ConversationScreen(
                 onOpenStickers = { stickerPickerOpen = true },
                 onPickMedia = { if (embeddedMediaPicker) mediaPickerOpen = true else attachmentPicker.pickMedia() },
                 isRecording = isRecording,
-                recording = { voiceRecordingState.value },
-                onStartRecording = {
-                    recordPermission.request { granted ->
-                        if (granted) {
-                            // Nahrávání běží, dokud ho uživatel neukončí — přepnutý stav, ne
-                            // hotová akce. Odepřené oprávnění je naopak odmítnutí.
-                            haptics.toggle(on = true)
-                            viewModel.startRecording()
-                        } else {
-                            haptics.reject()
-                            viewModel.reportError(UiText(Res.string.conversation_microphone_permission))
+                recording = { voiceRecordingState.value ?: videoRecordingState.value },
+                recordMode = recordMode,
+                canSwitchRecordMode = canSwitchRecordMode(state.content.voiceNotes, videoNotesAllowed),
+                onSwitchRecordMode = {
+                    viewModel.setRecordMode(if (recordMode == RecordMode.VideoNote) RecordMode.Voice else RecordMode.VideoNote)
+                },
+                recordingKind = if (isVideoRecording) RecordMode.VideoNote else RecordMode.Voice,
+                recordGesture = recordGesture,
+                onStartRecording = { held ->
+                    val video = recordMode == RecordMode.VideoNote
+                    // Odpověď bez dialogu přijde hned, uvnitř `request`; z dialogu až potom.
+                    var immediate = true
+                    (if (video) videoNotePermission else recordPermission).request { granted ->
+                        when {
+                            !granted -> {
+                                haptics.reject()
+                                viewModel.reportError(
+                                    UiText(if (video) Res.string.conversation_camera_permission else Res.string.conversation_microphone_permission),
+                                )
+                            }
+                            // Oprávnění přišlo až z dialogu: prst mezitím tlačítko pustil, a nahrávat
+                            // bez něj by bylo nahrávání, o kterém uživatel neví. Podrží znovu.
+                            held && !immediate -> Unit
+                            else -> {
+                                // Nahrávání běží, dokud ho uživatel neukončí — přepnutý stav, ne
+                                // hotová akce. Odepřené oprávnění je naopak odmítnutí.
+                                haptics.toggle(on = true)
+                                if (video) viewModel.startVideoRecording() else viewModel.startRecording()
+                            }
                         }
                     }
+                    immediate = false
                 },
                 onCancelRecording = {
                     haptics.reject()
@@ -2306,6 +2361,20 @@ fun ConversationScreen(
                 )
             }
 
+            // Nad seznamem, pod vstupním polem: odeslání i koš zůstávají ovladatelné.
+            VideoNoteRecordingOverlay(
+                visible = isVideoRecording,
+                camera = videoNoteCamera,
+                recording = { videoRecordingState.value },
+                modifier = Modifier.fillMaxSize().padding(bottom = obscuredBottom),
+            )
+            // Zámek nad tlačítkem je tady, ne v liště — sklo pod polem by ho ořízlo.
+            RecordLockHost(
+                visible = isRecording && recordGesture.held && !recordGesture.locked,
+                gesture = recordGesture,
+                modifier = Modifier.fillMaxSize().padding(bottom = obscuredBottom),
+            )
+
         }
     }
 
@@ -2577,7 +2646,23 @@ private fun MessageInput(
     isRecording: Boolean,
     /** Čte se až v pruhu nahrávání — čas a úrovně se mění dvacetkrát za vteřinu. */
     recording: () -> VoiceRecording?,
-    onStartRecording: () -> Unit,
+    /**
+     * Co nahraje podržení tlačítka v prázdném poli ([recordModeFor]); `null` = nic, tlačítko
+     * je pak odeslání.
+     */
+    recordMode: RecordMode?,
+    /** Ťuknutí na tlačítko přepne hlasovku ↔ kolečko ([canSwitchRecordMode]). */
+    canSwitchRecordMode: Boolean,
+    onSwitchRecordMode: () -> Unit,
+    /** Co se právě nahrává — podle toho popis tlačítka odeslání. */
+    recordingKind: RecordMode,
+    /** Gesto nahrávání; drží ho obrazovka, protože zámek nad tlačítkem kreslí ona. */
+    recordGesture: RecordGestureState,
+    /**
+     * Začne nahrávat. [held] = prst drží tlačítko; když se oprávnění teprve žádá, nahrávat se
+     * potom nesmí (prst mezitím tlačítko pustil). Bez prstu (čtečka obrazovky) se začne zamčené.
+     */
+    onStartRecording: (held: Boolean) -> Unit,
     onCancelRecording: () -> Unit,
     onSendRecording: (SendOptions) -> Unit,
     /** Nabídka odeslání nad hlasovkou se otevřela (`true`) nebo zavřela bez volby (`false`). */
@@ -2612,6 +2697,14 @@ private fun MessageInput(
     modifier: Modifier = Modifier,
 ) {
     var draft by composer
+    // Gesto nahrávání (viz `holdToRecord` a `RecordGestureState`).
+    var recordHeld by recordGesture::held
+    var recordLocked by recordGesture::locked
+    val recordDrag = recordGesture.drag
+    LaunchedEffect(isRecording) { if (!isRecording) recordLocked = false }
+    val recordHolding = isRecording && recordHeld && !recordLocked
+    val haptics = LocalHapticFeedback.current
+    val density = LocalDensity.current
     /*
      * Úsek, ke kterému se právě zadává adresa odkazu. Zachycený při ťuknutí na „Odkaz": dialog
      * vezme poli fokus a výběr by se na něj nedal spolehnout.
@@ -2842,7 +2935,12 @@ private fun MessageInput(
 
                 // Při nahrávání místo pole pruh s časem; citace nad ním zůstává, hlasovka na ni odpoví.
                 if (isRecording) {
-                    RecordingBar(recording = recording, onCancel = onCancelRecording)
+                    RecordingBar(
+                        recording = recording,
+                        onCancel = onCancelRecording,
+                        holding = recordHolding,
+                        cancelProgress = { cancelProgress(recordDrag.value.x, with(density) { RECORD_CANCEL_DISTANCE.toPx() }) },
+                    )
                 } else Row(verticalAlignment = Alignment.Bottom) {
             /*
              * Ikony stojí VEDLE pole, ne v jeho `leadingIcon` / `trailingIcon`. `TextField`
@@ -3086,13 +3184,13 @@ private fun MessageInput(
              * kruh se při stisku mění podle M3 Expressive na zaoblený čtverec.
              */
             /*
-             * Prázdné pole bez příloh = mikrofon (jako v Telegramu i WhatsAppu): tlačítko, které by
-             * jinak bylo neaktivní, dostane smysl. Ťuknutí nahrávání spustí, odeslání ho ukončí.
-             * Při úpravě zprávy mikrofon není — hlasovka úprava není.
+             * Prázdné pole bez příloh = mikrofon, nebo kamera (jako v Telegramu): tlačítko, které
+             * by jinak bylo neaktivní, dostane smysl. Podržení nahrává, ťuknutí přepíná hlasovku
+             * a kolečko (`holdToRecord`). Při úpravě zprávy není — nahrávka úprava není.
              */
-            // Bez práva na hlasovky mikrofon není — tlačítko zůstane odesláním, jen neaktivním.
+            // Bez práva na hlasovky i kolečka tlačítko zůstane odesláním, jen neaktivním.
             val showMic = !isRecording && editing == null && draft.text.isBlank() && !withAttachments &&
-                !attachmentsPreparing && content.voiceNotes
+                !attachmentsPreparing && recordMode != null
 
             /*
              * Prázdný POPISEK je platná úprava — tím se popisek odebere —, takže tlačítko musí jít
@@ -3102,6 +3200,7 @@ private fun MessageInput(
             val kind = when {
                 editing != null -> SendButtonKind.Save
                 isRecording -> SendButtonKind.SendVoice
+                showMic && recordMode == RecordMode.VideoNote -> SendButtonKind.Camera
                 showMic -> SendButtonKind.Mic
                 else -> SendButtonKind.Send
             }
@@ -3114,7 +3213,10 @@ private fun MessageInput(
              * Stav se tak pozná i bez ikony a barvy, třeba koutkem oka nebo na slunci.
              */
             // Pružina přestřelí za oba konce; mimo 0..1 by se tvar zdeformoval.
-            val morphProgress = animateMorph(kind == SendButtonKind.Mic, "send-button-shape").coerceIn(0f, 1f)
+            val morphProgress = animateMorph(
+                kind == SendButtonKind.Mic || kind == SendButtonKind.Camera,
+                "send-button-shape",
+            ).coerceIn(0f, 1f)
 
             /*
              * Při nahrávání tlačítko DÝCHÁ: pomalý morf kruh ↔ SoftBurst. Tečka v pruhu nahrávání
@@ -3146,7 +3248,9 @@ private fun MessageInput(
              * tvar (sušenka ↔ dýchající SoftBurst), vlnka karty a pruh s časem. Přebarvit k tomu
              * ještě tlačítko by byl čtvrtý signál pro jednu změnu.
              */
-            val voiceButton = kind == SendButtonKind.Mic || kind == SendButtonKind.SendVoice
+            // Kolečko je taky nahrávka, takže nese tutéž terciární roli jako hlas.
+            val voiceButton = kind == SendButtonKind.Mic || kind == SendButtonKind.Camera ||
+                kind == SendButtonKind.SendVoice
             val colorSpec = MaterialTheme.motionScheme.slowEffectsSpec<Color>()
             val containerColor by animateColorAsState(
                 targetValue = if (voiceButton) {
@@ -3197,12 +3301,43 @@ private fun MessageInput(
                     pressedShape = IconButtonDefaults.mediumPressedShape,
                 )
             }
-            Box {
+            val recordActionLabel = stringResource(
+                if (recordMode == RecordMode.VideoNote) Res.string.conversation_record_video_note else Res.string.conversation_record_voice,
+            )
+            // Ťuknutí na mikrofon či kameru nahrávání nespouští, jen přepíná — a řekne jak dál.
+            val recordHint = rememberTooltipState(isPersistent = false)
+            val hintScope = rememberCoroutineScope()
+            Box(Modifier.onGloballyPositioned { recordGesture.buttonCenterX = it.boundsInWindow().center.x }) {
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                    tooltip = {
+                        PlainTooltip {
+                            Text(
+                                stringResource(
+                                    if (recordMode == RecordMode.VideoNote) {
+                                        Res.string.conversation_record_hint_video_note
+                                    } else {
+                                        Res.string.conversation_record_hint_voice
+                                    },
+                                ),
+                            )
+                        }
+                    },
+                    state = recordHint,
+                    // Podržení tu nahrává; nápověda na dlouhý stisk by se s ním prala.
+                    enableUserInput = false,
+                ) {
                 FilledIconButton(
                     onClick = {
                         when {
                             isRecording -> onSendRecording(SendOptions())
-                            showMic -> onStartRecording()
+                            showMic -> {
+                                if (canSwitchRecordMode) {
+                                    haptics.toggle(on = recordMode == RecordMode.Voice)
+                                    onSwitchRecordMode()
+                                }
+                                hintScope.launch { recordHint.show() }
+                            }
                             else -> {
                                 onSend(composer.composed, SendOptions())
                                 draft = TextFieldValue()
@@ -3219,6 +3354,44 @@ private fun MessageInput(
                     ),
                     shapes = buttonShapes,
                     modifier = Modifier
+                        // PRVNÍ v řetězu: tlačítko během gesta změní druh i modifikátory za tímhle.
+                        .holdToRecord(
+                            enabled = showMic,
+                            cancelDistance = RECORD_CANCEL_DISTANCE,
+                            lockDistance = RECORD_LOCK_DISTANCE,
+                            onHoldStart = {
+                                recordHeld = true
+                                onStartRecording(true)
+                            },
+                            onDrag = { recordDrag.value = it },
+                            onRelease = {
+                                recordHeld = false
+                                if (isRecording) onSendRecording(SendOptions())
+                            },
+                            onCancel = {
+                                recordHeld = false
+                                if (isRecording) onCancelRecording()
+                            },
+                            onLock = {
+                                recordHeld = false
+                                if (isRecording) {
+                                    haptics.threshold()
+                                    recordLocked = true
+                                }
+                            },
+                        )
+                        // Čtečka obrazovky podržet neumí: nahrávání spustí akcí, rovnou zamčené.
+                        .semantics {
+                            if (showMic) {
+                                customActions = listOf(
+                                    CustomAccessibilityAction(recordActionLabel) {
+                                        recordLocked = true
+                                        onStartRecording(false)
+                                        true
+                                    },
+                                )
+                            }
+                        }
                         .size(IconButtonDefaults.mediumContainerSize())
                         // Klidový tvar; stisk ho na chvíli zhranatí, a to při letu fotky nehraje roli.
                         .occludesSharedElements(buttonShapes.shape)
@@ -3252,6 +3425,7 @@ private fun MessageInput(
                                 when (shown) {
                                     SendButtonKind.Save -> Res.drawable.check_24dp
                                     SendButtonKind.Mic -> Res.drawable.mic_24dp
+                                    SendButtonKind.Camera -> Res.drawable.videocam_24dp
                                     SendButtonKind.Send, SendButtonKind.SendVoice -> Res.drawable.send_24dp
                                 },
                             ),
@@ -3259,13 +3433,19 @@ private fun MessageInput(
                                 when (shown) {
                                     SendButtonKind.Save -> Res.string.conversation_save_edit
                                     SendButtonKind.Mic -> Res.string.conversation_record_voice
-                                    SendButtonKind.SendVoice -> Res.string.conversation_send_voice
+                                    SendButtonKind.Camera -> Res.string.conversation_record_video_note
+                                    SendButtonKind.SendVoice -> if (recordingKind == RecordMode.VideoNote) {
+                                        Res.string.conversation_send_video_note
+                                    } else {
+                                        Res.string.conversation_send_voice
+                                    }
                                     SendButtonKind.Send -> Res.string.conversation_send
                                 },
                             ),
                             modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
                         )
                     }
+                }
                 }
                 val offer = if (voiceMenu) voiceSendMenu else sendMenu
                 ExpressiveMenu(
@@ -3389,7 +3569,7 @@ private fun composerCardColor(): Color = tintedSurface(
  * barevně k [Mic] (hlas = terciární), zatímco odeslání textu k `primary`. S jediným „Send" by se
  * tlačítko při spuštění nahrávání přebarvilo z terciární na primary a zase zpátky.
  */
-private enum class SendButtonKind { Mic, SendVoice, Send, Save }
+private enum class SendButtonKind { Mic, Camera, SendVoice, Send, Save }
 
 /** Co se plánuje: rozepsaná zpráva z pole, nebo už naplánovaná, které se mění čas. */
 private sealed interface ScheduleTarget {

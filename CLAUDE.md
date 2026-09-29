@@ -8,7 +8,7 @@ nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí
 ## Stav
 
 Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (bez railu i navigační lišty, Nastavení z menu účtu), živý seznam chatů a archiv,
-konverzace (historie, živé zprávy, odesílání, přílohy a alba, hlasovky, samolepky a emoji, úprava,
+konverzace (historie, živé zprávy, odesílání, přílohy a alba, hlasovky a video kolečka, samolepky a emoji, úprava,
 přeposílání, připnuté zprávy, ankety a kvízy, témata ve skupinách), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
@@ -3168,6 +3168,9 @@ Ztlumit / Zapnout zvuk, omezená skupina a chat, ve kterém uživatel není, vě
   nepíše, takže se bere jako „nejste v chatu".
 - **Swipe na odpověď se v chatu jen pro čtení nekoná** (`ConversationState.canWrite`); nabídka
   nad zprávou se řídí `canBeReplied` od serveru jako dřív.
+- **Video kolečka mají vlastní právo** (`ContentAccess.videoNotes` z `canSendVideoNotes`), bez
+  výchozí hodnoty jako ankety. Kde smí jen hlasovky, tlačítko nepřepíná; kde nesmí ani jedno,
+  je z něj neaktivní odeslání.
 - **Druhy obsahu mají vlastní pravidlo** (`ContentAccess`, `contentAccess` vedle `writeAccess`,
   testy `WriteAccessTest`). Skupina smí povolit text a zakázat fotky; co se poslat nesmí, se
   nenabízí — sponka schová položku, mikrofon ustoupí odeslání, výběr zůstane na emoji.
@@ -5765,12 +5768,36 @@ nevyplatí.
 
 ### Nahrávání
 
-Prázdné pole bez příloh má místo odeslání **mikrofon**. Ťuknutí spustí nahrávání (karta ukáže
-pruh s košem, blikající tečkou, časem a živými úrovněmi), odesílací tlačítko ho ukončí a pošle.
+Prázdné pole bez příloh má místo odeslání **mikrofon**, nebo **kameru** (video kolečko, viz
+„Nahrávání koleček"). Nahrává se **podržením, jako v Telegramu**: puštění nahrávku odešle, tah
+doleva ji zahodí, tah nahoru zamkne (karta pak ukáže koš, čas a živé úrovně a odesílá se
+ťuknutím). Ťuknutí přepíná hlasovku ↔ kolečko a ukáže nápovědu. Gesto je `holdToRecord`
+v `RecordControls.kt`, rozhodnutí o tahu čistá funkce `recordDragOutcome` (testy
+`RecordGestureTest`).
 
-- **Ťuknutím, ne podržením.** Podržení s tažením na zrušení/zamčení je v Compose křehké gesto nad
-  tlačítkem, které se během něj mění; ťuknutí funguje i s čtečkou obrazovky. Kratší než vteřina
-  se zahodí (`MIN_DURATION_MS`) s hláškou.
+- **Dřív to bylo ťuknutím, ne podržením**, s odůvodněním, že podržení s tažením je nad
+  tlačítkem, které se během něj mění, křehké. Uživatel chtěl model Telegramu; křehkost řeší to,
+  že gesto sedí na PRVNÍM modifikátoru tlačítka (měnící se druh tlačítka ho neresetuje), čte se
+  v `Initial` a po začátku nahrávání spotřebovává všechno — puštění tak nevyhodnotí tlačítko
+  jako ťuknutí. Kratší než vteřina se dál zahodí (`MIN_DURATION_MS`) s hláškou.
+- **Nahrávat se začne po 250 ms držení** (`HOLD_TO_RECORD_MS`); kratší stisk je ťuknutí. Delší
+  prodleva by u hlasovky useknula první slovo.
+- **Oprávnění vyžádané až podržením se na TOMHLE podržení nepoužije.** Než uživatel dialog
+  vyřídí, prst tlačítko pustil; nahrávat potom by bylo nahrávání, o kterém neví. Pozná se to
+  podle toho, že odpověď `request` přišla až po jeho návratu (`immediate`), a podrží se znovu.
+- **Zrušený dotyk nahrávku ZAMKNE, neodešle.** Otočení displeje, systémové gesto nebo stažená
+  lišta pošlou puštění, které je už spotřebované (tak ho Compose odlišuje). Dokud se bralo jako
+  puštění, odešla po otočení dvouvteřinová nahrávka, o které uživatel nerozhodl. **Po zrušení
+  se nesmí čekat na „zbytek gesta"** — už nepřijde a čekání by spolklo příští ťuknutí.
+- **Zámek nad tlačítkem kreslí obrazovka, ne pole** (`RecordLockHost`, stav gesta
+  `RecordGestureState` drží obrazovka). Pás skla pod polem (Haze) kreslí lištu do vrstvy o její
+  velikosti a všechno, co z ní přečnívá, ořízne — zámek v poli nebyl vidět vůbec. Vodorovně se
+  srovná podle změřeného středu tlačítka.
+- **Nápověda po ťuknutí je `TooltipBox` s `enableUserInput = false`** — výchozí tooltip se
+  ukazuje na dlouhý stisk, a ten tu nahrává.
+- **Čtečka obrazovky podržet neumí**: tlačítko má vlastní akci „Nahrát hlasovou zprávu" /
+  „Nahrát video zprávu", která začne rovnou zamčené. **Ověřené to není** (TalkBack na emulátoru
+  nikdo nepouštěl).
 - **Formát chce Telegram Ogg/Opus mono**, případně M4A (TDLib ho u hlasovky přijme).
   - **Android 10+** nahrává Ogg/Opus rovnou (`MediaRecorder`, 48 kHz, 32 kbit/s). **Starší**
     Opus neumí → M4A/AAC. `stop()` po příliš krátkém nahrávání vyhodí výjimku.
@@ -6244,6 +6271,60 @@ týmž přehrávačem jako video (`MessageMedia.Animation`, `AnimationBubble`).
   i druhým ťuknutím, nabídka dlouhým stiskem. **Neověřeno**: zhlédnutí u odesílatele (bot ho
   nevidí), souhra s hrající hlasovkou, přepis řeči (`speechRecognitionResult`) a iOS
   (jen přeložené).
+
+### Nahrávání koleček
+
+Ťuknutí na mikrofon v prázdném poli přepne na kameru (a zpátky), podržení nahraje kolečko:
+nad konverzací je náhled z kamery v kruhu s průběhem po obvodu, ovládá se stejně jako hlasovka
+(puštění, tah doleva, tah nahoru — viz „Nahrávání"). Volba se pamatuje
+(`AppSettings.recordMode`). Hranice je `core/camera` (`VideoNoteCamera`): CameraX na Androidu,
+AVFoundation na iOS.
+
+- **Hlasovka i kolečko jdou tímtéž `VoiceRecorder`** nad rozhraním `MediaCapture` (čas, pauzy,
+  zahození krátkého). Kamera ale žije s KOMPOZICÍ (potřebuje vlastníka životního cyklu a plochu
+  pro náhled), nahrávání s ViewModelem — proto `CaptureSlot`: obrazovka kameru připojí, a když se
+  kompozice rozloží, rozpracované kolečko se zahodí. Otočení Foldu do dvoupanelu tak kolečko
+  zahodí (hlasovka naopak běží dál zamčená).
+- **Kamera se otevírá až se `start`**, ne s náhledem nebo konverzací — indikátor soukromí by
+  jinak svítil pořád. `ProcessCameraProvider.getInstance` při otevření chatu kameru neotevírá,
+  jen inicializuje CameraX, takže je do podržení hotová.
+- **Čtverec dělá `ViewPort` 1 : 1** nad náhledem i `VideoCapture` — kolečko obsahuje přesně to,
+  co bylo v kruhu vidět (ověřeno: výstup 720 × 720). Přední kamera se zrcadlí i ve videu
+  (`MIRROR_MODE_ON_FRONT_ONLY`), nahrávání je persistent a přežije přepnutí kamery.
+- **Náhled je `PreviewView` v režimu `COMPATIBLE` (`TextureView`)**, jinak by ho ořez do kruhu
+  v Compose neořízl — `SurfaceView` je samostatné okno.
+- **Telegram kolečko větší než 640 px PŘEVEDE NA OBYČEJNÉ VIDEO.** TDLib stranu od 640 výš
+  odmítne rovnou („Wrong video note length"); a když se `length` zastropoval, ale soubor zůstal
+  720 × 720, server zprávu přijal — jako `video`, ne `video_note` (ověřeno Bot API), takže
+  u všech byla obdélníkem s tlačítkem přehrání. Soubor proto musí být opravdu malý.
+- **CameraX výstup zmenšit neumí, jen oříznout.** Kvalita je SD (480p → 480 × 480), s fallbackem
+  radši nižším; kamera bez SD (emulátor, část telefonů) ale jinak než 720p nenatočí. Takové
+  kolečko se po nahrání přepočítá na 480 × 480 přes Media3 Transformer (`shrinkIfNeeded`) —
+  jen když je potřeba. Minuta na emulátoru: do deseti vteřin od konce nahrávání i s nahráním
+  na server.
+- **Po minutě kolečko odejde samo** (`VIDEO_NOTE_MAX_DURATION_MS`, víc Telegram nepřijme),
+  pozastavený čas (nabídka, výběr času) se nepočítá. Ověřeno: 60 s, 480 px, 1,9 MB.
+- **Délka, strana a náhled se čtou až z hotového souboru** (`prepareVideoNote`), ne z časovače.
+- **iOS: `AVCaptureMovieFileOutput` do `.mov` a export do čtvercového MP4** se středovým ořezem
+  (`AVMutableVideoComposition` po `preferredTransform`, strana nejvýš 480). **Přepnout kameru
+  během nahrávání tam nejde** — výstup do souboru při výměně vstupu nahrávání ukončí; umělo by
+  to jen `AVAssetWriter`. **K/N interop:** vlastnosti `AVMutable…` jsou pro Kotlin `val` ze
+  základní třídy a zapisují se settery (`setRenderSize`, `setInstructions`…), `videoComposition`
+  u exportu je z kategorie (`setVideoComposition` s vlastním importem) a `kCMTimeZero` je
+  struktura bez `readValue` — nahrazuje ho `CMTimeMake(0, 1)`.
+- **Simulátor kameru nemá**, takže se tam kolečko nenabízí vůbec (`rememberVideoNoteCamera`
+  vrátí `null`) a iOS je jen přeložené a slinkované, **na zařízení neověřené**.
+- **Oprávnění ke kameře musí být v manifestu i s `uses-feature … camera required=false`**,
+  jinak by z kamery udělalo povinný hardware a aplikace by zmizela z Play pro zařízení bez ní.
+  Pozor při ověřování: APK sestavené PŘED úpravou manifestu oprávnění nemá a systém se na kameru
+  vůbec nezeptá — výsledek pak vypadá jako odmítnuté oprávnění.
+- **Ověřeno na emulátoru** (Plume_Galerie_Fold, emulovaná přední kamera) v chatu s botem:
+  přepnutí ťuknutím s nápovědou, dotazy na mikrofon a kameru, podržení s náhledem v kruhu,
+  průběhem a zámkem, puštění (bot dostal `video_note`, 480 px), zrušení tahem doleva, zamčení
+  a odeslání ťuknutím, minutový strop, hlasovka podržením, příliš krátký stisk, otočení během
+  kolečka i hlasovky, pauza v nabídce odeslání (kolečko mělo 6 s, pět vteřin s otevřenou
+  nabídkou se nezapočítalo). **Neověřeno**: přepnutí na zadní kameru během nahrávání, akce pro
+  čtečku obrazovky, skutečný telefon a iOS.
 
 ### GIFy a samolepky z klávesnice
 

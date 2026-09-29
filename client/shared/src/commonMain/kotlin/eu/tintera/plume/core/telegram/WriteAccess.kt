@@ -102,14 +102,19 @@ internal fun topicWriteAccess(chatAccess: WriteAccess, status: OwnMemberStatus?,
  * a druhy obsahu nemá co omezovat. Skupina může mít zakázané jen některé druhy: text dovolený,
  * fotky ne. Bez tohohle rozlišení nabídla sponka výběr, který skončil chybou AŽ PO odeslání.
  *
- * Druhy jsou jen ty, které aplikace umí poslat. Hudba (`canSendAudios`), video kolečka
- * a ankety tu nejsou, protože se neposílají; až přibudou, přibude i pole.
+ * Druhy jsou jen ty, které aplikace umí poslat. Hudba (`canSendAudios`) tu není, protože se
+ * neposílá; až přibude, přibude i pole.
  */
 data class ContentAccess(
     val photos: Boolean,
     val videos: Boolean,
     val documents: Boolean,
     val voiceNotes: Boolean,
+    /**
+     * Video kolečka (`canSendVideoNotes`). Bez výchozí hodnoty, stejně jako [polls]: každé
+     * místo, které práva skládá, musí o kolečkách rozhodnout výslovně.
+     */
+    val videoNotes: Boolean,
     /** Samolepky, animovaná emoji a GIFy — TDLib je vede pod jedním `canSendOtherMessages`. */
     val stickers: Boolean,
     /**
@@ -128,6 +133,7 @@ data class ContentAccess(
             videos = true,
             documents = true,
             voiceNotes = true,
+            videoNotes = true,
             stickers = true,
             polls = true,
         )

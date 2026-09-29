@@ -182,6 +182,17 @@ kotlin {
             // zůstává klasický Photo Picker — knihovna se jen nezavolá.
             implementation(libs.androidx.photopicker.compose)
             implementation(libs.media3.exoplayer)
+            // Video kolečka — jediné místo, kde smí být CameraX, je core/camera. `camera-view`
+            // kvůli PreviewView: `camera-compose` táhne androidx Compose novější, než drží
+            // Compose Multiplatform (stejná úvaha jako `media3-ui` místo `media3-ui-compose`).
+            implementation(libs.camerax.camera2)
+            implementation(libs.camerax.lifecycle)
+            implementation(libs.camerax.video)
+            implementation(libs.camerax.view)
+            // Kolečko z kamery bez SD (480p) se po nahrání zmenší na 480 × 480 — Telegram větší
+            // kolečko převede na obyčejné video.
+            implementation(libs.media3.transformer)
+            implementation(libs.media3.effect)
             implementation(libs.media3.ui)
             // Hudba na pozadí: MediaSession, notifikace s ovládáním a služba v popředí.
             implementation(libs.media3.session)

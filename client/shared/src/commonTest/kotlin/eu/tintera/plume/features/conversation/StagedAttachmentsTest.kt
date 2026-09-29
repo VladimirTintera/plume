@@ -98,6 +98,7 @@ class StagedAttachmentsTest {
         videos = false,
         documents = false,
         voiceNotes = false,
+        videoNotes = false,
         stickers = false,
         polls = false,
     )
