@@ -168,6 +168,9 @@ class TdlProfileRepository(
     override suspend fun editableChat(chatId: Long): Result<EditableChat> = runCatching {
         val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
         val isChannel = (chat.type as? ChatTypeSupergroup)?.isChannel == true
+        val supergroup = (chat.type as? ChatTypeSupergroup)?.let {
+            client.getSupergroup(supergroupId = it.supergroupId).toResult().getOrNull()
+        }
         val description = when (val type = chat.type) {
             is ChatTypeBasicGroup ->
                 client.getBasicGroupFullInfo(basicGroupId = type.basicGroupId).toResult().getOrNull()?.description
@@ -188,6 +191,9 @@ class TdlProfileRepository(
                 membersCanChangeInfo = chat.permissions.canChangeInfo,
             ),
             permissions = chat.permissions.toGroupPermissions(),
+            isForum = supergroup?.isForum == true,
+            canToggleForum = supergroup != null && !isChannel && !supergroup.hasLinkedChat &&
+                (client.ownMemberStatus(chat) as? OwnMemberStatus.Creator)?.isMember == true,
         )
     }
 

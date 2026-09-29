@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.edit_chat_forum_help
+import eu.tintera.plume.resources.edit_chat_forum
 import eu.tintera.plume.resources.how_to_reg_24dp
 import eu.tintera.plume.resources.link_24dp
 import eu.tintera.plume.resources.edit_chat_join_requests_none
@@ -246,6 +248,21 @@ fun EditChatScreen(
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
+
+            // Témata zapíná jen vlastník supergroupy (viz `EditableChat.canToggleForum`).
+            if (chat.canToggleForum) {
+                Card(Modifier.fillMaxWidth()) {
+                    Column {
+                        SwitchRow(Res.string.edit_chat_forum, viewModel.isForum, viewModel::toggleForum)
+                        Text(
+                            stringResource(Res.string.edit_chat_forum_help),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                        )
+                    }
+                }
             }
 
             /*

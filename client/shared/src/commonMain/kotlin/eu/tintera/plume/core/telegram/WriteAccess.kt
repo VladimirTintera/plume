@@ -37,6 +37,8 @@ internal sealed interface OwnMemberStatus {
         val canInviteUsers: Boolean = false,
         /** Právo spravovat témata — mimo jiné psát do uzavřeného tématu. */
         val canManageTopics: Boolean = false,
+        /** Právo mazat cizí zprávy, a tím i cizí téma (`deleteForumTopic`). */
+        val canDeleteMessages: Boolean = false,
     ) : OwnMemberStatus
     data object Member : OwnMemberStatus
     data class Restricted(

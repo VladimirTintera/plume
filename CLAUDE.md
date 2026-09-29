@@ -6887,6 +6887,36 @@ funkce v `ForumTopics.kt` (testy `ForumTopicsTest`).
   skupině), „Zobrazit jako zprávy" a zpět. **Psaní do tématu, uzavřené téma, přečtení
   a dvoupanel ověřené NEJSOU** — skupinu s tématy, kam smí psát, testovací účet nemá.
 
+#### Správa témat
+
+Seznam témat má nahoře hledání podle názvu, dole „Nové téma" a podržení řádku otevře nabídku
+(připnout, ztlumit, přejmenovat, uzavřít / znovu otevřít, skrýt obecné téma, smazat). Témata ve
+skupině zapíná přepínač v úpravě skupiny. Kdo co smí, rozhodují čisté funkce `topicRights`
+a `topicActions` (`ForumTopics.kt`, testy `TopicManagementTest`).
+
+- **Vlastní téma smí autor upravit, uzavřít i smazat bez práv správce** (`ForumTopicInfo.isOutgoing`
+  → `ForumTopic.isOwn`); cizí jen správce s `canManageTopics`, smazat s `canDeleteMessages`.
+  Připnout smí jen správce — pořadí témat patří celé skupině. Zakládá člen, když to skupina
+  dovolí (`ChatPermissions.canCreateTopics`), správce s `canManageTopics` vždy.
+- **Obecné téma smazat nejde, jen skrýt** — a skryté se v seznamu nekreslí (`sortedTopics`).
+  Proto stránka nese obecné téma zvlášť (`ForumTopicsPage.general`, i skryté) a vrací se z ⋮
+  („Zobrazit obecné téma"). **Server skryté obecné téma zároveň UZAVŘE a při vrácení ho neotevře**
+  — v seznamu pak má zámek; znovu otevřít jde z nabídky.
+- **Barvy nového tématu jsou jen ty, které TDLib přijme** (`TOPIC_COLORS`, šest). Přejmenování
+  barvu nemění — `editForumTopic` ji měnit neumí (jen vlastní emoji, a to až s Premium).
+- **Nové téma se po vytvoření rovnou otevře** (`createdTopicId`), jako u oficiálních klientů.
+- **Ztlumení tématu se zapisuje celým objektem** jako ztlumení chatu (`withMuteFor`,
+  `useDefaultMuteFor = false`), jinak by se přepsal zvuk a téma by jelo podle skupiny.
+- **Hledání hledá server** (`getForumTopics` s dotazem, první stránka), takže najde i téma, které
+  ještě není načtené. Rozepsaný dotaz další znak zahodí (`transformLatest`), jako hledání chatů.
+- **Zapnout témata smí jen vlastník supergroupy** (`EditableChat.canToggleForum`), diskusní
+  skupina kanálu je mít nemůže a základní skupina by se musela napřed převést — tam se přepínač
+  nenabízí. `hasForumTabs` (záložky místo seznamu) posíláme `false`.
+- **Ověřeno na emulátoru** v testovací skupině „Plume test pozvánek" (zapnutím témat): zapnutí,
+  založení tématu se zelenou ikonou a jeho otevření, připnutí, uzavření, ztlumení, přejmenování,
+  hledání, skrytí a vrácení obecného tématu, smazání s potvrzením, anglicky i česky.
+  **Neověřeno**: vypnutí témat, práva správce bez vlastnictví a člena (chce druhý účet), iOS.
+
 #### Cesty do tématu
 
 Notifikace, odkaz na zprávu, výsledek hledání i zmínka vedou do tématu, ne do celé skupiny.
@@ -8550,6 +8580,11 @@ vkus toho, kdo zrovna píše obrazovku.
   pozná jedině rukou na telefonu.**
 
 ## Gotchas
+
+- **`ExtendedFloatingActionButton(text = …, icon = …)` popisek skrývá před čtečkou obrazovky**
+  (`clearAndSetSemantics` uvnitř animace rozbalení) — tlačítko pak ve stromu přístupnosti nemá
+  žádný název a `uiautomator` ho podle textu nenajde. Obsahová varianta
+  (`ExtendedFloatingActionButton(onClick) { Icon; Spacer; Text }`) popisek nese.
 
 - **„JDK home directory does not exist" s cestou do `actions-runner` = zastaralá konfigurační
   keš**, ne chyba v projektu. Keš si pamatuje cestu k toolchainu z doby, kdy na Macu běžel

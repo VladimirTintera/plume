@@ -2694,6 +2694,7 @@ private fun ChatMemberStatus.toOwn(): OwnMemberStatus = when (this) {
         canManageTags = rights.canManageTags,
         canInviteUsers = rights.canInviteUsers,
         canManageTopics = rights.canManageTopics,
+        canDeleteMessages = rights.canDeleteMessages,
     )
     is ChatMemberStatusMember -> OwnMemberStatus.Member
     is ChatMemberStatusRestricted -> OwnMemberStatus.Restricted(

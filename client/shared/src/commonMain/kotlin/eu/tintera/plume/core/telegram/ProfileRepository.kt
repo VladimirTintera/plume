@@ -152,6 +152,13 @@ data class EditableChat(
     val rights: ChatEditRights,
     /** Výchozí práva členů; u kanálu se nenabízejí a jsou tu jen jako výchozí hodnoty. */
     val permissions: GroupPermissions,
+    /** Skupina má témata. */
+    val isForum: Boolean = false,
+    /**
+     * Témata jde zapnout a vypnout: smí jen vlastník supergroupy, a diskusní skupina kanálu je
+     * mít nemůže (`toggleSupergroupIsForum`). Základní skupina by se musela napřed převést.
+     */
+    val canToggleForum: Boolean = false,
 )
 
 /**

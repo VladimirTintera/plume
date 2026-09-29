@@ -1,5 +1,23 @@
 package eu.tintera.plume.features.forum
 
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import kotlinx.coroutines.launch
+import eu.tintera.plume.resources.visibility_24dp
+import eu.tintera.plume.resources.chats_search_clear
+import eu.tintera.plume.resources.forum_topics_search
+import eu.tintera.plume.resources.forum_topics_nothing_found
+import eu.tintera.plume.resources.forum_topic_show_general
+import eu.tintera.plume.resources.forum_topic_new
+import eu.tintera.plume.resources.add_24dp
+import eu.tintera.plume.core.ui.SearchPill
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -116,8 +134,42 @@ fun ForumTopicsScreen(
     onViewAsMessages: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val noticeText = state.notice?.resolve()
+    // Snackbar mimo tělo efektu: vynulování hlášky mění klíč a zrušilo by ho (viz „Vrátit").
+    LaunchedEffect(state.notice) {
+        if (noticeText != null) {
+            viewModel.noticeShown()
+            scope.launch { snackbarHostState.showSnackbar(noticeText) }
+        }
+    }
+    val currentOnOpenTopic by rememberUpdatedState(onOpenTopic)
+    LaunchedEffect(state.createdTopicId) {
+        val created = state.createdTopicId ?: return@LaunchedEffect
+        currentOnOpenTopic(created)
+        viewModel.createdTopicOpened()
+    }
+    var actionsFor by remember { mutableStateOf<ForumTopic?>(null) }
+    var deleteTarget by remember { mutableStateOf<ForumTopic?>(null) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            if (state.rights.canCreate) {
+                // Obsahová varianta, ne `text`/`icon`: ta popisek skrývá před čtečkou obrazovky
+                // (`clearAndSetSemantics`) a tlačítko by nemělo žádný název.
+                ExtendedFloatingActionButton(
+                    onClick = viewModel::openCreate,
+                    // Nad navigační lištou: Scaffold tu insety nemá (`contentWindowInsets = 0`).
+                    modifier = Modifier.navigationBarsPadding(),
+                ) {
+                    Icon(painterResource(Res.drawable.add_24dp), contentDescription = null)
+                    Spacer(Modifier.width(12.dp))
+                    Text(stringResource(Res.string.forum_topic_new))
+                }
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -169,7 +221,7 @@ fun ForumTopicsScreen(
                             expanded = expanded,
                             onDismiss = { expanded = false },
                             groups = listOf(
-                                listOf(
+                                listOfNotNull(
                                     MenuAction(
                                         stringResource(Res.string.forum_view_as_messages),
                                         Res.drawable.format_list_bulleted_24dp,
@@ -178,6 +230,15 @@ fun ForumTopicsScreen(
                                             onViewAsMessages()
                                         },
                                     ),
+                                    // Skryté obecné téma v seznamu není, takže se vrací odsud.
+                                    MenuAction(
+                                        stringResource(Res.string.forum_topic_show_general),
+                                        Res.drawable.visibility_24dp,
+                                        onClick = {
+                                            expanded = false
+                                            viewModel.setGeneralHidden(false)
+                                        },
+                                    ).takeIf { state.general?.isHidden == true && state.rights.canManage },
                                 ),
                             ),
                         )
@@ -207,26 +268,85 @@ fun ForumTopicsScreen(
                     start = 16.dp,
                     end = 16.dp,
                     top = padding.calculateTopPadding() + 8.dp,
-                    bottom = bottom.calculateBottomPadding() + 16.dp,
+                    // Místo na tlačítko nového tématu, jinak by zakrylo poslední téma.
+                    bottom = bottom.calculateBottomPadding() + if (state.rights.canCreate) FAB_CLEARANCE else 16.dp,
                 ),
                 verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
                 modifier = Modifier.fillMaxSize(),
             ) {
-                itemsIndexed(state.topics, key = { _, topic -> topic.id }) { index, topic ->
+                /*
+                 * Hledání podle názvu jako první položka seznamu, ne v liště: odjede s obsahem
+                 * a u pár témat nepřekáží. Hledá server (`getForumTopics` s dotazem), takže
+                 * najde i téma, které ještě není načtené.
+                 */
+                item(key = "search") {
+                    SearchPill(
+                        initialQuery = "",
+                        onQueryChange = viewModel::search,
+                        placeholder = stringResource(Res.string.forum_topics_search),
+                        clearDescription = stringResource(Res.string.chats_search_clear),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    )
+                }
+                val shown = state.searchResults ?: state.topics
+                if (state.searchResults?.isEmpty() == true) {
+                    item(key = "nothing") {
+                        Text(
+                            stringResource(Res.string.forum_topics_nothing_found),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        )
+                    }
+                }
+                itemsIndexed(shown, key = { _, topic -> topic.id }) { index, topic ->
                     TopicRow(
                         topic = topic,
-                        shape = groupItemShape(index, state.topics.size),
+                        shape = groupItemShape(index, shown.size),
                         onClick = { onOpenTopic(topic.id) },
+                        onLongClick = { actionsFor = topic },
                         modifier = Modifier.animateItem(),
                     )
                     // Dotažení další stránky, když se seznam blíží ke konci. Skládání položky je
                     // spolehlivější než `layoutInfo` (viz „Sdílená média v profilu").
-                    if (index >= state.topics.size - LOAD_MORE_THRESHOLD && state.next != null) {
+                    if (state.searchResults == null && index >= state.topics.size - LOAD_MORE_THRESHOLD && state.next != null) {
                         LaunchedEffect(state.topics.size) { viewModel.loadMore() }
                     }
                 }
             }
         }
+    }
+    actionsFor?.let { topic ->
+        TopicActionsSheet(
+            topic = topic,
+            rights = state.rights,
+            onDismiss = { actionsFor = null },
+            onPin = { viewModel.setPinned(topic, it) },
+            onMute = { viewModel.setMuted(topic, it) },
+            onRename = { viewModel.openRename(topic) },
+            onClose = { viewModel.setClosed(topic, it) },
+            onHideGeneral = { viewModel.setGeneralHidden(true) },
+            onDelete = { deleteTarget = topic },
+        )
+    }
+    deleteTarget?.let { topic ->
+        DeleteTopicDialog(
+            topic = topic,
+            onConfirm = {
+                deleteTarget = null
+                viewModel.delete(topic)
+            },
+            onDismiss = { deleteTarget = null },
+        )
+    }
+    state.editor?.let { editor ->
+        TopicEditorSheet(
+            editor = editor,
+            busy = state.busy,
+            onChange = viewModel::updateEditor,
+            onSave = viewModel::saveEditor,
+            onDismiss = viewModel::closeEditor,
+        )
     }
 }
 
@@ -235,6 +355,7 @@ private fun TopicRow(
     topic: ForumTopic,
     shape: androidx.compose.ui.graphics.Shape,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
@@ -242,7 +363,8 @@ private fun TopicRow(
     Surface(
         shape = shape,
         color = containerColor,
-        modifier = modifier.fillMaxWidth().clip(shape).clickable(onClick = onClick),
+        // Podržení otevře nabídku nad tématem, jako podržení chatu v seznamu chatů.
+        modifier = modifier.fillMaxWidth().clip(shape).combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         Row(
             Modifier.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),
@@ -382,3 +504,6 @@ private val HEADER_AVATAR = 36.dp
 private val ICON_SIZE = 44.dp
 
 private const val LOAD_MORE_THRESHOLD = 5
+
+/** Místo pod posledním tématem na rozšířené tlačítko nového tématu (56 dp + odstup). */
+private val FAB_CLEARANCE = 88.dp

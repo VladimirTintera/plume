@@ -40,14 +40,87 @@ class TdlForumRepository(private val holder: TelegramClientHolder) : ForumReposi
         )
             .toResult()
             .map { page ->
-                val topics = page.topics.filterNotNull()
+                val topics = page.topics.filterNotNull().map { it.toDomain() }
                 ForumTopicsPage(
-                    topics = topics.map { it.toDomain() }.sortedTopics(),
+                    topics = topics.sortedTopics(),
                     // Prázdná stránka je konec; offset z ní by vedl zase na začátek.
                     next = ForumTopicsOffset(page.nextOffsetDate, page.nextOffsetMessageId, page.nextOffsetForumTopicId)
                         .takeIf { topics.isNotEmpty() },
+                    general = topics.firstOrNull { it.isGeneral },
                 )
             }
+
+    override suspend fun search(chatId: Long, query: String): Result<List<ForumTopic>> =
+        client.getForumTopics(
+            chatId = chatId,
+            query = query,
+            offsetDate = 0,
+            offsetMessageId = 0L,
+            offsetForumTopicId = 0,
+            limit = TOPICS_PAGE,
+        )
+            .toResult()
+            .map { page -> page.topics.filterNotNull().map { it.toDomain() }.sortedTopics() }
+
+    override suspend fun rights(chatId: Long): Result<TopicRights> = runCatching {
+        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+        topicRights(client.ownMemberStatus(chat), membersCanCreate = chat.permissions.canCreateTopics)
+    }
+
+    override suspend fun create(chatId: Long, name: String, color: Int): Result<Int> =
+        client.createForumTopic(
+            chatId = chatId,
+            name = name.trim().take(TOPIC_NAME_MAX),
+            isNameImplicit = false,
+            icon = ForumTopicIcon(color = color, customEmojiId = 0L),
+        ).toResult().map { it.forumTopicId }
+
+    override suspend fun rename(chatId: Long, topicId: Int, name: String): Result<Unit> =
+        client.editForumTopic(
+            chatId = chatId,
+            forumTopicId = topicId,
+            name = name.trim().take(TOPIC_NAME_MAX),
+            // Ikonu úprava nemění — `false` ji nechá, jak je.
+            editIconCustomEmoji = false,
+            iconCustomEmojiId = 0L,
+        ).toResult().map { }
+
+    override suspend fun setClosed(chatId: Long, topicId: Int, closed: Boolean): Result<Unit> =
+        client.toggleForumTopicIsClosed(chatId = chatId, forumTopicId = topicId, isClosed = closed).toResult().map { }
+
+    override suspend fun setPinned(chatId: Long, topicId: Int, pinned: Boolean): Result<Unit> =
+        client.toggleForumTopicIsPinned(chatId = chatId, forumTopicId = topicId, isPinned = pinned).toResult().map { }
+
+    /**
+     * Celým objektem, jako ztlumení chatu: ostatní hodnoty se přenesou z aktuálního tématu,
+     * jinak by se tiše přepsal třeba zvuk. `useDefaultMuteFor = false`, jinak se `muteFor`
+     * ignoruje a téma jede podle skupiny.
+     */
+    override suspend fun setMuted(chatId: Long, topicId: Int, muted: Boolean): Result<Unit> = runCatching {
+        val current = client.getForumTopic(chatId = chatId, forumTopicId = topicId).toResult().getOrThrow().notificationSettings
+        client.setForumTopicNotificationSettings(
+            chatId = chatId,
+            forumTopicId = topicId,
+            notificationSettings = current.withMuteFor(if (muted) Int.MAX_VALUE else 0),
+        ).toResult().getOrThrow()
+    }
+
+    override suspend fun delete(chatId: Long, topicId: Int): Result<Unit> =
+        client.deleteForumTopic(chatId = chatId, forumTopicId = topicId).toResult().map { }
+
+    override suspend fun setGeneralHidden(chatId: Long, hidden: Boolean): Result<Unit> =
+        client.toggleGeneralForumTopicIsHidden(chatId = chatId, isHidden = hidden).toResult().map { }
+
+    override suspend fun setForum(chatId: Long, forum: Boolean): Result<Unit> = runCatching {
+        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+        val supergroup = (chat.type as? ChatTypeSupergroup) ?: error("Témata umí jen supergroupa.")
+        client.toggleSupergroupIsForum(
+            supergroupId = supergroup.supergroupId,
+            isForum = forum,
+            // Témata jako záložky nahoře v chatu — aplikace je ukazuje jako seznam.
+            hasForumTabs = false,
+        ).toResult().getOrThrow()
+    }
 
     override suspend fun topic(chatId: Long, topicId: Int): Result<ForumTopic> =
         client.getForumTopic(chatId = chatId, forumTopicId = topicId)
@@ -82,6 +155,7 @@ class TdlForumRepository(private val holder: TelegramClientHolder) : ForumReposi
         lastMessage = lastMessage?.toTopicPreview(),
         draft = draftMessage?.toChatDraft(),
         isHidden = info.isHidden,
+        isOwn = info.isOutgoing,
     )
 
     private suspend fun Message.toTopicPreview() = TopicMessagePreview(
@@ -106,6 +180,25 @@ class TdlForumRepository(private val holder: TelegramClientHolder) : ForumReposi
 }
 
 internal fun ForumTopicIcon.toDomain() = TopicIcon(color = color, customEmojiId = customEmojiId.takeIf { it != 0L })
+
+private fun ChatNotificationSettings.withMuteFor(seconds: Int) = ChatNotificationSettings(
+    useDefaultMuteFor = false,
+    muteFor = seconds,
+    useDefaultSound = useDefaultSound,
+    soundId = soundId,
+    useDefaultShowPreview = useDefaultShowPreview,
+    showPreview = showPreview,
+    useDefaultMuteStories = useDefaultMuteStories,
+    muteStories = muteStories,
+    useDefaultStorySound = useDefaultStorySound,
+    storySoundId = storySoundId,
+    useDefaultShowStoryPoster = useDefaultShowStoryPoster,
+    showStoryPoster = showStoryPoster,
+    useDefaultDisablePinnedMessageNotifications = useDefaultDisablePinnedMessageNotifications,
+    disablePinnedMessageNotifications = disablePinnedMessageNotifications,
+    useDefaultDisableMentionNotifications = useDefaultDisableMentionNotifications,
+    disableMentionNotifications = disableMentionNotifications,
+)
 
 /** Ztlumené téma; výchozí nastavení tématu se řídí skupinou, a to seznam témat neukazuje. */
 private fun ChatNotificationSettings.isTopicMuted(): Boolean = !useDefaultMuteFor && muteFor > 0
