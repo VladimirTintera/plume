@@ -1,5 +1,17 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.how_to_reg_24dp
+import eu.tintera.plume.resources.link_24dp
+import eu.tintera.plume.resources.edit_chat_join_requests_none
+import eu.tintera.plume.resources.edit_chat_join_requests_count
+import eu.tintera.plume.resources.edit_chat_join_requests
+import eu.tintera.plume.resources.edit_chat_invite_links_help
+import eu.tintera.plume.resources.edit_chat_invite_links
+import eu.tintera.plume.resources.edit_chat_invites
+import org.jetbrains.compose.resources.pluralStringResource
+import eu.tintera.plume.core.ui.grouped
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -94,7 +106,13 @@ import org.jetbrains.compose.resources.stringResource
  * bloku rozhoduje zvlášť. Obrazovku samotnou nabídne profil, jen když je aspoň jedno z nich.
  */
 @Composable
-fun EditChatScreen(viewModel: EditChatViewModel, onBack: () -> Unit, modifier: Modifier = Modifier) {
+fun EditChatScreen(
+    viewModel: EditChatViewModel,
+    onBack: () -> Unit,
+    onOpenInviteLinks: () -> Unit,
+    onOpenJoinRequests: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val currentOnBack by rememberUpdatedState(onBack)
@@ -238,6 +256,12 @@ fun EditChatScreen(viewModel: EditChatViewModel, onBack: () -> Unit, modifier: M
             if (chat.rights.canRestrictMembers && !chat.isChannel && permissions != null) {
                 PermissionsGroup(permissions, viewModel::setPermission)
             }
+
+            // Pozvánky: vlastník a správce s právem zvát (`ChatEditRights.canManageInvites`).
+            if (chat.rights.canManageInvites) {
+                val pending by viewModel.pendingJoinRequests.collectAsStateWithLifecycle()
+                InvitesGroup(pending = pending, onOpenInviteLinks = onOpenInviteLinks, onOpenJoinRequests = onOpenJoinRequests)
+            }
         }
     }
 }
@@ -292,6 +316,48 @@ private fun PermissionsGroup(
                 SwitchRow(Res.string.edit_chat_perm_change_info, permissions.changeInfo) { value ->
                     onChange { it.copy(changeInfo = value) }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Pozvánky a žádosti o vstup — dva řádky, každý na vlastní obrazovku. Žádosti mají v podtitulu
+ * počet čekajících, aby bylo vidět, že je co vyřizovat, ještě než se na ně ťukne.
+ */
+@Composable
+private fun InvitesGroup(pending: Int, onOpenInviteLinks: () -> Unit, onOpenJoinRequests: () -> Unit) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            stringResource(Res.string.edit_chat_invites),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
+        )
+        Card(Modifier.fillMaxWidth()) {
+            Column {
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    headlineContent = { Text(stringResource(Res.string.edit_chat_invite_links)) },
+                    supportingContent = { Text(stringResource(Res.string.edit_chat_invite_links_help)) },
+                    leadingContent = { Icon(painterResource(Res.drawable.link_24dp), contentDescription = null) },
+                    modifier = Modifier.clickable(onClick = onOpenInviteLinks),
+                )
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    headlineContent = { Text(stringResource(Res.string.edit_chat_join_requests)) },
+                    supportingContent = {
+                        Text(
+                            if (pending > 0) {
+                                pluralStringResource(Res.plurals.edit_chat_join_requests_count, pending, pending.grouped())
+                            } else {
+                                stringResource(Res.string.edit_chat_join_requests_none)
+                            },
+                        )
+                    },
+                    leadingContent = { Icon(painterResource(Res.drawable.how_to_reg_24dp), contentDescription = null) },
+                    modifier = Modifier.clickable(onClick = onOpenJoinRequests),
+                )
             }
         }
     }

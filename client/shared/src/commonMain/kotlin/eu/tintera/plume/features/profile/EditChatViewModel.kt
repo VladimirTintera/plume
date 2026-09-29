@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.profile
 
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import eu.tintera.plume.core.telegram.InviteLinkRepository
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -35,7 +39,12 @@ class EditChatViewModel(
     private val chatId: Long,
     private val repository: ProfileRepository,
     private val squarePhoto: SquarePhoto,
+    inviteLinks: InviteLinkRepository,
 ) : ViewModel() {
+
+    /** Čekající žádosti o vstup — podtitul řádku, který na ně vede. Živě, vyřizuje je i jiný správce. */
+    val pendingJoinRequests: StateFlow<Int> = inviteLinks.pendingJoinRequests(chatId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     private val logger = Logger.withTag("EditChat")
 

@@ -5562,6 +5562,40 @@ testy `MemberManagementTest`).
   data přidání), vlastní profilovky z úpravy profilu („3 z 3", ✕ i zpět vrací do úpravy
   profilu). **Animovaná profilovka ani skupina s několika změnami fotky ověřené nejsou.**
 
+### Pozvánky a žádosti o vstup
+
+V úpravě skupiny (⋮ v profilu → Upravit) je blok Pozvánky se dvěma řádky: **Odkazy k pozvání**
+(`InviteLinksRoute`, `InviteLinksScreen`) a **Žádosti o vstup** (`JoinRequestsRoute`,
+`JoinRequestsScreen`) s počtem čekajících. Hranice je `InviteLinkRepository` v `core/telegram`,
+pravidla čisté funkce (`inviteLinkStatus`, `InviteLinkDraft.normalized`, `InviteLinkEditor`,
+testy `InviteLinkEditorTest`).
+
+- **Spravovat smí vlastník a správce s `canInviteUsers`** (`ChatEditRights.canManageInvites`).
+  Členové smějí zvát podle výchozích práv, ale odkazy spravovat ne — `createChatInviteLink` chce
+  správce. Správce, který smí JEN zvát, dostane úpravu skupiny jen s tímhle blokem.
+- **Seznam odkazů je jen vlastní** (`getChatInviteLinks` bere tvůrce): hlavní odkaz, další
+  odkazy a zrušené. Odkazy ostatních správců vidí jen vlastník a zatím se nenabízejí.
+- **Po každé změně se seznam čte znovu**, nic se nepřepisuje lokálně — zrušení hlavního odkazu
+  vyrobí na serveru nový a jeho adresu zná jen server. Hlavní odkaz se proto „vyměňuje", ne ruší.
+- **Se schvalováním se limit nesmí poslat** — TDLib `member_limit` u odkazu se žádostmi odmítne.
+  Koncept ho zahodí sám (`normalized`) a formulář limit se schvalováním schová.
+- **Platnost a limit jsou volby, ne čísla** (hodina / den / týden / napořád, bez limitu / 1 / 10
+  / 100). „Za den" se počítá až při uložení (`toDraft(now)`), ne při otevření formuláře. Úprava
+  odkazu s koncem nabídne „Ponechat"; neobvyklý limit nastavený jinde se do voleb přidá.
+- **Vypršelý a naplněný odkaz server sám nezruší**, jen přestane pouštět dovnitř; bez
+  `inviteLinkStatus` by v seznamu vypadal jako platný.
+- **Nový odkaz se rovnou zkopíruje** — vytváří se proto, aby se poslal dál. Sdílení textu
+  aplikace zatím nemá (`MediaSharer` sdílí jen soubory).
+- **Vyřizovaná žádost z řádku hned zmizí** (`processing`) a seznam se čte znovu až po vyřízení —
+  jinak by na okamžik naskočila zpátky. Seznam se čte znovu i na `UpdateChatPendingJoinRequests`
+  (žádost vyřídil jiný správce). Hromadné přijetí a odmítnutí je za ⋮ s potvrzením: týká se
+  i žádostí, které na obrazovce nejsou (`processChatJoinRequests` s prázdným odkazem).
+- **Ověřeno na emulátoru** v testovací skupině (založené sondou `createNewSupergroupChat`, Plume
+  zakládat skupiny neumí): vytvoření odkazu s platností a limitem, úprava na schvalování
+  (limit zmizel, platnost zůstala), zrušení s potvrzením, smazání zrušených, prázdné žádosti,
+  anglicky i česky. **Skutečná žádost o vstup ověřená NENÍ** — bot se přes pozvánku nepřidá,
+  chce to druhý účet; seznam žádostí jen podstrčenými daty a vyřízení vůbec.
+
 ### Sdílená média v profilu
 
 Pod hlavičkou profilu jsou záložky: **Členové** (kde je server vydá), **Média**, **Soubory**

@@ -1,5 +1,11 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.features.profile.JoinRequestsScreen
+import eu.tintera.plume.features.profile.InviteLinksScreen
+import eu.tintera.plume.core.navigation.JoinRequestsRoute
+import eu.tintera.plume.core.navigation.InviteLinksRoute
+import eu.tintera.plume.core.navigation.ArchiveJoinRequestsRoute
+import eu.tintera.plume.core.navigation.ArchiveInviteLinksRoute
 import eu.tintera.plume.features.settings.EditProfileScreen
 import eu.tintera.plume.core.navigation.AddBotToGroupRoute
 import eu.tintera.plume.core.navigation.ArchiveEditChatRoute
@@ -521,12 +527,45 @@ private fun shellEntryProvider(
         EditChatScreen(
             viewModel = koinViewModel(key = "edit-chat-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
+            onOpenInviteLinks = { chatsStack.addOnce(InviteLinksRoute(route.chatId)) },
+            onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
         )
     }
 
     entry<ArchiveEditChatRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
         EditChatScreen(
             viewModel = koinViewModel(key = "edit-chat-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+            onOpenInviteLinks = { chatsStack.addOnce(ArchiveInviteLinksRoute(route.chatId)) },
+            onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
+        )
+    }
+
+    // Pozvánky a žádosti se vrší nad úpravu, taky jako detail panel.
+    entry<InviteLinksRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
+        InviteLinksScreen(
+            viewModel = koinViewModel(key = "invite-links-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+        )
+    }
+
+    entry<ArchiveInviteLinksRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
+        InviteLinksScreen(
+            viewModel = koinViewModel(key = "invite-links-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+        )
+    }
+
+    entry<JoinRequestsRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
+        JoinRequestsScreen(
+            viewModel = koinViewModel(key = "join-requests-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+        )
+    }
+
+    entry<ArchiveJoinRequestsRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
+        JoinRequestsScreen(
+            viewModel = koinViewModel(key = "join-requests-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
         )
     }

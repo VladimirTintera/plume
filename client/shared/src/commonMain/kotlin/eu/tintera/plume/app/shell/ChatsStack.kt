@@ -1,5 +1,9 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.core.navigation.JoinRequestsRoute
+import eu.tintera.plume.core.navigation.InviteLinksRoute
+import eu.tintera.plume.core.navigation.ArchiveJoinRequestsRoute
+import eu.tintera.plume.core.navigation.ArchiveInviteLinksRoute
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import androidx.navigation3.runtime.NavKey
@@ -100,10 +104,11 @@ internal fun MutableList<NavKey>.moveConversationToMain(chatId: Long) {
         when (it) {
             // Celá archivní větev, i úpravy a práva členů nad profilem.
             is ArchiveRoute, is ArchiveConversationRoute, is ArchiveForumTopicsRoute, is ArchiveChatProfileRoute,
-            is ArchiveEditChatRoute, is ArchiveMemberRightsRoute -> true
+            is ArchiveEditChatRoute, is ArchiveMemberRightsRoute, is ArchiveInviteLinksRoute, is ArchiveJoinRequestsRoute -> true
             // Detail hlavního seznamu patřil jinému chatu; nový chat ho nahradí celý, jinak by
             // zpět z něj vedlo do profilu toho předchozího.
-            is ConversationRoute, is ForumTopicsRoute, is ChatProfileRoute, is EditChatRoute, is MemberRightsRoute -> true
+            is ConversationRoute, is ForumTopicsRoute, is ChatProfileRoute, is EditChatRoute, is MemberRightsRoute,
+            is InviteLinksRoute, is JoinRequestsRoute -> true
             else -> false
         }
     }
@@ -185,3 +190,8 @@ private fun conversation(archive: Boolean, chatId: Long, messageId: Long? = null
     } else {
         ConversationRoute(chatId, messageId, threadId = threadId, topicId = topicId)
     }
+
+/** Přidá routu, jen když už nahoře není — dvojí ťuknutí nesmí obrazovku otevřít dvakrát. */
+internal fun MutableList<NavKey>.addOnce(route: NavKey) {
+    if (lastOrNull() != route) add(route)
+}

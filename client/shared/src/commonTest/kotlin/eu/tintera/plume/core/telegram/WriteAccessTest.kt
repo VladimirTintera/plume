@@ -96,12 +96,12 @@ class WriteAccessTest {
     @Test
     fun vlastnikSmiVsechno() {
         assertEquals(
-            ChatEditRights(canChangeInfo = true, canRestrictMembers = true),
+            ChatEditRights(canChangeInfo = true, canRestrictMembers = true, canManageInvites = true),
             chatEditRights(false, OwnMemberStatus.Creator(isMember = true), membersCanChangeInfo = false),
         )
         // V kanálu není co omezovat: výchozí práva členů nemá.
         assertEquals(
-            ChatEditRights(canChangeInfo = true, canRestrictMembers = false),
+            ChatEditRights(canChangeInfo = true, canRestrictMembers = false, canManageInvites = true),
             chatEditRights(true, OwnMemberStatus.Creator(isMember = true), membersCanChangeInfo = false),
         )
         // Vlastník, který ve skupině není, ji upravovat nemůže.
@@ -116,7 +116,12 @@ class WriteAccessTest {
         val jenPrava = OwnMemberStatus.Admin(canPostMessages = true, canChangeInfo = false, canRestrictMembers = true)
         assertEquals(ChatEditRights(canRestrictMembers = true), chatEditRights(false, jenPrava, false))
 
-        // Správce bez obojího nabídku úpravy vůbec nedostane.
+        // Správce, který smí jen zvát, dostane jen pozvánky — v kanálu stejně jako ve skupině.
+        val jenZvat = OwnMemberStatus.Admin(canPostMessages = true, canInviteUsers = true)
+        assertEquals(ChatEditRights(canManageInvites = true), chatEditRights(false, jenZvat, false))
+        assertEquals(ChatEditRights(canManageInvites = true), chatEditRights(true, jenZvat, false))
+
+        // Správce bez jediného z nich nabídku úpravy vůbec nedostane.
         assertEquals(ChatEditRights(), chatEditRights(false, OwnMemberStatus.Admin(canPostMessages = true), false))
     }
 
