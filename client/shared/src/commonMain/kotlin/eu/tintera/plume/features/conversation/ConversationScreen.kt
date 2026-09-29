@@ -1346,6 +1346,19 @@ fun ConversationScreen(
         bottomBar = {
             // Horní hrana pole je spodní mez pro nabídku nad zprávou (viz `contentBottom`).
             Box(Modifier.onGloballyPositioned { contentBottom.value = it.boundsInWindow().top }) {
+            /*
+             * Lišty místo pole (Přidat se, Start, Ztlumit, věta „nejde psát") mají pod sebou
+             * TENTÝŽ pás skla jako pole. Seznam zpráv pod spodní lištu zajíždí (spodek je
+             * `contentPadding`, ne konec plochy), takže bez pásu prosvítaly bubliny zpod tlačítka.
+             */
+            val barGlass = Modifier.hazeBlur(
+                input = HazeInput.Sources(listHaze),
+                style = glassStyle(
+                    color = MaterialTheme.colorScheme.surface,
+                    alpha = GLASS_TINT_ALPHA,
+                    fallbackAlpha = INPUT_SCRIM_ALPHA,
+                ),
+            )
             // Při výběru patří spodek akcím nad ním; rozepsaný text zůstává v konceptu.
             state.selection?.let { selection ->
                 SelectionToolbar(
@@ -1376,7 +1389,7 @@ fun ConversationScreen(
             // Omezený chat: do chatu, který se nedá ukázat, se ani psát nedá.
             if (chatHidden) return@Box
             if (state.info?.canJoin == true) {
-                JoinBar(joining = state.joining, onJoin = viewModel::join)
+                JoinBar(joining = state.joining, onJoin = viewModel::join, modifier = barGlass)
                 return@Box
             }
             // Nespuštěný bot (nebo čekající parametr z odkazu): Start místo pole.
@@ -1388,25 +1401,26 @@ fun ConversationScreen(
                         viewModel.startBot()
                     },
                     label = Res.string.conversation_bot_start,
+                    modifier = barGlass,
                 )
                 return@Box
             }
             // Kde se psát nesmí, pole by skončilo chybou až po odeslání. Kanál aspoň nabídne ztlumení.
             when (state.info?.writeAccess) {
                 WriteAccess.ChannelReadOnly -> {
-                    MuteBar(muted = state.muted, onToggle = viewModel::toggleMute)
+                    MuteBar(muted = state.muted, onToggle = viewModel::toggleMute, modifier = barGlass)
                     return@Box
                 }
                 WriteAccess.Restricted -> {
-                    ReadOnlyNote(Res.string.conversation_write_restricted)
+                    ReadOnlyNote(Res.string.conversation_write_restricted, barGlass)
                     return@Box
                 }
                 WriteAccess.NotMember -> {
-                    ReadOnlyNote(Res.string.conversation_not_member)
+                    ReadOnlyNote(Res.string.conversation_not_member, barGlass)
                     return@Box
                 }
                 WriteAccess.TopicClosed -> {
-                    ReadOnlyNote(Res.string.conversation_topic_closed)
+                    ReadOnlyNote(Res.string.conversation_topic_closed, barGlass)
                     return@Box
                 }
                 WriteAccess.Allowed, null -> Unit
@@ -3818,9 +3832,14 @@ private data class HeaderSubtitle(val text: String)
  * kterou tu jde udělat.
  */
 @Composable
-private fun JoinBar(joining: Boolean, onJoin: () -> Unit, label: StringResource = Res.string.conversation_join) {
+private fun JoinBar(
+    joining: Boolean,
+    onJoin: () -> Unit,
+    label: StringResource = Res.string.conversation_join,
+    modifier: Modifier = Modifier,
+) {
     Box(
-        Modifier
+        modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .imePadding()
@@ -3841,9 +3860,9 @@ private fun JoinBar(joining: Boolean, onJoin: () -> Unit, label: StringResource 
  * v oficiálním klientu. Popisek říká, co se stane, ne stav (stejně jako v profilu chatu).
  */
 @Composable
-private fun MuteBar(muted: Boolean?, onToggle: () -> Unit) {
+private fun MuteBar(muted: Boolean?, onToggle: () -> Unit, modifier: Modifier = Modifier) {
     Box(
-        Modifier
+        modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .imePadding()
@@ -3866,13 +3885,13 @@ private fun MuteBar(muted: Boolean?, onToggle: () -> Unit) {
 
 /** Místo vstupního pole tam, kde psát nejde a nic se s tím udělat nedá — aspoň proč. */
 @Composable
-private fun ReadOnlyNote(text: StringResource) {
+private fun ReadOnlyNote(text: StringResource, modifier: Modifier = Modifier) {
     Text(
         text = stringResource(text),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(horizontal = 24.dp, vertical = 20.dp),
