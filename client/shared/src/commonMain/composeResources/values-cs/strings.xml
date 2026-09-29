@@ -180,6 +180,7 @@
     <string name="media_saved_as">Uloženo</string>
     <string name="media_share_failed">Sdílení se nepodařilo</string>
     <string name="media_photo_load_failed">Fotku se nepodařilo načíst.</string>
+    <string name="media_profile_photos_none">Žádné profilové fotky</string>
     <string name="media_video_download_failed">Video se nepodařilo stáhnout.</string>
     <string name="media_download_progress">Průběh stahování</string>
     <string name="media_play">Přehrát</string>
@@ -269,6 +270,7 @@
     <string name="profile_role_owner">Vlastník</string>
     <string name="profile_role_admin">Správce</string>
     <string name="profile_bot">Bot</string>
+    <string name="profile_photos_open">Zobrazit profilové fotky</string>
     <string name="profile_failed">Profil se nepodařilo načíst.</string>
     <string name="profile_mute_failed">Upozornění se nepodařilo změnit.</string>
     <string name="conversation_search_by_member">Hledat podle člena</string>

@@ -21,6 +21,9 @@ import dev.g000sha256.tdl.dto.ChatPermissions
 import dev.g000sha256.tdl.dto.ChatMemberStatusBanned
 import dev.g000sha256.tdl.dto.ChatMemberStatusCreator
 import dev.g000sha256.tdl.dto.ChatMemberStatusLeft
+import dev.g000sha256.tdl.dto.ChatPhoto
+import dev.g000sha256.tdl.dto.MessageChatChangePhoto
+import dev.g000sha256.tdl.dto.SearchMessagesFilterChatPhoto
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSecret
@@ -241,6 +244,86 @@ class TdlProfileRepository(
         if (text.isBlank()) return MessageBody.Empty
         val entities = client.getTextEntities(text = text).toResult().getOrNull()?.entities ?: emptyArray()
         return FormattedText(text = text, entities = entities).toBody()
+    }
+
+    override suspend fun profilePhotos(chatId: Long): Result<List<ProfilePhoto>> = runCatching {
+        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+        val photos = when (val type = chat.type) {
+            is ChatTypePrivate -> userPhotos(type.userId)
+            is ChatTypeSecret -> userPhotos(type.userId)
+            is ChatTypeBasicGroup -> groupPhotos(
+                chatId = chatId,
+                current = client.getBasicGroupFullInfo(basicGroupId = type.basicGroupId).toResult().getOrNull()?.photo,
+            )
+            is ChatTypeSupergroup -> groupPhotos(
+                chatId = chatId,
+                current = client.getSupergroupFullInfo(supergroupId = type.supergroupId).toResult().getOrNull()?.photo,
+            )
+        }
+        // Aktuální fotka skupiny je zároveň v poslední zprávě o změně — jednou stačí.
+        photos.distinctBy { it.id }
+            .sortedByDescending { it.addedDate }
+            .mapNotNull { it.toProfilePhoto() }
+    }
+
+    /** Fotky uživatele po stránkách, dokud je server má (strop [MAX_PROFILE_PHOTOS]). */
+    private suspend fun userPhotos(userId: Long): List<ChatPhoto> {
+        val found = mutableListOf<ChatPhoto>()
+        do {
+            val page = client.getUserProfilePhotos(userId = userId, offset = found.size, limit = PROFILE_PHOTOS_PAGE)
+                .toResult().getOrThrow()
+            val photos = page.photos.filterNotNull()
+            found += photos
+        } while (photos.isNotEmpty() && found.size < page.totalCount && found.size < MAX_PROFILE_PHOTOS)
+        return found
+    }
+
+    /**
+     * Fotky skupiny nebo kanálu: aktuální ([current], z plných údajů) a ty ze zpráv o změně
+     * fotky. Když hledání selže, zůstane aspoň aktuální — prohlížeč pak ukáže jen ji.
+     */
+    private suspend fun groupPhotos(chatId: Long, current: ChatPhoto?): List<ChatPhoto> {
+        val found = listOfNotNull(current).toMutableList()
+        var from = 0L
+        do {
+            val page = client.searchChatMessages(
+                chatId = chatId,
+                topicId = null,
+                query = "",
+                senderId = null,
+                fromMessageId = from,
+                offset = 0,
+                limit = PROFILE_PHOTOS_PAGE,
+                filter = SearchMessagesFilterChatPhoto(),
+            ).toResult().getOrNull() ?: break
+            val messages = page.messages.filterNotNull()
+            found += messages.mapNotNull { (it.content as? MessageChatChangePhoto)?.photo }
+            // Nula = dál už nic není. Prázdná stránka nebo stejné pokračování taky — jinak by se
+            // smyčka dotazů točila donekonečna.
+            val next = page.nextFromMessageId
+            if (messages.isEmpty() || next == from) break
+            from = next
+        } while (from != 0L && found.size < MAX_PROFILE_PHOTOS)
+        return found
+    }
+
+    /**
+     * Profilovka jako médium prohlížeče. Animovaná je video s fotkou jako náhledem — rozměry
+     * má čtvercové (`length`) a délku TDLib neposílá, přehrávač ji zjistí sám.
+     */
+    private fun ChatPhoto.toProfilePhoto(): ProfilePhoto? {
+        val still = photoMedia(sizes = sizes.filterNotNull(), minithumbnail = minithumbnail) ?: return null
+        val media = animation?.let { video ->
+            MessageMedia.Video(
+                fileId = video.file.id,
+                thumbnailFileId = still.fileId,
+                width = video.length,
+                height = video.length,
+                durationSeconds = 0,
+                minithumbnail = still.minithumbnail,
+            )
+        } ?: still
+        return ProfilePhoto(id = id, addedDate = addedDate, media = media)
     }
 
     override suspend fun members(chatId: Long, query: String, offset: Int, limit: Int): Result<MemberPage> =
@@ -568,3 +651,9 @@ private fun ChatPermissions.merged(next: GroupPermissions) = ChatPermissions(
     canPinMessages = next.pinMessages,
     canCreateTopics = canCreateTopics,
 )
+
+/** Kolik profilových fotek se čte najednou (`getUserProfilePhotos` bere nejvýš 100). */
+private const val PROFILE_PHOTOS_PAGE = 100
+
+/** Strop historie profilovek; víc nikdo neprolistuje a každá stránka je dotaz na server. */
+private const val MAX_PROFILE_PHOTOS = 300

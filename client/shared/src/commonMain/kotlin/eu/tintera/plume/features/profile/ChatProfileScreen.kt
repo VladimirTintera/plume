@@ -181,6 +181,7 @@ import eu.tintera.plume.resources.notifications_24dp
 import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.profile_bio
 import eu.tintera.plume.resources.profile_bot
+import eu.tintera.plume.resources.profile_photos_open
 import eu.tintera.plume.resources.profile_description
 import eu.tintera.plume.resources.profile_info
 import eu.tintera.plume.resources.profile_mute
@@ -219,6 +220,8 @@ fun ChatProfileScreen(
     onOpenChat: (chatId: Long) -> Unit,
     /** Fotka nebo video ze záložky Média: otevře se prohlížeč, stejně jako z konverzace. */
     onOpenMedia: (messageId: Long) -> Unit,
+    /** Ťuknutí na velkou fotku: historie profilových fotek v prohlížeči. */
+    onOpenPhotos: () -> Unit,
     /** Chat je smazaný nebo opuštěný — zavřít profil i konverzaci. */
     onChatGone: () -> Unit,
     /** Úprava skupiny; nabídne se, jen když na ni uživatel má právo. */
@@ -360,6 +363,7 @@ fun ChatProfileScreen(
                     profile = profile,
                     scroll = { scrollState.value },
                     onTitlePlaced = { titleBottom = it },
+                    onOpenPhotos = onOpenPhotos,
                 )
                 ProfileActions(muted = state.muted, onToggleMute = viewModel::toggleMute, onSearch = onSearch)
                 val notifications = state.notifications
@@ -716,7 +720,16 @@ private fun ProfileHeader(
     scroll: () -> Int,
     /** Spodek jména v px od vršku hlavičky — odtud výš ho nese lišta. */
     onTitlePlaced: (Int) -> Unit,
+    onOpenPhotos: () -> Unit,
 ) {
+    val avatarShape = when (profile.kind) {
+        ProfileKind.Group -> ChatKind.Group
+        ProfileKind.Channel -> ChatKind.Channel
+        ProfileKind.User, ProfileKind.Bot, ProfileKind.SavedMessages -> ChatKind.Private
+    }.avatarShape()
+    // Bez fotky (iniciály) není co prohlížet; Uložené zprávy profil nemají.
+    val hasPhoto = (profile.photoFileId ?: profile.photoThumbnailFileId) != null &&
+        profile.kind != ProfileKind.SavedMessages
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -728,11 +741,7 @@ private fun ProfileHeader(
             avatarFileId = profile.photoFileId ?: profile.photoThumbnailFileId,
             size = HEADER_AVATAR_SIZE,
             // Stejný tvar jako v seznamu a hlavičce konverzace, odkud avatar přiletěl.
-            shape = when (profile.kind) {
-                ProfileKind.Group -> ChatKind.Group
-                ProfileKind.Channel -> ChatKind.Channel
-                ProfileKind.User, ProfileKind.Bot, ProfileKind.SavedMessages -> ChatKind.Private
-            }.avatarShape(),
+            shape = avatarShape,
             modifier = Modifier
                 .sharedNavElement(chatAvatarKey(profile.chatId))
                 .graphicsLayer {
@@ -750,7 +759,14 @@ private fun ProfileHeader(
                     scaleY = scale
                     alpha = 1f - progress
                     transformOrigin = TransformOrigin(0.5f, 1f)
-                },
+                }
+                // Ořez před klikáním, jinak by vlnka přetekla přes tvar avataru do čtverce.
+                .clip(avatarShape)
+                .clickable(
+                    enabled = hasPhoto,
+                    onClickLabel = stringResource(Res.string.profile_photos_open),
+                    onClick = onOpenPhotos,
+                ),
         )
         // Řádek se jménem a statusem; kde končí, hlásí řádek, ne text — text v něm má pozici
         // vůči řádku, ne vůči hlavičce.
