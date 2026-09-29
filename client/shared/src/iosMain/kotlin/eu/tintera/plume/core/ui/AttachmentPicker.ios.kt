@@ -336,7 +336,7 @@ private suspend fun exportMp4(source: String): String? {
 
 /** První snímek jako JPEG do [VIDEO_THUMBNAIL_EDGE]; bez náhledu video odejde taky. */
 @OptIn(ExperimentalForeignApi::class)
-private fun videoThumbnail(asset: AVURLAsset, directory: String): OutgoingThumbnail? {
+internal fun videoThumbnail(asset: AVURLAsset, directory: String): OutgoingThumbnail? {
     val generator = AVAssetImageGenerator(asset = asset).apply {
         appliesPreferredTrackTransform = true
         maximumSize = CGSizeMake(VIDEO_THUMBNAIL_EDGE.toDouble(), VIDEO_THUMBNAIL_EDGE.toDouble())

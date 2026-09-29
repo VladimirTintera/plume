@@ -125,10 +125,10 @@ private fun prepareVideo(context: Context, uri: Uri): OutgoingAttachment.Video {
     )
 }
 
-private class VideoMetadata(val width: Int, val height: Int, val durationSeconds: Int, val thumbnail: OutgoingThumbnail?)
+internal class VideoMetadata(val width: Int, val height: Int, val durationSeconds: Int, val thumbnail: OutgoingThumbnail?)
 
 /** Rozměry (po otočení), délka a první snímek jako JPEG náhled vedle souboru. */
-private fun videoMetadata(target: File): VideoMetadata {
+internal fun videoMetadata(target: File): VideoMetadata {
     val retriever = MediaMetadataRetriever()
     try {
         retriever.setDataSource(target.absolutePath)

@@ -35,6 +35,15 @@ interface AppSettings {
 
     suspend fun setExpressionMode(mode: ExpressionMode)
 
+    /**
+     * Co nahraje podržení tlačítka v prázdném poli: hlasovku, nebo video kolečko. Přepíná se
+     * ťuknutím na totéž tlačítko a pamatuje se, jako v Telegramu — kdo posílá kolečka, nechce
+     * před každým přepínat.
+     */
+    val recordMode: StateFlow<RecordMode>
+
+    suspend fun setRecordMode(mode: RecordMode)
+
     /** Emoji naposledy vybraná ve výběru, od nejnovějšího. Bez duplicit, nejvýš [MAX_RECENT_EMOJIS]. */
     val recentEmojis: StateFlow<List<String>>
 
@@ -152,6 +161,9 @@ const val MAX_RECENT_EMOJIS = 40
 /** Část výběru: emoji se vkládají do textu, samolepky se posílají. */
 enum class ExpressionMode { Emoji, Stickers, Gifs }
 
+/** Co nahrává tlačítko v prázdném poli. */
+enum class RecordMode { Voice, VideoNote }
+
 /**
  * [AppSettings] nad DataStore Preferences.
  *
@@ -200,6 +212,14 @@ class DataStoreAppSettings(
 
     override suspend fun setExpressionMode(mode: ExpressionMode) {
         edit { it[EXPRESSION_MODE] = mode.name }
+    }
+
+    override val recordMode: StateFlow<RecordMode> = value(RecordMode.Voice) { preferences ->
+        RecordMode.entries.firstOrNull { it.name == preferences[RECORD_MODE] } ?: RecordMode.Voice
+    }
+
+    override suspend fun setRecordMode(mode: RecordMode) {
+        edit { it[RECORD_MODE] = mode.name }
     }
 
     override val recentEmojis: StateFlow<List<String>> = value(emptyList()) { preferences ->
@@ -361,6 +381,7 @@ class DataStoreAppSettings(
 
     private companion object {
         val EXPRESSION_MODE = stringPreferencesKey("expression_mode")
+        val RECORD_MODE = stringPreferencesKey("record_mode")
         val RECENT_EMOJIS = stringPreferencesKey("recent_emojis")
         val EMOJI_SKIN_TONES = stringPreferencesKey("emoji_skin_tones")
         val THEME_MODE = stringPreferencesKey("theme_mode")

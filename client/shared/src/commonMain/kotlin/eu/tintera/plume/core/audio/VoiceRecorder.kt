@@ -13,14 +13,12 @@ import kotlinx.coroutines.launch
 import kotlin.time.TimeSource
 
 /**
- * Nahrávání z mikrofonu — platformní část.
- *
- * Výsledek musí být soubor, který Telegram přijme jako hlasovku: Ogg/Opus mono, případně M4A.
- * Android 10+ nahrává Ogg/Opus rovnou, starší M4A. iOS nahraje PCM a po skončení ho zakóduje
- * systémovým Opusem a zabalí do Oggu ([oggOpusFile]).
+ * Jedno nahrávání do souboru — hlasovka z mikrofonu ([AudioRecorder]) nebo video kolečko
+ * z kamery (`VideoNoteCamera`). Čas, pauzy, úrovně a zahození krátké nahrávky řeší nad ním
+ * [VoiceRecorder] jednou pro oba druhy.
  */
-expect class AudioRecorder {
-    /** Začne nahrávat do nového souboru. Vyhodí výjimku, když mikrofon nejde otevřít. */
+interface MediaCapture {
+    /** Začne nahrávat do nového souboru. Vyhodí výjimku, když mikrofon (kamera) nejde otevřít. */
     fun start()
 
     /** Hlasitost 0..1 od posledního čtení; čte se opakovaně během nahrávání. */
@@ -36,6 +34,27 @@ expect class AudioRecorder {
     fun pause()
 
     fun resume()
+}
+
+/**
+ * Nahrávání z mikrofonu — platformní část.
+ *
+ * Výsledek musí být soubor, který Telegram přijme jako hlasovku: Ogg/Opus mono, případně M4A.
+ * Android 10+ nahrává Ogg/Opus rovnou, starší M4A. iOS nahraje PCM a po skončení ho zakóduje
+ * systémovým Opusem a zabalí do Oggu ([oggOpusFile]).
+ */
+expect class AudioRecorder : MediaCapture {
+    override fun start()
+
+    override val level: Float
+
+    override suspend fun stop(): String
+
+    override fun cancel()
+
+    override fun pause()
+
+    override fun resume()
 }
 
 /** Oprávnění k mikrofonu. [request] se nejdřív zeptá systému; výsledek dostane v callbacku. */
@@ -62,7 +81,7 @@ class RecordedVoice(val path: String, val durationSeconds: Int, val waveform: By
  * Úrovně se čtou po [LEVEL_TICK_MS]; všechny se drží na waveform (minuta je 1 200 čísel), do stavu
  * jde jen konec. Nahrávka kratší než [MIN_DURATION_MS] se zahodí — je to skoro vždycky omyl.
  */
-class VoiceRecorder(private val recorder: AudioRecorder, private val scope: CoroutineScope) {
+class VoiceRecorder(private val recorder: MediaCapture, private val scope: CoroutineScope) {
 
     private val _state = MutableStateFlow<VoiceRecording?>(null)
     val state: StateFlow<VoiceRecording?> = _state.asStateFlow()

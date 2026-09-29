@@ -417,8 +417,12 @@ snadno na to uživatel narazí.
   - ~~**Tváře posledních hlasujících**~~ — hotovo (`recentVoterIds`, až tři přes sebe v zápatí).
     Zbývá ověřit se skutečnými hlasy víc lidí (testovací účet hlasuje jen sám za sebe).
 - ~~**Video kolečka** (`MessageVideoNote`)~~ — hotovo: kulatě bez bubliny, samy potichu ve
-  smyčce, zvuk s průběhem po ťuknutí, zhlédnutí (`CLAUDE.md`, „Video kolečka"). Zbývá přepis
-  řeči (`speechRecognitionResult`), **nahrávání kolečka** a ověřit zhlédnutí u odesílatele.
+  smyčce, zvuk s průběhem po ťuknutí, zhlédnutí (`CLAUDE.md`, „Video kolečka"). ~~**Nahrávání
+  kolečka**~~ — hotovo (přepnutí ťuknutím, nahrávání podržením s tahem na zrušení a zámek;
+  `CLAUDE.md`, „Nahrávání koleček"). Zbývá přepis řeči (`speechRecognitionResult`), ověřit
+  zhlédnutí u odesílatele, **nahrávání na iOS ověřit na telefonu** (simulátor kameru nemá),
+  **přepnutí kamery během nahrávání na iOS** (chce `AVAssetWriter` místo
+  `AVCaptureMovieFileOutput`) a na Androidu ověřit přepnutí na zadní kameru. Náhled před odesláním (přehrát si zamčené kolečko) zatím není.
 - ~~**Hudba** (`MessageAudio`)~~ — hotovo: přehrávání v bublině s obalem, interpretem, posunem
   a rychlostí, navazování další skladby, sdílení a uložení (`CLAUDE.md`, „Hudba"). ~~Hudba
   v profilu (záložka Hudba)~~ — hotovo. ~~Ovládání z notifikace / zamykací obrazovky, přehrávání

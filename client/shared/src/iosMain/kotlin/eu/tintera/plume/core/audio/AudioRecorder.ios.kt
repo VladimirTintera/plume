@@ -50,12 +50,12 @@ import platform.darwin.dispatch_get_main_queue
  * všechno do sluchátka u ucha.
  */
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
-actual class AudioRecorder {
+actual class AudioRecorder : MediaCapture {
 
     private var recorder: AVAudioRecorder? = null
     private var directory: String? = null
 
-    actual fun start() {
+    actual override fun start() {
         val session = AVAudioSession.sharedInstance()
         session.setCategory(
             AVAudioSessionCategoryPlayAndRecord,
@@ -91,14 +91,14 @@ actual class AudioRecorder {
     }
 
     /** Průměrná hlasitost v dB (−160…0) převedená na 0..1; pod −50 dB je ticho. */
-    actual val level: Float
+    actual override val level: Float
         get() {
             val active = recorder ?: return 0f
             active.updateMeters()
             return ((active.averagePowerForChannel(0u) + 50f) / 50f).coerceIn(0f, 1f)
         }
 
-    actual suspend fun stop(): String {
+    actual override suspend fun stop(): String {
         val active = recorder ?: error("Nic se nenahrává.")
         val folder = directory ?: error("Nic se nenahrává.")
         recorder = null
@@ -133,15 +133,15 @@ actual class AudioRecorder {
         }
     }
 
-    actual fun pause() {
+    actual override fun pause() {
         recorder?.pause()
     }
 
-    actual fun resume() {
+    actual override fun resume() {
         recorder?.record()
     }
 
-    actual fun cancel() {
+    actual override fun cancel() {
         recorder?.stop()
         recorder?.deleteRecording()
         directory?.let { NSFileManager.defaultManager.removeItemAtPath(it, error = null) }

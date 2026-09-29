@@ -513,6 +513,18 @@ interface ConversationRepository {
         options: SendOptions = SendOptions(),
     ): Result<ChatMessage>
 
+    /**
+     * Odešle nahrané video kolečko. Soubor musí být ČTVERCOVÉ MP4 (strana [OutgoingVideoNote.length]);
+     * klienti ho kreslí do kruhu a neobdélníkové by každý ořízl jinak. Vrací rozepsanou zprávu hned.
+     */
+    suspend fun sendVideoNote(
+        chatId: Long,
+        videoNote: OutgoingVideoNote,
+        replyToMessageId: Long?,
+        quote: ReplyQuote? = null,
+        options: SendOptions = SendOptions(),
+    ): Result<ChatMessage>
+
     suspend fun sendAttachments(
         chatId: Long,
         attachments: List<OutgoingAttachment>,
@@ -797,6 +809,14 @@ data class OutgoingAnimation(
     val path: String,
     val width: Int,
     val height: Int,
+    val durationSeconds: Int,
+    val thumbnail: OutgoingThumbnail?,
+)
+
+/** Nahrané video kolečko připravené k odeslání: čtvercové MP4, jeho strana v px, délka a první snímek. */
+data class OutgoingVideoNote(
+    val path: String,
+    val length: Int,
     val durationSeconds: Int,
     val thumbnail: OutgoingThumbnail?,
 )

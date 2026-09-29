@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.conversation_video_note_send_failed
+import eu.tintera.plume.resources.conversation_video_note_start_failed
 import eu.tintera.plume.resources.conversation_contact_send_failed
 import eu.tintera.plume.resources.conversation_contact_no_phone
 import eu.tintera.plume.resources.conversation_contact_load_failed
@@ -56,6 +58,10 @@ import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.core.audio.MusicQueue
 import eu.tintera.plume.core.audio.VoiceRecorder
+import eu.tintera.plume.core.camera.CaptureSlot
+import eu.tintera.plume.core.camera.VIDEO_NOTE_MAX_DURATION_MS
+import eu.tintera.plume.core.camera.VideoNoteCamera
+import eu.tintera.plume.core.camera.prepareVideoNote
 import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.files.FileOpener
@@ -66,6 +72,7 @@ import eu.tintera.plume.core.share.SharedContent
 import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ExpressionMode
+import eu.tintera.plume.core.settings.RecordMode
 import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ContentAccess
@@ -280,6 +287,18 @@ class ConversationViewModel(
     /** Probíhající nahrávání hlasovky; samostatný tok ze stejného důvodu jako [voicePlayback]. */
     val voiceRecording: StateFlow<VoiceRecording?> = voiceRecorder.state
 
+    /** Kamera, kterou do ViewModelu připojila obrazovka (viz [CaptureSlot]). */
+    private val cameraSlot = CaptureSlot()
+
+    /** Kolečko jde tímtéž [VoiceRecorder] jako hlasovka: čas, pauzy i zahození krátkého. */
+    private val videoRecorder = VoiceRecorder(cameraSlot, viewModelScope)
+
+    /** Probíhající nahrávání kolečka; samostatný tok jako [voiceRecording]. */
+    val videoRecording: StateFlow<VoiceRecording?> = videoRecorder.state
+
+    /** Co nahraje podržení tlačítka v prázdném poli (volba přežije i odchod z chatu). */
+    val recordMode: StateFlow<RecordMode> = settings.recordMode
+
     /**
      * Přehrávání hlasovky. Samostatný tok, ne součást [state]: pozice se mění dvacetkrát za
      * vteřinu a přepočítávat kvůli tomu celý stav konverzace by bylo zbytečné.
@@ -429,6 +448,13 @@ class ConversationViewModel(
     }
 
     init {
+        // Delší kolečko Telegram nepřijme: po minutě nahrávání skončí a kolečko odejde samo,
+        // jako v oficiálních klientech. Pozastavené (nabídka, výběr času) se nepočítá.
+        viewModelScope.launch {
+            videoRecorder.state.collect { recording ->
+                if (recording != null && recording.elapsedMs >= VIDEO_NOTE_MAX_DURATION_MS) sendRecording()
+            }
+        }
         viewModelScope.launch {
             voicePlayer.errors.collect { message -> _state.update { it.copy(error = message) } }
         }
@@ -2030,6 +2056,7 @@ class ConversationViewModel(
         voicePlayer.stop(chatId, keepMusic = true)
         // Rozpracovaná nahrávka se při odchodu zahazuje — neposílat nic, co uživatel neodeslal.
         voiceRecorder.cancel()
+        videoRecorder.cancel()
 
         val pending = draftSave ?: return
         if (!pending.isActive) return
@@ -3664,15 +3691,52 @@ class ConversationViewModel(
             _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
             return
         }
-        voicePlayer.stop()
-        _state.update { it.copy(soundingVideoNote = null) }
+        if (videoRecorder.state.value != null) return
+        silencePlayback()
         voiceRecorder.start().onFailure {
             _state.update { it.copy(error = UiText(Res.string.conversation_recording_start_failed)) }
         }
     }
 
+    /**
+     * Připojí kameru, kterou drží obrazovka. Odpojením (obrazovka se rozkládá — otočení, odchod)
+     * se rozpracované kolečko zahodí: kamera s kompozicí končí a nahrávat by nebylo do čeho.
+     */
+    fun attachCamera(camera: VideoNoteCamera) {
+        cameraSlot.attach(camera) { videoRecorder.cancel() }
+    }
+
+    fun detachCamera(camera: VideoNoteCamera) {
+        cameraSlot.detach(camera)
+    }
+
+    /** Začne nahrávat kolečko. Oprávnění ke kameře a mikrofonu řeší obrazovka, jako u hlasovky. */
+    fun startVideoRecording() {
+        if (!_state.value.content.videoNotes) {
+            _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
+            return
+        }
+        if (voiceRecorder.state.value != null) return
+        silencePlayback()
+        videoRecorder.start().onFailure {
+            _state.update { it.copy(error = UiText(Res.string.conversation_video_note_start_failed)) }
+        }
+    }
+
+    /** Přepne, co nahraje podržení tlačítka. Zápis jde přes [appScope], jako ostatní volby. */
+    fun setRecordMode(mode: RecordMode) {
+        appScope.launch { settings.setRecordMode(mode) }
+    }
+
+    /** Hrající hlasovka i kolečko se zvukem by se nahrály z reproduktoru. */
+    private fun silencePlayback() {
+        voicePlayer.stop()
+        _state.update { it.copy(soundingVideoNote = null) }
+    }
+
     fun cancelRecording() {
         voiceRecorder.cancel()
+        videoRecorder.cancel()
     }
 
     /**
@@ -3681,28 +3745,35 @@ class ConversationViewModel(
      */
     fun pauseRecording() {
         voiceRecorder.pause()
+        videoRecorder.pause()
     }
 
     /** Nabídka se zavřela bez volby — nahrává se dál. */
     fun resumeRecording() {
         voiceRecorder.resume()
+        videoRecorder.resume()
     }
 
     /**
-     * Ukončí nahrávání a hlasovku odešle — jako samolepka: bez letu ze vstupního pole, rozepsaný
-     * text zůstává, citace se spotřebuje. Příliš krátká nahrávka se zahodí s vysvětlením.
+     * Ukončí nahrávání a hlasovku nebo kolečko odešle — jako samolepka: bez letu ze vstupního
+     * pole, rozepsaný text zůstává, citace se spotřebuje. Příliš krátká nahrávka se zahodí
+     * s vysvětlením.
      */
     fun sendRecording(options: SendOptions = SendOptions()) {
-        // Dvojí ťuknutí na odeslání: druhé by našlo nahrávání už ukončené a hlásilo nesmysl.
-        if (voiceRecorder.state.value == null) return
+        when {
+            videoRecorder.state.value != null -> sendVideoRecording(options)
+            voiceRecorder.state.value != null -> sendVoiceRecording(options)
+            // Dvojí ťuknutí na odeslání: druhé by našlo nahrávání už ukončené a hlásilo nesmysl.
+            else -> Unit
+        }
+    }
+
+    private fun sendVoiceRecording(options: SendOptions) {
         viewModelScope.launch {
             val tooShort = (voiceRecorder.state.value?.elapsedMs ?: 0L) < MIN_DURATION_MS
             val recorded = voiceRecorder.finish()
             if (recorded == null) {
-                _state.update {
-                    if (tooShort) it.copy(notice = UiText(Res.string.conversation_recording_too_short))
-                    else it.copy(error = UiText(Res.string.conversation_recording_finish_failed))
-                }
+                reportRecordingLost(tooShort)
                 return@launch
             }
             sendMedia(Res.string.conversation_voice_send_failed, scheduled = options.schedule != null) { replyTo, quote ->
@@ -3710,6 +3781,36 @@ class ConversationViewModel(
                     chatId, recorded.path, recorded.durationSeconds, recorded.waveform, replyTo, quote, options,
                 )
             }
+        }
+    }
+
+    /**
+     * Kolečko se po skončení ještě připraví (délka, strana, první snímek) — až tady, ne během
+     * nahrávání: soubor je hotový teprve teď a na iOS se navíc ořezává do čtverce.
+     */
+    private fun sendVideoRecording(options: SendOptions) {
+        viewModelScope.launch {
+            val tooShort = (videoRecorder.state.value?.elapsedMs ?: 0L) < MIN_DURATION_MS
+            val recorded = videoRecorder.finish()
+            if (recorded == null) {
+                reportRecordingLost(tooShort)
+                return@launch
+            }
+            sendMedia(Res.string.conversation_video_note_send_failed, scheduled = options.schedule != null) { replyTo, quote ->
+                runCatching { prepareVideoNote(recorded.path) }
+                    .onFailure { failure -> logger.w(failure) { "Kolečko nejde připravit k odeslání." } }
+                    .fold(
+                        onSuccess = { note -> repository.sendVideoNote(chatId, note, replyTo, quote, options) },
+                        onFailure = { failure -> Result.failure(failure) },
+                    )
+            }
+        }
+    }
+
+    private fun reportRecordingLost(tooShort: Boolean) {
+        _state.update {
+            if (tooShort) it.copy(notice = UiText(Res.string.conversation_recording_too_short))
+            else it.copy(error = UiText(Res.string.conversation_recording_finish_failed))
         }
     }
 

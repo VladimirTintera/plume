@@ -25,7 +25,7 @@ import kotlinx.coroutines.withContext
  * oficiální klienti). Starší Android Opus nahrávat neumí; nahrává se M4A/AAC, které TDLib u hlasovky
  * přijme taky.
  */
-actual class AudioRecorder(private val context: Context) {
+actual class AudioRecorder(private val context: Context) : MediaCapture {
 
     private var recorder: MediaRecorder? = null
 
@@ -37,7 +37,7 @@ actual class AudioRecorder(private val context: Context) {
 
     private val opus get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
 
-    actual fun start() {
+    actual override fun start() {
         val target = File(context.cacheDir, "$OUTGOING_DIRECTORY/${UUID.randomUUID()}")
         target.mkdirs()
         folder = target
@@ -87,7 +87,7 @@ actual class AudioRecorder(private val context: Context) {
     }
 
     /** `maxAmplitude` je špička od posledního čtení; odmocnina zvedne tiché úrovně, ať je řeč vidět. */
-    actual val level: Float
+    actual override val level: Float
         get() = recorder?.let { sqrt(it.maxAmplitude / 32767f).coerceIn(0f, 1f) } ?: 0f
 
     /**
@@ -96,7 +96,7 @@ actual class AudioRecorder(private val context: Context) {
      * místo tří vteřin dvaatřicet. Úseky spojí [stop] ([joinOggOpus]). M4A (Android 9 a starší)
      * se spojovat neumí, tam zůstává `pause`.
      */
-    actual fun pause() {
+    actual override fun pause() {
         val active = recorder ?: return
         if (!opus) {
             active.pause()
@@ -106,7 +106,7 @@ actual class AudioRecorder(private val context: Context) {
         finishSegment(active)
     }
 
-    actual fun resume() {
+    actual override fun resume() {
         if (!opus) {
             recorder?.resume()
             return
@@ -125,7 +125,7 @@ actual class AudioRecorder(private val context: Context) {
         }
     }
 
-    actual suspend fun stop(): String {
+    actual override suspend fun stop(): String {
         val target = folder ?: error("Nic se nenahrává.")
         recorder?.let { active ->
             recorder = null
@@ -159,7 +159,7 @@ actual class AudioRecorder(private val context: Context) {
         }
     }
 
-    actual fun cancel() {
+    actual override fun cancel() {
         recorder?.let { active ->
             runCatching { active.stop() }
             active.release()
