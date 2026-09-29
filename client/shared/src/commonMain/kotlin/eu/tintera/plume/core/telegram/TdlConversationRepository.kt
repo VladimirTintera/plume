@@ -16,6 +16,7 @@ import dev.g000sha256.tdl.dto.TextEntityTypeCode
 import dev.g000sha256.tdl.dto.TextEntityTypePre
 import dev.g000sha256.tdl.dto.TextEntityTypeBlockQuote
 import dev.g000sha256.tdl.dto.TextEntityTypeExpandableBlockQuote
+import dev.g000sha256.tdl.dto.TextEntityTypePreCode
 import dev.g000sha256.tdl.dto.MessageContent
 import dev.g000sha256.tdl.dto.MessagePoll
 import dev.g000sha256.tdl.dto.MessageContact
@@ -2869,7 +2870,8 @@ private fun FormatSpan.toTdl(): TextEntityType = when (format) {
     TextFormat.Strikethrough -> TextEntityTypeStrikethrough()
     TextFormat.Spoiler -> TextEntityTypeSpoiler()
     TextFormat.Code -> TextEntityTypeCode()
-    TextFormat.CodeBlock -> TextEntityTypePre()
+    // Blok s jazykem je `preCode` — příjemce podle něj kód obarví.
+    TextFormat.CodeBlock -> language?.takeIf { it.isNotEmpty() }?.let { TextEntityTypePreCode(language = it) } ?: TextEntityTypePre()
     TextFormat.Quote -> TextEntityTypeBlockQuote()
     TextFormat.ExpandableQuote -> TextEntityTypeExpandableBlockQuote()
     TextFormat.Link -> TextEntityTypeTextUrl(url = url.orEmpty())

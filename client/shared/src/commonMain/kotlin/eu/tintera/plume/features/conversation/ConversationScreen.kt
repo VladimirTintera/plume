@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.codeBlockAt
 import androidx.compose.material3.IconToggleButton
 import eu.tintera.plume.resources.format_open
 import eu.tintera.plume.resources.text_format_24dp
@@ -2615,6 +2616,19 @@ private fun MessageInput(
      * Úsek, ke kterému se právě zadává adresa odkazu. Zachycený při ťuknutí na „Odkaz": dialog
      * vezme poli fokus a výběr by se na něj nedal spolehnout.
      */
+    // Blok kódu, kterému se nastavuje jazyk — úsek z doby ťuknutí, jako u odkazu.
+    var languageTarget by rememberSaveable { mutableStateOf<List<Int>?>(null) }
+    languageTarget?.let { (start, end) ->
+        CodeLanguageDialog(
+            current = composer.formats.codeBlockAt(start, end)?.language,
+            onConfirm = { language ->
+                composer.setCodeLanguage(start, end, language)
+                onDraftChanged(composer.composed)
+                languageTarget = null
+            },
+            onDismiss = { languageTarget = null },
+        )
+    }
     var linkTarget by rememberSaveable { mutableStateOf<List<Int>?>(null) }
     linkTarget?.let { (start, end) ->
         LinkDialog(
@@ -3051,6 +3065,7 @@ private fun MessageInput(
                         composer = composer,
                         onChanged = { onDraftChanged(composer.composed) },
                         onLink = { draft.selection.let { linkTarget = listOf(it.min, it.max) } },
+                        onCodeLanguage = { draft.selection.let { languageTarget = listOf(it.min, it.max) } },
                     )
                 }
               }

@@ -748,6 +748,9 @@
     <string name="clipboard_has_image">Image in clipboard</string>
     <!-- Formátování výběru v kontextové nabídce vstupního pole. -->
     <string name="format_open">Formatting</string>
+    <string name="format_code_language">Code language</string>
+    <string name="format_code_language_hint">e.g. kotlin</string>
+    <string name="format_quote_expandable">Collapsible quote</string>
     <string name="format_bold">Bold</string>
     <string name="format_italic">Italic</string>
     <string name="format_underline">Underline</string>
