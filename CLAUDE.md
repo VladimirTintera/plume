@@ -3774,6 +3774,10 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
 - **Pruh pod kartou, pruh připnutých a plovoucí datum jsou MLÉČNÉ SKLO** (`Glass.kt`, tentýž Haze
   jako závoj nabídky nad zprávou). Všechny tři plochy leží nad projíždějícím obsahem a dřív ho jen
   zakrývaly barvou; rozostření dělá totéž čitelněji — je vidět, že pod nimi obsah pokračuje.
+  - **Lišty MÍSTO pole mají tentýž pás** (`barGlass` v `bottomBar`: Přidat se, Start, Ztlumit,
+    věta „nejde psát"). Seznam pod spodní lištu zajíždí, takže bez pásu prosvítaly bubliny
+    i sponzorovaná karta zpod tlačítka — dlouho bez povšimnutí, protože pole samo pás má.
+    Každá nová náhrada pole dostane `barGlass` taky.
   - **Zdrojem je JEN seznam zpráv, ne celý Scaffold** (vlastní `HazeState`). Závoj nabídky
     rozostřuje Scaffold celý, protože je nad ním; tyhle plochy jsou ale jeho součástí, takže by
     se rozostřovaly samy sebou — pruh připnutých by nasál plovoucí datum a pás pod polem sám sebe.
