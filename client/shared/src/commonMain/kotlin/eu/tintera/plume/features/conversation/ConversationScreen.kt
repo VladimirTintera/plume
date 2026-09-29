@@ -3361,6 +3361,8 @@ private fun MessageInput(
                             lockDistance = RECORD_LOCK_DISTANCE,
                             onHoldStart = {
                                 recordHeld = true
+                                // Zamčení z minula (akce čtečky, která nakonec nenahrávala) neplatí.
+                                recordLocked = false
                                 onStartRecording(true)
                             },
                             onDrag = { recordDrag.value = it },

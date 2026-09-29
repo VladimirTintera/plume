@@ -6312,6 +6312,9 @@ AVFoundation na iOS.
   základní třídy a zapisují se settery (`setRenderSize`, `setInstructions`…), `videoComposition`
   u exportu je z kategorie (`setVideoComposition` s vlastním importem) a `kCMTimeZero` je
   struktura bez `readValue` — nahrazuje ho `CMTimeMake(0, 1)`.
+- **iOS přidává vstupy (`AVCaptureDeviceInput`) až při prvním nahrávání**, ne s konverzací:
+  bez uděleného oprávnění vstup selže, nebo si o oprávnění systém řekne sám — a chat se otevírá
+  mnohem častěji, než se nahrává.
 - **Simulátor kameru nemá**, takže se tam kolečko nenabízí vůbec (`rememberVideoNoteCamera`
   vrátí `null`) a iOS je jen přeložené a slinkované, **na zařízení neověřené**.
 - **Oprávnění ke kameře musí být v manifestu i s `uses-feature … camera required=false`**,
@@ -6323,7 +6326,9 @@ AVFoundation na iOS.
   průběhem a zámkem, puštění (bot dostal `video_note`, 480 px), zrušení tahem doleva, zamčení
   a odeslání ťuknutím, minutový strop, hlasovka podržením, příliš krátký stisk, otočení během
   kolečka i hlasovky, pauza v nabídce odeslání (kolečko mělo 6 s, pět vteřin s otevřenou
-  nabídkou se nezapočítalo). **Neověřeno**: přepnutí na zadní kameru během nahrávání, akce pro
+  nabídkou se nezapočítalo). **Release build (R8)** nahrál hlasovku i kolečko se zmenšením bez
+  pádu — CameraX i Media3 si keep pravidla nesou samy, do `proguard-rules.pro` nic nepřibylo.
+  **Neověřeno**: přepnutí na zadní kameru během nahrávání, akce pro
   čtečku obrazovky, skutečný telefon a iOS.
 
 ### GIFy a samolepky z klávesnice

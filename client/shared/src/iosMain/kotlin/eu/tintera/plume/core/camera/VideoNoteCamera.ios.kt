@@ -143,9 +143,13 @@ private fun orientedSize(track: AVAssetTrack): Pair<Double, Double> =
  */
 @OptIn(ExperimentalForeignApi::class)
 private class IosVideoNoteCamera private constructor(
-    private val session: AVCaptureSession,
-    private val movieOutput: AVCaptureMovieFileOutput,
+    private val camera: AVCaptureDevice,
+    private val microphone: AVCaptureDevice,
 ) : VideoNoteCamera {
+
+    private val session = AVCaptureSession().apply { sessionPreset = AVCaptureSessionPreset640x480 }
+    private val movieOutput = AVCaptureMovieFileOutput()
+    private var configured = false
 
     private val queue = dispatch_queue_create("eu.tintera.plume.videonote", null)
     private val logger = Logger.withTag("VideoNoteCamera")
@@ -166,8 +170,30 @@ private class IosVideoNoteCamera private constructor(
         )
     }
 
+    /**
+     * Vstupy se přidávají až při prvním nahrávání, ne s konverzací: `AVCaptureDeviceInput` bez
+     * uděleného oprávnění selže (nebo si o něj systém řekne sám), a chat se otevírá mnohem
+     * častěji, než se nahrává. Oprávnění vyřídí obrazovka dřív, než sem dojde.
+     */
+    private fun configure() {
+        if (configured) return
+        val inputs = listOf(camera, microphone).map { device ->
+            AVCaptureDeviceInput.deviceInputWithDevice(device, error = null) ?: error("Kameru nebo mikrofon nejde otevřít.")
+        }
+        session.beginConfiguration()
+        try {
+            inputs.forEach { input -> check(session.canAddInput(input)) { "Vstup nejde přidat." }; session.addInput(input) }
+            check(session.canAddOutput(movieOutput)) { "Výstup nejde přidat." }
+            session.addOutput(movieOutput)
+        } finally {
+            session.commitConfiguration()
+        }
+        configured = true
+    }
+
     override fun start() {
         check(recordingPath == null) { "Nahrávání už běží." }
+        configure()
         val path = outgoingPath("video-note.mov")
         val done = CompletableDeferred<NSError?>()
         recordingPath = path
@@ -240,7 +266,7 @@ private class IosVideoNoteCamera private constructor(
     }
 
     companion object {
-        /** `null` = kamera nebo mikrofon není (simulátor). */
+        /** `null` = kamera nebo mikrofon není (simulátor). Nic se neotevírá, jen se hledá. */
         fun create(): IosVideoNoteCamera? {
             val camera = AVCaptureDevice.defaultDeviceWithDeviceType(
                 AVCaptureDeviceTypeBuiltInWideAngleCamera,
@@ -248,16 +274,7 @@ private class IosVideoNoteCamera private constructor(
                 position = AVCaptureDevicePositionFront,
             ) ?: AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo) ?: return null
             val microphone = AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeAudio) ?: return null
-            val session = AVCaptureSession()
-            session.sessionPreset = AVCaptureSessionPreset640x480
-            val output = AVCaptureMovieFileOutput()
-            listOfNotNull(
-                AVCaptureDeviceInput.deviceInputWithDevice(camera, error = null),
-                AVCaptureDeviceInput.deviceInputWithDevice(microphone, error = null),
-            ).forEach { input -> if (session.canAddInput(input)) session.addInput(input) else return null }
-            if (!session.canAddOutput(output)) return null
-            session.addOutput(output)
-            return IosVideoNoteCamera(session, output)
+            return IosVideoNoteCamera(camera, microphone)
         }
     }
 }
