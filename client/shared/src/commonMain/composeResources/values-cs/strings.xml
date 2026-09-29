@@ -754,6 +754,7 @@
     <string name="clipboard_has_gif">GIF ve schránce</string>
     <string name="clipboard_has_image">Obrázek ve schránce</string>
     <!-- Formátování výběru v kontextové nabídce vstupního pole. -->
+    <string name="format_open">Formátování</string>
     <string name="format_bold">Tučné</string>
     <string name="format_italic">Kurzíva</string>
     <string name="format_underline">Podtržené</string>

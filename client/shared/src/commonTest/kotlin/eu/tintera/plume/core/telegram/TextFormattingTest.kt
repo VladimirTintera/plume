@@ -17,6 +17,82 @@ class TextFormattingTest {
 
     private val boldAhoj = listOf(FormatSpan(Bold, 0, 4))
 
+    /** Napíše [typed] na kurzor jako pole: posun rozsahů, pak čekající formát na napsaný kus. */
+    private fun List<FormatSpan>.type(text: String, cursor: Int, typed: String, pending: PendingFormats?): Pair<String, List<FormatSpan>> {
+        val new = text.take(cursor) + typed + text.drop(cursor)
+        var formats = afterEdit(text, new, cursor + typed.length)
+        if (pending != null && pending.cursor == cursor) formats = formats.typed(cursor, cursor + typed.length, pending, new)
+        return new to formats
+    }
+
+    @Test
+    fun zapnuteTucneBezVyberuPlatiProDalsiPsani() {
+        val pending = emptyList<FormatSpan>().toggledPending(Bold, cursor = 5, pending = null)
+        assertEquals(setOf(Bold), emptyList<FormatSpan>().typingAt(5, pending))
+        val (text, formats) = emptyList<FormatSpan>().type("Ahoj ", 5, "s", pending)
+        assertEquals(listOf(FormatSpan(Bold, 5, 6)), formats)
+        // Další znak už bez čekajícího formátu: pokračuje sám, protože se píše na konec rozsahu.
+        val (_, next) = formats.type(text, 6, "vete", pending = null)
+        assertEquals(listOf(FormatSpan(Bold, 5, 10)), next)
+    }
+
+    @Test
+    fun vypnuteTucneNaKonciTucnehoSlovaPiseDalBezNej() {
+        // „Ahoj|" tučně, kurzor na konci: bez vypnutí by se psalo dál tučně.
+        assertEquals(setOf(Bold), boldAhoj.continuingAt(4))
+        val pending = boldAhoj.toggledPending(Bold, cursor = 4, pending = null)
+        assertEquals(emptySet(), boldAhoj.typingAt(4, pending))
+        val (text, formats) = boldAhoj.type("Ahoj", 4, " ", pending)
+        assertEquals(boldAhoj, formats)
+        val (_, next) = formats.type(text, 5, "svete", pending = null)
+        assertEquals(boldAhoj, next)
+    }
+
+    @Test
+    fun vypnutiUprostredTucnehoSlovaHoRozdeli() {
+        val pending = boldAhoj.toggledPending(Bold, cursor = 2, pending = null)
+        val (_, formats) = boldAhoj.type("Ahoj", 2, "x", pending)
+        assertEquals(listOf(FormatSpan(Bold, 0, 2), FormatSpan(Bold, 3, 5)), formats)
+    }
+
+    @Test
+    fun druheTuknutiVratiPuvodniStav() {
+        val on = emptyList<FormatSpan>().toggledPending(Italic, 0, null)
+        val back = emptyList<FormatSpan>().toggledPending(Italic, 0, on)
+        assertEquals(emptySet(), emptyList<FormatSpan>().typingAt(0, back))
+        val off = boldAhoj.toggledPending(Bold, 4, null)
+        val again = boldAhoj.toggledPending(Bold, 4, off)
+        assertEquals(setOf(Bold), boldAhoj.typingAt(4, again))
+    }
+
+    @Test
+    fun cekajiciFormatPatriJenSvemuMistu() {
+        val pending = emptyList<FormatSpan>().toggledPending(Bold, cursor = 3, pending = null)
+        // Jinde neplatí, a přepnutí jinde začíná znovu.
+        assertEquals(emptySet(), emptyList<FormatSpan>().typingAt(1, pending))
+        assertEquals(PendingFormats(1, on = setOf(Italic)), emptyList<FormatSpan>().toggledPending(Italic, 1, pending))
+    }
+
+    @Test
+    fun bezFormatovaniUKurzoruVypneVseCoByPokracovalo() {
+        val spans = listOf(FormatSpan(Bold, 0, 4), FormatSpan(Italic, 2, 4))
+        val pending = spans.clearedPending(4)
+        assertEquals(emptySet(), spans.typingAt(4, pending))
+    }
+
+    @Test
+    fun kodBezVyberuPresViceRadkuJeBlok() {
+        val pending = emptyList<FormatSpan>().toggledPending(Code, 0, null)
+        val (_, formats) = emptyList<FormatSpan>().type("", 0, "a\nb", pending)
+        assertEquals(listOf(FormatSpan(CodeBlock, 0, 3)), formats)
+    }
+
+    @Test
+    fun odkazSePsanimNeprodluzujeATakyNepokracuje() {
+        val link = listOf(FormatSpan(TextFormat.Link, 0, 4, "https://example.com"))
+        assertEquals(emptySet(), link.continuingAt(4))
+    }
+
     @Test
     fun psaniNaKonciRozsahuPisDal() {
         // „ahoj" tučně, kurzor za ním, píše se dál: tučné pokračuje.

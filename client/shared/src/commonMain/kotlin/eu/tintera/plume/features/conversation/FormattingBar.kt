@@ -65,8 +65,9 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Lišta formátování nad polem, dokud je v něm označený text: tučné, kurzíva, podtržení,
- * přeškrtnutí, spoiler, kód, citace a „bez formátování".
+ * Lišta formátování pod polem: tučné, kurzíva, podtržení, přeškrtnutí, odkaz, spoiler, kód,
+ * citace a „bez formátování". Vyjede sama, dokud je v poli označený text; bez výběru ji otevře
+ * ikona „Aa" v poli a formát se pak použije na další psaní od kurzoru (`PendingFormats`).
  *
  * **Lišta, ne položky v nabídce výběru.** Ikony u vlastních položek nabídka výběru na telefonu
  * nezobrazí: Android kreslí lištu výběru systémovým `ActionMode` a `leadingIcon` z naší položky
@@ -101,6 +102,8 @@ internal fun FormattingBar(
             IconToggleButton(
                 checked = composer.selectionLink != null,
                 onCheckedChange = { onLink() },
+                // Odkaz potřebuje popisek — bez výběru není na čem ho nastavit.
+                enabled = !composer.value.selection.collapsed,
                 shapes = IconButtonDefaults.toggleableShapes(),
                 colors = toggleColors(),
             ) {
