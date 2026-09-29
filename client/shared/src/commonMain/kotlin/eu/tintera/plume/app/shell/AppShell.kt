@@ -507,6 +507,7 @@ private fun shellEntryProvider(
             onOpenMedia = { messageId ->
                 chatsStack.add(MediaRoute(route.chatId, messageId, fromSharedMedia = true))
             },
+            onOpenPhotos = { chatsStack.add(MediaRoute(route.chatId, messageId = 0L, profilePhotos = true)) },
             onChatGone = { chatsStack.closeChat(route.chatId) },
             onEdit = { if (chatsStack.lastOrNull() != EditChatRoute(route.chatId)) chatsStack.add(EditChatRoute(route.chatId)) },
             onOpenMemberRights = { userId, admin ->
@@ -605,6 +606,7 @@ private fun shellEntryProvider(
             onOpenMedia = { messageId ->
                 chatsStack.add(MediaRoute(route.chatId, messageId, fromSharedMedia = true))
             },
+            onOpenPhotos = { chatsStack.add(MediaRoute(route.chatId, messageId = 0L, profilePhotos = true)) },
             onChatGone = { chatsStack.closeChat(route.chatId) },
             onEdit = {
                 if (chatsStack.lastOrNull() != ArchiveEditChatRoute(route.chatId)) {
@@ -638,8 +640,8 @@ private fun shellEntryProvider(
                 // ViewModel se cachuje podle klíče a Koin u cachované instance
                 // ignoruje nové parametry. U ankety i přílohu — obrázků je pod jedním id víc.
                 viewModel = koinViewModel(
-                    key = "media-${route.chatId}-${route.messageId}-${route.pollMedia}",
-                    parameters = { parametersOf(route.chatId, route.messageId, route.pollMedia) },
+                    key = "media-${route.chatId}-${route.messageId}-${route.pollMedia}-${route.profilePhotos}",
+                    parameters = { parametersOf(route.chatId, route.messageId, route.pollMedia, route.profilePhotos) },
                 ),
                 onBack = { chatsStack.pop(route) },
                 onForward = { messageId ->

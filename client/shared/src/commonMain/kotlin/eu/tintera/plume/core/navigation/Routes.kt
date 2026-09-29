@@ -177,6 +177,11 @@ data class MediaRoute(
      * vteřiny. `NO_START` = běžné otevření do galerie.
      */
     val startSeconds: Int = NO_START,
+    /**
+     * Historie profilových fotek chatu (ťuknutí na fotku v profilu) místo médií ze zpráv;
+     * [messageId] je pak 0 — stránky nejsou zprávy.
+     */
+    val profilePhotos: Boolean = false,
 ) : Route
 
 /** [MediaRoute.startSeconds] bez času v médiu. */

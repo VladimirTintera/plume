@@ -74,6 +74,7 @@ import dev.g000sha256.tdl.dto.MessageVideo
 import dev.g000sha256.tdl.dto.MessageVideoNote
 import dev.g000sha256.tdl.dto.MessageVoiceNote
 import dev.g000sha256.tdl.dto.Photo
+import dev.g000sha256.tdl.dto.PhotoSize
 import dev.g000sha256.tdl.dto.MessageChatShared
 import dev.g000sha256.tdl.dto.MessageGiveaway
 import dev.g000sha256.tdl.dto.MessageGiveawayWinners
@@ -1092,8 +1093,29 @@ private fun Photo.toMedia(
     isSensitive: Boolean = false,
     isSecret: Boolean = false,
     selfDestructType: SelfDestructType? = null,
+): MessageMedia.Photo? = photoMedia(
+    sizes = sizes.filterNotNull(),
+    minithumbnail = minithumbnail,
+    hasSpoiler = hasSpoiler,
+    isSensitive = isSensitive,
+    isSecret = isSecret,
+    selfDestructType = selfDestructType,
+)
+
+/**
+ * Výběr velikostí z [sizes] — pro fotku ve zprávě i pro profilovou fotku (`ChatPhoto` nese
+ * tytéž `PhotoSize`, jen v jiném obalu). Jedno pravidlo, aby se profilovka v prohlížeči
+ * chovala jako fotka ze zprávy.
+ */
+internal fun photoMedia(
+    sizes: List<PhotoSize>,
+    minithumbnail: dev.g000sha256.tdl.dto.Minithumbnail?,
+    hasSpoiler: Boolean = false,
+    isSensitive: Boolean = false,
+    isSecret: Boolean = false,
+    selfDestructType: SelfDestructType? = null,
 ): MessageMedia.Photo? {
-    val available = sizes.filterNotNull().ifEmpty { return null }
+    val available = sizes.ifEmpty { return null }
 
     val display = available
         .filter { maxOf(it.width, it.height) <= MAX_DISPLAY_EDGE }

@@ -5472,6 +5472,39 @@ testy `MemberManagementTest`).
   místě STARÝ soubor**, takže další `cat` vypíše předchozí obrazovku a nová verze aplikace se
   tváří, že se nezměnila. Před každým dumpem proto `rm -f /sdcard/ui.xml`.
 
+### Historie profilových fotek
+
+Ťuknutí na velkou fotku v profilu chatu otevře prohlížeč médií se všemi profilovkami chatu
+(`MediaRoute(profilePhotos = true)`, `MediaViewerViewModel.loadProfilePhotos`,
+`ProfileRepository.profilePhotos`). Otevírá se vpravo na aktuální fotce, doleva starší.
+
+- **Je to zdroj prohlížeče, ne nová obrazovka.** Přiblížení, video, galerie / celá obrazovka,
+  uložení a sdílení prohlížeč umí; stačilo mu podat položky. Stejně jako u přílohy ankety
+  (`notMessages`): stránky nejsou zprávy, takže se nenačítají reakce ani práva, neodebírají
+  se úpravy a mazání a z akcí zbývá uložit a sdílet (`PROFILE_PHOTO_ACTIONS`). Klíčem stránky
+  je id FOTKY; `messageId` v routě je 0.
+- **Člověk a bot: `getUserProfilePhotos`**, po stránkách do `totalCount` (strop 300). Osobní
+  fotka, kterou si uživatel kontaktu nastavil sám, ani veřejná fotka v něm podle TDLib nejsou.
+- **Skupina a kanál historii fotek v TDLib NEMAJÍ.** Skládá se z aktuální fotky (`photo`
+  z plných údajů skupiny) a ze servisních zpráv o změně fotky (`SearchMessagesFilterChatPhoto`
+  → `MessageChatChangePhoto`), bez duplicit podle id. Fotka, jejíž servisní zprávu někdo smazal,
+  proto chybí. Smyčka hledání končí i na prázdné stránce a na neměnném pokračování — jinak by se
+  při chybné odpovědi dotazy točily donekonečna.
+- **Velikosti se vybírají stejně jako u fotky ve zprávě** (`photoMedia`, sdílené s
+  `Photo.toMedia`): `ChatPhoto` nese tytéž `PhotoSize`, jen v jiném obalu. Animovaná profilovka
+  je video (`AnimatedChatPhoto`, čtvercové podle `length`, délku přehrávač zjistí sám) s fotkou
+  jako náhledem.
+- **Datum v liště je, kdy si chat fotku nastavil** (`addedDate`), a podle něj se jmenuje i
+  uložený soubor.
+- **Let z avataru do prohlížeče není.** Avatar v profilu už nese sdílený klíč letu z hlavičky
+  konverzace (`chatAvatarKey`); druhý klíč na tomtéž prvku by se s ním pral. Prohlížeč se
+  otevře běžným přechodem.
+- **Bez fotky (iniciály) se na avatar ťuknout nedá** a Uložené zprávy profil nemají.
+- **Ověřeno na emulátoru** (česky): člověk se třemi fotkami („3 z 3", listování ke staršímu
+  datu), kanál s jednou fotkou („1 z 1"), uložení do galerie (`Pictures/Plume`, jméno podle
+  data přidání). **Animovaná profilovka ani skupina s několika změnami fotky ověřené nejsou**;
+  profilovky vlastního účtu (z Nastavení) zatím nejdou otevřít vůbec.
+
 ### Sdílená média v profilu
 
 Pod hlavičkou profilu jsou záložky: **Členové** (kde je server vydá), **Média**, **Soubory**

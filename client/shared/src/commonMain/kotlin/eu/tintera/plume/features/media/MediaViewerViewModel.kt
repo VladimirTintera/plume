@@ -22,6 +22,7 @@ import eu.tintera.plume.core.telegram.PollAttachment
 import eu.tintera.plume.core.telegram.attachmentAt
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.PhotoPosition
+import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.SelfDestructTimers
 import eu.tintera.plume.core.telegram.SelfDestructType
 import eu.tintera.plume.core.telegram.userMessage
@@ -32,6 +33,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_delete_failed
 import eu.tintera.plume.resources.conversation_reaction_failed
 import eu.tintera.plume.resources.media_photo_load_failed
+import eu.tintera.plume.resources.media_profile_photos_none
 import eu.tintera.plume.resources.media_save_denied
 import eu.tintera.plume.resources.media_save_failed
 import eu.tintera.plume.resources.media_saved_as
@@ -71,7 +73,10 @@ class MediaViewerViewModel(
      * `NO_POLL_MEDIA` = běžná zpráva. Viz [loadPollMedia].
      */
     private val pollMedia: Int = NO_POLL_MEDIA,
+    /** Profilové fotky chatu místo médií ze zpráv — viz [loadProfilePhotos]; [messageId] je pak 0. */
+    private val profilePhotos: Boolean = false,
     private val repository: ConversationRepository,
+    private val profileRepository: ProfileRepository,
     private val files: FileRepository,
     private val saver: MediaSaver,
     private val sharer: MediaSharer,
@@ -110,9 +115,21 @@ class MediaViewerViewModel(
 
     private val isPollMedia: Boolean get() = pollMedia != NO_POLL_MEDIA
 
+    /**
+     * Stránky nejsou zprávy chatu (příloha ankety, profilovky): žádné pořadí fotek chatu,
+     * reakce, úpravy ani mazání se jich netýkají.
+     */
+    private val notMessages: Boolean get() = isPollMedia || profilePhotos
+
     init {
-        viewModelScope.launch { if (isPollMedia) loadPollMedia() else loadInitial() }
-        if (!isPollMedia) viewModelScope.launch {
+        viewModelScope.launch {
+            when {
+                profilePhotos -> loadProfilePhotos()
+                isPollMedia -> loadPollMedia()
+                else -> loadInitial()
+            }
+        }
+        if (!notMessages) viewModelScope.launch {
             repository.visualMediaPosition(chatId, messageId)
                 .onSuccess { position -> if (!single) _state.update { it.copy(initialPosition = position) } }
         }
@@ -121,6 +138,11 @@ class MediaViewerViewModel(
             // odesílatele nevyplňuje.
             repository.chatInfo(chatId).onSuccess { info -> _state.update { it.copy(chatTitle = info.title) } }
         }
+        if (!profilePhotos) observeMessages()
+    }
+
+    /** Změny zpráv, na kterých prohlížeč stojí: reakce, úprava, vypršení a smazání. */
+    private fun observeMessages() {
         viewModelScope.launch {
             repository.interactionUpdates(chatId).collect { update ->
                 updateItem(update.messageId) { it.copy(reactions = update.reactions) }
@@ -304,6 +326,47 @@ class MediaViewerViewModel(
             }
     }
 
+    /**
+     * Historie profilových fotek chatu (ťuknutí na fotku v profilu). Pager jde od nejstarší
+     * k nejnovější jako u fotek chatu, takže se otevírá vpravo na té, kterou chat má teď.
+     *
+     * Stránka je fotka, ne zpráva: klíčem je id fotky, popisek žádný a z akcí jen uložení
+     * a sdílení — reagovat, přeposlat ani smazat se profilovka odsud nedá.
+     */
+    private suspend fun loadProfilePhotos() {
+        profileRepository.profilePhotos(chatId)
+            .onSuccess { photos ->
+                val items = photos.asReversed().map { photo ->
+                    ViewerItem(
+                        messageId = photo.id,
+                        media = photo.media,
+                        caption = "",
+                        isOutgoing = false,
+                        senderName = null,
+                        timestamp = photo.addedDate,
+                    )
+                }
+                _state.update {
+                    it.copy(
+                        items = items,
+                        initialMessageId = items.lastOrNull()?.messageId ?: it.initialMessageId,
+                        initialPosition = items.size.takeIf { size -> size > 0 }?.let { size -> PhotoPosition(size, size) },
+                        actions = items.associate { item -> item.messageId to PROFILE_PHOTO_ACTIONS },
+                        reachedOldest = true,
+                        reachedNewest = true,
+                        loading = false,
+                        error = if (items.isEmpty()) UiText(Res.string.media_profile_photos_none) else null,
+                    )
+                }
+            }
+            .onFailure { failure ->
+                logger.w(failure) { "Profilové fotky chatu $chatId se nepodařilo načíst." }
+                _state.update {
+                    it.copy(loading = false, error = failure.userMessage(Res.string.media_photo_load_failed))
+                }
+            }
+    }
+
     /** Záloha bez listování: jen otevřená zpráva, stejně jako před zavedením listování. */
     private suspend fun loadSingle() {
         repository.message(chatId, messageId)
@@ -348,8 +411,9 @@ class MediaViewerViewModel(
      */
     private fun loadDetails(messageId: Long) {
         // Reakce, sdílení, přeposlání i smazání by šly na CELOU anketu, ne na obrázek v ní —
-        // přeposlat fotku z odpovědi by odeslalo anketu a smazat by smazalo anketu.
-        if (isPollMedia) return
+        // přeposlat fotku z odpovědi by odeslalo anketu a smazat by smazalo anketu. Profilovka
+        // zprávou není vůbec; co s ní jde, určuje [PROFILE_PHOTO_ACTIONS].
+        if (notMessages) return
         if (!detailsRequested.add(messageId)) return
         viewModelScope.launch {
             val reactions = async { repository.availableReactions(chatId, messageId) }
@@ -628,6 +692,21 @@ class MediaViewerViewModel(
     }
 
     private companion object {
+        /**
+         * Profilovka jde uložit a sdílet, jako v oficiálních klientech; ochranu obsahu jako
+         * zprávy v kanálu nemá.
+         */
+        val PROFILE_PHOTO_ACTIONS = MessageActions(
+            canReply = false,
+            canCopy = false,
+            canDeleteForSelf = false,
+            canDeleteForAll = false,
+            canEdit = false,
+            canPin = false,
+            canForward = false,
+            canSave = true,
+        )
+
         /** Kolik fotek se dotahuje najednou na každou stranu. */
         const val PAGE_SIZE = 20
 

@@ -14,6 +14,16 @@ interface ProfileRepository {
     suspend fun profile(chatId: Long): Result<ChatProfile>
 
     /**
+     * Profilové fotky chatu od nejnovější (té, kterou chat má teď) po nejstarší.
+     *
+     * U člověka a bota `getUserProfilePhotos`; osobní fotka, kterou si uživatel kontaktu nastavil
+     * sám, ani veřejná fotka mezi nimi podle TDLib nejsou. U skupiny a kanálu vlastní historii
+     * fotek TDLib nevede — skládá se z aktuální fotky a ze servisních zpráv o změně fotky
+     * (`SearchMessagesFilterChatPhoto`), takže fotka, jejíž zprávu někdo smazal, chybí.
+     */
+    suspend fun profilePhotos(chatId: Long): Result<List<ProfilePhoto>>
+
+    /**
      * Nastaví automatické mazání NOVÝCH zpráv chatu po [seconds] (`setChatMessageAutoDeleteTime`),
      * 0 = vypnout. Platí pro všechny v chatu; do chatu přibude servisní zpráva.
      */
@@ -259,3 +269,9 @@ const val MAX_MEMBERS_REQUEST = 200
  * [botName] jméno ověřovacího bota pro větu „Ověřil …", když důvod není.
  */
 data class BotVerificationNote(val description: String?, val botName: String)
+
+/**
+ * Jedna profilová fotka. [media] je fotka, nebo video u animované profilovky (s fotkou jako
+ * náhledem); [addedDate] je, kdy si ji chat nastavil.
+ */
+data class ProfilePhoto(val id: Long, val addedDate: Int, val media: MessageMedia)
