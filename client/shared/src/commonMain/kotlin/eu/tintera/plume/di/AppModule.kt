@@ -355,6 +355,7 @@ fun appModule() = module {
             repository = get(),
             squarePhoto = get(),
             inviteLinks = get(),
+            forums = get(),
         )
     }
 

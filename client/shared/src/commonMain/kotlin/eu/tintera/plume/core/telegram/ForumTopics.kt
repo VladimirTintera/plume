@@ -26,6 +26,8 @@ data class ForumTopic(
     val draft: ChatDraft? = null,
     /** Skryté obecné téma — správce ho schoval, v seznamu se nekreslí. */
     val isHidden: Boolean = false,
+    /** Téma založil přihlášený účet — pak ho smí upravit, uzavřít i smazat bez práv správce. */
+    val isOwn: Boolean = false,
 ) {
     val hasUnread: Boolean get() = unreadCount > 0
 }
@@ -49,7 +51,15 @@ data class TopicMessagePreview(
 /** Kde pokračuje další stránka témat — TDLib ji určuje trojicí z poslední stránky. */
 data class ForumTopicsOffset(val date: Int, val messageId: Long, val topicId: Int)
 
-data class ForumTopicsPage(val topics: List<ForumTopic>, val next: ForumTopicsOffset?)
+data class ForumTopicsPage(
+    val topics: List<ForumTopic>,
+    val next: ForumTopicsOffset?,
+    /**
+     * Obecné téma, i skryté; `null` = na stránce nebylo. Skryté se v seznamu nekreslí
+     * ([sortedTopics]), a správce ho přitom musí mít jak vrátit.
+     */
+    val general: ForumTopic? = null,
+)
 
 /** Hlavička konverzace tématu: co se v ní ukáže místo názvu a fotky skupiny. */
 data class TopicHeader(
@@ -78,7 +88,98 @@ interface ForumRepository {
      * Nese jen id — co se změnilo, se přečte znovu ([topic]), jako u připnutých zpráv.
      */
     fun topicChanges(chatId: Long): Flow<Int>
+
+    /** Témata, jejichž název obsahuje [query] — hledá server, jen první stránka. */
+    suspend fun search(chatId: Long, query: String): Result<List<ForumTopic>>
+
+    /** Co smí přihlášený účet s tématy v téhle skupině ([topicRights]). */
+    suspend fun rights(chatId: Long): Result<TopicRights>
+
+    /** Založí téma; vrací jeho id. [color] je jedna z [TOPIC_COLORS]. */
+    suspend fun create(chatId: Long, name: String, color: Int): Result<Int>
+
+    suspend fun rename(chatId: Long, topicId: Int, name: String): Result<Unit>
+
+    suspend fun setClosed(chatId: Long, topicId: Int, closed: Boolean): Result<Unit>
+
+    suspend fun setPinned(chatId: Long, topicId: Int, pinned: Boolean): Result<Unit>
+
+    /** Ztlumí téma napořád, nebo mu zvuk vrátí. Jen pro tohle téma, skupina se nemění. */
+    suspend fun setMuted(chatId: Long, topicId: Int, muted: Boolean): Result<Unit>
+
+    /** Smaže téma se všemi zprávami — nevratně, pro všechny. */
+    suspend fun delete(chatId: Long, topicId: Int): Result<Unit>
+
+    suspend fun setGeneralHidden(chatId: Long, hidden: Boolean): Result<Unit>
+
+    /**
+     * Zapne nebo vypne témata ve skupině. Smí jen vlastník supergroupy, a diskusní skupina
+     * kanálu témata mít nemůže.
+     */
+    suspend fun setForum(chatId: Long, forum: Boolean): Result<Unit>
 }
+
+/**
+ * Barvy ikony nového tématu — TDLib jiné nepřijme (dokumentace `createForumTopic`). Pořadí
+ * je to, v jakém je nabízejí oficiální klienti.
+ */
+val TOPIC_COLORS: List<Int> = listOf(0x6FB9F0, 0xFFD67E, 0xCB86DB, 0x8EEE98, 0xFF93B2, 0xFB6F5F)
+
+/** Delší název TDLib nepřijme. */
+const val TOPIC_NAME_MAX = 128
+
+/** Co smí přihlášený účet s tématy skupiny. */
+data class TopicRights(
+    /** Založit téma. */
+    val canCreate: Boolean = false,
+    /** Spravovat cizí témata: připnout, uzavřít, přejmenovat, skrýt obecné (`canManageTopics`). */
+    val canManage: Boolean = false,
+    /** Smazat cizí téma (`canDeleteMessages`). */
+    val canDeleteAny: Boolean = false,
+)
+
+/**
+ * Práva k tématům podle vlastního postavení. Čistá funkce kvůli testům, jako [writeAccess].
+ *
+ * - Vlastník smí všechno.
+ * - Správce, co mu dovolují práva; zakládat témata smí správce s `canManageTopics` vždy,
+ *   jinak jako člen.
+ * - Člen jen zakládat, a jen když to skupina dovolí (`ChatPermissions.canCreateTopics`).
+ * - Omezený člen, kdo ve skupině není, nebo neznámé postavení: nic. Chybějící tlačítko
+ *   nového tématu je menší škoda než tlačítko, po kterém přijde chyba.
+ */
+internal fun topicRights(status: OwnMemberStatus?, membersCanCreate: Boolean): TopicRights = when (status) {
+    is OwnMemberStatus.Creator -> if (status.isMember) TopicRights(canCreate = true, canManage = true, canDeleteAny = true) else TopicRights()
+    is OwnMemberStatus.Admin -> TopicRights(
+        canCreate = status.canManageTopics || membersCanCreate,
+        canManage = status.canManageTopics,
+        canDeleteAny = status.canDeleteMessages,
+    )
+    OwnMemberStatus.Member -> TopicRights(canCreate = membersCanCreate)
+    else -> TopicRights()
+}
+
+/** Co nabídnout nad jedním tématem. */
+data class TopicActions(
+    val pin: Boolean = false,
+    val close: Boolean = false,
+    val rename: Boolean = false,
+    val delete: Boolean = false,
+    val hideGeneral: Boolean = false,
+)
+
+/**
+ * Akce nad tématem. Vlastní téma smí autor upravit, uzavřít i smazat; cizí jen správce.
+ * **Obecné téma smazat nejde nikdy** (TDLib ho nemaže) a místo toho ho správce může skrýt.
+ * Ztlumit smí každý — týká se jen jeho, proto tu není.
+ */
+fun topicActions(topic: ForumTopic, rights: TopicRights): TopicActions = TopicActions(
+    pin = rights.canManage,
+    close = rights.canManage || (topic.isOwn && !topic.isGeneral),
+    rename = rights.canManage || (topic.isOwn && !topic.isGeneral),
+    delete = !topic.isGeneral && (rights.canDeleteAny || topic.isOwn),
+    hideGeneral = topic.isGeneral && rights.canManage,
+)
 
 /**
  * Seznam témat, jak se ukazuje: sestupně podle pořadí od TDLib, bez skrytého obecného tématu

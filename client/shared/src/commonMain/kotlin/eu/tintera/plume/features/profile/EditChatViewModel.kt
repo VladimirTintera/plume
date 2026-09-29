@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.edit_chat_forum_failed
+import eu.tintera.plume.core.telegram.ForumRepository
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -40,7 +42,15 @@ class EditChatViewModel(
     private val repository: ProfileRepository,
     private val squarePhoto: SquarePhoto,
     inviteLinks: InviteLinkRepository,
+    private val forums: ForumRepository,
 ) : ViewModel() {
+
+    /**
+     * Témata zapnutá, jak je ukazuje přepínač. Pohne se hned a při selhání se vrátí, jako práva
+     * členů; skutečný stav pak přijde s `UpdateSupergroup` do seznamu chatů.
+     */
+    var isForum by mutableStateOf(false)
+        private set
 
     /** Čekající žádosti o vstup — podtitul řádku, který na ně vede. Živě, vyřizuje je i jiný správce. */
     val pendingJoinRequests: StateFlow<Int> = inviteLinks.pendingJoinRequests(chatId)
@@ -84,6 +94,7 @@ class EditChatViewModel(
                     title = chat.title
                     description = chat.description
                     permissions = chat.permissions
+                    isForum = chat.isForum
                 }
                 .onFailure { failure ->
                     loadFailed = true
@@ -173,6 +184,17 @@ class EditChatViewModel(
                 logger.w(failure) { "Práva skupiny $chatId se nepodařilo uložit." }
                 permissions = previous
                 notice = failure.reported(Res.string.edit_chat_permissions_failed)
+            }
+        }
+    }
+
+    fun toggleForum(forum: Boolean) {
+        if (forum == isForum) return
+        isForum = forum
+        viewModelScope.launch {
+            forums.setForum(chatId, forum).onFailure { failure ->
+                isForum = !forum
+                notice = failure.reported(Res.string.edit_chat_forum_failed)
             }
         }
     }

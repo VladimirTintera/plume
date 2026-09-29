@@ -502,10 +502,13 @@ snadno na to uživatel narazí.
 **Konverzace jako celek**
 
 - ~~**Témata ve skupinách (fóra)**~~ — hotovo: seznam témat místo konverzace, konverzace tématu,
-  psaní do tématu, „Zobrazit jako zprávy", cesty do tématu z notifikace, odkazu, hledání a zmínky, „píše…" jen z tématu (`CLAUDE.md`, „Témata ve skupinách"). Zbývá: **zakládání,
-  úprava, uzavření a připnutí tématu** (správce), **upozornění po tématech**, **téma
-  v notifikaci na iOS**, **hledání témat podle názvu**, **psaní do tématu ověřené na zařízení** (skupina
-  s tématy, kam smí účet psát, na testovacím účtu není) a **dvoupanel na širokém displeji**.
+  psaní do tématu, „Zobrazit jako zprávy", cesty do tématu z notifikace, odkazu, hledání a zmínky, „píše…" jen z tématu (`CLAUDE.md`, „Témata ve skupinách"). ~~Zakládání,
+  přejmenování, uzavření, připnutí, ztlumení a smazání tématu, skrytí obecného tématu, hledání
+  témat podle názvu a zapnutí témat ve skupině~~ — hotovo (`CLAUDE.md`, „Správa témat"). Zbývá:
+  **ikona tématu vlastním emoji** (výběr emoji; jen s Premium), **podrobná upozornění tématu**
+  (náhled, zmínky — dnes jen ztlumit), **pořadí připnutých** (`setPinnedForumTopics`), **téma
+  v notifikaci na iOS**, **psaní do tématu ověřit** (teď už jde v testovací skupině „Plume test
+  pozvánek" se zapnutými tématy) a **dvoupanel na širokém displeji**.
 - ~~**Nepřečtené zmínky a reakce**~~ — hotovo: tlačítka „@" a „❤" nad tlačítkem dolů, odznaky
   v seznamu chatů, „Označit vše" podržením (`CLAUDE.md`, „Nepřečtené zmínky, reakce a hlasy v anketě"). Zbývá:
   **ověřit skutečnou zmínku ve skupině** a **skutečný nový hlas v anketě** (tlačítko s anketou je
