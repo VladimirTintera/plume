@@ -99,6 +99,14 @@ data class ArchiveEditChatRoute(val chatId: Long) : Route
 @Serializable
 data class ArchiveMemberRightsRoute(val chatId: Long, val userId: Long, val admin: Boolean) : Route
 
+/** Pozvánky otevřené z úpravy skupiny v archivní větvi. */
+@Serializable
+data class ArchiveInviteLinksRoute(val chatId: Long) : Route
+
+/** Žádosti o vstup otevřené z úpravy skupiny v archivní větvi. */
+@Serializable
+data class ArchiveJoinRequestsRoute(val chatId: Long) : Route
+
 /**
  * Konverzace. V list-detail rozvržení je to detail panel vedle seznamu.
  *
@@ -146,6 +154,14 @@ data class EditChatRoute(val chatId: Long) : Route
  */
 @Serializable
 data class MemberRightsRoute(val chatId: Long, val userId: Long, val admin: Boolean) : Route
+
+/** Pozvánky skupiny nebo kanálu. Vrší se nad úpravu, taky jako detailový panel. */
+@Serializable
+data class InviteLinksRoute(val chatId: Long) : Route
+
+/** Žádosti o vstup. Vrší se nad úpravu, taky jako detailový panel. */
+@Serializable
+data class JoinRequestsRoute(val chatId: Long) : Route
 
 /**
  * Prohlížeč média přes celou obrazovku.
@@ -274,10 +290,14 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ArchiveChatProfileRoute::class, ArchiveChatProfileRoute.serializer())
             subclass(ArchiveEditChatRoute::class, ArchiveEditChatRoute.serializer())
             subclass(ArchiveMemberRightsRoute::class, ArchiveMemberRightsRoute.serializer())
+            subclass(ArchiveInviteLinksRoute::class, ArchiveInviteLinksRoute.serializer())
+            subclass(ArchiveJoinRequestsRoute::class, ArchiveJoinRequestsRoute.serializer())
             subclass(ConversationRoute::class, ConversationRoute.serializer())
             subclass(ChatProfileRoute::class, ChatProfileRoute.serializer())
             subclass(EditChatRoute::class, EditChatRoute.serializer())
             subclass(MemberRightsRoute::class, MemberRightsRoute.serializer())
+            subclass(InviteLinksRoute::class, InviteLinksRoute.serializer())
+            subclass(JoinRequestsRoute::class, JoinRequestsRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
             subclass(PollComposerRoute::class, PollComposerRoute.serializer())

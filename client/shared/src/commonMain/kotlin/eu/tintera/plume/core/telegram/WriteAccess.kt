@@ -168,8 +168,13 @@ internal fun contentAccess(status: OwnMemberStatus?, groupDefaults: ContentAcces
 data class ChatEditRights(
     val canChangeInfo: Boolean = false,
     val canRestrictMembers: Boolean = false,
+    /**
+     * Pozvánky a žádosti o vstup: vlastník, nebo správce s `canInviteUsers`. Členové smějí
+     * zvát (výchozí práva), ale odkazy spravovat ne — `createChatInviteLink` chce správce.
+     */
+    val canManageInvites: Boolean = false,
 ) {
-    val any: Boolean get() = canChangeInfo || canRestrictMembers
+    val any: Boolean get() = canChangeInfo || canRestrictMembers || canManageInvites
 }
 
 /**
@@ -191,11 +196,16 @@ internal fun chatEditRights(
 ): ChatEditRights = when (status) {
     null -> ChatEditRights()
     is OwnMemberStatus.Creator ->
-        if (status.isMember) ChatEditRights(canChangeInfo = true, canRestrictMembers = !isChannel) else ChatEditRights()
+        if (status.isMember) {
+            ChatEditRights(canChangeInfo = true, canRestrictMembers = !isChannel, canManageInvites = true)
+        } else {
+            ChatEditRights()
+        }
     is OwnMemberStatus.Admin -> ChatEditRights(
         canChangeInfo = status.canChangeInfo,
         // Kanál výchozí práva členů nemá — nikdo do něj nepíše, takže není co omezovat.
         canRestrictMembers = status.canRestrictMembers && !isChannel,
+        canManageInvites = status.canInviteUsers,
     )
     OwnMemberStatus.Member ->
         ChatEditRights(canChangeInfo = !isChannel && membersCanChangeInfo)

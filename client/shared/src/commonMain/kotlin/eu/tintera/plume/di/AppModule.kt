@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.features.profile.JoinRequestsViewModel
+import eu.tintera.plume.features.profile.InviteLinksViewModel
 import eu.tintera.plume.features.settings.EditProfileViewModel
 import eu.tintera.plume.core.telegram.TdlAccountRepository
 import eu.tintera.plume.core.telegram.AccountRepository
@@ -8,6 +10,8 @@ import eu.tintera.plume.features.forum.ForumTopicsViewModel
 import eu.tintera.plume.features.profile.EditChatViewModel
 import eu.tintera.plume.features.profile.MemberRightsViewModel
 import eu.tintera.plume.core.telegram.TdlProfileRepository
+import eu.tintera.plume.core.telegram.InviteLinkRepository
+import eu.tintera.plume.core.telegram.TdlInviteLinkRepository
 import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.DeviceRepository
 import eu.tintera.plume.core.telegram.NotificationSettingsRepository
@@ -216,6 +220,7 @@ fun appModule() = module {
     single { RevealedSpoilers() }
     single { SelfDestructTimers() }
     single<ProfileRepository> { TdlProfileRepository(holder = get()) }
+    single<InviteLinkRepository> { TdlInviteLinkRepository(holder = get()) }
     single<NotificationSettingsRepository> { TdlNotificationSettingsRepository(holder = get()) }
     single<SensitiveContentSettings> { TdlSensitiveContentSettings(holder = get()) }
     single<DefaultAutoDeleteSettings> { TdlDefaultAutoDeleteSettings(holder = get()) }
@@ -349,7 +354,16 @@ fun appModule() = module {
             chatId = parameters.get(),
             repository = get(),
             squarePhoto = get(),
+            inviteLinks = get(),
         )
+    }
+
+    viewModel { parameters ->
+        InviteLinksViewModel(chatId = parameters.get(), repository = get(), clipboard = get())
+    }
+
+    viewModel { parameters ->
+        JoinRequestsViewModel(chatId = parameters.get(), repository = get())
     }
 
     /*
