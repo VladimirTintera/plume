@@ -311,6 +311,16 @@ Seřazeno podle toho, jak moc to bolí.
 **Chyby** — opraveno, poučení v `CLAUDE.md` („Hlášení přečtení a indexy" a „Odesílání
 a scrollování" u duplicitního klíče po potvrzení odeslání).
 
+- **Po přepnutí jazyka aplikace zůstanou servisní zprávy (a další „náš" text) ve starém
+  jazyce.** `serviceText` / `previewText` skládají větu přes `getString` už při převodu zprávy
+  v `core/telegram` (`TdlConversationRepository.toChatMessage`, `captionBody`) a do
+  `ChatMessage.text` jde hotový řetězec. Otevřená konverzace i načtený seznam chatů si ho drží,
+  dokud se zprávy nenačtou znovu — ověřeno na emulátoru: po `set-app-locales … cs-CZ` zůstalo
+  v konverzaci „Group “…” created", seznam chatů po novém spuštění už česky. Pravidlo
+  v „Jazyky" říká, že text se má překládat až v UI (`UiText`); tady se to porušuje, protože
+  převod je `suspend` mimo kompozici. Řešení: servisní zpráva nese `UiText` (odkaz do prostředků
+  + argumenty) a překládá ji bublina, nebo se po změně jazyka zprávy přemapují znovu.
+
 **Chybějící základ**
 
 - ~~**Práva po druzích obsahu.**~~ — hotovo (`ContentAccess` ve `WriteAccess.kt`: sponka,
