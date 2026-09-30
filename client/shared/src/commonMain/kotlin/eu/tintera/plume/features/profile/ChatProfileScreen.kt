@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.files.opensInViewer
 import eu.tintera.plume.resources.share_24dp
 import eu.tintera.plume.resources.profile_share_contact
 import eu.tintera.plume.resources.profile_tab_music
@@ -651,7 +653,16 @@ private fun TabContent(
                     loading = loading,
                     downloads = state.documentDownloads,
                     contentPadding = contentPadding,
-                    onOpen = viewModel::openDocument,
+                    // Obrázek a video, které prohlížeč umí, se otevřou v něm, jako v konverzaci;
+                    // ostatní soubory (a co prohlížeč neumí, třeba HEIC na iOS) dostane systém.
+                    onOpen = { messageId ->
+                        val document = messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Document
+                        if (document != null && opensInViewer(document.fileName, document.mimeType)) {
+                            viewModel.openMedia(messageId)
+                        } else {
+                            viewModel.openDocument(messageId)
+                        }
+                    },
                     onLoadMore = { viewModel.loadMoreShared(tab.kind) },
                 )
 

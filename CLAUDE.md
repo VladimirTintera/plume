@@ -5673,6 +5673,10 @@ obsahu bývá zlomek zpráv.
   jiná. Fotka proto při každém otevření profilu přelétla přes celou obrazovku z bubliny na
   dlaždici a zpátky. **Obecně: „druhá strana zrovna není složená" o sdíleném prvku nic neříká,
   protože přechod je právě ten okamžik, kdy složené jsou obě.**
+- **Obrázek a video poslané jako soubor se ze záložky Soubory otevřou v prohlížeči**, jako
+  v konverzaci (`opensInViewer`; co prohlížeč neumí, dostane dál systém). Prohlížeč takovou
+  zprávu ukáže samotnou, bez listování — dokument ve výřezu fotek a videí není. Ověřeno na
+  emulátoru (JPEG od testovacího bota, zpět vrací do záložky).
 - **Ťuknutí vede tam, kam z konverzace**: médium do prohlížeče (táž `MediaRoute`), soubor se
   stáhne a předá systému (včetně průběhu v řádku a druhého ťuknutí jako zrušení), odkaz do
   prohlížeče.

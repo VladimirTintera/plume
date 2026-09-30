@@ -80,7 +80,8 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   údaje, členové skupiny; `CLAUDE.md`, „Profil chatu"). Zbývá:
   - ~~**Sdílená média**~~ — hotovo (záložky Členové / Média / Soubory / Odkazy s dotahováním
     stránek; `CLAUDE.md`, „Sdílená média v profilu"). ~~Hledání uvnitř záložky~~ — hotovo
-    (soubory, odkazy, hudba). Zbývá velký náhled u souborů.
+    (soubory, odkazy, hudba). ~~Velký náhled u souborů~~ — hotovo (obrázek a video
+    poslané jako soubor se ze záložky Soubory otevřou v prohlížeči).
   - ~~**Akce navíc**~~ — hotovo: kopírovat odkaz (i pozvánku pro správce), zablokovat, smazat
     chat / opustit skupinu či kanál (⋮ v liště) a ~~**upravit skupinu**~~ (název, popis, fotka,
     práva členů; `CLAUDE.md`, „Úprava skupiny") a ~~**správa jednotlivých členů**~~ (dlouhý
