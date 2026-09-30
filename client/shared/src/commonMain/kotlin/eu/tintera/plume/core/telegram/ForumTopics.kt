@@ -61,6 +61,12 @@ data class ForumTopicsPage(
      * ([sortedTopics]), a správce ho přitom musí mít jak vrátit.
      */
     val general: ForumTopic? = null,
+    /**
+     * Připnutá témata v pořadí, v jakém je vrátil server (nahoře první). **`order` od TDLib
+     * pořadí připnutých NENESE**: po `setPinnedForumTopics` zůstane u každého tématu stejné,
+     * zatímco server vrací témata už v novém pořadí. Platí jen pro první stránku.
+     */
+    val pinnedOrder: List<Int> = emptyList(),
 )
 
 /** Hlavička konverzace tématu: co se v ní ukáže místo názvu a fotky skupiny. */
@@ -105,6 +111,9 @@ interface ForumRepository {
     suspend fun setClosed(chatId: Long, topicId: Int, closed: Boolean): Result<Unit>
 
     suspend fun setPinned(chatId: Long, topicId: Int, pinned: Boolean): Result<Unit>
+
+    /** Nové pořadí připnutých témat, první nahoře. Musí obsahovat všechna připnutá. */
+    suspend fun setPinnedOrder(chatId: Long, topicIds: List<Int>): Result<Unit>
 
     /** Smaže téma se všemi zprávami — nevratně, pro všechny. */
     suspend fun delete(chatId: Long, topicId: Int): Result<Unit>
@@ -184,16 +193,40 @@ fun topicActions(topic: ForumTopic, rights: TopicRights): TopicActions = TopicAc
  * Seznam témat, jak se ukazuje: sestupně podle pořadí od TDLib, bez skrytého obecného tématu
  * (Telegram ho schová, když ho správce skryje) a každé téma jednou.
  */
-fun List<ForumTopic>.sortedTopics(): List<ForumTopic> =
-    filterNot { it.isHidden }.distinctBy { it.id }.sortedByDescending { it.order }
+fun List<ForumTopic>.sortedTopics(pinnedOrder: List<Int> = emptyList()): List<ForumTopic> =
+    filterNot { it.isHidden }.distinctBy { it.id }.sortedWith(
+        compareByDescending<ForumTopic> { it.isPinned }
+            // Připnutá podle serveru; neznámé (právě připnuté) nahoru, kam je server dává taky.
+            .thenBy { if (it.isPinned) pinnedOrder.indexOf(it.id) else 0 }
+            .thenByDescending { it.order },
+    )
 
 /**
  * Seznam s tématem nahrazeným (nebo přidaným) podle [topic]. Změna nese celé téma, takže se
  * nic neslučuje — nahradí se a seznam se znovu seřadí (nová zpráva téma posune nahoru).
  * Téma, které se právě skrylo, ze seznamu zmizí.
  */
-fun List<ForumTopic>.withTopic(topic: ForumTopic): List<ForumTopic> =
-    (filterNot { it.id == topic.id } + topic).sortedTopics()
+fun List<ForumTopic>.withTopic(topic: ForumTopic, pinnedOrder: List<Int> = emptyList()): List<ForumTopic> =
+    (filterNot { it.id == topic.id } + topic).sortedTopics(pinnedOrder)
+
+/** Připnutá témata v pořadí, v jakém je seznam ukazuje (nahoře první). */
+fun List<ForumTopic>.pinnedTopics(pinnedOrder: List<Int> = emptyList()): List<ForumTopic> =
+    sortedTopics(pinnedOrder).filter { it.isPinned }
+
+/** Pořadí jde měnit jen s právem připínat a jen když je co přeskládat. */
+fun canReorderPinned(topics: List<ForumTopic>, rights: TopicRights): Boolean =
+    rights.canManage && topics.pinnedTopics().size >= 2
+
+/**
+ * Seznam s tématem [fromId] přesunutým na místo tématu [toId] (ostatní se posunou). Neznámé
+ * id nechá seznam, jak je — tah mohl skončit nad položkou, která mezitím zmizela.
+ */
+fun List<ForumTopic>.moved(fromId: Int, toId: Int): List<ForumTopic> {
+    val from = indexOfFirst { it.id == fromId }
+    val to = indexOfFirst { it.id == toId }
+    if (from < 0 || to < 0 || from == to) return this
+    return toMutableList().apply { add(to, removeAt(from)) }
+}
 
 /** Seznam bez tématu [topicId] — smazané téma (dočíst už nejde). */
 fun List<ForumTopic>.withoutTopic(topicId: Int): List<ForumTopic> = filterNot { it.id == topicId }
@@ -202,7 +235,7 @@ fun List<ForumTopic>.withoutTopic(topicId: Int): List<ForumTopic> = filterNot { 
  * Přidá stránku k načteným tématům. Tentýž seznam se mezitím mohl změnit updatem, takže se
  * téma, které už je, NEPŘEPISUJE starší verzí ze stránky.
  */
-fun List<ForumTopic>.withPage(page: List<ForumTopic>): List<ForumTopic> {
+fun List<ForumTopic>.withPage(page: List<ForumTopic>, pinnedOrder: List<Int> = emptyList()): List<ForumTopic> {
     val known = mapTo(HashSet()) { it.id }
-    return (this + page.filterNot { it.id in known }).sortedTopics()
+    return (this + page.filterNot { it.id in known }).sortedTopics(pinnedOrder)
 }

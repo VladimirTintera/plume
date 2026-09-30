@@ -510,7 +510,7 @@ snadno na to uživatel narazí.
   přejmenování, uzavření, připnutí, ztlumení a smazání tématu, skrytí obecného tématu, hledání
   témat podle názvu a zapnutí témat ve skupině~~ — hotovo (`CLAUDE.md`, „Správa témat"). Zbývá:
   **ikona tématu vlastním emoji** (výběr emoji; jen s Premium), ~~podrobná upozornění tématu~~
-  (hotovo, `CLAUDE.md`, „Správa témat"), **pořadí připnutých** (`setPinnedForumTopics`), **téma
+  (hotovo, `CLAUDE.md`, „Správa témat"), ~~pořadí připnutých~~ (hotovo), **téma
   v notifikaci na iOS**, **psaní do tématu ověřit** (teď už jde v testovací skupině „Plume test
   pozvánek" se zapnutými tématy) a **dvoupanel na širokém displeji**.
 - ~~**Nepřečtené zmínky a reakce**~~ — hotovo: tlačítka „@" a „❤" nad tlačítkem dolů, odznaky

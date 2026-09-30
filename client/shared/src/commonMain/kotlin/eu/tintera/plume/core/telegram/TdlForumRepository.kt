@@ -42,8 +42,11 @@ class TdlForumRepository(private val holder: TelegramClientHolder) : ForumReposi
             .toResult()
             .map { page ->
                 val topics = page.topics.filterNotNull().map { it.toDomain() }
+                // Pořadí připnutých nese jen pořadí na stránce od serveru, ne `order` (viz [ForumTopicsPage]).
+                val pinnedOrder = topics.filter { it.isPinned }.map { it.id }
                 ForumTopicsPage(
-                    topics = topics.sortedTopics(),
+                    topics = topics.sortedTopics(pinnedOrder),
+                    pinnedOrder = pinnedOrder,
                     // Prázdná stránka je konec; offset z ní by vedl zase na začátek.
                     next = ForumTopicsOffset(page.nextOffsetDate, page.nextOffsetMessageId, page.nextOffsetForumTopicId)
                         .takeIf { topics.isNotEmpty() },
@@ -91,6 +94,9 @@ class TdlForumRepository(private val holder: TelegramClientHolder) : ForumReposi
 
     override suspend fun setPinned(chatId: Long, topicId: Int, pinned: Boolean): Result<Unit> =
         client.toggleForumTopicIsPinned(chatId = chatId, forumTopicId = topicId, isPinned = pinned).toResult().map { }
+
+    override suspend fun setPinnedOrder(chatId: Long, topicIds: List<Int>): Result<Unit> =
+        client.setPinnedForumTopics(chatId = chatId, forumTopicIds = topicIds.toIntArray()).toResult().map { }
 
     override suspend fun delete(chatId: Long, topicId: Int): Result<Unit> =
         client.deleteForumTopic(chatId = chatId, forumTopicId = topicId).toResult().map { }

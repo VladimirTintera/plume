@@ -70,6 +70,27 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ForumTopic
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
+import eu.tintera.plume.core.telegram.canReorderPinned
+import eu.tintera.plume.core.ui.DragReorderState
+import eu.tintera.plume.core.ui.dragHandle
+import eu.tintera.plume.core.ui.draggedItem
+import eu.tintera.plume.core.ui.rememberDragReorderState
+import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.common_cancel
+import eu.tintera.plume.resources.drag_indicator_24dp
+import eu.tintera.plume.resources.forum_topic_drag
+import eu.tintera.plume.resources.forum_topic_move_up
+import eu.tintera.plume.resources.forum_topic_move_down
+import eu.tintera.plume.resources.forum_topics_reorder_title
+import eu.tintera.plume.resources.forum_topics_reorder_done
+import eu.tintera.plume.resources.forum_topics_reorder_hint
 import eu.tintera.plume.features.profile.ChatNotificationSheet
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ExpressiveMenu
@@ -154,10 +175,25 @@ fun ForumTopicsScreen(
     var actionsFor by remember { mutableStateOf<ForumTopic?>(null) }
     var deleteTarget by remember { mutableStateOf<ForumTopic?>(null) }
 
+    // Režim uspořádání připnutých: zpět ho zruší bez uložení, teprve další zpět odejde.
+    val reorder = state.reorder
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = reorder != null,
+        onBackCompleted = viewModel::cancelReorder,
+    )
+    val listState = rememberLazyListState()
+    val reorderIds = reorder?.map { it.id }.orEmpty()
+    val dragState = rememberDragReorderState(
+        listState = listState,
+        canMove = { key -> key in reorderIds },
+        onMove = { from, to -> viewModel.moveInReorder(from as Int, to as Int) },
+    )
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            if (state.rights.canCreate) {
+            if (state.rights.canCreate && reorder == null) {
                 // Obsahová varianta, ne `text`/`icon`: ta popisek skrývá před čtečkou obrazovky
                 // (`clearAndSetSemantics`) a tlačítko by nemělo žádný název.
                 ExtendedFloatingActionButton(
@@ -172,7 +208,9 @@ fun ForumTopicsScreen(
             }
         },
         topBar = {
-            TopAppBar(
+            if (reorder != null) {
+                ReorderTopBar(busy = state.busy, onCancel = viewModel::cancelReorder, onDone = viewModel::saveReorder)
+            } else TopAppBar(
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -265,6 +303,7 @@ fun ForumTopicsScreen(
                 modifier = Modifier.padding(padding),
             )
             else -> LazyColumn(
+                state = listState,
                 contentPadding = PaddingValues(
                     start = 16.dp,
                     end = 16.dp,
@@ -280,6 +319,31 @@ fun ForumTopicsScreen(
                  * a u pár témat nepřekáží. Hledá server (`getForumTopics` s dotazem), takže
                  * najde i téma, které ještě není načtené.
                  */
+                if (reorder != null) {
+                    item(key = "reorder-hint") {
+                        Text(
+                            stringResource(Res.string.forum_topics_reorder_hint),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                        )
+                    }
+                    itemsIndexed(reorder, key = { _, topic -> topic.id }) { index, topic ->
+                        val dragged = dragState.draggedKey == topic.id
+                        ReorderTopicRow(
+                            topic = topic,
+                            shape = groupItemShape(index, reorder.size),
+                            dragState = dragState,
+                            onMoveUp = reorder.getOrNull(index - 1)?.let { above -> { viewModel.moveInReorder(topic.id, above.id) } },
+                            onMoveDown = reorder.getOrNull(index + 1)?.let { below -> { viewModel.moveInReorder(topic.id, below.id) } },
+                            // Tažená položka jede pod prstem; animace umístění by se s tím prala.
+                            modifier = Modifier
+                                .then(if (dragged) Modifier else Modifier.animateItem())
+                                .draggedItem(dragState, topic.id),
+                        )
+                    }
+                    return@LazyColumn
+                }
                 item(key = "search") {
                     SearchPill(
                         initialQuery = "",
@@ -325,6 +389,7 @@ fun ForumTopicsScreen(
             onPin = { viewModel.setPinned(topic, it) },
             onMute = { viewModel.setMuted(topic, it) },
             onNotifications = { viewModel.openNotifications(topic) },
+            onReorder = viewModel::startReorder.takeIf { canReorderPinned(state.topics, state.rights) },
             onRename = { viewModel.openRename(topic) },
             onClose = { viewModel.setClosed(topic, it) },
             onHideGeneral = { viewModel.setGeneralHidden(true) },
@@ -365,6 +430,79 @@ fun ForumTopicsScreen(
             onSave = viewModel::saveEditor,
             onDismiss = viewModel::closeEditor,
         )
+    }
+}
+
+/** Hlavička režimu uspořádání: ✕ zahodí změny, „Hotovo" je odešle. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReorderTopBar(busy: Boolean, onCancel: () -> Unit, onDone: () -> Unit) {
+    TopAppBar(
+        title = { Text(stringResource(Res.string.forum_topics_reorder_title)) },
+        navigationIcon = {
+            IconButton(onClick = onCancel) {
+                Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_cancel))
+            }
+        },
+        actions = {
+            TextButton(onClick = onDone, enabled = !busy) { Text(stringResource(Res.string.forum_topics_reorder_done)) }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(scrolledContainerColor = MaterialTheme.colorScheme.surface),
+    )
+}
+
+/**
+ * Připnuté téma v režimu uspořádání: ikona, název a úchyt. Tah začíná na úchytu hned, bez
+ * podržení. Čtečka obrazovky tahat neumí, takže řádek nese akce „Posunout nahoru / dolů".
+ */
+@Composable
+private fun ReorderTopicRow(
+    topic: ForumTopic,
+    shape: androidx.compose.ui.graphics.Shape,
+    dragState: DragReorderState,
+    onMoveUp: (() -> Unit)?,
+    onMoveDown: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    val up = stringResource(Res.string.forum_topic_move_up)
+    val down = stringResource(Res.string.forum_topic_move_down)
+    val dragged = dragState.draggedKey == topic.id
+    Surface(
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        // Tažený řádek se zvedne, aby bylo vidět, že jede nad ostatními.
+        shadowElevation = if (dragged) 6.dp else 0.dp,
+        modifier = modifier.fillMaxWidth().semantics {
+            customActions = listOfNotNull(
+                onMoveUp?.let { move -> CustomAccessibilityAction(up) { move(); true } },
+                onMoveDown?.let { move -> CustomAccessibilityAction(down) { move(); true } },
+            )
+        },
+    ) {
+        Row(
+            Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            ForumTopicIcon(icon = topic.icon, name = topic.name, isGeneral = topic.isGeneral, size = ICON_SIZE)
+            Text(
+                text = topic.name,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Box(
+                Modifier.size(48.dp).dragHandle(dragState, topic.id),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painterResource(Res.drawable.drag_indicator_24dp),
+                    contentDescription = stringResource(Res.string.forum_topic_drag),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 

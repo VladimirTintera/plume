@@ -6969,8 +6969,8 @@ funkce v `ForumTopics.kt` (testy `ForumTopicsTest`).
   `changedPerTopic` (testy `ChangedPerTopicTest`): update téhož tématu jde dál, jen když se
   od posledního LIŠÍ (DTO z TDLib mají `equals`). S ním proběhnou po otevření čtyři čtení.
   **Obecně: kdo na update odpovídá dotazem, musí vědět, jestli ten dotaz sám update nevyrobí.**
-- **Pořadí je `ForumTopic.order` sestupně**, připnutá témata ho mají vyšší — nic se nepřeskládává
-  ručně, jako u chatů.
+- **Pořadí je `ForumTopic.order` sestupně**, připnutá témata ho mají vyšší — kromě pořadí
+  připnutých mezi sebou, to `order` NENESE (viz „Správa témat").
 - **Uzavřené téma = `WriteAccess.TopicClosed`** (`topicWriteAccess`, testy `TopicWriteAccessTest`):
   psát smí vlastník a správce s `canManageTopics`; důvod ze skupiny (není členem, omezený) má
   přednost. Mění se živě (`accessUpdates` odebírá i `UpdateForumTopicInfo`).
@@ -7024,6 +7024,22 @@ a `topicActions` (`ForumTopics.kt`, testy `TopicManagementTest`).
 - **Seznam témat ukazuje ztlumení jen VLASTNÍ** (`isTopicMuted`), ne zděděné ze skupiny — to
   seznam ukazovat nemá, ztlumená je celá skupina. Sheet naopak ukazuje ÚČINNÝ stav („Ztlumeno ·
   jako ve skupině").
+- **Pořadí připnutých se mění režimem uspořádání** („Změnit pořadí připnutých" v nabídce nad
+  připnutým tématem; jen s právem připínat a od dvou připnutých, `canReorderPinned`). Připnutá
+  témata dostanou úchyt, tah je jen koncept a „Hotovo" ho pošle jedním voláním
+  (`setPinnedForumTopics`); ✕ i zpět ho zahodí. Čtečka obrazovky má u řádku akce „Posunout
+  nahoru / dolů".
+  - **`order` od TDLib pořadí připnutých NENESE.** Po `setPinnedForumTopics` zůstalo u obou
+    témat totéž `order` (ověřeno sondou i po čtyřech vteřinách), zatímco `getForumTopics` vracel
+    témata už v novém pořadí. Seznam proto řadí připnutá podle pořadí z PRVNÍ stránky od serveru
+    (`ForumTopicsPage.pinnedOrder`, `sortedTopics(pinnedOrder)`, testy `PinnedTopicsOrderTest`)
+    a po uložení převezme nové pořadí sám. Nově připnuté téma (v pořadí ještě není) jde nahoru,
+    kam ho dává i server. **Změnu pořadí z jiného zařízení** seznam uvidí až při dalším otevření.
+  - **Tažení v `LazyColumn` je obecné** (`core/ui/DragReorder.kt`: `rememberDragReorderState`,
+    `Modifier.dragHandle`, `Modifier.draggedItem`) — připravené i pro připnuté chaty. Tažená
+    položka jede jen kreslením (`graphicsLayer`) a NEMÁ `animateItem`: animace umístění by se
+    s posunem pod prstem prala. Výměnu ohlásí `tick`. Úchyt táhne hned, bez podržení — podržení
+    řádku patří nabídce.
 - **Hledání hledá server** (`getForumTopics` s dotazem, první stránka), takže najde i téma, které
   ještě není načtené. Rozepsaný dotaz další znak zahodí (`transformLatest`), jako hledání chatů.
 - **Zapnout témata smí jen vlastník supergroupy** (`EditableChat.canToggleForum`), diskusní
