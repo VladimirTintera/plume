@@ -38,8 +38,9 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    s posunem, poslechnuto, ~~rychlost 1×/1,5×/2×~~, ~~pokračování další neposlechnutou~~
    i ~~audio focus a přerušení hovorem~~ a ~~sluchátko u ucha~~; `CLAUDE.md`, „Hlasovky"
    a „Hlasovka u ucha"; sluchátko u ucha ověřeno na Pixelu 11 Pro Foldu). **Hlasovky jsou tím
-   hotové celé.** ~~Nahrávání~~ — hotovo
-   (ťuknutím); chybí podržení se zamčením, náhled před odesláním a průběh nahrávání hlasovky.
+   hotové celé.** ~~Nahrávání~~ — hotovo, ~~podržením se zamčením~~ i ~~s náhledem před
+   odesláním~~ (`CLAUDE.md`, „Nahrávání"). Zbývá náhled u kolečka a navázání v nahrávání po
+   poslechu náhledu.
    ~~Video~~ — hotovo v prohlížeči (Media3 / AVPlayer). ~~GIFy~~ — hotovo (hrají v bublině ve
    smyčce bez zvuku; `CLAUDE.md`, „GIFy"). ~~GIFy z klávesnice~~ — hotovo na Androidu (Gboard;
    `CLAUDE.md`, „GIFy a samolepky z klávesnice"); ~~výběr GIFů v aplikaci~~ — hotovo

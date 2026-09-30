@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import okio.Path.Companion.toPath
+import okio.FileSystem
+import eu.tintera.plume.core.audio.RecordedVoice
 import eu.tintera.plume.resources.conversation_video_note_send_failed
 import eu.tintera.plume.resources.conversation_video_note_start_failed
 import eu.tintera.plume.resources.conversation_contact_send_failed
@@ -287,6 +290,10 @@ class ConversationViewModel(
     /** Probíhající nahrávání hlasovky; samostatný tok ze stejného důvodu jako [voicePlayback]. */
     val voiceRecording: StateFlow<VoiceRecording?> = voiceRecorder.state
 
+    /** Zastavená hlasovka k poslechu před odesláním ([stopRecordingForPreview]); `null` = žádná. */
+    private val _voicePreview = MutableStateFlow<VoicePreview?>(null)
+    val voicePreview: StateFlow<VoicePreview?> = _voicePreview.asStateFlow()
+
     /** Kamera, kterou do ViewModelu připojila obrazovka (viz [CaptureSlot]). */
     private val cameraSlot = CaptureSlot()
 
@@ -473,7 +480,7 @@ class ConversationViewModel(
         // Dohraná hlasovka pustí další neposlechnutou; která to je, ví jedině konverzace.
         viewModelScope.launch {
             voicePlayer.completions.collect { finished ->
-                if (finished.chatId == chatId) playNextUnlistened(after = finished.messageId)
+                if (finished.chatId == chatId && !finished.isVoicePreview) playNextUnlistened(after = finished.messageId)
             }
         }
 
@@ -2057,6 +2064,7 @@ class ConversationViewModel(
         // Rozpracovaná nahrávka se při odchodu zahazuje — neposílat nic, co uživatel neodeslal.
         voiceRecorder.cancel()
         videoRecorder.cancel()
+        discardVoicePreview()
 
         val pending = draftSave ?: return
         if (!pending.isActive) return
@@ -3763,6 +3771,7 @@ class ConversationViewModel(
         when {
             videoRecorder.state.value != null -> sendVideoRecording(options)
             voiceRecorder.state.value != null -> sendVoiceRecording(options)
+            _voicePreview.value != null -> sendVoicePreview(options)
             // Dvojí ťuknutí na odeslání: druhé by našlo nahrávání už ukončené a hlásilo nesmysl.
             else -> Unit
         }
@@ -3776,12 +3785,77 @@ class ConversationViewModel(
                 reportRecordingLost(tooShort)
                 return@launch
             }
-            sendMedia(Res.string.conversation_voice_send_failed, scheduled = options.schedule != null) { replyTo, quote ->
-                repository.sendVoiceNote(
-                    chatId, recorded.path, recorded.durationSeconds, recorded.waveform, replyTo, quote, options,
-                )
-            }
+            sendVoice(recorded, options)
         }
+    }
+
+    private suspend fun sendVoice(recorded: RecordedVoice, options: SendOptions) {
+        sendMedia(Res.string.conversation_voice_send_failed, scheduled = options.schedule != null) { replyTo, quote ->
+            repository.sendVoiceNote(
+                chatId, recorded.path, recorded.durationSeconds, recorded.waveform, replyTo, quote, options,
+            )
+        }
+    }
+
+    /**
+     * Zastaví zamčené nahrávání a nechá hlasovku k poslechu, místo aby ji rovnou odeslal.
+     * Odejde až tlačítkem odeslání ([sendRecording]), koš ji zahodí ([discardVoicePreview]).
+     */
+    fun stopRecordingForPreview() {
+        if (voiceRecorder.state.value == null || _voicePreview.value != null) return
+        val tooShort = (voiceRecorder.state.value?.elapsedMs ?: 0L) < MIN_DURATION_MS
+        // Mezistav hned: dokončení (na iOS kódování) chvíli trvá a karta mezitím nemá ukázat pole.
+        val finishing = VoicePreview(voice = null)
+        _voicePreview.value = finishing
+        viewModelScope.launch {
+            val recorded = voiceRecorder.finish()
+            // Koš během dokončování: náhled už nikdo nechce, soubor pryč.
+            if (_voicePreview.value !== finishing) {
+                recorded?.let { deleteQuietly(it.path) }
+                return@launch
+            }
+            if (recorded == null) {
+                _voicePreview.value = null
+                reportRecordingLost(tooShort)
+                return@launch
+            }
+            _voicePreview.value = VoicePreview(recorded)
+        }
+    }
+
+    /** Pustí nebo pozastaví náhled. Hrající hlasovka v konverzaci se tím zastaví, jako vždy. */
+    fun toggleVoicePreview() {
+        val voice = _voicePreview.value?.voice ?: return
+        voicePlayer.toggle(voicePreviewKey(chatId)) { voice.path }
+    }
+
+    fun seekVoicePreview(fraction: Float) {
+        voicePlayer.seek(voicePreviewKey(chatId), fraction)
+    }
+
+    /** Koš u náhledu, i odchod z chatu: nic, co uživatel neodeslal, neodejde, a soubor se smaže. */
+    fun discardVoicePreview() {
+        val preview = _voicePreview.value ?: return
+        _voicePreview.value = null
+        stopVoicePreviewPlayback()
+        preview.voice?.path?.let(::deleteQuietly)
+    }
+
+    private fun deleteQuietly(path: String) {
+        runCatching { FileSystem.SYSTEM.delete(path.toPath(), mustExist = false) }
+            .onFailure { failure -> logger.w(failure) { "Zahozený náhled hlasovky nejde smazat." } }
+    }
+
+    private fun sendVoicePreview(options: SendOptions) {
+        val voice = _voicePreview.value?.voice ?: return
+        _voicePreview.value = null
+        stopVoicePreviewPlayback()
+        viewModelScope.launch { sendVoice(voice, options) }
+    }
+
+    /** Hraje-li právě náhled, zastaví ho; cizí hlasovky ani hudby se to netýká. */
+    private fun stopVoicePreviewPlayback() {
+        if (voicePlayer.state.value?.key == voicePreviewKey(chatId)) voicePlayer.stop()
     }
 
     /**

@@ -480,6 +480,7 @@ fun ConversationScreen(
         derivedStateOf { voiceRecordingState.value != null || videoRecordingState.value != null }
     }
     val isVideoRecording by remember { derivedStateOf { videoRecordingState.value != null } }
+    val voicePreview by viewModel.voicePreview.collectAsStateWithLifecycle()
     val recordGesture = remember { RecordGestureState() }
     val recordPermission = rememberRecordPermission()
     val videoNotePermission = rememberVideoNotePermission()
@@ -1691,6 +1692,19 @@ fun ConversationScreen(
                     haptics.reject()
                     viewModel.cancelRecording()
                 },
+                voicePreview = voicePreview,
+                voicePreviewPlayback = { voicePlayback.value?.takeIf { it.key.isVoicePreview } },
+                onStopRecording = {
+                    // Mikrofon se zavírá — přepnutý stav, jako při spuštění.
+                    haptics.toggle(on = false)
+                    viewModel.stopRecordingForPreview()
+                },
+                onToggleVoicePreview = viewModel::toggleVoicePreview,
+                onSeekVoicePreview = viewModel::seekVoicePreview,
+                onDiscardVoicePreview = {
+                    haptics.reject()
+                    viewModel.discardVoicePreview()
+                },
                 onSendRecording = { options ->
                     haptics.confirm()
                     viewModel.sendRecording(options)
@@ -2665,6 +2679,18 @@ private fun MessageInput(
      */
     onStartRecording: (held: Boolean) -> Unit,
     onCancelRecording: () -> Unit,
+    /**
+     * Zastavená hlasovka k poslechu před odesláním; `null` = žádná. Karta s ní vypadá jako při
+     * nahrávání (vlnka, barva, odeslání hlasu), jen místo živých úrovní ukazuje celý waveform.
+     */
+    voicePreview: VoicePreview? = null,
+    /** Přehrávání náhledu; čte se až v pruhu náhledu. */
+    voicePreviewPlayback: () -> VoicePlayback? = { null },
+    /** ■ u zamčené hlasovky: ukončí nahrávání a místo odeslání ukáže náhled. */
+    onStopRecording: () -> Unit = {},
+    onToggleVoicePreview: () -> Unit = {},
+    onSeekVoicePreview: (Float) -> Unit = {},
+    onDiscardVoicePreview: () -> Unit = {},
     onSendRecording: (SendOptions) -> Unit,
     /** Nabídka odeslání nad hlasovkou se otevřela (`true`) nebo zavřela bez volby (`false`). */
     onVoiceMenu: (open: Boolean) -> Unit = {},
@@ -2704,6 +2730,9 @@ private fun MessageInput(
     val recordDrag = recordGesture.drag
     LaunchedEffect(isRecording) { if (!isRecording) recordLocked = false }
     val recordHolding = isRecording && recordHeld && !recordLocked
+    // Hlas ve vstupní kartě: nahrává se, nebo je nahrávka zastavená k poslechu. Karta i tlačítko
+    // se v obou stavech chovají stejně; liší se jen pruh a to, že náhled nedýchá (nic neběží).
+    val voiceActive = isRecording || voicePreview != null
     val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current
     /*
@@ -2819,12 +2848,12 @@ private fun MessageInput(
              * hlasovky v konverzaci. Stojí, neobíhá — živost nese dýchající tlačítko vedle.
              */
             val recordingWave by animateFloatAsState(
-                targetValue = if (isRecording) 1f else 0f,
+                targetValue = if (voiceActive) 1f else 0f,
                 animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
                 label = "composer-recording-wave",
             )
             val cardColor by animateColorAsState(
-                targetValue = if (isRecording) {
+                targetValue = if (voiceActive) {
                     // Hlas je v konverzaci terciární (viz tlačítko vedle), takže i karta při nahrávání.
                     MaterialTheme.colorScheme.tertiaryContainer
                 } else {
@@ -2912,7 +2941,7 @@ private fun MessageInput(
                    * v poli — návrh patří k psaní, jako návrhy klávesnice.
                    */
                   ClipboardPasteSuggestion(
-                      active = fieldFocused && !isRecording,
+                      active = fieldFocused && !voiceActive,
                       acceptAnimations = content.stickers,
                       acceptImages = content.photos,
                       onContent = onKeyboardContent,
@@ -2935,12 +2964,21 @@ private fun MessageInput(
                 }
 
                 // Při nahrávání místo pole pruh s časem; citace nad ním zůstává, hlasovka na ni odpoví.
-                if (isRecording) {
+                if (voicePreview != null) {
+                    VoicePreviewBar(
+                        preview = voicePreview,
+                        playback = voicePreviewPlayback,
+                        onToggle = onToggleVoicePreview,
+                        onSeek = onSeekVoicePreview,
+                        onDiscard = onDiscardVoicePreview,
+                    )
+                } else if (isRecording) {
                     RecordingBar(
                         recording = recording,
                         onCancel = onCancelRecording,
                         holding = recordHolding,
                         cancelProgress = { cancelProgress(recordDrag.value.x, with(density) { RECORD_CANCEL_DISTANCE.toPx() }) },
+                        onStop = onStopRecording.takeIf { recordingKind == RecordMode.Voice },
                     )
                 } else Row(verticalAlignment = Alignment.Bottom) {
             /*
@@ -3111,7 +3149,7 @@ private fun MessageInput(
              * toho, kdo formátování nepoužívá. S výběrem vyjede lišta sama, ikona je pak zapnutá.
              */
             AnimatedVisibility(
-                visible = fieldFocused && !isRecording,
+                visible = fieldFocused && !voiceActive,
                 enter = fadeIn() + expandHorizontally(),
                 exit = fadeOut() + shrinkHorizontally(),
                 modifier = Modifier.padding(bottom = 4.dp),
@@ -3156,7 +3194,7 @@ private fun MessageInput(
                  * svým místem, jako náhled odkazu.
                  */
                 AnimatedVisibility(
-                    visible = fieldFocused && !isRecording && (formattingOpen || !draft.selection.collapsed),
+                    visible = fieldFocused && !voiceActive && (formattingOpen || !draft.selection.collapsed),
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                 ) {
@@ -3190,7 +3228,7 @@ private fun MessageInput(
              * a kolečko (`holdToRecord`). Při úpravě zprávy není — nahrávka úprava není.
              */
             // Bez práva na hlasovky i kolečka tlačítko zůstane odesláním, jen neaktivním.
-            val showMic = !isRecording && editing == null && draft.text.isBlank() && !withAttachments &&
+            val showMic = !voiceActive && editing == null && draft.text.isBlank() && !withAttachments &&
                 !attachmentsPreparing && recordMode != null
 
             /*
@@ -3200,7 +3238,7 @@ private fun MessageInput(
             val removableCaption = editing?.composerEdit() == ComposerEdit.Caption
             val kind = when {
                 editing != null -> SendButtonKind.Save
-                isRecording -> SendButtonKind.SendVoice
+                voiceActive -> SendButtonKind.SendVoice
                 showMic && recordMode == RecordMode.VideoNote -> SendButtonKind.Camera
                 showMic -> SendButtonKind.Mic
                 else -> SendButtonKind.Send
@@ -3331,7 +3369,7 @@ private fun MessageInput(
                 FilledIconButton(
                     onClick = {
                         when {
-                            isRecording -> onSendRecording(SendOptions())
+                            voiceActive -> onSendRecording(SendOptions())
                             showMic -> {
                                 if (canSwitchRecordMode) {
                                     haptics.toggle(on = recordMode == RecordMode.Voice)
@@ -3346,7 +3384,8 @@ private fun MessageInput(
                         }
                     },
                     // Přílohy jdou poslat i bez popisku a popisek jde i odebrat.
-                    enabled = (isRecording || showMic || draft.text.isNotBlank() || withAttachments || removableCaption) &&
+                    // Náhled, který se ještě dokončuje, poslat nejde — soubor není hotový.
+                    enabled = (isRecording || voicePreview?.voice != null || showMic || draft.text.isNotBlank() || withAttachments || removableCaption) &&
                         // Odeslání teď by poslalo zprávu bez videa, které se ještě kopíruje.
                         !(kind == SendButtonKind.Send && attachmentsPreparing),
                     colors = IconButtonDefaults.filledIconButtonColors(

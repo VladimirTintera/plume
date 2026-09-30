@@ -253,7 +253,7 @@ internal fun SpeedChip(speed: VoiceSpeed, accent: Color, onAccent: Color, onClic
 
 /** Sloupce waveformu; přehraná část plnou barvou akcentu, zbytek průsvitnou. */
 @Composable
-private fun Waveform(
+internal fun Waveform(
     bars: List<Float>,
     progress: Float,
     played: Color,
