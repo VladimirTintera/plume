@@ -1,6 +1,26 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.telegram.LoginUrlPrompt
+import eu.tintera.plume.resources.bot_login_confirm
+import eu.tintera.plume.resources.bot_login_text
+import eu.tintera.plume.resources.bot_login_title
+import eu.tintera.plume.resources.bot_login_write_access
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -49,6 +69,45 @@ internal fun SharePhoneDialog(onShare: () -> Unit, onDismiss: () -> Unit) {
         title = { Text(stringResource(Res.string.bot_share_phone_title)) },
         text = { Text(stringResource(Res.string.bot_share_phone_text)) },
         confirmButton = { TextButton(onClick = onShare) { Text(stringResource(Res.string.bot_share_phone_confirm)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+    )
+}
+
+/**
+ * Přihlášení na web z tlačítka bota. Doména je v nadpisu — o ni jde, popisek tlačítka píše bot.
+ * Věta říká, co web dostane; zaškrtávátko (jen když se bot ptá) je ve výchozím stavu zapnuté,
+ * jako u oficiálních klientů — bez něj by přihlášení u většiny webů postrádalo smysl.
+ */
+@Composable
+internal fun LoginUrlDialog(prompt: LoginUrlPrompt.Confirm, onConfirm: (allowWriteAccess: Boolean) -> Unit, onDismiss: () -> Unit) {
+    var allowWrite by rememberSaveable { mutableStateOf(true) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.bot_login_title, prompt.domain)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(Res.string.bot_login_text, prompt.domain))
+                if (prompt.requestWriteAccess) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .toggleable(value = allowWrite, role = Role.Checkbox, onValueChange = { allowWrite = it }),
+                    ) {
+                        Checkbox(checked = allowWrite, onCheckedChange = null)
+                        Text(
+                            stringResource(Res.string.bot_login_write_access, prompt.botName),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(prompt.requestWriteAccess && allowWrite) }) {
+                Text(stringResource(Res.string.bot_login_confirm))
+            }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
