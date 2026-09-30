@@ -40,6 +40,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ReportOption
 import eu.tintera.plume.core.telegram.ReportStep
+import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.core.ui.SheetActionRow
 import eu.tintera.plume.core.ui.sheetActionShape
 import eu.tintera.plume.resources.Res
@@ -194,7 +195,7 @@ fun ReportHost(flow: ReportFlow, snackbarHostState: SnackbarHostState) {
     LaunchedEffect(outcome) {
         val text = outcome ?: return@LaunchedEffect
         flow.consumeOutcome()
-        val message = getString(text.resource, *text.args.toTypedArray())
+        val message = text.resolveNow()
         snackbarScope.launch { snackbarHostState.showSnackbar(message) }
     }
 

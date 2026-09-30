@@ -117,7 +117,7 @@ internal data class BubbleMessageItem(
             if (preview?.showAboveText == true) previewCard?.invoke(Modifier.padding(bottom = 6.dp))
             when {
                 message.isRestricted -> RestrictedNote()
-                message.text.isNotBlank() -> QuotableText()
+                message.text.isNotBlank() || message.description != null -> QuotableText()
             }
             if (preview?.showAboveText != true) previewCard?.invoke(Modifier.padding(top = 6.dp))
 

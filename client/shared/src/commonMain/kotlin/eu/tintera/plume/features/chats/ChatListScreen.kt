@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.core.ui.SwipeDirection
 import eu.tintera.plume.core.ui.detectHorizontalSwipe
 import androidx.compose.material3.LocalContentColor
@@ -666,7 +667,7 @@ internal fun ChatActionsHost(
     // a vypadalo by to, že se nic nestalo.
     LaunchedEffect(actions.error) {
         val message = actions.error ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(getString(message.resource, *message.args.toTypedArray()))
+        snackbarHostState.showSnackbar(message.resolveNow())
         viewModel.dismissError()
     }
 
@@ -1265,7 +1266,7 @@ private fun ChatRow(
                             customEmoji += appendWithCustomEmoji(draft.text.replace('\n', ' '), draft.entities)
                         }
                     }
-                    ?: chat.lastMessagePreview?.let { preview ->
+                    ?: chat.lastMessagePreview?.resolve()?.let { preview ->
                         buildAnnotatedString {
                             customEmoji += appendWithCustomEmoji(preview, chat.lastMessagePreviewEntities)
                         }

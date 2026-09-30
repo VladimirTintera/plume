@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.location.GeoPoint
 import kotlinx.coroutines.flow.Flow
 
@@ -991,6 +992,15 @@ data class ChatMessage(
      * je z odkazu neklikatelný text. Prázdný seznam je běžný stav, ne chyba.
      */
     val entities: List<MessageEntity>,
+    /**
+     * Náš popis zprávy, která vlastní text nemá — servisní oznámení („Skupina X vytvořena"),
+     * „Anketa: otázka", „Tenhle typ zprávy zatím neumíme zobrazit". [text] je pak prázdný.
+     *
+     * **Drží se jako [UiText], ne jako hotový řetězec**: převedená zpráva žije v paměti déle než
+     * jazyk aplikace (proces změnu jazyka přežije) a řetězec by zůstal v tom starém. Kdo potřebuje
+     * „co je to za zprávu" slovy, bere [text], a když je prázdný, tohle.
+     */
+    val description: UiText? = null,
     val media: MessageMedia?,
     /** Náhled prvního odkazu v textu, jak ho server připravil. `null` u zpráv bez něj. */
     val linkPreview: LinkPreview?,
@@ -1794,7 +1804,8 @@ sealed interface MessageMedia {
      * a popisek typu. Vykreslování a přehrávání je samostatná fáze.
      */
     data class Attachment(
-        val label: String,
+        /** Název přílohy („Hra: …", „Faktura: …"); přeloží se až tam, kde se kreslí. */
+        val label: UiText,
         val thumbnailFileId: Int?,
         /** Soubor samotný, pokud ho známe (dokument) — kvůli průběhu nahrávání odesílané zprávy. */
         val fileId: Int? = null,

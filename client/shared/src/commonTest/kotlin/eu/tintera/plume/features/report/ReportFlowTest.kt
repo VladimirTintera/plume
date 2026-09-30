@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.report
 
+import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.telegram.ReportOption
 import eu.tintera.plume.core.telegram.ReportOptionId
 import eu.tintera.plume.core.telegram.ReportRequest
@@ -44,7 +45,7 @@ class ReportFlowTest {
 
         assertTrue(after)
         assertNull(flow.wizard.value)
-        assertEquals(Res.string.report_done, flow.outcome.value?.resource)
+        assertEquals(UiText(Res.string.report_done), flow.outcome.value)
         // Úvodní požadavek je prázdný — tak ho server u spamového action baru bere jako spam.
         assertEquals(listOf(ReportRequest()), server.requests)
     }

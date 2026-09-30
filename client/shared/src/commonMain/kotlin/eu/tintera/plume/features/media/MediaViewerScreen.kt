@@ -2,6 +2,7 @@ package eu.tintera.plume.features.media
 
 import eu.tintera.plume.core.navigation.NO_START
 import eu.tintera.plume.core.telegram.customEmojiIdOf
+import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.core.ui.CustomEmojiIcon
 import eu.tintera.plume.core.ui.strayTapGuard
 import eu.tintera.plume.core.ui.MEDIA_PAGE_VERTICAL_GAP
@@ -182,7 +183,7 @@ fun MediaViewerScreen(
     LaunchedEffect(state.notice) {
         val notice = state.notice ?: return@LaunchedEffect
         viewModel.dismissNotice()
-        scope.launch { snackbarHostState.showSnackbar(getString(notice.resource, *notice.args.toTypedArray())) }
+        scope.launch { snackbarHostState.showSnackbar(notice.resolveNow()) }
     }
 
     LaunchedEffect(state.closed) {

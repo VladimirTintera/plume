@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.resolve
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -80,7 +81,9 @@ internal fun UnreadDivider(modifier: Modifier = Modifier) {
  */
 @Composable
 internal fun ServiceMessage(message: ChatMessage, modifier: Modifier = Modifier) {
-    CenteredNote(text = message.text, modifier = modifier)
+    // Text oznámení je [ChatMessage.description] a překládá se až tady — převedená zpráva
+    // žije v paměti déle než jazyk aplikace.
+    CenteredNote(text = message.description?.resolve() ?: message.text, modifier = modifier)
 }
 
 /**

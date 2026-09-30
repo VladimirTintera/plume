@@ -3,7 +3,6 @@ package eu.tintera.plume.di
 import eu.tintera.plume.features.profile.JoinRequestsViewModel
 import eu.tintera.plume.features.profile.InviteLinksViewModel
 import eu.tintera.plume.features.settings.EditProfileViewModel
-import eu.tintera.plume.core.language.AppLanguage
 import eu.tintera.plume.core.telegram.TdlAccountRepository
 import eu.tintera.plume.core.telegram.AccountRepository
 import eu.tintera.plume.features.profile.ChatProfileViewModel
@@ -117,9 +116,6 @@ fun appModule() = module {
 
     single(named(APP_SCOPE)) { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
 
-    // Jazyk aplikace; hlásí ho kořen kompozice, změnu poslouchá, kdo drží převedený text.
-    single { AppLanguage() }
-
     // Jeden TDLib klient na proces; sdílí ho session i chat repository.
     single { TelegramClientHolder() }
 
@@ -140,7 +136,6 @@ fun appModule() = module {
         TdlChatRepository(
             holder = get(),
             session = get(),
-            appLanguage = get(),
             scope = get(named(APP_SCOPE)),
         )
     }
@@ -330,12 +325,11 @@ fun appModule() = module {
             placeRepository = get(),
             botStartRequests = get(),
             replyRequests = get(),
-            appLanguage = get(),
         )
     }
 
     viewModel { parameters ->
-        ForumTopicsViewModel(chatId = parameters.get(), forums = get(), conversations = get(), appLanguage = get())
+        ForumTopicsViewModel(chatId = parameters.get(), forums = get(), conversations = get())
     }
 
     viewModel { parameters ->

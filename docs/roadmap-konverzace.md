@@ -312,8 +312,8 @@ Seřazeno podle toho, jak moc to bolí.
 a scrollování" u duplicitního klíče po potvrzení odeslání).
 
 - ~~**Po přepnutí jazyka aplikace zůstanou servisní zprávy (a další „náš" text) ve starém
-  jazyce.**~~ — opraveno: po změně jazyka se převedený text převádí znovu (`CLAUDE.md`,
-  „Jazyky").
+  jazyce.**~~ — opraveno: převedené zprávy nesou `UiText` a překládají se až v UI (`CLAUDE.md`,
+  „Jazyky"). Zbývá náhradní název souboru bez jména a štítky médií uvnitř článku.
 
 **Chybějící základ**
 

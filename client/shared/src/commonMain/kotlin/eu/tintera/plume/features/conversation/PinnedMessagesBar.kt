@@ -55,7 +55,7 @@ import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.core.ui.tabularNumbers
-import eu.tintera.plume.features.conversation.items.describe
+import eu.tintera.plume.features.conversation.items.summaryLine
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.conversation_all_pinned
@@ -226,7 +226,7 @@ private fun PinnedContent(message: ChatMessage, title: String) {
             )
             Text(
                 // Připnutá fotka bez popisku by byla prázdný řádek.
-                text = message.text.ifBlank { message.media.describe() }.replace('\n', ' '),
+                text = message.summaryLine(),
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -297,7 +297,7 @@ private fun PinnedSheetRow(
     ListItem(
         headlineContent = {
             Text(
-                text = message.text.ifBlank { message.media.describe() }.replace('\n', ' '),
+                text = message.summaryLine(),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )

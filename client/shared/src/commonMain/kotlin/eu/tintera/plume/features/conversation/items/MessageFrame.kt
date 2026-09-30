@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.SwipeDirection
 import eu.tintera.plume.core.ui.detectHorizontalSwipe
 import eu.tintera.plume.core.ui.VerificationBadge
@@ -1344,7 +1345,11 @@ internal fun MessageBodyScope.MessageText(
     wholeTextQuote: Boolean = false,
 ) {
     val query = items.searchHighlight()
-    val highlights = remember(message.text, query) { query?.let { highlightRanges(message.text, it) }.orEmpty() }
+    // Zpráva bez vlastního textu (anketa, neznámý typ) nese náš popis; ten se překládá TADY,
+    // ne při převodu zprávy — převedená zpráva přežije změnu jazyka. Entity patří jen vlastnímu textu.
+    val description = message.description?.takeIf { message.text.isBlank() }?.resolve()
+    val text = description ?: message.text
+    val highlights = remember(text, query) { query?.let { highlightRanges(text, it) }.orEmpty() }
     RichText(
         highlights = highlights,
         highlightColor = bubbleColor,
@@ -1360,8 +1365,8 @@ internal fun MessageBodyScope.MessageText(
         maxLines = maxLines,
         onOverflow = onOverflow,
         quoteIndentAsPadding = wholeTextQuote,
-        text = message.text,
-        entities = message.entities,
+        text = text,
+        entities = if (description != null) emptyList() else message.entities,
         style = style,
         linkColor = linkColor,
         onLinkClick = { act(MessageAction.OpenLink(it)) },

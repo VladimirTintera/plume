@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.features.conversation.loadsOriginalPreview
 import eu.tintera.plume.features.conversation.showsLargePreview
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -243,7 +244,7 @@ internal fun MessageAttachment(
                 }
             }
             Text(
-                text = media.label,
+                text = media.label.resolve(),
                 style = MaterialTheme.typography.bodyMedium,
             )
         }

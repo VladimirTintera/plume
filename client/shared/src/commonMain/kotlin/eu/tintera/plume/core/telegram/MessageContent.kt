@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.ui.orText
+import eu.tintera.plume.core.ui.UiText
 import dev.g000sha256.tdl.dto.File
 import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.LinkPreview as TdlLinkPreview
@@ -224,20 +226,20 @@ import kotlin.concurrent.Volatile
  * u médií se použije popisek, a když ho zpráva nemá, název typu — prázdný řádek u fotky vypadá
  * jako chyba načítání.
  */
-internal suspend fun Message.previewText(): String =
-    previewTextOrNull() ?: getString(Res.string.content_unsupported)
+internal fun Message.previewText(): UiText =
+    previewTextOrNull() ?: UiText(Res.string.content_unsupported)
 
 /**
  * Text zprávy pro **notifikaci**: totéž co [previewText], jen typ, který neumíme popsat, dostane
  * „Nová zpráva". Věta „tenhle typ zprávy zatím neumíme zobrazit" patří do aplikace, kde stojí na
  * místě zprávy; na liště vypadá jako chybové hlášení místo zprávy.
  */
-internal suspend fun Message.notificationText(): String =
-    previewTextOrNull() ?: getString(Res.string.notification_new_message)
+internal fun Message.notificationText(): UiText =
+    previewTextOrNull() ?: UiText(Res.string.notification_new_message)
 
 // Omezená zpráva má místo obsahu důvod — i v náhledu a v notifikaci, jinak by tam obsah prosákl.
-private suspend fun Message.previewTextOrNull(): String? =
-    restrictionText ?: content.previewTextOrNull(isOutgoing = isOutgoing, isChannelPost = isChannelPost)
+private fun Message.previewTextOrNull(): UiText? =
+    restrictionText?.let(UiText::Raw) ?: content.previewTextOrNull(isOutgoing = isOutgoing, isChannelPost = isChannelPost)
 
 /** Entity náhledu v seznamu chatů; omezená zpráva má místo obsahu důvod, a ten entity nenese. */
 internal fun Message.previewEntities(): List<MessageEntity> =
@@ -249,22 +251,22 @@ internal fun Message.previewEntities(): List<MessageEntity> =
  * něj se jmenuje zpráva o hovoru); u citace z jiného chatu ho neznáme a je `false`.
  * [isChannelPost] je `Message.isChannelPost` téže zprávy (kanál, nebo skupina, viz [serviceText]).
  */
-internal suspend fun MessageContent.previewTextOrNull(isOutgoing: Boolean, isChannelPost: Boolean): String? = when (val content = this) {
-    is MessageText -> content.text.text
-    is MessagePhoto -> content.caption.text.ifBlankGet { getString(Res.string.media_photo) }
-    is MessageVideo -> content.caption.text.ifBlankGet { getString(Res.string.media_video) }
-    is MessageAnimation -> content.caption.text.ifBlankGet { getString(Res.string.content_gif) }
-    is MessageDocument -> content.caption.text.ifBlankGet { getString(Res.string.content_file) }
+internal fun MessageContent.previewTextOrNull(isOutgoing: Boolean, isChannelPost: Boolean): UiText? = when (val content = this) {
+    is MessageText -> UiText.Raw(content.text.text)
+    is MessagePhoto -> content.caption.text.orText(Res.string.media_photo)
+    is MessageVideo -> content.caption.text.orText(Res.string.media_video)
+    is MessageAnimation -> content.caption.text.orText(Res.string.content_gif)
+    is MessageDocument -> content.caption.text.orText(Res.string.content_file)
     // Skladba se v náhledu pozná jménem — „Audio" u každé by v seznamu nic neřeklo.
     is MessageAudio -> content.caption.text.ifBlank {
         listOf(content.audio.performer, content.audio.title).filter { it.isNotBlank() }.joinToString(" – ")
-    }.ifBlankGet { getString(Res.string.content_audio) }
-    is MessageVoiceNote -> content.caption.text.ifBlankGet { getString(Res.string.conversation_voice_message) }
-    is MessageSticker -> content.sticker.emoji.ifBlankGet { getString(Res.string.media_sticker) }
-    is MessageAnimatedEmoji -> content.emoji
-    is MessageDice -> content.diceText()
+    }.orText(Res.string.content_audio)
+    is MessageVoiceNote -> content.caption.text.orText(Res.string.conversation_voice_message)
+    is MessageSticker -> content.sticker.emoji.orText(Res.string.media_sticker)
+    is MessageAnimatedEmoji -> UiText.Raw(content.emoji)
+    is MessageDice -> UiText.Raw(content.diceText())
     // Směr a zmeškání zná jen zpráva (`isOutgoing`), obsah sám ne — proto tady, ne v `describe`.
-    is MessageCall -> getString(content.outcome(isOutgoing).title(content.isVideo))
+    is MessageCall -> UiText(content.outcome(isOutgoing).title(content.isVideo))
     else -> content.describe(isChannelPost)
 }
 
@@ -300,29 +302,29 @@ internal fun MessageContent.previewEntities(): List<MessageEntity> {
  * přišla. Co push nepopisuje nijak užitečně (servisní události), dostane obecné
  * „Nová zpráva" — pravdivé a bez doslovného názvu typu.
  */
-internal suspend fun PushMessageContent.previewText(): String = when (this) {
-    is PushMessageContentText -> text
-    is PushMessageContentPhoto -> caption.ifBlankGet { getString(Res.string.media_photo) }
-    is PushMessageContentVideo -> caption.ifBlankGet { getString(Res.string.media_video) }
-    is PushMessageContentAnimation -> caption.ifBlankGet { getString(Res.string.content_gif) }
-    is PushMessageContentDocument -> getString(Res.string.content_file)
-    is PushMessageContentAudio -> getString(Res.string.content_audio)
-    is PushMessageContentVoiceNote -> getString(Res.string.conversation_voice_message)
-    is PushMessageContentVideoNote -> getString(Res.string.content_video_note)
-    is PushMessageContentSticker -> emoji.ifBlankGet { getString(Res.string.media_sticker) }
-    is PushMessageContentPoll -> getString(Res.string.content_poll, question)
-    is PushMessageContentChecklist -> getString(Res.string.content_checklist, title)
+internal fun PushMessageContent.previewText(): UiText = when (this) {
+    is PushMessageContentText -> UiText.Raw(text)
+    is PushMessageContentPhoto -> caption.orText(Res.string.media_photo)
+    is PushMessageContentVideo -> caption.orText(Res.string.media_video)
+    is PushMessageContentAnimation -> caption.orText(Res.string.content_gif)
+    is PushMessageContentDocument -> UiText(Res.string.content_file)
+    is PushMessageContentAudio -> UiText(Res.string.content_audio)
+    is PushMessageContentVoiceNote -> UiText(Res.string.conversation_voice_message)
+    is PushMessageContentVideoNote -> UiText(Res.string.content_video_note)
+    is PushMessageContentSticker -> emoji.orText(Res.string.media_sticker)
+    is PushMessageContentPoll -> UiText(Res.string.content_poll, question)
+    is PushMessageContentChecklist -> UiText(Res.string.content_checklist, title)
     is PushMessageContentLocation ->
-        getString(if (isLive) Res.string.content_live_location else Res.string.content_location)
-    is PushMessageContentContact -> getString(Res.string.content_contact, name)
-    is PushMessageContentGame -> getString(Res.string.content_game, title)
-    is PushMessageContentStory -> getString(Res.string.content_story)
-    is PushMessageContentPaidMedia -> getString(Res.string.content_paid)
-    is PushMessageContentMediaAlbum -> getString(Res.string.content_album)
+        UiText(if (isLive) Res.string.content_live_location else Res.string.content_location)
+    is PushMessageContentContact -> UiText(Res.string.content_contact, name)
+    is PushMessageContentGame -> UiText(Res.string.content_game, title)
+    is PushMessageContentStory -> UiText(Res.string.content_story)
+    is PushMessageContentPaidMedia -> UiText(Res.string.content_paid)
+    is PushMessageContentMediaAlbum -> UiText(Res.string.content_album)
     is PushMessageContentGift, is PushMessageContentUpgradedGift, is PushMessageContentPremiumGiftCode ->
-        getString(Res.string.content_gift)
-    is PushMessageContentGiveaway -> getString(Res.string.content_giveaway)
-    else -> getString(Res.string.notification_new_message)
+        UiText(Res.string.content_gift)
+    is PushMessageContentGiveaway -> UiText(Res.string.content_giveaway)
+    else -> UiText(Res.string.notification_new_message)
 }
 
 /**
@@ -332,37 +334,37 @@ internal suspend fun PushMessageContent.previewText(): String = when (this) {
  * takže se anketa, poloha i systémové oznámení tvářily stejně — a hlavně to vypadalo jako chyba
  * načítání, ne jako „tohle zatím neumíme".
  */
-private suspend fun MessageContent.describe(isChannelPost: Boolean): String? = when (this) {
-    is MessageVideoNote -> getString(Res.string.content_video_note)
-    is MessagePoll -> getString(Res.string.content_poll, poll.question.text)
-    is MessageChecklist -> getString(Res.string.content_checklist, list.title.text)
-    is MessageLocation -> getString(Res.string.content_location)
-    is MessageLiveLocation -> getString(Res.string.content_live_location)
-    is MessageVenue -> getString(Res.string.content_venue, venue.title)
-    is MessageContact -> getString(Res.string.content_contact, "${contact.firstName} ${contact.lastName}".trim())
-    is MessageGame -> getString(Res.string.content_game, game.title)
+private fun MessageContent.describe(isChannelPost: Boolean): UiText? = when (this) {
+    is MessageVideoNote -> UiText(Res.string.content_video_note)
+    is MessagePoll -> UiText(Res.string.content_poll, poll.question.text)
+    is MessageChecklist -> UiText(Res.string.content_checklist, list.title.text)
+    is MessageLocation -> UiText(Res.string.content_location)
+    is MessageLiveLocation -> UiText(Res.string.content_live_location)
+    is MessageVenue -> UiText(Res.string.content_venue, venue.title)
+    is MessageContact -> UiText(Res.string.content_contact, "${contact.firstName} ${contact.lastName}".trim())
+    is MessageGame -> UiText(Res.string.content_game, game.title)
     // Sázková kostka (TDLib 15): jako `MessageDice`, ale s vkladem v TON. Hodnotu ani vklad
     // nevypisujeme — bez animace by z čísla nebylo poznat, že jde o hod.
-    is MessageStakeDice -> getString(Res.string.content_stake_dice)
-    is MessageInvoice -> getString(Res.string.content_invoice, productInfo.title)
-    is MessageStory -> getString(Res.string.content_story)
-    is MessagePaidMedia -> caption.text.ifBlankGet { getString(Res.string.content_paid) }
-    is MessageGroupCall -> getString(Res.string.content_group_call)
-    is MessageGiveaway -> getString(Res.string.content_giveaway)
-    is MessageGiveawayWinners -> getString(Res.string.content_giveaway_winners)
-    is MessageSuggestProfilePhoto -> getString(Res.string.content_suggested_photo)
-    is MessageSuggestBirthdate -> getString(Res.string.content_suggested_birthdate)
-    is MessageChatShared -> getString(Res.string.content_shared_chat)
-    is MessageUsersShared -> getString(Res.string.content_shared_users)
+    is MessageStakeDice -> UiText(Res.string.content_stake_dice)
+    is MessageInvoice -> UiText(Res.string.content_invoice, productInfo.title)
+    is MessageStory -> UiText(Res.string.content_story)
+    is MessagePaidMedia -> caption.text.orText(Res.string.content_paid)
+    is MessageGroupCall -> UiText(Res.string.content_group_call)
+    is MessageGiveaway -> UiText(Res.string.content_giveaway)
+    is MessageGiveawayWinners -> UiText(Res.string.content_giveaway_winners)
+    is MessageSuggestProfilePhoto -> UiText(Res.string.content_suggested_photo)
+    is MessageSuggestBirthdate -> UiText(Res.string.content_suggested_birthdate)
+    is MessageChatShared -> UiText(Res.string.content_shared_chat)
+    is MessageUsersShared -> UiText(Res.string.content_shared_users)
     // Článek složený z bloků (TDLib 15). Kreslit ho neumíme, jeho text ano — prázdný je jen
     // článek ze samých obrázků.
-    is MessageRichMessage -> message.blocks.plainText().ifBlankGet { getString(Res.string.content_rich_message) }
+    is MessageRichMessage -> message.blocks.plainText().orText(Res.string.content_rich_message)
 
     // Zprávy s časovým omezením, které vypršely. Soubor už na serveru není, takže není co stáhnout.
-    is MessageExpiredPhoto -> getString(Res.string.content_expired_photo)
-    is MessageExpiredVideo -> getString(Res.string.content_expired_video)
-    is MessageExpiredVideoNote -> getString(Res.string.content_expired_video_note)
-    is MessageExpiredVoiceNote -> getString(Res.string.content_expired_voice_note)
+    is MessageExpiredPhoto -> UiText(Res.string.content_expired_photo)
+    is MessageExpiredVideo -> UiText(Res.string.content_expired_video)
+    is MessageExpiredVideoNote -> UiText(Res.string.content_expired_video_note)
+    is MessageExpiredVoiceNote -> UiText(Res.string.content_expired_voice_note)
 
     // Klient je starší než server. Doslovný název typu by uživateli neřekl nic; v aplikaci
     // dostane „neumíme zobrazit", v notifikaci „Nová zpráva" — stejně jako neznámý typ.
@@ -452,13 +454,6 @@ private fun RichText.plainText(): String = when (this) {
 }
 
 /**
- * Jako `ifBlank`, ale s pozastavitelnou náhradou — text typu se čte z prostředků, a to je
- * `suspend`.
- */
-private suspend inline fun String.ifBlankGet(fallback: () -> String): String =
-    if (isBlank()) fallback() else this
-
-/**
  * Text zprávy pro **konverzaci**, i s formátováním.
  *
  * Na rozdíl od [previewText] vrací prázdno, když zpráva žádný vlastní text nemá — v bublině je
@@ -516,7 +511,7 @@ internal suspend fun Message.captionBody(): MessageBody = when (val content = th
             ),
         )
         .takeIf { it.text.isNotBlank() }
-        ?: MessageBody(previewText())
+        ?: MessageBody(text = "", description = previewText())
 
     /*
      * Zbytek nemá vlastní text, jen náš popis — a ten žádné entity nenese.
@@ -524,7 +519,7 @@ internal suspend fun Message.captionBody(): MessageBody = when (val content = th
      * Připojit k němu entity z původní zprávy by znamenalo rozsahy posunuté do jiného řetězce:
      * v lepším případě nesmyslně obarvené slovo, v horším pád na indexu mimo text.
      */
-    else -> MessageBody(previewText())
+    else -> MessageBody(text = "", description = previewText())
 }
 
 /**
@@ -536,6 +531,12 @@ internal suspend fun Message.captionBody(): MessageBody = when (val content = th
 data class MessageBody(
     val text: String,
     val entities: List<MessageEntity> = emptyList(),
+    /**
+     * Náš popis zprávy, která vlastní text nemá (servisní oznámení, „Anketa: otázka", „Tenhle
+     * typ zatím neumíme zobrazit"). [text] je pak prázdný: popis se překládá až tam, kde se
+     * kreslí, jinak by po změně jazyka zůstal v tom starém.
+     */
+    val description: UiText? = null,
 ) {
     companion object {
         val Empty = MessageBody(text = "")
@@ -757,15 +758,15 @@ internal suspend fun Message.messageMedia(
     is MessagePaidMedia -> content.toPaidMedia(hideSensitive)
 
     is MessageDocument -> content.document.toMedia(
-        fileName = content.document.fileName.ifBlankGet { getString(Res.string.content_file) },
+        fileName = content.document.fileName.ifBlank { getString(Res.string.content_file) },
     ).copy(isSensitive = hideSensitive)
 
     is MessageAudio -> content.audio.let { audio ->
         MessageMedia.Audio(
             fileId = audio.audio.id,
-            title = audio.title.ifBlank { audio.fileName }.ifBlankGet { getString(Res.string.content_audio) },
+            title = audio.title.ifBlank { audio.fileName }.ifBlank { getString(Res.string.content_audio) },
             performer = audio.performer.ifBlank { null },
-            fileName = audio.fileName.ifBlank { audio.title }.ifBlankGet { getString(Res.string.content_audio) },
+            fileName = audio.fileName.ifBlank { audio.title }.ifBlank { getString(Res.string.content_audio) },
             mimeType = audio.mimeType,
             durationSeconds = audio.duration,
             sizeBytes = audio.audio.expectedSize,
@@ -798,7 +799,7 @@ internal suspend fun Message.messageMedia(
     )
 
     is MessageGame -> MessageMedia.Attachment(
-        label = getString(Res.string.content_game, content.game.title),
+        label = UiText(Res.string.content_game, content.game.title),
         thumbnailFileId = content.game.photo.sizes.filterNotNull()
             .minByOrNull { it.width * it.height }?.photo?.id,
     )
@@ -831,7 +832,7 @@ internal suspend fun Message.messageMedia(
     )
 
     is MessageInvoice -> MessageMedia.Attachment(
-        label = getString(Res.string.content_invoice, content.productInfo.title),
+        label = UiText(Res.string.content_invoice, content.productInfo.title),
         thumbnailFileId = content.productInfo.photo?.sizes?.filterNotNull()
             ?.minByOrNull { it.width * it.height }?.photo?.id,
     )
@@ -903,8 +904,10 @@ internal fun PollMedia.toAttachment(): PollAttachment? = when (this) {
     is PollMediaDocument -> PollAttachment.Media(document.toMedia())
     is PollMediaAudio -> PollAttachment.Media(
         MessageMedia.Attachment(
-            label = listOf(audio.performer, audio.title).filter { it.isNotBlank() }.joinToString(" – ")
-                .ifBlank { audio.fileName },
+            label = UiText.Raw(
+                listOf(audio.performer, audio.title).filter { it.isNotBlank() }.joinToString(" – ")
+                    .ifBlank { audio.fileName },
+            ),
             thumbnailFileId = audio.albumCoverThumbnail.picture()?.file?.id,
             fileId = audio.audio.id,
         ),

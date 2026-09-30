@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.sender_you
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.graphics.Shape
@@ -526,8 +527,9 @@ private fun MessageResultRow(
     val sender = found.senderName
         ?: stringResource(Res.string.sender_you).takeIf { found.isOutgoing && found.chat.kind != ChatKind.Channel }
     val senderColor = MaterialTheme.colorScheme.onSurface
-    val text = remember(found.text, query, highlight, sender, senderColor) {
-        val snippet = snippetAround(found.text.replace('\n', ' '), query)
+    val foundText = found.text.resolve()
+    val text = remember(foundText, query, highlight, sender, senderColor) {
+        val snippet = snippetAround(foundText.replace('\n', ' '), query)
         buildAnnotatedString {
             sender?.let {
                 withStyle(SpanStyle(color = senderColor)) { append(it) }

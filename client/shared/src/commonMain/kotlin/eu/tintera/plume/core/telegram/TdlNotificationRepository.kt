@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.resources.saved_messages
 import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
@@ -218,7 +219,7 @@ class TdlNotificationRepository(
                     senderPhoto = sender?.photo,
                     // `showPreview = false` znamená, že si uživatel nepřeje vidět obsah
                     // na zamykací obrazovce. Musíme to respektovat — i u obrázku.
-                    text = if (type.showPreview) message.notificationText() else getString(Res.string.notification_new_message),
+                    text = if (type.showPreview) message.notificationText().resolveNow() else getString(Res.string.notification_new_message),
                     image = shownPhoto?.photo?.notificationImage(),
                     imageCaption = shownPhoto?.caption?.text?.takeIf { it.isNotBlank() },
                     topicId = (message.topicId as? MessageTopicForum)?.forumTopicId,
@@ -234,7 +235,7 @@ class TdlNotificationRepository(
                     messageId = type.messageId,
                     senderName = type.senderName.ifBlank { null } ?: sender?.name,
                     senderPhoto = sender?.photo,
-                    text = type.content.previewText(),
+                    text = type.content.previewText().resolveNow(),
                     // Push nese i popis fotky se soubory; stáhnout ji ale jde až po připojení.
                     // Nestihne-li to, obrázek doplní skutečná notifikace, která dočasnou nahradí.
                     image = pushPhoto?.photo?.notificationImage(),

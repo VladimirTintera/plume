@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.resolve
 import org.jetbrains.compose.resources.painterResource
 import eu.tintera.plume.resources.format_quote_24dp
 import androidx.compose.ui.Alignment
@@ -255,7 +256,8 @@ private fun QuoteLines(message: ChatMessage, partnerName: String?, accent: Color
         message.text.isNotBlank() -> buildAnnotatedString {
             customEmoji += appendWithCustomEmoji(message.text, message.entities)
         }
-        else -> AnnotatedString(message.media.describe())
+        // Zpráva bez vlastního textu: náš popis (servisní oznámení, anketa), jinak popis přílohy.
+        else -> AnnotatedString(message.description?.resolve() ?: message.media.describe())
     }
     Text(
         text = text,
@@ -266,10 +268,18 @@ private fun QuoteLines(message: ChatMessage, partnerName: String?, accent: Color
     )
 }
 
+/**
+ * Zpráva v jednom řádku (pruh připnutých, naplánované zprávy): vlastní text, jinak náš popis
+ * (anketa, servisní oznámení), jinak popis přílohy.
+ */
+@Composable
+internal fun ChatMessage.summaryLine(): String =
+    text.ifBlank { description?.resolve() ?: media.describe() }.replace('\n', ' ')
+
 @Composable
 internal fun MessageMedia?.describe(): String = when (this) {
     is MessageMedia.Photo -> stringResource(Res.string.media_photo)
-    is MessageMedia.Attachment -> label
+    is MessageMedia.Attachment -> label.resolve()
     // Vedle náhledu samolepky stojí její emoji (bez náhledu je to jediné, co o ní víme).
     is MessageMedia.Sticker -> emoji.ifBlank { stringResource(Res.string.media_sticker) }
     is MessageMedia.AnimatedEmoji -> emoji

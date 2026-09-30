@@ -325,7 +325,8 @@ data class FoundMessagesPage(
 data class FoundMessage(
     val chat: ChatSummary,
     val messageId: Long,
-    val text: String,
+    /** Text nalezené zprávy, nebo náš popis (Fotka); přeloží se až ve výsledcích. */
+    val text: UiText,
     /** Unixový čas. */
     val date: Int,
     val isOutgoing: Boolean,
@@ -389,7 +390,8 @@ data class ChatSummary(
     val id: Long,
     val title: String,
     val unreadCount: Int,
-    val lastMessagePreview: String?,
+    /** Náhled poslední zprávy: její text, nebo náš popis (Fotka); přeloží se až v řádku. */
+    val lastMessagePreview: UiText?,
     /** Vlastní emoji (a spoilery) v [lastMessagePreview]; offsety platí pro jeho text. */
     val lastMessagePreviewEntities: List<MessageEntity> = emptyList(),
     /** Nepřečtené zmínky (i odpovědi na vlastní zprávy) — odznak „@" vedle počtu. */

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import kotlinx.coroutines.test.runTest
 import eu.tintera.plume.core.ai.TranscriptLine
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.SendState
@@ -75,7 +76,7 @@ class ChatSummaryTest {
     }
 
     @Test
-    fun podpisyVPrepisu() {
+    fun podpisyVPrepisu() = runTest {
         val lines = transcriptLines(
             listOf(
                 message(1, sender = null),
