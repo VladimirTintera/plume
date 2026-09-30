@@ -377,6 +377,7 @@
     <string name="conversation_delivery_read">Přečteno</string>
     <string name="conversation_delivery_failed">Odeslání selhalo</string>
     <string name="conversation_cancel_sending">Zrušit odesílání</string>
+    <string name="conversation_stop_recording">Zastavit a poslechnout</string>
     <string name="conversation_discard_recording">Zahodit nahrávku</string>
     <string name="conversation_play_voice">Přehrát hlasovou zprávu</string>
     <string name="conversation_voice_progress">Průběh hlasové zprávy</string>

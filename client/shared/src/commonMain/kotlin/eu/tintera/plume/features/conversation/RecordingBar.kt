@@ -24,6 +24,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.tabularNumbers
@@ -32,6 +33,20 @@ import eu.tintera.plume.resources.chevron_left_24dp
 import eu.tintera.plume.resources.conversation_discard_recording
 import eu.tintera.plume.resources.conversation_recording_slide_to_cancel
 import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.conversation_play_voice
+import eu.tintera.plume.resources.conversation_stop_recording
+import eu.tintera.plume.resources.conversation_voice_progress
+import eu.tintera.plume.resources.media_pause
+import eu.tintera.plume.resources.pause_24dp
+import eu.tintera.plume.resources.play_arrow_24dp
+import eu.tintera.plume.resources.stop_24dp
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -49,6 +64,9 @@ import org.jetbrains.compose.resources.stringResource
  *   doleva zrušíš", která jede s prstem a slábne ([cancelProgress]). Koš by šlo zmáčknout jen
  *   druhou rukou, a tah doleva je tu ta cesta, kterou si uživatel má všimnout. Po zamčení se
  *   vrátí koš i úrovně.
+ * - **Zamčená hlasovka má na konci ■ ([onStop])**: nahrávání skončí, ale nic neodejde — pruh
+ *   se změní na náhled ([VoicePreviewBar]) a hlasovka jde nejdřív poslechnout. U kolečka ■ není,
+ *   jeho náhled by chtěl přehrávač videa (`null`).
  */
 @Composable
 fun RecordingBar(
@@ -57,6 +75,7 @@ fun RecordingBar(
     modifier: Modifier = Modifier,
     holding: Boolean = false,
     cancelProgress: () -> Float = { 0f },
+    onStop: (() -> Unit)? = null,
 ) {
     val current = recording()
     // Karta pole je při nahrávání `tertiaryContainer` (hlas je v aplikaci terciární, stejně jako
@@ -67,8 +86,9 @@ fun RecordingBar(
         fallback = MaterialTheme.colorScheme.onTertiaryContainer,
     )
 
+    val stop = onStop?.takeIf { !holding }
     Row(
-        modifier.fillMaxWidth().heightIn(min = 56.dp).padding(end = 16.dp),
+        modifier.fillMaxWidth().heightIn(min = 56.dp).padding(end = if (stop != null) 4.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (holding) {
@@ -133,6 +153,91 @@ fun RecordingBar(
                 )
             }
         }
+        stop?.let {
+            IconButton(onClick = it) {
+                Icon(painterResource(Res.drawable.stop_24dp), contentDescription = stringResource(Res.string.conversation_stop_recording))
+            }
+        }
+    }
+}
+
+/**
+ * Zastavená hlasovka ve vstupní kartě, k poslechu před odesláním: koš, přehrát / pozastavit,
+ * waveform s průběhem a čas. Odesílá se tlačítkem vedle karty, jako při nahrávání.
+ *
+ * - **Stejná výška i barvy jako pruh nahrávání** — karta se při zastavení nepřeskládá, jen se
+ *   živé úrovně vymění za celý waveform.
+ * - **Waveform je týž jako v bublině hlasovky** ([Waveform], [seekGestures]): uživatel slyší
+ *   a vidí přesně to, co protějšek dostane, a posouvá se ťuknutím i tažením stejně.
+ * - **[playback] je lambda**, pozice se mění dvacetkrát za vteřinu. `null` = náhled nehraje.
+ * - Dokud se nahrávka dokončuje ([VoicePreview.voice] `null`, na iOS se kóduje), točí se místo
+ *   tlačítka přehrání indikátor a waveform je prázdný.
+ */
+@Composable
+fun VoicePreviewBar(
+    preview: VoicePreview,
+    playback: () -> VoicePlayback?,
+    onToggle: () -> Unit,
+    onSeek: (Float) -> Unit,
+    onDiscard: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val current = playback()
+    val voice = preview.voice
+    val accent = accentOn(
+        background = MaterialTheme.colorScheme.tertiaryContainer,
+        accent = MaterialTheme.colorScheme.tertiary,
+        fallback = MaterialTheme.colorScheme.onTertiaryContainer,
+    )
+    Row(
+        modifier.fillMaxWidth().heightIn(min = 56.dp).padding(end = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onDiscard) {
+            Icon(painterResource(Res.drawable.delete_24dp), contentDescription = stringResource(Res.string.conversation_discard_recording))
+        }
+        Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            when {
+                voice == null || current?.loading == true ->
+                    CircularProgressIndicator(color = accent, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                else -> IconButton(onClick = onToggle) {
+                    Icon(
+                        painterResource(if (current?.playing == true) Res.drawable.pause_24dp else Res.drawable.play_arrow_24dp),
+                        contentDescription = stringResource(
+                            if (current?.playing == true) Res.string.media_pause else Res.string.conversation_play_voice,
+                        ),
+                        tint = accent,
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.width(4.dp))
+
+        var dragFraction by remember { mutableStateOf<Float?>(null) }
+        val active = current != null && !current.loading
+        val progressLabel = stringResource(Res.string.conversation_voice_progress)
+        Waveform(
+            bars = preview.bars,
+            progress = dragFraction ?: current?.progress ?: 0f,
+            played = accent,
+            unplayed = accent.copy(alpha = 0.35f),
+            modifier = Modifier
+                .weight(1f)
+                .height(28.dp)
+                .semantics { contentDescription = progressLabel }
+                .seekGestures(active = active, steps = preview.bars.size.coerceAtLeast(1), onDrag = { dragFraction = it }, onSeek = onSeek),
+        )
+        Spacer(Modifier.width(12.dp))
+        // Hraje-li, kde přehrávání je; jinak celá délka, jako čas u hlasovky v bublině.
+        val seconds = if (active) {
+            ((dragFraction?.let { it * current.durationMs } ?: current.positionMs.toFloat()) / 1000).toInt()
+        } else {
+            voice?.durationSeconds ?: 0
+        }
+        Text(
+            text = formatDuration(seconds),
+            style = MaterialTheme.typography.bodyLarge.tabularNumbers(),
+        )
     }
 }
 

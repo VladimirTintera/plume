@@ -5876,6 +5876,20 @@ v `RecordControls.kt`, rozhodnutí o tahu čistá funkce `recordDragOutcome` (te
   souborem; na konci se zvukové pakety úseků složí do jednoho Oggu (`joinOggOpus`, test
   `useckyNahravkySeSpojiZaSebe`). M4A (Android 9 a starší) spojovat neumí a zůstává u
   `MediaRecorder.pause` — ověřené není. iOS `AVAudioRecorder.pause` / `record` (PCM do CAF).
+- **Zamčenou hlasovku jde zastavit a poslechnout před odesláním** (■ na konci pruhu,
+  `stopRecordingForPreview`, `VoicePreviewBar`, `VoicePreview`). Pruh se změní na koš,
+  přehrát / pozastavit, waveform a čas; odesílá se týmž tlačítkem (i s nabídkou podržení) a koš
+  nebo odchod z chatu nahrávku zahodí i se souborem. Karta zůstává vlnitá a terciární jako při
+  nahrávání (`voiceActive` v kartě), jen tlačítko nedýchá — nic neběží.
+  - **Náhled hraje týž `VoicePlayer` pod klíčem zprávy −1** (`voicePreviewKey`). Po dohrání se od
+    něj NESMÍ řetězit další neposlechnutá (`isVoicePreview`, testy `VoicePreviewTest`): „další po
+    −1" je nejstarší hlasovka v chatu.
+  - **Mezi ■ a hotovým souborem je mezistav** (`VoicePreview.voice == null`): iOS po zastavení
+    teprve kóduje Opus a karta by mezitím ukázala textové pole, jako by nahrávka zmizela.
+    Odeslat v něm nejde. Koš během dokončování náhled zruší a hotový soubor pak smaže — hlídá
+    to porovnání instance mezistavu, jinak by se náhled po koši vrátil.
+  - **Kolečko ■ nemá** — jeho náhled by chtěl přehrávač videa v kartě.
+  - Ověřeno na emulátoru uživatelem (nahrát, zamknout, ■, přehrát, odeslat). iOS jen přeložené.
 - **Nahrávač je `factory`, ne `single`** — patří obrazovce. Odchod z chatu nahrávku zahodí,
   spuštění nahrávání zastaví hrající hlasovku (nahrávala by se z reproduktoru).
 - **Odesílá se jako samolepka** (`sendMedia`): bez letu, rozepsaný text zůstává, citace se použije.
