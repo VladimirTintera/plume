@@ -28,6 +28,7 @@ import platform.CoreMedia.CMTimeMakeWithSeconds
 import platform.AVFoundation.AVPlayerItemDidPlayToEndTimeNotification
 import platform.AVFoundation.muted
 import platform.AVFoundation.setMuted
+import platform.AVFoundation.setRate
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSOperationQueue
 import platform.Foundation.NSURL
@@ -51,6 +52,9 @@ actual class VideoPlayer {
      * silnou referencí a odhlašuje v [release]: `NSNotificationCenter` si pozorovatele nedrží.
      */
     private var loopObserver: Any? = null
+
+    /** `play()` rychlost vrací na 1×, takže se drží tady a zapisuje po každém spuštění. */
+    private var speed = 1f
 
     actual fun load(path: String, loop: Boolean, muted: Boolean) {
         this.muted = muted
@@ -98,12 +102,23 @@ actual class VideoPlayer {
         }
         if (isEnded) seekTo(0)
         player.play()
+        if (speed != 1f) player.rate = speed
     }
 
     actual fun pause() = player.pause()
 
     actual fun seekTo(positionMs: Long) {
         player.seekToTime(CMTimeMakeWithSeconds(positionMs / 1000.0, preferredTimescale = 600))
+    }
+
+    actual fun setSpeed(rate: Float) {
+        speed = rate
+        // Pozastavené video se změnou `rate` rozjede — zapisuje se jen do hrajícího.
+        if (isPlaying) player.rate = rate
+    }
+
+    actual fun setMuted(muted: Boolean) {
+        player.muted = muted
     }
 
     actual val positionMs: Long get() = seconds(CMTimeGetSeconds(player.currentTime()))

@@ -137,6 +137,15 @@ interface AppSettings {
     fun setVoiceSpeed(speed: VoiceSpeed)
 
     /**
+     * Rychlost přehrávání videa v prohlížeči. Zvlášť od [voiceSpeed]: kdo poslouchá hlasovky
+     * na 2×, nemusí tak chtít dívat i na video. Stupně jsou tytéž. Výchozí [VoiceSpeed.Normal].
+     */
+    val videoSpeed: StateFlow<VoiceSpeed>
+
+    /** Uloží rychlost přehrávání videa. Neblokuje. */
+    fun setVideoSpeed(speed: VoiceSpeed)
+
+    /**
      * `versionCode` aktualizace, jejíž kartu uživatel v seznamu chatů zavřel. Tatáž verze se
      * znovu nenabízí, další vydaná ano — `versionCode` se zvedá při každém releasu.
      */
@@ -342,6 +351,16 @@ class DataStoreAppSettings(
         }
     }
 
+    override val videoSpeed: StateFlow<VoiceSpeed> = value(VoiceSpeed.Normal) { preferences ->
+        VoiceSpeed.entries.firstOrNull { it.name == preferences[VIDEO_SPEED] } ?: VoiceSpeed.Normal
+    }
+
+    override fun setVideoSpeed(speed: VoiceSpeed) {
+        scope.launch {
+            edit { preferences -> preferences[VIDEO_SPEED] = speed.name }
+        }
+    }
+
     override val dismissedUpdateVersionCode: StateFlow<Int?> = value(null) { preferences ->
         preferences[DISMISSED_UPDATE_VERSION_CODE]
     }
@@ -394,6 +413,7 @@ class DataStoreAppSettings(
         val ON_DEVICE_AI_PROVIDER = stringPreferencesKey("on_device_ai_provider")
         val ON_DEVICE_AI_GEMMA = stringPreferencesKey("on_device_ai_gemma")
         val VOICE_SPEED = stringPreferencesKey("voice_speed")
+        val VIDEO_SPEED = stringPreferencesKey("video_speed")
         val DISMISSED_UPDATE_VERSION_CODE = intPreferencesKey("dismissed_update_version_code")
         val TRANSLATION_LANGUAGE = stringPreferencesKey("translation_language")
         const val EMOJI_SEPARATOR = " "

@@ -1,5 +1,13 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.resources.media_unmute
+import eu.tintera.plume.resources.media_mute
+import eu.tintera.plume.resources.volume_up_24dp
+import eu.tintera.plume.resources.volume_off_24dp
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.collectAsState
+import eu.tintera.plume.features.conversation.SpeedChip
+import eu.tintera.plume.core.settings.AppSettings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
@@ -139,11 +147,17 @@ internal fun VideoPage(
     modifier: Modifier = Modifier,
     captionAlpha: () -> Float = { 1f },
     cardBias: () -> Float = { 0f },
+    /** Ztlumení; drží ho prohlížeč, aby platilo pro všechna videa, dokud je otevřený. */
+    muted: Boolean = false,
+    /** Tlačítko ztlumení; `null` = bez něj. */
+    onToggleMute: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val repository = koinInject<FileRepository>()
     VideoPage(
         startMs = startMs,
+        muted = muted,
+        onToggleMute = onToggleMute,
         aspectRatio = aspectRatioOf(video.width, video.height),
         durationSeconds = video.durationSeconds,
         caption = caption,
@@ -240,9 +254,19 @@ internal fun VideoPage(
     overlay: @Composable BoxScope.() -> Unit = {},
     /** Po načtení skočit sem (ms) — čas v médiu; nula = od začátku. */
     startMs: Long = 0L,
+    /**
+     * Ztlumení za běhu. Drží ho volající (prohlížeč), ne stránka: ztlumené video by jinak po
+     * odlistování na další zase hrálo nahlas.
+     */
+    muted: Boolean = false,
+    /** Tlačítko ztlumení v liště; `null` = bez něj (náhledy při sdílení a nad polem). */
+    onToggleMute: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val voicePlayer = koinInject<VoicePlayer>()
+    val settings = koinInject<AppSettings>()
+    // Rychlost je volba přes celou aplikaci (jako u hlasovek), jen zvlášť pro video.
+    val speed by settings.videoSpeed.collectAsState()
     val currentDismiss by rememberUpdatedState(onDismiss)
 
     // Hraje (a stahuje se) jen vybraná stránka na celé obrazovce.
@@ -276,6 +300,10 @@ internal fun VideoPage(
     var downloadExpanded by remember { mutableStateOf(false) }
     // Během tažení posuvníku se ukazuje místo pod prstem, ne kde přehrávač zrovna je.
     var seekingFraction by remember { mutableStateOf<Float?>(null) }
+
+    // `load` hlasitost i rychlost přenastaví, takže se obojí zapisuje až PO načtení (klíč `loaded`).
+    LaunchedEffect(loaded, speed) { if (loaded) player.setSpeed(speed.rate) }
+    LaunchedEffect(loaded, muted) { if (loaded) player.setMuted(muted) }
 
     LaunchedEffect(path, streamPath) {
         if (loaded) return@LaunchedEffect
@@ -560,6 +588,30 @@ internal fun VideoPage(
                         style = MaterialTheme.typography.labelMedium.tabularNumbers(),
                         color = Color.White,
                     )
+                    // Rychlost a zvuk za časem, jako u hlasovky; bílé na tmavém přechodu karty.
+                    SpeedChip(
+                        speed = speed,
+                        accent = Color.White,
+                        onAccent = Color.Black,
+                        onClick = {
+                            settings.setVideoSpeed(speed.next())
+                            controlsVisible = true
+                        },
+                    )
+                    onToggleMute?.let { toggle ->
+                        IconButton(
+                            onClick = {
+                                toggle()
+                                controlsVisible = true
+                            },
+                            colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                        ) {
+                            Icon(
+                                painterResource(if (muted) Res.drawable.volume_off_24dp else Res.drawable.volume_up_24dp),
+                                contentDescription = stringResource(if (muted) Res.string.media_unmute else Res.string.media_mute),
+                            )
+                        }
+                    }
                 }
             }
 

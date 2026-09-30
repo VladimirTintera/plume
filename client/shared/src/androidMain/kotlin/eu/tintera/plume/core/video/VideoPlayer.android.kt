@@ -76,6 +76,12 @@ actual class VideoPlayer(internal val exo: ExoPlayer) {
 
     actual fun seekTo(positionMs: Long) = exo.seekTo(positionMs)
 
+    actual fun setSpeed(rate: Float) = exo.setPlaybackSpeed(rate)
+
+    actual fun setMuted(muted: Boolean) {
+        exo.volume = if (muted) 0f else 1f
+    }
+
     actual val positionMs: Long get() = exo.currentPosition
 
     actual val durationMs: Long get() = exo.duration.takeIf { it != C.TIME_UNSET }?.coerceAtLeast(0) ?: 0
