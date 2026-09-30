@@ -209,6 +209,8 @@
     <string name="file_download_failed">Soubor se nepodařilo stáhnout.</string>
     <string name="file_unavailable">Soubor není dostupný.</string>
     <string name="voice_playback_failed">Hlasovku se nepodařilo přehrát.</string>
+    <string name="media_mute">Ztlumit</string>
+    <string name="media_unmute">Zapnout zvuk</string>
     <string name="voice_speed_normal">1×</string>
     <string name="voice_speed_fast">1,5×</string>
     <string name="voice_speed_double">2×</string>

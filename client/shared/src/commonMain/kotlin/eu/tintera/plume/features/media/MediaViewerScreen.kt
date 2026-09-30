@@ -336,6 +336,9 @@ private fun ViewerContent(
      * Režim patří celému prohlížeči, ne stránce: listuje se v něm dál.
      */
     // Čas v médiu otevírá video rovnou přehrávané — v galerii by ho uživatel musel pustit sám.
+    // Ztlumení platí pro všechna videa, dokud je prohlížeč otevřený; po odlistování by jinak
+    // další video zase hrálo nahlas. Neukládá se: příště se začíná se zvukem.
+    var videoMuted by rememberSaveable { mutableStateOf(false) }
     var immersive by rememberSaveable(state.isSelfDestruct) {
         mutableStateOf(state.isSelfDestruct || startSeconds != NO_START)
     }
@@ -437,6 +440,8 @@ private fun ViewerContent(
                     modifier = pageModifier,
                     captionAlpha = captionAlpha,
                     cardBias = cardBias,
+                    muted = videoMuted,
+                    onToggleMute = { videoMuted = !videoMuted },
                 )
 
                 is MessageMedia.Photo -> ZoomableImage(

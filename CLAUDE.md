@@ -6538,6 +6538,20 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
 - **Tah na zavření posouvá video `offset`em, ne `graphicsLayer`** — nativní view (UIKit) dostane
   jen pozici z layoutu, transformaci vrstvy ne.
 - **Náhled MPEG-4 se zahazuje** (`ThumbnailFormatMpeg4`) — není to obrázek a Coil ho neotevře.
+- **Rychlost a ztlumení jsou v liště pod videem**, za časem: čip rychlosti (tentýž `SpeedChip`
+  a stupně 1× / 1,5× / 2× jako u hlasovky) a reproduktor. Na přehrávači `setSpeed` a `setMuted`.
+  - **Rychlost si aplikace pamatuje zvlášť od hlasovek** (`AppSettings.videoSpeed`): kdo poslouchá
+    hlasovky na 2×, nemusí se tak dívat na video. Platí i v náhledu při sdílení a nad polem.
+  - **Ztlumení drží prohlížeč, ne stránka, a neukládá se.** Na stránce by se po odlistování další
+    video zase rozeznělo; uložené by příště pouštělo video potichu bez vysvětlení.
+  - **Obojí se zapisuje až PO načtení** (efekty klíčované `loaded`): `load` hlasitost přenastaví.
+  - **Ztlumení za běhu audio focus NEPUSTÍ** — video pořád běží a hudba se pod ním rozeznít nemá.
+    Jinak než `muted` v `load` (GIF), který o focus vůbec nežádá.
+  - **iOS `play()` vrací rychlost na 1×**, takže se drží v přehrávači a zapisuje po každém
+    spuštění; do pozastaveného `rate` nepsat, rozjelo by ho.
+  - **Na emulátoru ověřené jen ovládání**: čip přepíná a rychlost vydrží zavření prohlížeče,
+    ztlumení ne. Přehrávání samo emulátor nepustil (`queueInputBuffer error: 14` u všech videí,
+    viz „GIFy") — **že video opravdu hraje rychleji a potichu, ověřené NENÍ**.
 
 ## Spoilery a mizející média
 

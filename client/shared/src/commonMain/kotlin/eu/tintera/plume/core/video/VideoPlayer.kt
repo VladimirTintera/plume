@@ -38,6 +38,19 @@ expect class VideoPlayer {
 
     fun seekTo(positionMs: Long)
 
+    /**
+     * Rychlost přehrávání (1×, 1,5×, 2×). Platí hned, i uprostřed hrajícího videa, a přežije
+     * pauzu i přehrání od začátku — iOS `play()` rychlost jinak vrací na 1×.
+     */
+    fun setSpeed(rate: Float)
+
+    /**
+     * Ztlumí nebo zapne zvuk za běhu. Na rozdíl od `muted` v [load] **na zvukovou relaci nesahá**:
+     * video, které uživatel pustil a jen ztišil, drží audio focus dál (hudba se nerozezní pod
+     * obrazem, který pořád běží).
+     */
+    fun setMuted(muted: Boolean)
+
     val positionMs: Long
 
     /** Délka v ms; `0`, dokud ji přehrávač nezjistí. */
