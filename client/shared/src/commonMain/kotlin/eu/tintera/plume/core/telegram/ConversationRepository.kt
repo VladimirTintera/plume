@@ -129,6 +129,15 @@ interface ConversationRepository {
     /** Vlastní telefonní číslo jako kontakt — tlačítko bota „sdílet číslo", po potvrzení. */
     suspend fun shareOwnPhone(chatId: Long, replyToMessageId: Long?): Result<ChatMessage>
 
+    /**
+     * Co udělat s tlačítkem „přihlásit na web" ([BotButtonKind.LoginUrl]): otevřít rovnou, nebo
+     * se napřed zeptat. Chyba = tlačítko se bere jako obyčejný odkaz (tak to chce TDLib).
+     */
+    suspend fun loginUrlInfo(chatId: Long, messageId: Long, buttonId: Long): Result<LoginUrlPrompt>
+
+    /** Adresa, která uživatele na webu rovnou přihlásí; [allowWriteAccess] = bot mu smí psát. */
+    suspend fun loginUrl(chatId: Long, messageId: Long, buttonId: Long, allowWriteAccess: Boolean): Result<String>
+
     suspend fun pressBotButton(
         chatId: Long,
         messageId: Long,
@@ -1236,13 +1245,36 @@ sealed interface BotButtonKind {
     data class WebApp(val url: String) : BotButtonKind
 
     /**
+     * Odkaz, který uživatele na webu přihlásí účtem Telegramu (`getLoginUrlInfo`). [url] je
+     * záloha: když přihlášení selže, otevře se jako obyčejný odkaz.
+     */
+    data class LoginUrl(val url: String, val buttonId: Long) : BotButtonKind
+
+    /**
      * Druh, který Plume zatím neumí. Tlačítko je VIDĚT a ťuknutí to vysvětlí — schované by
      * z klávesnice bota vykouslo řádek a změnilo, co bot nabízí.
      */
     data class Unsupported(val feature: UnsupportedBotButton) : BotButtonKind
 }
 
-enum class UnsupportedBotButton { LoginUrl, SwitchInline, Buy, Game, Password }
+enum class UnsupportedBotButton { SwitchInline, Buy, Game, Password }
+
+/** Odpověď na tlačítko „přihlásit na web". */
+sealed interface LoginUrlPrompt {
+    /** Otevřít rovnou; [skipConfirmation] = bez obvyklého potvrzení odkazu (server webu věří). */
+    data class Open(val url: String, val skipConfirmation: Boolean) : LoginUrlPrompt
+
+    /**
+     * Zeptat se, jestli se na [domain] přihlásit. Web se dozví jméno, uživatelské jméno a fotku
+     * účtu; s [requestWriteAccess] se zároveň ptá, jestli smí bot [botName] psát.
+     */
+    data class Confirm(
+        val url: String,
+        val domain: String,
+        val botName: String,
+        val requestWriteAccess: Boolean,
+    ) : LoginUrlPrompt
+}
 
 /** Co bot chce od vstupního pole. */
 sealed interface ChatReplyMarkup {

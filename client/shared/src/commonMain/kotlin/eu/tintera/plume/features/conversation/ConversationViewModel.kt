@@ -35,7 +35,8 @@ import eu.tintera.plume.resources.poll_retract_failed
 import eu.tintera.plume.resources.poll_stop_failed
 import eu.tintera.plume.resources.poll_vote_failed
 import eu.tintera.plume.resources.bot_text_copied
-import eu.tintera.plume.resources.bot_unsupported_login_url
+import eu.tintera.plume.resources.bot_login_failed
+import eu.tintera.plume.core.telegram.LoginUrlPrompt
 import eu.tintera.plume.resources.bot_unsupported_switch_inline
 import eu.tintera.plume.resources.bot_unsupported_buy
 import eu.tintera.plume.resources.bot_unsupported_game
@@ -2182,6 +2183,47 @@ class ConversationViewModel(
 
     fun dismissLink() = _state.update { it.copy(confirmLink = null) }
 
+    /**
+     * Tlačítko „přihlásit na web" (`getLoginUrlInfo`).
+     *
+     * - **Web se dozví jméno, uživatelské jméno a fotku účtu**, takže se přihlášení potvrzuje
+     *   dialogem s doménou ([LoginRequest]) — tlačítko popisuje bot a vést může kamkoli.
+     * - Když server řekne „otevřít rovnou", jde to cestou obyčejného odkazu, i s potvrzením
+     *   adresy, pokud ho server nevypne (`skipConfirmation`).
+     * - **Chyba = obyčejný odkaz** (tak to předepisuje TDLib): tlačítko nezůstane mrtvé.
+     */
+    private fun loginWithButton(messageId: Long, button: BotButtonKind.LoginUrl) {
+        viewModelScope.launch {
+            repository.loginUrlInfo(chatId, messageId, button.buttonId)
+                .onSuccess { prompt ->
+                    when (prompt) {
+                        is LoginUrlPrompt.Open ->
+                            if (prompt.skipConfirmation) urlOpener.open(prompt.url) else openLink(prompt.url, confirmExternal = true)
+                        is LoginUrlPrompt.Confirm ->
+                            _state.update { it.copy(loginRequest = LoginRequest(messageId, button.buttonId, prompt)) }
+                    }
+                }
+                .onFailure { openLink(button.url, confirmExternal = true) }
+        }
+    }
+
+    /** Přihlášení potvrzené v dialogu; [allowWriteAccess] = bot smí uživateli psát. */
+    fun confirmLogin(allowWriteAccess: Boolean) {
+        val request = _state.value.loginRequest ?: return
+        _state.update { it.copy(loginRequest = null) }
+        viewModelScope.launch {
+            repository.loginUrl(chatId, request.messageId, request.buttonId, allowWriteAccess)
+                .onSuccess(urlOpener::open)
+                // Přihlásit se nepovedlo, ale web uživatel chtěl — otevře se bez přihlášení a řekne se proč.
+                .onFailure {
+                    _state.update { it.copy(notice = UiText(Res.string.bot_login_failed)) }
+                    urlOpener.open(request.prompt.url)
+                }
+        }
+    }
+
+    fun dismissLogin() = _state.update { it.copy(loginRequest = null) }
+
     fun dismissBotAlert() = _state.update { it.copy(botAlert = null) }
 
     /**
@@ -2208,6 +2250,7 @@ class ConversationViewModel(
                 WebAppRequest(botOf(message), botNameOf(message), kind.url, launch = true),
             )
             BotButtonKind.Disabled -> Unit
+            is BotButtonKind.LoginUrl -> loginWithButton(messageId, kind)
             is BotButtonKind.Unsupported -> _state.update { it.copy(notice = UiText(kind.feature.explanation())) }
         }
     }
@@ -4622,6 +4665,8 @@ data class ConversationState(
     val confirmSharePhone: Boolean = false,
     /** Odkaz z tlačítka bota, který čeká na potvrzení; `null` = žádný. */
     val confirmLink: String? = null,
+    /** Tlačítko bota chce uživatele přihlásit na web; čeká se na potvrzení v dialogu. */
+    val loginRequest: LoginRequest? = null,
     /** Upozornění od bota, které se musí potvrdit (`showAlert`); `null` = žádné. */
     val botAlert: String? = null,
     /** Tlačítko bota, na jehož odpověď se čeká; `null` = žádné. */
@@ -4827,7 +4872,6 @@ private val DOWNLOAD_START_TIMEOUT = 30.seconds
 data class BotButtonRef(val messageId: Long, val row: Int, val column: Int)
 
 private fun UnsupportedBotButton.explanation(): StringResource = when (this) {
-    UnsupportedBotButton.LoginUrl -> Res.string.bot_unsupported_login_url
     UnsupportedBotButton.SwitchInline -> Res.string.bot_unsupported_switch_inline
     UnsupportedBotButton.Buy -> Res.string.bot_unsupported_buy
     UnsupportedBotButton.Game -> Res.string.bot_unsupported_game
@@ -4898,3 +4942,6 @@ data class WebAppRequest(
     val launch: Boolean,
     val keyboardButtonText: String? = null,
 )
+
+/** Přihlášení na web z tlačítka bota, které čeká na potvrzení. */
+data class LoginRequest(val messageId: Long, val buttonId: Long, val prompt: LoginUrlPrompt.Confirm)

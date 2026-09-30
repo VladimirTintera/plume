@@ -379,8 +379,9 @@ zprávou"). Zbývá:
 
 - **Druhy, které Plume zatím jen vysvětlí**: ~~mini aplikace~~ (hotovo, `CLAUDE.md`, „Mini
   aplikace botů"; zbývá tlačítko nabídky bota `BotMenuButton`, hlavní mini aplikace bota
-  `getMainWebApp`, odkazy `t.me/bot/app` a druhé tlačítko `web_app_setup_secondary_button`), přihlášení na web přes Telegram (`getLoginUrlInfo` / `getLoginUrl`, dialog s doménou
-  a právem psát), inline dotaz do jiného chatu (`switchInline` — výběr chatu a vložení
+  `getMainWebApp`, odkazy `t.me/bot/app` a druhé tlačítko `web_app_setup_secondary_button`),
+  ~~přihlášení na web~~ (hotovo; se skutečnou doménou bota ověřit — chce `/setdomain`
+  v BotFatheru), inline dotaz do jiného chatu (`switchInline` — výběr chatu a vložení
   `@bot dotaz` do pole), platba, hra a zpětné volání s heslem dvoufázového ověření.
 - ~~**Vlastní klávesnice** a **vynucená odpověď**~~ — hotovo, klávesnice nad polem
   (`CLAUDE.md`, „Vlastní klávesnice bota"). Zbývá: tlačítka polohy, ankety, výběru lidí
