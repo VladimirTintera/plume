@@ -1919,6 +1919,12 @@ sealed interface MessageMedia {
         val phone: String,
         val userId: Long?,
         val photoFileId: Int? = null,
+        /**
+         * Kontakt vede do chatu, ve kterém zpráva leží: vlastní kontakt v Uložených zprávách,
+         * protějšek v chatu s ním. „Napsat zprávu" by otevřelo tentýž chat — tedy nic — a proto
+         * se u něj nenabízí.
+         */
+        val isThisChat: Boolean = false,
     ) : MessageMedia
 }
 

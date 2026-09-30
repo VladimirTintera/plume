@@ -1465,6 +1465,13 @@
     <string name="invite_links_title">Invite links</string>
     <string name="invite_links_primary">Primary link</string>
     <string name="invite_links_primary_help">Anyone with the link can join.</string>
+    <string name="profile_share_contact">Share contact</string>
+    <string name="share_contact_title">Send contact to</string>
+    <string name="share_contact_hidden_phone">Hides their number — can’t be sent</string>
+    <string name="share_contact_send">Send (%1$d)</string>
+    <string name="share_contact_failed">Could not send the contact.</string>
+    <string name="invite_links_share">Share</string>
+    <string name="invite_links_share_failed">Could not open sharing.</string>
     <string name="invite_links_copy">Copy</string>
     <string name="invite_links_replace_primary">Replace</string>
     <string name="invite_links_additional">Additional links</string>

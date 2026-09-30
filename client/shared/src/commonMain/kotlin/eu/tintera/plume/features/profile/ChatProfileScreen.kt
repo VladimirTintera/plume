@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.share_24dp
+import eu.tintera.plume.resources.profile_share_contact
 import eu.tintera.plume.resources.profile_tab_music
 import eu.tintera.plume.resources.profile_search_files
 import eu.tintera.plume.resources.profile_search_links
@@ -227,6 +229,8 @@ fun ChatProfileScreen(
     onChatGone: () -> Unit,
     /** Úprava skupiny; nabídne se, jen když na ni uživatel má právo. */
     onEdit: () -> Unit,
+    /** ⋮ → Sdílet kontakt: výběr chatů, do kterých kontakt poslat. */
+    onShareContact: (userId: Long) -> Unit = {},
     /** Práva správce ([admin] `true`), nebo omezení jednoho člena. */
     onOpenMemberRights: (userId: Long, admin: Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -334,6 +338,7 @@ fun ChatProfileScreen(
                             profile = profile,
                             onCopyLink = viewModel::copyLink,
                             onEdit = onEdit,
+                            onShareContact = { profile.userId?.let(onShareContact) },
                             spam = state.spam?.copy(isBlocked = profile.isBlocked),
                             onSetBlocked = viewModel::setBlocked,
                             onReport = viewModel::report,
@@ -1084,6 +1089,7 @@ private fun ProfileMenu(
     profile: ChatProfile,
     onCopyLink: () -> Unit,
     onEdit: () -> Unit,
+    onShareContact: () -> Unit,
     /** Co jde nahlásit a zablokovat; `null`, dokud to nedorazí. */
     spam: SpamActions?,
     onSetBlocked: (Boolean) -> Unit,
@@ -1098,7 +1104,9 @@ private fun ProfileMenu(
     // Úprava se nabízí, jen když je aspoň jedno z práv — co uvnitř ukáže, rozhoduje obrazovka.
     val canEdit = profile.editRights.any
     val canReport = spam?.canReport == true
-    if (profile.link == null && !canBlock && !canDeleteOrLeave && !canEdit && !canReport) return
+    // Kontakt se posílá s číslem; kdo ho skrývá (nebo bot, ten žádné nemá), poslat nejde.
+    val canShareContact = profile.kind == ProfileKind.User && profile.userId != null && !profile.phone.isNullOrBlank()
+    if (profile.link == null && !canBlock && !canDeleteOrLeave && !canEdit && !canReport && !canShareContact) return
 
     Box {
         IconButton(onClick = { expanded = true }) {
@@ -1115,6 +1123,11 @@ private fun ProfileMenu(
                         null
                     },
                     profile.link?.let { MenuAction(stringResource(Res.string.profile_copy_link), Res.drawable.link_24dp, onClick = onCopyLink) },
+                    if (canShareContact) {
+                        MenuAction(stringResource(Res.string.profile_share_contact), Res.drawable.share_24dp, onClick = onShareContact)
+                    } else {
+                        null
+                    },
                     if (canBlock) {
                         MenuAction(
                             stringResource(if (profile.isBlocked) Res.string.profile_unblock else Res.string.profile_block),

@@ -829,6 +829,8 @@ internal suspend fun Message.messageMedia(
         phone = contactPhone(content.contact.phoneNumber),
         userId = content.contact.userId.takeIf { it != 0L },
         photoFileId = contactPhotoFileId,
+        // Soukromý chat má id uživatele (Uložené zprávy id vlastního účtu).
+        isThisChat = content.contact.userId != 0L && content.contact.userId == chatId,
     )
 
     is MessageInvoice -> MessageMedia.Attachment(

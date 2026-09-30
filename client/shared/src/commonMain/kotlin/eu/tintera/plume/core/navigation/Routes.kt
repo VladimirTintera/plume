@@ -211,6 +211,10 @@ const val NO_START = -1
 @Serializable
 data class ForwardRoute(val fromChatId: Long, val messageIds: List<Long>) : Route
 
+/** Výběr chatů, do kterých poslat kontakt uživatele [userId] (z profilu, ⋮ → Sdílet kontakt). */
+@Serializable
+data class ShareContactRoute(val userId: Long) : Route
+
 /**
  * Výběr skupiny, do které přidat bota ze startovacího odkazu (`t.me/bot?startgroup=…`). Bez
  * metadat scény, jako přeposílání; po přidání ho nahradí konverzace skupiny.
@@ -300,6 +304,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(JoinRequestsRoute::class, JoinRequestsRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
+            subclass(ShareContactRoute::class, ShareContactRoute.serializer())
             subclass(PollComposerRoute::class, PollComposerRoute.serializer())
             subclass(AddBotToGroupRoute::class, AddBotToGroupRoute.serializer())
             subclass(ShareRoute::class, ShareRoute.serializer())

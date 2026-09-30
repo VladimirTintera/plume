@@ -1,5 +1,7 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.features.forward.ShareContactScreen
+import eu.tintera.plume.core.navigation.ShareContactRoute
 import eu.tintera.plume.features.profile.JoinRequestsScreen
 import eu.tintera.plume.features.profile.InviteLinksScreen
 import eu.tintera.plume.core.navigation.JoinRequestsRoute
@@ -516,6 +518,7 @@ private fun shellEntryProvider(
             onOpenPhotos = { chatsStack.add(MediaRoute(route.chatId, messageId = 0L, profilePhotos = true)) },
             onChatGone = { chatsStack.closeChat(route.chatId) },
             onEdit = { if (chatsStack.lastOrNull() != EditChatRoute(route.chatId)) chatsStack.add(EditChatRoute(route.chatId)) },
+            onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(userId)) },
             onOpenMemberRights = { userId, admin ->
                 chatsStack.add(MemberRightsRoute(route.chatId, userId, admin))
             },
@@ -652,6 +655,7 @@ private fun shellEntryProvider(
                     chatsStack.add(ArchiveEditChatRoute(route.chatId))
                 }
             },
+            onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(userId)) },
             onOpenMemberRights = { userId, admin ->
                 chatsStack.add(ArchiveMemberRightsRoute(route.chatId, userId, admin))
             },
@@ -740,6 +744,19 @@ private fun shellEntryProvider(
             ),
             onBack = { chatsStack.pop(route) },
             onAdded = { chatId ->
+                if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
+                    chatsStack.add(ConversationRoute(chatId))
+                }
+            },
+        )
+    }
+
+    entry<ShareContactRoute> { route ->
+        ShareContactScreen(
+            viewModel = koinViewModel(key = "share-contact-${route.userId}", parameters = { parametersOf(route.userId) }),
+            onBack = { chatsStack.pop(route) },
+            // Jako po přeposlání: otevře se první vybraný chat, je vidět, že kontakt dorazil.
+            onSent = { chatId ->
                 if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
                     chatsStack.add(ConversationRoute(chatId))
                 }
