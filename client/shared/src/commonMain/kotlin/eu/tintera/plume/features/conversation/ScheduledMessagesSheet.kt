@@ -34,7 +34,7 @@ import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.asUpcomingTime
 import eu.tintera.plume.core.ui.groupItemShape
-import eu.tintera.plume.features.conversation.items.describe
+import eu.tintera.plume.features.conversation.items.summaryLine
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_scheduled_delete
 import eu.tintera.plume.resources.conversation_scheduled_reschedule
@@ -104,7 +104,7 @@ private fun ScheduledRow(
         ListItem(
             headlineContent = {
                 Text(
-                    text = message.text.ifBlank { message.media.describe() }.replace('\n', ' '),
+                    text = message.summaryLine(),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )

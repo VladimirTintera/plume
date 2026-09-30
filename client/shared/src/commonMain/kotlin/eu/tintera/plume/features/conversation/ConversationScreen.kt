@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.runtime.DisposableEffect
+import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.core.ui.threshold
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.material3.PlainTooltip
@@ -639,7 +640,7 @@ fun ConversationScreen(
         // Chyba po akci uživatele je jediné místo, kde odezva hlásí NEúspěch — snackbar se dá
         // přehlédnout, hlavně u odeslání, které mezitím vypadá jako hotové.
         haptics.reject()
-        snackbarHostState.showSnackbar(getString(message.resource, *message.args.toTypedArray()))
+        snackbarHostState.showSnackbar(message.resolveNow())
         viewModel.dismissError()
     }
 
@@ -654,7 +655,7 @@ fun ConversationScreen(
         val notice = state.notice ?: return@LaunchedEffect
         viewModel.consumeNotice()
         snackbarScope.launch {
-            val text = getString(notice.resource, *notice.args.toTypedArray())
+            val text = notice.resolveNow()
             snackbarHostState.showSnackbar(text, duration = SnackbarDuration.Short)
         }
     }

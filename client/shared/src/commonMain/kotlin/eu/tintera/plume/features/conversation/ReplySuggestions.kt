@@ -98,10 +98,9 @@ class ReplySuggestionsViewModel(
         job?.cancel()
         _suggestions.value = emptyList()
 
-        val lines = transcriptLines(replyContext(messages), chatTitle, me)
-        if (lines.isEmpty()) return
-
         job = viewModelScope.launch {
+            val lines = transcriptLines(replyContext(messages), chatTitle, me)
+            if (lines.isEmpty()) return@launch
             val variant = settings.onDeviceAiVariant.value
             if (ai.status(variant) != OnDeviceAiStatus.Ready) return@launch
             try {

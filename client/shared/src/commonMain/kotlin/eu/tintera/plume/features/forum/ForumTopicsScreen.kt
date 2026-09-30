@@ -437,10 +437,11 @@ private fun TopicPreview(topic: ForumTopic, containerColor: androidx.compose.ui.
             customEmoji += appendWithCustomEmoji(draft.text.replace('\n', ' '), draft.entities)
         }
     } ?: topic.lastMessage?.let { message ->
+        val messageText = message.text.resolve()
         buildAnnotatedString {
             val sender = if (message.isOutgoing) you else message.senderName
             sender?.let { withStyle(SpanStyle(color = contentColor)) { append("$it: ") } }
-            customEmoji += appendWithCustomEmoji(message.text.replace('\n', ' '), message.entities)
+            customEmoji += appendWithCustomEmoji(messageText.replace('\n', ' '), message.entities)
         }
     } ?: return
     Text(

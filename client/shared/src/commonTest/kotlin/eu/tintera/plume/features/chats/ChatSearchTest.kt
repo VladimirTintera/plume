@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.highlightRanges
 import eu.tintera.plume.core.telegram.MessageSearchFilter
 import eu.tintera.plume.core.telegram.ChatListState
@@ -139,7 +140,7 @@ class ChatSearchTest {
     }
 
     private fun found(chat: Long, message: Long) =
-        FoundMessage(chat = chat(chat), messageId = message, text = "", date = 0, isOutgoing = false)
+        FoundMessage(chat = chat(chat), messageId = message, text = UiText.Raw(""), date = 0, isOutgoing = false)
 
     private fun chat(id: Long) = ChatSummary(
         id = id,

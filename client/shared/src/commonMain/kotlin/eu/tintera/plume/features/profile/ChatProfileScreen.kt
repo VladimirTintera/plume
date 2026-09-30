@@ -12,6 +12,7 @@ import eu.tintera.plume.core.telegram.Verification
 import eu.tintera.plume.resources.verification_by_bot
 import eu.tintera.plume.resources.verification_by_bot_named
 import eu.tintera.plume.core.telegram.BotVerificationNote
+import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.core.ui.durationText
 import eu.tintera.plume.core.ui.VerificationBadge
 import eu.tintera.plume.core.ui.EmojiStatusBadge
@@ -293,7 +294,7 @@ fun ChatProfileScreen(
     val snackbarScope = rememberCoroutineScope()
     LaunchedEffect(state.error) {
         val error = state.error ?: return@LaunchedEffect
-        val text = getString(error.resource, *error.args.toTypedArray())
+        val text = error.resolveNow()
         viewModel.consumeError()
         snackbarScope.launch { snackbarHostState.showSnackbar(text) }
     }

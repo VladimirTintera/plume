@@ -68,7 +68,8 @@ import dev.g000sha256.tdl.dto.MessageVideoChatEnded
 import dev.g000sha256.tdl.dto.MessageVideoChatScheduled
 import dev.g000sha256.tdl.dto.MessageVideoChatStarted
 import dev.g000sha256.tdl.dto.MessageWebAppDataSent
-import eu.tintera.plume.core.ui.durationString
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.ui.durationUiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.service_bot_created
 import eu.tintera.plume.resources.service_bot_write_access
@@ -137,8 +138,6 @@ import eu.tintera.plume.resources.service_video_chat_scheduled
 import eu.tintera.plume.resources.service_video_chat_started
 import org.jetbrains.compose.resources.PluralStringResource
 import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.getPluralString
-import org.jetbrains.compose.resources.getString
 
 /**
  * Text servisní zprávy, nebo `null` když o servisní zprávu nejde.
@@ -158,86 +157,86 @@ import org.jetbrains.compose.resources.getString
  * jestli jde o kanál, nebo o skupinu (viz [supergroupCreatedText]); výchozí hodnotu parametr
  * schválně nemá, ať se na to žádné volající místo nezapomene zeptat.
  */
-internal suspend fun MessageContent.serviceText(isChannelPost: Boolean): String? = when (this) {
-    is MessageChatAddMembers -> getString(Res.string.service_members_added)
-    is MessageChatJoinByLink -> getString(Res.string.service_joined_by_link)
-    is MessageChatJoinByRequest -> getString(Res.string.service_join_approved)
-    is MessageChatDeleteMember -> getString(Res.string.service_member_left)
+internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when (this) {
+    is MessageChatAddMembers -> UiText(Res.string.service_members_added)
+    is MessageChatJoinByLink -> UiText(Res.string.service_joined_by_link)
+    is MessageChatJoinByRequest -> UiText(Res.string.service_join_approved)
+    is MessageChatDeleteMember -> UiText(Res.string.service_member_left)
 
-    is MessageChatChangeTitle -> getString(Res.string.service_title_changed, title)
-    is MessageChatChangePhoto -> getString(Res.string.service_photo_changed)
-    is MessageChatDeletePhoto -> getString(Res.string.service_photo_removed)
-    is MessageChatSetTheme -> getString(Res.string.service_theme_changed)
-    is MessageChatSetBackground -> getString(Res.string.service_background_changed)
+    is MessageChatChangeTitle -> UiText(Res.string.service_title_changed, title)
+    is MessageChatChangePhoto -> UiText(Res.string.service_photo_changed)
+    is MessageChatDeletePhoto -> UiText(Res.string.service_photo_removed)
+    is MessageChatSetTheme -> UiText(Res.string.service_theme_changed)
+    is MessageChatSetBackground -> UiText(Res.string.service_background_changed)
 
     // S délkou: „Zprávy se budou samy mazat" neřeklo, za jak dlouho.
     is MessageChatSetMessageAutoDeleteTime -> when (messageAutoDeleteTime) {
-        0 -> getString(Res.string.service_auto_delete_off)
-        else -> getString(Res.string.auto_delete_summary, durationString(messageAutoDeleteTime))
+        0 -> UiText(Res.string.service_auto_delete_off)
+        else -> UiText(Res.string.auto_delete_summary, durationUiText(messageAutoDeleteTime))
     }
 
-    is MessageBasicGroupChatCreate -> getString(Res.string.service_group_created, title)
-    is MessageSupergroupChatCreate -> getString(supergroupCreatedText(isChannelPost), title)
+    is MessageBasicGroupChatCreate -> UiText(Res.string.service_group_created, title)
+    is MessageSupergroupChatCreate -> UiText(supergroupCreatedText(isChannelPost), title)
     // Převod na supergrupu se uživateli jeví jako jedna a tatáž skupina, takže nemá cenu
     // vysvětlovat, co se změnilo pod kapotou.
-    is MessageChatUpgradeTo -> getString(Res.string.service_group_upgraded)
-    is MessageChatUpgradeFrom -> getString(Res.string.service_group_upgraded)
+    is MessageChatUpgradeTo -> UiText(Res.string.service_group_upgraded)
+    is MessageChatUpgradeFrom -> UiText(Res.string.service_group_upgraded)
 
-    is MessagePinMessage -> getString(Res.string.service_message_pinned)
-    is MessageScreenshotTaken -> getString(Res.string.service_screenshot)
-    is MessageContactRegistered -> getString(Res.string.service_contact_joined)
-    is MessageProximityAlertTriggered -> getString(Res.string.service_nearby)
+    is MessagePinMessage -> UiText(Res.string.service_message_pinned)
+    is MessageScreenshotTaken -> UiText(Res.string.service_screenshot)
+    is MessageContactRegistered -> UiText(Res.string.service_contact_joined)
+    is MessageProximityAlertTriggered -> UiText(Res.string.service_nearby)
 
-    is MessageVideoChatStarted -> getString(Res.string.service_video_chat_started)
-    is MessageVideoChatEnded -> getString(Res.string.service_video_chat_ended)
-    is MessageVideoChatScheduled -> getString(Res.string.service_video_chat_scheduled)
+    is MessageVideoChatStarted -> UiText(Res.string.service_video_chat_started)
+    is MessageVideoChatEnded -> UiText(Res.string.service_video_chat_ended)
+    is MessageVideoChatScheduled -> UiText(Res.string.service_video_chat_scheduled)
 
-    is MessageForumTopicCreated -> getString(Res.string.service_topic_created, name)
-    is MessageForumTopicEdited -> getString(Res.string.service_topic_edited)
-    is MessageForumTopicIsClosedToggled -> getString(
+    is MessageForumTopicCreated -> UiText(Res.string.service_topic_created, name)
+    is MessageForumTopicEdited -> UiText(Res.string.service_topic_edited)
+    is MessageForumTopicIsClosedToggled -> UiText(
         if (isClosed) Res.string.service_topic_closed else Res.string.service_topic_reopened,
     )
-    is MessageForumTopicIsHiddenToggled -> getString(
+    is MessageForumTopicIsHiddenToggled -> UiText(
         if (isHidden) Res.string.service_topic_hidden else Res.string.service_topic_unhidden,
     )
 
-    is MessageGameScore -> getString(Res.string.service_game_score)
+    is MessageGameScore -> UiText(Res.string.service_game_score)
 
-    is MessageInviteVideoChatParticipants -> getString(Res.string.service_video_chat_invite)
-    is MessageChatOwnerChanged, is MessageChatOwnerLeft -> getString(Res.string.service_owner_changed)
-    is MessageChatHasProtectedContentToggled -> getString(
+    is MessageInviteVideoChatParticipants -> UiText(Res.string.service_video_chat_invite)
+    is MessageChatOwnerChanged, is MessageChatOwnerLeft -> UiText(Res.string.service_owner_changed)
+    is MessageChatHasProtectedContentToggled -> UiText(
         if (newHasProtectedContent) Res.string.service_protected_content_on else Res.string.service_protected_content_off,
     )
     // Žádost o vypnutí ochrany obsahu musí odsouhlasit víc správců, takže platí jen chvíli;
     // vypršenou žádost Telegram nechává v historii stát, jen s jiným významem.
-    is MessageChatHasProtectedContentDisableRequested -> getString(
+    is MessageChatHasProtectedContentDisableRequested -> UiText(
         if (isExpired) Res.string.service_protected_content_disable_expired
         else Res.string.service_protected_content_disable_requested,
     )
-    is MessageChatBoost -> getString(Res.string.service_boost)
-    is MessagePollOptionAdded -> getString(Res.string.service_poll_option_added)
-    is MessagePollOptionDeleted -> getString(Res.string.service_poll_option_deleted)
-    is MessageChecklistTasksAdded -> getString(Res.string.service_checklist_tasks_added)
-    is MessageChecklistTasksDone -> getString(Res.string.service_checklist_tasks_done)
-    is MessagePaymentSuccessful -> getString(Res.string.service_payment)
+    is MessageChatBoost -> UiText(Res.string.service_boost)
+    is MessagePollOptionAdded -> UiText(Res.string.service_poll_option_added)
+    is MessagePollOptionDeleted -> UiText(Res.string.service_poll_option_deleted)
+    is MessageChecklistTasksAdded -> UiText(Res.string.service_checklist_tasks_added)
+    is MessageChecklistTasksDone -> UiText(Res.string.service_checklist_tasks_done)
+    is MessagePaymentSuccessful -> UiText(Res.string.service_payment)
 
     // Dárky kreslí oficiální klient jako oznámení, ne jako zprávu od někoho.
     is MessageGift, is MessageUpgradedGift, is MessageRefundedUpgradedGift,
     is MessageGiftedPremium, is MessageGiftedStars, is MessageGiftedGrams,
     is MessagePremiumGiftCode, is MessageGiveawayPrizeStars,
-    -> getString(Res.string.service_gift)
-    is MessageUpgradedGiftPurchaseOffer -> getString(Res.string.service_gift_offer)
-    is MessageUpgradedGiftPurchaseOfferRejected -> getString(
+    -> UiText(Res.string.service_gift)
+    is MessageUpgradedGiftPurchaseOffer -> UiText(Res.string.service_gift_offer)
+    is MessageUpgradedGiftPurchaseOfferRejected -> UiText(
         if (wasExpired) Res.string.service_gift_offer_expired else Res.string.service_gift_offer_rejected,
     )
-    is MessageGiveawayCreated -> getString(Res.string.service_giveaway_created)
-    is MessageGiveawayCompleted -> getString(Res.string.service_giveaway_completed)
+    is MessageGiveawayCreated -> UiText(Res.string.service_giveaway_created)
+    is MessageGiveawayCompleted -> UiText(Res.string.service_giveaway_completed)
 
     // Komunity (TDLib 15). Název komunity se nevypisuje ze stejného důvodu jako jména: znamenal
     // by dotaz navíc u každé takové zprávy, a věta je pravdivá i bez něj.
-    is MessageChatAddedToCommunity -> getString(Res.string.service_community_added)
-    is MessageChatRemovedFromCommunity -> getString(Res.string.service_community_removed)
-    is MessageChatJoinFromCommunity -> getString(Res.string.service_community_joined)
+    is MessageChatAddedToCommunity -> UiText(Res.string.service_community_added)
+    is MessageChatRemovedFromCommunity -> UiText(Res.string.service_community_removed)
+    is MessageChatJoinFromCommunity -> UiText(Res.string.service_community_joined)
 
     /*
      * Placené zprávy (TDLib 15). Cena JE obsah toho oznámení, takže se vypisuje — a protože se
@@ -248,31 +247,31 @@ internal suspend fun MessageContent.serviceText(isChannelPost: Boolean): String?
      * ne vypnutí.
      */
     is MessageDirectMessagePriceChanged -> when {
-        !isEnabled -> getString(Res.string.service_direct_messages_off)
-        paidMessageStarCount <= 0 -> getString(Res.string.service_direct_messages_on)
+        !isEnabled -> UiText(Res.string.service_direct_messages_off)
+        paidMessageStarCount <= 0 -> UiText(Res.string.service_direct_messages_on)
         else -> starSentence(Res.plurals.service_direct_message_price, paidMessageStarCount)
     }
     is MessagePaidMessagePriceChanged ->
-        if (paidMessageStarCount <= 0) getString(Res.string.service_paid_messages_free)
+        if (paidMessageStarCount <= 0) UiText(Res.string.service_paid_messages_free)
         else starSentence(Res.plurals.service_paid_message_price, paidMessageStarCount)
     is MessagePaidMessagesRefunded -> starSentence(Res.plurals.service_paid_messages_refunded, starCount)
 
     // Navržené příspěvky (TDLib 15). Cena ani komentář správce se nevypisují — oznámení nese
     // hlavně to, jak návrh dopadl, a na komentář se stejně nedá odpovědět.
-    is MessageSuggestedPostApproved -> getString(Res.string.service_suggested_post_approved)
-    is MessageSuggestedPostDeclined -> getString(Res.string.service_suggested_post_declined)
-    is MessageSuggestedPostPaid -> getString(Res.string.service_suggested_post_paid)
-    is MessageSuggestedPostRefunded -> getString(Res.string.service_suggested_post_refunded)
-    is MessageSuggestedPostApprovalFailed -> getString(Res.string.service_suggested_post_failed)
+    is MessageSuggestedPostApproved -> UiText(Res.string.service_suggested_post_approved)
+    is MessageSuggestedPostDeclined -> UiText(Res.string.service_suggested_post_declined)
+    is MessageSuggestedPostPaid -> UiText(Res.string.service_suggested_post_paid)
+    is MessageSuggestedPostRefunded -> UiText(Res.string.service_suggested_post_refunded)
+    is MessageSuggestedPostApprovalFailed -> UiText(Res.string.service_suggested_post_failed)
 
-    is MessageBotWriteAccessAllowed -> getString(Res.string.service_bot_write_access)
-    is MessageManagedBotCreated -> getString(Res.string.service_bot_created)
-    is MessageWebAppDataSent -> getString(Res.string.service_web_app_data)
-    is MessagePassportDataSent -> getString(Res.string.service_passport_data)
-    is MessagePaymentRefunded -> getString(Res.string.service_payment_refunded)
+    is MessageBotWriteAccessAllowed -> UiText(Res.string.service_bot_write_access)
+    is MessageManagedBotCreated -> UiText(Res.string.service_bot_created)
+    is MessageWebAppDataSent -> UiText(Res.string.service_web_app_data)
+    is MessagePassportDataSent -> UiText(Res.string.service_passport_data)
+    is MessagePaymentRefunded -> UiText(Res.string.service_payment_refunded)
 
     // Tenhle typ nese hotový text od serveru; překládat ho není co.
-    is MessageCustomServiceAction -> text
+    is MessageCustomServiceAction -> UiText.Raw(text)
 
     // Kontakt NENÍ servisní zpráva — jen vypadá podobně. Popisuje ho previewText.
     is MessageContact -> null
@@ -300,11 +299,11 @@ internal fun supergroupCreatedText(isChannelPost: Boolean): StringResource =
 /**
  * Věta s počtem hvězd.
  *
- * Počet posílá TDLib jako `Long`, `getPluralString` bere `Int`. Cena, která se do `Int` nevejde,
+ * Počet posílá TDLib jako `Long`, plurál bere `Int`. Cena, která se do `Int` nevejde,
  * neexistuje, ale přetečení by z ní udělalo záporné číslo — a to by byla nesmyslná věta místo
  * velkého čísla, takže se ořezává.
  */
-private suspend fun starSentence(resource: PluralStringResource, count: Long): String {
+private fun starSentence(resource: PluralStringResource, count: Long): UiText {
     val quantity = count.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
-    return getPluralString(resource, quantity, quantity)
+    return UiText(resource, quantity, quantity)
 }

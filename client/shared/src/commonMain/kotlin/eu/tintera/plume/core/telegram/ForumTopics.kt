@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.ui.UiText
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -40,7 +41,8 @@ data class TopicIcon(val color: Int, val customEmojiId: Long?)
 
 /** Náhled poslední zprávy tématu, jako v seznamu chatů — jen s odesílatelem, protože píše víc lidí. */
 data class TopicMessagePreview(
-    val text: String,
+    /** Text zprávy, nebo náš popis (Fotka); přeloží se až v řádku. */
+    val text: UiText,
     val entities: List<MessageEntity> = emptyList(),
     /** Kdo psal; `null` u vlastní zprávy (řádek řekne „Vy") a u anonymního správce. */
     val senderName: String?,

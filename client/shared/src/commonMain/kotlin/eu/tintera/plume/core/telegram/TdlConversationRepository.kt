@@ -1921,6 +1921,7 @@ class TdlConversationRepository(
             senderId = senderId,
             text = body.text,
             entities = body.entities,
+            description = body.description,
             media = messageMedia(
                 hideSensitive = hideSensitive,
                 // Profilovka sdíleného kontaktu: `getUser` je lokální, TDLib uživatele zná, když
@@ -2001,9 +2002,12 @@ class TdlConversationRepository(
         val sourceChat = chatId.takeIf { it != 0L }
         val name = origin?.name ?: sourceChat?.let { resolveSender(it)?.title }
         val text = quote?.text?.text?.takeIf { it.isNotBlank() }
-            // Obsah z jiného chatu nese jen `origin`; příspěvek kanálu se pozná z něj.
-            ?: content?.previewTextOrNull(isOutgoing = false, isChannelPost = this.origin is MessageOriginChannel)
-            ?: ""
+        // Obsah z jiného chatu nese jen `origin`; příspěvek kanálu se pozná z něj.
+        val description = if (text == null) {
+            content?.previewTextOrNull(isOutgoing = false, isChannelPost = this.origin is MessageOriginChannel)
+        } else {
+            null
+        }
         val quote = ChatMessage(
             id = messageId,
             isOutgoing = false,
@@ -2015,8 +2019,9 @@ class TdlConversationRepository(
                 is ForwardOrigin.Chat -> origin.chatId
                 is ForwardOrigin.Hidden, null -> sourceChat ?: 0L
             },
-            text = text,
+            text = text.orEmpty(),
             entities = emptyList(),
+            description = description,
             media = content?.replyMedia(),
             linkPreview = null,
             reactions = emptyList(),

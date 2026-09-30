@@ -12,7 +12,6 @@ import eu.tintera.plume.resources.duration_short_minutes
 import eu.tintera.plume.resources.duration_short_months
 import eu.tintera.plume.resources.duration_short_weeks
 import eu.tintera.plume.resources.duration_weeks
-import org.jetbrains.compose.resources.getPluralString
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -34,16 +33,20 @@ fun durationText(seconds: Int): String {
     }
 }
 
-/** Totéž mimo kompozici — pro texty skládané v `core/telegram` (servisní zprávy). */
-suspend fun durationString(seconds: Int): String {
+/**
+ * Totéž jako [UiText] — pro texty skládané mimo kompozici (servisní zprávy v `core/telegram`),
+ * přeloží se až tam, kde se kreslí.
+ */
+fun durationUiText(seconds: Int): UiText {
     val (unit, count) = durationUnit(seconds)
-    return when (unit) {
-        DurationUnit.Months -> getPluralString(Res.plurals.duration_months, count, count)
-        DurationUnit.Weeks -> getPluralString(Res.plurals.duration_weeks, count, count)
-        DurationUnit.Days -> getPluralString(Res.plurals.duration_days, count, count)
-        DurationUnit.Hours -> getPluralString(Res.plurals.duration_hours, count, count)
-        DurationUnit.Minutes -> getPluralString(Res.plurals.duration_minutes, count, count)
+    val resource = when (unit) {
+        DurationUnit.Months -> Res.plurals.duration_months
+        DurationUnit.Weeks -> Res.plurals.duration_weeks
+        DurationUnit.Days -> Res.plurals.duration_days
+        DurationUnit.Hours -> Res.plurals.duration_hours
+        DurationUnit.Minutes -> Res.plurals.duration_minutes
     }
+    return UiText(resource, count, count)
 }
 
 /** Zkratka téže délky pro odznak: „1 d", „1 týd.", „1 měs.". */

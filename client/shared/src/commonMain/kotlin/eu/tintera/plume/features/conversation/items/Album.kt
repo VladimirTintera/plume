@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.resolve
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -233,7 +234,7 @@ private fun AlbumTile(
                 modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
             ) {
                 Text(
-                    text = media.label,
+                    text = media.label.resolve(),
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                 )

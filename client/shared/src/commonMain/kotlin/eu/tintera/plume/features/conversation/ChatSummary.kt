@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.resolveNow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
@@ -74,10 +75,15 @@ fun summarySource(messages: List<ChatMessage>, unreadBoundaryId: Long?): Summary
  * Řádky přepisu. Odchozí zprávy podepisuje [me], příchozí jméno odesílatele — v soukromém chatu
  * ho TDLib nevyplňuje, pak je to název chatu. Příloha bez textu je `[attachment]`: model pak ví,
  * že tam něco bylo, a prompt je anglicky, takže značka nemusí jít přes překlad.
+ *
+ * Zpráva bez vlastního textu (servisní oznámení, anketa) přispěje naším popisem v jazyce
+ * aplikace — ten se překládá až tady (`suspend`), převedená zpráva ho nese jako `UiText`.
  */
-fun transcriptLines(messages: List<ChatMessage>, chatTitle: String, me: String): List<TranscriptLine> =
+suspend fun transcriptLines(messages: List<ChatMessage>, chatTitle: String, me: String): List<TranscriptLine> =
     messages.mapNotNull { message ->
-        val text = message.text.ifBlank { if (message.media != null) "[attachment]" else "" }
+        val text = message.text.ifBlank {
+            message.description?.resolveNow() ?: if (message.media != null) "[attachment]" else ""
+        }
         if (text.isBlank()) return@mapNotNull null
         val author = if (message.isOutgoing) me else message.senderName ?: chatTitle
         TranscriptLine(author, text)

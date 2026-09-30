@@ -1335,10 +1335,32 @@ který uvidí uživatel.
 - **`stringResource` je `@Composable`, `StringResource` ale ne.** Proto ViewModel i doménový
   stav nosí `UiText` (odkaz do prostředků + argumenty) a překládá se až v UI. Text poskládaný
   ve ViewModelu by po změně jazyka zůstal v tom starém.
-- **Mimo kompozici se čte `getString(…)`, což je `suspend`.** Tudy jdou popisy typů zpráv
-  (`previewText`, `serviceText`), notifikace a schránka — kvůli tomu je řada mapovacích funkcí
-  v `core/telegram` `suspend`. Náhled poslední zprávy se proto skládá **před** `edit` nad stavem
-  seznamu chatů, ne uvnitř.
+- **I převedené zprávy nesou `UiText`, ne hotovou větu.** Servisní oznámení (`serviceText`),
+  popis obsahu (`describe`, „Anketa: otázka") i náhled poslední zprávy (`previewText`, „Fotka")
+  vrací `UiText`; zpráva ho má v `ChatMessage.description` (vlastní text zůstává v `text`,
+  u popisných zpráv prázdný), seznam chatů v `ChatSummary.lastMessagePreview`, témata
+  v `TopicMessagePreview.text`, hledání ve `FoundMessage.text`. Dokud se tam skládal řetězec
+  přes `getString`, zůstal po přepnutí jazyka ve starém: proces změnu jazyka přežije (Activity
+  se jen složí znovu) a s ním i převedené zprávy v paměti repository a ViewModelů.
+  - **`UiText` umí větu (`Resource`), plurál (`Plural`) a nepřekládaný text (`Raw`)**, a argument
+    smí být sám `UiText` („Automatické mazání zpráv: 1 den", délka je vnořený plurál). `Raw` je
+    tu proto, aby jedno pole uneslo „popisek, a když není, slovo Fotka" (`orText`).
+  - **Kdo kreslí zprávu slovy, bere `text`, a když je prázdný, `description`**: bublina
+    (`MessageText`), servisní oznámení, citace, pruh připnutých a naplánované zprávy
+    (`summaryLine`). Kopírování, úprava, výběr textu a překlad berou jen vlastní `text` — náš
+    popis z nich ven nepatří (u ankety to platilo odjakživa).
+  - **Mimo kompozici se překládá `resolveNow()`** (`suspend`, jazyk platný TEĎ): notifikace,
+    snackbar, přepis pro AI shrnutí a návrhy odpovědí. Výsledek se nikam neukládá.
+  - **Vědomé výjimky, které zůstávají řetězcem:** náhradní název souboru a skladby bez jména
+    („Soubor", „Audio" — je to jméno, pod kterým se soubor ukládá a které dostává systémový
+    přehrávač) a štítky médií uvnitř článku („[Fotka]" — leží uprostřed textu s entitami
+    a jeho offsety by se překladem posunuly). Po změně jazyka zůstanou ve starém, než se zpráva
+    načte znovu.
+  - **Najít, kdo text čte, pomohl překladač**: pole `ChatMessage.text` se dočasně přejmenovalo
+    a chyby překladu vypsaly všech 88 míst. Grep podle `.text` by část minul (`it.text`,
+    destrukturování) a ta by po změně tiše kreslila prázdno.
+  - Ověřeno na emulátoru v jednom procesu (pid se nezměnil): seznam chatů, seznam témat
+    a konverzace se servisními zprávami tam i zpět mezi češtinou a angličtinou.
 - **Čeština má tři tvary množného čísla** (1 / 2–4 / 5+), angličtina dva. Kde se počítá, patří
   `plurals`, ne `when` nad číslem — viz „N nových zpráv".
 - **Datum není jen překlad slov.** Pořadí dne a měsíce se liší, čeština chce měsíc ve 2. pádu
@@ -4073,10 +4095,10 @@ jednou odpovědí ťuknutím, víc odpověďmi přes „Hlasovat", výsledky s p
 správná a vybraná špatná odpověď a vysvětlení. V nabídce „Zrušit hlas" a „Ukončit anketu",
 v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, testy `PollVotersTest`).
 
-- **Text zprávy zůstává „Anketa: otázka"** a blok ho jen nekreslí. Citace, připnutý pruh,
-  náhled v seznamu chatů i shrnutí tak mají popis zadarmo; kdyby byl text prázdný, musela by se
-  anketa doplnit do každého z nich zvlášť. Proto ale „Kopírovat" u ankety není (kopírovalo by
-  náš popis) a `composerEdit` ji vylučuje výslovně.
+- **Popis „Anketa: otázka" nese `ChatMessage.description`** (jako `UiText`, viz „Jazyky")
+  a blok ho jen nekreslí. Citace, připnutý pruh, náhled v seznamu chatů i shrnutí ho berou,
+  když zpráva vlastní text nemá — anketa se tak nemusí doplňovat do každého z nich zvlášť.
+  „Kopírovat" u ankety není (vlastní text nemá) a `composerEdit` ji vylučuje výslovně.
 - **U ankety `canBeEdited` NEZNAMENÁ „jde upravit"**, ale „jde ukončit" (dokumentace
   `stopPoll`). Bez výjimky v `composerEdit` by se u vlastní ankety nabídlo „Upravit" a pole
   by upravovalo text „Anketa: …" voláním, které server odmítne.
@@ -6685,7 +6707,8 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
   záchrana je „Tenhle typ zprávy zatím neumíme zobrazit", což říká pravdu.
 - **Servisní zprávy poznává `serviceText()`, která zároveň dává jejich text.** Jedno místo
   rozhoduje o textu i o způsobu vykreslení, takže se ty dva nemůžou rozejít. `null` znamená
-  „tohle je běžný obsah".
+  „tohle je běžný obsah". Vrací `UiText` a není `suspend`, takže se testuje bez prostředků
+  (`ServiceTextTest`).
 - **Servisní zpráva se kreslí na střed, ne do bubliny.** Bublina patří odesílateli a tyhle
   odesílatele nemají — jsou to oznámení o dění v chatu. Čas se u nich nevypisuje, reakce ani stav
   doručení k nim nepatří.
