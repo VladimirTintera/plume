@@ -75,6 +75,8 @@ import eu.tintera.plume.resources.lock_open_24dp
 import eu.tintera.plume.resources.notifications_24dp
 import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.tune_24dp
+import eu.tintera.plume.resources.drag_indicator_24dp
+import eu.tintera.plume.resources.forum_topic_reorder
 import eu.tintera.plume.resources.push_pin_24dp
 import eu.tintera.plume.resources.visibility_off_24dp
 import eu.tintera.plume.resources.topic_color_red
@@ -109,6 +111,8 @@ internal fun TopicActionsSheet(
     onPin: (Boolean) -> Unit,
     onMute: (Boolean) -> Unit,
     onNotifications: () -> Unit,
+    /** Uspořádat připnutá — jen u připnutého tématu a když je co přeskládat; jinak `null`. */
+    onReorder: (() -> Unit)?,
     onRename: () -> Unit,
     onClose: (Boolean) -> Unit,
     onHideGeneral: () -> Unit,
@@ -132,6 +136,9 @@ internal fun TopicActionsSheet(
         )
         // Rychlé ztlumení výš je napořád; doby, náhled, zmínky a návrat ke skupině jsou tady.
         add(TopicMenuItem(stringResource(Res.string.forum_topic_notifications), Res.drawable.tune_24dp, onClick = onNotifications))
+        if (topic.isPinned && onReorder != null) {
+            add(TopicMenuItem(stringResource(Res.string.forum_topic_reorder), Res.drawable.drag_indicator_24dp, onClick = onReorder))
+        }
         if (actions.rename) add(TopicMenuItem(stringResource(Res.string.forum_topic_rename), Res.drawable.edit_24dp, onClick = onRename))
         if (actions.close) {
             add(

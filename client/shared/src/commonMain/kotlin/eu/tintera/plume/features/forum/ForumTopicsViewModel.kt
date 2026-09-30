@@ -17,6 +17,9 @@ import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.telegram.withPage
 import eu.tintera.plume.core.telegram.withTopic
 import eu.tintera.plume.core.telegram.withoutTopic
+import eu.tintera.plume.core.telegram.moved
+import eu.tintera.plume.core.telegram.pinnedTopics
+import eu.tintera.plume.core.telegram.sortedTopics
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.forum_topic_action_failed
@@ -65,6 +68,13 @@ data class ForumTopicsState(
     val notificationsFor: ForumTopic? = null,
     /** Upozornění tématu v otevřeném sheetu; `null`, dokud se nenačtou. */
     val topicNotifications: ChatNotificationPrefs? = null,
+    /**
+     * Rozpracované pořadí připnutých témat (režim uspořádání); `null` = seznam jako obvykle.
+     * Je to koncept: na server jde až „Hotovo", tah nic neodesílá.
+     */
+    val reorder: List<ForumTopic>? = null,
+    /** Pořadí připnutých témat (id, nahoře první) — z první stránky a po uložení nového pořadí. */
+    val pinnedOrder: List<Int> = emptyList(),
 )
 
 /** Formulář tématu: nové ([topicId] `null`, s barvou), nebo přejmenování existujícího. */
@@ -138,7 +148,9 @@ class ForumTopicsViewModel(
                     .onSuccess { page ->
                         _state.update {
                             it.copy(
-                                topics = it.topics.withPage(page.topics),
+                                // Pořadí připnutých dává jen první stránka; další už připnutá nemají.
+                                pinnedOrder = if (current.next == null) page.pinnedOrder else it.pinnedOrder,
+                                topics = it.topics.withPage(page.topics, if (current.next == null) page.pinnedOrder else it.pinnedOrder),
                                 next = page.next,
                                 loading = false,
                                 error = null,
@@ -254,6 +266,40 @@ class ForumTopicsViewModel(
         }
     }
 
+    /** Režim uspořádání připnutých témat; začíná pořadím, které seznam ukazuje. */
+    fun startReorder() {
+        val pinned = _state.value.let { it.topics.pinnedTopics(it.pinnedOrder) }
+        if (pinned.size < 2) return
+        _state.update { it.copy(reorder = pinned) }
+    }
+
+    fun moveInReorder(fromId: Int, toId: Int) =
+        _state.update { state -> state.copy(reorder = state.reorder?.moved(fromId, toId)) }
+
+    fun cancelReorder() = _state.update { it.copy(reorder = null) }
+
+    /**
+     * Odešle nové pořadí jedním voláním (`setPinnedForumTopics`). Beze změny se nic neposílá.
+     * Po úspěchu seznam převezme nové pořadí sám ([ForumTopicsState.pinnedOrder]): `order` od TDLib
+     * se tím nezmění a nové čtení témat by nic nepřeskládalo.
+     * Když uložení selže, režim zůstane otevřený, ať se dá zkusit znovu.
+     */
+    fun saveReorder() {
+        val order = _state.value.reorder ?: return
+        val ids = order.map { it.id }
+        if (ids == _state.value.let { it.topics.pinnedTopics(it.pinnedOrder) }.map { it.id }) {
+            cancelReorder()
+            return
+        }
+        act(Res.string.forum_topic_action_failed) {
+            forums.setPinnedOrder(chatId, ids).also { result ->
+                if (result.isSuccess) {
+                    _state.update { it.copy(reorder = null, pinnedOrder = ids, topics = it.topics.sortedTopics(ids)) }
+                }
+            }
+        }
+    }
+
     fun delete(topic: ForumTopic) = act(Res.string.forum_topic_action_failed) {
         forums.delete(chatId, topic.id).also { result ->
             if (result.isSuccess) {
@@ -291,7 +337,7 @@ class ForumTopicsViewModel(
             .onSuccess { topic ->
                 _state.update {
                     it.copy(
-                        topics = it.topics.withTopic(topic),
+                        topics = it.topics.withTopic(topic, it.pinnedOrder),
                         general = if (topic.isGeneral) topic else it.general,
                         searchResults = it.searchResults?.map { found -> if (found.id == topic.id) topic else found },
                     )
