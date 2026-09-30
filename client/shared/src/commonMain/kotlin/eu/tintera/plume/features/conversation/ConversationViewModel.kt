@@ -203,6 +203,7 @@ import eu.tintera.plume.core.telegram.InlineQueryDraft
 import eu.tintera.plume.core.telegram.InlineQueryState
 import eu.tintera.plume.core.telegram.InlineResult
 import eu.tintera.plume.core.telegram.InlineResultsButton
+import eu.tintera.plume.core.language.AppLanguage
 import eu.tintera.plume.core.location.GeoPoint
 import kotlin.time.Duration.Companion.milliseconds
 import eu.tintera.plume.core.telegram.inlineQueryOf
@@ -271,6 +272,8 @@ class ConversationViewModel(
     private val botStartRequests: BotStartRequests,
     /** „Odpovědět" z prohlížeče médií. */
     private val replyRequests: ConversationReplyRequests,
+    /** Změna jazyka: převedené zprávy nesou text („Fotka", servisní oznámení) v tom starém. */
+    private val appLanguage: AppLanguage,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -1082,6 +1085,10 @@ class ConversationViewModel(
                 _state.update { it.copy(replyMarkup = markup) }
                 if (markup is ChatReplyMarkup.ForceReply) applyForceReply(markup.messageId)
             }
+        }
+
+        viewModelScope.launch {
+            appLanguage.changes.collect { reloadAfterLanguageChange() }
         }
 
         viewModelScope.launch {
@@ -2764,6 +2771,22 @@ class ConversationViewModel(
     }
 
     /**
+     * Převede znovu zprávy, které konverzace drží, po změně jazyka aplikace.
+     *
+     * Servisní oznámení, „Fotka" v citaci i popis ankety skládá `core/telegram` už při převodu
+     * zprávy (`getString` mimo kompozici), takže by po změně jazyka zůstaly ve starém. `message`
+     * je lokální dotaz; zpráva, kterou se přečíst nepodaří, si nechá starý text. Jak se nové
+     * převody dosadí, rozhoduje [ConversationState.withRelocalized].
+     */
+    private suspend fun reloadAfterLanguageChange() {
+        val snapshot = _state.value
+        val ids = (snapshot.messages.map { it.id } + snapshot.quotes.keys + listOfNotNull(snapshot.replyingTo?.id)).distinct()
+        val reloaded = ids.mapNotNull { id -> repository.message(chatId, id).getOrNull() }.associateBy { it.id }
+        _state.update { it.withRelocalized(snapshot, reloaded) }
+        refreshPinned()
+    }
+
+    /**
      * Doplní citované zprávy, které nejsou v načtené historii.
      *
      * Odpovídá se skoro vždy na něco nedávného, takže většina citací se najde v už načtených
@@ -3899,6 +3922,30 @@ class ConversationViewModel(
     fun dismissError() {
         _state.update { it.copy(error = null) }
     }
+}
+
+/**
+ * Dosadí zprávy převedené znovu po změně jazyka ([reloaded], podle id).
+ *
+ * Převod běží mimo zámek nad stavem, takže mezitím mohla dorazit úprava, reakce nebo smazání.
+ * Nahrazuje se proto jen zpráva, která je pořád TATÁŽ instance jako v [snapshot] (stav na začátku
+ * převodu): novější verzi by převod přepsal starší a smazanou by vrátil do seznamu.
+ */
+internal fun ConversationState.withRelocalized(
+    snapshot: ConversationState,
+    reloaded: Map<Long, ChatMessage>,
+): ConversationState {
+    if (reloaded.isEmpty()) return this
+    val before = snapshot.messages.associateBy { it.id }
+
+    fun ChatMessage.relocalized(previous: ChatMessage?): ChatMessage =
+        if (previous === this) reloaded[id] ?: this else this
+
+    return copy(
+        messages = messages.map { it.relocalized(before[it.id]) },
+        quotes = quotes.mapValues { (id, quoted) -> quoted.relocalized(snapshot.quotes[id]) },
+        replyingTo = replyingTo?.relocalized(snapshot.replyingTo),
+    )
 }
 
 /**

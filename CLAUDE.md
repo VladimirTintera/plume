@@ -1368,6 +1368,29 @@ který uvidí uživatel.
   o konvenci dozvědět od souboru vedle; jinak mu kontrola spadne na hlášku o composeResources,
   ze které důvod nepozná. Úplné zdůvodnění zůstává na jednom místě (komentář u kontroly
   v `build.gradle.kts` a tenhle odstavec) — hlavička je ukazatel, ne druhá kopie pravidla.
+- **Text poskládaný mimo kompozici se po změně jazyka převádí ZNOVU** (`AppLanguage`
+  v `core/language`). Servisní oznámení, náhled poslední zprávy i „Fotka" v citaci skládá
+  `core/telegram` přes `getString` už při převodu zprávy a drží se jako hotový řetězec — seznam
+  chatů, otevřená konverzace i seznam témat by zůstaly ve starém jazyce, dokud by se zprávy
+  nenačetly znovu. Proces přepnutí jazyka přežije (Activity se jen složí znovu), takže tohle
+  nespraví ani návrat do aplikace.
+  - **`UiText` až do bubliny by znamenal přepsat přes sto míst** (`serviceText`, `describe`,
+    `previewTextOrNull`, věty s vnořeným překladem a plurály) a všechny, kdo text čtou (seznam,
+    citace, připnuté, hledání, notifikace). Převést znovu na signál je jedno místo na držitele.
+  - **Jazyk hlásí kořen kompozice** (`Locale.current` v `App`): po změně jazyka se Activity
+    skládá znovu a `Locale.current` i `getString` čtou totéž `Locale.getDefault()`. První
+    hlášení změna není; iOS aplikaci po změně jazyka ukončí, takže tam nenastane nikdy.
+  - **Na signál převádí znovu každý, kdo převedený text DRŽÍ**: `TdlChatRepository` (náhled
+    u všech známých chatů, `getChat` je lokální, jedna publikace), `ConversationViewModel`
+    (zprávy, citace, odpověď nad polem a připnuté) a `ForumTopicsViewModel`. Nový držitel
+    takového textu se k `AppLanguage.changes` musí přihlásit taky.
+  - **Převod běží mimo zámek nad stavem, takže se nahrazuje jen zpráva, která se mezitím
+    nezměnila** (tatáž instance jako na začátku; `withRelocalized`, testy `RelocalizedTest`).
+    Jinak by starší převod přepsal úpravu, která dorazila během něj, a smazanou zprávu vrátil.
+  - **Hledání, profil a notifikace se nepřevádějí**: jsou krátkodobé a při dalším otevření
+    vzniknou v novém jazyce; notifikaci kreslí systém.
+  - Ověřeno na emulátoru v jednom procesu (pid se nezměnil): seznam chatů, seznam témat
+    a konverzace se servisními zprávami tam i zpět mezi češtinou a angličtinou.
 - **Ověřuje se přepnutím jazyka aplikace**, ne celého systému:
   `adb shell cmd locale set-app-locales eu.tintera.plume --locales cs-CZ` (prázdná hodnota vrátí
   systémový). Restart aplikace stačí, emulátor rebootovat netřeba.

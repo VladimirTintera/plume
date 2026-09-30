@@ -7,10 +7,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.intl.Locale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.app.root.presentation.AppTheme
 import eu.tintera.plume.app.root.presentation.supportsDynamicColor
 import eu.tintera.plume.app.shell.AppShell
+import eu.tintera.plume.core.language.AppLanguage
 import eu.tintera.plume.core.notifications.NotificationPermissionPrompt
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ThemeMode
@@ -39,6 +41,12 @@ fun App() {
     val settings = koinInject<AppSettings>()
     val themeMode by settings.themeMode.collectAsStateWithLifecycle()
     val dynamicColor by settings.dynamicColor.collectAsStateWithLifecycle()
+
+    // Jazyk, ve kterém se kreslí. Po jeho změně se Activity skládá znovu, tenhle efekt s ní,
+    // a kdo drží text poskládaný mimo kompozici (servisní zprávy, náhledy), převede ho znovu.
+    val appLanguage = koinInject<AppLanguage>()
+    val languageTag = Locale.current.toLanguageTag()
+    LaunchedEffect(languageTag) { appLanguage.report(languageTag) }
 
     AppTheme(
         themeMode = themeMode ?: ThemeMode.SYSTEM,

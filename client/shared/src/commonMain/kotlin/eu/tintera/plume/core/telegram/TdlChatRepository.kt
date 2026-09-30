@@ -91,6 +91,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import eu.tintera.plume.core.language.AppLanguage
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_load_failed
@@ -116,6 +117,7 @@ import eu.tintera.plume.resources.chats_load_failed
 class TdlChatRepository(
     private val holder: TelegramClientHolder,
     private val session: TelegramSession,
+    private val appLanguage: AppLanguage,
     private val scope: CoroutineScope,
 ) : ChatRepository {
 
@@ -390,6 +392,13 @@ class TdlChatRepository(
         // chaty odhlášeného účtu. Úklid až po výměně klienta je poslední slovo.
         scope.launch {
             holder.replaced.collect { clear() }
+        }
+
+        // Náhled poslední zprávy je hotový řetězec v jazyce, ve kterém se chat převáděl („Fotka",
+        // servisní oznámení). Po změně jazyka by v seznamu zůstal ve starém, dokud nepřijde další
+        // zpráva — proto se převede znovu.
+        scope.launch {
+            appLanguage.changes.collect { refreshPreviews() }
         }
 
         // Odebrání ze složky — chat sice dál existuje, ale v téhle složce nemá co dělat.
@@ -1079,6 +1088,28 @@ class TdlChatRepository(
         mutex.withLock {
             known[summary.id] = summary.keepingLiveState(known[summary.id])
             positions[chat.id] = chat.positions.toFolderPositions()
+        }
+        publish()
+    }
+
+    /**
+     * Převede znovu náhled poslední zprávy u všech známých chatů. `getChat` je lokální a stav
+     * převzatý z updatů (dostupnost, „píše…", pozice) zůstává — mění se jen text náhledu.
+     * Publikuje se JEDNOU, jako při načtení složky.
+     */
+    private suspend fun refreshPreviews() {
+        val ids = mutex.withLock { known.keys.toList() }
+        val previews = ids.mapNotNull { chatId ->
+            // Chat, který se přečíst nepodařilo, si nechá starý náhled — prázdný by byl horší.
+            val chat = client.getChat(chatId).toResult().getOrNull() ?: return@mapNotNull null
+            val lastMessage = chat.lastMessage
+            chatId to (lastMessage?.previewText() to lastMessage?.previewEntities().orEmpty())
+        }
+        mutex.withLock {
+            previews.forEach { (chatId, preview) ->
+                val current = known[chatId] ?: return@forEach
+                known[chatId] = current.copy(lastMessagePreview = preview.first, lastMessagePreviewEntities = preview.second)
+            }
         }
         publish()
     }

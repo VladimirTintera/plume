@@ -3,6 +3,7 @@ package eu.tintera.plume.features.forum
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.language.AppLanguage
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.ForumRepository
@@ -80,6 +81,7 @@ class ForumTopicsViewModel(
     val chatId: Long,
     private val forums: ForumRepository,
     private val conversations: ConversationRepository,
+    private val appLanguage: AppLanguage,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("ForumTopics")
@@ -97,6 +99,10 @@ class ForumTopicsViewModel(
             forums.topicChanges(chatId).collect { topicId -> refresh(topicId) }
         }
         viewModelScope.launch { loadMore() }
+        // Náhled poslední zprávy tématu je hotový řetězec v jazyce, ve kterém se téma četlo.
+        viewModelScope.launch {
+            appLanguage.changes.collect { _state.value.topics.map { it.id }.forEach { refresh(it) } }
+        }
         viewModelScope.launch { forums.rights(chatId).onSuccess { rights -> _state.update { it.copy(rights = rights) } } }
         // Hledá server; rozepsaný dotaz další znak zahodí, takže pomalá odpověď na „ko"
         // nepřepíše výsledky pro „kotlin" (stejně jako hledání chatů).
