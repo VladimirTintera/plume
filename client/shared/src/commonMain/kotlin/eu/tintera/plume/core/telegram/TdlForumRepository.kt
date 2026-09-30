@@ -14,6 +14,7 @@ import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.MessageTopicForum
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.merge
@@ -119,9 +120,19 @@ class TdlForumRepository(private val holder: TelegramClientHolder) : ForumReposi
             .toResult()
             .map { it.toDomain() }
 
+    /**
+     * `UpdateForumTopic` a `UpdateForumTopicInfo` jdou dál, jen když se od posledního pro totéž
+     * téma LIŠÍ. `getForumTopic` se ptá serveru a TDLib po odpovědi pošle `UpdateForumTopic`
+     * i beze změny; seznam na něj téma čte znovu — a bez tohohle filtru se čtení a update
+     * honily dokola (po otevření skupiny zhruba 40 s, stovky dotazů na server).
+     */
     override fun topicChanges(chatId: Long): Flow<Int> = merge(
-        holder.updates { forumTopicUpdates }.filter { it.chatId == chatId }.map { it.forumTopicId },
-        holder.updates { forumTopicInfoUpdates }.filter { it.info.chatId == chatId }.map { it.info.forumTopicId },
+        holder.updates { forumTopicUpdates }.filter { it.chatId == chatId }
+            .changedPerTopic { it.forumTopicId }
+            .map { it.forumTopicId },
+        holder.updates { forumTopicInfoUpdates }.filter { it.info.chatId == chatId }
+            .changedPerTopic { it.info.forumTopicId }
+            .map { it.info.forumTopicId },
         holder.updates { newMessageUpdates }
             .filter { it.message.chatId == chatId && it.message.schedulingState == null }
             .mapNotNull { (it.message.topicId as? MessageTopicForum)?.forumTopicId },
@@ -168,6 +179,17 @@ class TdlForumRepository(private val holder: TelegramClientHolder) : ForumReposi
             ?.takeIf { it.isNotBlank() }
         is MessageSenderChat -> sender.chatId.takeIf { it != chatId }
             ?.let { client.getChat(chatId = it).toResult().getOrNull()?.title }
+    }
+}
+
+/**
+ * Propustí update, jen když se liší od posledního pro totéž téma (DTO z TDLib mají `equals`).
+ * Paměť patří jednomu odběru, takže nový odběr (nová obrazovka) začne první změnou tématu.
+ */
+internal fun <T> Flow<T>.changedPerTopic(topicId: (T) -> Int): Flow<T> = flow {
+    val last = HashMap<Int, T>()
+    collect { update ->
+        if (last.put(topicId(update), update) != update) emit(update)
     }
 }
 
