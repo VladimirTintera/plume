@@ -1930,6 +1930,9 @@ fun ConversationScreen(
             InviteSheet(invite = invite, onJoin = viewModel::joinInvite, onDismiss = viewModel::dismissInvite)
         }
 
+        state.loginRequest?.let { request ->
+            LoginUrlDialog(prompt = request.prompt, onConfirm = viewModel::confirmLogin, onDismiss = viewModel::dismissLogin)
+        }
         state.confirmLink?.let { url ->
             OpenLinkDialog(url = url, onOpen = viewModel::openConfirmedLink, onDismiss = viewModel::dismissLink)
         }

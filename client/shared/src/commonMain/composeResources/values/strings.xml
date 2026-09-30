@@ -1187,10 +1187,14 @@
     <string name="bot_button_failed">The bot didn't respond.</string>
     <string name="bot_alert_ok">OK</string>
     <string name="bot_link_title">Open link?</string>
+    <string name="bot_login_title">Log in to %1$s?</string>
+    <string name="bot_login_text">%1$s will get your name, username and profile photo.</string>
+    <string name="bot_login_write_access">Allow %1$s to send me messages</string>
+    <string name="bot_login_confirm">Log in</string>
+    <string name="bot_login_failed">Couldn't log you in, the website opened without logging in</string>
     <string name="bot_link_open">Open</string>
     <string name="bot_text_copied">Copied</string>
     <string name="bot_unsupported_web_app">Plume can't open mini apps yet.</string>
-    <string name="bot_unsupported_login_url">Plume can't log you in to websites with Telegram yet.</string>
     <string name="bot_unsupported_switch_inline">Plume can't share inline bot results yet.</string>
     <string name="bot_unsupported_buy">Plume can't make payments yet.</string>
     <string name="bot_unsupported_game">Plume can't play games yet.</string>

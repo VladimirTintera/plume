@@ -67,6 +67,8 @@ import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeUser
 import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeDisabled
 import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeWebApp
 import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeLoginUrl
+import dev.g000sha256.tdl.dto.LoginUrlInfoRequestConfirmation
+import dev.g000sha256.tdl.dto.LoginUrlInfoOpen
 import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeSwitchInline
 import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeBuy
 import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeCallbackGame
@@ -2204,6 +2206,30 @@ class TdlConversationRepository(
         )
     }
 
+    /** `when` bez `else`: nový druh odpovědi v novější TDLib má rozbít překlad. */
+    override suspend fun loginUrlInfo(chatId: Long, messageId: Long, buttonId: Long): Result<LoginUrlPrompt> = runCatching {
+        when (val info = client.getLoginUrlInfo(chatId = chatId, messageId = messageId, buttonId = buttonId).toResult().getOrThrow()) {
+            is LoginUrlInfoOpen -> LoginUrlPrompt.Open(url = info.url, skipConfirmation = info.skipConfirmation)
+            is LoginUrlInfoRequestConfirmation -> LoginUrlPrompt.Confirm(
+                url = info.url,
+                domain = info.domain,
+                botName = client.getUser(userId = info.botUserId).toResult().getOrNull()
+                    ?.let { user ->
+                        user.usernames?.publicName()?.let { "@$it" }
+                            ?: listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" ")
+                    }
+                    .orEmpty(),
+                requestWriteAccess = info.requestWriteAccess,
+            )
+        }
+    }.onFailure { logger.w(it) { "Přihlášení z tlačítka ve zprávě $messageId nejde zjistit." } }
+
+    override suspend fun loginUrl(chatId: Long, messageId: Long, buttonId: Long, allowWriteAccess: Boolean): Result<String> =
+        client.getLoginUrl(chatId = chatId, messageId = messageId, buttonId = buttonId, allowWriteAccess = allowWriteAccess)
+            .toResult()
+            .map { it.url }
+            .onFailure { logger.w(it) { "Přihlašovací adresu z tlačítka ve zprávě $messageId nejde získat." } }
+
     override suspend fun pressBotButton(
         chatId: Long,
         messageId: Long,
@@ -2798,7 +2824,7 @@ private fun ReplyMarkupInlineKeyboard.toBotKeyboard(): BotKeyboard? {
                     is InlineKeyboardButtonTypeUser -> BotButtonKind.User(type.userId)
                     is InlineKeyboardButtonTypeDisabled -> BotButtonKind.Disabled
                     is InlineKeyboardButtonTypeWebApp -> BotButtonKind.Unsupported(UnsupportedBotButton.WebApp)
-                    is InlineKeyboardButtonTypeLoginUrl -> BotButtonKind.Unsupported(UnsupportedBotButton.LoginUrl)
+                    is InlineKeyboardButtonTypeLoginUrl -> BotButtonKind.LoginUrl(type.url, type.id)
                     is InlineKeyboardButtonTypeSwitchInline -> BotButtonKind.Unsupported(UnsupportedBotButton.SwitchInline)
                     is InlineKeyboardButtonTypeBuy -> BotButtonKind.Unsupported(UnsupportedBotButton.Buy)
                     is InlineKeyboardButtonTypeCallbackGame -> BotButtonKind.Unsupported(UnsupportedBotButton.Game)

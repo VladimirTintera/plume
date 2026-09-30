@@ -4317,8 +4317,20 @@ skupiny dávají před vstup — odpověď napsaná textem se nepočítá, bot �
   v textu uživatel adresu vidí, na tlačítku ne. Odkaz na Telegram (`resolveLink`) se otevře
   rovnou, jako odkaz v textu.
 - **Co Plume neumí, je vidět a ťuknutí to vysvětlí** (`BotButtonKind.Unsupported`: mini
-  aplikace, přihlášení na web, inline dotaz, platba, hra, heslo). Schované tlačítko by
+  aplikace, inline dotaz, platba, hra, heslo). Schované tlačítko by
   z klávesnice bota vykouslo řádek nebo jeho část a změnilo, co bot nabízí.
+- **Přihlášení na web** (`BotButtonKind.LoginUrl`, `getLoginUrlInfo` → `LoginUrlPrompt`):
+  server buď řekne „otevřít" (jako odkaz, s potvrzením adresy, pokud ho nevypne
+  `skipConfirmation`), nebo „zeptat se" — pak `LoginUrlDialog` s doménou v nadpisu, větou,
+  co web dostane (jméno, uživatelské jméno, fotku), a u `requestWriteAccess` zaškrtávátkem
+  „dovolit botovi psát" (výchozí zapnuté, jako u oficiálních klientů). Potvrzení vezme adresu
+  z `getLoginUrl` a otevře ji.
+  - **Chyba = obyčejný odkaz**, tak to předepisuje TDLib. Chyba `getLoginUrl` až po potvrzení
+    otevře web bez přihlášení a řekne to hláškou — uživatel web chtěl.
+  - **Tlačítko s `login_url` bot pošle, jen když má v BotFatheru doménu** (`/setdomain`), jinak
+    Bot API vrátí `BOT_DOMAIN_INVALID`. Testovací bot ji nemá, takže se ověřovalo sondou:
+    obyčejné odkazové tlačítko vydávané za přihlašovací (TDLib pak vrátí „Button not found"
+    a nabídne se odkaz) a podstrčené `LoginUrlPrompt.Confirm` pro vzhled dialogu.
 - **Tlačítka jsou vysoká rovnou 48 dp.** S nižším je `Surface` dorovná na dotykovou velikost
   PRŮHLEDNÝM okrajem a svislé mezery mezi řádky vyšly o 8 dp větší než vodorovné.
 - **Šířka klávesnice: aspoň jako zpráva, víc jen když potřebuje**, do stropu šířky zprávy —
