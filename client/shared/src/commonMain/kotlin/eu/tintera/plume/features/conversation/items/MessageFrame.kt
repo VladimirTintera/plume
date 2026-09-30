@@ -294,6 +294,12 @@ internal class MessageBodyScope(
         items.onMenuAnchor(anchor)
         act(MessageAction.ShowMenu(frame.menuActions))
     }
+
+    /** Dlouhý stisk na KONKRÉTNÍ zprávě bloku (fotka alba) — odpověď pak míří na ni. */
+    fun requestMenuFor(pressed: Long) {
+        items.onMenuAnchor(anchor)
+        act(MessageAction.ShowMenu(frame.menuActions, pressed = pressed))
+    }
 }
 
 /**
@@ -1456,7 +1462,7 @@ internal fun MessageBodyScope.Album(members: List<ChatMessage>, accent: Color, s
         members = members,
         // Ťuknutí míří na KONKRÉTNÍ zprávu alba, ne na blok.
         onOpen = { id -> act(MessageAction.OpenMedia, id) },
-        onRequestMenu = ::requestMenu,
+        onRequestMenu = ::requestMenuFor,
         onCancelUpload = { id -> act(MessageAction.CancelUpload, id) },
         documentProgress = items::documentProgress,
         onOpenDocument = { id -> act(MessageAction.OpenDocument, id) },

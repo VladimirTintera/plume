@@ -362,7 +362,6 @@ upravovat). Poučení v `CLAUDE.md`, „Formátování při psaní". Zbývá:
 Text kopie zprávy v nabídce jde označit a „Odpovědět" se změní na „Citovat"; přijaté citace se
 kreslí s úryvkem (`CLAUDE.md`, „Citace z nabídky"). Zbývá:
 
-- **Citace uprostřed alba**: nabídka nad albem cituje jen zprávu s popiskem.
 - **Označení v kopii vysoké zprávy** zmenšené a oříznuté v nabídce (`placeMenuMessage`) ověřené
   není — jde vybírat jen z viditelné části a úchyty na zmenšené vrstvě nikdo neviděl.
 - **Sheet „Vybrat text"** je teď skoro zbytečný (kopírovat úryvek jde přímo v nabídce). Zvážit,

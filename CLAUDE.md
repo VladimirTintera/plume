@@ -2592,6 +2592,13 @@ s videi dohromady, dokumenty a audio jen se stejným typem). Konverzace je kresl
 - **Popisek, reakce, odpověď a nabídka patří zprávě s popiskem** (`primary`), bez popisku
   nejstarší. Čas bubliny je čas nejnovější fotky a stav doručení „nejhorší" z alba — album je
   odeslané, až když jsou odeslané všechny jeho zprávy.
+- **Jen „Odpovědět" z nabídky míří na PODRŽENOU fotku** (`MessageMenu.pressedMessageId`,
+  `replyTarget`, test `odpovedMiriNaPodrzenouFotkuAlba`). Nabídka se otevírá pro zprávu
+  s popiskem, takže odpověď na třetí fotku citovala popisek alba. Dlaždice proto hlásí, na
+  které fotce stisk začal (`ShowMenu.pressed`), a odpověď vezme ji. Reakce, přeposlání,
+  mazání a citace označeného textu dál platí pro celé album — text patří zprávě s popiskem;
+  tah na odpověď cituje album (nemá z čeho poznat fotku). Ověřeno Bot API:
+  `reply_to_message` míří na prostřední fotku bez popisku.
 - **Přečtení a mazání se týkají celého alba.** Z viditelné položky přijde jen klíč nejstarší
   zprávy; bez rozšíření na celé album by zbylé fotky zůstaly napořád v počtu nepřečtených
   a „Smazat" by smazalo jednu fotku z bubliny.
