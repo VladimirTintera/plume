@@ -6961,6 +6961,14 @@ funkce v `ForumTopics.kt` (testy `ForumTopicsTest`).
   Téma, které ještě není načtené, se tím PŘIDÁ (nové téma, zpráva hluboko v seznamu), a dočtená
   stránka pak NEPŘEPÍŠE novější verzi z updatu (`withPage`). Téma, které se dočíst nedá, bylo
   smazané; skryté obecné téma se nekreslí (`isHidden`).
+- **Čtení tématu vyrobí update, na který se téma čte — past nekonečné smyčky.** `getForumTopic`
+  se ptá SERVERU a TDLib po odpovědi pošle `UpdateForumTopic`, i když se nic nezměnilo. Seznam
+  na ten update téma čte znovu, takže se čtení a update honily dokola: po každém otevření
+  skupiny s tématy asi 40 s, 638 dotazů na server u dvou témat (změřeno dočasným logem
+  v `refresh`), pak to samo ustalo. Nebylo to vidět nijak jinak než v logu. Proto
+  `changedPerTopic` (testy `ChangedPerTopicTest`): update téhož tématu jde dál, jen když se
+  od posledního LIŠÍ (DTO z TDLib mají `equals`). S ním proběhnou po otevření čtyři čtení.
+  **Obecně: kdo na update odpovídá dotazem, musí vědět, jestli ten dotaz sám update nevyrobí.**
 - **Pořadí je `ForumTopic.order` sestupně**, připnutá témata ho mají vyšší — nic se nepřeskládává
   ručně, jako u chatů.
 - **Uzavřené téma = `WriteAccess.TopicClosed`** (`topicWriteAccess`, testy `TopicWriteAccessTest`):
