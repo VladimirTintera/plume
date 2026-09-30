@@ -106,9 +106,6 @@ interface ForumRepository {
 
     suspend fun setPinned(chatId: Long, topicId: Int, pinned: Boolean): Result<Unit>
 
-    /** Ztlumí téma napořád, nebo mu zvuk vrátí. Jen pro tohle téma, skupina se nemění. */
-    suspend fun setMuted(chatId: Long, topicId: Int, muted: Boolean): Result<Unit>
-
     /** Smaže téma se všemi zprávami — nevratně, pro všechny. */
     suspend fun delete(chatId: Long, topicId: Int): Result<Unit>
 

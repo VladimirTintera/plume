@@ -91,20 +91,6 @@ class TdlForumRepository(private val holder: TelegramClientHolder) : ForumReposi
     override suspend fun setPinned(chatId: Long, topicId: Int, pinned: Boolean): Result<Unit> =
         client.toggleForumTopicIsPinned(chatId = chatId, forumTopicId = topicId, isPinned = pinned).toResult().map { }
 
-    /**
-     * Celým objektem, jako ztlumení chatu: ostatní hodnoty se přenesou z aktuálního tématu,
-     * jinak by se tiše přepsal třeba zvuk. `useDefaultMuteFor = false`, jinak se `muteFor`
-     * ignoruje a téma jede podle skupiny.
-     */
-    override suspend fun setMuted(chatId: Long, topicId: Int, muted: Boolean): Result<Unit> = runCatching {
-        val current = client.getForumTopic(chatId = chatId, forumTopicId = topicId).toResult().getOrThrow().notificationSettings
-        client.setForumTopicNotificationSettings(
-            chatId = chatId,
-            forumTopicId = topicId,
-            notificationSettings = current.withMuteFor(if (muted) Int.MAX_VALUE else 0),
-        ).toResult().getOrThrow()
-    }
-
     override suspend fun delete(chatId: Long, topicId: Int): Result<Unit> =
         client.deleteForumTopic(chatId = chatId, forumTopicId = topicId).toResult().map { }
 
@@ -180,25 +166,6 @@ class TdlForumRepository(private val holder: TelegramClientHolder) : ForumReposi
 }
 
 internal fun ForumTopicIcon.toDomain() = TopicIcon(color = color, customEmojiId = customEmojiId.takeIf { it != 0L })
-
-private fun ChatNotificationSettings.withMuteFor(seconds: Int) = ChatNotificationSettings(
-    useDefaultMuteFor = false,
-    muteFor = seconds,
-    useDefaultSound = useDefaultSound,
-    soundId = soundId,
-    useDefaultShowPreview = useDefaultShowPreview,
-    showPreview = showPreview,
-    useDefaultMuteStories = useDefaultMuteStories,
-    muteStories = muteStories,
-    useDefaultStorySound = useDefaultStorySound,
-    storySoundId = storySoundId,
-    useDefaultShowStoryPoster = useDefaultShowStoryPoster,
-    showStoryPoster = showStoryPoster,
-    useDefaultDisablePinnedMessageNotifications = useDefaultDisablePinnedMessageNotifications,
-    disablePinnedMessageNotifications = disablePinnedMessageNotifications,
-    useDefaultDisableMentionNotifications = useDefaultDisableMentionNotifications,
-    disableMentionNotifications = disableMentionNotifications,
-)
 
 /** Ztlumené téma; výchozí nastavení tématu se řídí skupinou, a to seznam témat neukazuje. */
 private fun ChatNotificationSettings.isTopicMuted(): Boolean = !useDefaultMuteFor && muteFor > 0

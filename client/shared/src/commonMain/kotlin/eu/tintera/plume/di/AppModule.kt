@@ -330,7 +330,7 @@ fun appModule() = module {
     }
 
     viewModel { parameters ->
-        ForumTopicsViewModel(chatId = parameters.get(), forums = get(), conversations = get())
+        ForumTopicsViewModel(chatId = parameters.get(), forums = get(), conversations = get(), notifications = get())
     }
 
     viewModel { parameters ->

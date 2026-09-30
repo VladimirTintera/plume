@@ -524,24 +524,7 @@ class TdlChatRepository(
             is TdlResult.Success -> result.result.notificationSettings
         }
 
-        val updated = ChatNotificationSettings(
-            useDefaultMuteFor = false,
-            muteFor = seconds,
-            useDefaultSound = current.useDefaultSound,
-            soundId = current.soundId,
-            useDefaultShowPreview = current.useDefaultShowPreview,
-            showPreview = current.showPreview,
-            useDefaultMuteStories = current.useDefaultMuteStories,
-            muteStories = current.muteStories,
-            useDefaultStorySound = current.useDefaultStorySound,
-            storySoundId = current.storySoundId,
-            useDefaultShowStoryPoster = current.useDefaultShowStoryPoster,
-            showStoryPoster = current.showStoryPoster,
-            useDefaultDisablePinnedMessageNotifications = current.useDefaultDisablePinnedMessageNotifications,
-            disablePinnedMessageNotifications = current.disablePinnedMessageNotifications,
-            useDefaultDisableMentionNotifications = current.useDefaultDisableMentionNotifications,
-            disableMentionNotifications = current.disableMentionNotifications,
-        )
+        val updated = current.withMuteFor(seconds)
 
         return client.setChatNotificationSettings(chatId = chatId, notificationSettings = updated)
             .toResult()

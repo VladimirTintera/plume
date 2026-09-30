@@ -4,10 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ChatInfo
+import eu.tintera.plume.core.telegram.ChatNotificationOption
+import eu.tintera.plume.core.telegram.ChatNotificationPrefs
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.ForumRepository
 import eu.tintera.plume.core.telegram.ForumTopic
 import eu.tintera.plume.core.telegram.ForumTopicsOffset
+import eu.tintera.plume.core.telegram.NotificationSettingsRepository
 import eu.tintera.plume.core.telegram.TOPIC_COLORS
 import eu.tintera.plume.core.telegram.TopicRights
 import eu.tintera.plume.core.telegram.userMessage
@@ -19,7 +22,9 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.forum_topic_action_failed
 import eu.tintera.plume.resources.forum_topic_create_failed
 import eu.tintera.plume.resources.forum_topics_load_failed
+import eu.tintera.plume.resources.settings_notif_error
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.transformLatest
 import org.jetbrains.compose.resources.StringResource
@@ -31,6 +36,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.time.Duration
 
 data class ForumTopicsState(
     /** Hlavička: název a fotka skupiny. */
@@ -55,6 +61,10 @@ data class ForumTopicsState(
     val notice: UiText? = null,
     /** Právě založené téma — obrazovka ho otevře a událost vynuluje. */
     val createdTopicId: Int? = null,
+    /** Téma s otevřeným sheetem upozornění; `null` = zavřený. */
+    val notificationsFor: ForumTopic? = null,
+    /** Upozornění tématu v otevřeném sheetu; `null`, dokud se nenačtou. */
+    val topicNotifications: ChatNotificationPrefs? = null,
 )
 
 /** Formulář tématu: nové ([topicId] `null`, s barvou), nebo přejmenování existujícího. */
@@ -80,6 +90,7 @@ class ForumTopicsViewModel(
     val chatId: Long,
     private val forums: ForumRepository,
     private val conversations: ConversationRepository,
+    private val notifications: NotificationSettingsRepository,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("ForumTopics")
@@ -89,6 +100,7 @@ class ForumTopicsViewModel(
 
     private val pageLock = Mutex()
     private val query = MutableStateFlow("")
+    private var notificationsJob: Job? = null
 
     init {
         viewModelScope.launch { conversations.chatInfo(chatId).onSuccess { info -> _state.update { it.copy(info = info) } } }
@@ -185,8 +197,61 @@ class ForumTopicsViewModel(
         forums.setClosed(chatId, topic.id, closed).also { if (it.isSuccess) refresh(topic.id) }
     }
 
+    /** Rychlé ztlumení z nabídky: napořád, nebo zpátky zapnout. Podrobnosti jsou v sheetu. */
     fun setMuted(topic: ForumTopic, muted: Boolean) = act(Res.string.forum_topic_action_failed) {
-        forums.setMuted(chatId, topic.id, muted).also { if (it.isSuccess) refresh(topic.id) }
+        notifications.setTopicMute(chatId, topic.id, if (muted) null else Duration.ZERO)
+            .also { if (it.isSuccess) refresh(topic.id) }
+    }
+
+    /**
+     * Sheet upozornění tématu. Hodnoty jsou živé (změní je i skupina nebo jiné zařízení),
+     * takže se odebírají, dokud je sheet otevřený.
+     */
+    fun openNotifications(topic: ForumTopic) {
+        notificationsJob?.cancel()
+        _state.update { it.copy(notificationsFor = topic, topicNotifications = null) }
+        notificationsJob = viewModelScope.launch {
+            notifications.topicSettings(chatId, topic.id).collect { prefs ->
+                _state.update { it.copy(topicNotifications = prefs) }
+            }
+        }
+    }
+
+    fun closeNotifications() {
+        notificationsJob?.cancel()
+        notificationsJob = null
+        _state.update { it.copy(notificationsFor = null, topicNotifications = null) }
+    }
+
+    /** Doba ztlumení z sheetu (`null` = navždy); sheet se zavře — rozhodnuto. */
+    fun muteTopic(duration: Duration?) = notificationsAction(close = true) { topicId ->
+        notifications.setTopicMute(chatId, topicId, duration)
+    }
+
+    fun unmuteTopic() = notificationsAction(close = true) { topicId ->
+        notifications.setTopicMute(chatId, topicId, Duration.ZERO)
+    }
+
+    /** Přepínač v sheetu; stav se nepřepisuje lokálně, potvrzení přijde updatem tématu. */
+    fun setTopicOption(option: ChatNotificationOption, value: Boolean) = notificationsAction(close = false) { topicId ->
+        notifications.setTopicOption(chatId, topicId, option, value)
+    }
+
+    fun resetTopicNotifications() = notificationsAction(close = false) { topicId ->
+        notifications.resetTopic(chatId, topicId)
+    }
+
+    private fun notificationsAction(close: Boolean, action: suspend (topicId: Int) -> Result<Unit>) {
+        val topicId = _state.value.notificationsFor?.id ?: return
+        if (close) closeNotifications()
+        viewModelScope.launch {
+            action(topicId)
+                .onSuccess { refresh(topicId) }
+                .onFailure { failure ->
+                    logger.w(failure) { "Upozornění tématu $topicId ve skupině $chatId se nepodařilo změnit." }
+                    _state.update { it.copy(notice = failure.userMessage(Res.string.settings_notif_error)) }
+                }
+        }
     }
 
     fun delete(topic: ForumTopic) = act(Res.string.forum_topic_action_failed) {

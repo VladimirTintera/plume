@@ -6983,6 +6983,21 @@ a `topicActions` (`ForumTopics.kt`, testy `TopicManagementTest`).
 - **Nové téma se po vytvoření rovnou otevře** (`createdTopicId`), jako u oficiálních klientů.
 - **Ztlumení tématu se zapisuje celým objektem** jako ztlumení chatu (`withMuteFor`,
   `useDefaultMuteFor = false`), jinak by se přepsal zvuk a téma by jelo podle skupiny.
+- **Upozornění tématu jsou tentýž sheet jako upozornění chatu** (`ChatNotificationSheet`,
+  „Upozornění" v nabídce nad tématem vedle rychlého Ztlumit): doby ztlumení, náhled, připnuté,
+  zmínky a „Vrátit nastavení skupiny". Zápis jde přes `NotificationSettingsRepository`
+  (`setTopicMute`, `setTopicOption`, `resetTopic`), ne přes `ForumRepository` — cesta
+  k `setForumTopicNotificationSettings` je jedna, i pro rychlé Ztlumit.
+- **Téma má TŘI vrstvy, ne dvě**: vlastní nastavení, pak skupina, pak výchozí nastavení skupin.
+  `useDefault…` u tématu znamená „podle skupiny", ne „podle rozsahu"; téma ve ztlumené skupině je
+  tedy ztlumené, i když samo nic nemá. Každá volba hledá svou vrstvu ZVLÁŠŤ (`notificationPrefs`,
+  testy `NotificationPrefsTest`) — sdílí ji i čtení upozornění chatu, jen bez prostřední vrstvy.
+  Odběr hlídá všechny tři (`UpdateForumTopic`, `UpdateChatNotificationSettings`, rozsah).
+- **Zvuk tématu v sheetu není.** Kanál konverzace je jeden na CHAT a notifikace všech témat
+  skupiny jdou jím (skupina notifikací TDLib je taky jedna na chat).
+- **Seznam témat ukazuje ztlumení jen VLASTNÍ** (`isTopicMuted`), ne zděděné ze skupiny — to
+  seznam ukazovat nemá, ztlumená je celá skupina. Sheet naopak ukazuje ÚČINNÝ stav („Ztlumeno ·
+  jako ve skupině").
 - **Hledání hledá server** (`getForumTopics` s dotazem, první stránka), takže najde i téma, které
   ještě není načtené. Rozepsaný dotaz další znak zahodí (`transformLatest`), jako hledání chatů.
 - **Zapnout témata smí jen vlastník supergroupy** (`EditableChat.canToggleForum`), diskusní

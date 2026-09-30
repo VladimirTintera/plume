@@ -965,6 +965,8 @@
     <string name="profile_notif_mute_forever">Mute forever</string>
     <string name="profile_notif_sound_summary">For this chat only, in system settings</string>
     <string name="profile_notif_reset">Reset to default settings</string>
+    <string name="profile_notif_default_group">%1$s · same as the group</string>
+    <string name="profile_notif_reset_group">Use group settings</string>
     <string name="edit_profile_title">Edit profile</string>
     <string name="edit_profile_save">Save</string>
     <string name="edit_profile_change_photo">Change photo</string>
@@ -1548,6 +1550,7 @@
     <string name="forum_topic_unpin">Unpin</string>
     <string name="forum_topic_mute">Mute</string>
     <string name="forum_topic_unmute">Unmute</string>
+    <string name="forum_topic_notifications">Notifications</string>
     <string name="forum_topic_rename">Rename</string>
     <string name="forum_topic_close">Close</string>
     <string name="forum_topic_reopen">Reopen</string>
