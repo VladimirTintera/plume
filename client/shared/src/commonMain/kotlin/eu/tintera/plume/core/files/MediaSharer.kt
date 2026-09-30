@@ -16,6 +16,12 @@ import androidx.compose.runtime.Composable
 expect class MediaSharer {
     /** Vrací `false`, když se dialog otevřít nepodařilo; příčina jde do logu. */
     suspend fun share(path: String, fileName: String): Boolean
+
+    /**
+     * Sdílí text (odkaz pozvánky). Odkaz jde jako text, ne jako adresa souboru — příjemci
+     * (Zprávy, e-mail) ho vloží do zprávy a sami z něj udělají klikatelný odkaz.
+     */
+    fun shareText(text: String): Boolean
 }
 
 /**

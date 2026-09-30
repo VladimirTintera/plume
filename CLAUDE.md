@@ -5420,6 +5420,15 @@ nevejde, má nad seznamem pole hledání (`MemberList`, testy `MemberListTest`).
   otevřeného z globálního hledání není odkud odejít.
 - **Snackbar profilu dřív neukázal nikdy nic**, ani chybu: efekt klíčovaný `state.error` hlášku
   vynuloval a tím se sám zrušil (past „Vrátit"). Teď běží v `rememberCoroutineScope`.
+- **⋮ → Sdílet kontakt** (`ShareContactRoute`, `ShareContactScreen`): tentýž `ChatPicker` jako
+  přeposílání, víc cílů naráz, odesílá se tlačítkem a otevře se první vybraný chat. Nabízí se
+  jen u člověka se ZNÁMÝM číslem (`ProfileKind.User`, `phone`) — bot číslo nemá a kontakt se
+  bez čísla poslat nedá. **Potvrzovací dialog tu není**, na rozdíl od kontaktu ze sponky: tam
+  odchází ťuknutím na řádek, tady až tlačítkem pod kartou, která jméno i číslo ukazuje.
+  - **Tlačítko výběru říká „Poslat", ne „Přeposlat"** (`ChatPicker.confirmLabel`,
+    `confirmIcon`). Dokud bylo napevno z přeposílání, lhalo o tom, co se stane.
+  - Ověřeno na emulátoru sondou (položka v profilu testovacího bota, vlastní kontakt do
+    Uložených zpráv — karta dorazila i s „Napsat zprávu"); bez sondy se u bota nenabízí.
 
 ### Úprava skupiny
 
@@ -5595,6 +5604,11 @@ testy `InviteLinkEditorTest`).
 - **Spravovat smí vlastník a správce s `canInviteUsers`** (`ChatEditRights.canManageInvites`).
   Členové smějí zvát podle výchozích práv, ale odkazy spravovat ne — `createChatInviteLink` chce
   správce. Správce, který smí JEN zvát, dostane úpravu skupiny jen s tímhle blokem.
+- **Odkaz jde sdílet systémovou nabídkou** (`MediaSharer.shareText`): na kartě hlavního odkazu
+  je „Sdílet" hlavní tlačítko a kopírování ikona vedle (tři textová tlačítka se česky na
+  telefon nevešla), u dalších odkazů je „Sdílet" první položka nabídky. Odkaz se zakládá, aby
+  šel někomu poslat — i mimo Telegram. Ověřeno na emulátoru: nabídka se otevře s adresou,
+  zpět vrátí do Plume; skutečné odeslání se nezkoušelo.
 - **Seznam odkazů je jen vlastní** (`getChatInviteLinks` bere tvůrce): hlavní odkaz, další
   odkazy a zrušené. Odkazy ostatních správců vidí jen vlastník a zatím se nenabízejí.
 - **Po každé změně se seznam čte znovu**, nic se nepřepisuje lokálně — zrušení hlavního odkazu

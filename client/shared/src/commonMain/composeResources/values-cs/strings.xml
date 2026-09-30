@@ -1511,6 +1511,13 @@
     <string name="invite_links_title">Pozvánky</string>
     <string name="invite_links_primary">Hlavní odkaz</string>
     <string name="invite_links_primary_help">Kdo má odkaz, může se přidat.</string>
+    <string name="profile_share_contact">Sdílet kontakt</string>
+    <string name="share_contact_title">Poslat kontakt</string>
+    <string name="share_contact_hidden_phone">Skrývá své číslo — poslat nejde</string>
+    <string name="share_contact_send">Poslat (%1$d)</string>
+    <string name="share_contact_failed">Kontakt se nepodařilo poslat.</string>
+    <string name="invite_links_share">Sdílet</string>
+    <string name="invite_links_share_failed">Sdílení se nepodařilo otevřít.</string>
     <string name="invite_links_copy">Kopírovat</string>
     <string name="invite_links_replace_primary">Vyměnit</string>
     <string name="invite_links_additional">Další odkazy</string>

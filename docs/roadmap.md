@@ -86,9 +86,9 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
     práva členů; `CLAUDE.md`, „Úprava skupiny") a ~~**správa jednotlivých členů**~~ (dlouhý
     stisk na členovi: povýšit na správce a upravit jeho práva, sesadit, omezit s dobou, zrušit
     omezení, štítek, vyhodit s dobou, předat vlastnictví; `CLAUDE.md`, „Správa členů").
-    Zbývá: **sdílet kontakt** jako zprávu do jiného chatu. ~~Správa pozvánek~~ — hotovo (odkazy
+    ~~Sdílet kontakt~~ — hotovo (⋮ → Sdílet kontakt). ~~Správa pozvánek~~ — hotovo (odkazy
     s limitem, platností a schvalováním, zrušení a mazání, žádosti o vstup; `CLAUDE.md`,
-    „Pozvánky a žádosti o vstup"). U pozvánek zbývá: **sdílet odkaz** (dnes jen kopírovat),
+    „Pozvánky a žádosti o vstup"). U pozvánek zbývá: ~~sdílet odkaz~~ (hotovo),
     odkazy ostatních správců (vlastník, `getChatInviteLinkCounts`), kdo se přes odkaz přidal
     (`getChatInviteLinkMembers`), pruh s čekajícími žádostmi nahoře v konverzaci skupiny
     a **ověřit skutečnou žádost o vstup** (chce druhý účet).

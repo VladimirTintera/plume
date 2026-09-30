@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.profile
 
+import androidx.compose.material3.FilledTonalIconButton
+import eu.tintera.plume.resources.invite_links_share
+import eu.tintera.plume.resources.share_24dp
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -196,6 +199,7 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
                         link = primary,
                         busy = viewModel.busy,
                         onCopy = { viewModel.copy(primary) },
+                        onShare = { viewModel.share(primary) },
                         onReplace = { confirmRevoke = primary },
                     )
                 }
@@ -255,6 +259,7 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
             now = viewModel.now,
             onDismiss = { actionsFor = null },
             onCopy = { viewModel.copy(link) },
+            onShare = { viewModel.share(link) },
             onEdit = { viewModel.openEdit(link) },
             onRevoke = { confirmRevoke = link },
             onDelete = { viewModel.deleteRevoked(link) },
@@ -340,9 +345,13 @@ private fun SectionHeader(
     }
 }
 
-/** Hlavní odkaz: adresa, kolik lidí přes něj přišlo, kopírování a výměna za nový. */
+/**
+ * Hlavní odkaz: adresa, kolik lidí přes něj přišlo, sdílení, kopírování a výměna za nový.
+ * Sdílení je hlavní tlačítko — odkaz se zakládá proto, aby šel někomu poslat; kopírování je
+ * ikona vedle, tři textová tlačítka by se v češtině na telefon nevešla.
+ */
 @Composable
-private fun PrimaryLinkCard(link: InviteLink, busy: Boolean, onCopy: () -> Unit, onReplace: () -> Unit) {
+private fun PrimaryLinkCard(link: InviteLink, busy: Boolean, onCopy: () -> Unit, onShare: () -> Unit, onReplace: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(GROUP_CORNER),
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
@@ -361,17 +370,20 @@ private fun PrimaryLinkCard(link: InviteLink, busy: Boolean, onCopy: () -> Unit,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onCopy, modifier = Modifier.weight(1f)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = onShare, modifier = Modifier.weight(1f)) {
                     Icon(
-                        painterResource(Res.drawable.content_copy_24dp),
+                        painterResource(Res.drawable.share_24dp),
                         contentDescription = null,
                         modifier = Modifier.padding(end = ButtonDefaults.IconSpacing).size(ButtonDefaults.IconSize),
                     )
-                    Text(stringResource(Res.string.invite_links_copy))
+                    Text(stringResource(Res.string.invite_links_share), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 FilledTonalButton(onClick = onReplace, enabled = !busy, modifier = Modifier.weight(1f)) {
                     Text(stringResource(Res.string.invite_links_replace_primary), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                FilledTonalIconButton(onClick = onCopy) {
+                    Icon(painterResource(Res.drawable.content_copy_24dp), contentDescription = stringResource(Res.string.invite_links_copy))
                 }
             }
         }
@@ -444,6 +456,7 @@ private fun LinkActionsSheet(
     now: Long,
     onDismiss: () -> Unit,
     onCopy: () -> Unit,
+    onShare: () -> Unit,
     onEdit: () -> Unit,
     onRevoke: () -> Unit,
     onDelete: () -> Unit,
@@ -467,6 +480,7 @@ private fun LinkActionsSheet(
                 if (link.isRevoked) {
                     add(Triple(Res.string.invite_links_delete, Res.drawable.delete_24dp, onDelete))
                 } else {
+                    add(Triple(Res.string.invite_links_share, Res.drawable.share_24dp, onShare))
                     add(Triple(Res.string.invite_links_copy, Res.drawable.content_copy_24dp, onCopy))
                     if (!link.isSubscription) add(Triple(Res.string.invite_links_edit, Res.drawable.edit_24dp, onEdit))
                     add(Triple(Res.string.invite_links_revoke, Res.drawable.link_off_24dp, onRevoke))

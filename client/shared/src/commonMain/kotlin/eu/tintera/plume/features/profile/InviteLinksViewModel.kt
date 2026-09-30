@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.invite_links_share_failed
+import eu.tintera.plume.core.files.MediaSharer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -35,6 +37,7 @@ class InviteLinksViewModel(
     private val chatId: Long,
     private val repository: InviteLinkRepository,
     private val clipboard: TextClipboard,
+    private val sharer: MediaSharer,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("InviteLinks")
@@ -81,6 +84,11 @@ class InviteLinksViewModel(
             clipboard.copy(link.url)
             notice = UiText(Res.string.invite_links_copied)
         }
+    }
+
+    /** Systémové sdílení odkazu — poslat ho někomu mimo Telegram (zpráva, e-mail). */
+    fun share(link: InviteLink) {
+        if (!sharer.shareText(link.url)) notice = UiText(Res.string.invite_links_share_failed)
     }
 
     fun openCreate() {

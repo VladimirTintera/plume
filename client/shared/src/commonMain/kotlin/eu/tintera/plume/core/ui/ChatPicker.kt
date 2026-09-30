@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.ui
 
+import org.jetbrains.compose.resources.StringResource
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
@@ -128,6 +129,9 @@ fun ChatPicker(
      */
     selected: Set<Long>? = null,
     onConfirm: () -> Unit = {},
+    /** Popisek tlačítka odeslání s počtem cílů (`%1$d`) — „Přeposlat (2)", „Poslat (2)". */
+    confirmLabel: StringResource = Res.string.forward_send,
+    confirmIcon: DrawableResource = Res.drawable.forward_24dp,
     /**
      * Dostupnost protějšku pod jménem. Patří tam, kde se vybírá ČLOVĚK (nová konverzace), ne
      * kam se posílá obsah — u přeposílání by „naposledy před hodinou" o cíli nic neříkalo
@@ -206,10 +210,10 @@ fun ChatPicker(
                     scaleOut(MaterialTheme.motionScheme.defaultSpatialSpec(), targetScale = 0.8f),
             ) {
                 ExtendedFloatingActionButton(onClick = onConfirm) {
-                    Icon(painterResource(Res.drawable.forward_24dp), contentDescription = null)
+                    Icon(painterResource(confirmIcon), contentDescription = null)
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        text = stringResource(Res.string.forward_send, selected?.size ?: 0),
+                        text = stringResource(confirmLabel, selected?.size ?: 0),
                         style = LocalTextStyle.current.tabularNumbers(),
                         // Počet roste a klesá; bez animace by tlačítko poskakovalo. Animuje se
                         // POPISEK, ne tlačítko: `animateContentSize` ořezává na svoje hranice,

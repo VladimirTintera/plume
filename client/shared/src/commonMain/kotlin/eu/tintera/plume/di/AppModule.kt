@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.features.forward.ShareContactViewModel
 import eu.tintera.plume.features.profile.JoinRequestsViewModel
 import eu.tintera.plume.features.profile.InviteLinksViewModel
 import eu.tintera.plume.features.settings.EditProfileViewModel
@@ -360,7 +361,7 @@ fun appModule() = module {
     }
 
     viewModel { parameters ->
-        InviteLinksViewModel(chatId = parameters.get(), repository = get(), clipboard = get())
+        InviteLinksViewModel(chatId = parameters.get(), repository = get(), clipboard = get(), sharer = get())
     }
 
     viewModel { parameters ->
@@ -403,6 +404,10 @@ fun appModule() = module {
             chatRepository = get(),
             shareTargets = get(),
         )
+    }
+
+    viewModel { parameters ->
+        ShareContactViewModel(userId = parameters.get(), repository = get(), chatRepository = get(), shareTargets = get())
     }
 
     // Parametry z routy. `get()` bez indexu je bere podle pořadí, ve kterém přišly; třetí

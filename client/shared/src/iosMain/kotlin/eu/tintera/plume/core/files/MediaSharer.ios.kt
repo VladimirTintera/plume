@@ -42,11 +42,14 @@ actual class MediaSharer {
             return false
         }
 
+        return present(listOf(NSURL.fileURLWithPath(copy)))
+    }
+
+    actual fun shareText(text: String): Boolean = present(listOf(text))
+
+    private fun present(items: List<Any>): Boolean {
         val top = topViewController() ?: return false
-        val controller = UIActivityViewController(
-            activityItems = listOf(NSURL.fileURLWithPath(copy)),
-            applicationActivities = null,
-        )
+        val controller = UIActivityViewController(activityItems = items, applicationActivities = null)
         controller.popoverPresentationController?.let { popover ->
             popover.sourceView = top.view
             val width = top.view.bounds.useContents { size.width }

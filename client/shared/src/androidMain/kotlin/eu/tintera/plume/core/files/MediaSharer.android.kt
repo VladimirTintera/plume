@@ -70,6 +70,20 @@ actual class MediaSharer(private val context: Context) {
         }
     }
 
+    actual fun shareText(text: String): Boolean {
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        return try {
+            context.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            true
+        } catch (failure: ActivityNotFoundException) {
+            logger.w(failure) { "Sdílení textu nemá kdo přijmout." }
+            false
+        }
+    }
+
     private companion object {
         const val SHARED_DIRECTORY = "shared"
     }
