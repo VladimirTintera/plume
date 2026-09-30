@@ -6568,6 +6568,33 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   **Přechod jde prohlédnout jen zpomaleně**: `adb shell settings put global
   animator_duration_scale 10` (Compose ho respektuje) a série `screencap` — v normální
   rychlosti ho snímky minou.
+- **Obraz v obraze** (`rememberPictureInPicture` v `core/video`): tlačítko v liště videa
+  a samočinný přechod při odchodu z aplikace, **jen dokud video hraje** — pozastavené okénko
+  nepotřebuje. Jen v prohlížeči médií a jen pro stránku, která hraje na celé obrazovce;
+  mizející video ne (okénko nad jinými aplikacemi by obešlo `FLAG_SECURE` i odpočet).
+  - **Android posílá do okénka CELOU aktivitu** (`supportsPictureInPicture` na `MainActivity`),
+    takže `VideoPage` během PiP schová ovládání a nechá jen obraz. Parametry
+    (`setPictureInPictureParams`) platí pro aktivitu, ne pro obrazovku — **při odchodu
+    z kompozice se automatika vypíná**, jinak by aplikace šla do okénka i ze seznamu chatů
+    (ověřeno: po zavření prohlížeče Home okénko neotevře).
+  - **`smallestScreenSize` musí být v `configChanges`.** Přechod do okénka mění velikost okna;
+    bez něj by se aktivita vytvořila znovu a přehrávač s ní zanikl.
+  - **Automatika:** od Androidu 12 `setAutoEnterEnabled(playing)`, starší přes
+    `addOnUserLeaveHintListener`. Akce v okénku je `RemoteAction` (přehrát / pozastavit)
+    s broadcastem jen pro vlastní balíček.
+  - **Zavřené okénko i odchod na pozadí video pozastaví** (`LifecycleEventEffect(ON_STOP)`).
+    Dřív video bez okénka po Home hrálo dál na pozadí, dokud proces žil.
+  - **iOS** jde přes `AVPictureInPictureController` nad vrstvou přehrávače (`VideoPlayer.layer`,
+    stav — povrch se skládá až po přehrávači) a `canStartPictureInPictureAutomaticallyFromInline`;
+    na pozadí hraje díky `UIBackgroundModes: audio`. Jen přeložené.
+  - **Při ověřování okénko odkryje aplikaci pod emulátorem** (v Androidu cokoli, co bylo v popředí
+    předtím) — snímky obrazovky s PiP zachytí i cizí obsah. Stav se čte z `dumpsys activity
+    activities` (`mode=pinned`), a na okénko se ťuká jen tam, kde okénko opravdu leží
+    (`mBounds` úlohy), jinak ťuknutí dopadne do aplikace pod ním.
+  - **Ověřeno na emulátoru:** tlačítko, automatický přechod při Home s hrajícím videem (bez hraní
+    se nic neděje — správně), video v okénku dohraje, návrat z okénka bez nového vytvoření aktivity,
+    zavření okénka tahem video pozastaví. **Akce přehrát / pozastavit v okénku ověřená NENÍ**
+    (nabídka okénka se na emulátoru nedala spolehlivě trefit).
 - **Přehrávač je v kompozici** (`rememberVideoPlayer`) a s ní se uvolní. Hraje jen vybraná
   stránka; stav (pozice, délka, dohráno) se čte po 200 ms, přehrávače ho samy nehlásí.
   Spuštění videa zastaví hrající hlasovku.

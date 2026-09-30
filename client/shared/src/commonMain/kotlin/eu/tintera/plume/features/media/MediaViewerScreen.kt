@@ -423,6 +423,8 @@ private fun ViewerContent(
                     messageId = item.messageId,
                     startMs = if (item.messageId == state.initialMessageId && startSeconds != NO_START) startSeconds * 1000L else 0L,
                     streaming = !state.isSelfDestruct,
+                    // Mizející video v okénku nad jinými aplikacemi by obešlo FLAG_SECURE i odpočet.
+                    pictureInPicture = !state.isSelfDestruct,
                     caption = item.caption,
                     isCurrent = isCurrent,
                     immersive = immersive,

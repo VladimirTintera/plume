@@ -3,6 +3,9 @@ package eu.tintera.plume.core.video
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitView
@@ -41,6 +44,12 @@ import platform.UIKit.UIView
 actual class VideoPlayer {
 
     internal val player = AVPlayer()
+
+    /**
+     * Vrstva, do které se právě kreslí ([VideoSurface]); obraz v obraze se staví nad ní
+     * ([rememberPictureInPicture]). Stav, protože povrch se skládá až po přehrávači.
+     */
+    internal var layer by mutableStateOf<AVPlayerLayer?>(null)
 
     /** Ztlumený obsah (GIF) nesmí sahat na zvukovou relaci — ztišil by hudbu uživatele pro nic. */
     private var muted = false
@@ -157,8 +166,9 @@ actual fun rememberVideoPlayer(): VideoPlayer {
 @Composable
 actual fun VideoSurface(player: VideoPlayer, modifier: Modifier) {
     UIKitView(
-        factory = { PlayerLayerView(player.player) },
+        factory = { PlayerLayerView(player.player).also { player.layer = it.playerLayer } },
         modifier = modifier,
+        onRelease = { view -> if (player.layer === view.playerLayer) player.layer = null },
         properties = UIKitInteropProperties(interactionMode = null),
     )
 }
@@ -166,7 +176,7 @@ actual fun VideoSurface(player: VideoPlayer, modifier: Modifier) {
 @OptIn(ExperimentalForeignApi::class)
 private class PlayerLayerView(player: AVPlayer) : UIView(frame = CGRectMake(0.0, 0.0, 0.0, 0.0)) {
 
-    private val playerLayer = AVPlayerLayer.playerLayerWithPlayer(player).apply {
+    val playerLayer: AVPlayerLayer = AVPlayerLayer.playerLayerWithPlayer(player).apply {
         videoGravity = AVLayerVideoGravityResizeAspect
     }
 

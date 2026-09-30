@@ -68,11 +68,15 @@
         <uses-native-library android:name="libvndksupport.so" android:required="false" />
         <uses-native-library android:name="libOpenCL.so" android:required="false" />
 
+        <!-- Obraz v obraze u videa (PictureInPicture.android.kt) posílá do okénka celou
+             aktivitu. Přechod mění velikost okna, takže `smallestScreenSize` musí být mezi
+             `configChanges` — jinak by se aktivita vytvořila znovu a přehrávač s ní zanikl. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|density|fontScale"
+            android:supportsPictureInPicture="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density|fontScale"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.Plume">
             <intent-filter>
