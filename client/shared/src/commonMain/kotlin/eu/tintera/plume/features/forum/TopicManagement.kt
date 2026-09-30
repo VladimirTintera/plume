@@ -61,6 +61,7 @@ import eu.tintera.plume.resources.forum_topic_delete_body
 import eu.tintera.plume.resources.forum_topic_delete_title
 import eu.tintera.plume.resources.forum_topic_hide_general
 import eu.tintera.plume.resources.forum_topic_mute
+import eu.tintera.plume.resources.forum_topic_notifications
 import eu.tintera.plume.resources.forum_topic_name
 import eu.tintera.plume.resources.forum_topic_new
 import eu.tintera.plume.resources.forum_topic_pin
@@ -73,6 +74,7 @@ import eu.tintera.plume.resources.lock_24dp
 import eu.tintera.plume.resources.lock_open_24dp
 import eu.tintera.plume.resources.notifications_24dp
 import eu.tintera.plume.resources.notifications_off_24dp
+import eu.tintera.plume.resources.tune_24dp
 import eu.tintera.plume.resources.push_pin_24dp
 import eu.tintera.plume.resources.visibility_off_24dp
 import eu.tintera.plume.resources.topic_color_red
@@ -106,6 +108,7 @@ internal fun TopicActionsSheet(
     onDismiss: () -> Unit,
     onPin: (Boolean) -> Unit,
     onMute: (Boolean) -> Unit,
+    onNotifications: () -> Unit,
     onRename: () -> Unit,
     onClose: (Boolean) -> Unit,
     onHideGeneral: () -> Unit,
@@ -127,6 +130,8 @@ internal fun TopicActionsSheet(
                 if (topic.isMuted) Res.drawable.notifications_24dp else Res.drawable.notifications_off_24dp,
             ) { onMute(!topic.isMuted) },
         )
+        // Rychlé ztlumení výš je napořád; doby, náhled, zmínky a návrat ke skupině jsou tady.
+        add(TopicMenuItem(stringResource(Res.string.forum_topic_notifications), Res.drawable.tune_24dp, onClick = onNotifications))
         if (actions.rename) add(TopicMenuItem(stringResource(Res.string.forum_topic_rename), Res.drawable.edit_24dp, onClick = onRename))
         if (actions.close) {
             add(

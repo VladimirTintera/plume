@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import kotlin.time.Clock
+import kotlin.time.Duration
 
 /** Nastavení notifikací nad TDLib. */
 class TdlNotificationSettingsRepository(
@@ -133,62 +134,86 @@ class TdlNotificationSettingsRepository(
             ChatKind.Group -> NotificationScope.Groups
             ChatKind.Channel -> NotificationScope.Channels
         }
-        val defaults = client.getScopeNotificationSettings(scope = scope.toTdl()).toResult()
-            .onFailure { logger.w(it) { "Nastavení rozsahu $scope se nepodařilo přečíst." } }
-            .getOrNull() ?: return null
-        val own = chat.notificationSettings
-        return ChatNotificationPrefs(
-            mute = muteState(
-                muteForSeconds = if (own.useDefaultMuteFor) defaults.muteFor else own.muteFor,
-                nowEpochSeconds = Clock.System.now().epochSeconds,
-            ),
-            muteIsDefault = own.useDefaultMuteFor,
-            showPreview = if (own.useDefaultShowPreview) defaults.showPreview else own.showPreview,
-            pinnedMessages = !(
-                if (own.useDefaultDisablePinnedMessageNotifications) defaults.disablePinnedMessageNotifications
-                else own.disablePinnedMessageNotifications
-                ),
-            mentions = !(
-                if (own.useDefaultDisableMentionNotifications) defaults.disableMentionNotifications
-                else own.disableMentionNotifications
-                ),
-            // Zvuk a stories se nepočítají: nastavit je tu nejde, takže by „Obnovit" slibovalo
-            // změnu, kterou uživatel nevidí. Obnovení je vrátí taky, to ano.
-            isDefault = own.useDefaultMuteFor && own.useDefaultShowPreview &&
-                own.useDefaultDisablePinnedMessageNotifications && own.useDefaultDisableMentionNotifications,
+        val defaults = readScope(scope) ?: return null
+        return notificationPrefs(
+            own = chat.notificationSettings,
+            inherited = null,
+            scopeDefaults = defaults,
             scope = scope,
+            nowEpochSeconds = Clock.System.now().epochSeconds,
         )
     }
 
-    /** Celým objektem, jako ztlumení: měněná volba přestane jet podle rozsahu, zbytek se přenese. */
     override suspend fun setChatOption(chatId: Long, option: ChatNotificationOption, value: Boolean): Result<Unit> {
         val current = client.getChat(chatId).toResult().getOrElse { return Result.failure(it) }.notificationSettings
-        val preview = option == ChatNotificationOption.ShowPreview
-        val pinned = option == ChatNotificationOption.PinnedMessages
-        val mentions = option == ChatNotificationOption.Mentions
-        val updated = ChatNotificationSettings(
-            useDefaultMuteFor = current.useDefaultMuteFor,
-            muteFor = current.muteFor,
-            useDefaultSound = current.useDefaultSound,
-            soundId = current.soundId,
-            useDefaultShowPreview = if (preview) false else current.useDefaultShowPreview,
-            showPreview = if (preview) value else current.showPreview,
-            useDefaultMuteStories = current.useDefaultMuteStories,
-            muteStories = current.muteStories,
-            useDefaultStorySound = current.useDefaultStorySound,
-            storySoundId = current.storySoundId,
-            useDefaultShowStoryPoster = current.useDefaultShowStoryPoster,
-            showStoryPoster = current.showStoryPoster,
-            useDefaultDisablePinnedMessageNotifications = if (pinned) false else current.useDefaultDisablePinnedMessageNotifications,
-            disablePinnedMessageNotifications = if (pinned) !value else current.disablePinnedMessageNotifications,
-            useDefaultDisableMentionNotifications = if (mentions) false else current.useDefaultDisableMentionNotifications,
-            disableMentionNotifications = if (mentions) !value else current.disableMentionNotifications,
-        )
-        return client.setChatNotificationSettings(chatId = chatId, notificationSettings = updated)
+        return client.setChatNotificationSettings(chatId = chatId, notificationSettings = current.withOption(option, value))
             .toResult()
             .map { }
             .onFailure { logger.w(it) { "Nastavení chatu $chatId se nepodařilo uložit." } }
     }
+
+    /**
+     * Téma se mění se sebou, se skupinou i s výchozím nastavením skupin — každá z těch vrstev
+     * může rozhodnout o volbě, kterou téma nemá vlastní ([notificationPrefs]).
+     */
+    override fun topicSettings(chatId: Long, topicId: Int): Flow<ChatNotificationPrefs?> =
+        merge(
+            holder.updates { forumTopicUpdates }.filter { it.chatId == chatId && it.forumTopicId == topicId }.map { },
+            holder.updates { chatNotificationSettingsUpdates }.filter { it.chatId == chatId }.map { },
+            holder.updates { scopeNotificationSettingsUpdates }.map { },
+        )
+            .onStart { emit(Unit) }
+            .map { readTopicSettings(chatId, topicId) }
+
+    private suspend fun readTopicSettings(chatId: Long, topicId: Int): ChatNotificationPrefs? {
+        val topic = client.getForumTopic(chatId = chatId, forumTopicId = topicId).toResult()
+            .onFailure { logger.w(it) { "Téma $topicId ve skupině $chatId se nepodařilo přečíst." } }
+            .getOrNull() ?: return null
+        val chat = client.getChat(chatId).toResult().getOrNull() ?: return null
+        // Témata má jen supergroupa, takže rozsah je vždycky skupiny.
+        val defaults = readScope(NotificationScope.Groups) ?: return null
+        return notificationPrefs(
+            own = topic.notificationSettings,
+            inherited = chat.notificationSettings,
+            scopeDefaults = defaults,
+            scope = NotificationScope.Groups,
+            nowEpochSeconds = Clock.System.now().epochSeconds,
+        )
+    }
+
+    override suspend fun setTopicMute(chatId: Long, topicId: Int, duration: Duration?): Result<Unit> =
+        updateTopic(chatId, topicId) { it.withMuteFor(duration?.inWholeSeconds?.toInt() ?: MUTE_FOREVER) }
+
+    override suspend fun setTopicOption(chatId: Long, topicId: Int, option: ChatNotificationOption, value: Boolean): Result<Unit> =
+        updateTopic(chatId, topicId) { it.withOption(option, value) }
+
+    /** Všechna `useDefault*` zapnutá: téma jede celé podle skupiny, včetně zvuku. */
+    override suspend fun resetTopic(chatId: Long, topicId: Int): Result<Unit> =
+        updateTopic(chatId, topicId) { defaultChatNotificationSettings() }
+
+    /** Zápis celým objektem, přečteným z aktuálního tématu, jako u chatu. */
+    private suspend fun updateTopic(
+        chatId: Long,
+        topicId: Int,
+        change: (ChatNotificationSettings) -> ChatNotificationSettings,
+    ): Result<Unit> {
+        val current = client.getForumTopic(chatId = chatId, forumTopicId = topicId).toResult()
+            .getOrElse { return Result.failure(it) }
+            .notificationSettings
+        return client.setForumTopicNotificationSettings(
+            chatId = chatId,
+            forumTopicId = topicId,
+            notificationSettings = change(current),
+        )
+            .toResult()
+            .map { }
+            .onFailure { logger.w(it) { "Nastavení tématu $topicId ve skupině $chatId se nepodařilo uložit." } }
+    }
+
+    private suspend fun readScope(scope: NotificationScope): ScopeNotificationSettings? =
+        client.getScopeNotificationSettings(scope = scope.toTdl()).toResult()
+            .onFailure { logger.w(it) { "Nastavení rozsahu $scope se nepodařilo přečíst." } }
+            .getOrNull()
 
     private fun NotificationScope.toTdl(): NotificationSettingsScope = when (this) {
         NotificationScope.Private -> NotificationSettingsScopePrivateChats()

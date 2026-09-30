@@ -983,6 +983,8 @@
     <string name="profile_notif_mute_forever">Ztlumit navždy</string>
     <string name="profile_notif_sound_summary">Jen pro tenhle chat, v nastavení systému</string>
     <string name="profile_notif_reset">Obnovit výchozí nastavení</string>
+    <string name="profile_notif_default_group">%1$s · jako ve skupině</string>
+    <string name="profile_notif_reset_group">Vrátit nastavení skupiny</string>
     <string name="edit_profile_title">Upravit profil</string>
     <string name="edit_profile_save">Uložit</string>
     <string name="edit_profile_change_photo">Změnit fotku</string>
@@ -1596,6 +1598,7 @@
     <string name="forum_topic_unpin">Odepnout</string>
     <string name="forum_topic_mute">Ztlumit</string>
     <string name="forum_topic_unmute">Zapnout zvuk</string>
+    <string name="forum_topic_notifications">Upozornění</string>
     <string name="forum_topic_rename">Přejmenovat</string>
     <string name="forum_topic_close">Uzavřít</string>
     <string name="forum_topic_reopen">Znovu otevřít</string>

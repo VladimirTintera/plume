@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.telegram
 
 import kotlinx.coroutines.flow.Flow
+import kotlin.time.Duration
 
 /**
  * Nastavení notifikací, které drží TDLib — synchronizuje se přes server na ostatní zařízení.
@@ -34,6 +35,20 @@ interface NotificationSettingsRepository {
 
     /** Změní jednu volbu chatu; ostatní (i zvuk nastavený jinde) zůstanou. */
     suspend fun setChatOption(chatId: Long, option: ChatNotificationOption, value: Boolean): Result<Unit>
+
+    /**
+     * Upozornění tématu ve skupině, živě. Co téma nemá vlastní, přebírá ze SKUPINY (a ta
+     * případně z výchozího nastavení skupin) — viz [ChatNotificationPrefs.defaults].
+     */
+    fun topicSettings(chatId: Long, topicId: Int): Flow<ChatNotificationPrefs?>
+
+    /** Ztlumení tématu: `null` = navždy, [Duration.ZERO] = zapnout upozornění. */
+    suspend fun setTopicMute(chatId: Long, topicId: Int, duration: Duration?): Result<Unit>
+
+    suspend fun setTopicOption(chatId: Long, topicId: Int, option: ChatNotificationOption, value: Boolean): Result<Unit>
+
+    /** Téma se vrátí k nastavení skupiny. */
+    suspend fun resetTopic(chatId: Long, topicId: Int): Result<Unit>
 }
 
 /**
@@ -42,7 +57,7 @@ interface NotificationSettingsRepository {
  */
 data class ChatNotificationPrefs(
     val mute: MuteState,
-    /** Ztlumení se řídí rozsahem (soukromé chaty / skupiny / kanály), ne chatem samotným. */
+    /** Ztlumení nemá chat (téma) vlastní, bere ho odjinud — viz [defaults]. */
     val muteIsDefault: Boolean,
     val showPreview: Boolean,
     val pinnedMessages: Boolean,
@@ -50,7 +65,17 @@ data class ChatNotificationPrefs(
     /** Chat nemá nic vlastního — obnovení výchozího nastavení by nic nezměnilo. */
     val isDefault: Boolean,
     val scope: NotificationScope,
+    /** Odkud se berou hodnoty, které chat (téma) nemá vlastní. */
+    val defaults: NotificationDefaults = NotificationDefaults.Scope,
 )
+
+enum class NotificationDefaults {
+    /** Výchozí nastavení rozsahu (soukromé chaty / skupiny / kanály) — u chatu. */
+    Scope,
+
+    /** Nastavení skupiny — u tématu. */
+    Chat,
+}
 
 sealed interface MuteState {
     data object Off : MuteState

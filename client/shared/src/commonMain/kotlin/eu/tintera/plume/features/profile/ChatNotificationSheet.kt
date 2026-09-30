@@ -22,16 +22,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatNotificationOption
 import eu.tintera.plume.core.telegram.ChatNotificationPrefs
 import eu.tintera.plume.core.telegram.MuteState
+import eu.tintera.plume.core.telegram.NotificationDefaults
 import eu.tintera.plume.core.telegram.NotificationScope
 import eu.tintera.plume.core.ui.asUpcomingTime
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.open_in_new_24dp
 import eu.tintera.plume.resources.profile_notif_default
+import eu.tintera.plume.resources.profile_notif_default_group
 import eu.tintera.plume.resources.profile_notif_mute_1h
 import eu.tintera.plume.resources.profile_notif_mute_2d
 import eu.tintera.plume.resources.profile_notif_mute_8h
@@ -40,6 +43,7 @@ import eu.tintera.plume.resources.profile_notif_muted
 import eu.tintera.plume.resources.profile_notif_muted_until
 import eu.tintera.plume.resources.profile_notif_on
 import eu.tintera.plume.resources.profile_notif_reset
+import eu.tintera.plume.resources.profile_notif_reset_group
 import eu.tintera.plume.resources.profile_notif_sound_summary
 import eu.tintera.plume.resources.profile_notif_title
 import eu.tintera.plume.resources.profile_notif_unmute
@@ -66,18 +70,26 @@ internal fun ChatNotificationPrefs.summary(): String {
         is MuteState.Until -> stringResource(Res.string.profile_notif_muted_until, mute.epochSeconds.asUpcomingTime())
     }
     // Že chat jede podle rozsahu, je potřeba říct: změna výchozího nastavení skupin ho změní taky.
-    return if (muteIsDefault) stringResource(Res.string.profile_notif_default, state) else state
+    // Téma se takhle řídí skupinou.
+    if (!muteIsDefault) return state
+    return when (defaults) {
+        NotificationDefaults.Scope -> stringResource(Res.string.profile_notif_default, state)
+        NotificationDefaults.Chat -> stringResource(Res.string.profile_notif_default_group, state)
+    }
 }
 
 /**
- * Upozornění jednoho chatu: doba ztlumení, co upozornění ukáže, zvuk konverzace v systému
- * a návrat k výchozímu nastavení.
+ * Upozornění jednoho chatu (nebo tématu): doba ztlumení, co upozornění ukáže, zvuk konverzace
+ * v systému a návrat k výchozímu nastavení.
  *
  * Doby ztlumení jsou akce (sheet zavřou), přepínače ne — ty se přepínají po několika.
+ * [title] je u tématu jeho název: sheet se otevírá z nabídky nad tématem, a kterého se týká,
+ * má být vidět i tady.
  */
 @Composable
 internal fun ChatNotificationSheet(
     prefs: ChatNotificationPrefs,
+    title: String = stringResource(Res.string.profile_notif_title),
     supportsConversationSettings: Boolean,
     onMute: (Duration?) -> Unit,
     onUnmute: () -> Unit,
@@ -100,7 +112,7 @@ internal fun ChatNotificationSheet(
         ) {
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = { Text(stringResource(Res.string.profile_notif_title), style = MaterialTheme.typography.titleLarge) },
+                headlineContent = { Text(title, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 supportingContent = { Text(prefs.summary()) },
             )
 
@@ -144,7 +156,11 @@ internal fun ChatNotificationSheet(
                 )
             }
             if (!prefs.isDefault) {
-                ActionRow(Res.string.profile_notif_reset, color = MaterialTheme.colorScheme.primary, onClick = onReset)
+                val reset = when (prefs.defaults) {
+                    NotificationDefaults.Scope -> Res.string.profile_notif_reset
+                    NotificationDefaults.Chat -> Res.string.profile_notif_reset_group
+                }
+                ActionRow(reset, color = MaterialTheme.colorScheme.primary, onClick = onReset)
             }
         }
     }

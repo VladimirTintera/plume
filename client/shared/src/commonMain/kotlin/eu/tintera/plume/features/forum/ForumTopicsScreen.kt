@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ForumTopic
+import eu.tintera.plume.features.profile.ChatNotificationSheet
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.ForumTopicIcon
@@ -323,11 +324,28 @@ fun ForumTopicsScreen(
             onDismiss = { actionsFor = null },
             onPin = { viewModel.setPinned(topic, it) },
             onMute = { viewModel.setMuted(topic, it) },
+            onNotifications = { viewModel.openNotifications(topic) },
             onRename = { viewModel.openRename(topic) },
             onClose = { viewModel.setClosed(topic, it) },
             onHideGeneral = { viewModel.setGeneralHidden(true) },
             onDelete = { deleteTarget = topic },
         )
+    }
+    state.notificationsFor?.let { topic ->
+        state.topicNotifications?.let { prefs ->
+            ChatNotificationSheet(
+                prefs = prefs,
+                title = topic.name,
+                // Kanál konverzace je jeden na CHAT: notifikace všech témat skupiny jdou jím.
+                supportsConversationSettings = false,
+                onMute = viewModel::muteTopic,
+                onUnmute = viewModel::unmuteTopic,
+                onOption = viewModel::setTopicOption,
+                onOpenConversationSettings = {},
+                onReset = viewModel::resetTopicNotifications,
+                onDismiss = viewModel::closeNotifications,
+            )
+        }
     }
     deleteTarget?.let { topic ->
         DeleteTopicDialog(
