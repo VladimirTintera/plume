@@ -7044,6 +7044,10 @@ a hovoru: tvář, jméno, číslo a u kontaktu na Telegramu „Napsat zprávu" (
 `MessageAction.OpenUser`, `ContactCard`). Seznam chatů, citace i notifikace dál píšou
 „Kontakt: Jana".
 
+- **„Napsat zprávu" jen u kontaktu, který vede JINAM** (`MessageMedia.Contact.isThisChat`).
+  Vlastní kontakt v Uložených zprávách i kontakt protějšku v chatu s ním vedou do chatu, ve
+  kterém karta leží, a konverzace sama sebe znovu neotevře — tlačítko svítilo a nedělalo nic.
+  Pozná se to při převodu zprávy: soukromý chat má id uživatele (Uložené zprávy id vlastního účtu).
 - **Tvář se dočítá lokálním `getUser`** při převodu zprávy (`contactPhotoFileId`) — TDLib
   uživatele zná, když zná zprávu, která ho sdílí. Kontakt bez Telegramu (`userId` 0) má
   iniciály ze jména.

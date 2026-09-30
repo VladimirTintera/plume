@@ -58,7 +58,8 @@ internal fun ContactCard(contact: MessageMedia.Contact, accent: Color, onWrite: 
                 }
             }
         }
-        if (contact.userId != null) {
+        // Do chatu, ve kterém karta leží, „Napsat zprávu" nevede nikam (viz `isThisChat`).
+        if (contact.userId != null && !contact.isThisChat) {
             TextButton(
                 onClick = onWrite,
                 colors = ButtonDefaults.textButtonColors(contentColor = contentAccent),
