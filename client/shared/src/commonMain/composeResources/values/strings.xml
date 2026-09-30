@@ -377,6 +377,8 @@
     <string name="conversation_delivery_failed">Sending failed</string>
     <string name="conversation_cancel_sending">Cancel sending</string>
     <string name="conversation_stop_recording">Stop and listen</string>
+    <string name="conversation_stop_video_note">Stop and watch</string>
+    <string name="conversation_play_video_note">Play with sound</string>
     <string name="conversation_discard_recording">Discard the recording</string>
     <string name="conversation_play_voice">Play the voice message</string>
     <string name="conversation_voice_progress">Voice message progress</string>

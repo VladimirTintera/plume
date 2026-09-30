@@ -58,6 +58,14 @@ import eu.tintera.plume.resources.conversation_switch_camera
 import eu.tintera.plume.resources.keyboard_arrow_up_24dp
 import eu.tintera.plume.resources.lock_24dp
 import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.LaunchedEffect
+import eu.tintera.plume.core.video.VideoSurface
+import eu.tintera.plume.core.video.rememberVideoPlayer
+import eu.tintera.plume.resources.conversation_play_video_note
+import eu.tintera.plume.resources.media_pause
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -240,8 +248,32 @@ private fun RecordLockIndicator(visible: Boolean, progress: () -> Float, modifie
 }
 
 /**
+ * Přehrávání náhledu kolečka. Drží ho obrazovka, protože ho čtou dvě místa: kruh nad konverzací
+ * (přehrávač, průběh po obvodu) a pruh ve vstupní kartě (tlačítko a čas).
+ *
+ * Náhled hraje jako kolečko v bublině: potichu ve smyčce, se zvukem až na ťuknutí — od začátku,
+ * s průběhem, a po dohrání zpátky potichu. Uživatel tak vidí, co protějšek dostane.
+ */
+@Stable
+internal class VideoNotePreviewPlayback {
+    var sounding by mutableStateOf(false)
+    var progress by mutableFloatStateOf(0f)
+    var elapsedMs by mutableStateOf(0L)
+
+    fun toggle() {
+        sounding = !sounding
+        progress = 0f
+        elapsedMs = 0L
+    }
+}
+
+/**
  * Náhled kamery v kruhu nad konverzací, dokud se nahrává kolečko: kolečko se kreslí tak,
  * jak ho uvidí protějšek. Po obvodu jede průběh do minutového stropu ([VIDEO_NOTE_MAX_DURATION_MS]).
+ *
+ * Po ■ ([preview]) se místo kamery přehraje nahrané kolečko a průběh po obvodu patří přehrávání
+ * se zvukem; ťuknutí na kruh zvuk pustí a zase vypne. Dokud se nahrávka připravuje, točí se
+ * v kruhu indikátor.
  *
  * - **Závoj bere dotyky**, jinak by se pod nahrávajícím kolečkem dal scrollovat seznam a ťukat
  *   na zprávy. Vstupní pole je nad ním (kreslí ho Scaffold po obsahu), takže odeslání i koš
@@ -255,14 +287,21 @@ internal fun VideoNoteRecordingOverlay(
     camera: VideoNoteCamera?,
     recording: () -> VoiceRecording?,
     modifier: Modifier = Modifier,
+    preview: VideoNotePreview? = null,
+    playback: VideoNotePreviewPlayback? = null,
 ) {
     AnimatedVisibility(
-        visible = visible && camera != null,
+        visible = (visible && camera != null) || preview != null,
         enter = fadeIn(),
         exit = fadeOut(),
         modifier = modifier,
     ) {
-        val shown = camera ?: return@AnimatedVisibility
+        // Při odjezdu (odeslání, koš) je `preview` už `null`; kreslí se poslední známý stav.
+        val lastPreview = remember { mutableStateOf<VideoNotePreview?>(null) }
+        if (preview != null) lastPreview.value = preview
+        val shownPreview = preview ?: lastPreview.value
+        val shown = camera
+        if (shown == null && shownPreview == null) return@AnimatedVisibility
         Box(
             Modifier
                 .fillMaxSize()
@@ -286,11 +325,12 @@ internal fun VideoNoteRecordingOverlay(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.size(diameter),
                     ) {
-                        shown.Preview(
-                            Modifier
-                                .size(diameter - RING_GAP * 2)
-                                .clip(CircleShape),
-                        )
+                        val inner = Modifier.size(diameter - RING_GAP * 2).clip(CircleShape)
+                        if (shownPreview != null) {
+                            VideoNotePreviewCircle(shownPreview, playback, inner)
+                        } else {
+                            shown?.Preview(inner)
+                        }
                         Canvas(Modifier.size(diameter)) {
                             val stroke = RING_STROKE.toPx()
                             val inset = stroke / 2
@@ -304,8 +344,12 @@ internal fun VideoNoteRecordingOverlay(
                                 size = arcSize,
                                 style = Stroke(width = stroke),
                             )
-                            val elapsed = recording()?.elapsedMs ?: 0L
-                            val fraction = (elapsed.toFloat() / VIDEO_NOTE_MAX_DURATION_MS).coerceIn(0f, 1f)
+                            val fraction = if (shownPreview != null) {
+                                if (playback?.sounding == true) playback.progress else 0f
+                            } else {
+                                val elapsed = recording()?.elapsedMs ?: 0L
+                                (elapsed.toFloat() / VIDEO_NOTE_MAX_DURATION_MS).coerceIn(0f, 1f)
+                            }
                             drawArc(
                                 color = ring,
                                 startAngle = -90f,
@@ -317,7 +361,7 @@ internal fun VideoNoteRecordingOverlay(
                             )
                         }
                     }
-                    if (shown.canSwitch) {
+                    if (shownPreview == null && shown != null && shown.canSwitch) {
                         FilledTonalIconButton(onClick = shown::switchCamera) {
                             Icon(
                                 painterResource(Res.drawable.cameraswitch_24dp),
@@ -330,6 +374,51 @@ internal fun VideoNoteRecordingOverlay(
         }
     }
 }
+
+/**
+ * Nahrané kolečko v kruhu náhledu. Přehrávač žije s kompozicí, jako u kolečka v bublině;
+ * přepnutí zvuku soubor načte znovu (se zvukem od začátku a bez smyčky).
+ */
+@Composable
+private fun VideoNotePreviewCircle(
+    preview: VideoNotePreview,
+    playback: VideoNotePreviewPlayback?,
+    modifier: Modifier,
+) {
+    val note = preview.note
+    val sounding = playback?.sounding == true
+    val label = stringResource(if (sounding) Res.string.media_pause else Res.string.conversation_play_video_note)
+    Box(
+        modifier
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .clickable(enabled = note != null && playback != null, onClickLabel = label) { playback?.toggle() },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (note == null) {
+            CircularProgressIndicator()
+            return@Box
+        }
+        val player = rememberVideoPlayer()
+        LaunchedEffect(player, note.path, sounding) {
+            player.load(note.path, loop = !sounding, muted = !sounding)
+            player.play()
+            if (!sounding) return@LaunchedEffect
+            while (true) {
+                delay(PREVIEW_TICK_MS)
+                val duration = player.durationMs
+                if (duration > 0) playback?.progress = (player.positionMs.toFloat() / duration).coerceIn(0f, 1f)
+                playback?.elapsedMs = player.positionMs
+                if (player.isEnded) {
+                    playback?.toggle()
+                    break
+                }
+            }
+        }
+        VideoSurface(player, Modifier.fillMaxSize())
+    }
+}
+
+private const val PREVIEW_TICK_MS = 50L
 
 /**
  * Jak dlouho se musí tlačítko držet, než se začne nahrávat. Kratší stisk je ťuknutí (přepnutí

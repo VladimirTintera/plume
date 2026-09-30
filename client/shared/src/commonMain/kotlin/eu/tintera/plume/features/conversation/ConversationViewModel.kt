@@ -3,6 +3,7 @@ package eu.tintera.plume.features.conversation
 import okio.Path.Companion.toPath
 import okio.FileSystem
 import eu.tintera.plume.core.audio.RecordedVoice
+import eu.tintera.plume.core.telegram.OutgoingVideoNote
 import eu.tintera.plume.resources.conversation_video_note_send_failed
 import eu.tintera.plume.resources.conversation_video_note_start_failed
 import eu.tintera.plume.resources.conversation_contact_send_failed
@@ -293,6 +294,10 @@ class ConversationViewModel(
     /** Zastavená hlasovka k poslechu před odesláním ([stopRecordingForPreview]); `null` = žádná. */
     private val _voicePreview = MutableStateFlow<VoicePreview?>(null)
     val voicePreview: StateFlow<VoicePreview?> = _voicePreview.asStateFlow()
+
+    /** Zastavené kolečko k přehrání před odesláním ([stopRecordingForPreview]); `null` = žádné. */
+    private val _videoNotePreview = MutableStateFlow<VideoNotePreview?>(null)
+    val videoNotePreview: StateFlow<VideoNotePreview?> = _videoNotePreview.asStateFlow()
 
     /** Kamera, kterou do ViewModelu připojila obrazovka (viz [CaptureSlot]). */
     private val cameraSlot = CaptureSlot()
@@ -2065,6 +2070,7 @@ class ConversationViewModel(
         voiceRecorder.cancel()
         videoRecorder.cancel()
         discardVoicePreview()
+        discardVideoNotePreview()
 
         val pending = draftSave ?: return
         if (!pending.isActive) return
@@ -3775,6 +3781,7 @@ class ConversationViewModel(
             videoRecorder.state.value != null -> sendVideoRecording(options)
             voiceRecorder.state.value != null -> sendVoiceRecording(options)
             _voicePreview.value != null -> sendVoicePreview(options)
+            _videoNotePreview.value != null -> sendVideoNotePreview(options)
             // Dvojí ťuknutí na odeslání: druhé by našlo nahrávání už ukončené a hlásilo nesmysl.
             else -> Unit
         }
@@ -3805,6 +3812,10 @@ class ConversationViewModel(
      * Odejde až tlačítkem odeslání ([sendRecording]), koš ji zahodí ([discardVoicePreview]).
      */
     fun stopRecordingForPreview() {
+        if (videoRecorder.state.value != null) {
+            stopVideoRecordingForPreview()
+            return
+        }
         if (voiceRecorder.state.value == null || _voicePreview.value != null) return
         val tooShort = (voiceRecorder.state.value?.elapsedMs ?: 0L) < MIN_DURATION_MS
         // Mezistav hned: dokončení (na iOS kódování) chvíli trvá a karta mezitím nemá ukázat pole.
@@ -3846,7 +3857,7 @@ class ConversationViewModel(
 
     private fun deleteQuietly(path: String) {
         runCatching { FileSystem.SYSTEM.delete(path.toPath(), mustExist = false) }
-            .onFailure { failure -> logger.w(failure) { "Zahozený náhled hlasovky nejde smazat." } }
+            .onFailure { failure -> logger.w(failure) { "Zahozený náhled nahrávky nejde smazat." } }
     }
 
     private fun sendVoicePreview(options: SendOptions) {
@@ -3880,6 +3891,61 @@ class ConversationViewModel(
                         onSuccess = { note -> repository.sendVideoNote(chatId, note, replyTo, quote, options) },
                         onFailure = { failure -> Result.failure(failure) },
                     )
+            }
+        }
+    }
+
+    /**
+     * Zastaví zamčené kolečko a nechá ho k přehrání, místo aby ho rovnou odeslalo — jako
+     * [stopRecordingForPreview] u hlasovky. Připraví se hned (délka, strana, první snímek):
+     * náhled přehrává hotový soubor a odeslání pak nemá na co čekat.
+     */
+    private fun stopVideoRecordingForPreview() {
+        if (_videoNotePreview.value != null) return
+        val tooShort = (videoRecorder.state.value?.elapsedMs ?: 0L) < MIN_DURATION_MS
+        // Mezistav hned: dokončení (zmenšení na Androidu, ořez na iOS) trvá vteřiny.
+        val finishing = VideoNotePreview(note = null)
+        _videoNotePreview.value = finishing
+        viewModelScope.launch {
+            val recorded = videoRecorder.finish()
+            val note = recorded?.let {
+                runCatching { prepareVideoNote(it.path) }
+                    .onFailure { failure -> logger.w(failure) { "Kolečko nejde připravit k náhledu." } }
+                    .getOrNull()
+            }
+            // Koš během dokončování: náhled už nikdo nechce, soubory pryč.
+            if (_videoNotePreview.value !== finishing) {
+                note?.let(::deleteVideoNote) ?: recorded?.let { deleteQuietly(it.path) }
+                return@launch
+            }
+            if (note == null) {
+                _videoNotePreview.value = null
+                recorded?.let { deleteQuietly(it.path) }
+                reportRecordingLost(tooShort && recorded == null)
+                return@launch
+            }
+            _videoNotePreview.value = VideoNotePreview(note)
+        }
+    }
+
+    /** Koš u náhledu kolečka, i odchod z chatu: nic neodejde a soubory se smažou. */
+    fun discardVideoNotePreview() {
+        val preview = _videoNotePreview.value ?: return
+        _videoNotePreview.value = null
+        preview.note?.let(::deleteVideoNote)
+    }
+
+    private fun deleteVideoNote(note: OutgoingVideoNote) {
+        deleteQuietly(note.path)
+        note.thumbnail?.path?.let(::deleteQuietly)
+    }
+
+    private fun sendVideoNotePreview(options: SendOptions) {
+        val note = _videoNotePreview.value?.note ?: return
+        _videoNotePreview.value = null
+        viewModelScope.launch {
+            sendMedia(Res.string.conversation_video_note_send_failed, scheduled = options.schedule != null) { replyTo, quote ->
+                repository.sendVideoNote(chatId, note, replyTo, quote, options)
             }
         }
     }

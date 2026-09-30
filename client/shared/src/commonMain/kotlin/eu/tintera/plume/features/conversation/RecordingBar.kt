@@ -29,6 +29,9 @@ import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.content_video_note
+import eu.tintera.plume.resources.conversation_play_video_note
+import eu.tintera.plume.resources.conversation_stop_video_note
 import eu.tintera.plume.resources.chevron_left_24dp
 import eu.tintera.plume.resources.conversation_discard_recording
 import eu.tintera.plume.resources.conversation_recording_slide_to_cancel
@@ -64,9 +67,9 @@ import org.jetbrains.compose.resources.stringResource
  *   doleva zrušíš", která jede s prstem a slábne ([cancelProgress]). Koš by šlo zmáčknout jen
  *   druhou rukou, a tah doleva je tu ta cesta, kterou si uživatel má všimnout. Po zamčení se
  *   vrátí koš i úrovně.
- * - **Zamčená hlasovka má na konci ■ ([onStop])**: nahrávání skončí, ale nic neodejde — pruh
- *   se změní na náhled ([VoicePreviewBar]) a hlasovka jde nejdřív poslechnout. U kolečka ■ není,
- *   jeho náhled by chtěl přehrávač videa (`null`).
+ * - **Zamčená nahrávka má na konci ■ ([onStop])**: nahrávání skončí, ale nic neodejde — pruh
+ *   se změní na náhled ([VoicePreviewBar], u kolečka [VideoNotePreviewBar]) a nahrávka jde nejdřív
+ *   poslechnout nebo přehrát. [video] mění jen popis ■ pro čtečku obrazovky.
  */
 @Composable
 fun RecordingBar(
@@ -76,6 +79,7 @@ fun RecordingBar(
     holding: Boolean = false,
     cancelProgress: () -> Float = { 0f },
     onStop: (() -> Unit)? = null,
+    video: Boolean = false,
 ) {
     val current = recording()
     // Karta pole je při nahrávání `tertiaryContainer` (hlas je v aplikaci terciární, stejně jako
@@ -155,7 +159,10 @@ fun RecordingBar(
         }
         stop?.let {
             IconButton(onClick = it) {
-                Icon(painterResource(Res.drawable.stop_24dp), contentDescription = stringResource(Res.string.conversation_stop_recording))
+                Icon(
+                    painterResource(Res.drawable.stop_24dp),
+                    contentDescription = stringResource(if (video) Res.string.conversation_stop_video_note else Res.string.conversation_stop_recording),
+                )
             }
         }
     }
@@ -234,6 +241,65 @@ fun VoicePreviewBar(
         } else {
             voice?.durationSeconds ?: 0
         }
+        Text(
+            text = formatDuration(seconds),
+            style = MaterialTheme.typography.bodyLarge.tabularNumbers(),
+        )
+    }
+}
+
+/**
+ * Zastavené kolečko ve vstupní kartě: koš, přehrát se zvukem / zastavit a čas. Kolečko samo hraje
+ * v kruhu nad konverzací; pruh je jen ovládání a má stejnou výšku i barvy jako pruh nahrávání,
+ * takže se karta při ■ nepřeskládá.
+ *
+ * Čas je délka kolečka, se zvukem uplynulý čas — jako odznak u kolečka v bublině.
+ */
+@Composable
+internal fun VideoNotePreviewBar(
+    preview: VideoNotePreview,
+    playback: VideoNotePreviewPlayback,
+    onDiscard: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val note = preview.note
+    val accent = accentOn(
+        background = MaterialTheme.colorScheme.tertiaryContainer,
+        accent = MaterialTheme.colorScheme.tertiary,
+        fallback = MaterialTheme.colorScheme.onTertiaryContainer,
+    )
+    Row(
+        modifier.fillMaxWidth().heightIn(min = 56.dp).padding(end = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onDiscard) {
+            Icon(painterResource(Res.drawable.delete_24dp), contentDescription = stringResource(Res.string.conversation_discard_recording))
+        }
+        Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            if (note == null) {
+                CircularProgressIndicator(color = accent, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+            } else {
+                IconButton(onClick = playback::toggle) {
+                    Icon(
+                        painterResource(if (playback.sounding) Res.drawable.pause_24dp else Res.drawable.play_arrow_24dp),
+                        contentDescription = stringResource(
+                            if (playback.sounding) Res.string.media_pause else Res.string.conversation_play_video_note,
+                        ),
+                        tint = accent,
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.width(4.dp))
+        Text(
+            stringResource(Res.string.content_video_note),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(12.dp))
+        val seconds = if (playback.sounding) (playback.elapsedMs / 1000).toInt() else note?.durationSeconds ?: 0
         Text(
             text = formatDuration(seconds),
             style = MaterialTheme.typography.bodyLarge.tabularNumbers(),

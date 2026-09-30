@@ -39,7 +39,7 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    i ~~audio focus a přerušení hovorem~~ a ~~sluchátko u ucha~~; `CLAUDE.md`, „Hlasovky"
    a „Hlasovka u ucha"; sluchátko u ucha ověřeno na Pixelu 11 Pro Foldu). **Hlasovky jsou tím
    hotové celé.** ~~Nahrávání~~ — hotovo, ~~podržením se zamčením~~ i ~~s náhledem před
-   odesláním~~ (`CLAUDE.md`, „Nahrávání"). Zbývá náhled u kolečka a navázání v nahrávání po
+   odesláním~~ (`CLAUDE.md`, „Nahrávání"). ~~Náhled u kolečka~~ — hotovo. Zbývá navázání v nahrávání po
    poslechu náhledu.
    ~~Video~~ — hotovo v prohlížeči (Media3 / AVPlayer). ~~GIFy~~ — hotovo (hrají v bublině ve
    smyčce bez zvuku; `CLAUDE.md`, „GIFy"). ~~GIFy z klávesnice~~ — hotovo na Androidu (Gboard;
@@ -426,7 +426,7 @@ snadno na to uživatel narazí.
   `CLAUDE.md`, „Nahrávání koleček"). Zbývá přepis řeči (`speechRecognitionResult`), ověřit
   zhlédnutí u odesílatele, **nahrávání na iOS ověřit na telefonu** (simulátor kameru nemá),
   **přepnutí kamery během nahrávání na iOS** (chce `AVAssetWriter` místo
-  `AVCaptureMovieFileOutput`) a na Androidu ověřit přepnutí na zadní kameru. Náhled před odesláním (přehrát si zamčené kolečko) zatím není.
+  `AVCaptureMovieFileOutput`) a na Androidu ověřit přepnutí na zadní kameru. ~~Náhled před odesláním~~ — hotovo (■ u zamčeného kolečka; `CLAUDE.md`, „Nahrávání koleček").
 - ~~**Hudba** (`MessageAudio`)~~ — hotovo: přehrávání v bublině s obalem, interpretem, posunem
   a rychlostí, navazování další skladby, sdílení a uložení (`CLAUDE.md`, „Hudba"). ~~Hudba
   v profilu (záložka Hudba)~~ — hotovo. ~~Ovládání z notifikace / zamykací obrazovky, přehrávání
