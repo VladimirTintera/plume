@@ -8,6 +8,9 @@ import eu.tintera.plume.core.telegram.TdlAccountRepository
 import eu.tintera.plume.core.telegram.AccountRepository
 import eu.tintera.plume.features.profile.ChatProfileViewModel
 import eu.tintera.plume.features.forum.ForumTopicsViewModel
+import eu.tintera.plume.features.webapp.WebAppViewModel
+import eu.tintera.plume.core.telegram.WebAppRepository
+import eu.tintera.plume.core.telegram.TdlWebAppRepository
 import eu.tintera.plume.features.profile.EditChatViewModel
 import eu.tintera.plume.features.profile.MemberRightsViewModel
 import eu.tintera.plume.core.telegram.TdlProfileRepository
@@ -145,6 +148,7 @@ fun appModule() = module {
     // drží ConversationViewModel.
     single<ConversationRepository> { TdlConversationRepository(holder = get()) }
     single<ForumRepository> { TdlForumRepository(holder = get()) }
+    single<WebAppRepository> { TdlWebAppRepository(holder = get()) }
 
     // Odpověď z notifikace. Nad ConversationRepository, ne v něm: jde o pořadí kroků (odeslat,
     // dočkat se potvrzení, pak teprve přečíst), ne o další volání TDLib.
@@ -331,6 +335,21 @@ fun appModule() = module {
 
     viewModel { parameters ->
         ForumTopicsViewModel(chatId = parameters.get(), forums = get(), conversations = get(), notifications = get())
+    }
+
+    // Parametry INDEXEM: chat a bot jsou dvě `Long` a podle typu by se zaměnily.
+    viewModel { parameters ->
+        WebAppViewModel(
+            chatId = parameters.values[0] as Long,
+            botUserId = parameters.values[1] as Long,
+            url = parameters.values[2] as String,
+            launch = parameters.values[3] as Boolean,
+            keyboardButtonText = parameters.values.getOrNull(4) as? String,
+            repository = get(),
+            chats = get(),
+            urlOpener = get(),
+            appScope = get(named(APP_SCOPE)),
+        )
     }
 
     viewModel { parameters ->

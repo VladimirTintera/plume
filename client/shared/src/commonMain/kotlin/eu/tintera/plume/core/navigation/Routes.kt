@@ -240,6 +240,23 @@ data class PollComposerRoute(
 ) : Route
 
 /**
+ * Mini aplikace bota přes celou obrazovku. Bez metadat scény, jako formulář ankety: jde z hlavního
+ * seznamu i z archivu ([archive] říká, kam vést odkaz na chat, který mini aplikace otevře).
+ * Po zabití procesu se spustí znovu — stav stránky si drží mini aplikace sama.
+ */
+@Serializable
+data class WebAppRoute(
+    val chatId: Long,
+    val botUserId: Long,
+    val url: String,
+    /** Spuštění přes `openWebApp` (tlačítko pod zprávou); jinak jen adresa (`getWebAppUrl`). */
+    val launch: Boolean,
+    /** Text tlačítka vlastní klávesnice — jen s ním smí mini aplikace poslat data botovi. */
+    val keyboardButtonText: String? = null,
+    val archive: Boolean = false,
+) : Route
+
+/**
  * Výběr chatu pro obsah sdílený do aplikace ze systému.
  *
  * Nenese nic — sdílený obsah (soubory v cache) je v `ShareRequests`, ne v zásobníku. Po zabití
@@ -306,6 +323,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ForwardRoute::class, ForwardRoute.serializer())
             subclass(ShareContactRoute::class, ShareContactRoute.serializer())
             subclass(PollComposerRoute::class, PollComposerRoute.serializer())
+            subclass(WebAppRoute::class, WebAppRoute.serializer())
             subclass(AddBotToGroupRoute::class, AddBotToGroupRoute.serializer())
             subclass(ShareRoute::class, ShareRoute.serializer())
             subclass(ShareToChatRoute::class, ShareToChatRoute.serializer())

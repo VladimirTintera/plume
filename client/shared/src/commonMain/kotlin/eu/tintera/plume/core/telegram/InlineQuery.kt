@@ -67,7 +67,7 @@ sealed interface InlineResultsButton {
     data class StartBot(override val text: String, val parameter: String) : InlineResultsButton
 
     /** Mini aplikace — Plume ji neumí, tlačítko jen vysvětlí proč. */
-    data class WebApp(override val text: String) : InlineResultsButton
+    data class WebApp(override val text: String, val url: String) : InlineResultsButton
 }
 
 /**

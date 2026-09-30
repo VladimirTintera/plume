@@ -420,6 +420,8 @@ fun ConversationScreen(
     onUnarchived: () -> Unit = {},
     /** Sponka → Anketa (a tlačítko bota „vytvořit anketu"): formulář nové ankety nad konverzací. */
     onCreatePoll: (PollComposerRequest) -> Unit = {},
+    /** Mini aplikace bota — obrazovka přes celou plochu nad konverzací. */
+    onOpenWebApp: (WebAppRequest) -> Unit = {},
     /** Odkaz `t.me/bot?startgroup=…`: výběr skupiny, do které bota přidat. */
     onAddBotToGroup: (InternalLink.BotStartInGroup) -> Unit = {},
     modifier: Modifier = Modifier,
@@ -2025,6 +2027,15 @@ fun ConversationScreen(
                 onCreatePoll(PollComposerRequest(mode, state.replyingTo?.id, state.replyQuote))
                 viewModel.consumeOpenPollComposer()
             }
+        }
+        state.openWebApp?.let { request ->
+            LaunchedEffect(request) {
+                viewModel.consumeOpenWebApp()
+                onOpenWebApp(request)
+            }
+        }
+        state.webAppConsent?.let { request ->
+            WebAppConsentDialog(botName = request.botName, onOpen = viewModel::confirmWebApp, onDismiss = viewModel::dismissWebAppConsent)
         }
 
         state.pendingPin?.let { pending ->

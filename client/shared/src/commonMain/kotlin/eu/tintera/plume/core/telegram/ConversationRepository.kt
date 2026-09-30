@@ -1232,6 +1232,9 @@ sealed interface BotButtonKind {
     /** Bot tlačítko vypnul; kreslí se zašedlé a ťuknout nejde. */
     data object Disabled : BotButtonKind
 
+    /** Mini aplikace bota (`openWebApp` s touto adresou). */
+    data class WebApp(val url: String) : BotButtonKind
+
     /**
      * Druh, který Plume zatím neumí. Tlačítko je VIDĚT a ťuknutí to vysvětlí — schované by
      * z klávesnice bota vykouslo řádek a změnilo, co bot nabízí.
@@ -1239,7 +1242,7 @@ sealed interface BotButtonKind {
     data class Unsupported(val feature: UnsupportedBotButton) : BotButtonKind
 }
 
-enum class UnsupportedBotButton { WebApp, LoginUrl, SwitchInline, Buy, Game, Password }
+enum class UnsupportedBotButton { LoginUrl, SwitchInline, Buy, Game, Password }
 
 /** Co bot chce od vstupního pole. */
 sealed interface ChatReplyMarkup {
@@ -1286,10 +1289,13 @@ sealed interface ReplyKeyboardButtonKind {
     data class Poll(val mode: PollComposerMode) : ReplyKeyboardButtonKind
 
     /** Druh, který Plume zatím neumí; tlačítko je vidět a ťuknutí to vysvětlí. */
+    /** Mini aplikace (`getWebAppUrl`); data, která pošle, dostane bot jako zprávu. */
+    data class WebApp(val url: String) : ReplyKeyboardButtonKind
+
     data class Unsupported(val feature: UnsupportedKeyboardButton) : ReplyKeyboardButtonKind
 }
 
-enum class UnsupportedKeyboardButton { Location, Users, Chat, WebApp, ManagedBot }
+enum class UnsupportedKeyboardButton { Location, Users, Chat, ManagedBot }
 
 /** Barva, kterou si bot pro tlačítko přeje (TDLib `ButtonStyle`). */
 enum class BotButtonStyle { Default, Primary, Success, Danger }

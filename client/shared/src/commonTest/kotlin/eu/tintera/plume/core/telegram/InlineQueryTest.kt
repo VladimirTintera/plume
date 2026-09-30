@@ -92,7 +92,7 @@ class InlineQueryTest {
         assertFalse(empty.withQuery("zzzz").nothingFound)
         // S tlačítkem od bota to „nic" není — je co nabídnout.
         val withButton = InlineQueryState(bot, "zzz")
-            .withPage("zzz", page(button = InlineResultsButton.WebApp("Otevřít")), append = false)
+            .withPage("zzz", page(button = InlineResultsButton.WebApp("Otevřít", "https://example.com/")), append = false)
         assertFalse(withButton.nothingFound)
     }
 

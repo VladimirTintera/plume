@@ -35,7 +35,6 @@ import eu.tintera.plume.resources.poll_retract_failed
 import eu.tintera.plume.resources.poll_stop_failed
 import eu.tintera.plume.resources.poll_vote_failed
 import eu.tintera.plume.resources.bot_text_copied
-import eu.tintera.plume.resources.bot_unsupported_web_app
 import eu.tintera.plume.resources.bot_unsupported_login_url
 import eu.tintera.plume.resources.bot_unsupported_switch_inline
 import eu.tintera.plume.resources.bot_unsupported_buy
@@ -2205,6 +2204,9 @@ class ConversationViewModel(
                 _state.update { it.copy(notice = UiText(Res.string.bot_text_copied)) }
             }
             is BotButtonKind.User -> openMentioned { chatRepository.privateChat(kind.userId) }
+            is BotButtonKind.WebApp -> requestWebApp(
+                WebAppRequest(botOf(message), botNameOf(message), kind.url, launch = true),
+            )
             BotButtonKind.Disabled -> Unit
             is BotButtonKind.Unsupported -> _state.update { it.copy(notice = UiText(kind.feature.explanation())) }
         }
@@ -2272,6 +2274,34 @@ class ConversationViewModel(
     }
 
     /** Obrazovka formulář ankety otevřela. */
+    /**
+     * Mini aplikace bota. **Poprvé u každého bota se ptá** — TDLib to u `openWebApp` předepisuje:
+     * mini aplikace posílá botovi data a uživatel to má vědět dřív, než ji otevře. Potvrzení se
+     * pamatuje ([AppSettings.confirmedWebAppBots]).
+     */
+    private fun requestWebApp(request: WebAppRequest) {
+        if (request.botUserId in settings.confirmedWebAppBots.value) {
+            _state.update { it.copy(openWebApp = request) }
+        } else {
+            _state.update { it.copy(webAppConsent = request) }
+        }
+    }
+
+    fun confirmWebApp() {
+        val request = _state.value.webAppConsent ?: return
+        settings.confirmWebAppBot(request.botUserId)
+        _state.update { it.copy(webAppConsent = null, openWebApp = request) }
+    }
+
+    fun dismissWebAppConsent() = _state.update { it.copy(webAppConsent = null) }
+
+    fun consumeOpenWebApp() = _state.update { it.copy(openWebApp = null) }
+
+    /** Bot, kterému zpráva s tlačítkem patří: odesílatel (kladné id = uživatel), jinak chat s botem. */
+    private fun botOf(message: ChatMessage?): Long = message?.senderId?.takeIf { it > 0 } ?: chatId
+
+    private fun botNameOf(message: ChatMessage?): String = message?.senderName ?: _state.value.info?.title.orEmpty()
+
     fun consumeOpenPollComposer() {
         _state.update { it.copy(openPollComposer = null) }
     }
@@ -2489,6 +2519,12 @@ class ConversationViewModel(
             ReplyKeyboardButtonKind.PhoneNumber -> _state.update { it.copy(confirmSharePhone = true) }
             // Formulář je obrazovka nad konverzací; otevírá ho obrazovka, ViewModel jen řekne jaký.
             is ReplyKeyboardButtonKind.Poll -> _state.update { it.copy(openPollComposer = kind.mode) }
+            is ReplyKeyboardButtonKind.WebApp -> {
+                val owner = _state.value.messages.firstOrNull { it.id == keyboard.messageId }
+                requestWebApp(
+                    WebAppRequest(botOf(owner), botNameOf(owner), kind.url, launch = false, keyboardButtonText = button.text),
+                )
+            }
             is ReplyKeyboardButtonKind.Unsupported ->
                 _state.update { it.copy(notice = UiText(kind.feature.explanation())) }
         }
@@ -2666,7 +2702,7 @@ class ConversationViewModel(
             is InlineResultsButton.StartBot ->
                 openBotStart(InternalLink.BotStart(inline.bot.userId, button.parameter, autostart = true))
             is InlineResultsButton.WebApp ->
-                _state.update { it.copy(notice = UiText(Res.string.bot_unsupported_web_app)) }
+                requestWebApp(WebAppRequest(inline.bot.userId, "@${inline.bot.username}", button.url, launch = false))
             null -> Unit
         }
     }
@@ -4618,6 +4654,10 @@ data class ConversationState(
     val pendingContact: MessageMedia.Contact? = null,
     /** Jednorázová událost: tlačítko bota chce formulář nové ankety (v tomhle režimu). */
     val openPollComposer: PollComposerMode? = null,
+    /** Mini aplikace čeká na souhlas (poprvé u tohoto bota); `null` = žádná. */
+    val webAppConsent: WebAppRequest? = null,
+    /** Mini aplikace k otevření — obrazovka ji otevře a událost vynuluje. */
+    val openWebApp: WebAppRequest? = null,
     /** Jednorázová událost: otevřít sheet sady samolepek z odkazu `t.me/addstickers/…`. */
     val openStickerSet: Long? = null,
     /** Běží přidání ke skupině / kanálu ([ConversationViewModel.join]). */
@@ -4787,7 +4827,6 @@ private val DOWNLOAD_START_TIMEOUT = 30.seconds
 data class BotButtonRef(val messageId: Long, val row: Int, val column: Int)
 
 private fun UnsupportedBotButton.explanation(): StringResource = when (this) {
-    UnsupportedBotButton.WebApp -> Res.string.bot_unsupported_web_app
     UnsupportedBotButton.LoginUrl -> Res.string.bot_unsupported_login_url
     UnsupportedBotButton.SwitchInline -> Res.string.bot_unsupported_switch_inline
     UnsupportedBotButton.Buy -> Res.string.bot_unsupported_buy
@@ -4809,7 +4848,6 @@ val ConversationState.inputPlaceholder: String?
 private fun UnsupportedKeyboardButton.explanation(): StringResource = when (this) {
     UnsupportedKeyboardButton.Location -> Res.string.bot_unsupported_location
     UnsupportedKeyboardButton.Users, UnsupportedKeyboardButton.Chat -> Res.string.bot_unsupported_pick_chat
-    UnsupportedKeyboardButton.WebApp -> Res.string.bot_unsupported_web_app
     UnsupportedKeyboardButton.ManagedBot -> Res.string.bot_unsupported_managed_bot
 }
 
@@ -4846,4 +4884,17 @@ private data class LinkPreviewStash(
     val preview: LinkPreview? = null,
     val links: List<String> = emptyList(),
     val options: LinkPreviewOptions = LinkPreviewOptions(),
+)
+
+/**
+ * Mini aplikace, kterou chce konverzace otevřít. [launch] = přes `openWebApp` (tlačítko pod
+ * zprávou), jinak jen adresa (`getWebAppUrl`: vlastní klávesnice, tlačítko nad výsledky inline
+ * bota). [keyboardButtonText] jen u vlastní klávesnice — s ním smí mini aplikace poslat data.
+ */
+data class WebAppRequest(
+    val botUserId: Long,
+    val botName: String,
+    val url: String,
+    val launch: Boolean,
+    val keyboardButtonText: String? = null,
 )

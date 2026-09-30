@@ -127,8 +127,8 @@ private fun ReplyKeyboardButtonKind.icon(): DrawableResource? = when (this) {
     ReplyKeyboardButtonKind.Text -> null
     ReplyKeyboardButtonKind.PhoneNumber -> Res.drawable.smartphone_24dp
     is ReplyKeyboardButtonKind.Poll -> Res.drawable.ballot_24dp
+    is ReplyKeyboardButtonKind.WebApp -> Res.drawable.open_in_new_24dp
     is ReplyKeyboardButtonKind.Unsupported -> when (feature) {
-        UnsupportedKeyboardButton.WebApp -> Res.drawable.open_in_new_24dp
         UnsupportedKeyboardButton.Location, UnsupportedKeyboardButton.Users,
         UnsupportedKeyboardButton.Chat, UnsupportedKeyboardButton.ManagedBot -> null
     }

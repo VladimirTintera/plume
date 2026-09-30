@@ -2797,7 +2797,7 @@ private fun ReplyMarkupInlineKeyboard.toBotKeyboard(): BotKeyboard? {
                     is InlineKeyboardButtonTypeCopyText -> BotButtonKind.CopyText(type.text)
                     is InlineKeyboardButtonTypeUser -> BotButtonKind.User(type.userId)
                     is InlineKeyboardButtonTypeDisabled -> BotButtonKind.Disabled
-                    is InlineKeyboardButtonTypeWebApp -> BotButtonKind.Unsupported(UnsupportedBotButton.WebApp)
+                    is InlineKeyboardButtonTypeWebApp -> BotButtonKind.WebApp(type.url)
                     is InlineKeyboardButtonTypeLoginUrl -> BotButtonKind.Unsupported(UnsupportedBotButton.LoginUrl)
                     is InlineKeyboardButtonTypeSwitchInline -> BotButtonKind.Unsupported(UnsupportedBotButton.SwitchInline)
                     is InlineKeyboardButtonTypeBuy -> BotButtonKind.Unsupported(UnsupportedBotButton.Buy)
@@ -2836,7 +2836,7 @@ private fun Message.toChatReplyMarkup(): ChatReplyMarkup? = when (val markup = r
                         )
                         is KeyboardButtonTypeRequestUsers -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.Users)
                         is KeyboardButtonTypeRequestChat -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.Chat)
-                        is KeyboardButtonTypeWebApp -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.WebApp)
+                        is KeyboardButtonTypeWebApp -> ReplyKeyboardButtonKind.WebApp(type.url)
                         is KeyboardButtonTypeRequestManagedBot -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.ManagedBot)
                     },
                     style = button.style.toBotButtonStyle(),
