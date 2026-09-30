@@ -3047,12 +3047,14 @@ class ConversationViewModel(
      */
     fun onAction(messageId: Long, action: MessageAction) {
         when (action) {
-            is MessageAction.ShowMenu -> showMessageMenu(messageId, action.items)
+            is MessageAction.ShowMenu -> showMessageMenu(messageId, action.items, action.pressed)
             MessageAction.CloseMenu -> closeMenus()
             is MessageAction.React -> toggleReaction(messageId, action.emoji)
             MessageAction.ShowReactions -> showReactionDetails(messageId)
             MessageAction.ToggleReadReceipt -> toggleReadReceipt(messageId)
-            MessageAction.SwipeReply, MessageMenuAction.Reply -> replyTo(messageId)
+            MessageAction.SwipeReply -> replyTo(messageId)
+            // U alba na fotku, na které stisk začal, ne na zprávu s popiskem, které patří blok.
+            MessageMenuAction.Reply -> replyTo(_state.value.messageMenu?.takeIf { it.messageId == messageId }?.replyTarget ?: messageId)
             is MessageAction.JumpTo -> jumpToMessage(action.messageId)
             is MessageAction.PressBotButton -> pressBotButton(messageId, action.row, action.column)
             is MessageAction.Vote -> vote(messageId, action.answerIndexes)
@@ -3106,7 +3108,7 @@ class ConversationViewModel(
     }
 
     /** Nabídka s kandidáty, které nabídl blok; co z nich server dovolí, se zjistí tady. */
-    private fun showMessageMenu(messageId: Long, items: List<MessageMenuAction>) {
+    private fun showMessageMenu(messageId: Long, items: List<MessageMenuAction>, pressed: Long? = null) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
 
         viewModelScope.launch {
@@ -3142,6 +3144,7 @@ class ConversationViewModel(
                         actions = actions,
                         items = items,
                         favoriteSticker = favorite,
+                        pressedMessageId = pressed?.takeIf { it != messageId },
                     ),
                 )
             }
@@ -4255,6 +4258,12 @@ data class MessageMenu(
      * nenabízí vůbec.
      */
     val favoriteSticker: Boolean?,
+    /**
+     * Zpráva pod prstem, když se liší od [messageId]: fotka uprostřed alba. Blok alba patří zprávě
+     * s popiskem (nebo nejstarší), takže bez tohohle odpověď citovala tu, ne fotku, na kterou
+     * uživatel podržel. Ostatní položky (reakce, přeposlání, smazání) jdou dál na celý blok.
+     */
+    val pressedMessageId: Long? = null,
 ) {
     /** Do rychlého řádku se vejde jen pár; zbytek je za „+". */
     val quickEmoji: List<String> get() = emoji.take(MAX_QUICK_REACTIONS)
@@ -4281,6 +4290,9 @@ data class PendingDelete(
      */
     val count: Int = 1,
 )
+
+/** Na co míří „Odpovědět" z nabídky: na fotku pod prstem, jinak na zprávu bloku. */
+internal val MessageMenu.replyTarget: Long get() = pressedMessageId ?: messageId
 
 /**
  * Režim výběru víc zpráv; `null` = vypnutý.

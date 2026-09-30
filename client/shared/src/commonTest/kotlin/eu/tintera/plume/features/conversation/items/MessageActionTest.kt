@@ -7,6 +7,7 @@ import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.files.saveAsSupported
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.features.conversation.MessageMenu
+import eu.tintera.plume.features.conversation.replyTarget
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -77,6 +78,13 @@ class MessageActionTest {
         items = items,
         favoriteSticker = favoriteSticker,
     )
+
+    /** Podržená fotka uprostřed alba: odpověď míří na ni, ne na zprávu s popiskem, které patří blok. */
+    @Test
+    fun odpovedMiriNaPodrzenouFotkuAlba() {
+        assertEquals(1L, menu(items = emptyList()).replyTarget)
+        assertEquals(3L, menu(items = emptyList()).copy(pressedMessageId = 3L).replyTarget)
+    }
 
     @Test
     fun textNabiziUpravuAKopirovaniVPoradiNabidky() {

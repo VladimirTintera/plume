@@ -59,8 +59,12 @@ import org.jetbrains.compose.resources.StringResource
  * fotky, ne bloku.
  */
 sealed interface MessageAction {
-    /** Dlouhý stisk: otevře nabídku s [items] — kandidáty, které nabízí blok (viz [MessageMenuAction]). */
-    data class ShowMenu(val items: List<MessageMenuAction>) : MessageAction
+    /**
+     * Dlouhý stisk: otevře nabídku s [items] — kandidáty, které nabízí blok (viz [MessageMenuAction]).
+     * [pressed] je zpráva pod prstem, když se liší od bloku: fotka uprostřed alba. Odpověď míří
+     * na ni (viz [MessageMenu.replyTarget]), zbytek nabídky na celý blok.
+     */
+    data class ShowMenu(val items: List<MessageMenuAction>, val pressed: Long? = null) : MessageAction
 
     /** Zavřít nabídku (zpět, ťuknutí mimo). */
     data object CloseMenu : MessageAction

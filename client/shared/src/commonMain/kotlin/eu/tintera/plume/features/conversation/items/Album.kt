@@ -57,7 +57,8 @@ import org.koin.compose.koinInject
 internal fun AlbumContent(
     members: List<ChatMessage>,
     onOpen: (messageId: Long) -> Unit,
-    onRequestMenu: () -> Unit,
+    /** Dlouhý stisk na položce alba; nese její id, odpověď z nabídky míří na ni. */
+    onRequestMenu: (messageId: Long) -> Unit,
     onCancelUpload: (messageId: Long) -> Unit,
     documentProgress: (fileId: Int) -> Float?,
     onOpenDocument: (messageId: Long) -> Unit,
@@ -74,7 +75,7 @@ internal fun AlbumContent(
                         media = media,
                         messageId = member.id,
                         onOpen = { onOpen(member.id) },
-                        onRequestMenu = onRequestMenu,
+                        onRequestMenu = { onRequestMenu(member.id) },
                         uploading = member.sendState == SendState.Sending,
                         onCancelUpload = { onCancelUpload(member.id) },
                         documentProgress = documentProgress,
@@ -123,7 +124,7 @@ internal fun AlbumContent(
                                 end = index == rowMembers.lastIndex,
                             ),
                             onOpen = { onOpen(member.id) },
-                            onRequestMenu = onRequestMenu,
+                            onRequestMenu = { onRequestMenu(member.id) },
                             onCancelUpload = { onCancelUpload(member.id) },
                             modifier = Modifier.weight(1f).height(height),
                         )
