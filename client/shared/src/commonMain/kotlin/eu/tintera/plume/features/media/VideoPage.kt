@@ -80,6 +80,11 @@ import eu.tintera.plume.core.video.StreamingSource
 import eu.tintera.plume.core.video.videoStreamingSupported
 import kotlinx.coroutines.flow.MutableStateFlow
 import eu.tintera.plume.core.video.rememberVideoPlayer
+import eu.tintera.plume.core.video.rememberPictureInPicture
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import eu.tintera.plume.resources.picture_in_picture_alt_24dp
+import eu.tintera.plume.resources.media_picture_in_picture
 import eu.tintera.plume.features.conversation.formatDuration
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.media_pause
@@ -151,6 +156,8 @@ internal fun VideoPage(
     muted: Boolean = false,
     /** Tlačítko ztlumení; `null` = bez něj. */
     onToggleMute: (() -> Unit)? = null,
+    /** Smí video do obrazu v obraze (mizející médium ne — mělo by zůstat v aplikaci). */
+    pictureInPicture: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     val repository = koinInject<FileRepository>()
@@ -158,6 +165,7 @@ internal fun VideoPage(
         startMs = startMs,
         muted = muted,
         onToggleMute = onToggleMute,
+        pictureInPicture = pictureInPicture,
         aspectRatio = aspectRatioOf(video.width, video.height),
         durationSeconds = video.durationSeconds,
         caption = caption,
@@ -261,6 +269,11 @@ internal fun VideoPage(
     muted: Boolean = false,
     /** Tlačítko ztlumení v liště; `null` = bez něj (náhledy při sdílení a nad polem). */
     onToggleMute: (() -> Unit)? = null,
+    /**
+     * Obraz v obraze: tlačítko v liště a samočinný přechod při odchodu z aplikace, dokud video
+     * hraje. Jen v prohlížeči médií — náhled při sdílení a nad polem je chvilková kontrola.
+     */
+    pictureInPicture: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     val voicePlayer = koinInject<VoicePlayer>()
@@ -366,8 +379,30 @@ internal fun VideoPage(
     // Na celou obrazovku se přichází s ovládáním na očích; během přehrávání se samo schová.
     LaunchedEffect(immersive) { if (immersive) controlsVisible = true }
 
+    /*
+     * Obraz v obraze jen pro video, které právě hraje na celé obrazovce: parametry PiP platí pro
+     * celou aktivitu, takže je smí nastavovat nejvýš jedna stránka. V okénku zůstane jen obraz —
+     * ovládání v něm nejde ovládat prstem a zakrylo by půlku záběru.
+     */
+    val pip = if (pictureInPicture && active && loaded) {
+        rememberPictureInPicture(
+            player = player,
+            aspectRatio = aspectRatio,
+            playing = playing,
+            onTogglePlay = {
+                if (player.isPlaying) player.pause() else player.play()
+                playing = !playing
+            },
+        )
+    } else {
+        null
+    }
+    val inPip = pip?.active == true
+    // Zavřené okénko i odchod na pozadí bez okénka video pozastaví (proces pod ním žije dál).
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { player.pause() }
+
     // Stahování, které dobíhá pod už hrajícím videem.
-    val downloadVisible = immersive && hasPlayed && file is FileState.Downloading
+    val downloadVisible = immersive && hasPlayed && file is FileState.Downloading && !inPip
 
     MediaPageLayout(
         aspectRatio = aspectRatio,
@@ -501,7 +536,7 @@ internal fun VideoPage(
             }
 
             AnimatedVisibility(
-                visible = immersive && loaded && hasPlayed && controlsVisible,
+                visible = immersive && loaded && hasPlayed && controlsVisible && !inPip,
                 enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 modifier = Modifier.align(Alignment.Center),
@@ -541,7 +576,7 @@ internal fun VideoPage(
             // Posuvník leží na spodku karty s přechodem do tmava — na světlém záběru by bílý
             // posuvník jinak zmizel.
             AnimatedVisibility(
-                visible = immersive && loaded && controlsVisible,
+                visible = immersive && loaded && controlsVisible && !inPip,
                 enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 modifier = Modifier.align(Alignment.BottomCenter),
@@ -598,6 +633,17 @@ internal fun VideoPage(
                             controlsVisible = true
                         },
                     )
+                    if (pip?.supported == true) {
+                        IconButton(
+                            onClick = pip::enter,
+                            colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                        ) {
+                            Icon(
+                                painterResource(Res.drawable.picture_in_picture_alt_24dp),
+                                contentDescription = stringResource(Res.string.media_picture_in_picture),
+                            )
+                        }
+                    }
                     onToggleMute?.let { toggle ->
                         IconButton(
                             onClick = {
@@ -622,7 +668,7 @@ internal fun VideoPage(
                 onToggle = { downloadExpanded = !downloadExpanded },
             )
 
-            overlay()
+            if (!inPip) overlay()
         }
     }
 }

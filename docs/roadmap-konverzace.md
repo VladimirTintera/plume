@@ -48,7 +48,8 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    na Androidu i iOS (položka kontextové nabídky pole). Na iOS chybí GIFy ověřené na zařízení
    (~~vložení bez dotazu „Povolit vložení?"~~ — hotovo, `UIPasteControl` nad polem). ~~Streamování~~ — hotovo na Androidu (`CLAUDE.md`,
    „Video"); iOS čeká na `AVAssetResourceLoaderDelegate`. ~~Rychlost a ztlumení~~ — hotovo
-   (`CLAUDE.md`, „Video"; přehrávání samo na emulátoru neověřené). Zbývá obraz v obraze.
+   (`CLAUDE.md`, „Video"; přehrávání samo na emulátoru neověřené). ~~Obraz v obraze~~ — hotovo
+   (Android ověřený, iOS jen přeložený; akce v okénku neověřená).
 3. ~~**Přeposílání zpráv**~~ — hotovo (položka v nabídce, výběr chatu, album celé,
    ~~víc cílů najednou~~ i ~~výběr víc zpráv~~). ~~Kopie bez odesílatele~~ (i bez popisků) — hotovo.
 4. ~~**Otevírání dokumentů**~~ — hotovo (stažení s průběhem, `ACTION_VIEW` / `UIDocumentInteractionController`).
