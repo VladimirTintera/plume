@@ -3,6 +3,7 @@ package eu.tintera.plume.features.conversation
 import eu.tintera.plume.core.audio.RecordedVoice
 import eu.tintera.plume.core.audio.VoiceKey
 import eu.tintera.plume.core.audio.decodeWaveform
+import eu.tintera.plume.core.telegram.OutgoingVideoNote
 import eu.tintera.plume.core.audio.resampleWaveform
 
 /**
@@ -28,3 +29,11 @@ internal val VoiceKey.isVoicePreview: Boolean get() = messageId == VOICE_PREVIEW
 private const val VOICE_PREVIEW_MESSAGE_ID = -1L
 
 internal const val VOICE_PREVIEW_BARS = 48
+
+/**
+ * Kolečko zastavené k přehrání před odesláním (zamčené nahrávání → ■).
+ *
+ * [note] je `null`, dokud se nahrávka dokončuje a připravuje: zmenšení na Androidu i ořez na iOS
+ * trvá vteřiny a kruh by jinak na tu chvíli zmizel, jako by nahrávka propadla.
+ */
+class VideoNotePreview(val note: OutgoingVideoNote?)

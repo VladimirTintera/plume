@@ -5913,7 +5913,7 @@ v `RecordControls.kt`, rozhodnutí o tahu čistá funkce `recordDragOutcome` (te
     teprve kóduje Opus a karta by mezitím ukázala textové pole, jako by nahrávka zmizela.
     Odeslat v něm nejde. Koš během dokončování náhled zruší a hotový soubor pak smaže — hlídá
     to porovnání instance mezistavu, jinak by se náhled po koši vrátil.
-  - **Kolečko ■ nemá** — jeho náhled by chtěl přehrávač videa v kartě.
+  - **Kolečko ■ má taky** — viz „Nahrávání koleček".
   - Ověřeno na emulátoru uživatelem (nahrát, zamknout, ■, přehrát, odeslat). iOS jen přeložené.
 - **Nahrávač je `factory`, ne `single`** — patří obrazovce. Odchod z chatu nahrávku zahodí,
   spuštění nahrávání zastaví hrající hlasovku (nahrávala by se z reproduktoru).
@@ -6416,6 +6416,24 @@ AVFoundation na iOS.
   jinak by z kamery udělalo povinný hardware a aplikace by zmizela z Play pro zařízení bez ní.
   Pozor při ověřování: APK sestavené PŘED úpravou manifestu oprávnění nemá a systém se na kameru
   vůbec nezeptá — výsledek pak vypadá jako odmítnuté oprávnění.
+- **Zamčené kolečko jde zastavit a přehrát před odesláním** (■ v pruhu, `stopRecordingForPreview`
+  → `VideoNotePreview`, `VideoNotePreviewBar`, kruh v `VideoNoteRecordingOverlay`). Místo kamery
+  hraje v kruhu nahrané kolečko, a to **jako v bublině**: potichu ve smyčce, ťuknutí na kruh nebo
+  na ▶ v kartě ho pustí od začátku se zvukem a s průběhem po obvodu, po dohrání zase potichu.
+  Uživatel tak vidí přesně to, co protějšek dostane.
+  - **Připravuje se hned po ■** (`prepareVideoNote`), ne až při odeslání: náhled přehrává hotový
+    soubor. Mezistav (`note == null`) točí indikátor v kruhu i v kartě a odeslat v něm nejde —
+    zmenšení na Androidu i ořez na iOS trvá vteřiny. Koš během dokončování soubory smaže, když
+    doběhnou (porovnání instance mezistavu, jako u hlasovky).
+  - **Stav přehrávání drží obrazovka** (`VideoNotePreviewPlayback`), ne ViewModel: čtou ho dvě
+    místa (kruh s přehrávačem a karta s tlačítkem a časem) a přehrávač žije v kompozici.
+  - **Po ■ je `recordingKind` pořád kolečko** (i bez běžícího nahrávání), jinak se odesílací
+    tlačítko čtečce hlásilo jako „odeslat hlasovou zprávu".
+  - **Odeslání i nabídka podržení jdou přes `sendRecording`**, takže naplánovat nebo poslat bez
+    zvuku jde i zastavené kolečko. Koš a odchod z chatu smažou video i náhledový snímek.
+  - **Ověřeno na emulátoru** (Pixel_10_Pro_XL, emulovaná kamera) v chatu s botem: zamknout, ■,
+    tichá smyčka, zvuk s průběhem a časem (audio focus drží jen po dobu zvuku), návrat po dohrání,
+    odeslání (bot dostal `video_note`, 480 px, 19 s) a koš (soubory pryč). iOS jen přeložené.
 - **Ověřeno na emulátoru** (Plume_Galerie_Fold, emulovaná přední kamera) v chatu s botem:
   přepnutí ťuknutím s nápovědou, dotazy na mikrofon a kameru, podržení s náhledem v kruhu,
   průběhem a zámkem, puštění (bot dostal `video_note`, 480 px), zrušení tahem doleva, zamčení

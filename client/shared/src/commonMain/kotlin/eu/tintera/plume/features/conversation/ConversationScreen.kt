@@ -481,6 +481,9 @@ fun ConversationScreen(
     }
     val isVideoRecording by remember { derivedStateOf { videoRecordingState.value != null } }
     val voicePreview by viewModel.voicePreview.collectAsStateWithLifecycle()
+    val videoNotePreview by viewModel.videoNotePreview.collectAsStateWithLifecycle()
+    // Nový náhled (i hotový po mezistavu) začíná potichu, jako kolečko v bublině.
+    val videoNotePlayback = remember(videoNotePreview) { VideoNotePreviewPlayback() }
     val recordGesture = remember { RecordGestureState() }
     val recordPermission = rememberRecordPermission()
     val videoNotePermission = rememberVideoNotePermission()
@@ -1661,7 +1664,8 @@ fun ConversationScreen(
                 onSwitchRecordMode = {
                     viewModel.setRecordMode(if (recordMode == RecordMode.VideoNote) RecordMode.Voice else RecordMode.VideoNote)
                 },
-                recordingKind = if (isVideoRecording) RecordMode.VideoNote else RecordMode.Voice,
+                // Zastavené kolečko je pořád kolečko: odeslání se tak jmenuje i v náhledu.
+                recordingKind = if (isVideoRecording || videoNotePreview != null) RecordMode.VideoNote else RecordMode.Voice,
                 recordGesture = recordGesture,
                 onStartRecording = { held ->
                     val video = recordMode == RecordMode.VideoNote
@@ -1704,6 +1708,12 @@ fun ConversationScreen(
                 onDiscardVoicePreview = {
                     haptics.reject()
                     viewModel.discardVoicePreview()
+                },
+                videoNotePreview = videoNotePreview,
+                videoNotePlayback = videoNotePlayback,
+                onDiscardVideoNotePreview = {
+                    haptics.reject()
+                    viewModel.discardVideoNotePreview()
                 },
                 onSendRecording = { options ->
                     haptics.confirm()
@@ -2382,6 +2392,8 @@ fun ConversationScreen(
                 camera = videoNoteCamera,
                 recording = { videoRecordingState.value },
                 modifier = Modifier.fillMaxSize().padding(bottom = obscuredBottom),
+                preview = videoNotePreview,
+                playback = videoNotePlayback,
             )
             // Zámek nad tlačítkem je tady, ne v liště — sklo pod polem by ho ořízlo.
             RecordLockHost(
@@ -2691,6 +2703,10 @@ private fun MessageInput(
     onToggleVoicePreview: () -> Unit = {},
     onSeekVoicePreview: (Float) -> Unit = {},
     onDiscardVoicePreview: () -> Unit = {},
+    /** Zastavené kolečko; samo hraje v kruhu nad konverzací, karta ukazuje jen ovládání. */
+    videoNotePreview: VideoNotePreview? = null,
+    videoNotePlayback: VideoNotePreviewPlayback? = null,
+    onDiscardVideoNotePreview: () -> Unit = {},
     onSendRecording: (SendOptions) -> Unit,
     /** Nabídka odeslání nad hlasovkou se otevřela (`true`) nebo zavřela bez volby (`false`). */
     onVoiceMenu: (open: Boolean) -> Unit = {},
@@ -2732,7 +2748,7 @@ private fun MessageInput(
     val recordHolding = isRecording && recordHeld && !recordLocked
     // Hlas ve vstupní kartě: nahrává se, nebo je nahrávka zastavená k poslechu. Karta i tlačítko
     // se v obou stavech chovají stejně; liší se jen pruh a to, že náhled nedýchá (nic neběží).
-    val voiceActive = isRecording || voicePreview != null
+    val voiceActive = isRecording || voicePreview != null || videoNotePreview != null
     val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current
     /*
@@ -2964,7 +2980,13 @@ private fun MessageInput(
                 }
 
                 // Při nahrávání místo pole pruh s časem; citace nad ním zůstává, hlasovka na ni odpoví.
-                if (voicePreview != null) {
+                if (videoNotePreview != null && videoNotePlayback != null) {
+                    VideoNotePreviewBar(
+                        preview = videoNotePreview,
+                        playback = videoNotePlayback,
+                        onDiscard = onDiscardVideoNotePreview,
+                    )
+                } else if (voicePreview != null) {
                     VoicePreviewBar(
                         preview = voicePreview,
                         playback = voicePreviewPlayback,
@@ -2978,7 +3000,8 @@ private fun MessageInput(
                         onCancel = onCancelRecording,
                         holding = recordHolding,
                         cancelProgress = { cancelProgress(recordDrag.value.x, with(density) { RECORD_CANCEL_DISTANCE.toPx() }) },
-                        onStop = onStopRecording.takeIf { recordingKind == RecordMode.Voice },
+                        onStop = onStopRecording,
+                        video = recordingKind == RecordMode.VideoNote,
                     )
                 } else Row(verticalAlignment = Alignment.Bottom) {
             /*
@@ -3385,7 +3408,7 @@ private fun MessageInput(
                     },
                     // Přílohy jdou poslat i bez popisku a popisek jde i odebrat.
                     // Náhled, který se ještě dokončuje, poslat nejde — soubor není hotový.
-                    enabled = (isRecording || voicePreview?.voice != null || showMic || draft.text.isNotBlank() || withAttachments || removableCaption) &&
+                    enabled = (isRecording || voicePreview?.voice != null || videoNotePreview?.note != null || showMic || draft.text.isNotBlank() || withAttachments || removableCaption) &&
                         // Odeslání teď by poslalo zprávu bez videa, které se ještě kopíruje.
                         !(kind == SendButtonKind.Send && attachmentsPreparing),
                     colors = IconButtonDefaults.filledIconButtonColors(
