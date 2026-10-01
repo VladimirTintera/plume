@@ -10,6 +10,7 @@ import eu.tintera.plume.core.navigation.ArchiveJoinRequestsRoute
 import eu.tintera.plume.core.navigation.ArchiveInviteLinksRoute
 import eu.tintera.plume.features.settings.EditProfileScreen
 import eu.tintera.plume.core.navigation.AddBotToGroupRoute
+import eu.tintera.plume.core.navigation.SwitchInlineRoute
 import eu.tintera.plume.core.navigation.ArchiveEditChatRoute
 import eu.tintera.plume.core.navigation.ArchiveMemberRightsRoute
 import eu.tintera.plume.core.navigation.MemberRightsRoute
@@ -20,6 +21,9 @@ import eu.tintera.plume.core.navigation.BlockedSendersRoute
 import eu.tintera.plume.features.settings.BlockSenderScreen
 import eu.tintera.plume.features.settings.BlockedSendersScreen
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
+import eu.tintera.plume.features.conversation.InlineQueryRequests
+import eu.tintera.plume.features.conversation.SwitchInlinePick
+import eu.tintera.plume.features.conversation.SwitchInlinePickerScreen
 import eu.tintera.plume.features.conversation.ConversationSearchRequests
 import eu.tintera.plume.features.profile.ChatProfileScreen
 import eu.tintera.plume.features.profile.EditChatScreen
@@ -29,6 +33,7 @@ import eu.tintera.plume.core.ui.LocalSavedMessagesChatId
 import eu.tintera.plume.core.ui.LocalPollMediaFlight
 import eu.tintera.plume.core.ui.LocalSharedMediaFlight
 import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.telegram.SwitchInlineTarget
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -459,6 +464,7 @@ private fun shellEntryProvider(
             onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(chatId)) },
             onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
             onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
+            onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
         )
     }
 
@@ -624,6 +630,7 @@ private fun shellEntryProvider(
             onUnarchived = { chatsStack.moveConversationToMain(route.chatId) },
             onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
             onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
+            onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
         )
     }
 
@@ -744,6 +751,31 @@ private fun shellEntryProvider(
             ),
             onBack = { chatsStack.pop(route) },
             onAdded = { chatId ->
+                if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
+                    chatsStack.add(ConversationRoute(chatId))
+                }
+            },
+        )
+    }
+
+    /*
+     * Výběr chatu pro inline dotaz z tlačítka bota. Po výběru ho nahradí vybraná konverzace
+     * s `@bot dotaz` v poli; dotaz si vyzvedne sama (`InlineQueryRequests`), i když je to ta
+     * pod výběrem.
+     */
+    entry<SwitchInlineRoute> { route ->
+        val inlineQueryRequests = koinInject<InlineQueryRequests>()
+        SwitchInlinePickerScreen(
+            viewModel = koinViewModel(
+                key = "switch-inline-${route.bot}-${route.users}${route.bots}${route.groups}${route.channels}",
+                parameters = {
+                    parametersOf(SwitchInlineTarget.Chosen(route.users, route.bots, route.groups, route.channels))
+                },
+            ),
+            bot = route.bot,
+            onBack = { chatsStack.pop(route) },
+            onPick = { chatId ->
+                inlineQueryRequests.request(chatId, route.bot, route.query)
                 if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
                     chatsStack.add(ConversationRoute(chatId))
                 }
@@ -951,6 +983,15 @@ private const val ARCHIVE_SCENE = "archive"
  * nebyla výměna scény, ale změna obsahu té stávající.
  */
 private const val SETTINGS_SCENE = "settings"
+
+private fun SwitchInlinePick.toRoute() = SwitchInlineRoute(
+    bot = bot,
+    query = query,
+    users = target.users,
+    bots = target.bots,
+    groups = target.groups,
+    channels = target.channels,
+)
 
 private fun pollComposerRoute(chatId: Long, request: PollComposerRequest) = PollComposerRoute(
     chatId = chatId,

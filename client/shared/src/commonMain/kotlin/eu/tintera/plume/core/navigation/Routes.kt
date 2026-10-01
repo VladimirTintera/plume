@@ -223,6 +223,20 @@ data class ShareContactRoute(val userId: Long) : Route
 data class AddBotToGroupRoute(val url: String, val botChatId: Long, val asAdmin: Boolean) : Route
 
 /**
+ * Výběr chatu pro tlačítko bota s inline dotazem do jiného chatu. Druhy chatu, které bot
+ * dovolil, nese routa rozložené — `SwitchInlineTarget` je doména a serializovat se nemá.
+ */
+@Serializable
+data class SwitchInlineRoute(
+    val bot: String,
+    val query: String,
+    val users: Boolean,
+    val bots: Boolean,
+    val groups: Boolean,
+    val channels: Boolean,
+) : Route
+
+/**
  * Nová anketa do chatu. Bez metadat scény, jako výběr pro přeposílání: jde přes celou plochu
  * z hlavního seznamu i z archivu a po odeslání odejde — pod ní je konverzace s novou anketou.
  */
@@ -307,6 +321,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ShareContactRoute::class, ShareContactRoute.serializer())
             subclass(PollComposerRoute::class, PollComposerRoute.serializer())
             subclass(AddBotToGroupRoute::class, AddBotToGroupRoute.serializer())
+            subclass(SwitchInlineRoute::class, SwitchInlineRoute.serializer())
             subclass(ShareRoute::class, ShareRoute.serializer())
             subclass(ShareToChatRoute::class, ShareToChatRoute.serializer())
             subclass(NewChatRoute::class, NewChatRoute.serializer())

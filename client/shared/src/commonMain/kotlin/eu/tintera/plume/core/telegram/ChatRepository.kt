@@ -95,6 +95,13 @@ interface ChatRepository {
     suspend fun groupsForBot(asAdmin: Boolean): List<ChatSummary>
 
     /**
+     * Chaty ze seznamu (i archivu), kam jde tlačítkem bota poslat inline dotaz: druh, který bot
+     * dovolil ([SwitchInlineTarget.Chosen]), a smí se do nich psát. Bez Uložených zpráv — ty
+     * výběr kreslí zvlášť.
+     */
+    suspend fun inlineQueryTargets(target: SwitchInlineTarget.Chosen): List<ChatSummary>
+
+    /**
      * Přidá bota ze startovacího odkazu do skupiny [groupChatId] — jako správce s právy z odkazu,
      * když je odkaz chce — a spustí ho tam s parametrem (`sendBotStartMessage`).
      */
