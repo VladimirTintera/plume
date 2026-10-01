@@ -638,6 +638,39 @@ class TdlChatRepository(
         }
     }
 
+    override suspend fun inlineQueryTargets(target: SwitchInlineTarget.Chosen): List<ChatSummary> {
+        val saved = savedMessagesChatId.value
+        val listed = listOf(ChatFolder.Main, ChatFolder.Archive)
+            .flatMap { folder -> (lists.getValue(folder).value as? ChatListState.Ready)?.chats.orEmpty() }
+            .distinctBy { it.id }
+            .filter { it.id != saved }
+        /*
+         * Druh chatu nese položka seznamu, takže TDLib se ptá jen tam, kde chat projít může.
+         * Dotaz na každý chat v seznamu (stovky) trval na emulátoru přes minutu.
+         */
+        return listed.filter { summary ->
+            when (summary.kind) {
+                // Do soukromého chatu se píše vždycky; bota od člověka rozliší až uživatel za
+                // chatem (lokální dotaz), a jen když bot dovolil jedno a druhé ne.
+                ChatKind.Private -> when {
+                    target.users == target.bots -> target.users
+                    else -> {
+                        val isBot = client.getUser(userId = summary.id).toResult().getOrNull()?.type is UserTypeBot
+                        target.allows(ChatKind.Private, isBot)
+                    }
+                }
+                ChatKind.Group, ChatKind.Channel -> target.allows(summary.kind, isBot = false) && run {
+                    val chat = client.getChat(chatId = summary.id).toResult().getOrNull() ?: return@run false
+                    writeAccess(
+                        isChannel = (chat.type as? ChatTypeSupergroup)?.isChannel == true,
+                        status = client.ownMemberStatus(chat),
+                        membersCanSend = chat.permissions.canSendBasicMessages,
+                    ) == WriteAccess.Allowed
+                }
+            }
+        }
+    }
+
     override suspend fun addBotToGroup(url: String, groupChatId: Long): Result<Unit> = runCatching {
         val link = client.getInternalLinkType(link = url).toResult().getOrThrow() as? InternalLinkTypeBotStartInGroup
             ?: error("Odkaz nepřidává bota do skupiny.")

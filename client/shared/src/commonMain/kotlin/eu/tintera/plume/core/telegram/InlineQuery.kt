@@ -28,6 +28,12 @@ fun inlineQueryOf(draft: String): InlineQueryDraft? {
     return InlineQueryDraft(username, draft.substring(space + 1))
 }
 
+/**
+ * Text pole pro inline dotaz na [bot]: `@bot dotaz`. Mezera za jménem je vždycky — i s prázdným
+ * dotazem, protože teprve s ní pozná [inlineQueryOf] dotaz a za ni se píše.
+ */
+fun inlineQueryText(bot: String, query: String): String = "@$bot $query"
+
 private fun Char.isAsciiLetter(): Boolean = this in 'a'..'z' || this in 'A'..'Z'
 
 private const val MAX_USERNAME_LENGTH = 32

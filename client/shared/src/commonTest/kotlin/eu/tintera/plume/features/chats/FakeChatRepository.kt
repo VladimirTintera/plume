@@ -8,6 +8,7 @@ import eu.tintera.plume.core.telegram.ArchiveUnread
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.telegram.SwitchInlineTarget
 import eu.tintera.plume.core.telegram.FoundMessagesPage
 import eu.tintera.plume.core.telegram.MessageSearchFilter
 import eu.tintera.plume.core.telegram.SpamActions
@@ -55,6 +56,7 @@ open class FakeChatRepository(
     override suspend fun contacts(): Result<List<ChatSummary>> = contactsResult
 
     override suspend fun groupsForBot(asAdmin: Boolean): List<ChatSummary> = emptyList()
+    override suspend fun inlineQueryTargets(target: SwitchInlineTarget.Chosen): List<ChatSummary> = emptyList()
 
     override suspend fun addBotToGroup(url: String, groupChatId: Long): Result<Unit> = Result.success(Unit)
 

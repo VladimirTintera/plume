@@ -1248,6 +1248,12 @@ sealed interface BotButtonKind {
     data class LoginUrl(val url: String, val buttonId: Long) : BotButtonKind
 
     /**
+     * Inline dotaz na bota [bot] (bez zavináče): do pole se dá `@bot dotaz`, buď v tomhle
+     * chatu, nebo v chatu, který si uživatel vybere ([target]).
+     */
+    data class SwitchInline(val bot: String, val query: String, val target: SwitchInlineTarget) : BotButtonKind
+
+    /**
      * Druh, který Plume zatím neumí. Tlačítko je VIDĚT a ťuknutí to vysvětlí — schované by
      * z klávesnice bota vykouslo řádek a změnilo, co bot nabízí.
      */
@@ -1255,6 +1261,27 @@ sealed interface BotButtonKind {
 }
 
 enum class UnsupportedBotButton { WebApp, SwitchInline, Buy, Game, Password }
+
+/** Kam tlačítko s inline dotazem vede. */
+sealed interface SwitchInlineTarget {
+    /** Do pole tohohle chatu. */
+    data object Current : SwitchInlineTarget
+
+    /** Do chatu, který si uživatel vybere — jen z druhů, které bot dovolil. */
+    data class Chosen(
+        val users: Boolean,
+        val bots: Boolean,
+        val groups: Boolean,
+        val channels: Boolean,
+    ) : SwitchInlineTarget {
+        /** Smí se do chatu daného druhu ([isBot] jen u soukromého chatu)? */
+        fun allows(kind: ChatKind, isBot: Boolean): Boolean = when (kind) {
+            ChatKind.Private -> if (isBot) bots else users
+            ChatKind.Group -> groups
+            ChatKind.Channel -> channels
+        }
+    }
+}
 
 /** Odpověď na tlačítko „přihlásit na web". */
 sealed interface LoginUrlPrompt {

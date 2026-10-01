@@ -70,6 +70,9 @@ import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeLoginUrl
 import dev.g000sha256.tdl.dto.LoginUrlInfoRequestConfirmation
 import dev.g000sha256.tdl.dto.LoginUrlInfoOpen
 import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeSwitchInline
+import dev.g000sha256.tdl.dto.TargetChatChosen
+import dev.g000sha256.tdl.dto.TargetChatCurrent
+import dev.g000sha256.tdl.dto.TargetChatInternalLink
 import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeBuy
 import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeCallbackGame
 import dev.g000sha256.tdl.dto.InlineKeyboardButtonTypeCallbackWithPassword
@@ -1978,7 +1981,15 @@ class TdlConversationRepository(
                 FactCheck(body.text, body.entities, check.countryCode.ifBlank { null })
                     .takeIf { it.text.isNotBlank() }
             },
-            keyboard = (replyMarkup as? ReplyMarkupInlineKeyboard)?.toBotKeyboard(),
+            keyboard = (replyMarkup as? ReplyMarkupInlineKeyboard)?.let { markup ->
+                // Inline dotaz jde na bota, „přes" kterého zpráva přišla, jinak na odesílatele.
+                // Dohledává se, jen když klávesnice takové tlačítko má.
+                val switchesInline = markup.rows.any { row -> row.any { it?.type is InlineKeyboardButtonTypeSwitchInline } }
+                val inlineBot = if (!switchesInline) null else viaBotUserId.takeIf { it != 0L }
+                    // `senderId` je tu už číslo odesílatele (`plainId`): kladné = uživatel.
+                    ?: senderId.takeIf { it > 0 }
+                markup.toBotKeyboard(inlineBot?.let { botUsername(it) })
+            },
             poll = (content as? MessagePoll)?.let { poll ->
                 poll.toChatPoll().copy(
                     recentVoters = poll.poll.recentVoterIds.take(MAX_RECENT_VOTERS)
@@ -2812,7 +2823,7 @@ internal fun TdlLinkPreviewOptions.toDomain(): LinkPreviewOptions? =
  * `when` nad druhem tlačítka je bez `else`: nový druh v novější TDLib má rozbít překlad, ne se
  * tiše nakreslit jako něco jiného.
  */
-private fun ReplyMarkupInlineKeyboard.toBotKeyboard(): BotKeyboard? {
+private fun ReplyMarkupInlineKeyboard.toBotKeyboard(inlineBot: String?): BotKeyboard? {
     val rows = rows.map { row ->
         row.filterNotNull().map { button ->
             BotButton(
@@ -2825,7 +2836,8 @@ private fun ReplyMarkupInlineKeyboard.toBotKeyboard(): BotKeyboard? {
                     is InlineKeyboardButtonTypeDisabled -> BotButtonKind.Disabled
                     is InlineKeyboardButtonTypeWebApp -> BotButtonKind.Unsupported(UnsupportedBotButton.WebApp)
                     is InlineKeyboardButtonTypeLoginUrl -> BotButtonKind.LoginUrl(type.url, type.id)
-                    is InlineKeyboardButtonTypeSwitchInline -> BotButtonKind.Unsupported(UnsupportedBotButton.SwitchInline)
+                    is InlineKeyboardButtonTypeSwitchInline -> type.toSwitchInline(inlineBot)
+                        ?: BotButtonKind.Unsupported(UnsupportedBotButton.SwitchInline)
                     is InlineKeyboardButtonTypeBuy -> BotButtonKind.Unsupported(UnsupportedBotButton.Buy)
                     is InlineKeyboardButtonTypeCallbackGame -> BotButtonKind.Unsupported(UnsupportedBotButton.Game)
                     is InlineKeyboardButtonTypeCallbackWithPassword -> BotButtonKind.Unsupported(UnsupportedBotButton.Password)
@@ -2837,6 +2849,25 @@ private fun ReplyMarkupInlineKeyboard.toBotKeyboard(): BotKeyboard? {
         }
     }.filter { it.isNotEmpty() }
     return BotKeyboard(rows).takeIf { rows.isNotEmpty() }
+}
+
+/**
+ * Tlačítko s inline dotazem. `null` = Plume ho neumí: bot bez jména (dotaz by nešlo napsat)
+ * a cíl daný odkazem (`TargetChatInternalLink`), který by chtěl odkaz nejdřív otevřít.
+ */
+private fun InlineKeyboardButtonTypeSwitchInline.toSwitchInline(bot: String?): BotButtonKind.SwitchInline? {
+    bot ?: return null
+    val target = when (val chat = targetChat) {
+        is TargetChatCurrent -> SwitchInlineTarget.Current
+        is TargetChatChosen -> SwitchInlineTarget.Chosen(
+            users = chat.types.allowUserChats,
+            bots = chat.types.allowBotChats,
+            groups = chat.types.allowGroupChats,
+            channels = chat.types.allowChannelChats,
+        )
+        is TargetChatInternalLink -> return null
+    }
+    return BotButtonKind.SwitchInline(bot = bot, query = query, target = target)
 }
 
 /**
