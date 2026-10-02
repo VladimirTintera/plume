@@ -86,6 +86,8 @@ import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.navigation.NewChatRoute
+import eu.tintera.plume.core.navigation.NewGroupMembersRoute
+import eu.tintera.plume.core.navigation.CreateChatRoute
 import eu.tintera.plume.core.navigation.SettingsRoute
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.navigation.SettingsSectionRoute
@@ -97,6 +99,8 @@ import eu.tintera.plume.features.chats.ArchiveScreen
 import eu.tintera.plume.features.chats.ChatListScreen
 import eu.tintera.plume.features.chats.AddBotToGroupScreen
 import eu.tintera.plume.features.chats.NewChatScreen
+import eu.tintera.plume.features.chats.NewGroupMembersScreen
+import eu.tintera.plume.features.chats.CreateChatScreen
 import eu.tintera.plume.features.conversation.ConversationPlaceholder
 import eu.tintera.plume.features.conversation.ConversationScreen
 import eu.tintera.plume.features.forward.ForwardScreen
@@ -426,7 +430,37 @@ private fun shellEntryProvider(
                 chatsStack.remove(NewChatRoute)
                 chatsStack.openConversation(chatId)
             },
+            onNewGroup = { if (chatsStack.lastOrNull() != NewGroupMembersRoute) chatsStack.add(NewGroupMembersRoute) },
+            onNewChannel = { chatsStack.add(CreateChatRoute(channel = true)) },
             modifier = Modifier.listPaneInsets(twoPane),
+        )
+    }
+
+    /*
+     * Založení skupiny a kanálu. Bez metadat scény, jako přeposílání: formulář jde přes celou
+     * plochu i na široké obrazovce. Po založení se celá větev (nová zpráva, členové, formulář)
+     * odebere a otevře se nový chat — zpět z něj vede do seznamu, ne zpátky do formuláře.
+     */
+    entry<NewGroupMembersRoute> {
+        NewGroupMembersScreen(
+            // Vlastní klíč: výběr členů nesmí sdílet hledání s „Novou zprávou" pod sebou.
+            viewModel = koinViewModel(key = "new-group-members"),
+            onBack = { chatsStack.remove(NewGroupMembersRoute) },
+            onNext = { members -> chatsStack.add(CreateChatRoute(channel = false, memberChatIds = members)) },
+        )
+    }
+
+    entry<CreateChatRoute> { route ->
+        CreateChatScreen(
+            viewModel = koinViewModel(
+                key = "create-chat-${route.channel}-${route.memberChatIds.joinToString(",")}",
+                parameters = { parametersOf(route.channel, route.memberChatIds) },
+            ),
+            onBack = { chatsStack.pop(route) },
+            onCreated = { chatId ->
+                chatsStack.removeAll { it is CreateChatRoute || it == NewGroupMembersRoute || it == NewChatRoute }
+                chatsStack.openConversation(chatId)
+            },
         )
     }
 

@@ -1969,6 +1969,37 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
 - **List panel na dvoupanelovém rozvržení:** Na tabletu / TwoPane nahradí levý panel stejně jako
   Archiv, po výběru kontaktu se zavře a v pravém panelu se otevře konverzace.
 
+### Založení skupiny a kanálu
+
+„Nová skupina" a „Nový kanál" jsou dva řádky nad kontakty v „Nové zprávě" (schované při
+hledání). Skupina: výběr členů (`NewGroupMembersRoute`, `NewGroupMembersScreen`) → název
+a fotka (`CreateChatRoute`, `CreateChatScreen`); kanál rovnou formulář s popisem. Hranice je
+`ChatCreation` v `core/telegram`, po založení se otevře nový chat.
+
+- **Vždycky supergroupa** (`createNewSupergroupChat`), i pro malou skupinu. Základní skupina
+  nemá témata, část práv ani veřejný odkaz a při prvním takovém kroku se převádí — na chat
+  s JINÝM id, které by rozsypalo zásobník i koncepty. Skupina a kanál tak jdou jedním voláním.
+- **`ChatCreation` je samostatné rozhraní, ne metoda `ChatRepository`** — ten má v testech
+  desítky podvrhů a založení s jeho seznamem nesouvisí.
+- **Výchozí dobu automatického mazání posílá klient** (`messageAutoDeleteTime`); TDLib ji
+  u supergroupy sám nepoužije. Bere jen celé dny do roku a jinou hodnotu by odmítl i se
+  založením (`newChatAutoDelete`, testy `CreateChatTest`).
+- **Členové se přidávají až do STOJÍCÍ skupiny** (`addChatMembers`). Koho server nepustí
+  (soukromí, `FailedToAddMembers`), ohlásí dialog jménem — skupina se kvůli tomu nezahazuje
+  a otevře se po zavření dialogu. Totéž selhání fotky: chat už stojí, zakládat ho znovu by
+  vyrobilo druhý.
+- **Výběr dává chaty, do skupiny jdou uživatelé.** Id uživatele se bere z typu chatu
+  (`ChatTypePrivate`), ne z id chatu — tajný chat má id jiné. Nabízejí se jen soukromé chaty
+  bez Uložených zpráv (`groupMemberCandidates`).
+- **Pokračovat jde i bez členů** (`ChatPicker(confirmWhenEmpty = true)`): skupina smí vzniknout
+  prázdná a pozvat se dá odkazem.
+- **Fotka se ořízne hned po výběru** (`SquarePhoto`) a nahraje až s id chatu — náhled ukazuje
+  přesně to, co odejde.
+- **Po založení se z Chatů odebere celá větev** (nová zpráva, členové, formulář) a zpět z nového
+  chatu vede do seznamu, ne do formuláře, ze kterého by šlo založit druhý.
+- **Ověřeno na emulátoru jen bez založení** (řádky, výběr členů, oba formuláře); založení mění
+  skutečný účet, takže jen se souhlasem.
+
 ### Jeden výběr chatu: `ChatPicker`
 
 Přeposílání, sdílení ze systému i zahájení nové konverzace kreslí tentýž seznam
