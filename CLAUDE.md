@@ -2002,7 +2002,7 @@ a fotka (`CreateChatRoute`, `CreateChatScreen`); kanál rovnou formulář s popi
   s popisem (čtvercový avatar, popis v profilu); po založení se otevře chat a zpět vede do
   seznamu. Bot jde do výběru členů přes hledání — v kontaktech není. **Neověřeno**: fotka při
   založení, dialog s lidmi, které server nepustil (chce cizí účet se zakázaným přidáváním),
-  a výchozí doba mazání (účet ji nemá nastavenou). Testovací skupina a kanál na účtu zůstaly.
+  a předání výchozí doby mazání. Testovací skupina a kanál na účtu zůstaly.
 
 ### Jeden výběr chatu: `ChatPicker`
 
