@@ -1997,8 +1997,12 @@ a fotka (`CreateChatRoute`, `CreateChatScreen`); kanál rovnou formulář s popi
   přesně to, co odejde.
 - **Po založení se z Chatů odebere celá větev** (nová zpráva, členové, formulář) a zpět z nového
   chatu vede do seznamu, ne do formuláře, ze kterého by šlo založit druhý.
-- **Ověřeno na emulátoru jen bez založení** (řádky, výběr členů, oba formuláře); založení mění
-  skutečný účet, takže jen se souhlasem.
+- **Ověřeno na emulátoru se souhlasem** (česky): skupina s testovacím botem jako jediným
+  členem (servisní zprávy „vytvořena" a „přibyli členové", tlačítko příkazů bota) a kanál
+  s popisem (čtvercový avatar, popis v profilu); po založení se otevře chat a zpět vede do
+  seznamu. Bot jde do výběru členů přes hledání — v kontaktech není. **Neověřeno**: fotka při
+  založení, dialog s lidmi, které server nepustil (chce cizí účet se zakázaným přidáváním),
+  a výchozí doba mazání (účet ji nemá nastavenou). Testovací skupina a kanál na účtu zůstaly.
 
 ### Jeden výběr chatu: `ChatPicker`
 
