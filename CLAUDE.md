@@ -6389,13 +6389,16 @@ v `RecordControls.kt`, rozhodnutí o tahu čistá funkce `recordDragOutcome` (te
     `VoiceRecorder.start(continuing)`, testy `VoiceRecorderContinueTest`). Nahrávání naváže
     rovnou zamčené (spouští ho ťuknutí, ne podržení; zamčení nastaví obrazovka), čas a úrovně
     běží od konce náhledu a po ■ nebo odeslání se oba úseky spojí `joinOggOpus` do souboru
-    nového úseku; původní se smaže. **Waveform se počítá znovu ze VŠECH úrovní**
+    nového úseku; původní se smaže. **Spojuje nahrávač, ne `VoiceRecorder`**
+    (`MediaCapture.canJoin` / `join`): výchozí je Ogg/Opus, kamera spojuje MP4 kodérem
+    platformy (viz „Nahrávání koleček"). **Waveform se počítá znovu ze VŠECH úrovní**
     (`RecordedVoice.levels`) — normuje se na špičku celé nahrávky, takže dva hotové waveformy
     slepit nejde. Koš během navazování zahodí celou hlasovku, ne jen dovětek. Dovětek pod
     300 ms (`MIN_SEGMENT_MS`) se zahodí a zůstane původní nahrávka — `MediaRecorder` tak krátký
-    úsek nedokončí. **M4A (Android 9 a starší) spojit nejde** (`canContinue`), tlačítko tam není.
+    úsek nedokončí. **M4A (Android 9 a starší) spojit nejde** (`VoicePreview.canContinue`),
+    tlačítko tam není. Selhané spojení nechá původní nahrávku.
     Ověřeno na emulátoru: dva úseky, odeslaný soubor má podle granule v Oggu 35,1 s, tedy oba
-    (délku v Bot API hlásíme sami, ta nic nedokazuje). Kolečko navázat neumí; iOS jen přeložené.
+    (délku v Bot API hlásíme sami, ta nic nedokazuje). iOS jen přeložené.
   - Ověřeno na emulátoru uživatelem (nahrát, zamknout, ■, přehrát, odeslat). iOS jen přeložené.
 - **Nahrávač je `factory`, ne `single`** — patří obrazovce. Odchod z chatu nahrávku zahodí,
   spuštění nahrávání zastaví hrající hlasovku (nahrávala by se z reproduktoru).
@@ -6916,6 +6919,24 @@ AVFoundation na iOS.
   - **Ověřeno na emulátoru** (Pixel_10_Pro_XL, emulovaná kamera) v chatu s botem: zamknout, ■,
     tichá smyčka, zvuk s průběhem a časem (audio focus drží jen po dobu zvuku), návrat po dohrání,
     odeslání (bot dostal `video_note`, 480 px, 19 s) a koš (soubory pryč). iOS jen přeložené.
+  - **Po přehrání jde nahrávat dál** (kamera na konci pruhu náhledu, `continueVideoNotePreview`)
+    — totéž co u hlasovky, jen spojuje kamera (`VideoNoteCamera.join`) do nového souboru vedle
+    nového úseku a vstupy maže až po úspěchu. Náhledový snímek starého kolečka jde pryč hned,
+    nový se přečte z výsledku. Kolečko pod minutovým stropem (méně než vteřina místa) tlačítko
+    nemá — dovětek by po zlomku vteřiny odešel sám.
+    - **Android: Transformer s JEDNOU sekvencí dvou položek**, obě přes `Presentation` na 480 px.
+      **Zvuk se musí vynutit do AAC** (`setAudioMimeType`): sekvenci Transformer zvukem vždycky
+      překódovává a kodér volí podle vstupu — emulátor nahrává AMR-NB (8 kHz) a s kodérem AMR
+      se export zasekl, hlídač ho po 25 s ukončil („Abort: no output sample written in the last
+      25000 milliseconds", nahoře „Muxer error"). Zmenšení jednoho úseku (`shrinkIfNeeded`)
+      zvuk jen přenáší, proto tam to vidět nebylo.
+    - **iOS: `AVMutableComposition`** se stopou obrazu a zvuku a export do MP4. Obě kolečka už
+      prošla čtvercovým exportem, takže `AVMutableVideoComposition` netřeba. Jen přeložené —
+      simulátor kameru nemá.
+    - **Ověřeno na emulátoru** v chatu s botem: 4 s + 4 s, náhled ukázal 0:08, výsledek AAC
+      mono 7,9 s, bot dostal `video_note` (8 s, 480 px); koš během navazování smazal původní
+      kolečko i rozpracovaný úsek. Po prvním (zaseknutém) pokusu zůstalo původní kolečko
+      k odeslání — záchrana funguje.
 - **Ověřeno na emulátoru** (Plume_Galerie_Fold, emulovaná přední kamera) v chatu s botem:
   přepnutí ťuknutím s nápovědou, dotazy na mikrofon a kameru, podržení s náhledem v kruhu,
   průběhem a zámkem, puštění (bot dostal `video_note`, 480 px), zrušení tahem doleva, zamčení

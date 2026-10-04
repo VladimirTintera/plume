@@ -4109,7 +4109,7 @@ class ConversationViewModel(
                 reportRecordingLost(tooShort)
                 return@launch
             }
-            _voicePreview.value = VoicePreview(recorded)
+            _voicePreview.value = VoicePreview(recorded, canContinue = voiceRecorder.canContinue(recorded))
         }
     }
 
@@ -4129,7 +4129,8 @@ class ConversationViewModel(
      * Nahrávání je rovnou zamčené — spouští ho ťuknutí, ne podržení; zamčení drží obrazovka.
      */
     fun continueVoicePreview() {
-        val voice = _voicePreview.value?.voice?.takeIf { it.canContinue } ?: return
+        val preview = _voicePreview.value?.takeIf { it.canContinue } ?: return
+        val voice = preview.voice ?: return
         if (videoRecorder.state.value != null) return
         silencePlayback()
         voiceRecorder.start(continuing = voice)
@@ -4214,8 +4215,33 @@ class ConversationViewModel(
                 reportRecordingLost(tooShort && recorded == null)
                 return@launch
             }
-            _videoNotePreview.value = VideoNotePreview(note)
+            // Kolečko těsně pod minutovým stropem: navázaný úsek by po zlomku vteřiny odešel sám.
+            val roomLeft = recorded.durationMs < VIDEO_NOTE_MAX_DURATION_MS - MIN_DURATION_MS
+            _videoNotePreview.value = VideoNotePreview(
+                note,
+                recorded,
+                canContinue = roomLeft && videoRecorder.canContinue(recorded),
+            )
         }
+    }
+
+    /**
+     * Nahrávat dál po přehrání náhledu kolečka — jako [continueVoicePreview]: kamera se znovu
+     * otevře, čas běží od konce náhledu a po ■ nebo odeslání se obě kolečka spojí do jednoho
+     * ([eu.tintera.plume.core.camera.VideoNoteCamera.join]). Náhledový snímek patří starému
+     * souboru, takže jde pryč hned; nový se přečte z výsledku.
+     */
+    fun continueVideoNotePreview() {
+        val preview = _videoNotePreview.value?.takeIf { it.canContinue } ?: return
+        val recorded = preview.recorded ?: return
+        if (voiceRecorder.state.value != null) return
+        silencePlayback()
+        videoRecorder.start(continuing = recorded)
+            .onSuccess {
+                _videoNotePreview.value = null
+                preview.note?.thumbnail?.path?.let(::deleteQuietly)
+            }
+            .onFailure { _state.update { it.copy(error = UiText(Res.string.conversation_video_note_start_failed)) } }
     }
 
     /** Koš u náhledu kolečka, i odchod z chatu: nic neodejde a soubory se smažou. */

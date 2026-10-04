@@ -8,6 +8,7 @@ import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.Effects
 import androidx.media3.transformer.EditedMediaItem
+import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Composition
 import androidx.media3.effect.Presentation
 import androidx.media3.common.MimeTypes
@@ -263,11 +264,62 @@ private class AndroidVideoNoteCamera(
         val size = videoMetadata(source).let { maxOf(it.width, it.height) }
         if (size <= VIDEO_NOTE_MAX_LENGTH) return source
         val target = File(source.parentFile, "video-note-$VIDEO_NOTE_MAX_LENGTH.mp4")
+        export(Composition.Builder(EditedMediaItemSequence.Builder(squareItem(source)).build()).build(), target)
+        source.delete()
+        return target
+    }
+
+    /**
+     * Dvě kolečka za sebou do jednoho souboru — Transformer s jednou sekvencí dvou položek.
+     * Obě jdou přes tentýž [Presentation] na [VIDEO_NOTE_MAX_LENGTH] px: sekvence s různými
+     * rozměry by výsledek vzala podle první položky a druhou roztáhla.
+     *
+     * **Zvuk jde do AAC.** Sekvenci Transformer zvukem vždycky překódovává (úseky se musí
+     * navázat na vzorek), a bez výslovného formátu volí kodér podle vstupu. Emulátor nahrává
+     * AMR-NB a s kodérem AMR se export zasekl — hlídač ho po 25 s ukončil („no output sample
+     * written"). AAC je navíc to, co kolečka ostatních klientů nesou.
+     */
+    override suspend fun join(previous: String, next: String): String {
+        val first = File(previous)
+        val second = File(next)
+        val target = File(second.parentFile, "video-note-joined.mp4")
+        val sequence = EditedMediaItemSequence.Builder(squareItem(first), squareItem(second)).build()
+        try {
+            export(Composition.Builder(sequence).build(), target, audioMimeType = MimeTypes.AUDIO_AAC)
+        } catch (failure: Throwable) {
+            target.delete()
+            throw failure
+        }
+        first.delete()
+        // Složka předchozího kolečka zůstala prázdná (náhledový snímek maže volající); prázdnou smaže.
+        first.parentFile?.delete()
+        second.delete()
+        return target.absolutePath
+    }
+
+    private fun squareItem(source: File): EditedMediaItem =
+        EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(source)))
+            .setEffects(
+                Effects(
+                    emptyList(),
+                    listOf(
+                        Presentation.createForWidthAndHeight(
+                            VIDEO_NOTE_MAX_LENGTH,
+                            VIDEO_NOTE_MAX_LENGTH,
+                            Presentation.LAYOUT_SCALE_TO_FIT,
+                        ),
+                    ),
+                ),
+            )
+            .build()
+
+    private suspend fun export(composition: Composition, target: File, audioMimeType: String? = null) {
         withContext(Dispatchers.Main) {
             suspendCancellableCoroutine { continuation ->
                 // Transformer chce vlákno s Looperem a ozývá se na něm; hlavní ho má.
                 val transformer = Transformer.Builder(context)
                     .setVideoMimeType(MimeTypes.VIDEO_H264)
+                    .apply { audioMimeType?.let(::setAudioMimeType) }
                     .addListener(object : Transformer.Listener {
                         override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                             continuation.resume(Unit)
@@ -282,26 +334,10 @@ private class AndroidVideoNoteCamera(
                         }
                     })
                     .build()
-                val item = EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(source)))
-                    .setEffects(
-                        Effects(
-                            emptyList(),
-                            listOf(
-                                Presentation.createForWidthAndHeight(
-                                    VIDEO_NOTE_MAX_LENGTH,
-                                    VIDEO_NOTE_MAX_LENGTH,
-                                    Presentation.LAYOUT_SCALE_TO_FIT,
-                                ),
-                            ),
-                        ),
-                    )
-                    .build()
-                transformer.start(item, target.absolutePath)
+                transformer.start(composition, target.absolutePath)
                 continuation.invokeOnCancellation { transformer.cancel() }
             }
         }
-        source.delete()
-        return target
     }
 
     override fun cancel() {
