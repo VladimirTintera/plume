@@ -2152,6 +2152,15 @@ class ConversationViewModel(
                         is InternalLink.MainWebApp -> requestWebApp(
                             WebAppRequest(link.botUserId, url = "", launch = false, main = true, startParameter = link.startParameter),
                         )
+                        is InternalLink.WebApp -> requestWebApp(
+                            WebAppRequest(
+                                link.botUserId,
+                                url = "",
+                                launch = false,
+                                startParameter = link.startParameter,
+                                shortName = link.shortName,
+                            ),
+                        )
                     }
                 }
                 .onFailure { failure ->
@@ -2598,7 +2607,8 @@ class ConversationViewModel(
     fun openBotMenuApp() {
         val app = _state.value.botMenuApp ?: return
         closeCommands()
-        requestWebApp(WebAppRequest(chatId, app.url, launch = true))
+        // Odkaz `t.me/bot/app` se zpracuje jako odkaz (TDLib to u tlačítka nabídky předepisuje).
+        if (app.isLink) openLink(app.url) else requestWebApp(WebAppRequest(chatId, app.url, launch = true))
     }
 
     /** Tlačítko příkazů u pole: otevře seznam, druhé ťuknutí ho zavře. */
@@ -4965,7 +4975,8 @@ private data class LinkPreviewStash(
  * Mini aplikace, kterou chce konverzace otevřít. [launch] = přes `openWebApp` (tlačítko pod
  * zprávou, nabídka bota), jinak jen adresa (`getWebAppUrl`: vlastní klávesnice, tlačítko nad
  * výsledky inline bota). [keyboardButtonText] jen u vlastní klávesnice — s ním smí mini aplikace
- * poslat data. [main] = hlavní mini aplikace bota (`getMainWebApp`), [url] je pak prázdná.
+ * poslat data. [main] = hlavní mini aplikace bota (`getMainWebApp`), [shortName] = pojmenovaná
+ * z odkazu `t.me/bot/app`; [url] je u obou prázdná.
  */
 data class WebAppRequest(
     val botUserId: Long,
@@ -4974,6 +4985,8 @@ data class WebAppRequest(
     val keyboardButtonText: String? = null,
     val main: Boolean = false,
     val startParameter: String = "",
+    /** Pojmenovaná mini aplikace z odkazu `t.me/bot/app` (`getWebAppLinkUrl`). */
+    val shortName: String = "",
 )
 
 /** Přihlášení na web z tlačítka bota, které čeká na potvrzení. */

@@ -733,11 +733,11 @@ private fun shellEntryProvider(
     entry<WebAppRoute> { route ->
         WebAppScreen(
             viewModel = koinViewModel(
-                key = "web-app-${route.chatId}-${route.botUserId}-${route.url.hashCode()}-${route.main}-${route.startParameter}",
+                key = "web-app-${route.chatId}-${route.botUserId}-${route.url.hashCode()}-${route.main}-${route.shortName}-${route.startParameter}",
                 parameters = {
                     parametersOf(
                         route.chatId, route.botUserId, route.url, route.launch, route.keyboardButtonText,
-                        route.main, route.startParameter,
+                        route.main, route.startParameter, route.shortName,
                     )
                 },
             ),
@@ -1026,6 +1026,7 @@ private fun webAppRoute(chatId: Long, request: WebAppRequest, archive: Boolean) 
     archive = archive,
     main = request.main,
     startParameter = request.startParameter,
+    shortName = request.shortName,
 )
 
 private fun SwitchInlinePick.toRoute() = SwitchInlineRoute(

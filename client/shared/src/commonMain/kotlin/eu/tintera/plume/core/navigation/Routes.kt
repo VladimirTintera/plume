@@ -270,8 +270,10 @@ data class WebAppRoute(
     val archive: Boolean = false,
     /** Hlavní mini aplikace bota (`getMainWebApp`); [url] je pak prázdná. */
     val main: Boolean = false,
-    /** Parametr z odkazu `t.me/bot?startapp=…` pro hlavní mini aplikaci; jinak prázdný. */
+    /** Parametr z odkazu `t.me/bot?startapp=…` / `t.me/bot/app?startapp=…`; jinak prázdný. */
     val startParameter: String = "",
+    /** Pojmenovaná mini aplikace z odkazu `t.me/bot/app` (`getWebAppLinkUrl`); [url] je pak prázdná. */
+    val shortName: String = "",
 ) : Route
 
 /**

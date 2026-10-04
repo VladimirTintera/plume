@@ -6,6 +6,7 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.InternalLink
+import eu.tintera.plume.core.telegram.NamedWebApp
 import eu.tintera.plume.core.telegram.WebAppRepository
 import eu.tintera.plume.core.telegram.WebAppTheme
 import eu.tintera.plume.core.ui.UiText
@@ -13,6 +14,7 @@ import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.features.conversation.ChatTarget
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.webapp_load_failed
+import eu.tintera.plume.resources.webapp_not_found
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -43,6 +45,8 @@ data class WebAppState(
     val popup: WebAppPopup? = null,
     /** Bot se ještě nikdy neotevíral: před načtením se ukáže souhlas ([WebAppViewModel.confirmConsent]). */
     val consent: Boolean = false,
+    /** Pojmenovaná mini aplikace chce psát uživateli: souhlas nabídne zaškrtávátko. */
+    val consentWriteAccess: Boolean = false,
 )
 
 /** Co má udělat obrazovka — WebView a navigace jsou její. */
@@ -78,6 +82,8 @@ class WebAppViewModel(
     /** Hlavní mini aplikace bota (`getMainWebApp`), [url] je prázdná. */
     private val main: Boolean,
     private val startParameter: String,
+    /** Pojmenovaná mini aplikace z odkazu `t.me/bot/app` (`getWebAppLinkUrl`); jinak prázdné. */
+    private val shortName: String,
     private val repository: WebAppRepository,
     private val settings: AppSettings,
     private val chats: ChatRepository,
@@ -104,21 +110,32 @@ class WebAppViewModel(
         this.theme = theme
         if (started) return
         started = true
-        if (botUserId in settings.confirmedWebAppBots.value) {
-            load()
-        } else {
-            // Souhlas jmenuje bota; s ukázáním se počká na jméno (lokální dotaz, chvilka).
-            viewModelScope.launch {
+        viewModelScope.launch {
+            // Pojmenovanou mini aplikaci napřed najít: jestli ji bot má a jestli se smí otevřít
+            // bez ptaní, ví jen server.
+            val app = if (shortName.isNotEmpty()) {
+                repository.findWebApp(botUserId, shortName).getOrElse {
+                    _state.update { it.copy(loading = false, error = UiText(Res.string.webapp_not_found)) }
+                    return@launch
+                }
+            } else {
+                null
+            }
+            if (needsWebAppConsent(botUserId in settings.confirmedWebAppBots.value, app)) {
+                // Souhlas jmenuje bota; s ukázáním se počká na jméno (lokální dotaz, chvilka).
                 nameLoaded.join()
-                _state.update { it.copy(consent = true) }
+                _state.update { it.copy(consent = true, consentWriteAccess = app?.requestWriteAccess == true) }
+            } else {
+                load()
             }
         }
     }
 
-    fun confirmConsent() {
+    /** [allowWriteAccess] jen u pojmenované mini aplikace, která o psaní žádá. */
+    fun confirmConsent(allowWriteAccess: Boolean = false) {
         settings.confirmWebAppBot(botUserId)
         _state.update { it.copy(consent = false) }
-        load()
+        load(allowWriteAccess)
     }
 
     /** Souhlas odmítnutý: mini aplikace se nenačte a obrazovka odejde. */
@@ -127,10 +144,12 @@ class WebAppViewModel(
         effect(WebAppEffect.Close)
     }
 
-    private fun load() {
+    private fun load(allowWriteAccess: Boolean = false) {
         val theme = theme ?: return
         viewModelScope.launch {
-            val result = if (main) {
+            val result = if (shortName.isNotEmpty()) {
+                repository.linkUrl(chatId, botUserId, shortName, startParameter, allowWriteAccess, theme)
+            } else if (main) {
                 repository.mainUrl(chatId, botUserId, startParameter, theme)
             } else if (launch) {
                 repository.open(chatId, botUserId, url, theme).map { launched ->
@@ -230,6 +249,7 @@ class WebAppViewModel(
                 // Jiná mini aplikace z mini aplikace: otevře se chat jejího bota (Start, nabídka,
                 // profil s „Otevřít aplikaci"). Vrstvit mini aplikace přes sebe by zpět mátlo.
                 is InternalLink.MainWebApp -> effect(WebAppEffect.OpenChat(ChatTarget(link.botUserId)))
+                is InternalLink.WebApp -> effect(WebAppEffect.OpenChat(ChatTarget(link.botUserId)))
                 // Pozvánky, samolepky, spuštění bota… obsluhuje konverzace; mini aplikace je
                 // otevírá zřídka, a prohlížeč s odkazem na Telegram je pořád lepší než nic.
                 else -> urlOpener.open(url)
@@ -255,6 +275,14 @@ class WebAppViewModel(
         launchId?.let { id -> appScope.launch { repository.close(id) } }
     }
 }
+
+/**
+ * Ptát se před otevřením? Poprvé u bota vždycky ([confirmedBot]). Pojmenovaná mini aplikace
+ * z odkazu ([app]) i potom, když server potvrzení vyžaduje (`skipConfirmation` = false — odkaz
+ * může poslat kdokoli), nebo když chce psát uživateli: to se rozhoduje pokaždé zaškrtávátkem.
+ */
+internal fun needsWebAppConsent(confirmedBot: Boolean, app: NamedWebApp?): Boolean =
+    !confirmedBot || (app != null && (!app.skipConfirmation || app.requestWriteAccess))
 
 /** Barva z motivu podle klíče, který mini aplikace pošle místo barvy. */
 private fun themeColor(theme: WebAppTheme, key: String?): Int? = when (key) {

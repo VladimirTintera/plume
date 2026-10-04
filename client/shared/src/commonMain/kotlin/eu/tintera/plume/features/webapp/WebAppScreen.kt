@@ -1,6 +1,15 @@
 package eu.tintera.plume.features.webapp
 
 import androidx.compose.foundation.background
+import eu.tintera.plume.resources.bot_login_write_access
+import androidx.compose.ui.semantics.Role
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.Checkbox
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -226,6 +235,7 @@ fun WebAppScreen(
     if (state.consent) {
         WebAppConsentDialog(
             botName = state.title ?: stringResource(Res.string.webapp_title),
+            writeAccess = state.consentWriteAccess,
             onOpen = viewModel::confirmConsent,
             onDismiss = viewModel::dismissConsent,
         )
@@ -249,12 +259,39 @@ fun WebAppScreen(
  * dostane údaje o účtu a co v ní uživatel udělá, může dostat i bot. Ptá se jednou na bota.
  */
 @Composable
-internal fun WebAppConsentDialog(botName: String, onOpen: () -> Unit, onDismiss: () -> Unit) {
+internal fun WebAppConsentDialog(
+    botName: String,
+    /** Pojmenovaná mini aplikace chce psát: zaškrtávátko, ve výchozím stavu zapnuté (jako přihlášení na web). */
+    writeAccess: Boolean,
+    onOpen: (allowWriteAccess: Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var allowWrite by rememberSaveable { mutableStateOf(true) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.webapp_consent_title)) },
-        text = { Text(stringResource(Res.string.webapp_consent_text, botName)) },
-        confirmButton = { TextButton(onClick = onOpen) { Text(stringResource(Res.string.webapp_consent_open)) } },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(Res.string.webapp_consent_text, botName))
+                if (writeAccess) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .toggleable(value = allowWrite, role = Role.Checkbox, onValueChange = { allowWrite = it }),
+                    ) {
+                        Checkbox(checked = allowWrite, onCheckedChange = null)
+                        Text(
+                            stringResource(Res.string.bot_login_write_access, botName),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onOpen(writeAccess && allowWrite) }) { Text(stringResource(Res.string.webapp_consent_open)) }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }

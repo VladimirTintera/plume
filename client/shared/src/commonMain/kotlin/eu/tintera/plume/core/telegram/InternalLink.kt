@@ -46,6 +46,12 @@ sealed interface InternalLink {
      * chat ([Chat]) — tak to dělají i oficiální klienti.
      */
     data class MainWebApp(val botUserId: Long, val startParameter: String) : InternalLink
+
+    /**
+     * Pojmenovaná mini aplikace bota (`t.me/bot/app?startapp=…`). Zda ji bot opravdu má, se pozná
+     * až z `searchWebApp` na obrazovce mini aplikace — jako odkaz se rozpozná jen tvarem.
+     */
+    data class WebApp(val botUserId: Long, val shortName: String, val startParameter: String) : InternalLink
 }
 
 /** Co o chatu řekne pozvánka, než se do něj uživatel přidá (`checkChatInviteLink`). */

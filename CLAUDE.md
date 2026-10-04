@@ -5747,8 +5747,8 @@ obsahu bývá zlomek zpráv.
 ## Mini aplikace botů
 
 Tlačítko pod zprávou (`web_app`), tlačítko vlastní klávesnice bota, tlačítko nad výsledky inline
-bota, tlačítko nabídky bota, dlaždice „Otevřít" v profilu bota a odkaz `t.me/bot?startapp` otevřou
-mini aplikaci přes celou obrazovku (`WebAppRoute`, `WebAppScreen`, `WebAppViewModel`).
+bota, tlačítko nabídky bota, dlaždice „Otevřít" v profilu bota a odkazy `t.me/bot?startapp`
+a `t.me/bot/app` otevřou mini aplikaci přes celou obrazovku (`WebAppRoute`, `WebAppScreen`, `WebAppViewModel`).
 Adresu i podepsaná data uživatele skládá TDLib (`WebAppRepository`); aplikace stránku jen
 zobrazí a zprostředkuje její události.
 
@@ -5792,9 +5792,12 @@ zobrazí a zprostředkuje její události.
     text bývá dlouhý a na úzkém telefonu by poli ukousl místo, zrovna když se píše. Sbalená má
     barvu ostatních ikon v kartě, ne plnou plochu: vedle plného odesílacího tlačítka by se
     dvě sytá kolečka prala. Text se zkracuje na 120 dp.
-  - **Adresa typu `t.me/bot/app` se nenabízí** (`InternalLinkTypeWebApp`): TDLib ji předepisuje
-    zpracovat jako odkaz (`getWebAppLinkUrl`), ne poslat do `openWebApp`, a to Plume zatím
-    neumí. Zůstane tlačítko příkazů.
+  - **Adresa typu `t.me/bot/app` se otevírá jako odkaz** (`BotMenuApp.isLink`), ne přes
+    `openWebApp` — tak to TDLib u tlačítka předepisuje.
+  - **Adresa tlačítka NENÍ adresa stránky**, ale `menu://<adresa>` (ověřeno sondou). Server ji
+    pošle takhle a `openWebApp` si ji přeloží sám. **Odkaz `t.me/bot/app` nastavený přes Bot API
+    server zahodí** — přijde holé `menu://` a `openWebApp` skončí `URL_INVALID`. Cestu
+    s `isLink` proto Bot API ověřit nejde (asi ji vyrobí jen BotFather); stojí na dokumentaci.
   - **Ověřuje se `setChatMenuButton` botem** s `chat_id` vlastního účtu (jen pro náš chat,
     ne globálně) a po ověření vrátit `{"type":"default"}`. Ověřeno na emulátoru (Fold, světlý
     i tmavý motiv): pilulka, sbalení s konceptem, souhlas a otevření ukázky `cafe`.
@@ -5813,6 +5816,16 @@ zobrazí a zprostředkuje její události.
     bot ji mít nemůže (nastavuje se jen v BotFatheru). V ní nic neměnit, jen otevřít a zavřít.
     Ověřeno na emulátoru: odkaz se souhlasem i bez něj, „Zrušit" vrátí do konverzace, dlaždice
     v profilu.
+- **Pojmenovaná mini aplikace z odkazu `t.me/bot/app?startapp=…`** (`InternalLink.WebApp`,
+  `WebAppRoute.shortName`): napřed `searchWebApp` (jestli ji bot má — jinak věta „neexistuje",
+  ne obecná chyba), pak `getWebAppLinkUrl`. Spuštění nemá, nezavírá se.
+  - **Ptá se i u potvrzeného bota, když to server chce** (`needsWebAppConsent`, testy
+    `WebAppConsentTest`): `skipConfirmation = false` znamená, že odkaz může poslat kdokoli, a
+    `requestWriteAccess` se rozhoduje pokaždé zaškrtávátkem „Dovolit … posílat mi zprávy"
+    (výchozí zapnuté, jako u přihlášení na web).
+  - **Ověřeno na emulátoru** s `t.me/DurgerKingBot/menu` (ukázka Telegramu, žádá o psaní —
+    zaškrtávátko se při ověřování VYPÍNÁ, jinak smí bot účtu psát) a s neexistující
+    `t.me/BotFather/neexistuje`.
 - **Tmavá hlavička od stránky přepne ikony stavové lišty na světlé** (`DarkSystemBars`).
   BotFather si nastaví tmavou hlavičku i ve světlém motivu aplikace a tmavé ikony na ní nebyly
   vidět. Rozhoduje táž světlost, podle které se volí popředí hlavičky.

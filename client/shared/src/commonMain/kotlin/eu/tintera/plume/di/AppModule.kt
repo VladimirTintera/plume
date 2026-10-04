@@ -351,6 +351,7 @@ fun appModule() = module {
             keyboardButtonText = parameters.values.getOrNull(4) as? String,
             main = parameters.values.getOrNull(5) as? Boolean ?: false,
             startParameter = parameters.values.getOrNull(6) as? String ?: "",
+            shortName = parameters.values.getOrNull(7) as? String ?: "",
             repository = get(),
             settings = get(),
             chats = get(),

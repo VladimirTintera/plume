@@ -11,9 +11,10 @@ data class BotCommandItem(val command: String, val description: String, val text
 
 /**
  * Tlačítko nabídky bota s mini aplikací ([ConversationRepository.botMenuApp]). [text] píše
- * bot („Otevřít obchod"), [url] jde do `openWebApp` jako adresa z tlačítka pod zprávou.
+ * bot („Otevřít obchod"), [url] jde do `openWebApp` jako adresa z tlačítka pod zprávou —
+ * kromě odkazu `t.me/bot/app` ([isLink]), ten se otevírá jako odkaz.
  */
-data class BotMenuApp(val text: String, val url: String)
+data class BotMenuApp(val text: String, val url: String, val isLink: Boolean = false)
 
 /** Co se pošle za příkaz: ve skupině s jménem bota, jinak holý. */
 internal fun botCommandText(command: String, botUsername: String?, inGroup: Boolean): String =

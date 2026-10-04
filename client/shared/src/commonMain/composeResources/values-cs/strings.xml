@@ -1210,6 +1210,7 @@
     <string name="bot_alert_ok">OK</string>
     <string name="bot_link_title">Otevřít odkaz?</string>
     <string name="webapp_title">Mini aplikace</string>
+    <string name="webapp_not_found">Tahle mini aplikace neexistuje nebo ji bot už nemá.</string>
     <string name="webapp_load_failed">Mini aplikaci se nepodařilo otevřít.</string>
     <string name="webapp_close_confirm_title">Zavřít mini aplikaci?</string>
     <string name="webapp_close_confirm_text">Neuložené změny se můžou ztratit.</string>
