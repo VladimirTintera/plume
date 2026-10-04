@@ -929,6 +929,7 @@
         <item quantity="other">%1$d days</item>
     </plurals>
     <string name="chats_filter_all">All chats</string>
+    <string name="chat_folders_all">All chats</string>
     <string name="chats_filter_unread">Unread</string>
     <string name="chats_filter_private">People</string>
     <string name="chats_filter_groups">Groups</string>

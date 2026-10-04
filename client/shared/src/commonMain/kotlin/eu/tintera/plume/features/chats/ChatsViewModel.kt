@@ -24,7 +24,9 @@ import eu.tintera.plume.core.update.AppUpdateState
 import eu.tintera.plume.core.update.AppUpdates
 import eu.tintera.plume.core.update.updateCard
 import eu.tintera.plume.features.report.ReportFlow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
@@ -56,11 +58,58 @@ class ChatsViewModel(
 
     private val logger = Logger.withTag("Chats")
 
+    private val _selectedFolderId = MutableStateFlow(savedState.get<Int>(FOLDER_KEY))
+
+    /**
+     * Složky Telegramu nad hlavním seznamem a jejich nepřečtené. Archiv složky nenabízí — jsou to
+     * výběry z celého účtu, archiv je jen jeden z nich.
+     */
+    val folderTabs: StateFlow<List<FolderTab>> =
+        if (folder == ChatFolder.Main) {
+            combine(repository.chatFolders, repository.folderUnread, _selectedFolderId) { folders, unread, selected ->
+                folderTabs(folders, unread, selectedFolderId(selected, folders))
+            }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        } else {
+            MutableStateFlow(emptyList())
+        }
+
+    /**
+     * Složka, jejíž chaty se ukazují: vybraná složka Telegramu, nebo [folder]. Složka, která mezitím
+     * zmizela (smazaná na jiném zařízení), spadne na celý seznam — výběr se tím ale nepřepíše,
+     * takže když se složky po startu teprve načítají, uložená volba se neztratí.
+     */
+    private val shownFolder: StateFlow<ChatFolder> =
+        if (folder == ChatFolder.Main) {
+            combine(_selectedFolderId, repository.chatFolders) { selected, folders ->
+                selectedFolderId(selected, folders)?.let { ChatFolder.Custom(it) } ?: folder
+            }.stateIn(
+                viewModelScope,
+                SharingStarted.Eagerly,
+                selectedFolderId(_selectedFolderId.value, repository.chatFolders.value)?.let { ChatFolder.Custom(it) } ?: folder,
+            )
+        } else {
+            MutableStateFlow(folder)
+        }
+
     /**
      * Stav se bere přímo z repository — ta je singleton a drží živý seznam nezávisle na tom,
      * jestli obrazovka existuje. ViewModel tu nic nekešuje, jen přeposílá a spouští dotažení.
      */
-    val state: StateFlow<ChatListState> = repository.chats(folder)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val state: StateFlow<ChatListState> = shownFolder
+        .flatMapLatest { repository.chats(it) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, repository.chats(shownFolder.value).value)
+
+    /**
+     * Vybere složku Telegramu ([id]), nebo celý seznam (`null`). Žije jako filtr: přežije návrat
+     * z konverzace i zabití procesu, nové spuštění začne na všech chatech.
+     */
+    fun selectFolder(id: Int?) {
+        _selectedFolderId.value = id
+        savedState[FOLDER_KEY] = id
+        // Složka se načítá až při prvním otevření, jako archiv.
+        if (id != null) viewModelScope.launch { repository.loadMore(ChatFolder.Custom(id)) }
+    }
 
     /**
      * Průvodce nahlášením — z položky „Nahlásit…" v nabídce nad chatem i z mazání s volbou
@@ -155,6 +204,8 @@ class ChatsViewModel(
             // teprve plní, by problikl — a když ho TDLib nevydá, tlačítko se vůbec nenabídne.
             viewModelScope.launch { _archiveSettings.value = repository.archiveSettings().getOrNull() }
         }
+        // Obnovená složka (zabití procesu) se musí načíst stejně jako nově vybraná.
+        _selectedFolderId.value?.let { id -> viewModelScope.launch { repository.loadMore(ChatFolder.Custom(id)) } }
         // Účet potřebuje jen hlavička hlavního seznamu. Selhání nevadí — místo fotky jsou iniciály.
         if (folder == ChatFolder.Main) {
             // Živě: po změně fotky v úpravě profilu nesmí pilulka ukazovat tu starou.
@@ -181,6 +232,14 @@ class ChatsViewModel(
 
     /** Id Uložených zpráv — v seznamu nejsou, pokud nejsou připnuté (viz `chatGroups`). */
     val savedMessagesChatId: StateFlow<Long?> = repository.savedMessagesChatId
+
+    /**
+     * Uložené zprávy, které seznam schovává — ve složce Telegramu žádné: tam je uživatel zařadil
+     * sám, takže je chce vidět i nepřipnuté.
+     */
+    val hiddenSavedMessagesChatId: StateFlow<Long?> =
+        combine(repository.savedMessagesChatId, shownFolder) { id, shown -> id.takeUnless { shown is ChatFolder.Custom } }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, repository.savedMessagesChatId.value)
 
     /** Karta s aktualizací nahoře v seznamu, `null` = žádná. Pravidlo je v [updateCard]. */
     val updateCard: StateFlow<AppUpdateState?> =
@@ -235,7 +294,7 @@ class ChatsViewModel(
     }
 
     fun loadMore() {
-        viewModelScope.launch { repository.loadMore(folder) }
+        viewModelScope.launch { repository.loadMore(shownFolder.value) }
     }
 
     fun showActions(chat: ChatSummary) {
@@ -271,7 +330,7 @@ class ChatsViewModel(
      * ([ChatActionsState.archived]), jako u odepnutí zprávy.
      */
     fun toggleArchived(chat: ChatSummary) {
-        val archived = chat.folder != ChatFolder.Archive
+        val archived = !chat.isArchived
         run(chat.id, onSuccess = {
             _actions.update { it.copy(archived = ArchiveChange(chat.id, archived)) }
         }) {
@@ -410,3 +469,6 @@ val ChatSummary.hasUnread: Boolean get() = unreadCount > 0 || isMarkedAsUnread
 
 /** Klíč filtru v [SavedStateHandle] seznamu chatů. */
 private const val FILTER_KEY = "filter"
+
+/** Klíč vybrané složky Telegramu v [SavedStateHandle]. */
+private const val FOLDER_KEY = "folder"

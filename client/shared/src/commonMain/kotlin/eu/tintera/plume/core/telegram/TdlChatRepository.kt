@@ -27,6 +27,8 @@ import dev.g000sha256.tdl.toResult
 import dev.g000sha256.tdl.dto.ArchiveChatListSettings
 import dev.g000sha256.tdl.dto.ChatList
 import dev.g000sha256.tdl.dto.ChatListArchive
+import dev.g000sha256.tdl.dto.ChatListFolder
+import dev.g000sha256.tdl.dto.ChatFolderInfo
 import dev.g000sha256.tdl.dto.ChatListMain
 import dev.g000sha256.tdl.dto.ChatNotificationSettings
 import dev.g000sha256.tdl.dto.ChatPosition
@@ -143,9 +145,29 @@ class TdlChatRepository(
     private val positions = mutableMapOf<Long, Map<ChatFolder, FolderPosition>>()
     private val mutex = Mutex()
 
-    private val lists = ChatFolder.entries.associateWith {
-        MutableStateFlow<ChatListState>(ChatListState.Loading)
+    /**
+     * Seznam každé složky, o kterou si někdo řekl. Hlavní seznam a archiv jsou tu od začátku,
+     * složky Telegramu přibývají až s [chats] — publikovat seznam složky, kterou nikdo nečte,
+     * by byla práce navíc při každém updatu. Mapa se jen rozšiřuje a čte bez zámku
+     * (`chats` není `suspend`), proto `MutableStateFlow` s výměnou celé mapy.
+     */
+    private val lists = MutableStateFlow<Map<ChatFolder, MutableStateFlow<ChatListState>>>(
+        listOf(ChatFolder.Main, ChatFolder.Archive).associateWith { MutableStateFlow(ChatListState.Loading) },
+    )
+
+    private fun listFor(folder: ChatFolder): MutableStateFlow<ChatListState> {
+        lists.value[folder]?.let { return it }
+        lists.update { current -> if (folder in current) current else current + (folder to MutableStateFlow(ChatListState.Loading)) }
+        return lists.value.getValue(folder)
     }
+
+    private val _chatFolders = MutableStateFlow(ChatFolders())
+
+    override val chatFolders: StateFlow<ChatFolders> = _chatFolders.asStateFlow()
+
+    private val _folderUnread = MutableStateFlow<Map<Int, ArchiveUnread>>(emptyMap())
+
+    override val folderUnread: StateFlow<Map<Int, ArchiveUnread>> = _folderUnread.asStateFlow()
 
     /** Všechny známé chaty — pro [typing], které na složce nezáleží. */
     private val all = MutableStateFlow<Map<Long, ChatSummary>>(emptyMap())
@@ -161,7 +183,13 @@ class TdlChatRepository(
 
     override val archiveUnread: StateFlow<ArchiveUnread> = _archiveUnread.asStateFlow()
 
-    override fun chats(folder: ChatFolder): StateFlow<ChatListState> = lists.getValue(folder).asStateFlow()
+    override fun chats(folder: ChatFolder): StateFlow<ChatListState> {
+        val list = listFor(folder)
+        // Seznam složky, kterou už repository zná z pozic, se publikuje hned — jinak by do
+        // prvního updatu ukazoval načítání, i když chaty v paměti jsou.
+        if (folder is ChatFolder.Custom) scope.launch { publish() }
+        return list.asStateFlow()
+    }
 
     override fun typing(chatId: Long): Flow<ChatTyping?> =
         combine(
@@ -410,19 +438,34 @@ class TdlChatRepository(
         }
 
         /*
-         * Počet nepřečtených chatů v archivu. Nepočítá se nad [chats] — archiv se načítá až při
-         * otevření, takže dokud ho nikdo neotevřel, není z čeho počítat; tohle chodí i bez něj.
-         * TDLib ho posílá jen se zapnutou databází zpráv (`useMessageDatabase`).
+         * Počet nepřečtených chatů v archivu a ve složkách. Nepočítá se nad [chats] — archiv
+         * i složka se načítají až při otevření, takže dokud je nikdo neotevřel, není z čeho
+         * počítat; tohle chodí i bez nich. TDLib ho posílá jen se zapnutou databází zpráv
+         * (`useMessageDatabase`).
          */
         scope.launch {
-            holder.updates { unreadChatCountUpdates }
-                .filter { it.chatList is ChatListArchive }
-                .collect { update ->
-                    _archiveUnread.value = ArchiveUnread(
-                        chats = update.unreadCount,
-                        unmutedChats = update.unreadUnmutedCount,
-                    )
+            holder.updates { unreadChatCountUpdates }.collect { update ->
+                val unread = ArchiveUnread(chats = update.unreadCount, unmutedChats = update.unreadUnmutedCount)
+                when (val list = update.chatList) {
+                    is ChatListArchive -> _archiveUnread.value = unread
+                    is ChatListFolder -> _folderUnread.update { it + (list.chatFolderId to unread) }
+                    else -> Unit
                 }
+            }
+        }
+
+        /*
+         * Složky Telegramu. Přijdou hned po startu klienta a po každé změně (i z jiného
+         * zařízení) celé najednou, takže se seznam jen nahradí. Složka, která zmizela, nechá
+         * po sobě pozice chatů — TDLib je ruší sám odebráním ze seznamu.
+         */
+        scope.launch {
+            holder.updates { chatFoldersUpdates }.collect { update ->
+                _chatFolders.value = ChatFolders(
+                    folders = update.chatFolders.map { it.toTab() },
+                    mainPosition = update.mainChatListPosition,
+                )
+            }
         }
     }
 
@@ -651,7 +694,7 @@ class TdlChatRepository(
     override suspend fun groupsForBot(asAdmin: Boolean): List<ChatSummary> {
         // Pořadí jako v seznamu chatů: hlavní seznam, pak archiv.
         val listed = listOf(ChatFolder.Main, ChatFolder.Archive)
-            .flatMap { folder -> (lists.getValue(folder).value as? ChatListState.Ready)?.chats.orEmpty() }
+            .flatMap { folder -> (listFor(folder).value as? ChatListState.Ready)?.chats.orEmpty() }
             .distinctBy { it.id }
             .filter { it.kind == ChatKind.Group }
         return listed.filter { summary ->
@@ -667,7 +710,7 @@ class TdlChatRepository(
     override suspend fun inlineQueryTargets(target: SwitchInlineTarget.Chosen): List<ChatSummary> {
         val saved = savedMessagesChatId.value
         val listed = listOf(ChatFolder.Main, ChatFolder.Archive)
-            .flatMap { folder -> (lists.getValue(folder).value as? ChatListState.Ready)?.chats.orEmpty() }
+            .flatMap { folder -> (listFor(folder).value as? ChatListState.Ready)?.chats.orEmpty() }
             .distinctBy { it.id }
             .filter { it.id != saved }
         /*
@@ -1080,9 +1123,11 @@ class TdlChatRepository(
     }
 
     private fun ChatSummary.inFolderOf(folders: Map<ChatFolder, FolderPosition>?): ChatSummary {
-        val folder = folders?.keys?.firstOrNull() ?: return this
+        // Podtitul „V archivu" říká, ve kterém z dvojice hlavní seznam / archiv chat je; složka
+        // Telegramu je jen výběr vedle nich, a do odpovědi nepatří.
+        val folder = folders?.keys?.firstOrNull { it !is ChatFolder.Custom } ?: return this
         val position = folders.getValue(folder)
-        return copy(folder = folder, order = position.order, isPinned = position.isPinned)
+        return copy(folder = folder, order = position.order, isPinned = position.isPinned, isArchived = folder == ChatFolder.Archive)
     }
 
     override suspend fun loadMore(folder: ChatFolder) {
@@ -1100,7 +1145,7 @@ class TdlChatRepository(
                     // Když už nějaké chaty máme, chybu nedeklarujeme jako prázdný stav —
                     // uživatel by přišel o seznam kvůli selhání dotažení dalších.
                     if (mutex.withLock { countIn(folder) } == 0) {
-                        lists.getValue(folder).value = ChatListState.Failed(UiText(Res.string.chats_load_failed))
+                        listFor(folder).value = ChatListState.Failed(UiText(Res.string.chats_load_failed))
                         return
                     }
                 }
@@ -1248,7 +1293,9 @@ class TdlChatRepository(
         all.value = emptyMap()
         activitySenders.value = emptyMap()
         _archiveUnread.value = ArchiveUnread()
-        lists.values.forEach { it.value = ChatListState.Loading }
+        _folderUnread.value = emptyMap()
+        _chatFolders.value = ChatFolders()
+        lists.value.values.forEach { it.value = ChatListState.Loading }
     }
 
     /**
@@ -1257,22 +1304,29 @@ class TdlChatRepository(
      * „prázdný".
      */
     private suspend fun publish() {
+        val folders = lists.value.keys
         val (snapshot, byFolder, ready) = mutex.withLock {
-            val byFolder = ChatFolder.entries.associateWith { folder ->
+            val byFolder = folders.associateWith { folder ->
                 known.values
                     .mapNotNull { chat ->
-                        positions[chat.id]?.get(folder)?.let { position ->
-                            chat.copy(order = position.order, isPinned = position.isPinned, folder = folder)
+                        val chatPositions = positions[chat.id]
+                        chatPositions?.get(folder)?.let { position ->
+                            chat.copy(
+                                order = position.order,
+                                isPinned = position.isPinned,
+                                folder = folder,
+                                isArchived = ChatFolder.Archive in chatPositions,
+                            )
                         }
                     }
                     .sortedByDescending { it.order }
             }
-            Triple(known.toMap(), byFolder, ChatFolder.entries.filter { it in synced || byFolder.getValue(it).isNotEmpty() })
+            Triple(known.toMap(), byFolder, folders.filter { it in synced || byFolder.getValue(it).isNotEmpty() })
         }
 
         all.value = snapshot
         ready.forEach { folder ->
-            lists.getValue(folder).value = ChatListState.Ready(
+            listFor(folder).value = ChatListState.Ready(
                 chats = byFolder.getValue(folder),
                 canLoadMore = folder !in exhausted,
             )
@@ -1433,16 +1487,22 @@ private fun Long.toMessageSender(): MessageSender =
 
 private fun ChatPosition.toFolderPosition() = FolderPosition(order = order, isPinned = isPinned)
 
-/** Vlastní složky (`ChatListFolder`) zatím nejsou, takže vrací `null`. */
 private fun ChatList?.folder(): ChatFolder? = when (this) {
     is ChatListMain -> ChatFolder.Main
     is ChatListArchive -> ChatFolder.Archive
+    is ChatListFolder -> ChatFolder.Custom(chatFolderId)
     else -> null
 }
 
 private fun ChatFolder.toChatList(): ChatList = when (this) {
     ChatFolder.Main -> ChatListMain()
     ChatFolder.Archive -> ChatListArchive()
+    is ChatFolder.Custom -> ChatListFolder(chatFolderId = id)
+}
+
+private fun ChatFolderInfo.toTab(): ChatFolderTab {
+    val body = name.text.toBody()
+    return ChatFolderTab(id = id, title = body.text, titleEntities = body.entities)
 }
 
 private fun Array<ChatPosition>.toFolderPositions(): Map<ChatFolder, FolderPosition> =

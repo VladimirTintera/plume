@@ -49,7 +49,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.draw.clip
-import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.ui.chatTitle
 import eu.tintera.plume.core.ui.isSavedMessages
 import eu.tintera.plume.resources.chats_search_archived
@@ -153,6 +152,11 @@ internal fun ChatSearchBar(
     onRequestHandled: () -> Unit,
     /** Konec sbalené pilulky (menu účtu). V rozbaleném hledání není — tam je ✕ dotazu. */
     trailing: @Composable () -> Unit,
+    /**
+     * Pod pilulkou (řádek složek). Odjíždí a vrací se SPOLU s ní: scroll behavior nese sloupec
+     * kolem obou, ne bar sám — jinak by řádek po odjetí pilulky visel nahoře sám.
+     */
+    below: @Composable () -> Unit = {},
 ) {
     val searchBarState = rememberSearchBarState()
     val textFieldState = rememberTextFieldState()
@@ -268,15 +272,21 @@ internal fun ChatSearchBar(
         snapshotFlow { textFieldState.text.toString() }.collect { onQueryChangeLatest(it) }
     }
 
-    AppBarWithSearch(
-        state = searchBarState,
-        inputField = inputField,
-        colors = colors,
-        // Barva stránky výslovně. Bar ji má mít sám (`appBarContainerColor`), ale bez scroll
-        // behavior ji v téhle alphě nenakreslil a chaty pod ním prosvítaly.
-        modifier = Modifier.background(MaterialTheme.colorScheme.surface),
-        scrollBehavior = scrollBehavior,
-    )
+    // Barva stránky výslovně. Bar ji má mít sám (`appBarContainerColor`), ale bez scroll
+    // behavior ji v téhle alphě nenakreslil a chaty pod ním prosvítaly.
+    Column(
+        Modifier
+            .background(MaterialTheme.colorScheme.surface)
+            .then(with(scrollBehavior) { Modifier.searchBarScrollBehavior() }),
+    ) {
+        AppBarWithSearch(
+            state = searchBarState,
+            inputField = inputField,
+            colors = colors,
+            modifier = Modifier.background(MaterialTheme.colorScheme.surface),
+        )
+        below()
+    }
 
     ExpandedFullScreenSearchBar(
         state = searchBarState,
@@ -447,7 +457,7 @@ private fun SearchResults(
                     chatId = chat.id,
                     title = chat.title,
                     avatarFileId = chat.avatarFileId,
-                    archived = chat.folder == ChatFolder.Archive,
+                    archived = chat.isArchived,
                     onClick = { onPickLatest(chat.id) },
                     // Serverové výsledky přibývají za lokálními — plynule, ne skokem.
                     modifier = Modifier.animateItem(),
@@ -606,7 +616,7 @@ private fun Suggestions(
                     chatId = chat.id,
                     title = chatTitle(chat.id, chat.title),
                     avatarFileId = chat.avatarFileId,
-                    archived = chat.folder == ChatFolder.Archive,
+                    archived = chat.isArchived,
                     onClick = { onPick(chat.id) },
                     modifier = Modifier.animateItem(),
                     avatarShape = chat.kind.avatarShape(),

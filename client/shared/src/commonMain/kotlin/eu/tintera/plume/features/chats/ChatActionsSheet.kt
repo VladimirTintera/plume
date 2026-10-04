@@ -48,7 +48,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.SpamActions
 import eu.tintera.plume.core.telegram.isPrivate
@@ -205,7 +204,7 @@ fun ChatActionsSheet(
                 )
 
                 onToggleArchived?.let { onClick ->
-                    val archived = chat.folder == ChatFolder.Archive
+                    val archived = chat.isArchived
                     SheetActionRow(
                         icon = if (archived) Res.drawable.unarchive_24dp else Res.drawable.archive_24dp,
                         label = stringResource(if (archived) Res.string.chats_action_unarchive else Res.string.chats_action_archive),

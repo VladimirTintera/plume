@@ -100,6 +100,15 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   - ~~**Seznam členů velké skupiny**~~ — hotovo (stránky po 50, hledání, věta u skupiny se
     skrytými členy; `CLAUDE.md`, „Členové velké skupiny"). **Zbývá ověřit ve skupině, kde členy
     vidět jsou** — testovací účet v takové velké není; ověřené je to sondou s malou stránkou.
+- ~~**Složky chatů**~~ — zobrazení hotovo (řádek pod pilulkou, přepínání, nepřečtené;
+  `CLAUDE.md`, „Složky chatů"). Zbývá:
+  - **Správa složek**: založit, upravit (vybrané chaty a druhy chatů, vynechané), smazat,
+    přeřadit; „Přidat do složky" v nabídce nad chatem; doporučené složky
+    (`getRecommendedChatFolders`).
+  - **Sdílené složky** (pozvánky do složky, `addChatFolderByInviteLink`, nové chaty ve složce).
+  - **Štítky složek u chatů** (`toggleChatFolderTags`, jen Premium) a barva složky.
+  - **„Nechávat chaty ze složek v archivu"** (`keepChatsFromFoldersArchived`) v nastavení archivu
+    — dnes se jen přenáší, nenabízí.
 - **Hledání.** ~~Chaty ve všech složkách (lokálně i na serveru), historie hledání a nejčastější
   lidé, totéž ve výběru pro přeposílání a sdílení~~ — hotovo (`ChatSearch`, poučení
   v `CLAUDE.md`, „Hledání chatů"). Zbývá, po krocích:

@@ -2,6 +2,7 @@ package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.telegram.ChatTyping
 import eu.tintera.plume.core.telegram.ChatFolder
+import eu.tintera.plume.core.telegram.ChatFolders
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ArchiveSettings
 import eu.tintera.plume.core.telegram.ArchiveUnread
@@ -82,6 +83,8 @@ open class FakeChatRepository(
     override suspend fun topChats(): Result<List<ChatSummary>> = Result.success(emptyList())
 
     override val archiveUnread: StateFlow<ArchiveUnread> = MutableStateFlow(ArchiveUnread())
+    override val chatFolders: StateFlow<ChatFolders> = MutableStateFlow(ChatFolders())
+    override val folderUnread: StateFlow<Map<Int, ArchiveUnread>> = MutableStateFlow(emptyMap())
 
     override suspend fun archiveSettings(): Result<ArchiveSettings> =
         Result.success(ArchiveSettings(false, false, canArchiveUnknownSenders = false))
