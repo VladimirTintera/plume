@@ -285,11 +285,13 @@ sealed interface MessageMenuAction : MessageAction {
     /**
      * Přeložit text zprávy do jazyka aplikace. Kandidát za stejných podmínek jako [Copy]: bez
      * textu není co překládat a chráněný obsah ven nesmí ani v jiném jazyce. Otevře sheet — je to
-     * jednorázová akce jako „Informace", ne podnabídka.
+     * jednorázová akce jako „Informace", ne podnabídka. Zpráva, která už JE v jazyce překladu
+     * ([MessageMenu.inTranslationLanguage]), ji nemá — překlad by vrátil totéž.
      */
     data object Translate : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
-            MenuPresentation(Res.drawable.translate_24dp, Res.string.menu_translate).takeIf { menu.actions.canCopy }
+            MenuPresentation(Res.drawable.translate_24dp, Res.string.menu_translate)
+                .takeIf { menu.actions.canCopy && !menu.inTranslationLanguage }
     }
 
     /**

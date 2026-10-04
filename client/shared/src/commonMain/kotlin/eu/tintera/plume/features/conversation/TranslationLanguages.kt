@@ -58,3 +58,27 @@ internal val TRANSLATION_LANGUAGES = listOf(
     "tg", "ta", "tt", "te", "th", "tr", "tk", "uk", "ur", "ug", "uz", "vi", "cy", "xh", "yi", "yo",
     "zu",
 )
+
+/**
+ * Text, ze kterého má smysl jazyk rozpoznávat, nebo `null`. Pár písmen („ok", „jo", „👍 díky")
+ * rozpoznání plete a krátkou zprávu by mohlo vydávat za češtinu — pak by zmizel překlad, který
+ * uživatel chtěl. Krátká zpráva proto „Přeložit" nabízí vždycky.
+ */
+internal fun languageDetectionText(text: String): String? =
+    text.trim().takeIf { trimmed -> trimmed.count { it.isLetter() } >= MIN_DETECTION_LETTERS }
+
+/**
+ * Je zpráva už v jazyce překladu ([target], kód z [TRANSLATION_LANGUAGES])? Pak se „Přeložit"
+ * nenabízí — překlad by vrátil totéž.
+ *
+ * Porovnává se základ jazyka (`en-US` je angličtina). **Čínština se nikdy neschovává**: cíl je
+ * zjednodušená nebo tradiční (`zh-CN` / `zh-TW`) a rozpoznání písmo nerozliší, takže překlad
+ * mezi nimi smysl dává.
+ */
+internal fun alreadyInLanguage(detected: String?, target: String): Boolean {
+    if (detected == null || '-' in target) return false
+    val base = normalizedLanguageCode(detected.substringBefore('-').substringBefore('_').lowercase())
+    return base == normalizedLanguageCode(target.lowercase())
+}
+
+private const val MIN_DETECTION_LETTERS = 10

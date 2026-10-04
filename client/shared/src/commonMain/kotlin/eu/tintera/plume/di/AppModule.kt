@@ -333,6 +333,7 @@ fun appModule() = module {
             appScope = get(named(APP_SCOPE)),
             urlOpener = get(),
             clipboard = get(),
+            languageDetector = get(),
             fileRepository = get(),
             voicePlayer = get(),
             musicQueue = get(),
