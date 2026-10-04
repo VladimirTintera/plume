@@ -471,7 +471,8 @@ snadno na to uživatel narazí.
 - ~~**Komentáře u příspěvků kanálu**~~ — hotovo: čip „N komentářů" pod příspěvkem otevře
   vlákno v diskusní skupině (`CLAUDE.md`, „Komentáře"). Zbývá: **odeslání komentáře ověřit**
   (veřejné, jen se souhlasem), komentovat bez vstupu do skupiny (`joinToSendMessages`), ~~tváře
-  posledních komentujících (`recentReplierIds`)~~ — hotovo, hledání a koncept ve vlákně (`topicId`),
+  posledních komentujících (`recentReplierIds`)~~ — hotovo, ~~hledání a koncept ve vlákně
+  (`topicId`)~~ — hotovo (obnova konceptu do pole ověřená jen sondou),
   ~~skok na první nepřečtený komentář~~ — hotovo (`CLAUDE.md`, „Komentáře").
 - ~~**Odpověď na zprávu z jiného chatu**~~ — hotovo (citace z `origin` a `content`, ťuknutí
   otevře ten chat; `CLAUDE.md`, „Odpovědi"). **Ověřené jen sondou**, skutečnou odpověď

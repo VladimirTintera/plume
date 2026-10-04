@@ -1399,8 +1399,7 @@ fun ConversationScreen(
                             )
                         }
                     }
-                    // Hledání ve vlákně by hledalo v celé diskusní skupině.
-                    if (state.threadRootId == null && !botIntro) {
+                    if (!botIntro) {
                         IconButton(onClick = viewModel::openSearch) {
                             Icon(
                                 painterResource(Res.drawable.search_24dp),

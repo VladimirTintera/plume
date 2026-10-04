@@ -18,9 +18,10 @@ import kotlinx.coroutines.flow.map
  *   skupiny, ne pod příspěvkem.
  * - **Kořen je nejstarší zpráva vlákna.** `getMessageThreadHistory` ho nevrací, takže se přidá
  *   na konec historie, když už starší komentáře nejsou.
- * - **Koncept, „píše…", připnuté zprávy, reklamy a ankety se vypínají.** Všechno z toho patří chatu
- *   skupiny, ne vláknu: koncept by se objevil v hlavním chatu skupiny a „píše…" by viděli všichni
- *   v ní. Počet nepřečtených chatu je za celou skupinu, takže ho nahradí počet a hranice
+ * - **Koncept a hledání patří vláknu**, ne chatu skupiny (`MessageTopicThread`): koncept skupiny
+ *   by se objevil v jejím hlavním chatu a hledání bez tématu prošlo celou skupinu.
+ * - **„Píše…", připnuté zprávy, reklamy a ankety se vypínají.** Patří chatu skupiny, ne vláknu.
+ *   Počet nepřečtených chatu je za celou skupinu, takže ho nahradí počet a hranice
  *   přečtení VLÁKNA (`getMessageThread`) — otevření pak skočí na první nepřečtený komentář.
  */
 class ThreadConversationRepository(
@@ -48,10 +49,12 @@ class ThreadConversationRepository(
                 content = info.content.withoutPolls(),
                 lastReadInboxMessageId = thread?.let { readBoundary(chatId, it) } ?: 0L,
                 unreadCount = thread?.unreadCount ?: 0,
-                draftText = null,
-                draftReplyToMessageId = null,
-                draftLinkPreview = null,
-                draftReplyQuote = null,
+                draftText = thread?.draft?.text,
+                draftFormats = thread?.draft?.formats.orEmpty(),
+                // Odpověď kořeni je výchozí cíl komentáře, ne citace — nad polem by visela pořád.
+                draftReplyToMessageId = thread?.draft?.replyToMessageId?.takeIf { it != rootMessageId },
+                draftLinkPreview = thread?.draft?.linkPreview,
+                draftReplyQuote = thread?.draft?.quote,
             )
         }
     }
@@ -101,7 +104,14 @@ class ThreadConversationRepository(
         linkPreview: LinkPreviewOptions?,
         quote: ReplyQuote?,
         formats: List<FormatSpan>,
-    ): Result<Unit> = Result.success(Unit)
+    ): Result<Unit> = delegate.saveThreadDraft(chatId, rootMessageId, text, replyToMessageId, linkPreview, quote, formats)
+
+    override suspend fun searchInChat(
+        chatId: Long,
+        query: String,
+        fromMessageId: Long,
+        senderUserId: Long?,
+    ): Result<ChatSearchPage> = delegate.searchInThread(chatId, rootMessageId, query, fromMessageId, senderUserId)
 
     override suspend fun sendTyping(chatId: Long, typing: Boolean): Result<Unit> = Result.success(Unit)
 

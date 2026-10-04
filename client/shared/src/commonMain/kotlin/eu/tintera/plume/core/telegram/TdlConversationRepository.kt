@@ -306,6 +306,7 @@ class TdlConversationRepository(
         rootMessageId = messageThreadId,
         lastReadMessageId = replyInfo?.lastReadInboxMessageId ?: 0L,
         unreadCount = unreadMessageCount,
+        draft = draftMessage?.toSavedDraft(),
     )
 
     override suspend fun threadHistory(
@@ -570,6 +571,23 @@ class TdlConversationRepository(
      */
     override suspend fun searchInChat(
         chatId: Long,
+        query: String,
+        fromMessageId: Long,
+        senderUserId: Long?,
+    ): Result<ChatSearchPage> = search(chatId, topic, query, fromMessageId, senderUserId)
+
+    override suspend fun searchInThread(
+        chatId: Long,
+        threadId: Long,
+        query: String,
+        fromMessageId: Long,
+        senderUserId: Long?,
+    ): Result<ChatSearchPage> =
+        search(chatId, MessageTopicThread(messageThreadId = threadId), query, fromMessageId, senderUserId)
+
+    private suspend fun search(
+        chatId: Long,
+        topic: MessageTopic?,
         query: String,
         fromMessageId: Long,
         senderUserId: Long?,
@@ -1640,6 +1658,34 @@ class TdlConversationRepository(
         linkPreview: LinkPreviewOptions?,
         quote: ReplyQuote?,
         formats: List<FormatSpan>,
+    ): Result<Unit> = setDraft(chatId, topic, text, replyToMessageId, linkPreview, quote, formats)
+
+    override suspend fun saveThreadDraft(
+        chatId: Long,
+        threadId: Long,
+        text: String,
+        replyToMessageId: Long?,
+        linkPreview: LinkPreviewOptions?,
+        quote: ReplyQuote?,
+        formats: List<FormatSpan>,
+    ): Result<Unit> = setDraft(
+        chatId = chatId,
+        topic = MessageTopicThread(messageThreadId = threadId),
+        text = text,
+        replyToMessageId = replyToMessageId,
+        linkPreview = linkPreview,
+        quote = quote,
+        formats = formats,
+    )
+
+    private suspend fun setDraft(
+        chatId: Long,
+        topic: MessageTopic?,
+        text: String,
+        replyToMessageId: Long?,
+        linkPreview: LinkPreviewOptions?,
+        quote: ReplyQuote?,
+        formats: List<FormatSpan>,
     ): Result<Unit> =
         client.setChatDraftMessage(
             chatId = chatId,
@@ -1671,7 +1717,7 @@ class TdlConversationRepository(
                 val access = chatAccess(chat, forumTopic)
                 val restriction = client.restrictionInfoOf(chat)
                 // V tématu koncept tématu; koncept skupiny do něj nepatří.
-                val draftMessage = if (forumTopicId != null) forumTopic?.draftMessage else chat.draftMessage
+                val draft = (if (forumTopicId != null) forumTopic?.draftMessage else chat.draftMessage)?.toSavedDraft()
                 ChatInfo(
                     id = chat.id,
                     title = chat.title,
@@ -1685,20 +1731,14 @@ class TdlConversationRepository(
                     // po přihlášení ho TDLib zná bez dotazu na server.
                     isSavedMessages = (chat.type as? ChatTypePrivate)?.userId
                         ?.let { it == client.getMe().toResult().getOrNull()?.id } == true,
-                    draftText = draftMessage?.toChatDraft()?.text,
-                    draftFormats = (draftMessage?.content as? DraftMessageContentText)?.text
-                        ?.let { draft -> draft.toBody().let { draftFormatsOf(it.text, it.entities) } }
-                        .orEmpty(),
+                    draftText = draft?.text,
+                    draftFormats = draft?.formats.orEmpty(),
                     canJoin = access.canJoin,
                     writeAccess = access.writeAccess,
                     content = access.content,
-                    draftReplyToMessageId = (draftMessage?.replyTo as? InputMessageReplyToMessage)
-                        ?.messageId,
-                    draftReplyQuote = (draftMessage?.replyTo as? InputMessageReplyToMessage)
-                        ?.quote
-                        ?.let { ReplyQuote(text = it.text.text, position = it.position) },
-                    draftLinkPreview = (draftMessage?.content as? DraftMessageContentText)
-                        ?.linkPreviewOptions?.toDomain(),
+                    draftReplyToMessageId = draft?.replyToMessageId,
+                    draftReplyQuote = draft?.quote,
+                    draftLinkPreview = draft?.linkPreview,
                     verification = client.verificationOf(chat),
                     emojiStatus = chat.emojiStatus.statusEmojiId(),
                     restriction = restriction?.reasonText,
@@ -1715,6 +1755,22 @@ class TdlConversationRepository(
                 )
             }
 
+
+    /** Koncept, jak ho čte konverzace: chat, téma i vlákno komentářů ho nesou stejně. */
+    private fun DraftMessage.toSavedDraft(): SavedDraft? {
+        val text = toChatDraft()?.text ?: return null
+        val reply = replyTo as? InputMessageReplyToMessage
+        val content = content as? DraftMessageContentText
+        return SavedDraft(
+            text = text,
+            formats = content?.text
+                ?.let { draft -> draft.toBody().let { draftFormatsOf(it.text, it.entities) } }
+                .orEmpty(),
+            replyToMessageId = reply?.messageId,
+            quote = reply?.quote?.let { ReplyQuote(text = it.text.text, position = it.position) },
+            linkPreview = content?.linkPreviewOptions?.toDomain(),
+        )
+    }
 
     override suspend fun botIntro(chatId: Long): Result<BotIntro?> = runCatching {
         val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
