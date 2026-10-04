@@ -270,6 +270,8 @@ private val MessageMedia.carriesCaption: Boolean
         is MessageMedia.VideoNote,
         // Popisek placeného média jde upravit jen prodejci, a to ověřené není.
         is MessageMedia.PaidMedia,
+        // Faktura ani hra popisek nemají; jejich text je popis zboží od bota.
+        is MessageMedia.Product,
         -> false
     }
 

@@ -7637,6 +7637,30 @@ délkou videa (`PaidMediaPreview` v `Attachments.kt`, převod `toPaidMedia`, tes
   fotek („2 položky"), ťuknutí s vysvětlením. **Neověřeno**: zaplacené médium (zaplatit nejde),
   video, iOS (jen přeložené).
 
+### Faktura a hra
+
+`MessageInvoice` a `MessageGame` jsou příloha `MessageMedia.Product` a v bublině karta
+(`ProductCard`): obrázek přes celou šířku bubliny, název, popis a u faktury cena — hvězdy ikonou,
+jiné měny částkou s kódem („12,50 EUR"), u zaplacené „Zaplaceno", u testovací „Testovací platba".
+Dřív to byl řádek „Platba: …" s malým náhledem, ze kterého nebylo poznat, co a za kolik se prodává.
+Seznam chatů, citace a notifikace dál píšou „Platba: …" / „Hra: …".
+
+- **Karta na ťuknutí nereaguje.** Zaplatit a hrát jde jen tlačítkem bota pod zprávou („Pay",
+  „Play"), které Telegram k faktuře i hře přikládá vždycky — a to už říká, že to Plume neumí
+  (`bot_unsupported_buy` / `_game`). Obrázek do prohlížeče nevede: ten otevírá fotku ZPRÁVY.
+- **Kolik desetinných míst měna má, TDLib neříká** — částka chodí v nejmenších jednotkách
+  (`totalAmount`). Rozkládá ji `Price.parts` s tabulkou výjimek (`currencyExponent`: hvězdy
+  `XTR` a JPY bez desetin, KWD tři; testy `PriceTest`), neznámá měna dostane dvě. Oddělovač
+  patří jazyku (`decimal_number`), stejně jako u velikosti souboru.
+- **Hra ukazuje fotku, ne animaci** (`Game.animation` se zatím zahazuje), a popis `description`;
+  `text` hry (výsledková tabulka) ne.
+- **Ověřuje se botem** fakturou v hvězdách: `sendInvoice` s `currency=XTR` nepotřebuje
+  `provider_token` (jiné měny ano, takže je testovací bot poslat nemůže). Ověřeno na emulátoru
+  česky: karta s obrázkem z `photo_url` i bez něj, cena „★ 1 500", tlačítko Pay vysvětlí, že
+  platby Plume neumí. **Neověřeno**: jiná měna, „Zaplaceno", testovací faktura, hra (chce hru
+  založenou v BotFatheru) a iOS (jen přeložené). Obrázek z `photo_url` vyšel měkký — jakou
+  velikost server vydá, zjištěné není.
+
 ### Kontakt
 
 `MessageContact` je příloha `MessageMedia.Contact` a v bublině karta jako řádek souboru

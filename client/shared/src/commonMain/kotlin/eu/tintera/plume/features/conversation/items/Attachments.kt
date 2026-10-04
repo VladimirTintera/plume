@@ -251,6 +251,8 @@ internal fun MessageAttachment(
             )
         }
 
+        is MessageMedia.Product -> ProductCard(media, accent)
+
         is MessageMedia.Sticker -> StickerImage(
             sticker = media,
             messageId = messageId,

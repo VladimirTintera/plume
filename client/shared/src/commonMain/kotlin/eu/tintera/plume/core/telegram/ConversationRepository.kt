@@ -1933,6 +1933,24 @@ sealed interface MessageMedia {
     ) : MessageMedia
 
     /**
+     * Faktura (`MessageInvoice`) nebo hra (`MessageGame`) od bota: obrázek, název, popis a u
+     * faktury cena. Kreslí se jako karta, ne jako řádek „Platba: …" — z toho nebylo poznat, co
+     * a za kolik se prodává. Zaplatit ani hrát Plume neumí; ťuknutí to vysvětlí.
+     */
+    data class Product(
+        val kind: ProductKind,
+        val title: String,
+        val description: String,
+        val photo: Photo?,
+        /** Cena faktury; u hry `null`. */
+        val price: Price?,
+        /** Faktura z testovacího prostředí plateb — skutečné peníze se za ni neplatí. */
+        val isTest: Boolean = false,
+        /** Faktura je zaplacená (server k ní drží účtenku). */
+        val isPaid: Boolean = false,
+    ) : MessageMedia
+
+    /**
      * Hlasovka: přehrává se přímo v bublině.
      *
      * [waveform] jsou hodnoty 0–31 rozbalené z Telegramu (viz `decodeWaveform`). [isListened]

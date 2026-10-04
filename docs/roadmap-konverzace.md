@@ -455,8 +455,10 @@ snadno na to uživatel narazí.
   hodu) z pole odejde jako hod. ~~Efekt výhry~~ — hotovo (konfety na snímku výhry, jen u vlastního hodu).
 - ~~**Placená média** (`MessagePaidMedia`) — rozmazaný náhled s cenou~~ — hotovo (`CLAUDE.md`,
   „Placená média"). Zbývá odemknutí za hvězdy (placení nemáme) a mřížka víc zaplacených položek.
-- **Sdílený příběh** (`MessageStory`), **dárky, soutěže, faktury, hry** — dnes text. Stojí na
-  stories a hvězdách, které aplikace nemá; zvážit aspoň kartu s náhledem.
+- ~~**Faktury a hry**~~ — hotovo jako karta s obrázkem, popisem a cenou (`CLAUDE.md`, „Faktura
+  a hra"). Zbývá animace hry a placení (hvězdy ani platby nemáme).
+- **Sdílený příběh** (`MessageStory`), **dárky, soutěže** — dnes text. Stojí na stories
+  a hvězdách, které aplikace nemá; zvážit aspoň kartu s náhledem.
 - ~~**Článek** (`MessageRichMessage`)~~ — hotovo jako text s formátováním (`CLAUDE.md`, „Článek"). Zbývá kreslit média článku (dnes „[Fotka]" s popiskem), sbalitelné bloky a posílání článků (jen s Premium).
 
 **Údaje o zprávě, které TDLib posílá a my zahazujeme**

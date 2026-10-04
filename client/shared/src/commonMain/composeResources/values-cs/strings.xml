@@ -592,6 +592,14 @@
     <string name="content_contact">Kontakt: %1$s</string>
     <string name="content_game">Hra: %1$s</string>
     <string name="content_invoice">Platba: %1$s</string>
+    <string name="product_price">%1$s %2$s</string>
+    <plurals name="product_price_stars">
+        <item quantity="one">%1$s hvězda</item>
+        <item quantity="few">%1$s hvězdy</item>
+        <item quantity="other">%1$s hvězd</item>
+    </plurals>
+    <string name="product_paid">Zaplaceno</string>
+    <string name="product_test">Testovací platba</string>
     <string name="content_story">Story</string>
     <string name="content_paid">Placený obsah</string>
     <string name="call_outgoing">Odchozí hovor</string>
