@@ -1572,6 +1572,22 @@
     <string name="invite_links_primary">Hlavní odkaz</string>
     <string name="invite_links_primary_help">Kdo má odkaz, může se přidat.</string>
     <string name="profile_share_contact">Sdílet kontakt</string>
+    <string name="add_members_title">Přidat členy</string>
+    <string name="add_subscribers_title">Přidat odběratele</string>
+    <string name="add_members_search">Hledat lidi</string>
+    <string name="add_members_confirm_count">Přidat (%1$d)</string>
+    <string name="add_members_failed">Lidi se nepodařilo přidat.</string>
+    <string name="add_members_invite_failed">Pozvánku se nepodařilo poslat.</string>
+    <plurals name="add_members_refused_title">
+        <item quantity="one">%1$d člověka přidat nešlo</item>
+        <item quantity="few">%1$d lidi přidat nešlo</item>
+        <item quantity="other">%1$d lidí přidat nešlo</item>
+    </plurals>
+    <string name="add_members_refused_text">Jejich nastavení soukromí nedovoluje, aby je někdo přidával: %1$s. Můžeš jim poslat pozvánku a přidají se sami.</string>
+    <string name="add_members_refused_text_no_link">Jejich nastavení soukromí nedovoluje, aby je někdo přidával: %1$s.</string>
+    <string name="add_members_refused_invite">Poslat pozvánku</string>
+    <string name="chat_bar_invite_members_hint">Pozvi do nové skupiny lidi.</string>
+    <string name="chat_bar_invite_members">Pozvat členy</string>
     <string name="share_contact_title">Poslat kontakt</string>
     <string name="share_contact_hidden_phone">Skrývá své číslo — poslat nejde</string>
     <string name="share_contact_send">Poslat (%1$d)</string>

@@ -1,6 +1,7 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.features.forward.ShareContactViewModel
+import eu.tintera.plume.features.profile.AddMembersViewModel
 import eu.tintera.plume.features.forward.BotShareViewModel
 import eu.tintera.plume.core.telegram.BotChatRequest
 import eu.tintera.plume.core.telegram.BotUsersRequest
@@ -435,6 +436,8 @@ fun appModule() = module {
             shareTargets = get(),
         )
     }
+
+    viewModel { parameters -> AddMembersViewModel(chatId = parameters.get(), profiles = get(), chats = get()) }
 
     viewModel { parameters ->
         ShareContactViewModel(userId = parameters.get(), repository = get(), chatRepository = get(), shareTargets = get())

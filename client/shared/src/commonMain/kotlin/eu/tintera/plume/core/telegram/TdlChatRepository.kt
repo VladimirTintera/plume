@@ -52,6 +52,7 @@ import dev.g000sha256.tdl.dto.ChatActionBarReportAddBlock
 import dev.g000sha256.tdl.dto.ChatActionBarAddContact
 import dev.g000sha256.tdl.dto.ChatActionBarJoinRequest
 import dev.g000sha256.tdl.dto.ChatActionBarSharePhoneNumber
+import dev.g000sha256.tdl.dto.ChatActionBarInviteMembers
 import dev.g000sha256.tdl.dto.ImportedContact
 import dev.g000sha256.tdl.dto.ReportChatResultMessagesRequired
 import dev.g000sha256.tdl.dto.ReportChatResultOptionRequired
@@ -1393,6 +1394,7 @@ private fun Chat.warnsEmojiStatus(): Boolean = blockableUserId() != null && emoj
 /** Pruh nad konverzací; `null` u pruhů, které aplikace nekreslí. */
 private fun Chat.chatBar(): ChatBar? = when (val bar = actionBar) {
     is ChatActionBarSharePhoneNumber -> SharePhoneBar
+    is ChatActionBarInviteMembers -> InviteMembersBar
     is ChatActionBarJoinRequest -> JoinRequestBar(
         chatTitle = bar.title,
         isChannel = bar.isChannel,

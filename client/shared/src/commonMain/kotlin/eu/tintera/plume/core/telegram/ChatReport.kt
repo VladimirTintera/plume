@@ -50,8 +50,8 @@ sealed interface ReportStep {
 /**
  * Pruh nad konverzací (`ChatActionBar`): nabídka, kterou server dává chatu sám od sebe.
  *
- * Nese jen druhy, které aplikace umí; ostatní (pozvání členů do čerstvé skupiny, pruh
- * firemního bota) jsou `null` z [ChatRepository.chatBar].
+ * Nese jen druhy, které aplikace umí; ostatní (pruh firemního bota) jsou `null`
+ * z [ChatRepository.chatBar].
  */
 sealed interface ChatBar
 
@@ -61,6 +61,12 @@ sealed interface ChatBar
  * potvrzuje dialogem.
  */
 data object SharePhoneBar : ChatBar
+
+/**
+ * Čerstvě založená skupina, do které jde zvát (`ChatActionBarInviteMembers`). Pruh nabízí výběr
+ * lidí — bez něj by nová skupina zůstala prázdná a cesta k přidání členů by vedla přes profil.
+ */
+data object InviteMembersBar : ChatBar
 
 /**
  * Soukromý chat se správcem skupiny nebo kanálu, do kterého uživatel poslal žádost o vstup

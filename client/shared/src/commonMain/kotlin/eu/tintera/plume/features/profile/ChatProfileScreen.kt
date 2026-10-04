@@ -178,6 +178,9 @@ import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.describe
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.add_members_title
+import eu.tintera.plume.resources.add_subscribers_title
+import eu.tintera.plume.resources.person_add_24dp
 import eu.tintera.plume.resources.profile_open_app
 import eu.tintera.plume.resources.apps_24dp
 import eu.tintera.plume.resources.arrow_back_24dp
@@ -235,6 +238,8 @@ fun ChatProfileScreen(
     onEdit: () -> Unit,
     /** ⋮ → Sdílet kontakt: výběr chatů, do kterých kontakt poslat. */
     onShareContact: (userId: Long) -> Unit = {},
+    /** ⋮ → Přidat členy / odběratele: výběr lidí. */
+    onAddMembers: () -> Unit = {},
     /** Práva správce ([admin] `true`), nebo omezení jednoho člena. */
     onOpenMemberRights: (userId: Long, admin: Boolean) -> Unit,
     /** Hlavní mini aplikace bota; dlaždice „Otevřít" se nabízí jen botovi, který ji má. */
@@ -345,6 +350,7 @@ fun ChatProfileScreen(
                             onCopyLink = viewModel::copyLink,
                             onEdit = onEdit,
                             onShareContact = { profile.userId?.let(onShareContact) },
+                            onAddMembers = onAddMembers,
                             spam = state.spam?.copy(isBlocked = profile.isBlocked),
                             onSetBlocked = viewModel::setBlocked,
                             onReport = viewModel::report,
@@ -1127,6 +1133,7 @@ private fun ProfileMenu(
     onCopyLink: () -> Unit,
     onEdit: () -> Unit,
     onShareContact: () -> Unit,
+    onAddMembers: () -> Unit,
     /** Co jde nahlásit a zablokovat; `null`, dokud to nedorazí. */
     spam: SpamActions?,
     onSetBlocked: (Boolean) -> Unit,
@@ -1143,7 +1150,12 @@ private fun ProfileMenu(
     val canReport = spam?.canReport == true
     // Kontakt se posílá s číslem; kdo ho skrývá (nebo bot, ten žádné nemá), poslat nejde.
     val canShareContact = profile.kind == ProfileKind.User && profile.userId != null && !profile.phone.isNullOrBlank()
-    if (profile.link == null && !canBlock && !canDeleteOrLeave && !canEdit && !canReport && !canShareContact) return
+    if (
+        profile.link == null && !canBlock && !canDeleteOrLeave && !canEdit && !canReport && !canShareContact &&
+        !profile.canAddMembers
+    ) {
+        return
+    }
 
     Box {
         IconButton(onClick = { expanded = true }) {
@@ -1156,6 +1168,17 @@ private fun ProfileMenu(
                 listOfNotNull(
                     if (canEdit) {
                         MenuAction(stringResource(Res.string.profile_edit), Res.drawable.edit_24dp, onClick = onEdit)
+                    } else {
+                        null
+                    },
+                    if (profile.canAddMembers) {
+                        MenuAction(
+                            stringResource(
+                                if (profile.kind == ProfileKind.Channel) Res.string.add_subscribers_title else Res.string.add_members_title,
+                            ),
+                            Res.drawable.person_add_24dp,
+                            onClick = onAddMembers,
+                        )
                     } else {
                         null
                     },

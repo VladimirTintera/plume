@@ -233,6 +233,13 @@ data class BotShareRoute(
     val botAdministrator: Boolean = false,
 ) : Route
 
+/**
+ * Výběr lidí, které přidat do skupiny nebo kanálu [chatId] (pruh „Pozvat členy", ⋮ v profilu).
+ * Bez metadat scény: jde přes celou plochu z obou větví, jako sdílení kontaktu.
+ */
+@Serializable
+data class AddMembersRoute(val chatId: Long) : Route
+
 /** Výběr chatů, do kterých poslat kontakt uživatele [userId] (z profilu, ⋮ → Sdílet kontakt). */
 @Serializable
 data class ShareContactRoute(val userId: Long) : Route
@@ -364,6 +371,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
             subclass(ShareContactRoute::class, ShareContactRoute.serializer())
+            subclass(AddMembersRoute::class, AddMembersRoute.serializer())
             subclass(BotShareRoute::class, BotShareRoute.serializer())
             subclass(PollComposerRoute::class, PollComposerRoute.serializer())
             subclass(WebAppRoute::class, WebAppRoute.serializer())

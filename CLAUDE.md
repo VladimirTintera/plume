@@ -2314,7 +2314,8 @@ nad chatem (a totéž jako sheet v profilu, `DeleteChatOptions`) a **„Nahlási
   → `sharePhoneNumber`, po potvrzení dialogem — odchází osobní údaj) a `JoinRequestBar`
   (správce skupiny nebo kanálu, kam uživatel žádal o vstup — jinak by zpráva od něj vypadala
   jako spam). Nespamové pruhy kreslí `ChatNoticeBarCard` týmž tvarem; křížek je u všech
-  `removeChatActionBar`. Pozvání členů (`InviteMembers`) zatím není, chce vlastní výběr.
+  `removeChatActionBar`. `InviteMembersBar` (čerstvě založená skupina) vede na výběr lidí,
+  viz „Přidání členů".
 - **Den z `asDayLabel` nepatří doprostřed věty** — je nadpisový („Včera"). U žádosti o vstup
   stojí proto na vlastním řádku za dvojtečkou („Žádost odeslána: Včera").
 - **Text a tlačítka pruhu jsou v jednom sloupci, křížek vedle.** V řádku s `IconButton` (48 dp)
@@ -5662,6 +5663,33 @@ testy `MemberManagementTest`).
   datu), kanál s jednou fotkou („1 z 1"), uložení do galerie (`Pictures/Plume`, jméno podle
   data přidání), vlastní profilovky z úpravy profilu („3 z 3", ✕ i zpět vrací do úpravy
   profilu). **Animovaná profilovka ani skupina s několika změnami fotky ověřené nejsou.**
+
+### Přidání členů
+
+Pruh „Pozvat členy" nad čerstvou skupinou (`InviteMembersBar` z `ChatActionBarInviteMembers`)
+a ⋮ → „Přidat členy" / „Přidat odběratele" v profilu otevřou `AddMembersRoute`
+(`AddMembersScreen`, `AddMembersViewModel`): tentýž `ChatPicker` jako kontakty, víc lidí naráz,
+přidává se tlačítkem s počtem. Kdo smí, je čistá funkce `canInviteMembers` (testy
+`InviteMembersTest`), kdo se nabídne, `addMemberCandidates` (testy `AddMemberCandidatesTest`).
+
+- **Pravidlo „kdo smí" je totéž jako u bota bez práv správce** (`canAddBot`): vlastník, správce
+  s právem zvát, člen podle výchozích práv skupiny, omezený podle svých. **V kanálu členové
+  nezvou nikdy** — `chat.permissions.canInviteUsers` tam nic neznamená.
+- **Supergroup a kanál berou všechny naráz (`addChatMembers`), základní skupina jen po jednom**
+  (`addChatMember`) a novému členovi rovnou přepošle posledních 100 zpráv (`forwardLimit`,
+  `BASIC_GROUP_HISTORY`) — jinak by vstoupil do skupiny, ve které nic nevidí.
+- **Odmítnutí kvůli soukromí NENÍ chyba.** Obě volání vrací `FailedToAddMembers` a přidání
+  ostatních proběhne; obrazovka ty odmítnuté vyjmenuje a nabídne poslat jim pozvánku
+  (`sendInviteLink`, s entitou odkazu z `getTextEntities` — server ji v textu sám neoznačí).
+  Bez pozvánky (vidí ji jen správce s právem zvát) dialog jen řekne, koho přidat nešlo.
+- **Kdo už členem je, se nenabízí** — ale jen z první stránky členů (200). Číst kvůli výběru
+  tisíce členů nestojí za to; server už přidaného podruhé nepřidá.
+- **Ověřeno na emulátoru** v testovací skupině: pruh podstrčenou sondou, přidání testovacího bota
+  (Bot API `getChatMember` → `member`, v konverzaci „Members joined the group"), bot se pak
+  podruhé nenabídne, položka v ⋮ profilu. Dialog odmítnutých sondou (repository vrátil všechny
+  jako odmítnuté) anglicky i česky a „Poslat pozvánku" — bot dostal odkaz s entitou `url`.
+  **Skutečné odmítnutí kvůli soukromí a základní skupina ověřené NEJSOU** — chtělo by to
+  přidávat skutečné lidi. Bota z testovací skupiny jde zase odebrat `leaveChat` přes Bot API.
 
 ### Pozvánky a žádosti o vstup
 

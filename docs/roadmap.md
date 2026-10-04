@@ -140,9 +140,9 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
       s emoji statusy (`SpamBar.warnsEmojiStatus`), ověřené podstrčeným pruhem.
     - ~~**`SharePhoneNumber`**~~ a ~~**`JoinRequest`**~~ — hotovo (`ChatNoticeBarCard`, ověřené
       podstrčeným pruhem; skutečné nasdílení čísla ověřené není).
-    - **`InviteMembers`** — čerstvě založená skupina, do které jde pozvat členy. Potřebuje výběr
-      víc kontaktů a `addChatMembers` (s odmítnutím kvůli soukromí, `FailedToAddMembers`) —
-      samostatný úkol; ověřit jde jen se souhlasem, přidává skutečné lidi.
+    - ~~**`InviteMembers`**~~ — hotovo (`InviteMembersBar`, výběr `AddMembersScreen`, i z ⋮
+      v profilu). Pruh ověřený podstrčeným stavem, přidání testovacím botem; odmítnutí kvůli
+      soukromí jen sondou — skutečný člověk s takovým nastavením ověřený není.
     - **Pruh firemního bota** (`UpdateChatBusinessBotManageBar`, jen účty s Telegram Business):
       pozastavit bota v chatu a odkaz na jeho správu. Je to samostatný update, ne `ChatActionBar`.
   - ~~**Nahlásit z režimu výběru víc zpráv**~~ — hotovo (vlajka v liště výběru).
