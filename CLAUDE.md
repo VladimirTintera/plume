@@ -5918,6 +5918,11 @@ s tvářemi posledních žadatelů a jmény (`JoinRequestsBar`, `InviteLinkRepos
   totéž.
 - **Tvarem a sklem jako videochat a připnuté**, hned pod pruhem spamu — obojí čeká na
   rozhodnutí. Ve vlákně komentářů není, v tématu skupiny ano (žádosti patří skupině).
+- **Skupina s tématy ho má i nad seznamem témat** — otevírá se jím, takže by správce o žádostech
+  věděl až po otevření tématu. Tam je to první blok seznamu nad hledáním (`floating = false`:
+  bez stínu a vlastního odsazení, plocha `surfaceContainerHigh`), ne plovoucí pruh — seznam
+  témat nad sebou nic nescrolluje a sklo by nemělo co rozostřit. ✕ platí pro každou obrazovku
+  zvlášť.
 - **Ověřeno sondou** (podstrčený počet a žadatelé pro testovací skupinu): pruh v tématu
   General, ťuknutí na žádosti, ✕. Skutečná žádost chce druhý účet.
 

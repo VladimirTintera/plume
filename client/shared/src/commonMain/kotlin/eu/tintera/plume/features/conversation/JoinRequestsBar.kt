@@ -50,6 +50,11 @@ internal fun JoinRequestsBar(
     /** Mléčné sklo nad seznamem: plocha je průhledná, barvu i rozostření nese sklo. */
     glass: Modifier = Modifier,
     modifier: Modifier = Modifier,
+    /**
+     * Plovoucí pruh nad konverzací má odsazení od okrajů a stín; jako blok seznamu (seznam
+     * témat) ne — tam ho drží odsazení seznamu jako každý jiný řádek.
+     */
+    floating: Boolean = true,
 ) {
     val title = pluralStringResource(Res.plurals.join_requests_bar, requests.count, requests.count.grouped())
     val names = requests.recent.joinToString(", ") { it.title }
@@ -63,10 +68,10 @@ internal fun JoinRequestsBar(
         color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = CircleShape,
-        shadowElevation = 3.dp,
+        shadowElevation = if (floating) 3.dp else 0.dp,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .then(if (floating) Modifier.padding(horizontal = 12.dp, vertical = 6.dp) else Modifier),
     ) {
         Row(
             Modifier

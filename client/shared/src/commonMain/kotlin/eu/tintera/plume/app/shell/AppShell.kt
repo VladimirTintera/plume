@@ -501,6 +501,7 @@ private fun shellEntryProvider(
             },
             onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
             onViewAsMessages = { chatsStack.add(ConversationRoute(route.chatId)) },
+            onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
         )
     }
 
@@ -515,6 +516,7 @@ private fun shellEntryProvider(
             },
             onOpenProfile = { chatsStack.add(ArchiveChatProfileRoute(route.chatId)) },
             onViewAsMessages = { chatsStack.add(ArchiveConversationRoute(route.chatId)) },
+            onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
         )
     }
 

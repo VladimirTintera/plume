@@ -352,7 +352,13 @@ fun appModule() = module {
     }
 
     viewModel { parameters ->
-        ForumTopicsViewModel(chatId = parameters.get(), forums = get(), conversations = get(), notifications = get())
+        ForumTopicsViewModel(
+            chatId = parameters.get(),
+            forums = get(),
+            conversations = get(),
+            notifications = get(),
+            inviteLinks = get(),
+        )
     }
 
     // Parametry INDEXEM: chat a bot jsou dvě `Long` a podle typu by se zaměnily.
