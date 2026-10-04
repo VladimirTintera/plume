@@ -90,6 +90,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.NewReaction
 import eu.tintera.plume.core.telegram.SendState
@@ -1452,8 +1453,19 @@ internal fun MessageBodyScope.Attachment(
             accent = accent,
             onAccent = if (message.isOutgoing) bubbleColor else MaterialTheme.colorScheme.onPrimary,
         ),
+        transcript = (media as? MessageMedia.VoiceNote)?.let { rememberTranscript(it.transcript, it.durationSeconds) },
     )
 }
+
+/** Přepis záznamu téhle zprávy: co nabídnout, rozhoduje [ConversationItemScope.transcribeOffer]. */
+@Composable
+internal fun MessageBodyScope.rememberTranscript(transcript: SpeechTranscript?, durationSeconds: Int): TranscriptState =
+    rememberTranscriptState(
+        key = message.id,
+        transcript = transcript,
+        offer = items.transcribeOffer(durationSeconds),
+        onTranscribe = { act(MessageAction.Transcribe) },
+    )
 
 /** Mřížka (nebo seznam) alba. [shape] je tvar mřížky bez bubliny; `null` uvnitř bubliny. */
 @Composable

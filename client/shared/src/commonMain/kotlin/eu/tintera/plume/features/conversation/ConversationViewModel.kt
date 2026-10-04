@@ -97,6 +97,7 @@ import eu.tintera.plume.resources.conversation_bot_start_failed
 import eu.tintera.plume.core.telegram.MessageSchedule
 import eu.tintera.plume.core.telegram.MessageEffect
 import eu.tintera.plume.core.telegram.SendOptions
+import eu.tintera.plume.core.telegram.SpeechTrial
 import eu.tintera.plume.resources.conversation_scheduled_load_failed
 import eu.tintera.plume.resources.conversation_schedule_failed
 import eu.tintera.plume.resources.conversation_scheduled_notice
@@ -141,6 +142,7 @@ import eu.tintera.plume.resources.folder_invite_failed
 import eu.tintera.plume.resources.folder_invite_joined
 import eu.tintera.plume.resources.chat_bar_phone_shared
 import eu.tintera.plume.resources.paid_media_unsupported
+import eu.tintera.plume.resources.transcribe_failed
 import eu.tintera.plume.resources.conversation_selection_limit
 import eu.tintera.plume.resources.conversation_attachments_limit
 import eu.tintera.plume.resources.conversation_content_not_allowed
@@ -337,6 +339,10 @@ class ConversationViewModel(
 
     /** Zvolená rychlost přehrávání; jedna pro celou aplikaci, proto rovnou z přehrávače. */
     val voiceSpeed: StateFlow<VoiceSpeed> = voicePlayer.speed
+
+    /** Premium a zkušební přepisy řeči — rozhodují, jestli se u hlasovky nabídne přepis. */
+    val isPremium: StateFlow<Boolean> = chatRepository.isPremium
+    val speechTrial: StateFlow<SpeechTrial?> = chatRepository.speechTrial
 
     private val _state = MutableStateFlow(ConversationState(threadRootId = threadRootId, forumTopicId = forumTopicId))
     val state: StateFlow<ConversationState> = _state.asStateFlow()
@@ -3310,6 +3316,7 @@ class ConversationViewModel(
                 if (it.soundingVideoNote == messageId) it.copy(soundingVideoNote = null) else it
             }
             MessageAction.CycleVoiceSpeed -> voicePlayer.cycleSpeed()
+            MessageAction.Transcribe -> transcribe(messageId)
             is MessageAction.SeekVoice -> seekVoice(messageId, action.fraction)
             MessageMenuAction.Edit -> startEdit(messageId)
             MessageMenuAction.Copy -> copyMessage(messageId)
@@ -3890,6 +3897,19 @@ class ConversationViewModel(
         _state.update { it.copy(soundingVideoNote = null) }
         voicePlayer.toggle(VoiceKey(chatId, messageId)) { voicePath(voice) }
         if (!message.isOutgoing && !voice.isListened) reportListened(messageId)
+    }
+
+    /**
+     * Pošle hlasovku nebo kolečko k přepisu. Výsledek nese obsah zprávy a dorazí úpravou
+     * ([ConversationRepository.editedMessages]) — napřed rozpracovaný, pak hotový.
+     */
+    private fun transcribe(messageId: Long) {
+        viewModelScope.launch {
+            repository.recognizeSpeech(chatId, messageId).onFailure { failure ->
+                logger.w(failure) { "Přepis zprávy $messageId se nepodařilo spustit." }
+                _state.update { it.copy(notice = failure.userMessage(Res.string.transcribe_failed)) }
+            }
+        }
     }
 
     /**

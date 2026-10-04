@@ -1866,4 +1866,14 @@
     <string name="folder_new_chats_show">Zobrazit</string>
     <string name="folder_new_chats_hide">Skrýt</string>
     <string name="folder_new_chats_sheet">Autor složky do ní přidal tyhle chaty. Vyber, ke kterým se připojíš.</string>
+    <string name="transcript_show">Přepsat do textu</string>
+    <string name="transcript_hide">Skrýt přepis</string>
+    <string name="transcript_pending">Přepisuji…</string>
+    <string name="transcript_failed">Přepsat se to nepodařilo.</string>
+    <string name="transcript_too_long">Na přepis je záznam moc dlouhý.</string>
+    <string name="transcript_trial_too_long">Bez Premium jde přepsat jen záznam do %1$s.</string>
+    <string name="transcript_used_up">Bezplatné přepisy na tento týden došly.</string>
+    <string name="transcript_used_up_until">Bezplatné přepisy na tento týden došly. Další: %1$s</string>
+    <string name="transcribe_failed">Přepis se nepodařilo spustit.</string>
+    <string name="transcript_premium_required">Přepis do textu je v Telegramu jen s Premium.</string>
 </resources>

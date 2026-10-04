@@ -427,7 +427,10 @@ snadno na to uživatel narazí.
 - ~~**Video kolečka** (`MessageVideoNote`)~~ — hotovo: kulatě bez bubliny, samy potichu ve
   smyčce, zvuk s průběhem po ťuknutí, zhlédnutí (`CLAUDE.md`, „Video kolečka"). ~~**Nahrávání
   kolečka**~~ — hotovo (přepnutí ťuknutím, nahrávání podržením s tahem na zrušení a zámek;
-  `CLAUDE.md`, „Nahrávání koleček"). Zbývá přepis řeči (`speechRecognitionResult`), ověřit
+  `CLAUDE.md`, „Nahrávání koleček"). ~~Přepis řeči~~ — hotovo u hlasovky i kolečka
+  (`CLAUDE.md`, „Přepis řeči"); zbývá ho ověřit s účtem, který přepisovat smí (Premium nebo
+  zkušební přepisy), přepis ve skupině s boosty (`group_transcribe_level_min`) a hodnocení
+  přepisu (`rateSpeechRecognition`). Dál zbývá ověřit
   zhlédnutí u odesílatele, **nahrávání na iOS ověřit na telefonu** (simulátor kameru nemá),
   **přepnutí kamery během nahrávání na iOS** (chce `AVAssetWriter` místo
   `AVCaptureMovieFileOutput`) a na Androidu ověřit přepnutí na zadní kameru. ~~Náhled před odesláním~~ — hotovo (■ u zamčeného kolečka; `CLAUDE.md`, „Nahrávání koleček").

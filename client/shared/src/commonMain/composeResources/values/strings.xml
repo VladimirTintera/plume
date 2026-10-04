@@ -1808,4 +1808,14 @@
     <string name="folder_new_chats_show">Show</string>
     <string name="folder_new_chats_hide">Hide</string>
     <string name="folder_new_chats_sheet">The folder’s owner added these chats. Pick the ones to join.</string>
+    <string name="transcript_show">Transcribe to text</string>
+    <string name="transcript_hide">Hide transcript</string>
+    <string name="transcript_pending">Transcribing…</string>
+    <string name="transcript_failed">Couldn’t transcribe this.</string>
+    <string name="transcript_too_long">This is too long to transcribe.</string>
+    <string name="transcript_trial_too_long">Without Premium, only recordings up to %1$s can be transcribed.</string>
+    <string name="transcript_used_up">You’ve used this week’s free transcriptions.</string>
+    <string name="transcript_used_up_until">You’ve used this week’s free transcriptions. More: %1$s</string>
+    <string name="transcribe_failed">Couldn’t start the transcription.</string>
+    <string name="transcript_premium_required">Transcription needs Telegram Premium.</string>
 </resources>

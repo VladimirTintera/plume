@@ -21,6 +21,7 @@ import eu.tintera.plume.core.telegram.BlockedSendersPage
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.InviteJoinResult
 import kotlinx.coroutines.flow.Flow
+import eu.tintera.plume.core.telegram.SpeechTrial
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -37,6 +38,8 @@ open class FakeChatRepository(
 
     override val diceEmojis: StateFlow<List<String>> = MutableStateFlow(emptyList())
     override val availableEffectIds: StateFlow<List<Long>> = MutableStateFlow(emptyList())
+    override val speechTrial: StateFlow<SpeechTrial?> = MutableStateFlow(null)
+    override val isPremium: StateFlow<Boolean> = MutableStateFlow(false)
 
     override fun chats(folder: ChatFolder): StateFlow<ChatListState> =
         MutableStateFlow(ChatListState.Ready(emptyList(), canLoadMore = false))

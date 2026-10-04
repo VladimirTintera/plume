@@ -185,6 +185,9 @@ sealed interface MessageAction {
 
     /** Přepne rychlost přehrávání na další v pořadí. Platí pro celou aplikaci, ne pro tuhle zprávu. */
     data object CycleVoiceSpeed : MessageAction
+
+    /** Požádá server o přepis hlasovky nebo kolečka do textu. */
+    data object Transcribe : MessageAction
 }
 
 /**

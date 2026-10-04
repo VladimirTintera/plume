@@ -64,6 +64,15 @@ interface ChatRepository {
     val availableEffectIds: StateFlow<List<Long>>
 
     /**
+     * Zkušební přepisy řeči pro účet bez Premium. Server je pošle po startu
+     * (`UpdateSpeechRecognitionTrial`) a po každém využitém přepisu; `null`, dokud nepřišly.
+     */
+    val speechTrial: StateFlow<SpeechTrial?>
+
+    /** Jestli má přihlášený účet Premium; zjišťuje se po přihlášení. */
+    val isPremium: StateFlow<Boolean>
+
+    /**
      * Připraví chat Uložené zprávy k otevření a vrátí jeho id. TDLib ho zná, až když ho
      * vytvoří `createPrivateChat` — u účtu, který si nic neuložil, v databázi být nemusí.
      */

@@ -220,6 +220,12 @@ class TdlChatRepository(
     private val effects = MutableStateFlow<List<Long>>(emptyList())
     override val availableEffectIds: StateFlow<List<Long>> = effects.asStateFlow()
 
+    private val trial = MutableStateFlow<SpeechTrial?>(null)
+    override val speechTrial: StateFlow<SpeechTrial?> = trial.asStateFlow()
+
+    private val premium = MutableStateFlow(false)
+    override val isPremium: StateFlow<Boolean> = premium.asStateFlow()
+
     /** Odpočty zhasnutí „píše…", jeden na chat. */
     private val activityTimers = mutableMapOf<Long, Job>()
 
@@ -244,6 +250,7 @@ class TdlChatRepository(
                         // Vlastní id se potřebuje u „píše…", aby se nehlásila naše vlastní
                         // činnost. Zjišťuje se jednou, ne při každém updatu.
                         me.value = session.me().getOrNull()?.id
+                        premium.value = client.getMe().toResult().getOrNull()?.isPremium == true
                         // Uložené zprávy musí TDLib znát, jinak je nejde otevřít ani do nich
                         // přeposlat či sdílet — u účtu, který si nic neuložil, v databázi
                         // nejsou. `createPrivateChat` je lokální a nic neposílá.
@@ -261,6 +268,20 @@ class TdlChatRepository(
     private fun collectUpdates() {
         scope.launch {
             holder.updates { diceEmojisUpdates }.collect { update -> dice.value = update.emojis.toList() }
+        }
+        scope.launch {
+            holder.updates { speechRecognitionTrialUpdates }.collect { update ->
+                logger.i {
+                    "Zkušební přepisy: ${update.leftCount} z ${update.weeklyCount} za týden, " +
+                        "do ${update.maxMediaDuration} s, obnova ${update.nextResetDate}"
+                }
+                trial.value = SpeechTrial(
+                    maxMediaDurationSeconds = update.maxMediaDuration,
+                    weeklyCount = update.weeklyCount,
+                    leftCount = update.leftCount,
+                    nextResetDate = update.nextResetDate.toLong(),
+                )
+            }
         }
         scope.launch {
             holder.updates { availableMessageEffectsUpdates }.collect { update ->
@@ -1309,6 +1330,8 @@ class TdlChatRepository(
             activityTimers.clear()
         }
         me.value = null
+        premium.value = false
+        trial.value = null
         all.value = emptyMap()
         activitySenders.value = emptyMap()
         _archiveUnread.value = ArchiveUnread()
