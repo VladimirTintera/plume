@@ -14,6 +14,7 @@ import dev.g000sha256.tdl.dto.ChatJoinResultSuccess
 import dev.g000sha256.tdl.dto.InviteLinkChatTypeChannel
 import dev.g000sha256.tdl.dto.InternalLinkTypeStickerSet
 import dev.g000sha256.tdl.dto.InternalLinkTypeBotStart
+import dev.g000sha256.tdl.dto.InternalLinkTypeMainWebApp
 import dev.g000sha256.tdl.dto.InternalLinkTypeChatInvite
 import dev.g000sha256.tdl.dto.InternalLinkTypeMessage
 import dev.g000sha256.tdl.dto.InternalLinkTypePublicChat
@@ -586,6 +587,15 @@ class TdlChatRepository(
             is InternalLinkTypeBotStartInGroup ->
                 client.searchPublicChat(username = type.botUsername).toResult().map { chat ->
                     InternalLink.BotStartInGroup(url, chat.id, asAdmin = type.administratorRights != null)
+                }
+
+            // Režim (kompaktní / přes celou obrazovku) se neřeší: Plume mini aplikaci kreslí vždy
+            // přes celou obrazovku. Panel s podmínkami pro boty v nabídce příloh
+            // (`getAttachmentMenuBot`) taky ne — nabídku příloh botů Plume nemá.
+            is InternalLinkTypeMainWebApp ->
+                client.searchPublicChat(username = type.botUsername).toResult().map { chat ->
+                    val bot = client.getUser(userId = chat.id).toResult().getOrNull()?.type as? UserTypeBot
+                    if (bot?.hasMainWebApp == true) InternalLink.MainWebApp(chat.id, type.startParameter) else InternalLink.Chat(chat.id)
                 }
 
             is InternalLinkTypeStickerSet ->

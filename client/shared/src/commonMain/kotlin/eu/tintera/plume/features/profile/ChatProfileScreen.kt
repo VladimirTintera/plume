@@ -178,6 +178,8 @@ import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.describe
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.profile_open_app
+import eu.tintera.plume.resources.apps_24dp
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.invite_members
@@ -235,6 +237,8 @@ fun ChatProfileScreen(
     onShareContact: (userId: Long) -> Unit = {},
     /** Práva správce ([admin] `true`), nebo omezení jednoho člena. */
     onOpenMemberRights: (userId: Long, admin: Boolean) -> Unit,
+    /** Hlavní mini aplikace bota; dlaždice „Otevřít" se nabízí jen botovi, který ji má. */
+    onOpenMainWebApp: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -373,7 +377,12 @@ fun ChatProfileScreen(
                     onTitlePlaced = { titleBottom = it },
                     onOpenPhotos = onOpenPhotos,
                 )
-                ProfileActions(muted = state.muted, onToggleMute = viewModel::toggleMute, onSearch = onSearch)
+                ProfileActions(
+                    muted = state.muted,
+                    onToggleMute = viewModel::toggleMute,
+                    onSearch = onSearch,
+                    onOpenApp = onOpenMainWebApp.takeIf { profile.hasMainWebApp },
+                )
                 val notifications = state.notifications
                 val showsAutoDelete = profile.canSetAutoDelete || profile.autoDeleteTime > 0
                 if (profile.usernames.isNotEmpty() || profile.phone != null || profile.about.isNotBlank() ||
@@ -877,9 +886,26 @@ private fun ProfileVerification(verification: Verification, botVerification: Bot
 }
 
 @Composable
-private fun ProfileActions(muted: Boolean?, onToggleMute: () -> Unit, onSearch: () -> Unit) {
+private fun ProfileActions(
+    muted: Boolean?,
+    onToggleMute: () -> Unit,
+    onSearch: () -> Unit,
+    /**
+     * Hlavní mini aplikace bota. Je PRVNÍ: u bota s aplikací je to to, kvůli čemu do profilu
+     * přišel — oficiální klienti ji mají jako velké tlačítko „Open App".
+     */
+    onOpenApp: (() -> Unit)?,
+) {
     val haptics = LocalHapticFeedback.current
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        if (onOpenApp != null) {
+            ProfileAction(
+                icon = Res.drawable.apps_24dp,
+                label = stringResource(Res.string.profile_open_app),
+                onClick = onOpenApp,
+                modifier = Modifier.weight(1f),
+            )
+        }
         if (muted != null) {
             ProfileAction(
                 icon = if (muted) Res.drawable.notifications_24dp else Res.drawable.notifications_off_24dp,

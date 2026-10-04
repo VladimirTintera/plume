@@ -12,6 +12,13 @@ interface WebAppRepository {
      */
     suspend fun open(chatId: Long, botUserId: Long, url: String, theme: WebAppTheme): Result<WebAppLaunch>
 
+    /**
+     * Hlavní mini aplikace bota (`getMainWebApp`): tlačítko v profilu bota a odkaz
+     * `t.me/bot?startapp=…`. Spuštění nemá, takže se nezavírá. [chatId] je chat, ve kterém se
+     * otevírá (konverzace s odkazem, profil bota); [startParameter] z odkazu, jinak prázdný.
+     */
+    suspend fun mainUrl(chatId: Long, botUserId: Long, startParameter: String, theme: WebAppTheme): Result<String>
+
     /** Mini aplikace z tlačítka vlastní klávesnice bota (`keyboardButtonTypeWebApp`); bez spuštění. */
     suspend fun keyboardUrl(botUserId: Long, url: String, theme: WebAppTheme): Result<String>
 

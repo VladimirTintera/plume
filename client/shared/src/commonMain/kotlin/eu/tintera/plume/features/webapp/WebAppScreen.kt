@@ -46,6 +46,7 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.tintera.plume.core.telegram.WebAppTheme
+import eu.tintera.plume.core.ui.DarkSystemBars
 import eu.tintera.plume.core.ui.confirm
 import eu.tintera.plume.core.ui.reject
 import eu.tintera.plume.core.ui.resolve
@@ -61,6 +62,9 @@ import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.common_close
 import eu.tintera.plume.resources.webapp_close_confirm_text
+import eu.tintera.plume.resources.webapp_consent_open
+import eu.tintera.plume.resources.webapp_consent_text
+import eu.tintera.plume.resources.webapp_consent_title
 import eu.tintera.plume.resources.webapp_close_confirm_title
 import eu.tintera.plume.resources.webapp_popup_ok
 import eu.tintera.plume.resources.webapp_title
@@ -126,6 +130,9 @@ fun WebAppScreen(
 
     val headerColor = state.headerColor?.let(::rgbColor) ?: MaterialTheme.colorScheme.surface
     val headerContent = state.headerColor?.let { contentOn(rgbColor(it)) } ?: MaterialTheme.colorScheme.onSurface
+    // Hlavička v barvě od stránky leží pod stavovou lištou; na tmavé by tmavé ikony lišty zmizely
+    // (BotFather si nastaví tmavou hlavičku i ve světlém motivu aplikace).
+    if (headerContent == Color.White) DarkSystemBars()
     Scaffold(
         topBar = {
             TopAppBar(
@@ -210,11 +217,19 @@ fun WebAppScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(24.dp),
                 )
+                state.consent -> Unit
                 state.loading -> LoadingIndicator()
             }
         }
     }
 
+    if (state.consent) {
+        WebAppConsentDialog(
+            botName = state.title ?: stringResource(Res.string.webapp_title),
+            onOpen = viewModel::confirmConsent,
+            onDismiss = viewModel::dismissConsent,
+        )
+    }
     state.popup?.let { popup ->
         WebAppPopupDialog(popup, onClose = viewModel::popupClosed)
     }
@@ -227,6 +242,21 @@ fun WebAppScreen(
             dismissButton = { TextButton(onClick = viewModel::dismissCloseDialog) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
+}
+
+/**
+ * Souhlas před prvním otevřením mini aplikace u bota. TDLib ho předepisuje: mini aplikace
+ * dostane údaje o účtu a co v ní uživatel udělá, může dostat i bot. Ptá se jednou na bota.
+ */
+@Composable
+internal fun WebAppConsentDialog(botName: String, onOpen: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.webapp_consent_title)) },
+        text = { Text(stringResource(Res.string.webapp_consent_text, botName)) },
+        confirmButton = { TextButton(onClick = onOpen) { Text(stringResource(Res.string.webapp_consent_open)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+    )
 }
 
 /**

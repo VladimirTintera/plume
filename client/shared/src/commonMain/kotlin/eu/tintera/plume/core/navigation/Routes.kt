@@ -268,6 +268,10 @@ data class WebAppRoute(
     /** Text tlačítka vlastní klávesnice — jen s ním smí mini aplikace poslat data botovi. */
     val keyboardButtonText: String? = null,
     val archive: Boolean = false,
+    /** Hlavní mini aplikace bota (`getMainWebApp`); [url] je pak prázdná. */
+    val main: Boolean = false,
+    /** Parametr z odkazu `t.me/bot?startapp=…` pro hlavní mini aplikaci; jinak prázdný. */
+    val startParameter: String = "",
 ) : Route
 
 /**

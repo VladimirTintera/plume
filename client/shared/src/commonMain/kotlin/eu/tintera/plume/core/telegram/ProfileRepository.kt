@@ -230,6 +230,8 @@ data class ChatProfile(
      * a kanálu jen s právem měnit údaje chatu — tak ho vyžaduje `setChatMessageAutoDeleteTime`.
      */
     val canSetAutoDelete: Boolean = false,
+    /** Bot má hlavní mini aplikaci (`UserTypeBot.hasMainWebApp`): profil nabídne „Otevřít aplikaci". */
+    val hasMainWebApp: Boolean = false,
 ) {
     /** Odkaz ke sdílení: veřejné jméno, jinak pozvánka; `null` = není co sdílet. */
     val link: String?
