@@ -6,6 +6,11 @@ import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
+import dev.g000sha256.tdl.dto.NotificationTypeNewCall
+import dev.g000sha256.tdl.dto.NotificationGroupTypeCalls
+import dev.g000sha256.tdl.dto.Call
+import dev.g000sha256.tdl.dto.CallStateError
+import dev.g000sha256.tdl.dto.CallStateDiscarded
 import dev.g000sha256.tdl.dto.DeviceToken
 import dev.g000sha256.tdl.dto.DeviceTokenApplePush
 import dev.g000sha256.tdl.dto.DeviceTokenFirebaseCloudMessaging
@@ -69,7 +74,21 @@ class TdlNotificationRepository(
      */
     private val inFlight = MutableStateFlow(0)
 
+    /**
+     * Hovory podle id — notifikace hovoru (`NotificationTypeNewCall`) nese jen id, video a stav
+     * jsou na `Call`. TDLib pošle `UpdateCall` dřív než notifikaci, takže stačí si ho pamatovat.
+     */
+    private val calls = MutableStateFlow<Map<Int, Call>>(emptyMap())
+
     init {
+        holder.updates { callUpdates }
+            .onEach { update ->
+                val call = update.call
+                // Skončený hovor už notifikaci nedostane — mapa by jinak rostla s každým hovorem.
+                val ended = call.state is CallStateDiscarded || call.state is CallStateError
+                calls.update { if (ended) it - call.id else it + (call.id to call) }
+            }
+            .launchIn(scope)
         holder.updates { havePendingNotificationsUpdates }
             .onEach {
                 logger.d { "Nevydané notifikace: odložené=${it.haveDelayedNotifications}, nepřijaté=${it.haveUnreceivedNotifications}" }
@@ -123,6 +142,26 @@ class TdlNotificationRepository(
 
         val added = update.addedNotifications.filterNotNull()
         if (added.isEmpty()) return
+
+        // Hovory mají vlastní skupinu (`NotificationGroupTypeCalls`) a vlastní podobu notifikace.
+        if (update.type is NotificationGroupTypeCalls) {
+            val chat = client.getChat(update.chatId).toResult().getOrNull()
+            added.mapNotNull { it.type as? NotificationTypeNewCall }.forEach { type ->
+                emitTracked(
+                    NotificationUpdate.Call(
+                        IncomingCall(
+                            groupId = update.notificationGroupId,
+                            callId = type.callId,
+                            chatId = update.chatId,
+                            callerName = chat?.title.orEmpty(),
+                            avatarPath = downloadedPath(chat?.photo?.small),
+                            isVideo = calls.value[type.callId]?.isVideo == true,
+                        ),
+                    ),
+                )
+            }
+            return
+        }
 
         // Chat se načte JEDNOU — je z něj potřeba název i fotka, a dvě volání kvůli jedné
         // notifikaci by byla zbytečná.
@@ -243,8 +282,8 @@ class TdlNotificationRepository(
                 )
             }
 
-            // Hovory a tajné chaty zatím nezobrazujeme — přeskočit je je lepší než ukázat
-            // notifikaci bez obsahu.
+            // Hovory jdou vlastní cestou (`NotificationUpdate.Call`, výš). Tajné chaty zatím
+            // nezobrazujeme — přeskočit je je lepší než ukázat notifikaci bez obsahu.
             else -> null
         }
 
@@ -268,6 +307,19 @@ class TdlNotificationRepository(
                 .first()
             true
         } ?: false
+
+    override suspend fun declineCall(callId: Int, isVideo: Boolean): Result<Unit> =
+        client.discardCall(
+            callId = callId,
+            isDisconnected = false,
+            inviteLink = "",
+            duration = 0,
+            isVideo = isVideo,
+            connectionId = 0L,
+        )
+            .toResult()
+            .map { }
+            .onFailure { logger.w(it) { "Hovor $callId se nepodařilo odmítnout." } }
 
     override suspend fun registerDevice(token: PushToken): Result<Unit> {
         val deviceToken: DeviceToken = when (token) {

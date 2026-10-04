@@ -20,6 +20,12 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.NotificationIntents
 import eu.tintera.plume.core.notifications.channelId
+import eu.tintera.plume.resources.notification_call_decline
+import eu.tintera.plume.resources.notification_call_answer_elsewhere
+import eu.tintera.plume.resources.notification_call_voice
+import eu.tintera.plume.resources.notification_call_video
+import eu.tintera.plume.resources.notification_call_unknown
+import eu.tintera.plume.core.notifications.CALLS_CHANNEL_ID
 import eu.tintera.plume.core.notifications.createNotificationChannels
 import eu.tintera.plume.core.notifications.deleteConversationChannels
 import eu.tintera.plume.core.share.bookmarkIcon
@@ -104,6 +110,7 @@ actual class NotificationPresenter(
                 when (update) {
                     is NotificationUpdate.Added -> add(update.notifications)
                     is NotificationUpdate.Removed -> remove(update)
+                    is NotificationUpdate.Call -> showCall(update.call)
                     NotificationUpdate.Cleared -> clear()
                 }
             }
@@ -345,6 +352,53 @@ actual class NotificationPresenter(
 
         logger.d { "Zobrazuji $groupId: ${conversation.lines.size} zpráv z ${conversation.chatId}." }
         manager.notify(groupId, built)
+    }
+
+    /**
+     * Příchozí hovor. Vlastní notifikace v kanálu hovorů, ne řádek konverzace: hovor není zpráva
+     * a „Odpovědět" ani „Přečteno" k němu nepatří.
+     *
+     * - **`CallStyle` z Androidu ne**: od Androidu 12 chce službu v popředí, nebo celoobrazovkový
+     *   intent, a přijmout hovor stejně nejde. Text proto řekne, kde ho přijmout.
+     * - **Id je id skupiny notifikací**, jako u zpráv: konec hovoru přijde jako `Removed` téže
+     *   skupiny a [remove] ji zruší celou (skupinu hovoru v [conversations] nedržíme).
+     * - **Stáhne se i sama po [CALL_TIMEOUT_MS]** — vyzvánění dávno skončí, kdyby se zrušení
+     *   z nějakého důvodu ztratilo.
+     */
+    private suspend fun showCall(call: IncomingCall) {
+        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (!granted) return
+        val name = call.callerName.ifBlank { getString(Res.string.notification_call_unknown) }
+        val built = NotificationCompat.Builder(context, CALLS_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setLargeIcon(avatarBitmap(call.avatarPath))
+            .setContentTitle(name)
+            .setContentText(getString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice))
+            .setStyle(
+                NotificationCompat.BigTextStyle().bigText(
+                    getString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice) +
+                        "\n" + getString(Res.string.notification_call_answer_elsewhere),
+                ),
+            )
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            // Dokud zvoní, nemá jít smáznout omylem; konec hovoru ji stáhne sám.
+            .setOngoing(true)
+            .setTimeoutAfter(CALL_TIMEOUT_MS)
+            .addAction(
+                NotificationCompat.Action.Builder(
+                    IconCompat.createWithResource(context, R.drawable.ic_notification_mute),
+                    getString(Res.string.notification_call_decline),
+                    NotificationIntents.declineCall(context, call.groupId, call.chatId, call.callId, call.isVideo),
+                )
+                    .setShowsUserInterface(false)
+                    .build(),
+            )
+            .setContentIntent(NotificationIntents.openChat(context = context, notificationId = call.groupId, chatId = call.chatId))
+            .build()
+        logger.d { "Zobrazuji příchozí hovor ${call.callId} (${if (call.isVideo) "video" else "hlas"})." }
+        manager.notify(call.groupId, built)
     }
 
     /**
@@ -619,6 +673,9 @@ actual class NotificationPresenter(
     private companion object {
         /** Kolik zpráv se v notifikaci drží. Android jich stejně vykreslí jen posledních pár. */
         const val MAX_LINES = 10
+
+        /** Déle než minutu nikdo nevyzvání; notifikace hovoru pak zmizí i bez zrušení od TDLib. */
+        const val CALL_TIMEOUT_MS = 90_000L
 
         /** Podadresář cache s fotkami pro notifikace. Sdílí ho `res/xml/notification_images.xml`. */
         const val IMAGES_DIRECTORY = "notification_images"

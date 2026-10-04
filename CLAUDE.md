@@ -8176,6 +8176,32 @@ a odložené rušení prázdné notifikace.
   je to past jen emulátorová. Před testováním notifikací na telefonu tedy emulátor zhasnout,
   odejít v něm z konverzace, nebo ho odhlásit.
 
+### Ohlášení příchozího hovoru
+
+Hovory Plume přijmout neumí (viz `docs/roadmap.md`, „Hovory"), ale příchozí hovor ohlásí
+notifikací: kdo volá, s videem nebo bez, „Přijmout jde zatím jen v oficiální aplikaci Telegramu"
+a akce „Odmítnout" (`NotificationUpdate.Call`, `IncomingCall`, `showCall`). Dřív hovor propadl
+bez stopy a kdo měl jen Plume, dozvěděl se o něm až ze zmeškaného hovoru.
+
+- **Jde přes notifikace TDLib, ne přes vlastní odběr `updateCall`.** TDLib k příchozímu hovoru
+  vydá `NotificationTypeNewCall` ve skupině `NotificationGroupTypeCalls` a sám ji zruší, když
+  hovor skončí (přijatý jinde, odmítnutý, zmeškaný) — `Removed` téže skupiny, kterou presenter
+  zruší celou, protože ji v paměti nemá. Z pushe by to mělo jít toutéž cestou jako zprávy
+  (ověřené NENÍ). `updateCall` se odebírá jen kvůli videu (notifikace nese jen id hovoru).
+- **Vlastní notifikace v kanálu `calls`, ne řádek konverzace** — „Odpovědět" ani „Přečteno"
+  k hovoru nepatří. Kanál zvlášť, aby si ho šlo vypnout samotný.
+- **`CallStyle` ne.** Od Androidu 12 chce službu v popředí, nebo celoobrazovkový intent, a
+  přijmout hovor stejně nejde. Kategorie je `CALL`, notifikace `ongoing` (dokud zvoní, nemá jít
+  smáznout omylem) a po 90 s zmizí i sama (`setTimeoutAfter`), kdyby se zrušení ztratilo.
+- **Odmítnutí je `discardCall`** (`NotificationActions.declineCall`), notifikaci pak stáhne
+  TDLib. Volající pozná hned, že hovor nikdo nepřijme.
+- **Ověřit to jde jen sondou**: bot volat neumí a na vlastní účet zavolat nejde. Sonda v
+  `groupUpdate` vyrobí z notifikace zprávy `#hovor` od testovacího bota `NotificationUpdate.Call`
+  se stejnou skupinou — přečtení zprávy pak ověří i rušení. Necommituje se. **Pozor:** aplikace
+  na pozadí na emulátoru notifikaci nedostala (zmrazený proces, push nepřišel); ověřovat
+  s aplikací v popředí v jiném chatu (Uložené zprávy). Ověřeno: vzhled, „Odmítnout" dojde
+  k `discardCall`, přečtení notifikaci stáhne. **Skutečný hovor (a hovor z pushe) ověřený NENÍ.**
+
 ### Kanály a nastavení notifikací
 
 Kanály jsou čtyři (`NotificationChannelKind`, čistá funkce `notificationChannelFor`, testy

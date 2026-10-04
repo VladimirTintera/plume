@@ -3,6 +3,7 @@ package eu.tintera.plume.core.notifications
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.TelegramSession
@@ -30,6 +31,7 @@ class NotificationActions(
     private val session: TelegramSession,
     private val conversations: ConversationRepository,
     private val chats: ChatRepository,
+    private val notifications: NotificationRepository,
 ) {
 
     private val logger = Logger.withTag("NotificationReply")
@@ -112,6 +114,12 @@ class NotificationActions(
         if (!awaitReady(timeout)) return Result.failure(IllegalStateException("TDLib není přihlášený do $timeout."))
         return chats.muteFor(chatId, MUTE_DURATION)
             .onFailure { logger.w(it) { "Chat se z notifikace nepodařilo ztlumit." } }
+    }
+
+    /** Odmítne příchozí hovor; notifikaci pak stáhne TDLib, protože hovor skončil. */
+    suspend fun declineCall(callId: Int, isVideo: Boolean, timeout: Duration): Result<Unit> {
+        if (!awaitReady(timeout)) return Result.failure(IllegalStateException("TDLib není přihlášený do $timeout."))
+        return notifications.declineCall(callId, isVideo)
     }
 
     private suspend fun awaitReady(timeout: Duration): Boolean =

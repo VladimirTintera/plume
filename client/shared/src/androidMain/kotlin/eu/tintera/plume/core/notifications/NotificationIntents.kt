@@ -33,6 +33,12 @@ object NotificationIntents {
     /** Ztlumení chatu z notifikace. Týž příjemce jako [ACTION_REPLY]. */
     const val ACTION_MUTE = "eu.tintera.plume.action.NOTIFICATION_MUTE"
 
+    /** Odmítnutí příchozího hovoru z notifikace. Týž příjemce jako [ACTION_REPLY]. */
+    const val ACTION_DECLINE_CALL = "eu.tintera.plume.action.NOTIFICATION_DECLINE_CALL"
+
+    const val EXTRA_CALL_ID = "eu.tintera.plume.extra.CALL_ID"
+    const val EXTRA_IS_VIDEO = "eu.tintera.plume.extra.IS_VIDEO"
+
     /** Nejnovější zpráva notifikace, po kterou se čte; chybí = po nejnovější v chatu. */
     const val EXTRA_MESSAGE_ID = "eu.tintera.plume.extra.MESSAGE_ID"
 
@@ -119,6 +125,23 @@ object NotificationIntents {
             .putExtra(EXTRA_CHAT_ID, chatId)
             .putExtra(EXTRA_GROUP_ID, groupId)
             .apply { messageId?.let { putExtra(EXTRA_MESSAGE_ID, it) } }
+
+        return PendingIntent.getBroadcast(
+            context,
+            groupId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    /** Broadcast „Odmítnout" hovor. IMMUTABLE — do intentu nikdo nic nevkládá. */
+    fun declineCall(context: Context, groupId: Int, chatId: Long, callId: Int, isVideo: Boolean): PendingIntent {
+        val intent = Intent(ACTION_DECLINE_CALL)
+            .setPackage(context.packageName)
+            .putExtra(EXTRA_CHAT_ID, chatId)
+            .putExtra(EXTRA_GROUP_ID, groupId)
+            .putExtra(EXTRA_CALL_ID, callId)
+            .putExtra(EXTRA_IS_VIDEO, isVideo)
 
         return PendingIntent.getBroadcast(
             context,
