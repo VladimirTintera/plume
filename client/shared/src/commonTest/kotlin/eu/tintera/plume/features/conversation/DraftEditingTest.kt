@@ -62,6 +62,35 @@ class DraftEditingTest {
     }
 
     @Test
+    fun dvojiceMaMrizkuSmisenychOdstinu() {
+        val grid = mixedSkinToneGrid("🤝")!!
+        assertEquals(25, grid.size)
+        // Řádek = první osoba (pravá ruka), sloupec = druhá; na úhlopříčce stejný odstín.
+        assertEquals("🫱🏻\u200D🫲🏿", grid[4])
+        assertEquals("🤝🏽", grid[12])
+        assertEquals(skinToneVariants("🤝"), (0 until 5).map { grid[it * 6] })
+    }
+
+    @Test
+    fun parBezZakladuVeJmenuMaMrizku() {
+        // „kiss: person, person" jako emoji není; základ smíšených variant je 💏.
+        assertEquals(25, mixedSkinToneGrid("💏")?.size)
+        assertEquals("💏", baseEmoji(mixedSkinToneGrid("💏")!![1]))
+    }
+
+    @Test
+    fun jednaOsobaMrizkuNema() {
+        assertEquals(null, mixedSkinToneGrid("👍"))
+    }
+
+    @Test
+    fun smisenaVariantaPatriKZakladuAKatalogu() {
+        val variant = mixedSkinToneGrid("👫")!![1]
+        assertEquals("👫", baseEmoji(variant))
+        assertEquals(variant, catalogEmoji(variant))
+    }
+
+    @Test
     fun emojiBezOdstinu() {
         assertEquals(null, skinToneVariants("😀"))
     }

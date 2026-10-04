@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -293,6 +294,7 @@ private fun EmojiGrid(emojis: List<String>, cells: EmojiCells) {
 private fun EmojiCell(emoji: String, cells: EmojiCells) {
     val base = baseEmoji(emoji)
     val variants = skinToneVariants(base)
+    val mixed = mixedSkinToneGrid(base)
     var choosing by remember { mutableStateOf(false) }
     val indicator = MaterialTheme.colorScheme.onSurfaceVariant
 
@@ -325,6 +327,7 @@ private fun EmojiCell(emoji: String, cells: EmojiCells) {
         if (choosing && variants != null) {
             SkinTonePopup(
                 options = listOf(base) + variants,
+                grid = mixed,
                 selected = emoji,
                 onChoose = { variant ->
                     choosing = false
@@ -339,6 +342,10 @@ private fun EmojiCell(emoji: String, cells: EmojiCells) {
 /**
  * Nabídka odstínů nad podrženým emoji: výchozí podoba a pět odstínů.
  *
+ * Emoji se dvěma osobami ([grid] není `null`) dostanou místo řady mřížku 5 × 5 — řádek je odstín
+ * první osoby, sloupec druhé, na úhlopříčce oba stejné. Pod výchozí podobou tak jde vybrat i pár
+ * s různou pletí, jako na systémových klávesnicích.
+ *
  * `Popup`, ne vlastní overlay: tlačítko zpět si obslouží sám (`focusable`), bez `BackHandler`,
  * který by v aplikaci zabil predictive back. Umisťuje se nad buňku a vodorovně se drží v okně —
  * u krajního sloupce by jinak vyjela z obrazovky.
@@ -346,6 +353,7 @@ private fun EmojiCell(emoji: String, cells: EmojiCells) {
 @Composable
 private fun SkinTonePopup(
     options: List<String>,
+    grid: List<String>?,
     selected: String,
     onChoose: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -363,23 +371,33 @@ private fun SkinTonePopup(
             color = MaterialTheme.colorScheme.surfaceContainerHighest,
             shadowElevation = 6.dp,
         ) {
-            Row(Modifier.padding(4.dp)) {
-                options.forEach { option ->
-                    Box(
-                        Modifier
-                            .size(EMOJI_CELL)
-                            .clip(CircleShape)
-                            .background(
-                                if (option == selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
-                            )
-                            .clickable { onChoose(option) },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(option, fontSize = EMOJI_FONT_SIZE)
+            if (grid == null) {
+                Row(Modifier.padding(4.dp)) {
+                    options.forEach { option -> SkinToneOption(option, option == selected, onChoose) }
+                }
+            } else {
+                Column(Modifier.padding(4.dp)) {
+                    SkinToneOption(options.first(), options.first() == selected, onChoose)
+                    grid.chunked(SKIN_TONE_COUNT).forEach { row ->
+                        Row { row.forEach { option -> SkinToneOption(option, option == selected, onChoose) } }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SkinToneOption(option: String, selected: Boolean, onChoose: (String) -> Unit) {
+    Box(
+        Modifier
+            .size(EMOJI_CELL)
+            .clip(CircleShape)
+            .background(if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+            .clickable { onChoose(option) },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(option, fontSize = EMOJI_FONT_SIZE)
     }
 }
 
@@ -433,29 +451,45 @@ internal fun catalogEmoji(emoji: String): String? =
 /** Varianty odstínu pleti podle základu (bez U+FE0F); `null`, když emoji odstíny nemá. */
 internal fun skinToneVariants(emoji: String): List<String>? = SKIN_TONES[emoji.withoutVariation()]
 
+/**
+ * Všech 25 kombinací odstínů u emoji se dvěma osobami (👫, 🤝, 💑…), po řádcích: řádek je odstín
+ * první osoby, sloupec druhé. `null` u emoji, kde se odstíny kombinovat nedají.
+ */
+internal fun mixedSkinToneGrid(emoji: String): List<String>? = MIXED_SKIN_TONES[emoji.withoutVariation()]
+
 /** Základ emoji z katalogu: pro variantu s odstínem její výchozí podoba, jinak emoji samo. */
 internal fun baseEmoji(emoji: String): String = BASE_BY_VARIANT[emoji] ?: emoji
 
 private class SkinToneEntry(val base: String, val variants: List<String>)
 
-private val SKIN_TONE_ENTRIES: List<SkinToneEntry> by lazy {
-    EMOJI_SKIN_TONES_PACKED.split(';').map { entry ->
+private fun unpackSkinTones(packed: String): List<SkinToneEntry> =
+    packed.split(';').map { entry ->
         val (base, variants) = entry.split(':', limit = 2)
         SkinToneEntry(base, variants.split(' '))
     }
+
+private val SKIN_TONE_ENTRIES: List<SkinToneEntry> by lazy { unpackSkinTones(EMOJI_SKIN_TONES_PACKED) }
+
+private val MIXED_SKIN_TONE_ENTRIES: List<SkinToneEntry> by lazy { unpackSkinTones(EMOJI_MIXED_SKIN_TONES_PACKED) }
+
+private val MIXED_SKIN_TONES: Map<String, List<String>> by lazy {
+    MIXED_SKIN_TONE_ENTRIES.associate { it.base.withoutVariation() to it.variants }
 }
+
+/** Všechny varianty s odstínem, i smíšené — podle nich se hledá základ a podoba z katalogu. */
+private val ALL_SKIN_TONE_ENTRIES: List<SkinToneEntry> by lazy { SKIN_TONE_ENTRIES + MIXED_SKIN_TONE_ENTRIES }
 
 private val SKIN_TONES: Map<String, List<String>> by lazy {
     SKIN_TONE_ENTRIES.associate { it.base.withoutVariation() to it.variants }
 }
 
 private val BASE_BY_VARIANT: Map<String, String> by lazy {
-    SKIN_TONE_ENTRIES.flatMap { entry -> entry.variants.map { it to entry.base } }.toMap()
+    ALL_SKIN_TONE_ENTRIES.flatMap { entry -> entry.variants.map { it to entry.base } }.toMap()
 }
 
 /** Varianta podle podoby bez U+FE0F — nedávná a výsledky hledání můžou přijít bez něj. */
 private val VARIANT_BY_BARE: Map<String, String> by lazy {
-    SKIN_TONE_ENTRIES.flatMap { it.variants }.associateBy { it.withoutVariation() }
+    ALL_SKIN_TONE_ENTRIES.flatMap { it.variants }.associateBy { it.withoutVariation() }
 }
 
 private val CATALOG_BY_BARE: Map<String, String> by lazy {
@@ -469,6 +503,9 @@ private val DRAFT_PREVIEW_HEIGHT = 48.dp
 private val EMOJI_GRID_HEIGHT = STICKER_PICKER_HEIGHT - DRAFT_PREVIEW_HEIGHT - 8.dp
 
 private val EMOJI_CELL = 44.dp
+
+/** Odstínů pleti je pět (U+1F3FB až U+1F3FF); mřížka dvou osob má tolik sloupců. */
+private const val SKIN_TONE_COUNT = 5
 
 /** Trojúhelník v rohu emoji s odstíny pleti. */
 private val SKIN_TONE_INDICATOR = 5.dp

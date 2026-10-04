@@ -8078,6 +8078,16 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   jsou vygenerované z téhož `emoji-test.txt` (`EmojiSkinTones.kt`), jen se stejným odstínem pro
   všechny osoby: kombinace dvou odstínů by znamenaly 25 variant. Nabídka je `Popup` s vlastním
   `PopupPositionProvider` (nad buňku, vodorovně uvnitř okna), zpět obsluhuje sám.
+- **Emoji se dvěma osobami (👫, 🤝, 💑, 💏 a jejich varianty, 13 emoji) mají místo řady mřížku
+  5 × 5** (`mixedSkinToneGrid`, `EMOJI_MIXED_SKIN_TONES_PACKED`): řádek je odstín první osoby,
+  sloupec druhé, na úhlopříčce stejný. Zvolený pár se pamatuje jako každá varianta (podle
+  základu), takže se pak kreslí i vkládá obyčejným ťuknutím. Smíšené varianty jsou v Unicode do
+  15.0 (handshake 14.0, páry 12.0–13.1), takže mez katalogu platí i tu.
+- **Odstíny generuje `client/tools/emoji_skin_tones.py`** z `emoji-test.txt` (návod v hlavičce
+  skriptu). Původní generátor v repu nebyl; nový vyrobil stejnorodé varianty znak po znaku
+  shodně se starým souborem, než se přidaly smíšené. **Základ se hledá podle JMÉNA, ne kódových
+  bodů**: smíšené varianty páru se píšou rozloženě (👩🏻‍🤝‍👨🏼), kdežto základ je jeden znak (👫);
+  „kiss: person, person" jako emoji neexistuje, jeho základ je 💏 (jméno před dvojtečkou).
 - **`catalogEmoji` pozná i varianty** — nedávná je ukládají, a bez toho by při čtení vypadla.
 - **Výšky obou částí sedí**: náhled textu si ukousne z výšky mřížky, takže přepnutí Emoji /
   Samolepky sheet nenatáhne.
