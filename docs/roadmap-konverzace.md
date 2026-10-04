@@ -397,8 +397,8 @@ zprávou"). Zbývá:
 Hotové: záložky Nedávné, Oblíbené, Trendy a sady se swipem; hledání samolepek i emoji; oblíbené;
 sada ze samolepky v chatu; emoji vkládané do textu včetně nedávných. Zbývá:
 
-- **Dvě různé pleti u emoji s více osobami** (👫 s různým odstínem každé osoby) — nabízí se jen
-  stejný odstín pro všechny.
+- ~~**Dvě různé pleti u emoji s více osobami**~~ — hotovo (mřížka 5 × 5 u 13 emoji se dvěma
+  osobami; `CLAUDE.md`, „Výběr emoji"). Rodiny se třemi a víc osobami odstíny v Unicode nemají.
 - **Emoji novější než Unicode 15.0** — až je budou znát systémová písma podporovaných verzí.
 
 ## Co TDLib umí a Plume zatím ne (audit září 2026)
