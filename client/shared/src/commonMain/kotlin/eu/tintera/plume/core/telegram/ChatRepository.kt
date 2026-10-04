@@ -22,6 +22,18 @@ interface ChatRepository {
     fun chats(folder: ChatFolder = ChatFolder.Main): StateFlow<ChatListState>
 
     /**
+     * Složky Telegramu, živě (`UpdateChatFolders` — přichází hned po startu a po každé změně,
+     * i z jiného zařízení). Bez složek je seznam prázdný a řádek nad chaty se nekreslí.
+     */
+    val chatFolders: StateFlow<ChatFolders>
+
+    /**
+     * Nepřečtené chaty ve složkách Telegramu podle id složky (`UpdateUnreadChatCount`). Počítá
+     * TDLib, takže to platí i pro složku, kterou uživatel ještě neotevřel.
+     */
+    val folderUnread: StateFlow<Map<Int, ArchiveUnread>>
+
+    /**
      * Co se v chatu zrovna děje („píše…") a kdo to dělá, bez ohledu na to, ve které složce chat
      * je — i v chatu, který není v žádné (otevřený z notifikace, z odkazu). `null`, když nic.
      */
@@ -87,6 +99,9 @@ interface ChatRepository {
      * Pro každý kontakt zajistí privátní chat (lokálně v TDLib).
      */
     suspend fun contacts(): Result<List<ChatSummary>>
+
+    /** Položky pro známé chaty [chatIds] v tomtéž pořadí; neznámé vypadnou (editor složky). */
+    suspend fun summaries(chatIds: List<Long>): List<ChatSummary> = emptyList()
 
     /**
      * Skupiny ze seznamu chatů (i archivu), do kterých smí uživatel přidat bota ([canAddBot]);
@@ -370,16 +385,48 @@ data class FoundMessage(
 )
 
 /**
- * Složka seznamu chatů. Vlastní složky (`ChatListFolder`) zatím nejsou.
+ * Seznam chatů: hlavní, archiv, nebo složka Telegramu ([Custom], `ChatListFolder`).
  *
- * Chat je v nejvýš jedné z nich — archivace ho z hlavního seznamu přesune, nezkopíruje.
+ * Hlavní seznam a archiv se vylučují — archivace chat přesune, nezkopíruje. Složka Telegramu je
+ * jen výběr: tentýž chat v ní je VEDLE hlavního seznamu (nebo archivu), s vlastní pozicí
+ * a vlastním připnutím.
  */
-enum class ChatFolder { Main, Archive }
+sealed interface ChatFolder {
+    data object Main : ChatFolder
+
+    data object Archive : ChatFolder
+
+    /** Složka Telegramu s [id] z [ChatFolderTab.id]. */
+    data class Custom(val id: Int) : ChatFolder
+}
 
 /**
- * Nepřečtené chaty v archivu. [unmutedChats] je podmnožina [chats] — archiv je místo, kam se
- * ztlumené chaty ukládají, takže „je tam něco nepřečteného" a „je tam něco, co si žádá pozornost"
- * jsou dvě různé věci.
+ * Složka Telegramu, jak ji kreslí řádek nad seznamem chatů (`ChatFolderInfo`).
+ *
+ * Název může nést vlastní emoji ([titleEntities]); co do složky patří, se tu neřeší — to ví
+ * TDLib a do seznamu složky to posílá pozicemi.
+ */
+data class ChatFolderTab(
+    val id: Int,
+    val title: String,
+    val titleEntities: List<MessageEntity> = emptyList(),
+)
+
+/**
+ * Složky účtu v pořadí, které si uživatel nastavil (`UpdateChatFolders`).
+ *
+ * [mainPosition] je místo „Všech chatů" mezi nimi — s Premium jde hlavní seznam zařadit jinam
+ * než na začátek, a řádek složek to má respektovat stejně jako oficiální klienti.
+ */
+data class ChatFolders(
+    val folders: List<ChatFolderTab> = emptyList(),
+    val mainPosition: Int = 0,
+)
+
+/**
+ * Nepřečtené chaty v archivu (nebo ve složce, viz [ChatRepository.folderUnread]). [unmutedChats]
+ * je podmnožina [chats] — archiv je místo, kam se ztlumené chaty ukládají, takže „je tam něco
+ * nepřečteného" a „je tam něco, co si žádá pozornost" jsou dvě různé věci.
  */
 data class ArchiveUnread(val chats: Int = 0, val unmutedChats: Int = 0)
 
@@ -431,8 +478,13 @@ data class ChatSummary(
     val unreadPollVoteCount: Int = 0,
     val isPinned: Boolean,
     val order: Long,
-    /** Složka, ze které položka pochází — podle ní se nabízí archivace, nebo vrácení z archivu. */
+    /** Složka, ze které položka pochází — v ní se připíná. */
     val folder: ChatFolder = ChatFolder.Main,
+    /**
+     * Chat je v archivu — podle toho se nabízí archivace, nebo vrácení. Nečte se z [folder]:
+     * ve složce Telegramu může být archivovaný chat vedle nearchivovanými.
+     */
+    val isArchived: Boolean = folder == ChatFolder.Archive,
     /** `fileId` malé varianty avataru, nebo `null` když chat obrázek nemá. */
     val avatarFileId: Int?,
     /** Ztlumený chat notifikace nevydává. TDLib to řeší za nás, tohle je jen pro zobrazení. */

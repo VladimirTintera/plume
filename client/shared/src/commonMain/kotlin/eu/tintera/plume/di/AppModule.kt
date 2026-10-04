@@ -19,6 +19,8 @@ import eu.tintera.plume.features.profile.EditChatViewModel
 import eu.tintera.plume.features.profile.MemberRightsViewModel
 import eu.tintera.plume.core.telegram.TdlProfileRepository
 import eu.tintera.plume.core.telegram.InviteLinkRepository
+import eu.tintera.plume.core.telegram.ChatFolderRepository
+import eu.tintera.plume.core.telegram.TdlChatFolderRepository
 import eu.tintera.plume.core.telegram.TdlInviteLinkRepository
 import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.DeviceRepository
@@ -92,6 +94,8 @@ import eu.tintera.plume.features.settings.AppearanceViewModel
 import eu.tintera.plume.features.settings.SettingsViewModel
 import eu.tintera.plume.features.settings.BlockSenderViewModel
 import eu.tintera.plume.features.settings.BlockedSendersViewModel
+import eu.tintera.plume.features.settings.ChatFolderEditViewModel
+import eu.tintera.plume.features.settings.ChatFoldersViewModel
 import eu.tintera.plume.features.settings.SensitiveContentViewModel
 import eu.tintera.plume.features.settings.DefaultAutoDeleteViewModel
 import eu.tintera.plume.features.settings.NotificationSettingsViewModel
@@ -233,6 +237,7 @@ fun appModule() = module {
     single { SelfDestructTimers() }
     single<ProfileRepository> { TdlProfileRepository(holder = get()) }
     single<InviteLinkRepository> { TdlInviteLinkRepository(holder = get()) }
+    single<ChatFolderRepository> { TdlChatFolderRepository(holder = get()) }
     single<NotificationSettingsRepository> { TdlNotificationSettingsRepository(holder = get()) }
     single<SensitiveContentSettings> { TdlSensitiveContentSettings(holder = get()) }
     single<DefaultAutoDeleteSettings> { TdlDefaultAutoDeleteSettings(holder = get()) }
@@ -259,6 +264,7 @@ fun appModule() = module {
             devices = get(),
             accounts = get(),
             savedState = get(),
+            folderRepository = get(),
         )
     }
     viewModelOf(::StickerPickerViewModel)
@@ -288,6 +294,9 @@ fun appModule() = module {
     }
     viewModelOf(::SettingsViewModel)
     viewModelOf(::BlockedSendersViewModel)
+    viewModelOf(::ChatFoldersViewModel)
+    // Id složky je Int a nic jiného téhož typu parametry nemají, `get()` ho nezamění.
+    viewModel { parameters -> ChatFolderEditViewModel(folderId = parameters.get(), chats = get(), folders = get()) }
     viewModelOf(::BlockSenderViewModel)
     viewModelOf(::SensitiveContentViewModel)
     viewModelOf(::DefaultAutoDeleteViewModel)

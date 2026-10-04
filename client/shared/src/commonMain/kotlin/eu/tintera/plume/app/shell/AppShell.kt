@@ -20,6 +20,10 @@ import eu.tintera.plume.core.navigation.EditChatRoute
 import eu.tintera.plume.core.navigation.EditProfileRoute
 import eu.tintera.plume.core.navigation.BlockSenderRoute
 import eu.tintera.plume.core.navigation.BlockedSendersRoute
+import eu.tintera.plume.core.navigation.ChatFolderEditRoute
+import eu.tintera.plume.core.navigation.ChatFoldersRoute
+import eu.tintera.plume.features.settings.ChatFolderEditScreen
+import eu.tintera.plume.features.settings.ChatFoldersScreen
 import eu.tintera.plume.features.settings.BlockSenderScreen
 import eu.tintera.plume.features.settings.BlockedSendersScreen
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
@@ -338,7 +342,7 @@ private fun ShellContent(
                          */
                         backNavigationBehavior = if (
                             navigation.section == ChatsRoute ||
-                            settingsStack.lastOrNull().let { it == EditProfileRoute || it == BlockedSendersRoute || it == BlockSenderRoute }
+                            settingsStack.lastOrNull().isOverSettingsSection()
                         ) {
                             BackNavigationBehavior.PopUntilContentChange
                         } else {
@@ -926,7 +930,7 @@ private fun shellEntryProvider(
             onSectionClick = { section ->
                 // I s obrazovkami, které se vrší nad sekci — jinak by zůstaly pod novou sekcí.
                 settingsStack.removeAll {
-                    it is SettingsSectionRoute || it is EditProfileRoute || it is BlockedSendersRoute || it is BlockSenderRoute
+                    it is SettingsSectionRoute || it.isOverSettingsSection()
                 }
                 settingsStack.add(SettingsSectionRoute(section))
             },
@@ -949,6 +953,27 @@ private fun shellEntryProvider(
             onBack = if (wide) null else popSection,
             onEditProfile = { if (settingsStack.lastOrNull() != EditProfileRoute) settingsStack.add(EditProfileRoute) },
             onOpenBlocked = { if (settingsStack.lastOrNull() != BlockedSendersRoute) settingsStack.add(BlockedSendersRoute) },
+            onOpenFolders = { if (settingsStack.lastOrNull() != ChatFoldersRoute) settingsStack.add(ChatFoldersRoute) },
+        )
+    }
+
+    // Složky chatů nad sekcí Obecné, jako seznam blokovaných; editor složky nad nimi.
+    entry<ChatFoldersRoute>(
+        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+    ) { route ->
+        ChatFoldersScreen(
+            viewModel = koinViewModel(),
+            onBack = { settingsStack.pop(route) },
+            onEdit = { id -> if (settingsStack.lastOrNull() !is ChatFolderEditRoute) settingsStack.add(ChatFolderEditRoute(id)) },
+        )
+    }
+
+    entry<ChatFolderEditRoute>(
+        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+    ) { route ->
+        ChatFolderEditScreen(
+            viewModel = koinViewModel(key = "chat-folder-${route.folderId}", parameters = { parametersOf(route.folderId) }),
+            onBack = { settingsStack.pop(route) },
         )
     }
 
@@ -1117,3 +1142,8 @@ private fun conversationBelow(stack: List<NavKey>, route: MediaRoute): Long? {
     }
     return chatId?.takeIf { it == route.chatId && !route.fromSharedMedia && route.pollMedia == NO_POLL_MEDIA }
 }
+
+/** Obrazovky, které se vrší nad sekci Nastavení: úprava profilu, blokovaní, složky chatů. */
+private fun NavKey?.isOverSettingsSection(): Boolean =
+    this == EditProfileRoute || this == BlockedSendersRoute || this == BlockSenderRoute ||
+        this == ChatFoldersRoute || this is ChatFolderEditRoute

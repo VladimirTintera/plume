@@ -1618,8 +1618,8 @@ Dole je `HorizontalFloatingToolbar` s FAB „Nová zpráva" (M3 Expressive) a v 
 Vše, Nepřečtené, Lidé, Skupiny, Kanály (`ChatFilter`, čistá funkce `filteredBy` v `ChatGroups.kt`,
 testy v `ChatGroupsTest`). Nahradil spodní navigační lištu.
 
-- **Filtr je lokální, nad načteným seznamem.** Vlastní složky Telegramu (`ChatListFolder`) zatím
-  nejsou; tohle je jejich nejčastější náhrada. Skupiny (`chatGroups`) se dělají až nad výsledkem.
+- **Filtr je lokální, nad načteným seznamem**, a platí i UVNITŘ vybrané složky Telegramu (viz
+  „Složky chatů"). Skupiny (`chatGroups`) se dělají až nad výsledkem.
   Druh chatu nese `ChatSummary.kind` (`ChatKind`: tajný chat i bot jsou `Private`, základní
   skupina i supergroup `Group`, kanál `Channel`); `isPrivate` je z něj odvozené.
 - **Nepřečtené = `hasUnread`**, tedy i ručně označené — přesně ty, u kterých svítí odznak.
@@ -1661,6 +1661,80 @@ testy v `ChatGroupsTest`). Nahradil spodní navigační lištu.
 - Prázdný výsledek filtru je `IntroEmptyState` (u Nepřečtených „Všechno přečteno", jinak ikona
   filtru a „Tomuhle filtru žádný chat neodpovídá"), ne „Zatím tu nic není" — chaty jsou, jen ne
   tyhle. Stejný prázdný stav jako archiv a placeholder detailu.
+
+### Složky chatů
+
+Složky Telegramu (`ChatListFolder`) jsou řádek přepínacích tlačítek pod pilulkou hledání:
+„Všechny chaty · Práce 3 · Rodina…" (`ChatFolderRow`, pravidla `folderTabs` a `selectedFolderId`
+v `ChatFolderTabs.kt`, testy `ChatFolderTabsTest`). Bez složek se řádek nekreslí.
+
+- **Složka je další `ChatFolder` (`Custom(id)`), ne nový druh seznamu.** Repository drží pozice
+  chatu ve VŠECH seznamech, které TDLib hlásí (`positions`), takže seznam složky se skládá
+  stejným `publish` jako hlavní a archiv. Seznamy se ale publikují jen pro složky, o které si
+  někdo řekl (`lists` roste s `chats(folder)`) — skládat seznam každé složky při každém updatu
+  by byla práce pro nic.
+- **Složka se načítá až při výběru** (`loadMore(Custom)`), jako archiv. Do té doby je `Loading`;
+  pozice chatů ve složce TDLib pošle teprve po `loadChats` nad ní.
+- **Archivovaný chat může být ve složce** (`excludeArchived = false`), takže archivace se už
+  nerozhoduje podle složky, ze které položka přišla, ale podle `ChatSummary.isArchived`
+  (pozice v archivu). `folder` zůstává jen pro připínání — připnutí patří složce.
+- **Uložené zprávy ve složce JSOU vidět i nepřipnuté** (`hiddenSavedMessagesChatId`). Do složky
+  je uživatel dal sám; v hlavním seznamu zůstávají schované jako dřív.
+- **Vybraná složka žije jako filtr**: `SavedStateHandle`, ne nastavení. Návrat z konverzace
+  i zabití procesu ji zachovají, nové spuštění začne na všech chatech. Smazaná složka (třeba
+  na jiném zařízení) spadne na celý seznam, ale výběr se NEPŘEPISUJE — po startu přichází
+  `UpdateChatFolders` až po prvním složení a uložená volba by se jinak ztratila.
+- **Řádek odjíždí spolu s pilulkou.** Scroll behavior nenese `AppBarWithSearch`, ale sloupec
+  kolem pilulky i řádku (`Modifier.searchBarScrollBehavior()` je veřejný); bar sám ho nedostane,
+  jinak by odjel jen on a řádek zůstal viset nahoře.
+- **Jen ťuknutím, ne tahem do strany.** Vodorovný tah po seznamu patří archivaci.
+- **„Všechny chaty" stojí, kam ho uživatel v Telegramu přesunul** (`mainChatListPosition`,
+  bez Premium vždycky první); pozice za koncem (složka mezitím zmizela) jde na konec.
+- **Číslo u složky je počet nepřečtených NEZTLUMENÝCH chatů** (`UpdateUnreadChatCount` pro
+  `ChatListFolder`), jako odznak archivu. Složku plnou ztlumených kanálů by jinak číslo
+  zdobilo napořád. Chodí jen se zapnutou databází zpráv.
+- **Název složky může nést vlastní emoji** (`ChatFolderName.text` je `FormattedText`) — kreslí
+  se jako v náhledu seznamu chatů (`appendWithCustomEmoji`).
+- **Ověřeno na emulátoru** dvěma složkami založenými sondou (`createChatFolder`; jedna s vybranými
+  chaty včetně Uložených zpráv, druhá „všichni boti"): řádek, přepnutí, číslo u složky, filtry
+  toolbaru uvnitř složky, obnova po `am kill`, odjetí s pilulkou. **iOS jen přeložené.**
+
+#### Správa složek
+
+Nastavení → Obecné → Složky chatů (`ChatFoldersScreen`, `ChatFolderEditScreen`, hranice
+`ChatFolderRepository` / `TdlChatFolderRepository`, pravidla konceptu `ChatFolderDraft`, testy
+`ChatFolderDraftTest`) a „Přidat do složky" v nabídce nad chatem (`folderChoices`).
+
+- **Seznam a pořadí složek jsou živé z `ChatRepository.chatFolders`**, správa jen zapisuje.
+  Po založení, úpravě i smazání přijde `UpdateChatFolders` sám; nic se nepřepisuje lokálně.
+- **Složka se zapisuje CELÁ** (`editChatFolder` bere celý `ChatFolder`), takže co aplikace
+  nenabízí — ikona, barva, sdílení, připnuté chaty, vlastní emoji v názvu — se přenáší
+  z načtené složky (`ChatFolderDraft`). Vlastní emoji patří textu, ve kterém přišly; změněný
+  název je zahodí (`withTitle`), jinak by ukazovaly do jiných znaků.
+- **Prázdnou složku server odmítne**: musí mít aspoň jeden vybraný chat nebo druh chatů,
+  a název 1–12 znaků. Hlídá to `problem()` a Uložit ukáže důvod hned, ne chybu od serveru.
+- **Vybraný chat nemůže být zároveň vynechaný** — `withChosen` / `withExcluded` ho z druhého
+  seznamu vyřadí; server by jinak celou úpravu odmítl.
+- **Odebrat chat ze složky nestačí z vybraných.** Složka „všichni boti" drží bota DRUHEM, takže
+  `removeChat` ho navíc vynechá (`withoutChat(coveredByKind)`); jinak by zaškrtávátko nad chatem
+  zhaslo a chat ve složce zůstal. Přidání (`addChatToList(ChatListFolder)`) vynechání zruší
+  samo — ověřeno: Notifikátor ze „Boti" ven a zpátky.
+- **„Přidat do složky" nabízí složky, ve kterých chat je, a ty, kam jde přidat**
+  (`getChatListsToAddChat`), zaškrtávátkem a přímo v nabídce (rozbalení jako doby ztlumení).
+  Členství se čte až při otevření nabídky, přepnutí se ukáže hned a při chybě vrátí.
+- **Pořadí se mění tažením za úchyt** (`DragReorder`) a server dostane nové pořadí až po
+  PUŠTĚNÍ (`snapshotFlow { draggedKey }` → `reorderChatFolders`), ne po každé výměně. „Všechny
+  chaty" úchyt nemají — přesunout je jde jen s Premium.
+- **Doporučené složky** (`getRecommendedChatFolders`) se čtou znovu po každé změně složek;
+  přidaná doporučená z nabídky zmizí. Server je nevrací vždycky: při prvním otevření na emulátoru
+  přišel prázdný seznam bez chyby, po smazání jiné složky „Nepřečtené" a „Osobní".
+- **Výběr chatů do složky je `ChatPicker` přes celou obrazovku nad editorem**, ne routa: výběr
+  patří rozdělanému konceptu, který by navigace musela přenášet. „Hotovo (0)" jde potvrdit
+  i prázdné (`confirmWhenEmpty`) — tak se vybrané chaty odebírají všechny naráz.
+- **Ověřeno na emulátoru** (anglicky, složený Fold): založení složky se dvěma chaty, přeřazení
+  tažením (server pořadí převzal, řádek nad seznamem ho ukázal), úprava (druh Boti, odebraný
+  chat) a smazání s potvrzením, doporučená „Unread" přidaná a zase smazaná, „Přidat do složky"
+  oběma směry. **iOS jen přeložené.**
 
 ### Ověření a štítek podvodu
 

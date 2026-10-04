@@ -29,6 +29,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
@@ -110,7 +112,6 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import eu.tintera.plume.features.devices.UnconfirmedLoginCard
 import eu.tintera.plume.core.update.rememberStartUpdate
-import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.features.report.ReportHost
 import eu.tintera.plume.core.telegram.ChatSummary
@@ -215,16 +216,18 @@ fun ChatListScreen(
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     val shownConnection = rememberShownConnection(connection)
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
+    val hiddenSavedMessagesChatId by viewModel.hiddenSavedMessagesChatId.collectAsStateWithLifecycle()
     val updateCard by viewModel.updateCard.collectAsStateWithLifecycle()
     val unconfirmedLogin by viewModel.unconfirmedLogin.collectAsStateWithLifecycle()
     val filter by viewModel.filter.collectAsStateWithLifecycle()
     val chatList by viewModel.state.collectAsStateWithLifecycle()
     val readyChats = (chatList as? ChatListState.Ready)?.chats
-    val filters = remember(readyChats, filter, savedMessagesChatId) {
-        availableFilters(readyChats, filter, savedMessagesChatId)
+    val filters = remember(readyChats, filter, hiddenSavedMessagesChatId) {
+        availableFilters(readyChats, filter, hiddenSavedMessagesChatId)
     }
     val account by viewModel.account.collectAsStateWithLifecycle()
     val archiveUnread by viewModel.archiveUnread.collectAsStateWithLifecycle()
+    val folderTabs by viewModel.folderTabs.collectAsStateWithLifecycle()
     val startUpdate = rememberStartUpdate(viewModel.appUpdates)
     // Hledání při scrollu dolů odjede a při scrollu nahoru se vrátí.
     val scrollBehavior = SearchBarDefaults.enterAlwaysSearchBarScrollBehavior()
@@ -309,6 +312,22 @@ fun ChatListScreen(
                         onArchive = onOpenArchive,
                         onSettings = onOpenSettings,
                     )
+                },
+                below = {
+                    AnimatedVisibility(
+                        visible = folderTabs.isNotEmpty(),
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut(),
+                    ) {
+                        ChatFolderRow(
+                            tabs = folderTabs,
+                            onSelect = { id ->
+                                viewModel.selectFolder(id)
+                                // V obsluze, ne v efektu nad složkou — jako u filtru.
+                                scope.launch { listState.scrollToItem(0) }
+                            },
+                        )
+                    }
                 },
             )
         },
@@ -659,6 +678,7 @@ internal fun ChatActionsHost(
 ) {
     val actions by viewModel.actions.collectAsStateWithLifecycle()
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
+    val chatFolders by viewModel.chatFolders.collectAsStateWithLifecycle()
     // Snackbar s „Vrátit" běží mimo efekt: ten se nulováním události restartuje a zrušil by ho
     // (stejná past jako „Vrátit" u odepnuté zprávy v konverzaci).
     val snackbarScope = rememberCoroutineScope()
@@ -704,6 +724,9 @@ internal fun ChatActionsHost(
     }
 
     actions.target?.let { chat ->
+        val folderChoices = remember(actions.folders, chatFolders) {
+            folderChoices(chatFolders, actions.folders)
+        }
         ChatActionsSheet(
             chat = chat,
             spam = actions.spam,
@@ -715,6 +738,8 @@ internal fun ChatActionsHost(
             onToggleArchived = if (chat.id == savedMessagesChatId) null else {
                 { viewModel.toggleArchived(chat) }
             },
+            folders = folderChoices,
+            onToggleFolder = { id -> viewModel.toggleFolder(chat, id) },
             onSetBlocked = { blocked -> viewModel.setBlocked(chat, blocked) },
             onReport = { viewModel.report(chat) },
             onDelete = { cleanup -> viewModel.delete(chat, cleanup) },
@@ -752,6 +777,7 @@ internal fun ChatListContent(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
+    val hiddenSavedMessagesChatId by viewModel.hiddenSavedMessagesChatId.collectAsStateWithLifecycle()
 
     // Dotažení dalších chatů, jakmile se uživatel blíží ke konci. TDLib pak pošle updaty a seznam
     // se doplní sám — proto se tu nečeká na návratovou hodnotu.
@@ -769,8 +795,8 @@ internal fun ChatListContent(
 
 
     val groups = (state as? ChatListState.Ready)?.chats?.let { chats ->
-        remember(chats, filter, separateUnread, savedMessagesChatId) {
-            chatGroups(chats.filteredBy(filter), separateUnread, savedMessagesChatId)
+        remember(chats, filter, separateUnread, hiddenSavedMessagesChatId) {
+            chatGroups(chats.filteredBy(filter), separateUnread, hiddenSavedMessagesChatId)
         }
     }.orEmpty()
 
@@ -878,7 +904,7 @@ internal fun ChatListContent(
                             selected = chat.id == selectedChatId,
                         )
                         SwipeToArchive(
-                            archived = chat.folder == ChatFolder.Archive,
+                            archived = chat.isArchived,
                             // Uložené zprávy archivovat nejdou, stejně jako v nabídce po dlouhém stisku.
                             enabled = chat.id != savedMessagesChatId,
                             shape = shape,

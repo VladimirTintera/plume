@@ -60,6 +60,14 @@ data object BlockedSendersRoute : Route
 @Serializable
 data object BlockSenderRoute : Route
 
+/** Složky chatů — vrší se nad sekci Obecné stejně jako seznam blokovaných. */
+@Serializable
+data object ChatFoldersRoute : Route
+
+/** Editor složky nad seznamem složek; [folderId] `0` = nová složka. */
+@Serializable
+data class ChatFolderEditRoute(val folderId: Int) : Route
+
 /**
  * Archivované chaty. V list-detail rozvržení je to LIST panel scény archivu:
  * má vlastní detail panel [ArchiveConversationRoute], takže neovlivňuje otevřenou konverzaci
@@ -353,6 +361,8 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(EditProfileRoute::class, EditProfileRoute.serializer())
             subclass(BlockedSendersRoute::class, BlockedSendersRoute.serializer())
             subclass(BlockSenderRoute::class, BlockSenderRoute.serializer())
+            subclass(ChatFoldersRoute::class, ChatFoldersRoute.serializer())
+            subclass(ChatFolderEditRoute::class, ChatFolderEditRoute.serializer())
             subclass(ArchiveRoute::class, ArchiveRoute.serializer())
             subclass(ArchiveConversationRoute::class, ArchiveConversationRoute.serializer())
             subclass(ArchiveForumTopicsRoute::class, ArchiveForumTopicsRoute.serializer())
