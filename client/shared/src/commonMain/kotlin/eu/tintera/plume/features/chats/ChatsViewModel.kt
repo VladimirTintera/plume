@@ -10,6 +10,9 @@ import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.ArchiveSettings
 import eu.tintera.plume.core.telegram.ArchiveUnread
 import eu.tintera.plume.core.telegram.ChatFolder
+import eu.tintera.plume.core.telegram.ChatFolders
+import eu.tintera.plume.core.telegram.ChatFolderMembership
+import eu.tintera.plume.core.telegram.ChatFolderRepository
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
@@ -54,11 +57,16 @@ class ChatsViewModel(
     private val accounts: AccountRepository,
     /** Filtr přežije zabití procesu v pozadí; nové spuštění aplikace začne na všech chatech. */
     private val savedState: SavedStateHandle = SavedStateHandle(),
+    /** „Přidat do složky" v nabídce nad chatem; bez něj se položka nenabízí. */
+    private val folderRepository: ChatFolderRepository? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
 
     private val _selectedFolderId = MutableStateFlow(savedState.get<Int>(FOLDER_KEY))
+
+    /** Složky Telegramu — pro řádek nad seznamem a „Přidat do složky" v nabídce nad chatem. */
+    val chatFolders: StateFlow<ChatFolders> = repository.chatFolders
 
     /**
      * Složky Telegramu nad hlavním seznamem a jejich nepřečtené. Archiv složky nenabízí — jsou to
@@ -315,6 +323,37 @@ class ChatsViewModel(
             // Nabídka se mezitím mohla zavřít, nebo už patřit jinému chatu.
             _actions.update { if (it.target?.id == chat.id) it.copy(spam = spam) else it }
         }
+        // Složky, stejně jako spam, až na dotaz: `Chat.chatLists` a kam chat přidat jde.
+        if (folderRepository != null && repository.chatFolders.value.folders.isNotEmpty()) {
+            viewModelScope.launch {
+                folderRepository.membership(chat.id)
+                    .onSuccess { membership -> _actions.update { if (it.target?.id == chat.id) it.copy(folders = membership) else it } }
+                    .onFailure { failure -> logger.w(failure) { "Složky chatu ${chat.id} se nepodařilo zjistit." } }
+            }
+        }
+    }
+
+    /**
+     * Chat do složky, nebo ven. Nabídka zůstává otevřená a zaškrtnutí se přepne hned —
+     * přidává se často do víc složek po sobě; při selhání se vrátí.
+     */
+    fun toggleFolder(chat: ChatSummary, folderId: Int) {
+        val repo = folderRepository ?: return
+        val before = _actions.value.folders ?: return
+        val member = folderId in before.member
+        _actions.update { it.copy(folders = before.copy(member = if (member) before.member - folderId else before.member + folderId)) }
+        viewModelScope.launch {
+            val result = if (member) repo.removeChat(folderId, chat.id) else repo.addChat(folderId, chat.id)
+            result.onFailure { failure ->
+                logger.w(failure) { "Chat ${chat.id} se nepodařilo ${if (member) "odebrat ze" else "přidat do"} složky $folderId." }
+                _actions.update {
+                    it.copy(
+                        folders = if (it.target?.id == chat.id) before else it.folders,
+                        error = failure.userMessage(Res.string.chats_action_failed),
+                    )
+                }
+            }
+        }
     }
 
     fun hideActions() {
@@ -456,6 +495,8 @@ data class ChatActionsState(
     val blocked: BlockChange? = null,
     /** Co proti spamu nabídnout chatu v [target]; `null`, dokud to nedorazí ze serveru. */
     val spam: SpamActions? = null,
+    /** Složky, ve kterých chat je a kam jde přidat; `null` = nenabízet (nezjištěno, žádné složky). */
+    val folders: ChatFolderMembership? = null,
 )
 
 /** Chat se přesunul do archivu ([archived]), nebo z něj. */

@@ -100,6 +100,9 @@ interface ChatRepository {
      */
     suspend fun contacts(): Result<List<ChatSummary>>
 
+    /** Položky pro známé chaty [chatIds] v tomtéž pořadí; neznámé vypadnou (editor složky). */
+    suspend fun summaries(chatIds: List<Long>): List<ChatSummary> = emptyList()
+
     /**
      * Skupiny ze seznamu chatů (i archivu), do kterých smí uživatel přidat bota ([canAddBot]);
      * s [asAdmin] jen ty, kde ho smí i jmenovat správcem.

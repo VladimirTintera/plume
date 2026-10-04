@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.telegram.ArchiveUnread
+import eu.tintera.plume.core.telegram.ChatFolderMembership
 import eu.tintera.plume.core.telegram.ChatFolders
 import eu.tintera.plume.core.telegram.MessageEntity
 
@@ -42,4 +43,15 @@ internal fun folderTabs(folders: ChatFolders, unread: Map<Int, ArchiveUnread>, s
     val all = FolderTab(id = null, selected = selected == null)
     val at = folders.mainPosition.coerceIn(0, tabs.size)
     return tabs.take(at) + all + tabs.drop(at)
+}
+
+/**
+ * Složky pro „Přidat do složky": ty, ve kterých chat je, a ty, kam ho jde přidat, v pořadí
+ * složek. Do ostatních by ho server nepustil (typicky tajný chat do sdílené složky).
+ */
+internal fun folderChoices(folders: ChatFolders, membership: ChatFolderMembership?): List<FolderChoice> {
+    membership ?: return emptyList()
+    return folders.folders
+        .filter { it.id in membership.member || it.id in membership.canAdd }
+        .map { FolderChoice(it.id, it.title, member = it.id in membership.member) }
 }

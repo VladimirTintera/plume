@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.telegram.ArchiveUnread
+import eu.tintera.plume.core.telegram.ChatFolderMembership
 import eu.tintera.plume.core.telegram.ChatFolderTab
 import eu.tintera.plume.core.telegram.ChatFolders
 import kotlin.test.Test
@@ -44,5 +45,28 @@ class ChatFolderTabsTest {
         assertEquals(5, selectedFolderId(5, folders))
         assertNull(selectedFolderId(7, folders))
         assertNull(selectedFolderId(null, folders))
+    }
+}
+
+class FolderChoicesTest {
+    private val folders = ChatFolders(
+        folders = listOf(
+            ChatFolderTab(1, "Práce", emptyList()),
+            ChatFolderTab(2, "Sdílená", emptyList()),
+            ChatFolderTab(3, "Boti", emptyList()),
+        ),
+        mainPosition = 0,
+    )
+
+    @Test
+    fun nabidneSlozkyClenaAKamJdePridat() {
+        val choices = folderChoices(folders, ChatFolderMembership(member = setOf(3), canAdd = setOf(1)))
+        assertEquals(listOf(1, 3), choices.map { it.id })
+        assertEquals(listOf(false, true), choices.map { it.member })
+    }
+
+    @Test
+    fun bezZjisteneClenstviNicNenabidne() {
+        assertTrue(folderChoices(folders, null).isEmpty())
     }
 }

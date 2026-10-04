@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
@@ -52,6 +53,8 @@ import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.SpamActions
 import eu.tintera.plume.core.telegram.isPrivate
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.chat_action_folders
+import eu.tintera.plume.resources.folder_24dp
 import eu.tintera.plume.resources.archive_24dp
 import eu.tintera.plume.resources.block_24dp
 import eu.tintera.plume.resources.chats_delete_report
@@ -93,6 +96,9 @@ fun ChatActionsSheet(
     onToggleUnread: () -> Unit,
     /** `null` = chat archivovat nejde (Uložené zprávy), položka se nenabídne. */
     onToggleArchived: (() -> Unit)?,
+    /** Složky, do kterých chat jde přidat nebo ve kterých je; prázdné = „Přidat do složky" není. */
+    folders: List<FolderChoice>,
+    onToggleFolder: (Int) -> Unit,
     onSetBlocked: (Boolean) -> Unit,
     /** Samostatné nahlášení (průvodce), bez mazání. */
     onReport: () -> Unit,
@@ -213,6 +219,8 @@ fun ChatActionsSheet(
                     )
                 }
 
+                if (folders.isNotEmpty()) FolderChoices(folders, onToggleFolder)
+
                 /*
                  * Zablokovat, když má chat koho. Zjišťuje se to na dotaz, takže položka naskočí o kousek
                  * později než zbytek nabídky — objevení ruší míň než zmizení a chybějící stav nesmí
@@ -311,3 +319,56 @@ private val MUTE_OPTIONS: List<Pair<StringResource, Duration?>> = listOf(
     Res.string.profile_notif_mute_2d to 2.days,
     Res.string.profile_notif_mute_forever to null,
 )
+
+/** Složka v nabídce nad chatem: název a jestli v ní chat je. */
+data class FolderChoice(val id: Int, val title: String, val member: Boolean)
+
+/**
+ * „Přidat do složky" se rozbalí na místě na seznam složek, jako doby ztlumení. Zaškrtnutá složka
+ * chat obsahuje; ťuknutí ho přidá, nebo odebere. Nabídka se nezavírá — do víc složek se přidává
+ * po sobě.
+ */
+@Composable
+private fun FolderChoices(folders: List<FolderChoice>, onToggle: (Int) -> Unit) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "folders-expand",
+    )
+    SheetActionRow(
+        icon = Res.drawable.folder_24dp,
+        label = stringResource(Res.string.chat_action_folders),
+        shape = RoundedCornerShape(4.dp),
+        onClick = { expanded = !expanded },
+        trailing = {
+            Icon(
+                painterResource(Res.drawable.expand_more_24dp),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = rotation },
+            )
+        },
+    )
+    AnimatedVisibility(
+        visible = expanded,
+        enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+            fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
+            fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            folders.forEach { folder ->
+                SheetActionRow(
+                    icon = null,
+                    label = folder.title,
+                    shape = RoundedCornerShape(4.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    onClick = { onToggle(folder.id) },
+                    trailing = {
+                        Checkbox(checked = folder.member, onCheckedChange = null)
+                    },
+                )
+            }
+        }
+    }
+}

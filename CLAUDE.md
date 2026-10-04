@@ -1699,6 +1699,43 @@ v `ChatFolderTabs.kt`, testy `ChatFolderTabsTest`). Bez složek se řádek nekre
   chaty včetně Uložených zpráv, druhá „všichni boti"): řádek, přepnutí, číslo u složky, filtry
   toolbaru uvnitř složky, obnova po `am kill`, odjetí s pilulkou. **iOS jen přeložené.**
 
+#### Správa složek
+
+Nastavení → Obecné → Složky chatů (`ChatFoldersScreen`, `ChatFolderEditScreen`, hranice
+`ChatFolderRepository` / `TdlChatFolderRepository`, pravidla konceptu `ChatFolderDraft`, testy
+`ChatFolderDraftTest`) a „Přidat do složky" v nabídce nad chatem (`folderChoices`).
+
+- **Seznam a pořadí složek jsou živé z `ChatRepository.chatFolders`**, správa jen zapisuje.
+  Po založení, úpravě i smazání přijde `UpdateChatFolders` sám; nic se nepřepisuje lokálně.
+- **Složka se zapisuje CELÁ** (`editChatFolder` bere celý `ChatFolder`), takže co aplikace
+  nenabízí — ikona, barva, sdílení, připnuté chaty, vlastní emoji v názvu — se přenáší
+  z načtené složky (`ChatFolderDraft`). Vlastní emoji patří textu, ve kterém přišly; změněný
+  název je zahodí (`withTitle`), jinak by ukazovaly do jiných znaků.
+- **Prázdnou složku server odmítne**: musí mít aspoň jeden vybraný chat nebo druh chatů,
+  a název 1–12 znaků. Hlídá to `problem()` a Uložit ukáže důvod hned, ne chybu od serveru.
+- **Vybraný chat nemůže být zároveň vynechaný** — `withChosen` / `withExcluded` ho z druhého
+  seznamu vyřadí; server by jinak celou úpravu odmítl.
+- **Odebrat chat ze složky nestačí z vybraných.** Složka „všichni boti" drží bota DRUHEM, takže
+  `removeChat` ho navíc vynechá (`withoutChat(coveredByKind)`); jinak by zaškrtávátko nad chatem
+  zhaslo a chat ve složce zůstal. Přidání (`addChatToList(ChatListFolder)`) vynechání zruší
+  samo — ověřeno: Notifikátor ze „Boti" ven a zpátky.
+- **„Přidat do složky" nabízí složky, ve kterých chat je, a ty, kam jde přidat**
+  (`getChatListsToAddChat`), zaškrtávátkem a přímo v nabídce (rozbalení jako doby ztlumení).
+  Členství se čte až při otevření nabídky, přepnutí se ukáže hned a při chybě vrátí.
+- **Pořadí se mění tažením za úchyt** (`DragReorder`) a server dostane nové pořadí až po
+  PUŠTĚNÍ (`snapshotFlow { draggedKey }` → `reorderChatFolders`), ne po každé výměně. „Všechny
+  chaty" úchyt nemají — přesunout je jde jen s Premium.
+- **Doporučené složky** (`getRecommendedChatFolders`) se čtou znovu po každé změně složek;
+  přidaná doporučená z nabídky zmizí. Server je nevrací vždycky: při prvním otevření na emulátoru
+  přišel prázdný seznam bez chyby, po smazání jiné složky „Nepřečtené" a „Osobní".
+- **Výběr chatů do složky je `ChatPicker` přes celou obrazovku nad editorem**, ne routa: výběr
+  patří rozdělanému konceptu, který by navigace musela přenášet. „Hotovo (0)" jde potvrdit
+  i prázdné (`confirmWhenEmpty`) — tak se vybrané chaty odebírají všechny naráz.
+- **Ověřeno na emulátoru** (anglicky, složený Fold): založení složky se dvěma chaty, přeřazení
+  tažením (server pořadí převzal, řádek nad seznamem ho ukázal), úprava (druh Boti, odebraný
+  chat) a smazání s potvrzením, doporučená „Unread" přidaná a zase smazaná, „Přidat do složky"
+  oběma směry. **iOS jen přeložené.**
+
 ### Ověření a štítek podvodu
 
 Za jménem chatu je fajfka ověřeného účtu, nebo štítek „PODVOD" / „FALEŠNÝ" (`VerificationBadge`

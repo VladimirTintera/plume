@@ -781,6 +781,8 @@ class TdlChatRepository(
             summaries.sortedBy { it.title.lowercase() }
         }
 
+    override suspend fun summaries(chatIds: List<Long>): List<ChatSummary> = summariesFor(chatIds.toLongArray())
+
     override suspend fun openSavedMessages(): Result<Long> {
         val userId = me.value ?: session.me().getOrNull()?.id
             ?: return Result.failure(IllegalStateException("Účet není přihlášený."))

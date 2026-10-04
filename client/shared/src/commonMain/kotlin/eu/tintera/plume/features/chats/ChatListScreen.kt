@@ -678,6 +678,7 @@ internal fun ChatActionsHost(
 ) {
     val actions by viewModel.actions.collectAsStateWithLifecycle()
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
+    val chatFolders by viewModel.chatFolders.collectAsStateWithLifecycle()
     // Snackbar s „Vrátit" běží mimo efekt: ten se nulováním události restartuje a zrušil by ho
     // (stejná past jako „Vrátit" u odepnuté zprávy v konverzaci).
     val snackbarScope = rememberCoroutineScope()
@@ -723,6 +724,9 @@ internal fun ChatActionsHost(
     }
 
     actions.target?.let { chat ->
+        val folderChoices = remember(actions.folders, chatFolders) {
+            folderChoices(chatFolders, actions.folders)
+        }
         ChatActionsSheet(
             chat = chat,
             spam = actions.spam,
@@ -734,6 +738,8 @@ internal fun ChatActionsHost(
             onToggleArchived = if (chat.id == savedMessagesChatId) null else {
                 { viewModel.toggleArchived(chat) }
             },
+            folders = folderChoices,
+            onToggleFolder = { id -> viewModel.toggleFolder(chat, id) },
             onSetBlocked = { blocked -> viewModel.setBlocked(chat, blocked) },
             onReport = { viewModel.report(chat) },
             onDelete = { cleanup -> viewModel.delete(chat, cleanup) },
