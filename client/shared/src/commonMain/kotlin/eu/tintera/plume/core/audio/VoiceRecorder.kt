@@ -38,6 +38,27 @@ interface MediaCapture {
     fun pause()
 
     fun resume()
+
+    /**
+     * Jde za hotovou nahrávku [path] připojit další úsek ([join]) — nahrávání po poslechu
+     * náhledu. Výchozí je Ogg/Opus z mikrofonu; M4A z Androidu 9 a staršího spojit neumíme.
+     */
+    fun canJoin(path: String): Boolean = path.endsWith(".ogg")
+
+    /**
+     * Připojí nahrávku [next] za [previous] a vrátí cestu k výsledku; [previous] se smaže.
+     * Výchozí spojuje Ogg/Opus ([joinOggOpus]) a výsledek zapíše do [next]. Kamera spojuje MP4
+     * po svém (přes kodér platformy), proto je to člen, ne funkce [VoiceRecorder].
+     */
+    suspend fun join(previous: String, next: String): String = withContext(Dispatchers.Default) {
+        val fileSystem = FileSystem.SYSTEM
+        val first = fileSystem.read(previous.toPath()) { readByteArray() }
+        val second = fileSystem.read(next.toPath()) { readByteArray() }
+        val joined = joinOggOpus(listOf(first, second))
+        fileSystem.write(next.toPath()) { write(joined) }
+        fileSystem.delete(previous.toPath(), mustExist = false)
+        next
+    }
 }
 
 /**
@@ -81,7 +102,8 @@ data class VoiceRecording(
  *
  * [levels] jsou surové úrovně hlasitosti, ze kterých je [waveform] — drží se kvůli navázání
  * ([VoiceRecorder.start] s `continuing`): waveform se normuje na špičku CELÉ nahrávky, takže
- * se musí spočítat znovu ze všech úrovní, ne slepit ze dvou hotových.
+ * se musí spočítat znovu ze všech úrovní, ne slepit ze dvou hotových. Jestli navázat jde,
+ * říká [VoiceRecorder.canContinue] — rozhoduje druh nahrávače, ne nahrávka.
  */
 class RecordedVoice(
     val path: String,
@@ -89,13 +111,7 @@ class RecordedVoice(
     val waveform: ByteArray,
     val durationMs: Long = durationSeconds * 1000L,
     val levels: List<Float> = emptyList(),
-) {
-    /**
-     * Jde na ni navázat dalším nahráváním. Spojit umíme jen Ogg/Opus ([joinOggOpus]); M4A
-     * z Androidu 9 a staršího ne.
-     */
-    val canContinue: Boolean get() = path.endsWith(".ogg")
-}
+)
 
 /**
  * Řídí jedno nahrávání: čas, úrovně hlasitosti pro živou vizualizaci i waveform, a hotový soubor.
@@ -123,11 +139,11 @@ class VoiceRecorder(private val recorder: MediaCapture, private val scope: Corou
     /**
      * Začne nahrávat. S [continuing] naváže na hotovou nahrávku: čas i úrovně běží od jejího
      * konce a [finish] oba úseky spojí do jednoho souboru. Nahrávka, na kterou nejde navázat
-     * ([RecordedVoice.canContinue]), se bere jako žádná.
+     * ([canContinue]), se bere jako žádná.
      */
     fun start(continuing: RecordedVoice? = null): Result<Unit> {
         if (_state.value != null) return Result.success(Unit)
-        val previous = continuing?.takeIf { it.canContinue }
+        val previous = continuing?.takeIf(::canContinue)
         return runCatching { recorder.start() }
             .onSuccess {
                 levels.clear()
@@ -143,6 +159,9 @@ class VoiceRecorder(private val recorder: MediaCapture, private val scope: Corou
                 recorder.cancel()
             }
     }
+
+    /** Jde na hotovou [recorded] navázat dalším nahráváním ([MediaCapture.canJoin]). */
+    fun canContinue(recorded: RecordedVoice): Boolean = recorder.canJoin(recorded.path)
 
     /**
      * Pozastaví nahrávání — třeba po dobu nabídky odeslání a výběru času, kdy by se jinak do
@@ -208,8 +227,7 @@ class VoiceRecorder(private val recorder: MediaCapture, private val scope: Corou
     }
 
     /**
-     * Konec navázaného nahrávání: nový úsek se připojí za [previous] ([joinOggOpus]) a výsledek
-     * přepíše soubor nového úseku. Když nový úsek nic nenese (ťuknutí hned po spuštění) nebo se
+     * Konec navázaného nahrávání: nový úsek se připojí za [previous] ([MediaCapture.join]). Když nový úsek nic nenese (ťuknutí hned po spuštění) nebo se
      * spojit nedá, zůstane aspoň původní nahrávka — tu už uživatel jednou slyšel a chtěl.
      */
     private suspend fun finishContinuation(previous: RecordedVoice, elapsed: Long, allLevels: List<Float>): RecordedVoice {
@@ -220,21 +238,12 @@ class VoiceRecorder(private val recorder: MediaCapture, private val scope: Corou
         val path = runCatching { recorder.stop() }
             .onFailure { failure -> logger.w(failure) { "Navázaný úsek nahrávky nejde dokončit." } }
             .getOrNull() ?: return previous
-        return runCatching {
-            withContext(Dispatchers.Default) {
-                val fileSystem = FileSystem.SYSTEM
-                val first = fileSystem.read(previous.path.toPath()) { readByteArray() }
-                val second = fileSystem.read(path.toPath()) { readByteArray() }
-                val joined = joinOggOpus(listOf(first, second))
-                fileSystem.write(path.toPath()) { write(joined) }
-                fileSystem.delete(previous.path.toPath(), mustExist = false)
+        return runCatching { recorded(recorder.join(previous.path, path), elapsed, allLevels) }
+            .getOrElse { failure ->
+                logger.w(failure) { "Navázaný úsek nejde připojit k nahrávce." }
+                runCatching { FileSystem.SYSTEM.delete(path.toPath(), mustExist = false) }
+                previous
             }
-            recorded(path, elapsed, allLevels)
-        }.getOrElse { failure ->
-            logger.w(failure) { "Navázaný úsek nejde připojit k nahrávce." }
-            runCatching { FileSystem.SYSTEM.delete(path.toPath(), mustExist = false) }
-            previous
-        }
     }
 
     private fun recorded(path: String, elapsed: Long, allLevels: List<Float>) = RecordedVoice(

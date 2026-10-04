@@ -74,7 +74,7 @@ class VoiceRecorderContinueTest {
         recorder.start().getOrThrow()
         delay(1_100)
         val first = assertNotNull(recorder.finish())
-        assertTrue(first.canContinue)
+        assertTrue(recorder.canContinue(first))
 
         recorder.start(continuing = first).getOrThrow()
         // Čas pokračuje od konce původní nahrávky.
@@ -118,6 +118,47 @@ class VoiceRecorderContinueTest {
 
     @Test
     fun naM4aNavazatNejde() {
-        assertFalse(RecordedVoice(path = "voice.m4a", durationSeconds = 3, waveform = ByteArray(0)).canContinue)
+        val recorder = VoiceRecorder(FakeCapture(packets = 30), scope)
+        assertFalse(recorder.canContinue(RecordedVoice(path = "voice.m4a", durationSeconds = 3, waveform = ByteArray(0))))
+    }
+
+    @Test
+    fun nahravacSpojujeUsekyPoSvem() = runBlocking {
+        // Kamera spojuje MP4 sama — VoiceRecorder jen volá její join a bere jeho výsledek.
+        val capture = object : MediaCapture by FakeCapture(packets = 30) {
+            var joined: Pair<String, String>? = null
+            override fun canJoin(path: String) = path.endsWith(".ogg")
+            override suspend fun join(previous: String, next: String): String {
+                joined = previous to next
+                return (folder / "joined.ogg").toString()
+            }
+        }
+        val recorder = VoiceRecorder(capture, scope)
+        recorder.start().getOrThrow()
+        delay(1_100)
+        val first = assertNotNull(recorder.finish())
+        recorder.start(continuing = first).getOrThrow()
+        delay(500)
+        val result = assertNotNull(recorder.finish())
+
+        assertEquals(first.path, capture.joined?.first)
+        assertTrue(result.path.endsWith("joined.ogg"))
+    }
+
+    @Test
+    fun selhaneSpojeniNechaPuvodniNahravku() = runBlocking {
+        val capture = object : MediaCapture by FakeCapture(packets = 30) {
+            override fun canJoin(path: String) = true
+            override suspend fun join(previous: String, next: String): String = error("Kodér selhal.")
+        }
+        val recorder = VoiceRecorder(capture, scope)
+        recorder.start().getOrThrow()
+        delay(1_100)
+        val first = assertNotNull(recorder.finish())
+        recorder.start(continuing = first).getOrThrow()
+        delay(500)
+
+        assertSame(first, recorder.finish())
+        assertTrue(fileSystem.exists(first.path.toPath()))
     }
 }

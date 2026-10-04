@@ -29,6 +29,16 @@ interface VideoNoteCamera : MediaCapture {
     val canSwitch: Boolean
 
     fun switchCamera()
+
+    /** Kolečka jsou MP4 ([stop]); spojují se kodérem platformy, ne po paketech jako Ogg. */
+    override fun canJoin(path: String): Boolean = path.endsWith(".mp4")
+
+    /**
+     * Připojí kolečko [next] za [previous] do NOVÉHO souboru vedle [next] (nahrávání po
+     * poslechu náhledu). Obě kolečka už jsou čtvercová a nejvýš [VIDEO_NOTE_MAX_LENGTH] px,
+     * výsledek taky. Vstupní soubory se smažou až po úspěchu — selhání nechá [previous] celé.
+     */
+    override suspend fun join(previous: String, next: String): String
 }
 
 /** Kamera pro kolečka; `null`, když zařízení kameru nemá (simulátor iOS, některé tablety). */
@@ -94,4 +104,8 @@ class CaptureSlot : MediaCapture {
     override fun resume() {
         camera?.resume()
     }
+
+    override fun canJoin(path: String): Boolean = camera?.canJoin(path) ?: false
+
+    override suspend fun join(previous: String, next: String): String = current().join(previous, next)
 }

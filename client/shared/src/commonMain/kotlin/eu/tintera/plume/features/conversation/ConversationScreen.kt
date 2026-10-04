@@ -1751,6 +1751,10 @@ fun ConversationScreen(
                     haptics.reject()
                     viewModel.discardVideoNotePreview()
                 },
+                onContinueVideoNotePreview = {
+                    haptics.toggle(on = true)
+                    viewModel.continueVideoNotePreview()
+                },
                 onSendRecording = { options ->
                     haptics.confirm()
                     viewModel.sendRecording(options)
@@ -2833,6 +2837,7 @@ private fun MessageInput(
     videoNotePreview: VideoNotePreview? = null,
     videoNotePlayback: VideoNotePreviewPlayback? = null,
     onDiscardVideoNotePreview: () -> Unit = {},
+    onContinueVideoNotePreview: () -> Unit = {},
     onSendRecording: (SendOptions) -> Unit,
     /** Nabídka odeslání nad hlasovkou se otevřela (`true`) nebo zavřela bez volby (`false`). */
     onVoiceMenu: (open: Boolean) -> Unit = {},
@@ -3111,6 +3116,11 @@ private fun MessageInput(
                         preview = videoNotePreview,
                         playback = videoNotePlayback,
                         onDiscard = onDiscardVideoNotePreview,
+                        // Jako u hlasovky: ťuknutím, takže nahrávání je rovnou zamčené.
+                        onContinue = {
+                            recordLocked = true
+                            onContinueVideoNotePreview()
+                        },
                     )
                 } else if (voicePreview != null) {
                     VoicePreviewBar(
