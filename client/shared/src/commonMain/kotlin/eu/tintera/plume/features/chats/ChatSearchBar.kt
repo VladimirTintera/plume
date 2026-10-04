@@ -74,6 +74,11 @@ import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.AppBarWithSearch
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.ExpandedFullScreenSearchBar
+import eu.tintera.plume.core.ui.LocalTwoPane
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.ExpandedDockedSearchBarWithGap
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -288,18 +293,7 @@ internal fun ChatSearchBar(
         below()
     }
 
-    ExpandedFullScreenSearchBar(
-        state = searchBarState,
-        inputField = inputField,
-        colors = colors.searchBarColors,
-        /*
-         * Spodní inset si berou seznamy výsledků (`resultsPadding`), ne hledání. Výchozí
-         * `safeDrawing` dává obsahu spodek jako padding, takže výsledky končily useknuté nad
-         * navigační lištou na holé ploše. Takhle jedou pod lištu a poslední položka se nad ni
-         * doroluje. Klávesnice je ve `safeDrawing` taky, takže nic nezakryje.
-         */
-        windowInsets = { WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal) },
-    ) {
+    val results: @Composable ColumnScope.() -> Unit = {
         SearchResults(
             query = textFieldState.text.toString(),
             search = search,
@@ -317,7 +311,44 @@ internal fun ChatSearchBar(
             onFilterChange = onFilterChange,
         )
     }
+
+    /*
+     * Na široké ploše (dva panely) se hledání rozbalí jako panel pod pilulkou, ne přes celou
+     * obrazovku. Seznam chatů tam je jen levý panel a celoobrazovkové hledání by zakrylo
+     * i otevřenou konverzaci vpravo — a výsledky by se natáhly přes celý rozložený Fold.
+     * Material doporučuje přesně tohle: docked na střední a velké šířce, full screen na telefonu.
+     */
+    if (LocalTwoPane.current) {
+        CompositionLocalProvider(LocalDockedResults provides true) {
+            ExpandedDockedSearchBarWithGap(
+                state = searchBarState,
+                inputField = inputField,
+                colors = colors.searchBarColors,
+                content = results,
+            )
+        }
+    } else {
+        ExpandedFullScreenSearchBar(
+            state = searchBarState,
+            inputField = inputField,
+            colors = colors.searchBarColors,
+            /*
+             * Spodní inset si berou seznamy výsledků (`resultsPadding`), ne hledání. Výchozí
+             * `safeDrawing` dává obsahu spodek jako padding, takže výsledky končily useknuté nad
+             * navigační lištou na holé ploše. Takhle jedou pod lištu a poslední položka se nad ni
+             * doroluje. Klávesnice je ve `safeDrawing` taky, takže nic nezakryje.
+             */
+            windowInsets = { WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal) },
+            content = results,
+        )
+    }
 }
+
+/**
+ * Výsledky leží v panelu pod pilulkou (široká plocha), ne přes celou obrazovku. Panel ke spodku
+ * okna nesahá, takže spodní lišta ani klávesnice do jeho odsazení nepatří.
+ */
+private val LocalDockedResults = staticCompositionLocalOf { false }
 
 /**
  * Obsah rozbaleného hledání. Bez dotazu návrhy (řádek nejčastějších lidí, historie hledání),
@@ -705,7 +736,11 @@ private val TOP_CHAT_WIDTH = 76.dp
 /** Odsazení seznamů v hledání: spodní systémové lišty a klávesnice (viz `windowInsets` hledání). */
 @Composable
 private fun resultsPadding(): PaddingValues {
-    val bottom = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues().calculateBottomPadding()
+    val bottom = if (LocalDockedResults.current) {
+        0.dp
+    } else {
+        WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues().calculateBottomPadding()
+    }
     return PaddingValues(top = 8.dp, bottom = 8.dp + bottom)
 }
 

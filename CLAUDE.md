@@ -2026,6 +2026,16 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
   se stavem `ChatMemberStatusLeft`, `getSupergroup` je lokální) nahradí vstupní pole tlačítkem
   „Přidat se" (`joinChat`). Psát do cizí skupiny nejde a nabízet pole by znamenalo chybu po
   odeslání.
+- **Na široké ploše je hledání panel pod pilulkou, ne celá obrazovka** (`ExpandedDockedSearchBarWithGap`
+  podle `LocalTwoPane`). Material doporučuje docked od střední šířky; celoobrazovkové hledání by
+  na rozloženém Foldu přikrylo i otevřenou konverzaci vpravo. Panel je široký jako pilulka (tedy
+  levý panel), zbytek obrazovky pod závojem; výšku i místo nad klávesnicí (`imePadding`) si řeší
+  komponenta sama, takže výsledky v panelu spodní inset NEBEROU (`LocalDockedResults`) — jinak by
+  pod posledním výsledkem zůstala mezera o výšku klávesnice. Obsah (`SearchResults`) je pro obě
+  podoby jeden.
+- **V panelu zavře zpět s otevřenou klávesnicí celé hledání**, na telefonu (celá obrazovka) jen
+  klávesnici. Panel je fokusovatelný popup s vlastním `BackHandler`; zatím se to nechává jako
+  chování komponenty.
 - **Spodní inset si berou seznamy výsledků, ne `ExpandedFullScreenSearchBar`.** Jeho výchozí
   `windowInsets` je `safeDrawing` a spodek dává obsahu jako padding, takže výsledky končily
   useknuté nad navigační lištou na holé ploše. Hledání dostane jen `Top + Horizontal`, seznamy
