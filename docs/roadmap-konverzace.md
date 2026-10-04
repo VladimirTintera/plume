@@ -454,7 +454,9 @@ snadno na to uživatel narazí.
   (`CLAUDE.md`, „Hod kostkou"). Samotné 🎲 (a ostatní emoji
   hodu) z pole odejde jako hod. ~~Efekt výhry~~ — hotovo (konfety na snímku výhry, jen u vlastního hodu).
 - ~~**Placená média** (`MessagePaidMedia`) — rozmazaný náhled s cenou~~ — hotovo (`CLAUDE.md`,
-  „Placená média"). Zbývá odemknutí za hvězdy (placení nemáme) a mřížka víc zaplacených položek.
+  „Placená média"), i mřížka víc nezaplacených položek. Zbývá odemknutí za hvězdy (placení
+  nemáme) a mřížka víc ZAPLACENÝCH položek (prohlížeč i reakce počítají s jednou fotkou na
+  zprávu; bez možnosti zaplatit to nejde ověřit).
 - ~~**Faktury a hry**~~ — hotovo jako karta s obrázkem, popisem a cenou (`CLAUDE.md`, „Faktura
   a hra"). Zbývá animace hry a placení (hvězdy ani platby nemáme).
 - **Sdílený příběh** (`MessageStory`), **dárky, soutěže** — dnes text. Stojí na stories

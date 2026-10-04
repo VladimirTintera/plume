@@ -294,10 +294,10 @@ internal fun albumRowSizes(count: Int): List<Int> = when (count) {
 }
 
 /** Spára mezi fotkami alba. */
-private val ALBUM_GAP = 2.dp
+internal val ALBUM_GAP = 2.dp
 
 /** Strop výšky řádku alba s víc fotkami — dvě čtvercové fotky na širokém displeji by byly obří. */
-private val ALBUM_TILE_MAX_HEIGHT = 200.dp
+internal val ALBUM_TILE_MAX_HEIGHT = 200.dp
 
 /**
  * Tvar dlaždice alba: rohy mřížky tam, kde dlaždice sahá do rohu, jinak rovné hrany.

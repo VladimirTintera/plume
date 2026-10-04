@@ -1923,14 +1923,24 @@ sealed interface MessageMedia {
      */
     data class PaidMedia(
         val starCount: Long,
-        /** Kolik položek se prodává naráz (album). */
-        val itemCount: Int,
+        /**
+         * Náhledy položek, které se prodávají naráz, v pořadí od serveru. Položka bez náhledu
+         * (druh, který TDLib nezná) má nulové rozměry a žádný [PaidPreview.minithumbnail].
+         */
+        val previews: List<PaidPreview>,
+    ) : MessageMedia {
+        /** Rozmazaný náhled první položky — do citace a pruhu připnutých stačí jeden. */
+        val minithumbnail: Minithumbnail? get() = previews.firstOrNull()?.minithumbnail
+    }
+
+    /** Náhled jedné položky nezaplaceného placeného média: rozměry, délka videa, rozmazání. */
+    data class PaidPreview(
         val width: Int,
         val height: Int,
-        /** Délka první položky, je-li to video; `0` u fotky. */
+        /** Délka videa; `0` u fotky. */
         val durationSeconds: Int,
         val minithumbnail: Minithumbnail? = null,
-    ) : MessageMedia
+    )
 
     /**
      * Faktura (`MessageInvoice`) nebo hra (`MessageGame`) od bota: obrázek, název, popis a u
