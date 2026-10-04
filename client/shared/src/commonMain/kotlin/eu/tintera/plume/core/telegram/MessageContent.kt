@@ -686,9 +686,10 @@ internal fun MessageSelfDestructType.toSelfDestructType(): SelfDestructType = wh
  * Placené médium v doménové podobě.
  *
  * **Zaplacené je obyčejná fotka nebo video** (`PaidMediaPhoto` / `PaidMediaVideo`), a tak se
- * i kreslí — i s prohlížečem a reakcemi. Nezaplacené (`PaidMediaPreview`) je jen náhled s cenou.
- * Z víc položek se ukazuje PRVNÍ: album zaplacených médií v jedné zprávě neumíme kreslit jako
- * mřížku (alba jsou jinak víc zpráv) a u nezaplaceného stačí počet.
+ * i kreslí — i s prohlížečem a reakcemi. Nezaplacené (`PaidMediaPreview`) jsou jen náhledy
+ * s cenou, všech položek (konverzace je kreslí mřížkou). Ze ZAPLACENÝCH víc položek se ukazuje
+ * PRVNÍ: prohlížeč i reakce stojí na tom, že jedna zpráva je jedna fotka (alba jsou jinak víc
+ * zpráv), a ověřit by to nešlo — zaplatit Plume neumí.
  */
 internal fun MessagePaidMedia.toPaidMedia(hideSensitive: Boolean): MessageMedia? {
     val items = media.filterNotNull()
@@ -701,14 +702,17 @@ internal fun MessagePaidMedia.toPaidMedia(hideSensitive: Boolean): MessageMedia?
             else -> null
         }
     }
-    val preview = first as? PaidMediaPreview
     return MessageMedia.PaidMedia(
         starCount = starCount,
-        itemCount = items.size,
-        width = preview?.width ?: 0,
-        height = preview?.height ?: 0,
-        durationSeconds = preview?.duration ?: 0,
-        minithumbnail = preview?.minithumbnail?.toDomain(),
+        previews = items.map { item ->
+            val preview = item as? PaidMediaPreview
+            MessageMedia.PaidPreview(
+                width = preview?.width ?: 0,
+                height = preview?.height ?: 0,
+                durationSeconds = preview?.duration ?: 0,
+                minithumbnail = preview?.minithumbnail?.toDomain(),
+            )
+        },
     )
 }
 

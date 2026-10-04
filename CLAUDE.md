@@ -7673,21 +7673,27 @@ funkce `openTarget` (`ChatsStack.kt`, testy `ChatsStackTest`).
 ### Placená média
 
 `MessagePaidMedia` (fotka nebo video za hvězdy, častá v kanálech) je `MessageMedia.PaidMedia`:
-holé médium s rozmazaným náhledem, cenou s hvězdou uprostřed a v rohu počtem položek nebo
-délkou videa (`PaidMediaPreview` v `Attachments.kt`, převod `toPaidMedia`, testy `PaidMediaTest`).
+holé médium s rozmazaným náhledem, cenou s hvězdou uprostřed a u videa délkou v rohu
+(`PaidMediaPreview` v `Attachments.kt`, převod `toPaidMedia`, testy `PaidMediaTest`).
 
 - **Server před zaplacením vydá jen náhled** (`PaidMediaPreview`: rozměry, délka, minithumbnail),
   ne soubor. Rozmazání je tedy všechno, co je; nestahuje se nic a nic se neodkrývá.
 - **Zaplacené médium je obyčejná fotka nebo video** (`PaidMediaPhoto` / `PaidMediaVideo` →
   `Photo` / `Video`), i s prohlížečem a reakcemi — týká se i prodejce, který vidí vlastní
-  příspěvek odemčený. Z víc položek se ukazuje PRVNÍ: album je jinak víc zpráv a mřížka v jedné
-  zprávě by byla vlastní cesta.
+  příspěvek odemčený. Ze ZAPLACENÝCH víc položek se ukazuje PRVNÍ: prohlížeč i reakce stojí
+  na tom, že zpráva je jedna fotka (album je jinak víc zpráv), a ověřit by to nešlo.
+- **Nezaplacené víc položek je mřížka** (`PaidPreviewGrid`) se stejnými řádky a výškami jako
+  album (`albumRowSizes`, `ALBUM_GAP`, `ALBUM_TILE_MAX_HEIGHT`) a s JEDNOU cenou přes celou
+  mřížku — kupuje se všechno naráz, cena u každé dlaždice by tvrdila, že jde koupit kus. Model
+  proto nese náhledy všech položek (`PaidMedia.previews`), ne jen první s počtem; „N položek"
+  zbyl jen v popisu pro čtečku. Položka, kterou TDLib nezná, je prázdná dlaždice.
 - **Odemknout (koupit za hvězdy) Plume neumí**, ťuknutí to řekne snackbarem
   (`MessageAction.ExplainPaidMedia`) místo prohlížeče, který by neměl co ukázat.
 - **Bot placené médium do soukromého chatu pošle** (`sendPaidMedia` se `star_count`), takže se
-  to ověřuje bez kanálu. Ověřeno na emulátoru česky: fotka s popiskem (25 hvězd), album dvou
-  fotek („2 položky"), ťuknutí s vysvětlením. **Neověřeno**: zaplacené médium (zaplatit nejde),
-  video, iOS (jen přeložené).
+  to ověřuje bez kanálu. Ověřeno na emulátoru česky: fotka s popiskem (25 hvězd), mřížka tří
+  fotek a mřížka 2 × 2 s videem (délka na dlaždici) a popiskem, ťuknutí s vysvětlením, popis
+  pro čtečku („4 položky, Placený obsah za 40 hvězd"). **Neověřeno**: zaplacené médium
+  (zaplatit nejde), iOS (jen přeložené).
 
 ### Faktura a hra
 
