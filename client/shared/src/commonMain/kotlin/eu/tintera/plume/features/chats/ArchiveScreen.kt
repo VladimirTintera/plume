@@ -48,6 +48,7 @@ fun ArchiveScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val archiveSettings by viewModel.archiveSettings.collectAsStateWithLifecycle()
     val settingsOpen by viewModel.archiveSettingsOpen.collectAsStateWithLifecycle()
+    val chatFolders by viewModel.chatFolders.collectAsStateWithLifecycle()
 
     ChatActionsHost(viewModel, snackbarHostState, onArchived = onChatArchived)
 
@@ -58,6 +59,8 @@ fun ArchiveScreen(
                 settings = settings,
                 onArchiveUnknownSenders = viewModel::setArchiveUnknownSenders,
                 onKeepUnmutedArchived = viewModel::setKeepUnmutedArchived,
+                hasFolders = chatFolders.folders.isNotEmpty(),
+                onKeepFromFoldersArchived = viewModel::setKeepFromFoldersArchived,
                 onDismiss = viewModel::closeArchiveSettings,
             )
         }

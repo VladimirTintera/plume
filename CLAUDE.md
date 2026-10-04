@@ -1731,10 +1731,27 @@ Nastavení → Obecné → Složky chatů (`ChatFoldersScreen`, `ChatFolderEditS
 - **Výběr chatů do složky je `ChatPicker` přes celou obrazovku nad editorem**, ne routa: výběr
   patří rozdělanému konceptu, který by navigace musela přenášet. „Hotovo (0)" jde potvrdit
   i prázdné (`confirmWhenEmpty`) — tak se vybrané chaty odebírají všechny naráz.
+- **Ikona složky je jméno od TDLib** (`ChatFolderIcon.name`: „Bots", „Cat", „Work"… — pevný seznam
+  z dokumentace) a kreslí se Material Symbols (`CHAT_FOLDER_ICONS`, `folderIcon`), ne grafikou
+  Telegramu. Neznámé jméno z novější verze je obecná složka a při úpravě se přenese dál.
+- **Bez vybrané ikony ji volí Telegram podle obsahu** (`getChatFolderDefaultIconName`, lokální)
+  a editor ukazuje tu, kterou by zvolil, přepočítanou s každou změnou konceptu: zapnutí „Boti" ji
+  samo změní na robota. **S vybranými chaty je výchozí „Custom"**, tedy obecná složka — i u
+  složky „všichni boti" s jedním chatem navíc. Není to chyba, tak to TDLib počítá.
+- **`ChatFolderInfo.icon` v `UpdateChatFolders` je už ta výsledná** (zvolená, jinak výchozí),
+  takže seznam složek si nic nedopočítává. Doporučené složky ikonu nemají a dopočítá se jim jen
+  pro zobrazení (`RecommendedChatFolder.iconName`) — do konceptu nejde, přidaná složka si ji
+  dál volí podle obsahu.
+- **Výběr je sheet s „Automaticky" a mřížkou**, ikona stojí v poli s názvem jako v oficiálních
+  klientech. Řádek složek nad seznamem chatů ikony nekreslí — je to text, jako u oficiálního
+  klienta na Androidu, a ikona vedle názvu by z tlačítek udělala dvojnásobnou šířku.
 - **Ověřeno na emulátoru** (anglicky, složený Fold): založení složky se dvěma chaty, přeřazení
   tažením (server pořadí převzal, řádek nad seznamem ho ukázal), úprava (druh Boti, odebraný
   chat) a smazání s potvrzením, doporučená „Unread" přidaná a zase smazaná, „Přidat do složky"
-  oběma směry. **iOS jen přeložené.**
+  oběma směry. Ikona: výběr tlapky, uložení (server ji převzal, seznam ji ukázal), návrat na
+  „Automaticky", robot u nové složky s Boty a ikony doporučených. „Chaty ze složek" v nastavení
+  archivu se ukazuje se skutečnou hodnotou účtu; **zápis ověřený není** (mění nastavení účtu).
+  **iOS jen přeložené.**
 
 ### Ověření a štítek podvodu
 
@@ -2233,9 +2250,11 @@ snackbar s „Vrátit".
 - **TDLib na změnu `ArchiveChatListSettings` NEPOSÍLÁ update**, takže sheet je jediný zdroj pravdy:
   přepínač se pohne hned a při selhání se vrátí. Čekat na potvrzení by znamenalo přepínač, který
   se po ťuknutí nehýbe.
-- **Zapisuje se celým objektem**, jako ztlumení chatu: `keepChatsFromFoldersArchived` se přenese
-  z aktuálního stavu. Aplikace vlastní složky Telegramu nemá, takže ho jako volbu nenabízí — ale
-  nastavit ho mohl jiný klient a přepsat mu ho tiše by bylo horší než ho nenabízet.
+- **Zapisuje se celým objektem**, jako ztlumení chatu — všechny tři volby nese `ArchiveSettings`.
+- **„Nechávat v archivu chaty ze složek" (`keepChatsFromFoldersArchived`) jen se složkami a jen
+  bez „Nechávat chaty v archivu"** (`AnimatedVisibility` v sheetu). Týká se neztlumených chatů,
+  které jsou ve složce vybrané nebo připnuté, a TDLib ho ignoruje, když platí volba nad ním —
+  ta drží v archivu všechny neztlumené. Přepínač bez následku by sliboval něco, co se nestane.
 - **„Archivovat chaty od neznámých" povoluje server** (`can_archive_and_mute_new_chats_from_unknown_users`);
   kde ho nepovolí, TDLib zapnutí odmítne. Přepínač se tam proto nenabízí vůbec — stejné pravidlo
   jako u filtrů seznamu, které nemají co odfiltrovat.

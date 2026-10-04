@@ -22,7 +22,10 @@ import eu.tintera.plume.resources.chat_folder_save_failed
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -47,7 +50,13 @@ data class ChatFolderEditState(
     val pick: FolderChatPick? = null,
     val picked: Set<Long> = emptySet(),
     val pickQuery: String = "",
+    /** Ikona, kterou by složce dal Telegram sám (podle obsahu) — ukazuje se, dokud žádná není vybraná. */
+    val defaultIconName: String? = null,
+    val iconPickerOpen: Boolean = false,
 ) {
+    /** Co se kreslí: vybraná ikona, jinak ta, kterou vybere Telegram. */
+    val shownIconName: String? get() = draft.iconName ?: defaultIconName
+
     val isNew: Boolean get() = folderId == 0
     val changed: Boolean get() = draft != original
     val problem: ChatFolderProblem? get() = draft.problem()
@@ -56,8 +65,11 @@ data class ChatFolderEditState(
 /**
  * Editor jedné složky: název, vybrané chaty a druhy chatů, vynechané chaty.
  *
- * - **Ukládá se tlačítkem, celým objektem** (`editChatFolder`): co editor nenabízí (ikona,
- *   barva, sdílení, připnuté chaty), se přenese z načtené složky.
+ * - **Ukládá se tlačítkem, celým objektem** (`editChatFolder`): co editor nenabízí (barva,
+ *   sdílení, připnuté chaty), se přenese z načtené složky.
+ * - **Bez vybrané ikony vybírá Telegram podle obsahu** — a ukazuje se ta, kterou by vybral
+ *   (`getChatFolderDefaultIconName`), přepočítaná s každou změnou konceptu. Zapnutí „Boti" tak
+ *   ikonu samo změní na robota, jako to pak uvidí ostatní klienti.
  * - **Výběr chatů je součást obrazovky, ne další routa** — vybírá do konceptu, který žije
  *   tady; přes routu by se výběr musel předávat zpátky.
  */
@@ -85,6 +97,14 @@ class ChatFolderEditViewModel(
     val done = MutableStateFlow(false)
 
     init {
+        viewModelScope.launch {
+            // Výchozí ikona závisí na obsahu, ne na vybrané ikoně ani na názvu.
+            local.map { it.draft.copy(iconName = null, title = "", titleEntities = emptyList()) }
+                .distinctUntilChanged()
+                .collectLatest { draft ->
+                    folders.defaultIconName(draft).onSuccess { name -> local.update { it.copy(defaultIconName = name) } }
+                }
+        }
         if (folderId == 0) {
             local.update { it.copy(loading = false) }
         } else {
@@ -110,6 +130,14 @@ class ChatFolderEditViewModel(
     }
 
     fun setTitle(text: String) = edit { it.withTitle(text) }
+
+    fun openIconPicker() = local.update { it.copy(iconPickerOpen = true) }
+    fun closeIconPicker() = local.update { it.copy(iconPickerOpen = false) }
+
+    /** `null` = nechat na Telegramu. Výběr sheet zavře — jedna volba, nic dalšího se v něm nedělá. */
+    fun setIcon(name: String?) {
+        local.update { it.copy(draft = it.draft.copy(iconName = name), iconPickerOpen = false) }
+    }
 
     fun setIncludeContacts(value: Boolean) = edit { it.copy(includeContacts = value) }
     fun setIncludeNonContacts(value: Boolean) = edit { it.copy(includeNonContacts = value) }

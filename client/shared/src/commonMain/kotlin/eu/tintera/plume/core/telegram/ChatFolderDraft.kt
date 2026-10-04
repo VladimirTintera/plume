@@ -87,7 +87,7 @@ fun ChatFolderDraft.problem(): ChatFolderProblem? = when {
 const val CHAT_FOLDER_TITLE_MAX = 12
 
 /** Složka, kterou Telegram doporučuje založit (Nepřečtené, Osobní…), s větou, co v ní bude. */
-data class RecommendedChatFolder(val draft: ChatFolderDraft, val description: String)
+data class RecommendedChatFolder(val draft: ChatFolderDraft, val description: String, val iconName: String? = null)
 
 /** Ve kterých složkách chat je a do kterých jde přidat — pro „Přidat do složky" nad chatem. */
 data class ChatFolderMembership(val member: Set<Int>, val canAdd: Set<Int>)
@@ -103,6 +103,11 @@ interface ChatFolderRepository {
     suspend fun delete(id: Int): Result<Unit>
     suspend fun reorder(ids: List<Int>, mainPosition: Int): Result<Unit>
     suspend fun recommended(): Result<List<RecommendedChatFolder>>
+    /**
+     * Ikona, kterou by složce dal Telegram, kdyby si uživatel žádnou nevybral — podle toho, co ve
+     * složce je (jen boti → robot…). Lokální výpočet, smí se volat při každé změně konceptu.
+     */
+    suspend fun defaultIconName(draft: ChatFolderDraft): Result<String>
     suspend fun membership(chatId: Long): Result<ChatFolderMembership>
     suspend fun addChat(folderId: Int, chatId: Long): Result<Unit>
     suspend fun removeChat(folderId: Int, chatId: Long): Result<Unit>

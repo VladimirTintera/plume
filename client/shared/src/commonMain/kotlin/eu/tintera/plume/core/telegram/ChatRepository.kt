@@ -410,6 +410,8 @@ data class ChatFolderTab(
     val id: Int,
     val title: String,
     val titleEntities: List<MessageEntity> = emptyList(),
+    /** Jméno ikony od TDLib (zvolené, jinak výchozí podle obsahu složky). */
+    val iconName: String? = null,
 )
 
 /**
@@ -433,15 +435,18 @@ data class ArchiveUnread(val chats: Int = 0, val unmutedChats: Int = 0)
 /**
  * Nastavení archivu (`ArchiveChatListSettings`).
  *
- * `keepChatsFromFoldersArchived` tu není: týká se vlastních složek Telegramu, které aplikace
- * nemá, takže by to byla volba bez následku. Zápis ho přesto přenese z aktuálního stavu —
- * nastavit ho mohl jiný klient.
+ * Zapisuje se vždycky celý objekt, takže všechny tři volby jdou na server spolu.
  */
 data class ArchiveSettings(
     /** Nové chaty od lidí mimo kontakty jdou rovnou do archivu a ztlumené. */
     val archiveUnknownSenders: Boolean,
     /** Neztlumený chat zůstane v archivu i po nové zprávě, místo aby se vrátil mezi chaty. */
     val keepUnmutedArchived: Boolean,
+    /**
+     * Neztlumený chat, který je ve složce vybraný nebo připnutý, zůstane v archivu i po nové
+     * zprávě. TDLib ho ignoruje, když platí [keepUnmutedArchived] — ten drží v archivu všechny.
+     */
+    val keepFromFoldersArchived: Boolean = false,
     /**
      * Smí se [archiveUnknownSenders] vůbec zapnout? Server to povoluje jen některým účtům
      * (`can_archive_and_mute_new_chats_from_unknown_users`) a zapnutí jinde odmítne.
