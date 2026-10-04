@@ -1885,13 +1885,21 @@ class TdlConversationRepository(
     private suspend fun chatAccess(chat: Chat, forumTopic: TdlForumTopic? = null): ChatAccess {
         val status = client.ownMemberStatus(chat)
         val supergroup = chat.type as? ChatTypeSupergroup
+        // Diskusní skupina kanálu smí dovolit psaní i bez vstupu (`joinToSendMessages`). Dotaz je
+        // lokální a ptá se jen ten, kdo členem není.
+        val nonMembersCanSend = supergroup != null && !supergroup.isChannel &&
+            status == OwnMemberStatus.Left &&
+            client.getSupergroup(supergroupId = supergroup.supergroupId).toResult().getOrNull()
+                ?.joinToSendMessages == false
         val chatWrite = writeAccess(
             isChannel = supergroup?.isChannel == true,
             status = status,
             membersCanSend = chat.permissions.canSendBasicMessages,
+            nonMembersCanSend = nonMembersCanSend,
         )
         return ChatAccess(
-            canJoin = supergroup != null && status == OwnMemberStatus.Left,
+            // Kdo smí psát bez vstupu, dostane pole, ne „Přidat se" — jako u oficiálních klientů.
+            canJoin = supergroup != null && status == OwnMemberStatus.Left && !nonMembersCanSend,
             writeAccess = topicWriteAccess(chatWrite, status, topicClosed = forumTopic?.info?.isClosed == true),
             content = contentAccess(status = status, groupDefaults = chat.permissions.toContentAccess()).let {
                 // Právo skupiny nestačí: do soukromého chatu s člověkem anketa nejde vůbec.
