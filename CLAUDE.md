@@ -4316,10 +4316,32 @@ skupiny dávají před vstup — odpověď napsaná textem se nepočítá, bot �
 - **Odkaz mimo Telegram se napřed potvrzuje** (`OpenLinkDialog` s celou adresou). U odkazu
   v textu uživatel adresu vidí, na tlačítku ne. Odkaz na Telegram (`resolveLink`) se otevře
   rovnou, jako odkaz v textu.
-- **Co Plume neumí, je vidět a ťuknutí to vysvětlí** (`BotButtonKind.Unsupported`: inline
-  dotaz, platba, hra, heslo). Mini aplikace a přihlášení na web už umí (viz níž a „Mini aplikace
-  botů"). Schované tlačítko by
+- **Co Plume neumí, je vidět a ťuknutí to vysvětlí** (`BotButtonKind.Unsupported`: platba,
+  hra, heslo, inline dotaz s cílem daným odkazem). Mini aplikace a přihlášení na web už umí
+  (viz níž a „Mini aplikace botů"). Schované tlačítko by
   z klávesnice bota vykouslo řádek nebo jeho část a změnilo, co bot nabízí.
+- **Inline dotaz tlačítkem** (`BotButtonKind.SwitchInline`, `SwitchInlineTarget`) dá do pole
+  `@bot dotaz` — v tomhle chatu, nebo v chatu z výběru (`SwitchInlinePickerScreen`). Nic se
+  neposílá, výsledek si uživatel vybere z napovídání nad polem (viz „Inline boti").
+  - **Jméno bota tlačítko nenese**: je to bot, „přes" kterého zpráva přišla, jinak odesílatel.
+    Dohledává se při převodu zprávy, a jen u klávesnice s takovým tlačítkem. **Past:**
+    v `toChatMessage` je `senderId` už převedený na číslo (`plainId`), takže přetypování na
+    `MessageSenderUser` tiše vrátilo `null` a tlačítko spadlo do „neumím" — kladné číslo je
+    uživatel.
+  - **Výběr nabízí jen druhy chatu, které bot dovolil, a jen chaty, kam se smí psát**
+    (`inlineQueryTargets`, `SwitchInlineTarget.Chosen.allows`). Druh se bere z položky seznamu
+    a TDLib se ptá jen tam, kde chat projít může: dotaz na každý chat v seznamu trval na
+    emulátoru přes minutu. Bota od člověka rozliší `getUser`, jen když bot dovolil jedno bez
+    druhého.
+  - **Dotaz do vybraného chatu je STAV** (`InlineQueryRequests`), jako odpověď z prohlížeče:
+    konverzace se teprve skládá, a i otevřená si ho vezme až po obnovení konceptu — koncept jde
+    do prázdného pole a dotaz by jinak vytlačil. Rozepsanou zprávu dotaz nepřepíše (stejné
+    pravidlo jako ťuknutí na „přes @bot").
+  - **Ověřeno na emulátoru** zprávou od testovacího bota (`switch_inline_query_current_chat`,
+    `switch_inline_query`, `switch_inline_query_chosen_chat` jen se skupinami): pole v témž
+    chatu, výběr jen se skupinami, kam smí psát, výběr všeho s Uloženými zprávami. Testovací bot
+    inline režim nemá, takže se pod polem výsledky neukážou — **napovídání po tlačítku ověřené
+    není**, jde ale cestou napsaného `@bot dotaz`.
 - **Přihlášení na web** (`BotButtonKind.LoginUrl`, `getLoginUrlInfo` → `LoginUrlPrompt`):
   server buď řekne „otevřít" (jako odkaz, s potvrzením adresy, pokud ho nevypne
   `skipConfirmation`), nebo „zeptat se" — pak `LoginUrlDialog` s doménou v nadpisu, větou,

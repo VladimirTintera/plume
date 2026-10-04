@@ -29,6 +29,8 @@ import eu.tintera.plume.resources.bot_unsupported_location
 import eu.tintera.plume.resources.bot_unsupported_pick_chat
 import eu.tintera.plume.resources.bot_unsupported_managed_bot
 import eu.tintera.plume.core.telegram.BotButtonKind
+import eu.tintera.plume.core.telegram.SwitchInlineTarget
+import eu.tintera.plume.core.telegram.inlineQueryText
 import eu.tintera.plume.core.telegram.UnsupportedBotButton
 import eu.tintera.plume.resources.bot_answer
 import eu.tintera.plume.resources.bot_button_failed
@@ -276,6 +278,8 @@ class ConversationViewModel(
     private val botStartRequests: BotStartRequests,
     /** „Odpovědět" z prohlížeče médií. */
     private val replyRequests: ConversationReplyRequests,
+    /** Inline dotaz z tlačítka bota v jiném chatu ([BotButtonKind.SwitchInline]). */
+    private val inlineQueryRequests: InlineQueryRequests,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -565,6 +569,18 @@ class ConversationViewModel(
                 }
             }.onFailure { releaseReads(jumped = false) }
             draftRestored.complete(Unit)
+        }
+
+        viewModelScope.launch {
+            // Inline dotaz z tlačítka bota v jiném chatu, pro který si uživatel vybral tenhle.
+            // Až po konceptu: ten jde do prázdného pole a dotaz by jinak vytlačil.
+            inlineQueryRequests.request.collect { request ->
+                if (request?.chatId == chatId) {
+                    draftRestored.await()
+                    inlineQueryRequests.consume(chatId)
+                    useInlineBot(request.bot, request.query)
+                }
+            }
         }
 
         viewModelScope.launch {
@@ -2256,6 +2272,11 @@ class ConversationViewModel(
             )
             BotButtonKind.Disabled -> Unit
             is BotButtonKind.LoginUrl -> loginWithButton(messageId, kind)
+            is BotButtonKind.SwitchInline -> when (val target = kind.target) {
+                SwitchInlineTarget.Current -> useInlineBot(kind.bot, kind.query)
+                is SwitchInlineTarget.Chosen ->
+                    _state.update { it.copy(switchInline = SwitchInlinePick(kind.bot, kind.query, target)) }
+            }
             is BotButtonKind.Unsupported -> _state.update { it.copy(notice = UiText(kind.feature.explanation())) }
         }
     }
@@ -2528,6 +2549,10 @@ class ConversationViewModel(
         _state.update { it.copy(addBotToGroup = null) }
     }
 
+    fun consumeSwitchInline() {
+        _state.update { it.copy(switchInline = null) }
+    }
+
     /**
      * Vynucená odpověď: pole se samo přepne na odpověď na zprávu bota — jednou na zprávu, a jen
      * když se zrovna neupravuje ani neodpovídá na něco jiného. Rozepsanou odpověď by jinak
@@ -2685,16 +2710,17 @@ class ConversationViewModel(
      * Rozepsanou zprávu to NEPŘEPÍŠE — ťuknutí na značku není důvod přijít o text. Přepíše se jen
      * prázdné pole nebo jiný rozepsaný dotaz na bota; jinak hláška, proč se nic nestalo.
      */
-    private fun useInlineBot(username: String) {
+    private fun useInlineBot(username: String, query: String = "") {
         if (!_state.value.canWrite || _state.value.editing != null) return
         if (draft.text.isNotBlank() && inlineQueryOf(draft.text) == null) {
             _state.update { it.copy(notice = UiText(Res.string.conversation_via_bot_draft_busy)) }
             return
         }
-        // Dotaz, ne text pro čtenáře: `@bot ` a mezera, za kterou se píše.
-        val query = "@$username "
-        _state.update { it.copy(inputFill = InputFill(query, onlyIfEmpty = false)) }
-        onDraftChanged(ComposedText(query))
+        // Dotaz, ne text pro čtenáře: `@bot ` a mezera, za kterou se píše; u tlačítka bota
+        // rovnou i jeho dotaz.
+        val text = inlineQueryText(username, query)
+        _state.update { it.copy(inputFill = InputFill(text, onlyIfEmpty = false)) }
+        onDraftChanged(ComposedText(text))
     }
 
     /** Další stránka výsledků — dotáhne ji panel, když dojede na konec. */
@@ -4658,6 +4684,8 @@ data class ConversationState(
     val openChat: ChatTarget? = null,
     /** Jednorázová událost: odkaz `t.me/bot?startgroup=…` — otevřít výběr skupiny. */
     val addBotToGroup: InternalLink.BotStartInGroup? = null,
+    /** Tlačítko bota s inline dotazem do jiného chatu: obrazovka otevře výběr chatu. */
+    val switchInline: SwitchInlinePick? = null,
     /** Jednorázová událost: otevřít profil chatu (odesílatele ze skupiny). */
     val openProfile: Long? = null,
     /** Výběr člena pro hledání podle odesílatele; `null` = zavřený. */
@@ -4962,3 +4990,6 @@ data class WebAppRequest(
 
 /** Přihlášení na web z tlačítka bota, které čeká na potvrzení. */
 data class LoginRequest(val messageId: Long, val buttonId: Long, val prompt: LoginUrlPrompt.Confirm)
+
+/** Tlačítko bota s inline dotazem do chatu, který se teprve vybere ([SwitchInlineTarget.Chosen]). */
+data class SwitchInlinePick(val bot: String, val query: String, val target: SwitchInlineTarget.Chosen)

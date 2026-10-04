@@ -102,4 +102,25 @@ class InlineQueryTest {
         assertTrue(state.withFailure("ko").failed)
         assertSame(state, state.withFailure("k"))
     }
+
+    @Test
+    fun tlacitkoBotaDaDoPoleDotazSMezerou() {
+        assertEquals("@gif kočka", inlineQueryText("gif", "kočka"))
+        // I s prázdným dotazem mezera za jménem — jinak by pole dotaz nepoznalo.
+        assertEquals(InlineQueryDraft("gif", ""), inlineQueryOf(inlineQueryText("gif", "")))
+    }
+
+    @Test
+    fun vyberChatuJenDruhyOdBota() {
+        val groups = SwitchInlineTarget.Chosen(users = false, bots = false, groups = true, channels = false)
+        assertTrue(groups.allows(ChatKind.Group, isBot = false))
+        assertFalse(groups.allows(ChatKind.Channel, isBot = false))
+        assertFalse(groups.allows(ChatKind.Private, isBot = false))
+        assertFalse(groups.allows(ChatKind.Private, isBot = true))
+
+        // Bot je soukromý chat jako člověk; rozhoduje, co bot o botech řekl.
+        val people = SwitchInlineTarget.Chosen(users = true, bots = false, groups = false, channels = false)
+        assertTrue(people.allows(ChatKind.Private, isBot = false))
+        assertFalse(people.allows(ChatKind.Private, isBot = true))
+    }
 }

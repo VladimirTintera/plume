@@ -27,6 +27,8 @@ import eu.tintera.plume.core.telegram.TdlNotificationSettingsRepository
 import eu.tintera.plume.core.telegram.TdlDeviceRepository
 import eu.tintera.plume.features.devices.DevicesViewModel
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
+import eu.tintera.plume.features.conversation.InlineQueryRequests
+import eu.tintera.plume.features.conversation.SwitchInlinePickerViewModel
 import eu.tintera.plume.features.conversation.ConversationSearchRequests
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.navigation.BotStartRequests
@@ -222,6 +224,7 @@ fun appModule() = module {
     single { BotStartRequests() }
     single { ConversationSearchRequests() }
     single { ConversationReplyRequests() }
+    single { InlineQueryRequests() }
     single { RevealedSpoilers() }
     single { SelfDestructTimers() }
     single<ProfileRepository> { TdlProfileRepository(holder = get()) }
@@ -330,6 +333,7 @@ fun appModule() = module {
             placeRepository = get(),
             botStartRequests = get(),
             replyRequests = get(),
+            inlineQueryRequests = get(),
         )
     }
 
@@ -458,5 +462,9 @@ fun appModule() = module {
             chatRepository = get(),
             conversationRepository = get(),
         )
+    }
+
+    viewModel { parameters ->
+        SwitchInlinePickerViewModel(target = parameters.get(), chatRepository = get())
     }
 }

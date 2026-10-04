@@ -381,8 +381,9 @@ zprávou"). Zbývá:
   aplikace botů"; ~~tlačítko nabídky bota `BotMenuButton`~~ hotovo; zbývá hlavní mini aplikace bota
   `getMainWebApp`, odkazy `t.me/bot/app` a druhé tlačítko `web_app_setup_secondary_button`),
   ~~přihlášení na web~~ (hotovo; se skutečnou doménou bota ověřit — chce `/setdomain`
-  v BotFatheru), inline dotaz do jiného chatu (`switchInline` — výběr chatu a vložení
-  `@bot dotaz` do pole), platba, hra a zpětné volání s heslem dvoufázového ověření.
+  v BotFatheru), ~~inline dotaz do jiného chatu~~ (hotovo; s botem v inline režimu ověřit
+  výsledky pod polem, cíl daný odkazem `TargetChatInternalLink` se jen vysvětlí), platba, hra
+  a zpětné volání s heslem dvoufázového ověření.
 - ~~**Vlastní klávesnice** a **vynucená odpověď**~~ — hotovo, klávesnice nad polem
   (`CLAUDE.md`, „Vlastní klávesnice bota"). Zbývá: tlačítka polohy, ankety, výběru lidí
   a chatů (`shareUsersWithBot`, `shareChatWithBot`), mini aplikace a zakládání botů; ověřit

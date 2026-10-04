@@ -218,6 +218,7 @@ private fun BotButtonKind.cornerIcon(): DrawableResource? = when (this) {
     is BotButtonKind.Url, is BotButtonKind.LoginUrl, is BotButtonKind.WebApp -> Res.drawable.open_in_new_24dp
     is BotButtonKind.CopyText -> Res.drawable.content_copy_24dp
     is BotButtonKind.User -> Res.drawable.person_24dp
+    is BotButtonKind.SwitchInline -> Res.drawable.share_24dp
     is BotButtonKind.Unsupported -> when (feature) {
         UnsupportedBotButton.SwitchInline -> Res.drawable.share_24dp
         UnsupportedBotButton.Buy, UnsupportedBotButton.Game, UnsupportedBotButton.Password -> null

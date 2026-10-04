@@ -1223,7 +1223,7 @@
     <string name="bot_login_write_access">Dovolit %1$s posílat mi zprávy</string>
     <string name="bot_login_confirm">Přihlásit se</string>
     <string name="bot_login_failed">Přihlásit se nepodařilo, web se otevřel bez přihlášení</string>
-    <string name="bot_unsupported_switch_inline">Sdílení přes inline režim bota Plume zatím neumí.</string>
+    <string name="bot_unsupported_switch_inline">Tohle tlačítko bota Plume zatím neumí.</string>
     <string name="bot_unsupported_buy">Platby Plume zatím neumí.</string>
     <string name="bot_unsupported_game">Hry Plume zatím neumí.</string>
     <string name="bot_unsupported_password">Tlačítka, která chtějí heslo, Plume zatím neumí.</string>
@@ -1508,6 +1508,10 @@
     <string name="bot_add_group_confirm_text_admin">Bot se stane správcem s právy, o která požádal, a uvidí zprávy ve skupině.</string>
     <string name="bot_add_group_confirm">Přidat</string>
     <string name="bot_add_group_failed">Bota se do skupiny nepodařilo přidat.</string>
+    <string name="bot_switch_inline_title">Kam poslat přes @%1$s</string>
+    <string name="bot_switch_inline_search">Hledat chaty</string>
+    <string name="bot_switch_inline_empty_title">Není kam to poslat</string>
+    <string name="bot_switch_inline_empty_text">Bot dovoluje jen některé druhy chatů, a jen ty, kam smíš psát.</string>
     <string name="forum_topics_subtitle">Témata</string>
     <string name="forum_topics_load_failed">Témata se nepodařilo načíst.</string>
     <string name="forum_view_as_messages">Zobrazit jako zprávy</string>

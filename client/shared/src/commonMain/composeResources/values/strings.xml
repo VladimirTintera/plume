@@ -1202,7 +1202,7 @@
     <string name="bot_login_write_access">Allow %1$s to send me messages</string>
     <string name="bot_login_confirm">Log in</string>
     <string name="bot_login_failed">Couldn't log you in, the website opened without logging in</string>
-    <string name="bot_unsupported_switch_inline">Plume can't share inline bot results yet.</string>
+    <string name="bot_unsupported_switch_inline">Plume can’t handle this bot button yet.</string>
     <string name="bot_unsupported_buy">Plume can't make payments yet.</string>
     <string name="bot_unsupported_game">Plume can't play games yet.</string>
     <string name="bot_unsupported_password">Plume can't handle buttons that ask for your password yet.</string>
@@ -1463,6 +1463,10 @@
     <string name="bot_add_group_confirm_text_admin">The bot will become an admin with the rights it asked for, and will see messages in the group.</string>
     <string name="bot_add_group_confirm">Add</string>
     <string name="bot_add_group_failed">Couldn’t add the bot to the group.</string>
+    <string name="bot_switch_inline_title">Send via @%1$s to</string>
+    <string name="bot_switch_inline_search">Search chats</string>
+    <string name="bot_switch_inline_empty_title">Nowhere to send it</string>
+    <string name="bot_switch_inline_empty_text">The bot allows only some kinds of chats, and only those you can write to.</string>
     <string name="forum_topics_subtitle">Topics</string>
     <string name="forum_topics_load_failed">Couldn't load the topics.</string>
     <string name="forum_view_as_messages">View as messages</string>

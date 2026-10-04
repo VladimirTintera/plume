@@ -425,6 +425,8 @@ fun ConversationScreen(
     onOpenWebApp: (WebAppRequest) -> Unit = {},
     /** Odkaz `t.me/bot?startgroup=…`: výběr skupiny, do které bota přidat. */
     onAddBotToGroup: (InternalLink.BotStartInGroup) -> Unit = {},
+    /** Tlačítko bota s inline dotazem do jiného chatu: výběr chatu. */
+    onSwitchInline: (SwitchInlinePick) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
@@ -763,6 +765,12 @@ fun ConversationScreen(
         val link = state.addBotToGroup ?: return@LaunchedEffect
         viewModel.consumeAddBotToGroup()
         currentOnAddBotToGroup(link)
+    }
+    val currentOnSwitchInline by rememberUpdatedState(onSwitchInline)
+    LaunchedEffect(state.switchInline) {
+        val pick = state.switchInline ?: return@LaunchedEffect
+        viewModel.consumeSwitchInline()
+        currentOnSwitchInline(pick)
     }
     val currentOnOpenUserProfile by rememberUpdatedState(onOpenUserProfile)
     LaunchedEffect(state.openProfile) {
