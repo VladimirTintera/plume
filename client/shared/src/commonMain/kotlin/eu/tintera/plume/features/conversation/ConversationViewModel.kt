@@ -4123,6 +4123,20 @@ class ConversationViewModel(
         voicePlayer.seek(voicePreviewKey(chatId), fraction)
     }
 
+    /**
+     * Nahrávat dál po poslechu náhledu: nové nahrávání naváže na hotovou hlasovku (čas běží od
+     * jejího konce) a po ■ nebo odeslání se oba úseky spojí do jedné ([VoiceRecorder.start]).
+     * Nahrávání je rovnou zamčené — spouští ho ťuknutí, ne podržení; zamčení drží obrazovka.
+     */
+    fun continueVoicePreview() {
+        val voice = _voicePreview.value?.voice?.takeIf { it.canContinue } ?: return
+        if (videoRecorder.state.value != null) return
+        silencePlayback()
+        voiceRecorder.start(continuing = voice)
+            .onSuccess { _voicePreview.value = null }
+            .onFailure { _state.update { it.copy(error = UiText(Res.string.conversation_recording_start_failed)) } }
+    }
+
     /** Koš u náhledu, i odchod z chatu: nic, co uživatel neodeslal, neodejde, a soubor se smaže. */
     fun discardVoicePreview() {
         val preview = _voicePreview.value ?: return

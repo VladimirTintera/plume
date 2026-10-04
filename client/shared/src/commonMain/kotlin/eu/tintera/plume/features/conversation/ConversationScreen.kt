@@ -1737,6 +1737,10 @@ fun ConversationScreen(
                 },
                 onToggleVoicePreview = viewModel::toggleVoicePreview,
                 onSeekVoicePreview = viewModel::seekVoicePreview,
+                onContinueVoicePreview = {
+                    haptics.toggle(on = true)
+                    viewModel.continueVoicePreview()
+                },
                 onDiscardVoicePreview = {
                     haptics.reject()
                     viewModel.discardVoicePreview()
@@ -2824,6 +2828,7 @@ private fun MessageInput(
     onToggleVoicePreview: () -> Unit = {},
     onSeekVoicePreview: (Float) -> Unit = {},
     onDiscardVoicePreview: () -> Unit = {},
+    onContinueVoicePreview: () -> Unit = {},
     /** Zastavené kolečko; samo hraje v kruhu nad konverzací, karta ukazuje jen ovládání. */
     videoNotePreview: VideoNotePreview? = null,
     videoNotePlayback: VideoNotePreviewPlayback? = null,
@@ -3114,6 +3119,11 @@ private fun MessageInput(
                         onToggle = onToggleVoicePreview,
                         onSeek = onSeekVoicePreview,
                         onDiscard = onDiscardVoicePreview,
+                        // Spouští se ťuknutím, ne podržením: nahrávání je rovnou zamčené.
+                        onContinue = {
+                            recordLocked = true
+                            onContinueVoicePreview()
+                        },
                     )
                 } else if (isRecording) {
                     RecordingBar(

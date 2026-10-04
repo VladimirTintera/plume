@@ -402,6 +402,7 @@
     <string name="conversation_stop_video_note">Stop and watch</string>
     <string name="conversation_play_video_note">Play with sound</string>
     <string name="conversation_discard_recording">Discard the recording</string>
+    <string name="conversation_continue_recording">Keep recording</string>
     <string name="conversation_play_voice">Play the voice message</string>
     <string name="conversation_voice_progress">Voice message progress</string>
     <string name="conversation_play_audio">Play the track</string>

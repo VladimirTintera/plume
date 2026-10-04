@@ -6385,6 +6385,17 @@ v `RecordControls.kt`, rozhodnutí o tahu čistá funkce `recordDragOutcome` (te
     Odeslat v něm nejde. Koš během dokončování náhled zruší a hotový soubor pak smaže — hlídá
     to porovnání instance mezistavu, jinak by se náhled po koši vrátil.
   - **Kolečko ■ má taky** — viz „Nahrávání koleček".
+  - **Po poslechu jde nahrávat dál** (mikrofon na konci pruhu náhledu, `continueVoicePreview`,
+    `VoiceRecorder.start(continuing)`, testy `VoiceRecorderContinueTest`). Nahrávání naváže
+    rovnou zamčené (spouští ho ťuknutí, ne podržení; zamčení nastaví obrazovka), čas a úrovně
+    běží od konce náhledu a po ■ nebo odeslání se oba úseky spojí `joinOggOpus` do souboru
+    nového úseku; původní se smaže. **Waveform se počítá znovu ze VŠECH úrovní**
+    (`RecordedVoice.levels`) — normuje se na špičku celé nahrávky, takže dva hotové waveformy
+    slepit nejde. Koš během navazování zahodí celou hlasovku, ne jen dovětek. Dovětek pod
+    300 ms (`MIN_SEGMENT_MS`) se zahodí a zůstane původní nahrávka — `MediaRecorder` tak krátký
+    úsek nedokončí. **M4A (Android 9 a starší) spojit nejde** (`canContinue`), tlačítko tam není.
+    Ověřeno na emulátoru: dva úseky, odeslaný soubor má podle granule v Oggu 35,1 s, tedy oba
+    (délku v Bot API hlásíme sami, ta nic nedokazuje). Kolečko navázat neumí; iOS jen přeložené.
   - Ověřeno na emulátoru uživatelem (nahrát, zamknout, ■, přehrát, odeslat). iOS jen přeložené.
 - **Nahrávač je `factory`, ne `single`** — patří obrazovce. Odchod z chatu nahrávku zahodí,
   spuštění nahrávání zastaví hrající hlasovku (nahrávala by se z reproduktoru).

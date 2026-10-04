@@ -11,6 +11,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.TimeSource
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okio.FileSystem
+import okio.Path.Companion.toPath
 
 /**
  * Jedno nahrávání do souboru — hlasovka z mikrofonu ([AudioRecorder]) nebo video kolečko
@@ -72,8 +76,26 @@ data class VoiceRecording(
     val recentLevels: List<Float>,
 )
 
-/** Hotová nahrávka k odeslání. */
-class RecordedVoice(val path: String, val durationSeconds: Int, val waveform: ByteArray)
+/**
+ * Hotová nahrávka k odeslání.
+ *
+ * [levels] jsou surové úrovně hlasitosti, ze kterých je [waveform] — drží se kvůli navázání
+ * ([VoiceRecorder.start] s `continuing`): waveform se normuje na špičku CELÉ nahrávky, takže
+ * se musí spočítat znovu ze všech úrovní, ne slepit ze dvou hotových.
+ */
+class RecordedVoice(
+    val path: String,
+    val durationSeconds: Int,
+    val waveform: ByteArray,
+    val durationMs: Long = durationSeconds * 1000L,
+    val levels: List<Float> = emptyList(),
+) {
+    /**
+     * Jde na ni navázat dalším nahráváním. Spojit umíme jen Ogg/Opus ([joinOggOpus]); M4A
+     * z Androidu 9 a staršího ne.
+     */
+    val canContinue: Boolean get() = path.endsWith(".ogg")
+}
 
 /**
  * Řídí jedno nahrávání: čas, úrovně hlasitosti pro živou vizualizaci i waveform, a hotový soubor.
@@ -93,16 +115,27 @@ class VoiceRecorder(private val recorder: MediaCapture, private val scope: Corou
     private var startedAt: TimeSource.Monotonic.ValueTimeMark? = null
     private var recordedMs = 0L
     private var paused = false
+
+    /** Nahrávka, na kterou se navazuje (pokračování po poslechu náhledu); `null` = nová. */
+    private var prefix: RecordedVoice? = null
     private val logger = Logger.withTag("VoiceRecorder")
 
-    fun start(): Result<Unit> {
+    /**
+     * Začne nahrávat. S [continuing] naváže na hotovou nahrávku: čas i úrovně běží od jejího
+     * konce a [finish] oba úseky spojí do jednoho souboru. Nahrávka, na kterou nejde navázat
+     * ([RecordedVoice.canContinue]), se bere jako žádná.
+     */
+    fun start(continuing: RecordedVoice? = null): Result<Unit> {
         if (_state.value != null) return Result.success(Unit)
+        val previous = continuing?.takeIf { it.canContinue }
         return runCatching { recorder.start() }
             .onSuccess {
                 levels.clear()
-                recordedMs = 0
+                previous?.let { levels += it.levels }
+                prefix = previous
+                recordedMs = previous?.durationMs ?: 0
                 startedAt = TimeSource.Monotonic.markNow()
-                _state.value = VoiceRecording(elapsedMs = 0, recentLevels = emptyList())
+                _state.value = VoiceRecording(elapsedMs = recordedMs, recentLevels = levels.takeLast(RECENT_LEVELS))
                 tick()
             }
             .onFailure { failure ->
@@ -159,8 +192,11 @@ class VoiceRecorder(private val recorder: MediaCapture, private val scope: Corou
     suspend fun finish(): RecordedVoice? {
         if (startedAt == null) return null
         val elapsed = elapsedMs()
+        val previous = prefix
+        val allLevels = levels.toList()
         reset()
 
+        if (previous != null) return finishContinuation(previous, elapsed, allLevels)
         if (elapsed < MIN_DURATION_MS) {
             recorder.cancel()
             return null
@@ -168,19 +204,60 @@ class VoiceRecorder(private val recorder: MediaCapture, private val scope: Corou
         return runCatching { recorder.stop() }
             .onFailure { failure -> logger.w(failure) { "Nahrávku nejde dokončit." } }
             .getOrNull()
-            ?.let { path ->
-                RecordedVoice(
-                    path = path,
-                    durationSeconds = ((elapsed + 500) / 1000).toInt(),
-                    waveform = encodeWaveform(levels.toList()),
-                )
-            }
+            ?.let { path -> recorded(path, elapsed, allLevels) }
     }
 
+    /**
+     * Konec navázaného nahrávání: nový úsek se připojí za [previous] ([joinOggOpus]) a výsledek
+     * přepíše soubor nového úseku. Když nový úsek nic nenese (ťuknutí hned po spuštění) nebo se
+     * spojit nedá, zůstane aspoň původní nahrávka — tu už uživatel jednou slyšel a chtěl.
+     */
+    private suspend fun finishContinuation(previous: RecordedVoice, elapsed: Long, allLevels: List<Float>): RecordedVoice {
+        if (elapsed - previous.durationMs < MIN_SEGMENT_MS) {
+            recorder.cancel()
+            return previous
+        }
+        val path = runCatching { recorder.stop() }
+            .onFailure { failure -> logger.w(failure) { "Navázaný úsek nahrávky nejde dokončit." } }
+            .getOrNull() ?: return previous
+        return runCatching {
+            withContext(Dispatchers.Default) {
+                val fileSystem = FileSystem.SYSTEM
+                val first = fileSystem.read(previous.path.toPath()) { readByteArray() }
+                val second = fileSystem.read(path.toPath()) { readByteArray() }
+                val joined = joinOggOpus(listOf(first, second))
+                fileSystem.write(path.toPath()) { write(joined) }
+                fileSystem.delete(previous.path.toPath(), mustExist = false)
+            }
+            recorded(path, elapsed, allLevels)
+        }.getOrElse { failure ->
+            logger.w(failure) { "Navázaný úsek nejde připojit k nahrávce." }
+            runCatching { FileSystem.SYSTEM.delete(path.toPath(), mustExist = false) }
+            previous
+        }
+    }
+
+    private fun recorded(path: String, elapsed: Long, allLevels: List<Float>) = RecordedVoice(
+        path = path,
+        durationSeconds = ((elapsed + 500) / 1000).toInt(),
+        waveform = encodeWaveform(allLevels),
+        durationMs = elapsed,
+        levels = allLevels,
+    )
+
+    /**
+     * Zahodí nahrávku. U navázaného nahrávání i tu, na kterou se navazovalo: koš v pruhu
+     * nahrávání zahazuje celou hlasovku, ne jen dovětek.
+     */
     fun cancel() {
         if (startedAt == null) return
+        val previous = prefix
         reset()
         recorder.cancel()
+        previous?.let { voice ->
+            runCatching { FileSystem.SYSTEM.delete(voice.path.toPath(), mustExist = false) }
+                .onFailure { failure -> logger.w(failure) { "Zahozenou nahrávku nejde smazat." } }
+        }
     }
 
     private fun reset() {
@@ -189,12 +266,19 @@ class VoiceRecorder(private val recorder: MediaCapture, private val scope: Corou
         startedAt = null
         recordedMs = 0
         paused = false
+        prefix = null
         _state.value = null
     }
 }
 
 private const val LEVEL_TICK_MS = 50L
 private const val RECENT_LEVELS = 40
+
+/**
+ * Navázaný úsek kratší než tohle se zahodí a zůstane původní nahrávka: `MediaRecorder` po tak
+ * krátkém nahrávání soubor nedokončí a na dovětek pod čtvrt vteřiny stejně nikdo nemluvil.
+ */
+private const val MIN_SEGMENT_MS = 300L
 
 /** Kratší nahrávka je skoro jistě omylem ťuknuté tlačítko. */
 const val MIN_DURATION_MS = 1000L
