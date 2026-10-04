@@ -15,6 +15,7 @@ import dev.g000sha256.tdl.dto.InviteLinkChatTypeChannel
 import dev.g000sha256.tdl.dto.InternalLinkTypeStickerSet
 import dev.g000sha256.tdl.dto.InternalLinkTypeBotStart
 import dev.g000sha256.tdl.dto.InternalLinkTypeMainWebApp
+import dev.g000sha256.tdl.dto.InternalLinkTypeWebApp
 import dev.g000sha256.tdl.dto.InternalLinkTypeChatInvite
 import dev.g000sha256.tdl.dto.InternalLinkTypeMessage
 import dev.g000sha256.tdl.dto.InternalLinkTypePublicChat
@@ -596,6 +597,14 @@ class TdlChatRepository(
                 client.searchPublicChat(username = type.botUsername).toResult().map { chat ->
                     val bot = client.getUser(userId = chat.id).toResult().getOrNull()?.type as? UserTypeBot
                     if (bot?.hasMainWebApp == true) InternalLink.MainWebApp(chat.id, type.startParameter) else InternalLink.Chat(chat.id)
+                }
+
+            // Odkaz na pojmenovanou mini aplikaci: tady se jen ověří, že je to bot. Jestli ji bot
+            // má, řekne `searchWebApp` až obrazovka mini aplikace (tam je i souhlas a chyba).
+            is InternalLinkTypeWebApp ->
+                client.searchPublicChat(username = type.botUsername).toResult().map { chat ->
+                    val isBot = client.getUser(userId = chat.id).toResult().getOrNull()?.type is UserTypeBot
+                    if (isBot) InternalLink.WebApp(chat.id, type.webAppShortName, type.startParameter) else InternalLink.Chat(chat.id)
                 }
 
             is InternalLinkTypeStickerSet ->

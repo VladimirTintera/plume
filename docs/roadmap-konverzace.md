@@ -379,7 +379,7 @@ zprávou"). Zbývá:
 
 - **Druhy, které Plume zatím jen vysvětlí**: ~~mini aplikace~~ (hotovo, `CLAUDE.md`, „Mini
   aplikace botů"; ~~tlačítko nabídky bota `BotMenuButton`~~ hotovo; ~~hlavní mini aplikace bota
-  `getMainWebApp`~~ hotovo (profil bota, `t.me/bot?startapp`); zbývá odkazy `t.me/bot/app` a druhé tlačítko `web_app_setup_secondary_button`),
+  `getMainWebApp`~~ hotovo (profil bota, `t.me/bot?startapp`); ~~odkazy `t.me/bot/app`~~ hotovo; zbývá druhé tlačítko `web_app_setup_secondary_button`),
   ~~přihlášení na web~~ (hotovo; se skutečnou doménou bota ověřit — chce `/setdomain`
   v BotFatheru), ~~inline dotaz do jiného chatu~~ (hotovo; s botem v inline režimu ověřit
   výsledky pod polem, cíl daný odkazem `TargetChatInternalLink` se jen vysvětlí), platba, hra

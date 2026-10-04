@@ -1189,6 +1189,7 @@
     <string name="bot_alert_ok">OK</string>
     <string name="bot_link_title">Open link?</string>
     <string name="webapp_title">Mini app</string>
+    <string name="webapp_not_found">This mini app doesn't exist or the bot no longer has it.</string>
     <string name="webapp_load_failed">Couldn't open the mini app.</string>
     <string name="webapp_close_confirm_title">Close the mini app?</string>
     <string name="webapp_close_confirm_text">Unsaved changes may be lost.</string>

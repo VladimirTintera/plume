@@ -45,6 +45,32 @@ class TdlWebAppRepository(private val holder: TelegramClientHolder) : WebAppRepo
             .map { it.url.url }
             .onFailure { logger.w(it) { "Hlavní mini aplikaci bota $botUserId nejde otevřít." } }
 
+    override suspend fun findWebApp(botUserId: Long, shortName: String): Result<NamedWebApp> =
+        client.searchWebApp(botUserId = botUserId, webAppShortName = shortName)
+            .toResult()
+            .map { NamedWebApp(it.webApp.title, it.requestWriteAccess, it.skipConfirmation) }
+            .onFailure { logger.w(it) { "Mini aplikaci $shortName bota $botUserId nejde najít." } }
+
+    override suspend fun linkUrl(
+        chatId: Long,
+        botUserId: Long,
+        shortName: String,
+        startParameter: String,
+        allowWriteAccess: Boolean,
+        theme: WebAppTheme,
+    ): Result<String> =
+        client.getWebAppLinkUrl(
+            chatId = chatId,
+            botUserId = botUserId,
+            webAppShortName = shortName,
+            startParameter = startParameter,
+            allowWriteAccess = allowWriteAccess,
+            parameters = parameters(theme),
+        )
+            .toResult()
+            .map { it.url }
+            .onFailure { logger.w(it) { "Adresu mini aplikace $shortName bota $botUserId nejde získat." } }
+
     override suspend fun close(launchId: Long) {
         client.closeWebApp(webAppLaunchId = launchId).toResult()
             .onFailure { logger.w(it) { "Zavření mini aplikace $launchId TDLib nepřijal." } }

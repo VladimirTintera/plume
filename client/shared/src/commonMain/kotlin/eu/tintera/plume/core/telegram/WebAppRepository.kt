@@ -19,6 +19,26 @@ interface WebAppRepository {
      */
     suspend fun mainUrl(chatId: Long, botUserId: Long, startParameter: String, theme: WebAppTheme): Result<String>
 
+    /**
+     * Pojmenovaná mini aplikace bota z odkazu `t.me/bot/app` (`searchWebApp`). Chyba = bot ji
+     * nemá (TDLib vrátí 404).
+     */
+    suspend fun findWebApp(botUserId: Long, shortName: String): Result<NamedWebApp>
+
+    /**
+     * Adresa pojmenované mini aplikace (`getWebAppLinkUrl`). Spuštění nemá, takže se nezavírá.
+     * [allowWriteAccess] = uživatel v souhlasu dovolil botovi psát (jen s
+     * [NamedWebApp.requestWriteAccess]).
+     */
+    suspend fun linkUrl(
+        chatId: Long,
+        botUserId: Long,
+        shortName: String,
+        startParameter: String,
+        allowWriteAccess: Boolean,
+        theme: WebAppTheme,
+    ): Result<String>
+
     /** Mini aplikace z tlačítka vlastní klávesnice bota (`keyboardButtonTypeWebApp`); bez spuštění. */
     suspend fun keyboardUrl(botUserId: Long, url: String, theme: WebAppTheme): Result<String>
 
@@ -33,6 +53,12 @@ interface WebAppRepository {
     /** Jméno bota do hlavičky (`@jméno`, jinak jméno). */
     suspend fun botName(botUserId: Long): String?
 }
+
+/**
+ * Pojmenovaná mini aplikace bota (`foundWebApp`). [skipConfirmation] = server dovolí otevřít ji
+ * bez potvrzení; [requestWriteAccess] = chce, aby jí uživatel dovolil psát mu.
+ */
+data class NamedWebApp(val title: String, val requestWriteAccess: Boolean, val skipConfirmation: Boolean)
 
 /** Spuštěná mini aplikace: [launchId] pro [WebAppRepository.close] a adresa do WebView. */
 data class WebAppLaunch(val launchId: Long?, val url: String)
