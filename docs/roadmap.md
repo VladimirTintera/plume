@@ -207,8 +207,9 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
      s „Odmítnout" (`CLAUDE.md`, „Ohlášení příchozího hovoru"). **Skutečný hovor ověřený NENÍ**
      (chce druhý účet), jen sondou. Na iOS ohlásí hovor push od Telegramu sám (`PHONE_CALL_REQUEST`
      v textech pushe); v popředí aplikace se zatím neohlašuje nic.
-   - **Hovory ve skupině** (`MessageVideoChatStarted` a spol. už mají servisní text): pruh
-     „Probíhá videochat" v hlavičce konverzace, jako oficiální klient.
+   - ~~**Hovory ve skupině**~~ — hotovo: pruh „Probíhá videochat" / „Živé vysílání" / naplánovaný
+     nad konverzací s počtem účastníků (`CLAUDE.md`, „Pruh videochatu"). Připojit se nejde;
+     ťuknutí řekne, kde to jde.
 2. **Skutečné hovory** (největší samostatný kus práce v projektu). Přenos jde dvěma cestami:
    - **A) Přeložit tgcalls s WebRTC** pro Android (ABI) i iOS a napojit přes JNI / cinterop
      nebo Swift. Ověřená kompatibilita (tgcalls používají oficiální klienti), ale překlad

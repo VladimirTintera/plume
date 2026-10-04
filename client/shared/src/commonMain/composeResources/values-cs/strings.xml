@@ -743,6 +743,16 @@
     <string name="notification_call_answer_elsewhere">Přijmout jde zatím jen v oficiální aplikaci Telegramu.</string>
     <string name="notification_call_decline">Odmítnout</string>
     <string name="notification_call_unknown">Neznámý volající</string>
+    <string name="video_chat_active">Probíhá videochat</string>
+    <string name="video_chat_live">Probíhá živé vysílání</string>
+    <string name="video_chat_scheduled">Videochat začne %1$s</string>
+    <string name="video_chat_live_scheduled">Živé vysílání začne %1$s</string>
+    <string name="video_chat_join_elsewhere">Připojit se jde zatím jen v oficiální aplikaci Telegramu.</string>
+    <plurals name="video_chat_participants">
+        <item quantity="one">%1$s účastník</item>
+        <item quantity="few">%1$s účastníci</item>
+        <item quantity="other">%1$s účastníků</item>
+    </plurals>
     <string name="notification_self_name">Já</string>
     <string name="notification_reply">Odpovědět</string>
     <string name="notification_mark_read">Označit jako přečtené</string>

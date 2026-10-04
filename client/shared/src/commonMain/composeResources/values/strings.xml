@@ -736,6 +736,15 @@
     <string name="notification_call_answer_elsewhere">For now you can only answer in the official Telegram app.</string>
     <string name="notification_call_decline">Decline</string>
     <string name="notification_call_unknown">Unknown caller</string>
+    <string name="video_chat_active">Video chat in progress</string>
+    <string name="video_chat_live">Live stream in progress</string>
+    <string name="video_chat_scheduled">Video chat starts %1$s</string>
+    <string name="video_chat_live_scheduled">Live stream starts %1$s</string>
+    <string name="video_chat_join_elsewhere">For now you can only join in the official Telegram app.</string>
+    <plurals name="video_chat_participants">
+        <item quantity="one">%1$s participant</item>
+        <item quantity="other">%1$s participants</item>
+    </plurals>
     <string name="notification_self_name">Me</string>
     <string name="notification_reply">Reply</string>
     <string name="notification_mark_read">Mark as read</string>

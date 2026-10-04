@@ -19,6 +19,9 @@ import eu.tintera.plume.core.telegram.within
 import eu.tintera.plume.core.telegram.UnreadMarkKind
 import eu.tintera.plume.resources.bot_location_unavailable
 import eu.tintera.plume.core.telegram.BotCommandItem
+import kotlinx.coroutines.flow.flowOf
+import eu.tintera.plume.resources.video_chat_join_elsewhere
+import eu.tintera.plume.core.telegram.VideoChatInfo
 import eu.tintera.plume.core.telegram.BotChatRequest
 import eu.tintera.plume.core.telegram.BotMenuApp
 import eu.tintera.plume.core.telegram.BotUsersRequest
@@ -335,6 +338,17 @@ class ConversationViewModel(
      */
     val chatBar: StateFlow<ChatBar?> = chatRepository.chatBar(chatId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * Videochat skupiny / živé vysílání kanálu pro pruh nad konverzací. Ve vlákně komentářů ne —
+     * patří diskusní skupině, ne příspěvku.
+     */
+    val videoChat: StateFlow<VideoChatInfo?> =
+        (if (threadRootId == null) chatRepository.videoChat(chatId) else flowOf(null))
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Ťuknutí na pruh videochatu: připojit se jde zatím jen jinde. */
+    fun explainVideoChat() = _state.update { it.copy(notice = UiText(Res.string.video_chat_join_elsewhere)) }
 
     /** Průvodce nahlášením — z nabídky nad zprávou i z pruhu proti spamu. */
     val reportFlow = ReportFlow(viewModelScope, chatRepository::report)

@@ -250,6 +250,13 @@ interface ChatRepository {
      */
     fun chatBar(chatId: Long): Flow<ChatBar?>
 
+    /**
+     * Probíhající nebo naplánovaný videochat (ve skupině) či živé vysílání (v kanálu), nebo
+     * `null`. Živé: chat hlásí začátek a konec (`UpdateChatVideoChat`), hovor počet účastníků
+     * (`UpdateGroupCall`).
+     */
+    fun videoChat(chatId: Long): Flow<VideoChatInfo?>
+
     /** Zavře pruh nad konverzací napořád (`removeChatActionBar`). */
     suspend fun dismissChatBar(chatId: Long): Result<Unit>
 
@@ -267,6 +274,21 @@ interface ChatRepository {
     /** Přidá protějšek soukromého chatu do kontaktů pod jménem, které má v Telegramu. */
     suspend fun addToContacts(chatId: Long): Result<Unit>
 }
+
+/**
+ * Videochat chatu pro pruh nad konverzací. Připojit se Plume neumí (přenos zvuku a obrazu chce
+ * tgcalls, viz `docs/roadmap.md`, „Hovory"); pruh jen řekne, že se něco děje.
+ */
+data class VideoChatInfo(
+    /** Živé vysílání (kanál, RTMP) — jiná věta než videochat skupiny. */
+    val isLiveStream: Boolean,
+    /** Kolik lidí je připojených; `null`, dokud se hovor nenačte. */
+    val participantCount: Int?,
+    /** Unixový čas naplánovaného začátku, nebo `null`, když už běží. */
+    val scheduledStart: Int?,
+    /** Název, který mu dal správce; prázdný = bez názvu. */
+    val title: String,
+)
 
 /**
  * Zablokovaný odesílatel. [id] je id uživatele (kladné), nebo chatu (záporné) — stejná

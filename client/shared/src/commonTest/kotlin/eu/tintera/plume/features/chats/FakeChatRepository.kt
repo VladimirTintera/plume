@@ -15,6 +15,7 @@ import eu.tintera.plume.core.telegram.SpamActions
 import eu.tintera.plume.core.telegram.ReportRequest
 import eu.tintera.plume.core.telegram.ReportStep
 import eu.tintera.plume.core.telegram.ChatBar
+import eu.tintera.plume.core.telegram.VideoChatInfo
 import eu.tintera.plume.core.telegram.BlockedSendersPage
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.InviteJoinResult
@@ -111,6 +112,7 @@ open class FakeChatRepository(
 
     override suspend fun report(chatId: Long, request: ReportRequest): Result<ReportStep> = Result.success(ReportStep.Done)
     override fun chatBar(chatId: Long): Flow<ChatBar?> = flowOf(null)
+    override fun videoChat(chatId: Long): Flow<VideoChatInfo?> = flowOf(null)
     override suspend fun dismissChatBar(chatId: Long): Result<Unit> = Result.success(Unit)
     override suspend fun sharePhoneNumber(chatId: Long): Result<Unit> = Result.success(Unit)
     override suspend fun unarchiveFromSpamBar(chatId: Long): Result<Unit> = Result.success(Unit)

@@ -8202,6 +8202,30 @@ bez stopy a kdo měl jen Plume, dozvěděl se o něm až ze zmeškaného hovoru.
   s aplikací v popředí v jiném chatu (Uložené zprávy). Ověřeno: vzhled, „Odmítnout" dojde
   k `discardCall`, přečtení notifikaci stáhne. **Skutečný hovor (a hovor z pushe) ověřený NENÍ.**
 
+### Pruh videochatu
+
+Probíhající nebo naplánovaný videochat skupiny (v kanálu živé vysílání) má nad konverzací pruh
+(`VideoChatBar`, `ChatRepository.videoChat`, `VideoChatInfo`): „Probíhá videochat · název ·
+12 účastníků", „Videochat začne zítra 18:00". Připojit se Plume neumí; ťuknutí řekne, že to
+jde zatím jen v oficiální aplikaci. Bez pruhu by kdo má jen Plume o videochatu nevěděl.
+
+- **Chat říká ŽE, hovor KOLIK.** `Chat.videoChat.groupCallId` (živě `UpdateChatVideoChat`,
+  nula = žádný) přepíná odběr hovoru (`flatMapLatest`); počet účastníků, název a naplánovaný
+  začátek nese `GroupCall` (`getGroupCall`, živě `UpdateGroupCall`).
+- **Pruh naskočí hned, i bez načteného hovoru** (počet pak chybí) — `getGroupCall` jde na server
+  a pruh, který by se objevil až po něm, by pod hlavičkou poskočil. Skončený hovor
+  (`isActive = false` a nic naplánovaného) pruh schová, i kdyby update chatu ještě nedorazil.
+- **Tvar a sklo jako pruh připnutých**, mezi pruhem proti spamu a připnutými; měří se s nimi,
+  seznam se odsazuje o výšku všech. Odznak je kamera v TERCIÁRNÍM kruhu (terciární role nese
+  v aplikaci „živé" věci), takže se od špendlíku připnutých liší i barvou. Ve vlákně komentářů
+  pruh není — videochat patří diskusní skupině.
+- **Ověřuje se ve vlastní testovací skupině sondou**: bot videochat založit neumí. Sonda v
+  `videoChat` (necommituje se) zavolala `createVideoChat` se začátkem za den, po 20 s
+  `startScheduledVideoChat` a po dalších 25 s `endGroupCall`. Ověřeno na emulátoru: naplánovaný
+  pruh, přechod na probíhající živě (s počtem), zmizení po ukončení, hláška po ťuknutí. Ve
+  skupině po tom zůstanou tři servisní zprávy. **Kanál s živým vysíláním a hovor s účastníky
+  ověřené NEJSOU.**
+
 ### Kanály a nastavení notifikací
 
 Kanály jsou čtyři (`NotificationChannelKind`, čistá funkce `notificationChannelFor`, testy
