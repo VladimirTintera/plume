@@ -779,6 +779,7 @@ internal suspend fun Message.messageMedia(
         durationSeconds = content.voiceNote.duration,
         waveform = decodeWaveform(content.voiceNote.waveform),
         isListened = content.isListened,
+        transcript = content.voiceNote.speechRecognitionResult?.toTranscript(),
     )
     is MessageSticker -> content.sticker.toMedia().copy(isSensitive = hideSensitive)
 
@@ -796,6 +797,7 @@ internal suspend fun Message.messageMedia(
         sizeBytes = content.videoNote.video.expectedSize,
         isViewed = content.isViewed,
         minithumbnail = content.videoNote.minithumbnail?.toDomain(),
+        transcript = content.videoNote.speechRecognitionResult?.toTranscript(),
     )
 
     is MessageGame -> MessageMedia.Attachment(

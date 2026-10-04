@@ -155,6 +155,13 @@ interface ConversationRepository {
     /** Nahlásí, že uživatel obsah zprávy otevřel (pustil hlasovku). */
     suspend fun openContent(chatId: Long, messageId: Long): Result<Unit>
 
+    /**
+     * Požádá server o přepis hlasovky nebo kolečka. Výsledek nevrací — přijde úpravou obsahu
+     * zprávy ([editedMessages]): napřed [SpeechTranscript.Pending], pak text nebo chyba.
+     * Selhání tady znamená, že server přepis vůbec nepřijal (Premium, zpráva to neumí).
+     */
+    suspend fun recognizeSpeech(chatId: Long, messageId: Long): Result<Unit>
+
     /** Reakce a počty příspěvku, které se u zprávy změnily. Klíč je `messageId`. */
     fun interactionUpdates(chatId: Long): Flow<MessageInteractions>
 
@@ -1832,6 +1839,8 @@ sealed interface MessageMedia {
         val sizeBytes: Long,
         val isViewed: Boolean,
         val minithumbnail: Minithumbnail? = null,
+        /** Přepis řeči, když si o něj někdo řekl (`recognizeSpeech`); jinak `null`. */
+        val transcript: SpeechTranscript? = null,
     ) : MessageMedia {
         val autoPlays: Boolean get() = sizeBytes in 1..MAX_AUTOPLAY_ANIMATION_BYTES
     }
@@ -1917,6 +1926,8 @@ sealed interface MessageMedia {
         val durationSeconds: Int,
         val waveform: List<Int>,
         val isListened: Boolean,
+        /** Přepis řeči, když si o něj někdo řekl (`recognizeSpeech`); jinak `null`. */
+        val transcript: SpeechTranscript? = null,
     ) : MessageMedia
 
     /**

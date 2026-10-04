@@ -348,6 +348,9 @@ class TdlConversationRepository(
     override suspend fun openContent(chatId: Long, messageId: Long): Result<Unit> =
         client.openMessageContent(chatId = chatId, messageId = messageId).toResult().map { }
 
+    override suspend fun recognizeSpeech(chatId: Long, messageId: Long): Result<Unit> =
+        client.recognizeSpeech(chatId = chatId, messageId = messageId).toResult().map { }
+
     override fun editedMessages(chatId: Long): Flow<ChatMessage> =
         merge(
             holder.updates { messageContentUpdates }.filter { it.chatId == chatId }.map { it.messageId },

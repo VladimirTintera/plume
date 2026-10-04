@@ -6845,6 +6845,40 @@ AVFoundation na iOS.
   **Neověřeno**: přepnutí na zadní kameru během nahrávání, akce pro
   čtečku obrazovky, skutečný telefon a iOS.
 
+### Přepis řeči
+
+Hlasovka i kolečko mají vedle sebe malé tlačítko „Přepsat do textu"; přepis se ukáže pod
+záznamem (u kolečka v kartě v barvě bubliny) a ťuknutím se schová. Doména `SpeechTranscript`
+a `TranscribeOffer` (`core/telegram/SpeechRecognition.kt`, testy `TranscribeOfferTest`), UI
+`items/Transcript.kt`.
+
+- **Přepisuje server (`recognizeSpeech`) a výsledek NEVRACÍ** — přijde úpravou obsahu zprávy
+  (`speechRecognitionResult` u `VoiceNote` i `VideoNote`): napřed `Pending` s částečným textem,
+  pak text, nebo chyba. Jde tedy existující cestou `editedMessages` a ViewModel nic nedrží.
+  Přepis zůstane ve zprávě i po zavření chatu.
+- **I chyba přijde ve zprávě, ne z volání.** Účet bez Premium dostane od `recognizeSpeech` `Ok`
+  a pak `SpeechRecognitionResultError` s `403 PREMIUM_ACCOUNT_REQUIRED` — ověřeno na emulátoru.
+  Text chyby se uživateli neukazuje; `MSG_VOICE_TOO_LONG` a `PREMIUM_ACCOUNT_REQUIRED` mají
+  vlastní větu a znovu se nezkoušejí, cokoli jiného jde zkusit znovu ťuknutím.
+- **Kdy nabídnout, rozhoduje Premium a zkušební přepisy** (`UpdateSpeechRecognitionTrial`,
+  chodí po startu jednou, proto ho drží eager `ChatRepository` jako emoji kostek). Bez
+  zkušebních přepisů (`weeklyCount` 0) se tlačítko nenabízí; došlé přepisy a záznam delší než
+  `maxMediaDuration` tlačítko nechají a ťuknutí místo přepisu vysvětlí proč, přímo pod
+  záznamem. **Testovací účet má 0 z 0** — bez Premium tedy tlačítko správně nevidí; Telegram
+  bezplatné přepisy tomuhle účtu nedává.
+- **Ve skupině s dost boosty smí přepisovat každý** (`group_transcribe_level_min`), to zatím
+  nepoznáme — tlačítko se tam bez Premium nenabídne.
+- **Viditelnost přepisu je stav obrazovky** (`rememberSaveable` podle zprávy), výsledek stav
+  zprávy. Přepis, který už ve zprávě je, je vidět hned.
+- **Přepis je pod záznamem zalomený na jeho šířku** (`BelowWithSameWidth`, vlastní `Layout`):
+  dlouhý text nemá bublinu rozšířit.
+- **Hotový přepis jde kopírovat a vybrat** (`copyableText`), **přeložit ne** — server
+  překládá text zprávy (`translateMessageText`) a přepis jím není.
+- **Ověřeno na emulátoru sondou**: vynucené nabídnutí (server vrátil Premium-chybu a její věta
+  se ukázala u hlasovky i kolečka) a podstrčený hotový a rozpracovaný přepis (vzhled, schování).
+  **Skutečný přepis ověřený NENÍ** — chce účet s Premium. Hlasovku i kolečko posílá testovací
+  bot (`sendVoice` s m4a z `say -v Zuzana`, `sendVideoNote` se záznamem obrazovky emulátoru).
+
 ### GIFy a samolepky z klávesnice
 
 GIF vybraný v Gboardu **odchází hned** jako animace (`InputMessageAnimation`), jako samolepka

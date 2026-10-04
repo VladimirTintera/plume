@@ -128,6 +128,8 @@ internal fun MessageAttachment(
      * výhry posílá právě kvůli odeslanému hodu (viz [DiceImage]).
      */
     diceCelebrate: Boolean = false,
+    /** Přepis hlasovky (tlačítko a text pod ní); `null` = bez přepisu (kopie v nabídce, náhledy). */
+    transcript: TranscriptState? = null,
 ) {
     val shape = RoundedCornerShape(12.dp)
     // Náhled souboru zůstává malý čtvereček bez ohledu na tvar bubliny — velké zaoblení bubliny
@@ -391,6 +393,7 @@ internal fun MessageAttachment(
             onCycleSpeed = voice.onCycleSpeed,
             accent = voice.accent,
             onAccent = voice.onAccent,
+            transcript = transcript,
         )
     }
 }
