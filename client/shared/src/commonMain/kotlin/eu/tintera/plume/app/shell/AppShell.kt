@@ -76,6 +76,9 @@ import eu.tintera.plume.features.forum.ForumTopicsScreen
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import eu.tintera.plume.core.navigation.ForwardRoute
 import eu.tintera.plume.core.navigation.PollComposerRoute
+import eu.tintera.plume.features.conversation.WebAppRequest
+import eu.tintera.plume.features.webapp.WebAppScreen
+import eu.tintera.plume.core.navigation.WebAppRoute
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.features.conversation.PollComposerScreen
 import eu.tintera.plume.features.conversation.PollComposerRequest
@@ -463,6 +466,7 @@ private fun shellEntryProvider(
             onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
             onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(chatId)) },
             onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
+            onOpenWebApp = { request -> chatsStack.add(webAppRoute(route.chatId, request, archive = false)) },
             onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
             onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
         )
@@ -629,6 +633,7 @@ private fun shellEntryProvider(
             onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(chatId)) },
             onUnarchived = { chatsStack.moveConversationToMain(route.chatId) },
             onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
+            onOpenWebApp = { request -> chatsStack.add(webAppRoute(route.chatId, request, archive = true)) },
             onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
             onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
         )
@@ -716,6 +721,21 @@ private fun shellEntryProvider(
      * se cílový chat — uživatel tak skončí tam, kam zprávu poslal, a zpět ho
      * vrátí do původní konverzace.
      */
+    // Mini aplikace bota. Odkaz na chat z ní zavře ji a otevře chat nad konverzací pod ní.
+    entry<WebAppRoute> { route ->
+        WebAppScreen(
+            viewModel = koinViewModel(
+                key = "web-app-${route.chatId}-${route.botUserId}-${route.url.hashCode()}",
+                parameters = { parametersOf(route.chatId, route.botUserId, route.url, route.launch, route.keyboardButtonText) },
+            ),
+            onClose = { chatsStack.pop(route) },
+            onOpenChat = { target ->
+                chatsStack.pop(route)
+                chatsStack.openTarget(target, archive = route.archive)
+            },
+        )
+    }
+
     // Nová anketa. Po odeslání odejde — pod ní je konverzace, do které anketa přibyla.
     entry<PollComposerRoute> { route ->
         val mode = when {
@@ -983,6 +1003,15 @@ private const val ARCHIVE_SCENE = "archive"
  * nebyla výměna scény, ale změna obsahu té stávající.
  */
 private const val SETTINGS_SCENE = "settings"
+
+private fun webAppRoute(chatId: Long, request: WebAppRequest, archive: Boolean) = WebAppRoute(
+    chatId = chatId,
+    botUserId = request.botUserId,
+    url = request.url,
+    launch = request.launch,
+    keyboardButtonText = request.keyboardButtonText,
+    archive = archive,
+)
 
 private fun SwitchInlinePick.toRoute() = SwitchInlineRoute(
     bot = bot,

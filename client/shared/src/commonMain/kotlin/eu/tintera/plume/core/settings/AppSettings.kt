@@ -155,6 +155,14 @@ interface AppSettings {
     fun dismissUpdate(versionCode: Int)
 
     /**
+     * Boti, u jejichž mini aplikace už uživatel potvrdil, že jí posílá data. TDLib chce to
+     * upozornění ukázat pro každého bota jednou (dokumentace `openWebApp`).
+     */
+    val confirmedWebAppBots: StateFlow<Set<Long>>
+
+    fun confirmWebAppBot(botUserId: Long)
+
+    /**
      * Do jakého jazyka se překládají zprávy; `null` = jazyk aplikace (výchozí). Platí pro celou
      * aplikaci, ne pro jeden chat: kdo si jednou vybere angličtinu, čte v ní i další překlady.
      */
@@ -365,6 +373,19 @@ class DataStoreAppSettings(
         preferences[DISMISSED_UPDATE_VERSION_CODE]
     }
 
+    override val confirmedWebAppBots: StateFlow<Set<Long>> = value(emptySet()) { preferences ->
+        preferences[CONFIRMED_WEB_APP_BOTS]?.split(' ')?.mapNotNullTo(HashSet()) { it.toLongOrNull() }.orEmpty()
+    }
+
+    override fun confirmWebAppBot(botUserId: Long) {
+        scope.launch {
+            edit { preferences ->
+                val current = preferences[CONFIRMED_WEB_APP_BOTS]?.split(' ')?.filter { it.isNotBlank() }.orEmpty()
+                preferences[CONFIRMED_WEB_APP_BOTS] = (current + botUserId.toString()).distinct().joinToString(" ")
+            }
+        }
+    }
+
     override fun dismissUpdate(versionCode: Int) {
         scope.launch {
             edit { preferences -> preferences[DISMISSED_UPDATE_VERSION_CODE] = versionCode }
@@ -415,6 +436,7 @@ class DataStoreAppSettings(
         val VOICE_SPEED = stringPreferencesKey("voice_speed")
         val VIDEO_SPEED = stringPreferencesKey("video_speed")
         val DISMISSED_UPDATE_VERSION_CODE = intPreferencesKey("dismissed_update_version_code")
+        val CONFIRMED_WEB_APP_BOTS = stringPreferencesKey("confirmed_web_app_bots")
         val TRANSLATION_LANGUAGE = stringPreferencesKey("translation_language")
         const val EMOJI_SEPARATOR = " "
         const val TONE_ENTRY_SEPARATOR = ";"

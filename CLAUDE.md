@@ -4316,8 +4316,9 @@ skupiny dávají před vstup — odpověď napsaná textem se nepočítá, bot �
 - **Odkaz mimo Telegram se napřed potvrzuje** (`OpenLinkDialog` s celou adresou). U odkazu
   v textu uživatel adresu vidí, na tlačítku ne. Odkaz na Telegram (`resolveLink`) se otevře
   rovnou, jako odkaz v textu.
-- **Co Plume neumí, je vidět a ťuknutí to vysvětlí** (`BotButtonKind.Unsupported`: mini
-  aplikace, platba, hra, heslo, inline dotaz s cílem daným odkazem). Schované tlačítko by
+- **Co Plume neumí, je vidět a ťuknutí to vysvětlí** (`BotButtonKind.Unsupported`: platba,
+  hra, heslo, inline dotaz s cílem daným odkazem). Mini aplikace a přihlášení na web už umí
+  (viz níž a „Mini aplikace botů"). Schované tlačítko by
   z klávesnice bota vykouslo řádek nebo jeho část a změnilo, co bot nabízí.
 - **Inline dotaz tlačítkem** (`BotButtonKind.SwitchInline`, `SwitchInlineTarget`) dá do pole
   `@bot dotaz` — v tomhle chatu, nebo v chatu z výběru (`SwitchInlinePickerScreen`). Nic se
@@ -4430,8 +4431,8 @@ které seznam otevře celý (`BotCommandsPanel`, doména `BotCommandItem`, pravi
   z tlačítka, napovídání po „/n", ťuknutí na návrh (pole prázdné) i na příkaz v textu — všechny
   tři příkazy dorazily botovi (`getUpdates`). V Uložených zprávách tlačítko není. **Skupina
   s botem ověřená není** (přípona `@bot`) — do skutečných skupin se testovací zprávy nepíšou.
-- **Tlačítko nabídky bota (`BotMenuButton`) je mini aplikace** a ta se zatím jen vysvětluje;
-  seznam příkazů ji nenahrazuje.
+- **Tlačítko nabídky bota (`BotMenuButton`) stojí na místě tlačítka příkazů** — viz „Mini
+  aplikace botů". Příkazy pak napovídá jen „/", jako u oficiálních klientů.
 
 ### Spuštění bota
 
@@ -5742,6 +5743,62 @@ obsahu bývá zlomek zpráv.
 - **`mailto:` se v adrese neukazuje** (`displayUrl`, testy `SharedMediaTest`). Filtr odkazů bere
   i e-maily a schéma u nich nic neříká; `https` od `tg` odlišit potřeba je, takže se zahazuje
   jen ono.
+
+## Mini aplikace botů
+
+Tlačítko pod zprávou (`web_app`), tlačítko vlastní klávesnice bota a tlačítko nad výsledky inline
+bota otevřou mini aplikaci přes celou obrazovku (`WebAppRoute`, `WebAppScreen`, `WebAppViewModel`).
+Adresu i podepsaná data uživatele skládá TDLib (`WebAppRepository`); aplikace stránku jen
+zobrazí a zprostředkuje její události.
+
+- **`core/webview` je hranice** jako `core/camera`: `android.webkit` a `platform.WebKit` jen tam.
+  WebView stránce vystavuje JEDINOU věc, `window.TelegramWebviewProxy.postEvent(typ, data)` —
+  Android `addJavascriptInterface`, iOS stejně pojmenovaný objekt vložený skriptem na začátku
+  dokumentu, který posílá do `WKScriptMessageHandler`. Soubory zařízení vypnuté, jiná schémata
+  než http(s) stránka sama neotevře (má na to `web_app_open_link`).
+- **Události překládá čistý most** (`WebAppBridge.kt`, testy `WebAppBridgeTest`), WebView data
+  jen přenáší. Zpět se doručují `Telegram.WebView.receiveEvent(typ, data)`; typ i data jdou do
+  skriptu jako JSON literály, nic se neescapuje ručně.
+- **Na co stránka čeká odpověď, na to se odpoví, i když to Plume neumí** (telefon, zápis, faktura,
+  celá obrazovka, plocha): „zrušeno" / „nepodporováno". Jinak by mini aplikace visela.
+  Schránku mini aplikacím nedáváme (`data: null`).
+- **Motiv jsou barvy aplikace** (`webAppTheme`: stránka `surface`, sekce `surfaceContainerLowest`
+  jako bloky seznamů, tlačítka `primary`) — do adresy přes TDLib i do `theme_changed` po změně
+  motivu. Hlavička a hlavní tlačítko jsou naše, přebarvit je smí stránka; popředí se pak volí
+  podle světlosti.
+- **`applicationName` je `android` / `ios`**, TDLib ho dá stránce jako `tgWebAppPlatform`. Vlastní
+  jméno by mini aplikace nepoznaly.
+- **Poprvé u každého bota souhlas** (`WebAppConsentDialog`, `AppSettings.confirmedWebAppBots`) —
+  TDLib u `openWebApp` předepisuje jednou ukázat, že mini aplikace posílá data botovi.
+- **Spuštění přes `openWebApp` se musí zavřít** (`closeWebApp` v `onCleared` přes `appScope`).
+  Klávesnice a inline tlačítko jdou přes `getWebAppUrl` a spuštění nemají; **data botovi**
+  (`web_app_data_send`) smí poslat jen mini aplikace z vlastní klávesnice (`keyboardButtonText`).
+- **Zpět jde napřed do mini aplikace**, když má vlastní „zpět" (šipka v hlavičce místo ✕),
+  jinak zavírá — s potvrzením, když si ho stránka vyžádala (`need_confirmation`).
+  `NavigationBackHandler`, ne `BackHandler`.
+- **Odkaz na Telegram z mini aplikace** (`web_app_open_tg_link`) ji zavře a otevře chat nad
+  konverzací pod ní (`WebAppRoute.archive` říká, do které větve); jiné druhy odkazů jdou do
+  prohlížeče.
+- **Tlačítko nabídky bota** (`BotInfo.menuButton`, `BotMenuApp`, `BotMenuAppButton`) stojí
+  u pole MÍSTO tlačítka příkazů a otevírá mini aplikaci přes `openWebApp`, jako tlačítko pod
+  zprávou — TDLib adresu z `botMenuButton` bere právě tam. Jen v soukromém chatu s botem;
+  čte se jednou při otevření chatu, jako příkazy.
+  - **V prázdném poli plná pilulka s textem od bota, při psaní (a s přílohami) jen ikona** —
+    text bývá dlouhý a na úzkém telefonu by poli ukousl místo, zrovna když se píše. Sbalená má
+    barvu ostatních ikon v kartě, ne plnou plochu: vedle plného odesílacího tlačítka by se
+    dvě sytá kolečka prala. Text se zkracuje na 120 dp.
+  - **Adresa typu `t.me/bot/app` se nenabízí** (`InternalLinkTypeWebApp`): TDLib ji předepisuje
+    zpracovat jako odkaz (`getWebAppLinkUrl`), ne poslat do `openWebApp`, a to Plume zatím
+    neumí. Zůstane tlačítko příkazů.
+  - **Ověřuje se `setChatMenuButton` botem** s `chat_id` vlastního účtu (jen pro náš chat,
+    ne globálně) a po ověření vrátit `{"type":"default"}`. Ověřeno na emulátoru (Fold, světlý
+    i tmavý motiv): pilulka, sbalení s konceptem, souhlas a otevření ukázky `cafe`.
+- **Ověřeno na emulátoru** s ukázkou Telegramu `webappcontent.telegram.org/cafe` (bot ji pošle
+  jako `web_app` tlačítko): souhlas jen poprvé, motiv, hlavní tlačítko v barvě od stránky a změna
+  jeho textu, vlastní „zpět" v hlavičce i systémovým gestem, potvrzení zavření s plným košíkem,
+  otevření z vlastní klávesnice (ukázka tam hlásí „zavřeno" — objednávat dovolí jen s `query_id`
+  z `openWebApp`, to je vlastnost ukázky). **Neověřeno**: popup, vlastní metody, `web_app_data_send`,
+  odkaz na Telegram z mini aplikace a iOS (jen přeložené).
 
 ## Hlasovky
 

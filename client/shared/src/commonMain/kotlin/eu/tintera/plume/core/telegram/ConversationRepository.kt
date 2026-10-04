@@ -641,6 +641,12 @@ interface ConversationRepository {
     suspend fun botCommands(chatId: Long): Result<List<BotCommandItem>>
 
     /**
+     * Tlačítko nabídky bota (`BotInfo.menuButton`): mini aplikace, kterou bot nabízí u pole
+     * místo seznamu příkazů. Jen v soukromém chatu s botem; `null` = bot žádné nemá.
+     */
+    suspend fun botMenuApp(chatId: Long): Result<BotMenuApp?>
+
+    /**
      * Změny toho, jestli se do chatu smí psát a jestli se k němu jde přidat (správce změní
      * práva, uživatel se přidá nebo odejde). Soukromý chat nic nevydá — tam se píše vždycky.
      */
@@ -1241,6 +1247,9 @@ sealed interface BotButtonKind {
     /** Bot tlačítko vypnul; kreslí se zašedlé a ťuknout nejde. */
     data object Disabled : BotButtonKind
 
+    /** Mini aplikace bota (`openWebApp` s touto adresou). */
+    data class WebApp(val url: String) : BotButtonKind
+
     /**
      * Odkaz, který uživatele na webu přihlásí účtem Telegramu (`getLoginUrlInfo`). [url] je
      * záloha: když přihlášení selže, otevře se jako obyčejný odkaz.
@@ -1260,7 +1269,7 @@ sealed interface BotButtonKind {
     data class Unsupported(val feature: UnsupportedBotButton) : BotButtonKind
 }
 
-enum class UnsupportedBotButton { WebApp, SwitchInline, Buy, Game, Password }
+enum class UnsupportedBotButton { SwitchInline, Buy, Game, Password }
 
 /** Kam tlačítko s inline dotazem vede. */
 sealed interface SwitchInlineTarget {
@@ -1345,10 +1354,13 @@ sealed interface ReplyKeyboardButtonKind {
     data class Poll(val mode: PollComposerMode) : ReplyKeyboardButtonKind
 
     /** Druh, který Plume zatím neumí; tlačítko je vidět a ťuknutí to vysvětlí. */
+    /** Mini aplikace (`getWebAppUrl`); data, která pošle, dostane bot jako zprávu. */
+    data class WebApp(val url: String) : ReplyKeyboardButtonKind
+
     data class Unsupported(val feature: UnsupportedKeyboardButton) : ReplyKeyboardButtonKind
 }
 
-enum class UnsupportedKeyboardButton { Location, Users, Chat, WebApp, ManagedBot }
+enum class UnsupportedKeyboardButton { Location, Users, Chat, ManagedBot }
 
 /** Barva, kterou si bot pro tlačítko přeje (TDLib `ButtonStyle`). */
 enum class BotButtonStyle { Default, Primary, Success, Danger }

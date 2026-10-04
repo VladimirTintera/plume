@@ -42,6 +42,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import eu.tintera.plume.core.ui.rememberAfterKeyboardHidden
 import eu.tintera.plume.core.ui.AutoDeleteBadge
 import eu.tintera.plume.core.ui.longPress
+import eu.tintera.plume.core.telegram.BotMenuApp
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.MessageSchedule
@@ -420,6 +421,8 @@ fun ConversationScreen(
     onUnarchived: () -> Unit = {},
     /** Sponka → Anketa (a tlačítko bota „vytvořit anketu"): formulář nové ankety nad konverzací. */
     onCreatePoll: (PollComposerRequest) -> Unit = {},
+    /** Mini aplikace bota — obrazovka přes celou plochu nad konverzací. */
+    onOpenWebApp: (WebAppRequest) -> Unit = {},
     /** Odkaz `t.me/bot?startgroup=…`: výběr skupiny, do které bota přidat. */
     onAddBotToGroup: (InternalLink.BotStartInGroup) -> Unit = {},
     /** Tlačítko bota s inline dotazem do jiného chatu: výběr chatu. */
@@ -1740,6 +1743,8 @@ fun ConversationScreen(
                 // Kontakt je taky „základní zpráva" (TDLib ho řadí k textu), jako poloha.
                 onShareContact = viewModel::openContactPicker,
                 onToggleCommands = viewModel::toggleCommands.takeIf { state.botCommands.isNotEmpty() },
+                menuApp = state.botMenuApp,
+                onOpenMenuApp = viewModel::openBotMenuApp,
                 attachments = state.attachments,
                 attachmentsPreparing = mediaSelection.preparing,
                 onRemoveAttachment = viewModel::removeAttachment,
@@ -2036,6 +2041,15 @@ fun ConversationScreen(
                 onCreatePoll(PollComposerRequest(mode, state.replyingTo?.id, state.replyQuote))
                 viewModel.consumeOpenPollComposer()
             }
+        }
+        state.openWebApp?.let { request ->
+            LaunchedEffect(request) {
+                viewModel.consumeOpenWebApp()
+                onOpenWebApp(request)
+            }
+        }
+        state.webAppConsent?.let { request ->
+            WebAppConsentDialog(botName = request.botName, onOpen = viewModel::confirmWebApp, onDismiss = viewModel::dismissWebAppConsent)
         }
 
         state.pendingPin?.let { pending ->
@@ -2681,6 +2695,9 @@ private fun MessageInput(
     onShareContact: (() -> Unit)?,
     /** Seznam příkazů botů; `null` v chatu bez botů s příkazy. */
     onToggleCommands: (() -> Unit)?,
+    /** Tlačítko nabídky bota s mini aplikací; když je, stojí místo tlačítka příkazů. */
+    menuApp: BotMenuApp? = null,
+    onOpenMenuApp: () -> Unit = {},
     isRecording: Boolean,
     /** Čte se až v pruhu nahrávání — čas a úrovně se mění dvacetkrát za vteřinu. */
     recording: () -> VoiceRecording?,
@@ -3024,7 +3041,17 @@ private fun MessageInput(
             // Přílohy jen při psaní — k úpravě textové zprávy příloha nepatří.
             // Poloha jde všude, kde se smí psát, takže sponka zůstává i ve skupině bez příloh.
             // Příkazy bota: v chatu s botem je to hlavní ovládání, jako „Menu" u oficiálních klientů.
-            if (editing == null && onToggleCommands != null) {
+            // Bot s mini aplikací v nabídce ji má na tom místě místo příkazů (ty dál napovídá „/").
+            val botButton = editing == null && (menuApp != null || onToggleCommands != null)
+            if (editing == null && menuApp != null) {
+                BotMenuAppButton(
+                    text = menuApp.text,
+                    compact = draft.text.isNotBlank() || attachments.isNotEmpty(),
+                    iconColor = inputIconColor(),
+                    onClick = onOpenMenuApp,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                )
+            } else if (editing == null && onToggleCommands != null) {
                 IconButton(
                     onClick = onToggleCommands,
                     colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
@@ -3048,7 +3075,7 @@ private fun MessageInput(
                     onShareContact = onShareContact,
                     contentColor = inputIconColor(),
                     // Za tlačítkem příkazů bez odsazení: glyfy mají kolem sebe vzduch samy.
-                    modifier = Modifier.padding(start = if (onToggleCommands != null) 0.dp else 4.dp, bottom = 4.dp),
+                    modifier = Modifier.padding(start = if (botButton) 0.dp else 4.dp, bottom = 4.dp),
                 )
             }
             Box(Modifier.weight(1f)) {

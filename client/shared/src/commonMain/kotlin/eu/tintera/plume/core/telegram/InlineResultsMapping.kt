@@ -27,7 +27,7 @@ internal fun InlineQueryResults.toPage(): InlineResultsPage = InlineResultsPage(
         // Bez `else`: nový druh tlačítka v novější TDLib má rozbít překlad, ne tiše zmizet.
         when (val type = button.type) {
             is InlineQueryResultsButtonTypeStartBot -> InlineResultsButton.StartBot(button.text, type.parameter)
-            is InlineQueryResultsButtonTypeWebApp -> InlineResultsButton.WebApp(button.text)
+            is InlineQueryResultsButtonTypeWebApp -> InlineResultsButton.WebApp(button.text, type.url)
         }
     },
 )
