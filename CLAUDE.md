@@ -9241,6 +9241,14 @@ cesta je známá až po stažení a průběh chodí updaty. Překlad do jednoho 
   byl `ContainedLoadingIndicator` uprostřed: nad rozmazanou fotkou barevný disk, který k obrázku
   nepatřil a vypadal jako nálepka. Na průhledné podložce bez náhledu (samolepka) se nekreslí
   nic, pruh by přejížděl přes prázdno; pod 24 dp (malé avatary) taky ne.
+- **Lesk běží i přes ZMENŠENINU, dokud se stahuje ostrá verze** (`sharpening` v `RemoteImage`).
+  V prohlížeči médií stojí za ostrou fotkou zmenšenina z bubliny (`thumbnailFileId`) a dřív
+  vypadala jako hotový obrázek — u velké fotky na pomalé síti nebylo poznat, že se něco děje.
+  Náhled (`thumbnailFileId`) předávají jen fotky, takže pruh je vždycky ten nad fotkou.
+  **Ověřuje se letovým režimem**: zmenšenina v konverzaci se načte, pak `adb shell cmd
+  connectivity airplane-mode enable` a otevřít prohlížeč — ostrá verze zůstane ve stahování
+  a lesk běží; po vypnutí letového režimu se dotáhne a obraz stojí. Zpomalení sítě na
+  emulátoru nefunguje (viz „Video").
 - **Lesk se ověřuje sondou a zpomalenými animacemi**: v `RemoteImage` dočasně `if (true)` místo
   `current == null` a `shimmer` bez podmínky na `Downloading`, pak `animator_duration_scale 5`
   a série `screencap`. V normální rychlosti snímek trefí pauzu mezi průjezdy a pruh „chybí".
