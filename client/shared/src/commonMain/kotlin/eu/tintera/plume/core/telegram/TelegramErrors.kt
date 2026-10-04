@@ -27,6 +27,7 @@ import eu.tintera.plume.resources.error_pin_limit
 import eu.tintera.plume.resources.error_recovery_code_expired
 import eu.tintera.plume.resources.error_recovery_code_invalid
 import eu.tintera.plume.resources.error_recovery_unavailable
+import eu.tintera.plume.resources.error_summary_premium_limit
 import eu.tintera.plume.resources.error_transfer_needs_password
 import eu.tintera.plume.resources.error_transfer_too_fresh
 import org.jetbrains.compose.resources.StringResource
@@ -119,6 +120,10 @@ fun Throwable.userMessage(fallback: StringResource): UiText {
         // Převod vlastnictví. Obojí se ptáme dopředu (`canTransferOwnership`), tohle je pro
         // případ, že se stav účtu mezi dotazem a potvrzením změní.
         "PASSWORD_MISSING", "2-step verification is disabled" -> Res.string.error_transfer_needs_password
+
+        // Shrnutí od serveru (`summarizeMessage`): bez Premium jich server pustí jen omezeně.
+        // Ověřeno na účtu bez Premium — přišlo to hned u prvního pokusu.
+        "SUMMARY_FLOOD_PREMIUM" -> Res.string.error_summary_premium_limit
 
         else -> fallback
     }

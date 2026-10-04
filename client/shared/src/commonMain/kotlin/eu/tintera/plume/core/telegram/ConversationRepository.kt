@@ -714,6 +714,12 @@ interface ConversationRepository {
     suspend fun mentionCandidates(chatId: Long, query: String): Result<List<MentionCandidate>>
 
     /**
+     * Shrnutí zprávy od serveru, jen u zprávy s [ChatMessage.summaryLanguage]. [languageCode]
+     * = jazyk, do kterého se shrnutí přeloží; `null` = v jazyce zprávy.
+     */
+    suspend fun summarizeMessage(chatId: Long, messageId: Long, languageCode: String?): Result<MessageBody>
+
+    /**
      * Text (nebo popisek) zprávy přeložený do jazyka [languageCode] (`translateMessageText`).
      * Překládá server; bez Premium přijde prostý text, s ním i s formátováním.
      */
@@ -1180,6 +1186,11 @@ data class ChatMessage(
      * na médium zprávy, na kterou odpovídá (`Message.hasTimestampedMedia`).
      */
     val hasTimestampedMedia: Boolean = false,
+    /**
+     * Jazyk, ve kterém jde zprávu nechat shrnout serverem (`Message.summaryLanguageCode`);
+     * `null` = shrnutí server pro tuhle zprávu nenabízí. Server ho dává jen delším textům.
+     */
+    val summaryLanguage: String? = null,
 )
 
 /**

@@ -236,6 +236,7 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageM
         if (message.media !is MessageMedia.VoiceNote && message.media !is MessageMedia.VideoNote) {
             add(MessageMenuAction.Translate)
         }
+        if (message.summaryLanguage != null) add(MessageMenuAction.Summarize)
     }
     if (message.media is MessageMedia.Sticker) add(MessageMenuAction.ToggleFavoriteSticker)
     add(MessageMenuAction.Forward)

@@ -5120,6 +5120,29 @@ na iOS. Dlouhý stisk v SEZNAMU dál otevírá nabídku — o gesto se nedělí,
   dumpem a stiskem posune — pak se místo nabídky otevře prohlížeč. Poloha se bere těsně před
   stiskem a mimo řádek s odkazem.
 
+### Shrnutí od serveru
+
+„Shrnout" v nabídce nad dlouhou zprávou otevře tentýž sheet jako překlad, jen s jinými texty
+(`TranslationSheet.summary`, `MessageMenuAction.Summarize`, `summarizeMessage`). Je to jiná věc
+než „Shrnout" v hlavičce konverzace (model v zařízení, viz „AI v zařízení") — tohle shrnuje
+JEDNU zprávu a počítá to Telegram.
+
+- **Kdy se nabídne, rozhoduje server** (`Message.summaryLanguageCode` → `ChatMessage.summaryLanguage`,
+  prázdný = shrnout nejde). Aplikace délku zprávy neposuzuje; v kanálu s krátkými hlášeními ho
+  měl jediný dlouhý příspěvek.
+- **Nabízí se i u chráněného obsahu**, na rozdíl od překladu — dostupnost řídí server. Jen se
+  tam výsledek nedá zkopírovat (`TranslationSheet.canCopy`): chráněný obsah ven nesmí ani
+  převyprávěný. Testovací kanál GFN Catalog chráněný je, a „Shrnout" se tam napřed neukázalo,
+  protože stálo na `canCopy` jako překlad.
+- **Jazyk je tentýž jako u překladu** (`AppSettings.translationLanguage`, výběr ve sheetu ho
+  mění pro obojí). Když se shoduje s jazykem zprávy, posílá se prázdný — server by jinak
+  „překládal" sám do sebe.
+- **Bez Premium je shrnutí omezené**: `SUMMARY_FLOOD_PREMIUM` má vlastní větu v `userMessage`.
+  Sheet proto nese důvod (`TranslationSheet.error: UiText?`), ne jen příznak selhání — platí to
+  i pro překlad. **Testovací účet Premium nemá a chybu dostal hned u prvního pokusu**, takže
+  samotné shrnutí (text, změna jazyka, kopírování) ověřené NENÍ.
+- **Pod shrnutím je věta, že ho psal Telegram a může něco vynechat** — text nepíše odesílatel.
+
 ### Automatické mazání zpráv
 
 Chat může mít nastavené, že nové zprávy po době samy zmizí (`Chat.messageAutoDeleteTime`).

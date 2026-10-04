@@ -1818,4 +1818,11 @@
     <string name="transcript_used_up_until">You’ve used this week’s free transcriptions. More: %1$s</string>
     <string name="transcribe_failed">Couldn’t start the transcription.</string>
     <string name="transcript_premium_required">Transcription needs Telegram Premium.</string>
+    <string name="menu_summarize">Summarize</string>
+    <string name="server_summary_title">Summary</string>
+    <string name="server_summary_failed">The message could not be summarized</string>
+    <string name="server_summary_copy">Copy summary</string>
+    <string name="server_summary_copied">Summary copied</string>
+    <string name="server_summary_note">Summarized by Telegram. It may leave something out or get it wrong.</string>
+    <string name="error_summary_premium_limit">Without Telegram Premium, summaries are limited. Try again later.</string>
 </resources>

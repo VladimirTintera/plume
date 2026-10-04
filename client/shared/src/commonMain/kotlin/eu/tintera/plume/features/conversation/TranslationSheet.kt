@@ -46,6 +46,7 @@ import eu.tintera.plume.core.telegram.localizedLanguageName
 import eu.tintera.plume.core.telegram.platformLanguageCode
 import eu.tintera.plume.core.ui.RichText
 import eu.tintera.plume.core.ui.SearchPill
+import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_search_clear
 import eu.tintera.plume.resources.chats_search_empty
@@ -54,16 +55,20 @@ import eu.tintera.plume.resources.content_copy_24dp
 import eu.tintera.plume.resources.expand_more_24dp
 import eu.tintera.plume.resources.translation_change_language
 import eu.tintera.plume.resources.translation_copy
-import eu.tintera.plume.resources.translation_failed
 import eu.tintera.plume.resources.translation_language_search
 import eu.tintera.plume.resources.translation_language_title
 import eu.tintera.plume.resources.translation_title
+import eu.tintera.plume.resources.server_summary_copy
+import eu.tintera.plume.resources.server_summary_note
+import eu.tintera.plume.resources.server_summary_title
 import eu.tintera.plume.resources.translation_to
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
  * Překlad zprávy: kam se překládá, začátek originálu a pod ním překlad s tlačítkem na kopírování.
+ * Tentýž sheet ukazuje i shrnutí od serveru ([TranslationSheet.summary]) — jen s jinými texty
+ * a s poznámkou, že ho napsal model.
  *
  * **Sheet, ne náhrada textu v bublině.** Překlad je jednorázové nahlédnutí jako „Informace"
  * a v bublině by se musel pamatovat u každé zprávy, přežít úpravu i přeposlání. Tak to dělá
@@ -97,7 +102,7 @@ fun TranslationSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 16.dp)) {
             Text(
-                text = stringResource(Res.string.translation_title),
+                text = stringResource(if (sheet.summary) Res.string.server_summary_title else Res.string.translation_title),
                 style = MaterialTheme.typography.titleMedium,
             )
             // Cílový jazyk je tlačítko, ne popisek: ťuknutí otevře výběr jazyka. Ze šipky je
@@ -150,8 +155,8 @@ fun TranslationSheet(
                             )
                         }
                     }
-                    sheet.failed -> Text(
-                        text = stringResource(Res.string.translation_failed),
+                    sheet.error != null -> Text(
+                        text = sheet.error.resolve(),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(16.dp),
@@ -162,14 +167,24 @@ fun TranslationSheet(
                 }
             }
 
-            if (sheet.body != null) {
+            if (sheet.summary && sheet.body != null) {
+                // Shrnutí píše model na serveru, ne odesílatel — a model umí vynechat nebo splést.
+                Text(
+                    text = stringResource(Res.string.server_summary_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+
+            if (sheet.body != null && sheet.canCopy) {
                 FilledTonalButton(onClick = onCopy, modifier = Modifier.padding(top = 16.dp).align(Alignment.End)) {
                     Icon(
                         painterResource(Res.drawable.content_copy_24dp),
                         contentDescription = null,
                         modifier = Modifier.padding(end = 8.dp),
                     )
-                    Text(stringResource(Res.string.translation_copy))
+                    Text(stringResource(if (sheet.summary) Res.string.server_summary_copy else Res.string.translation_copy))
                 }
             }
         }

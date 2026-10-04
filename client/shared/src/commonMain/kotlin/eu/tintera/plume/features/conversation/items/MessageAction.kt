@@ -44,6 +44,8 @@ import eu.tintera.plume.resources.text_select_24dp
 import eu.tintera.plume.resources.star_filled_24dp
 import eu.tintera.plume.resources.translate_24dp
 import eu.tintera.plume.resources.menu_translate
+import eu.tintera.plume.resources.menu_summarize
+import eu.tintera.plume.resources.summarize_24dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 
@@ -288,6 +290,16 @@ sealed interface MessageMenuAction : MessageAction {
     data object Translate : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
             MenuPresentation(Res.drawable.translate_24dp, Res.string.menu_translate).takeIf { menu.actions.canCopy }
+    }
+
+    /**
+     * Shrnutí dlouhé zprávy od serveru. Kandidát jen u zprávy, které ho server nabízí
+     * (`summaryLanguage`); stojí na témže právu jako překlad — chráněný obsah ven nesmí ani
+     * zkrácený.
+     */
+    data object Summarize : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.summarize_24dp, Res.string.menu_summarize)
     }
 
     /** Kandidát jen u samolepky. Jestli už v oblíbených je, se zjistí při otevření nabídky. */
