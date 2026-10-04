@@ -18,6 +18,40 @@ class WebAppBridgeTest {
         )
     }
 
+    @Test
+    fun druheTlacitkoSPolohou() {
+        val event = parseWebAppEvent(
+            "web_app_setup_secondary_button",
+            """{"is_visible":true,"text":"Zpět do menu","position":"top","has_shine_effect":true}""",
+        )
+        assertEquals(
+            WebAppEvent.SecondaryButton(WebAppButton(visible = true, text = "Zpět do menu"), WebAppButtonPosition.Top),
+            event,
+        )
+    }
+
+    /** Bez polohy (nebo s neznámou) stojí druhé tlačítko vlevo, jako u Telegramu. */
+    @Test
+    fun druheTlacitkoBezPolohyJeVlevo() {
+        val missing = parseWebAppEvent("web_app_setup_secondary_button", """{"is_visible":false}""")
+        val unknown = parseWebAppEvent("web_app_setup_secondary_button", """{"position":"middle"}""")
+        assertEquals(WebAppButtonPosition.Left, (missing as WebAppEvent.SecondaryButton).position)
+        assertEquals(WebAppButtonPosition.Left, (unknown as WebAppEvent.SecondaryButton).position)
+    }
+
+    /** Barva lišty je v jednom poli buď hex, nebo klíč z motivu. */
+    @Test
+    fun barvaSpodniListy() {
+        assertEquals(
+            WebAppEvent.BottomBarColor(key = null, color = 0x1D2733),
+            parseWebAppEvent("web_app_set_bottom_bar_color", """{"color":"#1d2733"}"""),
+        )
+        assertEquals(
+            WebAppEvent.BottomBarColor(key = "secondary_bg_color", color = null),
+            parseWebAppEvent("web_app_set_bottom_bar_color", """{"color":"secondary_bg_color"}"""),
+        )
+    }
+
     /** Stránka posílá data jako řetězec s JSON, i prázdná nebo `null` — to nesmí shodit most. */
     @Test
     fun prazdnaANecitelnaDataNejsouPad() {

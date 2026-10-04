@@ -32,6 +32,10 @@ sealed interface WebAppEvent {
     data object RequestSafeArea : WebAppEvent
     data object RequestContentSafeArea : WebAppEvent
     data class MainButton(val button: WebAppButton) : WebAppEvent
+    /** Druhé tlačítko vedle hlavního; [position] říká, ze které strany (`web_app_setup_secondary_button`). */
+    data class SecondaryButton(val button: WebAppButton, val position: WebAppButtonPosition) : WebAppEvent
+    /** Barva spodní lišty s tlačítky: klíč z motivu, nebo barva (`web_app_set_bottom_bar_color`). */
+    data class BottomBarColor(val key: String?, val color: Int?) : WebAppEvent
     data class BackButton(val visible: Boolean) : WebAppEvent
     data class ClosingConfirmation(val needed: Boolean) : WebAppEvent
     data class OpenLink(val url: String) : WebAppEvent
@@ -52,7 +56,10 @@ sealed interface WebAppEvent {
     data class Unknown(val type: String) : WebAppEvent
 }
 
-/** Hlavní tlačítko mini aplikace, jak si ho stránka nastavila. */
+/** Kde stojí druhé tlačítko vůči hlavnímu. Neznámá hodnota = vlevo (výchozí podle Telegramu). */
+enum class WebAppButtonPosition { Left, Right, Top, Bottom }
+
+/** Tlačítko mini aplikace (hlavní i druhé), jak si ho stránka nastavila. */
 data class WebAppButton(
     val visible: Boolean = false,
     val active: Boolean = true,
@@ -79,6 +86,15 @@ fun parseWebAppEvent(type: String, data: String?): WebAppEvent {
     fun string(key: String) = (body[key] as? JsonPrimitive)?.contentOrNull
     fun bool(key: String) = (body[key] as? JsonPrimitive)?.booleanOrNull
 
+    fun button() = WebAppButton(
+        visible = bool("is_visible") ?: false,
+        active = bool("is_active") ?: true,
+        text = string("text").orEmpty(),
+        color = string("color")?.let(::parseHexColor),
+        textColor = string("text_color")?.let(::parseHexColor),
+        progress = bool("is_progress_visible") ?: false,
+    )
+
     return when (type) {
         "web_app_ready" -> WebAppEvent.Ready
         "web_app_close" -> WebAppEvent.Close
@@ -86,16 +102,20 @@ fun parseWebAppEvent(type: String, data: String?): WebAppEvent {
         "web_app_request_viewport", "web_app_expand" -> WebAppEvent.RequestViewport
         "web_app_request_safe_area" -> WebAppEvent.RequestSafeArea
         "web_app_request_content_safe_area" -> WebAppEvent.RequestContentSafeArea
-        "web_app_setup_main_button" -> WebAppEvent.MainButton(
-            WebAppButton(
-                visible = bool("is_visible") ?: false,
-                active = bool("is_active") ?: true,
-                text = string("text").orEmpty(),
-                color = string("color")?.let(::parseHexColor),
-                textColor = string("text_color")?.let(::parseHexColor),
-                progress = bool("is_progress_visible") ?: false,
-            ),
+        "web_app_setup_main_button" -> WebAppEvent.MainButton(button())
+        "web_app_setup_secondary_button" -> WebAppEvent.SecondaryButton(
+            button(),
+            when (string("position")) {
+                "right" -> WebAppButtonPosition.Right
+                "top" -> WebAppButtonPosition.Top
+                "bottom" -> WebAppButtonPosition.Bottom
+                else -> WebAppButtonPosition.Left
+            },
         )
+        // Barva je buď hex, nebo klíč z motivu — stejné pole, tak se rozliší podle „#".
+        "web_app_set_bottom_bar_color" -> string("color").let { value ->
+            WebAppEvent.BottomBarColor(key = value?.takeUnless { it.startsWith("#") }, color = value?.let(::parseHexColor))
+        }
         "web_app_setup_back_button" -> WebAppEvent.BackButton(bool("is_visible") ?: false)
         "web_app_setup_closing_behavior" -> WebAppEvent.ClosingConfirmation(bool("need_confirmation") ?: false)
         "web_app_open_link" -> string("url")?.let(WebAppEvent::OpenLink) ?: WebAppEvent.Unknown(type)
@@ -179,6 +199,8 @@ object WebAppEvents {
     )
 
     fun mainButtonPressed() = WebAppOutgoing("main_button_pressed", "{}")
+
+    fun secondaryButtonPressed() = WebAppOutgoing("secondary_button_pressed", "{}")
 
     fun backButtonPressed() = WebAppOutgoing("back_button_pressed", "{}")
 

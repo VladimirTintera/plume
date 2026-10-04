@@ -5826,6 +5826,20 @@ zobrazí a zprostředkuje její události.
   - **Ověřeno na emulátoru** s `t.me/DurgerKingBot/menu` (ukázka Telegramu, žádá o psaní —
     zaškrtávátko se při ověřování VYPÍNÁ, jinak smí bot účtu psát) a s neexistující
     `t.me/BotFather/neexistuje`.
+- **Druhé tlačítko** (`web_app_setup_secondary_button`, `WebAppBottomBar`) stojí vůči hlavnímu,
+  kde si stránka řekne: vlevo a vpravo sdílí řádek napůl, nahoře a dole jsou pod sebou;
+  viditelné jen jedno jde přes celou šířku. Bez barvy od stránky je hlavní plné (`primary`)
+  a druhé tonální (`secondaryContainer`) — dvě plná vedle sebe by neřekla, které je hlavní.
+  Barvu lišty smí stránka změnit (`web_app_set_bottom_bar_color`: hex, nebo klíč z motivu
+  v TÉMŽE poli — rozliší se podle „#").
+  - **Žádná dostupná mini aplikace druhé tlačítko neukazuje** (Durger King i BotFather ho
+    posílají s `is_visible: false`), takže se ověřovalo sondou: po `web_app_ready` ViewModel
+    sám podstrčí události, jaké by poslala stránka, a projde všechny polohy. Necommituje se.
+    Že ťuknutí dorazí do stránky, se pozná z logu skriptu Telegramu v konzoli WebView
+    (`adb logcat | grep receiveEvent` → `secondary_button_pressed`).
+  - **Server po prvním otevření pojmenované mini aplikace vrací `skipConfirmation`** a o psaní
+    už nežádá — souhlas se zaškrtávátkem se tak ukáže jen napoprvé. Kdo ověřuje souhlas,
+    potřebuje aplikaci, kterou účet ještě neotevřel.
 - **Tmavá hlavička od stránky přepne ikony stavové lišty na světlé** (`DarkSystemBars`).
   BotFather si nastaví tmavou hlavičku i ve světlém motivu aplikace a tmavé ikony na ní nebyly
   vidět. Rozhoduje táž světlost, podle které se volí popředí hlavičky.

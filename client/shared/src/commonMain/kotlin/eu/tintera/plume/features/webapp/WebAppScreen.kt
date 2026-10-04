@@ -172,31 +172,14 @@ fun WebAppScreen(
             )
         },
         bottomBar = {
-            val button = state.mainButton
-            if (button.visible) {
-                val container = button.color?.let(::rgbColor) ?: MaterialTheme.colorScheme.primary
-                val content = button.textColor?.let(::rgbColor) ?: contentOn(container)
-                Button(
-                    onClick = viewModel::pressMainButton,
-                    enabled = button.active && !button.progress,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = container,
-                        contentColor = content,
-                        disabledContainerColor = container.copy(alpha = 0.5f),
-                        disabledContentColor = content.copy(alpha = 0.7f),
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                ) {
-                    if (button.progress) {
-                        CircularProgressIndicator(color = content, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
-                    } else {
-                        Text(button.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-            }
+            WebAppBottomBar(
+                main = state.mainButton,
+                secondary = state.secondaryButton,
+                position = state.secondaryPosition,
+                color = state.bottomBarColor?.let(::rgbColor) ?: MaterialTheme.colorScheme.surface,
+                onMain = viewModel::pressMainButton,
+                onSecondary = viewModel::pressSecondaryButton,
+            )
         },
         contentWindowInsets = WindowInsets(0),
     ) { padding ->
@@ -295,6 +278,103 @@ internal fun WebAppConsentDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
+
+/**
+ * Spodní lišta s hlavním a druhým tlačítkem mini aplikace.
+ *
+ * - **Druhé tlačítko stojí, kde si stránka řekne** ([WebAppButtonPosition]): vlevo a vpravo
+ *   sdílí řádek napůl, nahoře a dole jsou pod sebou přes celou šířku. Viditelné jen jedno =
+ *   přes celou šířku, ať je kterékoli.
+ * - **Bez barvy od stránky je hlavní plné (`primary`) a druhé tonální (`secondaryContainer`)** —
+ *   dvě plná tlačítka vedle sebe by neřekla, které je hlavní. Telegram dává druhému taky
+ *   tlumenější výchozí barvu.
+ * - **Barvu lišty smí stránka změnit** (`web_app_set_bottom_bar_color`), jinak je to plocha
+ *   aplikace.
+ */
+@Composable
+private fun WebAppBottomBar(
+    main: WebAppButton,
+    secondary: WebAppButton,
+    position: WebAppButtonPosition,
+    color: Color,
+    onMain: () -> Unit,
+    onSecondary: () -> Unit,
+) {
+    if (!main.visible && !secondary.visible) return
+    val mainButton: @Composable (Modifier) -> Unit = { modifier ->
+        WebAppBottomButton(
+            main,
+            defaultContainer = MaterialTheme.colorScheme.primary,
+            defaultContent = MaterialTheme.colorScheme.onPrimary,
+            onClick = onMain,
+            modifier = modifier,
+        )
+    }
+    val secondaryButton: @Composable (Modifier) -> Unit = { modifier ->
+        WebAppBottomButton(
+            secondary,
+            defaultContainer = MaterialTheme.colorScheme.secondaryContainer,
+            defaultContent = MaterialTheme.colorScheme.onSecondaryContainer,
+            onClick = onSecondary,
+            modifier = modifier,
+        )
+    }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .background(color)
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        when {
+            !secondary.visible -> mainButton(Modifier.fillMaxWidth())
+            !main.visible -> secondaryButton(Modifier.fillMaxWidth())
+            position == WebAppButtonPosition.Left || position == WebAppButtonPosition.Right ->
+                Row(horizontalArrangement = Arrangement.spacedBy(BUTTON_GAP)) {
+                    if (position == WebAppButtonPosition.Left) secondaryButton(Modifier.weight(1f))
+                    mainButton(Modifier.weight(1f))
+                    if (position == WebAppButtonPosition.Right) secondaryButton(Modifier.weight(1f))
+                }
+            else -> Column(verticalArrangement = Arrangement.spacedBy(BUTTON_GAP)) {
+                if (position == WebAppButtonPosition.Top) secondaryButton(Modifier.fillMaxWidth())
+                mainButton(Modifier.fillMaxWidth())
+                if (position == WebAppButtonPosition.Bottom) secondaryButton(Modifier.fillMaxWidth())
+            }
+        }
+    }
+}
+
+/** Jedno tlačítko lišty. Barvu dodá stránka; bez ní [defaultContainer] / [defaultContent]. */
+@Composable
+private fun WebAppBottomButton(
+    button: WebAppButton,
+    defaultContainer: Color,
+    defaultContent: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val container = button.color?.let(::rgbColor) ?: defaultContainer
+    val content = button.textColor?.let(::rgbColor) ?: if (button.color != null) contentOn(container) else defaultContent
+    Button(
+        onClick = onClick,
+        enabled = button.active && !button.progress,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = container,
+            contentColor = content,
+            disabledContainerColor = container.copy(alpha = 0.5f),
+            disabledContentColor = content.copy(alpha = 0.7f),
+        ),
+        modifier = modifier,
+    ) {
+        if (button.progress) {
+            CircularProgressIndicator(color = content, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+        } else {
+            Text(button.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+private val BUTTON_GAP = 8.dp
 
 /**
  * Popup mini aplikace (`web_app_open_popup`). Tlačítek smí být až tři; `destructive` je v chybové

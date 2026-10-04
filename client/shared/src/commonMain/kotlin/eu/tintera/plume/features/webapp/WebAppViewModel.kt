@@ -34,6 +34,10 @@ data class WebAppState(
     val loading: Boolean = true,
     val error: UiText? = null,
     val mainButton: WebAppButton = WebAppButton(),
+    val secondaryButton: WebAppButton = WebAppButton(),
+    val secondaryPosition: WebAppButtonPosition = WebAppButtonPosition.Left,
+    /** Barva spodní lišty s tlačítky; `null` = barva aplikace. RGB. */
+    val bottomBarColor: Int? = null,
     /** Mini aplikace má vlastní „zpět" — šipka a systémové zpět jdou do ní, ne ven. */
     val backVisible: Boolean = false,
     /** Mini aplikace chce, aby se zavření potvrzovalo (rozepsaný formulář). */
@@ -183,6 +187,12 @@ class WebAppViewModel(
             WebAppEvent.RequestSafeArea -> post(WebAppEvents.safeAreaChanged("safe_area_changed"))
             WebAppEvent.RequestContentSafeArea -> post(WebAppEvents.safeAreaChanged("content_safe_area_changed"))
             is WebAppEvent.MainButton -> _state.update { it.copy(mainButton = event.button) }
+            is WebAppEvent.SecondaryButton -> _state.update {
+                it.copy(secondaryButton = event.button, secondaryPosition = event.position)
+            }
+            is WebAppEvent.BottomBarColor -> _state.update {
+                it.copy(bottomBarColor = event.color ?: theme?.let { current -> themeColor(current, event.key) })
+            }
             is WebAppEvent.BackButton -> _state.update { it.copy(backVisible = event.visible) }
             is WebAppEvent.ClosingConfirmation -> _state.update { it.copy(confirmClose = event.needed) }
             is WebAppEvent.OpenLink -> openExternal(event.url)
@@ -212,6 +222,11 @@ class WebAppViewModel(
     fun pressMainButton() {
         val button = _state.value.mainButton
         if (button.visible && button.active && !button.progress) post(WebAppEvents.mainButtonPressed())
+    }
+
+    fun pressSecondaryButton() {
+        val button = _state.value.secondaryButton
+        if (button.visible && button.active && !button.progress) post(WebAppEvents.secondaryButtonPressed())
     }
 
     /** Šipka v hlavičce i systémové zpět: napřed „zpět" mini aplikace, pak zavření. */
@@ -288,5 +303,6 @@ internal fun needsWebAppConsent(confirmedBot: Boolean, app: NamedWebApp?): Boole
 private fun themeColor(theme: WebAppTheme, key: String?): Int? = when (key) {
     "bg_color" -> theme.background
     "secondary_bg_color" -> theme.secondaryBackground
+    "bottom_bar_bg_color" -> theme.bottomBarBackground
     else -> null
 }
