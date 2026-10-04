@@ -800,10 +800,12 @@ internal suspend fun Message.messageMedia(
         transcript = content.videoNote.speechRecognitionResult?.toTranscript(),
     )
 
-    is MessageGame -> MessageMedia.Attachment(
-        label = UiText(Res.string.content_game, content.game.title),
-        thumbnailFileId = content.game.photo.sizes.filterNotNull()
-            .minByOrNull { it.width * it.height }?.photo?.id,
+    is MessageGame -> MessageMedia.Product(
+        kind = ProductKind.Game,
+        title = content.game.title,
+        description = content.game.description,
+        photo = content.game.photo.toMedia(),
+        price = null,
     )
 
     is MessageLocation -> MessageMedia.Location(content.location.latitude, content.location.longitude)
@@ -835,10 +837,14 @@ internal suspend fun Message.messageMedia(
         isThisChat = content.contact.userId != 0L && content.contact.userId == chatId,
     )
 
-    is MessageInvoice -> MessageMedia.Attachment(
-        label = UiText(Res.string.content_invoice, content.productInfo.title),
-        thumbnailFileId = content.productInfo.photo?.sizes?.filterNotNull()
-            ?.minByOrNull { it.width * it.height }?.photo?.id,
+    is MessageInvoice -> MessageMedia.Product(
+        kind = ProductKind.Invoice,
+        title = content.productInfo.title,
+        description = content.productInfo.description.text,
+        photo = content.productInfo.photo?.toMedia(),
+        price = Price(amount = content.totalAmount, currency = content.currency),
+        isTest = content.isTest,
+        isPaid = content.receiptMessageId != 0L,
     )
 
     else -> null

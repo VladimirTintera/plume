@@ -31,11 +31,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.ProductKind
 import eu.tintera.plume.core.telegram.title
 import eu.tintera.plume.core.ui.appendWithCustomEmoji
 import eu.tintera.plume.core.ui.customEmojiInlineContent
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.content_game
+import eu.tintera.plume.resources.content_invoice
 import eu.tintera.plume.resources.conversation_reply
 import eu.tintera.plume.resources.conversation_voice_message
 import eu.tintera.plume.resources.media_photo
@@ -214,6 +217,7 @@ internal fun MessageMedia?.quoteThumbnail(): QuoteThumbnail? = when (this) {
     is MessageMedia.Sticker -> (thumbnailFileId ?: fileId)?.takeUnless { isSensitive }
         ?.let { QuoteThumbnail(it, null, transparent = true) }
     is MessageMedia.Attachment -> thumbnailFileId?.let { QuoteThumbnail(it, null) }
+    is MessageMedia.Product -> photo?.let { QuoteThumbnail(it.thumbnailFileId ?: it.fileId, it.minithumbnail) }
     // Nezaplacené médium: jen rozmazaný náhled, soubor server nevydá.
     is MessageMedia.PaidMedia -> minithumbnail?.let { QuoteThumbnail(null, it, hidden = true) }
     is MessageMedia.AnimatedEmoji, is MessageMedia.Dice, is MessageMedia.VoiceNote,
@@ -294,6 +298,13 @@ internal fun MessageMedia?.describe(): String = when (this) {
     is MessageMedia.Call -> stringResource(outcome.title(isVideo))
     is MessageMedia.Contact -> stringResource(Res.string.content_contact, name.ifBlank { phone })
     is MessageMedia.PaidMedia -> stringResource(Res.string.content_paid)
+    is MessageMedia.Product -> stringResource(
+        when (kind) {
+            ProductKind.Invoice -> Res.string.content_invoice
+            ProductKind.Game -> Res.string.content_game
+        },
+        title,
+    )
     null -> ""
 }
 
