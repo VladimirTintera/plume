@@ -6,12 +6,22 @@ import kotlinx.coroutines.flow.Flow
  * Pozvánky do skupiny nebo kanálu a žádosti o vstup. Spravovat je smí vlastník a správce
  * s právem zvát ([ChatEditRights.canManageInvites]).
  *
- * Seznam obsahuje jen odkazy, které vytvořil **přihlášený účet** — tak je vede i TDLib
- * (`getChatInviteLinks` bere tvůrce). Odkazy ostatních správců vidí jen vlastník a zatím se
- * nenabízejí.
+ * Seznam se vede po tvůrcích — tak je vede i TDLib (`getChatInviteLinks` bere tvůrce).
+ * Vlastní odkazy vidí každý, kdo pozvánky spravuje; odkazy ostatních správců jen vlastník
+ * ([otherAdminsLinks]).
  */
 interface InviteLinkRepository {
-    suspend fun links(chatId: Long): Result<InviteLinks>
+    /** Odkazy jednoho tvůrce; `null` = přihlášený účet. */
+    suspend fun links(chatId: Long, creatorUserId: Long? = null): Result<InviteLinks>
+
+    /**
+     * Ostatní správci, kteří mají odkazy, a kolik jich mají. Jen pro vlastníka — komukoli jinému
+     * server odpoví chybou, a to je prázdný seznam, ne selhání.
+     */
+    suspend fun otherAdminsLinks(chatId: Long): Result<List<AdminInviteLinks>>
+
+    /** Kdo se odkazem přidal, od nejnovějšího. */
+    suspend fun linkMembers(chatId: Long, url: String): Result<List<InviteLinkMember>>
 
     suspend fun create(chatId: Long, draft: InviteLinkDraft): Result<InviteLink>
 
@@ -22,10 +32,14 @@ interface InviteLinkRepository {
 
     suspend fun deleteRevoked(chatId: Long, url: String): Result<Unit>
 
-    suspend fun deleteAllRevoked(chatId: Long): Result<Unit>
+    /** Smaže zrušené odkazy jednoho tvůrce; `null` = přihlášený účet. */
+    suspend fun deleteAllRevoked(chatId: Long, creatorUserId: Long? = null): Result<Unit>
 
-    /** Počet čekajících žádostí o vstup; živě podle `UpdateChatPendingJoinRequests`. */
-    fun pendingJoinRequests(chatId: Long): Flow<Int>
+    /**
+     * Čekající žádosti o vstup: počet a tváře posledních žadatelů; živě podle
+     * `UpdateChatPendingJoinRequests`. Server je posílá jen tomu, kdo žádosti smí vyřizovat.
+     */
+    fun pendingJoinRequests(chatId: Long): Flow<PendingJoinRequests>
 
     suspend fun joinRequests(chatId: Long): Result<List<JoinRequest>>
 
@@ -98,6 +112,41 @@ data class JoinRequest(
     /** Okamžik žádosti (unix, s). */
     val date: Int,
     val bio: String,
+)
+
+/**
+ * Odkazy jiného správce: kdo a kolik platných a zrušených.
+ *
+ * - **Počty se můžou chvíli rozcházet se seznamem** (`getChatInviteLinkCounts`): hned po
+ *   založení odkazů hlásil server u bota 1 platný, zatímco jeho seznam vrátil dva (hlavní
+ *   a založený); po pár minutách už 2. Pravdu má seznam, který se čte při otevření.
+ * - **Odkazy bota smí zrušit a smazat jen bot sám** ([isBot]); vlastníkovi server odpoví
+ *   `EDIT_BOT_INVITE_FORBIDDEN`. Nabízí se proto jen sdílet a kopírovat.
+ */
+data class AdminInviteLinks(
+    val userId: Long,
+    val name: String,
+    val avatarFileId: Int?,
+    val active: Int,
+    val revoked: Int,
+    val isBot: Boolean = false,
+)
+
+/** Kdo se odkazem přidal a kdy. */
+data class InviteLinkMember(
+    val userId: Long,
+    val name: String,
+    val avatarFileId: Int?,
+    /** Okamžik vstupu (unix, s). */
+    val joinedAt: Int,
+    /** Přidal se se sdílenou složkou, ne samotnou pozvánkou. */
+    val viaFolder: Boolean,
+)
+
+/** Čekající žádosti o vstup pro pruh nad konverzací: počet a tváře posledních žadatelů. */
+data class PendingJoinRequests(
+    val count: Int,
+    val recent: List<SenderInfo> = emptyList(),
 )
 
 /** Jak odkaz stojí — podle toho podtitul a jestli ho má smysl kopírovat. */

@@ -61,6 +61,24 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.telegram.AdminInviteLinks
+import eu.tintera.plume.core.telegram.InviteLinkMember
+import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.asDayLabel
+import eu.tintera.plume.resources.group_24dp
+import eu.tintera.plume.resources.invite_links_admin_active
+import eu.tintera.plume.resources.invite_links_admin_empty
+import eu.tintera.plume.resources.invite_links_admin_help
+import eu.tintera.plume.resources.invite_links_admin_bot_help
+import eu.tintera.plume.resources.invite_links_keep
+import eu.tintera.plume.resources.invite_links_admin_revoked
+import eu.tintera.plume.resources.invite_links_admin_title
+import eu.tintera.plume.resources.invite_links_member_joined
+import eu.tintera.plume.resources.invite_links_member_via_folder
+import eu.tintera.plume.resources.invite_links_members
+import eu.tintera.plume.resources.invite_links_members_empty
+import eu.tintera.plume.resources.invite_links_members_title
+import eu.tintera.plume.resources.invite_links_others
 import eu.tintera.plume.core.telegram.INVITE_LINK_NAME_MAX
 import eu.tintera.plume.core.telegram.InviteLink
 import eu.tintera.plume.core.telegram.InviteLinkStatus
@@ -158,6 +176,7 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
     var actionsFor by remember { mutableStateOf<InviteLink?>(null) }
     var confirmRevoke by remember { mutableStateOf<InviteLink?>(null) }
     var confirmDeleteAll by rememberSaveable { mutableStateOf(false) }
+    var confirmDeleteAdminRevoked by remember { mutableStateOf<AdminInviteLinks?>(null) }
 
     Scaffold(
         modifier = modifier,
@@ -201,6 +220,7 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
                         onCopy = { viewModel.copy(primary) },
                         onShare = { viewModel.share(primary) },
                         onReplace = { confirmRevoke = primary },
+                        onMembers = { viewModel.openMembers(primary) },
                     )
                 }
             }
@@ -230,6 +250,19 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
                     onClick = { actionsFor = link },
                     modifier = Modifier.animateItem(),
                 )
+            }
+
+            val others = viewModel.otherAdmins
+            if (others.isNotEmpty()) {
+                item(key = "others-header") { SectionHeader(Res.string.invite_links_others) }
+                itemsIndexed(others, key = { _, admin -> "admin-${admin.userId}" }) { index, admin ->
+                    AdminRow(
+                        admin = admin,
+                        shape = groupItemShape(index, others.size),
+                        onClick = { viewModel.openAdmin(admin) },
+                        modifier = Modifier.animateItem(),
+                    )
+                }
             }
 
             if (links.revoked.isNotEmpty()) {
@@ -263,6 +296,11 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
             onEdit = { viewModel.openEdit(link) },
             onRevoke = { confirmRevoke = link },
             onDelete = { viewModel.deleteRevoked(link) },
+            onMembers = { viewModel.openMembers(link) },
+            // Odkaz jiného správce jen zrušit a smazat — nastavení patří tomu, kdo ho založil.
+            // Odkaz bota ani to: smí ho měnit jen bot sám (`EDIT_BOT_INVITE_FORBIDDEN`).
+            canEdit = viewModel.adminView == null,
+            canManage = viewModel.adminView?.admin?.isBot != true,
         )
     }
 
@@ -289,7 +327,7 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmRevoke = null }) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = { confirmRevoke = null }) { Text(stringResource(Res.string.invite_links_keep)) }
             },
         )
     }
@@ -309,6 +347,42 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
             },
             dismissButton = {
                 TextButton(onClick = { confirmDeleteAll = false }) { Text(stringResource(Res.string.common_cancel)) }
+            },
+        )
+    }
+
+    // Sheety se vrší v pořadí, v jakém se otevírají: odkazy správce, nabídka nad odkazem a nad
+    // ní „Kdo se přidal". Každý je vlastní okno přidané později, takže leží nahoře.
+    viewModel.adminView?.let { view ->
+        AdminLinksSheet(
+            view = view,
+            now = viewModel.now,
+            busy = viewModel.busy,
+            onOpen = { actionsFor = it },
+            onDeleteAllRevoked = { confirmDeleteAdminRevoked = view.admin },
+            onDismiss = viewModel::closeAdmin,
+        )
+    }
+
+    viewModel.membersView?.let { view ->
+        LinkMembersSheet(view = view, onDismiss = viewModel::closeMembers)
+    }
+
+    confirmDeleteAdminRevoked?.let { admin ->
+        AlertDialog(
+            onDismissRequest = { confirmDeleteAdminRevoked = null },
+            title = { Text(stringResource(Res.string.invite_links_delete_all_title)) },
+            text = { Text(stringResource(Res.string.invite_links_delete_all_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDeleteAdminRevoked = null
+                    viewModel.deleteAllRevoked(admin)
+                }) {
+                    Text(stringResource(Res.string.invite_links_delete_all), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDeleteAdminRevoked = null }) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }
@@ -351,7 +425,14 @@ private fun SectionHeader(
  * ikona vedle, tři textová tlačítka by se v češtině na telefon nevešla.
  */
 @Composable
-private fun PrimaryLinkCard(link: InviteLink, busy: Boolean, onCopy: () -> Unit, onShare: () -> Unit, onReplace: () -> Unit) {
+private fun PrimaryLinkCard(
+    link: InviteLink,
+    busy: Boolean,
+    onCopy: () -> Unit,
+    onShare: () -> Unit,
+    onReplace: () -> Unit,
+    onMembers: () -> Unit,
+) {
     Surface(
         shape = RoundedCornerShape(GROUP_CORNER),
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
@@ -365,8 +446,9 @@ private fun PrimaryLinkCard(link: InviteLink, busy: Boolean, onCopy: () -> Unit,
                 overflow = TextOverflow.MiddleEllipsis,
             )
             Text(
-                stringResource(Res.string.invite_links_primary_help) +
-                    if (link.memberCount > 0) " " + pluralStringResource(Res.plurals.invite_link_joined, link.memberCount, link.memberCount.grouped()) else "",
+                // Kolik lidí se přidalo, nese tlačítko „Kdo se přidal" níž — přilepené k téhle větě
+                // vycházelo „…může se přidat. přidali se 2".
+                stringResource(Res.string.invite_links_primary_help),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -384,6 +466,18 @@ private fun PrimaryLinkCard(link: InviteLink, busy: Boolean, onCopy: () -> Unit,
                 }
                 FilledTonalIconButton(onClick = onCopy) {
                     Icon(painterResource(Res.drawable.content_copy_24dp), contentDescription = stringResource(Res.string.invite_links_copy))
+                }
+            }
+            // Hlavním odkazem se přidává nejvíc lidí, a nabídku nad ním (jako u dalších odkazů)
+            // karta nemá — proto vlastní tlačítko.
+            if (link.memberCount > 0) {
+                TextButton(onClick = onMembers, contentPadding = ButtonDefaults.TextButtonWithIconContentPadding) {
+                    Icon(
+                        painterResource(Res.drawable.group_24dp),
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = ButtonDefaults.IconSpacing).size(ButtonDefaults.IconSize),
+                    )
+                    Text(listOf(stringResource(Res.string.invite_links_members), link.memberCount.grouped()).joinToString(" · "))
                 }
             }
         }
@@ -460,6 +554,9 @@ private fun LinkActionsSheet(
     onEdit: () -> Unit,
     onRevoke: () -> Unit,
     onDelete: () -> Unit,
+    onMembers: () -> Unit,
+    canEdit: Boolean,
+    canManage: Boolean,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING)) {
@@ -477,13 +574,17 @@ private fun LinkActionsSheet(
                 modifier = Modifier.padding(start = 16.dp, bottom = 12.dp),
             )
             val actions = buildList {
+                // Kdo se přidal, má smysl i u zrušeného odkazu — lidé ve skupině zůstávají.
+                val members = Triple(Res.string.invite_links_members, Res.drawable.group_24dp, onMembers)
                 if (link.isRevoked) {
-                    add(Triple(Res.string.invite_links_delete, Res.drawable.delete_24dp, onDelete))
+                    if (link.memberCount > 0) add(members)
+                    if (canManage) add(Triple(Res.string.invite_links_delete, Res.drawable.delete_24dp, onDelete))
                 } else {
                     add(Triple(Res.string.invite_links_share, Res.drawable.share_24dp, onShare))
                     add(Triple(Res.string.invite_links_copy, Res.drawable.content_copy_24dp, onCopy))
-                    if (!link.isSubscription) add(Triple(Res.string.invite_links_edit, Res.drawable.edit_24dp, onEdit))
-                    add(Triple(Res.string.invite_links_revoke, Res.drawable.link_off_24dp, onRevoke))
+                    if (link.memberCount > 0) add(members)
+                    if (canEdit && !link.isSubscription) add(Triple(Res.string.invite_links_edit, Res.drawable.edit_24dp, onEdit))
+                    if (canManage) add(Triple(Res.string.invite_links_revoke, Res.drawable.link_off_24dp, onRevoke))
                 }
             }
             actions.forEachIndexed { index, (label, icon, action) ->
@@ -649,4 +750,167 @@ private fun <T> ChoiceGroup(
             }
         }
     }
+}
+
+/** Správce s odkazy: tvář, jméno a kolik jich má (platných a zrušených). */
+@Composable
+private fun AdminRow(admin: AdminInviteLinks, shape: Shape, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    ListItem(
+        headlineContent = { Text(admin.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        supportingContent = { Text(adminSummary(admin)) },
+        leadingContent = { Avatar(chatId = admin.userId, title = admin.name, avatarFileId = admin.avatarFileId, size = 40.dp) },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        modifier = modifier.clip(shape).clickable(onClick = onClick),
+    )
+}
+
+@Composable
+private fun adminSummary(admin: AdminInviteLinks): String = listOfNotNull(
+    admin.active.takeIf { it > 0 }?.let { pluralStringResource(Res.plurals.invite_links_admin_active, it, it.grouped()) },
+    admin.revoked.takeIf { it > 0 }?.let { pluralStringResource(Res.plurals.invite_links_admin_revoked, it, it.grouped()) },
+).joinToString(" · ")
+
+/**
+ * Odkazy jednoho z ostatních správců: platné, pod nimi zrušené. Ťuknutí otevře tutéž nabídku
+ * jako u vlastních odkazů, jen bez úpravy ([onOpen]).
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun AdminLinksSheet(
+    view: AdminLinksView,
+    now: Long,
+    busy: Boolean,
+    onOpen: (InviteLink) -> Unit,
+    onDeleteAllRevoked: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    // Odkazů bývá víc než na půl obrazovky; napůl rozbalený sheet by zrušené schoval pod okraj.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        LazyColumn(
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+        ) {
+            item(key = "title") {
+                Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
+                    Text(
+                        stringResource(Res.string.invite_links_admin_title, view.admin.name),
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    Text(
+                        stringResource(if (view.admin.isBot) Res.string.invite_links_admin_bot_help else Res.string.invite_links_admin_help),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                    // Snackbar obrazovky by zůstal pod sheetem, takže selhaná akce se hlásí tady.
+                    view.error?.let { error ->
+                        Text(
+                            error.resolve(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+                }
+            }
+            val links = view.links
+            when {
+                links == null -> item(key = "loading") {
+                    Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                        if (!view.failed) LoadingIndicator()
+                    }
+                }
+                links.active.isEmpty() && links.revoked.isEmpty() -> item(key = "empty") {
+                    Text(
+                        stringResource(Res.string.invite_links_admin_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+                else -> {
+                    itemsIndexed(links.active, key = { _, link -> "active-${link.url}" }) { index, link ->
+                        LinkRow(link = link, now = now, shape = groupItemShape(index, links.active.size), onClick = { onOpen(link) })
+                    }
+                    if (links.revoked.isNotEmpty()) {
+                        item(key = "revoked-header") {
+                            SectionHeader(Res.string.invite_links_revoked_section, first = links.active.isEmpty()) {
+                                if (!view.admin.isBot) {
+                                    TextButton(onClick = onDeleteAllRevoked, enabled = !busy) {
+                                        Text(stringResource(Res.string.invite_links_delete_all))
+                                    }
+                                }
+                            }
+                        }
+                        itemsIndexed(links.revoked, key = { _, link -> "revoked-${link.url}" }) { index, link ->
+                            LinkRow(link = link, now = now, shape = groupItemShape(index, links.revoked.size), onClick = { onOpen(link) })
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Kdo se přidal odkazem, od nejnovějšího. Server vrací jen ty, kdo ve skupině pořád jsou —
+ * počet u odkazu (`memberCount`) počítá i ty, kdo mezitím odešli, takže seznam může být kratší.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun LinkMembersSheet(view: LinkMembersView, onDismiss: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        LazyColumn(
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+        ) {
+            item(key = "title") {
+                Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
+                    Text(stringResource(Res.string.invite_links_members_title), style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        view.link.name.ifBlank { view.link.shortUrl() },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.MiddleEllipsis,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            }
+            val members = view.members
+            when {
+                members == null -> item(key = "loading") {
+                    Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                        if (!view.failed) LoadingIndicator()
+                    }
+                }
+                members.isEmpty() -> item(key = "empty") {
+                    Text(
+                        stringResource(Res.string.invite_links_members_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+                else -> itemsIndexed(members, key = { _, member -> "member-${member.userId}" }) { index, member ->
+                    MemberRow(member, groupItemShape(index, members.size))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MemberRow(member: InviteLinkMember, shape: Shape) {
+    val joined = stringResource(Res.string.invite_links_member_joined, member.joinedAt.asDayLabel())
+    val via = if (member.viaFolder) stringResource(Res.string.invite_links_member_via_folder) else null
+    ListItem(
+        headlineContent = { Text(member.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        supportingContent = { Text(listOfNotNull(joined, via).joinToString(" · ")) },
+        leadingContent = { Avatar(chatId = member.userId, title = member.name, avatarFileId = member.avatarFileId, size = 40.dp) },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        modifier = Modifier.clip(shape),
+    )
 }

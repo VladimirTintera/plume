@@ -44,6 +44,7 @@ import eu.tintera.plume.core.ui.AutoDeleteBadge
 import eu.tintera.plume.core.ui.longPress
 import eu.tintera.plume.core.telegram.BotMenuApp
 import eu.tintera.plume.core.telegram.VideoChatInfo
+import eu.tintera.plume.core.telegram.PendingJoinRequests
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.MessageSchedule
@@ -433,6 +434,8 @@ fun ConversationScreen(
     onSwitchInline: (SwitchInlinePick) -> Unit = {},
     /** Pruh „Pozvat členy" nad čerstvou skupinou: výběr lidí. */
     onAddMembers: () -> Unit = {},
+    /** Pruh s čekajícími žádostmi o vstup: otevře jejich seznam. */
+    onOpenJoinRequests: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
@@ -530,6 +533,11 @@ fun ConversationScreen(
 
     val chatBar by viewModel.chatBar.collectAsStateWithLifecycle()
     val videoChat by viewModel.videoChat.collectAsStateWithLifecycle()
+    val joinRequests by viewModel.joinRequests.collectAsStateWithLifecycle()
+    // ✕ schová pruh do té doby, než přibude další žádost — pamatuje se počet, u kterého se
+    // schoval. Napořád by správce o nové žádosti nevěděl; při každém otevření chatu by zase
+    // otravoval tím, co už viděl.
+    var joinRequestsHiddenAt by rememberSaveable(viewModel.chatId) { mutableIntStateOf(0) }
     val spamBar = chatBar as? SpamBar
     var confirmSharePhone by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(chatBar) { if (chatBar !is SharePhoneBar) confirmSharePhone = false }
@@ -2312,6 +2320,31 @@ fun ConversationScreen(
                             onDismiss = viewModel::dismissChatBar,
                         )
                         null -> Unit
+                    }
+                }
+                // Žádosti o vstup hned pod spamem: čekají na rozhodnutí, jako on.
+                val shownJoinRequests = joinRequests?.takeIf { it.count > joinRequestsHiddenAt }
+                val lastJoinRequests = remember { arrayOf<PendingJoinRequests?>(null) }
+                if (shownJoinRequests != null) lastJoinRequests[0] = shownJoinRequests
+                AnimatedVisibility(
+                    visible = shownJoinRequests != null && !chatHidden,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut(),
+                ) {
+                    lastJoinRequests[0]?.let { requests ->
+                        JoinRequestsBar(
+                            requests = requests,
+                            onClick = onOpenJoinRequests,
+                            onHide = { joinRequestsHiddenAt = requests.count },
+                            glass = Modifier.hazeBlur(
+                                input = HazeInput.Sources(listHaze),
+                                style = glassStyle(
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    alpha = GLASS_TEXT_TINT_ALPHA,
+                                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                                ),
+                            ),
+                        )
                     }
                 }
                 // Videochat mezi spamem a připnutými: o dění v chatu, ne o obsahu.

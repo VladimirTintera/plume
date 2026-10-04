@@ -5860,8 +5860,26 @@ testy `InviteLinkEditorTest`).
   telefon nevešla), u dalších odkazů je „Sdílet" první položka nabídky. Odkaz se zakládá, aby
   šel někomu poslat — i mimo Telegram. Ověřeno na emulátoru: nabídka se otevře s adresou,
   zpět vrátí do Plume; skutečné odeslání se nezkoušelo.
-- **Seznam odkazů je jen vlastní** (`getChatInviteLinks` bere tvůrce): hlavní odkaz, další
-  odkazy a zrušené. Odkazy ostatních správců vidí jen vlastník a zatím se nenabízejí.
+- **Seznam odkazů je vlastní** (`getChatInviteLinks` bere tvůrce): hlavní odkaz, další
+  odkazy a zrušené. **Odkazy ostatních správců vidí jen vlastník** — sekce pod vlastními
+  (`getChatInviteLinkCounts`, ostatním správcům vrací chybu, a to je prázdná sekce, ne
+  selhání) a ťuknutí na správce otevře sheet s jeho odkazy. Vlastník je smí zrušit a smazat,
+  **upravit ne** — nastavení patří tomu, kdo odkaz založil, takže nabídka nad cizím odkazem
+  „Upravit" nemá.
+- **Odkazy bota smí zrušit a smazat jen bot sám.** Vlastníkovi server odpoví
+  `EDIT_BOT_INVITE_FORBIDDEN`; sheet bota proto nabízí jen sdílet a kopírovat a řekne proč
+  (`AdminInviteLinks.isBot`). Našlo se to až zkouškou — z dokumentace to poznat nejde.
+- **Počty u správce se můžou chvíli rozcházet se seznamem.** Hned po založení dvou odkazů hlásil
+  server u bota 1 platný, jeho seznam vrátil dva (hlavní a založený), po pár minutách 2. Pravdu
+  má seznam, který se čte při otevření sheetu.
+- **Chyba akce v sheetu se ukazuje v sheetu** (`AdminLinksView.error`), ne snackbarem —
+  ten by zůstal pod modálním sheetem a selhání by vypadalo jako ťuknutí, které nic neudělalo.
+  Přesně tak se schoval `EDIT_BOT_INVITE_FORBIDDEN` při první zkoušce.
+- **Kdo se přidal** (`getChatInviteLinkMembers`, stránky po 100 přes `offsetMember`): sheet
+  s tváří, jménem, dnem vstupu a „přes sdílenou složku". Na kartě hlavního odkazu je tlačítko
+  „Kdo se přidal · N" (nabídku nad sebou karta nemá), u dalších odkazů položka nabídky —
+  i u zrušeného, lidé ve skupině zůstávají. Jen s `memberCount > 0`.
+- **Dialog zrušení odkazu má „Ponechat", ne „Zrušit"** — česky by byla obě tlačítka „Zrušit".
 - **Po každé změně se seznam čte znovu**, nic se nepřepisuje lokálně — zrušení hlavního odkazu
   vyrobí na serveru nový a jeho adresu zná jen server. Hlavní odkaz se proto „vyměňuje", ne ruší.
 - **Se schvalováním se limit nesmí poslat** — TDLib `member_limit` u odkazu se žádostmi odmítne.
@@ -5882,6 +5900,34 @@ testy `InviteLinkEditorTest`).
   (limit zmizel, platnost zůstala), zrušení s potvrzením, smazání zrušených, prázdné žádosti,
   anglicky i česky. **Skutečná žádost o vstup ověřená NENÍ** — bot se přes pozvánku nepřidá,
   chce to druhý účet; seznam žádostí jen podstrčenými daty a vyřízení vůbec.
+- **Odkazy ostatních správců ověřené skutečnými daty**: testovací bot je v testovací skupině
+  správce s právem zvát a odkazy si zakládá a ruší přes Bot API (`createChatInviteLink`,
+  `revokeChatInviteLink`). „Kdo se přidal" s lidmi jen sondou (přidat se odkazem chce druhý
+  účet), prázdný seznam skutečně.
+
+#### Pruh s čekajícími žádostmi
+
+Nad konverzací skupiny nebo kanálu, kde jsou žádosti o vstup, je pruh „5 žádostí o vstup"
+s tvářemi posledních žadatelů a jmény (`JoinRequestsBar`, `InviteLinkRepository
+.pendingJoinRequests` → `PendingJoinRequests`). Ťuknutí otevře Žádosti o vstup, ✕ ho schová.
+
+- **Kdo pruh vidí, rozhoduje TDLib**: `Chat.pendingJoinRequests` dostane jen správce, který
+  žádosti smí vyřizovat — aplikace práva neřeší.
+- **✕ schová pruh, dokud nepřibude další žádost** (pamatuje se počet, `rememberSaveable` podle
+  chatu). Napořád by správce o nové žádosti nevěděl, při každém otevření chatu by zase ukazoval
+  totéž.
+- **Tvarem a sklem jako videochat a připnuté**, hned pod pruhem spamu — obojí čeká na
+  rozhodnutí. Ve vlákně komentářů není, v tématu skupiny ano (žádosti patří skupině).
+- **Ověřeno sondou** (podstrčený počet a žadatelé pro testovací skupinu): pruh v tématu
+  General, ťuknutí na žádosti, ✕. Skutečná žádost chce druhý účet.
+
+#### Povýšení na správce s výchozími právy
+
+Při povýšení jsou předvyplněná výchozí práva (`AdminRights.Default`) a „Uložit" bylo zašedlé:
+porovnání s `MemberDetail.adminRights` vyšlo „beze změny", protože u nesprávce nese právě tu
+výchozí nabídku. **Povýšit šlo jen s upraveným přepínačem.** Povýšení je proto změna i bez
+úprav (`MemberRightsViewModel.changed`). Našlo se to až povýšením bota v testovací skupině —
+předchozí ověření správy členů skutečné uložení nezkoušelo.
 
 ### Sdílená média v profilu
 

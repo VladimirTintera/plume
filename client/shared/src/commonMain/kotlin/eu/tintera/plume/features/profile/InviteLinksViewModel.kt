@@ -8,7 +8,9 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.telegram.AdminInviteLinks
 import eu.tintera.plume.core.telegram.InviteLink
+import eu.tintera.plume.core.telegram.InviteLinkMember
 import eu.tintera.plume.core.telegram.InviteLinkRepository
 import eu.tintera.plume.core.telegram.InviteLinks
 import eu.tintera.plume.core.telegram.userMessage
@@ -19,6 +21,7 @@ import eu.tintera.plume.resources.invite_links_copied
 import eu.tintera.plume.resources.invite_links_created
 import eu.tintera.plume.resources.invite_links_delete_failed
 import eu.tintera.plume.resources.invite_links_load_failed
+import eu.tintera.plume.resources.invite_links_members_failed
 import eu.tintera.plume.resources.invite_links_revoke_failed
 import eu.tintera.plume.resources.invite_links_revoked
 import eu.tintera.plume.resources.invite_links_save_failed
@@ -32,6 +35,10 @@ import org.jetbrains.compose.resources.StringResource
  *
  * **Po každé změně se seznam čte znovu** ([reload]), nic se nepřepisuje lokálně — zrušení
  * hlavního odkazu vyrobí na serveru nový a jeho adresu zná jen server.
+ *
+ * Vlastník vidí i odkazy ostatních správců ([otherAdmins], otevřené v [adminView]) a smí je
+ * zrušit a smazat; upravit je aplikace nenabízí — byly by to cizí nastavení, která správce
+ * nastavil pro sebe. U každého odkazu jde zjistit, kdo se jím přidal ([membersView]).
  */
 class InviteLinksViewModel(
     private val chatId: Long,
@@ -53,6 +60,18 @@ class InviteLinksViewModel(
 
     /** Otevřený formulář odkazu; `null` = zavřený. */
     var editor by mutableStateOf<InviteLinkEditor?>(null)
+        private set
+
+    /** Ostatní správci s odkazy — jen pro vlastníka, ostatním prázdné. */
+    var otherAdmins by mutableStateOf<List<AdminInviteLinks>>(emptyList())
+        private set
+
+    /** Otevřené odkazy jednoho z ostatních správců; `null` = zavřené. */
+    var adminView by mutableStateOf<AdminLinksView?>(null)
+        private set
+
+    /** Otevřený seznam lidí, kteří se přidali odkazem; `null` = zavřený. */
+    var membersView by mutableStateOf<LinkMembersView?>(null)
         private set
 
     /** Jednorázová hláška pro snackbar; obrazovka ji po zobrazení vynuluje. */
@@ -77,6 +96,56 @@ class InviteLinksViewModel(
                     notice = failure.reported(Res.string.invite_links_load_failed)
                 }
         }
+        viewModelScope.launch {
+            // Ostatní správce vidí jen vlastník; komukoli jinému je prázdný seznam správně.
+            otherAdmins = repository.otherAdminsLinks(chatId).getOrDefault(emptyList())
+        }
+        adminView?.let { loadAdmin(it.admin) }
+    }
+
+    fun openAdmin(admin: AdminInviteLinks) {
+        adminView = AdminLinksView(admin)
+        loadAdmin(admin)
+    }
+
+    fun closeAdmin() {
+        adminView = null
+    }
+
+    private fun loadAdmin(admin: AdminInviteLinks) {
+        viewModelScope.launch {
+            repository.links(chatId, creatorUserId = admin.userId)
+                .onSuccess { links ->
+                    // Mezitím zavřený nebo jiný správce: odpověď už nepatří tomu, co je vidět.
+                    if (adminView?.admin?.userId == admin.userId) adminView = adminView?.copy(links = links)
+                }
+                .onFailure { failure ->
+                    if (adminView?.admin?.userId == admin.userId) {
+                        adminView = adminView?.copy(failed = true)
+                        notice = failure.reported(Res.string.invite_links_load_failed)
+                    }
+                }
+        }
+    }
+
+    fun openMembers(link: InviteLink) {
+        membersView = LinkMembersView(link)
+        viewModelScope.launch {
+            repository.linkMembers(chatId, link.url)
+                .onSuccess { members ->
+                    if (membersView?.link?.url == link.url) membersView = membersView?.copy(members = members)
+                }
+                .onFailure { failure ->
+                    if (membersView?.link?.url == link.url) {
+                        membersView = membersView?.copy(failed = true)
+                        notice = failure.reported(Res.string.invite_links_members_failed)
+                    }
+                }
+        }
+    }
+
+    fun closeMembers() {
+        membersView = null
     }
 
     fun copy(link: InviteLink) {
@@ -137,8 +206,9 @@ class InviteLinksViewModel(
         repository.deleteRevoked(chatId, link.url)
     }
 
-    fun deleteAllRevoked() = act(Res.string.invite_links_delete_failed) {
-        repository.deleteAllRevoked(chatId)
+    /** Smaže zrušené odkazy přihlášeného účtu, nebo otevřeného správce ([admin]). */
+    fun deleteAllRevoked(admin: AdminInviteLinks? = null) = act(Res.string.invite_links_delete_failed) {
+        repository.deleteAllRevoked(chatId, creatorUserId = admin?.userId)
     }
 
     private fun act(failed: StringResource, done: StringResource? = null, action: suspend () -> Result<Unit>) {
@@ -148,9 +218,15 @@ class InviteLinksViewModel(
             action()
                 .onSuccess {
                     done?.let { notice = UiText(it) }
+                    adminView = adminView?.copy(error = null)
                     reload()
                 }
-                .onFailure { notice = it.reported(failed) }
+                .onFailure { failure ->
+                    val message = failure.reported(failed)
+                    // Nad otevřeným sheetem správce by snackbar nebyl vidět.
+                    val view = adminView
+                    if (view != null) adminView = view.copy(error = message) else notice = message
+                }
             busy = false
         }
     }
@@ -161,3 +237,19 @@ class InviteLinksViewModel(
         return userMessage(fallback)
     }
 }
+
+/** Odkazy jednoho z ostatních správců; [links] `null` = načítají se. */
+data class AdminLinksView(
+    val admin: AdminInviteLinks,
+    val links: InviteLinks? = null,
+    val failed: Boolean = false,
+    /** Poslední selhaná akce nad odkazy správce. */
+    val error: UiText? = null,
+)
+
+/** Kdo se přidal odkazem; [members] `null` = načítají se. */
+data class LinkMembersView(
+    val link: InviteLink,
+    val members: List<InviteLinkMember>? = null,
+    val failed: Boolean = false,
+)

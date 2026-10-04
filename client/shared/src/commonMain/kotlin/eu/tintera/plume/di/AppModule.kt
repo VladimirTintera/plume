@@ -347,6 +347,7 @@ fun appModule() = module {
             botStartRequests = get(),
             replyRequests = get(),
             inlineQueryRequests = get(),
+            inviteLinks = get(),
         )
     }
 

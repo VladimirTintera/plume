@@ -15,7 +15,9 @@ import eu.tintera.plume.resources.join_requests_approved
 import eu.tintera.plume.resources.join_requests_declined
 import eu.tintera.plume.resources.join_requests_failed
 import eu.tintera.plume.resources.join_requests_load_failed
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 
@@ -55,7 +57,7 @@ class JoinRequestsViewModel(
         reload()
         viewModelScope.launch {
             // První hodnota je současný počet, ten už seznam má.
-            repository.pendingJoinRequests(chatId).drop(1).collect { reload() }
+            repository.pendingJoinRequests(chatId).map { it.count }.distinctUntilChanged().drop(1).collect { reload() }
         }
     }
 

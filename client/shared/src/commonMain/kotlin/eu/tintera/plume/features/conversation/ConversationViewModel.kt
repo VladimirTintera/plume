@@ -22,6 +22,8 @@ import eu.tintera.plume.core.telegram.BotCommandItem
 import kotlinx.coroutines.flow.flowOf
 import eu.tintera.plume.resources.video_chat_join_elsewhere
 import eu.tintera.plume.core.telegram.VideoChatInfo
+import eu.tintera.plume.core.telegram.InviteLinkRepository
+import eu.tintera.plume.core.telegram.PendingJoinRequests
 import eu.tintera.plume.core.telegram.BotChatRequest
 import eu.tintera.plume.core.telegram.BotMenuApp
 import eu.tintera.plume.core.telegram.BotUsersRequest
@@ -203,6 +205,7 @@ import eu.tintera.plume.resources.spam_bar_failed
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -288,6 +291,8 @@ class ConversationViewModel(
     private val replyRequests: ConversationReplyRequests,
     /** Inline dotaz z tlačítka bota v jiném chatu ([BotButtonKind.SwitchInline]). */
     private val inlineQueryRequests: InlineQueryRequests,
+    /** Jen kvůli pruhu s čekajícími žádostmi o vstup (vidí ho správce, který je smí vyřizovat). */
+    private val inviteLinks: InviteLinkRepository,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -349,6 +354,17 @@ class ConversationViewModel(
      */
     val videoChat: StateFlow<VideoChatInfo?> =
         (if (threadRootId == null) chatRepository.videoChat(chatId) else flowOf(null))
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * Čekající žádosti o vstup pro pruh nad konverzací. TDLib je posílá jen správci, který je smí
+     * vyřizovat (`Chat.pendingJoinRequests`), takže tu o právech rozhodovat netřeba. Ve vlákně
+     * komentářů ne, ze stejného důvodu jako videochat.
+     */
+    val joinRequests: StateFlow<PendingJoinRequests?> =
+        (if (threadRootId == null) inviteLinks.pendingJoinRequests(chatId) else flowOf(null))
+            .map { requests -> requests?.takeIf { it.count > 0 } }
+            .distinctUntilChanged()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Ťuknutí na pruh videochatu: připojit se jde zatím jen jinde. */
