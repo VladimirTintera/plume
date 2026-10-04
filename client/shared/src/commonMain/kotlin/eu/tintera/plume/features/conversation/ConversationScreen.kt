@@ -43,6 +43,7 @@ import eu.tintera.plume.core.ui.rememberAfterKeyboardHidden
 import eu.tintera.plume.core.ui.AutoDeleteBadge
 import eu.tintera.plume.core.ui.longPress
 import eu.tintera.plume.core.telegram.BotMenuApp
+import eu.tintera.plume.core.telegram.VideoChatInfo
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.MessageSchedule
@@ -525,6 +526,7 @@ fun ConversationScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val chatBar by viewModel.chatBar.collectAsStateWithLifecycle()
+    val videoChat by viewModel.videoChat.collectAsStateWithLifecycle()
     val spamBar = chatBar as? SpamBar
     var confirmSharePhone by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(chatBar) { if (chatBar !is SharePhoneBar) confirmSharePhone = false }
@@ -2297,6 +2299,29 @@ fun ConversationScreen(
                             onDismiss = viewModel::dismissChatBar,
                         )
                         null -> Unit
+                    }
+                }
+                // Videochat mezi spamem a připnutými: o dění v chatu, ne o obsahu.
+                val lastVideoChat = remember { arrayOf<VideoChatInfo?>(null) }
+                if (videoChat != null) lastVideoChat[0] = videoChat
+                AnimatedVisibility(
+                    visible = videoChat != null && !chatHidden,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut(),
+                ) {
+                    lastVideoChat[0]?.let { info ->
+                        VideoChatBar(
+                            info = info,
+                            onClick = viewModel::explainVideoChat,
+                            glass = Modifier.hazeBlur(
+                                input = HazeInput.Sources(listHaze),
+                                style = glassStyle(
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    alpha = GLASS_TEXT_TINT_ALPHA,
+                                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                                ),
+                            ),
+                        )
                     }
                 }
                 AnimatedVisibility(

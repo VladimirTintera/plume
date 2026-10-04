@@ -88,6 +88,12 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import dev.g000sha256.tdl.dto.GroupCall
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -857,6 +863,49 @@ class TdlChatRepository(
             .onStart { emit(Unit) }
             .map { client.getChat(chatId = chatId).toResult().getOrNull()?.chatBar() }
             .distinctUntilChanged()
+
+    /**
+     * Chat říká, ŽE videochat je (`groupCallId`, nula = není), hovor, kolik v něm je lidí a jestli
+     * teprve začne. Při změně hovoru se odběr přepne (`flatMapLatest`).
+     *
+     * **Pruh se ukáže hned, i když se hovor nenačte** (počet pak chybí): `getGroupCall` jde na
+     * server a pruh, který naskočí až po něm, by poskočil. Skončený hovor (`isActive = false`
+     * a nic naplánovaného) pruh schová, i kdyby update chatu ještě nedorazil.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun videoChat(chatId: Long): Flow<VideoChatInfo?> =
+        holder.updates { chatVideoChatUpdates }
+            .filter { it.chatId == chatId }
+            .map { it.videoChat.groupCallId }
+            .onStart { emit(client.getChat(chatId = chatId).toResult().getOrNull()?.videoChat?.groupCallId ?: 0) }
+            .distinctUntilChanged()
+            .flatMapLatest { callId -> if (callId == 0) flowOf(null) else groupCall(chatId, callId) }
+            .distinctUntilChanged()
+
+    private fun groupCall(chatId: Long, callId: Int): Flow<VideoChatInfo?> = flow {
+        val isChannel = (client.getChat(chatId = chatId).toResult().getOrNull()?.type as? ChatTypeSupergroup)?.isChannel == true
+        emit(VideoChatInfo(isLiveStream = isChannel, participantCount = null, scheduledStart = null, title = ""))
+        client.getGroupCall(groupCallId = callId).toResult()
+            .onSuccess { emit(it.toVideoChatInfo(isChannel)) }
+            .onFailure { logger.w(it) { "Videochat $callId chatu $chatId se nepodařilo načíst." } }
+        emitAll(
+            holder.updates { groupCallUpdates }
+                .filter { it.groupCall.id == callId }
+                .map { it.groupCall.toVideoChatInfo(isChannel) },
+        )
+    }
+
+    private fun GroupCall.toVideoChatInfo(isChannel: Boolean): VideoChatInfo? =
+        if (!isActive && scheduledStartDate == 0) {
+            null
+        } else {
+            VideoChatInfo(
+                isLiveStream = isChannel || isRtmpStream,
+                participantCount = participantCount,
+                scheduledStart = scheduledStartDate.takeIf { it > 0 },
+                title = title,
+            )
+        }
 
     override suspend fun dismissChatBar(chatId: Long): Result<Unit> =
         client.removeChatActionBar(chatId = chatId).toResult().map { }
