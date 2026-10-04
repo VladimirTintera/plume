@@ -276,8 +276,8 @@ Co zbývá:
   čtením kódu; `adb input` dvojité ťuknutí nestihne a štípnutí neumí.
 - **Samolepky `.webm`** (VP9 s průhledností) jsou pořád jen statický náhled — potřebují
   softwarový dekodér (libvpx), iOS WebM neumí vůbec.
-- **Průběh stahování originálu.** `RemoteImage` ukazuje náhled z bubliny, dokud nedorazí ostrá
-  verze, ale u velké fotky na pomalé síti není poznat, že se něco děje.
+- ~~**Průběh stahování originálu.**~~ — hotovo (lesk přes zmenšeninu, dokud se ostrá verze
+  stahuje; `CLAUDE.md`, „Soubory a média").
 
 ## E) Skryté fotky a časovaná média — HOTOVO
 

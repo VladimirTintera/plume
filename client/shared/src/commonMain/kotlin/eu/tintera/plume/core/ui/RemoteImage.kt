@@ -90,12 +90,18 @@ fun RemoteImage(
                     if (placeholder != null) BlurredPlaceholder(placeholder, contentScale)
                 }
             } else {
+                // Zmenšenina místo ostré verze, která se teprve stahuje (prohlížeč médií nad
+                // velkou fotkou): bez lesku by stála, jako by víc nebylo. Náhled nese jen fotka,
+                // takže pruh je vždycky ten nad fotkou.
+                val sharpening = current != readyPath && state is FileState.Downloading
                 AsyncImage(
                     // Coil potřebuje schéma; holá cesta by se vyhodnotila jako relativní URI.
                     model = "file://$current",
                     contentDescription = contentDescription,
                     contentScale = contentScale,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(if (sharpening) Modifier.loadingShimmer(onPhoto = true) else Modifier),
                 )
             }
         }
