@@ -75,10 +75,13 @@ import androidx.compose.material3.AppBarWithSearch
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.ExpandedFullScreenSearchBar
 import eu.tintera.plume.core.ui.LocalTwoPane
+import eu.tintera.plume.core.ui.PopupBackAfterKeyboard
+import eu.tintera.plume.core.ui.popupDismissesOnBack
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.material3.ExpandedDockedSearchBarWithGap
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -319,11 +322,25 @@ internal fun ChatSearchBar(
      * Material doporučuje přesně tohle: docked na střední a velké šířce, full screen na telefonu.
      */
     if (LocalTwoPane.current) {
+        /*
+         * Zpět má napřed schovat klávesnici, teprve další zpět hledání zavřít — jako na telefonu.
+         * Panel je popup a ten si na Androidu 13+ bere zpět PŘED klávesnicí: zavřel hledání
+         * i s ní. Zavírá ho proto `PopupBackAfterKeyboard`, až když klávesnice vidět není; jestli
+         * je, ví jen okno popupu (klávesnice patří jemu), tak sedí v poli uvnitř.
+         */
         CompositionLocalProvider(LocalDockedResults provides true) {
             ExpandedDockedSearchBarWithGap(
                 state = searchBarState,
-                inputField = inputField,
+                inputField = {
+                    PopupBackAfterKeyboard { collapse() }
+                    inputField()
+                },
                 colors = colors.searchBarColors,
+                properties = PopupProperties(
+                    focusable = true,
+                    clippingEnabled = false,
+                    dismissOnBackPress = popupDismissesOnBack,
+                ),
                 content = results,
             )
         }

@@ -2033,9 +2033,24 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
   komponenta sama, takže výsledky v panelu spodní inset NEBEROU (`LocalDockedResults`) — jinak by
   pod posledním výsledkem zůstala mezera o výšku klávesnice. Obsah (`SearchResults`) je pro obě
   podoby jeden.
-- **V panelu zavře zpět s otevřenou klávesnicí celé hledání**, na telefonu (celá obrazovka) jen
-  klávesnici. Panel je fokusovatelný popup s vlastním `BackHandler`; zatím se to nechává jako
-  chování komponenty.
+- **Zpět v panelu napřed schová klávesnici, teprve další zpět zavře hledání** (`PopupBackAfterKeyboard`
+  v `core/ui/PopupBack.kt`), jako na telefonu. Panel je popup a dvě věci to rozbíjely:
+  - **Popup si na Androidu 13+ registruje zpět s `PRIORITY_OVERLAY`**, takže předběhne
+    klávesnici, a registruje ho JEN při připojení okna — změna `dismissOnBackPress` za běhu se už
+    nepromítne (přečteno ve zdroji `AndroidPopup.android.kt`). Proto `dismissOnBackPress = false`
+    (`popupDismissesOnBack`) a vlastní callback přímo v okně popupu (`PopupBackHandler`,
+    `view.findOnBackInvokedDispatcher()`). Vnitřní `BackHandler` komponenty i `NavigationBackHandler`
+    jdou přes dispatcher aktivity a zpět z okna popupu k nim nedojde — bez vlastního callbacku
+    druhé zpět nedělalo nic.
+  - **Callback je zapnutý pořád a rozhoduje až při vyvolání** (klávesnice vidět → schovat, jinak
+    zavřít). Nezáleží pak na tom, do kterého okna si klávesnice registruje vlastní zpět, ani kdy
+    během gesta zhasne `isImeVisible`. Klávesa zpět jde do klávesnice sama.
+  - **Ověřuje se gestem v horní půlce obrazovky.** `input swipe` od levého okraje ve výšce těsně
+    nad klávesnicí (y = 1100 na rozloženém Foldu) systém jako gesto zpět nevzal — v logu nebyl
+    `startBackNavigation` — a tah dopadl do závoje popupu jako ťuknutí, takže zavřel hledání
+    i s klávesnicí; vypadalo to, že oprava nefunguje. Proč zrovna tam, zjištěné není. Ve výšce
+    700 gesto prošlo. Jestli zpět opravdu proběhlo, říká `adb logcat | grep
+    startBackNavigation` (`CoreBackPreview`).
 - **Spodní inset si berou seznamy výsledků, ne `ExpandedFullScreenSearchBar`.** Jeho výchozí
   `windowInsets` je `safeDrawing` a spodek dává obsahu jako padding, takže výsledky končily
   useknuté nad navigační lištou na holé ploše. Hledání dostane jen `Top + Horizontal`, seznamy
