@@ -194,4 +194,15 @@ class TopicWriteAccessTest {
         // Kdo ve skupině není, se to má dozvědět — ne že je téma uzavřené.
         assertEquals(WriteAccess.NotMember, topicWriteAccess(WriteAccess.NotMember, OwnMemberStatus.Left, topicClosed = true))
     }
+
+    @Test
+    fun diskusniSkupinaDovoliPsatBezVstupu() {
+        assertEquals(WriteAccess.Allowed, writeAccess(false, OwnMemberStatus.Left, membersCanSend = true, nonMembersCanSend = true))
+        // Výchozí práva skupiny platí i pro nečlena.
+        assertEquals(WriteAccess.Restricted, writeAccess(false, OwnMemberStatus.Left, membersCanSend = false, nonMembersCanSend = true))
+        assertEquals(WriteAccess.NotMember, writeAccess(false, OwnMemberStatus.Left, membersCanSend = true, nonMembersCanSend = false))
+        // Vyhozenému to nepomůže, kanálu taky ne.
+        assertEquals(WriteAccess.NotMember, writeAccess(false, OwnMemberStatus.Banned, membersCanSend = true, nonMembersCanSend = true))
+        assertEquals(WriteAccess.NotMember, writeAccess(true, OwnMemberStatus.Left, membersCanSend = true, nonMembersCanSend = true))
+    }
 }

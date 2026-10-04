@@ -7488,10 +7488,10 @@ a kořenová zpráva), a otevře se `ConversationRoute(chatId = skupina, threadI
   hledání prošlo celou diskusní skupinu a koncept skončil v jejím hlavním chatu i v seznamu
   chatů. Koncept skupiny zůstává nedotčený; odpověď kořeni se z obnoveného konceptu zahazuje —
   je to výchozí cíl komentáře, ne citace.
-- **Ověřeno na emulátoru** (FilipHorky – zprávy, bez členství): „binance" našlo ve vlákně 6
-  výsledků a všechny se otevřou ve vlákně. Koncept **jen sondou** (do vlákna bez členství pole
-  není): uložený koncept vlákna se přečetl zpátky, koncept skupiny zůstal prázdný, a sonda ho
-  zase smazala. Obnova konceptu do pole ověřená není — chce vlákno, kam účet smí psát.
+- **Ověřeno na emulátoru** (FilipHorky – zprávy, bez členství, diskusní skupina psaní bez
+  vstupu dovoluje): „binance" našlo ve vlákně 6 výsledků a všechny se otevřou ve vlákně; pole
+  místo „Přidat se"; rozepsaný komentář se po odchodu a návratu vrátil do pole a po smazání
+  zmizel. Koncept skupiny zůstal prázdný (ověřeno sondou). **Nic se neodeslalo.**
 - **Nepřečtené komentáře jsou vlákna, ne skupiny**: otevření skočí na první nepřečtený
   s předělem nad ním, jako v chatu. Počet dá `getMessageThread` (`unreadMessageCount`),
   vlákno ho podstrčí do `chatInfo` místo počtu skupiny (`ThreadConversationRepository`).
@@ -7512,9 +7512,12 @@ a kořenová zpráva), a otevře se `ConversationRoute(chatId = skupina, threadI
   po skoku propadne; když se neskáče, odejde.
 - **Hlavička: „Komentáře" a pod tím název skupiny**, bez sdílených prvků — vlákno je jiná
   obrazovka než chat skupiny a klíč by se přetahoval s položkou v seznamu.
-- **Psát jde jen jako člen skupiny.** Nečlen vidí „Přidat se" (`writeAccess`). Skupina smí
-  psaní bez vstupu povolit (`Supergroup.joinToSendMessages == false`) a oficiální klient pak
-  komentovat nechá — to zatím neumíme.
+- **Komentovat jde i bez vstupu do skupiny, když to skupina dovolí**
+  (`Supergroup.joinToSendMessages == false` → `writeAccess(nonMembersCanSend)`, testy
+  `WriteAccessTest`). Nečlen pak má pole, ne „Přidat se" (`canJoin` je `false`), a platí pro něj
+  výchozí práva skupiny; vyhozenému to nepomůže. Jinak vidí „Přidat se". Bot API pole
+  `join_to_send_messages` u skupiny, která psaní bez vstupu dovoluje, vůbec neposílá — tak se
+  pozná diskusní skupina k ověření (`getChat` na `linked_chat_id` kanálu).
 - **Čip nese tváře posledních komentujících místo ikony** (`MessageReplyInfo.recentReplierIds` →
   `PostStats.commenters`, nejvýš `MAX_RECENT_COMMENTERS` = 3, jména z keše odesílatelů). Kreslí je
   tentýž `FaceStack` (`core/ui`) jako tváře hlasujících v anketě — dvě kopie hromádky by se
