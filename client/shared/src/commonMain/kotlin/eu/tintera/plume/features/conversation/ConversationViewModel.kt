@@ -782,8 +782,6 @@ class ConversationViewModel(
 
     /** Lupa v hlavičce: hledání v chatu. */
     fun openSearch() {
-        // Hledání ve vlákně by hledalo v celé diskusní skupině (`searchChatMessages` bez tématu).
-        if (threadRootId != null) return
         if (_state.value.search == null) _state.update { it.copy(search = InChatSearch()) }
     }
 

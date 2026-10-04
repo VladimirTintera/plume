@@ -7480,10 +7480,18 @@ a kořenová zpráva), a otevře se `ConversationRoute(chatId = skupina, threadI
   když přijde prázdná stránka (začátek vlákna), a stránka „od kořene" je vždycky prázdná.
 - **Citace kořene se nekreslí** (`state.threadRootId` v builderu, test
   `veVlaknuSeKorenNecituje`) — odpovídá mu skoro každý komentář.
-- **Ve vlákně se vypíná, co patří chatu skupiny:** koncept (objevil by se v hlavním chatu),
-  „píše…" (viděla by ho celá skupina), připnuté zprávy, reklamy, počty zmínek a reakcí (jsou za
-  skupinu), hledání (`searchChatMessages` bez tématu hledá v celé skupině), shrnutí, profil
+- **Ve vlákně se vypíná, co patří chatu skupiny:** „píše…" (viděla by ho celá skupina),
+  připnuté zprávy, reklamy, počty zmínek a reakcí (jsou za skupinu), shrnutí, profil
   z hlavičky a ankety (zakládá je obrazovka, která o vláknu neví).
+- **Hledání a koncept patří VLÁKNU** (`searchInThread`, `saveThreadDraft` s `MessageTopicThread`;
+  koncept se čte z `MessageThreadInfo.draftMessage`, `CommentThread.draft`). Bez tématu by
+  hledání prošlo celou diskusní skupinu a koncept skončil v jejím hlavním chatu i v seznamu
+  chatů. Koncept skupiny zůstává nedotčený; odpověď kořeni se z obnoveného konceptu zahazuje —
+  je to výchozí cíl komentáře, ne citace.
+- **Ověřeno na emulátoru** (FilipHorky – zprávy, bez členství): „binance" našlo ve vlákně 6
+  výsledků a všechny se otevřou ve vlákně. Koncept **jen sondou** (do vlákna bez členství pole
+  není): uložený koncept vlákna se přečetl zpátky, koncept skupiny zůstal prázdný, a sonda ho
+  zase smazala. Obnova konceptu do pole ověřená není — chce vlákno, kam účet smí psát.
 - **Nepřečtené komentáře jsou vlákna, ne skupiny**: otevření skočí na první nepřečtený
   s předělem nad ním, jako v chatu. Počet dá `getMessageThread` (`unreadMessageCount`),
   vlákno ho podstrčí do `chatInfo` místo počtu skupiny (`ThreadConversationRepository`).

@@ -46,6 +46,32 @@ interface ConversationRepository {
      */
     suspend fun threadHistory(chatId: Long, threadId: Long, fromMessageId: Long, limit: Int, offset: Int): Result<List<ChatMessage>>
 
+    /**
+     * Totéž co [searchInChat], jen ve vlákně komentářů [threadId] (`searchChatMessages`
+     * s `MessageTopicThread`). Bez tématu by se hledalo v celé diskusní skupině.
+     */
+    suspend fun searchInThread(
+        chatId: Long,
+        threadId: Long,
+        query: String,
+        fromMessageId: Long = 0,
+        senderUserId: Long? = null,
+    ): Result<ChatSearchPage> = Result.success(ChatSearchPage(messageIds = emptyList(), total = 0, nextFromMessageId = null))
+
+    /**
+     * Totéž co [saveDraft], jen koncept vlákna komentářů [threadId]. Vlákno ho drží zvlášť od
+     * chatu skupiny — koncept skupiny by se objevil v jejím hlavním chatu a v seznamu chatů.
+     */
+    suspend fun saveThreadDraft(
+        chatId: Long,
+        threadId: Long,
+        text: String,
+        replyToMessageId: Long?,
+        linkPreview: LinkPreviewOptions? = null,
+        quote: ReplyQuote? = null,
+        formats: List<FormatSpan> = emptyList(),
+    ): Result<Unit> = Result.success(Unit)
+
     /** Nové zprávy v tomhle chatu, jak přicházejí. */
     fun newMessages(chatId: Long): Flow<ChatMessage>
 
@@ -1237,6 +1263,17 @@ data class CommentThread(
     val lastReadMessageId: Long = 0,
     /** Nepřečtené komentáře; počet chatu je za celou diskusní skupinu, tenhle jen za vlákno. */
     val unreadCount: Int = 0,
+    /** Rozepsaný komentář (`MessageThreadInfo.draftMessage`), `null` = žádný. */
+    val draft: SavedDraft? = null,
+)
+
+/** Uložený koncept, jak ho vrátí TDLib: text s ručním formátováním, odpověď a volba náhledu. */
+data class SavedDraft(
+    val text: String,
+    val formats: List<FormatSpan> = emptyList(),
+    val replyToMessageId: Long? = null,
+    val quote: ReplyQuote? = null,
+    val linkPreview: LinkPreviewOptions? = null,
 )
 
 /**
