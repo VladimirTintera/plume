@@ -1524,6 +1524,21 @@
     <string name="invite_links_primary">Primary link</string>
     <string name="invite_links_primary_help">Anyone with the link can join.</string>
     <string name="profile_share_contact">Share contact</string>
+    <string name="add_members_title">Add members</string>
+    <string name="add_subscribers_title">Add subscribers</string>
+    <string name="add_members_search">Search people</string>
+    <string name="add_members_confirm_count">Add (%1$d)</string>
+    <string name="add_members_failed">Could not add the people.</string>
+    <string name="add_members_invite_failed">Could not send the invite link.</string>
+    <plurals name="add_members_refused_title">
+        <item quantity="one">%1$d person couldn’t be added</item>
+        <item quantity="other">%1$d people couldn’t be added</item>
+    </plurals>
+    <string name="add_members_refused_text">Their privacy settings don’t allow adding them: %1$s. You can send them an invite link so they can join themselves.</string>
+    <string name="add_members_refused_text_no_link">Their privacy settings don’t allow adding them: %1$s.</string>
+    <string name="add_members_refused_invite">Send invite link</string>
+    <string name="chat_bar_invite_members_hint">Invite people to your new group.</string>
+    <string name="chat_bar_invite_members">Invite members</string>
     <string name="share_contact_title">Send contact to</string>
     <string name="share_contact_hidden_phone">Hides their number — can’t be sent</string>
     <string name="share_contact_send">Send (%1$d)</string>

@@ -29,6 +29,7 @@ import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSecret
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.FormattedText
+import dev.g000sha256.tdl.dto.InputMessageText
 import dev.g000sha256.tdl.dto.InputChatPhotoStatic
 import dev.g000sha256.tdl.dto.InputFileLocal
 import dev.g000sha256.tdl.dto.MessageSenderUser
@@ -86,6 +87,11 @@ class TdlProfileRepository(
                     canListMembers = true,
                     inviteLink = full?.inviteLink?.inviteLink?.takeIf { it.isNotBlank() },
                     isMember = client.ownMemberStatus(chat).isMember(),
+                    canAddMembers = canInviteMembers(
+                        status = client.ownMemberStatus(chat),
+                        isChannel = false,
+                        membersCanInvite = chat.permissions.canInviteUsers,
+                    ),
                     editRights = chatEditRights(
                         isChannel = false,
                         status = client.ownMemberStatus(chat),
@@ -110,6 +116,11 @@ class TdlProfileRepository(
                         client.ownMemberStatus(chat).let { it !is OwnMemberStatus.Creator && it !is OwnMemberStatus.Admin },
                     inviteLink = full?.inviteLink?.inviteLink?.takeIf { it.isNotBlank() },
                     isMember = client.ownMemberStatus(chat).isMember(),
+                    canAddMembers = canInviteMembers(
+                        status = client.ownMemberStatus(chat),
+                        isChannel = type.isChannel,
+                        membersCanInvite = chat.permissions.canInviteUsers,
+                    ),
                     editRights = chatEditRights(
                         isChannel = type.isChannel,
                         status = client.ownMemberStatus(chat),
@@ -548,6 +559,41 @@ class TdlProfileRepository(
     /** Heslo jde rovnou do TDLib a nikde se nedrží — ani v logu, ani ve stavu obrazovky. */
     override suspend fun transferOwnership(chatId: Long, userId: Long, password: String): Result<Unit> =
         client.transferChatOwnership(chatId = chatId, userId = userId, password = password).toResult().map { }
+
+    override suspend fun addMembers(chatId: Long, userIds: List<Long>): Result<List<Long>> = runCatching {
+        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+        val failed = if (chat.type is ChatTypeBasicGroup) {
+            // Základní skupina bere jen po jednom; první chyba (ne soukromí) zastaví zbytek a ohlásí se.
+            userIds.flatMap { userId ->
+                client.addChatMember(chatId = chatId, userId = userId, forwardLimit = BASIC_GROUP_HISTORY)
+                    .toResult().getOrThrow().failedToAddMembers.toList()
+            }
+        } else {
+            client.addChatMembers(chatId = chatId, userIds = userIds.toLongArray())
+                .toResult().getOrThrow().failedToAddMembers.toList()
+        }
+        failed.filterNotNull().map { it.userId }
+    }
+
+    override suspend fun sendInviteLink(userIds: List<Long>, link: String): Result<Unit> = runCatching {
+        // Server odkaz v textu sám neoznačí; bez entity by u příjemce nešel ťuknout.
+        val entities = client.getTextEntities(text = link).toResult().getOrNull()?.entities ?: emptyArray()
+        userIds.forEach { userId ->
+            val chat = client.createPrivateChat(userId = userId, force = false).toResult().getOrThrow()
+            client.sendMessage(
+                chatId = chat.id,
+                topicId = null,
+                replyTo = null,
+                options = null,
+                replyMarkup = null,
+                inputMessageContent = InputMessageText(
+                    text = FormattedText(text = link, entities = entities),
+                    linkPreviewOptions = null,
+                    clearDraft = false,
+                ),
+            ).toResult().getOrThrow()
+        }
+    }
 
     /** Druh chatu z pohledu správy členů; `null` = soukromý chat, tam se nespravuje nic. */
     private fun Chat.memberGroupKind(): MemberGroupKind? = when (val type = type) {

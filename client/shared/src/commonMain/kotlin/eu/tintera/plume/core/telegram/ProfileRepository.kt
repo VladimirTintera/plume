@@ -139,7 +139,26 @@ interface ProfileRepository {
      * ověření — to jde rovnou do TDLib a nikde se nedrží.
      */
     suspend fun transferOwnership(chatId: Long, userId: Long, password: String): Result<Unit>
+
+    /**
+     * Přidá [userIds] do skupiny nebo kanálu. Vrací ty, které server nepřidal kvůli JEJICH
+     * nastavení soukromí (nedovolují, aby je někdo přidával) — přidaní ostatních tím neselže.
+     *
+     * Supergroup a kanál berou všechny naráz (`addChatMembers`); základní skupina jen po jednom
+     * (`addChatMember`) a novému členovi rovnou přepošle posledních [BASIC_GROUP_HISTORY]
+     * zpráv, jako oficiální klienti — jinak by vstoupil do skupiny, ve které nic nevidí.
+     */
+    suspend fun addMembers(chatId: Long, userIds: List<Long>): Result<List<Long>>
+
+    /**
+     * Pošle [link] (pozvánku) každému z [userIds] do soukromého chatu. Pro ty, které server
+     * přidat nedovolil ([addMembers]): přes pozvánku se přidají sami.
+     */
+    suspend fun sendInviteLink(userIds: List<Long>, link: String): Result<Unit>
 }
+
+/** Kolik posledních zpráv uvidí nový člen základní skupiny (`forwardLimit`, server bere nejvýš 100). */
+const val BASIC_GROUP_HISTORY = 100
 
 /** Chat otevřený k úpravě: co se dá změnit a jak to teď vypadá. */
 data class EditableChat(
@@ -230,6 +249,8 @@ data class ChatProfile(
      * a kanálu jen s právem měnit údaje chatu — tak ho vyžaduje `setChatMessageAutoDeleteTime`.
      */
     val canSetAutoDelete: Boolean = false,
+    /** Smí uživatel do skupiny nebo kanálu přidávat lidi ([canInviteMembers]). */
+    val canAddMembers: Boolean = false,
     /** Bot má hlavní mini aplikaci (`UserTypeBot.hasMainWebApp`): profil nabídne „Otevřít aplikaci". */
     val hasMainWebApp: Boolean = false,
 ) {

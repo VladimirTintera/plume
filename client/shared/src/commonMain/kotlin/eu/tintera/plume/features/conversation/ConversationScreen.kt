@@ -385,6 +385,7 @@ import kotlin.time.Clock
 import kotlinx.coroutines.flow.debounce
 import eu.tintera.plume.core.telegram.SpamBar
 import eu.tintera.plume.core.telegram.ChatBar
+import eu.tintera.plume.core.telegram.InviteMembersBar
 import eu.tintera.plume.core.telegram.JoinRequestBar
 import eu.tintera.plume.core.telegram.SharePhoneBar
 import eu.tintera.plume.features.report.ReportHost
@@ -430,6 +431,8 @@ fun ConversationScreen(
     onAddBotToGroup: (InternalLink.BotStartInGroup) -> Unit = {},
     /** Tlačítko bota s inline dotazem do jiného chatu: výběr chatu. */
     onSwitchInline: (SwitchInlinePick) -> Unit = {},
+    /** Pruh „Pozvat členy" nad čerstvou skupinou: výběr lidí. */
+    onAddMembers: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
@@ -2293,9 +2296,10 @@ fun ConversationScreen(
                             onUnarchive = viewModel::unarchiveFromSpamBar,
                             onDismiss = viewModel::dismissChatBar,
                         )
-                        SharePhoneBar, is JoinRequestBar -> ChatNoticeBarCard(
+                        SharePhoneBar, InviteMembersBar, is JoinRequestBar -> ChatNoticeBarCard(
                             bar = bar,
                             onSharePhone = { confirmSharePhone = true },
+                            onInviteMembers = onAddMembers,
                             onDismiss = viewModel::dismissChatBar,
                         )
                         null -> Unit

@@ -2,6 +2,8 @@ package eu.tintera.plume.app.shell
 
 import eu.tintera.plume.features.forward.ShareContactScreen
 import eu.tintera.plume.core.navigation.ShareContactRoute
+import eu.tintera.plume.core.navigation.AddMembersRoute
+import eu.tintera.plume.features.profile.AddMembersScreen
 import eu.tintera.plume.features.profile.JoinRequestsScreen
 import eu.tintera.plume.features.profile.InviteLinksScreen
 import eu.tintera.plume.core.navigation.JoinRequestsRoute
@@ -475,6 +477,7 @@ private fun shellEntryProvider(
             onOpenBotShare = { request -> chatsStack.add(botShareRoute(route.chatId, request)) },
             onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
             onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
+            onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
         )
     }
 
@@ -535,6 +538,7 @@ private fun shellEntryProvider(
             onChatGone = { chatsStack.closeChat(route.chatId) },
             onEdit = { if (chatsStack.lastOrNull() != EditChatRoute(route.chatId)) chatsStack.add(EditChatRoute(route.chatId)) },
             onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(userId)) },
+            onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
             onOpenMemberRights = { userId, admin ->
                 chatsStack.add(MemberRightsRoute(route.chatId, userId, admin))
             },
@@ -647,6 +651,7 @@ private fun shellEntryProvider(
             onOpenBotShare = { request -> chatsStack.add(botShareRoute(route.chatId, request)) },
             onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
             onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
+            onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
         )
     }
 
@@ -679,6 +684,7 @@ private fun shellEntryProvider(
                 }
             },
             onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(userId)) },
+            onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
             onOpenMemberRights = { userId, admin ->
                 chatsStack.add(ArchiveMemberRightsRoute(route.chatId, userId, admin))
             },
@@ -836,6 +842,14 @@ private fun shellEntryProvider(
             chat = chat,
             onBack = { chatsStack.pop(route) },
             onShared = { chatsStack.pop(route) },
+        )
+    }
+
+    entry<AddMembersRoute> { route ->
+        AddMembersScreen(
+            viewModel = koinViewModel(key = "add-members-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+            onDone = { chatsStack.pop(route) },
         )
     }
 

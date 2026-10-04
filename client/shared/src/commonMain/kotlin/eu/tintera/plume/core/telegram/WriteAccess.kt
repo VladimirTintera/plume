@@ -249,3 +249,10 @@ internal fun canAddBot(status: OwnMemberStatus?, membersCanInvite: Boolean, asAd
         is OwnMemberStatus.Restricted -> !asAdmin && status.isMember && status.canInviteUsers
         OwnMemberStatus.Left, OwnMemberStatus.Banned -> false
     }
+
+/**
+ * Smí uživatel do skupiny nebo kanálu přidávat lidi? Totéž pravidlo jako u bota bez práv správce
+ * ([canAddBot]); v kanálu členové zvát nesmí nikdy ([isChannel]), tam je to jen pro správce.
+ */
+internal fun canInviteMembers(status: OwnMemberStatus?, isChannel: Boolean, membersCanInvite: Boolean): Boolean =
+    canAddBot(status, membersCanInvite = !isChannel && membersCanInvite, asAdmin = false)
