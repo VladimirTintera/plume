@@ -736,6 +736,13 @@
     <string name="notification_channel_channels_description">Příspěvky v kanálech</string>
     <string name="notification_channel_mentions">Zmínky a odpovědi</string>
     <string name="notification_channel_mentions_description">Když tě někdo zmíní nebo odpoví na tvou zprávu, i ve ztlumeném chatu</string>
+    <string name="notification_channel_calls">Hovory</string>
+    <string name="notification_channel_calls_description">Příchozí hovory. Přijmout je jde zatím jen v oficiální aplikaci Telegramu.</string>
+    <string name="notification_call_voice">Volá ti</string>
+    <string name="notification_call_video">Volá ti s videem</string>
+    <string name="notification_call_answer_elsewhere">Přijmout jde zatím jen v oficiální aplikaci Telegramu.</string>
+    <string name="notification_call_decline">Odmítnout</string>
+    <string name="notification_call_unknown">Neznámý volající</string>
     <string name="notification_self_name">Já</string>
     <string name="notification_reply">Odpovědět</string>
     <string name="notification_mark_read">Označit jako přečtené</string>

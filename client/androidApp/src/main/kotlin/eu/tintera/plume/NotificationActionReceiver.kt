@@ -56,6 +56,17 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 }
             }
 
+            NotificationIntents.ACTION_DECLINE_CALL -> {
+                val callId = intent.getIntExtra(NotificationIntents.EXTRA_CALL_ID, 0)
+                val isVideo = intent.getBooleanExtra(NotificationIntents.EXTRA_IS_VIDEO, false)
+                if (callId == 0) return
+                runAsync {
+                    koin.get<NotificationActions>().declineCall(callId, isVideo, READY_TIMEOUT)
+                        // Notifikaci stáhne TDLib: hovor skončil.
+                        .onSuccess { logger.d { "Hovor $callId z notifikace odmítnut." } }
+                }
+            }
+
             NotificationIntents.ACTION_MUTE -> runAsync {
                 koin.get<NotificationActions>().mute(chatId, READY_TIMEOUT)
                     // Notifikaci stáhne TDLib sám: ztlumený chat z aktivních notifikací vyřadí.

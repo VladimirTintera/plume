@@ -157,7 +157,7 @@ fun appModule() = module {
 
     // Odpověď z notifikace. Nad ConversationRepository, ne v něm: jde o pořadí kroků (odeslat,
     // dočkat se potvrzení, pak teprve přečíst), ne o další volání TDLib.
-    single { NotificationActions(session = get(), conversations = get(), chats = get()) }
+    single { NotificationActions(session = get(), conversations = get(), chats = get(), notifications = get()) }
 
     // Eagerně: v konstruktoru se přihlašuje k `fileUpdates` a průběh stahování chodí pro všechny
     // soubory. Při líné konstrukci by se ztratily updaty k souborům, jejichž stahování už běží.

@@ -729,6 +729,13 @@
     <string name="notification_channel_channels_description">Posts in channels</string>
     <string name="notification_channel_mentions">Mentions and replies</string>
     <string name="notification_channel_mentions_description">When someone mentions you or replies to your message, even in a muted chat</string>
+    <string name="notification_channel_calls">Calls</string>
+    <string name="notification_channel_calls_description">Incoming calls. For now you can only answer them in the official Telegram app.</string>
+    <string name="notification_call_voice">Calling you</string>
+    <string name="notification_call_video">Video calling you</string>
+    <string name="notification_call_answer_elsewhere">For now you can only answer in the official Telegram app.</string>
+    <string name="notification_call_decline">Decline</string>
+    <string name="notification_call_unknown">Unknown caller</string>
     <string name="notification_self_name">Me</string>
     <string name="notification_reply">Reply</string>
     <string name="notification_mark_read">Mark as read</string>
