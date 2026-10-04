@@ -110,7 +110,7 @@ interface ChatFolderRepository {
     suspend fun folder(id: Int): Result<ChatFolderDraft>
     suspend fun create(draft: ChatFolderDraft): Result<Int>
     suspend fun edit(id: Int, draft: ChatFolderDraft): Result<Unit>
-    suspend fun delete(id: Int): Result<Unit>
+    suspend fun delete(id: Int): Result<Unit> = delete(id, emptyList())
     suspend fun reorder(ids: List<Int>, mainPosition: Int): Result<Unit>
     suspend fun recommended(): Result<List<RecommendedChatFolder>>
     /**
@@ -122,8 +122,33 @@ interface ChatFolderRepository {
     suspend fun addChat(folderId: Int, chatId: Long): Result<Unit>
     suspend fun removeChat(folderId: Int, chatId: Long): Result<Unit>
 
+    /**
+     * Chaty, které by se měly opustit spolu se smazanou sdílenou složkou — ty, ke kterým se
+     * uživatel připojil přes její odkaz (`getChatFolderChatsToLeave`). U vlastní složky prázdné.
+     */
+    suspend fun chatsToLeave(folderId: Int): Result<List<Long>>
+
+    /** Smaže složku a opustí vybrané chaty z [chatsToLeave]. */
+    suspend fun delete(id: Int, leaveChatIds: List<Long>): Result<Unit>
+
     /** Vlastní odkazy na sdílenou složku. */
     suspend fun links(folderId: Int): Result<List<ChatFolderLink>>
+
+    /** Chaty složky, které do odkazu smí: skupiny a kanály, kam smí uživatel zvát. */
+    suspend fun shareableChats(folderId: Int): Result<List<Long>>
+
+    /** Nový název odkazu (prázdný = bez názvu) a chaty, které nabízí. */
+    suspend fun editLink(folderId: Int, url: String, name: String, chatIds: List<Long>): Result<ChatFolderLink>
+
+    /**
+     * Chaty, které autor sdílené složky přidal po tom, co si ji uživatel přidal
+     * (`getChatFolderNewChats`). Server to chce volat nejvýš jednou za
+     * `chat_folder_new_chats_update_period` — hlídá to volající.
+     */
+    suspend fun newChats(folderId: Int): Result<List<Long>>
+
+    /** Připojí se k [chatIds] z nových chatů složky; ostatní nové chaty se tím zahodí jako viděné. */
+    suspend fun processNewChats(folderId: Int, chatIds: List<Long>): Result<Unit>
 
     /**
      * Nový odkaz se všemi chaty složky, které sdílet jde (skupiny a kanály, kam smí zvát;

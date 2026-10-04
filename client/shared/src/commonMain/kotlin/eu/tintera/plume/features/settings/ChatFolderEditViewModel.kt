@@ -25,6 +25,7 @@ import eu.tintera.plume.resources.chat_folder_load_failed
 import eu.tintera.plume.resources.chat_folder_save_failed
 import eu.tintera.plume.resources.chat_folder_share_delete_failed
 import eu.tintera.plume.resources.chat_folder_share_failed
+import eu.tintera.plume.resources.chat_folder_share_save_failed
 import eu.tintera.plume.resources.chat_folder_share_nothing
 import eu.tintera.plume.resources.invite_links_copied
 import eu.tintera.plume.resources.invite_links_created
@@ -69,6 +70,10 @@ data class ChatFolderEditState(
     /** Vytváří nebo maže se odkaz — tlačítka nejdou zmáčknout podruhé. */
     val linkBusy: Boolean = false,
     val notice: UiText? = null,
+    /** Potvrzení smazání; `null` = zavřené. */
+    val deleteRequest: FolderDeleteRequest? = null,
+    /** Otevřený odkaz (úprava názvu a chatů); `null` = zavřený. */
+    val linkEditor: FolderLinkEditor? = null,
 ) {
     /** Co se kreslí: vybraná ikona, jinak ta, kterou vybere Telegram. */
     val shownIconName: String? get() = draft.iconName ?: defaultIconName
@@ -245,11 +250,42 @@ class ChatFolderEditViewModel(
         }
     }
 
+    /**
+     * Otevře potvrzení smazání. U přidané sdílené složky se napřed zjistí, ke kterým chatům se
+     * uživatel připojil přes její odkaz (`getChatFolderChatsToLeave`) — potvrzení je nabídne
+     * k opuštění, jako oficiální klienti. Bez nich je to obyčejné „Smazat složku?".
+     */
+    fun requestDelete() {
+        val id = local.value.folderId.takeIf { it != 0 } ?: return
+        local.update { it.copy(deleteRequest = FolderDeleteRequest()) }
+        viewModelScope.launch {
+            val leave = folders.chatsToLeave(id)
+                .onFailure { failure -> logger.w(failure) { "Chaty k opuštění se složkou $id se nepodařilo zjistit." } }
+                .getOrDefault(emptyList())
+            val summaries = if (leave.isEmpty()) emptyList() else chats.summaries(leave)
+            local.update { state ->
+                state.deleteRequest?.let {
+                    state.copy(deleteRequest = it.copy(chats = summaries, leave = summaries.mapTo(LinkedHashSet()) { chat -> chat.id }))
+                } ?: state
+            }
+        }
+    }
+
+    fun toggleLeave(chatId: Long) {
+        local.update { state ->
+            val request = state.deleteRequest ?: return@update state
+            state.copy(deleteRequest = request.copy(leave = if (chatId in request.leave) request.leave - chatId else request.leave + chatId))
+        }
+    }
+
+    fun cancelDelete() = local.update { it.copy(deleteRequest = null) }
+
     fun delete() {
         val id = local.value.folderId.takeIf { it != 0 } ?: return
-        local.update { it.copy(saving = true) }
+        val leave = local.value.deleteRequest?.leave.orEmpty().toList()
+        local.update { it.copy(saving = true, deleteRequest = null) }
         viewModelScope.launch {
-            folders.delete(id)
+            folders.delete(id, leave)
                 .onSuccess { done.value = true }
                 .onFailure { failure ->
                     logger.w(failure) { "Složku $id se nepodařilo smazat." }
@@ -309,10 +345,69 @@ class ChatFolderEditViewModel(
         }
     }
 
+    /** Otevře odkaz: název, chaty, které nabízí, kopírování, sdílení a smazání. */
+    fun openLink(link: ChatFolderLink) {
+        val id = local.value.folderId
+        local.update { it.copy(linkEditor = FolderLinkEditor(link = link, name = link.name, selected = link.chatIds.toSet())) }
+        viewModelScope.launch {
+            val ids = folders.shareableChats(id)
+                .onFailure { failure -> logger.w(failure) { "Chaty pro odkaz na složku $id se nepodařilo zjistit." } }
+                .getOrDefault(emptyList())
+            // Chat, který odkaz nese, se nabídne i tehdy, když už sdílet nejde — jinak by ho
+            // nešlo z odkazu odebrat.
+            val summaries = chats.summaries((link.chatIds + ids).distinct())
+            local.update { state -> state.copy(linkEditor = state.linkEditor?.copy(chats = summaries)) }
+        }
+    }
+
+    fun closeLink() = local.update { it.copy(linkEditor = null) }
+
+    fun setLinkName(name: String) = local.update { state ->
+        state.copy(linkEditor = state.linkEditor?.copy(name = name.take(LINK_NAME_MAX)))
+    }
+
+    fun toggleLinkChat(chatId: Long) = local.update { state ->
+        val editor = state.linkEditor?.takeUnless { it.saving } ?: return@update state
+        state.copy(linkEditor = editor.copy(selected = if (chatId in editor.selected) editor.selected - chatId else editor.selected + chatId))
+    }
+
+    fun saveLink() {
+        val editor = local.value.linkEditor?.takeUnless { it.saving || !it.canSave } ?: return
+        val id = local.value.folderId
+        local.update { it.copy(linkEditor = editor.copy(saving = true, error = null)) }
+        viewModelScope.launch {
+            val order = editor.chats?.map { it.id }.orEmpty()
+            folders.editLink(id, editor.link.url, editor.name, order.filter { it in editor.selected })
+                .onSuccess {
+                    local.update { state -> state.copy(linkEditor = null) }
+                    reloadLinks()
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Odkaz na složku $id se nepodařilo upravit." }
+                    local.update { state ->
+                        state.copy(
+                            linkEditor = state.linkEditor?.copy(
+                                saving = false,
+                                error = failure.userMessage(Res.string.chat_folder_share_save_failed),
+                            ),
+                        )
+                    }
+                }
+        }
+    }
+
     fun copyLink(link: ChatFolderLink) {
         viewModelScope.launch {
             clipboard.copy(link.url)
-            local.update { it.copy(notice = UiText(Res.string.invite_links_copied)) }
+            local.update { state ->
+                // V otevřeném odkazu potvrdí kopírování ikona — snackbar by zůstal pod sheetem.
+                val editor = state.linkEditor?.takeIf { it.link.url == link.url }
+                if (editor != null) {
+                    state.copy(linkEditor = editor.copy(copied = true))
+                } else {
+                    state.copy(notice = UiText(Res.string.invite_links_copied))
+                }
+            }
         }
     }
 
@@ -328,6 +423,7 @@ class ChatFolderEditViewModel(
         viewModelScope.launch {
             folders.deleteLink(id, link.url)
                 .onSuccess {
+                    local.update { it.copy(linkEditor = null) }
                     // Seznam se čte znovu, ale po smazání POSLEDNÍHO odkazu server chvíli
                     // odpovídá `FILTER_ID_INVALID` — složka přestává být sdílená. Smazaný odkaz
                     // proto zmizí hned, ať čtení dopadne jakkoli.
@@ -337,7 +433,11 @@ class ChatFolderEditViewModel(
                 }
                 .onFailure { failure ->
                     logger.w(failure) { "Odkaz na složku $id se nepodařilo smazat." }
-                    local.update { it.copy(error = failure.userMessage(Res.string.chat_folder_share_delete_failed)) }
+                    val message = failure.userMessage(Res.string.chat_folder_share_delete_failed)
+                    local.update { state ->
+                        val editor = state.linkEditor
+                        if (editor != null) state.copy(linkEditor = editor.copy(error = message)) else state.copy(error = message)
+                    }
                 }
             local.update { it.copy(linkBusy = false) }
         }
@@ -351,3 +451,36 @@ class ChatFolderEditViewModel(
         local.update { it.copy(error = null) }
     }
 }
+
+/**
+ * Potvrzení smazání složky. [chats] jsou chaty, ke kterým se uživatel připojil přes odkaz
+ * složky (`null` = ještě se zjišťuje), [leave] ty z nich, které opustí.
+ */
+data class FolderDeleteRequest(
+    val chats: List<ChatSummary>? = null,
+    val leave: Set<Long> = emptySet(),
+)
+
+/** Otevřený odkaz na složku: název a chaty, které nabízí ([chats] `null` = načítají se). */
+data class FolderLinkEditor(
+    val link: ChatFolderLink,
+    val name: String,
+    val selected: Set<Long>,
+    val chats: List<ChatSummary>? = null,
+    val saving: Boolean = false,
+    /** Adresa je ve schránce — ikona kopírování se změní na fajfku. */
+    val copied: Boolean = false,
+    /**
+     * Chyba uložení. Hlásí ji sheet sám: snackbar obrazovky je pod modálním sheetem schovaný
+     * a vypadalo by to, že Uložit nic neudělalo.
+     */
+    val error: UiText? = null,
+) {
+    val changed: Boolean get() = name.trim() != link.name || selected != link.chatIds.toSet()
+
+    /** Odkaz bez chatů server odmítne („Folder must contain at least 1 chat"). */
+    val canSave: Boolean get() = changed && selected.isNotEmpty() && chats != null
+}
+
+/** Nejdelší název odkazu, který server přijme. */
+const val LINK_NAME_MAX = 32

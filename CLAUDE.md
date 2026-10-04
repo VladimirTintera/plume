@@ -1778,6 +1778,29 @@ z `checkChatFolderInviteLink`), v editoru vlastní složky je sekce Sdílení s 
   dál schovával druhy chatů u složky, která sdílená už nebyla.
 - **Po smazání posledního odkazu vrátí `getChatFolderInviteLinks` chvíli `FILTER_ID_INVALID`**,
   proto smazaný odkaz zmizí ze seznamu hned, ať čtení dopadne jakkoli.
+- **Nové chaty v přidané složce** (autor do ní doplnil chaty) jsou karta nad seznamem chatů
+  vybrané složky (`NewFolderChatsCard`, `ChatsViewModel.newFolderChats`), ne dialog: sheet se
+  chaty k připojení se otevře až „Zobrazit". „Skrýt" pošle `processChatFolderNewChats`
+  s prázdným seznamem — server tím nabídku zapomene. Ptá se jen u složky, která je sdílená
+  a NENÍ moje (`isShareable && !hasMyInviteLinks`; `ChatFolderTab.hasMyInviteLinks` kvůli tomu).
+- **`getChatFolderNewChats` se nesmí volat při každém výběru složky.** Dokumentace dovoluje
+  nejvýš jednou za `chat_folder_new_chats_update_period` sekund (výchozí hodina), proto má
+  `TdlChatFolderRepository` vlastní keš na složku; po vyřízení je prázdná.
+- **Jeden sheet a jeden blok řádků pro „které z těchhle chatů"** (`FolderChatsSheet`,
+  `CheckableChatRows` v `core/ui`): náhled z odkazu, nové chaty, chaty v odkazu i chaty
+  k opuštění. Dřív byl sheet jen v `features/conversation` a seznam chatů by na konverzaci
+  závisel.
+- **Smazání přidané složky se ptá, které chaty opustit** (`getChatFolderChatsToLeave`, pak
+  `deleteChatFolder(leaveChatIds)`), zaškrtnuté všechny, jako oficiální klienti. Dialog se
+  otevře až s odpovědí — kdyby během čtení povyrostl o seznam, vypadalo by to jako chyba.
+  U vlastní složky je seznam prázdný a dialog je stejný jako dřív.
+- **Odkaz jde upravit: název a chaty** (`FolderLinkSheet`, `editChatFolderInviteLink`).
+  Nabízí se chaty z `getChatsForChatFolderInviteLink` PLUS ty, které odkaz už nese — jinak by
+  chat, který sdílet přestal jít, nešlo z odkazu odebrat. Bez chatů server odkaz odmítne, Uložit
+  zašedne s větou. Ťuknutí na odkaz otevře sheet, sdílení zůstalo ikonou v řádku (nejčastější
+  akce bez kroku navíc).
+- **Potvrzení v sheetu hlásí sheet sám** (kopírování fajfkou, chyba uložení větou nad Uložit):
+  snackbar obrazovky je pod modálním sheetem schovaný.
 - **Načtení náhledu trvá pár vteřin** (dotaz na server). Kdo ťukne podruhé, trefí závoj sheetu
   a zavře ho — při ověřování přes `adb` se po ťuknutí čeká.
 - **Ověřeno na emulátoru** (anglicky i česky): odkaz na složku „Plume test" (s testovací
@@ -1785,7 +1808,10 @@ z `checkChatFolderInviteLink`), v editoru vlastní složky je sekce Sdílení s 
   máš"; smazání odkazu vrátilo složku na nesdílenou i v otevřeném editoru; u složky s druhem Boti
   vysvětlení. Náhled nové složky s chatem k připojení **jen sondou** (podstrčené `folderId = 0`
   a chaty), odškrtnutí chatu. **Skutečné přidání složky z cizího odkazu ověřené NENÍ** — chtělo
-  by to druhý účet, nebo se připojit ke skutečným cizím chatům. **iOS jen přeložené.**
+  by to druhý účet, nebo se připojit ke skutečným cizím chatům. Úprava odkazu ověřená naostro
+  (přejmenování, odškrtnutí jediného chatu s větou, uložení, smazání ze sheetu). Dialog
+  s chaty k opuštění a karta nových chatů **jen sondou** (podstrčené chaty u vlastní složky,
+  nic se nepotvrdilo) — přidaná cizí složka na testovacím účtu není. **iOS jen přeložené.**
 
 ### Ověření a štítek podvodu
 

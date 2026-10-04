@@ -1763,5 +1763,23 @@
     <string name="chat_folder_share_nothing">There is no group or channel in this folder that can be shared.</string>
     <string name="chat_folder_share_failed">Couldn't create the link.</string>
     <string name="chat_folder_share_delete_failed">Couldn't delete the link.</string>
+    <string name="chat_folder_share_save_failed">Couldn't save the link.</string>
+    <string name="chat_folder_share_edit">Edit link</string>
+    <string name="chat_folder_link_title">Folder link</string>
+    <string name="chat_folder_link_name">Link name</string>
+    <string name="chat_folder_link_name_help">Only you see it, to tell links apart.</string>
+    <string name="chat_folder_link_chats">Chats in the link</string>
+    <string name="chat_folder_link_chats_help">Whoever opens the link can join the checked chats.</string>
+    <string name="chat_folder_link_no_chats">The link has to offer at least one chat.</string>
+    <string name="chat_folder_delete_body_leave">The folder disappears on all your devices. You also leave the checked chats.</string>
+    <string name="chat_folder_delete_leave">Leave chats too</string>
     <string name="chat_folder_shared_only_chosen">A shared folder contains only the chosen chats.</string>
+    <string name="folder_new_chats_title">New chats in the folder</string>
+    <plurals name="folder_new_chats_text">
+        <item quantity="one">%1$d chat was added to “%2$s”.</item>
+        <item quantity="other">%1$d chats were added to “%2$s”.</item>
+    </plurals>
+    <string name="folder_new_chats_show">Show</string>
+    <string name="folder_new_chats_hide">Hide</string>
+    <string name="folder_new_chats_sheet">The folder’s owner added these chats. Pick the ones to join.</string>
 </resources>

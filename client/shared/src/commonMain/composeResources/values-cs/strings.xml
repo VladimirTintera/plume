@@ -1817,5 +1817,24 @@
     <string name="chat_folder_share_nothing">Ve složce není skupina ani kanál, které jde sdílet.</string>
     <string name="chat_folder_share_failed">Odkaz se nepodařilo vytvořit.</string>
     <string name="chat_folder_share_delete_failed">Odkaz se nepodařilo smazat.</string>
+    <string name="chat_folder_share_save_failed">Odkaz se nepodařilo uložit.</string>
+    <string name="chat_folder_share_edit">Upravit odkaz</string>
+    <string name="chat_folder_link_title">Odkaz na složku</string>
+    <string name="chat_folder_link_name">Název odkazu</string>
+    <string name="chat_folder_link_name_help">Vidíš ho jen ty, aby šly odkazy rozlišit.</string>
+    <string name="chat_folder_link_chats">Chaty v odkazu</string>
+    <string name="chat_folder_link_chats_help">Kdo odkaz otevře, může se připojit k zaškrtnutým chatům.</string>
+    <string name="chat_folder_link_no_chats">Odkaz musí nabízet aspoň jeden chat.</string>
+    <string name="chat_folder_delete_body_leave">Složka zmizí na všech tvých zařízeních. Ze zaškrtnutých chatů zároveň odejdeš.</string>
+    <string name="chat_folder_delete_leave">Odejít i z chatů</string>
     <string name="chat_folder_shared_only_chosen">Sdílená složka obsahuje jen vybrané chaty.</string>
+    <string name="folder_new_chats_title">Nové chaty ve složce</string>
+    <plurals name="folder_new_chats_text">
+        <item quantity="one">Do složky „%2$s“ přibyl %1$d chat.</item>
+        <item quantity="few">Do složky „%2$s“ přibyly %1$d chaty.</item>
+        <item quantity="other">Do složky „%2$s“ přibylo %1$d chatů.</item>
+    </plurals>
+    <string name="folder_new_chats_show">Zobrazit</string>
+    <string name="folder_new_chats_hide">Skrýt</string>
+    <string name="folder_new_chats_sheet">Autor složky do ní přidal tyhle chaty. Vyber, ke kterým se připojíš.</string>
 </resources>
