@@ -31,6 +31,9 @@ import eu.tintera.plume.resources.bot_link_title
 import eu.tintera.plume.resources.bot_share_phone_confirm
 import eu.tintera.plume.resources.bot_share_phone_text
 import eu.tintera.plume.resources.bot_share_phone_title
+import eu.tintera.plume.resources.bot_share_location_confirm
+import eu.tintera.plume.resources.bot_share_location_text
+import eu.tintera.plume.resources.bot_share_location_title
 import eu.tintera.plume.resources.common_cancel
 import org.jetbrains.compose.resources.stringResource
 
@@ -69,6 +72,21 @@ internal fun SharePhoneDialog(onShare: () -> Unit, onDismiss: () -> Unit) {
         title = { Text(stringResource(Res.string.bot_share_phone_title)) },
         text = { Text(stringResource(Res.string.bot_share_phone_text)) },
         confirmButton = { TextButton(onClick = onShare) { Text(stringResource(Res.string.bot_share_phone_confirm)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+    )
+}
+
+/**
+ * Poloha pro tlačítko klávesnice bota — údaj o uživateli, takže se jako číslo nejdřív potvrzuje.
+ * Věta říká, že jde o polohu TEĎ, ne o její sledování.
+ */
+@Composable
+internal fun ShareLocationDialog(onShare: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.bot_share_location_title)) },
+        text = { Text(stringResource(Res.string.bot_share_location_text)) },
+        confirmButton = { TextButton(onClick = onShare) { Text(stringResource(Res.string.bot_share_location_confirm)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }

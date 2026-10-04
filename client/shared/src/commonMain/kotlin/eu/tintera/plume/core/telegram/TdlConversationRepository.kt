@@ -56,6 +56,7 @@ import dev.g000sha256.tdl.dto.KeyboardButtonTypeRequestUsers
 import dev.g000sha256.tdl.dto.KeyboardButtonTypeRequestChat
 import dev.g000sha256.tdl.dto.KeyboardButtonTypeWebApp
 import dev.g000sha256.tdl.dto.KeyboardButtonTypeRequestManagedBot
+import dev.g000sha256.tdl.dto.KeyboardButtonSourceMessage
 import dev.g000sha256.tdl.dto.ButtonStyle
 import dev.g000sha256.tdl.dto.InputMessageContact
 import dev.g000sha256.tdl.dto.Contact
@@ -1778,6 +1779,34 @@ class TdlConversationRepository(
         BotMenuApp(text = button.text, url = button.url, isLink = linkType is InternalLinkTypeWebApp)
     }
 
+    override suspend fun shareUsersWithBot(
+        chatId: Long,
+        messageId: Long,
+        buttonId: Int,
+        userIds: List<Long>,
+        onlyCheck: Boolean,
+    ): Result<Unit> =
+        client.shareUsersWithBot(
+            source = KeyboardButtonSourceMessage(chatId = chatId, messageId = messageId),
+            buttonId = buttonId,
+            sharedUserIds = userIds.toLongArray(),
+            onlyCheck = onlyCheck,
+        ).toResult().map { }
+
+    override suspend fun shareChatWithBot(
+        chatId: Long,
+        messageId: Long,
+        buttonId: Int,
+        sharedChatId: Long,
+        onlyCheck: Boolean,
+    ): Result<Unit> =
+        client.shareChatWithBot(
+            source = KeyboardButtonSourceMessage(chatId = chatId, messageId = messageId),
+            buttonId = buttonId,
+            sharedChatId = sharedChatId,
+            onlyCheck = onlyCheck,
+        ).toResult().map { }
+
     /** Příkazy všech botů ve skupině, každý s jménem svého bota (viz [botCommandText]). */
     private suspend fun groupCommands(bots: Array<BotCommands>?): List<BotCommandItem> =
         bots.orEmpty().flatMap { bot ->
@@ -2901,7 +2930,7 @@ private fun Message.toChatReplyMarkup(): ChatReplyMarkup? = when (val markup = r
                     kind = when (val type = button.type) {
                         is KeyboardButtonTypeText -> ReplyKeyboardButtonKind.Text
                         is KeyboardButtonTypeRequestPhoneNumber -> ReplyKeyboardButtonKind.PhoneNumber
-                        is KeyboardButtonTypeRequestLocation -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.Location)
+                        is KeyboardButtonTypeRequestLocation -> ReplyKeyboardButtonKind.Location
                         is KeyboardButtonTypeRequestPoll -> ReplyKeyboardButtonKind.Poll(
                             when {
                                 type.forceQuiz -> PollComposerMode.QuizOnly
@@ -2909,8 +2938,22 @@ private fun Message.toChatReplyMarkup(): ChatReplyMarkup? = when (val markup = r
                                 else -> PollComposerMode.Any
                             },
                         )
-                        is KeyboardButtonTypeRequestUsers -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.Users)
-                        is KeyboardButtonTypeRequestChat -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.Chat)
+                        is KeyboardButtonTypeRequestUsers -> ReplyKeyboardButtonKind.Users(
+                            BotUsersRequest(
+                                buttonId = type.id,
+                                bots = type.userIsBot.takeIf { type.restrictUserIsBot },
+                                maxQuantity = type.maxQuantity.coerceAtLeast(1),
+                            ),
+                        )
+                        is KeyboardButtonTypeRequestChat -> ReplyKeyboardButtonKind.Chat(
+                            BotChatRequest(
+                                buttonId = type.id,
+                                channel = type.chatIsChannel,
+                                forum = type.chatIsForum.takeIf { type.restrictChatIsForum },
+                                botIsMember = type.botIsMember,
+                                botAdministrator = type.botAdministratorRights != null,
+                            ),
+                        )
                         is KeyboardButtonTypeWebApp -> ReplyKeyboardButtonKind.WebApp(type.url)
                         is KeyboardButtonTypeRequestManagedBot -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.ManagedBot)
                     },

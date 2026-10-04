@@ -17,16 +17,17 @@ import eu.tintera.plume.core.telegram.FormatSpan
 import eu.tintera.plume.core.telegram.composedFormatsOf
 import eu.tintera.plume.core.telegram.within
 import eu.tintera.plume.core.telegram.UnreadMarkKind
+import eu.tintera.plume.resources.bot_location_unavailable
 import eu.tintera.plume.core.telegram.BotCommandItem
+import eu.tintera.plume.core.telegram.BotChatRequest
 import eu.tintera.plume.core.telegram.BotMenuApp
+import eu.tintera.plume.core.telegram.BotUsersRequest
 import eu.tintera.plume.core.telegram.UnreadMarks
 import eu.tintera.plume.core.telegram.ChatReplyMarkup
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.ReplyKeyboardButtonKind
 import eu.tintera.plume.core.telegram.UnsupportedKeyboardButton
 import eu.tintera.plume.resources.poll_add_option_failed
-import eu.tintera.plume.resources.bot_unsupported_location
-import eu.tintera.plume.resources.bot_unsupported_pick_chat
 import eu.tintera.plume.resources.bot_unsupported_managed_bot
 import eu.tintera.plume.core.telegram.BotButtonKind
 import eu.tintera.plume.core.telegram.SwitchInlineTarget
@@ -2368,6 +2369,8 @@ class ConversationViewModel(
     /** Bot, kterému zpráva s tlačítkem patří: odesílatel (kladné id = uživatel), jinak chat s botem. */
     private fun botOf(message: ChatMessage?): Long = message?.senderId?.takeIf { it > 0 } ?: chatId
 
+    fun consumeOpenBotShare() = _state.update { it.copy(openBotShare = null) }
+
     fun consumeOpenPollComposer() {
         _state.update { it.copy(openPollComposer = null) }
     }
@@ -2587,6 +2590,13 @@ class ConversationViewModel(
             }
             // Číslo je údaj o uživateli; odejde až po potvrzení.
             ReplyKeyboardButtonKind.PhoneNumber -> _state.update { it.copy(confirmSharePhone = true) }
+            // Poloha taky; zjišťuje ji až obrazovka po potvrzení (oprávnění a GPS jsou její).
+            ReplyKeyboardButtonKind.Location -> _state.update { it.copy(confirmShareLocation = true) }
+            // Výběr lidí a chatu je obrazovka nad konverzací; tlačítko patří zprávě s klávesnicí.
+            is ReplyKeyboardButtonKind.Users ->
+                _state.update { it.copy(openBotShare = BotShareRequest(keyboard.messageId, users = kind.request)) }
+            is ReplyKeyboardButtonKind.Chat ->
+                _state.update { it.copy(openBotShare = BotShareRequest(keyboard.messageId, chat = kind.request)) }
             // Formulář je obrazovka nad konverzací; otevírá ho obrazovka, ViewModel jen řekne jaký.
             is ReplyKeyboardButtonKind.Poll -> _state.update { it.copy(openPollComposer = kind.mode) }
             is ReplyKeyboardButtonKind.WebApp -> {
@@ -2802,6 +2812,29 @@ class ConversationViewModel(
     }
 
     fun dismissSharePhone() = _state.update { it.copy(confirmSharePhone = false) }
+
+    fun dismissShareLocation() = _state.update { it.copy(confirmShareLocation = false) }
+
+    /**
+     * Poloha z tlačítka klávesnice bota, už zjištěná obrazovkou. `null` = uživatel nedovolil
+     * polohu, nebo ji zařízení nezjistilo — to musí být vidět, jinak by ťuknutí vypadalo, že nic
+     * neudělalo. Jako odpověď ve skupině, stejně jako text tlačítka.
+     */
+    fun sendKeyboardLocation(point: GeoPoint?) {
+        _state.update { it.copy(confirmShareLocation = false) }
+        if (point == null) {
+            _state.update { it.copy(notice = UiText(Res.string.bot_location_unavailable)) }
+            return
+        }
+        val keyboard = _state.value.replyMarkup as? ChatReplyMarkup.Keyboard
+        viewModelScope.launch {
+            repository.sendLocation(chatId, Place("", "", point.latitude, point.longitude), keyboard?.replyTarget(), quote = null)
+                .onSuccess { keyboard?.let(::keyboardUsed) }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.reported(Res.string.conversation_location_send_failed)) }
+                }
+        }
+    }
 
     private fun ChatReplyMarkup.replyTarget(): Long? = messageId.takeIf { _state.value.info?.isGroup == true }
 
@@ -4706,6 +4739,8 @@ data class ConversationState(
     val mentionSuggestions: MentionSuggestions? = null,
     /** Tlačítko bota chce sdílet telefonní číslo a čeká se na potvrzení. */
     val confirmSharePhone: Boolean = false,
+    /** Tlačítko bota chce polohu; po potvrzení ji zjistí obrazovka. */
+    val confirmShareLocation: Boolean = false,
     /** Odkaz z tlačítka bota, který čeká na potvrzení; `null` = žádný. */
     val confirmLink: String? = null,
     /** Tlačítko bota chce uživatele přihlásit na web; čeká se na potvrzení v dialogu. */
@@ -4742,6 +4777,8 @@ data class ConversationState(
     val pendingContact: MessageMedia.Contact? = null,
     /** Jednorázová událost: tlačítko bota chce formulář nové ankety (v tomhle režimu). */
     val openPollComposer: PollComposerMode? = null,
+    /** Jednorázová událost: tlačítko bota chce výběr lidí nebo chatu. */
+    val openBotShare: BotShareRequest? = null,
     /** Mini aplikace k otevření — obrazovka ji otevře a událost vynuluje. */
     val openWebApp: WebAppRequest? = null,
     /** Jednorázová událost: otevřít sheet sady samolepek z odkazu `t.me/addstickers/…`. */
@@ -4931,8 +4968,6 @@ val ConversationState.inputPlaceholder: String?
     }
 
 private fun UnsupportedKeyboardButton.explanation(): StringResource = when (this) {
-    UnsupportedKeyboardButton.Location -> Res.string.bot_unsupported_location
-    UnsupportedKeyboardButton.Users, UnsupportedKeyboardButton.Chat -> Res.string.bot_unsupported_pick_chat
     UnsupportedKeyboardButton.ManagedBot -> Res.string.bot_unsupported_managed_bot
 }
 
@@ -4988,6 +5023,9 @@ data class WebAppRequest(
     /** Pojmenovaná mini aplikace z odkazu `t.me/bot/app` (`getWebAppLinkUrl`). */
     val shortName: String = "",
 )
+
+/** Výběr pro tlačítko bota „vyber lidi" ([users]) / „vyber chat" ([chat]) ve zprávě [messageId]. */
+data class BotShareRequest(val messageId: Long, val users: BotUsersRequest? = null, val chat: BotChatRequest? = null)
 
 /** Přihlášení na web z tlačítka bota, které čeká na potvrzení. */
 data class LoginRequest(val messageId: Long, val buttonId: Long, val prompt: LoginUrlPrompt.Confirm)

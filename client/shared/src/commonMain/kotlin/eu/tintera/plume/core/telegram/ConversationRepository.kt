@@ -647,6 +647,19 @@ interface ConversationRepository {
     suspend fun botMenuApp(chatId: Long): Result<BotMenuApp?>
 
     /**
+     * Sdílí účty [userIds] s botem přes tlačítko klávesnice ve zprávě [messageId]. S [onlyCheck]
+     * se jen ověří, že je tlačítko přijme (bot, prémiový účet…) — nic neodejde.
+     */
+    suspend fun shareUsersWithBot(chatId: Long, messageId: Long, buttonId: Int, userIds: List<Long>, onlyCheck: Boolean): Result<Unit>
+
+    /**
+     * Sdílí chat [sharedChatId] s botem. S [onlyCheck] jen ověří omezení tlačítka; to, jestli
+     * bot do chatu smí (člen, správce), se ověří až při skutečném sdílení — TDLib ho tam případně
+     * přidá a práva udělí sám.
+     */
+    suspend fun shareChatWithBot(chatId: Long, messageId: Long, buttonId: Int, sharedChatId: Long, onlyCheck: Boolean): Result<Unit>
+
+    /**
      * Změny toho, jestli se do chatu smí psát a jestli se k němu jde přidat (správce změní
      * práva, uživatel se přidá nebo odejde). Soukromý chat nic nevydá — tam se píše vždycky.
      */
@@ -1350,6 +1363,15 @@ sealed interface ReplyKeyboardButtonKind {
     /** Pošle vlastní telefonní číslo jako kontakt — po potvrzení, je to údaj o uživateli. */
     data object PhoneNumber : ReplyKeyboardButtonKind
 
+    /** Pošle přesnou polohu zařízení — po potvrzení, je to údaj o uživateli (jen soukromý chat). */
+    data object Location : ReplyKeyboardButtonKind
+
+    /** Výběr lidí, jejichž účty dostane bot (`shareUsersWithBot`). */
+    data class Users(val request: BotUsersRequest) : ReplyKeyboardButtonKind
+
+    /** Výběr skupiny nebo kanálu, který dostane bot (`shareChatWithBot`). */
+    data class Chat(val request: BotChatRequest) : ReplyKeyboardButtonKind
+
     /** Otevře formulář nové ankety; bot si smí vynutit kvíz, nebo běžnou anketu. */
     data class Poll(val mode: PollComposerMode) : ReplyKeyboardButtonKind
 
@@ -1360,7 +1382,36 @@ sealed interface ReplyKeyboardButtonKind {
     data class Unsupported(val feature: UnsupportedKeyboardButton) : ReplyKeyboardButtonKind
 }
 
-enum class UnsupportedKeyboardButton { Location, Users, Chat, ManagedBot }
+enum class UnsupportedKeyboardButton { ManagedBot }
+
+/**
+ * Tlačítko bota „vyber lidi". [buttonId] patří botovi (podle něj pozná, na co odpověď je).
+ * [bots] = jen boti / jen lidé / `null` kdokoli; [maxQuantity] nejvýš kolik. Prémiové omezení
+ * se ověří až serverem.
+ *
+ * **Jestli bot chce i jméno, uživatelské jméno a fotku, klient NEVÍ**: `request_name` a spol.
+ * jsou v TDLib „bots only" a uživatelský klient je dostane vždycky `false` (ověřeno — bot
+ * o jméno žádal, TDLib hlásil `false`). Karta výběru proto říká, co bot dostat MŮŽE.
+ */
+data class BotUsersRequest(
+    val buttonId: Int,
+    val bots: Boolean?,
+    val maxQuantity: Int,
+)
+
+/**
+ * Tlačítko bota „vyber chat". [channel] = kanál, jinak skupina; [forum] = jen s tématy / bez
+ * nich / `null` jedno. [botIsMember] = bot se do chatu přidá, [botAdministrator] = dostane
+ * práva správce — obojí se před sdílením výslovně potvrzuje. Zbytek omezení (vlastník, veřejné
+ * jméno, práva uživatele) ověří server (`onlyCheck`). Název, jméno a fotku viz [BotUsersRequest].
+ */
+data class BotChatRequest(
+    val buttonId: Int,
+    val channel: Boolean,
+    val forum: Boolean?,
+    val botIsMember: Boolean,
+    val botAdministrator: Boolean,
+)
 
 /** Barva, kterou si bot pro tlačítko přeje (TDLib `ButtonStyle`). */
 enum class BotButtonStyle { Default, Primary, Success, Danger }
