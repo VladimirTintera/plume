@@ -110,7 +110,7 @@
     <string name="chats_archive_keep">Nechávat chaty v archivu</string>
     <string name="chats_archive_keep_summary">Nová zpráva už neztlumený chat nevrátí zpátky mezi chaty.</string>
     <string name="chats_archive_keep_folders">Nechávat v archivu chaty ze složek</string>
-    <string name="chats_archive_keep_folders_summary">Neztlumený chat, který jste přidali do složky, zůstane po nové zprávě v archivu.</string>
+    <string name="chats_archive_keep_folders_summary">Neztlumený chat přidaný do složky zůstane po nové zprávě v archivu.</string>
     <string name="chats_action_archive">Archivovat</string>
     <string name="chats_action_unarchive">Vrátit mezi chaty</string>
     <string name="chats_archived">Chat je v archivu</string>
@@ -291,6 +291,26 @@
     <string name="conversation_link_failed">Odkaz se nepodařilo otevřít.</string>
     <string name="invite_request">Požádat o přijetí</string>
     <string name="invite_request_sent">Žádost odeslána, schválí ji správce.</string>
+    <string name="folder_invite_title">Přidat složku</string>
+    <string name="folder_invite_new">Přidej si složku a připoj se k chatům, které vybereš.</string>
+    <string name="folder_invite_new_all_joined">Ve všech chatech složky už jsi. Přidá se jen složka.</string>
+    <string name="folder_invite_existing">Do složky přibyly nové chaty. Vyber, ke kterým se připojíš.</string>
+    <string name="folder_invite_existing_none">Tuhle složku už máš i se všemi chaty.</string>
+    <string name="folder_invite_chats">Chaty k připojení</string>
+    <string name="folder_invite_add">Přidat složku</string>
+    <plurals name="folder_invite_join">
+        <item quantity="one">Připojit se k %1$d chatu</item>
+        <item quantity="few">Připojit se k %1$d chatům</item>
+        <item quantity="other">Připojit se k %1$d chatům</item>
+    </plurals>
+    <plurals name="folder_invite_already_joined">
+        <item quantity="one">V %1$d chatu složky už jsi.</item>
+        <item quantity="few">Ve %1$d chatech složky už jsi.</item>
+        <item quantity="other">V %1$d chatech složky už jsi.</item>
+    </plurals>
+    <string name="folder_invite_added">Složka „%1$s“ je přidaná</string>
+    <string name="folder_invite_joined">Chaty jsou přidané do složky „%1$s“</string>
+    <string name="folder_invite_failed">Složku se nepodařilo přidat.</string>
     <string name="conversation_mention_not_found">Tenhle chat se nepodařilo najít.</string>
     <string name="conversation_sticker_send_failed">Samolepku se nepodařilo odeslat.</string>
     <string name="conversation_attachments_limit">Najednou jde poslat nejvýš %1$d příloh.</string>
@@ -1779,4 +1799,23 @@
     <string name="topic_color_green">Zelená</string>
     <string name="topic_color_pink">Růžová</string>
     <string name="topic_color_red">Červená</string>
+    <string name="chat_folder_share_header">Sdílení</string>
+    <string name="chat_folder_share_create">Vytvořit odkaz na složku</string>
+    <string name="chat_folder_share_help">Kdo odkaz otevře, přidá si složku a připojí se k jejím skupinám a kanálům.</string>
+    <string name="chat_folder_share_unsaved">Odkaz jde vytvořit až po uložení změn.</string>
+    <string name="chat_folder_share_not_shareable">Sdílet jde jen složku z vybraných chatů — bez druhů chatů a vynechaných.</string>
+    <plurals name="chat_folder_share_chats">
+        <item quantity="one">%1$d chat</item>
+        <item quantity="few">%1$d chaty</item>
+        <item quantity="other">%1$d chatů</item>
+    </plurals>
+    <string name="chat_folder_share_copy">Kopírovat odkaz</string>
+    <string name="chat_folder_share_share">Sdílet odkaz</string>
+    <string name="chat_folder_share_delete">Smazat odkaz</string>
+    <string name="chat_folder_share_delete_title">Smazat odkaz?</string>
+    <string name="chat_folder_share_delete_body">Odkaz přestane fungovat. Kdo si složku už přidal, o ni nepřijde.</string>
+    <string name="chat_folder_share_nothing">Ve složce není skupina ani kanál, které jde sdílet.</string>
+    <string name="chat_folder_share_failed">Odkaz se nepodařilo vytvořit.</string>
+    <string name="chat_folder_share_delete_failed">Odkaz se nepodařilo smazat.</string>
+    <string name="chat_folder_shared_only_chosen">Sdílená složka obsahuje jen vybrané chaty.</string>
 </resources>

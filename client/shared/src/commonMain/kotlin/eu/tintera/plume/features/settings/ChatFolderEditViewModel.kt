@@ -5,13 +5,17 @@ import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatFolderDraft
+import eu.tintera.plume.core.telegram.ChatFolderLink
 import eu.tintera.plume.core.telegram.ChatFolderProblem
 import eu.tintera.plume.core.telegram.ChatFolderRepository
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.telegram.NothingToShareException
 import eu.tintera.plume.core.telegram.problem
 import eu.tintera.plume.core.telegram.userMessage
+import eu.tintera.plume.core.files.MediaSharer
+import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.features.chats.ChatSearch
 import eu.tintera.plume.features.chats.pickerChats
@@ -19,12 +23,19 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chat_folder_delete_failed
 import eu.tintera.plume.resources.chat_folder_load_failed
 import eu.tintera.plume.resources.chat_folder_save_failed
+import eu.tintera.plume.resources.chat_folder_share_delete_failed
+import eu.tintera.plume.resources.chat_folder_share_failed
+import eu.tintera.plume.resources.chat_folder_share_nothing
+import eu.tintera.plume.resources.invite_links_copied
+import eu.tintera.plume.resources.invite_links_created
+import eu.tintera.plume.resources.invite_links_share_failed
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -53,6 +64,11 @@ data class ChatFolderEditState(
     /** Ikona, kterou by složce dal Telegram sám (podle obsahu) — ukazuje se, dokud žádná není vybraná. */
     val defaultIconName: String? = null,
     val iconPickerOpen: Boolean = false,
+    /** Vlastní odkazy na sdílenou složku; `null` = nová složka, nebo se ještě načítají. */
+    val links: List<ChatFolderLink>? = null,
+    /** Vytváří nebo maže se odkaz — tlačítka nejdou zmáčknout podruhé. */
+    val linkBusy: Boolean = false,
+    val notice: UiText? = null,
 ) {
     /** Co se kreslí: vybraná ikona, jinak ta, kterou vybere Telegram. */
     val shownIconName: String? get() = draft.iconName ?: defaultIconName
@@ -60,6 +76,12 @@ data class ChatFolderEditState(
     val isNew: Boolean get() = folderId == 0
     val changed: Boolean get() = draft != original
     val problem: ChatFolderProblem? get() = draft.problem()
+
+    /**
+     * Odkaz se dělá z ULOŽENÉ složky — server o rozepsaných změnách neví. S neuloženými změnami
+     * se proto vytvořit nedá (obrazovka řekne proč) a sdílet jde jen složka, která sdílená být smí.
+     */
+    val canCreateLink: Boolean get() = !isNew && !changed && original.canBeShared && !linkBusy
 }
 
 /**
@@ -77,6 +99,8 @@ class ChatFolderEditViewModel(
     folderId: Int,
     private val chats: ChatRepository,
     private val folders: ChatFolderRepository,
+    private val clipboard: TextClipboard,
+    private val sharer: MediaSharer,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("ChatFolderEdit")
@@ -112,6 +136,16 @@ class ChatFolderEditViewModel(
                 folders.folder(folderId)
                     .onSuccess { draft ->
                         local.update { it.copy(loading = false, draft = draft, original = draft) }
+                        launch { reloadLinks() }
+                        // Sdílenou se složka stane (a přestane být) až tehdy, kdy to potvrdí server;
+                        // přijde `UpdateChatFolders`, ne odpověď na vytvoření či smazání odkazu.
+                        launch {
+                            chats.chatFolders
+                                .map { list -> list.folders.firstOrNull { it.id == folderId }?.isShareable }
+                                .distinctUntilChanged()
+                                .drop(1)
+                                .collect { refreshShareable() }
+                        }
                         resolveChats(draft.chosenChatIds + draft.excludedChatIds)
                     }
                     .onFailure { failure ->
@@ -222,6 +256,95 @@ class ChatFolderEditViewModel(
                     local.update { it.copy(saving = false, error = failure.userMessage(Res.string.chat_folder_delete_failed)) }
                 }
         }
+    }
+
+    private suspend fun reloadLinks() {
+        val id = local.value.folderId
+        folders.links(id)
+            .onSuccess { links -> local.update { it.copy(links = links) } }
+            .onFailure { failure ->
+                // Bez odkazů jde složka upravovat dál; sekce sdílení se jen neukáže.
+                logger.w(failure) { "Odkazy na složku $id se nepodařilo načíst." }
+            }
+    }
+
+    /**
+     * Nový odkaz se rovnou zkopíruje (vytváří se, aby se poslal dál). Složka se jím stane sdílenou,
+     * a to editor musí vědět — sdílená složka druhy chatů ani vynechané nenese — proto se čte znovu.
+     */
+    fun createLink() {
+        val state = local.value
+        if (!state.canCreateLink) return
+        local.update { it.copy(linkBusy = true) }
+        viewModelScope.launch {
+            folders.createLink(state.folderId)
+                .onSuccess { link ->
+                    clipboard.copy(link.url)
+                    local.update { it.copy(notice = UiText(Res.string.invite_links_created)) }
+                    refreshShareable()
+                    reloadLinks()
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Odkaz na složku ${state.folderId} se nepodařilo vytvořit." }
+                    val message = if (failure is NothingToShareException) {
+                        UiText(Res.string.chat_folder_share_nothing)
+                    } else {
+                        failure.userMessage(Res.string.chat_folder_share_failed)
+                    }
+                    local.update { it.copy(error = message) }
+                }
+            local.update { it.copy(linkBusy = false) }
+        }
+    }
+
+    /**
+     * Prvním odkazem se složka stane sdílenou, smazáním posledního zase přestane (po smazání se
+     * to projeví až s `UpdateChatFolders`, viz `init`) — a sdílená
+     * složka nenese druhy chatů ani vynechané, takže to editor musí vědět. V konceptu se mění jen
+     * tenhle příznak — rozepsané změny zůstávají.
+     */
+    private suspend fun refreshShareable() {
+        folders.folder(local.value.folderId).onSuccess { draft ->
+            local.update { it.copy(draft = it.draft.copy(isShareable = draft.isShareable), original = draft) }
+        }
+    }
+
+    fun copyLink(link: ChatFolderLink) {
+        viewModelScope.launch {
+            clipboard.copy(link.url)
+            local.update { it.copy(notice = UiText(Res.string.invite_links_copied)) }
+        }
+    }
+
+    fun shareLink(link: ChatFolderLink) {
+        if (!sharer.shareText(link.url)) local.update { it.copy(error = UiText(Res.string.invite_links_share_failed)) }
+    }
+
+    /** Smazaný odkaz přestane fungovat; kdo si složku už přidal, o ni nepřijde. */
+    fun deleteLink(link: ChatFolderLink) {
+        val id = local.value.folderId
+        if (local.value.linkBusy) return
+        local.update { it.copy(linkBusy = true) }
+        viewModelScope.launch {
+            folders.deleteLink(id, link.url)
+                .onSuccess {
+                    // Seznam se čte znovu, ale po smazání POSLEDNÍHO odkazu server chvíli
+                    // odpovídá `FILTER_ID_INVALID` — složka přestává být sdílená. Smazaný odkaz
+                    // proto zmizí hned, ať čtení dopadne jakkoli.
+                    local.update { state -> state.copy(links = state.links?.filterNot { it.url == link.url }) }
+                    refreshShareable()
+                    reloadLinks()
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Odkaz na složku $id se nepodařilo smazat." }
+                    local.update { it.copy(error = failure.userMessage(Res.string.chat_folder_share_delete_failed)) }
+                }
+            local.update { it.copy(linkBusy = false) }
+        }
+    }
+
+    fun consumeNotice() {
+        local.update { it.copy(notice = null) }
     }
 
     fun consumeError() {

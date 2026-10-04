@@ -105,7 +105,10 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   složky" nad chatem; `CLAUDE.md`, „Složky chatů"). Zbývá:
   - **„Všechny chaty" jinde než první** (`mainChatListPosition`, jen Premium) — správa ho drží
     na místě, kde je.
-  - **Sdílené složky** (pozvánky do složky, `addChatFolderByInviteLink`, nové chaty ve složce).
+  - ~~**Sdílené složky**~~ — náhled a přidání z odkazu, odkazy na vlastní složku hotové. Zbývá:
+    nové chaty ve sdílené složce (`getChatFolderNewChats`, `processChatFolderNewChats`), úprava
+    chatů a názvu odkazu (`editChatFolderInviteLink`) a dotaz, které chaty opustit při smazání
+    přidané složky (`getChatFolderChatsToLeave`).
   - **Štítky složek u chatů** (`toggleChatFolderTags`, jen Premium) a barva složky.
   - ~~**Ikona složky**~~ a ~~**„Nechávat chaty ze složek v archivu"**~~ — hotovo. Zápis volby
     archivu ověřený není (mění nastavení účtu).
@@ -121,7 +124,7 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   2. ~~**Klikatelné zmínky a hashtagy v textu**~~ — hotovo (`@jméno` otevře chat, `#tag`
      hledání zpráv). Odkazy na Telegram (chat, zpráva, pozvánka, sada samolepek) se otevírají
      v aplikaci (`CLAUDE.md`, „Odkazy na Telegram"); zbývající druhy (boti se `start`,
-     proxy, sdílené složky, přihlašovací kódy…) jdou dál do prohlížeče. ~~**Veřejné příspěvky
+     proxy, přihlašovací kódy…) jdou dál do prohlížeče; ~~sdílené složky~~ hotové. ~~**Veřejné příspěvky
      s tagem**~~ — hotovo (přepínač „Vaše chaty / Veřejné příspěvky" u hashtagu).
   3. ~~**Hledání v konverzaci**~~ — hotovo (lupa v hlavičce, šipky mezi výsledky, viz
      `CLAUDE.md`, „Hledání v konverzaci"). Hledané slovo je v bublinách zvýrazněné.

@@ -65,6 +65,8 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.tintera.plume.core.telegram.CHAT_FOLDER_TITLE_MAX
 import eu.tintera.plume.core.telegram.ChatFolderProblem
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.ui.folderIcon
+import eu.tintera.plume.core.ui.CHAT_FOLDER_ICONS
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ChatPicker
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
@@ -122,6 +124,23 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import androidx.compose.foundation.layout.Row
+import org.jetbrains.compose.resources.pluralStringResource
+import eu.tintera.plume.core.telegram.ChatFolderLink
+import eu.tintera.plume.resources.chat_folder_share_header
+import eu.tintera.plume.resources.chat_folder_share_create
+import eu.tintera.plume.resources.chat_folder_share_help
+import eu.tintera.plume.resources.chat_folder_share_unsaved
+import eu.tintera.plume.resources.chat_folder_share_not_shareable
+import eu.tintera.plume.resources.chat_folder_share_chats
+import eu.tintera.plume.resources.chat_folder_share_copy
+import eu.tintera.plume.resources.chat_folder_share_share
+import eu.tintera.plume.resources.chat_folder_share_delete
+import eu.tintera.plume.resources.chat_folder_share_delete_title
+import eu.tintera.plume.resources.chat_folder_share_delete_body
+import eu.tintera.plume.resources.chat_folder_shared_only_chosen
+import eu.tintera.plume.resources.link_24dp
+import eu.tintera.plume.resources.share_24dp
 
 /**
  * Editor složky: název, co do ní patří (vybrané chaty a druhy chatů) a co z ní vypadne
@@ -148,6 +167,11 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
         viewModel.consumeError()
         scope.launch { snackbarHostState.showSnackbar(error.resolveNow()) }
     }
+    LaunchedEffect(state.notice) {
+        val notice = state.notice ?: return@LaunchedEffect
+        viewModel.consumeNotice()
+        scope.launch { snackbarHostState.showSnackbar(notice.resolveNow()) }
+    }
 
     val pick = state.pick
     NavigationBackHandler(
@@ -161,6 +185,7 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
     }
 
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    var linkToDelete by rememberSaveable { mutableStateOf<String?>(null) }
     val draft = state.draft
     val problem = state.problem.takeIf { state.showProblem }
 
@@ -237,7 +262,8 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
 
             FolderHeader(Res.string.chat_folder_included)
             val chosen = draft.chosenChatIds
-            val kinds = listOf(
+            // Sdílená složka nese jen vybrané chaty — druhy a vynechané by server při uložení odmítl.
+            val kinds = if (draft.isShareable) emptyList() else listOf(
                 KindToggle(Res.drawable.person_24dp, Res.string.chat_folder_include_contacts, draft.includeContacts, viewModel::setIncludeContacts),
                 KindToggle(Res.drawable.person_search_24dp, Res.string.chat_folder_include_non_contacts, draft.includeNonContacts, viewModel::setIncludeNonContacts),
                 KindToggle(Res.drawable.group_24dp, Res.string.chat_folder_include_groups, draft.includeGroups, viewModel::setIncludeGroups),
@@ -253,32 +279,82 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
                 onRemove = viewModel::removeChosen,
             )
             Text(
-                stringResource(if (problem == ChatFolderProblem.NoChats) Res.string.chat_folder_no_chats else Res.string.chat_folder_included_help),
+                stringResource(
+                    when {
+                        problem == ChatFolderProblem.NoChats -> Res.string.chat_folder_no_chats
+                        draft.isShareable -> Res.string.chat_folder_shared_only_chosen
+                        else -> Res.string.chat_folder_included_help
+                    },
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = if (problem == ChatFolderProblem.NoChats) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
 
-            FolderHeader(Res.string.chat_folder_excluded, Modifier.padding(top = 16.dp))
-            FolderBlock(
-                addLabel = Res.string.chat_folder_exclude_chats,
-                onAdd = { viewModel.openPick(FolderChatPick.Exclude) },
-                toggles = listOf(
-                    KindToggle(Res.drawable.notifications_off_24dp, Res.string.chat_folder_exclude_muted, draft.excludeMuted, viewModel::setExcludeMuted),
-                    KindToggle(Res.drawable.done_all_24dp, Res.string.chat_folder_exclude_read, draft.excludeRead, viewModel::setExcludeRead),
-                    KindToggle(Res.drawable.archive_24dp, Res.string.chat_folder_exclude_archived, draft.excludeArchived, viewModel::setExcludeArchived),
-                ),
-                chatIds = draft.excludedChatIds,
-                chats = state.chats,
-                onRemove = viewModel::removeExcluded,
-            )
-            Text(
-                stringResource(Res.string.chat_folder_excluded_help),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
+            if (!draft.isShareable) {
+                FolderHeader(Res.string.chat_folder_excluded, Modifier.padding(top = 16.dp))
+                FolderBlock(
+                    addLabel = Res.string.chat_folder_exclude_chats,
+                    onAdd = { viewModel.openPick(FolderChatPick.Exclude) },
+                    toggles = listOf(
+                        KindToggle(Res.drawable.notifications_off_24dp, Res.string.chat_folder_exclude_muted, draft.excludeMuted, viewModel::setExcludeMuted),
+                        KindToggle(Res.drawable.done_all_24dp, Res.string.chat_folder_exclude_read, draft.excludeRead, viewModel::setExcludeRead),
+                        KindToggle(Res.drawable.archive_24dp, Res.string.chat_folder_exclude_archived, draft.excludeArchived, viewModel::setExcludeArchived),
+                    ),
+                    chatIds = draft.excludedChatIds,
+                    chats = state.chats,
+                    onRemove = viewModel::removeExcluded,
+                )
+                Text(
+                    stringResource(Res.string.chat_folder_excluded_help),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
+
+            state.links?.let { links ->
+                FolderHeader(Res.string.chat_folder_share_header, Modifier.padding(top = 16.dp))
+                FolderLinks(
+                    links = links,
+                    canCreate = state.canCreateLink,
+                    busy = state.linkBusy,
+                    onCreate = viewModel::createLink,
+                    onCopy = viewModel::copyLink,
+                    onShare = viewModel::shareLink,
+                    onDelete = { linkToDelete = it.url },
+                )
+                Text(
+                    stringResource(
+                        when {
+                            !state.original.canBeShared -> Res.string.chat_folder_share_not_shareable
+                            state.changed -> Res.string.chat_folder_share_unsaved
+                            else -> Res.string.chat_folder_share_help
+                        },
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
         }
+    }
+
+    linkToDelete?.let { url ->
+        AlertDialog(
+            onDismissRequest = { linkToDelete = null },
+            title = { Text(stringResource(Res.string.chat_folder_share_delete_title)) },
+            text = { Text(stringResource(Res.string.chat_folder_share_delete_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    linkToDelete = null
+                    state.links?.firstOrNull { it.url == url }?.let(viewModel::deleteLink)
+                }) {
+                    Text(stringResource(Res.string.chat_folder_share_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { linkToDelete = null }) { Text(stringResource(Res.string.common_cancel)) } },
+        )
     }
 
     if (state.iconPickerOpen) {
@@ -368,6 +444,65 @@ private fun FolderBlock(
                 },
                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
                 modifier = Modifier.clip(groupItemShape(1 + toggles.size + index, count)),
+            )
+        }
+    }
+}
+
+/**
+ * Odkazy na sdílenou složku: „Vytvořit odkaz" a pod ním odkazy, jeden blok jako ostatní.
+ * Ťuknutí na odkaz ho zkopíruje, vedle je systémové sdílení a smazání.
+ */
+@Composable
+private fun FolderLinks(
+    links: List<ChatFolderLink>,
+    canCreate: Boolean,
+    busy: Boolean,
+    onCreate: () -> Unit,
+    onCopy: (ChatFolderLink) -> Unit,
+    onShare: (ChatFolderLink) -> Unit,
+    onDelete: (ChatFolderLink) -> Unit,
+) {
+    val count = 1 + links.size
+    Column(verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING)) {
+        ListItem(
+            headlineContent = { Text(stringResource(Res.string.chat_folder_share_create)) },
+            leadingContent = {
+                if (busy) {
+                    Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) { LoadingIndicator(Modifier.size(32.dp)) }
+                } else {
+                    FolderIcon(Res.drawable.link_24dp, accent = canCreate)
+                }
+            },
+            colors = ListItemDefaults.colors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                headlineColor = if (canCreate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+            modifier = Modifier.clip(groupItemShape(0, count)).clickable(enabled = canCreate, onClick = onCreate),
+        )
+        links.forEachIndexed { index, link ->
+            ListItem(
+                headlineContent = {
+                    Text(link.name.ifBlank { link.url.removePrefix("https://") }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                },
+                supportingContent = {
+                    Text(pluralStringResource(Res.plurals.chat_folder_share_chats, link.chatIds.size, link.chatIds.size))
+                },
+                leadingContent = { FolderIcon(Res.drawable.link_24dp, accent = false) },
+                trailingContent = {
+                    Row {
+                        IconButton(onClick = { onShare(link) }) {
+                            Icon(painterResource(Res.drawable.share_24dp), contentDescription = stringResource(Res.string.chat_folder_share_share))
+                        }
+                        IconButton(onClick = { onDelete(link) }, enabled = !busy) {
+                            Icon(painterResource(Res.drawable.delete_24dp), contentDescription = stringResource(Res.string.chat_folder_share_delete))
+                        }
+                    }
+                },
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                modifier = Modifier
+                    .clip(groupItemShape(1 + index, count))
+                    .clickable(onClickLabel = stringResource(Res.string.chat_folder_share_copy)) { onCopy(link) },
             )
         }
     }

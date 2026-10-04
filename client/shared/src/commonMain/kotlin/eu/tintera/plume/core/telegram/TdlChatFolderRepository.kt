@@ -3,6 +3,7 @@ package eu.tintera.plume.core.telegram
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.ChatFolder
 import dev.g000sha256.tdl.dto.ChatFolderIcon
+import dev.g000sha256.tdl.dto.ChatFolderInviteLink
 import dev.g000sha256.tdl.dto.ChatFolderName
 import dev.g000sha256.tdl.dto.ChatListFolder
 import dev.g000sha256.tdl.dto.FormattedText
@@ -78,7 +79,24 @@ class TdlChatFolderRepository(
         val draft = folder(folderId).getOrThrow()
         edit(folderId, draft.withoutChat(chatId, coveredByKind = draft.includesAnyKind)).getOrThrow()
     }
+
+    override suspend fun links(folderId: Int): Result<List<ChatFolderLink>> =
+        client.getChatFolderInviteLinks(chatFolderId = folderId).toResult().map { result ->
+            result.inviteLinks.map { it.toLink() }
+        }
+
+    override suspend fun createLink(folderId: Int): Result<ChatFolderLink> = runCatching {
+        val chats = client.getChatsForChatFolderInviteLink(chatFolderId = folderId).toResult().getOrThrow()
+        if (chats.chatIds.isEmpty()) throw NothingToShareException()
+        client.createChatFolderInviteLink(chatFolderId = folderId, name = "", chatIds = chats.chatIds)
+            .toResult().getOrThrow().toLink()
+    }
+
+    override suspend fun deleteLink(folderId: Int, url: String): Result<Unit> =
+        client.deleteChatFolderInviteLink(chatFolderId = folderId, inviteLink = url).toResult().map { }
 }
+
+private fun ChatFolderInviteLink.toLink() = ChatFolderLink(url = inviteLink, name = name, chatIds = chatIds.toList())
 
 private fun ChatFolder.toDraft(): ChatFolderDraft {
     val title = name.text.toBody()

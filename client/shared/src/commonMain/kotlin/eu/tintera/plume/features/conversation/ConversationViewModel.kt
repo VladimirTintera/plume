@@ -52,6 +52,7 @@ import eu.tintera.plume.core.telegram.SenderInfo
 import eu.tintera.plume.core.telegram.ForwardOrigin
 import eu.tintera.plume.resources.invite_request_sent
 import eu.tintera.plume.resources.conversation_link_failed
+import eu.tintera.plume.core.telegram.FolderInvitePreview
 import eu.tintera.plume.core.telegram.InvitePreview
 import eu.tintera.plume.core.telegram.InviteJoinResult
 import eu.tintera.plume.core.telegram.InternalLink
@@ -133,6 +134,9 @@ import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.folder_invite_added
+import eu.tintera.plume.resources.folder_invite_failed
+import eu.tintera.plume.resources.folder_invite_joined
 import eu.tintera.plume.resources.chat_bar_phone_shared
 import eu.tintera.plume.resources.paid_media_unsupported
 import eu.tintera.plume.resources.conversation_selection_limit
@@ -2160,6 +2164,9 @@ class ConversationViewModel(
                             else -> openTarget(ChatTarget(link.chatId, link.messageId, topicId = link.topicId))
                         }
                         is InternalLink.Invite -> _state.update { it.copy(invite = InviteSheetState(link.link, link.preview)) }
+                        is InternalLink.FolderInvite -> _state.update {
+                            it.copy(folderInvite = FolderInviteSheetState(link.link, link.preview))
+                        }
                         is InternalLink.StickerSet -> _state.update { it.copy(openStickerSet = link.setId) }
                         is InternalLink.BotStart -> openBotStart(link)
                         // Skupinu vybírá obrazovka výběru; přidání se potvrzuje až tam.
@@ -2431,6 +2438,39 @@ class ConversationViewModel(
 
     fun dismissInvite() {
         _state.update { it.copy(invite = null) }
+    }
+
+    fun toggleFolderInviteChat(chatId: Long) {
+        _state.update { state ->
+            val invite = state.folderInvite?.takeUnless { it.adding } ?: return@update state
+            val selected = if (chatId in invite.selected) invite.selected - chatId else invite.selected + chatId
+            state.copy(folderInvite = invite.copy(selected = selected))
+        }
+    }
+
+    /**
+     * Přidá sdílenou složku (nebo jen nové chaty do složky, kterou uživatel už má). Do vybraných
+     * chatů se tím uživatel přidá; složka se pak objeví v řádku nad seznamem chatů sama
+     * (`UpdateChatFolders`), takže se nikam nenaviguje — stačí hláška.
+     */
+    fun addFolderInvite() {
+        val invite = _state.value.folderInvite?.takeUnless { it.adding || !it.canAdd } ?: return
+        _state.update { it.copy(folderInvite = invite.copy(adding = true)) }
+        viewModelScope.launch {
+            chatRepository.addFolderByInvite(invite.link, invite.preview.missingChats.map { it.id }.filter { it in invite.selected })
+                .onSuccess {
+                    val done = if (invite.preview.folderId == 0) Res.string.folder_invite_added else Res.string.folder_invite_joined
+                    _state.update { it.copy(folderInvite = null, notice = UiText(done, invite.preview.title)) }
+                }
+                .onFailure { failure ->
+                    val message = failure.reported(Res.string.folder_invite_failed)
+                    _state.update { it.copy(folderInvite = it.folderInvite?.copy(adding = false), error = message) }
+                }
+        }
+    }
+
+    fun dismissFolderInvite() {
+        _state.update { it.copy(folderInvite = null) }
     }
 
     /** Obrazovka sheet sady otevřela. */
@@ -4411,6 +4451,24 @@ data class MediaAt(val messageId: Long, val seconds: Int)
 /** Otevřený náhled pozvánky; [joining] = přidávání běží a tlačítko je neaktivní. */
 data class InviteSheetState(val link: String, val preview: InvitePreview, val joining: Boolean = false)
 
+/**
+ * Náhled sdílené složky. Vybrané jsou zpočátku všechny chaty, ke kterým se dá připojit — tak to
+ * dělají oficiální klienti; kdo nechce do některého, odškrtne ho.
+ */
+data class FolderInviteSheetState(
+    val link: String,
+    val preview: FolderInvitePreview,
+    val selected: Set<Long> = preview.missingChats.mapTo(LinkedHashSet()) { it.id },
+    val adding: Boolean = false,
+) {
+    /**
+     * Novou složku jde přidat i bez připojení k chatům, když v některých už uživatel je (složka
+     * nebude prázdná). Do složky, kterou už má, se přidává jen to, co vybral.
+     */
+    val canAdd: Boolean
+        get() = selected.isNotEmpty() || (preview.folderId == 0 && preview.alreadyJoined > 0)
+}
+
 /** Skok na zprávu, která se teprve načítá; obrazovka mezitím odjíždí směrem k ní. */
 data class PendingJump(val messageId: Long, val older: Boolean)
 
@@ -4737,6 +4795,8 @@ data class ConversationState(
     val memberPicker: MemberPicker? = null,
     /** Náhled chatu z pozvánky; `null` = zavřený. */
     val invite: InviteSheetState? = null,
+    /** Náhled sdílené složky z odkazu `t.me/addlist/…`; `null` = zavřený. */
+    val folderInvite: FolderInviteSheetState? = null,
     /** Vlastní klávesnice bota nebo vynucená odpověď v chatu; `null` = žádná. */
     val replyMarkup: ChatReplyMarkup? = null,
     /** Příkazy botů v chatu — napovídání po „/" a seznam z tlačítka u pole; prázdné = žádní boti. */

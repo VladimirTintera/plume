@@ -79,6 +79,13 @@ interface ChatRepository {
     /** Přidá se do chatu přes pozvánku ([InternalLink.Invite]). */
     suspend fun joinByInvite(link: String): Result<InviteJoinResult>
 
+    /**
+     * Přidá sdílenou složku z pozvánky ([InternalLink.FolderInvite]) a přidá se do [chatIds] —
+     * podmnožiny [FolderInvitePreview.missingChats], kterou si uživatel vybral.
+     */
+    suspend fun addFolderByInvite(link: String, chatIds: List<Long>): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
     /** Chat veřejného uživatele, skupiny nebo kanálu podle uživatelského jména (bez `@`). */
     suspend fun chatByUsername(username: String): Result<Long>
 
@@ -412,6 +419,8 @@ data class ChatFolderTab(
     val titleEntities: List<MessageEntity> = emptyList(),
     /** Jméno ikony od TDLib (zvolené, jinak výchozí podle obsahu složky). */
     val iconName: String? = null,
+    /** Složka má (nebo měla) odkaz ke sdílení — pak nenese druhy chatů ani vynechané. */
+    val isShareable: Boolean = false,
 )
 
 /**
