@@ -184,6 +184,9 @@ class ChatsViewModel(
     fun setKeepUnmutedArchived(value: Boolean) =
         writeArchiveSettings { it.copy(keepUnmutedArchived = value) }
 
+    fun setKeepFromFoldersArchived(value: Boolean) =
+        writeArchiveSettings { it.copy(keepFromFoldersArchived = value) }
+
     /**
      * Přepínač se pohne hned a při selhání se vrátí. Na rozdíl od akcí nad chatem tu potvrzení
      * updatem nepřijde — kdyby se čekalo na server, přepínač by se po ťuknutí nehýbal vůbec.

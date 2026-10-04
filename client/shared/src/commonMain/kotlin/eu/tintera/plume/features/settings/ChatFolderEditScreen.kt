@@ -1,6 +1,20 @@
 package eu.tintera.plume.features.settings
 
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Surface
+import androidx.compose.material3.rememberBottomSheetState
+import eu.tintera.plume.resources.chat_folder_icon
+import eu.tintera.plume.resources.chat_folder_icon_auto
+import eu.tintera.plume.resources.chat_folder_icon_auto_help
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -195,6 +209,16 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
                 value = draft.title,
                 onValueChange = viewModel::setTitle,
                 label = { Text(stringResource(Res.string.chat_folder_name)) },
+                // Ikona stojí u názvu, jako v oficiálních klientech: je to druhá půlka toho,
+                // jak se složka jmenuje, ne další blok formuláře.
+                leadingIcon = {
+                    IconButton(onClick = viewModel::openIconPicker) {
+                        Icon(
+                            painterResource(folderIcon(state.shownIconName)),
+                            contentDescription = stringResource(Res.string.chat_folder_icon),
+                        )
+                    }
+                },
                 singleLine = true,
                 isError = problem == ChatFolderProblem.MissingTitle || draft.title.trim().length > CHAT_FOLDER_TITLE_MAX,
                 supportingText = {
@@ -255,6 +279,15 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
+    }
+
+    if (state.iconPickerOpen) {
+        FolderIconSheet(
+            selected = draft.iconName,
+            defaultIconName = state.defaultIconName,
+            onSelect = viewModel::setIcon,
+            onDismiss = viewModel::closeIconPicker,
+        )
     }
 
     if (confirmDelete) {
@@ -374,4 +407,80 @@ private fun FolderChatPicker(viewModel: ChatFolderEditViewModel, pick: FolderCha
         confirmIcon = Res.drawable.check_24dp,
         modifier = modifier,
     )
+}
+
+/**
+ * Výběr ikony složky: nahoře „Automaticky" (ikonu vybere Telegram podle obsahu, vidět je která),
+ * pod tím mřížka všech ikon. Vybraná je v `secondaryContainer` a zaoblená do čtverce — tentýž
+ * jazyk jako vybraný filtr v toolbaru seznamu chatů, takže se pozná i bez barvy.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun FolderIconSheet(
+    selected: String?,
+    defaultIconName: String?,
+    onSelect: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    // Celý, bez napůl rozbaleného stavu — mřížka by jinak skončila pod okrajem.
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            Modifier
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                stringResource(Res.string.chat_folder_icon),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(start = 8.dp),
+            )
+            ListItem(
+                headlineContent = { Text(stringResource(Res.string.chat_folder_icon_auto)) },
+                supportingContent = { Text(stringResource(Res.string.chat_folder_icon_auto_help)) },
+                leadingContent = { FolderIcon(folderIcon(defaultIconName), accent = selected == null) },
+                trailingContent = if (selected == null) {
+                    { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) }
+                } else {
+                    null
+                },
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                modifier = Modifier
+                    .clip(MaterialTheme.shapes.large)
+                    .selectable(selected = selected == null, role = Role.RadioButton, onClick = { onSelect(null) }),
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                CHAT_FOLDER_ICONS.forEach { choice ->
+                    val isSelected = choice.name == selected
+                    val corner by animateDpAsState(
+                        targetValue = if (isSelected) 16.dp else 28.dp,
+                        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                        label = "folder-icon-shape",
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(corner),
+                        color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest,
+                        contentColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(corner))
+                            .selectable(selected = isSelected, role = Role.RadioButton, onClick = { onSelect(choice.name) }),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(painterResource(choice.icon), contentDescription = stringResource(choice.label))
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

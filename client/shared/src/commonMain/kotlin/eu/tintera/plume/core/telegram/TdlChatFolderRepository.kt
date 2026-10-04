@@ -38,10 +38,24 @@ class TdlChatFolderRepository(
         client.reorderChatFolders(chatFolderIds = ids.toIntArray(), mainChatListPosition = mainPosition)
             .toResult().map { }
 
+    /**
+     * Doporučená složka nese ikonu jen pro zobrazení (`iconName`): v konceptu zůstává prázdná,
+     * takže přidaná složka si ikonu dál volí podle obsahu, jako by ji uživatel založil sám.
+     */
     override suspend fun recommended(): Result<List<RecommendedChatFolder>> =
         client.getRecommendedChatFolders().toResult().map { result ->
-            result.chatFolders.map { RecommendedChatFolder(draft = it.folder.toDraft(), description = it.description) }
+            result.chatFolders.map { recommended ->
+                val draft = recommended.folder.toDraft()
+                RecommendedChatFolder(
+                    draft = draft,
+                    description = recommended.description,
+                    iconName = draft.iconName ?: defaultIconName(draft).getOrNull(),
+                )
+            }
         }
+
+    override suspend fun defaultIconName(draft: ChatFolderDraft): Result<String> =
+        client.getChatFolderDefaultIconName(folder = draft.toTdl()).toResult().map { it.name }
 
     /**
      * Ve které složce chat JE, říká `Chat.chatLists` (dokumentace: pozice v seznamu o členství

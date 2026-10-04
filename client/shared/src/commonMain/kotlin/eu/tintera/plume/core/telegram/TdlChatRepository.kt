@@ -528,29 +528,24 @@ class TdlChatRepository(
             ArchiveSettings(
                 archiveUnknownSenders = settings.archiveAndMuteNewChatsFromUnknownUsers,
                 keepUnmutedArchived = settings.keepUnmutedChatsArchived,
+                keepFromFoldersArchived = settings.keepChatsFromFoldersArchived,
                 canArchiveUnknownSenders = (canArchiveUnknown as? OptionValueBoolean)?.value == true,
             ),
         )
     }
 
-    /**
-     * Zapisuje se celým objektem, jako ztlumení chatu: `keepChatsFromFoldersArchived` se přenese
-     * z aktuálního stavu, jinak by se tiše přepsalo, co si uživatel nastavil v jiném klientovi.
-     */
-    override suspend fun setArchiveSettings(settings: ArchiveSettings): Result<Unit> {
-        val current = client.getArchiveChatListSettings().toResult()
-            .getOrElse { return Result.failure(it) }
-        return client.setArchiveChatListSettings(
+    /** Zapisuje se celým objektem — všechny tři volby jsou v [ArchiveSettings]. */
+    override suspend fun setArchiveSettings(settings: ArchiveSettings): Result<Unit> =
+        client.setArchiveChatListSettings(
             settings = ArchiveChatListSettings(
                 archiveAndMuteNewChatsFromUnknownUsers = settings.archiveUnknownSenders,
                 keepUnmutedChatsArchived = settings.keepUnmutedArchived,
-                keepChatsFromFoldersArchived = current.keepChatsFromFoldersArchived,
+                keepChatsFromFoldersArchived = settings.keepFromFoldersArchived,
             ),
         )
             .toResult()
             .map { }
             .onFailure { logger.w(it) { "Nastavení archivu se nepodařilo uložit." } }
-    }
 
     override fun muted(chatId: Long): Flow<Boolean?> =
         all.map { it[chatId]?.isMuted }.distinctUntilChanged()
@@ -1504,7 +1499,7 @@ private fun ChatFolder.toChatList(): ChatList = when (this) {
 
 private fun ChatFolderInfo.toTab(): ChatFolderTab {
     val body = name.text.toBody()
-    return ChatFolderTab(id = id, title = body.text, titleEntities = body.entities)
+    return ChatFolderTab(id = id, title = body.text, titleEntities = body.entities, iconName = icon.name)
 }
 
 private fun Array<ChatPosition>.toFolderPositions(): Map<ChatFolder, FolderPosition> =

@@ -48,6 +48,7 @@ import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.core.ui.rememberDragReorderState
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.chat_24dp
 import eu.tintera.plume.resources.add_24dp
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.chat_folders_add
@@ -61,7 +62,6 @@ import eu.tintera.plume.resources.chat_folders_reorder
 import eu.tintera.plume.resources.chat_folders_title
 import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.drag_indicator_24dp
-import eu.tintera.plume.resources.folder_24dp
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
@@ -176,7 +176,7 @@ fun ChatFoldersScreen(
                     } else {
                         null
                     },
-                    leadingContent = { FolderIcon(Res.drawable.folder_24dp, accent = false) },
+                    leadingContent = { FolderIcon(if (folder == null) Res.drawable.chat_24dp else folderIcon(folder.iconName), accent = false) },
                     trailingContent = if (folder != null) {
                         {
                             Box(
@@ -217,7 +217,7 @@ fun ChatFoldersScreen(
                     ListItem(
                         headlineContent = { Text(folder.draft.title) },
                         supportingContent = { Text(folder.description) },
-                        leadingContent = { FolderIcon(Res.drawable.folder_24dp, accent = false) },
+                        leadingContent = { FolderIcon(folderIcon(folder.iconName), accent = false) },
                         trailingContent = {
                             if (state.adding == folder.draft.title) {
                                 LoadingIndicator(Modifier.size(40.dp))
