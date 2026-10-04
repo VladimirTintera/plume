@@ -19,14 +19,15 @@ import eu.tintera.plume.core.telegram.within
 import eu.tintera.plume.core.telegram.UnreadMarkKind
 import eu.tintera.plume.resources.bot_location_unavailable
 import eu.tintera.plume.core.telegram.BotCommandItem
+import eu.tintera.plume.core.telegram.BotChatRequest
 import eu.tintera.plume.core.telegram.BotMenuApp
+import eu.tintera.plume.core.telegram.BotUsersRequest
 import eu.tintera.plume.core.telegram.UnreadMarks
 import eu.tintera.plume.core.telegram.ChatReplyMarkup
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.ReplyKeyboardButtonKind
 import eu.tintera.plume.core.telegram.UnsupportedKeyboardButton
 import eu.tintera.plume.resources.poll_add_option_failed
-import eu.tintera.plume.resources.bot_unsupported_pick_chat
 import eu.tintera.plume.resources.bot_unsupported_managed_bot
 import eu.tintera.plume.core.telegram.BotButtonKind
 import eu.tintera.plume.core.telegram.SwitchInlineTarget
@@ -2368,6 +2369,8 @@ class ConversationViewModel(
     /** Bot, kterému zpráva s tlačítkem patří: odesílatel (kladné id = uživatel), jinak chat s botem. */
     private fun botOf(message: ChatMessage?): Long = message?.senderId?.takeIf { it > 0 } ?: chatId
 
+    fun consumeOpenBotShare() = _state.update { it.copy(openBotShare = null) }
+
     fun consumeOpenPollComposer() {
         _state.update { it.copy(openPollComposer = null) }
     }
@@ -2589,6 +2592,11 @@ class ConversationViewModel(
             ReplyKeyboardButtonKind.PhoneNumber -> _state.update { it.copy(confirmSharePhone = true) }
             // Poloha taky; zjišťuje ji až obrazovka po potvrzení (oprávnění a GPS jsou její).
             ReplyKeyboardButtonKind.Location -> _state.update { it.copy(confirmShareLocation = true) }
+            // Výběr lidí a chatu je obrazovka nad konverzací; tlačítko patří zprávě s klávesnicí.
+            is ReplyKeyboardButtonKind.Users ->
+                _state.update { it.copy(openBotShare = BotShareRequest(keyboard.messageId, users = kind.request)) }
+            is ReplyKeyboardButtonKind.Chat ->
+                _state.update { it.copy(openBotShare = BotShareRequest(keyboard.messageId, chat = kind.request)) }
             // Formulář je obrazovka nad konverzací; otevírá ho obrazovka, ViewModel jen řekne jaký.
             is ReplyKeyboardButtonKind.Poll -> _state.update { it.copy(openPollComposer = kind.mode) }
             is ReplyKeyboardButtonKind.WebApp -> {
@@ -4769,6 +4777,8 @@ data class ConversationState(
     val pendingContact: MessageMedia.Contact? = null,
     /** Jednorázová událost: tlačítko bota chce formulář nové ankety (v tomhle režimu). */
     val openPollComposer: PollComposerMode? = null,
+    /** Jednorázová událost: tlačítko bota chce výběr lidí nebo chatu. */
+    val openBotShare: BotShareRequest? = null,
     /** Mini aplikace k otevření — obrazovka ji otevře a událost vynuluje. */
     val openWebApp: WebAppRequest? = null,
     /** Jednorázová událost: otevřít sheet sady samolepek z odkazu `t.me/addstickers/…`. */
@@ -4958,7 +4968,6 @@ val ConversationState.inputPlaceholder: String?
     }
 
 private fun UnsupportedKeyboardButton.explanation(): StringResource = when (this) {
-    UnsupportedKeyboardButton.Users, UnsupportedKeyboardButton.Chat -> Res.string.bot_unsupported_pick_chat
     UnsupportedKeyboardButton.ManagedBot -> Res.string.bot_unsupported_managed_bot
 }
 
@@ -5014,6 +5023,9 @@ data class WebAppRequest(
     /** Pojmenovaná mini aplikace z odkazu `t.me/bot/app` (`getWebAppLinkUrl`). */
     val shortName: String = "",
 )
+
+/** Výběr pro tlačítko bota „vyber lidi" ([users]) / „vyber chat" ([chat]) ve zprávě [messageId]. */
+data class BotShareRequest(val messageId: Long, val users: BotUsersRequest? = null, val chat: BotChatRequest? = null)
 
 /** Přihlášení na web z tlačítka bota, které čeká na potvrzení. */
 data class LoginRequest(val messageId: Long, val buttonId: Long, val prompt: LoginUrlPrompt.Confirm)

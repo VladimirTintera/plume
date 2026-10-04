@@ -385,8 +385,8 @@ zprávou"). Zbývá:
   výsledky pod polem, cíl daný odkazem `TargetChatInternalLink` se jen vysvětlí), platba, hra
   a zpětné volání s heslem dvoufázového ověření.
 - ~~**Vlastní klávesnice** a **vynucená odpověď**~~ — hotovo, klávesnice nad polem
-  (`CLAUDE.md`, „Vlastní klávesnice bota"). Zbývá: tlačítka polohy, ankety, výběru lidí
-  a chatů (`shareUsersWithBot`, `shareChatWithBot`), mini aplikace a zakládání botů; ověřit
+  (`CLAUDE.md`, „Vlastní klávesnice bota"). ~~Tlačítka polohy, ankety, výběru lidí
+  a chatů~~ a ~~mini aplikace~~ — hotovo (`CLAUDE.md`, „Vlastní klávesnice bota"). Zbývá zakládání botů (`RequestManagedBot`); ověřit
   odeslání čísla; jednorázová klávesnice se po znovuotevření chatu ukáže rozbalená (TDLib
   neříká, že už byla použitá).
 - ~~**Vlastní emoji v popisku tlačítka** (`iconCustomEmojiId`)~~ — hotovo.

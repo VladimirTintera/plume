@@ -211,6 +211,28 @@ const val NO_START = -1
 @Serializable
 data class ForwardRoute(val fromChatId: Long, val messageIds: List<Long>) : Route
 
+/**
+ * Výběr pro tlačítko klávesnice bota „vyber lidi" ([users] `true`) nebo „vyber chat" ve zprávě
+ * [messageId] chatu [chatId]. Omezení tlačítka nese routa rozložená do polí — domácí typy
+ * (`BotUsersRequest`, `BotChatRequest`) serializovatelné nejsou a do `core/telegram` anotace
+ * navigace nepatří. Bez metadat scény: jde přes celou plochu z obou větví, jako formulář ankety.
+ */
+@Serializable
+data class BotShareRoute(
+    val chatId: Long,
+    val messageId: Long,
+    val buttonId: Int,
+    val users: Boolean,
+    /** Lidé: `true` jen boti, `false` jen lidé, `null` kdokoli. */
+    val bots: Boolean? = null,
+    val maxQuantity: Int = 1,
+    /** Chat: kanál, jinak skupina. */
+    val channel: Boolean = false,
+    val forum: Boolean? = null,
+    val botIsMember: Boolean = false,
+    val botAdministrator: Boolean = false,
+) : Route
+
 /** Výběr chatů, do kterých poslat kontakt uživatele [userId] (z profilu, ⋮ → Sdílet kontakt). */
 @Serializable
 data class ShareContactRoute(val userId: Long) : Route
@@ -342,6 +364,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
             subclass(ShareContactRoute::class, ShareContactRoute.serializer())
+            subclass(BotShareRoute::class, BotShareRoute.serializer())
             subclass(PollComposerRoute::class, PollComposerRoute.serializer())
             subclass(WebAppRoute::class, WebAppRoute.serializer())
             subclass(AddBotToGroupRoute::class, AddBotToGroupRoute.serializer())

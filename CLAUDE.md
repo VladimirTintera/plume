@@ -4391,8 +4391,36 @@ polem; doména `ChatReplyMarkup`, zdroj `ConversationRepository.replyMarkup`.
 - **Ve skupině jde text tlačítka jako odpověď** na zprávu s klávesnicí, jako u oficiálního
   klienta; v soukromém chatu je citace šum.
 - **Sdílení čísla je za potvrzením** (`SharePhoneDialog`) — údaj o uživateli nejde odeslat na
-  jedno ťuknutí. Poloha, anketa, výběr lidí a chatů, mini aplikace a zakládání botů se jen
-  vysvětlí, jako u tlačítek pod zprávou.
+  jedno ťuknutí. Zakládání botů (`RequestManagedBot`) se jen vysvětlí, jako u tlačítek pod
+  zprávou; anketa otevře formulář, mini aplikace se otevře (viz „Mini aplikace botů").
+- **Poloha z tlačítka je PŘESNÁ a za potvrzením** (`ShareLocationDialog`,
+  `rememberDeviceLocation(precise = true)`). Bot s ní volá taxi nebo kurýra; kilometrová
+  přesnost, která stačí na místa v okolí, by tam nic neřekla. Android žádá přesnou spolu
+  s přibližnou (uživatel smí zvolit přibližnou a pošle se ta), iOS `kCLLocationAccuracyBest`.
+  Když čerstvá nepřijde (GPS v budově), pošle se poslední známá do deseti minut, jinak hláška.
+  - **GPS emulátoru nové fixy samo nedává a `adb emu geo fix` ho nezmění.** Polohu podstrčí
+    testovací poskytovatel: `adb shell appops set com.android.shell android:mock_location allow`,
+    `cmd location providers add-test-provider fused`, `set-test-provider-enabled fused true`,
+    `set-test-provider-location fused --location 50.0875,14.4208`. Po testu
+    `remove-test-provider fused` a appop vrátit na `deny`.
+- **Výběr lidí a chatu je obrazovka** (`BotShareRoute`, `BotShareScreen` nad `ChatPicker`,
+  `shareUsersWithBot` / `shareChatWithBot`). Lidí se vybírá víc (nejvýš `max_quantity`) a sdílí
+  tlačítkem, chat se po ťuknutí potvrzuje dialogem. Nabízí se jen to, co seznam ví
+  (`botShareCandidates`, testy `BotShareCandidatesTest`): soukromé chaty, nebo skupiny / kanály
+  s tématy či bez nich; zbytek omezení (bot, prémiový účet, vlastník, veřejné jméno) ověří
+  server při výběru (`onlyCheck`) a nevyhovující řádek se ohlásí hned, ne po odeslání.
+  - **Že se bot do chatu PŘIDÁ a dostane práva správce, říká karta i dialog výslovně**
+    (`botIsMember`, `botAdministratorRights`) — z tlačítka „vyber skupinu" to nikdo nečeká.
+  - **`request_name` / `request_title` / `request_photo` klient NEVIDÍ.** V TDLib jsou „bots
+    only" a uživatelský klient je dostane vždycky `false` — ověřeno: bot o název žádal, TDLib
+    hlásil `requestTitle=false` a bot název přesto dostal. Karta proto říká, co bot dostat MŮŽE
+    (jméno / název, uživatelské jméno, fotku), ne co žádá.
+  - **Bot API chce u `bot_administrator_rights` i `user_administrator_rights`** (podmnožinu),
+    jinak `USER_RIGHTS_MISSING`.
+  - **Ověřuje se tlačítkem, které chce BOTY** (`user_is_bot: true`): sdílení lidí by testovacímu
+    botovi poslalo účty skutečných kontaktů. Ověřeno na emulátoru: odmítnutí bota u tlačítka
+    pro lidi, sdílení dvou botů (`users_shared`), vlastní testovací skupiny (`chat_shared`)
+    a dialog u skupiny s botem jako správcem (zrušený — bot se do skupiny nepřidal).
 - **Vynucená odpověď přepne pole na odpověď sama, jednou na zprávu**, a jen když se zrovna
   neupravuje ani neodpovídá jinam. Zpráva bota do seznamu dorazí klidně až po updatu, proto se
   na ni chvíli čeká. Po odeslání odpovědi se odebere (`deleteChatReplyMarkup`).

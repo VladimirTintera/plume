@@ -79,6 +79,11 @@ import eu.tintera.plume.core.navigation.PollComposerRoute
 import eu.tintera.plume.features.conversation.WebAppRequest
 import eu.tintera.plume.features.webapp.WebAppScreen
 import eu.tintera.plume.core.navigation.WebAppRoute
+import eu.tintera.plume.core.telegram.BotChatRequest
+import eu.tintera.plume.core.telegram.BotUsersRequest
+import eu.tintera.plume.features.conversation.BotShareRequest
+import eu.tintera.plume.features.forward.BotShareScreen
+import eu.tintera.plume.core.navigation.BotShareRoute
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.features.conversation.PollComposerScreen
 import eu.tintera.plume.features.conversation.PollComposerRequest
@@ -467,6 +472,7 @@ private fun shellEntryProvider(
             onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(chatId)) },
             onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
             onOpenWebApp = { request -> chatsStack.add(webAppRoute(route.chatId, request, archive = false)) },
+            onOpenBotShare = { request -> chatsStack.add(botShareRoute(route.chatId, request)) },
             onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
             onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
         )
@@ -638,6 +644,7 @@ private fun shellEntryProvider(
             onUnarchived = { chatsStack.moveConversationToMain(route.chatId) },
             onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
             onOpenWebApp = { request -> chatsStack.add(webAppRoute(route.chatId, request, archive = true)) },
+            onOpenBotShare = { request -> chatsStack.add(botShareRoute(route.chatId, request)) },
             onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
             onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
         )
@@ -813,6 +820,22 @@ private fun shellEntryProvider(
                     chatsStack.add(ConversationRoute(chatId))
                 }
             },
+        )
+    }
+
+    // Výběr lidí / chatu pro tlačítko bota. Po sdílení se vrátí do konverzace, kde tlačítko bylo.
+    entry<BotShareRoute> { route ->
+        val users = route.usersRequest()
+        val chat = route.chatRequest()
+        BotShareScreen(
+            viewModel = koinViewModel(
+                key = "bot-share-${route.chatId}-${route.messageId}-${route.buttonId}",
+                parameters = { parametersOf(route.chatId, route.messageId, users, chat) },
+            ),
+            users = users,
+            chat = chat,
+            onBack = { chatsStack.pop(route) },
+            onShared = { chatsStack.pop(route) },
         )
     }
 
@@ -1016,6 +1039,24 @@ private const val ARCHIVE_SCENE = "archive"
  * nebyla výměna scény, ale změna obsahu té stávající.
  */
 private const val SETTINGS_SCENE = "settings"
+
+private fun botShareRoute(chatId: Long, request: BotShareRequest) = BotShareRoute(
+    chatId = chatId,
+    messageId = request.messageId,
+    buttonId = request.users?.buttonId ?: request.chat?.buttonId ?: 0,
+    users = request.users != null,
+    bots = request.users?.bots,
+    maxQuantity = request.users?.maxQuantity ?: 1,
+    channel = request.chat?.channel ?: false,
+    forum = request.chat?.forum,
+    botIsMember = request.chat?.botIsMember ?: false,
+    botAdministrator = request.chat?.botAdministrator ?: false,
+)
+
+private fun BotShareRoute.usersRequest() = BotUsersRequest(buttonId, bots, maxQuantity).takeIf { users }
+
+private fun BotShareRoute.chatRequest() =
+    BotChatRequest(buttonId, channel, forum, botIsMember, botAdministrator).takeUnless { users }
 
 private fun webAppRoute(chatId: Long, request: WebAppRequest, archive: Boolean) = WebAppRoute(
     chatId = chatId,

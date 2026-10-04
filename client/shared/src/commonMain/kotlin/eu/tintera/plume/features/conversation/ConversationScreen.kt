@@ -423,6 +423,8 @@ fun ConversationScreen(
     onCreatePoll: (PollComposerRequest) -> Unit = {},
     /** Mini aplikace bota — obrazovka přes celou plochu nad konverzací. */
     onOpenWebApp: (WebAppRequest) -> Unit = {},
+    /** Tlačítko bota „vyber lidi / chat": výběr nad konverzací. */
+    onOpenBotShare: (BotShareRequest) -> Unit = {},
     /** Odkaz `t.me/bot?startgroup=…`: výběr skupiny, do které bota přidat. */
     onAddBotToGroup: (InternalLink.BotStartInGroup) -> Unit = {},
     /** Tlačítko bota s inline dotazem do jiného chatu: výběr chatu. */
@@ -2051,6 +2053,12 @@ fun ConversationScreen(
             LaunchedEffect(mode) {
                 onCreatePoll(PollComposerRequest(mode, state.replyingTo?.id, state.replyQuote))
                 viewModel.consumeOpenPollComposer()
+            }
+        }
+        state.openBotShare?.let { request ->
+            LaunchedEffect(request) {
+                viewModel.consumeOpenBotShare()
+                onOpenBotShare(request)
             }
         }
         state.openWebApp?.let { request ->

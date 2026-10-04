@@ -1229,7 +1229,25 @@
     <string name="bot_unsupported_buy">Platby Plume zatím neumí.</string>
     <string name="bot_unsupported_game">Hry Plume zatím neumí.</string>
     <string name="bot_unsupported_password">Tlačítka, která chtějí heslo, Plume zatím neumí.</string>
-    <string name="bot_unsupported_pick_chat">Sdílení chatů a lidí s botem Plume zatím neumí.</string>
+    <string name="bot_share_pick_users">Vyber lidi</string>
+    <string name="bot_share_pick_group">Vyber skupinu</string>
+    <string name="bot_share_pick_channel">Vyber kanál</string>
+    <string name="bot_share_users_info">Bot dostane účty lidí, které vybereš — a s nimi může dostat i jméno, uživatelské jméno a fotku.</string>
+    <string name="bot_share_chat_info">Bot dostane skupinu, kterou vybereš — a s ní může dostat i název, uživatelské jméno a fotku.</string>
+    <string name="bot_share_channel_info">Bot dostane kanál, který vybereš — a s ním může dostat i název, uživatelské jméno a fotku.</string>
+    <string name="bot_share_chat_member">Bot se tam přidá.</string>
+    <string name="bot_share_chat_admin">Dostane tam práva správce.</string>
+    <string name="bot_share_confirm">Sdílet</string>
+    <string name="bot_share_confirm_title">Sdílet „%1$s“ s botem?</string>
+    <string name="bot_share_confirm_count">Sdílet (%1$d)</string>
+    <string name="bot_share_user_not_allowed">Tenhle účet bot nepřijme.</string>
+    <string name="bot_share_chat_not_allowed">Tenhle chat bot nepřijme.</string>
+    <string name="bot_share_failed">Sdílet s botem se nepodařilo.</string>
+    <plurals name="bot_share_users_limit">
+        <item quantity="one">Vybrat jde nejvýš %1$d účet</item>
+        <item quantity="few">Vybrat jde nejvýš %1$d účty</item>
+        <item quantity="other">Vybrat jde nejvýš %1$d účtů</item>
+    </plurals>
     <string name="bot_unsupported_managed_bot">Zakládání botů Plume zatím neumí.</string>
     <string name="bot_share_phone_title">Sdílet telefonní číslo?</string>
     <string name="bot_share_location_title">Poslat polohu?</string>

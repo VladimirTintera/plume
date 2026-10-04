@@ -1,6 +1,9 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.features.forward.ShareContactViewModel
+import eu.tintera.plume.features.forward.BotShareViewModel
+import eu.tintera.plume.core.telegram.BotChatRequest
+import eu.tintera.plume.core.telegram.BotUsersRequest
 import eu.tintera.plume.features.profile.JoinRequestsViewModel
 import eu.tintera.plume.features.profile.InviteLinksViewModel
 import eu.tintera.plume.features.settings.EditProfileViewModel
@@ -435,6 +438,18 @@ fun appModule() = module {
 
     viewModel { parameters ->
         ShareContactViewModel(userId = parameters.get(), repository = get(), chatRepository = get(), shareTargets = get())
+    }
+
+    // Parametry INDEXEM: chat a zpráva jsou dvě `Long`, požadavky bývají `null`.
+    viewModel { parameters ->
+        BotShareViewModel(
+            chatId = parameters.values[0] as Long,
+            messageId = parameters.values[1] as Long,
+            users = parameters.values[2] as? BotUsersRequest,
+            chat = parameters.values[3] as? BotChatRequest,
+            repository = get(),
+            chatRepository = get(),
+        )
     }
 
     // Parametry z routy. `get()` bez indexu je bere podle pořadí, ve kterém přišly; třetí
