@@ -177,7 +177,7 @@ private fun AlbumTile(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
-                        .sharedNavElement(photoKey(member.id), shape = shape)
+                        .sharedNavElement(photoKey(member.id), shape = shape, inTwoPane = true)
                         .spoilerBlur(media.hasSpoiler, revealed, spoilerStyle),
                 )
                 if (media.hasSpoiler) {

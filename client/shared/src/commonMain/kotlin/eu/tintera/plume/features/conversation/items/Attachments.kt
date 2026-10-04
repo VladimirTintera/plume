@@ -168,7 +168,7 @@ internal fun MessageAttachment(
                         modifier = Modifier
                             .size(frame)
                             .clip(pictureShape)
-                            .sharedNavElement(photoKey(messageId), shape = pictureShape)
+                            .sharedNavElement(photoKey(messageId), shape = pictureShape, inTwoPane = true)
                             /*
                              * Gesta patří FOTCE, ne celé bublině.
                              *
@@ -645,7 +645,7 @@ internal fun VideoThumbnail(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .sharedNavElement(photoKey(messageId), shape = shape)
+                    .sharedNavElement(photoKey(messageId), shape = shape, inTwoPane = true)
                     .spoilerBlur(shouldBlur, revealed = false, spoilerStyle),
             )
         }
@@ -803,7 +803,7 @@ private fun LargeDocumentPreview(
                 .clip(shape)
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                 // Z náhledu vyroste prohlížeč, stejně jako z fotky; co jde systému, neletí nikam.
-                .then(if (inViewer) Modifier.sharedNavElement(photoKey(messageId), shape = shape) else Modifier)
+                .then(if (inViewer) Modifier.sharedNavElement(photoKey(messageId), shape = shape, inTwoPane = true) else Modifier)
                 .combinedClickable(
                     enabled = !uploading,
                     onClick = onOpen,
