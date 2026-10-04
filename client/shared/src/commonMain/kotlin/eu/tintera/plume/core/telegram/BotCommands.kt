@@ -9,6 +9,12 @@ package eu.tintera.plume.core.telegram
  */
 data class BotCommandItem(val command: String, val description: String, val text: String)
 
+/**
+ * Tlačítko nabídky bota s mini aplikací ([ConversationRepository.botMenuApp]). [text] píše
+ * bot („Otevřít obchod"), [url] jde do `openWebApp` jako adresa z tlačítka pod zprávou.
+ */
+data class BotMenuApp(val text: String, val url: String)
+
 /** Co se pošle za příkaz: ve skupině s jménem bota, jinak holý. */
 internal fun botCommandText(command: String, botUsername: String?, inGroup: Boolean): String =
     if (inGroup && !botUsername.isNullOrBlank()) "/$command@$botUsername" else "/$command"

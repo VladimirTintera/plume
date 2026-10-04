@@ -378,7 +378,7 @@ kopírování textu, uživatel, zašedlé tlačítko a barvy od bota (`CLAUDE.md
 zprávou"). Zbývá:
 
 - **Druhy, které Plume zatím jen vysvětlí**: ~~mini aplikace~~ (hotovo, `CLAUDE.md`, „Mini
-  aplikace botů"; zbývá tlačítko nabídky bota `BotMenuButton`, hlavní mini aplikace bota
+  aplikace botů"; ~~tlačítko nabídky bota `BotMenuButton`~~ hotovo; zbývá hlavní mini aplikace bota
   `getMainWebApp`, odkazy `t.me/bot/app` a druhé tlačítko `web_app_setup_secondary_button`),
   ~~přihlášení na web~~ (hotovo; se skutečnou doménou bota ověřit — chce `/setdomain`
   v BotFatheru), inline dotaz do jiného chatu (`switchInline` — výběr chatu a vložení
@@ -527,7 +527,7 @@ snadno na to uživatel narazí.
 - **Napovídání při psaní**: ~~`/` příkazy bota~~ — hotovo i s tlačítkem seznamu příkazů
   (`CLAUDE.md`, „Příkazy bota“; ve skupině ověřit příponu `@bot`). ~~`@` členové skupiny~~ —
   hotovo i se zmínkou jménem (`CLAUDE.md`, „Napovídání zmínek"; ve skutečné skupině ověřit).
-  Zbývá tlačítko nabídky bota s mini aplikací (`BotMenuButton`). ~~Emoji podle slov~~ — hotovo
+  ~~Tlačítko nabídky bota s mini aplikací (`BotMenuButton`)~~ — hotovo. ~~Emoji podle slov~~ — hotovo
   (`CLAUDE.md`, „Emoji podle slov"). ~~Inline boti
   (`@gif kočka` v poli)~~ — hotovo i s „přes @bot" u zprávy (`CLAUDE.md`, „Inline boti"); zbývá
   ověřit tlačítko „nastavit u bota", bota s polohou a inline bota ve skupině.

@@ -4409,8 +4409,8 @@ které seznam otevře celý (`BotCommandsPanel`, doména `BotCommandItem`, pravi
   z tlačítka, napovídání po „/n", ťuknutí na návrh (pole prázdné) i na příkaz v textu — všechny
   tři příkazy dorazily botovi (`getUpdates`). V Uložených zprávách tlačítko není. **Skupina
   s botem ověřená není** (přípona `@bot`) — do skutečných skupin se testovací zprávy nepíšou.
-- **Tlačítko nabídky bota (`BotMenuButton`) je mini aplikace** a ta se z nabídky zatím neotevírá;
-  seznam příkazů ji nenahrazuje.
+- **Tlačítko nabídky bota (`BotMenuButton`) stojí na místě tlačítka příkazů** — viz „Mini
+  aplikace botů". Příkazy pak napovídá jen „/", jako u oficiálních klientů.
 
 ### Spuštění bota
 
@@ -5757,6 +5757,20 @@ zobrazí a zprostředkuje její události.
 - **Odkaz na Telegram z mini aplikace** (`web_app_open_tg_link`) ji zavře a otevře chat nad
   konverzací pod ní (`WebAppRoute.archive` říká, do které větve); jiné druhy odkazů jdou do
   prohlížeče.
+- **Tlačítko nabídky bota** (`BotInfo.menuButton`, `BotMenuApp`, `BotMenuAppButton`) stojí
+  u pole MÍSTO tlačítka příkazů a otevírá mini aplikaci přes `openWebApp`, jako tlačítko pod
+  zprávou — TDLib adresu z `botMenuButton` bere právě tam. Jen v soukromém chatu s botem;
+  čte se jednou při otevření chatu, jako příkazy.
+  - **V prázdném poli plná pilulka s textem od bota, při psaní (a s přílohami) jen ikona** —
+    text bývá dlouhý a na úzkém telefonu by poli ukousl místo, zrovna když se píše. Sbalená má
+    barvu ostatních ikon v kartě, ne plnou plochu: vedle plného odesílacího tlačítka by se
+    dvě sytá kolečka prala. Text se zkracuje na 120 dp.
+  - **Adresa typu `t.me/bot/app` se nenabízí** (`InternalLinkTypeWebApp`): TDLib ji předepisuje
+    zpracovat jako odkaz (`getWebAppLinkUrl`), ne poslat do `openWebApp`, a to Plume zatím
+    neumí. Zůstane tlačítko příkazů.
+  - **Ověřuje se `setChatMenuButton` botem** s `chat_id` vlastního účtu (jen pro náš chat,
+    ne globálně) a po ověření vrátit `{"type":"default"}`. Ověřeno na emulátoru (Fold, světlý
+    i tmavý motiv): pilulka, sbalení s konceptem, souhlas a otevření ukázky `cafe`.
 - **Ověřeno na emulátoru** s ukázkou Telegramu `webappcontent.telegram.org/cafe` (bot ji pošle
   jako `web_app` tlačítko): souhlas jen poprvé, motiv, hlavní tlačítko v barvě od stránky a změna
   jeho textu, vlastní „zpět" v hlavičce i systémovým gestem, potvrzení zavření s plným košíkem,

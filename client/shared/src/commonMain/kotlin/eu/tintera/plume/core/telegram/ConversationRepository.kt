@@ -641,6 +641,12 @@ interface ConversationRepository {
     suspend fun botCommands(chatId: Long): Result<List<BotCommandItem>>
 
     /**
+     * Tlačítko nabídky bota (`BotInfo.menuButton`): mini aplikace, kterou bot nabízí u pole
+     * místo seznamu příkazů. Jen v soukromém chatu s botem; `null` = bot žádné nemá.
+     */
+    suspend fun botMenuApp(chatId: Long): Result<BotMenuApp?>
+
+    /**
      * Změny toho, jestli se do chatu smí psát a jestli se k němu jde přidat (správce změní
      * práva, uživatel se přidá nebo odejde). Soukromý chat nic nevydá — tam se píše vždycky.
      */

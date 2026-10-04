@@ -121,6 +121,7 @@ import dev.g000sha256.tdl.dto.InputThumbnail
 import dev.g000sha256.tdl.dto.InputVideo
 import dev.g000sha256.tdl.dto.InputVideoNote
 import dev.g000sha256.tdl.dto.InputVoiceNote
+import dev.g000sha256.tdl.dto.InternalLinkTypeWebApp
 import dev.g000sha256.tdl.dto.Message
 import dev.g000sha256.tdl.dto.MessageInteractionInfo
 import dev.g000sha256.tdl.dto.MessageOrigin
@@ -1755,6 +1756,28 @@ class TdlConversationRepository(
                 )
             }
         }
+    }
+
+    /**
+     * Tlačítko nabídky z plných údajů bota (po prvním dotazu lokální, jako příkazy).
+     *
+     * **Odkaz typu `t.me/bot/app` se nenabízí.** TDLib u tlačítka předepisuje: když je adresa
+     * interní odkaz na mini aplikaci (`InternalLinkTypeWebApp`), musí se zpracovat jako ten
+     * odkaz (`getWebAppLinkUrl`), ne poslat do `openWebApp`. Takové odkazy Plume zatím neumí,
+     * takže zůstane tlačítko příkazů — tlačítko, po kterém přijde chyba, je horší.
+     */
+    override suspend fun botMenuApp(chatId: Long): Result<BotMenuApp?> = runCatching {
+        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+        val userId = (chat.type as? ChatTypePrivate)?.userId ?: return@runCatching null
+        val button = client.getUserFullInfo(userId = userId).toResult().getOrNull()?.botInfo?.menuButton
+            ?: return@runCatching null
+        if (button.url.isBlank() || button.text.isBlank()) return@runCatching null
+        val linkType = client.getInternalLinkType(link = button.url).toResult().getOrNull()
+        if (linkType is InternalLinkTypeWebApp) {
+            logger.i { "Tlačítko nabídky bota $userId vede na odkaz mini aplikace, zatím se nenabízí." }
+            return@runCatching null
+        }
+        BotMenuApp(text = button.text, url = button.url)
     }
 
     /** Příkazy všech botů ve skupině, každý s jménem svého bota (viz [botCommandText]). */

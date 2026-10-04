@@ -18,6 +18,7 @@ import eu.tintera.plume.core.telegram.composedFormatsOf
 import eu.tintera.plume.core.telegram.within
 import eu.tintera.plume.core.telegram.UnreadMarkKind
 import eu.tintera.plume.core.telegram.BotCommandItem
+import eu.tintera.plume.core.telegram.BotMenuApp
 import eu.tintera.plume.core.telegram.UnreadMarks
 import eu.tintera.plume.core.telegram.ChatReplyMarkup
 import eu.tintera.plume.core.telegram.PollComposerMode
@@ -475,6 +476,10 @@ class ConversationViewModel(
         // po prvním dotazu lokální. Nezjištěné = žádné, napovídání se neukáže.
         viewModelScope.launch {
             repository.botCommands(chatId).onSuccess { commands -> _state.update { it.copy(botCommands = commands) } }
+        }
+        // Tlačítko nabídky bota s mini aplikací: totéž čtení, jen pro soukromý chat s botem.
+        viewModelScope.launch {
+            repository.botMenuApp(chatId).onSuccess { app -> _state.update { it.copy(botMenuApp = app) } }
         }
 
         // Automatické mazání se ukazuje v hlavičce; mění se i z jiného zařízení nebo od protějšku.
@@ -2573,6 +2578,16 @@ class ConversationViewModel(
         }
     }
 
+    /**
+     * Tlačítko nabídky bota: mini aplikace přes `openWebApp`, jako z tlačítka pod zprávou —
+     * TDLib bere adresu z `botMenuButton` právě tam. Soukromý chat s botem má id bota.
+     */
+    fun openBotMenuApp() {
+        val app = _state.value.botMenuApp ?: return
+        closeCommands()
+        requestWebApp(WebAppRequest(chatId, _state.value.info?.title.orEmpty(), app.url, launch = true))
+    }
+
     /** Tlačítko příkazů u pole: otevře seznam, druhé ťuknutí ho zavře. */
     fun toggleCommands() = _state.update { it.copy(commandsOpen = !it.commandsOpen) }
 
@@ -4655,6 +4670,8 @@ data class ConversationState(
     val botCommands: List<BotCommandItem> = emptyList(),
     /** Seznam příkazů otevřený tlačítkem u pole (bez ohledu na to, co je v poli). */
     val commandsOpen: Boolean = false,
+    /** Mini aplikace z tlačítka nabídky bota; když je, stojí u pole místo tlačítka příkazů. */
+    val botMenuApp: BotMenuApp? = null,
     /** Po kolika sekundách se nové zprávy chatu samy mažou; 0 = nemažou (odznak v hlavičce). */
     val autoDeleteTime: Int = 0,
     /** Rozepsaný dotaz na inline bota (`@gif kočka`) a jeho výsledky; `null` = žádný. */
