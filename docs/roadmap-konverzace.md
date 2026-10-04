@@ -553,8 +553,9 @@ snadno na to uživatel narazí.
 - ~~**Překlad zprávy**~~ (`translateMessageText`) — hotovo, sheet z nabídky nad zprávou
   (`CLAUDE.md`, „Překlad zprávy"). ~~Volba cílového jazyka~~ — hotovo. Zbývá překlad celého chatu
   (`UpdateChatIsTranslatable`, Premium) a skrýt „Přeložit" u zprávy, která už je v jazyce
-  aplikace (chce to rozpoznání jazyka v zařízení). **Shrnutí od serveru** (`summarizeMessage`,
-  `summaryLanguageCode`) — vedle shrnutí v zařízení.
+  aplikace (chce to rozpoznání jazyka v zařízení). ~~**Shrnutí od serveru**~~ (`summarizeMessage`)
+  — hotovo, „Shrnout" v nabídce nad zprávou (`CLAUDE.md`, „Shrnutí od serveru"). Samotné shrnutí
+  ověřené NENÍ: testovací účet bez Premium dostane hned `SUMMARY_FLOOD_PREMIUM`.
 - **Vědomě NE**: tapeta a téma chatu (`Chat.background`, `theme`) a barvy jmen podle profilu
   (`accentColorId`) — aplikace má vlastní Material vzhled a `senderColor`; kdyby se přidávaly,
   je to rozhodnutí o vzhledu, ne chybějící funkce.

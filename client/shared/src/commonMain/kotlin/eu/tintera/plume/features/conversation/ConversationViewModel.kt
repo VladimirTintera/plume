@@ -228,6 +228,9 @@ import kotlin.time.Duration.Companion.milliseconds
 import eu.tintera.plume.core.telegram.inlineQueryOf
 import eu.tintera.plume.resources.conversation_via_bot_draft_busy
 import eu.tintera.plume.resources.translation_copied
+import eu.tintera.plume.resources.server_summary_copied
+import eu.tintera.plume.resources.translation_failed
+import eu.tintera.plume.resources.server_summary_failed
 
 /**
  * Stav a stránkování jedné konverzace.
@@ -3137,6 +3140,23 @@ class ConversationViewModel(
     }
 
     /**
+     * Shrnutí zprávy od serveru (`summarizeMessage`) v témž sheetu jako překlad a ve stejném
+     * jazyce — kdo si překlady nastavil do češtiny, chce v ní i shrnutí. Nabízí se jen u zprávy,
+     * u které ho server dovolí ([ChatMessage.summaryLanguage]).
+     */
+    private fun showSummary(messageId: Long) {
+        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+        val canCopy = _state.value.messageMenu?.actions?.canCopy ?: false
+        _state.update { it.copy(messageMenu = null) }
+        translate(
+            message,
+            settings.translationLanguage.value ?: normalizedLanguageCode(platformLanguageCode),
+            summary = true,
+            canCopy = canCopy,
+        )
+    }
+
+    /**
      * Přeloží otevřenou zprávu do jiného jazyka a jazyk si zapamatuje pro další překlady. Jazyk
      * aplikace se neukládá jako kód, ale jako „výchozí" (`null`) — po změně jazyka aplikace se
      * pak překládá do nového.
@@ -3144,25 +3164,35 @@ class ConversationViewModel(
     fun changeTranslationLanguage(code: String) {
         val open = _state.value.translation ?: return
         settings.setTranslationLanguage(code.takeUnless { it == normalizedLanguageCode(platformLanguageCode) })
-        translate(open.message, code)
+        translate(open.message, code, open.summary, open.canCopy)
     }
 
-    private fun translate(message: ChatMessage, language: String) {
-        _state.update { it.copy(translation = TranslationSheet(message, language)) }
+    private fun translate(message: ChatMessage, language: String, summary: Boolean = false, canCopy: Boolean = true) {
+        _state.update { it.copy(translation = TranslationSheet(message, language, summary = summary, canCopy = canCopy)) }
 
         viewModelScope.launch {
-            val result = repository.translateMessage(chatId, message.id, language)
+            val result = if (summary) {
+                // Ve vlastním jazyce zprávy se shrnutí nepřekládá — server by překládal sám do sebe.
+                val target = language.takeUnless { it == message.summaryLanguage?.let(::normalizedLanguageCode) }
+                repository.summarizeMessage(chatId, message.id, target)
+            } else {
+                repository.translateMessage(chatId, message.id, language)
+            }
             _state.update { state ->
                 // Mezitím mohl uživatel sheet zavřít, otevřít u jiné zprávy nebo vybrat jiný jazyk.
                 val open = state.translation
-                    ?.takeIf { it.message.id == message.id && it.languageCode == language }
+                    ?.takeIf { it.message.id == message.id && it.languageCode == language && it.summary == summary }
                     ?: return@update state
                 state.copy(
                     translation = result.fold(
                         onSuccess = { open.copy(body = it) },
                         onFailure = { failure ->
-                            logger.w(failure) { "Zprávu se nepodařilo přeložit." }
-                            open.copy(failed = true)
+                            logger.w(failure) { if (summary) "Zprávu se nepodařilo shrnout." else "Zprávu se nepodařilo přeložit." }
+                            open.copy(
+                                error = failure.userMessage(
+                                    if (summary) Res.string.server_summary_failed else Res.string.translation_failed,
+                                ),
+                            )
                         },
                     ),
                 )
@@ -3179,9 +3209,11 @@ class ConversationViewModel(
      * sheetem by vidět nebylo (stejně jako u odkazu v „Informace").
      */
     fun copyTranslation() {
-        val text = _state.value.translation?.body?.text ?: return
+        val open = _state.value.translation?.takeIf { it.canCopy } ?: return
+        val text = open.body?.text ?: return
         viewModelScope.launch { clipboard.copy(text) }
-        _state.update { it.copy(translation = null, notice = UiText(Res.string.translation_copied)) }
+        val notice = if (open.summary) Res.string.server_summary_copied else Res.string.translation_copied
+        _state.update { it.copy(translation = null, notice = UiText(notice)) }
     }
 
     /**
@@ -3326,6 +3358,7 @@ class ConversationViewModel(
             MessageMenuAction.Forward -> requestForward(messageId)
             MessageMenuAction.Info -> showMessageInfo(messageId)
             MessageMenuAction.Translate -> showTranslation(messageId)
+            MessageMenuAction.Summarize -> showSummary(messageId)
             MessageMenuAction.SelectText -> selectText(messageId)
             MessageMenuAction.Pin -> requestPin(messageId)
             MessageMenuAction.Unpin -> unpinFromMenu(messageId)
@@ -4528,7 +4561,15 @@ data class TranslationSheet(
     val message: ChatMessage,
     val languageCode: String,
     val body: MessageBody? = null,
-    val failed: Boolean = false,
+    /** Proč se to nepovedlo; `null`, dokud se čeká nebo když se to povedlo. */
+    val error: UiText? = null,
+    /** Shrnutí od serveru místo překladu — tentýž sheet, jiné volání a jiné texty. */
+    val summary: Boolean = false,
+    /**
+     * Jestli smí výsledek do schránky. Překlad se u chráněného obsahu nenabízí vůbec, shrnutí
+     * ano (dostupnost řídí server) — jen bez kopírování, chráněný obsah ven nesmí ani převyprávěný.
+     */
+    val canCopy: Boolean = true,
 )
 
 /**

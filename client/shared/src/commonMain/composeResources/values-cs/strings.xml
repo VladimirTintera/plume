@@ -1876,4 +1876,11 @@
     <string name="transcript_used_up_until">Bezplatné přepisy na tento týden došly. Další: %1$s</string>
     <string name="transcribe_failed">Přepis se nepodařilo spustit.</string>
     <string name="transcript_premium_required">Přepis do textu je v Telegramu jen s Premium.</string>
+    <string name="menu_summarize">Shrnout</string>
+    <string name="server_summary_title">Shrnutí</string>
+    <string name="server_summary_failed">Zprávu se nepodařilo shrnout</string>
+    <string name="server_summary_copy">Kopírovat shrnutí</string>
+    <string name="server_summary_copied">Shrnutí zkopírováno</string>
+    <string name="server_summary_note">Shrnul Telegram. Něco může vynechat nebo popsat nepřesně.</string>
+    <string name="error_summary_premium_limit">Bez Telegram Premium jsou shrnutí omezená. Zkus to později.</string>
 </resources>

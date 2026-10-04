@@ -2026,6 +2026,7 @@ class TdlConversationRepository(
                 ?.takeIf { sender != null },
             senderBoostCount = senderBoostCount.takeIf { sender != null } ?: 0,
             effect = effectId.takeIf { it != 0L }?.let { messageEffect(it) },
+            summaryLanguage = summaryLanguageCode.ifBlank { null },
             factCheck = factCheck?.let { check ->
                 val body = check.text.toBody()
                 FactCheck(body.text, body.entities, check.countryCode.ifBlank { null })
@@ -2539,6 +2540,17 @@ class TdlConversationRepository(
     override suspend fun sender(senderId: Long): Result<SenderInfo> =
         resolveSender(senderId)?.let { Result.success(it) }
             ?: Result.failure(IllegalStateException("Odesílatel $senderId není známý"))
+
+    override suspend fun summarizeMessage(chatId: Long, messageId: Long, languageCode: String?): Result<MessageBody> =
+        client.summarizeMessage(
+            chatId = chatId,
+            messageId = messageId,
+            translateToLanguageCode = languageCode.orEmpty(),
+            // Prázdný = výchozí tón; volbu tónu aplikace nenabízí, stejně jako u překladu.
+            tone = "",
+        )
+            .toResult()
+            .map { it.toBody() }
 
     override suspend fun translateMessage(chatId: Long, messageId: Long, languageCode: String): Result<MessageBody> =
         client.translateMessageText(
