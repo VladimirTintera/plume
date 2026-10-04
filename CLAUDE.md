@@ -3864,9 +3864,24 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   vrcholy vlnek leží na původním okraji, takže pozadí bubliny, fotka i samolepka (každá ořezaná
   vlastním zaobleným tvarem) se do vlnek ořežou a nic nepřečnívá. Obsah má odsazení 8–14 dp,
   vlnky 3 dp do textu nesáhnou.
-- **Tvar jde přes `graphicsLayer { shape; clip }`, ne `Modifier.clip`.** Fáze se mění každý
-  snímek a `WavyShape` je pokaždé nový objekt; ve vrstvě to přepočítá jen obrys, v `clip` by to
-  rekomponovalo zprávu. Vlnek je po obvodu celý počet, jinak by na spoji byl zub.
+- **Vrstva ořezává tvarem bubliny, vlnky jsou jen ořez při kreslení** (`drawWithContent`
+  + `clipPath` nad `WavyShape`). Fáze se mění každý snímek a `WavyShape` je pokaždé nový objekt;
+  čte se až při kreslení, takže obíhání nerekomponuje (v `Modifier.clip` by rekomponovalo).
+  Vlnek je po obvodu celý počet, jinak by na spoji byl zub.
+- **Ořez VRSTVY rozhoduje i o dotyku — vlnitý obrys v něm nesmí být.** Dokud nesla vrstva
+  `graphicsLayer { shape = WavyShape; clip = true }`, nešlo nad ukázaným výsledkem hledání otevřít
+  nabídku dlouhým stiskem a nic uvnitř zprávy nereagovalo; po zavření hledání (zvýraznění zmizí)
+  ano. Compose u ořezané vrstvy zkouší, jestli bod leží v obrysu, a u `Outline.Generic` to dělá
+  průnikem obrysu se čtverečkem 0,01 px přes `Path.op` (`ShapeContainingUtil.isInPath`) — u vlnitého
+  polygonu s tisíci body (zpráva vysoká přes 3 000 px) vyšel prázdný. Dotyk pak k rodiči kolem
+  zprávy dorazil nespotřebovaný, ale k ničemu uvnitř ne. Zvlněná hrající hlasovka měla totéž.
+  **Obecně: kde má obsah pod vlastním tvarem reagovat na dotyk, patří do ořezu vrstvy jen
+  jednoduchý tvar (zaoblený obdélník), složitý obrys jen do kreslení.** Jestli selhával i krátký
+  zvýrazněný text, ověřené není — na opravě to nic nemění.
+- **Ověřilo se to sondou, ne úvahou**: log v `requestMenu` (při hledání se nezavolá vůbec), log
+  událostí v `PointerEventPass.Final` na rámu (`Press`/`Release` nespotřebované) a pokus s
+  `clip = false` u zvlnění (nabídka se otevře). Pozor na falešnou stopu: dokud se hledání načítá,
+  zpráva ještě zvýrazněná není a nabídka se otevře — vypadalo to, že rozhoduje klávesnice.
 - **Stažená nároží se při zvýraznění zakulatí** — zpráva se z bloku vyčlení i tvarem.
 
 - **Odchozí bublina je `primary`, ne `primaryContainer`.** Se dvěma světlými plochami o podobné
