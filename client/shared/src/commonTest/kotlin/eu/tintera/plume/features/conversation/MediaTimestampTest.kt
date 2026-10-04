@@ -53,4 +53,37 @@ class MediaTimestampTest {
         assertNull(timestampTarget(message(2), listOf(message(2)), emptyMap()))
         assertNull(timestampTarget(message(2, replyTo = 1), listOf(message(2, replyTo = 1)), emptyMap()))
     }
+
+    @Test
+    fun youtubeDostaneCasParametrem() {
+        assertEquals(
+            "https://youtube.com/watch?v=dQw4w9WgXcQ&t=43s",
+            videoLinkAt("https://youtube.com/watch?v=dQw4w9WgXcQ", 43),
+        )
+        assertEquals("https://youtu.be/dQw4w9WgXcQ?t=90s", videoLinkAt("https://youtu.be/dQw4w9WgXcQ", 90))
+        assertEquals(
+            "https://m.youtube.com/watch?v=x&t=5s#komentare",
+            videoLinkAt("https://m.youtube.com/watch?v=x#komentare", 5),
+        )
+    }
+
+    @Test
+    fun existujiciCasSePrepise() {
+        assertEquals(
+            "https://www.youtube.com/watch?v=x&list=y&t=10s",
+            videoLinkAt("https://www.youtube.com/watch?v=x&t=99s&list=y", 10),
+        )
+    }
+
+    @Test
+    fun vimeoDostaneCasKotvou() {
+        assertEquals("https://vimeo.com/123#t=7s", videoLinkAt("https://vimeo.com/123#t=1s", 7))
+    }
+
+    @Test
+    fun jinyWebZustaneBezCasu() {
+        assertEquals("https://example.com/video?id=1", videoLinkAt("https://example.com/video?id=1", 7))
+        // Doména, která youtube.com jen obsahuje, YouTube není.
+        assertEquals("https://notyoutube.com/v", videoLinkAt("https://notyoutube.com/v", 7))
+    }
 }

@@ -4255,7 +4255,14 @@ médium od toho místa: video v prohlížeči, hlasovku, skladbu a kolečko př�
   bere z `ConversationState.soundingVideoNoteFromMs`.
 - **Klikatelný je čas jen v konverzaci** (`RichText(timestampsClickable)`), jinde (bio, popis)
   zůstane textem — vedl by nikam.
-- **Video v náhledu odkazu (YouTube) čas nepustí** — v aplikaci ho nepřehráváme.
+- **Video v náhledu odkazu se otevře na webu od toho místa** (`videoLinkAt`, testy
+  `MediaTimestampTest`): YouTube dostane `t=43s` v dotazu (stávající `t` se přepíše), Vimeo kotvu
+  `#t=43s`, jiný web holou adresu — přehrávač na něm neznáme a hádat parametr nestojí za to.
+  V aplikaci se cizí video nepřehrává. Video pozná náhled podle druhu od serveru
+  (`LinkPreview.isVideo`: `LinkPreviewTypeVideo` a `EmbeddedVideoPlayer`), u článku nebo fotky
+  čas nevede nikam. Ověřeno botem: odpověď „Refrén je od 0:43" na zprávu s odkazem na YouTube
+  otevřela aplikaci YouTube s `…&t=43s` (vidět v `capturedLink` v logcatu — `START` adresu
+  zkrátí na `https://youtube.com/...`).
 - **Ověřeno na emulátoru botem**: popisek videa, odpověď na video (prohlížeč na celé obrazovce
   od 0:02), odpověď na skladbu, na hlasovku (m4a přes `sendVoice`) a na kolečko — vše hraje
   od 0:02. **Neověřeno**: iOS (jen přeložené).
