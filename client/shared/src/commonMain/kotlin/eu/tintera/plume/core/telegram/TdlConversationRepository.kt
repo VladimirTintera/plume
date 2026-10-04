@@ -2901,7 +2901,7 @@ private fun Message.toChatReplyMarkup(): ChatReplyMarkup? = when (val markup = r
                     kind = when (val type = button.type) {
                         is KeyboardButtonTypeText -> ReplyKeyboardButtonKind.Text
                         is KeyboardButtonTypeRequestPhoneNumber -> ReplyKeyboardButtonKind.PhoneNumber
-                        is KeyboardButtonTypeRequestLocation -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.Location)
+                        is KeyboardButtonTypeRequestLocation -> ReplyKeyboardButtonKind.Location
                         is KeyboardButtonTypeRequestPoll -> ReplyKeyboardButtonKind.Poll(
                             when {
                                 type.forceQuiz -> PollComposerMode.QuizOnly

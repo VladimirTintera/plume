@@ -1350,6 +1350,9 @@ sealed interface ReplyKeyboardButtonKind {
     /** Pošle vlastní telefonní číslo jako kontakt — po potvrzení, je to údaj o uživateli. */
     data object PhoneNumber : ReplyKeyboardButtonKind
 
+    /** Pošle přesnou polohu zařízení — po potvrzení, je to údaj o uživateli (jen soukromý chat). */
+    data object Location : ReplyKeyboardButtonKind
+
     /** Otevře formulář nové ankety; bot si smí vynutit kvíz, nebo běžnou anketu. */
     data class Poll(val mode: PollComposerMode) : ReplyKeyboardButtonKind
 
@@ -1360,7 +1363,7 @@ sealed interface ReplyKeyboardButtonKind {
     data class Unsupported(val feature: UnsupportedKeyboardButton) : ReplyKeyboardButtonKind
 }
 
-enum class UnsupportedKeyboardButton { Location, Users, Chat, ManagedBot }
+enum class UnsupportedKeyboardButton { Users, Chat, ManagedBot }
 
 /** Barva, kterou si bot pro tlačítko přeje (TDLib `ButtonStyle`). */
 enum class BotButtonStyle { Default, Primary, Success, Danger }

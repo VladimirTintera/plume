@@ -1957,6 +1957,17 @@ fun ConversationScreen(
         if (state.confirmSharePhone) {
             SharePhoneDialog(onShare = viewModel::sharePhone, onDismiss = viewModel::dismissSharePhone)
         }
+        // Přesná: bot polohou volá taxi nebo kurýra, kilometrová přesnost tam nic neřekne.
+        val keyboardLocation = rememberDeviceLocation(precise = true)
+        if (state.confirmShareLocation) {
+            ShareLocationDialog(
+                onShare = {
+                    viewModel.dismissShareLocation()
+                    keyboardLocation.request(viewModel::sendKeyboardLocation)
+                },
+                onDismiss = viewModel::dismissShareLocation,
+            )
+        }
 
         openStickerSetId?.let { setId ->
             StickerSetSheet(
