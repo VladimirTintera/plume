@@ -5163,6 +5163,26 @@ na iOS. Dlouhý stisk v SEZNAMU dál otevírá nabídku — o gesto se nedělí,
   položka v nabídce, načítání, překlad, kopírování se snackbarem; výběr jazyka s hledáním
   („cin"), překlad do čínštiny (Tchaj-wan), zapamatování po znovuotevření, zpět zavře jen výběr,
   a po volbě češtiny a přepnutí aplikace do angličtiny „To English". **iOS jen přeložené.**
+- **Zpráva, která už JE v jazyce překladu, „Přeložit" nemá** (`MessageMenu.inTranslationLanguage`,
+  pravidla `alreadyInLanguage` a `languageDetectionText`, testy `AlreadyInLanguageTest`). Jazyk
+  rozpoznává zařízení (`LanguageDetector` v `core/language`: Android `TextClassifier.detectLanguage`
+  od Androidu 10, iOS `NLLanguageRecognizer`); nic se neposílá a nic se nestahuje. Starší Android
+  rozpoznávat neumí a položku nabízí vždycky.
+  - **Rozpoznává se při otevření nabídky, souběžně s právy**, se stropem 300 ms — nabídka čeká na
+    všechny úlohy a pomalý první start modelu ji nesmí zdržet. Nestihnuté = nabídnout.
+  - **Chyba směrem „schovat" je horší než „nabídnout"**, proto: krátký text (pod deset písmen —
+    „ok", „Zítra?") se nerozpoznává vůbec, a čínština se neschovává nikdy (cíl je písmo
+    `zh-CN` / `zh-TW`, rozpoznání ho nerozliší).
+  - **Práh jistoty je 0,7, ne 0,8** (`MIN_LANGUAGE_CONFIDENCE`). Změřeno na emulátoru: „Dneska je
+    krásné počasí, pojďme se projít do parku." dostala češtinu jen 0,76 (zbytek slovenština),
+    přitom slovenskou a polskou větu model pozná na 0,99 a češtinu u jiných vět na 0,998.
+    Hypotézy se dají vypsat dočasným logem v `AndroidLanguageDetector` (`getLocale(i)`,
+    `getConfidenceScore`); necommituje se.
+  - **Ověřeno na emulátoru** (aplikace česky): dvě české věty bez „Přeložit", slovenská, polská,
+    anglická a krátké „Zítra?" s ním. **iOS jen přeložené.**
+  - **Pozor při ověřování přes `adb`**: zpět po zavřené nabídce odejde z konverzace a další dlouhé
+    stisky trefí řádky seznamu chatů (se skutečnými lidmi). Před zpět ověřit dumpem, že je nabídka
+    otevřená (text „Odpovědět").
 - **Dlouhý stisk přes `adb` podle polohy z dumpu se může trefit do odkazu**, když se seznam mezi
   dumpem a stiskem posune — pak se místo nabídky otevře prohlížeč. Poloha se bere těsně před
   stiskem a mimo řádek s odkazem.

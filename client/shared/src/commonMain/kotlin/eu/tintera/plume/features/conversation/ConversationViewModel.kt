@@ -59,6 +59,7 @@ import eu.tintera.plume.core.telegram.InvitePreview
 import eu.tintera.plume.core.telegram.InviteJoinResult
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.platformLanguageCode
+import eu.tintera.plume.core.language.LanguageDetector
 import eu.tintera.plume.core.telegram.MessageBody
 import eu.tintera.plume.core.telegram.NameMention
 import eu.tintera.plume.core.telegram.MentionCandidate
@@ -271,6 +272,8 @@ class ConversationViewModel(
     private val appScope: CoroutineScope,
     private val urlOpener: UrlOpener,
     private val clipboard: TextClipboard,
+    /** Jen kvůli „Přeložit": zpráva, která už je v jazyce překladu, ho nenabízí. */
+    private val languageDetector: LanguageDetector,
     /** Jen kvůli hlasovkám: soubor se stáhne až při prvním přehrání. */
     private val fileRepository: FileRepository,
     private val voicePlayer: VoicePlayer,
@@ -3138,8 +3141,12 @@ class ConversationViewModel(
     private fun showTranslation(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         _state.update { it.copy(messageMenu = null) }
-        translate(message, settings.translationLanguage.value ?: normalizedLanguageCode(platformLanguageCode))
+        translate(message, translationTarget())
     }
+
+    /** Jazyk překladu: zvolený v nastavení, jinak jazyk aplikace. */
+    private fun translationTarget(): String =
+        settings.translationLanguage.value ?: normalizedLanguageCode(platformLanguageCode)
 
     /**
      * Shrnutí zprávy od serveru (`summarizeMessage`) v témž sheetu jako překlad a ve stejném
@@ -3152,7 +3159,7 @@ class ConversationViewModel(
         _state.update { it.copy(messageMenu = null) }
         translate(
             message,
-            settings.translationLanguage.value ?: normalizedLanguageCode(platformLanguageCode),
+            translationTarget(),
             summary = true,
             canCopy = canCopy,
         )
@@ -3383,7 +3390,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             val sticker = message.media as? MessageMedia.Sticker
 
-            val (emoji, actions, favorite) = coroutineScope {
+            val (emoji, actions, favorite, inTranslationLanguage) = coroutineScope {
                 val emojiTask = async { repository.availableReactions(chatId, messageId) }
                 val actionsTask = async { repository.messageActions(chatId, messageId) }
                 // Oblíbenost jen u samolepky; seznam oblíbených je krátký a TDLib ho má lokálně.
@@ -3392,13 +3399,22 @@ class ConversationViewModel(
                         stickerRepository.favoriteStickers().first().any { it.sendFileId == s.stickerFileId }
                     }
                 }
-                Triple(
+                // Rozpoznání jazyka jen kvůli „Přeložit", a se stropem: nabídka čeká na všechny
+                // úlohy a pomalé rozpoznání (studený model) ji nesmí zdržet — pak se prostě nabízí.
+                val languageTask = async {
+                    val text = languageDetectionText(message.text)
+                    if (MessageMenuAction.Translate !in items || text == null) return@async false
+                    val detected = withTimeoutOrNull(LANGUAGE_DETECTION_TIMEOUT_MS) { languageDetector.detect(text) }
+                    alreadyInLanguage(detected, translationTarget())
+                }
+                MenuLoad(
                     emojiTask.await().getOrDefault(emptyList()),
                     actionsTask.await().getOrElse { failure ->
                         logger.w(failure) { "Příznaky zprávy $messageId se nepodařilo zjistit." }
                         MessageActions.Fallback
                     },
                     favoriteTask.await(),
+                    languageTask.await(),
                 )
             }
 
@@ -3414,11 +3430,19 @@ class ConversationViewModel(
                         items = items,
                         favoriteSticker = favorite,
                         pressedMessageId = pressed?.takeIf { it != messageId },
+                        inTranslationLanguage = inTranslationLanguage,
                     ),
                 )
             }
         }
     }
+
+    private data class MenuLoad(
+        val emoji: List<String>,
+        val actions: MessageActions,
+        val favorite: Boolean?,
+        val inTranslationLanguage: Boolean,
+    )
 
     /**
      * Přidá samolepku ze zprávy do oblíbených, nebo ji z nich odebere.
@@ -4672,6 +4696,11 @@ data class MessageMenu(
      * uživatel podržel. Ostatní položky (reakce, přeposlání, smazání) jdou dál na celý blok.
      */
     val pressedMessageId: Long? = null,
+    /**
+     * Text zprávy je už v jazyce překladu (rozpoznáno v zařízení, [alreadyInLanguage]) —
+     * „Přeložit" se nenabízí. Nerozpoznaný jazyk je `false`: položka navíc nevadí, chybějící ano.
+     */
+    val inTranslationLanguage: Boolean = false,
 ) {
     /** Do rychlého řádku se vejde jen pár; zbytek je za „+". */
     val quickEmoji: List<String> get() = emoji.take(MAX_QUICK_REACTIONS)
@@ -5225,3 +5254,9 @@ data class LoginRequest(val messageId: Long, val buttonId: Long, val prompt: Log
 
 /** Tlačítko bota s inline dotazem do chatu, který se teprve vybere ([SwitchInlineTarget.Chosen]). */
 data class SwitchInlinePick(val bot: String, val query: String, val target: SwitchInlineTarget.Chosen)
+
+/**
+ * Strop pro rozpoznání jazyka při otevírání nabídky nad zprávou. Rychlé je v řádu milisekund,
+ * jen první volání po startu načítá model; nabídka na něj čekat nemá.
+ */
+private const val LANGUAGE_DETECTION_TIMEOUT_MS = 300L
