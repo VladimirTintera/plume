@@ -105,10 +105,9 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   složky" nad chatem; `CLAUDE.md`, „Složky chatů"). Zbývá:
   - **„Všechny chaty" jinde než první** (`mainChatListPosition`, jen Premium) — správa ho drží
     na místě, kde je.
-  - ~~**Sdílené složky**~~ — náhled a přidání z odkazu, odkazy na vlastní složku hotové. Zbývá:
-    nové chaty ve sdílené složce (`getChatFolderNewChats`, `processChatFolderNewChats`), úprava
-    chatů a názvu odkazu (`editChatFolderInviteLink`) a dotaz, které chaty opustit při smazání
-    přidané složky (`getChatFolderChatsToLeave`).
+  - ~~**Sdílené složky**~~ — hotovo: náhled a přidání z odkazu, odkazy na vlastní složku i jejich
+    úprava, nové chaty v přidané složce a chaty k opuštění při jejím smazání. Skutečné přidání
+    cizí složky a nové chaty od autora ověřené nejsou (chce to druhý účet).
   - **Štítky složek u chatů** (`toggleChatFolderTags`, jen Premium) a barva složky.
   - ~~**Ikona složky**~~ a ~~**„Nechávat chaty ze složek v archivu"**~~ — hotovo. Zápis volby
     archivu ověřený není (mění nastavení účtu).

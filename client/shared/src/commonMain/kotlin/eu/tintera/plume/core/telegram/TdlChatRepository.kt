@@ -1521,7 +1521,14 @@ private fun ChatFolder.toChatList(): ChatList = when (this) {
 
 private fun ChatFolderInfo.toTab(): ChatFolderTab {
     val body = name.text.toBody()
-    return ChatFolderTab(id = id, title = body.text, titleEntities = body.entities, iconName = icon.name, isShareable = isShareable)
+    return ChatFolderTab(
+        id = id,
+        title = body.text,
+        titleEntities = body.entities,
+        iconName = icon.name,
+        isShareable = isShareable,
+        hasMyInviteLinks = hasMyInviteLinks,
+    )
 }
 
 private fun Array<ChatPosition>.toFolderPositions(): Map<ChatFolder, FolderPosition> =

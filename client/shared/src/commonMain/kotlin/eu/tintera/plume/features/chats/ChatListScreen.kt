@@ -219,6 +219,7 @@ fun ChatListScreen(
     val hiddenSavedMessagesChatId by viewModel.hiddenSavedMessagesChatId.collectAsStateWithLifecycle()
     val updateCard by viewModel.updateCard.collectAsStateWithLifecycle()
     val unconfirmedLogin by viewModel.unconfirmedLogin.collectAsStateWithLifecycle()
+    val newFolderChats by viewModel.newFolderChats.collectAsStateWithLifecycle()
     val filter by viewModel.filter.collectAsStateWithLifecycle()
     val chatList by viewModel.state.collectAsStateWithLifecycle()
     val readyChats = (chatList as? ChatListState.Ready)?.chats
@@ -259,6 +260,14 @@ fun ChatListScreen(
     }
 
     ChatActionsHost(viewModel, snackbarHostState, onArchived = onChatArchived)
+    newFolderChats?.takeIf { it.sheetOpen }?.let { folderChats ->
+        NewFolderChatsSheet(
+            state = folderChats,
+            onToggle = viewModel::toggleNewFolderChat,
+            onJoin = { viewModel.processNewFolderChats(join = true) },
+            onDismiss = viewModel::closeNewFolderChats,
+        )
+    }
 
     /*
      * Chat vybraný v hledání, na který má seznam dojet. Ukládá se (`rememberSaveable`): na
@@ -349,7 +358,7 @@ fun ChatListScreen(
                 listState = listState,
                 filter = filter,
                 // Položky hlavičky: nové přihlášení a karta s aktualizací.
-                headerItemCount = listOfNotNull(unconfirmedLogin, updateCard).size,
+                headerItemCount = listOfNotNull(unconfirmedLogin, updateCard, newFolderChats).size,
                 empty = {
                     Text(
                         stringResource(Res.string.chats_empty),
@@ -369,6 +378,16 @@ fun ChatListScreen(
                             enabled = true,
                             onConfirm = { viewModel.confirmLogin(login.sessionId) },
                             onTerminate = { viewModel.terminateLogin(login.sessionId) },
+                            modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
+                        )
+                    }
+                }
+                newFolderChats?.let { folderChats ->
+                    item(key = NEW_FOLDER_CHATS_KEY, contentType = NEW_FOLDER_CHATS_KEY) {
+                        NewFolderChatsCard(
+                            state = folderChats,
+                            onShow = viewModel::openNewFolderChats,
+                            onHide = { viewModel.processNewFolderChats(join = false) },
                             modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
                         )
                     }
@@ -1392,6 +1411,7 @@ private const val TOP_ANCHOR_KEY = "top-anchor"
 
 /** Klíč karty s aktualizací. */
 private const val UPDATE_CARD_KEY = "update-card"
+private const val NEW_FOLDER_CHATS_KEY = "new-folder-chats"
 private const val UNCONFIRMED_LOGIN_KEY = "unconfirmed-login"
 
 /** Výška kotvy — nejmenší, se kterou ji seznam ještě počítá za viditelnou. */

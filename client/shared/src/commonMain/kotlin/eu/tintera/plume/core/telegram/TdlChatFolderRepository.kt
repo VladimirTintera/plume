@@ -7,9 +7,11 @@ import dev.g000sha256.tdl.dto.ChatFolderInviteLink
 import dev.g000sha256.tdl.dto.ChatFolderName
 import dev.g000sha256.tdl.dto.ChatListFolder
 import dev.g000sha256.tdl.dto.FormattedText
+import dev.g000sha256.tdl.dto.OptionValueInteger
 import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.dto.TextEntityTypeCustomEmoji
 import dev.g000sha256.tdl.toResult
+import kotlin.time.Clock
 
 /**
  * Složky Telegramu nad TDLib. Po každém zápisu pošle TDLib `UpdateChatFolders` sám, takže se
@@ -30,10 +32,11 @@ class TdlChatFolderRepository(
     override suspend fun edit(id: Int, draft: ChatFolderDraft): Result<Unit> =
         client.editChatFolder(chatFolderId = id, folder = draft.toTdl()).toResult().map { }
 
-    // Chaty, ke kterým se uživatel přidal přes sdílenou složku, zůstávají — opouštět je by
-    // chtělo vlastní otázku (`getChatFolderChatsToLeave`), a smazání složky ji nečeká.
-    override suspend fun delete(id: Int): Result<Unit> =
-        client.deleteChatFolder(chatFolderId = id, leaveChatIds = longArrayOf()).toResult().map { }
+    override suspend fun chatsToLeave(folderId: Int): Result<List<Long>> =
+        client.getChatFolderChatsToLeave(chatFolderId = folderId).toResult().map { it.chatIds.toList() }
+
+    override suspend fun delete(id: Int, leaveChatIds: List<Long>): Result<Unit> =
+        client.deleteChatFolder(chatFolderId = id, leaveChatIds = leaveChatIds.toLongArray()).toResult().map { }
 
     override suspend fun reorder(ids: List<Int>, mainPosition: Int): Result<Unit> =
         client.reorderChatFolders(chatFolderIds = ids.toIntArray(), mainChatListPosition = mainPosition)
@@ -92,9 +95,52 @@ class TdlChatFolderRepository(
             .toResult().getOrThrow().toLink()
     }
 
+    override suspend fun shareableChats(folderId: Int): Result<List<Long>> =
+        client.getChatsForChatFolderInviteLink(chatFolderId = folderId).toResult().map { it.chatIds.toList() }
+
+    override suspend fun editLink(folderId: Int, url: String, name: String, chatIds: List<Long>): Result<ChatFolderLink> =
+        client.editChatFolderInviteLink(
+            chatFolderId = folderId,
+            inviteLink = url,
+            name = name.trim(),
+            chatIds = chatIds.toLongArray(),
+        ).toResult().map { it.toLink() }
+
+    /**
+     * Nové chaty se čtou nejvýš jednou za `chat_folder_new_chats_update_period` (server to tak
+     * chce); mezitím se vrací poslední odpověď. Pamatuje se pro instanci klienta — po odhlášení
+     * jsou složky jiného účtu.
+     */
+    private val newChatsCache = mutableMapOf<Int, Pair<Long, List<Long>>>()
+    private var newChatsClient: TdlClient? = null
+
+    override suspend fun newChats(folderId: Int): Result<List<Long>> = runCatching {
+        val current = client
+        if (newChatsClient !== current) {
+            newChatsCache.clear()
+            newChatsClient = current
+        }
+        val now = Clock.System.now().epochSeconds
+        val period = (current.getOption(name = "chat_folder_new_chats_update_period").toResult().getOrNull()
+            as? OptionValueInteger)?.value ?: DEFAULT_NEW_CHATS_PERIOD
+        newChatsCache[folderId]?.let { (checkedAt, chats) -> if (now - checkedAt < period) return@runCatching chats }
+        val chats = current.getChatFolderNewChats(chatFolderId = folderId).toResult().getOrThrow().chatIds.toList()
+        newChatsCache[folderId] = now to chats
+        chats
+    }
+
+    override suspend fun processNewChats(folderId: Int, chatIds: List<Long>): Result<Unit> =
+        client.processChatFolderNewChats(chatFolderId = folderId, addedChatIds = chatIds.toLongArray()).toResult()
+            .map { }
+            // Vyřízené nové chaty se nesmí vrátit z paměti; server je teď vydá prázdné.
+            .onSuccess { newChatsCache[folderId] = Clock.System.now().epochSeconds to emptyList() }
+
     override suspend fun deleteLink(folderId: Int, url: String): Result<Unit> =
         client.deleteChatFolderInviteLink(chatFolderId = folderId, inviteLink = url).toResult().map { }
 }
+
+/** Kdyby server interval nevydal: oficiální klienti se ptají nejvýš jednou za hodinu. */
+private const val DEFAULT_NEW_CHATS_PERIOD = 3_600L
 
 private fun ChatFolderInviteLink.toLink() = ChatFolderLink(url = inviteLink, name = name, chatIds = chatIds.toList())
 

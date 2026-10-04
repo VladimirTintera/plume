@@ -16,6 +16,7 @@ import eu.tintera.plume.core.telegram.ChatFolderRepository
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.telegram.MessageEntity
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.ConnectionState
 import eu.tintera.plume.core.telegram.SpamActions
@@ -31,7 +32,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -107,6 +110,70 @@ class ChatsViewModel(
     val state: StateFlow<ChatListState> = shownFolder
         .flatMapLatest { repository.chats(it) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, repository.chats(shownFolder.value).value)
+
+    private val _newFolderChats = MutableStateFlow<NewFolderChats?>(null)
+
+    /**
+     * Chaty, které autor sdílené složky přidal po tom, co si ji uživatel přidal — karta nad
+     * seznamem vybrané složky. Ptá se jen u PŘIDANÉ sdílené složky (vlastní odkazy nemá);
+     * vlastní složku nikdo jiný nemění a dotaz by byl k ničemu.
+     */
+    val newFolderChats: StateFlow<NewFolderChats?> = _newFolderChats.asStateFlow()
+
+    init {
+        if (folder == ChatFolder.Main && folderRepository != null) {
+            viewModelScope.launch {
+                combine(_selectedFolderId, repository.chatFolders) { selected, folders ->
+                    folders.folders.firstOrNull { it.id == selected }
+                        ?.takeIf { it.isShareable && !it.hasMyInviteLinks }
+                }.distinctUntilChangedBy { it?.id }.collectLatest { tab ->
+                    _newFolderChats.value = null
+                    tab ?: return@collectLatest
+                    folderRepository.newChats(tab.id)
+                        .onSuccess { ids ->
+                            if (ids.isEmpty()) return@onSuccess
+                            val chats = repository.summaries(ids)
+                            _newFolderChats.value = NewFolderChats(
+                                folderId = tab.id,
+                                title = tab.title,
+                                titleEntities = tab.titleEntities,
+                                iconName = tab.iconName,
+                                chats = chats,
+                                selected = chats.mapTo(LinkedHashSet()) { it.id },
+                            )
+                        }
+                        .onFailure { failure -> logger.w(failure) { "Nové chaty složky ${tab.id} se nepodařilo zjistit." } }
+                }
+            }
+        }
+    }
+
+    fun openNewFolderChats() = _newFolderChats.update { it?.copy(sheetOpen = true) }
+    fun closeNewFolderChats() = _newFolderChats.update { it?.copy(sheetOpen = false) }
+
+    fun toggleNewFolderChat(chatId: Long) {
+        _newFolderChats.update { state ->
+            state?.takeUnless { it.busy }?.copy(
+                selected = if (chatId in state.selected) state.selected - chatId else state.selected + chatId,
+            ) ?: state
+        }
+    }
+
+    /** Připojí se k vybraným novým chatům (prázdný výběr = „Skrýt": nové chaty se vezmou jako viděné). */
+    fun processNewFolderChats(join: Boolean) {
+        val state = _newFolderChats.value?.takeUnless { it.busy } ?: return
+        val repo = folderRepository ?: return
+        _newFolderChats.value = state.copy(busy = true)
+        viewModelScope.launch {
+            repo.processNewChats(state.folderId, if (join) state.chats.map { it.id }.filter { it in state.selected } else emptyList())
+                .onSuccess { _newFolderChats.value = null }
+                .onFailure { failure ->
+                    logger.w(failure) { "Nové chaty složky ${state.folderId} se nepodařilo vyřídit." }
+                    _newFolderChats.value = state.copy(busy = false)
+                    _actions.update { it.copy(error = failure.userMessage(Res.string.chats_action_failed)) }
+                }
+        }
+    }
 
     /**
      * Vybere složku Telegramu ([id]), nebo celý seznam (`null`). Žije jako filtr: přežije návrat
@@ -516,3 +583,15 @@ private const val FILTER_KEY = "filter"
 
 /** Klíč vybrané složky Telegramu v [SavedStateHandle]. */
 private const val FOLDER_KEY = "folder"
+
+/** Nové chaty v přidané sdílené složce a jestli je otevřený sheet s nimi. */
+data class NewFolderChats(
+    val folderId: Int,
+    val title: String,
+    val titleEntities: List<MessageEntity>,
+    val iconName: String?,
+    val chats: List<ChatSummary>,
+    val selected: Set<Long>,
+    val sheetOpen: Boolean = false,
+    val busy: Boolean = false,
+)

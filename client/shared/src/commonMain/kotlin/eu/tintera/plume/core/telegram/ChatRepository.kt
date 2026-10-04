@@ -421,6 +421,11 @@ data class ChatFolderTab(
     val iconName: String? = null,
     /** Složka má (nebo měla) odkaz ke sdílení — pak nenese druhy chatů ani vynechané. */
     val isShareable: Boolean = false,
+    /**
+     * Uživatel má na složku vlastní odkazy, tedy ji sdílí sám. Sdílená složka BEZ nich je přidaná
+     * z cizího odkazu — a jen u takové mají smysl nové chaty od autora.
+     */
+    val hasMyInviteLinks: Boolean = false,
 )
 
 /**

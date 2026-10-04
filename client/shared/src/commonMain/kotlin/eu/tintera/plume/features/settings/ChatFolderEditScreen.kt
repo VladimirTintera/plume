@@ -141,6 +141,21 @@ import eu.tintera.plume.resources.chat_folder_share_delete_body
 import eu.tintera.plume.resources.chat_folder_shared_only_chosen
 import eu.tintera.plume.resources.link_24dp
 import eu.tintera.plume.resources.share_24dp
+import androidx.compose.material3.Button
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.foundation.layout.heightIn
+import eu.tintera.plume.core.ui.CheckableChatRows
+import eu.tintera.plume.core.ui.resolve
+import eu.tintera.plume.resources.content_copy_24dp
+import eu.tintera.plume.resources.chat_folder_share_edit
+import eu.tintera.plume.resources.chat_folder_link_title
+import eu.tintera.plume.resources.chat_folder_link_name
+import eu.tintera.plume.resources.chat_folder_link_name_help
+import eu.tintera.plume.resources.chat_folder_link_chats
+import eu.tintera.plume.resources.chat_folder_link_chats_help
+import eu.tintera.plume.resources.chat_folder_link_no_chats
+import eu.tintera.plume.resources.chat_folder_delete_body_leave
+import eu.tintera.plume.resources.chat_folder_delete_leave
 
 /**
  * Editor složky: název, co do ní patří (vybrané chaty a druhy chatů) a co z ní vypadne
@@ -184,7 +199,6 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
         return
     }
 
-    var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var linkToDelete by rememberSaveable { mutableStateOf<String?>(null) }
     val draft = state.draft
     val problem = state.problem.takeIf { state.showProblem }
@@ -202,7 +216,7 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
                 },
                 actions = {
                     if (!state.isNew) {
-                        IconButton(onClick = { confirmDelete = true }, enabled = !state.saving) {
+                        IconButton(onClick = viewModel::requestDelete, enabled = !state.saving) {
                             Icon(painterResource(Res.drawable.delete_24dp), contentDescription = stringResource(Res.string.chat_folder_delete))
                         }
                     }
@@ -320,9 +334,8 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
                     canCreate = state.canCreateLink,
                     busy = state.linkBusy,
                     onCreate = viewModel::createLink,
-                    onCopy = viewModel::copyLink,
+                    onOpen = viewModel::openLink,
                     onShare = viewModel::shareLink,
-                    onDelete = { linkToDelete = it.url },
                 )
                 Text(
                     stringResource(
@@ -366,20 +379,28 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
         )
     }
 
-    if (confirmDelete) {
-        AlertDialog(
-            onDismissRequest = { confirmDelete = false },
-            title = { Text(stringResource(Res.string.chat_folder_delete_title)) },
-            text = { Text(stringResource(Res.string.chat_folder_delete_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmDelete = false
-                    viewModel.delete()
-                }) {
-                    Text(stringResource(Res.string.chat_folder_delete), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(Res.string.common_cancel)) } },
+    // Otevře se, až je jasné, jestli jsou chaty k opuštění — dotaz je lokální a krátký, a dialog,
+    // který by uprostřed čtení povyrostl o seznam, by vypadal jako chyba.
+    state.deleteRequest?.takeIf { it.chats != null }?.let { request ->
+        FolderDeleteDialog(
+            request = request,
+            onToggle = viewModel::toggleLeave,
+            onConfirm = viewModel::delete,
+            onDismiss = viewModel::cancelDelete,
+        )
+    }
+
+    state.linkEditor?.let { editor ->
+        FolderLinkSheet(
+            editor = editor,
+            busy = state.linkBusy,
+            onName = viewModel::setLinkName,
+            onToggle = viewModel::toggleLinkChat,
+            onSave = viewModel::saveLink,
+            onCopy = { viewModel.copyLink(editor.link) },
+            onShare = { viewModel.shareLink(editor.link) },
+            onDelete = { linkToDelete = editor.link.url },
+            onDismiss = viewModel::closeLink,
         )
     }
 }
@@ -451,7 +472,8 @@ private fun FolderBlock(
 
 /**
  * Odkazy na sdílenou složku: „Vytvořit odkaz" a pod ním odkazy, jeden blok jako ostatní.
- * Ťuknutí na odkaz ho zkopíruje, vedle je systémové sdílení a smazání.
+ * Ťuknutí na odkaz ho otevře (název, chaty, kopírování, smazání), vedle je systémové sdílení —
+ * to se dělá nejčastěji, a nemá proto chtít krok navíc.
  */
 @Composable
 private fun FolderLinks(
@@ -459,9 +481,8 @@ private fun FolderLinks(
     canCreate: Boolean,
     busy: Boolean,
     onCreate: () -> Unit,
-    onCopy: (ChatFolderLink) -> Unit,
+    onOpen: (ChatFolderLink) -> Unit,
     onShare: (ChatFolderLink) -> Unit,
-    onDelete: (ChatFolderLink) -> Unit,
 ) {
     val count = 1 + links.size
     Column(verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING)) {
@@ -490,19 +511,14 @@ private fun FolderLinks(
                 },
                 leadingContent = { FolderIcon(Res.drawable.link_24dp, accent = false) },
                 trailingContent = {
-                    Row {
-                        IconButton(onClick = { onShare(link) }) {
-                            Icon(painterResource(Res.drawable.share_24dp), contentDescription = stringResource(Res.string.chat_folder_share_share))
-                        }
-                        IconButton(onClick = { onDelete(link) }, enabled = !busy) {
-                            Icon(painterResource(Res.drawable.delete_24dp), contentDescription = stringResource(Res.string.chat_folder_share_delete))
-                        }
+                    IconButton(onClick = { onShare(link) }) {
+                        Icon(painterResource(Res.drawable.share_24dp), contentDescription = stringResource(Res.string.chat_folder_share_share))
                     }
                 },
                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
                 modifier = Modifier
                     .clip(groupItemShape(1 + index, count))
-                    .clickable(onClickLabel = stringResource(Res.string.chat_folder_share_copy)) { onCopy(link) },
+                    .clickable(onClickLabel = stringResource(Res.string.chat_folder_share_edit)) { onOpen(link) },
             )
         }
     }
@@ -615,6 +631,179 @@ private fun FolderIconSheet(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Potvrzení smazání složky. U složky přidané z odkazu se zároveň nabídnou chaty, ze kterých jde
+ * odejít (`getChatFolderChatsToLeave`) — zaškrtnuté všechny, jako u oficiálních klientů: kdo
+ * maže sdílenou složku, obvykle nechce zůstat v jejích kanálech. U vlastní složky je seznam
+ * prázdný a dialog je stejný jako dřív.
+ */
+@Composable
+private fun FolderDeleteDialog(
+    request: FolderDeleteRequest,
+    onToggle: (Long) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val chats = request.chats.orEmpty()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.chat_folder_delete_title)) },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
+                Text(stringResource(if (chats.isEmpty()) Res.string.chat_folder_delete_body else Res.string.chat_folder_delete_body_leave))
+                if (chats.isNotEmpty()) {
+                    Text(
+                        stringResource(Res.string.chat_folder_delete_leave),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    CheckableChatRows(chats = chats, selected = request.leave, onToggle = onToggle)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(Res.string.chat_folder_delete), color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+    )
+}
+
+/**
+ * Otevřený odkaz na složku: adresa s kopírováním a sdílením, název (vidí ho jen autor) a chaty,
+ * které odkaz nabízí. Ukládá se tlačítkem — název i chaty jdou jedním `editChatFolderInviteLink`.
+ * Nabízí se všechny chaty složky, které jde sdílet (`getChatsForChatFolderInviteLink`), nejen ty,
+ * které odkaz má teď.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun FolderLinkSheet(
+    editor: FolderLinkEditor,
+    busy: Boolean,
+    onName: (String) -> Unit,
+    onToggle: (Long) -> Unit,
+    onSave: () -> Unit,
+    onCopy: () -> Unit,
+    onShare: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    // Chatů bývá víc než na půl obrazovky; napůl rozbalený sheet by Uložit schoval pod okraj.
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .imePadding()
+                .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
+        ) {
+            Text(
+                stringResource(Res.string.chat_folder_link_title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp),
+            )
+            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest) {
+                ListItem(
+                    headlineContent = {
+                        Text(editor.link.url.removePrefix("https://"), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    },
+                    leadingContent = { FolderIcon(Res.drawable.link_24dp, accent = false) },
+                    trailingContent = {
+                        Row {
+                            IconButton(onClick = onCopy) {
+                                Icon(
+                                    painterResource(if (editor.copied) Res.drawable.check_24dp else Res.drawable.content_copy_24dp),
+                                    contentDescription = stringResource(Res.string.chat_folder_share_copy),
+                                )
+                            }
+                            IconButton(onClick = onShare) {
+                                Icon(painterResource(Res.drawable.share_24dp), contentDescription = stringResource(Res.string.chat_folder_share_share))
+                            }
+                        }
+                    },
+                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                )
+            }
+            OutlinedTextField(
+                value = editor.name,
+                onValueChange = onName,
+                label = { Text(stringResource(Res.string.chat_folder_link_name)) },
+                supportingText = { Text(stringResource(Res.string.chat_folder_link_name_help)) },
+                singleLine = true,
+                enabled = !editor.saving,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
+
+            Text(
+                stringResource(Res.string.chat_folder_link_chats),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 8.dp, start = 16.dp),
+            )
+            Text(
+                stringResource(
+                    if (editor.chats != null && editor.selected.isEmpty()) {
+                        Res.string.chat_folder_link_no_chats
+                    } else {
+                        Res.string.chat_folder_link_chats_help
+                    },
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (editor.chats != null && editor.selected.isEmpty()) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp),
+            )
+            val chats = editor.chats
+            if (chats == null) {
+                Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { LoadingIndicator() }
+            } else {
+                CheckableChatRows(chats = chats, selected = editor.selected, onToggle = onToggle, enabled = !editor.saving)
+            }
+
+            editor.error?.let { error ->
+                Text(
+                    error.resolve(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 8.dp, start = 16.dp, end = 16.dp),
+                )
+            }
+            Button(
+                onClick = onSave,
+                enabled = editor.canSave && !editor.saving,
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp).heightIn(min = 56.dp),
+            ) {
+                if (editor.saving) {
+                    LoadingIndicator(color = LocalContentColor.current)
+                } else {
+                    Text(stringResource(Res.string.chat_folder_save))
+                }
+            }
+            TextButton(
+                onClick = onDelete,
+                enabled = !busy && !editor.saving,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            ) {
+                Text(stringResource(Res.string.chat_folder_share_delete), color = MaterialTheme.colorScheme.error)
             }
         }
     }
